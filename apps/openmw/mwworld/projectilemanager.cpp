@@ -17,6 +17,9 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/projectilestate.hpp>
 
+#include <components/esm/quaternion.hpp>
+#include <components/esm/vector3.hpp>
+
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -111,7 +114,7 @@ namespace
         }
 
         if (count != 0)
-            speed /= static_cast<float>(count);
+            speed /= count;
 
         // the particle texture is only used if there is only one projectile
         if (projectileEffects.mList.size() == 1)
@@ -122,14 +125,14 @@ namespace
             texture = magicEffect->mParticle;
         }
 
-        if (projectileEffects.mList.size()
-            > 1) // insert a VFX_Multiple projectile if there are multiple projectile effects
+        // insert a VFX_Multiple projectile if there are multiple projectile effects
+        if (projectileEffects.mList.size() > 1)
         {
-            const ESM::RefId vfxId = ESM::RefId::stringRefId("VFX_Multiple" + std::to_string(effects->mList.size()));
-            std::vector<ESM::RefId>::iterator it;
-            it = projectileIDs.begin();
-            it = projectileIDs.insert(it, vfxId);
+            const ESM::RefId projectileId
+                = ESM::RefId::stringRefId("VFX_Multiple" + std::to_string(effects->mList.size()));
+            projectileIDs.insert(projectileIDs.begin(), projectileId);
         }
+
         return projectileEffects;
     }
 
@@ -143,9 +146,8 @@ namespace
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(enam.mData.mEffectID);
             lightDiffuseColor += magicEffect->getColor();
         }
-        const float numberOfEffects = static_cast<float>(effects.mList.size());
-        if (numberOfEffects > 0.0f)
-            lightDiffuseColor /= numberOfEffects;
+        size_t numberOfEffects = effects.mList.size();
+        lightDiffuseColor /= static_cast<float>(numberOfEffects);
 
         return lightDiffuseColor;
     }
@@ -191,8 +193,7 @@ namespace MWWorld
     class RotateCallback : public SceneUtil::NodeCallback<RotateCallback, osg::PositionAttitudeTransform*>
     {
     public:
-        RotateCallback(
-            const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = static_cast<float>(osg::PI * 2.0))
+        RotateCallback(const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = osg::PI * 2)
             : mAxis(axis)
             , mRotateSpeed(rotateSpeed)
         {
@@ -246,7 +247,7 @@ namespace MWWorld
                 attachTo->accept(findVisitor);
                 if (findVisitor.mFoundNode)
                     mResourceSystem->getSceneManager()->getInstance(
-                        Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(weapon->mModel)),
+                        Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(weapon->mModel)),
                         findVisitor.mFoundNode);
             }
         }
@@ -298,8 +299,8 @@ namespace MWWorld
             pos.z() += mPhysics->getRenderingHalfExtents(caster).z() * 2 * Constants::TorsoHeight;
         }
 
-        if (MWBase::Environment::get().getWorld()->isUnderwater(
-                caster.getCell(), pos)) // Underwater casting not possible
+        // Actors can't cast target spells underwater
+        if (caster.getClass().isActor() && MWBase::Environment::get().getWorld()->isUnderwater(caster.getCell(), pos))
             return;
 
         osg::Quat orient;
@@ -336,7 +337,7 @@ namespace MWWorld
 
         osg::Vec4 lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
 
-        auto model = ptr.getClass().getCorrectedModel(ptr);
+        VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
         createModel(state, model, pos, orient, true, true, lightDiffuseColor, texture);
 
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
@@ -352,12 +353,12 @@ namespace MWWorld
         // shape
         if (state.mIdMagic.size() > 1)
         {
-            model = Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(
+            model = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(
                 MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().find(state.mIdMagic[1])->mModel));
         }
         state.mProjectileId = mPhysics->addProjectile(caster, pos, model, true);
         state.mToDelete = false;
-        mMagicBolts.push_back(state);
+        mMagicBolts.push_back(std::move(state));
     }
 
     void ProjectileManager::launchProjectile(const Ptr& actor, const ConstPtr& projectile, const osg::Vec3f& pos,
@@ -374,14 +375,14 @@ namespace MWWorld
         MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), projectile.getCellRef().getRefId());
         MWWorld::Ptr ptr = ref.getPtr();
 
-        const auto model = ptr.getClass().getCorrectedModel(ptr);
+        const VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
         createModel(state, model, pos, orient, false, false, osg::Vec4(0, 0, 0, 0));
         if (!ptr.getClass().getEnchantment(ptr).empty())
             SceneUtil::addEnchantedGlow(state.mNode, mResourceSystem, ptr.getClass().getEnchantmentColor(ptr));
 
         state.mProjectileId = mPhysics->addProjectile(actor, pos, model, false);
         state.mToDelete = false;
-        mProjectiles.push_back(state);
+        mProjectiles.push_back(std::move(state));
     }
 
     void ProjectileManager::updateCasters()
@@ -481,6 +482,11 @@ namespace MWWorld
 
             update(magicBoltState, duration);
 
+            for (const auto& sound : magicBoltState.mSounds)
+            {
+                sound->setVelocity(direction * speed);
+            }
+
             // For AI actors, get combat targets to use in the ray cast. Only those targets will return a positive hit
             // result.
             std::vector<MWWorld::Ptr> targetActors;
@@ -577,15 +583,19 @@ namespace MWWorld
             for (const auto& sound : magicBoltState.mSounds)
                 sound->setPosition(pos);
 
-            if (projectile->isActive())
+            const Ptr caster = magicBoltState.getCaster();
+
+            const MWBase::World& world = *MWBase::Environment::get().getWorld();
+            const bool active = projectile->isActive();
+            if (active && !world.isUnderwater(caster.getCell(), pos))
                 continue;
 
-            const auto target = projectile->getTarget();
-            const auto caster = magicBoltState.getCaster();
+            const Ptr target = !active ? projectile->getTarget() : Ptr();
+
             assert(target != caster);
 
             MWMechanics::CastSpell cast(caster, target);
-            cast.mHitPosition = projectile->getHitPosition();
+            cast.mHitPosition = !active ? projectile->getHitPosition() : pos;
             cast.mId = magicBoltState.mSpellId;
             cast.mSourceName = magicBoltState.mSourceName;
             cast.mItem = magicBoltState.mItem;
@@ -717,15 +727,17 @@ namespace MWWorld
                 state.mProjectileId
                     = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, false);
             }
-            catch (...)
+            catch (const std::exception& e)
             {
+                Log(Debug::Warning) << "Failed to add projectile for " << esm.mId
+                                    << " while reading projectile record: " << e.what();
                 return true;
             }
 
             createModel(state, model, osg::Vec3f(esm.mPosition), osg::Quat(esm.mOrientation), false, false,
                 osg::Vec4(0, 0, 0, 0));
 
-            mProjectiles.push_back(state);
+            mProjectiles.push_back(std::move(state));
             return true;
         }
         if (type == ESM::REC_MPRJ)
@@ -746,10 +758,10 @@ namespace MWWorld
                 state.mEffects = getMagicBoltData(
                     state.mIdMagic, state.mSoundIds, state.mSpeed, texture, state.mSourceName, state.mSpellId);
             }
-            catch (...)
+            catch (const std::exception& e)
             {
-                Log(Debug::Warning) << "Warning: Failed to recreate magic projectile from saved data (id \""
-                                    << state.mSpellId << "\" no longer exists?)";
+                Log(Debug::Warning) << "Failed to recreate magic projectile for " << esm.mId << " and spell "
+                                    << state.mSpellId << " while reading projectile record: " << e.what();
                 return true;
             }
 
@@ -765,8 +777,10 @@ namespace MWWorld
                 MWWorld::Ptr ptr = ref.getPtr();
                 model = ptr.getClass().getCorrectedModel(ptr);
             }
-            catch (...)
+            catch (const std::exception& e)
             {
+                Log(Debug::Warning) << "Failed to get model for " << state.mIdMagic.at(0)
+                                    << " while reading projectile record: " << e.what();
                 return true;
             }
 
@@ -784,7 +798,7 @@ namespace MWWorld
                     state.mSounds.push_back(sound);
             }
 
-            mMagicBolts.push_back(state);
+            mMagicBolts.push_back(std::move(state));
             return true;
         }
 
@@ -802,9 +816,9 @@ namespace MWWorld
         if (reader.mActorIdConverter)
         {
             for (ProjectileState& projectile : mProjectiles)
-                reader.mActorIdConverter->convert(projectile.mCaster, static_cast<int>(projectile.mCaster.mIndex));
+                reader.mActorIdConverter->convert(projectile.mCaster, projectile.mCaster.mIndex);
             for (MagicBoltState& bolt : mMagicBolts)
-                reader.mActorIdConverter->convert(bolt.mCaster, static_cast<int>(bolt.mCaster.mIndex));
+                reader.mActorIdConverter->convert(bolt.mCaster, bolt.mCaster.mIndex);
         }
     }
 

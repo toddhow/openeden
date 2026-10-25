@@ -11,9 +11,9 @@
 #include <MyGUI_TextIterator.h>
 
 #include <Jolt/Jolt.h>
-#include <Jolt/Physics/Collision/CastResult.h>
-#include <Jolt/Physics/Collision/RayCast.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+
+#include <Jolt/Geometry/AABox.h>
+#include <Jolt/Geometry/RayAABox.h>
 
 #include <components/debug/debuglog.hpp>
 
@@ -3798,33 +3798,23 @@ namespace MWWorld
         if (!object)
             return false;
 
-        JPH::AABox aabbBounds = object->getShapeInstance()->mCollisionShape->GetLocalBounds();
-        JPH::Vec3 halfExtents = (aabbBounds.mMax - aabbBounds.mMin) / 2.0f;
+        const JPH::AABox aabbBounds = object->getShapeInstance()->mCollisionShape->GetLocalBounds();
 
-        osg::Matrixd toLocal = osg::Matrixd::inverse(object->getTransform());
+        const osg::Matrixd toLocal = osg::Matrixd::inverse(object->getTransform());
         const JPH::Vec3 localFrom = Misc::Convert::toJolt<JPH::Vec3>(position * toLocal);
         const JPH::Vec3 localTo = Misc::Convert::toJolt<JPH::Vec3>(destination * toLocal);
-        const JPH::Vec3 diff = localTo - localFrom;
 
-        JPH::BoxShape boundsShape(halfExtents);
-        boundsShape.SetEmbedded();
-        JPH::RayCast ray(localFrom, diff);
-        JPH::RayCastResult ioHit;
-        return boundsShape.CastRay(ray, {}, ioHit);
-    }
-
-    bool World::isAreaOccupiedByOtherActor(const osg::Vec3f& position, const float radius,
-        std::span<const MWWorld::ConstPtr> ignore, std::vector<MWWorld::Ptr>* occupyingActors) const
-    {
-        return mPhysics->isAreaOccupiedByOtherActor(position, radius, ignore, occupyingActors);
+        // Test the segment between both points against the local shape bounds
+        const JPH::RayInvDirection invDirection(localTo - localFrom);
+        return JPH::RayAABox(localFrom, invDirection, aabbBounds.mMin, aabbBounds.mMax) <= 1.0f;
     }
 
     bool World::isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const
     {
-        const osg::Vec3f halfExtents = getHalfExtents(actor);
-        const float radius = std::max(20.f, std::max(halfExtents.x(), halfExtents.y()));
+        const osg::Vec3f halfExtents = getPathfindingAgentBounds(actor).mHalfExtents;
+        const float maxHalfExtent = std::max(halfExtents.x(), std::max(halfExtents.y(), halfExtents.z()));
         const std::array<MWWorld::ConstPtr, 1> ignore{ actor };
-        return isAreaOccupiedByOtherActor(position, radius, ignore, nullptr);
+        return mPhysics->isAreaOccupiedByOtherActor(position, 2 * maxHalfExtent, ignore, nullptr);
     }
 
     void World::reportStats(unsigned int frameNumber, osg::Stats& stats) const

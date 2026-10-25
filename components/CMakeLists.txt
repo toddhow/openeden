@@ -576,7 +576,7 @@ if (MSVC)
     )
 endif()
 
-include_directories(${BULLET_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 find_package(SQLite3 REQUIRED)
 
@@ -687,8 +687,6 @@ endif()
 set(COMPONENT_FILES ${COMPONENT_FILES} PARENT_SCOPE)
 
 target_compile_definitions(components PUBLIC
-    BT_USE_DOUBLE_PRECISION
-    DOUBLE_PRECISION
     MYGUI_DONT_USE_OBSOLETE=ON
 )
 

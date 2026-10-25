@@ -75,7 +75,8 @@ namespace MWPhysics
             float earlyOut = inResult.GetEarlyOutFraction();
             if (collisionGroup == Layers::ACTOR)
             {
-                bool isOverlapping = inResult.mPenetrationDepth != 0.0f;
+                // Jolt reports shapes that already intersect at the start of the cast with a fraction of 0
+                const bool isOverlapping = inResult.mFraction <= 0.0f;
                 if (isOverlapping)
                 {
                     auto originA = mSelfCenterWorld;
@@ -83,26 +84,21 @@ namespace MWPhysics
                     osg::Vec3f motion = Misc::Convert::toOsg(mMotion);
                     osg::Vec3f normal = (originA - originB);
                     normal.z() = 0;
-                    motion.z() = 0;
+                    normal.normalize();
 
-                    // Prefer the vanilla-like horizontal actor-vs-actor response when moving into another actor.
-                    // If actors are vertically stacked (normal almost zero), fall back to the standard contact normal
-                    // handling below to avoid dropping contacts.
-                    if (normal.length2() > 0.0001f && motion.length2() > 0.0001f)
-                    {
-                        normal.normalize();
-                        if (normal * motion < 0.0f)
-                        {
-                            // Get the contact properties
-                            mHitCollisionObject = body;
-                            mHitCollisionLayer = collisionGroup;
-                            mHitPointWorld = mOrigin + Misc::Convert::toOsg(inResult.mContactPointOn2);
-                            mHitNormalWorld = Misc::Convert::toJolt<JPH::Vec3>(normal);
-                            mClosestHitFraction = 0.0f;
-                            ForceEarlyOut();
-                            return;
-                        }
-                    }
+                    // only collide if horizontally moving towards the hit actor, otherwise ignore the overlap so
+                    // that actors spawned inside each other (e.g. placeatpc) are able to walk apart
+                    if (normal * motion >= 0.0f)
+                        return;
+
+                    // Get the contact properties
+                    mHitCollisionObject = body;
+                    mHitCollisionLayer = collisionGroup;
+                    mHitPointWorld = mOrigin + Misc::Convert::toOsg(inResult.mContactPointOn2);
+                    mHitNormalWorld = Misc::Convert::toJolt<JPH::Vec3>(normal);
+                    mClosestHitFraction = 0.0f;
+                    ForceEarlyOut();
+                    return;
                 }
             }
 

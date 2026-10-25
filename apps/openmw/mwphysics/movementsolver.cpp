@@ -69,12 +69,7 @@ namespace MWPhysics
                     mDelta = delta;
                 }
 
-                float earlyOut = inResult.GetEarlyOutFraction();
-                if (earlyOut < GetEarlyOutFraction())
-                {
-                    // Update early out fraction to this hit
-                    UpdateEarlyOutFraction(earlyOut);
-                }
+                // NOTE: don't call UpdateEarlyOutFraction here, every contact is needed to build the contact sum
             }
 
             float mMaxX = 0.0;
@@ -196,15 +191,10 @@ namespace MWPhysics
         // Now that we have the effective movement vector, apply wind forces to it
         if (worldData.mIsInStorm && velocity.length() > 0)
         {
-            osg::Vec3f stormDirection = worldData.mStormDirection;
-            float angleDegrees = osg::RadiansToDegrees(
-                std::acos(stormDirection * velocity / (stormDirection.length() * velocity.length())));
-            static const float fStromWalkMult = MWBase::Environment::get()
-                                                    .getESMStore()
-                                                    ->get<ESM::GameSetting>()
-                                                    .find("fStromWalkMult")
-                                                    ->mValue.getFloat();
-            velocity *= 1.f - (fStromWalkMult * (angleDegrees / 180.f));
+            const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
+            const float fStromWalkMult = store.get<ESM::GameSetting>().find("fStromWalkMult")->mValue.getFloat();
+            const float angleCos = worldData.mStormDirection * velocity / velocity.length();
+            velocity *= 1.f + fStromWalkMult * angleCos;
         }
 
         Stepper stepper(physicsSystem, actor.mPhysicsBody);
@@ -524,14 +514,14 @@ namespace MWPhysics
             const JPH::ShapeRefC shape = actorBody.GetShape();
             const JPH::RMat44& trans = actorBody.GetWorldTransform();
 
-            JPH::RMat44 oldTransformJolt(trans);
-            JPH::RMat44 newTransformJolt(oldTransformJolt);
+            JPH::RMat44 newTransformJolt(trans);
             const JPH::Vec3 scale = JPH::Vec3::sReplicate(1.0f);
 
-            // Create a mask from the actor, excluding projectiles.
-            // Keep actor collisions enabled here so overlap recovery can separate stacked actors.
+            // Create a mask that is same of the actor minus projectiles and other actors
+            // Overlapping actors are separated by the actor-actor handling in ActorConvexCallback instead
             int collisionMask = actor.mCollisionMask;
             collisionMask = collisionMask & ~Layers::PROJECTILE;
+            collisionMask = collisionMask & ~Layers::ACTOR;
 
             // Filter out layers
             JPH::DefaultBroadPhaseLayerFilter broadphaseLayerFilter
@@ -539,13 +529,11 @@ namespace MWPhysics
             MaskedObjectLayerFilter objectLayerFilter(collisionMask);
             lock.ReleaseLock();
 
-            JPH::BodyInterface& bodyInterface = physicsSystem->GetBodyInterface();
-
+            // NOTE: the actor body itself is never moved here, the query shape is placed at the candidate
+            // transform directly so other threads never observe the temporary positions
             auto gatherContacts = [&](JPH::Vec3 newOffset) -> ContactCollectionCallback {
                 goodPosition = refPosition + Misc::Convert::toOsg(addMarginToDelta(newOffset));
                 newTransformJolt.SetTranslation(Misc::Convert::toJolt<JPH::RVec3>(goodPosition));
-                bodyInterface.SetPosition(
-                    actor.mPhysicsBody, newTransformJolt.GetTranslation(), JPH::EActivation::Activate);
 
                 // Collide with all edges, dont collect face data and ignore backfaces
                 JPH::CollideShapeSettings settings;
@@ -608,8 +596,6 @@ namespace MWPhysics
                 actor.mLastStuckPosition = { 0, 0, 0 };
             }
 
-            bodyInterface.SetPosition(
-                actor.mPhysicsBody, oldTransformJolt.GetTranslation(), JPH::EActivation::Activate);
             actor.mPosition = tempPosition;
         }
         else

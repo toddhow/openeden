@@ -181,8 +181,7 @@ namespace MWWorld
             Loading::Listener* listener);
 
         float feetToGameUnits(float feet);
-        bool isAreaOccupiedByOtherActor(const osg::Vec3f& position, float radius,
-            std::span<const MWWorld::ConstPtr> ignore = {}, std::vector<MWWorld::Ptr>* occupyingActors = nullptr) const;
+
         MWWorld::ConstPtr getClosestMarker(const MWWorld::ConstPtr& ptr, const ESM::RefId& id);
         MWWorld::ConstPtr getClosestMarkerFromExteriorPosition(const osg::Vec3f& worldPos, const ESM::RefId& id);
 

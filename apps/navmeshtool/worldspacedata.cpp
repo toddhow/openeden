@@ -106,7 +106,7 @@ namespace NavMeshTool
             for (std::size_t i = 0; i < cell.mContextList.size(); i++)
             {
                 ESM::ReadersCache::BusyItem reader = readers.get(static_cast<std::size_t>(cell.mContextList[i].index));
-                cell.restore(*reader, i);
+                cell.restore(*reader, static_cast<int>(i));
                 ESM::CellRef cellRef;
                 bool deleted = false;
                 while (ESM::Cell::getNextRef(*reader, cellRef, deleted))

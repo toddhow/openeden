@@ -89,16 +89,15 @@ namespace MWPhysics
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
         virtual const char* GetBroadPhaseLayerName(JPH::BroadPhaseLayer inLayer) const override
         {
-            switch ((JPH::BroadPhaseLayer::Type)inLayer)
-            {
-                // case (JPH::BroadPhaseLayer::Type)BroadPhaseLayers::WORLD:    return "WORLD";
-                // case (JPH::BroadPhaseLayer::Type)BroadPhaseLayers::DYNAMIC_WORLD:        return "DYNAMIC_WORLD";
-                // case (JPH::BroadPhaseLayer::Type)BroadPhaseLayers::DEBRIS:        return "DEBRIS";
-                // case (JPH::BroadPhaseLayer::Type)BroadPhaseLayers::SENSOR:        return "SENSOR";
-                // case (JPH::BroadPhaseLayer::Type)BroadPhaseLayers::UNUSED:        return "UNUSED";
-                default:
-                    return "INVALID";
-            }
+            if (inLayer == BroadPhaseLayers::WORLD)
+                return "WORLD";
+            if (inLayer == BroadPhaseLayers::MOVING)
+                return "MOVING";
+            if (inLayer == BroadPhaseLayers::DEBRIS)
+                return "DEBRIS";
+            if (inLayer == BroadPhaseLayers::SENSOR)
+                return "SENSOR";
+            return "INVALID";
         }
 #endif
     };

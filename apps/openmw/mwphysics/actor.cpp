@@ -68,8 +68,11 @@ namespace MWPhysics
                                   << ptr.getCellRef().getRefId() << "\".";
         }
 
-        if ((mMeshTranslation.x() == 0.0 && mMeshTranslation.y() == 0.0)
-            && std::fabs(mOriginalHalfExtents.x() - mOriginalHalfExtents.y()) < 2.2)
+        float extRatio = 0.f;
+        if (mOriginalHalfExtents.y() != 0.f)
+            extRatio = mOriginalHalfExtents.x() / mOriginalHalfExtents.y();
+
+        if (mMeshTranslation.x() == 0.0 && mMeshTranslation.y() == 0.0 && extRatio >= 1.f / 1.1f && extRatio <= 1.1f)
         {
             switch (collisionShapeType)
             {

@@ -9,8 +9,9 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
-#include "../mwphysics/physicssystem.hpp"
+#include <Jolt/Jolt.h>
 
+#include <filesystem>
 #include <mutex>
 
 namespace MWGui
@@ -38,10 +39,15 @@ namespace MWGui
             "LogEdit", MyGUI::FloatCoord(0, 0, 1, 1), MyGUI::Align::Stretch);
         mLuaProfiler->setEditReadOnly(true);
 
+#ifdef JPH_PROFILE_ENABLED
         MyGUI::TabItem* item = mTabControl->addItem("Physics Profiler");
         item->setCaptionWithReplacing(" #{OMWEngine:PhysicsProfiler} ");
         mPhysicsProfilerEdit
             = item->createWidgetReal<MyGUI::EditBox>("LogEdit", MyGUI::FloatCoord(0, 0, 1, 1), MyGUI::Align::Stretch);
+        mPhysicsProfilerEdit->setEditReadOnly(true);
+#else
+        mPhysicsProfilerEdit = nullptr;
+#endif
     }
 
     static std::vector<char> sLogCircularBuffer;
@@ -153,17 +159,16 @@ namespace MWGui
 
     void DebugWindow::updatePhysicsProfile()
     {
-        if (mPhysicsProfilerEdit->isTextSelection()) // pause updating while user is trying to copy text
+#ifdef JPH_PROFILE_ENABLED
+        // Jolt writes its profile as an HTML chart on the next physics frame, request one each time the tab is opened
+        if (mPhysicsProfileDumped)
             return;
+        mPhysicsProfileDumped = true;
 
-        size_t previousPos = mPhysicsProfilerEdit->getVScrollPosition();
-#ifndef JPH_PROFILE_ENABLED
-        mPhysicsProfilerEdit->setCaption("OpenMW was not compiled with Jolt profiling flag.");
-#else
-        mPhysicsProfilerEdit->setCaption("Jolt profiling currently disabled.");
-        // JPH_PROFILE_DUMP("dumper");
+        JPH_PROFILE_DUMP("openmw");
+        const std::filesystem::path chart = std::filesystem::current_path() / "profile_chart_openmw.html";
+        mPhysicsProfilerEdit->setCaption("Jolt physics profile written to:\n" + chart.string());
 #endif
-        mPhysicsProfilerEdit->setVScrollPosition(std::min(previousPos, mPhysicsProfilerEdit->getVScrollRange() - 1));
     }
 
     void DebugWindow::onFrame(float dt)
@@ -174,7 +179,11 @@ namespace MWGui
             return;
         timer = 0.25;
 
-        switch (mTabControl->getIndexSelected())
+        const std::size_t selected = mTabControl->getIndexSelected();
+        if (selected != 2)
+            mPhysicsProfileDumped = false;
+
+        switch (selected)
         {
             case 0:
                 updateLogView();

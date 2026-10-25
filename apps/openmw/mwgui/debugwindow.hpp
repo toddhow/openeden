@@ -24,6 +24,7 @@ namespace MWGui
         MyGUI::EditBox* mLogView;
         MyGUI::EditBox* mLuaProfiler;
         MyGUI::EditBox* mPhysicsProfilerEdit;
+        bool mPhysicsProfileDumped = false;
     };
 
 }
