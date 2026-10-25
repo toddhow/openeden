@@ -523,6 +523,31 @@ add_component_dir(testing
     util
 )
 
+add_component_dir(plugin
+    manifest
+    load_error
+    manifest_io
+    dynamic_library
+    plugin_loader
+    dependency_resolver
+    service_registry
+    lifecycle_manager
+    event_bus
+    entity_manager
+    settings_service
+    save_service
+    collision_layer_registry
+    vfs_service
+    host_impl
+    logging_service
+    profiler_service
+    scratch_memory
+    debug_draw_service
+    scripting_service
+    editor_service
+    physics_service
+)
+
 if (USE_QT)
     add_component_qt_dir (contentselector
         model/modelitem model/esmfile
@@ -635,8 +660,10 @@ target_link_libraries(components
 
 if(yaml-cpp_VERSION VERSION_GREATER_EQUAL 0.8.0)
     target_link_libraries(components yaml-cpp::yaml-cpp)
+    target_link_libraries(components nlohmann_json::nlohmann_json)
 else()
     target_link_libraries(components yaml-cpp)
+    target_link_libraries(components nlohmann_json::nlohmann_json)
 endif()
 
 if (WIN32)

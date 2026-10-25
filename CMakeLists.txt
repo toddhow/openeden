@@ -489,6 +489,7 @@ include_directories(
     ${ICU_INCLUDE_DIRS}
 )
 include_directories(".")
+include_directories("sdk/include")
 
 link_directories(${COLLADA_DOM_LIBRARY_DIRS})
 
@@ -680,6 +681,7 @@ if (BUILD_NIFTEST)
     add_subdirectory(apps/niftest)
 endif()
 
+add_subdirectory(plugins)
 if (BUILD_COMPONENTS_TESTS)
     add_subdirectory(apps/components_tests)
 endif()

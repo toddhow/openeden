@@ -281,6 +281,20 @@ if (NOT OPENMW_USE_SYSTEM_ICU)
     set(ICU_LIBRARIES ICU::i18n ICU::uc ICU::data PARENT_SCOPE)
 endif()
 
+if (NOT TARGET nlohmann_json::nlohmann_json)
+    set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+    set(JSON_Install OFF CACHE BOOL "" FORCE)
+    set(JSON_Diagnostic_Positions ON CACHE BOOL "" FORCE)
+
+    include(FetchContent)
+    FetchContent_Declare(nlohmann_json
+        URL https://github.com/nlohmann/json/archive/55f93686c01528224f448c19128836e7df245f72.tar.gz
+        URL_HASH SHA256=67f4cdd9ca930c9c1e130af4a437c7fc98fab77a2846fc2d2a14b4943831f8ef
+        SOURCE_DIR fetched/nlohmann_json
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
+
 if ((BUILD_COMPONENTS_TESTS OR BUILD_OPENCS_TESTS OR BUILD_OPENMW_TESTS) AND NOT OPENMW_USE_SYSTEM_GOOGLETEST)
 
     include(FetchContent)

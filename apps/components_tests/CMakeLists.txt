@@ -95,6 +95,28 @@ file(GLOB UNITTEST_SRC_FILES
 
     nif/node.hpp
     nif/testphysics.cpp
+
+    plugin/test_version.cpp
+    plugin/test_resolution.cpp
+    plugin/test_lifecycle.cpp
+    plugin/test_empty_host.cpp
+    plugin/test_manifest_io.cpp
+    plugin/test_dynamic_library.cpp
+    plugin/test_plugin_loader.cpp
+    plugin/test_event_bus.cpp
+    plugin/test_entity_manager.cpp
+    plugin/test_settings_service.cpp
+    plugin/test_save_service.cpp
+    plugin/test_collision_layers.cpp
+    plugin/test_vfs_service.cpp
+    plugin/test_logging_service.cpp
+    plugin/test_profiler_service.cpp
+    plugin/test_scratch_memory.cpp
+    plugin/test_debug_draw.cpp
+    plugin/test_scripting_service.cpp
+    plugin/test_editor_service.cpp
+    plugin/test_physics_service.cpp
+    plugin/test_creativemotion_plugin.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
@@ -104,6 +126,7 @@ openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 target_link_libraries(components-tests
     GTest::GTest
     GMock::GMock
+    creativemotion_plugin_static
     components
 )
 
@@ -147,4 +170,8 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <string>
         <vector>
     )
+endif()
+
+if (TARGET creativemotion)
+    add_dependencies(components-tests creativemotion)
 endif()

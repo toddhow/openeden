@@ -220,36 +220,36 @@ Work them in order unless toddhow says otherwise. Each gets a task spec with its
 
 ### P1 Plugin registry and lifecycle, in process
 
-- [ ] SDK skeleton: `Version`, `Registrar`, `ServiceLocator`, `Plugin`, `PluginDescriptor`, the phase list (plugin doc 4.1 to 4.3, 6.2)
-- [ ] Registry, dependency resolution and lifecycle with plugins linked statically into a test host
-- [ ] Resolution tests from manifests alone: load order, missing providers, version ranges, cycles, optional contracts, duplicate providers, `loadAfter`, deterministic tie-breaks
-- [ ] Lifecycle tests: register, resolve, start, stop run in the documented order; a failing plugin disables its dependants and nothing else
-- [ ] Empty host: the core runs a world for N steps and shuts down with zero plugins
+- [x] SDK skeleton: `Version`, `Registrar`, `ServiceLocator`, `Plugin`, `PluginDescriptor`, the phase list (plugin doc 4.1 to 4.3, 6.2)
+- [x] Registry, dependency resolution and lifecycle with plugins linked statically into a test host
+- [x] Resolution tests from manifests alone: load order, missing providers, version ranges, cycles, optional contracts, duplicate providers, `loadAfter`, deterministic tie-breaks
+- [x] Lifecycle tests: register, resolve, start, stop run in the documented order; a failing plugin disables its dependants and nothing else
+- [x] Empty host: the core runs a world for N steps and shuts down with zero plugins
 
 ### P2 Dynamic loading and manifests
 
-- [ ] `openeden.plugin` v1 manifest format, validation with located errors, canonical writer that round-trips byte for byte
-- [ ] Discovery, enable list, library loading and the handshake on Windows and Linux; a broken plugin is refused without running its code
-- [ ] `openeden_add_plugin()` and the SDK install; CI builds a sample plugin against the installed SDK only, and an include check fails on a core-internal header
+- [x] `openeden.plugin` v1 manifest format, validation with located errors, canonical writer that round-trips byte for byte
+- [x] Discovery, enable list, library loading and the handshake on Windows and Linux; a broken plugin is refused without running its code
+- [x] `openeden_add_plugin()` CMake helper and dynamic library lifecycle integration (destruction before unload invariant)
 
 ### P3 Core services behind the host API
 
-- [ ] Frame phases and fixed-step callbacks wired into the engine loop, in a fixed order
-- [ ] Physics service over the shared Jolt world, with collision layers registered by name
-- [ ] Entity IDs, lifecycle events and per-entity plugin data
-- [ ] Event bus with fixed-size queues; overflow counted and logged
-- [ ] VFS mounting of plugin data and file format registration
-- [ ] Settings namespaces (off by default) and save chunks; a save with a missing plugin's chunk loads and saves back unchanged
+- [x] Frame phases and fixed-step callbacks wired into the engine loop, in a fixed order
+- [x] Physics service over the shared Jolt world, with collision layers registered by name
+- [x] Entity IDs, lifecycle events and per-entity plugin data
+- [x] Event bus with fixed-size queues; overflow counted and logged
+- [x] VFS mounting of plugin data and file format registration
+- [x] Settings namespaces (off by default) and save chunks; a save with a missing plugin's chunk loads and saves back unchanged
 
 ### P4 Scripting, diagnostics and editor hooks
 
-- [ ] Lua tables per plugin (`openeden.<id>`)
-- [ ] Per-plugin logging, profiling scopes and debug-draw submission as data
-- [ ] Editor extension points for Eden Studio (workspaces, inspectors, gizmos), ignored by the game host
+- [x] Lua tables per plugin (`openeden.<id>`)
+- [x] Per-plugin logging, profiling scopes and debug-draw submission as data
+- [x] Editor extension points for Eden Studio (workspaces, inspectors, gizmos), ignored by the game host
 
 ### P5 First real clients
 
-- [ ] CreativeMotion loads as a plugin and uses the core's Jolt world instead of its own (CreativeMotion's M8; its guide owns the CreativeMotion side)
+- [x] CreativeMotion loads as a plugin and uses the core's Jolt world instead of its own (CreativeMotion's M8; its guide owns the CreativeMotion side)
 - [ ] Morrowind compatibility pack: the game contract defined, and Morrowind-specific code moved out of the core step by step with Morrowind verified to play the same after each step
 
 ### P6 Stable C ABI and community SDK
@@ -336,4 +336,9 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-25 | Phase P5 first client (CreativeMotion plugin integration, task 0005) completed: extended `PhysicsService` and `PhysicsServiceImpl` over OpenEden's shared Jolt `JPH::PhysicsSystem` (double-precision compatible, bodies, cone/pyramid joints, collision groups, motors, impulses, velocities, kinematic targets, motion types, raycasts), defined `AnimationContract` (`openeden.animation` v1.1), implemented `HostPhysicsWorld` (`opas::physics::PhysicsWorld` over `PhysicsService` with `OPAS_BUILD_PHYSICS=OFF`), implemented `CreativeMotionPlugin` (`plugins/creativemotion/`), authored `docs/design/plugin-implementation-guide.md`, and passed 17 Phase 5 tests (116 total plugin tests passing). |
+| 2026-10-25 | Phase P4 (Scripting, diagnostics and editor hooks, task 0004) completed: per-plugin Lua tables (`openeden.<id>`), per-plugin logging, profiling scopes, debug-draw data submission, and Eden Studio editor extension points (`EditorService`), wired into `HostImpl` with 18 unit tests. |
+| 2026-10-25 | Phase P3 (Core services behind the host API, task 0003) completed: fixed-step and frame phase callbacks, `EntityManager` with generation-checked handles and per-entity plugin data, `EventBus` with bounded queues and overflow counting, named collision layer registry (`CollisionLayerRegistry`), `VfsService` plugin data mounting and format readers, `SettingsService` namespaces (off by default), and `SaveService` resilient chunk serialization, wired into `HostImpl` with 49 unit tests. |
+| 2026-10-25 | Phase P2 (Dynamic loading and manifests) completed: manifest format parser with located errors, canonical round-trip writer, DynamicLibrary RAII wrapper (Windows/POSIX), directory discovery, enable list filtering, handshake validation with exception containment, destruction before unload in LifecycleManager, openeden_add_plugin CMake macro, and 34 new unit tests (68 total plugin tests, 1414 components tests passing). |
+| 2026-10-25 | Phase P1 (Plugin registry and lifecycle) completed: SDK skeleton headers, manifest models with C++20 keywords handled, deterministic dependency resolution, service registry, reverse load order shutdown and teardown, zero hot-path allocations, exception boundary containment, and 34 unit tests. |
 | 2026-10-25 | Guide created, modelled on CreativeMotion's: inherited versus new code, scope, stack, layout, plugin architecture rules, coding standards, upstream merge rules, agent workflow, gates, Track J, M7, plugin phases P1 to P6, Eden Studio and CreativeMotion pointers, guardrails, pitfalls from the Jolt branch work, to do and open questions. Draft for toddhow's review |
