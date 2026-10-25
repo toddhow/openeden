@@ -1,0 +1,443 @@
+# OpenEden Plugin System: Core Services, Contracts, and Registration Plan
+
+**Status:** Design Document & OpenEden Handoff  
+**Author:** Todd & CreativeMotion Team  
+**Date:** 2026-10-25  
+**Target:** OpenEden Core Team  
+**Companion Documents:**  
+- [`docs/design/eden-studio-plan.md`](file:///i:/Projects/CreativeMotion/docs/design/eden-studio-plan.md)
+- [`docs/design/advancedbodies-handoff.md`](file:///i:/Projects/CreativeMotion/docs/design/advancedbodies-handoff.md)
+- [`docs/decisions/0004-total-fork-of-openmw.md`](file:///i:/Projects/CreativeMotion/docs/decisions/0004-total-fork-of-openmw.md)
+
+This document describes the mechanism only: what a plugin is, what the core must expose so plugins can work, and how plugins are found, registered, started and stopped. It deliberately does not design any individual plugin (CreativeMotion, AdvancedBodies, ComplexClothing, Reflectron, compatibility packs); those are clients of this system and get their own documents.
+
+---
+
+## 1. Executive Summary & Vision
+
+### 1.1 The Problem: A Monolithic Engine That Grows With Every Feature
+OpenMW, the base of OpenEden, is one program: every subsystem is compiled into the same executable, and Morrowind's rules and data model are woven through it. That shape becomes a problem for OpenEden's goals:
+- **Build times grow with every feature.** Each new system (animation, bodies, clothing, character creation, face) adds to one build that every contributor pays for, even when they only touch one system.
+- **Features cannot be removed or swapped.** A system that is compiled in is always present; there is no way to ship without it, replace it, or let users choose.
+- **Game rules are not separable.** Morrowind-specific behaviour lives inside the engine, so supporting other Bethesda-style games means editing the engine itself.
+- **Systems reach into each other.** Without explicit boundaries, one system calls another's internals, and every change risks breaking a neighbour.
+
+### 1.2 The Solution: A Groundwork Core and Runtime-Loaded Plugins
+OpenEden splits into three kinds of parts:
+- **The core** is the engine's groundwork only: physics on Jolt, rendering, platform and windowing, input, audio, the virtual file system (VFS) and resources, the world and entity model, the frame loop, the Lua host, saving and loading. It knows nothing about any feature or any particular game.
+- **Plugins** are shared libraries the core loads at runtime. Every feature system is a plugin, and so is every compatibility pack (the game-specific rules and data readers for one game, Morrowind first).
+- **Contracts** are versioned interfaces, published as headers, through which plugins talk to each other. A plugin never calls another plugin's code directly; it asks the core's registry for a contract and calls that.
+
+The core is built once. A plugin builds against the core's published SDK on its own, so adding or changing a feature never rebuilds the engine or the other plugins (toddhow, 2026-10-22: plugins chosen mainly so build times do not grow as modules are added).
+
+---
+
+## 2. Concepts & Terminology
+
+| Term | Meaning |
+| --- | --- |
+| **Core** | The engine groundwork (section 1.2). Loads plugins, owns the frame loop, the shared physics world, the world model, the VFS, settings and saves. Depends on no plugin. |
+| **Host** | A program that embeds the core: the game (`openeden`), the editor (Eden Studio), and a headless test host used by CI. All three load plugins the same way. |
+| **Plugin** | A shared library (`.dll` / `.so`) plus a manifest. Provides zero or more contracts, requires zero or more, and hooks into the core's lifecycle. |
+| **Feature plugin** | A plugin that adds a system (animation, bodies, clothing, character creation, face). |
+| **Compatibility pack** | A plugin that teaches the core one game: it implements the **game contract** (records, rules, asset readers such as `.nif`/`.kf` or `.hkx`). One game per session. |
+| **Contract** | A versioned C++ interface with a stable id (for example `openeden.body`), published as a header-only package. Providers implement it; consumers look it up. |
+| **SDK** | The core's public headers and import library: the host API (section 4) plus the contract headers. The only thing a plugin compiles against. |
+| **Manifest** | `plugin.json` beside the library: identity, version, the SDK version it was built for, contracts provided and required, data folders, settings defaults. |
+| **Registry** | The core's table of contract providers, filled during registration and read during resolution. |
+
+---
+
+## 3. Architecture
+
+```text
++----------------------------------------------------------------------------------------------------+
+|                        HOSTS: openeden (game) | Eden Studio (editor) | test host                     |
++----------------------------------------------------------------------------------------------------+
+                                                  |
++----------------------------------------------------------------------------------------------------+
+|                                         OPENEDEN CORE                                              |
+|  Plugin Loader & Registry | Frame Loop & Phases | Physics (shared Jolt world) | World & Entities    |
+|  VFS & Resources | Event Bus | Settings | Save Games | Lua Host | Rendering | Input | Audio | Logs   |
++----------------------------------------------------------------------------------------------------+
+        ^ SDK (host API + contract headers): the only thing plugins compile against
+        |
++------------------+   +------------------+   +------------------+   +------------------------------+
+|  Feature plugin  |   |  Feature plugin  |   |  Feature plugin  |   |  Compatibility pack          |
+|  provides A      |   |  requires A      |   |  requires A, B   |   |  provides openeden.game      |
+|                  |   |  provides B      |   |                  |   |  (one per game session)      |
++------------------+   +------------------+   +------------------+   +------------------------------+
+        \______________________ talk only through contracts in the registry ______________________/
+```
+
+### 3.1 Dependency Rules
+1. **The core depends on no plugin.** It must start, run a world and shut down with zero plugins loaded (an empty scene); the test host proves this in CI.
+2. **Plugins depend on the SDK only.** A plugin includes core headers and contract headers, never another plugin's headers, and never links another plugin's library.
+3. **Contracts carry no implementation.** A contract package is headers only: abstract interfaces, plain data types and constants. It may depend on the SDK's math and handle types, never on a third-party library's types (the rule CreativeMotion already follows for `physics/interface`).
+4. **No cycles.** The graph of "requires a contract that another plugin provides" must be acyclic; the loader refuses a cycle (section 6.3).
+5. **Game rules live in the compatibility pack.** The core and feature plugins ask the game contract for anything game-specific (races, skeleton names, record types, asset formats); nothing in them names a game.
+
+### 3.2 Precedent in OpenMW
+OpenMW already reaches its major subsystems through abstract manager interfaces (`apps/openmw/mwbase/`) held by `MWBase::Environment`. The registry generalizes that pattern: the interfaces become versioned contracts, and the implementations move out of the executable into plugins. The exact files should be checked at the fork's commit before work starts.
+
+---
+
+## 4. What the Core Must Expose (the Host API)
+
+Everything a plugin may touch is listed here. If a plugin needs something not on this list, the list grows (through a change to the SDK), rather than the plugin reaching into core internals.
+
+### 4.1 Identity, Version and ABI Handshake
+- **SDK version:** `openeden::sdk::kVersion` (major, minor, patch). The core refuses a plugin built for another major version, or for a newer minor version than it has.
+- **Entry point:** each plugin exports one C-linkage function the loader finds by name (section 6.2). Everything else is reached through what that function returns.
+- **ABI strategy (phased):**
+  - **Phase A, first-party:** the host API is plain C++ interfaces. Plugins must be built with the same compiler, standard library and build flags as the core; the manifest records the toolchain, and the loader refuses a mismatch. This is fast to build and keeps the code natural for the team.
+  - **Phase B, third-party:** a stable C ABI layer (opaque handles and function tables) wraps the same services, so community plugins built with other compilers keep working across core updates. The C++ API stays as a thin header-only wrapper over it.
+
+### 4.2 Service Registry
+The heart of the system. During registration a plugin offers implementations; during resolution it asks for the ones it needs.
+
+```cpp
+namespace openeden::sdk {
+
+struct Version {
+    std::uint16_t major = 0;
+    std::uint16_t minor = 0;
+};
+
+// Filled by a plugin during registration (section 6.4).
+class Registrar {
+public:
+    // Offers `impl` as the provider of contract C. The plugin owns impl and
+    // keeps it alive until its stop(); the registry stores a non-owning pointer.
+    template <typename C> void provide(C& impl);
+    // Event types, phase callbacks, file formats, settings, Lua tables, save
+    // chunks and editor panels are registered here too (sections 4.3 to 4.10).
+};
+
+// Read by a plugin during resolution.
+class ServiceLocator {
+public:
+    // The provider of contract C with the same major version and at least
+    // C::kVersion.minor, or nullptr. Valid from resolve() until stop().
+    template <typename C> C* find() const;
+    // As find(), but a missing required contract has already failed loading
+    // (the manifest lists it), so this never returns nullptr.
+    template <typename C> C& require() const;
+};
+
+} // namespace openeden::sdk
+```
+
+A contract declares its identity next to its interface:
+
+```cpp
+namespace openeden::contracts {
+
+class BodyContract { // example shape only; the real contract has its own document
+public:
+    static constexpr std::string_view kId = "openeden.body";
+    static constexpr sdk::Version kVersion{1, 0};
+    virtual ~BodyContract() = default;
+    // ... queries ...
+};
+
+} // namespace openeden::contracts
+```
+
+**Versioning rules:**
+- A **minor** version only adds: new functions at the end of the interface, new optional fields with defaults. A consumer built for 1.0 works with a 1.3 provider.
+- A **major** version may change anything; it is a different contract as far as the registry is concerned. A provider may offer several majors side by side during a migration (`BodyContractV1` and `BodyContractV2`).
+- **One provider per contract major** in a session. Two plugins offering the same contract is a load error unless the contract is declared *multi-provider* (for example "file format readers"), in which case consumers receive the list in load order.
+- Lookups by id happen once, at resolution. Per-frame calls go straight through the cached pointer: a virtual call, no string lookup, no allocation.
+
+### 4.3 Lifecycle and Frame Phases
+The core owns the loop and calls plugins at named phases, in a fixed order:
+
+| Phase | When | Typical use |
+| --- | --- | --- |
+| `Input` | Once per frame, after input is polled | Read controls, set animation or behaviour parameters |
+| `PreSimulation` | Once per frame, before fixed steps | Queue impulses, spawn bodies |
+| `FixedStepPrePhysics` | Every fixed physics step, before Jolt steps | Drive motors, apply forces (CreativeMotion's step listeners) |
+| `FixedStepPostPhysics` | Every fixed physics step, after Jolt steps | Read body states, sensors, state machines |
+| `PostSimulation` | Once per frame, after all fixed steps | Reconcile capsules, emit gameplay events |
+| `Animation` | Once per frame | Sample and blend poses, helper bones, face |
+| `PreRender` | Once per frame | Push poses and morphs to render data, debug draw |
+| `Ui` | Once per frame | Game UI or editor panels |
+
+- **Order within a phase:** plugins in load order (section 6.3), then each plugin's callbacks in registration order. The order is the same on every run, so fixed-step results are deterministic.
+- **Threading:** callbacks run on the main simulation thread unless registered as `parallel`, which promises the callback touches only its own data and data passed in; the core may then run them on its job system once that exists.
+- **Fixed step:** the core owns the step rate (default 60 Hz, configurable, with sub-steps) and passes `dt` and the step index; plugins never read a clock.
+
+### 4.4 Physics: the Shared Jolt World
+- One physics world per session, owned by the core. Plugins never create their own (CreativeMotion's M8 goal: its Jolt backend uses OpenEden's world instead of a second one).
+- Exposed through a core physics service with the operations CreativeMotion's `physics/interface` already defines: create and destroy bodies and constraints, set motion type, drive joint motors, apply impulses, read states, ray and shape casts, and step listeners (the fixed-step phases above).
+- **Collision layers:** plugins register named layers and the pairs that collide during registration; the core assigns the bit values, so two plugins cannot clash over layer numbers.
+- Handles, not pointers: bodies and constraints are returned as IDs, looked up when used (the guide's rule for anything a backend can destroy).
+
+### 4.5 World and Entities
+- **Stable entity IDs** for actors and objects, valid across frames; never raw pointers to engine objects.
+- **Lifecycle events:** entity spawned, despawned, cell loaded, cell unloaded, actor died, actor revived. Plugins create and free their per-entity state on these.
+- **Per-entity plugin data:** a plugin may attach its own component (a fixed-size struct or a handle into its own pool) to an entity by ID; the core stores the slot and frees it on despawn, the plugin owns what it points to.
+- **Queries:** entities in a cell, near a point, by tag; the actor's skeleton, current pose buffer and capsule.
+
+### 4.6 Event Bus
+- **Typed events** declared in contract or SDK headers; plugins register the types they publish and subscribe to.
+- **Two delivery modes:** immediate (synchronous, within the publisher's phase) and deferred (queued and delivered at the start of a named phase).
+- **Fixed-size queues** sized at registration, so publishing allocates nothing on the hot path; overflow is counted and logged, never silent (the pattern of CreativeMotion's `FixedEventQueue` / `EventBridge`).
+- **Deterministic order:** deferred events are delivered in publish order, and subscribers in load order.
+
+### 4.7 VFS, Resources and File Formats
+- Plugins read data through the core VFS, which overlays the base game data, the enabled mods in load order, and each plugin's own `data/` folder.
+- **File format registration:** a plugin registers a reader for a format id or extension (for example `opas.animgraph`, `.glb`, or `.nif` in a compatibility pack). Other plugins load assets through the core, which dispatches to the registered reader.
+- Readers return located errors (file, line, field), never throw, matching the project's loader rules.
+
+### 4.8 Settings
+- Each plugin gets its own settings namespace (`[plugin.<id>]`), with defaults declared in its manifest.
+- **Every behaviour change ships off by default**, so enabling a plugin without changing settings leaves the game as it was (the rule M9 and M12 already set for CreativeMotion's in-game features).
+- Settings are typed (bool, number with range, enum, string), so the launcher and Eden Studio can draw them without plugin code.
+
+### 4.9 Save Games
+- A plugin may write its own versioned chunk into a save, keyed by plugin id.
+- **Loading a save whose plugin is missing:** the chunk is kept unread and written back unchanged on the next save, and the player is warned once. Removing a plugin never corrupts a save.
+- **Loading a save written by an older plugin version:** the plugin receives the chunk's version and migrates it.
+
+### 4.10 Scripting, Diagnostics and Editor Hooks
+- **Lua:** a plugin registers Lua tables under its own name (`openeden.<id>`), so mods script it through the existing OpenMW Lua host (M11's Lua API for CreativeMotion builds on this).
+- **Logging and profiling:** a per-plugin logger and named profiling scopes, shown per plugin.
+- **Memory:** plugins may ask the core for frame-scoped scratch memory; the per-step rule stays: no heap allocation in fixed-step or per-frame callbacks.
+- **Debug draw:** plugins submit points, lines and labels as data (the `opas::debug::Overlay` pattern); the core's renderer draws them. Plugins never call the renderer directly.
+- **Editor extension points:** in Eden Studio, a plugin may register dockable workspaces, inspectors and viewport gizmos (see the Eden Studio plan); the game host ignores those registrations.
+
+---
+
+## 5. Plugin Packaging & Manifest
+
+### 5.1 Folder Layout
+```text
+plugins/
+  creativemotion/
+    plugin.json            manifest
+    creativemotion.dll     library (creativemotion.so on Linux)
+    data/                  the plugin's own data, mounted into the VFS
+    LICENSE                licence of this plugin
+```
+
+### 5.2 Manifest Format (`plugin.json`)
+JSON, versioned, with a canonical writer that round-trips byte for byte, like the project's other authored formats:
+
+```json
+{
+  "format": "openeden.plugin",
+  "version": 1,
+  "id": "creativemotion",
+  "name": "CreativeMotion",
+  "pluginVersion": "1.4.0",
+  "kind": "feature",
+  "sdk": {"major": 1, "minor": 2},
+  "toolchain": "msvc-19.44-x64-release",
+  "library": {"windows": "creativemotion.dll", "linux": "libcreativemotion.so"},
+  "provides": [
+    {"contract": "openeden.animation", "version": [1, 1]}
+  ],
+  "requires": [
+    {"contract": "openeden.game", "version": [1, 0]}
+  ],
+  "optional": [
+    {"contract": "openeden.body", "version": [1, 0]}
+  ],
+  "loadAfter": [],
+  "data": "data",
+  "settings": [
+    {"key": "enabled", "type": "bool", "default": false}
+  ],
+  "licence": "GPL-3.0-or-later"
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `id` | Lower-case, unique among installed plugins; names its settings namespace, save chunk and Lua table |
+| `kind` | `feature` or `compatibility` (a compatibility pack provides `openeden.game`) |
+| `sdk` | The SDK version the plugin was built against (section 4.1) |
+| `toolchain` | Phase A only: must equal the core's, or the plugin is refused |
+| `provides` / `requires` | Contract id and `[major, minor]`; a required contract must be provided by some enabled plugin |
+| `optional` | Used if present; the plugin must work without it (`find()` may return nullptr) |
+| `loadAfter` | Ordering hints for plugins with no contract between them; never needed when a contract already orders them |
+| `settings` | Typed defaults (section 4.8) |
+| `licence` | Recorded for the GPL check (section 9) |
+
+The manifest is read and validated before any library is loaded, so a broken or incompatible plugin is rejected without running its code.
+
+---
+
+## 6. Registration & Loading Sequence
+
+```text
+ Discover --> Read manifests --> Resolve order --> Load libraries --> Handshake
+                                                                          |
+     Shutdown <-- Stop (reverse) <-- Run phases <-- Start <-- Resolve <-- Register
+```
+
+### 6.1 Discovery
+1. The host lists plugin folders (the install's `plugins/`, then user and mod-manager folders).
+2. The user's enable list (in the OpenEden config, written by the launcher and Eden Studio) says which plugins are on. Installed but disabled plugins are listed, never loaded.
+
+### 6.2 Load and Handshake
+Each enabled plugin's library is loaded and its one entry point called:
+
+```cpp
+// Exported by every plugin with C linkage, so the loader finds it by name on
+// every platform. Returns nullptr if the plugin cannot run on this host.
+extern "C" OPENEDEN_PLUGIN_EXPORT const openeden::sdk::PluginDescriptor*
+openeden_plugin_entry(const openeden::sdk::HostInfo* host);
+
+namespace openeden::sdk {
+
+struct PluginDescriptor {
+    Version sdkVersion;               // must match the manifest
+    std::string_view id;              // must match the manifest
+    std::unique_ptr<Plugin> (*create)(); // the loader owns the returned plugin
+};
+
+// Implemented by each plugin. Owned by the loader from create() until unload.
+class Plugin {
+public:
+    virtual ~Plugin() = default;
+    virtual void registerServices(Registrar& registrar) = 0;   // 6.4
+    virtual bool resolve(const ServiceLocator& locator) = 0;   // 6.5; false = cannot run
+    virtual void start(Host& host) = 0;                        // 6.6
+    virtual void stop() = 0;                                   // 6.7
+};
+
+} // namespace openeden::sdk
+```
+
+The descriptor's id and SDK version must match the manifest; any mismatch unloads the library and reports why.
+
+### 6.3 Dependency Resolution and Load Order
+Done from manifests alone, before any plugin code runs:
+1. Build the graph: an edge from each plugin to the provider of every contract it requires (and, when present, every optional contract), plus `loadAfter` edges.
+2. Check every required contract has exactly one provider at a compatible version. A missing provider disables the requiring plugin, and then anything that requires it, with a message naming the missing contract.
+3. Refuse cycles, naming every plugin in the cycle.
+4. Topologically sort; ties are broken by plugin id, so the order is the same on every machine. **This order is the load order** used for registration, phase callbacks, event delivery and the VFS overlay of plugin data.
+
+### 6.4 Register
+In load order, the core calls `registerServices`. A plugin offers its contract implementations, declares its event types and queue sizes, its phase callbacks, file format readers, collision layers, settings, Lua tables, save chunks and editor panels. Registration must not call other plugins: providers further down the order are not registered yet.
+
+### 6.5 Resolve
+In load order, the core calls `resolve`. The plugin looks up the contracts it needs and caches the pointers. Returning false (for example, an optional feature it depends on behaves unexpectedly) disables the plugin and everything that requires it; their registrations are withdrawn.
+
+### 6.6 Start and Run
+In load order, `start` is called with the host's services (world, physics, VFS, settings). From then on the core calls the registered phase callbacks every frame and fixed step.
+
+### 6.7 Stop and Unload
+In reverse load order, `stop` is called, so a provider outlives every consumer that cached its pointer. Then each plugin object is destroyed and the libraries are unloaded, also in reverse order.
+
+### 6.8 Failure Handling
+- Every failure names the plugin, the stage and the reason, in the log and in the launcher.
+- A plugin that fails is disabled, together with every plugin that requires it; the rest of the session runs. The core never crashes on a bad manifest, a missing library or a failed handshake.
+- An exception thrown out of a plugin callback is caught at the boundary, logged, and disables that plugin at the next safe point (end of frame). No exception crosses the core/plugin boundary in either direction.
+
+### 6.9 Hot Reload
+Not in the first version. Eden Studio may later reload a single plugin with no dependants (stop, unload, rebuild, load, register, resolve, start) for faster iteration; the game host never hot reloads.
+
+---
+
+## 7. Build System & SDK Distribution
+
+### 7.1 Core Build
+- The core builds as a shared library (`openeden_core`) plus thin host executables, and installs an SDK: public headers, the import library and a CMake package (`find_package(OpenEdenSDK)`).
+- Symbols are hidden by default; only the SDK's API is exported (`OPENEDEN_API`), on Windows and Linux alike.
+
+### 7.2 Plugin Build
+- A plugin is its own CMake project that finds the SDK and calls `openeden_add_plugin(<id> SOURCES ... MANIFEST plugin.json)`, which builds the library, checks the manifest, stamps the toolchain id and lays out the plugin folder.
+- **This is where the build time is saved:** a plugin rebuilds only itself, against the installed SDK; the core and other plugins are untouched.
+- First-party plugins may still live in the main repository for convenience, built as separate targets that link only the SDK, so the boundary is enforced by the build, not by discipline.
+
+### 7.3 CI
+- Builds the core and the SDK, then each first-party plugin against the installed SDK only (no access to core internals), on Windows (MSVC) and Linux.
+- An include check, like CreativeMotion's Jolt and viewer include checks, fails if a plugin includes a core-internal header or another plugin's header.
+- An SDK compatibility check compares the exported API with the last release and fails a minor-version bump that removes or changes anything.
+
+---
+
+## 8. Testing Strategy
+
+| Test | What it proves |
+| --- | --- |
+| **Empty host** | The core starts, runs a world for N steps and shuts down with zero plugins |
+| **Resolution unit tests** | Load order, missing providers, version ranges, cycles, optional contracts, duplicate providers, `loadAfter`, deterministic tie-breaks, all from manifests alone |
+| **Lifecycle tests** | Register, resolve, start, stop and unload run in the documented order with test plugins that record their calls; failures disable dependants and nothing else |
+| **Contract conformance suites** | One reusable suite per contract that any provider must pass, so a replacement plugin is checked against the same behaviour as the original |
+| **Determinism** | A scenario with plugins loaded, run twice, gives bit-identical results; the same with plugins enabled in a different discovery order |
+| **Allocation** | Phase callbacks and event publishing allocate nothing per step (the project's allocation counter) |
+| **Save round trip** | A save with a missing plugin's chunk is loaded and saved back unchanged |
+
+The headless test host loads plugins exactly as the game does, without a window or renderer, so all of this runs in CI.
+
+---
+
+## 9. Licensing and Trust
+
+- **Licence of plugins:** the core is GPL-3.0-or-later (OpenMW is GPLv3). The Free Software Foundation's view is that a main program and plug-ins that make function calls to each other and share data structures form a single combined program, so such plug-ins must be released under GPL-compatible terms ([GNU GPL FAQ, "If a program released under the GPL uses plug-ins, what are the requirements for the licenses of a plug-in?"](https://www.gnu.org/licenses/gpl-faq.html#GPLPlugins)). First-party plugins are GPL-3.0-or-later; the manifest's `licence` field records each plugin's terms, and the launcher can warn about unknown ones. A legal review is needed before third-party plugin terms are promised.
+- **Trust:** a native plugin runs with the same rights as the game. The system does not sandbox native code; it only refuses plugins that fail validation. Users should install plugins only from sources they trust, and the launcher should say so. Lua-only mods remain the sandboxed extension route.
+
+---
+
+## 10. Implementation Phasing & Handoff Roadmap
+
+For the OpenEden session implementing the plugin system, the recommended order is:
+
+### Phase 1: Registry and Lifecycle, In Process
+- Define the SDK skeleton: `Version`, `Registrar`, `ServiceLocator`, `Plugin`, `PluginDescriptor`, the phase list.
+- Implement the registry, dependency resolution and lifecycle with plugins linked statically into a test host, to prove the contracts and ordering before any dynamic loading.
+- Resolution, lifecycle and empty-host tests (section 8).
+
+### Phase 2: Dynamic Loading and Manifests
+- Manifest format, validation and canonical writer (`openeden.plugin` v1).
+- Discovery, enable list, library loading and the handshake on Windows and Linux.
+- `openeden_add_plugin()` and the SDK install; CI builds a sample plugin against the installed SDK only.
+
+### Phase 3: Core Services Behind the Host API
+- Frame phases and fixed-step callbacks wired into the engine loop.
+- Physics service over the shared Jolt world, with collision layer registration.
+- Entity IDs, lifecycle events and per-entity plugin data.
+- Event bus with fixed-size queues.
+- VFS mounting of plugin data and file format registration.
+- Settings namespaces and save chunks.
+
+### Phase 4: Scripting, Diagnostics and Editor Hooks
+- Lua table registration per plugin.
+- Per-plugin logging, profiling and debug-draw submission.
+- Editor extension points for Eden Studio (workspaces, inspectors, gizmos).
+
+### Phase 5: First Real Clients
+- Move one feature in as a plugin (CreativeMotion is the natural first, since it is already engine-independent with a physics interface) and fix whatever the host API lacks.
+- Start the Morrowind compatibility pack: define the game contract, then move Morrowind-specific code out of the engine into it step by step, verifying Morrowind still plays the same.
+
+### Phase 6: Stable C ABI and Community SDK
+- The C ABI layer over the same services, the header-only C++ wrapper, and the SDK compatibility check in CI.
+- SDK documentation, a template plugin and sample contracts for community authors.
+
+---
+
+## 11. Open Questions for toddhow
+
+1. **When to add the C ABI:** from the start (slower to build, safer for the future) or after the first-party plugins work (phase 6, as proposed)?
+2. **Where contracts live:** in the core repository with the SDK (simplest), or in their own repository so a contract can change without a core release?
+3. **Load order UI:** is the order always computed from contracts (as proposed), or may users override it, as mod managers do for content?
+4. **Hot reload:** worth building for Eden Studio, and when?
+5. **One game per session:** confirm that exactly one compatibility pack is active at a time, rather than packs layering over each other.
+6. **Third-party licence policy:** require GPL-compatible plugins (and say so in the launcher), pending a legal review?
+
+---
+
+## 12. Plugin System Guardrails
+- **The core stays groundwork.** A feature or a game rule never moves into the core to make a plugin's life easier; the host API grows instead.
+- **No plugin-to-plugin coupling.** Only contracts, through the registry. No shared globals, no linking another plugin's library, no including its headers.
+- **Deterministic by construction.** Load order, phase order and event order are fixed and reproducible; plugins never read clocks or use unseeded randomness.
+- **No allocation in hot paths.** Phase callbacks, contract calls made per step, and event publishing allocate nothing.
+- **Off by default.** Enabling a plugin changes nothing until its settings say so.
+- **Fail closed, never crash.** A bad plugin is disabled with a clear reason; the core and other plugins keep running.
+- **No exceptions across the boundary.** Errors are values or log entries at the plugin edge.
+- **Original content only.** Plugins ship no proprietary game assets; compatibility packs read the user's own installed game data.
