@@ -62,6 +62,7 @@
 
 #include "actorutil.hpp"
 #include "rotatecontroller.hpp"
+#include "actorikcontroller.hpp"
 #include "util.hpp"
 #include "vismask.hpp"
 
@@ -579,6 +580,7 @@ namespace MWRender
         , mAlpha(1.f)
         , mPlayScriptedOnly(false)
         , mRequiresBoneMap(false)
+        , mActorIkController(std::make_unique<ActorIkController>(*this))
     {
         for (size_t i = 0; i < sNumBlendMasks; i++)
             mAnimationTimePtr[i] = std::make_shared<AnimationTime>();
@@ -1466,6 +1468,9 @@ namespace MWRender
                     osg::Quat(mHeadPitchRadians, osg::Vec3f(1, 0, 0)) * osg::Quat(yaw, osg::Vec3f(0, 0, 1)));
         }
 
+        if (mActorIkController)
+            mActorIkController->update(duration);
+
         return movement;
     }
 
@@ -1949,6 +1954,8 @@ namespace MWRender
         mHeadController = addRotateController("bip01 head");
         mSpineController = addRotateController("bip01 spine1");
         mRootController = addRotateController("bip01");
+        if (mActorIkController)
+            mActorIkController->initControllers();
     }
 
     osg::ref_ptr<RotateController> Animation::addRotateController(std::string_view bone)

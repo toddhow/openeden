@@ -3,6 +3,7 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
@@ -91,6 +92,16 @@ namespace MWPhysics
                         new JPH::CylinderShape(mOriginalHalfExtents.z(), mOriginalHalfExtents.x()));
                     mRotationallyInvariant = true;
                     break;
+                case DetourNavigator::CollisionShapeType::Capsule:
+                {
+                    const float radius = std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y());
+                    const float halfHeight = std::max(0.0f, mOriginalHalfExtents.z() - radius);
+                    JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
+                    mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation,
+                        new JPH::CapsuleShape(halfHeight, radius));
+                    mRotationallyInvariant = true;
+                    break;
+                }
             }
             mCollisionShapeType = collisionShapeType;
         }

@@ -19,7 +19,7 @@
       "contract": "openeden.animation",
       "version": [
         1,
-        1
+        2
       ]
     }
   ],
@@ -45,6 +45,21 @@
   "settings": [
     {
       "key": "enabled",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "footPlanting",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "lookAt",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "smootherTurns",
       "type": "bool",
       "default": false
     }

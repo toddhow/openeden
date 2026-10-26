@@ -74,6 +74,9 @@ namespace Settings
         SettingValue<DetourNavigator::CollisionShapeType> mActorCollisionShapeType{ mIndex, "Game",
             "actor collision shape type" };
         SettingValue<bool> mPlayerMovementIgnoresAnimation{ mIndex, "Game", "player movement ignores animation" };
+        SettingValue<bool> mFootPlanting{ mIndex, "Game", "foot planting" };
+        SettingValue<bool> mLookAt{ mIndex, "Game", "look at" };
+        SettingValue<bool> mSmootherTurns{ mIndex, "Game", "smoother turns" };
     };
 }
 

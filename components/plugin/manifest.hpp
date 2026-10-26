@@ -42,6 +42,8 @@ namespace openeden::plugin
         std::string defaultString;
     };
 
+    using SettingDesc = PluginSetting;
+
     /**
      * @brief In-memory representation of plugin.json manifest.
      */

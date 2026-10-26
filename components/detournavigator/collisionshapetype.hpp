@@ -10,6 +10,7 @@ namespace DetourNavigator
         Aabb = 0,
         RotatingBox = 1,
         Cylinder = 2,
+        Capsule = 3,
     };
 
     CollisionShapeType toCollisionShapeType(int value);

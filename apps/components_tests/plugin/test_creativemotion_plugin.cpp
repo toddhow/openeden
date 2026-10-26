@@ -100,9 +100,9 @@ namespace
 
         ASSERT_EQ(manifest.providedContracts.size(), 1u);
         EXPECT_EQ(manifest.providedContracts[0].contract, "openeden.animation");
-        EXPECT_EQ(manifest.providedContracts[0].version, (Version{ 1, 1 }));
+        EXPECT_EQ(manifest.providedContracts[0].version, (Version{ 1, 2 }));
 
-        ASSERT_EQ(manifest.settings.size(), 1u);
+        ASSERT_EQ(manifest.settings.size(), 4u);
         EXPECT_EQ(manifest.settings[0].key, "enabled");
         EXPECT_EQ(manifest.settings[0].type, "bool");
         EXPECT_FALSE(manifest.settings[0].defaultBool);

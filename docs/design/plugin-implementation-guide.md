@@ -161,3 +161,18 @@ Before marking a plugin integration complete, verify all of the following in `ap
 - [ ] **Off-by-default invariant**: Immediately after `initialize()`, `isEnabled()` is `false`, and running all fixed-step and frame phases leaves the shared physics world and host state completely untouched.
 - [ ] Enabling the plugin at runtime activates its simulation/service in the shared host environment.
 - [ ] Collision layers, VFS format readers, save-game chunk serialization/deserialization, and Lua module (`openeden.<plugin_id>`) all function and round-trip cleanly.
+
+---
+
+## 4. Kinematic Contracts & Actor Collision Upgrades (Milestone M9 Reference)
+
+For plugins providing procedural animation and inverse kinematics (such as CreativeMotion M9):
+
+1. **POD Kinematic Interfaces in Contracts**:
+   - Provide analytic solvers (`solveTwoBone`, `solveFootPlacement`, `solveLookAt`, `solveTurnSmoothing`) using lightweight POD types (`PhysicsVec3`, `PhysicsQuat`) rather than heap-allocated data structures.
+   - Clamp float-domain angle limits when casting to higher-precision math solvers (e.g. `double` in `opas::ik::solveTwoBone`) to avoid precision boundary overflow at $\pi$.
+2. **Actor Collision Capsules (`actor collision shape type = 3`)**:
+   - When procedural foot placement or close-quarters interaction with terrain and ledges is required, configure actor collision shape type to Capsule (`3`).
+   - The spherical bottom cap prevents sharp bounding-box corners from catching on slopes, enabling accurate foot-planting raycasts directly beneath actor feet.
+3. **Engine-Side Invariant**:
+   - Engine controllers hooking into animation hierarchies (`ActorIkController`) must check feature flags (`footPlanting`, `lookAt`, `smootherTurns`) and immediately early-exit if disabled. When disabled, zero raycasts and zero bone matrix modifications occur, maintaining exact vanilla behavior.

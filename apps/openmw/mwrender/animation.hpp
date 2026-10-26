@@ -51,6 +51,7 @@ namespace MWRender
     class ResetAccumRootCallback;
     class RotateController;
     class TransparencyUpdater;
+    class ActorIkController;
 
     using ActiveControllersVector = std::vector<std::pair<osg::ref_ptr<osg::Node>, osg::ref_ptr<osg::Callback>>>;
 
@@ -102,6 +103,7 @@ namespace MWRender
 
     class Animation : public osg::Referenced
     {
+        friend class ActorIkController;
     public:
         using BlendMask = MWRender::BlendMask;
         using BoneGroup = MWRender::BoneGroup;
@@ -231,6 +233,7 @@ namespace MWRender
         float mBodyPitchRadians;
 
         osg::ref_ptr<RotateController> addRotateController(std::string_view bone);
+        std::unique_ptr<ActorIkController> mActorIkController;
 
         bool mHasMagicEffects;
 
@@ -483,6 +486,7 @@ namespace MWRender
         virtual void setLegsYawRadians(float v) { mLegsYawRadians = v; }
         virtual float getUpperBodyYawRadians() const { return mUpperBodyYawRadians; }
         virtual float getLegsYawRadians() const { return mLegsYawRadians; }
+        ActorIkController* getActorIkController() const { return mActorIkController.get(); }
         virtual void setBodyPitchRadians(float v) { mBodyPitchRadians = v; }
         virtual float getBodyPitchRadians() const { return mBodyPitchRadians; }
 

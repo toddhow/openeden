@@ -20,7 +20,7 @@ namespace openeden::contracts
     {
     public:
         static constexpr std::string_view kId = "openeden.animation";
-        static constexpr sdk::Version kVersion{ 1, 1 };
+        static constexpr sdk::Version kVersion{ 1, 2 };
 
         virtual ~AnimationContract() = default;
 
@@ -78,5 +78,112 @@ namespace openeden::contracts
          * @brief Returns the current arbiter state name (e.g., "Standing", "Leaning", "Stepping", "Falling", "Fallen").
          */
         [[nodiscard]] virtual std::string_view getCharacterStateName(sdk::EntityId entity) const = 0;
+
+        // =====================================================================
+        // Pure Kinematic Inverse Kinematics (M9)
+        // =====================================================================
+
+        struct TwoBoneChain
+        {
+            sdk::PhysicsVec3 root;
+            sdk::PhysicsVec3 mid;
+            sdk::PhysicsVec3 end;
+        };
+
+        struct HingeLimits
+        {
+            float minBendRad = 0.0f;
+            float maxBendRad = 3.14159265358979323846f;
+        };
+
+        struct TwoBoneResult
+        {
+            bool valid = false;
+            bool reached = false;
+            sdk::PhysicsVec3 mid;
+            sdk::PhysicsVec3 end;
+            float bendRad = 0.0f;
+            sdk::PhysicsQuat rootRotation;
+            sdk::PhysicsQuat midRotation;
+        };
+
+        struct FootPlacementInput
+        {
+            TwoBoneChain legChain;
+            float groundDistanceM = 0.0f;
+            float nominalHeightM = 0.0f;
+            sdk::PhysicsVec3 groundNormal{ 0.0f, 0.0f, 1.0f };
+            sdk::PhysicsVec3 poleDirection{ 0.0f, 1.0f, 0.0f };
+            HingeLimits kneeLimits{ 0.05f, 2.8f };
+        };
+
+        struct FootPlacementResult
+        {
+            TwoBoneResult ik;
+            sdk::PhysicsQuat footAlignment;
+            float pelvisOffsetZM = 0.0f;
+        };
+
+        struct LookAtInput
+        {
+            sdk::PhysicsVec3 eyePosition;
+            sdk::PhysicsVec3 headForward;
+            sdk::PhysicsVec3 targetPosition;
+            float currentYawRad = 0.0f;
+            float currentPitchRad = 0.0f;
+            float maxYawRad = 1.2217f;   // ~70 degrees
+            float maxPitchRad = 0.7854f; // ~45 degrees
+            float speedRadPerS = 8.0f;
+            float dt = 0.0f;
+        };
+
+        struct LookAtResult
+        {
+            float yawRad = 0.0f;
+            float pitchRad = 0.0f;
+            bool inRange = false;
+        };
+
+        struct TurnSmoothingInput
+        {
+            float currentYawRad = 0.0f;
+            float targetYawRad = 0.0f;
+            float halfLifeS = 0.08f;
+            float dt = 0.0f;
+        };
+
+        /**
+         * @brief Pure analytic two-bone IK solver with hinge limits on the middle joint.
+         */
+        [[nodiscard]] virtual TwoBoneResult solveTwoBone(
+            const TwoBoneChain& chain, sdk::PhysicsVec3 target, sdk::PhysicsVec3 poleDirection,
+            const HingeLimits& limits = {}) const = 0;
+
+        /**
+         * @brief Solves foot placement, knee bend, foot normal alignment, and pelvis offset for uneven terrain.
+         */
+        [[nodiscard]] virtual FootPlacementResult solveFootPlacement(
+            const FootPlacementInput& input) const = 0;
+
+        /**
+         * @brief Solves gaze tracking with angular limits and smooth temporal interpolation.
+         */
+        [[nodiscard]] virtual LookAtResult solveLookAt(
+            const LookAtInput& input) const = 0;
+
+        /**
+         * @brief Exponential angular decay smoothing for actor yaw across +/-pi boundary.
+         */
+        [[nodiscard]] virtual float solveTurnSmoothing(
+            const TurnSmoothingInput& input) const = 0;
     };
+
+    using TwoBoneChain = AnimationContract::TwoBoneChain;
+    using HingeLimits = AnimationContract::HingeLimits;
+    using TwoBoneResult = AnimationContract::TwoBoneResult;
+    using FootPlacementInput = AnimationContract::FootPlacementInput;
+    using FootPlacementResult = AnimationContract::FootPlacementResult;
+    using LookAtInput = AnimationContract::LookAtInput;
+    using LookAtResult = AnimationContract::LookAtResult;
+    using TurnSmoothingInput = AnimationContract::TurnSmoothingInput;
 } // namespace openeden::contracts

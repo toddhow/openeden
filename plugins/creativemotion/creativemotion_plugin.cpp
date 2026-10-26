@@ -12,6 +12,7 @@
 #include <opas/behaviors/BalanceDriver.hpp>
 #include <opas/behaviors/HitReaction.hpp>
 #include <opas/behaviors/Stepping.hpp>
+#include <opas/ik/TwoBoneIk.hpp>
 #include <opas/math/Quat.hpp>
 #include <opas/math/Transform.hpp>
 #include <opas/math/Vec3.hpp>
@@ -28,6 +29,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <numbers>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -488,6 +490,9 @@ namespace openeden::creativemotion
         Host* host = nullptr;
         std::unique_ptr<HostPhysicsWorld> world;
         bool enabled = false;
+        bool footPlanting = false;
+        bool lookAt = false;
+        bool smootherTurns = false;
         CollisionLayer ragdollLayer = 0;
         CollisionLayer worldLayer = 0;
         std::uint64_t fixedStepCount = 0;
@@ -745,10 +750,16 @@ namespace openeden::creativemotion
         if (SettingsService* settings = host.getSettingsService())
         {
             mImpl->enabled = settings->getBool(kPluginId, "enabled", false);
+            mImpl->footPlanting = settings->getBool(kPluginId, "footPlanting", false);
+            mImpl->lookAt = settings->getBool(kPluginId, "lookAt", false);
+            mImpl->smootherTurns = settings->getBool(kPluginId, "smootherTurns", false);
         }
         else
         {
             mImpl->enabled = false;
+            mImpl->footPlanting = false;
+            mImpl->lookAt = false;
+            mImpl->smootherTurns = false;
         }
 
         if (PhysicsService* physics = host.getPhysicsService())
@@ -783,6 +794,9 @@ namespace openeden::creativemotion
                 module.setString("pluginId", "creativemotion");
                 module.setString("contract", "openeden.animation");
                 module.setBool("enabled", mImpl->enabled);
+                module.setBool("footPlanting", mImpl->footPlanting);
+                module.setBool("lookAt", mImpl->lookAt);
+                module.setBool("smootherTurns", mImpl->smootherTurns);
                 module.setFunction("isEnabled", [](void*) { return 0; });
             });
         }
@@ -836,6 +850,21 @@ namespace openeden::creativemotion
     std::size_t CreativeMotionPlugin::getActiveCharacterCount() const noexcept
     {
         return mImpl->characters.size();
+    }
+
+    bool CreativeMotionPlugin::isFootPlantingEnabled() const noexcept
+    {
+        return mImpl->footPlanting;
+    }
+
+    bool CreativeMotionPlugin::isLookAtEnabled() const noexcept
+    {
+        return mImpl->lookAt;
+    }
+
+    bool CreativeMotionPlugin::isSmootherTurnsEnabled() const noexcept
+    {
+        return mImpl->smootherTurns;
     }
 
     bool CreativeMotionPlugin::spawnCharacter(
@@ -1040,6 +1069,242 @@ namespace openeden::creativemotion
     std::uint64_t CreativeMotionPlugin::getFixedStepCount() const noexcept
     {
         return mImpl->fixedStepCount;
+    }
+
+    namespace
+    {
+        inline bool isFiniteVec(const PhysicsVec3& v) noexcept
+        {
+            return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+        }
+
+        inline float vecLen(const PhysicsVec3& v) noexcept
+        {
+            return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        }
+
+        inline float vecDist(const PhysicsVec3& a, const PhysicsVec3& b) noexcept
+        {
+            return vecLen({ a.x - b.x, a.y - b.y, a.z - b.z });
+        }
+
+        inline float vecDot(const PhysicsVec3& a, const PhysicsVec3& b) noexcept
+        {
+            return a.x * b.x + a.y * b.y + a.z * b.z;
+        }
+
+        inline PhysicsVec3 vecCross(const PhysicsVec3& a, const PhysicsVec3& b) noexcept
+        {
+            return {
+                a.y * b.z - a.z * b.y,
+                a.z * b.x - a.x * b.z,
+                a.x * b.y - a.y * b.x
+            };
+        }
+
+        inline opas::math::Vec3 toOpasVec(const PhysicsVec3& v) noexcept
+        {
+            return { static_cast<double>(v.x), static_cast<double>(v.y), static_cast<double>(v.z) };
+        }
+
+        inline PhysicsVec3 fromOpasVec(const opas::math::Vec3& v) noexcept
+        {
+            return { static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z) };
+        }
+
+        inline PhysicsQuat fromOpasQuat(const opas::math::Quat& q) noexcept
+        {
+            return { static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z), static_cast<float>(q.w) };
+        }
+    } // namespace
+
+    AnimationContract::TwoBoneResult CreativeMotionPlugin::solveTwoBone(
+        const TwoBoneChain& chain, PhysicsVec3 target, PhysicsVec3 poleDirection,
+        const HingeLimits& limits) const
+    {
+        TwoBoneResult result;
+        result.valid = false;
+        result.reached = false;
+        result.mid = chain.mid;
+        result.end = chain.end;
+        result.bendRad = 0.0f;
+        result.rootRotation = { 0.0f, 0.0f, 0.0f, 1.0f };
+        result.midRotation = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+        if (!isFiniteVec(chain.root) || !isFiniteVec(chain.mid) || !isFiniteVec(chain.end)
+            || !isFiniteVec(target) || !isFiniteVec(poleDirection)
+            || !std::isfinite(limits.minBendRad) || !std::isfinite(limits.maxBendRad)
+            || limits.minBendRad < 0.0f || limits.maxBendRad > std::numbers::pi_v<float> + 1e-4f
+            || limits.minBendRad > limits.maxBendRad)
+        {
+            return result;
+        }
+
+        const opas::ik::TwoBoneChain opasChain{
+            toOpasVec(chain.root),
+            toOpasVec(chain.mid),
+            toOpasVec(chain.end)
+        };
+        const opas::ik::HingeLimits opasLimits{
+            std::clamp(static_cast<double>(limits.minBendRad), 0.0, std::numbers::pi),
+            std::clamp(static_cast<double>(limits.maxBendRad), 0.0, std::numbers::pi)
+        };
+
+        const opas::ik::TwoBoneResult opasResult = opas::ik::solveTwoBone(
+            opasChain, toOpasVec(target), toOpasVec(poleDirection), opasLimits);
+
+        result.valid = opasResult.valid;
+        result.reached = opasResult.reached;
+        if (opasResult.valid)
+        {
+            result.mid = fromOpasVec(opasResult.mid);
+            result.end = fromOpasVec(opasResult.end);
+            result.bendRad = static_cast<float>(opasResult.bendRad);
+            result.rootRotation = fromOpasQuat(opasResult.rootRotation);
+            result.midRotation = fromOpasQuat(opasResult.midRotation);
+        }
+        else
+        {
+            result.mid = chain.mid;
+            result.end = chain.end;
+        }
+        return result;
+    }
+
+    AnimationContract::FootPlacementResult CreativeMotionPlugin::solveFootPlacement(
+        const FootPlacementInput& input) const
+    {
+        FootPlacementResult result{};
+        result.footAlignment = { 0.0f, 0.0f, 0.0f, 1.0f };
+        result.pelvisOffsetZM = 0.0f;
+
+        const float l1 = vecDist(input.legChain.root, input.legChain.mid);
+        const float l2 = vecDist(input.legChain.mid, input.legChain.end);
+        const float minBend = std::clamp(input.kneeLimits.minBendRad, 0.0f, std::numbers::pi_v<float>);
+        const float maxReach = std::sqrt(std::max(0.0f, l1 * l1 + l2 * l2 + 2.0f * l1 * l2 * std::cos(minBend)));
+
+        PhysicsVec3 targetAnkle = input.legChain.end;
+        targetAnkle.z = input.legChain.root.z - input.groundDistanceM + input.nominalHeightM;
+
+        const float targetDist = vecDist(input.legChain.root, targetAnkle);
+        TwoBoneChain adjustedChain = input.legChain;
+        if (targetDist > maxReach && maxReach > 0.0f)
+        {
+            result.pelvisOffsetZM = -(targetDist - maxReach + 1e-4f);
+            adjustedChain.root.z += result.pelvisOffsetZM;
+            adjustedChain.mid.z += result.pelvisOffsetZM;
+            adjustedChain.end.z += result.pelvisOffsetZM;
+        }
+
+        result.ik = solveTwoBone(adjustedChain, targetAnkle, input.poleDirection, input.kneeLimits);
+
+        const float normalLen = vecLen(input.groundNormal);
+        if (normalLen > 1e-4f)
+        {
+            const PhysicsVec3 n{
+                input.groundNormal.x / normalLen,
+                input.groundNormal.y / normalLen,
+                input.groundNormal.z / normalLen
+            };
+            const PhysicsVec3 up{ 0.0f, 0.0f, 1.0f };
+            const float d = vecDot(up, n);
+            if (d >= 0.999999f)
+            {
+                result.footAlignment = { 0.0f, 0.0f, 0.0f, 1.0f };
+            }
+            else if (d <= -0.999999f)
+            {
+                result.footAlignment = { 1.0f, 0.0f, 0.0f, 0.0f };
+            }
+            else
+            {
+                const PhysicsVec3 axis = vecCross(up, n);
+                PhysicsQuat q{ axis.x, axis.y, axis.z, 1.0f + d };
+                const float qLen = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+                if (qLen > 0.0f)
+                {
+                    q.x /= qLen;
+                    q.y /= qLen;
+                    q.z /= qLen;
+                    q.w /= qLen;
+                }
+                result.footAlignment = q;
+            }
+        }
+        return result;
+    }
+
+    AnimationContract::LookAtResult CreativeMotionPlugin::solveLookAt(
+        const LookAtInput& input) const
+    {
+        LookAtResult result{};
+        result.yawRad = input.currentYawRad;
+        result.pitchRad = input.currentPitchRad;
+        result.inRange = false;
+
+        const PhysicsVec3 delta{
+            input.targetPosition.x - input.eyePosition.x,
+            input.targetPosition.y - input.eyePosition.y,
+            input.targetPosition.z - input.eyePosition.z
+        };
+        const float distSq = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
+        if (distSq < 1e-6f || !isFiniteVec(delta))
+        {
+            return result;
+        }
+
+        const float rxy = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+        const float targetYaw = std::atan2(delta.x, delta.y);
+        const float targetPitch = std::atan2(delta.z, rxy);
+
+        result.inRange = (std::abs(targetYaw) <= input.maxYawRad)
+            && (std::abs(targetPitch) <= input.maxPitchRad);
+
+        const float clampedYaw = std::clamp(targetYaw, -input.maxYawRad, input.maxYawRad);
+        const float clampedPitch = std::clamp(targetPitch, -input.maxPitchRad, input.maxPitchRad);
+
+        const float dt = std::max(0.0f, input.dt);
+        const float decay = std::exp(-input.speedRadPerS * dt);
+
+        result.yawRad = clampedYaw + (input.currentYawRad - clampedYaw) * decay;
+        result.pitchRad = clampedPitch + (input.currentPitchRad - clampedPitch) * decay;
+        return result;
+    }
+
+    float CreativeMotionPlugin::solveTurnSmoothing(
+        const TurnSmoothingInput& input) const
+    {
+        if (input.dt <= 0.0f || !std::isfinite(input.dt))
+        {
+            return input.currentYawRad;
+        }
+        if (input.halfLifeS <= 0.0f || !std::isfinite(input.halfLifeS))
+        {
+            return input.targetYawRad;
+        }
+
+        constexpr float kPi = std::numbers::pi_v<float>;
+        constexpr float kTwoPi = 2.0f * kPi;
+
+        float diff = std::fmod(input.targetYawRad - input.currentYawRad + kPi, kTwoPi);
+        if (diff < 0.0f)
+        {
+            diff += kTwoPi;
+        }
+        const float shortestDelta = diff - kPi;
+
+        const float decay = std::exp(-std::numbers::ln2_v<float> * input.dt / input.halfLifeS);
+        float newYaw = input.currentYawRad + shortestDelta * (1.0f - decay);
+
+        while (newYaw > kPi)
+        {
+            newYaw -= kTwoPi;
+        }
+        while (newYaw < -kPi)
+        {
+            newYaw += kTwoPi;
+        }
+        return newYaw;
     }
 } // namespace openeden::creativemotion
 

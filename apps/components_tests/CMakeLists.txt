@@ -117,6 +117,7 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_editor_service.cpp
     plugin/test_physics_service.cpp
     plugin/test_creativemotion_plugin.cpp
+    plugin/test_ik_contract.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})

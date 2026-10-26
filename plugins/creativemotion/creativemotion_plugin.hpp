@@ -43,6 +43,10 @@ namespace openeden::creativemotion
         void setEnabled(bool enabled) override;
         [[nodiscard]] std::size_t getActiveCharacterCount() const noexcept override;
 
+        [[nodiscard]] bool isFootPlantingEnabled() const noexcept;
+        [[nodiscard]] bool isLookAtEnabled() const noexcept;
+        [[nodiscard]] bool isSmootherTurnsEnabled() const noexcept;
+
         bool spawnCharacter(openeden::sdk::EntityId entity,
             openeden::sdk::PhysicsVec3 rootPositionM = {}, float yawRad = 0.0f) override;
         bool despawnCharacter(openeden::sdk::EntityId entity) override;
@@ -57,6 +61,20 @@ namespace openeden::creativemotion
             openeden::sdk::EntityId entity) const override;
         [[nodiscard]] std::string_view getCharacterStateName(
             openeden::sdk::EntityId entity) const override;
+
+        // --- Kinematic Inverse Kinematics (M9) ---
+        [[nodiscard]] TwoBoneResult solveTwoBone(
+            const TwoBoneChain& chain, openeden::sdk::PhysicsVec3 target,
+            openeden::sdk::PhysicsVec3 poleDirection, const HingeLimits& limits = {}) const override;
+
+        [[nodiscard]] FootPlacementResult solveFootPlacement(
+            const FootPlacementInput& input) const override;
+
+        [[nodiscard]] LookAtResult solveLookAt(
+            const LookAtInput& input) const override;
+
+        [[nodiscard]] float solveTurnSmoothing(
+            const TurnSmoothingInput& input) const override;
 
         // --- Plugin Diagnostics & Testing Accessors ---
         [[nodiscard]] HostPhysicsWorld* getHostPhysicsWorld() noexcept;
