@@ -191,6 +191,13 @@ target_link_libraries(openmw-lib
     components
 )
 
+if (TARGET opas::ik)
+    target_link_libraries(openmw-lib
+        opas::ik
+        opas::math
+    )
+endif()
+
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-lib PRIVATE
         <boost/program_options/options_description.hpp>

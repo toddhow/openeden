@@ -1,6 +1,10 @@
+#pragma once
+
 #ifndef OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 #define OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 
+#include <osg/Quat>
+#include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 namespace osg
@@ -14,9 +18,9 @@ namespace MWRender
     class RotateController;
 
     /**
-     * @brief Milestone M9: Actor Inverse Kinematics controller for Morrowind characters.
-     * Manages procedural foot planting on uneven terrain, gaze tracking (look-at),
-     * and rotational turn smoothing behind off-by-default engine settings.
+     * @brief Actor Inverse Kinematics controller for OpenEden characters.
+     * Uses CreativeMotion's opas::ik::solveTwoBone for procedural foot planting
+     * and knee articulation on uneven terrain, ramps, and slopes.
      *
      * Invariant: When footPlanting, lookAt, and smootherTurns are false (default),
      * update() early-exits with zero raycasts and zero scene graph modifications,
@@ -56,15 +60,17 @@ namespace MWRender
         bool mLookAtActive = false;
         bool mSmootherTurnsActive = false;
 
-        // Smoothed state for foot IK to eliminate twitching
+        // Smoothed state for CreativeMotion foot IK
         osg::Vec3f mLeftOffset{ 0.f, 0.f, 0.f };
         osg::Vec3f mRightOffset{ 0.f, 0.f, 0.f };
-        osg::Quat mLeftRot{ 0.f, 0.f, 0.f, 1.f };
-        osg::Quat mRightRot{ 0.f, 0.f, 0.f, 1.f };
-        float mLeftThighAngle = 0.f;
-        float mLeftCalfAngle = 0.f;
-        float mRightThighAngle = 0.f;
-        float mRightCalfAngle = 0.f;
+
+        osg::Quat mLeftFootRot{ 0.f, 0.f, 0.f, 1.f };
+        osg::Quat mLeftCalfRot{ 0.f, 0.f, 0.f, 1.f };
+        osg::Quat mLeftThighRot{ 0.f, 0.f, 0.f, 1.f };
+
+        osg::Quat mRightFootRot{ 0.f, 0.f, 0.f, 1.f };
+        osg::Quat mRightCalfRot{ 0.f, 0.f, 0.f, 1.f };
+        osg::Quat mRightThighRot{ 0.f, 0.f, 0.f, 1.f };
     };
 } // namespace MWRender
 

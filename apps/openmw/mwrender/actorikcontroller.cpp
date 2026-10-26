@@ -12,6 +12,10 @@
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
+#include <opas/ik/TwoBoneIk.hpp>
+#include <opas/math/Quat.hpp>
+#include <opas/math/Vec3.hpp>
+
 #include <osg/MatrixTransform>
 #include <algorithm>
 #include <cmath>
@@ -50,19 +54,21 @@ namespace MWRender
         mRightFootController = nullptr;
         mRightCalfController = nullptr;
         mRightThighController = nullptr;
+
         mLeftOffset = osg::Vec3f(0.f, 0.f, 0.f);
         mRightOffset = osg::Vec3f(0.f, 0.f, 0.f);
-        mLeftRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
-        mRightRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
-        mLeftThighAngle = 0.f;
-        mLeftCalfAngle = 0.f;
-        mRightThighAngle = 0.f;
-        mRightCalfAngle = 0.f;
+
+        mLeftFootRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+        mLeftCalfRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+        mLeftThighRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+
+        mRightFootRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+        mRightCalfRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+        mRightThighRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
     }
 
     void ActorIkController::update(float duration)
     {
-        // Early out for non-actors (doors, containers, flora) - IK only applies to actors!
         if (!mAnimation.mPtr.getClass().isActor())
             return;
 
@@ -74,22 +80,14 @@ namespace MWRender
         mLookAtActive = lookAt;
         mSmootherTurnsActive = smootherTurns;
 
-        // Invariant: Off-by-default. If all IK features are disabled, early-exit immediately!
-        // Zero raycasts, zero scene graph mutations.
         if (!footPlanting && !lookAt && !smootherTurns)
         {
-            if (mLeftThighController)
-                mLeftThighController->setEnabled(false);
-            if (mLeftCalfController)
-                mLeftCalfController->setEnabled(false);
-            if (mLeftFootController)
-                mLeftFootController->setEnabled(false);
-            if (mRightThighController)
-                mRightThighController->setEnabled(false);
-            if (mRightCalfController)
-                mRightCalfController->setEnabled(false);
-            if (mRightFootController)
-                mRightFootController->setEnabled(false);
+            if (mLeftThighController) mLeftThighController->setEnabled(false);
+            if (mLeftCalfController) mLeftCalfController->setEnabled(false);
+            if (mLeftFootController) mLeftFootController->setEnabled(false);
+            if (mRightThighController) mRightThighController->setEnabled(false);
+            if (mRightCalfController) mRightCalfController->setEnabled(false);
+            if (mRightFootController) mRightFootController->setEnabled(false);
             return;
         }
 
@@ -108,7 +106,6 @@ namespace MWRender
         if (footPlanting)
         {
             const bool disableDueToState = world->isSwimming(mAnimation.mPtr) || world->isFlying(mAnimation.mPtr);
-
             if (disableDueToState)
             {
                 if (mLeftThighController) mLeftThighController->setEnabled(false);
@@ -133,19 +130,37 @@ namespace MWRender
             const osg::Quat actorAttitudeInv = actorAttitude.inverse();
             const osg::Vec3f actorForward = actorAttitude * osg::Vec3f(0.0f, 1.0f, 0.0f);
 
-            auto plantLeg = [&](std::string_view footBone,
+            auto getLocalTrans = [&](osg::MatrixTransform* node) -> osg::Vec3f {
+                if (!node || !baseNode)
+                    return osg::Vec3f();
+                osg::NodePathList nodepaths = node->getParentalNodePaths(baseNode);
+                if (nodepaths.empty())
+                    return node->getMatrix().getTrans();
+                osg::Matrixf localMat = osg::computeLocalToWorld(nodepaths[0]) * node->getMatrix();
+                return localMat.getTrans();
+            };
+
+            auto plantLeg = [&](std::string_view thighBone,
+                                std::string_view calfBone,
+                                std::string_view footBone,
                                 osg::ref_ptr<RotateController>& footCtrl,
                                 osg::ref_ptr<RotateController>& calfCtrl,
                                 osg::ref_ptr<RotateController>& thighCtrl,
                                 osg::Vec3f& currentOffset,
-                                osg::Quat& currentRot,
-                                float& currentThighAngle,
-                                float& currentCalfAngle) {
+                                osg::Quat& currentFootRot,
+                                osg::Quat& currentCalfRot,
+                                osg::Quat& currentThighRot) {
                 if (!footCtrl || !baseNode)
                     return;
 
-                auto it = mAnimation.getNodeMap().find(footBone);
-                if (it == mAnimation.getNodeMap().end() || !it->second)
+                const auto& nodeMap = mAnimation.getNodeMap();
+                auto itFoot = nodeMap.find(footBone);
+                auto itCalf = nodeMap.find(calfBone);
+                auto itThigh = nodeMap.find(thighBone);
+
+                if (itFoot == nodeMap.end() || !itFoot->second ||
+                    itCalf == nodeMap.end() || !itCalf->second ||
+                    itThigh == nodeMap.end() || !itThigh->second)
                 {
                     footCtrl->setEnabled(false);
                     if (calfCtrl) calfCtrl->setEnabled(false);
@@ -153,23 +168,14 @@ namespace MWRender
                     return;
                 }
 
-                osg::NodePathList nodepaths = it->second->getParentalNodePaths(baseNode);
-                if (nodepaths.empty())
-                {
-                    footCtrl->setEnabled(false);
-                    if (calfCtrl) calfCtrl->setEnabled(false);
-                    if (thighCtrl) thighCtrl->setEnabled(false);
-                    return;
-                }
+                osg::Vec3f footLocal = getLocalTrans(itFoot->second);
+                osg::Vec3f calfLocal = getLocalTrans(itCalf->second);
+                osg::Vec3f thighLocal = getLocalTrans(itThigh->second);
 
-                osg::Matrixf localMat = osg::computeLocalToWorld(nodepaths[0]) * it->second->getMatrix();
-                osg::Vec3f footOffsetInActor = localMat.getTrans();
+                // True world position on ground plane directly below ankle
+                osg::Vec3f footWorld = actorPos + actorAttitude * osg::Vec3f(footLocal.x(), footLocal.y(), 0.0f);
 
-                // Compute true world coordinate of the foot on the actor's current ground plane
-                osg::Vec3f footWorld = actorPos + actorAttitude * osg::Vec3f(footOffsetInActor.x(), footOffsetInActor.y(), 0.0f);
-
-                // Sample ground slightly in front of the ankle (towards the ball of the foot / toe)
-                // so walking up inclines, stairs, and vertical obstacles anticipates ground slope.
+                // Sample terrain right under / slightly ahead of foot
                 osg::Vec3f samplePos = footWorld + actorForward * 8.0f;
                 osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 60.0f);
                 osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 100.0f);
@@ -177,101 +183,123 @@ namespace MWRender
                 MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(
                     from, to, { mAnimation.mPtr }, {}, MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);
 
-                osg::Vec3f targetOffset(0.0f, 0.0f, 0.0f);
-                osg::Quat targetRot(0.0f, 0.0f, 0.0f, 1.0f);
-                float targetThighAngle = 0.0f;
-                float targetCalfAngle = 0.0f;
-                float deltaZ = 0.0f;
-                float pitch = 0.0f;
-                float roll = 0.0f;
+                osg::Quat targetFootRot(0.0f, 0.0f, 0.0f, 1.0f);
+                osg::Quat targetCalfRot(0.0f, 0.0f, 0.0f, 1.0f);
+                osg::Quat targetThighRot(0.0f, 0.0f, 0.0f, 1.0f);
                 bool shouldEnable = false;
 
                 if (hit.mHit)
                 {
-                    // Delta Z relative to character base ground height (flat terrain yields deltaZ ≈ 0)
-                    deltaZ = hit.mHitPos.z() - actorGroundZ;
+                    float deltaZ = hit.mHitPos.z() - actorGroundZ;
+                    float clampedDeltaZ = std::clamp(deltaZ, -40.0f, 40.0f);
 
+                    opas::ik::TwoBoneChain chain{
+                        { thighLocal.x(), thighLocal.y(), thighLocal.z() },
+                        { calfLocal.x(), calfLocal.y(), calfLocal.z() },
+                        { footLocal.x(), footLocal.y(), footLocal.z() }
+                    };
+
+                    opas::math::Vec3 target = chain.end;
+                    target.z += clampedDeltaZ;
+
+                    // Knee bends forward in character space (+Y)
+                    opas::math::Vec3 pole{ 0.0, 1.0, 0.0 };
+                    opas::ik::HingeLimits limits{ 0.02, 2.8 };
+
+                    opas::ik::TwoBoneResult ik = opas::ik::solveTwoBone(chain, target, pole, limits);
+
+                    // Surface normal alignment for the foot
                     osg::Vec3f worldNormal = hit.mHitNormal;
                     if (worldNormal.length2() > 1e-4f)
                         worldNormal.normalize();
                     else
                         worldNormal = osg::Vec3f(0.0f, 0.0f, 1.0f);
 
-                    // Transform ground normal into actor local coordinate space
                     osg::Vec3f localNormal = actorAttitudeInv * worldNormal;
                     if (localNormal.length2() > 1e-4f)
                         localNormal.normalize();
                     else
                         localNormal = osg::Vec3f(0.0f, 0.0f, 1.0f);
 
-                    // Local pitch (tilt toe up/down around actor X axis)
-                    // Local roll (tilt foot laterally around actor Y axis)
-                    pitch = std::atan2(-localNormal.y(), localNormal.z());
-                    roll = std::atan2(-localNormal.x(), localNormal.z());
+                    float pitch = std::clamp(std::atan2(-localNormal.y(), localNormal.z()), -0.785f, 0.785f);
+                    float roll  = std::clamp(std::atan2(-localNormal.x(), localNormal.z()), -0.523f, 0.523f);
 
-                    // Clamp to natural human ankle articulation range
-                    pitch = std::clamp(pitch, -0.785f, 0.785f); // ~45 deg
-                    roll = std::clamp(roll, -0.523f, 0.523f);   // ~30 deg
+                    osg::Quat groundRot = osg::Quat(pitch, osg::Vec3f(1.0f, 0.0f, 0.0f))
+                                        * osg::Quat(roll, osg::Vec3f(0.0f, 1.0f, 0.0f));
 
-                    targetRot = osg::Quat(pitch, osg::Vec3f(1.0f, 0.0f, 0.0f))
-                        * osg::Quat(roll, osg::Vec3f(0.0f, 1.0f, 0.0f));
+                    if (ik.valid)
+                    {
+                        osg::Quat rootRot(
+                            static_cast<float>(ik.rootRotation.x),
+                            static_cast<float>(ik.rootRotation.y),
+                            static_cast<float>(ik.rootRotation.z),
+                            static_cast<float>(ik.rootRotation.w));
+                        osg::Quat midRot(
+                            static_cast<float>(ik.midRotation.x),
+                            static_cast<float>(ik.midRotation.y),
+                            static_cast<float>(ik.midRotation.z),
+                            static_cast<float>(ik.midRotation.w));
+
+                        // Thigh gets direct root rotation from TwoBoneIk
+                        targetThighRot = rootRot;
+
+                        // Calf is a child of Thigh, so relative knee rotation is rootRot^-1 * midRot
+                        targetCalfRot = rootRot.inverse() * midRot;
+
+                        // Foot is a child of Calf, so relative ankle rotation is midRot^-1 * groundRot
+                        targetFootRot = midRot.inverse() * groundRot;
+                    }
+                    else
+                    {
+                        targetFootRot = groundRot;
+                    }
 
                     const bool hasSlope = (std::abs(pitch) > 0.01f || std::abs(roll) > 0.01f);
-                    const bool hasDeltaZ = (std::abs(deltaZ) > 0.5f && std::abs(deltaZ) < 120.0f);
+                    const bool hasDeltaZ = (std::abs(clampedDeltaZ) > 0.5f);
+                    shouldEnable = hasSlope || hasDeltaZ;
 
-                    if (hasDeltaZ)
+                    if (isPlayer)
                     {
-                        float clampedDeltaZ = std::clamp(deltaZ, -50.0f, 40.0f);
-                        targetOffset.z() = clampedDeltaZ;
-                        targetThighAngle = std::clamp(clampedDeltaZ * 0.015f, -0.45f, 0.45f);
-                        targetCalfAngle = -2.0f * targetThighAngle;
-                    }
-
-                    shouldEnable = (hasSlope || hasDeltaZ);
-                }
-
-                if (isPlayer)
-                {
-                    static int sPlayerLog = 0;
-                    if (++sPlayerLog % 60 == 1)
-                    {
-                        Log(Debug::Warning) << "PLAYER IK: " << footBone
-                                            << " hit=" << hit.mHit
-                                            << " deltaZ=" << deltaZ
-                                            << " pitch=" << pitch
-                                            << " roll=" << roll
-                                            << " targetZ=" << targetOffset.z()
-                                            << " curZ=" << currentOffset.z()
-                                            << " actorZ=" << actorGroundZ;
+                        static int sLog = 0;
+                        if (++sLog % 60 == 1)
+                        {
+                            Log(Debug::Warning) << "CREATIVEMOTION IK: " << footBone
+                                                << " hit=" << hit.mHit
+                                                << " deltaZ=" << clampedDeltaZ
+                                                << " ikValid=" << ik.valid
+                                                << " bendRad=" << ik.bendRad;
+                        }
                     }
                 }
 
-                // Temporal exponential smoothing to prevent twitching/jitter across frames
-                const float smoothSpeed = 16.0f; // Responsive ~60ms convergence
-                const float blend = std::clamp(duration * smoothSpeed, 0.05f, 1.0f);
+                // Smooth temporal blending
+                const float blend = std::clamp(duration * 16.0f, 0.05f, 1.0f);
+                currentFootRot.slerp(blend, currentFootRot, targetFootRot);
+                currentCalfRot.slerp(blend, currentCalfRot, targetCalfRot);
+                currentThighRot.slerp(blend, currentThighRot, targetThighRot);
 
-                currentOffset = currentOffset * (1.0f - blend) + targetOffset * blend;
-                currentRot.slerp(blend, currentRot, targetRot);
-                currentThighAngle = currentThighAngle * (1.0f - blend) + targetThighAngle * blend;
-                currentCalfAngle = currentCalfAngle * (1.0f - blend) + targetCalfAngle * blend;
+                auto hasQuatAngle = [](const osg::Quat& q) {
+                    return std::abs(q.x()) > 1e-3f || std::abs(q.y()) > 1e-3f || std::abs(q.z()) > 1e-3f;
+                };
 
-                const bool hasActiveCorrection = shouldEnable || currentOffset.length2() > 0.01f || std::abs(currentRot.w() - 1.0f) > 0.001f;
-
-                if (hasActiveCorrection)
+                const bool active = shouldEnable || hasQuatAngle(currentFootRot) || hasQuatAngle(currentCalfRot) || hasQuatAngle(currentThighRot);
+                if (active)
                 {
                     footCtrl->setEnabled(true);
-                    footCtrl->setRotate(currentRot);
-                    footCtrl->setOffset(currentOffset);
+                    footCtrl->setOffset(osg::Vec3f(0.0f, 0.0f, 0.0f));
+                    footCtrl->setRotate(currentFootRot);
 
-                    if (thighCtrl)
-                    {
-                        thighCtrl->setEnabled(std::abs(currentThighAngle) > 0.005f);
-                        thighCtrl->setRotate(osg::Quat(currentThighAngle, osg::Vec3f(1.0f, 0.0f, 0.0f)));
-                    }
                     if (calfCtrl)
                     {
-                        calfCtrl->setEnabled(std::abs(currentCalfAngle) > 0.005f);
-                        calfCtrl->setRotate(osg::Quat(currentCalfAngle, osg::Vec3f(1.0f, 0.0f, 0.0f)));
+                        calfCtrl->setEnabled(true);
+                        calfCtrl->setOffset(osg::Vec3f(0.0f, 0.0f, 0.0f));
+                        calfCtrl->setRotate(currentCalfRot);
+                    }
+                    if (thighCtrl)
+                    {
+                        thighCtrl->setEnabled(true);
+                        thighCtrl->setOffset(osg::Vec3f(0.0f, 0.0f, 0.0f));
+                        thighCtrl->setRotate(currentThighRot);
                     }
                 }
                 else
@@ -282,10 +310,13 @@ namespace MWRender
                 }
             };
 
-            plantLeg("bip01 l foot", mLeftFootController, mLeftCalfController, mLeftThighController,
-                     mLeftOffset, mLeftRot, mLeftThighAngle, mLeftCalfAngle);
-            plantLeg("bip01 r foot", mRightFootController, mRightCalfController, mRightThighController,
-                     mRightOffset, mRightRot, mRightThighAngle, mRightCalfAngle);
+            plantLeg("bip01 l thigh", "bip01 l calf", "bip01 l foot",
+                     mLeftFootController, mLeftCalfController, mLeftThighController,
+                     mLeftOffset, mLeftFootRot, mLeftCalfRot, mLeftThighRot);
+
+            plantLeg("bip01 r thigh", "bip01 r calf", "bip01 r foot",
+                     mRightFootController, mRightCalfController, mRightThighController,
+                     mRightOffset, mRightFootRot, mRightCalfRot, mRightThighRot);
         }
         else
         {

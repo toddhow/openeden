@@ -107,12 +107,7 @@ namespace MWPhysics
             extRatio = mOriginalHalfExtents.x() / mOriginalHalfExtents.y();
 
         const bool symmetricExtents = std::abs(mMeshTranslation.x()) < 1e-2f && std::abs(mMeshTranslation.y()) < 1e-2f && extRatio >= 1.f / 1.25f && extRatio <= 1.25f;
-        const bool isHumanoidBiped = ptr.getClass().isNpc();
-        const bool useCompound = isHumanoidBiped && (
-            collisionShapeType == DetourNavigator::CollisionShapeType::Compound
-            || collisionShapeType == DetourNavigator::CollisionShapeType::Capsule
-            || Settings::game().mFootPlanting
-        );
+        const bool useCompound = (collisionShapeType == DetourNavigator::CollisionShapeType::Compound);
 
         if (useCompound)
         {
@@ -224,10 +219,20 @@ namespace MWPhysics
                 mCollisionShapeType = DetourNavigator::CollisionShapeType::Capsule;
             }
         }
-        else if (symmetricExtents)
+        else if (symmetricExtents || collisionShapeType == DetourNavigator::CollisionShapeType::Capsule)
         {
             switch (collisionShapeType)
             {
+                case DetourNavigator::CollisionShapeType::Capsule:
+                {
+                    const float radius = std::max(0.01f, std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y()));
+                    const float halfHeight = std::max(0.01f, mOriginalHalfExtents.z() - radius);
+                    JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
+                    mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation,
+                        new JPH::CapsuleShape(halfHeight, radius));
+                    mRotationallyInvariant = true;
+                    break;
+                }
                 default:
                 case DetourNavigator::CollisionShapeType::Aabb:
                     mBasePhysicsShape = new JPH::BoxShape(Misc::Convert::toJolt<JPH::Vec3>(mOriginalHalfExtents));

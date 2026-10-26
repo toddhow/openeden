@@ -1,10 +1,12 @@
 set(CREATIVEMOTION_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../CreativeMotion" CACHE PATH "Path to CreativeMotion repository")
 
-if(EXISTS "${CREATIVEMOTION_SOURCE_DIR}/CMakeLists.txt")
+if(NOT TARGET opas::ik AND EXISTS "${CREATIVEMOTION_SOURCE_DIR}/CMakeLists.txt")
     set(OPAS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(OPAS_BUILD_PHYSICS OFF CACHE BOOL "" FORCE)
     set(OPAS_BUILD_VIEWER OFF CACHE BOOL "" FORCE)
     add_subdirectory("${CREATIVEMOTION_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/creativemotion_ext" EXCLUDE_FROM_ALL)
+endif()
+if(TARGET opas::ik)
 
     add_library(creativemotion_plugin_static STATIC
         host_physics_world.hpp
