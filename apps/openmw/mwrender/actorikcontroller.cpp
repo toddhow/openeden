@@ -120,10 +120,11 @@ namespace MWRender
                 return;
             }
 
+            auto* baseNode = mAnimation.mPtr.getRefData().getBaseNode();
             osg::Vec3f actorPos = osg::Vec3f();
             osg::Quat actorAttitude = osg::Quat();
             float actorGroundZ = 0.0f;
-            if (auto* baseNode = mAnimation.mPtr.getRefData().getBaseNode())
+            if (baseNode)
             {
                 actorPos = baseNode->getPosition();
                 actorAttitude = baseNode->getAttitude();
@@ -140,7 +141,7 @@ namespace MWRender
                                 osg::Quat& currentRot,
                                 float& currentThighAngle,
                                 float& currentCalfAngle) {
-                if (!footCtrl)
+                if (!footCtrl || !baseNode)
                     return;
 
                 auto it = mAnimation.getNodeMap().find(footBone);
@@ -152,7 +153,7 @@ namespace MWRender
                     return;
                 }
 
-                osg::NodePathList nodepaths = it->second->getParentalNodePaths();
+                osg::NodePathList nodepaths = it->second->getParentalNodePaths(baseNode);
                 if (nodepaths.empty())
                 {
                     footCtrl->setEnabled(false);
@@ -161,17 +162,17 @@ namespace MWRender
                     return;
                 }
 
-                osg::Matrixf worldMat = osg::computeLocalToWorld(nodepaths[0]) * it->second->getMatrix();
-                osg::Vec3f footOffsetInActor = worldMat.getTrans();
+                osg::Matrixf localMat = osg::computeLocalToWorld(nodepaths[0]) * it->second->getMatrix();
+                osg::Vec3f footOffsetInActor = localMat.getTrans();
 
                 // Compute true world coordinate of the foot on the actor's current ground plane
                 osg::Vec3f footWorld = actorPos + actorAttitude * osg::Vec3f(footOffsetInActor.x(), footOffsetInActor.y(), 0.0f);
 
                 // Sample ground slightly in front of the ankle (towards the ball of the foot / toe)
                 // so walking up inclines, stairs, and vertical obstacles anticipates ground slope.
-                osg::Vec3f samplePos = footWorld + actorForward * 10.0f;
-                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 80.0f);
-                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 160.0f);
+                osg::Vec3f samplePos = footWorld + actorForward * 8.0f;
+                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 60.0f);
+                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 100.0f);
 
                 MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(
                     from, to, { mAnimation.mPtr }, {}, MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);

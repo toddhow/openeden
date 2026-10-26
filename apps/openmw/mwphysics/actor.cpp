@@ -29,51 +29,31 @@
 
 namespace
 {
-    // Visitor to measure the horizontal cross-section profile of an actor across vertical body zones.
-    class ActorGeometryProfileVisitor : public osg::NodeVisitor
+    void addCapsuleBetween(JPH::StaticCompoundShapeSettings& compoundSettings,
+                           const osg::Vec3f& start,
+                           const osg::Vec3f& end,
+                           float radius)
     {
-    public:
-        ActorGeometryProfileVisitor()
-            : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN)
+        osg::Vec3f dir = end - start;
+        float len = dir.length();
+        if (len < 1e-3f)
         {
+            dir = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            len = 0.01f;
+        }
+        else
+        {
+            dir /= len;
         }
 
-        void apply(osg::Transform& transform) override
-        {
-            osg::Matrix matrix;
-            if (!mMatrixStack.empty())
-                matrix = mMatrixStack.back();
-            transform.computeLocalToWorldMatrix(matrix, this);
-            mMatrixStack.push_back(matrix);
+        const float halfHeight = std::max(0.01f, (len - 2.0f * radius) * 0.5f);
+        const osg::Vec3f center = (start + end) * 0.5f;
 
-            traverse(transform);
+        const JPH::Quat rot = JPH::Quat::sFromTo(JPH::Vec3::sAxisY(), Misc::Convert::toJolt<JPH::Vec3>(dir));
+        const JPH::Vec3 pos = Misc::Convert::toJolt<JPH::Vec3>(center);
 
-            mMatrixStack.pop_back();
-        }
-
-        void apply(osg::Drawable& drawable) override
-        {
-            osg::BoundingBox bb = drawable.getBoundingBox();
-            if (bb.valid())
-            {
-                if (!mMatrixStack.empty())
-                {
-                    const osg::Matrix& mat = mMatrixStack.back();
-                    osg::BoundingBox transformedBb;
-                    for (unsigned int c = 0; c < 8; ++c)
-                        transformedBb.expandBy(bb.corner(c) * mat);
-                    mBoxes.push_back(transformedBb);
-                }
-                else
-                {
-                    mBoxes.push_back(bb);
-                }
-            }
-        }
-
-        std::vector<osg::Matrix> mMatrixStack;
-        std::vector<osg::BoundingBox> mBoxes;
-    };
+        compoundSettings.AddShape(pos, rot, new JPH::CapsuleShapeSettings(halfHeight, radius));
+    }
 }
 
 namespace MWPhysics
@@ -127,94 +107,100 @@ namespace MWPhysics
             extRatio = mOriginalHalfExtents.x() / mOriginalHalfExtents.y();
 
         const bool symmetricExtents = std::abs(mMeshTranslation.x()) < 1e-2f && std::abs(mMeshTranslation.y()) < 1e-2f && extRatio >= 1.f / 1.25f && extRatio <= 1.25f;
-        const bool useCompound
-            = collisionShapeType == DetourNavigator::CollisionShapeType::Compound
+        const bool isHumanoidBiped = ptr.getClass().isNpc();
+        const bool useCompound = isHumanoidBiped && (
+            collisionShapeType == DetourNavigator::CollisionShapeType::Compound
             || collisionShapeType == DetourNavigator::CollisionShapeType::Capsule
-            || (Settings::game().mFootPlanting && (symmetricExtents || ptr.getClass().isNpc()));
+            || Settings::game().mFootPlanting
+        );
 
         if (useCompound)
         {
-            float maxUpperR = 0.0f;
-            float maxMidR = 0.0f;
-            float maxLowerR = 0.0f;
-
-            auto baseNode = mPtr.getRefData().getBaseNode();
-            if (baseNode)
-            {
-                ActorGeometryProfileVisitor visitor;
-                baseNode->accept(visitor);
-
-                const float H = mOriginalHalfExtents.z();
-                for (const auto& box : visitor.mBoxes)
-                {
-                    const float boxMinZ = box._min.z() - mMeshTranslation.z();
-                    const float boxMaxZ = box._max.z() - mMeshTranslation.z();
-
-                    // Radial distance of the box corners from actor center axis
-                    const float r1 = std::sqrt(std::pow(box._min.x() - mMeshTranslation.x(), 2.0f) + std::pow(box._min.y() - mMeshTranslation.y(), 2.0f));
-                    const float r2 = std::sqrt(std::pow(box._max.x() - mMeshTranslation.x(), 2.0f) + std::pow(box._max.y() - mMeshTranslation.y(), 2.0f));
-                    const float r3 = std::sqrt(std::pow(box._min.x() - mMeshTranslation.x(), 2.0f) + std::pow(box._max.y() - mMeshTranslation.y(), 2.0f));
-                    const float r4 = std::sqrt(std::pow(box._max.x() - mMeshTranslation.x(), 2.0f) + std::pow(box._min.y() - mMeshTranslation.y(), 2.0f));
-                    const float rBox = std::max({ r1, r2, r3, r4 });
-
-                    // Lower body zone (feet & shins): bottom 40% of height
-                    if (boxMinZ < -0.2f * H)
-                        maxLowerR = std::max(maxLowerR, rBox);
-
-                    // Mid body zone (pelvis & hips): waist zone
-                    if (boxMinZ < 0.2f * H && boxMaxZ > -0.3f * H)
-                        maxMidR = std::max(maxMidR, rBox);
-
-                    // Upper body zone (torso, shoulders, head): upper 60% of height
-                    if (boxMaxZ > 0.1f * H)
-                        maxUpperR = std::max(maxUpperR, rBox);
-                }
-            }
-
-            const float fallbackOverallR = std::max(0.01f, std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y()));
+            const float W = std::max(0.01f, std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y()));
             const float H = std::max(0.01f, mOriginalHalfExtents.z());
 
-            const float rUpper = (maxUpperR > 0.0f)
-                ? std::clamp(maxUpperR, fallbackOverallR * 0.70f, fallbackOverallR)
-                : fallbackOverallR;
-
-            const float rLower = (maxLowerR > 0.0f)
-                ? std::clamp(maxLowerR, 8.0f, rUpper * 0.55f)
-                : (rUpper * 0.45f);
-
-            const float rMid = (maxMidR > 0.0f)
-                ? std::clamp(maxMidR, rLower, rUpper * 0.85f)
-                : ((rLower + rUpper) * 0.5f);
-
             JPH::StaticCompoundShapeSettings compoundSettings;
-            const JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
 
-            // Lower body capsule: spans from Z = -H to Z = -0.1f * H
-            const float lowerBottom = -H;
-            const float lowerTop = -0.1f * H;
-            const float lowerCylHeight = std::max(0.01f, (lowerTop - rLower) - (lowerBottom + rLower));
-            const float hLower = lowerCylHeight * 0.5f;
-            const float zLower = (lowerBottom + rLower) + hLower;
-            compoundSettings.AddShape(JPH::Vec3(0.0f, 0.0f, zLower), capsuleRotation,
-                new JPH::CapsuleShapeSettings(hLower, rLower));
+            const float footRadius = std::clamp(0.20f * W, 3.5f, 5.0f);
+            const float calfRadius = std::clamp(0.22f * W, 4.0f, 5.5f);
+            const float thighRadius = std::clamp(0.25f * W, 4.5f, 6.2f);
+            const float armRadius = std::clamp(0.16f * W, 3.0f, 4.2f);
+            const float forearmRadius = std::clamp(0.14f * W, 2.5f, 3.8f);
+            const float pelvisRadius = std::clamp(0.40f * W, 7.5f, 10.5f);
+            const float chestRadius = std::clamp(0.46f * W, 8.5f, 11.5f);
+            const float headRadius = std::clamp(0.28f * W, 5.5f, 7.5f);
 
-            // Mid body capsule: smoothly bridges pelvis / waist
-            const float midBottom = -0.3f * H;
-            const float midTop = 0.15f * H;
-            const float midCylHeight = std::max(0.01f, (midTop - rMid) - (midBottom + rMid));
-            const float hMid = midCylHeight * 0.5f;
-            const float zMid = (midBottom + rMid) + hMid;
-            compoundSettings.AddShape(JPH::Vec3(0.0f, 0.0f, zMid), capsuleRotation,
-                new JPH::CapsuleShapeSettings(hMid, rMid));
+            // Left Leg (3 separate shapes: Foot, Calf, Thigh)
+            // Left foot is horizontal along Y (heel to toe) so its bottom rests firmly at Z = -H
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(-0.30f * W, -0.15f * W, -H + footRadius),
+                osg::Vec3f(-0.30f * W,  0.25f * W, -H + footRadius),
+                footRadius);
+            // Left calf (lower leg)
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(-0.30f * W, -0.02f * W, -H + footRadius),
+                osg::Vec3f(-0.28f * W,  0.02f * W, -0.42f * H),
+                calfRadius);
+            // Left thigh (upper leg)
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(-0.28f * W,  0.02f * W, -0.42f * H),
+                osg::Vec3f(-0.20f * W,  0.0f,       -0.05f * H),
+                thighRadius);
 
-            // Upper body capsule: spans from Z = -0.1f * H to Z = +H
-            const float upperBottom = -0.1f * H;
-            const float upperTop = H;
-            const float upperCylHeight = std::max(0.01f, (upperTop - rUpper) - (upperBottom + rUpper));
-            const float hUpper = upperCylHeight * 0.5f;
-            const float zUpper = (upperBottom + rUpper) + hUpper;
-            compoundSettings.AddShape(JPH::Vec3(0.0f, 0.0f, zUpper), capsuleRotation,
-                new JPH::CapsuleShapeSettings(hUpper, rUpper));
+            // Right Leg (3 separate shapes: Foot, Calf, Thigh)
+            // Right foot is horizontal along Y (heel to toe) so its bottom rests firmly at Z = -H
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.30f * W, -0.15f * W, -H + footRadius),
+                osg::Vec3f(0.30f * W,  0.25f * W, -H + footRadius),
+                footRadius);
+            // Right calf (lower leg)
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.30f * W, -0.02f * W, -H + footRadius),
+                osg::Vec3f(0.28f * W,  0.02f * W, -0.42f * H),
+                calfRadius);
+            // Right thigh (upper leg)
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.28f * W,  0.02f * W, -0.42f * H),
+                osg::Vec3f(0.20f * W,  0.0f,       -0.05f * H),
+                thighRadius);
+
+            // Pelvis / Hips
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.0f, 0.0f, -0.05f * H),
+                osg::Vec3f(0.0f, 0.0f,  0.22f * H),
+                pelvisRadius);
+
+            // Upper Torso / Chest
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.0f, 0.0f, 0.22f * H),
+                osg::Vec3f(0.0f, 0.0f, 0.65f * H),
+                chestRadius);
+
+            // Head
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.0f, 0.0f, 0.72f * H),
+                osg::Vec3f(0.0f, 0.0f, 0.88f * H),
+                headRadius);
+
+            // Left Arm (Upper arm + Forearm)
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(-0.55f * W, 0.0f, 0.58f * H),
+                osg::Vec3f(-0.60f * W, 0.0f, 0.25f * H),
+                armRadius);
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(-0.60f * W, 0.0f, 0.25f * H),
+                osg::Vec3f(-0.60f * W, 0.0f, -0.05f * H),
+                forearmRadius);
+
+            // Right Arm (Upper arm + Forearm)
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.55f * W, 0.0f, 0.58f * H),
+                osg::Vec3f(0.60f * W, 0.0f, 0.25f * H),
+                armRadius);
+            addCapsuleBetween(compoundSettings,
+                osg::Vec3f(0.60f * W, 0.0f, 0.25f * H),
+                osg::Vec3f(0.60f * W, 0.0f, -0.05f * H),
+                forearmRadius);
 
             JPH::Shape::ShapeResult compoundResult = compoundSettings.Create();
             if (compoundResult.IsValid())
@@ -225,14 +211,15 @@ namespace MWPhysics
                 const float zOffset = -H - boundsMinZ;
                 mBasePhysicsShape = new JPH::RotatedTranslatedShape(
                     JPH::Vec3(0.0f, 0.0f, zOffset), JPH::Quat::sIdentity(), rawCompound);
-                mRotationallyInvariant = true;
+                mRotationallyInvariant = false;
                 mCollisionShapeType = DetourNavigator::CollisionShapeType::Compound;
             }
             else
             {
-                const float halfHeight = std::max(0.01f, H - rUpper);
+                const float halfHeight = std::max(0.01f, H - footRadius);
+                const JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
                 mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation,
-                    new JPH::CapsuleShape(halfHeight, rUpper));
+                    new JPH::CapsuleShape(halfHeight, footRadius));
                 mRotationallyInvariant = true;
                 mCollisionShapeType = DetourNavigator::CollisionShapeType::Capsule;
             }
