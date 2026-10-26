@@ -32,6 +32,7 @@ namespace MWRender
         ActorIkController& operator=(const ActorIkController&) = delete;
 
         void initControllers();
+        void reset();
         void update(float duration);
 
         [[nodiscard]] bool isFootPlantingActive() const noexcept { return mFootPlantingActive; }

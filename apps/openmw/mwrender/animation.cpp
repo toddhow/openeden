@@ -1142,6 +1142,8 @@ namespace MWRender
         }
 
         mActiveControllers.clear();
+        if (mActorIkController)
+            mActorIkController->reset();
 
         mAccumCtrl = nullptr;
 
@@ -1586,6 +1588,8 @@ namespace MWRender
         mNodeMap.clear();
         mNodeMapCreated = false;
         mActiveControllers.clear();
+        if (mActorIkController)
+            mActorIkController->reset();
         mAccumRoot = nullptr;
         mAccumCtrl = nullptr;
 

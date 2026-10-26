@@ -27,7 +27,9 @@ namespace MWRender
 
     void ActorIkController::initControllers()
     {
-        mInitialized = true;
+        if (mAnimation.getNodeMap().empty())
+            return;
+
         mLeftFootController = mAnimation.addRotateController("bip01 l foot");
         mLeftCalfController = mAnimation.addRotateController("bip01 l calf");
         mLeftThighController = mAnimation.addRotateController("bip01 l thigh");
@@ -35,6 +37,27 @@ namespace MWRender
         mRightFootController = mAnimation.addRotateController("bip01 r foot");
         mRightCalfController = mAnimation.addRotateController("bip01 r calf");
         mRightThighController = mAnimation.addRotateController("bip01 r thigh");
+
+        mInitialized = (mLeftFootController != nullptr || mRightFootController != nullptr);
+    }
+
+    void ActorIkController::reset()
+    {
+        mInitialized = false;
+        mLeftFootController = nullptr;
+        mLeftCalfController = nullptr;
+        mLeftThighController = nullptr;
+        mRightFootController = nullptr;
+        mRightCalfController = nullptr;
+        mRightThighController = nullptr;
+        mLeftOffset = osg::Vec3f(0.f, 0.f, 0.f);
+        mRightOffset = osg::Vec3f(0.f, 0.f, 0.f);
+        mLeftRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+        mRightRot = osg::Quat(0.f, 0.f, 0.f, 1.f);
+        mLeftThighAngle = 0.f;
+        mLeftCalfAngle = 0.f;
+        mRightThighAngle = 0.f;
+        mRightCalfAngle = 0.f;
     }
 
     void ActorIkController::update(float duration)
@@ -157,12 +180,15 @@ namespace MWRender
                 osg::Quat targetRot(0.0f, 0.0f, 0.0f, 1.0f);
                 float targetThighAngle = 0.0f;
                 float targetCalfAngle = 0.0f;
+                float deltaZ = 0.0f;
+                float pitch = 0.0f;
+                float roll = 0.0f;
                 bool shouldEnable = false;
 
                 if (hit.mHit)
                 {
                     // Delta Z relative to character base ground height (flat terrain yields deltaZ ≈ 0)
-                    float deltaZ = hit.mHitPos.z() - actorGroundZ;
+                    deltaZ = hit.mHitPos.z() - actorGroundZ;
 
                     osg::Vec3f worldNormal = hit.mHitNormal;
                     if (worldNormal.length2() > 1e-4f)
@@ -179,8 +205,8 @@ namespace MWRender
 
                     // Local pitch (tilt toe up/down around actor X axis)
                     // Local roll (tilt foot laterally around actor Y axis)
-                    float pitch = std::atan2(-localNormal.y(), localNormal.z());
-                    float roll = std::atan2(-localNormal.x(), localNormal.z());
+                    pitch = std::atan2(-localNormal.y(), localNormal.z());
+                    roll = std::atan2(-localNormal.x(), localNormal.z());
 
                     // Clamp to natural human ankle articulation range
                     pitch = std::clamp(pitch, -0.785f, 0.785f); // ~45 deg
@@ -201,20 +227,21 @@ namespace MWRender
                     }
 
                     shouldEnable = (hasSlope || hasDeltaZ);
+                }
 
-                    if (isPlayer)
+                if (isPlayer)
+                {
+                    static int sPlayerLog = 0;
+                    if (++sPlayerLog % 60 == 1)
                     {
-                        static int sPlayerLog = 0;
-                        if (++sPlayerLog % 60 == 1)
-                        {
-                            Log(Debug::Warning) << "PLAYER IK: " << footBone
-                                                << " hit=" << hit.mHit
-                                                << " deltaZ=" << deltaZ
-                                                << " pitch=" << pitch
-                                                << " roll=" << roll
-                                                << " footWorldZ=" << footWorld.z()
-                                                << " actorGroundZ=" << actorGroundZ;
-                        }
+                        Log(Debug::Warning) << "PLAYER IK: " << footBone
+                                            << " hit=" << hit.mHit
+                                            << " deltaZ=" << deltaZ
+                                            << " pitch=" << pitch
+                                            << " roll=" << roll
+                                            << " targetZ=" << targetOffset.z()
+                                            << " curZ=" << currentOffset.z()
+                                            << " actorZ=" << actorGroundZ;
                     }
                 }
 
