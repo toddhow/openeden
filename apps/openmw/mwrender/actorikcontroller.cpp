@@ -24,21 +24,13 @@ namespace MWRender
 
     void ActorIkController::initControllers()
     {
-        if (!mLeftFootController)
-            mLeftFootController = mAnimation.addRotateController("bip01 l foot");
-        if (!mLeftCalfController)
-            mLeftCalfController = mAnimation.addRotateController("bip01 l calf");
-        if (!mLeftThighController)
-            mLeftThighController = mAnimation.addRotateController("bip01 l thigh");
+        mLeftFootController = mAnimation.addRotateController("bip01 l foot");
+        mLeftCalfController = mAnimation.addRotateController("bip01 l calf");
+        mLeftThighController = mAnimation.addRotateController("bip01 l thigh");
 
-        if (!mRightFootController)
-            mRightFootController = mAnimation.addRotateController("bip01 r foot");
-        if (!mRightCalfController)
-            mRightCalfController = mAnimation.addRotateController("bip01 r calf");
-        if (!mRightThighController)
-            mRightThighController = mAnimation.addRotateController("bip01 r thigh");
-
-        mInitialized = (mLeftFootController && mRightFootController);
+        mRightFootController = mAnimation.addRotateController("bip01 r foot");
+        mRightCalfController = mAnimation.addRotateController("bip01 r calf");
+        mRightThighController = mAnimation.addRotateController("bip01 r thigh");
     }
 
     void ActorIkController::update(float /*duration*/)
@@ -70,7 +62,8 @@ namespace MWRender
             return;
         }
 
-        initControllers();
+        if (!mLeftFootController || !mRightFootController)
+            initControllers();
 
         if (footPlanting && MWBase::Environment::get().getWorld())
         {
@@ -89,8 +82,12 @@ namespace MWRender
             }
 
             osg::Quat actorAttitude = osg::Quat();
+            float actorGroundZ = 0.0f;
             if (auto* baseNode = mAnimation.mPtr.getRefData().getBaseNode())
+            {
                 actorAttitude = baseNode->getAttitude();
+                actorGroundZ = baseNode->getPosition().z();
+            }
             const osg::Quat actorAttitudeInv = actorAttitude.inverse();
             const osg::Vec3f actorForward = actorAttitude * osg::Vec3f(0.0f, 1.0f, 0.0f);
 
@@ -124,7 +121,7 @@ namespace MWRender
 
                 // Sample ground slightly in front of the ankle (towards the ball of the foot / toe)
                 // so walking up inclines, stairs, and vertical obstacles anticipates ground slope.
-                osg::Vec3f samplePos = footWorld + actorForward * 8.0f;
+                osg::Vec3f samplePos = footWorld + actorForward * 10.0f;
                 osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 50.0f);
                 osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 75.0f);
 
@@ -133,7 +130,8 @@ namespace MWRender
 
                 if (hit.mHit)
                 {
-                    float deltaZ = hit.mHitPos.z() - footWorld.z();
+                    // Delta Z relative to character base ground height (so flat terrain yields deltaZ ≈ 0)
+                    float deltaZ = hit.mHitPos.z() - actorGroundZ;
 
                     osg::Vec3f worldNormal = hit.mHitNormal;
                     if (worldNormal.length2() > 1e-4f)
@@ -169,7 +167,7 @@ namespace MWRender
                         footCtrl->setRotate(footRot);
                         if (hasDeltaZ)
                         {
-                            float clampedDeltaZ = std::clamp(deltaZ, -30.0f, 40.0f);
+                            float clampedDeltaZ = std::clamp(deltaZ, -25.0f, 35.0f);
                             footCtrl->setOffset(osg::Vec3f(0.0f, 0.0f, clampedDeltaZ));
                         }
                         else
@@ -185,7 +183,7 @@ namespace MWRender
                     // Procedural knee bend (flex) and hip pitch adjustment
                     if (hasDeltaZ)
                     {
-                        float clampedDeltaZ = std::clamp(deltaZ, -30.0f, 40.0f);
+                        float clampedDeltaZ = std::clamp(deltaZ, -25.0f, 35.0f);
                         float thighAngle = std::clamp(clampedDeltaZ * 0.015f, -0.45f, 0.45f);
                         float calfAngle = -2.0f * thighAngle;
 

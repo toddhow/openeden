@@ -1966,12 +1966,15 @@ namespace MWRender
         osg::MatrixTransform* node = iter->second;
 
         bool foundKeyframeCtrl = false;
+        if (dynamic_cast<osgAnimation::Bone*>(node))
+            foundKeyframeCtrl = true;
         osg::Callback* cb = node->getUpdateCallback();
         while (cb)
         {
             if (dynamic_cast<NifAnimBlendController*>(cb) || dynamic_cast<BoneAnimBlendController*>(cb)
                 || dynamic_cast<BoneAnimBlendControllerWrapper*>(cb)
-                || dynamic_cast<SceneUtil::KeyframeController*>(cb))
+                || dynamic_cast<SceneUtil::KeyframeController*>(cb)
+                || dynamic_cast<osgAnimation::UpdateBone*>(cb))
             {
                 foundKeyframeCtrl = true;
                 break;
