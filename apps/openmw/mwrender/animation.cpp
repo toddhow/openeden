@@ -1970,6 +1970,7 @@ namespace MWRender
         while (cb)
         {
             if (dynamic_cast<NifAnimBlendController*>(cb) || dynamic_cast<BoneAnimBlendController*>(cb)
+                || dynamic_cast<BoneAnimBlendControllerWrapper*>(cb)
                 || dynamic_cast<SceneUtil::KeyframeController*>(cb))
             {
                 foundKeyframeCtrl = true;
