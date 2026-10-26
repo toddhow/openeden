@@ -170,8 +170,8 @@ namespace MWRender
                 // Sample ground slightly in front of the ankle (towards the ball of the foot / toe)
                 // so walking up inclines, stairs, and vertical obstacles anticipates ground slope.
                 osg::Vec3f samplePos = footWorld + actorForward * 10.0f;
-                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 50.0f);
-                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 75.0f);
+                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 80.0f);
+                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 160.0f);
 
                 MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(
                     from, to, { mAnimation.mPtr }, {}, MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);
@@ -216,11 +216,11 @@ namespace MWRender
                         * osg::Quat(roll, osg::Vec3f(0.0f, 1.0f, 0.0f));
 
                     const bool hasSlope = (std::abs(pitch) > 0.01f || std::abs(roll) > 0.01f);
-                    const bool hasDeltaZ = (std::abs(deltaZ) > 0.5f && std::abs(deltaZ) < 50.0f);
+                    const bool hasDeltaZ = (std::abs(deltaZ) > 0.5f && std::abs(deltaZ) < 120.0f);
 
                     if (hasDeltaZ)
                     {
-                        float clampedDeltaZ = std::clamp(deltaZ, -25.0f, 35.0f);
+                        float clampedDeltaZ = std::clamp(deltaZ, -50.0f, 40.0f);
                         targetOffset.z() = clampedDeltaZ;
                         targetThighAngle = std::clamp(clampedDeltaZ * 0.015f, -0.45f, 0.45f);
                         targetCalfAngle = -2.0f * targetThighAngle;

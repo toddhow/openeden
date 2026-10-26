@@ -11,6 +11,7 @@ namespace DetourNavigator
         RotatingBox = 1,
         Cylinder = 2,
         Capsule = 3,
+        Compound = 4,
     };
 
     CollisionShapeType toCollisionShapeType(int value);

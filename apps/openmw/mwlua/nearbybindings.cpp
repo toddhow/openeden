@@ -215,6 +215,7 @@ namespace MWLua
                     { "RotatingBox", DetourNavigator::CollisionShapeType::RotatingBox },
                     { "Cylinder", DetourNavigator::CollisionShapeType::Cylinder },
                     { "Capsule", DetourNavigator::CollisionShapeType::Capsule },
+                    { "Compound", DetourNavigator::CollisionShapeType::Compound },
                 }));
 
         api["FIND_PATH_STATUS"]

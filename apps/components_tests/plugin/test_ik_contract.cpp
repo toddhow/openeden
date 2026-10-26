@@ -787,9 +787,10 @@ namespace
         EXPECT_EQ(DetourNavigator::toCollisionShapeType(1), DetourNavigator::CollisionShapeType::RotatingBox);
         EXPECT_EQ(DetourNavigator::toCollisionShapeType(2), DetourNavigator::CollisionShapeType::Cylinder);
         EXPECT_EQ(DetourNavigator::toCollisionShapeType(3), DetourNavigator::CollisionShapeType::Capsule);
+        EXPECT_EQ(DetourNavigator::toCollisionShapeType(4), DetourNavigator::CollisionShapeType::Compound);
 
         // 7c. Verify invalid values throw std::invalid_argument
-        EXPECT_THROW(DetourNavigator::toCollisionShapeType(4), std::invalid_argument);
+        EXPECT_THROW(DetourNavigator::toCollisionShapeType(5), std::invalid_argument);
         EXPECT_THROW(DetourNavigator::toCollisionShapeType(-1), std::invalid_argument);
         EXPECT_THROW(DetourNavigator::toCollisionShapeType(99), std::invalid_argument);
     }

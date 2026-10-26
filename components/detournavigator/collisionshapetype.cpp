@@ -13,6 +13,7 @@ namespace DetourNavigator
             case CollisionShapeType::RotatingBox:
             case CollisionShapeType::Cylinder:
             case CollisionShapeType::Capsule:
+            case CollisionShapeType::Compound:
                 return static_cast<CollisionShapeType>(value);
         }
         std::string error("Invalid CollisionShapeType value: \"");
