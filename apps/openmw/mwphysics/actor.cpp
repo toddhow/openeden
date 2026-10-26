@@ -73,7 +73,8 @@ namespace MWPhysics
         if (mOriginalHalfExtents.y() != 0.f)
             extRatio = mOriginalHalfExtents.x() / mOriginalHalfExtents.y();
 
-        if (mMeshTranslation.x() == 0.0 && mMeshTranslation.y() == 0.0 && extRatio >= 1.f / 1.1f && extRatio <= 1.1f)
+        const bool symmetricExtents = std::abs(mMeshTranslation.x()) < 1e-2f && std::abs(mMeshTranslation.y()) < 1e-2f && extRatio >= 1.f / 1.25f && extRatio <= 1.25f;
+        if (symmetricExtents || collisionShapeType == DetourNavigator::CollisionShapeType::Capsule)
         {
             switch (collisionShapeType)
             {
@@ -94,8 +95,8 @@ namespace MWPhysics
                     break;
                 case DetourNavigator::CollisionShapeType::Capsule:
                 {
-                    const float radius = std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y());
-                    const float halfHeight = std::max(0.0f, mOriginalHalfExtents.z() - radius);
+                    const float radius = std::max(0.01f, std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y()));
+                    const float halfHeight = std::max(0.01f, mOriginalHalfExtents.z() - radius);
                     JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
                     mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation,
                         new JPH::CapsuleShape(halfHeight, radius));
