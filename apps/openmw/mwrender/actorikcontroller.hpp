@@ -54,6 +54,16 @@ namespace MWRender
         bool mFootPlantingActive = false;
         bool mLookAtActive = false;
         bool mSmootherTurnsActive = false;
+
+        // Smoothed state for foot IK to eliminate twitching
+        osg::Vec3f mLeftOffset{ 0.f, 0.f, 0.f };
+        osg::Vec3f mRightOffset{ 0.f, 0.f, 0.f };
+        osg::Quat mLeftRot{ 0.f, 0.f, 0.f, 1.f };
+        osg::Quat mRightRot{ 0.f, 0.f, 0.f, 1.f };
+        float mLeftThighAngle = 0.f;
+        float mLeftCalfAngle = 0.f;
+        float mRightThighAngle = 0.f;
+        float mRightCalfAngle = 0.f;
     };
 } // namespace MWRender
 
