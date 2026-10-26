@@ -1,3 +1,4 @@
+#include <components/debug/debuglog.hpp>
 #include "rotatecontroller.hpp"
 
 #include <osg/MatrixTransform>
@@ -47,11 +48,22 @@ namespace MWRender
 
         osg::Quat worldOrientInverse = worldOrient.inverse();
 
-        osg::Quat orient = worldOrientInverse * mRotate * worldOrient * matrix.getRotate();
+        osg::Quat orient = worldOrient * mRotate * worldOrientInverse * matrix.getRotate();
         matrix.setRotate(orient);
         matrix.setTrans(matrix.getTrans() + worldOrientInverse * mOffset);
 
         node->setMatrix(matrix);
+
+        if (mEnabled && (node->getName().find("foot") != std::string::npos || node->getName().find("Foot") != std::string::npos))
+        {
+            static int sFootRotCount = 0;
+            if (++sFootRotCount % 60 == 1)
+            {
+                Log(Debug::Warning) << "RotateController on " << node->getName()
+                                    << " mRotate=[" << mRotate.x() << "," << mRotate.y() << "," << mRotate.z() << "," << mRotate.w() << "]"
+                                    << " mOffset=[" << mOffset.x() << "," << mOffset.y() << "," << mOffset.z() << "]";
+            }
+        }
 
         // If we are linked to a bone we must call setMatrixInSkeletonSpace
         osgAnimation::Bone* b = dynamic_cast<osgAnimation::Bone*>(node);

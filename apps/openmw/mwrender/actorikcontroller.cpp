@@ -4,8 +4,11 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwworld/class.hpp"
 #include "../mwphysics/raycasting.hpp"
+#include "../mwphysics/joltlayers.hpp"
 
+#include <components/debug/debuglog.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
@@ -24,6 +27,7 @@ namespace MWRender
 
     void ActorIkController::initControllers()
     {
+        mInitialized = true;
         mLeftFootController = mAnimation.addRotateController("bip01 l foot");
         mLeftCalfController = mAnimation.addRotateController("bip01 l calf");
         mLeftThighController = mAnimation.addRotateController("bip01 l thigh");
@@ -31,10 +35,18 @@ namespace MWRender
         mRightFootController = mAnimation.addRotateController("bip01 r foot");
         mRightCalfController = mAnimation.addRotateController("bip01 r calf");
         mRightThighController = mAnimation.addRotateController("bip01 r thigh");
+
+        Log(Debug::Warning) << "ActorIK initControllers for " << mAnimation.mPtr.getCellRef().getRefId()
+                            << ": lFoot=" << (mLeftFootController != nullptr)
+                            << " rFoot=" << (mRightFootController != nullptr);
     }
 
     void ActorIkController::update(float /*duration*/)
     {
+        // Early out for non-actors (doors, containers, flora) - IK only applies to actors!
+        if (!mAnimation.mPtr.getClass().isActor())
+            return;
+
         const bool footPlanting = Settings::values().mGame.mFootPlanting.get();
         const bool lookAt = Settings::values().mGame.mLookAt.get();
         const bool smootherTurns = Settings::values().mGame.mSmootherTurns.get();
@@ -62,12 +74,20 @@ namespace MWRender
             return;
         }
 
-        if (!mLeftFootController || !mRightFootController)
+        if (!mInitialized)
             initControllers();
 
-        if (footPlanting && MWBase::Environment::get().getWorld())
+        if (!mLeftFootController && !mRightFootController)
+            return;
+
+        auto world = MWBase::Environment::get().getWorld();
+        if (!world)
+            return;
+
+        const bool isPlayer = (mAnimation.mPtr == world->getPlayerPtr());
+
+        if (footPlanting)
         {
-            auto world = MWBase::Environment::get().getWorld();
             const bool disableDueToState = world->isSwimming(mAnimation.mPtr) || world->isFlying(mAnimation.mPtr);
 
             if (disableDueToState)
@@ -122,11 +142,11 @@ namespace MWRender
                 // Sample ground slightly in front of the ankle (towards the ball of the foot / toe)
                 // so walking up inclines, stairs, and vertical obstacles anticipates ground slope.
                 osg::Vec3f samplePos = footWorld + actorForward * 10.0f;
-                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 50.0f);
-                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 75.0f);
+                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 80.0f);
+                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 100.0f);
 
                 MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(
-                    from, to, { mAnimation.mPtr }, {}, MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP);
+                    from, to, { mAnimation.mPtr }, {}, MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);
 
                 if (hit.mHit)
                 {
@@ -160,6 +180,21 @@ namespace MWRender
 
                     const bool hasSlope = (std::abs(pitch) > 0.01f || std::abs(roll) > 0.01f);
                     const bool hasDeltaZ = (std::abs(deltaZ) > 0.5f && std::abs(deltaZ) < 60.0f);
+
+                    if (isPlayer)
+                    {
+                        static int sPlayerLog = 0;
+                        if (++sPlayerLog % 60 == 1)
+                        {
+                            Log(Debug::Warning) << "PLAYER IK: " << footBone
+                                                << " hit=" << hit.mHit
+                                                << " deltaZ=" << deltaZ
+                                                << " pitch=" << pitch
+                                                << " roll=" << roll
+                                                << " footWorldZ=" << footWorld.z()
+                                                << " actorGroundZ=" << actorGroundZ;
+                        }
+                    }
 
                     if (hasSlope || hasDeltaZ)
                     {
