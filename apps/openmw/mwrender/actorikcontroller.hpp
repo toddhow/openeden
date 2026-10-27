@@ -71,6 +71,15 @@ namespace MWRender
         osg::Quat mRightFootRot{ 0.f, 0.f, 0.f, 1.f };
         osg::Quat mRightCalfRot{ 0.f, 0.f, 0.f, 1.f };
         osg::Quat mRightThighRot{ 0.f, 0.f, 0.f, 1.f };
+
+        // Cached rest/stance bone local offsets
+        osg::Vec3f mLeftThighRest{ 0.f, 0.f, 0.f };
+        osg::Vec3f mLeftCalfRest{ 0.f, 0.f, 0.f };
+        osg::Vec3f mLeftFootRest{ 0.f, 0.f, 0.f };
+
+        osg::Vec3f mRightThighRest{ 0.f, 0.f, 0.f };
+        osg::Vec3f mRightCalfRest{ 0.f, 0.f, 0.f };
+        osg::Vec3f mRightFootRest{ 0.f, 0.f, 0.f };
     };
 } // namespace MWRender
 
