@@ -78,6 +78,10 @@ namespace MWPhysics
         , mActive(false)
         , mTaskScheduler(scheduler)
     {
+        Log(Debug::Warning) << "Actor " << ptr.getCellRef().getRefId()
+                            << " mMeshTranslation.z=" << mMeshTranslation.z()
+                            << " mOriginalHalfExtents.z=" << mOriginalHalfExtents.z()
+                            << " DIFF=" << (mOriginalHalfExtents.z() - mMeshTranslation.z());
         // We can not create actor without collisions - he will fall through the ground.
         // In this case we should autogenerate collision box based on mesh shape
         // (NPCs have bodyparts and use a different approach)

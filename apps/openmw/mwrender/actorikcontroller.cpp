@@ -43,6 +43,12 @@ namespace MWRender
         mRightFootController = mAnimation.addRotateController("bip01 r foot");
         mRightCalfController = mAnimation.addRotateController("bip01 r calf");
         mRightThighController = mAnimation.addRotateController("bip01 r thigh");
+
+        const auto& nodeMap = mAnimation.getNodeMap();
+        Log(Debug::Warning) << "ActorIK init: " << mAnimation.mPtr.getCellRef().getRefId()
+                            << " nodes=" << nodeMap.size()
+                            << " has_lfoot=" << (nodeMap.find("bip01 l foot") != nodeMap.end())
+                            << " lFootCtrl=" << (mLeftFootController != nullptr);
     }
 
     void ActorIkController::reset()
@@ -182,7 +188,7 @@ namespace MWRender
                 if (hit.mHit)
                 {
                     float deltaZ = hit.mHitPos.z() - actorGroundZ;
-                    float clampedDeltaZ = std::clamp(deltaZ, -40.0f, 40.0f);
+                    float clampedDeltaZ = std::clamp(deltaZ, -8.0f, 25.0f);
 
                     opas::ik::TwoBoneChain chain{
                         { thighRest.x(), thighRest.y(), thighRest.z() },
@@ -231,10 +237,13 @@ namespace MWRender
                             static_cast<float>(ik.midRotation.z),
                             static_cast<float>(ik.midRotation.w));
 
-                        // RotateController applies rotations in actor frame (mRelativeTo)
+                        // Rotations in skeletal hierarchy:
+                        // Thigh is direct root rotation from TwoBoneIk
                         targetThighRot = rootRot;
-                        targetCalfRot = midRot;
-                        targetFootRot = groundRot;
+                        // Calf is child of Thigh, so relative knee rotation is rootRot^-1 * midRot
+                        targetCalfRot = rootRot.inverse() * midRot;
+                        // Foot is child of Calf, so relative ankle rotation is midRot^-1 * groundRot
+                        targetFootRot = midRot.inverse() * groundRot;
                     }
                     else
                     {
@@ -246,7 +255,13 @@ namespace MWRender
                         static int sLog = 0;
                         if (++sLog % 60 == 1)
                         {
-                            Log(Debug::Info) << "CREATIVEMOTION IK: " << footBone
+                            Log(Debug::Warning) << footBone
+    << " thigh=[" << thighRest.x() << "," << thighRest.y() << "," << thighRest.z() << "]"
+    << " calf=[" << calfRest.x() << "," << calfRest.y() << "," << calfRest.z() << "]"
+    << " foot=[" << footRest.x() << "," << footRest.y() << "," << footRest.z() << "]"
+    << " rootRot=[" << ik.rootRotation.x << "," << ik.rootRotation.y << "," << ik.rootRotation.z << "," << ik.rootRotation.w << "]"
+    << " midRot=[" << ik.midRotation.x << "," << ik.midRotation.y << "," << ik.midRotation.z << "," << ik.midRotation.w << "]";
+Log(Debug::Info) << "CREATIVEMOTION IK: " << footBone
                                              << " hit=" << hit.mHit
                                              << " deltaZ=" << clampedDeltaZ
                                              << " ikValid=" << ik.valid
