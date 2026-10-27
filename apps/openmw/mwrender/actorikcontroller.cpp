@@ -179,13 +179,15 @@ namespace MWRender
                 osg::Vec3f calfLocal = getLocalTrans(itCalf->second);
                 osg::Vec3f thighLocal = getLocalTrans(itThigh->second);
 
-                // True world position on ground plane directly below ankle
-                osg::Vec3f footWorld = actorPos + actorAttitude * osg::Vec3f(footLocal.x(), footLocal.y(), 0.0f);
+                // World position of foot node
+                osg::MatrixList footWorldMats = itFoot->second->getWorldMatrices();
+                osg::Vec3f footWorld = !footWorldMats.empty()
+                    ? osg::Vec3f(footWorldMats[0].getTrans())
+                    : (actorPos + actorAttitude * footLocal);
 
-                // Sample terrain right under the foot
-                osg::Vec3f samplePos = footWorld;
-                osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 60.0f);
-                osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 100.0f);
+                // Sample terrain straight down under foot X/Y
+                osg::Vec3f from(footWorld.x(), footWorld.y(), actorPos.z() + 60.0f);
+                osg::Vec3f to(footWorld.x(), footWorld.y(), actorPos.z() - 100.0f);
 
                 MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(
                     from, to, { mAnimation.mPtr }, {}, MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);
@@ -247,14 +249,10 @@ namespace MWRender
                             static_cast<float>(ik.midRotation.z),
                             static_cast<float>(ik.midRotation.w));
 
-                        // Thigh gets direct root rotation from TwoBoneIk
+                        // RotateController applies rotations in actor frame (mRelativeTo)
                         targetThighRot = rootRot;
-
-                        // Calf is a child of Thigh, so relative knee rotation is rootRot^-1 * midRot
-                        targetCalfRot = rootRot.inverse() * midRot;
-
-                        // Foot is a child of Calf, so relative ankle rotation is midRot^-1 * groundRot
-                        targetFootRot = midRot.inverse() * groundRot;
+                        targetCalfRot = midRot;
+                        targetFootRot = groundRot;
                     }
                     else
                     {

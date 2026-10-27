@@ -71,7 +71,7 @@ namespace MWRender
         osg::Quat worldOrientInverse = worldOrient.inverse();
 
         osg::Quat baseRot = mHasKeyframeCtrl ? matrix.getRotate() : mBaseRotation;
-        osg::Quat orient = worldOrient * mRotate * worldOrientInverse * baseRot;
+        osg::Quat orient = worldOrientInverse * mRotate * worldOrient * baseRot;
         matrix.setRotate(orient);
         matrix.setTrans(matrix.getTrans() + worldOrientInverse * mOffset);
 
@@ -102,3 +102,4 @@ namespace MWRender
         traverse(node, nv);
     }
 }
+
