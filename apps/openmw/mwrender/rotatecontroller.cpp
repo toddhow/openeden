@@ -7,8 +7,14 @@
 namespace MWRender
 {
 
-    RotateController::RotateController(osg::Node* relativeTo)
+    RotateController::RotateController(osg::Node* relativeTo, bool hasKeyframeCtrl)
         : mEnabled(true)
+        , mHasKeyframeCtrl(hasKeyframeCtrl)
+        , mBaseSet(false)
+        , mBaseRotation(0.f, 0.f, 0.f, 1.f)
+        , mBaseTrans(0.f, 0.f, 0.f)
+        , mOffset(0.f, 0.f, 0.f)
+        , mRotate(0.f, 0.f, 0.f, 1.f)
         , mRelativeTo(relativeTo)
     {
     }
@@ -30,11 +36,27 @@ namespace MWRender
 
     void RotateController::operator()(osg::MatrixTransform* node, osg::NodeVisitor* nv)
     {
+        if (!mBaseSet)
+        {
+            osg::Matrix initMat = node->getMatrix();
+            mBaseRotation = initMat.getRotate();
+            mBaseTrans = initMat.getTrans();
+            mBaseSet = true;
+        }
+
         if (!mEnabled)
         {
+            if (!mHasKeyframeCtrl)
+            {
+                osg::Matrix resetMat = node->getMatrix();
+                resetMat.setRotate(mBaseRotation);
+                resetMat.setTrans(mBaseTrans);
+                node->setMatrix(resetMat);
+            }
             traverse(node, nv);
             return;
         }
+
         osg::Matrix matrix = node->getMatrix();
 
         osg::Quat worldOrient;
@@ -48,7 +70,8 @@ namespace MWRender
 
         osg::Quat worldOrientInverse = worldOrient.inverse();
 
-        osg::Quat orient = worldOrient * mRotate * worldOrientInverse * matrix.getRotate();
+        osg::Quat baseRot = mHasKeyframeCtrl ? matrix.getRotate() : mBaseRotation;
+        osg::Quat orient = worldOrient * mRotate * worldOrientInverse * baseRot;
         matrix.setRotate(orient);
         matrix.setTrans(matrix.getTrans() + worldOrientInverse * mOffset);
 

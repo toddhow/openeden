@@ -43,6 +43,13 @@ namespace MWRender
         mRightThighController = mAnimation.addRotateController("bip01 r thigh");
 
         mInitialized = (mLeftFootController != nullptr || mRightFootController != nullptr);
+
+        Log(Debug::Info) << "ActorIK::initControllers: lFoot=" << (mLeftFootController != nullptr)
+                         << " lCalf=" << (mLeftCalfController != nullptr)
+                         << " lThigh=" << (mLeftThighController != nullptr)
+                         << " rFoot=" << (mRightFootController != nullptr)
+                         << " rCalf=" << (mRightCalfController != nullptr)
+                         << " rThigh=" << (mRightThighController != nullptr);
     }
 
     void ActorIkController::reset()
@@ -175,8 +182,8 @@ namespace MWRender
                 // True world position on ground plane directly below ankle
                 osg::Vec3f footWorld = actorPos + actorAttitude * osg::Vec3f(footLocal.x(), footLocal.y(), 0.0f);
 
-                // Sample terrain right under / slightly ahead of foot
-                osg::Vec3f samplePos = footWorld + actorForward * 8.0f;
+                // Sample terrain right under the foot
+                osg::Vec3f samplePos = footWorld;
                 osg::Vec3f from = samplePos + osg::Vec3f(0.0f, 0.0f, 60.0f);
                 osg::Vec3f to = samplePos - osg::Vec3f(0.0f, 0.0f, 100.0f);
 
@@ -263,11 +270,11 @@ namespace MWRender
                         static int sLog = 0;
                         if (++sLog % 60 == 1)
                         {
-                            Log(Debug::Warning) << "CREATIVEMOTION IK: " << footBone
-                                                << " hit=" << hit.mHit
-                                                << " deltaZ=" << clampedDeltaZ
-                                                << " ikValid=" << ik.valid
-                                                << " bendRad=" << ik.bendRad;
+                            Log(Debug::Info) << "CREATIVEMOTION IK: " << footBone
+                                             << " hit=" << hit.mHit
+                                             << " deltaZ=" << clampedDeltaZ
+                                             << " ikValid=" << ik.valid
+                                             << " bendRad=" << ik.bendRad;
                         }
                     }
                 }

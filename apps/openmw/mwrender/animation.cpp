@@ -1985,13 +1985,9 @@ namespace MWRender
             }
             cb = cb->getNestedCallback();
         }
-        // Note: AnimBlendController also does the reset so if one is present - we should add the rotation node
-        // Without KeyframeController the orientation will not be reseted each frame, so
-        // RotateController shouldn't be used for such nodes.
-        if (!foundKeyframeCtrl)
-            return nullptr;
-
-        osg::ref_ptr<RotateController> controller(new RotateController(mObjectRoot.get()));
+        // Note: If no keyframe controller is present, RotateController captures and resets from the
+        // node's base rest orientation each frame to prevent accumulation.
+        osg::ref_ptr<RotateController> controller(new RotateController(mObjectRoot.get(), foundKeyframeCtrl));
         node->addUpdateCallback(controller);
         mActiveControllers.emplace_back(node, controller);
         return controller;

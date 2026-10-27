@@ -18,7 +18,7 @@ namespace MWRender
     class RotateController : public SceneUtil::NodeCallback<RotateController, osg::MatrixTransform*>
     {
     public:
-        RotateController(osg::Node* relativeTo);
+        RotateController(osg::Node* relativeTo, bool hasKeyframeCtrl = true);
 
         void setEnabled(bool enabled);
         void setOffset(const osg::Vec3f& offset);
@@ -34,6 +34,10 @@ namespace MWRender
 
     protected:
         bool mEnabled;
+        bool mHasKeyframeCtrl;
+        bool mBaseSet;
+        osg::Quat mBaseRotation;
+        osg::Vec3f mBaseTrans;
         osg::Vec3f mOffset;
         osg::Quat mRotate;
         osg::Node* mRelativeTo;
