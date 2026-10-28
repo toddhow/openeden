@@ -28,7 +28,7 @@ OpenEden starts as roughly a million lines of someone else's working engine. Mos
 - The fork repository set up, building locally and in CI (M7)
 - The plugin system's registry and lifecycle, in process (plugin phase P1)
 
-**Next:** the move to Vulkan on VulkanSceneGraph (Track V, decision 0002) comes before other work, so new features are built on it once. After it: CreativeMotion's in-game milestones from M10 inside the engine (decision 0001), the rest of the plugin system with the Morrowind compatibility pack as its first real client, then Eden Studio.
+**Next:** the move to Vulkan on VulkanSceneGraph (Track V, decision 0002) comes before other work, so new features are built on it once. After it: CreativeMotion's in-game milestones from M10 inside the engine (decision 0001), the plugin system working in the game (Track W, proposed to start after Track V's V2), the rest of the plugin system with the Morrowind compatibility pack as its first real client, then Eden Studio.
 
 **Not yet**
 
@@ -268,8 +268,10 @@ Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next m
 
 ### P3 Core services behind the host API
 
-- [x] Frame phases and fixed-step callbacks wired into the engine loop, in a fixed order
-- [x] Physics service over the shared Jolt world, with collision layers registered by name
+P1 to P5 built the plugin system as a tested model in the test host; the game itself does not load plugins yet. Making it work in the game is Track W (`docs/design/working-plugin-system.md`).
+
+- [x] Frame phases and fixed-step callbacks run in a fixed order by the lifecycle manager (in the test host; called from the engine loop in Track W)
+- [x] Physics service able to attach to a shared Jolt world, with collision layers registered by name (attached to the game's world in Track W)
 - [x] Entity IDs, lifecycle events and per-entity plugin data
 - [x] Event bus with fixed-size queues; overflow counted and logged
 - [x] VFS mounting of plugin data and file format registration
@@ -284,8 +286,24 @@ Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next m
 ### P5 First real clients
 
 - [x] ~~CreativeMotion loads as a plugin and uses the core's Jolt world instead of its own~~ (done in task 0005, then superseded: CreativeMotion is compiled into the engine, decision 0001)
-- [x] Morrowind compatibility pack loads as the first real plugin, providing `openeden.game` and a `.kf` to glTF converter contract (`plugins/compat_morrowind/`)
+- [x] Morrowind compatibility pack built as the first real plugin, providing `openeden.game` and a `.kf` to glTF converter contract (`plugins/compat_morrowind/`); loaded by the game in Track W
 - [ ] Morrowind-specific code moved out of the core into the pack step by step, with Morrowind verified to play the same after each step
+
+### Track W: the plugin system working in the game
+
+Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built against what the game needs, stages, decisions, risks). Proposed to start after Track V's V2, alongside V3–V6, because Track V replaces the engine loop and save flow this track changes.
+
+**W1 The host in the game** — task 0015 (`docs/tasks/0015-plugins-w1-host-in-game.md`)
+- [ ] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing
+
+**W2 Data services on the engine** — task 0016 (`docs/tasks/0016-plugins-w2-data-services.md`)
+- [ ] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, `openeden.<id>` Lua tables for mods
+
+**W3 World services on the engine** — task 0017 (`docs/tasks/0017-plugins-w3-world-services.md`)
+- [ ] The physics service on the game's Jolt world with collision layers that never overlap the engine's, fixed-step callbacks, entities mapped to game objects with lifecycle events, engine events, debug draw and profiler shown
+
+**W4 Real clients and packaging** — task 0018 (`docs/tasks/0018-plugins-w4-clients-and-packaging.md`)
+- [ ] Installed plugin layout, launcher plugin list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample plugin covering every service end to end
 
 ### P6 Stable C ABI and community SDK
 
@@ -375,6 +393,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-28 | Track W planned: `docs/design/working-plugin-system.md` and task specs 0015 to 0018 (W1 host in the game, W2 data services, W3 world services, W4 clients and packaging). Audit found the game never creates the plugin host and every service is a standalone model; P3 and P5 wording corrected to say the work so far runs in the test host. Proposed timing: after Track V's V2 |
 | 2026-10-28 | Track V specified: task specs 0008 to 0014 (V0 groundwork, V1 renderer import by merging vsgopenmw, V2 the whole game on Vulkan, V3 OpenEden's features on VSG, V4 renderer parity, V5 VSG math, V6 editor, tools and OSG removed), from an analysis of vsgopenmw at `2830e7e2b4` against OpenEden at `442eec6e2f` (merge base `f724b05c57`, 233 files changed on both sides). Math moved from second stage to V5 because vsgopenmw keeps OSG math; Track V's summary now links each spec |
 | 2026-10-28 | Vulkan decided (decision 0002, toddhow): the renderer moves entirely to Vulkan on VulkanSceneGraph, VSG math replaces OSG math engine-wide, no OpenGL fallback, DirectX or abstraction layer, the renderer is transplanted from vsgopenmw starting now, and the move is the next major track. New Track V (V0 groundwork to V5 OSG removed), stack rows for rendering and math, scope and Not yet updated, Track V in the full-loop list, a guardrail for vsgopenmw code, renderer open question closed |
 | 2026-10-28 | CreativeMotion compiled into the engine, not loaded as a plugin (decision 0001, toddhow; task 0007 stage R0): CreativeMotion only, because it needs engine internals and is core to OpenEden. Architecture rule for the exception, layout updated (`components/plugin`, `components/creativemotion`, `components/inertialmotion`, `sdk/`, `plugins/`, `docs/decisions/`), P5's first client is now the Morrowind compatibility pack, CreativeMotion section points at the engine adapters and adds the M10 physics adapter, open question on the unprovided `openeden.animation` contract |
