@@ -163,6 +163,8 @@ option(OPENMW_USE_SYSTEM_GOOGLETEST "Use system Google Test library." OFF)
 option(OPENMW_UNITY_BUILD "Use fewer compilation units to speed up compile time" FALSE)
 option(OPENMW_LTO_BUILD "Build OpenMW with Link-Time Optimization (Needs ~2GB of RAM)" OFF)
 
+option(OPENEDEN_BUILD_VSG "Build VulkanSceneGraph renderer dependencies (Track V)" ON)
+
 # OS X deployment
 option(OPENMW_OSX_DEPLOYMENT OFF)
 

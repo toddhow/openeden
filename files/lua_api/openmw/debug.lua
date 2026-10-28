@@ -67,6 +67,10 @@
 -- @function [parent=#Debug] reloadLua
 
 ---
+-- Fires a screenshot action (same as pressing F12)
+-- @function [parent=#Debug] takeScreenshot
+
+---
 -- Navigation mesh rendering modes
 -- @type NAV_MESH_RENDER_MODE
 -- @field [parent=#NAV_MESH_RENDER_MODE] #number AreaType

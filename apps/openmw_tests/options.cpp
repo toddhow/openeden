@@ -202,6 +202,42 @@ namespace
         EXPECT_THROW(parseArgs(arguments, variables, description), std::exception);
     }
 
+    TEST(OpenMWOptionsFromArguments, should_support_auto_screenshot_option)
+    {
+        bpo::options_description description = makeOptionsDescription();
+        const std::array arguments{ "openmw", "--auto-screenshot=120" };
+        bpo::variables_map variables;
+        parseArgs(arguments, variables, description);
+        EXPECT_EQ(variables["auto-screenshot"].as<unsigned int>(), 120u);
+    }
+
+    TEST(OpenMWOptionsFromArguments, should_default_auto_screenshot_to_zero)
+    {
+        bpo::options_description description = makeOptionsDescription();
+        const std::array arguments{ "openmw" };
+        bpo::variables_map variables;
+        parseArgs(arguments, variables, description);
+        EXPECT_EQ(variables["auto-screenshot"].as<unsigned int>(), 0u);
+    }
+
+    TEST(OpenMWOptionsFromArguments, should_support_auto_quit_option)
+    {
+        bpo::options_description description = makeOptionsDescription();
+        const std::array arguments{ "openmw", "--auto-quit=150" };
+        bpo::variables_map variables;
+        parseArgs(arguments, variables, description);
+        EXPECT_EQ(variables["auto-quit"].as<unsigned int>(), 150u);
+    }
+
+    TEST(OpenMWOptionsFromArguments, should_default_auto_quit_to_zero)
+    {
+        bpo::options_description description = makeOptionsDescription();
+        const std::array arguments{ "openmw" };
+        bpo::variables_map variables;
+        parseArgs(arguments, variables, description);
+        EXPECT_EQ(variables["auto-quit"].as<unsigned int>(), 0u);
+    }
+
     struct OpenMWOptionsFromArgumentsStrings : TestWithParam<std::string>
     {
     };

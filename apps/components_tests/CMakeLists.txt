@@ -122,6 +122,8 @@ file(GLOB UNITTEST_SRC_FILES
     inertialmotion/test_locomotion_state.cpp
     mwrender/test_creativemotion_runtime.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
+
+    vsg/testshadercompile.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
@@ -149,6 +151,12 @@ target_link_libraries(components-tests
     opas_rig
     opas_math
 )
+
+if (OPENEDEN_BUILD_VSG)
+    target_link_libraries(components-tests ${VSG_LIBRARIES})
+    target_include_directories(components-tests PRIVATE ${VSG_INCLUDE_DIRS})
+    target_compile_definitions(components-tests PRIVATE OPENEDEN_BUILD_VSG=1)
+endif()
 
 if (WIN32)
     target_sources(components-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)

@@ -186,6 +186,9 @@ namespace OMW
         Files::ConfigurationManager& mCfgMgr;
         int mGlMaxTextureImageUnits;
 
+        unsigned int mAutoScreenshotFrame = 0;
+        unsigned int mAutoQuitFrame = 0;
+
         // not implemented
         Engine(const Engine&);
         Engine& operator=(const Engine&);
@@ -263,6 +266,9 @@ namespace OMW
         void setSaveGameFile(const std::filesystem::path& savegame);
 
         void setRandomSeed(unsigned int seed);
+
+        void setAutoScreenshotFrame(unsigned int frame) { mAutoScreenshotFrame = frame; }
+        void setAutoQuitFrame(unsigned int frame) { mAutoQuitFrame = frame; }
 
         void setRecastMaxLogLevel(Debug::Level value) { mMaxRecastLogLevel = value; }
     };

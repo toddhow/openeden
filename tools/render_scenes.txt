@@ -1,0 +1,12 @@
+# Scene definitions for reference rendering and comparison
+# Format: <scene_name>|<type: start|save>|<cell_or_save_path>|<shot_frame>|<quit_frame>|<description>
+balmora_exterior|start|Balmora|120|150|Exterior town with buildings, river, and foliage
+seyda_neen_coast|start|Seyda Neen|120|150|Coastline with water reflections and terrain
+pelagiad_night_fog|start|Pelagiad|120|150|Exterior with distance fog and night lighting
+ald_ruhn_ashstorm|start|Ald-ruhn|120|150|Exterior with ashstorm weather and Redoran architecture
+sadrith_mora_mushroom|start|Sadrith Mora|120|150|Exterior Telvanni mushroom towers and coastal terrain
+vivec_arena_interior|start|Vivec, Arena Canton|120|150|Interior canton with multi-source lighting
+ebonheart_council|start|Ebonheart, Grand Council Chambers|120|150|Interior with high actor and NPC density
+caldera_mages_guild|start|Caldera, Guild of Mages|120|150|Interior lighting with multiple point lights and clutter
+balmora_caius_cosades|start|Balmora, Caius Cosades' House|120|150|Small interior room with furniture and single-room lighting
+example_suite_hub|start|the_hub|60|90|Standalone openmw example suite scene (no commercial data required)

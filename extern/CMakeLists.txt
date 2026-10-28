@@ -311,3 +311,120 @@ if ((BUILD_COMPONENTS_TESTS OR BUILD_OPENCS_TESTS OR BUILD_OPENMW_TESTS) AND NOT
     add_library(GTest::GTest ALIAS gtest)
     add_library(GMock::GMock ALIAS gmock)
 endif()
+
+if(OPENEDEN_BUILD_VSG)
+    include(FetchContent)
+
+    # 1. Vulkan Headers
+    FetchContent_Declare(vulkan_headers
+        URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/vulkan-sdk-1.3.296.0.zip
+        URL_HASH SHA512=ab0d7a03e76c7a3e80ee5c05456e5e076e51864ac837c97c9795b3ca2d11cdc6ceea963ffb637a8dafbd5a53720555b9f697ef0adff7dcad6a34478a767e9631
+        SOURCE_DIR fetched/vulkan_headers
+    )
+    FetchContent_MakeAvailable(vulkan_headers)
+
+    set(Vulkan_INCLUDE_DIR "${vulkan_headers_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+    set(Vulkan_INCLUDE_DIRS "${vulkan_headers_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+
+    if(WIN32)
+        set(VULKAN_LIB "${CMAKE_CURRENT_BINARY_DIR}/vulkan-1.lib")
+        set(VULKAN_DEF "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/vulkan-1.def")
+        if(NOT EXISTS "${VULKAN_LIB}")
+            execute_process(
+                COMMAND lib /def:${VULKAN_DEF} /machine:x64 /out:${VULKAN_LIB}
+                COMMAND_ERROR_IS_FATAL ANY
+            )
+        endif()
+        set(Vulkan_LIBRARY "${VULKAN_LIB}" CACHE FILEPATH "" FORCE)
+        set(Vulkan_LIBRARIES "${VULKAN_LIB}" CACHE FILEPATH "" FORCE)
+    endif()
+
+    # 2. glslang (static)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXTERNAL OFF CACHE BOOL "" FORCE)
+    set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
+    set(ENABLE_SPVREMAPPER OFF CACHE BOOL "" FORCE)
+    set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+    set(GLSLANG_TESTS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_CTEST OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(glslang
+        URL https://github.com/KhronosGroup/glslang/archive/refs/tags/14.3.0.zip
+        URL_HASH SHA512=e5dd6405a837dadc19287d04f3ab25fe33c199deec308bcbc9a1a7d8a9f4ee004ce75264130f31f7c9bbb4dcecd74c95df35925f706826ca2a85ff02f6a2e7c1
+        SOURCE_DIR fetched/glslang
+    )
+    FetchContent_MakeAvailable(glslang)
+
+    # Provide glslang/SPIRV headers at include/glslang/SPIRV
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/glslang")
+    file(COPY "${glslang_SOURCE_DIR}/SPIRV" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include/glslang")
+    target_include_directories(SPIRV INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+    target_include_directories(glslang INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+
+    # Add glslang targets to vsgTargets export set so VSG export succeeds
+    install(TARGETS glslang MachineIndependent GenericCodeGen SPIRV glslang-default-resource-limits
+        EXPORT vsgTargets
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+    )
+
+    if(WIN32)
+        install(TARGETS OSDependent
+            EXPORT vsgTargets
+            RUNTIME DESTINATION bin
+            LIBRARY DESTINATION lib
+            ARCHIVE DESTINATION lib
+        )
+    endif()
+
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cmake/glslang")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/cmake/glslang/glslangConfig.cmake" "set(glslang_FOUND TRUE)\n")
+    set(glslang_DIR "${CMAKE_CURRENT_BINARY_DIR}/cmake/glslang" CACHE PATH "" FORCE)
+
+    if(NOT TARGET glslang::glslang AND TARGET glslang)
+        add_library(glslang::glslang ALIAS glslang)
+    endif()
+    if(NOT TARGET glslang::SPIRV AND TARGET SPIRV)
+        add_library(glslang::SPIRV ALIAS SPIRV)
+    endif()
+    if(NOT TARGET glslang::glslang-default-resource-limits AND TARGET glslang-default-resource-limits)
+        add_library(glslang::glslang-default-resource-limits ALIAS glslang-default-resource-limits)
+    endif()
+
+    # 3. VSG
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+    set(VSG_SUPPORTS_ShaderCompiler ON CACHE BOOL "" FORCE)
+    set(VSG_SUPPORTS_ShaderOptimizer OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(vsg
+        URL https://github.com/vsg-dev/VulkanSceneGraph/archive/refs/tags/v1.1.16.zip
+        URL_HASH SHA512=0b23ace8d665f9b94d5b8058cbf9072b659dcbfe10168348584bf5e72adfb2e16bdf75e12bc47cf83d6f1afc72603fa97ebc9b90ba8084873628a2bd48234730
+        SOURCE_DIR fetched/vsg
+    )
+    FetchContent_MakeAvailable(vsg)
+
+    add_dependencies(vsg glslang SPIRV glslang-default-resource-limits)
+
+    if(WIN32 AND TARGET vsg)
+        add_custom_command(TARGET vsg POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:vsg>
+                "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        )
+    endif()
+
+    # 4. vsgXchange
+    FetchContent_Declare(vsgXchange
+        URL https://github.com/vsg-dev/vsgXchange/archive/refs/tags/v1.1.14.zip
+        URL_HASH SHA512=57d6f626e54843fa813b85a64d1e24e9b09fb5fabc3fba08d66104d41e04cbdbfaf9a5aff3b30c4ded75c09dedc49146f9eb719c1a8ee713c807031fc436389b
+        SOURCE_DIR fetched/vsgXchange
+    )
+    FetchContent_MakeAvailable(vsgXchange)
+    add_dependencies(vsgXchange vsg)
+
+    set(VSG_INCLUDE_DIRS ${vsg_SOURCE_DIR}/include ${vsg_BINARY_DIR}/include PARENT_SCOPE)
+    set(VSG_LIBRARIES vsg::vsg PARENT_SCOPE)
+    set(VSGXCHANGE_INCLUDE_DIRS ${vsgXchange_SOURCE_DIR}/include ${vsgXchange_BINARY_DIR}/include PARENT_SCOPE)
+    set(VSGXCHANGE_LIBRARIES vsgXchange::vsgXchange PARENT_SCOPE)
+endif()

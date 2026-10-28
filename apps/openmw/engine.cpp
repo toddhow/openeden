@@ -55,6 +55,7 @@
 #include <components/settings/values.hpp>
 
 #include "mwinput/inputmanagerimp.hpp"
+#include "mwinput/actions.hpp"
 
 #include "mwgui/windowmanagerimp.hpp"
 
@@ -1028,6 +1029,9 @@ void OMW::Engine::go()
     MWWorld::DateTimeManager& timeManager = *mWorld->getTimeManager();
     Misc::FrameRateLimiter frameRateLimiter = Misc::makeFrameRateLimiter(mEnvironment.getFrameRateLimit());
     const std::chrono::steady_clock::duration maxSimulationInterval(std::chrono::milliseconds(200));
+    unsigned int runningFrame = 0;
+    bool autoScreenshotFired = false;
+    bool autoQuitFired = false;
     while (!mViewer->done() && !mStateManager->hasQuitRequest())
     {
         const double dt = std::chrono::duration_cast<std::chrono::duration<double>>(
@@ -1049,6 +1053,23 @@ void OMW::Engine::go()
         {
             timeManager.setSimulationTime(timeManager.getSimulationTime() + dt);
             timeManager.setRenderingSimulationTime(timeManager.getRenderingSimulationTime() + dt);
+        }
+
+        if (mStateManager->getState() == MWBase::StateManager::State_Running)
+        {
+            ++runningFrame;
+            if (mAutoScreenshotFrame && !autoScreenshotFired && runningFrame >= mAutoScreenshotFrame)
+            {
+                Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
+                mInputManager->executeAction(MWInput::A_Screenshot);
+                autoScreenshotFired = true;
+            }
+            if (mAutoQuitFrame && !autoQuitFired && runningFrame >= mAutoQuitFrame)
+            {
+                Log(Debug::Info) << "Auto-quit at running frame " << runningFrame;
+                mStateManager->requestQuit();
+                autoQuitFired = true;
+            }
         }
 
         if (stats)
