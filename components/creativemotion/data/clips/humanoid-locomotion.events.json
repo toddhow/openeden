@@ -1,0 +1,45 @@
+{
+  "clips": [
+    {
+      "clip": "RunStop",
+      "events": [
+        {"time": 0.04, "name": "FootStrike_R"},
+        {"time": 0.25, "name": "FootPlant_R"},
+        {"time": 0.46, "name": "FootPlant_L"},
+        {"time": 0.75, "name": "StopSettled"}
+      ]
+    },
+    {
+      "clip": "RunSkid",
+      "events": [
+        {"time": 0.04, "name": "SkidStrike_R"},
+        {"time": 0.25, "name": "SkidPivot_R"},
+        {"time": 0.50, "name": "PivotCatch_L"},
+        {"time": 0.83, "name": "TurnSettled"}
+      ]
+    },
+    {
+      "clip": "WalkStart",
+      "events": [
+        {"time": 0.17, "name": "StepOff_R"},
+        {"time": 0.58, "name": "FootStrike_R"}
+      ]
+    },
+    {
+      "clip": "TurnLeft90",
+      "events": [
+        {"time": 0.17, "name": "TurnStep_L"},
+        {"time": 0.33, "name": "TurnPlant_L"},
+        {"time": 0.58, "name": "TurnSquare_R"}
+      ]
+    },
+    {
+      "clip": "TurnRight90",
+      "events": [
+        {"time": 0.17, "name": "TurnStep_R"},
+        {"time": 0.33, "name": "TurnPlant_R"},
+        {"time": 0.58, "name": "TurnSquare_L"}
+      ]
+    }
+  ]
+}

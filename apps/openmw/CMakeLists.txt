@@ -18,7 +18,7 @@ set(OPENMW_HEADERS
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
 add_openmw_dir (mwrender
-    actors objects renderingmanager animation rotatecontroller actorikcontroller sky skyutil npcanimation esm4npcanimation vismask
+    actors objects renderingmanager animation creativemotiondriver rotatecontroller actorikcontroller sky skyutil npcanimation esm4npcanimation vismask
     creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation screenshotmanager
     joltdebugdraw globalmap characterpreview camera localmap water terrainstorage ripplesimulation
     renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
@@ -190,6 +190,16 @@ target_link_libraries(openmw-lib
     oics
     components
 )
+
+if (TARGET opas::anim_runtime)
+    target_link_libraries(openmw-lib
+        opas::anim_runtime
+        opas::anim_clip
+        opas::anim_gltf
+        opas::rig
+        opas::math
+    )
+endif()
 
 if (TARGET opas::ik)
     target_link_libraries(openmw-lib

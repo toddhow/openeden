@@ -116,12 +116,12 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_scripting_service.cpp
     plugin/test_editor_service.cpp
     plugin/test_physics_service.cpp
-    plugin/test_creativemotion_plugin.cpp
-    plugin/test_ik_contract.cpp
-    inertialmotion/test_locomotion_state.cpp
     plugin/test_compat_morrowind.cpp
     ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
     ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
+    inertialmotion/test_locomotion_state.cpp
+    mwrender/test_creativemotion_runtime.cpp
+    ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
@@ -130,15 +130,24 @@ openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_include_directories(components-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/gltf/include
+    ${CMAKE_SOURCE_DIR}/apps/openmw
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/runtime/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/clip/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/core/rig/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/core/math/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/core/format/include
 )
 
 target_link_libraries(components-tests
     GTest::GTest
     GMock::GMock
-    creativemotion_plugin_static
     components
     opas_anim_gltf
+    opas_anim_runtime
     opas_anim_clip
+    opas_rig
+    opas_math
 )
 
 if (WIN32)
@@ -183,6 +192,3 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     )
 endif()
 
-if (TARGET creativemotion)
-    add_dependencies(components-tests creativemotion)
-endif()

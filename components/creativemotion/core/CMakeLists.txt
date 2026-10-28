@@ -1,0 +1,10 @@
+# Engine-independent core. Each module is its own target.
+add_subdirectory(math)
+add_subdirectory(debug)
+add_subdirectory(format)
+add_subdirectory(rig)
+add_subdirectory(motor)
+add_subdirectory(sensors)
+add_subdirectory(arbiter)
+add_subdirectory(behaviors)
+add_subdirectory(reconcile)

@@ -1,0 +1,25 @@
+{
+  "format": "opas.skeletonprofile",
+  "version": 1,
+  "name": "humanoid-to-eden",
+  "bones": [
+    {"source": "Pelvis", "target": "Bip01 Pelvis"},
+    {"source": "Spine", "target": "Bip01 Spine"},
+    {"source": "Chest", "target": "Bip01 Spine1"},
+    {"source": "Neck", "target": "Bip01 Neck"},
+    {"source": "Head", "target": "Bip01 Head"},
+    {"source": "LeftUpperArm", "target": "Bip01 L UpperArm"},
+    {"source": "LeftForearm", "target": "Bip01 L Forearm"},
+    {"source": "LeftHand", "target": "Bip01 L Hand"},
+    {"source": "RightUpperArm", "target": "Bip01 R UpperArm"},
+    {"source": "RightForearm", "target": "Bip01 R Forearm"},
+    {"source": "RightHand", "target": "Bip01 R Hand"},
+    {"source": "LeftThigh", "target": "Bip01 L Thigh"},
+    {"source": "LeftShin", "target": "Bip01 L Calf"},
+    {"source": "LeftFoot", "target": "Bip01 L Foot"},
+    {"source": "RightThigh", "target": "Bip01 R Thigh"},
+    {"source": "RightShin", "target": "Bip01 R Calf"},
+    {"source": "RightFoot", "target": "Bip01 R Foot"}
+  ],
+  "legChain": ["Bip01 L Thigh", "Bip01 L Calf", "Bip01 L Foot"]
+}

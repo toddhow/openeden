@@ -63,6 +63,7 @@
 #include "actorutil.hpp"
 #include "rotatecontroller.hpp"
 #include "actorikcontroller.hpp"
+#include "creativemotiondriver.hpp"
 #include "util.hpp"
 #include "vismask.hpp"
 
@@ -487,18 +488,6 @@ namespace MWRender
         float mAlpha;
     };
 
-    struct Animation::AnimSource
-    {
-        osg::ref_ptr<const SceneUtil::KeyframeHolder> mKeyframes;
-
-        typedef std::map<std::string, osg::ref_ptr<SceneUtil::KeyframeController>> ControllerMap;
-
-        ControllerMap mControllerMap[sNumBlendMasks];
-
-        const SceneUtil::TextKeyMap& getTextKeys() const;
-
-        osg::ref_ptr<const SceneUtil::AnimBlendRules> mAnimBlendRules;
-    };
 
     void UpdateVfxCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
     {
@@ -798,7 +787,6 @@ namespace MWRender
             mAnimationTimePtr[i]->setTimePtr(std::shared_ptr<float>());
 
         mAccumCtrl = nullptr;
-
         mSupportedAnimations.clear();
         mSupportedDirections.clear();
         mAnimSources.clear();
@@ -1147,6 +1135,15 @@ namespace MWRender
 
         mAccumCtrl = nullptr;
 
+        const bool useCreativeMotion = Settings::game().mCreativeMotionAnimation;
+        const bool compareCreativeMotion = Settings::game().mCreativeMotionAnimationCompare;
+        if ((useCreativeMotion || compareCreativeMotion) && !mCreativeMotionPoseDriver && mObjectRoot)
+        {
+            mCreativeMotionPoseDriver = std::make_unique<CreativeMotionPoseDriver>(getNodeMap(), mObjectRoot.get());
+            if (!mCreativeMotionPoseDriver->isValid())
+                mCreativeMotionPoseDriver.reset();
+        }
+
         for (size_t blendMask = 0; blendMask < sNumBlendMasks; blendMask++)
         {
             AnimStateMap::const_iterator active = mStates.end();
@@ -1172,46 +1169,89 @@ namespace MWRender
                 const AnimBlendStateData stateData
                     = { .mGroupname = active->second.mGroupname, .mStartKey = active->second.mStartKey };
 
-                for (AnimSource::ControllerMap::iterator it = animsrc->mControllerMap[blendMask].begin();
-                     it != animsrc->mControllerMap[blendMask].end(); ++it)
+                if (mCreativeMotionPoseDriver && mCreativeMotionPoseDriver->isValid())
                 {
-                    osg::ref_ptr<osg::Node> node = getNodeMap().at(
-                        it->first); // this should not throw, we already checked for the node existing in addAnimSource
+                    const float transitionDuration = Settings::game().mCreativeMotionAnimationTransition;
+                    mCreativeMotionPoseDriver->onActiveStateChanged(blendMask, active->second.mGroupname, animsrc ? animsrc->mKeyframes.get() : nullptr, active->second.getTime(), transitionDuration);
 
-                    const bool useSmoothAnims = Settings::game().mSmoothAnimTransitions;
+                }
 
-                    osg::Callback* callback = it->second->getAsCallback();
-                    if (useSmoothAnims)
+                if (useCreativeMotion && mCreativeMotionPoseDriver && mCreativeMotionPoseDriver->isValid())
+                {
+                    for (AnimSource::ControllerMap::iterator it = animsrc->mControllerMap[blendMask].begin();
+                         it != animsrc->mControllerMap[blendMask].end(); ++it)
                     {
-                        if (dynamic_cast<NifOsg::MatrixTransform*>(node.get()))
+                        osg::ref_ptr<osg::Node> node = getNodeMap().at(it->first);
+                        int boneIdx = mCreativeMotionPoseDriver->getBoneIndex(it->first);
+                        if (boneIdx >= 0)
                         {
-                            callback = handleBlendTransform<NifAnimBlendController>(node, it->second,
-                                mAnimBlendControllers, stateData, animsrc->mAnimBlendRules, active->second);
+                            osg::Callback* callback = new CreativeMotionPoseWriterCallback(
+                                mCreativeMotionPoseDriver.get(), static_cast<size_t>(boneIdx));
+                            node->addUpdateCallback(callback);
+                            mActiveControllers.emplace_back(node, callback);
                         }
-                        else if (dynamic_cast<osgAnimation::Bone*>(node.get()))
+
+                        if (blendMask == 0 && node == mAccumRoot)
                         {
-                            callback = handleBlendTransform<BoneAnimBlendController>(node, it->second,
-                                mBoneAnimBlendControllers, stateData, animsrc->mAnimBlendRules, active->second);
+                            mAccumCtrl = it->second;
+
+                            if (!mResetAccumRootCallback)
+                            {
+                                mResetAccumRootCallback = new ResetAccumRootCallback;
+                                mResetAccumRootCallback->setAccumulate(mAccumulate);
+                            }
+                            mAccumRoot->addUpdateCallback(mResetAccumRootCallback);
+                            mActiveControllers.emplace_back(mAccumRoot, mResetAccumRootCallback);
                         }
-                    }
-
-                    node->addUpdateCallback(callback);
-                    mActiveControllers.emplace_back(node, callback);
-
-                    if (blendMask == 0 && node == mAccumRoot)
-                    {
-                        mAccumCtrl = it->second;
-
-                        // make sure reset is last in the chain of callbacks
-                        if (!mResetAccumRootCallback)
-                        {
-                            mResetAccumRootCallback = new ResetAccumRootCallback;
-                            mResetAccumRootCallback->setAccumulate(mAccumulate);
-                        }
-                        mAccumRoot->addUpdateCallback(mResetAccumRootCallback);
-                        mActiveControllers.emplace_back(mAccumRoot, mResetAccumRootCallback);
                     }
                 }
+                else
+                {
+                    for (AnimSource::ControllerMap::iterator it = animsrc->mControllerMap[blendMask].begin();
+                         it != animsrc->mControllerMap[blendMask].end(); ++it)
+                    {
+                        osg::ref_ptr<osg::Node> node = getNodeMap().at(
+                            it->first);
+
+                        const bool useSmoothAnims = Settings::game().mSmoothAnimTransitions;
+
+                        osg::Callback* callback = it->second->getAsCallback();
+                        if (useSmoothAnims)
+                        {
+                            if (dynamic_cast<NifOsg::MatrixTransform*>(node.get()))
+                            {
+                                callback = handleBlendTransform<NifAnimBlendController>(node, it->second,
+                                    mAnimBlendControllers, stateData, animsrc->mAnimBlendRules, active->second);
+                            }
+                            else if (dynamic_cast<osgAnimation::Bone*>(node.get()))
+                            {
+                                callback = handleBlendTransform<BoneAnimBlendController>(node, it->second,
+                                    mBoneAnimBlendControllers, stateData, animsrc->mAnimBlendRules, active->second);
+                            }
+                        }
+
+                        node->addUpdateCallback(callback);
+                        mActiveControllers.emplace_back(node, callback);
+
+                        if (blendMask == 0 && node == mAccumRoot)
+                        {
+                            mAccumCtrl = it->second;
+
+                            if (!mResetAccumRootCallback)
+                            {
+                                mResetAccumRootCallback = new ResetAccumRootCallback;
+                                mResetAccumRootCallback->setAccumulate(mAccumulate);
+                            }
+                            mAccumRoot->addUpdateCallback(mResetAccumRootCallback);
+                            mActiveControllers.emplace_back(mAccumRoot, mResetAccumRootCallback);
+                        }
+                    }
+                }
+            }
+            else if (mCreativeMotionPoseDriver && mCreativeMotionPoseDriver->isValid())
+            {
+                const float transitionDuration = Settings::game().mCreativeMotionAnimationTransition;
+                mCreativeMotionPoseDriver->onActiveStateChanged(blendMask, "", nullptr, 0.0f, transitionDuration);
             }
         }
 
@@ -1432,6 +1472,41 @@ namespace MWRender
                 ++stateiter;
         }
 
+        if (mCreativeMotionPoseDriver && mCreativeMotionPoseDriver->isValid())
+        {
+            std::array<std::shared_ptr<float>, sNumBlendMasks> timePtrs;
+            std::array<const SceneUtil::KeyframeHolder*, sNumBlendMasks> activeHolders = { nullptr, nullptr, nullptr, nullptr };
+
+            for (size_t b = 0; b < sNumBlendMasks; ++b)
+            {
+                timePtrs[b] = mAnimationTimePtr[b]->getTimePtr();
+                for (const auto& [name, state] : mStates)
+                {
+                    if (state.mPlaying && state.mTime == timePtrs[b])
+                    {
+                        activeHolders[b] = (state.mSource && state.mSource->mKeyframes) ? state.mSource->mKeyframes.get() : nullptr;
+                        break;
+                    }
+                }
+            }
+            mCreativeMotionPoseDriver->update(duration, timePtrs, activeHolders);
+
+            if (Settings::game().mCreativeMotionAnimationCompare)
+            {
+                float maxTransDiff = 0.0f;
+                float maxRotDiff = 0.0f;
+                std::string maxDiffBone;
+                if (mCreativeMotionPoseDriver->compareWithCurrentPose(maxTransDiff, maxRotDiff, maxDiffBone))
+                {
+                    if (maxTransDiff > 0.005f || maxRotDiff > 0.02f)
+                    {
+                        Log(Debug::Verbose) << "CreativeMotion comparison diff on " << maxDiffBone
+                                            << ": pos = " << maxTransDiff << "m, rot = " << maxRotDiff << " rad";
+                    }
+                }
+            }
+        }
+
         updateEffects();
 
         const float epsilon = 0.001f;
@@ -1595,6 +1670,8 @@ namespace MWRender
             mActorIkController->reset();
         mAccumRoot = nullptr;
         mAccumCtrl = nullptr;
+        if (mCreativeMotionPoseDriver)
+            mCreativeMotionPoseDriver.reset();
 
         std::string defaultSkeleton;
         bool inject = false;
@@ -1980,7 +2057,7 @@ namespace MWRender
         {
             if (dynamic_cast<NifAnimBlendController*>(cb) || dynamic_cast<BoneAnimBlendController*>(cb)
                 || dynamic_cast<BoneAnimBlendControllerWrapper*>(cb)
-                || dynamic_cast<SceneUtil::KeyframeController*>(cb)
+                || dynamic_cast<SceneUtil::KeyframeController*>(cb) || dynamic_cast<CreativeMotionPoseWriterCallback*>(cb)
                 || dynamic_cast<osgAnimation::UpdateBone*>(cb))
             {
                 foundKeyframeCtrl = true;

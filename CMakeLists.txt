@@ -645,7 +645,7 @@ endif()
 add_subdirectory (components)
 
 # CreativeMotion (OpenEden's animation and procedural motion subsystem)
-set(CREATIVEMOTION_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../CreativeMotion" CACHE PATH "Path to CreativeMotion repository")
+set(CREATIVEMOTION_SOURCE_DIR "${CMAKE_SOURCE_DIR}/components/creativemotion" CACHE PATH "Path to CreativeMotion core module" FORCE)
 if(EXISTS "${CREATIVEMOTION_SOURCE_DIR}/CMakeLists.txt")
     set(OPAS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(OPAS_BUILD_PHYSICS OFF CACHE BOOL "" FORCE)

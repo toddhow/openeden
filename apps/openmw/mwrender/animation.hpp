@@ -52,6 +52,7 @@ namespace MWRender
     class RotateController;
     class TransparencyUpdater;
     class ActorIkController;
+    class CreativeMotionPoseDriver;
 
     using ActiveControllersVector = std::vector<std::pair<osg::ref_ptr<osg::Node>, osg::ref_ptr<osg::Callback>>>;
 
@@ -104,6 +105,8 @@ namespace MWRender
     class Animation : public osg::Referenced
     {
         friend class ActorIkController;
+        friend class CreativeMotionPoseDriver;
+        friend class CreativeMotionPoseWriterCallback;
     public:
         using BlendMask = MWRender::BlendMask;
         using BoneGroup = MWRender::BoneGroup;
@@ -146,7 +149,18 @@ namespace MWRender
             float getValue(osg::NodeVisitor* nv) override { return 0.f; }
         };
 
-        struct AnimSource;
+        struct AnimSource
+        {
+            osg::ref_ptr<const SceneUtil::KeyframeHolder> mKeyframes;
+
+            typedef std::map<std::string, osg::ref_ptr<SceneUtil::KeyframeController>> ControllerMap;
+
+            ControllerMap mControllerMap[sNumBlendMasks];
+
+            const SceneUtil::TextKeyMap& getTextKeys() const;
+
+            osg::ref_ptr<const SceneUtil::AnimBlendRules> mAnimBlendRules;
+        };
 
         struct AnimState
         {
@@ -234,6 +248,7 @@ namespace MWRender
 
         osg::ref_ptr<RotateController> addRotateController(std::string_view bone);
         std::unique_ptr<ActorIkController> mActorIkController;
+        std::unique_ptr<CreativeMotionPoseDriver> mCreativeMotionPoseDriver;
 
         bool mHasMagicEffects;
 

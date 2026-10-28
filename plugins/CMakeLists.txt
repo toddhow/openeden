@@ -5,5 +5,4 @@ if(NOT TARGET openeden_sdk)
     target_include_directories(openeden_sdk INTERFACE "${CMAKE_SOURCE_DIR}/sdk/include")
 endif()
 
-add_subdirectory(creativemotion)
 add_subdirectory(compat_morrowind)
