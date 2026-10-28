@@ -28,7 +28,7 @@ OpenEden starts as roughly a million lines of someone else's working engine. Mos
 - The fork repository set up, building locally and in CI (M7)
 - The plugin system's registry and lifecycle, in process (plugin phase P1)
 
-**Next:** the rest of the plugin system (P2 to P6), with the Morrowind compatibility pack as its first real client; CreativeMotion's in-game milestones (M8 onwards) inside the engine (decision 0001); then Eden Studio.
+**Next:** the move to Vulkan on VulkanSceneGraph (Track V, decision 0002) comes before other work, so new features are built on it once. After it: CreativeMotion's in-game milestones from M10 inside the engine (decision 0001), the rest of the plugin system with the Morrowind compatibility pack as its first real client, then Eden Studio.
 
 **Not yet**
 
@@ -36,7 +36,8 @@ OpenEden starts as roughly a million lines of someone else's working engine. Mos
 - Compatibility packs for any game other than Morrowind
 - Hot reload of plugins
 - A stable C ABI for third-party plugins (plugin phase P6)
-- Renderer replacement (Vulkan, PBR); the Eden Studio plan mentions it but no decision or spec exists
+- An OpenGL fallback, a DirectX backend or a renderer abstraction layer (decision 0002: none)
+- New renderer features (PBR, ray tracing) beyond what the Vulkan move brings, until Track V is done
 
 ## Tech stack and toolchain
 
@@ -49,7 +50,8 @@ Inherited choices stay as OpenMW made them unless a decision record changes them
 | Physics | [Jolt Physics](https://github.com/jrouwe/JoltPhysics) v5.5.0, fetched by `extern/CMakeLists.txt`, double precision | Pinned by tag and SHA-512; one Jolt world per session, owned by the core |
 | Windows dependencies | vcpkg package set from OpenMW's deps builds (`CI/deps_versions.msvc.sh`, `VCPKG_TAG`), Qt 6.6.3 through aqtinstall | `CI/before_script.msvc.sh` is the reference; local copies go in `deps/` (git-ignored) |
 | Linux dependencies | Ubuntu 24.04 packages from `CI/install_debian_deps.sh` | Uses OpenMW's PPAs, including its OpenSceneGraph fork |
-| Rendering | OpenSceneGraph (OpenMW's fork on Linux CI, vcpkg's 3.6.5 on Windows) | Inherited; see Pitfalls for the Windows difference |
+| Rendering | Moving to Vulkan on VulkanSceneGraph (VSG) with vsgXchange (decision 0002, Track V); until Track V lands, OpenSceneGraph (OpenMW's fork on Linux CI, vcpkg's 3.6.5 on Windows) | No OpenGL fallback, no DirectX, no abstraction layer; VSG and vsgXchange versions pinned in the Track V spec |
+| Math | Moving from OSG math to VSG math engine-wide (decision 0002); CreativeMotion keeps `opas::math` | Conversions between the two happen at one named boundary per area during the transition |
 | UI | MyGUI in game, Qt 6 in the launcher, wizard and editor | Inherited |
 | Scripting | Lua (LuaJIT) through OpenMW's Lua host | Plugins register tables under `openeden.<id>` (plugin doc 4.10) |
 | Authored data | JSON with a canonical writer that round-trips byte for byte | The project's rule for new formats (CreativeMotion decision 0002, plugin doc 5.2) |
@@ -149,7 +151,7 @@ Every change follows the same loop, with tests written independently of the impl
 5. **Verify:** all quality gates pass; physics or gameplay changes also get an in-game check with the steps written in the pull request.
 6. **Explain and merge:** the pull request explains the change in plain language for toddhow, who approves the merge.
 
-**Full loop required** for anything under `apps/openmw/mwphysics/`, the CreativeMotion adapters and refreshes of `components/creativemotion/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, the plugin loader, registry, SDK and contracts, save games, and upstream merges. These carry the determinism, lifetime, threading and compatibility risks, so they never use a lighter loop.
+**Full loop required** for every Track V stage (the renderer and the math change), anything under `apps/openmw/mwphysics/`, the CreativeMotion adapters and refreshes of `components/creativemotion/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, the plugin loader, registry, SDK and contracts, save games, and upstream merges. These carry the determinism, lifetime, threading and compatibility risks, so they never use a lighter loop.
 
 **Lighter loop:** available only for tasks outside those areas (for example `CI/`, `scripts/`, documentation, launcher text) and only when toddhow marks the spec as lighter. No separate test-writing subagent; the implementing agent writes focused tests itself where they are cheap; a fresh reviewing subagent runs once per milestone. toddhow still approves each spec before implementation. A task that touches both areas uses the full loop.
 
@@ -216,6 +218,38 @@ Work them in order unless toddhow says otherwise. Each gets a task spec with its
 - [ ] OpenEden's own `docs/decisions/` started, recording the fork, its base commit and hosting
 - [ ] The fork repository set up under OpenEden's name and hosting (the checkout's remote is still cykoder's GitLab fork)
 - [ ] The fork builds in CI on Windows and Linux with all gates above that apply
+
+### Track V: move the renderer to Vulkan on VulkanSceneGraph
+
+Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next major track: other features wait for it. The renderer is transplanted from vsgopenmw (OpenMW 0.49 + VSG) and adapted to OpenEden's 0.51 base; every transplanted file keeps its notice and its source commit is named. Stages may be reordered in their specs, but each ends with the game building and its gates passing.
+
+**V0 Groundwork**
+- [ ] VSG and vsgXchange fetched at pinned versions (like Jolt), with their licences in `docs/dependencies.md`; builds on Windows (MSVC) and Linux
+- [ ] vsgopenmw pinned to a named commit as the transplant source, and its authors credited
+- [ ] An inventory mapping vsgopenmw's rendering components (`animation`, `mwanimation`, `render`, `pipeline`, `view`, `vsgutil`, `vsgadapters`, `esm3terrain`, `apps/openmw/mwrender`) to OpenEden's files, marking what is taken, adapted or written fresh
+- [ ] A screenshot comparison rig (fixed cell, fixed frame count, automatic screenshot and quit, as vsgopenmw's `render_gold.sh` does) that captures today's OSG renders as the reference
+
+**V1 Math**
+- [ ] OSG math replaced by VSG math in game logic (`mwphysics`, `mwmechanics`, `mwworld`, `components/detournavigator` and the rest outside rendering), with unit and integration tests passing and Morrowind unchanged
+- [ ] The CreativeMotion and Jolt conversion helpers (`components/misc/convert.hpp`) work with VSG math
+
+**V2 Renderer transplant**
+- [ ] The game starts, loads exterior and interior cells and renders them through VSG, compared against the V0 references
+- [ ] Movement, combat, AI pathing (navigator enabled) and saving work, which vsgopenmw's `master` does not yet do
+- [ ] All 32 Lua integration tests pass on the Vulkan build
+
+**V3 OpenEden's rendering touchpoints**
+- [ ] Foot IK, look-at, compound hitbox bone sampling and the CreativeMotion pose driver work on VSG's animation system, each still off by default and unchanged when off
+- [ ] The Jolt physics debug draw and the navmesh debug draw render on VSG
+
+**V4 Parity**
+- [ ] vsgopenmw's open parity items done: weather particles, water ripples, object paging, normal maps, alpha to coverage, the missing NIF features
+- [ ] Every OpenMW renderer setting either works on VSG or is removed with a reason
+- [ ] A decision on modders' post-processing shaders (`.omwfx`): translated, replaced by a new format, or dropped
+
+**V5 Tools and editor**
+- [ ] Every application builds and runs: the editor (OpenMW-CS, Eden Studio's shell), navmeshtool, the launcher and wizard
+- [ ] OpenSceneGraph removed: no OSG headers or libraries in the build, CI green on Windows and Linux
 
 ### P1 Plugin registry and lifecycle, in process
 
@@ -288,6 +322,7 @@ These rules protect the project legally and keep it honest; breaking one blocks 
 - **Not OpenMW.** OpenEden never presents itself as OpenMW or as endorsed by the OpenMW project, and never pushes to or opens merge requests on OpenMW's repositories.
 - **No game assets.** No Bethesda files (`.esm`, `.esp`, `.bsa`, `.nif`, `.kf`, `.hkx`, textures, audio) in the repository; compatibility packs read the user's own installed game data; tests use OpenMW's example suite, generated data or permissively licensed samples with the licence recorded.
 - **No proprietary code or SDKs.** Never add the Havok SDK, Creation Kit or game binaries, decompiled game code, or code from mods that are not open-source licensed.
+- **Code taken from vsgopenmw keeps its origin.** It is GPL-3.0 like OpenEden; transplanted files keep their copyright notices, the commit message names the vsgopenmw commit they came from, and vsgopenmw's authors are credited (decision 0002).
 - **Delirium Physics: ideas only.** The CreativeMotion guardrail applies here too: no code, constants, parameter tables, body layout or data formats from Delirium Physics.
 - **Licences checked before adding a dependency.** Record each new dependency's licence and pinned version in `docs/dependencies.md` (create it with the first new dependency); it must be GPL-3.0-or-later compatible.
 - **Cite engine facts.** Any statement about OpenMW, Jolt, OpenSceneGraph or Morrowind behaviour cites a file and function at a commit, or a documentation page; invented engine facts are treated as bugs.
@@ -322,8 +357,8 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 - [ ] Order of Eden Studio against the plugin phases (the studio needs P4's editor hooks)
 - [ ] Plugin doc open questions 1 to 6: when to add the C ABI, where contracts live, user-overridable load order, hot reload, one game per session, third-party licence policy
 - [ ] Executable and data names: when `openmw`, `openmw-cs` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs are migrated
-- [ ] Whether macOS stays a supported platform
-- [ ] Renderer direction: the Eden Studio plan mentions Vulkan and PBR; no decision exists (options, cost and a recommendation in `docs/research/0001-vulkan-renderer.md`)
+- [ ] Whether macOS stays a supported platform (with Vulkan it would need MoltenVK, decision 0002)
+- [x] Renderer direction: Vulkan on VulkanSceneGraph, total move, no abstraction layer (decision 0002, 2026-10-28; background in `docs/research/0001-vulkan-renderer.md`)
 - [ ] The `openeden.animation` contract has had no provider since decision 0001: keep it for plugins that want to drive animation, or remove it from the SDK?
 
 ## References
@@ -339,6 +374,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-28 | Vulkan decided (decision 0002, toddhow): the renderer moves entirely to Vulkan on VulkanSceneGraph, VSG math replaces OSG math engine-wide, no OpenGL fallback, DirectX or abstraction layer, the renderer is transplanted from vsgopenmw starting now, and the move is the next major track. New Track V (V0 groundwork to V5 OSG removed), stack rows for rendering and math, scope and Not yet updated, Track V in the full-loop list, a guardrail for vsgopenmw code, renderer open question closed |
 | 2026-10-28 | CreativeMotion compiled into the engine, not loaded as a plugin (decision 0001, toddhow; task 0007 stage R0): CreativeMotion only, because it needs engine internals and is core to OpenEden. Architecture rule for the exception, layout updated (`components/plugin`, `components/creativemotion`, `components/inertialmotion`, `sdk/`, `plugins/`, `docs/decisions/`), P5's first client is now the Morrowind compatibility pack, CreativeMotion section points at the engine adapters and adds the M10 physics adapter, open question on the unprovided `openeden.animation` contract |
 | 2026-10-25 | CreativeMotion Milestone M9 (IK for Morrowind, task 0006) completed: extended `AnimationContract` (`openeden.animation` v1.2) with pure kinematic IK methods (`solveTwoBone`, `solveFootPlacement`, `solveLookAt`, `solveTurnSmoothing`); implemented IK algorithms in `CreativeMotionPlugin` delegating `solveTwoBone` to `opas::ik::solveTwoBone` with double-precision clamping; added `actor collision shape type = 3` (Capsule) in `components/detournavigator` and `MWPhysics::Actor` to allow actors to navigate close to terrain/ledges; added `ActorIkController` in `MWRender` with strict off-by-default invariant (`footPlanting`, `lookAt`, `smootherTurns`); authored comprehensive unit and property test suite (`test_ik_contract.cpp`), passing all 9 test suites and full `components-tests` (1543/1543 passing). |
 | 2026-10-25 | Phase P5 first client (CreativeMotion plugin integration, task 0005) completed: extended `PhysicsService` and `PhysicsServiceImpl` over OpenEden's shared Jolt `JPH::PhysicsSystem` (double-precision compatible, bodies, cone/pyramid joints, collision groups, motors, impulses, velocities, kinematic targets, motion types, raycasts), defined `AnimationContract` (`openeden.animation` v1.1), implemented `HostPhysicsWorld` (`opas::physics::PhysicsWorld` over `PhysicsService` with `OPAS_BUILD_PHYSICS=OFF`), implemented `CreativeMotionPlugin` (`plugins/creativemotion/`), authored `docs/design/plugin-implementation-guide.md`, and passed 17 Phase 5 tests (116 total plugin tests passing). |

@@ -1,8 +1,8 @@
 # 0001 — What a move to Vulkan would take
 
-Date: 2026-10-28 · Asked by: toddhow · Status: research note, no decision
+Date: 2026-10-28 · Asked by: toddhow · Status: decided, see `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md`
 
-Feeds the guide's open question "Renderer direction: the Eden Studio plan mentions Vulkan and PBR; no decision exists".
+Feeds the guide's open question "Renderer direction". toddhow decided on 2026-10-28 for a total move to Vulkan on VulkanSceneGraph, with VSG math everywhere and a transplant from vsgopenmw starting now, as the next major track. The note below is kept as written when the decision was made; where the decision differs from its recommendation ("do not start a port yet", "wait for vsgopenmw's 0.51"), the decision governs.
 
 ## Summary
 
