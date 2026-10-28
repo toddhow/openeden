@@ -323,7 +323,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 - [ ] Plugin doc open questions 1 to 6: when to add the C ABI, where contracts live, user-overridable load order, hot reload, one game per session, third-party licence policy
 - [ ] Executable and data names: when `openmw`, `openmw-cs` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs are migrated
 - [ ] Whether macOS stays a supported platform
-- [ ] Renderer direction: the Eden Studio plan mentions Vulkan and PBR; no decision exists
+- [ ] Renderer direction: the Eden Studio plan mentions Vulkan and PBR; no decision exists (options, cost and a recommendation in `docs/research/0001-vulkan-renderer.md`)
 - [ ] The `openeden.animation` contract has had no provider since decision 0001: keep it for plugins that want to drive animation, or remove it from the SDK?
 
 ## References
