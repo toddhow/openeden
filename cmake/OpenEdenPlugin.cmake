@@ -19,7 +19,7 @@ function(openeden_add_plugin PLUGIN_ID)
     target_compile_features(${PLUGIN_ID} PUBLIC cxx_std_20)
 
     # Export symbol definitions
-    target_compile_definitions(${PLUGIN_ID} PRIVATE OPENEDEN_PLUGIN_EXPORT)
+    target_compile_definitions(${PLUGIN_ID} PRIVATE OPENEDEN_BUILDING_PLUGIN)
 
     # Link SDK if target exists
     if(TARGET openeden_sdk)

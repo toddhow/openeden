@@ -119,17 +119,26 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_creativemotion_plugin.cpp
     plugin/test_ik_contract.cpp
     inertialmotion/test_locomotion_state.cpp
+    plugin/test_compat_morrowind.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
+target_include_directories(components-tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/include
+)
+
 target_link_libraries(components-tests
     GTest::GTest
     GMock::GMock
     creativemotion_plugin_static
     components
+    opas_anim_gltf
+    opas_anim_clip
 )
 
 if (WIN32)

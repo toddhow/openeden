@@ -33,6 +33,8 @@ namespace SceneUtil
 
         virtual osg::Vec3f getTranslation(float time) const { return osg::Vec3f(); }
 
+        virtual KfTransform getTransform(float time) const { return KfTransform(); }
+
         virtual KfTransform getCurrentTransformation(osg::NodeVisitor* nv) { return KfTransform(); }
 
         /// @note We could drop this function in favour of osg::Object::asCallback from OSG 3.6 on.

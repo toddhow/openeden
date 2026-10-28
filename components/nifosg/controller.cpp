@@ -198,27 +198,29 @@ namespace NifOsg
         traverse(node, nv);
     }
 
-    KeyframeController::KfTransform KeyframeController::getCurrentTransformation(osg::NodeVisitor* nv)
+    KeyframeController::KfTransform KeyframeController::getTransform(float time) const
     {
         KfTransform out;
 
-        if (hasInput())
-        {
-            float time = getInputValue(nv);
+        if (!mRotations.empty())
+            out.mRotation = mRotations.interpKey(time);
+        else if (!mXRotations.empty() || !mYRotations.empty() || !mZRotations.empty())
+            out.mRotation = getXYZRotation(time);
 
-            if (!mRotations.empty())
-                out.mRotation = mRotations.interpKey(time);
-            else if (!mXRotations.empty() || !mYRotations.empty() || !mZRotations.empty())
-                out.mRotation = getXYZRotation(time);
+        if (!mTranslations.empty())
+            out.mTranslation = mTranslations.interpKey(time);
 
-            if (!mTranslations.empty())
-                out.mTranslation = mTranslations.interpKey(time);
-
-            if (!mScales.empty())
-                out.mScale = mScales.interpKey(time);
-        }
+        if (!mScales.empty())
+            out.mScale = mScales.interpKey(time);
 
         return out;
+    }
+
+    KeyframeController::KfTransform KeyframeController::getCurrentTransformation(osg::NodeVisitor* nv)
+    {
+        if (hasInput())
+            return getTransform(getInputValue(nv));
+        return KfTransform();
     }
 
     GeomMorpherController::GeomMorpherController() {}

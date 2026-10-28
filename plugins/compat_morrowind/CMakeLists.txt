@@ -1,0 +1,32 @@
+# plugins/compat_morrowind/CMakeLists.txt
+
+set(COMPAT_MORROWIND_SOURCES
+    src/morrowind_compat_plugin.cpp
+    src/kf_converter.cpp
+)
+
+set(COMPAT_MORROWIND_HEADERS
+    include/compat_morrowind/morrowind_compat_plugin.hpp
+    include/compat_morrowind/kf_converter.hpp
+)
+
+openeden_add_plugin(compat_morrowind
+    SOURCES
+        ${COMPAT_MORROWIND_SOURCES}
+        ${COMPAT_MORROWIND_HEADERS}
+    MANIFEST
+        plugin.json
+)
+
+target_include_directories(compat_morrowind
+    PUBLIC
+        include
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/components
+        ${CMAKE_SOURCE_DIR}/sdk/include
+)
+
+target_link_libraries(compat_morrowind
+    PRIVATE
+        components
+)

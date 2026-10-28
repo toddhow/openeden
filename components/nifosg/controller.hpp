@@ -127,6 +127,8 @@ namespace NifOsg
 
         bool empty() const { return !mKeys || mKeys->mKeys.empty(); }
 
+        const std::shared_ptr<const MapT>& getKeys() const { return mKeys; }
+
     private:
         template <typename ValueType>
         ValueType interpolate(
@@ -244,7 +246,15 @@ namespace NifOsg
         osg::Vec3f getTranslation(float time) const override;
         osg::Callback* getAsCallback() override { return this; }
 
+        KfTransform getTransform(float time) const override;
         KfTransform getCurrentTransformation(osg::NodeVisitor* nv) override;
+
+        const QuaternionInterpolator& getRotationInterpolator() const { return mRotations; }
+        const FloatInterpolator& getXRotationInterpolator() const { return mXRotations; }
+        const FloatInterpolator& getYRotationInterpolator() const { return mYRotations; }
+        const FloatInterpolator& getZRotationInterpolator() const { return mZRotations; }
+        const Vec3Interpolator& getTranslationInterpolator() const { return mTranslations; }
+        const FloatInterpolator& getScaleInterpolator() const { return mScales; }
 
         void operator()(NifOsg::MatrixTransform*, osg::NodeVisitor*);
 
