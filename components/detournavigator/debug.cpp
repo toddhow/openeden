@@ -85,8 +85,10 @@ namespace DetourNavigator
                 return s << "CollisionShapeType::Cylinder";
             case CollisionShapeType::Capsule:
                 return s << "CollisionShapeType::Capsule";
+            case CollisionShapeType::Compound:
+                return s << "CollisionShapeType::Compound";
         }
-        return s << "CollisionShapeType::" << static_cast<std::underlying_type_t<CollisionShapeType>>(v);
+        return s << "CollisionShapeType::" << static_cast<int>(v);
     }
 
     std::ostream& operator<<(std::ostream& s, const AgentBounds& v)

@@ -1046,6 +1046,10 @@ namespace MWPhysics
                     changed = false;
                 }
             }
+            for (auto& [_, actor] : mActors)
+            {
+                actor->syncBoneHitboxes();
+            }
         }
 
         for (const MWWorld::LiveCellRefBase* ref : Object::consumeCollidedObjects())
@@ -1116,7 +1120,14 @@ namespace MWPhysics
     void PhysicsSystem::debugDraw()
     {
         if (mDebugDrawEnabled)
+        {
+            {
+                std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
+                for (auto& [_, actor] : mActors)
+                    actor->syncBoneHitboxes();
+            }
             mTaskScheduler->debugDraw();
+        }
     }
 
     bool PhysicsSystem::isActorStandingOn(const MWWorld::Ptr& actor, const MWWorld::ConstPtr& object) const

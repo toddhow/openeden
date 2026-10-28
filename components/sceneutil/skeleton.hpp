@@ -60,6 +60,11 @@ namespace SceneUtil
 
         void markDirty();
 
+        /// Force bone matrices to be recomputed on the next updateBoneMatrices() call, even within the same frame.
+        /// Used by post-animation procedural passes (e.g. foot IK) that modify bone transforms after the
+        /// update traversal has already refreshed the skinning matrices.
+        void markBoneMatricesDirty() { mNeedToUpdateBoneMatrices = true; }
+
         void childInserted(unsigned int) override;
         void childRemoved(unsigned int, unsigned int) override;
 

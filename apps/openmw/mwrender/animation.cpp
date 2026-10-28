@@ -1440,6 +1440,9 @@ namespace MWRender
         {
             bool enable = std::abs(mLegsYawRadians) > epsilon || std::abs(mBodyPitchRadians) > epsilon;
             mRootController->setEnabled(enable);
+            mRootController->setOffset(osg::Vec3f(0.f, 0.f, 0.f));
+            if (!enable)
+                mRootController->setRotate(osg::Quat(0.f, 0.f, 0.f, 1.f));
             if (enable)
             {
                 osg::Quat legYaw = osg::Quat(mLegsYawRadians, osg::Vec3f(0, 0, 1));
@@ -1985,8 +1988,13 @@ namespace MWRender
             }
             cb = cb->getNestedCallback();
         }
-        // Note: If no keyframe controller is present, RotateController captures and resets from the
-        // node's base rest orientation each frame to prevent accumulation.
+        // Note: AnimBlendController also does the reset so if one is present - we should add the rotation node
+        // Without KeyframeController the orientation will not be reseted each frame, so
+        // RotateController shouldn't be used for such nodes.
+        if (!foundKeyframeCtrl)
+            return nullptr;
+
+
         osg::ref_ptr<RotateController> controller(new RotateController(mObjectRoot.get(), foundKeyframeCtrl));
         node->addUpdateCallback(controller);
         mActiveControllers.emplace_back(node, controller);

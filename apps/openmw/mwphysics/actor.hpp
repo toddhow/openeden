@@ -1,8 +1,14 @@
 #ifndef OPENMW_MWPHYSICS_ACTOR_H
 #define OPENMW_MWPHYSICS_ACTOR_H
 
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <mutex>
+
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/Shape.h>
 
 #include "ptrholder.hpp"
 
@@ -151,6 +157,20 @@ namespace MWPhysics
 
         DetourNavigator::CollisionShapeType getCollisionShapeType() const { return mCollisionShapeType; }
 
+        struct BoneSegment
+        {
+            osg::Vec3f mStart;
+            osg::Vec3f mEnd;
+        };
+        static constexpr std::size_t sNumBoneSegments = 13;
+
+        const JPH::Shape* getMovementShape() const { return mMovementShape.GetPtr(); }
+        bool isMovementRotationallyInvariant() const { return mMovementRotationallyInvariant; }
+        bool hasCompoundHitboxes() const { return mCompoundShape != nullptr; }
+
+        void updateBoneSegments(const std::array<BoneSegment, sNumBoneSegments>& segments);
+        void syncBoneHitboxes();
+
     private:
         MWWorld::Ptr mStandingOnPtr;
 
@@ -160,11 +180,20 @@ namespace MWPhysics
         bool mWalkingOnWater;
 
         bool mRotationallyInvariant;
+        bool mMovementRotationallyInvariant = true;
 
         DetourNavigator::CollisionShapeType mCollisionShapeType;
 
         JPH::Shape* mPhysicsShape;
         JPH::Shape* mBasePhysicsShape;
+        JPH::Ref<JPH::Shape> mBaseMovementShape;
+        JPH::Ref<JPH::Shape> mMovementShape;
+        JPH::Ref<JPH::MutableCompoundShape> mCompoundShape;
+
+        std::array<float, sNumBoneSegments> mBoneRadii{};
+        std::array<float, sNumBoneSegments> mBoneHalfHeights{};
+        std::array<BoneSegment, sNumBoneSegments> mPendingBoneSegments{};
+        bool mBoneSegmentsUpdated = false;
 
         osg::Vec3f mSimulationPosition;
         osg::Vec3f mMeshTranslation;
@@ -194,6 +223,8 @@ namespace MWPhysics
         inline void updateScaleUnsafe();
 
         inline void updateCollisionObjectPositionUnsafe();
+
+        void syncBoneHitboxesUnsafe();
     };
 
 }

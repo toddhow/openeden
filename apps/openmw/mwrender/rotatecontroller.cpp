@@ -44,15 +44,16 @@ namespace MWRender
             mBaseSet = true;
         }
 
+        if (!mHasKeyframeCtrl)
+        {
+            osg::Matrix resetMat = node->getMatrix();
+            resetMat.setRotate(mBaseRotation);
+            resetMat.setTrans(mBaseTrans);
+            node->setMatrix(resetMat);
+        }
+
         if (!mEnabled)
         {
-            if (!mHasKeyframeCtrl)
-            {
-                osg::Matrix resetMat = node->getMatrix();
-                resetMat.setRotate(mBaseRotation);
-                resetMat.setTrans(mBaseTrans);
-                node->setMatrix(resetMat);
-            }
             traverse(node, nv);
             return;
         }
@@ -71,7 +72,7 @@ namespace MWRender
         osg::Quat worldOrientInverse = worldOrient.inverse();
 
         osg::Quat baseRot = mHasKeyframeCtrl ? matrix.getRotate() : mBaseRotation;
-        osg::Quat orient = worldOrientInverse * mRotate * worldOrient * baseRot;
+        osg::Quat orient = worldOrient * mRotate * worldOrientInverse * baseRot;
         matrix.setRotate(orient);
         matrix.setTrans(matrix.getTrans() + worldOrientInverse * mOffset);
 
