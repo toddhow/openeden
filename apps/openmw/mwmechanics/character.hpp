@@ -84,6 +84,14 @@ namespace MWMechanics
         CharState_SwimTurnLeft,
         CharState_SwimTurnRight,
 
+        CharState_WalkStart,
+        CharState_RunStart,
+        CharState_WalkStop,
+        CharState_RunStop,
+        CharState_RunSkid,
+        CharState_TurnLeft90,
+        CharState_TurnRight90,
+
         CharState_Death1,
         CharState_Death2,
         CharState_Death3,
@@ -103,6 +111,17 @@ namespace MWMechanics
         CharState_SwimKnockOut,
         CharState_Block
     };
+
+    inline bool isTransitionMovementState(CharacterState state)
+    {
+        return state == CharState_WalkStart || state == CharState_RunStart
+            || state == CharState_WalkStop || state == CharState_RunStop
+            || state == CharState_RunSkid
+            || state == CharState_TurnLeft90 || state == CharState_TurnRight90;
+    }
+
+
+
 
     enum class UpperBodyState
     {

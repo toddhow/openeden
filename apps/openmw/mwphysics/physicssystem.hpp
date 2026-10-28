@@ -86,6 +86,7 @@ namespace MWPhysics
     struct ActorFrameData
     {
         ActorFrameData(Actor& actor, bool inert, bool waterCollision, float slowFall, float waterlevel, bool isPlayer);
+        Actor* mActor = nullptr;
         osg::Vec3f mPosition;
         osg::Vec3f mInertia;
         bool mIsOnGround;

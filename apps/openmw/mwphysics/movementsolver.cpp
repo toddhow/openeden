@@ -12,10 +12,13 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/convert.hpp>
+#include <components/settings/values.hpp>
+#include <components/inertialmotion/locomotionstate.hpp>
 
 #include "../mwbase/environment.hpp"
 
 #include "../mwworld/esmstore.hpp"
+#include "../mwworld/class.hpp"
 
 #include "actor.hpp"
 #include "constants.hpp"
@@ -173,6 +176,8 @@ namespace MWPhysics
         }
         else if (actor.mPosition.z() < swimlevel || actor.mFlying)
         {
+            if (actor.mActor != nullptr)
+                actor.mActor->getLocomotionState().reset();
             velocity = (osg::Quat(actor.mRotation.x(), osg::Vec3f(-1, 0, 0))
                            * osg::Quat(actor.mRotation.y(), osg::Vec3f(0, 0, -1)))
                 * actor.mMovement;
@@ -181,11 +186,70 @@ namespace MWPhysics
         {
             velocity = (osg::Quat(actor.mRotation.y(), osg::Vec3f(0, 0, -1))) * actor.mMovement;
 
-            if ((velocity.z() > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
-                || (velocity.z() > 0.f && velocity.z() + actor.mInertia.z() <= -velocity.z() && actor.mIsOnSlope))
-                actor.mInertia = velocity;
-            else if (!actor.mIsOnGround || actor.mIsOnSlope)
-                velocity = velocity + actor.mInertia;
+            const std::string& inertialSetting = Settings::values().mGame.mInertialLocomotion.get();
+            const bool useInertial = (inertialSetting != "off" && !inertialSetting.empty())
+                && (actor.mIsPlayer || Settings::values().mGame.mInertialLocomotionNpcs.get())
+                && (actor.mActor != nullptr);
+
+            if (useInertial)
+            {
+                InertialMotion::Preset preset = InertialMotion::parsePreset(inertialSetting);
+                InertialMotion::LocomotionParameters params = InertialMotion::getPresetParameters(preset);
+                if (Settings::values().mGame.mProceduralLean.get())
+                {
+                    params.mProceduralLean = true;
+                    params.mLeanScale = Settings::values().mGame.mLeanScale.get();
+                }
+                else
+                {
+                    params.mProceduralLean = false;
+                }
+
+                if (!actor.mWasOnGround && actor.mIsOnGround)
+                {
+                    actor.mActor->getLocomotionState().reset(osg::Vec2f(actor.mInertia.x(), actor.mInertia.y()), actor.mRotation.y());
+                }
+
+                if (actor.mIsOnGround && !actor.mIsOnSlope)
+                {
+                    float nominalMaxSpeed = 300.0f;
+                    if (actor.mActor != nullptr)
+                    {
+                        const auto& ptr = actor.mActor->getPtr();
+                        nominalMaxSpeed = std::max(50.0f, ptr.getClass().getMaxSpeed(ptr));
+                    }
+
+                    const float reqLenSq = velocity.x() * velocity.x() + velocity.y() * velocity.y();
+                    if (reqLenSq > nominalMaxSpeed * nominalMaxSpeed && nominalMaxSpeed > 0.0f)
+                    {
+                        const float reqLen = std::sqrt(reqLenSq);
+                        velocity.x() *= (nominalMaxSpeed / reqLen);
+                        velocity.y() *= (nominalMaxSpeed / reqLen);
+                    }
+
+                    osg::Vec2f smoothed = actor.mActor->getLocomotionState().update(
+                        osg::Vec2f(velocity.x(), velocity.y()), time, params, nominalMaxSpeed);
+                    velocity.x() = smoothed.x();
+                    velocity.y() = smoothed.y();
+                }
+
+                if ((velocity.z() > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
+                    || (velocity.z() > 0.f && velocity.z() + actor.mInertia.z() <= -velocity.z() && actor.mIsOnSlope))
+                    actor.mInertia = velocity;
+                else if (!actor.mIsOnGround || actor.mIsOnSlope)
+                    velocity = velocity + actor.mInertia;
+            }
+            else
+            {
+                if (actor.mActor != nullptr)
+                    actor.mActor->getLocomotionState().reset();
+
+                if ((velocity.z() > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
+                    || (velocity.z() > 0.f && velocity.z() + actor.mInertia.z() <= -velocity.z() && actor.mIsOnSlope))
+                    actor.mInertia = velocity;
+                else if (!actor.mIsOnGround || actor.mIsOnSlope)
+                    velocity = velocity + actor.mInertia;
+            }
         }
 
         // Now that we have the effective movement vector, apply wind forces to it
@@ -511,10 +575,15 @@ namespace MWPhysics
         if (lock.Succeeded())
         {
             const JPH::Body& actorBody = lock.GetBody();
-            const JPH::ShapeRefC shape = actorBody.GetShape();
+            const Actor* actorPtr = Misc::Convert::toPointerFromUserData<Actor>(actorBody.GetUserData());
+            const JPH::ShapeRefC shape = (actorPtr && actorPtr->getMovementShape())
+                ? actorPtr->getMovementShape()
+                : actorBody.GetShape();
             const JPH::RMat44& trans = actorBody.GetWorldTransform();
 
-            JPH::RMat44 newTransformJolt(trans);
+            JPH::RMat44 newTransformJolt = (actorPtr && actorPtr->isMovementRotationallyInvariant())
+                ? JPH::RMat44::sTranslation(trans.GetTranslation())
+                : trans;
             const JPH::Vec3 scale = JPH::Vec3::sReplicate(1.0f);
 
             // Create a mask that is same of the actor minus projectiles and other actors

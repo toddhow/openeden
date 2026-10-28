@@ -41,6 +41,8 @@
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwphysics/actor.hpp"
+#include "../mwphysics/physicssystem.hpp"
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
@@ -97,6 +99,10 @@ namespace
                 return CharState_SwimWalkLeft;
             case CharState_SwimRunRight:
                 return CharState_SwimWalkRight;
+            case CharState_RunStart:
+                return CharState_WalkStart;
+            case CharState_RunStop:
+                return CharState_WalkStop;
             default:
                 return state;
         }
@@ -180,6 +186,20 @@ namespace
                 return "swimturnleft";
             case CharState_SwimTurnRight:
                 return "swimturnright";
+            case CharState_WalkStart:
+                return "walkstart";
+            case CharState_RunStart:
+                return "runstart";
+            case CharState_WalkStop:
+                return "walkstop";
+            case CharState_RunStop:
+                return "runstop";
+            case CharState_RunSkid:
+                return "runskid";
+            case CharState_TurnLeft90:
+                return "turnleft90";
+            case CharState_TurnRight90:
+                return "turnright90";
             default:
                 return {};
         }
@@ -654,6 +674,7 @@ namespace MWMechanics
         }
         std::string movementAnimName{ movementAnimGroup };
 
+        CharacterState prevMovementState = mMovementState;
         mMovementState = movement;
         std::string::size_type swimpos = movementAnimName.find("swim");
         if (!mAnimation->hasAnimation(movementAnimName))
@@ -709,10 +730,16 @@ namespace MWMechanics
             }
         }
 
-        // If we're playing the same animation, start it from the point it ended
+        // If we're playing the same animation, or transitioning between equivalent walk/run cycles,
+        // synchronize phase to prevent foot sliding or sudden pose discontinuities.
         float startpoint = 0.f;
-        if (!mCurrentMovement.empty() && movementAnimName == mCurrentMovement)
-            mAnimation->getInfo(mCurrentMovement, &startpoint);
+        if (!mCurrentMovement.empty())
+        {
+            if (movementAnimName == mCurrentMovement)
+                mAnimation->getInfo(mCurrentMovement, &startpoint);
+            else if (runStateToWalkState(prevMovementState) == runStateToWalkState(movement))
+                mAnimation->getInfo(mCurrentMovement, &startpoint);
+        }
 
         mMovementAnimationHasMovement = true;
 
@@ -756,8 +783,12 @@ namespace MWMechanics
             }
         }
 
-        playBlendedAnimation(mCurrentMovement, Priority_Movement, movemask, false, 1.f, "start", "stop", startpoint,
-            std::numeric_limits<uint32_t>::max(), true);
+        bool isTransition = isTransitionMovementState(mMovementState);
+        uint32_t numLoops = isTransition ? 0 : std::numeric_limits<uint32_t>::max();
+        bool autodisable = isTransition;
+
+        playBlendedAnimation(mCurrentMovement, Priority_Movement, movemask, autodisable, 1.f, "start", "stop", startpoint,
+            numLoops, true);
     }
 
     void CharacterController::refreshIdleAnims(CharacterState idle, bool force)
@@ -1970,6 +2001,8 @@ namespace MWMechanics
         const MWWorld::Class& cls = mPtr.getClass();
         osg::Vec3f movement(0.f, 0.f, 0.f);
         float speed = 0.f;
+        bool inertialActive = false;
+        float smoothedSpeed = 0.f;
 
         updateMagicEffects();
 
@@ -2007,6 +2040,19 @@ namespace MWMechanics
             bool isrunning = cls.getCreatureStats(mPtr).getStance(MWMechanics::CreatureStats::Stance_Run) && !flying;
             CreatureStats& stats = cls.getCreatureStats(mPtr);
             Movement& movementSettings = cls.getMovementSettings(mPtr);
+
+            const std::string& inertialSetting = Settings::values().mGame.mInertialLocomotion.get();
+            const bool useInertial = (inertialSetting != "off" && !inertialSetting.empty())
+                && (isPlayer || Settings::values().mGame.mInertialLocomotionNpcs.get());
+            MWPhysics::Actor* physActor = nullptr;
+            if (useInertial && world->getPhysicsSystem())
+                physActor = world->getPhysicsSystem()->getActor(mPtr);
+
+            const bool enableAuthored = Settings::values().mGame.mEnableAuthoredTransitions.get();
+            inertialActive = useInertial && physActor && onground && !inwater && !flying;
+            smoothedSpeed = inertialActive ? physActor->getLocomotionState().getSmoothedSpeed() : 0.0f;
+            const InertialMotion::LocomotionPhase locPhase
+                = inertialActive ? physActor->getLocomotionState().getPhase() : InertialMotion::LocomotionPhase::Idle;
 
             // Force Jump Logic
 
@@ -2292,38 +2338,145 @@ namespace MWMechanics
 
                 vec.z() = 0.0f;
 
-                if (movementSettings.mIsStrafing)
+                // Check if an authored transition is actively playing
+                if (inertialActive && isTransitionMovementState(mMovementState) && mAnimation->isPlaying(mCurrentMovement))
                 {
-                    if (vec.x() > 0.0f)
-                        movestate = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
-                                             : (sneak ? CharState_SneakRight
-                                                      : (isrunning ? CharState_RunRight : CharState_WalkRight)));
-                    else if (vec.x() < 0.0f)
-                        movestate = (inwater
-                                ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
-                                : (sneak ? CharState_SneakLeft : (isrunning ? CharState_RunLeft : CharState_WalkLeft)));
-                }
-                else if (vec.length2() > 0.0f)
-                {
-                    if (vec.y() >= 0.0f)
-                        movestate = (inwater ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
-                                             : (sneak ? CharState_SneakForward
-                                                      : (isrunning ? CharState_RunForward : CharState_WalkForward)));
-                    else
-                        movestate = (inwater
-                                ? (isrunning ? CharState_SwimRunBack : CharState_SwimWalkBack)
-                                : (sneak ? CharState_SneakBack : (isrunning ? CharState_RunBack : CharState_WalkBack)));
-                }
-                else
-                {
-                    // It seems only bipedal actors use turning animations.
-                    // Also do not use turning animations in the first-person view and when sneaking.
-                    if (!sneak && !isFirstPersonPlayer && isBiped)
+                    if (mMovementState == CharState_RunStop || mMovementState == CharState_WalkStop)
                     {
-                        if (effectiveRotation > 0.f)
-                            movestate = inwater ? CharState_SwimTurnRight : CharState_TurnRight;
-                        else if (effectiveRotation < 0.f)
-                            movestate = inwater ? CharState_SwimTurnLeft : CharState_TurnLeft;
+                        if (vec.length2() > 0.0f)
+                            movestate = CharState_None; // interrupt stop to move
+                        else if (smoothedSpeed <= 5.0f)
+                            movestate = CharState_None; // fully stopped
+                        else
+                            movestate = mMovementState; // continue playing stop
+                    }
+                    else if (mMovementState == CharState_RunStart || mMovementState == CharState_WalkStart)
+                    {
+                        if (vec.length2() == 0.0f)
+                            movestate = CharState_None; // input released during startup
+                        else
+                            movestate = mMovementState; // continue playing start
+                    }
+                    else if (mMovementState == CharState_RunSkid)
+                    {
+                        movestate = mMovementState; // continue playing skid
+                    }
+                    else if (mMovementState == CharState_TurnLeft90 || mMovementState == CharState_TurnRight90)
+                    {
+                        if (vec.length2() > 0.0f)
+                            movestate = CharState_None; // interrupt turn for movement
+                        else
+                            movestate = mMovementState; // continue playing 90-degree turn
+                    }
+                }
+
+                if (movestate == CharState_None)
+                {
+                    bool effectiveIsRunning = isrunning;
+                    if (inertialActive && isrunning && !inwater && !sneak && solid)
+                    {
+                        const float walkSpeed = cls.getWalkSpeed(mPtr);
+                        if (walkSpeed > 10.0f)
+                        {
+                            if (isRunning())
+                            {
+                                // In a run state: drop down to walk if speed falls below walk threshold with hysteresis
+                                if (smoothedSpeed < walkSpeed * 0.75f)
+                                    effectiveIsRunning = false;
+                            }
+                            else
+                            {
+                                // In walk, idle, or transition state: only enter run once speed reaches walk threshold
+                                if (smoothedSpeed < walkSpeed * 0.90f)
+                                    effectiveIsRunning = false;
+                            }
+                        }
+                    }
+
+                    if (movementSettings.mIsStrafing)
+                    {
+                        if (vec.x() > 0.0f)
+                            movestate = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
+                                                 : (sneak ? CharState_SneakRight
+                                                          : (effectiveIsRunning ? CharState_RunRight : CharState_WalkRight)));
+                        else if (vec.x() < 0.0f)
+                            movestate = (inwater
+                                    ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
+                                    : (sneak ? CharState_SneakLeft : (effectiveIsRunning ? CharState_RunLeft : CharState_WalkLeft)));
+                    }
+                    else if (vec.length2() > 0.0f)
+                    {
+                        if (inertialActive && enableAuthored && locPhase == InertialMotion::LocomotionPhase::Skidding
+                            && mAnimation->hasAnimation("runskid"))
+                        {
+                            movestate = CharState_RunSkid;
+                        }
+                        else if (inertialActive && enableAuthored && locPhase == InertialMotion::LocomotionPhase::Starting
+                            && (mMovementState == CharState_None || isTurning()) && smoothedSpeed < 20.0f)
+                        {
+                            if (effectiveIsRunning && mAnimation->hasAnimation("runstart"))
+                                movestate = CharState_RunStart;
+                            else if (!effectiveIsRunning && mAnimation->hasAnimation("walkstart"))
+                                movestate = CharState_WalkStart;
+                        }
+
+                        if (movestate == CharState_None)
+                        {
+                            if (vec.y() >= 0.0f)
+                                movestate = (inwater ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
+                                                     : (sneak ? CharState_SneakForward
+                                                              : (effectiveIsRunning ? CharState_RunForward : CharState_WalkForward)));
+                            else
+                                movestate = (inwater
+                                        ? (isrunning ? CharState_SwimRunBack : CharState_SwimWalkBack)
+                                        : (sneak ? CharState_SneakBack : (effectiveIsRunning ? CharState_RunBack : CharState_WalkBack)));
+                        }
+                    }
+                    else
+                    {
+                        // Movement input is 0 (vec.length2() == 0.0f)
+                        if (inertialActive && smoothedSpeed > 5.0f)
+                        {
+                            // Decelerating with physical inertia
+                            if (enableAuthored && effectiveIsRunning && mAnimation->hasAnimation("runstop"))
+                                movestate = CharState_RunStop;
+                            else if (enableAuthored && !effectiveIsRunning && mAnimation->hasAnimation("walkstop"))
+                                movestate = CharState_WalkStop;
+                            else
+                            {
+                                // Procedural fallback: maintain previous walk/run cycle while slowing
+                                if (mMovementState != CharState_None && !isTransitionMovementState(mMovementState))
+                                {
+                                    if (!effectiveIsRunning && isRunning())
+                                        movestate = runStateToWalkState(mMovementState);
+                                    else
+                                        movestate = mMovementState;
+                                }
+                                else
+                                    movestate = effectiveIsRunning ? CharState_RunForward : CharState_WalkForward;
+                            }
+                        }
+                        else
+                        {
+                            // Stationary Turning
+                            if (!sneak && !isFirstPersonPlayer && isBiped)
+                            {
+                                if (effectiveRotation > 0.f)
+                                {
+                                    if (inertialActive && enableAuthored && mAnimation->hasAnimation("turnright90"))
+                                        movestate = CharState_TurnRight90;
+                                    else
+                                        movestate = inwater ? CharState_SwimTurnRight : CharState_TurnRight;
+                                }
+                                else if (effectiveRotation < 0.f)
+                                {
+                                    if (inertialActive && enableAuthored && mAnimation->hasAnimation("turnleft90"))
+                                        movestate = CharState_TurnLeft90;
+                                    else
+                                        movestate = inwater ? CharState_SwimTurnLeft : CharState_TurnLeft;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -2354,7 +2507,8 @@ namespace MWMechanics
                     mTurnAnimationThreshold -= duration;
 
                 if (movestate == CharState_TurnRight || movestate == CharState_TurnLeft
-                    || movestate == CharState_SwimTurnRight || movestate == CharState_SwimTurnLeft)
+                    || movestate == CharState_SwimTurnRight || movestate == CharState_SwimTurnLeft
+                    || movestate == CharState_TurnLeft90 || movestate == CharState_TurnRight90)
                 {
                     mTurnAnimationThreshold = 0.05f;
                 }
@@ -2387,7 +2541,7 @@ namespace MWMechanics
                 updateIdleStormState(inwater);
             }
 
-            if (isTurning())
+            if (isTurning() && !isTransitionMovementState(mMovementState))
             {
                 if (duration > 0)
                 {
@@ -2395,11 +2549,20 @@ namespace MWMechanics
                     mAnimation->adjustSpeedMult(mCurrentMovement, turnSpeed);
                 }
             }
-            else if (mMovementState != CharState_None && mAdjustMovementAnimSpeed)
+            else if (mMovementState != CharState_None && mAdjustMovementAnimSpeed && !isTransitionMovementState(mMovementState))
             {
                 // Vanilla caps the played animation speed.
                 const float maxSpeedMult = 10.f;
-                const float speedMult = speed / mMovementAnimSpeed;
+                float currentSpeed = speed;
+                if (inertialActive)
+                {
+                    // Layer 3.B: Dynamic Playback Scaling
+                    float groundSpeed = smoothedSpeed;
+                    if (vec.length2() > 0.0f)
+                        groundSpeed = std::max(groundSpeed, 0.15f * speed);
+                    currentSpeed = groundSpeed;
+                }
+                const float speedMult = currentSpeed / mMovementAnimSpeed;
                 mAnimation->adjustSpeedMult(mCurrentMovement, std::min(maxSpeedMult, speedMult));
                 // Make sure the actual speed is the "expected" speed even though the animation is slower
                 if (isMovementAnimationControlled())
@@ -2465,7 +2628,7 @@ namespace MWMechanics
                     // Note that while a complete movement animation cycle will have a well defined direction, no
                     // individual frame will, and therefore we have to determine the direction based on the currently
                     // playing cycle instead.
-                    if (speed > 0.f)
+                    if (speed > 0.f && movement.length2() > 0.0f)
                     {
                         float animMovementAngle = getAnimationMovementDirection();
                         float targetMovementAngle = std::atan2(-movement.x(), movement.y());
@@ -2473,7 +2636,15 @@ namespace MWMechanics
                         movementFromAnimation = osg::Quat(diff, osg::Vec3f(0, 0, 1)) * movementFromAnimation;
                     }
 
-                    movement = movementFromAnimation;
+                    if (inertialActive && movement.x() == 0.0f && movement.y() == 0.0f)
+                    {
+                        movement.x() = 0.0f;
+                        movement.y() = 0.0f;
+                    }
+                    else
+                    {
+                        movement = movementFromAnimation;
+                    }
                 }
                 else
                 {
@@ -2933,7 +3104,8 @@ namespace MWMechanics
     bool CharacterController::isTurning() const
     {
         return mMovementState == CharState_TurnLeft || mMovementState == CharState_TurnRight
-            || mMovementState == CharState_SwimTurnLeft || mMovementState == CharState_SwimTurnRight;
+            || mMovementState == CharState_SwimTurnLeft || mMovementState == CharState_SwimTurnRight
+            || mMovementState == CharState_TurnLeft90 || mMovementState == CharState_TurnRight90;
     }
 
     bool CharacterController::isRecovery() const
@@ -2958,7 +3130,9 @@ namespace MWMechanics
         return mMovementState == CharState_RunForward || mMovementState == CharState_RunBack
             || mMovementState == CharState_RunLeft || mMovementState == CharState_RunRight
             || mMovementState == CharState_SwimRunForward || mMovementState == CharState_SwimRunBack
-            || mMovementState == CharState_SwimRunLeft || mMovementState == CharState_SwimRunRight;
+            || mMovementState == CharState_SwimRunLeft || mMovementState == CharState_SwimRunRight
+            || mMovementState == CharState_RunStart || mMovementState == CharState_RunStop
+            || mMovementState == CharState_RunSkid;
     }
 
     void CharacterController::setAttackingOrSpell(bool attackingOrSpell) const
@@ -3074,6 +3248,11 @@ namespace MWMechanics
             case CharState_SwimRunForward:
             case CharState_SwimWalkForward:
             case CharState_WalkForward:
+            case CharState_WalkStart:
+            case CharState_RunStart:
+            case CharState_WalkStop:
+            case CharState_RunStop:
+            case CharState_RunSkid:
                 return mAnimation->getLegsYawRadians();
             case CharState_RunBack:
             case CharState_SneakBack:
@@ -3174,6 +3353,8 @@ namespace MWMechanics
             case CharState_WalkBack:
             case CharState_WalkLeft:
             case CharState_WalkRight:
+            case CharState_WalkStart:
+            case CharState_WalkStop:
                 return mAnimation->getSupportedMovementDirections(walk);
             case CharState_SwimWalkForward:
             case CharState_SwimWalkBack:
@@ -3184,7 +3365,13 @@ namespace MWMechanics
             case CharState_RunBack:
             case CharState_RunLeft:
             case CharState_RunRight:
+            case CharState_RunStart:
+            case CharState_RunStop:
+            case CharState_RunSkid:
                 return mAnimation->getSupportedMovementDirections(run);
+            case CharState_TurnLeft90:
+            case CharState_TurnRight90:
+                return mAnimation->getSupportedMovementDirections(all);
             case CharState_SwimRunForward:
             case CharState_SwimRunBack:
             case CharState_SwimRunLeft:

@@ -548,6 +548,10 @@ add_component_dir(plugin
     physics_service
 )
 
+add_component_dir(inertialmotion
+    locomotionstate
+)
+
 if (USE_QT)
     add_component_qt_dir (contentselector
         model/modelitem model/esmfile

@@ -301,6 +301,7 @@ namespace MWPhysics
         mPositionOffset = osg::Vec3f();
         mStandingOnPtr = nullptr;
         mSkipSimulation = true;
+        mLocomotionState.reset();
     }
 
     void Actor::setSimulationPosition(const osg::Vec3f& position)

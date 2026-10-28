@@ -238,8 +238,9 @@ namespace MWRender
 
         MWPhysics::Actor* physicActor = getPhysicsActor(mAnimation.mPtr);
         mHasCompoundHitboxes = physicActor != nullptr && physicActor->hasCompoundHitboxes();
+        const bool proceduralLean = Settings::values().mGame.mProceduralLean.get();
 
-        if (!footPlanting && !mHasCompoundHitboxes)
+        if (!footPlanting && !mHasCompoundHitboxes && !proceduralLean)
         {
             mWantIk = false;
             return;
@@ -386,6 +387,40 @@ namespace MWRender
         if (forward.length2() < 1e-6f)
             forward = osg::Vec3f(0.f, 1.f, 0.f);
         forward.normalize();
+
+        MWPhysics::Actor* physicActor = getPhysicsActor(mAnimation.mPtr);
+        const bool proceduralLean = Settings::values().mGame.mProceduralLean.get();
+        if (proceduralLean && physicActor && mSpine1.mNode)
+        {
+            const auto& loc = physicActor->getLocomotionState();
+            const float leanScale = Settings::values().mGame.mLeanScale.get();
+            const float linearAccel = loc.getLinearAcceleration();
+            const float angVel = loc.getAngularVelocity();
+            const float speed = loc.getSmoothedSpeed();
+
+            const float maxLeanRad = osg::DegreesToRadians(8.0f) * leanScale;
+            const float pitch = std::clamp(linearAccel / 600.0f, -1.0f, 1.0f) * maxLeanRad;
+            const float bank = std::clamp((angVel * speed) / 600.0f, -1.0f, 1.0f) * maxLeanRad;
+
+            if (std::abs(pitch) > 1e-4f || std::abs(bank) > 1e-4f)
+            {
+                osg::Quat leanRot;
+                leanRot.makeRotate(pitch, osg::Vec3f(1.f, 0.f, 0.f), bank, osg::Vec3f(0.f, 1.f, 0.f), 0.f, osg::Vec3f(0.f, 0.f, 1.f));
+
+                const osg::Matrix local = mSpine1.mNode->getMatrix();
+                const osg::Matrix parentWorld = osg::Matrix::inverse(local) * worldMatrix(mSpine1.mNode.get());
+                const osg::Quat parentRot = parentWorld.getRotate();
+                const osg::Quat actorRot = baseNode->getAttitude();
+                const osg::Quat worldLean = actorRot * leanRot * actorRot.inverse();
+                const osg::Quat localLean = parentRot.inverse() * worldLean * parentRot;
+
+                osg::Matrix moved = local;
+                moved.setRotate(localLean * local.getRotate());
+                mSpine1.mNode->setMatrix(moved);
+                mSpine1.mWritten = moved;
+                mSpine1.mHasWritten = true;
+            }
+        }
 
         if (!mFootPlantingActive)
         {

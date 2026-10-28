@@ -13,6 +13,7 @@
 #include "ptrholder.hpp"
 
 #include <components/detournavigator/collisionshapetype.hpp>
+#include <components/inertialmotion/locomotionstate.hpp>
 
 #include <osg/Quat>
 #include <osg/Vec3f>
@@ -171,6 +172,9 @@ namespace MWPhysics
         void updateBoneSegments(const std::array<BoneSegment, sNumBoneSegments>& segments);
         void syncBoneHitboxes();
 
+        InertialMotion::LocomotionState& getLocomotionState() noexcept { return mLocomotionState; }
+        const InertialMotion::LocomotionState& getLocomotionState() const noexcept { return mLocomotionState; }
+
     private:
         MWWorld::Ptr mStandingOnPtr;
 
@@ -217,6 +221,8 @@ namespace MWPhysics
         bool mInternalCollisionMode;
         bool mExternalCollisionMode;
         bool mActive;
+
+        InertialMotion::LocomotionState mLocomotionState;
 
         PhysicsTaskScheduler* mTaskScheduler;
 

@@ -77,6 +77,11 @@ namespace Settings
         SettingValue<bool> mFootPlanting{ mIndex, "Game", "foot planting" };
         SettingValue<bool> mLookAt{ mIndex, "Game", "look at" };
         SettingValue<bool> mSmootherTurns{ mIndex, "Game", "smoother turns" };
+        SettingValue<std::string> mInertialLocomotion{ mIndex, "Game", "inertial locomotion" };
+        SettingValue<bool> mInertialLocomotionNpcs{ mIndex, "Game", "inertial locomotion npcs" };
+        SettingValue<bool> mEnableAuthoredTransitions{ mIndex, "Game", "enable authored transitions" };
+        SettingValue<bool> mProceduralLean{ mIndex, "Game", "procedural lean" };
+        SettingValue<float> mLeanScale{ mIndex, "Game", "lean scale", makeClampSanitizerFloat(0.0f, 3.0f) };
     };
 }
 

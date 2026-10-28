@@ -70,6 +70,7 @@ namespace ToUTF8
 
 namespace MWPhysics
 {
+    class PhysicsSystem;
     class Object;
 }
 
@@ -394,6 +395,7 @@ namespace MWWorld
 
         void updateAnimatedCollisionShape(const Ptr& ptr) override;
 
+        MWPhysics::PhysicsSystem* getPhysicsSystem() const override;
         const MWPhysics::RayCastingInterface* getRayCasting() const override;
 
         bool castRenderingRay(MWPhysics::RayCastingResult& res, const osg::Vec3f& from, const osg::Vec3f& to,
