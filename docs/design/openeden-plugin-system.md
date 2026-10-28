@@ -9,7 +9,9 @@
 - [`docs/design/advancedbodies-handoff.md`](file:///i:/Projects/CreativeMotion/docs/design/advancedbodies-handoff.md)
 - [`docs/decisions/0004-total-fork-of-openmw.md`](file:///i:/Projects/CreativeMotion/docs/decisions/0004-total-fork-of-openmw.md)
 
-This document describes the mechanism only: what a plugin is, what the core must expose so plugins can work, and how plugins are found, registered, started and stopped. It deliberately does not design any individual plugin (CreativeMotion, AdvancedBodies, ComplexClothing, Reflectron, compatibility packs); those are clients of this system and get their own documents.
+This document describes the mechanism only: what a plugin is, what the core must expose so plugins can work, and how plugins are found, registered, started and stopped. It deliberately does not design any individual plugin (AdvancedBodies, ComplexClothing, Reflectron, compatibility packs); those are clients of this system and get their own documents.
+
+> **Decision 0001 (toddhow, 2026-10-28):** CreativeMotion is compiled into the engine, not loaded as a plugin, because it needs engine internals every frame and animation is groundwork every host needs. The exception covers CreativeMotion only; every other feature system stays a plugin as described here. See `docs/decisions/0001-creativemotion-compiled-into-the-engine.md`. Mentions of CreativeMotion below describe its earlier plan as a plugin, kept because the patterns they cite (its physics interface, event queue, debug overlay) still apply.
 
 ---
 
@@ -169,7 +171,7 @@ The core owns the loop and calls plugins at named phases, in a fixed order:
 - **Fixed step:** the core owns the step rate (default 60 Hz, configurable, with sub-steps) and passes `dt` and the step index; plugins never read a clock.
 
 ### 4.4 Physics: the Shared Jolt World
-- One physics world per session, owned by the core. Plugins never create their own (CreativeMotion's M8 goal: its Jolt backend uses OpenEden's world instead of a second one).
+- One physics world per session, owned by the core. Plugins never create their own, and neither does CreativeMotion inside the engine (decision 0001): its physics interface runs over the core's world, never a second one.
 - Exposed through a core physics service with the operations CreativeMotion's `physics/interface` already defines: create and destroy bodies and constraints, set motion type, drive joint motors, apply impulses, read states, ray and shape casts, and step listeners (the fixed-step phases above).
 - **Collision layers:** plugins register named layers and the pairs that collide during registration; the core assigns the bit values, so two plugins cannot clash over layer numbers.
 - Handles, not pointers: bodies and constraints are returned as IDs, looked up when used (the guide's rule for anything a backend can destroy).
@@ -412,7 +414,7 @@ For the OpenEden session implementing the plugin system, the recommended order i
 - Editor extension points for Eden Studio (workspaces, inspectors, gizmos).
 
 ### Phase 5: First Real Clients
-- Move one feature in as a plugin (CreativeMotion is the natural first, since it is already engine-independent with a physics interface) and fix whatever the host API lacks.
+- ~~Move one feature in as a plugin (CreativeMotion is the natural first, since it is already engine-independent with a physics interface) and fix whatever the host API lacks.~~ Done in task 0005, then superseded by decision 0001: CreativeMotion is compiled into the engine, and the Morrowind compatibility pack below is the first real plugin. The next feature system to arrive (AdvancedBodies, ComplexClothing or Reflectron) is the first feature plugin.
 - Start the Morrowind compatibility pack: define the game contract, then move Morrowind-specific code out of the engine into it step by step, verifying Morrowind still plays the same.
 
 ### Phase 6: Stable C ABI and Community SDK

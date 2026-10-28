@@ -17,7 +17,7 @@ This guide tells Claude Code, and any human contributor, how to work on OpenEden
 OpenEden starts as roughly a million lines of someone else's working engine. Most mistakes in a fork come from treating inherited code as if it were new.
 
 - **Inherited:** everything from OpenMW (`apps/`, `components/`, `extern/`, `files/`, `CI/`, `scripts/`, `docs/source/`), plus the Jolt branch's physics port (`apps/openmw/mwphysics/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, `extern/CMakeLists.txt`). It works, it has tests, and Morrowind plays on it. Change it only for a reason a task spec states.
-- **New:** the plugin system, the SDK and contracts, the compatibility packs, Eden Studio, and the hosting of CreativeMotion and the other feature plugins. New code follows this guide in full.
+- **New:** the plugin system, the SDK and contracts, the compatibility packs, Eden Studio, CreativeMotion's integration into the engine (decision 0001), and the hosting of the other feature plugins. New code follows this guide in full.
 - **Default behaviour is Morrowind's:** with every new feature switched off, OpenEden plays Morrowind exactly as the fork point did. Anything that changes gameplay, balance, animation or physics feel ships behind a setting that is off by default, and "unchanged when off" is verified by comparison, not assumed.
 
 ## Scope of the first build
@@ -28,7 +28,7 @@ OpenEden starts as roughly a million lines of someone else's working engine. Mos
 - The fork repository set up, building locally and in CI (M7)
 - The plugin system's registry and lifecycle, in process (plugin phase P1)
 
-**Next:** the rest of the plugin system (P2 to P6), with CreativeMotion as its first real client (CreativeMotion's M8 onwards), then the Morrowind compatibility pack, then Eden Studio.
+**Next:** the rest of the plugin system (P2 to P6), with the Morrowind compatibility pack as its first real client; CreativeMotion's in-game milestones (M8 onwards) inside the engine (decision 0001); then Eden Studio.
 
 **Not yet**
 
@@ -71,23 +71,21 @@ apps/
   navmeshtool/  physicsobjecttool/  bsatool/  esmtool/  niftest/  essimporter/  mwiniimporter/
   components_tests/  openmw_tests/  opencs_tests/  benchmarks/
 components/               shared engine libraries (resource, nif, nifjolt, physicshelpers, detournavigator, lua, vfs, ...)
+  plugin/                 the plugin loader, registry, lifecycle and core services behind the host API
+  creativemotion/         vendored copy of CreativeMotion, compiled into the engine (decision 0001); never edited in place
+  inertialmotion/         inertial locomotion state (docs/design/inertial-locomotion.md)
+sdk/                      the SDK: host API headers, contract headers (plugin doc 7.1)
+plugins/<id>/             first-party plugins, each built against the SDK only (plugin doc 5.1, 7.2); compat_morrowind first
 extern/                   fetched and vendored third-party code (Jolt, recastnavigation, MyGUI, ...)
 files/                    data shipped with the engine: shaders, Lua, translations, settings defaults
 docs/
   source/                 OpenMW's user and modding documentation (Sphinx)
-  design/                 design handoffs (plugin system, Eden Studio)
-  decisions/              decision records, NNNN-title.md (create with the first OpenEden decision)
+  design/                 design handoffs (plugin system, Eden Studio, inertial locomotion)
+  decisions/              decision records, NNNN-title.md
   tasks/                  task specs, NNNN-title.md
   research/               research notes
 CI/  .gitlab-ci.yml  .github/workflows/   build, test and check scripts
 scripts/                  integration tests and developer scripts
-```
-
-Planned, created by the plugin system's task specs and not before:
-
-```text
-sdk/                      the SDK: host API headers, contract headers, CMake package (plugin doc 7.1)
-plugins/<id>/             first-party plugins, each built against the SDK only (plugin doc 5.1, 7.2)
 ```
 
 Each area that gets new OpenEden code gets its own short `CLAUDE.md` describing its rules and pitfalls; create it the first time a task changes that area (for example `apps/openmw/mwphysics/CLAUDE.md`).
@@ -110,6 +108,7 @@ core ─────────────────────────
 - **Game rules live in the compatibility pack:** anything specific to Morrowind (records, races, skeleton names, `.nif`/`.kf` rules) moves out of the core into the Morrowind pack step by step, with Morrowind verified to play the same after each step.
 - **Fixed, ordered phases:** plugins run in the documented phases (plugin doc 4.3), in load order; plugins never read a clock and get `dt` and the step index from the core.
 - **Core never renders for a plugin:** debug drawing is submitted as data (points, lines, labels) and drawn by the core.
+- **CreativeMotion is the one feature in the core** (decision 0001, toddhow 2026-10-28): it is compiled into the engine because it needs engine internals every frame and animation is groundwork every host needs. The exception covers CreativeMotion only; every other feature system is a plugin. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
 - **Inherited boundaries stay:** `components/` never includes `apps/`; `apps/openmw/mwbase/` interfaces are how game subsystems reach each other. These are the precedent the registry generalizes (plugin doc 3.2).
 
 ## Coding standards
@@ -150,7 +149,7 @@ Every change follows the same loop, with tests written independently of the impl
 5. **Verify:** all quality gates pass; physics or gameplay changes also get an in-game check with the steps written in the pull request.
 6. **Explain and merge:** the pull request explains the change in plain language for toddhow, who approves the merge.
 
-**Full loop required** for anything under `apps/openmw/mwphysics/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, the plugin loader, registry, SDK and contracts, save games, and upstream merges. These carry the determinism, lifetime, threading and compatibility risks, so they never use a lighter loop.
+**Full loop required** for anything under `apps/openmw/mwphysics/`, the CreativeMotion adapters and refreshes of `components/creativemotion/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, the plugin loader, registry, SDK and contracts, save games, and upstream merges. These carry the determinism, lifetime, threading and compatibility risks, so they never use a lighter loop.
 
 **Lighter loop:** available only for tasks outside those areas (for example `CI/`, `scripts/`, documentation, launcher text) and only when toddhow marks the spec as lighter. No separate test-writing subagent; the implementing agent writes focused tests itself where they are cheap; a fresh reviewing subagent runs once per milestone. toddhow still approves each spec before implementation. A task that touches both areas uses the full loop.
 
@@ -249,8 +248,9 @@ Work them in order unless toddhow says otherwise. Each gets a task spec with its
 
 ### P5 First real clients
 
-- [x] CreativeMotion loads as a plugin and uses the core's Jolt world instead of its own (CreativeMotion's M8; its guide owns the CreativeMotion side)
-- [ ] Morrowind compatibility pack: the game contract defined, and Morrowind-specific code moved out of the core step by step with Morrowind verified to play the same after each step
+- [x] ~~CreativeMotion loads as a plugin and uses the core's Jolt world instead of its own~~ (done in task 0005, then superseded: CreativeMotion is compiled into the engine, decision 0001)
+- [x] Morrowind compatibility pack loads as the first real plugin, providing `openeden.game` and a `.kf` to glTF converter contract (`plugins/compat_morrowind/`)
+- [ ] Morrowind-specific code moved out of the core into the pack step by step, with Morrowind verified to play the same after each step
 
 ### P6 Stable C ABI and community SDK
 
@@ -264,7 +264,9 @@ The six phases in `docs/design/eden-studio-plan.md`, section 6: studio shell and
 
 ### CreativeMotion in game (M8 to M13)
 
-Owned by CreativeMotion's guide (`I:\Projects\CreativeMotion\CLAUDE.md`, "Path to OpenMW"). OpenEden's side is the host API those milestones need; when one of them needs something the SDK lacks, the SDK grows through an OpenEden task spec, not a CreativeMotion shortcut.
+Owned by CreativeMotion's guide (`I:\Projects\CreativeMotion\CLAUDE.md`, "Path to OpenMW"). Since decision 0001, CreativeMotion is compiled into the engine, so OpenEden's side is the engine adapters those milestones need, each through an OpenEden task spec (0006 IK, 0007 animation runtime); changes to CreativeMotion itself go through CreativeMotion's own task specs.
+
+- [ ] In-engine physics adapter for ragdolls (M10): CreativeMotion's `PhysicsWorld` over the core's single Jolt world, replacing the removed plugin's `HostPhysicsWorld`; never a second Jolt world
 
 ## Definition of done
 
@@ -309,8 +311,8 @@ Learned while finishing the Jolt branch; each cost real time.
 Work toddhow wants done later, not yet a task spec. Each item becomes a spec (or a research note) before work starts.
 
 - [x] Commit `docs/design/` (the plugin system and Eden Studio handoffs; done 2026-10-25)
-- [ ] Start `docs/decisions/` with the fork record: base commit (Jolt branch at 5459a65292 or later), why, and what "upstream merges are optional" means in practice
-- [ ] Decide whether CreativeMotion's M8 lands as a plugin (needs P1 to P3) or first as a component inside the engine, since CreativeMotion's guide still says "component"
+- [ ] Record the fork as an OpenEden decision (`docs/decisions/` started with 0001): base commit (Jolt branch at 5459a65292 or later), why, and what "upstream merges are optional" means in practice
+- [x] Decide whether CreativeMotion lands as a plugin or inside the engine: inside the engine, CreativeMotion only (decision 0001, 2026-10-28)
 
 ## Open questions
 
@@ -322,6 +324,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 - [ ] Executable and data names: when `openmw`, `openmw-cs` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs are migrated
 - [ ] Whether macOS stays a supported platform
 - [ ] Renderer direction: the Eden Studio plan mentions Vulkan and PBR; no decision exists
+- [ ] The `openeden.animation` contract has had no provider since decision 0001: keep it for plugins that want to drive animation, or remove it from the SDK?
 
 ## References
 
@@ -336,6 +339,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-28 | CreativeMotion compiled into the engine, not loaded as a plugin (decision 0001, toddhow; task 0007 stage R0): CreativeMotion only, because it needs engine internals and is core to OpenEden. Architecture rule for the exception, layout updated (`components/plugin`, `components/creativemotion`, `components/inertialmotion`, `sdk/`, `plugins/`, `docs/decisions/`), P5's first client is now the Morrowind compatibility pack, CreativeMotion section points at the engine adapters and adds the M10 physics adapter, open question on the unprovided `openeden.animation` contract |
 | 2026-10-25 | CreativeMotion Milestone M9 (IK for Morrowind, task 0006) completed: extended `AnimationContract` (`openeden.animation` v1.2) with pure kinematic IK methods (`solveTwoBone`, `solveFootPlacement`, `solveLookAt`, `solveTurnSmoothing`); implemented IK algorithms in `CreativeMotionPlugin` delegating `solveTwoBone` to `opas::ik::solveTwoBone` with double-precision clamping; added `actor collision shape type = 3` (Capsule) in `components/detournavigator` and `MWPhysics::Actor` to allow actors to navigate close to terrain/ledges; added `ActorIkController` in `MWRender` with strict off-by-default invariant (`footPlanting`, `lookAt`, `smootherTurns`); authored comprehensive unit and property test suite (`test_ik_contract.cpp`), passing all 9 test suites and full `components-tests` (1543/1543 passing). |
 | 2026-10-25 | Phase P5 first client (CreativeMotion plugin integration, task 0005) completed: extended `PhysicsService` and `PhysicsServiceImpl` over OpenEden's shared Jolt `JPH::PhysicsSystem` (double-precision compatible, bodies, cone/pyramid joints, collision groups, motors, impulses, velocities, kinematic targets, motion types, raycasts), defined `AnimationContract` (`openeden.animation` v1.1), implemented `HostPhysicsWorld` (`opas::physics::PhysicsWorld` over `PhysicsService` with `OPAS_BUILD_PHYSICS=OFF`), implemented `CreativeMotionPlugin` (`plugins/creativemotion/`), authored `docs/design/plugin-implementation-guide.md`, and passed 17 Phase 5 tests (116 total plugin tests passing). |
 | 2026-10-25 | Phase P4 (Scripting, diagnostics and editor hooks, task 0004) completed: per-plugin Lua tables (`openeden.<id>`), per-plugin logging, profiling scopes, debug-draw data submission, and Eden Studio editor extension points (`EditorService`), wired into `HostImpl` with 18 unit tests. |

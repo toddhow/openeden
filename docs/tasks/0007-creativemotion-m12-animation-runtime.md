@@ -80,6 +80,8 @@
 All stages on one branch, each with independent tests and a fresh review, one merge at the end (as CreativeMotion's C3).
 
 ### R0 — Groundwork and decision record
+**Done 2026-10-28:** decision 0001 (`docs/decisions/0001-creativemotion-compiled-into-the-engine.md`), OpenEden `CLAUDE.md`, `docs/design/openeden-plugin-system.md` and CreativeMotion `CLAUDE.md` updated; the source enters as a committed copy (open question 1); the targets are linked into `openmw-lib` (commit d41a1fd88a, which also links `opas::anim_gltf`).
+
 - Record the direct-integration decision: OpenEden `CLAUDE.md` (architecture rules, layout, Track for CreativeMotion), `docs/design/openeden-plugin-system.md` (CreativeMotion no longer its first client, or an exception noted), CreativeMotion `CLAUDE.md` M8 and M12 wording (M12's "supplied by the Morrowind compatibility pack" becomes "converted by an in-engine bridge that moves to the compatibility pack later").
 - Settle how CreativeMotion's source enters OpenEden (open question 1) and remove the duplicate.
 - Link the needed CreativeMotion targets into `openmw-lib` (`opas::anim_clip`, `opas::anim_runtime`, `opas::rig`, `opas::math`); `anim/gltf` is not needed in this task.
@@ -129,9 +131,15 @@ All stages on one branch, each with independent tests and a fresh review, one me
    - a git submodule pinned to a CreativeMotion commit (recommended: one source of truth, explicit updates);
    - a committed vendored copy refreshed by a script;
    - the earlier sibling-folder path (`../CreativeMotion`).
+
+   **Answered (toddhow, 2026-10-28):** a committed vendored copy, first taken at CreativeMotion `1fe5a27` (decision 0001).
 2. **Scope of the direct-integration decision:** CreativeMotion only, with the other feature systems still planned as plugins, or every feature system compiled in? This decides how the guide and plugin docs are rewritten in R0.
+
+   **Answered (toddhow, 2026-10-28):** CreativeMotion only (decision 0001).
 3. **Scale keys:** CreativeMotion clips have no scale. Proposed: the pose writer applies scale from the original controller at the same time, unblended, so scaled animations look as before. Alternative: drop animated scale on the new path.
 4. **Transition durations:** reuse OpenMW's animation blending rules where they match, with a settings default otherwise (proposed), or always use the settings default?
 5. **Resample rate** for Hermite and X/Y/Z-angle tracks: 60 Hz proposed (fidelity criterion above); higher costs memory per clip.
 6. **Performance budget per actor per frame** on your PC (a number to measure against in R4); for reference, CreativeMotion's ragdoll budget is 100 µs per active ragdoll per step.
 7. **Branch:** this work starts after the current uncommitted IK and physics work in the tree is committed or set aside, on its own branch. Confirm.
+
+   **Answered (2026-10-28):** the uncommitted work was split into branches; this task is `creativemotion-m12-runtime`, stacked on `compat-morrowind`, `inertial-locomotion` and `ik-collision-followups`.
