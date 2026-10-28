@@ -10,6 +10,8 @@
 - [`docs/Open Procedural Animation System - Living Design Doc.md`](file:///i:/Projects/CreativeMotion/docs/Open%20Procedural%20Animation%20System%20-%20Living%20Design%20Doc.md)
 - [`docs/decisions/0004-total-fork-of-openmw.md`](file:///i:/Projects/CreativeMotion/docs/decisions/0004-total-fork-of-openmw.md)
 
+> **Decision 0003 (toddhow, 2026-10-28):** AdvancedBodies and ComplexClothing are planned as core systems, like CreativeMotion (decision 0001), because they change physics; their editor extensions are registered by the core, not by plugins. Reflectron stays a plugin. See `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`.
+
 ---
 
 ## 1. Executive Summary & Vision

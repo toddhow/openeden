@@ -53,7 +53,7 @@ Inherited choices stay as OpenMW made them unless a decision record changes them
 | Rendering | Moving to Vulkan on VulkanSceneGraph (VSG) with vsgXchange (decision 0002, Track V); until Track V lands, OpenSceneGraph (OpenMW's fork on Linux CI, vcpkg's 3.6.5 on Windows) | No OpenGL fallback, no DirectX, no abstraction layer; VSG and vsgXchange versions pinned in the Track V spec |
 | Math | Moving from OSG math to VSG math engine-wide (decision 0002); CreativeMotion keeps `opas::math` | Conversions between the two happen at one named boundary per area during the transition |
 | UI | MyGUI in game, Qt 6 in the launcher, wizard and editor | Inherited |
-| Scripting | Lua (LuaJIT) through OpenMW's Lua host | Plugins register tables under `openeden.<id>` (plugin doc 4.10) |
+| Scripting | Lua (LuaJIT) through OpenMW's Lua host | Lua APIs come only from the core; plugins can only publish events the core forwards to Lua (decision 0003) |
 | Authored data | JSON with a canonical writer that round-trips byte for byte | The project's rule for new formats (CreativeMotion decision 0002, plugin doc 5.2) |
 | Tests | GoogleTest (`components-tests`, `openmw-tests`, `openmw-cs-tests`), Lua integration tests (`scripts/integration_tests.py`) | Integration tests need OpenMW's example suite at the revision pinned in `.gitlab-ci.yml` |
 | Formatting | clang-format 14 (`.clang-format`, `CI/check_clang_format.sh`), clang-tidy (`.clang-tidy`) | CI uses version 14; newer local versions format some untouched code differently, so only format lines you changed |
@@ -110,7 +110,8 @@ core ─────────────────────────
 - **Game rules live in the compatibility pack:** anything specific to Morrowind (records, races, skeleton names, `.nif`/`.kf` rules) moves out of the core into the Morrowind pack step by step, with Morrowind verified to play the same after each step.
 - **Fixed, ordered phases:** plugins run in the documented phases (plugin doc 4.3), in load order; plugins never read a clock and get `dt` and the step index from the core.
 - **Core never renders for a plugin:** debug drawing is submitted as data (points, lines, labels) and drawn by the core.
-- **CreativeMotion is the one feature in the core** (decision 0001, toddhow 2026-10-28): it is compiled into the engine because it needs engine internals every frame and animation is groundwork every host needs. The exception covers CreativeMotion only; every other feature system is a plugin. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
+- **Plugins read physics, never change it, and have no Lua API** (decision 0003, toddhow 2026-10-28): plugins may cast rays and shapes, read body states and receive physics events, and may publish events the core forwards to Lua; they never create, move or step bodies, register collision layers, run in fixed physics steps, or register Lua tables. Any system that must do those things goes into the core.
+- **Core feature systems** (decisions 0001 and 0003): CreativeMotion is compiled into the engine; AdvancedBodies and ComplexClothing are planned as core systems too. Reflectron and compatibility packs are plugins. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
 - **Inherited boundaries stay:** `components/` never includes `apps/`; `apps/openmw/mwbase/` interfaces are how game subsystems reach each other. These are the precedent the registry generalizes (plugin doc 3.2).
 
 ## Coding standards
@@ -270,8 +271,8 @@ Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next m
 
 P1 to P5 built the plugin system as a tested model in the test host; the game itself does not load plugins yet. Making it work in the game is Track W (`docs/design/working-plugin-system.md`).
 
-- [x] Frame phases and fixed-step callbacks run in a fixed order by the lifecycle manager (in the test host; called from the engine loop in Track W)
-- [x] Physics service able to attach to a shared Jolt world, with collision layers registered by name (attached to the game's world in Track W)
+- [x] Frame phases run in a fixed order by the lifecycle manager (in the test host; called from the engine loop in Track W); the fixed-step phases are removed by decision 0003 (task 0019)
+- [x] Physics service able to attach to a shared Jolt world (made read-only and collision layers removed by decision 0003, task 0019; attached to the game's world in Track W)
 - [x] Entity IDs, lifecycle events and per-entity plugin data
 - [x] Event bus with fixed-size queues; overflow counted and logged
 - [x] VFS mounting of plugin data and file format registration
@@ -279,7 +280,7 @@ P1 to P5 built the plugin system as a tested model in the test host; the game it
 
 ### P4 Scripting, diagnostics and editor hooks
 
-- [x] Lua tables per plugin (`openeden.<id>`)
+- [x] ~~Lua tables per plugin (`openeden.<id>`)~~ built in task 0004, then removed by decision 0003 (task 0019): plugins forward events to Lua instead
 - [x] Per-plugin logging, profiling scopes and debug-draw submission as data
 - [x] Editor extension points for Eden Studio (workspaces, inspectors, gizmos), ignored by the game host
 
@@ -291,16 +292,19 @@ P1 to P5 built the plugin system as a tested model in the test host; the game it
 
 ### Track W: the plugin system working in the game
 
-Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built against what the game needs, stages, decisions, risks). Proposed to start after Track V's V2, alongside V3–V6, because Track V replaces the engine loop and save flow this track changes.
+Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built against what the game needs, stages, decisions, risks), under decision 0003. W0 can run now; W1 onward is proposed after Track V's V2, alongside V3–V6, because Track V replaces the engine loop and save flow those stages change.
+
+**W0 SDK 2.0** — task 0019 (`docs/tasks/0019-plugins-w0-sdk-2-trim.md`)
+- [ ] Physics read-only with shape casts; collision layers, fixed-step phases and the Lua scripting service removed; events markable for Lua forwarding; SDK version 2.0
 
 **W1 The host in the game** — task 0015 (`docs/tasks/0015-plugins-w1-host-in-game.md`)
 - [ ] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing
 
 **W2 Data services on the engine** — task 0016 (`docs/tasks/0016-plugins-w2-data-services.md`)
-- [ ] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, `openeden.<id>` Lua tables for mods
+- [ ] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts
 
 **W3 World services on the engine** — task 0017 (`docs/tasks/0017-plugins-w3-world-services.md`)
-- [ ] The physics service on the game's Jolt world with collision layers that never overlap the engine's, fixed-step callbacks, entities mapped to game objects with lifecycle events, engine events, debug draw and profiler shown
+- [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events, debug draw and profiler shown
 
 **W4 Real clients and packaging** — task 0018 (`docs/tasks/0018-plugins-w4-clients-and-packaging.md`)
 - [ ] Installed plugin layout, launcher plugin list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample plugin covering every service end to end
@@ -393,6 +397,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-28 | Plugins read physics but never change it and have no Lua API (decision 0003, toddhow): no fixed-step phases, no collision layers, no Lua tables; plugin events can be forwarded to Lua by the core; AdvancedBodies and ComplexClothing planned as core systems, Reflectron stays a plugin; SDK to 2.0. New task 0019 (Track W stage W0, can run now); tasks 0015–0018, the Track W plan, the plugin design doc and the Eden Studio plan updated; architecture rules updated |
 | 2026-10-28 | Track W planned: `docs/design/working-plugin-system.md` and task specs 0015 to 0018 (W1 host in the game, W2 data services, W3 world services, W4 clients and packaging). Audit found the game never creates the plugin host and every service is a standalone model; P3 and P5 wording corrected to say the work so far runs in the test host. Proposed timing: after Track V's V2 |
 | 2026-10-28 | Track V specified: task specs 0008 to 0014 (V0 groundwork, V1 renderer import by merging vsgopenmw, V2 the whole game on Vulkan, V3 OpenEden's features on VSG, V4 renderer parity, V5 VSG math, V6 editor, tools and OSG removed), from an analysis of vsgopenmw at `2830e7e2b4` against OpenEden at `442eec6e2f` (merge base `f724b05c57`, 233 files changed on both sides). Math moved from second stage to V5 because vsgopenmw keeps OSG math; Track V's summary now links each spec |
 | 2026-10-28 | Vulkan decided (decision 0002, toddhow): the renderer moves entirely to Vulkan on VulkanSceneGraph, VSG math replaces OSG math engine-wide, no OpenGL fallback, DirectX or abstraction layer, the renderer is transplanted from vsgopenmw starting now, and the move is the next major track. New Track V (V0 groundwork to V5 OSG removed), stack rows for rendering and math, scope and Not yet updated, Track V in the full-loop list, a guardrail for vsgopenmw code, renderer open question closed |

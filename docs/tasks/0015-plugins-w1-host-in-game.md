@@ -1,6 +1,6 @@
 # Task 0015: Track W stage W1 — The plugin host runs in the game
 
-**Status:** draft, awaiting toddhow's approval. Scheduling per `docs/design/working-plugin-system.md`, decision 1 (proposed: after Track V's task 0010).
+**Status:** draft, awaiting toddhow's approval. Depends on task 0019 (SDK 2.0). Scheduling per `docs/design/working-plugin-system.md`, decision 1 (proposed: after Track V's task 0010).
 **Design doc section:** `docs/design/working-plugin-system.md` (sections 1–3, W1); `docs/design/openeden-plugin-system.md` sections 4.3 (phases), 6 (registration and loading), 6.8 (failure handling).
 **Goal:** `openmw` creates the plugin host at startup, discovers and loads enabled plugins, runs register → resolve → start, calls the frame phases from the engine loop, bridges plugin logging to the engine log, and stops and unloads plugins at shutdown, with zero plugins costing nothing and changing nothing.
 **Workflow:** full loop.
@@ -15,7 +15,7 @@
   - `OMW::Engine::prepareEngine()` (`apps/openmw/engine.cpp`, line 723) builds the VFS, resource system, Lua, sound, world and window manager;
   - `OMW::Engine::go()` (line 934) runs the main loop and calls `Settings::Manager::saveUser` at the end (line 1075);
   - `OMW::Engine::frame()` (line 190) per frame: input update (`mInputManager->update`), sound, `mLuaManager->synchronizedUpdate()`, `mStateManager->update`, time advance, `mMechanicsManager->update`, `mWorld->updatePhysics(...)`, `mWorld->update`, `mWindowManager->update`, then `mViewer->eventTraversal()`, `updateTraversal()`, `mLuaWorker->allowUpdate`, `renderingTraversals()`, `mLuaWorker->finishUpdate`.
-- **The phases** (plugin doc 4.3, `sdk/include/openeden/phases.hpp`): `Input`, `PreSimulation`, `FixedStepPrePhysics`, `FixedStepPostPhysics`, `PostSimulation`, `Animation`, `PreRender`, `Ui`. This task wires the frame phases; the two fixed-step phases are task 0017's.
+- **The phases** (plugin doc 4.3, `sdk/include/openeden/phases.hpp`), after task 0019 removes the fixed-step phases (decision 0003): `Input`, `PreSimulation`, `PostSimulation`, `Animation`, `PreRender`, `Ui`. This task wires all of them.
 - **Engine logging:** `Debug::setLogListener(LogListener)` (`components/debug/debugging.hpp:28`) receives every engine log line; `LoggingService` (`components/plugin/logging_service.hpp`) has `addSink`/`removeSink`.
 
 ## Design
@@ -53,7 +53,7 @@
 
 ## Out of scope
 
-- Engine-backed VFS, settings, saves and Lua (task 0016); physics, fixed steps, entities, events, debug draw and profiler display (task 0017); the launcher and packaging (task 0018).
+- Engine-backed VFS, settings, saves and Lua event forwarding (task 0016); read-only physics, entities, events, debug draw and profiler display (task 0017); the launcher and packaging (task 0018).
 - Hot reload (plugin doc 6.9: not in the first version).
 
 ## Open questions for toddhow

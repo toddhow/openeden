@@ -13,6 +13,8 @@ This document describes the mechanism only: what a plugin is, what the core must
 
 > **Decision 0001 (toddhow, 2026-10-28):** CreativeMotion is compiled into the engine, not loaded as a plugin, because it needs engine internals every frame and animation is groundwork every host needs. The exception covers CreativeMotion only; every other feature system stays a plugin as described here. See `docs/decisions/0001-creativemotion-compiled-into-the-engine.md`. Mentions of CreativeMotion below describe its earlier plan as a plugin, kept because the patterns they cite (its physics interface, event queue, debug overlay) still apply.
 
+> **Decision 0003 (toddhow, 2026-10-28):** plugins read physics but never change it, have no fixed-step phases, and have no Lua API; they may publish events the core forwards to Lua. Systems that must change physics or extend Lua go into the core: CreativeMotion, AdvancedBodies and ComplexClothing are planned as core systems; Reflectron stays a plugin. The SDK becomes 2.0. See `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`. Sections 4.3, 4.4 and 4.10 below are marked where the decision changes them.
+
 ---
 
 ## 1. Executive Summary & Vision
@@ -41,7 +43,7 @@ The core is built once. A plugin builds against the core's published SDK on its 
 | **Core** | The engine groundwork (section 1.2). Loads plugins, owns the frame loop, the shared physics world, the world model, the VFS, settings and saves. Depends on no plugin. |
 | **Host** | A program that embeds the core: the game (`openeden`), the editor (Eden Studio), and a headless test host used by CI. All three load plugins the same way. |
 | **Plugin** | A shared library (`.dll` / `.so`) plus a manifest. Provides zero or more contracts, requires zero or more, and hooks into the core's lifecycle. |
-| **Feature plugin** | A plugin that adds a system (animation, bodies, clothing, character creation, face). |
+| **Feature plugin** | A plugin that adds a system that does not change physics or extend Lua (decision 0003), for example character creation (Reflectron); animation, bodies and clothing are core systems. |
 | **Compatibility pack** | A plugin that teaches the core one game: it implements the **game contract** (records, rules, asset readers such as `.nif`/`.kf` or `.hkx`). One game per session. |
 | **Contract** | A versioned C++ interface with a stable id (for example `openeden.body`), published as a header-only package. Providers implement it; consumers look it up. |
 | **SDK** | The core's public headers and import library: the host API (section 4) plus the contract headers. The only thing a plugin compiles against. |
@@ -159,8 +161,8 @@ The core owns the loop and calls plugins at named phases, in a fixed order:
 | --- | --- | --- |
 | `Input` | Once per frame, after input is polled | Read controls, set animation or behaviour parameters |
 | `PreSimulation` | Once per frame, before fixed steps | Queue impulses, spawn bodies |
-| `FixedStepPrePhysics` | Every fixed physics step, before Jolt steps | Drive motors, apply forces (CreativeMotion's step listeners) |
-| `FixedStepPostPhysics` | Every fixed physics step, after Jolt steps | Read body states, sensors, state machines |
+| ~~`FixedStepPrePhysics`~~ | Removed for plugins (decision 0003) | Core systems step physics themselves |
+| ~~`FixedStepPostPhysics`~~ | Removed for plugins (decision 0003) | Core systems step physics themselves |
 | `PostSimulation` | Once per frame, after all fixed steps | Reconcile capsules, emit gameplay events |
 | `Animation` | Once per frame | Sample and blend poses, helper bones, face |
 | `PreRender` | Once per frame | Push poses and morphs to render data, debug draw |
@@ -171,6 +173,8 @@ The core owns the loop and calls plugins at named phases, in a fixed order:
 - **Fixed step:** the core owns the step rate (default 60 Hz, configurable, with sub-steps) and passes `dt` and the step index; plugins never read a clock.
 
 ### 4.4 Physics: the Shared Jolt World
+
+> **Decision 0003:** plugins get a read-only query service (ray and shape casts, body states, physics events). The write operations, joints, collision groups and collision-layer registration described below are core-only.
 - One physics world per session, owned by the core. Plugins never create their own, and neither does CreativeMotion inside the engine (decision 0001): its physics interface runs over the core's world, never a second one.
 - Exposed through a core physics service with the operations CreativeMotion's `physics/interface` already defines: create and destroy bodies and constraints, set motion type, drive joint motors, apply impulses, read states, ray and shape casts, and step listeners (the fixed-step phases above).
 - **Collision layers:** plugins register named layers and the pairs that collide during registration; the core assigns the bit values, so two plugins cannot clash over layer numbers.
@@ -204,7 +208,7 @@ The core owns the loop and calls plugins at named phases, in a fixed order:
 - **Loading a save written by an older plugin version:** the plugin receives the chunk's version and migrates it.
 
 ### 4.10 Scripting, Diagnostics and Editor Hooks
-- **Lua:** a plugin registers Lua tables under its own name (`openeden.<id>`), so mods script it through the existing OpenMW Lua host (M11's Lua API for CreativeMotion builds on this).
+- ~~**Lua:** a plugin registers Lua tables under its own name (`openeden.<id>`), so mods script it through the existing OpenMW Lua host.~~ Replaced by decision 0003: plugins have no Lua API; event types a plugin marks are forwarded by the core to Lua scripts as events. Lua APIs for features come only from the core.
 - **Logging and profiling:** a per-plugin logger and named profiling scopes, shown per plugin.
 - **Memory:** plugins may ask the core for frame-scoped scratch memory; the per-step rule stays: no heap allocation in fixed-step or per-frame callbacks.
 - **Debug draw:** plugins submit points, lines and labels as data (the `opas::debug::Overlay` pattern); the core's renderer draws them. Plugins never call the renderer directly.
