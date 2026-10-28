@@ -221,35 +221,36 @@ Work them in order unless toddhow says otherwise. Each gets a task spec with its
 
 ### Track V: move the renderer to Vulkan on VulkanSceneGraph
 
-Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next major track: other features wait for it. The renderer is transplanted from vsgopenmw (OpenMW 0.49 + VSG) and adapted to OpenEden's 0.51 base; every transplanted file keeps its notice and its source commit is named. Stages may be reordered in their specs, but each ends with the game building and its gates passing.
+Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next major track: other features wait for it. All work happens on the branch `vulkan`. The renderer is imported from vsgopenmw (OpenMW 0.49 + VSG, pinned at `2830e7e2b4`) by a git merge (both descend from OpenMW, merge base `f724b05c57`, 2023-10-27); every imported file keeps its notice and the merge names its source commits. Math moves late (V5): vsgopenmw itself still uses OSG math through bundled headers, so converting math first would put a 300-file change inside the merge. Each stage has a task spec with the full acceptance criteria; the items below summarise them.
 
-**V0 Groundwork**
-- [ ] VSG and vsgXchange fetched at pinned versions (like Jolt), with their licences in `docs/dependencies.md`; builds on Windows (MSVC) and Linux
-- [ ] vsgopenmw pinned to a named commit as the transplant source, and its authors credited
-- [ ] An inventory mapping vsgopenmw's rendering components (`animation`, `mwanimation`, `render`, `pipeline`, `view`, `vsgutil`, `vsgadapters`, `esm3terrain`, `apps/openmw/mwrender`) to OpenEden's files, marking what is taken, adapted or written fresh
-- [ ] A screenshot comparison rig (fixed cell, fixed frame count, automatic screenshot and quit, as vsgopenmw's `render_gold.sh` does) that captures today's OSG renders as the reference
+**V0 Groundwork** — task 0008 (`docs/tasks/0008-vulkan-v0-groundwork.md`)
+- [ ] Branch `vulkan`; VSG `v1.1.16`, vsgXchange `v1.1.14` and glslang fetched and pinned, building on Windows and Linux; `docs/dependencies.md` started
+- [ ] vsgopenmw pinned as branch `vsg-import`, made to build against the pinned VSG, its baseline recorded
+- [ ] Screenshot comparison rig (`--auto-screenshot`, `--auto-quit`, `tools/render_compare.sh`) with OSG reference images and a performance baseline
 
-**V1 Math**
-- [ ] OSG math replaced by VSG math in game logic (`mwphysics`, `mwmechanics`, `mwworld`, `components/detournavigator` and the rest outside rendering), with unit and integration tests passing and Morrowind unchanged
-- [ ] The CreativeMotion and Jolt conversion helpers (`components/misc/convert.hpp`) work with VSG math
+**V1 Renderer import** — task 0009 (`docs/tasks/0009-vulkan-v1-renderer-import.md`)
+- [ ] `vsg-import` merged into `vulkan` under the spec's merge policy (Jolt physics, vsgopenmw rendering, OpenEden 0.51 everything else), with the merge audit
+- [ ] The game builds with no OSG library linked, starts, and renders an exterior and an interior cell; OpenEden's rendering features compiled out behind `OPENEDEN_VSG_PENDING_FEATURES`, not deleted
 
-**V2 Renderer transplant**
-- [ ] The game starts, loads exterior and interior cells and renders them through VSG, compared against the V0 references
-- [ ] Movement, combat, AI pathing (navigator enabled) and saving work, which vsgopenmw's `master` does not yet do
-- [ ] All 32 Lua integration tests pass on the Vulkan build
+**V2 The whole game on Vulkan** — task 0010 (`docs/tasks/0010-vulkan-v2-game-on-vulkan.md`)
+- [ ] Movement, combat, AI pathing with the navigator on, saving and loading work (vsgopenmw's `master` does not move)
+- [ ] All 32 Lua integration tests pass; image and performance comparisons judged by toddhow
 
-**V3 OpenEden's rendering touchpoints**
-- [ ] Foot IK, look-at, compound hitbox bone sampling and the CreativeMotion pose driver work on VSG's animation system, each still off by default and unchanged when off
-- [ ] The Jolt physics debug draw and the navmesh debug draw render on VSG
+**V3 OpenEden's features on VSG** — task 0011 (`docs/tasks/0011-vulkan-v3-openeden-features-on-vsg.md`)
+- [ ] Foot IK, look-at, smoother turns, compound hitboxes, inertial lean and the CreativeMotion pose driver rebuilt on vsgopenmw's animation system through one bone interface, off by default and unchanged when off
+- [ ] Jolt and navmesh debug draws on VSG; the compatibility pack's `.kf` converter free of renderer code; `OPENEDEN_VSG_PENDING_FEATURES` removed
 
-**V4 Parity**
-- [ ] vsgopenmw's open parity items done: weather particles, water ripples, object paging, normal maps, alpha to coverage, the missing NIF features
-- [ ] Every OpenMW renderer setting either works on VSG or is removed with a reason
-- [ ] A decision on modders' post-processing shaders (`.omwfx`): translated, replaced by a new format, or dropped
+**V4 Renderer parity** — task 0012 (`docs/tasks/0012-vulkan-v4-renderer-parity.md`)
+- [ ] vsgopenmw's parity items, groundcover, ESM4 terrain and the deferred 0.49→0.51 renderer changes done
+- [ ] Post-processing (`.omwfx`) and VR ported or removed per toddhow's decision; every renderer setting works, migrates or is removed with a reason
 
-**V5 Tools and editor**
-- [ ] Every application builds and runs: the editor (OpenMW-CS, Eden Studio's shell), navmeshtool, the launcher and wizard
-- [ ] OpenSceneGraph removed: no OSG headers or libraries in the build, CI green on Windows and Linux
+**V5 VSG math everywhere** — task 0013 (`docs/tasks/0013-vulkan-v5-vsg-math.md`)
+- [ ] OSG math replaced by VSG math engine-wide behind convention tests, with no behaviour change and the Lua math API unchanged
+- [ ] `extern/osg` and vsgopenmw's OSG math shims deleted
+
+**V6 Editor, tools and OSG removed** — task 0014 (`docs/tasks/0014-vulkan-v6-editor-tools-osg-removal.md`)
+- [ ] The editor renders through VSG in a Qt Vulkan viewport with its editing features intact; every tool builds; videos play
+- [ ] No OpenSceneGraph anywhere: headers, libraries, CMake options, CI packages; CI green on Windows and Linux
 
 ### P1 Plugin registry and lifecycle, in process
 
@@ -374,6 +375,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-28 | Track V specified: task specs 0008 to 0014 (V0 groundwork, V1 renderer import by merging vsgopenmw, V2 the whole game on Vulkan, V3 OpenEden's features on VSG, V4 renderer parity, V5 VSG math, V6 editor, tools and OSG removed), from an analysis of vsgopenmw at `2830e7e2b4` against OpenEden at `442eec6e2f` (merge base `f724b05c57`, 233 files changed on both sides). Math moved from second stage to V5 because vsgopenmw keeps OSG math; Track V's summary now links each spec |
 | 2026-10-28 | Vulkan decided (decision 0002, toddhow): the renderer moves entirely to Vulkan on VulkanSceneGraph, VSG math replaces OSG math engine-wide, no OpenGL fallback, DirectX or abstraction layer, the renderer is transplanted from vsgopenmw starting now, and the move is the next major track. New Track V (V0 groundwork to V5 OSG removed), stack rows for rendering and math, scope and Not yet updated, Track V in the full-loop list, a guardrail for vsgopenmw code, renderer open question closed |
 | 2026-10-28 | CreativeMotion compiled into the engine, not loaded as a plugin (decision 0001, toddhow; task 0007 stage R0): CreativeMotion only, because it needs engine internals and is core to OpenEden. Architecture rule for the exception, layout updated (`components/plugin`, `components/creativemotion`, `components/inertialmotion`, `sdk/`, `plugins/`, `docs/decisions/`), P5's first client is now the Morrowind compatibility pack, CreativeMotion section points at the engine adapters and adds the M10 physics adapter, open question on the unprovided `openeden.animation` contract |
 | 2026-10-25 | CreativeMotion Milestone M9 (IK for Morrowind, task 0006) completed: extended `AnimationContract` (`openeden.animation` v1.2) with pure kinematic IK methods (`solveTwoBone`, `solveFootPlacement`, `solveLookAt`, `solveTurnSmoothing`); implemented IK algorithms in `CreativeMotionPlugin` delegating `solveTwoBone` to `opas::ik::solveTwoBone` with double-precision clamping; added `actor collision shape type = 3` (Capsule) in `components/detournavigator` and `MWPhysics::Actor` to allow actors to navigate close to terrain/ledges; added `ActorIkController` in `MWRender` with strict off-by-default invariant (`footPlanting`, `lookAt`, `smootherTurns`); authored comprehensive unit and property test suite (`test_ik_contract.cpp`), passing all 9 test suites and full `components-tests` (1543/1543 passing). |
