@@ -133,7 +133,16 @@ compare_dirs() {
     echo "Reference B: $dir2"
     echo "Threshold MAE: $threshold"
 
-    python3 -c "
+    local python_bin="python3"
+    if command -v python3 >/dev/null 2>&1 && "$python_bin" -c "import sys" >/dev/null 2>&1; then
+        python_bin="python3"
+    elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
+        python_bin="python"
+    elif [[ -f "/c/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe" ]]; then
+        python_bin="/c/Program Files/Blender Foundation/Blender 5.2/5.2/python/bin/python.exe"
+    fi
+
+    "$python_bin" -c "
 import sys, os
 from PIL import Image
 import numpy as np
