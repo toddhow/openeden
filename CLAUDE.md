@@ -230,8 +230,8 @@ Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next m
 - [ ] Screenshot comparison rig (`--auto-screenshot`, `--auto-quit`, `tools/render_compare.sh`) with OSG reference images and a performance baseline
 
 **V1 Renderer import** — task 0009 (`docs/tasks/0009-vulkan-v1-renderer-import.md`)
-- [ ] `vsg-import` merged into `vulkan` under the spec's merge policy (Jolt physics, vsgopenmw rendering, OpenEden 0.51 everything else), with the merge audit
-- [ ] The game builds with no OSG library linked, starts, and renders an exterior and an interior cell; OpenEden's rendering features compiled out behind `OPENEDEN_VSG_PENDING_FEATURES`, not deleted
+- [x] `vsg-import` merged into `vulkan` under the spec's merge policy (Jolt physics, vsgopenmw rendering, OpenEden 0.51 everything else), with the merge audit (commit 7a8e86c27d; audit and deferrals in `docs/research/0003-vsg-import-merge.md` section 5)
+- [x] The game builds with no OSG library linked, starts, and renders an exterior and an interior cell; OpenEden's rendering features compiled out behind `OPENEDEN_VSG_PENDING_FEATURES`, not deleted (verified on Windows 2026-10-29; Linux build and Lua integration tests not yet run)
 
 **V2 The whole game on Vulkan** — task 0010 (`docs/tasks/0010-vulkan-v2-game-on-vulkan.md`)
 - [ ] Movement, combat, AI pathing with the navigator on, saving and loading work (vsgopenmw's `master` does not move)
@@ -363,6 +363,8 @@ Learned while finishing the Jolt branch; each cost real time.
 - **Build and run deps conflict on Ubuntu.** Installing CI's build groups together with `openmw-integration-tests` fails with held packages; install the build groups and add only xvfb, python3 and git-lfs.
 - **Moved checkouts.** CMake caches record absolute source paths; after moving or renaming the checkout, reconfigure (or delete the build directory) before building.
 - **Morrowind config import.** A launcher setup that skipped the `Morrowind.ini` import has no `fallback-archive=` lines and shows a magenta menu; `openmw-iniimporter` fixes it but resets the content list, so restore the user's plugins afterwards.
+- **vsgopenmw predates VSG 1.1.** Several VSG 1.1 changes fail silently in vsgopenmw code: compile views registered before `Engine::setup` get no transfer task (geometry never uploads), shared reads clone "dynamic" objects (animation roots lose their bones), `vec3 * mat4` divides by the projective term, and `ViewDependentState` gained hooks that must be overridden. Research note 0003 section 5.4 lists each; suspect this first when something renders black or not at all.
+- **Debugging the VSG build on Windows.** No Vulkan validation layers are installed. Crashes write `openmw-crash.dmp` to the user data folder; read it with a dbghelp stack walker against the PDBs in `build-jolt`. Capture frames with `--auto-screenshot N --auto-quit M` rather than screen grabs. Interiors are one-sided, so a camera outside the room shows only effects.
 
 ## To do
 
@@ -397,6 +399,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-29 | Track V stage V1 completed on Windows (commit 7a8e86c27d): the merge builds with no OSG library linked, renders interiors and exteriors on Vulkan, and components-tests and openmw-tests pass; fixes for VSG 1.1.16 behaviour, engine order and the merge audit recorded in research note 0003 section 5. Windows build now builds a Vulkan-enabled SDL2 2.32.10 and writes the VSG DLLs next to the executables (`docs/dependencies.md`); pitfalls added |
 | 2026-10-28 | Plugins read physics but never change it and have no Lua API (decision 0003, toddhow): no fixed-step phases, no collision layers, no Lua tables; plugin events can be forwarded to Lua by the core; AdvancedBodies and ComplexClothing planned as core systems, Reflectron stays a plugin; SDK to 2.0. New task 0019 (Track W stage W0, can run now); tasks 0015–0018, the Track W plan, the plugin design doc and the Eden Studio plan updated; architecture rules updated |
 | 2026-10-28 | Track W planned: `docs/design/working-plugin-system.md` and task specs 0015 to 0018 (W1 host in the game, W2 data services, W3 world services, W4 clients and packaging). Audit found the game never creates the plugin host and every service is a standalone model; P3 and P5 wording corrected to say the work so far runs in the test host. Proposed timing: after Track V's V2 |
 | 2026-10-28 | Track V specified: task specs 0008 to 0014 (V0 groundwork, V1 renderer import by merging vsgopenmw, V2 the whole game on Vulkan, V3 OpenEden's features on VSG, V4 renderer parity, V5 VSG math, V6 editor, tools and OSG removed), from an analysis of vsgopenmw at `2830e7e2b4` against OpenEden at `442eec6e2f` (merge base `f724b05c57`, 233 files changed on both sides). Math moved from second stage to V5 because vsgopenmw keeps OSG math; Track V's summary now links each spec |

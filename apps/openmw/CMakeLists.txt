@@ -153,6 +153,13 @@ if(BUILD_OPENMW)
 
     target_link_libraries(openmw openmw-lib)
 
+    # openeden-vsg: a Vulkan-enabled SDL2.dll replaces the dependency set's one next to openmw.exe (extern/CMakeLists.txt).
+    if (OPENEDEN_SDL2_VULKAN_DLL)
+        add_dependencies(openmw sdl2_vulkan)
+        add_custom_command(TARGET openmw POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${OPENEDEN_SDL2_VULKAN_DLL}" "$<TARGET_FILE_DIR:openmw>")
+    endif()
+
     if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
         set_target_properties(openmw PROPERTIES ENABLE_EXPORTS ON)
     endif()

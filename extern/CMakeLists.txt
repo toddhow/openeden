@@ -406,8 +406,7 @@ if(OPENEDEN_BUILD_VSG)
 
     add_dependencies(vsg glslang SPIRV glslang-default-resource-limits)
 
-    # Note: CMAKE_RUNTIME_OUTPUT_DIRECTORY is already set to ${OpenMW_BINARY_DIR},
-    # so vsg DLL is automatically output to the binary directory.
+    # The DLL output directory is set below, after vsgXchange is fetched.
 
     # 4. vsgXchange
     FetchContent_Declare(vsgXchange
@@ -418,8 +417,50 @@ if(OPENEDEN_BUILD_VSG)
     FetchContent_MakeAvailable(vsgXchange)
     add_dependencies(vsgXchange vsg)
 
+    # openeden-vsg: extern/ is processed before the root CMakeLists.txt sets CMAKE_RUNTIME_OUTPUT_DIRECTORY, and VSG's
+    # own CMake writes its DLLs under _deps/vsg-build/lib, so openmw.exe ran with stale or missing VSG DLLs. On Windows
+    # the DLLs must sit next to the executables, as the root CMakeLists.txt arranges for OpenEden's own targets.
+    if (WIN32)
+        foreach(target vsg vsgXchange)
+            set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
+            foreach(config ${CMAKE_CONFIGURATION_TYPES})
+                string(TOUPPER ${config} upperConfig)
+                set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${upperConfig}
+                    "${OpenMW_BINARY_DIR}/${config}")
+            endforeach()
+        endforeach()
+    endif()
+
     set(VSG_INCLUDE_DIRS ${vsg_SOURCE_DIR}/include ${vsg_BINARY_DIR}/include PARENT_SCOPE)
     set(VSG_LIBRARIES vsg::vsg PARENT_SCOPE)
     set(VSGXCHANGE_INCLUDE_DIRS ${vsgXchange_SOURCE_DIR}/include ${vsgXchange_BINARY_DIR}/include PARENT_SCOPE)
     set(VSGXCHANGE_LIBRARIES vsgXchange::vsgXchange PARENT_SCOPE)
+endif()
+
+# openeden-vsg: the Windows dependency set (OpenMW's prebuilt vcpkg packages) has SDL2 built without the vcpkg
+# "vulkan" feature, so SDL cannot create a Vulkan window. OpenEden keeps linking that SDL2 2.32.10 and ships a
+# Vulkan-enabled build of the same release next to the executables instead. Its exported API is identical; only the
+# Windows video driver gains Vulkan support. Sources and hash match vcpkg's sdl2 port for this version.
+if (WIN32)
+    option(OPENEDEN_SDL2_VULKAN_RUNTIME "Build SDL2 with Vulkan support and copy SDL2.dll next to openmw.exe" ON)
+    if (OPENEDEN_SDL2_VULKAN_RUNTIME)
+        include(ExternalProject)
+        set(SDL2_VULKAN_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/sdl2-vulkan)
+        ExternalProject_Add(sdl2_vulkan
+            URL https://github.com/libsdl-org/SDL/archive/release-2.32.10.tar.gz
+            URL_HASH SHA512=d5622d6bb7266f7942a7b8ad43e8a22524893bf0c2ea1af91204838d9b78d32768843f6faa248757427b8404b8c6443776d4afa6b672cd8571a4e0c03a829383
+            PREFIX ${SDL2_VULKAN_PREFIX}
+            CMAKE_ARGS
+                -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+                -DCMAKE_BUILD_TYPE=Release
+                -DSDL_SHARED=ON
+                -DSDL_STATIC=OFF
+                -DSDL_TEST=OFF
+                -DSDL_VULKAN=ON
+            BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
+            INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config Release
+            BUILD_BYPRODUCTS ${SDL2_VULKAN_PREFIX}/bin/SDL2.dll
+        )
+        set(OPENEDEN_SDL2_VULKAN_DLL ${SDL2_VULKAN_PREFIX}/bin/SDL2.dll PARENT_SCOPE)
+    endif()
 endif()
