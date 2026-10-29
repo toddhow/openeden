@@ -21,7 +21,7 @@ namespace MWMechanics
         if (!anim || !anim->animation.get())
             return;
 
-        const auto it = mObjects.emplace(mObjects.end(), ptr, *anim);
+        const auto it = mObjects.emplace(mObjects.end(), ptr, anim);
         mIndex.emplace(ptr.mRef, it);
     }
 

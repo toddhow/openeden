@@ -11,6 +11,7 @@
 #include <vsg/utils/LineSegmentIntersector.h>
 
 #include <components/animation/transform.hpp>
+#include <components/esm3/cellref.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/mwanimation/groups.hpp>
 #include <components/mwanimation/play.hpp>
@@ -301,7 +302,7 @@ namespace MWRender
     }
 
     RaceSelection::RaceSelection(Preview* p)
-        : mRef(&mBase)
+        : mRef(ESM::makeBlankCellRef(), &mBase)
         , mPitchRadians(vsg::radians(6.f))
         , preview(p)
     {

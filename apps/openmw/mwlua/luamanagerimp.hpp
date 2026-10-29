@@ -100,7 +100,7 @@ namespace MWLua
         void useItem(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, bool force) override;
         void animationTextKey(const MWWorld::Ptr& actor, const std::string& key) override;
         void playAnimation(const MWWorld::Ptr& actor, const std::string& groupname,
-            const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
+            const MWAnim::Priority& priority, int blendMask, bool autodisable, float speedmult,
             std::string_view start, std::string_view stop, float startpoint, uint32_t loops,
             bool loopfallback) override;
         void animationEnded(const MWWorld::Ptr& actor, std::string_view groupname, float time, float completion,
@@ -181,7 +181,6 @@ namespace MWLua
 
         bool isProcessingInputEvents() const { return mProcessingInputEvents; }
 
-        void reportStats(unsigned int frameNumber, osg::Stats& stats) const;
         std::string formatResourceUsageStats() const override;
 
         LuaUtil::InputAction::Registry& inputActions() { return mInputActions; }
@@ -220,6 +219,7 @@ namespace MWLua
         ObjectLists mObjectLists;
 
         MWWorld::Ptr mPlayer;
+        MWRender::RenderManager* mRenderManager = nullptr;
 
         LuaEvents mLuaEvents{ mGlobalScripts, mMenuScripts };
         EngineEvents mEngineEvents{ mGlobalScripts };

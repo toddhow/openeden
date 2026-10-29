@@ -1,16 +1,13 @@
 #include "physicssystem.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <array>
 #include <cstdarg>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <vector>
-
-#include <osg/Group>
-#include <osg/Stats>
-#include <osg/Timer>
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemSingleThreaded.h>
@@ -26,6 +23,7 @@
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/ShapeCast.h>
 #include <Jolt/Physics/Collision/ShapeFilter.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/SimShapeFilter.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -37,6 +35,7 @@
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/resource/niffilemanager.hpp>
 #include <components/resource/physicsshapemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
@@ -52,7 +51,9 @@
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
 
+#if OPENEDEN_VSG_PENDING_FEATURES
 #include "../mwrender/joltdebugdraw.hpp"
+#endif
 
 #include "../mwworld/class.hpp"
 
@@ -274,21 +275,19 @@ namespace MWPhysics
         }
     }
 
-    PhysicsSystem::PhysicsSystem(Resource::ResourceSystem* resourceSystem, osg::ref_ptr<osg::Group> parentNode)
-        : mShapeManager(
-            std::make_unique<Resource::PhysicsShapeManager>(resourceSystem->getVFS(), resourceSystem->getSceneManager(),
-                resourceSystem->getNifFileManager(), Settings::cells().mCacheExpiryDelay))
+    PhysicsSystem::PhysicsSystem(
+        Resource::ResourceSystem* resourceSystem, const ToUTF8::StatelessUtf8Encoder* encoder)
+        : mNifFileManager(std::make_unique<Resource::NifFileManager>(resourceSystem->getVFS(), encoder))
+        , mShapeManager(std::make_unique<Resource::PhysicsShapeManager>(
+              resourceSystem->getVFS(), mNifFileManager.get(), Settings::cells().mCacheExpiryDelay))
         , mResourceSystem(resourceSystem)
         , mDebugDrawEnabled(false)
         , mTimeAccum(0.0f)
         , mProjectileId(0)
         , mWaterHeight(0)
         , mWaterEnabled(false)
-        , mParentNode(std::move(parentNode))
         , mPhysicsDt(1.f / 60.f)
     {
-        mResourceSystem->addResourceManager(mShapeManager.get());
-
         // Register allocation hook and callbacks
         JPH::RegisterDefaultAllocator();
         JPH::Trace = TraceImpl;
@@ -326,8 +325,10 @@ namespace MWPhysics
         mPhysicsSystem.SetContactListener(&mContactListener);
         mPhysicsSystem.SetGravity(JPH::Vec3(0, 0, Constants::GravityConst * Constants::UnitsPerMeter));
 
+#if OPENEDEN_VSG_PENDING_FEATURES
         // Debug helper
         mJoltDebugDrawer = std::make_unique<MWRender::JoltDebugDrawer>(mParentNode, &mPhysicsSystem, mDebugDrawEnabled);
+#endif
 
         // Detect number of wanted async threads, if 0 then use single threaded job system
         unsigned numThreads = getNumThreads(detectLockingPolicy());
@@ -343,14 +344,13 @@ namespace MWPhysics
 
         // Create a job scheduler responsible for simulating the game world (actors etc)
         mTaskScheduler = std::make_unique<PhysicsTaskScheduler>(
-            mPhysicsDt, &mPhysicsSystem, mJoltDebugDrawer.get(), mPhysicsJobSystem.get());
+            mPhysicsDt, &mPhysicsSystem, getJoltDebugDrawer(), mPhysicsJobSystem.get());
     }
 
     PhysicsSystem::~PhysicsSystem()
     {
         Log(Debug::Info) << "Destroying physics system...";
 
-        mResourceSystem->removeResourceManager(mShapeManager.get());
         mWaterInstance.reset();
         mTaskScheduler->releaseSharedStates();
         mHeightFields.clear();
@@ -377,11 +377,22 @@ namespace MWPhysics
         return mShapeManager.get();
     }
 
+    void PhysicsSystem::pruneCache()
+    {
+        // The caches compare against a reference time in seconds; vsgopenmw's renderer keeps no frame clock to share.
+        const double referenceTime
+            = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        mShapeManager->updateCache(referenceTime);
+        mNifFileManager->updateCache(referenceTime);
+    }
+
     bool PhysicsSystem::toggleDebugRendering()
     {
         mDebugDrawEnabled = !mDebugDrawEnabled;
 
+#if OPENEDEN_VSG_PENDING_FEATURES
         mJoltDebugDrawer->setDebugMode(mDebugDrawEnabled);
+#endif
         return mDebugDrawEnabled;
     }
 
@@ -713,7 +724,7 @@ namespace MWPhysics
     }
 
     void PhysicsSystem::addHeightField(
-        const float* heights, int x, int y, int size, int verts, float minH, float maxH, const osg::Object* holdObject)
+        const float* heights, int x, int y, int size, int verts, float minH, float maxH, const vsg::Object* holdObject)
     {
         mHeightFields[std::make_pair(x, y)]
             = std::make_unique<HeightField>(heights, x, y, size, verts, minH, maxH, holdObject, mTaskScheduler.get());
@@ -743,7 +754,7 @@ namespace MWPhysics
         VFS::Path::Normalized animationMesh(mesh);
         if (ptr.getClass().useAnim())
             animationMesh = Misc::ResourceHelpers::correctActorModelPath(mesh, mResourceSystem->getVFS());
-        osg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(animationMesh);
+        vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(animationMesh);
         if (!shapeInstance || !shapeInstance->mCollisionShape)
         {
             return;
@@ -888,7 +899,7 @@ namespace MWPhysics
     {
         VFS::Path::Normalized animationMesh
             = Misc::ResourceHelpers::correctActorModelPath(mesh, mResourceSystem->getVFS());
-        osg::ref_ptr<const Resource::PhysicsShape> shape = mShapeManager->getShape(animationMesh);
+        vsg::ref_ptr<const Resource::PhysicsShape> shape = mShapeManager->getShape(animationMesh);
 
         // Try to get shape from basic model as fallback for creatures
         if (!ptr.getClass().isNpc() && shape && shape->mCollisionBox.mExtents.length2() == 0)
@@ -915,7 +926,7 @@ namespace MWPhysics
     int PhysicsSystem::addProjectile(
         const MWWorld::Ptr& caster, const osg::Vec3f& position, VFS::Path::NormalizedView mesh, bool computeRadius)
     {
-        osg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(mesh);
+        vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(mesh);
         assert(shapeInstance);
         float radius = computeRadius ? shapeInstance->mCollisionBox.mExtents.length() / 2.f : 1.f;
 
@@ -1027,8 +1038,7 @@ namespace MWPhysics
         }
     }
 
-    void PhysicsSystem::stepSimulation(
-        float dt, bool skipSimulation, osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats)
+    void PhysicsSystem::stepSimulation(float dt, bool skipSimulation)
     {
         // We cannot modify shapes at runtime while there is a body query going on (such as actor collision)
         // so we must update all animated objects first when we are guaranteed to not be having any physics queries
@@ -1069,7 +1079,7 @@ namespace MWPhysics
             prepareSimulation(mTimeAccum >= mPhysicsDt, simulations);
 
             // Runs world simulation for required steps, modifies mTimeAccum
-            mTaskScheduler->applyQueuedMovements(mTimeAccum, simulations, frameStart, frameNumber, stats);
+            mTaskScheduler->applyQueuedMovements(mTimeAccum, simulations);
         }
 
         // Synchronize/commit all transform updates for actors and objects
@@ -1272,18 +1282,12 @@ namespace MWPhysics
         return collector.hasHit();
     }
 
-    void PhysicsSystem::reportStats(unsigned int frameNumber, osg::Stats& stats) const
+    void PhysicsSystem::reportCollision([[maybe_unused]] const osg::Vec3f& position, [[maybe_unused]] const osg::Vec3f& normal)
     {
-        stats.setAttribute(frameNumber, "Physics Actors", static_cast<double>(mActors.size()));
-        stats.setAttribute(frameNumber, "Physics Objects", static_cast<double>(mObjects.size()));
-        stats.setAttribute(frameNumber, "Physics Projectiles", static_cast<double>(mProjectiles.size()));
-        stats.setAttribute(frameNumber, "Physics HeightFields", static_cast<double>(mHeightFields.size()));
-    }
-
-    void PhysicsSystem::reportCollision(const osg::Vec3f& position, const osg::Vec3f& normal)
-    {
+#if OPENEDEN_VSG_PENDING_FEATURES
         if (mDebugDrawEnabled)
             mJoltDebugDrawer->addCollision(position, normal);
+#endif
     }
 
     const JPH::BodyLockInterfaceLocking& PhysicsSystem::getBodyLockInterface() const

@@ -8,7 +8,11 @@
 #include <vsg/io/read.h>
 #include <vsg/threading/OperationThreads.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/resource/physicsshapemanager.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -30,11 +34,11 @@ namespace MWWorld
         int mY;
         std::atomic_int mProgress = 0;
         int mProgressRange = 1;
-        std::vector<std::string> mMeshes;
+        std::vector<std::string_view> mMeshes;
         std::vector<bool> mUseAnim;
         const MWAnim::Context& mAnimContext;
-        vsg::ref_ptr<const vsg::Options> mActorShapeOptions;
-        vsg::ref_ptr<const vsg::Options> mShapeOptions;
+        Resource::PhysicsShapeManager* mShapeManager;
+        bool mPreloadInstances;
         MWRender::LandManager* mLandManager;
 
         // keep a ref to the loaded objects to make sure it stays loaded as long as this cell is in the preloaded state
@@ -45,15 +49,14 @@ namespace MWWorld
         vsg::ref_ptr<vsg::OperationThreads> compileThreads;
 
         /// Constructor to be called from the main thread.
-        PreloadCell(MWWorld::CellStore& cell, const MWAnim::Context& animContext, vsg::ref_ptr<const vsg::Options> actorShapeOptions,
-            vsg::ref_ptr<const vsg::Options> shapeOptions,
-            MWRender::LandManager* landManager)
+        PreloadCell(MWWorld::CellStore& cell, const MWAnim::Context& animContext,
+            Resource::PhysicsShapeManager* shapeManager, bool preloadInstances, MWRender::LandManager* landManager)
             : mIsExterior(cell.getCell()->isExterior())
             , mX(cell.getCell()->getGridX())
             , mY(cell.getCell()->getGridY())
             , mAnimContext(animContext)
-            , mActorShapeOptions(actorShapeOptions)
-            , mShapeOptions(shapeOptions)
+            , mShapeManager(shapeManager)
+            , mPreloadInstances(preloadInstances)
             , mLandManager(landManager)
         {
             mPreloadedNodes = vsg::Objects::create();
@@ -85,10 +88,13 @@ namespace MWWorld
             }
             for (size_t i = 0; !abort && i < mMeshes.size(); ++i)
             {
-                const auto& mesh = mMeshes[i];
+                const std::string_view model = mMeshes[i];
                 bool useAnim = mUseAnim[i];
                 try
                 {
+                    const VFS::Path::Normalized correctedMesh
+                        = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(model));
+                    const std::string& mesh = correctedMesh.value();
                     if (useAnim)
                     {
                         if (auto anim = mAnimContext.readAnimation(mesh))
@@ -100,14 +106,18 @@ namespace MWWorld
                         if (mPreloadedObjects.insert(node).second)
                             mPreloadedNodes->children.push_back(node);
                     }
-                    auto& shapeOptions = useAnim ? mActorShapeOptions : mShapeOptions;
-                    if (auto shape = vsg::read(mesh, shapeOptions))
-                        mPreloadedObjects.insert(shape);
+
+                    // Collision shapes are Jolt's, named the way PhysicsSystem names them.
+                    const VFS::Path::Normalized shapeMesh
+                        = Misc::ResourceHelpers::correctActorModelPath(correctedMesh, mShapeManager->getVFS());
+                    if (mPreloadInstances)
+                        mPreloadedObjects.insert(mShapeManager->cacheInstance(shapeMesh));
+                    else
+                        mPreloadedObjects.insert(mShapeManager->getShape(shapeMesh));
                 }
-                catch (std::exception&)
+                catch (const std::exception& e)
                 {
-                    // ignore error for now, would spam the log too much
-                    // error will be shown when visiting the cell
+                    Log(Debug::Warning) << "Failed to preload mesh \"" << model << "\": " << e.what();
                 }
                 ++mProgress;
             }
@@ -139,12 +149,10 @@ namespace MWWorld
         }
     };
 
-    CellPreloader::CellPreloader(const MWAnim::Context& animContext, vsg::ref_ptr<const vsg::Options> actorShapeOptions,
-        vsg::ref_ptr<const vsg::Options> shapeOptions,
+    CellPreloader::CellPreloader(const MWAnim::Context& animContext, Resource::PhysicsShapeManager* shapeManager,
         MWRender::LandManager* landManager, vsg::ref_ptr<vsg::OperationThreads> threads)
         : mAnimContext(animContext)
-        , mActorShapeOptions(actorShapeOptions)
-        , mShapeOptions(shapeOptions)
+        , mShapeManager(shapeManager)
         , mLandManager(landManager)
         , mCompileThreads(vsg::OperationThreads::create(1/*CompileManager::numCompileTraversals*/)) //if(supportsNonBlockingCompile) mCompileThreads={}
         , mOperationThreads(threads)
@@ -201,7 +209,7 @@ namespace MWWorld
                 return 1;
         }
 
-        vsg::ref_ptr<PreloadCell> item(new PreloadCell(cell, mAnimContext, mActorShapeOptions, mShapeOptions, mLandManager));
+        vsg::ref_ptr<PreloadCell> item(new PreloadCell(cell, mAnimContext, mShapeManager, mPreloadInstances, mLandManager));
         item->compileThreads = mCompileThreads;
         mOperationThreads->add(item);
 
@@ -238,6 +246,11 @@ namespace MWWorld
     void CellPreloader::setExpiryDelay(double expiryDelay)
     {
         mExpiryDelay = expiryDelay;
+    }
+
+    void CellPreloader::setPreloadInstances(bool preload)
+    {
+        mPreloadInstances = preload;
     }
 
     void CellPreloader::setMinCacheSize(unsigned int num)

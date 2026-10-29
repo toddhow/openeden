@@ -6,7 +6,7 @@
 #include <components/esm/format.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/readerscache.hpp>
-//#include <components/esm4/reader.hpp>
+#include <components/esm4/reader.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/openfile.hpp>
 #include <components/misc/strings/lower.hpp>
@@ -63,7 +63,6 @@ namespace MWWorld
                     mMasterFileFormat = reader->getFormatVersion();
                 break;
             }
-            /*
             case ESM::Format::Tes4:
             {
                 ESM4::Reader reader(std::move(stream), filepath,
@@ -71,10 +70,9 @@ namespace MWWorld
                     mEncoder != nullptr ? &mEncoder->getStatelessEncoder() : nullptr);
                 reader.setModIndex(index);
                 reader.updateModIndices(mNameToIndex);
-                mStore.loadESM4(reader, listener);
+                mStore.loadESM4(reader);
                 break;
             }
-            */
         }
         mNameToIndex[Misc::StringUtils::lowerCase(Files::pathToUnicodeString(filepath.filename()))] = index;
     }

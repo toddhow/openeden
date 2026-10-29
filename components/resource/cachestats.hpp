@@ -6,11 +6,6 @@
 #include <string_view>
 #include <vector>
 
-namespace osg
-{
-    class Stats;
-}
-
 namespace Resource
 {
     struct CacheStats
@@ -23,7 +18,6 @@ namespace Resource
 
     void addCacheStatsAttibutes(std::string_view prefix, std::vector<std::string>& out);
 
-    void reportStats(std::string_view prefix, unsigned frameNumber, const CacheStats& src, osg::Stats& dst);
 }
 
 #endif

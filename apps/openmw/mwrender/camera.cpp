@@ -27,8 +27,8 @@ namespace MWRender
     Camera::Camera()
         : mHeightScale(1.f)
         , mCollisionType(
-              (MWPhysics::CollisionType::CollisionType_Default & ~MWPhysics::CollisionType::CollisionType_Actor)
-              | MWPhysics::CollisionType_CameraOnly)
+              (MWPhysics::CollisionMask_Default & ~MWPhysics::Layers::ACTOR)
+              | MWPhysics::Layers::CAMERA_ONLY)
         , mAnimation(nullptr)
         , mFirstPersonView(true)
         , mMode(Mode::FirstPerson)
@@ -163,6 +163,13 @@ namespace MWRender
         }
 
         mPosition = focal + offset;
+    }
+
+    // openeden-vsg: OpenMW 0.51's camera orientation, used by World for the sound listener (Settings::sound().mCameraListener).
+    osg::Quat Camera::getOrient() const
+    {
+        return osg::Quat(mRoll + mExtraRoll, osg::Vec3d(0, 1, 0)) * osg::Quat(mPitch + mExtraPitch, osg::Vec3d(1, 0, 0))
+            * osg::Quat(mYaw + mExtraYaw, osg::Vec3d(0, 0, 1));
     }
 
     void Camera::setMode(Mode newMode, bool force)

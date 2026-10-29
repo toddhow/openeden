@@ -157,6 +157,9 @@ namespace MWMechanics
 
     struct WeaponInfo;
 
+    /// Whether the group loops on this animation: it has a loop start key, or vanilla treats it as looping.
+    bool isLoopingAnimation(const MWAnim::Play& animation, std::string_view group);
+
     /*
      * Controls playing animations.
      */
@@ -167,6 +170,9 @@ namespace MWMechanics
         float speed = 0.f;
         osg::Vec3f movement;
         vsg::vec3 moved;
+        // Inertial locomotion (OpenEden), carried from preAnimation to postAnimation.
+        bool inertialActive = false;
+        float smoothedSpeed = 0.f;
         //}
         MWWorld::Ptr mPtr;
         MWWorld::Ptr mWeapon;
@@ -272,6 +278,7 @@ namespace MWMechanics
 
         void updateAnimQueue();
         void playAnimQueue(bool useLoopStart = false);
+        void setPlayScriptedOnly(bool playScriptedOnly) const;
 
         void updateHeadTracking(float duration);
 
@@ -306,7 +313,7 @@ namespace MWMechanics
 
         void unpersistAnimationState();
 
-        void playBlendedAnimation(const std::string& groupname, const MWRender::AnimPriority& priority, int blendMask,
+        void playBlendedAnimation(const std::string& groupname, const MWAnim::Priority& priority, int blendMask,
             bool autodisable, float speedmult, std::string_view start, std::string_view stop, float startpoint,
             uint32_t loops, bool loopfallback = false) const;
 
@@ -346,6 +353,8 @@ namespace MWMechanics
         void skipAnim();
         bool isAnimPlaying(std::string_view groupName) const;
         bool isScriptedAnimPlaying() const;
+        /// Whether the group loops: it has a loop start key, or vanilla treats it as looping.
+        bool isLoopingAnimation(std::string_view group) const;
         void clearAnimQueue(bool clearScriptedAnims = false);
 
         enum KillResult

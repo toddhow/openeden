@@ -9,7 +9,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/esm/util.hpp>
-#include <components/esmterrain/storage.hpp>
+#include <components/esm3terrain/storage.hpp>
 #include <components/lua/luastate.hpp>
 
 #include "../mwbase/environment.hpp"

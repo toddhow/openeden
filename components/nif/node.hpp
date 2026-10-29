@@ -108,6 +108,7 @@ namespace Nif
             Emitter = (1 << 1)
         };
         int useFlags{ 0 };
+        void setBone() { mIsBone = true; useFlags |= Bone; }
     };
 
     struct NiNode : NiAVObject

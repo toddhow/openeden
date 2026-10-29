@@ -14,7 +14,7 @@
 #include <components/misc/convert.hpp>
 #include <components/physicshelpers/collisionobject.hpp>
 #include <components/resource/physicsshape.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/mwanimation/position.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwmechanics/creaturestats.hpp"
@@ -235,9 +235,9 @@ namespace MWPhysics
 
         if (!mRotationallyInvariant)
         {
-            const SceneUtil::PositionAttitudeTransform* baseNode = mPtr.getRefData().getBaseNode();
-            if (baseNode)
-                mRotation = baseNode->getAttitude();
+            // The rendered actor's attitude is its z rotation, as vsgopenmw's MWAnim::zQuat computes it.
+            const vsg::quat q = MWAnim::zQuat(mPtr.getRefData().getPosition());
+            mRotation = osg::Quat(q.x, q.y, q.z, q.w);
         }
 
         // Jolt specific

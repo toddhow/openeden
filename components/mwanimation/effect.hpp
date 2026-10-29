@@ -21,7 +21,8 @@ namespace MWAnim
     {
         vsg::ref_ptr<vsg::Node> node;
         MWAnim::Context mwctx;
-        int effectId = -1;
+        // openeden-vsg: OpenMW 0.51 identifies effects by text (a serialized magic effect RefId); empty for none.
+        std::string effectId;
         bool loop = false;
 
         Anim::AutoPlay update;

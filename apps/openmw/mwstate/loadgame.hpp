@@ -1,6 +1,9 @@
 // vsgopenmw-unity-build
 
 #include <filesystem>
+#include <sstream>
+
+#include <SDL_clipboard.h>
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
@@ -19,9 +22,14 @@
 #include "../mwworld/scene.hpp"
 
 #include <components/debug/debuglog.hpp>
+#include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
+#include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
-#include <components/settings/settings.hpp>
+#include <components/files/conversion.hpp>
+#include <components/l10n/manager.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/settings/values.hpp>
 
 #include "choice.hpp"
 #include "loading.hpp"
@@ -29,6 +37,12 @@
 
 namespace MWState
 {
+    // A save that this version cannot read; what() is the message shown to the player.
+    struct SaveFormatVersionError : public std::runtime_error
+    {
+        using std::runtime_error::runtime_error;
+    };
+
     struct LoadGame : public ThreadLoading
     {
         const Character* character{};
@@ -39,8 +53,14 @@ namespace MWState
         StateManager& stateManager;
 
         std::atomic_bool askForConfirmation = false;
+        std::vector<std::string> missingFiles;
         std::shared_ptr<Choice> choice;
         bool firstPersonCam = false;
+
+        // Kept for postLoad: World::saveLoaded reads the content file mapping from the reader.
+        ESM::ESMReader reader;
+        std::map<int, int> contentFileMap;
+        ESM::ActorIdConverter actorIdConverter;
 
         LoadGame(double& out_timePlayed, CharacterManager& out_characterManager, MWBase::StateManager::State& out_state,
             StateManager& manager)
@@ -52,16 +72,15 @@ namespace MWState
             mDescription = "#{OMWEngine:LoadingInProgress}";
         }
 
-        std::map<int, int> buildContentFileIndexMap(const ESM::ESMReader& reader) const
+        std::map<int, int> buildContentFileIndexMap(const ESM::ESMReader& esmReader) const
         {
             const std::vector<std::string>& current = MWBase::Environment::get().getWorld()->getContentFiles();
-            const std::vector<ESM::Header::MasterData>& prev = reader.getGameFiles();
+            const std::vector<ESM::Header::MasterData>& prev = esmReader.getGameFiles();
             std::map<int, int> map;
             for (int iPrev = 0; iPrev < static_cast<int>(prev.size()); ++iPrev)
             {
-                std::string id = Misc::StringUtils::lowerCase(prev[iPrev].name);
                 for (int iCurrent = 0; iCurrent < static_cast<int>(current.size()); ++iCurrent)
-                    if (id == Misc::StringUtils::lowerCase(current[iCurrent]))
+                    if (Misc::StringUtils::ciEqual(prev[iPrev].name, current[iCurrent]))
                     {
                         map.insert(std::make_pair(iPrev, iCurrent));
                         break;
@@ -72,36 +91,85 @@ namespace MWState
 
         void verifyProfile(const ESM::SavedGame& profile)
         {
-            const std::vector<std::string>& selectedContentFiles
-                = MWBase::Environment::get().getWorld()->getContentFiles();
-            bool notFound = false;
-            for (const std::string& contentFile : profile.mContentFiles)
+            const auto& selectedContentFiles = MWBase::Environment::get().getWorld()->getContentFiles();
+            for (std::string_view contentFile : profile.getMissingContentFiles(selectedContentFiles))
             {
-                if (std::find(selectedContentFiles.begin(), selectedContentFiles.end(), contentFile)
-                    == selectedContentFiles.end())
-                {
-                    Log(Debug::Warning) << "Warning: Saved game dependency " << contentFile << " is missing.";
-                    notFound = true;
-                }
+                Log(Debug::Warning) << "Warning: Saved game dependency " << contentFile << " is missing.";
+                missingFiles.emplace_back(contentFile);
             }
-            if (notFound)
+            if (!missingFiles.empty())
                 askForConfirmation = true;
+        }
+
+        // The confirmation OpenMW 0.51 shows for missing content files, with the list and a copy button.
+        std::string missingFilesMessage() const
+        {
+            constexpr size_t missingPluginsDisplayLimit = 12;
+
+            auto l10n = MWBase::Environment::get().getL10nManager()->getContext("OMWEngine");
+            std::string message = "#{OMWEngine:MissingContentFilesConfirmation}";
+            message += l10n->formatMessage(
+                "MissingContentFilesList", { "files" }, { static_cast<int>(missingFiles.size()) });
+            const size_t cappedSize = std::min(missingFiles.size(), missingPluginsDisplayLimit);
+            for (size_t i = 0; i < cappedSize; ++i)
+            {
+                if (i + 1 == cappedSize && cappedSize < missingFiles.size())
+                {
+                    message += "...";
+                    break;
+                }
+                message += missingFiles[i];
+                if (i + 1 < cappedSize)
+                    message += "\n";
+            }
+            message += l10n->formatMessage(
+                "MissingContentFilesListCopy", { "files" }, { static_cast<int>(missingFiles.size()) });
+            return message;
+        }
+
+        void copyMissingFilesToClipboard() const
+        {
+            std::ostringstream stream;
+            for (const std::string& contentFile : missingFiles)
+                stream << contentFile << "\n";
+            std::string fullList = stream.str();
+            if (!fullList.empty())
+                fullList.pop_back();
+            SDL_SetClipboardText(fullList.c_str());
         }
 
         void threadLoad() override
         {
             Log(Debug::Info) << "Reading save file " << filepath.filename().string();
 
-            ESM::ESMReader reader;
             reader.open(filepath);
 
-            if (reader.getFormatVersion() > ESM::CurrentSaveGameFormatVersion)
-                throw std::runtime_error(
-                    "This save file was created using a newer version of OpenMW and is thus not supported. Please "
-                    "upgrade to the newest OpenMW version to load this file.");
+            const ESM::FormatVersion version = reader.getFormatVersion();
+            if (version > ESM::CurrentSaveGameFormatVersion)
+                throw SaveFormatVersionError("#{OMWEngine:LoadingRequiresNewVersionError}");
+            else if (version < ESM::MinSupportedSaveGameFormatVersion)
+            {
+                const char* release;
+                // Report the last version still capable of reading this save
+                if (version < ESM::OpenMW0_49MinSaveGameFormatVersion)
+                    release = "OpenMW 0.48.0";
+                else
+                {
+                    // Insert additional else if statements above to cover future releases
+                    static_assert(ESM::MinSupportedSaveGameFormatVersion <= ESM::OpenMW0_49MinSaveGameFormatVersion);
+                    release = "OpenMW 0.51.0";
+                }
+                auto l10n = MWBase::Environment::get().getL10nManager()->getContext("OMWEngine");
+                throw SaveFormatVersionError(
+                    l10n->formatMessage("LoadingRequiresOldVersionError", { "version" }, { release }));
+            }
 
-            std::map<int, int> contentFileMap = buildContentFileIndexMap(reader);
+            contentFileMap = buildContentFileIndexMap(reader);
+            reader.setContentFileMapping(&contentFileMap);
             MWBase::Environment::get().getLuaManager()->setContentFileMapping(contentFileMap);
+
+            if (version <= ESM::MaxActorIdSaveGameFormatVersion)
+                reader.mActorIdConverter = &actorIdConverter;
 
             size_t total = reader.getFileSize();
             while (reader.hasMoreRecs() && !abort)
@@ -123,7 +191,6 @@ namespace MWState
                     }
 
                     case ESM::REC_JOUR:
-                    case ESM::REC_JOUR_LEGACY:
                     case ESM::REC_QUES:
                         MWBase::Environment::get().getJournal()->readRecord(reader, n.toInt());
                         break;
@@ -152,9 +219,12 @@ namespace MWState
                     case ESM::REC_ENAB:
                     case ESM::REC_LEVC:
                     case ESM::REC_LEVI:
+                    case ESM::REC_LIGH:
                     case ESM::REC_CREA:
                     case ESM::REC_CONT:
                     case ESM::REC_RAND:
+                    case ESM::REC_STAT:
+                    case ESM::REC_DOOR:
                         MWBase::Environment::get().getWorld()->readRecord(reader, n.toInt());
                         break;
 
@@ -200,14 +270,17 @@ namespace MWState
             characterManager.setCurrentCharacter(character);
 
             if (character)
-                Settings::Manager::setString("character", "Saves", character->getPath().filename().string());
+                Settings::saves().mCharacter.set(Files::pathToUnicodeString(character->getPath().filename()));
+            stateManager.setLastSavegame(filepath);
 
             MWBase::Environment::get().getWindowManager()->setNewGame(false);
-            MWBase::Environment::get().getWorld()->saveLoaded();
+            MWBase::Environment::get().getWorld()->saveLoaded(reader);
+            actorIdConverter.apply();
             MWBase::Environment::get().getWorld()->setupPlayer();
             MWBase::Environment::get().getWorld()->renderPlayer();
             MWBase::Environment::get().getWindowManager()->updatePlayer();
             MWBase::Environment::get().getMechanicsManager()->playerLoaded();
+            MWBase::Environment::get().getWorld()->toggleVanityMode(false);
 
             if (firstPersonCam != MWBase::Environment::get().getWorld()->isFirstPerson())
                 MWBase::Environment::get().getWorld()->togglePOV();
@@ -225,11 +298,10 @@ namespace MWState
             else
             {
                 // Cell no longer exists (i.e. changed game files), choose a default cell
-                Log(Debug::Warning)
-                    << "Warning: Player character's cell no longer exists, changing to the default cell";
+                Log(Debug::Warning) << "Player character's cell no longer exists, changing to the default cell";
                 ESM::ExteriorCellLocation loc = { 0, 0, ESM::Cell::sDefaultWorldspaceId };
                 auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(loc);
-                auto p = ESM::indexToPosition(loc, false);
+                const osg::Vec2f p = ESM::indexToPosition(loc, false);
                 ESM::Position pos;
                 pos.pos[0] = p.x();
                 pos.pos[1] = p.y();
@@ -250,9 +322,16 @@ namespace MWState
             // But make sure the flag is cleared anyway in case it was set from an earlier game.
             MWBase::Environment::get().getWorldScene()->markCellAsUnchanged();
 
-            MWBase::Environment::get().getLuaManager()->gameLoaded();
             state = StateManager::State_Running;
+            MWBase::Environment::get().getLuaManager()->gameLoaded();
+            for (int actorId : actorIdConverter.mGraveyard)
+            {
+                auto mapped = actorIdConverter.mMappings.find(actorId);
+                if (mapped != actorIdConverter.mMappings.end())
+                    MWBase::Environment::get().getMechanicsManager()->cleanupSummonedCreature(mapped->second);
+            }
         }
+
         bool run(float dt) override
         {
             if (askForConfirmation && !abort)
@@ -260,9 +339,16 @@ namespace MWState
                 if (!choice)
                 {
                     choice = std::make_shared<Choice>();
-                    choice->buttons = { "#{Interface:Yes}", "#{Interface:No}" };
-                    choice->message = "#{OMWEngine:MissingContentFilesConfirmation}";
+                    choice->buttons = { "#{Interface:Yes}", "#{Interface:Copy}", "#{Interface:No}" };
+                    choice->message = missingFilesMessage();
                     stateManager.pushGameState(choice);
+                    return true;
+                }
+                else if (choice->pressedButton == 1)
+                {
+                    // Copy the list and ask again.
+                    copyMissingFilesToClipboard();
+                    choice.reset();
                     return true;
                 }
                 else if (choice->pressedButton != 0)
@@ -279,9 +365,16 @@ namespace MWState
                     postLoad();
                 return threadRunning;
             }
+            catch (const SaveFormatVersionError& e)
+            {
+                Log(Debug::Error) << "Failed to load saved game: " << e.what();
+                stateManager.error(e.what());
+                return false;
+            }
             catch (const std::exception& e)
             {
-                stateManager.error(std::string("Failed to load saved game: ") + e.what());
+                Log(Debug::Error) << "Failed to load saved game: " << e.what();
+                stateManager.error("#{OMWEngine:LoadingFailed}: " + std::string(e.what()));
                 return false;
             }
         }

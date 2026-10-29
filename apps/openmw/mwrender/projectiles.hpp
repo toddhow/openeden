@@ -10,11 +10,11 @@
 
 namespace MWAnim
 {
-    class Context;
+    struct Context;
 }
 namespace MWRender
 {
-    class Projectile;
+    struct Projectile;
 
     struct ProjectileHandle
     {

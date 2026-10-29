@@ -8,6 +8,7 @@
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
 
 #include "backgroundimage.hpp"
 
@@ -32,10 +33,11 @@ namespace MWGui
                 && std::find(supported_extensions.begin(), supported_extensions.end(), ext)
                 != supported_extensions.end();
         };
-        for (const auto& name : vfs->getRecursiveDirectoryIterator("Splash/"))
+        constexpr VFS::Path::NormalizedView splash("splash/");
+        for (const auto& name : vfs->getRecursiveDirectoryIterator(splash))
         {
-            if (isSupportedExtension(Misc::getFileExtension(name)))
-                mSplashScreens.push_back(name);
+            if (isSupportedExtension(Misc::getFileExtension(name.value())))
+                mSplashScreens.push_back(std::string(name.value()));
         }
     }
 

@@ -22,13 +22,13 @@ namespace vsgUtil
 }
 namespace MWRender
 {
-    class Atmosphere;
+    struct Atmosphere;
     class AtmosphereNight;
     class Clouds;
     class Sun;
     class Moon;
-    class WeatherResult;
-    class MoonState;
+    struct WeatherResult;
+    struct MoonState;
 
     /// Handles rendering of sky domes, celestial bodies as well as other objects that need to be rendered
     /// relative to the camera (e.g. weather particle effects)

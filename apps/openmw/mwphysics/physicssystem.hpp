@@ -16,8 +16,6 @@
 
 #include <osg/BoundingBox>
 #include <osg/Quat>
-#include <osg/Timer>
-#include <osg/ref_ptr>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -35,11 +33,14 @@ namespace JPH
     class BodyLockInterfaceLocking;
 }
 
-namespace osg
+namespace vsg
 {
-    class Group;
     class Object;
-    class Stats;
+}
+
+namespace ToUTF8
+{
+    class StatelessUtf8Encoder;
 }
 
 namespace MWRender
@@ -49,6 +50,7 @@ namespace MWRender
 
 namespace Resource
 {
+    class NifFileManager;
     class PhysicsShapeManager;
     class ResourceSystem;
 }
@@ -148,10 +150,13 @@ namespace MWPhysics
     class PhysicsSystem : public RayCastingInterface
     {
     public:
-        PhysicsSystem(Resource::ResourceSystem* resourceSystem, osg::ref_ptr<osg::Group> parentNode);
+        PhysicsSystem(Resource::ResourceSystem* resourceSystem, const ToUTF8::StatelessUtf8Encoder* encoder = nullptr);
         virtual ~PhysicsSystem();
 
         Resource::PhysicsShapeManager* getShapeManager();
+
+        /// Drops collision shapes no longer referenced outside the shape caches.
+        void pruneCache();
 
         void enableWater(float height);
         void setWaterHeight(float height);
@@ -183,7 +188,7 @@ namespace MWPhysics
         void updatePosition(const MWWorld::Ptr& ptr);
 
         void addHeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-            const osg::Object* holdObject);
+            const vsg::Object* holdObject);
 
         void removeHeightField(int x, int y);
 
@@ -192,8 +197,7 @@ namespace MWPhysics
         bool toggleCollisionMode();
 
         /// Determine new position based on all queued movements, then clear the list.
-        void stepSimulation(
-            float dt, bool skipSimulation, osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats);
+        void stepSimulation(float dt, bool skipSimulation);
 
         /// Apply new positions to actors
         void moveActors();
@@ -286,7 +290,6 @@ namespace MWPhysics
 
         float getPhysicsDt() const { return mPhysicsDt; }
 
-        void reportStats(unsigned int frameNumber, osg::Stats& stats) const;
 
         inline const JPH::BodyLockInterfaceLocking& getBodyLockInterface() const;
 
@@ -307,6 +310,8 @@ namespace MWPhysics
         std::unique_ptr<PhysicsTaskScheduler> mTaskScheduler;
         std::unique_ptr<JPH::TempAllocatorImpl> mMemoryAllocator;
         std::unique_ptr<JPH::JobSystem> mPhysicsJobSystem;
+        // openeden-vsg: physics owns its NIF cache, since vsgopenmw's ResourceSystem has no NIF manager.
+        std::unique_ptr<Resource::NifFileManager> mNifFileManager;
         std::unique_ptr<Resource::PhysicsShapeManager> mShapeManager;
         Resource::ResourceSystem* mResourceSystem;
 
@@ -335,9 +340,14 @@ namespace MWPhysics
 
         std::unique_ptr<MWWater> mWaterInstance;
 
+#if OPENEDEN_VSG_PENDING_FEATURES
         std::unique_ptr<MWRender::JoltDebugDrawer> mJoltDebugDrawer;
+        MWRender::JoltDebugDrawer* getJoltDebugDrawer() const { return mJoltDebugDrawer.get(); }
+#else
+        // The Jolt debug draw returns on VSG in task 0011 (Track V, V3).
+        MWRender::JoltDebugDrawer* getJoltDebugDrawer() const { return nullptr; }
+#endif
 
-        osg::ref_ptr<osg::Group> mParentNode;
 
         float mPhysicsDt;
 

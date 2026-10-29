@@ -7,11 +7,14 @@
 #include <vsg/nodes/Node.h>
 #include <vsg/state/Sampler.h>
 #include <vsg/utils/SharedObjects.h>
+#include <vsg/utils/FindDynamicObjects.h>
+#include <vsg/utils/PropagateDynamicObjects.h>
 
 #include <components/misc/resourcehelpers.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/vsgadapters/nif/kf.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vsgadapters/vfs.hpp>
 
 #include "fallback.hpp"
@@ -20,6 +23,17 @@
 
 namespace
 {
+    // openeden-vsg: vsgopenmw passes mesh paths relative to "meshes/", while OpenMW 0.51 code passes paths already
+    // corrected to start with it (Class::getCorrectedModel, ResourceHelpers::correctMeshPath). Accept both.
+    std::string inMeshesDirectory(const vsg::Path& file)
+    {
+        const VFS::Path::Normalized normalized(file.string());
+        constexpr std::string_view meshes = "meshes/";
+        if (normalized.value().starts_with(meshes))
+            return normalized.value();
+        return std::string(meshes) + normalized.value();
+    }
+
     vsg::ref_ptr<const vsg::Options> createShaderOptions(const std::string& shaderPath)
     {
         auto options = vsg::Options::create();
@@ -27,6 +41,10 @@ namespace
         options->paths = { shaderPath };
         options->readerWriters = { shaderSettings, vsg::glsl::create() };
         options->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        options->findDynamicObjects = {};
+        options->propagateDynamicObjects = {};
         return options;
     }
 
@@ -46,6 +64,10 @@ namespace
 
         options->readerWriters = { vsg::ref_ptr{ new vsgAdapters::vfs(*vfs, children) } };
         options->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        options->findDynamicObjects = {};
+        options->propagateDynamicObjects = {};
         return options;
     }
 
@@ -54,12 +76,20 @@ namespace
         auto textureOptions = vsg::Options::create(imageOptions);
         textureOptions->paths = { "textures" };
         textureOptions->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        textureOptions->findDynamicObjects = {};
+        textureOptions->propagateDynamicObjects = {};
         textureOptions->findFileCallback = [vfs](const vsg::Path& file, const vsg::Options* options) -> vsg::Path {
             for (auto& dir : options->paths)
             {
-                auto corrected = Misc::ResourceHelpers::correctResourcePath(dir.c_str(), file.c_str(), vfs);
-                if (vsg::Path(corrected) != file)
-                    return vsg::Path(corrected);
+                std::string fileStr = file.string();
+                VFS::Path::Normalized normalizedFile(fileStr);
+                VFS::Path::Normalized normalizedDir(dir.string());
+                VFS::Path::NormalizedView topDirs[] = { normalizedDir };
+                auto corrected = Misc::ResourceHelpers::correctResourcePath(topDirs, normalizedFile, *vfs);
+                if (!corrected.empty() && corrected.value() != fileStr)
+                    return vsg::Path(corrected.value());
             }
             return file;
         };
@@ -75,9 +105,13 @@ namespace
     {
         auto nodeOptions = vsg::Options::create();
         nodeOptions->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        nodeOptions->findDynamicObjects = {};
+        nodeOptions->propagateDynamicObjects = {};
         nodeOptions->findFileCallback = [](const vsg::Path& file, const vsg::Options* options) -> vsg::Path
         {
-            return vsg::Path("meshes/") + file;
+            return vsg::Path(inMeshesDirectory(file));
         };
 
         auto fallback = vsg::ref_ptr{ new Resource::Fallback };
@@ -99,7 +133,9 @@ namespace
         auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(*vfs, { vsg::ref_ptr{ new vsgAdapters::kf } }) };
         auto options = vsg::Options::create();
         options->findFileCallback = [vfs](const vsg::Path& in_file, const vsg::Options* options) -> vsg::Path {
-            auto file = Misc::ResourceHelpers::correctActorModelPath("meshes/" + in_file, vfs);
+            VFS::Path::Normalized fileNorm(inMeshesDirectory(in_file));
+            auto corrected = Misc::ResourceHelpers::correctActorModelPath(fileNorm, vfs);
+            std::string file = corrected.value();
             std::string basename = file;
             size_t slashpos = file.find_last_of("\\/");
             if (slashpos != std::string::npos && slashpos + 1 < file.size())
@@ -107,13 +143,17 @@ namespace
             if (basename.empty() || (basename[0] != 'x' && basename[0] != 'X'))
                 return {};
 
-            auto ext = vsg::lowerCaseFileExtension(file);
+            auto ext = vsg::lowerCaseFileExtension(vsg::Path(file));
             if (ext == ".nif")
                 file.replace(file.size() - 4, 4, ".kf");
-            return file;
+            return vsg::Path(file);
         };
         options->readerWriters = { vfsReader };
         options->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        options->findDynamicObjects = {};
+        options->propagateDynamicObjects = {};
         return options;
     }
 }

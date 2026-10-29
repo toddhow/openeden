@@ -6,11 +6,13 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/scriptmanager.hpp"
+#include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwscript/globalscripts.hpp"
 
 #include <components/debug/debuglog.hpp>
+#include <components/esm/util.hpp>
 #include <components/fallback/fallback.hpp>
 
 #include "error.hpp"
@@ -72,7 +74,6 @@ namespace MWState
             {
                 auto world = MWBase::Environment::get().getWorld();
                 MWBase::Environment::get().getScriptManager()->getGlobalScripts().addStartup();
-                MWBase::Environment::get().getLuaManager()->newGameStarted();
                 world->startNewGame(bypassStartCell.has_value());
                 MWBase::Environment::get().getWindowManager()->fadeScreenIn(1);
 
@@ -82,7 +83,11 @@ namespace MWState
 
                     std::string_view video = Fallback::Map::getString("Movies_New_Game");
                     if (!video.empty())
+                    {
+                        // Make sure that we do not continue to play a Title music after a new game video.
+                        MWBase::Environment::get().getSoundManager()->stopMusic();
                         MWBase::Environment::get().getWindowManager()->playVideo(video, true);
+                    }
                 }
                 else
                 {
@@ -105,6 +110,7 @@ namespace MWState
                         mStateManager.pushGameState(std::make_shared<ChangeToStartingCell>());
                 }
                 mState = StateManager::State_Running;
+                MWBase::Environment::get().getLuaManager()->gameLoaded();
             }
             catch (std::exception& e)
             {

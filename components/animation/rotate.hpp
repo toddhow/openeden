@@ -22,7 +22,7 @@ namespace Anim
     /// Applies a rotation in skeleton reference frame.
     /// @note Assumes that the node being rotated has its "original" orientation set every frame.
     /// The rotation is then applied on top of that orientation.
-    class Bone;
+    struct Bone;
     void rotateBone(Bone& bone, const vsg::mat4& rotate, const vsg::vec3& offset = {});
 
 }

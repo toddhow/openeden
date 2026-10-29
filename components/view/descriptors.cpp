@@ -68,7 +68,7 @@ namespace View
 
     vsg::Descriptors createLightingDescriptors(vsg::ref_ptr<vsg::Data> lightData, bool compute)
     {
-        size_t maxLights = std::max(1ul, lightData->valueCount()/2); //vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
+        size_t maxLights = std::max<size_t>(1, lightData->valueCount()/2); //vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
         vsg::uivec3 gridSize = { gridSizeX, gridSizeY, gridSizeZ };
         if (maxLights <= 1)
             gridSize = { 1, 1, 1 };

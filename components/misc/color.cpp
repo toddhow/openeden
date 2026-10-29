@@ -6,8 +6,6 @@
 #include <sstream>
 #include <system_error>
 
-#include <components/sceneutil/util.hpp>
-
 namespace Misc
 {
     Color::Color(float r, float g, float b, float a)
@@ -42,7 +40,8 @@ namespace Misc
 
     Color Color::fromRGB(unsigned int value)
     {
-        return Color(SceneUtil::colourFromRGB(value));
+        // openeden-vsg: SceneUtil::colourFromRGB is not built with VSG; same unpacking, inlined.
+        return Color(((value >> 0) & 0xFF) / 255.0f, ((value >> 8) & 0xFF) / 255.0f, ((value >> 16) & 0xFF) / 255.0f, 1.f);
     }
 
     Color Color::fromVec(osg::Vec4f value)

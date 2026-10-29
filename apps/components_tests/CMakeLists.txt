@@ -49,11 +49,6 @@ file(GLOB UNITTEST_SRC_FILES
     settings/shadermanager.cpp
     settings/testvalues.cpp
 
-    shader/parsedefines.cpp
-    shader/parsefors.cpp
-    shader/parselinks.cpp
-    shader/shadermanager.cpp
-
     sqlite3/db.cpp
     sqlite3/request.cpp
     sqlite3/statement.cpp
@@ -70,25 +65,17 @@ file(GLOB UNITTEST_SRC_FILES
 
     esm4/includes.cpp
 
-    fx/lexer.cpp
-    fx/technique.cpp
-
     esm3/readerscache.cpp
     esm3/testsaveload.cpp
     esm3/testesmwriter.cpp
     esm3/testinfoorder.cpp
     esm3/testcstringids.cpp
 
-    nifosg/testnifloader.cpp
-
     esmterrain/testgridsampling.cpp
 
     resource/testobjectcache.cpp
-    resource/testresourcesystem.cpp
 
     vfs/testpathutil.cpp
-
-    sceneutil/osgacontroller.cpp
 
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
@@ -116,16 +103,27 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_scripting_service.cpp
     plugin/test_editor_service.cpp
     plugin/test_physics_service.cpp
-    plugin/test_compat_morrowind.cpp
-    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
-    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
     inertialmotion/test_locomotion_state.cpp
-    mwrender/test_creativemotion_runtime.cpp
-    ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
 
     vsg/testshadercompile.cpp
     vsg/testscenedata.cpp
 )
+
+# openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader, components/fx,
+# components/nifosg, components/sceneutil, Resource::SceneManager) are excluded: resource/testresourcesystem.cpp, shader/parsedefines.cpp, shader/parsefors.cpp,
+# shader/parselinks.cpp, shader/shadermanager.cpp, fx/lexer.cpp, fx/technique.cpp, nifosg/testnifloader.cpp and
+# sceneutil/osgacontroller.cpp. Task 0012 (post-processing, .omwfx) and task 0014 (OSG removal) restore or replace them.
+
+# Tests of features still pending their VSG port (task 0011); they return with OPENEDEN_VSG_PENDING_FEATURES.
+if (OPENEDEN_VSG_PENDING_FEATURES)
+    list(APPEND UNITTEST_SRC_FILES
+        plugin/test_compat_morrowind.cpp
+        ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
+        ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
+        mwrender/test_creativemotion_runtime.cpp
+        ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
+    )
+endif()
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 

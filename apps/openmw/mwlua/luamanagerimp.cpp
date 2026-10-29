@@ -9,6 +9,7 @@
 #include <sol/table.hpp>
 #include <sol/types.hpp>
 
+#include <components/mwanimation/groups.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/esm/luascripts.hpp>
@@ -142,6 +143,7 @@ namespace MWLua
             globalContext.mObjectLists = &mObjectLists;
             globalContext.mLuaEvents = &mLuaEvents;
             globalContext.mSerializer = mGlobalSerializer.get();
+            globalContext.mRenderManager = mRenderManager;
 
             Context localContext = globalContext;
             localContext.mType = Context::Local;
@@ -517,7 +519,7 @@ namespace MWLua
     }
 
     void LuaManager::playAnimation(const MWWorld::Ptr& actor, const std::string& groupname,
-        const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
+        const MWAnim::Priority& priority, int blendMask, bool autodisable, float speedmult,
         std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
@@ -532,18 +534,18 @@ namespace MWLua
             options["forceLoop"] = loopfallback;
 
             bool priorityAsTable = false;
-            for (uint32_t i = 1; i < MWRender::sNumBlendMasks; i++)
-                if (priority[static_cast<MWRender::BoneGroup>(i)] != priority[static_cast<MWRender::BoneGroup>(0)])
+            for (uint32_t i = 1; i < MWAnim::sNumBlendMasks; i++)
+                if (priority[static_cast<MWAnim::BoneGroup>(i)] != priority[static_cast<MWAnim::BoneGroup>(0)])
                     priorityAsTable = true;
             if (priorityAsTable)
             {
                 sol::table priorityTable = view.newTable();
-                for (uint32_t i = 0; i < MWRender::sNumBlendMasks; i++)
-                    priorityTable[static_cast<MWRender::BoneGroup>(i)] = priority[static_cast<MWRender::BoneGroup>(i)];
+                for (uint32_t i = 0; i < MWAnim::sNumBlendMasks; i++)
+                    priorityTable[static_cast<MWAnim::BoneGroup>(i)] = priority[static_cast<MWAnim::BoneGroup>(i)];
                 options["priority"] = priorityTable;
             }
             else
-                options["priority"] = priority[MWRender::BoneGroup_LowerBody];
+                options["priority"] = priority[MWAnim::BoneGroup_LowerBody];
 
             // mEngineEvents.addToQueue(event);
             //  Has to be called immediately, otherwise engine details that depend on animations playing immediately
@@ -904,11 +906,6 @@ namespace MWLua
     void LuaManager::addTeleportPlayerAction(std::function<void()> action)
     {
         mTeleportPlayerAction = DelayedAction(&mLua, std::move(action), "TeleportPlayer");
-    }
-
-    void LuaManager::reportStats(unsigned int frameNumber, osg::Stats& stats) const
-    {
-        stats.setAttribute(frameNumber, "Lua UsedMemory", static_cast<double>(mLua.getTotalMemoryUsage()));
     }
 
     std::string LuaManager::formatResourceUsageStats() const

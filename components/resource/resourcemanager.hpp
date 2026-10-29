@@ -12,22 +12,16 @@ namespace VFS
     class Manager;
 }
 
-namespace osg
-{
-    class Stats;
-}
-
 namespace Resource
 {
 
     class BaseResourceManager
     {
     public:
-        virtual ~BaseResourceManager() {}
-        virtual void updateCache(double referenceTime) {}
-        virtual void clearCache() {}
-        virtual void setExpiryDelay(double expiryDelay) {}
-        virtual void reportStats(unsigned int frameNumber, osg::Stats* stats) const {}
+        virtual ~BaseResourceManager() = default;
+        virtual void updateCache(double referenceTime) = 0;
+        virtual void clearCache() = 0;
+        virtual void setExpiryDelay(double expiryDelay) = 0;
     };
 
     /// @brief Base class for managers that require a virtual file system and object cache.
@@ -59,8 +53,6 @@ namespace Resource
         double getExpiryDelay() const { return mExpiryDelay; }
 
         const VFS::Manager* getVFS() const { return mVFS; }
-
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override {}
 
     protected:
         const VFS::Manager* mVFS;

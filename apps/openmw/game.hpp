@@ -5,6 +5,7 @@
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/extensions0.hpp>
 #include <components/files/configurationmanager.hpp>
+#include <components/lua_ui/util.hpp>
 #include <components/vsgutil/updatethreads.hpp>
 
 #include "mwdialogue/dialoguemanagerimp.hpp"
@@ -57,7 +58,7 @@ namespace OMW
         std::unique_ptr<MWDialogue::Journal> mJournal;
         std::unique_ptr<MWDialogue::DialogueManager> mDialogueManager;
         std::unique_ptr<MWMechanics::MechanicsManager> mMechanicsManager;
-        std::unique_ptr<MWLua::LuaManager> mLuaManager;
+        MWLua::LuaManager* mLuaManager{}; // owned by Engine::mLuaManager
 
     public:
         Game(Engine& e, std::unique_ptr<MWWorld::World>& world, const Arguments& args)
@@ -65,14 +66,15 @@ namespace OMW
             , mEnvironment(e.mEnvironment)
             , mWorld(std::move(world))
         {
-            mLuaManager = std::make_unique<MWLua::LuaManager>(mEngine.mVFS.get(), args.resourceDir / "lua_libs");
+            mEngine.mLuaManager = std::make_unique<MWLua::LuaManager>(mEngine.mVFS.get(), args.resourceDir / "lua_libs");
+            mLuaManager = mEngine.mLuaManager.get();
             mEnvironment.setLuaManager(*mLuaManager);
 
             Compiler::registerExtensions(mExtensions);
             mScriptContext.reset(new MWScript::CompilerContext(MWScript::CompilerContext::Type_Full));
             mScriptContext->setExtensions(&mExtensions);
             mScriptManager = std::make_unique<MWScript::ScriptManager>(
-                mEnvironment.getWorld()->getStore(), *mScriptContext, args.warningsMode, args.scriptBlacklist);
+                mEnvironment.getWorld()->getStore(), *mScriptContext, args.warningsMode);
             mEnvironment.setScriptManager(*mScriptManager);
 
             mMechanicsManager = std::make_unique<MWMechanics::MechanicsManager>();
@@ -86,14 +88,17 @@ namespace OMW
                 = std::make_unique<MWDialogue::DialogueManager>(mExtensions, mEngine.mTranslationDataStorage);
             mEnvironment.setDialogueManager(*mDialogueManager);
 
+            // As in OpenMW 0.51, the player is set up before Lua is initialised, so its local scripts start with a new or
+            // loaded game (World::clear calls setupPlayer again) rather than at the main menu with storage inactive.
+            mWorld->setupPlayer();
+
             auto& wm = mEngine.mWindowManager;
             wm->setStore(mEnvironment.getWorld()->getStore());
             wm->initUI(mEngine.mRenderManager->getMap(), mEngine.mRenderManager->getWorldMap(), mEngine.mRenderManager->getPreview());
 
-            mLuaManager->init(mEngine.mRenderManager.get());
+            // As in OpenMW 0.51, permanent storage is loaded before the load scripts run (LuaManager::init).
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
-
-            mWorld->setupPlayer();
+            mLuaManager->init(mEngine.mRenderManager.get());
 
             if (args.compileAll)
             {
@@ -116,6 +121,18 @@ namespace OMW
         {
             if (mLuaManager)
                 mLuaManager->savePermanentStorage(mEngine.mCfgMgr.getUserConfigPath().string());
+            // openeden-vsg: as in OpenMW 0.51's Engine destructor, the game systems and the World (whose objects hold
+            // Lua scripts) go before the Lua manager. The Lua manager itself is owned by the Engine and outlives the window manager.
+            mMechanicsManager = nullptr;
+            mDialogueManager = nullptr;
+            mJournal = nullptr;
+            mScriptManager = nullptr;
+            if (mEngine.mDetachGmstLoader)
+                mEngine.mDetachGmstLoader();
+            mWorld = nullptr;
+            // Lua UI elements hold references into the Lua state; clear them with the game, before ~WindowManager does.
+            LuaUi::clearGameInterface();
+            LuaUi::clearMenuInterface();
         }
         bool run(float dt) override
         {
@@ -152,7 +169,7 @@ namespace OMW
                 mWorld->update(dt, guiActive);
 
                 mEngine.mWindowManager->update(dt);
-                mWorld->updateWindowManager();
+                mWorld->updateFocusObject();
 
                 mEngine.mSoundManager->updateRegionSound(dt);
                 mEngine.mSoundManager->updateWaterSound();

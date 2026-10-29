@@ -86,7 +86,7 @@ namespace NifJolt
         return scaleXCloseToOne && scaleYCloseToOne && scaleZCloseToOne;
     }
 
-    osg::ref_ptr<Resource::PhysicsShape> JoltNifLoader::load(Nif::FileView nif)
+    vsg::ref_ptr<Resource::PhysicsShape> JoltNifLoader::load(Nif::FileView nif)
     {
         mShape = new Resource::PhysicsShape;
 
@@ -258,7 +258,11 @@ namespace NifJolt
     void JoltNifLoader::handleNode(const Nif::NiAVObject& node, const Nif::Parent* parent, HandleNodeArgs args)
     {
         if (node.mRecordType == Nif::RC_NiCollisionSwitch)
+        {
             args.mCollisionSwitchRecordIndex = node.mRecordIndex;
+            if (!node.collisionActive())
+                mShape->mDisabledCollisionSwitches.insert(static_cast<int>(node.mRecordIndex));
+        }
 
         for (Nif::NiTimeControllerPtr ctrl = node.mController; !ctrl.empty(); ctrl = ctrl->mNext)
         {

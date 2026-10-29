@@ -246,7 +246,13 @@ namespace MWLua
             sol::table res(thisState, sol::create);
             int i = 1;
             for (MWGui::GuiMode m : windowManager->getGuiModeStack())
-                res[i++] = modeToName.at(m);
+            {
+                // openeden-vsg: vsgopenmw's GM_Video and GM_Settings were not GUI modes in OpenMW 0.51 and have no
+                // Lua name, so Lua sees the same stack as before.
+                auto it = modeToName.find(m);
+                if (it != modeToName.end())
+                    res[i++] = it->second;
+            }
             return res;
         };
         api["_setUiModeStack"]

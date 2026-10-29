@@ -5,25 +5,25 @@
 
 std::string Files::pathToUnicodeString(const std::filesystem::path& path)
 {
-    return path.string();
+    return Misc::StringUtils::u8StringToString(path.u8string());
 }
 
 std::string Files::pathToUnicodeString(std::filesystem::path&& path)
 {
-    return path.string();
+    return Misc::StringUtils::u8StringToString(path.u8string());
 }
 
 std::filesystem::path Files::pathFromUnicodeString(std::string_view path)
 {
-    return { path };
+    return Misc::StringUtils::stringToU8String(path);
 }
 
 std::filesystem::path Files::pathFromUnicodeString(std::string&& path)
 {
-    return { std::move(path) };
+    return Misc::StringUtils::stringToU8String(std::move(path));
 }
 
 std::filesystem::path Files::pathFromUnicodeString(const char* path)
 {
-    return { path };
+    return Misc::StringUtils::stringToU8String(path);
 }

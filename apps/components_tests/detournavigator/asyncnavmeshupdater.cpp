@@ -38,7 +38,7 @@ namespace
     void addObject(const JPH::BoxShape& shape, TileCachedRecastMeshManager& recastMeshManager)
     {
         const ObjectId id(&shape);
-        osg::ref_ptr<Resource::PhysicsShape> physicsShape(new Resource::PhysicsShape);
+        vsg::ref_ptr<Resource::PhysicsShape> physicsShape(new Resource::PhysicsShape);
         constexpr VFS::Path::NormalizedView test("test.nif");
         physicsShape->mFileName = test;
         physicsShape->mFileHash = "test_hash";
@@ -47,7 +47,7 @@ namespace
         std::fill(std::begin(objectTransform.mPosition.rot), std::end(objectTransform.mPosition.rot), 0.2f);
         objectTransform.mScale = 3.14f;
         const CollisionShape collisionShape(
-            osg::ref_ptr<Resource::PhysicsShapeInstance>(new Resource::PhysicsShapeInstance(physicsShape)), shape,
+            vsg::ref_ptr<Resource::PhysicsShapeInstance>(new Resource::PhysicsShapeInstance(physicsShape)), shape,
             objectTransform);
         recastMeshManager.addObject(id, collisionShape, osg::Matrixd::identity(), AreaType_ground, nullptr);
     }

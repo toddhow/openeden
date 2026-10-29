@@ -2,12 +2,18 @@
 
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
+#include <components/misc/strings/lower.hpp>
+#include <components/mwanimation/groups.hpp>
+#include <components/mwanimation/object.hpp>
+#include <components/mwanimation/play.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/character.hpp"
+
+#include "../mwrender/effect.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"
@@ -16,10 +22,12 @@ namespace MWLua
 {
     namespace
     {
-        using BlendMask = MWRender::Animation::BlendMask;
-        using BoneGroup = MWRender::Animation::BoneGroup;
+        // openeden-vsg: animations are vsgopenmw's MWAnim::Play, owned by the object's MWAnim::Object.
+        using BlendMask = MWAnim::BlendMask;
+        using BoneGroup = MWAnim::BoneGroup;
         using Priority = MWMechanics::Priority;
-        using AnimationPriorities = MWRender::Animation::AnimPriority;
+        using AnimationPriorities = MWAnim::Priority;
+        constexpr int sNumBoneGroups = static_cast<int>(MWAnim::sNumBlendMasks);
 
         const MWWorld::Ptr& getMutablePtrOrThrow(const Object& object)
         {
@@ -30,23 +38,28 @@ namespace MWLua
             return ptr;
         }
 
-        MWRender::Animation* getMutableAnimationOrThrow(const Object& object)
+        MWAnim::Play* getMutableAnimationOrThrow(const Object& object)
         {
             const MWWorld::Ptr& ptr = getMutablePtrOrThrow(object);
-            auto world = MWBase::Environment::get().getWorld();
-            MWRender::Animation* anim = world->getAnimation(ptr);
-            if (!anim)
+            MWAnim::Object* anim = MWBase::Environment::get().getWorld()->getAnimation(ptr);
+            if (!anim || !anim->animation)
                 throw std::runtime_error("Object has no animation");
-            return anim;
+            return anim->animation.get();
         }
 
-        const MWRender::Animation* getConstAnimationOrThrow(const Object& object)
+        const MWAnim::Play* getConstAnimationOrThrow(const Object& object)
         {
-            auto world = MWBase::Environment::get().getWorld();
-            const MWRender::Animation* anim = world->getAnimation(object.ptr());
-            if (!anim)
+            const MWAnim::Object* anim
+                = MWBase::Environment::get().getWorld()->getAnimation(MWWorld::ConstPtr(object.ptr()));
+            if (!anim || !anim->animation)
                 throw std::runtime_error("Object has no animation");
-            return anim;
+            return anim->animation.get();
+        }
+
+        void checkEffectTargetOrThrow(const Object& object)
+        {
+            if (!MWBase::Environment::get().getWorld()->getAnimation(getMutablePtrOrThrow(object)))
+                throw std::runtime_error("Object has no animation");
         }
 
         AnimationPriorities getPriorityArgument(const sol::table& args)
@@ -65,7 +78,7 @@ namespace MWLua
                         throw std::runtime_error("Priority table must consist of BoneGroup-Priority pairs only");
                     auto group = entry.first.as<BoneGroup>();
                     auto priority = entry.second.as<Priority>();
-                    if (group < 0 || group >= BoneGroup::Num_BoneGroups)
+                    if (group < 0 || group >= sNumBoneGroups)
                         throw std::runtime_error("Invalid bonegroup: " + std::to_string(group));
                     priorities[group] = priority;
                 }
@@ -151,7 +164,7 @@ namespace MWLua
             return sol::nullopt;
         };
         api["isLoopingAnimation"] = [](const LObject& object, std::string_view groupname) {
-            return getConstAnimationOrThrow(object)->isLoopingAnimation(groupname);
+            return MWMechanics::isLoopingAnimation(*getConstAnimationOrThrow(object), groupname);
         };
         api["cancel"] = [](const SelfObject& object, std::string_view groupname) {
             return getMutableAnimationOrThrow(object)->disable(groupname);
@@ -181,8 +194,8 @@ namespace MWLua
         api["setSpeed"] = [](const SelfObject& object, std::string groupname, const FiniteFloat speed) {
             getMutableAnimationOrThrow(object)->adjustSpeedMult(groupname, speed);
         };
-        api["getActiveGroup"] = [](const LObject& object, MWRender::BoneGroup boneGroup) -> std::string_view {
-            if (boneGroup < 0 || boneGroup >= BoneGroup::Num_BoneGroups)
+        api["getActiveGroup"] = [](const LObject& object, BoneGroup boneGroup) -> std::string_view {
+            if (boneGroup < 0 || boneGroup >= sNumBoneGroups)
                 throw std::runtime_error("Invalid bonegroup: " + std::to_string(boneGroup));
             return getConstAnimationOrThrow(object)->getActiveGroup(boneGroup);
         };
@@ -213,7 +226,7 @@ namespace MWLua
 
         api["playBlended"] = [](const SelfObject& object, std::string_view groupName, const sol::table& options) {
             uint32_t loops = options.get_or("loops", 0u);
-            MWRender::Animation::AnimPriority priority = getPriorityArgument(options);
+            AnimationPriorities priority = getPriorityArgument(options);
             BlendMask blendMask = options.get_or("blendMask", BlendMask::BlendMask_All);
             bool autoDisable = options.get_or("autoDisable", true);
             float speed = options.get_or("speed", 1.0f);
@@ -226,18 +239,20 @@ namespace MWLua
 
             auto animation = getMutableAnimationOrThrow(object);
             animation->play(lowerGroup, priority, blendMask, autoDisable, speed, start, stop, startPoint, loops,
-                forceLoop || animation->isLoopingAnimation(lowerGroup));
+                forceLoop || MWMechanics::isLoopingAnimation(*animation, lowerGroup));
         };
 
         api["hasGroup"] = [](const LObject& object, std::string_view groupname) -> bool {
-            const MWRender::Animation* anim = getConstAnimationOrThrow(object);
+            const MWAnim::Play* anim = getConstAnimationOrThrow(object);
             return anim->hasAnimation(groupname);
         };
 
-        // Note: This checks the nodemap, and does not read the scene graph itself, and so should be thread safe.
+        // Note: This searches the bone map, and does not read the scene graph itself, and so should be thread safe.
         api["hasBone"] = [](const LObject& object, std::string_view bonename) -> bool {
-            const MWRender::Animation* anim = getConstAnimationOrThrow(object);
-            return anim->getNode(bonename) != nullptr;
+            MWAnim::Object* anim = MWBase::Environment::get().getWorld()->getAnimation(object.ptr());
+            if (!anim)
+                throw std::runtime_error("Object has no animation");
+            return anim->searchBone(std::string(bonename)) != nullptr;
         };
 
         api["addVfx"] = [context](const SelfObject& object, std::string_view model, sol::optional<sol::table> options) {
@@ -249,9 +264,10 @@ namespace MWLua
                         boneName = options->get_or<std::string>("boneName", ""),
                         particleTexture = options->get_or<std::string>("particleTextureOverride", ""),
                         useAmbientLight = options->get_or("useAmbientLight", true)] {
-                        MWRender::Animation* anim = getMutableAnimationOrThrow(object);
-
-                        anim->addEffect(model, effectId, loop, boneName, particleTexture, useAmbientLight);
+                        checkEffectTargetOrThrow(object);
+                        // openeden-vsg: useAmbientLight is not applied yet; vsgopenmw lights effects as its materials say.
+                        static_cast<void>(useAmbientLight);
+                        MWRender::addEffectModel(object.ptr(), model, effectId, loop, boneName, particleTexture);
                     },
                     "addVfxAction");
             }
@@ -259,8 +275,8 @@ namespace MWLua
             {
                 context.mLuaManager->addAction(
                     [object = Object(object), model = std::string(model)] {
-                        MWRender::Animation* anim = getMutableAnimationOrThrow(object);
-                        anim->addEffect(model, "");
+                        checkEffectTargetOrThrow(object);
+                        MWRender::addEffectModel(object.ptr(), model);
                     },
                     "addVfxAction");
             }
@@ -269,8 +285,8 @@ namespace MWLua
         api["removeVfx"] = [context](const SelfObject& object, std::string_view effectId) {
             context.mLuaManager->addAction(
                 [object = Object(object), effectId = std::string(effectId)] {
-                    MWRender::Animation* anim = getMutableAnimationOrThrow(object);
-                    anim->removeEffect(effectId);
+                    checkEffectTargetOrThrow(object);
+                    MWRender::removeEffect(object.ptr(), std::string_view(effectId));
                 },
                 "removeVfxAction");
         };
@@ -278,8 +294,8 @@ namespace MWLua
         api["removeAllVfx"] = [context](const SelfObject& object) {
             context.mLuaManager->addAction(
                 [object = Object(object)] {
-                    MWRender::Animation* anim = getMutableAnimationOrThrow(object);
-                    anim->removeEffects();
+                    checkEffectTargetOrThrow(object);
+                    MWRender::removeEffect(object.ptr());
                 },
                 "removeVfxAction");
         };

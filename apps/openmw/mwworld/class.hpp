@@ -29,7 +29,7 @@ namespace ESM
 
 namespace MWRender
 {
-    class RenderingInterface;
+    struct RenderingInterface;
 }
 
 namespace MWPhysics

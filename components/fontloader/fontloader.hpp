@@ -4,8 +4,8 @@
 #include <MyGUI_Version.h>
 #include <MyGUI_XmlDocument.h>
 
-#include <components/myguiplatform/myguidatamanager.hpp>
 #include <components/toutf8/toutf8.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace VFS
 {

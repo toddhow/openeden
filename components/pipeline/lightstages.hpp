@@ -5,7 +5,7 @@
 
 namespace Pipeline
 {
-    constexpr int lightStages = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    constexpr VkShaderStageFlags lightStages = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 }
 
 #endif

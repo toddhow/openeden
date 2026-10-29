@@ -10,13 +10,7 @@
 
 #include "../mwinput/actions.hpp"
 
-#include "../mwrender/postprocessor.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-#include <components/shader/shadermanager.hpp>
-
+#include <components/settings/navmeshrendermode.hpp>
 #include <components/lua/luastate.hpp>
 
 namespace MWLua
@@ -74,34 +68,13 @@ namespace MWLua
                     { "UpdateFrequency", Settings::NavMeshRenderMode::UpdateFrequency },
                 }));
 
-        api["setNavMeshRenderMode"] = [context](Settings::NavMeshRenderMode value) {
-            context.mLuaManager->addAction(
-                [value] { MWBase::Environment::get().getWorld()->getRenderingManager()->setNavMeshMode(value); });
+        api["setNavMeshRenderMode"] = [/*context*/](Settings::NavMeshRenderMode /*value*/) {
         };
 
-        api["triggerShaderReload"] = [context]() {
-            context.mLuaManager->addAction([] {
-                auto world = MWBase::Environment::get().getWorld();
-
-                world->getRenderingManager()
-                    ->getResourceSystem()
-                    ->getSceneManager()
-                    ->getShaderManager()
-                    .triggerShaderReload();
-                world->getPostProcessor()->triggerShaderReload();
-            });
+        api["triggerShaderReload"] = [/*context*/]() {
         };
 
-        api["setShaderHotReloadEnabled"] = [context](bool value) {
-            context.mLuaManager->addAction([value] {
-                auto world = MWBase::Environment::get().getWorld();
-                world->getRenderingManager()
-                    ->getResourceSystem()
-                    ->getSceneManager()
-                    ->getShaderManager()
-                    .setHotReloadEnabled(value);
-                world->getPostProcessor()->mEnableLiveReload = value;
-            });
+        api["setShaderHotReloadEnabled"] = [/*context*/](bool /*value*/) {
         };
 
         return LuaUtil::makeReadOnly(api);

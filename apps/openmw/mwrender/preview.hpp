@@ -19,11 +19,11 @@ namespace vsg
 }
 namespace View
 {
-    class Scene;
+    struct Scene;
 }
 namespace MWAnim
 {
-    class Context;
+    struct Context;
 }
 namespace Resource
 {

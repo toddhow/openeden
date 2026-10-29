@@ -23,6 +23,11 @@ namespace MWGui
 
     class MainMenu : public WindowBase
     {
+        int mWidth;
+        int mHeight;
+
+        bool mHasAnimatedMenu;
+
     public:
         MainMenu(int w, int h, const VFS::Manager* vfs, const std::string& versionDescription);
         ~MainMenu();
@@ -48,11 +53,17 @@ namespace MWGui
 
         std::map<std::string, Gui::ImageButton*, std::less<>> mButtons;
 
-        bool mHasAnimatedMenu;
-
         void onButtonClicked(MyGUI::Widget* sender);
+        void onNewGameConfirmed();
+        void onExitConfirmed();
+
+        void showBackground(bool show);
+
         void updateMenu();
+
+        std::unique_ptr<SaveGameDialog> mSaveGameDialog;
     };
+
 }
 
 #endif

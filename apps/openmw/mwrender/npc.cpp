@@ -465,7 +465,7 @@ namespace MWRender
         auto weapon = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
         if (weapon != inv.end())
         {
-            std::string mesh = weapon->getClass().getModel(*weapon);
+            std::string mesh = std::string(weapon->getClass().getModel(*weapon));
             addOrReplaceIndividualPart(
                 ESM::PRT_Weapon, MWWorld::InventoryStore::Slot_CarriedRight, 1, mesh, getGlowColor(*weapon));
         }
@@ -481,7 +481,7 @@ namespace MWRender
         auto iter = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
         if (iter != inv.end())
         {
-            std::string mesh = iter->getClass().getModel(*iter);
+            std::string mesh = std::string(iter->getClass().getModel(*iter));
             // For shields we must try to use the body part model
             if (iter->getType() == ESM::Armor::sRecordId)
             {
@@ -511,7 +511,7 @@ namespace MWRender
         auto ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
         if (ammo != inv.end())
         {
-            std::string model = ammo->getClass().getModel(*ammo);
+            std::string model = std::string(ammo->getClass().getModel(*ammo));
             auto node = mPartContext->readNode(model);
             auto result = MWAnim::cloneIfRequired(node);
             addSwitch(node, Wield::Ammo);

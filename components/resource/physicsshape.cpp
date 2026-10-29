@@ -10,25 +10,26 @@
 
 namespace Resource
 {
-    PhysicsShape::PhysicsShape(const PhysicsShape& other, const osg::CopyOp& copyOp)
-        : Object(other, copyOp)
+    PhysicsShape::PhysicsShape(const PhysicsShape& other)
+        : vsg::Object(other)
         , mCollisionShape(other.mCollisionShape)
         , mAvoidCollisionShape(other.mAvoidCollisionShape)
         , mCollisionBox(other.mCollisionBox)
         , mAnimatedShapes(other.mAnimatedShapes)
         , mCollisionSwitches(other.mCollisionSwitches)
+        , mDisabledCollisionSwitches(other.mDisabledCollisionSwitches)
         , mFileName(other.mFileName)
         , mFileHash(other.mFileHash)
         , mVisualCollisionType(other.mVisualCollisionType)
     {
     }
 
-    osg::ref_ptr<PhysicsShapeInstance> makeInstance(osg::ref_ptr<const PhysicsShape> source)
+    vsg::ref_ptr<PhysicsShapeInstance> makeInstance(vsg::ref_ptr<const PhysicsShape> source)
     {
-        return { new PhysicsShapeInstance(std::move(source)) };
+        return vsg::ref_ptr<PhysicsShapeInstance>(new PhysicsShapeInstance(std::move(source)));
     }
 
-    PhysicsShapeInstance::PhysicsShapeInstance(osg::ref_ptr<const PhysicsShape> source)
+    PhysicsShapeInstance::PhysicsShapeInstance(vsg::ref_ptr<const PhysicsShape> source)
         : PhysicsShape(*source)
         , mSource(std::move(source))
     {

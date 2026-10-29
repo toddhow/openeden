@@ -46,7 +46,7 @@ namespace DetourNavigator
         explicit RecastMeshBuilder(const TileBounds& bounds) noexcept;
 
         void addObject(const JPH::Shape& shape, const osg::Matrixd& transform, const AreaType areaType,
-            osg::ref_ptr<const Resource::PhysicsShape> source, const ObjectTransform& objectTransform);
+            vsg::ref_ptr<const Resource::PhysicsShape> source, const ObjectTransform& objectTransform);
 
         void addWater(const osg::Vec2i& cellPosition, const Water& water);
 

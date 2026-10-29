@@ -32,7 +32,7 @@ namespace osg
 namespace MWRender
 {
     class RenderManager;
-    class ProjectileHandle;
+    struct ProjectileHandle;
 }
 namespace MWSound
 {

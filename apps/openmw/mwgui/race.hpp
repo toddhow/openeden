@@ -54,25 +54,23 @@ namespace MWGui
         EventHandle_WindowBase eventDone;
 
     protected:
-        void onPreviewScroll(MyGUI::Widget* _sender, int _delta);
-        void onHeadRotate(MyGUI::ScrollBar* _sender, size_t _position);
+        void onPreviewScroll(MyGUI::Widget* sender, int delta);
+        void onHeadRotate(MyGUI::ScrollBar* sender, size_t position);
 
-        void onSelectPreviousGender(MyGUI::Widget* _sender);
-        void onSelectNextGender(MyGUI::Widget* _sender);
+        void onSelectPreviousGender(MyGUI::Widget* sender);
+        void onSelectNextGender(MyGUI::Widget* sender);
 
-        void onSelectPreviousFace(MyGUI::Widget* _sender);
-        void onSelectNextFace(MyGUI::Widget* _sender);
+        void onSelectPreviousFace(MyGUI::Widget* sender);
+        void onSelectNextFace(MyGUI::Widget* sender);
 
-        void onSelectPreviousHair(MyGUI::Widget* _sender);
-        void onSelectNextHair(MyGUI::Widget* _sender);
+        void onSelectPreviousHair(MyGUI::Widget* sender);
+        void onSelectNextHair(MyGUI::Widget* sender);
 
-        void onSelectRace(MyGUI::ListBox* _sender, size_t _index);
-        void onAccept(MyGUI::ListBox* _sender, size_t _index);
+        void onSelectRace(MyGUI::ListBox* sender, size_t index);
+        void onAccept(MyGUI::ListBox* sender, size_t index);
 
-        void onOkClicked(MyGUI::Widget* _sender);
-        void onBackClicked(MyGUI::Widget* _sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
-        bool onControllerThumbstickEvent(const SDL_ControllerAxisEvent& arg) override;
+        void onOkClicked(MyGUI::Widget* sender);
+        void onBackClicked(MyGUI::Widget* sender);
 
     private:
         void updateRaces();
@@ -98,12 +96,15 @@ namespace MWGui
         MyGUI::Widget* mSpellPowerList;
         std::vector<MyGUI::Widget*> mSpellPowerItems;
 
-        int mGenderIndex, mFaceIndex, mHairIndex;
+        size_t mGenderIndex, mFaceIndex, mHairIndex;
 
         float mCurrentAngle;
 
         std::unique_ptr<MWRender::RaceSelection> mPreview;
         std::unique_ptr<MyGUI::ITexture> mPreviewTexture;
+
+        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerThumbstickEvent(const SDL_ControllerAxisEvent& arg) override;
         ESM::NPC mProto;
     };
 }

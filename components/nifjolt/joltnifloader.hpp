@@ -8,8 +8,7 @@
 #include <string>
 
 #include <osg/BoundingBox>
-#include <osg/Referenced>
-#include <osg/ref_ptr>
+#include <vsg/core/ref_ptr.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
@@ -53,7 +52,7 @@ namespace NifJolt
             abort();
         }
 
-        osg::ref_ptr<Resource::PhysicsShape> load(Nif::FileView file);
+        vsg::ref_ptr<Resource::PhysicsShape> load(Nif::FileView file);
 
     private:
         bool findBoundingBox(const Nif::NiAVObject& node);
@@ -79,7 +78,7 @@ namespace NifJolt
         std::unique_ptr<JPH::CompoundShapeSettings> mAvoidCompoundShape;
         const VFS::Manager* mVfs = nullptr;
 
-        osg::ref_ptr<Resource::PhysicsShape> mShape;
+        vsg::ref_ptr<Resource::PhysicsShape> mShape;
     };
 
 }

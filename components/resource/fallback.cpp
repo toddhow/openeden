@@ -16,7 +16,7 @@ namespace Resource
 
         if (auto obj = readFallback(options))
         {
-            std::cerr << "Using fallback object for " << filename.c_str() << std::endl;
+            std::cerr << "Using fallback object for " << filename.string() << std::endl;
             return obj;
         }
         return {};

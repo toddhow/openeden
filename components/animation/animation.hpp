@@ -7,7 +7,7 @@
 
 namespace Anim
 {
-    class Context;
+    struct Context;
 
     /*
      * Animation is a container class for a list of controllers and the objects they target.

@@ -12,6 +12,7 @@ namespace MWState
         disableControls = true;
         requiresScene = false;
         showCursor = false;
+        updateSound = false;
     }
 
     bool Video::run(float dt)

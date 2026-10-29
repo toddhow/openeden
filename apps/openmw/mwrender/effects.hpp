@@ -18,9 +18,13 @@ namespace MWRender
         Effects(const MWAnim::Context& ctx);
         ~Effects();
 
-        /// Add an effect. When it's finished playing, it will be removed automatically.
+        /// Add an effect. When it's finished playing, it will be removed automatically unless it loops.
+        /// @param effectId identifies the effect for remove (OpenMW 0.51 Lua VFX); may be empty
         void add(const std::string& model, const std::string& textureOverride, const vsg::vec3& worldPosition,
-            float scale, bool isMagicVFX = true);
+            float scale, bool isMagicVFX = true, std::string_view effectId = {}, bool loop = false);
+
+        /// Remove the effects with this ID
+        void remove(std::string_view effectId);
 
         void update(float dt);
 

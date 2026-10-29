@@ -3,7 +3,6 @@
 
 #include <osg/Vec2i>
 #include <osg/Vec4i>
-#include <osg/ref_ptr>
 
 #include "positioncellgrid.hpp"
 #include "ptr.hpp"
@@ -22,7 +21,6 @@ namespace Terrain
 namespace osg
 {
     class Vec3f;
-    class Stats;
 }
 
 namespace ESM
@@ -108,16 +106,11 @@ namespace MWWorld
         // Load and unload cells as necessary to create a cell grid with "X" and "Y" in the center
         void changeCellGrid(const osg::Vec3f& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent = true);
 
-        typedef std::pair<osg::Vec3f, osg::Vec4i> PositionCellGrid;
-
         void preloadCells(float dt);
         void preloadTeleportDoorDestinations(const osg::Vec3f& playerPos, const osg::Vec3f& predictedPos);
         void preloadExteriorGrid(const osg::Vec3f& playerPos, const osg::Vec3f& predictedPos);
         void preloadFastTravelDestinations(
             const osg::Vec3f& playerPos, std::vector<PositionCellGrid>& exteriorPositions);
-        void preloadCellWithSurroundings(MWWorld::CellStore& cell);
-        void preloadCell(MWWorld::CellStore& cell);
-        void preloadTerrain(const osg::Vec3f& pos, ESM::RefId worldspace, bool sync = false);
 
         osg::Vec4i gridCenterToBounds(const osg::Vec2i& centerCell) const;
         osg::Vec2i getNewGridCenter(const osg::Vec3f& pos, const osg::Vec2i* currentGridCenter = nullptr) const;
@@ -132,11 +125,15 @@ namespace MWWorld
 
         ~Scene();
 
-        float /*progress*/  preloadCell(MWWorld::CellStore& cell, bool preloadSurrounding = false);
+        /// @return how much of the preload has completed, from 0 to 1
+        float preloadCell(MWWorld::CellStore& cell, bool preloadSurrounding = false);
         void preloadTerrain(const osg::Vec3f& pos, ESM::RefId worldspace, bool sync = false);
         void reloadTerrain();
 
         bool needToChangeCellGrid(const osg::Vec3f& playerPos);
+
+        /// Resets the player to the interior's marker after falling into the void (#1415).
+        void playerMoved(const osg::Vec3f& pos);
 
         void changePlayerCell(CellStore& newCell);
 

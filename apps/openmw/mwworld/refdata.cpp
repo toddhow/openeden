@@ -1,11 +1,9 @@
 #include "refdata.hpp"
 
 #include <components/esm3/objectstate.hpp>
-/*
 #include <components/esm4/loadachr.hpp>
 #include <components/esm4/loadrefr.hpp>
 
-*/
 #include "customdata.hpp"
 
 #include "../mwbase/environment.hpp"
@@ -81,10 +79,8 @@ namespace MWWorld
     {
     }
 
-    /*
     RefData::RefData(const ESM4::Reference& ref)
-        : mBaseNode(nullptr)
-        , mPosition(ref.mPos)
+        : mPosition(ref.mPos)
         , mCustomData(nullptr)
         , mFlags(0)
         , mDeletedByContentFile(ref.mFlags & ESM4::Rec_Deleted)
@@ -95,8 +91,7 @@ namespace MWWorld
     }
 
     RefData::RefData(const ESM4::ActorCharacter& ref)
-        : mBaseNode(nullptr)
-        , mPosition(ref.mPos)
+        : mPosition(ref.mPos)
         , mCustomData(nullptr)
         , mFlags(0)
         , mDeletedByContentFile(ref.mFlags & ESM4::Rec_Deleted)
@@ -106,7 +101,6 @@ namespace MWWorld
     {
     }
 
-    */
 
     RefData::RefData(const ESM::ObjectState& objectState, bool deletedByContentFile)
         : mPosition(objectState.mPosition)
@@ -180,8 +174,6 @@ namespace MWWorld
 
     RefData::RefData(RefData&& other) = default;
     RefData& RefData::operator=(RefData&& other) = default;
-
-    }
 
     void RefData::setLocals(const ESM::Script& script)
     {

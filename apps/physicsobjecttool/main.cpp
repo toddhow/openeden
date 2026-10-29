@@ -12,13 +12,10 @@
 #include <components/files/multidircollection.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/platform/platform.hpp>
-#include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/foreachphysicsobject.hpp>
-#include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/physicsshape.hpp>
 #include <components/resource/physicsshapemanager.hpp>
-#include <components/resource/scenemanager.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/version/version.hpp>
@@ -181,11 +178,8 @@ namespace
             = EsmLoader::loadEsmData(query, contentFiles, fileCollections, readers, &encoder);
 
         constexpr double expiryDelay = 0;
-        Resource::ImageManager imageManager(&vfs, expiryDelay);
         Resource::NifFileManager nifFileManager(&vfs, &encoder.getStatelessEncoder());
-        Resource::BgsmFileManager bgsmFileManager(&vfs, expiryDelay);
-        Resource::SceneManager sceneManager(&vfs, &imageManager, &nifFileManager, &bgsmFileManager, expiryDelay);
-        Resource::PhysicsShapeManager physicsShapeManager(&vfs, &sceneManager, &nifFileManager, expiryDelay);
+        Resource::PhysicsShapeManager physicsShapeManager(&vfs, &nifFileManager, expiryDelay);
 
         Resource::forEachPhysicsObject(readers, vfs, physicsShapeManager, esmData,
             [](const ESM::Cell& cell, const Resource::PhysicsObject& object) {

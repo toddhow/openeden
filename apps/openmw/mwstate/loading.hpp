@@ -15,7 +15,7 @@ namespace vsg
 }
 namespace vsgUtil
 {
-    class Operation;
+    struct Operation;
 }
 namespace MWState
 {

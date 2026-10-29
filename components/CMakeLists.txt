@@ -221,7 +221,7 @@ add_component_dir (resource
     shadersettings fallback decompress
     resourcemanager
     objectcache multiobjectcache niffilemanager
-    physicsshapemanager physicsshape foreachphysicsobject stats cachestats bgsmfilemanager
+    physicsshapemanager physicsshape foreachphysicsobject cachestats
     )
 #</vsgopenmw-code-style>
 
@@ -593,13 +593,12 @@ add_component_dir(sqlite3
     transaction
 )
 
-#[[
+# openeden-vsg: kept for openmw-physicsobjecttool and the resource physics preloading (OpenMW 0.51).
 add_component_dir(esmloader
     lessbyid
     load
     esmdata
 )
-#]]
 
 #vsgopenmw-delete-me
 add_component_dir(navmeshtool
@@ -748,7 +747,7 @@ target_link_libraries(components
     RecastNavigation::Detour
     RecastNavigation::Recast
     SQLite::SQLite3
-    #smhasher
+    smhasher
     ${ICU_LIBRARIES}
     ZLIB::ZLIB
     ${JOLT_LIBRARIES}

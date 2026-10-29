@@ -10,11 +10,9 @@
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/readerscache.hpp>
-/*
 #include <components/esm4/common.hpp>
 #include <components/esm4/reader.hpp>
 #include <components/esm4/readerutils.hpp>
-*/
 #include <components/esmloader/load.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/lua/configuration.hpp>
@@ -265,7 +263,6 @@ namespace MWWorld
             }
         }
 
-        /*
         template <typename T>
         static bool typedReadRecordESM4(ESM4::Reader& reader, Store<T>& store)
         {
@@ -294,7 +291,6 @@ namespace MWWorld
             return std::apply(
                 [&reader](auto&... x) { return (typedReadRecordESM4(reader, x) || ...); }, store.mStoreImp->mStores);
         }
-                */
     };
 
     int ESMStore::find(const ESM::RefId& id) const
@@ -393,11 +389,6 @@ namespace MWWorld
 
     void ESMStore::load(ESM::ESMReader& esm, MWState::Loading& state, ESM::Dialogue*& dialogue)
     {
-        // Land texture loading needs to use a separate internal store for each plugin.
-        // We set the number of plugins here so we can properly verify if valid plugin
-        // indices are being passed to the LandTexture Store retrieval methods.
-        getWritable<ESM::LandTexture>().resize(esm.getIndex() + 1);
-
         // Loop through all records
         while (esm.hasMoreRecs() && !state.abort)
         {
@@ -526,12 +517,10 @@ namespace MWWorld
         getWritable<ESM::Skill>().setUp(get<ESM::GameSetting>());
         getWritable<ESM::MagicEffect>().setUp(get<ESM::GameSetting>());
         getWritable<ESM::Attribute>().setUp(get<ESM::GameSetting>());
-        /*
         getWritable<ESM4::Land>().updateLandPositions(get<ESM4::Cell>());
         getWritable<ESM4::Reference>().preprocessReferences(get<ESM4::Cell>());
         getWritable<ESM4::ActorCharacter>().preprocessReferences(get<ESM4::Cell>());
         getWritable<ESM4::ActorCreature>().preprocessReferences(get<ESM4::Cell>());
-        */
 
         rebuildIdsIndex();
         mStoreImp->mStaticIds = mStoreImp->mIds;

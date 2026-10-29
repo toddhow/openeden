@@ -12,7 +12,7 @@
 
 namespace Terrain
 {
-    class Bounds;
+    struct Bounds;
 
     using LayerInfo = std::string;
 
@@ -29,7 +29,7 @@ namespace Terrain
         struct VertexData
         {
             vsg::ref_ptr<vsg::floatArray2D> heights;
-            vsg::ref_ptr<vsg::vec3Array2D> normals;
+            vsg::ref_ptr<vsg::vec4Array2D> normals;
             vsg::ref_ptr<vsg::ubvec4Array2D> colors;
         };
         virtual VertexData getVertexData(int lodLevel, const Bounds& bounds) = 0;

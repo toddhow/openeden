@@ -8,9 +8,13 @@ namespace vsgAdapters::mygui
     {
         switch (vk)
         {
+            // openeden-vsg: vsgXchange returns PNGs as _SRGB. The GUI uses the bytes as they are (as OpenMW 0.51's
+            // OSG images did), so they map to the same MyGUI formats as _UNORM.
             case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_R8G8B8A8_SRGB:
                 return MyGUI::PixelFormat::R8G8B8A8;
             case VK_FORMAT_R8G8B8_UNORM:
+            case VK_FORMAT_R8G8B8_SRGB:
                 return MyGUI::PixelFormat::R8G8B8;
             default:
                 throw std::runtime_error("!MyGUI::PixelFormat(VkFormat=" + std::to_string(vk) + ")");

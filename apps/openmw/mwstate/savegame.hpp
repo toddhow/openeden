@@ -1,8 +1,10 @@
 // vsgopenmw-unity-build
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <system_error>
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
@@ -25,11 +27,13 @@
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
-#include <components/settings/settings.hpp>
+#include <components/files/conversion.hpp>
+#include <components/settings/values.hpp>
 #include <components/vsgutil/imageio.hpp>
 
 #include "character.hpp"
 #include "loading.hpp"
+#include "statemanagerimp.hpp"
 
 namespace MWState
 {
@@ -40,6 +44,7 @@ namespace MWState
         Character* character{};
         double timePlayed{};
         MWRender::ScreenshotInterface* screenshotInterface{};
+        StateManager* stateManager{};
 
         struct ScreenshotState
         {
@@ -51,6 +56,8 @@ namespace MWState
         SaveGame() { mDescription = "#{OMWEngine:SavingInProgress}"; }
         void threadLoad() override
         {
+            const auto start = std::chrono::steady_clock::now();
+
             ESM::SavedGame profile;
 
             MWBase::World& world = *MWBase::Environment::get().getWorld();
@@ -68,12 +75,15 @@ namespace MWState
             else
                 profile.mPlayerClassId = classId;
 
+            const MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
 
             profile.mPlayerCellName = world.getCellName();
             profile.mInGameTime = world.getTimeManager()->getEpochTimeStamp();
             profile.mTimePlayed = timePlayed;
             profile.mCurrentDay = world.getTimeManager()->getTimeStamp().getDay();
             profile.mDescription = description;
+            profile.mCurrentHealth = stats.getHealth().getCurrent();
+            profile.mMaximumHealth = stats.getHealth().getModified();
 
             if (screenshot.data)
                 profile.mScreenshot = vsgUtil::writeImageToMemory(screenshot.data, ".jpg");
@@ -106,7 +116,7 @@ namespace MWState
             writer.setAuthor("");
             writer.setDescription("");
 
-            int recordCount = 1 // saved game header
+            size_t recordCount = 1 // saved game header
                 + MWBase::Environment::get().getJournal()->countSavedGameRecords()
                 + MWBase::Environment::get().getLuaManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getWorld()->countSavedGameRecords()
@@ -115,7 +125,7 @@ namespace MWState
                 + MWBase::Environment::get().getMechanicsManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getInputManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getWindowManager()->countSavedGameRecords();
-            writer.setRecordCount(recordCount);
+            writer.setRecordCount(static_cast<int>(recordCount));
 
             writer.save(stream);
 
@@ -139,23 +149,32 @@ namespace MWState
             MWBase::Environment::get().getWindowManager()->write(writer, listener);
 
             // Ensure we have written the number of records that was estimated
-            if (writer.getRecordCount() != recordCount + 1) // 1 extra for TES3 record
+            if (static_cast<size_t>(writer.getRecordCount()) != recordCount + 1) // 1 extra for TES3 record
                 Log(Debug::Warning) << "Warning: number of written savegame records does not match. Estimated: "
                                     << recordCount + 1 << ", written: " << writer.getRecordCount();
 
             writer.close();
 
             if (stream.fail())
-                throw std::runtime_error("Write operation failed (memory stream)");
+                throw std::runtime_error(
+                    "Write operation failed (memory stream): " + std::generic_category().message(errno));
 
             // All good, write to file
             std::ofstream filestream(slot->mPath, std::ios::binary);
             filestream << stream.rdbuf();
 
             if (filestream.fail())
-                throw std::runtime_error("Write operation failed (file stream)");
+                throw std::runtime_error(
+                    "Write operation failed (file stream): " + std::generic_category().message(errno));
 
-            Settings::Manager::setString("character", "Saves", slot->mPath.parent_path().filename().string());
+            Settings::saves().mCharacter.set(Files::pathToUnicodeString(slot->mPath.parent_path().filename()));
+            stateManager->setLastSavegame(slot->mPath);
+
+            const auto finish = std::chrono::steady_clock::now();
+
+            Log(Debug::Info) << '\'' << description << "' is saved in "
+                             << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(finish - start).count()
+                             << "ms";
         }
         bool run(float dt) override
         {
@@ -189,7 +208,7 @@ namespace MWState
                 error << "Failed to save game: " << e.what();
                 Log(Debug::Error) << error.str();
 
-                MWBase::Environment::get().getWindowManager()->interactiveMessageBox(error.str(), { "#{Interface:Ok}" });
+                MWBase::Environment::get().getWindowManager()->interactiveMessageBox(error.str(), { "#{Interface:OK}" });
 
                 // If no file was written, clean up the slot
                 if (character && slot && !std::filesystem::exists(slot->mPath))

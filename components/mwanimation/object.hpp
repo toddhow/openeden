@@ -18,12 +18,12 @@ namespace vsg
 namespace Anim
 {
     class Transform;
-    class Bone;
+    struct Bone;
 }
 namespace MWAnim
 {
     class Play;
-    class Context;
+    struct Context;
 
     /*
      * Object is a container class for an animation scene graph.

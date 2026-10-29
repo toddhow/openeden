@@ -48,13 +48,18 @@ namespace MWState
             MWBase::Environment::get().getInputManager()->clear();
             MWBase::Environment::get().getMechanicsManager()->clear();
 
-            mState = State_NoGame;
             mCharacterManager.setCurrentCharacter(nullptr);
             mTimePlayed = 0;
+            mLastSavegame.clear();
 
-            MWMechanics::CreatureStats::cleanup();
+            mState = State_NoGame;
+            MWBase::Environment::get().getLuaManager()->noGame();
         }
-        MWBase::Environment::get().getLuaManager()->clear();
+        else
+        {
+            // TODO: do we need this cleanup?
+            MWBase::Environment::get().getLuaManager()->clear();
+        }
     }
 
     MWState::StateManager::StateManager(const std::filesystem::path& saves,
@@ -79,12 +84,11 @@ namespace MWState
 
     void MWState::StateManager::askLoadRecent()
     {
-        endGame(); //;
-        const MWState::Character* character = getCurrentCharacter();
-        if (!character || character->begin() == character->end())
+        endGame();
+        if (mLastSavegame.empty()) // no saves
             pushGameState(std::make_shared<Menu>());
         else
-            pushGameState(std::make_shared<AskLoadRecent>(*this, character));
+            pushGameState(std::make_shared<AskLoadRecent>(*this, getCurrentCharacter(), mLastSavegame));
     }
 
     MWState::StateManager::State MWState::StateManager::getState() const
@@ -113,11 +117,13 @@ namespace MWState
     void MWState::StateManager::endGame()
     {
         mState = State_Ended;
+        MWBase::Environment::get().getLuaManager()->gameEnded();
     }
 
     void MWState::StateManager::resumeGame()
     {
         mState = State_Running;
+        MWBase::Environment::get().getLuaManager()->gameLoaded();
     }
 
     void MWState::StateManager::saveGame(std::string_view description, const Slot* slot)
@@ -142,6 +148,7 @@ namespace MWState
         gameState->character = character;
         gameState->slot = slot;
         gameState->description = description;
+        gameState->stateManager = this;
 
         auto loadingScreen = MWBase::Environment::get().getWindowManager()->createLoadingScreen();
         loadingScreen->loading = gameState;
@@ -160,9 +167,7 @@ namespace MWState
             return;
         }
 
-        int maxSaves = Settings::Manager::getInt("max quicksaves", "Saves");
-        if (maxSaves < 1)
-            maxSaves = 1;
+        const int maxSaves = Settings::saves().mMaxQuicksaves;
 
         Character* currentCharacter = getCurrentCharacter(); // Get current character
         QuickSaveManager saveFinder = QuickSaveManager(name, maxSaves);
@@ -187,7 +192,7 @@ namespace MWState
         {
             for (const auto& slot : character)
             {
-                if (slot.mPath == filepath)
+                if (std::filesystem::equivalent(slot.mPath, filepath))
                 {
                     loadGame(&character, slot.mPath);
                     return;
@@ -208,6 +213,24 @@ namespace MWState
         auto loadingScreen = MWBase::Environment::get().getWindowManager()->createLoadingScreen();
         loadingScreen->loading = gameState;
         cleanupAndPush(loadingScreen);
+    }
+
+    void MWState::StateManager::requestNewGame()
+    {
+        MWBase::Environment::get().getWindowManager()->removeGuiMode(MWGui::GM_MainMenu);
+        newGame();
+    }
+
+    void MWState::StateManager::requestLoad(const Character* character, const std::filesystem::path& filepath)
+    {
+        MWBase::Environment::get().getWindowManager()->removeGuiMode(MWGui::GM_MainMenu);
+        // The character may have been deleted after the request was made
+        const bool validCharacter = std::ranges::find_if(mCharacterManager, [=](const Character& c) {
+            return &c == character;
+        }) != mCharacterManager.end();
+        if (!validCharacter)
+            character = getCurrentCharacter();
+        loadGame(character, filepath);
     }
 
     void MWState::StateManager::mainMenu()
@@ -232,7 +255,15 @@ namespace MWState
 
     void MWState::StateManager::deleteGame(const MWState::Character* character, const MWState::Slot* slot)
     {
-        mCharacterManager.deleteSlot(character, slot);
+        const std::filesystem::path savePath = slot->mPath;
+        mCharacterManager.deleteSlot(slot, character);
+        if (mLastSavegame == savePath)
+        {
+            if (character != nullptr)
+                mLastSavegame = character->begin()->mPath;
+            else
+                mLastSavegame.clear();
+        }
     }
 
     MWState::Character* MWState::StateManager::getCurrentCharacter()

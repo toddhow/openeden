@@ -3,7 +3,7 @@
 
 #include <vsg/app/WindowAdapter.h>
 
-class SDL_Window;
+struct SDL_Window;
 
 namespace vsgAdapters::sdl
 {

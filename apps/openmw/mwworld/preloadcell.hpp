@@ -17,7 +17,11 @@ namespace MWRender
 }
 namespace MWAnim
 {
-    class Context;
+    struct Context;
+}
+namespace Resource
+{
+    class PhysicsShapeManager;
 }
 namespace MWWorld
 {
@@ -30,8 +34,7 @@ namespace MWWorld
     class CellPreloader
     {
     public:
-        CellPreloader(const MWAnim::Context& animContext, vsg::ref_ptr<const vsg::Options> actorShapeOptions,
-            vsg::ref_ptr<const vsg::Options> shapeOptions,
+        CellPreloader(const MWAnim::Context& animContext, Resource::PhysicsShapeManager* shapeManager,
             MWRender::LandManager* landManager, vsg::ref_ptr<vsg::OperationThreads> threads);
         ~CellPreloader();
         vsg::ref_ptr<vsg::OperationThreads> getCompileThreads();
@@ -51,6 +54,9 @@ namespace MWWorld
         /// The minimum number of preloaded cells before unused cells get thrown out.
         void setMinCacheSize(unsigned int num);
 
+        /// Preload shape instances (scaled copies) rather than only the shared shapes.
+        void setPreloadInstances(bool preload);
+
         /// The maximum number of preloaded cells.
         void setMaxCacheSize(unsigned int num);
 
@@ -58,8 +64,8 @@ namespace MWWorld
 
     private:
         const MWAnim::Context& mAnimContext;
-        vsg::ref_ptr<const vsg::Options> mActorShapeOptions;
-        vsg::ref_ptr<const vsg::Options> mShapeOptions;
+        Resource::PhysicsShapeManager* mShapeManager;
+        bool mPreloadInstances = true;
         MWRender::LandManager* mLandManager;
         vsg::ref_ptr<vsg::OperationThreads> mThreads;
         vsg::ref_ptr<vsg::OperationThreads> mCompileThreads;

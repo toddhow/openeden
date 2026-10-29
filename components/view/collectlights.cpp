@@ -10,7 +10,7 @@ namespace View
         mData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
     }
 
-    void CollectLights::pack()
+    void CollectLights::pack() const
     {
         auto light_itr = mData->begin();
         size_t maxLights = mData->size() / 2;

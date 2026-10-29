@@ -17,13 +17,13 @@
 
 namespace ESM
 {
-    class Light;
-    class NPC;
+    struct Light;
+    struct NPC;
 }
 namespace MWAnim
 {
     class Face;
-    class Context;
+    struct Context;
 }
 namespace MWRender
 {

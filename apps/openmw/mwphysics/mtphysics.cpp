@@ -16,7 +16,6 @@
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 
-#include <osg/Stats>
 
 #include "components/debug/debuglog.hpp"
 #include "components/misc/convert.hpp"
@@ -43,6 +42,11 @@ namespace MWPhysics
 {
     namespace
     {
+        double secondsBetween(std::chrono::steady_clock::time_point begin, std::chrono::steady_clock::time_point end)
+        {
+            return std::chrono::duration<double>(end - begin).count();
+        }
+
         template <class Mutex>
         std::optional<std::unique_lock<Mutex>> makeExclusiveLock(Mutex& mutex, LockingPolicy lockingPolicy)
         {
@@ -295,17 +299,10 @@ namespace MWPhysics
         , mLOSCacheExpiry(Settings::physics().mLineofsightKeepInactiveCache)
         , mAdvanceSimulation(false)
         , mNextLOS(0)
-        , mFrameNumber(0)
-        , mTimer(osg::Timer::instance())
         , mPrevStepCount(1)
         , mBudget(physicsDt)
         , mAsyncBudget(0.0f)
         , mBudgetCursor(0)
-        , mAsyncStartTime(0)
-        , mTimeBegin(0)
-        , mTimeEnd(0)
-        , mFrameStart(0)
-        , mHasPendingTimingStats(false)
         , mSimulationBarrier(nullptr)
     {
         Log(Debug::Info) << "Using " << mNumThreads << " async physics threads";
@@ -361,26 +358,23 @@ namespace MWPhysics
         return std::make_tuple(static_cast<unsigned>(numSteps), actualDelta);
     }
 
-    void PhysicsTaskScheduler::applyQueuedMovements(float& timeAccum, std::vector<Simulation>& simulations,
-        osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats)
+    void PhysicsTaskScheduler::applyQueuedMovements(float& timeAccum, std::vector<Simulation>& simulations)
     {
         // This function is called before Jolt physics step is taken, main thread
         assert(mSimulations != &simulations);
-        prepareWork(timeAccum, simulations, frameStart, frameNumber, stats);
+        prepareWork(timeAccum, simulations);
     }
 
-    void PhysicsTaskScheduler::prepareWork(float& timeAccum, std::vector<Simulation>& simulations,
-        osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats)
+    void PhysicsTaskScheduler::prepareWork(float& timeAccum, std::vector<Simulation>& simulations)
     {
         // This function run in the main thread to prepare data for job dispatch
-        osg::Timer_t timeStart = mTimer->tick();
+        const auto timeStart = std::chrono::steady_clock::now();
 
         // start by finishing previous background computation
         syncSimulation();
 
         if (mAdvanceSimulation)
-            mAsyncBudget.update(mTimer->delta_s(mAsyncStartTime, mTimeEnd), mPrevStepCount, mBudgetCursor);
-        updateStats(frameStart, frameNumber, stats);
+            mAsyncBudget.update(secondsBetween(mAsyncStartTime, mTimeEnd), mPrevStepCount, mBudgetCursor);
 
         auto [numSteps, newDelta] = calculateStepConfig(timeAccum);
         timeAccum -= static_cast<float>(numSteps) * newDelta;
@@ -405,11 +399,10 @@ namespace MWPhysics
         {
             mWorldFrameData = std::make_unique<WorldFrameData>();
             mBudgetCursor += 1;
-            mHasPendingTimingStats = true;
 
             // Resets simulation timers
-            mAsyncStartTime = mTimer->tick();
-            mBudget.update(mTimer->delta_s(timeStart, mTimer->tick()), 1, mBudgetCursor);
+            mAsyncStartTime = std::chrono::steady_clock::now();
+            mBudget.update(secondsBetween(timeStart, mAsyncStartTime), 1, mBudgetCursor);
 
             // Dispatches jobs to be completed asynchronously (probably)
             // physics system must call syncSimulation to guarantee they have completed
@@ -622,25 +615,11 @@ namespace MWPhysics
         afterPostSim();
     }
 
-    void PhysicsTaskScheduler::updateStats(osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats)
-    {
-        if (!stats.collectStats("engine"))
-            return;
-        if (mHasPendingTimingStats && mFrameNumber == frameNumber - 1)
-        {
-            stats.setAttribute(mFrameNumber, "physicsworker_time_begin", mTimer->delta_s(mFrameStart, mTimeBegin));
-            stats.setAttribute(mFrameNumber, "physicsworker_time_taken", mTimer->delta_s(mTimeBegin, mTimeEnd));
-            stats.setAttribute(mFrameNumber, "physicsworker_time_end", mTimer->delta_s(mFrameStart, mTimeEnd));
-            mHasPendingTimingStats = false;
-        }
-        mFrameStart = frameStart;
-        mTimeBegin = mTimer->tick();
-        mFrameNumber = frameNumber;
-    }
-
     void PhysicsTaskScheduler::debugDraw()
     {
+#if OPENEDEN_VSG_PENDING_FEATURES
         mDebugDrawer->step();
+#endif
     }
 
     void* PhysicsTaskScheduler::getUserPointer(const JPH::BodyID bodyId) const
@@ -699,6 +678,6 @@ namespace MWPhysics
                 std::remove_if(mLOSCache.begin(), mLOSCache.end(), [](const LOSRequest& req) { return req.mStale; }),
                 mLOSCache.end());
         }
-        mTimeEnd = mTimer->tick();
+        mTimeEnd = std::chrono::steady_clock::now();
     }
 }

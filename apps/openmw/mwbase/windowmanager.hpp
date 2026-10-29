@@ -306,7 +306,6 @@ namespace MWBase
         virtual void setKeyFocusWidget(MyGUI::Widget* widget) = 0;
         virtual std::shared_ptr<MWState::LoadingScreen> createLoadingScreen() = 0;
 
-        virtual Loading::Listener* getLoadingScreen() = 0;
 
         /// Should the cursor be visible?
         virtual bool getCursorVisible() = 0;
@@ -384,11 +383,8 @@ namespace MWBase
 
         virtual void asyncPrepareSaveMap() = 0;
 
-        /// Sets the cull masks for all applicable views
-        virtual void setCullMask(uint32_t mask) = 0;
-
-        /// Same as viewer->getCamera()->getCullMask(), provided for consistency.
-        virtual uint32_t getCullMask() = 0;
+        // openeden-vsg: setCullMask and getCullMask are gone with the OSG viewer; vsgopenmw's RenderManager sets render
+        // modes instead.
 
         virtual void inventoryUpdated(const MWWorld::Ptr& ptr) const = 0;
 

@@ -37,7 +37,7 @@ namespace MWMechanics
 
         // Stop if the target doesn't exist
         if (target.isEmpty() || !target.getCellRef().getCount() || !target.getRefData().isEnabled()
-            || !target.getRefData().getBaseNode())
+            || !MWBase::Environment::get().getWorld()->getAnimation(target))
             return true;
 
         if (isTargetMagicallyHidden(target)

@@ -1,6 +1,5 @@
 #include "cachestats.hpp"
 
-#include <osg/Stats>
 
 namespace Resource
 {
@@ -30,11 +29,4 @@ namespace Resource
             out.push_back(makeAttribute(prefix, suffix));
     }
 
-    void reportStats(std::string_view prefix, unsigned frameNumber, const CacheStats& src, osg::Stats& dst)
-    {
-        dst.setAttribute(frameNumber, makeAttribute(prefix, "Count"), static_cast<double>(src.mSize));
-        dst.setAttribute(frameNumber, makeAttribute(prefix, "Get"), static_cast<double>(src.mGet));
-        dst.setAttribute(frameNumber, makeAttribute(prefix, "Hit"), static_cast<double>(src.mHit));
-        dst.setAttribute(frameNumber, makeAttribute(prefix, "Expired"), static_cast<double>(src.mExpired));
-    }
 }

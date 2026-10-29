@@ -1,4 +1,4 @@
-#ifndef MWGUI_WINDOWMANAGERIMP_H
+﻿#ifndef MWGUI_WINDOWMANAGERIMP_H
 #define MWGUI_WINDOWMANAGERIMP_H
 
 /**
@@ -71,7 +71,7 @@ namespace SDLUtil
     class CursorManager;
     class VideoWrapper;
 }
-class SDL_Window;
+struct SDL_Window;
 
 namespace MyGUIPlatform
 {
@@ -181,7 +181,7 @@ namespace MWGui
         bool isGuiMode() const override;
 
         bool isConsoleMode() const override;
-        bool isPostProcessorHudVisible() const override { return false; }
+        bool isPostProcessorHudVisible() const override;
         bool isSettingsWindowVisible() const override;
         bool isInteractiveMessageBoxActive() const override;
 
@@ -204,7 +204,7 @@ namespace MWGui
         MWGui::ConfirmationDialog* getConfirmationDialog() override;
         MWGui::TradeWindow* getTradeWindow() override;
         MWGui::HUD* getHud() override;
-        MWGui::PostProcessorHud* getPostProcessorHud() override { return nullptr; }
+        MWGui::PostProcessorHud* getPostProcessorHud() override;
         std::vector<MWGui::WindowBase*> getGuiModeWindows(GuiMode mode) override;
 
         /// Make the player use an item, while updating GUI state accordingly
@@ -341,11 +341,10 @@ namespace MWGui
         const Translation::Storage& getTranslationDataStorage() const override;
 
         bool getCursorVisible() override;
+        void setCursorVisible(bool visible) override;
 
         /// Call when mouse cursor or buttons are used.
         void setCursorActive(bool active) override;
-
-        void onSoulgemDialogButtonPressed(int button);
 
         /// Clear all savegame-specific data
         void clear() override;
@@ -386,7 +385,7 @@ namespace MWGui
 
         void toggleConsole() override;
         void toggleDebugWindow() override;
-        void togglePostProcessorHud() override {}
+        void togglePostProcessorHud() override;
         void toggleSettingsWindow() override;
 
         /// Cycle to next or previous spell
@@ -425,20 +424,6 @@ namespace MWGui
 
         // Used in Lua bindings
         const std::vector<GuiMode>& getGuiModeStack() const override { return mGuiModes; }
-        bool getCursorVisible() override { return true; }
-        void setCursorActive(bool active) override {}
-        void asyncPrepareSaveMap() override {}
-
-        MWGui::WindowBase* getActiveControllerWindow() override { return nullptr; }
-        int getControllerMenuHeight() override { return 720; }
-        void cycleActiveControllerWindow(bool next) override {}
-        void setActiveControllerWindow(MWGui::GuiMode mode, size_t activeIndex) override {}
-        bool getControllerTooltipVisible() const override { return false; }
-        void setControllerTooltipVisible(bool visible) override {}
-        bool getControllerTooltipEnabled() const override { return false; }
-        void setControllerTooltipEnabled(bool enabled) override {}
-        void restoreControllerTooltips() override {}
-        void updateControllerButtonsOverlay() override {}
         void setDisabledByLua(std::string_view windowId, bool disabled) override;
         bool isWindowVisible(std::string_view windowId) const override;
         std::vector<std::string_view> getAllWindowIds() const override;
@@ -451,7 +436,6 @@ namespace MWGui
         Resource::ResourceSystem* mResourceSystem;
 
         std::unique_ptr<MyGUIPlatform::Platform> mGuiPlatform;
-
 
         std::unique_ptr<Gui::FontLoader> mFontLoader;
         std::unique_ptr<StatsWatcher> mStatsWatcher;
@@ -552,6 +536,10 @@ namespace MWGui
 
         std::unique_ptr<SDLUtil::CursorManager> mCursorManager;
 
+        bool mCursorVisible;
+        bool mCursorActive;
+        bool mWindowVisible;
+
         std::vector<std::unique_ptr<Layout>> mGarbageDialogs;
         void cleanupGarbage();
 
@@ -617,8 +605,8 @@ namespace MWGui
         void onCursorChange(std::string_view name);
         void onKeyFocusChanged(MyGUI::Widget* widget);
 
-        void onClipboardChanged(std::string_view type, std::string_view data);
-        void onClipboardRequested(std::string_view type, std::string& data);
+        void onClipboardChanged(std::string_view _type, std::string_view _data);
+        void onClipboardRequested(std::string_view _type, std::string& _data);
 
         void createTextures();
         void setMenuTransparency(float value);
@@ -629,13 +617,12 @@ namespace MWGui
 
         void pushGuiMode(GuiMode mode, const MWWorld::Ptr& arg, bool force);
 
-        void setCullMask(uint32_t mask) override {}
-        uint32_t getCullMask() override { return 0; }
 
-        void setActiveMap(const MWWorld::Cell& cell);
+        void setActiveMap(int x, int y, bool interior);
         ///< set the indices of the map texture that should be used
 
         void inventoryUpdated(const MWWorld::Ptr& ptr) const override;
+
         Files::ConfigurationManager& mCfgMgr;
     };
 }

@@ -25,8 +25,14 @@
 #include <components/testing/util.hpp>
 
 #include "apps/openmw/mwworld/esmstore.hpp"
+#include "apps/openmw/mwstate/loading.hpp"
 
-static Loading::Listener dummyListener;
+// openeden-vsg: ESMStore::load reports progress to a vsgopenmw loading state instead of a Loading::Listener.
+struct DummyLoading : MWState::Loading
+{
+    bool run(float) override { return false; }
+};
+static DummyLoading dummyLoading;
 
 /// Base class for tests of ESMStore that rely on external content files to produce the test results
 struct ContentFileTest : public ::testing::Test
@@ -45,7 +51,7 @@ protected:
             lEsm.setEncoder(nullptr);
             lEsm.setIndex(index);
             lEsm.open(mContentFile);
-            mEsmStore.load(lEsm, &dummyListener, dialogue);
+            mEsmStore.load(lEsm, dummyLoading, dialogue);
 
             ++index;
         }
@@ -310,7 +316,7 @@ TYPED_TEST_P(StoreTest, delete_test)
         {
             MWWorld::ESMStore esmStore;
             reader.open(getEsmFile(record, false, formatVersion), "filename");
-            esmStore.load(reader, &dummyListener, dialogue); // master file inserts a record
+            esmStore.load(reader, dummyLoading, dialogue); // master file inserts a record
             esmStore.setUp();
 
             EXPECT_EQ(esmStore.get<RecordType>().getSize(), 1);
@@ -318,9 +324,9 @@ TYPED_TEST_P(StoreTest, delete_test)
         {
             MWWorld::ESMStore esmStore;
             reader.open(getEsmFile(record, false, formatVersion), "filename");
-            esmStore.load(reader, &dummyListener, dialogue); // master file inserts a record
+            esmStore.load(reader, dummyLoading, dialogue); // master file inserts a record
             reader.open(getEsmFile(record, true, formatVersion), "filename");
-            esmStore.load(reader, &dummyListener, dialogue); // now a plugin deletes it
+            esmStore.load(reader, dummyLoading, dialogue); // now a plugin deletes it
             esmStore.setUp();
 
             EXPECT_EQ(esmStore.get<RecordType>().getSize(), 0);
@@ -328,13 +334,13 @@ TYPED_TEST_P(StoreTest, delete_test)
         {
             MWWorld::ESMStore esmStore;
             reader.open(getEsmFile(record, false, formatVersion), "filename");
-            esmStore.load(reader, &dummyListener, dialogue); // master file inserts a record
+            esmStore.load(reader, dummyLoading, dialogue); // master file inserts a record
             reader.open(getEsmFile(record, true, formatVersion), "filename");
-            esmStore.load(reader, &dummyListener, dialogue); // now a plugin deletes it
+            esmStore.load(reader, dummyLoading, dialogue); // now a plugin deletes it
             // now another plugin inserts it again
             // expected behaviour is the record to reappear rather than staying deleted
             reader.open(getEsmFile(record, false, formatVersion), "filename");
-            esmStore.load(reader, &dummyListener, dialogue);
+            esmStore.load(reader, dummyLoading, dialogue);
             esmStore.setUp();
 
             EXPECT_EQ(esmStore.get<RecordType>().getSize(), 1);
@@ -400,13 +406,13 @@ TYPED_TEST_P(StoreTest, overwrite_test)
 
         // master file inserts a record
         reader.open(getEsmFile(record, false, formatVersion), "filename");
-        esmStore.load(reader, &dummyListener, dialogue);
+        esmStore.load(reader, dummyLoading, dialogue);
 
         // now a plugin overwrites it with changed data
         record.mId = recordIdUpper; // change id to uppercase, to test case smashing while we're at it
         record.mModel = "the_new_model";
         reader.open(getEsmFile(record, false, formatVersion), "filename");
-        esmStore.load(reader, &dummyListener, dialogue);
+        esmStore.load(reader, dummyLoading, dialogue);
 
         esmStore.setUp();
 
@@ -483,7 +489,7 @@ namespace
             }
 
             reader.open(getEsmFile(record, false, formatVersion), "filename");
-            ASSERT_NO_THROW(esmStore.load(reader, &dummyListener, dialogue));
+            ASSERT_NO_THROW(esmStore.load(reader, dummyLoading, dialogue));
             esmStore.setUp();
 
             const RecordType* result = nullptr;
@@ -665,7 +671,7 @@ namespace
 
         reader.setIndex(index);
         reader.open(std::move(stream), "test");
-        esmStore.load(reader, &dummyListener, dialogue);
+        esmStore.load(reader, dummyLoading, dialogue);
     }
 
     MATCHER_P(HasIdEqualTo, v, "")

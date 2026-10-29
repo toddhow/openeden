@@ -42,16 +42,20 @@ namespace MWRender
         std::map<PluginTexture, std::string> map;
         const auto& store = mEsmStore->get<ESM::LandTexture>();
         static constexpr char defaultTexture[] = "_land_default.dds";
-        for (size_t plugin = 0; plugin < store.getSize(); ++plugin)
+        for (const auto& [pluginIndex, refId] : store.getMappings())
         {
-            map[std::make_pair(0, plugin)] = defaultTexture; // Not sure if the default texture really is hardcoded?
-            for (size_t texture = 0; texture < store.getSize(plugin); ++texture)
+            int plugin = pluginIndex.first;
+            uint32_t texture = pluginIndex.second;
+            map[std::make_pair(0, static_cast<short>(plugin))] = defaultTexture;
+
+            const std::string* lt = store.search(texture, plugin);
+            if (lt)
             {
-                auto lt = store.search(texture, plugin);
-                if (lt && mResourceSystem->getVFS()->exists(Misc::ResourceHelpers::correctTexturePath(lt->mTexture, mResourceSystem->getVFS())))
+                auto corrected = Misc::ResourceHelpers::correctTexturePath(VFS::Path::Normalized(*lt), *mResourceSystem->getVFS());
+                if (mResourceSystem->getVFS()->exists(corrected))
                 {
                     // NB: All vtex ids are +1 compared to the ltex ids
-                    map[std::make_pair(texture+1, plugin)] = lt->mTexture;
+                    map[std::make_pair(static_cast<short>(texture + 1), static_cast<short>(plugin))] = *lt;
                 }
             }
         }

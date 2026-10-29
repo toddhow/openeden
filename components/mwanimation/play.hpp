@@ -28,11 +28,24 @@ namespace MWAnim
 
         struct TagEvent
         {
-            std::string_view groupname;
+            // openeden-vsg: owned, as the state naming the group may be erased before the event is handled.
+            std::string groupname;
             Anim::Tags::ConstIterator key;
             const Anim::Tags& map;
         };
         std::vector<TagEvent> encounteredTags;
+
+        // openeden-vsg: OpenMW 0.51 reports each animation that ends (finishes, is replaced or is disabled) to Lua.
+        // runAnimation may run on update threads, so ends are queued here and handled by the owner on the main thread.
+        struct EndedEvent
+        {
+            std::string groupname;
+            float time;
+            float completion;
+            std::string startKey;
+            std::string stopKey;
+        };
+        std::vector<EndedEvent> endedAnimations;
 
         Anim::Bones bones;
 
@@ -86,7 +99,7 @@ namespace MWAnim
          *                     the "start" and "stop" keys for looping?
          */
         void play(std::string_view groupname, const Priority& priority, int blendMask, bool autodisable,
-            float speedmult, std::string_view start, std::string_view stop, float startpoint, size_t loops,
+            float speedmult, std::string_view start, std::string_view stop, float startpoint, uint32_t loops,
             bool loopfallback = false);
 
         /** Adjust the speed multiplier of an already playing animation.
@@ -104,7 +117,11 @@ namespace MWAnim
          * \param speedmult Stores the animation speed multiplier
          * \return True if the animation is active, false otherwise.
          */
-        bool getInfo(std::string_view groupname, float* complete = nullptr, float* speedmult = nullptr) const;
+        bool getInfo(std::string_view groupname, float* complete = nullptr, float* speedmult = nullptr,
+            uint32_t* loopcount = nullptr) const;
+
+        /// Returns the group name of the animation currently active on that bone group.
+        std::string_view getActiveGroup(size_t boneGroup) const;
 
         /// Get the absolute position in the animation track of the first text key with the given group.
         float getStartTime(std::string_view groupname) const;
@@ -116,7 +133,7 @@ namespace MWAnim
         /// the given group.
         float getCurrentTime(std::string_view groupname) const;
 
-        size_t getCurrentLoopCount(std::string_view groupname) const;
+        uint32_t getCurrentLoopCount(std::string_view groupname) const;
 
         /** Disables the specified animation group;
          * \param groupname Animation group to disable.
@@ -157,12 +174,17 @@ namespace MWAnim
 
             bool playing = false;
             bool loopingEnabled = true;
-            size_t loopCount = 0;
+            uint32_t loopCount = 0;
 
             Priority priority;
             int blendMask = 0;
             bool autoDisable = true;
 
+            std::string groupname;
+            std::string startKey;
+            std::string stopKey;
+
+            float getCompletion() const;
             bool shouldLoop() const { return time >= loopStopTime && loopingEnabled && loopCount > 0; }
         };
         using AnimStateMap = std::map<std::string, AnimState, std::less<>>;
@@ -197,6 +219,9 @@ namespace MWAnim
          * the marker is not found, or if the markers are the same, it returns
          * false.
          */
+        /// Queues the end of the state for its owner (see endedAnimations).
+        void animationEnded(const AnimState& state);
+
         bool reset(AnimState& state, const Anim::Tags& keys, std::string_view groupname, std::string_view start,
             std::string_view stop, float startpoint, bool loopfallback);
 

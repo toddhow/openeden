@@ -292,9 +292,9 @@ namespace
         const MWWorld::Ptr& target)
     {
         const auto& esmStore = *MWBase::Environment::get().getESMStore();
-        MWRender::addEffect(target, ESM::RefId::stringRefId("VFX_Absorb"), ESM::MagicEffect::SpellAbsorption);
+        MWRender::addEffect(
+            target, ESM::RefId::stringRefId("VFX_Absorb"), ESM::MagicEffect::SpellAbsorption.getValue(), false);
 
-        const ESM::Spell* spell = esmStore.get<ESM::Spell>().search(spellId);
         int spellCost = 0;
         if (const ESM::Spell* spell = esmStore.get<ESM::Spell>().search(spellParams.getSourceSpellId()))
         {
@@ -473,8 +473,8 @@ namespace MWMechanics
                     world->teleportToClosestMarker(target, ESM::RefId::stringRefId(marker));
                     if (!caster.isEmpty())
                     {
-                        MWRender::removeEffect(target, effect.mEffectId);
-                        MWRender::addEffect(target, ESM::RefId::stringRefId("VFX_Summon_end"));
+                        MWRender::removeEffect(caster, effect.mEffectId.getRefIdString());
+                        MWRender::addEffect(caster, ESM::RefId::stringRefId("VFX_Summon_end"));
                     }
                 }
                 else if (caster == getPlayer())
@@ -505,7 +505,7 @@ namespace MWMechanics
                         MWWorld::ActionTeleport action(dest, markedPosition, false);
                         action.execute(target);
                         if (!caster.isEmpty())
-                            MWRender::removeEffect(caster, effect.mEffectId);
+                            MWRender::removeEffect(caster, effect.mEffectId.getRefIdString());
                     }
                 }
                 else if (caster == getPlayer())
@@ -1371,7 +1371,7 @@ namespace MWMechanics
         {
             effect.mTimeLeft = 0;
             effect.mFlags |= ESM::ActiveEffect::Flag_Remove;
-            MWRender::removeEffect(target, effect.mEffectId);
+            MWRender::removeEffect(target, effect.mEffectId.getRefIdString());
         }
         effect.mFlags |= applied;
         if (recalculateMagicka)
@@ -1388,7 +1388,7 @@ namespace MWMechanics
         magnitudes.add(EffectKey(effect.mEffectId, effect.getSkillOrAttribute()), EffectParam(-effect.mMagnitude));
         removeMagicEffect(target, spellParams, effect);
         if (magnitudes.getOrDefault(effect.mEffectId).getMagnitude() <= 0.f)
-            MWRender::removeEffect(target, effect.mEffectId);
+            MWRender::removeEffect(target, effect.mEffectId.getRefIdString());
     }
 
 }

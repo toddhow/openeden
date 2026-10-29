@@ -194,7 +194,7 @@ namespace DetourNavigator
     }
 
     void RecastMeshBuilder::addObject(const JPH::Shape& shape, const osg::Matrixd& transform, const AreaType areaType,
-        osg::ref_ptr<const Resource::PhysicsShape> source, const ObjectTransform& objectTransform)
+        vsg::ref_ptr<const Resource::PhysicsShape> source, const ObjectTransform& objectTransform)
     {
         addObject(shape, transform, areaType);
         mSources.push_back(MeshSource{ std::move(source), objectTransform, areaType });

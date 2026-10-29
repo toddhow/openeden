@@ -1,6 +1,8 @@
 #ifndef VSGOPENMW_ENGINE_H
 #define VSGOPENMW_ENGINE_H
 
+#include <functional>
+
 #include <vsg/core/ref_ptr.h>
 
 #include <components/files/collections.hpp>
@@ -19,7 +21,7 @@ namespace VFS
     class Manager;
 }
 
-namespace l10n
+namespace L10n
 {
     class Manager;
 }
@@ -50,6 +52,10 @@ namespace MWRender
 {
     class RenderManager;
 }
+namespace MWLua
+{
+    class LuaManager;
+}
 namespace Render
 {
     class Engine;
@@ -58,7 +64,7 @@ struct SDL_Window;
 
 namespace OMW
 {
-    class WindowListener;
+    struct WindowListener;
 
     /*
      * Runs game states.
@@ -76,9 +82,15 @@ namespace OMW
         std::unique_ptr<MWInput::InputManager> mInputManager;
         std::unique_ptr<MWSound::SoundManager> mSoundManager;
         std::unique_ptr<MWRender::RenderManager> mRenderManager;
+        // openeden-vsg: created by the Game state, owned here so that, as in OpenMW 0.51, it is destroyed after the
+        // window manager (GUI windows hold Lua-built widgets) and after the Game state's World.
+        std::unique_ptr<MWLua::LuaManager> mLuaManager;
         std::unique_ptr<MWGui::WindowManager> mWindowManager;
         std::unique_ptr<MWState::StateManager> mStateManager;
-        std::unique_ptr<l10n::Manager> mL10nManager;
+        std::unique_ptr<L10n::Manager> mL10nManager;
+        // openeden-vsg: set by Boot; stops the L10n GMST lookup from reading the World's store once the Game state
+        // destroys the World (L10n contexts keep their own copy of the lookup).
+        std::function<void()> mDetachGmstLoader;
         MWBase::Environment mEnvironment;
         std::unique_ptr<ToUTF8::Utf8Encoder> mEncoder;
         Translation::Storage mTranslationDataStorage;

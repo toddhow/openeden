@@ -30,11 +30,11 @@ namespace vsgUtil
         vsg::ref_ptr<vsg::Perspective> perspective;
         float fieldOfViewY = 0;
 
-        vsg::dmat4 transform() const
+        vsg::dmat4 transform() const override
         {
-            auto tmp_perspective = *perspective;
-            tmp_perspective.fieldOfViewY = fieldOfViewY;
-            return tmp_perspective.transform();
+            if (perspective)
+                return vsg::perspective(vsg::radians(static_cast<double>(fieldOfViewY)), perspective->aspectRatio, perspective->nearDistance, perspective->farDistance);
+            return {};
         }
     };
 }

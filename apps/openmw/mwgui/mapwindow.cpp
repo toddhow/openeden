@@ -10,6 +10,7 @@
 #include <MyGUI_RotatingSkin.h>
 #include <MyGUI_ScrollView.h>
 #include <MyGUI_TextIterator.h>
+#include <MyGUI_Window.h>
 
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalmap.hpp>
@@ -619,7 +620,7 @@ namespace MWGui
                 }
                 if (!mInterior && !entry.mMapTexture)
                     requestMapRender(
-                        &MWBase::Environment::get().getWorldModel()->getExterior(ESM::ExteriorCellLocation( entry.mCellX, entry.mCellY, {} )));
+                        &MWBase::Environment::get().getWorldModel()->getExterior(ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)));
                 auto mapTex = mLocalMapRender->getMapTexture(entry.mCellX, entry.mCellY);
                 if (!mapTex)
                 {
@@ -1435,73 +1436,6 @@ namespace MWGui
         marker->eventMouseButtonPressed += MyGUI::newDelegate(this, &MapWindow::onDragStart);
         if (Settings::map().mAllowZooming)
             marker->eventMouseWheel += MyGUI::newDelegate(this, &MapWindow::onMapZoomed);
-    }
-
-    bool MapWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
-    {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
-            MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
-        {
-            onWorldButtonClicked(mButton);
-            MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
-        }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_Y)
-        {
-            centerView();
-            MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
-        }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
-            shiftMap(0, 100);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
-            shiftMap(0, -100);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
-            shiftMap(100, 0);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
-            shiftMap(-100, 0);
-
-        return true;
-    }
-
-    void MapWindow::shiftMap(int dx, int dy)
-    {
-        if (dx == 0 && dy == 0)
-            return;
-
-        if (!Settings::map().mGlobal)
-        {
-            mNeedDoorMarkersUpdate = true;
-            mLocalMap->setViewOffset(
-                MyGUI::IntPoint(mLocalMap->getViewOffset().left + dx, mLocalMap->getViewOffset().top + dy));
-        }
-        else
-        {
-            mGlobalMap->setViewOffset(
-                MyGUI::IntPoint(mGlobalMap->getViewOffset().left + dx, mGlobalMap->getViewOffset().top + dy));
-        }
-    }
-
-    void MapWindow::setActiveControllerWindow(bool active)
-    {
-        MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
-        if (winMgr->getMode() == MWGui::GM_Inventory)
-        {
-            // Fill the screen, or limit to a certain size on large screens. Size chosen to
-            // show the entire local map without scrolling.
-            MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-            MyGUI::IntSize canvasSize = mLocalMap->getCanvasSize();
-            MyGUI::IntSize borderSize = mMainWidget->getSize() - mMainWidget->getClientWidget()->getSize();
-
-            int width = std::min(viewSize.width, canvasSize.width + borderSize.width);
-            int height = std::min(winMgr->getControllerMenuHeight(), canvasSize.height + borderSize.height);
-            int x = (viewSize.width - width) / 2;
-            int y = (viewSize.height - height) / 2;
-
-            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
-            window->setCoord(x, active ? y : viewSize.height + 1, width, height);
-        }
-
-        WindowBase::setActiveControllerWindow(active);
     }
 
     // -------------------------------------------------------------------

@@ -13,7 +13,7 @@
 #include <components/resource/physicsshapemanager.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <osg/ref_ptr>
+#include <vsg/core/ref_ptr.h>
 
 #include <algorithm>
 #include <memory>
@@ -104,7 +104,7 @@ namespace Resource
                 if (cellRef.mType != ESM::REC_STAT)
                     model = Misc::ResourceHelpers::correctActorModelPath(model, &vfs);
 
-                osg::ref_ptr<const Resource::PhysicsShape> shape = [&] {
+                vsg::ref_ptr<const Resource::PhysicsShape> shape = [&] {
                     try
                     {
                         return physicsShapeManager.getShape(Misc::ResourceHelpers::correctMeshPath(model));
@@ -113,7 +113,7 @@ namespace Resource
                     {
                         Log(Debug::Warning) << "Failed to load cell ref \"" << cellRef.mRefId << "\" model \"" << model
                                             << "\": " << e.what();
-                        return osg::ref_ptr<const Resource::PhysicsShape>();
+                        return vsg::ref_ptr<const Resource::PhysicsShape>();
                     }
                 }();
 

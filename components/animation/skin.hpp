@@ -34,6 +34,7 @@ namespace Anim
         std::vector<vsg::dsphere*> mDynamicBounds;
     public:
         Skin();
+        Skin(const Skin&);
         ~Skin();
         /*
          * Bone information set by users.

@@ -1,6 +1,8 @@
 #include "animcontext.hpp"
 
 #include <vsg/utils/SharedObjects.h>
+#include <vsg/utils/FindDynamicObjects.h>
+#include <vsg/utils/PropagateDynamicObjects.h>
 
 #include <components/animation/mask.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -18,10 +20,17 @@ namespace
     {
         auto options = vsg::Options::create(*resourceSystem->nodeOptions);
         options->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        options->findDynamicObjects = {};
+        options->propagateDynamicObjects = {};
         options->findFileCallback = [resourceSystem](const vsg::Path& file, const vsg::Options* options) -> vsg::Path
         {
-            std::string path = "meshes/" + file;
-            return vsg::Path(Misc::ResourceHelpers::correctActorModelPath(path, resourceSystem->getVFS()));
+            // openeden-vsg: accept paths with or without "meshes/", as OpenMW 0.51 callers pass corrected paths.
+            VFS::Path::Normalized path(file.string());
+            if (!path.value().starts_with("meshes/"))
+                path = Misc::ResourceHelpers::correctMeshPath(path);
+            return vsg::Path(Misc::ResourceHelpers::correctActorModelPath(path, resourceSystem->getVFS()).value());
         };
         return options;
     }
@@ -30,6 +39,10 @@ namespace
     {
         auto options = vsg::Options::create(base);
         options->sharedObjects = vsg::SharedObjects::create();
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        options->findDynamicObjects = {};
+        options->propagateDynamicObjects = {};
         auto override_ = vsg::ref_ptr{ new Pipeline::Override };
         override_->materialData = [](Pipeline::Data::Material& m) {
             // Morrowind has a white ambient light attached to the root VFX node of the scenegraph
@@ -46,6 +59,10 @@ namespace
         {
             auto options = vsg::Options::create(base);
             options->sharedObjects = vsg::SharedObjects::create();
+            // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
+            // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+            options->findDynamicObjects = {};
+            options->propagateDynamicObjects = {};
             auto& bonename = MWAnim::sPartBones.at(static_cast<ESM::PartReferenceType>(i));
             if (bonename.find("Left") != std::string::npos)
             {

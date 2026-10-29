@@ -1,4 +1,5 @@
 #include "postprocessingbindings.hpp"
+#include "context.hpp"
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -101,9 +102,10 @@ namespace MWLua
 
     sol::table initPostprocessingPackage(const Context& context)
     {
-        sol::table api(context.mLua->sol(), sol::create);
+        sol::state_view lua = context.sol();
+        sol::table api(lua, sol::create);
 
-        sol::usertype<Shader> shader = context.mLua->sol().new_usertype<Shader>("Shader");
+        sol::usertype<Shader> shader = lua.new_usertype<Shader>("Shader");
         shader[sol::meta_function::to_string] = [](const Shader& shader) { return shader.toString(); };
 
         shader["enable"] = [context](Shader& shader, sol::optional<int> optPos) {

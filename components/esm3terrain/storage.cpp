@@ -3,6 +3,9 @@
 #include <iostream>
 
 #include <vsg/core/Array2D.h>
+// openeden-vsg: MSVC needs Array2D<T>::accept, which these headers define, in this translation unit.
+#include <vsg/core/ConstVisitor.h>
+#include <vsg/core/Visitor.h>
 
 #include <osg/Plane>
 
@@ -117,7 +120,8 @@ namespace ESMTerrain
         auto numVerts = Storage::numVerts(bounds.size, lodLevel);
 
         auto heights = vsg::floatArray2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R32_SFLOAT});
-        auto normals = vsg::vec3Array2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R32G32B32_SFLOAT});
+        // openeden-vsg: RGBA rather than RGB: three-channel 32-bit float images are not sampleable on common Windows drivers.
+        auto normals = vsg::vec4Array2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R32G32B32A32_SFLOAT});
         auto colours = vsg::ubvec4Array2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R8G8B8A8_UNORM});
 
         vsg::vec3 normal;
@@ -206,7 +210,7 @@ namespace ESMTerrain
 
                         //assert(normal.z() > 0);
 
-                        (*normals)(vertX, vertY) = normal;
+                        (*normals)(vertX, vertY) = vsg::vec4(normal.x, normal.y, normal.z, 0.f);
 
                         if (colourData)
                         {

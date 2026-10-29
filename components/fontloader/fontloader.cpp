@@ -5,10 +5,7 @@
 #include <stdexcept>
 #include <string_view>
 
-#include <osg/Image>
-
-#include <osgDB/WriteFile>
-
+#include <MyGUI_DataManager.h>
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_ResourceManager.h>
@@ -297,37 +294,14 @@ namespace Gui
     {
         Log(Debug::Info) << "Loading TrueType font file " << path;
 
-        MyGUIPlatform::DataManager* const dataManager
-            = dynamic_cast<MyGUIPlatform::DataManager*>(&MyGUIPlatform::DataManager::getInstance());
-        if (dataManager == nullptr)
-        {
-            Log(Debug::Error) << "Can not load TrueType font " << fontId.mValue
-                              << ": osgMyGUI::DataManager is not available.";
-            return;
-        }
+        // openeden-vsg: vsgopenmw's MyGUIPlatform::vfs data manager searches the "mygui" and "fonts" folders
+        // itself (components/myguiplatform/platform.cpp), so the resource path is not switched to "fonts" here.
+        MyGUI::DataManager& dataManager = MyGUI::DataManager::getInstance();
 
         // TODO: it may be worth to take in account resolution change, but it is not safe to replace used assets
-        std::unique_ptr<MyGUI::IDataStream> layersStream(dataManager->getData("openmw_layers.xml"));
+        std::unique_ptr<MyGUI::IDataStream> layersStream(dataManager.getData("openmw_layers.xml"));
         MyGUI::IntSize bookSize = getBookSize(layersStream.get());
         float bookScale = MyGUIPlatform::ScalingLayer::getScaleFactor(bookSize);
-        const VFS::Path::Normalized oldDataPath(dataManager->getResourcePath());
-
-        struct SetOldResourcePath
-        {
-            VFS::Path::NormalizedView mOldDataPath;
-
-            void operator()(MyGUIPlatform::DataManager* dataManager) const
-            {
-                dataManager->setResourcePath(mOldDataPath);
-            }
-        };
-
-        std::unique_ptr<MyGUIPlatform::DataManager, SetOldResourcePath> dataManagerPtr(
-            dataManager, SetOldResourcePath{ oldDataPath });
-
-        constexpr VFS::Path::NormalizedView fonts("fonts");
-        dataManager->setResourcePath(fonts);
-
         std::unique_ptr<MyGUI::IDataStream> dataStream = std::make_unique<MyGUI::DataStream>(&stream);
 
         MyGUI::xml::Document xmlDocument;
@@ -377,8 +351,6 @@ namespace Gui
         bookFont->deserialization(resourceNode.current(), MyGUI::Version(3, 2, 0));
         bookFont->setResourceName(std::format("Journalbook {}", fontId.mValue));
         MyGUI::ResourceManager::getInstance().addResource(bookFont);
-
-        dataManagerPtr.reset();
 
         if (resourceNode.next("Resource"))
             Log(Debug::Warning) << "Font file " << path
@@ -470,15 +442,9 @@ namespace Gui
 
         if (mExportFonts)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-            assert(image->isDataContiguous());
-            memcpy(image->data(), textureData.data(), textureData.size());
-            // Convert to OpenGL origin for sensible output
-            image->flipVertical();
-
-            Log(Debug::Info) << "Writing " << name + ".png";
-            osgDB::writeImageFile(*image, name + ".png");
+            // openeden-vsg: writing the bitmap as .png used osgDB, which is not linked with VSG; the
+            // .xml is still exported below. Restoring the image export is listed for task 0010.
+            Log(Debug::Warning) << "Not writing " << name + ".png: font image export is not available yet";
         }
 
         MyGUI::ITexture* texture = MyGUI::RenderManager::getInstance().createTexture(bitmapPath);

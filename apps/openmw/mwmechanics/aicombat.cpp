@@ -120,7 +120,8 @@ namespace MWMechanics
 
         // Stop if the target doesn't exist
         if (target.isEmpty() || !target.getCellRef().getCount() || !target.getRefData().isEnabled()
-            || target.getClass().getCreatureStats(target).isDead() || !target.getRefData().getBaseNode())
+            || target.getClass().getCreatureStats(target).isDead()
+            || !MWBase::Environment::get().getWorld()->getAnimation(target))
             return true;
 
         if (actor == target) // This should never happen.

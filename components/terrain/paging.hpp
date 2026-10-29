@@ -14,7 +14,7 @@
 namespace Terrain
 {
     class Storage;
-    class Builder;
+    struct Builder;
     class ViewData;
 
     /**

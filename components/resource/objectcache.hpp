@@ -1,5 +1,6 @@
 // Resource ObjectCache for OpenMW, forked from osgDB ObjectCache by Robert Osfield, see copyright notice below.
 // Changes:
+// - (OpenEden) objects are reference counted by vsg::Object, since the OSG library is no longer linked (Track V).
 // - removeExpiredObjectsInCache no longer keeps a lock while the unref happens.
 // - template allows customized KeyType.
 // - objects with uninitialized time stamp are not removed.
@@ -22,9 +23,8 @@
 
 #include "cachestats.hpp"
 
-#include <osg/Node>
-#include <osg/Referenced>
-#include <osg/ref_ptr>
+#include <vsg/core/Object.h>
+#include <vsg/core/ref_ptr.h>
 
 #include <algorithm>
 #include <map>
@@ -33,24 +33,16 @@
 #include <string>
 #include <vector>
 
-namespace osg
-{
-    class Object;
-    class State;
-    class NodeVisitor;
-    class Stats;
-}
-
 namespace Resource
 {
     struct GenericObjectCacheItem
     {
-        osg::ref_ptr<osg::Object> mValue;
+        vsg::ref_ptr<vsg::Object> mValue;
         double mLastUsage;
     };
 
     template <typename KeyType>
-    class GenericObjectCache : public osg::Referenced
+    class GenericObjectCache : public vsg::Object
     {
     public:
         /*
@@ -69,7 +61,7 @@ namespace Resource
          */
         void update(double referenceTime, double expiryDelay)
         {
-            std::vector<osg::ref_ptr<osg::Object>> objectsToRemove;
+            std::vector<vsg::ref_ptr<vsg::Object>> objectsToRemove;
             {
                 const double expiryTime = referenceTime - expiryDelay;
                 std::lock_guard<std::mutex> lock(mMutex);
@@ -108,14 +100,14 @@ namespace Resource
 
         /** Add a key,object,timestamp triple to the Registry::ObjectCache.*/
         template <class K>
-        void addEntryToObjectCache(K&& key, osg::Object* object, double timestamp = 0.0)
+        void addEntryToObjectCache(K&& key, vsg::Object* object, double timestamp = 0.0)
         {
             std::lock_guard<std::mutex> lock(mMutex);
             const auto it = mItems.find(key);
             if (it == mItems.end())
-                mItems.emplace_hint(it, std::forward<K>(key), Item{ object, timestamp });
+                mItems.emplace_hint(it, std::forward<K>(key), Item{ vsg::ref_ptr<vsg::Object>(object), timestamp });
             else
-                it->second = Item{ object, timestamp };
+                it->second = Item{ vsg::ref_ptr<vsg::Object>(object), timestamp };
         }
 
         /** Remove Object from cache.*/
@@ -128,7 +120,7 @@ namespace Resource
         }
 
         /** Get an ref_ptr<Object> from the object cache*/
-        osg::ref_ptr<osg::Object> getRefFromObjectCache(const auto& key)
+        vsg::ref_ptr<vsg::Object> getRefFromObjectCache(const auto& key)
         {
             std::lock_guard<std::mutex> lock(mMutex);
             if (Item* const item = find(key))
@@ -136,7 +128,7 @@ namespace Resource
             return nullptr;
         }
 
-        std::optional<osg::ref_ptr<osg::Object>> getRefFromObjectCacheOrNone(const auto& key)
+        std::optional<vsg::ref_ptr<vsg::Object>> getRefFromObjectCacheOrNone(const auto& key)
         {
             const std::lock_guard<std::mutex> lock(mMutex);
             if (Item* const item = find(key))
@@ -156,25 +148,7 @@ namespace Resource
             return false;
         }
 
-        /** call releaseGLObjects on all objects attached to the object cache.*/
-        void releaseGLObjects(osg::State* state)
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            for (const auto& [k, v] : mItems)
-                v.mValue->releaseGLObjects(state);
-        }
-
-        /** call node->accept(nv); for all nodes in the objectCache. */
-        void accept(osg::NodeVisitor& nv)
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            for (const auto& [k, v] : mItems)
-                if (osg::Object* const object = v.mValue.get())
-                    if (osg::Node* const node = dynamic_cast<osg::Node*>(object))
-                        node->accept(nv);
-        }
-
-        /** call operator()(KeyType, osg::Object*) for each object in the cache. */
+        /** call operator()(KeyType, vsg::Object*) for each object in the cache. */
         template <class Functor>
         void call(Functor&& f)
         {
@@ -184,7 +158,7 @@ namespace Resource
         }
 
         template <class K>
-        std::optional<std::pair<KeyType, osg::ref_ptr<osg::Object>>> lowerBound(K&& key)
+        std::optional<std::pair<KeyType, vsg::ref_ptr<vsg::Object>>> lowerBound(K&& key)
         {
             const std::lock_guard<std::mutex> lock(mMutex);
             const auto it = mItems.lower_bound(std::forward<K>(key));

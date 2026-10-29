@@ -14,7 +14,7 @@
 #include <Jolt/Physics/Body/BodyManager.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 
-#include <osg/Timer>
+#include <chrono>
 
 #include "components/misc/budgetmeasurement.hpp"
 #include "physicssystem.hpp"
@@ -55,8 +55,7 @@ namespace MWPhysics
         /// @param timeAccum accumulated time from previous run to interpolate movements
         /// @param actorsData per actor data needed to compute new positions
         /// @return new position of each actor
-        void applyQueuedMovements(float& timeAccum, std::vector<Simulation>& simulations, osg::Timer_t frameStart,
-            unsigned int frameNumber, osg::Stats& stats);
+        void applyQueuedMovements(float& timeAccum, std::vector<Simulation>& simulations);
 
         void resetSimulation(const ActorMap& actors);
         void syncSimulation();
@@ -90,13 +89,11 @@ namespace MWPhysics
         bool hasLineOfSight(const Actor* actor1, const Actor* actor2);
         void refreshLOSCache();
         void updatePtrAabb(const std::shared_ptr<PtrHolder>& ptr);
-        void updateStats(osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats);
         std::tuple<unsigned, float> calculateStepConfig(float timeAccum) const;
         void afterPreStep();
         void afterPostStep();
         void afterPostSim();
-        void prepareWork(float& timeAccum, std::vector<Simulation>& simulations, osg::Timer_t frameStart,
-            unsigned int frameNumber, osg::Stats& stats);
+        void prepareWork(float& timeAccum, std::vector<Simulation>& simulations);
 
         JPH::PhysicsSystem* mPhysicsSystem;
         JPH::JobSystem* mJobSystem;
@@ -121,18 +118,13 @@ namespace MWPhysics
         mutable std::shared_mutex mSimulationMutex;
         mutable std::shared_mutex mLOSCacheMutex;
 
-        unsigned int mFrameNumber;
-        const osg::Timer* mTimer;
 
         unsigned mPrevStepCount;
         Misc::BudgetMeasurement mBudget;
         Misc::BudgetMeasurement mAsyncBudget;
         unsigned int mBudgetCursor;
-        osg::Timer_t mAsyncStartTime;
-        osg::Timer_t mTimeBegin;
-        osg::Timer_t mTimeEnd;
-        osg::Timer_t mFrameStart;
-        bool mHasPendingTimingStats;
+        std::chrono::steady_clock::time_point mAsyncStartTime;
+        std::chrono::steady_clock::time_point mTimeEnd;
 
         JPH::JobSystem::Barrier* mSimulationBarrier;
     };

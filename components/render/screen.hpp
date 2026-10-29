@@ -16,10 +16,10 @@ namespace Render
     }
     */
 
-    vsg::vec2 worldToScreen(const vsg::dmat4& viewProj, vsg::dvec3 world)
+    inline vsg::vec2 worldToScreen(const vsg::dmat4& viewProj, vsg::dvec3 world)
     {
         auto ndc = viewProj * world;
-        return { (ndc.x + 1) * 0.5, (ndc.y + 1) * 0.5 };
+        return { static_cast<float>((ndc.x + 1) * 0.5), static_cast<float>((ndc.y + 1) * 0.5) };
     }
 }
 

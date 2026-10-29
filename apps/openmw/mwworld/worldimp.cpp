@@ -24,12 +24,10 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadstat.hpp>
-/*
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loaddoor.hpp>
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadwrld.hpp>
-*/
 #include <components/fallback/fallback.hpp>
 #include <components/mwanimation/object.hpp>
 #include <components/vsgadapters/osgcompat.hpp>
@@ -221,8 +219,19 @@ namespace MWWorld
 
     void World::adjustSky()
     {
-        bool enabled = mSky && (isCellExterior() || isCellQuasiExterior());
+        // openeden-vsg: the console's ToggleSky switches vsgopenmw's sky render mode (see toggleSky), so the sky is
+        // enabled here by cell type alone.
+        bool enabled = isCellExterior() || isCellQuasiExterior();
+        if (enabled)
+            updateSkyDate();
         mRendering->setSkyEnabled(enabled);
+    }
+
+    void World::updateSkyDate()
+    {
+        // openeden-vsg: vsgopenmw's sky takes the date (moon phases) from here.
+        ESM::EpochTimeStamp currentDate = mTimeManager->getEpochTimeStamp();
+        mRendering->skySetDate(currentDate.mDay, currentDate.mMonth);
     }
 
     World::World(MWRender::RenderManager& render, Resource::ResourceSystem* resourceSystem,
@@ -247,11 +256,10 @@ namespace MWWorld
         , mPlayerInJail(false)
         , mSpellPreloadTimer(0.f)
     {
-        if (encoder)
-            mReaders.setStatelessEncoder(encoder->getStatelessEncoder());
-
         mRendering = &render;
-        mPhysics = std::make_unique<MWPhysics::PhysicsSystem>(resourceSystem);
+        // As OpenMW 0.51's NifFileManager did, physics decodes NIF strings with the content encoder.
+        mPhysics = std::make_unique<MWPhysics::PhysicsSystem>(
+            resourceSystem, encoder ? &encoder->getStatelessEncoder() : nullptr);
 
         mContentFiles = contentFiles;
         mESMVersions.resize(mContentFiles.size(), -1);
@@ -260,7 +268,8 @@ namespace MWWorld
         if (state.abort)
             return;
 
-        MWBase::Environment::get().getLuaManager()->contentFilesLoaded();
+        // openeden-vsg: the Lua manager is created by the Game state after the World, so LuaManager::init() calls
+        // contentFilesLoaded() (with OpenMW 0.51's initPreLoad and initPostLoad around it) instead of this constructor.
 
         fillGlobalVariables();
 
@@ -308,6 +317,11 @@ namespace MWWorld
         renderPlayer();
         mRendering->getCamera()->reset();
 
+        // we don't want old weather to persist on a new game
+        // Note that if reset later, the initial ChangeWeather that the chargen script calls will be lost.
+        mWeatherManager.reset();
+        mWeatherManager = std::make_unique<MWWorld::WeatherManager>(*mRendering, mStore);
+
         if (!bypass)
         {
             // set new game mark
@@ -318,33 +332,9 @@ namespace MWWorld
 
         MWBase::Environment::get().getLuaManager()->newGameStarted();
 
-        for (int i = 0; i < 5; ++i)
-            MWBase::Environment::get().getScriptManager()->getGlobalScripts().run();
-        if (!getPlayerPtr().isInCell())
-        {
-            ESM::Position pos;
-            const int cellSize = Constants::CellSizeInUnits;
-            pos.pos[0] = cellSize / 2;
-            pos.pos[1] = cellSize / 2;
-            pos.pos[2] = 0;
-            pos.rot[0] = 0;
-            pos.rot[1] = 0;
-            pos.rot[2] = 0;
+        // openeden-vsg: running the startup scripts, moving to the start cell and playing the new game video are
+        // done by MWState::NewGame over the following frames.
 
-            ESM::ExteriorCellLocation exteriorCellPos = ESM::positionToExteriorCellLocation(pos.pos[0], pos.pos[1]);
-            ESM::RefId cellId = ESM::RefId::esm3ExteriorCell(exteriorCellPos.mX, exteriorCellPos.mY);
-            mWorldScene->changeToExteriorCell(cellId, pos, true);
-        }
-
-        if (!bypass)
-        {
-            std::string_view video = Fallback::Map::getString("Movies_New_Game");
-            if (!video.empty())
-            {
-                MWBase::Environment::get().getSoundManager()->stopMusic();
-                MWBase::Environment::get().getWindowManager()->playVideo(video, true);
-            }
-        }
         // enable collision
         if (!mPhysics->toggleCollisionMode())
             mPhysics->toggleCollisionMode();
@@ -417,7 +407,7 @@ namespace MWWorld
 
         mStore.write(writer, progress); // dynamic Store must be written (and read) before Cells, so that
                                         // references to custom made records will be recognized
-        mWorldModel.write(writer, progress); // the player's cell needs to be loaded before the player
+        mWorldModel.write(writer, state); // the player's cell needs to be loaded before the player
         mPlayer->write(writer, progress);
 
         mGlobalVariables.write(writer, progress);
@@ -549,12 +539,14 @@ namespace MWWorld
     void World::setGlobalInt(GlobalVariableName name, int value)
     {
         mTimeManager->updateGlobalInt(name, value);
+        updateSkyDate();
         mGlobalVariables[name].setInteger(value);
     }
 
     void World::setGlobalFloat(GlobalVariableName name, float value)
     {
         mTimeManager->updateGlobalFloat(name, value);
+        updateSkyDate();
         mGlobalVariables[name].setFloat(value);
     }
 
@@ -823,11 +815,13 @@ namespace MWWorld
 
         mWeatherManager->advanceTime(hours, incremental);
         mTimeManager->advanceTime(hours, mGlobalVariables);
+        updateSkyDate();
 
         if (!incremental)
         {
             mRendering->notifyWorldSpaceChanged();
             mProjectileManager->clear();
+            mDiscardMovements = true;
         }
     }
 
@@ -866,11 +860,17 @@ namespace MWWorld
     void World::changeToCell(
         const ESM::RefId& cellId, const ESM::Position& position, bool adjustPlayerPos, bool changeEvent)
     {
+        mPhysics->clearQueuedMovement();
+        mDiscardMovements = true;
+
         auto changeCell = std::make_shared<MWState::ChangeCell>(*mWorldScene);
         changeCell->cell = cellId;
         changeCell->position = position;
         changeCell->changeEvent = changeEvent;
         changeCell->onCellChanged = [this, position, adjustPlayerPos, changeEvent](const MWWorld::CellStore& cellStore) {
+            // Movement queued while the cell loaded belongs to the previous cell.
+            mPhysics->clearQueuedMovement();
+            mDiscardMovements = true;
             if (mCurrentWorldSpace != cellStore.getCell()->getNameId())
             {
                 if (changeEvent)
@@ -1104,6 +1104,8 @@ namespace MWWorld
                 stateMgr.pushGameState(changeCellGrid);
                 changeCellGrid->pushPreloadState(stateMgr);
             }
+            else
+                mWorldScene->playerMoved(position);
         }
         else
         {
@@ -1375,8 +1377,9 @@ namespace MWWorld
     {
         processDoors(duration);
         mProjectileManager->update(duration);
-        mPhysics->stepSimulation(duration);
+        mPhysics->stepSimulation(duration, mDiscardMovements);
         mProjectileManager->processHits();
+        mDiscardMovements = false;
         mPhysics->moveActors();
     }
 
@@ -2537,13 +2540,11 @@ namespace MWWorld
 
     static std::optional<ESM::Position> searchMarkerPosition(const CellStore& cellStore, std::string_view editorId)
     {
-        /*
         for (const MWWorld::LiveCellRef<ESM4::Static>& stat4 : cellStore.getReadOnlyEsm4Statics().mList)
         {
             if (Misc::StringUtils::lowerCase(stat4.mBase->mEditorId) == editorId)
                 return stat4.mRef.getPosition();
         }
-        */
         return std::nullopt;
     }
 
@@ -2557,7 +2558,6 @@ namespace MWWorld
                 continue;
             sortedDoors.push_back(&door.mRef);
         }
-        /*
         for (const MWWorld::LiveCellRef<ESM4::Door>& door : cellStore.getReadOnlyEsm4Doors().mList)
         {
             if (!door.mRef.getTeleport())
@@ -2565,7 +2565,6 @@ namespace MWWorld
             sortedDoors.push_back(&door.mRef);
         }
 
-        */
 
         // Sort teleporting doors alphabetically, first by ID, then by destination cell to make search consistent
         std::sort(sortedDoors.begin(), sortedDoors.end(), [](const MWWorld::CellRef* lhs, const MWWorld::CellRef* rhs) {
@@ -2593,14 +2592,12 @@ namespace MWWorld
                     return doorDest;
                 }
             }
-        /*
             for (const MWWorld::LiveCellRef<ESM4::Door>& destDoor : source.getReadOnlyEsm4Doors().mList)
             {
                 if (cellId == destDoor.mRef.getDestCell())
                     return destDoor.mRef.getDoorDest();
             }
 
-        */
         }
 
         return std::nullopt;
@@ -2633,7 +2630,6 @@ namespace MWWorld
         }
 
         // Fall back to the first static location.
-        /*
         const MWWorld::CellRefList<ESM4::Static>::List& statics4 = cellStore->getReadOnlyEsm4Statics().mList;
         if (!statics4.empty())
         {
@@ -2642,7 +2638,6 @@ namespace MWWorld
             return cellId;
         }
 
-        */
         const MWWorld::CellRefList<ESM::Static>::List& statics = cellStore->getReadOnlyStatics().mList;
         if (!statics.empty())
         {
@@ -3592,10 +3587,11 @@ namespace MWWorld
     }
 
     void World::spawnEffect(VFS::Path::NormalizedView model, const std::string& textureOverride,
-        const osg::Vec3f& worldPos, float scale, bool isMagicVFX, bool useAmbientLight, std::string_view effectId,
-        bool loop)
+        const osg::Vec3f& worldPos, float scale, bool isMagicVFX, [[maybe_unused]] bool useAmbientLight,
+        std::string_view effectId, bool loop)
     {
-        mRendering->spawnEffect(std::string(model), textureOverride, worldPos, scale, isMagicVFX);
+        // openeden-vsg: useAmbientLight is not applied yet; vsgopenmw lights effects as its materials say.
+        mRendering->spawnEffect(std::string(model.value()), textureOverride, worldPos, scale, isMagicVFX, effectId, loop);
     }
 
     void World::removeEffect(std::string_view effectId)
@@ -3748,13 +3744,6 @@ namespace MWWorld
         const float maxHalfExtent = std::max(halfExtents.x(), std::max(halfExtents.y(), halfExtents.z()));
         const std::array<MWWorld::ConstPtr, 1> ignore{ actor };
         return mPhysics->isAreaOccupiedByOtherActor(position, 2 * maxHalfExtent, ignore, nullptr);
-    }
-
-    void World::reportStats(unsigned int frameNumber, osg::Stats& stats) const
-    {
-        DetourNavigator::reportStats(mNavigator->getStats(), frameNumber, stats);
-        mPhysics->reportStats(frameNumber, stats);
-        mWorldScene->reportStats(frameNumber, stats);
     }
 
     std::vector<MWWorld::Ptr> World::getAll(const ESM::RefId& id)

@@ -6,14 +6,13 @@
 
 #include <Jolt/Jolt.h>
 
-#include <osg/ref_ptr>
+#include <vsg/core/ref_ptr.h>
 
 #include "physicsshape.hpp"
 #include "resourcemanager.hpp"
 
 namespace Resource
 {
-    class SceneManager;
     class NifFileManager;
 
     struct PhysicsShape;
@@ -27,34 +26,31 @@ namespace Resource
     class PhysicsShapeManager : public ResourceManager
     {
     public:
-        PhysicsShapeManager(
-            const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, double expiryDelay);
+        PhysicsShapeManager(const VFS::Manager* vfs, NifFileManager* nifFileManager, double expiryDelay);
         ~PhysicsShapeManager();
 
         /// @note May return a null pointer if the object has no shape.
-        osg::ref_ptr<const PhysicsShape> getShape(VFS::Path::NormalizedView name);
+        vsg::ref_ptr<const PhysicsShape> getShape(VFS::Path::NormalizedView name);
 
         /// Create an instance of the given shape and cache it for later use, so that future calls to getInstance() can
         /// simply return the cached instance instead of having to create a new one.
         /// @note The returned ref_ptr may be kept by the caller to ensure that the instance stays in cache for as long
         /// as needed.
-        osg::ref_ptr<PhysicsShapeInstance> cacheInstance(VFS::Path::NormalizedView name);
+        vsg::ref_ptr<PhysicsShapeInstance> cacheInstance(VFS::Path::NormalizedView name);
 
         /// @note May return a null pointer if the object has no shape.
-        osg::ref_ptr<PhysicsShapeInstance> getInstance(VFS::Path::NormalizedView name);
+        vsg::ref_ptr<PhysicsShapeInstance> getInstance(VFS::Path::NormalizedView name);
 
         /// @see ResourceManager::updateCache
         void updateCache(double referenceTime) override;
 
         void clearCache() override;
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
 
     private:
-        osg::ref_ptr<PhysicsShapeInstance> createInstance(VFS::Path::NormalizedView name);
+        vsg::ref_ptr<PhysicsShapeInstance> createInstance(VFS::Path::NormalizedView name);
 
-        osg::ref_ptr<MultiObjectCache> mInstanceCache;
-        SceneManager* mSceneManager;
+        vsg::ref_ptr<MultiObjectCache> mInstanceCache;
         NifFileManager* mNifFileManager;
     };
 

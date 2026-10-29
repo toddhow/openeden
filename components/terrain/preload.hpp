@@ -7,7 +7,7 @@
 
 namespace vsgUtil
 {
-    class Operation;
+    struct Operation;
 }
 namespace Terrain
 {

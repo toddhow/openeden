@@ -1,7 +1,6 @@
 #ifndef OPENMW_MWLUA_WORKER_H
 #define OPENMW_MWLUA_WORKER_H
 
-#include <vector>
 #include <condition_variable>
 #include <mutex>
 #include <optional>
@@ -32,7 +31,7 @@ namespace MWLua
         LuaManager& mManager;
         std::mutex mMutex;
         std::condition_variable mCV;
-        std::vector<float /*dt*/> mUpdateRequest;
+        std::optional<float> mUpdateRequest; // the frame duration of the requested update
         bool mJoinRequest = false;
         std::optional<std::thread> mThread;
     };

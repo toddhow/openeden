@@ -5,10 +5,8 @@
 #include "../mwbase/environment.hpp"
 
 #include <components/esm3/loadcell.hpp>
-/*
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadwrld.hpp>
-*/
 #include <components/misc/algorithm.hpp>
 
 #include <stdexcept>
@@ -16,7 +14,6 @@
 
 namespace MWWorld
 {
-    /*
     namespace
     {
         std::string getDescription(const ESM4::World& value)
@@ -76,7 +73,6 @@ namespace MWWorld
         }
         mDescription = getCellDescription(cell, world);
     }
-    */
 
     Cell::Cell(const ESM::Cell& cell)
         : ESM::CellVariant(cell)

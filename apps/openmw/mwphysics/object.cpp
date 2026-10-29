@@ -1,16 +1,25 @@
 #include "object.hpp"
 #include "mtphysics.hpp"
 
+#include <vsg/maths/transform.h>
+#include <vsg/nodes/Transform.h>
+
+#include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
-#include <components/nifosg/nifloader.hpp>
-#include <components/nifosg/particle.hpp>
+#include <components/mwanimation/object.hpp>
 #include <components/physicshelpers/collisionobject.hpp>
 #include <components/resource/physicsshape.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/vsgadapters/osgcompat.hpp>
+#include <components/vsgutil/id.hpp>
+#include <components/vsgutil/nodepath.hpp>
+#include <components/vsgutil/traverse.hpp>
 
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
+
+#include "../mwbase/environment.hpp"
+#include "../mwbase/world.hpp"
 
 namespace MWPhysics
 {
@@ -18,9 +27,27 @@ namespace MWPhysics
     {
         std::mutex sCollidedObjectsMutex;
         std::vector<const MWWorld::LiveCellRefBase*> sCollidedObjects;
+
+        // Finds the path to the transform tagged with a NIF record index by vsgopenmw's NIF reader.
+        class GetNodePath : public vsgUtil::SearchPath<const vsg::Transform*>,
+                            public vsgUtil::TConstTraverse<vsg::Node>
+        {
+        public:
+            int needle{};
+            using vsg::ConstVisitor::apply;
+            void apply(const vsg::Transform& node) override
+            {
+                auto ppn = pushPop(&node);
+                auto id = vsgUtil::ID::get(node);
+                if (id && id->id == needle)
+                    foundPath = this->path;
+                else
+                    traverseNode(node, *this);
+            }
+        };
     }
 
-    Object::Object(const MWWorld::Ptr& ptr, osg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance,
+    Object::Object(const MWWorld::Ptr& ptr, vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance,
         osg::Quat rotation, int collisionType, PhysicsTaskScheduler* scheduler)
         : PtrHolder(ptr, osg::Vec3f())
         , mShapeInstance(std::move(shapeInstance))
@@ -53,9 +80,9 @@ namespace MWPhysics
         mTaskScheduler->destroyCollisionObject(mPhysicsBody);
     }
 
-    const Resource::PhysicsShapeInstance* Object::getShapeInstance() const
+    vsg::ref_ptr<const Resource::PhysicsShapeInstance> Object::getShapeInstance() const
     {
-        return mShapeInstance.get();
+        return mShapeInstance;
     }
 
     void Object::setScale(float scale)
@@ -150,7 +177,8 @@ namespace MWPhysics
         if (mShapeInstance->mAnimatedShapes.empty())
             return false;
 
-        if (!mPtr.getRefData().getBaseNode())
+        const MWAnim::Object* animation = MWBase::Environment::get().getWorld()->getAnimation(mPtr);
+        if (!animation)
             return false;
 
         JPH::BodyLockWrite lock(mTaskScheduler->getBodyLockInterface(), getPhysicsBody());
@@ -160,18 +188,18 @@ namespace MWPhysics
 
         JPH::MutableCompoundShape* compound = static_cast<JPH::MutableCompoundShape*>(mBasePhysicsShape.GetPtr());
 
-        const auto getNodePathByRecordIndex = [this](int recordIndex) -> osg::NodePath* {
+        using NodePath = std::vector<const vsg::Transform*>;
+        const auto getNodePathByRecordIndex = [&](int recordIndex) -> NodePath* {
             auto nodePathFound = mRecIndexToNodePath.find(recordIndex);
             if (nodePathFound == mRecIndexToNodePath.end())
             {
-                NifOsg::FindGroupByRecordIndex visitor(static_cast<unsigned int>(recordIndex));
-                mPtr.getRefData().getBaseNode()->accept(visitor);
-                if (!visitor.mFound)
+                GetNodePath visitor;
+                visitor.needle = recordIndex;
+                animation->transform()->traverse(visitor);
+                if (visitor.foundPath.empty())
                     return nullptr;
 
-                osg::NodePath nodePath = visitor.mFoundPath;
-                nodePath.erase(nodePath.begin());
-                nodePathFound = mRecIndexToNodePath.emplace(recordIndex, std::move(nodePath)).first;
+                nodePathFound = mRecIndexToNodePath.emplace(recordIndex, std::move(visitor.foundPath)).first;
             }
 
             return &nodePathFound->second;
@@ -180,7 +208,7 @@ namespace MWPhysics
         bool result = false;
         for (const auto& [recordIndex, shapeIndex] : mShapeInstance->mAnimatedShapes)
         {
-            osg::NodePath* nodePath = getNodePathByRecordIndex(recordIndex);
+            NodePath* nodePath = getNodePathByRecordIndex(recordIndex);
             if (!nodePath)
             {
                 Log(Debug::Warning) << "Warning: animateCollisionShapes can't find node " << recordIndex << " for "
@@ -202,9 +230,8 @@ namespace MWPhysics
             if (const auto collisionSwitch = mShapeInstance->mCollisionSwitches.find(recordIndex);
                 collisionSwitch != mShapeInstance->mCollisionSwitches.end())
             {
-                osg::NodePath* switchNodePath = getNodePathByRecordIndex(collisionSwitch->second);
-                if (switchNodePath && !switchNodePath->empty()
-                    && switchNodePath->back()->getNodeMask() == NifOsg::Loader::getIntersectionDisabledNodeMask())
+                // The switch state comes from the NIF record, not the render graph, which no longer marks it.
+                if (mShapeInstance->mDisabledCollisionSwitches.contains(collisionSwitch->second))
                 {
                     static const JPH::Vec3 disabledPosition(1.0e8f, 1.0e8f, 1.0e8f);
                     static const JPH::Quat disabledRotation = JPH::Quat::sIdentity();
@@ -217,7 +244,7 @@ namespace MWPhysics
                 }
             }
 
-            osg::Matrixf matrix = osg::computeLocalToWorld(*nodePath);
+            osg::Matrixf matrix = toOsg(vsg::mat4(vsg::computeTransform(*nodePath)));
             osg::Vec3f scale = matrix.getScale();
             matrix.orthoNormalize(matrix);
 

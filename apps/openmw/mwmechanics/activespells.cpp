@@ -424,7 +424,7 @@ namespace MWMechanics
         }
         if (reflected)
         {
-            MWRender::addEffect(ptr, ESM::RefId::stringRefId("VFX_Reflect"), ESM::MagicEffect::Reflect);
+            MWRender::addEffect(ptr, ESM::RefId::stringRefId("VFX_Reflect"), ESM::MagicEffect::Reflect.getValue(), false);
             caster.getClass().getCreatureStats(caster).getActiveSpells().addSpell(*reflected);
         }
         if (removedSpell)

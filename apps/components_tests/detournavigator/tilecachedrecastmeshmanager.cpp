@@ -22,8 +22,8 @@ namespace
     {
         RecastSettings mSettings;
         const ObjectTransform mObjectTransform{ ESM::Position{ { 0, 0, 0 }, { 0, 0, 0 } }, 0.0f };
-        const osg::ref_ptr<const Resource::PhysicsShape> mShape = new Resource::PhysicsShape;
-        const osg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance = new Resource::PhysicsShapeInstance(mShape);
+        const vsg::ref_ptr<const Resource::PhysicsShape> mShape{ new Resource::PhysicsShape };
+        const vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance{ new Resource::PhysicsShapeInstance(mShape) };
         const ESM::RefId mWorldspace = ESM::RefId::stringRefId("worldspace");
         const ESM::RefId mOtherWorldspace = ESM::RefId::stringRefId("other");
 

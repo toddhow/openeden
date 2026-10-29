@@ -26,7 +26,7 @@ namespace MWAnim
         remove_if([dt](Effect& e) { return !e.run(dt); });
     }
 
-    void Effects::remove(std::optional<int> effectId)
+    void Effects::remove(std::optional<std::string_view> effectId)
     {
         remove_if([effectId](Effect& e) { return !effectId || e.effectId == *effectId; });
     }
@@ -38,7 +38,7 @@ namespace MWAnim
     }
 
     void addEffect(MWAnim::Object& obj, vsg::Group* attachBone, vsg::ref_ptr<vsg::Node> prototype, const std::vector<Anim::Transform*>& worldAttachmentPath,
-        int effectId, bool loop, const std::string& overrideTexture, bool overrideAllTextures)
+        std::string_view effectId, bool loop, const std::string& overrideTexture, bool overrideAllTextures)
     {
         auto effects = Effects::getOrCreate(*obj.node());
         for (auto& e : effects->effects)
@@ -65,7 +65,7 @@ namespace MWAnim
         effects->effects.push_back(effect);
     }
 
-    void removeEffect(vsg::Node& root, std::optional<int> effectId)
+    void removeEffect(vsg::Node& root, std::optional<std::string_view> effectId)
     {
         if (auto effects = Effects::get(root))
             effects->remove(effectId);
@@ -73,7 +73,7 @@ namespace MWAnim
             root.removeObject(Effects::sAttachKey);
     }
 
-    void getLoopingEffects(const vsg::Node& root, std::vector<int>& out)
+    void getLoopingEffects(const vsg::Node& root, std::vector<std::string>& out)
     {
         if (auto effects = Effects::get(root))
             for (auto& e : effects->effects)

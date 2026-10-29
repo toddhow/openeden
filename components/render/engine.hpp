@@ -31,7 +31,7 @@ namespace vsgUtil
 }
 namespace Render
 {
-    class Screenshot;
+    struct Screenshot;
     class Headless;
 
     /*

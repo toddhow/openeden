@@ -5,6 +5,7 @@
 #include <components/resource/physicsshape.hpp>
 
 #include <osg/ref_ptr>
+#include <vsg/core/ref_ptr.h>
 
 #include <functional>
 #include <vector>
@@ -34,7 +35,7 @@ namespace Resource
 {
     struct PhysicsObject
     {
-        osg::ref_ptr<const Resource::PhysicsShape> mShape;
+        vsg::ref_ptr<const Resource::PhysicsShape> mShape;
         ESM::Position mPosition;
         float mScale;
     };

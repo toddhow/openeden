@@ -8,7 +8,7 @@ namespace vsg
 namespace Anim
 {
     class Bones;
-    class Mask;
+    struct Mask;
     class Transform;
 
     /*

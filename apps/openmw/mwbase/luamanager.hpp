@@ -10,8 +10,13 @@
 
 #include "../mwgui/mode.hpp"
 #include "../mwmechanics/damagesourcetype.hpp"
-#include "../mwrender/animationpriority.hpp"
 #include <components/sdlutil/events.hpp>
+
+// openeden-vsg: animation priorities are vsgopenmw's MWAnim::Priority (components/mwanimation/groups.hpp).
+namespace MWAnim
+{
+    struct Priority;
+}
 
 namespace MWWorld
 {
@@ -75,7 +80,7 @@ namespace MWBase
         virtual void useItem(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, bool force) = 0;
         virtual void animationTextKey(const MWWorld::Ptr& actor, const std::string& key) = 0;
         virtual void playAnimation(const MWWorld::Ptr& object, const std::string& groupname,
-            const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
+            const MWAnim::Priority& priority, int blendMask, bool autodisable, float speedmult,
             std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
             = 0;
         virtual void animationEnded(const MWWorld::Ptr& actor, std::string_view groupname, float time, float completion,

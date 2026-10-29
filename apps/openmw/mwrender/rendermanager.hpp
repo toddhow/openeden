@@ -49,18 +49,18 @@ namespace vsg
 namespace vsgUtil
 {
     class SuspendRenderPass;
-    class CompileOp;
+    struct CompileOp;
     class CompileContext;
     class UpdateThreads;
 }
 namespace View
 {
     class LightGrid;
-    class Scene;
+    struct Scene;
 }
 namespace ESM
 {
-    class Cell;
+    struct Cell;
 }
 namespace Terrain
 {
@@ -75,7 +75,7 @@ namespace DetourNavigator
 namespace MWAnim
 {
     class Object;
-    class Context;
+    struct Context;
 }
 namespace MWRender
 {
@@ -96,7 +96,7 @@ namespace MWRender
     class ActorsPaths;
     class RecastMesh;
     class Shadow;
-    class ScreenshotInterface;
+    struct ScreenshotInterface;
     class Map;
     class WorldMap;
     class Preview;
@@ -178,6 +178,11 @@ namespace MWRender
         /// Get the bounding box of the given object in screen coordinates as (minX, minY, maxX, maxY), with (0,0) being
         /// the top left corner.
         osg::Vec4f getScreenBounds(const osg::BoundingBox& worldbb);
+        /// Normalized screen position of the top centre of the box, from the top left; (0.5, 0) if it is off screen.
+        osg::Vec2f getScreenCoords(const osg::BoundingBox& bb);
+
+        /// The sun light as OpenMW 0.51 reports it: the direction towards the sun, with w = 0.
+        const osg::Vec4f& getSunLightPosition() const { return mSunLightPosition; }
 
         bool toggleRenderMode(RenderMode mode);
         void setRenderModeActive(RenderMode mode, bool enabled);
@@ -186,7 +191,9 @@ namespace MWRender
         Sky* getSky();
 
         void spawnEffect(const std::string& model, std::string_view texture, const osg::Vec3f& worldPosition,
-            float scale = 1.f, bool isMagicVFX = true);
+            float scale = 1.f, bool isMagicVFX = true, std::string_view effectId = {}, bool loop = false);
+        /// Removes the spawned effects with this ID (OpenMW 0.51 Lua VFX).
+        void removeEffect(std::string_view effectId);
 
         /// Clear all savegame-specific data
         void clear();
@@ -321,6 +328,7 @@ namespace MWRender
         vsg::vec4 mLightDiffuse;
         vsg::vec4 mLightSpecular;
         vsg::vec3 mLightPosition;
+        osg::Vec4f mSunLightPosition;
         float mMinimumAmbientLuminance;
         float mNightEyeFactor = 0;
 

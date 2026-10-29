@@ -4,11 +4,13 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <set>
 
 #include <osg/Matrixd>
-#include <osg/Object>
 #include <osg/Vec3f>
-#include <osg/ref_ptr>
+
+#include <vsg/core/Object.h>
+#include <vsg/core/ref_ptr.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
@@ -37,7 +39,8 @@ namespace Resource
         Camera
     };
 
-    struct PhysicsShape : public osg::Object
+    // openeden-vsg: reference counted by vsg::Object, as the OSG library is no longer linked (Track V).
+    struct PhysicsShape : public vsg::Object
     {
         CollisionShapePtr mCollisionShape;
         CollisionShapePtr mAvoidCollisionShape;
@@ -53,6 +56,8 @@ namespace Resource
         std::map<int, int> mAnimatedShapes;
         // Maps shape record index to controlling NiCollisionSwitch record index.
         std::map<int, int> mCollisionSwitches;
+        // Record indices of NiCollisionSwitch nodes whose collision is switched off in the NIF.
+        std::set<int> mDisabledCollisionSwitches;
 
         VFS::Path::Normalized mFileName;
         std::string mFileHash;
@@ -61,9 +66,7 @@ namespace Resource
 
         PhysicsShape() = default;
         // Note this is always a shallow copy and the copy will not autodelete underlying vertex data
-        PhysicsShape(const PhysicsShape& other, const osg::CopyOp& copyOp = osg::CopyOp());
-
-        META_Object(Resource, PhysicsShape)
+        PhysicsShape(const PhysicsShape& other);
 
         bool isAnimated() const { return !mAnimatedShapes.empty(); }
     };
@@ -74,15 +77,15 @@ namespace Resource
     class PhysicsShapeInstance : public PhysicsShape
     {
     public:
-        explicit PhysicsShapeInstance(osg::ref_ptr<const PhysicsShape> source);
+        explicit PhysicsShapeInstance(vsg::ref_ptr<const PhysicsShape> source);
 
-        const osg::ref_ptr<const PhysicsShape>& getSource() const { return mSource; }
+        const vsg::ref_ptr<const PhysicsShape>& getSource() const { return mSource; }
 
     private:
-        osg::ref_ptr<const PhysicsShape> mSource;
+        vsg::ref_ptr<const PhysicsShape> mSource;
     };
 
-    osg::ref_ptr<PhysicsShapeInstance> makeInstance(osg::ref_ptr<const PhysicsShape> source);
+    vsg::ref_ptr<PhysicsShapeInstance> makeInstance(vsg::ref_ptr<const PhysicsShape> source);
 
     struct TriangleMeshShape
     {

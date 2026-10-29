@@ -3,13 +3,10 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
-#include <components/sceneutil/positionattitudetransform.hpp>
-
 #include "../mwgui/tooltips.hpp"
 
 #include "../mwrender/objects.hpp"
 #include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
 
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwworld/ptr.hpp"
@@ -22,7 +19,6 @@ namespace MWClass
         if (!model.empty())
         {
             renderingInterface.getObjects().insertModel(ptr, model);
-            ptr.getRefData().getBaseNode()->setNodeMask(MWRender::Mask_Static);
         }
     }
 

@@ -53,8 +53,8 @@ namespace MWGui
         mHeight = h;
 
         updateMenu();
-        if (mVideo)
-            mVideo->resize(w, h);
+
+
     }
 
     void MainMenu::setVisible(bool visible)

@@ -54,7 +54,7 @@ namespace
     {
         TileBounds mBounds;
         const Version mVersion{ 0, 0 };
-        const osg::ref_ptr<const Resource::PhysicsShape> mSource{ nullptr };
+        const vsg::ref_ptr<const Resource::PhysicsShape> mSource{ nullptr };
         const ObjectTransform mObjectTransform{ ESM::Position{ { 0, 0, 0 }, { 0, 0, 0 } }, 0.0f };
 
         DetourNavigatorRecastMeshBuilderTest()

@@ -3,9 +3,13 @@
 
 #include <map>
 #include <mutex>
-#include <string>
 
 #include <vsg/core/Object.h>
+#include <vsg/core/ref_ptr.h>
+
+#include <components/vfs/pathutil.hpp>
+
+#include "cachestats.hpp"
 
 namespace Resource
 {
@@ -14,26 +18,26 @@ namespace Resource
     class MultiObjectCache : public vsg::Object
     {
     public:
-        MultiObjectCache();
-        ~MultiObjectCache();
-
         void removeUnreferencedObjectsInCache();
 
         /** Remove all objects from the cache. */
         void clear();
 
-        void addEntryToObjectCache(const std::string& filename, vsg::Object* object);
+        void addEntryToObjectCache(VFS::Path::NormalizedView filename, vsg::Object* object);
 
         /** Take an Object from cache. Return nullptr if no object found. */
-        vsg::ref_ptr<vsg::Object> takeFromObjectCache(const std::string& fileName);
+        vsg::ref_ptr<vsg::Object> takeFromObjectCache(VFS::Path::NormalizedView fileName);
 
-        unsigned int getCacheSize() const;
+        CacheStats getStats() const;
 
     protected:
-        typedef std::multimap<std::string, vsg::ref_ptr<vsg::Object>> ObjectCacheMap;
+        typedef std::multimap<VFS::Path::Normalized, vsg::ref_ptr<vsg::Object>, std::less<>> ObjectCacheMap;
 
         ObjectCacheMap _objectCache;
         mutable std::mutex _objectCacheMutex;
+        std::size_t mGet = 0;
+        std::size_t mHit = 0;
+        std::size_t mExpired = 0;
     };
 
 }

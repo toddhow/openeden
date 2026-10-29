@@ -494,7 +494,7 @@ namespace DetourNavigator
     std::shared_ptr<RecastMesh> TileCachedRecastMeshManager::makeMesh(const TilePosition& tilePosition) const
     {
         RecastMeshBuilder builder(makeRealTileBoundsWithBorder(mSettings, tilePosition));
-        using Object = std::tuple<osg::ref_ptr<const Resource::PhysicsShapeInstance>, ObjectTransform,
+        using Object = std::tuple<vsg::ref_ptr<const Resource::PhysicsShapeInstance>, ObjectTransform,
             std::reference_wrapper<const JPH::Shape>, osg::Matrixd, AreaType>;
         std::vector<Object> objects;
         Version version;

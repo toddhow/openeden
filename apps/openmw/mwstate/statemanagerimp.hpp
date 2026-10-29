@@ -10,7 +10,7 @@
 
 namespace MWRender
 {
-    class ScreenshotInterface;
+    struct ScreenshotInterface;
 }
 namespace MWState
 {
@@ -24,6 +24,8 @@ namespace MWState
         State mState;
         CharacterManager mCharacterManager;
         double mTimePlayed;
+        // The save most recently loaded or written, offered by askLoadRecent (OpenMW 0.51, bug #7617).
+        std::filesystem::path mLastSavegame;
 
         std::vector<std::shared_ptr<GameState>> mGameStates;
 
@@ -84,6 +86,10 @@ namespace MWState
         void loadGame(const Character* character, const std::filesystem::path& filepath) override;
         ///< Load a saved game file belonging to the given character.
 
+        /// As newGame and loadGame, for Lua menu scripts; both already run as game states on later frames.
+        void requestNewGame() override;
+        void requestLoad(const Character* character, const std::filesystem::path& filepath) override;
+
         void error(const std::string& what);
 
         void mainMenu();
@@ -96,6 +102,9 @@ namespace MWState
         /// iterator.
 
         CharacterIterator characterEnd() override;
+
+        const std::filesystem::path& getLastSavegame() const { return mLastSavegame; }
+        void setLastSavegame(const std::filesystem::path& path) { mLastSavegame = path; }
 
         void update(float duration);
     };

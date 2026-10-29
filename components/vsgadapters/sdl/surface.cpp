@@ -5,6 +5,24 @@
 
 namespace vsgAdapters::sdl
 {
+    namespace
+    {
+        // openeden-vsg: vsgXchange returns PNGs (cursors, the window icon) as _SRGB. SDL surfaces carry no colour
+        // space and the bytes are laid out as in the _UNORM formats, so both are copied the same way.
+        VkFormat toUnorm(VkFormat format)
+        {
+            switch (format)
+            {
+                case VK_FORMAT_R8G8B8A8_SRGB:
+                    return VK_FORMAT_R8G8B8A8_UNORM;
+                case VK_FORMAT_B8G8R8A8_SRGB:
+                    return VK_FORMAT_B8G8R8A8_UNORM;
+                default:
+                    return format;
+            }
+        }
+    }
+
     void fillSurface(SDL_Surface* surface, vsg::ref_ptr<vsg::Data> data)
     {
         int width = data->width();
@@ -12,7 +30,7 @@ namespace vsgAdapters::sdl
         if (surface->w != width || surface->h != height)
             throw std::runtime_error("surface->w != width || surface->h != height");
 
-        auto srcFormat = data->properties.format;
+        auto srcFormat = toUnorm(data->properties.format);
         auto pixelOrder = SDL_PIXELORDER(surface->format->format);
         if (surface->format->BytesPerPixel == data->valueSize() && (
             ((pixelOrder == SDL_PACKEDORDER_ABGR || pixelOrder == SDL_PACKEDORDER_XBGR) && srcFormat == VK_FORMAT_R8G8B8A8_UNORM)

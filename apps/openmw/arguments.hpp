@@ -2,7 +2,7 @@
 #define VSGOPENMW_ARGUMENTS_H
 
 #include <components/files/multidircollection.hpp>
-#include <components/to_utf8/to_utf8.hpp>
+#include <components/toutf8/toutf8.hpp>
 #include <components/esm/refid.hpp>
 
 namespace OMW
@@ -24,7 +24,6 @@ namespace OMW
         int activationDistanceOverride = -1;
         unsigned int randomSeed = 0;
 
-        std::vector<ESM::RefId> scriptBlacklist;
         bool compileAll = false;
         bool compileAllDialogue = false;
         int warningsMode = 1;

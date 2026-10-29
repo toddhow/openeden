@@ -1,7 +1,8 @@
 #ifndef OPENMW_MWPHYSICS_HEIGHTFIELD_H
 #define OPENMW_MWPHYSICS_HEIGHTFIELD_H
 
-#include <osg/ref_ptr>
+#include <vsg/core/Object.h>
+#include <vsg/core/ref_ptr.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyManager.h>
@@ -24,7 +25,7 @@ namespace MWPhysics
     {
     public:
         HeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-            const osg::Object* holdObject, PhysicsTaskScheduler* scheduler);
+            const vsg::Object* holdObject, PhysicsTaskScheduler* scheduler);
         ~HeightField();
 
         const osg::Vec3f& getOrigin() const { return mWorldOrigin; }
@@ -33,7 +34,7 @@ namespace MWPhysics
         JPH::Body* mPhysicsBody; // NOTE: memory is managed by Jolt!
         JPH::ShapeRefC mShapeReference;
         osg::Vec3f mWorldOrigin;
-        osg::ref_ptr<const osg::Object> mHoldObject;
+        vsg::ref_ptr<const vsg::Object> mHoldObject;
 
         PhysicsTaskScheduler* mTaskScheduler;
 

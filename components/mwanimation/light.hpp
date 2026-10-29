@@ -7,7 +7,7 @@
 
 namespace ESM
 {
-    class Light;
+    struct Light;
 }
 namespace MWAnim
 {

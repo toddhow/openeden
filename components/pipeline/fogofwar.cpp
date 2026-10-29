@@ -12,7 +12,7 @@ namespace Pipeline
 {
     vsg::ref_ptr<vsg::BindComputePipeline> fogOfWar(vsg::ref_ptr<const vsg::Options> shaderOptions)
     {
-        auto computeStage = VK_SHADER_STAGE_COMPUTE_BIT;
+        VkShaderStageFlags computeStage = VK_SHADER_STAGE_COMPUTE_BIT;
         vsg::DescriptorSetLayoutBindings bindings{
             { 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, computeStage, nullptr },
         };

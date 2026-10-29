@@ -16,7 +16,7 @@ namespace vsg
 }
 namespace View // namespace vulkanexamples
 {
-    class Cascade;
+    struct Cascade;
 
     /*
      * Renders shadow map.

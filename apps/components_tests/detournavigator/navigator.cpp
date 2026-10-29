@@ -122,11 +122,11 @@ namespace
     }
 
     template <class T>
-    osg::ref_ptr<const Resource::PhysicsShapeInstance> makePhysicsShapeInstance(std::unique_ptr<T>&& shape)
+    vsg::ref_ptr<const Resource::PhysicsShapeInstance> makePhysicsShapeInstance(std::unique_ptr<T>&& shape)
     {
-        osg::ref_ptr<Resource::PhysicsShape> physicsShape(new Resource::PhysicsShape);
+        vsg::ref_ptr<Resource::PhysicsShape> physicsShape(new Resource::PhysicsShape);
         physicsShape->mCollisionShape = std::move(shape).release();
-        return new Resource::PhysicsShapeInstance(physicsShape);
+        return vsg::ref_ptr<const Resource::PhysicsShapeInstance>(new Resource::PhysicsShapeInstance(physicsShape));
     }
 
     template <class T>
@@ -139,10 +139,10 @@ namespace
         }
 
         T& shape() const { return static_cast<T&>(*mInstance->mCollisionShape); }
-        const osg::ref_ptr<const Resource::PhysicsShapeInstance>& instance() const { return mInstance; }
+        const vsg::ref_ptr<const Resource::PhysicsShapeInstance>& instance() const { return mInstance; }
 
     private:
-        osg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
+        vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
     };
 
     inline osg::Vec3f getHeightfieldShift(
@@ -382,7 +382,7 @@ namespace
 
     TEST_F(DetourNavigatorNavigatorTest, path_should_be_around_avoid_shape)
     {
-        osg::ref_ptr<Resource::PhysicsShape> physicsShape(new Resource::PhysicsShape);
+        vsg::ref_ptr<Resource::PhysicsShape> physicsShape(new Resource::PhysicsShape);
 
         std::unique_ptr<JPH::RotatedTranslatedShape> shapePtr
             = makeSquareHeightfieldTerrainShape(defaultHeightfieldData);
@@ -399,7 +399,7 @@ namespace
             = makeSquareHeightfieldTerrainShape(heightfieldDataAvoid);
         physicsShape->mAvoidCollisionShape = shapeAvoidPtr.release();
 
-        osg::ref_ptr<const Resource::PhysicsShapeInstance> instance(new Resource::PhysicsShapeInstance(physicsShape));
+        vsg::ref_ptr<const Resource::PhysicsShapeInstance> instance(new Resource::PhysicsShapeInstance(physicsShape));
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addObject(ObjectId(instance->mCollisionShape.GetPtr()), ObjectShapes(instance, mObjectTransform),

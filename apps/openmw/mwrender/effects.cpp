@@ -21,7 +21,7 @@ namespace MWRender
     Effects::~Effects() {}
 
     void Effects::add(const std::string& model, const std::string& textureOverride, const vsg::vec3& worldPosition,
-        float scale, bool isMagicVFX)
+        float scale, bool isMagicVFX, std::string_view effectId, bool loop)
     {
         auto transform = vsg::ref_ptr{ new Anim::Transform };
         transform->translation = worldPosition;
@@ -29,6 +29,8 @@ namespace MWRender
 
         MWAnim::Effect effect;
         effect.mwctx = mContext;
+        effect.effectId = effectId;
+        effect.loop = loop;
 
         auto [anim, node] = MWAnim::Effect::load(mContext, mContext.readNode(model), textureOverride, !isMagicVFX);
         transform->children = { node };
@@ -41,6 +43,11 @@ namespace MWRender
     void Effects::update(float dt)
     {
         mEffects->update(dt);
+    }
+
+    void Effects::remove(std::string_view effectId)
+    {
+        mEffects->remove(effectId);
     }
 
     void Effects::clear()

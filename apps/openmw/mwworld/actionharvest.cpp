@@ -11,7 +11,6 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-#include "../mwrender/animation.hpp"
 
 #include "class.hpp"
 #include "containerstore.hpp"
@@ -91,9 +90,7 @@ namespace MWWorld
                 MWBase::Environment::get().getWindowManager()->messageBox(tooltip);
         }
 
-        auto world = MWBase::Environment::get().getWorld();
-        MWRender::Animation* anim = world->getAnimation(target);
-        if (anim != nullptr)
-            anim->harvest(target);
+        // openeden-vsg: hiding the harvested parts needs graphic herbalism on VSG, which is off until it is ported
+        // (task 0012, Track V stage V4); Container::canBeHarvested returns false meanwhile.
     }
 }

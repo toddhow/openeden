@@ -13,7 +13,7 @@ namespace Pipeline
     Particle::Particle(vsg::ref_ptr<const vsg::Options> readShaderOptions)
         : mShaderOptions(readShaderOptions)
     {
-        auto computeStage = VK_SHADER_STAGE_COMPUTE_BIT;
+        VkShaderStageFlags computeStage = VK_SHADER_STAGE_COMPUTE_BIT;
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{
             { Descriptors::PARTICLE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, computeStage, nullptr },

@@ -94,6 +94,7 @@ namespace MWWorld
 
         bool mGodMode;
         bool mScriptsEnabled;
+        bool mDiscardMovements = true; // drop the movement queued before a teleport or a time skip
         std::vector<std::string> mContentFiles;
 
         std::filesystem::path mUserDataPath;
@@ -210,6 +211,7 @@ namespace MWWorld
         bool toggleBorders() override;
 
         void adjustSky();
+        void updateSkyDate();
 
         Player& getPlayer() override;
         MWWorld::Ptr getPlayerPtr() override;
@@ -639,7 +641,6 @@ namespace MWWorld
 
         bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const override;
 
-        void reportStats(unsigned int frameNumber, osg::Stats& stats) const override;
 
         std::vector<MWWorld::Ptr> getAll(const ESM::RefId& id) override;
 

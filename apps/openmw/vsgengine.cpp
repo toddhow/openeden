@@ -9,8 +9,10 @@
 #include <components/render/engine.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sdlutil/init.hpp>
+#include <components/files/conversion.hpp>
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/toutf8/toutf8.hpp>
 #include <components/vfs/registerarchives.hpp>
 #include <components/vsgadapters/sdl/surface.hpp>
 #include <components/vsgadapters/sdl/window.hpp>
@@ -138,7 +140,8 @@ namespace OMW
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             return false;
         }
-        mSoundManager->update(dt);
+        if (gameState->updateSound)
+            mSoundManager->update(dt);
 
         try
         {
@@ -177,7 +180,7 @@ namespace OMW
         int screen = Settings::video().mScreen;
         int width = Settings::video().mResolutionX;
         int height = Settings::video().mResolutionY;
-        bool fullscreen = Settings::video().mWindowMode != 2;
+        bool fullscreen = Settings::video().mWindowMode.get() != Settings::WindowMode::Windowed;
         bool windowBorder = Settings::video().mWindowBorder;
 
         int pos_x = SDL_WINDOWPOS_CENTERED_DISPLAY(screen), pos_y = SDL_WINDOWPOS_CENTERED_DISPLAY(screen);
@@ -282,7 +285,7 @@ namespace OMW
     {
         auto options = vsg::Options::create();
         options->readerWriters = { vsgXchange::images::create() };
-        if (auto image = vsgUtil::readOptionalImage(file, options))
+        if (auto image = vsgUtil::readOptionalImage(Files::pathToUnicodeString(file), options))
         {
             if (auto surface = vsgAdapters::sdl::createSurface(image))
                 SDL_SetWindowIcon(mWindow, surface.get());
@@ -301,13 +304,17 @@ namespace OMW
         mCfgMgr.filterOutNonExistingPaths(mDataDirs);
         mDataDirs.insert(mDataDirs.begin(), args.resourceDir / "vfs");
         mFileCollections = Files::Collections(mDataDirs);
-        VFS::registerArchives(mVFS.get(), mFileCollections, args.archives, true);
+        // OpenMW 0.51 decodes archive file names with the content encoding.
+        mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
+        VFS::registerArchives(
+            mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
 
         auto physicalDevice = mRenderEngine->getOrCreatePhysicalDevice();
         bool useTextureCompression = physicalDevice->getFeatures().textureCompressionBC;
         if (auto overrideString = getenv("VSGOPENMW_DECOMPRESS_BC"))
             useTextureCompression = overrideString == std::string("0");
-        mResourceSystem = std::make_unique<Resource::ResourceSystem>(mVFS.get(), args.resourceDir / "shaders",
+        mResourceSystem = std::make_unique<Resource::ResourceSystem>(mVFS.get(),
+            Files::pathToUnicodeString(args.resourceDir / "shaders"),
             createDefaultSampler(physicalDevice, mRenderEngine->getEnabledFeatures().samplerAnisotropy), useTextureCompression, MWRender::Bin_Compute, MWRender::Bin_DepthSorted);
 
         setWindowIcon(args.resourceDir / "openmw.png");
@@ -353,12 +360,11 @@ namespace OMW
             gameControllerdb = globaldefault;
         //}
 
-        mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
         mTranslationDataStorage.setEncoder(mEncoder.get());
         for (auto& f : args.contentFiles)
             mTranslationDataStorage.loadTranslationData(mFileCollections, f);
 
-        mL10nManager = std::make_unique<l10n::Manager>(mVFS.get());
+        mL10nManager = std::make_unique<L10n::Manager>(mVFS.get());
         mL10nManager->setPreferredLocales(Settings::general().mPreferredLocales);
         mEnvironment.setL10nManager(*mL10nManager);
 

@@ -10,6 +10,7 @@
 
 #include <osg/Matrixd>
 #include <osg/ref_ptr>
+#include <vsg/core/ref_ptr.h>
 
 #include <functional>
 #include <vector>
@@ -30,7 +31,7 @@ namespace DetourNavigator
     class CollisionShape
     {
     public:
-        CollisionShape(osg::ref_ptr<const Resource::PhysicsShapeInstance> instance, const JPH::Shape& shape,
+        CollisionShape(vsg::ref_ptr<const Resource::PhysicsShapeInstance> instance, const JPH::Shape& shape,
             const ObjectTransform& transform)
             : mInstance(std::move(instance))
             , mShape(shape)
@@ -38,12 +39,12 @@ namespace DetourNavigator
         {
         }
 
-        const osg::ref_ptr<const Resource::PhysicsShapeInstance>& getInstance() const { return mInstance; }
+        const vsg::ref_ptr<const Resource::PhysicsShapeInstance>& getInstance() const { return mInstance; }
         const JPH::Shape& getShape() const { return mShape; }
         const ObjectTransform& getObjectTransform() const { return mObjectTransform; }
 
     private:
-        osg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
+        vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
         const JPH::Shape& mShape;
         ObjectTransform mObjectTransform;
     };
@@ -77,7 +78,7 @@ namespace DetourNavigator
 
         bool update(const osg::Matrixd& transform, const AreaType areaType);
 
-        const osg::ref_ptr<const Resource::PhysicsShapeInstance>& getInstance() const { return mInstance; }
+        const vsg::ref_ptr<const Resource::PhysicsShapeInstance>& getInstance() const { return mInstance; }
 
         const JPH::Shape& getShape() const { return mShape; }
 
@@ -88,7 +89,7 @@ namespace DetourNavigator
         const ObjectTransform& getObjectTransform() const { return mObjectTransform; }
 
     private:
-        osg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
+        vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
         ObjectTransform mObjectTransform;
 
         const JPH::Shape& mShape;

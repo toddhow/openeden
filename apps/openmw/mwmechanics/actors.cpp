@@ -10,6 +10,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/mathutil.hpp>
+#include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 #include <components/mwanimation/position.hpp>
@@ -219,7 +220,8 @@ namespace
                     MWBase::Environment::get().getWindowManager()->messageBox("#{sSoultrapSuccess}");
 
                 if (const ESM::Static* fx = world->getStore().get<ESM::Static>().search(ESM::RefId::stringRefId("VFX_Soul_Trap")))
-                    world->spawnEffect(fx->mModel, "", creature.getRefData().getPosition().asVec3());
+                    world->spawnEffect(Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(fx->mModel)), "",
+                        creature.getRefData().getPosition().asVec3());
 
                 MWBase::Environment::get().getSoundManager()->playSound3D(
                     creature.getRefData().getPosition().asVec3(), ESM::RefId::stringRefId("conjuration hit"), 1.f, 1.f);
@@ -1228,7 +1230,7 @@ namespace MWMechanics
         auto* anim = MWBase::Environment::get().getWorld()->getAnimation(ptr);
         if (!anim)
             return;
-        const auto it = mActors.emplace(mActors.end(), ptr, *anim);
+        const auto it = mActors.emplace(mActors.end(), ptr, anim);
         mIndex.emplace(ptr.mRef, it);
 
         if (updateImmediately)
@@ -1893,7 +1895,8 @@ namespace MWMechanics
                 ESM::RefId::stringRefId("VFX_Summon_End"));
             if (fx)
                 MWBase::Environment::get().getWorld()->spawnEffect(
-                    fx->mModel, "", ptr.getRefData().getPosition().asVec3());
+                    Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(fx->mModel)), "",
+                    ptr.getRefData().getPosition().asVec3());
 
             // Remove the summoned creature's summoned creatures as well
             auto& creatureMap = ptr.getClass().getCreatureStats(ptr).getSummonedCreatureMap();

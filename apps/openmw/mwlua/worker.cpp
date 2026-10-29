@@ -2,7 +2,6 @@
 
 #include "luamanagerimp.hpp"
 
-#include "apps/openmw/profile.hpp"
 
 #include <components/debug/debuglog.hpp>
 #include <components/settings/values.hpp>
@@ -28,18 +27,18 @@ namespace MWLua
         }
     }
 
-    void Worker::allowUpdate(osg::Timer_t frameStart, unsigned frameNumber, osg::Stats& stats)
+    void Worker::allowUpdate(float dt)
     {
         if (!mThread)
             return;
         {
             std::lock_guard<std::mutex> lk(mMutex);
-            mUpdateRequest = UpdateRequest{ .mFrameStart = frameStart, .mFrameNumber = frameNumber, .mStats = &stats };
+            mUpdateRequest = dt;
         }
         mCV.notify_one();
     }
 
-    void Worker::finishUpdate(osg::Timer_t frameStart, unsigned frameNumber, osg::Stats& stats)
+    void Worker::finishUpdate(float dt)
     {
         if (mThread)
         {
@@ -47,7 +46,7 @@ namespace MWLua
             mCV.wait(lk, [&] { return !mUpdateRequest.has_value(); });
         }
         else
-            update(frameStart, frameNumber, stats);
+            update(dt);
     }
 
     void Worker::join()
@@ -63,12 +62,9 @@ namespace MWLua
         }
     }
 
-    void Worker::update(osg::Timer_t frameStart, unsigned frameNumber, osg::Stats& stats)
+    void Worker::update(float dt)
     {
-        const osg::Timer* const timer = osg::Timer::instance();
-        OMW::ScopedProfile<OMW::UserStatsType::Lua> profile(frameStart, frameNumber, *timer, stats);
-
-        mManager.update();
+        mManager.update(dt);
     }
 
     void Worker::run() noexcept
@@ -84,7 +80,7 @@ namespace MWLua
 
             try
             {
-                update(mUpdateRequest->mFrameStart, mUpdateRequest->mFrameNumber, *mUpdateRequest->mStats);
+                update(*mUpdateRequest);
             }
             catch (const std::exception& e)
             {

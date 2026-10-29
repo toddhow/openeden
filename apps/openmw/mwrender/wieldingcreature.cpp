@@ -74,7 +74,7 @@ namespace MWRender
         MWWorld::ConstPtr item = *it;
 
         std::string bonename;
-        /*const&*/ std::string model = item.getClass().getModel(item);
+        /*const&*/ std::string model = std::string(item.getClass().getModel(item));
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
         {
             if (item.getType() == ESM::Weapon::sRecordId)
@@ -139,7 +139,7 @@ namespace MWRender
         auto ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
         if (ammo != inv.end())
         {
-            std::string model = ammo->getClass().getModel(*ammo);
+            std::string model = std::string(ammo->getClass().getModel(*ammo));
             auto node = mwctx.readNode(model);
             auto result = MWAnim::cloneIfRequired(node);
             addSwitch(node, Wield::Ammo);

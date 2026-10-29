@@ -726,7 +726,7 @@ namespace MWGui
 
     MWWorld::Ptr InventoryWindow::getAvatarSelectedItem(int x, int y)
     {
-        const osg::Vec2i viewportCoords = mapPreviewWindowToViewport(x, y);
+        const osg::Vec2f viewportCoords = mapPreviewWindowToViewport(x, y);
         int slot = mPreview->getSlotSelected(viewportCoords.x(), viewportCoords.y());
 
         if (slot == -1)
@@ -948,15 +948,15 @@ namespace MWGui
             std::min<int>(preview->textureHeight, previewWindowSize.height * scale));
     }
 
-    osg::Vec2i InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
+    osg::Vec2f InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
     {
         const MyGUI::IntSize previewWindowSize = mAvatarImage->getSize();
         const float normalisedX = x / std::max(1.f, static_cast<float>(previewWindowSize.width));
         const float normalisedY = y / std::max(1.f, static_cast<float>(previewWindowSize.height));
 
         const MyGUI::IntSize viewport = getPreviewViewportSize();
-        return osg::Vec2i(static_cast<int>(normalisedX * (viewport.width - 1)),
-            static_cast<int>(normalisedY * (viewport.height - 1)));
+        return osg::Vec2f(normalisedX * (viewport.width - 1), normalisedY * (viewport.height - 1));
+
     }
 
     ControllerButtons* InventoryWindow::getControllerButtons()

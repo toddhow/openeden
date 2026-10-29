@@ -3,7 +3,7 @@
 
 #include <vsg/maths/quat.h>
 
-#include <components/esm/defs.hpp>
+#include <components/esm/position.hpp>
 
 namespace MWAnim
 {

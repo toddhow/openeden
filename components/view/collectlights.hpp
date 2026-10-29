@@ -18,7 +18,16 @@ namespace View
         void traverse(vsg::ConstVisitor& visitor) const override {}
 
         void compile(vsg::Context&) override {}
-        void pack();
+        // openeden-vsg: VSG 1.1.16 calls these to build and record its own light and shadow-map descriptor
+        // sets, which dereference ViewDependentState::view (unset here) and would replace vsgopenmw's light
+        // buffer. CollectLights only collects point lights for pack(), so they do nothing.
+        void init(vsg::ResourceRequirements&) override {}
+        void update(vsg::ResourceRequirements&) override {}
+        void bindDescriptorSets(vsg::CommandBuffer&, VkPipelineBindPoint, VkPipelineLayout, uint32_t) override {}
+        // openeden-vsg: called by RecordTraversal after the view's lights are collected; it replaces the pack() hook
+        // of the VSG version vsgopenmw was written for, so the light buffer is filled each frame.
+        void traverse(vsg::RecordTraversal&) const override { pack(); }
+        void pack() const;
     };
 }
 

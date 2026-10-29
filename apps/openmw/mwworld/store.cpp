@@ -501,8 +501,6 @@ namespace MWWorld
     // this method *must* be called right after esm3.loadCell()
     void Store<ESM::Cell>::handleMovedCellRefs(ESM::ESMReader& esm, ESM::Cell* cell)
     {
-        if (getenv("VSGOPENMW_FAST_BOOT") != 0)
-            return;
         ESM::CellRef ref;
         ESM::MovedCellRef cMRef;
         bool deleted = false;
@@ -541,13 +539,13 @@ namespace MWWorld
     }
     const ESM::Cell* Store<ESM::Cell>::search(std::string_view name) const
     {
-        DynamicInt::const_iterator it = mInt.find(std::string(name));
+        DynamicInt::const_iterator it = mInt.find(name);
         if (it != mInt.end())
         {
             return it->second;
         }
 
-        DynamicInt::const_iterator dit = mDynamicInt.find(std::string(name));
+        DynamicInt::const_iterator dit = mDynamicInt.find(name);
         if (dit != mDynamicInt.end())
         {
             return dit->second;
@@ -862,7 +860,11 @@ namespace MWWorld
     }
     const ESM::Pathgrid* Store<ESM::Pathgrid>::search(const MWWorld::Cell& cellVariant) const
     {
-        return search(cellVariant.getEsm3());
+        return ESM::visit(ESM::VisitOverload{
+                              [&](const ESM::Cell& cell) { return search(cell); },
+                              [&](const ESM4::Cell& cell) -> const ESM::Pathgrid* { return nullptr; },
+                          },
+            cellVariant);
     }
     const ESM::Pathgrid* Store<ESM::Pathgrid>::find(const ESM::Cell& cell) const
     {
@@ -1138,12 +1140,11 @@ namespace MWWorld
     }
 
     // ESM4 Cell
-    /*
     //=========================================================================
 
     const ESM4::Cell* Store<ESM4::Cell>::searchCellName(std::string_view cellName) const
     {
-        const auto foundCell = mCellNameIndex.find(std::string(cellName));
+        const auto foundCell = mCellNameIndex.find(cellName);
         if (foundCell == mCellNameIndex.end())
             return nullptr;
         return foundCell->second;
@@ -1225,9 +1226,6 @@ namespace MWWorld
             return nullptr;
         return foundLand->second;
     }
-    }
-
-*/
 }
 
 template class MWWorld::TypedDynamicStore<ESM::Activator>;
@@ -1272,7 +1270,7 @@ template class MWWorld::TypedDynamicStore<ESM::Spell>;
 template class MWWorld::TypedDynamicStore<ESM::StartScript>;
 template class MWWorld::TypedDynamicStore<ESM::Static>;
 template class MWWorld::TypedDynamicStore<ESM::Weapon>;
-/*
+
 template class MWWorld::TypedDynamicStore<ESM4::Reference, ESM::FormId>;
 template class MWWorld::TypedDynamicStore<ESM4::ActorCharacter, ESM::FormId>;
 template class MWWorld::TypedDynamicStore<ESM4::ActorCreature, ESM::FormId>;
@@ -1314,5 +1312,3 @@ template class MWWorld::TypedDynamicStore<ESM4::TextureSet>;
 template class MWWorld::TypedDynamicStore<ESM4::Tree>;
 template class MWWorld::TypedDynamicStore<ESM4::Weapon>;
 template class MWWorld::TypedDynamicStore<ESM4::World>;
-
-*/

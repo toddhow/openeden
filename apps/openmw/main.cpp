@@ -1,8 +1,10 @@
+#include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/rng.hpp>
+#include <components/platform/platform.hpp>
 #include <components/version/version.hpp>
 #include <components/settings/settings.hpp>
 
@@ -40,13 +42,13 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
 
     if (variables.count("help"))
     {
-        std::cout << desc << std::endl;
+        Debug::getRawStdout() << desc << std::endl;
         return {};
     }
 
     if (variables.count("version"))
     {
-        std::cout << Version::getOpenmwVersionDescription() << std::endl;
+        Debug::getRawStdout() << Version::getOpenmwVersionDescription() << std::endl;
         return {};
     }
 
@@ -67,7 +69,9 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
 
     Files::PathContainer::value_type local(variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>());
     if (!local.empty())
-        dataDirs.push_back(local);
+        dataDirs.push_back(std::move(local));
+
+    cfgMgr.filterOutNonExistingPaths(dataDirs);
 
     args.resourceDir = variables["resources"].as<Files::MaybeQuotedPath>();
     args.dataDirs = dataDirs;
@@ -80,12 +84,14 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
         Log(Debug::Error) << "No content file given (esm/esp, nor omwgame/omwaddon). Aborting...";
         return {};
     }
-    std::set<std::string> contentDedupe;
-    for (const auto& contentFile : content)
+    // OpenMW 0.51 always loads its built-in Lua scripts first.
+    content.insert(content.begin(), "builtin.omwscripts");
+    std::set<std::string> contentDedupe{ "builtin.omwscripts" };
+    for (auto contentFile = content.begin() + 1; contentFile != content.end(); ++contentFile)
     {
-        if (!contentDedupe.insert(contentFile).second)
+        if (!contentDedupe.insert(*contentFile).second)
         {
-            Log(Debug::Error) << "Content file specified more than once: " << contentFile << ". Aborting...";
+            Log(Debug::Error) << "Content file specified more than once: " << *contentFile << ". Aborting...";
             return {};
         }
     }
@@ -105,12 +111,6 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.autoScreenshotFrame = variables["auto-screenshot"].as<unsigned int>();
     args.autoQuitFrame = variables["auto-quit"].as<unsigned int>();
     args.warningsMode = variables["script-warn"].as<int>();
-    auto& scriptBlacklistString = variables["script-blacklist"].as<StringsVector>();
-    if (variables["script-blacklist-use"].as<bool>())
-        for (const auto& blacklistString : scriptBlacklistString)
-        {
-            args.scriptBlacklist.push_back(ESM::RefId::stringRefId(blacklistString));
-        }
 
     // other settings
     Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
@@ -121,8 +121,10 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     return args;
 }
 
-int main(int argc, char** argv)
+int runApplication(int argc, char* argv[])
 {
+    Platform::init();
+
     Files::ConfigurationManager cfgMgr;
     OMW::Engine engine(cfgMgr);
 
@@ -133,6 +135,15 @@ int main(int argc, char** argv)
     }
 
     return 0;
+}
+
+#ifdef ANDROID
+extern "C" int SDL_main(int argc, char** argv)
+#else
+int main(int argc, char** argv)
+#endif
+{
+    return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW");
 }
 
 #if defined(_WIN32) && !defined(_CONSOLE)

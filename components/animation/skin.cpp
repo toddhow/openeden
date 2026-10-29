@@ -117,6 +117,8 @@ namespace Anim
 
     Skin::Skin() {}
 
+    Skin::Skin(const Skin&) = default;
+
     Skin::~Skin() {}
 
     void Skin::apply(vsg::mat4Array& array, float)

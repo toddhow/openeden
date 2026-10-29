@@ -227,10 +227,18 @@ namespace MWRender
         computeBin->commandGraph->submitOrder = -1;
         mView->bins.push_back(computeBin);
 
+        // openeden-vsg: in VSG 1.1.x a compile context uploads vertex, index and image data only through a
+        // vsg::TransferTask, taken from device->transferTask when the view is added. That task is created by
+        // mEngine.setup() (Viewer::assignRecordAndSubmitTaskAndPresentation), so the views are added after it;
+        // added earlier, compiled scene objects got no transfer task and their data was dropped
+        // ("Context::record() ... Need to implement copying of data").
+        std::vector<std::function<void()>> addCompileViews;
         if (mRenderGraph->window)
-            mCompileContext->compileManager->add(*mRenderGraph->window, mView, resourceRequirements);
+            addCompileViews.emplace_back(
+                [this, resourceRequirements] { mCompileContext->compileManager->add(*mRenderGraph->window, mView, resourceRequirements); });
         else
-            mCompileContext->compileManager->add(*mRenderGraph->framebuffer, mView, resourceRequirements);
+            addCompileViews.emplace_back(
+                [this, resourceRequirements] { mCompileContext->compileManager->add(*mRenderGraph->framebuffer, mView, resourceRequirements); });
 
         mCommandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
@@ -256,12 +264,14 @@ namespace MWRender
             threads.push_back(castShadowGraph);
             mRecordShadow.push_back(castShadowGraph->recordTraversal);
             if (i == 0)
-                mCompileContext->compileManager->add(*rg->framebuffer, view);
+                addCompileViews.emplace_back([this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
         }
 
         mRecord = mCommandGraph->recordTraversal;
 
         mEngine.setup(threads, getenv("VSGOPENMW_NO_VIEWER_THREADING") == 0);
+        for (const auto& addCompileView : addCompileViews)
+            addCompileView();
 
         updateProjectionMatrix();
 
@@ -456,6 +466,7 @@ namespace MWRender
     {
         osg::Vec3 position = direction * -1;
         mLightPosition = toVsg(position);
+        mSunLightPosition = osg::Vec4f(position, 0.f);
         mSky->setSunDirection(position);
     }
 
@@ -587,7 +598,7 @@ namespace MWRender
                 if (--mScreenshotInterface->framesUntilReady > 0)
                     return { {}, false };
                 auto out_data = vsg::ubvec4Array2D::create(
-                    dstImage->extent.width, dstImage->extent.height, vsg::Data::Layout{ dstImage->format });
+                    dstImage->extent.width, dstImage->extent.height, vsg::Data::Properties(dstImage->format));
                 if (!Render::mapAndCopy(device, dstImage, out_data))
                     out_data = {};
                 return { out_data, true };
@@ -689,6 +700,27 @@ namespace MWRender
         return { min_x, min_y, max_x, max_y };
     }
 
+    osg::Vec2f RenderManager::getScreenCoords(const osg::BoundingBox& bb)
+    {
+        // As OpenMW 0.51 places the focus tooltip: the top centre of the object's bounds.
+        if (bb.valid())
+        {
+            const vsg::dmat4 viewProj = mProjectionMatrix->transform() * mViewMatrix->transform();
+            const vsg::dvec4 clipPoint = viewProj
+                * vsg::dvec4((bb.xMin() + bb.xMax()) * 0.5, (bb.yMin() + bb.yMax()) * 0.5, bb.zMax(), 1.0);
+            if (clipPoint.w > 0.0)
+            {
+                // Vulkan clip space has y pointing down, so this is already measured from the top.
+                const float screenPointX = static_cast<float>((clipPoint.x / clipPoint.w + 1.0) * 0.5);
+                const float screenPointY = static_cast<float>((clipPoint.y / clipPoint.w + 1.0) * 0.5);
+                if (screenPointX >= 0.f && screenPointX <= 1.f && screenPointY >= 0.f && screenPointY <= 1.f)
+                    return osg::Vec2f(screenPointX, screenPointY);
+            }
+        }
+
+        return osg::Vec2f(0.5f, 0.f);
+    }
+
     RenderManager::RayResult RenderManager::castRay(
         const osg::Vec3f& origin, const osg::Vec3f& dest, bool ignorePlayer, bool ignoreActors)
     {
@@ -708,9 +740,14 @@ namespace MWRender
     }
 
     void RenderManager::spawnEffect(const std::string& model, std::string_view texture, const osg::Vec3f& worldPosition,
-        float scale, bool isMagicVFX)
+        float scale, bool isMagicVFX, std::string_view effectId, bool loop)
     {
-        mEffects->add(model, std::string(texture), toVsg(worldPosition), scale, isMagicVFX);
+        mEffects->add(model, std::string(texture), toVsg(worldPosition), scale, isMagicVFX, effectId, loop);
+    }
+
+    void RenderManager::removeEffect(std::string_view effectId)
+    {
+        mEffects->remove(effectId);
     }
 
     void RenderManager::notifyWorldSpaceChanged()
@@ -880,7 +917,7 @@ namespace MWRender
 
     osg::Vec3f RenderManager::getHalfExtents(const MWWorld::ConstPtr& object) const
     {
-        std::string modelName = object.getClass().getModel(object);
+        std::string modelName = std::string(object.getClass().getModel(object));
         if (modelName.empty())
             return {};
 

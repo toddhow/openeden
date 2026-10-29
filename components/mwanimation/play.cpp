@@ -198,11 +198,24 @@ namespace MWAnim
             else if (evt.compare(off, len, "loop stop") == 0)
                 state.loopStopTime = key->first;
         }
-        encounteredTags.push_back({ groupname, key, map });
+        encounteredTags.push_back({ std::string(groupname), key, map });
+    }
+
+    float Play::AnimState::getCompletion() const
+    {
+        if (stopTime > startTime)
+            return (time - startTime) / (stopTime - startTime);
+        return playing ? 0.0f : 1.0f;
+    }
+
+    void Play::animationEnded(const AnimState& state)
+    {
+        endedAnimations.push_back(
+            { state.groupname, state.time, state.getCompletion(), state.startKey, state.stopKey });
     }
 
     void Play::play(std::string_view groupname, const Priority& prio, int blendMask, bool autodisable, float speedmult,
-        std::string_view start, std::string_view stop, float startpoint, size_t loops, bool loopfallback)
+        std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
     {
         if (groupname.empty())
         {
@@ -214,19 +227,26 @@ namespace MWAnim
         if (priority.mPriority.size() <= mControllerGroups.size())
             priority.mPriority.resize(mControllerGroups.size(), priority[0]);
 
+        // As in OpenMW 0.51: an already playing group takes the new priority, and only the other states that hold
+        // this priority are replaced.
+        AnimStateMap::iterator foundstateiter = mStates.find(groupname);
+        if (foundstateiter != mStates.end())
+            foundstateiter->second.priority = priority;
+
         AnimStateMap::iterator stateiter = mStates.begin();
         while (stateiter != mStates.end())
         {
-            if (stateiter->second.priority == priority)
-                mStates.erase(stateiter++);
+            if (stateiter->second.priority == priority && stateiter->first != groupname)
+            {
+                animationEnded(stateiter->second);
+                stateiter = mStates.erase(stateiter);
+            }
             else
                 ++stateiter;
         }
 
-        stateiter = mStates.find(groupname);
-        if (stateiter != mStates.end())
+        if (foundstateiter != mStates.end())
         {
-            stateiter->second.priority = priority;
             resetActiveGroups();
             return;
         }
@@ -245,6 +265,9 @@ namespace MWAnim
                 state.priority = priority;
                 state.blendMask = blendMask;
                 state.autoDisable = autodisable;
+                state.groupname = groupname;
+                state.startKey = start;
+                state.stopKey = stop;
                 mStates.insert_or_assign(std::string(groupname), state);
 
                 if (state.playing)
@@ -403,7 +426,7 @@ namespace MWAnim
         return false;
     }
 
-    bool Play::getInfo(std::string_view groupname, float* complete, float* speedmult) const
+    bool Play::getInfo(std::string_view groupname, float* complete, float* speedmult, uint32_t* loopcount) const
     {
         auto iter = mStates.find(groupname);
         if (iter == mStates.end())
@@ -412,20 +435,29 @@ namespace MWAnim
                 *complete = 0.0f;
             if (speedmult)
                 *speedmult = 0.0f;
+            if (loopcount)
+                *loopcount = 0;
             return false;
         }
 
         if (complete)
-        {
-            if (iter->second.stopTime > iter->second.startTime)
-                *complete
-                    = (iter->second.time - iter->second.startTime) / (iter->second.stopTime - iter->second.startTime);
-            else
-                *complete = (iter->second.playing ? 0.0f : 1.0f);
-        }
+            *complete = iter->second.getCompletion();
         if (speedmult)
             *speedmult = iter->second.speedMult;
+        if (loopcount)
+            *loopcount = iter->second.loopCount;
         return true;
+    }
+
+    std::string_view Play::getActiveGroup(size_t boneGroup) const
+    {
+        if (boneGroup >= mControllerGroups.size())
+            return {};
+        if (const float* time = mControllerGroups[boneGroup].time)
+            for (const auto& [name, state] : mStates)
+                if (&state.time == time)
+                    return name;
+        return {};
     }
 
     float Play::getCurrentTime(std::string_view groupname) const
@@ -436,7 +468,7 @@ namespace MWAnim
         return iter->second.time;
     }
 
-    size_t Play::getCurrentLoopCount(std::string_view groupname) const
+    uint32_t Play::getCurrentLoopCount(std::string_view groupname) const
     {
         auto iter = mStates.find(groupname);
         if (iter == mStates.end())
@@ -448,7 +480,10 @@ namespace MWAnim
     {
         auto iter = mStates.find(groupname);
         if (iter != mStates.end())
+        {
+            animationEnded(iter->second);
             mStates.erase(iter);
+        }
         resetActiveGroups();
     }
 
@@ -568,7 +603,8 @@ namespace MWAnim
 
             if (!state.playing && state.autoDisable)
             {
-                mStates.erase(stateiter++);
+                animationEnded(state);
+                stateiter = mStates.erase(stateiter);
                 resetActiveGroups();
             }
             else

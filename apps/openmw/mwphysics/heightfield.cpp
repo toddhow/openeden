@@ -1,6 +1,6 @@
 #include <type_traits>
 
-#include <osg/Object>
+#include <vsg/core/Object.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
@@ -16,7 +16,7 @@
 namespace MWPhysics
 {
     HeightField::HeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
-        const osg::Object* holdObject, PhysicsTaskScheduler* scheduler)
+        const vsg::Object* holdObject, PhysicsTaskScheduler* scheduler)
         : mHoldObject(holdObject)
         , mTaskScheduler(scheduler)
     {

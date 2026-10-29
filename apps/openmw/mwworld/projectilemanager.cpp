@@ -18,6 +18,7 @@
 
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/resourcehelpers.hpp>
 #include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/convert.hpp>
 
@@ -133,7 +134,7 @@ namespace
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(enam.mData.mEffectID);
             lightDiffuseColor += toVsg(magicEffect->getColor());
         }
-        size_t numberOfEffects = effects.mList.size();
+        const size_t numberOfEffects = effects.mList.size();
         return vsgUtil::toVec3(lightDiffuseColor) / static_cast<float>(numberOfEffects);
     }
 
@@ -175,6 +176,7 @@ namespace MWWorld
         const vsg::quat& orient, bool rotate, std::optional<vsg::vec3> lightDiffuseColor,
         std::optional<vsg::vec4> glowColor, std::string texture)
     {
+
         std::vector<std::string> additionalModels;
         if (state.mIdMagic.size() > 1)
         {
@@ -188,7 +190,7 @@ namespace MWWorld
 
         state.handle = mRender->getProjectiles()->add(
             model, pos, orient, rotate, lightDiffuseColor, glowColor, texture, additionalModels);
-    }    }
+    }
 
     void ProjectileManager::launchMagicBolt(
         const ESM::RefId& spellId, const Ptr& caster, const osg::Vec3f& fallbackDirection, ESM::RefNum item)
@@ -239,8 +241,8 @@ namespace MWWorld
 
         auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
 
-        auto model = ptr.getClass().getModel(ptr);
-        createModel(state, model, toVsg(pos), toVsg(orient), true, lightDiffuseColor, {}, texture);
+        VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
+        createModel(state, model.value(), toVsg(pos), toVsg(orient), true, lightDiffuseColor, {}, texture);
 
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
         for (const auto& soundid : state.mSoundIds)
@@ -255,8 +257,8 @@ namespace MWWorld
         // shape
         if (state.mIdMagic.size() > 1)
         {
-            model
-                = MWBase::Environment::get().getWorld()->getStore().get<ESM::Weapon>().find(state.mIdMagic[1])->mModel;
+            model = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(
+                MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().find(state.mIdMagic[1])->mModel));
         }
         state.mProjectileId = mPhysics->addProjectile(caster, pos, model, true);
         state.mToDelete = false;
@@ -277,8 +279,8 @@ namespace MWWorld
         MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), projectile.getCellRef().getRefId());
         MWWorld::Ptr ptr = ref.getPtr();
 
-        const auto model = ptr.getClass().getModel(ptr);
-        createModel(state, model, toVsg(pos), toVsg(orient), false, {}, MWRender::getGlowColor(ptr));
+        const VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
+        createModel(state, model.value(), toVsg(pos), toVsg(orient), false, {}, MWRender::getGlowColor(ptr));
 
         state.mProjectileId = mPhysics->addProjectile(actor, pos, model, false);
         state.mToDelete = false;
@@ -381,7 +383,7 @@ namespace MWWorld
 
             for (const auto& sound : magicBoltState.mSounds)
             {
-                sound->setVelocity(direction * speed);
+                sound->setVelocity(toOsg(direction * speed));
             }
 
             // For AI actors, get combat targets to use in the ray cast. Only those targets will return a positive hit
@@ -612,13 +614,13 @@ namespace MWWorld
             state.mAttackStrength = esm.mAttackStrength;
             state.mToDelete = false;
 
-            std::string model;
+            VFS::Path::Normalized model;
             std::optional<vsg::vec4> glowColor;
             try
             {
                 MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), esm.mId);
                 MWWorld::Ptr ptr = ref.getPtr();
-                model = ptr.getClass().getModel(ptr);
+                model = ptr.getClass().getCorrectedModel(ptr);
 
                 state.mProjectileId
                     = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, false);
@@ -631,8 +633,8 @@ namespace MWWorld
                 return true;
             }
 
-            createModel(state, model, toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), false, {},
-                glowColor);
+            createModel(state, model.value(), toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), false,
+                {}, glowColor);
 
             mProjectiles.push_back(std::move(state));
             return true;
@@ -672,7 +674,7 @@ namespace MWWorld
             {
                 MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), state.mIdMagic.at(0));
                 MWWorld::Ptr ptr = ref.getPtr();
-                model = ptr.getClass().getModel(ptr);
+                model = ptr.getClass().getCorrectedModel(ptr);
             }
             catch (const std::exception& e)
             {
@@ -682,7 +684,7 @@ namespace MWWorld
             }
 
             auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
-            createModel(state, model, toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), true,
+            createModel(state, model.value(), toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), true,
                 lightDiffuseColor, {}, texture);
             state.mProjectileId = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, true);
 

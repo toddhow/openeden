@@ -57,7 +57,7 @@ namespace vsgUtil
 
         static VkBool32 callback(VkDebugUtilsMessageSeverityFlagBitsEXT severityFlags, VkDebugUtilsMessageTypeFlagsEXT typeFlags, const VkDebugUtilsMessengerCallbackDataEXT* data, void* user)
         {
-            static_cast<DebugMessenger*>(user)->message(severityFlags, typeFlags, data);
+            return static_cast<DebugMessenger*>(user)->message(severityFlags, typeFlags, data);
         }
 
         virtual VkBool32 message(VkDebugUtilsMessageSeverityFlagBitsEXT severityFlags, VkDebugUtilsMessageTypeFlagsEXT typeFlags, const VkDebugUtilsMessengerCallbackDataEXT* data)

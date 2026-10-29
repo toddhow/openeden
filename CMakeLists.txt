@@ -46,6 +46,15 @@ option(BUILD_PHYSICSOBJECTTOOL   "Build Physics object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
 option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
+# Track V stage V1 (task 0009): OpenEden features built on the removed OSG animation and rendering
+# (foot IK, look-at, smoother turns, inertial lean, the CreativeMotion pose driver, the Jolt debug draw and
+# the compatibility pack's .kf converter) are compiled out until task 0011 rebuilds them on VSG.
+option(OPENEDEN_VSG_PENDING_FEATURES "Build OpenEden features still pending their VSG port (task 0011)" OFF)
+if(OPENEDEN_VSG_PENDING_FEATURES)
+    add_compile_definitions(OPENEDEN_VSG_PENDING_FEATURES=1)
+else()
+    add_compile_definitions(OPENEDEN_VSG_PENDING_FEATURES=0)
+endif()
 
 set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
 
@@ -436,6 +445,11 @@ if(HAVE_MULTIVIEW)
     add_compile_definitions(OSG_HAS_MULTIVIEW)
 endif(HAVE_MULTIVIEW)
 #]]
+
+# openeden-vsg: OSG headers are bundled in extern/osg for math only and no OSG library is linked
+# (osg::Quat, osg::Matrixf/d come from components/vsgadapters/osg), so OSG_EXPORT must not be
+# __declspec(dllimport) on MSVC. Removed with extern/osg in task 0013 (Track V, V5).
+add_compile_definitions(OSG_LIBRARY_STATIC)
 
 set(BOOST_COMPONENTS iostreams program_options)
 

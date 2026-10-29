@@ -531,7 +531,7 @@ namespace MWClass
         if (const ESM::Race* race = esmStore->get<ESM::Race>().search(npc->mBase->mRace))
         {
             const std::vector<const ESM::BodyPart*>& parts
-                = MWRender::getBodyParts(race->mId, female, false, false);
+                = MWRender::getBodyParts(race->mId, female, false, false, esmStore->get<ESM::BodyPart>());
             for (const ESM::BodyPart* part : parts)
             {
                 if (part && !part->mModel.empty())

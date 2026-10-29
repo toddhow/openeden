@@ -3,13 +3,9 @@
 #include <iostream>
 #include <vector>
 
+
 namespace Resource
 {
-
-    MultiObjectCache::MultiObjectCache() {}
-
-    MultiObjectCache::~MultiObjectCache() {}
-
     void MultiObjectCache::removeUnreferencedObjectsInCache()
     {
         std::vector<vsg::ref_ptr<vsg::Object>> objectsToRemove;
@@ -24,6 +20,7 @@ namespace Resource
                 {
                     objectsToRemove.push_back(oitr->second);
                     _objectCache.erase(oitr++);
+                    ++mExpired;
                 }
                 else
                 {
@@ -42,7 +39,7 @@ namespace Resource
         _objectCache.clear();
     }
 
-    void MultiObjectCache::addEntryToObjectCache(const std::string& filename, vsg::Object* object)
+    void MultiObjectCache::addEntryToObjectCache(VFS::Path::NormalizedView filename, vsg::Object* object)
     {
         if (!object)
         {
@@ -50,27 +47,34 @@ namespace Resource
             return;
         }
         std::lock_guard<std::mutex> lock(_objectCacheMutex);
-        _objectCache.insert(std::make_pair(filename, object));
+        _objectCache.emplace(filename, object);
     }
 
-    vsg::ref_ptr<vsg::Object> MultiObjectCache::takeFromObjectCache(const std::string& fileName)
+    vsg::ref_ptr<vsg::Object> MultiObjectCache::takeFromObjectCache(VFS::Path::NormalizedView fileName)
     {
         std::lock_guard<std::mutex> lock(_objectCacheMutex);
-        ObjectCacheMap::iterator found = _objectCache.find(fileName);
-        if (found == _objectCache.end())
-            return vsg::ref_ptr<vsg::Object>();
-        else
+        ++mGet;
+        const auto it = _objectCache.find(fileName);
+        if (it != _objectCache.end())
         {
-            vsg::ref_ptr<vsg::Object> object = found->second;
-            _objectCache.erase(found);
+            vsg::ref_ptr<vsg::Object> object = std::move(it->second);
+            _objectCache.erase(it);
+            ++mHit;
             return object;
         }
+
+        return nullptr;
     }
 
-    unsigned int MultiObjectCache::getCacheSize() const
+    CacheStats MultiObjectCache::getStats() const
     {
         std::lock_guard<std::mutex> lock(_objectCacheMutex);
-        return _objectCache.size();
+        return CacheStats{
+            .mSize = _objectCache.size(),
+            .mGet = mGet,
+            .mHit = mHit,
+            .mExpired = mExpired,
+        };
     }
 
 }

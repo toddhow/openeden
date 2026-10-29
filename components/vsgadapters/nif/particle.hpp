@@ -15,9 +15,9 @@
 
 namespace Nif
 {
-    class NiParticleSystemController;
-    class NiColorData;
-    class NiParticlesData;
+    struct NiParticleSystemController;
+    struct NiColorData;
+    struct NiParticlesData;
 }
 namespace Anim
 {

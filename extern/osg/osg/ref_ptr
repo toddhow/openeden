@@ -14,7 +14,8 @@
 #ifndef OSG_REF_PTR
 #define OSG_REF_PTR 1
 
-//#include <osg/Config>
+// openeden-vsg: included for OSG_USE_REF_PTR_IMPLICIT_OUTPUT_CONVERSION, which OpenMW 0.51 code relies on.
+#include <osg/Config>
 
 #ifdef OSG_USE_REF_PTR_SAFE_DEREFERENCE
 #include <typeinfo>

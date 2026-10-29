@@ -21,7 +21,16 @@
 
 namespace MWRender
 {
-    void addEffect(const MWWorld::Ptr& ptr, const ESM::RefId& effect, int magicEffectId, bool loop,
+    void addEffect(const MWWorld::Ptr& ptr, const ESM::RefId& effect, std::string_view effectId, bool loop,
+        const std::string& bone, const std::string& overrideTexture)
+    {
+        auto static_ = MWBase::Environment::get().getWorld()->getStore().get<ESM::Static>().search(effect);
+        if (!static_ || static_->mModel.empty())
+            return;
+        addEffectModel(ptr, static_->mModel, effectId, loop, bone, overrideTexture);
+    }
+
+    void addEffectModel(const MWWorld::Ptr& ptr, const std::string& model, std::string_view effectId, bool loop,
         const std::string& bone, const std::string& overrideTexture)
     {
         auto world = MWBase::Environment::get().getWorld();
@@ -29,14 +38,10 @@ namespace MWRender
         if (!object || !object->animation) // if (!hasCharacterController)
             return;
 
-        auto static_ = world->getStore().get<ESM::Static>().search(effect);
-        if (!static_ || static_->mModel.empty())
-            return;
-
         auto ctx = object->context();
         ctx.compileContext = ctx.compileContext->clone(Mask_Effect);
 
-        auto node = ctx.readEffect(static_->mModel);
+        auto node = ctx.readEffect(model);
         auto meta = Anim::Meta::get(*node);
 
         vsg::Group* attachBone{};
@@ -75,9 +80,9 @@ namespace MWRender
         if (meta)
             meta->attachTo(*node);
 
-        MWAnim::addEffect(*object, attachBone, node, worldAttachmentPath, magicEffectId, loop, overrideTexture);
+        MWAnim::addEffect(*object, attachBone, node, worldAttachmentPath, effectId, loop, overrideTexture);
     }
-    void removeEffect(const MWWorld::Ptr& ptr, std::optional<int> effectId)
+    void removeEffect(const MWWorld::Ptr& ptr, std::optional<std::string_view> effectId)
     {
         if (auto anim = MWBase::Environment::get().getWorld()->getAnimation(ptr))
             MWAnim::removeEffect(*anim->node(), effectId);

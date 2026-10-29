@@ -3,7 +3,9 @@
 
 #include "ptrholder.hpp"
 
-#include <osg/Node>
+#include <osg/Matrixd>
+#include <osg/Quat>
+#include <vsg/core/ref_ptr.h>
 
 #include <map>
 #include <mutex>
@@ -12,6 +14,10 @@
 namespace Resource
 {
     class PhysicsShapeInstance;
+}
+namespace vsg
+{
+    class Transform;
 }
 
 namespace MWPhysics
@@ -29,11 +35,11 @@ namespace MWPhysics
     class Object final : public PtrHolder
     {
     public:
-        Object(const MWWorld::Ptr& ptr, osg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance, osg::Quat rotation,
+        Object(const MWWorld::Ptr& ptr, vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance, osg::Quat rotation,
             int collisionType, PhysicsTaskScheduler* scheduler);
         ~Object() override;
 
-        const Resource::PhysicsShapeInstance* getShapeInstance() const;
+        vsg::ref_ptr<const Resource::PhysicsShapeInstance> getShapeInstance() const;
         void setScale(float scale);
         void setRotation(osg::Quat quat);
         void updatePosition();
@@ -54,9 +60,9 @@ namespace MWPhysics
         bool isScaleIdentity() const { return mScale == osg::Vec3f(1.0f, 1.0f, 1.0f); }
 
     private:
-        osg::ref_ptr<Resource::PhysicsShapeInstance> mShapeInstance;
+        vsg::ref_ptr<Resource::PhysicsShapeInstance> mShapeInstance;
         JPH::Ref<JPH::Shape> mBasePhysicsShape;
-        std::map<int, osg::NodePath> mRecIndexToNodePath;
+        std::map<int, std::vector<const vsg::Transform*>> mRecIndexToNodePath;
         bool mSolid;
         osg::Vec3f mScale;
         osg::Vec3f mPosition;
