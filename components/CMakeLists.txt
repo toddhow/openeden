@@ -115,6 +115,10 @@ add_component_dir (terrain
 add_component_dir (vsgadapters/nif
     nif anim channel particle kf
     )
+# openeden-vsg: COLLADA models through assimp (task 0010).
+add_component_dir (vsgadapters/dae
+    dae daeanim
+    )
 add_component_dir (vsgadapters
     # Encapsulates vfs component.
     vfs
@@ -221,7 +225,7 @@ add_component_dir (resource
     shadersettings fallback decompress
     resourcemanager
     objectcache multiobjectcache niffilemanager
-    physicsshapemanager physicsshape foreachphysicsobject cachestats
+    physicsshapemanager physicsshape foreachphysicsobject cachestats assimpscene
     )
 #</vsgopenmw-code-style>
 
@@ -722,6 +726,8 @@ add_library(components STATIC ${COMPONENT_FILES})
 
 target_include_directories(components PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(components SYSTEM BEFORE PUBLIC ${JOLT_INCLUDE_DIRS})
+# openeden-vsg: pugixml, compiled into the assimp library, reads COLLADA animation clips (vsgadapters/dae/daeanim.cpp).
+target_include_directories(components SYSTEM PRIVATE ${OPENEDEN_PUGIXML_INCLUDE_DIR})
 
 if (ANDROID)
     set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)

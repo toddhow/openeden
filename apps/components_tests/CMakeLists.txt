@@ -75,6 +75,10 @@ file(GLOB UNITTEST_SRC_FILES
 
     resource/testobjectcache.cpp
     resource/testphysicsshapemanager.cpp
+    resource/colladadocuments.hpp
+    resource/testassimpscene.cpp
+
+    vsgadapters/testdaeanimation.cpp
 
     vfs/testpathutil.cpp
 

@@ -12,6 +12,8 @@
 
 #include <components/misc/resourcehelpers.hpp>
 #include <components/pipeline/builder.hpp>
+#include <components/vsgadapters/dae/dae.hpp>
+#include <components/vsgadapters/dae/daeanim.hpp>
 #include <components/vsgadapters/nif/kf.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
 #include <components/vfs/manager.hpp>
@@ -123,6 +125,8 @@ namespace
         auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(*vfs) };
         vfsReader->add(vsg::ref_ptr{ new vsgAdapters::nif(builder, textureOptions, computeBin, depthSortedBin) });
         // vfsReader->add(vsgXchange::models::create());
+        // openeden-vsg: COLLADA models, which OpenMW 0.51 read through OpenSceneGraph (task 0010).
+        vfsReader->add(vsg::ref_ptr{ new vsgAdapters::dae(builder, textureOptions, depthSortedBin) });
 
         nodeOptions->readerWriters = { vfsReader, fallback };
         return nodeOptions;
@@ -130,12 +134,17 @@ namespace
 
     vsg::ref_ptr<const vsg::Options> createAnimationOptions(const VFS::Manager* vfs)
     {
-        auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(*vfs, { vsg::ref_ptr{ new vsgAdapters::kf } }) };
+        auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(
+            *vfs, { vsg::ref_ptr{ new vsgAdapters::kf }, vsg::ref_ptr{ new vsgAdapters::daeAnimation(*vfs) } }) };
         auto options = vsg::Options::create();
         options->findFileCallback = [vfs](const vsg::Path& in_file, const vsg::Options* options) -> vsg::Path {
             VFS::Path::Normalized fileNorm(inMeshesDirectory(in_file));
             auto corrected = Misc::ResourceHelpers::correctActorModelPath(fileNorm, vfs);
             std::string file = corrected.value();
+            // openeden-vsg: a COLLADA model holds its own animations; OpenMW 0.51's Animation::addAnimSource read it
+            // as is rather than a separate .kf.
+            if (vsg::lowerCaseFileExtension(vsg::Path(file)) == ".dae")
+                return vsg::Path(file);
             std::string basename = file;
             size_t slashpos = file.find_last_of("\\/");
             if (slashpos != std::string::npos && slashpos + 1 < file.size())

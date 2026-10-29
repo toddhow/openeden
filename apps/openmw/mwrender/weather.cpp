@@ -23,6 +23,7 @@
 #include <components/pipeline/material.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/resource/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
 #include <components/vsgadapters/osgcompat.hpp>
@@ -481,6 +482,18 @@ namespace MWRender
     {
         mNode = new vsgUtil::ViewRelative;
         auto nodeOptions = vsg::Options::create(*resourceSystem.nodeOptions);
+        // openeden-vsg: an unreadable sky model (the example suite's .osgt clouds and stars: an OpenSceneGraph format
+        // the VSG build has no reader for) must stay empty. The world's fallback would draw the error marker, which can
+        // be read now that .dae models load, with the sky's shaders around the camera, covering the view.
+        for (auto& readerWriter : nodeOptions->readerWriters)
+        {
+            if (auto fallback = dynamic_cast<const Resource::Fallback*>(readerWriter.get()))
+            {
+                auto skyFallback = vsg::ref_ptr{ new Resource::Fallback(*fallback) };
+                skyFallback->fallbackFiles.clear();
+                readerWriter = skyFallback;
+            }
+        }
         auto override_ = vsg::ref_ptr{ new Pipeline::Override };
         override_->attachTo(*nodeOptions);
         mAtmosphere = std::make_unique<Atmosphere>();

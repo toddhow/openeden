@@ -449,6 +449,8 @@ if(OPENEDEN_BUILD_VSG)
     if(NOT TARGET assimp::assimp)
         add_library(assimp::assimp ALIAS assimp)
     endif()
+    # assimp compiles its bundled pugixml into the library; components reads COLLADA animation clips with it.
+    set(OPENEDEN_PUGIXML_INCLUDE_DIR ${assimp_SOURCE_DIR}/contrib/pugixml/src PARENT_SCOPE)
 
     # vsgXchange's own assimp reader stays off: it builds VSG's own shader pipelines, which vsgopenmw does not use.
     set(vsgXchange_assimp OFF CACHE BOOL "" FORCE)

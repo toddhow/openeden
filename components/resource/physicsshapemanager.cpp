@@ -11,7 +11,6 @@
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 
 #include <assimp/Importer.hpp>
-#include <assimp/config.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
@@ -24,6 +23,7 @@
 
 #include <components/nifjolt/joltnifloader.hpp>
 
+#include "assimpscene.hpp"
 #include "multiobjectcache.hpp"
 #include "niffilemanager.hpp"
 #include "objectcache.hpp"
@@ -33,11 +33,6 @@ namespace Resource
 {
     namespace
     {
-        // assimp converts every model to Y up at its root node; the game world is Z up, as OSG's loaders made it in
-        // OpenMW 0.51. This undoes assimp's Z_UP-to-Y_UP rotation (ColladaLoader::InternReadFile):
-        // (x, y, z) -> (x, -z, y).
-        const aiMatrix4x4 sYUpToZUp(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
-
         // openeden-vsg: port of OpenMW 0.51's NodeToShapeVisitor (components/resource/physicsshapemanager.cpp at
         // e3957be0b2^1), which built a triangle mesh from every drawable of a non-NIF model's OSG scene graph. The
         // model is now read with assimp, which also backs vsgXchange's model reader. As in 0.51 the shape is static
@@ -55,7 +50,7 @@ namespace Resource
                 // Lives on the stack, so no Jolt Ref may take ownership of it.
                 mTriangleMesh.SetEmbedded();
                 mTriangleMesh.mBuildQuality = JPH::MeshShapeSettings::EBuildQuality::FavorRuntimePerformance;
-                visit(*scene.mRootNode, sYUpToZUp, false);
+                visit(*scene.mRootNode, sAssimpYUpToZUp, false);
             }
 
             vsg::ref_ptr<PhysicsShape> getShape()
@@ -197,16 +192,12 @@ namespace Resource
 
         // One importer per call, so shapes can be loaded from any thread.
         Assimp::Importer importer;
-        // Without this, assimp gives a model with no meshes a generated skeleton mesh (SkeletonMeshBuilder).
-        importer.SetPropertyBool(AI_CONFIG_IMPORT_NO_SKELETON_MESHES, true);
-        // Name nodes by their COLLADA name rather than their id, so the "Collision" node is found by its name.
-        importer.SetPropertyBool(AI_CONFIG_IMPORT_COLLADA_USE_COLLADA_NAMES, true);
-        const std::string extension(Misc::getFileExtension(name.value()));
+        std::string error;
         const aiScene* scene
-            = importer.ReadFileFromMemory(content.data(), content.size(), aiProcess_Triangulate, extension.c_str());
-        if (scene == nullptr || scene->mRootNode == nullptr)
+            = readAssimpScene(importer, content, Misc::getFileExtension(name.value()), aiProcess_Triangulate, error);
+        if (scene == nullptr)
         {
-            Log(Debug::Warning) << "No collision shape for \"" << name << "\": " << importer.GetErrorString();
+            Log(Debug::Warning) << "No collision shape for \"" << name << "\": " << error;
             return {};
         }
 
