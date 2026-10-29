@@ -369,7 +369,8 @@ if(OPENEDEN_BUILD_VSG)
         ARCHIVE DESTINATION lib
     )
 
-    if(WIN32)
+    # glslang's MachineIndependent links OSDependent on every platform, so it must be in the export set on Linux too.
+    if(TARGET OSDependent)
         install(TARGETS OSDependent
             EXPORT vsgTargets
             RUNTIME DESTINATION bin

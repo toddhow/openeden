@@ -38,7 +38,7 @@ declare -rA GROUPED_DEPS=(
     libunshield-dev libtinyxml-dev liblz4-dev libpng-dev libjpeg-dev
     libluajit-5.1-dev librecast-dev libsqlite3-dev ca-certificates libicu-dev
     libyaml-cpp-dev libqt6svg6 libqt6svg6-dev
-    libvulkan-dev glslang-dev libspirv-tools-dev
+    libvulkan-dev glslang-dev spirv-tools
   "
 
   # These dependencies can alternatively be built and linked statically.
