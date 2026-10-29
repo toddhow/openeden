@@ -20,8 +20,8 @@ endmacro()
 if (NOT OPENMW_USE_SYSTEM_VSG)
     include(FetchContent)
     FetchContent_Declare(vsg
-            URL https://github.com/vsg-dev/VulkanSceneGraph/archive/refs/tags/v1.0.9.zip
-            URL_HASH SHA3_256=d6a9cb1058fabf8c9174138e7c111b365e17c5a34468709144b7e765fb2c9d6e
+            URL https://github.com/vsg-dev/VulkanSceneGraph/archive/refs/tags/v1.1.16.zip
+            URL_HASH SHA512=0b23ace8d665f9b94d5b8058cbf9072b659dcbfe10168348584bf5e72adfb2e16bdf75e12bc47cf83d6f1afc72603fa97ebc9b90ba8084873628a2bd48234730
             SOURCE_DIR fetched/vsg
     )
     FetchContent_MakeAvailableExcludeFromAll(vsg)
@@ -30,8 +30,8 @@ endif()
 if (NOT OPENMW_USE_SYSTEM_VSGXCHANGE)
     include(FetchContent)
     FetchContent_Declare(vsgXchange
-            URL https://github.com/vsg-dev/vsgXchange/archive/refs/tags/v1.0.5.zip
-            URL_HASH SHA3_256=05fcbe8b0c4bde28d295f20b26ebcd7a6a4df540f459639e73a4c9db5b42ee20
+            URL https://github.com/vsg-dev/vsgXchange/archive/refs/tags/v1.1.14.zip
+            URL_HASH SHA512=57d6f626e54843fa813b85a64d1e24e9b09fb5fabc3fba08d66104d41e04cbdbfaf9a5aff3b30c4ded75c09dedc49146f9eb719c1a8ee713c807031fc436389b
             SOURCE_DIR fetched/vsgXchange
     )
     FetchContent_MakeAvailableExcludeFromAll(vsgXchange)
