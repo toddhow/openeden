@@ -406,13 +406,8 @@ if(OPENEDEN_BUILD_VSG)
 
     add_dependencies(vsg glslang SPIRV glslang-default-resource-limits)
 
-    if(WIN32 AND TARGET vsg)
-        add_custom_command(TARGET vsg POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:vsg>
-                "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-        )
-    endif()
+    # Note: CMAKE_RUNTIME_OUTPUT_DIRECTORY is already set to ${OpenMW_BINARY_DIR},
+    # so vsg DLL is automatically output to the binary directory.
 
     # 4. vsgXchange
     FetchContent_Declare(vsgXchange

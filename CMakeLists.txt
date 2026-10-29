@@ -164,6 +164,13 @@ option(OPENMW_UNITY_BUILD "Use fewer compilation units to speed up compile time"
 option(OPENMW_LTO_BUILD "Build OpenMW with Link-Time Optimization (Needs ~2GB of RAM)" OFF)
 
 option(OPENEDEN_BUILD_VSG "Build VulkanSceneGraph renderer dependencies (Track V)" ON)
+option(OPENEDEN_VSG_PENDING_FEATURES "Enable OpenEden features pending VSG animation rebuild (foot IK, look-at, CM animation, Jolt debug draw, etc.)" OFF)
+
+if (OPENEDEN_VSG_PENDING_FEATURES)
+    add_compile_definitions(OPENEDEN_VSG_PENDING_FEATURES=1)
+else()
+    add_compile_definitions(OPENEDEN_VSG_PENDING_FEATURES=0)
+endif()
 
 # OS X deployment
 option(OPENMW_OSX_DEPLOYMENT OFF)

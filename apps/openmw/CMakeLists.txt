@@ -1,6 +1,7 @@
 set(OPENMW_SOURCES
     engine.cpp
     options.cpp
+    vsgpendingfeatures.cpp
 )
 
 set(OPENMW_RESOURCES
@@ -13,6 +14,7 @@ set(OPENMW_HEADERS
     engine.hpp
     options.hpp
     profile.hpp
+    vsgpendingfeatures.hpp
 )
 
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})

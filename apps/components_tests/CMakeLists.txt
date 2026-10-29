@@ -124,6 +124,7 @@ file(GLOB UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
 
     vsg/testshadercompile.cpp
+    vsg/testscenedata.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
