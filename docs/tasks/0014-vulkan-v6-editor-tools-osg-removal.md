@@ -1,6 +1,6 @@
 # Task 0014: Track V stage V6 — Editor and tools on Vulkan, OpenSceneGraph removed
 
-**Status:** draft, awaiting toddhow's approval. Depends on tasks 0012 (V4) and 0013 (V5).
+**Status:** approved by toddhow (2026-10-29) with the answers below. Depends on tasks 0012 (V4) and 0013 (V5).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md` ("The OpenGL build is not kept alongside … then OSG is removed"); `docs/design/eden-studio-plan.md`, Phase 1 (the editor's viewport becomes Eden Studio's).
 **Goal:** every application builds and runs on the Vulkan build, the editor's 3D views render through VSG, and no OpenSceneGraph code, header or library remains anywhere in the repository or the build. This ends Track V.
 **Workflow:** full loop.
@@ -50,3 +50,8 @@
 
 1. **Editor viewport technology:** vsgQt (proposed if it supports Qt 6.6.3) or Qt's own Vulkan window with VSG embedded by OpenEden?
 2. **Eden Studio timing:** port the existing OpenMW-CS views here (proposed, keeps the editor usable), or skip porting the old views and build Eden Studio's viewport directly as its phase 1?
+
+### Answers (toddhow, 2026-10-29)
+
+1. **Editor viewport:** vsgQt, if it supports Qt 6.6.3; otherwise Qt's own Vulkan window with VSG embedded by OpenEden.
+2. **Eden Studio timing:** port the existing OpenMW-CS views here, keeping the editor usable.

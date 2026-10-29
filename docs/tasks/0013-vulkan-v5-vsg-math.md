@@ -1,6 +1,6 @@
 # Task 0013: Track V stage V5 — VSG math everywhere
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0012 (V4); may start in parallel with task 0012 on a separate branch off `vulkan` if toddhow prefers (open question 1).
+**Status:** approved by toddhow (2026-10-29) with the answers below. Depends on task 0012 (V4).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md` ("Math: VSG's math types … replace OSG's … everywhere in the engine, … so no OSG dependency remains").
 **Goal:** replace OpenSceneGraph's math types (`osg::Vec2f/3f/4f`, `osg::Vec3d`, `osg::Quat`, `osg::Matrixf/d`, `osg::BoundingBox`, `osg::Plane` and the rest) with VulkanSceneGraph's (`vsg::vec2/3/4`, `vsg::dvec3`, `vsg::quat`, `vsg::mat4`/`dmat4`, `vsg::box`, `vsg::plane`, …) across the whole engine, then delete the bundled OSG headers (`extern/osg`) and vsgopenmw's OSG math shims (`components/vsgadapters/osg`), with no change in behaviour.
 **Workflow:** full loop. This is a large mechanical change with subtle traps; the test-writing subagent writes the convention tests first.
@@ -51,3 +51,8 @@
 
 1. **Timing:** run this after task 0012 (proposed, so parity work is not disturbed by a 300-file change), or in parallel on its own branch with a merge afterwards?
 2. **Helper header:** acceptable to have a small `vsgmath.hpp` of helpers, or must every call site use VSG's API as it is?
+
+### Answers (toddhow, 2026-10-29)
+
+1. **Timing:** after task 0012 (V4).
+2. **Helper header:** a small `vsgmath.hpp` of helpers is acceptable.

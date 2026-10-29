@@ -1,6 +1,6 @@
 # Task 0011: Track V stage V3 — OpenEden's rendering features on VSG
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0010 (V2).
+**Status:** approved by toddhow (2026-10-29) with the answers below. Depends on task 0010 (V2).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md` ("Consequences": the IK controller, pose driver and Jolt debug draw need porting); tasks 0006 (M9 IK), 0007 (M12 animation runtime); `docs/design/inertial-locomotion.md`; decision 0001 (CreativeMotion in the engine).
 **Goal:** rebuild every OpenEden feature that task 0009 compiled out (`OPENEDEN_VSG_PENDING_FEATURES`) on vsgopenmw's animation system, with the same behaviour, the same settings and the same "off by default, unchanged when off" guarantees as on the OSG build; then remove the option.
 **Workflow:** full loop. The test-writing subagent writes the tests from this spec and tasks 0006/0007's acceptance criteria, before implementation.
@@ -81,3 +81,9 @@ With OpenEden's features back, `vulkan` is feature-complete against the OSG buil
 1. **Blending:** if vsgopenmw already blends animations its own way, keep its blending as the default (with CreativeMotion's runtime as the alternative), or port OpenMW 0.51's rules-based blending as well?
 2. **Distortion** (`mwrender/distortion.hpp`, OpenMW 0.51): port it to VSG now, move it to task 0012, or drop it?
 3. **When `vulkan` becomes the main line:** after this task (proposed) or after task 0012?
+
+### Answers (toddhow, 2026-10-29)
+
+1. **Blending:** CreativeMotion handles blending. OpenMW 0.51's rules-based blending is not ported; with CreativeMotion's pose driver off, vsgopenmw's existing blending stays (Morrowind behaviour unchanged when off).
+2. **Distortion:** moves to task 0012 (V4).
+3. **Main line:** `vulkan` becomes the main line after task 0012 (V4); toddhow merges it.

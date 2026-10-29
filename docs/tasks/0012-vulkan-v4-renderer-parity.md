@@ -1,6 +1,6 @@
 # Task 0012: Track V stage V4 — Renderer parity
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0011 (V3). Has decisions to make before implementation (open questions 1–3).
+**Status:** approved by toddhow (2026-10-29) with the answers below. Depends on task 0011 (V3).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md` ("Mods", "The OpenGL build is not kept alongside"); `docs/research/0001-vulkan-renderer.md`, "vsgopenmw" (gaps).
 **Goal:** close every gap between the Vulkan renderer and the OSG renderer OpenEden had at `442eec6e2f`, so nothing a player or modder relied on is silently lost: vsgopenmw's own parity items, the features vsgopenmw dropped from the build, the OpenMW 0.49→0.51 renderer changes deferred in task 0009, and every renderer setting.
 **Workflow:** full loop. Large: split into sub-stages (V4a…) on the same branch, each with its own tests and review, as toddhow prefers.
@@ -54,3 +54,9 @@
 1. **Post-processing for modders** (`.omwfx`): (a) port OpenMW's post-processing framework to VSG and translate `.omwfx` GLSL to Vulkan GLSL at load time, so existing mod shaders keep working; (b) a new Vulkan-native format with a converter for the four built-in shaders and a migration guide; or (c) drop post-processing for now and bring a new system later.
 2. **VR (`components/stereo`):** port to Vulkan (via OpenXR or multiview on VSG), or remove it and its 30 settings for now?
 3. **Order of sub-stages:** proposed: weather particles, ripples and object paging first (most visible), then groundcover, normal maps, NIF features, then post-processing and VR, then the settings audit.
+
+### Answers (toddhow, 2026-10-29)
+
+1. **Post-processing:** OpenEden moves to Slang for shaders. Existing mod shaders (`.omwfx`) keep working through Slang's GLSL input path; the built-in shaders are later ported to native Slang or replaced by the shaders that come with OpenEden's advanced graphics features (subsurface scattering, lighting improvements and similar). Background: research note 0005 (Slang spike).
+2. **VR:** removed for now, with its settings, each with a recorded reason; a Vulkan VR port is a later task.
+3. **Order:** as proposed. Distortion (moved from task 0011) joins the NIF features sub-stage.
