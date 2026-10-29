@@ -143,6 +143,18 @@ namespace OMW
         if (gameState->updateSound)
             mSoundManager->update(dt);
 
+        // openeden-vsg: as in OpenMW 0.51's Engine::frame, Lua runs every frame whatever game state is on top (the main
+        // menu, a dialogue or the game): synchronizedUpdate applies the previous frame's queued changes before the
+        // world updates, and update runs the scripts after the frame's game logic. In vsgopenmw both ran inside
+        // Game::run, so menu scripts stopped while a menu state was on top.
+        const float luaDt = std::min(dt, 0.2f);
+        if (mLuaActive && gameState->updateLua)
+            mLuaManager->synchronizedUpdate(luaDt);
+        // Delayed Lua actions such as teleports may push a state (ChangeCell); 0.51 changed the cell inside
+        // synchronizedUpdate, so scripts must not run again until that state has finished.
+        if (mStateManager->getGameState() != gameState)
+            return false;
+
         try
         {
             if (!gameState->run(dt))
@@ -150,6 +162,8 @@ namespace OMW
                 mStateManager->popGameState(gameState);
                 return false;
             }
+            if (mLuaActive && gameState->updateLua)
+                mLuaManager->update(luaDt);
         }
         catch (const std::exception& e)
         {

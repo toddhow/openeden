@@ -738,6 +738,8 @@ target_link_libraries(components
     Boost::iostreams
     vsg::vsg
     vsgXchange::vsgXchange
+    # openeden-vsg: collision shapes of non-NIF models (resource/physicsshapemanager.cpp)
+    assimp::assimp
     SDL2::SDL2
     ${OPENGL_gl_LIBRARY}
     ${MyGUI_LIBRARIES}

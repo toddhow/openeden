@@ -99,6 +99,7 @@ namespace OMW
             // As in OpenMW 0.51, permanent storage is loaded before the load scripts run (LuaManager::init).
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
             mLuaManager->init(mEngine.mRenderManager.get());
+            mEngine.mLuaActive = true;
 
             if (args.compileAll)
             {
@@ -119,6 +120,7 @@ namespace OMW
         }
         ~Game()
         {
+            mEngine.mLuaActive = false;
             if (mLuaManager)
                 mLuaManager->savePermanentStorage(mEngine.mCfgMgr.getUserConfigPath().string());
             // openeden-vsg: as in OpenMW 0.51's Engine destructor, the game systems and the World (whose objects hold
@@ -141,32 +143,46 @@ namespace OMW
 
             try
             {
-                dt = std::min(dt, 0.2f);
-                mLuaManager->update(dt);
-                mLuaManager->synchronizedUpdate(dt);
+                // openeden-vsg: pausing and simulation time follow OpenMW 0.51's Engine::frame and Engine::go: the
+                // DateTimeManager decides whether the game is paused (Lua pause tags such as the UI's, the console,
+                // interactive message boxes), frame time is scaled by the simulation time scale, and simulation time
+                // advances while unpaused. vsgopenmw paused whenever any GUI mode was open and never advanced
+                // simulation time, so Lua simulation timers never fired.
+                MWWorld::DateTimeManager& timeManager = *mWorld->getTimeManager();
+                timeManager.updateIsPaused();
+                const bool paused = timeManager.isPaused();
+                dt = std::min(dt, 0.2f) * timeManager.getSimulationTimeScale();
 
-                if (mWorld->getScriptsEnabled())
+                if (!mEngine.mWindowManager->containsMode(MWGui::GM_MainMenu) || !paused)
                 {
-                    executeLocalScripts(dt);
-                    mScriptManager->getGlobalScripts().run(dt);
+                    if (mWorld->getScriptsEnabled())
+                    {
+                        executeLocalScripts(dt);
+                        mScriptManager->getGlobalScripts().run(dt);
+                    }
+
+                    mWorld->getWorldScene().markCellAsUnchanged();
                 }
-
-                mWorld->getWorldScene().markCellAsUnchanged();
-                bool guiActive = mEngine.mWindowManager->isGuiMode();
-                showCursor = guiActive;
-                if (!guiActive)
+                showCursor = mEngine.mWindowManager->isGuiMode();
+                if (!paused)
                 {
-                    double hours = (dt * mWorld->getTimeManager()->getGameTimeScale()) / 3600.0;
+                    double hours = (dt * timeManager.getGameTimeScale()) / 3600.0;
                     mWorld->advanceTime(hours, true);
                     mWorld->rechargeItems(dt, true);
                 }
 
-                mMechanicsManager->update(dt, guiActive);
+                mMechanicsManager->update(dt, paused);
 
                 mEngine.mStateManager->/*advanceTimePlayed*/ update(dt);
 
-                mWorld->updatePhysics(dt, guiActive);
-                mWorld->update(dt, guiActive);
+                mWorld->updatePhysics(dt, paused);
+                mWorld->update(dt, paused);
+
+                if (!paused)
+                {
+                    timeManager.setSimulationTime(timeManager.getSimulationTime() + dt);
+                    timeManager.setRenderingSimulationTime(timeManager.getRenderingSimulationTime() + dt);
+                }
 
                 mEngine.mWindowManager->update(dt);
                 mWorld->updateFocusObject();

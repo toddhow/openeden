@@ -13,6 +13,7 @@ namespace MWState
         requiresScene = false;
         showCursor = false;
         updateSound = false;
+        updateLua = false;
     }
 
     bool Video::run(float dt)

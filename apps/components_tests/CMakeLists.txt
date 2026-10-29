@@ -74,6 +74,7 @@ file(GLOB UNITTEST_SRC_FILES
     esmterrain/testgridsampling.cpp
 
     resource/testobjectcache.cpp
+    resource/testphysicsshapemanager.cpp
 
     vfs/testpathutil.cpp
 

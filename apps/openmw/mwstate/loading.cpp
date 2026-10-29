@@ -22,7 +22,10 @@ namespace MWState
         };
     }
 
-    Loading::Loading() {}
+    Loading::Loading()
+    {
+        updateLua = false;
+    }
 
     Loading::~Loading() {}
 

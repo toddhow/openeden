@@ -15,6 +15,7 @@ namespace MWState
             disableEvents = true;
             disableControls = true;
             requiresRender = false;
+            updateLua = false;
         }
     };
 }

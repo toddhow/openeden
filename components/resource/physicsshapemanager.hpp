@@ -50,6 +50,10 @@ namespace Resource
     private:
         vsg::ref_ptr<PhysicsShapeInstance> createInstance(VFS::Path::NormalizedView name);
 
+        /// Builds the shape of a non-NIF model (COLLADA through assimp); returns null and logs a warning when the model
+        /// cannot be read, and null when it has no triangles.
+        vsg::ref_ptr<PhysicsShape> loadModelShape(VFS::Path::NormalizedView name) const;
+
         vsg::ref_ptr<MultiObjectCache> mInstanceCache;
         NifFileManager* mNifFileManager;
     };

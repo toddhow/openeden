@@ -1,6 +1,6 @@
 # Task 0010: Track V stage V2 — The whole game on Vulkan
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0009 (V1).
+**Status:** approved by toddhow (2026-10-29). Depends on task 0009 (V1), done on Windows (commit 7a8e86c27d).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md`; guide `CLAUDE.md`, Track V.
 **Goal:** after the renderer import, make Morrowind fully playable on the Vulkan build: movement, combat, magic, AI pathing with the navigator on, saving and loading, maps, menus and the Lua API, with every existing test gate passing again and the image and performance comparisons against the OSG references judged. OpenEden's own rendering features stay excluded until task 0011.
 **Workflow:** full loop.
@@ -60,4 +60,13 @@
 ## Open questions for toddhow
 
 1. **Accepted visual differences:** is vsgopenmw's different look (clustered lighting, soft shadows, its water) acceptable as OpenEden's new default, or should V4 aim to match the OSG look first?
+   - **Answer (toddhow, 2026-10-29):** vsgopenmw's look is accepted as the new default. Image comparisons judge for bugs (missing or black objects, wrong materials or geometry), not for matching the OSG look; parity work stays in task 0012.
 2. **Performance budget:** what regression, if any, is acceptable against the OSG baseline (for example "no scene more than 10% slower in CPU frame time, GPU time free to rise for new features")?
+   - **Answer (toddhow, 2026-10-29):** no scene more than 10% slower in CPU frame time than the OSG baseline; GPU time may rise for new features.
+
+## Progress
+
+- **2026-10-29, Lua on every frame:** `Engine::frame` runs Lua for every game state while a game exists, as 0.51 did; Lua pauses during Operation, Loading, LoadingScreen and Video states (0.51 ran them synchronously); `Game::run` uses 0.51's pausing (`DateTimeManager::updateIsPaused`) and advances simulation time. A state pushed by `synchronizedUpdate` (a Lua teleport's ChangeCell) ends the frame before scripts run, as 0.51 changed cells inside `synchronizedUpdate`.
+- **2026-10-29, movement, navigator and the magic crash (work items 1 and 2):** one cause. Non-NIF (`.dae`) models had no collision shape on the VSG build (`PhysicsShapeManager::getShape`), so the example suite's player got no physics body (`PhysicsSystem::addActor` returns early) and could not move, the navmesh lacked every `.dae` building, and `PhysicsSystem::addProjectile` dereferenced a null shape when a `.dae` magic bolt launched. Fixed at the cause by porting 0.51's `NodeToShapeVisitor` onto assimp (new dependency, `docs/dependencies.md` section 7), with 16 unit tests in `apps/components_tests/resource/testphysicsshapemanager.cpp`; transforms above a "Collision" node now apply (0.51 skipped them, which only mattered for files that rotate above that node).
+- **Windows integration run (2026-10-29):** 31 of 32 Lua integration tests pass with the runner normalising CRLF test data. Remaining: "player with equipped weapon on attack should damage health of other actors": `.dae` models still render and animate as vsgopenmw's fallback object, so the player has no attack animation and no hit is triggered. Rendering and animating `.dae` models on VSG is open work for this task. Linux container run not done yet.
+- **Known differences of the `.dae` collision port from 0.51 (fresh review, 2026-10-29):** only the COLLADA importer is built, so other non-NIF formats OSG could read (`.osgt`, `.obj`) get no collision shape and a warning; assimp applies the file's `<unit meter>` scale and converts X_UP and Y_UP files through its own rotation, and neither has been compared with 0.51's OSG reader (the example suite is all Z_UP in metres). Matching 0.51: nodes are named by their COLLADA `name`, and only the first "Collision" node counts.

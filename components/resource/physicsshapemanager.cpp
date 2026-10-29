@@ -1,7 +1,24 @@
 #include "physicsshapemanager.hpp"
 
+#include <array>
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <vector>
+
+#include <Jolt/Jolt.h>
+
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+
+#include <assimp/Importer.hpp>
+#include <assimp/config.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
 #include <components/debug/debuglog.hpp>
+#include <components/files/hash.hpp>
 #include <components/misc/pathhelpers.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -14,6 +31,126 @@
 
 namespace Resource
 {
+    namespace
+    {
+        // assimp converts every model to Y up at its root node; the game world is Z up, as OSG's loaders made it in
+        // OpenMW 0.51. This undoes assimp's Z_UP-to-Y_UP rotation (ColladaLoader::InternReadFile):
+        // (x, y, z) -> (x, -z, y).
+        const aiMatrix4x4 sYUpToZUp(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+
+        // openeden-vsg: port of OpenMW 0.51's NodeToShapeVisitor (components/resource/physicsshapemanager.cpp at
+        // e3957be0b2^1), which built a triangle mesh from every drawable of a non-NIF model's OSG scene graph. The
+        // model is now read with assimp, which also backs vsgXchange's model reader. As in 0.51 the shape is static
+        // (animation is ignored), only triangles count, and a node named "Collision" is preferred when it has geometry.
+        // Unlike 0.51, which started its second visitor at the "Collision" node, the transforms above that node are
+        // applied too: assimp puts the file's up-axis and unit conversion at the root, so skipping it would rotate
+        // the shape.
+        class NodeToShape
+        {
+        public:
+            NodeToShape(const aiScene& scene, bool collisionNodeOnly)
+                : mScene(scene)
+                , mCollisionNodeOnly(collisionNodeOnly)
+            {
+                // Lives on the stack, so no Jolt Ref may take ownership of it.
+                mTriangleMesh.SetEmbedded();
+                mTriangleMesh.mBuildQuality = JPH::MeshShapeSettings::EBuildQuality::FavorRuntimePerformance;
+                visit(*scene.mRootNode, sYUpToZUp, false);
+            }
+
+            vsg::ref_ptr<PhysicsShape> getShape()
+            {
+                if (mTriangleMesh.mIndexedTriangles.empty())
+                    return {};
+
+                JPH::ShapeSettings::ShapeResult created = mTriangleMesh.Create();
+                if (created.HasError())
+                {
+                    // Remove degenerate and duplicate triangles, then try again
+                    mTriangleMesh.ClearCachedResult();
+                    mTriangleMesh.Sanitize();
+                    created = mTriangleMesh.Create();
+                    if (created.HasError())
+                    {
+                        Log(Debug::Error) << "PhysicsShapeManager mesh error: " << created.GetError();
+                        return {};
+                    }
+                }
+
+                vsg::ref_ptr<PhysicsShape> shape(new PhysicsShape);
+                shape->mCollisionShape = created.Get();
+
+                const JPH::AABox bounds = shape->mCollisionShape->GetLocalBounds();
+                const JPH::Vec3 extents = bounds.GetExtent();
+                const JPH::Vec3 center = bounds.GetCenter();
+                shape->mCollisionBox.mExtents = osg::Vec3f(extents.GetX(), extents.GetY(), extents.GetZ());
+                shape->mCollisionBox.mCenter = osg::Vec3f(center.GetX(), center.GetY(), center.GetZ());
+                return shape;
+            }
+
+        private:
+            void visit(const aiNode& node, const aiMatrix4x4& parentMatrix, bool insideCollisionNode)
+            {
+                const aiMatrix4x4 matrix = parentMatrix * node.mTransformation;
+                // As 0.51's FindByNameVisitor, only the first node named "Collision" (in document order) counts.
+                const bool isCollisionNode = mCollisionNodeOnly && !insideCollisionNode && !mFoundCollisionNode
+                    && Misc::StringUtils::ciEqual(std::string_view(node.mName.C_Str(), node.mName.length), "Collision");
+                if (isCollisionNode)
+                    insideCollisionNode = true;
+
+                if (!mCollisionNodeOnly || insideCollisionNode)
+                    for (unsigned int i = 0; i < node.mNumMeshes; ++i)
+                        appendTriangles(*mScene.mMeshes[node.mMeshes[i]], matrix);
+
+                for (unsigned int i = 0; i < node.mNumChildren; ++i)
+                    visit(*node.mChildren[i], matrix, insideCollisionNode);
+
+                if (isCollisionNode)
+                    mFoundCollisionNode = true;
+            }
+
+            void appendTriangles(const aiMesh& mesh, const aiMatrix4x4& matrix)
+            {
+                const std::size_t baseVertex = mTriangleMesh.mTriangleVertices.size();
+                if (mesh.mNumVertices > std::numeric_limits<std::uint32_t>::max() - baseVertex)
+                    return;
+
+                mTriangleMesh.mTriangleVertices.reserve(baseVertex + mesh.mNumVertices);
+                for (unsigned int i = 0; i < mesh.mNumVertices; ++i)
+                {
+                    const aiVector3D vertex = matrix * mesh.mVertices[i];
+                    mTriangleMesh.mTriangleVertices.emplace_back(vertex.x, vertex.y, vertex.z);
+                }
+
+                const auto indexBase = static_cast<std::uint32_t>(baseVertex);
+                for (unsigned int i = 0; i < mesh.mNumFaces; ++i)
+                {
+                    const aiFace& face = mesh.mFaces[i];
+                    if (face.mNumIndices != 3 || face.mIndices[0] >= mesh.mNumVertices
+                        || face.mIndices[1] >= mesh.mNumVertices || face.mIndices[2] >= mesh.mNumVertices)
+                        continue;
+                    mTriangleMesh.mIndexedTriangles.emplace_back(
+                        indexBase + face.mIndices[0], indexBase + face.mIndices[1], indexBase + face.mIndices[2]);
+                }
+            }
+
+            const aiScene& mScene;
+            const bool mCollisionNodeOnly;
+            bool mFoundCollisionNode = false;
+            JPH::MeshShapeSettings mTriangleMesh;
+        };
+
+        vsg::ref_ptr<PhysicsShape> createShape(const aiScene& scene)
+        {
+            // Check first if there's a custom collision node
+            if (vsg::ref_ptr<PhysicsShape> shape = NodeToShape(scene, true).getShape())
+                return shape;
+
+            // Generate a collision shape from the mesh
+            return NodeToShape(scene, false).getShape();
+        }
+    }
+
     PhysicsShapeManager::PhysicsShapeManager(
         const VFS::Manager* vfs, NifFileManager* nifFileManager, double expiryDelay)
         : ResourceManager(vfs, expiryDelay)
@@ -37,15 +174,49 @@ namespace Resource
             shape = loader.load(*mNifFileManager->get(name));
         }
         else
-        {
-            // openeden-vsg: shapes for other mesh formats were built from the OSG scene graph, which is gone.
-            // They return when the mesh-to-shape visitor is ported to VSG scene graphs (task 0010, stage V2).
-            Log(Debug::Warning) << "No collision shape for \"" << name
-                                << "\": only NIF collision is supported while the VSG port is in progress";
-        }
+            shape = loadModelShape(name);
 
         mCache->addEntryToObjectCache(name.value(), shape);
 
+        return shape;
+    }
+
+    vsg::ref_ptr<PhysicsShape> PhysicsShapeManager::loadModelShape(VFS::Path::NormalizedView name) const
+    {
+        // openeden-vsg: OpenMW 0.51 read the model through SceneManager::getTemplate and OSG's loaders; the VSG
+        // renderer has no shared template for non-NIF models, so the model is read here.
+        if (!getVFS()->exists(name))
+        {
+            Log(Debug::Warning) << "No collision shape for \"" << name << "\": the file does not exist";
+            return {};
+        }
+
+        Files::IStreamPtr stream = getVFS()->get(name);
+        const std::array<std::uint64_t, 2> fileHash = Files::getHash(name.value(), *stream);
+        const std::string content(std::istreambuf_iterator<char>(*stream), {});
+
+        // One importer per call, so shapes can be loaded from any thread.
+        Assimp::Importer importer;
+        // Without this, assimp gives a model with no meshes a generated skeleton mesh (SkeletonMeshBuilder).
+        importer.SetPropertyBool(AI_CONFIG_IMPORT_NO_SKELETON_MESHES, true);
+        // Name nodes by their COLLADA name rather than their id, so the "Collision" node is found by its name.
+        importer.SetPropertyBool(AI_CONFIG_IMPORT_COLLADA_USE_COLLADA_NAMES, true);
+        const std::string extension(Misc::getFileExtension(name.value()));
+        const aiScene* scene
+            = importer.ReadFileFromMemory(content.data(), content.size(), aiProcess_Triangulate, extension.c_str());
+        if (scene == nullptr || scene->mRootNode == nullptr)
+        {
+            Log(Debug::Warning) << "No collision shape for \"" << name << "\": " << importer.GetErrorString();
+            return {};
+        }
+
+        vsg::ref_ptr<PhysicsShape> shape = createShape(*scene);
+        if (shape != nullptr)
+        {
+            shape->mFileName = name;
+            shape->mFileHash.assign(
+                reinterpret_cast<const char*>(fileHash.data()), fileHash.size() * sizeof(std::uint64_t));
+        }
         return shape;
     }
 

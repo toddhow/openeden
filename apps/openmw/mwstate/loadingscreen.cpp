@@ -14,6 +14,7 @@ namespace MWState
         setWallpaper(true);
         disableControls = true;
         disableEvents = true;
+        updateLua = false;
     }
 
     bool LoadingScreen::run(float dt)

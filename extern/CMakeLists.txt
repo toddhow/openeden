@@ -408,7 +408,52 @@ if(OPENEDEN_BUILD_VSG)
 
     # The DLL output directory is set below, after vsgXchange is fetched.
 
-    # 4. vsgXchange
+    # 4. assimp (static, COLLADA importer only)
+    # openeden-vsg: OpenMW 0.51 loaded .dae models through OSG's COLLADA plugin. The VSG build reads them with assimp:
+    # components links it for the collision shapes of non-NIF models (resource/physicsshapemanager.cpp). The example
+    # suite used by the integration tests is all .dae.
+    set(OPENEDEN_ASSIMP_VERSION 6.0.5)
+    set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_BUILD_COLLADA_IMPORTER ON CACHE BOOL "" FORCE)
+    set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
+    set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_INSTALL_PDB OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_INJECT_DEBUG_POSTFIX OFF CACHE BOOL "" FORCE)
+    # Use the zlib the engine already links; assimp's bundled copy defines the same symbols.
+    set(ASSIMP_BUILD_ZLIB OFF CACHE BOOL "" FORCE)
+
+    # BUILD_SHARED_LIBS is forced on above for VSG; assimp is a static library.
+    set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+    set(BUILD_SHARED_LIBS OFF)
+    # The root CMakeLists.txt compiles with /utf-8 through add_compile_options, which assimp cannot see, so assimp adds
+    # /source-charset:utf-8 and MSVC rejects the pair (D8016). Showing /utf-8 in CMAKE_CXX_FLAGS stops it adding its own.
+    set(OPENEDEN_SAVED_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    if(MSVC)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
+    endif()
+    FetchContent_Declare(assimp
+        URL https://github.com/assimp/assimp/archive/refs/tags/v${OPENEDEN_ASSIMP_VERSION}.tar.gz
+        URL_HASH SHA512=57326194bf3a8e2ae793c739878231067fdd6d031531e910d4d20fc8a673eacf48f75e11bd21ca2e6421682f78585d445bffb647bdcb52e01b2cd4d3ff0e2c62
+        SOURCE_DIR fetched/assimp
+    )
+    FetchContent_MakeAvailable(assimp)
+    set(CMAKE_CXX_FLAGS "${OPENEDEN_SAVED_CXX_FLAGS}")
+    unset(BUILD_SHARED_LIBS)
+    unset(CMAKE_POLICY_DEFAULT_CMP0077)
+
+    if(NOT TARGET assimp::assimp)
+        add_library(assimp::assimp ALIAS assimp)
+    endif()
+
+    # vsgXchange's own assimp reader stays off: it builds VSG's own shader pipelines, which vsgopenmw does not use.
+    set(vsgXchange_assimp OFF CACHE BOOL "" FORCE)
+
+    # 5. vsgXchange
     FetchContent_Declare(vsgXchange
         URL https://github.com/vsg-dev/vsgXchange/archive/refs/tags/v1.1.14.zip
         URL_HASH SHA512=57d6f626e54843fa813b85a64d1e24e9b09fb5fabc3fba08d66104d41e04cbdbfaf9a5aff3b30c4ded75c09dedc49146f9eb719c1a8ee713c807031fc436389b
