@@ -74,3 +74,17 @@ Stage V0 introduces the dependencies required for the VulkanSceneGraph (VSG) ren
 - **License:** BSD-3-Clause; its bundled third-party code is BSD-2-Clause, ISC, MIT and zlib, all GPL-3.0-compatible.
 - **Purpose / Why:** OpenMW 0.51 read COLLADA (`.dae`) models through OpenSceneGraph's plugin, which is gone on the Vulkan build. Without it, non-NIF models had no collision: actors with `.dae` models (the example suite's player) got no physics body and could not move, the navmesh missed `.dae` buildings, and launching a magic bolt with a `.dae` model crashed. `components/resource/physicsshapemanager.cpp` now reads these models with assimp to build their collision shapes. The same models are drawn and animated through `components/vsgadapters/dae/` (task 0010). Approved by toddhow (2026-10-29).
 - **Build Configuration:** `extern/CMakeLists.txt` fetches it with `FetchContent` as a static library with only the COLLADA importer (`ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT=OFF`, `ASSIMP_BUILD_COLLADA_IMPORTER=ON`, no exporters, tools, tests or install), against the engine's zlib (`ASSIMP_BUILD_ZLIB=OFF`). `components` links `assimp::assimp`. The COLLADA animation reader (`vsgadapters/dae/daeanim.cpp`) uses the pugixml that assimp compiles into its library (`contrib/pugixml`, MIT), through `OPENEDEN_PUGIXML_INCLUDE_DIR`. On Windows assimp finds and links the dependency set's minizip (`minizip.dll`, already deployed next to the executables); on Linux it uses the distribution's minizip or its bundled copy. vsgXchange's own assimp reader stays off (`vsgXchange_assimp=OFF`) because it builds VSG's stock shader pipelines, not vsgopenmw's.
+
+## Proposed, not adopted: Slang shader compiler
+
+**Status: proposed, not adopted.** Nothing in the build uses Slang. Recorded here so the facts are ready if toddhow approves the draft decision in `docs/research/0005-slang-shaders.md` (section 9); until then, glslang (item 3 above) remains the only shader compiler.
+
+- **Version:** `v2026.19` (2026-09-29 release tag)
+- **Source (Windows x86_64):** https://github.com/shader-slang/slang/releases/download/v2026.19/slang-2026.19-windows-x86_64.zip
+  - **SHA-256:** `fc922f214b5d115f663932e59e80e0f6b6cc6fae140979cf307da6459b6f8f33`
+  - **SHA-512:** `cdd3329697a7307e0e46a03c45f279af9dd437cf842829f7dee579408959bd821982d9a486a4b01b865b19e67292c378ee962d340244c3062a3915b4f2cb967d`
+- **Source (Linux x86_64):** https://github.com/shader-slang/slang/releases/download/v2026.19/slang-2026.19-linux-x86_64-glibc-2.28.tar.gz
+  - **SHA-256:** `bd7afcb0956dee9304f44ed115e9aaa7140704271b5c3294bcb237e3ae67adc7` (GitHub's published digest; not yet downloaded or tested)
+- **License:** Apache-2.0 WITH LLVM-exception (GPL-3.0-or-later compatible). Bundled third-party notices: glslang, SPIRV-Tools, lz4, mimalloc, miniz, cmark, unordered_dense.
+- **Purpose / Why:** compile new shaders written in the Slang language to SPIR-V 1.0 at build time, from task 0012 (Track V stage V4) on; vsgopenmw's GLSL shaders stay on glslang until ported (research note 0005 explains why Slang is not a drop-in replacement for them).
+- **Proposed build configuration:** host tool only. CMake downloads the pinned archive, checks the hash and runs `slangc` at build time; nothing from Slang ships with the game. Embedding the compiler library for runtime compilation would add about 27 MB (`slang.dll`, `slang-compiler.dll`, `slang-glsl-module.dll`) or about 33 MB with the optimizer (`slang-glslang.dll`), and needs its own decision.
