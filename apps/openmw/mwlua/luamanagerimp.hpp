@@ -26,6 +26,15 @@
 #include "object.hpp"
 #include "objectlists.hpp"
 
+//;
+namespace osg
+{
+    class Stats;
+}
+namespace MWRender
+{
+    class RenderManager;
+}
 namespace MWLua
 {
     // \brief LuaManager is the central interface through which the engine invokes lua scripts.
@@ -41,7 +50,7 @@ namespace MWLua
         LuaManager(LuaManager&&) = delete;
         ~LuaManager();
 
-        // Called by engine.cpp as part of content file loading
+        void init(MWRender::RenderManager* renderManager);
         void initPreLoad();
         void contentFilesLoaded() override;
         void initPostLoad();
@@ -58,13 +67,13 @@ namespace MWLua
         // that affect the scene graph is forbidden. Such modifications must
         // be queued for execution in synchronizedUpdate().
         // The parallelism can be turned off in the settings.
-        void update();
+        void update(float dt);
 
         // \brief Executes latency-critical and scene graph related Lua logic.
         //
         // Called by engine.cpp from the main thread between InputManager and MechanicsManager updates.
         // Can use the scene graph and applies the actions queued during update()
-        void synchronizedUpdate();
+        void synchronizedUpdate(float dt);
 
         // Normally it is called by `synchronizedUpdate` every frame.
         // Additionally must be called before making a save to ensure that there are no pending delayed

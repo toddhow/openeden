@@ -3,7 +3,7 @@
 #include <filesystem>
 
 #include <MyGUI_InputManager.h>
-#include <osg/Stats>
+//#include <osg/Stats>
 
 #include <sol/object.hpp>
 #include <sol/table.hpp>
@@ -25,10 +25,9 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-#include "../mwrender/bonegroup.hpp"
-#include "../mwrender/postprocessor.hpp"
 
 #include "../mwworld/datetimemanager.hpp"
+#include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
 #include "../mwworld/ptr.hpp"
@@ -96,6 +95,14 @@ namespace MWLua
         mGlobalScripts.setAutoStartConf(mConfiguration.getGlobalConf());
     }
 
+    void LuaManager::init(MWRender::RenderManager* renderManager)
+    {
+        mRenderManager = renderManager;
+        initPreLoad();
+        contentFilesLoaded();
+        initPostLoad();
+    }
+
     void LuaManager::initPreLoad()
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
@@ -103,7 +110,7 @@ namespace MWLua
             context.mType = Context::Load;
             context.mLuaManager = this;
             context.mLua = &mLua;
-
+            context.mRenderManager = mRenderManager;
             for (const auto& [name, package] : initCommonPackages(context))
                 mLua.addCommonPackage(name, package);
 
@@ -203,7 +210,7 @@ namespace MWLua
         mLuaEvents.addLocalEvent({ getId(target), name, std::move(binary) });
     }
 
-    void LuaManager::update()
+    void LuaManager::update(float frameDuration)
     {
         if (const int steps = Settings::lua().mGcStepsPerFrame; steps > 0)
             lua_gc(mLua.unsafeState(), LUA_GCSTEP, steps);
@@ -291,7 +298,7 @@ namespace MWLua
         }
     }
 
-    void LuaManager::synchronizedUpdate()
+    void LuaManager::synchronizedUpdate(float dt)
     {
         mLua.protectedCall([&](LuaUtil::LuaView&) { synchronizedUpdateUnsafe(); });
     }
@@ -373,7 +380,7 @@ namespace MWLua
     {
         LuaUi::clearGameInterface();
         mUiResourceManager.clear();
-        MWBase::Environment::get().getWorld()->getPostProcessor()->disableDynamicShaders();
+        MWBase::Environment::get().getWindowManager()->setConsoleMode("");
         mActiveLocalScripts.clear();
         mLuaEvents.clear();
         mEngineEvents.clear();

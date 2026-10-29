@@ -67,6 +67,8 @@ namespace MWGui
         mControllerButtons.mR1 = "#{Interface:Soul}";
     }
 
+    EnchantingDialog::~EnchantingDialog() {}
+
     void EnchantingDialog::onOpen()
     {
         center();

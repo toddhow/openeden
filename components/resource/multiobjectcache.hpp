@@ -3,50 +3,37 @@
 
 #include <map>
 #include <mutex>
+#include <string>
 
-#include <osg/Referenced>
-#include <osg/ref_ptr>
-
-#include <components/vfs/pathutil.hpp>
-
-#include "cachestats.hpp"
-
-namespace osg
-{
-    class Object;
-    class State;
-}
+#include <vsg/core/Object.h>
 
 namespace Resource
 {
 
     /// @brief Cache for "non reusable" objects.
-    class MultiObjectCache : public osg::Referenced
+    class MultiObjectCache : public vsg::Object
     {
     public:
+        MultiObjectCache();
+        ~MultiObjectCache();
+
         void removeUnreferencedObjectsInCache();
 
         /** Remove all objects from the cache. */
         void clear();
 
-        void addEntryToObjectCache(VFS::Path::NormalizedView filename, osg::Object* object);
+        void addEntryToObjectCache(const std::string& filename, vsg::Object* object);
 
         /** Take an Object from cache. Return nullptr if no object found. */
-        osg::ref_ptr<osg::Object> takeFromObjectCache(VFS::Path::NormalizedView fileName);
+        vsg::ref_ptr<vsg::Object> takeFromObjectCache(const std::string& fileName);
 
-        /** call releaseGLObjects on all objects attached to the object cache.*/
-        void releaseGLObjects(osg::State* state);
-
-        CacheStats getStats() const;
+        unsigned int getCacheSize() const;
 
     protected:
-        typedef std::multimap<VFS::Path::Normalized, osg::ref_ptr<osg::Object>, std::less<>> ObjectCacheMap;
+        typedef std::multimap<std::string, vsg::ref_ptr<vsg::Object>> ObjectCacheMap;
 
         ObjectCacheMap _objectCache;
         mutable std::mutex _objectCacheMutex;
-        std::size_t mGet = 0;
-        std::size_t mHit = 0;
-        std::size_t mExpired = 0;
     };
 
 }

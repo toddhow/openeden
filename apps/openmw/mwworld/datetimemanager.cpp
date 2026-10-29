@@ -256,7 +256,7 @@ namespace MWWorld
     {
         auto stateManager = MWBase::Environment::get().getStateManager();
         auto wm = MWBase::Environment::get().getWindowManager();
-        mPaused = !mPausedTags.empty() || wm->isConsoleMode() || wm->isPostProcessorHudVisible()
+        mPaused = !mPausedTags.empty() || wm->isConsoleMode()
             || wm->isInteractiveMessageBoxActive() || stateManager->getState() == MWBase::StateManager::State_NoGame;
     }
 }

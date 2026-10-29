@@ -6,6 +6,10 @@
 #include <map>
 #include <string>
 
+namespace MWRender
+{
+    class RenderManager;
+}
 namespace MWLua
 {
     struct Context;

@@ -57,6 +57,10 @@ namespace MWWorld
     class Ptr;
 }
 
+namespace MWState
+{
+    class LoadingScreen;
+}
 namespace MWGui
 {
     class Layout;
@@ -300,6 +304,7 @@ namespace MWBase
 
         /// Warning: do not use MyGUI::InputManager::setKeyFocusWidget directly. Instead use this.
         virtual void setKeyFocusWidget(MyGUI::Widget* widget) = 0;
+        virtual std::shared_ptr<MWState::LoadingScreen> createLoadingScreen() = 0;
 
         virtual Loading::Listener* getLoadingScreen() = 0;
 

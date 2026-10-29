@@ -6,14 +6,12 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/ptr.hpp"
 
-#include "../mwbase/environment.hpp"
-
 #include "movement.hpp"
 
 namespace MWMechanics
 {
 
-    bool smoothTurn(const MWWorld::Ptr& actor, float targetAngleRadians, int axis, float epsilonRadians)
+    bool smoothTurn(const MWWorld::Ptr& actor, float dt, float targetAngleRadians, int axis, float epsilonRadians)
     {
         MWMechanics::Movement& movement = actor.getClass().getMovementSettings(actor);
         float diff
@@ -26,7 +24,7 @@ namespace MWMechanics
             return true;
 
         float limit
-            = getAngularVelocity(actor.getClass().getMaxSpeed(actor)) * MWBase::Environment::get().getFrameDuration();
+            = getAngularVelocity(actor.getClass().getMaxSpeed(actor)) * dt;
         if (Settings::game().mSmoothMovement)
             limit *= std::min(absDiff / osg::PIf + 0.1f, 0.5f);
 
@@ -37,9 +35,9 @@ namespace MWMechanics
         return false;
     }
 
-    bool zTurn(const MWWorld::Ptr& actor, float targetAngleRadians, float epsilonRadians)
+    bool zTurn(const MWWorld::Ptr& actor, float duration, float targetAngleRadians, float epsilonRadians)
     {
-        return smoothTurn(actor, targetAngleRadians, 2, epsilonRadians);
+        return smoothTurn(actor, duration, targetAngleRadians, 2, epsilonRadians);
     }
 
 }

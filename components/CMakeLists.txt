@@ -44,16 +44,7 @@ endif (GIT_CHECKOUT)
 
 list (APPEND COMPONENT_FILES "${OpenMW_BINARY_DIR}/${VERSION_CPP_FILE}")
 
-# OSG plugin checker
-# Helpfully, OSG doesn't export this to its CMake config as it doesn't have one
-list(TRANSFORM USED_OSG_PLUGINS REPLACE "^osgdb_" "" OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES)
-list(TRANSFORM USED_OSG_PLUGIN_NAMES PREPEND "\"" OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES_FORMATTED)
-list(TRANSFORM USED_OSG_PLUGIN_NAMES_FORMATTED APPEND "\"")
-list(JOIN USED_OSG_PLUGIN_NAMES_FORMATTED ", " USED_OSG_PLUGIN_NAMES_FORMATTED)
 
-set(OSG_PLUGIN_CHECKER_CPP_FILE "components/misc/osgpluginchecker.cpp")
-configure_file("${OpenMW_SOURCE_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}.in" "${OpenMW_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}")
-list(APPEND COMPONENT_FILES "${OpenMW_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}")
 
 # source files
 
@@ -67,6 +58,7 @@ add_component_dir (l10n
     messagebundles manager
     )
 
+#vsgopenmw-fixme(rewrite-me)
 add_component_dir (settings
     categories
     categories/camera
@@ -111,6 +103,98 @@ add_component_dir (bgsm
     stream file
     )
 
+#<vsgopenmw-code-style>
+# Views terrain.
+# Depends on pipeline.
+add_component_dir (terrain
+    bounds storage indexbuffer builder
+    lod view viewdata paging preload
+    )
+# Adapts nif to vsg::Node and kf to Anim::ControllerMap.
+# Depends on nif, pipeline, animation.
+add_component_dir (vsgadapters/nif
+    nif anim channel particle kf
+    )
+add_component_dir (vsgadapters
+    # Encapsulates vfs component.
+    vfs
+    # Temporarily converts types.
+    osgcompat
+    # Avoids linking full OSG library for yet-to-be-ported modules.
+    osg/Matrixf osg/Matrixd osg/Quat osg/MatrixDecomposition
+    )
+add_component_dir (vsgadapters/sdl
+    window surface
+    )
+add_component_dir (vsgadapters/mygui
+    render texture manualtexture
+    )
+# Assembles vulkan pipelines.
+add_component_dir (pipeline
+    builder options override graphics particle particledata terrain descriptorvalue layout sets bindings computebindings viewbindings viewdata material descriptorimagecache descriptorbuffercache lightgrid fogofwar worldoverlay
+    )
+# Implements algorithms.
+add_component_dir (render
+    engine download screenshot headless limitframerate rendertexture cascade computeimage
+    screen depth attachmentformat renderpass multisample
+    )
+# Renders pipelines.
+# Depends on pipeline, render.
+add_component_dir (view
+    scene descriptors collectlights defaultstate lightgrid shadow
+    )
+# Provides dynamic scene graph objects.
+add_component_dir (animation
+    # Channels map time to value.
+    channel interpolate extrapolate path range reset
+    # Controllers modify objects.
+    controller tcontroller tmutable updatedata rotate roll skin morph transformcontroller texmat switch stateswitch color cullparticles
+    # Nodes may be placed in the scene graph.
+    transform billboard
+    # Tools support nodes.
+    softwareskin clone attachbone
+    # Logic plays animations.
+    animation visitor context update autoplay transformupdate tags bones controllermap contents meta
+    )
+# Creates animation scene graph.
+# Depends on esm, animation.
+add_component_dir (mwanimation
+    context play groups clone decorate attach
+    color position light lighteffect effect effects
+    create object objectanim actor wielding face
+    )
+# Conveniently extends vsg.
+# vsgutil must not depend on other components.
+# vsgutil may be implicitely depended on.
+#add_base_dir(vsgutil
+add_component_dir (vsgutil
+    # Object extensions.
+    attachable name id operation image debugmessenger
+    # Nodes.
+    setviewportstate projection viewrelative computebin nullbin suspendrenderpass
+    # Algorithms.
+    convert bounds transform computetransform intersectnormal toggle group compilecontext compileop updatethreads arraytexture
+    # Visitors.
+    traverse traversestate nodepath cullnode searchbyname searchbytype cameradistanceintersector arraystate
+    # I/O.
+    cache virtualfile imageio readimage decompress readnode readshader share shareimage deletionqueue
+    # Temporary workarounds.
+    setbin sharedview
+    )
+# Supports MyGUI.
+# Depends on vfs, vsgadapters/mygui.
+add_component_dir (myguiplatform #(mygui
+    # Backends.
+    vfs platform loglistener
+    # Layers.
+    scalinglayer #additivelayer
+    ## Widgets.
+    #
+    ## Loaders.
+    #fontloader
+    )
+#</vsgopenmw-code-style>
+
 add_component_dir (bsa
     bsafile compressedbsafile ba2gnrlfile ba2dx10file ba2file memorystream
     )
@@ -127,11 +211,22 @@ add_component_dir (vfs
     manager archive bsaarchive filesystemarchive pathutil registerarchives
     )
 
+#<vsgopenmw-code-style="pending">
+# Assembles I/O components for use.
+# Depends on vsgadapters/vfs, vsgadapters/nif, nifbullet.
 add_component_dir (resource
-    scenemanager keyframemanager imagemanager animblendrulesmanager physicsshapemanager physicsshape niffilemanager objectcache multiobjectcache resourcesystem
-    resourcemanager stats animation foreachphysicsobject errormarker cachestats bgsmfilemanager
+    # Interfaces.
+    resourcesystem
+    # ReaderWriters.
+    shadersettings fallback decompress
+    resourcemanager
+    objectcache multiobjectcache niffilemanager
+    physicsshapemanager physicsshape foreachphysicsobject stats cachestats bgsmfilemanager
     )
+#</vsgopenmw-code-style>
 
+#vsgopenmw-delete-me
+#[[
 add_component_dir (shader
     shadermanager shadervisitor removedalphafunc
     )
@@ -143,13 +238,10 @@ add_component_dir (sceneutil
     screencapture depth color riggeometryosgaextension extradata unrefqueue lightcommon lightingmethod clearcolor
     cullsafeboundsvisitor keyframe nodecallback textkeymap glextensions
     )
+]]
 
 add_component_dir (nif
     base controller data effect extra niffile nifkey nifstream niftypes node parent particle physics property record recordptr texture
-    )
-
-add_component_dir (nifosg
-    nifloader controller particle matrixtransform fog
     )
 
 add_component_dir (nifjolt
@@ -174,9 +266,12 @@ add_component_dir(esm attr common defs esmcommon records util luascripts format 
     exteriorcelllocation
     )
 
+#[[
 add_component_dir(fx pass technique lexer lexertypes parseconstants widgets stateupdater)
 
 add_component_dir(std140 ubo)
+]]
+
 
 add_component_dir (esm3
     esmreader esmwriter loadacti loadalch loadappa loadarmo loadbody loadbook loadbsgn loadcell
@@ -192,10 +287,15 @@ add_component_dir (esm3
     refnum actoridconverter
     )
 
+add_component_dir (esm3terrain
+    storage
+    )
+#[[
 add_component_dir (esmterrain
     gridsampling
     storage
     )
+#]]
 
 add_component_dir (esm4
     actor
@@ -295,9 +395,14 @@ add_component_dir (esm4
     vertex
 )
 
+# Conveniently extends STL.
+# misc must not depend on other components.
+# misc may be implicitely depended on.
+#add_base_dir(stl
+# vsgopenmw-fixme(find-my-place) = constants resourcehelpers osguservalues color
 add_component_dir (misc
     barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameratelimiter
-    guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues progressreporter resourcehelpers
+    guarded math mathutil messageformatparser notnullptr objectpool osguservalues progressreporter resourcehelpers
     rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
 
@@ -305,12 +410,18 @@ add_component_dir (misc/strings
     algorithm conversion format lower
     )
 
+#[[
 add_component_dir (stereo
     frustum multiview stereomanager types
     )
+]]
 
+#vsgopenmw-delete-me
+# Note, Debug::Log is deprecated because of syntax and compatibility issues with redirecting std::cout/std::cerr.
+# Use std::cout/std::cerr or vsg::Logger instead.
 add_component_dir (debug
-    debugging debuglog gldebug debugdraw writeflags
+    debuglog writeflags debugging
+    # gldebug debugdraw
     )
 
 IF(NOT WIN32 AND NOT APPLE)
@@ -318,6 +429,7 @@ IF(NOT WIN32 AND NOT APPLE)
     add_compile_definitions(GLOBAL_CONFIG_PATH="${GLOBAL_CONFIG_PATH}")
 ENDIF()
 add_component_dir (files
+    #vsgopenmw-move-me(xdgpath)
     linuxpath androidpath windowspath macospath fixedpath multidircollection collections configurationmanager
     constrainedfilestream memorystream hash configfileparser openfile constrainedfilestreambuf conversion
     istreamptr streamwithbuffer utils
@@ -343,38 +455,28 @@ add_component_dir (translation
     translation
     )
 
-add_component_dir (terrain
-    storage world buffercache defs terraingrid material terraindrawable texturemanager chunkmanager compositemaprenderer
-    quadtreeworld quadtreenode viewdata cellborder view heightcull
-    )
-
+#vsgopenmw-delete-me
 add_component_dir (loadinglistener
     loadinglistener asynclistener
     )
 
-add_component_dir (myguiplatform
-    myguirendermanager myguidatamanager myguiplatform myguitexture myguiloglistener additivelayer scalinglayer
-    )
-
+#vsgopenmw-move-me(components/mygui)
 add_component_dir (widgets
     box fontwrapper imagebutton tags list numericeditbox sharedstatebutton windowcaption widgets
     )
 
+#vsgopenmw-move-me(components/mygui)
 add_component_dir (fontloader
     fontloader
     )
 
+#<vgopenmw-code-style="pending">
+#vsgopenmw-move-me(components/sdl)
+# Wraps SDL.
 add_component_dir (sdlutil
-    events
-    gl4esinit
-    imagetosurface
-    sdlcursormanager
-    sdlgraphicswindow
-    sdlinputwrapper
-    sdlmappings
-    sdlvideowrapper
-    vsyncmode
+    init inputwrapper videowrapper events cursormanager sdlmappings
     )
+#</vsgopenmw-code-style>
 
 add_component_dir (version
     version
@@ -392,6 +494,7 @@ add_component_dir (lua_ui
 copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
 
 
+#vsgopenmw-delete-me
 if(WIN32)
     add_component_dir (crashcatcher
         windowscrashcatcher
@@ -471,6 +574,7 @@ add_component_dir(detournavigator
     waitconditiontype
     )
 
+#vsgopenmw-fixme(find-my-place)
 add_component_dir(loadinglistener
     reporter
     )
@@ -489,26 +593,32 @@ add_component_dir(sqlite3
     transaction
 )
 
+#[[
 add_component_dir(esmloader
     lessbyid
     load
     esmdata
 )
+#]]
 
+#vsgopenmw-delete-me
 add_component_dir(navmeshtool
     protocol
     )
 
 add_component_dir(platform
+    #vsgopenmw-delete-me
     platform
     file
     )
 
 if (WIN32)
+#vsgopenmw-cleanup-platform-support
     add_component_dir(platform
         filewin32
         )
 elseif (UNIX)
+#vsgopenmw-cleanup-platform-support
     add_component_dir(platform
         fileposix
         )
@@ -625,25 +735,10 @@ endif()
 target_link_libraries(components
     ${COLLADA_DOM_LIBRARIES}
 
-    # CMake's built-in OSG finder does not use pkgconfig, so we have to
-    # manually ensure the order is correct for inter-library dependencies.
-    # This only makes a difference with `-DOPENMW_USE_SYSTEM_OSG=ON -DOSG_STATIC=ON`.
-    # https://gitlab.kitware.com/cmake/cmake/-/issues/21701
-    ${OSGPARTICLE_LIBRARIES}
-    ${OSGVIEWER_LIBRARIES}
-    ${OSGSHADOW_LIBRARIES}
-    ${OSGANIMATION_LIBRARIES}
-    ${OSGGA_LIBRARIES}
-    ${OSGTEXT_LIBRARIES}
-    ${OSGDB_LIBRARIES}
-    ${OSGUTIL_LIBRARIES}
-    ${OSGSIM_LIBRARIES}
-    ${OSG_LIBRARIES}
-    ${OPENTHREADS_LIBRARIES}
-
     Boost::program_options
     Boost::iostreams
-
+    vsg::vsg
+    vsgXchange::vsgXchange
     SDL2::SDL2
     ${OPENGL_gl_LIBRARY}
     ${MyGUI_LIBRARIES}
@@ -652,13 +747,10 @@ target_link_libraries(components
     RecastNavigation::DebugUtils
     RecastNavigation::Detour
     RecastNavigation::Recast
-
-    Base64
     SQLite::SQLite3
-    smhasher
+    #smhasher
     ${ICU_LIBRARIES}
     ZLIB::ZLIB
-
     ${JOLT_LIBRARIES}
     )
 
@@ -690,6 +782,7 @@ if (USE_QT)
     endif()
 endif()
 
+#[[
 if (OSG_STATIC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(X11 REQUIRED COMPONENTS Xinerama Xrandr)
     target_link_libraries(components ${CMAKE_DL_LIBS} X11::X11 X11::Xinerama X11::Xrandr)
@@ -698,6 +791,10 @@ if (OSG_STATIC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
         target_link_libraries(components Fontconfig::Fontconfig)
     endif()
 endif()
+if (GIT_CHECKOUT)
+    add_dependencies (components git-version)
+endif (GIT_CHECKOUT)
+#]]
 
 if (WIN32)
     target_link_libraries(components shlwapi)
@@ -721,34 +818,6 @@ target_compile_definitions(components PUBLIC
     MYGUI_DONT_USE_OBSOLETE=ON
 )
 
-if(OSG_STATIC)
-    unset(_osg_plugins_static_files)
-    add_library(components_osg_plugins INTERFACE)
-    foreach(_plugin ${USED_OSG_PLUGINS})
-        string(TOUPPER ${_plugin} _plugin_uc)
-        if(OPENMW_USE_SYSTEM_OSG)
-            list(APPEND _osg_plugins_static_files ${${_plugin_uc}_LIBRARY})
-        else()
-            list(APPEND _osg_plugins_static_files $<TARGET_FILE:${${_plugin_uc}_LIBRARY}>)
-            target_link_libraries(components_osg_plugins INTERFACE $<TARGET_PROPERTY:${${_plugin_uc}_LIBRARY},LINK_LIBRARIES>)
-            add_dependencies(components_osg_plugins ${${_plugin_uc}_LIBRARY})
-        endif()
-    endforeach()
-    # We use --whole-archive because OSG plugins use registration.
-    get_whole_archive_options(_opts ${_osg_plugins_static_files})
-    target_link_options(components_osg_plugins INTERFACE ${_opts})
-    target_link_libraries(components components_osg_plugins)
-
-    if(OPENMW_USE_SYSTEM_OSG)
-        # OSG plugin pkgconfig files are missing these dependencies.
-        # https://github.com/openscenegraph/OpenSceneGraph/issues/1052
-        find_package(Freetype REQUIRED)
-        find_package(JPEG REQUIRED)
-        find_package(PNG REQUIRED)
-        target_link_libraries(components Freetype::Freetype JPEG::JPEG PNG::PNG)
-    endif()
-endif(OSG_STATIC)
-
 if(USE_QT)
     set_property(TARGET components_qt PROPERTY AUTOMOC ON)
     set_property(TARGET components_qt PROPERTY AUTOUIC ON)
@@ -758,12 +827,6 @@ endif(USE_QT)
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(components PUBLIC
         <sol/sol.hpp>
-
-        <osg/State>
-        <osg/StateSet>
-        <osg/Node>
-        <osg/Drawable>
-        <osg/Camera>
 
         <MyGUI_Widget.h>
 
@@ -778,8 +841,6 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     )
 
     target_precompile_headers(components PRIVATE
-        <osgViewer/Viewer>
-
         <boost/program_options/options_description.hpp>
     )
 endif()

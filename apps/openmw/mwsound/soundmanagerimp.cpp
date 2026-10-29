@@ -5,8 +5,6 @@
 #include <numeric>
 #include <sstream>
 
-#include <osg/Matrixf>
-
 #include <components/debug/debuglog.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
@@ -18,6 +16,7 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
+#include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/world.hpp"
 
 #include "../mwworld/cellstore.hpp"
@@ -323,7 +322,7 @@ namespace MWSound
             return;
 
         MWBase::World* world = MWBase::Environment::get().getWorld();
-        const osg::Vec3f pos = world->getActorHeadTransform(ptr).getTrans();
+        auto pos = world->getActorHeadPosition(ptr);
 
         stopSay(ptr);
         StreamPtr sound = playVoice(std::move(decoder), pos, (ptr == MWMechanics::getPlayer()));
@@ -1017,7 +1016,7 @@ namespace MWSound
                 {
                     sound->setLastPosition(sound->getPosition());
                     MWBase::World* world = MWBase::Environment::get().getWorld();
-                    sound->setPosition(world->getActorHeadTransform(ptr).getTrans());
+                    sound->setPosition(world->getActorHeadPosition(ptr));
                     sound->setVelocity(
                         (sound->getPosition() - sound->getLastPosition()) / world->getPhysicsFrameRateDt());
                 }
@@ -1100,11 +1099,6 @@ namespace MWSound
         }
 
         updateSounds(duration);
-        if (state != MWBase::StateManager::State_NoGame)
-        {
-            updateRegionSound(duration);
-            updateWaterSound();
-        }
     }
 
     void SoundManager::processChangedSettings(const Settings::CategorySettingVector& settings)

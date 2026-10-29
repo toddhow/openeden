@@ -166,7 +166,7 @@ struct VideoState {
 
     static int64_t istream_seek(void *user_data, int64_t offset, int whence);
 
-    osg::ref_ptr<osg::Texture2D> mTexture;
+    void *mDisplayData{};
 
     MovieAudioFactory* mAudioFactory;
     std::unique_ptr<MovieAudioDecoder> mAudioDecoder;

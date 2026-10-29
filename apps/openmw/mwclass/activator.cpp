@@ -8,7 +8,6 @@
 #include <components/esm3/loadsndg.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/misc/rng.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -47,7 +46,6 @@ namespace MWClass
         if (!model.empty())
         {
             renderingInterface.getObjects().insertModel(ptr, model);
-            ptr.getRefData().getBaseNode()->setNodeMask(MWRender::Mask_Static);
         }
     }
 

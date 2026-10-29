@@ -1,48 +1,36 @@
-/*
- * OpenMW - The completely unofficial reimplementation of Morrowind
- *
- * This file (character.cpp) is part of the OpenMW package.
- *
- * OpenMW is distributed as free software: you can redistribute it
- * and/or modify it under the terms of the GNU General Public License
- * version 3, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 3 along with this program. If not, see
- * https://www.gnu.org/licenses/ .
- */
-
 #include "character.hpp"
 
 #include <array>
-#include <unordered_set>
 
+#include <sstream>
+#include <iostream>
+
+#include <components/animation/transform.hpp>
 #include <components/esm/records.hpp>
 #include <components/misc/mathutil.hpp>
-#include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/mwanimation/effects.hpp>
+#include <components/mwanimation/groups.hpp>
+#include <components/mwanimation/lighteffect.hpp>
+#include <components/mwanimation/play.hpp>
+#include <components/mwanimation/position.hpp>
+#include <components/vsgadapters/osgcompat.hpp>
+#include <components/vsgutil/computetransform.hpp>
 
 #include <components/settings/values.hpp>
 
-#include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwrender/animation.hpp"
+#include "../mwrender/effect.hpp"
+#include "../mwrender/itemlight.hpp"
+#include "../mwrender/player.hpp"
+#include "../mwrender/transparency.hpp"
 
 #include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
-#include "../mwphysics/actor.hpp"
-#include "../mwphysics/physicssystem.hpp"
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
@@ -52,6 +40,7 @@
 
 #include "actorutil.hpp"
 #include "aicombataction.hpp"
+#include "combat.hpp"
 #include "creaturestats.hpp"
 #include "movement.hpp"
 #include "npcstats.hpp"
@@ -61,6 +50,15 @@
 
 namespace
 {
+    struct UpdateEquipment : public MWWorld::InventoryStoreListener
+    {
+        UpdateEquipment(MWAnim::Wielding* w)
+            : actor(w)
+        {
+        }
+        MWAnim::Wielding* actor;
+        void equipmentChanged() override { actor->updateEquipment(); }
+    };
 
     std::string_view getBestAttack(const ESM::Weapon* weapon)
     {
@@ -282,16 +280,16 @@ namespace
         }
     }
 
-    MWRender::Animation::AnimPriority getIdlePriority(MWMechanics::CharacterState state)
+    MWAnim::Priority getIdlePriority(MWMechanics::CharacterState state)
     {
         using namespace MWMechanics;
-        MWRender::Animation::AnimPriority priority(Priority_Default);
+        MWAnim::Priority priority(Priority_Default);
         switch (state)
         {
             case CharState_IdleSwim:
                 return Priority_SwimIdle;
             case CharState_IdleSneak:
-                priority[MWRender::BoneGroup_LowerBody] = Priority_SneakIdleLowerBody;
+                priority[MWAnim::BoneGroup_LowerBody] = Priority_SneakIdleLowerBody;
                 [[fallthrough]];
             default:
                 return priority;
@@ -360,8 +358,7 @@ namespace MWMechanics
     {
         if (anim.empty())
             return;
-        if (mAnimation)
-            mAnimation->disable(anim);
+        mAnimation->disable(anim);
         anim.clear();
     }
 
@@ -423,12 +420,6 @@ namespace MWMechanics
             resetCurrentIdleState();
         }
 
-        if (!mPtr.getClass().isNpc() && mUpperBodyState > UpperBodyState::WeaponEquipped)
-        {
-            recovery = false;
-            stats.setHitRecovery(false);
-        }
-
         if (mHitState != CharState_None)
         {
             if (!mAnimation->isPlaying(mCurrentHit))
@@ -450,7 +441,7 @@ namespace MWMechanics
         if (!knockout && !knockdown && !recovery && !block)
             return;
 
-        MWRender::Animation::AnimPriority priority(Priority_Knockdown);
+        MWAnim::Priority priority(Priority_Knockdown);
         std::string_view startKey = "start";
         std::string_view stopKey = "stop";
         if (knockout)
@@ -471,8 +462,8 @@ namespace MWMechanics
         {
             mHitState = CharState_Block;
             priority = Priority_Hit;
-            priority[MWRender::BoneGroup_LeftArm] = Priority_Block;
-            priority[MWRender::BoneGroup_LowerBody] = Priority_WeaponLowerBody;
+            priority[MWAnim::BoneGroup_LeftArm] = Priority_Block;
+            priority[MWAnim::BoneGroup_LowerBody] = Priority_WeaponLowerBody;
             startKey = "block start";
             stopKey = "block stop";
         }
@@ -495,7 +486,7 @@ namespace MWMechanics
             {
                 mUpperBodyState = UpperBodyState::WeaponEquipped;
                 if (mWeaponType > ESM::Weapon::None)
-                    mAnimation->showWeapons(true);
+                    showWeapons(true);
             }
             else if (mUpperBodyState < UpperBodyState::WeaponEquipped)
             {
@@ -509,8 +500,7 @@ namespace MWMechanics
             return;
         }
 
-        playBlendedAnimation(mCurrentHit, priority, MWRender::BlendMask_All, true, 1, startKey, stopKey, 0.0f,
-            std::numeric_limits<uint32_t>::max());
+        mAnimation->play(mCurrentHit, priority, MWAnim::BlendMask_All, true, 1, startKey, stopKey, 0.0f, ~0ul);
     }
 
     void CharacterController::refreshJumpAnims(JumpingState jump, bool force)
@@ -529,7 +519,7 @@ namespace MWMechanics
         std::string_view weapShortGroup = getWeaponShortGroup(mWeaponType);
         std::string jumpAnimName = "jump";
         jumpAnimName += weapShortGroup;
-        MWRender::Animation::BlendMask jumpmask = MWRender::BlendMask_All;
+        MWAnim::BlendMask jumpmask = MWAnim::BlendMask_All;
         if (!weapShortGroup.empty() && !mAnimation->hasAnimation(jumpAnimName))
             jumpAnimName = fallbackShortWeaponGroup("jump", &jumpmask);
 
@@ -547,15 +537,15 @@ namespace MWMechanics
 
         mCurrentJump = jumpAnimName;
         if (mJumpState == JumpState_InAir)
-            playBlendedAnimation(jumpAnimName, Priority_Jump, jumpmask, false, 1.0f,
-                startAtLoop ? "loop start" : "start", "stop", 0.f, std::numeric_limits<uint32_t>::max());
+            mAnimation->play(jumpAnimName, Priority_Jump, jumpmask, false, 1.0f, startAtLoop ? "loop start" : "start",
+                "stop", 0.f, ~0ul);
         else if (mJumpState == JumpState_Landing)
-            playBlendedAnimation(jumpAnimName, Priority_Jump, jumpmask, true, 1.0f, "loop stop", "stop", 0.0f, 0);
+            mAnimation->play(jumpAnimName, Priority_Jump, jumpmask, true, 1.0f, "loop stop", "stop", 0.0f, 0);
     }
 
     bool CharacterController::onOpen() const
     {
-        if (mPtr.getType() == ESM::Container::sRecordId && mAnimation)
+        if (mPtr.getType() == ESM::Container::sRecordId)
         {
             if (!mAnimation->hasAnimation("containeropen"))
                 return true;
@@ -567,7 +557,7 @@ namespace MWMechanics
                 return false;
 
             mAnimation->play(
-                "containeropen", Priority_Scripted, MWRender::BlendMask_All, false, 1.0f, "start", "stop", 0.f, 0);
+                "containeropen", Priority_Persistent, MWAnim::BlendMask_All, false, 1.0f, "start", "stop", 0.f, 0);
             if (mAnimation->isPlaying("containeropen"))
                 return false;
         }
@@ -579,7 +569,7 @@ namespace MWMechanics
     {
         if (mPtr.getType() == ESM::Container::sRecordId)
         {
-            if (!mAnimation || !mAnimation->hasAnimation("containerclose"))
+            if (!mAnimation->hasAnimation("containerclose"))
                 return;
 
             float complete, startPoint = 0.f;
@@ -587,7 +577,7 @@ namespace MWMechanics
             if (animPlaying)
                 startPoint = 1.f - complete;
 
-            mAnimation->play("containerclose", Priority_Scripted, MWRender::BlendMask_All, false, 1.0f, "start", "stop",
+            mAnimation->play("containerclose", Priority_Persistent, MWAnim::BlendMask_All, false, 1.0f, "start", "stop",
                 startPoint, 0);
         }
     }
@@ -622,12 +612,12 @@ namespace MWMechanics
     }
 
     std::string CharacterController::fallbackShortWeaponGroup(
-        const std::string& baseGroupName, MWRender::Animation::BlendMask* blendMask) const
+        const std::string& baseGroupName, MWAnim::BlendMask* blendMask) const
     {
         if (!isRealWeapon(mWeaponType))
         {
             if (blendMask != nullptr)
-                *blendMask = MWRender::BlendMask_LowerBody;
+                *blendMask = MWAnim::BlendMask_LowerBody;
 
             return baseGroupName;
         }
@@ -646,13 +636,13 @@ namespace MWMechanics
 
         // Special case for crossbows - we should apply 1h animations a fallback only for lower body
         if (mWeaponType == ESM::Weapon::MarksmanCrossbow && blendMask != nullptr)
-            *blendMask = MWRender::BlendMask_LowerBody;
+            *blendMask = MWAnim::BlendMask_LowerBody;
 
         if (!mAnimation->hasAnimation(groupName))
         {
             groupName = baseGroupName;
             if (blendMask != nullptr)
-                *blendMask = MWRender::BlendMask_LowerBody;
+                *blendMask = MWAnim::BlendMask_LowerBody;
         }
 
         return groupName;
@@ -674,7 +664,6 @@ namespace MWMechanics
         }
         std::string movementAnimName{ movementAnimGroup };
 
-        CharacterState prevMovementState = mMovementState;
         mMovementState = movement;
         std::string::size_type swimpos = movementAnimName.find("swim");
         if (!mAnimation->hasAnimation(movementAnimName))
@@ -686,7 +675,7 @@ namespace MWMechanics
             }
         }
 
-        MWRender::Animation::BlendMask movemask = MWRender::BlendMask_All;
+        MWAnim::BlendMask movemask = MWAnim::BlendMask_All;
 
         std::string_view weapShortGroup = getWeaponShortGroup(mWeaponType);
 
@@ -712,7 +701,7 @@ namespace MWMechanics
             if (!mAnimation->hasAnimation(weapMovementAnimName))
                 weapMovementAnimName = fallbackShortWeaponGroup(movementAnimName, &movemask);
 
-            movementAnimName = std::move(weapMovementAnimName);
+            movementAnimName = weapMovementAnimName;
         }
 
         if (!mAnimation->hasAnimation(movementAnimName))
@@ -720,7 +709,6 @@ namespace MWMechanics
             std::string::size_type runpos = movementAnimName.find("run");
             if (runpos != std::string::npos)
                 movementAnimName.replace(runpos, 3, "walk");
-
             if (!mAnimation->hasAnimation(movementAnimName))
             {
                 if (!mCurrentMovement.empty())
@@ -730,21 +718,15 @@ namespace MWMechanics
             }
         }
 
-        // If we're playing the same animation, or transitioning between equivalent walk/run cycles,
-        // synchronize phase to prevent foot sliding or sudden pose discontinuities.
+        // If we're playing the same animation, start it from the point it ended
         float startpoint = 0.f;
-        if (!mCurrentMovement.empty())
-        {
-            if (movementAnimName == mCurrentMovement)
-                mAnimation->getInfo(mCurrentMovement, &startpoint);
-            else if (runStateToWalkState(prevMovementState) == runStateToWalkState(movement))
-                mAnimation->getInfo(mCurrentMovement, &startpoint);
-        }
+        if (!mCurrentMovement.empty() && movementAnimName == mCurrentMovement)
+            mAnimation->getInfo(mCurrentMovement, &startpoint);
 
         mMovementAnimationHasMovement = true;
 
         clearStateAnimation(mCurrentMovement);
-        mCurrentMovement = std::move(movementAnimName);
+        mCurrentMovement = movementAnimName;
 
         // For non-flying creatures, MW uses the Walk animation to calculate the animation velocity
         // even if we are running. This must be replicated, otherwise the observed speed would differ drastically.
@@ -783,12 +765,8 @@ namespace MWMechanics
             }
         }
 
-        bool isTransition = isTransitionMovementState(mMovementState);
-        uint32_t numLoops = isTransition ? 0 : std::numeric_limits<uint32_t>::max();
-        bool autodisable = isTransition;
-
-        playBlendedAnimation(mCurrentMovement, Priority_Movement, movemask, autodisable, 1.f, "start", "stop", startpoint,
-            numLoops, true);
+        mAnimation->play(
+            mCurrentMovement, Priority_Movement, movemask, false, 1.f, "start", "stop", startpoint, ~0ul, true);
     }
 
     void CharacterController::refreshIdleAnims(CharacterState idle, bool force)
@@ -815,8 +793,8 @@ namespace MWMechanics
             return;
         }
 
-        MWRender::Animation::AnimPriority priority = getIdlePriority(mIdleState);
-        size_t numLoops = std::numeric_limits<uint32_t>::max();
+        MWAnim::Priority priority = getIdlePriority(mIdleState);
+        size_t numLoops = std::numeric_limits<size_t>::max();
 
         // Only play "idleswim" or "idlesneak" if they exist. Otherwise, fallback to
         // "idle"+weapon or "idle".
@@ -836,7 +814,7 @@ namespace MWMechanics
                 weapIdleGroup += weapShortGroup;
                 if (!mAnimation->hasAnimation(weapIdleGroup))
                     weapIdleGroup = fallbackShortWeaponGroup(idleGroup);
-                idleGroup = std::move(weapIdleGroup);
+                idleGroup = weapIdleGroup;
 
                 // play until the Loop Stop key 2 to 5 times, then play until the Stop key
                 // this replicates original engine behavior for the "Idle1h" 1st-person animation
@@ -858,16 +836,16 @@ namespace MWMechanics
             mAnimation->getInfo(mCurrentIdle, &startPoint);
 
         clearStateAnimation(mCurrentIdle);
-        mCurrentIdle = std::move(idleGroup);
-        playBlendedAnimation(mCurrentIdle, priority, MWRender::BlendMask_All, false, 1.0f, "start", "stop", startPoint,
-            static_cast<uint32_t>(numLoops), true);
+        mCurrentIdle = idleGroup;
+        mAnimation->play(
+            mCurrentIdle, priority, MWAnim::BlendMask_All, false, 1.0f, "start", "stop", startPoint, numLoops, true);
     }
 
     void CharacterController::refreshCurrentAnims(
         CharacterState idle, CharacterState movement, JumpingState jump, bool force)
     {
-        // If the current animation is scripted, do not touch it
-        if (isScriptedAnimPlaying())
+        // If the current animation is persistent, do not touch it
+        if (isPersistentAnimPlaying())
             return;
 
         refreshHitRecoilAnims();
@@ -882,8 +860,7 @@ namespace MWMechanics
     {
         mDeathState = death;
         mCurrentDeath = deathStateToAnimGroup(mDeathState);
-        mPtr.getClass().getCreatureStats(mPtr).setDeathAnimation(
-            static_cast<signed char>(mDeathState - CharState_Death1));
+        mPtr.getClass().getCreatureStats(mPtr).setDeathAnimation(mDeathState - CharState_Death1);
 
         // For dead actors, refreshCurrentAnims is no longer called, so we need to disable the movement state manually.
         // Note that these animations wouldn't actually be visible (due to the Death animation's priority being higher).
@@ -894,8 +871,8 @@ namespace MWMechanics
         resetCurrentIdleState();
         resetCurrentJumpState();
 
-        playBlendedAnimation(
-            mCurrentDeath, Priority_Death, MWRender::BlendMask_All, false, 1.0f, "start", "stop", startpoint, 0);
+        mAnimation->play(
+            mCurrentDeath, Priority_Death, MWAnim::BlendMask_All, false, 1.0f, "start", "stop", startpoint, 0);
     }
 
     CharacterState CharacterController::chooseRandomDeathState() const
@@ -918,12 +895,11 @@ namespace MWMechanics
         if (mDeathState == CharState_None && MWBase::Environment::get().getWorld()->isSwimming(mPtr))
             mDeathState = CharState_SwimDeath;
 
-        if (mDeathState == CharState_None
-            || (mAnimation && !mAnimation->hasAnimation(deathStateToAnimGroup(mDeathState))))
+        if (mDeathState == CharState_None || !mAnimation->hasAnimation(deathStateToAnimGroup(mDeathState)))
             mDeathState = chooseRandomDeathState();
 
         // Do not interrupt scripted animation by death
-        if (!mAnimation || isScriptedAnimPlaying())
+        if (isPersistentAnimPlaying())
             return;
 
         playDeath(startpoint, mDeathState);
@@ -943,18 +919,26 @@ namespace MWMechanics
         return result;
     }
 
-    CharacterController::CharacterController(const MWWorld::Ptr& ptr, MWRender::Animation& anim)
+    CharacterController::CharacterController(const MWWorld::Ptr& ptr, MWAnim::Object* anim)
         : mPtr(ptr)
-        , mAnimation(&anim)
+        , mWeapon(MWWorld::Ptr())
+        , mAnimation(anim->animation.get())
+        , mObject(anim)
+        , mActor(dynamic_cast<MWAnim::Actor*>(anim))
+        , mWielding(dynamic_cast<MWAnim::Wielding*>(mActor))
+        , mNpc(dynamic_cast<MWRender::Npc*>(mWielding))
+        , mPlayer(dynamic_cast<MWRender::Player*>(mNpc))
     {
-        mAnimation->setTextKeyListener(this);
+        mAnimation = anim->animation.get();
 
         const MWWorld::Class& cls = mPtr.getClass();
-        if (cls.isActor())
+        if (mActor)
         {
             /* Accumulate along X/Y only for now, until we can figure out how we should
              * handle knockout and death which moves the character down. */
-            mAnimation->setAccumulation(osg::Vec3f(1.0f, 1.0f, 0.0f));
+            mAnimation->setAccumulation({ 1.0f, 1.0f, 0.0f });
+
+            MWRender::addItemLightsAndListener(*mObject, cls.getContainerStore(mPtr));
 
             if (cls.hasInventoryStore(mPtr))
             {
@@ -967,17 +951,9 @@ namespace MWMechanics
 
                 if (mWeaponType != ESM::Weapon::None && mWeaponType != ESM::Weapon::Spell
                     && mWeaponType != ESM::Weapon::HandToHand)
-                {
-                    mAnimation->showWeapons(true);
-                    // Note: controllers for ranged weapon should use time for beginning of animation to play shooting
-                    // properly, for other weapons they should use absolute time. Some mods rely on this behaviour (to
-                    // rotate throwing projectiles, for example)
-                    ESM::WeaponType::Class weaponClass = getWeaponType(mWeaponType)->mWeaponClass;
-                    bool useRelativeDuration = weaponClass == ESM::WeaponType::Ranged;
-                    mAnimation->setWeaponGroup(mCurrentWeapon, useRelativeDuration);
-                }
+                    showWeapons(true);
 
-                mAnimation->showCarriedLeft(updateCarriedLeftVisible(mWeaponType));
+                showCarriedLeft(updateCarriedLeftVisible(mWeaponType));
             }
 
             if (!cls.getCreatureStats(mPtr).isDead())
@@ -1007,43 +983,55 @@ namespace MWMechanics
         else
         {
             /* Don't accumulate with non-actors. */
-            mAnimation->setAccumulation(osg::Vec3f(0.f, 0.f, 0.f));
+            mAnimation->setAccumulation({ 0.f, 0.f, 0.f });
 
             mIdleState = CharState_Idle;
         }
+
+        if (mWielding)
+            mPtr.getClass().getInventoryStore(mPtr).setInvListener(new UpdateEquipment(mWielding));
 
         // Do not update animation status for dead actors
         if (mDeathState == CharState_None && (!cls.isActor() || !cls.getCreatureStats(mPtr).isDead()))
             refreshCurrentAnims(mIdleState, mMovementState, mJumpState, true);
 
         mAnimation->runAnimation(0.f);
-
         unpersistAnimationState();
     }
 
     CharacterController::~CharacterController()
     {
-        detachAnimation();
+        if (mActor)
+            MWRender::removeListener(mPtr.getClass().getContainerStore(mPtr));
+        if (mWielding)
+        {
+            delete mPtr.getClass().getInventoryStore(mPtr).getInvListener();
+            mPtr.getClass().getInventoryStore(mPtr).setInvListener(nullptr);
+        }
+        // mAnimation->tagHandler = {};
+        persistAnimationState();
     }
 
-    void CharacterController::detachAnimation()
+    void CharacterController::handleTextKeys()
     {
-        if (mAnimation)
+        for (auto& evt : mAnimation->encounteredTags)
         {
-            persistAnimationState();
-            mAnimation->setTextKeyListener(nullptr);
-            mAnimation = nullptr;
+            try
+            {
+                handleTextKey(evt.groupname, evt.key, evt.map);
+            }
+            catch (std::exception& e)
+            {
+                std::cerr << "Error handling text key: " << e.what() << std::endl;
+            }
         }
+        mAnimation->encounteredTags.clear();
     }
 
     void CharacterController::handleTextKey(
-        std::string_view groupname, SceneUtil::TextKeyMap::ConstIterator key, const SceneUtil::TextKeyMap& map)
+        std::string_view groupname, Anim::Tags::ConstIterator key, const Anim::Tags& map)
     {
-        if (!mAnimation)
-            return;
         std::string_view evt = key->second;
-
-        MWBase::Environment::get().getLuaManager()->animationTextKey(mPtr, key->second);
 
         if (evt.substr(0, 7) == "sound: ")
         {
@@ -1105,16 +1093,16 @@ namespace MWMechanics
         if (action == "equip attach")
         {
             if (groupname == "shield")
-                mAnimation->showCarriedLeft(true);
-            else if (mUpperBodyState == UpperBodyState::Equipping)
-                mAnimation->showWeapons(true);
+                showCarriedLeft(true);
+            else
+                showWeapons(true);
         }
         else if (action == "unequip detach")
         {
             if (groupname == "shield")
-                mAnimation->showCarriedLeft(false);
-            else if (mUpperBodyState == UpperBodyState::Unequipping)
-                mAnimation->showWeapons(false);
+                showCarriedLeft(false);
+            else
+                showWeapons(false);
         }
         else if (action == "chop hit" || action == "slash hit" || action == "thrust hit" || action == "hit")
         {
@@ -1136,10 +1124,10 @@ namespace MWMechanics
                 attackType = ESM::Weapon::AT_Thrust;
             // We want to avoid hit keys that come out of nowhere (e.g. in the follow animation)
             // and processing multiple hit keys for a single attack
-            if (mReadyToHit)
+            if (mAttackStrength != -1.f)
             {
                 charClass.hit(mPtr, mAttackStrength, attackType, mAttackVictim, mAttackHitPos, mAttackSuccess);
-                mReadyToHit = false;
+                mAttackStrength = -1.f;
             }
         }
         else if (isRandomAttackAnimation(groupname) && action == "start")
@@ -1181,26 +1169,26 @@ namespace MWMechanics
             }
         }
         else if (action == "shoot attach")
-            mAnimation->attachArrow();
+            showAmmo(true);
         else if (action == "shoot release")
         {
             // See notes for melee release above
-            if (mReadyToHit)
+            if (mAttackStrength != -1.f)
             {
-                mAnimation->releaseArrow(mAttackStrength);
-                mReadyToHit = false;
+                releaseShot();
+                mAttackStrength = -1.f;
             }
         }
         else if (action == "shoot follow attach")
-            mAnimation->attachArrow();
+            showAmmo(true);
         // Make sure this key is actually for the RangeType we are casting. The flame atronach has
         // the same animation for all range types, so there are 3 "release" keys on the same time, one for each range
         // type.
         else if (groupname == "spellcast" && action == mAttackType + " release")
         {
             if (mCanCast)
-                MWBase::Environment::get().getWorld()->castSpell(mPtr, mCastingScriptedSpell);
-            mCastingScriptedSpell = false;
+                MWBase::Environment::get().getWorld()->castSpell(mPtr, mCastingManualSpell);
+            mCastingManualSpell = false;
             mCanCast = false;
         }
         else if (groupname == "containeropen" && action == "loot")
@@ -1228,17 +1216,14 @@ namespace MWMechanics
         const auto world = MWBase::Environment::get().getWorld();
         if (world->isInStorm())
         {
-            osg::Vec3f stormDirection = world->getStormDirection();
-            osg::Vec3f characterDirection = mPtr.getRefData().getBaseNode()->getAttitude() * osg::Vec3f(0, 1, 0);
-            stormDirection.normalize();
-            characterDirection.normalize();
-            if (stormDirection * characterDirection < -0.5f)
+            auto stormDirection = vsg::normalize(toVsg(world->getStormDirection()));
+            auto characterDirection = MWAnim::forward(mPtr.getRefData().getPosition());
+            if (vsg::dot(stormDirection, characterDirection) < -0.5f)
             {
                 if (!animPlaying)
                 {
-                    int mask = MWRender::BlendMask_Torso | MWRender::BlendMask_RightArm;
-                    playBlendedAnimation("idlestorm", Priority_Storm, mask, true, 1.0f, "start", "stop", 0.0f,
-                        std::numeric_limits<uint32_t>::max(), true);
+                    int mask = MWAnim::BlendMask_Torso | MWAnim::BlendMask_RightArm;
+                    mAnimation->play("idlestorm", Priority_Storm, mask, true, 1.0f, "start", "stop", 0.0f, ~0ul);
                 }
                 else
                 {
@@ -1259,13 +1244,12 @@ namespace MWMechanics
         // Shields/torches shouldn't be visible during any operation involving two hands
         // There seems to be no text keys for this purpose, except maybe for "[un]equip start/stop",
         // but they are also present in weapon drawing animation.
-        return mAnimation->updateCarriedLeftVisible(weaptype);
+        return !(getWeaponType(weaptype)->mFlags & ESM::WeaponType::TwoHanded);
     }
 
     float CharacterController::calculateWindUp() const
     {
-        if (!mAnimation || mCurrentWeapon.empty() || mWeaponType == ESM::Weapon::PickProbe
-            || isRandomAttackAnimation(mCurrentWeapon))
+        if (mCurrentWeapon.empty() || mWeaponType == ESM::Weapon::PickProbe || isRandomAttackAnimation(mCurrentWeapon))
             return -1.f;
 
         float minAttackTime = mAnimation->getTextKeyTime(mCurrentWeapon + ": " + mAttackType + " min attack");
@@ -1279,7 +1263,7 @@ namespace MWMechanics
 
     void CharacterController::prepareHit()
     {
-        if (mReadyToHit)
+        if (mAttackStrength != -1.f)
             return;
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
@@ -1287,26 +1271,17 @@ namespace MWMechanics
         if (mAttackStrength == -1.f)
             mAttackStrength = std::min(1.f, 0.1f + Misc::Rng::rollClosedProbability(prng));
         ESM::WeaponType::Class weapclass = getWeaponType(mWeaponType)->mWeaponClass;
-        if (weapclass != ESM::WeaponType::Ranged)
+        if (weapclass != ESM::WeaponType::Ranged && weapclass != ESM::WeaponType::Thrown)
         {
-            if (weapclass != ESM::WeaponType::Thrown)
-            {
-                mAttackSuccess = mPtr.getClass().evaluateHit(mPtr, mAttackVictim, mAttackHitPos);
-                if (!mAttackSuccess)
-                    mAttackStrength = 0.f;
-            }
+            mAttackSuccess = mPtr.getClass().evaluateHit(mPtr, mAttackVictim, mAttackHitPos);
+            if (!mAttackSuccess)
+                mAttackStrength = 0.f;
             playSwishSound();
         }
-
-        mReadyToHit = true;
     }
 
     bool CharacterController::updateWeaponState()
     {
-        // If the current animation is scripted, we can't do anything here.
-        if (isScriptedAnimPlaying())
-            return false;
-
         const auto world = MWBase::Environment::get().getWorld();
         auto& prng = world->getPrng();
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
@@ -1323,8 +1298,6 @@ namespace MWMechanics
 
         const ESM::RefId* downSoundId = nullptr;
         bool weaponChanged = false;
-        bool ammunition = true;
-        float weapSpeed = 1.f;
         if (cls.hasInventoryStore(mPtr))
         {
             MWWorld::InventoryStore& inv = cls.getInventoryStore(mPtr);
@@ -1349,19 +1322,6 @@ namespace MWMechanics
                 weaponChanged = true;
             }
 
-            if (stats.getDrawState() == DrawState::Weapon && !mWeapon.isEmpty()
-                && mWeapon.getType() == ESM::Weapon::sRecordId)
-            {
-                weapSpeed = mWeapon.get<ESM::Weapon>()->mBase->mData.mSpeed;
-                MWWorld::ConstContainerStoreIterator ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
-                int ammotype = getWeaponType(mWeapon.get<ESM::Weapon>()->mBase->mData.mType)->mAmmoType;
-                if (ammotype != ESM::Weapon::None)
-                    ammunition = ammo != inv.end() && ammo->get<ESM::Weapon>()->mBase->mData.mType == ammotype;
-                // Cancel attack if we no longer have ammunition
-                if (!ammunition)
-                    setAttackingOrSpell(false);
-            }
-
             MWWorld::ConstContainerStoreIterator torch = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
             if (torch != inv.end() && torch->getType() == ESM::Light::sRecordId
                 && updateCarriedLeftVisible(mWeaponType))
@@ -1369,8 +1329,8 @@ namespace MWMechanics
                 if (mAnimation->isPlaying("shield"))
                     mAnimation->disable("shield");
 
-                playBlendedAnimation("torch", Priority_Torch, MWRender::BlendMask_LeftArm, false, 1.0f, "start", "stop",
-                    0.0f, std::numeric_limits<uint32_t>::max(), true);
+                mAnimation->play("torch", Priority_Torch, MWAnim::BlendMask_LeftArm, false, 1.0f, "start", "stop", 0.0f,
+                    std::numeric_limits<size_t>::max(), true);
             }
             else if (mAnimation->isPlaying("torch"))
             {
@@ -1378,14 +1338,10 @@ namespace MWMechanics
             }
         }
 
-        MWRender::Animation::AnimPriority priorityWeapon(Priority_Default);
+        // For biped actors, blend weapon animations with lower body animations with higher priority
+        MWAnim::Priority priorityWeapon(Priority_Weapon);
         if (cls.isBipedal(mPtr))
-        {
-            // For bipeds, blend weapon animations with lower body animations with higher priority
-            // For non-bipeds, movement takes priority
-            priorityWeapon = Priority_Weapon;
-            priorityWeapon[MWRender::BoneGroup_LowerBody] = Priority_WeaponLowerBody;
-        }
+            priorityWeapon[MWAnim::BoneGroup_LowerBody] = Priority_WeaponLowerBody;
 
         bool forcestateupdate = false;
 
@@ -1394,8 +1350,6 @@ namespace MWMechanics
 
         // If the current weapon type was changed in the middle of attack (e.g. by Equip console command or when bound
         // spell expires), we should force actor to the "weapon equipped" state, interrupt attack and update animations.
-        // Morrowind does this at the end of the attack (see #4646 and PR 1972).
-        // If we decide to cope with the resulting problems, the thrown weapon->H2H case below should be extended.
         if (isStillWeapon && mWeaponType != weaptype && mUpperBodyState > UpperBodyState::WeaponEquipped)
         {
             forcestateupdate = true;
@@ -1403,44 +1357,72 @@ namespace MWMechanics
                 mAnimation->disable(mCurrentWeapon);
             mUpperBodyState = UpperBodyState::WeaponEquipped;
             setAttackingOrSpell(false);
-            mAnimation->showWeapons(true);
+            showWeapons(true);
+        }
+
+        bool ammunition = true;
+        bool isWeapon = false;
+        float weapSpeed = 1.f;
+        if (cls.hasInventoryStore(mPtr))
+        {
+            MWWorld::InventoryStore& inv = cls.getInventoryStore(mPtr);
+            MWWorld::ConstContainerStoreIterator weapon = getActiveWeapon(mPtr, &weaptype);
+            isWeapon = (weapon != inv.end() && weapon->getType() == ESM::Weapon::sRecordId);
+            if (isWeapon)
+            {
+                // Cancel attack if we no longer have ammunition
+                weapSpeed = weapon->get<ESM::Weapon>()->mBase->mData.mSpeed;
+                MWWorld::ConstContainerStoreIterator ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
+                int ammotype = getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType)->mAmmoType;
+                if (ammotype != ESM::Weapon::None
+                    && (ammo == inv.end() || ammo->get<ESM::Weapon>()->mBase->mData.mType != ammotype))
+                    ammunition = false;
+            }
+
+            if (!ammunition && mUpperBodyState > UpperBodyState::WeaponEquipped)
+            {
+                mAnimation->disable(mCurrentWeapon);
+                mUpperBodyState = UpperBodyState::WeaponEquipped;
+            }
+            // Crossbows start out with a bolt attached
+            else if (ammunition && weaptype == ESM::Weapon::MarksmanCrossbow
+                && mWeaponType != ESM::Weapon::MarksmanCrossbow && mUpperBodyState >= UpperBodyState::Equipping)
+                showAmmo(true);
         }
 
         if (!isKnockedOut() && !isKnockedDown() && !isRecovery())
         {
             std::string weapgroup;
-            if (((!isWerewolf && cls.isBipedal(mPtr)) || mWeaponType != ESM::Weapon::Spell) && weaptype != mWeaponType
+            if ((!isWerewolf || mWeaponType != ESM::Weapon::Spell) && weaptype != mWeaponType
                 && mUpperBodyState <= UpperBodyState::AttackWindUp && mUpperBodyState != UpperBodyState::Unequipping
                 && !isStillWeapon)
             {
                 // We can not play un-equip animation if weapon changed since last update
                 if (!weaponChanged)
                 {
-                    // Note: we do not disable the weapon unequipping animation automatically to avoid body desync
+                    // Note: we do not disable unequipping animation automatically to avoid body desync
                     weapgroup = getWeaponAnimation(mWeaponType);
-                    int unequipMask = MWRender::BlendMask_All;
-                    mUpperBodyState = UpperBodyState::Unequipping;
-                    bool useShieldAnims = mAnimation->useShieldAnimations();
+                    int unequipMask = MWAnim::BlendMask_All;
+                    bool useShieldAnims = false; // mAnimation->useShieldAnimations();
                     if (useShieldAnims && mWeaponType != ESM::Weapon::HandToHand && mWeaponType != ESM::Weapon::Spell
                         && !(mWeaponType == ESM::Weapon::None && weaptype == ESM::Weapon::Spell))
                     {
-                        unequipMask = unequipMask | ~MWRender::BlendMask_LeftArm;
-                        mAnimation->disable("shield");
-                        playBlendedAnimation("shield", Priority_Block, MWRender::BlendMask_LeftArm, true, 1.0f,
+                        unequipMask = unequipMask | ~MWAnim::BlendMask_LeftArm;
+                        mAnimation->play("shield", Priority_Block, MWAnim::BlendMask_LeftArm, true, 1.0f,
                             "unequip start", "unequip stop", 0.0f, 0);
                     }
                     else if (mWeaponType == ESM::Weapon::HandToHand)
-                        mAnimation->showCarriedLeft(false);
+                        showCarriedLeft(false);
 
-                    mAnimation->disable(weapgroup);
-                    playBlendedAnimation(
+                    mAnimation->play(
                         weapgroup, priorityWeapon, unequipMask, false, 1.0f, "unequip start", "unequip stop", 0.0f, 0);
+                    mUpperBodyState = UpperBodyState::Unequipping;
 
-                    mAnimation->detachArrow();
+                    showAmmo(false);
 
                     // If we do not have the "unequip detach" key, hide weapon manually.
                     if (mAnimation->getTextKeyTime(weapgroup + ": unequip detach") < 0)
-                        mAnimation->showWeapons(false);
+                        showWeapons(false);
                 }
 
                 if (downSoundId && !downSoundId->empty())
@@ -1458,18 +1440,11 @@ namespace MWMechanics
                 if (weaptype != mWeaponType && mUpperBodyState <= UpperBodyState::WeaponEquipped)
                 {
                     forcestateupdate = true;
-                    bool useShieldAnims = mAnimation->useShieldAnimations();
+                    bool useShieldAnims = false; // mAnimation->useShieldAnimations();
                     if (!useShieldAnims)
-                        mAnimation->showCarriedLeft(updateCarriedLeftVisible(weaptype));
+                        showCarriedLeft(updateCarriedLeftVisible(weaptype));
 
                     weapgroup = getWeaponAnimation(weaptype);
-
-                    // Note: controllers for ranged weapon should use time for beginning of animation to play shooting
-                    // properly, for other weapons they should use absolute time. Some mods rely on this behaviour (to
-                    // rotate throwing projectiles, for example)
-                    ESM::WeaponType::Class weaponClass = getWeaponType(weaptype)->mWeaponClass;
-                    bool useRelativeDuration = weaponClass == ESM::WeaponType::Ranged;
-                    mAnimation->setWeaponGroup(weapgroup, useRelativeDuration);
 
                     if (!isStillWeapon)
                     {
@@ -1477,29 +1452,24 @@ namespace MWMechanics
                             mAnimation->disable(mCurrentWeapon);
                         if (weaptype != ESM::Weapon::None)
                         {
-                            mAnimation->showWeapons(false);
-                            int equipMask = MWRender::BlendMask_All;
-                            mUpperBodyState = UpperBodyState::Equipping;
-                            mResetIdleOnAttackEnd = true;
+                            showWeapons(false);
+                            int equipMask = MWAnim::BlendMask_All;
                             if (useShieldAnims && weaptype != ESM::Weapon::Spell)
                             {
-                                equipMask = equipMask | ~MWRender::BlendMask_LeftArm;
-                                mAnimation->disable("shield");
-                                playBlendedAnimation("shield", Priority_Block, MWRender::BlendMask_LeftArm, true, 1.0f,
+                                equipMask = equipMask | ~MWAnim::BlendMask_LeftArm;
+                                mAnimation->play("shield", Priority_Block, MWAnim::BlendMask_LeftArm, true, 1.0f,
                                     "equip start", "equip stop", 0.0f, 0);
                             }
 
-                            if (weaptype != ESM::Weapon::Spell || cls.isBipedal(mPtr))
-                            {
-                                playBlendedAnimation(weapgroup, priorityWeapon, equipMask, false, 1.0f, "equip start",
-                                    "equip stop", 0.0f, 0);
-                            }
+                            mAnimation->play(
+                                weapgroup, priorityWeapon, equipMask, true, 1.0f, "equip start", "equip stop", 0.0f, 0);
+                            mUpperBodyState = UpperBodyState::Equipping;
 
                             // If we do not have the "equip attach" key, show weapon manually.
                             if (weaptype != ESM::Weapon::Spell
                                 && mAnimation->getTextKeyTime(weapgroup + ": equip attach") < 0)
                             {
-                                mAnimation->showWeapons(true);
+                                showWeapons(true);
                             }
 
                             if (!mWeapon.isEmpty() && mWeaponType != ESM::Weapon::HandToHand && isRealWeapon(weaptype))
@@ -1546,17 +1516,20 @@ namespace MWMechanics
                 sndMgr->stopSound3D(mPtr, wolfRun);
         }
 
+        // Combat for actors with persistent animations obviously will be buggy
+        if (isPersistentAnimPlaying())
+            return forcestateupdate;
+
         float complete = 0.f;
         bool animPlaying = false;
         ESM::WeaponType::Class weapclass = getWeaponType(mWeaponType)->mWeaponClass;
         if (getAttackingOrSpell())
         {
-            mResetIdleOnAttackEnd = true;
+            bool resetIdle = true;
             if (mUpperBodyState == UpperBodyState::WeaponEquipped
                 && (mHitState == CharState_None || mHitState == CharState_Block))
             {
                 mAttackStrength = -1.f;
-                mReadyToHit = false;
 
                 // Randomize attacks for non-bipedal creatures
                 if (!cls.isBipedal(mPtr)
@@ -1583,18 +1556,18 @@ namespace MWMechanics
                     bool isMagicItem = false;
 
                     // Play hand VFX and allow castSpell use (assuming an animation is going to be played) if
-                    // spellcasting is successful. Scripted spellcasting bypasses restrictions.
+                    // spellcasting is successful. Manual spellcasting bypasses restrictions.
                     MWWorld::SpellCastState spellCastResult = MWWorld::SpellCastState::Success;
-                    if (!mCastingScriptedSpell)
+                    if (!mCastingManualSpell)
                         spellCastResult = world->startSpellCast(mPtr);
                     mCanCast = spellCastResult == MWWorld::SpellCastState::Success;
 
-                    if (spellid.empty())
+                    if (spellid.empty() && cls.hasInventoryStore(mPtr))
                     {
-                        const MWWorld::ContainerStore& inv = cls.getContainerStore(mPtr);
+                        MWWorld::InventoryStore& inv = cls.getInventoryStore(mPtr);
                         if (inv.getSelectedEnchantItem() != inv.end())
                         {
-                            const MWWorld::ConstPtr& enchantItem = *inv.getSelectedEnchantItem();
+                            const MWWorld::Ptr& enchantItem = *inv.getSelectedEnchantItem();
                             spellid = enchantItem.getClass().getEnchantment(enchantItem);
                             isMagicItem = true;
                         }
@@ -1605,20 +1578,19 @@ namespace MWMechanics
                         world->breakInvisibility(mPtr);
                         // Enchanted items by default do not use casting animations
                         world->castSpell(mPtr);
+                        resetIdle = false;
                         // Spellcasting animation needs to "play" for at least one frame to reset the aiming factor
                         animPlaying = true;
                         mUpperBodyState = UpperBodyState::Casting;
-                        // But idle should not be reset
-                        mResetIdleOnAttackEnd = false;
                     }
                     // Play the spellcasting animation/VFX if the spellcasting was successful or failed due to
                     // insufficient magicka. Used up powers are exempt from this from some reason.
                     else if (!spellid.empty() && spellCastResult != MWWorld::SpellCastState::PowerAlreadyUsed)
                     {
                         world->breakInvisibility(mPtr);
-                        MWMechanics::CastSpell cast(mPtr, {}, false, mCastingScriptedSpell);
+                        MWMechanics::CastSpell cast(mPtr, {}, false, mCastingManualSpell);
 
-                        const std::vector<ESM::IndexedENAMstruct>* effects{ nullptr };
+                        const std::vector<ESM::ENAMstruct>* effects{ nullptr };
                         const MWWorld::ESMStore& store = world->getStore();
                         if (isMagicItem)
                         {
@@ -1632,64 +1604,58 @@ namespace MWMechanics
                             effects = &spell->mEffects.mList;
                             cast.playSpellCastingEffects(spell);
                         }
-                        if (!effects->empty())
+                        if (mCanCast)
                         {
-                            if (mCanCast)
+                            const ESM::MagicEffect* effect = store.get<ESM::MagicEffect>().find(
+                                effects->back().mEffectID); // use last effect of list for color of VFX_Hands
+
+                            for (size_t iter = 0; iter < effects->size(); ++iter) // play hands vfx for each effect
                             {
-                                const ESM::MagicEffect* effect = store.get<ESM::MagicEffect>().find(
-                                    effects->back().mData.mEffectID); // use last effect of list for color of VFX_Hands
-
-                                const ESM::Static* castStatic
-                                    = world->getStore().get<ESM::Static>().find(ESM::RefId::stringRefId("VFX_Hands"));
-
-                                const VFS::Path::Normalized castStaticModel
-                                    = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(castStatic->mModel));
-
-                                if (mAnimation->getNode("Bip01 L Hand"))
-                                    mAnimation->addEffect(
-                                        castStaticModel.value(), "", false, "Bip01 L Hand", effect->mParticle);
-
-                                if (mAnimation->getNode("Bip01 R Hand"))
-                                    mAnimation->addEffect(
-                                        castStaticModel.value(), "", false, "Bip01 R Hand", effect->mParticle);
+                                MWRender::addEffect(mPtr, ESM::RefId::stringRefId("VFX_Hands"), -1, false, "Bip01 L Hand", effect->mParticle);
+                                MWRender::addEffect(mPtr, ESM::RefId::stringRefId("VFX_Hands"), -1, false, "Bip01 R Hand", effect->mParticle);
                             }
-                            // first effect used for casting animation
-                            const ESM::ENAMstruct& firstEffect = effects->front().mData;
-
-                            std::string startKey;
-                            std::string stopKey;
-                            if (isRandomAttackAnimation(mCurrentWeapon))
-                            {
-                                startKey = "start";
-                                stopKey = "stop";
-                                if (mCanCast)
-                                    world->castSpell(mPtr,
-                                        mCastingScriptedSpell); // No "release" text key to use, so cast immediately
-                                mCastingScriptedSpell = false;
-                                mCanCast = false;
-                            }
-                            else
-                            {
-                                switch (firstEffect.mRange)
-                                {
-                                    case 0:
-                                        mAttackType = "self";
-                                        break;
-                                    case 1:
-                                        mAttackType = "touch";
-                                        break;
-                                    case 2:
-                                        mAttackType = "target";
-                                        break;
-                                }
-
-                                startKey = mAttackType + " start";
-                                stopKey = mAttackType + " stop";
-                            }
-                            playBlendedAnimation(mCurrentWeapon, priorityWeapon, MWRender::BlendMask_All, false, 1,
-                                startKey, stopKey, 0.0f, 0);
-                            mUpperBodyState = UpperBodyState::Casting;
                         }
+
+                        const ESM::ENAMstruct& firstEffect = effects->at(0); // first effect used for casting animation
+
+                        std::string startKey;
+                        std::string stopKey;
+                        if (isRandomAttackAnimation(mCurrentWeapon))
+                        {
+                            startKey = "start";
+                            stopKey = "stop";
+                            if (mCanCast)
+                                world->castSpell(
+                                    mPtr, mCastingManualSpell); // No "release" text key to use, so cast immediately
+                            mCastingManualSpell = false;
+                            mCanCast = false;
+                        }
+                        else
+                        {
+                            switch (firstEffect.mRange)
+                            {
+                                case 0:
+                                    mAttackType = "self";
+                                    break;
+                                case 1:
+                                    mAttackType = "touch";
+                                    break;
+                                case 2:
+                                    mAttackType = "target";
+                                    break;
+                            }
+
+                            startKey = mAttackType + " start";
+                            stopKey = mAttackType + " stop";
+                        }
+
+                        mAnimation->play(mCurrentWeapon, priorityWeapon, MWAnim::BlendMask_All, false, 1, startKey,
+                            stopKey, 0.0f, 0);
+                        mUpperBodyState = UpperBodyState::Casting;
+                    }
+                    else
+                    {
+                        resetIdle = false;
                     }
                 }
                 else
@@ -1697,10 +1663,6 @@ namespace MWMechanics
                     std::string startKey = "start";
                     std::string stopKey = "stop";
 
-                    MWBase::LuaManager::ActorControls* actorControls
-                        = MWBase::Environment::get().getLuaManager()->getActorControls(mPtr);
-                    const bool aiInactive
-                        = actorControls->mDisableAI || !MWBase::Environment::get().getMechanicsManager()->isAIActive();
                     if (mWeaponType != ESM::Weapon::PickProbe && !isRandomAttackAnimation(mCurrentWeapon))
                     {
                         if (weapclass == ESM::WeaponType::Ranged || weapclass == ESM::WeaponType::Thrown)
@@ -1724,13 +1686,6 @@ namespace MWMechanics
                                 mAttackType = getMovementBasedAttackType();
                             }
                         }
-                        else if (aiInactive)
-                        {
-                            mAttackType = getDesiredAttackType();
-                            if (mAttackType == "")
-                                mAttackType = getRandomAttackType();
-                        }
-
                         // else if (mPtr != getPlayer()) use mAttackType set by AiCombat
                         startKey = mAttackType + ' ' + startKey;
                         stopKey = mAttackType + " max attack";
@@ -1745,9 +1700,15 @@ namespace MWMechanics
                     mAttackVictim = MWWorld::Ptr();
                     mAttackHitPos = osg::Vec3f();
 
-                    playBlendedAnimation(mCurrentWeapon, priorityWeapon, MWRender::BlendMask_All, false, weapSpeed,
-                        startKey, stopKey, 0.0f, 0);
+                    mAnimation->play(mCurrentWeapon, priorityWeapon, MWAnim::BlendMask_All, false,
+                        weapSpeed, startKey, stopKey, 0.0f, 0);
                 }
+            }
+
+            // We should not break swim and sneak animations
+            if (resetIdle && mIdleState != CharState_IdleSneak && mIdleState != CharState_IdleSwim)
+            {
+                resetCurrentIdleState();
             }
         }
 
@@ -1763,7 +1724,7 @@ namespace MWMechanics
             {
                 // TODO: this will only work for the player, and needs to be fixed if NPCs should ever use
                 // lockpicks/probes.
-                MWWorld::Ptr target = world->getFocusObject();
+                MWWorld::Ptr target = world->getFacedObject();
 
                 if (!target.isEmpty())
                 {
@@ -1813,7 +1774,7 @@ namespace MWMechanics
                 }
 
                 mAnimation->disable(mCurrentWeapon);
-                playBlendedAnimation(mCurrentWeapon, priorityWeapon, MWRender::BlendMask_All, false, weapSpeed,
+                mAnimation->play(mCurrentWeapon, priorityWeapon, MWAnim::BlendMask_All, false, weapSpeed,
                     mAttackType + " max attack", mAttackType + ' ' + hit, startPoint, 0);
             }
 
@@ -1834,11 +1795,16 @@ namespace MWMechanics
                     stop = strength + ' ' + stop;
                 }
 
-                mReadyToHit = false;
+                // Reset attack strength to make extra sure hits that come out of nowhere aren't processed
+                mAttackStrength = -1.f;
 
                 if (animPlaying)
                     mAnimation->disable(mCurrentWeapon);
-                playBlendedAnimation(mCurrentWeapon, priorityWeapon, MWRender::BlendMask_All, false, weapSpeed,
+                MWAnim::Priority priorityFollow(priorityWeapon);
+                // Follow animations have lower priority than movement for non-biped creatures, logic be damned
+                if (!cls.isBipedal(mPtr))
+                    priorityFollow = Priority_Default;
+                mAnimation->play(mCurrentWeapon, priorityFollow, MWAnim::BlendMask_All, false, weapSpeed,
                     mAttackType + ' ' + start, mAttackType + ' ' + stop, 0.0f, 0);
                 mUpperBodyState = UpperBodyState::AttackEnd;
 
@@ -1855,7 +1821,7 @@ namespace MWMechanics
                 || mUpperBodyState == UpperBodyState::Casting)
             {
                 if (ammunition && mWeaponType == ESM::Weapon::MarksmanCrossbow)
-                    mAnimation->attachArrow();
+                    showAmmo(true);
 
                 // Cancel stagger animation at the end of an attack to avoid abrupt transitions
                 // in favor of a different abrupt transition, like Morrowind
@@ -1864,25 +1830,6 @@ namespace MWMechanics
 
                 if (animPlaying)
                     mAnimation->disable(mCurrentWeapon);
-
-                // Skip Thrown->H2H idle transition (e.g., if we've run out of ammo)
-                // In Morrowind this isn't actually specific to this transition
-                // See the weapon->weapon mid-attack skip logic above
-                if (mUpperBodyState == UpperBodyState::AttackEnd)
-                {
-                    if (weapclass == ESM::WeaponType::Thrown && weaptype == ESM::Weapon::HandToHand)
-                    {
-                        forcestateupdate = true;
-                        mWeaponType = weaptype;
-                        mCurrentWeapon = getWeaponAnimation(mWeaponType);
-                        mAnimation->showWeapons(false);
-                    }
-                }
-                // We should not break swim and sneak animations
-                if (mResetIdleOnAttackEnd && mIdleState != CharState_IdleSneak && mIdleState != CharState_IdleSwim)
-                {
-                    resetCurrentIdleState();
-                }
 
                 mUpperBodyState = UpperBodyState::WeaponEquipped;
             }
@@ -1894,11 +1841,11 @@ namespace MWMechanics
             }
         }
 
-        mAnimation->setPitchFactor(0.f);
+        mActor->spinePitchFactor = 0;
         if (mUpperBodyState > UpperBodyState::WeaponEquipped
             && (weapclass == ESM::WeaponType::Ranged || weapclass == ESM::WeaponType::Thrown))
         {
-            mAnimation->setPitchFactor(1.f);
+            mActor->spinePitchFactor = 1;
 
             // A smooth transition can be provided if a pre-wind-up section is defined. Random attack animations never
             // have one.
@@ -1908,115 +1855,73 @@ namespace MWMechanics
                 float minAttackTime = mAnimation->getTextKeyTime(mCurrentWeapon + ": " + mAttackType + " min attack");
                 float startTime = mAnimation->getTextKeyTime(mCurrentWeapon + ": " + mAttackType + " start");
                 if (startTime <= currentTime && currentTime < minAttackTime)
-                    mAnimation->setPitchFactor((currentTime - startTime) / (minAttackTime - startTime));
+                    mActor->spinePitchFactor = (currentTime - startTime) / (minAttackTime - startTime);
             }
             else if (mUpperBodyState == UpperBodyState::AttackEnd)
             {
                 // technically we do not need a pitch for crossbow reload animation,
                 // but we should avoid abrupt repositioning
                 if (mWeaponType == ESM::Weapon::MarksmanCrossbow)
-                    mAnimation->setPitchFactor(std::max(0.f, 1.f - complete * 10.f));
+                    mActor->spinePitchFactor = std::max(0.f, 1.f - complete * 10.f);
                 else
-                    mAnimation->setPitchFactor(1.f - complete);
+                    mActor->spinePitchFactor = 1.f - complete;
             }
         }
 
-        mAnimation->setAccurateAiming(mUpperBodyState > UpperBodyState::WeaponEquipped);
+        if (mPlayer)
+            mPlayer->accurateAiming = mUpperBodyState > UpperBodyState::WeaponEquipped;
 
         return forcestateupdate;
     }
 
     void CharacterController::updateAnimQueue()
     {
-        if (mAnimQueue.empty())
-            return;
-
-        if (!mAnimation->isPlaying(mAnimQueue.front().mGroup))
+        if (mAnimQueue.size() > 1)
         {
-            // Playing animations through mwscript is weird. If an animation is
-            // a looping animation (idle or other cyclical animations), then they
-            // will end as expected. However, if they are non-looping animations, they
-            // will stick around forever or until another animation appears in the queue.
-            bool shouldPlayOrRestart = mAnimQueue.size() > 1;
-            if (shouldPlayOrRestart || !mAnimQueue.front().mScripted
-                || (mAnimQueue.front().mLoopCount == 0 && mAnimQueue.front().mLooping))
+            if (mAnimation->isPlaying(mAnimQueue.front().mGroup) == false)
             {
-                mAnimation->setPlayScriptedOnly(false);
                 mAnimation->disable(mAnimQueue.front().mGroup);
                 mAnimQueue.pop_front();
-                shouldPlayOrRestart = true;
-            }
-            else
-                // A non-looping animation will stick around forever, so only restart if the animation
-                // actually was removed for some reason.
-                shouldPlayOrRestart = !mAnimation->getInfo(mAnimQueue.front().mGroup)
-                    && mAnimation->hasAnimation(mAnimQueue.front().mGroup);
 
-            if (shouldPlayOrRestart)
-            {
-                // Move on to the remaining items of the queue
-                playAnimQueue();
+                bool loopfallback = mAnimQueue.front().mGroup.starts_with("idle");
+                mAnimation->play(mAnimQueue.front().mGroup, Priority_Default, MWAnim::BlendMask_All, false,
+                    1.0f, "start", "stop", 0.0f, mAnimQueue.front().mLoopCount, loopfallback);
             }
-        }
-        else
-        {
-            float complete;
-            uint32_t loopcount;
-            mAnimation->getInfo(mAnimQueue.front().mGroup, &complete, nullptr, &loopcount);
-            mAnimQueue.front().mLoopCount = loopcount;
-            mAnimQueue.front().mTime = complete;
         }
 
         if (!mAnimQueue.empty())
             mAnimation->setLoopingEnabled(mAnimQueue.front().mGroup, mAnimQueue.size() <= 1);
     }
 
-    void CharacterController::playAnimQueue(bool loopStart)
+    void CharacterController::update(float dt)
     {
-        if (!mAnimQueue.empty())
-        {
-            clearStateAnimation(mCurrentIdle);
-            mIdleState = CharState_SpecialIdle;
-            auto priority = mAnimQueue.front().mScripted ? Priority_Scripted : Priority_Default;
-            mAnimation->setPlayScriptedOnly(mAnimQueue.front().mScripted);
-            if (mAnimQueue.front().mScripted)
-                mAnimation->play(mAnimQueue.front().mGroup, priority, MWRender::BlendMask_All, false,
-                    mAnimQueue.front().mSpeed, (loopStart ? "loop start" : mAnimQueue.front().mStartKey),
-                    mAnimQueue.front().mStopKey, mAnimQueue.front().mTime, mAnimQueue.front().mLoopCount,
-                    mAnimQueue.front().mLooping);
-            else
-                playBlendedAnimation(mAnimQueue.front().mGroup, priority, MWRender::BlendMask_All, false,
-                    mAnimQueue.front().mSpeed, (loopStart ? "loop start" : mAnimQueue.front().mStartKey),
-                    mAnimQueue.front().mStopKey, mAnimQueue.front().mTime, mAnimQueue.front().mLoopCount,
-                    mAnimQueue.front().mLooping);
-        }
+        preAnimation(dt);
+        runAnimation(dt);
+        postAnimation(dt);
     }
 
-    void CharacterController::update(float duration)
+    void CharacterController::preAnimation(float duration)
     {
-        if (!mAnimation)
-            return;
         MWBase::World* world = MWBase::Environment::get().getWorld();
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
         const MWWorld::Class& cls = mPtr.getClass();
-        osg::Vec3f movement(0.f, 0.f, 0.f);
-        float speed = 0.f;
-        bool inertialActive = false;
-        float smoothedSpeed = 0.f;
+        movement = {};
+        speed = 0.f;
 
         updateMagicEffects();
+        MWAnim::updateEffects(*mObject->node(), duration);
 
         bool isPlayer = mPtr == MWMechanics::getPlayer();
         bool isFirstPersonPlayer = isPlayer && MWBase::Environment::get().getWorld()->isFirstPerson();
         bool godmode = isPlayer && MWBase::Environment::get().getWorld()->getGodModeState();
 
-        float scale = mPtr.getCellRef().getScale();
+        scale = mPtr.getCellRef().getScale();
 
         if (!Settings::game().mNormaliseRaceSpeed && cls.isNpc())
         {
             const ESM::NPC* npc = mPtr.get<ESM::NPC>()->mBase;
             const ESM::Race* race = world->getStore().get<ESM::Race>().find(npc->mRace);
-            float weight = npc->isMale() ? race->mData.mMaleWeight : race->mData.mFemaleWeight;
+            float weight = npc->isMale() ? race->mData.mWeight.mMale : race->mData.mWeight.mFemale;
             scale *= weight;
         }
 
@@ -2041,19 +1946,6 @@ namespace MWMechanics
             CreatureStats& stats = cls.getCreatureStats(mPtr);
             Movement& movementSettings = cls.getMovementSettings(mPtr);
 
-            const std::string& inertialSetting = Settings::values().mGame.mInertialLocomotion.get();
-            const bool useInertial = (inertialSetting != "off" && !inertialSetting.empty())
-                && (isPlayer || Settings::values().mGame.mInertialLocomotionNpcs.get());
-            MWPhysics::Actor* physActor = nullptr;
-            if (useInertial && world->getPhysicsSystem())
-                physActor = world->getPhysicsSystem()->getActor(mPtr);
-
-            const bool enableAuthored = Settings::values().mGame.mEnableAuthoredTransitions.get();
-            inertialActive = useInertial && physActor && onground && !inwater && !flying;
-            smoothedSpeed = inertialActive ? physActor->getLocomotionState().getSmoothedSpeed() : 0.0f;
-            const InertialMotion::LocomotionPhase locPhase
-                = inertialActive ? physActor->getLocomotionState().getPhase() : InertialMotion::LocomotionPhase::Idle;
-
             // Force Jump Logic
 
             bool isMoving
@@ -2062,10 +1954,10 @@ namespace MWMechanics
             {
                 // Force Jump
                 if (stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceJump))
-                    movementSettings.mPosition[2] = onground ? 1.f : 0.f;
+                    movementSettings.mPosition[2] = onground ? 1 : 0;
                 // Force Move Jump, only jump if they're otherwise moving
                 if (stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceMoveJump) && isMoving)
-                    movementSettings.mPosition[2] = onground ? 1.f : 0.f;
+                    movementSettings.mPosition[2] = onground ? 1 : 0;
             }
 
             osg::Vec3f rot = cls.getRotationVector(mPtr);
@@ -2088,7 +1980,7 @@ namespace MWMechanics
                     maxDelta = 1;
                 else if (std::abs(speedDelta) < deltaLen / 2)
                     // Turning is smooth for player and less smooth for NPCs (otherwise NPC can miss a path point).
-                    maxDelta = duration * (isPlayer ? 1.0f / Settings::game().mSmoothMovementPlayerTurningDelay : 6.f);
+                    maxDelta = duration * (isPlayer ? 1.0 / Settings::game().mSmoothMovementPlayerTurningDelay : 6.f);
                 else if (isPlayer && speedDelta < -deltaLen / 2)
                     // As soon as controls are released, mwinput switches player from running to walking.
                     // So stopping should be instant for player, otherwise it causes a small twitch.
@@ -2123,8 +2015,7 @@ namespace MWMechanics
             float effectiveRotation = rot.z();
             bool canMove = cls.getMaxSpeed(mPtr) > 0;
             const bool turnToMovementDirection = Settings::game().mTurnToMovementDirection;
-            const bool isBiped = mPtr.getClass().isBipedal(mPtr);
-            if (!isBiped || !turnToMovementDirection || isFirstPersonPlayer)
+            if (!turnToMovementDirection || isFirstPersonPlayer)
             {
                 movementSettings.mIsStrafing = std::abs(vec.x()) > std::abs(vec.y()) * 2;
                 stats.setSideMovementAngle(0);
@@ -2146,25 +2037,25 @@ namespace MWMechanics
                 if (std::abs(delta) < osg::DegreesToRadians(20.0f))
                     mIsMovingBackward = vec.y() < 0;
 
-                float maxDelta = osg::PIf * duration * (2.5f - cosDelta);
+                float maxDelta = osg::PI * duration * (2.5f - cosDelta);
                 delta = std::clamp(delta, -maxDelta, maxDelta);
                 stats.setSideMovementAngle(stats.getSideMovementAngle() + delta);
                 effectiveRotation += delta;
             }
 
-            mAnimation->setLegsYawRadians(stats.getSideMovementAngle());
+            mActor->legsYawRadians = stats.getSideMovementAngle();
             if (stats.getDrawState() == MWMechanics::DrawState::Nothing || inwater)
-                mAnimation->setUpperBodyYawRadians(stats.getSideMovementAngle() / 2);
+                mActor->upperBodyYawRadians = stats.getSideMovementAngle() / 2;
             else
-                mAnimation->setUpperBodyYawRadians(stats.getSideMovementAngle() / 4);
+                mActor->upperBodyYawRadians = stats.getSideMovementAngle() / 4;
             if (smoothMovement && !isPlayer && !inwater)
-                mAnimation->setUpperBodyYawRadians(mAnimation->getUpperBodyYawRadians() + mAnimation->getHeadYaw() / 2);
+                mActor->upperBodyYawRadians += mActor->headYawRadians / 2;
 
             speed = cls.getCurrentSpeed(mPtr);
             vec.x() *= speed;
             vec.y() *= speed;
 
-            if (isKnockedOut() || isKnockedDown() || isRecovery() || isScriptedAnimPlaying())
+            if (isKnockedOut() || isKnockedDown() || isRecovery())
                 vec = osg::Vec3f();
 
             CharacterState movestate = CharState_None;
@@ -2182,7 +2073,7 @@ namespace MWMechanics
                         mSecondsOfSwimming += duration;
                         while (mSecondsOfSwimming > 1)
                         {
-                            cls.skillUsageSucceeded(mPtr, ESM::Skill::Athletics, ESM::Skill::Athletics_SwimOneSecond);
+                            cls.skillUsageSucceeded(mPtr, ESM::Skill::Athletics, 1);
                             mSecondsOfSwimming -= 1;
                         }
                     }
@@ -2191,7 +2082,7 @@ namespace MWMechanics
                         mSecondsOfRunning += duration;
                         while (mSecondsOfRunning > 1)
                         {
-                            cls.skillUsageSucceeded(mPtr, ESM::Skill::Athletics, ESM::Skill::Athletics_RunOneSecond);
+                            cls.skillUsageSucceeded(mPtr, ESM::Skill::Athletics, 0);
                             mSecondsOfRunning -= 1;
                         }
                     }
@@ -2238,15 +2129,6 @@ namespace MWMechanics
 
             bool wasInJump = mInJump;
             mInJump = false;
-            const float jumpHeight = cls.getJump(mPtr);
-            if (jumpHeight <= 0.f || sneak || inwater || flying || !solid)
-            {
-                vec.z() = 0.f;
-                // Following code might assign some vertical movement regardless, need to reset this manually
-                // This is used for jumping detection
-                movementSettings.mPosition[2] = 0;
-            }
-
             if (!inwater && !flying && solid)
             {
                 // In the air (either getting up —ascending part of jump— or falling).
@@ -2265,16 +2147,20 @@ namespace MWMechanics
                     vec.z() = 0.0f;
                 }
                 // Started a jump.
-                else if (mJumpState != JumpState_InAir && vec.z() > 0.f)
+                else if (mJumpState != JumpState_InAir && vec.z() > 0.f && !sneak)
                 {
-                    mInJump = true;
-                    if (vec.x() == 0 && vec.y() == 0)
-                        vec.z() = jumpHeight;
-                    else
+                    float z = cls.getJump(mPtr);
+                    if (z > 0.f)
                     {
-                        osg::Vec3f lat(vec.x(), vec.y(), 0.0f);
-                        lat.normalize();
-                        vec = osg::Vec3f(lat.x(), lat.y(), 1.0f) * jumpHeight * 0.707f;
+                        mInJump = true;
+                        if (vec.x() == 0 && vec.y() == 0)
+                            vec.z() = z;
+                        else
+                        {
+                            osg::Vec3f lat(vec.x(), vec.y(), 0.0f);
+                            lat.normalize();
+                            vec = osg::Vec3f(lat.x(), lat.y(), 1.0f) * z * 0.707f;
+                        }
                     }
                 }
             }
@@ -2314,7 +2200,7 @@ namespace MWMechanics
                         {
                             // report acrobatics progression
                             if (isPlayer)
-                                cls.skillUsageSucceeded(mPtr, ESM::Skill::Acrobatics, ESM::Skill::Acrobatics_Fall);
+                                cls.skillUsageSucceeded(mPtr, ESM::Skill::Acrobatics, 1);
                         }
                     }
 
@@ -2336,163 +2222,62 @@ namespace MWMechanics
                 if (mAnimation->isPlaying(mCurrentJump))
                     jumpstate = JumpState_Landing;
 
+                vec.x() *= scale;
+                vec.y() *= scale;
                 vec.z() = 0.0f;
 
-                // Check if an authored transition is actively playing
-                if (inertialActive && isTransitionMovementState(mMovementState) && mAnimation->isPlaying(mCurrentMovement))
+                if (movementSettings.mIsStrafing)
                 {
-                    if (mMovementState == CharState_RunStop || mMovementState == CharState_WalkStop)
-                    {
-                        if (vec.length2() > 0.0f)
-                            movestate = CharState_None; // interrupt stop to move
-                        else if (smoothedSpeed <= 5.0f)
-                            movestate = CharState_None; // fully stopped
-                        else
-                            movestate = mMovementState; // continue playing stop
-                    }
-                    else if (mMovementState == CharState_RunStart || mMovementState == CharState_WalkStart)
-                    {
-                        if (vec.length2() == 0.0f)
-                            movestate = CharState_None; // input released during startup
-                        else
-                            movestate = mMovementState; // continue playing start
-                    }
-                    else if (mMovementState == CharState_RunSkid)
-                    {
-                        movestate = mMovementState; // continue playing skid
-                    }
-                    else if (mMovementState == CharState_TurnLeft90 || mMovementState == CharState_TurnRight90)
-                    {
-                        if (vec.length2() > 0.0f)
-                            movestate = CharState_None; // interrupt turn for movement
-                        else
-                            movestate = mMovementState; // continue playing 90-degree turn
-                    }
+                    if (vec.x() > 0.0f)
+                        movestate = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
+                                             : (sneak ? CharState_SneakRight
+                                                      : (isrunning ? CharState_RunRight : CharState_WalkRight)));
+                    else if (vec.x() < 0.0f)
+                        movestate = (inwater
+                                ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
+                                : (sneak ? CharState_SneakLeft : (isrunning ? CharState_RunLeft : CharState_WalkLeft)));
                 }
-
-                if (movestate == CharState_None)
+                else if (vec.length2() > 0.0f)
                 {
-                    bool effectiveIsRunning = isrunning;
-                    if (inertialActive && isrunning && !inwater && !sneak && solid)
-                    {
-                        const float walkSpeed = cls.getWalkSpeed(mPtr);
-                        if (walkSpeed > 10.0f)
-                        {
-                            if (isRunning())
-                            {
-                                // In a run state: drop down to walk if speed falls below walk threshold with hysteresis
-                                if (smoothedSpeed < walkSpeed * 0.75f)
-                                    effectiveIsRunning = false;
-                            }
-                            else
-                            {
-                                // In walk, idle, or transition state: only enter run once speed reaches walk threshold
-                                if (smoothedSpeed < walkSpeed * 0.90f)
-                                    effectiveIsRunning = false;
-                            }
-                        }
-                    }
-
-                    if (movementSettings.mIsStrafing)
-                    {
-                        if (vec.x() > 0.0f)
-                            movestate = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
-                                                 : (sneak ? CharState_SneakRight
-                                                          : (effectiveIsRunning ? CharState_RunRight : CharState_WalkRight)));
-                        else if (vec.x() < 0.0f)
-                            movestate = (inwater
-                                    ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
-                                    : (sneak ? CharState_SneakLeft : (effectiveIsRunning ? CharState_RunLeft : CharState_WalkLeft)));
-                    }
-                    else if (vec.length2() > 0.0f)
-                    {
-                        if (inertialActive && enableAuthored && locPhase == InertialMotion::LocomotionPhase::Skidding
-                            && mAnimation->hasAnimation("runskid"))
-                        {
-                            movestate = CharState_RunSkid;
-                        }
-                        else if (inertialActive && enableAuthored && locPhase == InertialMotion::LocomotionPhase::Starting
-                            && (mMovementState == CharState_None || isTurning()) && smoothedSpeed < 20.0f)
-                        {
-                            if (effectiveIsRunning && mAnimation->hasAnimation("runstart"))
-                                movestate = CharState_RunStart;
-                            else if (!effectiveIsRunning && mAnimation->hasAnimation("walkstart"))
-                                movestate = CharState_WalkStart;
-                        }
-
-                        if (movestate == CharState_None)
-                        {
-                            if (vec.y() >= 0.0f)
-                                movestate = (inwater ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
-                                                     : (sneak ? CharState_SneakForward
-                                                              : (effectiveIsRunning ? CharState_RunForward : CharState_WalkForward)));
-                            else
-                                movestate = (inwater
-                                        ? (isrunning ? CharState_SwimRunBack : CharState_SwimWalkBack)
-                                        : (sneak ? CharState_SneakBack : (effectiveIsRunning ? CharState_RunBack : CharState_WalkBack)));
-                        }
-                    }
+                    if (vec.y() >= 0.0f)
+                        movestate = (inwater ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
+                                             : (sneak ? CharState_SneakForward
+                                                      : (isrunning ? CharState_RunForward : CharState_WalkForward)));
                     else
+                        movestate = (inwater
+                                ? (isrunning ? CharState_SwimRunBack : CharState_SwimWalkBack)
+                                : (sneak ? CharState_SneakBack : (isrunning ? CharState_RunBack : CharState_WalkBack)));
+                }
+                else
+                {
+                    // Do not play turning animation for player if rotation speed is very slow.
+                    // Actual threshold should take framerate in account.
+                    float rotationThreshold = (isPlayer ? 0.015f : 0.001f) * 60 * duration;
+
+                    // It seems only bipedal actors use turning animations.
+                    // Also do not use turning animations in the first-person view and when sneaking.
+                    if (!sneak && !isFirstPersonPlayer && mPtr.getClass().isBipedal(mPtr))
                     {
-                        // Movement input is 0 (vec.length2() == 0.0f)
-                        if (inertialActive && smoothedSpeed > 5.0f)
-                        {
-                            // Decelerating with physical inertia
-                            if (enableAuthored && effectiveIsRunning && mAnimation->hasAnimation("runstop"))
-                                movestate = CharState_RunStop;
-                            else if (enableAuthored && !effectiveIsRunning && mAnimation->hasAnimation("walkstop"))
-                                movestate = CharState_WalkStop;
-                            else
-                            {
-                                // Procedural fallback: maintain previous walk/run cycle while slowing
-                                if (mMovementState != CharState_None && !isTransitionMovementState(mMovementState))
-                                {
-                                    if (!effectiveIsRunning && isRunning())
-                                        movestate = runStateToWalkState(mMovementState);
-                                    else
-                                        movestate = mMovementState;
-                                }
-                                else
-                                    movestate = effectiveIsRunning ? CharState_RunForward : CharState_WalkForward;
-                            }
-                        }
-                        else
-                        {
-                            // Stationary Turning
-                            if (!sneak && !isFirstPersonPlayer && isBiped)
-                            {
-                                if (effectiveRotation > 0.f)
-                                {
-                                    if (inertialActive && enableAuthored && mAnimation->hasAnimation("turnright90"))
-                                        movestate = CharState_TurnRight90;
-                                    else
-                                        movestate = inwater ? CharState_SwimTurnRight : CharState_TurnRight;
-                                }
-                                else if (effectiveRotation < 0.f)
-                                {
-                                    if (inertialActive && enableAuthored && mAnimation->hasAnimation("turnleft90"))
-                                        movestate = CharState_TurnLeft90;
-                                    else
-                                        movestate = inwater ? CharState_SwimTurnLeft : CharState_TurnLeft;
-                                }
-                            }
-                        }
+                        if (effectiveRotation > rotationThreshold)
+                            movestate = inwater ? CharState_SwimTurnRight : CharState_TurnRight;
+                        else if (effectiveRotation < -rotationThreshold)
+                            movestate = inwater ? CharState_SwimTurnLeft : CharState_TurnLeft;
                     }
                 }
             }
 
-            if (turnToMovementDirection && !isFirstPersonPlayer && isBiped
+            if (turnToMovementDirection && !isFirstPersonPlayer
                 && (movestate == CharState_SwimRunForward || movestate == CharState_SwimWalkForward
                     || movestate == CharState_SwimRunBack || movestate == CharState_SwimWalkBack))
             {
-                float swimmingPitch = mAnimation->getBodyPitchRadians();
+                float swimmingPitch = mActor->bodyPitchRadians;
                 float targetSwimmingPitch = -mPtr.getRefData().getPosition().rot[0];
                 float maxSwimPitchDelta = 3.0f * duration;
                 swimmingPitch += std::clamp(targetSwimmingPitch - swimmingPitch, -maxSwimPitchDelta, maxSwimPitchDelta);
-                mAnimation->setBodyPitchRadians(swimmingPitch);
+                mActor->bodyPitchRadians = swimmingPitch;
             }
             else
-                mAnimation->setBodyPitchRadians(0);
+                mActor->bodyPitchRadians = 0;
 
             if (inwater && isPlayer && !isFirstPersonPlayer && Settings::game().mSwimUpwardCorrection)
             {
@@ -2501,20 +2286,34 @@ namespace MWMechanics
                 vec.y() *= std::sqrt(1.0f - swimUpwardCoef * swimUpwardCoef);
             }
 
-            if (isBiped)
+            // Player can not use smooth turning as NPCs, so we play turning animation a bit to avoid jittering
+            if (isPlayer)
             {
-                if (mTurnAnimationThreshold > 0)
-                    mTurnAnimationThreshold -= duration;
-
-                if (movestate == CharState_TurnRight || movestate == CharState_TurnLeft
-                    || movestate == CharState_SwimTurnRight || movestate == CharState_SwimTurnLeft
-                    || movestate == CharState_TurnLeft90 || movestate == CharState_TurnRight90)
+                float threshold = mCurrentMovement.find("swim") == std::string::npos ? 0.4f : 0.8f;
+                float complete;
+                bool animPlaying = mAnimation->getInfo(mCurrentMovement, &complete);
+                if (movestate == CharState_None && jumpstate == JumpState_None && isTurning())
                 {
-                    mTurnAnimationThreshold = 0.05f;
+                    if (animPlaying && complete < threshold)
+                        movestate = mMovementState;
                 }
-                else if (movestate == CharState_None && isTurning() && mTurnAnimationThreshold > 0)
+            }
+            else
+            {
+                if (mPtr.getClass().isBipedal(mPtr))
                 {
-                    movestate = mMovementState;
+                    if (mTurnAnimationThreshold > 0)
+                        mTurnAnimationThreshold -= duration;
+
+                    if (movestate == CharState_TurnRight || movestate == CharState_TurnLeft
+                        || movestate == CharState_SwimTurnRight || movestate == CharState_SwimTurnLeft)
+                    {
+                        mTurnAnimationThreshold = 0.05f;
+                    }
+                    else if (movestate == CharState_None && isTurning() && mTurnAnimationThreshold > 0)
+                    {
+                        movestate = mMovementState;
+                    }
                 }
             }
 
@@ -2524,16 +2323,17 @@ namespace MWMechanics
                 jumpstate = JumpState_None;
             }
 
-            updateAnimQueue();
-            if (!mAnimQueue.empty())
-                idlestate = CharState_SpecialIdle;
-            else if (sneak && !mInJump)
-                idlestate = CharState_IdleSneak;
+            if (mAnimQueue.empty() || inwater || (sneak && mIdleState != CharState_SpecialIdle))
+            {
+                if (inwater)
+                    idlestate = CharState_IdleSwim;
+                else if (sneak && !mInJump)
+                    idlestate = CharState_IdleSneak;
+                else
+                    idlestate = CharState_Idle;
+            }
             else
-                idlestate = CharState_Idle;
-
-            if (inwater)
-                idlestate = CharState_IdleSwim;
+                updateAnimQueue();
 
             if (!mSkipAnim)
             {
@@ -2541,32 +2341,23 @@ namespace MWMechanics
                 updateIdleStormState(inwater);
             }
 
-            if (isTurning() && !isTransitionMovementState(mMovementState))
+            if (isTurning())
             {
+                // Adjust animation speed from 1.0 to 1.5 multiplier
                 if (duration > 0)
                 {
                     float turnSpeed = std::min(1.5f, std::abs(rot.z()) / duration / static_cast<float>(osg::PI));
-                    mAnimation->adjustSpeedMult(mCurrentMovement, turnSpeed);
+                    mAnimation->adjustSpeedMult(mCurrentMovement, std::max(turnSpeed, 1.0f));
                 }
             }
-            else if (mMovementState != CharState_None && mAdjustMovementAnimSpeed && !isTransitionMovementState(mMovementState))
+            else if (mMovementState != CharState_None && mAdjustMovementAnimSpeed)
             {
                 // Vanilla caps the played animation speed.
                 const float maxSpeedMult = 10.f;
-                float currentSpeed = speed;
-                if (inertialActive)
-                {
-                    // Layer 3.B: Dynamic Playback Scaling
-                    float groundSpeed = smoothedSpeed;
-                    if (vec.length2() > 0.0f)
-                        groundSpeed = std::max(groundSpeed, 0.15f * speed);
-                    currentSpeed = groundSpeed;
-                }
-                const float speedMult = currentSpeed / mMovementAnimSpeed;
+                const float speedMult = speed / mMovementAnimSpeed;
                 mAnimation->adjustSpeedMult(mCurrentMovement, std::min(maxSpeedMult, speedMult));
                 // Make sure the actual speed is the "expected" speed even though the animation is slower
-                if (isMovementAnimationControlled())
-                    scale *= std::max(1.f, speedMult / maxSpeedMult);
+                scale *= std::max(1.f, speedMult / maxSpeedMult);
             }
 
             if (!mSkipAnim)
@@ -2585,17 +2376,20 @@ namespace MWMechanics
                     }
                 }
 
-                updateHeadTracking(duration);
+                if (!isMovementAnimationControlled())
+                    world->queueMovement(mPtr, vec);
             }
 
             movement = vec;
             movementSettings.mPosition[0] = movementSettings.mPosition[1] = 0;
-
-            // Can't reset jump state (mPosition[2]) here in full; we don't know for sure whether the PhysicsSystem will
-            // actually handle it in this frame due to the fixed minimum timestep used for the physics update. It will
-            // be reset in PhysicsSystem::move once the jump is handled.
             if (movement.z() == 0.f)
                 movementSettings.mPosition[2] = 0;
+            // Can't reset jump state (mPosition[2]) here in full; we don't know for sure whether the PhysicSystem will
+            // actually handle it in this frame due to the fixed minimum timestep used for the physics update. It will
+            // be reset in PhysicSystem::move once the jump is handled.
+
+            if (!mSkipAnim && mActor)
+                updateHeadTracking(duration);
         }
         else if (cls.getCreatureStats(mPtr).isDead())
         {
@@ -2608,76 +2402,112 @@ namespace MWMechanics
                     playDeath(1.f, mDeathState);
             }
         }
+    }
 
-        osg::Vec3f movementFromAnimation
-            = mAnimation->runAnimation(mSkipAnim && !isScriptedAnimPlaying() ? 0.f : duration);
+    void CharacterController::runAnimation(float duration)
+    {
+        bool isPersist = isPersistentAnimPlaying();
+        mAnimation->persistentPriority = isPersist ? Priority_Persistent : -1;
+        moved = mAnimation->runAnimation(mSkipAnim && !isPersist ? 0.f : duration);
+        if (isPersist)
+            moved = {}; // Scripted animations should not cause movement
+        else if (duration > 0.0f)
+            moved /= duration;
+        else
+            moved = {};
 
-        if (mPtr.getClass().isActor() && !isScriptedAnimPlaying())
+        moved.x *= scale;
+        moved.y *= scale;
+
+        // Ensure we're moving in generally the right direction...
+        if (speed > 0.f && moved != vsg::vec3())
         {
-            if (isMovementAnimationControlled())
+            float l = vsg::length(moved);
+            if (std::abs(movement.x() - moved.x) > std::abs(moved.x) / 2
+                || std::abs(movement.y() - moved.y) > std::abs(moved.y) / 2
+                || std::abs(movement.z() - moved.z) > std::abs(moved.z) / 2)
             {
-                if (duration != 0.f && movementFromAnimation != osg::Vec3f())
-                {
-                    movementFromAnimation /= duration;
-
-                    // Ensure we're moving in the right general direction.
-                    // In vanilla, all horizontal movement is taken from animations, even when moving diagonally (which
-                    // doesn't have a corresponding animation). So to achieve diagonal movement, we have to rotate the
-                    // movement taken from the animation to the intended direction.
-                    //
-                    // Note that while a complete movement animation cycle will have a well defined direction, no
-                    // individual frame will, and therefore we have to determine the direction based on the currently
-                    // playing cycle instead.
-                    if (speed > 0.f && movement.length2() > 0.0f)
-                    {
-                        float animMovementAngle = getAnimationMovementDirection();
-                        float targetMovementAngle = std::atan2(-movement.x(), movement.y());
-                        float diff = targetMovementAngle - animMovementAngle;
-                        movementFromAnimation = osg::Quat(diff, osg::Vec3f(0, 0, 1)) * movementFromAnimation;
-                    }
-
-                    if (inertialActive && movement.x() == 0.0f && movement.y() == 0.0f)
-                    {
-                        movement.x() = 0.0f;
-                        movement.y() = 0.0f;
-                    }
-                    else
-                    {
-                        movement = movementFromAnimation;
-                    }
-                }
-                else
-                {
-                    movement = osg::Vec3f();
-                }
+                moved = toVsg(movement);
+                // For some creatures getSpeed doesn't work, so we adjust speed to the animation.
+                // TODO: Fix Creature::getSpeed.
+                float newLength = vsg::length(moved);
+                if (newLength > 0 && !mNpc)
+                    moved *= (l / newLength);
             }
-            else if (mSkipAnim)
-            {
-                movement = osg::Vec3f();
-            }
-
-            if (mFloatToSurface && world->isSwimming(mPtr))
-            {
-                if (cls.getCreatureStats(mPtr).isDead()
-                    || (!godmode
-                        && cls.getCreatureStats(mPtr)
-                                .getMagicEffects()
-                                .getOrDefault(ESM::MagicEffect::Paralyze)
-                                .getModifier()
-                            > 0))
-                {
-                    movement.z() = 1.0;
-                }
-            }
-
-            movement.x() *= scale;
-            movement.y() *= scale;
-            world->queueMovement(mPtr, movement);
         }
+    }
+
+    void CharacterController::postAnimation(float duration)
+    {
+        handleTextKeys();
+        auto& cls = mPtr.getClass();
+        auto world = MWBase::Environment::get().getWorld();
+        bool isPlayer = mPtr == world->getPlayerPtr();
+        bool godmode = isPlayer && world->getGodModeState();
+        if (mFloatToSurface && cls.isActor())
+        {
+            if (cls.getCreatureStats(mPtr).isDead()
+                || (!godmode
+                    && cls.getCreatureStats(mPtr)
+                            .getMagicEffects()
+                            .getOrDefault(ESM::MagicEffect::Paralyze)
+                            .getModifier()
+                        > 0))
+            {
+                moved.z = 1.0;
+            }
+        }
+
+        // Update movement
+        if (isMovementAnimationControlled() && mPtr.getClass().isActor())
+            world->queueMovement(mPtr, toOsg(moved));
 
         mSkipAnim = false;
 
-        mAnimation->enableHeadAnimation(cls.isActor() && !cls.getCreatureStats(mPtr).isDead());
+        if (mActor)
+        {
+            mActor->manualAnimation(mPtr.getRefData().getPosition().rot[0], duration);
+            if (mWielding)
+            {
+                if (mWeaponType != 0 && !mCurrentWeapon.empty())
+                {
+                    ESM::WeaponType::Class weaponClass = getWeaponType(mWeaponType)->mWeaponClass;
+                    mWielding->weaponAnimationTime = mAnimation->getCurrentTime(mCurrentWeapon);
+                    // Note: controllers for ranged weapon should use time for beginning of animation to play shooting
+                    // properly, for other weapons they should use absolute time. Some mods rely on this behaviour (to
+                    // rotate throwing projectiles, for example)
+                    if (weaponClass == ESM::WeaponType::Ranged)
+                        mWielding->weaponAnimationTime -= mAnimation->getStartTime(mCurrentWeapon);
+                }
+                else
+                    mWielding->weaponAnimationTime = 0;
+
+                if (mNpc)
+                {
+                    auto soundMgr = MWBase::Environment::get().getSoundManager();
+                    mNpc->setFacialState(!cls.getCreatureStats(mPtr).isDead(), soundMgr->sayActive(mPtr),
+                        soundMgr->getSaySoundLoudness(mPtr));
+                    if (mPlayer)
+                    {
+                        mPlayer->busy = mAnimation->isPriorityActive(Priority_Hit)
+                            || mAnimation->isPriorityActive(Priority_Weapon)
+                            || mAnimation->isPriorityActive(Priority_Knockdown)
+                            || mAnimation->isPriorityActive(Priority_Death);
+                    }
+                    for (auto& [soundId, sound] : mPlayingSounds)
+                    {
+                        if (!mNpc->soundsToPlay.count(soundId))
+                            soundMgr->stopSound(sound);
+                    }
+                    for (auto& soundId : mNpc->soundsToPlay)
+                    {
+                        if (mPlayingSounds.find(soundId) == mPlayingSounds.end())
+                            mPlayingSounds[soundId] = soundMgr->playSound3D(
+                                mPtr, soundId, 1.0f, 1.0f, MWSound::Type::Sfx, MWSound::PlayMode::Loop);
+                    }
+                }
+            }
+        }
     }
 
     void CharacterController::persistAnimationState() const
@@ -2687,20 +2517,18 @@ namespace MWMechanics
         state.mScriptedAnims.clear();
         for (AnimationQueue::const_iterator iter = mAnimQueue.begin(); iter != mAnimQueue.end(); ++iter)
         {
-            // TODO: Probably want to presist lua animations too
-            if (!iter->mScripted)
+            if (!iter->mPersist)
                 continue;
 
             ESM::AnimationState::ScriptedAnimation anim;
             anim.mGroup = iter->mGroup;
 
-            if (iter == mAnimQueue.begin() && mAnimation)
+            if (iter == mAnimQueue.begin())
             {
+                anim.mLoopCount = mAnimation->getCurrentLoopCount(anim.mGroup);
                 float complete;
-                uint32_t loopcount;
-                mAnimation->getInfo(anim.mGroup, &complete, nullptr, &loopcount);
+                mAnimation->getInfo(anim.mGroup, &complete, nullptr);
                 anim.mTime = complete;
-                anim.mLoopCount = loopcount;
             }
             else
             {
@@ -2708,7 +2536,7 @@ namespace MWMechanics
                 anim.mTime = 0.f;
             }
 
-            state.mScriptedAnims.push_back(std::move(anim));
+            state.mScriptedAnims.push_back(anim);
         }
     }
 
@@ -2719,62 +2547,52 @@ namespace MWMechanics
         if (!state.mScriptedAnims.empty())
         {
             clearAnimQueue();
-            for (const ESM::AnimationState::ScriptedAnimation& animation : state.mScriptedAnims)
+            for (ESM::AnimationState::ScriptedAnimations::const_iterator iter = state.mScriptedAnims.begin();
+                 iter != state.mScriptedAnims.end(); ++iter)
             {
                 AnimationQueueEntry entry;
-                entry.mGroup = animation.mGroup;
-                entry.mLoopCount = static_cast<uint32_t>(
-                    std::min<uint64_t>(animation.mLoopCount, std::numeric_limits<uint32_t>::max()));
-                entry.mLooping = mAnimation->isLoopingAnimation(entry.mGroup);
-                entry.mScripted = true;
-                entry.mStartKey = "start";
-                entry.mStopKey = "stop";
-                entry.mSpeed = 1.f;
-                entry.mTime = animation.mTime;
-                if (animation.mAbsolute)
-                {
-                    float start = mAnimation->getTextKeyTime(animation.mGroup + ": start");
-                    float stop = mAnimation->getTextKeyTime(animation.mGroup + ": stop");
-                    float time = std::clamp(animation.mTime, start, stop);
-                    entry.mTime = (time - start) / (stop - start);
-                }
+                entry.mGroup = iter->mGroup;
+                entry.mLoopCount = iter->mLoopCount;
+                entry.mPersist = true;
 
-                mAnimQueue.push_back(std::move(entry));
+                mAnimQueue.push_back(entry);
             }
 
-            playAnimQueue();
+            const ESM::AnimationState::ScriptedAnimation& anim = state.mScriptedAnims.front();
+            float complete = anim.mTime;
+            if (anim.mAbsolute)
+            {
+                float start = mAnimation->getTextKeyTime(anim.mGroup + ": start");
+                float stop = mAnimation->getTextKeyTime(anim.mGroup + ": stop");
+                float time = std::clamp(anim.mTime, start, stop);
+                complete = (time - start) / (stop - start);
+            }
+
+            clearStateAnimation(mCurrentIdle);
+            mIdleState = CharState_SpecialIdle;
+
+            bool loopfallback = mAnimQueue.front().mGroup.starts_with("idle");
+            mAnimation->play(anim.mGroup, Priority_Persistent, MWAnim::BlendMask_All, false, 1.0f, "start",
+                "stop", complete, anim.mLoopCount, loopfallback);
         }
     }
 
-    void CharacterController::playBlendedAnimation(const std::string& groupname, const MWRender::AnimPriority& priority,
-        int blendMask, bool autodisable, float speedmult, std::string_view start, std::string_view stop,
-        float startpoint, uint32_t loops, bool loopfallback) const
-    {
-        if (mLuaAnimations)
-            MWBase::Environment::get().getLuaManager()->playAnimation(mPtr, groupname, priority, blendMask, autodisable,
-                speedmult, start, stop, startpoint, loops, loopfallback);
-        else
-            mAnimation->play(
-                groupname, priority, blendMask, autodisable, speedmult, start, stop, startpoint, loops, loopfallback);
-    }
-
-    bool CharacterController::playGroup(std::string_view groupname, int mode, uint32_t count, bool scripted)
+    bool CharacterController::playGroup(std::string_view groupname, int mode, int count, bool persist)
     {
         if (!mAnimation || !mAnimation->hasAnimation(groupname))
             return false;
 
-        // We should not interrupt scripted animations with non-scripted ones
-        if (isScriptedAnimPlaying() && !scripted)
+        // We should not interrupt persistent animations by non-persistent ones
+        if (isPersistentAnimPlaying() && !persist)
             return true;
 
-        bool looping = mAnimation->isLoopingAnimation(groupname);
-
-        // If this animation is a looped animation that is already playing
+        // If this animation is a looped animation (has a "loop start" key) that is already playing
         // and has not yet reached the end of the loop, allow it to continue animating with its existing loop count
         // and remove any other animations that were queued.
         // This emulates observed behavior from the original allows the script "OutsideBanner" to animate banners
         // correctly.
-        if (!mAnimQueue.empty() && mAnimQueue.front().mGroup == groupname && looping
+        if (!mAnimQueue.empty() && mAnimQueue.front().mGroup == groupname
+            && mAnimation->getTextKeyTime(mAnimQueue.front().mGroup + ": loop start") >= 0
             && mAnimation->isPlaying(groupname))
         {
             float endOfLoop = mAnimation->getTextKeyTime(mAnimQueue.front().mGroup + ": loop stop");
@@ -2789,79 +2607,37 @@ namespace MWMechanics
             }
         }
 
-        // The loop count in vanilla is weird.
-        // if played with a count of 0, all objects play exactly once from start to stop.
-        // But if the count is x > 0, actors and non-actors behave differently. actors will loop
-        // exactly x times, while non-actors will loop x+1 instead.
-        if (mPtr.getClass().isActor() && count > 0)
-            count--;
+        count = std::max(count, 1);
 
         AnimationQueueEntry entry;
         entry.mGroup = groupname;
-        entry.mLoopCount = count;
-        entry.mTime = 0.f;
-        // "PlayGroup idle" is a special case, used to remove to stop scripted animations playing
-        entry.mScripted = (scripted && groupname != "idle");
-        entry.mLooping = looping;
-        entry.mSpeed = 1.f;
-        entry.mStartKey = ((mode == 2) ? "loop start" : "start");
-        entry.mStopKey = "stop";
-
-        bool playImmediately = false;
+        entry.mLoopCount = count - 1;
+        entry.mPersist = persist;
 
         if (mode != 0 || mAnimQueue.empty() || !isAnimPlaying(mAnimQueue.front().mGroup))
         {
-            clearAnimQueue(scripted);
+            clearAnimQueue(persist);
 
-            playImmediately = true;
+            clearStateAnimation(mCurrentIdle);
+
+            mIdleState = CharState_SpecialIdle;
+            bool loopfallback = entry.mGroup.starts_with("idle");
+            mAnimation->play(groupname, persist && groupname != "idle" ? Priority_Persistent : Priority_Default,
+                MWAnim::BlendMask_All, false, 1.0f, ((mode == 2) ? "loop start" : "start"), "stop", 0.0f, count - 1,
+                loopfallback);
         }
         else
         {
             mAnimQueue.resize(1);
         }
 
-        mAnimQueue.push_back(std::move(entry));
+        // "PlayGroup idle" is a special case, used to remove to stop scripted animations playing
+        if (groupname == "idle")
+            entry.mPersist = false;
 
-        if (playImmediately)
-            playAnimQueue(mode == 2);
-
-        return true;
-    }
-
-    bool CharacterController::playGroupLua(std::string_view groupname, float speed, std::string_view startKey,
-        std::string_view stopKey, uint32_t loops, bool forceLoop)
-    {
-        // Note: In mwscript, "idle" is a special case used to clear the anim queue.
-        // In lua we offer an explicit clear method instead so this method does not treat "idle" special.
-
-        if (!mAnimation || !mAnimation->hasAnimation(groupname))
-            return false;
-
-        AnimationQueueEntry entry;
-        entry.mGroup = groupname;
-        // Note: MWScript gives one less loop to actors than non-actors.
-        // But this is the Lua version. We don't need to reproduce this weirdness here.
-        entry.mLoopCount = loops;
-        entry.mStartKey = startKey;
-        entry.mStopKey = stopKey;
-        entry.mLooping = mAnimation->isLoopingAnimation(groupname) || forceLoop;
-        entry.mScripted = true;
-        entry.mSpeed = speed;
-        entry.mTime = 0;
-
-        if (mAnimQueue.size() > 1)
-            mAnimQueue.resize(1);
-        mAnimQueue.push_back(std::move(entry));
-
-        if (mAnimQueue.size() == 1)
-            playAnimQueue();
+        mAnimQueue.push_back(entry);
 
         return true;
-    }
-
-    void CharacterController::enableLuaAnimations(bool enable)
-    {
-        mLuaAnimations = enable;
     }
 
     void CharacterController::skipAnim()
@@ -2869,12 +2645,13 @@ namespace MWMechanics
         mSkipAnim = true;
     }
 
-    bool CharacterController::isScriptedAnimPlaying() const
+    bool CharacterController::isPersistentAnimPlaying() const
     {
-        // If the front of the anim queue is scripted, morrowind treats it as if it's
-        // still playing even if it's actually done.
         if (!mAnimQueue.empty())
-            return mAnimQueue.front().mScripted;
+        {
+            const AnimationQueueEntry& first = mAnimQueue.front();
+            return first.mPersist && isAnimPlaying(first.mGroup);
+        }
 
         return false;
     }
@@ -2888,48 +2665,45 @@ namespace MWMechanics
 
     bool CharacterController::isMovementAnimationControlled() const
     {
-        if (mHitState != CharState_None)
-            return true;
-
-        if (Settings::game().mPlayerMovementIgnoresAnimation && mPtr == getPlayer())
-            return false;
-
-        if (mInJump)
-            return false;
-
         bool movementAnimationControlled = mIdleState != CharState_None;
         if (mMovementState != CharState_None)
             movementAnimationControlled = mMovementAnimationHasMovement;
+        if (mInJump)
+            movementAnimationControlled = false;
         return movementAnimationControlled;
     }
 
-    void CharacterController::clearAnimQueue(bool clearScriptedAnims)
+    void CharacterController::clearAnimQueue(bool clearPersistAnims)
     {
         // Do not interrupt scripted animations, if we want to keep them
-        if (mAnimation && (!isScriptedAnimPlaying() || clearScriptedAnims) && !mAnimQueue.empty())
+        if ((!isPersistentAnimPlaying() || clearPersistAnims) && !mAnimQueue.empty())
             mAnimation->disable(mAnimQueue.front().mGroup);
 
-        if (clearScriptedAnims)
+        if (clearPersistAnims)
         {
-            if (mAnimation)
-                mAnimation->setPlayScriptedOnly(false);
             mAnimQueue.clear();
             return;
         }
 
-        std::erase_if(mAnimQueue, [](const AnimationQueueEntry& entry) { return !entry.mScripted; });
+        for (AnimationQueue::iterator it = mAnimQueue.begin(); it != mAnimQueue.end();)
+        {
+            if (!it->mPersist)
+                it = mAnimQueue.erase(it);
+            else
+                ++it;
+        }
     }
 
-    void CharacterController::forceStateUpdate()
+    void CharacterController::forceStateUpdate(MWAnim::Object* obj)
     {
-        if (!mAnimation)
-            return;
+        mAnimation = obj->animation.get();
+
         clearAnimQueue();
 
         // Make sure we canceled the current attack or spellcasting,
         // because we disabled attack animations anyway.
         mCanCast = false;
-        mCastingScriptedSpell = false;
+        mCastingManualSpell = false;
         setAttackingOrSpell(false);
         if (mUpperBodyState != UpperBodyState::None)
             mUpperBodyState = UpperBodyState::WeaponEquipped;
@@ -2940,8 +2714,6 @@ namespace MWMechanics
         {
             playRandomDeath();
         }
-
-        updateAnimQueue();
 
         mAnimation->runAnimation(0.f);
     }
@@ -2981,53 +2753,54 @@ namespace MWMechanics
         // as it's extremely spread out (ActiveSpells, Spells, InventoryStore effects, etc...) so we do it here.
 
         // Stop any effects that are no longer active
-        std::vector<std::string_view> effects = mAnimation->getLoopingEffects();
+        std::vector<int> effects;
+        MWAnim::getLoopingEffects(*mObject->transform(), effects);
 
-        for (std::string_view effectStr : effects)
+        for (int effectId : effects)
         {
-            auto effectId = ESM::RefId::deserializeText(effectStr);
-
-            if (MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().search(effectId)
-                && (mPtr.getClass().getCreatureStats(mPtr).isDeathAnimationFinished()
-                    || mPtr.getClass()
-                            .getCreatureStats(mPtr)
-                            .getMagicEffects()
-                            .getOrDefault(MWMechanics::EffectKey(effectId))
-                            .getMagnitude()
-                        <= 0))
-                mAnimation->removeEffect(effectStr);
+            if (mPtr.getClass().getCreatureStats(mPtr).isDeathAnimationFinished()
+                || mPtr.getClass()
+                        .getCreatureStats(mPtr)
+                        .getMagicEffects()
+                        .getOrDefault(MWMechanics::EffectKey(effectId))
+                        .getMagnitude()
+                    <= 0)
+                MWAnim::removeEffect(*mObject->transform(), effectId);
         }
     }
 
     void CharacterController::updateMagicEffects() const
     {
-        if (!mPtr.getClass().isActor())
+        if (!mActor)
             return;
 
-        float light = mPtr.getClass()
-                          .getCreatureStats(mPtr)
-                          .getMagicEffects()
+        auto& stats = mPtr.getClass().getCreatureStats(mPtr);
+
+        float light = stats.getMagicEffects()
                           .getOrDefault(ESM::MagicEffect::Light)
                           .getMagnitude();
-        mAnimation->setLightEffect(light);
+        light *= std::ceil(Constants::UnitsPerFoot)
+            * /*arbitraryMultiplierToMakeCutoffLessObvious*/ 3;
+        MWAnim::setLightEffect(*mObject, light);
 
         // If you're dead you don't care about whether you've started/stopped being a vampire or not
-        if (mPtr.getClass().getCreatureStats(mPtr).isDead())
+        if (stats.isDead())
             return;
 
-        bool vampire = mPtr.getClass()
+        if (mNpc)
+        {
+            bool vampire = mPtr.getClass()
                            .getCreatureStats(mPtr)
                            .getMagicEffects()
                            .getOrDefault(ESM::MagicEffect::Vampirism)
                            .getMagnitude()
-            > 0.0f;
-        mAnimation->setVampire(vampire);
+                > 0.0f;
+            mNpc->setVampire(vampire);
+        }
     }
 
     void CharacterController::setVisibility(float visibility) const
     {
-        if (!mAnimation)
-            return;
         // We should take actor's invisibility in account
         if (mPtr.getClass().isActor())
         {
@@ -3056,8 +2829,7 @@ namespace MWMechanics
             visibility = std::min(visibility, alpha);
         }
 
-        // TODO: implement a dithering shader rather than just change object transparency.
-        mAnimation->setAlpha(visibility);
+        MWRender::setTransparency(*mObject, visibility);
     }
 
     std::string_view CharacterController::getMovementBasedAttackType() const
@@ -3083,12 +2855,12 @@ namespace MWMechanics
 
     bool CharacterController::isCastingSpell() const
     {
-        return mCastingScriptedSpell || mUpperBodyState == UpperBodyState::Casting;
+        return mCastingManualSpell || mUpperBodyState == UpperBodyState::Casting;
     }
 
     bool CharacterController::isReadyToBlock() const
     {
-        return mAnimation && updateCarriedLeftVisible(mWeaponType);
+        return updateCarriedLeftVisible(mWeaponType);
     }
 
     bool CharacterController::isKnockedDown() const
@@ -3104,8 +2876,7 @@ namespace MWMechanics
     bool CharacterController::isTurning() const
     {
         return mMovementState == CharState_TurnLeft || mMovementState == CharState_TurnRight
-            || mMovementState == CharState_SwimTurnLeft || mMovementState == CharState_SwimTurnRight
-            || mMovementState == CharState_TurnLeft90 || mMovementState == CharState_TurnRight90;
+            || mMovementState == CharState_SwimTurnLeft || mMovementState == CharState_SwimTurnRight;
     }
 
     bool CharacterController::isRecovery() const
@@ -3140,10 +2911,76 @@ namespace MWMechanics
         mPtr.getClass().getCreatureStats(mPtr).setAttackingOrSpell(attackingOrSpell);
     }
 
-    void CharacterController::castSpell(const ESM::RefId& spellId, bool scriptedSpell)
+    void CharacterController::showWeapons(bool show)
+    {
+        if (mWielding)
+        {
+            mWielding->show(MWAnim::Wielding::Wield::Weapon, show);
+            // If we remove/hide weapon from player, we should reset attack animation as well
+            if (/*mPtr == MWMechanics::getPlayer() &&*/ !show)
+                mPtr.getClass().getCreatureStats(mPtr).setAttackingOrSpell(false);
+        }
+    }
+
+    void CharacterController::showCarriedLeft(bool show)
+    {
+        if (mWielding)
+            mWielding->show(MWAnim::Wielding::Wield::CarriedLeft, show);
+    }
+
+    void CharacterController::showAmmo(bool show)
+    {
+        if (mWielding)
+            mWielding->show(MWAnim::Wielding::Wield::Ammo, show);
+    }
+
+    void CharacterController::releaseShot()
+    {
+        auto& inv = mPtr.getClass().getInventoryStore(mPtr);
+        auto weapon = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
+        if (weapon == inv.end() || weapon->getType() != ESM::Weapon::sRecordId)
+            return;
+
+        // The orientation of the launched projectile. Always the same as the actor orientation, even if the ArrowBone's
+        // orientation dictates otherwise.
+        vsg::quat vsgOrient = vsg::quat(mPtr.getRefData().getPosition().rot[0], vsg::vec3(-1, 0, 0))
+            * vsg::quat(mPtr.getRefData().getPosition().rot[2], vsg::vec3(0, 0, -1));
+        auto orient = osg::Quat(vsgOrient.x, vsgOrient.y, vsgOrient.z, vsgOrient.w);
+
+        applyFatigueLoss(mPtr, *weapon, mAttackStrength);
+
+        if (getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType)->mWeaponClass == ESM::WeaponType::Thrown)
+        {
+            auto path = mWielding->getWieldWorldTransform(MWAnim::Wielding::Wield::Weapon);
+            if (path.empty())
+                return;
+            auto vsgLaunchPos = vsgUtil::computePosition(path);
+            auto launchPos = osg::Vec3f(vsgLaunchPos.x, vsgLaunchPos.y, vsgLaunchPos.z);
+
+            throwWeapon(mPtr, *weapon, mAttackStrength, launchPos, orient);
+            showWeapons(false);
+            inv.remove(*weapon, 1);
+        }
+        else
+        {
+            auto ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
+            if (ammo == inv.end())
+                return;
+
+            auto path = mWielding->getWieldWorldTransform(MWAnim::Wielding::Wield::Ammo);
+            if (path.empty())
+                return;
+            auto vsgLaunchPos = vsgUtil::computePosition(path);
+            auto launchPos = osg::Vec3f(vsgLaunchPos.x, vsgLaunchPos.y, vsgLaunchPos.z);
+            shoot(mPtr, *ammo, *weapon, mAttackStrength, launchPos, orient);
+            inv.remove(*ammo, 1);
+        }
+    }
+
+    void CharacterController::castSpell(const ESM::RefId& spellId, bool manualSpell)
     {
         setAttackingOrSpell(true);
-        mCastingScriptedSpell = scriptedSpell;
+        mCastingManualSpell = manualSpell;
         ActionSpell action = ActionSpell(spellId);
         action.prepare(mPtr);
     }
@@ -3188,17 +3025,6 @@ namespace MWMechanics
         return mPtr.getClass().getCreatureStats(mPtr).getAttackingOrSpell();
     }
 
-    std::string_view CharacterController::getDesiredAttackType() const
-    {
-        return mPtr.getClass().getCreatureStats(mPtr).getAttackType();
-    }
-
-    void CharacterController::setActive(int active) const
-    {
-        if (mAnimation)
-            mAnimation->setActive(active);
-    }
-
     void CharacterController::setHeadTrackTarget(const MWWorld::ConstPtr& target)
     {
         mHeadTrackTarget = target;
@@ -3225,112 +3051,61 @@ namespace MWMechanics
             MWBase::Environment::get().getSoundManager()->playSound3D(mPtr, *soundId, volume, pitch);
     }
 
-    float CharacterController::getAnimationMovementDirection() const
-    {
-        if (!mAnimation)
-            return 0.f;
-        switch (mMovementState)
-        {
-            case CharState_RunLeft:
-            case CharState_SneakLeft:
-            case CharState_SwimWalkLeft:
-            case CharState_SwimRunLeft:
-            case CharState_WalkLeft:
-                return osg::PI_2f;
-            case CharState_RunRight:
-            case CharState_SneakRight:
-            case CharState_SwimWalkRight:
-            case CharState_SwimRunRight:
-            case CharState_WalkRight:
-                return -osg::PI_2f;
-            case CharState_RunForward:
-            case CharState_SneakForward:
-            case CharState_SwimRunForward:
-            case CharState_SwimWalkForward:
-            case CharState_WalkForward:
-            case CharState_WalkStart:
-            case CharState_RunStart:
-            case CharState_WalkStop:
-            case CharState_RunStop:
-            case CharState_RunSkid:
-                return mAnimation->getLegsYawRadians();
-            case CharState_RunBack:
-            case CharState_SneakBack:
-            case CharState_SwimWalkBack:
-            case CharState_SwimRunBack:
-            case CharState_WalkBack:
-                return mAnimation->getLegsYawRadians() - osg::PIf;
-            default:
-                return 0.0f;
-        }
-    }
-
     void CharacterController::updateHeadTracking(float duration)
     {
-        const osg::Node* head = mAnimation->getNode("Bip01 Head");
+        auto head = mActor->getHead();
         if (!head)
             return;
 
-        float zAngleRadians = 0.f;
-        float xAngleRadians = 0.f;
+        double zAngleRadians = 0.f;
+        double xAngleRadians = 0.f;
 
         if (!mHeadTrackTarget.isEmpty())
         {
-            osg::NodePathList nodepaths = head->getParentalNodePaths();
-            if (nodepaths.empty())
-                return;
-            osg::Matrixf mat = osg::computeLocalToWorld(nodepaths[0]);
-            osg::Vec3f headPos = mat.getTrans();
-
-            osg::Vec3f direction;
-            if (const MWRender::Animation* anim = MWBase::Environment::get().getWorld()->getAnimation(mHeadTrackTarget))
+            vsg::vec3 direction;
+            if (auto* anim = MWBase::Environment::get().getWorld()->getAnimation(mHeadTrackTarget))
             {
-                const osg::Node* node = anim->getNode("Head");
-                if (node == nullptr)
-                    node = anim->getNode("Bip01 Head");
-                if (node != nullptr)
-                {
-                    nodepaths = node->getParentalNodePaths();
-                    if (!nodepaths.empty())
-                        direction = osg::computeLocalToWorld(nodepaths[0]).getTrans() - headPos;
-                }
+                auto node = anim->headTransform();
+                if (!node.empty())
+                    direction
+                        = vsgUtil::computePosition(node) - vsgUtil::computePosition(mActor->worldTransform(*head));
                 else
+                {
                     // no head node to look at, fall back to look at center of collision box
-                    direction = MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false);
+                    direction
+                        = toVsg(MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false));
+                }
             }
-            direction.normalize();
+            direction = vsg::normalize(direction);
 
-            if (!mPtr.getRefData().getBaseNode())
-                return;
-            const osg::Vec3f actorDirection = mPtr.getRefData().getBaseNode()->getAttitude() * osg::Vec3f(0, 1, 0);
+            auto actorDirection = MWAnim::forward(mPtr.getRefData().getPosition());
 
-            zAngleRadians
-                = std::atan2(actorDirection.x(), actorDirection.y()) - std::atan2(direction.x(), direction.y());
-            zAngleRadians = static_cast<float>(
-                Misc::normalizeAngle(zAngleRadians - mAnimation->getHeadYaw()) + mAnimation->getHeadYaw());
-            zAngleRadians *= (1 - direction.z() * direction.z());
-            xAngleRadians = std::asin(direction.z());
+            zAngleRadians = std::atan2(actorDirection.x, actorDirection.y) - std::atan2(direction.x, direction.y);
+            zAngleRadians = Misc::normalizeAngle(zAngleRadians - mActor->headYawRadians) + mActor->headYawRadians;
+            zAngleRadians *= (1 - direction.z * direction.z);
+            xAngleRadians = std::asin(direction.z);
         }
 
-        const float xLimit = osg::DegreesToRadians(40.f);
-        const float zLimit = osg::DegreesToRadians(30.f);
-        float zLimitOffset = mAnimation->getUpperBodyYawRadians();
+        double xLimit = osg::DegreesToRadians(40.0);
+        double zLimit = osg::DegreesToRadians(30.0);
+        double zLimitOffset = mActor->upperBodyYawRadians;
         xAngleRadians = std::clamp(xAngleRadians, -xLimit, xLimit);
         zAngleRadians = std::clamp(zAngleRadians, -zLimit + zLimitOffset, zLimit + zLimitOffset);
 
         float factor = duration * 5;
         factor = std::min(factor, 1.f);
-        xAngleRadians = (1.f - factor) * mAnimation->getHeadPitch() + factor * xAngleRadians;
-        zAngleRadians = (1.f - factor) * mAnimation->getHeadYaw() + factor * zAngleRadians;
+        xAngleRadians = (1.f - factor) * mActor->headPitchRadians + factor * xAngleRadians;
+        zAngleRadians = (1.f - factor) * mActor->headYawRadians + factor * zAngleRadians;
 
-        mAnimation->setHeadPitch(xAngleRadians);
-        mAnimation->setHeadYaw(zAngleRadians);
+        mActor->headPitchRadians = xAngleRadians;
+        mActor->headYawRadians = zAngleRadians;
     }
 
     MWWorld::MovementDirectionFlags CharacterController::getSupportedMovementDirections() const
     {
-        if (!mAnimation)
-            return 0;
+        MWWorld::MovementDirectionFlags result = 0;
+        std::span<const std::string_view> prefixes;
+
         using namespace std::string_view_literals;
         // There are fallbacks in the CharacterController::refreshMovementAnims for certain animations. Arrays below
         // represent them.
@@ -3348,19 +3123,22 @@ namespace MWMechanics
             case CharState_Idle:
             case CharState_IdleSwim:
             case CharState_IdleSneak:
-                return mAnimation->getSupportedMovementDirections(all);
+                prefixes = all;
+                break;
             case CharState_WalkForward:
             case CharState_WalkBack:
             case CharState_WalkLeft:
             case CharState_WalkRight:
             case CharState_WalkStart:
             case CharState_WalkStop:
-                return mAnimation->getSupportedMovementDirections(walk);
+                prefixes = walk;
+                break;
             case CharState_SwimWalkForward:
             case CharState_SwimWalkBack:
             case CharState_SwimWalkLeft:
             case CharState_SwimWalkRight:
-                return mAnimation->getSupportedMovementDirections(swimWalk);
+                prefixes = swimWalk;
+                break;
             case CharState_RunForward:
             case CharState_RunBack:
             case CharState_RunLeft:
@@ -3368,26 +3146,32 @@ namespace MWMechanics
             case CharState_RunStart:
             case CharState_RunStop:
             case CharState_RunSkid:
-                return mAnimation->getSupportedMovementDirections(run);
+                prefixes = run;
+                break;
             case CharState_TurnLeft90:
             case CharState_TurnRight90:
-                return mAnimation->getSupportedMovementDirections(all);
+                prefixes = all;
+                break;
             case CharState_SwimRunForward:
             case CharState_SwimRunBack:
             case CharState_SwimRunLeft:
             case CharState_SwimRunRight:
-                return mAnimation->getSupportedMovementDirections(swimRun);
+                prefixes = swimRun;
+                break;
             case CharState_SneakForward:
             case CharState_SneakBack:
             case CharState_SneakLeft:
             case CharState_SneakRight:
-                return mAnimation->getSupportedMovementDirections(sneak);
+                prefixes = sneak;
+                break;
             case CharState_TurnLeft:
             case CharState_TurnRight:
-                return mAnimation->getSupportedMovementDirections(all);
+                prefixes = all;
+                break;
             case CharState_SwimTurnLeft:
             case CharState_SwimTurnRight:
-                return mAnimation->getSupportedMovementDirections(swim);
+                prefixes = swim;
+                break;
             case CharState_Death1:
             case CharState_Death2:
             case CharState_Death3:
@@ -3405,9 +3189,43 @@ namespace MWMechanics
             case CharState_SwimKnockDown:
             case CharState_SwimKnockOut:
             case CharState_Block:
-                return mAnimation->getSupportedMovementDirections(all);
+                prefixes = all;
+                break;
         }
-        return 0;
+
+        auto addMovementDirections = [&result, &prefixes] (const std::string& animation) {
+            if (std::find_if(prefixes.begin(), prefixes.end(), [&](std::string_view v) { return animation.starts_with(v); }) == prefixes.end())
+                return;
+            else if (animation.ends_with("forward"))
+                result |= MWWorld::MovementDirectionFlag_Forward;
+            else if (animation.ends_with("back"))
+                result |= MWWorld::MovementDirectionFlag_Back;
+            else if (animation.ends_with("left"))
+                result |= MWWorld::MovementDirectionFlag_Left;
+            else if (animation.ends_with("right"))
+                result |= MWWorld::MovementDirectionFlag_Right;
+        };
+        mAnimation->listAnimationGroups(addMovementDirections);;
+
+        return result;
     }
 
+    void CharacterController::castSpell(const ESM::RefId& spellId, bool scriptedSpell)
+    {
+        setAttackingOrSpell(true);
+        mCastingScriptedSpell = scriptedSpell;
+        ActionSpell action = ActionSpell(spellId);
+        action.prepare(mPtr);
+    }
+
+    std::string_view CharacterController::getDesiredAttackType() const
+    {
+        return mPtr.getClass().getCreatureStats(mPtr).getAttackType();
+    }
+
+    void CharacterController::setActive(int active) const
+    {
+        if (mAnimation)
+            mAnimation->setActive(active);
+    }
 }

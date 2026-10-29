@@ -551,7 +551,7 @@ void CSMPrefs::State::declareSubcategory(const QString& label)
 
 CSMPrefs::State::State(const Files::ConfigurationManager& configurationManager)
     : mConfigFile("openmw-cs.cfg")
-    , mDefaultConfigFile("defaults-cs.bin")
+    , mDefaultConfigFile("defaults-cs.cfg")
     , mConfigurationManager(configurationManager)
     , mCurrentCategory(mCategories.end())
     , mIndex(std::make_unique<Settings::Index>())

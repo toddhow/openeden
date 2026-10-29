@@ -5,7 +5,7 @@
 
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/esm3/loaddoor.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/mwanimation/position.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -55,9 +55,10 @@ namespace MWMechanics
 
         GetNearbyDoorVisitor(const MWWorld::Ptr& actor, const float minDist)
             : mPos(actor.getRefData().getPosition().asVec3())
-            , mDir(actor.getRefData().getBaseNode()->getAttitude() * osg::Vec3f(0, 1, 0))
             , mMinDist(minDist)
         {
+            auto dir = MWAnim::forward(actor.getRefData().getPosition());
+            mDir = osg::Vec3f(dir.x, dir.y, dir.z);
             mPos.z() = 0;
             mDir.normalize();
         }

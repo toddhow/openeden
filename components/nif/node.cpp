@@ -166,11 +166,6 @@ namespace Nif
         mCollision.post(nif);
     }
 
-    void NiAVObject::setBone()
-    {
-        mIsBone = true;
-    }
-
     void NiNode::read(NIFStream* nif)
     {
         NiAVObject::read(nif);

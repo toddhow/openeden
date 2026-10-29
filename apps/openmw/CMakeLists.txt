@@ -1,5 +1,5 @@
 set(OPENMW_SOURCES
-    engine.cpp
+    vsgengine.cpp
     options.cpp
     vsgpendingfeatures.cpp
 )
@@ -10,22 +10,22 @@ set(OPENMW_RESOURCES
 )
 
 set(OPENMW_HEADERS
-    doc.hpp
-    engine.hpp
+    arguments.hpp
     options.hpp
-    profile.hpp
+    vsgengine.hpp
+    game.hpp
+    boot.hpp
     vsgpendingfeatures.hpp
 )
 
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
 add_openmw_dir (mwrender
-    actors objects renderingmanager animation creativemotiondriver rotatecontroller actorikcontroller sky skyutil npcanimation esm4npcanimation vismask
-    creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation screenshotmanager
-    joltdebugdraw globalmap characterpreview camera localmap water terrainstorage ripplesimulation
-    renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
-    postprocessor pingpongcull luminancecalculator pingpongcanvas transparentpass precipitationocclusion ripples
-    actorutil distortion animationpriority bonegroup blendmask animblendcontroller
+    mask bin rendermode renderinginterface renderpass intersect rendermanager terrainstorage landmanager
+    animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
+    env weather weatherdata
+    map worldmap preview shadow
+    fogmanager water simplewater screenshotinterface
     )
 
 add_openmw_dir (mwinput
@@ -46,7 +46,7 @@ add_openmw_dir (mwgui
     tradeitemmodel companionitemmodel pickpocketitemmodel controllers savegamedialog
     recharge mode videowidget backgroundimage itemwidget screenfader debugwindow spellmodel spellview
     draganddrop timeadvancer jailscreen itemchargeview keyboardnavigation textcolours statswatcher
-    postprocessorhud settings worlditemmodel itemtransfer controllerbuttonsoverlay inventorytabsoverlay
+    settings worlditemmodel itemtransfer controllerbuttonsoverlay inventorytabsoverlay videowindow
     )
 
 add_openmw_dir (mwdialogue
@@ -84,8 +84,7 @@ add_openmw_dir (mwworld
     actionequip timestamp actionalchemy cellstore actionapply actioneat
     store esmstore fallback actionrepair actionsoulgem livecellref actiondoor
     contentloader esmloader actiontrap cellreflist cellref weather projectilemanager
-    cellpreloader datetimemanager groundcoverstore magiceffects cell ptrregistry
-    positioncellgrid
+    datetimemanager magiceffects cell ptrregistry preloadcell positioncellgrid
     )
 
 add_openmw_dir (mwphysics
@@ -97,7 +96,9 @@ add_openmw_dir (mwphysics
 add_openmw_dir (mwclass
     classes activator creature npc weapon armor potion apparatus book clothing container door
     ingredient creaturelevlist itemlevlist light lockpick misc probe repair static actor bodypart
+    #[[
     esm4base esm4npc light4
+    #]]
     )
 
 add_openmw_dir (mwmechanics
@@ -111,6 +112,7 @@ add_openmw_dir (mwmechanics
 
 add_openmw_dir (mwstate
     statemanagerimp charactermanager character quicksavemanager
+    gamestate operation preloadcell changecell testcells loading gui menu video choice loadingscreen error loadgame savegame newgame executescript askloadrecent
     )
 
 add_openmw_dir (mwbase
@@ -119,21 +121,17 @@ add_openmw_dir (mwbase
     )
 
 # Main executable
-
 add_library(openmw-lib STATIC
     ${OPENMW_FILES}
     ${OPENMW_SOURCES}
+    ${OPENMW_HEADERS}
 )
 
 if (MSVC)
-    # these TUs take a lot of memory for codegen
-    # in CI, they often go over the 8GB memory limit if another cl.exe is running at the same time
-    # this option (make sure you're not looking at the docs for the identically-named linker option) stops four codegen threads being spun off
-    # it hurts build time ~33% to enable this unnecessarily, though, so target it to the hungriest boys
     set_source_files_properties(
         mwlua/dialoguebindings.cpp
         mwlua/magicbindings.cpp
-        mwlua/objectbindings
+        mwlua/objectbindings.cpp
         mwlua/stats.cpp
         mwworld/esmstore.cpp
         PROPERTIES
@@ -157,8 +155,6 @@ if(BUILD_OPENMW)
 
     target_link_libraries(openmw openmw-lib)
 
-    # Workaround necessary to ensure osgAnimation::MatrixLinearSampler dynamic casts work under Clang
-    # NOTE: it's unclear whether the broken behavior is spec-compliant
     if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
         set_target_properties(openmw PROPERTIES ENABLE_EXPORTS ON)
     endif()
@@ -171,17 +167,6 @@ include_directories(
 )
 
 target_link_libraries(openmw-lib
-    # CMake's built-in OSG finder does not use pkgconfig, so we have to
-    # manually ensure the order is correct for inter-library dependencies.
-    # This only makes a difference with `-DOPENMW_USE_SYSTEM_OSG=ON -DOSG_STATIC=ON`.
-    # https://gitlab.kitware.com/cmake/cmake/-/issues/21701
-    ${OSGPARTICLE_LIBRARIES}
-    ${OSGVIEWER_LIBRARIES}
-    ${OSGGA_LIBRARIES}
-    ${OSGSHADOW_LIBRARIES}
-    ${OSGDB_LIBRARIES}
-    ${OSGUTIL_LIBRARIES}
-    ${OSG_LIBRARIES}
     Boost::program_options
     ${OPENAL_LIBRARY}
     ${FFmpeg_LIBRARIES}
@@ -191,6 +176,8 @@ target_link_libraries(openmw-lib
     osg-ffmpeg-videoplayer
     oics
     components
+    vsg::vsg
+    vsgXchange::vsgXchange
 )
 
 if (TARGET opas::anim_runtime)
@@ -216,13 +203,6 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
 
         <sol/sol.hpp>
 
-        <osg/StateSet>
-        <osg/Node>
-        <osg/Drawable>
-        <osg/Camera>
-
-        <osgViewer/Viewer>
-
         <MyGUI_Widget.h>
 
         <algorithm>
@@ -240,6 +220,7 @@ if (ANDROID)
     target_link_libraries(openmw-lib EGL android log z)
 endif (ANDROID)
 
+add_definitions(-DMYGUI_DONT_USE_OBSOLETE=ON)
 if (USE_SYSTEM_TINYXML)
     target_link_libraries(openmw-lib ${TinyXML_LIBRARIES})
 endif()
@@ -260,7 +241,7 @@ if(APPLE AND BUILD_OPENMW)
 
     add_subdirectory(../../files/ ${CMAKE_CURRENT_BINARY_DIR}/files)
 
-    configure_file("${OpenMW_BINARY_DIR}/defaults.bin" ${BUNDLE_RESOURCES_DIR} COPYONLY)
+    configure_file("${OpenMW_BINARY_DIR}/defaults.cfg" ${BUNDLE_RESOURCES_DIR} COPYONLY)
     configure_file("${OpenMW_BINARY_DIR}/openmw.cfg" ${BUNDLE_RESOURCES_DIR} COPYONLY)
     configure_file("${OpenMW_BINARY_DIR}/gamecontrollerdb.txt" ${BUNDLE_RESOURCES_DIR} COPYONLY)
 

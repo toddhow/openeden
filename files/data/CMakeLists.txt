@@ -3,6 +3,8 @@ if (NOT DEFINED OPENMW_RESOURCES_ROOT)
 endif()
 
 set(BUILTIN_DATA_FILES
+    meshes/marker_error.osgt
+    textures/water_nm.png
     textures/omw_map_color_palette.dds
     textures/omw_menu_scroll_down.dds
     textures/omw_menu_scroll_up.dds
@@ -169,6 +171,7 @@ set(BUILTIN_DATA_FILES
     shaders/debug.omwfx
     shaders/internal_distortion.omwfx
 
+    mygui/openmw_video.layout
     mygui/core.skin
     mygui/core.xml
     mygui/core_layouteditor.xml

@@ -5,24 +5,12 @@
 #include <components/esm/refid.hpp>
 #include <memory>
 
+#include <components/esm3/loadnpc.hpp>
+
 namespace MWRender
 {
-    class RaceSelectionPreview;
-}
-
-namespace ESM
-{
-    struct NPC;
-}
-
-namespace osg
-{
-    class Group;
-}
-
-namespace Resource
-{
-    class ResourceSystem;
+    class Preview;
+    class RaceSelection;
 }
 
 namespace MWGui
@@ -30,7 +18,8 @@ namespace MWGui
     class RaceDialog : public WindowModal
     {
     public:
-        RaceDialog(osg::Group* parent, Resource::ResourceSystem* resourceSystem);
+        RaceDialog(MWRender::Preview* p);
+        ~RaceDialog();
 
         enum Gender
         {
@@ -38,8 +27,8 @@ namespace MWGui
             GM_Female
         };
 
-        const ESM::NPC& getResult() const;
-        const ESM::RefId& getRaceId() const { return mCurrentRaceId; }
+        const ESM::NPC& getResult() const { return mProto; }
+        const ESM::RefId& getRaceId() const { return mProto.mRace; }
         Gender getGender() const { return mGenderIndex == 0 ? GM_Male : GM_Female; }
 
         void setRaceId(const ESM::RefId& raceId);
@@ -65,23 +54,25 @@ namespace MWGui
         EventHandle_WindowBase eventDone;
 
     protected:
-        void onPreviewScroll(MyGUI::Widget* sender, int delta);
-        void onHeadRotate(MyGUI::ScrollBar* sender, size_t position);
+        void onPreviewScroll(MyGUI::Widget* _sender, int _delta);
+        void onHeadRotate(MyGUI::ScrollBar* _sender, size_t _position);
 
-        void onSelectPreviousGender(MyGUI::Widget* sender);
-        void onSelectNextGender(MyGUI::Widget* sender);
+        void onSelectPreviousGender(MyGUI::Widget* _sender);
+        void onSelectNextGender(MyGUI::Widget* _sender);
 
-        void onSelectPreviousFace(MyGUI::Widget* sender);
-        void onSelectNextFace(MyGUI::Widget* sender);
+        void onSelectPreviousFace(MyGUI::Widget* _sender);
+        void onSelectNextFace(MyGUI::Widget* _sender);
 
-        void onSelectPreviousHair(MyGUI::Widget* sender);
-        void onSelectNextHair(MyGUI::Widget* sender);
+        void onSelectPreviousHair(MyGUI::Widget* _sender);
+        void onSelectNextHair(MyGUI::Widget* _sender);
 
-        void onSelectRace(MyGUI::ListBox* sender, size_t index);
-        void onAccept(MyGUI::ListBox* sender, size_t index);
+        void onSelectRace(MyGUI::ListBox* _sender, size_t _index);
+        void onAccept(MyGUI::ListBox* _sender, size_t _index);
 
-        void onOkClicked(MyGUI::Widget* sender);
-        void onBackClicked(MyGUI::Widget* sender);
+        void onOkClicked(MyGUI::Widget* _sender);
+        void onBackClicked(MyGUI::Widget* _sender);
+        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerThumbstickEvent(const SDL_ControllerAxisEvent& arg) override;
 
     private:
         void updateRaces();
@@ -91,9 +82,6 @@ namespace MWGui
         void recountParts();
 
         void getBodyParts(int part, std::vector<ESM::RefId>& out);
-
-        osg::Group* mParent;
-        Resource::ResourceSystem* mResourceSystem;
 
         std::vector<ESM::RefId> mAvailableHeads;
         std::vector<ESM::RefId> mAvailableHairs;
@@ -110,19 +98,13 @@ namespace MWGui
         MyGUI::Widget* mSpellPowerList;
         std::vector<MyGUI::Widget*> mSpellPowerItems;
 
-        size_t mGenderIndex, mFaceIndex, mHairIndex;
-
-        ESM::RefId mCurrentRaceId;
+        int mGenderIndex, mFaceIndex, mHairIndex;
 
         float mCurrentAngle;
 
-        std::unique_ptr<MWRender::RaceSelectionPreview> mPreview;
+        std::unique_ptr<MWRender::RaceSelection> mPreview;
         std::unique_ptr<MyGUI::ITexture> mPreviewTexture;
-
-        bool mPreviewDirty;
-
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
-        bool onControllerThumbstickEvent(const SDL_ControllerAxisEvent& arg) override;
+        ESM::NPC mProto;
     };
 }
 #endif

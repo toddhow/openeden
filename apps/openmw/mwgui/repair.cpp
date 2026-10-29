@@ -45,6 +45,8 @@ namespace MWGui
         mControllerButtons.mY = "#{OMWEngine:RepairTool}";
     }
 
+    Repair::~Repair() {}
+
     void Repair::onOpen()
     {
         center();

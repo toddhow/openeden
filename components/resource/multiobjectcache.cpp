@@ -1,14 +1,18 @@
 #include "multiobjectcache.hpp"
 
+#include <iostream>
 #include <vector>
-
-#include <osg/Object>
 
 namespace Resource
 {
+
+    MultiObjectCache::MultiObjectCache() {}
+
+    MultiObjectCache::~MultiObjectCache() {}
+
     void MultiObjectCache::removeUnreferencedObjectsInCache()
     {
-        std::vector<osg::ref_ptr<osg::Object>> objectsToRemove;
+        std::vector<vsg::ref_ptr<vsg::Object>> objectsToRemove;
         {
             std::lock_guard<std::mutex> lock(_objectCacheMutex);
 
@@ -20,7 +24,6 @@ namespace Resource
                 {
                     objectsToRemove.push_back(oitr->second);
                     _objectCache.erase(oitr++);
-                    ++mExpired;
                 }
                 else
                 {
@@ -39,53 +42,35 @@ namespace Resource
         _objectCache.clear();
     }
 
-    void MultiObjectCache::addEntryToObjectCache(VFS::Path::NormalizedView filename, osg::Object* object)
+    void MultiObjectCache::addEntryToObjectCache(const std::string& filename, vsg::Object* object)
     {
         if (!object)
         {
-            OSG_ALWAYS << " trying to add NULL object to cache for " << filename << std::endl;
+            std::cerr << " trying to add NULL object to cache for " << filename << std::endl;
             return;
         }
         std::lock_guard<std::mutex> lock(_objectCacheMutex);
-        _objectCache.emplace(filename, object);
+        _objectCache.insert(std::make_pair(filename, object));
     }
 
-    osg::ref_ptr<osg::Object> MultiObjectCache::takeFromObjectCache(VFS::Path::NormalizedView fileName)
+    vsg::ref_ptr<vsg::Object> MultiObjectCache::takeFromObjectCache(const std::string& fileName)
     {
         std::lock_guard<std::mutex> lock(_objectCacheMutex);
-        ++mGet;
-        const auto it = _objectCache.find(fileName);
-        if (it != _objectCache.end())
+        ObjectCacheMap::iterator found = _objectCache.find(fileName);
+        if (found == _objectCache.end())
+            return vsg::ref_ptr<vsg::Object>();
+        else
         {
-            osg::ref_ptr<osg::Object> object = std::move(it->second);
-            _objectCache.erase(it);
-            ++mHit;
+            vsg::ref_ptr<vsg::Object> object = found->second;
+            _objectCache.erase(found);
             return object;
         }
-
-        return nullptr;
     }
 
-    void MultiObjectCache::releaseGLObjects(osg::State* state)
+    unsigned int MultiObjectCache::getCacheSize() const
     {
         std::lock_guard<std::mutex> lock(_objectCacheMutex);
-
-        for (ObjectCacheMap::iterator itr = _objectCache.begin(); itr != _objectCache.end(); ++itr)
-        {
-            osg::Object* object = itr->second.get();
-            object->releaseGLObjects(state);
-        }
-    }
-
-    CacheStats MultiObjectCache::getStats() const
-    {
-        std::lock_guard<std::mutex> lock(_objectCacheMutex);
-        return CacheStats{
-            .mSize = _objectCache.size(),
-            .mGet = mGet,
-            .mHit = mHit,
-            .mExpired = mExpired,
-        };
+        return _objectCache.size();
     }
 
 }

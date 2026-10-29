@@ -1,7 +1,7 @@
 #include "esmterrain.hpp"
 
 #include <components/esm3/loadland.hpp>
-#include <components/esm4/loadland.hpp>
+//#include <components/esm4/loadland.hpp>
 #include <components/misc/constants.hpp>
 
 namespace
@@ -36,6 +36,7 @@ ESM::LandData::LandData(const ESM::Land& land, int loadFlags)
 {
 }
 
+#if 0
 ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
     : mHeightsData(ESM4::Land::sLandNumVerts)
     , mNormals(land.mVertNorm)
@@ -75,6 +76,8 @@ ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
     for (int i = 0; i < 4; ++i)
         mEsm4Textures[i] = land.mTextures[i];
 }
+
+#endif
 
 namespace ESM
 {

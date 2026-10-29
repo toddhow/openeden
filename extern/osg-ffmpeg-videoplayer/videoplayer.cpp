@@ -2,9 +2,6 @@
 
 #include <iostream>
 
-#include <osg/Notify>
-#include <osg/Texture2D>
-
 #include "audiofactory.hpp"
 #include "videostate.hpp"
 
@@ -39,14 +36,14 @@ void VideoPlayer::playVideo(std::unique_ptr<std::istream>&& inputstream, const s
         mState->init(std::move(inputstream), name);
 
         // wait until we have the first picture
-        while (mState->video_st && !mState->mTexture.get())
+        while (mState->video_st && !mState->mDisplayData)
         {
             if (!mState->update())
                 break;
         }
     }
     catch(std::exception& e) {
-        OSG_FATAL << "Failed to play video: " << e.what() << std::endl;
+        std::cerr<< "Failed to play video: "<<e.what() <<std::endl;
         close();
     }
 }
@@ -58,27 +55,25 @@ bool VideoPlayer::update ()
     return false;
 }
 
-osg::ref_ptr<osg::Texture2D> VideoPlayer::getVideoTexture()
+void *VideoPlayer::getVideoData()
 {
     if (mState)
-        return mState->mTexture;
-    return osg::ref_ptr<osg::Texture2D>();
+        return mState->mDisplayData;
+    return nullptr;
 }
 
 int VideoPlayer::getVideoWidth()
 {
-    int width=0;
-    if (mState && mState->mTexture.get() && mState->mTexture->getImage())
-        width = mState->mTexture->getImage()->s();
-    return width;
+    if (mState)
+        return mState->video_ctx->width;
+    return 0;
 }
 
 int VideoPlayer::getVideoHeight()
 {
-    int height=0;
-    if (mState && mState->mTexture.get() && mState->mTexture->getImage())
-        height = mState->mTexture->getImage()->t();
-    return height;
+    if (mState)
+        return mState->video_ctx->height;
+    return 0;
 }
 
 void VideoPlayer::close()

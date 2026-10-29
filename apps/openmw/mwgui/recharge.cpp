@@ -45,6 +45,8 @@ namespace MWGui
         mControllerButtons.mY = "#{Interface:Soul}";
     }
 
+    Recharge::~Recharge() {}
+
     void Recharge::onOpen()
     {
         center();

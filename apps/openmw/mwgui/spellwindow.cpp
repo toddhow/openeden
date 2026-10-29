@@ -68,6 +68,8 @@ namespace MWGui
         }
     }
 
+    SpellWindow::~SpellWindow() {}
+
     void SpellWindow::onPinToggled()
     {
         Settings::windows().mSpellsPin.set(mPinned);

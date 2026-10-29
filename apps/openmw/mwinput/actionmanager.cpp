@@ -4,7 +4,7 @@
 
 #include <SDL_keyboard.h>
 
-#include <components/settings/values.hpp>
+#include <components/settings/settings.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -21,17 +21,16 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/npcstats.hpp"
 
+#include "../mwstate/menu.hpp"
+
 #include "actions.hpp"
 #include "bindingsmanager.hpp"
 
 namespace MWInput
 {
 
-    ActionManager::ActionManager(BindingsManager* bindingsManager, osg::ref_ptr<osgViewer::Viewer> viewer,
-        osg::ref_ptr<osgViewer::ScreenCaptureHandler> screenCaptureHandler)
+    ActionManager::ActionManager(BindingsManager* bindingsManager)
         : mBindingsManager(bindingsManager)
-        , mViewer(std::move(viewer))
-        , mScreenCaptureHandler(std::move(screenCaptureHandler))
         , mTimeIdle(0.f)
     {
     }
@@ -121,9 +120,6 @@ namespace MWInput
             case A_ToggleDebug:
                 windowManager->toggleDebugWindow();
                 break;
-            case A_TogglePostProcessorHUD:
-                windowManager->togglePostProcessorHud();
-                break;
             case A_QuickSave:
                 quickSave();
                 break;
@@ -168,8 +164,7 @@ namespace MWInput
 
     void ActionManager::screenshot()
     {
-        mScreenCaptureHandler->setFramesToCapture(1);
-        mScreenCaptureHandler->captureNextFrame(*mViewer);
+        screenshotRequest = true;
     }
 
     void ActionManager::toggleMainMenu()
@@ -186,20 +181,10 @@ namespace MWInput
             return;
         }
 
-        if (MWBase::Environment::get().getWindowManager()->isPostProcessorHudVisible())
-        {
-            MWBase::Environment::get().getWindowManager()->togglePostProcessorHud();
-            return;
-        }
-
         if (!MWBase::Environment::get().getWindowManager()->isGuiMode()) // No open GUIs, open up the MainMenu
-        {
-            MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_MainMenu);
-        }
+            MWBase::Environment::get().getStateManager()->pushGameState(std::make_shared<MWState::Menu>());
         else // Close current GUI
-        {
             MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
-        }
     }
 
     void ActionManager::quickLoad()

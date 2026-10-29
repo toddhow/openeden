@@ -6,7 +6,6 @@
 #include <components/esm3/doorstate.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadmgef.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
@@ -27,10 +26,9 @@
 
 #include "../mwgui/tooltips.hpp"
 
-#include "../mwrender/animation.hpp"
 #include "../mwrender/objects.hpp"
+#include "../mwrender/spellcastglow.hpp"
 #include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
 
@@ -59,7 +57,6 @@ namespace MWClass
         if (!model.empty())
         {
             renderingInterface.getObjects().insertModel(ptr, model);
-            ptr.getRefData().getBaseNode()->setNodeMask(MWRender::Mask_Static);
         }
     }
 
@@ -127,14 +124,12 @@ namespace MWClass
             && MWBase::Environment::get().getWorld()->getDistanceToFocusObject()
                 > MWBase::Environment::get().getWorld()->getMaxActivationDistance())
         {
-            MWRender::Animation* animation = MWBase::Environment::get().getWorld()->getAnimation(ptr);
-            if (animation)
+            if (auto animation = MWBase::Environment::get().getWorld()->getAnimation(ptr))
             {
                 const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
                 const ESM::MagicEffect* effect = store.get<ESM::MagicEffect>().find(ESM::MagicEffect::Telekinesis);
 
-                animation->addSpellCastGlow(
-                    effect->getColor(), 1); // 1 second glow to match the time taken for a door opening or closing
+                MWRender::addSpellCastGlow(animation, *effect, 1); // 1 second glow to match the time taken for a door opening or closing
             }
         }
 

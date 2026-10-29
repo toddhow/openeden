@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include <osg/Stats>
+// #include <osg/Stats>
 
 #include <components/misc/rng.hpp>
 
@@ -13,7 +13,9 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/stolenitems.hpp>
 
-#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/mwanimation/position.hpp>
+#include <components/vsgadapters/osgcompat.hpp>
+#include <components/vsgutil/updatethreads.hpp>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
@@ -118,6 +120,11 @@ namespace
 
 namespace MWMechanics
 {
+    void MechanicsManager::setUpdateThreads(vsg::ref_ptr<vsgUtil::UpdateThreads> threads)
+    {
+        mActors.setUpdateThreads(threads);
+    }
+
     void MechanicsManager::buildPlayer()
     {
         MWWorld::Ptr ptr = getPlayer();
@@ -1663,17 +1670,14 @@ namespace MWMechanics
         static float fSneakNoViewMult = store.find("fSneakNoViewMult")->mValue.getFloat();
         static float fSneakViewMult = store.find("fSneakViewMult")->mValue.getFloat();
         float y = 0;
-        osg::Vec3f vec = pos1 - pos2;
-        if (observer.getRefData().getBaseNode())
-        {
-            osg::Vec3f observerDir = (observer.getRefData().getBaseNode()->getAttitude() * osg::Vec3f(0, 1, 0));
+        auto vec = toVsg(pos1 - pos2);
+        auto observerDir = MWAnim::forward(observer.getRefData().getPosition());
 
-            float angleRadians = std::acos(observerDir * vec / (observerDir.length() * vec.length()));
-            if (angleRadians > osg::DegreesToRadians(90.f))
-                y = obsTerm * observerStats.getFatigueTerm() * fSneakNoViewMult;
-            else
-                y = obsTerm * observerStats.getFatigueTerm() * fSneakViewMult;
-        }
+        float angleRadians = std::acos(vsg::dot(observerDir, vec) / (vsg::length(observerDir) * vsg::length(vec)));
+        if (angleRadians > osg::DegreesToRadians(90.f))
+            y = obsTerm * observerStats.getFatigueTerm() * fSneakNoViewMult;
+        else
+            y = obsTerm * observerStats.getFatigueTerm() * fSneakViewMult;
 
         float target = x - y;
         if (useCache)
@@ -2050,8 +2054,6 @@ namespace MWMechanics
 
     void MechanicsManager::reportStats(unsigned int frameNumber, osg::Stats& stats) const
     {
-        stats.setAttribute(frameNumber, "Mechanics Actors", static_cast<double>(mActors.size()));
-        stats.setAttribute(frameNumber, "Mechanics Objects", static_cast<double>(mObjects.size()));
     }
 
     int MechanicsManager::getGreetingTimer(const MWWorld::Ptr& ptr) const

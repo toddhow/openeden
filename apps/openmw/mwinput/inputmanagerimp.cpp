@@ -1,10 +1,9 @@
 #include "inputmanagerimp.hpp"
 
-#include <osgViewer/ViewerEventHandlers>
-
+#include <components/esm/defs.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-#include <components/sdlutil/sdlinputwrapper.hpp>
+#include <components/sdlutil/inputwrapper.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -24,15 +23,14 @@
 
 namespace MWInput
 {
-    InputManager::InputManager(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer,
-        osg::ref_ptr<osgViewer::ScreenCaptureHandler> screenCaptureHandler, const std::filesystem::path& userFile,
-        bool userFileExists, const std::filesystem::path& userControllerBindingsFile,
-        const std::filesystem::path& controllerBindingsFile, bool grab)
+    InputManager::InputManager(SDL_Window* window, const std::filesystem::path& userFile, bool userFileExists,
+        const std::filesystem::path& userControllerBindingsFile, const std::filesystem::path& controllerBindingsFile,
+        bool grab)
         : mControlsDisabled(false)
-        , mInputWrapper(std::make_unique<SDLUtil::InputWrapper>(window, viewer, grab))
+        , mInputWrapper(std::make_unique<SDLUtil::InputWrapper>(window, grab))
         , mBindingsManager(std::make_unique<BindingsManager>(userFile, userFileExists))
         , mControlSwitch(std::make_unique<ControlSwitch>())
-        , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), viewer, screenCaptureHandler))
+        , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get()))
         , mKeyboardManager(std::make_unique<KeyboardManager>(mBindingsManager.get()))
         , mMouseManager(std::make_unique<MouseManager>(mBindingsManager.get(), mInputWrapper.get(), window))
         , mControllerManager(std::make_unique<ControllerManager>(
@@ -40,7 +38,7 @@ namespace MWInput
         , mSensorManager(std::make_unique<SensorManager>())
         , mGyroManager(std::make_unique<GyroManager>())
     {
-        mInputWrapper->setWindowEventCallback(MWBase::Environment::get().getWindowManager());
+        mInputWrapper->setMouseVisible(false);
         mInputWrapper->setKeyboardEventCallback(mKeyboardManager.get());
         mInputWrapper->setMouseEventCallback(mMouseManager.get());
         mInputWrapper->setControllerEventCallback(mControllerManager.get());
@@ -55,11 +53,27 @@ namespace MWInput
 
     InputManager::~InputManager() {}
 
+    bool InputManager::getScreenshotRequest()
+    {
+        bool ret = mActionManager->screenshotRequest;
+        mActionManager->screenshotRequest = false;
+        return ret;
+    }
+
+    void InputManager::enableMouse(bool enable)
+    {
+        mInputWrapper->setMouseVisible(enable);
+    }
+
+    void InputManager::setWindowListener(SDLUtil::WindowListener* listener)
+    {
+        mInputWrapper->setWindowEventCallback(listener);
+    }
+
     void InputManager::update(float dt, bool disableControls, bool disableEvents)
     {
         mControlsDisabled = disableControls;
 
-        mInputWrapper->setMouseVisible(MWBase::Environment::get().getWindowManager()->getCursorVisible());
         mInputWrapper->capture(disableEvents);
 
         if (disableControls)
@@ -110,13 +124,8 @@ namespace MWInput
         mMouseManager->setGuiCursorEnabled(guiMode);
         mGyroManager->setGuiCursorEnabled(guiMode);
         mMouseManager->setMouseLookEnabled(!guiMode);
-        if (guiMode)
-            MWBase::Environment::get().getWindowManager()->showCrosshair(false);
-
-        bool isCursorVisible
+        shouldShowCursor
             = guiMode && (!mControllerManager->joystickLastUsed() || mControllerManager->gamepadGuiCursorEnabled());
-        MWBase::Environment::get().getWindowManager()->setCursorVisible(isCursorVisible);
-        // if not in gui mode, the camera decides whether to show crosshair or not.
     }
 
     void InputManager::processChangedSettings(const Settings::CategorySettingVector& changed)

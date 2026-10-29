@@ -3,38 +3,33 @@
 
 #include <filesystem>
 #include <map>
-#include <utility>
 
 #include "../mwbase/statemanager.hpp"
 
 #include "charactermanager.hpp"
 
+namespace MWRender
+{
+    class ScreenshotInterface;
+}
 namespace MWState
 {
+    /*
+     * Encapsulates game states.
+     */
     class StateManager : public MWBase::StateManager
     {
+        MWRender::ScreenshotInterface& mScreenshotInterface;
         bool mQuitRequest;
-        bool mAskLoadRecent;
-        bool mNewGameRequest = false;
-        std::optional<std::pair<const Character*, std::filesystem::path>> mLoadRequest;
         State mState;
         CharacterManager mCharacterManager;
         double mTimePlayed;
-        std::filesystem::path mLastSavegame;
 
-    private:
-        void cleanup(bool force = false);
-
-        void printSavegameFormatError(const std::string& exceptionText, const std::string& messageBoxText);
-
-        bool confirmLoading(const std::vector<std::string_view>& missingFiles) const;
-
-        void writeScreenshot(std::vector<char>& imageData) const;
-
-        std::map<int, int> buildContentFileIndexMap(const ESM::ESMReader& reader) const;
+        std::vector<std::shared_ptr<GameState>> mGameStates;
 
     public:
-        StateManager(const std::filesystem::path& saves, const std::vector<std::string>& contentFiles);
+        StateManager(const std::filesystem::path& saves, const std::vector<std::string>& contentFiles,
+            MWRender::ScreenshotInterface& screenshotInterface);
 
         void requestQuit() override;
 
@@ -42,20 +37,24 @@ namespace MWState
 
         void askLoadRecent() override;
 
-        void requestNewGame() override { mNewGameRequest = true; }
-        void requestLoad(const Character* character, const std::filesystem::path& filepath) override
-        {
-            mLoadRequest.emplace(character, filepath);
-        }
-
         State getState() const override;
 
-        void newGame(bool bypass = false) override;
+        std::shared_ptr<GameState> getGameState();
+        void pushGameState(std::shared_ptr<GameState> gameState) override;
+        void popGameState(std::shared_ptr<GameState> gameState) override;
+
+        void cleanup(bool force = false);
+
+        void cleanupAndPush(std::shared_ptr<GameState> next, bool forceCleanup = false);
+
+        void newGame(bool /*vsgopenmw-delete-me*/bypass = false) override;
+        void bypassNewGame(const std::string& startCell);
+
         ///< Start a new game.
         ///
         /// \param bypass Skip new game mechanics.
 
-        void endGame();
+        void endGame() override;
 
         void resumeGame() override;
 
@@ -84,6 +83,10 @@ namespace MWState
 
         void loadGame(const Character* character, const std::filesystem::path& filepath) override;
         ///< Load a saved game file belonging to the given character.
+
+        void error(const std::string& what);
+
+        void mainMenu();
 
         Character* getCurrentCharacter() override;
         ///< @note May return null.

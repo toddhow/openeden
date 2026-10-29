@@ -9,7 +9,9 @@
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/weatherstate.hpp>
+#include <components/vsgadapters/osgcompat.hpp>
 
+#include "../mwworld/datetimemanager.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/world.hpp"
@@ -18,8 +20,8 @@
 
 #include "../mwsound/sound.hpp"
 
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/sky.hpp"
+#include "../mwrender/rendermanager.hpp"
+#include "../mwrender/weather.hpp"
 
 #include "cellstore.hpp"
 #include "esmstore.hpp"
@@ -181,7 +183,7 @@ namespace MWWorld
         , mRainMinHeight(Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Min"))
         , mRainMaxHeight(Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Max"))
         , mParticleEffect(particleEffect)
-        , mRainEffect(Fallback::Map::getBool("Weather_" + name + "_Using_Precip") ? "meshes\\raindrop.nif" : "")
+        , mRainEffect(Fallback::Map::getBool("Weather_" + name + "_Using_Precip") ? "raindrop.nif" : "")
         , mStormDirection(Weather::defaultDirection())
         , mCloudsMaximumPercent(Fallback::Map::getFloat("Weather_" + name + "_Clouds_Maximum_Percent"))
         , mTransitionDelta(Fallback::Map::getFloat("Weather_" + name + "_Transition_Delta"))
@@ -301,9 +303,7 @@ namespace MWWorld
 
     RegionWeather::operator ESM::RegionWeatherState() const
     {
-        ESM::RegionWeatherState state = { mWeather, mChances };
-
-        return state;
+        return { mWeather, mChances };
     }
 
     void RegionWeather::setChances(const std::vector<uint8_t>& chances)
@@ -595,7 +595,7 @@ namespace MWWorld
             return 0.0f;
     }
 
-    WeatherManager::WeatherManager(MWRender::RenderingManager& rendering, MWWorld::ESMStore& store)
+    WeatherManager::WeatherManager(MWRender::RenderManager& rendering, MWWorld::ESMStore& store)
         : mStore(store)
         , mRendering(rendering)
         , mSunriseTime(Fallback::Map::getFloat("Weather_Sunrise_Time"))
@@ -829,6 +829,10 @@ namespace MWWorld
             mWindSpeed = mResult.mWindSpeed;
             mCurrentWindSpeed = mResult.mCurrentWindSpeed;
             mNextWindSpeed = mResult.mNextWindSpeed;
+            // rotate the stars by 360 degrees every 4 days
+            mAtmosphereNightRoll += MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale() * duration
+                * osg::DegreesToRadians(360.f) / (3600 * 96.f);
+            mRendering.getSky()->setAtmosphereNightRoll(mAtmosphereNightRoll);
         }
 
         mIsStorm = mResult.mIsStorm;
@@ -838,13 +842,13 @@ namespace MWWorld
             && mResult.mParticleEffect != Settings::models().mWeatherashcloud.get();
 
         mStormDirection = calculateStormDirection(mResult.mParticleEffect);
-        mRendering.getSkyManager()->setStormParticleDirection(mStormDirection);
+        mRendering.getSky()->setStormParticleDirection(mStormDirection);
 
         // disable sun during night
         if (time.getHour() >= mTimeSettings.mNightStart || time.getHour() <= mSunriseTime)
-            mRendering.getSkyManager()->sunDisable();
+            mRendering.getSky()->sunDisable();
         else
-            mRendering.getSkyManager()->sunEnable();
+            mRendering.getSky()->sunEnable();
 
         // Update the sun direction.  Run it east to west at a fixed angle from overhead.
         // The sun's speed at day and night may differ, since mSunriseTime and mNightStart
@@ -862,22 +866,21 @@ namespace MWWorld
             const float dayDuration = adjustedNightStart - mSunriseTime;
             const float nightDuration = 24.f - dayDuration;
 
-            float orbit;
+            double theta;
             if (!isNight)
             {
-                float t = (adjustedHour - mSunriseTime) / dayDuration;
-                orbit = 1.f - 2.f * t;
+                theta = static_cast<float>(osg::PI) * (adjustedHour - mSunriseTime) / dayDuration;
             }
             else
             {
-                float t = (adjustedHour - adjustedNightStart) / nightDuration;
-                orbit = 2.f * t - 1.f;
+                theta = static_cast<float>(osg::PI)
+                    - static_cast<float>(osg::PI) * (adjustedHour - adjustedNightStart) / nightDuration;
             }
 
-            // Hardcoded constant from Morrowind
-            const osg::Vec3f sunDir(-400.f * orbit, 75.f, -100.f);
-            mRendering.setSunDirection(sunDir);
-            mRendering.setNight(isNight);
+            osg::Vec3f final(static_cast<float>(cos(theta)),
+                -0.268f, // approx tan( -15 degrees )
+                static_cast<float>(sin(theta)));
+            mRendering.setSunDirection(final * -1);
         }
 
         float underwaterFog = mUnderwaterFog.getValue(time.getHour(), mTimeSettings, "Fog");
@@ -891,17 +894,17 @@ namespace MWWorld
         else
             glareFade = 1.f - (time.getHour() - peakHour) / (mTimeSettings.mNightStart - peakHour);
 
-        mRendering.getSkyManager()->setGlareTimeOfDayFade(glareFade);
+        mRendering.getSky()->setGlareTimeOfDayFade(glareFade);
 
-        mRendering.getSkyManager()->setMasserState(mMasser.calculateState(time));
-        mRendering.getSkyManager()->setSecundaState(mSecunda.calculateState(time));
+        mRendering.getSky()->setMasserState(mMasser.calculateState(time));
+        mRendering.getSky()->setSecundaState(mSecunda.calculateState(time));
 
-        mRendering.configureFog(
-            mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f, mResult.mFogColor);
-        mRendering.setAmbientColour(mResult.mAmbientColor);
-        mRendering.setSunColour(mResult.mSunColor, mResult.mSunColor, mResult.mGlareView * glareFade);
+        mRendering.configureFog(mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f,
+            toVsg(mResult.mFogColor));
+        mRendering.setAmbientColour(toVsg(mResult.mAmbientColor));
+        mRendering.setSunColour(mResult.mSunColor, mResult.mSunColor * mResult.mGlareView * glareFade);
 
-        mRendering.getSkyManager()->setWeather(mResult);
+        mRendering.getSky()->setWeather(mResult);
 
         // Play sounds
         if (mPlayingAmbientSoundID != mResult.mAmbientLoopSoundID)

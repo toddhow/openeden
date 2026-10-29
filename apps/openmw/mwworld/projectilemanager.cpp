@@ -1,11 +1,7 @@
 #include "projectilemanager.hpp"
 
-#include <iomanip>
 #include <memory>
 #include <optional>
-#include <sstream>
-
-#include <osg/PositionAttitudeTransform>
 
 #include <components/debug/debuglog.hpp>
 
@@ -22,15 +18,8 @@
 
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
-#include <components/misc/resourcehelpers.hpp>
-
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/sceneutil/controller.hpp>
-#include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/nodecallback.hpp>
-#include <components/sceneutil/visitor.hpp>
+#include <components/vsgadapters/osgcompat.hpp>
+#include <components/vsgutil/convert.hpp>
 
 #include <components/settings/values.hpp>
 
@@ -42,7 +31,6 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
@@ -50,10 +38,9 @@
 #include "../mwmechanics/creaturestats.hpp"
 #include "../mwmechanics/spellcasting.hpp"
 
-#include "../mwrender/animation.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/util.hpp"
-#include "../mwrender/vismask.hpp"
+#include "../mwrender/env.hpp"
+#include "../mwrender/projectiles.hpp"
+#include "../mwrender/rendermanager.hpp"
 
 #include "../mwsound/sound.hpp"
 
@@ -136,20 +123,18 @@ namespace
         return projectileEffects;
     }
 
-    osg::Vec4 getMagicBoltLightDiffuseColor(const ESM::EffectList& effects)
+    vsg::vec3 getMagicBoltLightDiffuseColor(const ESM::EffectList& effects)
     {
         // Calculate combined light diffuse color from magical effects
-        osg::Vec4 lightDiffuseColor;
+        vsg::vec4 lightDiffuseColor = {};
         for (const ESM::IndexedENAMstruct& enam : effects.mList)
         {
             const ESM::MagicEffect* magicEffect
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(enam.mData.mEffectID);
-            lightDiffuseColor += magicEffect->getColor();
+            lightDiffuseColor += toVsg(magicEffect->getColor());
         }
         size_t numberOfEffects = effects.mList.size();
-        lightDiffuseColor /= static_cast<float>(numberOfEffects);
-
-        return lightDiffuseColor;
+        return vsgUtil::toVec3(lightDiffuseColor) / static_cast<float>(numberOfEffects);
     }
 
     osg::Quat lookAt(const osg::Vec3f& pos)
@@ -179,114 +164,31 @@ namespace
 namespace MWWorld
 {
 
-    ProjectileManager::ProjectileManager(osg::Group* parent, Resource::ResourceSystem* resourceSystem,
-        MWRender::RenderingManager* rendering, MWPhysics::PhysicsSystem* physics)
-        : mParent(parent)
-        , mResourceSystem(resourceSystem)
-        , mRendering(rendering)
+    ProjectileManager::ProjectileManager(MWRender::RenderManager* rendering, MWPhysics::PhysicsSystem* physics)
+        : mRender(rendering)
         , mPhysics(physics)
         , mCleanupTimer(0.0f)
     {
     }
 
-    /// Rotates an osg::PositionAttitudeTransform over time.
-    class RotateCallback : public SceneUtil::NodeCallback<RotateCallback, osg::PositionAttitudeTransform*>
+    void ProjectileManager::createModel(State& state, const std::string& model, const vsg::vec3& pos,
+        const vsg::quat& orient, bool rotate, std::optional<vsg::vec3> lightDiffuseColor,
+        std::optional<vsg::vec4> glowColor, std::string texture)
     {
-    public:
-        RotateCallback(const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = osg::PI * 2)
-            : mAxis(axis)
-            , mRotateSpeed(rotateSpeed)
-        {
-        }
-
-        void operator()(osg::PositionAttitudeTransform* node, osg::NodeVisitor* nv)
-        {
-            double time = nv->getFrameStamp()->getSimulationTime();
-
-            osg::Quat orient = osg::Quat(time * mRotateSpeed, mAxis);
-            node->setAttitude(orient);
-
-            traverse(node, nv);
-        }
-
-    private:
-        osg::Vec3f mAxis;
-        float mRotateSpeed;
-    };
-
-    void ProjectileManager::createModel(State& state, VFS::Path::NormalizedView model, const osg::Vec3f& pos,
-        const osg::Quat& orient, bool rotate, bool createLight, osg::Vec4 lightDiffuseColor, const std::string& texture)
-    {
-        state.mNode = new osg::PositionAttitudeTransform;
-        state.mNode->setNodeMask(MWRender::Mask_Effect);
-        state.mNode->setPosition(pos);
-        state.mNode->setAttitude(orient);
-
-        osg::Group* attachTo = state.mNode;
-
-        if (rotate)
-        {
-            osg::ref_ptr<osg::PositionAttitudeTransform> rotateNode(new osg::PositionAttitudeTransform);
-            rotateNode->addUpdateCallback(new RotateCallback());
-            state.mNode->addChild(rotateNode);
-            attachTo = rotateNode;
-        }
-
-        osg::ref_ptr<osg::Node> projectile = mResourceSystem->getSceneManager()->getInstance(model, attachTo);
-
+        std::vector<std::string> additionalModels;
         if (state.mIdMagic.size() > 1)
         {
             for (size_t iter = 1; iter != state.mIdMagic.size(); ++iter)
             {
-                std::ostringstream nodeName;
-                nodeName << "Dummy" << std::setw(2) << std::setfill('0') << iter;
-                const ESM::Weapon* weapon
-                    = MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().find(state.mIdMagic.at(iter));
-                std::string nameToFind = nodeName.str();
-                SceneUtil::FindByNameVisitor findVisitor(nameToFind);
-                attachTo->accept(findVisitor);
-                if (findVisitor.mFoundNode)
-                    mResourceSystem->getSceneManager()->getInstance(
-                        Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(weapon->mModel)),
-                        findVisitor.mFoundNode);
+                const ESM::Weapon* weapon = MWBase::Environment::get().getWorld()->getStore().get<ESM::Weapon>().find(
+                    state.mIdMagic.at(iter));
+                additionalModels.push_back(weapon->mModel);
             }
         }
 
-        if (createLight)
-        {
-            osg::ref_ptr<osg::Light> projectileLight(new osg::Light);
-            projectileLight->setAmbient(osg::Vec4(1.0f, 1.0f, 1.0f, 1.0f));
-            projectileLight->setDiffuse(lightDiffuseColor);
-            projectileLight->setSpecular(osg::Vec4(0.0f, 0.0f, 0.0f, 0.0f));
-            projectileLight->setConstantAttenuation(0.f);
-            projectileLight->setLinearAttenuation(0.1f);
-            projectileLight->setQuadraticAttenuation(0.f);
-            projectileLight->setPosition(osg::Vec4(pos, 1.0));
-
-            SceneUtil::LightSource* projectileLightSource = new SceneUtil::LightSource;
-            projectileLightSource->setNodeMask(MWRender::Mask_Lighting);
-            projectileLightSource->setRadius(66.f);
-
-            state.mNode->addChild(projectileLightSource);
-            projectileLightSource->setLight(projectileLight);
-        }
-
-        state.mNode->addCullCallback(new SceneUtil::LightListCallback);
-
-        mParent->addChild(state.mNode);
-
-        state.mEffectAnimationTime = std::make_shared<MWRender::EffectAnimationTime>();
-
-        SceneUtil::AssignControllerSourcesVisitor assignVisitor(state.mEffectAnimationTime);
-        state.mNode->accept(assignVisitor);
-
-        MWRender::overrideFirstRootTexture(VFS::Path::toNormalized(texture), mResourceSystem, *projectile);
-    }
-
-    void ProjectileManager::update(State& state, float duration)
-    {
-        state.mEffectAnimationTime->addTime(duration);
-    }
+        state.handle = mRender->getProjectiles()->add(
+            model, pos, orient, rotate, lightDiffuseColor, glowColor, texture, additionalModels);
+    }    }
 
     void ProjectileManager::launchMagicBolt(
         const ESM::RefId& spellId, const Ptr& caster, const osg::Vec3f& fallbackDirection, ESM::RefNum item)
@@ -335,10 +237,10 @@ namespace MWWorld
         MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), state.mIdMagic.at(0));
         MWWorld::Ptr ptr = ref.getPtr();
 
-        osg::Vec4 lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
+        auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
 
-        VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
-        createModel(state, model, pos, orient, true, true, lightDiffuseColor, texture);
+        auto model = ptr.getClass().getModel(ptr);
+        createModel(state, model, toVsg(pos), toVsg(orient), true, lightDiffuseColor, {}, texture);
 
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
         for (const auto& soundid : state.mSoundIds)
@@ -353,8 +255,8 @@ namespace MWWorld
         // shape
         if (state.mIdMagic.size() > 1)
         {
-            model = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(
-                MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().find(state.mIdMagic[1])->mModel));
+            model
+                = MWBase::Environment::get().getWorld()->getStore().get<ESM::Weapon>().find(state.mIdMagic[1])->mModel;
         }
         state.mProjectileId = mPhysics->addProjectile(caster, pos, model, true);
         state.mToDelete = false;
@@ -375,10 +277,8 @@ namespace MWWorld
         MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), projectile.getCellRef().getRefId());
         MWWorld::Ptr ptr = ref.getPtr();
 
-        const VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
-        createModel(state, model, pos, orient, false, false, osg::Vec4(0, 0, 0, 0));
-        if (!ptr.getClass().getEnchantment(ptr).empty())
-            SceneUtil::addEnchantedGlow(state.mNode, mResourceSystem, ptr.getClass().getEnchantmentColor(ptr));
+        const auto model = ptr.getClass().getModel(ptr);
+        createModel(state, model, toVsg(pos), toVsg(orient), false, {}, MWRender::getGlowColor(ptr));
 
         state.mProjectileId = mPhysics->addProjectile(actor, pos, model, false);
         state.mToDelete = false;
@@ -426,7 +326,7 @@ namespace MWWorld
             auto isCleanable = [](const ProjectileManager::State& state) -> bool {
                 const float farawayThreshold = 72000.0f;
                 osg::Vec3 playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
-                return (state.mNode->getPosition() - playerPos).length2() >= farawayThreshold * farawayThreshold;
+                return vsg::length2(state.handle->position - toVsg(playerPos)) >= farawayThreshold * farawayThreshold;
             };
 
             for (auto& projectileState : mProjectiles)
@@ -465,8 +365,8 @@ namespace MWWorld
                 }
             }
 
-            const auto& store = *MWBase::Environment::get().getESMStore();
-            osg::Quat orient = magicBoltState.mNode->getAttitude();
+            const auto& store = MWBase::Environment::get().getWorld()->getStore();
+            auto orient = magicBoltState.handle->attitude;
             static float fTargetSpellMaxSpeed
                 = store.get<ESM::GameSetting>().find("fTargetSpellMaxSpeed")->mValue.getFloat();
             float speed = fTargetSpellMaxSpeed * magicBoltState.mSpeed;
@@ -476,11 +376,8 @@ namespace MWWorld
                 const auto race = store.get<ESM::Race>().find(npc->mRace);
                 speed *= npc->isMale() ? race->mData.mMaleWeight : race->mData.mFemaleWeight;
             }
-            osg::Vec3f direction = orient * osg::Vec3f(0, 1, 0);
-            direction.normalize();
-            projectile->setVelocity(direction * speed);
-
-            update(magicBoltState, duration);
+            vsg::vec3 direction = vsg::normalize(orient * vsg::vec3(0, 1, 0));
+            projectile->setVelocity(toOsg(direction) * speed);
 
             for (const auto& sound : magicBoltState.mSounds)
             {
@@ -513,9 +410,7 @@ namespace MWWorld
 
             projectile->setVelocity(projectileState.mVelocity);
 
-            projectileState.mNode->setAttitude(lookAt(projectileState.mVelocity));
-
-            update(projectileState, duration);
+            projectileState.handle->attitude = toVsg(lookAt(projectileState.mVelocity));
 
             MWWorld::Ptr caster = projectileState.getCaster();
 
@@ -538,7 +433,7 @@ namespace MWWorld
             auto* projectile = mPhysics->getProjectile(projectileState.mProjectileId);
 
             const auto pos = projectile->getSimulationPosition();
-            projectileState.mNode->setPosition(pos);
+            projectileState.handle->position = toVsg(pos);
 
             if (projectile->isActive())
                 continue;
@@ -564,7 +459,7 @@ namespace MWWorld
             const auto hitPosition = projectile->getHitPosition();
 
             if (projectile->getHitWater())
-                mRendering->emitWaterRipple(hitPosition);
+                mRender->emitWaterRipple(pos);
 
             MWMechanics::projectileHit(
                 caster, target, bow, projectileRef.getPtr(), hitPosition, projectileState.mAttackStrength);
@@ -579,7 +474,7 @@ namespace MWWorld
             auto* projectile = mPhysics->getProjectile(magicBoltState.mProjectileId);
 
             const auto pos = projectile->getSimulationPosition();
-            magicBoltState.mNode->setPosition(pos);
+            magicBoltState.handle->position = toVsg(pos);
             for (const auto& sound : magicBoltState.mSounds)
                 sound->setPosition(pos);
 
@@ -635,14 +530,14 @@ namespace MWWorld
 
     void ProjectileManager::cleanupProjectile(ProjectileManager::ProjectileState& state)
     {
-        mParent->removeChild(state.mNode);
+        state.handle->remove = true;
         mPhysics->removeProjectile(state.mProjectileId);
         state.mToDelete = true;
     }
 
     void ProjectileManager::cleanupMagicBolt(ProjectileManager::MagicBoltState& state)
     {
-        mParent->removeChild(state.mNode);
+        state.handle->remove = true;
         mPhysics->removeProjectile(state.mProjectileId);
         state.mToDelete = true;
         for (size_t soundIter = 0; soundIter != state.mSounds.size(); soundIter++)
@@ -670,8 +565,8 @@ namespace MWWorld
 
             ESM::ProjectileState state;
             state.mId = projectile.mIdArrow;
-            state.mPosition = ESM::Vector3(osg::Vec3f(projectile.mNode->getPosition()));
-            state.mOrientation = ESM::Quaternion(osg::Quat(projectile.mNode->getAttitude()));
+            state.mPosition = ESM::Vector3(toOsg(projectile.handle->position));
+            state.mOrientation = ESM::Quaternion(toOsg(projectile.handle->attitude));
             state.mCaster = projectile.mCaster;
 
             state.mBowId = projectile.mBowId;
@@ -689,8 +584,8 @@ namespace MWWorld
 
             ESM::MagicBoltState state;
             state.mId = bolt.mIdMagic.at(0);
-            state.mPosition = ESM::Vector3(osg::Vec3f(bolt.mNode->getPosition()));
-            state.mOrientation = ESM::Quaternion(osg::Quat(bolt.mNode->getAttitude()));
+            state.mPosition = ESM::Vector3(toOsg(bolt.handle->position));
+            state.mOrientation = ESM::Quaternion(toOsg(bolt.handle->attitude));
             state.mCaster = bolt.mCaster;
             state.mItem = bolt.mItem;
             state.mSpellId = bolt.mSpellId;
@@ -717,15 +612,17 @@ namespace MWWorld
             state.mAttackStrength = esm.mAttackStrength;
             state.mToDelete = false;
 
-            VFS::Path::Normalized model;
+            std::string model;
+            std::optional<vsg::vec4> glowColor;
             try
             {
                 MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), esm.mId);
                 MWWorld::Ptr ptr = ref.getPtr();
-                model = ptr.getClass().getCorrectedModel(ptr);
+                model = ptr.getClass().getModel(ptr);
 
                 state.mProjectileId
                     = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, false);
+                glowColor = MWRender::getGlowColor(ptr);
             }
             catch (const std::exception& e)
             {
@@ -734,8 +631,8 @@ namespace MWWorld
                 return true;
             }
 
-            createModel(state, model, osg::Vec3f(esm.mPosition), osg::Quat(esm.mOrientation), false, false,
-                osg::Vec4(0, 0, 0, 0));
+            createModel(state, model, toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), false, {},
+                glowColor);
 
             mProjectiles.push_back(std::move(state));
             return true;
@@ -775,7 +672,7 @@ namespace MWWorld
             {
                 MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), state.mIdMagic.at(0));
                 MWWorld::Ptr ptr = ref.getPtr();
-                model = ptr.getClass().getCorrectedModel(ptr);
+                model = ptr.getClass().getModel(ptr);
             }
             catch (const std::exception& e)
             {
@@ -784,9 +681,9 @@ namespace MWWorld
                 return true;
             }
 
-            osg::Vec4 lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
-            createModel(state, model, osg::Vec3f(esm.mPosition), osg::Quat(esm.mOrientation), true, true,
-                lightDiffuseColor, texture);
+            auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
+            createModel(state, model, toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), true,
+                lightDiffuseColor, {}, texture);
             state.mProjectileId = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, true);
 
             MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();

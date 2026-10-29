@@ -6,6 +6,8 @@ namespace MWGui
     enum GuiMode
     {
         GM_None,
+        GM_Video,
+        GM_Settings, // Settings window
         GM_Inventory, // Inventory mode
         GM_Container,
         GM_Companion,
@@ -42,7 +44,6 @@ namespace MWGui
         GM_Review,
 
         GM_Loading,
-        GM_LoadingWallpaper,
         GM_Jail,
 
         GM_QuickKeysMenu

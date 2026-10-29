@@ -34,6 +34,7 @@ namespace Settings
         SettingValue<VFS::Path::Normalized> mWeatherblightcloud{ mIndex, "Models", "weatherblightcloud" };
         SettingValue<VFS::Path::Normalized> mWeathersnow{ mIndex, "Models", "weathersnow" };
         SettingValue<VFS::Path::Normalized> mWeatherblizzard{ mIndex, "Models", "weatherblizzard" };
+        SettingValue<bool> mWriteNifDebugLog{ mIndex, "Models", "write nif debug log" };
     };
 }
 

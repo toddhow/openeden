@@ -10,11 +10,9 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_Window.h>
 
-#include <osg/Texture2D>
-
 #include <components/misc/strings/algorithm.hpp>
 
-#include <components/myguiplatform/myguitexture.hpp>
+#include <components/vsgadapters/mygui/texture.hpp>
 
 #include <components/settings/values.hpp>
 
@@ -29,8 +27,10 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/inventorystore.hpp"
 
-#include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/npcstats.hpp"
+#include "../mwmechanics/actorutil.hpp"
+
+#include "../mwrender/preview.hpp"
 
 #include "companionwindow.hpp"
 #include "container.hpp"
@@ -80,25 +80,23 @@ namespace MWGui
         }
     }
 
-    InventoryWindow::InventoryWindow(DragAndDrop& dragAndDrop, ItemTransfer& itemTransfer, osg::Group* parent,
-        Resource::ResourceSystem* resourceSystem)
+    InventoryWindow::InventoryWindow(MWRender::Preview* preview, DragAndDrop* dragAndDrop, ItemTransfer* itemTransfer)
         : WindowPinnableBase("openmw_inventory_window.layout")
-        , mDragAndDrop(&dragAndDrop)
-        , mItemTransfer(&itemTransfer)
+        , mDragAndDrop(dragAndDrop)
+        , mItemTransfer(itemTransfer)
         , mSelectedItem(-1)
         , mSortModel(nullptr)
         , mTradeModel(nullptr)
         , mGuiMode(GM_Inventory)
         , mLastXSize(0)
         , mLastYSize(0)
-        , mPreview(std::make_unique<MWRender::InventoryPreview>(parent, resourceSystem, MWMechanics::getPlayer()))
+        , mPreview(std::make_unique<MWRender::Inventory>(preview))
         , mTrading(false)
         , mUpdateNextFrame(false)
         , mPendingControllerAction(ControllerAction::None)
     {
-        mPreviewTexture
-            = std::make_unique<MyGUIPlatform::OSGTexture>(mPreview->getTexture(), mPreview->getTextureStateSet());
-        mPreview->rebuild();
+        mPreviewTexture = std::make_unique<vsgAdapters::mygui::Texture>(preview->getTexture());
+        mPreviewTexture->setShader("premult_alpha");
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &InventoryWindow::onWindowResize);
@@ -167,9 +165,9 @@ namespace MWGui
             mMainWidget->getSize().width - 12 - leftPaneWidth - 15, mMainWidget->getSize().height - 44);
     }
 
-    void InventoryWindow::updatePlayer()
+    void InventoryWindow::updatePlayer(const MWWorld::Ptr& ptr)
     {
-        mPtr = MWBase::Environment::get().getWorld()->getPlayerPtr();
+        mPtr = ptr;
         auto tradeModel = std::make_unique<TradeItemModel>(std::make_unique<InventoryItemModel>(mPtr), MWWorld::Ptr());
         mTradeModel = tradeModel.get();
 
@@ -190,8 +188,7 @@ namespace MWGui
         mFilterMagic->setStateSelected(false);
         mFilterMisc->setStateSelected(false);
 
-        mPreview->updatePtr(mPtr);
-        mPreview->rebuild();
+        mPreview->rebuild(mPtr);
         mPreview->update();
 
         dirtyPreview();
@@ -554,11 +551,10 @@ namespace MWGui
     void InventoryWindow::updatePreviewSize()
     {
         const MyGUI::IntSize viewport = getPreviewViewportSize();
-        mPreview->setViewport(viewport.width, viewport.height);
-        const float top = viewport.height / static_cast<float>(mPreview->getTextureHeight());
-        const float right = viewport.width / static_cast<float>(mPreview->getTextureWidth());
-        // The widget is Y-down, the RTT image is Y-up, so this UV is inverted
-        mAvatarImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, top, right, 0.f));
+        auto preview = mPreview->preview;
+        preview->setViewport(viewport.width, viewport.height);
+        mAvatarImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(
+            0.f, 0.f, viewport.width / float(preview->textureWidth), viewport.height / float(preview->textureHeight)));
     }
 
     void InventoryWindow::onNameFilterChanged(MyGUI::EditBox* sender)
@@ -750,7 +746,7 @@ namespace MWGui
 
     void InventoryWindow::updateEncumbranceBar()
     {
-        MWWorld::Ptr player = MWMechanics::getPlayer();
+        MWWorld::Ptr player = mPtr;
 
         int capacity = static_cast<int>(player.getClass().getCapacity(player));
         float encumbrance = player.getClass().getEncumbrance(player);
@@ -796,7 +792,7 @@ namespace MWGui
         // update the spell window just in case new enchanted items were added to inventory
         MWBase::Environment::get().getWindowManager()->updateSpellWindow();
 
-        MWBase::Environment::get().getMechanicsManager()->updateMagicEffects(MWMechanics::getPlayer());
+        MWBase::Environment::get().getMechanicsManager()->updateMagicEffects(mPtr);
 
         dirtyPreview();
     }
@@ -823,7 +819,7 @@ namespace MWGui
         if (object.getClass().isGold(object))
             count *= object.getClass().getValue(object);
 
-        MWWorld::Ptr player = MWMechanics::getPlayer();
+        MWWorld::Ptr player = mPtr;
         MWBase::Environment::get().getWorld()->breakInvisibility(player);
 
         if (!object.getRefData().activate())
@@ -873,7 +869,7 @@ namespace MWGui
 
     void InventoryWindow::cycle(bool next)
     {
-        MWWorld::Ptr player = MWMechanics::getPlayer();
+        MWWorld::Ptr player = mPtr;
 
         if (MWBase::Environment::get().getMechanicsManager()->isAttackingOrSpell(player))
             return;
@@ -933,7 +929,7 @@ namespace MWGui
 
     void InventoryWindow::rebuildAvatar()
     {
-        mPreview->rebuild();
+        mPreview->rebuild(mPtr);
     }
 
     void InventoryWindow::onInventoryUpdate(const MWWorld::Ptr& ptr)
@@ -947,8 +943,9 @@ namespace MWGui
         const MyGUI::IntSize previewWindowSize = mAvatarImage->getSize();
         const float scale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
 
-        return MyGUI::IntSize(std::min(mPreview->getTextureWidth(), static_cast<int>(previewWindowSize.width * scale)),
-            std::min(mPreview->getTextureHeight(), static_cast<int>(previewWindowSize.height * scale)));
+        auto preview = mPreview->preview;
+        return MyGUI::IntSize(std::min<int>(preview->textureWidth, previewWindowSize.width * scale),
+            std::min<int>(preview->textureHeight, previewWindowSize.height * scale));
     }
 
     osg::Vec2i InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
@@ -959,7 +956,7 @@ namespace MWGui
 
         const MyGUI::IntSize viewport = getPreviewViewportSize();
         return osg::Vec2i(static_cast<int>(normalisedX * (viewport.width - 1)),
-            static_cast<int>((1 - normalisedY) * (viewport.height - 1)));
+            static_cast<int>(normalisedY * (viewport.height - 1)));
     }
 
     ControllerButtons* InventoryWindow::getControllerButtons()
@@ -1107,5 +1104,6 @@ namespace MWGui
 
         mItemView->setActiveControllerWindow(active);
         WindowBase::setActiveControllerWindow(active);
+
     }
 }

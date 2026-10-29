@@ -24,10 +24,7 @@ namespace MWGui
         mMessageBoxSpeed = timePerChar;
     }
 
-    MessageBoxManager::~MessageBoxManager()
-    {
-        MessageBoxManager::clear();
-    }
+    MessageBoxManager::~MessageBoxManager() {}
 
     std::size_t MessageBoxManager::getMessagesCount()
     {
@@ -68,30 +65,19 @@ namespace MWGui
         {
             (*it)->mCurrentTime += frameDuration;
             if ((*it)->mCurrentTime >= (*it)->mMaxTime && it->get() != mStaticMessageBox)
-            {
                 it = mMessageBoxes.erase(it);
-            }
             else
                 ++it;
         }
 
         float height = 0;
-        auto it = mMessageBoxes.begin();
-        while (it != mMessageBoxes.end())
+        for (auto& box : mMessageBoxes)
         {
-            (*it)->update(static_cast<int>(height));
-            height += (*it)->getHeight();
-            ++it;
+            box->update(static_cast<int>(height));
+            height += box->getHeight();
         }
 
-        if (mInterMessageBoxe != nullptr && mInterMessageBoxe->mMarkedToDelete)
-        {
-            mLastButtonPressed = mInterMessageBoxe->readPressedButton();
-            mInterMessageBoxe->setVisible(false);
-            mInterMessageBoxe.reset();
-            MWBase::Environment::get().getInputManager()->changeInputMode(
-                MWBase::Environment::get().getWindowManager()->isGuiMode());
-        }
+        readPressedButton(false);
     }
 
     void MessageBoxManager::createMessageBox(std::string_view message, bool stat)
@@ -109,12 +95,10 @@ namespace MWGui
         mMessageBoxes.push_back(std::move(box));
 
         if (mMessageBoxes.size() > 3)
-        {
-            mMessageBoxes.erase(mMessageBoxes.begin());
-        }
+            removeMessageBox(mMessageBoxes.front().get());
 
         int height = 0;
-        for (const auto& messageBox : mMessageBoxes)
+        for (auto& messageBox : mMessageBoxes)
         {
             messageBox->update(height);
             height += messageBox->getHeight();
@@ -130,10 +114,11 @@ namespace MWGui
     bool MessageBoxManager::createInteractiveMessageBox(
         std::string_view message, const std::vector<std::string>& buttons, bool immediate, int defaultFocus)
     {
-        if (mInterMessageBoxe != nullptr)
+        if (mInterMessageBoxe)
         {
             Log(Debug::Warning) << "Warning: replacing an interactive message box that was not answered yet";
             mInterMessageBoxe->setVisible(false);
+            mInterMessageBoxe = nullptr;
         }
 
         mInterMessageBoxe
@@ -154,6 +139,8 @@ namespace MWGui
         {
             if (it->get() == msgbox)
             {
+                if (msgbox == mStaticMessageBox)
+                    mStaticMessageBox = nullptr;
                 mMessageBoxes.erase(it);
                 return true;
             }
@@ -168,6 +155,14 @@ namespace MWGui
 
     int MessageBoxManager::readPressedButton(bool reset)
     {
+        if (mInterMessageBoxe && mInterMessageBoxe->mMarkedToDelete)
+        {
+            mLastButtonPressed = mInterMessageBoxe->readPressedButton();
+            mInterMessageBoxe->setVisible(false);
+            mInterMessageBoxe = nullptr;
+            MWBase::Environment::get().getInputManager()->changeInputMode(
+                MWBase::Environment::get().getWindowManager()->isGuiMode());
+        }
         int pressed = mLastButtonPressed;
         if (reset)
             mLastButtonPressed = -1;

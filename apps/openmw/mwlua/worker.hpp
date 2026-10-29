@@ -1,18 +1,11 @@
 #ifndef OPENMW_MWLUA_WORKER_H
 #define OPENMW_MWLUA_WORKER_H
 
-#include <osg/Timer>
-#include <osg/ref_ptr>
-
+#include <vector>
 #include <condition_variable>
 #include <mutex>
 #include <optional>
 #include <thread>
-
-namespace osg
-{
-    class Stats;
-}
 
 namespace MWLua
 {
@@ -25,28 +18,21 @@ namespace MWLua
 
         ~Worker();
 
-        void allowUpdate(osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats);
+        void allowUpdate(float dt);
 
-        void finishUpdate(osg::Timer_t frameStart, unsigned int frameNumber, osg::Stats& stats);
+        void finishUpdate(float dt);
 
         void join();
 
     private:
-        struct UpdateRequest
-        {
-            osg::Timer_t mFrameStart;
-            unsigned mFrameNumber;
-            osg::ref_ptr<osg::Stats> mStats;
-        };
-
-        void update(osg::Timer_t frameStart, unsigned frameNumber, osg::Stats& stats);
+        void update(float dt);
 
         void run() noexcept;
 
         LuaManager& mManager;
         std::mutex mMutex;
         std::condition_variable mCV;
-        std::optional<UpdateRequest> mUpdateRequest;
+        std::vector<float /*dt*/> mUpdateRequest;
         bool mJoinRequest = false;
         std::optional<std::thread> mThread;
     };

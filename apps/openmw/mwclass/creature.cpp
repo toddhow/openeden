@@ -177,9 +177,8 @@ namespace MWClass
     }
 
     void Creature::insertObjectRendering(
-        const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface) const
+        const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& objects) const
     {
-        MWRender::Objects& objects = renderingInterface.getObjects();
         objects.insertCreature(ptr, model, hasInventoryStore(ptr));
     }
 

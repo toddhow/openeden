@@ -10,15 +10,18 @@
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/readerscache.hpp>
+/*
 #include <components/esm4/common.hpp>
 #include <components/esm4/reader.hpp>
 #include <components/esm4/readerutils.hpp>
+*/
 #include <components/esmloader/load.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/lua/configuration.hpp>
 #include <components/misc/algorithm.hpp>
 
 #include "../mwmechanics/spelllist.hpp"
+#include "../mwstate/loading.hpp"
 
 namespace
 {
@@ -262,6 +265,7 @@ namespace MWWorld
             }
         }
 
+        /*
         template <typename T>
         static bool typedReadRecordESM4(ESM4::Reader& reader, Store<T>& store)
         {
@@ -290,6 +294,7 @@ namespace MWWorld
             return std::apply(
                 [&reader](auto&... x) { return (typedReadRecordESM4(reader, x) || ...); }, store.mStoreImp->mStores);
         }
+                */
     };
 
     int ESMStore::find(const ESM::RefId& id) const
@@ -386,13 +391,15 @@ namespace MWWorld
         return false;
     }
 
-    void ESMStore::load(ESM::ESMReader& esm, Loading::Listener* listener, ESM::Dialogue*& dialogue)
+    void ESMStore::load(ESM::ESMReader& esm, MWState::Loading& state, ESM::Dialogue*& dialogue)
     {
-        if (listener != nullptr)
-            listener->setProgressRange(::EsmLoader::fileProgress);
+        // Land texture loading needs to use a separate internal store for each plugin.
+        // We set the number of plugins here so we can properly verify if valid plugin
+        // indices are being passed to the LandTexture Store retrieval methods.
+        getWritable<ESM::LandTexture>().resize(esm.getIndex() + 1);
 
         // Loop through all records
-        while (esm.hasMoreRecs())
+        while (esm.hasMoreRecs() && !state.abort)
         {
             ESM::NAME n = esm.getRecName();
             esm.getRecHeader();
@@ -463,21 +470,13 @@ namespace MWWorld
                     dialogue = nullptr;
                 }
             }
-            if (listener != nullptr)
-                listener->setProgress(::EsmLoader::fileProgress * esm.getFileOffset() / esm.getFileSize());
+            state.setComplete(esm.getFileOffset() / static_cast<float>(esm.getFileSize()));
         }
     }
 
-    void ESMStore::loadESM4(ESM4::Reader& reader, Loading::Listener* listener)
+    void ESMStore::loadESM4(ESM4::Reader& reader)
     {
-        if (listener != nullptr)
-            listener->setProgressRange(::EsmLoader::fileProgress);
-        auto visitorRec = [this, listener](ESM4::Reader& r) {
-            bool result = ESMStoreImp::readRecord(r, *this);
-            if (listener != nullptr)
-                listener->setProgress(::EsmLoader::fileProgress * r.getFileOffset() / r.getFileSize());
-            return result;
-        };
+        auto visitorRec = [this](ESM4::Reader& r) { return ESMStoreImp::readRecord(r, *this); };
         ESM4::ReaderUtils::readAll(reader, visitorRec, [](ESM4::Reader&) {});
     }
 
@@ -527,10 +526,12 @@ namespace MWWorld
         getWritable<ESM::Skill>().setUp(get<ESM::GameSetting>());
         getWritable<ESM::MagicEffect>().setUp(get<ESM::GameSetting>());
         getWritable<ESM::Attribute>().setUp(get<ESM::GameSetting>());
+        /*
         getWritable<ESM4::Land>().updateLandPositions(get<ESM4::Cell>());
         getWritable<ESM4::Reference>().preprocessReferences(get<ESM4::Cell>());
         getWritable<ESM4::ActorCharacter>().preprocessReferences(get<ESM4::Cell>());
         getWritable<ESM4::ActorCreature>().preprocessReferences(get<ESM4::Cell>());
+        */
 
         rebuildIdsIndex();
         mStoreImp->mStaticIds = mStoreImp->mIds;
@@ -561,7 +562,7 @@ namespace MWWorld
     {
         // TODO: We currently need to read entire files here again.
         // We should consider consolidating or deferring this reading.
-        if (!mRefCount.empty())
+        if (!mRefCount.empty() || getenv("VSGOPENMW_FAST_BOOT") != 0)
             return;
         std::vector<Ref> refs;
         std::set<ESM::RefId> keyIDs;

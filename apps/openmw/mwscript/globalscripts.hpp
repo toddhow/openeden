@@ -68,7 +68,7 @@ namespace MWScript
 
         bool isRunning(const ESM::RefId& name) const;
 
-        void run();
+        void run(float dt);
         ///< run all active global scripts
 
         void clear();

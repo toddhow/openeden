@@ -1,10 +1,11 @@
 #include "refdata.hpp"
 
 #include <components/esm3/objectstate.hpp>
+/*
 #include <components/esm4/loadachr.hpp>
 #include <components/esm4/loadrefr.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 
+*/
 #include "customdata.hpp"
 
 #include "../mwbase/environment.hpp"
@@ -34,7 +35,6 @@ namespace MWWorld
 
     void RefData::copy(const RefData& refData)
     {
-        mBaseNode = refData.mBaseNode;
         mLocals = refData.mLocals;
         mEnabled = refData.mEnabled;
         mPosition = refData.mPosition;
@@ -51,14 +51,12 @@ namespace MWWorld
 
     void RefData::cleanup()
     {
-        mBaseNode = nullptr;
         mCustomData = nullptr;
         mLuaScripts = nullptr;
     }
 
     RefData::RefData()
-        : mBaseNode(nullptr)
-        , mCustomData(nullptr)
+        : mCustomData(nullptr)
         , mFlags(0)
         , mDeletedByContentFile(false)
         , mEnabled(true)
@@ -73,8 +71,7 @@ namespace MWWorld
     }
 
     RefData::RefData(const ESM::CellRef& cellRef)
-        : mBaseNode(nullptr)
-        , mPosition(cellRef.mPos)
+        : mPosition(cellRef.mPos)
         , mCustomData(nullptr)
         , mFlags(0) // Loading from ESM/ESP files -> assume unchanged
         , mDeletedByContentFile(false)
@@ -84,6 +81,7 @@ namespace MWWorld
     {
     }
 
+    /*
     RefData::RefData(const ESM4::Reference& ref)
         : mBaseNode(nullptr)
         , mPosition(ref.mPos)
@@ -108,9 +106,10 @@ namespace MWWorld
     {
     }
 
+    */
+
     RefData::RefData(const ESM::ObjectState& objectState, bool deletedByContentFile)
-        : mBaseNode(nullptr)
-        , mPosition(objectState.mPosition)
+        : mPosition(objectState.mPosition)
         , mAnimationState(objectState.mAnimationState)
         , mCustomData(nullptr)
         , mFlags(objectState.mFlags) // Loading from a savegame -> assume changed
@@ -127,8 +126,7 @@ namespace MWWorld
     }
 
     RefData::RefData(const RefData& refData)
-        : mBaseNode(nullptr)
-        , mCustomData(nullptr)
+        : mCustomData(nullptr)
     {
         try
         {
@@ -183,19 +181,6 @@ namespace MWWorld
     RefData::RefData(RefData&& other) = default;
     RefData& RefData::operator=(RefData&& other) = default;
 
-    void RefData::setBaseNode(osg::ref_ptr<SceneUtil::PositionAttitudeTransform> base)
-    {
-        mBaseNode = std::move(base);
-    }
-
-    SceneUtil::PositionAttitudeTransform* RefData::getBaseNode()
-    {
-        return mBaseNode;
-    }
-
-    const SceneUtil::PositionAttitudeTransform* RefData::getBaseNode() const
-    {
-        return mBaseNode;
     }
 
     void RefData::setLocals(const ESM::Script& script)

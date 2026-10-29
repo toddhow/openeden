@@ -10,14 +10,9 @@
 #include "mode.hpp"
 #include "statswatcher.hpp"
 
-namespace osg
+namespace MWRender
 {
-    class Group;
-}
-
-namespace Resource
-{
-    class ResourceSystem;
+    class Preview;
 }
 
 namespace MWGui
@@ -39,7 +34,7 @@ namespace MWGui
     class CharacterCreation : public StatsListener
     {
     public:
-        CharacterCreation(osg::Group* parent, Resource::ResourceSystem* resourceSystem);
+        CharacterCreation(MWRender::Preview* p);
         virtual ~CharacterCreation();
 
         // Show a dialog
@@ -53,8 +48,7 @@ namespace MWGui
         void onFrame(float duration);
 
     private:
-        osg::Group* mParent;
-        Resource::ResourceSystem* mResourceSystem;
+        MWRender::Preview* mPreview;
 
         std::vector<ESM::RefId> mPlayerMajorSkills, mPlayerMinorSkills;
         std::map<ESM::RefId, MWMechanics::AttributeValue> mPlayerAttributes;

@@ -9,6 +9,10 @@ namespace LuaUtil
     class UserdataSerializer;
 }
 
+namespace MWRender
+{
+    class RenderManager;
+}
 namespace MWLua
 {
     class LuaEvents;
@@ -30,6 +34,7 @@ namespace MWLua
         LuaUtil::UserdataSerializer* mSerializer = nullptr;
         ObjectLists* mObjectLists = nullptr;
         LuaEvents* mLuaEvents = nullptr;
+        MWRender::RenderManager* mRenderManager = nullptr;
 
         std::string_view typeName() const
         {

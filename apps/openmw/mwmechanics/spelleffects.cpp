@@ -7,7 +7,6 @@
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadstat.hpp>
-#include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 
@@ -24,7 +23,8 @@
 #include "../mwmechanics/spellutil.hpp"
 #include "../mwmechanics/summoning.hpp"
 
-#include "../mwrender/animation.hpp"
+#include "../mwrender/effect.hpp"
+#include "../mwrender/spellcastglow.hpp"
 
 #include "../mwworld/actionequip.hpp"
 #include "../mwworld/actionteleport.hpp"
@@ -292,15 +292,9 @@ namespace
         const MWWorld::Ptr& target)
     {
         const auto& esmStore = *MWBase::Environment::get().getESMStore();
-        const ESM::Static* absorbStatic = esmStore.get<ESM::Static>().find(ESM::RefId::stringRefId("VFX_Absorb"));
-        MWRender::Animation* animation = MWBase::Environment::get().getWorld()->getAnimation(target);
-        if (animation && !absorbStatic->mModel.empty())
-        {
-            const VFS::Path::Normalized absorbStaticModel
-                = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(absorbStatic->mModel));
-            animation->addEffect(absorbStaticModel.value(), ESM::MagicEffect::SpellAbsorption.getValue(), false);
-        }
+        MWRender::addEffect(target, ESM::RefId::stringRefId("VFX_Absorb"), ESM::MagicEffect::SpellAbsorption);
 
+        const ESM::Spell* spell = esmStore.get<ESM::Spell>().search(spellId);
         int spellCost = 0;
         if (const ESM::Spell* spell = esmStore.get<ESM::Spell>().search(spellParams.getSourceSpellId()))
         {
@@ -479,16 +473,8 @@ namespace MWMechanics
                     world->teleportToClosestMarker(target, ESM::RefId::stringRefId(marker));
                     if (!caster.isEmpty())
                     {
-                        MWRender::Animation* anim = world->getAnimation(caster);
-                        anim->removeEffect(effect.mEffectId.getRefIdString());
-                        const ESM::Static* fx
-                            = world->getStore().get<ESM::Static>().search(ESM::RefId::stringRefId("VFX_Summon_end"));
-                        if (fx != nullptr)
-                        {
-                            const VFS::Path::Normalized fxModel
-                                = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(fx->mModel));
-                            anim->addEffect(fxModel.value(), "");
-                        }
+                        MWRender::removeEffect(target, effect.mEffectId);
+                        MWRender::addEffect(target, ESM::RefId::stringRefId("VFX_Summon_end"));
                     }
                 }
                 else if (caster == getPlayer())
@@ -519,10 +505,7 @@ namespace MWMechanics
                         MWWorld::ActionTeleport action(dest, markedPosition, false);
                         action.execute(target);
                         if (!caster.isEmpty())
-                        {
-                            MWRender::Animation* anim = world->getAnimation(caster);
-                            anim->removeEffect(effect.mEffectId.getRefIdString());
-                        }
+                            MWRender::removeEffect(caster, effect.mEffectId);
                     }
                 }
                 else if (caster == getPlayer())
@@ -1260,9 +1243,8 @@ namespace MWMechanics
         {
             if (target.getClass().canLock(target))
             {
-                MWRender::Animation* animation = world->getAnimation(target);
-                if (animation)
-                    animation->addSpellCastGlow(magicEffect->getColor());
+                if (auto animation = world->getAnimation(target))
+                    MWRender::addSpellCastGlow(animation, *magicEffect);
                 int magnitude = static_cast<int>(roll(effect));
                 if (target.getCellRef().getLockLevel()
                     < magnitude) // If the door is not already locked to a higher value, lock it to spell magnitude
@@ -1285,9 +1267,9 @@ namespace MWMechanics
                 // Use the player instead of the caster for vanilla crime compatibility
                 MWBase::Environment::get().getMechanicsManager()->unlockAttempted(getPlayer(), target);
 
-                MWRender::Animation* animation = world->getAnimation(target);
-                if (animation)
-                    animation->addSpellCastGlow(magicEffect->getColor());
+                if (auto animation = world->getAnimation(target))
+                    MWRender::addSpellCastGlow(animation, *magicEffect);
+
                 int magnitude = static_cast<int>(roll(effect));
                 if (target.getCellRef().getLockLevel() <= magnitude)
                 {
@@ -1388,10 +1370,8 @@ namespace MWMechanics
         if (applied & ESM::ActiveEffect::Flag_Invalid)
         {
             effect.mTimeLeft = 0;
-            auto anim = world->getAnimation(target);
-            if (anim)
-                anim->removeEffect(effect.mEffectId.getRefIdString());
-            // Note that we can't return REMOVED here because the effect still needs to be detectable
+            effect.mFlags |= ESM::ActiveEffect::Flag_Remove;
+            MWRender::removeEffect(target, effect.mEffectId);
         }
         effect.mFlags |= applied;
         if (recalculateMagicka)
@@ -1408,11 +1388,7 @@ namespace MWMechanics
         magnitudes.add(EffectKey(effect.mEffectId, effect.getSkillOrAttribute()), EffectParam(-effect.mMagnitude));
         removeMagicEffect(target, spellParams, effect);
         if (magnitudes.getOrDefault(effect.mEffectId).getMagnitude() <= 0.f)
-        {
-            auto anim = MWBase::Environment::get().getWorld()->getAnimation(target);
-            if (anim)
-                anim->removeEffect(effect.mEffectId.getRefIdString());
-        }
+            MWRender::removeEffect(target, effect.mEffectId);
     }
 
 }

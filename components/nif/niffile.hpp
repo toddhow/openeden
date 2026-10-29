@@ -129,7 +129,7 @@ namespace Nif
 
     public:
         /// Open a NIF stream. The name is used for error messages.
-        explicit Reader(NIFFile& file, const ToUTF8::StatelessUtf8Encoder* encoder);
+        explicit Reader(NIFFile& file, const ToUTF8::StatelessUtf8Encoder* encoder = nullptr);
 
         /// Parse the file
         void parse(Files::IStreamPtr&& stream);

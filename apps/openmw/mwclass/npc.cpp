@@ -1,4 +1,4 @@
-﻿#include "npc.hpp"
+#include "npc.hpp"
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
@@ -8,7 +8,6 @@
 #include <stdexcept>
 
 #include <components/misc/constants.hpp>
-#include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 
 #include <components/debug/debuglog.hpp>
@@ -58,8 +57,8 @@
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/worldmodel.hpp"
 
-#include "../mwrender/npcanimation.hpp"
 #include "../mwrender/objects.hpp"
+#include "../mwrender/bodyparts.hpp"
 #include "../mwrender/renderinginterface.hpp"
 
 #include "../mwgui/tooltips.hpp"
@@ -532,7 +531,7 @@ namespace MWClass
         if (const ESM::Race* race = esmStore->get<ESM::Race>().search(npc->mBase->mRace))
         {
             const std::vector<const ESM::BodyPart*>& parts
-                = MWRender::NpcAnimation::getBodyParts(race->mId, female, false, false);
+                = MWRender::getBodyParts(race->mId, female, false, false);
             for (const ESM::BodyPart* part : parts)
             {
                 if (part && !part->mModel.empty())

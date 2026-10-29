@@ -104,6 +104,8 @@ namespace MWGui
         center();
     }
 
+    AlchemyWindow::~AlchemyWindow() {}
+
     void AlchemyWindow::onAccept(MyGUI::EditBox* sender)
     {
         onCreateButtonClicked(sender);

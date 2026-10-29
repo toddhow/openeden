@@ -4,7 +4,6 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadstat.hpp>
-#include <components/misc/resourcehelpers.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
@@ -15,7 +14,7 @@
 #include "../mwworld/manualref.hpp"
 #include "../mwworld/worldmodel.hpp"
 
-#include "../mwrender/animation.hpp"
+#include "../mwrender/effect.hpp"
 
 #include "aifollow.hpp"
 #include "creaturestats.hpp"
@@ -88,8 +87,9 @@ namespace MWMechanics
 
         for (const auto& it : summonMapToGameSetting)
         {
-            summonMap[it.first] = ESM::RefId::stringRefId(
-                MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>().find(it.second)->mValue.getString());
+            auto creature = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>().search(it.second);
+            if (creature)
+                summonMap[it.first] = ESM::RefId::stringRefId(creature->mValue.getString());
         }
         return summonMap;
     }
@@ -123,16 +123,7 @@ namespace MWMechanics
                 AiFollow package(summoner);
                 placed.getClass().getCreatureStats(placed).getAiSequence().stack(package, placed);
 
-                MWRender::Animation* anim = world->getAnimation(placed);
-                if (anim)
-                {
-                    const ESM::Static* fx
-                        = world->getStore().get<ESM::Static>().search(ESM::RefId::stringRefId("VFX_Summon_Start"));
-                    if (fx)
-                        anim->addEffect(
-                            Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(fx->mModel)).value(), "",
-                            false);
-                }
+                MWRender::addEffect(placed, ESM::RefId::stringRefId("VFX_Summon_Start"));
             }
             catch (std::exception& e)
             {
