@@ -1,4 +1,4 @@
-#pragma import_defines (VERTEX, NORMAL, COLOR, TEXCOORD, TEXMAT)
+#pragma import_defines (VERTEX, NORMAL, COLOR, TEXCOORD, TEXMAT, NORMAL_MAP)
 
 layout(constant_id=0) const int numUvSets=1;
 

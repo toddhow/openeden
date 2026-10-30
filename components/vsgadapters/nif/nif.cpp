@@ -50,6 +50,7 @@
 #include <components/vsgutil/distancelod.hpp>
 
 #include "internaltexture.hpp"
+#include "../tangents.hpp"
 #include <components/vsgutil/group.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/name.hpp>
@@ -190,6 +191,10 @@ namespace vsgAdapters
         const Pipeline::Override* mOverride;
 
     public:
+        // openeden-vsg: the reader's normal and specular map settings (task 0012, V4h); set before load().
+        const AutoMapSettings* mAutoMaps = nullptr;
+        const std::function<bool(std::string_view)>* mTextureExists = nullptr;
+
         nifImpl(std::istream& stream, const vsg::Options& options, const vsg::ref_ptr<const vsg::Options>& imageOptions,
             bool showMarkers, int computeBin, int depthSortedBin, const Pipeline::Builder& builder)
             : mOptions(options)
@@ -406,6 +411,47 @@ namespace vsgAdapters
             addAnimContents(Anim::Contents::Skins | Anim::Contents::Controllers | Anim::Contents::DynamicBounds);
         }
 
+        // openeden-vsg: tangents for a normal map (task 0012, V4h), from the triangles or each strip and the normal
+        // map's UV set, as OpenMW's ShaderVisitor generated them; null when the geometry has no triangles, normals or
+        // that UV set.
+        vsg::ref_ptr<vsg::vec4Array> createTangents(
+            const Nif::NiGeometry& niGeometry, const Nif::NiGeometryData& data, const NodeOptions& nodeOptions)
+        {
+            std::vector<std::vector<uint16_t>> indexLists;
+            bool strip = false;
+            if ((niGeometry.mRecordType == Nif::RC_NiTriShape || niGeometry.mRecordType == Nif::RC_BSLODTriShape)
+                && data.mRecordType == Nif::RC_NiTriShapeData)
+                indexLists.push_back(static_cast<const Nif::NiTriShapeData&>(data).mTriangles);
+            else if (niGeometry.mRecordType == Nif::RC_NiTriStrips && data.mRecordType == Nif::RC_NiTriStripsData)
+            {
+                indexLists = static_cast<const Nif::NiTriStripsData&>(data).mStrips;
+                strip = true;
+            }
+            // The normal map uses the diffuse texture's UV set.
+            auto uvSetIt = nodeOptions.nonStandardUvSets.find(Pipeline::Descriptors::DIFFUSE_UNIT);
+            const size_t uvSet = uvSetIt != nodeOptions.nonStandardUvSets.end() ? uvSetIt->second : 0;
+            if (indexLists.empty() || data.mNormals.empty() || uvSet >= data.mUVList.size())
+                return {};
+
+            std::vector<vsg::vec3> vertices, normals;
+            std::vector<vsg::vec2> texCoords;
+            vertices.reserve(data.mVertices.size());
+            for (const auto& v : data.mVertices)
+                vertices.push_back(toVsg(v));
+            normals.reserve(data.mNormals.size());
+            for (const auto& n : data.mNormals)
+                normals.push_back(toVsg(n));
+            texCoords.reserve(data.mUVList[uvSet].size());
+            for (const auto& uv : data.mUVList[uvSet])
+                texCoords.push_back(toVsg(uv));
+            const std::vector<vsg::vec4> tangents = generateTangents(vertices, normals, texCoords, indexLists, strip);
+            if (tangents.empty())
+                return {};
+            auto array = vsg::vec4Array::create(static_cast<uint32_t>(tangents.size()));
+            std::copy(tangents.begin(), tangents.end(), array->begin());
+            return array;
+        }
+
         vsg::ref_ptr<vsg::Node> handleGeometry(const Nif::NiGeometry& niGeometry)
         {
             if (niGeometry.mData.empty())
@@ -442,6 +488,8 @@ namespace vsgAdapters
                 dataList.emplace_back(boneIndices);
                 dataList.emplace_back(weights);
             }
+            // openeden-vsg: the tangent comes after the bone weights (Pipeline::Graphics, lib/attributes.glsl).
+            const size_t tangentPosition = dataList.size();
 
             static_assert(static_cast<int>(Pipeline::Mode::TEXCOORD) == 4);
             for (size_t uvSet = 0; uvSet < data.mUVList.size(); ++uvSet)
@@ -449,6 +497,18 @@ namespace vsgAdapters
                     copyModeArray<vsg::vec2Array>(data.mUVList[uvSet], Pipeline::Mode::TEXCOORD));
             auto& nodeOptions = getNodeOptions();
             nodeOptions.numUvSets = data.mUVList.size();
+            if (nodeOptions.shader.hasMode(Pipeline::Mode::NORMAL_MAP))
+            {
+                if (auto tangents = createTangents(niGeometry, data, nodeOptions))
+                    dataList.insert(dataList.begin() + tangentPosition, tangents);
+                else
+                {
+                    // Without tangents the normal map can't be used; a specular map still can.
+                    nodeOptions.shader.removeMode(Pipeline::Mode::NORMAL_MAP);
+                    nodeOptions.shader.removeMode(Pipeline::Mode::PARALLAX);
+                    nodeOptions.shader.removeMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
+                }
+            }
 
             auto& topology = nodeOptions.primitiveTopology;
             auto geom = vsg::VertexIndexDraw::create();
@@ -520,6 +580,8 @@ namespace vsgAdapters
             auto particlesDescriptor = vsg::DescriptorBuffer::create(
                 particleArray, Pipeline::Descriptors::PARTICLE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
             addModeDescriptor(particlesDescriptor, Pipeline::Mode::PARTICLE);
+            // openeden-vsg: particles have no tangents or per-pixel lighting (task 0012, V4h).
+            removeAutoMapModes(getNodeOptions().shader);
 
             auto maxLifetime = ParticleSystem::calculateMaxLifetime(partctrl);
             Pipeline::Data::SimulateArgs args{};
@@ -687,6 +749,12 @@ namespace vsgAdapters
             auto textureData = handleSourceTexture(st);
             if (!textureData)
                 return {};
+            return createTextureDescriptor(textureData, clamp, binding);
+        }
+
+        vsg::ref_ptr<vsg::DescriptorImage> createTextureDescriptor(
+            vsg::ref_ptr<vsg::Data> textureData, int clamp, uint32_t binding)
+        {
             auto sampler = mBuilder.createSampler();
             sampler->addressModeU
                 = (clamp >> 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -697,12 +765,80 @@ namespace vsgAdapters
             return descriptor;
         }
 
+        // openeden-vsg: an external texture's path as the texture options resolve it (the .dds correction), the name
+        // OpenMW's ShaderVisitor derived normal and specular maps from (task 0012, V4h).
+        std::string resolveTexturePath(const Nif::NiTexturingProperty& texprop, size_t slot) const
+        {
+            if (slot >= texprop.mTextures.size() || !texprop.mTextures[slot].mEnabled
+                || texprop.mTextures[slot].mSourceTexture.empty())
+                return {};
+            const Nif::NiSourceTexture& st = *texprop.mTextures[slot].mSourceTexture.getPtr();
+            if (!st.mExternal)
+                return {};
+            if (mImageOptions && mImageOptions->findFileCallback)
+                return mImageOptions->findFileCallback(st.mFile, mImageOptions.get()).string();
+            return st.mFile;
+        }
+
+        // openeden-vsg: normal and specular maps next to the base texture (task 0012, V4h, as OpenMW's
+        // Shader::ShaderVisitor::applyStateSet), with the base texture's wrap mode and UV set.
+        void handleAutoMaps(const Nif::NiTexturingProperty& texprop, vsg::Descriptors& textures)
+        {
+            if (!mAutoMaps || !mTextureExists || !*mTextureExists
+                || (!mAutoMaps->autoUseNormalMaps && !mAutoMaps->autoUseSpecularMaps))
+                return;
+            const std::string diffusePath = resolveTexturePath(texprop, Nif::NiTexturingProperty::BaseTexture);
+            if (diffusePath.empty())
+                return;
+            const std::string bumpPath = resolveTexturePath(texprop, Nif::NiTexturingProperty::BumpTexture);
+            const AutoMaps maps = findAutoMaps(diffusePath, bumpPath, *mAutoMaps, *mTextureExists);
+
+            auto& nodeOptions = getNodeOptions();
+            const auto& base = texprop.mTextures[Nif::NiTexturingProperty::BaseTexture];
+            auto addMap = [&](const std::string& path, uint32_t binding) -> vsg::ref_ptr<vsg::Data> {
+                auto data = vsgUtil::readOptionalImage(path, mImageOptions);
+                if (!data)
+                {
+                    warn("!readImage(" + path + ")");
+                    return {};
+                }
+                // The shader samples it with the diffuse texture's UV set.
+                textures.emplace_back(createTextureDescriptor(data, base.mClamp, binding));
+                return data;
+            };
+            if (!maps.normalMap.empty())
+            {
+                if (auto data = addMap(maps.normalMap, Pipeline::Descriptors::NORMAL_UNIT))
+                {
+                    nodeOptions.shader.addMode(Pipeline::Mode::NORMAL_MAP);
+                    if (isTwoChannelFormat(data->properties.format))
+                        nodeOptions.shader.addMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
+                    else if (maps.normalHeight)
+                        nodeOptions.shader.addMode(Pipeline::Mode::PARALLAX);
+                }
+            }
+            if (!maps.specularMap.empty())
+            {
+                if (addMap(maps.specularMap, Pipeline::Descriptors::SPECULAR_UNIT))
+                    nodeOptions.shader.addMode(Pipeline::Mode::SPECULAR_MAP);
+            }
+        }
+
+        static void removeAutoMapModes(Pipeline::ShaderOptions& shader)
+        {
+            shader.removeMode(Pipeline::Mode::NORMAL_MAP);
+            shader.removeMode(Pipeline::Mode::PARALLAX);
+            shader.removeMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
+            shader.removeMode(Pipeline::Mode::SPECULAR_MAP);
+        }
+
         void handleTextureProperty(const Nif::NiTexturingProperty& texprop)
         {
             auto& nodeOptions = getNodeOptions();
             nodeOptions.textureSets.clear();
             nodeOptions.nonStandardUvSets.clear();
             nodeOptions.stateSwitch = {};
+            removeAutoMapModes(nodeOptions.shader);
             vsg::Descriptors textures;
             auto flipctrl = searchController<Nif::NiFlipController>(texprop.mController, Nif::RC_NiFlipController);
             size_t i = 0;
@@ -735,6 +871,7 @@ namespace vsgAdapters
                     }
                 }
             }
+            handleAutoMaps(texprop, textures);
             if (flipctrl)
             {
                 handleList(flipctrl->mSources, [this, &textures, &nodeOptions, texprop](auto& n) {
@@ -1403,7 +1540,10 @@ namespace vsgAdapters
             return {};
         try
         {
-            return nifImpl(stream, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder).load();
+            nifImpl impl(stream, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder);
+            impl.mAutoMaps = &autoMaps;
+            impl.mTextureExists = &textureExists;
+            return impl.load();
         }
         catch (std::exception& e)
         {

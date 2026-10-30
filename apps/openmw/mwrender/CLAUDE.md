@@ -45,5 +45,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   - The default shader's `colorMode` is a Vulkan specialization constant.
   - Writing `colorMode == 3 || colorMode == 4` in `lib/material/terms.glsl` (a trial fogged unlit mode, since removed) made every frame render nothing (black, or a fully transparent screenshot) on this machine's NVIDIA driver, with no error logged. `colorMode >= 3` worked.
   - Keep conditions on specialization constants to one comparison, and check a screenshot after any shader change.
+- **New specialization constants in `default/main.frag` can blank every frame.** Declaring two more texture UV-set constants (ids 17 and 18, `START_UVSET_CONSTANTS` + 13 and + 14) made every frame white on this machine's NVIDIA driver, menus and HUD included, even when nothing used them. No error was logged and the cause wasn't found. Normal and specular maps therefore read the diffuse texture's UV set (task 0012, V4h). Bisect shader changes by restoring one file at a time and capturing a frame.
+- **Shader includes are not guarded by default.** `lib/light/equations.glsl` is now guarded; including an unguarded file twice redefines its constants and the pipeline compiles to nothing (`glslang` errors in the log, objects missing).
 - **The console command is `togglenavmesh`,** not `tnm`. `tcb` toggles the Jolt draw.
 - **Recast's own colours:** the navmesh draw is visibly more opaque than the OSG build's at the same alpha (Recast's `duRGBA` values; task 0010's research note 0004 records the comparison).

@@ -111,13 +111,15 @@ add_component_dir (terrain
 # Adapts nif to vsg::Node and kf to Anim::ControllerMap.
 # Depends on nif, pipeline, animation.
 add_component_dir (vsgadapters/nif
-    nif anim channel particle kf internaltexture
+    nif anim channel particle kf internaltexture automaps
     )
 # openeden-vsg: COLLADA models through assimp (task 0010).
 add_component_dir (vsgadapters/dae
     dae daeanim
     )
 add_component_dir (vsgadapters
+    # openeden-vsg: tangents for normal maps (task 0012, V4h).
+    tangents
     # Encapsulates vfs component.
     vfs
     # Temporarily converts types.

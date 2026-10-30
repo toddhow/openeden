@@ -1,7 +1,12 @@
 #ifndef VSGOPENMW_VSGADAPTERS_NIF_NIF_H
 #define VSGOPENMW_VSGADAPTERS_NIF_NIF_H
 
+#include <functional>
+#include <string_view>
+
 #include <vsg/io/ReaderWriter.h>
+
+#include "automaps.hpp"
 
 namespace Pipeline
 {
@@ -39,6 +44,11 @@ namespace vsgAdapters
         // Mask to use for nodes that ignore the crosshair intersection.
         // This is used for NiCollisionSwitch nodes with NiCollisionSwitch state set to disabled.
         unsigned int intersectionDisabledMask = ~0;
+
+        // openeden-vsg: normal and specular maps found next to diffuse textures (task 0012, V4h), and how to tell whether
+        // a texture path exists.
+        AutoMapSettings autoMaps;
+        std::function<bool(std::string_view)> textureExists;
 
         const int mComputeBin;
         const int mDepthSortedBin;

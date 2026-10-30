@@ -1,4 +1,4 @@
-#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE)
+#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP)
 
 #include "lib/pushconstants.glsl"
 #include "lib/material/descriptors_vert.glsl"
@@ -80,8 +80,14 @@ void main()
  #ifdef NORMAL
     vec3 normal = (vec4(inNormal,0) * inverse(skinMat)).xyz;
  #endif
+ #ifdef NORMAL_MAP
+    vec3 tangent = (vec4(inTangent.xyz,0) * inverse(skinMat)).xyz;
+ #endif
 #elif defined(NORMAL)
     vec3 normal = inNormal;
+ #ifdef NORMAL_MAP
+    vec3 tangent = inTangent.xyz;
+ #endif
 #endif
 
 #ifdef INSTANCE
@@ -91,6 +97,9 @@ void main()
     vertex = vec4((instanceRotation * vec4(vertex.xyz * inInstanceOffset.w, 1.0)).xyz + inInstanceOffset.xyz, 1.0);
  #ifdef NORMAL
     normal = mat3(instanceRotation) * normal;
+ #endif
+ #ifdef NORMAL_MAP
+    tangent = mat3(instanceRotation) * tangent;
  #endif
 #endif
 
@@ -127,6 +136,15 @@ void main()
 #ifdef NORMAL
     vec3 viewNormal = (vec4(normal,0) * inverse(pc.modelview)).xyz;
     vert_out.viewNormal = viewNormal;
+ #ifdef NORMAL_MAP
+    // OpenMW's generateTangentSpace: the binormal is N x T scaled by the handedness, from the normalized model-space
+    // vectors, and all three go to view space with the normal matrix.
+    vec3 modelTangent = normalize(tangent);
+    vec3 binormal = cross(normalize(normal), modelTangent) * inTangent.w;
+    vert_out.viewTangent = (vec4(modelTangent,0) * inverse(pc.modelview)).xyz;
+    vert_out.viewBinormal = (vec4(binormal,0) * inverse(pc.modelview)).xyz;
+    vert_out.viewNormal = (vec4(normalize(normal),0) * inverse(pc.modelview)).xyz;
+ #endif
  //ifdef ENV_MAP
     vec3 viewVec = normalize(viewPos.xyz);
     vec3 r = reflect( viewVec, viewNormal );

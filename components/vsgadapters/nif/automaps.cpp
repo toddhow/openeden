@@ -1,0 +1,75 @@
+#include "automaps.hpp"
+
+namespace vsgAdapters
+{
+    std::string autoMapPath(std::string_view diffusePath, std::string_view pattern)
+    {
+        const size_t dot = diffusePath.rfind('.');
+        if (dot == std::string_view::npos)
+            return {};
+        std::string path(diffusePath.substr(0, dot));
+        path += pattern;
+        path += diffusePath.substr(dot);
+        return path;
+    }
+
+    AutoMaps findAutoMaps(std::string_view diffusePath, std::string_view bumpPath, const AutoMapSettings& settings,
+        const std::function<bool(std::string_view)>& exists)
+    {
+        AutoMaps maps;
+        if (diffusePath.empty())
+            return maps;
+
+        if (settings.autoUseNormalMaps)
+        {
+            std::string normalMap = autoMapPath(diffusePath, settings.normalHeightMapPattern);
+            bool normalHeight = !normalMap.empty() && exists(normalMap);
+            if (!normalHeight)
+            {
+                normalMap = autoMapPath(diffusePath, settings.normalMapPattern);
+                if (!normalMap.empty() && !exists(normalMap))
+                    normalMap.clear();
+            }
+            // A map already used as the bump map is probably not an actual normal map.
+            if (!normalMap.empty() && normalMap != bumpPath)
+            {
+                maps.normalMap = std::move(normalMap);
+                maps.normalHeight = normalHeight;
+            }
+        }
+
+        if (settings.autoUseSpecularMaps)
+        {
+            std::string specularMap = autoMapPath(diffusePath, settings.specularMapPattern);
+            if (!specularMap.empty() && exists(specularMap))
+                maps.specularMap = std::move(specularMap);
+        }
+        return maps;
+    }
+
+    bool isTwoChannelFormat(VkFormat format)
+    {
+        switch (format)
+        {
+            case VK_FORMAT_R8G8_UNORM:
+            case VK_FORMAT_R8G8_SNORM:
+            case VK_FORMAT_R8G8_USCALED:
+            case VK_FORMAT_R8G8_SSCALED:
+            case VK_FORMAT_R8G8_UINT:
+            case VK_FORMAT_R8G8_SINT:
+            case VK_FORMAT_R8G8_SRGB:
+            case VK_FORMAT_R16G16_UNORM:
+            case VK_FORMAT_R16G16_SNORM:
+            case VK_FORMAT_R16G16_USCALED:
+            case VK_FORMAT_R16G16_SSCALED:
+            case VK_FORMAT_R16G16_UINT:
+            case VK_FORMAT_R16G16_SINT:
+            case VK_FORMAT_R16G16_SFLOAT:
+            case VK_FORMAT_BC5_UNORM_BLOCK:
+            case VK_FORMAT_BC5_SNORM_BLOCK:
+                return true;
+            default:
+                return false;
+        }
+    }
+}

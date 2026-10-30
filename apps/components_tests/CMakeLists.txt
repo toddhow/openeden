@@ -79,7 +79,9 @@ file(GLOB UNITTEST_SRC_FILES
     resource/testassimpscene.cpp
 
     vsgadapters/testdaeanimation.cpp
+    vsgadapters/testautomaps.cpp
     vsgadapters/testinternaltexture.cpp
+    vsgadapters/testtangents.cpp
     vsgadapters/testparticleemission.cpp
 
     sceneutil/testdetourdebugdraw.cpp

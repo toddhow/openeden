@@ -11,6 +11,7 @@
 #include <vsg/utils/PropagateDynamicObjects.h>
 
 #include <components/misc/resourcehelpers.hpp>
+#include <components/settings/values.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/vsgadapters/dae/dae.hpp>
 #include <components/vsgadapters/dae/daeanim.hpp>
@@ -126,7 +127,17 @@ namespace
         fallback->fallbackObject = vsg::Node::create();
 
         auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(*vfs) };
-        vfsReader->add(vsg::ref_ptr{ new vsgAdapters::nif(builder, textureOptions, computeBin, depthSortedBin) });
+        auto nifReader = vsg::ref_ptr{ new vsgAdapters::nif(builder, textureOptions, computeBin, depthSortedBin) };
+        // openeden-vsg: normal and specular maps next to diffuse textures, off by default (task 0012, V4h).
+        const auto& shaders = Settings::shaders();
+        nifReader->autoMaps.autoUseNormalMaps = shaders.mAutoUseObjectNormalMaps;
+        nifReader->autoMaps.autoUseSpecularMaps = shaders.mAutoUseObjectSpecularMaps;
+        nifReader->autoMaps.normalMapPattern = shaders.mNormalMapPattern;
+        nifReader->autoMaps.normalHeightMapPattern = shaders.mNormalHeightMapPattern;
+        nifReader->autoMaps.specularMapPattern = shaders.mSpecularMapPattern;
+        nifReader->textureExists
+            = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
+        vfsReader->add(nifReader);
         // vfsReader->add(vsgXchange::models::create());
         // openeden-vsg: COLLADA models, which OpenMW 0.51 read through OpenSceneGraph (task 0010).
         vfsReader->add(vsg::ref_ptr{ new vsgAdapters::dae(builder, textureOptions, depthSortedBin) });

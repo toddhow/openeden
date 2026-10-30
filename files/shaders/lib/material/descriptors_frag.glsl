@@ -23,6 +23,12 @@ layout(set=TEXTURE_SET, binding=BUMP_UNIT) uniform sampler2D bumpMap;
 #ifdef ENV_MAP
 layout(set=TEXTURE_SET, binding=ENV_UNIT) uniform sampler2D envMap;
 #endif
+#ifdef NORMAL_MAP
+layout(set=TEXTURE_SET, binding=NORMAL_UNIT) uniform sampler2D normalMap;
+#endif
+#ifdef SPECULAR_MAP
+layout(set=TEXTURE_SET, binding=SPECULAR_UNIT) uniform sampler2D specularMap;
+#endif
 
 #ifdef MATERIAL
 layout(std140, set=TEXTURE_SET, binding=MATERIAL_BINDING) uniform MaterialData {

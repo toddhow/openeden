@@ -170,7 +170,58 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
 - **Normal and specular maps** (the 8 `[Shaders]` keys listed in research note 0006). Survey:
   - vsgopenmw has no tangents, no normal-map shader path and no specular lighting at all. The `specular` specialization constant (`components/pipeline/graphics.cpp`) is never used by `files/shaders/default/main.frag`, and `nif.cpp` leaves the material's specular commented out.
   - Point lights are lit per vertex (`pointLightDiffuse` in `main.vert`), so a normal map would also need per-pixel point lighting.
-  - OpenMW at 442eec6e2f lit NIF material specular whenever it was non-zero, so the missing specular term is a parity gap in its own right, even without specular maps.
+  - NIF material specular matters only for non-Morrowind NIFs: OpenMW at 442eec6e2f zeroed specular for every NIF of Morrowind's version or older, or with `NiSpecularProperty` off (`NifOsg::LoaderImpl::applyDrawableProperties`). So vanilla Morrowind shows no specular, and only specular maps and newer NIFs need the term.
+  - **Step 1 (V4h), object normal and specular maps.** Follows OpenMW at 442eec6e2f: `Shader::ShaderVisitor::applyStateSet` (auto-detection), `objects.vert`/`objects.frag` and `lib/light/lighting.glsl` (shading), and OSG 3.6.5's `osgUtil::TangentSpaceGenerator` (tangents).
+    - **Settings:** `[Shaders] auto use object normal maps` and `auto use object specular maps` (both off by default), `normal map pattern` (`_n`), `normal height map pattern` (`_nh`) and `specular map pattern` (`_spec`) are read when the resource system is created. With both switches off, nothing changes.
+    - **Finding the maps** (renderer-free, unit-tested; `components/vsgadapters/nif/automaps.hpp`):
+      - `std::string autoMapPath(std::string_view diffusePath, std::string_view pattern)` replaces the last `.` of the path with `pattern + "."`, as `Misc::StringUtils::replaceLast` did. A path with no `.` gives an empty string.
+      - `AutoMaps findAutoMaps(std::string_view diffusePath, std::string_view bumpPath, const AutoMapSettings&, const std::function<bool(std::string_view)>& exists)`, where `AutoMaps` is `{ std::string normalMap; bool normalHeight = false; std::string specularMap; }`.
+      - With normal maps on, the normal-height candidate is tried first and gives `normalHeight = true`; then the plain normal candidate.
+      - A found normal map equal to `bumpPath` (a non-empty NiTexturingProperty bump texture of the same file) is not used: it's probably not a real normal map.
+      - With specular maps on, the specular candidate is used if it exists.
+      - An empty `diffusePath` finds nothing.
+      - `diffusePath` is the diffuse texture's resolved path (after the texture options' `.dds` correction), as OpenMW used the image's file name.
+    - **Two-channel normal maps:** `bool isTwoChannelFormat(VkFormat)` is true for the two-channel 8- and 16-bit formats (`R8G8_*`, `R16G16_*`) and BC5. Such a map reconstructs Z (`normal.z = sqrt(1 - dot(xy, xy))`) and drops parallax, as OpenMW's `mReconstructNormalZ` did.
+    - **Tangents** (renderer-free, unit-tested; `components/vsgadapters/tangents.hpp`):
+      - `std::vector<vsg::vec4> generateTangents(const std::vector<vsg::vec3>& vertices, const std::vector<vsg::vec3>& normals, const std::vector<vsg::vec2>& texCoords, const std::vector<std::vector<uint16_t>>& indexLists, bool strip)` ports `TangentSpaceGenerator::compute` and the end of `generate`.
+      - Without `strip`, each list is a triangle list: consecutive triples, with a trailing partial triple ignored.
+      - With `strip`, each list is one NIF strip (OpenMW gave OSG each strip separately): window `i` is (i, i+1, i+2) for even `i` and (i+1, i, i+2) for odd `i`, as OSG's `TRIANGLE_STRIP` case.
+      - Results accumulate over all lists.
+      - Per triangle and axis, the tangent and binormal increments come from the cross product of (position delta, uv deltas) rows, skipped when its x is 0. Each vertex accumulates `(N×T)×N` and `N×(B×N)` with its own normal; with no normals, the face normal is used.
+      - Each result is the normalized accumulated tangent, with `w = -1` when (T×B)·N < 0 (N being the accumulated normal), else `+1`. A vertex in no triangle gives (0, 0, 0, 1).
+      - Inputs of mismatched sizes, or indices out of range, give an empty result.
+    - **Drawing:**
+      - New pipeline modes:
+        - `NORMAL_MAP`: a per-vertex tangent input after the bone weights and before the instance inputs, and a normal map at the new `NORMAL_UNIT`.
+        - `PARALLAX`: height in the normal map's alpha, offset `eye.xy * (height * 0.04 - 0.02)`.
+        - `RECONSTRUCT_NORMAL_Z`.
+        - `SPECULAR_MAP`: a specular map at the new `SPECULAR_UNIT`, with colour in RGB and shininess as alpha × 255.
+      - The NIF reader adds the maps to the node's texture set, with the diffuse texture's wrap mode and its UV set. It generates tangents for triangle geometry with normals and that UV set; otherwise it drops the normal-map modes. Particles never get the maps.
+    - **Shading** with `NORMAL_MAP` or `SPECULAR_MAP` is per pixel, as OpenMW's `PER_PIXEL_LIGHTING`:
+      - The view-space normal comes from the normal map through the interpolated tangent frame (T, B = (N×T)·w and N, each transformed like the normal), as `normalToViewMatrix`.
+      - Point lights are summed in the fragment shader from the same light grid.
+      - With a specular map, the sun (`scene.lightSpecular`) and point lights (their colour, none for negative lights) add `specularColor * pow(max(N·H, 0), shininess)` where N·L > 0. The sun's term is shadowed, and the sum is added after the lit colour, as `objects.frag` does.
+      - With a normal map, the env-map coordinates use the per-pixel normal.
+    - **Changed while implementing:** the maps read the diffuse texture's UV set through `diffuseUV`, not specialization constants of their own. Two new constants (ids 17 and 18) made every frame white on this machine's driver, with nothing logged; the cause was not found (pitfall in `apps/openmw/mwrender/CLAUDE.md`). `lib/light/equations.glsl` gained an include guard, since per-pixel and directional lighting both include it.
+    - **Checked:**
+      - Unit tests: `vsgadapters/testautomaps.cpp` (25) and `testtangents.cpp` (24), written from this spec by a separate agent.
+      - In game in Seyda Neen, with no normal-mapped content installed: an empty `normal map pattern` makes every object use its own diffuse texture as its normal map, which exercises tangents, the shader path and per-pixel lighting on every object. They draw with per-pixel relief and no shader errors. The same trick with `specular map pattern` and `normal height map pattern` (parallax) also draws without errors.
+      - Off by default, in the Caldera Mages Guild (`coc` from Seyda Neen, frame 400):
+        - two default-settings frames of the same build differ in 26 of 921,600 pixels;
+        - the new fragment shader against the old one differs in 18 to 20 (MAE 0.0000).
+      - Seyda Neen's exterior is too noisy for this comparison, since the sky moves: MAE 0.11 between two runs of one build.
+      - Real normal-mapped mod content is untested.
+    - **Review (fresh agent):** nothing found with the switches off.
+      - **Fixed before committing:**
+        - The sky's cloud and night vertex shaders read NIF geometry through `lib/attributes.glsl` but did not import `NORMAL_MAP`, so a sky mesh with a found normal map would have read its tangent as texture coordinates. Both now import it.
+        - The shadow bias uses the geometry normal, not the normal map's, as OpenMW's shadows did.
+        - The scene environment glow (`object.envColor`) keeps the vertex env coordinates; only the NIF env map uses the per-pixel ones, as in `objects.frag`.
+        - `removeMode` drops trailing unset modes, so removing modes can't make duplicate pipeline cache keys.
+      - **Left as they are, matching OpenMW:**
+        - A vertex whose triangles all have degenerate UVs gets a zero tangent, so its normal is undefined.
+        - SNORM two-channel maps are still remapped with `* 2 - 1`.
+        - The vertex shader still computes per-vertex point light for per-pixel draws.
+    - **Not in this step:** terrain normal and specular maps (step 2); `normalMap` and `specularMap` textures named in NIF files newer than Morrowind's; material specular of non-Morrowind NIFs.
 - **Object paging** (only with `distant terrain = true`, off by default), **alpha to coverage**, **soft particles**, `[Shaders] weather particle occlusion`.
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
 - **ESM4 terrain** (work item 3).

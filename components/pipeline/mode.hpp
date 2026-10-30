@@ -28,12 +28,18 @@ namespace Pipeline
         BUMP_MAP,
         ENV_MAP,
         // OpenEden: per-instance offset, scale and rotation, with groundcover's wind and stomping (task 0012).
-        INSTANCE
+        INSTANCE,
+        // OpenEden: normal and specular maps (task 0012, V4h). NORMAL_MAP adds a per-vertex tangent and the normal map;
+        // PARALLAX reads height from its alpha; RECONSTRUCT_NORMAL_Z is for two-channel maps.
+        NORMAL_MAP,
+        PARALLAX,
+        RECONSTRUCT_NORMAL_Z,
+        SPECULAR_MAP
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
-        Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE };
-    const std::vector<Mode> fragmentModes { Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE/*_TEXCOORD*/, Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP, Mode::ENV_MAP, Mode::MATERIAL };
+        Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE, Mode::NORMAL_MAP };
+    const std::vector<Mode> fragmentModes { Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE/*_TEXCOORD*/, Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP, Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP };
 
     using Modes = std::vector<bool>;
 
@@ -43,6 +49,16 @@ namespace Pipeline
         if (i >= vec.size())
             vec.resize(i + 1);
         vec[i] = true;
+    }
+
+    inline void removeMode(Mode mode, Modes& vec)
+    {
+        auto i = static_cast<size_t>(mode);
+        if (i < vec.size())
+            vec[i] = false;
+        // Trailing unset modes are dropped, so the same set of modes always compares equal (pipeline cache keys).
+        while (!vec.empty() && !vec.back())
+            vec.pop_back();
     }
 
     inline bool hasMode(Mode mode, const Modes& vec)

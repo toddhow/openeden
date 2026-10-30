@@ -54,6 +54,14 @@ namespace Pipeline
                 return "SKIN";
             case Mode::INSTANCE:
                 return "INSTANCE";
+            case Mode::NORMAL_MAP:
+                return "NORMAL_MAP";
+            case Mode::PARALLAX:
+                return "PARALLAX";
+            case Mode::RECONSTRUCT_NORMAL_Z:
+                return "RECONSTRUCT_NORMAL_Z";
+            case Mode::SPECULAR_MAP:
+                return "SPECULAR_MAP";
         }
         return "";
     }
@@ -77,6 +85,8 @@ namespace Pipeline
             { Descriptors::GLOW_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::BUMP_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::ENV_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::NORMAL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::SPECULAR_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::TEXMAT_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr }
         };
 
@@ -202,8 +212,15 @@ namespace Pipeline
             vertexAttributeDescriptions.push_back(
                 { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32A32_SFLOAT, 0 });
         }
-        // OpenEden: per-instance inputs come before the texture coordinates, whose count is a specialization constant
-        // (files/shaders/lib/attributes.glsl).
+        // OpenEden: the tangent and the per-instance inputs come before the texture coordinates, whose count is a
+        // specialization constant (files/shaders/lib/attributes.glsl).
+        if (key.shader.hasMode(Mode::NORMAL_MAP))
+        {
+            vertexBindingsDescriptions.push_back(
+                { vertexBindingIndex, sizeof(vsg::vec4), VK_VERTEX_INPUT_RATE_VERTEX });
+            vertexAttributeDescriptions.push_back(
+                { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32A32_SFLOAT, 0 });
+        }
         if (key.shader.hasMode(Mode::INSTANCE))
         {
             vertexBindingsDescriptions.push_back(

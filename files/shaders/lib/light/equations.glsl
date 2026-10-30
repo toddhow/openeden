@@ -1,3 +1,7 @@
+// OpenEden: guarded, since directional and per-pixel lighting both include it (task 0012, V4h).
+#ifndef LIB_LIGHT_EQUATIONS
+#define LIB_LIGHT_EQUATIONS
+
 #include "light.settings"
 
 float lambert(vec3 light, vec3 normal)
@@ -44,3 +48,5 @@ float attenuate(float intensity, float distance)
     }
     return clamp(1.0 / value, 0.0, 1.0);
 }
+
+#endif

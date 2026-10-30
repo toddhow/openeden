@@ -21,6 +21,7 @@ namespace Pipeline
         /*auto*/ std::strong_ordering operator<=>(const ShaderOptions&) const = default;
 
         void addMode(Mode mode) { Pipeline::addMode(mode, modes); }
+        void removeMode(Mode mode) { Pipeline::removeMode(mode, modes); }
         bool hasMode(Mode mode) const { return Pipeline::hasMode(mode, modes); }
     };
 

@@ -88,6 +88,7 @@ set(SHADER_FILES
     lib/light/pointlights.glsl
     lib/light/pointspecular.glsl
     lib/light/pointdiffuse.glsl
+    lib/light/pixellighting.glsl
     lib/light/directional.glsl
     lib/particle/util.glsl
     lib/particle/data.glsl
