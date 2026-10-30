@@ -22,6 +22,9 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/cullnode.hpp>
 #include <components/vsgutil/distancelod.hpp>
+#include <components/vsgutil/operation.hpp>
+
+#include <vsg/threading/OperationThreads.h>
 
 namespace MWRender
 {
@@ -34,6 +37,9 @@ namespace MWRender
         constexpr float sInstanceRadiusMargin = 1.1f;
         // How far the camera moves before the cells in range are worked out again (an eighth of a cell).
         constexpr float sUpdateDistance = 1024.f;
+        // Built chunks kept after their cell leaves range, so walking back does not rebuild them; chosen here, about
+        // a ring of cells at the default rendering distance (OpenMW expired its chunk cache by time instead).
+        constexpr std::size_t sCachedChunks = 32;
 
         struct InstanceArrays
         {
@@ -108,15 +114,105 @@ namespace MWRender
             return node;
         }
 
+        // Builds one cell's chunk, not yet compiled; null when the cell has no groundcover. Runs on an operation
+        // thread: it reads the store, the content files and the models, and touches nothing the main thread writes.
+        vsg::ref_ptr<vsg::Node> buildChunk(const MWAnim::Context& context, const MWWorld::GroundcoverStore& store,
+            float density, const std::pair<int, int>& cell)
+        {
+            const vsg::vec2 center(cell.first + 0.5f, cell.second + 0.5f);
+            const GroundcoverInstances instances = collectGroundcoverInstances(store, density, 1.f, center);
+            if (instances.empty())
+                return {};
+
+            const vsg::vec3 origin(center.x * ESM::Land::REAL_SIZE, center.y * ESM::Land::REAL_SIZE, 0.f);
+            auto models = vsg::Group::create();
+            vsg::dbox bounds;
+            for (const auto& [model, entries] : instances)
+            {
+                vsg::ref_ptr<vsg::Node> prototype;
+                try
+                {
+                    prototype = context.readNode(std::string(model.value()));
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Error) << "Failed to load groundcover model '" << model.value() << "': " << e.what();
+                    continue;
+                }
+                if (!prototype)
+                    continue;
+
+                InstanceArrays arrays;
+                arrays.count = static_cast<uint32_t>(entries.size());
+                arrays.offsets = vsg::vec4Array::create(arrays.count);
+                arrays.rotations = vsg::vec3Array::create(arrays.count);
+                const double radius = vsgUtil::getBounds(prototype).radius;
+                for (uint32_t i = 0; i < arrays.count; ++i)
+                {
+                    const ESM::Position& position = entries[i].position;
+                    const vsg::vec3 offset = vsg::vec3(position.pos[0], position.pos[1], position.pos[2]) - origin;
+                    (*arrays.offsets)[i] = vsg::vec4(offset, entries[i].scale);
+                    (*arrays.rotations)[i] = vsg::vec3(position.rot[0], position.rot[1], position.rot[2]);
+                    const double instanceRadius = radius * entries[i].scale * sInstanceRadiusMargin;
+                    bounds.add(vsg::dvec3(offset) - vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
+                    bounds.add(vsg::dvec3(offset) + vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
+                }
+                models->addChild(instantiate(prototype, arrays));
+            }
+            if (models->children.empty())
+                return {};
+
+            const vsg::dvec3 boundsCenter = (bounds.min + bounds.max) * 0.5;
+            auto cull = vsg::CullGroup::create(vsg::dsphere(boundsCenter, vsg::length(bounds.max - boundsCenter)));
+            cull->children = models->children;
+            auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(origin)));
+            transform->addChild(cull);
+            return transform;
+        }
     }
 
-    Groundcover::Groundcover(
-        const MWAnim::Context& context, const MWWorld::GroundcoverStore& store, float density, float renderingDistance)
+    // One cell's chunk being built on an operation thread; the main thread reads chunk only once done is set.
+    struct Groundcover::ChunkBuild : public vsgUtil::Operation
+    {
+        const MWAnim::Context& context;
+        const MWWorld::GroundcoverStore& store;
+        float density;
+        std::pair<int, int> cell;
+        vsg::ref_ptr<vsg::Node> chunk;
+
+        ChunkBuild(const MWAnim::Context& in_context, const MWWorld::GroundcoverStore& in_store, float in_density,
+            const std::pair<int, int>& in_cell)
+            : context(in_context)
+            , store(in_store)
+            , density(in_density)
+            , cell(in_cell)
+        {
+        }
+
+        void operate() override
+        {
+            try
+            {
+                chunk = buildChunk(context, store, density, cell);
+            }
+            catch (const std::exception& e)
+            {
+                // The cell is then treated as having no groundcover, and not built again.
+                Log(Debug::Error) << "Failed to build groundcover for cell " << cell.first << ", " << cell.second
+                                  << ": " << e.what();
+            }
+        }
+    };
+
+    Groundcover::Groundcover(const MWAnim::Context& context, const MWWorld::GroundcoverStore& store, float density,
+        float renderingDistance)
         : mContext(context)
         , mStore(store)
         , mDensity(density)
         , mRenderingDistance(renderingDistance)
+        , mThreads(vsg::OperationThreads::create(1))
         , mRoot(vsg::Group::create())
+        , mTracker(sCachedChunks)
     {
         auto override_ = vsg::ref_ptr{ new Pipeline::Override };
         override_->pipelineOptions = [](Pipeline::Options& options) {
@@ -136,97 +232,73 @@ namespace MWRender
         mContext.nodeOptions = nodeOptions;
     }
 
-    Groundcover::~Groundcover() = default;
-
-    void Groundcover::clear()
+    Groundcover::~Groundcover()
     {
-        mRoot->children.clear();
-        mChunks.clear();
-        mHasUpdated = false;
+        waitForBuilds();
+        setShownChunks({});
+    }
+
+    void Groundcover::waitForBuilds()
+    {
+        for (const auto& build : mBuilds)
+            build->wait();
     }
 
     void Groundcover::hide()
     {
-        mRoot->children.clear();
+        setShownChunks({});
         mHasUpdated = false;
     }
 
     void Groundcover::update(const vsg::vec3& cameraPosition)
     {
+        bool changed = collectBuilds();
+
         // Which cells are in range changes only gradually, so it is worked out again (allocating) only after the
         // camera has moved a little; the shader fades individual instances out at the exact distance.
-        if (mHasUpdated
-            && vsg::length(vsg::vec2(cameraPosition.x, cameraPosition.y) - mLastUpdatePosition) < sUpdateDistance)
+        if (!mHasUpdated
+            || vsg::length(vsg::vec2(cameraPosition.x, cameraPosition.y) - mLastUpdatePosition) >= sUpdateDistance)
+        {
+            changed = true;
+            mHasUpdated = true;
+            mLastUpdatePosition = vsg::vec2(cameraPosition.x, cameraPosition.y);
+            const std::vector<std::pair<int, int>> wanted
+                = groundcoverCellsInRange(cameraPosition.x, cameraPosition.y, mRenderingDistance);
+            for (const auto& cell : mTracker.setWanted(wanted))
+            {
+                auto build = vsg::ref_ptr{ new ChunkBuild(mContext, mStore, mDensity, cell) };
+                mBuilds.push_back(build);
+                mThreads->add(build);
+            }
+        }
+        if (!changed)
             return;
-        mHasUpdated = true;
-        mLastUpdatePosition = vsg::vec2(cameraPosition.x, cameraPosition.y);
 
-        const std::vector<std::pair<int, int>> wanted
-            = groundcoverCellsInRange(cameraPosition.x, cameraPosition.y, mRenderingDistance);
-        std::erase_if(
-            mChunks, [&](const auto& chunk) { return !std::binary_search(wanted.begin(), wanted.end(), chunk.first); });
-        for (const auto& cell : wanted)
-            if (!mChunks.contains(cell))
-                mChunks.emplace(cell, createChunk(cell.first, cell.second));
-
-        mRoot->children.clear();
-        for (const auto& [cell, chunk] : mChunks)
+        vsg::Group::Children chunks;
+        for (const auto& [cell, chunk] : mTracker.shown())
             if (chunk)
-                mRoot->addChild(chunk);
+                chunks.push_back(chunk);
+        setShownChunks(std::move(chunks));
     }
 
-    vsg::ref_ptr<vsg::Node> Groundcover::createChunk(int cellX, int cellY) const
+    bool Groundcover::collectBuilds()
     {
-        const vsg::vec2 center(cellX + 0.5f, cellY + 0.5f);
-        const GroundcoverInstances instances = collectGroundcoverInstances(mStore, mDensity, 1.f, center);
-        if (instances.empty())
-            return {};
+        return std::erase_if(mBuilds, [this](const vsg::ref_ptr<ChunkBuild>& build) {
+            if (!build->done)
+                return false;
+            vsg::ref_ptr<vsg::Node> chunk = build->chunk;
+            if (chunk && !mContext.compileContext->compile(chunk))
+                chunk = {};
+            mTracker.finish(build->cell, chunk);
+            return true;
+        }) > 0;
+    }
 
-        const vsg::vec3 origin(center.x * ESM::Land::REAL_SIZE, center.y * ESM::Land::REAL_SIZE, 0.f);
-        auto models = vsg::Group::create();
-        vsg::dbox bounds;
-        for (const auto& [model, entries] : instances)
-        {
-            vsg::ref_ptr<vsg::Node> prototype;
-            try
-            {
-                prototype = mContext.readNode(std::string(model.value()));
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << "Failed to load groundcover model '" << model.value() << "': " << e.what();
-                continue;
-            }
-            if (!prototype)
-                continue;
-
-            InstanceArrays arrays;
-            arrays.count = static_cast<uint32_t>(entries.size());
-            arrays.offsets = vsg::vec4Array::create(arrays.count);
-            arrays.rotations = vsg::vec3Array::create(arrays.count);
-            const double radius = vsgUtil::getBounds(prototype).radius;
-            for (uint32_t i = 0; i < arrays.count; ++i)
-            {
-                const ESM::Position& position = entries[i].position;
-                const vsg::vec3 offset = vsg::vec3(position.pos[0], position.pos[1], position.pos[2]) - origin;
-                (*arrays.offsets)[i] = vsg::vec4(offset, entries[i].scale);
-                (*arrays.rotations)[i] = vsg::vec3(position.rot[0], position.rot[1], position.rot[2]);
-                const double instanceRadius = radius * entries[i].scale * sInstanceRadiusMargin;
-                bounds.add(vsg::dvec3(offset) - vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
-                bounds.add(vsg::dvec3(offset) + vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
-            }
-            models->addChild(instantiate(prototype, arrays));
-        }
-        if (models->children.empty())
-            return {};
-
-        const vsg::dvec3 boundsCenter = (bounds.min + bounds.max) * 0.5;
-        auto cull = vsg::CullGroup::create(vsg::dsphere(boundsCenter, vsg::length(bounds.max - boundsCenter)));
-        cull->children = models->children;
-        auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(origin)));
-        transform->addChild(cull);
-        if (!mContext.compileContext->compile(transform))
-            return {};
-        return transform;
+    void Groundcover::setShownChunks(vsg::Group::Children chunks)
+    {
+        for (const auto& child : mRoot->children)
+            if (std::find(chunks.begin(), chunks.end(), child) == chunks.end())
+                mContext.compileContext->detach(child);
+        mRoot->children = std::move(chunks);
     }
 }

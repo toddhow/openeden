@@ -3,6 +3,7 @@
 
 #include <map>
 #include <utility>
+#include <vector>
 
 #include <vsg/maths/vec2.h>
 #include <vsg/maths/vec3.h>
@@ -10,7 +11,13 @@
 
 #include <components/mwanimation/context.hpp>
 
+#include "groundcoverchunks.hpp"
 #include "groundcoverinstances.hpp"
+
+namespace vsg
+{
+    class OperationThreads;
+}
 
 namespace MWWorld
 {
@@ -20,19 +27,23 @@ namespace MWWorld
 namespace MWRender
 {
     /**
-     * @brief Draws groundcover around the camera on VSG (task 0012, V4f): OpenMW's MWRender::Groundcover at
+     * @brief Draws groundcover around the camera on VSG (task 0012, V4f and V4g): OpenMW's MWRender::Groundcover at
      * 442eec6e2f, with one chunk per cell instead of OpenMW's terrain quadtree chunks.
      *
      * Each chunk instances every groundcover model of its cell (collectGroundcoverInstances) with the INSTANCE
      * pipeline mode, which places, rotates and scales each instance and moves it with the wind and the player's steps
      * (files/shaders/lib/groundcover.glsl). Models are read with OpenMW's unified alpha: alpha test at 128/255 and no
-     * blending. Chunks of the cells within `[Groundcover] rendering distance` of the camera are shown; a chunk is built
-     * the first time its cell comes into range and kept until it leaves it; the cells in range are worked out again
-     * after the camera has moved 1024 units, and the shader drops instances beyond the distance (OpenMW's
-     * groundcoverFadeEnd).
+     * blending. Chunks of the cells within `[Groundcover] rendering distance` of the camera are shown; the cells in
+     * range are worked out again after the camera has moved 1024 units, and the shader drops instances beyond the
+     * distance (OpenMW's groundcoverFadeEnd).
      *
-     * Owned by RenderManager; update() runs on the main thread and builds new chunks there. The store is World's and
-     * must outlive this object.
+     * A chunk is built on this object's own worker thread (so it never delays cell preloading) the first time its
+     * cell comes into range, then compiled and shown by a later update(); chunks out of range are cached
+     * (GroundcoverChunkTracker), and all are kept while hidden in interiors. Chunks leaving the scene graph are handed
+     * to the compile context's detach, so queued frames can finish drawing them.
+     *
+     * Owned by RenderManager; every member function runs on the main thread. The store is World's and must outlive
+     * every build: the destructor and waitForBuilds() wait for them.
      */
     class Groundcover
     {
@@ -46,18 +57,26 @@ namespace MWRender
         void update(const vsg::vec3& cameraPosition);
         /// Hides every chunk (in interiors) and keeps the built ones for the next update().
         void hide();
-        void clear();
+        /// Waits for the chunks being built, which read the store.
+        void waitForBuilds();
 
     private:
-        vsg::ref_ptr<vsg::Node> createChunk(int cellX, int cellY) const;
+        struct ChunkBuild;
+        using Tracker = GroundcoverChunkTracker<vsg::ref_ptr<vsg::Node>>;
+
+        // Takes finished builds, compiling their chunks; true if any finished.
+        bool collectBuilds();
+        void setShownChunks(vsg::Group::Children chunks);
 
         MWAnim::Context mContext;
         const MWWorld::GroundcoverStore& mStore;
         float mDensity;
         float mRenderingDistance;
+        vsg::ref_ptr<vsg::OperationThreads> mThreads;
         vsg::ref_ptr<vsg::Group> mRoot;
-        // Built chunks by cell; a null node is a cell without groundcover.
-        std::map<std::pair<int, int>, vsg::ref_ptr<vsg::Node>> mChunks;
+        // A null chunk is a cell without groundcover.
+        Tracker mTracker;
+        std::vector<vsg::ref_ptr<ChunkBuild>> mBuilds;
         vsg::vec2 mLastUpdatePosition;
         bool mHasUpdated = false;
     };

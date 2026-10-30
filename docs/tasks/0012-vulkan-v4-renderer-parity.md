@@ -125,7 +125,30 @@
   - **Done (step 1):** `GroundcoverStore` builds again and `World` loads groundcover files when `[Groundcover] enabled` (off by default); `MWRender::collectGroundcoverInstances` with tests (`mwrender/testgroundcoverinstances.cpp`).
   - **Done (step 2):** `--groundcover` files reach `World` again (`OMW::Arguments::groundcoverFiles`); `Pipeline::Mode::INSTANCE` with its per-instance inputs and `lib/groundcover.glsl` (wind, stomping, rotation); `MWRender::Groundcover` draws one chunk per cell within `[Groundcover] rendering distance`, using `density`, `stomp mode` and `stomp intensity`. RenderManager creates it on the main thread when the World hands over its store and `[Groundcover] enabled` is on, and hides it in interiors. Checked with a temporary layout of 441 vanilla `flora_bc_grass_01` instances around the player in Seyda Neen: placed, rotated, alpha-tested and lit. No groundcover mod is installed here, so real groundcover content is untested.
   - Review (fresh agent) found and fixed before committing: the scene data read the player at the main menu, where none exists (a crash on a normal launch whatever the setting; now taken in update(), which runs only in game; checked by sitting 60 s at the menu); LOD, billboard and matrix-transform nodes now keep their type in the chunk copy; particle draws are left out of chunks (their pipelines get no instance mode); groundcover reads models through its own shared-object cache, since every `Pipeline::Override` compares equal and the first-person or preview models could otherwise be swapped; other worldspaces get no Morrowind groundcover.
-  - **Open:** chunks are built on the main thread when they come into range, and dropped as soon as they leave it (a hitch with large mods; OpenMW built them on its work queue and cached them); OpenMW's terrain-quadtree chunk sizes and per-instance near-plane computation are not ported; animated groundcover models do not animate; `[Groundcover]` settings are read when it is created; the loading screen shows no progress while groundcover files load.
+  - **Step 3 (V4g), chunks built on a worker and cached:**
+    - `MWRender::GroundcoverChunkTracker<Chunk>` (header-only, renderer-free, unit-tested; `Cell` is `std::pair<int, int>`) decides what each cell's chunk is doing. Its constructor takes the cache capacity.
+    - Every cell is in at most one of four states: unknown, pending (being built), shown, or cached (built but out of range).
+    - `std::vector<Cell> setWanted(const std::vector<Cell>& wanted)`: `wanted` is sorted with no duplicates.
+      - Shown cells no longer wanted move to the cache as its newest entries.
+      - Wanted cells in the cache move back to shown.
+      - Wanted cells that are unknown become pending and are returned, in `wanted`'s order.
+      - Pending cells stay pending whether wanted or not.
+      - The cache is then trimmed to its capacity, oldest entries first.
+    - `void finish(const Cell& cell, Chunk chunk)`: a pending cell's build is done. The cell becomes shown if the last `setWanted` wanted it; otherwise it becomes the cache's newest entry, and the cache is trimmed. A cell that is not pending is ignored (a build that outlived a `clear`). A default-constructed (empty) chunk is kept like any other, so cells without groundcover are not built again.
+    - `const std::map<Cell, Chunk>& shown() const`, `bool isPending(const Cell&) const`, `std::size_t pendingCount() const` and `std::size_t cachedCount() const`.
+    - `void clear()`: forgets every cell. Builds still running are then ignored when they finish.
+    - `MWRender::Groundcover` builds a chunk on RenderManager's operation threads: reading the instances and models, and copying the draws. It compiles and attaches the chunk on the main thread in a later `update()`; `update()` collects finished builds every frame, and works out the wanted cells only after 1024 units of movement, as before.
+    - Chunks leaving the scene graph are handed to the compile context's `detach`, so frames still queued can finish drawing them.
+    - The cache keeps up to 32 chunks (a named constant, chosen here, not OpenMW's).
+    - The World's destructor waits for running builds before the store goes, through `RenderManager::setGroundcoverStore(nullptr)`.
+    - **Done:** as specified, with these changes after the fresh review:
+      - Groundcover builds on its own worker thread. RenderManager's single operation thread also runs cell preloading, so builds there could have turned seamless cell crossings into loading screens.
+      - `notifyWorldSpaceChanged` no longer clears groundcover, so chunks survive interiors; `Groundcover::clear` is removed.
+      - The destructor detaches the shown chunks.
+      - A build that throws logs an error and its cell counts as empty.
+      - The inherited `vsgUtil::Operation` (`components/vsgutil/operation.hpp`) now sets `done` under its mutex and waits with a predicate. It could miss its wake-up and hang the waiting thread forever, which the new waits on the main thread would have exposed.
+    - Checked in game with a temporary layout of 21 × 21 vanilla grass per cell (not committed): chunks are queued on the worker, collected on the main thread and drawn in Seyda Neen. The first update runs with the camera at the origin and builds four cells there that are then cached unused, as in step 2.
+  - **Open:** OpenMW's terrain-quadtree chunk sizes and per-instance near-plane computation are not ported; animated groundcover models do not animate; `[Groundcover]` settings are read when it is created; the loading screen shows no progress while groundcover files load.
 - **NIF particles and snow** (V4c):
   - Snow wraps around the camera: its particles stay fixed in the world and are kept in a 1024 x 1024 x 800 box centred on the camera, as OpenMW's `WrapAroundOperator` did. OpenMW also wrapped a NIF effect in a weather that had rain too; no Morrowind weather has both, so that case is not ported. Done in the particle compute shader (`comp/particle/simulate.comp`) with a per-frame matrix from `vsgAdapters::ParticleSystem::wrapAround`, set by `WeatherEffects`.
   - Four inherited vsgopenmw particle bugs fixed, found while comparing snow with the OSG build:

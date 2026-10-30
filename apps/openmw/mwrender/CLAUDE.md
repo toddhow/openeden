@@ -34,6 +34,8 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   - `DebugGeometry::addLine` and `addTriangle` may be called from physics threads.
   - `begin`, `end` and `setEnabled` run on the main thread.
   - The pose driver touches only its own actor.
+  - Groundcover chunks are read and assembled on Groundcover's own worker thread (not RenderManager's single operation thread, which cell preloading needs promptly), but compiled, attached and detached only on the main thread, since `CompileContext::compile` updates the viewer. Builds hold references to the store, so anything that drops the store or the `Groundcover` waits for them first (`Groundcover::waitForBuilds`).
+  - Nodes leaving the scene graph during play go through the compile context's `detach`, which keeps them alive until the frames already queued have drawn.
 
 ## Pitfalls
 

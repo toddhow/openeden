@@ -37,16 +37,18 @@ namespace vsgUtil
                 mError = e.message;
                 std::cerr << "!Operation::run(vsg::Exception(" << e.message << "))" << std::endl;
             }
-            done = true;
+            {
+                // OpenEden: set under the mutex, so a waiter cannot miss the notification between its check of done
+                // and its wait (task 0012, V4g).
+                std::lock_guard<std::mutex> lock(mMutex);
+                done = true;
+            }
             mCv.notify_all();
         }
         void wait()
         {
-            while (!done)
-            {
-                std::unique_lock<std::mutex> lock(mMutex);
-                mCv.wait(lock);
-            }
+            std::unique_lock<std::mutex> lock(mMutex);
+            mCv.wait(lock, [this] { return done.load(); });
         }
         void ensure()
         {

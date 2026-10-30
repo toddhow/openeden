@@ -532,8 +532,12 @@ namespace MWRender
 
     void RenderManager::setGroundcoverStore(const MWWorld::GroundcoverStore* store)
     {
-        // Called by the World, which is built on the loading thread; update() acts on it on the main thread.
+        // Called by the World: with its store from the loading thread, where update() then acts on it on the main
+        // thread; with nullptr from its destructor on the main thread (the Game state is popped there), which must
+        // not return while a chunk build still reads the store.
         mGroundcoverStore = store;
+        if (!store && mGroundcover)
+            mGroundcover->waitForBuilds();
     }
 
     void RenderManager::updateGroundcover(const vsg::vec3& cameraPosition)
@@ -885,8 +889,8 @@ namespace MWRender
     {
         mEffects->clear();
         mWaterRipples->clear();
-        if (mGroundcover)
-            mGroundcover->clear();
+        // Groundcover is kept: its chunks depend only on the World's store and Morrowind's exterior, and
+        // updateGroundcover hides them away from it, so coming out of a door reuses them.
     }
 
     void RenderManager::clear()
