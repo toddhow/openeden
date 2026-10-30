@@ -9,6 +9,7 @@
 #include "storage.hpp"
 #include "indexbuffer.hpp"
 #include "bounds.hpp"
+#include "layermaps.hpp"
 
 namespace vsg
 {
@@ -21,7 +22,7 @@ namespace Terrain
      */
     struct Builder
     {
-        Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions);
+        Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions, TerrainMapSettings in_mapSettings = {});
         ~Builder();
 
         void pruneCache() const;
@@ -54,12 +55,23 @@ namespace Terrain
 
         vsg::ref_ptr<vsg::Node> createDraw(const Batch& batch, const Bounds& bounds, uint8_t lod = 0, uint32_t lodFlags = 0) const;
     private:
+        // openeden-vsg: the layer arrays with normal and specular maps, and each layer's flags for the shader
+        // (files/shaders/terrain/main.frag): the normal map index in the low 16 bits, then parallax and specular.
+        static constexpr uint32_t sNoNormalMap = 0xffff;
+        static constexpr uint32_t sParallaxFlag = 1u << 16;
+        static constexpr uint32_t sSpecularFlag = 1u << 17;
+        void setLayersWithMaps(const std::vector<LayerInfo>& layers);
+
         vsg::ref_ptr<vsg::Node> createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds, const BatchData& data, const Bounds& bounds) const;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> mPipeline;
         Storage* mStorage = nullptr;                vsg::ref_ptr<const vsg::Options> mImageOptions;
         vsg::ref_ptr<vsg::Sampler> mSamplerOptions;
         vsg::ref_ptr<vsg::Descriptor> mLayerDescriptor;
+        // openeden-vsg: terrain normal and specular maps (task 0012, V4i); descriptors are null with the maps off.
+        TerrainMapSettings mMapSettings;
+        vsg::ref_ptr<vsg::Descriptor> mNormalLayerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> mLayerFlagsDescriptor;
     };
 }
 

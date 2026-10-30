@@ -9,6 +9,7 @@
 #include <components/vsgutil/compileop.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
+#include "layermaps.hpp"
 #include "view.hpp"
 
 namespace Terrain
@@ -24,7 +25,7 @@ namespace Terrain
     class Paging
     {
     public:
-        Paging(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<const vsg::Options> imageOptions, vsg::ref_ptr<const vsg::Options> shaderOptions, vsg::ref_ptr<vsg::Sampler> samplerOptions);
+        Paging(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<const vsg::Options> imageOptions, vsg::ref_ptr<const vsg::Options> shaderOptions, vsg::ref_ptr<vsg::Sampler> samplerOptions, TerrainMapSettings mapSettings = {});
         ~Paging();
 
         float lodFactor = 1;

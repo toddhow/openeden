@@ -93,12 +93,12 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Shaders] clamp lighting` | Read | |
 | `[Shaders] auto use object normal maps` | Works (task 0012, V4h) | |
 | `[Shaders] auto use object specular maps` | Works (task 0012, V4h) | |
-| `[Shaders] auto use terrain normal maps` | Not read | Normal maps item |
-| `[Shaders] auto use terrain specular maps` | Not read | Normal maps item |
+| `[Shaders] auto use terrain normal maps` | Works (task 0012, V4i) | |
+| `[Shaders] auto use terrain specular maps` | Works (task 0012, V4i) | |
 | `[Shaders] normal map pattern` | Works (task 0012, V4h) | |
 | `[Shaders] normal height map pattern` | Works (task 0012, V4h) | |
 | `[Shaders] specular map pattern` | Works (task 0012, V4h) | |
-| `[Shaders] terrain specular map pattern` | Not read | Normal maps item |
+| `[Shaders] terrain specular map pattern` | Works (task 0012, V4i) | |
 | `[Shaders] apply lighting to environment maps` | Not read | Remove: in OpenMW it only forced the shader path for env-mapped objects (`ShaderVisitor`, cf3dbd3aa7), and the Vulkan renderer always uses shaders |
 | `[Shaders] lighting method` | Read | |
 | `[Shaders] classic falloff` | Read | |

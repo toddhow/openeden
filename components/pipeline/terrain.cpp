@@ -6,6 +6,7 @@
 #include <vsg/state/VertexInputState.h>
 #include <vsg/state/MultisampleState.h>
 #include <vsg/state/RasterizationState.h>
+#include <vsg/state/ShaderStage.h>
 
 #include <components/vsgutil/readshader.hpp>
 
@@ -18,9 +19,21 @@ namespace Pipeline
 #include <files/shaders/terrain/bindings.glsl>
     }
 
-    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions)
+    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions), vsgUtil::readShader("terrain/main.frag", shaderOptions) };
+        if (maps)
+        {
+            // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
+            auto compileSettings = vsg::ShaderCompileSettings::create();
+            compileSettings->defines.insert("TERRAIN_MAPS");
+            for (auto& stage : shaders)
+            {
+                stage = vsg::ShaderStage::create(*stage);
+                stage->module = vsg::ShaderModule::create(*stage->module);
+                stage->module->hints = compileSettings;
+            }
+        }
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{
             { Pipeline::Descriptors::BLENDMAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
@@ -30,6 +43,13 @@ namespace Pipeline
             { Pipeline::Descriptors::NORMALMAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr },
             { Pipeline::Descriptors::COLORMAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
         };
+        if (maps)
+        {
+            descriptorBindings.push_back({ Pipeline::Descriptors::NORMAL_LAYER_BINDING,
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+            descriptorBindings.push_back({ Pipeline::Descriptors::LAYER_FLAGS_BINDING,
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+        }
 
         vsg::DescriptorSetLayouts descriptorSetLayouts = getCompatibleDescriptorSetLayouts();
         descriptorSetLayouts.emplace_back(vsg::DescriptorSetLayout::create(descriptorBindings));

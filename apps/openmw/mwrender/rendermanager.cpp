@@ -25,6 +25,7 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/terrain/paging.hpp>
 #include <components/view/barriers.hpp>
 #include <components/view/collectlights.hpp>
@@ -201,7 +202,17 @@ namespace MWRender
         mSimpleWater = std::make_unique<SimpleWater>(Constants::CellSizeInUnits, *mResourceSystem->builder, mResourceSystem->textureOptions);
 
         mTerrainStorage = std::make_unique<TerrainStorage>(mResourceSystem);
-        mTerrain = std::make_unique<Terrain::Paging>(mCompileContext->clone(Mask_Terrain), mResourceSystem->textureOptions, mResourceSystem->shaderOptions, mResourceSystem->builder->createSampler());
+        // openeden-vsg: terrain normal and specular maps, off by default (task 0012, V4i).
+        Terrain::TerrainMapSettings terrainMaps;
+        const auto& shaders = Settings::shaders();
+        terrainMaps.autoMaps.autoUseNormalMaps = shaders.mAutoUseTerrainNormalMaps;
+        terrainMaps.autoMaps.autoUseSpecularMaps = shaders.mAutoUseTerrainSpecularMaps;
+        terrainMaps.autoMaps.normalMapPattern = shaders.mNormalMapPattern;
+        terrainMaps.autoMaps.normalHeightMapPattern = shaders.mNormalHeightMapPattern;
+        terrainMaps.autoMaps.specularMapPattern = shaders.mTerrainSpecularMapPattern;
+        const VFS::Manager* vfs = mResourceSystem->getVFS();
+        terrainMaps.exists = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
+        mTerrain = std::make_unique<Terrain::Paging>(mCompileContext->clone(Mask_Terrain), mResourceSystem->textureOptions, mResourceSystem->shaderOptions, mResourceSystem->builder->createSampler(), std::move(terrainMaps));
         mTerrain->lodFactor = Settings::terrain().mLodFactor;
         mTerrain->vertexLodMod = Settings::terrain().mVertexLodMod;
 

@@ -1,5 +1,9 @@
 #include "builder.hpp"
 
+#include <iostream>
+#include <map>
+#include <tuple>
+
 #include <vsg/utils/SharedObjects.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/DescriptorImage.h>
@@ -97,11 +101,12 @@ namespace Terrain
         }
     };
 
-    Builder::Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions)
+    Builder::Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions, TerrainMapSettings in_mapSettings)
         : mImageOptions(in_imageOptions)
         , mSamplerOptions(in_samplerOptions)
+        , mMapSettings(std::move(in_mapSettings))
     {
-        mPipeline = Pipeline::terrain(in_shaderOptions);
+        mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled());
     }
 
     Builder::~Builder() {}
@@ -131,6 +136,12 @@ namespace Terrain
             layers.resize(256);
         }
 
+        if (mMapSettings.enabled())
+        {
+            setLayersWithMaps(layers);
+            return;
+        }
+
         vsg::DataList imageData;
         for (const auto& layer : layers)
         {
@@ -140,6 +151,92 @@ namespace Terrain
         }
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
         mLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
+    }
+
+    void Builder::setLayersWithMaps(const std::vector<LayerInfo>& layers)
+    {
+        // Layers are named as the land textures name them; the maps are found next to the resolved path, as OpenMW's
+        // getLayerInfo did with corrected texture paths.
+        std::vector<std::string> resolved;
+        resolved.reserve(layers.size());
+        for (const auto& layer : layers)
+        {
+            if (mImageOptions && mImageOptions->findFileCallback)
+                resolved.push_back(mImageOptions->findFileCallback(layer, mImageOptions.get()).string());
+            else
+                resolved.push_back(layer);
+        }
+        const TerrainLayerMaps maps = findTerrainLayerMaps(resolved, mMapSettings.autoMaps, mMapSettings.exists);
+
+        // The normal map array keeps only maps of its most common size and format: convertToArrayTexture would fill
+        // any other with grey bytes, which decode to a badly tilted normal rather than a flat one. Layers whose map is
+        // left out are drawn without one.
+        std::vector<vsg::ref_ptr<vsg::Data>> normalImages;
+        using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
+        std::map<ImageKey, size_t> keyCounts;
+        for (const auto& path : maps.normalMaps)
+        {
+            auto data = vsgUtil::readImage(path, mImageOptions);
+            vsgUtil::setName(*data, path);
+            normalImages.push_back(data);
+            ++keyCounts[{ data->width(), data->height(), data->properties.format }];
+        }
+        ImageKey reference{};
+        size_t referenceCount = 0;
+        for (const auto& image : normalImages)
+        {
+            const ImageKey key{ image->width(), image->height(), image->properties.format };
+            if (keyCounts[key] > referenceCount)
+            {
+                reference = key;
+                referenceCount = keyCounts[key];
+            }
+        }
+        vsg::DataList normalData;
+        std::vector<int> arrayIndex(normalImages.size(), -1);
+        for (size_t i = 0; i < normalImages.size(); ++i)
+        {
+            const auto& image = normalImages[i];
+            if (ImageKey{ image->width(), image->height(), image->properties.format } != reference)
+            {
+                std::cerr << "Terrain normal map " << maps.normalMaps[i]
+                          << " differs in size or format from the others and is not used" << std::endl;
+                continue;
+            }
+            arrayIndex[i] = static_cast<int>(normalData.size());
+            normalData.push_back(image);
+        }
+
+        vsg::DataList imageData;
+        auto flags = vsg::uintArray::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
+        flags->set(0, sNoNormalMap);
+        for (size_t i = 0; i < maps.layers.size(); ++i)
+        {
+            const TerrainLayer& layer = maps.layers[i];
+            auto data = vsgUtil::readImage(layer.diffuseMap, mImageOptions);
+            vsgUtil::setName(*data, layer.diffuseMap);
+            imageData.push_back(data);
+            const int normalIndex = layer.normalMapIndex >= 0 ? arrayIndex[layer.normalMapIndex] : -1;
+            uint32_t value = normalIndex >= 0 ? static_cast<uint32_t>(normalIndex) : sNoNormalMap;
+            if (layer.parallax && normalIndex >= 0)
+                value |= sParallaxFlag;
+            if (layer.specular)
+                value |= sSpecularFlag;
+            flags->set(i, value);
+        }
+        auto arrayData = vsgUtil::convertToArrayTexture(imageData);
+        mLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
+
+        if (normalData.empty())
+        {
+            // A flat normal, so the binding is valid; no layer refers to it.
+            normalData.push_back(vsg::ubvec4Array2D::create(
+                1, 1, vsg::ubvec4(128, 128, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
+        }
+        mNormalLayerDescriptor = vsg::DescriptorImage::create(
+            mSamplerOptions, vsgUtil::convertToArrayTexture(normalData), Pipeline::Descriptors::NORMAL_LAYER_BINDING);
+        mLayerFlagsDescriptor = vsg::DescriptorBuffer::create(
+            flags, Pipeline::Descriptors::LAYER_FLAGS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
     Builder::BatchData Builder::create(const Key& key) const
@@ -170,6 +267,11 @@ namespace Terrain
         auto batchDescriptor = vsg::DescriptorBuffer::create(batchData, Pipeline::Descriptors::BATCH_DATA_BINDING);
 
         vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, mLayerDescriptor, heightsDescriptor, normalsDescriptor, colorDescriptor };
+        if (mNormalLayerDescriptor)
+        {
+            descriptors.push_back(mNormalLayerDescriptor);
+            descriptors.push_back(mLayerFlagsDescriptor);
+        }
 
         auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, descriptors);
 

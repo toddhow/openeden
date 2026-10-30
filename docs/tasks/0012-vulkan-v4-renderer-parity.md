@@ -222,6 +222,42 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
         - SNORM two-channel maps are still remapped with `* 2 - 1`.
         - The vertex shader still computes per-vertex point light for per-pixel draws.
     - **Not in this step:** terrain normal and specular maps (step 2); `normalMap` and `specularMap` textures named in NIF files newer than Morrowind's; material specular of non-Morrowind NIFs.
+  - **Step 2 (V4i), terrain normal and specular maps.** Follows OpenMW at 442eec6e2f: `ESMTerrain::Storage::getLayerInfo` (finding the maps), `compatibility/terrain.vert` and `terrain.frag` (shading).
+    - **Settings:**
+      - `[Shaders] auto use terrain normal maps` and `auto use terrain specular maps`, both off by default.
+      - With the object keys' `normal map pattern` and `normal height map pattern`, and `terrain specular map pattern` (`_diffusespec`).
+      - Read when the terrain is created. With both switches off, nothing changes: the terrain shader is compiled exactly as before.
+    - **Finding the maps** (renderer-free, unit-tested; `components/terrain/layermaps.hpp`):
+      - `TerrainLayerMaps findTerrainLayerMaps(const std::vector<std::string>& layerPaths, const vsgAdapters::AutoMapSettings&, const std::function<bool(std::string_view)>& exists)`.
+      - `layerPaths` are each layer's resolved diffuse path. `TerrainLayerMaps` is `{ std::vector<TerrainLayer> layers; std::vector<std::string> normalMaps; }`, and `TerrainLayer` is `{ std::string diffuseMap; int normalMapIndex = -1; bool parallax = false; bool specular = false; }`.
+      - Per layer, as `getLayerInfo`: with normal maps on, the normal-height map, else the normal map. A found map is appended to `normalMaps` once, a path shared by several layers reusing its index, and `parallax` is set for a normal-height map.
+      - With specular maps on, an existing `pattern` path (`autoMapPath` with the specular pattern) replaces the layer's diffuse map and sets `specular`.
+      - Layers keep their order and count; an empty path finds nothing.
+    - **Drawing:** when either switch is on, the terrain builder loads each layer's (possibly replaced) diffuse map into the layer array as before, plus:
+      - the normal maps as a second array texture (`NORMAL_LAYER_BINDING`), or a 1×1 flat map if none were found;
+      - a per-layer table of flags (`LAYER_FLAGS_BINDING`, one `uint` each: the normal map index in the low 16 bits, 0xffff for none, bit 16 parallax, bit 17 specular).
+      - The terrain shaders are compiled with `TERRAIN_MAPS` defined.
+    - **Shading with `TERRAIN_MAPS`:**
+      - The tangent frame is OpenMW's terrain one: `generateTangentSpace((1, 0, 0, 1), N)` with the tangent re-derived as `-normalize(N × B)`, in view space through the normal matrix.
+      - Each of the four blended layers takes its own parallax offset (from its normal map's alpha), its diffuse at that offset, its tangent-space normal (or (0, 0, 1)) and its specular strength (its diffuse alpha for a specular layer, else 0).
+      - The diffuse colour, normals and specular strengths are blended with the existing blend coefficients, and the blended normal is lit once per pixel. Point lights are summed in the fragment shader, and specular uses shininess 128 and white light times the blended strength, as `terrain.frag`. The shadow bias keeps the geometry normal.
+      - **Known difference:** OpenMW drew one pass per layer and blended the lit results. Blending the normals and then lighting differs slightly where layers with different normal maps meet. Layers without maps are also lit per pixel here, where OpenMW lit them per vertex.
+    - **Checked:**
+      - Unit tests: `terrain/testlayermaps.cpp` (22), written from this spec by a separate agent.
+      - In game in Seyda Neen, with a temporary data folder of generated 4×4 flat normal maps, one `_n.dds` for each of `Morrowind.bsa`'s 3,816 textures (not committed):
+        - With terrain normal maps on, the frame matches the default frames within the run-to-run noise: MAE 0.14 and 0.21, against 0.11 between two default runs of one build. The small extra comes from per-pixel point lighting and the 8-bit flat normal.
+        - Using each layer's diffuse texture as its own normal map (an empty pattern) or as its specular map draws with no shader errors.
+      - Off by default: the default frame against the step 1 build's is MAE 0.013 and 0.109, within the same noise.
+      - Real normal-mapped terrain content is untested.
+      - Tangent orientation against OpenMW: the same generated maps tilted toward +x and toward +y, drawn in Seyda Neen in this build and in the OSG build of `cf3dbd3aa7`. The mean brightness of the terrain in view moved the same way in both builds: +9.9 (OSG) and +6.8 (here) for +x, −3.8 and −3.3 for +y. So the tangent and binormal point the same way as OpenMW's.
+    - **Review (fresh agent):** nothing found with the switches off.
+      - **Fixed before committing:**
+        - The normal map array keeps only maps of its most common size and format, and layers whose map differs are drawn without one, with a logged message. `convertToArrayTexture` would have filled them with grey bytes, which decode to a badly tilted normal rather than a flat one.
+        - Every terrain texture is sampled outside branches, with the flags selecting results, since blend map layers vary between neighbouring pixels and implicit derivatives inside such branches are undefined.
+      - **Noted:**
+        - The shadow pass also runs the per-pixel shader when the maps are on.
+        - `components/terrain` has no area guide yet.
+    - **Not in this step:** two-channel (Z-reconstructing) terrain normal maps; normal maps of a size or format other than the most common one (not used, see the review).
 - **Object paging** (only with `distant terrain = true`, off by default), **alpha to coverage**, **soft particles**, `[Shaders] weather particle occlusion`.
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
 - **ESM4 terrain** (work item 3).

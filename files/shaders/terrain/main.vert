@@ -1,3 +1,4 @@
+#pragma import_defines (TERRAIN_MAPS)
 #include "lib/pushconstants.glsl"
 #include "lib/view/scene.glsl"
 #include "lib/view/screencoord.glsl"
@@ -50,5 +51,15 @@ void main()
     vert_out.localTexCoord = vert / float(numVerts-1);
     #endif
     vert_out.viewNormal = viewNormal;
+#ifdef TERRAIN_MAPS
+    // OpenMW's terrain tangent frame (compatibility/terrain.vert): (1, 0, 0) through generateTangentSpace, then the
+    // tangent re-derived at right angles to the normal.
+    vec3 modelNormal = normalize(normal);
+    vec3 modelBinormal = cross(modelNormal, vec3(1.0, 0.0, 0.0));
+    vec3 modelTangent = -normalize(cross(modelNormal, modelBinormal));
+    mat4 normalMatrix = inverse(transpose(pc.modelview));
+    vert_out.viewTangent = (normalMatrix * vec4(modelTangent, 0)).xyz;
+    vert_out.viewBinormal = (normalMatrix * vec4(modelBinormal, 0)).xyz;
+#endif
     vert_out.pointLightDiffuse = pointLightDiffuse(clipPosToScreenCoord(gl_Position), viewNormal, viewPos.xyz);
 }

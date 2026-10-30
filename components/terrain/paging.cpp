@@ -10,10 +10,10 @@
 
 namespace Terrain
 {
-    Paging::Paging(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<const vsg::Options> imageOptions, vsg::ref_ptr<const vsg::Options> shaderOptions, vsg::ref_ptr<vsg::Sampler> samplerOptions)
+    Paging::Paging(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<const vsg::Options> imageOptions, vsg::ref_ptr<const vsg::Options> shaderOptions, vsg::ref_ptr<vsg::Sampler> samplerOptions, TerrainMapSettings mapSettings)
         : mCompile(compile)
     {
-        mBuilder = std::make_unique<Builder>(imageOptions, shaderOptions, samplerOptions);
+        mBuilder = std::make_unique<Builder>(imageOptions, shaderOptions, samplerOptions, std::move(mapSettings));
     }
 
     Paging::~Paging() {}
