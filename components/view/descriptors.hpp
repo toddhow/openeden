@@ -18,6 +18,8 @@ namespace View
     vsg::ref_ptr<vsg::Descriptor> dummyEnvMap();
     vsg::ref_ptr<vsg::Descriptor> dummyShadowMap();
     vsg::ref_ptr<vsg::Descriptor> dummyShadowSampler();
+    // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
+    vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();
 
     /*
      * Creates VIEW_SET descriptor set.

@@ -1,4 +1,4 @@
-#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP)
+#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP, SOFT_PARTICLE)
 
 #include "lib/pushconstants.glsl"
 #include "lib/material/descriptors_vert.glsl"
@@ -66,6 +66,9 @@ void main()
 
     vert_out.texCoord[0] = texCoord;
     vert_out.color = particle.color * deadFactor;
+ #ifdef SOFT_PARTICLE
+    vert_out.softParticleSize = particle.maxAge.y;
+ #endif
 #elif defined(VERTEX)
     vec4 vertex = vec4(inVertex, 1.0);
 #endif

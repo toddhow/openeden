@@ -56,6 +56,9 @@ namespace vsgAdapters
             auto& out = array.at(i);
             out.velocityAge = vsg::vec4(toVsg(in.mVelocity), age);
             out.maxAge.x = in.mLifespan;
+            // openeden-vsg: the system's particle size for soft particles (task 0012, V4k), OpenMW's default particle
+            // template size; the simulation never changes it.
+            out.maxAge.y = partctrl.mInitialSize;
             out.color = toVsg(partctrl.mInitialColor);
             out.color.a = 1;
             if (in.mCode < data.mVertices.size())

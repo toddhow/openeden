@@ -121,6 +121,26 @@
     - In Seyda Neen, with 4× MSAA, no alpha-tested draw qualifies: its vanilla foliage is alpha-blended, as OpenMW also excluded.
     - With a temporary change (not committed) that turned every blended NIF draw into an unblended alpha test at 0.5, the tree leaves' edges are visibly smoothed with `antialias alpha test` on, against hard steps with it off. `adjust coverage for alpha test` drew without errors.
     - Off by default: the Caldera Mages Guild frame against the previous build differs in 16 pixels (MAE 0.0000), the run-to-run noise.
+- **Soft particles** (step V4k). Follows OpenMW at 442eec6e2f: `NifOsg::LoaderImpl::handleParticleSystem` (every NIF particle system, size `partctrl->mInitialSize`, no view falloff), `lib/particle/soft.glsl` (`calcSoftParticleFade`) and `objects.frag` (applied to the final alpha).
+  - **Setting:** `[Shaders] soft particles`, off by default, read when the resource system is created. With it off, nothing changes.
+  - **Size** (unit-tested): `vsgAdapters::handleInitialParticles` stores the controller's initial size in each particle's `maxAge.y`, which the simulation never changes.
+  - **Drawing:**
+    - With the setting on, the NIF reader adds a new `SOFT_PARTICLE` pipeline mode to particle systems. The vertex shader passes the particle's `maxAge.y` to the fragment shader.
+    - The fragment shader multiplies the alpha by `0.845 * pow(clamp((particleZ - sceneZ) / (size * 0.33), 0, 1), 1.3)`. `particleZ` is the fragment's view-space z; `sceneZ` is the opaque scene's view-space z at the pixel, rebuilt from the depth copy that the water already uses (`reflectDepthMap`, taken after the opaque scene and before the depth-sorted bins) through `scene.invProjection`.
+    - The depth copy is kept in the scene when soft particles are on, even with water rendering off.
+  - **Not ported:** soft effects named by NIF extra data (`soft_effect` YAML) and Bethesda effect materials (`BGEM`), which Morrowind's NIFs don't have. The rain is not a NIF particle system and stays hard-edged, as in OpenMW.
+  - **Checked:**
+    - Unit tests: `vsgadapters/testsoftparticlesize.cpp` (6), written from this spec by a separate agent.
+    - Off by default: the Caldera Mages Guild frame against the previous build differs in 9 pixels (MAE 0.0000).
+    - With the setting on, the Caldera, Arrille's Tradehouse, Balmora Council Club, Vivec and Seyda Neen (forced ash storm) frames draw with no shader errors.
+    - With a torch placed 400 units ahead in Seyda Neen, the flame and smoke draw with the setting on. A temporary debug shader (not committed) painted each particle pixel with the rebuilt scene depth: it changed across the smoke where the hillside behind it gets farther, so the depth lookup lines up with the screen. The fade's strength next to nearby geometry was not judged; it needs a look in game by a wall.
+  - **Review (fresh agent):**
+    - **Fixed before committing:**
+      - The depth copy is a fixed 512×512 image, so it is read at `gl_FragCoord / scene.resolution`. Dividing by its own size had wrapped the lookup onto unrelated pixels.
+      - The preview, map and shadow views bind a placeholder far-plane depth (`View::dummyReflectDepth`) at the copy's binding, which they had left unwritten. The fade runs only in the main view, marked by its sample count in `groundcoverParams.w`.
+    - **Known gaps:**
+      - The copy is a nearest-filtered 512×512 version of the depth, so the fade is coarser than OpenMW's full-resolution one.
+      - With MSAA on, blitting the multisampled depth into the copy is invalid Vulkan. This was already true for the water, and now also applies with water off and soft particles on; it needs a depth resolve.
 - **Review of the batch above (fresh agent, 2026-10-29):**
   - Fixed: every switch with a built-in name is handled, not just the first. Night/day switch registrations are moved or removed one per object when objects move or are removed. LOD distance is in the node's own units (divided by the scale above it, as `osg::CullVisitor::getDistanceToViewPoint`). Empty NiLODNode children are skipped, as OpenMW did. DXT internal textures keep every NIF mipmap level VSG can lay out.
   - Left as they are:

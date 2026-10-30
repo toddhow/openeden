@@ -49,6 +49,8 @@ namespace vsgAdapters
         // a texture path exists.
         AutoMapSettings autoMaps;
         std::function<bool(std::string_view)> textureExists;
+        // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
+        bool softParticles = false;
 
         const int mComputeBin;
         const int mDepthSortedBin;

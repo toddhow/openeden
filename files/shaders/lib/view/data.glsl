@@ -21,7 +21,8 @@ struct Scene
     float rainIntensity;
     // OpenEden (task 0012): groundcover's player position (xyz, world) and wind speed (w), and its fade-out distance
     // (x), stomp mode (y) and stomp intensity (z), as OpenMW's groundcover shader took them. groundcoverParams.w is the
-    // main view's multisample count, for alpha to coverage (task 0012, V4j; 0 in other views). Not a field of its own:
+    // main view's multisample count, for alpha to coverage and as the main view marker for soft particles (task 0012,
+    // V4j and V4k; 0 in other views). Not a field of its own:
     // growing this struct past 640 bytes brightened interiors (apps/openmw/mwrender/CLAUDE.md).
     vec4 groundcoverPlayer;
     vec4 groundcoverParams;

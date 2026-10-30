@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -35,6 +35,13 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 #ifdef PARALLAX
 #include "lib/material/parallax.glsl"
+#endif
+#ifdef SOFT_PARTICLE
+// OpenEden: soft particles fade against the opaque scene's depth (task 0012, V4k).
+ #ifndef PER_PIXEL_LIGHTING
+#include "lib/view/screencoord.glsl"
+ #endif
+layout(set=VIEW_SET, binding=VIEW_REFLECT_DEPTH_MAP_BINDING) uniform sampler2D reflectDepthMap;
 #endif
 
 layout(location=0) in Inputs
@@ -201,6 +208,21 @@ void main()
         float dither = dither8(x, y, b);
         if (dither == 0)
             discard;
+    }
+#endif
+#ifdef SOFT_PARTICLE
+    // OpenMW's calcSoftParticleFade without the view falloff (lib/particle/soft.glsl at 442eec6e2f): the alpha fades
+    // over a third of the particle size in front of the opaque scene. The scene's depth is the copy the water uses,
+    // taken before the depth-sorted bins and scaled to its own size, so it is read in screen coordinates. Only the main
+    // view has the copy (marked by its sample count in groundcoverParams.w); others bind a placeholder and skip it.
+    if (scene.groundcoverParams.w > 0.0)
+    {
+        vec2 softCoord = gl_FragCoord.xy / scene.resolution;
+        float softSceneDepth = texture(reflectDepthMap, softCoord).r;
+        vec3 softSceneViewPos = screenCoordToViewPos(softCoord, softSceneDepth, scene.invProjection).xyz;
+        float softFalloff = max(frag_in.softParticleSize * 0.33, 0.0001);
+        float softDelta = frag_in.viewPos.z - softSceneViewPos.z;
+        outColor.a *= 0.845 * pow(clamp(softDelta / softFalloff, 0.0, 1.0), 1.3);
     }
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)

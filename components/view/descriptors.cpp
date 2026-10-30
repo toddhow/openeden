@@ -61,6 +61,14 @@ namespace View
         return vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, vsg::ref_ptr<vsg::ImageView>()), Pipeline::Descriptors::VIEW_SHADOW_SAMPLER_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLER);
     }
 
+    vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth()
+    {
+        auto sampler = vsgUtil::shareDefault<vsg::Sampler>();
+        auto image = vsg::floatArray2D::create(1, 1, Render::farDepth, vsg::Data::Properties(VK_FORMAT_D32_SFLOAT));
+        return vsg::DescriptorImage::create(sampler, image, Pipeline::Descriptors::VIEW_REFLECT_DEPTH_MAP_BINDING, 0,
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    }
+
     vsg::ref_ptr<vsg::DescriptorSet> createViewDescriptorSet(const vsg::Descriptors& descriptors)
     {
         return vsg::DescriptorSet::create(Pipeline::getViewDescriptorSetLayout(), descriptors);

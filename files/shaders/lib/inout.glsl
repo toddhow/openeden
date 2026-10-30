@@ -11,6 +11,10 @@ vec3 viewNormal;
  vec2 envUV;
  //endif
 #endif
+#ifdef SOFT_PARTICLE
+// OpenEden: the particle system's size, for soft particles (task 0012, V4k).
+float softParticleSize;
+#endif
 #ifdef NORMAL_MAP
 // OpenEden: the view-space tangent and binormal, which with viewNormal make OpenMW's normalToViewMatrix (task 0012).
 vec3 viewTangent;

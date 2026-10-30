@@ -87,6 +87,7 @@ namespace MWRender
         descriptors.emplace_back(readEnv(resourceSystem->textureOptions));
         descriptors.emplace_back(View::dummyShadowMap());
         descriptors.emplace_back(View::dummyShadowSampler());
+        descriptors.emplace_back(View::dummyReflectDepth());
         descriptors.emplace_back(mSceneData->descriptor());
 
         mSceneGraph = View::createDefaultState(View::createViewDescriptorSet(descriptors));

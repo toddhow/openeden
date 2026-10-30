@@ -94,6 +94,7 @@ namespace MWRender
             descriptors.emplace_back(View::dummyEnvMap());
             descriptors.emplace_back(View::dummyShadowMap());
             descriptors.emplace_back(View::dummyShadowSampler());
+            descriptors.emplace_back(View::dummyReflectDepth());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -393,10 +394,15 @@ namespace MWRender
         if (mGroundcover)
             mSceneRoot->addChild(mGroundcover->node());
         mSceneRoot->addChild(mScene->getActors());
-        if (mRenderModes[Render_Water])
+        // The opaque scene's colour and depth are copied here, before the water and the depth-sorted bins: the water
+        // reflects and refracts with them, and soft particles fade against the depth (task 0012, V4k).
+        if (mRenderModes[Render_Water] || Settings::shaders().mSoftParticles)
         {
             mSuspend->children = { mReflect->node() };
             mSceneRoot->addChild(mSuspend);
+        }
+        if (mRenderModes[Render_Water])
+        {
             mSceneRoot->addChild(mWater->node());
             mSceneRoot->addChild(mWaterRipples->node());
         }

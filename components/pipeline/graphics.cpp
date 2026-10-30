@@ -66,6 +66,8 @@ namespace Pipeline
                 return "ALPHA_TO_COVERAGE";
             case Mode::ADJUST_COVERAGE:
                 return "ADJUST_COVERAGE";
+            case Mode::SOFT_PARTICLE:
+                return "SOFT_PARTICLE";
         }
         return "";
     }

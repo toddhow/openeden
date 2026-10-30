@@ -136,6 +136,7 @@ namespace
         nifReader->autoMaps.normalMapPattern = shaders.mNormalMapPattern;
         nifReader->autoMaps.normalHeightMapPattern = shaders.mNormalHeightMapPattern;
         nifReader->autoMaps.specularMapPattern = shaders.mSpecularMapPattern;
+        nifReader->softParticles = shaders.mSoftParticles;
         nifReader->textureExists
             = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
         vfsReader->add(nifReader);

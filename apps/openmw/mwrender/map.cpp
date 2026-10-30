@@ -434,6 +434,7 @@ namespace MWRender
         descriptors.emplace_back(View::dummyEnvMap());
         descriptors.emplace_back(View::dummyShadowMap());
         descriptors.emplace_back(View::dummyShadowSampler());
+        descriptors.emplace_back(View::dummyReflectDepth());
         descriptors.emplace_back(sceneData->descriptor());
         auto descriptorSet = View::createViewDescriptorSet(descriptors);
 

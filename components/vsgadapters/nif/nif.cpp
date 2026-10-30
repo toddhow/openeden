@@ -194,6 +194,8 @@ namespace vsgAdapters
         // openeden-vsg: the reader's normal and specular map settings (task 0012, V4h); set before load().
         const AutoMapSettings* mAutoMaps = nullptr;
         const std::function<bool(std::string_view)>* mTextureExists = nullptr;
+        // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
+        bool mSoftParticles = false;
 
         nifImpl(std::istream& stream, const vsg::Options& options, const vsg::ref_ptr<const vsg::Options>& imageOptions,
             bool showMarkers, int computeBin, int depthSortedBin, const Pipeline::Builder& builder)
@@ -582,6 +584,8 @@ namespace vsgAdapters
             addModeDescriptor(particlesDescriptor, Pipeline::Mode::PARTICLE);
             // openeden-vsg: particles have no tangents or per-pixel lighting (task 0012, V4h).
             removeAutoMapModes(getNodeOptions().shader);
+            if (mSoftParticles)
+                getNodeOptions().shader.addMode(Pipeline::Mode::SOFT_PARTICLE);
 
             auto maxLifetime = ParticleSystem::calculateMaxLifetime(partctrl);
             Pipeline::Data::SimulateArgs args{};
@@ -1543,6 +1547,7 @@ namespace vsgAdapters
             nifImpl impl(stream, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder);
             impl.mAutoMaps = &autoMaps;
             impl.mTextureExists = &textureExists;
+            impl.mSoftParticles = softParticles;
             return impl.load();
         }
         catch (std::exception& e)

@@ -83,6 +83,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgadapters/testinternaltexture.cpp
     vsgadapters/testtangents.cpp
     vsgadapters/testparticleemission.cpp
+    vsgadapters/testsoftparticlesize.cpp
 
     sceneutil/testdetourdebugdraw.cpp
 
