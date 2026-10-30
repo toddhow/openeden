@@ -1,6 +1,10 @@
 #include "engine.hpp"
 
+#include <chrono>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <memory>
 
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/SecondaryCommandGraph.h>
@@ -84,7 +88,30 @@ namespace Render
     {
         auto limitFramerate = LimitFramerate::create(framerateLimit);
         auto last = std::chrono::steady_clock::now();
-        while (mViewer->advanceToNextFrame())
+
+        // openeden-vsg: per-frame timings for the performance comparison with the OpenSceneGraph build (task 0010),
+        // written only when OPENEDEN_FRAME_STATS_FILE names a file: one line per frame with the frame's wall time and
+        // the time spent waiting for the GPU or the swapchain (the frame fence in advanceToNextFrame, present,
+        // deviceWaitIdle), in milliseconds. The CPU time is the difference.
+        std::unique_ptr<std::ofstream> frameStats;
+        if (const char* statsPath = std::getenv("OPENEDEN_FRAME_STATS_FILE"))
+        {
+            frameStats = std::make_unique<std::ofstream>(statsPath);
+            *frameStats << "frame wall_ms wait_ms\n";
+        }
+        using Clock = std::chrono::steady_clock;
+        const auto toMs = [](Clock::duration d) { return std::chrono::duration<double, std::milli>(d).count(); };
+        auto frameStart = Clock::now();
+        Clock::duration frameWait{};
+        unsigned long long frameNumber = 0;
+        auto timeWait = [&frameWait](auto&& wait) {
+            const auto start = Clock::now();
+            auto result = wait();
+            frameWait += Clock::now() - start;
+            return result;
+        };
+
+        while (timeWait([this] { return mViewer->advanceToNextFrame(); }))
         {
             auto now = std::chrono::steady_clock::now();
             auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - last).count();
@@ -126,15 +153,24 @@ namespace Render
                 mHeadless->copyOutput();
             }
             else
-                mViewer->present();
+                timeWait([this] { mViewer->present(); return true; });
 
             if (!useFrameQueue)
-                mViewer->deviceWaitIdle();
+                timeWait([this] { mViewer->deviceWaitIdle(); return true; });
 
             if (mDeletionQueue)
                 mDeletionQueue->advanceFrame();
 
             limitFramerate.limit();
+
+            if (frameStats)
+            {
+                const auto frameEnd = Clock::now();
+                *frameStats << frameNumber << ' ' << toMs(frameEnd - frameStart) << ' ' << toMs(frameWait) << '\n';
+                frameStart = frameEnd;
+                frameWait = {};
+                ++frameNumber;
+            }
         }
 
         // Wait for GPU before attempting to delete any vulkan objects.
@@ -181,7 +217,7 @@ namespace Render
         else
             graph = vsg::CommandGraph::create(mHeadless->getOrCreateDevice(), mHeadless->getQueueFamily());
         //int maxSlot = 1 + maxDescriptorSet;
-        int maxSlot = 4; // At the moment, reducing maxSlot won't help because vsg::updateViewer will update the maxSlot for all command graphs.
+        // int maxSlot = 4; // At the moment, reducing maxSlot won't help because vsg::updateViewer will update the maxSlot for all command graphs.
         graph->recordTraversal = new vsg::RecordTraversal;
         graph->maxSlots = vsg::Slots{ 4, 4 };
         return graph;

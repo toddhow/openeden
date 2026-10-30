@@ -105,10 +105,10 @@ namespace MWLua
         sol::state_view lua = context.sol();
         sol::table api(lua, sol::create);
 
-        sol::usertype<Shader> shader = lua.new_usertype<Shader>("Shader");
-        shader[sol::meta_function::to_string] = [](const Shader& shader) { return shader.toString(); };
+        sol::usertype<Shader> shaderType = lua.new_usertype<Shader>("Shader");
+        shaderType[sol::meta_function::to_string] = [](const Shader& shader) { return shader.toString(); };
 
-        shader["enable"] = [context](Shader& shader, sol::optional<int> optPos) {
+        shaderType["enable"] = [context](Shader& shader, sol::optional<int> optPos) {
             std::optional<int> pos = std::nullopt;
             if (optPos)
                 pos = optPos.value();
@@ -125,7 +125,7 @@ namespace MWLua
             });
         };
 
-        shader["disable"] = [context](Shader& shader) {
+        shaderType["disable"] = [context](Shader& shader) {
             shader.mQueuedAction = Shader::Action_Disable;
 
             context.mLuaManager->addAction([&] {
@@ -137,7 +137,7 @@ namespace MWLua
             });
         };
 
-        shader["isEnabled"] = [](const Shader& shader) {
+        shaderType["isEnabled"] = [](const Shader& shader) {
             if (shader.mQueuedAction == Shader::Action_Enable)
                 return true;
             else if (shader.mQueuedAction == Shader::Action_Disable)
@@ -145,24 +145,27 @@ namespace MWLua
             return false;//MWBase::Environment::get().getWorld()->getPostProcessor()->isTechniqueEnabled(shader.mShader);
         };
 
-        shader["setBool"] = getSetter<bool>(context);
-        shader["setFloat"] = getSetter<float>(context);
-        shader["setInt"] = getSetter<int>(context);
-        shader["setVector2"] = getSetter<osg::Vec2f>(context);
-        shader["setVector3"] = getSetter<osg::Vec3f>(context);
-        shader["setVector4"] = getSetter<osg::Vec4f>(context);
+        shaderType["setBool"] = getSetter<bool>(context);
+        shaderType["setFloat"] = getSetter<float>(context);
+        shaderType["setInt"] = getSetter<int>(context);
+        shaderType["setVector2"] = getSetter<osg::Vec2f>(context);
+        shaderType["setVector3"] = getSetter<osg::Vec3f>(context);
+        shaderType["setVector4"] = getSetter<osg::Vec4f>(context);
 
-        shader["setFloatArray"] = getArraySetter<float>(context);
-        shader["setIntArray"] = getArraySetter<int>(context);
-        shader["setVector2Array"] = getArraySetter<osg::Vec2f>(context);
-        shader["setVector3Array"] = getArraySetter<osg::Vec3f>(context);
-        shader["setVector4Array"] = getArraySetter<osg::Vec4f>(context);
+        shaderType["setFloatArray"] = getArraySetter<float>(context);
+        shaderType["setIntArray"] = getArraySetter<int>(context);
+        shaderType["setVector2Array"] = getArraySetter<osg::Vec2f>(context);
+        shaderType["setVector3Array"] = getArraySetter<osg::Vec3f>(context);
+        shaderType["setVector4Array"] = getArraySetter<osg::Vec4f>(context);
 
         api["load"] = [](const std::string& name) {
             //Shader shader{ MWBase::Environment::get().getWorld()->getPostProcessor()->loadTechnique(name, false) };
 
             //if (!shader.mShader || !shader.mShader->isValid())
-                throw std::runtime_error("Failed loading shader");
+            // openeden-vsg: post-processing returns with the Vulkan renderer's post-processing framework (task 0012);
+            // until then every shader fails to load with this message rather than appearing to work.
+            throw std::runtime_error("Failed loading shader '" + name
+                + "': post-processing is not available on this build yet (Vulkan renderer, OpenEden task 0012)");
 /*
             if (!shader.mShader->getDynamic())
                 throw std::runtime_error(Misc::StringUtils::format("Shader '%s' is not marked as dynamic", name));

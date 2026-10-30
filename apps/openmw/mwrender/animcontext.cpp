@@ -24,7 +24,7 @@ namespace
         // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
-        options->findFileCallback = [resourceSystem](const vsg::Path& file, const vsg::Options* options) -> vsg::Path
+        options->findFileCallback = [resourceSystem](const vsg::Path& file, const vsg::Options* /*options*/) -> vsg::Path
         {
             // openeden-vsg: accept paths with or without "meshes/", as OpenMW 0.51 callers pass corrected paths.
             VFS::Path::Normalized path(file.string());

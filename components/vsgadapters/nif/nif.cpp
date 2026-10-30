@@ -942,8 +942,8 @@ namespace vsgAdapters
                     descriptors.emplace_back(texture);
             }
 
-            auto isDynamic = [](vsg::Descriptors& descriptors) -> bool {
-                for (auto& d : descriptors)
+            auto isDynamic = [](vsg::Descriptors& list) -> bool {
+                for (auto& d : list)
                 {
                     auto db = d->cast<vsg::DescriptorBuffer>();
                     if (db && !db->bufferInfoList.empty() && db->bufferInfoList[0]->data && db->bufferInfoList[0]->data->dynamic())

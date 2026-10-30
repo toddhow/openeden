@@ -15,8 +15,8 @@ namespace vsgAdapters
     class vfs : public vsg::CompositeReaderWriter
     {
     public:
-        vfs(const VFS::Manager& vfs, const vsg::ReaderWriters& children = {})
-            : mVfs(vfs)
+        vfs(const VFS::Manager& manager, const vsg::ReaderWriters& children = {})
+            : mVfs(manager)
         {
             readerWriters = children;
         }

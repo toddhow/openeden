@@ -118,8 +118,8 @@ namespace MWRender
     struct WorldMap::Save : public Render::Screenshot
     {
         std::vector<char> mEncoded;
-        Save(vsg::ref_ptr<vsg::Image> image, vsg::Device* device)
-            : Screenshot(device, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        Save(vsg::ref_ptr<vsg::Image> image, vsg::Device* targetDevice)
+            : Screenshot(targetDevice, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
         {
         }
         void operate() override

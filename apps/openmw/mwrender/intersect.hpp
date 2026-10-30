@@ -35,7 +35,11 @@ namespace MWRender
             continue;
             */
 
-        RenderManager::RayResult result{ .mHit = true, .mHitNormalWorld = toOsg(nWorld), .mHitPointWorld = toOsg(vsg::vec3(intersection->worldIntersection)), .mRatio = static_cast<float>(intersection->ratio) };
+        RenderManager::RayResult result;
+        result.mHit = true;
+        result.mHitNormalWorld = toOsg(nWorld);
+        result.mHitPointWorld = toOsg(vsg::vec3(intersection->worldIntersection));
+        result.mRatio = static_cast<float>(intersection->ratio);
         for (auto node : intersection->nodePath)
         {
             if (auto trans = dynamic_cast<const Anim::Transform*>(node))

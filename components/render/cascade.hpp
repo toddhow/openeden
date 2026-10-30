@@ -61,11 +61,11 @@ namespace Render // namespace vulkanexamples
                 corner = vec3(invCorner.x, invCorner.y, invCorner.z) / invCorner.w;
             }
 
-            for (uint32_t i = 0; i < 4; ++i)
+            for (uint32_t c = 0; c < 4; ++c)
             {
-                auto dist = frustumCorners[i + 4] - frustumCorners[i];
-                frustumCorners[i + 4] = frustumCorners[i] + (dist * splitDist);
-                frustumCorners[i] = frustumCorners[i] + (dist * lastSplitDist);
+                auto dist = frustumCorners[c + 4] - frustumCorners[c];
+                frustumCorners[c + 4] = frustumCorners[c] + (dist * splitDist);
+                frustumCorners[c] = frustumCorners[c] + (dist * lastSplitDist);
             }
 
             // Get frustum center
@@ -88,8 +88,14 @@ namespace Render // namespace vulkanexamples
             // Store split distance and matrix in cascade
             cascades[i].lookAt
                 = vsg::LookAt(frustumCenter + vec3(lightDir) * minExtents.z, frustumCenter, vec3(0.0, 1.0, 0.0));
-            cascades[i].ortho = vsg::Orthographic(
-                minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0, maxExtents.z - minExtents.z);
+            // Field by field: vsg::Orthographic's implicit copy assignment is deprecated.
+            auto& ortho = cascades[i].ortho;
+            ortho.left = minExtents.x;
+            ortho.right = maxExtents.x;
+            ortho.bottom = minExtents.y;
+            ortho.top = maxExtents.y;
+            ortho.nearDistance = 0.0;
+            ortho.farDistance = maxExtents.z - minExtents.z;
             cascades[i].splitDepth = (near + splitDist * clipRange) * -1.0;
             lastSplitDist = cascadeSplits[i];
         }

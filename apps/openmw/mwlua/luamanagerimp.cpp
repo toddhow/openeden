@@ -266,10 +266,10 @@ namespace MWLua
             mEngineEvents.callEngineHandlers();
             bool isPaused = timeManager.isPaused();
 
-            float frameDuration = MWBase::Environment::get().getFrameDuration();
+            float scriptFrameDuration = MWBase::Environment::get().getFrameDuration();
             for (LocalScripts* scripts : mActiveLocalScripts)
-                scripts->update(isPaused ? 0 : frameDuration);
-            mGlobalScripts.update(isPaused ? 0 : frameDuration);
+                scripts->update(isPaused ? 0 : scriptFrameDuration);
+            mGlobalScripts.update(isPaused ? 0 : scriptFrameDuration);
 
             mScriptTracker.unloadInactiveScripts(lua);
         });

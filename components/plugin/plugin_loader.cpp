@@ -36,12 +36,19 @@ namespace openeden::plugin
             if (!std::filesystem::exists(searchDir, ec) || !std::filesystem::is_directory(searchDir, ec))
                 continue;
 
+            // directory_iterator's order is unspecified (alphabetical on Windows, not on Linux); plugin discovery
+            // order must not depend on the file system, so each search directory is read in name order.
+            std::vector<std::filesystem::path> directories;
             for (const auto& entry : std::filesystem::directory_iterator(searchDir, ec))
             {
-                if (!entry.is_directory(ec))
-                    continue;
+                if (entry.is_directory(ec))
+                    directories.push_back(entry.path());
+            }
+            std::sort(directories.begin(), directories.end());
 
-                const std::filesystem::path manifestPath = entry.path() / "plugin.json";
+            for (const auto& directory : directories)
+            {
+                const std::filesystem::path manifestPath = directory / "plugin.json";
                 if (!std::filesystem::exists(manifestPath, ec) || !std::filesystem::is_regular_file(manifestPath, ec))
                     continue;
 
@@ -51,7 +58,7 @@ namespace openeden::plugin
                 {
                     DiscoveredPlugin item;
                     item.manifest = std::move(*manifest);
-                    item.directory = entry.path();
+                    item.directory = directory;
                     item.manifestPath = manifestPath;
                     discovered.push_back(std::move(item));
                 }

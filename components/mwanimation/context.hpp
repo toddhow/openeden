@@ -50,7 +50,7 @@ namespace MWAnim
         vsg::ref_ptr<vsg::Node> readEffect(const std::string& fname) const;
         vsg::ref_ptr<vsg::Node> readActor(const std::string& fname) const;
         vsg::ref_ptr<Anim::ControllerMap> readAnimation(const std::string& file) const;
-        std::vector<vsg::ref_ptr<Anim::ControllerMap>> readAnimations(const std::vector<std::string>& files) const;
+        std::vector<vsg::ref_ptr<Anim::ControllerMap>> readAnimations(const std::vector<std::string>& fileNames) const;
         void prune() const;
     };
 }

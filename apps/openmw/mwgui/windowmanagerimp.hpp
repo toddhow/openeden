@@ -536,9 +536,9 @@ namespace MWGui
 
         std::unique_ptr<SDLUtil::CursorManager> mCursorManager;
 
-        bool mCursorVisible;
-        bool mCursorActive;
-        bool mWindowVisible;
+        bool mCursorVisible = true;
+        bool mCursorActive = true;
+        bool mWindowVisible = true;
 
         std::vector<std::unique_ptr<Layout>> mGarbageDialogs;
         void cleanupGarbage();

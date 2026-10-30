@@ -581,14 +581,14 @@ namespace MWGui
             if (widgetCropped(entry.mMapWidget, mLocalMap))
                 continue;
 
-            auto setBlack = [this] (MapEntry& entry) {
-                if (!entry.mBlack)
+            auto setBlack = [this] (MapEntry& target) {
+                if (!target.mBlack)
                 {
-                    entry.mFogWidget->setImageTexture("black");
-                    entry.mFogTexture = {};
-                    entry.mMapWidget->setImageTexture("");
-                    entry.mMapTexture = {};
-                    entry.mBlack = true;
+                    target.mFogWidget->setImageTexture("black");
+                    target.mFogTexture = {};
+                    target.mMapWidget->setImageTexture("");
+                    target.mMapTexture = {};
+                    target.mBlack = true;
                     mNeedUpdateChilds = true;
                 }
             };

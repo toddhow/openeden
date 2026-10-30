@@ -46,7 +46,7 @@ namespace vsgUtil
                 std::cerr << "DebugMessenger::DebugMessenger(..) failed, VK_EXT_debug_utils is not enabled." << std::endl;
         }
 
-        ~DebugMessenger()
+        virtual ~DebugMessenger()
         {
             if (_messenger != VK_NULL_HANDLE)
             {

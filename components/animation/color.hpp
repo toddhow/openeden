@@ -32,7 +32,7 @@ namespace Anim
                     = *reinterpret_cast<vsg::vec4*>(reinterpret_cast<unsigned char*>(data.dataPointer()) + alphaOffset);
                 a.w = alpha->value(time);
             }
-        };
+        }
     };
 }
 

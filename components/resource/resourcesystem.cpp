@@ -137,7 +137,7 @@ namespace
         auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(
             *vfs, { vsg::ref_ptr{ new vsgAdapters::kf }, vsg::ref_ptr{ new vsgAdapters::daeAnimation(*vfs) } }) };
         auto options = vsg::Options::create();
-        options->findFileCallback = [vfs](const vsg::Path& in_file, const vsg::Options* options) -> vsg::Path {
+        options->findFileCallback = [vfs](const vsg::Path& in_file, const vsg::Options* /*options*/) -> vsg::Path {
             VFS::Path::Normalized fileNorm(inMeshesDirectory(in_file));
             auto corrected = Misc::ResourceHelpers::correctActorModelPath(fileNorm, vfs);
             std::string file = corrected.value();

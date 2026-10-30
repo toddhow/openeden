@@ -1259,8 +1259,8 @@ namespace MWMechanics
             // ptr.getRefData().getBaseNode()->setNodeMask(0);
             return;
         }
-        else
-            ; // ptr.getRefData().getBaseNode()->setNodeMask(MWRender::Mask_Actor);
+        // else
+        //     ptr.getRefData().getBaseNode()->setNodeMask(MWRender::Mask_Actor);
 
         // Fade away actors on large distance (>90% of actor's processing distance)
         float visibilityRatio = 1.0;
@@ -1702,7 +1702,7 @@ namespace MWMechanics
                 const bool inRange = isPlayer || dist <= actorsProcessingRange || alwaysActive;
                 const int activeFlag = isPlayer ? 2 : 1; // Can be changed back to '2' to keep updating bounding boxes
                                                          // off screen (more accurate, but slower)
-                const int active = inRange ? activeFlag : 0;
+                [[maybe_unused]] const int active = inRange ? activeFlag : 0; // vsgopenmw no longer sets node masks with it
 
                 CharacterController& ctrl = actor.getCharacterController();
                 if (!inRange)

@@ -93,6 +93,8 @@ namespace Anim
             return makeExtrapolator<T, ExtrapolationMode::Reverse>(channel, settings);
         else if (mode == ExtrapolationMode::Cycle)
             return makeExtrapolator<T, ExtrapolationMode::Cycle>(channel, settings);
+        // Not reached with a valid mode; constant is the NIF default (vsgAdapters::convertExtrapolationMode).
+        return makeExtrapolator<T, ExtrapolationMode::Constant>(channel, settings);
     }
 }
 

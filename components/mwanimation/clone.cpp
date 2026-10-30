@@ -82,7 +82,8 @@ namespace MWAnim
 
     CloneResult cloneIfRequired(vsg::ref_ptr<vsg::Node>& node)
     {
-        CloneResult ret{ .contents = Anim::Meta::getContents(*node) };
+        CloneResult ret;
+        ret.contents = Anim::Meta::getContents(*node);
         if (ret.contents.contains(Anim::Contents::Controllers))
             static_cast<Anim::Animation&>(ret) = Anim::cloneIfRequired(node);
         return ret;
@@ -95,7 +96,8 @@ namespace MWAnim
                 return vsg::Node::create();
             return {};
         };
-        CloneResult ret{ .contents = Anim::Meta::getContents(*node) };
+        CloneResult ret;
+        ret.contents = Anim::Meta::getContents(*node);
         static_cast<Anim::Animation&>(ret) = Anim::cloneIfRequired(node, callback);
         return ret;
     }
@@ -103,7 +105,8 @@ namespace MWAnim
     CloneResult cloneAndReplace(vsg::ref_ptr<vsg::Node>& node, vsg::ref_ptr<vsg::Descriptor> texture, bool overrideAll,
         const std::vector<vsg::ref_ptr<vsg::Node>>& replaceDummyNodesWith)
     {
-        CloneResult ret{ .contents = Anim::Meta::getContents(*node) };
+        CloneResult ret;
+        ret.contents = Anim::Meta::getContents(*node);
         bool overrideActive = texture.valid();
         auto callback = [&](const vsg::Node& n) -> vsg::ref_ptr<vsg::Node> {
             if (overrideActive)

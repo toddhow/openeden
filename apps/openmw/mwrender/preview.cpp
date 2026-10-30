@@ -261,7 +261,7 @@ namespace MWRender
         if (torch != inv.end() && torch->getType() == ESM::Light::sRecordId && showCarriedLeft)
         {
             if (!animation->getInfo("torch"))
-                animation->play("torch", 2, MWAnim::BlendMask_LeftArm, false, 1.0f, "start", "stop", 0.0f, ~0ul, true);
+                animation->play("torch", 2, MWAnim::BlendMask_LeftArm, false, 1.0f, "start", "stop", 0.0f, ~0u, true);
         }
         else if (animation->getInfo("torch"))
             animation->disable("torch");

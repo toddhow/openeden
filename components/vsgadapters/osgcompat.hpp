@@ -41,7 +41,7 @@ template <class Array, class Source>
 vsg::ref_ptr<Array> copyArray(const Source& vec)
 {
     vsg::ref_ptr<Array> array = Array::create(vec.size());
-    std::memcpy(array->data(), &vec.front(), vec.size() * sizeof(typename Source::value_type));
+    std::memcpy(static_cast<void*>(array->data()), &vec.front(), vec.size() * sizeof(typename Source::value_type));
     return array;
 }
 
@@ -60,7 +60,7 @@ inline osg::Vec4f toOsg(const vsg::vec4& vec)
 inline osg::Matrixf toOsg(vsg::mat4 m)
 {
     osg::Matrixf osg;
-    std::memcpy(&osg, &m, sizeof(m));
+    std::memcpy(static_cast<void*>(&osg), &m, sizeof(m));
     return osg;
 }
 //}

@@ -44,10 +44,10 @@ namespace MWAnim
         return vsg::read_cast<Anim::ControllerMap>(file, animOptions);
     }
 
-    std::vector<vsg::ref_ptr<Anim::ControllerMap>> Context::readAnimations(const std::vector<std::string>& files) const
+    std::vector<vsg::ref_ptr<Anim::ControllerMap>> Context::readAnimations(const std::vector<std::string>& fileNames) const
     {
         std::vector<vsg::ref_ptr<Anim::ControllerMap>> ret;
-        for (auto& file : files)
+        for (auto& file : fileNames)
         {
             if (auto anim = readAnimation(file))
                 ret.emplace_back(anim);

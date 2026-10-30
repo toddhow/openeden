@@ -1,4 +1,5 @@
 #include "imageio.hpp"
+#include "readimage.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -38,7 +39,10 @@ namespace vsgUtil
         if (obj)
         {
             if (auto data = obj->cast<vsg::Data>())
+            {
+                removeSrgb(*data);
                 return vsg::ref_ptr<vsg::Data>(data);
+            }
         }
         std::cerr << "!readImageFromMemory(size=" << encoded.size() << ")" << std::endl;
         return {};

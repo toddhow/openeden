@@ -123,11 +123,11 @@ namespace vsgAdapters::mygui
 
         mCompileTraversal = vsg::CompileTraversal::create(vsg::ref_ptr{mCompileContext->device});
         // To help reduce the number of vsg::DescriptorPool that need to be allocated we'll provide a minimum requirement via ResourceHints.
-        for (auto& context : mCompileTraversal->contexts)
-        {
-            //context->minimum_maxSets = 64u;
-            //context->minimum_descriptorPoolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 64u });
-        }
+        // for (auto& context : mCompileTraversal->contexts)
+        // {
+        //     context->minimum_maxSets = 64u;
+        //     context->minimum_descriptorPoolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 64u });
+        // }
 
         if (scalingFactor != 0.f)
             mInvScalingFactor = 1.f / scalingFactor;

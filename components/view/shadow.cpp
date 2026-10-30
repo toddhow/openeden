@@ -178,7 +178,13 @@ namespace View
         {
             auto& c = mCascades[i];
             auto& split = splits[i];
-            *c->ortho = split.ortho;
+            // Field by field: vsg::Orthographic's implicit copy assignment is deprecated.
+            c->ortho->left = split.ortho.left;
+            c->ortho->right = split.ortho.right;
+            c->ortho->bottom = split.ortho.bottom;
+            c->ortho->top = split.ortho.top;
+            c->ortho->nearDistance = split.ortho.nearDistance;
+            c->ortho->farDistance = split.ortho.farDistance;
             *c->lookAt = split.lookAt;
             data.cascadeSplits[i] = split.splitDepth;
             data.viewToCascadeProj[i] = vsg::mat4(clipSpaceToUv * split.ortho.transform() * split.lookAt.transform()

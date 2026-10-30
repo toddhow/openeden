@@ -18,10 +18,10 @@ namespace SDLUtil
         SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "1");
 
         Uint32 flags = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE;
-#if !SDL_JOYSTICK_DISABLED
+#if !defined(SDL_JOYSTICK_DISABLED) || SDL_JOYSTICK_DISABLED == 0
         flags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
 #endif
-#if !SDL_SENSOR_DISABLED
+#if !defined(SDL_SENSOR_DISABLED) || SDL_SENSOR_DISABLED == 0
         flags |= SDL_INIT_SENSOR;
 #endif
         if (SDL_WasInit(flags) == 0)

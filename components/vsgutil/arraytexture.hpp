@@ -78,7 +78,7 @@ namespace vsgUtil
         {
             using value_type = typename ArrayType::value_type;
             auto data = static_cast<value_type*>(vsg::allocate(totalSize, vsg::ALLOCATOR_AFFINITY_DATA));
-            std::memset(data, 0, totalSize);
+            std::memset(static_cast<void*>(data), 0, totalSize);
             return ArrayType::create(width, height, depth, data, properties, layout);
         }
 

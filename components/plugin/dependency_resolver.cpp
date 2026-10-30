@@ -1,6 +1,7 @@
 #include <components/plugin/dependency_resolver.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <queue>
 #include <set>

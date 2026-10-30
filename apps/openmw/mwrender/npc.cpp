@@ -424,7 +424,7 @@ namespace MWRender
 
                 if (weaponBonename != bonename)
                 {
-                    if (auto found = animation->bones.search(weaponBonename))
+                    if (animation->bones.search(weaponBonename))
                         bonename = weaponBonename;
                 }
             }

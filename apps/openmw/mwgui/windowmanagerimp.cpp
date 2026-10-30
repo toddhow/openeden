@@ -155,9 +155,6 @@ namespace MWGui
         Resource::ResourceSystem* resourceSystem, const std::filesystem::path& logpath, bool consoleOnlyScripts,
         Translation::Storage& translationDataStorage, ToUTF8::FromType encoding, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
         : mCompile(compile)
-        , mCursorVisible(true)
-        , mCursorActive(true)
-        , mWindowVisible(true)
         , mStore(nullptr)
         , mResourceSystem(resourceSystem)
         , mConsoleOnlyScripts(consoleOnlyScripts)

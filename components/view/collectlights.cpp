@@ -25,8 +25,8 @@ namespace View
             (*light_itr++).set(eye_position.x, eye_position.y, eye_position.z, 0);
         }
         mData->at(1).w = static_cast<float>(lightCount);
-        if (maxLights < pointLights.size())
-            ;//std::cerr << "maxLights < pointLights.size()" << std::endl;
+        // if (maxLights < pointLights.size())
+        //     std::cerr << "maxLights < pointLights.size()" << std::endl;
         mData->dirty();
     }
 }

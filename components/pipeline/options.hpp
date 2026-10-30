@@ -29,9 +29,9 @@ namespace Pipeline
      */
     struct Options
     {
-        ShaderOptions shader;
+        ShaderOptions shader{};
         uint32_t numUvSets = 0;
-        std::map<uint32_t, uint32_t> nonStandardUvSets;
+        std::map<uint32_t, uint32_t> nonStandardUvSets{};
         VkPrimitiveTopology primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         bool depthTest = true;
         bool depthWrite = true;

@@ -18,7 +18,8 @@ namespace vsgUtil
 
     public:
         SuspendRenderPass(const SuspendRenderPass& rhs)
-            : mParent(rhs.mParent)
+            : vsg::Group()
+            , mParent(rhs.mParent)
             , mRenderPass(rhs.mRenderPass)
         {
         }

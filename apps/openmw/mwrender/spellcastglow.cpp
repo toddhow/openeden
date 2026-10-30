@@ -43,7 +43,7 @@ namespace MWRender
         vsg::ref_ptr<vsg::StateSwitch> stateSwitch;
         for (auto itr = controllers.begin(); itr != controllers.end(); ++itr)
         {
-            if (auto found = dynamic_cast<const Timeout*>(itr->first))
+            if (dynamic_cast<const Timeout*>(itr->first))
             {
                 stateSwitch = static_cast<Timeout::target_type*>(itr->second);
                 controllers.erase(itr);
