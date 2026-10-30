@@ -99,7 +99,7 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Shaders] normal height map pattern` | Not read | Normal maps item |
 | `[Shaders] specular map pattern` | Not read | Normal maps item |
 | `[Shaders] terrain specular map pattern` | Not read | Normal maps item |
-| `[Shaders] apply lighting to environment maps` | Not read | Implement in the default shader |
+| `[Shaders] apply lighting to environment maps` | Not read | Remove: in OpenMW it only forced the shader path for env-mapped objects (`ShaderVisitor`, cf3dbd3aa7), and the Vulkan renderer always uses shaders |
 | `[Shaders] lighting method` | Read | |
 | `[Shaders] classic falloff` | Read | |
 | `[Shaders] match sunlight to sun` | Read | |
