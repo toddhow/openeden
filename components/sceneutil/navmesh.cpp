@@ -6,8 +6,6 @@
 
 #include <DetourDebugDraw.h>
 
-#include <osg/Group>
-
 namespace
 {
     // Copied from
@@ -266,21 +264,19 @@ namespace
 
 namespace SceneUtil
 {
-    osg::ref_ptr<osg::Group> createNavMeshTileGroup(const dtNavMesh& navMesh, const dtMeshTile& meshTile,
-        const DetourNavigator::Settings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet,
-        unsigned char flags, unsigned minSalt, unsigned maxSalt)
+    bool drawNavMeshTile(DebugPrimitiveSink& sink, const dtNavMesh& navMesh, const dtMeshTile& meshTile,
+        const DetourNavigator::Settings& settings, unsigned char flags, unsigned minSalt, unsigned maxSalt)
     {
         if (meshTile.header == nullptr)
-            return nullptr;
+            return false;
 
-        osg::ref_ptr<osg::Group> group(new osg::Group);
+        // Drawn 10 units above the navmesh, as the OSG build did.
         constexpr float shift = 10.0f;
-        DebugDraw debugDraw(
-            *group, debugDrawStateSet, osg::Vec3f(0, 0, shift), 1.0f / settings.mRecast.mRecastScaleFactor);
+        DebugDraw debugDraw(sink, vsg::vec3(0, 0, shift), 1.0f / settings.mRecast.mRecastScaleFactor);
         dtNavMeshQuery navMeshQuery;
         navMeshQuery.init(&navMesh, settings.mDetour.mMaxNavMeshQueryNodes);
         drawMeshTile(&debugDraw, navMesh, &navMeshQuery, &meshTile, flags, getHeat(meshTile.salt, minSalt, maxSalt));
 
-        return group;
+        return true;
     }
 }

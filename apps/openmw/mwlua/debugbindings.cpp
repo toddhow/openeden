@@ -68,7 +68,9 @@ namespace MWLua
                     { "UpdateFrequency", Settings::NavMeshRenderMode::UpdateFrequency },
                 }));
 
-        api["setNavMeshRenderMode"] = [/*context*/](Settings::NavMeshRenderMode /*value*/) {
+        api["setNavMeshRenderMode"] = [context](Settings::NavMeshRenderMode value) {
+            context.mLuaManager->addAction(
+                [value] { MWBase::Environment::get().getWorld()->setNavMeshRenderMode(value); });
         };
 
         api["triggerShaderReload"] = [/*context*/]() {

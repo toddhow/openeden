@@ -2,7 +2,7 @@
 
 #include <openeden/contracts/kf_converter_contract.hpp>
 
-#include <components/sceneutil/keyframe.hpp>
+#include "kf_animation.hpp"
 #include <osg/Quat>
 #include <osg/Vec3f>
 
@@ -30,7 +30,7 @@ namespace compat_morrowind
             const ConversionOptions& options = {}) override;
 
         ConversionResult convertParsedKfToGltf(
-            const SceneUtil::KeyframeHolder& kfHolder,
+            const KfAnimation& animation,
             const std::vector<BoneInfo>& bones,
             const ConversionOptions& options = {});
     };

@@ -68,6 +68,7 @@ namespace MWPhysics
         std::shared_mutex& getSimulationMutex() { return mSimulationMutex; }
 
         void debugDraw();
+        void setDebugDrawer(MWRender::JoltDebugDrawer* drawer) { mDebugDrawer = drawer; }
         bool getLineOfSight(const std::shared_ptr<Actor>& actor1, const std::shared_ptr<Actor>& actor2);
         void* getUserPointer(const JPH::BodyID object) const;
         void releaseSharedStates(); // destroy all objects whose destructor can't be safely called from

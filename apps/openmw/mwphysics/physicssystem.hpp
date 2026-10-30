@@ -45,6 +45,7 @@ namespace ToUTF8
 
 namespace MWRender
 {
+    class DebugGeometry;
     class JoltDebugDrawer;
 }
 
@@ -271,6 +272,9 @@ namespace MWPhysics
 
         bool toggleDebugRendering();
 
+        /// Connects the renderer's debug geometry (owned by MWRender::RenderManager, which outlives this) for `tcb`.
+        void setDebugGeometry(MWRender::DebugGeometry& geometry);
+
         void reportCollision(const osg::Vec3f& position, const osg::Vec3f& normal);
 
         /// Mark the given object as a 'non-solid' object. A non-solid object means that
@@ -340,13 +344,9 @@ namespace MWPhysics
 
         std::unique_ptr<MWWater> mWaterInstance;
 
-#if OPENEDEN_VSG_PENDING_FEATURES
+        // Null until setDebugGeometry() connects the renderer's debug geometry.
         std::unique_ptr<MWRender::JoltDebugDrawer> mJoltDebugDrawer;
         MWRender::JoltDebugDrawer* getJoltDebugDrawer() const { return mJoltDebugDrawer.get(); }
-#else
-        // The Jolt debug draw returns on VSG in task 0011 (Track V, V3).
-        MWRender::JoltDebugDrawer* getJoltDebugDrawer() const { return nullptr; }
-#endif
 
 
         float mPhysicsDt;

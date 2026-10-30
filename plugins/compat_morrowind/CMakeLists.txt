@@ -3,11 +3,13 @@
 set(COMPAT_MORROWIND_SOURCES
     src/morrowind_compat_plugin.cpp
     src/kf_converter.cpp
+    src/kf_animation.cpp
 )
 
 set(COMPAT_MORROWIND_HEADERS
     include/compat_morrowind/morrowind_compat_plugin.hpp
     include/compat_morrowind/kf_converter.hpp
+    include/compat_morrowind/kf_animation.hpp
 )
 
 openeden_add_plugin(compat_morrowind

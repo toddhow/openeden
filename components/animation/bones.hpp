@@ -62,6 +62,14 @@ namespace Anim
         Bones(NormalizeFunc f, vsg::Node& scene);
 
         Bone* search(const std::string& name);
+
+        /// openeden-vsg: visits every bone with its normalized name, in no particular order (task 0011).
+        template <class Func>
+        void forEach(Func&& func)
+        {
+            for (auto& [name, bone] : mByName)
+                func(name, bone);
+        }
     };
 }
 

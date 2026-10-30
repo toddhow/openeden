@@ -1,17 +1,12 @@
 #ifndef GAME_RENDER_CREATIVEMOTIONDRIVER_H
 #define GAME_RENDER_CREATIVEMOTIONDRIVER_H
 
-#include <components/misc/constants.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/nifosg/matrixtransform.hpp>
-#include <components/sceneutil/keyframe.hpp>
-#include <components/sceneutil/nodecallback.hpp>
-#include <osg/MatrixTransform>
+#include <vsg/core/ref_ptr.h>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 #include <opas/anim/Clip.hpp>
-#include <opas/anim/ClipBinding.hpp>
 #include <opas/anim/Inertialization.hpp>
-#include <opas/anim/PoseBlend.hpp>
 #include <opas/math/Transform.hpp>
 #include <opas/rig/Skeleton.hpp>
 
@@ -19,107 +14,138 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <vector>
 
 #include "blendmask.hpp"
 
+namespace Anim
+{
+    class Bones;
+    class ControllerMap;
+    class Transform;
+}
+
 namespace MWRender
 {
-    class CreativeMotionPoseDriver;
-
-    /// Lightweight callback attached to each animated bone node that copies
-    /// the precalculated transform from CreativeMotionPoseDriver.
-    class CreativeMotionPoseWriterCallback : public SceneUtil::NodeCallback<CreativeMotionPoseWriterCallback>
+    /// What one bone group plays this frame: the animation source of its active state, that state's group name and
+    /// its time on the source's timeline (MWAnim::Play::getActive). A null source means the group plays nothing.
+    struct CreativeMotionActiveSource
     {
-    public:
-        CreativeMotionPoseWriterCallback(CreativeMotionPoseDriver* driver, size_t boneIndex)
-            : mDriver(driver)
-            , mBoneIndex(boneIndex)
-        {
-        }
-
-        void operator()(osg::Node* node, osg::NodeVisitor* nv);
-
-    private:
-        CreativeMotionPoseDriver* mDriver;
-        size_t mBoneIndex;
+        const Anim::ControllerMap* mSource = nullptr;
+        std::string_view mGroupName;
+        float mTime = 0.f;
     };
 
+    /**
+     * @brief Samples, layers and blends an actor's animations with CreativeMotion's runtime and writes the pose to the
+     * actor's bones (task 0007, rebuilt on vsgopenmw's animation system in task 0011).
+     *
+     * The skeleton is every named bone of the actor's Anim::Bones, parent first; each bone belongs to the bone group
+     * (blend mask) Anim::Bones assigned it, as in MWAnim::Play. Each animation source (Anim::ControllerMap, one per
+     * .kf file) is converted once to an opas::anim::Clip on the source's own timeline. Each frame, every group samples
+     * its active source's clip at the active state's time; when a group's active source or group name changes, the
+     * change is inertialized over the transition duration; each bone then takes its own group's pose. apply() writes
+     * the bones that the active sources animate, in place of MWAnim::Play's keyframe controllers.
+     *
+     * Units: CreativeMotion works in metres; translations convert at this class's boundary (Constants::UnitsPerMeter).
+     *
+     * Owned by MWMechanics::CharacterController, one per actor; update() and apply() run where the actor's animation
+     * is advanced (CharacterController::runAnimation, possibly on an animation thread) and touch only this actor's
+     * bones. update() and apply() allocate nothing; registerSource() allocates (once per source).
+     */
     class CreativeMotionPoseDriver
     {
     public:
-        using NodeMap = std::unordered_map<std::string, osg::ref_ptr<osg::MatrixTransform>,
-            Misc::StringUtils::CiHash, Misc::StringUtils::CiEqual>;
+        /// Rate at which channels with no exact clip equivalent are resampled (task 0007, open question 5).
+        static constexpr float sResampleRate = 60.f;
 
-        CreativeMotionPoseDriver(const NodeMap& nodeMap, osg::Node* objectRoot);
+        /// Builds the skeleton from bones. The driver keeps pointers to the bones' transforms, so bones must outlive
+        /// it. Invalid when there is no named bone or the skeleton fails opas::rig::validateSkeleton.
+        explicit CreativeMotionPoseDriver(Anim::Bones& bones);
         ~CreativeMotionPoseDriver();
 
         bool isValid() const { return mValid; }
 
-        /// Converts and binds a KeyframeHolder into an internal opas::anim::Clip
-        bool registerKeyframes(const SceneUtil::KeyframeHolder* holder);
+        /// Converts source to a clip, once; later calls return the cached result. Returns false when the driver is
+        /// invalid or the source animates no bone of the skeleton.
+        bool registerSource(const Anim::ControllerMap& source);
 
-        /// Notification that an active state changed on a blend mask, triggering inertialization.
-        void onActiveStateChanged(size_t blendMask, std::string_view groupname,
-            const SceneUtil::KeyframeHolder* newHolder, float newTime, float transitionDuration);
+        /// Axes on which the accumulation root's movement is accumulated (taken out of the pose, as MWAnim::Play's
+        /// reset does): each component that is not 0 sets that axis of the root's sampled translation to 0. The root is
+        /// "bip01", or "root bone" when there is no "bip01". Defaults to (1, 1, 0), as MWAnim::Play.
+        void setAccumulation(const vsg::vec3& accumulate) { mAccumulate = accumulate; }
 
-        /// Advance inertialization and layer the active poses for all 4 blend masks.
-        void update(float duration, const std::array<std::shared_ptr<float>, sNumBlendMasks>& timePtrs,
-            const std::array<const SceneUtil::KeyframeHolder*, sNumBlendMasks>& activeHolders);
+        /// Samples every group's active source at its time, inertializing changes of a group's source or group name
+        /// over transitionDuration seconds (no transition when it is 0 or the group played nothing before).
+        void update(float duration, const std::array<CreativeMotionActiveSource, sNumBlendMasks>& active,
+            float transitionDuration);
 
-        const osg::Vec3f& getBoneTranslation(size_t boneIndex) const { return mBoneTranslations[boneIndex]; }
-        const osg::Quat& getBoneRotation(size_t boneIndex) const { return mBoneRotations[boneIndex]; }
+        /// Writes the translation and rotation of every animated bone (see isBoneAnimated) to its transform.
+        void apply() const;
 
-        int getBoneIndex(const std::string& lowerBoneName) const
-        {
-            auto it = mBoneNameToIndex.find(lowerBoneName);
-            return (it != mBoneNameToIndex.end()) ? it->second : -1;
-        }
+        /// The pose computed by the last update(), in engine units, per skeleton bone.
+        const vsg::vec3& getBoneTranslation(size_t boneIndex) const { return mBoneTranslations[boneIndex]; }
+        const vsg::quat& getBoneRotation(size_t boneIndex) const { return mBoneRotations[boneIndex]; }
+
+        /// True when the last update()'s active source of the bone's group has a track for the bone.
+        bool isBoneAnimated(size_t boneIndex) const { return mAnimated[boneIndex] != 0; }
+
+        /// Skeleton index of the bone with that normalized (Anim::Bones) name, or -1.
+        int getBoneIndex(std::string_view normalizedName) const;
 
         const opas::rig::Skeleton& getSkeleton() const { return mSkeleton; }
 
-        /// Developer comparison mode: calculates largest difference between driver output and node transforms.
+        /// Developer comparison mode: the largest difference between the driver's pose and the bones' current local
+        /// transforms over animated bones (translation in metres, rotation in radians), and that bone's name. False
+        /// when the driver is invalid.
         bool compareWithCurrentPose(float& outMaxTransDiff, float& outMaxRotDiff, std::string& outMaxDiffBone) const;
 
     private:
-        bool buildSkeleton(const NodeMap& nodeMap, osg::Node* objectRoot);
-        void buildBoneMasks();
-
-        struct BoundClipInfo
+        struct BoundClip
         {
             opas::anim::Clip mClip;
-            std::vector<int> mTrackToSkeletonBone;
+            std::vector<int> mTrackToBone;
+            /// Per skeleton bone: 1 when the clip has a track for it.
+            std::vector<char> mHasTrack;
         };
 
-        void sampleClipIntoPose(const BoundClipInfo& clipInfo, float timeS,
-            std::span<opas::math::Transform> outPose) const;
+        bool buildSkeleton(Anim::Bones& bones);
+        const BoundClip* findClip(const Anim::ControllerMap* source) const;
+        void sampleClip(const BoundClip& clip, float timeS, std::vector<opas::math::Transform>& outPose) const;
 
         bool mValid = false;
 
         opas::rig::Skeleton mSkeleton;
-        std::unordered_map<std::string, int> mBoneNameToIndex;
-        std::vector<NifOsg::MatrixTransform*> mBoneNodes;
+        std::map<std::string, int, std::less<>> mBoneNameToIndex;
+        std::vector<Anim::Transform*> mBoneNodes;
+        std::vector<uint32_t> mBoneGroups;
+        int mAccumRoot = -1;
+        vsg::vec3 mAccumulate{ 1.f, 1.f, 0.f };
 
-        // Preallocated pose buffers per mask and for layering
+        // Preallocated pose buffers, one per group, and the previous frame's for inertialization.
         std::vector<opas::math::Transform> mRestPose;
-        std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mMaskPoses;
-        std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mMaskPrevPoses;
-        std::vector<opas::math::Transform> mLayeredPose;
-
-        // Output engine-space transforms for writer callbacks
-        std::vector<osg::Vec3f> mBoneTranslations;
-        std::vector<osg::Quat> mBoneRotations;
-
-        // Inertialization and blending masks
-        std::array<opas::anim::BoneMask, sNumBlendMasks> mBoneMasks;
+        std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mGroupPoses;
+        std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mGroupPrevPoses;
+        std::vector<opas::math::Transform> mIncoming;
         std::array<std::unique_ptr<opas::anim::Inertializer>, sNumBlendMasks> mInertializers;
 
-        // Clip cache per KeyframeHolder
-        std::unordered_map<const SceneUtil::KeyframeHolder*, BoundClipInfo> mClipCache;
+        // Output, in engine units.
+        std::vector<vsg::vec3> mBoneTranslations;
+        std::vector<vsg::quat> mBoneRotations;
+        std::vector<char> mAnimated;
 
-        // Active state tracking per mask
-        std::array<const SceneUtil::KeyframeHolder*, sNumBlendMasks> mLastHolders = { nullptr, nullptr, nullptr, nullptr };
+        // Clips by source; a source maps to no clip when it animates no bone. Each entry keeps its source alive, so a
+        // released source's address can never be reused by another source while its clip is cached.
+        struct CachedClip
+        {
+            vsg::ref_ptr<const Anim::ControllerMap> mSource;
+            std::unique_ptr<BoundClip> mClip;
+        };
+        std::map<const Anim::ControllerMap*, CachedClip> mClips;
+
+        // Last active source and group name per group, to detect changes.
+        std::array<const Anim::ControllerMap*, sNumBlendMasks> mLastSources{};
         std::array<std::string, sNumBlendMasks> mLastGroupNames;
     };
 }

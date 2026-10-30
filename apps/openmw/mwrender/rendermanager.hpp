@@ -85,6 +85,7 @@ namespace MWRender
     class Projectiles;
     class FogManager;
     class Sky;
+    class DebugGeometry;
     class Player;
     class Pathgrid;
     class Camera;
@@ -123,6 +124,12 @@ namespace MWRender
         vsg::ref_ptr<vsgUtil::UpdateThreads> getUpdateThreads();
         Map* getMap() { return mMap.get(); }
         WorldMap* getWorldMap() { return mWorldMap.get(); }
+        /// Debug lines drawn by the renderer (the Jolt debug draw, task 0011).
+        DebugGeometry& getDebugGeometry() { return *mDebugGeometry; }
+        /// The navigator whose navmesh the navmesh debug draw shows; set by the world, which owns it, and cleared
+        /// (nullptr) when the world is destroyed.
+        void setNavigator(const DetourNavigator::Navigator* navigator) { mNavigator = navigator; }
+        void setNavMeshMode(Settings::NavMeshRenderMode value);
         Preview* getPreview() { return mPreview.get(); }
         LandManager* getLandManager() const;
         ScreenshotInterface& getScreenshotInterface() { return *mScreenshotInterface; }
@@ -263,6 +270,7 @@ namespace MWRender
         void ensureCompiled();
         void createIntersectorScene();
         void updateSceneChildren();
+        void updateNavMesh();
         void updateSceneData();
         void updateProjectionMatrix();
         void setupScreenshotInterface();
@@ -310,13 +318,15 @@ namespace MWRender
         std::unique_ptr<TerrainStorage> mTerrainStorage;
         std::unique_ptr<Terrain::View> mTerrainView;
         std::unique_ptr<Sky> mSky;
+        std::unique_ptr<DebugGeometry> mDebugGeometry;
+        std::unique_ptr<DebugGeometry> mNavMeshGeometry;
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<Effects> mEffects;
         std::unique_ptr<Projectiles> mProjectiles;
         std::unique_ptr<Player> mPlayer;
         std::unique_ptr<Camera> mCamera;
         // std::unique_ptr<Groundcover> mGroundcover;
-        // DetourNavigator::Navigator& mNavigator;
+        const DetourNavigator::Navigator* mNavigator = nullptr;
         vsg::ref_ptr<vsgUtil::SuspendRenderPass> mSuspend;
         vsg::ref_ptr<vsg::Switch> mScreenshotSwitch;
         std::unique_ptr<ScreenshotInterface> mScreenshotInterface;
@@ -339,7 +349,7 @@ namespace MWRender
 
         std::size_t mNavMeshNumber = 0;
         // std::unique_ptr<ActorsPaths> mActorsPaths;
-        // std::unique_ptr<NavMesh> mNavMesh;
+        std::unique_ptr<NavMesh> mNavMesh;
         // std::unique_ptr<RecastMesh> mRecastMesh;
         // std::unique_ptr<Pathgrid> mPathgrid;
 

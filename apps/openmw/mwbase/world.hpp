@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <components/misc/rng.hpp>
+#include <components/settings/navmeshrendermode.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwworld/doorstate.hpp"
@@ -584,6 +585,8 @@ namespace MWBase
         virtual void removeActorPath(const MWWorld::ConstPtr& actor) const = 0;
 
         virtual void setNavMeshNumberToRender(const std::size_t value) = 0;
+
+        virtual void setNavMeshRenderMode(Settings::NavMeshRenderMode value) = 0;
 
         virtual DetourNavigator::AgentBounds getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const = 0;
 

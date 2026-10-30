@@ -80,6 +80,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     vsgadapters/testdaeanimation.cpp
 
+    sceneutil/testdetourdebugdraw.cpp
+
     vfs/testpathutil.cpp
 
     bsa/testbsafile.cpp
@@ -110,6 +112,9 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp
 
+    mwrender/test_creativemotion_runtime.cpp
+    ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
+
     vsg/testshadercompile.cpp
     vsg/testscenedata.cpp
 )
@@ -119,16 +124,13 @@ file(GLOB UNITTEST_SRC_FILES
 # shader/parselinks.cpp, shader/shadermanager.cpp, fx/lexer.cpp, fx/technique.cpp, nifosg/testnifloader.cpp and
 # sceneutil/osgacontroller.cpp. Task 0012 (post-processing, .omwfx) and task 0014 (OSG removal) restore or replace them.
 
-# Tests of features still pending their VSG port (task 0011); they return with OPENEDEN_VSG_PENDING_FEATURES.
-if (OPENEDEN_VSG_PENDING_FEATURES)
-    list(APPEND UNITTEST_SRC_FILES
-        plugin/test_compat_morrowind.cpp
-        ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
-        ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
-        mwrender/test_creativemotion_runtime.cpp
-        ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
-    )
-endif()
+# The Morrowind compatibility pack's converter, renderer-free since task 0011.
+list(APPEND UNITTEST_SRC_FILES
+    plugin/test_compat_morrowind.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_animation.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
+)
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 

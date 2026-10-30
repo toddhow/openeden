@@ -1,5 +1,4 @@
 #include "actorikcontroller.hpp"
-#include "animation.hpp"
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -9,17 +8,12 @@
 #include "../mwphysics/raycasting.hpp"
 #include "../mwworld/class.hpp"
 
-#include <components/sceneutil/nodecallback.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
-#include <components/sceneutil/skeleton.hpp>
+#include <components/mwanimation/object.hpp>
+#include <components/mwanimation/play.hpp>
 #include <components/settings/values.hpp>
 
 #include <opas/ik/TwoBoneIk.hpp>
 #include <opas/math/Vec3.hpp>
-
-#include <osg/FrameStamp>
-#include <osg/MatrixTransform>
-#include <osg/NodeVisitor>
 
 #include <algorithm>
 #include <array>
@@ -40,6 +34,8 @@ namespace MWRender
         constexpr float sMaxPelvisDrop = 26.f;
         constexpr float sMaxFootTilt = 0.6f; // radians (~34 degrees)
         constexpr float sSnapDistance = 60.f; // teleport / large change: snap instead of filtering
+        // The OSG build's post-animation pass clamped its frame time from the simulation time to this.
+        constexpr float sMaxFrameTime = 0.1f;
 
         // Exponential filter rates (1/s). Ground rising is followed faster than ground falling so feet do
         // not sink into steps, and the pelvis is filtered in world space to absorb collision height pops.
@@ -54,22 +50,9 @@ namespace MWRender
             return std::clamp(1.f - std::exp(-rate * dt), 0.f, 1.f);
         }
 
-        osg::Matrix worldMatrix(osg::Node* node)
+        osg::Matrixf rotateAbout(const osg::Vec3f& pivot, const osg::Matrixf& rotation)
         {
-            const osg::NodePathList paths = node->getParentalNodePaths();
-            if (paths.empty())
-                return osg::Matrix::identity();
-            return osg::computeLocalToWorld(paths[0]);
-        }
-
-        osg::Vec3f worldPos(osg::Node* node)
-        {
-            return osg::Vec3f(worldMatrix(node).getTrans());
-        }
-
-        osg::Matrix rotateAbout(const osg::Vec3f& pivot, const osg::Matrix& rotation)
-        {
-            return osg::Matrix::translate(-pivot) * rotation * osg::Matrix::translate(pivot);
+            return osg::Matrixf::translate(-pivot) * rotation * osg::Matrixf::translate(pivot);
         }
 
         osg::Vec3f toOsg(const opas::math::Vec3& v)
@@ -112,84 +95,29 @@ namespace MWRender
         }
     }
 
-    class ActorIkController::PostAnimationCallback : public SceneUtil::NodeCallback<PostAnimationCallback>
-    {
-    public:
-        explicit PostAnimationCallback(ActorIkController* owner)
-            : mOwner(owner)
-        {
-        }
-
-        void operator()(osg::Node* node, osg::NodeVisitor* nv)
-        {
-            // Let every keyframe / blend controller of the skeleton run first.
-            traverse(node, nv);
-
-            if (mOwner && nv->getFrameStamp())
-                mOwner->applyPostAnimation(nv->getFrameStamp()->getSimulationTime());
-        }
-
-        ActorIkController* mOwner;
-    };
-
-    ActorIkController::ActorIkController(Animation& animation)
-        : mAnimation(animation)
+    ActorIkController::ActorIkController(const MWWorld::Ptr& ptr, MWAnim::Object& object)
+        : mPtr(ptr)
+        , mObject(object)
     {
     }
 
-    ActorIkController::~ActorIkController()
-    {
-        if (mPostCallback)
-            mPostCallback->mOwner = nullptr;
-        detachPostCallback();
-    }
-
-    void ActorIkController::attachPostCallback()
-    {
-        osg::Node* root = mAnimation.mObjectRoot.get();
-        if (!root)
-            return;
-
-        osg::ref_ptr<osg::Node> attached;
-        if (mAttachedTo.lock(attached) && attached.get() == root)
-            return;
-
-        detachPostCallback();
-
-        if (!mPostCallback)
-            mPostCallback = new PostAnimationCallback(this);
-
-        root->addUpdateCallback(mPostCallback);
-        mAttachedTo = root;
-    }
-
-    void ActorIkController::detachPostCallback()
-    {
-        osg::ref_ptr<osg::Node> attached;
-        if (mPostCallback && mAttachedTo.lock(attached))
-            attached->removeUpdateCallback(mPostCallback);
-        mAttachedTo = nullptr;
-    }
+    ActorIkController::~ActorIkController() = default;
 
     void ActorIkController::initControllers()
     {
-        if (!mAnimation.mPtr.getClass().isActor() || mAnimation.getNodeMap().empty())
+        if (!mPtr.getClass().isActor() || !mObject.animation)
             return;
 
         mInitialized = true;
+        if (!mPose)
+            mPose = std::make_unique<BonePose>(mObject.animation->bones, mObject.transform());
 
-        const auto& nodeMap = mAnimation.getNodeMap();
-        auto findNode = [&](std::string_view name) -> osg::MatrixTransform* {
-            auto it = nodeMap.find(name);
-            return (it != nodeMap.end()) ? it->second.get() : nullptr;
-        };
-
-        auto bind = [&](BoneState& bone, std::string_view name) {
-            osg::MatrixTransform* node = findNode(name);
-            if (bone.mNode.get() != node)
+        auto bind = [&](BoneState& bone, const std::string& name) {
+            BonePose::Bone found = mPose->find(name);
+            if (bone.mBone.mNode != found.mNode)
             {
                 bone = BoneState{};
-                bone.mNode = node;
+                bone.mBone = std::move(found);
             }
         };
 
@@ -197,26 +125,24 @@ namespace MWRender
         bind(mLegs[0].mThigh, "bip01 l thigh");
         bind(mLegs[0].mCalf, "bip01 l calf");
         bind(mLegs[0].mFoot, "bip01 l foot");
-        mLegs[0].mToe = findNode("bip01 l toe0");
+        mLegs[0].mToe = mPose->find("bip01 l toe0");
 
         bind(mLegs[1].mThigh, "bip01 r thigh");
         bind(mLegs[1].mCalf, "bip01 r calf");
         bind(mLegs[1].mFoot, "bip01 r foot");
-        mLegs[1].mToe = findNode("bip01 r toe0");
+        mLegs[1].mToe = mPose->find("bip01 r toe0");
 
         bind(mSpine1, "bip01 spine1");
-        mNeck = findNode("bip01 neck");
-        mHead = findNode("bip01 head");
+        mNeck = mPose->find("bip01 neck");
+        mHead = mPose->find("bip01 head");
 
-        mArms[0].mUpperArm = findNode("bip01 l upperarm");
-        mArms[0].mForearm = findNode("bip01 l forearm");
-        mArms[0].mHand = findNode("bip01 l hand");
+        mArms[0].mUpperArm = mPose->find("bip01 l upperarm");
+        mArms[0].mForearm = mPose->find("bip01 l forearm");
+        mArms[0].mHand = mPose->find("bip01 l hand");
 
-        mArms[1].mUpperArm = findNode("bip01 r upperarm");
-        mArms[1].mForearm = findNode("bip01 r forearm");
-        mArms[1].mHand = findNode("bip01 r hand");
-
-        attachPostCallback();
+        mArms[1].mUpperArm = mPose->find("bip01 r upperarm");
+        mArms[1].mForearm = mPose->find("bip01 r forearm");
+        mArms[1].mHand = mPose->find("bip01 r hand");
     }
 
     void ActorIkController::reset()
@@ -228,7 +154,7 @@ namespace MWRender
 
     void ActorIkController::update(float /*duration*/)
     {
-        if (!mAnimation.mPtr.getClass().isActor())
+        if (!mPtr.getClass().isActor())
             return;
 
         const bool footPlanting = Settings::values().mGame.mFootPlanting.get();
@@ -236,7 +162,7 @@ namespace MWRender
         mLookAtActive = Settings::values().mGame.mLookAt.get();
         mSmootherTurnsActive = Settings::values().mGame.mSmootherTurns.get();
 
-        MWPhysics::Actor* physicActor = getPhysicsActor(mAnimation.mPtr);
+        MWPhysics::Actor* physicActor = getPhysicsActor(mPtr);
         mHasCompoundHitboxes = physicActor != nullptr && physicActor->hasCompoundHitboxes();
         const bool proceduralLean = Settings::values().mGame.mProceduralLean.get();
 
@@ -250,27 +176,52 @@ namespace MWRender
             initControllers();
 
         MWBase::World* world = MWBase::Environment::get().getWorld();
-        auto* baseNode = mAnimation.mPtr.getRefData().getBaseNode();
-        if (!world || !baseNode || !footPlanting)
+        if (!world || !mPose || !footPlanting)
         {
             mWantIk = false;
             return;
         }
 
-        const MWWorld::Ptr& ptr = mAnimation.mPtr;
-        mWantIk = !world->isSwimming(ptr) && !world->isFlying(ptr) && world->isOnGround(ptr);
+        mWantIk = !world->isSwimming(mPtr) && !world->isFlying(mPtr) && world->isOnGround(mPtr);
+    }
+
+    ActorIkController::RootState ActorIkController::getRoot() const
+    {
+        // The actor's root transform takes the place of the OSG build's base node (position, attitude, scale).
+        RootState root;
+        if (!mPose)
+            return root;
+        osg::Vec3f scale;
+        osg::Quat scaleOrientation;
+        mPose->getRoot().decompose(root.mPosition, root.mAttitude, scale, scaleOrientation);
+        root.mScale = scale.z();
+        return root;
+    }
+
+    osg::Vec3f ActorIkController::worldPos(const BonePose::Bone& bone) const
+    {
+        return mPose->getWorld(bone).getTrans();
+    }
+
+    void ActorIkController::writeBone(BoneState& bone, const osg::Matrixf& local)
+    {
+        mPose->setLocal(bone.mBone, local);
+        // Store the matrix as the bone gives it back (it keeps translation, rotation and scale separately), so the
+        // next frame's restoreBase can tell exactly whether the animation wrote this bone again.
+        bone.mWritten = mPose->getLocal(bone.mBone);
+        bone.mHasWritten = true;
     }
 
     bool ActorIkController::restoreBase(BoneState& bone)
     {
-        if (!bone.mNode)
+        if (!bone.mBone)
             return false;
 
-        const osg::Matrix& current = bone.mNode->getMatrix();
+        const osg::Matrixf current = mPose->getLocal(bone.mBone);
         if (bone.mHasWritten && current == bone.mWritten)
         {
             // No controller re-animated this bone since our last write: undo it so IK never accumulates.
-            bone.mNode->setMatrix(bone.mBase);
+            mPose->setLocal(bone.mBone, bone.mBase);
         }
         else
         {
@@ -296,18 +247,15 @@ namespace MWRender
         LegState& leg, const osg::Vec3f& actorPos, const osg::Vec3f& actorForward, float actorScale)
     {
         leg.mGroundHit = false;
-        if (!mWantIk || !leg.mFoot.mNode)
+        if (!mWantIk || !leg.mFoot.mBone)
             return;
 
         MWBase::World* world = MWBase::Environment::get().getWorld();
         if (!world || !world->getRayCasting())
             return;
 
-        const MWWorld::Ptr& ptr = mAnimation.mPtr;
-        const osg::Vec3f ankle = worldPos(leg.mFoot.mNode.get());
-        const osg::Vec3f toe = leg.mToe
-            ? worldPos(leg.mToe.get())
-            : (ankle + actorForward * (sToeDistance * actorScale));
+        const osg::Vec3f ankle = worldPos(leg.mFoot.mBone);
+        const osg::Vec3f toe = leg.mToe ? worldPos(leg.mToe) : (ankle + actorForward * (sToeDistance * actorScale));
 
         osg::Vec3f toeVec = toe - ankle;
         toeVec.z() = 0.f;
@@ -317,7 +265,7 @@ namespace MWRender
         auto castDown = [&](const osg::Vec3f& xy, osg::Vec3f& hitPos, osg::Vec3f& hitNormal) -> bool {
             const osg::Vec3f from(xy.x(), xy.y(), actorPos.z() + sProbeAbove * actorScale);
             const osg::Vec3f to(xy.x(), xy.y(), actorPos.z() - sProbeBelow * actorScale);
-            const MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(from, to, { ptr }, {},
+            const MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(from, to, { mPtr }, {},
                 MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);
             if (!hit.mHit)
                 return false;
@@ -349,8 +297,7 @@ namespace MWRender
             combinedNormal = clampTilt(combinedNormal);
 
             // Height of the tilted sole at the toe relative to the ankle:
-            const float alignedRise
-                = -(combinedNormal.x() * toeVec.x() + combinedNormal.y() * toeVec.y())
+            const float alignedRise = -(combinedNormal.x() * toeVec.x() + combinedNormal.y() * toeVec.y())
                 / std::max(combinedNormal.z(), 0.25f);
             groundZ = std::max(heelPos.z(), toePos.z() - alignedRise);
         }
@@ -364,33 +311,31 @@ namespace MWRender
         leg.mGroundNormal = combinedNormal;
     }
 
-    void ActorIkController::applyPostAnimation(double simulationTime)
+    void ActorIkController::applyPostAnimation(float duration)
     {
-        float dt = 1.f / 60.f;
-        if (mLastSimTime >= 0.0)
-            dt = static_cast<float>(std::clamp(simulationTime - mLastSimTime, 0.0, 0.1));
-        mLastSimTime = simulationTime;
+        // Nothing to do (and no bone is read or written) until a feature that needs the bones is enabled.
+        if (!mInitialized || !mPose)
+            return;
+
+        const float dt = std::clamp(duration, 0.f, sMaxFrameTime);
 
         // Always start from the animated pose of this frame.
         restoreBones();
 
-        auto* baseNode = mAnimation.mPtr.getRefData().getBaseNode();
-        if (!baseNode)
-            return;
-
-        const osg::Vec3f actorPos = baseNode->getPosition();
+        const RootState root = getRoot();
+        const osg::Vec3f actorPos = root.mPosition;
         const float actorZ = actorPos.z();
-        const float actorScale = std::max(0.25f, baseNode->getScale().z());
+        const float actorScale = std::max(0.25f, root.mScale);
 
-        osg::Vec3f forward = baseNode->getAttitude() * osg::Vec3f(0.f, 1.f, 0.f);
+        osg::Vec3f forward = root.mAttitude * osg::Vec3f(0.f, 1.f, 0.f);
         forward.z() = 0.f;
         if (forward.length2() < 1e-6f)
             forward = osg::Vec3f(0.f, 1.f, 0.f);
         forward.normalize();
 
-        MWPhysics::Actor* physicActor = getPhysicsActor(mAnimation.mPtr);
+        MWPhysics::Actor* physicActor = getPhysicsActor(mPtr);
         const bool proceduralLean = Settings::values().mGame.mProceduralLean.get();
-        if (proceduralLean && physicActor && mSpine1.mNode)
+        if (proceduralLean && physicActor && mSpine1.mBone)
         {
             const auto& loc = physicActor->getLocomotionState();
             const float leanScale = Settings::values().mGame.mLeanScale.get();
@@ -405,20 +350,19 @@ namespace MWRender
             if (std::abs(pitch) > 1e-4f || std::abs(bank) > 1e-4f)
             {
                 osg::Quat leanRot;
-                leanRot.makeRotate(pitch, osg::Vec3f(1.f, 0.f, 0.f), bank, osg::Vec3f(0.f, 1.f, 0.f), 0.f, osg::Vec3f(0.f, 0.f, 1.f));
+                leanRot.makeRotate(pitch, osg::Vec3f(1.f, 0.f, 0.f), bank, osg::Vec3f(0.f, 1.f, 0.f), 0.f,
+                    osg::Vec3f(0.f, 0.f, 1.f));
 
-                const osg::Matrix local = mSpine1.mNode->getMatrix();
-                const osg::Matrix parentWorld = osg::Matrix::inverse(local) * worldMatrix(mSpine1.mNode.get());
+                const osg::Matrixf local = mPose->getLocal(mSpine1.mBone);
+                const osg::Matrixf parentWorld = osg::Matrixf::inverse(local) * mPose->getWorld(mSpine1.mBone);
                 const osg::Quat parentRot = parentWorld.getRotate();
-                const osg::Quat actorRot = baseNode->getAttitude();
+                const osg::Quat actorRot = root.mAttitude;
                 const osg::Quat worldLean = actorRot * leanRot * actorRot.inverse();
                 const osg::Quat localLean = parentRot.inverse() * worldLean * parentRot;
 
-                osg::Matrix moved = local;
+                osg::Matrixf moved = local;
                 moved.setRotate(localLean * local.getRotate());
-                mSpine1.mNode->setMatrix(moved);
-                mSpine1.mWritten = moved;
-                mSpine1.mHasWritten = true;
+                writeBone(mSpine1, moved);
             }
         }
 
@@ -429,11 +373,8 @@ namespace MWRender
             for (LegState& leg : mLegs)
                 leg.mFilterInit = false;
 
-            if (mAnimation.mSkeleton && mSpine1.mHasWritten)
-                mAnimation.mSkeleton->markBoneMatricesDirty();
-
             if (mHasCompoundHitboxes)
-                updateHitboxes(baseNode, forward, actorScale);
+                updateHitboxes(root, forward, actorScale);
             return;
         }
 
@@ -481,11 +422,10 @@ namespace MWRender
                 nAvg = osg::Vec3f(0.f, 0.f, 1.f);
             nAvg.normalize();
 
-            const float tanAlpha
-                = std::sqrt(nAvg.x() * nAvg.x() + nAvg.y() * nAvg.y()) / std::max(nAvg.z(), 0.35f);
+            const float tanAlpha = std::sqrt(nAvg.x() * nAvg.x() + nAvg.y() * nAvg.y()) / std::max(nAvg.z(), 0.35f);
             const float slopeDrop = (sStanceRadius * actorScale) * tanAlpha;
-            const float stepDiff = std::max(
-                0.f, std::abs(mLegs[0].mFilteredGroundZ - mLegs[1].mFilteredGroundZ) - 2.f * slopeDrop);
+            const float stepDiff
+                = std::max(0.f, std::abs(mLegs[0].mFilteredGroundZ - mLegs[1].mFilteredGroundZ) - 2.f * slopeDrop);
             pelvisTarget = (zAvg - actorZ) - slopeDrop - 0.5f * stepDiff;
         }
         else if (leg0Valid)
@@ -513,44 +453,39 @@ namespace MWRender
             = std::clamp(mFilteredPelvisWorldZ - actorZ, -(sMaxPelvisDrop + 5.f) * actorScale, 12.f * actorScale)
             * mIkWeight;
 
-        if (mPelvis.mNode && std::abs(appliedPelvis) > 1e-3f)
+        if (mPelvis.mBone && std::abs(appliedPelvis) > 1e-3f)
         {
-            const osg::Matrix local = mPelvis.mNode->getMatrix();
-            const osg::Matrix parentWorld = osg::Matrix::inverse(local) * worldMatrix(mPelvis.mNode.get());
-            const osg::Vec3f localDelta
-                = osg::Matrix::transform3x3(osg::Vec3f(0.f, 0.f, appliedPelvis), osg::Matrix::inverse(parentWorld));
+            const osg::Matrixf local = mPose->getLocal(mPelvis.mBone);
+            const osg::Matrixf parentWorld = osg::Matrixf::inverse(local) * mPose->getWorld(mPelvis.mBone);
+            const osg::Vec3f localDelta = osg::Matrixf::transform3x3(
+                osg::Vec3f(0.f, 0.f, appliedPelvis), osg::Matrixf::inverse(parentWorld));
 
-            osg::Matrix moved = local;
+            osg::Matrixf moved = local;
             moved.setTrans(local.getTrans() + localDelta);
-            mPelvis.mNode->setMatrix(moved);
-            mPelvis.mWritten = moved;
-            mPelvis.mHasWritten = true;
+            writeBone(mPelvis, moved);
         }
 
         // 3. Solve both legs against the actual animated pose of this frame.
         for (LegState& leg : mLegs)
-            solveLeg(leg, actorZ, mPelvis.mNode ? appliedPelvis : 0.f, mIkWeight, forward, actorScale);
-
-        if (mAnimation.mSkeleton)
-            mAnimation.mSkeleton->markBoneMatricesDirty();
+            solveLeg(leg, actorZ, mPelvis.mBone ? appliedPelvis : 0.f, mIkWeight, forward, actorScale);
 
         // 4. Drive skeletal hitbox capsules from the final animated + IK-solved skeleton pose.
         if (mHasCompoundHitboxes)
-            updateHitboxes(baseNode, forward, actorScale);
+            updateHitboxes(root, forward, actorScale);
     }
 
     void ActorIkController::solveLeg(LegState& leg, float actorZ, float pelvisOffset, float weight,
         const osg::Vec3f& actorForward, float actorScale)
     {
-        if (!leg.mThigh.mNode || !leg.mCalf.mNode || !leg.mFoot.mNode)
+        if (!leg.mThigh.mBone || !leg.mCalf.mBone || !leg.mFoot.mBone)
             return;
 
         if (!leg.mGroundHit || !leg.mFilterInit || weight < 1e-3f)
             return;
 
-        const osg::Matrix thighWorld = worldMatrix(leg.mThigh.mNode.get());
-        const osg::Matrix calfWorld = worldMatrix(leg.mCalf.mNode.get());
-        const osg::Matrix footWorld = worldMatrix(leg.mFoot.mNode.get());
+        const osg::Matrixf thighWorld = mPose->getWorld(leg.mThigh.mBone);
+        const osg::Matrixf calfWorld = mPose->getWorld(leg.mCalf.mBone);
+        const osg::Matrixf footWorld = mPose->getWorld(leg.mFoot.mBone);
 
         const osg::Vec3f hip = thighWorld.getTrans();
         const osg::Vec3f knee = calfWorld.getTrans();
@@ -565,8 +500,7 @@ namespace MWRender
         const float desiredAnkleZ = std::clamp(leg.mFilteredGroundZ + animHeightAboveOrigin,
             actorZ - sMaxFootOffset * actorScale, actorZ + sMaxFootRaise * actorScale);
 
-        const osg::Vec3f target(
-            ankle.x(), ankle.y(), animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
+        const osg::Vec3f target(ankle.x(), ankle.y(), animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
 
         // Bias the knee pole vector along actorForward so nearly-straight legs do not wobble laterally.
         const osg::Vec3f pole = (knee - (hip + ankle) * 0.5f) + actorForward * (8.0f * actorScale);
@@ -581,12 +515,12 @@ namespace MWRender
         const osg::Vec3f newAnkle = toOsg(ik.end);
 
         // World-space joint rotations derived from CreativeMotion's solved joint positions.
-        const osg::Matrix rot1 = osg::Matrix::rotate(knee - hip, newKnee - hip);
-        const osg::Vec3f calfDirAfterHip = osg::Matrix::transform3x3(ankle - knee, rot1);
-        const osg::Matrix rot2 = osg::Matrix::rotate(calfDirAfterHip, newAnkle - newKnee);
+        const osg::Matrixf rot1 = osg::Matrixf::rotate(knee - hip, newKnee - hip);
+        const osg::Vec3f calfDirAfterHip = osg::Matrixf::transform3x3(ankle - knee, rot1);
+        const osg::Matrixf rot2 = osg::Matrixf::rotate(calfDirAfterHip, newAnkle - newKnee);
 
-        const osg::Matrix aroundHip = rotateAbout(hip, rot1);
-        const osg::Matrix aroundKnee = rotateAbout(newKnee, rot2);
+        const osg::Matrixf aroundHip = rotateAbout(hip, rot1);
+        const osg::Matrixf aroundKnee = rotateAbout(newKnee, rot2);
 
         // Foot keeps its animated world orientation, then is tilted to the (filtered) ground normal.
         osg::Quat tilt;
@@ -594,46 +528,39 @@ namespace MWRender
         osg::Quat weightedTilt;
         weightedTilt.slerp(weight, osg::Quat(), tilt);
 
-        const osg::Matrix newThighWorld = thighWorld * aroundHip;
-        const osg::Matrix newCalfWorld = calfWorld * aroundHip * aroundKnee;
-        const osg::Matrix newFootWorld = footWorld * osg::Matrix::translate(-ankle)
-            * osg::Matrix::rotate(weightedTilt) * osg::Matrix::translate(newAnkle);
+        const osg::Matrixf newThighWorld = thighWorld * aroundHip;
+        const osg::Matrixf newCalfWorld = calfWorld * aroundHip * aroundKnee;
+        const osg::Matrixf newFootWorld = footWorld * osg::Matrixf::translate(-ankle)
+            * osg::Matrixf::rotate(weightedTilt) * osg::Matrixf::translate(newAnkle);
 
-        auto writeLocal = [](BoneState& bone, const osg::Matrix& oldWorld, const osg::Matrix& newWorld,
-                              const osg::Matrix& parentDelta) {
-            const osg::Matrix& local = bone.mNode->getMatrix();
-            const osg::Matrix parentWorld = osg::Matrix::inverse(local) * oldWorld;
-            const osg::Matrix newParentWorld = parentWorld * parentDelta;
-            const osg::Matrix newLocal = newWorld * osg::Matrix::inverse(newParentWorld);
-            bone.mNode->setMatrix(newLocal);
-            bone.mWritten = newLocal;
-            bone.mHasWritten = true;
+        auto writeLocal = [this](BoneState& bone, const osg::Matrixf& oldWorld, const osg::Matrixf& newWorld,
+                              const osg::Matrixf& parentDelta) {
+            const osg::Matrixf local = mPose->getLocal(bone.mBone);
+            const osg::Matrixf parentWorld = osg::Matrixf::inverse(local) * oldWorld;
+            const osg::Matrixf newParentWorld = parentWorld * parentDelta;
+            writeBone(bone, newWorld * osg::Matrixf::inverse(newParentWorld));
         };
 
-        writeLocal(leg.mThigh, thighWorld, newThighWorld, osg::Matrix::identity());
+        writeLocal(leg.mThigh, thighWorld, newThighWorld, osg::Matrixf::identity());
         writeLocal(leg.mCalf, calfWorld, newCalfWorld, aroundHip);
         writeLocal(leg.mFoot, footWorld, newFootWorld, aroundHip * aroundKnee);
     }
 
-    void ActorIkController::updateHitboxes(
-        const SceneUtil::PositionAttitudeTransform* baseNode, const osg::Vec3f& actorForward, float actorScale)
+    void ActorIkController::updateHitboxes(const RootState& root, const osg::Vec3f& actorForward, float actorScale)
     {
-        if (!mLegs[0].mThigh.mNode || !mLegs[0].mCalf.mNode || !mLegs[0].mFoot.mNode
-            || !mLegs[1].mThigh.mNode || !mLegs[1].mCalf.mNode || !mLegs[1].mFoot.mNode
-            || !mPelvis.mNode)
+        if (!mLegs[0].mThigh.mBone || !mLegs[0].mCalf.mBone || !mLegs[0].mFoot.mBone || !mLegs[1].mThigh.mBone
+            || !mLegs[1].mCalf.mBone || !mLegs[1].mFoot.mBone || !mPelvis.mBone)
         {
             return;
         }
 
-        MWPhysics::Actor* physicActor = getPhysicsActor(mAnimation.mPtr);
+        MWPhysics::Actor* physicActor = getPhysicsActor(mPtr);
         if (!physicActor || !physicActor->hasCompoundHitboxes())
             return;
 
-        const osg::Vec3f actorPos = baseNode->getPosition();
-        const osg::Quat invActorRot = baseNode->getAttitude().inverse();
-        auto toActorLocal = [&](const osg::Vec3f& worldPt) -> osg::Vec3f {
-            return invActorRot * (worldPt - actorPos);
-        };
+        const osg::Vec3f actorPos = root.mPosition;
+        const osg::Quat invActorRot = root.mAttitude.inverse();
+        auto toActorLocal = [&](const osg::Vec3f& worldPt) -> osg::Vec3f { return invActorRot * (worldPt - actorPos); };
 
         std::array<MWPhysics::Actor::BoneSegment, MWPhysics::Actor::sNumBoneSegments> segments{};
 
@@ -643,15 +570,15 @@ namespace MWRender
             const LegState& leg = mLegs[i];
             const std::size_t baseIdx = static_cast<std::size_t>(i * 3);
 
-            const osg::Vec3f hip = worldPos(leg.mThigh.mNode.get());
-            const osg::Vec3f knee = worldPos(leg.mCalf.mNode.get());
-            const osg::Vec3f ankle = worldPos(leg.mFoot.mNode.get());
+            const osg::Vec3f hip = worldPos(leg.mThigh.mBone);
+            const osg::Vec3f knee = worldPos(leg.mCalf.mBone);
+            const osg::Vec3f ankle = worldPos(leg.mFoot.mBone);
 
             osg::Vec3f footStart = ankle;
             osg::Vec3f footEnd = ankle + actorForward * (10.f * actorScale);
             if (leg.mToe)
             {
-                const osg::Vec3f toe = worldPos(leg.mToe.get());
+                const osg::Vec3f toe = worldPos(leg.mToe);
                 osg::Vec3f dir = toe - ankle;
                 const float len = dir.length();
                 if (len > 1e-3f)
@@ -673,18 +600,11 @@ namespace MWRender
         }
 
         // 6: Pelvis, 7: Chest, 8: Head
-        const osg::Vec3f hipsCenter = (worldPos(mLegs[0].mThigh.mNode.get())
-                                          + worldPos(mLegs[1].mThigh.mNode.get()))
-            * 0.5f;
-        const osg::Vec3f spine1Pos = mSpine1.mNode
-            ? worldPos(mSpine1.mNode.get())
-            : (hipsCenter + osg::Vec3f(0.f, 0.f, 16.f * actorScale));
-        const osg::Vec3f neckPos = mNeck
-            ? worldPos(mNeck.get())
-            : (spine1Pos + osg::Vec3f(0.f, 0.f, 26.f * actorScale));
-        const osg::Vec3f headBase = mHead
-            ? worldPos(mHead.get())
-            : (neckPos + osg::Vec3f(0.f, 0.f, 4.f * actorScale));
+        const osg::Vec3f hipsCenter = (worldPos(mLegs[0].mThigh.mBone) + worldPos(mLegs[1].mThigh.mBone)) * 0.5f;
+        const osg::Vec3f spine1Pos
+            = mSpine1.mBone ? worldPos(mSpine1.mBone) : (hipsCenter + osg::Vec3f(0.f, 0.f, 16.f * actorScale));
+        const osg::Vec3f neckPos = mNeck ? worldPos(mNeck) : (spine1Pos + osg::Vec3f(0.f, 0.f, 26.f * actorScale));
+        const osg::Vec3f headBase = mHead ? worldPos(mHead) : (neckPos + osg::Vec3f(0.f, 0.f, 4.f * actorScale));
 
         osg::Vec3f pelvisDir = spine1Pos - hipsCenter;
         if (pelvisDir.length2() < 1e-4f)
@@ -698,15 +618,11 @@ namespace MWRender
         else
             headUp.normalize();
 
-        segments[6] = {
-            toActorLocal(hipsCenter - pelvisDir * (3.0f * actorScale)),
-            toActorLocal(spine1Pos + pelvisDir * (3.0f * actorScale))
-        };
+        segments[6] = { toActorLocal(hipsCenter - pelvisDir * (3.0f * actorScale)),
+            toActorLocal(spine1Pos + pelvisDir * (3.0f * actorScale)) };
         segments[7] = { toActorLocal(spine1Pos), toActorLocal(neckPos) };
-        segments[8] = {
-            toActorLocal(headBase + headUp * (1.5f * actorScale)),
-            toActorLocal(headBase + headUp * (12.0f * actorScale))
-        };
+        segments[8] = { toActorLocal(headBase + headUp * (1.5f * actorScale)),
+            toActorLocal(headBase + headUp * (12.0f * actorScale)) };
 
         // 9..10: Left Arm, 11..12: Right Arm
         for (int i = 0; i < 2; ++i)
@@ -716,14 +632,12 @@ namespace MWRender
             const float side = (i == 0) ? -1.f : 1.f;
 
             const osg::Vec3f shoulder = arm.mUpperArm
-                ? worldPos(arm.mUpperArm.get())
+                ? worldPos(arm.mUpperArm)
                 : (neckPos + osg::Vec3f(side * 12.f * actorScale, 0.f, -4.f * actorScale));
-            const osg::Vec3f elbow = arm.mForearm
-                ? worldPos(arm.mForearm.get())
-                : (shoulder + osg::Vec3f(0.f, 0.f, -20.f * actorScale));
-            const osg::Vec3f wrist = arm.mHand
-                ? worldPos(arm.mHand.get())
-                : (elbow + osg::Vec3f(0.f, 0.f, -18.f * actorScale));
+            const osg::Vec3f elbow
+                = arm.mForearm ? worldPos(arm.mForearm) : (shoulder + osg::Vec3f(0.f, 0.f, -20.f * actorScale));
+            const osg::Vec3f wrist
+                = arm.mHand ? worldPos(arm.mHand) : (elbow + osg::Vec3f(0.f, 0.f, -18.f * actorScale));
 
             segments[baseIdx + 0] = { toActorLocal(shoulder), toActorLocal(elbow) };
             segments[baseIdx + 1] = { toActorLocal(elbow), toActorLocal(wrist) };

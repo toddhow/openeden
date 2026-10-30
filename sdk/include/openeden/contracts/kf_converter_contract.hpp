@@ -10,6 +10,24 @@
 
 namespace openeden::contracts
 {
+    // Defined outside KfConverterContract and aliased inside it: GCC rejects a nested struct with default member
+    // initializers as a defaulted argument ("= {}") inside its own enclosing class.
+    struct KfConversionOptions
+    {
+        float unitsPerMeter = 69.9912f;
+        int resampleRateHz = 60;
+        bool embedEventsInExtras = false;
+        std::string clipPrefix = "";
+    };
+
+    struct KfConversionResult
+    {
+        bool success = false;
+        std::vector<std::uint8_t> glbData;
+        std::string sidecarJson;
+        std::string errorMessage;
+    };
+
     /**
      * @brief Versioned contract for converting NetImmerse Keyframe (.kf) animations
      * and companion skeleton (.nif) models to glTF 2.0 (.glb) buffers and clip sidecars.
@@ -22,21 +40,8 @@ namespace openeden::contracts
 
         virtual ~KfConverterContract() = default;
 
-        struct ConversionOptions
-        {
-            float unitsPerMeter = 69.9912f;
-            int resampleRateHz = 60;
-            bool embedEventsInExtras = false;
-            std::string clipPrefix = "";
-        };
-
-        struct ConversionResult
-        {
-            bool success = false;
-            std::vector<std::uint8_t> glbData;
-            std::string sidecarJson;
-            std::string errorMessage;
-        };
+        using ConversionOptions = KfConversionOptions;
+        using ConversionResult = KfConversionResult;
 
         /**
          * @brief Converts a NetImmerse .kf buffer and companion skeleton .nif buffer into

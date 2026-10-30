@@ -10,7 +10,6 @@
 
 #include "options.hpp"
 #include "vsgengine.hpp"
-#include "vsgpendingfeatures.hpp"
 
 #include <boost/program_options/variables_map.hpp>
 
@@ -130,7 +129,6 @@ int runApplication(int argc, char* argv[])
 
     if (auto args = parseArgs(argc, argv, cfgMgr))
     {
-        OMW::logPendingFeaturesAtStartup();
         engine.go(*args);
     }
 

@@ -87,3 +87,26 @@ With OpenEden's features back, `vulkan` is feature-complete against the OSG buil
 1. **Blending:** CreativeMotion handles blending. OpenMW 0.51's rules-based blending is not ported; with CreativeMotion's pose driver off, vsgopenmw's existing blending stays (Morrowind behaviour unchanged when off).
 2. **Distortion:** moves to task 0012 (V4).
 3. **Main line:** `vulkan` becomes the main line after task 0012 (V4); toddhow merges it.
+
+## Progress (2026-10-29)
+
+Every feature in this task is back on the Vulkan build. Changes are uncommitted until the fresh review is done.
+
+- **Bone interface:** `MWRender::BonePose` (`apps/openmw/mwrender/bonepose.*`) is the one bone interface. It uses OSG math internally until task 0013. Its tests are in `apps/openmw_tests/mwrender/testbonepose.cpp`.
+- **Foot IK, look-at, smoother turns, inertial lean and compound hitboxes:** `ActorIkController` is rebuilt on `BonePose` and created per actor by `CharacterController`. It runs in `postAnimation` after `MWAnim::Actor::manualAnimation`. With every setting off it binds no bones.
+- **CreativeMotion pose driver:** `CreativeMotionPoseDriver` is rebuilt on `Anim::Bones` and `Anim::ControllerMap`.
+  - Conversion rules: `Linear` and quaternion keys convert exactly; `Flip` keys become step keys switching at the midpoint; everything else is resampled at 60 Hz, as task 0007 decided.
+  - It samples per bone group from `MWAnim::Play::getActiveState` and inertializes changes. When "creativemotion animation" is on, it writes the bones in place of Play's controllers (`Play::updateBones = false`).
+  - If a source can't be converted, the actor falls back to vsgopenmw's path and a warning is logged.
+  - **In game, Seyda Neen, compare mode with transitions at 0:** no bone differs from vsgopenmw's pose by more than 5 mm or 0.02 rad (zero reports in 1600 frames). With the default 0.25 s transitions, differences appear only during transitions, as intended.
+  - Tests: `test_creativemotion_runtime.cpp`, rewritten from the spec by a separate agent, 35 tests.
+- **Blending:** per the answer to question 1 above, CreativeMotion handles blending and 0.51's rules-based blending is not ported. With the driver off, vsgopenmw's behaviour is unchanged. The criterion "`smooth animation transitions` works when the CreativeMotion runtime is off" is replaced by that decision.
+- **Debug draws:**
+  - Both are drawn by `MWRender::DebugGeometry`: lines plus translucent triangles, unlit, no fog. That needed colour mode 3 in the default shader's `materialTerms`, and fog skipped for it in `main.frag`.
+  - `tcb` toggles the Jolt draw (`joltdebugdraw.*`).
+  - The navmesh draw (`navmesh.*`, plus `components/sceneutil/{detourdebugdraw,navmesh}`, now renderer-free behind `SceneUtil::DebugPrimitiveSink`) follows `[Navigator] enable nav mesh render` and `nav mesh render mode`, the `togglenavmesh` command, `setNavMeshNumberToRender` and Lua's `debug.setNavMeshRenderMode`. Tiles are redrawn only when their version changes, on the main thread.
+  - Navmesh lines match the OSG build's positions. The fill uses Recast's colours and is more visible than the OSG build's (research note 0004).
+  - Tests: `sceneutil/testdetourdebugdraw.cpp`, 28 tests.
+- **Compatibility pack:** the `.kf` reader `compat_morrowind::KfTrack` / `loadKfAnimation` (`kf_animation.*`) reproduces `NifOsg::Loader::loadKf` and `NifOsg::KeyframeController::getTransform` at `cf3dbd3aa7` with no renderer. The pack builds again and needs only the SDK, `components/nif` and small utilities. Tests: `plugin/test_compat_morrowind.cpp`, adapted, plus new reader tests.
+- **`OPENEDEN_VSG_PENDING_FEATURES`:** removed with its registry (`apps/openmw/vsgpendingfeatures.*`) and that registry's own test. The excluded tests run again.
+- **Results (Windows):** components-tests 1578/1578 and openmw-tests 514/514 pass. The Linux and Lua integration results are recorded at commit time.

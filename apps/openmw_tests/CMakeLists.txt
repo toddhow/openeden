@@ -5,7 +5,6 @@ file(GLOB UNITTEST_SRC_FILES
     main.cpp
 
     options.cpp
-    test_vsg_pending_features.cpp
     test_vsg_v1_invariants.cpp
 
     mwworld/teststore.cpp
@@ -18,6 +17,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwgui/tooltips.cpp
     mwgui/weightedsearch.cpp
+
+    mwrender/testbonepose.cpp
 
     mwscript/testscripts.cpp
 )

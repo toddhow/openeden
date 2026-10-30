@@ -460,6 +460,17 @@ namespace MWAnim
         return {};
     }
 
+    Play::ActiveState Play::getActiveState(size_t boneGroup) const
+    {
+        if (boneGroup >= mControllerGroups.size())
+            return {};
+        if (const float* time = mControllerGroups[boneGroup].time)
+            for (const auto& [name, state] : mStates)
+                if (&state.time == time)
+                    return { state.source != nullptr ? state.source->ref.get() : nullptr, name, state.time };
+        return {};
+    }
+
     float Play::getCurrentTime(std::string_view groupname) const
     {
         auto iter = mStates.find(groupname);
@@ -610,8 +621,9 @@ namespace MWAnim
             else
                 ++stateiter;
         }
-        for (auto& group : mControllerGroups)
-            group.update();
+        if (updateBones)
+            for (auto& group : mControllerGroups)
+                group.update();
         return movement;
     }
 

@@ -22,7 +22,9 @@
 
 #include <components/settings/values.hpp>
 
+#include "../mwrender/actorikcontroller.hpp"
 #include "../mwrender/effect.hpp"
+#include "../mwrender/creativemotiondriver.hpp"
 #include "../mwrender/itemlight.hpp"
 #include "../mwrender/player.hpp"
 #include "../mwrender/transparency.hpp"
@@ -659,12 +661,12 @@ namespace MWMechanics
         return groupName;
     }
 
-    void CharacterController::refreshMovementAnims(CharacterState movement, bool force)
+    void CharacterController::refreshMovementAnims(CharacterState movementState, bool force)
     {
-        if (movement == mMovementState && !force)
+        if (movementState == mMovementState && !force)
             return;
 
-        std::string_view movementAnimGroup = movementStateToAnimGroup(movement);
+        std::string_view movementAnimGroup = movementStateToAnimGroup(movementState);
 
         if (movementAnimGroup.empty())
         {
@@ -676,7 +678,7 @@ namespace MWMechanics
         std::string movementAnimName{ movementAnimGroup };
 
         CharacterState prevMovementState = mMovementState;
-        mMovementState = movement;
+        mMovementState = movementState;
         std::string::size_type swimpos = movementAnimName.find("swim");
         if (!mAnimation->hasAnimation(movementAnimName))
         {
@@ -737,7 +739,7 @@ namespace MWMechanics
         {
             if (movementAnimName == mCurrentMovement)
                 mAnimation->getInfo(mCurrentMovement, &startpoint);
-            else if (runStateToWalkState(prevMovementState) == runStateToWalkState(movement))
+            else if (runStateToWalkState(prevMovementState) == runStateToWalkState(movementState))
                 mAnimation->getInfo(mCurrentMovement, &startpoint);
         }
 
@@ -864,7 +866,7 @@ namespace MWMechanics
     }
 
     void CharacterController::refreshCurrentAnims(
-        CharacterState idle, CharacterState movement, JumpingState jump, bool force)
+        CharacterState idle, CharacterState movementState, JumpingState jump, bool force)
     {
         // If the current animation is scripted, do not touch it
         if (isScriptedAnimPlaying())
@@ -872,7 +874,7 @@ namespace MWMechanics
 
         refreshHitRecoilAnims();
         refreshJumpAnims(jump, force);
-        refreshMovementAnims(movement, force);
+        refreshMovementAnims(movementState, force);
 
         // idle handled last as it can depend on the other states
         refreshIdleAnims(idle, force);
@@ -960,6 +962,8 @@ namespace MWMechanics
              * handle knockout and death which moves the character down. */
             mAnimation->setAccumulation({ 1.0f, 1.0f, 0.0f });
 
+            createPoseControllers();
+
             MWRender::addItemLightsAndListener(*mObject, cls.getContainerStore(mPtr));
 
             if (cls.hasInventoryStore(mPtr))
@@ -1031,6 +1035,12 @@ namespace MWMechanics
         if (!mAnimation)
             return;
 
+        mIkController.reset();
+        if (mPoseDriver)
+        {
+            mPoseDriver.reset();
+            mAnimation->updateBones = true;
+        }
         persistAnimationState();
 
         if (mActor)
@@ -1247,6 +1257,8 @@ namespace MWMechanics
     void CharacterController::updatePtr(const MWWorld::Ptr& ptr)
     {
         mPtr = ptr;
+        if (mIkController)
+            mIkController->updatePtr(ptr);
     }
 
     void CharacterController::updateIdleStormState(bool inwater) const
@@ -2659,7 +2671,66 @@ namespace MWMechanics
             moved = {};
             return;
         }
-        moved = mAnimation->runAnimation(mSkipAnim && !isScriptedAnimPlaying() ? 0.f : duration);
+        const float animationDuration = mSkipAnim && !isScriptedAnimPlaying() ? 0.f : duration;
+        moved = mAnimation->runAnimation(animationDuration);
+        if (mPoseDriver)
+            runPoseDriver(animationDuration);
+    }
+
+    void CharacterController::createPoseControllers()
+    {
+        mIkController = std::make_unique<MWRender::ActorIkController>(mPtr, *mObject);
+
+        mPoseDriver.reset();
+        mPoseDriverApplies = false;
+        if (Settings::game().mCreativeMotionAnimation || Settings::game().mCreativeMotionAnimationCompare)
+        {
+            auto driver = std::make_unique<MWRender::CreativeMotionPoseDriver>(mAnimation->bones);
+            if (driver->isValid())
+            {
+                mPoseDriver = std::move(driver);
+                mPoseDriverApplies = Settings::game().mCreativeMotionAnimation;
+                mAnimation->updateBones = !mPoseDriverApplies;
+            }
+        }
+    }
+
+    void CharacterController::runPoseDriver(float duration)
+    {
+        // Differences the comparison mode reports (as the OSG build): 5 mm and about 1.1 degrees.
+        constexpr float compareTranslationThreshold = 0.005f;
+        constexpr float compareRotationThreshold = 0.02f;
+
+        std::array<MWRender::CreativeMotionActiveSource, MWRender::sNumBlendMasks> active;
+        for (std::size_t group = 0; group < active.size(); ++group)
+        {
+            const MWAnim::Play::ActiveState state = mAnimation->getActiveState(group);
+            if (state.source != nullptr && !mPoseDriver->registerSource(*state.source))
+            {
+                // Falls back to vsgopenmw's animation for this actor; its bones catch up on the next frame.
+                Log(Debug::Warning) << "CreativeMotion cannot play the animation of " << mPtr.getCellRef().getRefId()
+                                    << "; using the engine's animation for this actor";
+                mPoseDriver.reset();
+                mAnimation->updateBones = true;
+                return;
+            }
+            active[group] = { state.source, state.groupname, state.time };
+        }
+
+        mPoseDriver->update(duration, active, Settings::game().mCreativeMotionAnimationTransition);
+        if (mPoseDriverApplies)
+        {
+            mPoseDriver->apply();
+            return;
+        }
+
+        float maxTransDiff = 0.f;
+        float maxRotDiff = 0.f;
+        std::string maxDiffBone;
+        if (mPoseDriver->compareWithCurrentPose(maxTransDiff, maxRotDiff, maxDiffBone)
+            && (maxTransDiff > compareTranslationThreshold || maxRotDiff > compareRotationThreshold))
+            Log(Debug::Verbose) << "CreativeMotion comparison diff on " << maxDiffBone << ": pos = " << maxTransDiff
+                                << "m, rot = " << maxRotDiff << " rad";
     }
 
     void CharacterController::postAnimation(float duration)
@@ -2742,6 +2813,13 @@ namespace MWMechanics
         if (mActor)
         {
             mActor->manualAnimation(mPtr.getRefData().getPosition().rot[0], duration);
+            // OpenEden (task 0011): foot IK, procedural lean and compound hitboxes run after the animation and the
+            // manual bone rotations, on the main thread, before the scene update skins the actor.
+            if (mIkController)
+            {
+                mIkController->update(duration);
+                mIkController->applyPostAnimation(duration);
+            }
             if (mWielding)
             {
                 if (mWeaponType != 0 && !mCurrentWeapon.empty())
@@ -2933,7 +3011,7 @@ namespace MWMechanics
         return true;
     }
 
-    bool CharacterController::playGroupLua(std::string_view groupname, float speed, std::string_view startKey,
+    bool CharacterController::playGroupLua(std::string_view groupname, float playSpeed, std::string_view startKey,
         std::string_view stopKey, uint32_t loops, bool forceLoop)
     {
         // Note: In mwscript, "idle" is a special case used to clear the anim queue.
@@ -2951,7 +3029,7 @@ namespace MWMechanics
         entry.mStopKey = stopKey;
         entry.mLooping = isLoopingAnimation(groupname) || forceLoop;
         entry.mScripted = true;
-        entry.mSpeed = speed;
+        entry.mSpeed = playSpeed;
         entry.mTime = 0;
 
         if (mAnimQueue.size() > 1)
@@ -3069,7 +3147,12 @@ namespace MWMechanics
 
     void CharacterController::forceStateUpdate(MWAnim::Object* obj)
     {
+        const bool newAnimation = obj->animation.get() != mAnimation;
         mAnimation = obj->animation.get();
+        // A rebuilt model (werewolf, vampire, camera reattachment) brings new bones: the pose driver and the IK
+        // controller hold pointers into the old ones, so they are rebuilt too.
+        if (newAnimation && mActor)
+            createPoseControllers();
 
         clearAnimQueue();
 

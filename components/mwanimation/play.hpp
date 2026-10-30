@@ -123,6 +123,19 @@ namespace MWAnim
         /// Returns the group name of the animation currently active on that bone group.
         std::string_view getActiveGroup(size_t boneGroup) const;
 
+        /// openeden-vsg: the state active on a bone group (task 0011): its animation source, group name and time.
+        struct ActiveState
+        {
+            const Anim::ControllerMap* source = nullptr;
+            std::string_view groupname;
+            float time = 0.f;
+        };
+        ActiveState getActiveState(size_t boneGroup) const;
+
+        /// openeden-vsg: when false, runAnimation advances the states, text keys and movement but writes no bone;
+        /// CreativeMotion's pose driver writes them instead (task 0011).
+        bool updateBones = true;
+
         /// Get the absolute position in the animation track of the first text key with the given group.
         float getStartTime(std::string_view groupname) const;
 

@@ -1,7 +1,6 @@
 set(OPENMW_SOURCES
     vsgengine.cpp
     options.cpp
-    vsgpendingfeatures.cpp
 )
 
 set(OPENMW_RESOURCES
@@ -15,7 +14,6 @@ set(OPENMW_HEADERS
     vsgengine.hpp
     game.hpp
     boot.hpp
-    vsgpendingfeatures.hpp
 )
 
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
@@ -25,7 +23,7 @@ add_openmw_dir (mwrender
     animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map worldmap preview shadow
-    fogmanager water simplewater screenshotinterface
+    fogmanager water simplewater screenshotinterface bonepose actorikcontroller debuggeometry joltdebugdraw navmesh creativemotiondriver
     )
 
 add_openmw_dir (mwinput

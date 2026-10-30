@@ -254,10 +254,10 @@ namespace MWRender
             {
                 auto sg = vsg::StateGroup::create();
                 auto flashTex = vsgUtil::readImage("tx_sun_flash_grey_05.dds", textureOptions);
-                auto sampler = builder.createSampler();
-                sampler->addressModeU = sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-                share(sampler, textureOptions);
-                auto descriptorImage = vsg::DescriptorImage::create(sampler, flashTex);
+                auto flashSampler = builder.createSampler();
+                flashSampler->addressModeU = flashSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                share(flashSampler, textureOptions);
+                auto descriptorImage = vsg::DescriptorImage::create(flashSampler, flashTex);
 
                 sunFlashMaterial.value().emissive = vsg::vec4(1, 1, 1, 1 );
                 auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
@@ -296,7 +296,7 @@ namespace MWRender
         {
             if (visibleRatio > 0.f)
             {
-                float scale = 2.6;
+                float flashScale = 2.6;
                 const float fadeThreshold = 0.1;
                 if (visibleRatio < fadeThreshold)
                 {
@@ -307,9 +307,9 @@ namespace MWRender
                 {
                     sunFlashMaterial.setAlpha(1);
                     const float threshold = 0.6;
-                    scale *= visibleRatio * (1.f - threshold) + threshold;
+                    flashScale *= visibleRatio * (1.f - threshold) + threshold;
                 }
-                mFlash->setScale(scale);
+                mFlash->setScale(flashScale);
             }
         }
         void update()

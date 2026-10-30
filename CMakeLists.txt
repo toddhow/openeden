@@ -46,15 +46,6 @@ option(BUILD_PHYSICSOBJECTTOOL   "Build Physics object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
 option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
-# Track V stage V1 (task 0009): OpenEden features built on the removed OSG animation and rendering
-# (foot IK, look-at, smoother turns, inertial lean, the CreativeMotion pose driver, the Jolt debug draw and
-# the compatibility pack's .kf converter) are compiled out until task 0011 rebuilds them on VSG.
-option(OPENEDEN_VSG_PENDING_FEATURES "Build OpenEden features still pending their VSG port (task 0011)" OFF)
-if(OPENEDEN_VSG_PENDING_FEATURES)
-    add_compile_definitions(OPENEDEN_VSG_PENDING_FEATURES=1)
-else()
-    add_compile_definitions(OPENEDEN_VSG_PENDING_FEATURES=0)
-endif()
 
 set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
 
@@ -384,7 +375,7 @@ if (USE_SYSTEM_TINYXML)
 endif()
 
 # OSG Headers
-include_directories(${CMAKE_SOURCE_DIR}/extern/osg)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/extern/osg)
 
 # Platform specific
 if (WIN32)
@@ -650,7 +641,24 @@ if(EXISTS "${CREATIVEMOTION_SOURCE_DIR}/CMakeLists.txt")
     set(OPAS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(OPAS_BUILD_PHYSICS OFF CACHE BOOL "" FORCE)
     set(OPAS_BUILD_VIEWER OFF CACHE BOOL "" FORCE)
-    add_subdirectory("${CREATIVEMOTION_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/creativemotion_ext" EXCLUDE_FROM_ALL)
+    # The vendored copy is never edited here (decision 0001). Its headers are system headers for OpenEden's code, and
+    # on GCC and Clang its own -Werror (cmake/OpasWarnings.cmake) is relaxed, because newer compilers warn in it
+    # (for example -Wreorder in AnimationPlayer with GCC 13); such warnings become CreativeMotion task specs.
+    add_subdirectory("${CREATIVEMOTION_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/creativemotion_ext" EXCLUDE_FROM_ALL SYSTEM)
+    function(openeden_relax_vendored_warnings directory)
+        get_property(targets DIRECTORY "${directory}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(target ${targets})
+            get_target_property(type ${target} TYPE)
+            if(NOT type STREQUAL "INTERFACE_LIBRARY" AND NOT type STREQUAL "UTILITY")
+                target_compile_options(${target} PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wno-error>)
+            endif()
+        endforeach()
+        get_property(subdirectories DIRECTORY "${directory}" PROPERTY SUBDIRECTORIES)
+        foreach(subdirectory ${subdirectories})
+            openeden_relax_vendored_warnings("${subdirectory}")
+        endforeach()
+    endfunction()
+    openeden_relax_vendored_warnings("${CREATIVEMOTION_SOURCE_DIR}")
 endif()
 
 # Apps and tools

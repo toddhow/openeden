@@ -260,6 +260,7 @@ namespace MWWorld
         // As OpenMW 0.51's NifFileManager did, physics decodes NIF strings with the content encoder.
         mPhysics = std::make_unique<MWPhysics::PhysicsSystem>(
             resourceSystem, encoder ? &encoder->getStatelessEncoder() : nullptr);
+        mPhysics->setDebugGeometry(mRendering->getDebugGeometry());
 
         mContentFiles = contentFiles;
         mESMVersions.resize(mContentFiles.size(), -1);
@@ -290,6 +291,7 @@ namespace MWWorld
         {
             mNavigator = DetourNavigator::makeNavigatorStub();
         }
+        mRendering->setNavigator(mNavigator.get());
 
         mProjectileManager = std::make_unique<ProjectileManager>(mRendering, mPhysics.get());
 
@@ -503,6 +505,9 @@ namespace MWWorld
         // Must be cleared before mRendering is destroyed
         if (mProjectileManager)
             mProjectileManager->clear();
+
+        // The renderer outlives the world; it must stop reading the navigator the world owns.
+        mRendering->setNavigator(nullptr);
 
         if (Settings::navigator().mWaitForAllJobsOnExit && mNavigator != nullptr)
         {
@@ -3705,7 +3710,12 @@ namespace MWWorld
 
     void World::setNavMeshNumberToRender(const std::size_t value)
     {
-        // mRendering->setNavMeshNumber(value);
+        mRendering->setNavMeshNumber(value);
+    }
+
+    void World::setNavMeshRenderMode(Settings::NavMeshRenderMode value)
+    {
+        mRendering->setNavMeshMode(value);
     }
 
     DetourNavigator::AgentBounds World::getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const

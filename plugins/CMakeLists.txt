@@ -5,7 +5,8 @@ if(NOT TARGET openeden_sdk)
     target_include_directories(openeden_sdk INTERFACE "${CMAKE_SOURCE_DIR}/sdk/include")
 endif()
 
-# The Morrowind pack's .kf converter is built on NifOsg, which the VSG renderer replaced; it returns in task 0011.
-if(OPENEDEN_VSG_PENDING_FEATURES)
-    add_subdirectory(compat_morrowind)
-endif()
+# Plugins are shared libraries that link the static components library (the pack reads Nif records), so on Linux
+# components must be position independent.
+set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+add_subdirectory(compat_morrowind)

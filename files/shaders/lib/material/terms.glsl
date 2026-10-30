@@ -33,6 +33,9 @@ vec3 getEmission(vec4 vertexColor)
 
 vec4 materialTerms(vec3 lightDiffuse, vec4 vertexColor /*, Material material, Scene scene, constexpr int colorMode*/)
 {
+    // OpenEden: colour mode 3 draws the vertex colour unlit, alpha included (debug geometry, mwrender/debuggeometry).
+    if (colorMode == 3)
+        return vertexColor;
     vec3 ambient = scene.ambient.xyz * getAmbient(vertexColor);
     vec4 materialDiffuse = getDiffuse(vertexColor);
     vec3 diffuse = lightDiffuse * materialDiffuse.xyz;

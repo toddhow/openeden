@@ -617,9 +617,8 @@ namespace MWPhysics
 
     void PhysicsTaskScheduler::debugDraw()
     {
-#if OPENEDEN_VSG_PENDING_FEATURES
-        mDebugDrawer->step();
-#endif
+        if (mDebugDrawer)
+            mDebugDrawer->step();
     }
 
     void* PhysicsTaskScheduler::getUserPointer(const JPH::BodyID bodyId) const

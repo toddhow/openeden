@@ -2,6 +2,7 @@
 #define GAME_MWMECHANICS_CHARACTER_HPP
 
 #include <deque>
+#include <memory>
 
 #include <vsg/maths/vec3.h>
 #include <components/esm3/loadweap.hpp>
@@ -31,6 +32,8 @@ namespace MWRender
 {
     class Npc;
     class Player;
+    class ActorIkController;
+    class CreativeMotionPoseDriver;
 }
 namespace MWMechanics
 {
@@ -182,6 +185,13 @@ namespace MWMechanics
         MWAnim::Wielding* mWielding{};
         MWRender::Npc* mNpc{};
         MWRender::Player* mPlayer{};
+        // OpenEden's foot IK, procedural lean and compound hitbox driver (task 0011); actors only.
+        std::unique_ptr<MWRender::ActorIkController> mIkController;
+        // CreativeMotion's animation runtime (task 0007, on VSG in task 0011): with "creativemotion animation" it
+        // poses the bones in place of MWAnim::Play's controllers; with only "... compare" it is compared with them.
+        // Actors only; null when both settings are off.
+        std::unique_ptr<MWRender::CreativeMotionPoseDriver> mPoseDriver;
+        bool mPoseDriverApplies = false;
 
         std::map<ESM::RefId, MWSound::Sound*> mPlayingSounds;
         struct AnimationQueueEntry
@@ -262,10 +272,10 @@ namespace MWMechanics
         void resetCurrentWeaponState();
         void resetCurrentDeathState();
 
-        void refreshCurrentAnims(CharacterState idle, CharacterState movement, JumpingState jump, bool force = false);
+        void refreshCurrentAnims(CharacterState idle, CharacterState movementState, JumpingState jump, bool force = false);
         void refreshHitRecoilAnims();
         void refreshJumpAnims(JumpingState jump, bool force = false);
-        void refreshMovementAnims(CharacterState movement, bool force = false);
+        void refreshMovementAnims(CharacterState movementState, bool force = false);
         void refreshIdleAnims(CharacterState idle, bool force = false);
 
         bool updateWeaponState();
@@ -339,6 +349,9 @@ namespace MWMechanics
         void update(float duration); // = {
         void preAnimation(float duration);
         void runAnimation(float duration); //.supportsUpdateThreads=true
+        void runPoseDriver(float duration); //.supportsUpdateThreads=true
+        /// Creates the IK controller and, when a CreativeMotion setting is on, the pose driver for mAnimation's bones.
+        void createPoseControllers();
         void postAnimation(float duration);
         // }
 
@@ -347,7 +360,7 @@ namespace MWMechanics
 
         void persistAnimationState() const;
         bool playGroup(std::string_view groupname, int mode, uint32_t count, bool scripted = false);
-        bool playGroupLua(std::string_view groupname, float speed, std::string_view startKey, std::string_view stopKey,
+        bool playGroupLua(std::string_view groupname, float playSpeed, std::string_view startKey, std::string_view stopKey,
             uint32_t loops, bool forceLoop);
         void enableLuaAnimations(bool enable);
         void skipAnim();

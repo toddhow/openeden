@@ -3,38 +3,37 @@
 #ifndef OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 #define OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 
-#include <osg/Matrix>
+#include <osg/Matrixf>
 #include <osg/Quat>
 #include <osg/Vec3f>
-#include <osg/observer_ptr>
-#include <osg/ref_ptr>
 
-namespace osg
-{
-    class Callback;
-    class MatrixTransform;
-    class Node;
-}
+#include "../mwworld/ptr.hpp"
 
-namespace SceneUtil
+#include "bonepose.hpp"
+
+namespace MWAnim
 {
-    class PositionAttitudeTransform;
+    class Object;
 }
 
 namespace MWRender
 {
-    class Animation;
-
     /**
      * @brief Actor Inverse Kinematics and skeletal hitbox controller for OpenEden characters.
      * Uses CreativeMotion's opas::ik::solveTwoBone for procedural foot planting
      * and knee articulation on uneven terrain, ramps, and slopes, and drives the
      * actor's mutable compound hitbox capsules from the animated/IK-solved skeleton.
+     *
+     * openeden-vsg (task 0011): ported from the OSG build onto BonePose; the algorithm and settings are unchanged.
+     * Owned by MWMechanics::CharacterController, which calls update() after the animation pass and
+     * applyPostAnimation() after MWAnim::Actor::manualAnimation, on the main thread, before the scene update skins
+     * the actor. The look-at and smoother-turn settings are only read here, as on the OSG build.
      */
     class ActorIkController
     {
     public:
-        explicit ActorIkController(Animation& animation);
+        /// @param object the actor's animation object; must outlive the controller (both belong to the character).
+        ActorIkController(const MWWorld::Ptr& ptr, MWAnim::Object& object);
         ~ActorIkController();
 
         ActorIkController(const ActorIkController&) = delete;
@@ -44,8 +43,10 @@ namespace MWRender
         void reset();
         void update(float duration);
 
-        /// Called from the post-animation update callback on the object root.
-        void applyPostAnimation(double simulationTime);
+        /// Runs after the frame's animation and manual bone rotations, with the frame's duration in seconds.
+        void applyPostAnimation(float duration);
+
+        void updatePtr(const MWWorld::Ptr& ptr) { mPtr = ptr; }
 
         [[nodiscard]] bool isFootPlantingActive() const noexcept { return mFootPlantingActive; }
         [[nodiscard]] bool isLookAtActive() const noexcept { return mLookAtActive; }
@@ -54,9 +55,9 @@ namespace MWRender
     private:
         struct BoneState
         {
-            osg::ref_ptr<osg::MatrixTransform> mNode;
-            osg::Matrix mBase; // animated (pre-IK) local matrix of the current frame
-            osg::Matrix mWritten; // local matrix written by the IK pass
+            BonePose::Bone mBone;
+            osg::Matrixf mBase; // animated (pre-IK) local matrix of the current frame
+            osg::Matrixf mWritten; // local matrix written by the IK pass, as read back from the bone
             bool mHasWritten = false;
         };
 
@@ -65,7 +66,7 @@ namespace MWRender
             BoneState mThigh;
             BoneState mCalf;
             BoneState mFoot;
-            osg::ref_ptr<osg::MatrixTransform> mToe;
+            BonePose::Bone mToe;
 
             // Ground probe results for the current frame, world space
             bool mGroundHit = false;
@@ -80,24 +81,31 @@ namespace MWRender
 
         struct ArmNodes
         {
-            osg::ref_ptr<osg::MatrixTransform> mUpperArm;
-            osg::ref_ptr<osg::MatrixTransform> mForearm;
-            osg::ref_ptr<osg::MatrixTransform> mHand;
+            BonePose::Bone mUpperArm;
+            BonePose::Bone mForearm;
+            BonePose::Bone mHand;
         };
 
-        class PostAnimationCallback;
+        struct RootState
+        {
+            osg::Vec3f mPosition;
+            osg::Quat mAttitude;
+            float mScale = 1.f;
+        };
 
-        void attachPostCallback();
-        void detachPostCallback();
+        RootState getRoot() const;
+        osg::Vec3f worldPos(const BonePose::Bone& bone) const;
+        void writeBone(BoneState& bone, const osg::Matrixf& local);
         void restoreBones();
         bool restoreBase(BoneState& bone);
         void probeLegGround(LegState& leg, const osg::Vec3f& actorPos, const osg::Vec3f& actorForward, float actorScale);
         void solveLeg(LegState& leg, float actorZ, float pelvisOffset, float weight, const osg::Vec3f& actorForward,
             float actorScale);
-        void updateHitboxes(const SceneUtil::PositionAttitudeTransform* baseNode, const osg::Vec3f& actorForward,
-            float actorScale);
+        void updateHitboxes(const RootState& root, const osg::Vec3f& actorForward, float actorScale);
 
-        Animation& mAnimation;
+        MWWorld::Ptr mPtr;
+        MWAnim::Object& mObject;
+        std::unique_ptr<BonePose> mPose;
 
         bool mInitialized = false;
         bool mFootPlantingActive = false;
@@ -105,15 +113,12 @@ namespace MWRender
         bool mSmootherTurnsActive = false;
         bool mHasCompoundHitboxes = false;
 
-        osg::ref_ptr<PostAnimationCallback> mPostCallback;
-        osg::observer_ptr<osg::Node> mAttachedTo;
-
         BoneState mPelvis;
         LegState mLegs[2];
         ArmNodes mArms[2];
         BoneState mSpine1;
-        osg::ref_ptr<osg::MatrixTransform> mNeck;
-        osg::ref_ptr<osg::MatrixTransform> mHead;
+        BonePose::Bone mNeck;
+        BonePose::Bone mHead;
 
         // Grounded/airborne blend target from update(), smoothed in the post pass
         bool mWantIk = false;
@@ -122,8 +127,6 @@ namespace MWRender
         // Pelvis height filtered in world space (absorbs collision/stair height pops)
         bool mPelvisInit = false;
         float mFilteredPelvisWorldZ = 0.f;
-
-        double mLastSimTime = -1.0;
     };
 } // namespace MWRender
 

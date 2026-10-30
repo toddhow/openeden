@@ -229,6 +229,11 @@ add_component_dir (resource
     )
 #</vsgopenmw-code-style>
 
+# OpenEden task 0011: the navmesh debug draw, renderer-free (it draws into a DebugPrimitiveSink).
+add_component_dir (sceneutil
+    detourdebugdraw navmesh
+    )
+
 #vsgopenmw-delete-me
 #[[
 add_component_dir (shader

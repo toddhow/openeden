@@ -44,7 +44,10 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/projection.hpp>
 #include <components/vsgutil/setbin.hpp>
-// #include <components/detournavigator/navigator.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/detournavigator/agentbounds.hpp>
+#include <components/detournavigator/navigator.hpp>
+#include <components/detournavigator/navmeshcacheitem.hpp>
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
@@ -53,6 +56,8 @@
 #include "bin.hpp"
 #include "animcontext.hpp"
 #include "camera.hpp"
+#include "debuggeometry.hpp"
+#include "navmesh.hpp"
 #include "effects.hpp"
 #include "env.hpp"
 #include "fogmanager.hpp"
@@ -169,6 +174,16 @@ namespace MWRender
 
         mEffects = std::make_unique<Effects>(mScene->context);
         mProjectiles = std::make_unique<Projectiles>(mScene->context);
+        // Jolt's debug draw: lines only, refilled every frame; enough for Balmora's colliders.
+        constexpr std::size_t joltLineVertices = std::size_t(1) << 21;
+        mDebugGeometry = std::make_unique<DebugGeometry>(*mResourceSystem->builder, mCompileContext, joltLineVertices, 0);
+        // The navmesh debug draw: tile boundaries as lines, polygons as translucent triangles.
+        constexpr std::size_t navMeshLineVertices = std::size_t(1) << 20;
+        constexpr std::size_t navMeshTriangleVertices = std::size_t(1) << 21;
+        mNavMeshGeometry = std::make_unique<DebugGeometry>(
+            *mResourceSystem->builder, mCompileContext, navMeshLineVertices, navMeshTriangleVertices);
+        mNavMesh = std::make_unique<NavMesh>(
+            *mNavMeshGeometry, Settings::navigator().mEnableNavMeshRender, Settings::navigator().mNavMeshRenderMode);
         mSky = std::make_unique<Sky>(*resourceSystem, mCompileContext->clone(Mask_Sky), mEngine.getEnabledFeatures().occlusionQueryPrecise);
         mWater = std::make_unique<Water>(resourceSystem);
         mSimpleWater = std::make_unique<SimpleWater>(Constants::CellSizeInUnits, *mResourceSystem->builder, mResourceSystem->textureOptions);
@@ -361,6 +376,8 @@ namespace MWRender
         }
         mSceneRoot->addChild(mProjectiles->node());
         mSceneRoot->addChild(mEffects->node());
+        mSceneRoot->addChild(mDebugGeometry->node());
+        mSceneRoot->addChild(mNavMeshGeometry->node());
     }
 
     void RenderManager::createIntersectorScene()
@@ -386,6 +403,8 @@ namespace MWRender
 
     bool RenderManager::toggleRenderMode(RenderMode mode)
     {
+        if (mode == Render_NavMesh)
+            return mNavMesh->toggle();
         bool enabled = mRenderModes[mode].toggled = !mRenderModes[mode].toggled;
         updateSceneChildren();
         return enabled;
@@ -622,12 +641,49 @@ namespace MWRender
         setFirstPersonMode(mCamera->getMode() == Camera::Mode::FirstPerson);
 
         mScene->update(dt);
-        /*
         updateNavMesh();
+        /*
         updateRecastMesh();
         */
         mCamera->update(dt, paused);
         mCamera->updateCamera(*mViewMatrix);
+    }
+
+    void RenderManager::setNavMeshNumber(const std::size_t value)
+    {
+        mNavMeshNumber = value;
+    }
+
+    void RenderManager::setNavMeshMode(Settings::NavMeshRenderMode value)
+    {
+        mNavMesh->setMode(value);
+    }
+
+    void RenderManager::updateNavMesh()
+    {
+        if (!mNavMesh->isEnabled() || mNavigator == nullptr)
+            return;
+
+        const auto navMeshes = mNavigator->getNavMeshes();
+
+        auto it = navMeshes.begin();
+        for (std::size_t i = 0; it != navMeshes.end() && i < mNavMeshNumber; ++i)
+            ++it;
+        if (it == navMeshes.end())
+        {
+            mNavMesh->reset();
+        }
+        else
+        {
+            try
+            {
+                mNavMesh->update(it->second, mNavMeshNumber, mNavigator->getSettings());
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "NavMesh render update exception: " << e.what();
+            }
+        }
     }
 
     void RenderManager::updatePlayerPtr(const MWWorld::Ptr& ptr)
@@ -841,8 +897,12 @@ namespace MWRender
     {
         float fov = getFieldOfView();
         auto windowSize = mEngine.extent2D();
-        *mProjectionMatrix = vsg::Perspective(fov,
-            static_cast<double>(windowSize.width) / static_cast<double>(windowSize.height), mNearClip, mViewDistance);
+        // Field by field: vsg::Perspective's implicit copy assignment is deprecated.
+        mProjectionMatrix->fieldOfViewY = fov;
+        mProjectionMatrix->aspectRatio
+            = static_cast<double>(windowSize.width) / static_cast<double>(windowSize.height);
+        mProjectionMatrix->nearDistance = mNearClip;
+        mProjectionMatrix->farDistance = mViewDistance;
 
         mSceneData->setDepthRange(mNearClip, mViewDistance);
         auto& sceneData = mSceneData->value();

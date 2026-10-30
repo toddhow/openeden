@@ -6,28 +6,26 @@
 #include <mutex>
 #include <vector>
 
-#include <osg/Array>
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/MatrixTransform>
-#include <osg/PrimitiveSet>
-#include <osg/ref_ptr>
+#include <osg/Vec3f>
 
 #include <Jolt/Jolt.h>
+
 #include <Jolt/Physics/Body/BodyManager.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
-#include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Renderer/DebugRenderer.h>
 
-#include <Jolt/Core/FixedSizeFreeList.h>
-#include <Jolt/Core/Mutex.h>
-#include <Jolt/Core/Reference.h>
-#include <Jolt/Core/UnorderedMap.h>
-
 namespace MWRender
 {
+    class DebugGeometry;
+
+    /**
+     * @brief Draws Jolt's bodies, constraints and recent collisions (the `tcb` console toggle).
+     *
+     * openeden-vsg (task 0011): ported from the OSG build. Jolt's draw calls are submitted as lines to the
+     * renderer's DebugGeometry; triangles and cached triangle batches (mesh shapes) are drawn as wireframe edges,
+     * transformed on the CPU, as the OSG build drew them with a line polygon mode. Owned by MWPhysics::PhysicsSystem;
+     * the DebugGeometry is owned by RenderManager and outlives it. step() runs on the main thread.
+     */
     class JoltDebugDrawer final : public JPH::DebugRenderer
     {
     private:
@@ -49,13 +47,6 @@ namespace MWRender
         public:
             JPH_OVERRIDE_NEW_DELETE
 
-            BatchImpl() {}
-
-            BatchImpl(osg::ref_ptr<osg::Geometry> geom)
-                : mGeometry(geom)
-            {
-            }
-
             virtual void AddRef() override { ++mRefCount; }
             virtual void Release() override
             {
@@ -64,45 +55,31 @@ namespace MWRender
             }
 
             std::atomic<uint32_t> mRefCount = 0;
-            osg::ref_ptr<osg::Geometry> mGeometry;
+            // Triangle corners in the batch's model space, three per triangle.
+            std::vector<JPH::Float3> mCorners;
         };
 
-        osg::ref_ptr<osg::Group> mParentNode;
-        osg::ref_ptr<osg::Geometry> mLinesGeometry;
-        osg::ref_ptr<osg::Geometry> mTrisGeometry;
-        osg::ref_ptr<osg::Vec3Array> mLinesVertices;
-        osg::ref_ptr<osg::Vec3Array> mTrisVertices;
-        osg::ref_ptr<osg::Vec4Array> mLinesColors;
-        osg::ref_ptr<osg::DrawArrays> mLinesDrawArrays;
-        osg::ref_ptr<osg::DrawArrays> mTrisDrawArrays;
-        osg::ref_ptr<osg::StateSet> stateSet;
-        Batch mEmptyBatch;
-
+        DebugGeometry& mGeometry;
+        JPH::PhysicsSystem* mPhysicsSystem;
         bool mDebugOn = false;
 
         std::mutex mCollisionMutex;
-        JPH::Mutex mPrimitivesLock;
+        std::vector<CollisionView> mCollisionViews;
 
         JPH::BodyManager::DrawSettings mBodyDrawSettings;
 
-        JPH::PhysicsSystem* mPhysicsSystem;
-        std::vector<CollisionView> mCollisionViews;
-        osg::ref_ptr<osg::Group> mShapesRoot;
-
-        void createGeometry();
-        void destroyGeometry();
+        void showCollisions();
+        void addEdges(const JPH::RVec3& a, const JPH::RVec3& b, const JPH::RVec3& c);
 
     public:
         JPH_OVERRIDE_NEW_DELETE
 
-        JoltDebugDrawer(osg::ref_ptr<osg::Group> parentNode, JPH::PhysicsSystem* physicsSystem, int debugMode = 1);
+        JoltDebugDrawer(DebugGeometry& geometry, JPH::PhysicsSystem* physicsSystem, int debugMode = 1);
         ~JoltDebugDrawer();
 
         void step();
 
         void addCollision(const osg::Vec3f& orig, const osg::Vec3f& normal);
-
-        void showCollisions();
 
         // 0 for off, anything else for on.
         void setDebugMode(int isOn);
@@ -111,26 +88,26 @@ namespace MWRender
         int getDebugMode() const;
 
         // Jolt overrides
-        virtual void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor);
+        void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override;
 
-        virtual void DrawTriangle(JPH::RVec3Arg inV1, JPH::RVec3Arg inV2, JPH::RVec3Arg inV3, JPH::ColorArg inColor,
-            JPH::DebugRenderer::ECastShadow inCastShadow = JPH::DebugRenderer::ECastShadow::Off);
+        void DrawTriangle(JPH::RVec3Arg inV1, JPH::RVec3Arg inV2, JPH::RVec3Arg inV3, JPH::ColorArg inColor,
+            JPH::DebugRenderer::ECastShadow inCastShadow = JPH::DebugRenderer::ECastShadow::Off) override;
 
-        virtual JPH::DebugRenderer::Batch CreateTriangleBatch(
-            const JPH::DebugRenderer::Triangle* inTriangles, int inTriangleCount);
+        JPH::DebugRenderer::Batch CreateTriangleBatch(
+            const JPH::DebugRenderer::Triangle* inTriangles, int inTriangleCount) override;
 
-        virtual JPH::DebugRenderer::Batch CreateTriangleBatch(const JPH::DebugRenderer::Vertex* inVertices,
-            int inVertexCount, const uint32_t* inIndices, int inIndexCount);
+        JPH::DebugRenderer::Batch CreateTriangleBatch(const JPH::DebugRenderer::Vertex* inVertices, int inVertexCount,
+            const JPH::uint32* inIndices, int inIndexCount) override;
 
-        virtual void DrawGeometry(JPH::RMat44Arg inModelMatrix, const JPH::AABox& inWorldSpaceBounds,
-            float inLODScaleSq, JPH::ColorArg inModelColor, const JPH::DebugRenderer::GeometryRef& inGeometry,
-            JPH::DebugRenderer::ECullMode inCullMode, JPH::DebugRenderer::ECastShadow inCastShadow,
-            JPH::DebugRenderer::EDrawMode inDrawMode);
+        void DrawGeometry(JPH::RMat44Arg inModelMatrix, const JPH::AABox& inWorldSpaceBounds, float inLODScaleSq,
+            JPH::ColorArg inModelColor, const JPH::DebugRenderer::GeometryRef& inGeometry,
+            JPH::DebugRenderer::ECullMode inCullMode = JPH::DebugRenderer::ECullMode::CullBackFace,
+            JPH::DebugRenderer::ECastShadow inCastShadow = JPH::DebugRenderer::ECastShadow::On,
+            JPH::DebugRenderer::EDrawMode inDrawMode = JPH::DebugRenderer::EDrawMode::Solid) override;
 
-        virtual void DrawText3D(
-            JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight);
+        void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString,
+            JPH::ColorArg inColor = JPH::Color::sWhite, float inHeight = 0.5f) override;
     };
-
 }
 
 #endif

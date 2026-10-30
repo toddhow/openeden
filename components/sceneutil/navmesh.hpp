@@ -1,16 +1,8 @@
 #ifndef OPENMW_COMPONENTS_SCENEUTIL_NAVMESH_H
 #define OPENMW_COMPONENTS_SCENEUTIL_NAVMESH_H
 
-#include <osg/ref_ptr>
-
 class dtNavMesh;
 struct dtMeshTile;
-
-namespace osg
-{
-    class Group;
-    class StateSet;
-}
 
 namespace DetourNavigator
 {
@@ -19,6 +11,8 @@ namespace DetourNavigator
 
 namespace SceneUtil
 {
+    class DebugPrimitiveSink;
+
     enum NavMeshTileDrawFlags : unsigned char
     {
         NavMeshTileDrawFlagsOffMeshConnections = 1,
@@ -27,9 +21,9 @@ namespace SceneUtil
         NavMeshTileDrawFlagsHeat = 1 << 3,
     };
 
-    osg::ref_ptr<osg::Group> createNavMeshTileGroup(const dtNavMesh& navMesh, const dtMeshTile& meshTile,
-        const DetourNavigator::Settings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet,
-        unsigned char flags, unsigned minSalt, unsigned maxSalt);
+    /// Draws one navmesh tile into sink in world coordinates; returns false when the tile has no header.
+    bool drawNavMeshTile(DebugPrimitiveSink& sink, const dtNavMesh& navMesh, const dtMeshTile& meshTile,
+        const DetourNavigator::Settings& settings, unsigned char flags, unsigned minSalt, unsigned maxSalt);
 }
 
 #endif

@@ -4,8 +4,6 @@
 #include <components/nif/extra.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/nif/node.hpp>
-#include <components/nifosg/controller.hpp>
-#include <components/nifosg/nifloader.hpp>
 
 #include <nlohmann/json.hpp>
 #include <osg/Matrixf>
@@ -156,7 +154,7 @@ namespace compat_morrowind
 
         // 2. Parse KF
         Nif::NIFFile kfFile(VFS::Path::NormalizedView("animation.kf"));
-        SceneUtil::KeyframeHolder kfHolder;
+        KfAnimation animation;
         try
         {
             Nif::Reader kfReader(kfFile, nullptr);
@@ -164,7 +162,7 @@ namespace compat_morrowind
                 std::string(reinterpret_cast<const char*>(kfBytes.data()), kfBytes.size()));
             kfReader.parse(std::move(stream));
 
-            NifOsg::Loader::loadKf(Nif::FileView(kfFile), kfHolder);
+            animation = loadKfAnimation(Nif::FileView(kfFile));
         }
         catch (const std::exception& e)
         {
@@ -172,11 +170,11 @@ namespace compat_morrowind
             return result;
         }
 
-        return convertParsedKfToGltf(kfHolder, bones, options);
+        return convertParsedKfToGltf(animation, bones, options);
     }
 
     KfConverter::ConversionResult KfConverter::convertParsedKfToGltf(
-        const SceneUtil::KeyframeHolder& kfHolder,
+        const KfAnimation& animation,
         const std::vector<BoneInfo>& initialBones,
         const ConversionOptions& options)
     {
@@ -186,7 +184,7 @@ namespace compat_morrowind
         // If no skeleton was provided, construct fallback bone list from KF controllers
         if (bones.empty())
         {
-            for (const auto& [name, ctrl] : kfHolder.mKeyframeControllers)
+            for (const auto& [name, track] : animation.mTracks)
             {
                 BoneInfo b;
                 b.name = toLower(name);
@@ -208,7 +206,7 @@ namespace compat_morrowind
         std::vector<ClipGroup> clips;
         std::set<std::string> groupNames;
 
-        for (const auto& [time, text] : kfHolder.mTextKeys)
+        for (const auto& [time, text] : animation.mTextKeys)
         {
             auto colonPos = text.find(':');
             if (colonPos != std::string::npos)
@@ -229,7 +227,7 @@ namespace compat_morrowind
             float startTime = -1.0f;
             float stopTime = -1.0f;
 
-            for (const auto& [time, text] : kfHolder.mTextKeys)
+            for (const auto& [time, text] : animation.mTextKeys)
             {
                 std::string lowerText = toLower(text);
                 if (lowerText.rfind(group + ":", 0) == 0)
@@ -257,7 +255,7 @@ namespace compat_morrowind
                 clip.startTime = startTime;
                 clip.stopTime = stopTime;
 
-                for (const auto& [time, text] : kfHolder.mTextKeys)
+                for (const auto& [time, text] : animation.mTextKeys)
                 {
                     if (time >= startTime && time <= stopTime)
                     {
@@ -275,12 +273,11 @@ namespace compat_morrowind
             float maxT = 0.0f;
             bool hasKeys = false;
 
-            for (const auto& [name, ctrl] : kfHolder.mKeyframeControllers)
+            for (const auto& [name, track] : animation.mTracks)
             {
-                const auto* nifCtrl = dynamic_cast<const NifOsg::KeyframeController*>(ctrl.get());
-                if (nifCtrl)
+                const KfTrack* nifCtrl = &track;
                 {
-                    const auto& transKeys = nifCtrl->getTranslationInterpolator().getKeys();
+                    const auto& transKeys = nifCtrl->getTranslationKeys();
                     if (transKeys && !transKeys->mKeys.empty())
                     {
                         if (!hasKeys)
@@ -296,7 +293,7 @@ namespace compat_morrowind
                         }
                     }
 
-                    const auto& rotKeys = nifCtrl->getRotationInterpolator().getKeys();
+                    const auto& rotKeys = nifCtrl->getRotationKeys();
                     if (rotKeys && !rotKeys->mKeys.empty())
                     {
                         if (!hasKeys)
@@ -318,7 +315,7 @@ namespace compat_morrowind
             defaultClip.name = options.clipPrefix.empty() ? "animation0" : options.clipPrefix;
             defaultClip.startTime = minT;
             defaultClip.stopTime = (std::max)(minT + 0.001f, maxT);
-            for (const auto& [time, text] : kfHolder.mTextKeys)
+            for (const auto& [time, text] : animation.mTextKeys)
             {
                 if (time >= defaultClip.startTime && time <= defaultClip.stopTime)
                     defaultClip.events.emplace_back(text, time - defaultClip.startTime);
@@ -412,24 +409,21 @@ namespace compat_morrowind
             for (std::size_t boneIdx = 0; boneIdx < bones.size(); ++boneIdx)
             {
                 const auto& bone = bones[boneIdx];
-                auto it = kfHolder.mKeyframeControllers.find(bone.name);
-                if (it == kfHolder.mKeyframeControllers.end() || !it->second)
+                auto it = animation.mTracks.find(bone.name);
+                if (it == animation.mTracks.end())
                     continue;
 
-                const auto& ctrl = it->second;
-                const auto* nifCtrl = dynamic_cast<const NifOsg::KeyframeController*>(ctrl.get());
-                if (!nifCtrl)
-                    continue;
+                const KfTrack& track = it->second;
 
                 // Check Translations
-                if (!nifCtrl->getTranslationInterpolator().empty())
+                if (track.hasTranslation())
                 {
                     std::vector<float> transSamples;
                     transSamples.reserve(timeSamples.size() * 3);
                     for (float tRel : timeSamples)
                     {
                         float tAbs = clip.startTime + tRel;
-                        osg::Vec3f v = ctrl->getTransform(tAbs).mTranslation.value_or(bone.restTranslation);
+                        osg::Vec3f v = track.getTransform(tAbs).mTranslation.value_or(bone.restTranslation);
                         osg::Vec3f gltfV = toGltfTranslation(v, options.unitsPerMeter);
                         transSamples.push_back(gltfV.x());
                         transSamples.push_back(gltfV.y());
@@ -452,15 +446,14 @@ namespace compat_morrowind
                 }
 
                 // Check Rotations
-                if (!nifCtrl->getRotationInterpolator().empty() || !nifCtrl->getXRotationInterpolator().empty()
-                    || !nifCtrl->getYRotationInterpolator().empty() || !nifCtrl->getZRotationInterpolator().empty())
+                if (track.hasRotation())
                 {
                     std::vector<float> rotSamples;
                     rotSamples.reserve(timeSamples.size() * 4);
                     for (float tRel : timeSamples)
                     {
                         float tAbs = clip.startTime + tRel;
-                        osg::Quat q = ctrl->getTransform(tAbs).mRotation.value_or(bone.restRotation);
+                        osg::Quat q = track.getTransform(tAbs).mRotation.value_or(bone.restRotation);
                         osg::Quat gltfQ = toGltfRotation(q);
                         rotSamples.push_back(static_cast<float>(gltfQ.x()));
                         rotSamples.push_back(static_cast<float>(gltfQ.y()));

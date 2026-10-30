@@ -95,7 +95,9 @@ void main()
 #ifdef GLOW_MAP
     outColor.xyz += texture(glowMap, frag_in.texCoord[glowUV]).xyz;
 #endif
-    outColor.xyz = applyFog(outColor.xyz, length(frag_in.viewPos));
+    // OpenEden: debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
+    if (colorMode != 3)
+        outColor.xyz = applyFog(outColor.xyz, length(frag_in.viewPos));
 
 #ifdef DEBUG_SHADOW
     outColor = debugShadow(outColor);

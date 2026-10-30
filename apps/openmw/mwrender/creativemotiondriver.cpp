@@ -1,25 +1,55 @@
 #include "creativemotiondriver.hpp"
 
+#include <components/animation/bones.hpp>
+#include <components/animation/controllermap.hpp>
+#include <components/animation/interpolate.hpp>
+#include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/nifosg/controller.hpp>
-#include <components/nifosg/matrixtransform.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/strings/lower.hpp>
 
 #include <opas/anim/Interpolate.hpp>
 
-#include <osg/NodeVisitor>
+#include <vsg/maths/transform.h>
 
 #include <algorithm>
 #include <cmath>
-#include <queue>
+#include <limits>
+#include <optional>
+#include <set>
+#include <type_traits>
+#include <unordered_map>
 
 namespace MWRender
 {
     namespace
     {
-        opas::math::Vec3 lerpVec3(opas::math::Vec3 a, opas::math::Vec3 b, double t)
+        // Longest group name kept without allocating when the active group changes (Morrowind's are shorter).
+        constexpr std::size_t sGroupNameCapacity = 64;
+        // Clip length for a source with no keyed channel and no text key (as the OSG driver).
+        constexpr float sMinimumClipDuration = 0.1f;
+
+        opas::math::Vec3 toMetres(const vsg::vec3& v)
         {
-            return a + (b - a) * t;
+            const double invScale = 1.0 / Constants::UnitsPerMeter;
+            return { v.x * invScale, v.y * invScale, v.z * invScale };
+        }
+
+        opas::math::Quat toOpas(const vsg::quat& q)
+        {
+            opas::math::Quat result{ q.x, q.y, q.z, q.w };
+            if (result.x == 0.0 && result.y == 0.0 && result.z == 0.0 && result.w == 0.0)
+                return { 0.0, 0.0, 0.0, 1.0 };
+            return opas::math::normalized(result);
+        }
+
+        opas::math::Transform localTransform(const Anim::Transform& transform)
+        {
+            vsg::vec3 translation;
+            vsg::quat rotation;
+            vsg::vec3 scale;
+            vsg::decompose(transform.t_transform(vsg::mat4()), translation, rotation, scale);
+            return { toMetres(transform.translation), toOpas(rotation) };
         }
 
         struct KeyPos
@@ -45,379 +75,373 @@ namespace MWRender
             KeyPos k = locateKey(track.timesS, t);
             if (k.atEnd || track.interpolation == opas::anim::Interpolation::Step)
                 return track.values[k.index];
-            return lerpVec3(track.values[k.index], track.values[k.index + 1], k.fraction);
+            const opas::math::Vec3& a = track.values[k.index];
+            const opas::math::Vec3& b = track.values[k.index + 1];
+            return a + (b - a) * k.fraction;
         }
 
         opas::math::Quat sampleQuat(const opas::anim::QuatTrack& track, double t)
         {
             KeyPos k = locateKey(track.timesS, t);
             if (k.atEnd || track.interpolation == opas::anim::Interpolation::Step)
-                return opas::math::normalized(track.values[k.index]);
+                return track.values[k.index];
             return opas::anim::slerp(track.values[k.index], track.values[k.index + 1], k.fraction);
         }
-    }
 
-    void CreativeMotionPoseWriterCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
-    {
-        auto* transform = static_cast<NifOsg::MatrixTransform*>(node);
-        transform->setTranslation(mDriver->getBoneTranslation(mBoneIndex));
-        transform->setRotation(mDriver->getBoneRotation(mBoneIndex));
-        traverse(node, nv);
-    }
-
-    CreativeMotionPoseDriver::CreativeMotionPoseDriver(const NodeMap& nodeMap, osg::Node* objectRoot)
-    {
-        if (buildSkeleton(nodeMap, objectRoot))
+        /// Key times of the keyed channel types, or nullopt for any other channel.
+        template <class T>
+        std::optional<std::vector<float>> keyTimes(const Anim::Channel<T>& channel)
         {
-            buildBoneMasks();
-            mValid = true;
+            std::vector<float> times;
+            const auto collect = [&](const auto& keys) {
+                for (const auto& [time, value] : keys)
+                    times.push_back(time);
+            };
+            if (const auto* linear = dynamic_cast<const Anim::Linear<T>*>(&channel))
+                collect(linear->keys);
+            else if (const auto* flip = dynamic_cast<const Anim::Flip<T>*>(&channel))
+                collect(flip->keys);
+            else if (const auto* spline = dynamic_cast<const Anim::CubicHermiteSpline<T>*>(&channel))
+                collect(spline->keys);
+            else
+                return std::nullopt;
+            return times;
         }
+
+        /**
+         * Converts one channel to a track (the rules of task 0007, R1, on vsgopenmw's channels):
+         * - Linear keys, and CubicHermiteSpline<quat> keys (vsgopenmw interpolates those with vsg::mix, a slerp),
+         * become linear keys at the same times: exact.
+         * - Flip (constant) keys become step keys switching just after each midpoint, as Flip does.
+         * - Anything else is resampled at sResampleRate over [0, duration], plus the key times of keyed channels.
+         */
+        template <class T, class Track, class Convert>
+        Track convertChannel(const Anim::Channel<T>& channel, float duration, Convert&& convert)
+        {
+            Track track;
+            const auto addKey = [&](double time, const T& value) {
+                track.timesS.push_back(time);
+                track.values.push_back(convert(value));
+            };
+
+            const auto* linear = dynamic_cast<const Anim::Linear<T>*>(&channel);
+            const auto* flip = dynamic_cast<const Anim::Flip<T>*>(&channel);
+            if (linear != nullptr && !linear->keys.empty())
+            {
+                for (const auto& [time, value] : linear->keys)
+                    addKey(time, value);
+                return track;
+            }
+            if constexpr (std::is_same_v<T, vsg::quat>)
+            {
+                const auto* spline = dynamic_cast<const Anim::CubicHermiteSpline<T>*>(&channel);
+                if (spline != nullptr && !spline->keys.empty())
+                {
+                    for (const auto& [time, value] : spline->keys)
+                        addKey(time, value);
+                    return track;
+                }
+            }
+            if (flip != nullptr && !flip->keys.empty())
+            {
+                track.interpolation = opas::anim::Interpolation::Step;
+                auto it = flip->keys.begin();
+                addKey(it->first, it->second);
+                for (auto prev = it++; it != flip->keys.end(); prev = it++)
+                {
+                    const float midpoint = prev->first + (it->first - prev->first) * 0.5f;
+                    addKey(std::nextafter(midpoint, std::numeric_limits<float>::infinity()), it->second);
+                }
+                return track;
+            }
+
+            std::set<float> times;
+            if (auto keys = keyTimes(channel))
+                times.insert(keys->begin(), keys->end());
+            const int samples = static_cast<int>(std::ceil(duration * CreativeMotionPoseDriver::sResampleRate));
+            for (int i = 0; i <= samples; ++i)
+                times.insert(std::min(duration, static_cast<float>(i) / CreativeMotionPoseDriver::sResampleRate));
+            for (float time : times)
+                if (time >= 0.f)
+                    addKey(time, channel.value(time));
+            return track;
+        }
+
+        template <class T>
+        void extendDuration(const Anim::Channel<T>* channel, float& duration)
+        {
+            if (channel == nullptr)
+                return;
+            if (auto keys = keyTimes(*channel); keys && !keys->empty())
+                duration = std::max(duration, keys->back());
+        }
+    }
+
+    CreativeMotionPoseDriver::CreativeMotionPoseDriver(Anim::Bones& bones)
+    {
+        for (auto& name : mLastGroupNames)
+            name.reserve(sGroupNameCapacity);
+        mValid = buildSkeleton(bones);
     }
 
     CreativeMotionPoseDriver::~CreativeMotionPoseDriver() = default;
 
-    bool CreativeMotionPoseDriver::buildSkeleton(const NodeMap& nodeMap, osg::Node* objectRoot)
+    bool CreativeMotionPoseDriver::buildSkeleton(Anim::Bones& bones)
     {
-        if (!objectRoot || nodeMap.empty())
+        struct Entry
+        {
+            std::string mName;
+            Anim::Bone* mBone;
+        };
+        std::vector<Entry> entries;
+        std::unordered_map<const Anim::Transform*, std::string> namesByNode;
+        bones.forEach([&](const std::string& name, Anim::Bone& bone) {
+            if (name.empty() || bone.path.empty())
+                return;
+            entries.push_back({ name, &bone });
+            namesByNode.emplace(bone.node(), name);
+        });
+        if (entries.empty())
             return false;
 
-        // Traverse hierarchy breadth-first / parent-first from objectRoot to discover all bones in ancestor order.
-        struct NodeEntry
+        // Parents first: by depth, then by name, so the order does not depend on the bones' hash map.
+        std::sort(entries.begin(), entries.end(), [](const Entry& lhs, const Entry& rhs) {
+            if (lhs.mBone->path.size() != rhs.mBone->path.size())
+                return lhs.mBone->path.size() < rhs.mBone->path.size();
+            return lhs.mName < rhs.mName;
+        });
+
+        for (const Entry& entry : entries)
         {
-            osg::Node* node;
-            int parentBoneIndex;
-        };
-
-        std::queue<NodeEntry> queue;
-        queue.push({ objectRoot, -1 });
-
-        while (!queue.empty())
-        {
-            NodeEntry entry = queue.front();
-            queue.pop();
-
-            osg::Node* current = entry.node;
-            int parentIdx = entry.parentBoneIndex;
-
-            auto* nifTransform = dynamic_cast<NifOsg::MatrixTransform*>(current);
-            if (nifTransform)
+            opas::rig::Bone bone;
+            bone.name = entry.mName;
+            bone.parent = -1;
+            const Anim::BonePath& path = entry.mBone->path;
+            for (std::size_t i = path.size() - 1; i-- > 0;)
             {
-                std::string lowerName = Misc::StringUtils::lowerCase(current->getName());
-                if (!lowerName.empty() && mBoneNameToIndex.find(lowerName) == mBoneNameToIndex.end())
+                const auto found = namesByNode.find(path[i].get());
+                if (found != namesByNode.end())
                 {
-                    auto found = nodeMap.find(lowerName);
-                    if (found != nodeMap.end() && found->second == current)
-                    {
-                        int myIdx = static_cast<int>(mSkeleton.bones.size());
-                        opas::rig::Bone bone;
-                        bone.name = lowerName;
-                        bone.parent = parentIdx;
-
-                        osg::Vec3f trans = nifTransform->getMatrix().getTrans();
-                        osg::Quat rot = nifTransform->getMatrix().getRotate();
-                        if (rot.x() == 0.0f && rot.y() == 0.0f && rot.z() == 0.0f && rot.w() == 0.0f)
-                            rot.set(0.0f, 0.0f, 0.0f, 1.0f);
-
-                        const float invScale = 1.0f / Constants::UnitsPerMeter;
-                        bone.localRest.translation = { trans.x() * invScale, trans.y() * invScale, trans.z() * invScale };
-                        bone.localRest.rotation = opas::math::normalized({ rot.x(), rot.y(), rot.z(), rot.w() });
-
-                        mSkeleton.bones.push_back(bone);
-                        mBoneNameToIndex[lowerName] = myIdx;
-                        mBoneNodes.push_back(nifTransform);
-
-                        parentIdx = myIdx;
-                    }
+                    bone.parent = mBoneNameToIndex.at(found->second);
+                    break;
                 }
             }
-
-            auto* group = current->asGroup();
-            if (group)
-            {
-                for (unsigned int i = 0; i < group->getNumChildren(); ++i)
-                    queue.push({ group->getChild(i), parentIdx });
-            }
+            Anim::Transform* node = entry.mBone->node();
+            bone.localRest = localTransform(*node);
+            mBoneNameToIndex.emplace(entry.mName, static_cast<int>(mSkeleton.bones.size()));
+            mSkeleton.bones.push_back(std::move(bone));
+            mBoneNodes.push_back(node);
+            mBoneGroups.push_back(entry.mBone->group);
         }
 
-        if (mSkeleton.bones.empty())
-            return false;
-
-        std::string valErr = opas::rig::validateSkeleton(mSkeleton);
-        if (!valErr.empty())
+        const std::string error = opas::rig::validateSkeleton(mSkeleton);
+        if (!error.empty())
         {
-            Log(Debug::Warning) << "CreativeMotionPoseDriver: skeleton validation failed: " << valErr;
+            Log(Debug::Warning) << "CreativeMotionPoseDriver: skeleton validation failed: " << error;
             return false;
         }
 
-        const size_t numBones = mSkeleton.bones.size();
+        if (const int bip01 = getBoneIndex("bip01"); bip01 >= 0)
+            mAccumRoot = bip01;
+        else
+            mAccumRoot = getBoneIndex("root bone");
+
+        const std::size_t numBones = mSkeleton.bones.size();
         mRestPose.resize(numBones);
-        for (size_t i = 0; i < numBones; ++i)
+        for (std::size_t i = 0; i < numBones; ++i)
             mRestPose[i] = mSkeleton.bones[i].localRest;
-
-        for (size_t i = 0; i < sNumBlendMasks; ++i)
+        for (std::size_t g = 0; g < sNumBlendMasks; ++g)
         {
-            mMaskPoses[i] = mRestPose;
-            mMaskPrevPoses[i] = mRestPose;
-            mInertializers[i] = std::make_unique<opas::anim::Inertializer>(numBones);
+            mGroupPoses[g] = mRestPose;
+            mGroupPrevPoses[g] = mRestPose;
+            mInertializers[g] = std::make_unique<opas::anim::Inertializer>(numBones);
         }
-
-        mLayeredPose = mRestPose;
+        mIncoming = mRestPose;
         mBoneTranslations.resize(numBones);
         mBoneRotations.resize(numBones);
-
-        for (size_t i = 0; i < numBones; ++i)
+        mAnimated.assign(numBones, 0);
+        for (std::size_t i = 0; i < numBones; ++i)
         {
-            mBoneTranslations[i] = mBoneNodes[i]->getMatrix().getTrans();
-            mBoneRotations[i] = mBoneNodes[i]->getMatrix().getRotate();
+            mBoneTranslations[i] = mBoneNodes[i]->translation;
+            const auto& r = mRestPose[i].rotation;
+            mBoneRotations[i] = vsg::quat(
+                static_cast<float>(r.x), static_cast<float>(r.y), static_cast<float>(r.z), static_cast<float>(r.w));
         }
-
         return true;
     }
 
-    void CreativeMotionPoseDriver::buildBoneMasks()
+    int CreativeMotionPoseDriver::getBoneIndex(std::string_view normalizedName) const
     {
-        const size_t numBones = mSkeleton.bones.size();
-
-        // Mask 0: Lower body / all bones
-        mBoneMasks[0].weights.assign(numBones, 1.0);
-
-        static const std::string_view sMaskRootNames[sNumBlendMasks] = {
-            "",
-            "bip01 spine1",
-            "bip01 l clavicle",
-            "bip01 r clavicle"
-        };
-
-        for (size_t m = 1; m < sNumBlendMasks; ++m)
-        {
-            std::string rootName(sMaskRootNames[m]);
-            auto maskOpt = opas::anim::makeBoneMask(mSkeleton, std::span<const std::string>(&rootName, 1), true, 1.0);
-            if (maskOpt.has_value())
-                mBoneMasks[m] = *maskOpt;
-            else
-            {
-                // Root bone not found on this skeleton, set all-zero weights
-                mBoneMasks[m].weights.assign(numBones, 0.0);
-            }
-        }
+        const auto it = mBoneNameToIndex.find(normalizedName);
+        return it != mBoneNameToIndex.end() ? it->second : -1;
     }
 
-    bool CreativeMotionPoseDriver::registerKeyframes(const SceneUtil::KeyframeHolder* holder)
+    bool CreativeMotionPoseDriver::registerSource(const Anim::ControllerMap& source)
     {
-        if (!mValid || !holder)
+        if (!mValid)
             return false;
+        if (const auto it = mClips.find(&source); it != mClips.end())
+            return it->second.mClip != nullptr;
 
-        if (mClipCache.find(holder) != mClipCache.end())
-            return true;
+        // The clip covers the source's text keys and every key of its keyed channels.
+        float duration = 0.f;
+        if (source.tags)
+            for (const auto& [time, text] : *source.tags)
+                duration = std::max(duration, time);
 
-        const auto& ctrlMap = holder->mKeyframeControllers;
-        if (ctrlMap.empty())
-            return false;
-
-        // Determine duration across controllers and text keys
-        float maxTime = 0.0f;
-        for (const auto& [time, text] : holder->mTextKeys)
-            maxTime = std::max(maxTime, time);
-
-        for (const auto& [boneName, ctrl] : ctrlMap)
+        // Controllers in name order, so the clip's track order does not depend on the source's hash map.
+        std::vector<std::pair<int, const Anim::TransformController*>> controllers;
+        for (const auto& [target, controller] : source.map)
         {
-            const auto* nifCtrl = dynamic_cast<const NifOsg::KeyframeController*>(ctrl.get());
-            if (nifCtrl)
-            {
-                const auto& trans = nifCtrl->getTranslationInterpolator();
-                if (!trans.empty() && trans.getKeys())
-                    maxTime = std::max(maxTime, trans.getKeys()->mKeys.rbegin()->first);
-
-                const auto& rots = nifCtrl->getRotationInterpolator();
-                if (!rots.empty() && rots.getKeys())
-                    maxTime = std::max(maxTime, rots.getKeys()->mKeys.rbegin()->first);
-            }
+            const int bone = getBoneIndex(Misc::StringUtils::lowerCase(target));
+            if (bone < 0 || controller == nullptr || (!controller->translate && !controller->rotate))
+                continue;
+            controllers.emplace_back(bone, controller.get());
+            extendDuration(controller->translate.get(), duration);
+            extendDuration(controller->rotate.get(), duration);
         }
-
-        if (maxTime <= 0.0f)
-            maxTime = 0.1f;
-
-        BoundClipInfo clipInfo;
-        clipInfo.mClip.name = "source_clip";
-        clipInfo.mClip.durationS = maxTime;
-
-        const float invScale = 1.0f / Constants::UnitsPerMeter;
-        constexpr float sampleDt = 1.0f / 60.0f;
-
-        for (const auto& [boneName, ctrl] : ctrlMap)
+        if (controllers.empty())
         {
-            std::string lower = Misc::StringUtils::lowerCase(boneName);
-            auto it = mBoneNameToIndex.find(lower);
-            if (it == mBoneNameToIndex.end())
-                continue;
+            mClips.emplace(&source, CachedClip{ vsg::ref_ptr<const Anim::ControllerMap>(&source), nullptr });
+            return false;
+        }
+        std::sort(controllers.begin(), controllers.end(),
+            [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+        if (duration <= 0.f)
+            duration = sMinimumClipDuration;
 
-            int boneIdx = it->second;
-            const auto* nifCtrl = dynamic_cast<const NifOsg::KeyframeController*>(ctrl.get());
-            if (!nifCtrl)
-                continue;
-
-            std::vector<double> sampleTimes;
-            for (float t = 0.0f; t <= maxTime; t += sampleDt)
-                sampleTimes.push_back(t);
-            if (sampleTimes.empty() || sampleTimes.back() < maxTime)
-                sampleTimes.push_back(maxTime);
-
+        auto bound = std::make_unique<BoundClip>();
+        bound->mClip.name = "source_clip";
+        bound->mClip.durationS = duration;
+        bound->mHasTrack.assign(mSkeleton.bones.size(), 0);
+        for (const auto& [bone, controller] : controllers)
+        {
             opas::anim::BoneTrack track;
-            track.bone = lower;
-
-            opas::anim::Vec3Track vTrack;
-            opas::anim::QuatTrack qTrack;
-
-            vTrack.timesS = sampleTimes;
-            qTrack.timesS = sampleTimes;
-
-            vTrack.values.reserve(sampleTimes.size());
-            qTrack.values.reserve(sampleTimes.size());
-
-            for (double t : sampleTimes)
-            {
-                auto xf = nifCtrl->getTransform(static_cast<float>(t));
-                osg::Vec3f pos = xf.mTranslation.value_or(mBoneNodes[boneIdx]->getMatrix().getTrans());
-                osg::Quat rot = xf.mRotation.value_or(mBoneNodes[boneIdx]->getMatrix().getRotate());
-                if (rot.x() == 0.0f && rot.y() == 0.0f && rot.z() == 0.0f && rot.w() == 0.0f)
-                    rot.set(0.0f, 0.0f, 0.0f, 1.0f);
-
-                vTrack.values.push_back({ pos.x() * invScale, pos.y() * invScale, pos.z() * invScale });
-                qTrack.values.push_back(opas::math::normalized({ rot.x(), rot.y(), rot.z(), rot.w() }));
-            }
-
-            track.translation = std::move(vTrack);
-            track.rotation = std::move(qTrack);
-
-            clipInfo.mClip.tracks.push_back(std::move(track));
-            clipInfo.mTrackToSkeletonBone.push_back(boneIdx);
+            track.bone = mSkeleton.bones[bone].name;
+            if (controller->translate)
+                track.translation = convertChannel<vsg::vec3, opas::anim::Vec3Track>(
+                    *controller->translate, duration, [](const vsg::vec3& v) { return toMetres(v); });
+            if (controller->rotate)
+                track.rotation = convertChannel<vsg::quat, opas::anim::QuatTrack>(
+                    *controller->rotate, duration, [](const vsg::quat& q) { return toOpas(q); });
+            bound->mClip.tracks.push_back(std::move(track));
+            bound->mTrackToBone.push_back(bone);
+            bound->mHasTrack[bone] = 1;
         }
-
-        mClipCache[holder] = std::move(clipInfo);
+        mClips.emplace(&source, CachedClip{ vsg::ref_ptr<const Anim::ControllerMap>(&source), std::move(bound) });
         return true;
     }
 
-    void CreativeMotionPoseDriver::sampleClipIntoPose(const BoundClipInfo& clipInfo, float timeS,
-        std::span<opas::math::Transform> outPose) const
+    const CreativeMotionPoseDriver::BoundClip* CreativeMotionPoseDriver::findClip(
+        const Anim::ControllerMap* source) const
+    {
+        if (source == nullptr)
+            return nullptr;
+        const auto it = mClips.find(source);
+        return it != mClips.end() ? it->second.mClip.get() : nullptr;
+    }
+
+    void CreativeMotionPoseDriver::sampleClip(
+        const BoundClip& clip, float timeS, std::vector<opas::math::Transform>& outPose) const
     {
         std::copy(mRestPose.begin(), mRestPose.end(), outPose.begin());
-
-        for (size_t t = 0; t < clipInfo.mClip.tracks.size(); ++t)
+        for (std::size_t t = 0; t < clip.mClip.tracks.size(); ++t)
         {
-            int boneIdx = clipInfo.mTrackToSkeletonBone[t];
-            if (boneIdx < 0 || static_cast<size_t>(boneIdx) >= outPose.size())
-                continue;
-
-            const auto& track = clipInfo.mClip.tracks[t];
+            const int bone = clip.mTrackToBone[t];
+            const auto& track = clip.mClip.tracks[t];
             if (track.rotation.has_value())
-                outPose[boneIdx].rotation = sampleQuat(*track.rotation, timeS);
+                outPose[bone].rotation = sampleQuat(*track.rotation, timeS);
             if (track.translation.has_value())
-                outPose[boneIdx].translation = sampleVec3(*track.translation, timeS);
+                outPose[bone].translation = sampleVec3(*track.translation, timeS);
         }
-    }
-
-    void CreativeMotionPoseDriver::onActiveStateChanged(size_t blendMask, std::string_view groupname,
-        const SceneUtil::KeyframeHolder* newHolder, float newTime, float transitionDuration)
-    {
-        if (!mValid || blendMask >= sNumBlendMasks)
-            return;
-
-        if (newHolder == mLastHolders[blendMask] && groupname == mLastGroupNames[blendMask])
-            return;
-
-        if (transitionDuration > 0.001f && (!mLastGroupNames[blendMask].empty() || mLastHolders[blendMask] != nullptr))
+        // The accumulation root's accumulated movement goes to the physics system, not the pose (MWAnim::Play).
+        if (mAccumRoot >= 0 && clip.mHasTrack[mAccumRoot])
         {
-            std::vector<opas::math::Transform> incoming(mSkeleton.bones.size());
-            if (newHolder)
-            {
-                registerKeyframes(newHolder);
-                auto it = mClipCache.find(newHolder);
-                if (it != mClipCache.end())
-                    sampleClipIntoPose(it->second, newTime, incoming);
-                else
-                    incoming = mRestPose;
-            }
-            else
-                incoming = mRestPose;
-
-            mInertializers[blendMask]->start(
-                mMaskPrevPoses[blendMask],
-                mMaskPoses[blendMask],
-                incoming,
-                0.016,
-                static_cast<double>(transitionDuration));
+            opas::math::Vec3& translation = outPose[mAccumRoot].translation;
+            if (mAccumulate.x != 0.f)
+                translation.x = 0.0;
+            if (mAccumulate.y != 0.f)
+                translation.y = 0.0;
+            if (mAccumulate.z != 0.f)
+                translation.z = 0.0;
         }
-
-        mLastHolders[blendMask] = newHolder;
-        mLastGroupNames[blendMask] = groupname;
     }
 
-    void CreativeMotionPoseDriver::update(float duration,
-        const std::array<std::shared_ptr<float>, sNumBlendMasks>& timePtrs,
-        const std::array<const SceneUtil::KeyframeHolder*, sNumBlendMasks>& activeHolders)
+    void CreativeMotionPoseDriver::update(
+        float duration, const std::array<CreativeMotionActiveSource, sNumBlendMasks>& active, float transitionDuration)
     {
         if (!mValid)
             return;
 
-        const size_t numBones = mSkeleton.bones.size();
-
-        for (size_t m = 0; m < sNumBlendMasks; ++m)
+        for (std::size_t g = 0; g < sNumBlendMasks; ++g)
         {
-            mMaskPrevPoses[m] = mMaskPoses[m];
+            const CreativeMotionActiveSource& current = active[g];
+            if (current.mSource != nullptr && mClips.find(current.mSource) == mClips.end())
+                registerSource(*current.mSource);
+            const BoundClip* clip = findClip(current.mSource);
 
-            auto holder = activeHolders[m];
-            if (holder && timePtrs[m])
-            {
-                registerKeyframes(holder);
-                auto it = mClipCache.find(holder);
-                if (it != mClipCache.end())
-                {
-                    float timeS = *timePtrs[m];
-                    sampleClipIntoPose(it->second, timeS, mMaskPoses[m]);
-                }
-                else
-                    mMaskPoses[m] = mRestPose;
-            }
+            if (clip != nullptr)
+                sampleClip(*clip, current.mTime, mIncoming);
             else
-                mMaskPoses[m] = mRestPose;
+                std::copy(mRestPose.begin(), mRestPose.end(), mIncoming.begin());
 
-            if (mInertializers[m]->active())
-                mInertializers[m]->advanceAndApply(static_cast<double>(duration), mMaskPoses[m]);
-        }
-
-        // Layer the masks
-        mLayeredPose = mMaskPoses[0];
-
-        for (size_t m = 1; m < sNumBlendMasks; ++m)
-        {
-            if (activeHolders[m])
+            const bool changed = current.mSource != mLastSources[g] || current.mGroupName != mLastGroupNames[g];
+            const bool playedBefore = mLastSources[g] != nullptr;
+            if (changed && playedBefore && transitionDuration > 0.f)
             {
-                opas::anim::applyMaskedLayer(mLayeredPose, mMaskPoses[m], mBoneMasks[m], mLayeredPose);
+                // From what this group showed in the last two frames (with any running transition) to the new
+                // animation: right after the switch the output is last frame's pose, keeping its velocity.
+                mInertializers[g]->start(mGroupPrevPoses[g], mGroupPoses[g], mIncoming, static_cast<double>(duration),
+                    static_cast<double>(transitionDuration));
+            }
+            else if (changed)
+                mInertializers[g]->start({}, {}, {}, 0.0, 0.0); // a pose of the wrong size ends any transition
+
+            // Keep last frame's output as the previous pose; this frame's output is the new sample plus the offset.
+            std::swap(mGroupPrevPoses[g], mGroupPoses[g]);
+            std::copy(mIncoming.begin(), mIncoming.end(), mGroupPoses[g].begin());
+            if (mInertializers[g]->active())
+                mInertializers[g]->advanceAndApply(changed ? 0.0 : static_cast<double>(duration), mGroupPoses[g]);
+
+            if (changed)
+            {
+                mLastSources[g] = current.mSource;
+                mLastGroupNames[g].assign(current.mGroupName);
             }
         }
 
-        // Convert layered pose to engine-space translations and rotations
-        const float unitsPerMeter = Constants::UnitsPerMeter;
-        for (size_t i = 0; i < numBones; ++i)
+        const double unitsPerMeter = Constants::UnitsPerMeter;
+        for (std::size_t i = 0; i < mSkeleton.bones.size(); ++i)
         {
-            const auto& t = mLayeredPose[i];
-            mBoneTranslations[i] = osg::Vec3f(
-                static_cast<float>(t.translation.x * unitsPerMeter),
+            const uint32_t group = mBoneGroups[i] < sNumBlendMasks ? mBoneGroups[i] : 0;
+            const BoundClip* clip = findClip(active[group].mSource);
+            mAnimated[i] = clip != nullptr && clip->mHasTrack[i];
+            const opas::math::Transform& t = mAnimated[i] ? mGroupPoses[group][i] : mRestPose[i];
+            mBoneTranslations[i] = vsg::vec3(static_cast<float>(t.translation.x * unitsPerMeter),
                 static_cast<float>(t.translation.y * unitsPerMeter),
                 static_cast<float>(t.translation.z * unitsPerMeter));
-
-            mBoneRotations[i] = osg::Quat(
-                static_cast<float>(t.rotation.x),
-                static_cast<float>(t.rotation.y),
-                static_cast<float>(t.rotation.z),
-                static_cast<float>(t.rotation.w));
+            mBoneRotations[i] = vsg::quat(static_cast<float>(t.rotation.x), static_cast<float>(t.rotation.y),
+                static_cast<float>(t.rotation.z), static_cast<float>(t.rotation.w));
         }
     }
 
-    bool CreativeMotionPoseDriver::compareWithCurrentPose(float& outMaxTransDiff, float& outMaxRotDiff,
-        std::string& outMaxDiffBone) const
+    void CreativeMotionPoseDriver::apply() const
     {
-        if (!mValid || mBoneNodes.empty())
+        if (!mValid)
+            return;
+        for (std::size_t i = 0; i < mBoneNodes.size(); ++i)
+        {
+            if (!mAnimated[i])
+                continue;
+            mBoneNodes[i]->translation = mBoneTranslations[i];
+            mBoneNodes[i]->setAttitude(mBoneRotations[i]);
+        }
+    }
+
+    bool CreativeMotionPoseDriver::compareWithCurrentPose(
+        float& outMaxTransDiff, float& outMaxRotDiff, std::string& outMaxDiffBone) const
+    {
+        if (!mValid)
             return false;
 
         outMaxTransDiff = 0.0f;
@@ -425,22 +449,19 @@ namespace MWRender
         outMaxDiffBone.clear();
 
         const float invUnitsPerMeter = 1.0f / Constants::UnitsPerMeter;
-        for (size_t i = 0; i < mBoneNodes.size(); ++i)
+        for (std::size_t i = 0; i < mBoneNodes.size(); ++i)
         {
-            if (!mBoneNodes[i])
+            if (!mAnimated[i])
                 continue;
+            const opas::math::Transform current = localTransform(*mBoneNodes[i]);
+            const vsg::vec3 translation = mBoneNodes[i]->translation;
+            const float transDiff = vsg::length(translation - mBoneTranslations[i]) * invUnitsPerMeter;
 
-            osg::Vec3f nodeTrans = mBoneNodes[i]->getMatrix().getTrans();
-            osg::Quat nodeRot = mBoneNodes[i]->getMatrix().getRotate();
-
-            float transDiff = (nodeTrans - mBoneTranslations[i]).length() * invUnitsPerMeter;
-
-            double dot = std::abs(nodeRot.x() * mBoneRotations[i].x() +
-                                  nodeRot.y() * mBoneRotations[i].y() +
-                                  nodeRot.z() * mBoneRotations[i].z() +
-                                  nodeRot.w() * mBoneRotations[i].w());
+            const vsg::quat& rotation = mBoneRotations[i];
+            double dot = std::abs(current.rotation.x * rotation.x + current.rotation.y * rotation.y
+                + current.rotation.z * rotation.z + current.rotation.w * rotation.w);
             dot = std::clamp(dot, 0.0, 1.0);
-            float rotDiff = static_cast<float>(2.0 * std::acos(dot));
+            const float rotDiff = static_cast<float>(2.0 * std::acos(dot));
 
             if (transDiff > outMaxTransDiff || rotDiff > outMaxRotDiff)
             {
@@ -449,7 +470,6 @@ namespace MWRender
                 outMaxDiffBone = mSkeleton.bones[i].name;
             }
         }
-
         return true;
     }
 }

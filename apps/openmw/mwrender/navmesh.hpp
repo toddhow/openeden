@@ -4,23 +4,13 @@
 #include <components/detournavigator/tileposition.hpp>
 #include <components/detournavigator/version.hpp>
 #include <components/misc/guarded.hpp>
+#include <components/sceneutil/detourdebugdraw.hpp>
 #include <components/settings/navmeshrendermode.hpp>
-
-#include <osg/ref_ptr>
 
 #include <cstddef>
 #include <map>
 #include <memory>
 #include <vector>
-
-class dtNavMesh;
-
-namespace osg
-{
-    class Group;
-    class Geometry;
-    class StateSet;
-}
 
 namespace DetourNavigator
 {
@@ -28,18 +18,23 @@ namespace DetourNavigator
     struct Settings;
 }
 
-namespace SceneUtil
-{
-    class WorkQueue;
-}
-
 namespace MWRender
 {
+    class DebugGeometry;
+
+    /**
+     * @brief Draws one navmesh as debug geometry (OpenEden task 0011; OpenMW's OSG version built per-tile scene
+     * graphs on a work queue).
+     *
+     * Each tile is drawn into a cache of primitives when its version changes, and the cached tiles are submitted to
+     * the DebugGeometry it owns the contents of (RenderManager owns both). Runs on the main thread from
+     * RenderManager::update; while drawing it holds the navmesh's read lock, so the navmesh updater waits. Nothing
+     * runs and nothing is allocated while disabled.
+     */
     class NavMesh
     {
     public:
-        explicit NavMesh(const osg::ref_ptr<osg::Group>& root, const osg::ref_ptr<SceneUtil::WorkQueue>& workQueue,
-            bool enabled, Settings::NavMeshRenderMode mode);
+        explicit NavMesh(DebugGeometry& geometry, bool enabled, Settings::NavMeshRenderMode mode);
         ~NavMesh();
 
         bool toggle();
@@ -58,26 +53,34 @@ namespace MWRender
         void setMode(Settings::NavMeshRenderMode value);
 
     private:
+        /// Primitives of one tile, kept to submit again when other tiles change.
+        struct Primitives final : SceneUtil::DebugPrimitiveSink
+        {
+            std::vector<vsg::vec3> mLineVertices;
+            std::vector<vsg::vec4> mLineColors;
+            std::vector<vsg::vec3> mTriangleVertices;
+            std::vector<vsg::vec4> mTriangleColors;
+
+            void addLine(const vsg::vec3& from, const vsg::vec3& to, const vsg::vec4& color) override;
+            void addTriangle(
+                const vsg::vec3& a, const vsg::vec3& b, const vsg::vec3& c, const vsg::vec4& color) override;
+            void submit(SceneUtil::DebugPrimitiveSink& sink) const;
+        };
+
         struct Tile
         {
             DetourNavigator::Version mVersion;
-            osg::ref_ptr<osg::Group> mGroup;
+            Primitives mPrimitives;
         };
 
-        struct LessByTilePosition;
-        struct CreateNavMeshTileGroups;
-        struct DeallocateCreateNavMeshTileGroups;
+        void submit();
 
-        osg::ref_ptr<osg::Group> mRootNode;
-        osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
-        osg::ref_ptr<osg::StateSet> mGroupStateSet;
-        osg::ref_ptr<osg::StateSet> mDebugDrawStateSet;
+        DebugGeometry& mGeometry;
         bool mEnabled;
         Settings::NavMeshRenderMode mMode;
         std::size_t mId;
         DetourNavigator::Version mVersion;
         std::map<DetourNavigator::TilePosition, Tile> mTiles;
-        std::vector<osg::ref_ptr<CreateNavMeshTileGroups>> mWorkItems;
     };
 }
 

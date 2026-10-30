@@ -634,6 +634,8 @@ namespace MWWorld
 
         void setNavMeshNumberToRender(const std::size_t value) override;
 
+        void setNavMeshRenderMode(Settings::NavMeshRenderMode value) override;
+
         DetourNavigator::AgentBounds getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const override;
 
         bool hasCollisionWithDoor(

@@ -51,9 +51,7 @@
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
 
-#if OPENEDEN_VSG_PENDING_FEATURES
 #include "../mwrender/joltdebugdraw.hpp"
-#endif
 
 #include "../mwworld/class.hpp"
 
@@ -325,11 +323,6 @@ namespace MWPhysics
         mPhysicsSystem.SetContactListener(&mContactListener);
         mPhysicsSystem.SetGravity(JPH::Vec3(0, 0, Constants::GravityConst * Constants::UnitsPerMeter));
 
-#if OPENEDEN_VSG_PENDING_FEATURES
-        // Debug helper
-        mJoltDebugDrawer = std::make_unique<MWRender::JoltDebugDrawer>(mParentNode, &mPhysicsSystem, mDebugDrawEnabled);
-#endif
-
         // Detect number of wanted async threads, if 0 then use single threaded job system
         unsigned numThreads = getNumThreads(detectLockingPolicy());
         if (numThreads > 0)
@@ -390,10 +383,15 @@ namespace MWPhysics
     {
         mDebugDrawEnabled = !mDebugDrawEnabled;
 
-#if OPENEDEN_VSG_PENDING_FEATURES
-        mJoltDebugDrawer->setDebugMode(mDebugDrawEnabled);
-#endif
+        if (mJoltDebugDrawer)
+            mJoltDebugDrawer->setDebugMode(mDebugDrawEnabled);
         return mDebugDrawEnabled;
+    }
+
+    void PhysicsSystem::setDebugGeometry(MWRender::DebugGeometry& geometry)
+    {
+        mJoltDebugDrawer = std::make_unique<MWRender::JoltDebugDrawer>(geometry, &mPhysicsSystem, mDebugDrawEnabled);
+        mTaskScheduler->setDebugDrawer(mJoltDebugDrawer.get());
     }
 
     void PhysicsSystem::markAsNonSolid(const MWWorld::ConstPtr& ptr)
@@ -1284,10 +1282,8 @@ namespace MWPhysics
 
     void PhysicsSystem::reportCollision([[maybe_unused]] const osg::Vec3f& position, [[maybe_unused]] const osg::Vec3f& normal)
     {
-#if OPENEDEN_VSG_PENDING_FEATURES
-        if (mDebugDrawEnabled)
+        if (mDebugDrawEnabled && mJoltDebugDrawer)
             mJoltDebugDrawer->addCollision(position, normal);
-#endif
     }
 
     const JPH::BodyLockInterfaceLocking& PhysicsSystem::getBodyLockInterface() const
