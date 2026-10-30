@@ -71,3 +71,25 @@
   - `MWRender::WeatherEffects` loads the weather's NIF effect (`[Models] weatherashcloud`, `weathersnow`, ...) as a looping vsgopenmw effect, in the main scene, at the camera, turned to the storm direction.
   - The effect loads and draws. But Bloodmoon's `tx_BM_Snowflakes_01` texture (a 256×256 DXT3 with no mipmaps, present both in `Bloodmoon.bsa` and loose) is found and then fails to decode, so the effect falls back to the missing-texture marker. The particles also need the wrap-around around the camera that OpenMW's `WrapAroundOperator` did, and the precipitation alpha fade.
   - Rain (OpenMW drew it as an OSG particle system, not a NIF) is not started.
+- **NIF LOD nodes** (`vsgopenmw-nif-nilodnode`):
+  - `vsgUtil::DistanceLOD` selects children by eye-space distance to the NiLODNode centre, using the node's min/max ranges, as OpenMW's `osg::LOD` in `DISTANCE_FROM_EYE_POINT` mode. Before this, vsgopenmw drew every level at once.
+  - `vsg::LOD` can't express NIF ranges: it selects by projected size and draws only the first match.
+  - Cloning keeps the node type and its ranges.
+  - Not yet applied: the LOD scale OpenMW took from the cull visitor.
+  - Tests: `vsgutil/testdistancelod.cpp`.
+- **Built-in switch nodes** (`vsgopenmw-nif-builtin-switch-nodes`):
+  - `NightDaySwitch` shows child 0 by day and 1 at night, following `World::getNightDayMode`, with `[Game] day night switches`.
+  - `HerbalismSwitch` shows child 1 once an organic container is empty, with `[Game] graphic herbalism`. That happens when the container is placed and when it is harvested; `Container::canBeHarvested` works again.
+  - Harvestable plants get their own copy of the switch, since vsgopenmw shares static models between instances (`MWRender::makeSwitchesUnique`).
+  - Vanilla Morrowind has no such nodes (they come from mods such as Graphic Herbalism), so they're covered by unit tests only (`mwrender/testswitches.cpp`).
+- **NIF internal textures** (`vsgopenmw-nif-internaltexture`):
+  - `vsgAdapters::readInternalTexture` converts NiPixelData: RGB and BGR gain alpha, RGBA and BGRA are kept, 8-bit palettes expand, and DXT1/3/5 become BC1/2/3.
+  - Known difference from OpenMW: only the first mip level is kept, and the renderer generates the rest.
+  - Tests: `vsgadapters/testinternaltexture.cpp`.
+- **Alpha to coverage** (`vsgopenmw-alpha-to-coverage`): not started. It needs MSAA and shader support for `[Shaders] antialias alpha test`, and both are off by default.
+- **Review of the batch above (fresh agent, 2026-10-29):**
+  - Fixed: every switch with a built-in name is handled, not just the first. Night/day switch registrations are moved or removed one per object when objects move or are removed. LOD distance is in the node's own units (divided by the scale above it, as `osg::CullVisitor::getDistanceToViewPoint`). Empty NiLODNode children are skipped, as OpenMW did. DXT internal textures keep every NIF mipmap level VSG can lay out.
+  - Left as they are:
+    - A night/day switch is set to the current mode when its object is placed, where OpenMW left the NIF's initial index until the mode first changed.
+    - `Container::canBeHarvested` searches the object's graph on each call.
+    - The warning for multi-face internal textures is not restored.

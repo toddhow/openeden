@@ -4,13 +4,17 @@
 
 #include <MyGUI_LanguageManager.h>
 
+#include <components/misc/constants.hpp>
 #include <components/misc/strings/format.hpp>
+#include <components/mwanimation/object.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
+
+#include "../mwrender/switches.hpp"
 
 #include "class.hpp"
 #include "containerstore.hpp"
@@ -90,7 +94,14 @@ namespace MWWorld
                 MWBase::Environment::get().getWindowManager()->messageBox(tooltip);
         }
 
-        // openeden-vsg: hiding the harvested parts needs graphic herbalism on VSG, which is off until it is ported
-        // (task 0012, Track V stage V4); Container::canBeHarvested returns false meanwhile.
+        // Graphic herbalism: an emptied plant shows its harvested look (OpenMW's ObjectAnimation::harvest).
+        if (MWAnim::Object* object = MWBase::Environment::get().getWorld()->getAnimation(target))
+        {
+            if (!store.hasVisibleItems())
+            {
+                for (vsg::Switch* herbalism : MWRender::findSwitches(*object->node(), Constants::HerbalismLabel))
+                    MWRender::setSingleChildOn(*herbalism, 1);
+            }
+        }
     }
 }

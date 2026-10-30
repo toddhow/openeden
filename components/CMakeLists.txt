@@ -111,7 +111,7 @@ add_component_dir (terrain
 # Adapts nif to vsg::Node and kf to Anim::ControllerMap.
 # Depends on nif, pipeline, animation.
 add_component_dir (vsgadapters/nif
-    nif anim channel particle kf
+    nif anim channel particle kf internaltexture
     )
 # openeden-vsg: COLLADA models through assimp (task 0010).
 add_component_dir (vsgadapters/dae
@@ -173,7 +173,7 @@ add_component_dir (vsgutil
     # Object extensions.
     attachable name id operation image debugmessenger
     # Nodes.
-    setviewportstate projection viewrelative computebin nullbin suspendrenderpass
+    setviewportstate projection viewrelative computebin nullbin suspendrenderpass distancelod
     # Algorithms.
     convert bounds transform computetransform intersectnormal toggle group compilecontext compileop updatethreads arraytexture
     # Visitors.

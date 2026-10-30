@@ -79,6 +79,7 @@ file(GLOB UNITTEST_SRC_FILES
     resource/testassimpscene.cpp
 
     vsgadapters/testdaeanimation.cpp
+    vsgadapters/testinternaltexture.cpp
 
     sceneutil/testdetourdebugdraw.cpp
 
@@ -117,6 +118,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     vsg/testshadercompile.cpp
     vsg/testscenedata.cpp
+
+    vsgutil/testdistancelod.cpp
 )
 
 # openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader, components/fx,

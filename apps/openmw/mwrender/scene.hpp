@@ -37,6 +37,9 @@ namespace MWRender
         using CellMap = std::map<const MWWorld::CellStore*, Cell>;
         CellMap mObjectCells;
         CellMap mActorCells;
+        unsigned int mNightDayMode = 0;
+        /// Takes one registration of each of object's NightDaySwitch nodes out of from, adding it to to unless null.
+        static void moveNightDaySwitches(MWAnim::Object& object, Cell& from, Cell* to);
 
         vsg::ref_ptr<vsg::Switch> mActorGroup;
         vsg::ref_ptr<vsg::Switch> mObjectGroup;
@@ -72,6 +75,9 @@ namespace MWRender
         MWWorld::Ptr getPtr(const vsg::Node* node);
         MWWorld::Ptr getPtr(const vsg::Node* node, CellMap& map);
         void update(float dt);
+
+        /// Shows child mode (0 day, 1 night) of the objects' NightDaySwitch nodes, when "day night switches" is on.
+        void setNightDayMode(unsigned int mode);
         vsg::ref_ptr<vsgUtil::UpdateThreads> getUpdateThreads();
     };
 

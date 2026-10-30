@@ -47,6 +47,9 @@
 #include <components/pipeline/particle.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/vsgutil/cullnode.hpp>
+#include <components/vsgutil/distancelod.hpp>
+
+#include "internaltexture.hpp"
 #include <components/vsgutil/group.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/name.hpp>
@@ -663,9 +666,12 @@ namespace vsgAdapters
         {
             if (!st.mExternal && !st.mData.empty())
             {
-                warn("vsgopenmw-testing(!st->external)");
-                // handleInternalTexture(st->data.getPtr());
-                return {};
+                // openeden-vsg: internal textures (task 0012).
+                std::string error;
+                auto image = readInternalTexture(*st.mData.getPtr(), error);
+                if (!image)
+                    warn(error);
+                return image;
             }
             else
                 return vsgUtil::readImage(st.mFile, mImageOptions);
@@ -1318,31 +1324,33 @@ namespace vsgAdapters
                     // addOffSwitch(
                     skipMeshes = true;
                 }
-                /*
                 else if (nifNode.mRecordType == Nif::RC_NiLODNode)
                 {
-                    auto &niLodNode = static_cast<const Nif::NiLODNode&>(nifNode);
-                    vsg::ref_ptr<vsg::LOD> lodNode = vsg::LOD::create();
-                    const double pixel_ratio = 1.0 / 1080.0;
-                    const double angle_ratio = 1.0 / osg::DegreesToRadians(30.0); // assume a 60 fovy for reference
-                    const Nif::NiAVObjectList &children = niLodNode.children;
-                    double minimumScreenHeightRatio = (atan2(radius, static_cast<double>(lod.getMaxRange(i))) *
-                angle_ratio);
-
-                    for(size_t i = 0;i < children.size();++i)
+                    // openeden-vsg: distance ranges from the eye, as OpenMW's osg::LOD (task 0012).
+                    auto& niLodNode = static_cast<const Nif::NiLODNode&>(nifNode);
+                    auto lodNode = vsgUtil::DistanceLOD::create();
+                    lodNode->setValue("lod", std::string(nifNode.mName));
+                    lodNode->center = vsg::vec3(
+                        niLodNode.mLODCenter.x(), niLodNode.mLODCenter.y(), niLodNode.mLODCenter.z());
+                    for (const auto& range : niLodNode.mLODLevels)
+                        lodNode->ranges.push_back({ range.mMinRange, range.mMaxRange });
+                    // Empty child references are skipped, so range i applies to the i-th present child, as in OpenMW.
+                    const Nif::NiAVObjectList& children = niLodNode.mChildren;
+                    lodNode->children.reserve(children.size());
+                    for (size_t i = 0; i < children.size(); ++i)
                     {
+                        if (children[i].empty())
+                            continue;
                         auto child = handleNode(*children[i].getPtr(), hasMarkers, skipMeshes);
                         if (!child)
                             child = vsg::Node::create();
-                        vsg::LOD::Child lodChild;
-                        lodChild.node = child;
-                        lodNode->addChild(lodChild);
+                        lodNode->addChild(child);
                     }
                     if (group)
                         group->addChild(lodNode);
                     else
-                     retNode = lodNode;
-                }*/
+                        retNode = lodNode;
+                }
                 else if (auto createdNode = handleNiNodeChildren(ninode->mChildren, group, hasMarkers, skipMeshes))
                     retNode = createdNode;
             }

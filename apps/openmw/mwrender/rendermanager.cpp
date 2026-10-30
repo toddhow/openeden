@@ -49,6 +49,8 @@
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
 
+#include "../mwbase/environment.hpp"
+#include "../mwbase/world.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 
@@ -640,6 +642,7 @@ namespace MWRender
         mPlayer->update(dt);
         setFirstPersonMode(mCamera->getMode() == Camera::Mode::FirstPerson);
 
+        mScene->setNightDayMode(MWBase::Environment::get().getWorld()->getNightDayMode());
         mScene->update(dt);
         updateNavMesh();
         /*

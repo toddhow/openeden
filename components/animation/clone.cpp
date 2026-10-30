@@ -14,6 +14,8 @@
 #include <vsg/state/DescriptorBuffer.h>
 #include <vsg/state/StateSwitch.h>
 
+#include <components/vsgutil/distancelod.hpp>
+
 #include "billboard.hpp"
 #include "controller.hpp"
 
@@ -154,7 +156,14 @@ namespace Anim
         }
 
         void apply(const vsg::Commands& group) override { applyGroup<false>(group); }
-        void apply(const vsg::Group& group) override { applyGroup<false>(group); }
+        void apply(const vsg::Group& group) override
+        {
+            // openeden-vsg: keep the LOD ranges of NiLODNodes (task 0012).
+            if (auto* lod = dynamic_cast<const vsgUtil::DistanceLOD*>(&group))
+                applyGroup<false>(*lod);
+            else
+                applyGroup<false>(group);
+        }
         void apply(const vsg::CullGroup& group) override { applyGroup<false>(group); }
         void apply(const vsg::Switch& group) override { applyGroup<true>(group); }
         void apply(const vsg::StateSwitch& group) override { applyGroup<true>(group); }

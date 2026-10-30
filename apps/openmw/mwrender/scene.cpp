@@ -1,11 +1,16 @@
 #include "scene.hpp"
 
+#include <algorithm>
+
 #include <vsg/io/Options.h>
 #include <vsg/nodes/Switch.h>
 
 #include <components/animation/transform.hpp>
 #include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadligh.hpp>
+#include <components/misc/constants.hpp>
+#include <components/settings/values.hpp>
 #include <components/mwanimation/create.hpp>
 #include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/removechild.hpp>
@@ -14,11 +19,13 @@
 #include <components/vsgutil/operation.hpp>
 
 #include "../mwworld/class.hpp"
+#include "../mwworld/containerstore.hpp"
 #include "../mwworld/ptr.hpp"
 
 #include "env.hpp"
 #include "mask.hpp"
 #include "npc.hpp"
+#include "switches.hpp"
 #include "wieldingcreature.hpp"
 
 namespace
@@ -52,6 +59,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::Group> group;
         Objects objects;
         vsg::ref_ptr<Update> update;
+        // openeden-vsg: switches of NIF NightDaySwitch nodes in this cell (task 0012).
+        std::vector<vsg::ref_ptr<vsg::Switch>> nightDaySwitches;
     };
 
     Scene::Scene(size_t updateThreads)
@@ -112,6 +121,12 @@ namespace MWRender
 
         auto anim = MWAnim::createObject(mesh, ptr.getClass().useAnim(), light, ctx);
 
+        // Graphic herbalism changes one plant's switch, so that plant needs its own copy.
+        const bool harvestable = Settings::game().mGraphicHerbalism && ptr.getType() == ESM::Container::sRecordId
+            && (ptr.get<ESM::Container>()->mBase->mFlags & ESM::Container::Organic);
+        if (harvestable)
+            makeSwitchesUnique(*anim->nodeToAddChildrenTo(), Constants::HerbalismLabel);
+
         loadTransform(ptr, *anim->transform());
 
         if (auto color = getGlowColor(ptr))
@@ -125,7 +140,49 @@ namespace MWRender
 
         auto& cell = getOrCreateCell(ptr, false);
         cell.group->addChild(anim->node());
+
+        if (Settings::game().mDayNightSwitches)
+        {
+            for (vsg::Switch* nightDay : findSwitches(*anim->node(), Constants::NightDayLabel))
+            {
+                setSingleChildOn(*nightDay, nightDay->children.size() > mNightDayMode ? mNightDayMode : 0);
+                cell.nightDaySwitches.emplace_back(nightDay);
+            }
+        }
+        if (harvestable && ptr.getRefData().getCustomData() != nullptr
+            && !ptr.getClass().getContainerStore(ptr).hasVisibleItems())
+        {
+            for (vsg::Switch* herbalism : findSwitches(*anim->node(), Constants::HerbalismLabel))
+                setSingleChildOn(*herbalism, 1);
+        }
+
         cell.objects.emplace(ptr, std::move(anim));
+    }
+
+    void Scene::moveNightDaySwitches(MWAnim::Object& object, Cell& from, Cell* to)
+    {
+        // Instances of one static model share their switch, so a cell may hold it once per instance: move one
+        // registration per switch of this object, never all of them.
+        for (vsg::Switch* nightDay : findSwitches(*object.node(), Constants::NightDayLabel))
+        {
+            auto found = std::find_if(from.nightDaySwitches.begin(), from.nightDaySwitches.end(),
+                [nightDay](const vsg::ref_ptr<vsg::Switch>& registered) { return registered.get() == nightDay; });
+            if (found == from.nightDaySwitches.end())
+                continue;
+            if (to)
+                to->nightDaySwitches.push_back(*found);
+            from.nightDaySwitches.erase(found);
+        }
+    }
+
+    void Scene::setNightDayMode(unsigned int mode)
+    {
+        if (mode == mNightDayMode)
+            return;
+        mNightDayMode = mode;
+        for (auto& [store, cell] : mObjectCells)
+            for (auto& nightDay : cell.nightDaySwitches)
+                setSingleChildOn(*nightDay, nightDay->children.size() > mode ? mode : 0);
     }
 
     void Scene::insertCreature(const MWWorld::Ptr& ptr, const std::string& mesh, bool weaponsShields)
@@ -169,6 +226,7 @@ namespace MWRender
         auto iter = cell->objects.find(ptr);
         if (iter != cell->objects.end())
         {
+            moveNightDaySwitches(*iter->second, *cell, nullptr);
             vsgUtil::removeChild(cell->group, iter->second->node());
             cell->objects.erase(iter);
             return true;
@@ -203,6 +261,7 @@ namespace MWRender
         if (iter != oldcell->objects.end())
         {
             auto& anim = iter->second;
+            moveNightDaySwitches(*anim, *oldcell, &cell);
             cell.group->addChild(anim->node());
             vsgUtil::removeChild(oldcell->group, anim->node());
             cell.objects[cur] = std::move(anim);

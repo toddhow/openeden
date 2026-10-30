@@ -6,6 +6,9 @@
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadsoun.hpp>
+#include <components/misc/constants.hpp>
+#include <components/animation/transform.hpp>
+#include <components/mwanimation/object.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -14,6 +17,7 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwphysics/physicssystem.hpp"
+#include "../mwrender/switches.hpp"
 #include "../mwworld/actionharvest.hpp"
 #include "../mwworld/actionopen.hpp"
 #include "../mwworld/actiontrap.hpp"
@@ -82,15 +86,15 @@ namespace MWClass
 
     bool Container::canBeHarvested(const MWWorld::ConstPtr& ptr) const
     {
-        return false;
-        /*
+        // OpenMW's ObjectAnimation::canBeHarvested on the VSG renderer (task 0012).
         if (!Settings::game().mGraphicHerbalism)
             return false;
-        const MWRender::Animation* animation = MWBase::Environment::get().getWorld()->getAnimation(ptr);
-        if (animation == nullptr)
+        if (!(ptr.get<ESM::Container>()->mBase->mFlags & ESM::Container::Organic))
             return false;
-        return animation->canBeHarvested();
-        */
+        const MWAnim::Object* object = MWBase::Environment::get().getWorld()->getAnimation(ptr);
+        if (object == nullptr)
+            return false;
+        return MWRender::findSwitch(*object->transform(), Constants::HerbalismLabel) != nullptr;
     }
 
     void Container::respawn(const MWWorld::Ptr& ptr) const
