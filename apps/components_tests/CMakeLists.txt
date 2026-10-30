@@ -121,6 +121,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp
+    vsgutil/testarraytexture.cpp
 )
 
 # openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader, components/fx,

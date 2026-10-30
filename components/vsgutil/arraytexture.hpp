@@ -216,17 +216,21 @@ namespace vsgUtil
      * Converts textures to array texture to circumvent resource limits and descriptor indexing limitations.
      * openeden-vsg: the array takes the most common layer size and format rather than the first layer's (Morrowind's
      * land textures are 256x256 RGBA while OpenMW's _land_default.dds, layer 0, is a 64x64 BC1, which left every
-     * other layer black). Uncompressed layers of another size are resampled; other mismatches are filled grey.
+     * other layer black). Uncompressed layers of another size are resampled, and in an uncompressed RGBA array a
+     * block-compressed layer is decoded and resampled. Other mismatches are filled grey.
      * Block compressed arrays keep their layers' own mip chains, since VSG 1.1.x generates missing mipmaps by
-     * blitting, which compressed formats do not support; uncompressed arrays let VSG generate them.
+     * blitting, which compressed formats do not support; uncompressed arrays let VSG generate them. Layers of the
+     * array's size and format may have chains of different lengths (Bloodmoon's land textures go down to 1x1,
+     * Morrowind's stop at 8x8): the array keeps as many levels as the shortest of them has, and each copies those
+     * levels from its own chain. A layer whose levels do not lie within its dataSize() is filled grey instead.
      */
     inline vsg::ref_ptr<vsg::Data> convertToArrayTexture(const vsg::DataList& images)
     {
         if (images.empty())
             throw std::runtime_error("!convertToArrayTexture(no layers)");
-        using Key = std::tuple<uint32_t, uint32_t, VkFormat, size_t>;
+        using Key = std::tuple<uint32_t, uint32_t, VkFormat>;
         auto keyOf = [](const vsg::Data& image) {
-            return Key{ image.width(), image.height(), image.properties.format, detail::mipLevels(image).size() };
+            return Key{ image.width(), image.height(), image.properties.format };
         };
         std::map<Key, size_t> keyCounts;
         for (const auto& image : images)
@@ -247,7 +251,10 @@ namespace vsgUtil
         const auto height = first.height();
         const auto depth = static_cast<uint32_t>(images.size());
         const bool compressed = detail::isBlockCompressed(first);
-        const auto allLevels = detail::mipLevels(first);
+        auto allLevels = detail::mipLevels(first);
+        for (const auto& image : images)
+            if (keyOf(*image) == reference)
+                allLevels.resize(std::min(allLevels.size(), detail::mipLevels(*image).size()));
         const std::vector<detail::MipLevel> levels
             = compressed ? allLevels : std::vector<detail::MipLevel>{ allLevels.front() };
 
@@ -286,9 +293,15 @@ namespace vsgUtil
         for (uint32_t i = 0; i < depth; ++i)
         {
             const auto& image = *images[i];
-            if (keyOf(image) == reference)
+            // The array's size and format: copy its levels from the layer's own chain, checking each level's size
+            // against the array's so a malformed header cannot make the copy read past the layer.
+            const auto imageLevels = detail::mipLevels(image);
+            bool levelsMatch = keyOf(image) == reference && imageLevels.size() >= levels.size();
+            for (size_t level = 0; levelsMatch && level < levels.size(); ++level)
+                levelsMatch = imageLevels[level].size == levels[level].size
+                    && imageLevels[level].offset + imageLevels[level].size <= image.dataSize();
+            if (levelsMatch)
             {
-                const auto imageLevels = detail::mipLevels(image);
                 auto pSrc = reinterpret_cast<const uint8_t*>(image.dataPointer());
                 for (size_t level = 0; level < levels.size(); ++level)
                     std::memcpy(pDst + levelOffsets[level] + i * levels[level].size, pSrc + imageLevels[level].offset,
