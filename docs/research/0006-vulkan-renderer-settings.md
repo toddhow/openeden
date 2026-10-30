@@ -108,8 +108,8 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Shaders] light fade start` | Read | |
 | `[Shaders] max lights` | Read | |
 | `[Shaders] minimum interior brightness` | Read | |
-| `[Shaders] antialias alpha test` | Not read | Alpha-to-coverage item |
-| `[Shaders] adjust coverage for alpha test` | Not read | Alpha-to-coverage item |
+| `[Shaders] antialias alpha test` | Works (task 0012, V4j) | |
+| `[Shaders] adjust coverage for alpha test` | Works (task 0012, V4j) | |
 | `[Shaders] soft particles` | Not read | Implement (depth-faded particles) |
 | `[Shaders] weather particle occlusion` | Not read | Weather particles item |
 | `[Shaders] weather particle occlusion small feature culling pixel size` | Not read | Weather particles item |

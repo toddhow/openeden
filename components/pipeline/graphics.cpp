@@ -62,8 +62,20 @@ namespace Pipeline
                 return "RECONSTRUCT_NORMAL_Z";
             case Mode::SPECULAR_MAP:
                 return "SPECULAR_MAP";
+            case Mode::ALPHA_TO_COVERAGE:
+                return "ALPHA_TO_COVERAGE";
+            case Mode::ADJUST_COVERAGE:
+                return "ADJUST_COVERAGE";
         }
         return "";
+    }
+
+    CoverageModes coverageModes(const Options& key, bool alphaToCoverage, bool adjustCoverage)
+    {
+        // OpenMW's ShaderVisitor::createProgram: only when the alpha func is not ALWAYS and there is no blending.
+        const bool applies = key.alphaTestMode != 0 && !key.blend && key.shader.path.empty()
+            && key.shader.hasMode(Mode::MATERIAL);
+        return { applies && alphaToCoverage, applies && adjustCoverage };
     }
 
     Graphics::Graphics(vsg::ref_ptr<const vsg::Options> readShaderOptions)
@@ -148,6 +160,11 @@ namespace Pipeline
             if (key.shader.hasMode(mode))
                 fragmentStageOptions.addMode(mode);
         }
+        const CoverageModes coverage = coverageModes(key, alphaToCoverage, adjustCoverage);
+        if (coverage.alphaToCoverage)
+            fragmentStageOptions.addMode(Mode::ALPHA_TO_COVERAGE);
+        if (coverage.adjustCoverage)
+            fragmentStageOptions.addMode(Mode::ADJUST_COVERAGE);
         auto fragmentStage = mFragmentStageCache.getOrCreate(fragmentStageOptions, *this);
 
         vsg::ShaderStages shaders = { vsg::ShaderStage::create(*vertexStage), vsg::ShaderStage::create(*fragmentStage) };

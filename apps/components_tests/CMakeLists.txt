@@ -127,6 +127,8 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testdistancelod.cpp
     vsgutil/testarraytexture.cpp
 
+    pipeline/testcoveragemodes.cpp
+
     mwanimation/testclonematerials.cpp
 )
 

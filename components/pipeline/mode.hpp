@@ -34,12 +34,16 @@ namespace Pipeline
         NORMAL_MAP,
         PARALLAX,
         RECONSTRUCT_NORMAL_Z,
-        SPECULAR_MAP
+        SPECULAR_MAP,
+        // OpenEden: alpha to coverage through the sample mask, and the mip-level alpha scale (task 0012, V4j); added by
+        // Pipeline::Graphics from its settings (coverageModes).
+        ALPHA_TO_COVERAGE,
+        ADJUST_COVERAGE
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
         Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE, Mode::NORMAL_MAP };
-    const std::vector<Mode> fragmentModes { Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE/*_TEXCOORD*/, Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP, Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP };
+    const std::vector<Mode> fragmentModes { Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE/*_TEXCOORD*/, Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP, Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP, Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE };
 
     using Modes = std::vector<bool>;
 

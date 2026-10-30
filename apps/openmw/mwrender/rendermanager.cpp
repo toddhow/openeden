@@ -642,7 +642,9 @@ namespace MWRender
         sceneData.groundcoverPlayer = vsg::vec4(mGroundcoverPlayerPosition, mSky->getBaseWindSpeed());
         sceneData.groundcoverParams = vsg::vec4(Settings::groundcover().mRenderingDistance,
             static_cast<float>(Settings::groundcover().mStompMode),
-            static_cast<float>(Settings::groundcover().mStompIntensity), 0.f);
+            static_cast<float>(Settings::groundcover().mStompIntensity),
+            // w: the main view's sample count, for alpha to coverage's sample mask (task 0012, V4j).
+            static_cast<float>(mEngine.framebufferSamples()));
         sceneData.lightDiffuse = mLightDiffuse;
         sceneData.lightSpecular = mLightSpecular;
         sceneData.invView = vsg::mat4(vsg::inverse_4x3(mViewMatrix->transform()));

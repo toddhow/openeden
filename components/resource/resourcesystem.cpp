@@ -13,6 +13,7 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/settings/values.hpp>
 #include <components/pipeline/builder.hpp>
+#include <components/pipeline/graphics.hpp>
 #include <components/vsgadapters/dae/dae.hpp>
 #include <components/vsgadapters/dae/daeanim.hpp>
 #include <components/vsgadapters/nif/kf.hpp>
@@ -193,6 +194,11 @@ namespace Resource
         , nodeOptions(createNodeOptions(vfs, *builder, textureOptions, computeBin, depthSortedBin))
         , animationOptions(createAnimationOptions(vfs))
     {
+        // openeden-vsg: alpha to coverage, as OpenMW's shouldAddMSAAIntermediateTarget and
+        // setAdjustCoverageForAlphaTest (task 0012, V4j); off by default. Pipelines are created only after this.
+        builder->graphics->alphaToCoverage
+            = Settings::shaders().mAntialiasAlphaTest && Settings::video().mAntialiasing > 1;
+        builder->graphics->adjustCoverage = Settings::shaders().mAdjustCoverageForAlphaTest;
     }
 
     ResourceSystem::~ResourceSystem()

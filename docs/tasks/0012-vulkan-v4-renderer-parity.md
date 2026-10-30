@@ -94,7 +94,33 @@
   - `vsgAdapters::readInternalTexture` converts NiPixelData: RGB and BGR gain alpha, RGBA and BGRA are kept, 8-bit palettes expand, and DXT1/3/5 become BC1/2/3.
   - Known difference from OpenMW: only the first mip level is kept, and the renderer generates the rest.
   - Tests: `vsgadapters/testinternaltexture.cpp`.
-- **Alpha to coverage** (`vsgopenmw-alpha-to-coverage`): not started. It needs MSAA and shader support for `[Shaders] antialias alpha test`, and both are off by default.
+- **Alpha to coverage** (`vsgopenmw-alpha-to-coverage`; step V4j). Follows OpenMW at 442eec6e2f: `Shader::ShaderVisitor::createProgram` (when), `lib/material/alpha.glsl` (`alphaTest` with `@alphaToCoverage`, `coveragePreservingAlphaScale`) and `MWRender::shouldAddMSAAIntermediateTarget`.
+  - **Settings:**
+    - `[Shaders] antialias alpha test` takes effect only with `[Video] antialiasing` above 1, as `shouldAddMSAAIntermediateTarget`.
+    - `[Shaders] adjust coverage for alpha test` is independent of it.
+    - Both are off by default and read when the resource system is created. With both off, nothing changes.
+  - **Which draws** (renderer-free, unit-tested; `Pipeline::coverageModes` in `components/pipeline/graphics.hpp`):
+    - `CoverageModes coverageModes(const Options& key, bool alphaToCoverage, bool adjustCoverage)` returns `{ bool alphaToCoverage; bool adjustCoverage; }`.
+    - Each is set only when its switch is on and the draw is alpha-tested (`alphaTestMode != 0`), unblended, uses the default shader (empty `shader.path`) and has the `MATERIAL` mode, which holds the alpha cutoff. This matches OpenMW's "alpha func not ALWAYS and no blending".
+    - `Pipeline::Graphics` adds the matching new fragment modes, `ALPHA_TO_COVERAGE` and `ADJUST_COVERAGE`.
+  - **Why from the shader:** VSG's compile traversal overrides each pipeline's multisample state with the render pass's sample count (`vsg::CompileTraversal::add`). That would drop a pipeline's `alphaToCoverageEnable`, so the default shader writes the coverage itself through `gl_SampleMask`.
+  - **Shading:**
+    - With `ADJUST_COVERAGE`, the diffuse and dark map alphas are scaled by `1 + mipLevel * 0.25`, with the mip level from the derivatives of `uv * textureSize`, as `coveragePreservingAlphaScale`.
+    - With `ALPHA_TO_COVERAGE`, and the view's sample count above 1 (`Scene::groundcoverParams.w`, set for the main view; a field of its own brightened interiors, see the pitfall in `apps/openmw/mwrender/CLAUDE.md`), the alpha test modes `<`, `<=`, `>` and `>=` turn the alpha into coverage `(alpha - clamp(cutoff, 0.0001, 0.9999)) / max(fwidth(alpha), 0.0001) + 0.5` (inverted for `<` and `<=`). The other modes keep testing, as OpenMW did.
+    - The coverage covers `round(clamp(coverage) * samples)` samples of the pixel.
+    - Views with no sample count set (maps, previews, shadows) keep the plain alpha test.
+  - **Known differences:**
+    - Hardware alpha to coverage dithers the sample pattern. Here the first samples in order are covered, which can band at partial coverage.
+    - The coverage comes from the texture alpha alone. OpenMW multiplied in the material's diffuse alpha first, so an unblended, alpha-tested material with diffuse alpha below 1 gets fuller coverage here; vsgopenmw's plain alpha test already tested before the material alpha.
+    - Above 32 samples, only the first 32 can be narrowed.
+  - **Review (fresh agent):**
+    - Fixed before committing: every path now writes the sample mask (all samples first, then narrowed), since a mask written on some paths is undefined on the others. Those were the plain-test modes and the views without a sample count: shadows, the map and the preview.
+    - Also fixed: a shift by 32 at 32 or more samples.
+  - **Checked:**
+    - Unit tests: `pipeline/testcoveragemodes.cpp` (12), written from this spec by a separate agent.
+    - In Seyda Neen, with 4× MSAA, no alpha-tested draw qualifies: its vanilla foliage is alpha-blended, as OpenMW also excluded.
+    - With a temporary change (not committed) that turned every blended NIF draw into an unblended alpha test at 0.5, the tree leaves' edges are visibly smoothed with `antialias alpha test` on, against hard steps with it off. `adjust coverage for alpha test` drew without errors.
+    - Off by default: the Caldera Mages Guild frame against the previous build differs in 16 pixels (MAE 0.0000), the run-to-run noise.
 - **Review of the batch above (fresh agent, 2026-10-29):**
   - Fixed: every switch with a built-in name is handled, not just the first. Night/day switch registrations are moved or removed one per object when objects move or are removed. LOD distance is in the node's own units (divided by the scale above it, as `osg::CullVisitor::getDistanceToViewPoint`). Empty NiLODNode children are skipped, as OpenMW did. DXT internal textures keep every NIF mipmap level VSG can lay out.
   - Left as they are:

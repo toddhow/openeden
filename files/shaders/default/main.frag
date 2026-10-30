@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -46,6 +46,11 @@ layout(location=0) out vec4 outColor;
 
 void main()
 {
+#if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
+    // OpenEden: once the shader writes the sample mask, every path must, or the mask is undefined (task 0012, V4j).
+    // All samples by default, which is the same as not writing it; narrowed below where the coverage applies.
+    gl_SampleMask[0] = -1;
+#endif
     // OpenEden: parallax moves the diffuse and normal map coordinates (objects.frag).
     vec2 offset = vec2(0.0);
 #if defined(NORMAL_MAP) && defined(TEXCOORD)
@@ -57,19 +62,39 @@ void main()
 #endif
 #ifdef DIFFUSE_MAP
     outColor = texture(diffuseMap, frag_in.texCoord[diffuseUV].st + offset);
+ #ifdef ADJUST_COVERAGE
+    outColor.a *= coveragePreservingAlphaScale((frag_in.texCoord[diffuseUV].st + offset) * vec2(textureSize(diffuseMap, 0)));
+ #endif
 #else
     outColor = vec4(1);
 #endif
 #ifdef DARK_MAP
     outColor *= texture(darkMap, frag_in.texCoord[darkUV]);
+ #ifdef ADJUST_COVERAGE
+    outColor.a *= coveragePreservingAlphaScale(frag_in.texCoord[darkUV] * vec2(textureSize(darkMap, 0)));
+ #endif
 #endif
 #ifdef DETAIL_MAP
     outColor.xyz *= texture(detailMap, frag_in.texCoord[detailUV]).xyz * 2;
 #endif
 
 #ifdef MATERIAL
+ #ifdef ALPHA_TO_COVERAGE
+    // OpenEden: alpha to coverage in multisampled views (task 0012, V4j); the coverage is written to the sample mask
+    // below, since VSG overrides a pipeline's multisample state.
+    bool toCoverage = scene.groundcoverParams.w > 1.0 && alphaTestToCoverage();
+    float coverage = 1.0;
+    if (toCoverage)
+    {
+        coverage = coverageAlpha(outColor.a, material.alphaTestCutoff);
+        outColor.a = coverage;
+    }
+    else if (!alphaTest(outColor.a, material.alphaTestCutoff))
+        discard;
+ #else
     if (!alphaTest(outColor.a, material.alphaTestCutoff))
         discard;
+ #endif
 #endif
     if (/*depthPass*/dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) == 0)
     {
@@ -176,6 +201,16 @@ void main()
         float dither = dither8(x, y, b);
         if (dither == 0)
             discard;
+    }
+#endif
+#if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
+    // The coverage covers that share of the pixel's samples, as the hardware's alpha to coverage would (undithered).
+    if (toCoverage)
+    {
+        int samples = int(scene.groundcoverParams.w);
+        int covered = int(clamp(coverage, 0.0, 1.0) * float(samples) + 0.5);
+        // A shift by 32 is undefined; 32 or more covered samples is the whole first mask word.
+        gl_SampleMask[0] = covered >= 32 ? -1 : (1 << covered) - 1;
     }
 #endif
 }
