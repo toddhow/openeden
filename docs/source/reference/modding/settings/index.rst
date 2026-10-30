@@ -70,8 +70,6 @@ The ranges included with each setting are the physically possible ranges, not re
         Shadows <shadows>
         Saves <saves>
         Sound <sound>
-        Stereo <stereo>
-        Stereo View <stereoview>
         Terrain <terrain>
         Video <video>
         Water <water>

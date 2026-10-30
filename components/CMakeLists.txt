@@ -80,8 +80,6 @@ add_component_dir (settings
     categories/shaders
     categories/shadows
     categories/sound
-    categories/stereo
-    categories/stereoview
     categories/terrain
     categories/video
     categories/water
@@ -418,12 +416,6 @@ add_component_dir (misc
 add_component_dir (misc/strings
     algorithm conversion format lower
     )
-
-#[[
-add_component_dir (stereo
-    frustum multiview stereomanager types
-    )
-]]
 
 #vsgopenmw-delete-me
 # Note, Debug::Log is deprecated because of syntax and compatibility issues with redirecting std::cout/std::cerr.

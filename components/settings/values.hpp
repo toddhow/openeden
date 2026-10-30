@@ -20,8 +20,6 @@
 #include "categories/shaders.hpp"
 #include "categories/shadows.hpp"
 #include "categories/sound.hpp"
-#include "categories/stereo.hpp"
-#include "categories/stereoview.hpp"
 #include "categories/terrain.hpp"
 #include "categories/video.hpp"
 #include "categories/water.hpp"
@@ -60,8 +58,6 @@ namespace Settings
         ModelsCategory mModels{ mIndex };
         GroundcoverCategory mGroundcover{ mIndex };
         LuaCategory mLua{ mIndex };
-        StereoCategory mStereo{ mIndex };
-        StereoViewCategory mStereoView{ mIndex };
         PostProcessingCategory mPostProcessing{ mIndex };
     };
 
@@ -202,16 +198,6 @@ namespace Settings
     inline LuaCategory& lua()
     {
         return values().mLua;
-    }
-
-    inline StereoCategory& stereo()
-    {
-        return values().mStereo;
-    }
-
-    inline StereoViewCategory& stereoView()
-    {
-        return values().mStereoView;
     }
 
     inline PostProcessingCategory& postProcessing()

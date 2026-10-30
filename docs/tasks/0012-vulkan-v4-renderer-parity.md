@@ -60,3 +60,14 @@
 1. **Post-processing:** OpenEden moves to Slang for shaders. Existing mod shaders (`.omwfx`) keep working through Slang's GLSL input path; the built-in shaders are later ported to native Slang or replaced by the shaders that come with OpenEden's advanced graphics features (subsurface scattering, lighting improvements and similar). Background: research note 0005 (Slang spike).
 2. **VR:** removed for now, with its settings, each with a recorded reason; a Vulkan VR port is a later task.
 3. **Order:** as proposed. Distortion (moved from task 0011) joins the NIF features sub-stage.
+
+## Progress (2026-10-29)
+
+- **VR removed** (answer 2). The `[Stereo]` and `[Stereo View]` sections (30 keys) are gone from `files/settings-default.cfg`, from `components/settings` (`categories/stereo*`, `Settings::stereo()` and `stereoView()`) and from `docs/source`, and the dead `components/stereo` code is deleted.
+  - **Reason:** the Vulkan renderer has no stereo path, and a Vulkan VR port (OpenXR or multiview on VSG) is a later task.
+  - Old user `settings.cfg` files that still have those sections start normally; the keys are ignored.
+  - The launcher had no VR controls, so it needs no change. The only remaining users are OSG-era files that are no longer compiled (`apps/openmw/engine.cpp` and others), which task 0014 deletes.
+- **Weather particles (V4a), in progress, not committed:**
+  - `MWRender::WeatherEffects` loads the weather's NIF effect (`[Models] weatherashcloud`, `weathersnow`, ...) as a looping vsgopenmw effect, in the main scene, at the camera, turned to the storm direction.
+  - The effect loads and draws. But Bloodmoon's `tx_BM_Snowflakes_01` texture (a 256×256 DXT3 with no mipmaps, present both in `Bloodmoon.bsa` and loose) is found and then fails to decode, so the effect falls back to the missing-texture marker. The particles also need the wrap-around around the camera that OpenMW's `WrapAroundOperator` did, and the precipitation alpha fade.
+  - Rain (OpenMW drew it as an OSG particle system, not a NIF) is not started.
