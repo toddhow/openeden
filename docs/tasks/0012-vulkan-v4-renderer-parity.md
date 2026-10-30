@@ -304,7 +304,7 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
         - The shadow pass also runs the per-pixel shader when the maps are on.
         - `components/terrain` has no area guide yet.
     - **Not in this step:** two-channel (Z-reconstructing) terrain normal maps; normal maps of a size or format other than the most common one (not used, see the review).
-- **Object paging** (only with `distant terrain = true`, off by default), **soft particles**, `[Shaders] weather particle occlusion`. (Alpha to coverage: **done**, V4j.)
+- **Object paging** (only with `distant terrain = true`, off by default), `[Shaders] weather particle occlusion`. (Alpha to coverage: **done**, V4j; soft particles: **done**, V4k.)
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
 - **ESM4 terrain** (work item 3).
 - **The deferred 0.49→0.51 renderer changes** (work item 6).
