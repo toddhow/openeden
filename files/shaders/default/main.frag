@@ -97,7 +97,7 @@ void main()
 #endif
     // OpenEden: debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
     if (colorMode != 3)
-        outColor.xyz = applyFog(outColor.xyz, length(frag_in.viewPos));
+        outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
 
 #ifdef DEBUG_SHADOW
     outColor = debugShadow(outColor);

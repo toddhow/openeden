@@ -44,7 +44,7 @@ void main()
     vec2 colorCoord = (frag_in.texCoord - 0.5) * colorTexSize / (colorTexSize+1) + 0.5;
     vec4 vertexColor = texture(colorMap, colorCoord);
     outColor *= materialTerms(diffuse, vertexColor);
-    outColor.xyz = applyFog(outColor.xyz, length(frag_in.viewPos));
+    outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
 
 #ifdef DEBUG_SHADOW
     outColor = debugShadow(outColor);

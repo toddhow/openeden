@@ -73,6 +73,12 @@ namespace Resource
         objects["material.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");
+        // openeden-vsg: OpenMW's fog modes (task 0012).
+        add("cRadialFog", Settings::Manager::getBool("radial fog", "Fog"), source);
+        add("cExponentialFog", Settings::Manager::getBool("exponential fog", "Fog"), source);
+        objects["fog.settings"] = vsg::ShaderModule::create(source.str());
+
+        source.str("");
         if (Settings::Manager::getBool("debug chunks", "Terrain"))
             source << "#define DEBUG_CHUNKS 1\n";
         objects["terrain.settings"] = vsg::ShaderModule::create(source.str());

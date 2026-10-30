@@ -15,7 +15,7 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 - Two member names are shared across categories (`mEnabled`, `mSmallFeatureCullingPixelSize`), so `[Post Processing] enabled` counts as read through other categories' `mEnabled`.
 - `[Stereo]` and `[Stereo View]` were removed earlier in V4 (VR).
 
-**Result:** 143 keys; 89 are read and 54 are not (after restoring `load unsupported nif files`, `xbaseanim`, `xbaseanim1st` and `xargonianswimkna`). The proposals for the 58:
+**Result:** 143 keys; 91 are read and 52 are not (after restoring `load unsupported nif files`, `xbaseanim`, `xbaseanim1st`, `xargonianswimkna`, `radial fog` and `exponential fog`). The proposals for the 58:
 - **Implement:** most of them, as separate V4 items: fog modes, groundcover, object paging, normal and specular maps, alpha to coverage, soft particles, weather particle occlusion, base animation overrides, and NIF loader options.
 - **Remove with a reason** (the Vulkan renderer works differently):
   - `reverse z`: always on in vsgopenmw.
@@ -42,8 +42,8 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Fog] distant underwater fog end` | Read | |
 | `[Fog] distant interior fog start` | Read | |
 | `[Fog] distant interior fog end` | Read | |
-| `[Fog] radial fog` | Not read | Implement in the fog shader (`lib/view/fog.glsl`) |
-| `[Fog] exponential fog` | Not read | Implement in the fog shader |
+| `[Fog] radial fog` | Read | Restored in V4 (`fog.settings` shader constant). vsgopenmw always used radial distance; OpenMW's default is planar, which halves the Seyda Neen image difference to the OSG build |
+| `[Fog] exponential fog` | Read | Restored in V4 (`fog.settings`, OpenMW's formula) |
 | `[Fog] sky blending` | Not read | Implement in the fog and sky shaders |
 | `[Fog] sky blending start` | Not read | With sky blending |
 | `[Fog] sky rtt resolution` | Not read | Remove: sky blending would not need a render-to-texture pass on VSG (confirm when implementing) |
