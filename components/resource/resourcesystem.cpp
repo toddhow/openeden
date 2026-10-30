@@ -89,7 +89,10 @@ namespace
                 VFS::Path::Normalized normalizedFile(fileStr);
                 VFS::Path::Normalized normalizedDir(dir.string());
                 VFS::Path::NormalizedView topDirs[] = { normalizedDir };
-                auto corrected = Misc::ResourceHelpers::correctResourcePath(topDirs, normalizedFile, *vfs);
+                // openeden-vsg: prefer the .dds of a texture named .tga, as OpenMW's correctTexturePath does (0.51 made
+                // the extension an argument; without it, models naming a .tga that only exists as .dds got the fallback).
+                auto corrected = Misc::ResourceHelpers::correctResourcePath(
+                    topDirs, normalizedFile, *vfs, VFS::Path::ExtensionView("dds"));
                 if (!corrected.empty() && corrected.value() != fileStr)
                     return vsg::Path(corrected.value());
             }
