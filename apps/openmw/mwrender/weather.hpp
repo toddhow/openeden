@@ -12,6 +12,8 @@
 
 #include <osg/Vec4f>
 
+#include <vsg/maths/quat.h>
+
 namespace Resource
 {
     class ResourceSystem;
@@ -79,6 +81,10 @@ namespace MWRender
 
         void setStormParticleDirection(const osg::Vec3f& direction);
 
+        /// The weather's particle effect model ("" for none) and its orientation (identity unless storming).
+        const std::string& getParticleEffect() const { return mCurrentParticleEffect; }
+        const vsg::quat& getParticleOrientation() const { return mParticleOrientation; }
+
         void setSunDirection(const osg::Vec3f& direction);
 
         void setMasserState(const MoonState& state);
@@ -96,6 +102,7 @@ namespace MWRender
         void destroyRain();
         void switchUnderwaterRain();
         void updateRainParameters();
+        void updateParticleOrientation();
 
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         std::map<std::string, vsg::ref_ptr<vsg::Descriptor>> mCloudTextures;
@@ -137,6 +144,7 @@ namespace MWRender
         vsg::vec4 mSkyColor;
 
         std::string mCurrentParticleEffect;
+        vsg::quat mParticleOrientation;
 
         bool mRainEnabled = false;
         std::string mRainEffect;

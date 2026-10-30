@@ -67,10 +67,18 @@
   - **Reason:** the Vulkan renderer has no stereo path, and a Vulkan VR port (OpenXR or multiview on VSG) is a later task.
   - Old user `settings.cfg` files that still have those sections start normally; the keys are ignored.
   - The launcher had no VR controls, so it needs no change. The only remaining users are OSG-era files that are no longer compiled (`apps/openmw/engine.cpp` and others), which task 0014 deletes.
-- **Weather particles (V4a), in progress, not committed:**
-  - `MWRender::WeatherEffects` loads the weather's NIF effect (`[Models] weatherashcloud`, `weathersnow`, ...) as a looping vsgopenmw effect, in the main scene, at the camera, turned to the storm direction.
-  - The effect loads and draws. But Bloodmoon's `tx_BM_Snowflakes_01` texture (a 256×256 DXT3 with no mipmaps, present both in `Bloodmoon.bsa` and loose) is found and then fails to decode, so the effect falls back to the missing-texture marker. The particles also need the wrap-around around the camera that OpenMW's `WrapAroundOperator` did, and the precipitation alpha fade.
-  - Rain (OpenMW drew it as an OSG particle system, not a NIF) is not started.
+- **Weather particles (V4a):**
+  - `MWRender::WeatherEffects` loads the weather's NIF effect (`[Models] weatherashcloud`, `weatherblightcloud`, `weathersnow`, `weatherblizzard`) as a looping vsgopenmw effect. It is drawn in the main scene, so walls and roofs hide it, at the camera, turned to the storm direction (with the blizzard special case), and hidden underwater.
+  - Checked by forcing each effect in Seyda Neen: snow, ash cloud and blizzard draw with their textures.
+  - The texture failure first seen here was a general bug, now fixed: the texture lookup did not pass `.dds` to OpenMW 0.51's `correctResourcePath`, so any model naming a `.tga` that only exists as `.dds` showed the fallback texture.
+  - **Gaps:**
+    - Rain: OpenMW drew it as an OSG particle system, not a NIF; it needs its own VSG implementation.
+    - The wrap-around that kept non-storm particles in a box around the camera (`WrapAroundOperator`).
+    - The precipitation alpha fade during weather transitions: vsgopenmw's dithered `object.alpha` needs normals, and particles have none.
+    - `[Shaders] weather particle occlusion`.
+    - The NIF particle systems simulate in world space, so already-emitted particles stay behind when the camera moves fast or teleports, until new emission catches up.
+    - Effects use `Mask_Effect`; OpenMW had a separate `Mask_WeatherParticles`.
+  - Review (fresh agent): no blocking bugs. Fixed before committing: a per-frame string copy, and the storm orientation now keeps its last angle after a storm, as OpenMW's `SkyManager::update` did.
 - **NIF LOD nodes** (`vsgopenmw-nif-nilodnode`):
   - `vsgUtil::DistanceLOD` selects children by eye-space distance to the NiLODNode centre, using the node's min/max ranges, as OpenMW's `osg::LOD` in `DISTANCE_FROM_EYE_POINT` mode. Before this, vsgopenmw drew every level at once.
   - `vsg::LOD` can't express NIF ranges: it selects by projected size and draws only the first match.

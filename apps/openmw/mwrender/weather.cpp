@@ -26,6 +26,7 @@
 #include <components/resource/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
+#include <components/settings/values.hpp>
 #include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/readimage.hpp>
@@ -674,6 +675,7 @@ namespace MWRender
     void Sky::update(float duration)
     {
         switchUnderwaterRain();
+        updateParticleOrientation();
 
         /*
         if (mIsStorm && mParticleNode)
@@ -781,6 +783,9 @@ namespace MWRender
 
         mNextStormDirection = weather.mNextStormDirection;
 
+        // openeden-vsg: the effect itself is drawn by WeatherEffects in the main scene (task 0012, V4a).
+        mCurrentParticleEffect = weather.mParticleEffect;
+
         /*
         if (mDirtyParticlesEffect || (mCurrentParticleEffect != weather.mParticleEffect))
         {
@@ -877,6 +882,19 @@ namespace MWRender
     void Sky::setStormParticleDirection(const osg::Vec3f& direction)
     {
         mStormParticleDirection = direction;
+    }
+
+    void Sky::updateParticleOrientation()
+    {
+        // As OpenMW's SkyManager::update: only storms turn the effect, and it keeps its last turn afterwards.
+        if (!mIsStorm)
+            return;
+        osg::Quat quat;
+        quat.makeRotate(MWWorld::Weather::defaultDirection(), mStormParticleDirection);
+        // Morrowind deliberately rotates the blizzard mesh, so so should we.
+        if (mCurrentParticleEffect == Settings::models().mWeatherblizzard.get().value())
+            quat.makeRotate(osg::Vec3f(-1, 0, 0), mStormParticleDirection);
+        mParticleOrientation = toVsg(quat);
     }
 
     void Sky::setSunDirection(const osg::Vec3f& direction)

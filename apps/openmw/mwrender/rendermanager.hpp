@@ -82,6 +82,7 @@ namespace MWRender
     class Scene;
     class Reflect;
     class Effects;
+    class WeatherEffects;
     class Projectiles;
     class FogManager;
     class Sky;
@@ -322,6 +323,7 @@ namespace MWRender
         std::unique_ptr<DebugGeometry> mNavMeshGeometry;
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<Effects> mEffects;
+        std::unique_ptr<WeatherEffects> mWeatherEffects;
         std::unique_ptr<Projectiles> mProjectiles;
         std::unique_ptr<Player> mPlayer;
         std::unique_ptr<Camera> mCamera;

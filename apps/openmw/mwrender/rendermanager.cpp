@@ -61,6 +61,7 @@
 #include "camera.hpp"
 #include "debuggeometry.hpp"
 #include "navmesh.hpp"
+#include "weathereffects.hpp"
 #include "effects.hpp"
 #include "env.hpp"
 #include "fogmanager.hpp"
@@ -178,6 +179,7 @@ namespace MWRender
         mScene->noParticlesContext.mask.particle = vsg::MASK_OFF;
 
         mEffects = std::make_unique<Effects>(mScene->context);
+        mWeatherEffects = std::make_unique<WeatherEffects>(mScene->context);
         mProjectiles = std::make_unique<Projectiles>(mScene->context);
         // Jolt's debug draw: lines only, refilled every frame; enough for Balmora's colliders.
         constexpr std::size_t joltLineVertices = std::size_t(1) << 21;
@@ -381,6 +383,8 @@ namespace MWRender
         }
         mSceneRoot->addChild(mProjectiles->node());
         mSceneRoot->addChild(mEffects->node());
+        if (mRenderModes[Render_Sky])
+            mSceneRoot->addChild(mWeatherEffects->node());
         mSceneRoot->addChild(mDebugGeometry->node());
         mSceneRoot->addChild(mNavMeshGeometry->node());
     }
@@ -639,6 +643,12 @@ namespace MWRender
 
         mEffects->update(dt);
         mProjectiles->update(dt);
+        static const std::string noEffect;
+        mWeatherEffects->setEffect(mRenderModes[Render_Sky] ? mSky->getParticleEffect() : noEffect);
+        // Weather particles stop at the water surface, as OpenMW's underwater switch did.
+        const vsg::vec3 cameraPosition(toVsg(mCamera->getPosition()));
+        mWeatherEffects->update(dt, cameraPosition, mSky->getParticleOrientation(),
+            !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition)));
         if (mRenderModes[Render_Sky])
             mSky->update(dt);
 
