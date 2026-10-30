@@ -48,10 +48,10 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Fog] sky blending start` | Not read | With sky blending |
 | `[Fog] sky rtt resolution` | Not read | Remove: sky blending would not need a render-to-texture pass on VSG (confirm when implementing) |
 | `[Groundcover] enabled` | Read | |
-| `[Groundcover] density` | Not read | Groundcover sub-stage |
-| `[Groundcover] rendering distance` | Not read | Groundcover sub-stage |
-| `[Groundcover] stomp mode` | Not read | Groundcover sub-stage |
-| `[Groundcover] stomp intensity` | Not read | Groundcover sub-stage |
+| `[Groundcover] density` | Read | Groundcover (task 0012, V4f) |
+| `[Groundcover] rendering distance` | Read | Groundcover (task 0012, V4f) |
+| `[Groundcover] stomp mode` | Read | Groundcover (task 0012, V4f) |
+| `[Groundcover] stomp intensity` | Read | Groundcover (task 0012, V4f) |
 | `[Map] global map cell size` | Read | |
 | `[Map] local map hud fog of war` | Read | |
 | `[Map] local map resolution` | Read | |

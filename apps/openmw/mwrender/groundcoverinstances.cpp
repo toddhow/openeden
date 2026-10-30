@@ -1,5 +1,6 @@
 #include "groundcoverinstances.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <components/esm3/cellref.hpp>
@@ -35,6 +36,29 @@ namespace MWRender
             || (maxBound.y < std::ceil(maxBound.y) && cellY >= maxBound.y))
             return false;
         return true;
+    }
+
+    std::vector<std::pair<int, int>> groundcoverCellsInRange(float x, float y, float distance)
+    {
+        std::vector<std::pair<int, int>> cells;
+        const float cellSize = static_cast<float>(ESM::Land::REAL_SIZE);
+        // Every cell whose closed square reaches within the distance on each axis, including one only touched.
+        const float reach = std::max(distance, 0.f);
+        const int firstX = static_cast<int>(std::ceil((x - reach) / cellSize)) - 1;
+        const int lastX = static_cast<int>(std::floor((x + reach) / cellSize));
+        const int firstY = static_cast<int>(std::ceil((y - reach) / cellSize)) - 1;
+        const int lastY = static_cast<int>(std::floor((y + reach) / cellSize));
+        for (int cellX = firstX; cellX <= lastX; ++cellX)
+        {
+            for (int cellY = firstY; cellY <= lastY; ++cellY)
+            {
+                const float dx = std::max({ cellX * cellSize - x, 0.f, x - (cellX + 1) * cellSize });
+                const float dy = std::max({ cellY * cellSize - y, 0.f, y - (cellY + 1) * cellSize });
+                if (dx * dx + dy * dy <= distance * distance)
+                    cells.emplace_back(cellX, cellY);
+            }
+        }
+        return cells;
     }
 
     GroundcoverInstances collectGroundcoverInstances(

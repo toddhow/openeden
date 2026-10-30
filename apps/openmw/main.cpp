@@ -96,6 +96,8 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     }
 
     args.contentFiles = content;
+    // openeden-vsg: groundcover content files (task 0012), as OpenMW 0.51 passed them to the engine.
+    args.groundcoverFiles = variables["groundcover"].as<StringsVector>();
 
     // startup-settings
     args.saveGameFile = variables["load-savegame"].as<Files::MaybeQuotedPath>();

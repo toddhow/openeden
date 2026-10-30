@@ -19,4 +19,8 @@ struct Scene
     float zNear;
     float zFar;
     float rainIntensity;
+    // OpenEden (task 0012): groundcover's player position (xyz, world) and wind speed (w), and its fade-out distance
+    // (x), stomp mode (y) and stomp intensity (z), as OpenMW's groundcover shader took them.
+    vec4 groundcoverPlayer;
+    vec4 groundcoverParams;
 };

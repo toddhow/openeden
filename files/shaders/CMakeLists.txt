@@ -79,6 +79,7 @@ set(SHADER_FILES
     lib/inout_texcoord.glsl
     lib/sets.glsl
     lib/attributes.glsl
+    lib/groundcover.glsl
     lib/light/select.glsl
     lib/light/grid.glsl
     lib/light/gridsize.glsl

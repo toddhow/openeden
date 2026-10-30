@@ -34,7 +34,7 @@ namespace OMW
             MWClass::registerClasses();
             mWorld
                 = std::make_unique<MWWorld::World>(*mEngine.mRenderManager, mEngine.mResourceSystem.get(),
-                    mEngine.mFileCollections, mArgs.contentFiles, /*mArgs.groundcoverFiles*/ std::vector<std::string>(),
+                    mEngine.mFileCollections, mArgs.contentFiles, mArgs.groundcoverFiles,
                     mEngine.mEncoder.get(), *this, mArgs.activationDistanceOverride,
                     mEngine.mCfgMgr.getUserDataPath());
             mEnvironment.setWorld(*mWorld);

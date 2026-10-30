@@ -270,6 +270,7 @@ namespace MWWorld
             return;
         // openeden-vsg: groundcover (task 0012, V4f); OpenMW passed the loading screen as the listener.
         loadGroundcoverFiles(fileCollections, groundcoverFiles, encoder, nullptr);
+        mRendering->setGroundcoverStore(&mGroundcoverStore);
 
         // openeden-vsg: the Lua manager is created by the Game state after the World, so LuaManager::init() calls
         // contentFilesLoaded() (with OpenMW 0.51's initPreLoad and initPostLoad around it) instead of this constructor.
@@ -510,6 +511,7 @@ namespace MWWorld
 
         // The renderer outlives the world; it must stop reading the navigator the world owns.
         mRendering->setNavigator(nullptr);
+        mRendering->setGroundcoverStore(nullptr);
 
         if (Settings::navigator().mWaitForAllJobsOnExit && mNavigator != nullptr)
         {

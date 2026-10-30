@@ -31,7 +31,17 @@ layout(std430, set=TEXTURE_SET, binding=BONE_BINDING) readonly buffer BoneMatric
 const int BONE_WEIGHTS_LOCATION=COLOR_LOCATION;
 #endif
 
+// OpenEden: per-instance offset (xyz) and scale (w), and rotation (Euler angles), for groundcover (task 0012).
+#ifdef INSTANCE
+const int INSTANCE_OFFSET_LOCATION=BONE_WEIGHTS_LOCATION+1;
+layout(location=INSTANCE_OFFSET_LOCATION) in vec4 inInstanceOffset;
+const int INSTANCE_ROTATION_LOCATION=INSTANCE_OFFSET_LOCATION+1;
+layout(location=INSTANCE_ROTATION_LOCATION) in vec3 inInstanceRotation;
+#else
+const int INSTANCE_ROTATION_LOCATION=BONE_WEIGHTS_LOCATION;
+#endif
+
 #ifdef TEXCOORD
-const int TEXCOORD_LOCATION=BONE_WEIGHTS_LOCATION+1;
+const int TEXCOORD_LOCATION=INSTANCE_ROTATION_LOCATION+1;
 layout(location=TEXCOORD_LOCATION) in vec2 inTexCoord[numUvSets];
 #endif

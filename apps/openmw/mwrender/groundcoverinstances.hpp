@@ -2,6 +2,7 @@
 #define OPENEDEN_MWRENDER_GROUNDCOVERINSTANCES_H
 
 #include <map>
+#include <utility>
 #include <vector>
 
 #include <vsg/maths/vec2.h>
@@ -50,6 +51,15 @@ namespace MWRender
      * whole number, and not at or after maxBound on an axis where maxBound is not a whole number.
      */
     bool isInGroundcoverChunk(float x, float y, const vsg::vec2& minBound, const vsg::vec2& maxBound);
+
+    /**
+     * @brief The exterior cells (x, y) whose square comes within `distance` world units of the world position (x, y):
+     * the cells whose groundcover chunks are shown (Groundcover::update). The distance is measured from the position
+     * to the nearest point of the cell's square, so the position's own cell is always included, and a distance of 0
+     * gives just that cell (or the cells sharing a border the position lies on). Cells are 8192 units square, cell
+     * (0, 0) spanning [0, 8192) on both axes. The result is sorted.
+     */
+    std::vector<std::pair<int, int>> groundcoverCellsInRange(float x, float y, float distance);
 
     struct GroundcoverInstance
     {

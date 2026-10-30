@@ -26,10 +26,13 @@ namespace Pipeline
         DECAL_MAP,
         GLOW_MAP,
         BUMP_MAP,
-        ENV_MAP
+        ENV_MAP,
+        // OpenEden: per-instance offset, scale and rotation, with groundcover's wind and stomping (task 0012).
+        INSTANCE
     };
 
-    const std::vector<Mode> vertexModes { Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE, Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP };
+    const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
+        Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE };
     const std::vector<Mode> fragmentModes { Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE/*_TEXCOORD*/, Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP, Mode::ENV_MAP, Mode::MATERIAL };
 
     using Modes = std::vector<bool>;

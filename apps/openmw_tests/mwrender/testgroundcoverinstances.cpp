@@ -17,6 +17,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
+#include <utility>
 #include <vector>
 
 namespace
@@ -274,5 +277,116 @@ namespace
         const vsg::vec2 maxBound(-2.f, 0.f);
         EXPECT_TRUE(isInGroundcoverChunk(-20000.f, -4000.f, minBound, maxBound));
         EXPECT_TRUE(isInGroundcoverChunk(50000.f, 50000.f, minBound, maxBound));
+    }
+
+    // groundcoverCellsInRange
+    //
+    // Distances are kept one unit away from the exact gap to a cell, since whether a cell exactly `distance` away is
+    // included is only specified for distance 0. "Sorted" is read as std::pair's ordering (x, then y).
+
+    using Cells = std::vector<std::pair<int, int>>;
+
+    Cells sorted(Cells cells)
+    {
+        std::sort(cells.begin(), cells.end());
+        return cells;
+    }
+
+    bool contains(const Cells& cells, int x, int y)
+    {
+        return std::find(cells.begin(), cells.end(), std::make_pair(x, y)) != cells.end();
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, distanceZeroGivesTheOwnCell)
+    {
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(4096.f, 4096.f, 0.f), (Cells{ { 0, 0 } }));
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(3.f * 8192.f + 100.f, 8192.f + 8000.f, 0.f), (Cells{ { 3, 1 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, distanceZeroOnABorderGivesBothCells)
+    {
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(8192.f, 4096.f, 0.f), (Cells{ { 0, 0 }, { 1, 0 } }));
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(4096.f, 8192.f, 0.f), (Cells{ { 0, 0 }, { 0, 1 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, distanceZeroOnACornerGivesFourCells)
+    {
+        EXPECT_EQ(
+            MWRender::groundcoverCellsInRange(8192.f, 8192.f, 0.f), (Cells{ { 0, 0 }, { 0, 1 }, { 1, 0 }, { 1, 1 } }));
+        EXPECT_EQ(
+            MWRender::groundcoverCellsInRange(0.f, 0.f, 0.f), (Cells{ { -1, -1 }, { -1, 0 }, { 0, -1 }, { 0, 0 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, justUnderTheGapExcludesTheNeighbours)
+    {
+        // From the centre of cell (0, 0) each straight neighbour is 4096 away.
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(4096.f, 4096.f, 4095.f), (Cells{ { 0, 0 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, justOverTheGapIncludesTheStraightNeighbours)
+    {
+        // The diagonal neighbours are 4096 * sqrt(2), about 5793, away.
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(4096.f, 4096.f, 4097.f),
+            sorted(Cells{ { -1, 0 }, { 0, -1 }, { 0, 0 }, { 0, 1 }, { 1, 0 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, gapToOneNeighbourOnly)
+    {
+        // At x 8000 the cell (1, 0) is 192 away; (-1, 0) is 8000 away, (0, +-1) 4096 away.
+        const Cells under = MWRender::groundcoverCellsInRange(8000.f, 4096.f, 191.f);
+        EXPECT_EQ(under, (Cells{ { 0, 0 } }));
+        const Cells over = MWRender::groundcoverCellsInRange(8000.f, 4096.f, 193.f);
+        EXPECT_EQ(over, (Cells{ { 0, 0 }, { 1, 0 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, largeDistanceIsRoundNotSquare)
+    {
+        // From the centre of (0, 0) with 12289: the cells two away straight are 12288 away (in), (+-1, +-1) about
+        // 5793 (in), (+-1, +-2) and (+-2, +-1) about 12953 (out), (+-2, +-2) about 17378 (out). 13 cells, not 25.
+        const Cells cells = MWRender::groundcoverCellsInRange(4096.f, 4096.f, 12289.f);
+        const Cells expected = sorted(Cells{ { 0, 0 }, { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -2, 0 }, { 2, 0 },
+            { 0, -2 }, { 0, 2 }, { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } });
+        EXPECT_EQ(cells, expected);
+        EXPECT_TRUE(contains(cells, 2, 0));
+        EXPECT_FALSE(contains(cells, 2, 1));
+        EXPECT_FALSE(contains(cells, 2, 2));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, resultIsSorted)
+    {
+        const float positions[][2] = { { 4096.f, 4096.f }, { -20000.f, 30000.f }, { 8192.f, -8192.f } };
+        for (const auto& p : positions)
+        {
+            const Cells cells = MWRender::groundcoverCellsInRange(p[0], p[1], 30000.f);
+            EXPECT_TRUE(std::is_sorted(cells.begin(), cells.end())) << p[0] << ", " << p[1];
+            EXPECT_EQ(std::adjacent_find(cells.begin(), cells.end()), cells.end()) << "duplicates at " << p[0];
+        }
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, negativeCoordinates)
+    {
+        // (-4096, -4096) is the centre of cell (-1, -1); (-1, -1) world is in it too, not in (0, 0).
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(-4096.f, -4096.f, 0.f), (Cells{ { -1, -1 } }));
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(-1.f, -1.f, 0.f), (Cells{ { -1, -1 } }));
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(-4096.f, -4096.f, 4095.f), (Cells{ { -1, -1 } }));
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(-4096.f, -4096.f, 4097.f),
+            sorted(Cells{ { -2, -1 }, { -1, -2 }, { -1, -1 }, { -1, 0 }, { 0, -1 } }));
+        // On the border at x -8192: cells -2 and -1.
+        EXPECT_EQ(MWRender::groundcoverCellsInRange(-8192.f, -4096.f, 0.f), (Cells{ { -2, -1 }, { -1, -1 } }));
+    }
+
+    TEST(MWRenderGroundcoverCellsTest, ownCellAlwaysIncluded)
+    {
+        const float positions[][2]
+            = { { 4096.f, 4096.f }, { 1.f, 8191.f }, { -1.f, 1.f }, { -40000.f, -40000.f }, { 81920.f, -81919.f } };
+        const float distances[] = { 0.f, 1.f, 4095.f, 20000.f };
+        for (const auto& p : positions)
+        {
+            const int cellX = static_cast<int>(std::floor(p[0] / 8192.f));
+            const int cellY = static_cast<int>(std::floor(p[1] / 8192.f));
+            for (float d : distances)
+                EXPECT_TRUE(contains(MWRender::groundcoverCellsInRange(p[0], p[1], d), cellX, cellY))
+                    << p[0] << ", " << p[1] << " distance " << d;
+        }
     }
 }

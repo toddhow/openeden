@@ -10,6 +10,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   - `actorikcontroller.*`: foot IK, look-at, smoother turns, inertial lean and compound hitboxes.
   - `creativemotiondriver.*`: CreativeMotion's animation runtime.
   - `debuggeometry.*`, `joltdebugdraw.*` and `navmesh.*`: debug drawing.
+- **Task 0012's parity work:** `rain.*`, `waterripples.*` and `weathereffects.*` (weather and water effects), `groundcover.*` and `groundcoverinstances.*` (instanced groundcover through `Pipeline::Mode::INSTANCE` and `files/shaders/lib/groundcover.glsl`).
 
 ## Frame order for an actor
 
@@ -36,6 +37,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 
 ## Pitfalls
 
+- **Instance attributes come before texture coordinates.** The default shader's vertex inputs are numbered in binding order, and the texture coordinate array's length is a specialization constant, so `Mode::INSTANCE`'s two per-instance inputs sit before the texture coordinates (`lib/attributes.glsl`, `Pipeline::Graphics`), and a draw's instance arrays must be inserted before its first `vec2Array` (`MWRender::Groundcover`).
 - **vsgXchange 1.1 tags stb_image textures as sRGB** (TGA, PNG, JPG and BMP), and the GPU then darkens them on sampling. `vsgUtil::readOptionalImage` and `readImageFromMemory` strip it (`vsgUtil::removeSrgb`). Read images only through them, or terrain and many statics come out nearly black.
 - **Specialization constants in boolean expressions:**
   - The default shader's `colorMode` is a Vulkan specialization constant.

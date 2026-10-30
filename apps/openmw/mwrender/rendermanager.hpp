@@ -6,6 +6,7 @@
 #include "rendermode.hpp"
 #include "waterripples.hpp"
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <optional>
@@ -30,6 +31,7 @@ namespace MWWorld
     class CellStore;
     class Cell;
     class ESMStore;
+    class GroundcoverStore;
 }
 namespace Resource
 {
@@ -85,6 +87,7 @@ namespace MWRender
     class Reflect;
     class Effects;
     class WeatherEffects;
+    class Groundcover;
     class Projectiles;
     class FogManager;
     class Sky;
@@ -132,6 +135,8 @@ namespace MWRender
         /// The navigator whose navmesh the navmesh debug draw shows; set by the world, which owns it, and cleared
         /// (nullptr) when the world is destroyed.
         void setNavigator(const DetourNavigator::Navigator* navigator) { mNavigator = navigator; }
+        /// World's groundcover; null when the World goes. Groundcover is drawn only with `[Groundcover] enabled`.
+        void setGroundcoverStore(const MWWorld::GroundcoverStore* store);
         void setNavMeshMode(Settings::NavMeshRenderMode value);
         Preview* getPreview() { return mPreview.get(); }
         LandManager* getLandManager() const;
@@ -332,7 +337,10 @@ namespace MWRender
         std::unique_ptr<Projectiles> mProjectiles;
         std::unique_ptr<Player> mPlayer;
         std::unique_ptr<Camera> mCamera;
-        // std::unique_ptr<Groundcover> mGroundcover;
+        std::unique_ptr<Groundcover> mGroundcover;
+        std::atomic<const MWWorld::GroundcoverStore*> mGroundcoverStore{ nullptr };
+        vsg::vec3 mGroundcoverPlayerPosition; // set in update(), read by updateSceneData()
+        void updateGroundcover(const vsg::vec3& cameraPosition);
         const DetourNavigator::Navigator* mNavigator = nullptr;
         vsg::ref_ptr<vsgUtil::SuspendRenderPass> mSuspend;
         vsg::ref_ptr<vsg::Switch> mScreenshotSwitch;

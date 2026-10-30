@@ -13,6 +13,7 @@ namespace OMW
     struct Arguments
     {
         std::vector<std::string> contentFiles;
+        std::vector<std::string> groundcoverFiles;
         Files::PathContainer dataDirs;
         std::vector<std::string> archives;
         std::filesystem::path resourceDir;

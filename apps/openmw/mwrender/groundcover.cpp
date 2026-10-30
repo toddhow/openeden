@@ -1,475 +1,232 @@
 #include "groundcover.hpp"
 
-#include <span>
+#include <algorithm>
+#include <cmath>
+#include <typeinfo>
 
-#include <osg/AlphaFunc>
-#include <osg/BlendFunc>
-#include <osg/ComputeBoundsVisitor>
-#include <osg/Geometry>
-#include <osg/Program>
-#include <osg/VertexAttribDivisor>
-#include <osgUtil/CullVisitor>
+#include <vsg/nodes/CullGroup.h>
+#include <vsg/nodes/CullNode.h>
+#include <vsg/nodes/DepthSorted.h>
+#include <vsg/nodes/MatrixTransform.h>
+#include <vsg/nodes/StateGroup.h>
+#include <vsg/nodes/Switch.h>
+#include <vsg/nodes/VertexIndexDraw.h>
+#include <vsg/utils/SharedObjects.h>
 
-#include <components/esm3/esmreader.hpp>
+#include <components/animation/billboard.hpp>
+#include <components/animation/transform.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadland.hpp>
-#include <components/esm3/readerscache.hpp>
-#include <components/misc/convert.hpp>
-#include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/nodecallback.hpp>
-#include <components/settings/values.hpp>
-#include <components/shader/shadermanager.hpp>
-#include <components/terrain/quadtreenode.hpp>
-
-#include "../mwworld/groundcoverstore.hpp"
-
-#include "vismask.hpp"
+#include <components/pipeline/material.hpp>
+#include <components/pipeline/override.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/cullnode.hpp>
+#include <components/vsgutil/distancelod.hpp>
 
 namespace MWRender
 {
     namespace
     {
-        using value_type = osgUtil::CullVisitor::value_type;
+        // OpenMW's unified groundcover alpha: an AlphaFunc GEQUAL 128/255 and no blending (Groundcover::Groundcover).
+        constexpr float sAlphaTestCutoff = 128.f / 255.f;
+        constexpr uint32_t sAlphaTestGreaterEqual = 6; // files/shaders/lib/material/alphatest.glsl
+        // Margin for the wind and stomp movement, as OpenMW's InstancingVisitor added to each instance's bounds.
+        constexpr float sInstanceRadiusMargin = 1.1f;
+        // How far the camera moves before the cells in range are worked out again (an eighth of a cell).
+        constexpr float sUpdateDistance = 1024.f;
 
-        // From OSG's CullVisitor.cpp
-        inline value_type distance(const osg::Vec3& coord, const osg::Matrix& matrix)
+        struct InstanceArrays
         {
-            return -((value_type)coord[0] * (value_type)matrix(0, 2) + (value_type)coord[1] * (value_type)matrix(1, 2)
-                + (value_type)coord[2] * (value_type)matrix(2, 2) + matrix(3, 2));
+            vsg::ref_ptr<vsg::vec4Array> offsets; // position relative to the chunk, and scale
+            vsg::ref_ptr<vsg::vec3Array> rotations;
+            uint32_t count = 0;
+        };
+
+        vsg::ref_ptr<vsg::Node> instantiate(const vsg::ref_ptr<vsg::Node>& node, const InstanceArrays& instances);
+
+        // Copies a group of a groundcover model, keeping its type, with each child instantiated.
+        template <class Group>
+        vsg::ref_ptr<vsg::Node> copyGroup(const Group& group, const InstanceArrays& instances)
+        {
+            auto copy = vsg::ref_ptr{ new Group(group) };
+            for (auto& child : copy->children)
+                child = instantiate(child, instances);
+            return copy;
         }
 
-        inline osg::Matrix computeInstanceMatrix(
-            const Groundcover::GroundcoverEntry& entry, const osg::Vec3& chunkPosition)
+        // Copies a groundcover model for one chunk: each draw gets the chunk's instance arrays, placed before the
+        // texture coordinates as the INSTANCE mode binds them (components/pipeline/graphics.cpp). The model's own
+        // culling and sorting nodes are dropped: they bound one instance, and the chunk is culled as a whole.
+        vsg::ref_ptr<vsg::Node> instantiate(const vsg::ref_ptr<vsg::Node>& node, const InstanceArrays& instances)
         {
-            return osg::Matrix::scale(entry.mScale, entry.mScale, entry.mScale)
-                * osg::Matrix(Misc::Convert::makeOsgQuat(entry.mPos))
-                * osg::Matrix::translate(entry.mPos.asVec3() - chunkPosition);
-        }
-
-        class InstancedComputeNearFarCullCallback : public osg::DrawableCullCallback
-        {
-        public:
-            explicit InstancedComputeNearFarCullCallback(std::span<const Groundcover::GroundcoverEntry> instances,
-                const osg::Vec3& chunkPosition, const osg::BoundingBox& instanceBounds)
-                : mInstanceMatrices()
-                , mInstanceBounds(instanceBounds)
+            if (auto* draw = dynamic_cast<const vsg::VertexIndexDraw*>(node.get()))
             {
-                mInstanceMatrices.reserve(instances.size());
-                for (const Groundcover::GroundcoverEntry& instance : instances)
-                    mInstanceMatrices.emplace_back(computeInstanceMatrix(instance, chunkPosition));
+                auto copy = vsg::ref_ptr{ new vsg::VertexIndexDraw(*draw) };
+                auto texcoords = std::find_if(copy->arrays.begin(), copy->arrays.end(),
+                    [](const auto& array) { return array && dynamic_cast<const vsg::vec2Array*>(array->data.get()); });
+                const auto at = copy->arrays.insert(texcoords, vsg::BufferInfo::create(instances.offsets));
+                copy->arrays.insert(at + 1, vsg::BufferInfo::create(instances.rotations));
+                copy->instanceCount = instances.count;
+                return copy;
             }
-
-            bool cull(osg::NodeVisitor* nv, osg::Drawable* drawable, osg::RenderInfo* renderInfo) const override
+            if (auto* sorted = dynamic_cast<const vsg::DepthSorted*>(node.get()))
+                return instantiate(sorted->child, instances);
+            if (auto* cull = dynamic_cast<const vsg::CullNode*>(node.get()))
+                return instantiate(cull->child, instances);
+            if (auto* stateGroup = dynamic_cast<const vsg::StateGroup*>(node.get()))
             {
-                osgUtil::CullVisitor& cullVisitor = *nv->asCullVisitor();
-                osg::CullSettings::ComputeNearFarMode cnfMode = cullVisitor.getComputeNearFarMode();
-                const osg::BoundingBox& boundingBox = drawable->getBoundingBox();
-                osg::RefMatrix& matrix = *cullVisitor.getModelViewMatrix();
-
-                if (cnfMode != osg::CullSettings::COMPUTE_NEAR_FAR_USING_PRIMITIVES
-                    && cnfMode != osg::CullSettings::COMPUTE_NEAR_USING_PRIMITIVES)
-                    return false;
-
-                if (drawable->isCullingActive() && cullVisitor.isCulled(boundingBox))
-                    return true;
-
-                osg::Vec3 lookVector = cullVisitor.getLookVectorLocal();
-                unsigned int bbCornerFar
-                    = (lookVector.x() >= 0 ? 1 : 0) | (lookVector.y() >= 0 ? 2 : 0) | (lookVector.z() >= 0 ? 4 : 0);
-                unsigned int bbCornerNear = (~bbCornerFar) & 7;
-                value_type dNear = distance(boundingBox.corner(bbCornerNear), matrix);
-                value_type dFar = distance(boundingBox.corner(bbCornerFar), matrix);
-
-                if (dNear > dFar)
-                    std::swap(dNear, dFar);
-
-                if (dFar < 0)
-                    return true;
-
-                value_type computedZNear = cullVisitor.getCalculatedNearPlane();
-                value_type computedZFar = cullVisitor.getCalculatedFarPlane();
-
-                if (dNear < computedZNear || dFar > computedZFar)
-                {
-                    osg::Polytope frustum;
-                    osg::Polytope::ClippingMask resultMask
-                        = cullVisitor.getCurrentCullingSet().getFrustum().getResultMask();
-                    if (resultMask)
-                    {
-                        // Other objects are likely cheaper and should let us skip all but a few groundcover instances
-                        cullVisitor.computeNearPlane();
-                        computedZNear = cullVisitor.getCalculatedNearPlane();
-                        computedZFar = cullVisitor.getCalculatedFarPlane();
-
-                        if (dNear < computedZNear)
-                        {
-                            dNear = computedZNear;
-                            for (const auto& instanceMatrix : mInstanceMatrices)
-                            {
-                                osg::Matrix fullMatrix = instanceMatrix * matrix;
-                                osg::Vec3d instanceLookVector(-fullMatrix(0, 2), -fullMatrix(1, 2), -fullMatrix(2, 2));
-                                unsigned int instanceBbCornerFar = (instanceLookVector.x() >= 0 ? 1 : 0)
-                                    | (instanceLookVector.y() >= 0 ? 2 : 0) | (instanceLookVector.z() >= 0 ? 4 : 0);
-                                unsigned int instanceBbCornerNear = (~instanceBbCornerFar) & 7;
-                                value_type instanceDNear
-                                    = distance(mInstanceBounds.corner(instanceBbCornerNear), fullMatrix);
-                                value_type instanceDFar
-                                    = distance(mInstanceBounds.corner(instanceBbCornerFar), fullMatrix);
-
-                                if (instanceDNear > instanceDFar)
-                                    std::swap(instanceDNear, instanceDFar);
-
-                                if (instanceDFar < 0 || instanceDNear > dNear)
-                                    continue;
-
-                                frustum.setAndTransformProvidingInverse(
-                                    cullVisitor.getProjectionCullingStack().back().getFrustum(), fullMatrix);
-                                osg::Polytope::PlaneList planes;
-                                osg::Polytope::ClippingMask selectorMask = 0x1;
-                                for (const auto& plane : frustum.getPlaneList())
-                                {
-                                    if (resultMask & selectorMask)
-                                        planes.push_back(plane);
-                                    selectorMask <<= 1;
-                                }
-
-                                value_type newNear
-                                    = cullVisitor.computeNearestPointInFrustum(fullMatrix, planes, *drawable);
-                                dNear = std::min(dNear, newNear);
-                            }
-                            if (dNear < computedZNear)
-                                cullVisitor.setCalculatedNearPlane(dNear);
-                        }
-
-                        if (cnfMode == osg::CullSettings::COMPUTE_NEAR_FAR_USING_PRIMITIVES && dFar > computedZFar)
-                        {
-                            dFar = computedZFar;
-                            for (const auto& instanceMatrix : mInstanceMatrices)
-                            {
-                                osg::Matrix fullMatrix = instanceMatrix * matrix;
-                                osg::Vec3d instanceLookVector(-fullMatrix(0, 2), -fullMatrix(1, 2), -fullMatrix(2, 2));
-                                unsigned int instanceBbCornerFar = (instanceLookVector.x() >= 0 ? 1 : 0)
-                                    | (instanceLookVector.y() >= 0 ? 2 : 0) | (instanceLookVector.z() >= 0 ? 4 : 0);
-                                unsigned int instanceBbCornerNear = (~instanceBbCornerFar) & 7;
-                                value_type instanceDNear
-                                    = distance(mInstanceBounds.corner(instanceBbCornerNear), fullMatrix);
-                                value_type instanceDFar
-                                    = distance(mInstanceBounds.corner(instanceBbCornerFar), fullMatrix);
-
-                                if (instanceDNear > instanceDFar)
-                                    std::swap(instanceDNear, instanceDFar);
-
-                                if (instanceDFar < 0 || instanceDFar < dFar)
-                                    continue;
-
-                                frustum.setAndTransformProvidingInverse(
-                                    cullVisitor.getProjectionCullingStack().back().getFrustum(), fullMatrix);
-                                osg::Polytope::PlaneList planes;
-                                osg::Polytope::ClippingMask selectorMask = 0x1;
-                                for (const auto& plane : frustum.getPlaneList())
-                                {
-                                    if (resultMask & selectorMask)
-                                        planes.push_back(plane);
-                                    selectorMask <<= 1;
-                                }
-
-                                value_type newFar = cullVisitor.computeFurthestPointInFrustum(
-                                    instanceMatrix * matrix, planes, *drawable);
-                                dFar = std::max(dFar, newFar);
-                            }
-                            if (dFar > computedZFar)
-                                cullVisitor.setCalculatedFarPlane(dFar);
-                        }
-                    }
-                }
-
-                return false;
+                auto copy = vsg::ref_ptr{ new vsg::StateGroup(*stateGroup) };
+                for (auto& child : copy->children)
+                    child = instantiate(child, instances);
+                return copy;
             }
-
-        private:
-            std::vector<osg::Matrix> mInstanceMatrices;
-            osg::BoundingBox mInstanceBounds;
-        };
-
-        class InstancingVisitor : public osg::NodeVisitor
-        {
-        public:
-            explicit InstancingVisitor(
-                std::span<const Groundcover::GroundcoverEntry> instances, osg::Vec3f& chunkPosition)
-                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-                , mInstances(instances)
-                , mChunkPosition(chunkPosition)
+            if (auto* switchNode = dynamic_cast<const vsg::Switch*>(node.get()))
             {
+                auto copy = vsg::ref_ptr{ new vsg::Switch(*switchNode) };
+                for (auto& child : copy->children)
+                    child.node = instantiate(child.node, instances);
+                return copy;
             }
-
-            void apply(osg::Group& group) override
+            if (auto* transform = dynamic_cast<const Anim::Transform*>(node.get()))
+                return copyGroup(*transform, instances);
+            if (auto* billboard = dynamic_cast<const Anim::Billboard*>(node.get()))
+                return copyGroup(*billboard, instances);
+            if (auto* matrix = dynamic_cast<const vsg::MatrixTransform*>(node.get()))
+                return copyGroup(*matrix, instances);
+            if (auto* lod = dynamic_cast<const vsgUtil::DistanceLOD*>(node.get()))
+                return copyGroup(*lod, instances);
+            if (auto* group = dynamic_cast<const vsg::Group*>(node.get()))
             {
-                for (unsigned int i = 0; i < group.getNumChildren();)
-                {
-                    if (group.getChild(i)->asDrawable() && !group.getChild(i)->asGeometry())
-                        group.removeChild(i);
-                    else
-                        ++i;
-                }
-                traverse(group);
+                if (typeid(*group) != typeid(vsg::Group))
+                    Log(Debug::Warning) << "Groundcover: " << typeid(*group).name() << " drawn as a plain group";
+                return copyGroup(*group, instances);
             }
-
-            void apply(osg::Geometry& geom) override
-            {
-                for (unsigned int i = 0; i < geom.getNumPrimitiveSets(); ++i)
-                {
-                    geom.getPrimitiveSet(i)->setNumInstances(static_cast<int>(mInstances.size()));
-                }
-
-                osg::ref_ptr<osg::Vec4Array> transforms = new osg::Vec4Array(static_cast<unsigned>(mInstances.size()));
-                osg::BoundingBox box;
-                osg::BoundingBox originalBox = geom.getBoundingBox();
-                float radius = originalBox.radius();
-                for (unsigned int i = 0; i < transforms->getNumElements(); i++)
-                {
-                    osg::Vec3f pos(mInstances[i].mPos.asVec3());
-                    osg::Vec3f relativePos = pos - mChunkPosition;
-                    (*transforms)[i] = osg::Vec4f(relativePos, mInstances[i].mScale);
-
-                    // Use an additional margin due to groundcover animation
-                    float instanceRadius = radius * mInstances[i].mScale * 1.1f;
-                    osg::BoundingSphere instanceBounds(relativePos, instanceRadius);
-                    box.expandBy(instanceBounds);
-                }
-
-                geom.setInitialBound(box);
-
-                osg::ref_ptr<osg::Vec3Array> rotations = new osg::Vec3Array(static_cast<unsigned>(mInstances.size()));
-                for (unsigned int i = 0; i < rotations->getNumElements(); i++)
-                {
-                    (*rotations)[i] = mInstances[i].mPos.asRotationVec3();
-                }
-
-                // Display lists do not support instancing in OSG 3.4
-                geom.setUseDisplayList(false);
-                geom.setUseVertexBufferObjects(true);
-
-                geom.setVertexAttribArray(6, transforms.get(), osg::Array::BIND_PER_VERTEX);
-                geom.setVertexAttribArray(7, rotations.get(), osg::Array::BIND_PER_VERTEX);
-
-                geom.addCullCallback(new InstancedComputeNearFarCullCallback(mInstances, mChunkPosition, originalBox));
-            }
-
-        private:
-            std::span<const Groundcover::GroundcoverEntry> mInstances;
-            osg::Vec3f mChunkPosition;
-        };
-
-        class DensityCalculator
-        {
-        public:
-            DensityCalculator(float density)
-                : mDensity(density)
-            {
-            }
-
-            bool isInstanceEnabled()
-            {
-                if (mDensity >= 1.f)
-                    return true;
-
-                mCurrentGroundcover += mDensity;
-                if (mCurrentGroundcover < 1.f)
-                    return false;
-
-                mCurrentGroundcover -= 1.f;
-
-                return true;
-            }
-            void reset() { mCurrentGroundcover = 0.f; }
-
-        private:
-            float mCurrentGroundcover = 0.f;
-            float mDensity = 0.f;
-        };
-
-        class ViewDistanceCallback : public SceneUtil::NodeCallback<ViewDistanceCallback>
-        {
-        public:
-            ViewDistanceCallback(float dist, const osg::BoundingBox& box)
-                : mViewDistance(dist)
-                , mBox(box)
-            {
-            }
-            void operator()(osg::Node* node, osg::NodeVisitor* nv)
-            {
-                if (Terrain::distance(mBox, nv->getEyePoint()) <= mViewDistance)
-                    traverse(node, nv);
-            }
-
-        private:
-            float mViewDistance;
-            osg::BoundingBox mBox;
-        };
-
-        inline bool isInChunkBorders(ESM::CellRef& ref, osg::Vec2f& minBound, osg::Vec2f& maxBound)
-        {
-            osg::Vec2f size = maxBound - minBound;
-            if (size.x() >= 1 && size.y() >= 1)
-                return true;
-
-            osg::Vec3f pos = ref.mPos.asVec3();
-            osg::Vec3f cellPos = pos / ESM::Land::REAL_SIZE;
-            if ((minBound.x() > std::floor(minBound.x()) && cellPos.x() < minBound.x())
-                || (minBound.y() > std::floor(minBound.y()) && cellPos.y() < minBound.y())
-                || (maxBound.x() < std::ceil(maxBound.x()) && cellPos.x() >= maxBound.x())
-                || (maxBound.y() < std::ceil(maxBound.y()) && cellPos.y() >= maxBound.y()))
-                return false;
-
-            return true;
-        }
-    }
-
-    osg::ref_ptr<osg::Node> Groundcover::getChunk(float size, const osg::Vec2f& center, unsigned char lod,
-        unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
-    {
-        if (lod > getMaxLodLevel())
-            return nullptr;
-        GroundcoverChunkId id = std::make_tuple(center, size);
-        osg::ref_ptr<osg::Object> obj = mCache->getRefFromObjectCache(id);
-        if (obj)
-            return static_cast<osg::Node*>(obj.get());
-        else
-        {
-            InstanceMap instances;
-            collectInstances(instances, size, center);
-            osg::ref_ptr<osg::Node> node = createChunk(instances, center);
-            mCache->addEntryToObjectCache(id, node.get());
+            // Draws that cannot take instance arrays, such as a NIF particle system's, are left out: their
+            // pipelines would read per-instance inputs nothing provides.
+            if (dynamic_cast<const vsg::Command*>(node.get()))
+                return vsg::Node::create();
             return node;
         }
+
     }
 
     Groundcover::Groundcover(
-        Resource::SceneManager* sceneManager, float density, float viewDistance, const MWWorld::GroundcoverStore& store)
-        : GenericResourceManager<GroundcoverChunkId>(nullptr, Settings::cells().mCacheExpiryDelay)
-        , mSceneManager(sceneManager)
+        const MWAnim::Context& context, const MWWorld::GroundcoverStore& store, float density, float renderingDistance)
+        : mContext(context)
+        , mStore(store)
         , mDensity(density)
-        , mStateset(new osg::StateSet)
-        , mGroundcoverStore(store)
+        , mRenderingDistance(renderingDistance)
+        , mRoot(vsg::Group::create())
     {
-        setViewDistance(viewDistance);
-        // MGE uses default alpha settings for groundcover, so we can not rely on alpha properties
-        // Force a unified alpha handling instead of data from meshes
-        osg::ref_ptr<osg::AlphaFunc> alpha = new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 128.f / 255.f);
-        mStateset->setAttributeAndModes(alpha.get(), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-        mStateset->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-        mStateset->setRenderBinDetails(0, "RenderBin", osg::StateSet::OVERRIDE_RENDERBIN_DETAILS);
-        mStateset->setAttribute(new osg::VertexAttribDivisor(6, 1));
-        mStateset->setAttribute(new osg::VertexAttribDivisor(7, 1));
-
-        mProgramTemplate = mSceneManager->getShaderManager().getProgramTemplate()
-            ? Shader::ShaderManager::cloneProgram(mSceneManager->getShaderManager().getProgramTemplate())
-            : osg::ref_ptr<osg::Program>(new osg::Program);
-        mProgramTemplate->addBindAttribLocation("aOffset", 6);
-        mProgramTemplate->addBindAttribLocation("aRotation", 7);
+        auto override_ = vsg::ref_ptr{ new Pipeline::Override };
+        override_->pipelineOptions = [](Pipeline::Options& options) {
+            // Particle systems are not instanced (instantiate() leaves them out).
+            if (!options.shader.hasMode(Pipeline::Mode::PARTICLE))
+                options.shader.addMode(Pipeline::Mode::INSTANCE);
+            options.blend = false;
+            options.alphaTestMode = sAlphaTestGreaterEqual;
+        };
+        override_->materialData
+            = [](Pipeline::Data::Material& material) { material.alphaTestCutoff = sAlphaTestCutoff; };
+        auto nodeOptions = vsg::Options::create(*mContext.nodeOptions);
+        // Its own cache: VSG matches shared reads by comparing options, and every Pipeline::Override compares equal,
+        // so the first-person or inventory preview models (also read with an override) could otherwise be swapped.
+        nodeOptions->sharedObjects = vsg::SharedObjects::create();
+        override_->composite(*nodeOptions);
+        mContext.nodeOptions = nodeOptions;
     }
 
     Groundcover::~Groundcover() = default;
 
-    void Groundcover::collectInstances(InstanceMap& instances, float size, const osg::Vec2f& center)
+    void Groundcover::clear()
     {
-        if (mDensity <= 0.f)
-            return;
-
-        osg::Vec2f minBound = (center - osg::Vec2f(size / 2.f, size / 2.f));
-        osg::Vec2f maxBound = (center + osg::Vec2f(size / 2.f, size / 2.f));
-        DensityCalculator calculator(mDensity);
-        ESM::ReadersCache readers;
-        osg::Vec2i startCell = osg::Vec2i(static_cast<int>(std::floor(center.x() - size / 2.f)),
-            static_cast<int>(std::floor(center.y() - size / 2.f)));
-        for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
-        {
-            for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
-            {
-                ESM::Cell cell;
-                mGroundcoverStore.initCell(cell, cellX, cellY);
-                if (cell.mContextList.empty())
-                    continue;
-
-                calculator.reset();
-                std::map<ESM::RefNum, ESM::CellRef> refs;
-                for (size_t i = 0; i < cell.mContextList.size(); ++i)
-                {
-                    const std::size_t index = static_cast<std::size_t>(cell.mContextList[i].index);
-                    const ESM::ReadersCache::BusyItem reader = readers.get(index);
-                    cell.restore(*reader, i);
-                    ESM::CellRef ref;
-                    bool deleted = false;
-                    while (cell.getNextRef(*reader, ref, deleted))
-                    {
-                        if (!deleted && refs.find(ref.mRefNum) == refs.end() && !calculator.isInstanceEnabled())
-                            deleted = true;
-                        if (!deleted && !isInChunkBorders(ref, minBound, maxBound))
-                            deleted = true;
-
-                        if (deleted)
-                        {
-                            refs.erase(ref.mRefNum);
-                            continue;
-                        }
-                        refs[ref.mRefNum] = std::move(ref);
-                    }
-                }
-
-                for (auto& [refNum, cellRef] : refs)
-                {
-                    const VFS::Path::NormalizedView model = mGroundcoverStore.getGroundcoverModel(cellRef.mRefID);
-                    if (model.empty())
-                        continue;
-                    auto it = instances.find(model);
-                    if (it == instances.end())
-                        it = instances.emplace_hint(it, VFS::Path::Normalized(model), std::vector<GroundcoverEntry>());
-                    it->second.emplace_back(std::move(cellRef));
-                }
-            }
-        }
+        mRoot->children.clear();
+        mChunks.clear();
+        mHasUpdated = false;
     }
 
-    osg::ref_ptr<osg::Node> Groundcover::createChunk(InstanceMap& instances, const osg::Vec2f& center)
+    void Groundcover::hide()
     {
-        osg::ref_ptr<osg::Group> group = new osg::Group;
-        osg::Vec3f worldCenter = osg::Vec3f(center.x(), center.y(), 0) * ESM::Land::REAL_SIZE;
+        mRoot->children.clear();
+        mHasUpdated = false;
+    }
+
+    void Groundcover::update(const vsg::vec3& cameraPosition)
+    {
+        // Which cells are in range changes only gradually, so it is worked out again (allocating) only after the
+        // camera has moved a little; the shader fades individual instances out at the exact distance.
+        if (mHasUpdated
+            && vsg::length(vsg::vec2(cameraPosition.x, cameraPosition.y) - mLastUpdatePosition) < sUpdateDistance)
+            return;
+        mHasUpdated = true;
+        mLastUpdatePosition = vsg::vec2(cameraPosition.x, cameraPosition.y);
+
+        const std::vector<std::pair<int, int>> wanted
+            = groundcoverCellsInRange(cameraPosition.x, cameraPosition.y, mRenderingDistance);
+        std::erase_if(
+            mChunks, [&](const auto& chunk) { return !std::binary_search(wanted.begin(), wanted.end(), chunk.first); });
+        for (const auto& cell : wanted)
+            if (!mChunks.contains(cell))
+                mChunks.emplace(cell, createChunk(cell.first, cell.second));
+
+        mRoot->children.clear();
+        for (const auto& [cell, chunk] : mChunks)
+            if (chunk)
+                mRoot->addChild(chunk);
+    }
+
+    vsg::ref_ptr<vsg::Node> Groundcover::createChunk(int cellX, int cellY) const
+    {
+        const vsg::vec2 center(cellX + 0.5f, cellY + 0.5f);
+        const GroundcoverInstances instances = collectGroundcoverInstances(mStore, mDensity, 1.f, center);
+        if (instances.empty())
+            return {};
+
+        const vsg::vec3 origin(center.x * ESM::Land::REAL_SIZE, center.y * ESM::Land::REAL_SIZE, 0.f);
+        auto models = vsg::Group::create();
+        vsg::dbox bounds;
         for (const auto& [model, entries] : instances)
         {
-            const osg::Node* temp = mSceneManager->getTemplate(model);
-            osg::ref_ptr<osg::Node> node = static_cast<osg::Node*>(temp->clone(osg::CopyOp::DEEP_COPY_NODES
-                | osg::CopyOp::DEEP_COPY_DRAWABLES | osg::CopyOp::DEEP_COPY_USERDATA | osg::CopyOp::DEEP_COPY_ARRAYS
-                | osg::CopyOp::DEEP_COPY_PRIMITIVES));
+            vsg::ref_ptr<vsg::Node> prototype;
+            try
+            {
+                prototype = mContext.readNode(std::string(model.value()));
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "Failed to load groundcover model '" << model.value() << "': " << e.what();
+                continue;
+            }
+            if (!prototype)
+                continue;
 
-            // Keep link to original mesh to keep it in cache
-            group->getOrCreateUserDataContainer()->addUserObject(new Resource::TemplateRef(temp));
-
-            InstancingVisitor visitor(entries, worldCenter);
-            node->accept(visitor);
-            group->addChild(node);
+            InstanceArrays arrays;
+            arrays.count = static_cast<uint32_t>(entries.size());
+            arrays.offsets = vsg::vec4Array::create(arrays.count);
+            arrays.rotations = vsg::vec3Array::create(arrays.count);
+            const double radius = vsgUtil::getBounds(prototype).radius;
+            for (uint32_t i = 0; i < arrays.count; ++i)
+            {
+                const ESM::Position& position = entries[i].position;
+                const vsg::vec3 offset = vsg::vec3(position.pos[0], position.pos[1], position.pos[2]) - origin;
+                (*arrays.offsets)[i] = vsg::vec4(offset, entries[i].scale);
+                (*arrays.rotations)[i] = vsg::vec3(position.rot[0], position.rot[1], position.rot[2]);
+                const double instanceRadius = radius * entries[i].scale * sInstanceRadiusMargin;
+                bounds.add(vsg::dvec3(offset) - vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
+                bounds.add(vsg::dvec3(offset) + vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
+            }
+            models->addChild(instantiate(prototype, arrays));
         }
+        if (models->children.empty())
+            return {};
 
-        osg::ComputeBoundsVisitor cbv;
-        group->accept(cbv);
-        osg::BoundingBox box = cbv.getBoundingBox();
-        group->addCullCallback(new ViewDistanceCallback(getViewDistance(), box));
-
-        group->setStateSet(mStateset);
-        group->setNodeMask(Mask_Groundcover);
-        if (mSceneManager->getLightingMethod() != SceneUtil::LightingMethod::FFP)
-            group->addCullCallback(new SceneUtil::LightListCallback);
-        mSceneManager->recreateShaders(group, "groundcover", true, mProgramTemplate);
-        mSceneManager->shareState(group);
-        group->getBound();
-        return group;
-    }
-
-    unsigned int Groundcover::getNodeMask()
-    {
-        return Mask_Groundcover;
-    }
-
-    void Groundcover::reportStats(unsigned int frameNumber, osg::Stats* stats) const
-    {
-        Resource::reportStats("Groundcover Chunk", frameNumber, mCache->getStats(), *stats);
+        const vsg::dvec3 boundsCenter = (bounds.min + bounds.max) * 0.5;
+        auto cull = vsg::CullGroup::create(vsg::dsphere(boundsCenter, vsg::length(bounds.max - boundsCenter)));
+        cull->children = models->children;
+        auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(origin)));
+        transform->addChild(cull);
+        if (!mContext.compileContext->compile(transform))
+            return {};
+        return transform;
     }
 }

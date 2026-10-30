@@ -52,6 +52,7 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwmechanics/actorutil.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 
@@ -62,6 +63,7 @@
 #include "debuggeometry.hpp"
 #include "navmesh.hpp"
 #include "weathereffects.hpp"
+#include "groundcover.hpp"
 #include "effects.hpp"
 #include "env.hpp"
 #include "fogmanager.hpp"
@@ -377,6 +379,8 @@ namespace MWRender
             mSceneRoot->addChild(mTerrainView->node());
         mSceneRoot->addChild(mPlayerGroup);
         mSceneRoot->addChild(mScene->getObjects());
+        if (mGroundcover)
+            mSceneRoot->addChild(mGroundcover->node());
         mSceneRoot->addChild(mScene->getActors());
         if (mRenderModes[Render_Water])
         {
@@ -526,6 +530,40 @@ namespace MWRender
             compile->compile();
     }
 
+    void RenderManager::setGroundcoverStore(const MWWorld::GroundcoverStore* store)
+    {
+        // Called by the World, which is built on the loading thread; update() acts on it on the main thread.
+        mGroundcoverStore = store;
+    }
+
+    void RenderManager::updateGroundcover(const vsg::vec3& cameraPosition)
+    {
+        const MWWorld::GroundcoverStore* store = mGroundcoverStore;
+        if (!store && mGroundcover)
+        {
+            mGroundcover.reset();
+            updateSceneChildren();
+        }
+        else if (store && !mGroundcover && Settings::groundcover().mEnabled)
+        {
+            mGroundcover = std::make_unique<Groundcover>(mScene->context, *store, Settings::groundcover().mDensity,
+                Settings::groundcover().mRenderingDistance);
+            updateSceneChildren();
+        }
+        const MWWorld::Ptr player = MWMechanics::getPlayer();
+        if (!player.isEmpty())
+            mGroundcoverPlayerPosition = toVsg(player.getRefData().getPosition().asVec3());
+        if (!mGroundcover)
+            return;
+        // Groundcover belongs to Morrowind's exterior; an interior's or another worldspace's coordinates would select
+        // its chunks.
+        if (!player.isEmpty() && player.isInCell() && player.getCell()->isExterior()
+            && player.getCell()->getCell()->getWorldSpace() == ESM::Cell::sDefaultWorldspaceId)
+            mGroundcover->update(cameraPosition);
+        else
+            mGroundcover->hide();
+    }
+
     void RenderManager::changeCellGrid(const osg::Vec3f& pos)
     {
         updateTerrain(vsg::dvec3(toVsg(pos)));
@@ -584,6 +622,12 @@ namespace MWRender
         sceneData.skyColor
             = mRenderModes[Render_Sky] ? mSky->getSkyColor() : mFog->getFogColor(false) * vsg::vec4(1.3, 1.3, 1.3, 1);
         sceneData.rainIntensity = mRenderModes[Render_Sky] ? mSky->getRainIntensity() : 0;
+        // Groundcover's wind and stomping (task 0012), as OpenMW's SharedUniformStateUpdater set them. The player
+        // position comes from update(), which runs only in game: this also runs at the main menu, without a player.
+        sceneData.groundcoverPlayer = vsg::vec4(mGroundcoverPlayerPosition, mSky->getBaseWindSpeed());
+        sceneData.groundcoverParams = vsg::vec4(Settings::groundcover().mRenderingDistance,
+            static_cast<float>(Settings::groundcover().mStompMode),
+            static_cast<float>(Settings::groundcover().mStompIntensity), 0.f);
         sceneData.lightDiffuse = mLightDiffuse;
         sceneData.lightSpecular = mLightSpecular;
         sceneData.invView = vsg::mat4(vsg::inverse_4x3(mViewMatrix->transform()));
@@ -661,6 +705,7 @@ namespace MWRender
         mRainParameters.enabled = mRainParameters.enabled && mRenderModes[Render_Sky];
         mRain->update(dt, cameraPosition, mRainParameters, aboveWater);
         mWaterRipples->update(dt, paused);
+        updateGroundcover(cameraPosition);
         if (mRenderModes[Render_Sky])
             mSky->update(dt);
 
@@ -840,6 +885,8 @@ namespace MWRender
     {
         mEffects->clear();
         mWaterRipples->clear();
+        if (mGroundcover)
+            mGroundcover->clear();
     }
 
     void RenderManager::clear()

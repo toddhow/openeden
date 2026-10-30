@@ -52,6 +52,8 @@ namespace Pipeline
                 return "TEXCOORD";
             case Mode::SKIN:
                 return "SKIN";
+            case Mode::INSTANCE:
+                return "INSTANCE";
         }
         return "";
     }
@@ -199,6 +201,19 @@ namespace Pipeline
                 { vertexBindingIndex, sizeof(vsg::vec4), VK_VERTEX_INPUT_RATE_VERTEX });
             vertexAttributeDescriptions.push_back(
                 { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32A32_SFLOAT, 0 });
+        }
+        // OpenEden: per-instance inputs come before the texture coordinates, whose count is a specialization constant
+        // (files/shaders/lib/attributes.glsl).
+        if (key.shader.hasMode(Mode::INSTANCE))
+        {
+            vertexBindingsDescriptions.push_back(
+                { vertexBindingIndex, sizeof(vsg::vec4), VK_VERTEX_INPUT_RATE_INSTANCE });
+            vertexAttributeDescriptions.push_back(
+                { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32A32_SFLOAT, 0 });
+            vertexBindingsDescriptions.push_back(
+                { vertexBindingIndex, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_INSTANCE });
+            vertexAttributeDescriptions.push_back(
+                { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32_SFLOAT, 0 });
         }
         static_assert(static_cast<int>(Mode::TEXCOORD) == 4);
         if (key.shader.hasMode(Mode::TEXCOORD))

@@ -1,4 +1,4 @@
-#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP)
+#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE)
 
 #include "lib/pushconstants.glsl"
 #include "lib/material/descriptors_vert.glsl"
@@ -30,6 +30,10 @@ layout(std430, set=TEXTURE_SET, binding=PARTICLE_BINDING) readonly buffer Partic
 
 #ifdef BILLBOARD
 #include "lib/math/billboard.glsl"
+#endif
+
+#ifdef INSTANCE
+#include "lib/groundcover.glsl"
 #endif
 
 layout(location=0) out Outputs
@@ -80,6 +84,16 @@ void main()
     vec3 normal = inNormal;
 #endif
 
+#ifdef INSTANCE
+    // OpenEden: OpenMW's groundcover instance transform: rotate, scale, then offset within the chunk.
+    float instanceHeight = vertex.z;
+    mat4 instanceRotation = groundcoverRotation(inInstanceRotation);
+    vertex = vec4((instanceRotation * vec4(vertex.xyz * inInstanceOffset.w, 1.0)).xyz + inInstanceOffset.xyz, 1.0);
+ #ifdef NORMAL
+    normal = mat3(instanceRotation) * normal;
+ #endif
+#endif
+
     vec4 viewPos =
 #ifdef BILLBOARD
     billboardModelView(pc.modelview)
@@ -88,8 +102,20 @@ void main()
 #endif
      * vertex;
 
+#ifdef INSTANCE
+    // Wind and stomping move the vertex in the world's XY plane; beyond the fade-out distance the instance is dropped.
+    vec3 worldPos = (scene.invView * viewPos).xyz;
+    vec2 displacement = groundcoverDisplacement(worldPos, instanceHeight, scene.time, scene.groundcoverPlayer.xyz,
+        scene.groundcoverPlayer.w, int(scene.groundcoverParams.y), int(scene.groundcoverParams.z));
+    viewPos.xyz += transpose(mat3(scene.invView)) * vec3(displacement, 0.0);
+#endif
+
     vert_out.viewPos = viewPos.xyz;
     gl_Position = pc.projection * viewPos;
+#ifdef INSTANCE
+    if (length((pc.modelview * vec4(inInstanceOffset.xyz, 1.0)).xyz) > scene.groundcoverParams.x)
+        gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+#endif
 
 #ifdef TEXCOORD
     for (int i=0; i<numUvSets;++i)
