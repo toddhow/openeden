@@ -93,3 +93,4 @@
     - A night/day switch is set to the current mode when its object is placed, where OpenMW left the NIF's initial index until the mode first changed.
     - `Container::canBeHarvested` searches the object's graph on each call.
     - The warning for multi-face internal textures is not restored.
+- **Settings audit** (work item 7): `docs/research/0006-vulkan-renderer-settings.md`. Of 143 keys, 86 are read by the Vulkan build and 57 are not. Each unread key has a proposed disposition: implement, remove with a reason, or decide with toddhow. Nothing has been removed yet. `[Models] load unsupported nif files` works again.

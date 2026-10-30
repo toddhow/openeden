@@ -23,6 +23,7 @@
 #include <components/render/engine.hpp>
 #include <components/render/screen.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/nif/niffile.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/paging.hpp>
 #include <components/view/barriers.hpp>
@@ -119,6 +120,8 @@ namespace MWRender
         mOperationThreads = vsg::OperationThreads::create(numLoadingThreads);
 
         mRenderModes.resize(Render_Count);
+        // As OpenMW's RenderingManager (task 0012).
+        Nif::Reader::setLoadUnsupportedFiles(Settings::models().mLoadUnsupportedNifFiles);
         mCamera.reset(new Camera);
 
         mShadow = std::make_unique<Shadow>(*context, mEngine.getEnabledFeatures().depthClamp);
