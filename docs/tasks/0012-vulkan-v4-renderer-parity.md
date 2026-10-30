@@ -163,11 +163,11 @@
     - Particle size ignores the node's scale (`main.vert` normalises the view axes); OpenMW scaled particles with it (`LOCAL_COORDINATES`).
 - **Defaults:** with `distant terrain = false` (the default), OpenMW at the fork point ran no object paging, and groundcover, normal maps, alpha to coverage, soft particles and post-processing are all off by default. The remaining default-on differences are rain ripples on water (with the water item; kept on by default, toddhow 2026-10-30, as OpenMW 0.51 shows them with shader water) and vsgopenmw's accepted water look (`sunlight scattering`, `wobbly shores`).
 
-## Paused (2026-10-30)
+## Open items (2026-10-30)
 
-toddhow asked to move on to V5, V6 and then Track W, so V4 stops here with these items still open. Each needs its own sub-stage when V4 resumes:
+Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its own sub-stage:
 
-- **Normal and specular maps** (the 8 `[Shaders]` keys listed in research note 0006). Survey before the pause:
+- **Normal and specular maps** (the 8 `[Shaders]` keys listed in research note 0006). Survey:
   - vsgopenmw has no tangents, no normal-map shader path and no specular lighting at all. The `specular` specialization constant (`components/pipeline/graphics.cpp`) is never used by `files/shaders/default/main.frag`, and `nif.cpp` leaves the material's specular commented out.
   - Point lights are lit per vertex (`pointLightDiffuse` in `main.vert`), so a normal map would also need per-pixel point lighting.
   - OpenMW at 442eec6e2f lit NIF material specular whenever it was non-zero, so the missing specular term is a parity gap in its own right, even without specular maps.
