@@ -167,7 +167,7 @@
 
 Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its own sub-stage:
 
-- **Normal and specular maps** (the 8 `[Shaders]` keys listed in research note 0006). Survey:
+- **Normal and specular maps** (the 8 `[Shaders]` keys listed in research note 0006): **done** for objects (step 1, V4h) and terrain (step 2, V4i). Survey:
   - vsgopenmw has no tangents, no normal-map shader path and no specular lighting at all. The `specular` specialization constant (`components/pipeline/graphics.cpp`) is never used by `files/shaders/default/main.frag`, and `nif.cpp` leaves the material's specular commented out.
   - Point lights are lit per vertex (`pointLightDiffuse` in `main.vert`), so a normal map would also need per-pixel point lighting.
   - NIF material specular matters only for non-Morrowind NIFs: OpenMW at 442eec6e2f zeroed specular for every NIF of Morrowind's version or older, or with `NiSpecularProperty` off (`NifOsg::LoaderImpl::applyDrawableProperties`). So vanilla Morrowind shows no specular, and only specular maps and newer NIFs need the term.
