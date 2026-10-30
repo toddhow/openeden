@@ -140,4 +140,17 @@ namespace MWAnim
         static_cast<Anim::Animation&>(ret) = Anim::cloneIfRequired(node, callback);
         return ret;
     }
+
+    CloneResult cloneWithOwnMaterials(
+        vsg::ref_ptr<vsg::Node>& node, std::vector<vsg::ref_ptr<MaterialValue>>& materials)
+    {
+        CloneResult ret;
+        ret.contents = Anim::Meta::getContents(*node);
+        // Through the default cloning, so the materials keep their controllers and every other descriptor of their sets
+        // (such as a particle buffer the compute pass also uses) is cloned consistently.
+        static_cast<Anim::Animation&>(ret) = Anim::cloneIfRequired(
+            node, {}, [](const vsg::Data& data) { return dynamic_cast<const MaterialValue*>(&data) != nullptr; },
+            [&materials](vsg::Data& data) { materials.emplace_back(static_cast<MaterialValue*>(&data)); });
+        return ret;
+    }
 }

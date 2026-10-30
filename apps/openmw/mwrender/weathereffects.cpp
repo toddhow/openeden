@@ -2,6 +2,7 @@
 
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/mwanimation/clone.hpp>
 #include <components/mwanimation/effect.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -42,6 +43,7 @@ namespace MWRender
         {
             mEffect->detach();
             mEffect.reset();
+            mMaterials.clear();
         }
         if (model.empty())
             return;
@@ -51,7 +53,10 @@ namespace MWRender
             auto effect = std::make_unique<MWAnim::Effect>();
             effect->mwctx = mContext;
             effect->loop = true;
-            auto [animation, node] = MWAnim::Effect::load(mContext, mContext.readNode(model), {}, false);
+            // The effect gets its own materials, which update() fades, as OpenMW's AlphaFader did.
+            auto node = mContext.readNode(model);
+            mMaterials.clear();
+            Anim::Animation animation = MWAnim::cloneWithOwnMaterials(node, mMaterials);
             // OpenMW wrapped a NIF effect's particles around the camera for snow, or when the weather also had rain,
             // which no Morrowind weather combines with a NIF effect (SkyManager::setWeather, cf3dbd3aa7).
             if (model == Settings::models().mWeathersnow.get().value())
@@ -70,7 +75,8 @@ namespace MWRender
         }
     }
 
-    void WeatherEffects::update(float dt, const vsg::vec3& cameraPosition, const vsg::quat& orientation, bool visible)
+    void WeatherEffects::update(
+        float dt, const vsg::vec3& cameraPosition, const vsg::quat& orientation, float alpha, bool visible)
     {
         if (visible != !mRoot->children.empty())
         {
@@ -85,5 +91,12 @@ namespace MWRender
         mWrapAround->centre = cameraPosition;
         mTransform->setAttitude(orientation);
         mEffect->run(dt);
+        // OpenMW's AlphaFader: diffuse (0, 0, 0, precipitation alpha) on every material of the effect, every frame and
+        // after the effect's own material controllers, so a controller animating diffuse does not undo it.
+        for (auto& material : mMaterials)
+        {
+            material->value().diffuse = vsg::vec4(0.f, 0.f, 0.f, alpha);
+            material->dirty();
+        }
     }
 }

@@ -21,6 +21,17 @@ namespace Anim
      * The cloneCallback parameter can be used to forbid shallow copies of particular objects, replace unwanted nodes with empty nodes or replace empty placeholder nodes with real nodes.
      */
     Animation cloneIfRequired(vsg::ref_ptr<vsg::Node>& node, CloneCallback callback = {});
+
+    /*
+     * openeden-vsg: as above, and also clones every vsg::Data for which cloneData returns true, as dynamic data with
+     * its controller, passing each new copy to onDataCloned (task 0012: the weather effects' own materials). Shared
+     * data is cloned once per call, so all its uses in the copy share the new data, and every other descriptor is
+     * cloned as usual.
+     */
+    using DataCloneFilter = std::function<bool(const vsg::Data&)>;
+    using DataClonedCallback = std::function<void(vsg::Data&)>;
+    Animation cloneIfRequired(vsg::ref_ptr<vsg::Node>& node, CloneCallback callback, DataCloneFilter cloneData,
+        DataClonedCallback onDataCloned);
 }
 
 #endif

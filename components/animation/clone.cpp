@@ -50,6 +50,8 @@ namespace Anim
     public:
         Callback callback;
         Animation& objects;
+        DataCloneFilter cloneData;
+        DataClonedCallback onDataCloned;
         Clone(Callback c, Animation& objs)
             : callback(c)
             , objects(objs)
@@ -106,8 +108,8 @@ namespace Anim
 
         void apply(const vsg::Data& d) override
         {
-            //if (!Controller::get(d))
-            if (!d.dynamic() && !Controller::get(d))
+            const bool forced = cloneData && cloneData(d);
+            if (!forced && !d.dynamic() && !Controller::get(d))
                 return;
             auto found = mClonedObjects.find(&d);
             if (found != mClonedObjects.end())
@@ -117,6 +119,13 @@ namespace Anim
                 cloned = d.clone();
                 copyAuxiliary(d, *cloned);
                 mClonedObjects[&d] = cloned;
+                if (forced)
+                {
+                    auto& data = static_cast<vsg::Data&>(*cloned);
+                    data.properties.dataVariance = vsg::DYNAMIC_DATA;
+                    if (onDataCloned)
+                        onDataCloned(data);
+                }
             }
         }
 
@@ -269,16 +278,26 @@ namespace Anim
 
     Animation cloneIfRequired(vsg::ref_ptr<vsg::Node>& node, CloneCallback f)
     {
+        return cloneIfRequired(node, std::move(f), {}, {});
+    }
+
+    Animation cloneIfRequired(vsg::ref_ptr<vsg::Node>& node, CloneCallback f, DataCloneFilter cloneData,
+        DataClonedCallback onDataCloned)
+    {
         Animation ret;
         if (f)
         {
             auto visitor = Clone(f, ret);
+            visitor.cloneData = cloneData;
+            visitor.onDataCloned = onDataCloned;
             if (auto cloned = visitor.clone(*node))
                 node = cloned;
         }
         else
         {
             auto visitor = Clone(Null(), ret);
+            visitor.cloneData = cloneData;
+            visitor.onDataCloned = onDataCloned;
             if (auto cloned = visitor.clone(*node))
                 node = cloned;
         }

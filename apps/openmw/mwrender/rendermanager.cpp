@@ -655,7 +655,8 @@ namespace MWRender
         // Weather particles stop at the water surface, as OpenMW's underwater switch did.
         const vsg::vec3 cameraPosition(toVsg(mCamera->getPosition()));
         const bool aboveWater = !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition));
-        mWeatherEffects->update(dt, cameraPosition, mSky->getParticleOrientation(), aboveWater);
+        mWeatherEffects->update(
+            dt, cameraPosition, mSky->getParticleOrientation(), mSky->getPrecipitationAlpha(), aboveWater);
         mSky->getRainParameters(mRainParameters);
         mRainParameters.enabled = mRainParameters.enabled && mRenderModes[Render_Sky];
         mRain->update(dt, cameraPosition, mRainParameters, aboveWater);

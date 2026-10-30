@@ -78,6 +78,7 @@ namespace MWRender
         bool hasRain() const;
 
         float getRainIntensity() const;
+        float getPrecipitationAlpha() const { return mPrecipitationAlpha; }
 
         void setRainSpeed(float speed);
 

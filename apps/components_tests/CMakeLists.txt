@@ -122,6 +122,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     vsgutil/testdistancelod.cpp
     vsgutil/testarraytexture.cpp
+
+    mwanimation/testclonematerials.cpp
 )
 
 # openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader, components/fx,

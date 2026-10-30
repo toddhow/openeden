@@ -3,12 +3,14 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <vsg/maths/quat.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Group.h>
 
 #include <components/mwanimation/context.hpp>
+#include <components/pipeline/material.hpp>
 #include <components/vsgadapters/nif/particle.hpp>
 
 namespace Anim
@@ -43,8 +45,9 @@ namespace MWRender
         void setEffect(const std::string& model);
         const std::string& getEffect() const { return mModel; }
 
-        /// Places the effect at the camera, turned to orientation, and shows it only when visible (false underwater).
-        void update(float dt, const vsg::vec3& cameraPosition, const vsg::quat& orientation, bool visible);
+        /// Places the effect at the camera, turned to orientation, fades it to alpha (the precipitation alpha), and
+        /// shows it only when visible (false underwater).
+        void update(float dt, const vsg::vec3& cameraPosition, const vsg::quat& orientation, float alpha, bool visible);
 
     private:
         MWAnim::Context mContext;
@@ -54,6 +57,8 @@ namespace MWRender
         std::string mModel;
         // Shared with the snow effect's particle controllers; its centre follows the camera.
         std::shared_ptr<vsgAdapters::ParticleSystem::WrapAround> mWrapAround;
+        // The effect's own material uniforms (MWAnim::cloneWithOwnMaterials), faded by update().
+        std::vector<vsg::ref_ptr<vsg::Value<Pipeline::Data::Material>>> mMaterials;
     };
 }
 
