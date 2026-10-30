@@ -1,8 +1,10 @@
 #ifndef VSGOPENMW_MWRENDER_RENDERMANAGER_H
 #define VSGOPENMW_MWRENDER_RENDERMANAGER_H
 
+#include "rain.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
+#include "waterripples.hpp"
 
 #include <deque>
 #include <memory>
@@ -324,6 +326,9 @@ namespace MWRender
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<Effects> mEffects;
         std::unique_ptr<WeatherEffects> mWeatherEffects;
+        std::unique_ptr<Rain> mRain;
+        Rain::Parameters mRainParameters;
+        std::unique_ptr<WaterRipples> mWaterRipples;
         std::unique_ptr<Projectiles> mProjectiles;
         std::unique_ptr<Player> mPlayer;
         std::unique_ptr<Camera> mCamera;

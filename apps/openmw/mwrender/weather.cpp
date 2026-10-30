@@ -480,6 +480,8 @@ namespace MWRender
         , mTextureOptions(resourceSystem.textureOptions)
         , mStormParticleDirection(MWWorld::Weather::defaultDirection())
         , mStormDirection(MWWorld::Weather::defaultDirection())
+        , mRainRipplesEnabled(Fallback::Map::getBool("Weather_Rain_Ripples"))
+        , mSnowRipplesEnabled(Fallback::Map::getBool("Weather_Snow_Ripples"))
     {
         mNode = new vsgUtil::ViewRelative;
         auto nodeOptions = vsg::Options::create(*resourceSystem.nodeOptions);
@@ -662,13 +664,17 @@ namespace MWRender
 
     bool Sky::hasRain() const
     {
-        return false; // mRainNode != nullptr;
+        return !mRainEffect.empty();
     }
 
     float Sky::getRainIntensity() const
     {
-        if (!mIsStorm && (hasRain() /*|| mParticleNode*/))
-            return mPrecipitationAlpha;
+        // OpenMW 0.51 drew rain ripples on water only for rain (Weather_Rain_Ripples) and for the snow effect
+        // (Weather_Snow_Ripples), at the precipitation alpha (SkyManager::getRainRipplesEnabled, cf3dbd3aa7).
+        if (hasRain())
+            return mRainRipplesEnabled ? mPrecipitationAlpha : 0.f;
+        if (mCurrentParticleEffect == Settings::models().mWeathersnow.get().value())
+            return mSnowRipplesEnabled ? mPrecipitationAlpha : 0.f;
         return 0.f;
     }
 
@@ -882,6 +888,19 @@ namespace MWRender
     void Sky::setStormParticleDirection(const osg::Vec3f& direction)
     {
         mStormParticleDirection = direction;
+    }
+
+    void Sky::getRainParameters(Rain::Parameters& out) const
+    {
+        out.enabled = !mRainEffect.empty();
+        out.speed = mRainSpeed;
+        out.diameter = mRainDiameter;
+        out.minHeight = mRainMinHeight;
+        out.maxHeight = mRainMaxHeight;
+        out.entranceSpeed = mRainEntranceSpeed;
+        out.maxRaindrops = mRainMaxRaindrops;
+        out.windSpeed = mWindSpeed;
+        out.alpha = mPrecipitationAlpha;
     }
 
     void Sky::updateParticleOrientation()

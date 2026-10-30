@@ -14,6 +14,8 @@
 
 #include <vsg/maths/quat.h>
 
+#include "rain.hpp"
+
 namespace Resource
 {
     class ResourceSystem;
@@ -84,6 +86,8 @@ namespace MWRender
         /// The weather's particle effect model ("" for none) and its orientation (identity unless storming).
         const std::string& getParticleEffect() const { return mCurrentParticleEffect; }
         const vsg::quat& getParticleOrientation() const { return mParticleOrientation; }
+        /// The current weather's rain, for Rain (task 0012).
+        void getRainParameters(Rain::Parameters& out) const;
 
         void setSunDirection(const osg::Vec3f& direction);
 
@@ -144,6 +148,8 @@ namespace MWRender
         vsg::vec4 mSkyColor;
 
         std::string mCurrentParticleEffect;
+        bool mRainRipplesEnabled = false;
+        bool mSnowRipplesEnabled = false;
         vsg::quat mParticleOrientation;
 
         bool mRainEnabled = false;

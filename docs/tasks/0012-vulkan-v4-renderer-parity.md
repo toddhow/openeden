@@ -72,7 +72,7 @@
   - Checked by forcing each effect in Seyda Neen: snow, ash cloud and blizzard draw with their textures.
   - The texture failure first seen here was a general bug, now fixed: the texture lookup did not pass `.dds` to OpenMW 0.51's `correctResourcePath`, so any model naming a `.tga` that only exists as `.dds` showed the fallback texture.
   - **Gaps:**
-    - Rain: OpenMW drew it as an OSG particle system, not a NIF; it needs its own VSG implementation.
+    - Rain: done separately (below).
     - The wrap-around that kept non-storm particles in a box around the camera (`WrapAroundOperator`).
     - The precipitation alpha fade during weather transitions: vsgopenmw's dithered `object.alpha` needs normals, and particles have none.
     - `[Shaders] weather particle occlusion`.
@@ -102,3 +102,19 @@
     - `Container::canBeHarvested` searches the object's graph on each call.
     - The warning for multi-face internal textures is not restored.
 - **Settings audit** (work item 7): `docs/research/0006-vulkan-renderer-settings.md`. Of 143 keys, 86 are read by the Vulkan build and 57 are not. Each unread key has a proposed disposition: implement, remove with a reason, or decide with toddhow. Nothing has been removed yet. `[Models] load unsupported nif files` works again.
+- **Rain** (V4a):
+  - `MWRender::RainSimulation` (renderer-free) reproduces OpenMW's procedural rain: emission rate, box placer, wind-tilted velocity, one-second life and wrap-around around the camera.
+  - Drop sizes grow from 5 to 15 over their life and each quad spans twice its size, as osgParticle drew them (OSG 3.6.5 `ParticleSystem::drawImplementation`).
+  - `MWRender::Rain` draws each drop as a textured streak (`tx_raindrop_01`), lit by the ambient light and the sun and fogged (colour mode 2 with `NifOsg::ParticleSystem`'s constant normal), at 0.6 times the precipitation alpha (`WeatherAlphaOperator`), and hidden underwater. Point lights still reach it; OpenMW's `simpleLighting` excluded them.
+  - Without the raindrop texture, rain is skipped with a warning; drops beyond 4096 alive are dropped and logged once.
+  - `Sky::hasRain` works again, and `getRainIntensity` follows OpenMW 0.51's `getRainRipplesEnabled`: the water shader's rain ripples show for rain (`Weather_Rain_Ripples`) and for the snow effect (`Weather_Snow_Ripples`, off in Morrowind's values), at the precipitation alpha.
+  - Checked in Seyda Neen with Morrowind's rain values: streaks fall over the scene.
+  - Found on the way: an OR of two comparisons of the specialization constant `colorMode` made every frame render nothing on this NVIDIA driver (pitfall in `apps/openmw/mwrender/CLAUDE.md`).
+  - Not ported: drops keep their place relative to the camera, not the world, while hidden underwater (invisible in practice: one-second life and wrap-around).
+- **Water ripples** (V4b):
+  - `MWRender::RippleParticles` (renderer-free) and `updateRippleEmitter` reproduce OpenMW's particle `RippleSimulation`, the path the fork point used with its default `[Water] shader = false`. Actors standing or swimming in water (not submerged), or walking on it, leave a ripple every 1.5 s or every 10 units moved, and projectiles hitting the water leave one. Ripples grow from 15 to 180, fade from 0.7 to 0 and turn over `Water_RippleLifetime`, at most `Water_MaxNumberRipples` + 1 at once.
+  - `MWRender::WaterRipples` draws them lit at the water height and flips through the `Water_RippleTexture` frames every 0.3 s. Missing frames skip ripples with a warning.
+  - Checked in the sea off Seyda Neen against the OSG build: rings of the same size around the swimming player.
+  - Not ported: the shader water's ripple map (`RipplesSurface`, a GPU simulation used only with `[Water] shader = true`); vsgopenmw's water shader keeps its own procedural rain ripples.
+
+- **Defaults:** with `distant terrain = false` (the default), OpenMW at the fork point ran no object paging, and groundcover, normal maps, alpha to coverage, soft particles and post-processing are all off by default. The remaining default-on differences are rain ripples on water (with the water item) and vsgopenmw's accepted water look (`sunlight scattering`, `wobbly shores`).

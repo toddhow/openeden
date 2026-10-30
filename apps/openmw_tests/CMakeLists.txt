@@ -19,6 +19,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/weightedsearch.cpp
 
     mwrender/testbonepose.cpp
+    mwrender/testrain.cpp
+    mwrender/testwaterripples.cpp
     mwrender/testswitches.cpp
 
     mwscript/testscripts.cpp

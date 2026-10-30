@@ -37,5 +37,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 ## Pitfalls
 
 - **vsgXchange 1.1 tags stb_image textures as sRGB** (TGA, PNG, JPG and BMP), and the GPU then darkens them on sampling. `vsgUtil::readOptionalImage` and `readImageFromMemory` strip it (`vsgUtil::removeSrgb`). Read images only through them, or terrain and many statics come out nearly black.
+- **Specialization constants in boolean expressions:**
+  - The default shader's `colorMode` is a Vulkan specialization constant.
+  - Writing `colorMode == 3 || colorMode == 4` in `lib/material/terms.glsl` (a trial fogged unlit mode, since removed) made every frame render nothing (black, or a fully transparent screenshot) on this machine's NVIDIA driver, with no error logged. `colorMode >= 3` worked.
+  - Keep conditions on specialization constants to one comparison, and check a screenshot after any shader change.
 - **The console command is `togglenavmesh`,** not `tnm`. `tcb` toggles the Jolt draw.
 - **Recast's own colours:** the navmesh draw is visibly more opaque than the OSG build's at the same alpha (Recast's `duRGBA` values; task 0010's research note 0004 records the comparison).

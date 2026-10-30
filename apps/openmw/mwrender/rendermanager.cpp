@@ -180,6 +180,9 @@ namespace MWRender
 
         mEffects = std::make_unique<Effects>(mScene->context);
         mWeatherEffects = std::make_unique<WeatherEffects>(mScene->context);
+        mRain = std::make_unique<Rain>(*mResourceSystem->builder, mCompileContext, mResourceSystem->textureOptions);
+        mWaterRipples = std::make_unique<WaterRipples>(
+            *mResourceSystem->builder, mCompileContext, mResourceSystem->textureOptions);
         mProjectiles = std::make_unique<Projectiles>(mScene->context);
         // Jolt's debug draw: lines only, refilled every frame; enough for Balmora's colliders.
         constexpr std::size_t joltLineVertices = std::size_t(1) << 21;
@@ -380,11 +383,14 @@ namespace MWRender
             mSuspend->children = { mReflect->node() };
             mSceneRoot->addChild(mSuspend);
             mSceneRoot->addChild(mWater->node());
+            mSceneRoot->addChild(mWaterRipples->node());
         }
         mSceneRoot->addChild(mProjectiles->node());
         mSceneRoot->addChild(mEffects->node());
         if (mRenderModes[Render_Sky])
             mSceneRoot->addChild(mWeatherEffects->node());
+        if (mRenderModes[Render_Sky])
+            mSceneRoot->addChild(mRain->node());
         mSceneRoot->addChild(mDebugGeometry->node());
         mSceneRoot->addChild(mNavMeshGeometry->node());
     }
@@ -511,6 +517,7 @@ namespace MWRender
         mActorsPaths->removeCell(store);
         */
         mScene->removeCell(store);
+        mWaterRipples->removeCell(store);
     }
 
     void RenderManager::updateTerrain(const vsg::dvec3& pos)
@@ -647,8 +654,12 @@ namespace MWRender
         mWeatherEffects->setEffect(mRenderModes[Render_Sky] ? mSky->getParticleEffect() : noEffect);
         // Weather particles stop at the water surface, as OpenMW's underwater switch did.
         const vsg::vec3 cameraPosition(toVsg(mCamera->getPosition()));
-        mWeatherEffects->update(dt, cameraPosition, mSky->getParticleOrientation(),
-            !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition)));
+        const bool aboveWater = !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition));
+        mWeatherEffects->update(dt, cameraPosition, mSky->getParticleOrientation(), aboveWater);
+        mSky->getRainParameters(mRainParameters);
+        mRainParameters.enabled = mRainParameters.enabled && mRenderModes[Render_Sky];
+        mRain->update(dt, cameraPosition, mRainParameters, aboveWater);
+        mWaterRipples->update(dt, paused);
         if (mRenderModes[Render_Sky])
             mSky->update(dt);
 
@@ -738,8 +749,8 @@ namespace MWRender
     {
         /*
         mActorsPaths->remove(ptr);
-        mWater->removeEmitter(ptr);
         */
+        mWaterRipples->removeEmitter(ptr);
         mScene->removeObject(ptr);
     }
 
@@ -753,6 +764,7 @@ namespace MWRender
     {
         mWater->setHeight(height);
         mSimpleWater->setHeight(height);
+        mWaterRipples->setWaterHeight(height);
     }
 
     osg::Vec4f RenderManager::getScreenBounds(const osg::BoundingBox& worldbb)
@@ -807,6 +819,7 @@ namespace MWRender
 
     void RenderManager::updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated)
     {
+        mWaterRipples->updateEmitterPtr(old, updated);
         mScene->updatePtr(old, updated);
         // mActorsPaths->updatePtr(old, updated);
     }
@@ -825,7 +838,7 @@ namespace MWRender
     void RenderManager::notifyWorldSpaceChanged()
     {
         mEffects->clear();
-        // mWater->clearRipples();
+        mWaterRipples->clear();
     }
 
     void RenderManager::clear()
@@ -866,10 +879,8 @@ namespace MWRender
 
     void RenderManager::setupPlayer(const MWWorld::Ptr& player)
     {
-        /*
-        mWater->removeEmitter(player);
-        mWater->addEmitter(player);
-        */
+        mWaterRipples->removeEmitter(player);
+        mWaterRipples->addEmitter(player);
     }
 
     void RenderManager::renderPlayer(const MWWorld::Ptr& player)
@@ -896,17 +907,17 @@ namespace MWRender
 
     void RenderManager::addWaterRippleEmitter(const MWWorld::Ptr& ptr)
     {
-        // mWater->addEmitter(ptr);
+        mWaterRipples->addEmitter(ptr);
     }
 
     void RenderManager::removeWaterRippleEmitter(const MWWorld::Ptr& ptr)
     {
-        // mWater->removeEmitter(ptr);
+        mWaterRipples->removeEmitter(ptr);
     }
 
     void RenderManager::emitWaterRipple(const osg::Vec3f& pos)
     {
-        // mWater->emitRipple(pos);
+        mWaterRipples->emitRipple(toVsg(pos));
     }
 
     void RenderManager::updateProjectionMatrix()
