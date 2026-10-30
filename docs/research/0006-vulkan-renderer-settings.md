@@ -15,7 +15,7 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 - Two member names are shared across categories (`mEnabled`, `mSmallFeatureCullingPixelSize`), so `[Post Processing] enabled` counts as read through other categories' `mEnabled`.
 - `[Stereo]` and `[Stereo View]` were removed earlier in V4 (VR).
 
-**Result:** 143 keys; 86 are read and 57 are not (after restoring `load unsupported nif files`). The proposals for the 58:
+**Result:** 143 keys; 89 are read and 54 are not (after restoring `load unsupported nif files`, `xbaseanim`, `xbaseanim1st` and `xargonianswimkna`). The proposals for the 58:
 - **Implement:** most of them, as separate V4 items: fog modes, groundcover, object paging, normal and specular maps, alpha to coverage, soft particles, weather particle occlusion, base animation overrides, and NIF loader options.
 - **Remove with a reason** (the Vulkan renderer works differently):
   - `reverse z`: always on in vsgopenmw.
@@ -60,21 +60,21 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Map] allow zooming` | Read | |
 | `[Map] max local viewing distance` | Read | |
 | `[Models] load unsupported nif files` | Read | Restored in V4 (`RenderManager` sets `Nif::Reader::setLoadUnsupportedFiles`, as OpenMW did) |
-| `[Models] xbaseanim` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
+| `[Models] xbaseanim` | Read | Restored in V4: NPC animation sources (`npc.cpp`), as OpenMW's NpcAnimation |
 | `[Models] baseanim` | Read | |
-| `[Models] xbaseanim1st` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
+| `[Models] xbaseanim1st` | Read | Restored in V4: NPC animation sources (`npc.cpp`), as OpenMW's NpcAnimation |
 | `[Models] baseanimkna` | Read | |
 | `[Models] baseanimkna1st` | Read | |
-| `[Models] xbaseanimfemale` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
+| `[Models] xbaseanimfemale` | Not read | OpenMW only preloaded this file at startup (`RenderingManager` work item); implement with a preload step |
 | `[Models] baseanimfemale` | Read | |
 | `[Models] baseanimfemale1st` | Read | |
 | `[Models] wolfskin` | Read | |
 | `[Models] wolfskin1st` | Read | |
-| `[Models] xargonianswimkna` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
-| `[Models] xbaseanimkf` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
-| `[Models] xbaseanim1stkf` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
-| `[Models] xbaseanimfemalekf` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
-| `[Models] xargonianswimknakf` | Not read | Implement: the Vulkan build hard-codes base animation files; these keys let mods replace them |
+| `[Models] xargonianswimkna` | Read | Restored in V4: NPC animation sources (`npc.cpp`), as OpenMW's NpcAnimation |
+| `[Models] xbaseanimkf` | Not read | OpenMW only preloaded this file at startup (`RenderingManager` work item); implement with a preload step |
+| `[Models] xbaseanim1stkf` | Not read | OpenMW only preloaded this file at startup (`RenderingManager` work item); implement with a preload step |
+| `[Models] xbaseanimfemalekf` | Not read | OpenMW only preloaded this file at startup (`RenderingManager` work item); implement with a preload step |
+| `[Models] xargonianswimknakf` | Not read | OpenMW only preloaded this file at startup (`RenderingManager` work item); implement with a preload step |
 | `[Models] skyatmosphere` | Read | |
 | `[Models] skyclouds` | Read | |
 | `[Models] skynight01` | Read | |

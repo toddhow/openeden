@@ -1,5 +1,6 @@
 #include "npc.hpp"
 
+#include <components/settings/values.hpp>
 #include <components/animation/context.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -146,8 +147,9 @@ namespace MWRender
         if (!is1stPerson)
         {
             const auto& base = mContext.files.baseanim;
+            // openeden-vsg: the animation source is [Models] xbaseanim, as in OpenMW's NpcAnimation (task 0012).
             if (smodel != base && !isWerewolf)
-                sources.emplace_back(base);
+                sources.emplace_back(Settings::models().mXbaseanim.get().value());
 
             if (smodel != defaultSkeleton && base != defaultSkeleton)
                 sources.emplace_back(defaultSkeleton);
@@ -155,13 +157,13 @@ namespace MWRender
             sources.emplace_back(smodel);
 
             if (!isWerewolf && mNpc->mRace.contains("argonian"))
-                sources.emplace_back("argonian_swimkna.nif");
+                sources.emplace_back(Settings::models().mXargonianswimkna.get().value());
         }
         else
         {
             const auto& base = mContext.firstPersonFiles.baseanim;
             if (smodel != base && !isWerewolf)
-                sources.emplace_back(base);
+                sources.emplace_back(Settings::models().mXbaseanim1st.get().value());
             sources.emplace_back(smodel);
         }
 
