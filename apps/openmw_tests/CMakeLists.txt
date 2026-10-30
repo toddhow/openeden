@@ -21,6 +21,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testbonepose.cpp
     mwrender/testrain.cpp
     mwrender/testwaterripples.cpp
+    mwrender/testgroundcoverinstances.cpp
     mwrender/testswitches.cpp
 
     mwscript/testscripts.cpp

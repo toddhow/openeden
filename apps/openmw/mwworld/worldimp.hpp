@@ -12,7 +12,7 @@
 #include "contentloader.hpp"
 #include "esmstore.hpp"
 #include "globals.hpp"
-//#include "groundcoverstore.hpp"
+#include "groundcoverstore.hpp"
 #include "localscripts.hpp"
 #include "ptr.hpp"
 #include "scene.hpp"
@@ -74,7 +74,7 @@ namespace MWWorld
     private:
         ESM::ReadersCache mReaders;
         MWWorld::ESMStore mStore;
-        //GroundcoverStore mGroundcoverStore;
+        GroundcoverStore mGroundcoverStore;
         LocalScripts mLocalScripts;
         MWWorld::Globals mGlobalVariables;
         Misc::Rng::Generator mPrng;
@@ -158,11 +158,9 @@ namespace MWWorld
         void loadContentFiles(const Files::Collections& fileCollections, const std::vector<std::string>& content,
             ToUTF8::Utf8Encoder* encoder, MWState::Loading& state);
 
-        /*
         void loadGroundcoverFiles(const Files::Collections& fileCollections,
             const std::vector<std::string>& groundcoverFiles, ToUTF8::Utf8Encoder* encoder,
             Loading::Listener* listener);
-        */
 
         float feetToGameUnits(float feet);
 

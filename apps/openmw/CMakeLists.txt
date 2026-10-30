@@ -23,7 +23,7 @@ add_openmw_dir (mwrender
     animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map worldmap preview shadow
-    fogmanager water simplewater screenshotinterface bonepose actorikcontroller debuggeometry joltdebugdraw navmesh creativemotiondriver weathereffects switches rain waterripples
+    fogmanager water simplewater screenshotinterface bonepose actorikcontroller debuggeometry joltdebugdraw navmesh creativemotiondriver weathereffects switches rain waterripples groundcoverinstances
     )
 
 add_openmw_dir (mwinput
@@ -82,7 +82,7 @@ add_openmw_dir (mwworld
     actionequip timestamp actionalchemy cellstore actionapply actioneat
     store esmstore fallback actionrepair actionsoulgem livecellref actiondoor
     contentloader esmloader actiontrap cellreflist cellref weather projectilemanager
-    datetimemanager magiceffects cell ptrregistry preloadcell positioncellgrid
+    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid
     )
 
 add_openmw_dir (mwphysics

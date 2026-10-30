@@ -268,6 +268,8 @@ namespace MWWorld
         loadContentFiles(fileCollections, contentFiles, encoder, state);
         if (state.abort)
             return;
+        // openeden-vsg: groundcover (task 0012, V4f); OpenMW passed the loading screen as the listener.
+        loadGroundcoverFiles(fileCollections, groundcoverFiles, encoder, nullptr);
 
         // openeden-vsg: the Lua manager is created by the Game state after the World, so LuaManager::init() calls
         // contentFilesLoaded() (with OpenMW 0.51's initPreLoad and initPostLoad around it) instead of this constructor.
@@ -2792,7 +2794,6 @@ namespace MWWorld
             ensureNeededRecords(); // Insert records that may not be present in all versions of master files.
     }
 
-    /*
     void World::loadGroundcoverFiles(const Files::Collections& fileCollections,
         const std::vector<std::string>& groundcoverFiles, ToUTF8::Utf8Encoder* encoder, Loading::Listener* listener)
     {
@@ -2803,7 +2804,6 @@ namespace MWWorld
 
         mGroundcoverStore.init(mStore.get<ESM::Static>(), fileCollections, groundcoverFiles, encoder, listener);
     }
-    */
 
     MWWorld::SpellCastState World::startSpellCast(const Ptr& actor)
     {
