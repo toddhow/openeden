@@ -9,6 +9,7 @@
 #include <vsg/nodes/Group.h>
 
 #include <components/mwanimation/context.hpp>
+#include <components/vsgadapters/nif/particle.hpp>
 
 namespace Anim
 {
@@ -26,8 +27,9 @@ namespace MWRender
      * hide it (task 0012, V4a; OpenMW drew it from Sky's camera-relative root, `mParticleNode`).
      *
      * The effect is the weather's NIF (`[Models] weather...`), loaded as a looping vsgopenmw effect under a transform
-     * that follows the camera; during storms it is turned to face the storm direction, as Morrowind does. Owned by
-     * RenderManager; runs on the main thread from RenderManager::update.
+     * that follows the camera; during storms it is turned to face the storm direction, as Morrowind does. Snow
+     * particles stay fixed in the world and wrap around a 1024 x 1024 x 800 box centred on the camera, as OpenMW's
+     * WrapAroundOperator kept them. Owned by RenderManager; runs on the main thread from RenderManager::update.
      */
     class WeatherEffects
     {
@@ -50,6 +52,8 @@ namespace MWRender
         vsg::ref_ptr<Anim::Transform> mTransform;
         std::unique_ptr<MWAnim::Effect> mEffect;
         std::string mModel;
+        // Shared with the snow effect's particle controllers; its centre follows the camera.
+        std::shared_ptr<vsgAdapters::ParticleSystem::WrapAround> mWrapAround;
     };
 }
 

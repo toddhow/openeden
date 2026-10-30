@@ -73,7 +73,7 @@
   - The texture failure first seen here was a general bug, now fixed: the texture lookup did not pass `.dds` to OpenMW 0.51's `correctResourcePath`, so any model naming a `.tga` that only exists as `.dds` showed the fallback texture.
   - **Gaps:**
     - Rain: done separately (below).
-    - The wrap-around that kept non-storm particles in a box around the camera (`WrapAroundOperator`).
+    - The wrap-around that kept non-storm particles in a box around the camera (`WrapAroundOperator`): done for snow (V4c below).
     - The precipitation alpha fade during weather transitions: vsgopenmw's dithered `object.alpha` needs normals, and particles have none.
     - `[Shaders] weather particle occlusion`.
     - The NIF particle systems simulate in world space, so already-emitted particles stay behind when the camera moves fast or teleports, until new emission catches up.
@@ -116,5 +116,18 @@
   - `MWRender::WaterRipples` draws them lit at the water height and flips through the `Water_RippleTexture` frames every 0.3 s. Missing frames skip ripples with a warning.
   - Checked in the sea off Seyda Neen against the OSG build: rings of the same size around the swimming player.
   - Not ported: the shader water's ripple map (`RipplesSurface`, a GPU simulation used only with `[Water] shader = true`); vsgopenmw's water shader keeps its own procedural rain ripples.
-
+- **NIF particles and snow** (V4c):
+  - Snow wraps around the camera: its particles stay fixed in the world and are kept in a 1024 x 1024 x 800 box centred on the camera, as OpenMW's `WrapAroundOperator` did. OpenMW also wrapped a NIF effect in a weather that had rain too; no Morrowind weather has both, so that case is not ported. Done in the particle compute shader (`comp/particle/simulate.comp`) with a per-frame matrix from `vsgAdapters::ParticleSystem::wrapAround`, set by `WeatherEffects`.
+  - Four inherited vsgopenmw particle bugs fixed, found while comparing snow with the OSG build:
+    - Quads were half OpenMW's size: osgParticle puts corners at plus or minus the size, so a particle is twice its size across (`default/main.vert`); the culling radius grows to match.
+    - The emission rate was scaled by 0.01, and its carried fraction was stored in an `int`, so it was always lost. `vsgAdapters::particlesToEmit` now follows osgParticle's `ConstantRateCounter`.
+    - The compute shader's `<=` emitted one particle too many per frame, so every system emitted at least one particle per frame, even when its emitter was off.
+    - Particle controllers ran on the object's animation time unless the NIF node had the AutoPlay flag, so on an object with no animation of its own (a placed torch) the time never moved and its particles never simulated. They now always run on frame time, as osgParticle did, and the first update no longer counts the controller's random start phase as elapsed time.
+  - Checked with the snow effect forced in Seyda Neen: the flakes now match the OSG build's in size and density (they were sparse dots).
+  - **Gaps found, not fixed yet:**
+    - Torch and candle flames (`light_com_torch_01`: `NiRotatingParticles` with `tx_firealpha10`) simulate now but draw as a dark green blob where the OSG build shows a bright orange flame: the NIF particle material or blending is wrong. Next item.
+    - Snow shifts by one frame of camera movement each time the effect loops (the compute dispatch is skipped for that frame while the world offset advances); hidden by the wrap. Also affects world-space particles generally.
+    - Particle size ignores the node's scale (`main.vert` normalises the view axes); OpenMW scaled particles with it (`LOCAL_COORDINATES`).
+    - Bloodmoon's snow terrain textures (`Tx_BM_snow_*`, `Tx_BM_grass_snow_*`, `Tx_BM_rock_snow_*`) have a different size or format from the other layers, and `convertToArrayTexture` fills them grey.
+    - The precipitation alpha fade of NIF weather particles during transitions (OpenMW's `WeatherAlphaOperator` and `AlphaFader`).
 - **Defaults:** with `distant terrain = false` (the default), OpenMW at the fork point ran no object paging, and groundcover, normal maps, alpha to coverage, soft particles and post-processing are all off by default. The remaining default-on differences are rain ripples on water (with the water item) and vsgopenmw's accepted water look (`sunlight scattering`, `wobbly shores`).

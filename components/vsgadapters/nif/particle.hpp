@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_VSGADAPTERS_NIF_PARTICLE_H
 #define VSGOPENMW_VSGADAPTERS_NIF_PARTICLE_H
 
+#include <memory>
 #include <optional>
 #include <deque>
 
@@ -35,8 +36,9 @@ namespace vsgAdapters
     class ParticleSystem : public Anim::MUpdateData<ParticleSystem, vsg::Value<Pipeline::Data::FrameArgs>>
     {
         Anim::DeltaTime mDt;
+        bool mStarted = false;
         friend class LinkParticleSystem;
-        int mCarryOver{};
+        float mCarryOver{}; // OpenEden: was int, which dropped every fraction
         using TransformPath = std::vector<const Anim::Transform*>;
         TransformPath mLocalToWorld;
         std::optional<vsg::mat4> mLastWorldMatrix;
@@ -75,12 +77,27 @@ namespace vsgAdapters
         ParticleSystem(const Nif::NiParticleSystemController& partctrl, int particleNodeIndex, bool worldSpace);
         Anim::channel_ptr<bool> active;
 
+        // OpenEden: OpenMW's WrapAroundOperator for weather particles (task 0012). When set, live particles stay
+        // fixed in the world as the node moves and are kept within range / 2 of centre on each world axis. The owner
+        // sets it on a cloned controller and moves centre (usually the camera) before each update.
+        struct WrapAround
+        {
+            vsg::vec3 range;
+            vsg::vec3 centre;
+        };
+        std::shared_ptr<const WrapAround> wrapAround;
+
         static float calculateRadius(const Nif::NiParticleSystemController& partctrl);
         static float calculateMaxLifetime(const Nif::NiParticleSystemController& partctrl);
 
         void apply(vsg::Value<Pipeline::Data::FrameArgs>& val, float time);
         void link(Anim::Context& ctx, vsg::Object&) override;
     };
+
+    /// OpenEden: OpenMW's emission count, osgParticle's ConstantRateCounter: adds dt * perSecond to carry, returns its
+    /// whole part (never negative) and keeps the fraction in carry. A dt or rate of 0 or less emits nothing and keeps
+    /// carry.
+    int particlesToEmit(float& carry, float dt, float perSecond);
 
     Pipeline::Data::EmitArgs handleEmitterData(const Nif::NiParticleSystemController& partctrl);
 

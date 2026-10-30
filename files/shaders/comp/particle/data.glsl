@@ -4,6 +4,11 @@ struct FrameArgs
     mat4 emitMatrix;
     ivec4 emitCount;
     vec4 time;
+    // OpenEden: wrap-around for weather particles (OpenMW's WrapAroundOperator). wrapMatrix takes particle space to
+    // world axes centred on the camera, wrapInverse back; wrapRange.xyz is the box size, wrapRange.w > 0 turns it on.
+    mat4 wrapMatrix;
+    mat4 wrapInverse;
+    vec4 wrapRange;
 };
 
 struct EmitArgs

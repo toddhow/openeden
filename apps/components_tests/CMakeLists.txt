@@ -80,6 +80,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     vsgadapters/testdaeanimation.cpp
     vsgadapters/testinternaltexture.cpp
+    vsgadapters/testparticleemission.cpp
 
     sceneutil/testdetourdebugdraw.cpp
 

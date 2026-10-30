@@ -40,7 +40,13 @@ void main()
     {
         Particle p = particles[gid];
         p.velocityAge.w += dt;
+        // Wrapped particles stay fixed in the world like world-space ones. Kept as two statements: conditions combining
+        // specialization constants have miscompiled on this NVIDIA driver (apps/openmw/mwrender/CLAUDE.md).
+        bool wrap = frameArgs.wrapRange.w > 0.0;
+        bool fixInWorld = wrap;
         if (worldSpace)
+            fixInWorld = true;
+        if (fixInWorld)
         {
             p.positionSize.xyz = (frameArgs.worldOffset * vec4(p.positionSize.xyz, 1)).xyz;
             p.velocityAge.xyz = (vec4(p.velocityAge.xyz, 0) * inverse(frameArgs.worldOffset)).xyz;
@@ -48,10 +54,26 @@ void main()
         if (!isDead(p))
         {
             p.positionSize.xyz += p.velocityAge.xyz * dt;
+            if (wrap)
+            {
+                // OpenMW's WrapAroundOperator: keep each world axis within half the range of the camera.
+                vec3 range = frameArgs.wrapRange.xyz;
+                vec3 halfRange = range * 0.5;
+                vec3 pos = (frameArgs.wrapMatrix * vec4(p.positionSize.xyz, 1)).xyz;
+                for (int j = 0; j < 3; ++j)
+                {
+                    if (pos[j] < -halfRange[j])
+                        pos[j] = halfRange[j] + mod(pos[j] - halfRange[j], range[j]) - range[j];
+                    else if (pos[j] > halfRange[j])
+                        pos[j] = mod(pos[j] + halfRange[j], range[j]) - halfRange[j];
+                }
+                p.positionSize.xyz = (frameArgs.wrapInverse * vec4(pos, 1)).xyz;
+            }
         }
         else
         {
-            if (atomicAdd(frameArgs.emitCount.y, 1) <= frameArgs.emitCount.x)
+            // OpenEden: < rather than <=, which emitted one particle too many each frame, even with a count of 0.
+            if (atomicAdd(frameArgs.emitCount.y, 1) < frameArgs.emitCount.x)
             {
                 float rand1 = signedRandom(vec2(frameArgs.time.y, gid));
                 float rand2 = signedRandom(rand1);

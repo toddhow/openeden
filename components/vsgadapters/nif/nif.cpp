@@ -629,6 +629,10 @@ namespace vsgAdapters
 
             auto ctrl = ParticleSystem::create(partctrl, particles.mRecordIndex, worldSpace);
             setup(partctrl, *ctrl, *frameArgsData);
+            // OpenEden: particles simulate on frame time whatever the node's AutoPlay flag, as osgParticle did in
+            // OpenMW; otherwise an object with no animation of its own (a torch) keeps time 0 and its flame never
+            // moves.
+            ctrl->hints.autoPlay = true;
 
             auto cullCtrl = Anim::CullParticles::create();
             cullCtrl->active = ctrl->active;
@@ -636,6 +640,7 @@ namespace vsgAdapters
             cullCtrl->drawIndex = 0;
             cullCtrl->dispatchIndex = 1;
             setup(partctrl, *cullCtrl, *sw);
+            cullCtrl->hints.autoPlay = true;
 
             addAnimContents(Anim::Contents::Particles | Anim::Contents::DynamicBounds);
             //return sw;

@@ -1,5 +1,6 @@
 #include "particle.hpp"
 
+#include <cmath>
 #include <iostream>
 
 #include <vsg/nodes/Switch.h>
@@ -7,6 +8,7 @@
 #include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/CullNode.h>
 #include <vsg/commands/Dispatch.h>
+#include <vsg/maths/transform.h>
 
 #include <components/animation/bones.hpp>
 #include <components/animation/context.hpp>
@@ -188,7 +190,11 @@ namespace vsgAdapters
 
     float ParticleSystem::calculateRadius(const Nif::NiParticleSystemController& partctrl)
     {
-        return calculateMaxLifetime(partctrl) * (partctrl.mSpeed + partctrl.mSpeedVariation) + std::max(partctrl.mEmitterDimensions.x(), std::max(partctrl.mEmitterDimensions.y(), partctrl.mEmitterDimensions.z())) + partctrl.mInitialSize/2.f;
+        // OpenEden: a quad reaches the particle size from its centre (main.vert), not half of it.
+        return calculateMaxLifetime(partctrl) * (partctrl.mSpeed + partctrl.mSpeedVariation)
+            + std::max(partctrl.mEmitterDimensions.x(),
+                std::max(partctrl.mEmitterDimensions.y(), partctrl.mEmitterDimensions.z()))
+            + partctrl.mInitialSize;
     }
 
     float ParticleSystem::calculateMaxLifetime(const Nif::NiParticleSystemController& partctrl)
@@ -221,15 +227,35 @@ namespace vsgAdapters
     {
         // float dt = scene.dt;
         // openmw-7238-particle-system-time
+        // OpenEden: start the clock at the first update. Auto-played controllers start at a random phase, so the first
+        // delta from 0 could be thousands of seconds, emitting a burst of particles at once.
+        if (!mStarted)
+        {
+            mDt.last = time;
+            mStarted = true;
+        }
         float dt = mDt.get(time);
         auto& data = val.value();
         data.time.x = dt;
         data.time.y = time;
 
-        if (mWorldSpace)
+        if (mWorldSpace || wrapAround)
         {
             auto worldMatrix = vsgUtil::computeTransform(mLocalToWorld);
-            if (mLastWorldMatrix)
+            if (wrapAround)
+            {
+                const vsg::mat4 toCentre = vsg::translate(-wrapAround->centre) * worldMatrix;
+                data.wrapMatrix = toCentre;
+                data.wrapInverse = vsg::inverse(toCentre);
+                data.wrapRange = vsg::vec4(wrapAround->range, 1.f);
+            }
+            else
+                data.wrapRange = vsg::vec4();
+            if (!mLastWorldMatrix)
+                data.worldOffset = vsg::mat4();
+            else if (!mWorldSpace)
+                data.worldOffset = vsg::inverse_4x3(worldMatrix) * (*mLastWorldMatrix);
+            else
             {
                 // calculate the worldOffset matrix, used by compute shaders to transform the previous frame's particle positions/velocities, leaving a trail of particles behind in local space
                 data.worldOffset = vsg::inverse_4x3(worldMatrix) * (*mLastWorldMatrix);
@@ -306,17 +332,25 @@ namespace vsgAdapters
         }
     }
 
+    int particlesToEmit(float& carry, float dt, float perSecond)
+    {
+        if (!(dt > 0.f) || !(perSecond > 0.f))
+            return 0;
+        const float total = carry + dt * perSecond;
+        if (total < 0.f)
+        {
+            carry = total;
+            return 0;
+        }
+        const float whole = std::floor(total);
+        carry = total - whole;
+        return static_cast<int>(whole);
+    }
+
     int ParticleSystem::calculateEmitCount(float dt)
     {
-        auto v = dt * mParticlesPerSecond * 0.01;
-        int i = static_cast<int>(v);
-        mCarryOver += v - static_cast<float>(i);
-        if (mCarryOver > 1.f)
-        {
-            ++i;
-            mCarryOver -= 1.f;
-        }
-        return i;
+        // OpenEden: OpenMW's rate (components/nifosg/nifloader.cpp, cf3dbd3aa7); vsgopenmw scaled it by 0.01.
+        return particlesToEmit(mCarryOver, dt, mParticlesPerSecond);
     }
 
     vsg::mat4 ParticleSystem::calculateEmitMatrix()

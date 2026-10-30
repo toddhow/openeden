@@ -55,7 +55,9 @@ void main()
     float deadFactor = isDead(particle) ? 0 : 1;
     vec3 xAxis = (vec4(1,0,0,0) * pc.modelview).xyz;
     vec3 yAxis = (vec4(0,1,0,0) * pc.modelview).xyz;
-    vec2 offsetCoord = texCoord - 0.5;
+    // OpenEden: osgParticle, which drew OpenMW's NIF particles, put the corners at +- size on each axis, so a quad is
+    // twice the particle size across (ParticleSystem::drawImplementation, OSG 3.6.5).
+    vec2 offsetCoord = (texCoord - 0.5) * 2.0;
     vertex.xyz += (offsetCoord.x * normalize(xAxis) + offsetCoord.y * normalize(yAxis)) * particle.positionSize.w * deadFactor;
 
     vert_out.texCoord[0] = texCoord;
