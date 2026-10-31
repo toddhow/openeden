@@ -648,14 +648,12 @@ add_component_dir(plugin
     entity_manager
     settings_service
     save_service
-    collision_layer_registry
     vfs_service
     host_impl
     logging_service
     profiler_service
     scratch_memory
     debug_draw_service
-    scripting_service
     editor_service
     physics_service
 )

@@ -251,15 +251,13 @@ namespace
         std::vector<std::string> callbackLog;
 
         float recordedDt = 0.0f;
-        std::uint64_t recordedStep = 0;
 
         class CallbackPluginA : public Plugin
         {
         public:
-            CallbackPluginA(std::vector<std::string>& log, float& dtOut, std::uint64_t& stepOut)
+            CallbackPluginA(std::vector<std::string>& log, float& dtOut)
                 : mLog(log)
                 , mDt(dtOut)
-                , mStep(stepOut)
             {
             }
 
@@ -268,11 +266,10 @@ namespace
                 // Register two callbacks for Phase::Input
                 registrar.registerPhaseCallback(Phase::Input, [this](float /*dt*/) { mLog.push_back("A::Input_1"); });
                 registrar.registerPhaseCallback(Phase::Input, [this](float /*dt*/) { mLog.push_back("A::Input_2"); });
-                // Register fixed step callback
-                registrar.registerPhaseCallback(Phase::FixedStepPrePhysics, [this](float dt, std::uint64_t step) {
+                // Register a callback for another phase that records its dt
+                registrar.registerPhaseCallback(Phase::PostSimulation, [this](float dt) {
                     mDt = dt;
-                    mStep = step;
-                    mLog.push_back("A::FixedStepPrePhysics");
+                    mLog.push_back("A::PostSimulation");
                 });
             }
 
@@ -282,7 +279,6 @@ namespace
 
             std::vector<std::string>& mLog;
             float& mDt;
-            std::uint64_t& mStep;
         };
 
         class CallbackPluginB : public Plugin
@@ -309,7 +305,7 @@ namespace
         const PluginManifest manifestA = makeManifest("pluginA", { { "contractA", { 1, 0 } } });
         const PluginManifest manifestB = makeManifest("pluginB", {}, { { "contractA", { 1, 0 } } });
 
-        manager.addPlugin(manifestA, std::make_unique<CallbackPluginA>(callbackLog, recordedDt, recordedStep));
+        manager.addPlugin(manifestA, std::make_unique<CallbackPluginA>(callbackLog, recordedDt));
         manager.addPlugin(manifestB, std::make_unique<CallbackPluginB>(callbackLog));
 
         EXPECT_TRUE(manager.initialize());
@@ -321,12 +317,11 @@ namespace
 
         callbackLog.clear();
 
-        // Run fixed step phase: passes dt and stepIndex
-        manager.runFixedStepPhase(Phase::FixedStepPrePhysics, 0.02f, 4242);
+        // Run another frame phase: passes dt, and runs only that phase's callbacks
+        manager.runPhase(Phase::PostSimulation, 0.02f);
         EXPECT_FLOAT_EQ(recordedDt, 0.02f);
-        EXPECT_EQ(recordedStep, 4242u);
-        const std::vector<std::string> expectedFixedLog{ "A::FixedStepPrePhysics" };
-        EXPECT_EQ(callbackLog, expectedFixedLog);
+        const std::vector<std::string> expectedPostSimulationLog{ "A::PostSimulation" };
+        EXPECT_EQ(callbackLog, expectedPostSimulationLog);
 
         manager.shutdown();
     }

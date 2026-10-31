@@ -43,8 +43,8 @@ namespace openeden::plugin
             {
                 disabled.insert(manifest.id);
                 errors.push_back({ manifest.id,
-                    "Incompatible SDK version: plugin has " + versionToString(manifest.sdkVersion) + ", host has "
-                        + versionToString(hostSdkVersion) });
+                    "Incompatible SDK version: built for SDK " + versionToString(manifest.sdkVersion)
+                        + "; this host provides " + versionToString(hostSdkVersion) });
             }
         }
 

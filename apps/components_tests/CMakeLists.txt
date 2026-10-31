@@ -108,13 +108,11 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_entity_manager.cpp
     plugin/test_settings_service.cpp
     plugin/test_save_service.cpp
-    plugin/test_collision_layers.cpp
     plugin/test_vfs_service.cpp
     plugin/test_logging_service.cpp
     plugin/test_profiler_service.cpp
     plugin/test_scratch_memory.cpp
     plugin/test_debug_draw.cpp
-    plugin/test_scripting_service.cpp
     plugin/test_editor_service.cpp
     plugin/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp

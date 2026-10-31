@@ -14,6 +14,25 @@
 
 namespace openeden::plugin
 {
+    struct ForwardedFieldRecord
+    {
+        std::string name;
+        openeden::sdk::ForwardedFieldType type = openeden::sdk::ForwardedFieldType::Float32;
+        std::size_t offset = 0;
+        std::size_t size = 0;
+    };
+
+    /**
+     * @brief The bus's own copy of a ForwardedEventDesc, which only holds views.
+     */
+    struct ForwardedEventRecord
+    {
+        std::string pluginId;
+        std::string name;
+        std::size_t payloadSize = 0;
+        std::vector<ForwardedFieldRecord> fields;
+    };
+
     /**
      * @brief Engine implementation of the OpenEden event bus.
      * Provides zero-allocation hot paths for immediate and deferred event publishing.
@@ -33,6 +52,7 @@ namespace openeden::plugin
         EventBusImpl& operator=(EventBusImpl&&) noexcept = default;
 
         // Expose base class template overloads
+        using openeden::sdk::EventBus::markForwardedToLua;
         using openeden::sdk::EventBus::publishDeferred;
         using openeden::sdk::EventBus::publishImmediate;
         using openeden::sdk::EventBus::subscribe;
@@ -46,6 +66,21 @@ namespace openeden::plugin
             openeden::sdk::EventId id, std::string_view pluginId, openeden::sdk::RawEventCallback callback) override;
 
         void unsubscribe(openeden::sdk::EventId id, std::string_view pluginId) override;
+
+        /**
+         * @brief Records an event type as forwarded to Lua. The engine reads the records in task 0016.
+         */
+        bool markForwardedToLua(const openeden::sdk::ForwardedEventDesc& desc) override;
+
+        [[nodiscard]] bool isForwardedToLua(openeden::sdk::EventId id) const;
+
+        /**
+         * @brief Returns the recorded forwarded events, sorted by event ID.
+         */
+        [[nodiscard]] const std::map<openeden::sdk::EventId, ForwardedEventRecord>& forwardedEvents() const noexcept
+        {
+            return mForwardedEvents;
+        }
 
         /**
          * @brief Sets the deterministic load order of plugins used for dispatching subscribers.
@@ -98,10 +133,12 @@ namespace openeden::plugin
         std::size_t mDroppedCount = 0;
         std::vector<std::string> mLoadOrder;
 
-        // 8 phases from openeden::sdk::Phase
+        // 6 phases from openeden::sdk::Phase
         std::map<openeden::sdk::Phase, PhaseQueue> mPhaseQueues;
 
         // EventId -> list of subscribers pre-sorted by load order
         std::map<openeden::sdk::EventId, std::vector<SubscriberEntry>> mSubscribers;
+
+        std::map<openeden::sdk::EventId, ForwardedEventRecord> mForwardedEvents;
     };
 } // namespace openeden::plugin

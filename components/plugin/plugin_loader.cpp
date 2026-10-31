@@ -87,7 +87,7 @@ namespace openeden::plugin
     }
 
     bool validatePluginHandshake(const openeden::sdk::PluginDescriptor* descriptor, const PluginManifest& manifest,
-        const openeden::sdk::HostInfo& /*hostInfo*/, PluginLoadError& error)
+        const openeden::sdk::HostInfo& hostInfo, PluginLoadError& error)
     {
         error.pluginId = manifest.id;
         error.stage = "handshake";
@@ -103,6 +103,15 @@ namespace openeden::plugin
         {
             error.message = "Descriptor id '" + std::string(descriptor->id) + "' does not match manifest id '"
                 + manifest.id + "'";
+            return false;
+        }
+
+        if (descriptor->sdkVersion.major != hostInfo.sdkVersion.major
+            || descriptor->sdkVersion.minor > hostInfo.sdkVersion.minor)
+        {
+            error.message = "Plugin library was built for SDK " + std::to_string(descriptor->sdkVersion.major) + "."
+                + std::to_string(descriptor->sdkVersion.minor) + "; this host provides "
+                + std::to_string(hostInfo.sdkVersion.major) + "." + std::to_string(hostInfo.sdkVersion.minor);
             return false;
         }
 
@@ -132,7 +141,10 @@ namespace openeden::plugin
             result.success = false;
             result.error.pluginId = discovered.manifest.id;
             result.error.stage = "sdk";
-            result.error.message = "Incompatible SDK version in plugin manifest";
+            result.error.message = "Incompatible SDK version in plugin manifest: built for SDK "
+                + std::to_string(discovered.manifest.sdkVersion.major) + "."
+                + std::to_string(discovered.manifest.sdkVersion.minor) + "; this host provides "
+                + std::to_string(hostInfo.sdkVersion.major) + "." + std::to_string(hostInfo.sdkVersion.minor);
             return result;
         }
 

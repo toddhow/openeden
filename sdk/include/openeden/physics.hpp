@@ -5,16 +5,13 @@
 #include <limits>
 #include <optional>
 #include <span>
-#include <string>
 #include <string_view>
 #include <variant>
 
 namespace openeden::sdk
 {
-    using CollisionLayer = std::uint32_t;
-
     /**
-     * @brief 3D vector in SI units (meters, m/s, rad/s, N*s), right-handed Z-up.
+     * @brief 3D vector in SI units (meters, m/s, rad/s), right-handed Z-up.
      */
     struct PhysicsVec3
     {
@@ -55,28 +52,20 @@ namespace openeden::sdk
     };
 
     using BodyId = PhysicsHandle<struct BodyTag>;
-    using JointId = PhysicsHandle<struct JointTag>;
-    using ConstraintId = JointId;
-    using CollisionGroupId = PhysicsHandle<struct CollisionGroupTag>;
 
-    enum class PhysicsErrorCode : std::uint8_t
-    {
-        None = 0,
-        InvalidDescription,
-        InvalidHandle,
-        CapacityExceeded,
-        CalledDuringStep,
-    };
+    /**
+     * @brief Selects which kinds of body a query can hit.
+     *
+     * Treat the value as opaque: get one from PhysicsQueryService::queryMask(name), combine
+     * values with |, and never assume bit numbers. The host publishes the names it supports.
+     */
+    using QueryMask = std::uint32_t;
 
-    template <typename Id>
-    struct CreateResult
-    {
-        Id id{};
-        PhysicsErrorCode error = PhysicsErrorCode::None;
-        std::string message;
+    /// Matches every body in the world, whatever its kind.
+    inline constexpr QueryMask kQueryMaskAll = std::numeric_limits<QueryMask>::max();
 
-        [[nodiscard]] bool ok() const noexcept { return error == PhysicsErrorCode::None; }
-    };
+    /// Matches nothing. queryMask() returns it for a name the host did not publish.
+    inline constexpr QueryMask kQueryMaskNone = 0;
 
     struct BoxShape
     {
@@ -89,7 +78,7 @@ namespace openeden::sdk
     };
 
     /**
-     * @brief Capsule aligned along the body's local Z axis (Z-up).
+     * @brief Capsule aligned along the cast's local Z axis (Z-up).
      * Total length is 2 * (halfHeightM + radiusM).
      */
     struct CapsuleShape
@@ -107,50 +96,6 @@ namespace openeden::sdk
         Kinematic,
     };
 
-    struct BodyDesc
-    {
-        PhysicsShape shape = BoxShape{};
-        MotionType motion = MotionType::Dynamic;
-        PhysicsVec3 positionM{};
-        PhysicsQuat rotation{};
-        float massKg = 1.0f;
-        float friction = 0.2f;
-        float restitution = 0.0f;
-        float linearDamping = 0.05f;
-        float angularDamping = 0.05f;
-        CollisionGroupId collisionGroup{};
-        std::uint32_t subGroup = 0;
-    };
-
-    enum class SwingShape : std::uint8_t
-    {
-        Cone = 0,
-        Pyramid,
-    };
-
-    struct JointDesc
-    {
-        BodyId bodyA{};
-        BodyId bodyB{};
-        PhysicsVec3 anchorM{};
-        PhysicsVec3 twistAxis{ 1.0f, 0.0f, 0.0f };
-        PhysicsVec3 planeAxis{ 0.0f, 1.0f, 0.0f };
-        SwingShape swingShape = SwingShape::Cone;
-        float planeSwingMinRad = 0.0f;
-        float planeSwingMaxRad = 0.0f;
-        float normalSwingMinRad = 0.0f;
-        float normalSwingMaxRad = 0.0f;
-        float twistMinRad = 0.0f;
-        float twistMaxRad = 0.0f;
-    };
-
-    struct JointMotor
-    {
-        float stiffnessNmPerRad = 0.0f;
-        float dampingNmsPerRad = 0.0f;
-        float maxTorqueNm = std::numeric_limits<float>::max();
-    };
-
     struct BodyState
     {
         PhysicsVec3 positionM{};
@@ -160,6 +105,15 @@ namespace openeden::sdk
         bool awake = false;
     };
 
+    /**
+     * @brief Result of castRay and castShape.
+     *
+     * pointM is where the ray or shape touches the body, and fraction is how far along
+     * directionTimesLengthM the hit is, in [0, 1]. A shape cast's normal points from the body towards
+     * the cast. A ray's normal is the body's surface normal, which faces away from the ray's start if
+     * it hit the back of a mesh or started inside a body. Back faces count as hits for both, and a
+     * shape that already overlaps a body at its start hits with fraction 0.
+     */
     struct RayHit
     {
         BodyId body{};
@@ -168,80 +122,50 @@ namespace openeden::sdk
         float fraction = 0.0f;
     };
 
-    struct PhysicsWorldConfig
-    {
-        float fixedStepSeconds = 1.0f / 60.0f;
-        PhysicsVec3 gravityMps2{ 0.0f, 0.0f, -9.81f };
-        std::uint32_t maxBodies = 2048;
-        std::uint32_t maxJoints = 2048;
-        std::uint32_t subStepsPerStep = 1;
-        std::uint32_t workerThreads = 1;
-    };
-
     /**
-     * @brief Physics service interface for accessing the core's shared Jolt world.
+     * @brief Read-only view of the core's single Jolt world (decision 0003).
      *
-     * Plugins use this service to build and drive bodies and joints inside the
-     * core's single Jolt PhysicsSystem rather than creating a second physics world.
+     * Plugins may read body states and cast rays and shapes. They never create, move or step
+     * anything: systems that must change physics belong in the core. Handles a plugin holds go
+     * stale when the core destroys the body; every call rejects a stale handle safely.
      */
-    class PhysicsService
+    class PhysicsQueryService
     {
     public:
-        virtual ~PhysicsService() = default;
+        virtual ~PhysicsQueryService() = default;
 
-        // --- Build ---
-        virtual CreateResult<BodyId> createBody(const BodyDesc& desc) = 0;
-        virtual bool destroyBody(BodyId body) = 0;
         [[nodiscard]] virtual bool isBodyValid(BodyId id) const = 0;
-
-        virtual CreateResult<JointId> createJoint(const JointDesc& desc) = 0;
-        virtual bool destroyJoint(JointId joint) = 0;
-        [[nodiscard]] virtual bool isConstraintValid(ConstraintId id) const = 0;
-
-        // --- Collision groups ---
-        virtual CreateResult<CollisionGroupId> createCollisionGroup(std::uint32_t subGroupCount) = 0;
-        virtual bool setSubGroupsCollide(
-            CollisionGroupId group, std::uint32_t a, std::uint32_t b, bool collide) = 0;
-        virtual bool destroyCollisionGroup(CollisionGroupId group) = 0;
-
-        // --- Named collision layers ---
-        virtual CollisionLayer registerCollisionLayer(std::string_view /*name*/) { return 0; }
-        virtual void declareCollisionPair(
-            std::string_view /*layerA*/, std::string_view /*layerB*/)
-        {
-        }
-
-        // --- Drive joints ---
-        virtual bool setJointMotor(JointId joint, const JointMotor& motor) = 0;
-        virtual bool setJointPositionSteps(JointId joint, std::uint32_t steps) = 0;
-        virtual bool setJointTarget(JointId joint, PhysicsQuat targetRotation) = 0;
-        virtual bool setJointTarget(
-            JointId joint, PhysicsQuat targetRotation, PhysicsVec3 targetAngularVelocityRadps)
-        {
-            (void)targetAngularVelocityRadps;
-            return setJointTarget(joint, targetRotation);
-        }
-
-        // --- Drive bodies ---
-        virtual bool applyImpulse(BodyId body, PhysicsVec3 impulseNs, PhysicsVec3 worldPointM) = 0;
-        virtual bool setVelocity(BodyId body, PhysicsVec3 linearMps, PhysicsVec3 angularRadps) = 0;
-        virtual bool setBodyDamping(BodyId body, float linearPerS, float angularPerS) = 0;
-        virtual bool setKinematicTarget(BodyId body, PhysicsVec3 positionM, PhysicsQuat rotation) = 0;
-
-        // --- Motion type ---
-        virtual bool setMotionType(BodyId body, MotionType motion) = 0;
         [[nodiscard]] virtual std::optional<MotionType> getMotionType(BodyId body) const = 0;
 
-        // --- Read ---
+        /**
+         * @brief Reads one body's state. Returns false, leaving out untouched, for a stale handle.
+         */
         virtual bool readBody(BodyId body, BodyState& out) const = 0;
+
+        /**
+         * @brief Reads min(bodies.size(), out.size()) bodies. Returns how many were valid.
+         */
         virtual std::size_t readBodies(std::span<const BodyId> bodies, std::span<BodyState> out) const = 0;
 
-        // --- Query ---
-        [[nodiscard]] virtual std::optional<RayHit> castRay(
-            PhysicsVec3 originM, PhysicsVec3 directionTimesLengthM, BodyId ignore = {}) const = 0;
+        /**
+         * @brief Returns the mask the host published under name, or kQueryMaskNone if it did not.
+         */
+        [[nodiscard]] virtual QueryMask queryMask(std::string_view name) const = 0;
 
-        // --- Step & Timing ---
-        virtual void step(float dtSeconds = 0.0f) = 0;
-        [[nodiscard]] virtual float fixedStepSeconds() const = 0;
+        /**
+         * @brief Finds the closest body along a ray. Non-finite input finds nothing; do not rely on a zero-length ray.
+         */
+        [[nodiscard]] virtual std::optional<RayHit> castRay(PhysicsVec3 originM, PhysicsVec3 directionTimesLengthM,
+            BodyId ignore = {}, QueryMask mask = kQueryMaskAll) const = 0;
+
+        /**
+         * @brief Sweeps a shape and finds the closest body it touches.
+         *
+         * originM and rotation place the shape's centre at the start of the sweep. A shape with a
+         * non-positive or non-finite dimension, a non-unit rotation or non-finite input finds nothing.
+         */
+        [[nodiscard]] virtual std::optional<RayHit> castShape(const PhysicsShape& shape, PhysicsQuat rotation,
+            PhysicsVec3 originM, PhysicsVec3 directionTimesLengthM, BodyId ignore = {},
+            QueryMask mask = kQueryMaskAll) const = 0;
     };
 } // namespace openeden::sdk

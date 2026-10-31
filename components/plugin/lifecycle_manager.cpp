@@ -2,7 +2,6 @@
 
 #include <components/plugin/entity_manager.hpp>
 #include <components/plugin/event_bus.hpp>
-#include <components/plugin/scripting_service.hpp>
 #include <components/plugin/settings_service.hpp>
 #include <components/plugin/vfs_service.hpp>
 #include <openeden/debug_draw.hpp>
@@ -93,10 +92,6 @@ namespace openeden::plugin
         if (auto* vfs = dynamic_cast<VfsServiceImpl*>(mHost.getVfsService()))
         {
             vfs->setPluginLoadOrder(mLoadOrder);
-        }
-        if (auto* sc = dynamic_cast<ScriptingServiceImpl*>(mHost.getScriptingService()))
-        {
-            sc->setPluginLoadOrder(mLoadOrder);
         }
 
         // Phase 6.4: registerServices in load order
@@ -223,12 +218,6 @@ namespace openeden::plugin
             }
         }
 
-        // Initialize registered Lua modules in deterministic order
-        if (auto* sc = dynamic_cast<ScriptingServiceImpl*>(mHost.getScriptingService()))
-        {
-            sc->initializeModules();
-        }
-
         mDisabledPluginsList.assign(mDisabledPlugins.begin(), mDisabledPlugins.end());
         return true;
     }
@@ -295,53 +284,6 @@ namespace openeden::plugin
                 profiler->resetFrame();
             }
         }
-    }
-
-    void LifecycleManager::runFixedStepPhase(openeden::sdk::Phase phase, float dt, std::uint64_t stepIndex)
-    {
-        // Process deferred events targeted for this fixed step phase at phase boundary
-        if (auto* eb = mHost.getEventBus())
-        {
-            eb->processDeferredEvents(phase);
-        }
-
-        // No heap allocation in hot path: traverse const reference directly
-        const auto& callbacks = mRegistry.getFixedStepCallbacks(phase);
-        for (const auto& entry : callbacks)
-        {
-            if (!entry.pluginId.empty())
-            {
-                if (mActivePlugins.find(entry.pluginId) == mActivePlugins.end()
-                    || mFaultedPlugins.find(entry.pluginId) != mFaultedPlugins.end())
-                {
-                    continue;
-                }
-            }
-
-            try
-            {
-                if (entry.callback)
-                {
-                    entry.callback(dt, stepIndex);
-                }
-            }
-            catch (const std::exception& e)
-            {
-                if (!entry.pluginId.empty())
-                {
-                    markPluginFaulted(entry.pluginId, "runFixedStepPhase", e.what());
-                }
-            }
-            catch (...)
-            {
-                if (!entry.pluginId.empty())
-                {
-                    markPluginFaulted(entry.pluginId, "runFixedStepPhase", "Unknown exception");
-                }
-            }
-        }
-
-        processDeferredFaults();
     }
 
     void LifecycleManager::shutdown()

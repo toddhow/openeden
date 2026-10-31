@@ -7,7 +7,6 @@ namespace openeden::plugin
     {
         mHostInfo.hostName = std::move(hostName);
         mHostInfo.sdkVersion = openeden::sdk::kSdkVersion;
-        mPhysicsService.setCollisionLayerRegistry(&mCollisionLayers);
     }
 
     const openeden::sdk::HostInfo& HostImpl::getHostInfo() const
@@ -40,9 +39,19 @@ namespace openeden::plugin
         return &mVfsService;
     }
 
-    openeden::sdk::PhysicsService* HostImpl::getPhysicsService()
+    openeden::sdk::PhysicsQueryService* HostImpl::getPhysicsQueryService()
     {
-        return &mPhysicsService;
+        return physicsService();
+    }
+
+    void HostImpl::attachPhysicsWorld(JPH::PhysicsSystem& world, float worldUnitsPerMeter)
+    {
+        mPhysicsService.emplace(world, worldUnitsPerMeter);
+    }
+
+    void HostImpl::detachPhysicsWorld() noexcept
+    {
+        mPhysicsService.reset();
     }
 
     openeden::sdk::LoggingService* HostImpl::getLoggingService()
@@ -63,11 +72,6 @@ namespace openeden::plugin
     openeden::sdk::DebugDrawService* HostImpl::getDebugDrawService()
     {
         return &mDebugDrawService;
-    }
-
-    openeden::sdk::ScriptingService* HostImpl::getScriptingService()
-    {
-        return &mScriptingService;
     }
 
     openeden::sdk::EditorService* HostImpl::getEditorService()

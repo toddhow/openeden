@@ -1,6 +1,5 @@
 #pragma once
 
-#include <components/plugin/collision_layer_registry.hpp>
 #include <components/plugin/debug_draw_service.hpp>
 #include <components/plugin/editor_service.hpp>
 #include <components/plugin/entity_manager.hpp>
@@ -10,10 +9,11 @@
 #include <components/plugin/profiler_service.hpp>
 #include <components/plugin/save_service.hpp>
 #include <components/plugin/scratch_memory.hpp>
-#include <components/plugin/scripting_service.hpp>
 #include <components/plugin/settings_service.hpp>
 #include <components/plugin/vfs_service.hpp>
 #include <openeden/host.hpp>
+
+#include <optional>
 
 namespace openeden::plugin
 {
@@ -41,13 +41,23 @@ namespace openeden::plugin
         [[nodiscard]] openeden::sdk::SettingsService* getSettingsService() override;
         [[nodiscard]] openeden::sdk::SaveService* getSaveService() override;
         [[nodiscard]] openeden::sdk::VfsService* getVfsService() override;
-        [[nodiscard]] openeden::sdk::PhysicsService* getPhysicsService() override;
+        [[nodiscard]] openeden::sdk::PhysicsQueryService* getPhysicsQueryService() override;
         [[nodiscard]] openeden::sdk::LoggingService* getLoggingService() override;
         [[nodiscard]] openeden::sdk::ProfilerService* getProfilerService() override;
         [[nodiscard]] openeden::sdk::ScratchMemoryService* getScratchMemoryService() override;
         [[nodiscard]] openeden::sdk::DebugDrawService* getDebugDrawService() override;
-        [[nodiscard]] openeden::sdk::ScriptingService* getScriptingService() override;
         [[nodiscard]] openeden::sdk::EditorService* getEditorService() override;
+
+        /**
+         * @brief Gives plugins read-only queries on a Jolt world the host owns.
+         *
+         * Attach and publish query masks before any plugin starts, and detach only after every plugin has
+         * stopped: plugins keep the service pointer, and detaching destroys the service. The world must outlive
+         * the attachment. Attaching again replaces the world and forgets published masks. With no world attached
+         * getPhysicsQueryService() returns null. The host never creates a world itself.
+         */
+        void attachPhysicsWorld(JPH::PhysicsSystem& world, float worldUnitsPerMeter = 1.0f);
+        void detachPhysicsWorld() noexcept;
 
         // Concrete service accessors for engine internals
         [[nodiscard]] EventBusImpl& eventBus() noexcept { return mEventBus; }
@@ -62,14 +72,14 @@ namespace openeden::plugin
         [[nodiscard]] SaveServiceImpl& saveService() noexcept { return mSaveService; }
         [[nodiscard]] const SaveServiceImpl& saveService() const noexcept { return mSaveService; }
 
-        [[nodiscard]] CollisionLayerRegistry& collisionLayers() noexcept { return mCollisionLayers; }
-        [[nodiscard]] const CollisionLayerRegistry& collisionLayers() const noexcept { return mCollisionLayers; }
-
         [[nodiscard]] VfsServiceImpl& vfsService() noexcept { return mVfsService; }
         [[nodiscard]] const VfsServiceImpl& vfsService() const noexcept { return mVfsService; }
 
-        [[nodiscard]] PhysicsServiceImpl& physicsService() noexcept { return mPhysicsService; }
-        [[nodiscard]] const PhysicsServiceImpl& physicsService() const noexcept { return mPhysicsService; }
+        // Null when no world is attached
+        [[nodiscard]] PhysicsServiceImpl* physicsService() noexcept
+        {
+            return mPhysicsService ? &*mPhysicsService : nullptr;
+        }
 
         [[nodiscard]] LoggingServiceImpl& loggingService() noexcept { return mLoggingService; }
         [[nodiscard]] const LoggingServiceImpl& loggingService() const noexcept { return mLoggingService; }
@@ -86,9 +96,6 @@ namespace openeden::plugin
         [[nodiscard]] DebugDrawServiceImpl& debugDrawService() noexcept { return mDebugDrawService; }
         [[nodiscard]] const DebugDrawServiceImpl& debugDrawService() const noexcept { return mDebugDrawService; }
 
-        [[nodiscard]] ScriptingServiceImpl& scriptingService() noexcept { return mScriptingService; }
-        [[nodiscard]] const ScriptingServiceImpl& scriptingService() const noexcept { return mScriptingService; }
-
         [[nodiscard]] EditorServiceImpl& editorService() noexcept { return mEditorService; }
         [[nodiscard]] const EditorServiceImpl& editorService() const noexcept { return mEditorService; }
 
@@ -98,14 +105,12 @@ namespace openeden::plugin
         EntityManagerImpl mEntityManager;
         SettingsServiceImpl mSettingsService;
         SaveServiceImpl mSaveService;
-        CollisionLayerRegistry mCollisionLayers;
         VfsServiceImpl mVfsService;
-        PhysicsServiceImpl mPhysicsService;
+        std::optional<PhysicsServiceImpl> mPhysicsService;
         LoggingServiceImpl mLoggingService;
         ProfilerServiceImpl mProfilerService;
         ScratchMemoryServiceImpl mScratchMemoryService;
         DebugDrawServiceImpl mDebugDrawService;
-        ScriptingServiceImpl mScriptingService;
         EditorServiceImpl mEditorService;
     };
 } // namespace openeden::plugin

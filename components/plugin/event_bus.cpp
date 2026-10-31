@@ -6,15 +6,37 @@
 
 namespace openeden::plugin
 {
+    namespace
+    {
+        // The core reads a field by its type, so the size must be the one that type needs
+        bool hasValidSize(const openeden::sdk::ForwardedField& field)
+        {
+            using openeden::sdk::ForwardedFieldType;
+            switch (field.type)
+            {
+                case ForwardedFieldType::Float32:
+                    return field.size == sizeof(float);
+                case ForwardedFieldType::Float64:
+                    return field.size == sizeof(double);
+                case ForwardedFieldType::Int32:
+                case ForwardedFieldType::UInt32:
+                    return field.size == sizeof(std::int32_t);
+                case ForwardedFieldType::Boolean:
+                    return field.size == sizeof(bool);
+                case ForwardedFieldType::String:
+                    return field.size > 0;
+            }
+            return false;
+        }
+    }
+
     EventBusImpl::EventBusImpl(std::size_t capacity)
         : mCapacity(capacity)
     {
-        // Pre-allocate fixed circular ring buffer for each of the 8 phases
+        // Pre-allocate fixed circular ring buffer for each of the 6 phases
         const openeden::sdk::Phase allPhases[] = {
             openeden::sdk::Phase::Input,
             openeden::sdk::Phase::PreSimulation,
-            openeden::sdk::Phase::FixedStepPrePhysics,
-            openeden::sdk::Phase::FixedStepPostPhysics,
             openeden::sdk::Phase::PostSimulation,
             openeden::sdk::Phase::Animation,
             openeden::sdk::Phase::PreRender,
@@ -92,6 +114,44 @@ namespace openeden::plugin
                            [&](const SubscriberEntry& entry) { return entry.pluginId == pluginId; }),
                 subs.end());
         }
+    }
+
+    bool EventBusImpl::markForwardedToLua(const openeden::sdk::ForwardedEventDesc& desc)
+    {
+        if (desc.pluginId.empty() || desc.name.empty() || mForwardedEvents.contains(desc.id))
+            return false;
+
+        // Plugin ID and name together become the Lua event's name, so one pair means one payload layout
+        for (const auto& [id, other] : mForwardedEvents)
+        {
+            if (other.pluginId == desc.pluginId && other.name == desc.name)
+                return false;
+        }
+
+        ForwardedEventRecord record;
+        record.pluginId = desc.pluginId;
+        record.name = desc.name;
+        record.payloadSize = desc.payloadSize;
+        record.fields.reserve(desc.fields.size());
+        for (const auto& field : desc.fields)
+        {
+            // Written so that a huge offset cannot overflow past the check
+            const bool fits = field.size <= desc.payloadSize && field.offset <= desc.payloadSize - field.size;
+            const bool duplicate = std::any_of(record.fields.begin(), record.fields.end(),
+                [&](const ForwardedFieldRecord& other) { return other.name == field.name; });
+            if (field.name.empty() || !fits || duplicate || !hasValidSize(field))
+                return false;
+
+            record.fields.push_back({ std::string(field.name), field.type, field.offset, field.size });
+        }
+
+        mForwardedEvents.emplace(desc.id, std::move(record));
+        return true;
+    }
+
+    bool EventBusImpl::isForwardedToLua(openeden::sdk::EventId id) const
+    {
+        return mForwardedEvents.contains(id);
     }
 
     void EventBusImpl::publishImmediate(openeden::sdk::EventId id, const void* data, std::size_t size)

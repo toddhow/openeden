@@ -193,6 +193,50 @@ namespace
         EXPECT_TRUE(contains(result.loadOrder, "pluginB"));
     }
 
+    TEST(DependencyResolverTest, Sdk1xManifestRefusedWithDefaultHostVersion)
+    {
+        const PluginManifest oldPlugin = makeManifest("oldPlugin", {}, {}, {}, {}, Version{ 1, 0 });
+        const PluginManifest oldMinorPlugin = makeManifest("oldMinorPlugin", {}, {}, {}, {}, Version{ 1, 7 });
+        const PluginManifest currentPlugin = makeManifest("currentPlugin");
+
+        // No host version given: the default is the SDK's own, 2.0
+        const ResolutionResult result = resolveDependencies({ oldPlugin, oldMinorPlugin, currentPlugin });
+
+        EXPECT_FALSE(result.success);
+        EXPECT_TRUE(contains(result.disabledPlugins, "oldPlugin"));
+        EXPECT_TRUE(contains(result.disabledPlugins, "oldMinorPlugin"));
+        EXPECT_FALSE(contains(result.loadOrder, "oldPlugin"));
+        EXPECT_FALSE(contains(result.loadOrder, "oldMinorPlugin"));
+        EXPECT_TRUE(contains(result.loadOrder, "currentPlugin"));
+
+        const auto messageFor = [&result](const std::string& pluginId) -> std::string {
+            for (const auto& err : result.errors)
+            {
+                if (err.pluginId == pluginId)
+                    return err.message;
+            }
+            return {};
+        };
+        EXPECT_NE(messageFor("oldPlugin").find("built for SDK 1.0; this host provides 2.0"), std::string::npos)
+            << messageFor("oldPlugin");
+        EXPECT_NE(messageFor("oldMinorPlugin").find("built for SDK 1.7; this host provides 2.0"), std::string::npos)
+            << messageFor("oldMinorPlugin");
+    }
+
+    TEST(DependencyResolverTest, Sdk1xProviderRefusalDisablesItsDependants)
+    {
+        const PluginManifest oldProvider
+            = makeManifest("oldProvider", { { "openeden.test", { 1, 0 } } }, {}, {}, {}, Version{ 1, 0 });
+        const PluginManifest consumer = makeManifest("consumer", {}, { { "openeden.test", { 1, 0 } } });
+
+        const ResolutionResult result = resolveDependencies({ oldProvider, consumer });
+
+        EXPECT_FALSE(result.success);
+        EXPECT_TRUE(contains(result.disabledPlugins, "oldProvider"));
+        EXPECT_TRUE(contains(result.disabledPlugins, "consumer"));
+        EXPECT_TRUE(result.loadOrder.empty());
+    }
+
     TEST(DependencyResolverTest, DuplicateProviders_SameContractMajorCausesFailure)
     {
         // Two plugins providing the same contract major (e.g. "openeden.body" v1.0 and v1.1)

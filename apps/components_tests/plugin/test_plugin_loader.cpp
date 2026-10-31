@@ -88,7 +88,7 @@ namespace
                                     "  \"name\": \"" + id + "\",\n"
                                     "  \"pluginVersion\": \"1.0.0\",\n"
                                     "  \"kind\": \"feature\",\n"
-                                    "  \"sdk\": {\"major\": 1, \"minor\": 0},\n"
+                                    "  \"sdk\": {\"major\": 2, \"minor\": 0},\n"
                                     "  \"toolchain\": \"" + getHostToolchain() + "\"\n"
                                     "}";
 
@@ -252,28 +252,63 @@ TEST(PluginLoaderTest, FilterEnabledPlugins_IgnoresUnknownPluginsInEnableList)
 
 TEST(PluginLoaderTest, LoadPluginLibrary_SdkVersionMismatch_RejectedBeforeLibraryLoad)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
+
+    DiscoveredPlugin discovered;
+    discovered.manifest.id = "old_plugin";
+    discovered.manifest.sdkVersion = Version{ 1, 0 }; // Built before SDK 2.0 removed API
+    discovered.manifest.toolchain = getHostToolchain();
+
+    const PluginLoadResult result = loadPluginLibrary(discovered, host.getHostInfo());
+
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.error.pluginId, "old_plugin");
+    EXPECT_EQ(result.error.stage, "sdk");
+    EXPECT_NE(result.error.message.find("built for SDK 1.0; this host provides 2.0"), std::string::npos)
+        << result.error.message;
+}
+
+TEST(PluginLoaderTest, LoadPluginLibrary_Sdk1xMessageNamesTheRealMinor)
+{
+    MockHost host;
+
+    DiscoveredPlugin discovered;
+    discovered.manifest.id = "old_plugin";
+    discovered.manifest.sdkVersion = Version{ 1, 7 };
+    discovered.manifest.toolchain = getHostToolchain();
+
+    const PluginLoadResult result = loadPluginLibrary(discovered, host.getHostInfo());
+
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.error.stage, "sdk");
+    EXPECT_NE(result.error.message.find("built for SDK 1.7; this host provides 2.0"), std::string::npos)
+        << result.error.message;
+}
+
+TEST(PluginLoaderTest, LoadPluginLibrary_NewerSdkMajor_RejectedBeforeLibraryLoad)
+{
+    MockHost host;
 
     DiscoveredPlugin discovered;
     discovered.manifest.id = "future_plugin";
-    discovered.manifest.sdkVersion = Version{ 2, 0 }; // Incompatible major version
+    discovered.manifest.sdkVersion = Version{ 3, 0 };
     discovered.manifest.toolchain = getHostToolchain();
 
     const PluginLoadResult result = loadPluginLibrary(discovered, host.getHostInfo());
 
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.error.pluginId, "future_plugin");
-    EXPECT_FALSE(result.error.message.empty());
+    EXPECT_EQ(result.error.stage, "sdk");
     EXPECT_NE(result.error.message.find("SDK"), std::string::npos);
 }
 
 TEST(PluginLoaderTest, LoadPluginLibrary_ToolchainMismatch_RejectedBeforeLibraryLoad)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
 
     DiscoveredPlugin discovered;
     discovered.manifest.id = "foreign_toolchain_plugin";
-    discovered.manifest.sdkVersion = Version{ 1, 0 };
+    discovered.manifest.sdkVersion = kSdkVersion;
     discovered.manifest.toolchain = "gcc-unknown-toolchain-xyz"; // Incompatible toolchain
 
     const PluginLoadResult result = loadPluginLibrary(discovered, host.getHostInfo());
@@ -286,13 +321,13 @@ TEST(PluginLoaderTest, LoadPluginLibrary_ToolchainMismatch_RejectedBeforeLibrary
 
 TEST(PluginLoaderTest, LoadPluginLibrary_MissingLibraryFile_RejectedWithError)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
     TempDirectoryGuard tempDir;
 
     DiscoveredPlugin discovered;
     discovered.directory = tempDir.path();
     discovered.manifest.id = "missing_lib_plugin";
-    discovered.manifest.sdkVersion = Version{ 1, 0 };
+    discovered.manifest.sdkVersion = kSdkVersion;
     discovered.manifest.toolchain = getHostToolchain();
     discovered.manifest.library.windows = "missing_plugin.dll";
     discovered.manifest.library.linux = "libmissing_plugin.so";
@@ -306,7 +341,7 @@ TEST(PluginLoaderTest, LoadPluginLibrary_MissingLibraryFile_RejectedWithError)
 
 TEST(PluginLoaderTest, HandshakeValidation_NullDescriptor_Rejected)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
 
     PluginManifest manifest;
     manifest.id = "pluginA";
@@ -324,13 +359,13 @@ TEST(PluginLoaderTest, HandshakeValidation_NullDescriptor_Rejected)
 
 TEST(PluginLoaderTest, HandshakeValidation_IdMismatch_Rejected)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
 
     PluginManifest manifest;
     manifest.id = "pluginA";
     manifest.sdkVersion = Version{ 1, 0 };
 
-    const PluginDescriptor descriptor{ Version{ 1, 0 }, "wrong_plugin_id", &createSamplePlugin };
+    const PluginDescriptor descriptor{ kSdkVersion, "wrong_plugin_id", &createSamplePlugin };
 
     PluginLoadError error;
     const bool valid = validatePluginHandshake(&descriptor, manifest, host.getHostInfo(), error);
@@ -344,13 +379,13 @@ TEST(PluginLoaderTest, HandshakeValidation_IdMismatch_Rejected)
 
 TEST(PluginLoaderTest, HandshakeValidation_SdkVersionMismatch_Rejected)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
 
     PluginManifest manifest;
     manifest.id = "pluginA";
     manifest.sdkVersion = Version{ 1, 0 };
 
-    const PluginDescriptor descriptor{ Version{ 1, 2 }, // Mismatch with manifest's 1.0
+    const PluginDescriptor descriptor{ Version{ 2, 2 }, // Mismatch with manifest's 2.0
         "pluginA", &createSamplePlugin };
 
     PluginLoadError error;
@@ -365,14 +400,14 @@ TEST(PluginLoaderTest, HandshakeValidation_SdkVersionMismatch_Rejected)
 
 TEST(PluginLoaderTest, HandshakeValidation_NullCreateFunction_Rejected)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
 
     PluginManifest manifest;
     manifest.id = "pluginA";
     manifest.sdkVersion = Version{ 1, 0 };
 
     const PluginDescriptor descriptor{
-        Version{ 1, 0 }, "pluginA",
+        kSdkVersion, "pluginA",
         nullptr // Null create pointer
     };
 
@@ -387,8 +422,46 @@ TEST(PluginLoaderTest, HandshakeValidation_NullCreateFunction_Rejected)
 
 TEST(PluginLoaderTest, HandshakeValidation_MatchingDescriptor_Succeeds)
 {
-    MockHost host(Version{ 1, 0 });
+    MockHost host;
 
+    PluginManifest manifest;
+    manifest.id = "pluginA";
+    manifest.sdkVersion = kSdkVersion;
+
+    const PluginDescriptor descriptor{ kSdkVersion, "pluginA", &createSamplePlugin };
+
+    PluginLoadError error;
+    const bool valid = validatePluginHandshake(&descriptor, manifest, host.getHostInfo(), error);
+
+    EXPECT_TRUE(valid);
+    EXPECT_TRUE(error.message.empty());
+}
+
+TEST(PluginLoaderTest, HandshakeValidation_LibraryBuiltForSdk1_Rejected)
+{
+    MockHost host;
+
+    // The manifest claims 2.0, but the library itself says it was built for 1.0
+    PluginManifest manifest;
+    manifest.id = "pluginA";
+    manifest.sdkVersion = kSdkVersion;
+
+    const PluginDescriptor descriptor{ Version{ 1, 0 }, "pluginA", &createSamplePlugin };
+
+    PluginLoadError error;
+    const bool valid = validatePluginHandshake(&descriptor, manifest, host.getHostInfo(), error);
+
+    EXPECT_FALSE(valid);
+    EXPECT_EQ(error.pluginId, "pluginA");
+    EXPECT_EQ(error.stage, "handshake");
+    EXPECT_NE(error.message.find("SDK"), std::string::npos);
+}
+
+TEST(PluginLoaderTest, HandshakeValidation_ManifestAndLibraryBothSdk1_Rejected)
+{
+    MockHost host;
+
+    // They agree with each other but not with the host, which validatePluginHandshake is also given
     PluginManifest manifest;
     manifest.id = "pluginA";
     manifest.sdkVersion = Version{ 1, 0 };
@@ -398,8 +471,9 @@ TEST(PluginLoaderTest, HandshakeValidation_MatchingDescriptor_Succeeds)
     PluginLoadError error;
     const bool valid = validatePluginHandshake(&descriptor, manifest, host.getHostInfo(), error);
 
-    EXPECT_TRUE(valid);
-    EXPECT_TRUE(error.message.empty());
+    EXPECT_FALSE(valid);
+    EXPECT_EQ(error.pluginId, "pluginA");
+    EXPECT_NE(error.message.find("SDK"), std::string::npos);
 }
 
 TEST(PluginLoaderTest, LifecycleManager_DynamicPluginDestructedBeforeLibraryUnload)
@@ -409,7 +483,7 @@ TEST(PluginLoaderTest, LifecycleManager_DynamicPluginDestructedBeforeLibraryUnlo
 
     PluginManifest manifest;
     manifest.id = "dynamic_plugin";
-    manifest.sdkVersion = Version{ 1, 0 };
+    manifest.sdkVersion = kSdkVersion;
     manifest.toolchain = getHostToolchain();
 
     auto pluginInstance = std::make_unique<TrackedMockPlugin>(tracker, "dynamic_plugin");

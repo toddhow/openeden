@@ -1,12 +1,8 @@
 # OpenEden Plugin Implementation Guide
 
-This guide documents everything required to implement, build, test, and integrate a native C++20 plugin into OpenEden, based on the reference implementation of OpenEden's first feature plugin: **CreativeMotion** ([`plugins/creativemotion/`](../../plugins/creativemotion/)).
+This guide documents everything required to implement, build, test, and integrate a native C++20 plugin into OpenEden against **SDK 2.0**. Its lessons come from the first plugin work; CreativeMotion has since moved into the engine (decision 0001), and the Morrowind compatibility pack ([`plugins/compat_morrowind/`](../../plugins/compat_morrowind/)) is the reference plugin.
 
-Use this guide when implementing upcoming feature and compatibility plugins:
-- **AdvancedBodies** (`openeden.body` v1.0)
-- **ComplexClothing** (`openeden.clothing` v1.0)
-- **Reflectron** (`openeden.audio` v1.0)
-- **Morrowind Compatibility Pack** (`openeden.compat.morrowind` v1.0)
+Use this guide when implementing upcoming plugins, such as **Reflectron** and further compatibility packs. A system that must change physics or extend Lua is not a plugin: it goes into the core (decision 0003), as AdvancedBodies and ComplexClothing are planned to.
 
 ---
 
@@ -19,13 +15,17 @@ Every OpenEden plugin adheres to the architecture defined in [`openeden-plugin-s
    - Plugins **never** include headers from `apps/` or `components/`.
 2. **Off-by-Default Feature Plugins**:
    - Feature plugins (`"kind": "feature"`) must declare an `"enabled"` boolean setting defaulting to `false` in `plugin.json`.
-   - When `"enabled"` is `false`, the plugin must perform **zero work** in frame/fixed-step callbacks and must not alter host state or physics worlds.
-3. **One Shared Jolt Physics World**:
-   - Plugins that perform physics simulation (CreativeMotion, ComplexClothing) **never** instantiate their own `JPH::PhysicsSystem` or link their own standalone Jolt backend when hosted in OpenEden.
-   - Instead, they adapt `host.getPhysicsService()` (`openeden::sdk::PhysicsService`) to their internal physics interface (see [`HostPhysicsWorld`](../../plugins/creativemotion/host_physics_world.hpp)).
-4. **Zero Hot-Path Heap Allocations**:
-   - Callbacks registered on `Phase::FixedStepPrePhysics`, `Phase::FixedStepPostPhysics`, `Phase::PreSimulation`, `Phase::PostSimulation`, `Phase::Animation`, and `Phase::PreRender` must not allocate heap memory during normal execution. Pre-allocate vectors and scratch buffers during `start(Host&)` or asset load.
-5. **Save-File Resilience**:
+   - When `"enabled"` is `false`, the plugin must perform **zero work** in frame callbacks and must not alter host state.
+3. **Physics Is Read-Only**:
+   - Plugins **never** instantiate their own `JPH::PhysicsSystem` or link Jolt. They query the core's world through `host.getPhysicsQueryService()` (`openeden::sdk::PhysicsQueryService`): `isBodyValid`, `getMotionType`, `readBody`, `readBodies`, `castRay`, `castShape`. It is null when the host has no world, so check it.
+   - They cannot create, move or step bodies, make joints or collision groups, or register collision layers. They run only in frame phases; there are no fixed-step phases.
+   - Query masks are opaque: get them with `queryMask("<name the host publishes>")`, never assume bit numbers.
+   - Physics events (`openeden/physics_events.hpp`) arrive on the event bus on the main thread.
+4. **No Lua API**:
+   - Plugins cannot register Lua tables or call into Lua. To let mods react, mark an event type with `eventBus->markForwardedToLua<MyEvent>("<plugin_id>", "<eventName>", fields)` in `registerServices` or `start`, with a flat payload of numbers, fixed char arrays and booleans; the core delivers it to Lua scripts (task 0016).
+5. **Zero Hot-Path Heap Allocations**:
+   - Callbacks registered on `Phase::PreSimulation`, `Phase::PostSimulation`, `Phase::Animation`, and `Phase::PreRender` must not allocate heap memory during normal execution. Pre-allocate vectors and scratch buffers during `start(Host&)` or asset load.
+6. **Save-File Resilience**:
    - Removing or disabling a plugin must never prevent an existing save file from loading. The core's `SaveService` automatically skips unknown chunk IDs with a warning.
 
 ---
@@ -71,9 +71,9 @@ Create `plugins/<plugin_id>/plugin.json` following the canonical key order enfor
 4. `"name"`
 5. `"pluginVersion"`
 6. `"kind"` (`"feature"` or `"compatibility"`)
-7. `"sdk"` (`{"major": 1, "minor": 0}`)
+7. `"sdk"` (`{"major": 2, "minor": 0}`; a manifest for another major is refused)
 8. `"toolchain"` (optional toolchain string)
-9. `"library"` (`{"windows": "creativemotion.dll", "linux": "libcreativemotion.so"}`)
+9. `"library"` (`{"windows": "<plugin_id>.dll", "linux": "lib<plugin_id>.so"}`)
 10. `"provides"` (array of `{"contract": "...", "version": [1, 1]}`)
 11. `"requires"` (array of `{"contract": "...", "version": [1, 0]}`)
 12. `"optional"` (array of `{"contract": "...", "version": [1, 0]}`)
@@ -84,9 +84,9 @@ Create `plugins/<plugin_id>/plugin.json` following the canonical key order enfor
 
 Verify your manifest with `writeCanonicalManifest(manifest)` in a round-trip test.
 
-### Step 3: Adapt External Subproject CMake (Lessons from CreativeMotion)
+### Step 3: Adapt External Subproject CMake
 
-When integrating an external standalone repository (such as `CreativeMotion`, `AdvancedBodies`, `ComplexClothing`, or `Reflectron`) via `add_subdirectory(...)`:
+When integrating an external standalone repository (such as `Reflectron`) via `add_subdirectory(...)`:
 
 1. **Position-Independent Code (`-fPIC`) & Static Internal Libraries**:
    - External repositories that build internal `STATIC` libraries (`opas_math`, `opas_rig`, etc.) linked into a plugin `SHARED` library must have `CMAKE_POSITION_INDEPENDENT_CODE ON`.
@@ -98,22 +98,17 @@ When integrating an external standalone repository (such as `CreativeMotion`, `A
        set(BUILD_SHARED_LIBS OFF)
      endif()
      ```
-2. **Disable Standalone Tests, Viewers, and Duplicate Physics Backends**:
-   - When `PROJECT_IS_TOP_LEVEL` is `FALSE`, disable the subproject's standalone unit test runner, GUI viewer, and standalone Jolt physics backend (`OPAS_BUILD_TESTS OFF`, `OPAS_BUILD_PHYSICS OFF`, `OPAS_BUILD_VIEWER OFF`), linking only its pure interface and core libraries.
+2. **Disable Standalone Tests and Viewers**:
+   - When `PROJECT_IS_TOP_LEVEL` is `FALSE`, disable the subproject's standalone unit test runner and GUI viewer, and any Jolt it links on its own, linking only its core libraries.
 3. **Reuse OpenEden's `nlohmann_json` Target**:
    - Guard `FetchContent_Declare(nlohmann_json ...)` in the external project with `if(NOT TARGET nlohmann_json::nlohmann_json)`. OpenEden already provides `nlohmann_json` with `JSON_Diagnostic_Positions ON`.
-4. **Double-Precision Jolt (`JPH_DOUBLE_PRECISION`) Compatibility**:
-   - OpenEden compiles Jolt Physics with `DOUBLE_PRECISION ON` (`JPH::RVec3` is `JPH::DVec3`), whereas standalone sandboxes often compile Jolt in single precision (`JPH::RVec3` is `JPH::Vec3`).
-   - Whenever code interacts with Jolt world positions (`BodyCreationSettings`, constraint world anchors `mPosition1`/`mPosition2`, `AddImpulse` world point, `MoveKinematic` target position, `GetPositionAndRotation`, `RRayCast` origin), use explicit `JPH::RVec3` conversion helpers (`toJoltR` / `fromJoltR`).
 
-### Step 4: Implement the Shared Physics Adapter (For Physics-Using Plugins)
+### Step 4: Query Physics If You Need To
 
-If the plugin steps or queries rigid bodies/constraints:
-- Implement the plugin's internal physics world interface over `openeden::sdk::PhysicsService&` (see [`plugins/creativemotion/host_physics_world.hpp`](../../plugins/creativemotion/host_physics_world.hpp) and [`host_physics_world.cpp`](../../plugins/creativemotion/host_physics_world.cpp)).
-- **Do not call `PhysicsService::step()` from the plugin during normal engine ticks.** Instead:
-  - In `Phase::FixedStepPrePhysics`, run pre-step drivers/listeners (`runPreStepListeners(dt)`) to update joint motor gains, joint targets, and kinematic targets.
-  - The host steps the shared Jolt world once for all systems.
-  - In `Phase::FixedStepPostPhysics`, run post-step listeners (`runPostStepListeners(dt)`), read body states, and reconcile character capsules or cloth meshes.
+If the plugin needs to know about the world:
+- In `start(Host&)`, keep `host.getPhysicsQueryService()` and look up the masks you need with `queryMask(...)`.
+- Cast rays and shapes and read bodies from frame phase callbacks. Handles can go stale between frames: a stale handle reads as invalid, it never crashes.
+- Subscribe to `PhysicsHitEvent`, `PhysicsContactBeginEvent` and `PhysicsContactEndEvent` on the event bus instead of polling.
 
 ### Step 5: Implement `openeden::sdk::Plugin` Lifecycle
 
@@ -121,20 +116,18 @@ In `plugins/<plugin_id>/<plugin_id>_plugin.cpp`:
 
 1. **`registerServices(Registrar& registrar)`**:
    - Provide contracts: `registrar.provide<MyContract>(*this);`
-   - Subscribe to frame phases (`registrar.registerPhaseCallback(Phase::..., PhaseCallback(...))`) and fixed-step physics phases (`registrar.registerPhaseCallback(Phase::FixedStepPrePhysics, FixedStepPhaseCallback(...))`).
+   - Subscribe to frame phases (`registrar.registerPhaseCallback(Phase::..., PhaseCallback(...))`).
 2. **`resolve(const ServiceLocator& locator)`**:
    - Look up required and optional contracts (`locator.find<OtherContract>()`). Return `false` only if a required contract is missing.
 3. **`start(Host& host)`**:
    - Read initial settings from `host.getSettingsService()->getBool("<plugin_id>", "enabled", false)`.
-   - Construct adapters over `host.getPhysicsService()`, `host.getEventBus()`, etc.
-   - Register named collision layers and collision pairs via `host.getPhysicsService()->registerCollisionLayer(...)` and `declareCollisionPair(...)`.
+   - Keep the services you use: `host.getPhysicsQueryService()`, `host.getEventBus()`, etc. The host attaches its world before plugins start and detaches it after they stop, so a kept pointer stays valid until `stop()` returns.
+   - Mark events for Lua via `host.getEventBus()->markForwardedToLua<MyEvent>(...)` if mods should react to them.
    - Register VFS format readers via `host.getVfsService()->registerFormatReader(".ext.json", reader)`.
    - Register save chunk handlers via `host.getSaveService()->registerHandler("plugin_id", handler)`.
-   - Register Lua scripting tables via `host.getScriptingService()->registerModule("<plugin_id>", ...)`.
    - Register editor inspection panels via `host.getEditorService()->registerPanel(...)` if `host.getEditorService()->isEditorActive()`.
 4. **`stop()`**:
-   - Destroy all physics bodies, joints, and collision groups created by the plugin in the shared `PhysicsService`.
-   - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`), save chunk handlers (`save->unregisterHandler(chunkId)`), and Lua modules (`scripting->unregisterModule(pluginId)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the plugin DLL outlives `DynamicLibrary` unload.
+   - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`) and save chunk handlers (`save->unregisterHandler(chunkId)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the plugin DLL outlives `DynamicLibrary` unload.
    - Release all host pointers and reset state cleanly.
 5. **Export Entry Point (Shared Target Only)**:
    Guard `openeden_plugin_entry` with `#ifdef OPENEDEN_SHARED_PLUGIN` (defined on the `SHARED` target via `target_compile_definitions(<plugin_id> PRIVATE OPENEDEN_SHARED_PLUGIN)`) so `<plugin_id>_plugin_static` does not export duplicate `openeden_plugin_entry` symbols when multiple static plugin libraries are linked into `components-tests`:
@@ -158,21 +151,7 @@ In `plugins/<plugin_id>/CMakeLists.txt`:
 Before marking a plugin integration complete, verify all of the following in `apps/components_tests/plugin/test_<plugin_id>_plugin.cpp`:
 - [ ] `plugin.json` loads without error and round-trips identically through `writeCanonicalManifest`.
 - [ ] `LifecycleManager` initializes the plugin, resolves its provided contract for a downstream consumer plugin, and shuts down in reverse topological order.
-- [ ] **Off-by-default invariant**: Immediately after `initialize()`, `isEnabled()` is `false`, and running all fixed-step and frame phases leaves the shared physics world and host state completely untouched.
-- [ ] Enabling the plugin at runtime activates its simulation/service in the shared host environment.
-- [ ] Collision layers, VFS format readers, save-game chunk serialization/deserialization, and Lua module (`openeden.<plugin_id>`) all function and round-trip cleanly.
+- [ ] **Off-by-default invariant**: Immediately after `initialize()`, `isEnabled()` is `false`, and running all frame phases leaves host state completely untouched.
+- [ ] Enabling the plugin at runtime activates its service in the shared host environment.
+- [ ] VFS format readers, save-game chunk serialization/deserialization, and any events marked for Lua forwarding all function and round-trip cleanly.
 
----
-
-## 4. Kinematic Contracts & Actor Collision Upgrades (Milestone M9 Reference)
-
-For plugins providing procedural animation and inverse kinematics (such as CreativeMotion M9):
-
-1. **POD Kinematic Interfaces in Contracts**:
-   - Provide analytic solvers (`solveTwoBone`, `solveFootPlacement`, `solveLookAt`, `solveTurnSmoothing`) using lightweight POD types (`PhysicsVec3`, `PhysicsQuat`) rather than heap-allocated data structures.
-   - Clamp float-domain angle limits when casting to higher-precision math solvers (e.g. `double` in `opas::ik::solveTwoBone`) to avoid precision boundary overflow at $\pi$.
-2. **Actor Collision Capsules (`actor collision shape type = 3`)**:
-   - When procedural foot placement or close-quarters interaction with terrain and ledges is required, configure actor collision shape type to Capsule (`3`).
-   - The spherical bottom cap prevents sharp bounding-box corners from catching on slopes, enabling accurate foot-planting raycasts directly beneath actor feet.
-3. **Engine-Side Invariant**:
-   - Engine controllers hooking into animation hierarchies (`ActorIkController`) must check feature flags (`footPlanting`, `lookAt`, `smootherTurns`) and immediately early-exit if disabled. When disabled, zero raycasts and zero bone matrix modifications occur, maintaining exact vanilla behavior.

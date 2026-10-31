@@ -19,13 +19,6 @@ namespace openeden::plugin
         bool parallel = false;
     };
 
-    struct FixedStepCallbackEntry
-    {
-        std::string pluginId;
-        openeden::sdk::FixedStepPhaseCallback callback;
-        bool parallel = false;
-    };
-
     struct RegisteredService
     {
         std::string pluginId;
@@ -46,9 +39,6 @@ namespace openeden::plugin
         void registerPhaseCallback(
             openeden::sdk::Phase phase, openeden::sdk::PhaseCallback callback, bool parallel = false) override;
 
-        void registerPhaseCallback(
-            openeden::sdk::Phase phase, openeden::sdk::FixedStepPhaseCallback callback, bool parallel = false) override;
-
         // ServiceLocator implementation
         void* findService(std::string_view contractId, openeden::sdk::Version minVersion) const override;
 
@@ -58,7 +48,6 @@ namespace openeden::plugin
         void clear();
 
         const std::vector<FrameCallbackEntry>& getFrameCallbacks(openeden::sdk::Phase phase) const;
-        const std::vector<FixedStepCallbackEntry>& getFixedStepCallbacks(openeden::sdk::Phase phase) const;
 
     protected:
         void provideService(std::string_view contractId, openeden::sdk::Version version, void* implPointer) override;
@@ -71,6 +60,5 @@ namespace openeden::plugin
 
         // Phase callbacks
         std::map<openeden::sdk::Phase, std::vector<FrameCallbackEntry>> mFrameCallbacks;
-        std::map<openeden::sdk::Phase, std::vector<FixedStepCallbackEntry>> mFixedStepCallbacks;
     };
 } // namespace openeden::plugin

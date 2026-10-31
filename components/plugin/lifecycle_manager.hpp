@@ -50,11 +50,6 @@ namespace openeden::plugin
         void runPhase(openeden::sdk::Phase phase, float dt);
 
         /**
-         * @brief Runs a fixed physics step phase, passing dt and stepIndex.
-         */
-        void runFixedStepPhase(openeden::sdk::Phase phase, float dt, std::uint64_t stepIndex);
-
-        /**
          * @brief Stops all active plugins in reverse load order. Idempotent.
          */
         void shutdown();

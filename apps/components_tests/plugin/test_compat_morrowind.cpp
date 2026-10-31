@@ -51,11 +51,6 @@ namespace
             openeden::sdk::Phase /*phase*/, openeden::sdk::PhaseCallback /*callback*/, bool /*parallel*/) override
         {
         }
-
-        void registerPhaseCallback(
-            openeden::sdk::Phase /*phase*/, openeden::sdk::FixedStepPhaseCallback /*callback*/, bool /*parallel*/) override
-        {
-        }
     };
 
     constexpr float kTolerance = 1e-5f;
@@ -196,7 +191,7 @@ TEST(CompatMorrowindTest, ManifestValidation)
     const auto& m = *manifestOpt;
     EXPECT_EQ(m.id, "compat_morrowind");
     EXPECT_EQ(m.kind, "compatibility");
-    EXPECT_EQ(m.sdkVersion.major, 1);
+    EXPECT_EQ(m.sdkVersion.major, 2);
     EXPECT_EQ(m.sdkVersion.minor, 0);
 
     bool hasGame = false;

@@ -6,7 +6,7 @@
   "pluginVersion": "1.0.0",
   "kind": "compatibility",
   "sdk": {
-    "major": 1,
+    "major": 2,
     "minor": 0
   },
   "toolchain": "",

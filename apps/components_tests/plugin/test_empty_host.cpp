@@ -8,6 +8,8 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstddef>
+#include <vector>
 
 namespace
 {
@@ -53,44 +55,55 @@ namespace
             Phase::Ui,
         };
 
-        constexpr std::array<Phase, 2> fixedStepPhases = {
-            Phase::FixedStepPrePhysics,
-            Phase::FixedStepPostPhysics,
-        };
-
         constexpr float frameDt = 1.0f / 60.0f;
-        constexpr float fixedDt = 1.0f / 60.0f;
-        std::uint64_t stepIndex = 0;
 
-        // Simulate 120 frames with fixed steps, verifying all 8 phases execute without error or crash
+        // Simulate 120 frames, verifying all 6 phases execute without error or crash
         for (int frame = 0; frame < 120; ++frame)
         {
-            EXPECT_NO_THROW(manager.runPhase(Phase::Input, frameDt));
-            EXPECT_NO_THROW(manager.runPhase(Phase::PreSimulation, frameDt));
-
-            // Fixed step physics phases
-            EXPECT_NO_THROW(manager.runFixedStepPhase(Phase::FixedStepPrePhysics, fixedDt, stepIndex));
-            EXPECT_NO_THROW(manager.runFixedStepPhase(Phase::FixedStepPostPhysics, fixedDt, stepIndex));
-            ++stepIndex;
-
-            EXPECT_NO_THROW(manager.runPhase(Phase::PostSimulation, frameDt));
-            EXPECT_NO_THROW(manager.runPhase(Phase::Animation, frameDt));
-            EXPECT_NO_THROW(manager.runPhase(Phase::PreRender, frameDt));
-            EXPECT_NO_THROW(manager.runPhase(Phase::Ui, frameDt));
-        }
-
-        // Test running all phases directly in sequence as well
-        for (const Phase phase : framePhases)
-        {
-            EXPECT_NO_THROW(manager.runPhase(phase, frameDt));
-        }
-        for (const Phase phase : fixedStepPhases)
-        {
-            EXPECT_NO_THROW(manager.runFixedStepPhase(phase, fixedDt, stepIndex++));
+            for (const Phase phase : framePhases)
+            {
+                EXPECT_NO_THROW(manager.runPhase(phase, frameDt));
+            }
         }
 
         manager.shutdown();
         EXPECT_EQ(manager.getActivePluginCount(), 0u);
+    }
+
+    // The remaining phases keep their order once the fixed-step phases are gone (task 0019, design item 2).
+    static_assert(Phase::Input < Phase::PreSimulation);
+    static_assert(Phase::PreSimulation < Phase::PostSimulation);
+    static_assert(Phase::PostSimulation < Phase::Animation);
+    static_assert(Phase::Animation < Phase::PreRender);
+    static_assert(Phase::PreRender < Phase::Ui);
+
+    TEST(EmptyHostTest, HostImplHasEveryServiceExceptPhysicsUntilAWorldIsAttached)
+    {
+        openeden::plugin::HostImpl host("TestOpenEdenHost");
+
+        EXPECT_EQ(host.getHostInfo().hostName, "TestOpenEdenHost");
+        EXPECT_EQ(host.getHostInfo().sdkVersion, openeden::sdk::kSdkVersion);
+
+        EXPECT_NE(host.getEventBus(), nullptr);
+        EXPECT_NE(host.getEntityManager(), nullptr);
+        EXPECT_NE(host.getSettingsService(), nullptr);
+        EXPECT_NE(host.getSaveService(), nullptr);
+        EXPECT_NE(host.getVfsService(), nullptr);
+        EXPECT_NE(host.getLoggingService(), nullptr);
+        EXPECT_NE(host.getProfilerService(), nullptr);
+        EXPECT_NE(host.getScratchMemoryService(), nullptr);
+        EXPECT_NE(host.getDebugDrawService(), nullptr);
+        EXPECT_NE(host.getEditorService(), nullptr);
+
+        // The host never creates a world itself (decision 0003)
+        EXPECT_EQ(host.getPhysicsQueryService(), nullptr);
+    }
+
+    TEST(EmptyHostTest, BareHostProvidesNoServices)
+    {
+        MockHost host;
+        EXPECT_EQ(host.getEventBus(), nullptr);
+        EXPECT_EQ(host.getPhysicsQueryService(), nullptr);
     }
 
     TEST(EmptyHostTest, ShutdownCompletesCleanlyAndIsIdempotent)
@@ -136,5 +149,26 @@ namespace
         // Run target phase: event processed at phase boundary
         manager.runPhase(Phase::PreSimulation, 0.016f);
         EXPECT_EQ(receivedValue, 999);
+    }
+
+    TEST(EmptyHostTest, HostImplDeliversDeferredEventsInFramePhaseOrder)
+    {
+        openeden::plugin::HostImpl host("TestOpenEdenHost");
+        LifecycleManager manager(host);
+
+        std::vector<int> received;
+        host.getEventBus()->subscribe<TestFrameEvent>(
+            "test_subscriber", [&received](const TestFrameEvent& e) { received.push_back(e.counter); });
+
+        // Published latest phase first: only the phase order decides the delivery order
+        constexpr std::array<Phase, 6> framePhases
+            = { Phase::Input, Phase::PreSimulation, Phase::PostSimulation, Phase::Animation, Phase::PreRender, Phase::Ui };
+        for (int i = static_cast<int>(framePhases.size()) - 1; i >= 0; --i)
+            host.getEventBus()->publishDeferred(TestFrameEvent{ i }, framePhases[static_cast<std::size_t>(i)]);
+
+        for (const Phase phase : framePhases)
+            manager.runPhase(phase, 0.016f);
+
+        EXPECT_EQ(received, (std::vector<int>{ 0, 1, 2, 3, 4, 5 }));
     }
 }

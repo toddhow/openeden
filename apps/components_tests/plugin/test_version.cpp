@@ -117,4 +117,12 @@ namespace
         EXPECT_GE(sdkVer.minor, 0);
         EXPECT_TRUE(isCompatible(sdkVer, sdkVer));
     }
+
+    TEST(VersionTest, SdkVersionIsTwoPointZero)
+    {
+        // Decision 0003 removed API, a major version change (plugin doc 4.2)
+        static_assert(openeden::sdk::kSdkVersion == Version{ 2, 0 });
+        EXPECT_EQ(openeden::sdk::kSdkVersion, (Version{ 2, 0 }));
+        EXPECT_FALSE(isCompatible(Version{ 1, 0 }, openeden::sdk::kSdkVersion));
+    }
 }

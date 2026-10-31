@@ -37,14 +37,6 @@ namespace openeden::sdk
          */
         virtual void registerPhaseCallback(Phase phase, PhaseCallback callback, bool parallel = false) = 0;
 
-        /**
-         * @brief Registers a callback to be called during a fixed physics step phase.
-         * @param phase Fixed step phase (e.g. FixedStepPrePhysics, FixedStepPostPhysics).
-         * @param callback Function to call during the fixed step.
-         * @param parallel If true, promises callback touches only its own data and data passed in.
-         */
-        virtual void registerPhaseCallback(Phase phase, FixedStepPhaseCallback callback, bool parallel = false) = 0;
-
     protected:
         /**
          * @brief Core service registration mechanism implemented by the engine registry.

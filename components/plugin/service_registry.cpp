@@ -10,12 +10,6 @@ namespace openeden::plugin
         mFrameCallbacks[phase].push_back({ mCurrentPluginId, std::move(callback), parallel });
     }
 
-    void ServiceRegistry::registerPhaseCallback(
-        openeden::sdk::Phase phase, openeden::sdk::FixedStepPhaseCallback callback, bool parallel)
-    {
-        mFixedStepCallbacks[phase].push_back({ mCurrentPluginId, std::move(callback), parallel });
-    }
-
     void ServiceRegistry::provideService(std::string_view contractId, openeden::sdk::Version version, void* implPointer)
     {
         mServices[{ std::string(contractId), version.major }] = { mCurrentPluginId, version, implPointer };
@@ -64,12 +58,6 @@ namespace openeden::plugin
                 callbacks.end());
         }
 
-        for (auto& [phase, callbacks] : mFixedStepCallbacks)
-        {
-            callbacks.erase(std::remove_if(callbacks.begin(), callbacks.end(),
-                                [&](const FixedStepCallbackEntry& e) { return e.pluginId == pluginId; }),
-                callbacks.end());
-        }
     }
 
     void ServiceRegistry::clear()
@@ -77,7 +65,6 @@ namespace openeden::plugin
         mCurrentPluginId.clear();
         mServices.clear();
         mFrameCallbacks.clear();
-        mFixedStepCallbacks.clear();
     }
 
     const std::vector<FrameCallbackEntry>& ServiceRegistry::getFrameCallbacks(openeden::sdk::Phase phase) const
@@ -89,12 +76,4 @@ namespace openeden::plugin
         return empty;
     }
 
-    const std::vector<FixedStepCallbackEntry>& ServiceRegistry::getFixedStepCallbacks(openeden::sdk::Phase phase) const
-    {
-        static const std::vector<FixedStepCallbackEntry> empty;
-        auto it = mFixedStepCallbacks.find(phase);
-        if (it != mFixedStepCallbacks.end())
-            return it->second;
-        return empty;
-    }
 } // namespace openeden::plugin

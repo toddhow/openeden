@@ -3,106 +3,73 @@
 #include <openeden/physics.hpp>
 
 #include <cstddef>
-#include <cstdint>
-#include <memory>
+#include <map>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 
 namespace JPH
 {
+    class BodyID;
     class PhysicsSystem;
 }
 
 namespace openeden::plugin
 {
-    class CollisionLayerRegistry;
-
     /**
-     * @brief Engine implementation of PhysicsService backed by the shared Jolt PhysicsSystem.
+     * @brief Engine implementation of PhysicsQueryService: a read-only view of a Jolt world.
      *
-     * Can either manage an internal Jolt PhysicsSystem (for standalone/headless hosts)
-     * or attach to an external JPH::PhysicsSystem owned by MWPhysics::PhysicsSystem.
+     * It only ever attaches to a JPH::PhysicsSystem the host owns and cannot create its own. The
+     * host keeps that world alive for as long as this object exists, and has initialized Jolt
+     * (allocator, Factory, types) first. Queries use Jolt's locking interfaces.
+     *
+     * A world object's layer takes part in query masks as a bit pattern: a body matches when
+     * (mask & objectLayer) != 0, which is how MWPhysics::Layers values are defined. kQueryMaskAll
+     * matches every body, including one in object layer 0.
      */
-    class PhysicsServiceImpl : public openeden::sdk::PhysicsService
+    class PhysicsServiceImpl : public openeden::sdk::PhysicsQueryService
     {
     public:
-        explicit PhysicsServiceImpl(
-            const openeden::sdk::PhysicsWorldConfig& config = openeden::sdk::PhysicsWorldConfig{});
-        explicit PhysicsServiceImpl(
-            JPH::PhysicsSystem* externalSystem,
-            const openeden::sdk::PhysicsWorldConfig& config = openeden::sdk::PhysicsWorldConfig{});
-        ~PhysicsServiceImpl() override;
+        /**
+         * @param worldUnitsPerMeter The world's length unit. This class is the one boundary between it and the
+         * SDK's meters; the game's world is in Morrowind units (task 0017).
+         */
+        explicit PhysicsServiceImpl(JPH::PhysicsSystem& world, float worldUnitsPerMeter = 1.0f);
 
-        PhysicsServiceImpl(const PhysicsServiceImpl&) = delete;
-        PhysicsServiceImpl& operator=(const PhysicsServiceImpl&) = delete;
-        PhysicsServiceImpl(PhysicsServiceImpl&&) noexcept;
-        PhysicsServiceImpl& operator=(PhysicsServiceImpl&&) noexcept;
+        /**
+         * @brief Converts a Jolt body ID into the handle plugins use.
+         */
+        [[nodiscard]] static openeden::sdk::BodyId toBodyId(const JPH::BodyID& id);
 
-        // --- Build ---
-        openeden::sdk::CreateResult<openeden::sdk::BodyId> createBody(
-            const openeden::sdk::BodyDesc& desc) override;
-        bool destroyBody(openeden::sdk::BodyId body) override;
+        /**
+         * @brief Publishes a mask under a name plugins can look up with queryMask(). Replaces an earlier value.
+         * Call it before any plugin starts: lookups are not synchronized with it.
+         */
+        void publishQueryMask(std::string_view name, openeden::sdk::QueryMask mask);
+
         [[nodiscard]] bool isBodyValid(openeden::sdk::BodyId id) const override;
-
-        openeden::sdk::CreateResult<openeden::sdk::JointId> createJoint(
-            const openeden::sdk::JointDesc& desc) override;
-        bool destroyJoint(openeden::sdk::JointId joint) override;
-        [[nodiscard]] bool isConstraintValid(openeden::sdk::ConstraintId id) const override;
-
-        // --- Collision groups ---
-        openeden::sdk::CreateResult<openeden::sdk::CollisionGroupId> createCollisionGroup(
-            std::uint32_t subGroupCount) override;
-        bool setSubGroupsCollide(
-            openeden::sdk::CollisionGroupId group, std::uint32_t a, std::uint32_t b, bool collide) override;
-        bool destroyCollisionGroup(openeden::sdk::CollisionGroupId group) override;
-
-        // --- Named collision layers ---
-        openeden::sdk::CollisionLayer registerCollisionLayer(std::string_view name) override;
-        void declareCollisionPair(std::string_view layerA, std::string_view layerB) override;
-        void setCollisionLayerRegistry(CollisionLayerRegistry* registry) noexcept;
-
-        // --- Drive joints ---
-        bool setJointMotor(openeden::sdk::JointId joint, const openeden::sdk::JointMotor& motor) override;
-        bool setJointPositionSteps(openeden::sdk::JointId joint, std::uint32_t steps) override;
-        bool setJointTarget(
-            openeden::sdk::JointId joint, openeden::sdk::PhysicsQuat targetRotation) override;
-        bool setJointTarget(openeden::sdk::JointId joint, openeden::sdk::PhysicsQuat targetRotation,
-            openeden::sdk::PhysicsVec3 targetAngularVelocityRadps) override;
-
-        // --- Drive bodies ---
-        bool applyImpulse(openeden::sdk::BodyId body, openeden::sdk::PhysicsVec3 impulseNs,
-            openeden::sdk::PhysicsVec3 worldPointM) override;
-        bool setVelocity(openeden::sdk::BodyId body, openeden::sdk::PhysicsVec3 linearMps,
-            openeden::sdk::PhysicsVec3 angularRadps) override;
-        bool setBodyDamping(openeden::sdk::BodyId body, float linearPerS, float angularPerS) override;
-        bool setKinematicTarget(openeden::sdk::BodyId body, openeden::sdk::PhysicsVec3 positionM,
-            openeden::sdk::PhysicsQuat rotation) override;
-
-        // --- Motion type ---
-        bool setMotionType(openeden::sdk::BodyId body, openeden::sdk::MotionType motion) override;
         [[nodiscard]] std::optional<openeden::sdk::MotionType> getMotionType(
             openeden::sdk::BodyId body) const override;
 
-        // --- Read ---
         bool readBody(openeden::sdk::BodyId body, openeden::sdk::BodyState& out) const override;
-        std::size_t readBodies(std::span<const openeden::sdk::BodyId> bodies,
-            std::span<openeden::sdk::BodyState> out) const override;
+        std::size_t readBodies(
+            std::span<const openeden::sdk::BodyId> bodies, std::span<openeden::sdk::BodyState> out) const override;
 
-        // --- Query ---
+        [[nodiscard]] openeden::sdk::QueryMask queryMask(std::string_view name) const override;
+
         [[nodiscard]] std::optional<openeden::sdk::RayHit> castRay(openeden::sdk::PhysicsVec3 originM,
-            openeden::sdk::PhysicsVec3 directionTimesLengthM,
-            openeden::sdk::BodyId ignore = {}) const override;
+            openeden::sdk::PhysicsVec3 directionTimesLengthM, openeden::sdk::BodyId ignore = {},
+            openeden::sdk::QueryMask mask = openeden::sdk::kQueryMaskAll) const override;
 
-        // --- Step & Timing ---
-        void step(float dtSeconds = 0.0f) override;
-        [[nodiscard]] float fixedStepSeconds() const override;
-
-        // Engine-internal control for step callback guard
-        void setInStep(bool inStep) noexcept;
-        [[nodiscard]] bool isInStep() const noexcept;
+        [[nodiscard]] std::optional<openeden::sdk::RayHit> castShape(const openeden::sdk::PhysicsShape& shape,
+            openeden::sdk::PhysicsQuat rotation, openeden::sdk::PhysicsVec3 originM,
+            openeden::sdk::PhysicsVec3 directionTimesLengthM, openeden::sdk::BodyId ignore = {},
+            openeden::sdk::QueryMask mask = openeden::sdk::kQueryMaskAll) const override;
 
     private:
-        struct Impl;
-        std::unique_ptr<Impl> mImpl;
+        JPH::PhysicsSystem* mWorld;
+        float mWorldUnitsPerMeter;
+        std::map<std::string, openeden::sdk::QueryMask, std::less<>> mQueryMasks;
     };
 } // namespace openeden::plugin
