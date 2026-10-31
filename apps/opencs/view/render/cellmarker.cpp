@@ -72,7 +72,8 @@ vsg::ref_ptr<vsg::Node> CSVRender::CellMarker::buildMarker() const
     auto image = vsg::ubvec4Array2D::create(static_cast<uint32_t>(text.width()), static_cast<uint32_t>(text.height()),
         vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
     for (int y = 0; y < text.height(); ++y)
-        std::memcpy(&image->at(0, static_cast<uint32_t>(y)), text.constScanLine(y), static_cast<size_t>(text.width()) * 4);
+        std::memcpy(static_cast<void*>(&image->at(0, static_cast<uint32_t>(y))), text.constScanLine(y),
+            static_cast<size_t>(text.width()) * 4);
 
     Pipeline::Options options;
     options.shader = { {},

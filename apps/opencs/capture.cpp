@@ -281,8 +281,7 @@ int CS::runCapture(int argc, char** argv)
             }
 
             context.setFrameCallback([&] {
-                auto& context = CSVRender::RenderContext::get();
-                const std::uint64_t frameCount = context.frameCount();
+                const std::uint64_t frameCount = CSVRender::RenderContext::get().frameCount();
                 if (quitting)
                     return;
                 if (nextCapture != 0 && frameCount >= nextCapture)

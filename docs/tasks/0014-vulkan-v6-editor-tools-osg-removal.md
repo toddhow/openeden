@@ -398,3 +398,7 @@ Tests on Windows: components-tests 2220, openmw-tests 717, openmw-cs-tests 154, 
 Not verified: everything in C3's list; terrain alteration on screen; the layer-map preview; reloading assets; validation layers; markers and arrows hidden by the visibility toolbar (a person's check, step 15 below).
 
 15. **Visibility toolbar (C4).** In a Scene of `#-2 -9`, use the scene toolbar's visibility buttons to hide and show Instances, Water and Terrain, and the Controls & Guides buttons for cell markers, arrows and borders. Each disappears and comes back, and nothing else changes.
+
+### Linux, C3 and C4 (2026-10-31)
+
+`-Werror` found shadowed names and a `memcpy` onto `vsg::ubvec4`, fixed. At `0af702c8c1`: components-tests 2222, openmw-tests 717, all 32 Lua integration tests. Editor targets with those fixes: `openmw-cs` and `openmw-cs-tests` build, 154 pass. Started under xvfb with Mesa's lavapipe on the example suite's `template.omwgame`, with `QT_QPA_PLATFORM=xcb` and `OPENEDEN_CS_UI_CHECK="c:#0 0;4000"`: table and scene opened, windows closed, exit code 0. No frame from that run was captured or viewed, and the suite is not Morrowind data.

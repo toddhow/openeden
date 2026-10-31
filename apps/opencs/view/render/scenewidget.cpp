@@ -38,9 +38,9 @@ namespace
 
 namespace CSVRender
 {
-    RenderWidget::RenderWidget(CSMWorld::Data& data, QWidget* parent, Qt::WindowFlags f)
+    RenderWidget::RenderWidget(CSMWorld::Data& worldData, QWidget* parent, Qt::WindowFlags f)
         : QWidget(parent, f)
-        , mData(data)
+        , mData(worldData)
     {
         setMinimumSize(sMinimumViewSize, sMinimumViewSize);
         auto* layout = new QHBoxLayout(this);
@@ -166,8 +166,8 @@ namespace CSVRender
 
     // ---------------------------------------------------
 
-    SceneWidget::SceneWidget(CSMWorld::Data& data, QWidget* parent, Qt::WindowFlags f, bool retrieveInput)
-        : RenderWidget(data, parent, f)
+    SceneWidget::SceneWidget(CSMWorld::Data& worldData, QWidget* parent, Qt::WindowFlags f, bool retrieveInput)
+        : RenderWidget(worldData, parent, f)
     {
         mBackgroundColour = CSMPrefs::get()["Rendering"]["scene-day-background-colour"].toColor();
         mGradientColour = CSMPrefs::get()["Rendering"]["scene-day-gradient-colour"].toColor();
