@@ -580,7 +580,7 @@ namespace MWLua
 
     void LuaManager::onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
         const MWWorld::Ptr& ammo, int attackType, float attackStrength, float damage, bool isHealth,
-        const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
+        const vsg::vec3& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table damageTable = view.newTable();
@@ -599,7 +599,7 @@ namespace MWLua
             data["type"] = attackType;
             data["strength"] = attackStrength;
             data["damage"] = damageTable;
-            data["hitPos"] = hitPos;
+            data["hitPos"] = osg::Vec3f(hitPos);
             data["successful"] = successful;
             switch (sourceType)
             {

@@ -1,11 +1,13 @@
 #ifndef GAME_MWBASE_SOUNDMANAGER_H
 #define GAME_MWBASE_SOUNDMANAGER_H
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
 #include <memory>
 #include <set>
 #include <string>
 #include <string_view>
+#include <vsg/maths/vec3.h>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -187,7 +189,7 @@ namespace MWBase
         ///< Play_NoTrack is specified.
         ///< @param offset Number of seconds into the sound to start playback.
 
-        virtual Sound* playSound3D(const osg::Vec3f& initialPos, const ESM::RefId& soundId, float volume, float pitch,
+        virtual Sound* playSound3D(const vsg::vec3& initialPos, const ESM::RefId& soundId, float volume, float pitch,
             Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0)
             = 0;
         ///< Play a 3D sound at \a initialPos. If the sound should be moving, it must be updated using
@@ -231,11 +233,10 @@ namespace MWBase
         virtual void pausePlayback() = 0;
         virtual void resumePlayback() = 0;
 
-        virtual void setListenerPosDir(
-            const osg::Vec3f& pos, const osg::Vec3f& dir, const osg::Vec3f& up, bool underwater)
+        virtual void setListenerPosDir(const vsg::vec3& pos, const vsg::vec3& dir, const vsg::vec3& up, bool underwater)
             = 0;
 
-        virtual void setListenerVel(const osg::Vec3f& vel) = 0;
+        virtual void setListenerVel(const vsg::vec3& vel) = 0;
 
         virtual void updatePtr(const MWWorld::ConstPtr& old, const MWWorld::ConstPtr& updated) = 0;
 

@@ -10,6 +10,7 @@
 
 #include "../mwgui/mode.hpp"
 #include "../mwmechanics/damagesourcetype.hpp"
+#include <components/misc/vsgmath.hpp>
 #include <components/sdlutil/events.hpp>
 
 // openeden-vsg: animation priorities are vsgopenmw's MWAnim::Priority (components/mwanimation/groups.hpp).
@@ -45,11 +46,6 @@ namespace LuaUtil
     {
         class Registry;
     }
-}
-
-namespace osg
-{
-    class Vec3f;
 }
 
 namespace MWBase
@@ -91,7 +87,7 @@ namespace MWBase
         virtual void skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, int useType, float scale) = 0;
         virtual void onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
             const MWWorld::Ptr& ammo, int attackType, float attackStrength, float damage, bool isHealth,
-            const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType)
+            const vsg::vec3& hitPos, bool successful, MWMechanics::DamageSourceType)
             = 0;
         virtual void exteriorCreated(MWWorld::CellStore& cell) = 0;
         virtual void actorDied(const MWWorld::Ptr& actor) = 0;
@@ -105,7 +101,7 @@ namespace MWBase
 
         // TODO: notify LuaManager about other events
         // virtual void objectOnHit(const MWWorld::Ptr &ptr, float damage, bool ishealth, const MWWorld::Ptr &object,
-        //                          const MWWorld::Ptr &attacker, const osg::Vec3f &hitPosition, bool successful,
+        //                          const MWWorld::Ptr &attacker, const vsg::vec3 &hitPosition, bool successful,
         //                          DamageSourceType sourceType) = 0;
 
         struct InputEvent

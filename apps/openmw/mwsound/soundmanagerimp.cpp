@@ -599,7 +599,7 @@ namespace MWSound
         return playSound3D(ptr, sfx, volume, pitch, type, mode, offset);
     }
 
-    Sound* SoundManager::playSound3D(const osg::Vec3f& initialPos, const ESM::RefId& soundId, float volume, float pitch,
+    Sound* SoundManager::playSound3D(const vsg::vec3& initialPos, const ESM::RefId& soundId, float volume, float pitch,
         Type type, PlayMode mode, float offset)
     {
         if (!mOutput->isInitialized())
@@ -1141,7 +1141,7 @@ namespace MWSound
     }
 
     void SoundManager::setListenerPosDir(
-        const osg::Vec3f& pos, const osg::Vec3f& dir, const osg::Vec3f& up, bool underwater)
+        const vsg::vec3& pos, const vsg::vec3& dir, const vsg::vec3& up, bool underwater)
     {
         mListenerPos = pos;
         mListenerDir = dir;
@@ -1152,7 +1152,7 @@ namespace MWSound
         mWaterSoundUpdater.setUnderwater(underwater);
     }
 
-    void SoundManager::setListenerVel(const osg::Vec3f& vel)
+    void SoundManager::setListenerVel(const vsg::vec3& vel)
     {
         mListenerVel = vel;
     }

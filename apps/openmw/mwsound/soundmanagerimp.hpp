@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <osg/Vec3f>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -237,8 +238,8 @@ namespace MWSound
         ///< Play_NoTrack is specified.
         ///< @param offset Number of seconds into the sound to start playback.
 
-        Sound* playSound3D(const osg::Vec3f& initialPos, const ESM::RefId& soundId, float volume, float pitch,
-            Type type, PlayMode mode, float offset = 0) override;
+        Sound* playSound3D(const vsg::vec3& initialPos, const ESM::RefId& soundId, float volume, float pitch, Type type,
+            PlayMode mode, float offset = 0) override;
         ///< Play a 3D sound at \a initialPos. If the sound should be moving, it must be updated using
         ///< Sound::setPosition.
         ///< @param offset Number of seconds into the sound to start playback.
@@ -283,9 +284,9 @@ namespace MWSound
         void update(float duration);
 
         void setListenerPosDir(
-            const osg::Vec3f& pos, const osg::Vec3f& dir, const osg::Vec3f& up, bool underwater) override;
+            const vsg::vec3& pos, const vsg::vec3& dir, const vsg::vec3& up, bool underwater) override;
 
-        void setListenerVel(const osg::Vec3f& vel) override;
+        void setListenerVel(const vsg::vec3& vel) override;
 
         void updatePtr(const MWWorld::ConstPtr& old, const MWWorld::ConstPtr& updated) override;
 
