@@ -913,6 +913,15 @@ namespace MWGui
         mGlobalMap->setVisible(global);
         mLocalMap->setVisible(!global);
         resizeGlobalMap();
+
+        if (Settings::gui().mControllerMenus)
+        {
+            mControllerButtons.mB = "#{Interface:Back}";
+            mControllerButtons.mX = global ? "#{Interface:Local}" : "#{Interface:World}";
+            mControllerButtons.mY = "#{Interface:Center}";
+            if (!Settings::map().mAllowZooming)
+                mControllerButtons.mDpad = "#{Interface:Move}";
+        }
     }
 
     void MapWindow::onNoteEditOk()
@@ -1104,7 +1113,20 @@ namespace MWGui
     void MapWindow::setVisible(bool visible)
     {
         WindowBase::setVisible(visible);
-        mButton->setVisible(visible && MWBase::Environment::get().getWindowManager()->getMode() != MWGui::GM_None);
+        MWGui::GuiMode mode = MWBase::Environment::get().getWindowManager()->getMode();
+        mButton->setVisible(visible && mode != MWGui::GM_None);
+
+        if (Settings::gui().mControllerMenus && mode == MWGui::GM_None && pinned() && visible)
+        {
+            // Restore the window to pinned size.
+            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+            MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
+            const int x = static_cast<int>(Settings::windows().mMapX * viewSize.width);
+            const int y = static_cast<int>(Settings::windows().mMapY * viewSize.height);
+            const int w = static_cast<int>(Settings::windows().mMapW * viewSize.width);
+            const int h = static_cast<int>(Settings::windows().mMapH * viewSize.height);
+            window->setCoord(x, y, w, h);
+        }
     }
 
     MapWindow::~MapWindow() {}
@@ -1284,6 +1306,8 @@ namespace MWGui
         mLocalMap->setVisible(!global);
 
         mButton->setCaptionWithReplacing(global ? "#{sLocal}" : "#{sWorld}");
+        mControllerButtons.mX = global ? "#{Interface:Local}" : "#{Interface:World}";
+        MWBase::Environment::get().getWindowManager()->updateControllerButtonsOverlay();
     }
 
     void MapWindow::onPinToggled()
@@ -1295,7 +1319,9 @@ namespace MWGui
 
     void MapWindow::onTitleDoubleClicked()
     {
-        if (MyGUI::InputManager::getInstance().isShiftPressed())
+        if (Settings::gui().mControllerMenus)
+            return;
+        else         if (MyGUI::InputManager::getInstance().isShiftPressed())
             MWBase::Environment::get().getWindowManager()->toggleMaximized(this);
         else if (!mPinned)
             MWBase::Environment::get().getWindowManager()->toggleVisible(GW_Map);
@@ -1451,6 +1477,12 @@ namespace MWGui
         mCancelButton->eventMouseButtonClick += MyGUI::newDelegate(this, &EditNoteDialog::onCancelButtonClicked);
         mOkButton->eventMouseButtonClick += MyGUI::newDelegate(this, &EditNoteDialog::onOkButtonClicked);
         mDeleteButton->eventMouseButtonClick += MyGUI::newDelegate(this, &EditNoteDialog::onDeleteButtonClicked);
+
+        if (Settings::gui().mControllerMenus)
+        {
+            mControllerButtons.mA = "#{Interface:OK}";
+            mControllerButtons.mB = "#{Interface:Cancel}";
+        }
     }
 
     void EditNoteDialog::showDeleteButton(bool show)
@@ -1478,6 +1510,13 @@ namespace MWGui
         WindowModal::onOpen();
         center();
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mTextEdit);
+
+        if (Settings::gui().mControllerMenus)
+        {
+            mControllerFocus = getDeleteButtonShown() ? 1 : 0;
+            mOkButton->setStateSelected(true);
+            mCancelButton->setStateSelected(false);
+        }
     }
 
     void EditNoteDialog::onCancelButtonClicked(MyGUI::Widget* sender)
@@ -1493,6 +1532,81 @@ namespace MWGui
     void EditNoteDialog::onDeleteButtonClicked(MyGUI::Widget* sender)
     {
         eventDeleteClicked();
+    }
+
+    ControllerButtons* EditNoteDialog::getControllerButtons()
+    {
+        if (getDeleteButtonShown())
+            mControllerButtons.mX = "#{Interface:Delete}";
+        else
+            mControllerButtons.mX.clear();
+        return &mControllerButtons;
+    }
+
+    bool EditNoteDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    {
+        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        {
+            if (getDeleteButtonShown())
+            {
+                if (mControllerFocus == 0)
+                    onDeleteButtonClicked(mDeleteButton);
+                else if (mControllerFocus == 1)
+                    onOkButtonClicked(mOkButton);
+                else
+                    onCancelButtonClicked(mCancelButton);
+            }
+            else
+            {
+                if (mControllerFocus == 0)
+                    onOkButtonClicked(mOkButton);
+                else
+                    onCancelButtonClicked(mCancelButton);
+            }
+        }
+        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        {
+            onCancelButtonClicked(mCancelButton);
+        }
+        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        {
+            if (getDeleteButtonShown())
+                onDeleteButtonClicked(mDeleteButton);
+        }
+        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+        {
+            if (getDeleteButtonShown())
+            {
+                mControllerFocus = wrap(mControllerFocus, 3, -1);
+                mDeleteButton->setStateSelected(mControllerFocus == 0);
+                mOkButton->setStateSelected(mControllerFocus == 1);
+                mCancelButton->setStateSelected(mControllerFocus == 2);
+            }
+            else
+            {
+                mControllerFocus = 0;
+                mOkButton->setStateSelected(mControllerFocus == 0);
+                mCancelButton->setStateSelected(mControllerFocus == 1);
+            }
+        }
+        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        {
+            if (getDeleteButtonShown())
+            {
+                mControllerFocus = wrap(mControllerFocus, 3, 1);
+                mDeleteButton->setStateSelected(mControllerFocus == 0);
+                mOkButton->setStateSelected(mControllerFocus == 1);
+                mCancelButton->setStateSelected(mControllerFocus == 2);
+            }
+            else
+            {
+                mControllerFocus = 1;
+                mOkButton->setStateSelected(mControllerFocus == 0);
+                mCancelButton->setStateSelected(mControllerFocus == 1);
+            }
+        }
+
+        return true;
     }
 
     bool LocalMapBase::MarkerUserData::isPositionExplored() const
