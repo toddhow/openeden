@@ -17,6 +17,10 @@
 #include <osg/Vec3d>
 #include <osg/Vec4f>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/vec4.h>
+#include <concepts>
+
 namespace osg {
 
 /** General purpose double quad. Uses include representation
@@ -36,6 +40,11 @@ class Vec4d
         enum { num_components = 4 };
 
         value_type _v[4];
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::dvec4> BridgeT> inline Vec4d(const BridgeT& v) { _v[0]=v[0]; _v[1]=v[1]; _v[2]=v[2]; _v[3]=v[3]; }
+        inline operator vsg::dvec4() const { return vsg::dvec4(_v[0], _v[1], _v[2], _v[3]); }
+
 
         /** Constructor that sets all components of the vector to zero */
         Vec4d() { _v[0]=0.0; _v[1]=0.0; _v[2]=0.0; _v[3]=0.0; }

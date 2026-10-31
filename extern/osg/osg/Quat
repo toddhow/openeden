@@ -20,6 +20,10 @@
 #include <osg/Vec3d>
 #include <osg/Vec4d>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/quat.h>
+#include <concepts>
+
 namespace osg {
 
 class Matrixf;
@@ -42,6 +46,11 @@ class OSG_EXPORT Quat
         enum { num_components = 4 };
 
         value_type  _v[4];    // a four-vector
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::dquat> BridgeT> inline Quat(const BridgeT& q) { _v[0]=q[0]; _v[1]=q[1]; _v[2]=q[2]; _v[3]=q[3]; }
+        inline operator vsg::dquat() const { return vsg::dquat(_v[0], _v[1], _v[2], _v[3]); }
+
 
         inline Quat() { _v[0]=0.0; _v[1]=0.0; _v[2]=0.0; _v[3]=1.0; }
 

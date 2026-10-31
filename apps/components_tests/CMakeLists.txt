@@ -139,6 +139,8 @@ file(GLOB UNITTEST_SRC_FILES
     math/testquatconventions.cpp
     math/testmatrixconventions.cpp
     math/testboundsconventions.cpp
+    math/testvsgmath.cpp
+    math/testbridge.cpp
     fx/testvulkanpass.cpp
     fx/testuniformsettings.cpp
 )

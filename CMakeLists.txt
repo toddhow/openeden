@@ -376,6 +376,14 @@ endif()
 
 # OSG Headers
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/extern/osg)
+# OpenEden V5 transition, removed by task 0013: the bundled OSG math headers convert to and from VSG math types, so every
+# target that includes them needs VSG's headers, also those that do not link VSG.
+if(OPENEDEN_BUILD_VSG)
+    include_directories(SYSTEM ${CMAKE_BINARY_DIR}/extern/fetched/vsg/include)
+else()
+    get_target_property(_vsg_include_dirs vsg::vsg INTERFACE_INCLUDE_DIRECTORIES)
+    include_directories(SYSTEM ${_vsg_include_dirs})
+endif()
 
 # Platform specific
 if (WIN32)
@@ -480,6 +488,9 @@ include_directories(
     ${SOL_CONFIG_DIR}
     ${ICU_INCLUDE_DIRS}
 )
+# OpenEden V5 transition, removed by task 0013: on Windows the block above puts the vcpkg include folder, which holds a whole OSG,
+# first, so the build silently used vcpkg's OSG headers and never saw the bridge in extern/osg. This puts the bundled ones first.
+include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/extern/osg)
 include_directories(".")
 include_directories("sdk/include")
 

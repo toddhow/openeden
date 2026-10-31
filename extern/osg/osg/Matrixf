@@ -19,6 +19,10 @@
 #include <osg/Vec4d>
 #include <osg/Quat>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/mat4.h>
+#include <concepts>
+
 namespace osg {
 
 class Matrixf;
@@ -43,6 +47,12 @@ class OSG_EXPORT Matrixf
                  value_type a30, value_type a31, value_type a32, value_type a33);
 
         ~Matrixf() {}
+
+        // OpenEden V5 transition, removed by task 0013
+        // The same sixteen numbers in the same order, never transposed (apps/components_tests/math/testmatrixconventions.cpp).
+        template <std::same_as<vsg::mat4> BridgeT> inline Matrixf(const BridgeT& m) { set(m.data()); }
+        inline operator vsg::mat4() const { return vsg::mat4(_mat[0][0], _mat[0][1], _mat[0][2], _mat[0][3], _mat[1][0], _mat[1][1], _mat[1][2], _mat[1][3], _mat[2][0], _mat[2][1], _mat[2][2], _mat[2][3], _mat[3][0], _mat[3][1], _mat[3][2], _mat[3][3]); }
+
 
         int compare(const Matrixf& m) const;
 

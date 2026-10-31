@@ -16,6 +16,10 @@
 
 #include <osg/Math>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/vec2.h>
+#include <concepts>
+
 namespace osg {
 
 /** General purpose float pair. Uses include representation of
@@ -37,6 +41,11 @@ class Vec2f
 
         /** Vec member variable. */
         value_type _v[2];
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::vec2> BridgeT> inline Vec2f(const BridgeT& v) { _v[0]=v[0]; _v[1]=v[1]; }
+        inline operator vsg::vec2() const { return vsg::vec2(_v[0], _v[1]); }
+
 
 
         /** Constructor that sets all components of the vector to zero */

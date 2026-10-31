@@ -16,6 +16,10 @@
 
 #include <osg/Vec2f>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/vec2.h>
+#include <concepts>
+
 namespace osg {
 
 /** General purpose double pair, uses include representation of
@@ -36,6 +40,11 @@ class Vec2d
         enum { num_components = 2 };
 
         value_type _v[2];
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::dvec2> BridgeT> inline Vec2d(const BridgeT& v) { _v[0]=v[0]; _v[1]=v[1]; }
+        inline operator vsg::dvec2() const { return vsg::dvec2(_v[0], _v[1]); }
+
 
         /** Constructor that sets all components of the vector to zero */
         Vec2d() {_v[0]=0.0; _v[1]=0.0;}

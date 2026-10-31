@@ -20,6 +20,10 @@
 #include <osg/Vec3d>
 #include <float.h>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/box.h>
+#include <concepts>
+
 namespace osg {
 
 template<typename VT>
@@ -40,6 +44,15 @@ class BoundingBoxImpl
         vec_type _min;
         /** Maximum extent. (Greatest X, Y, and Z values of all coordinates.) */
         vec_type _max;
+
+        // OpenEden V5 transition, removed by task 0013
+        // The numbers carry over as they are, including OSG's FLT_MAX in a default double box, which VSG's own default does not use.
+        template <std::same_as<vsg::t_box<value_type>> BridgeT> inline BoundingBoxImpl(const BridgeT& b) : _min(b.min), _max(b.max) {}
+        inline operator vsg::t_box<value_type>() const
+        {
+            return vsg::t_box<value_type>(vsg::t_vec3<value_type>(_min[0], _min[1], _min[2]), vsg::t_vec3<value_type>(_max[0], _max[1], _max[2]));
+        }
+
 
         /** Creates an uninitialized bounding box. */
         inline BoundingBoxImpl() :

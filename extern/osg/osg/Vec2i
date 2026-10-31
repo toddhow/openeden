@@ -14,6 +14,10 @@
 #ifndef OSG_VEC2I
 #define OSG_VEC2I        1
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/vec2.h>
+#include <concepts>
+
 namespace osg {
 
 /** General purpose integer pair.
@@ -30,6 +34,11 @@ class Vec2i
         
         /** Vec member variable. */
         value_type _v[2];
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::ivec2> BridgeT> inline Vec2i(const BridgeT& v) { _v[0]=v[0]; _v[1]=v[1]; }
+        inline operator vsg::ivec2() const { return vsg::ivec2(_v[0], _v[1]); }
+
 
         Vec2i() { _v[0]=0; _v[1]=0; }
 

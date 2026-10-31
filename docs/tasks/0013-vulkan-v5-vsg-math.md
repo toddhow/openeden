@@ -68,3 +68,11 @@
 5. **`*` between vectors.** "Every `*` between OSG vectors becomes `dot`" is wrong for `Vec2i`, whose `*` is component-wise even in OSG.
 6. **Size.** A count of OSG math types only finds about 451 files and 5,688 references, not about 620 and 15,000. Much of it is code that is not compiled (`components/nifosg`, most of `components/sceneutil`, parts of `apps/openmw/mwrender`). Those files would still fail the final grep, so they should be deleted, not converted.
 7. **Operations the spec does not name:** `.x()` style accessors, `osg::PI` and degree conversion, `xMin()` and friends on boxes, `getTrans`/`setTrans`, `preMultTranslate` and similar, `transform3x3`, `corner`, matrix `decompose` (VSG's can fail where OSG's cannot), and the three-point `Plane` constructor. The list `vsgmath.hpp` must provide is in each test file's header comment.
+
+## How the conversion runs (2026-10-31)
+
+- **Defaults taken for notes 3 and 4 until toddhow says otherwise:** helpers matching OSG in simulation code, and the convention suite reduced to literal expected values when OSG goes.
+- **Bridge:** `extern/osg` has implicit conversions to and from the VSG types, marked "OpenEden V5 transition", so one area converts while its callers still use OSG and every commit builds. It goes with `extern/osg` at the end.
+- **Note 2 resolved by the bridge:** the root `CMakeLists.txt` now puts `extern/osg` first, because Windows was compiling against vcpkg's OSG headers. So `osg::BoundingBox` and `BoundingSphere` are double on Windows too, as on Linux. Reference frames of Seyda Neen and the Caldera Mages Guild looked the same afterwards, by eye.
+- **Silent traps made loud:** `components/misc/vsgmath.hpp` deletes `vec * vec` of the same type, which VSG reads component-wise and OSG as a dot product. Every converted file includes it. A file being converted also defines `OPENEDEN_VSGMATH_CONVERTING`, which deletes matrix products and vector-matrix products, so each is looked at and flipped by hand. That macro goes at the end.
+- **Dead code:** files the build does not compile stay until the end of V5, then go, apart from what the editor needs for task 0014.

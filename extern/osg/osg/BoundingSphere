@@ -19,6 +19,10 @@
 #include <osg/Vec3f>
 #include <osg/Vec3d>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/sphere.h>
+#include <concepts>
+
 namespace osg {
 
 template<typename VT>
@@ -39,6 +43,14 @@ class BoundingSphereImpl
 
         vec_type    _center;
         value_type  _radius;
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::t_sphere<value_type>> BridgeT> inline BoundingSphereImpl(const BridgeT& s) : _center(s.center), _radius(s.radius) {}
+        inline operator vsg::t_sphere<value_type>() const
+        {
+            return vsg::t_sphere<value_type>(vsg::t_vec3<value_type>(_center[0], _center[1], _center[2]), _radius);
+        }
+
 
         /** Construct a default bounding sphere with radius to -1.0f, representing an invalid/unset bounding sphere.*/
         BoundingSphereImpl() : _center(0.0,0.0,0.0),_radius(-1.0) {}

@@ -17,6 +17,10 @@
 #include <osg/Vec2f>
 #include <osg/Math>
 
+// OpenEden V5 transition, removed by task 0013
+#include <vsg/maths/vec3.h>
+#include <concepts>
+
 namespace osg {
 
 /** General purpose float triple for use as vertices, vectors and normals.
@@ -36,6 +40,11 @@ class Vec3f
         enum { num_components = 3 };
 
         value_type _v[3];
+
+        // OpenEden V5 transition, removed by task 0013
+        template <std::same_as<vsg::vec3> BridgeT> inline Vec3f(const BridgeT& v) { _v[0]=v[0]; _v[1]=v[1]; _v[2]=v[2]; }
+        inline operator vsg::vec3() const { return vsg::vec3(_v[0], _v[1], _v[2]); }
+
 
         /** Constructor that sets all components of the vector to zero */
         Vec3f() { _v[0]=0.0f; _v[1]=0.0f; _v[2]=0.0f;}
