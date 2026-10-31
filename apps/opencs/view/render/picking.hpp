@@ -7,6 +7,7 @@
 
 #include <vsg/app/ProjectionMatrix.h>
 #include <vsg/core/Array.h>
+#include <vsg/core/Mask.h>
 #include <vsg/maths/mat4.h>
 #include <vsg/maths/transform.h>
 #include <vsg/nodes/Node.h>
@@ -137,10 +138,10 @@ namespace CSVRender::Picking
     /// As WorldspaceWidget::mousePick did.
     /// \param mask which elements of mask.hpp's list count.
     /// \param placementDistance how far along the ray a miss places mWorldPos, the preference 3D Scene Editing/distance.
-    inline Result pick(const vsg::Node& root, const Ray& ray, unsigned int mask, double placementDistance)
+    inline Result pick(const vsg::Node& root, const Ray& ray, vsg::Mask mask, double placementDistance)
     {
         Intersector intersector(ray.mStart, ray.mEnd);
-        intersector.traversalMask = vsg::Mask(mask);
+        intersector.traversalMask = mask;
         root.accept(intersector);
 
         const vsg::dvec3 direction = ray.mEnd - ray.mStart;
@@ -177,10 +178,10 @@ namespace CSVRender::Picking
 
     /// The nearest thing on the ray, either side of a triangle, as the orbit camera's first centre was
     /// (LineSegmentIntersector::LIMIT_NEAREST with no test of facing).
-    inline bool pickNearest(const vsg::Node& root, const Ray& ray, unsigned int mask, vsg::dvec3& position)
+    inline bool pickNearest(const vsg::Node& root, const Ray& ray, vsg::Mask mask, vsg::dvec3& position)
     {
         Intersector intersector(ray.mStart, ray.mEnd);
-        intersector.traversalMask = vsg::Mask(mask);
+        intersector.traversalMask = mask;
         root.accept(intersector);
         const vsg::LineSegmentIntersector::Intersection* first = nullptr;
         for (const auto& hit : intersector.intersections)
