@@ -1,0 +1,449 @@
+#include <components/extension/lifecycle_manager.hpp>
+
+#include <components/extension/entity_manager.hpp>
+#include <components/extension/event_bus.hpp>
+#include <components/extension/host_impl.hpp>
+#include <components/extension/settings_service.hpp>
+#include <components/extension/vfs_service.hpp>
+#include <openeden/debug_draw.hpp>
+#include <openeden/memory.hpp>
+#include <openeden/profiling.hpp>
+
+#include <algorithm>
+#include <components/debug/debuglog.hpp>
+
+namespace openeden::extension
+{
+    LifecycleManager::LifecycleManager(openeden::sdk::Host& host)
+        : mHost(host)
+    {
+    }
+
+    LifecycleManager::~LifecycleManager()
+    {
+        shutdown();
+    }
+
+    void LifecycleManager::addExtension(ExtensionManifest manifest, std::unique_ptr<openeden::sdk::Extension> extension,
+        std::unique_ptr<DynamicLibrary> library)
+    {
+        const std::string id = manifest.id;
+        ExtensionRecord record;
+        record.manifest = std::move(manifest);
+        record.instance = std::move(extension);
+        record.library = std::move(library);
+        record.started = false;
+        mExtensions[id] = std::move(record);
+    }
+
+    bool LifecycleManager::initialize()
+    {
+        if (mInitialized)
+            return true;
+
+        mInitialized = true;
+
+        if (mExtensions.empty())
+        {
+            return true;
+        }
+
+        // Collect manifests
+        std::vector<ExtensionManifest> manifests;
+        manifests.reserve(mExtensions.size());
+        for (const auto& [id, record] : mExtensions)
+        {
+            manifests.push_back(record.manifest);
+        }
+
+        // Resolve dependencies
+        const ResolutionResult resolution = resolveDependencies(manifests, mHost.getHostInfo().sdkVersion);
+
+        for (const auto& error : resolution.errors)
+        {
+            Log(Debug::Error) << "Extension '" << error.extensionId << "' failed at resolve: " << error.message;
+            mFailures.push_back(Failure{ error.extensionId, "resolve", error.message });
+        }
+
+        for (const auto& disabledId : resolution.disabledExtensions)
+        {
+            mDisabledExtensions.insert(disabledId);
+        }
+
+        mLoadOrder = resolution.loadOrder;
+
+        for (const auto& id : mLoadOrder)
+        {
+            if (mDisabledExtensions.find(id) == mDisabledExtensions.end())
+            {
+                mActiveExtensions.insert(id);
+            }
+        }
+
+        // Configure host services with resolved extension load order and manifest settings
+        if (auto* eb = dynamic_cast<EventBusImpl*>(mHost.getEventBus()))
+        {
+            eb->setExtensionLoadOrder(mLoadOrder);
+        }
+        if (auto* em = dynamic_cast<EntityManagerImpl*>(mHost.getEntityManager()))
+        {
+            em->setExtensionLoadOrder(mLoadOrder);
+        }
+        if (auto* ss = dynamic_cast<SettingsServiceImpl*>(mHost.getSettingsService()))
+        {
+            for (const auto& [id, record] : mExtensions)
+            {
+                ss->loadManifestDefaults(record.manifest);
+            }
+        }
+        if (auto* vfs = dynamic_cast<VfsServiceImpl*>(mHost.getVfsService()))
+        {
+            vfs->setExtensionLoadOrder(mLoadOrder);
+        }
+
+        // Phase 6.4: registerServices in load order
+        for (const auto& id : mLoadOrder)
+        {
+            if (mActiveExtensions.find(id) == mActiveExtensions.end())
+                continue;
+
+            auto it = mExtensions.find(id);
+            if (it != mExtensions.end() && it->second.instance)
+            {
+                mRegistry.setCurrentExtension(id);
+                try
+                {
+                    it->second.instance->registerServices(mRegistry);
+                }
+                catch (const std::exception& e)
+                {
+                    markExtensionFaulted(id, "registerServices", e.what());
+                }
+                catch (...)
+                {
+                    markExtensionFaulted(id, "registerServices", "Unknown exception");
+                }
+            }
+        }
+
+        // A provider that just failed must not leave its dependants to resolve and start
+        processDeferredFaults();
+
+        // Phase 6.5: resolve in load order
+        std::set<std::string> newlyDisabled;
+        for (const auto& id : mLoadOrder)
+        {
+            if (mActiveExtensions.find(id) == mActiveExtensions.end())
+                continue;
+
+            auto it = mExtensions.find(id);
+            if (it != mExtensions.end() && it->second.instance)
+            {
+                bool resolveSuccess = false;
+                try
+                {
+                    resolveSuccess = it->second.instance->resolve(mRegistry);
+                }
+                catch (const std::exception& e)
+                {
+                    markExtensionFaulted(id, "resolve", e.what());
+                    resolveSuccess = false;
+                }
+                catch (...)
+                {
+                    markExtensionFaulted(id, "resolve", "Unknown exception");
+                    resolveSuccess = false;
+                }
+
+                if (!resolveSuccess)
+                {
+                    newlyDisabled.insert(id);
+                    mDisabledExtensions.insert(id);
+                    mActiveExtensions.erase(id);
+                    mRegistry.withdrawExtension(id);
+                }
+            }
+        }
+
+        // Cascade resolve-failures to any active extension that requires a contract provided by a disabled extension
+        bool cascade = !newlyDisabled.empty();
+        while (cascade)
+        {
+            cascade = false;
+            for (const auto& id : mLoadOrder)
+            {
+                if (mActiveExtensions.find(id) == mActiveExtensions.end())
+                    continue;
+
+                const auto& manifest = mExtensions[id].manifest;
+                for (const auto& req : manifest.requiredContracts)
+                {
+                    // Check if provider is disabled
+                    for (const auto& disabledId : mDisabledExtensions)
+                    {
+                        const auto& disabledManifest = mExtensions[disabledId].manifest;
+                        for (const auto& provision : disabledManifest.providedContracts)
+                        {
+                            if (provision.contract == req.contract && provision.version.major == req.version.major)
+                            {
+                                const std::string reason = "depends on disabled extension '" + disabledId + "'";
+                                Log(Debug::Error) << "Extension '" << id << "' failed at resolve: " << reason;
+                                mFailures.push_back(Failure{ id, "resolve", reason });
+                                mDisabledExtensions.insert(id);
+                                mActiveExtensions.erase(id);
+                                mRegistry.withdrawExtension(id);
+                                cascade = true;
+                                break;
+                            }
+                        }
+                        if (mActiveExtensions.find(id) == mActiveExtensions.end())
+                            break;
+                    }
+                    if (mActiveExtensions.find(id) == mActiveExtensions.end())
+                        break;
+                }
+            }
+        }
+
+        // Phase 6.6: start in load order
+        for (const auto& id : mLoadOrder)
+        {
+            if (mActiveExtensions.find(id) == mActiveExtensions.end())
+                continue;
+
+            auto it = mExtensions.find(id);
+            if (it != mExtensions.end() && it->second.instance)
+            {
+                try
+                {
+                    it->second.instance->start(mHost);
+                    it->second.started = true;
+                    mStartedOrder.push_back(id);
+                }
+                catch (const std::exception& e)
+                {
+                    markExtensionFaulted(id, "start", e.what());
+                }
+                catch (...)
+                {
+                    markExtensionFaulted(id, "start", "Unknown exception");
+                }
+                // Before the next extension starts: its provider may just have failed
+                processDeferredFaults();
+            }
+        }
+
+        mDisabledExtensionsList.assign(mDisabledExtensions.begin(), mDisabledExtensions.end());
+        return true;
+    }
+
+    void LifecycleManager::runPhase(openeden::sdk::Phase phase, float dt)
+    {
+        // Process deferred events targeted for this phase at phase boundary
+        if (auto* eb = mHost.getEventBus())
+        {
+            eb->processDeferredEvents(phase);
+        }
+
+        // No heap allocation in hot path: traverse const reference directly
+        const auto& callbacks = mRegistry.getFrameCallbacks(phase);
+        for (const auto& entry : callbacks)
+        {
+            if (!entry.extensionId.empty())
+            {
+                if (mActiveExtensions.find(entry.extensionId) == mActiveExtensions.end()
+                    || mFaultedExtensions.find(entry.extensionId) != mFaultedExtensions.end())
+                {
+                    continue;
+                }
+            }
+
+            try
+            {
+                if (entry.callback)
+                {
+                    entry.callback(dt);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                if (!entry.extensionId.empty())
+                {
+                    markExtensionFaulted(entry.extensionId, "runPhase", e.what());
+                }
+            }
+            catch (...)
+            {
+                if (!entry.extensionId.empty())
+                {
+                    markExtensionFaulted(entry.extensionId, "runPhase", "Unknown exception");
+                }
+            }
+        }
+
+        processDeferredFaults();
+
+        // End-of-frame maintenance at final phase (Ui)
+        if (phase == openeden::sdk::Phase::Ui)
+        {
+            if (auto* mem = mHost.getScratchMemoryService())
+            {
+                mem->reset();
+            }
+            if (auto* dd = mHost.getDebugDrawService())
+            {
+                dd->endFrame(dt);
+            }
+            if (auto* profiler = mHost.getProfilerService())
+            {
+                profiler->resetFrame();
+            }
+        }
+    }
+
+    void LifecycleManager::shutdown()
+    {
+        // Stop in REVERSE order of started extensions
+        for (auto it = mStartedOrder.rbegin(); it != mStartedOrder.rend(); ++it)
+        {
+            auto extensionIt = mExtensions.find(*it);
+            if (extensionIt != mExtensions.end() && extensionIt->second.instance && extensionIt->second.started)
+            {
+                try
+                {
+                    extensionIt->second.instance->stop();
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Error) << "Extension '" << *it << "' failed at stop: " << e.what();
+                }
+                catch (...)
+                {
+                    Log(Debug::Error) << "Extension '" << *it << "' failed at stop: unknown exception";
+                }
+                extensionIt->second.started = false;
+            }
+        }
+
+        // Destroy extension instances in REVERSE load order (consumers before providers)
+        for (auto it = mLoadOrder.rbegin(); it != mLoadOrder.rend(); ++it)
+        {
+            auto extensionIt = mExtensions.find(*it);
+            if (extensionIt != mExtensions.end() && extensionIt->second.instance)
+            {
+                extensionIt->second.instance.reset();
+            }
+        }
+
+        // Destroy any remaining instances not in loadOrder
+        for (auto& [id, record] : mExtensions)
+        {
+            record.instance.reset();
+        }
+
+        // Clear all registered callbacks (std::function) and contracts BEFORE unloading dynamic libraries
+        mRegistry.clear();
+
+        // Extensions may have left objects in the services (an extension whose start threw never ran stop), and their
+        // code goes away with the library.
+        if (mBeforeUnload)
+            mBeforeUnload();
+        if (auto* host = dynamic_cast<HostImpl*>(&mHost))
+            host->releaseExtensionObjects();
+
+        // Unload dynamic libraries in REVERSE load order AFTER instances and callbacks are destructed
+        for (auto it = mLoadOrder.rbegin(); it != mLoadOrder.rend(); ++it)
+        {
+            auto extensionIt = mExtensions.find(*it);
+            if (extensionIt != mExtensions.end() && extensionIt->second.library)
+            {
+                extensionIt->second.library.reset();
+            }
+        }
+
+        // Unload any remaining libraries not in loadOrder
+        for (auto& [id, record] : mExtensions)
+        {
+            record.library.reset();
+        }
+
+        mStartedOrder.clear();
+        mActiveExtensions.clear();
+        mPendingFaultedExtensions.clear();
+    }
+
+    void LifecycleManager::markExtensionFaulted(const std::string& extensionId, const char* stage, const char* reason)
+    {
+        mFailures.push_back(Failure{ extensionId, stage ? stage : "unknown", reason ? reason : "no reason given" });
+        Log(Debug::Error) << "Extension '" << extensionId << "' failed at " << (stage ? stage : "unknown") << ": "
+                          << (reason ? reason : "no reason given");
+
+        mFaultedExtensions.insert(extensionId);
+        mActiveExtensions.erase(extensionId);
+        mDisabledExtensions.insert(extensionId);
+        mPendingFaultedExtensions.push_back(extensionId);
+    }
+
+    void LifecycleManager::processDeferredFaults()
+    {
+        if (mPendingFaultedExtensions.empty())
+            return;
+
+        // The list can grow while walking it: a dependant's own dependants go too
+        for (std::size_t i = 0; i < mPendingFaultedExtensions.size(); ++i)
+        {
+            const std::string extensionId = mPendingFaultedExtensions[i];
+            mRegistry.withdrawExtension(extensionId);
+            if (auto* host = dynamic_cast<HostImpl*>(&mHost))
+                host->disableExtension(extensionId);
+
+            const auto faulted = mExtensions.find(extensionId);
+            if (faulted == mExtensions.end())
+                continue;
+            for (const auto& id : mLoadOrder)
+            {
+                const auto record = mExtensions.find(id);
+                if (record == mExtensions.end() || mActiveExtensions.find(id) == mActiveExtensions.end())
+                    continue;
+                const auto& required = record->second.manifest.requiredContracts;
+                const bool dependsOnFaulted
+                    = std::any_of(required.begin(), required.end(), [&](const ContractRequirement& req) {
+                          const auto& provided = faulted->second.manifest.providedContracts;
+                          return std::any_of(provided.begin(), provided.end(), [&](const ContractRequirement& offer) {
+                              return offer.contract == req.contract && offer.version.major == req.version.major;
+                          });
+                      });
+                if (dependsOnFaulted)
+                    markExtensionFaulted(
+                        id, "dependency", ("depends on faulted extension '" + extensionId + "'").c_str());
+            }
+        }
+        mPendingFaultedExtensions.clear();
+        mDisabledExtensionsList.assign(mDisabledExtensions.begin(), mDisabledExtensions.end());
+    }
+
+    bool LifecycleManager::isExtensionActive(std::string_view id) const
+    {
+        return mActiveExtensions.find(std::string(id)) != mActiveExtensions.end();
+    }
+
+    bool LifecycleManager::isExtensionFaulted(std::string_view id) const
+    {
+        return mFaultedExtensions.find(std::string(id)) != mFaultedExtensions.end();
+    }
+
+    size_t LifecycleManager::getActiveExtensionCount() const
+    {
+        return mActiveExtensions.size();
+    }
+
+    const std::vector<std::string>& LifecycleManager::getLoadOrder() const
+    {
+        return mLoadOrder;
+    }
+
+    const std::vector<std::string>& LifecycleManager::getDisabledExtensions() const
+    {
+        return mDisabledExtensionsList;
+    }
+} // namespace openeden::extension

@@ -8,7 +8,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Registration interface filled by a plugin during its registerServices() stage.
+     * @brief Registration interface filled by an extension during its registerServices() stage.
      */
     class Registrar
     {
@@ -18,7 +18,7 @@ namespace openeden::sdk
         /**
          * @brief Offers impl as the provider of contract C.
          *
-         * The plugin owns impl and keeps it alive until its stop() method completes.
+         * The extension owns impl and keeps it alive until its stop() method completes.
          * The registry holds a non-owning pointer.
          * @tparam C Contract interface type declaring kId and kVersion.
          * @param impl Reference to the contract implementation.

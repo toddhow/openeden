@@ -27,7 +27,7 @@
 #include "mwclass/classes.hpp"
 #include "mwrender/rendermanager.hpp"
 
-#include "pluginhost.hpp"
+#include "extensionhost.hpp"
 #include "vsgengine.hpp"
 
 namespace OMW
@@ -100,7 +100,7 @@ namespace OMW
             // As in OpenMW 0.51, permanent storage is loaded before the load scripts run (LuaManager::init).
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
             mLuaManager->init(mEngine.mRenderManager.get());
-            mEngine.mPluginHost->setLuaManager(mLuaManager);
+            mEngine.mExtensionHost->setLuaManager(mLuaManager);
 
             mEngine.mLuaActive = true;
 
@@ -120,16 +120,16 @@ namespace OMW
                                      << 100 * static_cast<double>(result.second) / result.first << "%)" << std::endl;
             }
 
-            // Plugins start here rather than with the engine, because they get the world's services for good at start.
-            // Last: if the constructor threw afterwards, ~Game would not run to stop them.
-            mEngine.mPluginHost->attachWorld(*mWorld->getPhysicsSystem());
-            mEngine.mPluginHost->start();
+            // Extensions start here rather than with the engine, because they get the world's services for good at
+            // start. Last: if the constructor threw afterwards, ~Game would not run to stop them.
+            mEngine.mExtensionHost->attachWorld(*mWorld->getPhysicsSystem());
+            mEngine.mExtensionHost->start();
         }
         ~Game()
         {
-            // Plugins stop while the World they may hold IDs into still exists.
-            if (mEngine.mPluginHost)
-                mEngine.mPluginHost->stop();
+            // Extensions stop while the World they may hold IDs into still exists.
+            if (mEngine.mExtensionHost)
+                mEngine.mExtensionHost->stop();
             mEngine.mLuaActive = false;
             if (mLuaManager)
                 mLuaManager->savePermanentStorage(mEngine.mCfgMgr.getUserConfigPath().string());
@@ -183,7 +183,7 @@ namespace OMW
 
                 // Simulation phases run only while the game is unpaused, as the simulation does. dt is simulation time.
                 if (!paused)
-                    mEngine.mPluginHost->runPhase(openeden::sdk::Phase::PreSimulation, dt);
+                    mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::PreSimulation, dt);
 
                 mMechanicsManager->update(dt, paused);
 
@@ -194,8 +194,8 @@ namespace OMW
 
                 if (!paused)
                 {
-                    mEngine.mPluginHost->runPhase(openeden::sdk::Phase::PostSimulation, dt);
-                    mEngine.mPluginHost->runPhase(openeden::sdk::Phase::Animation, dt);
+                    mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::PostSimulation, dt);
+                    mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::Animation, dt);
 
                     timeManager.setSimulationTime(timeManager.getSimulationTime() + dt);
                     timeManager.setRenderingSimulationTime(timeManager.getRenderingSimulationTime() + dt);

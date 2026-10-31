@@ -1,7 +1,7 @@
 # Task 0015: Track W stage W1 — The plugin host runs in the game
 
-**Status:** implemented, awaiting toddhow's review (started at toddhow's request on 2026-10-30, alongside Track V's V4). Depends on task 0019 (SDK 2.0). Scheduling per `docs/design/working-plugin-system.md`, decision 1 (proposed: after Track V's task 0010).
-**Design doc section:** `docs/design/working-plugin-system.md` (sections 1–3, W1); `docs/design/openeden-plugin-system.md` sections 4.3 (phases), 6 (registration and loading), 6.8 (failure handling).
+**Status:** implemented, awaiting toddhow's review (started at toddhow's request on 2026-10-30, alongside Track V's V4). Depends on task 0019 (SDK 2.0). Scheduling per `docs/design/working-extension-system.md`, decision 1 (proposed: after Track V's task 0010).
+**Design doc section:** `docs/design/working-extension-system.md` (sections 1–3, W1); `docs/design/openeden-extension-system.md` sections 4.3 (phases), 6 (registration and loading), 6.8 (failure handling).
 **Goal:** `openmw` creates the plugin host at startup, discovers and loads enabled plugins, runs register → resolve → start, calls the frame phases from the engine loop, bridges plugin logging to the engine log, and stops and unloads plugins at shutdown, with zero plugins costing nothing and changing nothing.
 **Workflow:** full loop.
 

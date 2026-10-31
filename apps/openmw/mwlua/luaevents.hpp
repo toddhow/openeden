@@ -47,9 +47,9 @@ namespace MWLua
         };
 
         void addGlobalEvent(Global event) { mNewGlobalEventBatch.push_back(std::move(event)); }
-        /// A global event from a plugin. Unlike the others, one still waiting is not saved: plugins do not affect save
-        /// data (decision 0005).
-        void addPluginEvent(Global event) { mNewPluginEventBatch.push_back(std::move(event)); }
+        /// A global event from an extension. Unlike the others, one still waiting is not saved: extensions do not
+        /// affect save data (decision 0005).
+        void addExtensionEvent(Global event) { mNewExtensionEventBatch.push_back(std::move(event)); }
         void addMenuEvent(Global event) { mMenuEvents.push_back(std::move(event)); }
         void addLocalEvent(Local event) { mNewLocalEventBatch.push_back(std::move(event)); }
 
@@ -70,8 +70,8 @@ namespace MWLua
         std::vector<Global> mGlobalEventBatch;
         std::vector<Local> mLocalEventBatch;
         std::vector<Global> mMenuEvents;
-        std::vector<Global> mNewPluginEventBatch;
-        std::vector<Global> mPluginEventBatch;
+        std::vector<Global> mNewExtensionEventBatch;
+        std::vector<Global> mExtensionEventBatch;
     };
 
 }

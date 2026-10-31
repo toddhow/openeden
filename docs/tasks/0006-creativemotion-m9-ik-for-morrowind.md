@@ -204,4 +204,4 @@ To allow actors to get close to obstacles, ledges, and slopes for IK foot-planti
    - Independent test-writer subagent authors tests prior to implementation.
    - Independent code reviewer subagent audits all code against this spec.
 3. **Documentation & Changelog**:
-   - `docs/design/plugin-implementation-guide.md`, `CLAUDE.md` in both OpenEden and CreativeMotion, and `docs/design/openeden-plugin-integration.md` updated with Milestone M9 notes.
+   - `docs/design/extension-implementation-guide.md`, `CLAUDE.md` in both OpenEden and CreativeMotion, and `docs/design/openeden-plugin-integration.md` updated with Milestone M9 notes.

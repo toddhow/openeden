@@ -1,7 +1,7 @@
 # Task 0019: Track W stage W0 — SDK 2.0: plugins read physics, never change it, and have no Lua API
 
 **Status:** implemented on branch `claude/w0-sdk-2-794529`, awaiting toddhow's review. No dependency on Track V: it touches only `sdk/`, `components/plugin/`, plugin tests and documents, none of which vsgopenmw's import (task 0009) changes, so it can run now.
-**Design doc section:** `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`; `docs/design/openeden-plugin-system.md` 4.2 (versioning), 4.3, 4.4, 4.6, 4.10.
+**Design doc section:** `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`; `docs/design/openeden-extension-system.md` 4.2 (versioning), 4.3, 4.4, 4.6, 4.10.
 **Goal:** bring the SDK and its implementation in line with decision 0003: remove the physics write operations, collision-layer registration, the fixed-step phases and the Lua scripting service; keep a read-only physics query service and the event bus; add a way for plugin events to be marked for forwarding to Lua (the forwarding itself is engine work in task 0016); bump the SDK to 2.0.
 **Workflow:** full loop (the SDK and the plugin loader are on the guide's full-loop list).
 
@@ -27,7 +27,7 @@ All at OpenEden `459bd661f4` (or the commit this task starts from).
 4. **Lua:** delete `ScriptingService`, `LuaTable`, `scripting.hpp`, `scripting_service.*` and `Host::getScriptingService()`. Add to the event bus the ability to mark an event type as **forwarded to Lua** at registration (event name and a flat payload of numbers, strings and booleans, so the core can turn it into a Lua event without plugin code running in Lua). The forwarding is implemented by the engine in task 0016; here, the SDK declares it and the test host records which events are marked.
 5. **Physics events:** document in the SDK which physics events plugins will receive on the bus (hits, contact begin and end), published by the engine in task 0017; this task adds only their typed declarations.
 6. **Tests:** delete `test_scripting_service.cpp` and `test_collision_layers.cpp`; reduce `test_physics_service.cpp` to the read-only service attached to a test-created world (keep every read and cast test, delete write tests, add shape-cast tests); update `test_empty_host`, `test_lifecycle`, `test_event_bus` and `test_compat_morrowind` for the removed phases and services; add tests for SDK 1.x refusal and for Lua-forwarded event marking.
-7. **Documents:** update `components/plugin/CLAUDE.md`, `docs/design/plugin-implementation-guide.md` and the SDK header comments; the plugin design doc and Track W documents are updated together with decision 0003 (already done when this task starts, see that commit).
+7. **Documents:** update `components/plugin/CLAUDE.md`, `docs/design/extension-implementation-guide.md` and the SDK header comments; the plugin design doc and Track W documents are updated together with decision 0003 (already done when this task starts, see that commit).
 
 ## Constraints
 
@@ -42,7 +42,7 @@ All at OpenEden `459bd661f4` (or the commit this task starts from).
 - [x] The read-only physics service reads bodies, casts rays and casts shapes against an attached world (tests), and cannot create its own world.
 - [x] Event types can be marked as forwarded to Lua with a flat payload; the test host records the marking (test).
 - [x] `components-tests` pass with the deleted tests listed in the pull request and every remaining plugin test passing.
-- [x] `components/plugin/CLAUDE.md` and `docs/design/plugin-implementation-guide.md` describe SDK 2.0.
+- [x] `components/plugin/CLAUDE.md` and `docs/design/extension-implementation-guide.md` describe SDK 2.0.
 - [ ] All existing gates pass. Done on Windows: build, `components-tests` and `CI/check_plugin_sdk.sh`. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers and Lua integration tests. `DetourNavigatorRecastMeshObjectTest.update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true` fails now and then in a full run and passes alone. This task changes nothing in `components/detournavigator`, but a clean `vulkan` build was not compared.
 
 ## Out of scope

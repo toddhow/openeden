@@ -12,7 +12,7 @@ namespace MWPhysics
 {
     // Note: this is called from a job so whatever you do here needs to be thread safe.
     /// Told about contacts involving an actor or a projectile. Called on physics threads with bodies locked, so it must
-    /// not call back into Jolt or the game; OpenEden's plugin host queues them for the main thread (task 0017).
+    /// not call back into Jolt or the game; OpenEden's extension host queues them for the main thread (task 0017).
     class ContactObserver
     {
     public:

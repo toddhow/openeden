@@ -635,12 +635,12 @@ add_component_dir(testing
     util
 )
 
-add_component_dir(plugin
+add_component_dir(extension
     manifest
     load_error
     manifest_io
     dynamic_library
-    plugin_loader
+    extension_loader
     dependency_resolver
     service_registry
     lifecycle_manager

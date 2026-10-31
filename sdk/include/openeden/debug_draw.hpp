@@ -24,7 +24,7 @@ namespace openeden::sdk
 
     struct DebugPoint
     {
-        std::string pluginId;
+        std::string extensionId;
         Vector3 position;
         Color4f color;
         float size = 1.0f;
@@ -34,7 +34,7 @@ namespace openeden::sdk
 
     struct DebugLine
     {
-        std::string pluginId;
+        std::string extensionId;
         Vector3 start;
         Vector3 end;
         Color4f color;
@@ -45,7 +45,7 @@ namespace openeden::sdk
 
     struct DebugBox
     {
-        std::string pluginId;
+        std::string extensionId;
         Vector3 min;
         Vector3 max;
         Color4f color;
@@ -55,7 +55,7 @@ namespace openeden::sdk
 
     struct DebugSphere
     {
-        std::string pluginId;
+        std::string extensionId;
         Vector3 center;
         float radius = 1.0f;
         Color4f color;
@@ -65,7 +65,7 @@ namespace openeden::sdk
 
     struct DebugText
     {
-        std::string pluginId;
+        std::string extensionId;
         Vector3 position;
         std::string text;
         Color4f color;
@@ -101,29 +101,29 @@ namespace openeden::sdk
     public:
         virtual ~DebugDrawService() = default;
 
-        virtual void drawPoint(std::string_view pluginId, const Vector3& pos, const Color4f& color, float size = 1.0f,
+        virtual void drawPoint(std::string_view extensionId, const Vector3& pos, const Color4f& color,
+            float size = 1.0f, bool depthTest = true, float duration = 0.0f)
+            = 0;
+
+        virtual void drawLine(std::string_view extensionId, const Vector3& from, const Vector3& to,
+            const Color4f& color, float lineWidth = 1.0f, bool depthTest = true, float duration = 0.0f)
+            = 0;
+
+        virtual void drawBox(std::string_view extensionId, const Vector3& min, const Vector3& max, const Color4f& color,
             bool depthTest = true, float duration = 0.0f)
             = 0;
 
-        virtual void drawLine(std::string_view pluginId, const Vector3& from, const Vector3& to, const Color4f& color,
-            float lineWidth = 1.0f, bool depthTest = true, float duration = 0.0f)
-            = 0;
-
-        virtual void drawBox(std::string_view pluginId, const Vector3& min, const Vector3& max, const Color4f& color,
+        virtual void drawSphere(std::string_view extensionId, const Vector3& center, float radius, const Color4f& color,
             bool depthTest = true, float duration = 0.0f)
             = 0;
 
-        virtual void drawSphere(std::string_view pluginId, const Vector3& center, float radius, const Color4f& color,
-            bool depthTest = true, float duration = 0.0f)
-            = 0;
-
-        virtual void drawText(std::string_view pluginId, const Vector3& pos, std::string_view text,
+        virtual void drawText(std::string_view extensionId, const Vector3& pos, std::string_view text,
             const Color4f& color, float scale = 1.0f, bool depthTest = false, float duration = 0.0f)
             = 0;
 
         [[nodiscard]] virtual DebugSnapshot extractSnapshot() const = 0;
         virtual void endFrame(float dt = 0.0f) = 0;
         virtual void clear() = 0;
-        virtual void clearPlugin(std::string_view pluginId) = 0;
+        virtual void clearExtension(std::string_view extensionId) = 0;
     };
 } // namespace openeden::sdk

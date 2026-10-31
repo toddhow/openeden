@@ -1,7 +1,7 @@
 # Task 0016: Track W stage W2 — Data services on the engine
 
 **Status:** implemented, awaiting toddhow's review. **The save part was removed by decision 0005 (plugins do not affect save data):** the design's item 3, its save criterion and constraint, and the notes on saves below describe what was built and then taken out. Depends on task 0015 (W1).
-**Design doc section:** `docs/design/working-plugin-system.md` (W2, decision 4); `docs/design/openeden-plugin-system.md` sections 4.7 (VFS and file formats), 4.8 (settings), 4.9 (save games), 4.10 (Lua).
+**Design doc section:** `docs/design/working-extension-system.md` (W2, decision 4); `docs/design/openeden-extension-system.md` sections 4.7 (VFS and file formats), 4.8 (settings), 4.9 (save games), 4.10 (Lua).
 **Goal:** a plugin's data folder, settings and save data work through the engine's real subsystems, and the events it marks reach Lua scripts: its files are in the game's virtual file system in load order, its settings live in `settings.cfg`, its save chunks travel inside `.omwsave` files, and mods can react to its forwarded events (decision 0003: plugins have no Lua API of their own).
 **Depends also on:** task 0019 (SDK 2.0: event marking for Lua forwarding).
 **Workflow:** full loop.

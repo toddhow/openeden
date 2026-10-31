@@ -7,11 +7,11 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/journal.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/scriptmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -19,8 +19,8 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwscript/globalscripts.hpp"
 #include "../mwworld/cellstore.hpp"
-#include "../mwworld/worldmodel.hpp"
 #include "../mwworld/scene.hpp"
+#include "../mwworld/worldmodel.hpp"
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/actoridconverter.hpp>
@@ -325,7 +325,7 @@ namespace MWState
 
             state = StateManager::State_Running;
             MWBase::Environment::get().getLuaManager()->gameLoaded();
-            MWBase::Environment::get().getPluginManager()->gameLoaded();
+            MWBase::Environment::get().getExtensionManager()->gameLoaded();
             for (int actorId : actorIdConverter.mGraveyard)
             {
                 auto mapped = actorIdConverter.mMappings.find(actorId);

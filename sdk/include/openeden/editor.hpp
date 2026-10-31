@@ -7,7 +7,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Abstract editor dockable workspace registered by a plugin for Eden Studio.
+     * @brief Abstract editor dockable workspace registered by an extension for Eden Studio.
      */
     class EditorWorkspace
     {
@@ -30,7 +30,7 @@ namespace openeden::sdk
     };
 
     /**
-     * @brief Abstract viewport manipulator or gizmo registered by a plugin.
+     * @brief Abstract viewport manipulator or gizmo registered by an extension.
      */
     class EditorGizmo
     {
@@ -41,7 +41,7 @@ namespace openeden::sdk
     };
 
     /**
-     * @brief Service managing editor extension points.
+     * @brief Service managing editor hooks.
      * Inactive and safely no-oped in game and headless test hosts.
      */
     class EditorService
@@ -51,11 +51,11 @@ namespace openeden::sdk
 
         [[nodiscard]] virtual bool isEditorActive() const noexcept = 0;
 
-        virtual void registerWorkspace(std::string_view pluginId, std::shared_ptr<EditorWorkspace> workspace) = 0;
-        virtual void registerInspector(std::string_view pluginId, std::shared_ptr<EditorInspector> inspector) = 0;
-        virtual void registerGizmo(std::string_view pluginId, std::shared_ptr<EditorGizmo> gizmo) = 0;
+        virtual void registerWorkspace(std::string_view extensionId, std::shared_ptr<EditorWorkspace> workspace) = 0;
+        virtual void registerInspector(std::string_view extensionId, std::shared_ptr<EditorInspector> inspector) = 0;
+        virtual void registerGizmo(std::string_view extensionId, std::shared_ptr<EditorGizmo> gizmo) = 0;
 
-        virtual void unregisterExtensions(std::string_view pluginId) = 0;
+        virtual void unregisterEditorHooks(std::string_view extensionId) = 0;
 
         [[nodiscard]] virtual std::vector<std::shared_ptr<EditorWorkspace>> getWorkspaces() const = 0;
         [[nodiscard]] virtual std::vector<std::shared_ptr<EditorInspector>> getInspectors() const = 0;

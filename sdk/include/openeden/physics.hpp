@@ -127,8 +127,8 @@ namespace openeden::sdk
     /**
      * @brief Read-only view of the core's single Jolt world (decision 0003).
      *
-     * Plugins may read body states and cast rays and shapes. They never create, move or step
-     * anything: systems that must change physics belong in the core. Handles a plugin holds go
+     * Extensions may read body states and cast rays and shapes. They never create, move or step
+     * anything: systems that must change physics belong in the core. Handles an extension holds go
      * stale when the core destroys the body; every call rejects a stale handle safely.
      */
     class PhysicsQueryService

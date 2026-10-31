@@ -6,7 +6,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Physics events plugins can subscribe to on the event bus (decision 0003).
+     * @brief Physics events extensions can subscribe to on the event bus (decision 0003).
      *
      * The core delivers them at the start of Phase::Input, on the main thread, never on a physics
      * worker thread. Bodies in an event may already be gone: check them with

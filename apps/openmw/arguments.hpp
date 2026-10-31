@@ -17,7 +17,7 @@ namespace OMW
         Files::PathContainer dataDirs;
         std::filesystem::path dataLocal; ///< Also the last of dataDirs, if set and it exists
         std::vector<std::string> archives;
-        std::vector<std::string> plugins;
+        std::vector<std::string> extensions;
         std::filesystem::path resourceDir;
         ToUTF8::FromType encoding = ToUTF8::WINDOWS_1252;
 

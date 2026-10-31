@@ -1,6 +1,6 @@
-# Plugins
+# Extensions
 
-PluginsFailed: "These plugins could not run and were turned off:"
+ExtensionsFailed: "These extensions could not run and were turned off:"
 
 # Console
 

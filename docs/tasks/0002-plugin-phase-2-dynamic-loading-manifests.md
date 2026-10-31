@@ -1,5 +1,5 @@
 # Task: 0002 Plugin System Phase 2 - Dynamic Loading and Manifests
-Design doc sections: [`docs/design/openeden-plugin-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-plugin-system.md#L396-L400), Sections 4.1, 5.1, 5.2, 6.1, 6.2, 7.1, 7.2, 8, 10
+Design doc sections: [`docs/design/openeden-extension-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-extension-system.md#L396-L400), Sections 4.1, 5.1, 5.2, 6.1, 6.2, 7.1, 7.2, 8, 10
 Goal: Implement filesystem manifest discovery, canonical JSON manifest parsing and serialization with located errors, platform dynamic library loading (`.dll`/`.so`), entry point handshake validation (`openeden_plugin_entry`), enable list filtering, integration with `LifecycleManager`, and the `openeden_add_plugin()` CMake helper.
 
 Inherited code touched:

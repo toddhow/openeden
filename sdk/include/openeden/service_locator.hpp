@@ -9,7 +9,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Service locator interface read by plugins during resolution and execution.
+     * @brief Service locator interface read by extensions during resolution and execution.
      *
      * Provides access to contracts registered with the core.
      */

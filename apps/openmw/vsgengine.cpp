@@ -29,7 +29,7 @@
 #include "mwstate/statemanagerimp.hpp"
 
 #include "boot.hpp"
-#include "pluginhost.hpp"
+#include "extensionhost.hpp"
 
 namespace
 {
@@ -142,8 +142,8 @@ namespace OMW
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             return false;
         }
-        mPluginHost->deliverWorldEvents();
-        mPluginHost->runPhase(openeden::sdk::Phase::Input, dt);
+        mExtensionHost->deliverWorldEvents();
+        mExtensionHost->runPhase(openeden::sdk::Phase::Input, dt);
         if (gameState->updateSound)
             mSoundManager->update(dt);
 
@@ -154,7 +154,7 @@ namespace OMW
         const float luaDt = std::min(dt, 0.2f);
         if (mLuaActive && gameState->updateLua)
         {
-            mPluginHost->sendPendingLuaEvents();
+            mExtensionHost->sendPendingLuaEvents();
             mLuaManager->synchronizedUpdate(luaDt);
         }
         // Delayed Lua actions such as teleports may push a state (ChangeCell); 0.51 changed the cell inside
@@ -181,15 +181,15 @@ namespace OMW
         // Here, not in the Game state, which does not run while the menu state is on top of it
         if (mWindowManager->containsMode(MWGui::GM_MainMenu))
         {
-            if (const std::string report = mPluginHost->takeFailureReport(); !report.empty())
+            if (const std::string report = mExtensionHost->takeFailureReport(); !report.empty())
             {
-                Log(Debug::Info) << "Showing plugin failure message";
-                mWindowManager->messageBox("#{OMWEngine:PluginsFailed}\n" + report);
+                Log(Debug::Info) << "Showing extension failure message";
+                mWindowManager->messageBox("#{OMWEngine:ExtensionsFailed}\n" + report);
             }
         }
-        mPluginHost->runPhase(openeden::sdk::Phase::PreRender, dt);
+        mExtensionHost->runPhase(openeden::sdk::Phase::PreRender, dt);
         mWindowManager->onFrame(dt);
-        mPluginHost->runPhase(openeden::sdk::Phase::Ui, dt);
+        mExtensionHost->runPhase(openeden::sdk::Phase::Ui, dt);
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
         if (gameState->requiresScene)
             mRenderManager->onFrame(dt);
@@ -198,8 +198,8 @@ namespace OMW
 
     Engine::~Engine()
     {
-        if (mPluginHost)
-            mPluginHost->stop();
+        if (mExtensionHost)
+            mExtensionHost->stop();
 
         if (mWindow)
         {
@@ -333,9 +333,9 @@ namespace OMW
 
         Misc::Rng::init(args.randomSeed);
 
-        mPluginHost = std::make_unique<PluginHost>(PluginHost::Config{
-            { mCfgMgr.getLocalPath() / "plugins", mCfgMgr.getUserDataPath() / "plugins" }, args.plugins });
-        mEnvironment.setPluginManager(*mPluginHost);
+        mExtensionHost = std::make_unique<ExtensionHost>(ExtensionHost::Config{
+            { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions" }, args.extensions });
+        mEnvironment.setExtensionManager(*mExtensionHost);
 
         mVFS = std::make_unique<VFS::Manager>();
 
@@ -345,16 +345,16 @@ namespace OMW
         mFileCollections = Files::Collections(mDataDirs);
         // OpenMW 0.51 decodes archive file names with the content encoding.
         mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
-        if (mPluginHost->dataDirs().empty())
+        if (mExtensionHost->dataDirs().empty())
             VFS::registerArchives(
                 mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
         else
         {
-            // Plugin data goes above data= folders and below data-local (task 0016). They are data folders in full, so
-            // a plugin can carry content files such as an .omwscripts.
+            // Extension data goes above data= folders and below data-local (task 0016). They are data folders in full,
+            // so an extension can carry content files such as an .omwscripts.
             Files::PathContainer vfsDirs = mDataDirs;
             auto insertAt = std::find(vfsDirs.begin(), vfsDirs.end(), args.dataLocal);
-            for (const openeden::plugin::PluginDataDir& dir : mPluginHost->dataDirs())
+            for (const openeden::extension::ExtensionDataDir& dir : mExtensionHost->dataDirs())
                 insertAt = std::next(vfsDirs.insert(insertAt, dir.directory));
             VFS::registerArchives(
                 mVFS.get(), Files::Collections(vfsDirs), args.archives, true, &mEncoder->getStatelessEncoder());
@@ -362,12 +362,12 @@ namespace OMW
             VFS::Manager gameData;
             VFS::registerArchives(
                 &gameData, mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
-            mPluginHost->reportDataOverrides(gameData);
+            mExtensionHost->reportDataOverrides(gameData);
 
             mDataDirs = std::move(vfsDirs);
             mFileCollections = Files::Collections(mDataDirs);
         }
-        mPluginHost->setEngineVfs(mVFS.get());
+        mExtensionHost->setEngineVfs(mVFS.get());
 
         auto physicalDevice = mRenderEngine->getOrCreatePhysicalDevice();
         bool useTextureCompression = physicalDevice->getFeatures().textureCompressionBC;
@@ -508,7 +508,7 @@ namespace OMW
 
         std::cout << "Quitting peacefully." << std::endl;
 
-        mPluginHost->stop();
+        mExtensionHost->stop();
 
         Settings::Manager::saveUser(mCfgMgr.getUserConfigPath() / "settings.cfg");
     }

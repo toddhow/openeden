@@ -1,5 +1,5 @@
 # Task: 0005 Plugin System Phase 5 - CreativeMotion First Client & Shared Jolt Physics Service
-Design doc sections: [`docs/design/openeden-plugin-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-plugin-system.md#L171-L176), Sections 4.2, 4.4, 5.1, 5.2, 7.2, 10 (Phase 5)
+Design doc sections: [`docs/design/openeden-extension-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-extension-system.md#L171-L176), Sections 4.2, 4.4, 5.1, 5.2, 7.2, 10 (Phase 5)
 Goal: Implement the shared Jolt `PhysicsService` behind the Host API, define the `openeden.animation` contract, hook up CreativeMotion (`i:/Projects/CreativeMotion`) as OpenEden's first real plugin using the core's shared Jolt world instead of creating a second one, and document the complete plugin implementation guide for future plugins.
 
 Inherited code touched:
@@ -48,7 +48,7 @@ Inputs / outputs:
     - Registers `AnimationContract`, fixed-step and frame phase callbacks, collision layers (`creativemotion.ragdoll`, `creativemotion.world`), VFS format readers (`opas.rig`, `opas.profile`, `opas.style`, `opas.animgraph`), save chunk handler (`creativemotion`), and Lua module (`openeden.creativemotion`).
     - Exports `openeden_plugin_entry` for dynamic library loading (`creativemotion.dll` / `libcreativemotion.so`).
 - Documentation:
-  - `docs/design/plugin-implementation-guide.md`: Comprehensive guide documenting how to implement and hook up a plugin in OpenEden based on the CreativeMotion implementation.
+  - `docs/design/extension-implementation-guide.md`: Comprehensive guide documenting how to implement and hook up a plugin in OpenEden based on the CreativeMotion implementation.
 
 Constraints & Invariants:
 - Single Jolt World: CreativeMotion must NOT instantiate its own `JPH::PhysicsSystem` when running as an OpenEden plugin; all physics bodies and constraints go through `Host::getPhysicsService()`.
@@ -62,7 +62,7 @@ Acceptance criteria:
 - [ ] `creativemotion` builds as a shared plugin library (`creativemotion.dll` / `libcreativemotion.so`) with `OPAS_BUILD_PHYSICS=OFF` (no second Jolt world) and loads via `PluginLoader` and `LifecycleManager`.
 - [ ] `CreativeMotionPlugin` provides `openeden.animation` v1.1, registers collision layers, VFS format readers, save chunk handlers, and Lua bindings, and respects the off-by-default `enabled = false` setting.
 - [ ] When enabled, CreativeMotion builds its sample humanoid ragdoll inside OpenEden's shared `PhysicsService`, drives joint motors across fixed steps, and reconciles capsule state with zero hot-path allocations.
-- [ ] `docs/design/plugin-implementation-guide.md` in OpenEden and `docs/design/openeden-plugin-integration.md` in CreativeMotion document the integration and any CreativeMotion changes.
+- [ ] `docs/design/extension-implementation-guide.md` in OpenEden and `docs/design/openeden-plugin-integration.md` in CreativeMotion document the integration and any CreativeMotion changes.
 
 Out of scope:
 - Morrowind `.nif` / `.kf` compatibility pack readers (tracked under the Morrowind compatibility pack milestone).

@@ -18,7 +18,7 @@ namespace openeden::sdk
     class EditorService;
 
     /**
-     * @brief Host metadata provided to plugins.
+     * @brief Host metadata provided to extensions.
      */
     struct HostInfo
     {

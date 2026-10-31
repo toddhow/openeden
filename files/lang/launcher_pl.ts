@@ -404,6 +404,33 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     </message>
 </context>
 <context>
+    <name>Launcher::ExtensionsPage</name>
+    <message>
+        <source>Extension</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extensions are programs that run with the same rights as the game. Install them only from sources you trust.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Launcher::GraphicsPage</name>
     <message>
         <source>Error receiving number of screens</source>
@@ -573,33 +600,6 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     </message>
 </context>
 <context>
-    <name>Launcher::PluginsPage</name>
-    <message>
-        <source>Plugin</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Version</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Kind</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Licence</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Problem</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Plugins are programs that run with the same rights as the game. Install them only from sources you trust.</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>Launcher::SettingsPage</name>
     <message>
         <source>Text file (*.txt)</source>
@@ -699,11 +699,11 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
         <translation>Umożliwia importowanie danych z oryginalnego silnika</translation>
     </message>
     <message>
-        <source>Plugins</source>
+        <source>Extensions</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Enable or disable plugins, which add native code to the game.</source>
+        <source>Enable or disable extensions, which add native code to the game.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

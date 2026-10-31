@@ -15,9 +15,9 @@
 #include <components/esm/util.hpp>
 #include <components/fallback/fallback.hpp>
 
+#include "../mwbase/extensionmanager.hpp"
 #include "error.hpp"
 #include "operation.hpp"
-#include "../mwbase/pluginmanager.hpp"
 
 #include "statemanagerimp.hpp"
 
@@ -113,7 +113,7 @@ namespace MWState
                 }
                 mState = StateManager::State_Running;
                 MWBase::Environment::get().getLuaManager()->gameLoaded();
-                MWBase::Environment::get().getPluginManager()->gameLoaded();
+                MWBase::Environment::get().getExtensionManager()->gameLoaded();
             }
             catch (std::exception& e)
             {

@@ -1,7 +1,7 @@
 # Task 0018: Track W stage W4 — Real clients, packaging and the launcher
 
 **Status:** (Decision 0005 later took save chunks out of the sample plugin, the design's item 3 and its end-to-end test.) Implemented on Windows, except plugin settings in the launcher (see Notes), awaiting toddhow's review. Depends on task 0017 (W3).
-**Design doc section:** `docs/design/working-plugin-system.md` (W4, decision 5); `docs/design/openeden-plugin-system.md` sections 5 (packaging), 6.1 (discovery and enable list), 6.8 (failure reporting), 7.2 (plugin build), 8 (testing), 9 (licence and trust).
+**Design doc section:** `docs/design/working-extension-system.md` (W4, decision 5); `docs/design/openeden-extension-system.md` sections 5 (packaging), 6.1 (discovery and enable list), 6.8 (failure reporting), 7.2 (plugin build), 8 (testing), 9 (licence and trust).
 **Goal:** plugins are real for players and authors: OpenEden installs with its first-party plugins in place, the launcher lists them and turns them on and off, failures are shown where the player sees them, the Morrowind compatibility pack runs in the game, and a sample plugin proves every service end to end as a template for authors.
 **Workflow:** full loop.
 
@@ -20,7 +20,7 @@
 
 1. **Install layout:** `cmake --install` places each first-party plugin in `<install>/plugins/<id>/` with its manifest, library, data and licence; the game's default search path (task 0015) finds them.
 2. **Morrowind compatibility pack in the game:** enabled by default for Morrowind installs (proposed: the only plugin on by default, because it carries no behaviour change until the engine consumes `openeden.game`); it loads, resolves and starts in the game; its `.kf` converter is callable through the registry (an integration test converts a synthetic `.kf` through the running game's registry). Consuming `openeden.game` from the engine (moving Morrowind rules out of the core, plugin doc phase 5) is a separate track, not this task.
-3. **Sample plugin** `plugins/example/` (name proposed): a small, documented plugin using every service: a data file through the VFS, a setting, a save chunk, an event forwarded to Lua (and a Lua script in its data that reacts to it), ray and shape casts against the game world, entity lifecycle and physics events, a game event, debug drawing, a profiler scope. It shows what plugins may and may not do under decision 0003 (no physics changes, no Lua API). It is off by default, built in CI, and doubles as the template referenced by `docs/design/plugin-implementation-guide.md` (update that guide to match the working system).
+3. **Sample plugin** `plugins/example/` (name proposed): a small, documented plugin using every service: a data file through the VFS, a setting, a save chunk, an event forwarded to Lua (and a Lua script in its data that reacts to it), ray and shape casts against the game world, entity lifecycle and physics events, a game event, debug drawing, a profiler scope. It shows what plugins may and may not do under decision 0003 (no physics changes, no Lua API). It is off by default, built in CI, and doubles as the template referenced by `docs/design/extension-implementation-guide.md` (update that guide to match the working system).
 4. **Launcher:** a "Plugins" page (or a section of the data-files page) listing discovered plugins with name, version, licence, description and enabled state; toggling writes `plugin=` lines (task 0015's enable list); plugins whose manifests fail validation are shown with the reason and cannot be enabled; a one-line trust notice. Strings translated (regenerate `.ts` files).
 5. **Failure reporting in game:** when a plugin fails to load or is disabled at runtime, the player sees one message box at the main menu naming the plugin and the reason (plugin doc 6.8), besides the log.
 6. **Plugin settings in the launcher:** typed settings from manifests (bool, number with range, enum, string; plugin doc 4.8) drawn without plugin code (proposed; can move to a follow-up if large).
@@ -39,7 +39,7 @@
 - [x] The sample plugin, enabled, passes an end-to-end Lua integration test covering every service, including save and reload (`tools/plugin_example_check/check.sh`, a shell check as CI's runner needs a plugin it cannot yet install; debug draw is submitted, not shown).
 - [ ] The launcher lists plugins with their details, enables and disables them by writing `plugin=` lines, shows invalid manifests with reasons, and shows the trust notice; `CI/check_qt_translations.sh` passes. Built and translations regenerated with `lupdate`, but the page was never opened or clicked, so this stays unticked until someone does.
 - [x] A plugin that fails to load produces one in-game message at the main menu and a log entry.
-- [x] `docs/design/plugin-implementation-guide.md` matches the working system and points to the sample plugin.
+- [x] `docs/design/extension-implementation-guide.md` matches the working system and points to the sample plugin.
 - [ ] All existing gates pass. Done on Windows: build, `components-tests`, `openmw-tests`, the 32 Lua tests, every real-game check. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers, `openmw-cs-tests`.
 
 ## Out of scope

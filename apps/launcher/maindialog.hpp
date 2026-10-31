@@ -26,7 +26,7 @@ namespace Launcher
     class DataFilesPage;
     class UnshieldThread;
     class ImportPage;
-    class PluginsPage;
+    class ExtensionsPage;
     class SettingsPage;
 
     enum FirstRunDialogResult
@@ -58,7 +58,7 @@ namespace Launcher
         void enableGraphicsPage();
         void enableSettingsPage();
         void enableImportPage();
-        void enablePluginsPage();
+        void enableExtensionsPage();
         void play();
         void help();
 
@@ -97,7 +97,7 @@ namespace Launcher
         DataFilesPage* mDataFilesPage;
         ImportPage* mImportPage;
         SettingsPage* mSettingsPage;
-        PluginsPage* mPluginsPage;
+        ExtensionsPage* mExtensionsPage;
 
         Process::ProcessInvoker* mGameInvoker;
         Process::ProcessInvoker* mWizardInvoker;

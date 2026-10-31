@@ -41,14 +41,14 @@ namespace openeden::sdk
     /**
      * @brief Describes an event type the core forwards to Lua scripts as a Lua event.
      *
-     * Plugins have no Lua API (decision 0003): no plugin code runs in Lua, the core copies the
+     * Extensions have no Lua API (decision 0003): no extension code runs in Lua, the core copies the
      * payload. The payload is flat, only numbers, strings and booleans. Use
-     * EventBus::markForwardedToLua<T>(pluginId, name, fields) rather than filling this by hand.
+     * EventBus::markForwardedToLua<T>(extensionId, name, fields) rather than filling this by hand.
      */
     struct ForwardedEventDesc
     {
         EventId id = 0;
-        std::string_view pluginId;
+        std::string_view extensionId;
         std::string_view name;
         std::size_t payloadSize = 0;
         std::span<const ForwardedField> fields;
@@ -125,13 +125,13 @@ namespace openeden::sdk
         virtual void processDeferredEvents(Phase phase) {}
 
         /**
-         * @brief Subscribes a typed callback invoked in plugin load order.
+         * @brief Subscribes a typed callback invoked in extension load order.
          */
         template <typename T, typename Callback>
-        void subscribe(std::string_view pluginId, Callback&& callback)
+        void subscribe(std::string_view extensionId, Callback&& callback)
         {
             subscribe(
-                T::kEventId, pluginId, [cb = std::forward<Callback>(callback)](const void* data, std::size_t size) {
+                T::kEventId, extensionId, [cb = std::forward<Callback>(callback)](const void* data, std::size_t size) {
                     if (size >= sizeof(T))
                     {
                         cb(*static_cast<const T*>(data));
@@ -140,14 +140,14 @@ namespace openeden::sdk
         }
 
         /**
-         * @brief Subscribes a raw callback invoked in plugin load order.
+         * @brief Subscribes a raw callback invoked in extension load order.
          */
-        virtual void subscribe(EventId id, std::string_view pluginId, RawEventCallback callback) = 0;
+        virtual void subscribe(EventId id, std::string_view extensionId, RawEventCallback callback) = 0;
 
         /**
-         * @brief Unsubscribes a plugin from an event.
+         * @brief Unsubscribes an extension from an event.
          */
-        virtual void unsubscribe(EventId id, std::string_view pluginId) = 0;
+        virtual void unsubscribe(EventId id, std::string_view extensionId) = 0;
 
         /**
          * @brief Marks typed event T as forwarded to Lua. Call it from start(), and publish marked events on the main
@@ -155,17 +155,17 @@ namespace openeden::sdk
          */
         template <typename T>
         bool markForwardedToLua(
-            std::string_view pluginId, std::string_view name, std::span<const ForwardedField> fields)
+            std::string_view extensionId, std::string_view name, std::span<const ForwardedField> fields)
         {
             static_assert(std::is_trivially_copyable_v<T>,
                 "Event types published via raw memory slice must be trivially copyable");
-            return markForwardedToLua(ForwardedEventDesc{ T::kEventId, pluginId, name, sizeof(T), fields });
+            return markForwardedToLua(ForwardedEventDesc{ T::kEventId, extensionId, name, sizeof(T), fields });
         }
 
         /**
          * @brief Marks an event type as forwarded to Lua.
          *
-         * Returns false, changing nothing, if the plugin ID or name is empty, the plugin already used
+         * Returns false, changing nothing, if the extension ID or name is empty, the extension already used
          * that name, a field has an empty or repeated name, a size wrong for its type or does not fit
          * inside the payload, or the event is already marked.
          */

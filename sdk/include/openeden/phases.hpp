@@ -8,7 +8,7 @@ namespace openeden::sdk
     /**
      * @brief Fixed frame phases executed in named order.
      *
-     * Plugins run only per frame: stepping physics deterministically is a core concern (decision 0003).
+     * Extensions run only per frame: stepping physics deterministically is a core concern (decision 0003).
      */
     enum class Phase : std::uint8_t
     {

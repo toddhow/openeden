@@ -33,9 +33,9 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -1821,7 +1821,7 @@ namespace MWMechanics
                 // Actor has been resurrected. Notify the CharacterController and re-enable collision.
                 MWBase::Environment::get().getWorld()->enableActorCollision(iter->second->getPtr(), true);
                 iter->second->getCharacterController().resurrect();
-                MWBase::Environment::get().getPluginManager()->actorRevived(ptr);
+                MWBase::Environment::get().getExtensionManager()->actorRevived(ptr);
             }
         }
     }
@@ -1844,7 +1844,7 @@ namespace MWMechanics
             if (killResult == CharacterController::Result_DeathAnimStarted)
             {
                 // When it dies, not when its death animation ends as for Lua: an actor can be revived before that
-                MWBase::Environment::get().getPluginManager()->actorDied(actor.getPtr());
+                MWBase::Environment::get().getExtensionManager()->actorDied(actor.getPtr());
 
                 // Play dying words
                 // Note: It's not known whether the soundgen tags scream, roar, and moan are reliable

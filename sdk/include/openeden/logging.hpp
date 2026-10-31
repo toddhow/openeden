@@ -7,7 +7,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Severity levels for plugin logging.
+     * @brief Severity levels for extension logging.
      */
     enum class LogLevel : std::uint8_t
     {
@@ -30,18 +30,18 @@ namespace openeden::sdk
         /**
          * @brief Dispatches a formatted log message.
          */
-        virtual void log(std::string_view pluginId, LogLevel level, std::string_view formattedMessage) = 0;
+        virtual void log(std::string_view extensionId, LogLevel level, std::string_view formattedMessage) = 0;
     };
 
     /**
-     * @brief Per-plugin isolated logger.
+     * @brief Per-extension isolated logger.
      */
     class Logger
     {
     public:
         virtual ~Logger() = default;
 
-        [[nodiscard]] virtual std::string_view getPluginId() const noexcept = 0;
+        [[nodiscard]] virtual std::string_view getExtensionId() const noexcept = 0;
         [[nodiscard]] virtual LogLevel getLogLevel() const noexcept = 0;
         virtual void setLogLevel(LogLevel level) = 0;
 
@@ -63,7 +63,7 @@ namespace openeden::sdk
     public:
         virtual ~LoggingService() = default;
 
-        [[nodiscard]] virtual Logger* getLogger(std::string_view pluginId) = 0;
+        [[nodiscard]] virtual Logger* getLogger(std::string_view extensionId) = 0;
 
         [[nodiscard]] virtual LogLevel getGlobalLogLevel() const noexcept = 0;
         virtual void setGlobalLogLevel(LogLevel level) = 0;

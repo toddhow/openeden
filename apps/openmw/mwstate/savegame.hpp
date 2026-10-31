@@ -8,11 +8,11 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/journal.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/scriptmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -21,8 +21,8 @@
 #include "../mwrender/screenshotinterface.hpp"
 #include "../mwscript/globalscripts.hpp"
 #include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
 #include "../mwworld/datetimemanager.hpp"
+#include "../mwworld/esmstore.hpp"
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -170,7 +170,7 @@ namespace MWState
 
             Settings::saves().mCharacter.set(Files::pathToUnicodeString(slot->mPath.parent_path().filename()));
             stateManager->setLastSavegame(slot->mPath);
-            MWBase::Environment::get().getPluginManager()->gameSaved();
+            MWBase::Environment::get().getExtensionManager()->gameSaved();
 
             const auto finish = std::chrono::steady_clock::now();
 

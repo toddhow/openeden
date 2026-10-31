@@ -7,7 +7,7 @@ set(LAUNCHER
     textslotmsgbox.cpp
     importpage.cpp
     settingspage.cpp
-    pluginspage.cpp
+    extensionspage.cpp
 
     utils/cellnameloader.cpp
     utils/profilescombobox.cpp
@@ -26,7 +26,7 @@ set(LAUNCHER_HEADER
     textslotmsgbox.hpp
     importpage.hpp
     settingspage.hpp
-    pluginspage.hpp
+    extensionspage.hpp
 
     utils/cellnameloader.hpp
     utils/profilescombobox.hpp

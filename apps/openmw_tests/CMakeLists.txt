@@ -27,9 +27,9 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwscript/testscripts.cpp
 
-    plugin/testpluginfailures.cpp
-    plugin/testpluginhost.cpp
-    plugin/testpluginworld.cpp
+    extension/testextensionfailures.cpp
+    extension/testextensionhost.cpp
+    extension/testextensionworld.cpp
 )
 
 if (MSVC)
@@ -72,42 +72,42 @@ target_compile_definitions(openmw-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
 
-# The plugin host's tests (task 0015) load real shared libraries: one source, built once per test ID, SDK only.
+# The extension host's tests (task 0015) load real shared libraries: one source, built once per test ID, SDK only.
 # A provides the contract openeden.test.a, B requires it, C stands alone, KF requires the Morrowind pack's converter.
-include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenPlugin.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenExtension.cmake)
 
-foreach(OPENEDEN_TEST_PLUGIN_LETTER a b c kf)
-    set(OPENEDEN_TEST_PLUGIN_TARGET openeden_test_plugin_${OPENEDEN_TEST_PLUGIN_LETTER})
-    set(OPENEDEN_TEST_PLUGIN_OUTPUT "${CMAKE_BINARY_DIR}/test_plugins/$<CONFIG>")
-    openeden_add_plugin(${OPENEDEN_TEST_PLUGIN_TARGET} SOURCES plugin/testplugin/testplugin.cpp NO_INSTALL)
+foreach(OPENEDEN_TEST_EXTENSION_LETTER a b c kf)
+    set(OPENEDEN_TEST_EXTENSION_TARGET openeden_test_extension_${OPENEDEN_TEST_EXTENSION_LETTER})
+    set(OPENEDEN_TEST_EXTENSION_OUTPUT "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>")
+    openeden_add_extension(${OPENEDEN_TEST_EXTENSION_TARGET} SOURCES extension/testextension/testextension.cpp NO_INSTALL)
     # Not in the output root: the Windows install rule ships every DLL there.
-    set_target_properties(${OPENEDEN_TEST_PLUGIN_TARGET} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${OPENEDEN_TEST_PLUGIN_OUTPUT}"
-        LIBRARY_OUTPUT_DIRECTORY "${OPENEDEN_TEST_PLUGIN_OUTPUT}")
-    foreach(OPENEDEN_TEST_PLUGIN_CONFIG ${CMAKE_CONFIGURATION_TYPES})
-        string(TOUPPER ${OPENEDEN_TEST_PLUGIN_CONFIG} OPENEDEN_TEST_PLUGIN_CONFIG)
-        set_target_properties(${OPENEDEN_TEST_PLUGIN_TARGET} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY_${OPENEDEN_TEST_PLUGIN_CONFIG} "${OPENEDEN_TEST_PLUGIN_OUTPUT}"
-            LIBRARY_OUTPUT_DIRECTORY_${OPENEDEN_TEST_PLUGIN_CONFIG} "${OPENEDEN_TEST_PLUGIN_OUTPUT}")
+    set_target_properties(${OPENEDEN_TEST_EXTENSION_TARGET} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${OPENEDEN_TEST_EXTENSION_OUTPUT}"
+        LIBRARY_OUTPUT_DIRECTORY "${OPENEDEN_TEST_EXTENSION_OUTPUT}")
+    foreach(OPENEDEN_TEST_EXTENSION_CONFIG ${CMAKE_CONFIGURATION_TYPES})
+        string(TOUPPER ${OPENEDEN_TEST_EXTENSION_CONFIG} OPENEDEN_TEST_EXTENSION_CONFIG)
+        set_target_properties(${OPENEDEN_TEST_EXTENSION_TARGET} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY_${OPENEDEN_TEST_EXTENSION_CONFIG} "${OPENEDEN_TEST_EXTENSION_OUTPUT}"
+            LIBRARY_OUTPUT_DIRECTORY_${OPENEDEN_TEST_EXTENSION_CONFIG} "${OPENEDEN_TEST_EXTENSION_OUTPUT}")
     endforeach()
-    target_compile_definitions(${OPENEDEN_TEST_PLUGIN_TARGET}
-        PRIVATE OPENEDEN_TEST_PLUGIN_ID="${OPENEDEN_TEST_PLUGIN_TARGET}")
-    add_dependencies(openmw-tests ${OPENEDEN_TEST_PLUGIN_TARGET})
+    target_compile_definitions(${OPENEDEN_TEST_EXTENSION_TARGET}
+        PRIVATE OPENEDEN_TEST_EXTENSION_ID="${OPENEDEN_TEST_EXTENSION_TARGET}")
+    add_dependencies(openmw-tests ${OPENEDEN_TEST_EXTENSION_TARGET})
 
-    string(TOUPPER ${OPENEDEN_TEST_PLUGIN_LETTER} OPENEDEN_TEST_PLUGIN_LETTER_UPPER)
+    string(TOUPPER ${OPENEDEN_TEST_EXTENSION_LETTER} OPENEDEN_TEST_EXTENSION_LETTER_UPPER)
     target_compile_definitions(openmw-tests
-        PRIVATE OPENEDEN_TEST_PLUGIN_${OPENEDEN_TEST_PLUGIN_LETTER_UPPER}_PATH="$<TARGET_FILE:${OPENEDEN_TEST_PLUGIN_TARGET}>")
+        PRIVATE OPENEDEN_TEST_EXTENSION_${OPENEDEN_TEST_EXTENSION_LETTER_UPPER}_PATH="$<TARGET_FILE:${OPENEDEN_TEST_EXTENSION_TARGET}>")
 endforeach()
 
-target_compile_definitions(openeden_test_plugin_a PRIVATE OPENEDEN_TEST_PLUGIN_PROVIDES_A)
-target_compile_definitions(openeden_test_plugin_b PRIVATE OPENEDEN_TEST_PLUGIN_REQUIRES_A)
-target_compile_definitions(openeden_test_plugin_kf PRIVATE OPENEDEN_TEST_PLUGIN_USES_KF)
+target_compile_definitions(openeden_test_extension_a PRIVATE OPENEDEN_TEST_EXTENSION_PROVIDES_A)
+target_compile_definitions(openeden_test_extension_b PRIVATE OPENEDEN_TEST_EXTENSION_REQUIRES_A)
+target_compile_definitions(openeden_test_extension_kf PRIVATE OPENEDEN_TEST_EXTENSION_USES_KF)
 
 # The real Morrowind pack, for the test that calls its converter through the registry (task 0018).
 add_dependencies(openmw-tests compat_morrowind)
 target_compile_definitions(openmw-tests
     PRIVATE OPENEDEN_TEST_COMPAT_MORROWIND_PATH="$<TARGET_FILE:compat_morrowind>"
-            OPENEDEN_TEST_COMPAT_MORROWIND_MANIFEST="${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/plugin.json")
+            OPENEDEN_TEST_COMPAT_MORROWIND_MANIFEST="${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/extension.json")
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-tests PRIVATE

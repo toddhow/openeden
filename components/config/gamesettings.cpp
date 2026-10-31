@@ -124,7 +124,8 @@ bool Config::GameSettings::readFile(
             // Replace composing entries with a replace= line
             if (key == QLatin1String("config") || key == QLatin1String("replace") || key == QLatin1String("data")
                 || key == QLatin1String("fallback-archive") || key == QLatin1String("content")
-                || key == QLatin1String("groundcover") || key == QLatin1String("fallback") || key == QLatin1String("plugin"))
+                || key == QLatin1String("groundcover") || key == QLatin1String("fallback")
+                || key == QLatin1String("extension"))
                 settings.remove(key);
         }
     }
@@ -148,7 +149,7 @@ bool Config::GameSettings::readFile(
             if (key != QLatin1String("config") && key != QLatin1String("replace") && key != QLatin1String("data")
                 && key != QLatin1String("fallback-archive") && key != QLatin1String("content")
                 && key != QLatin1String("groundcover") && key != QLatin1String("fallback")
-                && key != QLatin1String("plugin"))
+                && key != QLatin1String("extension"))
                 settings.remove(key);
 
             if (key == QLatin1String("config") || key == QLatin1String("user-data") || key == QLatin1String("resources")

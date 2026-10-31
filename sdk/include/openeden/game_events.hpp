@@ -6,7 +6,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Game events plugins can subscribe to on the event bus (task 0017).
+     * @brief Game events extensions can subscribe to on the event bus (task 0017).
      *
      * The core delivers them at the start of Phase::Input, on the main thread, however the engine came to raise them.
      * Text is cut to fit and always ends in a NUL.

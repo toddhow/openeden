@@ -80,9 +80,9 @@
 All stages on one branch, each with independent tests and a fresh review, one merge at the end (as CreativeMotion's C3).
 
 ### R0 — Groundwork and decision record
-**Done 2026-10-28:** decision 0001 (`docs/decisions/0001-creativemotion-compiled-into-the-engine.md`), OpenEden `CLAUDE.md`, `docs/design/openeden-plugin-system.md` and CreativeMotion `CLAUDE.md` updated; the source enters as a committed copy (open question 1); the targets are linked into `openmw-lib` (commit d41a1fd88a, which also links `opas::anim_gltf`).
+**Done 2026-10-28:** decision 0001 (`docs/decisions/0001-creativemotion-compiled-into-the-engine.md`), OpenEden `CLAUDE.md`, `docs/design/openeden-extension-system.md` and CreativeMotion `CLAUDE.md` updated; the source enters as a committed copy (open question 1); the targets are linked into `openmw-lib` (commit d41a1fd88a, which also links `opas::anim_gltf`).
 
-- Record the direct-integration decision: OpenEden `CLAUDE.md` (architecture rules, layout, Track for CreativeMotion), `docs/design/openeden-plugin-system.md` (CreativeMotion no longer its first client, or an exception noted), CreativeMotion `CLAUDE.md` M8 and M12 wording (M12's "supplied by the Morrowind compatibility pack" becomes "converted by an in-engine bridge that moves to the compatibility pack later").
+- Record the direct-integration decision: OpenEden `CLAUDE.md` (architecture rules, layout, Track for CreativeMotion), `docs/design/openeden-extension-system.md` (CreativeMotion no longer its first client, or an exception noted), CreativeMotion `CLAUDE.md` M8 and M12 wording (M12's "supplied by the Morrowind compatibility pack" becomes "converted by an in-engine bridge that moves to the compatibility pack later").
 - Settle how CreativeMotion's source enters OpenEden (open question 1) and remove the duplicate.
 - Link the needed CreativeMotion targets into `openmw-lib` (`opas::anim_clip`, `opas::anim_runtime`, `opas::rig`, `opas::math`); `anim/gltf` is not needed in this task.
 

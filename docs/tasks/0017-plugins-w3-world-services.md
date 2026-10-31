@@ -1,7 +1,7 @@
 # Task 0017: Track W stage W3 — World services on the engine
 
 **Status:** implemented except debug draw and the profiler overlay (see Notes), awaiting toddhow's review. Depends on tasks 0016 (W2) and 0019 (SDK 2.0); its debug-draw part depends on Track V's task 0011 (debug geometry on VSG).
-**Design doc section:** `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`; `docs/design/working-plugin-system.md` (W3); `docs/design/openeden-plugin-system.md` sections 4.4 (the shared Jolt world), 4.5 (world and entities), 4.6 (event bus), 4.10 (diagnostics, debug draw).
+**Design doc section:** `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`; `docs/design/working-extension-system.md` (W3); `docs/design/openeden-extension-system.md` sections 4.4 (the shared Jolt world), 4.5 (world and entities), 4.6 (event bus), 4.10 (diagnostics, debug draw).
 **Goal:** plugins see and observe the game world through the engine: they query the game's single Jolt world read-only (rays, shapes, body states), receive physics events, see game objects as stable entity IDs with lifecycle events, receive engine events on the bus, and their debug drawing and profiling show up in the game. Plugins never change physics (decision 0003).
 **Workflow:** full loop.
 

@@ -20,8 +20,8 @@ namespace MWLua
 
     void LuaEvents::clear()
     {
-        mNewPluginEventBatch.clear();
-        mPluginEventBatch.clear();
+        mNewExtensionEventBatch.clear();
+        mExtensionEventBatch.clear();
         mGlobalEventBatch.clear();
         mLocalEventBatch.clear();
         mNewGlobalEventBatch.clear();
@@ -32,10 +32,10 @@ namespace MWLua
     void LuaEvents::finalizeEventBatch()
     {
         mNewGlobalEventBatch.swap(mGlobalEventBatch);
-        mNewPluginEventBatch.swap(mPluginEventBatch);
+        mNewExtensionEventBatch.swap(mExtensionEventBatch);
         mNewLocalEventBatch.swap(mLocalEventBatch);
         mNewGlobalEventBatch.clear();
-        mNewPluginEventBatch.clear();
+        mNewExtensionEventBatch.clear();
         mNewLocalEventBatch.clear();
     }
 
@@ -44,9 +44,9 @@ namespace MWLua
         for (const Global& e : mGlobalEventBatch)
             mGlobalScripts.receiveEvent(e.mEventName, e.mEventData);
         mGlobalEventBatch.clear();
-        for (const Global& e : mPluginEventBatch)
+        for (const Global& e : mExtensionEventBatch)
             mGlobalScripts.receiveEvent(e.mEventName, e.mEventData);
-        mPluginEventBatch.clear();
+        mExtensionEventBatch.clear();
         for (const Local& e : mLocalEventBatch)
         {
             MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(e.mDest);

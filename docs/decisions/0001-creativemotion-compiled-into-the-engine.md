@@ -5,7 +5,7 @@ Date: 2026-10-28 · Decided by: toddhow
 ## Decision
 CreativeMotion, OpenEden's animation and procedural motion system, is compiled into the engine instead of being loaded as a plugin. Its source is vendored in `components/creativemotion/` and linked into `openmw-lib`; engine-side adapters (the animation pose driver in `apps/openmw/mwrender/creativemotiondriver.*` and `ActorIkController`) call it directly. `plugins/creativemotion/` is removed.
 
-The decision covers CreativeMotion only. The other feature systems (AdvancedBodies, ComplexClothing, Reflectron) and the compatibility packs stay planned as plugins under `docs/design/openeden-plugin-system.md`.
+The decision covers CreativeMotion only. The other feature systems (AdvancedBodies, ComplexClothing, Reflectron) and the compatibility packs stay planned as plugins under `docs/design/openeden-extension-system.md`.
 
 ## Why
 toddhow's reasons:

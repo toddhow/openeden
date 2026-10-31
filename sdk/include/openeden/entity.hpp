@@ -33,7 +33,7 @@ namespace openeden::sdk
     };
 
     /**
-     * @brief Listener notified of entity lifecycle transitions in plugin load order.
+     * @brief Listener notified of entity lifecycle transitions in extension load order.
      */
     class EntityLifecycleListener
     {
@@ -45,7 +45,7 @@ namespace openeden::sdk
     using EntityDataDeleter = void (*)(void*);
 
     /**
-     * @brief Core entity manager managing stable IDs, lifecycle events, and per-entity plugin data.
+     * @brief Core entity manager managing stable IDs, lifecycle events, and per-entity extension data.
      */
     class EntityManager
     {
@@ -113,17 +113,17 @@ namespace openeden::sdk
         virtual bool removeData(EntityId id, std::string_view slotKey) = 0;
 
         /**
-         * @brief Registers an entity lifecycle listener for a plugin.
+         * @brief Registers an entity lifecycle listener for an extension.
          */
-        virtual void registerLifecycleListener(std::string_view pluginId, EntityLifecycleListener* listener) = 0;
+        virtual void registerLifecycleListener(std::string_view extensionId, EntityLifecycleListener* listener) = 0;
 
         /**
          * @brief Unregisters an entity lifecycle listener.
          */
-        virtual void unregisterLifecycleListener(std::string_view pluginId) = 0;
+        virtual void unregisterLifecycleListener(std::string_view extensionId) = 0;
 
         /**
-         * @brief Dispatches an entity lifecycle event to listeners in plugin load order.
+         * @brief Dispatches an entity lifecycle event to listeners in extension load order.
          */
         virtual void dispatchLifecycleEvent(EntityLifecycleEvent event, EntityId entityId) = 0;
     };
