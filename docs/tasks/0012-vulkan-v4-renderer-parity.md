@@ -349,4 +349,18 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
   - snow's one-frame shift: **fixed** 2026-10-31, the world matrix no longer advances on a frame the dispatch is skipped; by reasoning and an unchanged frame, the shift itself was not measured;
   - particle size and node scale: by code reading not a gap. `main.vert` normalises the axes in the particle's local space and draws through a modelview that includes the scale, as OSG 3.6.5's `ParticleSystem::drawImplementation` does for `LOCAL_COORDINATES`, which OpenMW sets (`nifloader.cpp` at `442eec6e2f`). Not confirmed by image: the 2026-10-30 captures of a scaled torch did not show the torch;
   - groundcover's terrain-quadtree chunk sizes, animated models, settings read at creation, and its loading-screen progress.
-- **toddhow's scene verdicts and the performance re-measure** (work items 1 and 8).
+- **toddhow's scene verdicts** (work item 1).
+- **Performance re-measure (2026-10-31, commit a7c43f8346, Vulkan only):** the same method as research note 0004 section 4 (last 400 of 900 frames, no frame limit, 1280x720, median / p95 wall ms). The OSG figures are that note's, not re-run. With every optional setting at its default:
+
+  | Scene | OSG median (note 0004) | V2 Vulkan median | V4 Vulkan median / p95 | V4 against OSG |
+  | --- | --- | --- | --- | --- |
+  | ald_ruhn_ashstorm | 1.09 | 1.66 | 1.64 / 2.27 | +50% |
+  | balmora_caius_cosades | 0.66 | 0.66 | 0.67 / 1.04 | +2% |
+  | balmora_exterior | 1.26 | 1.84 | 2.09 / 2.87 | +66% |
+  | caldera_mages_guild | 0.85 | 0.89 | 0.96 / 1.41 | +13% |
+  | ebonheart_council | 1.62 | 1.28 | 1.36 / 1.83 | -16% |
+  | pelagiad_night_fog | 1.54 | 1.75 | 1.82 / 2.46 | +18% |
+  | sadrith_mora_mushroom | 1.93 | 2.12 | 2.46 / 3.39 | +27% |
+  | seyda_neen_coast | 2.12 | 2.23 | 2.80 / 3.75 | +32% |
+
+  **Over the 10% CPU budget:** all five exteriors and, narrowly, Caldera. V4 added 2 to 26% on V2 in most scenes. Not traced. The budget is toddhow's call: every scene is still under 4 ms at p95. `vivec_arena_interior` read 0.22 ms and has no reference in the note, so it is left out.
