@@ -46,7 +46,7 @@ namespace
 
     TEST(InstanceMathTest, eulerRoundTrips)
     {
-        for (const vsg::vec3 euler : { vsg::vec3(0, 0, 0), vsg::vec3(0.3f, 0, 0), vsg::vec3(0, 0.4f, 0),
+        for (const vsg::vec3& euler : { vsg::vec3(0, 0, 0), vsg::vec3(0.3f, 0, 0), vsg::vec3(0, 0.4f, 0),
                  vsg::vec3(0, 0, 1.2f), vsg::vec3(0.3f, -0.4f, 1.2f), vsg::vec3(-1.f, 0.2f, -2.f) })
             expectNear(Math::quatToEuler(Math::eulerToQuat(euler)), euler);
     }
