@@ -62,6 +62,7 @@ namespace openeden::plugin
         for (const auto& error : resolution.errors)
         {
             Log(Debug::Error) << "Plugin '" << error.pluginId << "' failed at resolve: " << error.message;
+            mFailures.push_back(Failure{ error.pluginId, "resolve", error.message });
         }
 
         for (const auto& disabledId : resolution.disabledPlugins)
@@ -185,8 +186,9 @@ namespace openeden::plugin
                         {
                             if (provision.contract == req.contract && provision.version.major == req.version.major)
                             {
-                                Log(Debug::Error) << "Plugin '" << id << "' failed at resolve: depends on disabled plugin '"
-                                                  << disabledId << "'";
+                                const std::string reason = "depends on disabled plugin '" + disabledId + "'";
+                                Log(Debug::Error) << "Plugin '" << id << "' failed at resolve: " << reason;
+                                mFailures.push_back(Failure{ id, "resolve", reason });
                                 mDisabledPlugins.insert(id);
                                 mActivePlugins.erase(id);
                                 mRegistry.withdrawPlugin(id);
@@ -372,6 +374,7 @@ namespace openeden::plugin
 
     void LifecycleManager::markPluginFaulted(const std::string& pluginId, const char* stage, const char* reason)
     {
+        mFailures.push_back(Failure{ pluginId, stage ? stage : "unknown", reason ? reason : "no reason given" });
         Log(Debug::Error) << "Plugin '" << pluginId << "' failed at " << (stage ? stage : "unknown") << ": "
                           << (reason ? reason : "no reason given");
 

@@ -27,6 +27,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwscript/testscripts.cpp
 
+    plugin/testpluginfailures.cpp
     plugin/testpluginhost.cpp
     plugin/testpluginworld.cpp
 )
@@ -72,13 +73,13 @@ target_compile_definitions(openmw-tests
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
 
 # The plugin host's tests (task 0015) load real shared libraries: one source, built once per test ID, SDK only.
-# A provides the contract openeden.test.a, B requires it, C stands alone.
+# A provides the contract openeden.test.a, B requires it, C stands alone, KF requires the Morrowind pack's converter.
 include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenPlugin.cmake)
 
-foreach(OPENEDEN_TEST_PLUGIN_LETTER a b c)
+foreach(OPENEDEN_TEST_PLUGIN_LETTER a b c kf)
     set(OPENEDEN_TEST_PLUGIN_TARGET openeden_test_plugin_${OPENEDEN_TEST_PLUGIN_LETTER})
     set(OPENEDEN_TEST_PLUGIN_OUTPUT "${CMAKE_BINARY_DIR}/test_plugins/$<CONFIG>")
-    openeden_add_plugin(${OPENEDEN_TEST_PLUGIN_TARGET} SOURCES plugin/testplugin/testplugin.cpp)
+    openeden_add_plugin(${OPENEDEN_TEST_PLUGIN_TARGET} SOURCES plugin/testplugin/testplugin.cpp NO_INSTALL)
     # Not in the output root: the Windows install rule ships every DLL there.
     set_target_properties(${OPENEDEN_TEST_PLUGIN_TARGET} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${OPENEDEN_TEST_PLUGIN_OUTPUT}"
@@ -100,6 +101,13 @@ endforeach()
 
 target_compile_definitions(openeden_test_plugin_a PRIVATE OPENEDEN_TEST_PLUGIN_PROVIDES_A)
 target_compile_definitions(openeden_test_plugin_b PRIVATE OPENEDEN_TEST_PLUGIN_REQUIRES_A)
+target_compile_definitions(openeden_test_plugin_kf PRIVATE OPENEDEN_TEST_PLUGIN_USES_KF)
+
+# The real Morrowind pack, for the test that calls its converter through the registry (task 0018).
+add_dependencies(openmw-tests compat_morrowind)
+target_compile_definitions(openmw-tests
+    PRIVATE OPENEDEN_TEST_COMPAT_MORROWIND_PATH="$<TARGET_FILE:compat_morrowind>"
+            OPENEDEN_TEST_COMPAT_MORROWIND_MANIFEST="${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/plugin.json")
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-tests PRIVATE

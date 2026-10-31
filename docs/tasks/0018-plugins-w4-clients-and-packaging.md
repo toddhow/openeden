@@ -1,6 +1,6 @@
 # Task 0018: Track W stage W4 — Real clients, packaging and the launcher
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0017 (W3).
+**Status:** implemented on Windows, except plugin settings in the launcher (see Notes), awaiting toddhow's review. Depends on task 0017 (W3).
 **Design doc section:** `docs/design/working-plugin-system.md` (W4, decision 5); `docs/design/openeden-plugin-system.md` sections 5 (packaging), 6.1 (discovery and enable list), 6.8 (failure reporting), 7.2 (plugin build), 8 (testing), 9 (licence and trust).
 **Goal:** plugins are real for players and authors: OpenEden installs with its first-party plugins in place, the launcher lists them and turns them on and off, failures are shown where the player sees them, the Morrowind compatibility pack runs in the game, and a sample plugin proves every service end to end as a template for authors.
 **Workflow:** full loop.
@@ -34,13 +34,13 @@
 
 ## Acceptance criteria
 
-- [ ] An installed build contains `plugins/compat_morrowind/` and `plugins/example/` laid out as plugin doc 5.1, on Windows and Linux.
-- [ ] The compatibility pack loads in the game by default for Morrowind and its converter is callable through the registry (test); disabling it changes nothing in Morrowind's behaviour.
-- [ ] The sample plugin, enabled, passes an end-to-end Lua integration test covering every service, including save and reload.
-- [ ] The launcher lists plugins with their details, enables and disables them by writing `plugin=` lines, shows invalid manifests with reasons, and shows the trust notice; `CI/check_qt_translations.sh` passes.
-- [ ] A plugin that fails to load produces one in-game message at the main menu and a log entry.
-- [ ] `docs/design/plugin-implementation-guide.md` matches the working system and points to the sample plugin.
-- [ ] All existing gates pass.
+- [ ] An installed build contains `plugins/compat_morrowind/` and `plugins/example/` laid out as plugin doc 5.1, on Windows and Linux. Windows checked; Linux not run, and see the Notes on where the Linux game looks.
+- [x] The compatibility pack loads in the game by default for Morrowind and its converter is callable through the registry (test); disabling it changes nothing in Morrowind's behaviour. Compared with the 32 Lua tests with and without it, on the example suite; not played on Morrowind's own data.
+- [x] The sample plugin, enabled, passes an end-to-end Lua integration test covering every service, including save and reload (`tools/plugin_example_check/check.sh`, a shell check as CI's runner needs a plugin it cannot yet install; debug draw is submitted, not shown).
+- [ ] The launcher lists plugins with their details, enables and disables them by writing `plugin=` lines, shows invalid manifests with reasons, and shows the trust notice; `CI/check_qt_translations.sh` passes. Built and translations regenerated with `lupdate`, but the page was never opened or clicked, so this stays unticked until someone does.
+- [x] A plugin that fails to load produces one in-game message at the main menu and a log entry.
+- [x] `docs/design/plugin-implementation-guide.md` matches the working system and points to the sample plugin.
+- [ ] All existing gates pass. Done on Windows: build, `components-tests`, `openmw-tests`, the 32 Lua tests, every real-game check. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers, `openmw-cs-tests`.
 
 ## Out of scope
 
@@ -48,8 +48,24 @@
 - A stable C ABI and community SDK distribution (plugin phase P6).
 - Hot reload; Eden Studio's use of plugins.
 
-## Open questions for toddhow
+## Decisions taken while implementing, for toddhow to confirm
 
-1. **Compatibility pack on by default** for Morrowind installs (proposed), or off until the engine consumes `openeden.game`?
-2. **Launcher placement:** a new "Plugins" page (proposed) or a section of the data-files page?
-3. **Plugin settings in the launcher:** in this task (proposed) or a follow-up?
+1. **Compatibility pack on by default,** as proposed: `plugin=compat_morrowind` in `files/openmw.cfg` and `.local`. That is every install, not only Morrowind ones, because nothing at that point knows which game is being played; the pack changes nothing until the engine uses it.
+2. **Launcher placement:** a new Plugins page, as proposed.
+3. **Plugin settings in the launcher: a follow-up,** which the design allowed. Manifests have no range or enum fields to draw them from yet.
+4. **Turning off the default:** `openmw.cfg` lines add up across files, so the launcher writes `replace=plugin` once the player changes anything. Until then it writes nothing.
+5. **Plugin data folders are data folders in full,** also for content files, so that the example can carry its `.omwscripts`. This changes task 0016's decision. A `content=` line for a file in a plugin's folder stops the game starting if that plugin is turned off.
+6. **The failure message is a plain message box,** not one that must be clicked, and appears on the main menu; each failure once. A broken folder is reported only if it was enabled.
+7. **Plugin library names no longer change with the build type,** since the manifest names them.
+
+## Notes for toddhow
+
+- **The launcher page has never been opened.** It builds; the listing logic is tested in `listInstalledPlugins`. Writing `plugin=` lines through `GameSettings` is untested. Please look at it once.
+- **Linux install:** plugins install to `plugins/<id>` under the prefix, and the game looks in its local path and user data folder. On Linux the local path may not be that prefix, so an installed game may not find them there. Untested; decide with the Linux packaging.
+- **No `description`** in the launcher's columns: manifests have no such field. It shows name, version, kind, licence and any problem.
+- **The compatibility pack links `components`,** as it did before, which `plugins/compat_morrowind/CLAUDE.md` allows: its DLL carries its own copy.
+- **A full `cmake --install` needs `BUILD_OPENCS`:** it copies `defaults.bin`, which only that builds. The check here built without it, so the install stopped there, after installing the plugins. No test plugin was in it.
+- **The plugin-example check is not in CI,** and neither are the other real-game checks: they need game runs and a Windows or Linux desktop or xvfb. Whichever CI OpenEden keeps should run them.
+- **`tools/plugin_example_check` accepts `freed=0`,** since its small scene despawns little; freeing on despawn is checked by `tools/plugin_world_check`.
+- **Migration from a version 1 chunk** in the example plugin is written but not run: it would need a crafted save.
+- **Flaky tests:** two tests in `DetourNavigatorRecastMeshObjectTest` have now failed intermittently in full runs on this branch (`update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true`, `update_with_different_transform_should_return_true`). They pass alone. The fixture's cause is unknown; worth a look on a clean `vulkan` build.

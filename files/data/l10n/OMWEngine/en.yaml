@@ -1,3 +1,7 @@
+# Plugins
+
+PluginsFailed: "These plugins could not run and were turned off:"
+
 # Console
 
 ConsoleWindow: "Console"

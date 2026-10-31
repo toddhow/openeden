@@ -65,6 +65,22 @@ namespace openeden::plugin
         const std::vector<std::filesystem::path>& searchDirs, std::vector<PluginLoadError>* errors = nullptr);
 
     /**
+     * @brief A plugin folder as a launcher shows it, whether or not its manifest can be read.
+     */
+    struct InstalledPlugin
+    {
+        PluginManifest manifest; ///< With a broken manifest, only id is set, to the folder's name
+        std::filesystem::path directory;
+        std::string error; ///< Why it cannot be enabled: its manifest, or an SDK this build does not provide
+    };
+
+    /**
+     * @brief Lists every plugin folder in the search directories, sorted by ID. Runs no plugin code and loads no
+     * library. If several directories hold one ID, the earliest wins, as in the game.
+     */
+    std::vector<InstalledPlugin> listInstalledPlugins(const std::vector<std::filesystem::path>& searchDirs);
+
+    /**
      * @brief Filters discovered plugins by an enabled list, preserving discovery order.
      * If enabledList is empty, all discovered plugins are returned.
      */

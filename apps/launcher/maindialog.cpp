@@ -20,6 +20,7 @@
 #include "datafilespage.hpp"
 #include "graphicspage.hpp"
 #include "importpage.hpp"
+#include "pluginspage.hpp"
 #include "settingspage.hpp"
 
 namespace
@@ -110,6 +111,7 @@ void Launcher::MainDialog::createIcons()
     connect(graphicsAction, &QAction::triggered, this, &MainDialog::enableGraphicsPage);
     connect(settingsAction, &QAction::triggered, this, &MainDialog::enableSettingsPage);
     connect(importAction, &QAction::triggered, this, &MainDialog::enableImportPage);
+    connect(pluginsAction, &QAction::triggered, this, &MainDialog::enablePluginsPage);
 }
 
 void Launcher::MainDialog::createPages()
@@ -122,12 +124,14 @@ void Launcher::MainDialog::createPages()
     mGraphicsPage = new GraphicsPage(this);
     mImportPage = new ImportPage(mCfgMgr, mGameSettings, mLauncherSettings, this);
     mSettingsPage = new SettingsPage(mCfgMgr, mGameSettings, this);
+    mPluginsPage = new PluginsPage(mCfgMgr, mGameSettings, this);
 
     // Add the pages to the stacked widget
     pagesWidget->addWidget(mDataFilesPage);
     pagesWidget->addWidget(mGraphicsPage);
     pagesWidget->addWidget(mSettingsPage);
     pagesWidget->addWidget(mImportPage);
+    pagesWidget->addWidget(mPluginsPage);
 
     // Select the first page
     dataAction->setChecked(true);
@@ -264,6 +268,8 @@ bool Launcher::MainDialog::reloadSettings()
     if (!mGraphicsPage->loadSettings())
         return false;
 
+    mPluginsPage->loadSettings();
+
     if (!mSettingsPage->loadSettings())
         return false;
 
@@ -278,6 +284,7 @@ void Launcher::MainDialog::enableDataPage()
     graphicsAction->setChecked(false);
     importAction->setChecked(false);
     settingsAction->setChecked(false);
+    pluginsAction->setChecked(false);
 }
 
 void Launcher::MainDialog::enableGraphicsPage()
@@ -288,6 +295,7 @@ void Launcher::MainDialog::enableGraphicsPage()
     graphicsAction->setChecked(true);
     settingsAction->setChecked(false);
     importAction->setChecked(false);
+    pluginsAction->setChecked(false);
 }
 
 void Launcher::MainDialog::enableSettingsPage()
@@ -298,6 +306,18 @@ void Launcher::MainDialog::enableSettingsPage()
     graphicsAction->setChecked(false);
     settingsAction->setChecked(true);
     importAction->setChecked(false);
+    pluginsAction->setChecked(false);
+}
+
+void Launcher::MainDialog::enablePluginsPage()
+{
+    pagesWidget->setCurrentWidget(mPluginsPage);
+    mImportPage->resetProgressBar();
+    dataAction->setChecked(false);
+    graphicsAction->setChecked(false);
+    settingsAction->setChecked(false);
+    importAction->setChecked(false);
+    pluginsAction->setChecked(true);
 }
 
 void Launcher::MainDialog::enableImportPage()
@@ -308,6 +328,7 @@ void Launcher::MainDialog::enableImportPage()
     graphicsAction->setChecked(false);
     settingsAction->setChecked(false);
     importAction->setChecked(true);
+    pluginsAction->setChecked(false);
 }
 
 bool Launcher::MainDialog::setupLauncherSettings()
@@ -479,6 +500,7 @@ bool Launcher::MainDialog::writeSettings()
     mGraphicsPage->saveSettings();
     mImportPage->saveSettings();
     mSettingsPage->saveSettings();
+    mPluginsPage->saveSettings();
 
     const auto& userPath = mCfgMgr.getUserConfigPath();
 

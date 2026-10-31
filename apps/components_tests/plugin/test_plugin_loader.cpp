@@ -521,3 +521,212 @@ TEST(PluginLoaderTest, LifecycleManager_DynamicPluginDestructedBeforeLibraryUnlo
 
     EXPECT_EQ(tracker.events, expectedOrder);
 }
+
+// ---- listInstalledPlugins (task 0018): what a launcher shows -------------------------------------------------------
+
+namespace
+{
+    using openeden::plugin::InstalledPlugin;
+    using openeden::plugin::listInstalledPlugins;
+
+    struct InstalledManifest
+    {
+        std::string mId;
+        int mSdkMajor = 2;
+        std::string mName = "A name";
+        std::string mLicence = "GPL-3.0-or-later";
+    };
+
+    // The library named here never exists: a listing must not care.
+    void writeInstalledManifest(const std::filesystem::path& dir, const InstalledManifest& options)
+    {
+        std::filesystem::create_directories(dir);
+        std::ofstream file(dir / "plugin.json");
+        file << "{\n"
+             << "  \"format\": \"openeden.plugin\",\n"
+             << "  \"version\": 1,\n"
+             << "  \"id\": \"" << options.mId << "\",\n"
+             << "  \"name\": \"" << options.mName << "\",\n"
+             << "  \"pluginVersion\": \"1.2.3\",\n"
+             << "  \"kind\": \"feature\",\n"
+             << "  \"sdk\": { \"major\": " << options.mSdkMajor << ", \"minor\": 0 },\n"
+             << "  \"toolchain\": \"\",\n"
+             << "  \"library\": { \"windows\": \"does_not_exist.dll\", \"linux\": \"libdoes_not_exist.so\" },\n"
+             << "  \"licence\": \"" << options.mLicence << "\"\n"
+             << "}\n";
+    }
+
+    void writeText(const std::filesystem::path& path, const std::string& text)
+    {
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream file(path);
+        file << text;
+    }
+}
+
+TEST(ListInstalledPluginsTest, ValidPluginIsShownWithItsManifestAndNoError)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "alpha";
+    options.mName = "The alpha plugin";
+    writeInstalledManifest(tempDir.path() / "alpha", options);
+
+    const std::vector<InstalledPlugin> installed = listInstalledPlugins({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_EQ(installed[0].manifest.id, "alpha");
+    EXPECT_EQ(installed[0].manifest.name, "The alpha plugin");
+    EXPECT_EQ(installed[0].manifest.pluginVersion, "1.2.3");
+    EXPECT_EQ(installed[0].directory, tempDir.path() / "alpha");
+    EXPECT_TRUE(installed[0].error.empty()) << installed[0].error;
+}
+
+TEST(ListInstalledPluginsTest, UnparsableManifestIsListedUnderItsFolderNameWithAnError)
+{
+    TempDirectoryGuard tempDir;
+    writeText(tempDir.path() / "broken_folder" / "plugin.json", "{ malformed json syntax");
+
+    const std::vector<InstalledPlugin> installed = listInstalledPlugins({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_EQ(installed[0].manifest.id, "broken_folder");
+    EXPECT_EQ(installed[0].directory, tempDir.path() / "broken_folder");
+    EXPECT_FALSE(installed[0].error.empty());
+}
+
+TEST(ListInstalledPluginsTest, ErrorOfAnIncompleteManifestNamesTheMissingField)
+{
+    TempDirectoryGuard tempDir;
+    // Valid JSON without "kind", which the manifest parser requires (components/plugin/manifest_io.cpp).
+    writeText(tempDir.path() / "no_kind" / "plugin.json",
+        "{ \"format\": \"openeden.plugin\", \"version\": 1, \"id\": \"inner_id\", \"name\": \"n\", "
+        "\"pluginVersion\": \"1.0.0\", \"sdk\": { \"major\": 2, \"minor\": 0 }, \"toolchain\": \"\" }");
+
+    const std::vector<InstalledPlugin> installed = listInstalledPlugins({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_EQ(installed[0].manifest.id, "no_kind");
+    EXPECT_NE(installed[0].error.find("kind"), std::string::npos) << installed[0].error;
+}
+
+TEST(ListInstalledPluginsTest, Sdk1ManifestIsListedWithItsDetailsAndAnError)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "old_plugin";
+    options.mSdkMajor = 1;
+    writeInstalledManifest(tempDir.path() / "old_plugin", options);
+
+    const std::vector<InstalledPlugin> installed = listInstalledPlugins({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_EQ(installed[0].manifest.id, "old_plugin");
+    EXPECT_NE(installed[0].error.find("SDK"), std::string::npos) << installed[0].error;
+    EXPECT_NE(installed[0].error.find("1.0"), std::string::npos) << installed[0].error;
+}
+
+TEST(ListInstalledPluginsTest, NewerSdkMajorIsListedWithAnError)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "future_plugin";
+    options.mSdkMajor = 3;
+    writeInstalledManifest(tempDir.path() / "future_plugin", options);
+
+    const std::vector<InstalledPlugin> installed = listInstalledPlugins({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_NE(installed[0].error.find("SDK"), std::string::npos) << installed[0].error;
+}
+
+TEST(ListInstalledPluginsTest, FolderWithoutManifestAndLooseFilesAreNotListed)
+{
+    TempDirectoryGuard tempDir;
+    std::filesystem::create_directories(tempDir.path() / "empty_folder");
+    writeText(tempDir.path() / "not_a_plugin" / "readme.txt", "not a manifest");
+    writeText(tempDir.path() / "loose_file.txt", "just a file");
+    writeText(tempDir.path() / "plugin.json", "{ a manifest outside any plugin folder");
+
+    EXPECT_TRUE(listInstalledPlugins({ tempDir.path() }).empty());
+}
+
+TEST(ListInstalledPluginsTest, MissingSearchDirectoryIsFine)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "alpha";
+    writeInstalledManifest(tempDir.path() / "real" / "alpha", options);
+
+    EXPECT_TRUE(listInstalledPlugins({}).empty());
+    EXPECT_TRUE(listInstalledPlugins({ tempDir.path() / "missing" }).empty());
+
+    const std::vector<InstalledPlugin> installed
+        = listInstalledPlugins({ tempDir.path() / "missing", tempDir.path() / "real" });
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_EQ(installed[0].manifest.id, "alpha");
+}
+
+TEST(ListInstalledPluginsTest, SameIdInTwoDirectoriesEarlierWins)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest first;
+    first.mId = "shared";
+    first.mName = "From the first directory";
+    writeInstalledManifest(tempDir.path() / "first" / "shared", first);
+    InstalledManifest second;
+    second.mId = "shared";
+    second.mName = "From the second directory";
+    writeInstalledManifest(tempDir.path() / "second" / "shared", second);
+
+    const std::vector<InstalledPlugin> forward
+        = listInstalledPlugins({ tempDir.path() / "first", tempDir.path() / "second" });
+    ASSERT_EQ(forward.size(), 1u);
+    EXPECT_EQ(forward[0].manifest.name, "From the first directory");
+    EXPECT_EQ(forward[0].directory, tempDir.path() / "first" / "shared");
+
+    const std::vector<InstalledPlugin> backward
+        = listInstalledPlugins({ tempDir.path() / "second", tempDir.path() / "first" });
+    ASSERT_EQ(backward.size(), 1u);
+    EXPECT_EQ(backward[0].manifest.name, "From the second directory");
+}
+
+TEST(ListInstalledPluginsTest, SortedByIdNotByFolderOrDirectory)
+{
+    TempDirectoryGuard tempDir;
+    const auto write = [&](const char* dir, const char* folder, const char* id) {
+        InstalledManifest options;
+        options.mId = id;
+        writeInstalledManifest(tempDir.path() / dir / folder, options);
+    };
+    write("one", "a_folder", "zulu");
+    write("one", "z_folder", "alpha");
+    write("two", "m_folder", "mike");
+    writeText(tempDir.path() / "two" / "kilo" / "plugin.json", "{ broken, sorted by its folder's name");
+
+    const std::vector<InstalledPlugin> installed
+        = listInstalledPlugins({ tempDir.path() / "one", tempDir.path() / "two" });
+
+    std::vector<std::string> ids;
+    for (const InstalledPlugin& plugin : installed)
+        ids.push_back(plugin.manifest.id);
+    EXPECT_EQ(ids, (std::vector<std::string>{ "alpha", "kilo", "mike", "zulu" }));
+}
+
+TEST(ListInstalledPluginsTest, NoLibraryIsLoadedSoAMissingOrFakeLibraryIsNotAnError)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "no_library";
+    writeInstalledManifest(tempDir.path() / "no_library", options);
+    options.mId = "fake_library";
+    writeInstalledManifest(tempDir.path() / "fake_library", options);
+    writeText(tempDir.path() / "fake_library" / "does_not_exist.dll", "this is not a shared library");
+    writeText(tempDir.path() / "fake_library" / "libdoes_not_exist.so", "this is not a shared library");
+
+    const std::vector<InstalledPlugin> installed = listInstalledPlugins({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 2u);
+    EXPECT_TRUE(installed[0].error.empty()) << installed[0].error;
+    EXPECT_TRUE(installed[1].error.empty()) << installed[1].error;
+}

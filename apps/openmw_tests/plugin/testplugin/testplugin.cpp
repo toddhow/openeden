@@ -5,6 +5,7 @@
 //   OPENEDEN_TEST_PLUGIN_ID          the plugin's ID, as a string
 //   OPENEDEN_TEST_PLUGIN_PROVIDES_A  provide the contract "openeden.test.a" v1.0
 //   OPENEDEN_TEST_PLUGIN_REQUIRES_A  require that contract
+//   OPENEDEN_TEST_PLUGIN_USES_KF     require openeden.compat.kf_converter and, in resolve, call it with a small .kf
 //
 // OPENEDEN_TEST_PLUGIN_THROW="<id>:start" or "<id>:phase" makes this plugin throw at that point.
 //
@@ -21,6 +22,12 @@
 #include <openeden/save.hpp>
 #include <openeden/settings.hpp>
 #include <openeden/vfs.hpp>
+
+#ifdef OPENEDEN_TEST_PLUGIN_USES_KF
+#include <openeden/contracts/kf_converter_contract.hpp>
+
+#include <span>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -83,6 +90,131 @@ namespace
     public:
         [[nodiscard]] int answer() const override { return kContractAnswer; }
     };
+#endif
+
+#ifdef OPENEDEN_TEST_PLUGIN_USES_KF
+    // Writes the little-endian fields of a NIF file, as Nif::Reader::parse reads them.
+    class NifBytes
+    {
+    public:
+        void u32(std::uint32_t value) { append(&value, sizeof(value)); }
+        void u16(std::uint16_t value) { append(&value, sizeof(value)); }
+        void i32(std::int32_t value) { append(&value, sizeof(value)); }
+        void f32(float value) { append(&value, sizeof(value)); }
+
+        void raw(std::string_view text) { append(text.data(), text.size()); }
+
+        void sizedString(std::string_view text)
+        {
+            u32(static_cast<std::uint32_t>(text.size()));
+            raw(text);
+        }
+
+        [[nodiscard]] std::span<const std::uint8_t> bytes() const { return mBytes; }
+
+    private:
+        void append(const void* data, std::size_t size)
+        {
+            const auto* const begin = static_cast<const std::uint8_t*>(data);
+            mBytes.insert(mBytes.end(), begin, begin + size);
+        }
+
+        std::vector<std::uint8_t> mBytes;
+    };
+
+    // A .kf at Morrowind's version: text keys for one clip "idle", and one bone moving for a second. Field order from
+    // components/nif: Reader::parse, NiObjectNET::read, Extra::read, NiTextKeyExtraData::read, TypedExtra::read,
+    // NiTimeController::read, NiKeyframeController::read, NiKeyframeData::read and KeyMapT::read.
+    NifBytes makeSyntheticKf()
+    {
+        constexpr std::int32_t kNone = -1;
+        constexpr std::uint32_t kVersion4002 = 0x04000002;
+        constexpr std::uint32_t kInterpolationLinear = 1;
+        constexpr std::uint16_t kControllerActive = 8;
+
+        NifBytes nif;
+        nif.raw("NetImmerse File Format, Version 4.0.0.2\n");
+        nif.u32(kVersion4002);
+        nif.u32(5); // records
+
+        // 0: the root, with the first extra and the first controller
+        nif.sizedString("NiSequenceStreamHelper");
+        nif.sizedString("synthetic");
+        nif.i32(1);
+        nif.i32(3);
+
+        // 1: text keys, then the bone's name
+        nif.sizedString("NiTextKeyExtraData");
+        nif.i32(2);
+        nif.u32(0);
+        nif.u32(2);
+        nif.f32(0.0f);
+        nif.sizedString("idle: start");
+        nif.f32(1.0f);
+        nif.sizedString("idle: stop");
+
+        // 2: the name of the bone controller 3 moves
+        nif.sizedString("NiStringExtraData");
+        nif.i32(kNone);
+        nif.u32(0);
+        nif.sizedString("bip01");
+
+        // 3: the controller
+        nif.sizedString("NiKeyframeController");
+        nif.i32(kNone);
+        nif.u16(kControllerActive);
+        nif.f32(1.0f);
+        nif.f32(0.0f);
+        nif.f32(0.0f);
+        nif.f32(1.0f);
+        nif.i32(kNone);
+        nif.i32(4);
+
+        // 4: no rotation keys, two translation keys, no scale keys
+        nif.sizedString("NiKeyframeData");
+        nif.u32(0);
+        nif.u32(2);
+        nif.u32(kInterpolationLinear);
+        for (const float time : { 0.0f, 1.0f })
+        {
+            nif.f32(time);
+            nif.f32(0.0f);
+            nif.f32(70.0f * time);
+            nif.f32(70.0f);
+        }
+        nif.u32(0);
+
+        nif.u32(1); // roots
+        nif.i32(0);
+        return nif;
+    }
+
+    bool callConverter(openeden::contracts::KfConverterContract& converter)
+    {
+        using openeden::contracts::KfConverterContract;
+        constexpr std::string_view kGlbMagic = "glTF";
+
+        const NifBytes kf = makeSyntheticKf();
+        const KfConverterContract::ConversionResult result = converter.convertKfToGltf(kf.bytes(), {});
+        if (!result.success)
+        {
+            record("kf failed conversion: " + result.errorMessage);
+            return false;
+        }
+        record("kf converted");
+
+        const bool magicOk = result.glbData.size() >= kGlbMagic.size()
+            && std::memcmp(result.glbData.data(), kGlbMagic.data(), kGlbMagic.size()) == 0;
+        record(magicOk ? "kf glb magic ok" : "kf failed glb magic");
+        record(result.sidecarJson.find("\"idle\"") != std::string::npos ? "kf sidecar names clip idle"
+                                                                         : "kf failed sidecar: " + result.sidecarJson);
+
+        NifBytes garbage;
+        garbage.raw("this is not a nif file");
+        const KfConverterContract::ConversionResult refused = converter.convertKfToGltf(garbage.bytes(), {});
+        record(!refused.success && !refused.errorMessage.empty() ? "kf garbage refused" : "kf failed garbage accepted");
+        return true;
+    }
 #endif
 
     // With OPENEDEN_TEST_PLUGIN_DATA, the plugin uses the data services, for tools/plugin_data_check/check.sh.
@@ -495,6 +627,16 @@ namespace
             const TestAContract* const contract = locator.find<TestAContract>();
             if (contract == nullptr || contract->answer() != kContractAnswer)
                 return false;
+#elif defined(OPENEDEN_TEST_PLUGIN_USES_KF)
+            auto* const converter = locator.find<openeden::contracts::KfConverterContract>();
+            if (converter == nullptr)
+            {
+                record("kf failed contract not found");
+                return false;
+            }
+            record("kf contract found");
+            // A throw from here would be the test's failure too: nothing is recorded as converted.
+            callConverter(*converter);
 #else
             static_cast<void>(locator);
 #endif

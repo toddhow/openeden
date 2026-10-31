@@ -53,7 +53,7 @@ Cite every engine function again at the commit this task starts from (after Trac
 
 ## Decisions taken while implementing, for toddhow to confirm
 
-1. **VFS priority:** plugin data above `data=` folders and below `data-local`, as proposed. So a plugin's file hides a mod in a `data=` folder.
+1. **VFS priority:** plugin data above `data=` folders and below `data-local`, as proposed. So a plugin's file hides a mod in a `data=` folder. Since task 0018 they are also searched for content files, so a plugin can carry an `.omwscripts`.
 2. **Save record name:** `OEPL`, as proposed (`components/esm3/pluginchunk.hpp`, one record per plugin: NAME, VERS, DATA).
 3. **Forwarded events:** global events named `openeden_<pluginId>_<eventName>`, as proposed.
 4. **Threads:** plugins' save handlers are never called on the save or load worker, because frames and phase callbacks continue meanwhile. Chunks are collected on the main thread before the worker starts (`SaveGame::run`) and delivered after loading ends (`LoadGame::postLoad`). So a chunk describes the moment the save was asked for. Forwarded events are likewise sent only just before Lua's synchronized update, because the worker uses Lua while frames continue.

@@ -108,6 +108,10 @@ namespace OMW
         /// the physics system must stay alive until stop().
         void attachWorld(MWPhysics::PhysicsSystem& physics);
 
+        /// One line for each plugin that has failed since the last call, for the message the game shows at the main
+        /// menu. Empty if none has. Each failure is reported once.
+        [[nodiscard]] std::string takeFailureReport();
+
         /// Gives plugins what the world queued. The engine calls it just before Phase::Input.
         void deliverWorldEvents();
 
@@ -126,6 +130,8 @@ namespace OMW
         openeden::plugin::LifecycleManager mLifecycle;
         std::shared_ptr<LogBridge> mLogBridge;
         std::vector<openeden::plugin::PluginDataDir> mDataDirs;
+        std::vector<std::string> mLoadFailures;
+        std::size_t mReportedFailures = 0;
         std::vector<openeden::plugin::SaveServiceImpl::Chunk> mChunksToSave;
         std::vector<ESM::PluginChunk> mLoadedChunks;
         MWBase::LuaManager* mLuaManager = nullptr;

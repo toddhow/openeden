@@ -3,6 +3,7 @@
 #include <components/plugin/manifest_io.hpp>
 
 #include <algorithm>
+#include <map>
 #include <system_error>
 
 namespace openeden::plugin
@@ -71,6 +72,55 @@ namespace openeden::plugin
         }
 
         return discovered;
+    }
+
+    std::vector<InstalledPlugin> listInstalledPlugins(const std::vector<std::filesystem::path>& searchDirs)
+    {
+        std::map<std::string, InstalledPlugin> byId;
+
+        for (const auto& searchDir : searchDirs)
+        {
+            std::error_code ec;
+            std::vector<std::filesystem::path> directories;
+            for (const auto& entry : std::filesystem::directory_iterator(searchDir, ec))
+            {
+                if (entry.is_directory(ec))
+                    directories.push_back(entry.path());
+            }
+            std::sort(directories.begin(), directories.end());
+
+            for (const auto& directory : directories)
+            {
+                const std::filesystem::path manifestPath = directory / "plugin.json";
+                if (!std::filesystem::is_regular_file(manifestPath, ec))
+                    continue;
+
+                InstalledPlugin item;
+                item.directory = directory;
+                LoadError loadError;
+                if (auto manifest = loadManifestFile(manifestPath, loadError))
+                {
+                    item.manifest = std::move(*manifest);
+                    const openeden::sdk::Version sdk = item.manifest.sdkVersion;
+                    if (!openeden::sdk::isCompatible(sdk, openeden::sdk::kSdkVersion))
+                        item.error = "Built for SDK " + std::to_string(sdk.major) + "." + std::to_string(sdk.minor)
+                            + "; this build provides " + std::to_string(openeden::sdk::kSdkVersion.major) + "."
+                            + std::to_string(openeden::sdk::kSdkVersion.minor);
+                }
+                else
+                {
+                    item.manifest.id = directory.filename().string();
+                    item.error = loadError.toString();
+                }
+                byId.try_emplace(item.manifest.id, std::move(item)); // An earlier directory wins
+            }
+        }
+
+        std::vector<InstalledPlugin> plugins;
+        plugins.reserve(byId.size());
+        for (auto& [id, item] : byId)
+            plugins.push_back(std::move(item));
+        return plugins;
     }
 
     std::vector<DiscoveredPlugin> filterEnabledPlugins(

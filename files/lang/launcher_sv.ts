@@ -572,6 +572,33 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
     </message>
 </context>
 <context>
+    <name>Launcher::PluginsPage</name>
+    <message>
+        <source>Plugin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plugins are programs that run with the same rights as the game. Install them only from sources you trust.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Launcher::SettingsPage</name>
     <message>
         <source>Text file (*.txt)</source>
@@ -667,6 +694,14 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
     <message>
         <source>Allows to change display settings</source>
         <translation>Låter dig ändra bildinställningar</translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable or disable plugins, which add native code to the game.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

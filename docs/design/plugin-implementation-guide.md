@@ -1,6 +1,6 @@
 # OpenEden Plugin Implementation Guide
 
-This guide documents everything required to implement, build, test, and integrate a native C++20 plugin into OpenEden against **SDK 2.0**. Its lessons come from the first plugin work; CreativeMotion has since moved into the engine (decision 0001), and the Morrowind compatibility pack ([`plugins/compat_morrowind/`](../../plugins/compat_morrowind/)) is the reference plugin.
+This guide documents everything required to implement, build, test, and integrate a native C++20 plugin into OpenEden against **SDK 2.0**. Its lessons come from the first plugin work; CreativeMotion has since moved into the engine (decision 0001), and the Morrowind compatibility pack ([`plugins/compat_morrowind/`](../../plugins/compat_morrowind/)) is the first real client. **Start from the sample plugin, [`plugins/example/`](../../plugins/example/),** which uses every service in the running game.
 
 Use this guide when implementing upcoming plugins, such as **Reflectron** and further compatibility packs. A system that must change physics or extend Lua is not a plugin: it goes into the core (decision 0003), as AdvancedBodies and ComplexClothing are planned to.
 
@@ -142,7 +142,7 @@ In `plugins/<plugin_id>/<plugin_id>_plugin.cpp`:
 
 In `plugins/<plugin_id>/CMakeLists.txt`:
 - Build `<plugin_id>_plugin_static` (`STATIC`) so `components-tests` can directly instantiate and test the plugin class and its adapters in-process without needing `dllexport` on internal classes.
-- Build `<plugin_id>` (`SHARED`) outputting to `${CMAKE_BINARY_DIR}/plugins/<plugin_id>/` alongside a copied `plugin.json` for dynamic loading via `PluginLoader`.
+- `openeden_add_plugin(<plugin_id> SOURCES ... MANIFEST plugin.json DATA data)` builds `<plugin_id>` (`SHARED`) into `${CMAKE_BINARY_DIR}/plugins/<plugin_id>/` with its manifest and data, and installs the same layout. To enable it, add `plugin=<plugin_id>` to `openmw.cfg`, tick it in the launcher, or pass `--plugin=<plugin_id>`.
 
 ---
 

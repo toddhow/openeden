@@ -6,6 +6,9 @@ data-local="?userdata?data"
 user-data="?userdata?"
 config="?userconfig?"
 resources=./resources
+
+# OpenEden's Morrowind compatibility pack; it changes nothing until the engine uses it (task 0018)
+plugin=compat_morrowind
 data=./resources/vfs-mw
 
 # lighting

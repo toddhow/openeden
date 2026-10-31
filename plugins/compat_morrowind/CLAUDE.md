@@ -2,6 +2,8 @@
 
 The Morrowind compatibility pack, the first real plugin. It provides `openeden.game` and the `.kf` → glTF converter contract (`openeden::contracts::KfConverterContract`). Read the root `CLAUDE.md` and `components/plugin/CLAUDE.md` first.
 
+It is enabled by default in the shipped `openmw.cfg` (task 0018), so anything that would change the game's behaviour here needs its own setting, off by default.
+
 ## Dependencies
 
 - **Allowed:**

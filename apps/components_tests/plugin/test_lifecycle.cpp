@@ -490,3 +490,181 @@ namespace
         EXPECT_EQ(destructLog, expectedDestructSequence);
     }
 }
+
+// ---- LifecycleManager::getFailures (task 0018): what the player is told ---------------------------------------------
+
+namespace
+{
+    enum class FailAt
+    {
+        Nowhere,
+        Start,
+        Phase,
+    };
+
+    constexpr const char* kStartFailureText = "failure text from start";
+    constexpr const char* kPhaseFailureText = "failure text from a phase";
+
+    // Provides the contract if told to, and throws where it is told to.
+    class FailingPlugin : public Plugin
+    {
+    public:
+        FailingPlugin(FailAt failAt, bool provides)
+            : mFailAt(failAt)
+            , mProvides(provides)
+        {
+        }
+
+        void registerServices(Registrar& registrar) override
+        {
+            if (mProvides)
+                registrar.provide<TestContract>(mImplementation);
+            registrar.registerPhaseCallback(Phase::Input, [this](float /*dt*/) {
+                if (mFailAt == FailAt::Phase)
+                    throw std::runtime_error(kPhaseFailureText);
+            });
+        }
+
+        bool resolve(const ServiceLocator& /*locator*/) override { return true; }
+
+        void start(Host& /*host*/) override
+        {
+            if (mFailAt == FailAt::Start)
+                throw std::runtime_error(kStartFailureText);
+        }
+
+        void stop() override {}
+
+    private:
+        FailAt mFailAt;
+        bool mProvides;
+        TestContractImpl mImplementation;
+    };
+
+    const ContractRequirement kFailureTestContract{ "openeden.test", { 1, 0 } };
+
+    void addProvider(LifecycleManager& manager, const std::string& id, FailAt failAt)
+    {
+        manager.addPlugin(makeManifest(id, { kFailureTestContract }), std::make_unique<FailingPlugin>(failAt, true));
+    }
+
+    void addDependant(LifecycleManager& manager, const std::string& id)
+    {
+        manager.addPlugin(
+            makeManifest(id, {}, { kFailureTestContract }), std::make_unique<FailingPlugin>(FailAt::Nowhere, false));
+    }
+
+    void addStandalone(LifecycleManager& manager, const std::string& id, FailAt failAt = FailAt::Nowhere)
+    {
+        manager.addPlugin(makeManifest(id), std::make_unique<FailingPlugin>(failAt, false));
+    }
+
+    void expectComplete(const LifecycleManager::Failure& failure)
+    {
+        EXPECT_FALSE(failure.stage.empty()) << failure.pluginId;
+        EXPECT_FALSE(failure.reason.empty()) << failure.pluginId;
+    }
+
+    TEST(LifecycleFailures, HealthyPluginsHaveNoFailuresAtAnyPoint)
+    {
+        MockHost host;
+        LifecycleManager manager(host);
+        addProvider(manager, "provider", FailAt::Nowhere);
+        addDependant(manager, "dependant");
+        addStandalone(manager, "standalone");
+
+        EXPECT_TRUE(manager.getFailures().empty());
+        manager.initialize();
+        EXPECT_TRUE(manager.getFailures().empty());
+        manager.runPhase(Phase::Input, 0.016f);
+        manager.runPhase(Phase::Input, 0.016f);
+        EXPECT_TRUE(manager.getFailures().empty());
+        manager.shutdown();
+        EXPECT_TRUE(manager.getFailures().empty());
+    }
+
+    TEST(LifecycleFailures, ThrowInStartGivesAnEntryForThePluginThenOneForItsDependant)
+    {
+        MockHost host;
+        LifecycleManager manager(host);
+        addProvider(manager, "provider", FailAt::Start);
+        addDependant(manager, "dependant");
+        addStandalone(manager, "standalone");
+
+        manager.initialize();
+
+        const auto& failures = manager.getFailures();
+        ASSERT_EQ(failures.size(), 2u);
+
+        EXPECT_EQ(failures[0].pluginId, "provider");
+        expectComplete(failures[0]);
+        EXPECT_NE(failures[0].stage.find("start"), std::string::npos) << failures[0].stage;
+        EXPECT_NE(failures[0].reason.find(kStartFailureText), std::string::npos) << failures[0].reason;
+
+        EXPECT_EQ(failures[1].pluginId, "dependant");
+        expectComplete(failures[1]);
+
+        EXPECT_TRUE(manager.isPluginActive("standalone"));
+    }
+
+    TEST(LifecycleFailures, ThrowInAPhaseAddsOneEntryWhenItHasNoDependants)
+    {
+        MockHost host;
+        LifecycleManager manager(host);
+        addStandalone(manager, "faulty", FailAt::Phase);
+        addStandalone(manager, "healthy");
+
+        manager.initialize();
+        EXPECT_TRUE(manager.getFailures().empty());
+
+        manager.runPhase(Phase::Input, 0.016f);
+
+        const auto& failures = manager.getFailures();
+        ASSERT_EQ(failures.size(), 1u);
+        EXPECT_EQ(failures[0].pluginId, "faulty");
+        expectComplete(failures[0]);
+        EXPECT_NE(failures[0].reason.find(kPhaseFailureText), std::string::npos) << failures[0].reason;
+
+        // Disabled now: later frames must not add another entry, and shutting down must not either.
+        manager.runPhase(Phase::Input, 0.016f);
+        manager.runPhase(Phase::Input, 0.016f);
+        EXPECT_EQ(manager.getFailures().size(), 1u);
+        manager.shutdown();
+        EXPECT_EQ(manager.getFailures().size(), 1u);
+    }
+
+    TEST(LifecycleFailures, ThrowInAPhaseAlsoGivesADependantAnEntryAfterThePlugin)
+    {
+        MockHost host;
+        LifecycleManager manager(host);
+        addProvider(manager, "provider", FailAt::Phase);
+        addDependant(manager, "dependant");
+
+        manager.initialize();
+        manager.runPhase(Phase::Input, 0.016f);
+
+        const auto& failures = manager.getFailures();
+        ASSERT_EQ(failures.size(), 2u);
+        EXPECT_EQ(failures[0].pluginId, "provider");
+        EXPECT_EQ(failures[1].pluginId, "dependant");
+        expectComplete(failures[0]);
+        expectComplete(failures[1]);
+    }
+
+    TEST(LifecycleFailures, FailuresKeepTheOrderTheyHappenedIn)
+    {
+        MockHost host;
+        LifecycleManager manager(host);
+        // In load order the phase failure comes first, but the start failure happens first.
+        addStandalone(manager, "a_fails_in_phase", FailAt::Phase);
+        addStandalone(manager, "b_fails_in_start", FailAt::Start);
+
+        manager.initialize();
+        manager.runPhase(Phase::Input, 0.016f);
+
+        const auto& failures = manager.getFailures();
+        ASSERT_EQ(failures.size(), 2u);
+        EXPECT_EQ(failures[0].pluginId, "b_fails_in_start");
+        EXPECT_EQ(failures[1].pluginId, "a_fails_in_phase");
+    }
+}

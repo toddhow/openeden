@@ -133,7 +133,12 @@ namespace OMW
 
         // A broken manifest has no reliable ID to check against the enable list, so it is always reported
         for (const plugin::PluginLoadError& error : errors)
+        {
             Log(Debug::Error) << "Plugin '" << error.pluginId << "' failed at " << error.stage << ": " << error.message;
+            // Only if asked for: a broken folder the player did not enable is no reason for a message every run
+            if (isEnabled(error.pluginId))
+                mLoadFailures.push_back(error.pluginId + ": " + error.message);
+        }
 
         std::vector<plugin::PluginManifest> loadedManifests;
         std::map<std::string, std::filesystem::path> loadedData;
@@ -160,6 +165,7 @@ namespace OMW
             {
                 Log(Debug::Error) << "Plugin '" << id << "' failed at " << result.error.stage << ": "
                                   << result.error.message;
+                mLoadFailures.push_back(id + ": " + result.error.message);
                 continue;
             }
             loadedManifests.push_back(result.plugin.manifest);
@@ -270,6 +276,27 @@ namespace OMW
     {
         mLoadedChunks.clear();
         mHost.saveService().clearUnreadChunks();
+    }
+
+    std::string PluginHost::takeFailureReport()
+    {
+        std::string report;
+        const auto add = [&](const std::string& line) {
+            if (!report.empty())
+                report += '\n';
+            report += line;
+        };
+        for (const std::string& line : mLoadFailures)
+            add(line);
+        mLoadFailures.clear();
+
+        const auto& failures = mLifecycle.getFailures();
+        for (; mReportedFailures < failures.size(); ++mReportedFailures)
+        {
+            const auto& failure = failures[mReportedFailures];
+            add(failure.pluginId + ": " + failure.reason);
+        }
+        return report;
     }
 
     void PluginHost::attachWorld(MWPhysics::PhysicsSystem& physics)

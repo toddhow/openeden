@@ -178,6 +178,15 @@ namespace OMW
             mStateManager->popGameState(gameState);
             return false;
         }
+        // Here, not in the Game state, which does not run while the menu state is on top of it
+        if (mWindowManager->containsMode(MWGui::GM_MainMenu))
+        {
+            if (const std::string report = mPluginHost->takeFailureReport(); !report.empty())
+            {
+                Log(Debug::Info) << "Showing plugin failure message";
+                mWindowManager->messageBox("#{OMWEngine:PluginsFailed}\n" + report);
+            }
+        }
         mPluginHost->runPhase(openeden::sdk::Phase::PreRender, dt);
         mWindowManager->onFrame(dt);
         mPluginHost->runPhase(openeden::sdk::Phase::Ui, dt);
@@ -341,8 +350,8 @@ namespace OMW
                 mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
         else
         {
-            // Plugin data goes above data= folders and below data-local (task 0016), in the VFS only: where content
-            // files are looked up does not change.
+            // Plugin data goes above data= folders and below data-local (task 0016). They are data folders in full, so
+            // a plugin can carry content files such as an .omwscripts.
             Files::PathContainer vfsDirs = mDataDirs;
             auto insertAt = std::find(vfsDirs.begin(), vfsDirs.end(), args.dataLocal);
             for (const openeden::plugin::PluginDataDir& dir : mPluginHost->dataDirs())
@@ -354,6 +363,9 @@ namespace OMW
             VFS::registerArchives(
                 &gameData, mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
             mPluginHost->reportDataOverrides(gameData);
+
+            mDataDirs = std::move(vfsDirs);
+            mFileCollections = Files::Collections(mDataDirs);
         }
         mPluginHost->setEngineVfs(mVFS.get());
 

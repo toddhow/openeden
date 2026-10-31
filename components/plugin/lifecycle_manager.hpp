@@ -81,6 +81,18 @@ namespace openeden::plugin
         const std::vector<std::string>& getLoadOrder() const;
 
         /**
+         * @brief Why each failed plugin failed, in the order they failed. A plugin disabled because a plugin it needs
+         * failed has an entry of its own.
+         */
+        struct Failure
+        {
+            std::string pluginId;
+            std::string stage;
+            std::string reason;
+        };
+        const std::vector<Failure>& getFailures() const { return mFailures; }
+
+        /**
          * @brief Returns the list of disabled plugins.
          */
         const std::vector<std::string>& getDisabledPlugins() const;
@@ -92,6 +104,7 @@ namespace openeden::plugin
         openeden::sdk::Host& mHost;
         ServiceRegistry mRegistry;
         std::function<void()> mBeforeUnload;
+        std::vector<Failure> mFailures;
 
         struct PluginRecord
         {
