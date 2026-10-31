@@ -150,6 +150,9 @@ namespace
                 f(*list[i].getPtr());
     }
 
+    // Enough for the few keys a particle colour curve has; the sampler interpolates between steps.
+    constexpr int sColorCurveSteps = 64;
+
     bool canOptimize(const std::string& f)
     {
         std::string filename = Misc::StringUtils::lowerCase(f);
@@ -624,7 +627,7 @@ namespace vsgAdapters
                     const auto& cl = static_cast<const Nif::NiParticleColorModifier&>(*affectors.getPtr());
                     if (!cl.mData.empty())
                     {
-                        colorCurve = createColorCurve(*cl.mData.getPtr(), maxLifetime, 0.04);
+                        colorCurve = createColorCurve(*cl.mData.getPtr(), sColorCurveSteps);
                         modes |= Pipeline::ParticleMode_Color;
                     }
                 }

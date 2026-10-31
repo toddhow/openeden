@@ -103,7 +103,7 @@ namespace vsgAdapters
 
     void handleInitialParticles(vsg::Array<Pipeline::Data::Particle>& array, const Nif::NiParticlesData& data, const Nif::NiParticleSystemController& partctrl);
 
-    vsg::ref_ptr<vsg::Data> createColorCurve(const Nif::NiColorData& clrdata, float maxDuration, float timeStep);
+    vsg::ref_ptr<vsg::Data> createColorCurve(const Nif::NiColorData& clrdata, int numSteps);
     vsg::ref_ptr<vsg::Command> createParticleDispatch(uint32_t numParticles);
 }
 

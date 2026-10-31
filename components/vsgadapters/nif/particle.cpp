@@ -36,10 +36,12 @@ namespace vsgAdapters
 
     Pipeline::Data::EmitArgs handleEmitterData(const Nif::NiParticleSystemController& partctrl)
     {
+        // openeden-vsg: the shader multiplies these by a random value in -1 to 1, and OpenMW's range is half the dimension and
+        // half the variation either way (nifloader.cpp at 442eec6e2f, BoxPlacer and ParticleShooter; task 0012).
         Pipeline::Data::EmitArgs data{
-            .offsetRandom = { toVsg(partctrl.mEmitterDimensions), 0 },
+            .offsetRandom = { toVsg(partctrl.mEmitterDimensions) * 0.5f, 0 },
             .direction = { partctrl.mPlanarAngle, partctrl.mPlanarAngleVariation, partctrl.mDeclination, partctrl.mDeclinationVariation },
-            .velocityLifetime = { partctrl.mSpeed, partctrl.mSpeedVariation, partctrl.mLifetime, partctrl.mLifetimeVariation }
+            .velocityLifetime = { partctrl.mSpeed, partctrl.mSpeedVariation * 0.5f, partctrl.mLifetime, partctrl.mLifetimeVariation }
         };
         return data;
     }
@@ -70,13 +72,14 @@ namespace vsgAdapters
         }
     }
 
-    vsg::ref_ptr<vsg::Data> createColorCurve(const Nif::NiColorData& clrdata, float maxDuration, float timeStep)
+    vsg::ref_ptr<vsg::Data> createColorCurve(const Nif::NiColorData& clrdata, int numSteps)
     {
+        // openeden-vsg: the keys are in fractions of a particle's life and the shader samples age / lifetime, as OpenMW's
+        // ParticleColorAffector::operate, so the array spans 0 to 1 whatever the lifetime (task 0012).
         auto channel = handleInterpolatedKeyframes<vsg::vec4>(clrdata.mKeyMap);
-        int numSteps = maxDuration / timeStep;
         auto data = vsg::vec4Array::create(numSteps, vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
         for (int i = 0; i < numSteps; ++i)
-            data->at(i) = channel->value(timeStep * i);
+            data->at(i) = channel->value((i + 0.5f) / numSteps);
         return data;
     }
 
