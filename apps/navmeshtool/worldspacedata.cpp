@@ -26,8 +26,8 @@
 #include <components/settings/settings.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <osg/Vec2i>
-#include <osg/ref_ptr>
+#include <vsg/core/ref_ptr.h>
+#include <vsg/maths/vec2.h>
 
 #include <algorithm>
 #include <memory>
@@ -146,7 +146,7 @@ namespace NavMeshTool
                 if (cellRef.mType != ESM::REC_STAT)
                     model = Misc::ResourceHelpers::correctActorModelPath(model, &vfs);
 
-                osg::ref_ptr<const Resource::PhysicsShape> shape = [&] {
+                vsg::ref_ptr<const Resource::PhysicsShape> shape = [&] {
                     try
                     {
                         return physicsShapeManager.getShape(Misc::ResourceHelpers::correctMeshPath(model));
@@ -155,14 +155,14 @@ namespace NavMeshTool
                     {
                         Log(Debug::Warning) << "Failed to load cell ref \"" << cellRef.mRefId << "\" model \"" << model
                                             << "\": " << e.what();
-                        return osg::ref_ptr<const Resource::PhysicsShape>();
+                        return vsg::ref_ptr<const Resource::PhysicsShape>();
                     }
                 }();
 
                 if (shape == nullptr || shape->mCollisionShape == nullptr)
                     continue;
 
-                osg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance(
+                vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance(
                     new Resource::PhysicsShapeInstance(std::move(shape)));
 
                 switch (cellRef.mType)
@@ -181,25 +181,25 @@ namespace NavMeshTool
 
         struct GetXY
         {
-            osg::Vec2i operator()(const ESM::Land& value) const { return osg::Vec2i(value.mX, value.mY); }
+            vsg::ivec2 operator()(const ESM::Land& value) const { return vsg::ivec2(value.mX, value.mY); }
         };
 
         struct LessByXY
         {
             bool operator()(const ESM::Land& lhs, const ESM::Land& rhs) const { return GetXY{}(lhs) < GetXY{}(rhs); }
 
-            bool operator()(const ESM::Land& lhs, const osg::Vec2i& rhs) const { return GetXY{}(lhs) < rhs; }
+            bool operator()(const ESM::Land& lhs, const vsg::ivec2& rhs) const { return GetXY{}(lhs) < rhs; }
 
-            bool operator()(const osg::Vec2i& lhs, const ESM::Land& rhs) const { return lhs < GetXY{}(rhs); }
+            bool operator()(const vsg::ivec2& lhs, const ESM::Land& rhs) const { return lhs < GetXY{}(rhs); }
         };
 
-        JPH::AABox getAabb(const osg::Vec2i& cellPosition, float minHeight, float maxHeight)
+        JPH::AABox getAabb(const vsg::ivec2& cellPosition, float minHeight, float maxHeight)
         {
             JPH::AABox aabb;
-            aabb.mMin = JPH::Vec3(static_cast<float>(cellPosition.x() * ESM::Land::REAL_SIZE),
-                static_cast<float>(cellPosition.y() * ESM::Land::REAL_SIZE), minHeight);
-            aabb.mMax = JPH::Vec3(static_cast<float>((cellPosition.x() + 1) * ESM::Land::REAL_SIZE),
-                static_cast<float>((cellPosition.y() + 1) * ESM::Land::REAL_SIZE), maxHeight);
+            aabb.mMin = JPH::Vec3(static_cast<float>(cellPosition.x * ESM::Land::REAL_SIZE),
+                static_cast<float>(cellPosition.y * ESM::Land::REAL_SIZE), minHeight);
+            aabb.mMax = JPH::Vec3(static_cast<float>((cellPosition.x + 1) * ESM::Land::REAL_SIZE),
+                static_cast<float>((cellPosition.y + 1) * ESM::Land::REAL_SIZE), maxHeight);
             return aabb;
         }
 
@@ -214,10 +214,10 @@ namespace NavMeshTool
         }
 
         std::tuple<HeightfieldShape, float, float> makeHeightfieldShape(const std::optional<ESM::Land>& land,
-            const osg::Vec2i& cellPosition, std::vector<std::vector<float>>& heightfields,
+            const vsg::ivec2& cellPosition, std::vector<std::vector<float>>& heightfields,
             std::vector<std::unique_ptr<ESM::Land::LandData>>& landDatas)
         {
-            if (!land.has_value() || osg::Vec2i(land->mX, land->mY) != cellPosition
+            if (!land.has_value() || vsg::ivec2(land->mX, land->mY) != cellPosition
                 || (land->mDataTypes & ESM::Land::DATA_VHGT) == 0)
                 return { HeightfieldPlane{ static_cast<float>(ESM::Land::DEFAULT_HEIGHT) },
                     static_cast<float>(ESM::Land::DEFAULT_HEIGHT), static_cast<float>(ESM::Land::DEFAULT_HEIGHT) };
@@ -252,14 +252,14 @@ namespace NavMeshTool
         }
 
         void detectDisconnectedTileGroups(ESM::RefId worldspace,
-            const std::map<osg::Vec2i, DetourNavigator::ChangeType>& changedTiles,
+            const std::map<vsg::ivec2, DetourNavigator::ChangeType>& changedTiles,
             std::span<const AddedCellRef> cellRefs)
         {
             if (changedTiles.empty())
                 return;
 
-            std::deque<osg::Vec2i> queue;
-            std::map<osg::Vec2i, std::size_t> positionToComponent;
+            std::deque<vsg::ivec2> queue;
+            std::map<vsg::ivec2, std::size_t> positionToComponent;
             std::size_t componentIndex = 0;
 
             for (const auto& [initial, changeType] : changedTiles)
@@ -272,14 +272,14 @@ namespace NavMeshTool
 
                 while (!queue.empty())
                 {
-                    const osg::Vec2i position = queue.front();
+                    const vsg::ivec2 position = queue.front();
                     queue.pop_front();
 
-                    for (int x = position.x() - 1; x <= position.x() + 1; ++x)
+                    for (int x = position.x - 1; x <= position.x + 1; ++x)
                     {
-                        for (int y = position.y() - 1; y <= position.y() + 1; ++y)
+                        for (int y = position.y - 1; y <= position.y + 1; ++y)
                         {
-                            const osg::Vec2i candidate(x, y);
+                            const vsg::ivec2 candidate(x, y);
 
                             if (candidate == position)
                                 continue;
@@ -327,8 +327,8 @@ namespace NavMeshTool
                                     << " ref_num=" << v.mCellRef.mRefNum << " ref_id=" << v.mCellRef.mRefId
                                     << " scale=" << v.mCellRef.mScale << " pos=" << WriteArray{ v.mCellRef.mPos.pos }
                                     << " rot=" << WriteArray{ v.mCellRef.mPos.rot }
-                                    << " begin_tile=" << v.mRange.mBegin.x() << ", " << v.mRange.mBegin.y()
-                                    << " end_tile=" << v.mRange.mEnd.x() << ", " << v.mRange.mEnd.y()
+                                    << " begin_tile=" << v.mRange.mBegin.x << ", " << v.mRange.mBegin.y
+                                    << " end_tile=" << v.mRange.mEnd.x << ", " << v.mRange.mEnd.y
                                     << " component=" << component;
             }
         }
@@ -410,7 +410,7 @@ namespace NavMeshTool
             Log(Debug::Debug) << "Processing " << (exterior ? "exterior" : "interior") << " cell (" << (i + 1) << "/"
                               << cells.size() << ") \"" << cell.getDescription() << "\"";
 
-            const osg::Vec2i cellPosition(cell.mData.mX, cell.mData.mY);
+            const vsg::ivec2 cellPosition(cell.mData.mX, cell.mData.mY);
             const std::size_t cellObjectsBegin = data.mObjects.size();
 
             if (exterior)
@@ -479,7 +479,7 @@ namespace NavMeshTool
                              << (data.mObjects.size() - cellObjectsBegin) << " objects";
         }
 
-        const std::map<osg::Vec2i, DetourNavigator::ChangeType> changedTiles = manager.takeChangedTiles(guard.get());
+        const std::map<vsg::ivec2, DetourNavigator::ChangeType> changedTiles = manager.takeChangedTiles(guard.get());
 
         if (worldspace != ESM::Cell::sDefaultWorldspaceId)
             detectDisconnectedTileGroups(worldspace, changedTiles, addedCellRefs);

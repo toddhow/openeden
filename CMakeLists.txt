@@ -712,7 +712,7 @@ if (BUILD_BENCHMARKS)
 endif()
 
 if (BUILD_NAVMESHTOOL)
-    #add_subdirectory(apps/navmeshtool)
+    add_subdirectory(apps/navmeshtool)
 endif()
 
 if (BUILD_PHYSICSOBJECTTOOL)

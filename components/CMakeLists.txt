@@ -227,7 +227,7 @@ add_component_dir (resource
 
 # OpenEden task 0011: the navmesh debug draw, renderer-free (it draws into a DebugPrimitiveSink).
 add_component_dir (sceneutil
-    detourdebugdraw navmesh
+    detourdebugdraw navmesh workqueue
     )
 
 add_component_dir (nif

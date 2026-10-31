@@ -19,11 +19,8 @@
 #include <components/files/conversion.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/platform/platform.hpp>
-#include <components/resource/bgsmfilemanager.hpp>
-#include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/physicsshapemanager.hpp>
-#include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/workqueue.hpp>
 #include <components/settings/values.hpp>
 #include <components/toutf8/toutf8.hpp>
@@ -31,7 +28,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
 
-#include <osg/Vec3f>
+#include <vsg/maths/vec3.h>
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/RegisterTypes.h>
@@ -231,12 +228,8 @@ namespace NavMeshTool
                 = EsmLoader::loadEsmData(query, contentFiles, fileCollections, readers, &encoder);
 
             constexpr double expiryDelay = 0;
-
-            Resource::ImageManager imageManager(&vfs, expiryDelay);
             Resource::NifFileManager nifFileManager(&vfs, &encoder.getStatelessEncoder());
-            Resource::BgsmFileManager bgsmFileManager(&vfs, expiryDelay);
-            Resource::SceneManager sceneManager(&vfs, &imageManager, &nifFileManager, &bgsmFileManager, expiryDelay);
-            Resource::PhysicsShapeManager physicsShapeManager(&vfs, &sceneManager, &nifFileManager, expiryDelay);
+            Resource::PhysicsShapeManager physicsShapeManager(&vfs, &nifFileManager, expiryDelay);
             DetourNavigator::RecastGlobalAllocator::init();
             DetourNavigator::Settings navigatorSettings
                 = DetourNavigator::makeSettingsFromSettingsManager(Debug::getRecastMaxLogLevel());

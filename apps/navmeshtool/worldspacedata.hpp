@@ -51,25 +51,25 @@ namespace NavMeshTool
     class PhysicsObject
     {
     public:
-        PhysicsObject(osg::ref_ptr<Resource::PhysicsShapeInstance>&& shapeInstance, const ESM::Position& position,
+        PhysicsObject(vsg::ref_ptr<Resource::PhysicsShapeInstance>&& shapeInstance, const ESM::Position& position,
             float localScaling)
             : mShapeInstance(std::move(shapeInstance))
             , mObjectTransform{ position, localScaling }
         {
-            worldTransform.setTrans(position.asVec3());
-            worldTransform.setRotate(Misc::Convert::makeOsgQuat(position));
-            worldTransform = osg::Matrixd::scale(osg::Vec3f(localScaling, localScaling, localScaling)) * worldTransform;
+            worldTransform = Misc::VsgMath::toMatrix(Misc::Convert::makeOsgQuat(position));
+            Misc::VsgMath::setTrans(worldTransform, position.asVec3());
+            Misc::VsgMath::preMultScale(worldTransform, vsg::vec3(localScaling, localScaling, localScaling));
         }
 
-        const osg::ref_ptr<Resource::PhysicsShapeInstance>& getShapeInstance() const noexcept { return mShapeInstance; }
+        const vsg::ref_ptr<Resource::PhysicsShapeInstance>& getShapeInstance() const noexcept { return mShapeInstance; }
         const DetourNavigator::ObjectTransform& getObjectTransform() const noexcept { return mObjectTransform; }
         JPH::Shape& getShape() const noexcept { return *mShapeInstance->mCollisionShape.GetPtr(); }
-        const osg::Matrixd& getWorldTransform() const noexcept { return worldTransform; }
+        const vsg::dmat4& getWorldTransform() const noexcept { return worldTransform; }
 
     private:
-        osg::ref_ptr<Resource::PhysicsShapeInstance> mShapeInstance;
+        vsg::ref_ptr<Resource::PhysicsShapeInstance> mShapeInstance;
         DetourNavigator::ObjectTransform mObjectTransform;
-        osg::Matrixd worldTransform;
+        vsg::dmat4 worldTransform;
     };
 
     struct WorldspaceData

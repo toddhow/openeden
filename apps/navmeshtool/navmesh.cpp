@@ -19,7 +19,7 @@
 #include <components/sceneutil/workqueue.hpp>
 #include <components/sqlite3/transaction.hpp>
 
-#include <osg/Vec3f>
+#include <vsg/maths/vec3.h>
 
 #include <atomic>
 #include <chrono>
