@@ -11,7 +11,7 @@
 - CreativeMotion's `docs/Open Procedural Animation System — Living Design Doc.md`: a local export that is not committed (the root `CLAUDE.md` says exported copies of the living design docs are never committed), so there is no link
 - [`docs/decisions/0004-total-fork-of-openmw.md`](file:///i:/Projects/CreativeMotion/docs/decisions/0004-total-fork-of-openmw.md)
 
-> **Decision 0003 (toddhow, 2026-10-28):** AdvancedBodies and ComplexClothing are planned as core systems, like CreativeMotion (decision 0001), because they change physics; their editor modules are registered by the core, not by extensions (the decision's wording; how that is packaged is open question (a), section 10). Reflectron stays an extension. See `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`.
+> **Decision 0003 (toddhow, 2026-10-28):** AdvancedBodies and ComplexClothing are planned as core systems, like CreativeMotion (decision 0001), because they change physics; their editor modules are registered by the core, not by extensions (decision 0007 says how: separate editor libraries that Eden Studio loads from a fixed list of core systems, not from extension manifests). Reflectron stays an extension. See `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`.
 
 > **Decision 0002 (toddhow, 2026-10-28):** the renderer moves to Vulkan on VulkanSceneGraph, with no OpenGL fallback and no abstraction layer. The editor's viewport follows it (Track V stage V6, task 0014); section 8, Phase 1 says where that stands. See `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md`.
 
@@ -19,7 +19,9 @@
 
 > **Decision 0006 (toddhow, 2026-10-31):** the engine's plugins are called extensions ("plugin" now means an ESP or ESM file), and what this plan first called editor extensions are editor modules. See `docs/decisions/0006-engine-plugins-are-extensions.md`.
 
-> **What exists today (2026-10-31).** Almost none of this plan is built. The SDK has an `EditorService` with three abstract hooks (workspace, inspector and gizmo) that an extension registers from its runtime code; it is inactive in the game and the headless host, and nothing in Eden Studio uses it yet (`sdk/include/openeden/editor.hpp`). Everything else in section 3 (panels, commands, asset types, timeline tracks and so on) is plan, and the loading of separate editor libraries in section 4 is plan too. Section 8, Phase 3 is unbuilt. Section 2.1 says where the editor application stands. Three questions are still toddhow's; they are collected in section 10, and the text below is written as undecided on them.
+> **Decision 0007 (toddhow, 2026-10-31):** Eden Studio's editor design. Core systems' tools are editor libraries that Eden Studio loads from a fixed list of core systems; the plan's separate editor library stays and the SDK's runtime-side hooks go in Phase 3; Studio keeps the V6 `SceneHost` for its viewport and adds the Jolt world and the extension host beside it. See `docs/decisions/0007-eden-studio-editor-design.md` and section 10.
+
+> **What exists today (2026-10-31).** Almost none of this plan is built. The SDK has an `EditorService` with three abstract hooks (workspace, inspector and gizmo) that an extension registers from its runtime code; it is inactive in the game and the headless host, and nothing in Eden Studio uses it yet (`sdk/include/openeden/editor.hpp`). These hooks (`EditorService`, `EditorWorkspace`, `EditorInspector`, `EditorGizmo`) are on their way out: decision 0007 removes them when the editor API is built, in Phase 3, and no code is removed yet. Everything else in section 3 (panels, commands, asset types, timeline tracks and so on) is plan, and the loading of separate editor libraries in section 4 is plan too. Section 8, Phase 3 is unbuilt. Section 2.1 says where the editor application stands. The three questions this plan used to carry are decided (decision 0007, section 10).
 
 
 ---
@@ -44,7 +46,7 @@ OpenEden's engine core is groundwork only. Feature systems are either core syste
 - **Eden Studio itself contains only the tools for what the engine core owns:** the shell, the viewport, the asset browser, world and scene editing, project and extension management. It has no animation editor, no body sliders, no clothing tools and no face timeline of its own.
 - **Extension tools come from the extensions.** Each extension that wants tooling ships an **editor module** alongside its runtime. When Eden Studio loads the extension, it loads the editor module too, and the editor module tells Eden Studio which windows, panels, inspectors, gizmos, menus and asset editors it needs through the **Editor Module API** (section 3).
 - **Game-specific editors come from the compatibility pack.** Record types, dialogue and quest data belong to one game, so the game's compatibility pack supplies their editors through the same API.
-- **Tools for core systems are undecided.** CreativeMotion is compiled into the engine, and AdvancedBodies and ComplexClothing are planned as core systems, so none has an extension to ship an editor module with. How their tools are packaged is open question (a), section 10; until it is answered, read "feature tools" below as extension tools.
+- **Tools for core systems are editor modules too (decision 0007).** CreativeMotion is compiled into the engine, and AdvancedBodies and ComplexClothing are planned as core systems, so none has an extension to ship an editor module with. Each keeps its tools in a separate editor library, and Eden Studio loads those from a fixed list of core systems, not from extension manifests. The game never loads them. Below, an extension's editor module and a core system's differ only in how Studio finds them.
 
 
 Why: extension features are not baked into the engine, so they must not be baked into the editor either. A feature that is missing from a session (an extension not installed or not enabled) must leave no dead menus or broken panels behind; a new extension must be able to bring its own tooling without anyone changing or rebuilding Eden Studio; and an extension's tools must move with it, versioned and shipped by the team that owns the feature.
@@ -97,9 +99,9 @@ These exist with zero extensions loaded, because they mirror the engine core:
 
 ### 2.2 What Eden Studio Does Not Provide
 Eden Studio contains **no feature-specific code**. Specifically, none of the following are part of Eden Studio:
-- Animation graph editing, rig and motor inspection, push testing, arbiter and reconciliation views (CreativeMotion is a core system, decision 0001; where its tools live is open question (a)).
-- Body morph sliders, population generation, character profiles (AdvancedBodies is planned as a core system, decision 0003, so open question (a); Reflectron is an extension and supplies its own).
-- Garment fitting, layering and cloth constraint authoring (ComplexClothing is planned as a core system, decision 0003; open question (a)).
+- Animation graph editing, rig and motor inspection, push testing, arbiter and reconciliation views (CreativeMotion is a core system, decision 0001; its tools are an editor module on the core list, decision 0007).
+- Body morph sliders, population generation, character profiles (AdvancedBodies is planned as a core system, decision 0003, with an editor module on the core list, decision 0007; Reflectron is an extension and supplies its own).
+- Garment fitting, layering and cloth constraint authoring (ComplexClothing is planned as a core system, decision 0003, with an editor module on the core list, decision 0007).
 - Facial expression and speech timelines (supplied by whichever system owns the face layer; section 5.1 expects CreativeMotion to).
 - Game-specific record editors, dialogue and quest graphs (supplied by the active compatibility pack).
 
@@ -185,7 +187,7 @@ One toolkit for every editor module, so all tools look and behave alike:
 
 ## 4. Packaging, Loading and Lifecycle of Editor Modules
 
-*Planned, not built. See the status note at the top, and open questions (b) and (c).*
+*Planned, not built. See the status note at the top. The separate editor library is the design (decision 0007).*
 
 ### 4.1 One Extension, Two Libraries
 An extension that provides tooling would ship its editor module as a **separate library** beside its runtime library. For illustration, with the Morrowind compatibility pack (`extensions/compat_morrowind/`, whose real manifest names a runtime library only):
@@ -202,12 +204,12 @@ extensions/
 - The editor library links the runtime library's public contracts and the Editor Module API; it never reaches into the runtime library's internals.
 - An extension with no tooling simply has no editor library; Eden Studio still loads its runtime so the world behaves as in the game.
 
-**What exists and what is planned.** The extension manifest has no `editor` entry today (`components/extension/manifest.hpp` and `manifest_io.cpp` define none), and nothing loads an editor library. What exists is the SDK's `EditorService` (`sdk/include/openeden/editor.hpp`): an extension registers a workspace, an inspector or a gizmo from its runtime code, in `start()`, through `host.getEditorService()`. It is inactive in the game and the headless host. The extension system document says the same in section 4.10. The separate editor library, a manifest entry that names it and the Editor API version it was built for, and the loading in section 4.2 are planned; their format is not designed, and whether they replace the hooks is open question (b).
+**What exists and what is planned.** The extension manifest has no `editor` entry today (`components/extension/manifest.hpp` and `manifest_io.cpp` define none), and nothing loads an editor library. What exists is the SDK's `EditorService` (`sdk/include/openeden/editor.hpp`): an extension registers a workspace, an inspector or a gizmo from its runtime code, in `start()`, through `host.getEditorService()`. It is inactive in the game and the headless host. The extension system document says the same in section 4.10. The separate editor library, a manifest entry that names it and the Editor API version it was built for, and the loading in section 4.2 are planned; their format is not designed. Decision 0007 keeps this design and removes the hooks above when the Editor Module API is built, in Phase 3; no code is removed yet. Editor modules of core systems have no manifest: Eden Studio loads them from a fixed list of core systems.
 
 
 ### 4.2 Loading Sequence in Eden Studio
-1. Eden Studio starts the engine core and loads the enabled extensions exactly as the game does (discover, resolve, register, start). The editor has no extension host yet; see open question (c).
-2. For each started extension with an `editor` entry, in the same load order, Eden Studio loads the editor library, checks its Editor API version, creates the editor module and calls `registerUi`.
+1. Eden Studio starts the engine core and loads the enabled extensions exactly as the game does (discover, resolve, register, start). The editor has no extension host yet; Phase 1 adds one beside the `SceneHost` (decision 0007).
+2. For each started extension with an `editor` entry, in the same load order, Eden Studio loads the editor library, checks its Editor API version, creates the editor module and calls `registerUi`. Editor modules of core systems are loaded the same way, from a fixed list of core systems (decision 0007).
 3. Eden Studio builds menus, workspaces, the asset browser and the inspector from the built-in tools plus everything registered.
 4. On shutdown, or when an extension is disabled from the extension manager, its windows are closed, `shutdown` is called, its registrations are withdrawn and the library is unloaded, in reverse load order.
 
@@ -224,7 +226,7 @@ extensions/
 
 ## 5. Example: Workspaces the Planned Systems Will Provide
 
-The workspaces below are **not part of Eden Studio**. They are what the planned systems are expected to provide through the Editor Module API (CreativeMotion, AdvancedBodies and ComplexClothing are core systems, so how they provide it is open question (a)), listed here to show what the API must be able to express. Each extension's own design documents own the detail.
+The workspaces below are **not part of Eden Studio**. They are what the planned systems are expected to provide through the Editor Module API (CreativeMotion, AdvancedBodies and ComplexClothing are core systems, whose editor modules Eden Studio loads from a fixed core list, decision 0007), listed here to show what the API must be able to express. Each extension's own design documents own the detail.
 
 ```
 +----------------------------------------------------------------------------------------------------+
@@ -249,7 +251,7 @@ The workspaces below are **not part of Eden Studio**. They are what the planned 
                                         +--------------------+          +--------------------------+
 ```
 
-*CreativeMotion, AdvancedBodies and ComplexClothing are core systems (decisions 0001 and 0003), not extensions; the boxes show what each tool set needs from the API. Where their tools live is open question (a).*
+*CreativeMotion, AdvancedBodies and ComplexClothing are core systems (decisions 0001 and 0003), not extensions; the boxes show what each tool set needs from the API. Their editor modules are loaded from a fixed core list (decision 0007).*
 
 ### 5.1 CreativeMotion Module (Animation, Physics & Face)
 Expected to register:
@@ -291,7 +293,7 @@ The active compatibility pack is expected to register the editors for its game's
 ## 6. Technical Integration & Contracts
 
 ### 6.1 Shared Engine, Shared World
-- **Goal:** Eden Studio runs the real engine core and the real runtime extensions, so what a tool shows is what the game does. This is a goal, not today's state: on the `vulkan` branch (at `ca9f6283d8`) the editor has its own render-only `CSVRender::SceneHost`, no Jolt world and no extension host. Open question (c) asks how to close the gap.
+- **Goal:** what a tool shows is what the game does. Decision 0007 gets there through the Jolt world and the extension host, not through the game's renderer: Eden Studio keeps the editor's own render-only `CSVRender::SceneHost` for its viewport, and Phase 1 adds the Jolt world and the extension host beside it, read-only at first. Today (on the `vulkan` branch at `ca9f6283d8`) the editor has the `SceneHost` and neither of those. Whether Studio later converges with the game's renderer is decided later.
 - There is one Jolt physics world, owned by the core. Extensions do not create their own and never change it: they, and so their editor modules, only read it through the physics query service (`sdk/include/openeden/physics.hpp`, decision 0003). Only core systems' tools may change physics, and only through the core.
 - **Stepping** (at `0703c40e59`): the game's physics step defaults to 1/60 s (`mPhysicsDt` in `apps/openmw/mwphysics/physicssystem.cpp`; the `OPENMW_PHYSICS_FPS` environment variable overrides it). `PhysicsTaskScheduler::calculateStepConfig` (`apps/openmw/mwphysics/mtphysics.cpp`) caps the fixed steps per frame (at most 10) and falls back to a variable step when fixed steps would fall behind, so the step is fixed only while the game keeps up. Stepping belongs to the core (decision 0003). Pausing and single steps in Eden Studio are planned; so is scrubbing backwards from recorded snapshots, and nothing records snapshots today.
 
@@ -340,8 +342,8 @@ For the OpenEden development session implementing Eden Studio, the recommended p
 *Part of this is built, on the `vulkan` branch (Track V stage V6, task 0014, stages C1 to C9; pinned here at `ca9f6283d8`). The tree this document is committed in does not have it.*
 - Separate the window host from Morrowind-specific data models (those move toward the Morrowind compatibility pack). **Built in part:** the editor's model layer is the `csmodel` library (`apps/opencs/CMakeLists.txt`), which `openmw-cs-tests` links without any view code (`apps/opencs_tests/CMakeLists.txt`). Morrowind-specific data has not moved.
 - Docking: **Qt, as built.** `SubView` derives from `QDockWidget` (`apps/opencs/view/doc/subview.hpp`). Nothing in `apps/` or `components/` uses ImGui except vendored `components/creativemotion` CMake files. The earlier "Qt6 docking or ImGui" choice is settled.
-- Viewport: **built, but not shared with the game.** The editor renders through VulkanSceneGraph in a Qt viewport (vsgQt v0.5.0, Qt 6.6.3, `docs/dependencies.md`) through `CSVRender::SceneHost` (`apps/opencs/view/render/scenehost.hpp`). That is the editor's own render-only counterpart of the game's `MWRender::RenderManager`, which is bound to the game's world types (`setStore(MWWorld::ESMStore)`, `configureAmbient(MWWorld::Cell)` in `apps/openmw/mwrender/rendermanager.hpp`). It is pending toddhow's hands-on checks (task 0014, "Check list for toddhow").
-- **Not built:** a Jolt world and the Jolt debug draw pass in the viewport, and loading the engine core and runtime extensions inside Eden Studio as the game does. The editor has no Jolt world and no extension host yet. Which way to build them is open question (c).
+- Viewport: **built, and it stays Studio's viewport (decision 0007); not shared with the game's renderer.** The editor renders through VulkanSceneGraph in a Qt viewport (vsgQt v0.5.0, Qt 6.6.3, `docs/dependencies.md`) through `CSVRender::SceneHost` (`apps/opencs/view/render/scenehost.hpp`). That is the editor's own render-only counterpart of the game's `MWRender::RenderManager`, which is bound to the game's world types (`setStore(MWWorld::ESMStore)`, `configureAmbient(MWWorld::Cell)` in `apps/openmw/mwrender/rendermanager.hpp`). It is pending toddhow's hands-on checks (task 0014, "Check list for toddhow").
+- **Phase 1 scope (decision 0007):** keep the editor's `SceneHost` for the viewport and add, beside it, a Jolt world (with its debug draw pass in the viewport) and the extension host that loads runtime extensions as the game does, read-only at first. Neither exists in the editor yet. Whether Studio converges with the game's renderer is decided later, not now.
 
 
 ### Phase 2: Built-In Core Tools
@@ -351,14 +353,14 @@ For the OpenEden development session implementing Eden Studio, the recommended p
 
 ### Phase 3: Editor Module API
 - Define and publish the Editor Module API (sections 3.1 to 3.11) with its own version.
-- Load editor libraries from extension manifests (section 4), with failure isolation. The shape depends on open question (b).
+- Load editor libraries from extension manifests (section 4), and for core systems from the fixed core list, with failure isolation. Per decision 0007 this is the only way tools are added: remove the runtime-side hooks in `sdk/include/openeden/editor.hpp` (`EditorService`, `EditorWorkspace`, `EditorInspector`, `EditorGizmo`) in this phase, with their implementation (`components/extension/editor_service.*`) and tests.
 - Build a small sample editor module in the OpenEden repository that exercises every part of the API (a panel, a command, a gizmo, an asset type, an inspector section, a timeline track), as the reference for extension teams and as a test.
 
 ### Phase 4: First Real Module
-- CreativeMotion's tools (starting with the rig inspector and push sandbox) are built against the published API; every gap they hit is meant to be fixed by extending the API, not by adding CreativeMotion code to Eden Studio. That guardrail is what open question (a) tests.
+- CreativeMotion's tools (starting with the rig inspector and push sandbox) are built against the published API; every gap they hit is meant to be fixed by extending the API, not by adding CreativeMotion code to Eden Studio. CreativeMotion's editor module is a separate library on the core list, so that guardrail holds (decision 0007).
 
 ### Phase 5: Further Editor Modules (owned by the extension teams)
-- AdvancedBodies and Reflectron, ComplexClothing, the face layer and the Morrowind compatibility pack each ship their own editor module on their own schedule (AdvancedBodies and ComplexClothing are planned core systems; see open question (a)). Eden Studio's work in this phase is limited to API additions they need.
+- AdvancedBodies and Reflectron, ComplexClothing, the face layer and the Morrowind compatibility pack each ship their own editor module on their own schedule (AdvancedBodies and ComplexClothing are planned core systems, so their editor modules join the core list, decision 0007). Eden Studio's work in this phase is limited to API additions they need.
 
 ### Phase 6: Production Hardening & Community SDK
 - Editor API compatibility checks in CI; documentation and a template editor module for community extension authors.
@@ -367,7 +369,7 @@ For the OpenEden development session implementing Eden Studio, the recommended p
 ---
 
 ## 9. Boundary Guardrails
-- **The editor mirrors the engine.** Eden Studio contains tools only for what the engine core owns; extension features' tooling ships with the extension as an editor module; how core systems' tooling ships is open question (a).
+- **The editor mirrors the engine.** Eden Studio contains tools only for what the engine core owns; extension features' tooling ships with the extension as an editor module; core systems' tooling ships as editor modules loaded from a fixed core list (decision 0007).
 - **No feature code in Eden Studio.** If an editor module needs a capability, the Editor Module API grows; the feature's tool never moves into the editor.
 - **No game code in Eden Studio.** Game-specific editors come from the active compatibility pack.
 - **The game never loads editor code.** Editor modules are separate libraries loaded only by Eden Studio (planned; section 4).
@@ -380,26 +382,15 @@ For the OpenEden development session implementing Eden Studio, the recommended p
   - *ComplexClothing* (planned core system) determines garment fit and cloth dynamics.
   - *Reflectron* (an extension) provides character creation in game and the NPC studio in the editor.
   - *Eden Studio* provides the workbench and the Editor Module API that brings them all together.
-  - Where the tools for the three core systems live is open question (a).
+  - The tools for the three core systems are editor modules on a fixed core list, not Eden Studio code (decision 0007).
 
 
 ---
 
-## 10. Open questions for toddhow
+## 10. Decisions on the editor design
 
-These are not decided. The text above is written as undecided on them, and each answer will replace its question with a decision.
+Decided by toddhow on 2026-10-31 (record: `docs/decisions/0007-eden-studio-editor-design.md`). These were open questions; all three took the recommended option.
 
-### (a) Where do the editor tools of core systems live?
-Decision 0003 says the editor modules of CreativeMotion, AdvancedBodies and ComplexClothing are "registered by the core". Two readings:
-- **Separate editor libraries, loaded from a fixed list the core keeps (recommended).** Each core system's tools stay in a library of their own that only Eden Studio loads, so "no feature code in Eden Studio" (sections 2.2 and 9) still holds and the Editor Module API is exercised by real users.
-- **Built into Eden Studio.** Simpler to load, but it breaks that guardrail, and Studio then changes whenever a core system does.
-
-### (b) Which editor design?
-Two coexist. The SDK's `EditorService` hooks are registered from an extension's runtime code (`sdk/include/openeden/editor.hpp`). Section 4 plans a separate editor library that the game never loads, with its own manifest entry.
-- **Keep the plan's separate library and drop the hooks when the Editor Module API is built (recommended).** The game then carries no editor code at all, and there is one way to add a tool.
-- **Keep the hooks.** Already written, but the runtime library carries editor-facing code the game never uses, and they offer only three kinds of tool.
-
-### (c) What world does Eden Studio run?
-- **Keep the V6 `SceneHost` and add a Jolt world and the extension host beside it (recommended).** Small steps on what is built; the cost is that the editor's view and the game's can drift apart, which section 6.1 then has to guard against.
-- **Run the game's own renderer, physics and extension host.** What a tool shows is exactly what the game does, but the game-bound `MWRender::RenderManager` has to be refactored first, which is a large change.
-
+- **Core systems' tools (was (a)):** CreativeMotion, AdvancedBodies and ComplexClothing have their editor tools as separate editor libraries (editor modules). Eden Studio loads them from a fixed list of core systems, not from extension manifests. The game never loads them, and "no feature code in Eden Studio" (sections 2.2 and 9) still holds.
+- **Editor design (was (b)):** the plan's design stays: a separate editor library that the game never loads. The runtime-side hooks in `sdk/include/openeden/editor.hpp` (`EditorService`, `EditorWorkspace`, `EditorInspector`, `EditorGizmo`) are removed when the editor API is built, in Phase 3. No code is removed now.
+- **The world Studio runs (was (c)):** Eden Studio keeps the editor's own render-only `SceneHost` from Track V stage V6 for its viewport. Phase 1 adds the Jolt world and the extension host beside it, read-only at first. Whether Studio converges with the game's renderer is decided later.
