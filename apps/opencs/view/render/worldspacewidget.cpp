@@ -36,8 +36,10 @@
 #include "../widget/scenetoolrun.hpp"
 #include "../widget/scenetooltoggle2.hpp"
 
+#include "cameracontroller.hpp"
 #include "mask.hpp"
 #include "object.hpp"
+#include "orbitcameramode.hpp"
 
 CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidget* parent)
     : SceneWidget(document.getData(), parent, Qt::WindowFlags(), false)
@@ -166,18 +168,15 @@ void CSVRender::WorldspaceWidget::selectDefaultNavigationMode()
 
 void CSVRender::WorldspaceWidget::centerOrbitCameraOnSelection()
 {
-    // Stage C5: the orbit camera.
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
     std::vector<vsg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
 
     for (std::vector<vsg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
     {
         if (CSVRender::ObjectTag* objectTag = static_cast<CSVRender::ObjectTag*>(it->get()))
         {
-            mOrbitCamControl->setCenter(objectTag->mObject->getPosition().asVec3());
+            mOrbitCamControl->setCenter(vsg::dvec3(objectTag->mObject->getPosition().asVec3()));
         }
     }
-#endif
 }
 
 CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CSVWidget::SceneToolbar* parent)
@@ -204,9 +203,8 @@ CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CS
         "<li>Mouse wheel moves the camera forward/backward</li>"
         "<li>Hold {free-forward:mod} to speed up movement</li>"
         "</ul>");
-    // Stage C5: back to CSVRender::OrbitCameraMode.
-    tool->addButton(":scenetoolbar/orbiting-camera", "orbit",
-            "Orbiting Camera"
+    tool->addButton(new CSVRender::OrbitCameraMode(this, Misc::ScalableIcon::load(":scenetoolbar/orbiting-camera"),
+                        "Orbiting Camera"
             "<ul><li>Always facing the centre point</li>"
             "<li>Rotate around the centre point via {orbit-up}, {orbit-left}, {orbit-down}, {orbit-right} or by moving "
             "the mouse while holding {scene-navi-primary}</li>"
@@ -215,7 +213,9 @@ CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CS
             "point)</li>"
             "<li>Mouse wheel moves camera away or towards centre point but can not pass through it</li>"
             "<li>Hold {scene-speed-modifier} to speed up movement</li>"
-            "</ul>");
+            "</ul>",
+                        tool),
+        "orbit");
 
     mCameraMode = tool;
 

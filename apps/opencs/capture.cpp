@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QMetaObject>
 #include <QHBoxLayout>
 #include <QWidget>
 
@@ -33,6 +34,8 @@
 #include "model/doc/document.hpp"
 #include "model/doc/documentmanager.hpp"
 #include "model/prefs/state.hpp"
+#include "view/render/camerapose.hpp"
+#include "view/render/cameracontroller.hpp"
 #include "view/render/pagedworldspacewidget.hpp"
 #include "view/render/rendercontext.hpp"
 #include "view/render/scenehost.hpp"
@@ -45,6 +48,8 @@ namespace
     // The same frame size as the comparison captures of the game (scratchpad and tools/render_compare.sh).
     constexpr int sViewWidth = 1280;
     constexpr int sViewHeight = 720;
+    // Well before any capture a script is for.
+    constexpr std::uint64_t sCameraScriptFrame = 5;
 
     struct Request
     {
@@ -64,6 +69,8 @@ namespace
         int mIdleTicks = 0;
         // After the first capture the view leaves its parent for a window of its own, as floating a dock does.
         bool mReparent = false;
+        // Commands for the view's camera controller, run once before the first capture. See runCameraScript.
+        std::string mCameraScript;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -78,6 +85,86 @@ namespace
             value = std::stod(number);
         }
         return values;
+    }
+
+    void logCamera(const CSVRender::SceneHost& host)
+    {
+        const auto lookAt = CSVRender::CameraPose::lookAtFrom(host.getViewMatrix());
+        Log(Debug::Info) << "Camera eye " << lookAt.mEye.x << " " << lookAt.mEye.y << " " << lookAt.mEye.z << " centre "
+                         << lookAt.mCenter.x << " " << lookAt.mCenter.y << " " << lookAt.mCenter.z << " up " << lookAt.mUp.x
+                         << " " << lookAt.mUp.y << " " << lookAt.mUp.z;
+    }
+
+    /// Drives the view's camera controller as keys and the mouse would, without Qt events. Commands, separated by ';':
+    /// mode 1st|free|orbit, pose ex ey ez cx cy cz ux uy uz, center x y z (orbit), slot name 0|1 (the controller's slot, as
+    /// its shortcut calls it), mouse dx dy, wheel d, update dt, ortho size. The camera is logged after each.
+    void runCameraScript(CSVRender::WorldspaceWidget& view, const std::string& script)
+    {
+        std::istringstream commands(script);
+        std::string command;
+        while (std::getline(commands, command, ';'))
+        {
+            std::istringstream words(command);
+            std::string verb;
+            words >> verb;
+            auto* controller = view.getCameraController();
+            if (verb == "mode")
+            {
+                std::string mode;
+                words >> mode;
+                view.setNavigationMode(mode);
+            }
+            else if (verb == "pose")
+            {
+                vsg::dvec3 eye, center, up;
+                words >> eye.x >> eye.y >> eye.z >> center.x >> center.y >> center.z >> up.x >> up.y >> up.z;
+                view.setCameraPose(eye, center, up);
+            }
+            else if (verb == "center")
+            {
+                vsg::dvec3 center;
+                words >> center.x >> center.y >> center.z;
+                if (auto* orbit = dynamic_cast<CSVRender::OrbitCameraController*>(controller))
+                    orbit->setCenter(center);
+            }
+            else if (verb == "slot")
+            {
+                std::string name;
+                int active = 0;
+                words >> name >> active;
+                if (!QMetaObject::invokeMethod(controller, name.c_str(), Q_ARG(bool, active != 0)))
+                    Log(Debug::Error) << "The camera controller has no slot " << name;
+            }
+            else if (verb == "ortho")
+            {
+                int size = 0;
+                words >> size;
+                view.getHost()->setProjection(0, true, size);
+            }
+            else if (verb == "mouse")
+            {
+                int x = 0;
+                int y = 0;
+                words >> x >> y;
+                controller->handleMouseMoveEvent(x, y);
+            }
+            else if (verb == "wheel")
+            {
+                int delta = 0;
+                words >> delta;
+                controller->handleMouseScrollEvent(delta);
+            }
+            else if (verb == "update")
+            {
+                double dt = 0;
+                words >> dt;
+                controller->update(dt);
+            }
+            else
+                Log(Debug::Error) << "Unknown camera command: " << command;
+            Log(Debug::Info) << "After \"" << command << "\":";
+            logCamera(*view.getHost());
+        }
     }
 
     /// The window of the views: shown, but never takes focus.
@@ -121,6 +208,7 @@ int CS::runCapture(int argc, char** argv)
     addOption("capture-close-views", bpo::value<int>()->default_value(0));
     addOption("capture-idle-ticks", bpo::value<int>()->default_value(0));
     addOption("capture-reparent", bpo::bool_switch());
+    addOption("camera-script", bpo::value<std::string>());
     addOption("data",
         bpo::value<Files::MaybeQuotedPathContainer>()
             ->default_value(Files::MaybeQuotedPathContainer(), "data")
@@ -158,6 +246,8 @@ int CS::runCapture(int argc, char** argv)
     request.mCloseViews = variables["capture-close-views"].as<int>();
     request.mIdleTicks = variables["capture-idle-ticks"].as<int>();
     request.mReparent = variables["capture-reparent"].as<bool>();
+    if (variables.count("camera-script"))
+        request.mCameraScript = variables["camera-script"].as<std::string>();
     if (variables.count("capture-resize"))
     {
         std::istringstream sizes(variables["capture-resize"].as<std::string>());
@@ -280,7 +370,7 @@ int CS::runCapture(int argc, char** argv)
                 }
                 view->selectLightingMode(request.mLighting);
                 if (const auto& camera = request.mCamera)
-                    view->getHost()->setCamera({ (*camera)[0], (*camera)[1], (*camera)[2] },
+                    view->setCameraPose({ (*camera)[0], (*camera)[1], (*camera)[2] },
                         { (*camera)[3], (*camera)[4], (*camera)[5] }, { (*camera)[6], (*camera)[7], (*camera)[8] });
                 if (request.mFieldOfView)
                     view->getHost()->setProjection(*request.mFieldOfView, false, 0);
@@ -290,6 +380,13 @@ int CS::runCapture(int argc, char** argv)
                 const std::uint64_t frameCount = CSVRender::RenderContext::get().frameCount();
                 if (quitting)
                     return;
+                // After the view has had its first frames, so that its default camera is there to start from.
+                if (!request.mCameraScript.empty() && frameCount >= sCameraScriptFrame)
+                {
+                    for (auto* view : views)
+                        runCameraScript(*view, request.mCameraScript);
+                    request.mCameraScript.clear();
+                }
                 if (nextCapture != 0 && frameCount >= nextCapture)
                 {
                     Log(Debug::Info) << "Auto-screenshot at frame " << frameCount;

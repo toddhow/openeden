@@ -122,6 +122,8 @@ namespace CSVRender
     protected:
         void hostReady() override;
 
+        std::vector<vsg::dvec3> getDefaultViewPositions() const override;
+
         void addVisibilitySelectorButtons(CSVWidget::SceneToolToggle2* tool) override;
 
     private slots:

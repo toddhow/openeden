@@ -328,7 +328,7 @@ What each old part became:
 - **`RenderContext`** is now one per process (`RenderContext::get()`), with a `Lifetime` in `main.cpp`.
 
 Stand-ins until their stages, so that the widgets build and the toolbars keep their buttons:
-- C5: the camera stays where the default view put it, and the navigation buttons do nothing. `--camera` moves it for captures.
+- C5, done: see its entry below.
 - C6: `mousePick` always misses, so cell arrows cannot be clicked and scene tooltips do not show. The shortcuts that load cells work without a pick.
 - C7: `objectmarker_pending.hpp`, a do-nothing selection marker. `Object::setSelected` keeps the flag and draws no outline.
 - C7 to C9: the edit mode buttons are the plain `EditMode`.
@@ -428,3 +428,36 @@ From the review of C3 and C4, read by a reviewer and checked here:
 - `vsgQt::Window::cleanup` nulls `windowAdapter` when Qt destroys the surface. `SceneHost` now checks (`hasWindow`), and a tick with no live window does not render. New `--capture-reparent`, which moves a view to a new top-level window as floating a dock does: on Windows the view kept its window and drew. If a surface ever is destroyed, that view stays blank until reopened and logs nothing: not exercised, so check-list step 6 stands.
 
 Seen once, not explained: a capture of Arrille's Tradehouse exited with a segmentation fault after its screenshot, before the build with these fixes. About 30 later runs, 12 of them the same command before the fixes, did not repeat it.
+
+### C5 Camera controllers (2026-10-31)
+
+`cameracontroller.*` and `orbitcameramode.*` are back in the build, and the Scene toolbar's navigation buttons drive them. The controllers keep the OSG code's steps. New `camerapose.hpp` holds what `osg::Matrixd` did to a view (`getLookAt`, `*= rotate`, `*= translate`, `orthoNormal`, `osg::Quat(angle, axis) * v`) with no Qt and no scene, tested by `apps/opencs_tests/view/render/testcamerapose.cpp` (13 cases, written first from the old code's calls: which way a positive yaw and pitch turn, which way eye-space axes move the camera). `SceneHost::getViewMatrix` and `setViewMatrix` connect them to the `vsg::LookAt`.
+
+Conventions: eye space is the same in OSG and VSG, x right, y up, looking along -z. VSG's Y flip and reversed depth are in the projection, so no controller knows of them. A frame is asked for only when the view changes.
+
+Differences from the OSG editor:
+- **Default view:** `SceneHost::frame` (medians of the references, the C2 pitfall), not `CameraController::setup`, which took 2x a corner of the bounds of everything visible. `SceneWidget::frameUpdate` asks once there is something to frame, and `mCamPositionSet` works as before.
+- **`pitch`:** `acos` gets a clamped value, as an up vector a rounding error over length 1 would give NaN. The rest of its limit is the old code's, including that a single step past the limit while level goes up, not down: a very large mouse step shows it (`mouse 0 5000`).
+- **Orbit's first centre:** `SceneHost::pickNearest`, in C6. Until then it always took the default start distance.
+
+New `--camera-script "cmd;cmd;..."` for the capture path: `mode`, `pose`, `center`, `slot name 0|1` (invokes the controller's slot as its shortcut does), `mouse dx dy`, `wheel d`, `update dt`, `ortho size`. It calls the controller objects and logs eye, centre and up after each command. It skips Qt's events and `ShortcutEventHandler`, which is for the check list.
+
+Checks at Seyda Neen (`#-2 -9`, 1280x720, fov 60), against a direct `--camera` frame of the same pose, all pixels compared with a threshold of 6 summed over RGB:
+- **Free, 1000 units back, `slot forward 1; update 1`:** the logged eye is the target (`navi-free-lin-speed` 1000), 0 of 921,600 pixels over.
+- **Free, yaw and strafe and wheel out and back:** `mouse 650 0` turns right by 1 rad, forward (0.84, 0.54, 0) as `sin` and `cos` say; 0 pixels over at the end.
+- **Orbit, around a centre 1000 units ahead:** `mouse 300 0` moves the eye to (-11842.6, -69526.1), which is (0, -1000) rotated by +0.46 rad about +z; the wheel changes the distance; strafing moves eye and centre together. The frame has the same size in bytes as the direct one; the logged pose ends exactly at the start.
+- **First person, `mouse 195 0` (0.3 rad):** against the game with `player->setangle z 17.1887` from the same place, the buildings, posts and Eldafire stand at the same x to within a pixel (roof edges at 390 and 655, her at 803, posts at 915, 1050, 1172). The game's frame is 10 pixels lower in the picture throughout, as at yaw 0: its later frames have the player settled lower than the logged eye. The frame C4 logged the pose from has its roof at the same height as the editor's.
+- **Ortho, looking down with up +y (`ortho 60`):** the roofs, the dock and the water are south where they are in the game, not mirrored.
+
+Tests: openmw-cs-tests 167.
+
+Check list, for a person (the keys are in Preferences > Key Bindings):
+
+16. **First person, look.** In a Scene of `#-2 -9`, with the `1st` camera button: hold `scene-navi-primary` and move the mouse right. The view turns right. Move it down: the view looks down. It stops before straight down and straight up, and the horizon stays level.
+17. **First person, move.** `free-forward`, `free-backward`, `free-left`, `free-right`: each moves that way at a steady speed, and more than one key together works. Hold `scene-speed-modifier`: faster. Press `free-speed-mode`: faster until pressed again.
+18. **Strafe and wheel.** Hold `scene-navi-secondary` and move the mouse right: the scene follows the mouse. The wheel moves forward and back, faster with `scene-speed-modifier`.
+19. **Free camera.** Same as 16 and 17 with the `free` button, and `free-roll-left` and `free-roll-right` roll the view. Back on `1st`, the horizon levels again.
+20. **Orbit.** With the `orbit` button, click on a building, then hold `scene-navi-primary` and move the mouse: the view circles the point that was in the middle of the view. The wheel goes in and stops at the centre without passing through. `scene-navi-secondary` moves eye and centre together. `orbit-up`, `orbit-down`, `orbit-left`, `orbit-right` circle it, `orbit-roll-left` and `orbit-roll-right` roll. Turn on Preferences > 3D Scene Input > "Keep camera roll constant for orbital camera" and circle again: the horizon stays level.
+21. **Camera cycle.** Press `scene-cam-cycle`: the toolbar button goes 1st, orbit, free... and the view does not jump.
+22. **Feel.** With the mouse: does it feel like the OSG editor in speed and direction, in each mode? Note anything off. In Preferences > 3D Scene Input, change the sensitivity, invert and speed settings: each takes effect at once.
+23. **Orthographic.** Preferences > Rendering > "Orthographic projection": the view changes and stays the right way up, and is not clipped at the near plane. The size setting zooms it.

@@ -20,7 +20,7 @@ namespace CSMWorld
 
 namespace CSVRender
 {
-    class PreviewWidget : public SceneWidget, private FrameListener
+    class PreviewWidget : public SceneWidget
     {
         Q_OBJECT
 
@@ -34,14 +34,12 @@ namespace CSVRender
         explicit PreviewWidget(
             CSMWorld::Data& worldData, const std::string& id, bool referenceable, QWidget* parent = nullptr);
 
-        ~PreviewWidget() override;
-
     protected:
         void hostReady() override;
 
-    private:
         void frameUpdate(float dt) override;
         bool isAnimated() const override;
+        std::vector<vsg::dvec3> getDefaultViewPositions() const override;
 
     signals:
 

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -105,6 +106,9 @@ namespace CSVRender
         void setVisibilityMask(unsigned int mask);
 
         void setCamera(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up);
+        /// As the camera controllers need it. Asks for a frame if the view changed.
+        vsg::dmat4 getViewMatrix() const;
+        void setViewMatrix(const vsg::dmat4& view);
         vsg::dvec3 getCameraEye() const;
         vsg::dvec3 getCameraCenter() const;
         /// The world's size of one pixel at a position, and the camera's axes in the world: what a screen-facing marker
@@ -126,6 +130,11 @@ namespace CSVRender
         void setNightDayMode(unsigned int index, bool apply);
         unsigned int getNightDayIndex() const { return mNightDayIndex; }
         bool getNightDayApply() const { return mNightDayApply; }
+
+        /// The nearest thing under a point of the view, where (0, 0) is the view's top left corner and (1, 1) its bottom
+        /// right, among the elements of mask.hpp's list in \p mask.
+        /// \return the world position, if anything is there.
+        std::optional<vsg::dvec3> pickNearest(double x, double y, unsigned int mask) const;
 
         /// A frame will be drawn on the next timer tick, as flagAsModified was with OSG's ON_DEMAND.
         void requestRedraw() { mRedraw = true; }

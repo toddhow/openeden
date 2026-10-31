@@ -6,20 +6,20 @@
 
 #include <QWidget>
 
-#include <osg/BoundingBox>
-#include <osg/Camera>
-#include <osg/ComputeBoundsVisitor>
-#include <osg/Group>
-#include <osg/Math>
-#include <osg/Matrixd>
-#include <osg/Quat>
-#include <osg/Vec3>
-#include <osg/ref_ptr>
+#include <optional>
 
-#include <osgUtil/IntersectionVisitor>
-#include <osgUtil/LineSegmentIntersector>
+#include <vsg/maths/transform.h>
+
+#include <components/misc/constants.hpp>
 
 #include "../../model/prefs/shortcut.hpp"
+
+#include "scenehost.hpp"
+
+namespace
+{
+    const double sPi = std::acos(-1.0);
+}
 
 namespace CSVRender
 {
@@ -28,11 +28,11 @@ namespace CSVRender
     Camera Controller
     */
 
-    const osg::Vec3d CameraController::WorldUp = osg::Vec3d(0, 0, 1);
+    const vsg::dvec3 CameraController::WorldUp = vsg::dvec3(0, 0, 1);
 
-    const osg::Vec3d CameraController::LocalUp = osg::Vec3d(0, 1, 0);
-    const osg::Vec3d CameraController::LocalLeft = osg::Vec3d(1, 0, 0);
-    const osg::Vec3d CameraController::LocalForward = osg::Vec3d(0, 0, 1);
+    const vsg::dvec3 CameraController::LocalUp = vsg::dvec3(0, 1, 0);
+    const vsg::dvec3 CameraController::LocalLeft = vsg::dvec3(1, 0, 0);
+    const vsg::dvec3 CameraController::LocalForward = vsg::dvec3(0, 0, 1);
 
     CameraController::CameraController(QObject* parent)
         : QObject(parent)
@@ -50,7 +50,7 @@ namespace CSVRender
         return mActive;
     }
 
-    osg::Camera* CameraController::getCamera() const
+    SceneHost* CameraController::getCamera() const
     {
         return mCamera;
     }
@@ -75,7 +75,7 @@ namespace CSVRender
         return mWheelMoveMult;
     }
 
-    void CameraController::setCamera(osg::Camera* camera)
+    void CameraController::setCamera(SceneHost* camera)
     {
         bool wasActive = mActive;
 
@@ -112,45 +112,29 @@ namespace CSVRender
         mWheelMoveMult = value;
     }
 
-    void CameraController::setup(osg::Group* root, unsigned int mask, const osg::Vec3d& up)
-    {
-        // Find World bounds
-        osg::ComputeBoundsVisitor boundsVisitor;
-        osg::BoundingBox& boundingBox = boundsVisitor.getBoundingBox();
-
-        boundsVisitor.setTraversalMask(mask);
-        root->accept(boundsVisitor);
-
-        if (!boundingBox.valid())
-        {
-            // Try again without any mask
-            boundsVisitor.reset();
-            boundsVisitor.setTraversalMask(~0u);
-            root->accept(boundsVisitor);
-
-            // Last resort, set a default
-            if (!boundingBox.valid())
-            {
-                boundingBox.set(-1, -1, -1, 1, 1, 1);
-            }
-        }
-
-        // Calculate a good starting position
-        osg::Vec3d minBounds = boundingBox.corner(0) - boundingBox.center();
-        osg::Vec3d maxBounds = boundingBox.corner(7) - boundingBox.center();
-
-        osg::Vec3d camOffset = up * maxBounds > 0 ? maxBounds : minBounds;
-        camOffset *= 2;
-
-        osg::Vec3d eye = camOffset + boundingBox.center();
-        osg::Vec3d center = boundingBox.center();
-
-        getCamera()->setViewMatrixAsLookAt(eye, center, up);
-    }
-
     void CameraController::addShortcut(CSMPrefs::Shortcut* shortcut)
     {
         mShortcuts.push_back(shortcut);
+    }
+
+    vsg::dmat4 CameraController::getView() const
+    {
+        return mCamera->getViewMatrix();
+    }
+
+    void CameraController::setView(const vsg::dmat4& view)
+    {
+        mCamera->setViewMatrix(view);
+    }
+
+    CameraPose::LookAt CameraController::getLookAt(double distance) const
+    {
+        return CameraPose::lookAtFrom(getView(), distance);
+    }
+
+    void CameraController::setLookAt(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up)
+    {
+        setView(CameraPose::viewFrom(eye, center, up));
     }
 
     /*
@@ -173,7 +157,7 @@ namespace CSVRender
         , mRollRight(false)
         , mUp(LocalUp)
         , mLinSpeed(1000)
-        , mRotSpeed(osg::PI / 2)
+        , mRotSpeed(sPi / 2)
         , mSpeedMult(8)
     {
         CSMPrefs::Shortcut* naviPrimaryShortcut = new CSMPrefs::Shortcut("scene-navi-primary", widget);
@@ -269,7 +253,7 @@ namespace CSVRender
         mSpeedMult = value;
     }
 
-    void FreeCameraController::fixUpAxis(const osg::Vec3d& up)
+    void FreeCameraController::fixUpAxis(const vsg::dvec3& up)
     {
         mLockUpright = true;
         mUp = up;
@@ -294,7 +278,7 @@ namespace CSVRender
         }
         else if (mNaviSecondary)
         {
-            osg::Vec3d movement;
+            vsg::dvec3 movement;
             movement += LocalLeft * -x * getSecondaryMovementMultiplier();
             movement += LocalUp * y * getSecondaryMovementMultiplier();
 
@@ -344,56 +328,55 @@ namespace CSVRender
         }
 
         // Normalize the matrix to counter drift
-        getCamera()->getViewMatrix().orthoNormal(getCamera()->getViewMatrix());
+        setView(CameraPose::orthoNormal(getView()));
     }
 
     void FreeCameraController::yaw(double value)
     {
-        getCamera()->getViewMatrix() *= osg::Matrixd::rotate(value, LocalUp);
+        setView(CameraPose::rotatedInEye(getView(), value, LocalUp));
         mModified = true;
     }
 
     void FreeCameraController::pitch(double value)
     {
-        const double constraint = osg::PI / 2 - 0.1;
+        const double constraint = sPi / 2 - 0.1;
 
         if (mLockUpright)
         {
-            osg::Vec3d eye, center, up;
-            getCamera()->getViewMatrixAsLookAt(eye, center, up);
+            const auto [eye, center, up] = getLookAt();
 
-            osg::Vec3d forward = center - eye;
-            osg::Vec3d left = up ^ forward;
+            const vsg::dvec3 forward = center - eye;
+            const vsg::dvec3 left = vsg::cross(up, forward);
 
-            double pitchAngle = std::acos(up * mUp);
-            if ((mUp ^ up) * left < 0)
+            // Clamped: an up vector a rounding error over length one has no acos.
+            double pitchAngle = std::acos(std::clamp(vsg::dot(up, mUp), -1.0, 1.0));
+            if (vsg::dot(vsg::cross(mUp, up), left) < 0)
                 pitchAngle *= -1;
 
             if (std::abs(pitchAngle + value) > constraint)
                 value = (pitchAngle > 0 ? 1 : -1) * constraint - pitchAngle;
         }
 
-        getCamera()->getViewMatrix() *= osg::Matrixd::rotate(value, LocalLeft);
+        setView(CameraPose::rotatedInEye(getView(), value, LocalLeft));
         mModified = true;
     }
 
     void FreeCameraController::roll(double value)
     {
-        getCamera()->getViewMatrix() *= osg::Matrixd::rotate(value, LocalForward);
+        setView(CameraPose::rotatedInEye(getView(), value, LocalForward));
         mModified = true;
     }
 
-    void FreeCameraController::translate(const osg::Vec3d& offset)
+    void FreeCameraController::translate(const vsg::dvec3& offset)
     {
-        getCamera()->getViewMatrix() *= osg::Matrixd::translate(offset);
+        setView(CameraPose::translatedInEye(getView(), offset));
         mModified = true;
     }
 
     void FreeCameraController::stabilize()
     {
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up);
-        getCamera()->setViewMatrixAsLookAt(eye, center, mUp);
+        const auto [eye, center, up] = getLookAt();
+        setLookAt(eye, center, mUp);
     }
 
     void FreeCameraController::naviPrimary(bool active)
@@ -466,7 +449,7 @@ namespace CSVRender
         , mPickingMask(~0u)
         , mCenter(0, 0, 0)
         , mDistance(0)
-        , mOrbitSpeed(osg::PI / 4)
+        , mOrbitSpeed(sPi / 4)
         , mOrbitSpeedMult(4)
         , mConstRoll(false)
     {
@@ -533,7 +516,7 @@ namespace CSVRender
         addShortcut(speedModeShortcut);
     }
 
-    osg::Vec3d OrbitCameraController::getCenter() const
+    vsg::dvec3 OrbitCameraController::getCenter() const
     {
         return mCenter;
     }
@@ -553,15 +536,17 @@ namespace CSVRender
         return mPickingMask;
     }
 
-    void OrbitCameraController::setCenter(const osg::Vec3d& value)
+    void OrbitCameraController::setCenter(const vsg::dvec3& value)
     {
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up);
+        if (!isActive())
+            return;
+
+        const auto [eye, center, up] = getLookAt();
 
         mCenter = value;
-        mDistance = (eye - mCenter).length();
+        mDistance = vsg::length(eye - mCenter);
 
-        getCamera()->setViewMatrixAsLookAt(eye, mCenter, up);
+        setLookAt(eye, mCenter, up);
 
         mInitialized = true;
     }
@@ -597,7 +582,7 @@ namespace CSVRender
         }
         else if (mNaviSecondary)
         {
-            osg::Vec3d movement;
+            vsg::dvec3 movement;
             movement += LocalLeft * x * getSecondaryMovementMultiplier();
             movement += LocalUp * -y * getSecondaryMovementMultiplier();
 
@@ -641,7 +626,7 @@ namespace CSVRender
             roll(rotDist);
 
         // Normalize the matrix to counter drift
-        getCamera()->getViewMatrix().orthoNormal(getCamera()->getViewMatrix());
+        setView(CameraPose::orthoNormal(getView()));
     }
 
     void OrbitCameraController::reset()
@@ -653,24 +638,13 @@ namespace CSVRender
     {
         const int defaultStartDistance = 10000.f;
 
+        const auto [eye, center, up] = getLookAt(defaultStartDistance);
+
         // Try to intelligently pick focus object
-        osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector(
-            new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, osg::Vec3d(0, 0, 0), LocalForward));
-
-        intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::LIMIT_NEAREST);
-        osgUtil::IntersectionVisitor visitor(intersector);
-
-        visitor.setTraversalMask(mPickingMask);
-
-        getCamera()->accept(visitor);
-
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up, defaultStartDistance);
-
-        if (intersector->getIntersections().begin() != intersector->getIntersections().end())
+        if (const std::optional<vsg::dvec3> hit = getCamera()->pickNearest(0.5, 0.5, mPickingMask))
         {
-            mCenter = intersector->getIntersections().begin()->getWorldIntersectPoint();
-            mDistance = (eye - mCenter).length();
+            mCenter = *hit;
+            mDistance = vsg::length(eye - mCenter);
         }
         else
         {
@@ -688,65 +662,56 @@ namespace CSVRender
 
     void OrbitCameraController::rotateHorizontal(double value)
     {
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up);
-        osg::Vec3d absoluteUp = osg::Vec3(0, 0, 1);
+        auto [eye, center, up] = getLookAt();
+        const vsg::dvec3 axis = mConstRoll ? WorldUp : up;
 
-        osg::Quat rotation = osg::Quat(value, mConstRoll ? absoluteUp : up);
-        osg::Vec3d oldOffset = eye - mCenter;
-        osg::Vec3d newOffset = rotation * oldOffset;
+        const vsg::dvec3 newOffset = CameraPose::rotated(eye - mCenter, value, axis);
 
         if (mConstRoll)
-            up = rotation * up;
+            up = CameraPose::rotated(up, value, axis);
 
-        getCamera()->setViewMatrixAsLookAt(mCenter + newOffset, mCenter, up);
+        setLookAt(mCenter + newOffset, mCenter, up);
     }
 
     void OrbitCameraController::rotateVertical(double value)
     {
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up);
+        auto [eye, center, up] = getLookAt();
 
-        osg::Vec3d forward = center - eye;
-        osg::Vec3d axis = up ^ forward;
+        const vsg::dvec3 axis = vsg::cross(up, center - eye);
 
-        osg::Quat rotation = osg::Quat(value, axis);
-        osg::Vec3d oldOffset = eye - mCenter;
-        osg::Vec3d newOffset = rotation * oldOffset;
+        const vsg::dvec3 newOffset = CameraPose::rotated(eye - mCenter, value, axis);
 
         if (mConstRoll)
-            up = rotation * up;
+            up = CameraPose::rotated(up, value, axis);
 
-        getCamera()->setViewMatrixAsLookAt(mCenter + newOffset, mCenter, up);
+        setLookAt(mCenter + newOffset, mCenter, up);
     }
 
     void OrbitCameraController::roll(double value)
     {
-        getCamera()->getViewMatrix() *= osg::Matrixd::rotate(value, LocalForward);
+        setView(CameraPose::rotatedInEye(getView(), value, LocalForward));
     }
 
-    void OrbitCameraController::translate(const osg::Vec3d& offset)
+    void OrbitCameraController::translate(const vsg::dvec3& offset)
     {
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up);
+        auto [eye, center, up] = getLookAt();
 
-        osg::Vec3d newOffset = getCamera()->getViewMatrix().getRotate().inverse() * offset;
+        const vsg::dvec3 newOffset = CameraPose::eyeToWorldDirection(getView(), offset);
         mCenter += newOffset;
         eye += newOffset;
 
-        getCamera()->setViewMatrixAsLookAt(eye, mCenter, up);
+        setLookAt(eye, mCenter, up);
     }
 
     void OrbitCameraController::zoom(double value)
     {
         mDistance = std::max(10., mDistance + value);
 
-        osg::Vec3d eye, center, up;
-        getCamera()->getViewMatrixAsLookAt(eye, center, up, 1.f);
+        const auto [eye, center, up] = getLookAt(1.0);
 
-        osg::Vec3d offset = (eye - center) * mDistance;
+        const vsg::dvec3 offset = (eye - center) * mDistance;
 
-        getCamera()->setViewMatrixAsLookAt(mCenter + offset, mCenter, up);
+        setLookAt(mCenter + offset, mCenter, up);
     }
 
     void OrbitCameraController::naviPrimary(bool active)

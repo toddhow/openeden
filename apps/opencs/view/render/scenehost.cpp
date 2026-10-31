@@ -4,6 +4,8 @@
 #include <cmath>
 #include <stdexcept>
 
+#include "camerapose.hpp"
+
 #include <vsg/app/Camera.h>
 #include <vsg/app/CommandGraph.h>
 #include <vsg/app/CompileManager.h>
@@ -318,6 +320,26 @@ namespace CSVRender
         mViewMatrix->center = center;
         mViewMatrix->up = up;
         requestRedraw();
+    }
+
+    vsg::dmat4 SceneHost::getViewMatrix() const
+    {
+        return mViewMatrix->transform();
+    }
+
+    void SceneHost::setViewMatrix(const vsg::dmat4& view)
+    {
+        // A view that did not change asks for no frame.
+        const CameraPose::LookAt lookAt = CameraPose::lookAtFrom(view);
+        if (lookAt.mEye == mViewMatrix->eye && lookAt.mCenter == mViewMatrix->center && lookAt.mUp == mViewMatrix->up)
+            return;
+        setCamera(lookAt.mEye, lookAt.mCenter, lookAt.mUp);
+    }
+
+    std::optional<vsg::dvec3> SceneHost::pickNearest(double /*x*/, double /*y*/, unsigned int /*mask*/) const
+    {
+        // Stage C6.
+        return std::nullopt;
     }
 
     vsg::dvec3 SceneHost::getCameraEye() const

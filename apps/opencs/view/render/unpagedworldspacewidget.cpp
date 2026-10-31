@@ -78,7 +78,11 @@ void CSVRender::UnpagedWorldspaceWidget::hostReady()
 {
     WorldspaceWidget::hostReady();
     mCell = std::make_unique<Cell>(mDocument, mSelectionMarker.get(), *getHost(), mCellId);
-    getHost()->frame(mCell->getObjectPositions());
+}
+
+std::vector<vsg::dvec3> CSVRender::UnpagedWorldspaceWidget::getDefaultViewPositions() const
+{
+    return mCell ? mCell->getObjectPositions() : std::vector<vsg::dvec3>();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::cellDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
@@ -129,7 +133,6 @@ bool CSVRender::UnpagedWorldspaceWidget::handleDrop(
     if (SceneHost* host = getHost())
     {
         mCell = std::make_unique<Cell>(getDocument(), mSelectionMarker.get(), *host, mCellId);
-        host->frame(mCell->getObjectPositions());
     }
     mCamPositionSet = false;
 

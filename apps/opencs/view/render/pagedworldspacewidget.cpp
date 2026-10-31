@@ -683,7 +683,6 @@ void CSVRender::PagedWorldspaceWidget::setCellSelection(const CSMWorld::CellSele
         flagAsModified();
 
     if (first)
-        frameSelection();
 
     emit cellSelectionChanged(mSelection);
 }
@@ -1015,19 +1014,15 @@ void CSVRender::PagedWorldspaceWidget::hostReady()
 {
     WorldspaceWidget::hostReady();
     adjustCells();
-    frameSelection();
 }
 
-void CSVRender::PagedWorldspaceWidget::frameSelection()
+std::vector<vsg::dvec3> CSVRender::PagedWorldspaceWidget::getDefaultViewPositions() const
 {
-    SceneHost* host = getHost();
-    if (!host || mSelection.begin() == mSelection.end())
-        return;
     std::vector<vsg::dvec3> positions;
     for (const auto& [_, cell] : mCells)
     {
         const auto& cellPositions = cell->getObjectPositions();
         positions.insert(positions.end(), cellPositions.begin(), cellPositions.end());
     }
-    host->frame(positions);
+    return positions;
 }

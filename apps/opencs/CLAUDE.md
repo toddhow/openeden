@@ -5,7 +5,7 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 ## What builds now
 
 - `csmodel`: everything under `model/`, plus three plain Qt widgets it uses. `openmw-cs-tests` links only this, so it needs no view code and no GPU.
-- `openmw-cs-lib`: the table views, documents, dialogues and scene subviews, on `view/render`'s widgets, with stand-ins for what stages C5 to C9 bring (task 0014, C3 log).
+- `openmw-cs-lib`: the table views, documents, dialogues and scene subviews, on `view/render`'s widgets, with stand-ins for what stages C6 to C9 bring (task 0014, C3 log).
 - **Staged list:** `CMakeLists.txt` lists the `view/render` units not compiled yet, in a comment. Each stage moves its units back. `OPENEDEN_CS_VIEW_RENDER_PENDING` guards what still waits. Remove the define with the last stage.
 - OSG files in `view/render` stay on disk unbuilt until stage D1.
 
@@ -20,7 +20,7 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 
 ## Capture
 
-`openmw-cs --open-cell X --auto-screenshot N --auto-quit M [--camera ex,ey,ez,cx,cy,cz,ux,uy,uz] [--capture-views V]`, plus the usual `--replace=config --config DIR --user-data DIR`. `capture.cpp` runs it before `CS::Editor` exists, so there is no editor window, dialogue or IPC server, but it uses the worldspace widgets themselves. Also `--lighting day|night|bright`, `--fov`, `--neighbours N`, `--capture-resize WxH,...` and `--capture-close-views N`. The one window takes no focus. It opens the configuration's `content=` files, and writes `screenshots/editor<i>.png` in the user data folder. X is a record ID (`#-2 -9`) or a cell name; a name shared by exterior cells takes the first. Point `--config` at a scratch folder: the settings state belongs to that folder.
+`openmw-cs --open-cell X --auto-screenshot N --auto-quit M [--camera ex,ey,ez,cx,cy,cz,ux,uy,uz] [--camera-script "cmd;..."] [--capture-views V]`, plus the usual `--replace=config --config DIR --user-data DIR`. `capture.cpp` runs it before `CS::Editor` exists, so there is no editor window, dialogue or IPC server, but it uses the worldspace widgets themselves. Also `--lighting day|night|bright`, `--fov`, `--neighbours N`, `--capture-resize WxH,...` and `--capture-close-views N`. The one window takes no focus. It opens the configuration's `content=` files, and writes `screenshots/editor<i>.png` in the user data folder. X is a record ID (`#-2 -9`) or a cell name; a name shared by exterior cells takes the first. Point `--config` at a scratch folder: the settings state belongs to that folder.
 
 ## Rules
 
@@ -44,3 +44,4 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **Unattended normal run:** `OPENEDEN_CS_UI_CHECK="c:#-2 -9;5000" openmw-cs path/Morrowind.esm`. Windows do not take focus.
 - **On-demand frames:** a view draws when asked (`requestRedraw`) or when exposed and a `FrameListener` says `isAnimated`, which means an object with auto-play controllers. A controller that is not auto-play still runs, with `MWAnim::ObjectAnimation::addController`: skins are such controllers, and dropping them draws a skinned model in pieces.
 - **`CompileManager` has no remove.** Add a target once, without a view (`RenderContext::addCompileTarget`), never per view.
+- **Camera:** a controller works on the view matrix through `camerapose.hpp`, in eye space, which is the same as OSG's. Do not flip Y there: the flip is in the projection. A capture's `--camera-script` (`capture.cpp`, `runCameraScript`) calls the controllers and logs each pose.

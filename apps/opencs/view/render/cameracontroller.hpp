@@ -5,13 +5,9 @@
 
 #include <QObject>
 
-#include <osg/Vec3d>
+#include <vsg/maths/vec3.h>
 
-namespace osg
-{
-    class Camera;
-    class Group;
-}
+#include "camerapose.hpp"
 
 namespace CSMPrefs
 {
@@ -20,36 +16,35 @@ namespace CSMPrefs
 
 namespace CSVRender
 {
+    class SceneHost;
+
     class CameraController : public QObject
     {
         Q_OBJECT
 
     public:
-        static const osg::Vec3d WorldUp;
+        static const vsg::dvec3 WorldUp;
 
-        static const osg::Vec3d LocalUp;
-        static const osg::Vec3d LocalLeft;
-        static const osg::Vec3d LocalForward;
+        static const vsg::dvec3 LocalUp;
+        static const vsg::dvec3 LocalLeft;
+        static const vsg::dvec3 LocalForward;
 
         CameraController(QObject* parent);
         ~CameraController() override = default;
 
         bool isActive() const;
 
-        osg::Camera* getCamera() const;
+        SceneHost* getCamera() const;
         double getCameraSensitivity() const;
         bool getInverted() const;
         double getSecondaryMovementMultiplier() const;
         double getWheelMovementMultiplier() const;
 
-        void setCamera(osg::Camera*);
+        void setCamera(SceneHost*);
         void setCameraSensitivity(double value);
         void setInverted(bool value);
         void setSecondaryMovementMultiplier(double value);
         void setWheelMovementMultiplier(double value);
-
-        // moves the camera to an intelligent position
-        void setup(osg::Group* root, unsigned int mask, const osg::Vec3d& up);
 
         virtual void handleMouseMoveEvent(int x, int y) = 0;
         virtual void handleMouseScrollEvent(int x) = 0;
@@ -59,13 +54,18 @@ namespace CSVRender
     protected:
         void addShortcut(CSMPrefs::Shortcut* shortcut);
 
+        vsg::dmat4 getView() const;
+        void setView(const vsg::dmat4& view);
+        CameraPose::LookAt getLookAt(double distance = 1.0) const;
+        void setLookAt(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up);
+
     private:
         bool mActive, mInverted;
         double mCameraSensitivity;
         double mSecondaryMoveMult;
         double mWheelMoveMult;
 
-        osg::Camera* mCamera;
+        SceneHost* mCamera;
 
         std::vector<CSMPrefs::Shortcut*> mShortcuts;
     };
@@ -85,7 +85,7 @@ namespace CSVRender
         void setRotationalSpeed(double value);
         void setSpeedMultiplier(double value);
 
-        void fixUpAxis(const osg::Vec3d& up);
+        void fixUpAxis(const vsg::dvec3& up);
         void unfixUpAxis();
 
         void handleMouseMoveEvent(int x, int y) override;
@@ -97,7 +97,7 @@ namespace CSVRender
         void yaw(double value);
         void pitch(double value);
         void roll(double value);
-        void translate(const osg::Vec3d& offset);
+        void translate(const vsg::dvec3& offset);
 
         void stabilize();
 
@@ -105,7 +105,7 @@ namespace CSVRender
         bool mNaviPrimary, mNaviSecondary;
         bool mFast, mFastAlternate;
         bool mLeft, mRight, mForward, mBackward, mRollLeft, mRollRight;
-        osg::Vec3d mUp;
+        vsg::dvec3 mUp;
 
         double mLinSpeed;
         double mRotSpeed;
@@ -132,12 +132,12 @@ namespace CSVRender
     public:
         OrbitCameraController(QWidget* parent);
 
-        osg::Vec3d getCenter() const;
+        vsg::dvec3 getCenter() const;
         double getOrbitSpeed() const;
         double getOrbitSpeedMultiplier() const;
         unsigned int getPickingMask() const;
 
-        void setCenter(const osg::Vec3d& center);
+        void setCenter(const vsg::dvec3& center);
         void setOrbitSpeed(double value);
         void setOrbitSpeedMultiplier(double value);
         void setPickingMask(unsigned int value);
@@ -152,13 +152,16 @@ namespace CSVRender
 
         void setConstRoll(bool enable);
 
+        /// The distance from the centre, for checks.
+        double getDistance() const { return mDistance; }
+
     private:
         void initialize();
 
         void rotateHorizontal(double value);
         void rotateVertical(double value);
         void roll(double value);
-        void translate(const osg::Vec3d& offset);
+        void translate(const vsg::dvec3& offset);
         void zoom(double value);
 
         bool mInitialized;
@@ -166,7 +169,7 @@ namespace CSVRender
         bool mFast, mFastAlternate;
         bool mLeft, mRight, mUp, mDown, mRollLeft, mRollRight;
         unsigned int mPickingMask;
-        osg::Vec3d mCenter;
+        vsg::dvec3 mCenter;
         double mDistance;
 
         double mOrbitSpeed;

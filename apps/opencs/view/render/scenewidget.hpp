@@ -40,6 +40,10 @@ namespace vsgQt
 
 namespace CSVRender
 {
+    class CameraController;
+    class FreeCameraController;
+    class OrbitCameraController;
+
     /// A QWidget that shows one SceneHost. The Vulkan window is a child made through QWidget::createWindowContainer the
     /// first time this widget has a size: a window with no size cannot be hosted. Whatever needs the host waits for
     /// hostReady(). Owns the host and, through Qt, the window.
@@ -87,7 +91,7 @@ namespace CSVRender
     };
 
     /// Extension of RenderWidget to support lighting mode selection & toolbar
-    class SceneWidget : public RenderWidget
+    class SceneWidget : public RenderWidget, public FrameListener
     {
         Q_OBJECT
     public:
@@ -104,7 +108,25 @@ namespace CSVRender
 
         void setExterior(bool isExterior);
 
+        /// Sets the camera where the default view would otherwise go.
+        void setCameraPose(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up);
+
+        /// The same as choosing a mode on the toolbar: "1st", "free" or "orbit".
+        void setNavigationMode(const std::string& mode) { selectNavigationMode(mode); }
+
+        /// The camera controller in use, for unattended checks.
+        CameraController* getCameraController() const { return mCurrentCamControl; }
+
     protected:
+        void frameUpdate(float dt) override;
+
+        /// What the default view frames, the first time there is something to frame.
+        virtual std::vector<vsg::dvec3> getDefaultViewPositions() const { return {}; }
+
+        FreeCameraController* mFreeCamControl;
+        OrbitCameraController* mOrbitCamControl;
+        CameraController* mCurrentCamControl;
+
         void hostReady() override;
 
         void mouseMoveEvent(QMouseEvent* event) override;

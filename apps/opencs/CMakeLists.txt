@@ -144,12 +144,13 @@ opencs_units (view/widget
 
 # The staged list of the editor's port to VSG (task 0014, survey section 4). Each stage moves its units from this list
 # into opencs_units below, and the code guarded by OPENEDEN_CS_VIEW_RENDER_PENDING goes with the last.
-#   view/render: instancemode instanceselectionmode instancemovemode orbitcameramode pathgridmode selectionmode
-#   pathgridselectionmode cameracontroller terraintexturemode terrainselection terrainshapemode brushdraw
+#   view/render: instancemode instanceselectionmode instancemovemode pathgridmode selectionmode
+#   pathgridselectionmode terraintexturemode terrainselection terrainshapemode brushdraw
 #   commands objectmarker pathgrid
 opencs_units (view/render
     rendercontext scenehost scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget
     editmode lighting object cell cellarrow colouredgeometry actor cellborder cellmarker cellwater terrainstorage
+    cameracontroller orbitcameramode
     )
 
 opencs_units (view/world
@@ -157,7 +158,7 @@ opencs_units (view/world
     )
 
 opencs_hdrs (view/render
-    mask tagbase instancedragmodes objectmarker_pending
+    mask tagbase instancedragmodes objectmarker_pending camerapose
     )
 
 

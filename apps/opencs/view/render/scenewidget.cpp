@@ -23,6 +23,8 @@
 #include "../../model/prefs/shortcut.hpp"
 #include "../../model/prefs/state.hpp"
 
+#include "cameracontroller.hpp"
+#include "mask.hpp"
 #include "rendercontext.hpp"
 
 namespace
@@ -169,6 +171,14 @@ namespace CSVRender
     SceneWidget::SceneWidget(CSMWorld::Data& worldData, QWidget* parent, Qt::WindowFlags f, bool retrieveInput)
         : RenderWidget(worldData, parent, f)
     {
+        mFreeCamControl = new FreeCameraController(this);
+        mOrbitCamControl = new OrbitCameraController(this);
+        mCurrentCamControl = mFreeCamControl;
+
+        mOrbitCamControl->setPickingMask(Mask_Reference | Mask_Terrain);
+
+        mOrbitCamControl->setConstRoll(CSMPrefs::get()["3D Scene Input"]["navi-orbit-const-roll"].isTrue());
+
         mBackgroundColour = CSMPrefs::get()["Rendering"]["scene-day-background-colour"].toColor();
         mGradientColour = CSMPrefs::get()["Rendering"]["scene-day-gradient-colour"].toColor();
 
@@ -195,11 +205,39 @@ namespace CSVRender
             renderStatsShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &SceneWidget::toggleRenderStats);
     }
 
-    SceneWidget::~SceneWidget() = default;
+    SceneWidget::~SceneWidget()
+    {
+        if (SceneHost* host = getHost())
+            host->removeListener(*this);
+    }
 
     void SceneWidget::hostReady()
     {
         applyLighting();
+        getHost()->addListener(*this);
+        mCurrentCamControl->setCamera(getHost());
+    }
+
+    void SceneWidget::setCameraPose(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up)
+    {
+        getHost()->setCamera(eye, center, up);
+        mCamPositionSet = true;
+    }
+
+    void SceneWidget::frameUpdate(float dt)
+    {
+        // As the OSG editor's SceneWidget::update, with SceneHost::frame in place of CameraController::setup.
+        if (mCamPositionSet)
+        {
+            mCurrentCamControl->update(dt);
+            return;
+        }
+        const std::vector<vsg::dvec3> positions = getDefaultViewPositions();
+        if (!positions.empty())
+        {
+            getHost()->frame(positions);
+            mCamPositionSet = true;
+        }
     }
 
     void SceneWidget::applyLighting()
@@ -272,16 +310,69 @@ namespace CSVRender
 
     void SceneWidget::mouseMoveEvent(QMouseEvent* event)
     {
-        // The camera controllers read this from stage C5.
-        mPrevMouse = event->position();
+        const QPointF position = event->position();
+        mCurrentCamControl->handleMouseMoveEvent(position.x() - mPrevMouse.x(), position.y() - mPrevMouse.y());
+        mPrevMouse = position;
     }
 
-    void SceneWidget::wheelEvent(QWheelEvent* event) {}
+    void SceneWidget::wheelEvent(QWheelEvent* event)
+    {
+        mCurrentCamControl->handleMouseScrollEvent(event->angleDelta().y());
+    }
 
     void SceneWidget::settingChanged(const CSMPrefs::Setting* setting)
     {
-        // The "3D Scene Input" navigation settings go to the camera controllers in stage C5.
-        if (*setting == "Rendering/framerate-limit")
+        if (*setting == "3D Scene Input/p-navi-free-sensitivity")
+        {
+            mFreeCamControl->setCameraSensitivity(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/p-navi-orbit-sensitivity")
+        {
+            mOrbitCamControl->setCameraSensitivity(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/p-navi-free-invert")
+        {
+            mFreeCamControl->setInverted(setting->isTrue());
+        }
+        else         if (*setting == "3D Scene Input/p-navi-orbit-invert")
+        {
+            mOrbitCamControl->setInverted(setting->isTrue());
+        }
+        else         if (*setting == "3D Scene Input/s-navi-sensitivity")
+        {
+            mFreeCamControl->setSecondaryMovementMultiplier(setting->toDouble());
+            mOrbitCamControl->setSecondaryMovementMultiplier(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-wheel-factor")
+        {
+            mFreeCamControl->setWheelMovementMultiplier(setting->toDouble());
+            mOrbitCamControl->setWheelMovementMultiplier(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-free-lin-speed")
+        {
+            mFreeCamControl->setLinearSpeed(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-free-rot-speed")
+        {
+            mFreeCamControl->setRotationalSpeed(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-free-speed-mult")
+        {
+            mFreeCamControl->setSpeedMultiplier(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-orbit-rot-speed")
+        {
+            mOrbitCamControl->setOrbitSpeed(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-orbit-speed-mult")
+        {
+            mOrbitCamControl->setOrbitSpeedMultiplier(setting->toDouble());
+        }
+        else         if (*setting == "3D Scene Input/navi-orbit-const-roll")
+        {
+            mOrbitCamControl->setConstRoll(setting->isTrue());
+        }
+        else if (*setting == "Rendering/framerate-limit")
         {
             RenderContext::get().setFrameRateLimit(setting->toInt());
         }
@@ -299,6 +390,21 @@ namespace CSVRender
 
     void SceneWidget::selectNavigationMode(const std::string& mode)
     {
-        // Stage C5: the camera controllers.
+        // Until the view exists, setCamera(nullptr) on the old controller and a null host on the new leave them inactive;
+        // hostReady activates whichever is current.
+        mCurrentCamControl->setCamera(nullptr);
+        if (mode == "orbit")
+        {
+            mCurrentCamControl = mOrbitCamControl;
+            mOrbitCamControl->setCamera(getHost());
+            mOrbitCamControl->reset();
+            return;
+        }
+        mCurrentCamControl = mFreeCamControl;
+        mFreeCamControl->setCamera(getHost());
+        if (mode == "1st")
+            mFreeCamControl->fixUpAxis(CameraController::WorldUp);
+        else if (mode == "free")
+            mFreeCamControl->unfixUpAxis();
     }
 }

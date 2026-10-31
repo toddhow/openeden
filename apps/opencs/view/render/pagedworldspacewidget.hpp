@@ -96,7 +96,7 @@ namespace CSVRender
         void addCellToSceneFromCamera(int offsetX, int offsetY);
 
         /// Points the camera at what the selection shows.
-        void frameSelection();
+        std::vector<vsg::dvec3> getDefaultViewPositions() const override;
 
     public:
         PagedWorldspaceWidget(QWidget* parent, CSMDoc::Document& document);
