@@ -13,9 +13,10 @@ class QWidget;
 
 CSVRender::PreviewWidget::PreviewWidget(
     CSMWorld::Data& worldData, const std::string& id, bool referenceable, QWidget* parent)
-    : SceneWidget(worldData.getResourceSystem(), parent)
+    : SceneWidget(worldData, parent)
     , mData(worldData)
-    , mObject(worldData, mRootNode, id, referenceable)
+    , mId(id)
+    , mReferenceable(referenceable)
 {
     selectNavigationMode("orbit");
 
@@ -40,16 +41,16 @@ CSVRender::PreviewWidget::PreviewWidget(
 
 void CSVRender::PreviewWidget::referenceableDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
-    if (mObject.referenceableDataChanged(topLeft, bottomRight))
+    if (mObject && mObject->referenceableDataChanged(topLeft, bottomRight))
         flagAsModified();
 
-    if (mObject.getReferenceId().empty())
+    if (mObject && mObject->getReferenceId().empty())
     {
         CSMWorld::IdTable& referenceables
             = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Referenceables));
 
         QModelIndex index = referenceables.getModelIndex(
-            mObject.getReferenceableId(), referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Modification));
+            mObject->getReferenceableId(), referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Modification));
 
         if (referenceables.data(index).toInt() == CSMWorld::RecordBase::State_Deleted)
             emit closeRequest();
@@ -58,20 +59,20 @@ void CSVRender::PreviewWidget::referenceableDataChanged(const QModelIndex& topLe
 
 void CSVRender::PreviewWidget::referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end)
 {
-    if (mObject.referenceableAboutToBeRemoved(parent, start, end))
+    if (mObject && mObject->referenceableAboutToBeRemoved(parent, start, end))
         flagAsModified();
 
-    if (mObject.getReferenceableId().empty())
+    if (mObject && mObject->getReferenceableId().empty())
         return;
 
     CSMWorld::IdTable& referenceables
         = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Referenceables));
 
-    QModelIndex index = referenceables.getModelIndex(mObject.getReferenceableId(), 0);
+    QModelIndex index = referenceables.getModelIndex(mObject->getReferenceableId(), 0);
 
     if (index.row() >= start && index.row() <= end)
     {
-        if (mObject.getReferenceId().empty())
+        if (mObject && mObject->getReferenceId().empty())
         {
             // this is a preview for a referenceble
             emit closeRequest();
@@ -81,10 +82,10 @@ void CSVRender::PreviewWidget::referenceableAboutToBeRemoved(const QModelIndex& 
 
 void CSVRender::PreviewWidget::referenceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
-    if (mObject.referenceDataChanged(topLeft, bottomRight))
+    if (mObject && mObject->referenceDataChanged(topLeft, bottomRight))
         flagAsModified();
 
-    if (mObject.getReferenceId().empty())
+    if (mObject && mObject->getReferenceId().empty())
         return;
 
     CSMWorld::IdTable& references
@@ -93,7 +94,7 @@ void CSVRender::PreviewWidget::referenceDataChanged(const QModelIndex& topLeft, 
     // check for deleted state
     {
         QModelIndex index = references.getModelIndex(
-            mObject.getReferenceId(), references.findColumnIndex(CSMWorld::Columns::ColumnId_Modification));
+            mObject->getReferenceId(), references.findColumnIndex(CSMWorld::Columns::ColumnId_Modification));
 
         if (references.data(index).toInt() == CSMWorld::RecordBase::State_Deleted)
         {
@@ -104,22 +105,22 @@ void CSVRender::PreviewWidget::referenceDataChanged(const QModelIndex& topLeft, 
 
     int columnIndex = references.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId);
 
-    QModelIndex index = references.getModelIndex(mObject.getReferenceId(), columnIndex);
+    QModelIndex index = references.getModelIndex(mObject->getReferenceId(), columnIndex);
 
     if (index.row() >= topLeft.row() && index.row() <= bottomRight.row())
         if (index.column() >= topLeft.column() && index.column() <= bottomRight.row())
-            emit referenceableIdChanged(mObject.getReferenceableId());
+            emit referenceableIdChanged(mObject->getReferenceableId());
 }
 
 void CSVRender::PreviewWidget::referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end)
 {
-    if (mObject.getReferenceId().empty())
+    if (mObject && mObject->getReferenceId().empty())
         return;
 
     CSMWorld::IdTable& references
         = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_References));
 
-    QModelIndex index = references.getModelIndex(mObject.getReferenceId(), 0);
+    QModelIndex index = references.getModelIndex(mObject->getReferenceId(), 0);
 
     if (index.row() >= start && index.row() <= end)
         emit closeRequest();
@@ -127,5 +128,15 @@ void CSVRender::PreviewWidget::referenceAboutToBeRemoved(const QModelIndex& pare
 
 void CSVRender::PreviewWidget::assetTablesChanged()
 {
-    mObject.reloadAssets();
+    if (mObject)
+        mObject->reloadAssets();
+}
+
+void CSVRender::PreviewWidget::hostReady()
+{
+    SceneWidget::hostReady();
+    SceneHost* host = getHost();
+    mObject = std::make_unique<Object>(mData, *host, host->contentRoot(), mId, mReferenceable, false, true);
+    host->frame({ vsg::dvec3(mObject->getPosition().pos[0], mObject->getPosition().pos[1], mObject->getPosition().pos[2]) });
+    host->setAnimated(true);
 }

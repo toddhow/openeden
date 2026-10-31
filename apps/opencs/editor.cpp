@@ -6,9 +6,12 @@
 #include <QLocalSocket>
 #include <QMessageBox>
 #include <QRegularExpression>
+#include <QTimer>
+#include <QWidget>
 
 #include <boost/program_options.hpp>
 
+#include <cstdlib>
 #include <exception>
 
 #include <apps/opencs/model/doc/document.hpp>
@@ -35,6 +38,7 @@
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "model/world/universalid.hpp"
 #include "view/doc/viewmanager.hpp"
 
 CS::Editor::Editor(int argc, char** argv)
@@ -58,6 +62,8 @@ CS::Editor::Editor(int argc, char** argv)
     }
 
     mDocumentManager.setFileData(config.first, config.second);
+
+    startUiCheck();
 
     mNewGame.setLocalData(mLocal);
     mFileDialog.setLocalData(mLocal);
@@ -439,6 +445,67 @@ int CS::Editor::run()
     }
 
     return QApplication::exec();
+}
+
+namespace
+{
+    constexpr int sUiCheckCloseIntervalMs = 500;
+
+    /// Keeps every window the editor shows from taking the focus during an unattended check.
+    class NoActivation : public QObject
+    {
+    public:
+        using QObject::QObject;
+
+        bool eventFilter(QObject* watched, QEvent* event) override
+        {
+            if (event->type() == QEvent::Polish)
+                if (auto* widget = qobject_cast<QWidget*>(watched); widget && widget->isWindow())
+                {
+                    widget->setAttribute(Qt::WA_ShowWithoutActivating);
+                    widget->setWindowFlag(Qt::WindowDoesNotAcceptFocus);
+                }
+            return false;
+        }
+    };
+}
+
+void CS::Editor::startUiCheck()
+{
+    // OPENEDEN_CS_UI_CHECK=<scene hint>;<milliseconds>, with a content file as the first argument. Once the file has
+    // loaded this opens the references table and a scene subview as the menus do, then closes every window after the
+    // time given. For checks with no person at the keyboard (task 0014, C3).
+    const char* value = std::getenv("OPENEDEN_CS_UI_CHECK");
+    if (!value)
+        return;
+    const std::string check(value);
+    const std::size_t separator = check.rfind(';');
+    if (separator == std::string::npos)
+        return;
+    const std::string hint = check.substr(0, separator);
+    const int milliseconds = std::stoi(check.substr(separator + 1));
+
+    QApplication::instance()->installEventFilter(new NoActivation(this));
+    connect(&mDocumentManager, &CSMDoc::DocumentManager::loadingStopped, this,
+        [this, hint, milliseconds](CSMDoc::Document* document, bool completed, const std::string& error) {
+            if (!completed)
+            {
+                Log(Debug::Error) << "UI check: loading failed: " << error;
+                QApplication::exit(1);
+                return;
+            }
+            mViewManager->addView(document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_References), "");
+            mViewManager->addView(document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Scene, "sys::default"), hint);
+            Log(Debug::Info) << "UI check: views opened";
+            // Repeatedly: a window that is not the document's last refuses its close event, deleting itself later, and
+            // closeAllWindows stops at the first refusal.
+            QTimer::singleShot(milliseconds, this, [this] {
+                Log(Debug::Info) << "UI check: closing";
+                auto* closer = new QTimer(this);
+                connect(closer, &QTimer::timeout, [] { QApplication::closeAllWindows(); });
+                closer->start(sUiCheckCloseIntervalMs);
+            });
+        });
 }
 
 void CS::Editor::documentAdded(CSMDoc::Document* document)

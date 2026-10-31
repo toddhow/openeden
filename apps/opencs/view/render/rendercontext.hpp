@@ -53,6 +53,19 @@ namespace CSVRender
     class RenderContext
     {
     public:
+        /// The one context of the process, created when first asked for, so a table-only session has no device.
+        static RenderContext& get();
+
+        /// Declare one before anything that opens a 3D view: the context goes after every view and document.
+        class Lifetime
+        {
+        public:
+            Lifetime() = default;
+            ~Lifetime();
+            Lifetime(const Lifetime&) = delete;
+            Lifetime& operator=(const Lifetime&) = delete;
+        };
+
         RenderContext();
         ~RenderContext();
 
@@ -77,9 +90,12 @@ namespace CSVRender
         vsg::ref_ptr<vsg::RenderPass> renderPass(vsg::Device* device, unsigned int samples, int presentLayout);
         vsg::ref_ptr<vsg::Device> device() const { return mDevice; }
 
-        /// Starts the frame timer. onFrame runs after each frame has been submitted.
-        void start(std::function<void()> onFrame);
+        /// onFrame runs after each timer tick, whether or not it drew. For unattended captures.
+        void setFrameCallback(std::function<void()> onFrame);
         void stop();
+
+        /// The preference Rendering/framerate-limit: 0 draws at the timer's own pace.
+        void setFrameRateLimit(int limit);
 
         /// The number of the frame last submitted, 0 before the first.
         std::uint64_t frameCount() const;
@@ -93,6 +109,7 @@ namespace CSVRender
 
         vsg::ref_ptr<vsg::WindowTraits> mTraits;
         vsg::ref_ptr<vsgQt::Viewer> mViewer;
+        int mFrameIntervalMs;
         vsg::ref_ptr<vsg::Device> mDevice;
         vsg::ref_ptr<vsg::RenderPass> mRenderPass;
         vsg::ref_ptr<vsg::Sampler> mSampler;

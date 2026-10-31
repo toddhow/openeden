@@ -6,8 +6,9 @@
 #include <string>
 #include <vector>
 
-#include <osg/Vec3d>
-#include <osg/ref_ptr>
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
+#include <vsg/nodes/Group.h>
 
 #include "../../model/world/cellcoordinates.hpp"
 #include "instancedragmodes.hpp"
@@ -17,25 +18,14 @@
 
 class QModelIndex;
 
-namespace osg
-{
-    class Group;
-}
-
 namespace CSMWorld
 {
     class Data;
 }
 
-namespace Terrain
-{
-    class TerrainGrid;
-}
-
 namespace CSVRender
 {
     class CellWater;
-    class Pathgrid;
     class TagBase;
     class TerrainStorage;
     class Object;
@@ -45,26 +35,23 @@ namespace CSVRender
     class CellMarker;
 
     class ObjectMarker;
+    class SceneHost;
 
-    class Cell
+    /// What one cell shows in one view. Owned by its worldspace widget, and goes before the widget's SceneHost.
+    class Cell : public FrameListener
     {
+        SceneHost& mHost;
         ObjectMarker* const mSelectionMarker;
         CSMWorld::Data& mData;
         ESM::RefId mId;
-        osg::ref_ptr<osg::Group> mCellNode;
+        vsg::ref_ptr<vsg::Group> mCellNode;
         std::map<std::string, Object*, Misc::StringUtils::CiComp> mObjects;
-        std::unique_ptr<Terrain::TerrainGrid> mTerrain;
         CSMWorld::CellCoordinates mCoordinates;
         std::unique_ptr<CellArrow> mCellArrows[4];
-        std::unique_ptr<CellMarker> mCellMarker;
-        std::unique_ptr<CellBorder> mCellBorder;
-        std::unique_ptr<CellWater> mCellWater;
-        std::unique_ptr<Pathgrid> mPathgrid;
         bool mDeleted;
         int mSubMode;
         unsigned int mSubModeElementMask;
         bool mUpdateLand, mLandDeleted;
-        TerrainStorage* mTerrainStorage;
 
         /// Ignored if cell does not have an object with the given ID.
         ///
@@ -93,13 +80,18 @@ namespace CSVRender
     public:
         /// \note Deleted covers both cells that are deleted and cells that don't exist in
         /// the first place.
-        Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker, osg::Group* rootNode, const std::string& id,
+        Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker, SceneHost& host, const std::string& id,
             bool deleted = false, bool isExterior = false);
 
-        ~Cell();
+        ~Cell() override;
 
-        /// \note Returns the pathgrid representation which will exist as long as the cell exists
-        Pathgrid* getPathgrid() const;
+        void frameUpdate(float dt) override;
+
+        /// Where its objects are, for a default camera.
+        std::vector<vsg::dvec3> getObjectPositions() const;
+
+        /// Does something here move by itself, so that the view draws every tick?
+        bool isAnimated() const { return !mObjects.empty(); }
 
         /// \return Did this call result in a modification of the visual representation of
         /// this cell?
@@ -121,17 +113,15 @@ namespace CSVRender
         /// this cell?
         bool referenceAdded(const QModelIndex& parent, int start, int end);
 
-        void setAlteredHeight(int inCellX, int inCellY, float height);
+        // Stage C4 fills these in.
+        void setAlteredHeight(int inCellX, int inCellY, float height) {}
+        float getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY) { return 0.f; }
+        float* getAlteredHeight(int inCellX, int inCellY) { return nullptr; }
+        void resetAlteredHeights() {}
 
-        float getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY);
-
-        float* getAlteredHeight(int inCellX, int inCellY);
-
-        void resetAlteredHeights();
-
-        void pathgridModified();
-
-        void pathgridRemoved();
+        // Stage C9: the pathgrid.
+        void pathgridModified() {}
+        void pathgridRemoved() {}
 
         void landDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
@@ -159,9 +149,9 @@ namespace CSVRender
 
         void handleSelectDrag(Object* object, DragMode dragMode);
 
-        void selectInsideCube(const osg::Vec3d& pointA, const osg::Vec3d& pointB, DragMode dragMode);
+        void selectInsideCube(const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode);
 
-        void selectWithinDistance(const osg::Vec3d& pointA, float distance, DragMode dragMode);
+        void selectWithinDistance(const vsg::dvec3& pointA, float distance, DragMode dragMode);
 
         void setCellArrows(int mask);
 
@@ -173,11 +163,11 @@ namespace CSVRender
 
         bool isDeleted() const;
 
-        osg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const;
+        vsg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const;
 
-        std::vector<osg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const;
+        std::vector<vsg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const;
 
-        std::vector<osg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const;
+        std::vector<vsg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const;
 
         void setSubMode(int subMode, unsigned int elementMask);
 
@@ -187,7 +177,6 @@ namespace CSVRender
 
         CSVRender::Object* getObjectByReferenceId(const std::string& referenceId);
 
-        friend class CellNodeCallback;
     };
 }
 

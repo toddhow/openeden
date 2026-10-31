@@ -47,13 +47,14 @@ namespace Render
             const auto& first = *graphs.front();
             for (auto& task : viewer.recordAndSubmitTasks)
             {
-                if (task->device != device || task->windows.empty()
-                    || static_cast<int>(task->queue->queueFamilyIndex()) != first.queueFamily)
+                if (task->device != device || static_cast<int>(task->queue->queueFamilyIndex()) != first.queueFamily)
                     continue;
                 for (auto& presentation : viewer.presentations)
                 {
                     auto& windows = presentation->windows;
-                    if (std::find(windows.begin(), windows.end(), task->windows.front()) == windows.end()
+                    // A host that closed its last view leaves the task with no windows: any presentation will do.
+                    if ((!task->windows.empty()
+                            && std::find(windows.begin(), windows.end(), task->windows.front()) == windows.end())
                         || static_cast<int>(presentation->queue->queueFamilyIndex()) != first.presentFamily)
                         continue;
                     const vsg::ref_ptr<vsg::Window> ref(&window);

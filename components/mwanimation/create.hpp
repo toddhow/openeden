@@ -54,7 +54,7 @@ namespace MWAnim
         return obj;
     }
 
-    std::unique_ptr<Object> createObject(const std::string& mesh, bool useAnim, const ESM::Light* light, const Context& ctx)
+    inline std::unique_ptr<Object> createObject(const std::string& mesh, bool useAnim, const ESM::Light* light, const Context& ctx)
     {
         std::unique_ptr<Object> obj;
         if (mesh.empty())

@@ -72,6 +72,8 @@ namespace CS
         std::pair<Files::PathContainer, std::vector<std::string>> readConfig(bool quiet = false);
         ///< \return data paths
 
+        void startUiCheck();
+
         // not implemented
         Editor(const Editor&);
         Editor& operator=(const Editor&);

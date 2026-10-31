@@ -1,7 +1,7 @@
 #ifndef OPENCS_VIEW_TAGBASE_H
 #define OPENCS_VIEW_TAGBASE_H
 
-#include <osg/Referenced>
+#include <vsg/core/Object.h>
 
 #include <QString>
 
@@ -11,7 +11,7 @@ namespace CSVRender
 {
     struct WorldspaceHitResult;
 
-    class TagBase : public osg::Referenced
+    class TagBase : public vsg::Object
     {
         Mask mMask;
 

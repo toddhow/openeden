@@ -1,10 +1,13 @@
 #ifndef OPENCS_VIEW_WORLDSPACEWIDGET_H
 #define OPENCS_VIEW_WORLDSPACEWIDGET_H
 
+#include <memory>
+#include <optional>
+
 #include <QPoint>
 #include <QTimer>
 
-#include <osg/Vec3d>
+#include <vsg/maths/vec3.h>
 #include <osg/ref_ptr>
 
 #include <string>
@@ -13,7 +16,7 @@
 #include <apps/opencs/view/render/tagbase.hpp>
 
 #include "instancedragmodes.hpp"
-#include "objectmarker.hpp"
+#include "objectmarker_pending.hpp"
 #include "scenewidget.hpp"
 
 class QDragEnterEvent;
@@ -28,11 +31,6 @@ class QWidget;
 namespace CSMDoc
 {
     class Document;
-}
-
-namespace osg
-{
-    class Vec3f;
 }
 
 namespace CSMPrefs
@@ -58,13 +56,14 @@ namespace CSVRender
 {
     class Cell;
     class EditMode;
+    class Object;
 
     struct WorldspaceHitResult
     {
         bool hit;
-        osg::ref_ptr<TagBase> tag;
+        vsg::ref_ptr<TagBase> tag;
         unsigned int index0, index1, index2; // indices of mesh vertices
-        osg::Vec3d worldPos;
+        vsg::dvec3 worldPos;
     };
 
     class WorldspaceWidget : public SceneWidget
@@ -182,38 +181,33 @@ namespace CSVRender
         /// \param elementMask Elements to be affected by the select operation
         virtual void selectAllWithSameParentId(int elementMask) = 0;
 
-        virtual void selectInsideCube(const osg::Vec3d& pointA, const osg::Vec3d& pointB, DragMode dragMode) = 0;
+        virtual void selectInsideCube(const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode) = 0;
 
-        virtual void selectWithinDistance(const osg::Vec3d& point, float distance, DragMode dragMode) = 0;
+        virtual void selectWithinDistance(const vsg::dvec3& point, float distance, DragMode dragMode) = 0;
 
-        template <typename Tag>
-        std::optional<WorldspaceHitResult> checkTag(
-            const osgUtil::LineSegmentIntersector::Intersection& intersection) const;
-
-        std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> getStartEndDirection(int pointX, int pointY) const;
-
+        /// Stage C6: no intersection yet, so always the point "in front".
         /// Return the next intersection with scene elements matched by
         /// \a interactionMask based on \a localPos and the camera vector.
         /// If there is no such intersection, instead a point "in front" of \a localPos will be
         /// returned.
         WorldspaceHitResult mousePick(const QPoint& localPos, unsigned int interactionMask) const;
 
-        virtual std::string getCellId(const osg::Vec3f& point) const = 0;
+        virtual std::string getCellId(const vsg::vec3& point) const = 0;
 
         /// \note Returns the cell if it exists, otherwise a null pointer
-        virtual Cell* getCell(const osg::Vec3d& point) const = 0;
+        virtual Cell* getCell(const vsg::dvec3& point) const = 0;
 
         virtual Cell* getCell(const CSMWorld::CellCoordinates& coords) const = 0;
 
-        virtual osg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const = 0;
+        virtual vsg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const = 0;
 
-        virtual std::vector<osg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const = 0;
+        virtual std::vector<vsg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const = 0;
 
         virtual void selectGroup(const std::vector<std::string>&) const = 0;
 
         virtual void unhideAll() const = 0;
 
-        virtual std::vector<osg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const = 0;
+        virtual std::vector<vsg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const = 0;
 
         virtual void setSubMode(int subMode, unsigned int elementMask) = 0;
 
@@ -263,10 +257,6 @@ namespace CSVRender
         void cycleNavigationMode();
 
     private:
-        bool hitBehindMarker(const osg::Vec3d& hitPos) const;
-
-        void handleMarkerHighlight(const int x, const int y);
-
         void dragEnterEvent(QDragEnterEvent* event) override;
 
         void dropEvent(QDropEvent* event) override;

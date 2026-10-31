@@ -33,8 +33,10 @@
 #include "model/doc/document.hpp"
 #include "model/doc/documentmanager.hpp"
 #include "model/prefs/state.hpp"
+#include "view/render/pagedworldspacewidget.hpp"
 #include "view/render/rendercontext.hpp"
 #include "view/render/scenehost.hpp"
+#include "view/render/unpagedworldspacewidget.hpp"
 
 namespace
 {
@@ -51,6 +53,13 @@ namespace
         std::uint64_t mQuitFrame = 0;
         int mViews = 1;
         std::optional<std::array<double, 9>> mCamera;
+        std::string mLighting;
+        std::optional<double> mFieldOfView;
+        int mNeighbours = 0;
+        // Resized to each of these after a capture, capturing again each time.
+        std::vector<std::pair<int, int>> mResizes;
+        // How many views close after the first capture, to check those left.
+        int mCloseViews = 0;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -101,6 +110,11 @@ int CS::runCapture(int argc, char** argv)
     addOption("auto-quit", bpo::value<std::uint64_t>()->required());
     addOption("camera", bpo::value<std::string>());
     addOption("capture-views", bpo::value<int>()->default_value(1));
+    addOption("lighting", bpo::value<std::string>()->default_value("day"));
+    addOption("fov", bpo::value<double>());
+    addOption("neighbours", bpo::value<int>()->default_value(0));
+    addOption("capture-resize", bpo::value<std::string>());
+    addOption("capture-close-views", bpo::value<int>()->default_value(0));
     addOption("data",
         bpo::value<Files::MaybeQuotedPathContainer>()
             ->default_value(Files::MaybeQuotedPathContainer(), "data")
@@ -131,6 +145,18 @@ int CS::runCapture(int argc, char** argv)
     request.mScreenshotFrame = variables["auto-screenshot"].as<std::uint64_t>();
     request.mQuitFrame = variables["auto-quit"].as<std::uint64_t>();
     request.mViews = variables["capture-views"].as<int>();
+    request.mLighting = variables["lighting"].as<std::string>();
+    if (variables.count("fov"))
+        request.mFieldOfView = variables["fov"].as<double>();
+    request.mNeighbours = variables["neighbours"].as<int>();
+    request.mCloseViews = variables["capture-close-views"].as<int>();
+    if (variables.count("capture-resize"))
+    {
+        std::istringstream sizes(variables["capture-resize"].as<std::string>());
+        std::string size;
+        while (std::getline(sizes, size, ','))
+            request.mResizes.emplace_back(std::stoi(size), std::stoi(size.substr(size.find('x') + 1)));
+    }
     if (variables.count("camera"))
         request.mCamera = parseCamera(variables["camera"].as<std::string>());
 
@@ -164,21 +190,31 @@ int CS::runCapture(int argc, char** argv)
     std::filesystem::create_directories(screenshots);
 
     int result = 0;
-    // Declared in this order so that views go first, then what they share, and the frame's windows last.
+    // Declared in this order so that views go first, then their frame's windows.
     std::unique_ptr<QWidget> frame;
-    std::unique_ptr<CSVRender::RenderContext> context;
-    std::vector<std::unique_ptr<CSVRender::SceneHost>> hosts;
-    bool captured = false;
+    std::vector<CSVRender::WorldspaceWidget*> views;
     bool quitting = false;
+    std::size_t captures = 0;
+    std::size_t resizes = 0;
+    std::uint64_t nextCapture = request.mScreenshotFrame;
+    std::uint64_t quitFrame = request.mQuitFrame;
+    bool closed = false;
 
     const auto finish = [&](int code) {
         if (quitting)
             return;
         quitting = true;
         result = code;
-        if (context)
-            context->stop();
+        CSVRender::RenderContext::get().stop();
         QApplication::exit(code);
+    };
+
+    const auto setViewSize = [&](int width, int height) {
+        frame->setFixedSize(width * static_cast<int>(views.size()), height);
+        for (auto* view : views)
+            view->setFixedSize(width, height);
+        // A window gets its new size through Qt's events.
+        QApplication::processEvents();
     };
 
     QObject::connect(&documents, &CSMDoc::DocumentManager::loadingStopped,
@@ -199,55 +235,87 @@ int CS::runCapture(int argc, char** argv)
                 return;
             }
 
-            try
+            auto& context = CSVRender::RenderContext::get();
+            frame = createFrame(request.mViews);
+            frame->show();
+            for (int i = 0; i < request.mViews; ++i)
             {
-                context = std::make_unique<CSVRender::RenderContext>();
-                frame = createFrame(request.mViews);
-                frame->show();
-                for (int i = 0; i < request.mViews; ++i)
+                // The same widgets as the scene subview, so that a capture runs what the editor runs.
+                CSVRender::WorldspaceWidget* view = nullptr;
+                const auto coordinates = CSMWorld::CellCoordinates::fromId(cell.getRefIdString());
+                if (coordinates.second)
                 {
-                    // One at a time: RenderContext::createWindow explains why.
-                    vsgQt::Window* window = context->createWindow();
-                    QWidget* container = QWidget::createWindowContainer(window, frame.get());
-                    container->setFixedSize(sViewWidth, sViewHeight);
-                    frame->layout()->addWidget(container);
-                    container->show();
-                    // A window has its size only after this; a SceneHost refuses one with none.
-                    QApplication::processEvents();
-
-                    hosts.push_back(std::make_unique<CSVRender::SceneHost>(*context, *window, data));
-                    if (hosts.back()->showCell(cell) == 0)
-                        Log(Debug::Warning) << "Cell \"" << request.mCell << "\" shows no objects";
-                    if (const auto& camera = request.mCamera)
-                        hosts.back()->setCamera({ (*camera)[0], (*camera)[1], (*camera)[2] },
-                            { (*camera)[3], (*camera)[4], (*camera)[5] }, { (*camera)[6], (*camera)[7], (*camera)[8] });
+                    auto* paged = new CSVRender::PagedWorldspaceWidget(frame.get(), *document);
+                    CSMWorld::CellSelection selection;
+                    const int neighbours = request.mNeighbours;
+                    for (int x = -neighbours; x <= neighbours; ++x)
+                        for (int y = -neighbours; y <= neighbours; ++y)
+                            selection.add(coordinates.first.move(x, y));
+                    paged->setCellSelection(selection);
+                    view = paged;
                 }
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << "Failed to open the views: " << e.what();
-                finish(1);
-                return;
+                else
+                    view = new CSVRender::UnpagedWorldspaceWidget(cell.getRefIdString(), *document, frame.get());
+                views.push_back(view);
+                view->setFixedSize(sViewWidth, sViewHeight);
+                frame->layout()->addWidget(view);
+                view->show();
+                QApplication::processEvents();
+                if (!view->ensureHost())
+                {
+                    finish(1);
+                    return;
+                }
+                view->selectLightingMode(request.mLighting);
+                if (const auto& camera = request.mCamera)
+                    view->getHost()->setCamera({ (*camera)[0], (*camera)[1], (*camera)[2] },
+                        { (*camera)[3], (*camera)[4], (*camera)[5] }, { (*camera)[6], (*camera)[7], (*camera)[8] });
+                if (request.mFieldOfView)
+                    view->getHost()->setProjection(*request.mFieldOfView, false, 0);
             }
 
-            context->start([&] {
-                const std::uint64_t frameCount = context->frameCount();
-                if (request.mScreenshotFrame != 0 && !captured && frameCount >= request.mScreenshotFrame)
+            context.setFrameCallback([&] {
+                auto& context = CSVRender::RenderContext::get();
+                const std::uint64_t frameCount = context.frameCount();
+                if (quitting)
+                    return;
+                if (nextCapture != 0 && frameCount >= nextCapture)
                 {
-                    captured = true;
                     Log(Debug::Info) << "Auto-screenshot at frame " << frameCount;
-                    for (std::size_t i = 0; i < hosts.size(); ++i)
+                    for (std::size_t i = 0; i < views.size(); ++i)
                     {
-                        const auto file = screenshots / ("editor" + std::to_string(i) + ".png");
-                        if (!hosts[i]->capture(file))
+                        std::string name = "editor" + std::to_string(i);
+                        if (captures > 0)
+                            name += "-" + std::to_string(captures);
+                        if (!views[i]->getHost()->capture(screenshots / (name + ".png")))
                         {
                             Log(Debug::Error) << "Failed to capture view " << i;
                             finish(1);
                             return;
                         }
                     }
+                    ++captures;
+                    nextCapture = 0;
+                    if (request.mCloseViews > 0 && !closed)
+                    {
+                        closed = true;
+                        for (int i = 0; i < request.mCloseViews && views.size() > 1; ++i)
+                        {
+                            delete views.back();
+                            views.pop_back();
+                        }
+                        nextCapture = frameCount + request.mScreenshotFrame;
+                        quitFrame = nextCapture + request.mQuitFrame;
+                    }
+                    else if (resizes < request.mResizes.size())
+                    {
+                        const auto [width, height] = request.mResizes[resizes++];
+                        setViewSize(width, height);
+                        nextCapture = frameCount + request.mScreenshotFrame;
+                        quitFrame = nextCapture + request.mQuitFrame;
+                    }
                 }
-                if (frameCount >= request.mQuitFrame)
+                if (frameCount >= quitFrame && nextCapture == 0)
                 {
                     Log(Debug::Info) << "Auto-quit at frame " << frameCount;
                     finish(0);
@@ -258,8 +326,6 @@ int CS::runCapture(int argc, char** argv)
     documents.addDocument(files, files.back(), false);
 
     const int code = QApplication::exec();
-    hosts.clear();
-    context.reset();
     frame.reset();
     return result != 0 ? result : code;
 }

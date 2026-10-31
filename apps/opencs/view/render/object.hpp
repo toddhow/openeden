@@ -3,10 +3,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
-#include <osg/Vec3f>
-#include <osg/Vec4f>
-#include <osg/ref_ptr>
+#include <vsg/maths/vec4.h>
+#include <vsg/nodes/Group.h>
+#include <vsg/nodes/Switch.h>
 
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
@@ -15,22 +16,9 @@
 
 class QModelIndex;
 
-namespace osg
+namespace MWAnim
 {
-    class PositionAttitudeTransform;
-    class Geometry;
-    class Group;
-    class Node;
-}
-
-namespace osgFX
-{
-    class Scribe;
-}
-
-namespace Resource
-{
-    class ResourceSystem;
+    class Object;
 }
 
 namespace CSMWorld
@@ -42,8 +30,8 @@ namespace CSMWorld
 
 namespace CSVRender
 {
-    class Actor;
     class Object;
+    class SceneHost;
     struct WorldspaceHitResult;
 
     // An object to attach as user data to the osg::Node, allows us to get an Object back from a Node when we are doing
@@ -51,13 +39,16 @@ namespace CSVRender
     class ObjectTag : public TagBase
     {
     public:
-        ObjectTag(Object* object);
+        // Inside this class, a plain Object means its base class's base, vsg::Object.
+        ObjectTag(CSVRender::Object* object);
 
-        Object* mObject;
+        CSVRender::Object* mObject;
 
         QString getToolTip(bool hideBasics, const WorldspaceHitResult& hit) const override;
     };
 
+    /// One instance or referenceable in a view. Owned by its Cell or PreviewWidget. Its nodes hang from a group that the
+    /// owner gives it, and the owner decides when that group is compiled, so that a cell compiles its objects at once.
     class Object
     {
     public:
@@ -85,20 +76,23 @@ namespace CSVRender
 
     private:
         CSMWorld::Data& mData;
+        SceneHost& mHost;
         ESM::RefId mReferenceId;
         ESM::RefId mReferenceableId;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mRootNode;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
-        osg::ref_ptr<osgFX::Scribe> mOutline;
+        /// Shows for Mask_Reference; its child is the model's node, replaced by update().
+        vsg::ref_ptr<vsg::Switch> mRootNode;
+        vsg::ref_ptr<TagBase> mTag;
+        std::unique_ptr<MWAnim::Object> mAnimation;
+        std::vector<vsg::ref_ptr<vsg::Switch>> mNightDaySwitches;
+        unsigned int mNightDayIndex = 0;
+        bool mNightDayApply = false;
         bool mSelected{ false };
         bool mSnapTarget{ false };
-        osg::Group* mParentNode;
-        Resource::ResourceSystem* mResourceSystem;
+        vsg::Group& mParentNode;
         bool mForceBaseToZero;
         ESM::Position mPositionOverride;
         float mScaleOverride{ 1.f };
         int mOverrideFlags{ 0 };
-        std::unique_ptr<Actor> mActor;
 
         /// Not implemented
         Object(const Object&);
@@ -106,12 +100,9 @@ namespace CSVRender
         /// Not implemented
         Object& operator=(const Object&);
 
-        /// Remove object from node (includes deleting)
-        void clear();
-
         /// Update model
-        /// @note Make sure adjustTransform() was called first so world space particles get positioned correctly
-        void update();
+        /// \param compile whether the root is in a view already, so that what it replaces must be compiled here.
+        void update(bool compile);
 
         /// Adjust position, orientation and scale
         void adjustTransform();
@@ -120,15 +111,19 @@ namespace CSVRender
         const CSMWorld::CellRef& getReference() const;
 
     public:
-        Object(CSMWorld::Data& data, osg::Group* cellNode, const std::string& id, bool referenceable,
-            bool forceBaseToZero = false);
         /// \param forceBaseToZero If this is a reference ignore the coordinates and place
         /// it at 0, 0, 0 instead.
+        /// \param compile compile and show it now: parent is in the scene. Otherwise its owner compiles parent.
+        Object(CSMWorld::Data& data, SceneHost& host, vsg::Group& parent, const std::string& id, bool referenceable,
+            bool forceBaseToZero = false, bool compile = false);
 
         ~Object();
 
-        /// Mark the object as selected, selected objects show an outline effect
-        void setSelected(bool selected, const osg::Vec4f& color = osg::Vec4f(1, 1, 1, 1));
+        /// Runs animations that play by themselves, and follows the view's day and night mode.
+        void frameUpdate(float dt);
+
+        /// Mark the object as selected. Stage C7 brings back the outline.
+        void setSelected(bool selected, const vsg::vec4& color = vsg::vec4(1, 1, 1, 1));
 
         bool getSelected() const;
 
@@ -138,10 +133,7 @@ namespace CSVRender
         bool getSnapTarget() const;
 
         /// Get object node with GUI graphics
-        osg::ref_ptr<osg::Group> getRootNode();
-
-        /// Get object node without GUI graphics
-        osg::ref_ptr<osg::Group> getBaseNode();
+        vsg::ref_ptr<vsg::Switch> getRootNode();
 
         /// \return Did this call result in a modification of the visual representation of
         /// this object?
@@ -163,7 +155,7 @@ namespace CSVRender
 
         std::string getReferenceableId() const;
 
-        osg::ref_ptr<TagBase> getTag() const;
+        vsg::ref_ptr<TagBase> getTag() const;
 
         /// Is there currently an editing operation running on this object?
         bool isEdited() const;
@@ -182,8 +174,6 @@ namespace CSVRender
 
         /// Set override scale
         void setScale(float scale);
-
-        void setMarkerTransparency(float value);
 
         /// Apply override changes via command and end edit mode
         void apply(CSMWorld::CommandMacro& commands);

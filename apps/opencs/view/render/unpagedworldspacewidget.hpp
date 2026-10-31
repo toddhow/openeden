@@ -8,7 +8,6 @@
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/render/instancedragmodes.hpp>
 
-#include <osg/Vec3d>
 
 #include "cell.hpp"
 #include "worldspacewidget.hpp"
@@ -16,13 +15,6 @@
 class QModelIndex;
 class QObject;
 class QWidget;
-
-namespace osg
-{
-    class Vec3f;
-    template <class T>
-    class ref_ptr;
-}
 
 namespace CSMDoc
 {
@@ -79,25 +71,25 @@ namespace CSVRender
         /// \param elementMask Elements to be affected by the select operation
         void selectAllWithSameParentId(int elementMask) override;
 
-        void selectInsideCube(const osg::Vec3d& pointA, const osg::Vec3d& pointB, DragMode dragMode) override;
+        void selectInsideCube(const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode) override;
 
-        void selectWithinDistance(const osg::Vec3d& point, float distance, DragMode dragMode) override;
+        void selectWithinDistance(const vsg::dvec3& point, float distance, DragMode dragMode) override;
 
-        std::string getCellId(const osg::Vec3f& point) const override;
+        std::string getCellId(const vsg::vec3& point) const override;
 
-        Cell* getCell(const osg::Vec3d& point) const override;
+        Cell* getCell(const vsg::dvec3& point) const override;
 
         Cell* getCell(const CSMWorld::CellCoordinates& coords) const override;
 
-        osg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const override;
+        vsg::ref_ptr<TagBase> getSnapTarget(unsigned int elementMask) const override;
 
-        std::vector<osg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const override;
+        std::vector<vsg::ref_ptr<TagBase>> getSelection(unsigned int elementMask) const override;
 
         void selectGroup(const std::vector<std::string>& group) const override;
 
         void unhideAll() const override;
 
-        std::vector<osg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const override;
+        std::vector<vsg::ref_ptr<TagBase>> getEdited(unsigned int elementMask) const override;
 
         void setSubMode(int subMode, unsigned int elementMask) override;
 
@@ -128,6 +120,8 @@ namespace CSVRender
         std::string getStartupInstruction() override;
 
     protected:
+        void hostReady() override;
+
         void addVisibilitySelectorButtons(CSVWidget::SceneToolToggle2* tool) override;
 
     private slots:

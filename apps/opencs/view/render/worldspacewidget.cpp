@@ -25,17 +25,6 @@
 #include <components/esm/defs.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include <osg/Camera>
-#include <osg/Group>
-#include <osg/Matrixd>
-#include <osg/Node>
-#include <osg/Referenced>
-#include <osg/Viewport>
-#include <osgUtil/IntersectionVisitor>
-#include <osgViewer/View>
-
-#include <osgUtil/LineSegmentIntersector>
-
 #include "../../model/world/idtable.hpp"
 #include "../../model/world/tablemimedata.hpp"
 #include "../../model/world/universalid.hpp"
@@ -43,19 +32,15 @@
 #include "../../model/prefs/shortcut.hpp"
 #include "../../model/prefs/state.hpp"
 
-#include "../render/orbitcameramode.hpp"
-
 #include "../widget/scenetoolmode.hpp"
 #include "../widget/scenetoolrun.hpp"
 #include "../widget/scenetooltoggle2.hpp"
 
-#include "cameracontroller.hpp"
-#include "instancemode.hpp"
 #include "mask.hpp"
-#include "pathgridmode.hpp"
+#include "object.hpp"
 
 CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidget* parent)
-    : SceneWidget(document.getData().getResourceSystem(), parent, Qt::WindowFlags(), false)
+    : SceneWidget(document.getData(), parent, Qt::WindowFlags(), false)
     , mSceneElements(nullptr)
     , mRun(nullptr)
     , mDocument(document)
@@ -74,7 +59,7 @@ CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidge
     , mShowToolTips(false)
     , mToolTipDelay(0)
     , mSelectedNavigationMode(0)
-    , mSelectionMarker(ObjectMarker::create(this, document.getData().getResourceSystem().get()))
+    , mSelectionMarker(std::make_unique<ObjectMarker>())
 {
     setAcceptDrops(true);
 
@@ -181,15 +166,18 @@ void CSVRender::WorldspaceWidget::selectDefaultNavigationMode()
 
 void CSVRender::WorldspaceWidget::centerOrbitCameraOnSelection()
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
+    // Stage C5: the orbit camera.
+#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
+    std::vector<vsg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
 
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
+    for (std::vector<vsg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
     {
         if (CSVRender::ObjectTag* objectTag = static_cast<CSVRender::ObjectTag*>(it->get()))
         {
             mOrbitCamControl->setCenter(objectTag->mObject->getPosition().asVec3());
         }
     }
+#endif
 }
 
 CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CSVWidget::SceneToolbar* parent)
@@ -216,8 +204,8 @@ CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CS
         "<li>Mouse wheel moves the camera forward/backward</li>"
         "<li>Hold {free-forward:mod} to speed up movement</li>"
         "</ul>");
-    tool->addButton(
-        new CSVRender::OrbitCameraMode(this, Misc::ScalableIcon::load(":scenetoolbar/orbiting-camera"),
+    // Stage C5: back to CSVRender::OrbitCameraMode.
+    tool->addButton(":scenetoolbar/orbiting-camera", "orbit",
             "Orbiting Camera"
             "<ul><li>Always facing the centre point</li>"
             "<li>Rotate around the centre point via {orbit-up}, {orbit-left}, {orbit-down}, {orbit-right} or by moving "
@@ -227,9 +215,7 @@ CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CS
             "point)</li>"
             "<li>Mouse wheel moves camera away or towards centre point but can not pass through it</li>"
             "<li>Hold {scene-speed-modifier} to speed up movement</li>"
-            "</ul>",
-            tool),
-        "orbit");
+            "</ul>");
 
     mCameraMode = tool;
 
@@ -377,9 +363,14 @@ void CSVRender::WorldspaceWidget::addVisibilitySelectorButtons(CSVWidget::SceneT
 
 void CSVRender::WorldspaceWidget::addEditModeSelectorButtons(CSVWidget::SceneToolMode* tool)
 {
-    /// \todo replace EditMode with suitable subclasses
-    tool->addButton(new InstanceMode(this, mRootNode, tool), "object");
-    tool->addButton(new PathgridMode(this, tool), "pathgrid");
+    // The plain base class until stages C7 and C9 bring back InstanceMode and PathgridMode: the buttons and their ids stay,
+    // and pressing them does nothing.
+    tool->addButton(
+        new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-instance"), Mask_Reference, "Instance editing", tool),
+        "object");
+    tool->addButton(
+        new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-pathgrid"), Mask_Pathgrid, "Pathgrid editing", tool),
+        "pathgrid");
 }
 
 CSMDoc::Document& CSVRender::WorldspaceWidget::getDocument()
@@ -387,104 +378,13 @@ CSMDoc::Document& CSVRender::WorldspaceWidget::getDocument()
     return mDocument;
 }
 
-template <typename Tag>
-std::optional<CSVRender::WorldspaceHitResult> CSVRender::WorldspaceWidget::checkTag(
-    const osgUtil::LineSegmentIntersector::Intersection& intersection) const
-{
-    for (auto* node : intersection.nodePath)
-    {
-        if (auto* tag = dynamic_cast<Tag*>(node->getUserData()))
-        {
-            WorldspaceHitResult hit = { true, tag, 0, 0, 0, intersection.getWorldIntersectPoint() };
-            if (intersection.indexList.size() >= 3)
-            {
-                hit.index0 = intersection.indexList[0];
-                hit.index1 = intersection.indexList[1];
-                hit.index2 = intersection.indexList[2];
-            }
-            return hit;
-        }
-    }
-    return std::nullopt;
-}
-
-std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> CSVRender::WorldspaceWidget::getStartEndDirection(
-    int pointX, int pointY) const
-{
-    // (0,0) is considered the lower left corner of an OpenGL window
-    int x = pointX * devicePixelRatio();
-    int y = height() * devicePixelRatio() - pointY * devicePixelRatio();
-
-    // Convert from screen space to world space
-    osg::Matrixd wpvMat;
-    wpvMat.preMult(mView->getCamera()->getViewport()->computeWindowMatrix());
-    wpvMat.preMult(mView->getCamera()->getProjectionMatrix());
-    wpvMat.preMult(mView->getCamera()->getViewMatrix());
-    wpvMat = osg::Matrixd::inverse(wpvMat);
-
-    osg::Vec3d start = wpvMat.preMult(osg::Vec3d(x, y, 0));
-    osg::Vec3d end = wpvMat.preMult(osg::Vec3d(x, y, 1));
-    osg::Vec3d direction = end - start;
-    return { start, end, direction };
-}
-
 CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
     const QPoint& localPos, unsigned int interactionMask) const
 {
-    auto [start, end, direction] = getStartEndDirection(localPos.x(), localPos.y());
-
-    // Get intersection
-    osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector(
-        new osgUtil::LineSegmentIntersector(osgUtil::Intersector::MODEL, start, end));
-
-    intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::NO_LIMIT);
-    osgUtil::IntersectionVisitor visitor(intersector);
-
-    visitor.setTraversalMask(interactionMask);
-
-    mView->getCamera()->accept(visitor);
-
-    const auto& intersections = intersector->getIntersections();
-
-    std::vector<osgUtil::LineSegmentIntersector::Intersection> validIntersections
-        = { intersections.begin(), intersections.end() };
-
-    const auto& removeBackfaces = [direction](const osgUtil::LineSegmentIntersector::Intersection& i) {
-        return direction * i.getWorldIntersectNormal() > 0;
-    };
-
-    validIntersections.erase(std::remove_if(validIntersections.begin(), validIntersections.end(), removeBackfaces),
-        validIntersections.end());
-
-    // Default placement
-    direction.normalize();
-    direction *= CSMPrefs::get()["3D Scene Editing"]["distance"].toInt();
-
-    if (validIntersections.empty())
-        return WorldspaceHitResult{ false, nullptr, 0, 0, 0, start + direction };
-
-    const auto& firstHit = validIntersections.front();
-
-    for (const auto& hit : validIntersections)
-        if (const auto& markerHit = checkTag<ObjectMarkerTag>(hit))
-        {
-            if (mSelectionMarker->hitBehindMarker(markerHit->worldPos, mView->getCamera()))
-                return WorldspaceHitResult{ false, nullptr, 0, 0, 0, start + direction };
-            else
-                return *markerHit;
-        }
-    if (auto hit = checkTag<TagBase>(firstHit))
-        return *hit;
-
-    // Something untagged, probably terrain
-    WorldspaceHitResult hit = { true, nullptr, 0, 0, 0, firstHit.getWorldIntersectPoint() };
-    if (firstHit.indexList.size() >= 3)
-    {
-        hit.index0 = firstHit.indexList[0];
-        hit.index1 = firstHit.indexList[1];
-        hit.index2 = firstHit.indexList[2];
-    }
-    return hit;
+    // Stage C6 ports the intersection, from worldspacewidget.cpp in git history.
+    if (const SceneHost* host = getHost())
+        return WorldspaceHitResult{ false, nullptr, 0, 0, 0, host->getCameraEye() };
+    return WorldspaceHitResult{ false, nullptr, 0, 0, 0, vsg::dvec3() };
 }
 
 CSVRender::EditMode* CSVRender::WorldspaceWidget::getEditMode()
@@ -641,41 +541,6 @@ void CSVRender::WorldspaceWidget::elementSelectionChanged()
 
 void CSVRender::WorldspaceWidget::updateOverlay() {}
 
-void CSVRender::WorldspaceWidget::handleMarkerHighlight(const int x, const int y)
-{
-    auto [start, end, _] = getStartEndDirection(x, y);
-
-    osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector(
-        new osgUtil::LineSegmentIntersector(osgUtil::Intersector::MODEL, start, end));
-
-    intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::NO_LIMIT);
-    osgUtil::IntersectionVisitor visitor(intersector);
-
-    visitor.setTraversalMask(Mask_Reference);
-
-    mView->getCamera()->accept(visitor);
-
-    bool hitMarker = false;
-    for (const auto& intersection : intersector->getIntersections())
-    {
-        if (mSelectionMarker->hitBehindMarker(intersection.getWorldIntersectPoint(), mView->getCamera()))
-            continue;
-
-        for (const auto& node : intersection.nodePath)
-        {
-            if (const auto& marker = dynamic_cast<ObjectMarkerTag*>(node->getUserData()))
-            {
-                hitMarker = true;
-                mSelectionMarker->updateMarkerHighlight(node->getName(), marker->mAxis);
-                break;
-            }
-        }
-    }
-
-    if (!hitMarker)
-        mSelectionMarker->resetMarkerHighlight();
-}
-
 void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
 {
     dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent()).mouseMoveEvent(event);
@@ -730,8 +595,6 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
             }
         }
 
-        QPoint pos = event->position().toPoint();
-        handleMarkerHighlight(pos.x(), pos.y());
         SceneWidget::mouseMoveEvent(event);
     }
 }
@@ -807,7 +670,9 @@ void CSVRender::WorldspaceWidget::speedMode(bool activate)
 
 void CSVRender::WorldspaceWidget::toggleHiddenInstances()
 {
-    const std::vector<osg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
+    // Stage C7: nothing can be selected before then.
+#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
+    const std::vector<vsg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
 
     if (selection.empty())
         return;
@@ -821,6 +686,7 @@ void CSVRender::WorldspaceWidget::toggleHiddenInstances()
     for (const auto& object : selection)
         if (const auto objectTag = static_cast<CSVRender::ObjectTag*>(object.get()))
             objectTag->mObject->getRootNode()->setNodeMask(firstMask);
+#endif
 }
 
 void CSVRender::WorldspaceWidget::cycleNavigationMode()

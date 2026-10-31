@@ -2,45 +2,20 @@
 #define OPENCS_VIEW_SCENEWIDGET_H
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <QColor>
-#include <QObject>
-#include <QTimer>
+#include <QPointF>
 #include <QWidget>
 
-#include <osg/PositionAttitudeTransform>
-#include <osg/Vec4f>
-#include <osg/ref_ptr>
+#include <vsg/maths/vec4.h>
 
-#include <osgViewer/CompositeViewer>
-
-#include "lightingbright.hpp"
-#include "lightingday.hpp"
-#include "lightingnight.hpp"
+#include "lighting.hpp"
+#include "scenehost.hpp"
 
 class QMouseEvent;
 class QWheelEvent;
-
-class osgQOpenGLWidget;
-class CompositeOsgRenderer;
-
-namespace Resource
-{
-    class ResourceSystem;
-}
-
-namespace osg
-{
-    class Group;
-    class Camera;
-    class Geometry;
-}
-
-namespace osg
-{
-    class View;
-}
 
 namespace CSVWidget
 {
@@ -53,39 +28,62 @@ namespace CSMPrefs
     class Setting;
 }
 
+namespace CSMWorld
+{
+    class Data;
+}
+
+namespace vsgQt
+{
+    class Window;
+}
+
 namespace CSVRender
 {
-    class CameraController;
-    class FreeCameraController;
-    class OrbitCameraController;
-    class Lighting;
-
+    /// A QWidget that shows one SceneHost. The Vulkan window is a child made through QWidget::createWindowContainer the
+    /// first time this widget has a size: a window with no size cannot be hosted. Whatever needs the host waits for
+    /// hostReady(). Owns the host and, through Qt, the window.
     class RenderWidget : public QWidget
     {
         Q_OBJECT
 
     public:
-        RenderWidget(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
-        virtual ~RenderWidget();
+        RenderWidget(CSMWorld::Data& data, QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+        ~RenderWidget() override;
 
         /// Initiates a request to redraw the view
         void flagAsModified();
 
         void setVisibilityMask(unsigned int mask);
 
-        osg::Camera* getCamera();
+        /// The view, or null before this widget first had a size.
+        SceneHost* getHost() const { return mHost.get(); }
+
+        /// Creates the view if this widget has a size and is shown.
+        /// \return whether the view exists now.
+        bool ensureHost();
 
     protected:
-        osgQOpenGLWidget* mWidget;
-        CompositeOsgRenderer* mRenderer;
-        osg::ref_ptr<osgViewer::View> mView;
-        osg::ref_ptr<osg::Group> mRootNode;
+        /// The view exists now. Called once, from ensureHost.
+        virtual void hostReady() {}
 
-        void updateCameraParameters(double overrideAspect = -1.0);
+        void updateCameraParameters();
+
+        void showEvent(QShowEvent* event) override;
+        void resizeEvent(QResizeEvent* event) override;
+        bool eventFilter(QObject* watched, QEvent* event) override;
+
+        CSMWorld::Data& mData;
 
     protected slots:
 
         void toggleRenderStats();
+
+    private:
+        vsgQt::Window* mWindow = nullptr;
+        QWidget* mContainer = nullptr;
+        std::unique_ptr<SceneHost> mHost;
+        bool mHostFailed = false;
     };
 
     /// Extension of RenderWidget to support lighting mode selection & toolbar
@@ -93,71 +91,48 @@ namespace CSVRender
     {
         Q_OBJECT
     public:
-        SceneWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
-            Qt::WindowFlags f = Qt::WindowFlags(), bool retrieveInput = true);
-        virtual ~SceneWidget();
+        SceneWidget(CSMWorld::Data& data, QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags(),
+            bool retrieveInput = true);
+        ~SceneWidget() override;
 
         CSVWidget::SceneToolMode* makeLightingSelector(CSVWidget::SceneToolbar* parent);
         ///< \attention The created tool is not added to the toolbar (via addTool). Doing that
         /// is the responsibility of the calling function.
 
-        void setDefaultAmbient(const osg::Vec4f& colour);
+        void setDefaultAmbient(const vsg::vec4& colour);
         ///< \note The actual ambient colour may differ based on lighting settings.
 
         void setExterior(bool isExterior);
 
-        void setSelectionMarkerRoot(osg::ref_ptr<osg::PositionAttitudeTransform> selectionMarker)
-        {
-            mSelectionMarkerNode = selectionMarker;
-        }
-
     protected:
-        void setLighting(Lighting* lighting);
-        ///< \attention The ownership of \a lighting is not transferred to *this.
-
-        void setAmbient(const osg::Vec4f& ambient);
+        void hostReady() override;
 
         void mouseMoveEvent(QMouseEvent* event) override;
         void wheelEvent(QWheelEvent* event) override;
 
-        osg::ref_ptr<osg::Geometry> createGradientRectangle(QColor& bgColour, QColor& gradientColour);
-        osg::ref_ptr<osg::Camera> createGradientCamera(QColor& bgColour, QColor& gradientColour);
-        void updateGradientCamera(QColor& bgColour, QColor& gradientColour);
+        void applyLighting();
 
-        std::shared_ptr<Resource::ResourceSystem> mResourceSystem;
-
-        Lighting* mLighting;
-
-        osg::ref_ptr<osg::PositionAttitudeTransform> mSelectionMarkerNode;
-        osg::ref_ptr<osg::Camera> mGradientCamera;
-        osg::Vec4f mDefaultAmbient;
-        bool mHasDefaultAmbient;
-        bool mIsExterior;
-        LightingDay mLightingDay;
-        LightingNight mLightingNight;
-        LightingBright mLightingBright;
+        LightingMode mLightingMode = LightingMode::Day;
+        std::optional<vsg::vec4> mDefaultAmbient;
+        bool mIsExterior = true;
+        QColor mBackgroundColour;
+        QColor mGradientColour;
 
         QPointF mPrevMouse;
 
         /// Tells update that camera isn't set
-        bool mCamPositionSet;
-
-        FreeCameraController* mFreeCamControl;
-        OrbitCameraController* mOrbitCamControl;
-        CameraController* mCurrentCamControl;
+        bool mCamPositionSet = false;
 
     public slots:
-        void update(double dt);
+
+        /// The same as choosing a mode on the toolbar: "day", "night" or "bright".
+        void selectLightingMode(const std::string& mode);
 
     protected slots:
 
         virtual void settingChanged(const CSMPrefs::Setting* setting);
 
         void selectNavigationMode(const std::string& mode);
-
-    private slots:
-
-        void selectLightingMode(const std::string& mode);
 
     signals:
 

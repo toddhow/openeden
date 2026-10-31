@@ -21,9 +21,7 @@
 #include "../../model/world/idtable.hpp"
 
 #include "../world/dialoguesubview.hpp"
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
 #include "../world/scenesubview.hpp"
-#endif
 #include "../world/scriptsubview.hpp"
 #include "../world/subviews.hpp"
 #include "../world/tablesubview.hpp"
@@ -706,13 +704,11 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
         connect(this, &View::requestFocus, tableView, &CSVWorld::TableSubView::requestFocus);
     }
 
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
     CSVWorld::SceneSubView* sceneView = dynamic_cast<CSVWorld::SceneSubView*>(view);
     if (sceneView)
     {
         connect(sceneView, &CSVWorld::SceneSubView::requestFocus, this, &View::onRequestFocus);
     }
-#endif
 
     if (CSMPrefs::State::get()["ID Tables"]["subview-new-window"].isTrue())
     {

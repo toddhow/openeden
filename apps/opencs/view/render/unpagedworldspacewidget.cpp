@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-#include <components/sceneutil/util.hpp>
+#include <components/mwanimation/color.hpp>
 
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
@@ -15,11 +15,6 @@
 
 #include <components/esm3/loadcell.hpp>
 
-#include <osg/Camera>
-#include <osg/Vec4f>
-#include <osg/ref_ptr>
-#include <osgViewer/View>
-
 #include "../../model/doc/document.hpp"
 
 #include "../../model/world/data.hpp"
@@ -27,7 +22,6 @@
 
 #include "../widget/scenetooltoggle2.hpp"
 
-#include "cameracontroller.hpp"
 
 namespace CSVRender
 {
@@ -44,7 +38,7 @@ void CSVRender::UnpagedWorldspaceWidget::update()
     const CSMWorld::Record<CSMWorld::Cell>& record
         = dynamic_cast<const CSMWorld::Record<CSMWorld::Cell>&>(mCellsModel->getRecord(mCellId));
 
-    osg::Vec4f colour = SceneUtil::colourFromRGB(record.get().mAmbi.mAmbient);
+    vsg::vec4 colour(MWAnim::rgbColor(record.get().mAmbi.mAmbient), 1.f);
 
     setDefaultAmbient(colour);
 
@@ -78,8 +72,14 @@ CSVRender::UnpagedWorldspaceWidget::UnpagedWorldspaceWidget(
         &document.getData(), &CSMWorld::Data::assetTablesChanged, this, &UnpagedWorldspaceWidget::assetTablesChanged);
 
     update();
+}
 
-    mCell = std::make_unique<Cell>(document, mSelectionMarker.get(), mRootNode, mCellId);
+void CSVRender::UnpagedWorldspaceWidget::hostReady()
+{
+    WorldspaceWidget::hostReady();
+    mCell = std::make_unique<Cell>(mDocument, mSelectionMarker.get(), *getHost(), mCellId);
+    getHost()->frame(mCell->getObjectPositions());
+    getHost()->setAnimated(mCell->isAnimated());
 }
 
 void CSVRender::UnpagedWorldspaceWidget::cellDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
@@ -127,9 +127,13 @@ bool CSVRender::UnpagedWorldspaceWidget::handleDrop(
 
     mCellId = universalIdData.begin()->getId();
 
-    mCell = std::make_unique<Cell>(getDocument(), mSelectionMarker.get(), mRootNode, mCellId);
+    if (SceneHost* host = getHost())
+    {
+        mCell = std::make_unique<Cell>(getDocument(), mSelectionMarker.get(), *host, mCellId);
+        host->frame(mCell->getObjectPositions());
+        host->setAnimated(mCell->isAnimated());
+    }
     mCamPositionSet = false;
-    mOrbitCamControl->reset();
 
     update();
     emit cellChanged(*universalIdData.begin());
@@ -139,6 +143,8 @@ bool CSVRender::UnpagedWorldspaceWidget::handleDrop(
 
 void CSVRender::UnpagedWorldspaceWidget::clearSelection(int elementMask)
 {
+    if (!mCell)
+        return;
     mCell->setSelection(elementMask, Cell::Selection_Clear);
     flagAsModified();
     mSelectionMarker->detachMarker();
@@ -146,40 +152,46 @@ void CSVRender::UnpagedWorldspaceWidget::clearSelection(int elementMask)
 
 void CSVRender::UnpagedWorldspaceWidget::invertSelection(int elementMask)
 {
+    if (!mCell)
+        return;
     mCell->setSelection(elementMask, Cell::Selection_Invert);
     flagAsModified();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::selectAll(int elementMask)
 {
+    if (!mCell)
+        return;
     mCell->setSelection(elementMask, Cell::Selection_All);
     flagAsModified();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::selectAllWithSameParentId(int elementMask)
 {
+    if (!mCell)
+        return;
     mCell->selectAllWithSameParentId(elementMask);
     flagAsModified();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::selectInsideCube(
-    const osg::Vec3d& pointA, const osg::Vec3d& pointB, DragMode dragMode)
+    const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode)
 {
     mCell->selectInsideCube(pointA, pointB, dragMode);
 }
 
 void CSVRender::UnpagedWorldspaceWidget::selectWithinDistance(
-    const osg::Vec3d& point, float distance, DragMode dragMode)
+    const vsg::dvec3& point, float distance, DragMode dragMode)
 {
     mCell->selectWithinDistance(point, distance, dragMode);
 }
 
-std::string CSVRender::UnpagedWorldspaceWidget::getCellId(const osg::Vec3f& point) const
+std::string CSVRender::UnpagedWorldspaceWidget::getCellId(const vsg::vec3& point) const
 {
     return mCellId;
 }
 
-CSVRender::Cell* CSVRender::UnpagedWorldspaceWidget::getCell(const osg::Vec3d& point) const
+CSVRender::Cell* CSVRender::UnpagedWorldspaceWidget::getCell(const vsg::dvec3& point) const
 {
     return mCell.get();
 }
@@ -189,12 +201,12 @@ CSVRender::Cell* CSVRender::UnpagedWorldspaceWidget::getCell(const CSMWorld::Cel
     return mCell.get();
 }
 
-osg::ref_ptr<CSVRender::TagBase> CSVRender::UnpagedWorldspaceWidget::getSnapTarget(unsigned int elementMask) const
+vsg::ref_ptr<CSVRender::TagBase> CSVRender::UnpagedWorldspaceWidget::getSnapTarget(unsigned int elementMask) const
 {
     return mCell->getSnapTarget(elementMask);
 }
 
-std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getSelection(
+std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getSelection(
     unsigned int elementMask) const
 {
     return mCell->getSelection(elementMask);
@@ -210,7 +222,7 @@ void CSVRender::UnpagedWorldspaceWidget::unhideAll() const
     mCell->unhideAll();
 }
 
-std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getEdited(
+std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getEdited(
     unsigned int elementMask) const
 {
     return mCell->getEdited(elementMask);
@@ -353,13 +365,11 @@ void CSVRender::UnpagedWorldspaceWidget::addVisibilitySelectorButtons(CSVWidget:
 
 std::string CSVRender::UnpagedWorldspaceWidget::getStartupInstruction()
 {
-    osg::Vec3d eye, center, up;
-    mView->getCamera()->getViewMatrixAsLookAt(eye, center, up);
-    osg::Vec3d position = eye;
+    const vsg::dvec3 position = getHost() ? getHost()->getCameraEye() : vsg::dvec3();
 
     std::ostringstream stream;
 
-    stream << "player->positionCell " << position.x() << ", " << position.y() << ", " << position.z() << ", 0, \""
+    stream << "player->positionCell " << position.x << ", " << position.y << ", " << position.z << ", 0, \""
            << mCellId << "\"";
 
     return stream.str();

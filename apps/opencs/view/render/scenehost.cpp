@@ -1,6 +1,7 @@
 #include "scenehost.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include <vsg/app/Camera.h>
@@ -11,7 +12,14 @@
 #include <vsg/app/View.h>
 #include <vsg/app/Viewer.h>
 #include <vsg/app/Window.h>
+#include <vsg/nodes/AbsoluteTransform.h>
+#include <vsg/nodes/StateGroup.h>
+#include <vsg/nodes/VertexDraw.h>
+#include <vsg/state/ArrayState.h>
 #include <vsg/state/ViewportState.h>
+#include <vsg/utils/FindDynamicObjects.h>
+#include <vsg/utils/PropagateDynamicObjects.h>
+#include <vsg/utils/SharedObjects.h>
 #include <vsg/vk/ResourceRequirements.h>
 
 #include <vsg/ui/PointerEvent.h>
@@ -19,15 +27,18 @@
 #include <vsgQt/Window.h>
 
 #include <components/debug/debuglog.hpp>
-#include <components/esm3/loadligh.hpp>
+#include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <components/misc/vsgmath.hpp>
-#include <components/mwanimation/color.hpp>
-#include <components/mwanimation/create.hpp>
+#include <components/mwanimation/partbones.hpp>
+#include <components/pipeline/builder.hpp>
+#include <components/pipeline/graphics.hpp>
+#include <components/pipeline/material.hpp>
+#include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/screenshot.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
 #include <components/view/barriers.hpp>
 #include <components/view/collectlights.hpp>
@@ -36,15 +47,13 @@
 #include <components/view/env.hpp>
 #include <components/view/lightgrid.hpp>
 #include <components/view/scene.hpp>
-#include <components/vsgutil/computebin.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/computebin.hpp>
 #include <components/vsgutil/setbin.hpp>
 #include <components/vsgutil/sharedview.hpp>
 
-#include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
 
 #include "mask.hpp"
 #include "rendercontext.hpp"
@@ -58,18 +67,23 @@ namespace
     // View::CollectLights' capacity in the game (MWRender::RenderManager::RenderManager).
     constexpr size_t sMaxLights = 256;
 
-    // Directional light of a cell with no lighting of its own: the old editor's "day" mode (lightingday.cpp) and the
-    // direction the game gives an interior (RenderManager::configureAmbient).
-    constexpr float sDayAmbient = 0.7f;
-    const vsg::vec3 sLightPosition(-0.15f, 0.15f, 1.f);
+    // Straight down, as the OSG editor's lights were (osg::Vec4f(0, 0, 1, 0) in LightingDay and its kin).
+    const vsg::vec3 sLightPosition(0.f, 0.f, 1.f);
     // The game's light size without a sky (RenderManager::updateSceneData).
     constexpr float sLightSize = 8.f;
-    // The old editor's default background, as a flat colour until C3 brings back the gradient.
-    const VkClearColorValue sBackground{ { 0.3f, 0.3f, 0.3f, 1.f } };
     // The default view of a cell, from outside its objects: the direction from their centre and the smallest distance.
     const vsg::dvec3 sDefaultViewDirection(-0.6, -0.6, 0.5);
     constexpr double sMinimumViewDistance = 500.0;
     constexpr double sViewDistanceScale = 2.0;
+    // The OSG editor let OSG compute near and far from what it drew, which VSG does not do. This covers a large selection
+    // of exterior cells.
+    constexpr double sFarClip = 200000.0;
+    // As the OSG editor: half the height of an orthographic view is ten units per step of camera-ortho-size.
+    constexpr double sOrthoUnitsPerSize = 10.0;
+    // The unlit colour mode of the default shader, as Render::DebugGeometry.
+    constexpr uint32_t sUnlitColorMode = 3;
+    // Within clip space in any depth convention; the gradient has no depth test.
+    constexpr double sGradientNdcDepth = 0.5;
 
     /// The descriptor pool sizes the game asks for (RenderManager::RenderManager).
     vsg::ResourceRequirements viewResourceRequirements()
@@ -96,12 +110,64 @@ namespace
         return *middle;
     }
 
-    /// As makeInversedOrderObjectOsgQuat in apps/openmw/mwworld/scene.cpp.
-    vsg::quat objectRotation(const ESM::Position& position)
+    // The options of MWRender::animContext (apps/openmw/mwrender/animcontext.cpp), which the game's file cannot give the
+    // editor: it names game masks and lives in the game's tree.
+    vsg::ref_ptr<vsg::Options> sharedReadOptions(const vsg::Options& base)
     {
-        return vsg::quat(Misc::VsgMath::makeRotateFromAxis(position.rot[0], vsg::vec3(-1, 0, 0))
-            * Misc::VsgMath::makeRotateFromAxis(position.rot[1], vsg::vec3(0, -1, 0))
-            * Misc::VsgMath::makeRotateFromAxis(position.rot[2], vsg::vec3(0, 0, -1)));
+        auto options = vsg::Options::create(base);
+        options->sharedObjects = vsg::SharedObjects::create();
+        // VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns Anim::Transform roots into plain
+        // groups; the mwanimation code clones what it needs itself.
+        options->findDynamicObjects = {};
+        options->propagateDynamicObjects = {};
+        return options;
+    }
+
+    vsg::ref_ptr<vsg::Options> actorOptions(Resource::ResourceSystem* resources)
+    {
+        auto options = sharedReadOptions(*resources->nodeOptions);
+        options->findFileCallback = [resources](const vsg::Path& file, const vsg::Options*) -> vsg::Path {
+            VFS::Path::Normalized path(file.string());
+            if (!path.value().starts_with("meshes/") && !path.value().starts_with("animations/"))
+                path = Misc::ResourceHelpers::correctMeshPath(path);
+            return vsg::Path(Misc::ResourceHelpers::correctActorModelPath(path, resources->getVFS()).value());
+        };
+        return options;
+    }
+
+    vsg::ref_ptr<vsg::Options> effectOptions(const vsg::Options& base)
+    {
+        auto options = sharedReadOptions(base);
+        auto override_ = vsg::ref_ptr{ new Pipeline::Override };
+        override_->materialData = [](Pipeline::Data::Material& m) {
+            // Morrowind has a white ambient light attached to the root VFX node of the scenegraph
+            m.emissive += vsg::vec4(m.ambient.x, m.ambient.y, m.ambient.z, 0);
+        };
+        override_->composite(*options);
+        return options;
+    }
+
+    std::vector<vsg::ref_ptr<const vsg::Options>> partBoneOptions(const vsg::Options& base)
+    {
+        std::vector<vsg::ref_ptr<const vsg::Options>> ret(ESM::PRT_Count);
+        for (int i = 0; i < ESM::PRT_Count; ++i)
+        {
+            auto options = sharedReadOptions(base);
+            const auto& bonename = MWAnim::sPartBones.at(static_cast<ESM::PartReferenceType>(i));
+            if (bonename.find("Left") != std::string::npos)
+            {
+                auto override_ = vsg::ref_ptr{ new Pipeline::Override };
+                override_->pipelineOptions = [](Pipeline::Options& o) {
+                    if (!o.shader.hasMode(Pipeline::Mode::SKIN))
+                        o.frontFace = VK_FRONT_FACE_CLOCKWISE;
+                };
+                override_->composite(*options);
+            }
+            // PRT_Hair uses a filter different from its attachment bone
+            options->setValue("skinfilter", (i == ESM::PRT_Hair) ? "hair" : bonename);
+            ret[i] = options;
+        }
+        return ret;
     }
 }
 
@@ -136,10 +202,16 @@ namespace CSVRender
 
         mResources = context.resourcesFor(data);
 
-        // Enough of MWRender::animContext for objects. Actors' files and options come with them in C4.
+        mAnimContext.files.wolfskin = Settings::Manager::getString("wolfskin", "Models");
+        mAnimContext.files.baseanim = Settings::Manager::getString("baseanim", "Models");
+        mAnimContext.files.baseanimkna = Settings::Manager::getString("baseanimkna", "Models");
+        mAnimContext.files.baseanimfemale = Settings::Manager::getString("baseanimfemale", "Models");
         mAnimContext.mask = { Mask_ParticleSystem };
         mAnimContext.nodeOptions = mResources->nodeOptions;
+        mAnimContext.effectOptions = effectOptions(*mResources->nodeOptions);
+        mAnimContext.actorOptions = actorOptions(mResources.get());
         mAnimContext.textureOptions = mResources->textureOptions;
+        mAnimContext.partBoneOptions = partBoneOptions(*mResources->nodeOptions);
         mAnimContext.animOptions = mResources->animationOptions;
         mAnimContext.compileContext = context.compileContext();
 
@@ -156,8 +228,9 @@ namespace CSVRender
         auto viewDescriptorSet = View::createViewDescriptorSet(descriptors);
         mSceneRoot = View::createDefaultState(viewDescriptorSet);
 
-        mObjectRoot = vsg::Group::create();
-        mSceneRoot->children = { mObjectRoot };
+        mContentRoot = vsg::Group::create();
+        createGradient();
+        mSceneRoot->children = { mGradientSwitch, mContentRoot };
 
         mLightGrid = std::make_unique<View::LightGrid>(*mResources->shaderOptions, viewDescriptorSet);
         auto computeGroup = vsg::Group::create();
@@ -169,20 +242,19 @@ namespace CSVRender
         mProjection = vsg::Perspective::create();
         mViewMatrix = vsg::LookAt::create();
         mViewport = vsg::ViewportState::create(mExtent);
-        auto camera = vsg::Camera::create(mProjection, mViewMatrix, mViewport);
+        mCamera = vsg::Camera::create(mProjection, mViewMatrix, mViewport);
 
-        auto view = vsgUtil::createSharedView(camera, viewRoot);
-        view->viewDependentState = collectLights;
-        view->bins.push_back(vsg::Bin::create(sBinDepthSorted, vsg::Bin::DESCENDING));
+        mView = vsgUtil::createSharedView(mCamera, viewRoot);
+        mView->viewDependentState = collectLights;
+        mView->bins.push_back(vsg::Bin::create(sBinDepthSorted, vsg::Bin::DESCENDING));
         auto computeBin = vsgUtil::ComputeBin::create(); // VUID-vkCmdDispatch-renderpass
         computeBin->binNumber = sBinCompute;
         computeBin->commandGraph = mEngine->createCommandGraph(Pipeline::COMPUTE_SET);
         computeBin->commandGraph->submitOrder = -1;
-        view->bins.push_back(computeBin);
+        mView->bins.push_back(computeBin);
 
         mRenderGraph = mEngine->createRenderGraph();
-        mRenderGraph->children = { view };
-        mRenderGraph->setClearValues(sBackground);
+        mRenderGraph->children = { mView };
 
         auto commandGraph = mEngine->createCommandGraph(Pipeline::COMPUTE_SET);
         commandGraph->children = { View::postComputeBarrier(), mRenderGraph };
@@ -191,7 +263,7 @@ namespace CSVRender
         mEngine->setup({ commandGraph }, false);
         mEngine->compile();
         // After setup, so that the compile view gets a transfer task (research note 0003, section 5.4).
-        context.compileContext()->compileManager->add(*window.windowAdapter, view, viewResourceRequirements());
+        context.compileContext()->compileManager->add(*window.windowAdapter, mView, viewResourceRequirements());
 
         updateExtent();
         context.add(*this);
@@ -200,7 +272,13 @@ namespace CSVRender
     SceneHost::~SceneHost()
     {
         mContext.remove(*this);
-        mContext.viewer()->deviceWaitIdle();
+        // Takes the window's graphs out of the viewer's tasks, and leaves the other views' alone.
+        mContext.viewer()->removeWindow(mWindow.windowAdapter);
+    }
+
+    vsg::ref_ptr<vsgUtil::CompileContext> SceneHost::compileContext() const
+    {
+        return mContext.compileContext();
     }
 
     ESM::RefId SceneHost::findCell(const CSMWorld::Data& data, const std::string& nameOrId)
@@ -216,122 +294,18 @@ namespace CSVRender
         return {};
     }
 
-    std::size_t SceneHost::showCell(const ESM::RefId& cellId)
+    vsg::ref_ptr<vsg::Switch> SceneHost::maskNode(unsigned int mask, vsg::ref_ptr<vsg::Node> child)
     {
-        const auto& cell = mData.getCells().getRecord(mData.getCells().searchId(cellId)).get();
-        if (cell.isExterior())
-        {
-            // The old editor's day mode (lightingday.cpp), as an exterior has no weather here.
-            mAmbient = vsg::vec4(sDayAmbient, sDayAmbient, sDayAmbient, 1.f);
-            mLightDiffuse = vsg::vec4(1.f, 1.f, 1.f, 1.f);
-            mLightSpecular = vsg::vec4(0.f, 0.f, 0.f, 0.f);
-        }
-        else
-        {
-            // As RenderManager::configureAmbient, so a cell looks as it does in the game.
-            mAmbient = vsg::vec4(MWAnim::rgbColor(cell.mAmbi.mAmbient), 1.f);
-            if (!Settings::shaders().mClassicFalloff)
-                MWAnim::brighten(mAmbient, Settings::shaders().mMinimumInteriorBrightness);
-            mLightDiffuse = vsg::vec4(MWAnim::rgbColor(cell.mAmbi.mSunlight), 1.f);
-            mLightSpecular = mLightDiffuse;
-        }
-        mLightPosition = sLightPosition;
+        auto node = vsg::Switch::create();
+        node->addChild(vsg::Mask(mask), child);
+        return node;
+    }
 
-        for (auto& child : mObjectRoot->children)
-            mContext.compileContext()->detach(child);
-        mObjectRoot->children.clear();
-        mObjects.clear();
-
-        const auto& references = mData.getReferences();
-        const auto& referenceables = mData.getReferenceables();
-        const int typeIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
-        const int modelIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Model);
-
-        auto group = vsg::Group::create();
-        const std::string cellString = cellId.getRefIdString();
-        std::vector<vsg::dvec3> positions;
-        std::vector<std::unique_ptr<MWAnim::Object>> objects;
-        std::size_t missing = 0;
-        std::size_t actors = 0;
-
-        for (int i = 0; i < references.getSize(); ++i)
-        {
-            const auto& record = references.getRecord(i);
-            if (record.isDeleted() || record.get().mCell.toString() != cellString)
-                continue;
-            const CSMWorld::CellRef& reference = record.get();
-
-            const int index = referenceables.searchId(reference.mRefID);
-            if (index == -1)
-            {
-                ++missing;
-                continue;
-            }
-            const int type = referenceables.getData(index, typeIndex).toInt();
-            if (type == CSMWorld::UniversalId::Type_Npc || type == CSMWorld::UniversalId::Type_Creature)
-            {
-                ++actors;
-                continue;
-            }
-
-            std::string model = referenceables.getData(index, modelIndex).toString().toUtf8().constData();
-            const ESM::Light* light = nullptr;
-            // Stand-ins as CSVRender::Object::update.
-            if (type == CSMWorld::UniversalId::Type_Light)
-            {
-                light = &dynamic_cast<const CSMWorld::Record<ESM::Light>&>(referenceables.getRecord(index)).get();
-                if (model.empty())
-                    model = "marker_light.nif";
-            }
-            else if (type == CSMWorld::UniversalId::Type_CreatureLevelledList && model.empty())
-                model = "marker_creature.nif";
-            if (model.empty())
-                continue;
-
-            try
-            {
-                auto object = MWAnim::createObject(model, false, light, mAnimContext);
-                if (!object)
-                    continue;
-                const float* position = reference.mPos.pos;
-                object->transform()->translation = { position[0], position[1], position[2] };
-                const float scale = reference.mScale;
-                object->transform()->scale = { scale, scale, scale };
-                object->transform()->setAttitude(objectRotation(reference.mPos));
-                positions.emplace_back(position[0], position[1], position[2]);
-                group->addChild(object->node());
-                objects.push_back(std::move(object));
-            }
-            catch (const std::exception& e)
-            {
-                ++missing;
-                Log(Debug::Error) << "Can't show " << reference.mRefID.getRefIdString() << ": " << e.what();
-            }
-        }
-
-        if (!mContext.compileContext()->compile(group))
-        {
-            Log(Debug::Error) << "Failed to compile the objects of cell " << cellString;
-            return 0;
-        }
-        mObjectRoot->children = { group };
-        mObjects = std::move(objects);
-
-        Log(Debug::Info) << "Showing " << mObjects.size() << " objects in cell " << cellString << ", skipping " << actors
-                         << " actors until stage C4, " << missing << " objects could not be shown";
-
-        if (!mObjects.empty())
-        {
-            // Medians, not the bounds: many Morrowind interiors keep a few objects far outside the room.
-            const vsg::dvec3 center(medianOf(positions, [](const vsg::dvec3& p) { return p.x; }),
-                medianOf(positions, [](const vsg::dvec3& p) { return p.y; }),
-                medianOf(positions, [](const vsg::dvec3& p) { return p.z; }));
-            const double distance = std::max(
-                sViewDistanceScale * medianOf(positions, [&](const vsg::dvec3& p) { return vsg::length(p - center); }),
-                sMinimumViewDistance);
-            setCamera(center + sDefaultViewDirection * distance, center, vsg::dvec3(0, 0, 1));
-        }
-        return mObjects.size();
+    void SceneHost::setVisibilityMask(unsigned int mask)
+    {
+        // Mask_Lighting has no node of its own here. A vsg::Switch shows a child if its mask meets the view's.
+        mView->mask = vsg::Mask(mask | Mask_ParticleSystem | Mask_Lighting);
+        requestRedraw();
     }
 
     void SceneHost::setCamera(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up)
@@ -339,6 +313,166 @@ namespace CSVRender
         mViewMatrix->eye = eye;
         mViewMatrix->center = center;
         mViewMatrix->up = up;
+        requestRedraw();
+    }
+
+    vsg::dvec3 SceneHost::getCameraEye() const
+    {
+        return mViewMatrix->eye;
+    }
+
+    vsg::dvec3 SceneHost::getCameraCenter() const
+    {
+        return mViewMatrix->center;
+    }
+
+    double SceneHost::worldPerPixel(const vsg::dvec3& position) const
+    {
+        const double height = std::max(mExtent.height, 1u);
+        if (mOrtho)
+            return 2.0 * mOrthoSize * sOrthoUnitsPerSize / height;
+        const vsg::dvec3 forward = vsg::normalize(mViewMatrix->center - mViewMatrix->eye);
+        const double depth = std::max(vsg::dot(position - mViewMatrix->eye, forward), 1.0);
+        return 2.0 * depth * std::tan(vsg::radians(mFieldOfView) / 2.0) / height;
+    }
+
+    vsg::dvec3 SceneHost::cameraRight() const
+    {
+        return vsg::normalize(vsg::cross(mViewMatrix->center - mViewMatrix->eye, mViewMatrix->up));
+    }
+
+    vsg::dvec3 SceneHost::cameraUp() const
+    {
+        return vsg::normalize(vsg::cross(cameraRight(), mViewMatrix->center - mViewMatrix->eye));
+    }
+
+    void SceneHost::frame(const std::vector<vsg::dvec3>& positions)
+    {
+        if (positions.empty())
+            return;
+        // Medians, not the bounds: many Morrowind interiors keep a few objects far outside the room.
+        const vsg::dvec3 center(medianOf(positions, [](const vsg::dvec3& p) { return p.x; }),
+            medianOf(positions, [](const vsg::dvec3& p) { return p.y; }),
+            medianOf(positions, [](const vsg::dvec3& p) { return p.z; }));
+        const double distance = std::max(
+            sViewDistanceScale * medianOf(positions, [&](const vsg::dvec3& p) { return vsg::length(p - center); }),
+            sMinimumViewDistance);
+        setCamera(center + sDefaultViewDirection * distance, center, vsg::dvec3(0, 0, 1));
+    }
+
+    void SceneHost::setProjection(double fieldOfView, bool ortho, int orthoSize)
+    {
+        mFieldOfView = fieldOfView;
+        mOrtho = ortho;
+        mOrthoSize = orthoSize;
+        updateProjection();
+    }
+
+    void SceneHost::updateProjection()
+    {
+        const double aspect = static_cast<double>(mExtent.width) / static_cast<double>(mExtent.height);
+        const double nearClip = Settings::camera().mNearClip;
+        if (mOrtho)
+        {
+            const double halfHeight = mOrthoSize * sOrthoUnitsPerSize;
+            mProjection = vsg::Orthographic::create(
+                -halfHeight * aspect, halfHeight * aspect, -halfHeight, halfHeight, nearClip, sFarClip);
+        }
+        else
+            mProjection = vsg::Perspective::create(mFieldOfView, aspect, nearClip, sFarClip);
+        mCamera->projectionMatrix = mProjection;
+
+        mSceneData->setDepthRange(static_cast<float>(nearClip), static_cast<float>(sFarClip));
+        auto& scene = mSceneData->value();
+        scene.projection = vsg::mat4(mProjection->transform());
+        scene.invProjection = vsg::inverse(scene.projection);
+        updateGradient();
+        requestRedraw();
+    }
+
+    void SceneHost::setLighting(const LightingValues& values)
+    {
+        mLighting = values;
+        requestRedraw();
+    }
+
+    void SceneHost::setBackground(const vsg::vec4& top, const vsg::vec4& bottom, bool gradient)
+    {
+        mTopColour = top;
+        mBottomColour = bottom;
+        mRenderGraph->setClearValues(VkClearColorValue{ { top.r, top.g, top.b, 1.f } });
+        mGradientSwitch->setAllChildren(gradient);
+        updateGradient();
+        requestRedraw();
+    }
+
+    void SceneHost::setNightDayMode(unsigned int index, bool apply)
+    {
+        mNightDayIndex = index;
+        mNightDayApply = apply;
+        requestRedraw();
+    }
+
+    void SceneHost::addListener(FrameListener& listener)
+    {
+        mListeners.push_back(&listener);
+    }
+
+    void SceneHost::removeListener(FrameListener& listener)
+    {
+        mListeners.erase(std::remove(mListeners.begin(), mListeners.end(), &listener), mListeners.end());
+    }
+
+    void SceneHost::createGradient()
+    {
+        // The OSG editor's camera of its own, with a quad filling the view. Here the quad's corners go through the inverse
+        // of the projection, so one pipeline and no second camera do. It is the first thing the view draws.
+        mGradientVertices = vsg::vec3Array::create(4);
+        mGradientColours = vsg::vec4Array::create(4);
+        mGradientVertices->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        mGradientColours->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+
+        Pipeline::Options options;
+        options.shader.addMode(Pipeline::Mode::VERTEX);
+        options.shader.addMode(Pipeline::Mode::COLOR);
+        options.colorMode = sUnlitColorMode;
+        options.primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        options.cullMode = VK_CULL_MODE_NONE;
+        options.depthTest = false;
+        options.depthWrite = false;
+
+        auto draw = vsg::VertexDraw::create();
+        draw->assignArrays({ mGradientVertices, mGradientColours });
+        draw->vertexCount = 4;
+        draw->instanceCount = 1;
+
+        auto state = vsg::StateGroup::create();
+        state->stateCommands = { mResources->builder->graphics->getOrCreate(options) };
+        state->prototypeArrayState = vsg::NullArrayState::create();
+        state->addChild(draw);
+
+        auto absolute = vsg::AbsoluteTransform::create();
+        absolute->addChild(state);
+
+        mGradientSwitch = vsg::Switch::create();
+        mGradientSwitch->addChild(vsg::MASK_ALL, absolute);
+    }
+
+    void SceneHost::updateGradient()
+    {
+        if (!mProjection)
+            return;
+        const vsg::dmat4 inverseProjection = vsg::inverse(mProjection->transform());
+        // Vulkan's clip space has y down, so the first two corners are the top of the view.
+        const double corners[4][2] = { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } };
+        for (int i = 0; i < 4; ++i)
+        {
+            const vsg::dvec4 view = inverseProjection * vsg::dvec4(corners[i][0], corners[i][1], sGradientNdcDepth, 1.0);
+            mGradientVertices->at(i) = vsg::vec3(vsg::dvec3(view.x, view.y, view.z) / view.w);
+            mGradientColours->at(i) = i < 2 ? mTopColour : mBottomColour;
+        }
+        mGradientVertices->dirty();
+        mGradientColours->dirty();
     }
 
     bool SceneHost::capture(const std::filesystem::path& file)
@@ -360,16 +494,14 @@ namespace CSVRender
         // Engine's render graphs have no resize handler: a render area larger than the swapchain draws nothing at all.
         mRenderGraph->renderArea = { { 0, 0 }, mExtent };
         mViewport->set(0, 0, mExtent.width, mExtent.height);
+        updateProjection();
+    }
 
-        // As RenderManager::updateProjectionMatrix.
-        mProjection->fieldOfViewY = Settings::camera().mFieldOfView;
-        mProjection->aspectRatio = static_cast<double>(mExtent.width) / static_cast<double>(mExtent.height);
-        mProjection->nearDistance = Settings::camera().mNearClip;
-        mProjection->farDistance = Settings::camera().mViewingDistance;
-        mSceneData->setDepthRange(Settings::camera().mNearClip, Settings::camera().mViewingDistance);
-        auto& scene = mSceneData->value();
-        scene.projection = vsg::mat4(mProjection->transform());
-        scene.invProjection = vsg::inverse(scene.projection);
+    bool SceneHost::needsFrame()
+    {
+        const bool needed = mRedraw || mAnimated;
+        mRedraw = false;
+        return needed;
     }
 
     void SceneHost::update()
@@ -386,22 +518,24 @@ namespace CSVRender
         const float dt = std::chrono::duration<float>(now - mLastUpdate).count();
         mLastUpdate = now;
 
-        for (auto& object : mObjects)
-            object->update(dt);
+        for (FrameListener* listener : mListeners)
+            listener->frameUpdate(dt);
 
-        // As RenderManager::updateSceneData, without sky, shadows and water. No fog: the old editor drew none.
-        const float far = Settings::camera().mViewingDistance;
+        // As RenderManager::updateSceneData, without sky, shadows and water. No fog: the OSG editor set none
+        // (unpagedworldspacewidget.cpp: "\todo deal with mSunlight and mFog/mForDensity").
+        const float far = static_cast<float>(sFarClip);
         mSceneData->setFogRange(far, far);
         auto& scene = mSceneData->value();
         scene.time += dt;
-        scene.fogColor = vsg::vec4(sBackground.float32[0], sBackground.float32[1], sBackground.float32[2], 1.f);
-        scene.ambient = mAmbient;
+        scene.fogColor = mTopColour;
+        scene.ambient = mLighting.mAmbient;
         scene.skyColor = scene.fogColor;
-        scene.lightDiffuse = mLightDiffuse;
-        scene.lightSpecular = mLightSpecular;
+        scene.lightDiffuse = mLighting.mDiffuse;
+        // osg::Light's specular in every mode of the OSG editor.
+        scene.lightSpecular = vsg::vec4(0.f, 0.f, 0.f, 0.f);
         scene.groundcoverParams.w = static_cast<float>(mEngine->framebufferSamples());
         scene.invView = vsg::mat4(vsg::inverse_4x3(mViewMatrix->transform()));
-        mSceneData->setLightPosition(mLightPosition, scene.invView);
+        mSceneData->setLightPosition(sLightPosition, scene.invView);
         scene.lightViewPos.a = sLightSize;
         scene.resolution = { static_cast<float>(mExtent.width), static_cast<float>(mExtent.height) };
         mSceneData->dirty();

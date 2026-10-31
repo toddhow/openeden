@@ -1,38 +1,30 @@
 #ifndef OPENCS_VIEW_LIGHTING_H
 #define OPENCS_VIEW_LIGHTING_H
 
-#include <osg/ref_ptr>
+#include <optional>
 
-namespace osg
-{
-    class Vec4f;
-    class LightSource;
-    class Group;
-}
+#include <vsg/maths/vec4.h>
 
 namespace CSVRender
 {
-    class Lighting
+    /// The lighting modes of the scene toolbar.
+    enum class LightingMode
     {
-    public:
-        Lighting()
-            : mRootNode(nullptr)
-        {
-        }
-        virtual ~Lighting() = default;
-
-        virtual void activate(osg::Group* rootNode, bool isExterior) = 0;
-
-        virtual void deactivate() = 0;
-
-        virtual osg::Vec4f getAmbientColour(osg::Vec4f* defaultAmbient) = 0;
-
-    protected:
-        void updateDayNightMode(int index);
-
-        osg::ref_ptr<osg::LightSource> mLightSource;
-        osg::Group* mRootNode;
+        Day,
+        Night,
+        Bright
     };
+
+    struct LightingValues
+    {
+        vsg::vec4 mAmbient;
+        vsg::vec4 mDiffuse;
+        /// Which child a NiSwitchNode named NightDaySwitch shows.
+        unsigned int mNightDayIndex = 0;
+    };
+
+    /// \param cellAmbient the cell's own ambient colour, if it has one. Day and night use it; bright ignores it.
+    LightingValues lightingValues(LightingMode mode, const std::optional<vsg::vec4>& cellAmbient, bool isExterior);
 }
 
 #endif

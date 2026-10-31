@@ -143,20 +143,21 @@ opencs_units (view/widget
     )
 
 # The staged list of the editor's port to VSG (task 0014, survey section 4). Each stage moves its units from this list
-# into opencs_units below. view/world/scenesubview and previewsubview come back with them, and the code guarded by
-# OPENEDEN_CS_VIEW_RENDER_PENDING with the last.
-#   view/render: scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget editmode
-#   instancemode instanceselectionmode instancemovemode orbitcameramode pathgridmode selectionmode
-#   pathgridselectionmode cameracontroller cellwater terraintexturemode actor terrainselection terrainshapemode brushdraw
-#   commands objectmarker lighting lightingday lightingnight lightingbright object cell terrainstorage cellarrow
-#   cellmarker cellborder pathgrid; header tagbase
-#   view/world: scenesubview previewsubview
+# into opencs_units below, and the code guarded by OPENEDEN_CS_VIEW_RENDER_PENDING goes with the last.
+#   view/render: instancemode instanceselectionmode instancemovemode orbitcameramode pathgridmode selectionmode
+#   pathgridselectionmode cameracontroller terraintexturemode terrainselection terrainshapemode brushdraw
+#   commands objectmarker pathgrid
 opencs_units (view/render
-    rendercontext scenehost
+    rendercontext scenehost scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget
+    editmode lighting object cell cellarrow colouredgeometry
+    )
+
+opencs_units (view/world
+    scenesubview previewsubview
     )
 
 opencs_hdrs (view/render
-    mask
+    mask tagbase instancedragmodes objectmarker_pending
     )
 
 
@@ -294,6 +295,8 @@ if (WIN32 AND BUILD_OPENCS)
     endif ()
 
     INSTALL(FILES "${INSTALL_SOURCE}/defaults-cs.cfg" DESTINATION ".")
+    # The shared renderer reads the game's settings too (Settings::Manager::load).
+    INSTALL(FILES "${INSTALL_SOURCE}/defaults.cfg" DESTINATION ".")
 endif()
 
 if (MSVC)

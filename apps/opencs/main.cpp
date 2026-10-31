@@ -1,4 +1,5 @@
 #include "capture.hpp"
+#include "view/render/rendercontext.hpp"
 #include "editor.hpp"
 
 #include <exception>
@@ -42,14 +43,18 @@ int runApplication(int argc, char* argv[])
 
     application.setWindowIcon(QIcon(":openmw-cs"));
 
+#ifdef __linux__
+    setlocale(LC_NUMERIC, "C");
+#endif
+
+    // Before anything that opens a view, so that the device goes after every view and document.
+    CSVRender::RenderContext::Lifetime renderContext;
+
     // Before Editor: an unattended capture opens no editor window, dialogue or IPC server.
     if (CS::isCaptureRequest(argc, argv))
         return CS::runCapture(argc, argv);
 
     CS::Editor editor(argc, argv);
-#ifdef __linux__
-    setlocale(LC_NUMERIC, "C");
-#endif
 
     if (!editor.makeIPCServer())
     {

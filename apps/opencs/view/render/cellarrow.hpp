@@ -5,19 +5,17 @@
 
 #include <QString>
 
-#include <osg/ref_ptr>
+#include <vsg/maths/mat4.h>
+
+#include <vsg/nodes/Group.h>
+#include <vsg/nodes/Switch.h>
 
 #include "../../model/world/cellcoordinates.hpp"
-
-namespace osg
-{
-    class PositionAttitudeTransform;
-    class Group;
-}
 
 namespace CSVRender
 {
     class CellArrow;
+    class SceneHost;
     struct WorldspaceHitResult;
 
     class CellArrowTag : public TagBase
@@ -49,16 +47,18 @@ namespace CSVRender
         CellArrow& operator=(const CellArrow&);
 
         Direction mDirection;
-        osg::Group* mParentNode;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
+        SceneHost& mHost;
+        vsg::Group& mParentNode;
+        vsg::ref_ptr<vsg::Switch> mBaseNode;
+        vsg::ref_ptr<TagBase> mTag;
         CSMWorld::CellCoordinates mCoordinates;
 
-        void adjustTransform();
+        vsg::dmat4 transform() const;
 
-        void buildShape();
+        vsg::ref_ptr<vsg::Node> buildShape() const;
 
     public:
-        CellArrow(osg::Group* cellNode, Direction direction, const CSMWorld::CellCoordinates& coordinates);
+        CellArrow(SceneHost& host, vsg::Group& cellNode, Direction direction, const CSMWorld::CellCoordinates& coordinates);
 
         ~CellArrow();
 

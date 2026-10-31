@@ -1,12 +1,12 @@
 #include "object.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <exception>
-#include <stddef.h>
 #include <stdexcept>
 #include <string>
 #include <utility>
+
+#include <vsg/core/Visitor.h>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -16,12 +16,6 @@
 #include <apps/opencs/model/world/refcollection.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
-#include <osg/Quat>
-#include <osg/ShapeDrawable>
-
-#include <osgFX/Scribe>
 
 #include "../../model/world/cellcoordinates.hpp"
 #include "../../model/world/commandmacro.hpp"
@@ -29,43 +23,41 @@
 #include "../../model/world/data.hpp"
 
 #include <components/debug/debuglog.hpp>
-#include <components/esm/esmbridge.hpp>
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/lightcommon.hpp>
-#include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/lightutil.hpp>
+#include <components/esm3/loadligh.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/vsgmath.hpp>
+#include <components/mwanimation/context.hpp>
+#include <components/mwanimation/create.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 
-#include "actor.hpp"
 #include "mask.hpp"
-
-namespace CSVRender
-{
-    struct WorldspaceHitResult;
-}
-
-namespace ESM
-{
-    struct Light;
-}
+#include "scenehost.hpp"
 
 namespace
 {
+    // A model that does not exist comes back as Resource::Fallback's stand-in, as the error cube of the OSG editor stood in.
+    const std::string sMissingModel = "marker_error.nif";
 
-    osg::ref_ptr<osg::Group> createErrorCube()
+    /// As MWRender::findSwitches in the game: every child, also those switched off.
+    class FindNightDaySwitches : public vsg::Visitor
     {
-        osg::ref_ptr<osg::Box> shape(new osg::Box(osg::Vec3f(0, 0, 0), 50.f));
-        osg::ref_ptr<osg::ShapeDrawable> shapedrawable(new osg::ShapeDrawable);
-        shapedrawable->setShape(shape);
+    public:
+        std::vector<vsg::ref_ptr<vsg::Switch>> mFound;
 
-        osg::ref_ptr<osg::Group> group(new osg::Group);
-        group->addChild(shapedrawable);
-        return group;
-    }
+        void apply(vsg::Node& node) override { node.traverse(*this); }
 
+        void apply(vsg::Switch& node) override
+        {
+            std::string name;
+            if (node.getValue("switch", name) && name == Constants::NightDayLabel)
+                mFound.emplace_back(&node);
+            for (auto& child : node.children)
+                child.node->accept(*this);
+        }
+    };
 }
 
-CSVRender::ObjectTag::ObjectTag(Object* object)
+CSVRender::ObjectTag::ObjectTag(CSVRender::Object* object)
     : TagBase(Mask_Reference)
     , mObject(object)
 {
@@ -76,99 +68,99 @@ QString CSVRender::ObjectTag::getToolTip(bool /*hideBasics*/, const WorldspaceHi
     return QString::fromUtf8(mObject->getReferenceableId().c_str());
 }
 
-void CSVRender::Object::clear() {}
-
-void CSVRender::Object::update()
+void CSVRender::Object::update(bool compile)
 {
-    clear();
-
     const CSMWorld::RefIdCollection& referenceables = mData.getReferenceables();
     const int typeIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType);
     const int modelIndex = referenceables.findColumnIndex(CSMWorld::Columns::ColumnId_Model);
 
     int index = referenceables.searchId(mReferenceableId);
     const ESM::Light* light = nullptr;
-
-    mBaseNode->removeChildren(0, mBaseNode->getNumChildren());
-
-    if (index == -1)
-    {
-        mBaseNode->addChild(createErrorCube());
-        return;
-    }
+    std::string model = sMissingModel;
+    int recordType = 0;
 
     /// \todo check for Deleted state (error 1)
-
-    int recordType = referenceables.getData(index, typeIndex).toInt();
-    std::string model = referenceables.getData(index, modelIndex).toString().toUtf8().constData();
-
-    if (recordType == CSMWorld::UniversalId::Type_Light)
+    if (index != -1)
     {
-        light = &dynamic_cast<const CSMWorld::Record<ESM::Light>&>(referenceables.getRecord(index)).get();
-        if (model.empty())
-            model = "marker_light.nif";
-    }
+        recordType = referenceables.getData(index, typeIndex).toInt();
+        model = referenceables.getData(index, modelIndex).toString().toUtf8().constData();
 
-    if (recordType == CSMWorld::UniversalId::Type_CreatureLevelledList)
-    {
-        if (model.empty())
+        if (recordType == CSMWorld::UniversalId::Type_Light)
+        {
+            light = &dynamic_cast<const CSMWorld::Record<ESM::Light>&>(referenceables.getRecord(index)).get();
+            if (model.empty())
+                model = "marker_light.nif";
+        }
+
+        if (recordType == CSMWorld::UniversalId::Type_CreatureLevelledList && model.empty())
             model = "marker_creature.nif";
     }
 
+    std::unique_ptr<MWAnim::Object> animation;
     try
     {
-        if (recordType == CSMWorld::UniversalId::Type_Npc || recordType == CSMWorld::UniversalId::Type_Creature)
-        {
-            if (!mActor)
-                mActor = std::make_unique<Actor>(mReferenceableId, mData);
-            mActor->update();
-            mBaseNode->addChild(mActor->getBaseNode());
-        }
-        else if (!model.empty())
-        {
-            constexpr VFS::Path::NormalizedView meshes("meshes");
-            VFS::Path::Normalized path(meshes);
-            path /= model;
-            mResourceSystem->getSceneManager()->getInstance(path, mBaseNode);
-        }
-        else
-        {
+        if (model.empty())
             throw std::runtime_error(mReferenceableId.getRefIdString() + " has no model");
-        }
+        animation = MWAnim::createObject(model, false, light, mHost.animContext());
     }
-    catch (std::exception& e)
+    catch (const std::exception& e)
     {
-        // TODO: use error marker mesh
         Log(Debug::Error) << e.what();
     }
 
-    if (light)
+    if (animation)
     {
-        bool isExterior = false; // FIXME
-        SceneUtil::addLight(mBaseNode, SceneUtil::LightCommon(*light), Mask_Lighting, isExterior);
+        FindNightDaySwitches switches;
+        animation->node()->accept(switches);
+        mNightDaySwitches = std::move(switches.mFound);
+        if (compile)
+            mHost.compileContext()->compile(animation->node());
+    }
+
+    for (auto& child : mRootNode->children)
+        mHost.compileContext()->detach(child.node);
+    mRootNode->children.clear();
+    mAnimation = std::move(animation);
+    if (mAnimation)
+        mRootNode->addChild(vsg::MASK_ALL, mAnimation->node());
+    mNightDayApply = false;
+    adjustTransform();
+}
+
+void CSVRender::Object::frameUpdate(float dt)
+{
+    if (!mAnimation)
+        return;
+    mAnimation->update(dt);
+
+    if (mNightDayApply != mHost.getNightDayApply() || mNightDayIndex != mHost.getNightDayIndex())
+    {
+        mNightDayApply = mHost.getNightDayApply();
+        mNightDayIndex = mHost.getNightDayIndex();
+        // With the preference off, the first child; the OSG editor kept the model's initial index, which VSG's reader
+        // does not record.
+        const unsigned int index = mNightDayApply ? mNightDayIndex : 0;
+        for (auto& nightDay : mNightDaySwitches)
+            for (std::size_t i = 0; i < nightDay->children.size(); ++i)
+                nightDay->children[i].mask = i == (nightDay->children.size() > index ? index : 0) ? vsg::MASK_ALL : vsg::MASK_OFF;
     }
 }
 
 void CSVRender::Object::adjustTransform()
 {
-    if (mReferenceId.empty())
+    if (mReferenceId.empty() || !mAnimation)
         return;
 
     ESM::Position position = getPosition();
+    auto* transform = mAnimation->transform();
 
-    // position
-    mRootNode->setPosition(
-        mForceBaseToZero ? osg::Vec3() : osg::Vec3f(position.pos[0], position.pos[1], position.pos[2]));
-
-    // orientation
-    osg::Quat xr(-position.rot[0], osg::Vec3f(1, 0, 0));
-    osg::Quat yr(-position.rot[1], osg::Vec3f(0, 1, 0));
-    osg::Quat zr(-position.rot[2], osg::Vec3f(0, 0, 1));
-    mBaseNode->setAttitude(zr * yr * xr);
-
-    float scale = getScale();
-
-    mBaseNode->setScale(osg::Vec3(scale, scale, scale));
+    transform->translation = mForceBaseToZero ? vsg::vec3() : vsg::vec3(position.pos[0], position.pos[1], position.pos[2]);
+    // As apps/openmw/mwworld/scene.cpp's makeInversedOrderObjectOsgQuat, which is the OSG editor's zr * yr * xr.
+    transform->setAttitude(vsg::quat(Misc::VsgMath::makeRotateFromAxis(position.rot[0], vsg::vec3(-1, 0, 0))
+        * Misc::VsgMath::makeRotateFromAxis(position.rot[1], vsg::vec3(0, -1, 0))
+        * Misc::VsgMath::makeRotateFromAxis(position.rot[2], vsg::vec3(0, 0, -1))));
+    transform->setScale(getScale());
+    mHost.requestRedraw();
 }
 
 const CSMWorld::CellRef& CSVRender::Object::getReference() const
@@ -179,27 +171,15 @@ const CSMWorld::CellRef& CSVRender::Object::getReference() const
     return mData.getReferences().getRecord(mReferenceId).get();
 }
 
-CSVRender::Object::Object(
-    CSMWorld::Data& data, osg::Group* parentNode, const std::string& id, bool referenceable, bool forceBaseToZero)
+CSVRender::Object::Object(CSMWorld::Data& data, SceneHost& host, vsg::Group& parent, const std::string& id,
+    bool referenceable, bool forceBaseToZero, bool compile)
     : mData(data)
-    , mParentNode(parentNode)
-    , mResourceSystem(data.getResourceSystem().get())
+    , mHost(host)
+    , mRootNode(vsg::Switch::create())
+    , mTag(new ObjectTag(this))
+    , mParentNode(parent)
     , mForceBaseToZero(forceBaseToZero)
 {
-    mRootNode = new osg::PositionAttitudeTransform;
-
-    mBaseNode = new osg::PositionAttitudeTransform;
-    mBaseNode->addCullCallback(new SceneUtil::LightListCallback);
-
-    mOutline = new osgFX::Scribe;
-
-    mBaseNode->setUserData(new ObjectTag(this));
-
-    mRootNode->addChild(mBaseNode);
-
-    parentNode->addChild(mRootNode);
-
-    mRootNode->setNodeMask(Mask_Reference);
     ESM::RefId refId = ESM::RefId::stringRefId(id);
     if (referenceable)
     {
@@ -211,18 +191,25 @@ CSVRender::Object::Object(
         mReferenceableId = getReference().mRefID;
     }
 
-    adjustTransform();
-    update();
+    update(compile);
+
+    auto shown = SceneHost::maskNode(Mask_Reference, mRootNode);
+    mParentNode.addChild(shown);
+    mRootNode->setValue("mask node", shown);
 }
 
 CSVRender::Object::~Object()
 {
-    clear();
-
-    mParentNode->removeChild(mRootNode);
+    vsg::ref_ptr<vsg::Switch> shown;
+    mRootNode->getValue("mask node", shown);
+    auto& children = mParentNode.children;
+    children.erase(std::remove_if(children.begin(), children.end(),
+                       [&](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == shown.get(); }),
+        children.end());
+    mHost.compileContext()->detach(mRootNode);
 }
 
-void CSVRender::Object::setSelected(bool selected, const osg::Vec4f& color)
+void CSVRender::Object::setSelected(bool selected, const vsg::vec4& color)
 {
     mSelected = selected;
 
@@ -230,18 +217,6 @@ void CSVRender::Object::setSelected(bool selected, const osg::Vec4f& color)
     {
         setSnapTarget(false);
     }
-
-    mOutline->removeChild(mBaseNode);
-    mRootNode->removeChild(mOutline);
-    mRootNode->removeChild(mBaseNode);
-    if (selected)
-    {
-        mOutline->setWireframeColor(color);
-        mOutline->addChild(mBaseNode);
-        mRootNode->addChild(mOutline);
-    }
-    else
-        mRootNode->addChild(mBaseNode);
 }
 
 bool CSVRender::Object::getSelected() const
@@ -257,18 +232,6 @@ void CSVRender::Object::setSnapTarget(bool isSnapTarget)
     {
         setSelected(false);
     }
-
-    mOutline->removeChild(mBaseNode);
-    mRootNode->removeChild(mOutline);
-    mRootNode->removeChild(mBaseNode);
-    if (isSnapTarget)
-    {
-        mOutline->setWireframeColor(osg::Vec4f(1, 1, 0, 1));
-        mOutline->addChild(mBaseNode);
-        mRootNode->addChild(mOutline);
-    }
-    else
-        mRootNode->addChild(mBaseNode);
 }
 
 bool CSVRender::Object::getSnapTarget() const
@@ -276,14 +239,9 @@ bool CSVRender::Object::getSnapTarget() const
     return mSnapTarget;
 }
 
-osg::ref_ptr<osg::Group> CSVRender::Object::getRootNode()
+vsg::ref_ptr<vsg::Switch> CSVRender::Object::getRootNode()
 {
     return mRootNode;
-}
-
-osg::ref_ptr<osg::Group> CSVRender::Object::getBaseNode()
-{
-    return mBaseNode;
 }
 
 bool CSVRender::Object::referenceableDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
@@ -294,8 +252,7 @@ bool CSVRender::Object::referenceableDataChanged(const QModelIndex& topLeft, con
 
     if (index != -1 && index >= topLeft.row() && index <= bottomRight.row())
     {
-        adjustTransform();
-        update();
+        update(true);
         return true;
     }
 
@@ -313,8 +270,7 @@ bool CSVRender::Object::referenceableAboutToBeRemoved(const QModelIndex& parent,
         // Deletion of referenceable-type objects is handled outside of Object.
         if (!mReferenceId.empty())
         {
-            adjustTransform();
-            update();
+            update(true);
             return true;
         }
     }
@@ -342,7 +298,7 @@ bool CSVRender::Object::referenceDataChanged(const QModelIndex& topLeft, const Q
             mReferenceableId
                 = ESM::RefId::stringRefId(references.getData(index, columnIndex).toString().toUtf8().constData());
 
-            update();
+            update(true);
         }
 
         return true;
@@ -353,7 +309,7 @@ bool CSVRender::Object::referenceDataChanged(const QModelIndex& topLeft, const Q
 
 void CSVRender::Object::reloadAssets()
 {
-    update();
+    update(true);
 }
 
 std::string CSVRender::Object::getReferenceId() const
@@ -366,9 +322,9 @@ std::string CSVRender::Object::getReferenceableId() const
     return mReferenceableId.getRefIdString();
 }
 
-osg::ref_ptr<CSVRender::TagBase> CSVRender::Object::getTag() const
+vsg::ref_ptr<CSVRender::TagBase> CSVRender::Object::getTag() const
 {
-    return static_cast<CSVRender::TagBase*>(mBaseNode->getUserData());
+    return mTag;
 }
 
 bool CSVRender::Object::isEdited() const
@@ -503,7 +459,7 @@ void CSVRender::Object::apply(CSMWorld::CommandMacro& commands)
                 static_cast<CSMWorld::Columns::ColumnId>(CSMWorld::Columns::ColumnId_PositionXRot + i));
 
             commands.push(new CSMWorld::ModifyCommand(
-                *model, model->index(recordIndex, column), osg::RadiansToDegrees(mPositionOverride.rot[i])));
+                *model, model->index(recordIndex, column), Misc::VsgMath::radiansToDegrees(mPositionOverride.rot[i])));
         }
     }
 

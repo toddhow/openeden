@@ -1,72 +1,26 @@
 #include "lighting.hpp"
 
-#include <string>
-
-#include <osg/Group>
-#include <osg/LightSource>
-#include <osg/NodeVisitor>
-#include <osg/Object>
-#include <osg/Switch>
-#include <osg/ValueObject>
-
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-
-#include <components/misc/constants.hpp>
-
-#include "../../model/prefs/state.hpp"
-
-class DayNightSwitchVisitor : public osg::NodeVisitor
+namespace
 {
-public:
-    DayNightSwitchVisitor(int index)
-        : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-        , mIndex(index)
-    {
-    }
+    // The values of the OSG editor's LightingDay, LightingNight and LightingBright.
+    constexpr float sDayAmbient = 0.7f;
+    constexpr float sNightAmbient = 0.2f;
+    constexpr float sNightDiffuse = 0.2f;
+}
 
-    void apply(osg::Switch& switchNode) override
-    {
-        constexpr unsigned noIndex = static_cast<unsigned>(-1);
-
-        unsigned initialIndex = noIndex;
-        if (!switchNode.getUserValue("initialIndex", initialIndex))
-        {
-            for (size_t i = 0; i < switchNode.getValueList().size(); ++i)
-            {
-                if (switchNode.getValueList()[i])
-                {
-                    initialIndex = static_cast<unsigned>(i);
-                    break;
-                }
-            }
-
-            if (initialIndex != noIndex)
-                switchNode.setUserValue("initialIndex", initialIndex);
-        }
-
-        if (CSMPrefs::get()["Rendering"]["scene-day-night-switch-nodes"].isTrue())
-        {
-            if (switchNode.getName() == Constants::NightDayLabel)
-                switchNode.setSingleChildOn(mIndex);
-        }
-        else if (initialIndex != noIndex)
-        {
-            switchNode.setSingleChildOn(initialIndex);
-        }
-
-        traverse(switchNode);
-    }
-
-private:
-    int mIndex;
-};
-
-void CSVRender::Lighting::updateDayNightMode(int index)
+CSVRender::LightingValues CSVRender::lightingValues(
+    LightingMode mode, const std::optional<vsg::vec4>& cellAmbient, bool isExterior)
 {
-    if (mRootNode == nullptr)
-        return;
-
-    DayNightSwitchVisitor visitor(index);
-    mRootNode->accept(visitor);
+    const vsg::vec4 white(1.f, 1.f, 1.f, 1.f);
+    switch (mode)
+    {
+        case LightingMode::Night:
+            return { cellAmbient.value_or(vsg::vec4(sNightAmbient, sNightAmbient, sNightAmbient, 1.f)),
+                vsg::vec4(sNightDiffuse, sNightDiffuse, sNightDiffuse, 1.f), isExterior ? 1u : 0u };
+        case LightingMode::Bright:
+            return { white, white, 0 };
+        case LightingMode::Day:
+            break;
+    }
+    return { cellAmbient.value_or(vsg::vec4(sDayAmbient, sDayAmbient, sDayAmbient, 1.f)), white, 0 };
 }

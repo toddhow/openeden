@@ -1,17 +1,9 @@
 #include "cellarrow.hpp"
 
-#include <osg/Array>
-#include <osg/GL>
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/Math>
-#include <osg/PositionAttitudeTransform>
-#include <osg/PrimitiveSet>
-#include <osg/Quat>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
+#include <algorithm>
+
+#include <vsg/maths/transform.h>
+#include <vsg/nodes/MatrixTransform.h>
 
 #include "../../model/prefs/state.hpp"
 
@@ -21,7 +13,13 @@
 
 #include <components/misc/constants.hpp>
 
+#include <components/misc/vsgmath.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+
+#include "colouredgeometry.hpp"
 #include "mask.hpp"
+#include "scenehost.hpp"
 
 namespace CSVRender
 {
@@ -79,7 +77,7 @@ QString CSVRender::CellArrowTag::getToolTip(bool hideBasics, const WorldspaceHit
     return CSMPrefs::State::get().getShortcutManager().processToolTip(text);
 }
 
-void CSVRender::CellArrow::adjustTransform()
+vsg::dmat4 CSVRender::CellArrow::transform() const
 {
     // position
     const int cellSize = Constants::CellSizeInUnits;
@@ -88,11 +86,11 @@ void CSVRender::CellArrow::adjustTransform()
     int x = mCoordinates.getX() * cellSize + cellSize / 2;
     int y = mCoordinates.getY() * cellSize + cellSize / 2;
 
-    float xr = 0;
-    float yr = 0;
-    float zr = 0;
+    double xr = 0;
+    double yr = 0;
+    double zr = 0;
 
-    float angle = osg::DegreesToRadians(90.0f);
+    const double angle = vsg::radians(90.0);
 
     switch (mDirection)
     {
@@ -116,109 +114,62 @@ void CSVRender::CellArrow::adjustTransform()
             break;
     };
 
-    mBaseNode->setPosition(osg::Vec3f(x, y, 0));
-
-    // orientation
-    osg::Quat xr2(xr, osg::Vec3f(1, 0, 0));
-    osg::Quat yr2(yr, osg::Vec3f(0, 1, 0));
-    osg::Quat zr2(zr, osg::Vec3f(0, 0, 1));
-    mBaseNode->setAttitude(zr2 * yr2 * xr2);
+    // osg::Quat's zr * yr * xr turns by x first, then y, then z; so do these matrix products.
+    return vsg::translate(static_cast<double>(x), static_cast<double>(y), 0.0)
+        * vsg::rotate(zr, vsg::dvec3(0, 0, 1)) * vsg::rotate(yr, vsg::dvec3(0, 1, 0))
+        * vsg::rotate(xr, vsg::dvec3(1, 0, 0));
 }
 
-void CSVRender::CellArrow::buildShape()
+vsg::ref_ptr<vsg::Node> CSVRender::CellArrow::buildShape() const
 {
-    osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
+    const float arrowWidth = 2700;
+    const float arrowLength = 1350;
+    const float arrowHeight = 300;
 
-    const int arrowWidth = 2700;
-    const int arrowLength = 1350;
-    const int arrowHeight = 300;
-
-    osg::Vec3Array* vertices = new osg::Vec3Array;
+    auto vertices = vsg::vec3Array::create(12);
+    auto colours = vsg::vec4Array::create(12);
+    int v = 0;
     for (int i2 = 0; i2 < 2; ++i2)
         for (int i = 0; i < 2; ++i)
         {
-            float height = i ? -arrowHeight / 2 : arrowHeight / 2;
-            vertices->push_back(osg::Vec3f(height, -arrowWidth / 2, 0));
-            vertices->push_back(osg::Vec3f(height, arrowWidth / 2, 0));
-            vertices->push_back(osg::Vec3f(height, 0, arrowLength));
+            const float height = i ? -arrowHeight / 2 : arrowHeight / 2;
+            const vsg::vec4 colour = i2 ? vsg::vec4(0.08f, 0.44f, 0.7f, 1.f) : vsg::vec4(0.11f, 0.6f, 0.95f, 1.f);
+            for (const vsg::vec3& point : { vsg::vec3(height, -arrowWidth / 2, 0), vsg::vec3(height, arrowWidth / 2, 0),
+                     vsg::vec3(height, 0, arrowLength) })
+            {
+                vertices->at(v) = point;
+                colours->at(v) = colour;
+                ++v;
+            }
         }
 
-    geometry->setVertexArray(vertices);
+    // top, bottom, back and sides
+    auto indices = vsg::ushortArray::create({ 0, 1, 2, 5, 4, 3, 9, 10, 7, 9, 7, 6, 6, 8, 11, 6, 11, 9, 10, 11, 8, 10, 8, 7 });
 
-    osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
-
-    // top
-    primitives->push_back(0);
-    primitives->push_back(1);
-    primitives->push_back(2);
-
-    // bottom
-    primitives->push_back(5);
-    primitives->push_back(4);
-    primitives->push_back(3);
-
-    // back
-    primitives->push_back(3 + 6);
-    primitives->push_back(4 + 6);
-    primitives->push_back(1 + 6);
-
-    primitives->push_back(3 + 6);
-    primitives->push_back(1 + 6);
-    primitives->push_back(0 + 6);
-
-    // sides
-    primitives->push_back(0 + 6);
-    primitives->push_back(2 + 6);
-    primitives->push_back(5 + 6);
-
-    primitives->push_back(0 + 6);
-    primitives->push_back(5 + 6);
-    primitives->push_back(3 + 6);
-
-    primitives->push_back(4 + 6);
-    primitives->push_back(5 + 6);
-    primitives->push_back(2 + 6);
-
-    primitives->push_back(4 + 6);
-    primitives->push_back(2 + 6);
-    primitives->push_back(1 + 6);
-
-    geometry->addPrimitiveSet(primitives);
-
-    osg::Vec4Array* colours = new osg::Vec4Array;
-
-    for (int i = 0; i < 6; ++i)
-        colours->push_back(osg::Vec4f(0.11f, 0.6f, 0.95f, 1.0f));
-    for (int i = 0; i < 6; ++i)
-        colours->push_back(osg::Vec4f(0.08f, 0.44f, 0.7f, 1.0f));
-
-    geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
-
-    geometry->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-
-    mBaseNode->addChild(geometry);
+    return createColouredGeometry(
+        *mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, colours, indices);
 }
 
-CSVRender::CellArrow::CellArrow(osg::Group* cellNode, Direction direction, const CSMWorld::CellCoordinates& coordinates)
+CSVRender::CellArrow::CellArrow(
+    SceneHost& host, vsg::Group& cellNode, Direction direction, const CSMWorld::CellCoordinates& coordinates)
     : mDirection(direction)
+    , mHost(host)
     , mParentNode(cellNode)
+    , mTag(new CellArrowTag(this))
     , mCoordinates(coordinates)
 {
-    mBaseNode = new osg::PositionAttitudeTransform;
-
-    mBaseNode->setUserData(new CellArrowTag(this));
-
-    mParentNode->addChild(mBaseNode);
-
-    mBaseNode->setNodeMask(Mask_CellArrow);
-
-    adjustTransform();
-    buildShape();
+    auto matrix = vsg::MatrixTransform::create(transform());
+    matrix->addChild(buildShape());
+    mBaseNode = SceneHost::maskNode(Mask_CellArrow, matrix);
+    mHost.compileContext()->compile(mBaseNode);
+    mParentNode.addChild(mBaseNode);
 }
 
 CSVRender::CellArrow::~CellArrow()
 {
-    mParentNode->removeChild(mBaseNode);
+    auto& children = mParentNode.children;
+    children.erase(std::remove(children.begin(), children.end(), vsg::ref_ptr<vsg::Node>(mBaseNode)), children.end());
+    mHost.compileContext()->detach(mBaseNode);
 }
 
 CSMWorld::CellCoordinates CSVRender::CellArrow::getCoordinates() const

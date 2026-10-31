@@ -313,3 +313,60 @@ Not verified:
 - Resizing a view (`SceneHost::updateExtent` is there, not exercised), and closing one view while another stays.
 - `reference.mScale` of 0 and doors or animated objects, drawn without animation (`useAnim` false) until C4.
 - Validation layers, none installed.
+
+### C3 Viewport widgets on vsgQt (2026-10-31)
+
+`RenderWidget` and `SceneWidget` are back on vsgQt. The window is made on the first show with a size, through `createWindowContainer`; what needs the view waits for `hostReady()`. Also back in the build: `WorldspaceWidget`, `PagedWorldspaceWidget`, `UnpagedWorldspaceWidget`, `PreviewWidget`, `EditMode`, `Object`, `Cell`, `CellArrow`, and the Scene and Preview subviews with their factories. `--open-cell` now captures through those same widgets.
+
+What each old part became:
+- **Gradient:** a quad drawn first with no depth test, its corners through the inverse of the projection, instead of a second camera. Off, the clear colour (`scene-use-gradient`).
+- **Lighting modes:** `lighting.*`, values only. Light straight down, specular none, day, night and bright as `LightingDay`, `LightingNight` and `LightingBright` were, whose files are gone. The cell's ambient is used in day and night.
+- **On-demand frames:** `RenderContext`'s timer asks each view for `needsFrame()`. `flagAsModified` sets it once; `setAnimated` sets it always. A view showing objects draws every tick, because particles and flickering lights move. The OSG editor did the same in effect, as `Cell`'s update callback kept `checkNeedToDoFrame` true (`extern/osgQt/CompositeOsgRenderer.cpp`).
+- **Resize:** `SceneHost::update` compares the extent and sets `renderArea`, viewport and projection.
+- **Input:** an event filter on the window sends mouse, wheel, key, focus and drag events on to the `RenderWidget`, where `ShortcutEventHandler`'s filter and the widget's own handlers expect them. A press calls `requestActivate()`.
+- **Closing one view:** `RenderContext`'s `SharedViewer::removeWindow` takes that window out of the tasks and leaves them. `vsg::Viewer::removeWindow` rebuilds them, which leaves compile contexts on a dead `TransferTask`. `appendToViewer` lets a view join a task left with no windows.
+- **`RenderContext`** is now one per process (`RenderContext::get()`), with a `Lifetime` in `main.cpp`.
+
+Stand-ins until their stages, so that the widgets build and the toolbars keep their buttons:
+- C5: the camera stays where the default view put it, and the navigation buttons do nothing. `--camera` moves it for captures.
+- C6: `mousePick` always misses, so cell arrows cannot be clicked and scene tooltips do not show. The shortcuts that load cells work without a pick.
+- C7: `objectmarker_pending.hpp`, a do-nothing selection marker. `Object::setSelected` keeps the flag and draws no outline.
+- C7 to C9: the edit mode buttons are the plain `EditMode`.
+- The `scene-render-stats` shortcut only logs: `osgViewer::StatsHandler` has no counterpart yet.
+
+Fixes from the review of C1 and C2:
+- `defaults.cfg` is installed for the editor (Windows and the `opencs` component). The root's stale `defaults.bin` install line now names `defaults.cfg`.
+- Multisampling asks for the same device extensions as the game. One capture with `antialiasing = 4` in `openmw-cs.cfg` ran and wrote a frame.
+- The Scene and Preview factories are back, so `table.cpp`, `regionmap.cpp` and `dialoguesubview.cpp` no longer throw.
+- `setlocale(LC_NUMERIC, "C")` now runs before the capture branch.
+- `Cell::addObjects` compares `RefId`s rather than strings.
+
+Checks, frames viewed:
+- **Normal start:** new `OPENEDEN_CS_UI_CHECK=<hint>;<ms>`, with a content file as first argument: `Morrowind.esm` loaded, a references table and a scene subview opened through `ViewManager::addView`, every window closed, exit code 0, no crash dump, windows not activating. This does not click anything.
+- **Resize:** Arrille's Tradehouse at 1280x720, then 1400x800, 320x180 (the shrink), 900x500: each frame is complete and at the new size.
+- **Lighting:** day, night and bright differ as expected in the same camera.
+- **Closing one of two views:** the one left still draws (Caius Cosades' House).
+- `openmw-cs-tests` 154 passed.
+
+Not verified:
+- Anything a person must do, below.
+- Validation layers: none installed.
+
+#### Check list for toddhow
+
+Start `openmw-cs`, choose Edit a content file, open `Morrowind.esm`. In the main window use World > Scene.
+
+1. **Scene opens.** A dock appears with toolbar, 3D view and status bar, and the view has a grey gradient. Expect the view to be empty until a cell is chosen.
+2. **Choose a cell.** In World > Cells, right-click "Seyda Neen, Arrille's Tradehouse" and choose View. The interior appears. In the Cells table again, drag an exterior such as `#-2 -9` onto a new Scene subview: it appears there. This checks drag and drop into the Vulkan window.
+3. **Resize larger.** Drag the main window's corner to make it about twice as wide. The view fills its dock with no black strip and no stale pixels.
+4. **Resize smaller.** Drag it as small as it goes. The view stays correct and the editor does not hang. Drag it back.
+5. **Splitter.** Open a References table beside the view (dock them side by side). Drag the divider until the view is as narrow as it goes, then back. Nothing crashes, and the view redraws.
+6. **Docking.** Drag the Scene dock's title out of the main window so that it floats, then back. Dock it as a tab with a table and switch tabs both ways. The view shows the same cell each time, and no window flashes up on its own.
+7. **Two views.** Open a second Scene, of another cell. Both draw. Close the first: the second keeps drawing. Close the second and open a new one: it draws.
+8. **Toolbar over the view.** Click the lighting button in the scene toolbar and choose night, then bright, then day. The pop-up must appear in front of the view, not behind it, and the view must change. Hover over a toolbar button: the tooltip must appear in front of the view.
+9. **Focus by clicking.** Click in a table and type in its filter box. Click the 3D view, then press `Tab` (`scene-cam-cycle`, or whatever Preferences > Key Bindings shows; report it if Tab moves the focus instead). The camera mode button on the toolbar changes, so the key reached the view. Click the filter box again and type: the letters go in the box, and no scene shortcut fires.
+10. **Shortcut held across a focus change.** In the view, hold the `scene-speed-modifier` key, Alt-Tab away, release it, and return. Then press `scene-cam-cycle`: it must act once, with nothing stuck.
+11. **Shortcuts over the view.** With the mouse over a paged view of `#-2 -9`, focus it by clicking and press `scene-load-cam-eastcell` (Preferences > Key Bindings names the keys): one more cell loads to the east. Global menu shortcuts such as Ctrl+S's dialog and Ctrl+Z still work with the view focused.
+12. **Mouse tracking.** Nothing to see until C5 and C6: move the mouse over the view and confirm that the editor's frame rate does not fall and nothing logs an error.
+13. **Quit.** Close every window with a scene open, and start again. The editor exits with no crash, and no `openmw-crash.dmp` appears in the user data folder.
+14. **Linux, once:** the same steps 1 to 8 under X11 or with `QT_QPA_PLATFORM=xcb`. vsgQt has no Wayland path.

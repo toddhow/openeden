@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include <vsg/app/CommandGraph.h>
 #include <vsg/app/CompileManager.h>
 #include <vsg/app/Viewer.h>
 #include <vsg/app/WindowTraits.h>
@@ -37,16 +38,56 @@ namespace
     constexpr int sFrameIntervalMs = 8;
     // Only the swapchain's size counts here: a view sets its window's real size before use.
     constexpr uint32_t sInitialWindowSize = 640;
+    constexpr int sMillisecondsPerSecond = 1000;
+
+    std::unique_ptr<CSVRender::RenderContext> sContext;
+
+    /// vsg::Viewer::removeWindow rebuilds every task, which leaves the compile contexts uploading through a dead
+    /// TransferTask (research note 0003, section 5.4). This takes one window out of the tasks it is in and leaves them, so
+    /// a view can close while others stay, and vsgQt::Window's own cleanup comes through here too.
+    class SharedViewer : public vsgQt::Viewer
+    {
+    public:
+        void removeWindow(vsg::ref_ptr<vsg::Window> window) override
+        {
+            auto found = std::find(_windows.begin(), _windows.end(), window);
+            if (found == _windows.end())
+                return;
+            deviceWaitIdle();
+            _windows.erase(found);
+            const auto eraseWindow
+                = [&](vsg::Windows& list) { list.erase(std::remove(list.begin(), list.end(), window), list.end()); };
+            for (auto& task : recordAndSubmitTasks)
+            {
+                eraseWindow(task->windows);
+                auto& graphs = task->commandGraphs;
+                graphs.erase(std::remove_if(graphs.begin(), graphs.end(),
+                                 [&](const vsg::ref_ptr<vsg::CommandGraph>& graph) { return graph->window == window; }),
+                    graphs.end());
+            }
+            for (auto& presentation : presentations)
+                eraseWindow(presentation->windows);
+        }
+    };
 }
 
 namespace CSVRender
 {
     RenderContext::RenderContext()
         : mTraits(vsg::WindowTraits::create())
-        , mViewer(vsgQt::Viewer::create())
+        , mViewer(new SharedViewer)
+        , mFrameIntervalMs(sFrameIntervalMs)
         , mDeletionQueue(std::make_unique<vsgUtil::DeletionQueue>(vsgUtil::DeletionQueue::sizeForPostFrameAdvance(3)))
     {
         // As Engine::createRenderEngine in the game (apps/openmw/vsgengine.cpp).
+        // With multisampling, the depth resolve needs these, as in the game.
+        if (Settings::video().mAntialiasing)
+        {
+            mTraits->deviceExtensionNames.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+            mTraits->deviceExtensionNames.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+            mTraits->deviceExtensionNames.push_back(VK_KHR_MAINTENANCE_2_EXTENSION_NAME);
+            mTraits->deviceExtensionNames.push_back(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
+        }
         mTraits->width = sInitialWindowSize;
         mTraits->height = sInitialWindowSize;
         mTraits->queueFlags |= VK_QUEUE_COMPUTE_BIT;
@@ -58,7 +99,8 @@ namespace CSVRender
             mTraits->samples = static_cast<VkSampleCountFlagBits>(antialiasing);
         mTraits->deviceFeatures = vsg::DeviceFeatures::create();
 
-        mViewer->continuousUpdate = true;
+        // On demand, as the OSG editor's renderer was: a view asks for a frame in tick().
+        mViewer->continuousUpdate = false;
         QObject::connect(&mTimer, &QTimer::timeout, [this] { tick(); });
     }
 
@@ -127,10 +169,16 @@ namespace CSVRender
         return mCompileContext;
     }
 
-    void RenderContext::start(std::function<void()> onFrame)
+    void RenderContext::setFrameCallback(std::function<void()> onFrame)
     {
         mOnFrame = std::move(onFrame);
-        mTimer.start(sFrameIntervalMs);
+    }
+
+    void RenderContext::setFrameRateLimit(int limit)
+    {
+        mFrameIntervalMs = limit > 0 ? std::max(sMillisecondsPerSecond / limit, 1) : sFrameIntervalMs;
+        if (mTimer.isActive())
+            mTimer.setInterval(mFrameIntervalMs);
     }
 
     void RenderContext::stop()
@@ -147,6 +195,8 @@ namespace CSVRender
     void RenderContext::add(SceneHost& host)
     {
         mHosts.push_back(&host);
+        if (!mTimer.isActive())
+            mTimer.start(mFrameIntervalMs);
     }
 
     void RenderContext::remove(SceneHost& host)
@@ -156,8 +206,20 @@ namespace CSVRender
 
     void RenderContext::tick()
     {
+        // With no view there is nothing a viewer could draw or present. The tasks stay for the next view.
+        if (mHosts.empty())
+        {
+            if (mOnFrame)
+                mOnFrame();
+            return;
+        }
+
         for (SceneHost* host : mHosts)
+        {
             host->update();
+            if (host->needsFrame())
+                mViewer->request();
+        }
 
         mViewer->render();
 
@@ -170,4 +232,16 @@ namespace CSVRender
         if (mOnFrame)
             mOnFrame();
     }
+}
+
+CSVRender::RenderContext& CSVRender::RenderContext::get()
+{
+    if (!sContext)
+        sContext = std::make_unique<RenderContext>();
+    return *sContext;
+}
+
+CSVRender::RenderContext::Lifetime::~Lifetime()
+{
+    sContext.reset();
 }

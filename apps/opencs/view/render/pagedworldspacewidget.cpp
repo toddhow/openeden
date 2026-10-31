@@ -25,10 +25,6 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include <osg/Camera>
-#include <osg/Vec3f>
-#include <osg/ref_ptr>
-#include <osgViewer/View>
 
 #include "../../model/prefs/shortcut.hpp"
 
@@ -40,8 +36,6 @@
 #include "cellarrow.hpp"
 #include "editmode.hpp"
 #include "mask.hpp"
-#include "terrainshapemode.hpp"
-#include "terraintexturemode.hpp"
 
 class QWidget;
 
@@ -57,6 +51,10 @@ namespace CSVWidget
 
 bool CSVRender::PagedWorldspaceWidget::adjustCells()
 {
+    // hostReady calls this again.
+    if (!getHost())
+        return false;
+
     bool modified = false;
 
     const CSMWorld::IdCollection<CSMWorld::Cell>& cells = mDocument.getData().getCells();
@@ -86,7 +84,7 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
                 {
                     modified = true;
 
-                    auto cell = std::make_unique<Cell>(getDocument(), mSelectionMarker.get(), mRootNode,
+                    auto cell = std::make_unique<Cell>(getDocument(), mSelectionMarker.get(), *getHost(),
                         iter->first.getId(mWorldspace), deleted, true);
 
                     delete iter->second;
@@ -152,6 +150,12 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
 
             iter->second->setCellArrows(mask);
         }
+
+        bool animated = false;
+        for (const auto& [_, cell] : mCells)
+            animated = animated || cell->isAnimated();
+        getHost()->setAnimated(animated);
+        getHost()->requestRedraw();
     }
 
     return modified;
@@ -168,8 +172,13 @@ void CSVRender::PagedWorldspaceWidget::addEditModeSelectorButtons(CSVWidget::Sce
     WorldspaceWidget::addEditModeSelectorButtons(tool);
 
     /// \todo replace EditMode with suitable subclasses
-    tool->addButton(new TerrainShapeMode(this, mRootNode, tool), "terrain-shape");
-    tool->addButton(new TerrainTextureMode(this, mRootNode, tool), "terrain-texture");
+    // The plain base class until stage C8 brings back TerrainShapeMode and TerrainTextureMode.
+    tool->addButton(new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-shape"), Mask_Terrain,
+                        "Terrain land shape editing", tool),
+        "terrain-shape");
+    tool->addButton(new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-texture"), Mask_Terrain,
+                        "Terrain texture editing", tool),
+        "terrain-texture");
     const QIcon vertexIcon = Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-vertex-paint");
     const QIcon movementIcon = Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-movement");
     tool->addButton(new EditMode(this, vertexIcon, Mask_Reference, "Terrain vertex paint editing"), "terrain-vertex");
@@ -446,19 +455,20 @@ void CSVRender::PagedWorldspaceWidget::landTextureAdded(const QModelIndex& paren
 
 std::string CSVRender::PagedWorldspaceWidget::getStartupInstruction()
 {
-    osg::Vec3d eye, center, up;
-    mView->getCamera()->getViewMatrixAsLookAt(eye, center, up);
-    osg::Vec3d position = eye;
+    const vsg::dvec3 position = getHost() ? getHost()->getCameraEye() : vsg::dvec3();
 
     std::ostringstream stream;
 
-    stream << "player->position " << position.x() << ", " << position.y() << ", " << position.z() << ", 0";
+    stream << "player->position " << position.x << ", " << position.y << ", " << position.z << ", 0";
 
     return stream.str();
 }
 
 void CSVRender::PagedWorldspaceWidget::addCellToScene(const CSMWorld::CellCoordinates& coordinates)
 {
+    if (!getHost())
+        return;
+
     const CSMWorld::IdCollection<CSMWorld::Cell>& cells = mDocument.getData().getCells();
 
     const int index = cells.searchId(ESM::RefId::stringRefId(coordinates.getId(mWorldspace)));
@@ -466,7 +476,7 @@ void CSVRender::PagedWorldspaceWidget::addCellToScene(const CSMWorld::CellCoordi
     bool deleted = index == -1 || cells.getRecord(index).mState == CSMWorld::RecordBase::State_Deleted;
 
     auto cell = std::make_unique<Cell>(
-        getDocument(), mSelectionMarker.get(), mRootNode, coordinates.getId(mWorldspace), deleted, true);
+        getDocument(), mSelectionMarker.get(), *getHost(), coordinates.getId(mWorldspace), deleted, true);
     EditMode* editMode = getEditMode();
     cell->setSubMode(editMode->getSubMode(), editMode->getInteractionMask());
 
@@ -521,11 +531,12 @@ void CSVRender::PagedWorldspaceWidget::moveCellSelection(int x, int y)
 
 void CSVRender::PagedWorldspaceWidget::addCellToSceneFromCamera(int offsetX, int offsetY)
 {
-    osg::Vec3f eye, center, up;
-    getCamera()->getViewMatrixAsLookAt(eye, center, up);
+    if (!getHost())
+        return;
+    const vsg::dvec3 center = getHost()->getCameraCenter();
 
-    int cellX = (int)std::floor(center.x() / Constants::CellSizeInUnits) + offsetX;
-    int cellY = (int)std::floor(center.y() / Constants::CellSizeInUnits) + offsetY;
+    int cellX = (int)std::floor(center.x / Constants::CellSizeInUnits) + offsetX;
+    int cellY = (int)std::floor(center.y / Constants::CellSizeInUnits) + offsetY;
 
     CSMWorld::CellCoordinates cellCoordinates(cellX, cellY);
 
@@ -669,9 +680,13 @@ void CSVRender::PagedWorldspaceWidget::useViewHint(const std::string& hint)
 void CSVRender::PagedWorldspaceWidget::setCellSelection(const CSMWorld::CellSelection& selection)
 {
     mSelection = selection;
+    const bool first = mCells.empty();
 
     if (adjustCells())
         flagAsModified();
+
+    if (first)
+        frameSelection();
 
     emit cellSelectionChanged(mSelection);
 }
@@ -779,7 +794,7 @@ void CSVRender::PagedWorldspaceWidget::selectAllWithSameParentId(int elementMask
 }
 
 void CSVRender::PagedWorldspaceWidget::selectInsideCube(
-    const osg::Vec3d& pointA, const osg::Vec3d& pointB, DragMode dragMode)
+    const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode)
 {
     for (auto& cell : mCells)
     {
@@ -787,7 +802,7 @@ void CSVRender::PagedWorldspaceWidget::selectInsideCube(
     }
 }
 
-void CSVRender::PagedWorldspaceWidget::selectWithinDistance(const osg::Vec3d& point, float distance, DragMode dragMode)
+void CSVRender::PagedWorldspaceWidget::selectWithinDistance(const vsg::dvec3& point, float distance, DragMode dragMode)
 {
     for (auto& cell : mCells)
     {
@@ -795,18 +810,18 @@ void CSVRender::PagedWorldspaceWidget::selectWithinDistance(const osg::Vec3d& po
     }
 }
 
-std::string CSVRender::PagedWorldspaceWidget::getCellId(const osg::Vec3f& point) const
+std::string CSVRender::PagedWorldspaceWidget::getCellId(const vsg::vec3& point) const
 {
-    CSMWorld::CellCoordinates cellCoordinates(static_cast<int>(std::floor(point.x() / Constants::CellSizeInUnits)),
-        static_cast<int>(std::floor(point.y() / Constants::CellSizeInUnits)));
+    CSMWorld::CellCoordinates cellCoordinates(static_cast<int>(std::floor(point.x / Constants::CellSizeInUnits)),
+        static_cast<int>(std::floor(point.y / Constants::CellSizeInUnits)));
 
     return cellCoordinates.getId(mWorldspace);
 }
 
-CSVRender::Cell* CSVRender::PagedWorldspaceWidget::getCell(const osg::Vec3d& point) const
+CSVRender::Cell* CSVRender::PagedWorldspaceWidget::getCell(const vsg::dvec3& point) const
 {
-    CSMWorld::CellCoordinates coords(static_cast<int>(std::floor(point.x() / Constants::CellSizeInUnits)),
-        static_cast<int>(std::floor(point.y() / Constants::CellSizeInUnits)));
+    CSMWorld::CellCoordinates coords(static_cast<int>(std::floor(point.x / Constants::CellSizeInUnits)),
+        static_cast<int>(std::floor(point.y / Constants::CellSizeInUnits)));
 
     std::map<CSMWorld::CellCoordinates, Cell*>::const_iterator searchResult = mCells.find(coords);
     if (searchResult != mCells.end())
@@ -847,9 +862,9 @@ void CSVRender::PagedWorldspaceWidget::resetAllAlteredHeights()
         cell.second->resetAlteredHeights();
 }
 
-osg::ref_ptr<CSVRender::TagBase> CSVRender::PagedWorldspaceWidget::getSnapTarget(unsigned int elementMask) const
+vsg::ref_ptr<CSVRender::TagBase> CSVRender::PagedWorldspaceWidget::getSnapTarget(unsigned int elementMask) const
 {
-    osg::ref_ptr<CSVRender::TagBase> result;
+    vsg::ref_ptr<CSVRender::TagBase> result;
 
     for (auto& [coords, cell] : mCells)
     {
@@ -863,14 +878,14 @@ osg::ref_ptr<CSVRender::TagBase> CSVRender::PagedWorldspaceWidget::getSnapTarget
     return result;
 }
 
-std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::getSelection(
+std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::getSelection(
     unsigned int elementMask) const
 {
-    std::vector<osg::ref_ptr<CSVRender::TagBase>> result;
+    std::vector<vsg::ref_ptr<CSVRender::TagBase>> result;
 
     for (std::map<CSMWorld::CellCoordinates, Cell*>::const_iterator iter = mCells.begin(); iter != mCells.end(); ++iter)
     {
-        std::vector<osg::ref_ptr<CSVRender::TagBase>> cellResult = iter->second->getSelection(elementMask);
+        std::vector<vsg::ref_ptr<CSVRender::TagBase>> cellResult = iter->second->getSelection(elementMask);
 
         result.insert(result.end(), cellResult.begin(), cellResult.end());
     }
@@ -890,14 +905,14 @@ void CSVRender::PagedWorldspaceWidget::unhideAll() const
         cell->unhideAll();
 }
 
-std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::getEdited(
+std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::PagedWorldspaceWidget::getEdited(
     unsigned int elementMask) const
 {
-    std::vector<osg::ref_ptr<CSVRender::TagBase>> result;
+    std::vector<vsg::ref_ptr<CSVRender::TagBase>> result;
 
     for (std::map<CSMWorld::CellCoordinates, Cell*>::const_iterator iter = mCells.begin(); iter != mCells.end(); ++iter)
     {
-        std::vector<osg::ref_ptr<CSVRender::TagBase>> cellResult = iter->second->getEdited(elementMask);
+        std::vector<vsg::ref_ptr<CSVRender::TagBase>> cellResult = iter->second->getEdited(elementMask);
 
         result.insert(result.end(), cellResult.begin(), cellResult.end());
     }
@@ -997,4 +1012,25 @@ CSVRender::Object* CSVRender::PagedWorldspaceWidget::getObjectByReferenceId(cons
             return object;
 
     return nullptr;
+}
+
+void CSVRender::PagedWorldspaceWidget::hostReady()
+{
+    WorldspaceWidget::hostReady();
+    adjustCells();
+    frameSelection();
+}
+
+void CSVRender::PagedWorldspaceWidget::frameSelection()
+{
+    SceneHost* host = getHost();
+    if (!host || mSelection.begin() == mSelection.end())
+        return;
+    std::vector<vsg::dvec3> positions;
+    for (const auto& [_, cell] : mCells)
+    {
+        const auto& cellPositions = cell->getObjectPositions();
+        positions.insert(positions.end(), cellPositions.begin(), cellPositions.end());
+    }
+    host->frame(positions);
 }

@@ -3,6 +3,7 @@
 
 #include "scenewidget.hpp"
 
+#include <memory>
 #include <string>
 
 #include "object.hpp"
@@ -23,11 +24,17 @@ namespace CSVRender
         Q_OBJECT
 
         CSMWorld::Data& mData;
-        CSVRender::Object mObject;
+        std::string mId;
+        bool mReferenceable;
+        // Made once the view exists.
+        std::unique_ptr<CSVRender::Object> mObject;
 
     public:
         explicit PreviewWidget(
             CSMWorld::Data& worldData, const std::string& id, bool referenceable, QWidget* parent = nullptr);
+
+    protected:
+        void hostReady() override;
 
     signals:
 

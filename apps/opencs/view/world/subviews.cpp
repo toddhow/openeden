@@ -11,15 +11,11 @@
 #include "infocreator.hpp"
 #include "landcreator.hpp"
 #include "pathgridcreator.hpp"
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
 #include "previewsubview.hpp"
-#endif
 #include "referenceablecreator.hpp"
 #include "referencecreator.hpp"
 #include "regionmapsubview.hpp"
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
 #include "scenesubview.hpp"
-#endif
 #include "scriptsubview.hpp"
 #include "startscriptcreator.hpp"
 #include "tablesubview.hpp"
@@ -120,9 +116,7 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
     // Other stuff (combined record tables)
     manager.add(CSMWorld::UniversalId::Type_RegionMap, new CSVDoc::SubViewFactory<RegionMapSubView>);
 
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
     manager.add(CSMWorld::UniversalId::Type_Scene, new CSVDoc::SubViewFactory<SceneSubView>);
-#endif
 
     // More other stuff
     manager.add(CSMWorld::UniversalId::Type_Filters,
@@ -213,7 +207,5 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
     manager.add(CSMWorld::UniversalId::Type_MetaData, new CSVDoc::SubViewFactory<SimpleDialogueSubView>);
 
     // preview
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
     manager.add(CSMWorld::UniversalId::Type_Preview, new CSVDoc::SubViewFactory<PreviewSubView>);
-#endif
 }
