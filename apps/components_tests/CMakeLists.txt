@@ -135,6 +135,10 @@ file(GLOB UNITTEST_SRC_FILES
     fx/lexer.cpp
     fx/technique.cpp
     fx/testtechniquedata.cpp
+    math/testvectorconventions.cpp
+    math/testquatconventions.cpp
+    math/testmatrixconventions.cpp
+    math/testboundsconventions.cpp
     fx/testvulkanpass.cpp
     fx/testuniformsettings.cpp
 )

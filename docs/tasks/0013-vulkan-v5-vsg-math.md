@@ -56,3 +56,15 @@
 
 1. **Timing:** after task 0012 (V4).
 2. **Helper header:** a small `vsgmath.hpp` of helpers is acceptable.
+
+## Notes from the convention tests (2026-10-31)
+
+`apps/components_tests/math/` holds the convention tests of Design item 1: 135 tests, written from this spec by a separate agent, all passing on Windows and Linux. Each states which OSG expression equals which VSG expression. Before conversion starts, the spec needs these corrections; points 3 and 4 are toddhow's call.
+
+1. **Precision in the goal line.** OSG's unsized `Quat`, `Plane` and `Matrix` are double, so they map to `dquat`, `dplane` and `dmat4`, not `quat`, `plane` and `mat4`.
+2. **Bounding volumes are not one type on Windows.** `<osg/Config>` can resolve to vcpkg's copy, which defines `OSG_USE_FLOAT_BOUNDINGBOX` and `OSG_USE_FLOAT_BOUNDINGSPHERE`; the bundled copy leaves them undefined. So `osg::BoundingBox` is float in some translation units and double in others (seen in `math/testboundsconventions.cpp`), the ODR hazard research note 0003 section 5 meant to close. Each use has to be checked rather than assumed to be `dbox`.
+3. **"Identical" against the tolerance.** The acceptance criterion wants identical positions and Jolt states after N steps; the constraints allow 1e-6. VSG's `/`, `slerp`, `inverse` and `makeRotate` differ in the low bits, and that can accumulate over steps. Float matrix products also differ in the last bit between GCC and MSVC, with no VSG involved in the difference (`math/testmatrixconventions.cpp`), so bit-identical results across platforms were never available. Either fix a tolerance for that check, or use helpers wherever bit-identity matters. Proposed: helpers matching OSG in simulation code, with a recorded tolerance only for what cannot match.
+4. **The suite after OSG is removed.** Design item 5 deletes `extern/osg`, which the suite includes. Proposed: reduce it then to literal expected values, so the record of each trap stays.
+5. **`*` between vectors.** "Every `*` between OSG vectors becomes `dot`" is wrong for `Vec2i`, whose `*` is component-wise even in OSG.
+6. **Size.** A count of OSG math types only finds about 451 files and 5,688 references, not about 620 and 15,000. Much of it is code that is not compiled (`components/nifosg`, most of `components/sceneutil`, parts of `apps/openmw/mwrender`). Those files would still fail the final grep, so they should be deleted, not converted.
+7. **Operations the spec does not name:** `.x()` style accessors, `osg::PI` and degree conversion, `xMin()` and friends on boxes, `getTrans`/`setTrans`, `preMultTranslate` and similar, `transform3x3`, `corner`, matrix `decompose` (VSG's can fail where OSG's cannot), and the three-point `Plane` constructor. The list `vsgmath.hpp` must provide is in each test file's header comment.

@@ -341,7 +341,7 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
 - **The settings audit decisions** (research note 0006; toddhow's calls on the "decide" keys).
 - **Gaps listed above:**
   - the hidden torch flame in the Caldera Mages Guild;
-  - snow's one-frame shift;
+  - snow's one-frame shift: **fixed** 2026-10-31, the world matrix no longer advances on a frame the dispatch is skipped; by reasoning and an unchanged frame, the shift itself was not measured;
   - particle size and node scale: by code reading not a gap. `main.vert` normalises the axes in the particle's local space and draws through a modelview that includes the scale, as OSG 3.6.5's `ParticleSystem::drawImplementation` does for `LOCAL_COORDINATES`, which OpenMW sets (`nifloader.cpp` at `442eec6e2f`). Not confirmed by image: the 2026-10-30 captures of a scaled torch did not show the torch;
   - groundcover's terrain-quadtree chunk sizes, animated models, settings read at creation, and its loading-screen progress.
 - **toddhow's scene verdicts and the performance re-measure** (work items 1 and 8).
