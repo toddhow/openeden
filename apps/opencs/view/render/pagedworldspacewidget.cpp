@@ -36,6 +36,7 @@
 #include "cellarrow.hpp"
 #include "editmode.hpp"
 #include "mask.hpp"
+#include "objectmarker.hpp"
 
 class QWidget;
 

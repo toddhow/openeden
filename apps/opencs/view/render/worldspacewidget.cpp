@@ -37,8 +37,10 @@
 #include "../widget/scenetooltoggle2.hpp"
 
 #include "cameracontroller.hpp"
+#include "instancemode.hpp"
 #include "mask.hpp"
 #include "object.hpp"
+#include "objectmarker.hpp"
 #include "orbitcameramode.hpp"
 
 CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidget* parent)
@@ -61,7 +63,7 @@ CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidge
     , mShowToolTips(false)
     , mToolTipDelay(0)
     , mSelectedNavigationMode(0)
-    , mSelectionMarker(std::make_unique<ObjectMarker>())
+    , mSelectionMarker(std::make_unique<ObjectMarker>(this))
 {
     setAcceptDrops(true);
 
@@ -139,6 +141,43 @@ CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidge
 
     connect(new CSMPrefs::Shortcut("scene-toggle-marker", this), qOverload<>(&CSMPrefs::Shortcut::activated), this,
         [this]() { mSelectionMarker->toggleVisibility(); });
+}
+
+CSVRender::WorldspaceWidget::~WorldspaceWidget() = default;
+
+void CSVRender::WorldspaceWidget::hostReady()
+{
+    SceneWidget::hostReady();
+    mSelectionMarker->setHost(*getHost());
+}
+
+void CSVRender::WorldspaceWidget::scriptPress(InteractionType type, const QPoint& pos)
+{
+    handleInteractionPress(mousePick(pos, getInteractionMask()), type);
+}
+
+void CSVRender::WorldspaceWidget::scriptDrag(InteractionType type, const QPoint& from, const QPoint& to, int steps)
+{
+    EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
+    bool dragging = false;
+    if (type == InteractionType_PrimaryEdit)
+        dragging = editMode.primaryEditStartDrag(from);
+    else if (type == InteractionType_SecondaryEdit)
+        dragging = editMode.secondaryEditStartDrag(from);
+    else if (type == InteractionType_PrimarySelect)
+        dragging = editMode.primarySelectStartDrag(from);
+    else if (type == InteractionType_SecondarySelect)
+        dragging = editMode.secondarySelectStartDrag(from);
+    if (!dragging)
+        return;
+    QPoint last = from;
+    for (int i = 1; i <= steps; ++i)
+    {
+        const QPoint pos = from + (to - from) * i / steps;
+        editMode.drag(pos, pos.x() - last.x(), last.y() - pos.y(), mDragFactor);
+        last = pos;
+    }
+    editMode.dragCompleted(to);
 }
 
 void CSVRender::WorldspaceWidget::settingChanged(const CSMPrefs::Setting* setting)
@@ -363,11 +402,8 @@ void CSVRender::WorldspaceWidget::addVisibilitySelectorButtons(CSVWidget::SceneT
 
 void CSVRender::WorldspaceWidget::addEditModeSelectorButtons(CSVWidget::SceneToolMode* tool)
 {
-    // The plain base class until stages C7 and C9 bring back InstanceMode and PathgridMode: the buttons and their ids stay,
-    // and pressing them does nothing.
-    tool->addButton(
-        new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-instance"), Mask_Reference, "Instance editing", tool),
-        "object");
+    tool->addButton(new InstanceMode(this, tool), "object");
+    // The plain base class until stage C9 brings back PathgridMode: the button and its id stay, and pressing it does nothing.
     tool->addButton(
         new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-pathgrid"), Mask_Pathgrid, "Pathgrid editing", tool),
         "pathgrid");
@@ -385,11 +421,23 @@ CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
     if (!host || width() <= 0 || height() <= 0)
         return WorldspaceHitResult{ false, nullptr, 0, 0, 0, vsg::dvec3() };
 
-    // Selection marker hits (stage C7) come first here, as in the OSG editor's mousePick.
-    const Picking::Result result = host->pick(static_cast<double>(localPos.x()) / width(),
-        static_cast<double>(localPos.y()) / height(), interactionMask,
-        CSMPrefs::get()["3D Scene Editing"]["distance"].toInt());
-    return WorldspaceHitResult{ result.mHit, result.mTag, result.mIndex0, result.mIndex1, result.mIndex2, result.mWorldPos };
+    const double x = static_cast<double>(localPos.x()) / width();
+    const double y = static_cast<double>(localPos.y()) / height();
+    const double placementDistance = CSMPrefs::get()["3D Scene Editing"]["distance"].toInt();
+    const auto toHit = [](const Picking::Result& result) {
+        return WorldspaceHitResult{ result.mHit, result.mTag, result.mIndex0, result.mIndex1, result.mIndex2, result.mWorldPos };
+    };
+
+    // The selection marker comes first wherever it is on the ray, as it is drawn over everything.
+    const std::vector<Picking::Result> hits = host->pickAll(x, y, interactionMask);
+    for (const Picking::Result& hit : hits)
+        if (dynamic_cast<ObjectMarkerTag*>(hit.mTag.get()))
+        {
+            if (mSelectionMarker->hitBehindMarker(hit.mWorldPos))
+                return toHit(host->missAt(x, y, placementDistance));
+            return toHit(hit);
+        }
+    return toHit(hits.empty() ? host->missAt(x, y, placementDistance) : hits.front());
 }
 
 CSVRender::EditMode* CSVRender::WorldspaceWidget::getEditMode()
@@ -546,6 +594,26 @@ void CSVRender::WorldspaceWidget::elementSelectionChanged()
 
 void CSVRender::WorldspaceWidget::updateOverlay() {}
 
+void CSVRender::WorldspaceWidget::handleMarkerHighlight(const QPoint& pos)
+{
+    const SceneHost* host = getHost();
+    if (!host || !mSelectionMarker->isAttached() || width() <= 0 || height() <= 0)
+        return;
+
+    for (const Picking::Result& hit : host->pickAll(
+             static_cast<double>(pos.x()) / width(), static_cast<double>(pos.y()) / height(), Mask_Reference))
+    {
+        if (mSelectionMarker->hitBehindMarker(hit.mWorldPos))
+            continue;
+        if (const auto* marker = dynamic_cast<ObjectMarkerTag*>(hit.mTag.get()))
+        {
+            mSelectionMarker->updateMarkerHighlight(marker->mNode, marker->mAxis);
+            return;
+        }
+    }
+    mSelectionMarker->resetMarkerHighlight();
+}
+
 void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
 {
     dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent()).mouseMoveEvent(event);
@@ -600,6 +668,7 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
             }
         }
 
+        handleMarkerHighlight(event->position().toPoint());
         SceneWidget::mouseMoveEvent(event);
     }
 }
@@ -675,8 +744,6 @@ void CSVRender::WorldspaceWidget::speedMode(bool activate)
 
 void CSVRender::WorldspaceWidget::toggleHiddenInstances()
 {
-    // Stage C7: nothing can be selected before then.
-#ifndef OPENEDEN_CS_VIEW_RENDER_PENDING
     const std::vector<vsg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
 
     if (selection.empty())
@@ -685,13 +752,11 @@ void CSVRender::WorldspaceWidget::toggleHiddenInstances()
     const CSVRender::ObjectTag* firstSelection = static_cast<CSVRender::ObjectTag*>(selection.begin()->get());
     assert(firstSelection != nullptr);
 
-    const CSVRender::Mask firstMask
-        = firstSelection->mObject->getRootNode()->getNodeMask() == Mask_Hidden ? Mask_Reference : Mask_Hidden;
+    const bool hide = !firstSelection->mObject->isHidden();
 
     for (const auto& object : selection)
         if (const auto objectTag = static_cast<CSVRender::ObjectTag*>(object.get()))
-            objectTag->mObject->getRootNode()->setNodeMask(firstMask);
-#endif
+            objectTag->mObject->setHidden(hide);
 }
 
 void CSVRender::WorldspaceWidget::cycleNavigationMode()

@@ -16,7 +16,6 @@
 #include <apps/opencs/view/render/tagbase.hpp>
 
 #include "instancedragmodes.hpp"
-#include "objectmarker_pending.hpp"
 #include "scenewidget.hpp"
 
 class QDragEnterEvent;
@@ -57,6 +56,7 @@ namespace CSVRender
     class Cell;
     class EditMode;
     class Object;
+    class ObjectMarker;
 
     struct WorldspaceHitResult
     {
@@ -120,7 +120,7 @@ namespace CSVRender
         };
 
         WorldspaceWidget(CSMDoc::Document& document, QWidget* parent = nullptr);
-        ~WorldspaceWidget() = default;
+        ~WorldspaceWidget();
 
         CSVWidget::SceneToolMode* makeNavigationSelector(CSVWidget::SceneToolbar* parent);
         ///< \attention The created tool is not added to the toolbar (via addTool). Doing that
@@ -184,8 +184,6 @@ namespace CSVRender
         virtual void selectInsideCube(const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode) = 0;
 
         virtual void selectWithinDistance(const vsg::dvec3& point, float distance, DragMode dragMode) = 0;
-
-        /// Stage C6: no intersection yet, so always the point "in front".
         /// Return the next intersection with scene elements matched by
         /// \a interactionMask based on \a localPos and the camera vector.
         /// If there is no such intersection, instead a point "in front" of \a localPos will be
@@ -216,7 +214,14 @@ namespace CSVRender
 
         EditMode* getEditMode();
 
+        CSVWidget::SceneToolMode* getEditModeSelector() { return mEditMode; }
+
         virtual CSVRender::Object* getObjectByReferenceId(const std::string& id) = 0;
+
+        /// What a press and release at this point does, or a drag between two points in steps, for unattended checks: the same
+        /// calls on the edit mode as the shortcuts make, without Qt's events.
+        void scriptPress(InteractionType type, const QPoint& pos);
+        void scriptDrag(InteractionType type, const QPoint& from, const QPoint& to, int steps);
 
         ObjectMarker* getSelectionMarker() { return mSelectionMarker.get(); }
         const ObjectMarker* getSelectionMarker() const { return mSelectionMarker.get(); }
@@ -254,6 +259,8 @@ namespace CSVRender
 
         void settingChanged(const CSMPrefs::Setting* setting) override;
 
+        void hostReady() override;
+
         void cycleNavigationMode();
 
     private:
@@ -266,6 +273,9 @@ namespace CSVRender
         virtual std::string getStartupInstruction() = 0;
 
         void handleInteraction(InteractionType type, bool activate);
+
+        /// Lights up the part of the selection marker under the pointer.
+        void handleMarkerHighlight(const QPoint& pos);
 
     public slots:
 

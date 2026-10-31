@@ -1,5 +1,6 @@
 #include "instancemode.hpp"
 
+#include <QCursor>
 #include <QDragEnterEvent>
 #include <QPoint>
 #include <QString>
@@ -13,17 +14,6 @@
 
 #include "../../model/prefs/state.hpp"
 
-#include <osg/BoundingBox>
-#include <osg/Camera>
-#include <osg/ComputeBoundsVisitor>
-#include <osg/Group>
-#include <osg/Math>
-#include <osg/Matrix>
-#include <osg/Matrixd>
-#include <osg/Vec3d>
-#include <osg/Viewport>
-#include <osgUtil/IntersectionVisitor>
-#include <osgUtil/LineSegmentIntersector>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -52,7 +42,12 @@
 #include "../widget/scenetoolbar.hpp"
 #include "../widget/scenetoolmode.hpp"
 
+#include "camerapose.hpp"
+#include "instancemath.hpp"
 #include "mask.hpp"
+#include "objectmarker.hpp"
+#include "picking.hpp"
+#include "scenehost.hpp"
 
 #include "instancemovemode.hpp"
 #include "instanceselectionmode.hpp"
@@ -65,128 +60,47 @@ int CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const
     return id == "move" ? 0 : (id == "rotate" ? 1 : 2);
 }
 
-osg::Vec3f CSVRender::InstanceMode::quatToEuler(const osg::Quat& rot) const
+vsg::vec3 CSVRender::InstanceMode::getSelectionCenter(const std::vector<vsg::ref_ptr<TagBase>>& selection) const
 {
-    float x, y, z;
-    float test = 2 * (rot.w() * rot.y() + rot.x() * rot.z());
-
-    if (std::abs(test) >= 1.f)
-    {
-        x = atan2(rot.x(), rot.w());
-        y = (test > 0) ? (osg::PI / 2) : (-osg::PI / 2);
-        z = 0;
-    }
-    else
-    {
-        x = std::atan2(2 * (rot.w() * rot.x() - rot.y() * rot.z()), 1 - 2 * (rot.x() * rot.x() + rot.y() * rot.y()));
-        y = std::asin(std::clamp(test, -1.0f, 1.0f));
-        z = std::atan2(2 * (rot.w() * rot.z() - rot.x() * rot.y()), 1 - 2 * (rot.y() * rot.y() + rot.z() * rot.z()));
-    }
-
-    return osg::Vec3f(-x, -y, -z);
-}
-
-osg::Quat CSVRender::InstanceMode::eulerToQuat(const osg::Vec3f& euler) const
-{
-    osg::Quat xr = osg::Quat(-euler[0], osg::Vec3f(1, 0, 0));
-    osg::Quat yr = osg::Quat(-euler[1], osg::Vec3f(0, 1, 0));
-    osg::Quat zr = osg::Quat(-euler[2], osg::Vec3f(0, 0, 1));
-
-    return zr * yr * xr;
-}
-
-float CSVRender::InstanceMode::roundFloatToMult(const float val, const double mult) const
-{
-    if (mult == 0)
-        return val;
-    return round(val / mult) * mult;
-}
-
-osg::Vec3 CSVRender::InstanceMode::calculateSnapPositionRelativeToTarget(osg::Vec3 initalPosition,
-    osg::Vec3 targetPosition, osg::Vec3 targetRotation, osg::Vec3 translation, double snap) const
-{
-    auto quatTargetRotation
-        = osg::Quat(targetRotation[0], osg::X_AXIS, targetRotation[1], osg::Y_AXIS, targetRotation[2], osg::Z_AXIS);
-
-    // Break object world coords into snap target space
-    auto localWorld = osg::Matrix::translate(initalPosition)
-        * osg::Matrix::inverse(osg::Matrix::translate(targetPosition)) * osg::Matrix::rotate(quatTargetRotation);
-
-    osg::Vec3 localPosition = localWorld.getTrans();
-
-    osg::Vec3 newTranslation;
-    newTranslation[0] = CSVRender::InstanceMode::roundFloatToMult(localPosition[0] + translation[0], snap);
-    newTranslation[1] = CSVRender::InstanceMode::roundFloatToMult(localPosition[1] + translation[1], snap);
-    newTranslation[2] = CSVRender::InstanceMode::roundFloatToMult(localPosition[2] + translation[2], snap);
-
-    // rebuild object's world coordinates (note: inverse operations from local construction)
-    auto newObjectWorld = osg::Matrix::translate(newTranslation)
-        * osg::Matrix::inverse(osg::Matrix::rotate(quatTargetRotation)) * osg::Matrix::translate(targetPosition);
-
-    osg::Vec3 newObjectPosition = newObjectWorld.getTrans();
-
-    return newObjectPosition;
-}
-
-osg::Vec3f CSVRender::InstanceMode::getSelectionCenter(const std::vector<osg::ref_ptr<TagBase>>& selection) const
-{
-    osg::Vec3f center = osg::Vec3f(0, 0, 0);
+    vsg::vec3 center(0, 0, 0);
     int objectCount = 0;
 
-    for (std::vector<osg::ref_ptr<TagBase>>::const_iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (std::vector<vsg::ref_ptr<TagBase>>::const_iterator iter(selection.begin()); iter != selection.end(); ++iter)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
         {
             const ESM::Position& position = objectTag->mObject->getPosition();
-            center += osg::Vec3f(position.pos[0], position.pos[1], position.pos[2]);
+            center += vsg::vec3(position.pos[0], position.pos[1], position.pos[2]);
 
             ++objectCount;
         }
     }
 
     if (objectCount > 0)
-        center /= objectCount;
+        center = center / static_cast<float>(objectCount);
 
     return center;
 }
 
-osg::Vec3f CSVRender::InstanceMode::getScreenCoords(const osg::Vec3f& pos)
+vsg::vec3 CSVRender::InstanceMode::getScreenCoords(const vsg::vec3& pos)
 {
-    osg::Matrix viewMatrix = getWorldspaceWidget().getCamera()->getViewMatrix();
-    osg::Matrix projMatrix = getWorldspaceWidget().getCamera()->getProjectionMatrix();
-    osg::Matrix windowMatrix = getWorldspaceWidget().getCamera()->getViewport()->computeWindowMatrix();
-    osg::Matrix combined = viewMatrix * projMatrix * windowMatrix;
-
-    return pos * combined;
+    const WorldspaceWidget& widget = getWorldspaceWidget();
+    const SceneHost& host = *widget.getHost();
+    return InstanceMath::windowCoords(host.getProjectionMatrix(), host.getViewMatrix(), pos, widget.width(), widget.height());
 }
 
-osg::Vec3f CSVRender::InstanceMode::getProjectionSpaceCoords(const osg::Vec3f& pos)
+vsg::vec3 CSVRender::InstanceMode::getProjectionSpaceCoords(const vsg::vec3& pos)
 {
-    osg::Matrix viewMatrix = getWorldspaceWidget().getCamera()->getViewMatrix();
-    osg::Matrix projMatrix = getWorldspaceWidget().getCamera()->getProjectionMatrix();
-    osg::Matrix combined = viewMatrix * projMatrix;
-
-    return pos * combined;
+    const SceneHost& host = *getWorldspaceWidget().getHost();
+    return InstanceMath::projectionCoords(host.getProjectionMatrix(), host.getViewMatrix(), pos);
 }
 
-osg::Vec3f CSVRender::InstanceMode::getMousePlaneCoords(const QPoint& point, const osg::Vec3d& dragStart)
+vsg::vec3 CSVRender::InstanceMode::getMousePlaneCoords(const QPoint& point, const vsg::dvec3& dragStart)
 {
-    const osg::Matrix viewMatrix = getWorldspaceWidget().getCamera()->getViewMatrix();
-    const osg::Matrix projMatrix = getWorldspaceWidget().getCamera()->getProjectionMatrix();
-    const osg::Matrix combined = osg::Matrix::inverse(viewMatrix * projMatrix);
-
-    /* calculate viewport normalized coordinates
-       note: is there a reason to use getCamera()->getViewport()->computeWindowMatrix() instead? */
-    const float scale = getWorldspaceWidget().devicePixelRatioF();
-    const osg::Viewport* viewport = getWorldspaceWidget().getCamera()->getViewport();
-    float x = point.x() * scale / viewport->width();
-    float y = point.y() * scale / viewport->height();
-    x = x * 2.0f - 1.0f;
-    y = 1.0f - y * 2.0f;
-
-    osg::Vec3f mousePlanePoint = osg::Vec3f(x, y, dragStart.z()) * combined;
-
-    return mousePlanePoint;
+    const WorldspaceWidget& widget = getWorldspaceWidget();
+    const SceneHost& host = *widget.getHost();
+    return InstanceMath::mousePlaneCoords(host.getProjectionMatrix(), host.getViewMatrix(),
+        static_cast<double>(point.x()) / widget.width(), static_cast<double>(point.y()) / widget.height(), dragStart.z);
 }
 
 void CSVRender::InstanceMode::saveSelectionGroup(const int group)
@@ -204,7 +118,7 @@ void CSVRender::InstanceMode::saveSelectionGroup(const int group)
     if (dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
         groupName += "-ext";
     else
-        groupName += "-" + getWorldspaceWidget().getCellId(osg::Vec3f(0, 0, 0));
+        groupName += "-" + getWorldspaceWidget().getCellId(vsg::vec3(0, 0, 0));
 
     CSMWorld::CreateCommand* newGroup = new CSMWorld::CreateCommand(*mSelectionGroups, groupName);
 
@@ -238,7 +152,7 @@ void CSVRender::InstanceMode::getSelectionGroup(const int group)
     if (dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
         groupName += "-ext";
     else
-        groupName += "-" + getWorldspaceWidget().getCellId(osg::Vec3f(0, 0, 0));
+        groupName += "-" + getWorldspaceWidget().getCellId(vsg::vec3(0, 0, 0));
 
     const QModelIndex groupSearch = mSelectionGroups->getModelIndex(groupName, selectionObjectsIndex);
 
@@ -258,7 +172,7 @@ void CSVRender::InstanceMode::setDragAxis(const char axis)
 {
     int newDragAxis;
 
-    const std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
+    const std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
 
     if (selection.empty())
         return;
@@ -288,7 +202,7 @@ void CSVRender::InstanceMode::setDragAxis(const char axis)
         for (const auto& object : selection)
             if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(object.get()))
             {
-                const osg::Vec3f thisPoint = objectTag->mObject->getPosition().asVec3();
+                const vsg::vec3 thisPoint = objectTag->mObject->getPosition().asVec3();
                 mDragStart = thisPoint;
                 mObjectsAtDragStart.emplace_back(thisPoint);
             }
@@ -315,7 +229,7 @@ QString CSVRender::InstanceMode::getTooltip()
 }
 
 CSVRender::InstanceMode::InstanceMode(
-    WorldspaceWidget* worldspaceWidget, osg::ref_ptr<osg::Group> parentNode, QWidget* parent)
+    WorldspaceWidget* worldspaceWidget, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-instance"),
         Mask_Reference | Mask_Terrain, getTooltip(), parent)
     , mSubMode(nullptr)
@@ -325,7 +239,6 @@ CSVRender::InstanceMode::InstanceMode(
     , mDragAxis(-1)
     , mLocked(false)
     , mUnitScaleDist(1)
-    , mParentNode(std::move(parentNode))
 {
     mSelectionGroups = dynamic_cast<CSMWorld::IdTable*>(
         worldspaceWidget->getDocument().getData().getTableModel(CSMWorld::UniversalId::Type_SelectionGroup));
@@ -412,7 +325,7 @@ void CSVRender::InstanceMode::activate(CSVWidget::SceneToolbar* toolbar)
     }
 
     if (!mSelectionMode)
-        mSelectionMode = new InstanceSelectionMode(toolbar, getWorldspaceWidget(), mParentNode);
+        mSelectionMode = new InstanceSelectionMode(toolbar, getWorldspaceWidget());
 
     mDragMode = DragMode_None;
 
@@ -546,7 +459,7 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
 
     WorldspaceHitResult hit = worldspaceWidget.mousePick(pos, worldspaceWidget.getInteractionMask());
 
-    std::vector<osg::ref_ptr<TagBase>> selection = worldspaceWidget.getSelection(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = worldspaceWidget.getSelection(Mask_Reference);
     if (selection.empty())
     {
         // Only change selection at the start of drag if no object is already selected
@@ -568,18 +481,15 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (std::vector<vsg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
         {
             if (mSubModeId == "move")
             {
                 objectTag->mObject->setEdited(Object::Override_Position);
-                float x = objectTag->mObject->getPosition().pos[0];
-                float y = objectTag->mObject->getPosition().pos[1];
-                float z = objectTag->mObject->getPosition().pos[2];
-                osg::Vec3f thisPoint(x, y, z);
-                mDragStart = getMousePlaneCoords(pos, getProjectionSpaceCoords(thisPoint));
+                const vsg::vec3 thisPoint = objectTag->mObject->getPosition().asVec3();
+                mDragStart = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(thisPoint)));
                 mObjectsAtDragStart.emplace_back(thisPoint);
                 mDragMode = DragMode_Move;
             }
@@ -594,13 +504,13 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
                 mDragMode = DragMode_Scale;
 
                 // Calculate scale factor
-                std::vector<osg::ref_ptr<TagBase>> editedSelection = getWorldspaceWidget().getEdited(Mask_Reference);
-                osg::Vec3f center = getScreenCoords(getSelectionCenter(editedSelection));
+                std::vector<vsg::ref_ptr<TagBase>> editedSelection = getWorldspaceWidget().getEdited(Mask_Reference);
+                vsg::vec3 center = getScreenCoords(getSelectionCenter(editedSelection));
 
                 int widgetHeight = getWorldspaceWidget().height();
 
-                float dx = pos.x() - center.x();
-                float dy = (widgetHeight - pos.y()) - center.y();
+                float dx = pos.x() - center.x;
+                float dy = (widgetHeight - pos.y()) - center.y;
 
                 mUnitScaleDist = std::sqrt(dx * dx + dy * dy);
             }
@@ -626,7 +536,7 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
 
     WorldspaceHitResult hit = worldspaceWidget.mousePick(pos, worldspaceWidget.getInteractionMask());
 
-    std::vector<osg::ref_ptr<TagBase>> selection = worldspaceWidget.getSelection(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = worldspaceWidget.getSelection(Mask_Reference);
     if (selection.empty())
     {
         // Only change selection at the start of drag if no object is already selected
@@ -648,19 +558,16 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (std::vector<vsg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
         {
             if (mSubModeId == "move")
             {
                 objectTag->mObject->setEdited(Object::Override_Position);
-                float x = objectTag->mObject->getPosition().pos[0];
-                float y = objectTag->mObject->getPosition().pos[1];
-                float z = objectTag->mObject->getPosition().pos[2];
-                osg::Vec3f thisPoint(x, y, z);
+                const vsg::vec3 thisPoint = objectTag->mObject->getPosition().asVec3();
 
-                mDragStart = getMousePlaneCoords(pos, getProjectionSpaceCoords(thisPoint));
+                mDragStart = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(thisPoint)));
                 mObjectsAtDragStart.emplace_back(thisPoint);
                 mDragMode = DragMode_Move_Snap;
             }
@@ -675,13 +582,13 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
                 mDragMode = DragMode_Scale_Snap;
 
                 // Calculate scale factor
-                std::vector<osg::ref_ptr<TagBase>> editedSelection = worldspaceWidget.getEdited(Mask_Reference);
-                osg::Vec3f center = getScreenCoords(getSelectionCenter(editedSelection));
+                std::vector<vsg::ref_ptr<TagBase>> editedSelection = worldspaceWidget.getEdited(Mask_Reference);
+                vsg::vec3 center = getScreenCoords(getSelectionCenter(editedSelection));
 
                 int widgetHeight = worldspaceWidget.height();
 
-                float dx = pos.x() - center.x();
-                float dy = (widgetHeight - pos.y()) - center.y();
+                float dx = pos.x() - center.x;
+                float dy = (widgetHeight - pos.y()) - center.y;
 
                 mUnitScaleDist = std::sqrt(dx * dx + dy * dy);
             }
@@ -744,10 +651,10 @@ bool CSVRender::InstanceMode::secondarySelectStartDrag(const QPoint& pos)
 
 void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, double speedFactor)
 {
-    osg::Vec3f offset;
-    osg::Quat rotation;
+    vsg::vec3 offset;
+    vsg::dquat rotation;
 
-    std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
     auto* snapTarget = dynamic_cast<CSVRender::ObjectTag*>(getWorldspaceWidget().getSnapTarget(Mask_Reference).get());
 
     if (mDragMode == DragMode_Move || mDragMode == DragMode_Move_Snap)
@@ -755,30 +662,29 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
     }
     else if (mDragMode == DragMode_Rotate || mDragMode == DragMode_Rotate_Snap)
     {
-        osg::Vec3f eye, centre, up;
-        getWorldspaceWidget().getCamera()->getViewMatrix().getLookAt(eye, centre, up);
+        const SceneHost& host = *getWorldspaceWidget().getHost();
+        const vsg::dvec3 eye = host.getCameraEye();
+        const vsg::dvec3 centre = host.getCameraCenter();
 
         float angle;
-        osg::Vec3f axis;
+        vsg::dvec3 axis;
 
         if (mDragAxis == -1)
         {
             // Free rotate
             float rotationFactor = CSMPrefs::get()["3D Scene Input"]["rotate-factor"].toDouble() * speedFactor;
 
-            osg::Quat cameraRotation = getWorldspaceWidget().getCamera()->getInverseViewMatrix().getRotate();
+            const vsg::dvec3 camForward = centre - eye;
+            vsg::dvec3 screenDir = CameraPose::eyeToWorldDirection(host.getViewMatrix(), vsg::dvec3(diffX, diffY, 0));
+            Misc::VsgMath::normalizeInPlace(screenDir);
 
-            osg::Vec3f camForward = centre - eye;
-            osg::Vec3f screenDir = cameraRotation * osg::Vec3f(diffX, diffY, 0);
-            screenDir.normalize();
-
-            angle = std::sqrt(diffX * diffX + diffY * diffY) * rotationFactor;
-            axis = screenDir ^ camForward;
+            angle = static_cast<float>(std::sqrt(diffX * diffX + diffY * diffY) * rotationFactor);
+            axis = vsg::cross(screenDir, camForward);
         }
         else
         {
             // Global axis rotation
-            osg::Vec3f camBack = eye - centre;
+            const vsg::dvec3 camBack = eye - centre;
 
             for (int i = 0; i < 3; ++i)
             {
@@ -789,90 +695,86 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
             }
 
             // Flip axis if facing opposite side
-            if (camBack * axis < 0)
-                axis *= -1;
+            if (vsg::dot(camBack, axis) < 0)
+                axis = axis * -1.0;
 
             // Convert coordinate system
-            osg::Vec3f screenCenter = getScreenCoords(getSelectionCenter(selection));
+            const vsg::vec3 screenCenter = getScreenCoords(getSelectionCenter(selection));
 
             int widgetHeight = getWorldspaceWidget().height();
 
-            float newX = pos.x() - screenCenter.x();
-            float newY = (widgetHeight - pos.y()) - screenCenter.y();
+            float newX = pos.x() - screenCenter.x;
+            float newY = (widgetHeight - pos.y()) - screenCenter.y;
 
             float oldX = newX - diffX;
             float oldY = newY - diffY; // diffY appears to already be flipped
 
-            osg::Vec3f oldVec = osg::Vec3f(oldX, oldY, 0);
-            if (oldVec.length2() != 0.0f)
-                oldVec.normalize();
+            vsg::vec3 oldVec(oldX, oldY, 0);
+            Misc::VsgMath::normalizeInPlace(oldVec);
 
-            osg::Vec3f newVec = osg::Vec3f(newX, newY, 0);
-            if (newVec.length2() != 0.0f)
-                newVec.normalize();
+            vsg::vec3 newVec(newX, newY, 0);
+            Misc::VsgMath::normalizeInPlace(newVec);
 
             // Find angle and axis of rotation
-            angle = std::acos(std::clamp(oldVec * newVec, -1.0f, 1.0f)) * speedFactor;
-            if (((oldVec ^ newVec) * camBack < 0) ^ (camBack.z() < 0))
+            angle = static_cast<float>(std::acos(std::clamp(vsg::dot(oldVec, newVec), -1.0f, 1.0f)) * speedFactor);
+            if ((vsg::dot(vsg::dvec3(vsg::cross(oldVec, newVec)), camBack) < 0) ^ (camBack.z < 0))
                 angle *= -1;
         }
 
-        rotation = osg::Quat(angle, axis);
-        if (rotation != rotation)
-            rotation = osg::Quat(); // NaN flush
+        rotation = Misc::VsgMath::makeRotateFromAxis(angle, axis);
+        if (std::isnan(rotation.x) || std::isnan(rotation.y) || std::isnan(rotation.z) || std::isnan(rotation.w))
+            rotation = vsg::dquat(); // NaN flush
     }
     else if (mDragMode == DragMode_Scale || mDragMode == DragMode_Scale_Snap)
     {
-        osg::Vec3f center = getScreenCoords(getSelectionCenter(selection));
+        vsg::vec3 center = getScreenCoords(getSelectionCenter(selection));
 
         // Calculate scaling distance/rate
         int widgetHeight = getWorldspaceWidget().height();
 
-        float dx = pos.x() - center.x();
-        float dy = (widgetHeight - pos.y()) - center.y();
+        float dx = pos.x() - center.x;
+        float dy = (widgetHeight - pos.y()) - center.y;
 
         float dist = std::sqrt(dx * dx + dy * dy);
         float scale = dist / mUnitScaleDist;
 
         // Only uniform scaling is currently supported
-        offset = osg::Vec3f(scale, scale, scale);
+        offset = vsg::vec3(scale, scale, scale);
     }
     else if (mSelectionMode->getCurrentId() == "cube-centre")
     {
-        osg::Vec3f mousePlanePoint = getMousePlaneCoords(pos, getProjectionSpaceCoords(mSelectionMode->getDragStart()));
+        const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
         mSelectionMode->drawSelectionCubeCentre(mousePlanePoint);
         return;
     }
     else if (mSelectionMode->getCurrentId() == "cube-corner")
     {
-        osg::Vec3f mousePlanePoint = getMousePlaneCoords(pos, getProjectionSpaceCoords(mSelectionMode->getDragStart()));
+        const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
         mSelectionMode->drawSelectionCubeCorner(mousePlanePoint);
         return;
     }
     else if (mSelectionMode->getCurrentId() == "sphere")
     {
-        osg::Vec3f mousePlanePoint = getMousePlaneCoords(pos, getProjectionSpaceCoords(mSelectionMode->getDragStart()));
+        const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
         mSelectionMode->drawSelectionSphere(mousePlanePoint);
         return;
     }
 
-    auto eulerToMat = [&](osg::Vec3 euler) { return osg::Matrixf(eulerToQuat(euler)); };
-    auto matToEuler = [&](const osg::Matrixf& matrix) { return quatToEuler(matrix.getRotate()); };
 
     // Multiselect rotation needs to be applied to transform matrixes, not angles,
     //  and we need them to have a collective center.
     // For the sake of consistency we take the average of each origin in the selection.
     // This is invariant under rotation and reselection, so it's predictable to the user.
-    osg::Vec3 center;
+    vsg::vec3 center(0, 0, 0);
     float numCenters = 0.0f;
     for (auto& item : selection)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(item.get()))
         {
             ESM::Position position = objectTag->mObject->getPosition();
-            center.x() += position.pos[0];
-            center.y() += position.pos[1];
-            center.z() += position.pos[2];
+            center.x += position.pos[0];
+            center.y += position.pos[1];
+            center.z += position.pos[2];
             numCenters += 1.0f;
         }
     }
@@ -888,13 +790,13 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
             if (mDragMode == DragMode_Move || mDragMode == DragMode_Move_Snap)
             {
                 ESM::Position position = objectTag->mObject->getPosition();
-                osg::Vec3f mousePos = getMousePlaneCoords(pos, getProjectionSpaceCoords(mDragStart));
-                float addToX = mousePos.x() - mDragStart.x();
-                float addToY = mousePos.y() - mDragStart.y();
-                float addToZ = mousePos.z() - mDragStart.z();
-                position.pos[0] = mObjectsAtDragStart[i].x() + addToX;
-                position.pos[1] = mObjectsAtDragStart[i].y() + addToY;
-                position.pos[2] = mObjectsAtDragStart[i].z() + addToZ;
+                const vsg::vec3 mousePos = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(mDragStart)));
+                const float addToX = mousePos.x - mDragStart.x;
+                const float addToY = mousePos.y - mDragStart.y;
+                const float addToZ = mousePos.z - mDragStart.z;
+                position.pos[0] = mObjectsAtDragStart[i].x + addToX;
+                position.pos[1] = mObjectsAtDragStart[i].y + addToY;
+                position.pos[2] = mObjectsAtDragStart[i].z + addToZ;
 
                 if (mDragMode == DragMode_Move_Snap)
                 {
@@ -902,10 +804,10 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
 
                     if (snapTarget)
                     {
-                        osg::Vec3 translation(addToX, addToY, addToZ);
+                        const vsg::vec3 translation(addToX, addToY, addToZ);
 
                         auto snapTargetPosition = snapTarget->mObject->getPosition();
-                        auto newPosition = calculateSnapPositionRelativeToTarget(mObjectsAtDragStart[i],
+                        auto newPosition = InstanceMath::snapRelativeToTarget(mObjectsAtDragStart[i],
                             snapTargetPosition.asVec3(), snapTargetPosition.asRotationVec3(), translation, snap);
 
                         position.pos[0] = newPosition[0];
@@ -914,9 +816,9 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                     }
                     else
                     {
-                        position.pos[0] = CSVRender::InstanceMode::roundFloatToMult(position.pos[0], snap);
-                        position.pos[1] = CSVRender::InstanceMode::roundFloatToMult(position.pos[1], snap);
-                        position.pos[2] = CSVRender::InstanceMode::roundFloatToMult(position.pos[2], snap);
+                        position.pos[0] = InstanceMath::roundToMult(position.pos[0], snap);
+                        position.pos[1] = InstanceMath::roundToMult(position.pos[1], snap);
+                        position.pos[2] = InstanceMath::roundToMult(position.pos[2], snap);
                     }
                 }
 
@@ -939,16 +841,16 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 {
                     ESM::Position position = objectTag->mObject->getPosition();
 
-                    osg::Quat currentRot = eulerToQuat(osg::Vec3f(position.rot[0], position.rot[1], position.rot[2]));
-                    osg::Quat combined = currentRot * rotation;
+                    const vsg::dquat currentRot = InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]));
+                    const vsg::dquat combined = currentRot * rotation;
 
-                    osg::Vec3f euler = quatToEuler(combined);
+                    const vsg::vec3 euler = InstanceMath::quatToEuler(combined);
                     // There appears to be a very rare rounding error that can cause asin to return NaN
-                    if (!euler.isNaN())
+                    if (!Misc::VsgMath::isNaN(euler))
                     {
-                        position.rot[0] = euler.x();
-                        position.rot[1] = euler.y();
-                        position.rot[2] = euler.z();
+                        position.rot[0] = euler.x;
+                        position.rot[1] = euler.y;
+                        position.rot[2] = euler.z;
                     }
 
                     objectTag->mObject->setRotation(position.rot);
@@ -958,25 +860,17 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                     // Used both as a read and as a write.
                     ESM::Position position = objectTag->mObject->getPosition();
 
-                    // Group rotation needs to be able to move objects relative to each other,
-                    //  so we work on localized transforms. For rotation, we can ignore scale.
-                    osg::Vec3 mypos = osg::Vec3(position.pos[0], position.pos[1], position.pos[2]);
-                    osg::Vec3 myrot = osg::Vec3(position.rot[0], position.rot[1], position.rot[2]);
+                    // Group rotation needs to be able to move objects relative to each other.
+                    vsg::vec3 newPosition(position.pos[0], position.pos[1], position.pos[2]);
+                    vsg::vec3 euler(position.rot[0], position.rot[1], position.rot[2]);
+                    InstanceMath::rotateAroundCentre(newPosition, euler, center, rotation);
 
-                    osg::Matrix matrix = osg::Matrixf::identity();
-                    matrix *= eulerToMat(myrot);
-                    matrix *= osg::Matrixf::translate(mypos - center);
-
-                    osg::Matrixf newxform = matrix * osg::Matrixf(rotation);
-                    osg::Vec3f euler = matToEuler(osg::Matrixf::orthoNormal(newxform));
-                    osg::Vec3f newpos = newxform.getTrans() + center;
-
-                    position.rot[0] = euler.x();
-                    position.rot[1] = euler.y();
-                    position.rot[2] = euler.z();
-                    position.pos[0] = newpos.x();
-                    position.pos[1] = newpos.y();
-                    position.pos[2] = newpos.z();
+                    position.rot[0] = euler.x;
+                    position.rot[1] = euler.y;
+                    position.rot[2] = euler.z;
+                    position.pos[0] = newPosition.x;
+                    position.pos[1] = newPosition.y;
+                    position.pos[2] = newPosition.z;
                     objectTag->mObject->setPosition(position.pos);
                     objectTag->mObject->setRotation(position.rot);
                 }
@@ -988,11 +882,11 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 objectTag->mObject->setEdited(Object::Override_Scale);
 
                 float scale = objectTag->mObject->getScale();
-                scale *= offset.x();
+                scale *= offset.x;
 
                 if (mDragMode == DragMode_Scale_Snap)
                 {
-                    scale = CSVRender::InstanceMode::roundFloatToMult(
+                    scale = InstanceMath::roundToMult(
                         scale, CSMPrefs::get()["3D Scene Editing"]["gridsnap-scale"].toDouble());
                 }
 
@@ -1005,7 +899,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
 
 void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
 
     auto* snapTarget = dynamic_cast<CSVRender::ObjectTag*>(getWorldspaceWidget().getSnapTarget(Mask_Reference).get());
 
@@ -1056,7 +950,7 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
     CSMWorld::CommandMacro macro(undoStack, description);
 
     // Is this even supposed to be here?
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (std::vector<vsg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
         {
@@ -1075,18 +969,18 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
                     auto rotation = snapTargetPosition.rot;
                     if (rotation)
                     {
-                        xOffset = remainder(rotation[0], osg::DegreesToRadians(snap));
-                        yOffset = remainder(rotation[1], osg::DegreesToRadians(snap));
-                        zOffset = remainder(rotation[2], osg::DegreesToRadians(snap));
+                        xOffset = remainder(rotation[0], Misc::VsgMath::inDegrees(snap));
+                        yOffset = remainder(rotation[1], Misc::VsgMath::inDegrees(snap));
+                        zOffset = remainder(rotation[2], Misc::VsgMath::inDegrees(snap));
                     }
                 }
 
                 position.rot[0]
-                    = CSVRender::InstanceMode::roundFloatToMult(position.rot[0], osg::DegreesToRadians(snap)) + xOffset;
+                    = InstanceMath::roundToMult(position.rot[0], Misc::VsgMath::inDegrees(snap)) + xOffset;
                 position.rot[1]
-                    = CSVRender::InstanceMode::roundFloatToMult(position.rot[1], osg::DegreesToRadians(snap)) + yOffset;
+                    = InstanceMath::roundToMult(position.rot[1], Misc::VsgMath::inDegrees(snap)) + yOffset;
                 position.rot[2]
-                    = CSVRender::InstanceMode::roundFloatToMult(position.rot[2], osg::DegreesToRadians(snap)) + zOffset;
+                    = InstanceMath::roundToMult(position.rot[2], Misc::VsgMath::inDegrees(snap)) + zOffset;
 
                 objectTag->mObject->setRotation(position.rot);
             }
@@ -1109,23 +1003,18 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 {
     if (mDragMode == DragMode_Move || mDragMode == DragMode_Move_Snap)
     {
-        osg::Vec3f eye;
-        osg::Vec3f centre;
-        osg::Vec3f up;
+        const SceneHost& host = *getWorldspaceWidget().getHost();
+        vsg::vec3 offset(host.getCameraCenter() - host.getCameraEye());
+        Misc::VsgMath::normalizeInPlace(offset);
+        offset = offset * static_cast<float>(diff * speedFactor);
 
-        getWorldspaceWidget().getCamera()->getViewMatrix().getLookAt(eye, centre, up);
-
-        osg::Vec3f offset = centre - eye;
-        offset.normalize();
-        offset *= diff * speedFactor;
-
-        std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
+        std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
         auto snapTarget
             = dynamic_cast<CSVRender::ObjectTag*>(getWorldspaceWidget().getSnapTarget(Mask_Reference).get());
 
         int j = 0;
 
-        for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter, j++)
+        for (std::vector<vsg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter, j++)
         {
             if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
             {
@@ -1140,10 +1029,10 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
                     if (snapTarget)
                     {
-                        osg::Vec3 translation(snap, snap, snap);
+                        const vsg::vec3 translation(static_cast<float>(snap), static_cast<float>(snap), static_cast<float>(snap));
 
                         auto snapTargetPosition = snapTarget->mObject->getPosition();
-                        auto newPosition = calculateSnapPositionRelativeToTarget(preMovedObjectPosition,
+                        auto newPosition = InstanceMath::snapRelativeToTarget(preMovedObjectPosition,
                             snapTargetPosition.asVec3(), snapTargetPosition.asRotationVec3(), translation, snap);
 
                         position.pos[0] = newPosition[0];
@@ -1152,16 +1041,16 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
                     }
                     else
                     {
-                        position.pos[0] = CSVRender::InstanceMode::roundFloatToMult(position.pos[0], snap);
-                        position.pos[1] = CSVRender::InstanceMode::roundFloatToMult(position.pos[1], snap);
-                        position.pos[2] = CSVRender::InstanceMode::roundFloatToMult(position.pos[2], snap);
+                        position.pos[0] = InstanceMath::roundToMult(position.pos[0], snap);
+                        position.pos[1] = InstanceMath::roundToMult(position.pos[1], snap);
+                        position.pos[2] = InstanceMath::roundToMult(position.pos[2], snap);
                     }
                 }
 
                 objectTag->mObject->setPosition(position.pos);
-                osg::Vec3f thisPoint(position.pos[0], position.pos[1], position.pos[2]);
+                const vsg::vec3 thisPoint(position.pos[0], position.pos[1], position.pos[2]);
                 mDragStart = getMousePlaneCoords(
-                    getWorldspaceWidget().mapFromGlobal(QCursor::pos()), getProjectionSpaceCoords(thisPoint));
+                    getWorldspaceWidget().mapFromGlobal(QCursor::pos()), vsg::dvec3(getProjectionSpaceCoords(thisPoint)));
                 mObjectsAtDragStart[j] = thisPoint;
             }
         }
@@ -1192,7 +1081,7 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
         WorldspaceHitResult hit
             = getWorldspaceWidget().mousePick(event->position().toPoint(), getWorldspaceWidget().getInteractionMask());
 
-        std::string cellId = getWorldspaceWidget().getCellId(hit.worldPos);
+        std::string cellId = getWorldspaceWidget().getCellId(vsg::vec3(hit.worldPos));
 
         CSMWorld::IdTree& cellTable
             = dynamic_cast<CSMWorld::IdTree&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Cells));
@@ -1263,11 +1152,11 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
                 createCommand->addValue(referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell),
                     QString::fromUtf8(cellId.c_str()));
                 createCommand->addValue(
-                    referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionXPos), hit.worldPos.x());
+                    referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionXPos), hit.worldPos.x);
                 createCommand->addValue(
-                    referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionYPos), hit.worldPos.y());
+                    referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionYPos), hit.worldPos.y);
                 createCommand->addValue(
-                    referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionZPos), hit.worldPos.z());
+                    referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionZPos), hit.worldPos.z);
                 createCommand->addValue(referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId),
                     QString::fromUtf8(iter->getId().c_str()));
 
@@ -1295,14 +1184,14 @@ void CSVRender::InstanceMode::subModeChanged(const std::string& id)
 
 void CSVRender::InstanceMode::handleSelectDrag(const QPoint& pos)
 {
-    osg::Vec3f mousePlanePoint = getMousePlaneCoords(pos, getProjectionSpaceCoords(mSelectionMode->getDragStart()));
-    mSelectionMode->dragEnded(mousePlanePoint, mDragMode);
+    const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
+    mSelectionMode->dragEnded(vsg::dvec3(mousePlanePoint), mDragMode);
     mDragMode = DragMode_None;
 }
 
 void CSVRender::InstanceMode::deleteSelectedInstances()
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
     if (selection.empty())
         return;
 
@@ -1312,7 +1201,7 @@ void CSVRender::InstanceMode::deleteSelectedInstances()
     QUndoStack& undoStack = document.getUndoStack();
 
     CSMWorld::CommandMacro macro(undoStack, "Delete Instances");
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (vsg::ref_ptr<TagBase> tag : selection)
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
             macro.push(new CSMWorld::DeleteCommand(referencesTable, objectTag->mObject->getReferenceId()));
 
@@ -1321,7 +1210,7 @@ void CSVRender::InstanceMode::deleteSelectedInstances()
 
 void CSVRender::InstanceMode::cloneSelectedInstances()
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
     if (selection.empty())
         return;
 
@@ -1331,7 +1220,7 @@ void CSVRender::InstanceMode::cloneSelectedInstances()
     QUndoStack& undoStack = document.getUndoStack();
 
     CSMWorld::CommandMacro macro(undoStack, "Clone Instances");
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (vsg::ref_ptr<TagBase> tag : selection)
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             macro.push(new CSMWorld::CloneCommand(referencesTable, objectTag->mObject->getReferenceId(),
@@ -1349,28 +1238,19 @@ void CSVRender::InstanceMode::dropInstance(CSVRender::Object* object, float drop
 
 float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, float objectHeight)
 {
-    osg::Vec3d point = object->getPosition().asVec3();
+    const vsg::dvec3 point(object->getPosition().asVec3());
 
-    osg::Vec3d start = point;
-    start.z() += objectHeight;
-    osg::Vec3d end = point;
-    end.z() = std::numeric_limits<float>::lowest();
+    vsg::dvec3 start = point;
+    start.z += objectHeight;
+    vsg::dvec3 end = point;
+    end.z = std::numeric_limits<float>::lowest();
 
-    osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector(
-        new osgUtil::LineSegmentIntersector(osgUtil::Intersector::MODEL, start, end));
-    intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::NO_LIMIT);
-    osgUtil::IntersectionVisitor visitor(intersector);
-
-    visitor.setTraversalMask(Mask_Terrain | Mask_Reference);
-
-    mParentNode->accept(visitor);
-
-    osgUtil::LineSegmentIntersector::Intersections::iterator it = intersector->getIntersections().begin();
-    if (it != intersector->getIntersections().end())
+    vsg::dvec3 hit;
+    if (Picking::pickNearest(getWorldspaceWidget().getHost()->contentRoot(), Picking::Ray{ start, end },
+            vsg::Mask(Mask_Terrain | Mask_Reference), hit))
     {
-        osgUtil::LineSegmentIntersector::Intersection intersection = *it;
-        float collisionLevel = intersection.getWorldIntersectPoint().z();
-        return point.z() - collisionLevel + objectHeight;
+        const float collisionLevel = static_cast<float>(hit.z);
+        return static_cast<float>(point.z) - collisionLevel + objectHeight;
     }
 
     return 0.0f;
@@ -1378,7 +1258,7 @@ float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, fl
 
 void CSVRender::InstanceMode::dropToCollision()
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
+    std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
     if (selection.empty())
         return;
 
@@ -1390,7 +1270,7 @@ void CSVRender::InstanceMode::dropToCollision()
     DropObjectHeightHandler dropObjectDataHandler(&getWorldspaceWidget());
 
     int counter = 0;
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (vsg::ref_ptr<TagBase> tag : selection)
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             float objectHeight = dropObjectDataHandler.mObjectHeights[counter++];
@@ -1403,41 +1283,27 @@ void CSVRender::InstanceMode::dropToCollision()
 CSVRender::DropObjectHeightHandler::DropObjectHeightHandler(WorldspaceWidget* worldspacewidget)
     : mWorldspaceWidget(worldspacewidget)
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
-    for (osg::ref_ptr<TagBase> tag : selection)
+    mWorldspaceWidget->getSelectionMarker()->setSuppressed(true);
+    std::vector<vsg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
+    for (vsg::ref_ptr<TagBase> tag : selection)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
-            osg::ref_ptr<osg::Group> objectNodeWithGUI = objectTag->mObject->getRootNode();
-            osg::ref_ptr<osg::Group> objectNodeWithoutGUI = objectTag->mObject->getBaseNode();
-
-            osg::ComputeBoundsVisitor computeBounds;
-            computeBounds.setTraversalMask(Mask_Reference);
-            objectNodeWithoutGUI->accept(computeBounds);
-            osg::BoundingBox bounds = computeBounds.getBoundingBox();
-            float boundingBoxOffset = 0.0f;
-            if (bounds.valid())
-                boundingBoxOffset = bounds.zMin();
-
-            mObjectHeights.emplace_back(boundingBoxOffset);
-            mOldMasks.emplace_back(objectNodeWithGUI->getNodeMask());
-
-            objectNodeWithGUI->setNodeMask(0);
+            mObjectHeights.emplace_back(objectTag->mObject->getBottomOffset());
+            mHidden.emplace_back(objectTag->mObject->isHidden());
+            objectTag->mObject->setHidden(true);
         }
     }
 }
 
 CSVRender::DropObjectHeightHandler::~DropObjectHeightHandler()
 {
-    std::vector<osg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
-    int counter = 0;
-    for (osg::ref_ptr<TagBase> tag : selection)
+    std::vector<vsg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
+    std::size_t counter = 0;
+    for (vsg::ref_ptr<TagBase> tag : selection)
     {
         if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
-        {
-            osg::ref_ptr<osg::Group> objectNodeWithGUI = objectTag->mObject->getRootNode();
-            objectNodeWithGUI->setNodeMask(mOldMasks[counter]);
-            counter++;
-        }
+            objectTag->mObject->setHidden(mHidden[counter++]);
     }
+    mWorldspaceWidget->getSelectionMarker()->setSuppressed(false);
 }

@@ -27,6 +27,7 @@
 #include "instancedragmodes.hpp"
 #include "mask.hpp"
 #include "object.hpp"
+#include "objectmarker.hpp"
 #include "scenehost.hpp"
 #include "worldspacewidget.hpp"
 
@@ -637,7 +638,8 @@ void CSVRender::Cell::selectFromGroup(const std::vector<std::string>& group)
 
 void CSVRender::Cell::unhideAll()
 {
-    // Stage C7: nothing can be hidden before then.
+    for (const auto& [_, object] : mObjects)
+        object->setHidden(false);
 }
 
 std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(unsigned int elementMask) const

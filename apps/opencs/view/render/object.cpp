@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <vsg/core/Visitor.h>
+#include <vsg/utils/ComputeBounds.h>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -28,15 +29,25 @@
 #include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/mwanimation/create.hpp>
+#include <components/animation/transform.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/setbin.hpp>
 
 #include "actor.hpp"
+#include "instancemath.hpp"
+#include "colouredgeometry.hpp"
 #include "mask.hpp"
 #include "picking.hpp"
 #include "scenehost.hpp"
+#include "selectionmarkergeometry.hpp"
 
 namespace
 {
+    // A model with nothing to measure still gets a box that can be seen.
+    constexpr float sMinimumOutlineHalfSize = 8.f;
+    const vsg::vec4 sSnapTargetColour(1, 1, 0, 1);
+
     // A model that does not exist comes back as Resource::Fallback's stand-in, as the error cube of the OSG editor stood in.
     const std::string sMissingModel = "marker_error.nif";
 
@@ -136,9 +147,11 @@ void CSVRender::Object::update(bool compile)
     for (auto& child : mRootNode->children)
         mHost.compileContext()->detach(child.node);
     mRootNode->children.clear();
+    mOutline = nullptr;
     mAnimation = std::move(animation);
     if (mAnimation)
         mRootNode->addChild(vsg::MASK_ALL, mAnimation->node());
+    updateOutline();
     mNightDayApply = false;
     adjustTransform();
 }
@@ -179,10 +192,10 @@ void CSVRender::Object::adjustTransform()
     auto* transform = mAnimation->transform();
 
     transform->translation = mForceBaseToZero ? vsg::vec3() : vsg::vec3(position.pos[0], position.pos[1], position.pos[2]);
-    // As apps/openmw/mwworld/scene.cpp's makeInversedOrderObjectOsgQuat, which is the OSG editor's zr * yr * xr.
-    transform->setAttitude(vsg::quat(Misc::VsgMath::makeRotateFromAxis(position.rot[0], vsg::vec3(-1, 0, 0))
-        * Misc::VsgMath::makeRotateFromAxis(position.rot[1], vsg::vec3(0, -1, 0))
-        * Misc::VsgMath::makeRotateFromAxis(position.rot[2], vsg::vec3(0, 0, -1))));
+    // The OSG editor's zr * yr * xr, which InstanceMath's rotation tool assumes. The game's objects take the other order
+    // (apps/openmw/mwworld/scene.cpp, makeInversedOrderObjectOsgQuat), so an object tilted on two axes looks different here, as
+    // it did in the OSG editor (task 0014, C7).
+    transform->setAttitude(vsg::quat(InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]))));
     const vsg::vec3 actorScale = mActor ? mActor->getScale() : vsg::vec3(1.f, 1.f, 1.f);
     const float scale = getScale();
     transform->scale = actorScale * scale;
@@ -234,13 +247,62 @@ CSVRender::Object::~Object()
     mHost.compileContext()->detach(mRootNode);
 }
 
+void CSVRender::Object::updateOutline()
+{
+    if (!mAnimation)
+        return;
+    auto* transform = mAnimation->transform();
+    if (mOutline)
+    {
+        auto& children = transform->children;
+        children.erase(std::remove(children.begin(), children.end(), mOutline), children.end());
+        mHost.compileContext()->detach(mOutline);
+        mOutline = nullptr;
+    }
+    if (mSelected || mSnapTarget)
+    {
+        vsg::ComputeBounds bounds;
+        bounds.useNodeBounds = false;
+        for (auto& child : transform->children)
+            child->accept(bounds);
+        vsg::vec3 min(-sMinimumOutlineHalfSize, -sMinimumOutlineHalfSize, -sMinimumOutlineHalfSize);
+        vsg::vec3 max(sMinimumOutlineHalfSize, sMinimumOutlineHalfSize, sMinimumOutlineHalfSize);
+        if (bounds.bounds.valid())
+        {
+            min = vsg::vec3(bounds.bounds.min);
+            max = vsg::vec3(bounds.bounds.max);
+        }
+        const auto lines = SelectionMarkerGeometry::boxLines(min, max);
+        auto vertices = vsg::vec3Array::create(static_cast<uint32_t>(lines.size()));
+        std::copy(lines.begin(), lines.end(), vertices->begin());
+        auto colours = vsg::vec4Array::create(static_cast<uint32_t>(lines.size()), mOutlineColour);
+
+        ColouredOptions options;
+        options.mNoDepth = true;
+        options.mPickable = false;
+        mOutline = vsgUtil::createBinSetter(SceneHost::sBinOverlay,
+            createColouredGeometry(*mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vertices, colours,
+                vsg::ref_ptr<vsg::Data>(), options));
+        mHost.compileContext()->compile(mOutline);
+        transform->addChild(mOutline);
+    }
+    mHost.requestRedraw();
+}
+
 void CSVRender::Object::setSelected(bool selected, const vsg::vec4& color)
 {
+    const bool changed = selected != mSelected || (selected && (color.r != mOutlineColour.r || color.g != mOutlineColour.g || color.b != mOutlineColour.b));
     mSelected = selected;
 
     if (mSnapTarget)
     {
         setSnapTarget(false);
+    }
+
+    if (changed)
+    {
+        mOutlineColour = color;
+        updateOutline();
     }
 }
 
@@ -257,6 +319,9 @@ void CSVRender::Object::setSnapTarget(bool isSnapTarget)
     {
         setSelected(false);
     }
+
+    mOutlineColour = sSnapTargetColour;
+    updateOutline();
 }
 
 bool CSVRender::Object::getSnapTarget() const
@@ -267,6 +332,28 @@ bool CSVRender::Object::getSnapTarget() const
 vsg::ref_ptr<vsg::Switch> CSVRender::Object::getRootNode()
 {
     return mRootNode;
+}
+
+void CSVRender::Object::setHidden(bool hidden)
+{
+    mHidden = hidden;
+    mRootNode->children[0].mask = hidden ? vsg::MASK_OFF : vsg::MASK_ALL;
+    mHost.requestRedraw();
+}
+
+float CSVRender::Object::getBottomOffset()
+{
+    if (!mAnimation)
+        return 0.f;
+    const ESM::Position position = getPosition();
+    vsg::ComputeBounds bounds;
+    bounds.useNodeBounds = false;
+    bounds.matrixStack.emplace_back(vsg::rotate(vsg::dquat(InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]))))
+        * vsg::scale(static_cast<double>(getScale())));
+    for (auto& child : mAnimation->transform()->children)
+        if (child != mOutline)
+            child->accept(bounds);
+    return bounds.bounds.valid() ? static_cast<float>(bounds.bounds.min.z) : 0.f;
 }
 
 bool CSVRender::Object::referenceableDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)

@@ -92,6 +92,9 @@ namespace CSVRender
         bool mNightDayApply = false;
         bool mSelected{ false };
         bool mSnapTarget{ false };
+        bool mHidden{ false };
+        vsg::vec4 mOutlineColour{ 1, 1, 1, 1 };
+        vsg::ref_ptr<vsg::Node> mOutline;
         vsg::Group& mParentNode;
         bool mForceBaseToZero;
         ESM::Position mPositionOverride;
@@ -107,6 +110,9 @@ namespace CSVRender
         /// Update model
         /// \param compile whether the root is in a view already, so that what it replaces must be compiled here.
         void update(bool compile);
+
+        /// The box that marks a selected object, or none.
+        void updateOutline();
 
         /// Adjust position, orientation and scale
         void adjustTransform();
@@ -129,7 +135,7 @@ namespace CSVRender
         /// Has it particles, flickering lights or anything else that plays by itself?
         bool isAnimated() const;
 
-        /// Mark the object as selected. Stage C7 brings back the outline.
+        // Mark the object as selected, which draws a box around it, in this colour.
         void setSelected(bool selected, const vsg::vec4& color = vsg::vec4(1, 1, 1, 1));
 
         bool getSelected() const;
@@ -141,6 +147,14 @@ namespace CSVRender
 
         /// Get object node with GUI graphics
         vsg::ref_ptr<vsg::Switch> getRootNode();
+
+        /// Hidden: not drawn and not hit by rays, until shown again.
+        void setHidden(bool hidden);
+
+        bool isHidden() const { return mHidden; }
+
+        /// How far under its own origin the model reaches, with its rotation and scale, as the drop tool wants it.
+        float getBottomOffset();
 
         /// \return Did this call result in a modification of the visual representation of
         /// this object?

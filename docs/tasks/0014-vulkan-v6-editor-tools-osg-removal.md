@@ -537,3 +537,40 @@ Read by a reviewer, checked here:
 - **The note on yaw's sign:** measured again with `slot naviPrimary 1`. First person `mouse 195 0` moves the centre to +x, a turn to the right, as `setangle z` +17 degrees does; orbit `mouse 300 0` moves the eye from (0, -1000) to (445.3, -895.4) relative to the centre, +0.46 rad about +z, as logged. No wrong sign found, so the note stands but for the pitch correction above.
 
 Not covered by a test: the camera controllers themselves, which need a `SceneHost`.
+
+### C7 Instance mode, selection and object markers (2026-10-31)
+
+`instancemode`, `instanceselectionmode`, `selectionmode`, `instancemovemode` and `objectmarker` are back in the build. `Object::apply`, the macros and every `CSMWorld::` command are the old code's. The sums moved to `instancemath.hpp` and the gizmo's shape to `selectionmarkergeometry.hpp`, both with no window, tested by `testinstancemath.cpp` and `testselectionmarker.cpp` (24 cases, written first).
+
+**Choice for toddhow to overrule: the selection highlight is a white box of lines** around the model's bounds, turning and scaling with the object, drawn over everything: magenta for a selection group, yellow for a snap target, the old colours. `osgFX::Scribe` drew the model's own wireframe, which would need a new pipeline variant for each of the many model pipelines. The box is one small geometry per selected object, and it plainly marks selection. Selecting a whole cell compiles one for each.
+
+What each old part became:
+- **`selectionmarker.osgt`:** generated geometry with that file's numbers, checked against its bounds, triangle counts (96, 60 and 1152 per part) and colours. Not hung under the object: one node, which follows the attached object each frame and looks it up by ID, so a deleted object cannot leave it dangling.
+- **Clip plane for the rotate rings:** triangles on the far side collapse to a point in a dynamic array, whole triangles rather than an exact cut, so a ring's edge is stepped at 1/48 of a turn. Rays skip them too, and `hitBehindMarker` stays.
+- **`marker_error.osgt`:** `files/data/meshes/marker_error.dae`, converted with its five meshes and materials. **This restores the game too:** a broken or missing model showed nothing on the Vulkan build, as no reader knew `.osgt`, and now shows the yellow sign the fork point had. Captured in the editor with a corrupt `x/ex_nord_house_01.nif` in `--data-local`: the translucent sign stands in the house's place. The label inside looks paler than its dark material under day mode's light; the old look cannot be run for comparison.
+- **`--camera-script`:** `editmode`, `press`, `drag`, `hover` (a real `QMouseEvent`), `submode`, `modeslot`, `selection`, `undo`, `redo`, `undolog`, through `WorldspaceWidget::scriptPress` and `scriptDrag`, which make the shortcuts' calls on the edit mode. The capture now has a hidden `SceneToolbar`.
+
+**Rotation order, corrected.** C4's `adjustTransform` copied the game's `makeInversedOrderObjectOsgQuat` (x, then y, then z) with a comment calling it the OSG editor's `zr * yr * xr`, which is z first: `vsg::dquat`'s product has OSG's order. The tool's sums assume the OSG editor's, so it is back to that. **So an object tilted on two axes looks different in the editor than in the game, as it did in the OSG editor.** I did not fix that old mismatch, because it would change which rotations an edit writes: for toddhow to decide.
+
+Checks at Seyda Neen, `#-2 -9`, `ex_nord_house_01`, frames viewed:
+- **Select:** a press at (640, 330) selects `ref#98681`, and the box fits the house. The first box was far too big, because `vsg::ComputeBounds` trusts node bounds by default: `useNodeBounds` is off now.
+- **Move and undo:** `drag edit 613 300 613 200 4` moves it from (-12107.8, -68105.1, 336.4) to (-12089.9, -68017.6, 530.8) in the plane facing the camera; the undo stack shows one `Move Instances`; `undo` restores the position exactly, `redo` repeats it.
+- **Rotate mode:** the three rings draw their near halves only.
+
+Not verified: everything on the list below. Scale, group rotation, drop to collision, snap and the box and sphere selection volumes have been compiled and not run or seen, but for the sums' tests. A scripted hover over an arrow did not land on the arrow, so the highlight and an axis lock have not been seen.
+
+29. **Select (C7).** In a Scene of `#-2 -9`, edit mode Instance: `scene-select-primary` on a house. A white box appears around it, with the coloured arrows and squares at its origin. On open ground: the box goes.
+30. **Add and toggle.** `scene-select-secondary` on another object adds it, and again removes it. The marker stays at the last selected.
+31. **Highlight.** Move the pointer over each arrow and square: its colour brightens, red for X, green for Y, blue for Z, and dims when the pointer leaves.
+32. **Move.** `scene-edit-primary` drag on an arrow: the object moves along that axis only. On a square: in that plane. On nothing: in the plane facing the camera, following the pointer. `scene-edit-secondary`: in grid steps. The wheel during a drag moves it nearer and further.
+33. **Rotate.** Press `scene-submode-rotate`: three half rings. Drag on a ring: the object turns about that axis the way the pointer goes round. Drag elsewhere: it turns freely. The rings' far halves can't be grabbed. Secondary: snaps by the grid angle on release. With two selected, they turn around their common centre.
+34. **Scale.** `scene-submode-scale`: arrows end in cubes. Dragging away from the object grows it, between 0.5 and 2.
+35. **Axis keys.** `scene-axis-x`, `-y`, `-z`: the axis lights up and locks; the same key again unlocks.
+36. **Undo.** Ctrl+Z after each of 32 to 34: the object returns and one step goes off the stack. Ctrl+Y repeats it. The References table shows the same numbers throughout.
+37. **Box selection.** With each selection mode (centred cube, corner cube, sphere): drag `scene-select-primary`. A translucent volume grows, and on release what's inside it is selected. It must not get in the way of what is picked.
+38. **Snap target.** `scene-select-tertiary` on an object: a yellow box. Then `scene-edit-secondary` drag of another: it moves in steps along the target's axes.
+39. **Delete, duplicate, drop.** `scene-delete` with a selection: gone, undo restores it, and the marker returns with no crash. `scene-duplicate`: a copy. Raise an object, press `scene-instance-drop`: it falls to the ground or the object below, not to itself.
+40. **Hide.** `scene-toggle-visibility` hides the selection, also from clicks; `scene-unhide-all` brings it back. `scene-toggle-marker` hides the marker only.
+41. **Groups.** `scene-save-1` with a selection, clear it, `scene-group-1`: selected again, in magenta.
+42. **Drop a record.** Drag a Static from the table into the view: a new instance where you drop it. The cell-outside-view preferences act as named.
+43. **Tilted objects.** Compare a rock tilted on two axes with the game: tell me if the editor's mismatch (above) matters to you.

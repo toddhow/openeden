@@ -12,6 +12,8 @@
 #include <vector>
 
 #include <QApplication>
+#include <QMouseEvent>
+#include <QUndoStack>
 #include <QMetaObject>
 #include <QHBoxLayout>
 #include <QWidget>
@@ -36,6 +38,12 @@
 #include "model/doc/documentmanager.hpp"
 #include "model/prefs/state.hpp"
 #include "view/render/camerapose.hpp"
+#include "view/render/editmode.hpp"
+#include "view/render/mask.hpp"
+#include "view/render/object.hpp"
+#include "view/widget/scenetoolbar.hpp"
+#include "view/widget/scenetoolmode.hpp"
+#include "view/widget/scenetooltoggle2.hpp"
 #include "view/render/cameracontroller.hpp"
 #include "view/render/pagedworldspacewidget.hpp"
 #include "view/render/rendercontext.hpp"
@@ -53,6 +61,7 @@ namespace
     constexpr std::uint64_t sCameraScriptFrame = 5;
     // An arrow's tool tip is a long text.
     constexpr std::size_t sMaxLoggedTag = 40;
+    constexpr int sToolbarButtonSize = 48;
 
     struct Request
     {
@@ -90,6 +99,44 @@ namespace
         return values;
     }
 
+    CSVRender::WorldspaceWidget::InteractionType interactionType(const std::string& name)
+    {
+        using Widget = CSVRender::WorldspaceWidget;
+        if (name == "edit")
+            return Widget::InteractionType_PrimaryEdit;
+        if (name == "edit2")
+            return Widget::InteractionType_SecondaryEdit;
+        if (name == "select")
+            return Widget::InteractionType_PrimarySelect;
+        if (name == "select2")
+            return Widget::InteractionType_SecondarySelect;
+        if (name == "select3")
+            return Widget::InteractionType_TertiarySelect;
+        return Widget::InteractionType_PrimaryOpen;
+    }
+
+    void logSelection(CSVRender::WorldspaceWidget& view)
+    {
+        const auto selection = view.getSelection(CSVRender::Mask_Reference);
+        Log(Debug::Info) << "Selected " << selection.size();
+        for (const auto& tag : selection)
+            if (const auto* object = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+            {
+                const ESM::Position position = object->mObject->getPosition();
+                Log(Debug::Info) << "  " << object->mObject->getReferenceId() << " " << object->mObject->getReferenceableId()
+                                 << " at " << position.pos[0] << " " << position.pos[1] << " " << position.pos[2]
+                                 << " rot " << position.rot[0] << " " << position.rot[1] << " " << position.rot[2]
+                                 << " scale " << object->mObject->getScale();
+            }
+    }
+
+    void logUndo(CSVRender::WorldspaceWidget& view)
+    {
+        const QUndoStack& stack = view.getDocument().getUndoStack();
+        Log(Debug::Info) << "Undo stack: " << stack.count() << " at " << stack.index() << ", next undo: "
+                         << stack.undoText().toStdString();
+    }
+
     void logCamera(const CSVRender::SceneHost& host)
     {
         const auto lookAt = CSVRender::CameraPose::lookAtFrom(host.getViewMatrix());
@@ -101,7 +148,9 @@ namespace
     /// Drives the view's camera controller as keys and the mouse would, without Qt events. Commands, separated by ';':
     /// mode 1st|free|orbit, pose ex ey ez cx cy cz ux uy uz, center x y z (orbit), slot name 0|1 (the controller's slot, as
     /// its shortcut calls it), mouse dx dy, wheel d, update dt, ortho size, ray x y hexmask (logs WorldspaceWidget::mousePick at that
-    /// pixel). The camera is logged after each.
+    /// pixel). The camera is logged after each. For the edit modes, through the same calls as the shortcuts: editmode id, press
+    /// edit|edit2|select|select2|select3 x y, drag type x0 y0 x1 y1 steps, hover x y (a real mouse move event), submode 0|1|2,
+    /// modeslot name [int] (a slot of the current edit mode), selection, undo, redo, undolog.
     /// `wait` stops until the next tick, so that what follows the camera has followed it (cell markers): the rest of the
     /// script is returned.
     std::string runCameraScript(CSVRender::WorldspaceWidget& view, const std::string& script)
@@ -161,6 +210,61 @@ namespace
                                              : std::string("none"))
                                  << " triangle " << hit.index0 << " " << hit.index1 << " " << hit.index2;
             }
+            else if (verb == "editmode")
+            {
+                std::string id;
+                words >> id;
+                view.getEditModeSelector()->setButton(id);
+            }
+            else if (verb == "press")
+            {
+                std::string type;
+                int x = 0;
+                int y = 0;
+                words >> type >> x >> y;
+                view.scriptPress(interactionType(type), QPoint(x, y));
+            }
+            else if (verb == "drag")
+            {
+                std::string type;
+                int x0 = 0, y0 = 0, x1 = 0, y1 = 0, steps = 1;
+                words >> type >> x0 >> y0 >> x1 >> y1 >> steps;
+                view.scriptDrag(interactionType(type), QPoint(x0, y0), QPoint(x1, y1), steps);
+            }
+            else if (verb == "hover")
+            {
+                int x = 0;
+                int y = 0;
+                words >> x >> y;
+                QMouseEvent event(QEvent::MouseMove, QPointF(x, y), QPointF(view.mapToGlobal(QPoint(x, y))), Qt::NoButton,
+                    Qt::NoButton, Qt::NoModifier);
+                QApplication::sendEvent(&view, &event);
+            }
+            else if (verb == "submode")
+            {
+                int subMode = 0;
+                words >> subMode;
+                view.setSubMode(subMode, CSVRender::Mask_Reference);
+            }
+            else if (verb == "modeslot")
+            {
+                std::string name;
+                words >> name;
+                int value = 0;
+                const bool ok = (words >> value)
+                    ? QMetaObject::invokeMethod(view.getEditMode(), name.c_str(), Q_ARG(int, value))
+                    : QMetaObject::invokeMethod(view.getEditMode(), name.c_str());
+                if (!ok)
+                    Log(Debug::Error) << "The edit mode has no slot " << name;
+            }
+            else if (verb == "selection")
+                logSelection(view);
+            else if (verb == "undo")
+                view.getDocument().getUndoStack().undo();
+            else if (verb == "redo")
+                view.getDocument().getUndoStack().redo();
+            else if (verb == "undolog")
+                logUndo(view);
             else if (verb == "ortho")
             {
                 int size = 0;
@@ -395,6 +499,13 @@ int CS::runCapture(int argc, char** argv)
                     finish(1);
                     return;
                 }
+                // Hidden, but the same tools as a scene subview's, which the edit modes add themselves to.
+                auto* toolbar = new CSVWidget::SceneToolbar(sToolbarButtonSize, frame.get());
+                toolbar->hide();
+                view->makeSceneVisibilitySelector(toolbar);
+                if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(view))
+                    paged->makeControlVisibilitySelector(toolbar);
+                view->makeEditModeSelector(toolbar);
                 view->selectLightingMode(request.mLighting);
                 if (const auto& camera = request.mCamera)
                     view->setCameraPose({ (*camera)[0], (*camera)[1], (*camera)[2] },

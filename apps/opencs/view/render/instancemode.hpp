@@ -6,11 +6,9 @@
 #include <string>
 #include <vector>
 
-#include <osg/Group>
-#include <osg/Node>
-#include <osg/Quat>
-#include <osg/Vec3>
-#include <osg/ref_ptr>
+
+#include <vsg/maths/vec3.h>
+#include <vsg/core/ref_ptr.h>
 
 #include "editmode.hpp"
 #include "instancedragmodes.hpp"
@@ -48,32 +46,23 @@ namespace CSVRender
         int mDragAxis;
         bool mLocked;
         float mUnitScaleDist;
-        osg::ref_ptr<osg::Group> mParentNode;
-        osg::Vec3 mDragStart;
-        std::vector<osg::Vec3> mObjectsAtDragStart;
+        vsg::vec3 mDragStart;
+        std::vector<vsg::vec3> mObjectsAtDragStart;
         CSMWorld::IdTable* mSelectionGroups;
 
         QString getTooltip();
         int getSubModeFromId(const std::string& id) const;
 
-        osg::Vec3 quatToEuler(const osg::Quat& quat) const;
-        osg::Quat eulerToQuat(const osg::Vec3& euler) const;
-
-        float roundFloatToMult(const float val, const double mult) const;
-
-        osg::Vec3 getSelectionCenter(const std::vector<osg::ref_ptr<TagBase>>& selection) const;
-        osg::Vec3 getScreenCoords(const osg::Vec3& pos);
-        osg::Vec3 getProjectionSpaceCoords(const osg::Vec3& pos);
-        osg::Vec3 getMousePlaneCoords(const QPoint& point, const osg::Vec3d& dragStart);
+        vsg::vec3 getSelectionCenter(const std::vector<vsg::ref_ptr<TagBase>>& selection) const;
+        vsg::vec3 getScreenCoords(const vsg::vec3& pos);
+        vsg::vec3 getProjectionSpaceCoords(const vsg::vec3& pos);
+        vsg::vec3 getMousePlaneCoords(const QPoint& point, const vsg::dvec3& dragStart);
         void handleSelectDrag(const QPoint& pos);
         void dropInstance(CSVRender::Object* object, float dropHeight);
         float calculateDropHeight(CSVRender::Object* object, float objectHeight);
-        osg::Vec3 calculateSnapPositionRelativeToTarget(osg::Vec3 initalPosition, osg::Vec3 targetPosition,
-            osg::Vec3 targetRotation, osg::Vec3 translation, double snap) const;
 
     public:
-        InstanceMode(
-            WorldspaceWidget* worldspaceWidget, osg::ref_ptr<osg::Group> parentNode, QWidget* parent = nullptr);
+        InstanceMode(WorldspaceWidget* worldspaceWidget, QWidget* parent = nullptr);
 
         void activate(CSVWidget::SceneToolbar* toolbar) override;
 
@@ -142,7 +131,7 @@ namespace CSVRender
 
     private:
         WorldspaceWidget* mWorldspaceWidget;
-        std::vector<osg::Node::NodeMask> mOldMasks;
+        std::vector<bool> mHidden;
     };
 }
 

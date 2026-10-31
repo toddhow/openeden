@@ -1,8 +1,10 @@
 #ifndef CSV_RENDER_INSTANCE_SELECTION_MODE_H
 #define CSV_RENDER_INSTANCE_SELECTION_MODE_H
 
-#include <osg/Vec3d>
-#include <osg/ref_ptr>
+#include <vsg/core/Array.h>
+#include <vsg/maths/vec3.h>
+#include <vsg/nodes/Node.h>
+#include <vsg/vk/vulkan.h>
 
 class QAction;
 class QMenu;
@@ -12,13 +14,6 @@ class QPoint;
 namespace CSVWidget
 {
     class SceneToolbar;
-}
-
-namespace osg
-{
-    class PositionAttitudeTransform;
-    class Group;
-    class Vec3f;
 }
 
 #include "instancedragmodes.hpp"
@@ -32,26 +27,25 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        InstanceSelectionMode(
-            CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, osg::Group* cellNode);
+        InstanceSelectionMode(CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget);
 
         ~InstanceSelectionMode();
 
         /// Store the worldspace-coordinate when drag begins
-        void setDragStart(const osg::Vec3d& dragStart);
+        void setDragStart(const vsg::dvec3& dragStart);
 
         /// Store the worldspace-coordinate when drag begins
-        const osg::Vec3d& getDragStart();
+        const vsg::dvec3& getDragStart();
 
         /// Store the screen-coordinate when drag begins
         void setScreenDragStart(const QPoint& dragStartPoint);
 
         /// Apply instance selection changes
-        void dragEnded(const osg::Vec3d& dragEndPoint, DragMode dragMode);
+        void dragEnded(const vsg::dvec3& dragEndPoint, DragMode dragMode);
 
-        void drawSelectionCubeCentre(const osg::Vec3f& mousePlanePoint);
-        void drawSelectionCubeCorner(const osg::Vec3f& mousePlanePoint);
-        void drawSelectionSphere(const osg::Vec3f& mousePlanePoint);
+        void drawSelectionCubeCentre(const vsg::vec3& mousePlanePoint);
+        void drawSelectionCubeCorner(const vsg::vec3& mousePlanePoint);
+        void drawSelectionSphere(const vsg::vec3& mousePlanePoint);
 
     protected:
         /// Add context menu items to \a menu.
@@ -63,15 +57,18 @@ namespace CSVRender
         bool createContextMenu(QMenu* menu) override;
 
     private:
-        void drawSelectionBox(const osg::Vec3d& pointA, const osg::Vec3d& pointB);
-        void drawSelectionCube(const osg::Vec3d& point, float radius);
-        void drawSelectionSphere(const osg::Vec3d& point, float radius);
+        void drawSelectionBox(const vsg::dvec3& pointA, const vsg::dvec3& pointB);
+        void drawSelectionCube(const vsg::dvec3& point, float radius);
+        void drawSelectionSphere(const vsg::dvec3& point, float radius);
+        void showVolume(const vsg::dvec3& position, VkPrimitiveTopology topology, vsg::ref_ptr<vsg::vec3Array> vertices,
+            vsg::ref_ptr<vsg::vec4Array> colours, vsg::ref_ptr<vsg::Data> indices);
+        void removeVolume();
 
         QAction* mDeleteSelection;
         QAction* mSelectSame;
-        osg::Vec3d mDragStart;
-        osg::Group* mParentNode;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
+        vsg::dvec3 mDragStart;
+        /// The volume being dragged, rebuilt at each step of the drag as the OSG editor did.
+        vsg::ref_ptr<vsg::Node> mBaseNode;
 
     private slots:
 

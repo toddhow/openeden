@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 #include <vsg/app/ProjectionMatrix.h>
 #include <vsg/core/Array.h>
@@ -135,6 +136,49 @@ namespace CSVRender::Picking
         const vsg::dvec3 localDirection = vsg::inverse(hit.localToWorld) * (worldDirection + hit.worldIntersection)
             - vsg::inverse(hit.localToWorld) * hit.worldIntersection;
         return vsg::dot(localDirection, localNormal) > 0;
+    }
+
+    inline void fillResult(const vsg::LineSegmentIntersector::Intersection& hit, Result& result)
+    {
+        result.mHit = true;
+        result.mWorldPos = hit.worldIntersection;
+        for (const vsg::Node* node : hit.nodePath)
+        {
+            if (const auto* tag = node->getObject<TagBase>(sTagKey))
+            {
+                result.mTag = vsg::ref_ptr<TagBase>(const_cast<TagBase*>(tag));
+                break;
+            }
+        }
+        if (hit.indexRatios.size() >= 3)
+        {
+            result.mIndex0 = hit.indexRatios[0].index;
+            result.mIndex1 = hit.indexRatios[1].index;
+            result.mIndex2 = hit.indexRatios[2].index;
+        }
+    }
+
+    /// Everything on the ray that faces it, nearest first: what the OSG editor's mousePick searched for the selection marker.
+    inline std::vector<Result> pickAll(const vsg::Node& root, const Ray& ray, vsg::Mask mask)
+    {
+        Intersector intersector(ray.mStart, ray.mEnd);
+        intersector.traversalMask = mask;
+        root.accept(intersector);
+
+        auto& hits = intersector.intersections;
+        std::sort(hits.begin(), hits.end(), [](const auto& lhs, const auto& rhs) { return lhs->ratio < rhs->ratio; });
+
+        const vsg::dvec3 direction = ray.mEnd - ray.mStart;
+        std::vector<Result> results;
+        for (const auto& hit : hits)
+        {
+            if (isBackface(*hit, direction))
+                continue;
+            Result result;
+            fillResult(*hit, result);
+            results.push_back(std::move(result));
+        }
+        return results;
     }
 
     /// As WorldspaceWidget::mousePick did.

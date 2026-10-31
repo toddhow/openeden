@@ -139,6 +139,11 @@ namespace CSVRender
         /// As WorldspaceWidget::mousePick wants it: see Picking::pick. The same point of the view as pickNearest.
         Picking::Result pick(double x, double y, unsigned int mask, double placementDistance) const;
 
+        /// Everything on the ray through this point that faces it, nearest first, and where a miss there places things.
+        std::vector<Picking::Result> pickAll(double x, double y, unsigned int mask) const;
+        Picking::Result missAt(double x, double y, double placementDistance) const;
+        vsg::dmat4 getProjectionMatrix() const;
+
         /// A frame will be drawn on the next timer tick, as flagAsModified was with OSG's ON_DEMAND.
         void requestRedraw() { mRedraw = true; }
 

@@ -1,5 +1,6 @@
 #include "instanceselectionmode.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -10,29 +11,25 @@
 #include <apps/opencs/view/render/mask.hpp>
 #include <apps/opencs/view/render/selectionmode.hpp>
 
-#include <osg/Array>
-#include <osg/GL>
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/Math>
-#include <osg/PositionAttitudeTransform>
-#include <osg/PrimitiveSet>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
-#include <osg/Vec3d>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
-#include <osg/ref_ptr>
-
 #include <QAction>
 #include <QMenu>
 #include <QPoint>
 
+#include <vsg/maths/transform.h>
+#include <vsg/nodes/MatrixTransform.h>
+
+#include <components/misc/vsgmath.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/setbin.hpp>
+
 #include "../../model/world/commands.hpp"
 #include "../../model/world/idtable.hpp"
 
+#include "colouredgeometry.hpp"
 #include "instancedragmodes.hpp"
 #include "object.hpp"
+#include "scenehost.hpp"
 #include "worldspacewidget.hpp"
 
 namespace CSVWidget
@@ -40,14 +37,32 @@ namespace CSVWidget
     class SceneToolbar;
 }
 
+namespace
+{
+    constexpr int sSphereResolution = 32;
+    constexpr float sSphereAlpha = 0.3f;
+
+    // The eight corners' colours and twelve faces of the OSG editor's selection box.
+    vsg::ref_ptr<vsg::vec4Array> boxColours()
+    {
+        return vsg::vec4Array::create({ { 0.3f, 0.3f, 0.5f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f },
+            { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f },
+            { 0.9f, 0.9f, 1.0f, 0.2f } });
+    }
+
+    vsg::ref_ptr<vsg::ushortArray> boxIndices()
+    {
+        return vsg::ushortArray::create({ 2, 1, 0, 3, 1, 2, 4, 5, 6, 6, 5, 7, 1, 4, 0, 4, 1, 5, 4, 2, 0, 6, 2, 4, 6, 3, 2, 7, 3,
+            6, 1, 3, 5, 5, 3, 7 });
+    }
+}
+
 namespace CSVRender
 {
     class TagBase;
 
-    InstanceSelectionMode::InstanceSelectionMode(
-        CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, osg::Group* cellNode)
+    InstanceSelectionMode::InstanceSelectionMode(CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget)
         : SelectionMode(parent, worldspaceWidget, Mask_Reference)
-        , mParentNode(cellNode)
     {
         mSelectSame = new QAction("Extend selection to instances with same object ID", this);
         mDeleteSelection = new QAction("Delete selected instances", this);
@@ -58,29 +73,61 @@ namespace CSVRender
 
     InstanceSelectionMode::~InstanceSelectionMode()
     {
-        if (mBaseNode)
-            mParentNode->removeChild(mBaseNode);
+        removeVolume();
     }
 
-    void InstanceSelectionMode::setDragStart(const osg::Vec3d& dragStart)
+    void InstanceSelectionMode::removeVolume()
+    {
+        SceneHost* host = getWorldspaceWidget().getHost();
+        if (!mBaseNode || !host)
+            return;
+        auto& children = host->contentRoot().children;
+        children.erase(std::remove(children.begin(), children.end(), mBaseNode), children.end());
+        host->compileContext()->detach(mBaseNode);
+        mBaseNode = nullptr;
+        host->requestRedraw();
+    }
+
+    void InstanceSelectionMode::showVolume(const vsg::dvec3& position, VkPrimitiveTopology topology,
+        vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours, vsg::ref_ptr<vsg::Data> indices)
+    {
+        removeVolume();
+        SceneHost* host = getWorldspaceWidget().getHost();
+        if (!host)
+            return;
+
+        ColouredOptions options;
+        options.mBlend = true;
+        options.mPickable = false;
+        auto transform = vsg::MatrixTransform::create(vsg::translate(position));
+        transform->addChild(
+            createColouredGeometry(*host->resources().builder, topology, vertices, colours, indices, options));
+        mBaseNode = vsgUtil::createBinSetter(SceneHost::sBinDepthSorted, transform);
+        host->compileContext()->compile(mBaseNode);
+        host->contentRoot().addChild(mBaseNode);
+        host->requestRedraw();
+    }
+
+    void InstanceSelectionMode::setDragStart(const vsg::dvec3& dragStart)
     {
         mDragStart = dragStart;
     }
 
-    const osg::Vec3d& InstanceSelectionMode::getDragStart()
+    const vsg::dvec3& InstanceSelectionMode::getDragStart()
     {
         return mDragStart;
     }
 
-    void InstanceSelectionMode::dragEnded(const osg::Vec3d& dragEndPoint, DragMode dragMode)
+    void InstanceSelectionMode::dragEnded(const vsg::dvec3& dragEndPoint, DragMode dragMode)
     {
-        float dragDistance = (mDragStart - dragEndPoint).length();
-        if (mBaseNode)
-            mParentNode->removeChild(mBaseNode);
+        const float dragDistance = static_cast<float>(vsg::length(mDragStart - dragEndPoint));
+        removeVolume();
         if (getCurrentId() == "cube-centre")
         {
-            osg::Vec3d pointA(mDragStart[0] - dragDistance, mDragStart[1] - dragDistance, mDragStart[2] - dragDistance);
-            osg::Vec3d pointB(mDragStart[0] + dragDistance, mDragStart[1] + dragDistance, mDragStart[2] + dragDistance);
+            const vsg::dvec3 pointA(
+                mDragStart[0] - dragDistance, mDragStart[1] - dragDistance, mDragStart[2] - dragDistance);
+            const vsg::dvec3 pointB(
+                mDragStart[0] + dragDistance, mDragStart[1] + dragDistance, mDragStart[2] + dragDistance);
             getWorldspaceWidget().selectInsideCube(pointA, pointB, dragMode);
         }
         else if (getCurrentId() == "cube-corner")
@@ -93,313 +140,120 @@ namespace CSVRender
         }
     }
 
-    void InstanceSelectionMode::drawSelectionCubeCentre(const osg::Vec3f& mousePlanePoint)
+    void InstanceSelectionMode::drawSelectionCubeCentre(const vsg::vec3& mousePlanePoint)
     {
-        float dragDistance = (mDragStart - mousePlanePoint).length();
+        const float dragDistance = static_cast<float>(vsg::length(mDragStart - vsg::dvec3(mousePlanePoint)));
         drawSelectionCube(mDragStart, dragDistance);
     }
 
-    void InstanceSelectionMode::drawSelectionCubeCorner(const osg::Vec3f& mousePlanePoint)
+    void InstanceSelectionMode::drawSelectionCubeCorner(const vsg::vec3& mousePlanePoint)
     {
-        drawSelectionBox(mDragStart, mousePlanePoint);
+        drawSelectionBox(mDragStart, vsg::dvec3(mousePlanePoint));
     }
 
-    void InstanceSelectionMode::drawSelectionBox(const osg::Vec3d& pointA, const osg::Vec3d& pointB)
+    void InstanceSelectionMode::drawSelectionBox(const vsg::dvec3& pointA, const vsg::dvec3& pointB)
     {
-        if (mBaseNode)
-            mParentNode->removeChild(mBaseNode);
-        mBaseNode = new osg::PositionAttitudeTransform;
-        mBaseNode->setPosition(pointA);
-
-        osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
-
-        osg::Vec3Array* vertices = new osg::Vec3Array;
-        vertices->push_back(osg::Vec3f(0.0f, 0.0f, 0.0f));
-        vertices->push_back(osg::Vec3f(0.0f, 0.0f, pointB[2] - pointA[2]));
-        vertices->push_back(osg::Vec3f(0.0f, pointB[1] - pointA[1], 0.0f));
-        vertices->push_back(osg::Vec3f(0.0f, pointB[1] - pointA[1], pointB[2] - pointA[2]));
-
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], 0.0f, 0.0f));
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], 0.0f, pointB[2] - pointA[2]));
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], pointB[1] - pointA[1], 0.0f));
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], pointB[1] - pointA[1], pointB[2] - pointA[2]));
-
-        geometry->setVertexArray(vertices);
-
-        osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
-
-        // top
-        primitives->push_back(2);
-        primitives->push_back(1);
-        primitives->push_back(0);
-
-        primitives->push_back(3);
-        primitives->push_back(1);
-        primitives->push_back(2);
-
-        // bottom
-        primitives->push_back(4);
-        primitives->push_back(5);
-        primitives->push_back(6);
-
-        primitives->push_back(6);
-        primitives->push_back(5);
-        primitives->push_back(7);
-
-        // sides
-        primitives->push_back(1);
-        primitives->push_back(4);
-        primitives->push_back(0);
-
-        primitives->push_back(4);
-        primitives->push_back(1);
-        primitives->push_back(5);
-
-        primitives->push_back(4);
-        primitives->push_back(2);
-        primitives->push_back(0);
-
-        primitives->push_back(6);
-        primitives->push_back(2);
-        primitives->push_back(4);
-
-        primitives->push_back(6);
-        primitives->push_back(3);
-        primitives->push_back(2);
-
-        primitives->push_back(7);
-        primitives->push_back(3);
-        primitives->push_back(6);
-
-        primitives->push_back(1);
-        primitives->push_back(3);
-        primitives->push_back(5);
-
-        primitives->push_back(5);
-        primitives->push_back(3);
-        primitives->push_back(7);
-
-        geometry->addPrimitiveSet(primitives);
-
-        osg::Vec4Array* colours = new osg::Vec4Array;
-
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.5f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.4f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.4f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.4f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-
-        geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
-
-        geometry->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-        geometry->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
-        geometry->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-        geometry->getOrCreateStateSet()->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-
-        mBaseNode->addChild(geometry);
-        mParentNode->addChild(mBaseNode);
+        const float x = static_cast<float>(pointB[0] - pointA[0]);
+        const float y = static_cast<float>(pointB[1] - pointA[1]);
+        const float z = static_cast<float>(pointB[2] - pointA[2]);
+        auto vertices = vsg::vec3Array::create(
+            { { 0, 0, 0 }, { 0, 0, z }, { 0, y, 0 }, { 0, y, z }, { x, 0, 0 }, { x, 0, z }, { x, y, 0 }, { x, y, z } });
+        showVolume(pointA, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, boxColours(), boxIndices());
     }
 
-    void InstanceSelectionMode::drawSelectionCube(const osg::Vec3d& point, float radius)
+    void InstanceSelectionMode::drawSelectionCube(const vsg::dvec3& point, float radius)
     {
-        if (mBaseNode)
-            mParentNode->removeChild(mBaseNode);
-        mBaseNode = new osg::PositionAttitudeTransform;
-        mBaseNode->setPosition(point);
-
-        osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
-
-        osg::Vec3Array* vertices = new osg::Vec3Array;
-        for (int i = 0; i < 2; ++i)
-        {
-            float height = i ? -radius : radius;
-            vertices->push_back(osg::Vec3f(height, -radius, -radius));
-            vertices->push_back(osg::Vec3f(height, -radius, radius));
-            vertices->push_back(osg::Vec3f(height, radius, -radius));
-            vertices->push_back(osg::Vec3f(height, radius, radius));
-        }
-
-        geometry->setVertexArray(vertices);
-
-        osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
-
-        // top
-        primitives->push_back(2);
-        primitives->push_back(1);
-        primitives->push_back(0);
-
-        primitives->push_back(3);
-        primitives->push_back(1);
-        primitives->push_back(2);
-
-        // bottom
-        primitives->push_back(4);
-        primitives->push_back(5);
-        primitives->push_back(6);
-
-        primitives->push_back(6);
-        primitives->push_back(5);
-        primitives->push_back(7);
-
-        // sides
-        primitives->push_back(1);
-        primitives->push_back(4);
-        primitives->push_back(0);
-
-        primitives->push_back(4);
-        primitives->push_back(1);
-        primitives->push_back(5);
-
-        primitives->push_back(4);
-        primitives->push_back(2);
-        primitives->push_back(0);
-
-        primitives->push_back(6);
-        primitives->push_back(2);
-        primitives->push_back(4);
-
-        primitives->push_back(6);
-        primitives->push_back(3);
-        primitives->push_back(2);
-
-        primitives->push_back(7);
-        primitives->push_back(3);
-        primitives->push_back(6);
-
-        primitives->push_back(1);
-        primitives->push_back(3);
-        primitives->push_back(5);
-
-        primitives->push_back(5);
-        primitives->push_back(3);
-        primitives->push_back(7);
-
-        geometry->addPrimitiveSet(primitives);
-
-        osg::Vec4Array* colours = new osg::Vec4Array;
-
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.5f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.4f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.4f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-        colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.4f, 0.2f));
-        colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
-
-        geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
-
-        geometry->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-        geometry->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
-        geometry->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-        geometry->getOrCreateStateSet()->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-
-        mBaseNode->addChild(geometry);
-        mParentNode->addChild(mBaseNode);
+        const float r = radius;
+        auto vertices = vsg::vec3Array::create({ { r, -r, -r }, { r, -r, r }, { r, r, -r }, { r, r, r }, { -r, -r, -r },
+            { -r, -r, r }, { -r, r, -r }, { -r, r, r } });
+        showVolume(point, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, boxColours(), boxIndices());
     }
 
-    void InstanceSelectionMode::drawSelectionSphere(const osg::Vec3f& mousePlanePoint)
+    void InstanceSelectionMode::drawSelectionSphere(const vsg::vec3& mousePlanePoint)
     {
-        float dragDistance = (mDragStart - mousePlanePoint).length();
+        const float dragDistance = static_cast<float>(vsg::length(mDragStart - vsg::dvec3(mousePlanePoint)));
         drawSelectionSphere(mDragStart, dragDistance);
     }
 
-    void InstanceSelectionMode::drawSelectionSphere(const osg::Vec3d& point, float radius)
+    void InstanceSelectionMode::drawSelectionSphere(const vsg::dvec3& point, float radius)
     {
-        if (mBaseNode)
-            mParentNode->removeChild(mBaseNode);
-        mBaseNode = new osg::PositionAttitudeTransform;
-        mBaseNode->setPosition(point);
+        constexpr int resolution = sSphereResolution;
+        const float radiusPerResolution = radius / resolution;
+        const float reciprocalResolution = 1.0f / resolution;
+        const float doubleReciprocalRes = reciprocalResolution * 2;
 
-        osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
-
-        osg::Vec3Array* vertices = new osg::Vec3Array;
-        constexpr int resolution = 32;
-        float radiusPerResolution = radius / resolution;
-        float reciprocalResolution = 1.0f / resolution;
-        float doubleReciprocalRes = reciprocalResolution * 2;
-
-        osg::Vec4Array* colours = new osg::Vec4Array;
+        std::vector<vsg::vec3> points;
+        std::vector<vsg::vec4> pointColours;
 
         for (int i = 0; i <= resolution; i += 2)
         {
-            float iShifted = (static_cast<float>(i) - resolution / 2.0f); // i - 16 = -16 ... 16
-            float xPercentile = iShifted * doubleReciprocalRes;
-            float x = xPercentile * radius;
-            float thisRadius = sqrt(radius * radius - x * x);
+            const float iShifted = (static_cast<float>(i) - resolution / 2.0f); // i - 16 = -16 ... 16
+            const float xPercentile = iShifted * doubleReciprocalRes;
+            const float x = xPercentile * radius;
+            const float thisRadius = std::sqrt(std::max(radius * radius - x * x, 0.f));
 
             // the next row
-            float iShifted2 = (static_cast<float>(i + 1) - resolution / 2.0f);
-            float xPercentile2 = iShifted2 * doubleReciprocalRes;
-            float x2 = xPercentile2 * radius;
-            float thisRadius2 = sqrt(radius * radius - x2 * x2);
+            const float iShifted2 = (static_cast<float>(i + 1) - resolution / 2.0f);
+            const float xPercentile2 = iShifted2 * doubleReciprocalRes;
+            const float x2 = xPercentile2 * radius;
+            const float thisRadius2 = std::sqrt(std::max(radius * radius - x2 * x2, 0.f));
 
             for (int j = 0; j < resolution; ++j)
             {
-                float vertexX = thisRadius * sin(j * reciprocalResolution * osg::PI * 2);
-                float vertexY = i * radiusPerResolution * 2 - radius;
-                float vertexZ = thisRadius * cos(j * reciprocalResolution * osg::PI * 2);
-                float heightPercentage = (vertexZ + radius) / (radius * 2);
-                vertices->push_back(osg::Vec3f(vertexX, vertexY, vertexZ));
-                colours->push_back(osg::Vec4f(heightPercentage, heightPercentage, heightPercentage, 0.3f));
+                const float angle = j * reciprocalResolution * Misc::VsgMath::PIf * 2;
+                const float vertexX = thisRadius * std::sin(angle);
+                const float vertexY = i * radiusPerResolution * 2 - radius;
+                const float vertexZ = thisRadius * std::cos(angle);
+                const float heightPercentage = (vertexZ + radius) / (radius * 2);
+                points.emplace_back(vertexX, vertexY, vertexZ);
+                pointColours.emplace_back(heightPercentage, heightPercentage, heightPercentage, sSphereAlpha);
 
-                float vertexNextRowX = thisRadius2 * sin(j * reciprocalResolution * osg::PI * 2);
-                float vertexNextRowY = (i + 1) * radiusPerResolution * 2 - radius;
-                float vertexNextRowZ = thisRadius2 * cos(j * reciprocalResolution * osg::PI * 2);
-                float heightPercentageNextRow = (vertexZ + radius) / (radius * 2);
-                vertices->push_back(osg::Vec3f(vertexNextRowX, vertexNextRowY, vertexNextRowZ));
-                colours->push_back(
-                    osg::Vec4f(heightPercentageNextRow, heightPercentageNextRow, heightPercentageNextRow, 0.3f));
+                points.emplace_back(thisRadius2 * std::sin(angle), (i + 1) * radiusPerResolution * 2 - radius,
+                    thisRadius2 * std::cos(angle));
+                pointColours.emplace_back(heightPercentage, heightPercentage, heightPercentage, sSphereAlpha);
             }
         }
 
-        geometry->setVertexArray(vertices);
-
-        osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLE_STRIP, 0);
+        std::vector<unsigned short> strip;
+        const int count = static_cast<int>(points.size());
+        const auto add = [&](int index) { strip.push_back(static_cast<unsigned short>(index)); };
 
         for (int i = 0; i < resolution; ++i)
         {
             // Even
             for (int j = 0; j < resolution * 2; ++j)
             {
-                if (i * resolution * 2 + j > static_cast<int>(vertices->size()) - 1)
+                if (i * resolution * 2 + j > count - 1)
                     continue;
-                primitives->push_back(i * resolution * 2 + j);
+                add(i * resolution * 2 + j);
             }
-            if (i * resolution * 2 > static_cast<int>(vertices->size()) - 1)
+            if (i * resolution * 2 > count - 1)
                 continue;
-            primitives->push_back(i * resolution * 2);
-            primitives->push_back(i * resolution * 2 + 1);
+            add(i * resolution * 2);
+            add(i * resolution * 2 + 1);
 
             // Odd
             for (int j = 1; j < resolution * 2 - 2; j += 2)
             {
-                if ((i + 1) * resolution * 2 + j - 1 > static_cast<int>(vertices->size()) - 1)
+                if ((i + 1) * resolution * 2 + j - 1 > count - 1)
                     continue;
-                primitives->push_back((i + 1) * resolution * 2 + j - 1);
-                primitives->push_back(i * resolution * 2 + j + 2);
+                add((i + 1) * resolution * 2 + j - 1);
+                add(i * resolution * 2 + j + 2);
             }
-            if ((i + 2) * resolution * 2 - 2 > static_cast<int>(vertices->size()) - 1)
+            if ((i + 2) * resolution * 2 - 2 > count - 1)
                 continue;
-            primitives->push_back((i + 2) * resolution * 2 - 2);
-            primitives->push_back(i * resolution * 2 + 1);
-            primitives->push_back((i + 1) * resolution * 2);
+            add((i + 2) * resolution * 2 - 2);
+            add(i * resolution * 2 + 1);
+            add((i + 1) * resolution * 2);
         }
 
-        geometry->addPrimitiveSet(primitives);
-
-        geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
-
-        geometry->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-        geometry->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
-        geometry->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-        geometry->getOrCreateStateSet()->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-
-        mBaseNode->addChild(geometry);
-        mParentNode->addChild(mBaseNode);
+        auto vertices = vsg::vec3Array::create(static_cast<uint32_t>(points.size()));
+        std::copy(points.begin(), points.end(), vertices->begin());
+        auto colours = vsg::vec4Array::create(static_cast<uint32_t>(pointColours.size()));
+        std::copy(pointColours.begin(), pointColours.end(), colours->begin());
+        auto indices = vsg::ushortArray::create(static_cast<uint32_t>(strip.size()));
+        std::copy(strip.begin(), strip.end(), indices->begin());
+        showVolume(point, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, vertices, colours, indices);
     }
 
     bool InstanceSelectionMode::createContextMenu(QMenu* menu)
@@ -422,12 +276,12 @@ namespace CSVRender
 
     void InstanceSelectionMode::deleteSelection()
     {
-        std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
+        std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
 
         CSMWorld::IdTable& referencesTable = dynamic_cast<CSMWorld::IdTable&>(
             *getWorldspaceWidget().getDocument().getData().getTableModel(CSMWorld::UniversalId::Type_References));
 
-        for (std::vector<osg::ref_ptr<TagBase>>::iterator iter = selection.begin(); iter != selection.end(); ++iter)
+        for (std::vector<vsg::ref_ptr<TagBase>>::iterator iter = selection.begin(); iter != selection.end(); ++iter)
         {
             CSMWorld::DeleteCommand* command = new CSMWorld::DeleteCommand(
                 referencesTable, static_cast<ObjectTag*>(iter->get())->mObject->getReferenceId());

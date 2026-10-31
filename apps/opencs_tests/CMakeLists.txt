@@ -5,6 +5,8 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     view/render/testcamerapose.cpp
     view/render/testpicking.cpp
     view/render/testcameraposereview.cpp
+    view/render/testinstancemath.cpp
+    view/render/testselectionmarker.cpp
 )
 
 source_group(apps\\openmw-cs-tests FILES ${OPENCS_TESTS_SRC_FILES})

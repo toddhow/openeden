@@ -336,6 +336,25 @@ namespace CSVRender
         setCamera(lookAt.mEye, lookAt.mCenter, lookAt.mUp);
     }
 
+    std::vector<Picking::Result> SceneHost::pickAll(double x, double y, unsigned int mask) const
+    {
+        return Picking::pickAll(
+            *mContentRoot, Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y), vsg::Mask(mask));
+    }
+
+    Picking::Result SceneHost::missAt(double x, double y, double placementDistance) const
+    {
+        const Picking::Ray ray = Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y);
+        Picking::Result result;
+        result.mWorldPos = ray.mStart + vsg::normalize(ray.mEnd - ray.mStart) * placementDistance;
+        return result;
+    }
+
+    vsg::dmat4 SceneHost::getProjectionMatrix() const
+    {
+        return mProjection->transform();
+    }
+
     std::optional<vsg::dvec3> SceneHost::pickNearest(double x, double y, unsigned int mask) const
     {
         vsg::dvec3 position;

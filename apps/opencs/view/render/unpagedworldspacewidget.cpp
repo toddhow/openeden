@@ -1,5 +1,7 @@
 #include "unpagedworldspacewidget.hpp"
 
+#include "objectmarker.hpp"
+
 #include <sstream>
 
 #include <components/mwanimation/color.hpp>

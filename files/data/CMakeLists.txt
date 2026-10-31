@@ -3,7 +3,7 @@ if (NOT DEFINED OPENMW_RESOURCES_ROOT)
 endif()
 
 set(BUILTIN_DATA_FILES
-    meshes/marker_error.osgt
+    meshes/marker_error.dae
     textures/water_nm.png
     textures/omw_map_color_palette.dds
     textures/omw_menu_scroll_down.dds
