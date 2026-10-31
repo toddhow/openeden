@@ -36,6 +36,15 @@ namespace LuaUtil
         return obj.is<TransformM>() || obj.is<TransformQ>();
     }
 
+    // Scripts can read this name, v.__type.name, and sol2 would otherwise give the C++ type's new name. It is the
+    // name they have always seen, not a use of OSG.
+    template <typename T>
+    void keepTypeName(sol::usertype<T>& type, const char* name)
+    {
+        sol::table typeTable = type[sol::meta_function::type];
+        typeTable["name"] = name;
+    }
+
     sol::table initUtilPackage(lua_State* state);
 }
 

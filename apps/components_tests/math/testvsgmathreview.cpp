@@ -146,6 +146,33 @@ namespace
             }
     }
 
+    TEST(VsgMathReview, compareEqualMatchesOsgsMatrixEquality)
+    {
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const float values[] = { 0.f, -0.f, 1.f, nan };
+        for (const float l : values)
+            for (const float r : values)
+            {
+                osg::Matrixf oLeft, oRight;
+                oLeft(2, 3) = l;
+                oRight(2, 3) = r;
+                vsg::mat4 vLeft, vRight;
+                vLeft[2][3] = l;
+                vRight[2][3] = r;
+                EXPECT_EQ(oLeft == oRight, VM::compareEqual(vLeft, vRight)) << l << ", " << r;
+            }
+
+        // The reason it exists: a NaN counts as equal to anything, where VSG's == says it differs even from itself.
+        vsg::mat4 withNaN;
+        withNaN[0][1] = nan;
+        EXPECT_TRUE(VM::compareEqual(withNaN, vsg::mat4()));
+        EXPECT_FALSE(withNaN == withNaN);
+
+        vsg::dmat4 dLeft, dRight;
+        dRight[3][3] = 2.0;
+        EXPECT_FALSE(VM::compareEqual(dLeft, dRight));
+    }
+
     TEST(VsgMathReview, getLookAtOnAFloatMatrixNarrowsTheDistance)
     {
         const osg::Quat q(opaque(0.7), osg::Vec3d(1.0, 2.0, 3.0));

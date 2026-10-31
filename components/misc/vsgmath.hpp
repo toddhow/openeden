@@ -1217,6 +1217,20 @@ namespace Misc::VsgMath
         return vsg::dplane(norm[0], norm[1], norm[2], -norm[0] * p[0] - norm[1] * p[1] - norm[2] * p[2]);
     }
 
+    // OSG's matrix a == b, Matrixf::compare: `<` both ways over the sixteen numbers, so a NaN compares equal to anything,
+    // where VSG's == says a matrix with a NaN differs even from itself. Use it where the OSG comparison met such a matrix.
+    template <class T>
+    inline bool compareEqual(const vsg::t_mat4<T>& lhs, const vsg::t_mat4<T>& rhs)
+    {
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j)
+            {
+                if (lhs[i][j] < rhs[i][j] || rhs[i][j] < lhs[i][j])
+                    return false;
+            }
+        return true;
+    }
+
     // In place, as in OSG; all four are negated.
     template <class T>
     inline void flip(vsg::t_plane<T>& plane)

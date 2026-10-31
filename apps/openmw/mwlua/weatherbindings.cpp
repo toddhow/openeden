@@ -5,6 +5,7 @@
 
 #include <components/esm3/loadregn.hpp>
 #include <components/lua/util.hpp>
+#include <components/lua/utilpackage.hpp>
 #include <components/misc/color.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -109,6 +110,7 @@ namespace
         using T = MWWorld::TimeOfDayInterpolator<vsg::vec4>;
 
         auto interT = lua.new_usertype<T>("TimeOfDayInterpolatorColor");
+        LuaUtil::keepTypeName(interT, "MWWorld::TimeOfDayInterpolator<osg::Vec4f>");
 
         interT["sunrise"] = sol::property([](const T& inter) { return Color::fromVec(inter.getSunriseValue()); },
             [](T& inter, const Color& value) { inter.setSunriseValue(value.toVec()); });

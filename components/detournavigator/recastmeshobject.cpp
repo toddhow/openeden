@@ -66,7 +66,7 @@ namespace DetourNavigator
         std::vector<ChildRecastMeshObject>& mChildren)
     {
         bool result = false;
-        if (!(mTransform == transform))
+        if (!Misc::VsgMath::compareEqual(mTransform, transform))
         {
             mTransform = transform;
             result = true;

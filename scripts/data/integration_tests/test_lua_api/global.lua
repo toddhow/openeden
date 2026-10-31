@@ -370,6 +370,8 @@ testing.registerGlobalTest('nan vector', function()
     local ok, err = pcall(function() core.weather.records[1].stormDirection = util.vector3(nan, nan, nan) end)
     testing.expectEqual(ok, false)
     testing.expectEqual(err, 'Vector must contain finite numbers')
+    -- Scripts can read this name, and it must not follow the C++ type (task 0013).
+    testing.expectEqual(core.weather.records[1].skyColor.__type.name, 'MWWorld::TimeOfDayInterpolator<osg::Vec4f>')
 end)
 
 testing.registerGlobalTest('mwscript magic interactions', function()

@@ -242,7 +242,7 @@ namespace MWRender
             return false;
 
         const vsg::mat4 current = mPose->getLocal(bone.mBone);
-        if (bone.mHasWritten && current == bone.mWritten)
+        if (bone.mHasWritten && Misc::VsgMath::compareEqual(current, bone.mWritten))
         {
             // No controller re-animated this bone since our last write: undo it so IK never accumulates.
             mPose->setLocal(bone.mBone, bone.mBase);

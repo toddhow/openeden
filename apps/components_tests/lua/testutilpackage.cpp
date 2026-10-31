@@ -42,6 +42,15 @@ namespace
         EXPECT_EQ(get<std::string>(lua, "util.vector4(1, 2, 3, 4).__type.name"), "osg::Vec4f");
         EXPECT_EQ(get<std::string>(lua, "util.transform.identity.__type.name"), "LuaUtil::TransformQ");
         EXPECT_EQ(get<std::string>(lua, "util.transform.move(1, 2, 3).__type.name"), "LuaUtil::TransformM");
+
+        // How mwlua keeps the name of core.weather's colour interpolators; the integration test 'nan vector' reads the real one.
+        struct Interpolator
+        {
+        };
+        auto type = lua.new_usertype<Interpolator>("Interpolator");
+        LuaUtil::keepTypeName(type, "MWWorld::TimeOfDayInterpolator<osg::Vec4f>");
+        lua["interpolator"] = Interpolator{};
+        EXPECT_EQ(get<std::string>(lua, "interpolator.__type.name"), "MWWorld::TimeOfDayInterpolator<osg::Vec4f>");
     }
 
     TEST_F(LuaUtilPackageTest, Vector2)
