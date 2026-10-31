@@ -4,20 +4,21 @@ Oct 25, 2026 · @toddhow
 
 ## Purpose and how to use this guide
 
-This guide tells Claude Code, and any human contributor, how to work on OpenEden: what to build first, where code lives, the rules every change follows, and how each change is verified. What to build and why lives in the design docs (OpenEden Plugin System, Eden Studio plan, and CreativeMotion's Living Design Doc and Implementation Doc for the animation side); this guide covers how.
+This guide tells Claude Code, and any human contributor, how to work on OpenEden: what to build first, where code lives, the rules every change follows, and how each change is verified. What to build and why lives in the design docs (OpenEden Extension System, Eden Studio plan, and CreativeMotion's Living Design Doc and Implementation Doc for the animation side); this guide covers how.
 
 - **What OpenEden is:** a full fork of OpenMW, started from the Jolt physics branch (cykoder's `jolt-physics`, the work behind OpenMW merge request !3919). The decision is CreativeMotion's `docs/decisions/0004-total-fork-of-openmw.md` (toddhow, 2026-10-18); the name OpenEden was chosen on 2026-10-20 and OpenEden is the only host for CreativeMotion (2026-10-23).
 - **Placing it:** this guide lives at the repository root as `CLAUDE.md` and is committed, so Claude Code reads it at the start of every session. Design handoffs live in `docs/design/` and are committed; exported copies of the living design docs stay local and are never committed (the same rule as CreativeMotion).
 - **Authority:** the design docs decide what the system does; this guide decides how work is done. When they disagree, or when a design doc disagrees with CreativeMotion's guide, stop and ask the project owner (toddhow) rather than choosing.
 - **Owner:** toddhow is the architect and final reviewer, and is learning C++ and engine development through this project, so explain non-obvious changes in plain language in each pull request.
 - **Updating:** when a decision changes, update the relevant design doc and this guide in the same change, and add a changelog row.
+- **Words:** in this guide an **extension** is OpenEden's native code system (decision 0006; older documents say "plugin"). A **plugin** is what inherited code means by the word: an ESP or ESM data file, or a Qt or OpenSceneGraph plugin.
 
 ## What is inherited and what is new
 
 OpenEden starts as roughly a million lines of someone else's working engine. Most mistakes in a fork come from treating inherited code as if it were new.
 
 - **Inherited:** everything from OpenMW (`apps/`, `components/`, `extern/`, `files/`, `CI/`, `scripts/`, `docs/source/`), plus the Jolt branch's physics port (`apps/openmw/mwphysics/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, `extern/CMakeLists.txt`). It works, it has tests, and Morrowind plays on it. Change it only for a reason a task spec states.
-- **New:** the plugin system, the SDK and contracts, the compatibility packs, Eden Studio, CreativeMotion's integration into the engine (decision 0001), and the hosting of the other feature plugins. New code follows this guide in full.
+- **New:** the extension system, the SDK and contracts, the compatibility packs, Eden Studio, CreativeMotion's integration into the engine (decision 0001), and the hosting of the other feature extensions. New code follows this guide in full.
 - **Default behaviour is Morrowind's:** with every new feature switched off, OpenEden plays Morrowind exactly as the fork point did. Anything that changes gameplay, balance, animation or physics feel ships behind a setting that is off by default, and "unchanged when off" is verified by comparison, not assumed.
 
 ## Scope of the first build
@@ -26,16 +27,16 @@ OpenEden starts as roughly a million lines of someone else's working engine. Mos
 
 - The Jolt branch finished to the standard of OpenMW's own review (Track J below)
 - The fork repository set up, building locally and in CI (M7)
-- The plugin system's registry and lifecycle, in process (plugin phase P1)
+- The extension system's registry and lifecycle, in process (extension phase P1)
 
-**Next:** the move to Vulkan on VulkanSceneGraph (Track V, decision 0002) comes before other work, so new features are built on it once. After it: CreativeMotion's in-game milestones from M10 inside the engine (decision 0001), the plugin system working in the game (Track W, proposed to start after Track V's V2), the rest of the plugin system with the Morrowind compatibility pack as its first real client, then Eden Studio.
+**Next:** the move to Vulkan on VulkanSceneGraph (Track V, decision 0002) comes before other work, so new features are built on it once. After it: CreativeMotion's in-game milestones from M10 inside the engine (decision 0001), the extension system working in the game (Track W, proposed to start after Track V's V2), the rest of the extension system with the Morrowind compatibility pack as its first real client, then Eden Studio.
 
 **Not yet**
 
-- Eden Studio, beyond what the plugin system's editor hooks need (its order against the plugin phases is an open question)
+- Eden Studio, beyond what the extension system's editor hooks need (its order against the extension phases is an open question)
 - Compatibility packs for any game other than Morrowind
-- Hot reload of plugins
-- A stable C ABI for third-party plugins (plugin phase P6)
+- Hot reload of extensions
+- A stable C ABI for third-party extensions (extension phase P6)
 - An OpenGL fallback, a DirectX backend or a renderer abstraction layer (decision 0002: none)
 - New renderer features (PBR, ray tracing) beyond what the Vulkan move brings, until Track V is done
 
@@ -53,8 +54,8 @@ Inherited choices stay as OpenMW made them unless a decision record changes them
 | Rendering | Vulkan on VulkanSceneGraph (VSG) with vsgXchange, and vsgQt in the editor (decision 0002, Track V), always fetched at pinned versions by `extern/CMakeLists.txt` (`docs/dependencies.md`) | No OpenGL fallback, no DirectX, no abstraction layer; OpenSceneGraph is gone from the source and the build (task 0014). OpenMW's prebuilt Windows vcpkg set still contains OSG; nothing uses it |
 | Math | VSG math engine-wide (decision 0002, task 0013), with OSG's exact behaviour in `components/misc/vsgmath.hpp` where VSG's differs; CreativeMotion keeps `opas::math` | `CI/check_no_osg.sh` fails on any OSG include or `osg*` namespace in any C or C++ file |
 | UI | MyGUI in game, Qt 6 in the launcher, wizard and editor | Inherited |
-| Scripting | Lua (LuaJIT) through OpenMW's Lua host | Lua APIs come only from the core; plugins can only publish events the core forwards to Lua (decision 0003) |
-| Authored data | JSON with a canonical writer that round-trips byte for byte | The project's rule for new formats (CreativeMotion decision 0002, plugin doc 5.2) |
+| Scripting | Lua (LuaJIT) through OpenMW's Lua host | Lua APIs come only from the core; extensions can only publish events the core forwards to Lua (decision 0003) |
+| Authored data | JSON with a canonical writer that round-trips byte for byte | The project's rule for new formats (CreativeMotion decision 0002, extension doc 5.2) |
 | Tests | GoogleTest (`components-tests`, `openmw-tests`, `openmw-cs-tests`), Lua integration tests (`scripts/integration_tests.py`) | Integration tests need OpenMW's example suite at the revision pinned in `.gitlab-ci.yml` |
 | Formatting | clang-format 14 (`.clang-format`, `CI/check_clang_format.sh`), clang-tidy (`.clang-tidy`) | CI uses version 14; newer local versions format some untouched code differently, so only format lines you changed |
 | Platforms | Windows (MSVC, x64), Linux (GCC and Clang) | macOS is inherited in CI but not a target until toddhow says so |
@@ -73,16 +74,16 @@ apps/
   navmeshtool/  physicsobjecttool/  bsatool/  esmtool/  niftest/  essimporter/  mwiniimporter/
   components_tests/  openmw_tests/  opencs_tests/  benchmarks/
 components/               shared engine libraries (resource, nif, nifjolt, physicshelpers, detournavigator, lua, vfs, ...)
-  plugin/                 the plugin loader, registry, lifecycle and core services behind the host API
+  extension/              the extension loader, registry, lifecycle and core services behind the host API
   creativemotion/         vendored copy of CreativeMotion, compiled into the engine (decision 0001); never edited in place
   inertialmotion/         inertial locomotion state (docs/design/inertial-locomotion.md)
-sdk/                      the SDK: host API headers, contract headers (plugin doc 7.1)
-plugins/<id>/             first-party plugins, each built against the SDK only (plugin doc 5.1, 7.2); compat_morrowind first
+sdk/                      the SDK: host API headers, contract headers (extension doc 7.1)
+extensions/<id>/          first-party extensions, each built against the SDK only (extension doc 5.1, 7.2); compat_morrowind first
 extern/                   fetched and vendored third-party code (Jolt, recastnavigation, MyGUI, ...)
 files/                    data shipped with the engine: shaders, Lua, translations, settings defaults
 docs/
   source/                 OpenMW's user and modding documentation (Sphinx)
-  design/                 design handoffs (plugin system, Eden Studio, inertial locomotion)
+  design/                 design handoffs (extension system, Eden Studio, inertial locomotion)
   decisions/              decision records, NNNN-title.md
   tasks/                  task specs, NNNN-title.md
   research/               research notes
@@ -94,39 +95,40 @@ Each area that gets new OpenEden code gets its own short `CLAUDE.md` describing 
 
 ## Architecture rules and module boundaries
 
-The plugin design doc's dependency rules (section 3.1) are this project's architecture. Until the SDK exists, new code is written so it can move behind it without a rewrite.
+The extension design doc's dependency rules (section 3.1) are this project's architecture. Until the SDK exists, new code is written so it can move behind it without a rewrite.
 
 ```text
 hosts (openeden, Eden Studio, test host) ──► core
-plugins ──────────────────────────────────► SDK (host API + contract headers) only
+extensions ──────────────────────────────────► SDK (host API + contract headers) only
 compatibility pack ───────────────────────► SDK; provides openeden.game
-core ─────────────────────────────────────► no plugin, ever
+core ─────────────────────────────────────► no extension, ever
 ```
 
-- **The core is groundwork:** physics on Jolt, rendering, platform, input, audio, VFS and resources, world and entities, frame loop, Lua host, saves. It names no feature and no game. A feature or a game rule never moves into the core to make a plugin's life easier; the host API grows instead.
-- **Contracts only:** a plugin never includes another plugin's headers, links its library or shares globals with it. It asks the registry for a versioned contract.
+- **The core is groundwork:** physics on Jolt, rendering, platform, input, audio, VFS and resources, world and entities, frame loop, Lua host, saves. It names no feature and no game. A feature or a game rule never moves into the core to make an extension's life easier; the host API grows instead.
+- **Contracts only:** an extension never includes another extension's headers, links its library or shares globals with it. It asks the registry for a versioned contract.
 - **Contracts carry no implementation and no third-party types** (no Jolt, OSG, MyGUI or Qt types in a contract signature).
-- **One Jolt world:** the core owns it; plugins create bodies and constraints through the physics service and get IDs back, never pointers. Collision layers are registered by name; the core assigns bits.
+- **One Jolt world:** the core owns it; extensions create bodies and constraints through the physics service and get IDs back, never pointers. Collision layers are registered by name; the core assigns bits.
 - **Game rules live in the compatibility pack:** anything specific to Morrowind (records, races, skeleton names, `.nif`/`.kf` rules) moves out of the core into the Morrowind pack step by step, with Morrowind verified to play the same after each step.
-- **Fixed, ordered phases:** plugins run in the documented phases (plugin doc 4.3), in load order; plugins never read a clock and get `dt` and the step index from the core.
-- **Core never renders for a plugin:** debug drawing is submitted as data (points, lines, labels) and drawn by the core.
-- **Plugins read physics, never change it, and have no Lua API** (decision 0003, toddhow 2026-10-28): plugins may cast rays and shapes, read body states and receive physics events, and may publish events the core forwards to Lua; they never create, move or step bodies, register collision layers, run in fixed physics steps, or register Lua tables. Any system that must do those things goes into the core.
-- **Core feature systems** (decisions 0001 and 0003): CreativeMotion is compiled into the engine; AdvancedBodies and ComplexClothing are planned as core systems too. Reflectron and compatibility packs are plugins. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
-- **Inherited boundaries stay:** `components/` never includes `apps/`; `apps/openmw/mwbase/` interfaces are how game subsystems reach each other. These are the precedent the registry generalizes (plugin doc 3.2).
+- **Fixed, ordered phases:** extensions run in the documented phases (extension doc 4.3), in load order; extensions never read a clock and get `dt` and the step index from the core.
+- **Core never renders for an extension:** debug drawing is submitted as data (points, lines, labels) and drawn by the core.
+- **Extensions do not affect save data** (decision 0005, toddhow 2026-10-31): they are like script extender plugins; they have no way to write to or read from a saved game. A feature that must live in a save belongs in the core.
+- **Extensions read physics, never change it, and have no Lua API** (decision 0003, toddhow 2026-10-28): extensions may cast rays and shapes, read body states and receive physics events, and may publish events the core forwards to Lua; they never create, move or step bodies, register collision layers, run in fixed physics steps, or register Lua tables. Any system that must do those things goes into the core.
+- **Core feature systems** (decisions 0001 and 0003): CreativeMotion is compiled into the engine; AdvancedBodies and ComplexClothing are planned as core systems too. Reflectron and compatibility packs are extensions. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
+- **Inherited boundaries stay:** `components/` never includes `apps/`; `apps/openmw/mwbase/` interfaces are how game subsystems reach each other. These are the precedent the registry generalizes (extension doc 3.2).
 
 ## Coding standards
 
 Write code a learning C++ developer can follow, and that reads like the code around it.
 
-- **Match the surrounding code:** inherited files keep OpenMW's style (naming with `m` prefixes for members, `camelCase` functions, OpenMW's include grouping); see OpenMW's [Policies and Standards](https://wiki.openmw.org/index.php?title=Policies_and_Standards). New SDK and plugin code follows CreativeMotion's standards.
+- **Match the surrounding code:** inherited files keep OpenMW's style (naming with `m` prefixes for members, `camelCase` functions, OpenMW's include grouping); see OpenMW's [Policies and Standards](https://wiki.openmw.org/index.php?title=Policies_and_Standards). New SDK and extension code follows CreativeMotion's standards.
 - **No drive-by changes:** do not reformat, rename or "tidy" lines a task does not need to change. Unrelated changes make upstream merges harder and hide the real change in review (OpenMW's `CONTRIBUTING.md` says the same).
 - **Ownership:** RAII everywhere; no raw `new` or `delete` in new code; `std::unique_ptr` by default, `std::shared_ptr` or `vsg::ref_ptr` only where the surrounding system already uses it, with a comment saying why. Every new class states who owns it.
 - **Engine and physics objects:** store handles or IDs (`JPH::BodyID`, entity IDs), never raw pointers, to anything the engine or Jolt can destroy; look them up when used.
 - **Threading:** the physics system runs actor simulation on async worker threads (`apps/openmw/mwphysics/mtphysics.cpp`). Code called from a physics step must not move bodies other threads may be querying, take the main thread's locks, or touch game objects without the existing synchronization. Say in the pull request which thread each new callback runs on.
 - **Hot paths:** no heap allocation in per-frame or per-physics-step code; preallocate and reuse buffers.
-- **Determinism:** no wall-clock time, no unseeded randomness, no iteration over unordered containers where order affects results, in simulation code and in plugin load, phase and event order.
+- **Determinism:** no wall-clock time, no unseeded randomness, no iteration over unordered containers where order affects results, in simulation code and in extension load, phase and event order.
 - **Jolt usage:** include `<Jolt/Jolt.h>` before any other Jolt header, in its own include block; use `JPH::RVec3`/`RMat44` for world positions (double precision is on); never construct a Jolt shape whose dimensions can be smaller than its convex radius; prefer `JPH::RayAABox` and similar geometry helpers over building temporary shapes.
-- **Errors:** loaders return clear, located errors (file, line, field); no exception crosses the core/plugin boundary in either direction (plugin doc 6.8).
+- **Errors:** loaders return clear, located errors (file, line, field); no exception crosses the core/extension boundary in either direction (extension doc 6.8).
 - **Style:** clang-format 14 and clang-tidy clean on changed lines; builds with warnings as errors on Linux (`-Werror`, as CI's `Ubuntu_GCC` job) and with no new warnings on MSVC (`/W4`); `const` by default.
 - **Tuning values:** no magic numbers in new code; defaults live in settings, data files or named constants with a comment on their source. Inherited Morrowind values (GMSTs, vanilla formulas) keep their existing source.
 - **User-visible strings:** new game UI strings go through OpenMW's YAML localisation; new Qt strings need the translation files regenerated (`CI/check_qt_translations.sh` fails otherwise).
@@ -152,7 +154,7 @@ Every change follows the same loop, with tests written independently of the impl
 5. **Verify:** all quality gates pass; physics or gameplay changes also get an in-game check with the steps written in the pull request.
 6. **Explain and merge:** the pull request explains the change in plain language for toddhow, who approves the merge.
 
-**Full loop required** for every Track V stage (the renderer and the math change), anything under `apps/openmw/mwphysics/`, the CreativeMotion adapters and refreshes of `components/creativemotion/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, the plugin loader, registry, SDK and contracts, save games, and upstream merges. These carry the determinism, lifetime, threading and compatibility risks, so they never use a lighter loop.
+**Full loop required** for every Track V stage (the renderer and the math change), anything under `apps/openmw/mwphysics/`, the CreativeMotion adapters and refreshes of `components/creativemotion/`, `components/nifjolt/`, `components/physicshelpers/`, `components/resource/physicsshape*`, the extension loader, registry, SDK and contracts, save games, and upstream merges. These carry the determinism, lifetime, threading and compatibility risks, so they never use a lighter loop.
 
 **Lighter loop:** available only for tasks outside those areas (for example `CI/`, `scripts/`, documentation, launcher text) and only when toddhow marks the spec as lighter. No separate test-writing subagent; the implementing agent writes focused tests itself where they are cheap; a fresh reviewing subagent runs once per milestone. toddhow still approves each spec before implementation. A task that touches both areas uses the full loop.
 
@@ -192,9 +194,9 @@ A pull request merges only when every gate below passes; gates are added as the 
 | Translations | Qt `.ts` files match `lupdate` output (`CI/check_qt_translations.sh`) | Every pull request touching launcher, wizard or editor strings |
 | Off means unchanged | With every new setting at its default, the affected behaviour matches the fork point (integration tests, a recorded comparison or a stated in-game check, as the spec says) | Every pull request adding a setting |
 | Merge audit | Every upstream line dropped by a merge is accounted for (see Upstream merges) | Every upstream merge |
-| Plugin boundaries | Plugins include only SDK and contract headers; the core starts with zero plugins | Once the SDK exists |
-| Determinism | A scenario run twice gives identical results, also with plugins discovered in a different order | Once the plugin host exists |
-| Allocation | Phase callbacks, per-step contract calls and event publishing allocate nothing | Once the plugin host exists |
+| Extension boundaries | Extensions include only SDK and contract headers; the core starts with zero extensions | Once the SDK exists |
+| Determinism | A scenario run twice gives identical results, also with extensions discovered in a different order | Once the extension host exists |
+| Allocation | Phase callbacks, per-step contract calls and event publishing allocate nothing | Once the extension host exists |
 
 Golden data (recordings, expected outputs) changes only in a pull request that says why, reviewed by toddhow.
 
@@ -253,67 +255,67 @@ Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next m
 - [ ] The editor renders through VSG in a Qt Vulkan viewport with its editing features intact; every tool builds; videos play
 - [ ] No OpenSceneGraph anywhere: headers, libraries, CMake options, CI packages; CI green on Windows and Linux
 
-### P1 Plugin registry and lifecycle, in process
+### P1 Extension registry and lifecycle, in process
 
-- [x] SDK skeleton: `Version`, `Registrar`, `ServiceLocator`, `Plugin`, `PluginDescriptor`, the phase list (plugin doc 4.1 to 4.3, 6.2)
-- [x] Registry, dependency resolution and lifecycle with plugins linked statically into a test host
+- [x] SDK skeleton: `Version`, `Registrar`, `ServiceLocator`, `Extension`, `ExtensionDescriptor`, the phase list (extension doc 4.1 to 4.3, 6.2)
+- [x] Registry, dependency resolution and lifecycle with extensions linked statically into a test host
 - [x] Resolution tests from manifests alone: load order, missing providers, version ranges, cycles, optional contracts, duplicate providers, `loadAfter`, deterministic tie-breaks
-- [x] Lifecycle tests: register, resolve, start, stop run in the documented order; a failing plugin disables its dependants and nothing else
-- [x] Empty host: the core runs a world for N steps and shuts down with zero plugins
+- [x] Lifecycle tests: register, resolve, start, stop run in the documented order; a failing extension disables its dependants and nothing else
+- [x] Empty host: the core runs a world for N steps and shuts down with zero extensions
 
 ### P2 Dynamic loading and manifests
 
-- [x] `openeden.plugin` v1 manifest format, validation with located errors, canonical writer that round-trips byte for byte
-- [x] Discovery, enable list, library loading and the handshake on Windows and Linux; a broken plugin is refused without running its code
-- [x] `openeden_add_plugin()` CMake helper and dynamic library lifecycle integration (destruction before unload invariant)
+- [x] `openeden.extension` v1 manifest format, validation with located errors, canonical writer that round-trips byte for byte
+- [x] Discovery, enable list, library loading and the handshake on Windows and Linux; a broken extension is refused without running its code
+- [x] `openeden_add_extension()` CMake helper and dynamic library lifecycle integration (destruction before unload invariant)
 
 ### P3 Core services behind the host API
 
-P1 to P5 built the plugin system as a tested model in the test host; the game itself does not load plugins yet. Making it work in the game is Track W (`docs/design/working-plugin-system.md`).
+P1 to P5 built the extension system as a tested model in the test host; the game itself does not load extensions yet. Making it work in the game is Track W (`docs/design/working-extension-system.md`).
 
 - [x] Frame phases run in a fixed order by the lifecycle manager (in the test host; called from the engine loop in Track W); the fixed-step phases are removed by decision 0003 (task 0019)
 - [x] Physics service able to attach to a shared Jolt world (made read-only and collision layers removed by decision 0003, task 0019; attached to the game's world in Track W)
-- [x] Entity IDs, lifecycle events and per-entity plugin data
+- [x] Entity IDs, lifecycle events and per-entity extension data
 - [x] Event bus with fixed-size queues; overflow counted and logged
-- [x] VFS mounting of plugin data and file format registration
-- [x] Settings namespaces (off by default) and save chunks; a save with a missing plugin's chunk loads and saves back unchanged
+- [x] VFS mounting of extension data and file format registration
+- [x] Settings namespaces (off by default); ~~save chunks~~ built in task 0003, then removed by decision 0005: extensions do not affect save data
 
 ### P4 Scripting, diagnostics and editor hooks
 
-- [x] ~~Lua tables per plugin (`openeden.<id>`)~~ built in task 0004, then removed by decision 0003 (task 0019): plugins forward events to Lua instead
-- [x] Per-plugin logging, profiling scopes and debug-draw submission as data
-- [x] Editor extension points for Eden Studio (workspaces, inspectors, gizmos), ignored by the game host
+- [x] ~~Lua tables per extension (`openeden.<id>`)~~ built in task 0004, then removed by decision 0003 (task 0019): extensions forward events to Lua instead
+- [x] Per-extension logging, profiling scopes and debug-draw submission as data
+- [x] Editor hooks for Eden Studio (workspaces, inspectors, gizmos), ignored by the game host
 
 ### P5 First real clients
 
-- [x] ~~CreativeMotion loads as a plugin and uses the core's Jolt world instead of its own~~ (done in task 0005, then superseded: CreativeMotion is compiled into the engine, decision 0001)
-- [x] Morrowind compatibility pack built as the first real plugin, providing `openeden.game` and a `.kf` to glTF converter contract (`plugins/compat_morrowind/`); loaded by the game in Track W
+- [x] ~~CreativeMotion loads as an extension and uses the core's Jolt world instead of its own~~ (done in task 0005, then superseded: CreativeMotion is compiled into the engine, decision 0001)
+- [x] Morrowind compatibility pack built as the first real extension, providing `openeden.game` and a `.kf` to glTF converter contract (`extensions/compat_morrowind/`); loaded by the game in Track W
 - [ ] Morrowind-specific code moved out of the core into the pack step by step, with Morrowind verified to play the same after each step
 
-### Track W: the plugin system working in the game
+### Track W: the extension system working in the game
 
-Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built against what the game needs, stages, decisions, risks), under decision 0003. W0 can run now; W1 onward is proposed after Track V's V2, alongside V3–V6, because Track V replaces the engine loop and save flow those stages change.
+Plan: `docs/design/working-extension-system.md` (audit of what P1–P5 built against what the game needs, stages, decisions, risks), under decision 0003. W0 can run now; W1 onward is proposed after Track V's V2, alongside V3–V6, because Track V replaces the engine loop and save flow those stages change.
 
 **W0 SDK 2.0** — task 0019 (`docs/tasks/0019-plugins-w0-sdk-2-trim.md`)
-- [ ] Physics read-only with shape casts; collision layers, fixed-step phases and the Lua scripting service removed; events markable for Lua forwarding; SDK version 2.0
+- [x] Physics read-only with shape casts; collision layers, fixed-step phases and the Lua scripting service removed; events markable for Lua forwarding; SDK version 2.0
 
 **W1 The host in the game** — task 0015 (`docs/tasks/0015-plugins-w1-host-in-game.md`)
-- [ ] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing
+- [x] `openmw` discovers, loads, starts, stops and unloads enabled extensions; frame phases called from the engine loop; logging bridged; zero extensions changes nothing (frame-time measurement not yet run)
 
 **W2 Data services on the engine** — task 0016 (`docs/tasks/0016-plugins-w2-data-services.md`)
-- [ ] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts
+- [x] Extension data in the game's VFS, settings in `settings.cfg`, marked extension events forwarded to Lua scripts; ~~save chunks in `.omwsave`~~ built, then removed by decision 0005
 
 **W3 World services on the engine** — task 0017 (`docs/tasks/0017-plugins-w3-world-services.md`)
-- [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events, debug draw and profiler shown
+- [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events (done, on Windows, 2026-10-31); debug draw and profiler shown (not done: renderer files, see task 0017's notes)
 
 **W4 Real clients and packaging** — task 0018 (`docs/tasks/0018-plugins-w4-clients-and-packaging.md`)
-- [ ] Installed plugin layout, launcher plugin list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample plugin covering every service end to end
+- [ ] Installed extension layout, launcher extension list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample extension covering every service end to end (done on Windows, 2026-10-31; the launcher page has not been opened, and the Linux install layout not checked; see task 0018's notes)
 
 ### P6 Stable C ABI and community SDK
 
 - [ ] C ABI over the same services with a header-only C++ wrapper
 - [ ] SDK compatibility check in CI: a minor version that removes or changes anything fails
-- [ ] SDK documentation, a template plugin and sample contracts
+- [ ] SDK documentation, a template extension and sample contracts
 
 ### Eden Studio (E1 to E6)
 
@@ -323,7 +325,7 @@ The six phases in `docs/design/eden-studio-plan.md`, section 6: studio shell and
 
 Owned by CreativeMotion's guide (`I:\Projects\CreativeMotion\CLAUDE.md`, "Path to OpenMW"). Since decision 0001, CreativeMotion is compiled into the engine, so OpenEden's side is the engine adapters those milestones need, each through an OpenEden task spec (0006 IK, 0007 animation runtime); changes to CreativeMotion itself go through CreativeMotion's own task specs.
 
-- [ ] In-engine physics adapter for ragdolls (M10): CreativeMotion's `PhysicsWorld` over the core's single Jolt world, replacing the removed plugin's `HostPhysicsWorld`; never a second Jolt world
+- [ ] In-engine physics adapter for ragdolls (M10): CreativeMotion's `PhysicsWorld` over the core's single Jolt world, replacing the removed extension's `HostPhysicsWorld`; never a second Jolt world
 
 ## Definition of done
 
@@ -341,7 +343,7 @@ A task is done only when all of these hold:
 
 These rules protect the project legally and keep it honest; breaking one blocks a merge.
 
-- **GPL-3.0-or-later.** OpenEden is a fork of a GPLv3 program; every file stays GPL-compatible, and OpenMW's copyright notices, `AUTHORS.md` entries and licence files are kept. First-party plugins are GPL-3.0-or-later (plugin doc 9).
+- **GPL-3.0-or-later.** OpenEden is a fork of a GPLv3 program; every file stays GPL-compatible, and OpenMW's copyright notices, `AUTHORS.md` entries and licence files are kept. First-party extensions are GPL-3.0-or-later (extension doc 9).
 - **Not OpenMW.** OpenEden never presents itself as OpenMW or as endorsed by the OpenMW project, and never pushes to or opens merge requests on OpenMW's repositories.
 - **No game assets.** No Bethesda files (`.esm`, `.esp`, `.bsa`, `.nif`, `.kf`, `.hkx`, textures, audio) in the repository; compatibility packs read the user's own installed game data; tests use OpenMW's example suite, generated data or permissively licensed samples with the licence recorded.
 - **No proprietary code or SDKs.** Never add the Havok SDK, Creation Kit or game binaries, decompiled game code, or code from mods that are not open-source licensed.
@@ -355,6 +357,7 @@ These rules protect the project legally and keep it honest; breaking one blocks 
 
 Learned while finishing the Jolt branch; each cost real time.
 
+- **A contract in an anonymous namespace.** Each library then has a type of its own. It works with MSVC; GCC sees no implementation in the calling library and calls the pure virtual function directly, which aborts. Contracts go in a named namespace.
 - **Windows parallel builds run out of memory.** MSVC with precompiled headers fails with "compiler is out of heap space" at the default parallelism on this machine; build with `-j 8`. In Docker, the same build at `-j $(nproc)` crashed Docker Desktop's engine; use `-j 8` and `--memory 12g`.
 - **Never install into the build directory.** OpenEden's Windows install rule copies the build directory's runtime files, so an install prefix inside it copies itself recursively (`install/install/install/...`). Install to a separate folder.
 - **Windows runtime files.** A runnable Windows build needs the vcpkg `bin` DLLs, `bin/Release/MyGUIEngine.dll` and Qt deployed with `windeployqt` (the `osgPlugins-3.6.5` folder is no longer needed); without MyGUI the tests exit with `0xC0000135`.
@@ -374,21 +377,21 @@ Learned while finishing the Jolt branch; each cost real time.
 
 Work toddhow wants done later, not yet a task spec. Each item becomes a spec (or a research note) before work starts.
 
-- [x] Commit `docs/design/` (the plugin system and Eden Studio handoffs; done 2026-10-25)
+- [x] Commit `docs/design/` (the extension system and Eden Studio handoffs; done 2026-10-25)
 - [ ] Record the fork as an OpenEden decision (`docs/decisions/` started with 0001): base commit (Jolt branch at 5459a65292 or later), why, and what "upstream merges are optional" means in practice
-- [x] Decide whether CreativeMotion lands as a plugin or inside the engine: inside the engine, CreativeMotion only (decision 0001, 2026-10-28)
+- [x] Decide whether CreativeMotion lands as an extension or inside the engine: inside the engine, CreativeMotion only (decision 0001, 2026-10-28)
 
 ## Open questions
 
 Claude Code should raise these with toddhow when a task depends on one, rather than deciding alone.
 
 - [ ] Hosting and CI: CreativeMotion decision 0003 moved hosting to GitHub, but this checkout's remote is cykoder's GitLab fork and both GitLab CI and GitHub Actions are present; which does OpenEden keep?
-- [ ] Order of Eden Studio against the plugin phases (the studio needs P4's editor hooks)
-- [ ] Plugin doc open questions 1 to 6: when to add the C ABI, where contracts live, user-overridable load order, hot reload, one game per session, third-party licence policy
+- [ ] Order of Eden Studio against the extension phases (the studio needs P4's editor hooks)
+- [ ] Extension doc open questions 1 to 6: when to add the C ABI, where contracts live, user-overridable load order, hot reload, one game per session, third-party licence policy
 - [ ] Executable and data names: when `openmw`, `openmw-cs` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs are migrated
 - [ ] Whether macOS stays a supported platform (with Vulkan it would need MoltenVK, decision 0002)
 - [x] Renderer direction: Vulkan on VulkanSceneGraph, total move, no abstraction layer (decision 0002, 2026-10-28; background in `docs/research/0001-vulkan-renderer.md`)
-- [ ] The `openeden.animation` contract has had no provider since decision 0001: keep it for plugins that want to drive animation, or remove it from the SDK?
+- [ ] The `openeden.animation` contract has had no provider since decision 0001: keep it for extensions that want to drive animation, or remove it from the SDK?
 
 ## References
 
@@ -396,7 +399,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 - [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
 - [OpenMW Policies and Standards](https://wiki.openmw.org/index.php?title=Policies_and_Standards) and `CONTRIBUTING.md`
 - [GNU GPL FAQ: plug-ins](https://www.gnu.org/licenses/gpl-faq.html#GPLPlugins)
-- `docs/design/openeden-plugin-system.md`, `docs/design/eden-studio-plan.md`
+- `docs/design/openeden-extension-system.md`, `docs/design/eden-studio-plan.md`
 - CreativeMotion: `I:\Projects\CreativeMotion\CLAUDE.md`, `docs/decisions/0004-total-fork-of-openmw.md`, `docs/design/advancedbodies-handoff.md`
 
 ## Changelog
@@ -408,6 +411,14 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 | 2026-10-31 | Track V stage V6, stages C5 and C6 (task 0014): camera controllers on `vsg::LookAt`, picking and tags; `vsgUtil::ArrayState` fixed for VSG 1.1, so that terrain can be intersected, in the game too |
 | 2026-10-31 | Track V stage V6, stages A1 to A5 (task 0014): esmtool, benchmarks, navmeshtool and essimporter build without OSG and match OSG-era binaries (stage log); `extern/osg-ffmpeg-videoplayer` renamed `extern/ffmpeg-videoplayer`; the tests excluded in task 0009 restored, replaced or deleted with reasons, including `nifloader/testjoltnifloader.cpp`, which had not compiled since the Jolt port |
 | 2026-10-31 | Track V stage V5 closed but for its unrun checks (task 0013): OSG math gone from the engine, `extern/osg`, the bridge and `components/vsgadapters/osg` deleted; the Morrowind pack on VSG math; convention tests reduced to OSG's recorded results (`*.golden.inc`), proved against OSG before it went; `osg::Stats` to `Misc::Stats`; 127 dead files deleted, those the editor and tools need listed in task 0014; `CI/check_no_osg.sh`. The fixed-seed scenario, AI pathing and image comparison are not run, so V5 stays unticked |
+| 2026-10-31 | Engine plugins renamed to extensions (decision 0006, task 0021, toddhow), with no behaviour change: `extensions/<id>/`, `extension.json`, `extension=`, `--extension`, `--no-extensions`, `[extension.<id>]`, `components/extension`, `openeden::extension`. Eden Studio's editor extensions are now editor modules. "Plugin" keeps its Morrowind meaning; rows below keep their old wording |
+| 2026-10-31 | Plugins do not affect save data (decision 0005, toddhow): they are like script extender plugins. `SaveService`, `SaveChunkHandler`, the `OEPL` record and the engine's hooks for them removed with their tests; plugin doc 4.9, the Track W plan, the implementation guide and the example plugin updated |
+| 2026-10-31 | Track W on Linux at `c9037dedd4`, with CI's GCC flags (`-Werror`): the build, `components-tests` 1936, `openmw-tests` 721 and all 32 Lua tests pass; no plugin in those Lua runs, launcher and editor not built. Not run on Linux: clang-format 14, clang-tidy, sanitizers, the real-game plugin checks. New pitfall: a contract must not be in an anonymous namespace |
+| 2026-10-31 | Track W stage W4 (task 0018): plugins build and install to `plugins/<id>/`; the Morrowind compatibility pack is on by default; `plugins/example/` uses every service, with `tools/plugin_example_check/`; the launcher has a Plugins page writing `plugin=` lines; plugin failures show one message at the main menu. Plugin data folders are now full data folders |
+| 2026-10-31 | Track W stage W3 (task 0017), except debug draw and the profiler overlay: plugins query the game's Jolt world in meters, see objects as entities with lifecycle events, and receive physics and game events. `OMW::PluginWorld` queues engine notifications from any thread and delivers on the main thread before `Phase::Input`. Plugins now start in the `Game` state. New `openeden/game_events.hpp`, `MWPhysics::ContactObserver`, `tools/plugin_world_check/`, `apps/openmw/mwphysics/CLAUDE.md` |
+| 2026-10-31 | Track W stage W2 (task 0016): plugin `data/` folders in the game's VFS above `data=` and below `data-local`; settings under `[plugin.<id>]` in `settings.cfg`; save chunks as `OEPL` records in `.omwsave`, preserved without their plugin and handled on the main thread only; marked events reach global scripts as `openeden_<pluginId>_<eventName>`. New `MWBase::PluginManager`, `ESM::PluginChunk` and `tools/plugin_data_check/` |
+| 2026-10-30 | Track W stage W1 (task 0015), started alongside V4 at toddhow's request: `OMW::PluginHost` runs plugins in the game, with `plugin=<id>` in `openmw.cfg`, `--plugin` and `--no-plugins`; frame phases called from `Engine::frame` and `Game::run`; plugin and engine logging bridged; a plugin faulting at runtime disables its dependants. New `apps/openmw/CLAUDE.md`, `tools/check_plugin_phases.sh`, test plugins in `apps/openmw_tests/plugin/` |
+| 2026-10-30 | Track W stage W0 (task 0019): SDK 2.0. `PhysicsService` replaced by the read-only `PhysicsQueryService` (rays, sphere, capsule and box casts, opaque query masks the host publishes), which only attaches to a world the host owns; fixed-step phases, collision layers and `ScriptingService` removed with their tests; event types can be marked as forwarded to Lua (`EventBus::markForwardedToLua`, forwarding itself in task 0016); physics event types declared (`openeden/physics_events.hpp`, published in task 0017); SDK 1.x manifests refused with a clear reason; `CI/check_plugin_sdk.sh` added |
 | 2026-10-29 | Track V stage V3 (task 0011): foot IK, look-at, smoother turns, lean and compound hitboxes on `MWRender::BonePose`; the CreativeMotion pose driver on vsgopenmw's `Anim` system (`MWAnim::Play::getActiveState`, `Play::updateBones`), matching vsgopenmw's pose with transitions off; Jolt and navmesh debug draws through `MWRender::DebugGeometry`; the compatibility pack's own `.kf` reader (`compat_morrowind::KfTrack`) replacing NifOsg, so the pack builds again; `OPENEDEN_VSG_PENDING_FEATURES` and its registry removed. Module guides `apps/openmw/mwrender/CLAUDE.md` and `plugins/compat_morrowind/CLAUDE.md` added |
 | 2026-10-29 | Track V stage V2 close-out (task 0010): Linux `-Werror` build fixed, all unit tests and 32 Lua integration tests pass on Linux and Windows; reference scenes and frame times compared with an OSG build of `cf3dbd3aa7` (research note 0004); textures read as sRGB fixed (pitfall added). V2 stays open for toddhow's scene verdicts, the exterior CPU cost and the interactive playthrough |
 | 2026-10-29 | Track V stages V3 to V6 approved (tasks 0011 to 0014, toddhow): CreativeMotion handles animation blending (0.51's rules-based blending not ported); distortion moves to V4; OpenEden moves to Slang for shaders, with mod `.omwfx` shaders kept working through Slang's GLSL input and the built-in shaders later ported to Slang or replaced (research note 0005); VR removed for now; `vulkan` becomes the main line after V4 (toddhow merges it); V5 after V4 with a small `vsgmath.hpp`; V6 editor on vsgQt if it supports Qt 6.6.3, porting the existing views |

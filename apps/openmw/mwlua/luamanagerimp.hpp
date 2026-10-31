@@ -83,6 +83,8 @@ namespace MWLua
         void objectAddedToScene(const MWWorld::Ptr& ptr) override;
         void objectRemovedFromScene(const MWWorld::Ptr& ptr) override;
         void inputEvent(const InputEvent& event) override;
+        void sendExtensionEvent(std::string eventName, const std::vector<ExtensionEventField>& fields) override;
+
         void itemConsumed(const MWWorld::Ptr& consumable, const MWWorld::Ptr& actor) override
         {
             mEngineEvents.addToQueue(EngineEvents::OnConsume{ getId(actor), getId(consumable) });

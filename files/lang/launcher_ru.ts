@@ -402,6 +402,33 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     </message>
 </context>
 <context>
+    <name>Launcher::ExtensionsPage</name>
+    <message>
+        <source>Extension</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extensions are programs that run with the same rights as the game. Install them only from sources you trust.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Launcher::GraphicsPage</name>
     <message>
         <source>Error receiving number of screens</source>
@@ -666,6 +693,14 @@ Logs and settings changed through the launcher and in-game will be saved here.</
     <message>
         <source>Display</source>
         <translation>Экран</translation>
+    </message>
+    <message>
+        <source>Extensions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable or disable extensions, which add native code to the game.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

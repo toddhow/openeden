@@ -16,8 +16,10 @@
 #include <components/fallback/fallback.hpp>
 #include <components/misc/vsgmath.hpp>
 
+#include "../mwbase/extensionmanager.hpp"
 #include "error.hpp"
 #include "operation.hpp"
+
 #include "statemanagerimp.hpp"
 
 namespace MWState
@@ -112,6 +114,7 @@ namespace MWState
                 }
                 mState = StateManager::State_Running;
                 MWBase::Environment::get().getLuaManager()->gameLoaded();
+                MWBase::Environment::get().getExtensionManager()->gameLoaded();
             }
             catch (std::exception& e)
             {

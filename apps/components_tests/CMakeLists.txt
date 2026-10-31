@@ -104,26 +104,23 @@ file(GLOB UNITTEST_SRC_FILES
     nif/node.hpp
     nif/testphysics.cpp
 
-    plugin/test_version.cpp
-    plugin/test_resolution.cpp
-    plugin/test_lifecycle.cpp
-    plugin/test_empty_host.cpp
-    plugin/test_manifest_io.cpp
-    plugin/test_dynamic_library.cpp
-    plugin/test_plugin_loader.cpp
-    plugin/test_event_bus.cpp
-    plugin/test_entity_manager.cpp
-    plugin/test_settings_service.cpp
-    plugin/test_save_service.cpp
-    plugin/test_collision_layers.cpp
-    plugin/test_vfs_service.cpp
-    plugin/test_logging_service.cpp
-    plugin/test_profiler_service.cpp
-    plugin/test_scratch_memory.cpp
-    plugin/test_debug_draw.cpp
-    plugin/test_scripting_service.cpp
-    plugin/test_editor_service.cpp
-    plugin/test_physics_service.cpp
+    extension/test_version.cpp
+    extension/test_resolution.cpp
+    extension/test_lifecycle.cpp
+    extension/test_empty_host.cpp
+    extension/test_manifest_io.cpp
+    extension/test_dynamic_library.cpp
+    extension/test_extension_loader.cpp
+    extension/test_event_bus.cpp
+    extension/test_entity_manager.cpp
+    extension/test_settings_service.cpp
+    extension/test_vfs_service.cpp
+    extension/test_logging_service.cpp
+    extension/test_profiler_service.cpp
+    extension/test_scratch_memory.cpp
+    extension/test_debug_draw.cpp
+    extension/test_editor_service.cpp
+    extension/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp
 
     mwrender/test_creativemotion_runtime.cpp
@@ -160,10 +157,10 @@ file(GLOB UNITTEST_SRC_FILES
 
 # The Morrowind compatibility pack's converter, renderer-free since task 0011.
 list(APPEND UNITTEST_SRC_FILES
-    plugin/test_compat_morrowind.cpp
-    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_animation.cpp
-    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/kf_converter.cpp
-    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/src/morrowind_compat_plugin.cpp
+    extension/test_compat_morrowind.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/kf_animation.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/kf_converter.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/morrowind_compat_extension.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
@@ -171,7 +168,7 @@ source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_include_directories(components-tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/plugins/compat_morrowind/include
+    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/gltf/include
     ${CMAKE_SOURCE_DIR}/apps/openmw
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/runtime/include

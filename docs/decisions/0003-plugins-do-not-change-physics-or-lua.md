@@ -9,7 +9,7 @@ Date: 2026-10-28 · Decided by: toddhow
 - **Anything that must change physics or extend Lua is merged into the core.** CreativeMotion already is (decision 0001). AdvancedBodies (body morphology, the body contract that rescales physics capsules) and ComplexClothing (garment fitting, cloth simulation in Jolt) are planned as core systems too. Reflectron (character creation and NPC styling) stays planned as a plugin.
 
 ## Why
-- **The hardest parts of the plugin system are the ones that touch physics and Lua.** Sharing one Jolt world with plugins needs collision-layer bits that the 16-bit object layers cannot provide, fixed-step callbacks that clash with async physics threads, and Lua tables that must respect OpenMW's script contexts and sandboxing (`docs/design/working-plugin-system.md`, decisions 2–4). Keeping both systems in the core removes those problems instead of solving them.
+- **The hardest parts of the plugin system are the ones that touch physics and Lua.** Sharing one Jolt world with plugins needs collision-layer bits that the 16-bit object layers cannot provide, fixed-step callbacks that clash with async physics threads, and Lua tables that must respect OpenMW's script contexts and sandboxing (`docs/design/working-extension-system.md`, decisions 2–4). Keeping both systems in the core removes those problems instead of solving them.
 - **The systems that need them are core systems anyway.** Animation, bodies and clothing all drive physics and are groundwork every host needs, the same reasoning as decision 0001.
 
 ## Consequences
@@ -18,4 +18,4 @@ Date: 2026-10-28 · Decided by: toddhow
 - **Mods keep Lua** through OpenMW's Lua API. Anything mods need from native code is added to the core's Lua API, never by a plugin.
 - **The core grows** with AdvancedBodies and ComplexClothing, against the plugin doc's original aim of keeping build times flat by moving features out (plugin doc 1.2). Each still keeps its own engine-independent modules, as CreativeMotion does.
 - **Track W shrinks.** Its decisions on collision-layer bits, fixed steps with async physics and Lua contexts are no longer needed; task 0019 trims the SDK, and tasks 0016–0018 drop the removed services.
-- **Documents to update:** `docs/design/openeden-plugin-system.md` (sections 2, 4.3, 4.4, 4.10 and the phase list), `docs/design/working-plugin-system.md`, `docs/design/eden-studio-plan.md` (AdvancedBodies and ComplexClothing as core systems), and CreativeMotion's `docs/design/advancedbodies-handoff.md` (AdvancedBodies is now planned inside OpenEden's core).
+- **Documents to update:** `docs/design/openeden-extension-system.md` (sections 2, 4.3, 4.4, 4.10 and the phase list), `docs/design/working-extension-system.md`, `docs/design/eden-studio-plan.md` (AdvancedBodies and ComplexClothing as core systems), and CreativeMotion's `docs/design/advancedbodies-handoff.md` (AdvancedBodies is now planned inside OpenEden's core).

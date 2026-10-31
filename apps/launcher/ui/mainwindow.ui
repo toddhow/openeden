@@ -100,6 +100,7 @@
    <addaction name="graphicsAction"/>
    <addaction name="settingsAction"/>
    <addaction name="importAction"/>
+   <addaction name="extensionsAction"/>
   </widget>
   <action name="dataAction">
    <property name="checkable">
@@ -150,6 +151,21 @@
    </property>
    <property name="toolTip">
     <string>Allows to tweak engine settings</string>
+   </property>
+  </action>
+  <action name="extensionsAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset theme="preferences-installer">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Extensions</string>
+   </property>
+   <property name="toolTip">
+    <string>Enable or disable extensions, which add native code to the game.</string>
    </property>
   </action>
   <action name="importAction">

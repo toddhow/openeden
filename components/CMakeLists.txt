@@ -607,27 +607,24 @@ add_component_dir(testing
     util
 )
 
-add_component_dir(plugin
+add_component_dir(extension
     manifest
     load_error
     manifest_io
     dynamic_library
-    plugin_loader
+    extension_loader
     dependency_resolver
     service_registry
     lifecycle_manager
     event_bus
     entity_manager
     settings_service
-    save_service
-    collision_layer_registry
     vfs_service
     host_impl
     logging_service
     profiler_service
     scratch_memory
     debug_draw_service
-    scripting_service
     editor_service
     physics_service
 )

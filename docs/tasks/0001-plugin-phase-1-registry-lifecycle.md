@@ -1,5 +1,5 @@
 # Task: 0001 Plugin System Phase 1 - Registry and Lifecycle (In-Process)
-Design doc section: [`docs/design/openeden-plugin-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-plugin-system.md#L391-L395), Sections 4.1-4.3, 5.2, 6.2-6.8, 8, 10
+Design doc section: [`docs/design/openeden-extension-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-extension-system.md#L391-L395), Sections 4.1-4.3, 5.2, 6.2-6.8, 8, 10
 Goal: Implement the OpenEden SDK skeleton, in-memory manifest data structures, service registry, deterministic dependency resolution, and plugin lifecycle manager with in-process/static plugins.
 
 Inherited code touched:

@@ -56,6 +56,7 @@
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/scriptmanager.hpp"
@@ -2260,6 +2261,8 @@ namespace MWWorld
 
         mPhysics->remove(getPlayerPtr());
         mPhysics->addActor(getPlayerPtr(), getPlayerPtr().getClass().getCorrectedModel(getPlayerPtr()));
+
+        MWBase::Environment::get().getExtensionManager()->playerRebuilt(getPlayerPtr());
 
         applyLoopingParticles(player);
 

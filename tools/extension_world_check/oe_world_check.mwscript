@@ -1,0 +1,32 @@
+Begin OE_WorldCheck
+
+short state
+short count
+
+if ( state == 0 )
+    return
+endif
+
+if ( state == 1 )
+    "landracer"->SetHealth 0
+    set state to 0
+    return
+elseif ( state == 2 )
+    player->SetHealth 0
+    set count to 0
+    set state to 3
+    return
+elseif ( state == 3 )
+    ; A few frames so the mechanics see the death, too few for the game to end on the player's death.
+    set count to ( count + 1 )
+    if ( count >= 5 )
+        player->Resurrect
+        set state to 0
+    endif
+    return
+elseif ( state == 4 )
+    "landracer"->Resurrect
+    set state to 0
+endif
+
+End

@@ -8,7 +8,7 @@
 namespace openeden::sdk
 {
     /**
-     * @brief Registration interface filled by a plugin during its registerServices() stage.
+     * @brief Registration interface filled by an extension during its registerServices() stage.
      */
     class Registrar
     {
@@ -18,7 +18,7 @@ namespace openeden::sdk
         /**
          * @brief Offers impl as the provider of contract C.
          *
-         * The plugin owns impl and keeps it alive until its stop() method completes.
+         * The extension owns impl and keeps it alive until its stop() method completes.
          * The registry holds a non-owning pointer.
          * @tparam C Contract interface type declaring kId and kVersion.
          * @param impl Reference to the contract implementation.
@@ -36,14 +36,6 @@ namespace openeden::sdk
          * @param parallel If true, promises callback touches only its own data and data passed in.
          */
         virtual void registerPhaseCallback(Phase phase, PhaseCallback callback, bool parallel = false) = 0;
-
-        /**
-         * @brief Registers a callback to be called during a fixed physics step phase.
-         * @param phase Fixed step phase (e.g. FixedStepPrePhysics, FixedStepPostPhysics).
-         * @param callback Function to call during the fixed step.
-         * @param parallel If true, promises callback touches only its own data and data passed in.
-         */
-        virtual void registerPhaseCallback(Phase phase, FixedStepPhaseCallback callback, bool parallel = false) = 0;
 
     protected:
         /**

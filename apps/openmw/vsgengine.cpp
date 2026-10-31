@@ -32,6 +32,7 @@
 #include <components/render/defaultsampler.hpp>
 
 #include "boot.hpp"
+#include "extensionhost.hpp"
 
 namespace
 {
@@ -89,6 +90,7 @@ namespace OMW
         {
             std::cerr << "!InputManager::update(" << e.what() << ")" << std::endl;
         }
+
         if (mStateManager->getGameState() != gameState)
             return false;
 
@@ -103,6 +105,8 @@ namespace OMW
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             return false;
         }
+        mExtensionHost->deliverWorldEvents();
+        mExtensionHost->runPhase(openeden::sdk::Phase::Input, dt);
         if (gameState->updateSound)
             mSoundManager->update(dt);
 
@@ -112,7 +116,10 @@ namespace OMW
         // Game::run, so menu scripts stopped while a menu state was on top.
         const float luaDt = std::min(dt, 0.2f);
         if (mLuaActive && gameState->updateLua)
+        {
+            mExtensionHost->sendPendingLuaEvents();
             mLuaManager->synchronizedUpdate(luaDt);
+        }
         // Delayed Lua actions such as teleports may push a state (ChangeCell); 0.51 changed the cell inside
         // synchronizedUpdate, so scripts must not run again until that state has finished.
         if (mStateManager->getGameState() != gameState)
@@ -134,7 +141,18 @@ namespace OMW
             mStateManager->popGameState(gameState);
             return false;
         }
+        // Here, not in the Game state, which does not run while the menu state is on top of it
+        if (mWindowManager->containsMode(MWGui::GM_MainMenu))
+        {
+            if (const std::string report = mExtensionHost->takeFailureReport(); !report.empty())
+            {
+                Log(Debug::Info) << "Showing extension failure message";
+                mWindowManager->messageBox("#{OMWEngine:ExtensionsFailed}\n" + report);
+            }
+        }
+        mExtensionHost->runPhase(openeden::sdk::Phase::PreRender, dt);
         mWindowManager->onFrame(dt);
+        mExtensionHost->runPhase(openeden::sdk::Phase::Ui, dt);
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
         if (gameState->requiresScene)
             mRenderManager->onFrame(dt);
@@ -143,6 +161,9 @@ namespace OMW
 
     Engine::~Engine()
     {
+        if (mExtensionHost)
+            mExtensionHost->stop();
+
         if (mWindow)
         {
             SDL_DestroyWindow(mWindow);
@@ -279,6 +300,9 @@ namespace OMW
         Misc::Rng::init(args.randomSeed);
 
         Settings::ShaderManager::get().load(mCfgMgr.getUserConfigPath() / "shaders.yaml");
+        mExtensionHost = std::make_unique<ExtensionHost>(ExtensionHost::Config{
+            { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions" }, args.extensions });
+        mEnvironment.setExtensionManager(*mExtensionHost);
 
         mVFS = std::make_unique<VFS::Manager>();
 
@@ -288,8 +312,29 @@ namespace OMW
         mFileCollections = Files::Collections(mDataDirs);
         // OpenMW 0.51 decodes archive file names with the content encoding.
         mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
-        VFS::registerArchives(
-            mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+        if (mExtensionHost->dataDirs().empty())
+            VFS::registerArchives(
+                mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+        else
+        {
+            // Extension data goes above data= folders and below data-local (task 0016). They are data folders in full,
+            // so an extension can carry content files such as an .omwscripts.
+            Files::PathContainer vfsDirs = mDataDirs;
+            auto insertAt = std::find(vfsDirs.begin(), vfsDirs.end(), args.dataLocal);
+            for (const openeden::extension::ExtensionDataDir& dir : mExtensionHost->dataDirs())
+                insertAt = std::next(vfsDirs.insert(insertAt, dir.directory));
+            VFS::registerArchives(
+                mVFS.get(), Files::Collections(vfsDirs), args.archives, true, &mEncoder->getStatelessEncoder());
+
+            VFS::Manager gameData;
+            VFS::registerArchives(
+                &gameData, mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+            mExtensionHost->reportDataOverrides(gameData);
+
+            mDataDirs = std::move(vfsDirs);
+            mFileCollections = Files::Collections(mDataDirs);
+        }
+        mExtensionHost->setEngineVfs(mVFS.get());
 
         auto physicalDevice = mRenderEngine->getOrCreatePhysicalDevice();
         bool useTextureCompression = physicalDevice->getFeatures().textureCompressionBC;
@@ -373,6 +418,7 @@ namespace OMW
             mCfgMgr.getUserDataPath() / "saves", args.contentFiles, mRenderManager->getScreenshotInterface());
         mEnvironment.setStateManager(*mStateManager);
 
+
         auto loadingScreen = mWindowManager->createLoadingScreen();
         loadingScreen->loading = std::make_shared<Boot>(*this, args);
         mStateManager->pushGameState(loadingScreen);
@@ -428,6 +474,8 @@ namespace OMW
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
 
         std::cout << "Quitting peacefully." << std::endl;
+
+        mExtensionHost->stop();
 
         Settings::Manager::saveUser(mCfgMgr.getUserConfigPath() / "settings.cfg");
         Settings::ShaderManager::get().save();

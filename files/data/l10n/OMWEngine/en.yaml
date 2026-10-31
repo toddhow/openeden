@@ -1,3 +1,7 @@
+# Extensions
+
+ExtensionsFailed: "These extensions could not run and were turned off:"
+
 # Console
 
 ConsoleWindow: "Console"

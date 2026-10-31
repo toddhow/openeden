@@ -1,5 +1,5 @@
 # Task: 0004 Plugin System Phase 4 - Scripting, Diagnostics and Editor Hooks
-Design doc sections: [`docs/design/openeden-plugin-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-plugin-system.md#L204-L210), Sections 4.10, 6.4, 10
+Design doc sections: [`docs/design/openeden-extension-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-extension-system.md#L204-L210), Sections 4.10, 6.4, 10
 Goal: Implement the scripting, diagnostics, scratch memory, debug drawing, and editor extension points behind the Host API:
 1. Per-plugin logging with levels and plugin ID tagging.
 2. Per-plugin named profiling scopes with per-frame aggregation and RAII timing scopes.

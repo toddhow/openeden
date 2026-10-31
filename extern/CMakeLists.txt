@@ -33,7 +33,7 @@ if(NOT OPENMW_USE_SYSTEM_JOLT)
     # and will enable floating point exceptions during simulation to detect divisions by zero. 
     set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF)
 
-    # openeden: Jolt is a shared library, one copy for the game and the plugins that link it (plugins/compat_morrowind).
+    # openeden: Jolt is a shared library, one copy for the game and the extensions that link it (extensions/compat_morrowind).
     # It used to follow BUILD_SHARED_LIBS from the cache, which the VSG section below forces on: so the first configure
     # of a new build folder built a static Jolt without -fPIC, which a plugin cannot link on Linux, and every later
     # configure a shared one. Every existing build folder had the shared one; this makes the first configure agree.

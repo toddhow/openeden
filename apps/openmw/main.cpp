@@ -68,12 +68,13 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
 
     Files::PathContainer::value_type local(variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>());
     if (!local.empty())
-        dataDirs.push_back(std::move(local));
+        dataDirs.push_back(local);
 
     cfgMgr.filterOutNonExistingPaths(dataDirs);
 
     args.resourceDir = variables["resources"].as<Files::MaybeQuotedPath>();
     args.dataDirs = dataDirs;
+    args.dataLocal = local;
 
     args.archives = variables["fallback-archive"].as<StringsVector>();
 
@@ -116,6 +117,8 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     // other settings
     Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
     args.useSound = !variables["no-sound"].as<bool>();
+    if (!variables["no-extensions"].as<bool>())
+        args.extensions = variables["extension"].as<StringsVector>();
     args.activationDistanceOverride = variables["activate-dist"].as<int>();
     args.randomSeed = variables["random-seed"].as<unsigned int>();
     args.grabMouse = !variables["no-grab"].as<bool>();

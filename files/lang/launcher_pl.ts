@@ -404,6 +404,33 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     </message>
 </context>
 <context>
+    <name>Launcher::ExtensionsPage</name>
+    <message>
+        <source>Extension</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extensions are programs that run with the same rights as the game. Install them only from sources you trust.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Launcher::GraphicsPage</name>
     <message>
         <source>Error receiving number of screens</source>
@@ -670,6 +697,14 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
     <message>
         <source>Allows to import data from original engine</source>
         <translation>Umożliwia importowanie danych z oryginalnego silnika</translation>
+    </message>
+    <message>
+        <source>Extensions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable or disable extensions, which add native code to the game.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

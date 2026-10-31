@@ -65,6 +65,7 @@ struct SDL_Window;
 namespace OMW
 {
     struct WindowListener;
+    class ExtensionHost;
 
     /*
      * Runs game states.
@@ -75,6 +76,9 @@ namespace OMW
         friend class Game;
         friend class WindowListener;
 
+        // First, so that it is destroyed last: a Game state still alive when the Engine goes uses it to stop
+        // extensions. ~Engine stops extensions before any other member goes.
+        std::unique_ptr<ExtensionHost> mExtensionHost;
         std::unique_ptr<Render::Engine> mRenderEngine;
         SDL_Window* mWindow{};
         std::unique_ptr<VFS::Manager> mVFS;

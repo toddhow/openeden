@@ -1,7 +1,7 @@
 # Task 0016: Track W stage W2 — Data services on the engine
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0015 (W1).
-**Design doc section:** `docs/design/working-plugin-system.md` (W2, decision 4); `docs/design/openeden-plugin-system.md` sections 4.7 (VFS and file formats), 4.8 (settings), 4.9 (save games), 4.10 (Lua).
+**Status:** implemented, awaiting toddhow's review. **The save part was removed by decision 0005 (plugins do not affect save data):** the design's item 3, its save criterion and constraint, and the notes on saves below describe what was built and then taken out. Depends on task 0015 (W1).
+**Design doc section:** `docs/design/working-extension-system.md` (W2, decision 4); `docs/design/openeden-extension-system.md` sections 4.7 (VFS and file formats), 4.8 (settings), 4.9 (save games), 4.10 (Lua).
 **Goal:** a plugin's data folder, settings and save data work through the engine's real subsystems, and the events it marks reach Lua scripts: its files are in the game's virtual file system in load order, its settings live in `settings.cfg`, its save chunks travel inside `.omwsave` files, and mods can react to its forwarded events (decision 0003: plugins have no Lua API of their own).
 **Depends also on:** task 0019 (SDK 2.0: event marking for Lua forwarding).
 **Workflow:** full loop.
@@ -41,18 +41,31 @@ Cite every engine function again at the commit this task starts from (after Trac
 
 ## Acceptance criteria
 
-- [ ] A plugin's `data/` files are visible through the game's VFS in load order; a file in two plugins resolves to the later one; a game data file overridden by a plugin is reported once in the log.
-- [ ] A plugin's settings appear under `[plugin.<id>]` in `settings.cfg` only when changed; defaults come from its manifest; out-of-range or wrong-typed values fall back to the default with a located warning.
-- [ ] A plugin's save chunk is written into the `.omwsave` and read back with the right version; a migration callback receives older versions; saving without the plugin preserves its chunk byte for byte (round-trip test); saves without plugins are byte-identical to before.
-- [ ] An event a plugin marks for forwarding reaches Lua global scripts with its payload, in publish order, on the Lua thread; an unconvertible payload is dropped with a warning; unmarked events never reach Lua (tests).
-- [ ] All existing gates pass; the 32 Lua integration tests are unchanged.
+- [x] A plugin's `data/` files are visible through the game's VFS in load order; a file in two plugins resolves to the later one; a game data file overridden by a plugin is reported once in the log.
+- [x] A plugin's settings appear under `[plugin.<id>]` in `settings.cfg` only when changed; defaults come from its manifest; wrong-typed values fall back to the default with a located warning. Out-of-range is not checked: manifests have no range or enum fields (`PluginSetting`, `manifest.hpp`), so that waits for them.
+- [x] ~~Removed by decision 0005~~ A plugin's save chunk is written into the `.omwsave` and read back with the right version; a migration callback receives older versions; saving without the plugin preserves its chunk byte for byte (round-trip test); saves without plugins gain no record. Byte identity was not compared with a build without this task: saves hold timestamps, and the save path adds nothing when there are no chunks.
+- [x] An event a plugin marks for forwarding reaches Lua global scripts with its payload, in publish order, on the Lua thread; an unconvertible payload is dropped with a warning; unmarked events never reach Lua (tests).
+- [ ] All existing gates pass; the 32 Lua integration tests are unchanged. Done on Windows: build, unit tests, the 32 Lua tests, `tools/plugin_data_check/check.sh`. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers.
 
 ## Out of scope
 
 - Physics, entities, events, debug draw, profiler (task 0017); launcher UI for plugin settings (task 0018).
 
-## Open questions for toddhow
+## Decisions taken while implementing, for toddhow to confirm
 
-1. **VFS priority:** plugin data above the user's `data=` folders and below `data-local` (proposed), or below all user data so mods always win?
-2. **Save record name:** `OEPL` (proposed) or another four-letter tag?
-3. **Forwarded events:** delivered as global events named `openeden_<pluginId>_<eventName>` (proposed), with global scripts passing them on to local or player scripts as they need; or also delivered to player scripts directly?
+1. **VFS priority:** plugin data above `data=` folders and below `data-local`, as proposed. So a plugin's file hides a mod in a `data=` folder. Since task 0018 they are also searched for content files, so a plugin can carry an `.omwscripts`.
+2. **Save record name:** `OEPL`, as proposed (`components/esm3/pluginchunk.hpp`, one record per plugin: NAME, VERS, DATA).
+3. **Forwarded events:** global events named `openeden_<pluginId>_<eventName>`, as proposed.
+4. **Threads:** plugins' save handlers are never called on the save or load worker, because frames and phase callbacks continue meanwhile. Chunks are collected on the main thread before the worker starts (`SaveGame::run`) and delivered after loading ends (`LoadGame::postLoad`). So a chunk describes the moment the save was asked for. Forwarded events are likewise sent only just before Lua's synchronized update, because the worker uses Lua while frames continue.
+5. **Events with no game:** global scripts exist only in a running game, so events wait until one runs, up to 1024; beyond that they are dropped with one warning. This and a full deferred queue are the two exceptions to "lossless".
+6. **Starting a new game or loading** forgets chunks kept for absent plugins, so they do not leak into another playthrough.
+7. **`StateManager` and `MWBase::Environment`** gain `MWBase::PluginManager`, the interface the save code reaches plugins through.
+
+## Notes for toddhow
+
+- **Format readers:** plugin readers read files from the game's VFS, but the resource system does not call them for models or animations. That hook is the follow-up the design names.
+- **Settings at runtime:** a change is not announced to the plugin; it reads the value when it wants it. `Settings::Manager` has no per-plugin change notification.
+- **A setting set back to its default:** if `settings.cfg` held it, the settings writer leaves `# invalid setting: ...` in the file (`components/settings/parser.cpp`).
+- **A plugin whose `start` fails keeps its data in the VFS,** because folders are added before plugins start.
+- **Overrides report:** a plugin file also in `data-local` is reported as overriding game data, although `data-local` wins.
+- **Flaky test seen again:** `DetourNavigatorRecastMeshObjectTest.update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true` failed in 1 of 2 full `components-tests` runs on this branch; it passes alone. Cause unknown; not compared with a clean `vulkan` build.

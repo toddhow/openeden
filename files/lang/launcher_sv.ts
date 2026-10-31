@@ -296,7 +296,7 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
     </message>
     <message>
         <source>Import Add-on and Plugin Selection</source>
-        <translation>Importera tillägg- och pluginmarkeringar</translation>
+        <translation>Importera tillägg- och extensionmarkeringar</translation>
     </message>
 </context>
 <context>
@@ -400,6 +400,33 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
     <message>
         <source>&amp;Open Path in File Explorer</source>
         <translation>Öppna katalogen i filutforskaren</translation>
+    </message>
+</context>
+<context>
+    <name>Launcher::ExtensionsPage</name>
+    <message>
+        <source>Extension</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extensions are programs that run with the same rights as the game. Install them only from sources you trust.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -667,6 +694,14 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
     <message>
         <source>Allows to change display settings</source>
         <translation>Låter dig ändra bildinställningar</translation>
+    </message>
+    <message>
+        <source>Extensions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable or disable extensions, which add native code to the game.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

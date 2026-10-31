@@ -8,7 +8,7 @@ namespace openeden::sdk
 {
     /**
      * @brief Frame-scoped linear scratch bump memory allocator.
-     * Guarantees zero hot-path heap allocations during frame and fixed-step simulation callbacks.
+     * Guarantees zero hot-path heap allocations during frame callbacks.
      */
     class ScratchMemoryService
     {

@@ -646,7 +646,7 @@ if (BUILD_NIFTEST)
     add_subdirectory(apps/niftest)
 endif()
 
-add_subdirectory(plugins)
+add_subdirectory(extensions)
 if (BUILD_COMPONENTS_TESTS)
     add_subdirectory(apps/components_tests)
 endif()
@@ -830,6 +830,8 @@ elseif(NOT APPLE)
                                                                               PATTERN ".qt" EXCLUDE
                                                                               PATTERN "_CPack_Packages" EXCLUDE
                                                                               PATTERN "_deps" EXCLUDE
+                                                                              PATTERN "extensions" EXCLUDE
+                                                                              PATTERN "test_extensions" EXCLUDE
                                                                               PATTERN "apps" EXCLUDE
                                                                               PATTERN "bin" EXCLUDE
                                                                               PATTERN "CMakeFiles" EXCLUDE
@@ -845,6 +847,8 @@ elseif(NOT APPLE)
                                                                               PATTERN "tests_output" EXCLUDE
                                                                               PATTERN "try-compile")
         INSTALL(DIRECTORY "${INSTALL_SOURCE}/" DESTINATION "." CONFIGURATIONS Debug;RelWithDebInfo FILES_MATCHING PATTERN "*.pdb"
+                                                                                                                  PATTERN "extensions" EXCLUDE
+                                                                                                                  PATTERN "test_extensions" EXCLUDE
                                                                                                                   PATTERN ".cmake" EXCLUDE
                                                                                                                   PATTERN ".qt" EXCLUDE
                                                                                                                   PATTERN "_CPack_Packages" EXCLUDE

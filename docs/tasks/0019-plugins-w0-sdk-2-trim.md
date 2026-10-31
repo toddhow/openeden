@@ -1,7 +1,7 @@
 # Task 0019: Track W stage W0 — SDK 2.0: plugins read physics, never change it, and have no Lua API
 
-**Status:** draft, awaiting toddhow's approval. No dependency on Track V: it touches only `sdk/`, `components/plugin/`, plugin tests and documents, none of which vsgopenmw's import (task 0009) changes, so it can run now.
-**Design doc section:** `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`; `docs/design/openeden-plugin-system.md` 4.2 (versioning), 4.3, 4.4, 4.6, 4.10.
+**Status:** implemented on branch `claude/w0-sdk-2-794529`, awaiting toddhow's review. No dependency on Track V: it touches only `sdk/`, `components/plugin/`, plugin tests and documents, none of which vsgopenmw's import (task 0009) changes, so it can run now.
+**Design doc section:** `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`; `docs/design/openeden-extension-system.md` 4.2 (versioning), 4.3, 4.4, 4.6, 4.10.
 **Goal:** bring the SDK and its implementation in line with decision 0003: remove the physics write operations, collision-layer registration, the fixed-step phases and the Lua scripting service; keep a read-only physics query service and the event bus; add a way for plugin events to be marked for forwarding to Lua (the forwarding itself is engine work in task 0016); bump the SDK to 2.0.
 **Workflow:** full loop (the SDK and the plugin loader are on the guide's full-loop list).
 
@@ -27,7 +27,7 @@ All at OpenEden `459bd661f4` (or the commit this task starts from).
 4. **Lua:** delete `ScriptingService`, `LuaTable`, `scripting.hpp`, `scripting_service.*` and `Host::getScriptingService()`. Add to the event bus the ability to mark an event type as **forwarded to Lua** at registration (event name and a flat payload of numbers, strings and booleans, so the core can turn it into a Lua event without plugin code running in Lua). The forwarding is implemented by the engine in task 0016; here, the SDK declares it and the test host records which events are marked.
 5. **Physics events:** document in the SDK which physics events plugins will receive on the bus (hits, contact begin and end), published by the engine in task 0017; this task adds only their typed declarations.
 6. **Tests:** delete `test_scripting_service.cpp` and `test_collision_layers.cpp`; reduce `test_physics_service.cpp` to the read-only service attached to a test-created world (keep every read and cast test, delete write tests, add shape-cast tests); update `test_empty_host`, `test_lifecycle`, `test_event_bus` and `test_compat_morrowind` for the removed phases and services; add tests for SDK 1.x refusal and for Lua-forwarded event marking.
-7. **Documents:** update `components/plugin/CLAUDE.md`, `docs/design/plugin-implementation-guide.md` and the SDK header comments; the plugin design doc and Track W documents are updated together with decision 0003 (already done when this task starts, see that commit).
+7. **Documents:** update `components/plugin/CLAUDE.md`, `docs/design/extension-implementation-guide.md` and the SDK header comments; the plugin design doc and Track W documents are updated together with decision 0003 (already done when this task starts, see that commit).
 
 ## Constraints
 
@@ -37,20 +37,32 @@ All at OpenEden `459bd661f4` (or the commit this task starts from).
 
 ## Acceptance criteria
 
-- [ ] `kSdkVersion` is 2.0; a plugin built for SDK 1.x is refused with a clear reason (test).
-- [ ] No SDK header declares a physics write operation, collision-layer registration, a fixed-step phase or callback, or anything Lua; a CI grep check enforces it.
-- [ ] The read-only physics service reads bodies, casts rays and casts shapes against an attached world (tests), and cannot create its own world.
-- [ ] Event types can be marked as forwarded to Lua with a flat payload; the test host records the marking (test).
-- [ ] `components-tests` pass with the deleted tests listed in the pull request and every remaining plugin test passing.
-- [ ] `components/plugin/CLAUDE.md` and `docs/design/plugin-implementation-guide.md` describe SDK 2.0.
-- [ ] All existing gates pass.
+- [x] `kSdkVersion` is 2.0; a plugin built for SDK 1.x is refused with a clear reason (test).
+- [x] No SDK header declares a physics write operation, collision-layer registration, a fixed-step phase or callback, or anything Lua; a CI grep check enforces it.
+- [x] The read-only physics service reads bodies, casts rays and casts shapes against an attached world (tests), and cannot create its own world.
+- [x] Event types can be marked as forwarded to Lua with a flat payload; the test host records the marking (test).
+- [x] `components-tests` pass with the deleted tests listed in the pull request and every remaining plugin test passing.
+- [x] `components/plugin/CLAUDE.md` and `docs/design/extension-implementation-guide.md` describe SDK 2.0.
+- [ ] All existing gates pass. Done on Windows: build, `components-tests` and `CI/check_plugin_sdk.sh`. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers and Lua integration tests. `DetourNavigatorRecastMeshObjectTest.update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true` fails now and then in a full run and passes alone. This task changes nothing in `components/detournavigator`, but a clean `vulkan` build was not compared.
 
 ## Out of scope
 
 - Loading plugins in the game (task 0015), forwarding events to Lua in the engine (task 0016), publishing physics events and attaching to the game's world (task 0017).
 - AdvancedBodies and ComplexClothing themselves (core systems with their own future tasks).
 
-## Open questions for toddhow
+## Decisions taken while implementing, for toddhow to confirm
 
-1. **Name of the read-only service:** `PhysicsQueryService` (proposed), or keep the name `PhysicsService` with only read operations?
-2. **Shape casts in this task:** add sphere, capsule and box casts now (proposed, since decision 0003 allows them), or ship only `castRay` and add shape casts when a plugin needs them?
+The spec was still marked draft with two open questions when this was implemented; both took the proposed answer.
+
+1. **Name of the read-only service:** `PhysicsQueryService` in the SDK. The engine class stays `PhysicsServiceImpl` in `physics_service.{hpp,cpp}`, as this spec and task 0017 call it.
+2. **Shape casts in this task:** added: sphere, capsule and box.
+3. **Query masks:** a `QueryMask` matches a body when `(mask & objectLayer) != 0`, because `MWPhysics::Layers` values are single bits (`apps/openmw/mwphysics/joltlayers.hpp`). The host publishes names with `PhysicsServiceImpl::publishQueryMask`; plugins read them with `queryMask(name)`.
+4. **Host with no world:** `HostImpl::getPhysicsQueryService()` is null until `attachPhysicsWorld(JPH::PhysicsSystem&)`.
+5. **Forwarded payloads:** events stay trivially copyable, so a string is a fixed char array, and each field records its offset and size for the core to read in task 0016.
+6. **Units:** the SDK speaks meters and the game's world is in Morrowind units, so `PhysicsServiceImpl` takes `worldUnitsPerMeter` when attached and is the one conversion boundary (default 1). Task 0017 passes the game's value.
+7. **Back faces:** rays and shape casts both count back faces as hits; only a shape cast's normal always faces the cast.
+8. **Handshake:** `validatePluginHandshake` now also refuses a library whose descriptor names an SDK the host does not provide.
+
+## Tests removed
+
+Deleted with their features: all of `test_scripting_service.cpp` and `test_collision_layers.cpp`. From `test_physics_service.cpp`, the tests of body creation and validation, stepping, joints, collision groups, driving bodies and structural changes during a step. From `test_lifecycle.cpp`, the fixed-step callback checks. `test_empty_host.cpp` and `test_event_bus.cpp` now use the remaining phases.

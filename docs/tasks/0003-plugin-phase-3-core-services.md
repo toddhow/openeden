@@ -1,5 +1,5 @@
 # Task: 0003 Plugin System Phase 3 - Core Services Behind the Host API
-Design doc sections: [`docs/design/openeden-plugin-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-plugin-system.md#L401-L408), Sections 4.3 - 4.9, 6.6, 8, 10
+Design doc sections: [`docs/design/openeden-extension-system.md`](file:///i:/Projects/OpenEden/docs/design/openeden-extension-system.md#L401-L408), Sections 4.3 - 4.9, 6.6, 8, 10
 Goal: Implement the core groundwork services exposed to plugins through the `Host` API: event bus with fixed-capacity preallocated queues, entity management with stable IDs and per-entity plugin data, settings namespaces, save game chunks with unread chunk preservation, VFS data mounting and file format registration, named collision layer assignment over shared physics, and deferred event processing at engine frame phase boundaries.
 
 Inherited code touched:

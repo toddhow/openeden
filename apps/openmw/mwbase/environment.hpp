@@ -34,6 +34,7 @@ namespace MWBase
     class WindowManager;
     class StateManager;
     class LuaManager;
+    class ExtensionManager;
 
     /// \brief Central hub for mw-subsystems
     ///
@@ -56,6 +57,7 @@ namespace MWBase
         InputManager* mInputManager = nullptr;
         StateManager* mStateManager = nullptr;
         LuaManager* mLuaManager = nullptr;
+        ExtensionManager* mExtensionManager = nullptr;
         Resource::ResourceSystem* mResourceSystem = nullptr;
         L10n::Manager* mL10nManager = nullptr;
         float mFrameRateLimit = 0;
@@ -93,6 +95,8 @@ namespace MWBase
 
         void setLuaManager(LuaManager& value) { mLuaManager = &value; }
 
+        void setExtensionManager(ExtensionManager& value) { mExtensionManager = &value; }
+
         void setResourceSystem(Resource::ResourceSystem& value) { mResourceSystem = &value; }
 
         void setL10nManager(L10n::Manager& value) { mL10nManager = &value; }
@@ -119,6 +123,8 @@ namespace MWBase
         Misc::NotNullPtr<StateManager> getStateManager() const { return mStateManager; }
 
         Misc::NotNullPtr<LuaManager> getLuaManager() const { return mLuaManager; }
+
+        Misc::NotNullPtr<ExtensionManager> getExtensionManager() const { return mExtensionManager; }
 
         Misc::NotNullPtr<Resource::ResourceSystem> getResourceSystem() const { return mResourceSystem; }
 

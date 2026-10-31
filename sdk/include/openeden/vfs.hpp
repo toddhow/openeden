@@ -22,7 +22,7 @@ namespace openeden::sdk
     };
 
     /**
-     * @brief Reader interface for plugin-registered asset file formats.
+     * @brief Reader interface for extension-registered asset file formats.
      */
     class FileFormatReader
     {
@@ -46,6 +46,6 @@ namespace openeden::sdk
         [[nodiscard]] virtual bool hasFile(std::string_view virtualPath) const = 0;
         [[nodiscard]] virtual std::vector<std::uint8_t> readFile(std::string_view virtualPath) const = 0;
         virtual bool readAsset(std::string_view virtualPath, FileError* outError = nullptr) = 0;
-        virtual void registerFormatReader(std::string_view extension, std::shared_ptr<FileFormatReader> reader) = 0;
+        virtual void registerFormatReader(std::string_view fileExtension, std::shared_ptr<FileFormatReader> reader) = 0;
     };
 } // namespace openeden::sdk

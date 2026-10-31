@@ -23,6 +23,7 @@
 #include <components/lua_ui/util.hpp>
 #include <components/misc/vsgmath.hpp>
 
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
@@ -102,6 +103,16 @@ namespace MWLua
         initPreLoad();
         contentFilesLoaded();
         initPostLoad();
+    }
+
+    void LuaManager::sendExtensionEvent(std::string eventName, const std::vector<ExtensionEventField>& fields)
+    {
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::table payload(view.sol(), sol::create);
+            for (const ExtensionEventField& field : fields)
+                std::visit([&](const auto& value) { payload[field.mName] = value; }, field.mValue);
+            mLuaEvents.addExtensionEvent({ std::move(eventName), LuaUtil::serialize(payload) });
+        });
     }
 
     void LuaManager::initPreLoad()
@@ -582,6 +593,9 @@ namespace MWLua
         const MWWorld::Ptr& ammo, int attackType, float attackStrength, float damage, bool isHealth,
         const vsg::vec3& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
     {
+        // Every attack the engine resolves comes through here, so extensions hear of it from the one place too
+        MWBase::Environment::get().getExtensionManager()->actorHit(attacker, victim, damage, successful);
+
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table damageTable = view.newTable();
             if (isHealth)
