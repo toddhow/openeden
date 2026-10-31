@@ -281,7 +281,10 @@ namespace vsgAdapters
                 }
                 updateBounds();
             }
-            mLastWorldMatrix = worldMatrix;
+            // OpenEden: with no time passing the particles are not simulated this frame (CullParticles skips the dispatch),
+            // so the movement is kept for the next frame's offset rather than lost (task 0012, V4c).
+            if (dt > 0.f || !mLastWorldMatrix)
+                mLastWorldMatrix = worldMatrix;
         }
 
         if (active->value(time) && emitterVisible())
