@@ -13,6 +13,10 @@ namespace MWRender
 
     vsg::ref_ptr<ESMTerrain::LandObject> LandManager::create(ESM::ExteriorCellLocation cellIndex) const
     {
+        // OpenEden: ESM4 terrain is not ported (task 0012). A worldspace of its own has no land here, rather than
+        // Morrowind's at the same coordinates.
+        if (ESM::isEsm4Ext(cellIndex.mWorldspace))
+            return vsg::ref_ptr{ new ESMTerrain::LandObject() };
         const ESM::Land* land = MWBase::Environment::get().getESMStore()->get<ESM::Land>().search(cellIndex.mX, cellIndex.mY);
         if (land)
             return vsg::ref_ptr{ new ESMTerrain::LandObject(*land, mLoadFlags) };
