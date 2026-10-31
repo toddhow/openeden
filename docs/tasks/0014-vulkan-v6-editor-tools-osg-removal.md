@@ -219,3 +219,22 @@ A fresh reviewer read the five commits and found no conversion bugs. Fixed: a fa
 Check: frames from the build before and after, each scene captured twice before and twice after to measure the noise. Balmora and Caldera Mages Guild differ by no more than two runs of one build (pixels over threshold: Balmora 116,365 between runs of one build, 49,416 and 100,109 across the change; Caldera 69 between runs, 0 and 0 across). The `tcb` Jolt draw and `togglenavmesh` navmesh draw were viewed and compared too, so `DebugGeometry` is exercised (`tcb` 0 pixels over threshold, navmesh 111,246, the camera's idle sway as in Balmora).
 
 Not checked directly: `SimpleWater` is drawn only in the map renders, and those frames show no open water; `castRay` and `castCameraToViewportRay` have no scripted check of their own, and the only change there is the moved code.
+
+### B3 Render::Engine on a viewer it does not own (2026-10-31)
+
+New `Engine(viewer, window)`: **one Engine per window**, because all but three of its methods are about one window (`components/render/CLAUDE.md`). The two existing constructors, `loop()` and the game's path are untouched; every new branch tests `mHosted`.
+
+- `endFrame()` is the per-frame work `loop()` does beyond the viewer's: advancing the deletion queue. It goes through the new `DeletionQueue::advanceToFrame`, once per frame stamp, so it is safe from a timer while an on-demand viewer draws nothing, and from every Engine of one viewer.
+- `setup()` appends the graphs to the viewer's task. `Viewer::addRecordAndSubmitTaskAndPresentation` builds new tasks, and `Device::transferTask` and earlier compile contexts keep the old one, whose uploads nothing runs (VSG 1.1.16, `assignRecordAndSubmitTaskAndPresentation`, `RecordAndSubmitTask::RecordAndSubmitTask`).
+- From B1's findings: the constructor refuses a zero-size window and a format other than `compatibleColorFormat`, and hosted `screenshotOperation()` returns null at zero size. The destructor waits for the device, as `loop()` does on leaving.
+
+Check of the game: as B2, frames before and after in Balmora and Caldera, with `tcb` and `togglenavmesh`, all viewed. Balmora's differences stay within two runs of one build (116,365 pixels over threshold between runs, 111,902 and 98,001 across the change). One Caldera pair gave 9,061, so six runs were compared: 0 to 32,509 against the two baseline frames, 16 to 721 among new runs, the same dim flicker across the room. Unit test without a GPU: `vsgutil/testdeletionqueue.cpp`. The Engine itself needs a GPU, so it has no committed test.
+
+A throwaway program, not committed and run on Windows only, ran two hosted Engines on a `vsgQt::Viewer` on one device, the second window added after the first had drawn:
+- Both windows read back correctly through `screenshotOperation`, and a box compiled through each Engine's compile context after the second window was added appeared in both, so uploads still run.
+- A detached object stayed held through idle time with `endFrame` running every millisecond, and was released on the third frame of a three-image swapchain.
+- An sRGB window was refused.
+
+Found by it: `createRenderGraph` has no resize handler, and a render area larger than the swapchain draws nothing, with no error. The editor must set `renderArea` on resize (C3); the program did that on a timer. Recorded in `components/render/CLAUDE.md`.
+
+Not run: the zero-size refusal and null capture, closing one window while others stay (`Viewer::removeWindow` replaces the tasks, so C3 needs its own way), a hosted window on Linux, validation layers (none installed here), `Pipeline::Builder` and the game's shaders in a hosted window (C2).

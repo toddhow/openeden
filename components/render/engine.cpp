@@ -1,10 +1,12 @@
 #include "engine.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/SecondaryCommandGraph.h>
@@ -18,12 +20,61 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/debugmessenger.hpp>
 
+#include "attachmentformat.hpp"
 #include "headless.hpp"
 #include "limitframerate.hpp"
 #include "screenshot.hpp"
 
 namespace Render
 {
+    namespace
+    {
+        /*
+         * Adds a hosted window's graphs to the viewer's existing task for its device and queues.
+         *
+         * Not Viewer::addRecordAndSubmitTaskAndPresentation, because that replaces every task (VSG 1.1.16,
+         * Viewer::assignRecordAndSubmitTaskAndPresentation). Compile contexts made earlier keep the old task's
+         * TransferTask, and Device::transferTask stays on the first task's (RecordAndSubmitTask's constructor), so nothing
+         * they compile would upload any more: the "geometry never uploads" failure of research note 0003, section 5.4.
+         * Appending to the task keeps its TransferTask. Compile views of a later window are therefore added with
+         * CompileManager::add after setup(), as RenderManager does in the game.
+         */
+        void appendToViewer(vsg::Viewer& viewer, vsg::Window& window, const vsg::CommandGraphs& graphs)
+        {
+            if (graphs.empty())
+                return;
+            const vsg::ref_ptr<vsg::Device> device = window.getOrCreateDevice();
+            const auto& first = *graphs.front();
+            for (auto& task : viewer.recordAndSubmitTasks)
+            {
+                if (task->device != device || task->windows.empty()
+                    || static_cast<int>(task->queue->queueFamilyIndex()) != first.queueFamily)
+                    continue;
+                for (auto& presentation : viewer.presentations)
+                {
+                    auto& windows = presentation->windows;
+                    if (std::find(windows.begin(), windows.end(), task->windows.front()) == windows.end()
+                        || static_cast<int>(presentation->queue->queueFamilyIndex()) != first.presentFamily)
+                        continue;
+                    const vsg::ref_ptr<vsg::Window> ref(&window);
+                    if (std::find(windows.begin(), windows.end(), ref) == windows.end())
+                        windows.push_back(ref);
+                    if (std::find(task->windows.begin(), task->windows.end(), ref) == task->windows.end())
+                        task->windows.push_back(ref);
+                    // As the viewer orders them: secondary graphs before the primary graphs that execute them.
+                    for (const auto& graph : graphs)
+                    {
+                        const bool secondary = graph->level() != VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                        auto& list = task->commandGraphs;
+                        list.insert(secondary ? list.begin() : list.end(), graph);
+                    }
+                    return;
+                }
+            }
+            viewer.addRecordAndSubmitTaskAndPresentation(graphs);
+        }
+    }
+
     Engine::Engine(vsg::ref_ptr<vsg::Window> window)
         : mWindow(window)
     {
@@ -44,7 +95,28 @@ namespace Render
         if (mTraits->debugLayer) mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mHeadless->getOrCreateInstance());
     }
 
-    Engine::~Engine() {}
+    Engine::Engine(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Window> window)
+        : mViewer(viewer)
+        , mWindow(window)
+        , mHosted(true)
+    {
+        mTraits = mWindow->traits();
+        const VkExtent2D extent = mWindow->extent2D();
+        if (extent.width == 0 || extent.height == 0)
+            throw std::invalid_argument("Render::Engine: the window must be laid out before it is hosted");
+        if (mTraits->swapchainPreferences.surfaceFormat.format != compatibleColorFormat)
+            throw std::invalid_argument("Render::Engine: the window's swapchain must use compatibleColorFormat");
+        mViewer->addWindow(mWindow);
+        mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(mTraits->swapchainPreferences.imageCount+1);
+        if (mTraits->debugLayer) mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mWindow->getOrCreateInstance());
+    }
+
+    Engine::~Engine()
+    {
+        // loop() does this on leaving; a hosted engine never runs it, and the deletion queue is about to go.
+        if (mHosted)
+            mViewer->deviceWaitIdle();
+    }
 
     void Engine::setup(vsg::CommandGraphs graphs, bool threading)
     {
@@ -61,7 +133,10 @@ namespace Render
             graphs.push_back(commandGraph);
         }
 
-        mViewer->assignRecordAndSubmitTaskAndPresentation(graphs);
+        if (mHosted)
+            appendToViewer(*mViewer, *mWindow, graphs);
+        else
+            mViewer->assignRecordAndSubmitTaskAndPresentation(graphs);
         if (threading)
             mViewer->setupThreading();
     }
@@ -177,6 +252,13 @@ namespace Render
         mViewer->deviceWaitIdle();
     }
 
+    void Engine::endFrame()
+    {
+        // The frame stamp appears on the first advanceToNextFrame, and counts the frames of every window of the viewer.
+        if (const auto* stamp = mViewer->getFrameStamp(); stamp && mDeletionQueue)
+            mDeletionQueue->advanceToFrame(stamp->frameCount);
+    }
+
     VkExtent2D Engine::extent2D() const
     {
         if (mWindow)
@@ -269,6 +351,8 @@ namespace Render
 
     vsg::ref_ptr<Screenshot> Engine::screenshotOperation()
     {
+        if (mHosted && (mWindow->extent2D().width == 0 || mWindow->extent2D().height == 0))
+            return {};
         if (mWindow)
             return vsg::ref_ptr{ new Screenshot(mWindow) };
         else
