@@ -74,6 +74,13 @@ namespace
             throw std::runtime_error("test throw " + wanted);
     }
 
+}
+
+// A contract is shared between libraries, so it must not be in an anonymous namespace, where each library would have a
+// type of its own. In the plugin that only calls it, GCC then sees no class that implements it and calls the pure
+// virtual function directly. Real contracts are in openeden::contracts.
+namespace openeden_test_contracts
+{
     class TestAContract
     {
     public:
@@ -83,6 +90,11 @@ namespace
         virtual ~TestAContract() = default;
         [[nodiscard]] virtual int answer() const = 0;
     };
+}
+
+namespace
+{
+    using openeden_test_contracts::TestAContract;
 
 #ifdef OPENEDEN_TEST_PLUGIN_PROVIDES_A
     class TestAImplementation final : public TestAContract
