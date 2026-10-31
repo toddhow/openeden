@@ -17,6 +17,7 @@
 #include <components/vsgutil/removechild.hpp>
 #include <components/vsgutil/searchbyname.hpp>
 #include <components/misc/pathhelpers.hpp>
+#include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -93,6 +94,13 @@ namespace MWRender
             clearControllers();
             for (size_t i = 0; i < ESM::PRT_Count; ++i)
                 removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
+            removePath(mScabbard);
+            removePath(mHolsteredShield);
+            for (auto& path : mQuiver)
+                removePath(path);
+            mQuiver.clear();
+            mHolsteredWeaponSwitch = {};
+            mHolsteredShieldSwitch = {};
         }
     }
 
@@ -510,9 +518,12 @@ namespace MWRender
 
     namespace
     {
-        // Adds "_sh" before the extension, as OpenMW's addSuffixBeforeExtension.
-        std::string sheathModel(const std::string& model)
+        // Adds "_sh" before the extension, as OpenMW's addSuffixBeforeExtension. Records name models without "meshes/", which
+        // the VFS needs.
+        std::string sheathModel(const std::string& record)
         {
+            const std::string model(
+                Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(record)).value());
             const size_t dot = model.rfind('.');
             return dot == std::string::npos ? model + "_sh" : model.substr(0, dot) + "_sh" + model.substr(dot);
         }
@@ -654,12 +665,15 @@ namespace MWRender
                 {
                     auto weaponMesh = mContext.readNode(mesh);
                     MWAnim::decorate(weaponMesh, nullptr);
-                    if (const auto glowColor = getGlowColor(*weapon))
-                        addEnv(weaponMesh, glowColor, getTransparency(*this));
                     contents.push_back(weaponMesh);
                 }
+                const auto glowColor = getGlowColor(*weapon);
                 for (auto& child : contents)
+                {
+                    if (glowColor)
+                        addEnv(child, glowColor, getTransparency(*this));
                     weaponSwitch->addChild(visible, child);
+                }
                 weaponNode->addChild(weaponSwitch);
             }
             mScabbard = attachHolstered(node, result, bone, {}, animate);
@@ -732,7 +746,8 @@ namespace MWRender
         const std::string holstered = sheathModel(mesh);
         if (modelExists(holstered))
         {
-            auto node = readHolstered(holstered);
+            // Only searched, so the shared read will do.
+            auto node = mContext.readActor(holstered);
             if (!node || !findGroup(*node, "Bip01 Sheath"))
                 return {};
         }
@@ -745,7 +760,9 @@ namespace MWRender
             return false;
         if (mPtr.getClass().getCreatureStats(mPtr).getDrawState() != MWMechanics::DrawState::Nothing)
             return false;
-        if (!animation->bones.search("Bip01 AttachShield"))
+        // In first person the back is out of view, so the hand is emptied with or without the bone, as OpenMW's
+        // NpcAnimation::updateCarriedLeftVisible.
+        if (mViewMode != ViewMode::FirstPerson && !animation->bones.search("Bip01 AttachShield"))
             return false;
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
         auto shield = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
@@ -795,12 +812,14 @@ namespace MWRender
 
         const std::string holstered = sheathModel(mesh);
         const auto glowColor = getGlowColor(*shield);
-        auto node = modelExists(holstered) ? readHolstered(holstered) : mContext.readNode(mesh);
+        const bool hasHolsteredModel = modelExists(holstered);
+        auto node = hasHolsteredModel ? readHolstered(holstered) : mContext.readNode(mesh);
         if (!node)
             return;
         auto result = MWAnim::decorate(node, nullptr);
         // An empty sheath node places the common shield mesh, so the _sh file need not hold it.
-        if (vsg::Group* sheath = findGroup(*node, "Bip01 Sheath"); sheath && sheath->children.empty())
+        if (vsg::Group* sheath = hasHolsteredModel ? findGroup(*node, "Bip01 Sheath") : nullptr;
+            sheath && sheath->children.empty())
         {
             auto shieldMesh = mContext.readNode(mesh);
             MWAnim::decorate(shieldMesh, nullptr);
@@ -818,7 +837,7 @@ namespace MWRender
             mHolsteredWeaponSwitch->setAllChildren(!visible);
         else if (w == Wield::CarriedLeft && mHolsteredShieldSwitch)
             mHolsteredShieldSwitch->setAllChildren(!visible);
-        if ((w == Wield::Weapon || w == Wield::Ammo) && Settings::game().mWeaponSheathing)
+        if ((w == Wield::Weapon || w == Wield::Ammo) && mViewMode != ViewMode::HeadOnly && Settings::game().mWeaponSheathing)
             mQuiverDirty = true;
     }
 
