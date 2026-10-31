@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace openeden::sdk
@@ -65,6 +66,17 @@ namespace openeden::sdk
          * @brief Checks if an entity handle is valid and current.
          */
         [[nodiscard]] virtual bool isValid(EntityId id) const = 0;
+
+        /**
+         * @brief The player's entity, or an invalid ID when no game is running or the host has no world.
+         */
+        [[nodiscard]] virtual EntityId playerEntity() const { return {}; }
+
+        /**
+         * @brief The ID of the record an entity was made from, or empty if the host does not know. It allocates, so
+         * do not call it every frame.
+         */
+        [[nodiscard]] virtual std::string recordId(EntityId /*id*/) const { return {}; }
 
         /**
          * @brief Attaches arbitrary data to an entity slot with a custom deleter.

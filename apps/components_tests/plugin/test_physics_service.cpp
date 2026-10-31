@@ -1189,4 +1189,115 @@ namespace
         host.physicsService()->publishQueryMask("world", kMaskStatic);
         EXPECT_EQ(host.getPhysicsQueryService()->queryMask("world"), kMaskStatic);
     }
+
+    // Task 0017: the host says which body belongs to which entity. These values are arbitrary: the service must not
+    // need the body to exist, because it only passes the question on.
+    constexpr EntityId kKnownEntity{ 7, 3 };
+    constexpr BodyId kKnownBody{ 11, 5 };
+
+    class FakeEntityBodies final : public openeden::plugin::EntityBodies
+    {
+    public:
+        [[nodiscard]] BodyId bodyOfEntity(EntityId entity) const override
+        {
+            ++mCalls;
+            return entity == kKnownEntity ? kKnownBody : BodyId{};
+        }
+
+        [[nodiscard]] EntityId entityOfBody(BodyId body) const override
+        {
+            ++mCalls;
+            return body == kKnownBody ? kKnownEntity : EntityId{};
+        }
+
+        mutable int mCalls = 0;
+    };
+
+    /// Implements only what PhysicsQueryService requires, to reach the SDK base's defaults.
+    class PlainQueryService final : public PhysicsQueryService
+    {
+    public:
+        [[nodiscard]] bool isBodyValid(BodyId) const override { return false; }
+        [[nodiscard]] std::optional<MotionType> getMotionType(BodyId) const override { return std::nullopt; }
+        bool readBody(BodyId, BodyState&) const override { return false; }
+        std::size_t readBodies(std::span<const BodyId>, std::span<BodyState>) const override { return 0; }
+        [[nodiscard]] QueryMask queryMask(std::string_view) const override { return kQueryMaskNone; }
+
+        [[nodiscard]] std::optional<RayHit> castRay(PhysicsVec3, PhysicsVec3, BodyId, QueryMask) const override
+        {
+            return std::nullopt;
+        }
+
+        [[nodiscard]] std::optional<RayHit> castShape(
+            const PhysicsShape&, PhysicsQuat, PhysicsVec3, PhysicsVec3, BodyId, QueryMask) const override
+        {
+            return std::nullopt;
+        }
+    };
+
+    TEST(PhysicsServiceEntityBodiesTest, AnswersComeFromTheHost)
+    {
+        TestWorld world;
+        PhysicsServiceImpl service(world.system());
+        FakeEntityBodies bodies;
+        service.setEntityBodies(&bodies);
+
+        EXPECT_EQ(service.bodyOfEntity(kKnownEntity), kKnownBody);
+        EXPECT_EQ(service.entityOfBody(kKnownBody), kKnownEntity);
+        EXPECT_EQ(bodies.mCalls, 2);
+    }
+
+    TEST(PhysicsServiceEntityBodiesTest, HostsAnswerOfNothingStaysInvalid)
+    {
+        TestWorld world;
+        PhysicsServiceImpl service(world.system());
+        FakeEntityBodies bodies;
+        service.setEntityBodies(&bodies);
+
+        EXPECT_FALSE(service.bodyOfEntity(EntityId{ 8, 1 }).isValid());
+        EXPECT_FALSE(service.entityOfBody(BodyId{ 12, 1 }).isValid());
+    }
+
+    TEST(PhysicsServiceEntityBodiesTest, AnswersThroughTheSdkInterface)
+    {
+        TestWorld world;
+        PhysicsServiceImpl service(world.system());
+        FakeEntityBodies bodies;
+        service.setEntityBodies(&bodies);
+
+        const PhysicsQueryService& sdk = service;
+        EXPECT_EQ(sdk.bodyOfEntity(kKnownEntity), kKnownBody);
+        EXPECT_EQ(sdk.entityOfBody(kKnownBody), kKnownEntity);
+    }
+
+    TEST(PhysicsServiceEntityBodiesTest, WithoutAHostAnswerEverythingIsInvalid)
+    {
+        TestWorld world;
+        const PhysicsServiceImpl service(world.system());
+
+        EXPECT_FALSE(service.bodyOfEntity(kKnownEntity).isValid());
+        EXPECT_FALSE(service.entityOfBody(kKnownBody).isValid());
+    }
+
+    TEST(PhysicsServiceEntityBodiesTest, ClearingTheHostAnswerStopsAskingIt)
+    {
+        TestWorld world;
+        PhysicsServiceImpl service(world.system());
+        FakeEntityBodies bodies;
+        service.setEntityBodies(&bodies);
+        service.setEntityBodies(nullptr);
+
+        EXPECT_FALSE(service.bodyOfEntity(kKnownEntity).isValid());
+        EXPECT_FALSE(service.entityOfBody(kKnownBody).isValid());
+        EXPECT_EQ(bodies.mCalls, 0);
+    }
+
+    TEST(PhysicsServiceEntityBodiesTest, SdkBaseDefaultsAreInvalid)
+    {
+        const PlainQueryService service;
+        const PhysicsQueryService& sdk = service;
+
+        EXPECT_FALSE(sdk.bodyOfEntity(kKnownEntity).isValid());
+        EXPECT_FALSE(sdk.entityOfBody(kKnownBody).isValid());
+    }
 } // namespace

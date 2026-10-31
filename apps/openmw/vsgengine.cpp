@@ -142,6 +142,7 @@ namespace OMW
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             return false;
         }
+        mPluginHost->deliverWorldEvents();
         mPluginHost->runPhase(openeden::sdk::Phase::Input, dt);
         if (gameState->updateSound)
             mSoundManager->update(dt);
@@ -438,7 +439,6 @@ namespace OMW
             mCfgMgr.getUserDataPath() / "saves", args.contentFiles, mRenderManager->getScreenshotInterface());
         mEnvironment.setStateManager(*mStateManager);
 
-        mPluginHost->start();
 
         auto loadingScreen = mWindowManager->createLoadingScreen();
         loadingScreen->loading = std::make_shared<Boot>(*this, args);

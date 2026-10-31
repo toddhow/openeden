@@ -222,6 +222,17 @@ namespace
 
 namespace MWPhysics
 {
+    bool JoltContactListener::isActiveProjectile(const PtrHolder* ptr)
+    {
+        const auto* projectile = dynamic_cast<const Projectile*>(ptr);
+        return projectile != nullptr && projectile->isActive();
+    }
+
+    bool JoltContactListener::isActorOrProjectile(const PtrHolder* ptr)
+    {
+        return dynamic_cast<const Projectile*>(ptr) != nullptr || dynamic_cast<const Actor*>(ptr) != nullptr;
+    }
+
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps in order to keep the
     // simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     static const int cCollisionSteps = 1;

@@ -357,4 +357,101 @@ namespace
 
         manager.destroyEntity(e);
     }
+
+    // Task 0017: the game answers what a test host cannot.
+    class FakeEntityWorld final : public openeden::plugin::EntityWorld
+    {
+    public:
+        [[nodiscard]] EntityId playerEntity() const override
+        {
+            ++mCalls;
+            return mPlayer;
+        }
+
+        [[nodiscard]] std::string recordId(EntityId id) const override
+        {
+            ++mCalls;
+            return id == mPlayer ? "player" : std::string();
+        }
+
+        EntityId mPlayer{};
+        mutable int mCalls = 0;
+    };
+
+    /// Implements only what EntityManager requires, to reach the SDK base's defaults.
+    class PlainEntityManager final : public EntityManager
+    {
+    public:
+        EntityId createEntity() override { return {}; }
+        bool destroyEntity(EntityId) override { return false; }
+        [[nodiscard]] bool isValid(EntityId) const override { return false; }
+        bool attachData(EntityId, std::string_view, void*, openeden::sdk::EntityDataDeleter) override { return false; }
+        [[nodiscard]] void* getData(EntityId, std::string_view) const override { return nullptr; }
+        bool removeData(EntityId, std::string_view) override { return false; }
+        void registerLifecycleListener(std::string_view, EntityLifecycleListener*) override {}
+        void unregisterLifecycleListener(std::string_view) override {}
+        void dispatchLifecycleEvent(EntityLifecycleEvent, EntityId) override {}
+    };
+
+    TEST(EntityManagerWorldTest, PlayerAndRecordComeFromTheWorld)
+    {
+        EntityManagerImpl manager;
+        FakeEntityWorld world;
+        world.mPlayer = manager.createEntity();
+        manager.setWorld(&world);
+
+        EXPECT_EQ(manager.playerEntity(), world.mPlayer);
+        EXPECT_EQ(manager.recordId(world.mPlayer), "player");
+
+        manager.destroyEntity(world.mPlayer);
+    }
+
+    TEST(EntityManagerWorldTest, AnswersThroughTheSdkInterface)
+    {
+        EntityManagerImpl manager;
+        FakeEntityWorld world;
+        world.mPlayer = manager.createEntity();
+        manager.setWorld(&world);
+
+        const EntityManager& sdk = manager;
+        EXPECT_EQ(sdk.playerEntity(), world.mPlayer);
+        EXPECT_EQ(sdk.recordId(world.mPlayer), "player");
+
+        manager.destroyEntity(world.mPlayer);
+    }
+
+    TEST(EntityManagerWorldTest, WithoutAWorldThePlayerIsInvalidAndRecordsEmpty)
+    {
+        EntityManagerImpl manager;
+        const EntityId entity = manager.createEntity();
+
+        EXPECT_FALSE(manager.playerEntity().isValid());
+        EXPECT_TRUE(manager.recordId(entity).empty());
+
+        manager.destroyEntity(entity);
+    }
+
+    TEST(EntityManagerWorldTest, ClearingTheWorldStopsAskingIt)
+    {
+        EntityManagerImpl manager;
+        FakeEntityWorld world;
+        world.mPlayer = manager.createEntity();
+        manager.setWorld(&world);
+        manager.setWorld(nullptr);
+
+        EXPECT_FALSE(manager.playerEntity().isValid());
+        EXPECT_TRUE(manager.recordId(world.mPlayer).empty());
+        EXPECT_EQ(world.mCalls, 0);
+
+        manager.destroyEntity(world.mPlayer);
+    }
+
+    TEST(EntityManagerWorldTest, SdkBaseDefaultsAreInvalidAndEmpty)
+    {
+        const PlainEntityManager manager;
+        const EntityManager& sdk = manager;
+
+        EXPECT_FALSE(sdk.playerEntity().isValid());
+        EXPECT_TRUE(sdk.recordId(EntityId{ 1, 1 }).empty());
+    }
 } // namespace

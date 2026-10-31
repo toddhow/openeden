@@ -12,6 +12,17 @@
 namespace openeden::plugin
 {
     /**
+     * @brief What the game knows about entities that a test host does not. Implemented by the host.
+     */
+    class EntityWorld
+    {
+    public:
+        virtual ~EntityWorld() = default;
+        [[nodiscard]] virtual openeden::sdk::EntityId playerEntity() const = 0;
+        [[nodiscard]] virtual std::string recordId(openeden::sdk::EntityId id) const = 0;
+    };
+
+    /**
      * @brief Engine implementation of the entity manager.
      */
     class EntityManagerImpl : public openeden::sdk::EntityManager
@@ -31,6 +42,14 @@ namespace openeden::plugin
         openeden::sdk::EntityId createEntity() override;
         bool destroyEntity(openeden::sdk::EntityId id) override;
         [[nodiscard]] bool isValid(openeden::sdk::EntityId id) const override;
+
+        /**
+         * @brief Sets who answers playerEntity and recordId. Null, the default, answers nothing.
+         */
+        void setWorld(EntityWorld* world) noexcept { mWorld = world; }
+
+        [[nodiscard]] openeden::sdk::EntityId playerEntity() const override;
+        [[nodiscard]] std::string recordId(openeden::sdk::EntityId id) const override;
 
         bool attachData(openeden::sdk::EntityId id, std::string_view slotKey, void* data,
             openeden::sdk::EntityDataDeleter deleter = nullptr) override;
@@ -81,5 +100,6 @@ namespace openeden::plugin
         std::vector<std::uint32_t> mFreeIndices;
         std::vector<std::string> mLoadOrder;
         std::vector<ListenerEntry> mListeners;
+        EntityWorld* mWorld = nullptr;
     };
 } // namespace openeden::plugin

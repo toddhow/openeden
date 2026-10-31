@@ -140,6 +140,16 @@ namespace openeden::plugin
         return true;
     }
 
+    openeden::sdk::EntityId EntityManagerImpl::playerEntity() const
+    {
+        return mWorld != nullptr ? mWorld->playerEntity() : openeden::sdk::EntityId{};
+    }
+
+    std::string EntityManagerImpl::recordId(openeden::sdk::EntityId id) const
+    {
+        return mWorld != nullptr ? mWorld->recordId(id) : std::string{};
+    }
+
     bool EntityManagerImpl::isValid(openeden::sdk::EntityId id) const
     {
         if (!id.isValid() || id.index >= mSlots.size())

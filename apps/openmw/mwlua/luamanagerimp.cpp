@@ -23,6 +23,7 @@
 #include <components/lua_ui/registerscriptsettings.hpp>
 #include <components/lua_ui/util.hpp>
 
+#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
@@ -592,6 +593,9 @@ namespace MWLua
         const MWWorld::Ptr& ammo, int attackType, float attackStrength, float damage, bool isHealth,
         const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
     {
+        // Every attack the engine resolves comes through here, so plugins hear of it from the one place too
+        MWBase::Environment::get().getPluginManager()->actorHit(attacker, victim, damage, successful);
+
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table damageTable = view.newTable();
             if (isHealth)

@@ -28,6 +28,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwscript/testscripts.cpp
 
     plugin/testpluginhost.cpp
+    plugin/testpluginworld.cpp
 )
 
 if (MSVC)

@@ -304,7 +304,7 @@ Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built agains
 - [x] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts (built and tested on Windows, including the 32 Lua tests and a real-game check; Linux gates not yet run)
 
 **W3 World services on the engine** — task 0017 (`docs/tasks/0017-plugins-w3-world-services.md`)
-- [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events, debug draw and profiler shown
+- [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events (done, on Windows, 2026-10-31); debug draw and profiler shown (not done: renderer files, see task 0017's notes)
 
 **W4 Real clients and packaging** — task 0018 (`docs/tasks/0018-plugins-w4-clients-and-packaging.md`)
 - [ ] Installed plugin layout, launcher plugin list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample plugin covering every service end to end
@@ -400,6 +400,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-31 | Track W stage W3 (task 0017), except debug draw and the profiler overlay: plugins query the game's Jolt world in meters, see objects as entities with lifecycle events, and receive physics and game events. `OMW::PluginWorld` queues engine notifications from any thread and delivers on the main thread before `Phase::Input`. Plugins now start in the `Game` state. New `openeden/game_events.hpp`, `MWPhysics::ContactObserver`, `tools/plugin_world_check/`, `apps/openmw/mwphysics/CLAUDE.md` |
 | 2026-10-31 | Track W stage W2 (task 0016): plugin `data/` folders in the game's VFS above `data=` and below `data-local`; settings under `[plugin.<id>]` in `settings.cfg`; save chunks as `OEPL` records in `.omwsave`, preserved without their plugin and handled on the main thread only; marked events reach global scripts as `openeden_<pluginId>_<eventName>`. New `MWBase::PluginManager`, `ESM::PluginChunk` and `tools/plugin_data_check/` |
 | 2026-10-30 | Track W stage W1 (task 0015), started alongside V4 at toddhow's request: `OMW::PluginHost` runs plugins in the game, with `plugin=<id>` in `openmw.cfg`, `--plugin` and `--no-plugins`; frame phases called from `Engine::frame` and `Game::run`; plugin and engine logging bridged; a plugin faulting at runtime disables its dependants. New `apps/openmw/CLAUDE.md`, `tools/check_plugin_phases.sh`, test plugins in `apps/openmw_tests/plugin/` |
 | 2026-10-30 | Track W stage W0 (task 0019): SDK 2.0. `PhysicsService` replaced by the read-only `PhysicsQueryService` (rays, sphere, capsule and box casts, opaque query masks the host publishes), which only attaches to a world the host owns; fixed-step phases, collision layers and `ScriptingService` removed with their tests; event types can be marked as forwarded to Lua (`EventBus::markForwardedToLua`, forwarding itself in task 0016); physics event types declared (`openeden/physics_events.hpp`, published in task 0017); SDK 1.x manifests refused with a clear reason; `CI/check_plugin_sdk.sh` added |

@@ -172,6 +172,7 @@ namespace MWState
 
             Settings::saves().mCharacter.set(Files::pathToUnicodeString(slot->mPath.parent_path().filename()));
             stateManager->setLastSavegame(slot->mPath);
+            MWBase::Environment::get().getPluginManager()->gameSaved();
 
             const auto finish = std::chrono::steady_clock::now();
 

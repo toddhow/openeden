@@ -145,6 +145,16 @@ namespace openeden::plugin
         return BodyId{ id.GetIndex(), id.GetSequenceNumber() };
     }
 
+    BodyId PhysicsServiceImpl::bodyOfEntity(EntityId entity) const
+    {
+        return mEntityBodies != nullptr ? mEntityBodies->bodyOfEntity(entity) : BodyId{};
+    }
+
+    EntityId PhysicsServiceImpl::entityOfBody(BodyId body) const
+    {
+        return mEntityBodies != nullptr ? mEntityBodies->entityOfBody(body) : EntityId{};
+    }
+
     void PhysicsServiceImpl::publishQueryMask(std::string_view name, QueryMask mask)
     {
         mQueryMasks.insert_or_assign(std::string(name), mask);

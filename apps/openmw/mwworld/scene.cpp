@@ -31,6 +31,7 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
+#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
@@ -133,6 +134,7 @@ namespace
             ptr.getClass().insertObject(ptr, model, rotation, physics);
 
         MWBase::Environment::get().getLuaManager()->objectAddedToScene(ptr);
+        MWBase::Environment::get().getPluginManager()->objectAddedToScene(ptr);
     }
 
     void addObject(const MWWorld::Ptr& ptr, const MWWorld::World& world, const MWPhysics::PhysicsSystem& physics,
@@ -336,6 +338,7 @@ namespace MWWorld
         if (mActiveCells.find(cell) == mActiveCells.end())
             return;
         Log(Debug::Info) << "Unloading cell " << cell->getCell()->getDescription();
+        MWBase::Environment::get().getPluginManager()->cellUnloaded(cell->getCell()->getDescription());
 
         ListAndResetObjectsVisitor visitor;
 
@@ -357,6 +360,7 @@ namespace MWWorld
             else
                 ptr.mRef->mData.mPhysicsPostponed = false;
             MWBase::Environment::get().getLuaManager()->objectRemovedFromScene(ptr);
+            MWBase::Environment::get().getPluginManager()->objectRemovedFromScene(ptr);
         }
 
         const auto cellX = cell->getCell()->getGridX();
@@ -402,6 +406,7 @@ namespace MWWorld
         mActiveCells.insert(&cell);
 
         Log(Debug::Info) << "Loading cell " << cell.getCell()->getDescription();
+        MWBase::Environment::get().getPluginManager()->cellLoaded(cell.getCell()->getDescription());
 
         const int cellX = cell.getCell()->getGridX();
         const int cellY = cell.getCell()->getGridY();
@@ -773,6 +778,7 @@ namespace MWWorld
     {
         mHalfGridSize = cell.getCell()->isEsm4() ? Constants::ESM4CellGridRadius : Constants::CellGridRadius;
         mCurrentCell = &cell;
+        MWBase::Environment::get().getPluginManager()->cellChanged(cell.getCell()->getDescription());
 
         MWWorld::Ptr old = mWorld.getPlayerPtr();
         mWorld.removeContainerScripts(old);
@@ -954,6 +960,7 @@ namespace MWWorld
         // or if the player moves away far from the object's position.
         // Todd Howard, Who art in Bethesda, hallowed be Thy name.
         MWBase::Environment::get().getLuaManager()->objectRemovedFromScene(ptr);
+        MWBase::Environment::get().getPluginManager()->objectRemovedFromScene(ptr);
         if (const auto object = mPhysics->getObject(ptr))
         {
             if (object->getShapeInstance()->mVisualCollisionType == Resource::VisualCollisionType::None)

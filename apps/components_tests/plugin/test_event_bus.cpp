@@ -1,5 +1,6 @@
 #include <components/plugin/event_bus.hpp>
 #include <openeden/event_bus.hpp>
+#include <openeden/game_events.hpp>
 #include <openeden/phases.hpp>
 #include <openeden/physics_events.hpp>
 
@@ -1207,5 +1208,131 @@ namespace
         EXPECT_NO_THROW(bus.publishImmediate(ScoreEvent{ 1 }));
 
         EXPECT_EQ(pointsIn(log), (std::vector<int>{ 1 }));
+    }
+
+    // Task 0017: the game events.
+    using openeden::sdk::ActorHitEvent;
+    using openeden::sdk::CellChangedEvent;
+    using openeden::sdk::CellLoadedEvent;
+    using openeden::sdk::CellUnloadedEvent;
+    using openeden::sdk::EntityId;
+    using openeden::sdk::EntityLifecycleEvent;
+    using openeden::sdk::EntityLifecycleNotice;
+    using openeden::sdk::GameLoadedEvent;
+    using openeden::sdk::GameSavedEvent;
+    using openeden::sdk::kEventNameCapacity;
+
+    static_assert(std::is_trivially_copyable_v<GameLoadedEvent>);
+    static_assert(std::is_trivially_copyable_v<GameSavedEvent>);
+    static_assert(std::is_trivially_copyable_v<CellChangedEvent>);
+    static_assert(std::is_trivially_copyable_v<CellLoadedEvent>);
+    static_assert(std::is_trivially_copyable_v<CellUnloadedEvent>);
+    static_assert(std::is_trivially_copyable_v<ActorHitEvent>);
+    static_assert(std::is_trivially_copyable_v<EntityLifecycleNotice>);
+
+    constexpr std::array kWorldEventIds{ GameLoadedEvent::kEventId, GameSavedEvent::kEventId,
+        CellChangedEvent::kEventId, CellLoadedEvent::kEventId, CellUnloadedEvent::kEventId, ActorHitEvent::kEventId,
+        EntityLifecycleNotice::kEventId, PhysicsHitEvent::kEventId, PhysicsContactBeginEvent::kEventId,
+        PhysicsContactEndEvent::kEventId };
+
+    constexpr bool worldEventIdsAreDistinct()
+    {
+        for (std::size_t i = 0; i < kWorldEventIds.size(); ++i)
+            for (std::size_t j = i + 1; j < kWorldEventIds.size(); ++j)
+                if (kWorldEventIds[i] == kWorldEventIds[j])
+                    return false;
+        return true;
+    }
+
+    static_assert(worldEventIdsAreDistinct());
+
+    /// Publishes the event in both ways and returns the copies a subscriber received.
+    template <typename T>
+    std::vector<T> receivedBothWays(const T& event)
+    {
+        EventBusImpl bus;
+        std::vector<T> received;
+        bus.subscribe<T>("plugin", [&](const T& got) { received.push_back(got); });
+
+        bus.publishImmediate(event);
+        EXPECT_EQ(received.size(), 1u);
+
+        // game_events.hpp: delivered at the start of Phase::Input.
+        bus.publishDeferred(event, Phase::Input);
+        EXPECT_EQ(received.size(), 1u);
+        bus.processDeferredEvents(Phase::Input);
+        EXPECT_EQ(received.size(), 2u);
+        return received;
+    }
+
+    template <typename T>
+    void expectCellNameArrives()
+    {
+        constexpr std::string_view name = "Museum of Wonders";
+        T event;
+        std::memcpy(event.cellName, name.data(), name.size());
+        for (const T& got : receivedBothWays(event))
+            EXPECT_EQ(std::string_view(got.cellName), name);
+    }
+
+    TEST(GameEventsTest, GameLoadedArrives)
+    {
+        EXPECT_EQ(receivedBothWays(GameLoadedEvent{}).size(), 2u);
+    }
+
+    TEST(GameEventsTest, GameSavedArrives)
+    {
+        EXPECT_EQ(receivedBothWays(GameSavedEvent{}).size(), 2u);
+    }
+
+    TEST(GameEventsTest, CellChangedArrivesWithItsName)
+    {
+        expectCellNameArrives<CellChangedEvent>();
+    }
+
+    TEST(GameEventsTest, CellLoadedArrivesWithItsName)
+    {
+        expectCellNameArrives<CellLoadedEvent>();
+    }
+
+    TEST(GameEventsTest, CellUnloadedArrivesWithItsName)
+    {
+        expectCellNameArrives<CellUnloadedEvent>();
+    }
+
+    TEST(GameEventsTest, ActorHitArrivesWithItsPayload)
+    {
+        ActorHitEvent event;
+        event.attacker = EntityId{ 1, 2 };
+        event.target = EntityId{ 3, 4 };
+        event.damage = 1.5f;
+        event.successful = true;
+        for (const ActorHitEvent& got : receivedBothWays(event))
+        {
+            EXPECT_EQ(got.attacker, event.attacker);
+            EXPECT_EQ(got.target, event.target);
+            EXPECT_EQ(got.damage, event.damage);
+            EXPECT_TRUE(got.successful);
+        }
+    }
+
+    TEST(GameEventsTest, LifecycleNoticeArrivesWithItsPayload)
+    {
+        EntityLifecycleNotice event;
+        event.kind = EntityLifecycleEvent::Revived;
+        event.entity = EntityId{ 5, 6 };
+        for (const EntityLifecycleNotice& got : receivedBothWays(event))
+        {
+            EXPECT_EQ(got.kind, EntityLifecycleEvent::Revived);
+            EXPECT_EQ(got.entity, event.entity);
+        }
+    }
+
+    TEST(GameEventsTest, NameCapacityLeavesRoomForLongCellNames)
+    {
+        // Text is cut to fit, never overflowing: the array has the published capacity.
+        EXPECT_EQ(sizeof(CellChangedEvent::cellName), kEventNameCapacity);
+        EXPECT_EQ(sizeof(CellLoadedEvent::cellName), kEventNameCapacity);
+        EXPECT_EQ(sizeof(CellUnloadedEvent::cellName), kEventNameCapacity);
     }
 } // namespace

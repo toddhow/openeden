@@ -17,8 +17,15 @@
 #include <string>
 #include <vector>
 
+namespace MWPhysics
+{
+    class PhysicsSystem;
+}
+
 namespace OMW
 {
+    class PluginWorld;
+
     /**
      * @brief Runs plugins inside the game (task 0015). Owned by OMW::Engine, used on the main thread only.
      *
@@ -85,12 +92,33 @@ namespace OMW
         void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
         void applyLoadedRecords() override;
         void clearSaveData() override;
+        void objectAddedToScene(const MWWorld::Ptr& ptr) override;
+        void objectRemovedFromScene(const MWWorld::Ptr& ptr) override;
+        void cellLoaded(std::string_view name) override;
+        void cellUnloaded(std::string_view name) override;
+        void cellChanged(std::string_view name) override;
+        void actorDied(const MWWorld::Ptr& actor) override;
+        void actorRevived(const MWWorld::Ptr& actor) override;
+        void actorHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, float damage, bool successful) override;
+        void gameLoaded() override;
+        void playerRebuilt(const MWWorld::Ptr& player) override;
+        void gameSaved() override;
+
+        /// Gives plugins the game's world. Call it before start(): plugins keep the services they get there, and
+        /// the physics system must stay alive until stop().
+        void attachWorld(MWPhysics::PhysicsSystem& physics);
+
+        /// Gives plugins what the world queued. The engine calls it just before Phase::Input.
+        void deliverWorldEvents();
 
         [[nodiscard]] openeden::plugin::HostImpl& host() noexcept { return mHost; }
         [[nodiscard]] openeden::plugin::LifecycleManager& lifecycle() noexcept { return mLifecycle; }
 
     private:
         struct LogBridge;
+
+        std::unique_ptr<PluginWorld> mWorld;
+        MWPhysics::PhysicsSystem* mPhysics = nullptr;
 
         void sendPendingLuaEventsNow();
 

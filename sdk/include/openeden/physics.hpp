@@ -1,5 +1,7 @@
 #pragma once
 
+#include <openeden/entity.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -167,5 +169,15 @@ namespace openeden::sdk
         [[nodiscard]] virtual std::optional<RayHit> castShape(const PhysicsShape& shape, PhysicsQuat rotation,
             PhysicsVec3 originM, PhysicsVec3 directionTimesLengthM, BodyId ignore = {},
             QueryMask mask = kQueryMaskAll) const = 0;
+
+        /**
+         * @brief The body of an entity, or an invalid handle if it has none or the host cannot tell.
+         */
+        [[nodiscard]] virtual BodyId bodyOfEntity(EntityId /*entity*/) const { return {}; }
+
+        /**
+         * @brief The entity a body belongs to, or an invalid ID if it has none (terrain, for one).
+         */
+        [[nodiscard]] virtual EntityId entityOfBody(BodyId /*body*/) const { return {}; }
     };
 } // namespace openeden::sdk

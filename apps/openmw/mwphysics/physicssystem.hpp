@@ -174,6 +174,12 @@ namespace MWPhysics
 
         void updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated);
 
+        /// The one Jolt world. The plugin host gives plugins read-only queries on it; nothing else should need it.
+        JPH::PhysicsSystem& getJoltWorld() { return mPhysicsSystem; }
+
+        /// Null stops it. It must stay alive until then.
+        void setContactObserver(ContactObserver* observer) { mContactListener.setObserver(observer); }
+
         Actor* getActor(const MWWorld::Ptr& ptr);
         const Actor* getActor(const MWWorld::ConstPtr& ptr) const;
 

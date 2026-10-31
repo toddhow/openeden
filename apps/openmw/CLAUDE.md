@@ -6,7 +6,7 @@ Rules and pitfalls for new OpenEden code here. Rendering has its own guide, `mwr
 
 `OMW::Engine` owns one `PluginHost`, which holds the `HostImpl` and `LifecycleManager` from `components/plugin`.
 
-- **Startup:** `Engine::prepareEngine` creates it before the VFS, which finds and loads the enabled plugins' libraries, and calls `start()` once the state manager exists, which runs register, resolve and start.
+- **Startup:** `Engine::prepareEngine` creates it before the VFS, which finds and loads the enabled plugins' libraries. The `Game` state's constructor gives it the world and calls `start()`, which runs register, resolve and start: plugins keep the services they get there, and the world exists only by then. So no phases run on the first loading screen.
 - **Where plugins come from:** `plugins/` in the local path (beside the executable on Windows), then `plugins/` in the user data folder. Each plugin is a folder with a `plugin.json`.
 - **Enable list:** `plugin=<id>` lines in `openmw.cfg`, plus `--plugin=<id>` for one run. `--no-plugins` loads none. Nothing loads unless listed; an installed plugin that is not listed is only named in the log.
 - **Frame phases:**
@@ -26,11 +26,12 @@ Rules and pitfalls for new OpenEden code here. Rendering has its own guide, `mwr
 - **Data (task 0016):** the VFS gets plugin `data/` folders above `data=` and below `data-local`, in load order; content files are still looked up without them. Settings live in `[plugin.<id>]` in `settings.cfg`.
 - **Saves:** one `OEPL` record per plugin. `SaveGame` and `LoadGame` run on a worker while frames continue, so plugins are called only on the main thread: `PluginHost::prepareSave` before the worker, `applyLoadedRecords` after it. The save code reaches this through `MWBase::PluginManager`. Chunks of absent plugins are written back unchanged, and forgotten on a new game or load.
 - **Lua:** marked events go to global scripts as `openeden_<pluginId>_<eventName>`, with a table of the flat payload. They wait until a game is running, since global scripts need one; publish them on the main thread.
+- **World (task 0017):** `OMW::PluginWorld`, made only with plugins loaded. Engine code tells it what happens through `MWBase::PluginManager`, from any thread: cells load on a worker, contacts come from physics threads. It queues under a lock, and `PluginHost::deliverWorldEvents` delivers on the main thread just before `Input`, so plugin code never runs elsewhere. It maps objects to entity IDs by the address of their reference, and is the units boundary for event positions.
 - **Zero plugins:** after startup's discovery, which still lists what is installed, every call returns at once and no listener is installed.
 
 ## Checking it
 
-`openmw-tests` runs `PluginHost` against real test plugin libraries (`apps/openmw_tests/plugin/`), but no unit test runs the engine loop. To check the phase calls, install the test plugin, run the game with `OPENEDEN_TEST_PLUGIN_LOG=<file>` and `--plugin=<id> --skip-menu --auto-quit 100`, then run `tools/check_plugin_phases.sh <file>`. For data, settings, saves and Lua events, run `tools/plugin_data_check/check.sh`.
+`openmw-tests` runs `PluginHost` against real test plugin libraries (`apps/openmw_tests/plugin/`), but no unit test runs the engine loop. To check the phase calls, install the test plugin, run the game with `OPENEDEN_TEST_PLUGIN_LOG=<file>` and `--plugin=<id> --skip-menu --auto-quit 100`, then run `tools/check_plugin_phases.sh <file>`. For data, settings, saves and Lua events, run `tools/plugin_data_check/check.sh`; for the world, `tools/plugin_world_check/check.sh`. Each needs an empty work folder, and no test plugin left in the build folder's `plugins/`.
 
 ## Pitfalls
 

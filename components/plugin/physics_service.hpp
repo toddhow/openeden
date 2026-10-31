@@ -18,6 +18,17 @@ namespace JPH
 namespace openeden::plugin
 {
     /**
+     * @brief What the game knows about which body belongs to which entity. Implemented by the host.
+     */
+    class EntityBodies
+    {
+    public:
+        virtual ~EntityBodies() = default;
+        [[nodiscard]] virtual openeden::sdk::BodyId bodyOfEntity(openeden::sdk::EntityId entity) const = 0;
+        [[nodiscard]] virtual openeden::sdk::EntityId entityOfBody(openeden::sdk::BodyId body) const = 0;
+    };
+
+    /**
      * @brief Engine implementation of PhysicsQueryService: a read-only view of a Jolt world.
      *
      * It only ever attaches to a JPH::PhysicsSystem the host owns and cannot create its own. The
@@ -48,6 +59,14 @@ namespace openeden::plugin
          */
         void publishQueryMask(std::string_view name, openeden::sdk::QueryMask mask);
 
+        /**
+         * @brief Answers bodyOfEntity and entityOfBody. Null, the default, answers nothing.
+         */
+        void setEntityBodies(EntityBodies* bodies) noexcept { mEntityBodies = bodies; }
+
+        [[nodiscard]] openeden::sdk::BodyId bodyOfEntity(openeden::sdk::EntityId entity) const override;
+        [[nodiscard]] openeden::sdk::EntityId entityOfBody(openeden::sdk::BodyId body) const override;
+
         [[nodiscard]] bool isBodyValid(openeden::sdk::BodyId id) const override;
         [[nodiscard]] std::optional<openeden::sdk::MotionType> getMotionType(
             openeden::sdk::BodyId body) const override;
@@ -69,6 +88,7 @@ namespace openeden::plugin
 
     private:
         JPH::PhysicsSystem* mWorld;
+        EntityBodies* mEntityBodies = nullptr;
         float mWorldUnitsPerMeter;
         std::map<std::string, openeden::sdk::QueryMask, std::less<>> mQueryMasks;
     };

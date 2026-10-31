@@ -10,11 +10,16 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
+#include <components/misc/constants.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/plugin/dependency_resolver.hpp>
 
 #include "mwbase/environment.hpp"
+#include "mwbase/world.hpp"
+#include "mwphysics/physicssystem.hpp"
+#include "mwworld/ptr.hpp"
+#include "pluginworld.hpp"
 #include "mwbase/statemanager.hpp"
 #include <components/plugin/plugin_loader.hpp>
 
@@ -267,6 +272,106 @@ namespace OMW
         mHost.saveService().clearUnreadChunks();
     }
 
+    void PluginHost::attachWorld(MWPhysics::PhysicsSystem& physics)
+    {
+        if (!mLoaded)
+            return;
+
+        mPhysics = &physics;
+        mWorld = std::make_unique<PluginWorld>(mHost, &physics);
+        mHost.attachPhysicsWorld(physics.getJoltWorld(), Constants::UnitsPerMeter);
+        mHost.entityManager().setWorld(mWorld.get());
+
+        // Names for query masks, so that plugins never see the layers' bit numbers (joltlayers.hpp)
+        openeden::plugin::PhysicsServiceImpl& queries = *mHost.physicsService();
+        queries.setEntityBodies(mWorld.get());
+        queries.publishQueryMask("world", MWPhysics::Layers::WORLD);
+        queries.publishQueryMask("door", MWPhysics::Layers::DOOR);
+        queries.publishQueryMask("actor", MWPhysics::Layers::ACTOR);
+        queries.publishQueryMask("heightmap", MWPhysics::Layers::HEIGHTMAP);
+        queries.publishQueryMask("projectile", MWPhysics::Layers::PROJECTILE);
+        queries.publishQueryMask("water", MWPhysics::Layers::WATER);
+        queries.publishQueryMask("camera_only", MWPhysics::Layers::CAMERA_ONLY);
+        queries.publishQueryMask("visual_only", MWPhysics::Layers::VISUAL_ONLY);
+        queries.publishQueryMask("dynamic_world", MWPhysics::Layers::DYNAMIC_WORLD);
+        queries.publishQueryMask("debris", MWPhysics::Layers::DEBRIS);
+        queries.publishQueryMask("sensor", MWPhysics::Layers::SENSOR);
+
+        physics.setContactObserver(mWorld.get());
+    }
+
+    void PluginHost::deliverWorldEvents()
+    {
+        if (mWorld && mRunning)
+            mWorld->deliver();
+    }
+
+    void PluginHost::objectAddedToScene(const MWWorld::Ptr& ptr)
+    {
+        if (mWorld)
+            mWorld->objectAdded(ptr);
+    }
+
+    void PluginHost::objectRemovedFromScene(const MWWorld::Ptr& ptr)
+    {
+        if (mWorld)
+            mWorld->objectRemoved(ptr);
+    }
+
+    void PluginHost::cellLoaded(std::string_view name)
+    {
+        if (mWorld)
+            mWorld->cellLoaded(name);
+    }
+
+    void PluginHost::cellUnloaded(std::string_view name)
+    {
+        if (mWorld)
+            mWorld->cellUnloaded(name);
+    }
+
+    void PluginHost::cellChanged(std::string_view name)
+    {
+        if (mWorld)
+            mWorld->cellChanged(name);
+    }
+
+    void PluginHost::actorDied(const MWWorld::Ptr& actor)
+    {
+        if (mWorld)
+            mWorld->actorDied(actor);
+    }
+
+    void PluginHost::actorRevived(const MWWorld::Ptr& actor)
+    {
+        if (mWorld)
+            mWorld->actorRevived(actor);
+    }
+
+    void PluginHost::actorHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, float damage, bool successful)
+    {
+        if (mWorld)
+            mWorld->actorHit(attacker, target, damage, successful);
+    }
+
+    void PluginHost::gameLoaded()
+    {
+        if (mWorld)
+            mWorld->gameLoaded(MWBase::Environment::get().getWorld()->getPlayerPtr());
+    }
+
+    void PluginHost::playerRebuilt(const MWWorld::Ptr& player)
+    {
+        if (mWorld)
+            mWorld->playerRebuilt(player);
+    }
+
+    void PluginHost::gameSaved()
+    {
+        if (mWorld)
+            mWorld->gameSaved();
+    }
+
     PluginHost::~PluginHost()
     {
         stop();
@@ -313,6 +418,9 @@ namespace OMW
         });
 
         mLifecycle.setBeforeUnload([this, bridge = mLogBridge] {
+            // Stops physics threads queueing before anything they could reach goes
+            if (mPhysics != nullptr)
+                mPhysics->setContactObserver(nullptr);
             mHost.eventBus().setForwardSink(nullptr);
             mHost.vfsService().setEngineVfs(nullptr);
             const std::lock_guard lock(bridge->mMutex);
@@ -340,5 +448,13 @@ namespace OMW
 
         Log(Debug::Info) << "Stopping plugins";
         mLifecycle.shutdown();
+
+        if (mWorld)
+        {
+            mHost.entityManager().setWorld(nullptr);
+            mHost.detachPhysicsWorld();
+            mWorld.reset();
+            mPhysics = nullptr;
+        }
     }
 }

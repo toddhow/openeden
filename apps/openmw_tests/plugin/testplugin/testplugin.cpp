@@ -7,24 +7,36 @@
 //   OPENEDEN_TEST_PLUGIN_REQUIRES_A  require that contract
 //
 // OPENEDEN_TEST_PLUGIN_THROW="<id>:start" or "<id>:phase" makes this plugin throw at that point.
+//
+// OPENEDEN_TEST_PLUGIN_WORLD="<x> <y>", a point in meters, makes it observe the game world and cast down over that point
+// once the player rests there, for tools/plugin_world_check/check.sh.
 
+#include <openeden/entity.hpp>
 #include <openeden/event_bus.hpp>
+#include <openeden/game_events.hpp>
 #include <openeden/logging.hpp>
+#include <openeden/physics.hpp>
+#include <openeden/physics_events.hpp>
 #include <openeden/plugin.hpp>
 #include <openeden/save.hpp>
 #include <openeden/settings.hpp>
 #include <openeden/vfs.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace
@@ -144,6 +156,313 @@ namespace
         { openeden::sdk::Phase::Ui, "Ui" },
     };
 
+    // With OPENEDEN_TEST_PLUGIN_WORLD: one line per event, prefixed "world ", read by tools/plugin_world_check/check.sh.
+    constexpr std::string_view kWorldDataSlot = "world_check";
+    // A fixed segment around the height where the Lua integration tests place the player (1745 units, about 25 m), so the
+    // fractions depend only on the point cast over and the scene, never on where the player happens to rest.
+    constexpr float kProbeTopM = 60.0f;
+    constexpr float kProbeLengthM = 120.0f;
+    constexpr float kProbeSphereRadiusM = 0.25f;
+    // How close the player must be to the point, and for how many frames its body must not move.
+    constexpr float kProbeReachM = 1.0f;
+    constexpr int kProbeSettledFrames = 30;
+    constexpr int kFloatDigits = 9;
+
+    std::string textOf(openeden::sdk::EntityId id)
+    {
+        return std::to_string(id.index) + ':' + std::to_string(id.generation);
+    }
+
+    std::string textOf(openeden::sdk::BodyId id)
+    {
+        return std::to_string(id.index) + ':' + std::to_string(id.generation);
+    }
+
+    std::string textOf(float value)
+    {
+        char buffer[32];
+        std::snprintf(buffer, sizeof(buffer), "%.*g", kFloatDigits, value);
+        return buffer;
+    }
+
+    std::string textOf(const openeden::sdk::PhysicsVec3& value)
+    {
+        return textOf(value.x) + ' ' + textOf(value.y) + ' ' + textOf(value.z);
+    }
+
+    const char* nameOf(openeden::sdk::EntityLifecycleEvent event)
+    {
+        using openeden::sdk::EntityLifecycleEvent;
+        switch (event)
+        {
+            case EntityLifecycleEvent::Spawned:
+                return "Spawned";
+            case EntityLifecycleEvent::CellLoaded:
+                return "CellLoaded";
+            case EntityLifecycleEvent::Died:
+                return "Died";
+            case EntityLifecycleEvent::Revived:
+                return "Revived";
+            case EntityLifecycleEvent::CellUnloaded:
+                return "CellUnloaded";
+            case EntityLifecycleEvent::Despawned:
+                return "Despawned";
+        }
+        return "Unknown";
+    }
+
+    // Per-entity data, to see when the core frees it.
+    struct WorldEntityTag
+    {
+        openeden::sdk::EntityId mId;
+    };
+
+    int sWorldDeleters = 0;
+
+    void deleteWorldEntityTag(void* data)
+    {
+        // Owned by the entity manager since attachData succeeded. Delete is the deleter's job in this API.
+        const std::unique_ptr<WorldEntityTag> tag(static_cast<WorldEntityTag*>(data));
+        ++sWorldDeleters;
+        record("world deleter " + textOf(tag->mId));
+    }
+
+    // Owned by TestPlugin between start and stop. All callbacks must run on the thread that called start.
+    class WorldChecker final : public openeden::sdk::EntityLifecycleListener
+    {
+    public:
+        WorldChecker(openeden::sdk::Host& host, const char* probe)
+            : mMainThread(std::this_thread::get_id())
+            , mEvents(host.getEventBus())
+            , mEntities(host.getEntityManager())
+            , mPhysics(host.getPhysicsQueryService())
+        {
+            if (std::sscanf(probe, "%f %f", &mProbeXM, &mProbeYM) != 2)
+                record("world bad-probe");
+            if (mEvents == nullptr || mEntities == nullptr || mPhysics == nullptr)
+            {
+                record("world missing-service");
+                return;
+            }
+
+            const openeden::sdk::QueryMask worldMask = mPhysics->queryMask("world");
+            const openeden::sdk::QueryMask heightmapMask = mPhysics->queryMask("heightmap");
+            mActorMask = mPhysics->queryMask("actor");
+            mGroundMask = worldMask | heightmapMask;
+            record(worldMask != openeden::sdk::kQueryMaskNone && heightmapMask != openeden::sdk::kQueryMaskNone
+                        && mActorMask != openeden::sdk::kQueryMaskNone
+                    ? "world masks-published"
+                    : "world mask-missing");
+
+            mEntities->registerLifecycleListener(kPluginId, this);
+            subscribeAll();
+        }
+
+        ~WorldChecker() override
+        {
+            if (mEvents == nullptr || mEntities == nullptr || mPhysics == nullptr)
+                return;
+            mEntities->unregisterLifecycleListener(kPluginId);
+            unsubscribeAll();
+            record("world final events=" + std::to_string(mEventCount) + " spawned=" + std::to_string(mSpawned)
+                + " despawned=" + std::to_string(mDespawned) + " deleters=" + std::to_string(sWorldDeleters));
+        }
+
+        WorldChecker(const WorldChecker&) = delete;
+        WorldChecker& operator=(const WorldChecker&) = delete;
+
+        void onEntityLifecycle(openeden::sdk::EntityLifecycleEvent event, openeden::sdk::EntityId entityId) override
+        {
+            using openeden::sdk::EntityLifecycleEvent;
+            note("life");
+            record(std::string("world life ") + nameOf(event) + ' ' + textOf(entityId) + ' '
+                + mEntities->recordId(entityId));
+            if (event == EntityLifecycleEvent::Despawned)
+                ++mDespawned;
+            if (event != EntityLifecycleEvent::Spawned || !entityId.isValid())
+                return;
+            ++mSpawned;
+            auto tag = std::make_unique<WorldEntityTag>();
+            tag->mId = entityId;
+            if (mEntities->attachData(entityId, kWorldDataSlot, tag.get(), &deleteWorldEntityTag))
+                tag.release();
+            else
+                record("world attach-failed " + textOf(entityId));
+        }
+
+        /// Call once per simulated frame. It allocates only in the frames it records something.
+        void onFrame()
+        {
+            noteThreadOnly("phase");
+            // After every load, since the player gets a new body each time (found in review of task 0017)
+            if (mPhysics != nullptr && mCheckPlayerBody)
+            {
+                mCheckPlayerBody = false;
+                const openeden::sdk::EntityId loadedPlayer = mEntities->playerEntity();
+                const openeden::sdk::BodyId loadedBody = mPhysics->bodyOfEntity(loadedPlayer);
+                record(mPhysics->isBodyValid(loadedBody) && mPhysics->entityOfBody(loadedBody) == loadedPlayer
+                        ? "world player-body-after-load ok"
+                        : "world player-body-after-load wrong");
+            }
+
+            if (mPhysics == nullptr || !mGameLoaded || mProbed)
+                return;
+
+            const openeden::sdk::EntityId player = mEntities->playerEntity();
+            if (!player.isValid())
+                return;
+            if (!mPlayerRecorded)
+            {
+                mPlayerRecorded = true;
+                record("world player-entity " + textOf(player));
+            }
+
+            const openeden::sdk::BodyId body = mPhysics->bodyOfEntity(player);
+            openeden::sdk::BodyState state;
+            if (!mPhysics->readBody(body, state))
+                return;
+
+            // A teleport moves the player in steps while the cell loads, so wait until it rests at the point.
+            const bool nearProbe = std::abs(state.positionM.x - mProbeXM) <= kProbeReachM
+                && std::abs(state.positionM.y - mProbeYM) <= kProbeReachM;
+            mSettledFrames = nearProbe && state.positionM == mLastPosition ? mSettledFrames + 1 : 0;
+            mLastPosition = state.positionM;
+            if (mSettledFrames < kProbeSettledFrames)
+                return;
+
+            mProbed = true;
+            probe(player, body, state);
+        }
+
+    private:
+        void noteThreadOnly(std::string_view what)
+        {
+            if (std::this_thread::get_id() != mMainThread)
+                record("world wrong-thread " + std::string(what));
+        }
+
+        void note(std::string_view what)
+        {
+            noteThreadOnly(what);
+            ++mEventCount;
+        }
+
+        void probe(openeden::sdk::EntityId player, openeden::sdk::BodyId body, const openeden::sdk::BodyState& state)
+        {
+            record("world player-position " + textOf(state.positionM));
+
+            const openeden::sdk::BodyId bodyBack = mPhysics->bodyOfEntity(mPhysics->entityOfBody(body));
+            record(mPhysics->entityOfBody(body) == player && bodyBack == body ? "world player-body-roundtrip ok"
+                                                                               : "world player-body-roundtrip wrong");
+
+            const openeden::sdk::PhysicsVec3 down{ 0.0f, 0.0f, -kProbeLengthM };
+            const openeden::sdk::PhysicsVec3 origin{ mProbeXM, mProbeYM, kProbeTopM };
+            recordHit("ray", mPhysics->castRay(origin, down, {}, mGroundMask));
+            recordHit("sphere",
+                mPhysics->castShape(openeden::sdk::SphereShape{ kProbeSphereRadiusM }, openeden::sdk::PhysicsQuat{},
+                    origin, down, {}, mGroundMask));
+
+            // The player is the one actor over its own head, so this ray finds a body that certainly has an entity.
+            const openeden::sdk::PhysicsVec3 overPlayer{ state.positionM.x, state.positionM.y, kProbeTopM };
+            const std::optional<openeden::sdk::RayHit> actorHit = mPhysics->castRay(overPlayer, down, {}, mActorMask);
+            if (!actorHit.has_value())
+            {
+                record("world actor-ray miss");
+                return;
+            }
+            const openeden::sdk::EntityId hitEntity = mPhysics->entityOfBody(actorHit->body);
+            record(std::string("world actor-ray entity=") + (hitEntity == player ? "player" : textOf(hitEntity)));
+        }
+
+        void recordHit(std::string_view name, const std::optional<openeden::sdk::RayHit>& hit)
+        {
+            if (!hit.has_value())
+            {
+                record("world " + std::string(name) + " miss");
+                return;
+            }
+            record(
+                "world " + std::string(name) + " fraction=" + textOf(hit->fraction) + " point=" + textOf(hit->pointM));
+            // Separate lines: which body a run hits is compared apart from the numbers.
+            record("world " + std::string(name) + "-entity " + textOf(mPhysics->entityOfBody(hit->body)));
+        }
+
+        // The array always ends in a NUL, says game_events.hpp; do not trust that here.
+        static std::string nameIn(const char (&name)[openeden::sdk::kEventNameCapacity])
+        {
+            return std::string(name, std::find(std::begin(name), std::end(name), '\0'));
+        }
+
+        template <typename Event, typename Text>
+        void watch(Text text)
+        {
+            mEvents->subscribe<Event>(kPluginId, [this, text](const Event& event) {
+                note("event");
+                record("world " + text(event));
+            });
+        }
+
+        void subscribeAll()
+        {
+            using namespace openeden::sdk;
+            watch<PhysicsHitEvent>([](const PhysicsHitEvent& event) {
+                return "physics-hit " + textOf(event.body) + ' ' + textOf(event.other) + ' ' + textOf(event.pointM);
+            });
+            watch<PhysicsContactBeginEvent>([](const PhysicsContactBeginEvent& event) {
+                return "contact-begin " + textOf(event.bodyA) + ' ' + textOf(event.bodyB) + ' ' + textOf(event.pointM);
+            });
+            watch<PhysicsContactEndEvent>([](const PhysicsContactEndEvent& event) {
+                return "contact-end " + textOf(event.bodyA) + ' ' + textOf(event.bodyB);
+            });
+            watch<GameLoadedEvent>([this](const GameLoadedEvent&) {
+                mGameLoaded = true;
+                mCheckPlayerBody = true;
+                return std::string("game-loaded");
+            });
+            watch<GameSavedEvent>([](const GameSavedEvent&) { return std::string("game-saved"); });
+            watch<CellChangedEvent>(
+                [](const CellChangedEvent& event) { return "cell-changed " + nameIn(event.cellName); });
+            watch<CellLoadedEvent>([](const CellLoadedEvent& event) { return "cell-loaded " + nameIn(event.cellName); });
+            watch<CellUnloadedEvent>(
+                [](const CellUnloadedEvent& event) { return "cell-unloaded " + nameIn(event.cellName); });
+            watch<ActorHitEvent>([](const ActorHitEvent& event) {
+                return "actor-hit " + textOf(event.attacker) + ' ' + textOf(event.target) + ' ' + textOf(event.damage)
+                    + ' ' + (event.successful ? "successful" : "failed");
+            });
+            watch<EntityLifecycleNotice>([](const EntityLifecycleNotice& event) {
+                return std::string("notice ") + nameOf(event.kind) + ' ' + textOf(event.entity);
+            });
+        }
+
+        void unsubscribeAll()
+        {
+            using namespace openeden::sdk;
+            for (const EventId id : { PhysicsHitEvent::kEventId, PhysicsContactBeginEvent::kEventId,
+                     PhysicsContactEndEvent::kEventId, GameLoadedEvent::kEventId, GameSavedEvent::kEventId,
+                     CellChangedEvent::kEventId, CellLoadedEvent::kEventId, CellUnloadedEvent::kEventId,
+                     ActorHitEvent::kEventId, EntityLifecycleNotice::kEventId })
+                mEvents->unsubscribe(id, kPluginId);
+        }
+
+        std::thread::id mMainThread;
+        openeden::sdk::EventBus* mEvents;
+        openeden::sdk::EntityManager* mEntities;
+        openeden::sdk::PhysicsQueryService* mPhysics;
+        openeden::sdk::QueryMask mGroundMask = openeden::sdk::kQueryMaskNone;
+        openeden::sdk::QueryMask mActorMask = openeden::sdk::kQueryMaskNone;
+        float mProbeXM = 0.0f;
+        float mProbeYM = 0.0f;
+        openeden::sdk::PhysicsVec3 mLastPosition{};
+        int mSettledFrames = 0;
+        int mEventCount = 0;
+        int mSpawned = 0;
+        int mDespawned = 0;
+        bool mGameLoaded = false;
+        bool mPlayerRecorded = false;
+        bool mProbed = false;
+        bool mCheckPlayerBody = false;
+    };
+
     class TestPlugin final : public openeden::sdk::Plugin
     {
     public:
@@ -158,10 +477,13 @@ namespace
             for (const PhaseName& phase : kPhases)
             {
                 const std::string event = std::string("phase ") + phase.mName;
-                registrar.registerPhaseCallback(phase.mPhase, [this, event](float /*dt*/) {
+                const bool isPostSimulation = phase.mPhase == openeden::sdk::Phase::PostSimulation;
+                registrar.registerPhaseCallback(phase.mPhase, [this, event, isPostSimulation](float /*dt*/) {
                     record(event);
                     throwIfAsked("phase");
                     publishTestEvents();
+                    if (isPostSimulation && mWorld != nullptr)
+                        mWorld->onFrame();
                 });
             }
         }
@@ -199,12 +521,15 @@ namespace
 
             if (std::getenv("OPENEDEN_TEST_PLUGIN_DATA") != nullptr)
                 startDataServices(host);
+            if (const char* const probe = std::getenv("OPENEDEN_TEST_PLUGIN_WORLD"))
+                mWorld = std::make_unique<WorldChecker>(host, probe);
         }
 
         void stop() override
         {
             sSinkLogger = nullptr;
             record("stop");
+            mWorld.reset();
             if (mSaves != nullptr)
                 mSaves->unregisterHandler(kPluginId);
             if (mLogging != nullptr && mSink != nullptr)
@@ -273,6 +598,7 @@ namespace
         openeden::sdk::SaveService* mSaves = nullptr;
         openeden::sdk::EventBus* mEvents = nullptr;
         bool mPublished = false;
+        std::unique_ptr<WorldChecker> mWorld;
     };
 
     std::unique_ptr<openeden::sdk::Plugin> createPlugin()

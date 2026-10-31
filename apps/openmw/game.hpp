@@ -101,6 +101,7 @@ namespace OMW
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
             mLuaManager->init(mEngine.mRenderManager.get());
             mEngine.mPluginHost->setLuaManager(mLuaManager);
+
             mEngine.mLuaActive = true;
 
             if (args.compileAll)
@@ -119,6 +120,10 @@ namespace OMW
                                      << 100 * static_cast<double>(result.second) / result.first << "%)" << std::endl;
             }
 
+            // Plugins start here rather than with the engine, because they get the world's services for good at start.
+            // Last: if the constructor threw afterwards, ~Game would not run to stop them.
+            mEngine.mPluginHost->attachWorld(*mWorld->getPhysicsSystem());
+            mEngine.mPluginHost->start();
         }
         ~Game()
         {

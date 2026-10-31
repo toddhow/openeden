@@ -17,6 +17,8 @@
 
 #include "error.hpp"
 #include "operation.hpp"
+#include "../mwbase/pluginmanager.hpp"
+
 #include "statemanagerimp.hpp"
 
 namespace MWState
@@ -111,6 +113,7 @@ namespace MWState
                 }
                 mState = StateManager::State_Running;
                 MWBase::Environment::get().getLuaManager()->gameLoaded();
+                MWBase::Environment::get().getPluginManager()->gameLoaded();
             }
             catch (std::exception& e)
             {

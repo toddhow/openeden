@@ -2,11 +2,17 @@
 #define OPENEDEN_APPS_OPENMW_MWBASE_PLUGINMANAGER_H
 
 #include <cstdint>
+#include <string_view>
 
 namespace ESM
 {
     class ESMReader;
     class ESMWriter;
+}
+
+namespace MWWorld
+{
+    class Ptr;
 }
 
 namespace MWBase
@@ -33,6 +39,20 @@ namespace MWBase
 
         /// Forgets the data of the game that was running: a new game or another save is starting.
         virtual void clearSaveData() = 0;
+
+        /// What happens in the world, for plugins (task 0017). Any thread; these only queue, and do nothing without
+        /// plugins.
+        virtual void objectAddedToScene(const MWWorld::Ptr& ptr) = 0;
+        virtual void objectRemovedFromScene(const MWWorld::Ptr& ptr) = 0;
+        virtual void cellLoaded(std::string_view name) = 0;
+        virtual void cellUnloaded(std::string_view name) = 0;
+        virtual void cellChanged(std::string_view name) = 0;
+        virtual void actorDied(const MWWorld::Ptr& actor) = 0;
+        virtual void actorRevived(const MWWorld::Ptr& actor) = 0;
+        virtual void actorHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, float damage, bool successful) = 0;
+        virtual void gameLoaded() = 0;
+        virtual void playerRebuilt(const MWWorld::Ptr& player) = 0;
+        virtual void gameSaved() = 0;
     };
 }
 

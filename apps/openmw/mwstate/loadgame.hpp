@@ -331,6 +331,7 @@ namespace MWState
 
             state = StateManager::State_Running;
             MWBase::Environment::get().getLuaManager()->gameLoaded();
+            MWBase::Environment::get().getPluginManager()->gameLoaded();
             for (int actorId : actorIdConverter.mGraveyard)
             {
                 auto mapped = actorIdConverter.mMappings.find(actorId);
