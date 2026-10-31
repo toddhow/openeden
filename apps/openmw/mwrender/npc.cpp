@@ -477,6 +477,36 @@ namespace MWRender
         // updateQuiver();
     }
 
+    namespace
+    {
+        // OpenMW's ActorAnimation::getShieldMesh at 442eec6e2f: a worn shield uses its body part's model, with the ground
+        // model as the fallback when the armor has no shield part. Empty when the part names something unusable.
+        std::string getShieldMesh(const MWWorld::ConstPtr& shield, bool female)
+        {
+            const std::vector<ESM::PartReference>& parts = shield.get<ESM::Armor>()->mBase->mParts.mParts;
+            auto& partStore = MWBase::Environment::get().getWorld()->getStore().get<ESM::BodyPart>();
+            for (const ESM::PartReference& part : parts)
+            {
+                if (part.mPart != ESM::PRT_Shield)
+                    continue;
+                const ESM::RefId* name = nullptr;
+                if (female && !part.mFemale.empty())
+                    name = &part.mFemale;
+                else if (!part.mMale.empty())
+                    name = &part.mMale;
+                if (name && !name->empty())
+                {
+                    const ESM::BodyPart* bodypart = partStore.search(*name);
+                    if (bodypart == nullptr || bodypart->mData.mType != ESM::BodyPart::MT_Armor)
+                        return {};
+                    if (!bodypart->mModel.empty())
+                        return bodypart->mModel;
+                }
+            }
+            return std::string(shield.getClass().getModel(shield));
+        }
+    }
+
     void Npc::addCarriedLeft()
     {
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
@@ -487,16 +517,16 @@ namespace MWRender
             // For shields we must try to use the body part model
             if (iter->getType() == ESM::Armor::sRecordId)
             {
-                // mesh = getShieldMesh(*iter, !mNpc->isMale());
+                mesh = getShieldMesh(*iter, !mNpc->isMale());
             }
-            /*if (mesh.empty() || */
             const ESM::Light* light{};
             if (iter->getType() == ESM::Light::sRecordId)
                 light = iter->get<ESM::Light>()->mBase;
-            addOrReplaceIndividualPart(
-                ESM::PRT_Shield, MWWorld::InventoryStore::Slot_CarriedLeft, 1, mesh, getGlowColor(*iter), light);
-            // if (mesh.empty())
-            // reserveIndividualPart(ESM::PRT_Shield, MWWorld::InventoryStore::Slot_CarriedLeft, 1);
+            if (mesh.empty())
+                reserveIndividualPart(ESM::PRT_Shield, MWWorld::InventoryStore::Slot_CarriedLeft, 1);
+            else
+                addOrReplaceIndividualPart(
+                    ESM::PRT_Shield, MWWorld::InventoryStore::Slot_CarriedLeft, 1, mesh, getGlowColor(*iter), light);
         }
         else
             removeIndividualPart(ESM::PRT_Shield);
