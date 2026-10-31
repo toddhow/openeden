@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+#include <components/misc/vsgmath.hpp>
+
 #include "soundoutput.hpp"
 
 namespace MWSound
@@ -30,9 +32,9 @@ namespace MWSound
 
     struct SoundParams
     {
-        osg::Vec3f mPos;
-        osg::Vec3f mLastPos;
-        osg::Vec3f mVel;
+        vsg::vec3 mPos;
+        vsg::vec3 mLastPos;
+        vsg::vec3 mVel;
         float mVolume = 1.0f;
         float mBaseVolume = 1.0f;
         float mPitch = 1.0f;
@@ -58,9 +60,9 @@ namespace MWSound
         friend class OpenALOutput;
 
     public:
-        void setPosition(const osg::Vec3f& pos) { mParams.mPos = pos; }
-        void setLastPosition(const osg::Vec3f& lastpos) { mParams.mLastPos = lastpos; }
-        void setVelocity(const osg::Vec3f& vel) { mParams.mVel = vel; }
+        void setPosition(const vsg::vec3& pos) { mParams.mPos = pos; }
+        void setLastPosition(const vsg::vec3& lastpos) { mParams.mLastPos = lastpos; }
+        void setVelocity(const vsg::vec3& vel) { mParams.mVel = vel; }
         void setVolume(float volume) { mParams.mVolume = volume; }
         void setBaseVolume(float volume) { mParams.mBaseVolume = volume; }
         void setFadeout(float duration) { setFade(duration, 0.0, Play_StopAtFadeEnd); }
@@ -153,9 +155,9 @@ namespace MWSound
             return getInFade() || !(mParams.mFlags & Play_StopAtFadeEnd);
         }
 
-        const osg::Vec3f& getPosition() const { return mParams.mPos; }
-        const osg::Vec3f& getLastPosition() const { return mParams.mLastPos; }
-        const osg::Vec3f& getVelocity() const { return mParams.mVel; }
+        const vsg::vec3& getPosition() const { return mParams.mPos; }
+        const vsg::vec3& getLastPosition() const { return mParams.mLastPos; }
+        const vsg::vec3& getVelocity() const { return mParams.mVel; }
         float getRealVolume() const { return mParams.mVolume * mParams.mBaseVolume * mParams.mFadeVolume; }
         float getPitch() const { return mParams.mPitch; }
         float getMinDistance() const { return mParams.mMinDistance; }

@@ -1,7 +1,6 @@
 #include <components/debug/debuglog.hpp>
 
 #include <components/mwanimation/position.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include <components/esm3/loadcell.hpp>
 
@@ -12,6 +11,7 @@
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -34,7 +34,7 @@ namespace MWScript
 {
     namespace Transformation
     {
-        void moveStandingActors(const MWWorld::Ptr& ptr, const osg::Vec3f& diff)
+        void moveStandingActors(const MWWorld::Ptr& ptr, const vsg::vec3& diff)
         {
             std::vector<MWWorld::Ptr> actors;
             MWBase::Environment::get().getWorld()->getActorsStandingOn(ptr, actors);
@@ -161,7 +161,7 @@ namespace MWScript
 
                 std::string_view axis = runtime.getStringLiteral(runtime[0].mInteger);
                 runtime.pop();
-                Interpreter::Type_Float angle = osg::DegreesToRadians(runtime[0].mFloat);
+                Interpreter::Type_Float angle = Misc::VsgMath::inDegrees(runtime[0].mFloat);
                 runtime.pop();
 
                 float ax = ptr.getRefData().getPosition().rot[0];
@@ -172,22 +172,22 @@ namespace MWScript
                 // UVW axis use the standard (ZYX) rotation order like TESCS/OpenMW-CS and the rest of the game.
                 if (axis == "x")
                     MWBase::Environment::get().getWorld()->rotateObject(
-                        ptr, osg::Vec3f(angle, ay, az), MWBase::RotationFlag_inverseOrder);
+                        ptr, vsg::vec3(angle, ay, az), MWBase::RotationFlag_inverseOrder);
                 else if (axis == "y")
                     MWBase::Environment::get().getWorld()->rotateObject(
-                        ptr, osg::Vec3f(ax, angle, az), MWBase::RotationFlag_inverseOrder);
+                        ptr, vsg::vec3(ax, angle, az), MWBase::RotationFlag_inverseOrder);
                 else if (axis == "z")
                     MWBase::Environment::get().getWorld()->rotateObject(
-                        ptr, osg::Vec3f(ax, ay, angle), MWBase::RotationFlag_inverseOrder);
+                        ptr, vsg::vec3(ax, ay, angle), MWBase::RotationFlag_inverseOrder);
                 else if (axis == "u")
                     MWBase::Environment::get().getWorld()->rotateObject(
-                        ptr, osg::Vec3f(angle, ay, az), MWBase::RotationFlag_none);
+                        ptr, vsg::vec3(angle, ay, az), MWBase::RotationFlag_none);
                 else if (axis == "v")
                     MWBase::Environment::get().getWorld()->rotateObject(
-                        ptr, osg::Vec3f(ax, angle, az), MWBase::RotationFlag_none);
+                        ptr, vsg::vec3(ax, angle, az), MWBase::RotationFlag_none);
                 else if (axis == "w")
                     MWBase::Environment::get().getWorld()->rotateObject(
-                        ptr, osg::Vec3f(ax, ay, angle), MWBase::RotationFlag_none);
+                        ptr, vsg::vec3(ax, ay, angle), MWBase::RotationFlag_none);
             }
         };
 
@@ -207,15 +207,15 @@ namespace MWScript
                 {
                     if (axis[0] == 'x')
                     {
-                        ret = osg::RadiansToDegrees(ptr.getCellRef().getPosition().rot[0]);
+                        ret = Misc::VsgMath::radiansToDegrees(ptr.getCellRef().getPosition().rot[0]);
                     }
                     else if (axis[0] == 'y')
                     {
-                        ret = osg::RadiansToDegrees(ptr.getCellRef().getPosition().rot[1]);
+                        ret = Misc::VsgMath::radiansToDegrees(ptr.getCellRef().getPosition().rot[1]);
                     }
                     else if (axis[0] == 'z')
                     {
-                        ret = osg::RadiansToDegrees(ptr.getCellRef().getPosition().rot[2]);
+                        ret = Misc::VsgMath::radiansToDegrees(ptr.getCellRef().getPosition().rot[2]);
                     }
                 }
                 runtime.push(ret);
@@ -238,15 +238,15 @@ namespace MWScript
                 {
                     if (axis[0] == 'x')
                     {
-                        ret = osg::RadiansToDegrees(ptr.getRefData().getPosition().rot[0]);
+                        ret = Misc::VsgMath::radiansToDegrees(ptr.getRefData().getPosition().rot[0]);
                     }
                     else if (axis[0] == 'y')
                     {
-                        ret = osg::RadiansToDegrees(ptr.getRefData().getPosition().rot[1]);
+                        ret = Misc::VsgMath::radiansToDegrees(ptr.getRefData().getPosition().rot[1]);
                     }
                     else if (axis[0] == 'z')
                     {
-                        ret = osg::RadiansToDegrees(ptr.getRefData().getPosition().rot[2]);
+                        ret = Misc::VsgMath::radiansToDegrees(ptr.getRefData().getPosition().rot[2]);
                     }
                 }
                 runtime.push(ret);
@@ -426,23 +426,23 @@ namespace MWScript
                 }
                 if (store)
                 {
-                    osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
+                    vsg::vec3 rot = ptr.getRefData().getPosition().asRotationVec3();
                     // Note that you must specify ZRot in minutes (1 degree = 60 minutes; north = 0, east = 5400, south
                     // = 10800, west = 16200) except for when you position the player, then degrees must be used. See
                     // "Morrowind Scripting for Dummies (9th Edition)" pages 50 and 54 for reference.
                     if (!isPlayer)
                         zRot = zRot / 60.0f;
-                    rot.z() = osg::DegreesToRadians(zRot);
+                    rot.z = Misc::VsgMath::inDegrees(zRot);
 
                     if (isPlayer)
                     {
-                        ESM::Position pos { { x, y, z }, { rot.x(), rot.y(), rot.z() } };
+                        ESM::Position pos { { x, y, z }, { rot.x, rot.y, rot.z } };
                         world->changeToCell(store->getCell()->getId(), pos, true);
                     }
                     else
                     {
                         MWWorld::Ptr base = ptr;
-                        ptr = world->moveObject(ptr, store, osg::Vec3f(x, y, z));
+                        ptr = world->moveObject(ptr, store, vsg::vec3(x, y, z));
                         dynamic_cast<MWScript::InterpreterContext&>(runtime.getContext()).updatePtr(base, ptr);
                         world->rotateObject(ptr, rot);
 
@@ -489,21 +489,21 @@ namespace MWScript
                 if (isPlayer)
                 {
                     MWWorld::CellStore* cell = &MWBase::Environment::get().getWorldModel()->getExterior(location);
-                    ptr = world->moveObject(ptr, cell, osg::Vec3(x, y, z));
+                    ptr = world->moveObject(ptr, cell, vsg::vec3(x, y, z));
                 }
                 else
                 {
-                    ptr = world->moveObject(ptr, osg::Vec3f(x, y, z), true, true);
+                    ptr = world->moveObject(ptr, vsg::vec3(x, y, z), true, true);
                 }
                 dynamic_cast<MWScript::InterpreterContext&>(runtime.getContext()).updatePtr(base, ptr);
 
-                osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
+                vsg::vec3 rot = ptr.getRefData().getPosition().asRotationVec3();
                 // Note that you must specify ZRot in minutes (1 degree = 60 minutes; north = 0, east = 5400, south =
                 // 10800, west = 16200) except for when you position the player, then degrees must be used. See
                 // "Morrowind Scripting for Dummies (9th Edition)" pages 50 and 54 for reference.
                 if (!isPlayer)
                     zRot = zRot / 60.0f;
-                rot.z() = osg::DegreesToRadians(zRot);
+                rot.z = Misc::VsgMath::inDegrees(zRot);
                 world->rotateObject(ptr, rot);
                 bool cellActive = MWBase::Environment::get().getWorldScene()->isCellActive(*ptr.getCell());
                 ptr.getClass().adjustPosition(ptr, isPlayer || !cellActive); //if (isPlayer) world->changeToCell(.adjustPosition=true
@@ -544,7 +544,7 @@ namespace MWScript
                 pos.pos[1] = y;
                 pos.pos[2] = z;
                 pos.rot[0] = pos.rot[1] = 0;
-                pos.rot[2] = osg::DegreesToRadians(zRotDegrees);
+                pos.rot[2] = Misc::VsgMath::inDegrees(zRotDegrees);
                 MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), itemID);
                 ref.getPtr().mRef->mData.mPhysicsPostponed = !ref.getPtr().getClass().isActor();
                 ref.getPtr().getCellRef().setPosition(pos);
@@ -590,7 +590,7 @@ namespace MWScript
                 pos.pos[1] = y;
                 pos.pos[2] = z;
                 pos.rot[0] = pos.rot[1] = 0;
-                pos.rot[2] = osg::DegreesToRadians(zRotDegrees);
+                pos.rot[2] = Misc::VsgMath::inDegrees(zRotDegrees);
                 MWWorld::ManualRef ref(*MWBase::Environment::get().getESMStore(), itemID);
                 ref.getPtr().mRef->mData.mPhysicsPostponed = !ref.getPtr().getClass().isActor();
                 ref.getPtr().getCellRef().setPosition(pos);
@@ -649,17 +649,17 @@ namespace MWScript
 
                 std::string_view axis = runtime.getStringLiteral(runtime[0].mInteger);
                 runtime.pop();
-                Interpreter::Type_Float rotation = osg::DegreesToRadians(runtime[0].mFloat * runtime.getContext().dt);
+                Interpreter::Type_Float rotation = Misc::VsgMath::inDegrees(runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
-                osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
+                vsg::vec3 rot = ptr.getRefData().getPosition().asRotationVec3();
                 // Regardless of the axis argument, the player may only be rotated on Z
                 if (axis == "z" || MWMechanics::getPlayer() == ptr)
-                    rot.z() += rotation;
+                    rot.z += rotation;
                 else if (axis == "x")
-                    rot.x() += rotation;
+                    rot.x += rotation;
                 else if (axis == "y")
-                    rot.y() += rotation;
+                    rot.y += rotation;
                 MWBase::Environment::get().getWorld()->rotateObject(ptr, rot);
             }
         };
@@ -674,7 +674,7 @@ namespace MWScript
 
                 std::string_view axis = runtime.getStringLiteral(runtime[0].mInteger);
                 runtime.pop();
-                Interpreter::Type_Float rotation = osg::DegreesToRadians(runtime[0].mFloat * runtime.getContext().dt);
+                Interpreter::Type_Float rotation = Misc::VsgMath::inDegrees(runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
                 // We can rotate actors only around Z axis
@@ -696,7 +696,7 @@ namespace MWScript
                     q = MWAnim::zQuat(ptr.getRefData().getPosition());
                 else
                     q = MWAnim::quat(ptr.getRefData().getPosition());
-                MWBase::Environment::get().getWorld()->rotateWorldObject(ptr, toOsg(q * rot));
+                MWBase::Environment::get().getWorld()->rotateWorldObject(ptr, vsg::dquat(q * rot));
             }
         };
 
@@ -737,18 +737,18 @@ namespace MWScript
                 Interpreter::Type_Float movement = (runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
-                osg::Vec3f posChange;
+                vsg::vec3 posChange;
                 if (axis == "x")
                 {
-                    posChange = osg::Vec3f(movement, 0, 0);
+                    posChange = vsg::vec3(movement, 0, 0);
                 }
                 else if (axis == "y")
                 {
-                    posChange = osg::Vec3f(0, movement, 0);
+                    posChange = vsg::vec3(0, movement, 0);
                 }
                 else if (axis == "z")
                 {
-                    posChange = osg::Vec3f(0, 0, movement);
+                    posChange = vsg::vec3(0, 0, movement);
                 }
                 else
                     return;
@@ -758,7 +758,7 @@ namespace MWScript
                     q = MWAnim::zQuat(ptr.getRefData().getPosition());
                 else
                     q = MWAnim::quat(ptr.getRefData().getPosition());
-                auto diff = toOsg(q) * posChange;
+                vsg::vec3 diff = q * posChange;
 
                 // We should move actors, standing on moving object, too.
                 // This approach can be used to create elevators.
@@ -784,14 +784,14 @@ namespace MWScript
                 Interpreter::Type_Float movement = (runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
-                osg::Vec3f diff;
+                vsg::vec3 diff;
 
                 if (axis == "x")
-                    diff.x() = movement;
+                    diff.x = movement;
                 else if (axis == "y")
-                    diff.y() = movement;
+                    diff.y = movement;
                 else if (axis == "z")
-                    diff.z() = movement;
+                    diff.z = movement;
                 else
                     return;
 

@@ -45,6 +45,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -1484,8 +1485,8 @@ namespace MWScript
                     if (cell->getCell()->isExterior())
                         msg << "Grid: " << cell->getCell()->getGridX() << " " << cell->getCell()->getGridY()
                             << std::endl;
-                    osg::Vec3f pos(ptr.getRefData().getPosition().asVec3());
-                    msg << "Coordinates: " << pos.x() << " " << pos.y() << " " << pos.z() << std::endl;
+                    vsg::vec3 pos(ptr.getRefData().getPosition().asVec3());
+                    msg << "Coordinates: " << pos.x << " " << pos.y << " " << pos.z << std::endl;
                     auto vfs = MWBase::Environment::get().getResourceSystem()->getVFS();
                     const VFS::Path::Normalized model
                         = ::Misc::ResourceHelpers::correctActorModelPath(ptr.getClass().getCorrectedModel(ptr), vfs);

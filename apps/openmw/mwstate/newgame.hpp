@@ -1,6 +1,5 @@
 // vsgopenmw-unity-build
 
-#include <osg/Vec2f>
 #include <sstream>
 #include <optional>
 
@@ -15,6 +14,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm/util.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "error.hpp"
 #include "operation.hpp"
@@ -40,10 +40,10 @@ namespace MWState
                 {
                     ESM::ExteriorCellLocation loc = { 0, 0, ESM::Cell::sDefaultWorldspaceId };
                     auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(loc);
-                    osg::Vec2f p = ESM::indexToPosition(loc, true);
+                    vsg::vec2 p = ESM::indexToPosition(loc, true);
                     ESM::Position pos;
-                    pos.pos[0] = p.x();
-                    pos.pos[1] = p.y();
+                    pos.pos[0] = p.x;
+                    pos.pos[1] = p.y;
                     pos.pos[2] = 0.f; // should be adjusted automatically (adjustPlayerPos=true)
                     pos.rot[0] = 0.f;
                     pos.rot[1] = 0.f;

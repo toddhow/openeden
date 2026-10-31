@@ -15,6 +15,7 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/thread.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -1107,7 +1108,7 @@ namespace MWSound
     }
 
     void OpenALOutput::initCommon2D(
-        ALuint source, const osg::Vec3f& pos, ALfloat gain, ALfloat pitch, bool loop, bool useenv)
+        ALuint source, const vsg::vec3& pos, ALfloat gain, ALfloat pitch, bool loop, bool useenv)
     {
         alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
         alSourcef(source, AL_MAX_DISTANCE, 1000.0f);
@@ -1139,12 +1140,12 @@ namespace MWSound
 
         alSourcef(source, AL_GAIN, gain);
         alSourcef(source, AL_PITCH, pitch);
-        alSourcefv(source, AL_POSITION, pos.ptr());
+        alSourcefv(source, AL_POSITION, pos.data());
         alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
         alSource3f(source, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
     }
 
-    void OpenALOutput::initCommon3D(ALuint source, const osg::Vec3f& pos, const osg::Vec3f& vel, ALfloat mindist,
+    void OpenALOutput::initCommon3D(ALuint source, const vsg::vec3& pos, const vsg::vec3& vel, ALfloat mindist,
         ALfloat maxdist, ALfloat gain, ALfloat pitch, bool loop, bool useenv)
     {
         alSourcef(source, AL_REFERENCE_DISTANCE, mindist);
@@ -1155,7 +1156,7 @@ namespace MWSound
         if (AL.SOFT_source_spatialize)
             alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_TRUE);
 
-        if ((pos - mListenerPos).length2() > maxdist * maxdist)
+        if (vsg::length2(pos - mListenerPos) > maxdist * maxdist)
             gain = 0.0f;
         if (useenv)
         {
@@ -1179,12 +1180,12 @@ namespace MWSound
 
         alSourcef(source, AL_GAIN, gain);
         alSourcef(source, AL_PITCH, pitch);
-        alSourcefv(source, AL_POSITION, pos.ptr());
+        alSourcefv(source, AL_POSITION, pos.data());
         alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-        alSourcefv(source, AL_VELOCITY, vel.ptr());
+        alSourcefv(source, AL_VELOCITY, vel.data());
     }
 
-    void OpenALOutput::updateCommon(ALuint source, const osg::Vec3f& pos, const osg::Vec3f& vel, ALfloat maxdist,
+    void OpenALOutput::updateCommon(ALuint source, const vsg::vec3& pos, const vsg::vec3& vel, ALfloat maxdist,
         ALfloat gain, ALfloat pitch, bool useenv)
     {
         if (useenv && mListenerEnv == Env_Underwater && !mWaterFilter)
@@ -1195,9 +1196,9 @@ namespace MWSound
 
         alSourcef(source, AL_GAIN, gain);
         alSourcef(source, AL_PITCH, pitch);
-        alSourcefv(source, AL_POSITION, pos.ptr());
+        alSourcefv(source, AL_POSITION, pos.data());
         alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-        alSourcefv(source, AL_VELOCITY, vel.ptr());
+        alSourcefv(source, AL_VELOCITY, vel.data());
     }
 
     bool OpenALOutput::playSound(Sound* sound, Sound_Handle data, float offset)
@@ -1462,13 +1463,13 @@ namespace MWSound
     }
 
     void OpenALOutput::updateListener(
-        const osg::Vec3f& pos, const osg::Vec3f& atdir, const osg::Vec3f& updir, const osg::Vec3f& vel, Environment env)
+        const vsg::vec3& pos, const vsg::vec3& atdir, const vsg::vec3& updir, const vsg::vec3& vel, Environment env)
     {
         if (mContext)
         {
-            ALfloat orient[6] = { atdir.x(), atdir.y(), atdir.z(), updir.x(), updir.y(), updir.z() };
-            alListenerfv(AL_POSITION, pos.ptr());
-            alListenerfv(AL_VELOCITY, vel.ptr());
+            ALfloat orient[6] = { atdir.x, atdir.y, atdir.z, updir.x, updir.y, updir.z };
+            alListenerfv(AL_POSITION, pos.data());
+            alListenerfv(AL_VELOCITY, vel.data());
             alListenerfv(AL_ORIENTATION, orient);
 
             if (env != mListenerEnv)

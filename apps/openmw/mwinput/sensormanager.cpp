@@ -1,6 +1,7 @@
 #include "sensormanager.hpp"
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWInput
@@ -38,7 +39,7 @@ namespace MWInput
         // If the device does not support orientation change, do nothing.
         // Note: in is unclear how to correct axes for devices with non-standart Z axis direction.
 
-        mRotation = osg::Matrixf::identity();
+        mRotation = vsg::mat4();
 
         float angle = 0;
 
@@ -51,22 +52,22 @@ namespace MWInput
                 break;
             case SDL_ORIENTATION_LANDSCAPE_FLIPPED:
             {
-                angle = osg::PIf;
+                angle = Misc::VsgMath::PIf;
                 break;
             }
             case SDL_ORIENTATION_PORTRAIT:
             {
-                angle = -0.5 * osg::PIf;
+                angle = -0.5 * Misc::VsgMath::PIf;
                 break;
             }
             case SDL_ORIENTATION_PORTRAIT_FLIPPED:
             {
-                angle = 0.5 * osg::PIf;
+                angle = 0.5 * Misc::VsgMath::PIf;
                 break;
             }
         }
 
-        mRotation.makeRotate(angle, osg::Vec3f(0, 0, 1));
+        mRotation = vsg::mat4(Misc::VsgMath::makeRotate(angle, vsg::vec3(0, 0, 1)));
     }
 
     void SensorManager::updateSensors()
@@ -144,8 +145,8 @@ namespace MWInput
                 break;
             case SDL_SENSOR_GYRO:
             {
-                osg::Vec3f gyro(arg.data[0], arg.data[1], arg.data[2]);
-                mGyroValues = mRotation * gyro;
+                vsg::vec3 gyro(arg.data[0], arg.data[1], arg.data[2]);
+                mGyroValues = gyro * mRotation;
                 mGyroUpdateTimer = 0.f;
                 break;
             }
@@ -162,7 +163,7 @@ namespace MWInput
             // More than half of second passed since the last gyroscope update.
             // A device more likely was disconnected or switched to the sleep mode.
             // Reset current rotation speed and wait for update.
-            mGyroValues = osg::Vec3f();
+            mGyroValues = vsg::vec3();
             mGyroUpdateTimer = 0.f;
         }
     }
@@ -174,6 +175,6 @@ namespace MWInput
 
     std::array<float, 3> SensorManager::getGyroValues() const
     {
-        return { mGyroValues.x(), mGyroValues.y(), mGyroValues.z() };
+        return { mGyroValues.x, mGyroValues.y, mGyroValues.z };
     }
 }

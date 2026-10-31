@@ -10,6 +10,7 @@
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 
@@ -321,7 +322,7 @@ namespace MWGui
 
         if (mIsDrowning)
         {
-            mDrowningFlashTheta += dt * osg::PIf * 2;
+            mDrowningFlashTheta += dt * Misc::VsgMath::PIf * 2;
 
             float intensity = (cos(mDrowningFlashTheta) + 2.0f) / 3.0f;
 

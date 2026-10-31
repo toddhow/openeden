@@ -1,8 +1,9 @@
 #ifndef MGUI_Inventory_H
 #define MGUI_Inventory_H
 
-#include <osg/Vec2f>
 #include <vsg/core/ref_ptr.h>
+
+#include <components/misc/vsgmath.hpp>
 
 #include "mode.hpp"
 #include "windowpinnablebase.hpp"
@@ -161,7 +162,7 @@ namespace MWGui
         void updateArmorRating();
 
         MyGUI::IntSize getPreviewViewportSize() const;
-        osg::Vec2f mapPreviewWindowToViewport(int x, int y) const;
+        vsg::vec2 mapPreviewWindowToViewport(int x, int y) const;
 
         void adjustPanes();
 

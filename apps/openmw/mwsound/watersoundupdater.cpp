@@ -5,8 +5,8 @@
 #include "../mwworld/ptr.hpp"
 
 #include <components/esm3/loadcell.hpp>
+#include <components/misc/vsgmath.hpp>
 
-#include <osg/Vec3f>
 
 namespace MWSound
 {
@@ -35,8 +35,8 @@ namespace MWSound
         if (!cell.getCell()->hasWater())
             return 0.0f;
 
-        const osg::Vec3f pos = player.getRefData().getPosition().asVec3();
-        const float dist = std::abs(cell.getWaterLevel() - pos.z());
+        const vsg::vec3 pos = player.getRefData().getPosition().asVec3();
+        const float dist = std::abs(cell.getWaterLevel() - pos.z);
 
         if (cell.isExterior() && dist < mSettings.mNearWaterOutdoorTolerance)
         {
@@ -51,10 +51,10 @@ namespace MWSound
             {
                 for (int y = 0; y < mSettings.mNearWaterPoints; y++)
                 {
-                    const float terrainX = pos.x() - mSettings.mNearWaterRadius + x * step;
-                    const float terrainY = pos.y() - mSettings.mNearWaterRadius + y * step;
+                    const float terrainX = pos.x - mSettings.mNearWaterRadius + x * step;
+                    const float terrainY = pos.y - mSettings.mNearWaterRadius + y * step;
                     const float height = world.getTerrainHeightAt(
-                        osg::Vec3f(terrainX, terrainY, 0.0f), cell.getCell()->getWorldSpace());
+                        vsg::vec3(terrainX, terrainY, 0.0f), cell.getCell()->getWorldSpace());
 
                     if (height < 0)
                         underwaterPoints++;

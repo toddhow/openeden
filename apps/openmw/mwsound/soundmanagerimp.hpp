@@ -3,7 +3,6 @@
 
 #include <map>
 #include <memory>
-#include <osg/Vec3f>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -11,6 +10,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/misc/objectpool.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/settings.hpp>
 
 #include "../mwbase/soundmanager.hpp"
@@ -90,10 +90,10 @@ namespace MWSound
         MusicType mMusicType;
 
         bool mListenerUnderwater;
-        osg::Vec3f mListenerPos;
-        osg::Vec3f mListenerDir;
-        osg::Vec3f mListenerUp;
-        osg::Vec3f mListenerVel;
+        vsg::vec3 mListenerPos;
+        vsg::vec3 mListenerDir;
+        vsg::vec3 mListenerUp;
+        vsg::vec3 mListenerVel;
 
         int mPausedSoundTypes[BlockerType::MaxCount] = {};
 
@@ -119,7 +119,7 @@ namespace MWSound
         SoundPtr getSoundRef();
         StreamPtr getStreamRef();
 
-        StreamPtr playVoice(DecoderPtr decoder, const osg::Vec3f& pos, bool playlocal);
+        StreamPtr playVoice(DecoderPtr decoder, const vsg::vec3& pos, bool playlocal);
 
         void streamMusicFull(VFS::Path::NormalizedView filename);
         void advanceMusic(VFS::Path::NormalizedView filename, float fadeOut = 1.f);

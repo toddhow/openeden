@@ -21,7 +21,6 @@
 #include <SDL_keyboard.h>
 #include <components/debug/debuglog.hpp>
 #include <components/mwanimation/position.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include <components/sdlutil/cursormanager.hpp>
 #include <components/sdlutil/videowrapper.hpp>
@@ -806,7 +805,7 @@ namespace MWGui
     {
         MWWorld::ConstPtr player = MWMechanics::getPlayer();
 
-        auto playerPosition = toVsg(player.getRefData().getPosition().asVec3());
+        auto playerPosition = player.getRefData().getPosition().asVec3();
         auto playerOrientation = MWAnim::zQuat(player.getRefData().getPosition());
 
         vsg::vec3 playerdirection;

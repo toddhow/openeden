@@ -8,6 +8,7 @@
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -203,7 +204,7 @@ namespace MWGui
         if (mPtr.getCell()->isExterior())
         {
             ESM::Position playerPos = player.getRefData().getPosition();
-            float d = (osg::Vec2f(pos.pos[0], pos.pos[1]) - osg::Vec2f(playerPos.pos[0], playerPos.pos[1])).length();
+            float d = vsg::length(vsg::vec2(pos.pos[0], pos.pos[1]) - vsg::vec2(playerPos.pos[0], playerPos.pos[1]));
             const float fTravelTimeMult = MWBase::Environment::get()
                                               .getESMStore()
                                               ->get<ESM::GameSetting>()

@@ -29,6 +29,7 @@
 #include <components/files/conversion.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 #include "choice.hpp"
@@ -301,10 +302,10 @@ namespace MWState
                 Log(Debug::Warning) << "Player character's cell no longer exists, changing to the default cell";
                 ESM::ExteriorCellLocation loc = { 0, 0, ESM::Cell::sDefaultWorldspaceId };
                 auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(loc);
-                const osg::Vec2f p = ESM::indexToPosition(loc, false);
+                const vsg::vec2 p = ESM::indexToPosition(loc, false);
                 ESM::Position pos;
-                pos.pos[0] = p.x();
-                pos.pos[1] = p.y();
+                pos.pos[0] = p.x;
+                pos.pos[1] = p.y;
                 pos.pos[2] = 0.f; // should be adjusted automatically (adjustPlayerPos=true)
                 pos.rot[0] = 0.f;
                 pos.rot[1] = 0.f;

@@ -8,6 +8,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -198,7 +199,7 @@ namespace MWSound
         return mStreams.get();
     }
 
-    StreamPtr SoundManager::playVoice(DecoderPtr decoder, const osg::Vec3f& pos, bool playlocal)
+    StreamPtr SoundManager::playVoice(DecoderPtr decoder, const vsg::vec3& pos, bool playlocal)
     {
         MWBase::World* world = MWBase::Environment::get().getWorld();
         static const float fAudioMinDistanceMult
@@ -354,7 +355,7 @@ namespace MWSound
             return;
 
         stopSay(MWWorld::ConstPtr());
-        StreamPtr sound = playVoice(std::move(decoder), osg::Vec3f(), true);
+        StreamPtr sound = playVoice(std::move(decoder), vsg::vec3(), true);
         if (!sound)
             return;
 
@@ -451,8 +452,8 @@ namespace MWSound
         if (!mOutput->isInitialized())
             return true;
 
-        const osg::Vec3f objpos(ptr.getRefData().getPosition().asVec3());
-        const float squaredDist = (mListenerPos - objpos).length2();
+        const vsg::vec3 objpos(ptr.getRefData().getPosition().asVec3());
+        const float squaredDist = vsg::length2(mListenerPos - objpos);
         if ((mode & PlayMode::RemoveAtDistance) && squaredDist > sSoundCullDistance * sSoundCullDistance)
             return true;
 
@@ -523,8 +524,8 @@ namespace MWSound
         // Only one copy of given sound can be played at time on ptr, so stop previous copy
         stopSound(sfx, ptr);
 
-        const osg::Vec3f objpos(ptr.getRefData().getPosition().asVec3());
-        const float squaredDist = (mListenerPos - objpos).length2();
+        const vsg::vec3 objpos(ptr.getRefData().getPosition().asVec3());
+        const float squaredDist = vsg::length2(mListenerPos - objpos);
 
         bool played;
         SoundPtr sound = getSoundRef();
@@ -610,7 +611,7 @@ namespace MWSound
         if (!sfx)
             return nullptr;
 
-        const float squaredDist = (mListenerPos - initialPos).length2();
+        const float squaredDist = vsg::length2(mListenerPos - initialPos);
 
         SoundPtr sound = getSoundRef();
         sound->init([&] {
@@ -908,8 +909,8 @@ namespace MWSound
         const float maxDist = sound->getDistanceCull() ? sSoundCullDistance : sound->getMaxDistance();
         const float squaredMaxDist = maxDist * maxDist;
 
-        const osg::Vec3f pos = sound->getPosition();
-        const float squaredDist = (mListenerPos - pos).length2();
+        const vsg::vec3 pos = sound->getPosition();
+        const float squaredDist = vsg::length2(mListenerPos - pos);
 
         if (squaredDist > squaredMaxDist)
         {
@@ -977,7 +978,7 @@ namespace MWSound
                         sound->setPosition(ptr.getRefData().getPosition().asVec3());
                         MWBase::World* world = MWBase::Environment::get().getWorld();
                         sound->setVelocity(
-                            (sound->getPosition() - sound->getLastPosition()) / world->getPhysicsFrameRateDt());
+                            Misc::VsgMath::divide(sound->getPosition() - sound->getLastPosition(), world->getPhysicsFrameRateDt()));
                     }
 
                     cull3DSound(sound);
@@ -1018,7 +1019,7 @@ namespace MWSound
                     MWBase::World* world = MWBase::Environment::get().getWorld();
                     sound->setPosition(world->getActorHeadPosition(ptr));
                     sound->setVelocity(
-                        (sound->getPosition() - sound->getLastPosition()) / world->getPhysicsFrameRateDt());
+                        Misc::VsgMath::divide(sound->getPosition() - sound->getLastPosition(), world->getPhysicsFrameRateDt()));
                 }
 
                 cull3DSound(sound);

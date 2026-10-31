@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <memory>
 
-#include <osg/Vec2f>
 
 #include <MyGUI_ITexture.h>
 
@@ -12,6 +11,7 @@
 
 #include <components/esm3/custommarkerstate.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/vsgmath.hpp>
 
 namespace MWRender
 {
@@ -110,7 +110,7 @@ namespace MWGui
 
         int mCurX, mCurY; // the position of the active cell on the global map (in cell coords)
         bool mHasALastActiveCell = false;
-        osg::Vec2f mCurPos; // the position of the player in the world (in cell coords)
+        vsg::vec2 mCurPos; // the position of the player in the world (in cell coords)
 
         bool mInterior;
         MyGUI::ScrollView* mLocalMap;
@@ -315,7 +315,7 @@ namespace MWGui
 
         struct MapMarkerType
         {
-            osg::Vec2f position;
+            vsg::vec2 position;
             MyGUI::Widget* widget = nullptr;
 
             bool operator<(const MapMarkerType& right) const { return widget < right.widget; }

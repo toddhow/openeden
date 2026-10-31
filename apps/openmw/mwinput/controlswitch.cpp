@@ -1,4 +1,3 @@
-#include <osg/Vec3f>
 #include "controlswitch.hpp"
 
 #include <components/esm3/controlsstate.hpp>
@@ -6,6 +5,7 @@
 #include <components/esm3/esmwriter.hpp>
 
 #include <components/loadinglistener/loadinglistener.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -41,7 +41,7 @@ namespace MWInput
         if (key == "playerlooking" && !value)
         {
             auto world = MWBase::Environment::get().getWorld();
-            world->rotateObject(world->getPlayerPtr(), osg::Vec3f());
+            world->rotateObject(world->getPlayerPtr(), vsg::vec3());
         }
         auto it = mSwitches.find(key);
         if (it == mSwitches.end())

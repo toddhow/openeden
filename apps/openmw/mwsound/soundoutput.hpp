@@ -1,11 +1,11 @@
 #ifndef GAME_SOUND_SOUNDOUTPUT_H
 #define GAME_SOUND_SOUNDOUTPUT_H
 
-#include <osg/Vec3f>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/hrtfmode.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -62,8 +62,8 @@ namespace MWSound
         virtual void startUpdate() = 0;
         virtual void finishUpdate() = 0;
 
-        virtual void updateListener(const osg::Vec3f& pos, const osg::Vec3f& atdir, const osg::Vec3f& updir,
-            const osg::Vec3f& vel, Environment env)
+        virtual void updateListener(const vsg::vec3& pos, const vsg::vec3& atdir, const vsg::vec3& updir,
+            const vsg::vec3& vel, Environment env)
             = 0;
 
         virtual void pauseSounds(int types) = 0;

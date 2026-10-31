@@ -11,6 +11,7 @@
 #include <MyGUI_Window.h>
 
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <components/vsgadapters/mygui/texture.hpp>
 
@@ -726,8 +727,8 @@ namespace MWGui
 
     MWWorld::Ptr InventoryWindow::getAvatarSelectedItem(int x, int y)
     {
-        const osg::Vec2f viewportCoords = mapPreviewWindowToViewport(x, y);
-        int slot = mPreview->getSlotSelected(viewportCoords.x(), viewportCoords.y());
+        const vsg::vec2 viewportCoords = mapPreviewWindowToViewport(x, y);
+        int slot = mPreview->getSlotSelected(viewportCoords.x, viewportCoords.y);
 
         if (slot == -1)
             return MWWorld::Ptr();
@@ -948,14 +949,14 @@ namespace MWGui
             std::min<int>(preview->textureHeight, previewWindowSize.height * scale));
     }
 
-    osg::Vec2f InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
+    vsg::vec2 InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
     {
         const MyGUI::IntSize previewWindowSize = mAvatarImage->getSize();
         const float normalisedX = x / std::max(1.f, static_cast<float>(previewWindowSize.width));
         const float normalisedY = y / std::max(1.f, static_cast<float>(previewWindowSize.height));
 
         const MyGUI::IntSize viewport = getPreviewViewportSize();
-        return osg::Vec2f(normalisedX * (viewport.width - 1), normalisedY * (viewport.height - 1));
+        return vsg::vec2(normalisedX * (viewport.width - 1), normalisedY * (viewport.height - 1));
 
     }
 

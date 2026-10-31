@@ -14,10 +14,10 @@
 
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalmap.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgadapters/mygui/manualtexture.hpp>
 #include <components/vsgadapters/mygui/texture.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -262,26 +262,26 @@ namespace MWGui
 
     MyGUI::IntPoint LocalMapBase::getMarkerPosition(float worldX, float worldY, MarkerUserData& markerPos) const
     {
-        osg::Vec2i cellIndex;
+        vsg::ivec2 cellIndex;
         // normalized cell coordinates
         float nX, nY;
 
         if (!mInterior)
         {
             ESM::ExteriorCellLocation cellPos = ESM::positionToExteriorCellLocation(worldX, worldY);
-            cellIndex.x() = cellPos.mX;
-            cellIndex.y() = cellPos.mY;
+            cellIndex.x = cellPos.mX;
+            cellIndex.y = cellPos.mY;
 
-            nX = (worldX - cellSize * cellIndex.x()) / cellSize;
-            nY = (worldY - cellSize * cellIndex.y()) / cellSize;
+            nX = (worldX - cellSize * cellIndex.x) / cellSize;
+            nY = (worldY - cellSize * cellIndex.y) / cellSize;
         }
         else
-            mLocalMapRender->worldToInteriorMapPosition({ worldX, worldY }, nX, nY, cellIndex.x(), cellIndex.y());
+            mLocalMapRender->worldToInteriorMapPosition({ worldX, worldY }, nX, nY, cellIndex.x, cellIndex.y);
         // MyGUI Image space is -Y up, cells are Y up
         nY = 1 - nY;
 
-        markerPos.cellX = cellIndex.x();
-        markerPos.cellY = cellIndex.y();
+        markerPos.cellX = cellIndex.x;
+        markerPos.cellY = cellIndex.y;
         markerPos.nX = nX;
         markerPos.nY = nY;
         return getPosition(markerPos.cellX, markerPos.cellY, markerPos.nX, markerPos.nY);
@@ -470,8 +470,8 @@ namespace MWGui
 
             mCompass->setPosition(pos);
         }
-        osg::Vec2f curPos((cellX + nx) * cellSize, (cellY + ny) * cellSize);
-        if ((curPos - mCurPos).length2() > 0.001)
+        vsg::vec2 curPos((cellX + nx) * cellSize, (cellY + ny) * cellSize);
+        if (vsg::length2(curPos - mCurPos) > 0.001)
         {
             mCurPos = curPos;
             centerView();
@@ -1078,7 +1078,7 @@ namespace MWGui
     {
         resizeGlobalMap();
 
-        float x = mCurPos.x(), y = mCurPos.y();
+        float x = mCurPos.x, y = mCurPos.y;
         if (mInterior)
         {
             auto pos = MWBase::Environment::get().getWorld()->getPlayer().getLastKnownExteriorPosition();
@@ -1089,7 +1089,7 @@ namespace MWGui
 
         for (auto& [marker, col] : mGlobalMapMarkers)
         {
-            marker.widget->setCoord(createMarkerCoords(marker.position.x(), marker.position.y(), col.size()));
+            marker.widget->setCoord(createMarkerCoords(marker.position.x, marker.position.y, col.size()));
             marker.widget->setVisible(marker.widget->getHeight() >= 6);
         }
     }
@@ -1177,16 +1177,16 @@ namespace MWGui
         cell.second = y;
         if (mMarkers.insert(cell).second)
         {
-            MapMarkerType mapMarkerWidget = { osg::Vec2f(x, y), createMarker(name, x, y, 0) };
+            MapMarkerType mapMarkerWidget = { vsg::vec2(x, y), createMarker(name, x, y, 0) };
             mGlobalMapMarkers.emplace(mapMarkerWidget, std::vector<MapMarkerType>());
 
             std::string name_ = name.substr(0, name.find(','));
             auto& entry = mGlobalMapMarkersByName[name_];
             if (!entry.widget)
             {
-                entry = { osg::Vec2f(x, y), entry.widget }; // update the coords
+                entry = { vsg::vec2(x, y), entry.widget }; // update the coords
 
-                entry.widget = createMarker(name_, entry.position.x(), entry.position.y(), 1);
+                entry.widget = createMarker(name_, entry.position.x, entry.position.y, 1);
                 mGlobalMapMarkers.emplace(entry, std::vector<MapMarkerType>{ entry });
             }
             else
@@ -1198,11 +1198,12 @@ namespace MWGui
 
                 // we compute the barycenter of the entry elements => it will be the place on the world map for the
                 // agregated widget
-                marker.position = std::accumulate(elements.begin(), elements.end(), osg::Vec2f(0.f, 0.f),
-                                      [](const auto& left, const auto& right) { return left + right.position; })
-                    / float(elements.size());
+                marker.position = Misc::VsgMath::divide(
+                    std::accumulate(elements.begin(), elements.end(), vsg::vec2(0.f, 0.f),
+                        [](const auto& left, const auto& right) { return left + right.position; }),
+                    float(elements.size()));
 
-                marker.widget->setCoord(createMarkerCoords(marker.position.x(), marker.position.y(), elements.size()));
+                marker.widget->setCoord(createMarkerCoords(marker.position.x, marker.position.y, elements.size()));
                 marker.widget->setVisible(marker.widget->getHeight() >= 6);
             }
         }
@@ -1269,7 +1270,7 @@ namespace MWGui
         LocalMapBase::updateCustomMarkers();
 
         for (auto& [widgetPair, ignore] : mGlobalMapMarkers)
-            setGlobalMapMarkerTooltip(widgetPair.widget, widgetPair.position.x(), widgetPair.position.y());
+            setGlobalMapMarkerTooltip(widgetPair.widget, widgetPair.position.x, widgetPair.position.y);
     }
 
     void MapWindow::onDragStart(MyGUI::Widget* _sender, int _left, int _top, MyGUI::MouseButton _id)
@@ -1339,8 +1340,8 @@ namespace MWGui
         // For interiors, position is set by WindowManager via setGlobalMapPlayerPosition
         if (MWBase::Environment::get().getWorld()->isCellExterior())
         {
-            osg::Vec3f pos = MWBase::Environment::get().getWorld()->getPlayerPtr().getRefData().getPosition().asVec3();
-            setGlobalMapPlayerPosition(pos.x(), pos.y());
+            vsg::vec3 pos = MWBase::Environment::get().getWorld()->getPlayerPtr().getRefData().getPosition().asVec3();
+            setGlobalMapPlayerPosition(pos.x, pos.y);
         }
     }
 

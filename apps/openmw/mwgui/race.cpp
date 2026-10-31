@@ -10,6 +10,7 @@
 
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -231,7 +232,7 @@ namespace MWGui
 
     void RaceDialog::onHeadRotate(MyGUI::ScrollBar* scroll, size_t position)
     {
-        float angle = (float(position) / (scroll->getScrollRange() - 1) - 0.5f) * osg::PIf * 2;
+        float angle = (float(position) / (scroll->getScrollRange() - 1) - 0.5f) * Misc::VsgMath::PIf * 2;
         mPreview->setAngle(angle);
 
         mCurrentAngle = angle;
