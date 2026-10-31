@@ -8,6 +8,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     view/render/testinstancemath.cpp
     view/render/testselectionmarker.cpp
     view/render/testterraintools.cpp
+    view/render/testpathgridgeometry.cpp
 )
 
 source_group(apps\\openmw-cs-tests FILES ${OPENCS_TESTS_SRC_FILES})

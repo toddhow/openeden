@@ -50,6 +50,7 @@
 #include "view/widget/scenetooltoggle2.hpp"
 #include "view/render/cameracontroller.hpp"
 #include "view/render/pagedworldspacewidget.hpp"
+#include "view/render/previewwidget.hpp"
 #include "view/render/rendercontext.hpp"
 #include "view/render/scenehost.hpp"
 #include "view/render/terrainshapemode.hpp"
@@ -89,6 +90,8 @@ namespace
         bool mReparent = false;
         // Commands for the view's camera controller, run once before the first capture. See runCameraScript.
         std::string mCameraScript;
+        // A referenceable to show in a preview, the widget of the Preview subview, in the frame beside the cell's view.
+        std::string mPreview;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -381,6 +384,7 @@ int CS::runCapture(int argc, char** argv)
     addOption("capture-idle-ticks", bpo::value<int>()->default_value(0));
     addOption("capture-reparent", bpo::bool_switch());
     addOption("camera-script", bpo::value<std::string>());
+    addOption("capture-preview", bpo::value<std::string>());
     addOption("data",
         bpo::value<Files::MaybeQuotedPathContainer>()
             ->default_value(Files::MaybeQuotedPathContainer(), "data")
@@ -420,6 +424,8 @@ int CS::runCapture(int argc, char** argv)
     request.mReparent = variables["capture-reparent"].as<bool>();
     if (variables.count("camera-script"))
         request.mCameraScript = variables["camera-script"].as<std::string>();
+    if (variables.count("capture-preview"))
+        request.mPreview = variables["capture-preview"].as<std::string>();
     if (variables.count("capture-resize"))
     {
         std::istringstream sizes(variables["capture-resize"].as<std::string>());
@@ -471,6 +477,7 @@ int CS::runCapture(int argc, char** argv)
     bool closed = false;
     bool reparented = false;
     std::unique_ptr<QWidget> floatingFrame;
+    CSVRender::PreviewWidget* preview = nullptr;
     int idleTicks = 0;
     std::uint64_t idleStartFrame = 0;
 
@@ -555,6 +562,21 @@ int CS::runCapture(int argc, char** argv)
                     view->getHost()->setProjection(*request.mFieldOfView, false, 0);
             }
 
+            if (!request.mPreview.empty())
+            {
+                frame->setFixedSize(sViewWidth * (request.mViews + 1), sViewHeight);
+                preview = new CSVRender::PreviewWidget(data, request.mPreview, true, frame.get());
+                preview->setFixedSize(sViewWidth, sViewHeight);
+                frame->layout()->addWidget(preview);
+                preview->show();
+                QApplication::processEvents();
+                if (!preview->ensureHost())
+                {
+                    finish(1);
+                    return;
+                }
+            }
+
             context.setFrameCallback([&] {
                 const std::uint64_t frameCount = CSVRender::RenderContext::get().frameCount();
                 if (quitting)
@@ -578,6 +600,12 @@ int CS::runCapture(int argc, char** argv)
                             finish(1);
                             return;
                         }
+                    }
+                    if (preview && !preview->getHost()->capture(screenshots / ("preview" + std::to_string(captures) + ".png")))
+                    {
+                        Log(Debug::Error) << "Failed to capture the preview";
+                        finish(1);
+                        return;
                     }
                     ++captures;
                     nextCapture = 0;
@@ -624,6 +652,8 @@ int CS::runCapture(int argc, char** argv)
                 // A frame must reach the capture and quit frames even in a view that nothing moves in.
                 for (auto* view : views)
                     view->flagAsModified();
+                if (preview)
+                    preview->flagAsModified();
                 if (frameCount >= quitFrame && nextCapture == 0)
                 {
                     Log(Debug::Info) << "Auto-quit at frame " << frameCount;

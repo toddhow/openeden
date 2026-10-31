@@ -42,6 +42,7 @@
 #include "object.hpp"
 #include "objectmarker.hpp"
 #include "orbitcameramode.hpp"
+#include "pathgridmode.hpp"
 
 CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidget* parent)
     : SceneWidget(document.getData(), parent, Qt::WindowFlags(), false)
@@ -403,10 +404,7 @@ void CSVRender::WorldspaceWidget::addVisibilitySelectorButtons(CSVWidget::SceneT
 void CSVRender::WorldspaceWidget::addEditModeSelectorButtons(CSVWidget::SceneToolMode* tool)
 {
     tool->addButton(new InstanceMode(this, tool), "object");
-    // The plain base class until stage C9 brings back PathgridMode: the button and its id stay, and pressing it does nothing.
-    tool->addButton(
-        new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-pathgrid"), Mask_Pathgrid, "Pathgrid editing", tool),
-        "pathgrid");
+    tool->addButton(new PathgridMode(this, tool), "pathgrid");
 }
 
 CSMDoc::Document& CSVRender::WorldspaceWidget::getDocument()

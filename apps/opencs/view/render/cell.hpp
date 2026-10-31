@@ -39,6 +39,7 @@ namespace CSVRender
     class CellArrow;
     class CellBorder;
     class CellMarker;
+    class Pathgrid;
 
     class ObjectMarker;
     class SceneHost;
@@ -61,6 +62,7 @@ namespace CSVRender
         std::unique_ptr<CellMarker> mCellMarker;
         std::unique_ptr<CellBorder> mCellBorder;
         std::unique_ptr<CellWater> mCellWater;
+        std::unique_ptr<Pathgrid> mPathgrid;
         bool mDeleted;
         int mSubMode;
         unsigned int mSubModeElementMask;
@@ -134,10 +136,12 @@ namespace CSVRender
         float* getAlteredHeight(int inCellX, int inCellY);
 
         void resetAlteredHeights();
+        void pathgridModified();
 
-        // Stage C9: the pathgrid.
-        void pathgridModified() {}
-        void pathgridRemoved() {}
+        void pathgridRemoved();
+
+        /// Null for a deleted cell.
+        Pathgrid* getPathgrid() const;
 
         void landDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 

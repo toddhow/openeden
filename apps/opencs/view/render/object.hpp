@@ -156,6 +156,9 @@ namespace CSVRender
         /// How far under its own origin the model reaches, with its rotation and scale, as the drop tool wants it.
         float getBottomOffset();
 
+        /// The corners of what it shows, in the world, for a default view of it alone.
+        std::vector<vsg::dvec3> getBoundsCorners();
+
         /// \return Did this call result in a modification of the visual representation of
         /// this object?
         bool referenceableDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);

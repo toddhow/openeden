@@ -341,6 +341,28 @@ void CSVRender::Object::setHidden(bool hidden)
     mHost.requestRedraw();
 }
 
+std::vector<vsg::dvec3> CSVRender::Object::getBoundsCorners()
+{
+    vsg::dvec3 origin;
+    if (!mReferenceId.empty())
+        origin = vsg::dvec3(getPosition().asVec3());
+    if (!mAnimation)
+        return { origin };
+    vsg::ComputeBounds bounds;
+    bounds.useNodeBounds = false;
+    for (auto& child : mAnimation->transform()->children)
+        if (child != mOutline)
+            child->accept(bounds);
+    if (!bounds.bounds.valid())
+        return { origin };
+    std::vector<vsg::dvec3> corners;
+    for (int i = 0; i < 8; ++i)
+        corners.push_back(origin
+            + vsg::dvec3(i & 1 ? bounds.bounds.max.x : bounds.bounds.min.x, i & 2 ? bounds.bounds.max.y : bounds.bounds.min.y,
+                i & 4 ? bounds.bounds.max.z : bounds.bounds.min.z));
+    return corners;
+}
+
 float CSVRender::Object::getBottomOffset()
 {
     if (!mAnimation)

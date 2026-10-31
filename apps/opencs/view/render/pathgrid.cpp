@@ -6,19 +6,6 @@
 #include <set>
 #include <stddef.h>
 
-#include <osg/Array>
-#include <osg/Callback>
-#include <osg/GL>
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/MixinVector>
-#include <osg/Node>
-#include <osg/PositionAttitudeTransform>
-#include <osg/PrimitiveSet>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
 
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
@@ -34,30 +21,51 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadpgrd.hpp>
-#include <components/sceneutil/pathgridutil.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 
 #include "../../model/world/commandmacro.hpp"
 #include "../../model/world/commands.hpp"
 #include "../../model/world/data.hpp"
 #include "../../model/world/idtree.hpp"
+#include "colouredgeometry.hpp"
+#include "mask.hpp"
+#include "pathgridgeometry.hpp"
+#include "picking.hpp"
+#include "scenehost.hpp"
 #include "worldspacewidget.hpp"
 
-namespace osg
-{
-    class NodeVisitor;
-}
+#include <vsg/maths/transform.h>
+#include <vsg/nodes/VertexIndexDraw.h>
 
 namespace CSVRender
 {
-    class PathgridNodeCallback : public osg::NodeCallback
+    namespace
     {
-    public:
-        void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+        vsg::ref_ptr<vsg::vec3Array> toArray(const std::vector<vsg::vec3>& values)
         {
-            PathgridTag* tag = static_cast<PathgridTag*>(node->getUserData());
-            tag->getPathgrid()->update();
+            auto array = vsg::vec3Array::create(static_cast<uint32_t>(values.size()));
+            std::copy(values.begin(), values.end(), array->begin());
+            return array;
         }
-    };
+
+        vsg::ref_ptr<vsg::vec4Array> toArray(const std::vector<vsg::vec4>& values)
+        {
+            auto array = vsg::vec4Array::create(static_cast<uint32_t>(values.size()));
+            std::copy(values.begin(), values.end(), array->begin());
+            return array;
+        }
+
+        vsg::ref_ptr<vsg::Node> indexedDraw(SceneHost& host, VkPrimitiveTopology topology, vsg::ref_ptr<vsg::vec3Array> vertices,
+            vsg::ref_ptr<vsg::vec4Array> colours, const std::vector<unsigned>& indices)
+        {
+            auto indexArray = vsg::uintArray::create(static_cast<uint32_t>(indices.size()));
+            std::copy(indices.begin(), indices.end(), indexArray->begin());
+            ColouredOptions options;
+            // The diamonds keep their old faces for rays, and cull nothing, as the OSG editor set no culling.
+            return createColouredGeometry(*host.resources().builder, topology, vertices, colours, indexArray, options);
+        }
+    }
 
     PathgridTag::PathgridTag(Pathgrid* pathgrid)
         : TagBase(Mask_Pathgrid)
@@ -75,13 +83,13 @@ namespace CSVRender
         QString text("Pathgrid: ");
         text += mPathgrid->getId().c_str();
         text += " (";
-        text += QString::number(SceneUtil::getPathgridNode(hit.index0));
+        text += QString::number(PathgridGeometry::nodeOfVertex(hit.index0));
         text += ")";
 
         return text;
     }
 
-    Pathgrid::Pathgrid(CSMWorld::Data& data, osg::Group* parent, const std::string& pathgridId,
+    Pathgrid::Pathgrid(CSMWorld::Data& data, SceneHost& host, vsg::Group& parent, const std::string& pathgridId,
         const CSMWorld::CellCoordinates& coordinates)
         : mData(data)
         , mPathgridCollection(mData.getPathgrids())
@@ -92,22 +100,18 @@ namespace CSVRender
         , mChangeGeometry(true)
         , mRemoveGeometry(false)
         , mUseOffset(true)
+        , mHost(host)
         , mParent(parent)
-        , mPathgridGeometry(nullptr)
-        , mDragGeometry(nullptr)
         , mTag(new PathgridTag(this))
     {
         const float coordScalar = ESM::Land::REAL_SIZE;
 
-        mBaseNode = new osg::PositionAttitudeTransform();
-        mBaseNode->setPosition(osg::Vec3f(mCoords.getX() * coordScalar, mCoords.getY() * coordScalar, 0.f));
-        mBaseNode->setUserData(mTag);
-        mBaseNode->setUpdateCallback(new PathgridNodeCallback());
-        mBaseNode->setNodeMask(Mask_Pathgrid);
-        mParent->addChild(mBaseNode);
-
-        mPathgridGroup = new osg::Group();
-        mBaseNode->addChild(mPathgridGroup);
+        mBasePosition = vsg::dvec3(mCoords.getX() * coordScalar, mCoords.getY() * coordScalar, 0.0);
+        mBaseNode = vsg::MatrixTransform::create(vsg::translate(mBasePosition));
+        Picking::setTag(*mBaseNode, mTag);
+        mMaskNode = SceneHost::maskNode(Mask_Pathgrid, mBaseNode);
+        mHost.compileContext()->compile(mMaskNode);
+        mParent.addChild(mMaskNode);
 
         recreateGeometry();
 
@@ -121,7 +125,9 @@ namespace CSVRender
 
     Pathgrid::~Pathgrid()
     {
-        mParent->removeChild(mBaseNode);
+        auto& children = mParent.children;
+        children.erase(std::remove(children.begin(), children.end(), mMaskNode), children.end());
+        mHost.compileContext()->detach(mMaskNode);
     }
 
     const CSMWorld::CellCoordinates& Pathgrid::getCoordinates() const
@@ -205,10 +211,10 @@ namespace CSVRender
         removeSelectedGeometry();
     }
 
-    void Pathgrid::moveSelected(const osg::Vec3d& offset)
+    void Pathgrid::moveSelected(const vsg::dvec3& offset)
     {
         mUseOffset = true;
-        mMoveOffset += offset;
+        mMoveOffset = mMoveOffset + offset;
 
         recreateGeometry();
     }
@@ -226,22 +232,22 @@ namespace CSVRender
             const CSMWorld::Pathgrid::Point& pointA = source->mPoints[mDragOrigin];
             const CSMWorld::Pathgrid::Point& pointB = source->mPoints[node];
 
-            osg::Vec3f start = osg::Vec3f(pointA.mX, pointA.mY, pointA.mZ + SceneUtil::DiamondHalfHeight);
-            osg::Vec3f end = osg::Vec3f(pointB.mX, pointB.mY, pointB.mZ + SceneUtil::DiamondHalfHeight);
+            const vsg::vec3 start(pointA.mX, pointA.mY, pointA.mZ + PathgridGeometry::sDiamondHalfHeight);
+            const vsg::vec3 end(pointB.mX, pointB.mY, pointB.mZ + PathgridGeometry::sDiamondHalfHeight);
 
             createDragGeometry(start, end, true);
         }
     }
 
-    void Pathgrid::setDragEndpoint(const osg::Vec3d& pos)
+    void Pathgrid::setDragEndpoint(const vsg::dvec3& pos)
     {
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
         {
             const CSMWorld::Pathgrid::Point& point = source->mPoints[mDragOrigin];
 
-            osg::Vec3f start = osg::Vec3f(point.mX, point.mY, point.mZ + SceneUtil::DiamondHalfHeight);
-            osg::Vec3f end = pos - mBaseNode->getPosition();
+            const vsg::vec3 start(point.mX, point.mY, point.mZ + PathgridGeometry::sDiamondHalfHeight);
+            const vsg::vec3 end(pos - mBasePosition);
             createDragGeometry(start, end, false);
         }
     }
@@ -249,13 +255,12 @@ namespace CSVRender
     void Pathgrid::resetIndicators()
     {
         mUseOffset = false;
-        mMoveOffset.set(0, 0, 0);
+        mMoveOffset = vsg::dvec3();
 
-        mPathgridGroup->removeChild(mDragGeometry);
-        mDragGeometry = nullptr;
+        removeNode(mDragGeometry);
     }
 
-    void Pathgrid::applyPoint(CSMWorld::CommandMacro& commands, const osg::Vec3d& worldPos)
+    void Pathgrid::applyPoint(CSMWorld::CommandMacro& commands, const vsg::dvec3& worldPos)
     {
         CSMWorld::IdTree* model
             = &dynamic_cast<CSMWorld::IdTree&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids));
@@ -263,11 +268,11 @@ namespace CSVRender
         const CSMWorld::Pathgrid* source = getPathgridSource();
         if (source)
         {
-            osg::Vec3d localCoords = worldPos - mBaseNode->getPosition();
+            const vsg::dvec3 localCoords = worldPos - mBasePosition;
 
-            int posX = clampToCell(static_cast<int>(localCoords.x()));
-            int posY = clampToCell(static_cast<int>(localCoords.y()));
-            int posZ = clampToCell(static_cast<int>(localCoords.z()));
+            int posX = clampToCell(static_cast<int>(localCoords.x));
+            int posY = clampToCell(static_cast<int>(localCoords.y));
+            int posZ = clampToCell(static_cast<int>(localCoords.z));
 
             int recordIndex = mPathgridCollection.getIndex(mId);
             int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
@@ -300,7 +305,9 @@ namespace CSVRender
             }
             else
             {
-                source = &mPathgridCollection.getRecord(index).get();
+                // A copy: the commands replace the record.
+                const CSMWorld::Pathgrid copy = mPathgridCollection.getRecord(index).get();
+                source = &copy;
 
                 // Deleted, so revert and remove all data
                 commands.push(new CSMWorld::RevertCommand(*model, idString));
@@ -324,14 +331,17 @@ namespace CSVRender
 
     void Pathgrid::applyPosition(CSMWorld::CommandMacro& commands)
     {
-        const CSMWorld::Pathgrid* source = getPathgridSource();
-        if (source)
+        const CSMWorld::Pathgrid* recordSource = getPathgridSource();
+        if (recordSource)
         {
-            osg::Vec3d localCoords = mMoveOffset;
+            // A copy: the commands replace the record, so a pointer into it would dangle after the first push.
+            const CSMWorld::Pathgrid copy = *recordSource;
+            const CSMWorld::Pathgrid* source = &copy;
+            const vsg::dvec3 localCoords = mMoveOffset;
 
-            int offsetX = static_cast<int>(localCoords.x());
-            int offsetY = static_cast<int>(localCoords.y());
-            int offsetZ = static_cast<int>(localCoords.z());
+            int offsetX = static_cast<int>(localCoords.x);
+            int offsetY = static_cast<int>(localCoords.y);
+            int offsetZ = static_cast<int>(localCoords.z);
 
             QAbstractItemModel* model = mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids);
 
@@ -368,18 +378,24 @@ namespace CSVRender
 
     void Pathgrid::applyEdge(CSMWorld::CommandMacro& commands, unsigned short node1, unsigned short node2)
     {
-        const CSMWorld::Pathgrid* source = getPathgridSource();
-        if (source)
+        const CSMWorld::Pathgrid* recordSource = getPathgridSource();
+        if (recordSource)
         {
+            // A copy: the commands replace the record, so a pointer into it would dangle after the first push.
+            const CSMWorld::Pathgrid copy = *recordSource;
+            const CSMWorld::Pathgrid* source = &copy;
             addEdge(commands, *source, node1, node2);
         }
     }
 
     void Pathgrid::applyEdges(CSMWorld::CommandMacro& commands, unsigned short node)
     {
-        const CSMWorld::Pathgrid* source = getPathgridSource();
-        if (source)
+        const CSMWorld::Pathgrid* recordSource = getPathgridSource();
+        if (recordSource)
         {
+            // A copy: the commands replace the record, so a pointer into it would dangle after the first push.
+            const CSMWorld::Pathgrid copy = *recordSource;
+            const CSMWorld::Pathgrid* source = &copy;
             for (const auto& selected : mSelected)
             {
                 addEdge(commands, *source, node, selected);
@@ -389,9 +405,12 @@ namespace CSVRender
 
     void Pathgrid::applyRemoveNodes(CSMWorld::CommandMacro& commands)
     {
-        const CSMWorld::Pathgrid* source = getPathgridSource();
-        if (source)
+        const CSMWorld::Pathgrid* recordSource = getPathgridSource();
+        if (recordSource)
         {
+            // A copy: the commands replace the record, so a pointer into it would dangle after the first push.
+            const CSMWorld::Pathgrid copy = *recordSource;
+            const CSMWorld::Pathgrid* source = &copy;
             CSMWorld::IdTree* model
                 = &dynamic_cast<CSMWorld::IdTree&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Pathgrids));
 
@@ -505,7 +524,7 @@ namespace CSVRender
         }
     }
 
-    osg::ref_ptr<PathgridTag> Pathgrid::getTag() const
+    vsg::ref_ptr<PathgridTag> Pathgrid::getTag() const
     {
         return mTag;
     }
@@ -548,17 +567,27 @@ namespace CSVRender
 
                 for (NodeList::iterator it = mSelected.begin(); it != mSelected.end(); ++it)
                 {
-                    temp.mPoints[*it].mX += mMoveOffset.x();
-                    temp.mPoints[*it].mY += mMoveOffset.y();
-                    temp.mPoints[*it].mZ += mMoveOffset.z();
+                    temp.mPoints[*it].mX += mMoveOffset.x;
+                    temp.mPoints[*it].mY += mMoveOffset.y;
+                    temp.mPoints[*it].mZ += mMoveOffset.z;
                 }
 
                 source = &temp;
             }
 
             removePathgridGeometry();
-            mPathgridGeometry = SceneUtil::createPathgridGeometry(*source);
-            mPathgridGroup->addChild(mPathgridGeometry);
+            const PathgridGeometry::Grid grid = PathgridGeometry::createGrid(*source);
+            if (!grid.mVertices.empty())
+            {
+                auto vertices = toArray(grid.mVertices);
+                auto colours = toArray(grid.mColours);
+                auto group = vsg::Group::create();
+                group->addChild(indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, colours, grid.mTriangles));
+                if (!grid.mLines.empty())
+                    group->addChild(indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vertices, colours, grid.mLines));
+                mPathgridGeometry = group;
+                addGeometry(mPathgridGeometry);
+            }
 
             createSelectedGeometry(*source);
         }
@@ -586,60 +615,52 @@ namespace CSVRender
     {
         removeSelectedGeometry();
 
-        mSelectedGeometry = SceneUtil::createPathgridSelectedWireframe(source, mSelected);
-        mPathgridGroup->addChild(mSelectedGeometry);
+        const PathgridGeometry::Grid wire = PathgridGeometry::createSelectedWireframe(source, mSelected);
+        if (wire.mVertices.empty())
+            return;
+        mSelectedGeometry
+            = indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, toArray(wire.mVertices), toArray(wire.mColours), wire.mLines);
+        addGeometry(mSelectedGeometry);
     }
 
     void Pathgrid::removePathgridGeometry()
     {
-        if (mPathgridGeometry)
-        {
-            mPathgridGroup->removeChild(mPathgridGeometry);
-            mPathgridGeometry = nullptr;
-        }
+        removeNode(mPathgridGeometry);
     }
 
     void Pathgrid::removeSelectedGeometry()
     {
-        if (mSelectedGeometry)
-        {
-            mPathgridGroup->removeChild(mSelectedGeometry);
-            mSelectedGeometry = nullptr;
-        }
+        removeNode(mSelectedGeometry);
     }
 
-    void Pathgrid::createDragGeometry(const osg::Vec3f& start, const osg::Vec3f& end, bool valid)
+    void Pathgrid::addGeometry(vsg::ref_ptr<vsg::Node> node)
     {
-        if (mDragGeometry)
-            mPathgridGroup->removeChild(mDragGeometry);
+        mHost.compileContext()->compile(node);
+        mBaseNode->addChild(node);
+        mHost.requestRedraw();
+    }
 
-        mDragGeometry = new osg::Geometry();
+    void Pathgrid::removeNode(vsg::ref_ptr<vsg::Node>& node)
+    {
+        if (!node)
+            return;
+        auto& children = mBaseNode->children;
+        children.erase(std::remove(children.begin(), children.end(), node), children.end());
+        mHost.compileContext()->detach(node);
+        node = nullptr;
+        mHost.requestRedraw();
+    }
 
-        osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array(2);
-        osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array(1);
-        osg::ref_ptr<osg::DrawElementsUShort> indices = new osg::DrawElementsUShort(osg::PrimitiveSet::LINES, 2);
+    void Pathgrid::createDragGeometry(const vsg::vec3& start, const vsg::vec3& end, bool valid)
+    {
+        removeNode(mDragGeometry);
 
-        (*vertices)[0] = start;
-        (*vertices)[1] = end;
-
-        if (valid)
-        {
-            (*colors)[0] = osg::Vec4f(0.91f, 0.66f, 1.f, 1.f);
-        }
-        else
-        {
-            (*colors)[0] = osg::Vec4f(1.f, 0.f, 0.f, 1.f);
-        }
-
-        indices->setElement(0, 0);
-        indices->setElement(1, 1);
-
-        mDragGeometry->setVertexArray(vertices);
-        mDragGeometry->setColorArray(colors, osg::Array::BIND_OVERALL);
-        mDragGeometry->addPrimitiveSet(indices);
-        mDragGeometry->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-
-        mPathgridGroup->addChild(mDragGeometry);
+        const vsg::vec4 colour = valid ? vsg::vec4(0.91f, 0.66f, 1.f, 1.f) : vsg::vec4(1.f, 0.f, 0.f, 1.f);
+        ColouredOptions options;
+        options.mPickable = false;
+        mDragGeometry = createColouredGeometry(*mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+            vsg::vec3Array::create({ start, end }), vsg::vec4Array::create(2, colour), vsg::ref_ptr<vsg::Data>(), options);
+        addGeometry(mDragGeometry);
     }
 
     const CSMWorld::Pathgrid* Pathgrid::getPathgridSource()

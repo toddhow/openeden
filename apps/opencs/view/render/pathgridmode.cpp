@@ -3,7 +3,9 @@
 #include <QIcon>
 
 #include <components/misc/scalableicon.hpp>
-#include <components/sceneutil/pathgridutil.hpp>
+#include "pathgridgeometry.hpp"
+#include "camerapose.hpp"
+#include "scenehost.hpp"
 
 #include "../../model/prefs/state.hpp"
 
@@ -23,10 +25,6 @@
 #include <apps/opencs/view/render/editmode.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
 
-#include <osg/Camera>
-#include <osg/Matrixd>
-#include <osg/Vec3d>
-#include <osg/ref_ptr>
 
 #include <vector>
 
@@ -108,7 +106,7 @@ namespace CSVRender
             {
                 if (tag->getPathgrid()->isSelected())
                 {
-                    unsigned short node = SceneUtil::getPathgridNode(hit.index0);
+                    unsigned short node = PathgridGeometry::nodeOfVertex(hit.index0);
 
                     QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                     QString description = "Connect node to selected nodes";
@@ -129,7 +127,7 @@ namespace CSVRender
             if (PathgridTag* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
             {
                 mLastId = tag->getPathgrid()->getId();
-                unsigned short node = SceneUtil::getPathgridNode(hit.index0);
+                unsigned short node = PathgridGeometry::nodeOfVertex(hit.index0);
                 tag->getPathgrid()->toggleSelected(node);
             }
         }
@@ -147,7 +145,7 @@ namespace CSVRender
                     mLastId = tag->getPathgrid()->getId();
                 }
 
-                unsigned short node = SceneUtil::getPathgridNode(hit.index0);
+                unsigned short node = PathgridGeometry::nodeOfVertex(hit.index0);
                 tag->getPathgrid()->toggleSelected(node);
 
                 return;
@@ -159,7 +157,7 @@ namespace CSVRender
 
     bool PathgridMode::primaryEditStartDrag(const QPoint& pos)
     {
-        std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
+        std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
         if (CSMPrefs::get()["3D Scene Input"]["context-select"].isTrue())
         {
@@ -190,7 +188,7 @@ namespace CSVRender
             {
                 mDragMode = DragMode::Edge;
                 mEdgeId = tag->getPathgrid()->getId();
-                mFromNode = SceneUtil::getPathgridNode(hit.index0);
+                mFromNode = PathgridGeometry::nodeOfVertex(hit.index0);
 
                 tag->getPathgrid()->setDragOrigin(mFromNode);
                 return true;
@@ -204,16 +202,15 @@ namespace CSVRender
     {
         if (mDragMode == DragMode::Move)
         {
-            std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
+            std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
-            for (std::vector<osg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
+            for (std::vector<vsg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
             {
                 if (PathgridTag* tag = dynamic_cast<PathgridTag*>(it->get()))
                 {
-                    osg::Vec3d eye, center, up, offset;
-                    getWorldspaceWidget().getCamera()->getViewMatrix().getLookAt(eye, center, up);
-
-                    offset = (up * diffY * speedFactor) + (((center - eye) ^ up) * diffX * speedFactor);
+                    const auto lookAt = CameraPose::lookAtFrom(getWorldspaceWidget().getHost()->getViewMatrix());
+                    const vsg::dvec3 side = vsg::cross(lookAt.mCenter - lookAt.mEye, lookAt.mUp);
+                    const vsg::dvec3 offset = (lookAt.mUp * (diffY * speedFactor)) + (side * (diffX * speedFactor));
 
                     tag->getPathgrid()->moveSelected(offset);
                 }
@@ -230,7 +227,7 @@ namespace CSVRender
                 if (hit.tag && (tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
                     && tag->getPathgrid()->getId() == mEdgeId)
                 {
-                    unsigned short node = SceneUtil::getPathgridNode(hit.index0);
+                    unsigned short node = PathgridGeometry::nodeOfVertex(hit.index0);
                     cell->getPathgrid()->setDragEndpoint(node);
                 }
                 else
@@ -245,8 +242,8 @@ namespace CSVRender
     {
         if (mDragMode == DragMode::Move)
         {
-            std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
-            for (std::vector<osg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
+            std::vector<vsg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
+            for (std::vector<vsg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
             {
                 if (PathgridTag* tag = dynamic_cast<PathgridTag*>(it->get()))
                 {
@@ -268,7 +265,7 @@ namespace CSVRender
                 {
                     if (tag->getPathgrid()->getId() == mEdgeId)
                     {
-                        unsigned short toNode = SceneUtil::getPathgridNode(hit.index0);
+                        unsigned short toNode = PathgridGeometry::nodeOfVertex(hit.index0);
 
                         QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                         QString description = "Add edge between nodes";

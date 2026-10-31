@@ -6,21 +6,14 @@
 #include <vector>
 
 #include <QString>
-#include <osg/Vec3d>
-#include <osg/ref_ptr>
+#include <vsg/maths/vec3.h>
+#include <vsg/nodes/Group.h>
+#include <vsg/nodes/MatrixTransform.h>
 
 #include "../../model/world/cellcoordinates.hpp"
 #include "../../model/world/subcellcollection.hpp"
 #include "tagbase.hpp"
 #include <components/esm/refid.hpp>
-
-namespace osg
-{
-    class Vec3f;
-    class Geometry;
-    class Group;
-    class PositionAttitudeTransform;
-}
 
 namespace CSMWorld
 {
@@ -31,6 +24,7 @@ namespace CSMWorld
 
 namespace CSVRender
 {
+    class SceneHost;
     class Pathgrid;
 
     struct WorldspaceHitResult;
@@ -53,7 +47,7 @@ namespace CSVRender
     public:
         typedef std::vector<unsigned short> NodeList;
 
-        Pathgrid(CSMWorld::Data& data, osg::Group* parent, const std::string& pathgridId,
+        Pathgrid(CSMWorld::Data& data, SceneHost& host, vsg::Group& parent, const std::string& pathgridId,
             const CSMWorld::CellCoordinates& coordinates);
 
         ~Pathgrid();
@@ -68,21 +62,21 @@ namespace CSVRender
         void invertSelected();
         void clearSelected();
 
-        void moveSelected(const osg::Vec3d& offset);
+        void moveSelected(const vsg::dvec3& offset);
         void setDragOrigin(unsigned short node);
         void setDragEndpoint(unsigned short node);
-        void setDragEndpoint(const osg::Vec3d& pos);
+        void setDragEndpoint(const vsg::dvec3& pos);
 
         void resetIndicators();
 
-        void applyPoint(CSMWorld::CommandMacro& commands, const osg::Vec3d& worldPos);
+        void applyPoint(CSMWorld::CommandMacro& commands, const vsg::dvec3& worldPos);
         void applyPosition(CSMWorld::CommandMacro& commands);
         void applyEdge(CSMWorld::CommandMacro& commands, unsigned short node1, unsigned short node2);
         void applyEdges(CSMWorld::CommandMacro& commands, unsigned short node);
         void applyRemoveNodes(CSMWorld::CommandMacro& commands);
         void applyRemoveEdges(CSMWorld::CommandMacro& commands);
 
-        osg::ref_ptr<PathgridTag> getTag() const;
+        vsg::ref_ptr<PathgridTag> getTag() const;
 
         void recreateGeometry();
         void removeGeometry();
@@ -97,21 +91,23 @@ namespace CSVRender
         bool mInterior;
 
         NodeList mSelected;
-        osg::Vec3d mMoveOffset;
+        vsg::dvec3 mMoveOffset;
         unsigned short mDragOrigin;
 
         bool mChangeGeometry;
         bool mRemoveGeometry;
         bool mUseOffset;
 
-        osg::Group* mParent;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
-        osg::ref_ptr<osg::Group> mPathgridGroup;
-        osg::ref_ptr<osg::Geometry> mPathgridGeometry;
-        osg::ref_ptr<osg::Geometry> mSelectedGeometry;
-        osg::ref_ptr<osg::Geometry> mDragGeometry;
+        SceneHost& mHost;
+        vsg::Group& mParent;
+        vsg::dvec3 mBasePosition;
+        vsg::ref_ptr<vsg::Node> mMaskNode;
+        vsg::ref_ptr<vsg::MatrixTransform> mBaseNode;
+        vsg::ref_ptr<vsg::Node> mPathgridGeometry;
+        vsg::ref_ptr<vsg::Node> mSelectedGeometry;
+        vsg::ref_ptr<vsg::Node> mDragGeometry;
 
-        osg::ref_ptr<PathgridTag> mTag;
+        vsg::ref_ptr<PathgridTag> mTag;
 
         void createGeometry();
         void createSelectedGeometry();
@@ -119,7 +115,9 @@ namespace CSVRender
         void removePathgridGeometry();
         void removeSelectedGeometry();
 
-        void createDragGeometry(const osg::Vec3f& start, const osg::Vec3f& end, bool valid);
+        void createDragGeometry(const vsg::vec3& start, const vsg::vec3& end, bool valid);
+        void addGeometry(vsg::ref_ptr<vsg::Node> node);
+        void removeNode(vsg::ref_ptr<vsg::Node>& node);
 
         const CSMWorld::Pathgrid* getPathgridSource();
 

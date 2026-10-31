@@ -603,3 +603,30 @@ Not verified: the list below. Smooth, flatten, equalize, the slope limit, the se
 52. **New land texture.** Add a new land texture to the project, set its image, and paint with it: **that texture**, not the default. Change its image in the table: the land follows.
 53. **Cell with no land.** Paint and raise in an empty cell (prefs: land edit outside cells, outside visible): the cell and land are made as those preferences say.
 54. **Save.** Save the plugin, load it in the game: the terrain and textures are there.
+
+### C9 Pathgrid mode and preview (2026-10-31)
+
+`pathgrid`, `pathgridmode` and `pathgridselectionmode` are back, so all of `view/render` builds and `OPENEDEN_CS_VIEW_RENDER_PENDING` is gone. `pathgridgeometry.hpp` holds the old `SceneUtil::createPathgridGeometry` and its wireframe as data, tested by `testpathgridgeometry.cpp` (7 cases, written first). `Pathgrid::update`, once a node's update callback, runs from `Cell::frameUpdate`. Commands are the old code's.
+
+- **A use after free in the old code, fixed here, command calls unchanged.** `applyPosition` kept a reference into the record across `commands.push`, whose `ModifyCommand` replaces the record, and a scripted move crashed with an access violation at `pathgrid.cpp:362` (found with `crashrun` and `dumpstack`). OSG's editor had the same lines and may only have been lucky with freed memory. `applyPosition`, `applyEdge`, `applyEdges`, `applyRemoveNodes` and `applyPoint`'s deleted branch now work on a copy of the record.
+- **Preview:** the widget came back at C3, but a preview of a referenceable threw on every tick from `getPosition`, "object does not represent a reference", so it never drew. It was never opened before now. It frames the model's bounds with the new `Object::getBoundsCorners`.
+- `--capture-preview ID` captures a `PreviewWidget` beside the cell's view.
+
+Checks at Caius Cosades' House, frames viewed, through the real tool code:
+- **Display:** blue diamonds with their cyan edges where the room's nodes stand.
+- **Select:** `press select` and `press select2` on two nodes: wireframes round both.
+- **Edge:** `drag edit2` from one to the other: one `Add edge between nodes`, a new line in the frame; `undo` and `redo` step the stack.
+- **Move:** `drag edit`: one `Move pathgrid node(s)`, and `undo` ran with no crash.
+- **Add:** `press edit` on the floor: one `Add node`, a new diamond there.
+- **Preview of `chargen boat`:** the whole boat with its sail on the gradient. It is small and a little off centre, as `SceneHost::frame` works from medians, which a preview's eight corners do not suit well. Left as it is: the camera can be moved.
+
+Not verified: the list below. Editing a pathgrid in a paged view and `applyRemoveNodes` were not run.
+
+55. **Pathgrid display (C9).** A Scene of an interior with a pathgrid, edit mode Pathgrid. Diamonds and edges appear. The Pathgrid button of the visibility toolbar hides and shows them.
+56. **Select.** `scene-select-primary` on a node: purple wireframe; `scene-select-secondary` adds another; the last has the paler colour. Tool tip over a node: "Pathgrid: <cell> (<number>)".
+57. **Add.** `scene-edit-primary` on the floor adds a node where you clicked, or just selects, by the context-select preference.
+58. **Move.** Drag with `scene-edit-primary`: selected nodes follow the pointer; release applies, Ctrl+Z restores.
+59. **Connect.** Drag `scene-edit-secondary` from one node to another: a purple line shows while dragging, red when not over a node. Release adds an edge; Ctrl+Z removes it.
+60. **Remove.** With the selection tool's context menu, remove selected nodes, and remove edges between them. The edges left still join the right nodes, and Ctrl+Z restores them. This ran through no script.
+61. **Exterior.** The same in a paged exterior, across two cells: only one cell's grid is selected at a time.
+62. **Preview.** In a table, right-click a record, Preview: the object is in view, in orbit mode. Say if the framing is a nuisance. Edit its model field: the preview follows. Delete the record: the preview closes. Preview a Reference too.

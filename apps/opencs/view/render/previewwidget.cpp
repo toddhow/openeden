@@ -148,8 +148,8 @@ std::vector<vsg::dvec3> CSVRender::PreviewWidget::getDefaultViewPositions() cons
 {
     if (!mObject)
         return {};
-    const ESM::Position position = mObject->getPosition();
-    return { vsg::dvec3(position.pos[0], position.pos[1], position.pos[2]) };
+    // The whole model in view, as the OSG editor's CameraController::setup took the bounds of what was visible.
+    return mObject->getBoundsCorners();
 }
 
 void CSVRender::PreviewWidget::hostReady()

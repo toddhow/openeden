@@ -29,6 +29,7 @@
 #include "instancedragmodes.hpp"
 #include "mask.hpp"
 #include "object.hpp"
+#include "pathgrid.hpp"
 #include "objectmarker.hpp"
 #include "scenehost.hpp"
 #include "worldspacewidget.hpp"
@@ -216,6 +217,7 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
             updateLand();
         }
 
+        mPathgrid = std::make_unique<Pathgrid>(mData, mHost, *mCellNode, mId.getRefIdString(), mCoordinates);
         mCellWater = std::make_unique<CellWater>(mHost, *mCellNode, mId.getRefIdString(), mCoordinates);
     }
     mHost.requestRedraw();
@@ -229,6 +231,7 @@ CSVRender::Cell::~Cell()
         delete iter->second;
 
     // Each of these detaches its own nodes. So does the terrain, before the storage it reads goes.
+    mPathgrid.reset();
     mCellWater.reset();
     mCellBorder.reset();
     mCellMarker.reset();
@@ -247,6 +250,8 @@ void CSVRender::Cell::frameUpdate(float dt)
 {
     for (auto& [_, object] : mObjects)
         object->frameUpdate(dt);
+    if (mPathgrid)
+        mPathgrid->update();
     updateLand();
     if (mCellMarker)
         mCellMarker->update();
@@ -423,6 +428,23 @@ void CSVRender::Cell::resetAlteredHeights()
     mUpdateLand = true;
 }
 
+void CSVRender::Cell::pathgridModified()
+{
+    if (mPathgrid)
+        mPathgrid->recreateGeometry();
+}
+
+void CSVRender::Cell::pathgridRemoved()
+{
+    if (mPathgrid)
+        mPathgrid->removeGeometry();
+}
+
+CSVRender::Pathgrid* CSVRender::Cell::getPathgrid() const
+{
+    return mPathgrid.get();
+}
+
 void CSVRender::Cell::landDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
     mUpdateLand = true;
@@ -498,6 +520,27 @@ void CSVRender::Cell::setSelection(int elementMask, Selection mode)
                 mSelectionMarker->addToSelectionHistory(iter->second->getReferenceId(), false);
         }
         mSelectionMarker->updateSelectionMarker();
+    }
+    if (mPathgrid && elementMask & Mask_Pathgrid)
+    {
+        // Only one pathgrid may be selected, so some operations will only have an effect
+        // if the pathgrid is already focused
+        switch (mode)
+        {
+            case Selection_Clear:
+                mPathgrid->clearSelected();
+                break;
+
+            case Selection_All:
+                if (mPathgrid->isSelected())
+                    mPathgrid->selectAll();
+                break;
+
+            case Selection_Invert:
+                if (mPathgrid->isSelected())
+                    mPathgrid->invertSelected();
+                break;
+        }
     }
 }
 
@@ -668,6 +711,10 @@ std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(unsi
             if (iter->second->getSelected())
                 result.push_back(iter->second->getTag());
 
+    if (mPathgrid && elementMask & Mask_Pathgrid)
+        if (mPathgrid->isSelected())
+            result.emplace_back(mPathgrid->getTag());
+
     return result;
 }
 
@@ -697,6 +744,9 @@ void CSVRender::Cell::reset(unsigned int elementMask)
     if (elementMask & Mask_Reference)
         for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
             iter->second->reset();
+
+    if (mPathgrid && elementMask & Mask_Pathgrid)
+        mPathgrid->resetIndicators();
 }
 
 CSVRender::Object* CSVRender::Cell::getObjectByReferenceId(const std::string& referenceId)

@@ -1,13 +1,11 @@
 # apps/opencs
 
-The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in task 0014, stages C1 to C9. Read the root `CLAUDE.md`, `components/render/CLAUDE.md` and the task's stage log first.
+The editor (OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0014, stages C1 to C9. Read the root `CLAUDE.md`, `components/render/CLAUDE.md` and the task's stage log first.
 
 ## What builds now
 
 - `csmodel`: everything under `model/`, plus three plain Qt widgets it uses. `openmw-cs-tests` links only this, so it needs no view code and no GPU.
-- `openmw-cs-lib`: the table views, documents, dialogues and scene subviews, on `view/render`'s widgets, with stand-ins for what stages C7 to C9 bring (task 0014, C3 log).
-- **Staged list:** `CMakeLists.txt` lists the `view/render` units not compiled yet, in a comment. Each stage moves its units back. `OPENEDEN_CS_VIEW_RENDER_PENDING` guards what still waits. Remove the define with the last stage.
-- OSG files in `view/render` stay on disk unbuilt until stage D1.
+- `openmw-cs-lib`: everything else, with `view/render` whole.
 
 ## The 3D design
 
@@ -47,6 +45,6 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **Picking:** `picking.hpp`, without a window, and `Picking::setTag` on a node marks what it covers. A pickable node must have no `NullArrayState`, and a pipeline with VERTEX at location 0. A triangle's facing counts, so keep quads counter-clockwise seen from their front, also with no culling. In a `--camera-script`, `wait` before a `ray` lets markers follow the camera.
 - **Overlays:** `OverlayLines` for lines that change often, `ColouredOptions` for the rest. A tool's helper turns `mPickable` off, or a click lands on it. Use `vsg::ComputeBounds` with `useNodeBounds = false`, or a node's bounding sphere gives a box far too big.
 - **`vsg::dquat`'s product has OSG's order:** `a * b` is a, then b. Do not swap operands when porting.
-- **Scripted edits:** `--camera-script` drives the edit modes (`capture.cpp`). A scene widget needs its selectors made, or `getVisibilityMask` crashes on null, so the capture has a hidden toolbar.
+- **Scripted edits:** `--camera-script` drives the edit modes (`capture.cpp`). A scene widget needs its selectors made, or `getVisibilityMask` crashes on null, so the capture has a hidden toolbar. `--capture-preview ID` captures a `PreviewWidget` of a referenceable.
 - **A terrain rebuild goes through `Paging::clearCache`:** the builder keeps batch data by bounds. A changed set of land textures also needs `setStorage` again (`Cell::mUpdateLayers`).
 - **No terrain rays in a loop:** each ray recomputes a chunk's vertices. A brush outline reads the land (`BrushDraw::getTerrainHeight`).
