@@ -672,7 +672,7 @@ if (BUILD_BSATOOL)
 endif()
 
 if (BUILD_ESMTOOL)
-    #add_subdirectory( apps/esmtool )
+    add_subdirectory( apps/esmtool )
 endif()
 
 if (BUILD_LAUNCHER)
@@ -708,7 +708,7 @@ if (BUILD_UNITTESTS)
 endif()
 
 if (BUILD_BENCHMARKS)
-    #add_subdirectory(apps/benchmarks)
+    add_subdirectory(apps/benchmarks)
 endif()
 
 if (BUILD_NAVMESHTOOL)

@@ -163,3 +163,7 @@ Task 0013 deleted every file under `apps/openmw`, `components` and `apps/compone
 <!-- /task-0014-osg-files -->
 
 Tests in Context's list that task 0013's rule deleted rather than left: `apps/components_tests/nifosg/testnifloader.cpp`, `apps/components_tests/sceneutil/osgacontroller.cpp`, and with them `apps/components_tests/nifloader/testbulletnifloader.cpp`. Work item 5 restores them from git history (the parent of the deletion commit) or replaces them. The bundled math headers (`extern/osg`) are gone too, so a kept file that names an OSG math type moves to VSG's when it is ported; `extern/osgQt` and `extern/osg-ffmpeg-videoplayer` stay for this task.
+
+## Stage log: tools and tests (survey `docs/research/0007-v6-editor-and-tools-survey.md`, section 4)
+
+**A1, esmtool and benchmarks.** `osg::RadiansToDegrees` became `Misc::VsgMath::radiansToDegrees` (same float and double overloads); the tiles cache benchmark uses `vsg::ivec2` and `vsg::vec3`. Both are in the root `CMakeLists.txt` again. Check: `esmtool dump -C` of `Morrowind.esm`, `Tribunal.esm` and `Bloodmoon.esm` is byte-identical (same SHA-256; 111 MB, 9 MB, 13 MB of text, 357,809 `Rotation:` lines) to the OSG-era `esmtool.exe` left in `build-jolt`, dated 2026-10-28 17:49 (the reference build `OpenEden-osgref-build` has no esmtool; the source commit of that binary is inferred from its date, about `48fc8a1dd9`). All three benchmarks start and finish on Windows with a short `--benchmark_min_time`; their timings were not compared.

@@ -4,6 +4,9 @@
 #include <components/detournavigator/stats.hpp>
 #include <components/esm3/loadland.hpp>
 
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
+
 #include <algorithm>
 #include <iterator>
 #include <random>
@@ -25,16 +28,16 @@ namespace
         PreparedNavMeshData mValue;
     };
 
-    osg::Vec2i generateVec2i(int max, auto& random)
+    vsg::ivec2 generateVec2i(int max, auto& random)
     {
         std::uniform_int_distribution<int> distribution(0, max);
-        return osg::Vec2i(distribution(random), distribution(random));
+        return vsg::ivec2(distribution(random), distribution(random));
     }
 
-    osg::Vec3f generateAgentHalfExtents(float min, float max, auto& random)
+    vsg::vec3 generateAgentHalfExtents(float min, float max, auto& random)
     {
         std::uniform_real_distribution<float> distribution(min, max);
-        return osg::Vec3f(distribution(random), distribution(random), distribution(random));
+        return vsg::vec3(distribution(random), distribution(random), distribution(random));
     }
 
     void generateVertices(std::output_iterator<int> auto out, std::size_t number, auto& random)
@@ -132,7 +135,7 @@ namespace
     Key generateKey(std::size_t triangles, auto& random)
     {
         const CollisionShapeType agentShapeType = CollisionShapeType::Aabb;
-        const osg::Vec3f agentHalfExtents = generateAgentHalfExtents(0.5, 1.5, random);
+        const vsg::vec3 agentHalfExtents = generateAgentHalfExtents(0.5, 1.5, random);
         const TilePosition tilePosition = generateVec2i(10000, random);
         const Version version{
             .mGeneration = std::uniform_int_distribution<std::size_t>(0, 100)(random),
