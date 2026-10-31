@@ -53,6 +53,7 @@ namespace Resource
         addFallbackFloat("LightAttenuation_QuadraticValue", source);
         addFallbackFloat("LightAttenuation_QuadraticRadiusMult", source);
         //      fallback=LightAttenuation_OutQuadInLin,0
+        add("cClassicFalloff", Settings::Manager::getBool("classic falloff", "Shaders"), source);
 
         objects["light.settings"] = vsg::ShaderModule::create(source.str());
 

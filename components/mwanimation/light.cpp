@@ -22,12 +22,12 @@ namespace
         float mPhase;
         float mSpeed;
         int mType;
-        float mBaseIntensity;
+        vsg::vec3 mBaseColor;
 
     public:
-        LightController(int type, float baseIntensity)
+        LightController(int type, const vsg::vec3& baseColor)
             : mType(type)
-            , mBaseIntensity(baseIntensity)
+            , mBaseColor(baseColor)
         {
             hints.autoPlay = true;
             mPhase = 0.25f + Misc::Rng::rollClosedProbability() * 0.75f;
@@ -50,7 +50,8 @@ namespace
                 else // if (mType == LT_Pulse || mType == LT_PulseSlow)
                     mPhase = mPhase <= 0.5f ? 1.f : 0.25f;
             }
-            light.intensity = mBaseIntensity * mBrightness /* * actorFade*/;
+            // OpenEden: the colour flickers, not the radius, as OpenMW's LightController at 442eec6e2f.
+            light.color = mBaseColor * mBrightness /* * actorFade*/;
         }
     };
 
@@ -64,12 +65,12 @@ namespace
         return node;
     }
 
-    vsg::ref_ptr<LightController> createLightControllerIfRequired(const ESM::Light& light)
+    vsg::ref_ptr<LightController> createLightControllerIfRequired(const ESM::Light& light, const vsg::vec3& color)
     {
         if (!(light.mData.mFlags
                 & (ESM::Light::Flicker | ESM::Light::FlickerSlow | ESM::Light::Pulse | ESM::Light::PulseSlow)))
             return {};
-        return LightController::create(light.mData.mFlags, light.mData.mRadius);
+        return LightController::create(light.mData.mFlags, color);
     }
 }
 
@@ -82,7 +83,7 @@ namespace MWAnim
             attachLight = fallback;
         auto l = createLight(light);
         attachLight->addChild(l);
-        if (auto ctrl = createLightControllerIfRequired(light))
+        if (auto ctrl = createLightControllerIfRequired(light, l->color))
         {
             ctrl->attachTo(*l);
             controllers.emplace_back(ctrl, l);

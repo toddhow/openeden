@@ -3,6 +3,7 @@
 #define LIB_LIGHT_EQUATIONS
 
 #include "light.settings"
+#include "lib/util/quickstep.glsl"
 
 float lambert(vec3 light, vec3 normal)
 {
@@ -11,6 +12,9 @@ float lambert(vec3 light, vec3 normal)
 
 float lightRange(float intensity)
 {
+    // OpenEden: without classic falloff a light ends at twice its radius (see attenuate), as OpenMW's doLighting.
+    if (!cClassicFalloff)
+        return intensity * 2.0;
 #if 0
 return intensity*4;
 #else
@@ -46,7 +50,11 @@ float attenuate(float intensity, float distance)
             attenuation /= r * r;
         value += attenuation * distance * distance;
     }
-    return clamp(1.0 / value, 0.0, 1.0);
+    float illumination = clamp(1.0 / value, 0.0, 1.0);
+    // OpenEden: fades between the radius and the radius doubled, as OpenMW's lcalcIllumination at 442eec6e2f.
+    if (!cClassicFalloff)
+        illumination *= 1.0 - quickstep(distance / intensity - 1.0);
+    return illumination;
 }
 
 #endif

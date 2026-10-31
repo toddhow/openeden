@@ -1,9 +1,6 @@
 #if defined(COLOR) || defined(PARTICLE)
 vec4 color;
 #endif
-#if defined(TEXCOORD) || defined(PARTICLE)
-vec2 texCoord[numUvSets];
-#endif
 vec3 viewPos;
 #ifdef NORMAL
 vec3 viewNormal;
@@ -21,3 +18,8 @@ vec3 viewTangent;
 vec3 viewBinormal;
 #endif
 vec3 pointLightDiffuse;
+// OpenEden: last in the block. Its length is a specialization constant but locations are assigned at compile time, so
+// with more UV sets it would overlap whatever follows it, pointLightDiffuse included (task 0012).
+#if defined(TEXCOORD) || defined(PARTICLE)
+vec2 texCoord[numUvSets];
+#endif

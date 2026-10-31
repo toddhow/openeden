@@ -71,7 +71,7 @@ namespace MWRender
             auto light = vsg::PointLight::create();
             light->color = *lightColor;
             // light->ambientColor = {1,1,1};
-            light->intensity = 30;
+            light->intensity = 66; // OpenEden: the radius of OpenMW's projectile light (projectilemanager.cpp at 442eec6e2f).
             p.transform->addChild(light);
         }
 

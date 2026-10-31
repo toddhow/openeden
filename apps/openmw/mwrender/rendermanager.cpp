@@ -501,8 +501,9 @@ namespace MWRender
     void RenderManager::configureAmbient(const MWWorld::Cell& cell)
     {
         auto ambient = vsg::vec4(MWAnim::rgbColor(cell.getMood().mAmbiantColor), 1.f);
-        //if (!cell.isExterior() && !cell.isQuasiExterior())
-            //MWAnim::brighten(ambient, mMinimumAmbientLuminance);
+        // OpenEden: as OpenMW's configureAmbient at 442eec6e2f, which skips it with classic falloff.
+        if (!cell.isExterior() && !cell.isQuasiExterior() && !Settings::shaders().mClassicFalloff)
+            MWAnim::brighten(ambient, mMinimumAmbientLuminance);
         setAmbientColour(ambient);
 
         auto diffuse = vsg::vec4(MWAnim::rgbColor(cell.getMood().mDirectionalColor), 1.f);
