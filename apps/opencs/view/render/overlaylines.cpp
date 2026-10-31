@@ -18,6 +18,7 @@ namespace
 
 CSVRender::OverlayLines::OverlayLines(SceneHost& host)
     : mHost(host)
+    , mHostAlive(host.aliveToken())
     , mRoot(vsg::Group::create())
 {
     mHost.compileContext()->compile(mRoot);
@@ -26,6 +27,8 @@ CSVRender::OverlayLines::OverlayLines(SceneHost& host)
 
 CSVRender::OverlayLines::~OverlayLines()
 {
+    if (mHostAlive.expired())
+        return;
     auto& children = mHost.contentRoot().children;
     children.erase(std::remove(children.begin(), children.end(), vsg::ref_ptr<vsg::Node>(mRoot)), children.end());
     mHost.compileContext()->detach(mRoot);

@@ -1,6 +1,7 @@
 #ifndef CSV_RENDER_OVERLAYLINES_H
 #define CSV_RENDER_OVERLAYLINES_H
 
+#include <memory>
 #include <vector>
 
 #include <vsg/core/Array.h>
@@ -19,7 +20,7 @@ namespace CSVRender
 
     /// Coloured lines drawn over everything, unlit and not pickable, that change often: what the OSG editor put in render
     /// bin 11 with no depth test. As Render::DebugGeometry, the arrays are kept and refilled, so that a change needs no
-    /// compile unless the lines outgrow them. Owned by whichever tool draws them, and must go before the SceneHost.
+    /// compile unless the lines outgrow them. Owned by whichever tool draws them, which may outlive the SceneHost.
     class OverlayLines
     {
     public:
@@ -38,6 +39,7 @@ namespace CSVRender
         void reserve(std::size_t count);
 
         SceneHost& mHost;
+        std::weak_ptr<void> mHostAlive;
         vsg::ref_ptr<vsg::Group> mRoot;
         vsg::ref_ptr<vsg::Node> mNode;
         vsg::ref_ptr<vsg::VertexDraw> mDraw;

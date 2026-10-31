@@ -630,3 +630,11 @@ Not verified: the list below. Editing a pathgrid in a paged view and `applyRemov
 60. **Remove.** With the selection tool's context menu, remove selected nodes, and remove edges between them. The edges left still join the right nodes, and Ctrl+Z restores them. This ran through no script.
 61. **Exterior.** The same in a paged exterior, across two cells: only one cell's grid is selected at a time.
 62. **Preview.** In a table, right-click a record, Preview: the object is in view, in orbit mode. Say if the framing is a nuisance. Edit its model field: the preview follows. Delete the record: the preview closes. Preview a Reference too.
+
+### Crash runs, C7 to C9 (2026-10-31)
+
+Running the scripted capture path repeatedly found a real shutdown crash: an access violation in `OverlayLines::~OverlayLines`. Edit modes belong to the toolbar, which Qt destroyed after the view, so a terrain tool's lines touched the dead `SceneHost`. It appeared on all four exterior runs that used a terrain mode, under `crashrun`, while plain runs exited 0 with the bad read unnoticed. `OverlayLines` now checks `SceneHost::aliveToken()`.
+
+After the fix, 12 plain runs, four each of an exterior (select, move, undo, raise, undo), Caius Cosades' House (pathgrid select, move, undo) and Arrille's Tradehouse (select, rotate mode): all exit 0, no crash dump. Under `crashrun`, 6 runs had no exception, but 5 of the 6 did not exit within its 60 seconds after logging `Auto-quit`, and one earlier run exited with code 57005 (0xDEAD); plain runs do neither. Those come from the runner or from running under the debug API, which is not proven, and no stack was taken of them. The segfault seen once at C4 was on Arrille's interior with no terrain tool, so this fix does not explain it; it was not seen again.
+
+Check of the game, which had `Storage`, `Builder` and hit-normal changes: Balmora and Caldera Mages Guild started and ran 320 frames at this code, Balmora's frame viewed: terrain, sky and HUD as expected. Not compared pixel by pixel, beyond the frame times above.

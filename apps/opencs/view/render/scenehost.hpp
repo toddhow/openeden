@@ -144,6 +144,9 @@ namespace CSVRender
         Picking::Result missAt(double x, double y, double placementDistance) const;
         vsg::dmat4 getProjectionMatrix() const;
 
+        /// Expires with this host. An edit mode's helpers belong to a toolbar, which Qt may destroy after the view.
+        std::weak_ptr<void> aliveToken() const { return mAlive; }
+
         /// A frame will be drawn on the next timer tick, as flagAsModified was with OSG's ON_DEMAND.
         void requestRedraw() { mRedraw = true; }
 
@@ -201,6 +204,7 @@ namespace CSVRender
         vsg::ref_ptr<vsg::vec3Array> mGradientVertices;
         vsg::ref_ptr<vsg::vec4Array> mGradientColours;
 
+        std::shared_ptr<void> mAlive = std::make_shared<int>(0);
         bool mRedraw = true;
         std::vector<FrameListener*> mListeners;
         std::chrono::steady_clock::time_point mLastUpdate;
