@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <osg/Vec2f>
+#include <vsg/maths/vec2.h>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -19,8 +19,8 @@ namespace LuaUi
     struct TextureData
     {
         VFS::Path::Normalized mPath;
-        osg::Vec2f mOffset;
-        osg::Vec2f mSize;
+        vsg::vec2 mOffset;
+        vsg::vec2 mSize;
     };
 
     // will have more/different data when automated atlasing is supported
