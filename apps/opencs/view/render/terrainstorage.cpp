@@ -45,10 +45,6 @@ namespace CSVRender
         layers[std::make_pair(static_cast<short>(0), static_cast<short>(0))] = defaultTexture;
         for (const auto& [pluginIndex, _] : textures.getIndices())
         {
-            // Plugin -1 is a record of the project being edited, which layer indices cannot hold. Its land shows the
-            // default texture until the texture modes of stage C8 need more.
-            if (pluginIndex.first < 0)
-                continue;
             const short plugin = static_cast<short>(pluginIndex.first);
             layers[std::make_pair(static_cast<short>(0), plugin)] = defaultTexture;
             if (const std::string* texture = textures.getLandTexture(pluginIndex.second, pluginIndex.first))

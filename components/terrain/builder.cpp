@@ -56,6 +56,11 @@ namespace Terrain
         });
     }
 
+    void Builder::clearCache() const
+    {
+        dataCache.removeObjects([](const Builder::BatchData&) -> bool { return true; });
+    }
+
     void Builder::setStorage(Storage* in_storage)
     {
         mStorage = in_storage;

@@ -35,7 +35,6 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **Medians for a default view:** Morrowind interiors can keep a few objects far outside the room, so a bounding box of the references frames empty space.
 - **Masks:** `mask.hpp` is still the OSG build's list. On VSG a scene element hangs under `SceneHost::maskNode(mask, node)`, a `vsg::Switch`, and `setVisibilityMask` sets the view's traversal mask.
 - **`TerrainStorage` serves one cell.** The alteration hooks have no cell argument, so each `Cell` has its own storage and `Terrain::Paging`, and asks for a batch of one cell.
-- **Layer indices cannot hold plugin -1,** a land texture of the project being edited; `enumerateLayers` skips those.
 - **`SimpleWater` follows the camera unless told otherwise:** a cell's water passes `followCamera = false`.
 - **Debugging a crash here:** the crash catcher did not write a dump for a capture. A small Win32 debug-API runner that writes a minidump at the first access violation, read with a dbghelp stack walker, found each one quickly. `std::cerr` output through `Debug` loses first characters, so trace with `Log`.
 - **Git Bash runs need Qt's `bin` on `PATH`.** Without it, an executable linking Qt exits with 127 and a misleading message about `api-ms-win-crt-locale`.
@@ -49,3 +48,5 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **Overlays:** `OverlayLines` for lines that change often, `ColouredOptions` for the rest. A tool's helper turns `mPickable` off, or a click lands on it. Use `vsg::ComputeBounds` with `useNodeBounds = false`, or a node's bounding sphere gives a box far too big.
 - **`vsg::dquat`'s product has OSG's order:** `a * b` is a, then b. Do not swap operands when porting.
 - **Scripted edits:** `--camera-script` drives the edit modes (`capture.cpp`). A scene widget needs its selectors made, or `getVisibilityMask` crashes on null, so the capture has a hidden toolbar.
+- **A terrain rebuild goes through `Paging::clearCache`:** the builder keeps batch data by bounds. A changed set of land textures also needs `setStorage` again (`Cell::mUpdateLayers`).
+- **No terrain rays in a loop:** each ray recomputes a chunk's vertices. A brush outline reads the land (`BrushDraw::getTerrainHeight`).

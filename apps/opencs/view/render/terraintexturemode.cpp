@@ -12,8 +12,6 @@
 #include <QSlider>
 #include <QWidget>
 
-#include <osg/Vec2f>
-#include <osg/Vec3d>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -41,6 +39,8 @@
 #include "../../model/world/tablemimedata.hpp"
 #include "../../model/world/universalid.hpp"
 
+#include <vsg/maths/vec2.h>
+
 #include "brushdraw.hpp"
 #include "editmode.hpp"
 #include "mask.hpp"
@@ -48,14 +48,13 @@
 #include "worldspacewidget.hpp"
 
 CSVRender::TerrainTextureMode::TerrainTextureMode(
-    WorldspaceWidget* worldspaceWidget, osg::Group* parentNode, QWidget* parent)
+    WorldspaceWidget* worldspaceWidget, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-texture"),
         Mask_Terrain | Mask_Reference, "Terrain texture editing", parent)
     , mBrushSize(1)
     , mBrushShape(CSVWidget::BrushShape_Point)
     , mTextureBrushScenetool(nullptr)
     , mDragMode(InteractionType_None)
-    , mParentNode(parentNode)
     , mIsEditing(false)
 {
 }
@@ -90,11 +89,11 @@ void CSVRender::TerrainTextureMode::activate(CSVWidget::SceneToolbar* toolbar)
     if (!mTerrainTextureSelection)
     {
         mTerrainTextureSelection
-            = std::make_shared<TerrainSelection>(mParentNode, &getWorldspaceWidget(), TerrainSelectionType::Texture);
+            = std::make_shared<TerrainSelection>(&getWorldspaceWidget(), TerrainSelectionType::Texture);
     }
 
     if (!mBrushDraw)
-        mBrushDraw = std::make_unique<BrushDraw>(mParentNode, true);
+        mBrushDraw = std::make_unique<BrushDraw>(getWorldspaceWidget(), true);
 
     EditMode::activate(toolbar);
     toolbar->addTool(mTextureBrushScenetool);
@@ -132,7 +131,7 @@ void CSVRender::TerrainTextureMode::primaryEditPressed(const WorldspaceHitResult
     CSMWorld::IdTable& ltexTable
         = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_LandTextures));
 
-    mCellId = getWorldspaceWidget().getCellId(hit.worldPos);
+    mCellId = getWorldspaceWidget().getCellId(vsg::vec3(hit.worldPos));
 
     QUndoStack& undoStack = document.getUndoStack();
     CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = document.getData().getLandTextures();
@@ -178,7 +177,7 @@ bool CSVRender::TerrainTextureMode::primaryEditStartDrag(const QPoint& pos)
     CSMWorld::IdTable& ltexTable
         = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_LandTextures));
 
-    mCellId = getWorldspaceWidget().getCellId(hit.worldPos);
+    mCellId = getWorldspaceWidget().getCellId(vsg::vec3(hit.worldPos));
 
     QUndoStack& undoStack = document.getUndoStack();
 
@@ -237,7 +236,7 @@ void CSVRender::TerrainTextureMode::drag(const QPoint& pos, int diffX, int diffY
     if (mDragMode == InteractionType_PrimaryEdit)
     {
         WorldspaceHitResult hit = getWorldspaceWidget().mousePick(pos, getWorldspaceWidget().getInteractionMask());
-        std::string cellId = getWorldspaceWidget().getCellId(hit.worldPos);
+        std::string cellId = getWorldspaceWidget().getCellId(vsg::vec3(hit.worldPos));
         CSMDoc::Document& document = getWorldspaceWidget().getDocument();
 
         CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = document.getData().getLandTextures();
@@ -313,7 +312,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
     CSMWorld::IdTable& landTable
         = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Land));
 
-    mCellId = getWorldspaceWidget().getCellId(hit.worldPos);
+    mCellId = getWorldspaceWidget().getCellId(vsg::vec3(hit.worldPos));
     if (allowLandTextureEditing(mCellId))
     {
     }
@@ -324,8 +323,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
     int cellY = cellCoordinatesPair.first.getY();
 
     // The coordinates of hit in mCellId
-    int xHitInCell(float(((hit.worldPos.x() - (cellX * cellSize)) * landTextureSize / cellSize) - 0.25));
-    int yHitInCell(float(((hit.worldPos.y() - (cellY * cellSize)) * landTextureSize / cellSize) + 0.25));
+    int xHitInCell(float(((hit.worldPos.x - (cellX * cellSize)) * landTextureSize / cellSize) - 0.25));
+    int yHitInCell(float(((hit.worldPos.y - (cellY * cellSize)) * landTextureSize / cellSize) + 0.25));
     if (xHitInCell < 0)
     {
         xHitInCell = xHitInCell + landTextureSize;
@@ -579,9 +578,9 @@ void CSVRender::TerrainTextureMode::selectTerrainTextures(
         {
             for (int j = -r; j <= r; j++)
             {
-                osg::Vec2f coords(i, j);
+                const vsg::vec2 coords(static_cast<float>(i), static_cast<float>(j));
                 float rf = static_cast<float>(mBrushSize) / 2;
-                if (std::round(coords.length()) < rf)
+                if (std::round(vsg::length(coords)) < rf)
                 {
                     int x = i + texCoords.first;
                     int y = j + texCoords.second;

@@ -185,6 +185,11 @@ namespace Terrain
         view.clear();
     }
 
+    void Paging::clearCache() const
+    {
+        mBuilder->clearCache();
+    }
+
     void Paging::pruneCache() const
     {
         mBuilder->pruneCache();

@@ -65,6 +65,7 @@ namespace CSVRender
         int mSubMode;
         unsigned int mSubModeElementMask;
         bool mUpdateLand, mLandDeleted;
+        bool mUpdateLayers = false;
 
         /// Ignored if cell does not have an object with the given ID.
         ///

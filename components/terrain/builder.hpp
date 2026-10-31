@@ -26,6 +26,7 @@ namespace Terrain
         ~Builder();
 
         void pruneCache() const;
+        void clearCache() const;
 
         void setStorage(Storage* in_storage);
 

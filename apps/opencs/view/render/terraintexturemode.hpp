@@ -25,11 +25,6 @@ class QObject;
 class QPoint;
 class QWidget;
 
-namespace osg
-{
-    class Group;
-}
-
 namespace CSMDoc
 {
     class Document;
@@ -67,7 +62,7 @@ namespace CSVRender
         };
 
         /// \brief Editmode for terrain texture grid
-        TerrainTextureMode(WorldspaceWidget*, osg::Group* parentNode, QWidget* parent = nullptr);
+        TerrainTextureMode(WorldspaceWidget*, QWidget* parent = nullptr);
 
         void primaryOpenPressed(const WorldspaceHitResult& hit) override;
 
@@ -128,7 +123,6 @@ namespace CSVRender
         std::vector<std::pair<int, int>> mCustomBrushShape;
         CSVWidget::SceneToolTextureBrush* mTextureBrushScenetool;
         int mDragMode;
-        osg::Group* mParentNode;
         bool mIsEditing;
         std::shared_ptr<TerrainSelection> mTerrainTextureSelection;
 

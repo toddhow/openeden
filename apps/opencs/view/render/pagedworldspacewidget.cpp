@@ -36,6 +36,8 @@
 #include "cellarrow.hpp"
 #include "editmode.hpp"
 #include "mask.hpp"
+#include "terrainshapemode.hpp"
+#include "terraintexturemode.hpp"
 #include "objectmarker.hpp"
 
 class QWidget;
@@ -169,13 +171,8 @@ void CSVRender::PagedWorldspaceWidget::addEditModeSelectorButtons(CSVWidget::Sce
     WorldspaceWidget::addEditModeSelectorButtons(tool);
 
     /// \todo replace EditMode with suitable subclasses
-    // The plain base class until stage C8 brings back TerrainShapeMode and TerrainTextureMode.
-    tool->addButton(new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-shape"), Mask_Terrain,
-                        "Terrain land shape editing", tool),
-        "terrain-shape");
-    tool->addButton(new EditMode(this, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-texture"), Mask_Terrain,
-                        "Terrain texture editing", tool),
-        "terrain-texture");
+    tool->addButton(new TerrainShapeMode(this, tool), "terrain-shape");
+    tool->addButton(new TerrainTextureMode(this, tool), "terrain-texture");
     const QIcon vertexIcon = Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-vertex-paint");
     const QIcon movementIcon = Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-movement");
     tool->addButton(new EditMode(this, vertexIcon, Mask_Reference, "Terrain vertex paint editing"), "terrain-vertex");

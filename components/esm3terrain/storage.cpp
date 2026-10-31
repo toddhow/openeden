@@ -292,6 +292,13 @@ namespace ESMTerrain
                 layerInfoMap[name] = layerInfos.size();
                 layerInfos.emplace_back(name);
             }
+            if (id.second < 0)
+            {
+                if (mProjectLayerIndices.size() <= static_cast<std::size_t>(id.first))
+                    mProjectLayerIndices.resize(static_cast<std::size_t>(id.first) + 1);
+                mProjectLayerIndices[static_cast<std::size_t>(id.first)] = static_cast<unsigned int>(index);
+                continue;
+            }
             if (static_cast<short>(mLayerIndices.size()) < id.first+1)
                 mLayerIndices.resize(id.first+1);
             if (static_cast<short>(mLayerIndices[id.first].size()) < id.second+1)
@@ -323,7 +330,12 @@ namespace ESMTerrain
                     vsg::ivec2 offset = { i&1, (i&2)>>1 };
                     PluginTexture id = getVtexIndexAt(cellX, cellY, x + rowStart + offset.x, y + colStart + offset.y, cache);
                     unsigned int layerIndex = 0;
-                    if (/*id.first < static_cast<short>(mLayerIndices.size()) && */id.second >= 0 && id.second < static_cast<short>(mLayerIndices[id.first].size()))
+                    if (id.second < 0)
+                    {
+                        if (static_cast<std::size_t>(id.first) < mProjectLayerIndices.size())
+                            layerIndex = mProjectLayerIndices[static_cast<std::size_t>(id.first)];
+                    }
+                    else                     if (/*id.first < static_cast<short>(mLayerIndices.size()) && */id.second >= 0 && id.second < static_cast<short>(mLayerIndices[id.first].size()))
                         layerIndex = mLayerIndices[id.first][id.second];
                     (*image)(x, y)[i] = static_cast<unsigned char>(layerIndex);
                 }

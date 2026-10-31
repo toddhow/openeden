@@ -10,7 +10,7 @@
 
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 
-#include <osg/Vec3d>
+#include <vsg/maths/vec3.h>
 
 #ifndef Q_MOC_RUN
 #include "../../model/world/columnimp.hpp"
@@ -24,11 +24,6 @@ class QMouseEvent;
 class QObject;
 class QPoint;
 class QWidget;
-
-namespace osg
-{
-    class Group;
-}
 
 namespace CSMDoc
 {
@@ -79,7 +74,7 @@ namespace CSVRender
         };
 
         /// Editmode for terrain shape grid
-        TerrainShapeMode(WorldspaceWidget*, osg::Group* parentNode, QWidget* parent = nullptr);
+        TerrainShapeMode(WorldspaceWidget*, QWidget* parent = nullptr);
 
         void primaryOpenPressed(const WorldspaceHitResult& hit) override;
 
@@ -206,12 +201,11 @@ namespace CSVRender
         std::vector<std::pair<int, int>> mCustomBrushShape;
         CSVWidget::SceneToolShapeBrush* mShapeBrushScenetool = nullptr;
         int mDragMode = InteractionType_None;
-        osg::Group* mParentNode;
         bool mIsEditing = false;
         std::shared_ptr<TerrainSelection> mTerrainShapeSelection;
         int mTotalDiffY = 0;
         std::vector<CSMWorld::CellCoordinates> mAlteredCells;
-        osg::Vec3d mEditingPos;
+        vsg::dvec3 mEditingPos;
         int mShapeEditTool = ShapeEditTool_Drag;
         int mShapeEditToolStrength = 8;
         int mTargetHeight = 0;

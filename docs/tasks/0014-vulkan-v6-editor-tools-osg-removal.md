@@ -574,3 +574,32 @@ Not verified: everything on the list below. Scale, group rotation, drop to colli
 41. **Groups.** `scene-save-1` with a selection, clear it, `scene-group-1`: selected again, in magenta.
 42. **Drop a record.** Drag a Static from the table into the view: a new instance where you drop it. The cell-outside-view preferences act as named.
 43. **Tilted objects.** Compare a rock tilted on two axes with the game: tell me if the editor's mismatch (above) matters to you.
+
+### C8 Terrain shape and texture modes (2026-10-31)
+
+`terrainshapemode`, `terraintexturemode`, `terrainselection`, `brushdraw` and `commands` are back in the build. The edits, limits, macros and `TouchLandCommand` calls are the old code's, with only their math types changed. `terraintoolgeometry.hpp` holds the outlines, selection lines and land normal with no window, tested by `testterraintools.cpp` (12 cases, written first).
+
+- **Heights on screen:** `Terrain::Builder` kept each batch's data by its bounds, so a rebuild showed the old land. `Paging::clearCache` forgets it before a cell's rebuild; the game never calls it.
+- **Cost per edit, measured** (`OPENMW_DEBUG_LEVEL=DEBUG` logs each rebuild): about 1 ms a cell mid-session and 3 to 4 ms a cell with the document's commit at the end of an edit, which rebuilds all nine shown cells, so about 35 ms once at a release. No caching was needed. This machine only; the frames' drawing and a very large selection were not timed.
+- **Project-new land textures:** `Storage` now keeps plugin -1 in `mProjectLayerIndices`, and `TerrainStorage::enumerateLayers` no longer skips it. Painting touches a land's textures into plugin -1, so without this every painted cell showed the default layer. The game has no negative plugin. A cell's layer array is rebuilt when the land textures table changes. New `esm3terrain/testprojectlayers.cpp`.
+- **Brush outline heights:** bilinear from the land records plus alterations, not a ray per point as the OSG editor had. Up to a thousand rays each mouse move would each recompute a chunk's vertices. The line may differ from the drawn triangles by a little, and it has no depth test.
+- **Lines:** `OverlayLines`, a kept dynamic array after `Render::DebugGeometry`'s pattern. That class has no way to switch off its depth test, so it is not used itself.
+
+Checks at Seyda Neen, through the real tool code below the Qt events, frames viewed:
+- **Raise:** `shapebrush 2 20 1 60; drag edit 640 560 660 560 3`: a mound with the brush's circle lying on it, shaded by the new normals, houses unmoved as the terrain rises under them. The stack has one `Edit shape and normal records`.
+- **Undo:** `undo` puts the ground back as it was by eye; the terrain selection grid of a following `drag select` follows the ground over the same area.
+- **Paint:** `texbrush 2 4 sand; drag edit 400 560 700 600 6`: a sweep of `Tx_sand_01`, one `Edit texture records` on the stack. That the colour is the right texture is judged by eye and from the record, not against the game.
+
+Not verified: the list below. Smooth, flatten, equalize, the slope limit, the seam at a cell's edge beyond what a large brush crosses, and creating land from a cell with none were not run.
+
+44. **Raise and lower (C8).** Paged `#-2 -9`, Terrain land editing mode. Open the brush tool: choose Circle, size 10. "Drag" tool: `scene-edit-primary` drag up on the ground; the ground rises as you drag, smoothly, without stalls. Release: it stays. Try Paint to raise, Paint to lower: painting rises or sinks where the pointer goes.
+45. **Smooth, flatten, equalize.** Each on bumpy ground: it does what it says, and on release stays so.
+46. **Seam.** Raise right across a cell's border, then a corner of four cells. No crack, on screen or after moving the camera away and back.
+47. **Slope limit.** Try to raise a spike with a point brush: if the slope is too steep the edit limits itself or is dropped with a warning in the log, as before.
+48. **Undo and redo.** Ctrl+Z restores the ground and its shading at once; Ctrl+Y brings it back. Repeat with a terrain selection showing: the selection follows the ground.
+49. **Brush outline.** Move the pointer: the outline for point, square and circle follows the ground, snapping to vertices, without lag. Tell me if it sits visibly off the ground on a steep slope.
+50. **Selection.** `scene-select-primary` drag: a grid of vertices. `scene-select-secondary` drag: toggles. In the brush tool's Custom shape, "use selection": the shape takes it.
+51. **Paint textures.** Terrain texture mode, from the Land Textures table drag a texture to the brush tool. Paint: the texture appears where the pointer goes, in the project and after reloading a cell. Ctrl+Z restores it.
+52. **New land texture.** Add a new land texture to the project, set its image, and paint with it: **that texture**, not the default. Change its image in the table: the land follows.
+53. **Cell with no land.** Paint and raise in an empty cell (prefs: land edit outside cells, outside visible): the cell and land are made as those preferences say.
+54. **Save.** Save the plugin, load it in the game: the terrain and textures are there.

@@ -89,6 +89,8 @@ namespace ESMTerrain
         inline PluginTexture getVtexIndexAt(int cellX, int cellY, int x, int y, LandCache&);
 
         std::vector<std::vector<unsigned int>> mLayerIndices;
+        /// Land textures of plugin -1, the project being edited: the editor has them and the game does not.
+        std::vector<unsigned int> mProjectLayerIndices;
     };
 
 }

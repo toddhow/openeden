@@ -1,38 +1,34 @@
 #ifndef CSV_RENDER_BRUSHDRAW_H
 #define CSV_RENDER_BRUSHDRAW_H
 
-#include <osg/Vec3d>
-#include <osg/ref_ptr>
+#include <memory>
+
+#include <vsg/maths/vec3.h>
 
 #include "../widget/brushshapes.hpp"
 
-namespace osg
-{
-    class Geometry;
-    class Group;
-}
-
 namespace CSVRender
 {
+    class OverlayLines;
+    class WorldspaceWidget;
+
+    /// The outline of a terrain brush under the pointer. Owned by its edit mode. Its lines hang in the view from the first
+    /// update on, so the view must exist by then and outlive this.
     class BrushDraw
     {
     public:
-        BrushDraw(osg::ref_ptr<osg::Group> parentNode, bool textureMode = false);
+        explicit BrushDraw(WorldspaceWidget& worldspaceWidget, bool textureMode = false);
         ~BrushDraw();
 
-        void update(osg::Vec3d point, int brushSize, CSVWidget::BrushShape toolShape);
+        void update(const vsg::dvec3& point, int brushSize, CSVWidget::BrushShape toolShape);
         void hide();
 
     private:
-        void buildPointGeometry(const osg::Vec3d& point);
-        void buildSquareGeometry(const float& radius, const osg::Vec3d& point);
-        void buildCircleGeometry(const float& radius, const osg::Vec3d& point);
-        void buildCustomGeometry(const float& radius, const osg::Vec3d& point);
-        float getIntersectionHeight(const osg::Vec3d& point);
+        float vertexHeight(int x, int y) const;
+        float getTerrainHeight(float worldX, float worldY) const;
 
-        osg::ref_ptr<osg::Group> mParentNode;
-        osg::ref_ptr<osg::Group> mBrushDrawNode;
-        osg::ref_ptr<osg::Geometry> mGeometry;
+        WorldspaceWidget& mWorldspaceWidget;
+        std::unique_ptr<OverlayLines> mLines;
         bool mTextureMode;
         float mLandSizeFactor;
     };

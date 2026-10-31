@@ -1,11 +1,13 @@
 #include "cell.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <set>
 #include <utility>
 
 #include <vsg/nodes/Group.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
@@ -127,6 +129,15 @@ void CSVRender::Cell::updateLand()
         mTerrainNode = SceneHost::maskNode(Mask_Terrain, mTerrainView->node());
     }
 
+    const auto rebuildStart = std::chrono::steady_clock::now();
+    // A rebuild must read the land again, not the batch data of the last time.
+    if (mUpdateLayers)
+    {
+        mUpdateLayers = false;
+        mTerrain->setStorage(mTerrainStorage.get());
+    }
+    mTerrain->clearCache();
+
     // One cell's bounds in one batch: the alteration hooks of TerrainStorage do not know which cell they are asked about.
     if (auto compile = mTerrain->updateViewForCell(
             *mTerrainView, vsg::ivec2(esmLand.mX, esmLand.mY), mTerrainStorage->cellWorldSize))
@@ -139,6 +150,8 @@ void CSVRender::Cell::updateLand()
         mCellBorder = std::make_unique<CellBorder>(mHost, *mCellNode, mCoordinates);
 
     mCellBorder->buildShape(esmLand);
+    Log(Debug::Debug) << "Terrain of " << mId.getRefIdString() << " rebuilt in "
+                      << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - rebuildStart).count() << " ms";
     mHost.requestRedraw();
 }
 
@@ -430,16 +443,19 @@ void CSVRender::Cell::landAdded(const QModelIndex& parent, int start, int end)
 void CSVRender::Cell::landTextureChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
     mUpdateLand = true;
+    mUpdateLayers = true;
 }
 
 void CSVRender::Cell::landTextureAboutToBeRemoved(const QModelIndex& parent, int start, int end)
 {
     mUpdateLand = true;
+    mUpdateLayers = true;
 }
 
 void CSVRender::Cell::landTextureAdded(const QModelIndex& parent, int start, int end)
 {
     mUpdateLand = true;
+    mUpdateLayers = true;
 }
 
 void CSVRender::Cell::reloadAssets()
@@ -450,6 +466,7 @@ void CSVRender::Cell::reloadAssets()
     }
 
     mUpdateLand = true;
+    mUpdateLayers = true;
 
     if (mCellWater)
         mCellWater->reloadAssets();

@@ -11,8 +11,6 @@
 #include <QIcon>
 #include <QWidget>
 
-#include <osg/Camera>
-#include <osg/Vec3f>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
@@ -45,7 +43,9 @@
 #include "editmode.hpp"
 #include "mask.hpp"
 #include "pagedworldspacewidget.hpp"
+#include "scenehost.hpp"
 #include "terrainselection.hpp"
+#include "terraintoolgeometry.hpp"
 #include "worldspacewidget.hpp"
 
 class QPoint;
@@ -56,16 +56,10 @@ namespace CSMWorld
     struct Cell;
 }
 
-namespace osg
-{
-    class Group;
-}
-
 CSVRender::TerrainShapeMode::TerrainShapeMode(
-    WorldspaceWidget* worldspaceWidget, osg::Group* parentNode, QWidget* parent)
+    WorldspaceWidget* worldspaceWidget, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-shape"), Mask_Terrain,
         "Terrain land editing", parent)
-    , mParentNode(parentNode)
 {
 }
 
@@ -74,7 +68,7 @@ void CSVRender::TerrainShapeMode::activate(CSVWidget::SceneToolbar* toolbar)
     if (!mTerrainShapeSelection)
     {
         mTerrainShapeSelection
-            = std::make_shared<TerrainSelection>(mParentNode, &getWorldspaceWidget(), TerrainSelectionType::Shape);
+            = std::make_shared<TerrainSelection>(&getWorldspaceWidget(), TerrainSelectionType::Shape);
     }
 
     if (!mShapeBrushScenetool)
@@ -96,7 +90,7 @@ void CSVRender::TerrainShapeMode::activate(CSVWidget::SceneToolbar* toolbar)
     }
 
     if (!mBrushDraw)
-        mBrushDraw = std::make_unique<BrushDraw>(mParentNode);
+        mBrushDraw = std::make_unique<BrushDraw>(getWorldspaceWidget());
 
     EditMode::activate(toolbar);
     toolbar->addTool(mShapeBrushScenetool);
@@ -376,41 +370,38 @@ void CSVRender::TerrainShapeMode::applyTerrainEditChanges()
         {
             for (int j = 0; j < ESM::Land::LAND_SIZE; ++j)
             {
-                osg::Vec3f v1(128, 0, 0);
-                osg::Vec3f v2(0, 128, 0);
+                float riseX = 0.f;
+                float riseY = 0.f;
 
                 if (i < ESM::Land::LAND_SIZE - 1)
-                    v1.z() = landShapePointer[j * ESM::Land::LAND_SIZE + i + 1]
+                    riseX = landShapePointer[j * ESM::Land::LAND_SIZE + i + 1]
                         - landShapePointer[j * ESM::Land::LAND_SIZE + i];
                 else
                 {
                     std::string shiftedCellId
                         = CSMWorld::CellCoordinates::generateId(cellCoordinates.getX() + 1, cellCoordinates.getY());
                     if (isLandLoaded(shiftedCellId))
-                        v1.z() = landRightShapePointer[j * ESM::Land::LAND_SIZE + 1]
+                        riseX = landRightShapePointer[j * ESM::Land::LAND_SIZE + 1]
                             - landShapePointer[j * ESM::Land::LAND_SIZE + i];
                 }
 
                 if (j < ESM::Land::LAND_SIZE - 1)
-                    v2.z() = landShapePointer[(j + 1) * ESM::Land::LAND_SIZE + i]
+                    riseY = landShapePointer[(j + 1) * ESM::Land::LAND_SIZE + i]
                         - landShapePointer[j * ESM::Land::LAND_SIZE + i];
                 else
                 {
                     std::string shiftedCellId
                         = CSMWorld::CellCoordinates::generateId(cellCoordinates.getX(), cellCoordinates.getY() + 1);
                     if (isLandLoaded(shiftedCellId))
-                        v2.z() = landDownShapePointer[ESM::Land::LAND_SIZE + i]
+                        riseY = landDownShapePointer[ESM::Land::LAND_SIZE + i]
                             - landShapePointer[j * ESM::Land::LAND_SIZE + i];
                 }
 
-                osg::Vec3f normal = v1 ^ v2;
-                const float hyp = normal.length() / 127.0f;
+                const vsg::vec3 normal = TerrainToolGeometry::landNormal(riseX, riseY);
 
-                normal /= hyp;
-
-                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 0] = normal.x();
-                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 1] = normal.y();
-                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 2] = normal.z();
+                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 0] = normal.x;
+                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 1] = normal.y;
+                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 2] = normal.z;
             }
         }
         pushNormalsEditToCommand(landNormalsNew, document, landTable, cellId);
@@ -616,10 +607,8 @@ void CSVRender::TerrainShapeMode::alterHeight(
         if (mShapeEditTool == ShapeEditTool_Drag)
         {
             // Get distance from modified land, alter land change based on zoom
-            osg::Vec3d eye, center, up;
-            paged->getCamera()->getViewMatrixAsLookAt(eye, center, up);
-            osg::Vec3d distance = eye - mEditingPos;
-            alteredHeight = alteredHeight * (distance.length() / 500);
+            const vsg::dvec3 distance = paged->getHost()->getCameraEye() - mEditingPos;
+            alteredHeight = static_cast<float>(alteredHeight * (vsg::length(distance) / 500));
         }
         if (mShapeEditTool == ShapeEditTool_PaintToRaise)
             alteredHeight = *paged->getCellAlteredHeight(cellCoords, inCellX, inCellY) + alteredHeight;

@@ -44,6 +44,8 @@ namespace Terrain
         void clearView(View& view) const;
 
         void pruneCache() const;
+        /// Forgets batch data, for a storage whose land changed. The editor's: the game's land does not.
+        void clearCache() const;
 
     protected:
         Storage* mStorage;

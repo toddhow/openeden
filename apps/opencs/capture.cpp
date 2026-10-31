@@ -35,6 +35,10 @@
 #include <components/toutf8/toutf8.hpp>
 
 #include "model/doc/document.hpp"
+#include "model/world/data.hpp"
+#include "model/world/idcollection.hpp"
+#include "model/world/land.hpp"
+#include "model/world/record.hpp"
 #include "model/doc/documentmanager.hpp"
 #include "model/prefs/state.hpp"
 #include "view/render/camerapose.hpp"
@@ -48,6 +52,8 @@
 #include "view/render/pagedworldspacewidget.hpp"
 #include "view/render/rendercontext.hpp"
 #include "view/render/scenehost.hpp"
+#include "view/render/terrainshapemode.hpp"
+#include "view/render/terraintexturemode.hpp"
 #include "view/render/unpagedworldspacewidget.hpp"
 
 namespace
@@ -256,6 +262,41 @@ namespace
                     : QMetaObject::invokeMethod(view.getEditMode(), name.c_str());
                 if (!ok)
                     Log(Debug::Error) << "The edit mode has no slot " << name;
+            }
+            else if (verb == "shapebrush")
+            {
+                int shape = 0, size = 1, tool = 0, strength = 8;
+                words >> shape >> size >> tool >> strength;
+                if (auto* mode = dynamic_cast<CSVRender::TerrainShapeMode*>(view.getEditMode()))
+                {
+                    mode->setBrushShape(static_cast<CSVWidget::BrushShape>(shape));
+                    mode->setBrushSize(size);
+                    mode->setShapeEditTool(tool);
+                    mode->setShapeEditToolStrength(strength);
+                }
+            }
+            else if (verb == "texbrush")
+            {
+                int shape = 0, size = 1;
+                std::string texture;
+                words >> shape >> size >> texture;
+                if (auto* mode = dynamic_cast<CSVRender::TerrainTextureMode*>(view.getEditMode()))
+                {
+                    mode->setBrushShape(static_cast<CSVWidget::BrushShape>(shape));
+                    mode->setBrushSize(size);
+                    mode->setBrushTexture(ESM::RefId::stringRefId(texture));
+                }
+            }
+            else if (verb == "landheight")
+            {
+                std::string first, second;
+                int x = 0, y = 0;
+                words >> first >> second >> x >> y;
+                const ESM::Land& land
+                    = view.getDocument().getData().getLand().getRecord(ESM::RefId::stringRefId(first + " " + second)).get();
+                const auto* data = land.getLandData(ESM::Land::DATA_VHGT);
+                Log(Debug::Info) << "Land " << first << " " << second << " at " << x << " " << y << ": "
+                                 << data->mHeights[y * ESM::Land::LAND_SIZE + x];
             }
             else if (verb == "selection")
                 logSelection(view);

@@ -1,22 +1,15 @@
 #ifndef CSV_RENDER_TERRAINSELECTION_H
 #define CSV_RENDER_TERRAINSELECTION_H
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <osg/Array>
-#include <osg/ref_ptr>
-
-namespace osg
-{
-    class Group;
-    class Geometry;
-    class PositionAttitudeTransform;
-}
 
 namespace CSVRender
 {
+    class OverlayLines;
     class WorldspaceWidget;
 
     enum class TerrainSelectionType
@@ -37,7 +30,7 @@ namespace CSVRender
     class TerrainSelection
     {
     public:
-        TerrainSelection(osg::Group* parentNode, WorldspaceWidget* worldspaceWidget, TerrainSelectionType type);
+        TerrainSelection(WorldspaceWidget* worldspaceWidget, TerrainSelectionType type);
         ~TerrainSelection();
 
         void onlySelect(const std::vector<std::pair<int, int>>& localPositions);
@@ -54,8 +47,6 @@ namespace CSVRender
         void update();
 
     protected:
-        void drawShapeSelection(const osg::ref_ptr<osg::Vec3Array> vertices);
-        void drawTextureSelection(const osg::ref_ptr<osg::Vec3Array> vertices);
 
         int calculateLandHeight(int x, int y);
 
@@ -69,12 +60,8 @@ namespace CSVRender
         bool noLandLoaded(const std::string& cellId);
 
         bool isLandLoaded(const std::string& cellId);
-
-        osg::Group* mParentNode;
         WorldspaceWidget* mWorldspaceWidget;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
-        osg::ref_ptr<osg::Geometry> mGeometry;
-        osg::ref_ptr<osg::Group> mSelectionNode;
+        std::unique_ptr<OverlayLines> mLines;
         std::vector<std::pair<int, int>>
             mSelection; // Global terrain selection coordinate in either vertex or texture units
         std::vector<std::pair<int, int>>
