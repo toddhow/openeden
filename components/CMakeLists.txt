@@ -277,7 +277,7 @@ add_component_dir(esm attr common defs esmcommon records util luascripts format 
 
 # openeden-vsg: only the .omwfx parser, which produces plain data (task 0012). pass, widgets and stateupdater still use
 # OSG and MyGUI and stay out of the build until the later post-processing stages port them.
-add_component_dir(fx technique lexer lexertypes parseconstants types)
+add_component_dir(fx technique lexer lexertypes parseconstants types vulkanpass)
 
 #[[
 add_component_dir(std140 ubo)

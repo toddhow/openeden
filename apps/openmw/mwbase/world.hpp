@@ -72,6 +72,7 @@ namespace MWAnim
 }
 namespace MWRender
 {
+    class PostProcess;
     class Camera;
     class RenderingManager;
     class PostProcessor;
@@ -222,6 +223,9 @@ namespace MWBase
         virtual void changeWeather(const ESM::RefId& region, const ESM::RefId& id) = 0;
 
         virtual const std::vector<MWWorld::Weather>& getAllWeather() const = 0;
+
+        /// Post-processing, or null with `[Post Processing] enabled` off.
+        virtual MWRender::PostProcess* getPostProcess() = 0;
 
         virtual int getCurrentWeatherScriptId() const = 0;
 

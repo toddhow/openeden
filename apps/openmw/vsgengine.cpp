@@ -254,6 +254,9 @@ namespace OMW
             traits->instanceExtensionNames.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         traits->queueFlags |= VK_QUEUE_COMPUTE_BIT;
         traits->depthFormat = Render::compatibleDepthFormat;
+        // OpenEden: post-processing copies its result back to the swapchain image (task 0012, V4p).
+        if (Settings::postProcessing().mEnabled)
+            traits->swapchainPreferences.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         traits->swapchainPreferences.presentMode = vsync != 0 ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
         // if (vsync == 2) {}
         traits->swapchainPreferences.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // enableScreenshot

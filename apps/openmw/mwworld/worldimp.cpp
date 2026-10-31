@@ -1776,6 +1776,11 @@ namespace MWWorld
         return mWeatherManager->getAllWeather();
     }
 
+    MWRender::PostProcess* World::getPostProcess()
+    {
+        return mRendering->getPostProcess();
+    }
+
     int World::getCurrentWeatherScriptId() const
     {
         return mWeatherManager->getWeather().mScriptId;

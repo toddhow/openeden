@@ -84,8 +84,8 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Models] weathersnow` | Read | |
 | `[Models] weatherblizzard` | Read | |
 | `[Models] write nif debug log` | Not read | Not read by the OSG build either (only `niftest` sets the flag); inherited, no change |
-| `[Post Processing] enabled` | Read | |
-| `[Post Processing] chain` | Read | |
+| `[Post Processing] enabled` | Works | Task 0012, V4p; off with antialiasing |
+| `[Post Processing] chain` | Works | Task 0012, V4p |
 | `[Post Processing] auto exposure speed` | Not read | Post-processing sub-stage (Slang) |
 | `[Post Processing] transparent postpass` | Not read | Post-processing sub-stage |
 | `[Shaders] force shaders` | Not read | Remove: the Vulkan renderer always uses shaders |

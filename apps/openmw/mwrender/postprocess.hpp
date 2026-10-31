@@ -1,0 +1,150 @@
+#ifndef OPENEDEN_MWRENDER_POSTPROCESS_H
+#define OPENEDEN_MWRENDER_POSTPROCESS_H
+
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <vsg/app/View.h>
+#include <vsg/commands/BlitImage.h>
+#include <vsg/commands/Commands.h>
+#include <vsg/commands/PipelineBarrier.h>
+#include <vsg/core/Array.h>
+#include <vsg/nodes/Group.h>
+#include <vsg/state/DescriptorImage.h>
+#include <vsg/state/ShaderStage.h>
+
+#include <components/fx/vulkanpass.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+
+namespace Render
+{
+    class Engine;
+}
+namespace VFS
+{
+    class Manager;
+}
+namespace vsg
+{
+    class Context;
+    class Framebuffer;
+    class Options;
+    class RenderPass;
+    class Switch;
+}
+
+namespace MWRender
+{
+    /**
+     * @brief Runs `.omwfx` post-processing on the finished scene (task 0012, V4p): the frame side of OpenMW's
+     * MWRender::PostProcessor at 442eec6e2f, without touching the main render pass.
+     *
+     * After the scene's render graph, the scene's colour and depth are copied to images of its own, flipped vertically.
+     * Those images, and every pass's target, then have OpenGL's bottom-left origin, so `.omwfx` code and its texture
+     * coordinates work unchanged. Each pass draws a fullscreen triangle into its target; the last full-size target is
+     * copied back, flipped again, before the GUI draws.
+     *
+     * Not ported yet (task 0012 lists them): custom vertex stages, compute passes, blending, render target formats and
+     * mipmaps (targets are the swapchain's colour format), sampler files other than 2D, normals, point lights, HDR, the
+     * flags that turn a technique off in interiors or underwater, and multisampling: RenderManager does not create this
+     * object with antialiasing on, because the GUI pass resolves its multisampled colour over the result.
+     *
+     * Owned by RenderManager; every member function runs on the main thread. With no techniques nothing is recorded.
+     */
+    class PostProcess
+    {
+    public:
+        PostProcess(Render::Engine& engine, vsg::ref_ptr<vsg::Context> context,
+            vsg::ref_ptr<vsgUtil::CompileContext> compile, const VFS::Manager& vfs,
+            vsg::ref_ptr<const vsg::Options> textureOptions, uint32_t width, uint32_t height);
+        ~PostProcess();
+
+        vsg::ref_ptr<vsg::Group> node() const { return mRoot; }
+
+        /// Copies the scene's depth; goes where the main pass is suspended, before the depth-sorted bins, so it is the
+        /// opaque depth. Empty until a frame sets its images.
+        vsg::ref_ptr<vsg::Commands> depthCopy() const { return mDepthCopy; }
+
+        /// The view and a framebuffer to register with the compile manager, after Render::Engine::setup, so pipelines are
+        /// compiled for this render pass (as RenderManager does for shadow cascades).
+        vsg::ref_ptr<vsg::View> baseView() const { return mBaseView; }
+        vsg::ref_ptr<vsg::Framebuffer> registrationFramebuffer();
+        vsg::ref_ptr<vsgUtil::CompileContext> compileContext() const { return mCompile; }
+
+        /// Loads the techniques named (OpenMW's `[Post Processing] chain`) and enables them. A technique that fails to load
+        /// is logged and left out. An empty result records nothing.
+        void setChain(const std::vector<std::string>& names);
+
+        /// The Lua API's operations, as OpenMW's PostProcessor. Changing what is enabled rebuilds the passes.
+        /// loadTechnique returns the same technique for the same name, or null if it failed to load.
+        std::shared_ptr<Fx::Technique> loadTechnique(const std::string& name);
+        bool enableTechnique(const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location);
+        void disableTechnique(const std::shared_ptr<Fx::Technique>& technique);
+        bool isTechniqueEnabled(const std::shared_ptr<Fx::Technique>& technique) const;
+
+        /// Rebuilds everything at a new size.
+        void resize(uint32_t width, uint32_t height);
+
+        /// Points the copies at this frame's swapchain image; only valid once a frame is acquired.
+        void updateImages();
+
+        /// Fills this frame's uniform blocks.
+        void update(Fx::OmwData data);
+
+    private:
+        struct Target;
+        struct LoadedPass;
+        struct LoadedTechnique;
+
+        void createCopies();
+        std::unique_ptr<Target> createTarget(uint32_t width, uint32_t height);
+        Target& getOrCreateNamedTarget(LoadedTechnique& technique, const std::string& name);
+        vsg::ref_ptr<vsg::Node> createPass(LoadedPass& pass, Target& target, vsg::ref_ptr<vsg::ImageView> lastShader,
+            vsg::ref_ptr<vsg::ImageView> lastPass, LoadedTechnique& technique);
+        void rebuild();
+
+        Render::Engine& mEngine;
+        vsg::ref_ptr<vsg::Context> mContext;
+        vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
+        const VFS::Manager& mVfs;
+        vsg::ref_ptr<const vsg::Options> mTextureOptions;
+        uint32_t mWidth;
+        uint32_t mHeight;
+        vsg::ref_ptr<vsg::Group> mRoot;
+        vsg::ref_ptr<vsg::Switch> mPending;
+        vsg::ref_ptr<vsg::Switch> mFirstFrame;
+        vsg::ref_ptr<vsg::Sampler> mLinear;
+        vsg::ref_ptr<vsg::Sampler> mNearest;
+        vsg::ref_ptr<vsg::RenderPass> mRenderPass;
+        vsg::ref_ptr<vsg::View> mBaseView;
+        vsg::ref_ptr<vsg::ShaderStage> mVertex;
+        vsg::ref_ptr<vsg::Image> mSceneColor;
+        vsg::ref_ptr<vsg::Image> mSceneDepth;
+        vsg::ref_ptr<vsg::ImageView> mSceneColorView;
+        vsg::ref_ptr<vsg::ImageView> mSceneDepthView;
+        vsg::ref_ptr<vsg::Commands> mCopyIn;
+        vsg::ref_ptr<vsg::PipelineBarrier> mBeforeCopyIn;
+        vsg::ref_ptr<vsg::PipelineBarrier> mAfterCopyIn;
+        vsg::ref_ptr<vsg::Commands> mDepthCopy;
+        vsg::ref_ptr<vsg::PipelineBarrier> mBeforeCopyDepth;
+        vsg::ref_ptr<vsg::PipelineBarrier> mAfterCopyDepth;
+        vsg::ref_ptr<vsg::BlitImage> mBlitColor;
+        vsg::ref_ptr<vsg::BlitImage> mBlitDepth;
+        vsg::ref_ptr<vsg::PipelineBarrier> mBeforeCopyOut;
+        vsg::ref_ptr<vsg::PipelineBarrier> mAfterCopyOut;
+        vsg::ref_ptr<vsg::BlitImage> mBlitOut;
+        std::map<std::string, std::shared_ptr<Fx::Technique>> mLoaded;
+        std::vector<std::shared_ptr<Fx::Technique>> mChain;
+        std::vector<std::unique_ptr<LoadedTechnique>> mTechniques;
+    };
+
+    /// Compiles Vulkan GLSL to a shader stage holding SPIR-V, the one place post-processing depends on a compiler
+    /// (task 0012, V4p). On failure logs the compiler's message and returns null.
+    vsg::ref_ptr<vsg::ShaderStage> compileGlsl(VkShaderStageFlagBits stage, const std::string& source);
+}
+
+#endif

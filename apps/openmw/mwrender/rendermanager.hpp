@@ -86,6 +86,7 @@ namespace MWRender
 {
     class PrecipitationOccluder;
     class DistantObjects;
+    class PostProcess;
     class Scene;
     class Reflect;
     class Effects;
@@ -164,6 +165,10 @@ namespace MWRender
         void changeCellGrid(const osg::Vec3f& pos);
         /// The exterior cells the scene loads, which distant objects leave out.
         void setActiveGrid(int x, int y, int halfGrid);
+        /// For post-processing's sun position (OpenMW's RenderingManager::setNight).
+        void setNight(bool night) { mPostProcessNight = night; }
+        /// Post-processing, or null with `[Post Processing] enabled` off.
+        PostProcess* getPostProcess() { return mPostProcess.get(); }
         void pruneCache();
 
         void updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated);
@@ -339,6 +344,13 @@ namespace MWRender
         std::unique_ptr<PrecipitationOccluder> mOccluder;
         bool mOccluderActive = false;
         void updateOccluder(const vsg::vec3& cameraPosition);
+        std::unique_ptr<PostProcess> mPostProcess;
+        void updatePostProcess();
+        vsg::mat4 mPostProcessLastView;
+        float mPostProcessLastTime = 0.f;
+        float mPostProcessWaterHeight = 0.f;
+        bool mPostProcessNight = false;
+        unsigned int mPostProcessFrame = 0;
         std::unique_ptr<DistantObjects> mDistantObjects;
         ActiveCellGrid mActiveGrid;
         void updateDistantObjects(const vsg::vec3& cameraPosition);

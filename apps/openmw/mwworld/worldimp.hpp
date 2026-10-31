@@ -648,7 +648,7 @@ namespace MWWorld
 
         //MWRender::RenderingManager* getRenderingManager() override { return mRendering.get(); }
 
-        //MWRender::PostProcessor* getPostProcessor() override;
+        MWRender::PostProcess* getPostProcess() override;
 
         DateTimeManager* getTimeManager() override { return mTimeManager.get(); }
 

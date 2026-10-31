@@ -77,6 +77,7 @@
 #include "shadow.hpp"
 #include "precipitationoccluder.hpp"
 #include "distantobjects.hpp"
+#include "postprocess.hpp"
 #include "simplewater.hpp"
 #include "terrainstorage.hpp"
 #include "water.hpp"
@@ -289,7 +290,16 @@ namespace MWRender
                 [this, resourceRequirements] { mCompileContext->compileManager->add(*mRenderGraph->framebuffer, mView, resourceRequirements); });
 
         mCommandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
+        // OpenEden: post-processing runs after the scene, on the finished image, when the setting is on (task 0012, V4p).
+        if (Settings::postProcessing().mEnabled && mEngine.framebufferSamples() != VK_SAMPLE_COUNT_1_BIT)
+            Log(Debug::Warning) << "Post-processing is off: it does not work with antialiasing yet";
+        else if (Settings::postProcessing().mEnabled)
+            mPostProcess = std::make_unique<PostProcess>(mEngine, context, mCompileContext, *mResourceSystem->getVFS(),
+                mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
+                mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
+        if (mPostProcess)
+            mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
         threads.push_back(mCommandGraph);
 
         for (int i = 0; mShadow->shadow && i < mShadow->shadow->numCascades; ++i)
@@ -335,8 +345,15 @@ namespace MWRender
         mRecord = mCommandGraph->recordTraversal;
 
         mEngine.setup(threads, getenv("VSGOPENMW_NO_VIEWER_THREADING") == 0);
+        if (mPostProcess)
+        {
+            mPostProcess->compileContext()->compileManager->add(
+                *mPostProcess->registrationFramebuffer(), mPostProcess->baseView());
+        }
         for (const auto& addCompileView : addCompileViews)
             addCompileView();
+        if (mPostProcess)
+            mPostProcess->setChain(Settings::postProcessing().mChain.get());
 
         updateProjectionMatrix();
 
@@ -424,9 +441,11 @@ namespace MWRender
         mSceneRoot->addChild(mScene->getActors());
         // The opaque scene's colour and depth are copied here, before the water and the depth-sorted bins: the water
         // reflects and refracts with them, and soft particles fade against the depth (task 0012, V4k).
-        if (mRenderModes[Render_Water] || Settings::shaders().mSoftParticles)
+        if (mRenderModes[Render_Water] || Settings::shaders().mSoftParticles || mPostProcess)
         {
             mSuspend->children = { mReflect->node() };
+            if (mPostProcess)
+                mSuspend->addChild(mPostProcess->depthCopy());
             mSceneRoot->addChild(mSuspend);
         }
         if (mRenderModes[Render_Water])
@@ -760,6 +779,7 @@ namespace MWRender
         mShadow->updateCascades(*mSceneCamera, sceneData, mLightPosition);
         mSceneData->dirty();
         mLightGrid->update();
+        updatePostProcess();
     }
 
     void RenderManager::updateOccluder(const vsg::vec3& cameraPosition)
@@ -787,6 +807,66 @@ namespace MWRender
         }
     }
 
+    void RenderManager::updatePostProcess()
+    {
+        if (!mPostProcess)
+            return;
+        const Pipeline::Data::Scene& scene = mSceneData->value();
+        Fx::OmwData data;
+        // The images have OpenGL's bottom-left origin, where VSG's projection has Vulkan's.
+        const vsg::mat4 flipY = vsg::scale(1.f, -1.f, 1.f);
+        data.projectionMatrix = flipY * vsg::mat4(mProjectionMatrix->transform());
+        data.invProjectionMatrix = scene.invProjection * flipY;
+        data.prevViewMatrix = mPostProcessLastView;
+        data.viewMatrix = vsg::mat4(mViewMatrix->transform());
+        data.invViewMatrix = scene.invView;
+        mPostProcessLastView = data.viewMatrix;
+        data.eyePos = vsg::vec4(vsg::vec3(mViewMatrix->eye), 0.f);
+        const vsg::dvec3 eyeVec = vsg::normalize(mViewMatrix->center - mViewMatrix->eye);
+        data.eyeVec = vsg::vec4(vsg::vec3(eyeVec), 0.f);
+        data.fogColor = scene.fogColor;
+        data.ambientColor = scene.ambient;
+        data.skyColor = scene.skyColor;
+        data.sunColor = mLightDiffuse;
+        // OpenMW's setSunDirection and StateUpdater::setSunPos: the sun's visible orbit, mirrored at night.
+        vsg::vec3 sunPosition = mLightPosition;
+        sunPosition.z = 400.f - std::abs(sunPosition.x);
+        sunPosition = vsg::normalize(sunPosition);
+        if (mPostProcessNight)
+            sunPosition.z *= -1.f;
+        data.sunPos = vsg::vec4(sunPosition, 0.f);
+        data.sunVec = vsg::vec4(vsg::normalize(mLightPosition) * -1.f, 0.f);
+        data.resolution = scene.resolution;
+        data.rcpResolution = vsg::vec2(1.f / scene.resolution.x, 1.f / scene.resolution.y);
+        const bool underwater = mRenderModes[Render_Water].active && mWater->isUnderwater(vsg::vec3(mViewMatrix->eye));
+        data.isUnderwater = underwater ? 1 : 0;
+        data.isWaterEnabled = mRenderModes[Render_Water].active ? 1 : 0;
+        data.waterHeight = mPostProcessWaterHeight;
+        data.fogNear = mFog->getFogStart(underwater);
+        data.fogFar = mFog->getFogEnd(underwater);
+        data.near = mNearClip;
+        data.far = mViewDistance;
+        data.fov = getFieldOfView();
+        data.simulationTime = scene.time;
+        data.deltaSimulationTime = scene.time - mPostProcessLastTime;
+        mPostProcessLastTime = scene.time;
+        const MWBase::World* world = MWBase::Environment::get().getWorld();
+        if (world)
+        {
+            data.gameHour = world->getTimeStamp().getHour();
+            data.sunVis = world->getSunVisibility();
+            data.windSpeed = world->getWindSpeed();
+            // OpenMW's StateUpdater::setWeatherTransition.
+            const float transition = world->getWeatherTransition();
+            data.weatherTransition = transition > 0.f ? 1.f - transition : 0.f;
+            data.weatherID = world->getCurrentWeatherScriptId();
+            data.nextWeatherID = world->getNextWeatherScriptId();
+        }
+        data.isInterior = mRenderModes[Render_Sky].active ? 0 : 1;
+        data.frameNumber = static_cast<std::int32_t>(mPostProcessFrame++);
+        mPostProcess->update(data);
+    }
+
     void RenderManager::configureFog(const MWWorld::Cell& cell)
     {
         mFog->configure(mViewDistance, cell);
@@ -802,6 +882,8 @@ namespace MWRender
     {
         updateSceneData();
         mReflect->update();
+        if (mPostProcess)
+            mPostProcess->updateImages();
 
         if (mRenderModes[Render_Terrain])
             updateTerrain(mViewMatrix->eye);
@@ -957,6 +1039,7 @@ namespace MWRender
 
     void RenderManager::setWaterHeight(float height)
     {
+        mPostProcessWaterHeight = height;
         mWater->setHeight(height);
         mSimpleWater->setHeight(height);
         mWaterRipples->setWaterHeight(height);
@@ -1239,6 +1322,8 @@ namespace MWRender
         mRenderGraph->renderArea = { { 0, 0 }, { w, h } };
         mGuiRenderGraph->renderArea = { { 0, 0 }, { w, h } };
         mEngine.updateExtents({ w, h });
+        if (mPostProcess)
+            mPostProcess->resize(w, h);
     }
 
     vsg::ref_ptr<vsg::OperationThreads> RenderManager::getOperationThreads()

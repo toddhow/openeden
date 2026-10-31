@@ -135,6 +135,7 @@ file(GLOB UNITTEST_SRC_FILES
     fx/lexer.cpp
     fx/technique.cpp
     fx/testtechniquedata.cpp
+    fx/testvulkanpass.cpp
 )
 
 # openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader,

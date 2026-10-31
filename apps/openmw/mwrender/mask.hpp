@@ -20,6 +20,7 @@ namespace MWRender
 
         // view masks
         Mask_GUI = (1 << 15),
+        Mask_PostProcess = (1 << 17),
 
         // leaf masks
         Mask_Particle = (1 << 16),

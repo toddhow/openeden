@@ -863,6 +863,7 @@ namespace MWWorld
                 adjustedNightStart += 24.f;
 
             const bool isNight = adjustedHour >= adjustedNightStart;
+            mRendering.setNight(isNight);
             const float dayDuration = adjustedNightStart - mSunriseTime;
             const float nightDuration = 24.f - dayDuration;
 
