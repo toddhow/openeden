@@ -14,14 +14,13 @@
 
 #include <components/animation/bones.hpp>
 #include <components/animation/transform.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/bones.hpp>
 #include <components/vsgutil/name.hpp>
 
+#include <vsg/maths/transform.h>
 #include <vsg/nodes/Group.h>
 
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec3f>
 
 #include <gtest/gtest.h>
 
@@ -122,39 +121,39 @@ namespace
     constexpr float sTolerance = 1e-5f;
 
     // The osg form of an Anim::Transform's local matrix (same memory layout as t_transform's vsg matrix).
-    osg::Matrixf expectedLocal(const Anim::Transform& t)
+    vsg::mat4 expectedLocal(const Anim::Transform& t)
     {
-        osg::Matrixf m;
+        vsg::mat4 m;
         for (int i = 0; i < 3; ++i)
         {
             for (int j = 0; j < 3; ++j)
-                m(i, j) = t.rotation[i][j] * t.scale[i];
-            m(i, 3) = 0.f;
+                m[i][j] = t.rotation[i][j] * t.scale[i];
+            m[i][3] = 0.f;
         }
         for (int j = 0; j < 3; ++j)
-            m(3, j) = t.translation[j];
-        m(3, 3) = 1.f;
+            m[3][j] = t.translation[j];
+        m[3][3] = 1.f;
         return m;
     }
 
-    ::testing::AssertionResult matricesNear(const osg::Matrixf& actual, const osg::Matrixf& expected, float tolerance)
+    ::testing::AssertionResult matricesNear(const vsg::mat4& actual, const vsg::mat4& expected, float tolerance)
     {
         for (int i = 0; i < 4; ++i)
             for (int j = 0; j < 4; ++j)
-                if (!(std::abs(actual(i, j) - expected(i, j)) <= tolerance))
+                if (!(std::abs(actual[i][j] - expected[i][j]) <= tolerance))
                     return ::testing::AssertionFailure()
-                        << "element (" << i << ", " << j << "): actual " << actual(i, j) << ", expected "
-                        << expected(i, j);
+                        << "element (" << i << ", " << j << "): actual " << actual[i][j] << ", expected "
+                        << expected[i][j];
         return ::testing::AssertionSuccess();
     }
 
-    ::testing::AssertionResult vecNear(const osg::Vec3f& actual, const osg::Vec3f& expected, float tolerance)
+    ::testing::AssertionResult vecNear(const vsg::vec3& actual, const vsg::vec3& expected, float tolerance)
     {
         for (int i = 0; i < 3; ++i)
             if (!(std::abs(actual[i] - expected[i]) <= tolerance))
                 return ::testing::AssertionFailure()
-                    << "component " << i << ": actual (" << actual.x() << ", " << actual.y() << ", " << actual.z()
-                    << "), expected (" << expected.x() << ", " << expected.y() << ", " << expected.z() << ")";
+                    << "component " << i << ": actual (" << actual.x << ", " << actual.y << ", " << actual.z
+                    << "), expected (" << expected.x << ", " << expected.y << ", " << expected.z << ")";
         return ::testing::AssertionSuccess();
     }
 
@@ -304,12 +303,12 @@ namespace
         const Snapshot childBefore(*chain.mChild);
         const Snapshot grandchildBefore(*chain.mGrandchild);
 
-        EXPECT_TRUE(matricesNear(pose.getLocal(empty), osg::Matrixf::identity(), 0.f));
-        EXPECT_TRUE(matricesNear(pose.getModel(empty), osg::Matrixf::identity(), 0.f));
-        EXPECT_TRUE(matricesNear(pose.getWorld(empty), osg::Matrixf::identity(), 0.f));
+        EXPECT_TRUE(matricesNear(pose.getLocal(empty), vsg::mat4(), 0.f));
+        EXPECT_TRUE(matricesNear(pose.getModel(empty), vsg::mat4(), 0.f));
+        EXPECT_TRUE(matricesNear(pose.getWorld(empty), vsg::mat4(), 0.f));
 
-        pose.setLocal(empty, osg::Matrixf::translate(5.f, 6.f, 7.f));
-        pose.setLocalRotation(empty, osg::Quat(1.f, osg::Vec3f(0.f, 0.f, 1.f)));
+        pose.setLocal(empty, vsg::translate(5.f, 6.f, 7.f));
+        pose.setLocalRotation(empty, Misc::VsgMath::makeRotateFromAxis(1.f, vsg::vec3(0.f, 0.f, 1.f)));
 
         EXPECT_TRUE(sameTransform(*chain.mRoot, rootBefore));
         EXPECT_TRUE(sameTransform(*chain.mChild, childBefore));
@@ -319,7 +318,7 @@ namespace
         const auto actorRoot = makeActorRoot();
         const BonePose rootedPose(bones, actorRoot.get());
         (void)rootedPose.getWorld(empty);
-        rootedPose.setLocal(empty, osg::Matrixf::translate(5.f, 6.f, 7.f));
+        rootedPose.setLocal(empty, vsg::translate(5.f, 6.f, 7.f));
         EXPECT_TRUE(sameTransform(*chain.mRoot, rootBefore));
     }
 
@@ -347,9 +346,10 @@ namespace
         const BonePose::Bone spine = pose.find("Bip01 Spine");
         ASSERT_TRUE(static_cast<bool>(spine));
 
-        const osg::Quat rotation(0.9f, osg::Vec3f(0.f, 1.f, 1.f) / std::sqrt(2.f));
-        const osg::Matrixf local = osg::Matrixf::scale(1.25f, 1.25f, 1.25f) * osg::Matrixf::rotate(rotation)
-            * osg::Matrixf::translate(3.f, -2.f, 7.5f);
+        const vsg::dquat rotation
+            = Misc::VsgMath::makeRotateFromAxis(0.9f, Misc::VsgMath::divide(vsg::vec3(0.f, 1.f, 1.f), std::sqrt(2.f)));
+        const vsg::mat4 local = vsg::translate(3.f, -2.f, 7.5f)
+            * (vsg::mat4(Misc::VsgMath::toMatrix(rotation)) * vsg::scale(1.25f, 1.25f, 1.25f));
 
         pose.setLocal(spine, local);
         EXPECT_TRUE(matricesNear(pose.getLocal(spine), local, sTolerance));
@@ -369,9 +369,10 @@ namespace
         const BonePose::Bone head = pose.find("Bip01 Head");
         ASSERT_TRUE(static_cast<bool>(head));
 
-        const osg::Quat rotation(-1.3f, osg::Vec3f(1.f, -2.f, 0.5f) / osg::Vec3f(1.f, -2.f, 0.5f).length());
-        const osg::Matrixf local = osg::Matrixf::scale(0.5f, 2.f, 1.5f) * osg::Matrixf::rotate(rotation)
-            * osg::Matrixf::translate(-1.f, 0.25f, 4.f);
+        const vsg::dquat rotation = Misc::VsgMath::makeRotateFromAxis(
+            -1.3f, Misc::VsgMath::divide(vsg::vec3(1.f, -2.f, 0.5f), vsg::length(vsg::vec3(1.f, -2.f, 0.5f))));
+        const vsg::mat4 local = vsg::translate(-1.f, 0.25f, 4.f)
+            * (vsg::mat4(Misc::VsgMath::toMatrix(rotation)) * vsg::scale(0.5f, 2.f, 1.5f));
 
         pose.setLocal(head, local);
         EXPECT_TRUE(matricesNear(pose.getLocal(head), local, sTolerance));
@@ -392,20 +393,20 @@ namespace
         const BonePose::Bone spine = pose.find("Bip01 Spine");
         ASSERT_TRUE(static_cast<bool>(spine));
 
-        const osg::Quat rotation(0.6f, osg::Vec3f(0.f, 0.f, 1.f));
+        const vsg::dquat rotation = Misc::VsgMath::makeRotateFromAxis(0.6f, vsg::vec3(0.f, 0.f, 1.f));
         pose.setLocalRotation(spine, rotation);
 
         EXPECT_EQ(chain.mChild->translation, vsg::vec3(-4.f, 5.f, 6.f));
         EXPECT_EQ(chain.mChild->scale, vsg::vec3(1.5f, 0.5f, 2.f));
 
-        const osg::Matrixf expected = osg::Matrixf::scale(1.5f, 0.5f, 2.f) * osg::Matrixf::rotate(rotation)
-            * osg::Matrixf::translate(-4.f, 5.f, 6.f);
+        const vsg::mat4 expected = vsg::translate(-4.f, 5.f, 6.f)
+            * (vsg::mat4(Misc::VsgMath::toMatrix(rotation)) * vsg::scale(1.5f, 0.5f, 2.f));
         EXPECT_TRUE(matricesNear(pose.getLocal(spine), expected, sTolerance));
 
         // A point on the local X axis turns by +0.6 rad about Z (the scale leaves the direction unchanged).
-        const osg::Vec3f rotated = osg::Vec3f(1.f, 0.f, 0.f) * pose.getLocal(spine);
+        const vsg::vec3 rotated = pose.getLocal(spine) * vsg::vec3(1.f, 0.f, 0.f);
         EXPECT_TRUE(vecNear(rotated,
-            osg::Vec3f(-4.f + 1.5f * std::cos(0.6f), 5.f + 1.5f * std::sin(0.6f), 6.f), sTolerance));
+            vsg::vec3(-4.f + 1.5f * std::cos(0.6f), 5.f + 1.5f * std::sin(0.6f), 6.f), sTolerance));
     }
 
     TEST(MWRenderBonePoseTest, GetModelComposesThePathInRowVectorConvention)
@@ -420,15 +421,15 @@ namespace
         //   head  translate (0, 0, 3)            -> (1, 0, 3)
         //   spine scale 2, translate (0, 2, 0)   -> (2, 2, 6)
         //   root  rotate +90 about Z, then (1, 0, 0) -> (-2, 2, 6) -> (-1, 2, 6)
-        const osg::Vec3f modelPoint = osg::Vec3f(1.f, 0.f, 0.f) * pose.getModel(head);
-        EXPECT_TRUE(vecNear(modelPoint, osg::Vec3f(-1.f, 2.f, 6.f), sTolerance));
+        const vsg::vec3 modelPoint = pose.getModel(head) * vsg::vec3(1.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(modelPoint, vsg::vec3(-1.f, 2.f, 6.f), sTolerance));
 
         // The origin of the head is the head's translation carried up the chain: (0,0,3) -> (0,2,6) -> (-1,0,6).
-        const osg::Vec3f origin = osg::Vec3f(0.f, 0.f, 0.f) * pose.getModel(head);
-        EXPECT_TRUE(vecNear(origin, osg::Vec3f(-1.f, 0.f, 6.f), sTolerance));
+        const vsg::vec3 origin = pose.getModel(head) * vsg::vec3(0.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(origin, vsg::vec3(-1.f, 0.f, 6.f), sTolerance));
 
-        const osg::Matrixf expected
-            = expectedLocal(*chain.mGrandchild) * expectedLocal(*chain.mChild) * expectedLocal(*chain.mRoot);
+        const vsg::mat4 expected
+            = expectedLocal(*chain.mRoot) * (expectedLocal(*chain.mChild) * expectedLocal(*chain.mGrandchild));
         EXPECT_TRUE(matricesNear(pose.getModel(head), expected, sTolerance));
 
         // The model root's model transform is its local transform.
@@ -446,11 +447,11 @@ namespace
         ASSERT_TRUE(static_cast<bool>(head));
 
         EXPECT_TRUE(matricesNear(pose.getRoot(), expectedLocal(*actorRoot), sTolerance));
-        EXPECT_TRUE(matricesNear(pose.getWorld(head), pose.getModel(head) * pose.getRoot(), sTolerance));
+        EXPECT_TRUE(matricesNear(pose.getWorld(head), pose.getRoot() * pose.getModel(head), sTolerance));
 
         // Model point (-1, 2, 6), rotated 180 about Z -> (1, -2, 6), translated -> (101, 198, 306).
-        const osg::Vec3f worldPoint = osg::Vec3f(1.f, 0.f, 0.f) * pose.getWorld(head);
-        EXPECT_TRUE(vecNear(worldPoint, osg::Vec3f(101.f, 198.f, 306.f), 1e-4f));
+        const vsg::vec3 worldPoint = pose.getWorld(head) * vsg::vec3(1.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(worldPoint, vsg::vec3(101.f, 198.f, 306.f), 1e-4f));
     }
 
     TEST(MWRenderBonePoseTest, GetWorldEqualsModelWithoutRoot)
@@ -459,7 +460,7 @@ namespace
         Anim::Bones bones = MWAnim::Bones(*chain.mScene);
         const BonePose pose(bones, nullptr);
 
-        EXPECT_TRUE(matricesNear(pose.getRoot(), osg::Matrixf::identity(), 0.f));
+        EXPECT_TRUE(matricesNear(pose.getRoot(), vsg::mat4(), 0.f));
         for (const char* name : { "Bip01", "Bip01 Spine", "Bip01 Head" })
         {
             const BonePose::Bone bone = pose.find(name);
@@ -480,22 +481,22 @@ namespace
         ASSERT_TRUE(static_cast<bool>(head));
 
         // Replace the spine's local (was scale 2, translate (0, 2, 0)) with a pure translation (0, 0, 10).
-        pose.setLocal(spine, osg::Matrixf::translate(0.f, 0.f, 10.f));
+        pose.setLocal(spine, vsg::translate(0.f, 0.f, 10.f));
 
         // Head origin: (0, 0, 3) -> (0, 0, 13) -> rotate +90 about Z (unchanged) -> (1, 0, 13).
-        const osg::Vec3f origin = osg::Vec3f(0.f, 0.f, 0.f) * pose.getModel(head);
-        EXPECT_TRUE(vecNear(origin, osg::Vec3f(1.f, 0.f, 13.f), sTolerance));
+        const vsg::vec3 origin = pose.getModel(head) * vsg::vec3(0.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(origin, vsg::vec3(1.f, 0.f, 13.f), sTolerance));
 
         // And in world space: rotate 180 about Z -> (-1, 0, 13), translate -> (99, 200, 313).
-        const osg::Vec3f worldOrigin = osg::Vec3f(0.f, 0.f, 0.f) * pose.getWorld(head);
-        EXPECT_TRUE(vecNear(worldOrigin, osg::Vec3f(99.f, 200.f, 313.f), 1e-4f));
+        const vsg::vec3 worldOrigin = pose.getWorld(head) * vsg::vec3(0.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(worldOrigin, vsg::vec3(99.f, 200.f, 313.f), 1e-4f));
 
         // A rotation write on the root is visible too: rotating the root to identity leaves (0, 0, 13) + (1, 0, 0).
-        pose.setLocalRotation(pose.find("Bip01"), osg::Quat());
-        const osg::Vec3f afterRootWrite = osg::Vec3f(0.f, 0.f, 0.f) * pose.getModel(head);
-        EXPECT_TRUE(vecNear(afterRootWrite, osg::Vec3f(1.f, 0.f, 13.f), sTolerance));
-        const osg::Vec3f xAfterRootWrite = osg::Vec3f(1.f, 0.f, 0.f) * pose.getModel(head);
-        EXPECT_TRUE(vecNear(xAfterRootWrite, osg::Vec3f(2.f, 0.f, 13.f), sTolerance));
+        pose.setLocalRotation(pose.find("Bip01"), vsg::dquat());
+        const vsg::vec3 afterRootWrite = pose.getModel(head) * vsg::vec3(0.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(afterRootWrite, vsg::vec3(1.f, 0.f, 13.f), sTolerance));
+        const vsg::vec3 xAfterRootWrite = pose.getModel(head) * vsg::vec3(1.f, 0.f, 0.f);
+        EXPECT_TRUE(vecNear(xAfterRootWrite, vsg::vec3(2.f, 0.f, 13.f), sTolerance));
     }
 
     TEST(MWRenderBonePoseTest, AllocationCounterDetectsAllocations)
@@ -522,9 +523,10 @@ namespace
         ASSERT_TRUE(static_cast<bool>(spine));
         ASSERT_TRUE(static_cast<bool>(head));
 
-        const osg::Matrixf newLocal = osg::Matrixf::scale(0.5f, 2.f, 1.5f)
-            * osg::Matrixf::rotate(osg::Quat(0.4f, osg::Vec3f(1.f, 0.f, 0.f))) * osg::Matrixf::translate(1.f, 2.f, 3.f);
-        const osg::Quat newRotation(0.3f, osg::Vec3f(0.f, 1.f, 0.f));
+        const vsg::mat4 newLocal = vsg::translate(1.f, 2.f, 3.f)
+            * (vsg::mat4(Misc::VsgMath::toMatrix(Misc::VsgMath::makeRotateFromAxis(0.4f, vsg::vec3(1.f, 0.f, 0.f))))
+                * vsg::scale(0.5f, 2.f, 1.5f));
+        const vsg::dquat newRotation = Misc::VsgMath::makeRotateFromAxis(0.3f, vsg::vec3(0.f, 1.f, 0.f));
 
         float sink = 0.f;
         std::size_t allocations = 0;
@@ -532,12 +534,12 @@ namespace
             AllocationCounter counter;
             for (int frame = 0; frame < 16; ++frame)
             {
-                const osg::Matrixf local = pose.getLocal(head);
+                const vsg::mat4 local = pose.getLocal(head);
                 pose.setLocal(spine, newLocal);
                 pose.setLocalRotation(head, newRotation);
-                const osg::Matrixf model = pose.getModel(head);
-                const osg::Matrixf world = pose.getWorld(head);
-                const osg::Matrixf root = pose.getRoot();
+                const vsg::mat4 model = pose.getModel(head);
+                const vsg::mat4 world = pose.getWorld(head);
+                const vsg::mat4 root = pose.getRoot();
                 sink += local(3, 0) + model(3, 1) + world(3, 2) + root(3, 0);
             }
             allocations = counter.count();

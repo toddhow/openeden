@@ -6,13 +6,14 @@
 #include <mutex>
 #include <vector>
 
-#include <osg/Vec3f>
 
 #include <Jolt/Jolt.h>
 
 #include <Jolt/Physics/Body/BodyManager.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Renderer/DebugRenderer.h>
+
+#include <components/misc/vsgmath.hpp>
 
 namespace MWRender
 {
@@ -31,10 +32,10 @@ namespace MWRender
     private:
         struct CollisionView
         {
-            osg::Vec3f mOrig;
-            osg::Vec3f mEnd;
+            vsg::vec3 mOrig;
+            vsg::vec3 mEnd;
             std::chrono::time_point<std::chrono::steady_clock> mCreated;
-            CollisionView(osg::Vec3f orig, osg::Vec3f normal)
+            CollisionView(vsg::vec3 orig, vsg::vec3 normal)
                 : mOrig(orig)
                 , mEnd(orig + normal * 20)
                 , mCreated(std::chrono::steady_clock::now())
@@ -79,7 +80,7 @@ namespace MWRender
 
         void step();
 
-        void addCollision(const osg::Vec3f& orig, const osg::Vec3f& normal);
+        void addCollision(const vsg::vec3& orig, const vsg::vec3& normal);
 
         // 0 for off, anything else for on.
         void setDebugMode(int isOn);

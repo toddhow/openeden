@@ -5,9 +5,6 @@
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-#include <osg/Math>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <cstdint>
 #include <string>

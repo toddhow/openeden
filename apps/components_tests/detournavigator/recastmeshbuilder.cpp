@@ -1,8 +1,11 @@
 #include "operators.hpp"
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/recastmesh.hpp>
 #include <components/detournavigator/recastmeshbuilder.hpp>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/transform.h>
+
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
@@ -16,9 +19,6 @@
 #include <DetourCommon.h>
 
 #include <gmock/gmock.h>
-#include <osg/Vec3f>
-#include <osg/Quat>
-#include <osg/Matrixd>
 
 #include <gtest/gtest.h>
 
@@ -92,7 +92,7 @@ namespace
         const auto shape = settings.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
@@ -117,8 +117,8 @@ namespace
 
         const auto shape = settings.Create().Get();
 
-        osg::Matrixd transform
-            = osg::Matrixd::scale(osg::Vec3f(1, 2, 3)) * osg::Matrixd::translate(osg::Vec3f(1, 2, 3));
+        vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(1, 2, 3))) * vsg::scale(vsg::dvec3(vsg::vec3(1, 2, 3)));
 
         RecastMeshBuilder builder(mBounds);
         builder.addObject(
@@ -150,7 +150,7 @@ namespace
         JPH::ShapeRefC shape = createdRes.Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
@@ -186,7 +186,7 @@ namespace
         shape.SetEmbedded();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
@@ -251,7 +251,7 @@ namespace
         const auto shape = compoundSettings.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
@@ -308,8 +308,8 @@ namespace
         compoundSettings.AddShape(JPH::Vec3(0, 0, 0), JPH::Quat::sIdentity(), triangle1);
         const auto shape = compoundSettings.Create().Get();
 
-        osg::Matrixd transform
-            = osg::Matrixd::scale(osg::Vec3f(1, 2, 3)) * osg::Matrixd::translate(osg::Vec3f(1, 2, 3));
+        vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(1, 2, 3))) * vsg::scale(vsg::dvec3(vsg::vec3(1, 2, 3)));
         RecastMeshBuilder builder(mBounds);
         builder.addObject(
             static_cast<const JPH::Shape&>(*shape), transform, AreaType_ground, mSource, mObjectTransform);
@@ -342,8 +342,8 @@ namespace
             JPH::Vec3(1, 2, 3), JPH::Quat::sIdentity(), new JPH::ScaledShape(triangle1, JPH::Vec3(1, 2, 3)));
         const auto shape = compoundSettings.Create().Get();
 
-        osg::Matrixd transform
-            = osg::Matrixd::scale(osg::Vec3f(1, 2, 3)) * osg::Matrixd::translate(osg::Vec3f(1, 2, 3));
+        vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(1, 2, 3))) * vsg::scale(vsg::dvec3(vsg::vec3(1, 2, 3)));
 
         RecastMeshBuilder builder(mBounds);
         builder.addObject(
@@ -377,7 +377,7 @@ namespace
         const auto shape = settingsTri1.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
@@ -416,7 +416,7 @@ namespace
         const auto shape = settingsTri1.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
@@ -451,7 +451,8 @@ namespace
         settingsTri1.mIndexedTriangles.push_back(JPH::IndexedTriangle(3, 4, 5));
 
         const auto shape = settingsTri1.Create().Get();
-        osg::Matrixd transform = osg::Matrixd::rotate(osg::Quat(static_cast<float>(-osg::PI_4), osg::Vec3f(1, 0, 0)));
+        vsg::dmat4 transform = Misc::VsgMath::toMatrix(
+            Misc::VsgMath::makeRotateFromAxis(static_cast<float>(-Misc::VsgMath::PI_4), vsg::vec3(1, 0, 0)));
 
         RecastMeshBuilder builder(mBounds);
         builder.addObject(
@@ -488,7 +489,8 @@ namespace
         settingsTri1.mIndexedTriangles.push_back(JPH::IndexedTriangle(3, 4, 5));
 
         const auto shape = settingsTri1.Create().Get();
-        osg::Matrixd transform = osg::Matrixd::rotate(osg::Quat(static_cast<float>(osg::PI_4), osg::Vec3f(0, 1, 0)));
+        vsg::dmat4 transform = Misc::VsgMath::toMatrix(
+            Misc::VsgMath::makeRotateFromAxis(static_cast<float>(Misc::VsgMath::PI_4), vsg::vec3(0, 1, 0)));
 
         RecastMeshBuilder builder(mBounds);
         builder.addObject(
@@ -525,7 +527,8 @@ namespace
         settingsTri1.mIndexedTriangles.push_back(JPH::IndexedTriangle(3, 4, 5));
 
         const auto shape = settingsTri1.Create().Get();
-        osg::Matrixd transform = osg::Matrixd::rotate(osg::Quat(static_cast<float>(osg::PI_4), osg::Vec3f(0, 0, 1)));
+        vsg::dmat4 transform = Misc::VsgMath::toMatrix(
+            Misc::VsgMath::makeRotateFromAxis(static_cast<float>(Misc::VsgMath::PI_4), vsg::vec3(0, 0, 1)));
 
         RecastMeshBuilder builder(mBounds);
         builder.addObject(
@@ -562,9 +565,9 @@ namespace
         const auto shape2 = settingsTri2.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape1), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape1), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape2), osg::Matrixd::identity(), AreaType_null, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape2), vsg::dmat4(), AreaType_null, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
@@ -607,7 +610,7 @@ namespace
         const auto shape = settingsTri1.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), osg::Matrixd::identity(), AreaType_ground, mSource,
+        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
             mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(),

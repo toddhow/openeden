@@ -1,13 +1,16 @@
 #include "operators.hpp"
 #include "settings.hpp"
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/navigatorimpl.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/detournavigator/navmeshdb.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/rng.hpp>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/transform.h>
+
 #include <components/physicshelpers/heightfield.hpp>
 #include <components/resource/physicsshape.hpp>
 
@@ -20,14 +23,8 @@
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 
 #include <vsg/io/stream.h>
-#include <osg/ref_ptr>
 
 #include <gmock/gmock.h>
-#include <osg/Vec3f>
-#include <osg/Vec3d>
-#include <osg/Quat>
-#include <osg/Math>
-#include <osg/Matrixd>
 
 #include <gtest/gtest.h>
 
@@ -76,7 +73,7 @@ namespace
         Loading::Listener mListener;
         const vsg::ivec2 mCellPosition{ 0, 0 };
         const float mEndTolerance = 0;
-        const osg::Matrixd mTransform = osg::Matrixd::translate(osg::Vec3f(256, 256, 0));
+        const vsg::dmat4 mTransform = vsg::translate(vsg::dvec3(vsg::vec3(256, 256, 0)));
         const ObjectTransform mObjectTransform{ ESM::Position{ { 256, 256, 0 }, { 0, 0, 0 } }, 0.0f };
     };
 
@@ -668,8 +665,8 @@ namespace
         {
             boxes[i].shape().SetEmbedded();
             const double offset = static_cast<double>(i) * 10.0;
-            const osg::Matrixd transform
-                = osg::Matrixd::translate(osg::Vec3d(shift.x + offset, shift.y + offset, offset));
+            const vsg::dmat4 transform
+                = vsg::translate(vsg::dvec3(vsg::dvec3(shift.x + offset, shift.y + offset, offset)));
             mNavigator->addObject(
                 ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -679,8 +676,8 @@ namespace
         for (std::size_t i = 0; i < boxes.size(); ++i)
         {
             const double offset = static_cast<double>(i) * 10.0 + 1.0;
-            const osg::Matrixd transform
-                = osg::Matrixd::translate(osg::Vec3d(shift.x + offset, shift.y + offset, offset));
+            const vsg::dmat4 transform
+                = vsg::translate(vsg::dvec3(vsg::dvec3(shift.x + offset, shift.y + offset, offset)));
             mNavigator->updateObject(
                 ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -712,7 +709,7 @@ namespace
         {
             shapes[i].shape().SetEmbedded();
             const float offset = static_cast<float>(i) * 32.0f;
-            const osg::Matrixd transform = osg::Matrixd::translate(osg::Vec3f(offset, offset, offset));
+            const vsg::dmat4 transform = vsg::translate(vsg::dvec3(vsg::vec3(offset, offset, offset)));
             mNavigator->addObject(
                 ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -723,7 +720,7 @@ namespace
         for (std::size_t i = 0; i < shapes.size(); ++i)
         {
             const float offset = static_cast<float>(i) * 32.0f + 1.0f;
-            const osg::Matrixd transform = osg::Matrixd::translate(osg::Vec3f(offset, offset, offset));
+            const vsg::dmat4 transform = vsg::translate(vsg::dvec3(vsg::vec3(offset, offset, offset)));
             mNavigator->updateObject(
                 ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -733,7 +730,7 @@ namespace
         for (std::size_t i = 0; i < shapes.size(); ++i)
         {
             const float offset = static_cast<float>(i) * 32.0f + 2.0f;
-            const osg::Matrixd transform = osg::Matrixd::translate(osg::Vec3f(offset, offset, offset));
+            const vsg::dmat4 transform = vsg::translate(vsg::dvec3(vsg::vec3(offset, offset, offset)));
             mNavigator->updateObject(
                 ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -771,17 +768,17 @@ namespace
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
 
         CollisionShapeInstance oscillatingBox(std::make_unique<JPH::BoxShape>(JPH::Vec3(20, 20, 20)));
-        const osg::Vec3f oscillatingBoxShapePosition(288, 288, 400);
+        const vsg::vec3 oscillatingBoxShapePosition(288, 288, 400);
         CollisionShapeInstance borderBox(std::make_unique<JPH::BoxShape>(JPH::Vec3(50, 50, 50)));
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
         mNavigator->addObject(ObjectId(&oscillatingBox.shape()),
             ObjectShapes(oscillatingBox.instance(), mObjectTransform),
-            osg::Matrixd::translate(oscillatingBoxShapePosition), nullptr);
+            vsg::translate(vsg::dvec3(oscillatingBoxShapePosition)), nullptr);
         // add this box to make navmesh bound box independent from oscillatingBoxShape rotations
         mNavigator->addObject(ObjectId(&borderBox.shape()), ObjectShapes(borderBox.instance(), mObjectTransform),
-            osg::Matrixd::translate(oscillatingBoxShapePosition + osg::Vec3f(0, 0, 200)), nullptr);
+            vsg::translate(vsg::dvec3(oscillatingBoxShapePosition + vsg::vec3(0, 0, 200))), nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -793,8 +790,9 @@ namespace
 
         for (int n = 0; n < 10; ++n)
         {
-            osg::Matrixd transform = osg::Matrixd::rotate(osg::Quat(n * 2 * osg::PI / 10, osg::Vec3f(0, 0, 1)));
-            transform.setTrans(oscillatingBoxShapePosition);
+            vsg::dmat4 transform = Misc::VsgMath::toMatrix(
+                Misc::VsgMath::makeRotateFromAxis(n * 2 * Misc::VsgMath::PI / 10, vsg::vec3(0, 0, 1)));
+            Misc::VsgMath::setTrans(transform, oscillatingBoxShapePosition);
 
             mNavigator->updateObject(ObjectId(&oscillatingBox.shape()),
                 ObjectShapes(oscillatingBox.instance(), mObjectTransform), transform, nullptr);
@@ -934,7 +932,7 @@ namespace
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addObject(ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform),
-            osg::Matrixd::identity(), nullptr);
+            vsg::dmat4(), nullptr);
 
         bool updated = false;
         std::condition_variable updateFinished;
@@ -987,7 +985,7 @@ namespace
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addObject(ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform),
-            osg::Matrixd::identity(), nullptr);
+            vsg::dmat4(), nullptr);
 
         bool updated = false;
         std::condition_variable updateFinished;
@@ -1448,7 +1446,7 @@ namespace
             CollisionShapeInstance<JPH::BoxShape> mBox{ std::make_unique<JPH::BoxShape>(JPH::Vec3(mSize, mSize, 1)) };
             mBox.shape().SetEmbedded();
             navigator.addObject(
-                ObjectId(&mBox.shape()), ObjectShapes(mBox.instance(), mTransform), osg::Matrixd::identity(), nullptr);
+                ObjectId(&mBox.shape()), ObjectShapes(mBox.instance(), mTransform), vsg::dmat4(), nullptr);
         }
     };
 

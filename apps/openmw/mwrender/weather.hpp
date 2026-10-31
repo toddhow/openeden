@@ -3,6 +3,7 @@
 
 // vsgopenmw-move-me("sky.hpp")
 
+#include <components/misc/vsgmath.hpp>
 #include <components/vsgutil/composite.hpp>
 #include <components/vsgutil/toggle.hpp>
 
@@ -10,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include <osg/Vec4f>
 
 #include <vsg/maths/quat.h>
 
@@ -82,7 +82,7 @@ namespace MWRender
 
         void setRainSpeed(float speed);
 
-        void setStormParticleDirection(const osg::Vec3f& direction);
+        void setStormParticleDirection(const vsg::vec3& direction);
 
         /// The weather's particle effect model ("" for none) and its orientation (identity unless storming).
         const std::string& getParticleEffect() const { return mCurrentParticleEffect; }
@@ -90,7 +90,7 @@ namespace MWRender
         /// The current weather's rain, for Rain (task 0012).
         void getRainParameters(Rain::Parameters& out) const;
 
-        void setSunDirection(const osg::Vec3f& direction);
+        void setSunDirection(const vsg::vec3& direction);
 
         void setMasserState(const MoonState& state);
         void setSecundaState(const MoonState& state);
@@ -140,9 +140,9 @@ namespace MWRender
         float mRainTimer = 0.f;
 
         // particle system rotation is independent of cloud rotation internally
-        osg::Vec3f mStormParticleDirection;
-        osg::Vec3f mStormDirection;
-        osg::Vec3f mNextStormDirection;
+        vsg::vec3 mStormParticleDirection;
+        vsg::vec3 mStormDirection;
+        vsg::vec3 mNextStormDirection;
 
         float mCloudBlendFactor = 0.f;
         float mCloudSpeed = 0.f;

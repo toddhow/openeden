@@ -1,4 +1,3 @@
-#include <osg/Vec3f>
 #include "waterripples.hpp"
 
 #include <algorithm>
@@ -16,6 +15,7 @@
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/sets.hpp>
@@ -276,11 +276,11 @@ namespace MWRender
                 // or leave through removeCell and come back through addEmitter.
                 if (emitter.ptr == world.getPlayerPtr())
                     emitter.ptr = world.getPlayerPtr();
-                const osg::Vec3f position = emitter.ptr.getRefData().getPosition().asVec3();
+                const vsg::vec3 position = emitter.ptr.getRefData().getPosition().asVec3();
                 const bool inWater
                     = (world.isUnderwater(emitter.ptr.getCell(), position) && !world.isSubmerged(emitter.ptr))
                     || world.isWalkingOnWater(emitter.ptr);
-                const vsg::vec3 current(position.x(), position.y(), position.z());
+                const vsg::vec3 current(position.x, position.y, position.z);
                 if (updateRippleEmitter(emitter.timer, dt, current, inWater))
                     mParticles.emit(vsg::vec3(current.x, current.y, mParticles.getWaterHeight()));
             }

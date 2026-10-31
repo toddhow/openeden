@@ -11,7 +11,6 @@
 #include <components/nif/extra.hpp>
 #include <components/nif/nifkey.hpp>
 #include <components/nif/node.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 namespace Anim
 {
@@ -27,7 +26,7 @@ namespace vsgAdapters
     {
         auto ret = Anim::make_channel<Channel>();
         for (auto& [key, val] : src.mKeys)
-            ret->keys[key] = toVsg(val.mValue);
+            ret->keys[key] = val.mValue;
         return ret;
     }
 
@@ -36,7 +35,7 @@ namespace vsgAdapters
     {
         auto ret = Anim::make_channel<Channel>();
         for (auto& [key, val] : src.mKeys)
-            ret->keys[key] = { toVsg(val.mValue), toVsg(val.mInTan), toVsg(val.mOutTan) };
+            ret->keys[key] = { val.mValue, val.mInTan, val.mOutTan };
         return ret;
     }
 
@@ -103,7 +102,7 @@ namespace vsgAdapters
             return {};
         }
         if (src->mKeys.size() == 1)
-            return Anim::make_constant(toVsg(src->mKeys.begin()->second.mValue)); // vsgopenmw-optimization-nif-constant-channel
+            return Anim::make_constant(T(src->mKeys.begin()->second.mValue)); // vsgopenmw-optimization-nif-constant-channel
 
         auto ret = handleInterpolatedKeyframes<T>(src);
         float startKey = src->mKeys.begin()->first;

@@ -8,6 +8,9 @@
 #include "../mwphysics/raycasting.hpp"
 #include "../mwworld/class.hpp"
 
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/transform.h>
 #include <components/mwanimation/object.hpp>
 #include <components/mwanimation/play.hpp>
 #include <components/settings/values.hpp>
@@ -50,35 +53,56 @@ namespace MWRender
             return std::clamp(1.f - std::exp(-rate * dt), 0.f, 1.f);
         }
 
-        osg::Matrixf rotateAbout(const osg::Vec3f& pivot, const osg::Matrixf& rotation)
+        vsg::mat4 rotateAbout(const vsg::vec3& pivot, const vsg::mat4& rotation)
         {
-            return osg::Matrixf::translate(-pivot) * rotation * osg::Matrixf::translate(pivot);
+            return vsg::translate(pivot) * (rotation * vsg::translate(-pivot));
         }
 
-        osg::Vec3f toOsg(const opas::math::Vec3& v)
+        vsg::mat4 inverseOf(const vsg::mat4& matrix)
         {
-            return osg::Vec3f(static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
+            vsg::mat4 result;
+            Misc::VsgMath::invert(matrix, result);
+            return result;
         }
 
-        opas::math::Vec3 toOpas(const osg::Vec3f& v)
+        vsg::mat4 rotationMatrix(const vsg::dquat& rotation)
         {
-            return { v.x(), v.y(), v.z() };
+            return vsg::mat4(Misc::VsgMath::toMatrix(rotation));
         }
 
-        osg::Vec3f clampTilt(osg::Vec3f n)
+        // OSG's m.setRotate(q): only the rotation block changes.
+        void setRotate(vsg::mat4& matrix, const vsg::dquat& rotation)
         {
-            const osg::Vec3f up(0.f, 0.f, 1.f);
-            if (n.length2() < 1e-6f)
+            const vsg::dmat4 block = Misc::VsgMath::toMatrix(rotation);
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    matrix[i][j] = static_cast<float>(block[i][j]);
+        }
+
+        vsg::vec3 toVsg(const opas::math::Vec3& v)
+        {
+            return vsg::vec3(static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
+        }
+
+        opas::math::Vec3 toOpas(const vsg::vec3& v)
+        {
+            return { v.x, v.y, v.z };
+        }
+
+        vsg::vec3 clampTilt(vsg::vec3 n)
+        {
+            const vsg::vec3 up(0.f, 0.f, 1.f);
+            if (vsg::length2(n) < 1e-6f)
                 return up;
-            n.normalize();
-            const float angle = std::acos(std::clamp(n.z(), -1.f, 1.f));
+            Misc::VsgMath::normalizeInPlace(n);
+            const float angle = std::acos(std::clamp(n.z, -1.f, 1.f));
             if (angle <= sMaxFootTilt)
                 return n;
-            osg::Vec3f axis = up ^ n;
-            if (axis.length2() < 1e-6f)
+            vsg::vec3 axis = vsg::cross(up, n);
+            if (vsg::length2(axis) < 1e-6f)
                 return up;
-            axis.normalize();
-            return osg::Quat(sMaxFootTilt, axis) * up;
+            Misc::VsgMath::normalizeInPlace(axis);
+            return vsg::quat(Misc::VsgMath::makeRotateFromAxis(sMaxFootTilt, axis)) * up;
         }
 
         MWPhysics::Actor* getPhysicsActor(const MWWorld::Ptr& ptr)
@@ -191,19 +215,19 @@ namespace MWRender
         RootState root;
         if (!mPose)
             return root;
-        osg::Vec3f scale;
-        osg::Quat scaleOrientation;
-        mPose->getRoot().decompose(root.mPosition, root.mAttitude, scale, scaleOrientation);
-        root.mScale = scale.z();
+        vsg::vec3 scale;
+        vsg::dquat scaleOrientation;
+        Misc::VsgMath::decompose(mPose->getRoot(), root.mPosition, root.mAttitude, scale, scaleOrientation);
+        root.mScale = scale.z;
         return root;
     }
 
-    osg::Vec3f ActorIkController::worldPos(const BonePose::Bone& bone) const
+    vsg::vec3 ActorIkController::worldPos(const BonePose::Bone& bone) const
     {
-        return mPose->getWorld(bone).getTrans();
+        return vsg::vec3(Misc::VsgMath::getTrans(mPose->getWorld(bone)));
     }
 
-    void ActorIkController::writeBone(BoneState& bone, const osg::Matrixf& local)
+    void ActorIkController::writeBone(BoneState& bone, const vsg::mat4& local)
     {
         mPose->setLocal(bone.mBone, local);
         // Store the matrix as the bone gives it back (it keeps translation, rotation and scale separately), so the
@@ -217,7 +241,7 @@ namespace MWRender
         if (!bone.mBone)
             return false;
 
-        const osg::Matrixf current = mPose->getLocal(bone.mBone);
+        const vsg::mat4 current = mPose->getLocal(bone.mBone);
         if (bone.mHasWritten && current == bone.mWritten)
         {
             // No controller re-animated this bone since our last write: undo it so IK never accumulates.
@@ -244,7 +268,7 @@ namespace MWRender
     }
 
     void ActorIkController::probeLegGround(
-        LegState& leg, const osg::Vec3f& actorPos, const osg::Vec3f& actorForward, float actorScale)
+        LegState& leg, const vsg::vec3& actorPos, const vsg::vec3& actorForward, float actorScale)
     {
         leg.mGroundHit = false;
         if (!mWantIk || !leg.mFoot.mBone)
@@ -254,17 +278,17 @@ namespace MWRender
         if (!world || !world->getRayCasting())
             return;
 
-        const osg::Vec3f ankle = worldPos(leg.mFoot.mBone);
-        const osg::Vec3f toe = leg.mToe ? worldPos(leg.mToe) : (ankle + actorForward * (sToeDistance * actorScale));
+        const vsg::vec3 ankle = worldPos(leg.mFoot.mBone);
+        const vsg::vec3 toe = leg.mToe ? worldPos(leg.mToe) : (ankle + actorForward * (sToeDistance * actorScale));
 
-        osg::Vec3f toeVec = toe - ankle;
-        toeVec.z() = 0.f;
-        if (toeVec.length2() < 1.f)
+        vsg::vec3 toeVec = toe - ankle;
+        toeVec.z = 0.f;
+        if (vsg::length2(toeVec) < 1.f)
             toeVec = actorForward * (sToeDistance * actorScale);
 
-        auto castDown = [&](const osg::Vec3f& xy, osg::Vec3f& hitPos, osg::Vec3f& hitNormal) -> bool {
-            const osg::Vec3f from(xy.x(), xy.y(), actorPos.z() + sProbeAbove * actorScale);
-            const osg::Vec3f to(xy.x(), xy.y(), actorPos.z() - sProbeBelow * actorScale);
+        auto castDown = [&](const vsg::vec3& xy, vsg::vec3& hitPos, vsg::vec3& hitNormal) -> bool {
+            const vsg::vec3 from(xy.x, xy.y, actorPos.z + sProbeAbove * actorScale);
+            const vsg::vec3 to(xy.x, xy.y, actorPos.z - sProbeBelow * actorScale);
             const MWPhysics::RayCastingResult hit = world->getRayCasting()->castRay(from, to, { mPtr }, {},
                 MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR);
             if (!hit.mHit)
@@ -274,32 +298,32 @@ namespace MWRender
             return true;
         };
 
-        osg::Vec3f heelPos, heelNormal;
+        vsg::vec3 heelPos, heelNormal;
         if (!castDown(ankle, heelPos, heelNormal))
             return;
 
-        if (heelNormal.length2() < 1e-6f)
-            heelNormal = osg::Vec3f(0.f, 0.f, 1.f);
-        heelNormal.normalize();
+        if (vsg::length2(heelNormal) < 1e-6f)
+            heelNormal = vsg::vec3(0.f, 0.f, 1.f);
+        Misc::VsgMath::normalizeInPlace(heelNormal);
 
-        float groundZ = heelPos.z();
-        osg::Vec3f combinedNormal = heelNormal;
+        float groundZ = heelPos.z;
+        vsg::vec3 combinedNormal = heelNormal;
 
-        osg::Vec3f toePos, toeNormal;
+        vsg::vec3 toePos, toeNormal;
         if (castDown(ankle + toeVec, toePos, toeNormal)
-            && std::abs(toePos.z() - heelPos.z()) < sSnapDistance * actorScale)
+            && std::abs(toePos.z - heelPos.z) < sSnapDistance * actorScale)
         {
-            if (toeNormal.length2() > 1e-6f)
+            if (vsg::length2(toeNormal) > 1e-6f)
             {
-                toeNormal.normalize();
+                Misc::VsgMath::normalizeInPlace(toeNormal);
                 combinedNormal = (heelNormal + toeNormal) * 0.5f;
             }
             combinedNormal = clampTilt(combinedNormal);
 
             // Height of the tilted sole at the toe relative to the ankle:
-            const float alignedRise = -(combinedNormal.x() * toeVec.x() + combinedNormal.y() * toeVec.y())
-                / std::max(combinedNormal.z(), 0.25f);
-            groundZ = std::max(heelPos.z(), toePos.z() - alignedRise);
+            const float alignedRise = -(combinedNormal.x * toeVec.x + combinedNormal.y * toeVec.y)
+                / std::max(combinedNormal.z, 0.25f);
+            groundZ = std::max(heelPos.z, toePos.z - alignedRise);
         }
         else
         {
@@ -323,15 +347,15 @@ namespace MWRender
         restoreBones();
 
         const RootState root = getRoot();
-        const osg::Vec3f actorPos = root.mPosition;
-        const float actorZ = actorPos.z();
+        const vsg::vec3 actorPos = root.mPosition;
+        const float actorZ = actorPos.z;
         const float actorScale = std::max(0.25f, root.mScale);
 
-        osg::Vec3f forward = root.mAttitude * osg::Vec3f(0.f, 1.f, 0.f);
-        forward.z() = 0.f;
-        if (forward.length2() < 1e-6f)
-            forward = osg::Vec3f(0.f, 1.f, 0.f);
-        forward.normalize();
+        vsg::vec3 forward = vsg::quat(root.mAttitude) * vsg::vec3(0.f, 1.f, 0.f);
+        forward.z = 0.f;
+        if (vsg::length2(forward) < 1e-6f)
+            forward = vsg::vec3(0.f, 1.f, 0.f);
+        Misc::VsgMath::normalizeInPlace(forward);
 
         MWPhysics::Actor* physicActor = getPhysicsActor(mPtr);
         const bool proceduralLean = Settings::values().mGame.mProceduralLean.get();
@@ -343,25 +367,25 @@ namespace MWRender
             const float angVel = loc.getAngularVelocity();
             const float speed = loc.getSmoothedSpeed();
 
-            const float maxLeanRad = osg::DegreesToRadians(8.0f) * leanScale;
+            const float maxLeanRad = Misc::VsgMath::inDegrees(8.0f) * leanScale;
             const float pitch = std::clamp(linearAccel / 600.0f, -1.0f, 1.0f) * maxLeanRad;
             const float bank = std::clamp((angVel * speed) / 600.0f, -1.0f, 1.0f) * maxLeanRad;
 
             if (std::abs(pitch) > 1e-4f || std::abs(bank) > 1e-4f)
             {
-                osg::Quat leanRot;
-                leanRot.makeRotate(pitch, osg::Vec3f(1.f, 0.f, 0.f), bank, osg::Vec3f(0.f, 1.f, 0.f), 0.f,
-                    osg::Vec3f(0.f, 0.f, 1.f));
+                const vsg::dquat leanRot = Misc::VsgMath::makeRotateFromAxis(pitch, vsg::vec3(1.f, 0.f, 0.f))
+                    * Misc::VsgMath::makeRotateFromAxis(bank, vsg::vec3(0.f, 1.f, 0.f))
+                    * Misc::VsgMath::makeRotateFromAxis(0.f, vsg::vec3(0.f, 0.f, 1.f));
 
-                const osg::Matrixf local = mPose->getLocal(mSpine1.mBone);
-                const osg::Matrixf parentWorld = osg::Matrixf::inverse(local) * mPose->getWorld(mSpine1.mBone);
-                const osg::Quat parentRot = parentWorld.getRotate();
-                const osg::Quat actorRot = root.mAttitude;
-                const osg::Quat worldLean = actorRot * leanRot * actorRot.inverse();
-                const osg::Quat localLean = parentRot.inverse() * worldLean * parentRot;
+                const vsg::mat4 local = mPose->getLocal(mSpine1.mBone);
+                const vsg::mat4 parentWorld = mPose->getWorld(mSpine1.mBone) * inverseOf(local);
+                const vsg::dquat parentRot = Misc::VsgMath::rotationOf(parentWorld);
+                const vsg::dquat actorRot = root.mAttitude;
+                const vsg::dquat worldLean = actorRot * leanRot * Misc::VsgMath::inverse(actorRot);
+                const vsg::dquat localLean = Misc::VsgMath::inverse(parentRot) * worldLean * parentRot;
 
-                osg::Matrixf moved = local;
-                moved.setRotate(localLean * local.getRotate());
+                vsg::mat4 moved = local;
+                setRotate(moved, localLean * Misc::VsgMath::rotationOf(local));
                 writeBone(mSpine1, moved);
             }
         }
@@ -401,9 +425,9 @@ namespace MWRender
 
                 const float a = filterAlpha(sNormalRate, dt);
                 leg.mFilteredNormal = leg.mFilteredNormal * (1.f - a) + leg.mGroundNormal * a;
-                if (leg.mFilteredNormal.length2() < 1e-6f)
-                    leg.mFilteredNormal = osg::Vec3f(0.f, 0.f, 1.f);
-                leg.mFilteredNormal.normalize();
+                if (vsg::length2(leg.mFilteredNormal) < 1e-6f)
+                    leg.mFilteredNormal = vsg::vec3(0.f, 0.f, 1.f);
+                Misc::VsgMath::normalizeInPlace(leg.mFilteredNormal);
             }
         }
 
@@ -417,12 +441,12 @@ namespace MWRender
         if (leg0Valid && leg1Valid)
         {
             const float zAvg = 0.5f * (mLegs[0].mFilteredGroundZ + mLegs[1].mFilteredGroundZ);
-            osg::Vec3f nAvg = mLegs[0].mFilteredNormal + mLegs[1].mFilteredNormal;
-            if (nAvg.length2() < 1e-6f)
-                nAvg = osg::Vec3f(0.f, 0.f, 1.f);
-            nAvg.normalize();
+            vsg::vec3 nAvg = mLegs[0].mFilteredNormal + mLegs[1].mFilteredNormal;
+            if (vsg::length2(nAvg) < 1e-6f)
+                nAvg = vsg::vec3(0.f, 0.f, 1.f);
+            Misc::VsgMath::normalizeInPlace(nAvg);
 
-            const float tanAlpha = std::sqrt(nAvg.x() * nAvg.x() + nAvg.y() * nAvg.y()) / std::max(nAvg.z(), 0.35f);
+            const float tanAlpha = std::sqrt(nAvg.x * nAvg.x + nAvg.y * nAvg.y) / std::max(nAvg.z, 0.35f);
             const float slopeDrop = (sStanceRadius * actorScale) * tanAlpha;
             const float stepDiff
                 = std::max(0.f, std::abs(mLegs[0].mFilteredGroundZ - mLegs[1].mFilteredGroundZ) - 2.f * slopeDrop);
@@ -455,13 +479,13 @@ namespace MWRender
 
         if (mPelvis.mBone && std::abs(appliedPelvis) > 1e-3f)
         {
-            const osg::Matrixf local = mPose->getLocal(mPelvis.mBone);
-            const osg::Matrixf parentWorld = osg::Matrixf::inverse(local) * mPose->getWorld(mPelvis.mBone);
-            const osg::Vec3f localDelta = osg::Matrixf::transform3x3(
-                osg::Vec3f(0.f, 0.f, appliedPelvis), osg::Matrixf::inverse(parentWorld));
+            const vsg::mat4 local = mPose->getLocal(mPelvis.mBone);
+            const vsg::mat4 parentWorld = mPose->getWorld(mPelvis.mBone) * inverseOf(local);
+            const vsg::vec3 localDelta
+                = Misc::VsgMath::transform3x3(vsg::vec3(0.f, 0.f, appliedPelvis), inverseOf(parentWorld));
 
-            osg::Matrixf moved = local;
-            moved.setTrans(local.getTrans() + localDelta);
+            vsg::mat4 moved = local;
+            Misc::VsgMath::setTrans(moved, Misc::VsgMath::getTrans(local) + vsg::dvec3(localDelta));
             writeBone(mPelvis, moved);
         }
 
@@ -475,7 +499,7 @@ namespace MWRender
     }
 
     void ActorIkController::solveLeg(LegState& leg, float actorZ, float pelvisOffset, float weight,
-        const osg::Vec3f& actorForward, float actorScale)
+        const vsg::vec3& actorForward, float actorScale)
     {
         if (!leg.mThigh.mBone || !leg.mCalf.mBone || !leg.mFoot.mBone)
             return;
@@ -483,27 +507,27 @@ namespace MWRender
         if (!leg.mGroundHit || !leg.mFilterInit || weight < 1e-3f)
             return;
 
-        const osg::Matrixf thighWorld = mPose->getWorld(leg.mThigh.mBone);
-        const osg::Matrixf calfWorld = mPose->getWorld(leg.mCalf.mBone);
-        const osg::Matrixf footWorld = mPose->getWorld(leg.mFoot.mBone);
+        const vsg::mat4 thighWorld = mPose->getWorld(leg.mThigh.mBone);
+        const vsg::mat4 calfWorld = mPose->getWorld(leg.mCalf.mBone);
+        const vsg::mat4 footWorld = mPose->getWorld(leg.mFoot.mBone);
 
-        const osg::Vec3f hip = thighWorld.getTrans();
-        const osg::Vec3f knee = calfWorld.getTrans();
-        const osg::Vec3f ankle = footWorld.getTrans();
+        const vsg::vec3 hip(Misc::VsgMath::getTrans(thighWorld));
+        const vsg::vec3 knee(Misc::VsgMath::getTrans(calfWorld));
+        const vsg::vec3 ankle(Misc::VsgMath::getTrans(footWorld));
 
-        const float animatedAnkleZ = ankle.z() - pelvisOffset;
-        const osg::Vec3f clampedNormal = clampTilt(leg.mFilteredNormal);
+        const float animatedAnkleZ = ankle.z - pelvisOffset;
+        const vsg::vec3 clampedNormal = clampTilt(leg.mFilteredNormal);
 
         // Enforce minimum sole-to-ankle height so the sole never clips below the ground surface.
-        const float minSoleHeight = (sMinSoleHeight * actorScale) / std::max(clampedNormal.z(), 0.7f);
+        const float minSoleHeight = (sMinSoleHeight * actorScale) / std::max(clampedNormal.z, 0.7f);
         const float animHeightAboveOrigin = std::max(animatedAnkleZ - actorZ, minSoleHeight);
         const float desiredAnkleZ = std::clamp(leg.mFilteredGroundZ + animHeightAboveOrigin,
             actorZ - sMaxFootOffset * actorScale, actorZ + sMaxFootRaise * actorScale);
 
-        const osg::Vec3f target(ankle.x(), ankle.y(), animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
+        const vsg::vec3 target(ankle.x, ankle.y, animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
 
         // Bias the knee pole vector along actorForward so nearly-straight legs do not wobble laterally.
-        const osg::Vec3f pole = (knee - (hip + ankle) * 0.5f) + actorForward * (8.0f * actorScale);
+        const vsg::vec3 pole = (knee - (hip + ankle) * 0.5f) + actorForward * (8.0f * actorScale);
 
         const opas::ik::TwoBoneChain chain{ toOpas(hip), toOpas(knee), toOpas(ankle) };
         const opas::ik::HingeLimits limits{ 0.0, 2.8 };
@@ -511,42 +535,40 @@ namespace MWRender
         if (!ik.valid)
             return;
 
-        const osg::Vec3f newKnee = toOsg(ik.mid);
-        const osg::Vec3f newAnkle = toOsg(ik.end);
+        const vsg::vec3 newKnee = toVsg(ik.mid);
+        const vsg::vec3 newAnkle = toVsg(ik.end);
 
         // World-space joint rotations derived from CreativeMotion's solved joint positions.
-        const osg::Matrixf rot1 = osg::Matrixf::rotate(knee - hip, newKnee - hip);
-        const osg::Vec3f calfDirAfterHip = osg::Matrixf::transform3x3(ankle - knee, rot1);
-        const osg::Matrixf rot2 = osg::Matrixf::rotate(calfDirAfterHip, newAnkle - newKnee);
+        const vsg::mat4 rot1 = rotationMatrix(Misc::VsgMath::makeRotate(knee - hip, newKnee - hip));
+        const vsg::vec3 calfDirAfterHip = Misc::VsgMath::transform3x3(ankle - knee, rot1);
+        const vsg::mat4 rot2 = rotationMatrix(Misc::VsgMath::makeRotate(calfDirAfterHip, newAnkle - newKnee));
 
-        const osg::Matrixf aroundHip = rotateAbout(hip, rot1);
-        const osg::Matrixf aroundKnee = rotateAbout(newKnee, rot2);
+        const vsg::mat4 aroundHip = rotateAbout(hip, rot1);
+        const vsg::mat4 aroundKnee = rotateAbout(newKnee, rot2);
 
         // Foot keeps its animated world orientation, then is tilted to the (filtered) ground normal.
-        osg::Quat tilt;
-        tilt.makeRotate(osg::Vec3f(0.f, 0.f, 1.f), clampedNormal);
-        osg::Quat weightedTilt;
-        weightedTilt.slerp(weight, osg::Quat(), tilt);
+        const vsg::dquat tilt = Misc::VsgMath::makeRotate(vsg::vec3(0.f, 0.f, 1.f), clampedNormal);
+        const vsg::dquat weightedTilt = Misc::VsgMath::slerp(weight, vsg::dquat(), tilt);
 
-        const osg::Matrixf newThighWorld = thighWorld * aroundHip;
-        const osg::Matrixf newCalfWorld = calfWorld * aroundHip * aroundKnee;
-        const osg::Matrixf newFootWorld = footWorld * osg::Matrixf::translate(-ankle)
-            * osg::Matrixf::rotate(weightedTilt) * osg::Matrixf::translate(newAnkle);
+        const vsg::mat4 newThighWorld = aroundHip * thighWorld;
+        const vsg::mat4 newCalfWorld = aroundKnee * (aroundHip * calfWorld);
+        const vsg::mat4 newFootWorld
+            = vsg::translate(newAnkle) * (rotationMatrix(weightedTilt) * (vsg::translate(-ankle) * footWorld));
 
-        auto writeLocal = [this](BoneState& bone, const osg::Matrixf& oldWorld, const osg::Matrixf& newWorld,
-                              const osg::Matrixf& parentDelta) {
-            const osg::Matrixf local = mPose->getLocal(bone.mBone);
-            const osg::Matrixf parentWorld = osg::Matrixf::inverse(local) * oldWorld;
-            const osg::Matrixf newParentWorld = parentWorld * parentDelta;
-            writeBone(bone, newWorld * osg::Matrixf::inverse(newParentWorld));
+        auto writeLocal = [this](BoneState& bone, const vsg::mat4& oldWorld, const vsg::mat4& newWorld,
+                              const vsg::mat4& parentDelta) {
+            const vsg::mat4 local = mPose->getLocal(bone.mBone);
+            const vsg::mat4 parentWorld = oldWorld * inverseOf(local);
+            const vsg::mat4 newParentWorld = parentDelta * parentWorld;
+            writeBone(bone, inverseOf(newParentWorld) * newWorld);
         };
 
-        writeLocal(leg.mThigh, thighWorld, newThighWorld, osg::Matrixf::identity());
+        writeLocal(leg.mThigh, thighWorld, newThighWorld, vsg::mat4());
         writeLocal(leg.mCalf, calfWorld, newCalfWorld, aroundHip);
-        writeLocal(leg.mFoot, footWorld, newFootWorld, aroundHip * aroundKnee);
+        writeLocal(leg.mFoot, footWorld, newFootWorld, aroundKnee * aroundHip);
     }
 
-    void ActorIkController::updateHitboxes(const RootState& root, const osg::Vec3f& actorForward, float actorScale)
+    void ActorIkController::updateHitboxes(const RootState& root, const vsg::vec3& actorForward, float actorScale)
     {
         if (!mLegs[0].mThigh.mBone || !mLegs[0].mCalf.mBone || !mLegs[0].mFoot.mBone || !mLegs[1].mThigh.mBone
             || !mLegs[1].mCalf.mBone || !mLegs[1].mFoot.mBone || !mPelvis.mBone)
@@ -558,9 +580,10 @@ namespace MWRender
         if (!physicActor || !physicActor->hasCompoundHitboxes())
             return;
 
-        const osg::Vec3f actorPos = root.mPosition;
-        const osg::Quat invActorRot = root.mAttitude.inverse();
-        auto toActorLocal = [&](const osg::Vec3f& worldPt) -> osg::Vec3f { return invActorRot * (worldPt - actorPos); };
+        const vsg::vec3 actorPos = root.mPosition;
+        const vsg::dquat invActorRot = Misc::VsgMath::inverse(root.mAttitude);
+        auto toActorLocal
+            = [&](const vsg::vec3& worldPt) -> vsg::vec3 { return vsg::quat(invActorRot) * (worldPt - actorPos); };
 
         std::array<MWPhysics::Actor::BoneSegment, MWPhysics::Actor::sNumBoneSegments> segments{};
 
@@ -570,28 +593,28 @@ namespace MWRender
             const LegState& leg = mLegs[i];
             const std::size_t baseIdx = static_cast<std::size_t>(i * 3);
 
-            const osg::Vec3f hip = worldPos(leg.mThigh.mBone);
-            const osg::Vec3f knee = worldPos(leg.mCalf.mBone);
-            const osg::Vec3f ankle = worldPos(leg.mFoot.mBone);
+            const vsg::vec3 hip = worldPos(leg.mThigh.mBone);
+            const vsg::vec3 knee = worldPos(leg.mCalf.mBone);
+            const vsg::vec3 ankle = worldPos(leg.mFoot.mBone);
 
-            osg::Vec3f footStart = ankle;
-            osg::Vec3f footEnd = ankle + actorForward * (10.f * actorScale);
+            vsg::vec3 footStart = ankle;
+            vsg::vec3 footEnd = ankle + actorForward * (10.f * actorScale);
             if (leg.mToe)
             {
-                const osg::Vec3f toe = worldPos(leg.mToe);
-                osg::Vec3f dir = toe - ankle;
-                const float len = dir.length();
+                const vsg::vec3 toe = worldPos(leg.mToe);
+                vsg::vec3 dir = toe - ankle;
+                const float len = vsg::length(dir);
                 if (len > 1e-3f)
                 {
-                    dir /= len;
+                    dir = Misc::VsgMath::divide(dir, len);
                     footStart = ankle - dir * (2.5f * actorScale);
                     footEnd = toe + dir * (2.5f * actorScale);
                 }
             }
             else
             {
-                footStart = ankle - actorForward * (3.0f * actorScale) - osg::Vec3f(0.f, 0.f, 3.0f * actorScale);
-                footEnd = ankle + actorForward * (9.0f * actorScale) - osg::Vec3f(0.f, 0.f, 3.0f * actorScale);
+                footStart = ankle - actorForward * (3.0f * actorScale) - vsg::vec3(0.f, 0.f, 3.0f * actorScale);
+                footEnd = ankle + actorForward * (9.0f * actorScale) - vsg::vec3(0.f, 0.f, 3.0f * actorScale);
             }
 
             segments[baseIdx + 0] = { toActorLocal(footStart), toActorLocal(footEnd) };
@@ -600,23 +623,23 @@ namespace MWRender
         }
 
         // 6: Pelvis, 7: Chest, 8: Head
-        const osg::Vec3f hipsCenter = (worldPos(mLegs[0].mThigh.mBone) + worldPos(mLegs[1].mThigh.mBone)) * 0.5f;
-        const osg::Vec3f spine1Pos
-            = mSpine1.mBone ? worldPos(mSpine1.mBone) : (hipsCenter + osg::Vec3f(0.f, 0.f, 16.f * actorScale));
-        const osg::Vec3f neckPos = mNeck ? worldPos(mNeck) : (spine1Pos + osg::Vec3f(0.f, 0.f, 26.f * actorScale));
-        const osg::Vec3f headBase = mHead ? worldPos(mHead) : (neckPos + osg::Vec3f(0.f, 0.f, 4.f * actorScale));
+        const vsg::vec3 hipsCenter = (worldPos(mLegs[0].mThigh.mBone) + worldPos(mLegs[1].mThigh.mBone)) * 0.5f;
+        const vsg::vec3 spine1Pos
+            = mSpine1.mBone ? worldPos(mSpine1.mBone) : (hipsCenter + vsg::vec3(0.f, 0.f, 16.f * actorScale));
+        const vsg::vec3 neckPos = mNeck ? worldPos(mNeck) : (spine1Pos + vsg::vec3(0.f, 0.f, 26.f * actorScale));
+        const vsg::vec3 headBase = mHead ? worldPos(mHead) : (neckPos + vsg::vec3(0.f, 0.f, 4.f * actorScale));
 
-        osg::Vec3f pelvisDir = spine1Pos - hipsCenter;
-        if (pelvisDir.length2() < 1e-4f)
-            pelvisDir = osg::Vec3f(0.f, 0.f, 1.f);
+        vsg::vec3 pelvisDir = spine1Pos - hipsCenter;
+        if (vsg::length2(pelvisDir) < 1e-4f)
+            pelvisDir = vsg::vec3(0.f, 0.f, 1.f);
         else
-            pelvisDir.normalize();
+            Misc::VsgMath::normalizeInPlace(pelvisDir);
 
-        osg::Vec3f headUp = headBase - neckPos;
-        if (headUp.length2() < 1e-4f)
-            headUp = osg::Vec3f(0.f, 0.f, 1.f);
+        vsg::vec3 headUp = headBase - neckPos;
+        if (vsg::length2(headUp) < 1e-4f)
+            headUp = vsg::vec3(0.f, 0.f, 1.f);
         else
-            headUp.normalize();
+            Misc::VsgMath::normalizeInPlace(headUp);
 
         segments[6] = { toActorLocal(hipsCenter - pelvisDir * (3.0f * actorScale)),
             toActorLocal(spine1Pos + pelvisDir * (3.0f * actorScale)) };
@@ -631,13 +654,13 @@ namespace MWRender
             const std::size_t baseIdx = static_cast<std::size_t>(9 + i * 2);
             const float side = (i == 0) ? -1.f : 1.f;
 
-            const osg::Vec3f shoulder = arm.mUpperArm
+            const vsg::vec3 shoulder = arm.mUpperArm
                 ? worldPos(arm.mUpperArm)
-                : (neckPos + osg::Vec3f(side * 12.f * actorScale, 0.f, -4.f * actorScale));
-            const osg::Vec3f elbow
-                = arm.mForearm ? worldPos(arm.mForearm) : (shoulder + osg::Vec3f(0.f, 0.f, -20.f * actorScale));
-            const osg::Vec3f wrist
-                = arm.mHand ? worldPos(arm.mHand) : (elbow + osg::Vec3f(0.f, 0.f, -18.f * actorScale));
+                : (neckPos + vsg::vec3(side * 12.f * actorScale, 0.f, -4.f * actorScale));
+            const vsg::vec3 elbow
+                = arm.mForearm ? worldPos(arm.mForearm) : (shoulder + vsg::vec3(0.f, 0.f, -20.f * actorScale));
+            const vsg::vec3 wrist
+                = arm.mHand ? worldPos(arm.mHand) : (elbow + vsg::vec3(0.f, 0.f, -18.f * actorScale));
 
             segments[baseIdx + 0] = { toActorLocal(shoulder), toActorLocal(elbow) };
             segments[baseIdx + 1] = { toActorLocal(elbow), toActorLocal(wrist) };

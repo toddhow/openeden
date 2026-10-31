@@ -7,7 +7,6 @@
 #include <vsg/core/visit.h>
 
 #include <components/vsgutil/intersectnormal.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/pipeline/mode.hpp>
 #include <components/animation/transform.hpp>
 #include <components/vsgutil/cameradistanceintersector.hpp>
@@ -30,15 +29,15 @@ namespace MWRender
         const auto& intersection = intersections.front();
         vsg::vec3 nWorld = vsgUtil::worldNormal(*intersection, static_cast<int>(Pipeline::Mode::NORMAL));
         /*
-        auto dir = vsg::normalize(eye - vsg::dvec3(toVsg(result.mHitPointWorld)));
+        auto dir = vsg::normalize(eye - vsg::dvec3(result.mHitPointWorld));
         if (vsg::length2(nWorld) > 0 && vsg::dot(dir, vsg::dvec3(nWorld)) < 0)
             continue;
             */
 
         RenderManager::RayResult result;
         result.mHit = true;
-        result.mHitNormalWorld = toOsg(nWorld);
-        result.mHitPointWorld = toOsg(vsg::vec3(intersection->worldIntersection));
+        result.mHitNormalWorld = nWorld;
+        result.mHitPointWorld = vsg::vec3(intersection->worldIntersection);
         result.mRatio = static_cast<float>(intersection->ratio);
         for (auto node : intersection->nodePath)
         {

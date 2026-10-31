@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <components/misc/convert.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "debuggeometry.hpp"
 
@@ -18,11 +19,6 @@ namespace MWRender
         vsg::vec3 toVsg(const JPH::RVec3& v)
         {
             return vsg::vec3(static_cast<float>(v.GetX()), static_cast<float>(v.GetY()), static_cast<float>(v.GetZ()));
-        }
-
-        vsg::vec3 toVsg(const osg::Vec3f& v)
-        {
-            return vsg::vec3(v.x(), v.y(), v.z());
         }
 
         vsg::vec4 toVsg(JPH::ColorArg color)
@@ -56,7 +52,7 @@ namespace MWRender
         mGeometry.setEnabled(false);
     }
 
-    void JoltDebugDrawer::addCollision(const osg::Vec3f& orig, const osg::Vec3f& normal)
+    void JoltDebugDrawer::addCollision(const vsg::vec3& orig, const vsg::vec3& normal)
     {
         std::scoped_lock lock(mCollisionMutex);
         mCollisionViews.emplace_back(orig, normal);
@@ -69,7 +65,7 @@ namespace MWRender
         for (const auto& view : mCollisionViews)
         {
             if (now - view.mCreated < sCollisionLifetime)
-                mGeometry.addLine(toVsg(view.mOrig), toVsg(view.mEnd), sCollisionColor);
+                mGeometry.addLine(view.mOrig, view.mEnd, sCollisionColor);
         }
         mCollisionViews.erase(std::remove_if(mCollisionViews.begin(), mCollisionViews.end(),
                                   [&now](const CollisionView& view) { return now - view.mCreated >= sCollisionLifetime; }),

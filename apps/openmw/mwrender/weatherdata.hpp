@@ -1,10 +1,10 @@
 #ifndef VSGOPENMW_MWRENDER_WEATHERDATA_H
 #define VSGOPENMW_MWRENDER_WEATHERDATA_H
 
-#include <osg/Vec4f>
 #include <string>
 
 #include <components/esm/refid.hpp>
+#include <components/misc/vsgmath.hpp>
 
 namespace MWRender
 {
@@ -14,17 +14,17 @@ namespace MWRender
         std::string mNextCloudTexture;
         float mCloudBlendFactor;
 
-        osg::Vec4f mFogColor;
+        vsg::vec4 mFogColor;
 
-        osg::Vec4f mAmbientColor;
+        vsg::vec4 mAmbientColor;
 
-        osg::Vec4f mSkyColor;
+        vsg::vec4 mSkyColor;
 
         // sun light color
-        osg::Vec4f mSunColor;
+        vsg::vec4 mSunColor;
 
         // alpha is the sun transparency
-        osg::Vec4f mSunDiscColor;
+        vsg::vec4 mSunDiscColor;
 
         float mFogDepth;
 
@@ -60,8 +60,8 @@ namespace MWRender
         float mRainEntranceSpeed;
         int mRainMaxRaindrops;
 
-        osg::Vec3f mStormDirection;
-        osg::Vec3f mNextStormDirection;
+        vsg::vec3 mStormDirection;
+        vsg::vec3 mNextStormDirection;
     };
 
     struct MoonState

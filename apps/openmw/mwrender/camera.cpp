@@ -4,7 +4,7 @@
 
 #include <components/animation/transform.hpp>
 #include <components/misc/mathutil.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/vsgutil/computetransform.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -41,23 +41,23 @@ namespace MWRender
         , mRoll(0.f)
         , mCameraDistance(0.f)
         , mPreferredCameraDistance(0.f)
-        , mFocalPointCurrentOffset(osg::Vec2d())
-        , mFocalPointTargetOffset(osg::Vec2d())
+        , mFocalPointCurrentOffset(vsg::dvec2())
+        , mFocalPointTargetOffset(vsg::dvec2())
         , mFocalPointTransitionSpeedCoef(1.f)
         , mSkipFocalPointTransition(true)
         , mPreviousTransitionInfluence(0.f)
         , mShowCrosshair(false)
-        , mDeferredRotation(osg::Vec3f())
+        , mDeferredRotation(vsg::vec3())
         , mDeferredRotationDisabled(false)
     {
     }
 
     Camera::~Camera() {}
 
-    osg::Vec3d Camera::calculateTrackedPosition() const
+    vsg::dvec3 Camera::calculateTrackedPosition() const
     {
         if (mTrackingPtr.isEmpty())
-            return osg::Vec3d();
+            return vsg::dvec3();
         // if (usingDoubleTransformInMwrenderObject) vsg::computeTransform(
         auto res = vsgUtil::computePosition(mTrackingPath);
         if (mMode != Mode::FirstPerson)
@@ -65,12 +65,12 @@ namespace MWRender
         return { res.x, res.y, res.z };
     }
 
-    osg::Vec3d Camera::getFocalPointOffset() const
+    vsg::dvec3 Camera::getFocalPointOffset() const
     {
-        osg::Vec3d offset;
-        offset.x() = mFocalPointCurrentOffset.x() * cos(mYaw);
-        offset.y() = mFocalPointCurrentOffset.x() * sin(mYaw);
-        offset.z() = mFocalPointCurrentOffset.y();
+        vsg::dvec3 offset;
+        offset.x = mFocalPointCurrentOffset.x * cos(mYaw);
+        offset.y = mFocalPointCurrentOffset.x * sin(mYaw);
+        offset.z = mFocalPointCurrentOffset.y;
         return offset;
     }
 
@@ -80,10 +80,10 @@ namespace MWRender
             * vsg::quat(mPitch + mExtraPitch, vsg::vec3(1, 0, 0)) * vsg::quat(mYaw + mExtraYaw, vsg::vec3(0, 0, 1));
         auto forward = orient * vsg::vec3(0, 1, 0);
         auto up = orient * vsg::vec3(0, 0, 1);
-        lookAt.eye = toVsg(mPosition);
-        lookAt.center = toVsg(mPosition) + vsg::dvec3(forward);
+        lookAt.eye = mPosition;
+        lookAt.center = mPosition + vsg::dvec3(forward);
         lookAt.up = vsg::dvec3(up);
-        mViewMatrix = toOsg(vsg::mat4(lookAt.transform()));
+        mViewMatrix = vsg::mat4(lookAt.transform());
     }
 
     void Camera::update(float duration, bool paused)
@@ -103,14 +103,14 @@ namespace MWRender
         updatePosition();
     }
 
-    osg::Vec3d Camera::calculateFirstPersonPosition(const osg::Vec3d& trackedPosition) const
+    vsg::dvec3 Camera::calculateFirstPersonPosition(const vsg::dvec3& trackedPosition) const
     {
-        osg::Vec3d res = trackedPosition;
-        osg::Vec2f horizontalOffset
-            = Misc::rotateVec2f(osg::Vec2f(mFirstPersonOffset.x(), mFirstPersonOffset.y()), mYaw);
-        res.x() += horizontalOffset.x();
-        res.y() += horizontalOffset.y();
-        res.z() += mFirstPersonOffset.z();
+        vsg::dvec3 res = trackedPosition;
+        vsg::vec2 horizontalOffset
+            = Misc::rotateVec2f(vsg::vec2(mFirstPersonOffset.x, mFirstPersonOffset.y), mYaw);
+        res.x += horizontalOffset.x;
+        res.y += horizontalOffset.y;
+        res.z += mFirstPersonOffset.z;
         return res;
     }
 
@@ -132,19 +132,19 @@ namespace MWRender
         const auto* rayCasting = MWBase::Environment::get().getWorld()->getRayCasting();
 
         // Adjust focal point to prevent clipping.
-        osg::Vec3d focalOffset = getFocalPointOffset();
-        osg::Vec3d focal = mTrackedPosition + focalOffset;
-        focalOffset.z() += 10.f; // Needed to avoid camera clipping through the ceiling because
+        vsg::dvec3 focalOffset = getFocalPointOffset();
+        vsg::dvec3 focal = mTrackedPosition + focalOffset;
+        focalOffset.z += 10.f; // Needed to avoid camera clipping through the ceiling because
                                  // character's head can be a bit higher than the collision area.
-        float offsetLen = focalOffset.length();
+        float offsetLen = vsg::length(focalOffset);
         if (offsetLen > 0)
         {
             MWPhysics::RayCastingResult result = rayCasting->castSphere(
-                osg::Vec3f(focal - focalOffset), osg::Vec3f(focal), focalObstacleLimit, mCollisionType);
+                vsg::vec3(focal - focalOffset), vsg::vec3(focal), focalObstacleLimit, mCollisionType);
             if (result.mHit)
             {
-                double adjustmentCoef
-                    = -(osg::Vec3f(result.mHitPos + result.mHitNormal * focalObstacleLimit) - focal).length()
+                double adjustmentCoef = -vsg::length(vsg::vec3(result.mHitPos + result.mHitNormal * focalObstacleLimit)
+                                            - vsg::vec3(focal))
                     / offsetLen;
                 focal += focalOffset * std::max(-1.0, adjustmentCoef);
             }
@@ -152,25 +152,27 @@ namespace MWRender
 
         // Adjust camera distance.
         mCameraDistance = mPreferredCameraDistance;
-        osg::Quat orient
-            = osg::Quat(mPitch + mExtraPitch, osg::Vec3d(1, 0, 0)) * osg::Quat(mYaw + mExtraYaw, osg::Vec3d(0, 0, 1));
-        osg::Vec3d offset = orient * osg::Vec3d(0.f, -mCameraDistance, 0.f);
+        vsg::dquat orient = Misc::VsgMath::makeRotateFromAxis(mPitch + mExtraPitch, vsg::dvec3(1, 0, 0))
+            * Misc::VsgMath::makeRotateFromAxis(mYaw + mExtraYaw, vsg::dvec3(0, 0, 1));
+        vsg::dvec3 offset = orient * vsg::dvec3(0.f, -mCameraDistance, 0.f);
         MWPhysics::RayCastingResult result = rayCasting->castSphere(
-            osg::Vec3f(focal), osg::Vec3f(focal + offset), cameraObstacleLimit, mCollisionType);
+            vsg::vec3(focal), vsg::vec3(focal + offset), cameraObstacleLimit, mCollisionType);
         if (result.mHit)
         {
-            mCameraDistance = (osg::Vec3f(result.mHitPos + result.mHitNormal * cameraObstacleLimit) - focal).length();
-            offset = orient * osg::Vec3d(0.f, -mCameraDistance, 0.f);
+            mCameraDistance
+                = vsg::length(vsg::vec3(result.mHitPos + result.mHitNormal * cameraObstacleLimit) - vsg::vec3(focal));
+            offset = orient * vsg::dvec3(0.f, -mCameraDistance, 0.f);
         }
 
         mPosition = focal + offset;
     }
 
     // openeden-vsg: OpenMW 0.51's camera orientation, used by World for the sound listener (Settings::sound().mCameraListener).
-    osg::Quat Camera::getOrient() const
+    vsg::dquat Camera::getOrient() const
     {
-        return osg::Quat(mRoll + mExtraRoll, osg::Vec3d(0, 1, 0)) * osg::Quat(mPitch + mExtraPitch, osg::Vec3d(1, 0, 0))
-            * osg::Quat(mYaw + mExtraYaw, osg::Vec3d(0, 0, 1));
+        return Misc::VsgMath::makeRotateFromAxis(mRoll + mExtraRoll, vsg::dvec3(0, 1, 0))
+            * Misc::VsgMath::makeRotateFromAxis(mPitch + mExtraPitch, vsg::dvec3(1, 0, 0))
+            * Misc::VsgMath::makeRotateFromAxis(mYaw + mExtraYaw, vsg::dvec3(0, 0, 1));
     }
 
     void Camera::setMode(Mode newMode, bool force)
@@ -203,7 +205,7 @@ namespace MWRender
         }
     }
 
-    void Camera::setFocalPointTargetOffset(const osg::Vec2d& v)
+    void Camera::setFocalPointTargetOffset(const vsg::dvec2& v)
     {
         mFocalPointTargetOffset = v;
         mPreviousTransitionSpeed = mFocalPointTransitionSpeed;
@@ -218,38 +220,39 @@ namespace MWRender
         if (mSkipFocalPointTransition)
         {
             mSkipFocalPointTransition = false;
-            mPreviousExtraOffset = osg::Vec2d();
+            mPreviousExtraOffset = vsg::dvec2();
             mPreviousTransitionInfluence = 0.f;
             mFocalPointCurrentOffset = mFocalPointTargetOffset;
         }
 
-        osg::Vec2d oldOffset = mFocalPointCurrentOffset;
+        vsg::dvec2 oldOffset = mFocalPointCurrentOffset;
 
         if (mPreviousTransitionInfluence > 0)
         {
             mFocalPointCurrentOffset -= mPreviousExtraOffset;
             mPreviousExtraOffset
-                = mPreviousExtraOffset / mPreviousTransitionInfluence + mPreviousTransitionSpeed * duration;
+                = Misc::VsgMath::divide(mPreviousExtraOffset, mPreviousTransitionInfluence)
+                + mPreviousTransitionSpeed * duration;
             mPreviousTransitionInfluence
                 = std::max(0.f, mPreviousTransitionInfluence - duration * mFocalPointTransitionSpeedCoef);
             mPreviousExtraOffset *= mPreviousTransitionInfluence;
             mFocalPointCurrentOffset += mPreviousExtraOffset;
         }
 
-        osg::Vec2d delta = mFocalPointTargetOffset - mFocalPointCurrentOffset;
-        if (delta.length2() > 0)
+        vsg::dvec2 delta = mFocalPointTargetOffset - mFocalPointCurrentOffset;
+        if (vsg::length2(delta) > 0)
         {
-            float coef = duration * (1.0 + 5.0 / delta.length()) * mFocalPointTransitionSpeedCoef
+            float coef = duration * (1.0 + 5.0 / vsg::length(delta)) * mFocalPointTransitionSpeedCoef
                 * (1.0f - mPreviousTransitionInfluence);
             mFocalPointCurrentOffset += delta * std::min(coef, 1.0f);
         }
         else
         {
-            mPreviousExtraOffset = osg::Vec2d();
+            mPreviousExtraOffset = vsg::dvec2();
             mPreviousTransitionInfluence = 0.f;
         }
 
-        mFocalPointTransitionSpeed = (mFocalPointCurrentOffset - oldOffset) / duration;
+        mFocalPointTransitionSpeed = Misc::VsgMath::divide(mFocalPointCurrentOffset - oldOffset, duration);
     }
 
     void Camera::toggleViewMode(bool force)
@@ -283,14 +286,14 @@ namespace MWRender
     void Camera::setPitch(float angle, bool force)
     {
         const float epsilon = 0.000001f;
-        float limit = static_cast<float>(osg::PI_2) - epsilon;
+        float limit = static_cast<float>(Misc::VsgMath::PI_2) - epsilon;
         if (!mLockPitch || force)
             mPitch = std::clamp(angle, -limit, limit);
         if (force)
             mLockPitch = true;
     }
 
-    void Camera::setStaticPosition(const osg::Vec3d& pos)
+    void Camera::setStaticPosition(const vsg::dvec3& pos)
     {
         if (mMode != Mode::Static)
             throw std::runtime_error("setStaticPosition can be used only if camera is in Static mode");
@@ -333,8 +336,8 @@ namespace MWRender
         if (mMode != Mode::ThirdPerson || mTrackingPtr.isEmpty())
             return;
 
-        osg::Vec3f rot = mDeferredRotation;
-        float delta = rot.normalize();
+        vsg::vec3 rot = mDeferredRotation;
+        float delta = Misc::VsgMath::normalizeInPlace(rot);
         delta = std::min(delta, (delta + 1.f) * 3 * dt);
         rot *= delta;
         mDeferredRotation -= rot;
@@ -347,13 +350,13 @@ namespace MWRender
         }
 
         auto& movement = mTrackingPtr.getClass().getMovementSettings(mTrackingPtr);
-        movement.mRotation[0] += rot.x();
-        movement.mRotation[1] += rot.y();
-        movement.mRotation[2] += rot.z();
-        if (std::abs(mDeferredRotation.z()) > 0.0001)
+        movement.mRotation[0] += rot.x;
+        movement.mRotation[1] += rot.y;
+        movement.mRotation[2] += rot.z;
+        if (std::abs(mDeferredRotation.z) > 0.0001)
         {
-            float s = std::sin(mDeferredRotation.z());
-            float c = std::cos(mDeferredRotation.z());
+            float s = std::sin(mDeferredRotation.z);
+            float c = std::cos(mDeferredRotation.z);
             float x = movement.mPosition[0];
             float y = movement.mPosition[1];
             movement.mPosition[0] = x * c + y * s;
@@ -365,15 +368,15 @@ namespace MWRender
     {
         if (mMode == Mode::Static || mTrackingPtr.isEmpty())
             return;
-        setPitch(-mTrackingPtr.getRefData().getPosition().rot[0] - mDeferredRotation.x());
-        setYaw(-mTrackingPtr.getRefData().getPosition().rot[2] - mDeferredRotation.z());
+        setPitch(-mTrackingPtr.getRefData().getPosition().rot[0] - mDeferredRotation.x);
+        setYaw(-mTrackingPtr.getRefData().getPosition().rot[2] - mDeferredRotation.z);
     }
 
     void Camera::instantTransition()
     {
         mSkipFocalPointTransition = true;
         mDeferredRotationDisabled = false;
-        mDeferredRotation = osg::Vec3f();
+        mDeferredRotation = vsg::vec3();
         rotateCameraToTrackingPtr();
     }
 
@@ -381,7 +384,7 @@ namespace MWRender
     {
         if (mMode == Mode::Static)
         {
-            mDeferredRotation = osg::Vec3f();
+            mDeferredRotation = vsg::vec3();
             return;
         }
         MWWorld::Ptr ptr = mTrackingPtr;
@@ -393,8 +396,8 @@ namespace MWRender
             return;
         }
 
-        mDeferredRotation.x() = Misc::normalizeAngle(-ptr.getRefData().getPosition().rot[0] - mPitch);
-        mDeferredRotation.z() = Misc::normalizeAngle(-ptr.getRefData().getPosition().rot[2] - mYaw);
+        mDeferredRotation.x = Misc::normalizeAngle(-ptr.getRefData().getPosition().rot[0] - mPitch);
+        mDeferredRotation.z = Misc::normalizeAngle(-ptr.getRefData().getPosition().rot[2] - mYaw);
         if (!mDeferredRotationAllowed)
             mDeferredRotationDisabled = true;
     }

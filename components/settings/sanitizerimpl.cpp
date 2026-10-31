@@ -1,6 +1,5 @@
 #include "sanitizerimpl.hpp"
 
-#include <osg/Vec3f>
 
 #include <algorithm>
 #include <cassert>
@@ -11,6 +10,8 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <components/misc/vsgmath.hpp>
 
 namespace Settings
 {
@@ -45,21 +46,21 @@ namespace Settings
         };
 
         template <>
-        struct MaxStrict<osg::Vec3f> final : Sanitizer<osg::Vec3f>
+        struct MaxStrict<vsg::vec3> final : Sanitizer<vsg::vec3>
         {
-            osg::Vec3f mMax;
+            vsg::vec3 mMax;
 
-            explicit MaxStrict(const osg::Vec3f& max)
-                : mMax(std::nextafter(max.x(), std::numeric_limits<float>::max()),
-                    std::nextafter(max.y(), std::numeric_limits<float>::max()),
-                    std::nextafter(max.z(), std::numeric_limits<float>::max()))
+            explicit MaxStrict(const vsg::vec3& max)
+                : mMax(std::nextafter(max.x, std::numeric_limits<float>::max()),
+                    std::nextafter(max.y, std::numeric_limits<float>::max()),
+                    std::nextafter(max.z, std::numeric_limits<float>::max()))
             {
             }
 
-            osg::Vec3f apply(const osg::Vec3f& value) const override
+            vsg::vec3 apply(const vsg::vec3& value) const override
             {
-                return osg::Vec3f(
-                    std::max(value.x(), mMax.x()), std::max(value.y(), mMax.y()), std::max(value.z(), mMax.z()));
+                return vsg::vec3(
+                    std::max(value.x, mMax.x), std::max(value.y, mMax.y), std::max(value.z, mMax.z));
             }
         };
 
@@ -168,9 +169,9 @@ namespace Settings
         return std::make_unique<MaxStrict<float>>(max);
     }
 
-    std::unique_ptr<Sanitizer<osg::Vec3f>> makeMaxStrictSanitizerVec3f(const osg::Vec3f& max)
+    std::unique_ptr<Sanitizer<vsg::vec3>> makeMaxStrictSanitizerVec3f(const vsg::vec3& max)
     {
-        return std::make_unique<MaxStrict<osg::Vec3f>>(max);
+        return std::make_unique<MaxStrict<vsg::vec3>>(max);
     }
 
     std::unique_ptr<Sanitizer<float>> makeClampSanitizerFloat(float min, float max)

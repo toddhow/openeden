@@ -9,7 +9,6 @@
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/weatherstate.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include "../mwworld/datetimemanager.hpp"
 #include "../mwbase/environment.hpp"
@@ -901,8 +900,8 @@ namespace MWWorld
         mRendering.getSky()->setSecundaState(mSecunda.calculateState(time));
 
         mRendering.configureFog(mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f,
-            toVsg(mResult.mFogColor));
-        mRendering.setAmbientColour(toVsg(mResult.mAmbientColor));
+            mResult.mFogColor);
+        mRendering.setAmbientColour(mResult.mAmbientColor);
         mRendering.setSunColour(mResult.mSunColor, mResult.mSunColor * mResult.mGlareView * glareFade);
 
         mRendering.getSky()->setWeather(mResult);
@@ -1315,8 +1314,8 @@ namespace MWWorld
             // together, the fixed pipeline would then clamp the total lighting to (1,1,1). A noticeable change in color
             // tone can be observed when only one of the color components gets clamped. Unfortunately that means we
             // can't use the INI color as is, have to replicate the above nonsense.
-            mResult.mSunDiscColor
-                = mResult.mSunDiscColor + osg::componentMultiply(mResult.mSunDiscColor, mResult.mAmbientColor);
+            mResult.mSunDiscColor = mResult.mSunDiscColor
+                + Misc::VsgMath::componentMultiply(mResult.mSunDiscColor, mResult.mAmbientColor);
             for (int i = 0; i < 3; ++i)
                 mResult.mSunDiscColor[i] = std::min(1.f, mResult.mSunDiscColor[i]);
         }
@@ -1329,15 +1328,15 @@ namespace MWWorld
             float fade = std::min(
                 1.f, (gameHour - mTimeSettings.mDayEnd) / (mTimeSettings.mNightStart - mTimeSettings.mDayEnd));
             fade = fade * fade;
-            mResult.mSunDiscColor.a() = 1.f - fade;
+            mResult.mSunDiscColor.a = 1.f - fade;
         }
         else if (gameHour >= mTimeSettings.mNightEnd && gameHour <= mTimeSettings.mNightEnd + mSunriseDuration / 2.f)
         {
             // sunrise
-            mResult.mSunDiscColor.a() = gameHour - mTimeSettings.mNightEnd;
+            mResult.mSunDiscColor.a = gameHour - mTimeSettings.mNightEnd;
         }
         else
-            mResult.mSunDiscColor.a() = 1;
+            mResult.mSunDiscColor.a = 1;
 
         mResult.mStormDirection = calculateStormDirection(mResult.mParticleEffect);
     }

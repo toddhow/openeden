@@ -39,7 +39,7 @@ namespace vsgAdapters
         // openeden-vsg: the shader multiplies these by a random value in -1 to 1, and OpenMW's range is half the dimension and
         // half the variation either way (nifloader.cpp at 442eec6e2f, BoxPlacer and ParticleShooter; task 0012).
         Pipeline::Data::EmitArgs data{
-            .offsetRandom = { toVsg(partctrl.mEmitterDimensions) * 0.5f, 0 },
+            .offsetRandom = { partctrl.mEmitterDimensions * 0.5f, 0 },
             .direction = { partctrl.mPlanarAngle, partctrl.mPlanarAngleVariation, partctrl.mDeclination, partctrl.mDeclinationVariation },
             .velocityLifetime = { partctrl.mSpeed, partctrl.mSpeedVariation * 0.5f, partctrl.mLifetime, partctrl.mLifetimeVariation }
         };
@@ -56,15 +56,15 @@ namespace vsgAdapters
             if (i >= data.mActiveCount || in.mCode >= data.mVertices.size())
                 age = in.mLifespan;
             auto& out = array.at(i);
-            out.velocityAge = vsg::vec4(toVsg(in.mVelocity), age);
+            out.velocityAge = vsg::vec4(in.mVelocity, age);
             out.maxAge.x = in.mLifespan;
             // openeden-vsg: the system's particle size for soft particles (task 0012, V4k), OpenMW's default particle
             // template size; the simulation never changes it.
             out.maxAge.y = partctrl.mInitialSize;
-            out.color = toVsg(partctrl.mInitialColor);
+            out.color = partctrl.mInitialColor;
             out.color.a = 1;
             if (in.mCode < data.mVertices.size())
-                out.positionSize = vsg::vec4(toVsg(data.mVertices[in.mCode]), 1.f);
+                out.positionSize = vsg::vec4(data.mVertices[in.mCode], 1.f);
             float size = partctrl.mInitialSize;
             if (in.mCode < data.mSizes.size())
                 size *= data.mSizes[in.mCode];

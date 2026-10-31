@@ -3,11 +3,10 @@
 #ifndef OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 #define OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec3f>
 
 #include "../mwworld/ptr.hpp"
+
+#include <components/misc/vsgmath.hpp>
 
 #include "bonepose.hpp"
 
@@ -56,8 +55,8 @@ namespace MWRender
         struct BoneState
         {
             BonePose::Bone mBone;
-            osg::Matrixf mBase; // animated (pre-IK) local matrix of the current frame
-            osg::Matrixf mWritten; // local matrix written by the IK pass, as read back from the bone
+            vsg::mat4 mBase; // animated (pre-IK) local matrix of the current frame
+            vsg::mat4 mWritten; // local matrix written by the IK pass, as read back from the bone
             bool mHasWritten = false;
         };
 
@@ -71,12 +70,12 @@ namespace MWRender
             // Ground probe results for the current frame, world space
             bool mGroundHit = false;
             float mGroundZ = 0.f;
-            osg::Vec3f mGroundNormal{ 0.f, 0.f, 1.f };
+            vsg::vec3 mGroundNormal{ 0.f, 0.f, 1.f };
 
             // Filtered state used by the solver
             bool mFilterInit = false;
             float mFilteredGroundZ = 0.f;
-            osg::Vec3f mFilteredNormal{ 0.f, 0.f, 1.f };
+            vsg::vec3 mFilteredNormal{ 0.f, 0.f, 1.f };
         };
 
         struct ArmNodes
@@ -88,20 +87,20 @@ namespace MWRender
 
         struct RootState
         {
-            osg::Vec3f mPosition;
-            osg::Quat mAttitude;
+            vsg::vec3 mPosition;
+            vsg::dquat mAttitude;
             float mScale = 1.f;
         };
 
         RootState getRoot() const;
-        osg::Vec3f worldPos(const BonePose::Bone& bone) const;
-        void writeBone(BoneState& bone, const osg::Matrixf& local);
+        vsg::vec3 worldPos(const BonePose::Bone& bone) const;
+        void writeBone(BoneState& bone, const vsg::mat4& local);
         void restoreBones();
         bool restoreBase(BoneState& bone);
-        void probeLegGround(LegState& leg, const osg::Vec3f& actorPos, const osg::Vec3f& actorForward, float actorScale);
-        void solveLeg(LegState& leg, float actorZ, float pelvisOffset, float weight, const osg::Vec3f& actorForward,
+        void probeLegGround(LegState& leg, const vsg::vec3& actorPos, const vsg::vec3& actorForward, float actorScale);
+        void solveLeg(LegState& leg, float actorZ, float pelvisOffset, float weight, const vsg::vec3& actorForward,
             float actorScale);
-        void updateHitboxes(const RootState& root, const osg::Vec3f& actorForward, float actorScale);
+        void updateHitboxes(const RootState& root, const vsg::vec3& actorForward, float actorScale);
 
         MWWorld::Ptr mPtr;
         MWAnim::Object& mObject;

@@ -20,6 +20,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/misc/vsgmath.hpp>
 
 namespace Settings
 {
@@ -278,7 +279,7 @@ namespace Settings
         return Misc::StringUtils::ciEqual(string, "true");
     }
 
-    osg::Vec2f Manager::getVector2(std::string_view setting, std::string_view category)
+    vsg::vec2 Manager::getVector2(std::string_view setting, std::string_view category)
     {
         const std::string& value = getString(setting, category);
 
@@ -299,7 +300,7 @@ namespace Settings
         throw std::runtime_error(std::string("Can't parse 2d vector: " + value));
     }
 
-    osg::Vec3f Manager::getVector3(std::string_view setting, std::string_view category)
+    vsg::vec3 Manager::getVector3(std::string_view setting, std::string_view category)
     {
         const std::string& value = getString(setting, category);
 
@@ -389,17 +390,17 @@ namespace Settings
         setString(setting, category, value ? "true" : "false");
     }
 
-    void Manager::setVector2(std::string_view setting, std::string_view category, const osg::Vec2f value)
+    void Manager::setVector2(std::string_view setting, std::string_view category, const vsg::vec2 value)
     {
         std::ostringstream stream;
-        stream << value.x() << " " << value.y();
+        stream << value.x << " " << value.y;
         setString(setting, category, stream.str());
     }
 
-    void Manager::setVector3(std::string_view setting, std::string_view category, const osg::Vec3f value)
+    void Manager::setVector3(std::string_view setting, std::string_view category, const vsg::vec3 value)
     {
         std::ostringstream stream;
-        stream << value.x() << ' ' << value.y() << ' ' << value.z();
+        stream << value.x << ' ' << value.y << ' ' << value.z;
         setString(setting, category, stream.str());
     }
 
@@ -469,12 +470,12 @@ namespace Settings
         setBool(setting, category, value);
     }
 
-    void Manager::set(std::string_view setting, std::string_view category, const osg::Vec2f& value)
+    void Manager::set(std::string_view setting, std::string_view category, const vsg::vec2& value)
     {
         setVector2(setting, category, value);
     }
 
-    void Manager::set(std::string_view setting, std::string_view category, const osg::Vec3f& value)
+    void Manager::set(std::string_view setting, std::string_view category, const vsg::vec3& value)
     {
         setVector3(setting, category, value);
     }

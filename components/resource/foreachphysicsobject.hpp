@@ -4,7 +4,6 @@
 #include <components/esm/position.hpp>
 #include <components/resource/physicsshape.hpp>
 
-#include <osg/ref_ptr>
 #include <vsg/core/ref_ptr.h>
 
 #include <functional>

@@ -41,8 +41,8 @@ namespace MWLua
         api["allowCharacterDeferredRotation"] = [camera](bool v) { camera->allowCharacterDeferredRotation(v); };
         api["showCrosshair"] = [camera](bool v) { camera->showCrosshair(v); };
 
-        api["getTrackedPosition"] = [camera]() -> vsg::vec3 { return vsg::vec3(vsg::dvec3(camera->getTrackedPosition())); };
-        api["getPosition"] = [camera]() -> vsg::vec3 { return vsg::vec3(vsg::dvec3(camera->getPosition())); };
+        api["getTrackedPosition"] = [camera]() -> vsg::vec3 { return vsg::vec3(camera->getTrackedPosition()); };
+        api["getPosition"] = [camera]() -> vsg::vec3 { return vsg::vec3(camera->getPosition()); };
 
         // All angles are negated in order to make camera rotation consistent with objects rotation.
         // TODO: Fix the inconsistency of rotation direction in camera.cpp.
@@ -73,11 +73,13 @@ namespace MWLua
         api["setPreferredThirdPersonDistance"]
             = [camera](const FiniteFloat v) { camera->setPreferredCameraDistance(v); };
 
-        api["getFirstPersonOffset"] = [camera]() { return vsg::vec3(camera->getFirstPersonOffset()); };
+        api["getFirstPersonOffset"] = [camera]() { return camera->getFirstPersonOffset(); };
         api["setFirstPersonOffset"] = [camera](const vsg::vec3& v) { camera->setFirstPersonOffset(v); };
 
-        api["getFocalPreferredOffset"] = [camera]() -> vsg::vec2 { return vsg::vec2(vsg::dvec2(camera->getFocalPointTargetOffset())); };
-        api["setFocalPreferredOffset"] = [camera](const vsg::vec2& v) { camera->setFocalPointTargetOffset(vsg::dvec2(v)); };
+        api["getFocalPreferredOffset"]
+            = [camera]() -> vsg::vec2 { return vsg::vec2(camera->getFocalPointTargetOffset()); };
+        api["setFocalPreferredOffset"]
+            = [camera](const vsg::vec2& v) { camera->setFocalPointTargetOffset(vsg::dvec2(v)); };
         api["getFocalTransitionSpeed"] = [camera]() { return camera->getFocalPointTransitionSpeed(); };
         api["setFocalTransitionSpeed"] = [camera](const FiniteFloat v) { camera->setFocalPointTransitionSpeed(v); };
         api["instantTransition"] = [camera]() { camera->instantTransition(); };
@@ -88,15 +90,16 @@ namespace MWLua
         api["getBaseFieldOfView"] = [] { return Misc::VsgMath::inDegrees(Settings::camera().mFieldOfView); };
         api["getFieldOfView"]
             = [renderingManager]() { return Misc::VsgMath::inDegrees(renderingManager->getFieldOfView()); };
-        api["setFieldOfView"]
-            = [renderingManager](const FiniteFloat v) { renderingManager->setFieldOfView(Misc::VsgMath::radiansToDegrees(v)); };
+        api["setFieldOfView"] = [renderingManager](const FiniteFloat v) {
+            renderingManager->setFieldOfView(Misc::VsgMath::radiansToDegrees(v));
+        };
 
         api["getBaseViewDistance"] = [] { return Settings::camera().mViewingDistance.get(); };
         api["getViewDistance"] = [renderingManager]() { return renderingManager->getViewDistance(); };
         api["setViewDistance"]
             = [renderingManager](const FiniteFloat d) { renderingManager->setViewDistance(d, true); };
 
-        api["getViewTransform"] = [camera]() { return LuaUtil::TransformM{ vsg::mat4(camera->getViewMatrix()) }; };
+        api["getViewTransform"] = [camera]() { return LuaUtil::TransformM{ camera->getViewMatrix() }; };
 
         api["viewportToWorldVector"] = [camera, renderingManager](vsg::vec2 pos) -> vsg::vec3 {
             const double width = Settings::video().mResolutionX;
@@ -104,10 +107,10 @@ namespace MWLua
             double aspect = (height == 0.0) ? 1.0 : width / height;
             double fovTan = std::tan(Misc::VsgMath::inDegrees(renderingManager->getFieldOfView()) / 2);
             vsg::mat4 invertedViewMatrix;
-            Misc::VsgMath::invert(vsg::mat4(camera->getViewMatrix()), invertedViewMatrix);
+            Misc::VsgMath::invert(camera->getViewMatrix(), invertedViewMatrix);
             float x = static_cast<float>((pos.x * 2 - 1) * aspect * fovTan);
             float y = static_cast<float>((1 - pos.y * 2) * fovTan);
-            return invertedViewMatrix * vsg::vec3(x, y, -1) - vsg::vec3(vsg::dvec3(camera->getPosition()));
+            return invertedViewMatrix * vsg::vec3(x, y, -1) - vsg::vec3(camera->getPosition());
         };
 
         api["worldToViewportVector"] = [camera, renderingManager](vsg::vec3 pos) {
@@ -116,7 +119,7 @@ namespace MWLua
 
             vsg::dmat4 windowMatrix
                 = vsg::scale(0.5 * width, 0.5 * height, 0.5) * vsg::translate(1.0, 1.0, 1.0);
-            const vsg::mat4 viewMatrix(camera->getViewMatrix());
+            const vsg::mat4& viewMatrix = camera->getViewMatrix();
             const vsg::mat4 projectionMatrix(renderingManager->getProjectionMatrix());
             vsg::vec3 vpCoords = vsg::mat4(windowMatrix) * (projectionMatrix * viewMatrix) * pos;
 
@@ -125,7 +128,7 @@ namespace MWLua
             vpCoords.y = height - vpCoords.y;
 
             // Set the z component to be distance from camera, in world space units
-            vpCoords.z = vsg::length(pos - vsg::vec3(vsg::dvec3(camera->getPosition())));
+            vpCoords.z = vsg::length(pos - vsg::vec3(camera->getPosition()));
 
             return vpCoords;
         };

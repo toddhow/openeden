@@ -8,6 +8,7 @@
 #include "windowmode.hpp"
 
 #include <components/detournavigator/collisionshapetype.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/sceneutil/lightingmethod.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -18,8 +19,6 @@
 #include <string_view>
 #include <vector>
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <MyGUI_Colour.h>
 
@@ -74,8 +73,8 @@ namespace Settings
         static const std::string& getString(std::string_view setting, std::string_view category);
         static std::vector<std::string> getStringArray(std::string_view setting, std::string_view category);
         static bool getBool(std::string_view setting, std::string_view category);
-        static osg::Vec2f getVector2(std::string_view setting, std::string_view category);
-        static osg::Vec3f getVector3(std::string_view setting, std::string_view category);
+        static vsg::vec2 getVector2(std::string_view setting, std::string_view category);
+        static vsg::vec3 getVector3(std::string_view setting, std::string_view category);
 
         template <class T>
         static T getOrDefault(std::string_view setting, std::string_view category, const T& defaultValue)
@@ -101,8 +100,8 @@ namespace Settings
         static void setStringArray(
             std::string_view setting, std::string_view category, const std::vector<std::string>& value);
         static void setBool(std::string_view setting, std::string_view category, bool value);
-        static void setVector2(std::string_view setting, std::string_view category, osg::Vec2f value);
-        static void setVector3(std::string_view setting, std::string_view category, osg::Vec3f value);
+        static void setVector2(std::string_view setting, std::string_view category, vsg::vec2 value);
+        static void setVector3(std::string_view setting, std::string_view category, vsg::vec3 value);
 
         static void set(std::string_view setting, std::string_view category, int value);
         static void set(std::string_view setting, std::string_view category, unsigned value);
@@ -112,8 +111,8 @@ namespace Settings
         static void set(std::string_view setting, std::string_view category, double value);
         static void set(std::string_view setting, std::string_view category, const std::string& value);
         static void set(std::string_view setting, std::string_view category, bool value);
-        static void set(std::string_view setting, std::string_view category, const osg::Vec2f& value);
-        static void set(std::string_view setting, std::string_view category, const osg::Vec3f& value);
+        static void set(std::string_view setting, std::string_view category, const vsg::vec2& value);
+        static void set(std::string_view setting, std::string_view category, const vsg::vec3& value);
         static void set(std::string_view setting, std::string_view category, DetourNavigator::CollisionShapeType value);
         static void set(std::string_view setting, std::string_view category, const std::vector<std::string>& value);
         static void set(std::string_view setting, std::string_view category, const MyGUI::Colour& value);
@@ -180,13 +179,13 @@ namespace Settings
     }
 
     template <>
-    inline osg::Vec2f Manager::getImpl<osg::Vec2f>(std::string_view setting, std::string_view category)
+    inline vsg::vec2 Manager::getImpl<vsg::vec2>(std::string_view setting, std::string_view category)
     {
         return getVector2(setting, category);
     }
 
     template <>
-    inline osg::Vec3f Manager::getImpl<osg::Vec3f>(std::string_view setting, std::string_view category)
+    inline vsg::vec3 Manager::getImpl<vsg::vec3>(std::string_view setting, std::string_view category)
     {
         return getVector3(setting, category);
     }

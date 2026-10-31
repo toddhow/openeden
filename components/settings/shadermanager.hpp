@@ -9,13 +9,10 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
-#include <components/serialization/osgyaml.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/serialization/vsgyaml.hpp>
 
 namespace Settings

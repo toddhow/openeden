@@ -46,7 +46,6 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/vsgmath.hpp>
-#include <components/sceneutil/util.hpp>
 #include <components/vfs/manager.hpp>
 
 #include "../mwbase/environment.hpp"

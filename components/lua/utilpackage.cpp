@@ -140,8 +140,8 @@ namespace LuaUtil
             }
         }
 
-        // Scripts can read this name, v.__type.name, and sol2 would otherwise give the C++ type's new name. It is the name
-        // they have always seen, not a use of OSG.
+        // Scripts can read this name, v.__type.name, and sol2 would otherwise give the C++ type's new name. It is the
+        // name they have always seen, not a use of OSG.
         template <typename T>
         void keepTypeName(sol::usertype<T>& type, const char* name)
         {
@@ -156,8 +156,8 @@ namespace LuaUtil
             vectorType[sol::meta_function::addition] = [](const T& a, const T& b) { return a + b; };
             vectorType[sol::meta_function::subtraction] = [](const T& a, const T& b) { return a - b; };
             vectorType[sol::meta_function::equal_to] = [](const T& a, const T& b) { return a == b; };
-            vectorType[sol::meta_function::multiplication] = sol::overload(
-                [](const T& a, float c) { return a * c; }, [](const T& a, const T& b) { return Misc::VsgMath::dot(a, b); });
+            vectorType[sol::meta_function::multiplication] = sol::overload([](const T& a, float c) { return a * c; },
+                [](const T& a, const T& b) { return Misc::VsgMath::dot(a, b); });
             vectorType[sol::meta_function::division] = [](const T& a, float c) { return Misc::VsgMath::divide(a, c); };
             vectorType["dot"] = [](const T& a, const T b) { return Misc::VsgMath::dot(a, b); };
             vectorType["length"] = [](const T& v) { return vsg::length(v); };
@@ -298,10 +298,15 @@ namespace LuaUtil
             [](float x, float y, float z) { return TransformM{ vsg::translate(x, y, z) }; });
         transforms["scale"] = sol::overload([](const Vec3& v) { return TransformM{ vsg::scale(v) }; },
             [](float x, float y, float z) { return TransformM{ vsg::scale(x, y, z) }; });
-        transforms["rotate"] = [](float angle, const Vec3& axis) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, axis) }; };
-        transforms["rotateX"] = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(-1, 0, 0)) }; };
-        transforms["rotateY"] = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(0, -1, 0)) }; };
-        transforms["rotateZ"] = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(0, 0, -1)) }; };
+        transforms["rotate"] = [](float angle, const Vec3& axis) {
+            return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, axis) };
+        };
+        transforms["rotateX"]
+            = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(-1, 0, 0)) }; };
+        transforms["rotateY"]
+            = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(0, -1, 0)) }; };
+        transforms["rotateZ"]
+            = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(0, 0, -1)) }; };
 
         transMType[sol::meta_function::multiplication]
             = sol::overload([](const TransformM& a, const Vec3& b) { return a.mM * b; },

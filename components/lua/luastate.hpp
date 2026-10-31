@@ -18,9 +18,9 @@
 #include "configuration.hpp"
 #include "luastateptr.hpp"
 
-// util.vector2, 3 and 4 are vsg::vec2, vec3 and vec4, and TransformM and TransformQ wrap their matrix and quat. No other math
-// type has a usertype, and sol2 would accept one as an unnamed userdata, which a script can only fail on at run time, as `.x`
-// on such a value does. An empty traits struct makes passing one to Lua a compile error instead.
+// util.vector2, 3 and 4 are vsg::vec2, vec3 and vec4, and TransformM and TransformQ wrap their matrix and quat. No
+// other math type has a usertype, and sol2 would accept one as an unnamed userdata, which a script can only fail on at
+// run time, as `.x` on such a value does. An empty traits struct makes passing one to Lua a compile error instead.
 namespace sol
 {
     template <>

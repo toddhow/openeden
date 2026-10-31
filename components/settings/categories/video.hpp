@@ -6,9 +6,6 @@
 #include <components/settings/settingvalue.hpp>
 #include <components/settings/windowmode.hpp>
 
-#include <osg/Math>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <cstdint>
 #include <string>

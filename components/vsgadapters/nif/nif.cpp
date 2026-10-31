@@ -1,5 +1,6 @@
 #include "nif.hpp"
 
+#include <cstring>
 #include <iostream>
 #include <stack>
 
@@ -62,6 +63,17 @@
 #include "anim.hpp"
 #include "channel.hpp"
 #include "particle.hpp"
+
+namespace
+{
+    template <class Array, class Source>
+    vsg::ref_ptr<Array> copyArray(const Source& vec)
+    {
+        vsg::ref_ptr<Array> array = Array::create(vec.size());
+        std::memcpy(static_cast<void*>(array->data()), &vec.front(), vec.size() * sizeof(typename Source::value_type));
+        return array;
+    }
+}
 
 namespace Pipeline::Descriptors
 {
@@ -389,7 +401,7 @@ namespace vsgAdapters
                 size_t boneIndex = bones.size();
                 Anim::Transform t;
                 convertTrafo(t, boneData.mTransform);
-                vsg::dsphere bounds(toVsg(boneData.mBoundSphere.center), boneData.mBoundSphere.radius);
+                vsg::dsphere bounds(boneData.mBoundSphere.center, boneData.mBoundSphere.radius);
                 bones.push_back({ t.t_transform(vsg::mat4()), bounds, skin.mBones[i].getPtr()->mName });
                 for (const auto& [vertex, weight] : boneData.mWeights)
                 {
@@ -449,13 +461,13 @@ namespace vsgAdapters
             std::vector<vsg::vec2> texCoords;
             vertices.reserve(data.mVertices.size());
             for (const auto& v : data.mVertices)
-                vertices.push_back(toVsg(v));
+                vertices.push_back(v);
             normals.reserve(data.mNormals.size());
             for (const auto& n : data.mNormals)
-                normals.push_back(toVsg(n));
+                normals.push_back(n);
             texCoords.reserve(data.mUVList[uvSet].size());
             for (const auto& uv : data.mUVList[uvSet])
-                texCoords.push_back(toVsg(uv));
+                texCoords.push_back(uv);
             const std::vector<vsg::vec4> tangents = generateTangents(vertices, normals, texCoords, indexLists, strip);
             if (tangents.empty())
                 return {};
@@ -616,7 +628,7 @@ namespace vsgAdapters
                 else if (affectors->mRecordType == Nif::RC_NiGravity)
                 {
                     const auto& gr = static_cast<const Nif::NiGravity&>(*affectors.getPtr());
-                    args.gravity = { .positionDecay={ toVsg(gr.mPosition), -gr.mDecay }, .directionForce={ vsg::normalize(toVsg(gr.mDirection)), gr.mForce*1.6f } };
+                    args.gravity = { .positionDecay={ gr.mPosition, -gr.mDecay }, .directionForce={ vsg::normalize(gr.mDirection), gr.mForce*1.6f } };
                     if (gr.mType == Nif::ForceType::Wind)
                         modes |= Pipeline::ParticleMode_GravityPlane;
                     else
@@ -643,7 +655,7 @@ namespace vsgAdapters
                 if (colliders->mRecordType == Nif::RC_NiPlanarCollider)
                 {
                     const auto& cl = static_cast<const Nif::NiPlanarCollider&>(*colliders.getPtr());
-                    args.collide = { .positionBounce={ toVsg(cl.mPosition), cl.mBounceFactor }, .xVectorRadius={ toVsg(cl.mXVector), cl.mExtents.x/2 }, .yVectorRadius={ toVsg(cl.mYVector), cl.mExtents.y/2 }, .plane={ toVsg(cl.mPlaneNormal), cl.mPlaneDistance } };
+                    args.collide = { .positionBounce={ cl.mPosition, cl.mBounceFactor }, .xVectorRadius={ cl.mXVector, cl.mExtents.x/2 }, .yVectorRadius={ cl.mYVector, cl.mExtents.y/2 }, .plane={ cl.mPlaneNormal, cl.mPlaneDistance } };
                     modes |= Pipeline::ParticleMode_CollidePlane;
                 }
                 else if (colliders->mRecordType == Nif::RC_NiSphericalCollider)
@@ -909,11 +921,11 @@ namespace vsgAdapters
             auto& nodeOptions = getNodeOptions();
             nodeOptions.material = MaterialValue::create(Pipeline::Material::createDefault());
             auto& val = nodeOptions.material->value();
-            val.diffuse = vsg::vec4(toVsg(matprop.mDiffuse), matprop.mAlpha);
-            val.ambient = vsg::vec4(toVsg(matprop.mAmbient), 1.f);
-            val.emissive = vsg::vec4(toVsg(matprop.mEmissive), 1.f);
+            val.diffuse = vsg::vec4(matprop.mDiffuse, matprop.mAlpha);
+            val.ambient = vsg::vec4(matprop.mAmbient, 1.f);
+            val.emissive = vsg::vec4(matprop.mEmissive, 1.f);
             // if (mNif->getVersion() > Nif::NIFFile::NIFVersion::VER_MW)
-            // val.specular = vsg::vec4(toVsg(matprop.data.specular), 1.f);
+            // val.specular = vsg::vec4(matprop.data.specular, 1.f);
             // val.shininess = matprop.data.glossiness;
             if (!matprop.mController.empty())
                 handleMaterialController(matprop.mController);
@@ -1241,7 +1253,7 @@ namespace vsgAdapters
                 {
                     if (vertex < std::min(numVertices, morphs[j].mVertices.size()))
                         (*array)[vertex * numMorphs + j]
-                            = vsg::vec4(toVsg(morphs[j].mVertices[vertex]), static_cast<float>(numMorphs));
+                            = vsg::vec4(morphs[j].mVertices[vertex], static_cast<float>(numMorphs));
                 }
             }
 

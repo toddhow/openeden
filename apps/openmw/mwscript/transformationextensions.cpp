@@ -649,7 +649,8 @@ namespace MWScript
 
                 std::string_view axis = runtime.getStringLiteral(runtime[0].mInteger);
                 runtime.pop();
-                Interpreter::Type_Float rotation = Misc::VsgMath::inDegrees(runtime[0].mFloat * runtime.getContext().dt);
+                Interpreter::Type_Float rotation
+                    = Misc::VsgMath::inDegrees(runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
                 vsg::vec3 rot = ptr.getRefData().getPosition().asRotationVec3();
@@ -674,7 +675,8 @@ namespace MWScript
 
                 std::string_view axis = runtime.getStringLiteral(runtime[0].mInteger);
                 runtime.pop();
-                Interpreter::Type_Float rotation = Misc::VsgMath::inDegrees(runtime[0].mFloat * runtime.getContext().dt);
+                Interpreter::Type_Float rotation
+                    = Misc::VsgMath::inDegrees(runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
                 // We can rotate actors only around Z axis

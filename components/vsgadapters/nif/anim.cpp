@@ -60,7 +60,7 @@ namespace vsgAdapters
 
     void convertTrafo(Anim::Transform& trans, const Nif::NiTransform& trafo)
     {
-        trans.translation = toVsg(trafo.mTranslation);
+        trans.translation = trafo.mTranslation;
         trans.setScale(trafo.mScale);
         for (int i = 0; i < 3; ++i)
             for (int j = 0; j < 3; ++j)

@@ -10,7 +10,6 @@
 #include <components/pipeline/object.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/pipeline/viewbindings.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/addchildren.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/arraytexture.hpp>
@@ -66,7 +65,7 @@ namespace MWRender
     std::optional<vsg::vec4> getGlowColor(const MWWorld::ConstPtr& item)
     {
         if (!item.getClass().getEnchantment(item).empty())
-            return toVsg(item.getClass().getEnchantmentColor(item));
+            return item.getClass().getEnchantmentColor(item);
         return {};
     }
 

@@ -1,3 +1,4 @@
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/shadermanager.hpp>
 #include <components/testing/util.hpp>
 
@@ -41,10 +42,10 @@ config:
 
         withSettingsFile(content, [](const auto& path) {
             EXPECT_TRUE(ShaderManager::get().load(path));
-            EXPECT_FALSE(ShaderManager::get().getValue<osg::Vec3f>("shader", "vec3_uniform").has_value());
-            EXPECT_TRUE(ShaderManager::get().setValue<osg::Vec3f>("shader", "vec3_uniform", osg::Vec3f(1, 2, 3)));
-            EXPECT_TRUE(ShaderManager::get().getValue<osg::Vec3f>("shader", "vec3_uniform").has_value());
-            EXPECT_EQ(ShaderManager::get().getValue<osg::Vec3f>("shader", "vec3_uniform").value(), osg::Vec3f(1, 2, 3));
+            EXPECT_FALSE(ShaderManager::get().getValue<vsg::vec3>("shader", "vec3_uniform").has_value());
+            EXPECT_TRUE(ShaderManager::get().setValue<vsg::vec3>("shader", "vec3_uniform", vsg::vec3(1, 2, 3)));
+            EXPECT_TRUE(ShaderManager::get().getValue<vsg::vec3>("shader", "vec3_uniform").has_value());
+            EXPECT_EQ(ShaderManager::get().getValue<vsg::vec3>("shader", "vec3_uniform").value(), vsg::vec3(1, 2, 3));
             EXPECT_TRUE(ShaderManager::get().save());
         });
     }

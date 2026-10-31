@@ -1,6 +1,5 @@
 #include "settings.hpp"
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/asyncnavmeshupdater.hpp>
 #include <components/detournavigator/dbrefgeometryobject.hpp>
 #include <components/detournavigator/makenavmesh.hpp>
@@ -8,6 +7,10 @@
 #include <components/detournavigator/serialization.hpp>
 #include <components/files/conversion.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/transform.h>
+
 #include <components/testing/util.hpp>
 
 #include <Jolt/Jolt.h>
@@ -18,7 +21,6 @@
 
 #include <DetourNavMesh.h>
 
-#include <osg/Matrixd>
 
 #include <gtest/gtest.h>
 
@@ -52,7 +54,7 @@ namespace
         const CollisionShape collisionShape(
             vsg::ref_ptr<Resource::PhysicsShapeInstance>(new Resource::PhysicsShapeInstance(physicsShape)), shape,
             objectTransform);
-        recastMeshManager.addObject(id, collisionShape, osg::Matrixd::identity(), AreaType_ground, nullptr);
+        recastMeshManager.addObject(id, collisionShape, vsg::dmat4(), AreaType_ground, nullptr);
     }
 
     struct DetourNavigatorAsyncNavMeshUpdaterTest : Test

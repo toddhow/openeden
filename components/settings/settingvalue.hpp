@@ -8,9 +8,10 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/collisionshapetype.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include <osg/io_utils>
+#include <vsg/io/stream.h>
 
 #include <map>
 #include <memory>
@@ -112,13 +113,13 @@ namespace Settings
     }
 
     template <>
-    inline constexpr SettingValueType getSettingValueType<osg::Vec2f>()
+    inline constexpr SettingValueType getSettingValueType<vsg::vec2>()
     {
         return SettingValueType::Vec2f;
     }
 
     template <>
-    inline constexpr SettingValueType getSettingValueType<osg::Vec3f>()
+    inline constexpr SettingValueType getSettingValueType<vsg::vec3>()
     {
         return SettingValueType::Vec3f;
     }

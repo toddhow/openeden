@@ -1,8 +1,11 @@
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/settingsutils.hpp>
 #include <components/detournavigator/tilecachedrecastmeshmanager.hpp>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/transform.h>
+
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
@@ -12,8 +15,6 @@
 #include <vsg/io/stream.h>
 
 #include <gmock/gmock.h>
-#include <osg/Vec3f>
-#include <osg/Matrixd>
 
 #include <gtest/gtest.h>
 
@@ -58,7 +59,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         EXPECT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
     }
 
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, add_object_for_existing_object_should_return_false)
@@ -66,9 +67,9 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_FALSE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
     }
 
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, add_object_should_add_tiles)
@@ -78,7 +79,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         for (int x = -1; x < 1; ++x)
             for (int y = -1; y < 1; ++y)
                 ASSERT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr);
@@ -94,7 +95,7 @@ namespace
             .mEnd = TilePosition(1, 1),
         };
         manager.setRange(range, nullptr);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_THAT(manager.takeChangedTiles(nullptr), ElementsAre(std::pair(TilePosition(0, 0), ChangeType::add)));
     }
 
@@ -102,8 +103,8 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
-        const osg::Matrixd transform
-            = osg::Matrixd::translate(osg::Vec3f(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0));
+        const vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0)));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         const TilesPositionsRange range{
             .mBegin = TilePosition(-1, -1),
@@ -113,7 +114,7 @@ namespace
         manager.addObject(ObjectId(&boxShape), shape, transform, AreaType::AreaType_ground, nullptr);
         manager.takeChangedTiles(nullptr);
         EXPECT_TRUE(
-            manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         EXPECT_THAT(manager.takeChangedTiles(nullptr),
             ElementsAre(std::pair(TilePosition(-1, -1), ChangeType::add),
                 std::pair(TilePosition(-1, 0), ChangeType::add), std::pair(TilePosition(0, -1), ChangeType::update),
@@ -127,10 +128,10 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         manager.takeChangedTiles(nullptr);
         EXPECT_FALSE(
-            manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         EXPECT_THAT(manager.takeChangedTiles(nullptr), IsEmpty());
     }
 
@@ -144,7 +145,7 @@ namespace
             .mEnd = TilePosition(1, 1),
         };
         manager.setRange(range, nullptr);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         manager.takeChangedTiles(nullptr);
         manager.removeObject(ObjectId(&boxShape), nullptr);
         EXPECT_THAT(manager.takeChangedTiles(nullptr), ElementsAre(std::pair(TilePosition(0, 0), ChangeType::remove)));
@@ -157,7 +158,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, -1)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, 0)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(0, -1)), nullptr);
@@ -171,7 +172,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(1, 0)), nullptr);
     }
 
@@ -187,8 +188,8 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
 
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
-        const osg::Matrixd transform
-            = osg::Matrixd::translate(osg::Vec3f(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0));
+        const vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0)));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
 
         manager.addObject(ObjectId(&boxShape), shape, transform, AreaType::AreaType_ground, nullptr);
@@ -197,7 +198,7 @@ namespace
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(1, 0)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(1, -1)), nullptr);
 
-        manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, -1)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, 0)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(0, -1)), nullptr);
@@ -211,15 +212,15 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
 
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
-        const osg::Matrixd transform
-            = osg::Matrixd::translate(osg::Vec3f(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0));
+        const vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0)));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
 
         manager.addObject(ObjectId(&boxShape), shape, transform, AreaType::AreaType_ground, nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(-1, -1)), nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(-1, 0)), nullptr);
 
-        manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(1, 0)), nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(1, -1)), nullptr);
     }
@@ -231,7 +232,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         manager.removeObject(ObjectId(&boxShape), nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(-1, -1)), nullptr);
         EXPECT_EQ(manager.getMesh(mWorldspace, TilePosition(-1, 0)), nullptr);
@@ -247,13 +248,13 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
 
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, -1)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, 0)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(0, -1)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(0, 0)), nullptr);
 
-        manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, -1)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(-1, 0)), nullptr);
         EXPECT_NE(manager.getMesh(mWorldspace, TilePosition(0, -1)), nullptr);
@@ -267,7 +268,7 @@ namespace
         const auto initialRevision = manager.getRevision();
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_EQ(manager.getRevision(), initialRevision + 1);
     }
 
@@ -277,10 +278,10 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         const auto beforeAddRevision = manager.getRevision();
         EXPECT_FALSE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         EXPECT_EQ(manager.getRevision(), beforeAddRevision);
     }
 
@@ -289,12 +290,12 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
-        const osg::Matrixd transform
-            = osg::Matrixd::translate(osg::Vec3f(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0));
+        const vsg::dmat4 transform
+            = vsg::translate(vsg::dvec3(vsg::vec3(getTileSize(mSettings) / mSettings.mRecastScaleFactor, 0, 0)));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         manager.addObject(ObjectId(&boxShape), shape, transform, AreaType::AreaType_ground, nullptr);
         const auto beforeUpdateRevision = manager.getRevision();
-        manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_EQ(manager.getRevision(), beforeUpdateRevision + 1);
     }
 
@@ -305,9 +306,9 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         const auto beforeUpdateRevision = manager.getRevision();
-        manager.updateObject(ObjectId(&boxShape), osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         EXPECT_EQ(manager.getRevision(), beforeUpdateRevision);
     }
 
@@ -317,7 +318,7 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         const auto beforeRemoveRevision = manager.getRevision();
         manager.removeObject(ObjectId(&boxShape), nullptr);
         EXPECT_EQ(manager.getRevision(), beforeRemoveRevision + 1);
@@ -364,7 +365,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = std::numeric_limits<int>::max();
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
@@ -416,7 +417,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
@@ -436,7 +437,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeObject(ObjectId(&boxShape), nullptr);
         for (int x = -1; x < 12; ++x)
@@ -451,7 +452,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(nullptr, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
+            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         manager.setWorldspace(mOtherWorldspace, nullptr);
         for (int x = -1; x < 1; ++x)
             for (int y = -1; y < 1; ++y)
@@ -468,7 +469,7 @@ namespace
             .mEnd = TilePosition(1, 1),
         };
         manager.setRange(range1, nullptr);
-        manager.addObject(ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr);
+        manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         const TilesPositionsRange range2{
             .mBegin = TilePosition(-1, -1),
             .mEnd = TilePosition(0, 0),

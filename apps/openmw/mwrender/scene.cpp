@@ -12,7 +12,6 @@
 #include <components/misc/constants.hpp>
 #include <components/settings/values.hpp>
 #include <components/mwanimation/create.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/removechild.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/updatethreads.hpp>
@@ -37,7 +36,7 @@ namespace
         const float scale = ptr.getCellRef().getScale();
         vsg::vec3 scaleVec(scale, scale, scale);
         ptr.getClass().adjustScale(ptr, scaleVec, true);
-        trafo.scale = toVsg(scaleVec);
+        trafo.scale = scaleVec;
     }
 }
 

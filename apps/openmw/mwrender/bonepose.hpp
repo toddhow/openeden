@@ -4,9 +4,8 @@
 #include <string>
 #include <vector>
 
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
 
 namespace Anim
 {
@@ -23,7 +22,7 @@ namespace MWRender
      *
      * Bones are vsgopenmw's Anim::Transform nodes, found by name in an actor's Anim::Bones (MWAnim::Play::bones).
      * "Model" space is the actor model's space (the product of the bone path, without the actor's own position);
-     * "world" space also applies the actor's root transform. Math is osg:: at this boundary until task 0013 (V5).
+     * "world" space also applies the actor's root transform.
      *
      * Ownership: BonePose holds no ownership; the Bones and the root transform must outlive it (they are owned by the
      * actor's MWAnim::Object). Handles store the bone path found once at setup, so per-frame reads and writes do not
@@ -48,18 +47,18 @@ namespace MWRender
         Bone find(const std::string& name) const;
 
         /// The bone's local transform (relative to its parent bone).
-        osg::Matrixf getLocal(const Bone& bone) const;
+        vsg::mat4 getLocal(const Bone& bone) const;
         /// Replaces the bone's local transform; the matrix is decomposed into translation, rotation and scale.
-        void setLocal(const Bone& bone, const osg::Matrixf& local) const;
+        void setLocal(const Bone& bone, const vsg::mat4& local) const;
         /// Replaces only the bone's local rotation.
-        void setLocalRotation(const Bone& bone, const osg::Quat& rotation) const;
+        void setLocalRotation(const Bone& bone, const vsg::dquat& rotation) const;
 
         /// The bone's transform in the actor model's space.
-        osg::Matrixf getModel(const Bone& bone) const;
+        vsg::mat4 getModel(const Bone& bone) const;
         /// The bone's transform in world space.
-        osg::Matrixf getWorld(const Bone& bone) const;
+        vsg::mat4 getWorld(const Bone& bone) const;
         /// The actor's root transform in world space (identity without a root).
-        osg::Matrixf getRoot() const;
+        vsg::mat4 getRoot() const;
 
     private:
         Anim::Bones& mBones;

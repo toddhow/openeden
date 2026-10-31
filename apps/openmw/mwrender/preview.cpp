@@ -22,7 +22,6 @@
 #include <components/view/defaultstate.hpp>
 #include <components/view/descriptors.hpp>
 #include <components/view/scene.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/computetransform.hpp>
 #include <components/vsgutil/nullbin.hpp>
 #include <components/vsgutil/sharedview.hpp>
@@ -295,7 +294,7 @@ namespace MWRender
         vsg::vec3 scale(1.f, 1.f, 1.f);
         p.getClass().adjustScale(p, scale, true);
         if (preview->npc)
-            preview->npc->transform()->scale = toVsg(scale);
+            preview->npc->transform()->scale = scale;
 
         vsg::vec3 position{ 0, 700, 71 };
         vsg::vec3 lookAt{ 0, 0, 71 };

@@ -17,7 +17,6 @@
 #include <components/mwanimation/lighteffect.hpp>
 #include <components/mwanimation/play.hpp>
 #include <components/mwanimation/position.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/computetransform.hpp>
 
 #include <components/settings/values.hpp>
@@ -3596,7 +3595,7 @@ namespace MWMechanics
                 {
                     // no head node to look at, fall back to look at center of collision box
                     direction
-                        = toVsg(MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false));
+                        = MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false);
                 }
             }
             Misc::VsgMath::normalizeInPlace(direction);

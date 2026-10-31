@@ -122,8 +122,6 @@ add_component_dir (vsgadapters
     tangents
     # Encapsulates vfs component.
     vfs
-    # Temporarily converts types.
-    osgcompat
     # Avoids linking full OSG library for yet-to-be-ported modules.
     osg/Matrixf osg/Matrixd osg/Quat osg/MatrixDecomposition
     )

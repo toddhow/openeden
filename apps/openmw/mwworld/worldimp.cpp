@@ -1655,7 +1655,7 @@ namespace MWWorld
         vsg::dquat listenerOrient;
 
         if (isFirstPerson() || Settings::sound().mCameraListener)
-            listenerPos = osg::Vec3f(camera->getPosition());
+            listenerPos = vsg::vec3(camera->getPosition());
         else
             listenerPos = vsg::vec3(refpos.asVec3()) + vsg::vec3(0, 0, 1.85f * mPhysics->getHalfExtents(player).z);
 
@@ -1669,7 +1669,7 @@ namespace MWWorld
         forward = vsg::quat(listenerOrient) * vsg::vec3(0, 1, 0);
         up = vsg::quat(listenerOrient) * vsg::vec3(0, 0, 1);
 
-        bool underwater = isUnderwater(player.getCell(), osg::Vec3f(camera->getPosition()));
+        bool underwater = isUnderwater(player.getCell(), vsg::vec3(camera->getPosition()));
 
         MWBase::Environment::get().getSoundManager()->setListenerPosDir(listenerPos, forward, up, underwater);
     }
@@ -1915,9 +1915,9 @@ namespace MWWorld
         ESM::Position pos = getPlayerPtr().getRefData().getPosition();
         if (result.mHit)
         {
-            pos.pos[0] = result.mHitPointWorld.x();
-            pos.pos[1] = result.mHitPointWorld.y();
-            pos.pos[2] = result.mHitPointWorld.z();
+            pos.pos[0] = result.mHitPointWorld.x;
+            pos.pos[1] = result.mHitPointWorld.y;
+            pos.pos[2] = result.mHitPointWorld.z;
         }
         // We want only the Z part of the player's rotation
         pos.rot[0] = 0;
@@ -1941,7 +1941,8 @@ namespace MWWorld
         if (result.mHit)
         {
             // check if the wanted position is on a flat surface, and not e.g. against a vertical wall
-            if (std::acos((result.mHitNormalWorld / result.mHitNormalWorld.length()) * osg::Vec3f(0, 0, 1))
+            if (std::acos(vsg::dot(Misc::VsgMath::divide(result.mHitNormalWorld, vsg::length(result.mHitNormalWorld)),
+                    vsg::vec3(0, 0, 1)))
                 >= Misc::VsgMath::inDegrees(30.f))
                 return false;
 
@@ -2037,7 +2038,7 @@ namespace MWWorld
 
         auto result = mRendering->castRay(orig, orig + dir * len, true, true);
         if (result.mHit)
-            pos.pos[2] = result.mHitPointWorld.z();
+            pos.pos[2] = result.mHitPointWorld.z;
 
         // copy the object and set its count
         Ptr dropped

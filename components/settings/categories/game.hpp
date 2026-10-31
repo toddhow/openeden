@@ -2,12 +2,10 @@
 #define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GAME_H
 
 #include <components/detournavigator/collisionshapetype.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-#include <osg/Math>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <cstdint>
 #include <string>
@@ -68,8 +66,8 @@ namespace Settings
         SettingValue<bool> mGraphicHerbalism{ mIndex, "Game", "graphic herbalism" };
         SettingValue<bool> mAllowActorsToFollowOverWaterSurface{ mIndex, "Game",
             "allow actors to follow over water surface" };
-        SettingValue<osg::Vec3f> mDefaultActorPathfindHalfExtents{ mIndex, "Game",
-            "default actor pathfind half extents", makeMaxStrictSanitizerVec3f(osg::Vec3f(0, 0, 0)) };
+        SettingValue<vsg::vec3> mDefaultActorPathfindHalfExtents{ mIndex, "Game",
+            "default actor pathfind half extents", makeMaxStrictSanitizerVec3f(vsg::vec3(0, 0, 0)) };
         SettingValue<bool> mDayNightSwitches{ mIndex, "Game", "day night switches" };
         SettingValue<DetourNavigator::CollisionShapeType> mActorCollisionShapeType{ mIndex, "Game",
             "actor collision shape type" };

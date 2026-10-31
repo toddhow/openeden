@@ -8,7 +8,6 @@
 #include <components/fallback/fallback.hpp>
 #include <components/settings/values.hpp>
 #include <components/mwanimation/color.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include "apps/openmw/mwworld/cell.hpp"
 
@@ -19,7 +18,7 @@ namespace MWRender
         , mLandFogEnd(std::numeric_limits<float>::max())
         , mUnderwaterFogStart(0.f)
         , mUnderwaterFogEnd(std::numeric_limits<float>::max())
-        , mUnderwaterColor(toVsg(Fallback::Map::getColour("Water_UnderwaterColor")))
+        , mUnderwaterColor(Fallback::Map::getColour("Water_UnderwaterColor"))
         , mUnderwaterWeight(Fallback::Map::getFloat("Water_UnderwaterColorWeight"))
         , mUnderwaterIndoorFog(Fallback::Map::getFloat("Water_UnderwaterIndoorFog"))
     {

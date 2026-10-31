@@ -4,11 +4,9 @@
 #include <optional>
 #include <string>
 
-#include <osg/Matrix>
-#include <osg/Vec3>
-#include <osg/Vec3d>
-#include <osg/ref_ptr>
 #include <vsg/core/ref_ptr.h>
+
+#include <components/misc/vsgmath.hpp>
 
 #include "../mwworld/ptr.hpp"
 
@@ -46,8 +44,8 @@ namespace MWRender
 
         void setFocalPointTransitionSpeed(float v) { mFocalPointTransitionSpeedCoef = v; }
         float getFocalPointTransitionSpeed() const { return mFocalPointTransitionSpeedCoef; }
-        void setFocalPointTargetOffset(const osg::Vec2d& v);
-        osg::Vec2d getFocalPointTargetOffset() const { return mFocalPointTargetOffset; }
+        void setFocalPointTargetOffset(const vsg::dvec2& v);
+        vsg::dvec2 getFocalPointTargetOffset() const { return mFocalPointTargetOffset; }
         void instantTransition();
         void showCrosshair(bool v) { mShowCrosshair = v; }
 
@@ -73,7 +71,7 @@ namespace MWRender
         void setExtraYaw(float angle) { mExtraYaw = angle; }
         void setExtraRoll(float angle) { mExtraRoll = angle; }
 
-        osg::Quat getOrient() const;
+        vsg::dquat getOrient() const;
 
         /// @param Force view mode switch, even if currently not allowed by the animation.
         void toggleViewMode(bool force = false);
@@ -94,9 +92,9 @@ namespace MWRender
 
         void setAnimation(Player* anim);
 
-        osg::Vec3d getTrackedPosition() const { return mTrackedPosition; }
-        const osg::Vec3d& getPosition() const { return mPosition; }
-        void setStaticPosition(const osg::Vec3d& pos);
+        vsg::dvec3 getTrackedPosition() const { return mTrackedPosition; }
+        const vsg::dvec3& getPosition() const { return mPosition; }
+        void setStaticPosition(const vsg::dvec3& pos);
 
         bool isVanityOrPreviewModeEnabled() const { return mMode == Mode::Vanity || mMode == Mode::Preview; }
         Mode getMode() const { return mMode; }
@@ -105,18 +103,18 @@ namespace MWRender
 
         void allowCharacterDeferredRotation(bool v) { mDeferredRotationAllowed = v; }
         void calculateDeferredRotation();
-        void setFirstPersonOffset(const osg::Vec3f& v) { mFirstPersonOffset = v; }
-        osg::Vec3f getFirstPersonOffset() const { return mFirstPersonOffset; }
+        void setFirstPersonOffset(const vsg::vec3& v) { mFirstPersonOffset = v; }
+        vsg::vec3 getFirstPersonOffset() const { return mFirstPersonOffset; }
 
         int getCollisionType() const { return mCollisionType; }
         void setCollisionType(int collisionType) { mCollisionType = collisionType; }
 
-        const osg::Matrixf& getViewMatrix() const { return mViewMatrix; }
+        const vsg::mat4& getViewMatrix() const { return mViewMatrix; }
 
     private:
         MWWorld::Ptr mTrackingPtr;
         std::vector<vsg::ref_ptr<const Anim::Transform>> mTrackingPath;
-        osg::Vec3d mTrackedPosition;
+        vsg::dvec3 mTrackedPosition;
         float mHeightScale;
         int mCollisionType;
 
@@ -137,34 +135,34 @@ namespace MWRender
         float mPitch, mYaw, mRoll;
         float mExtraPitch = 0, mExtraYaw = 0, mExtraRoll = 0;
         bool mLockPitch = false, mLockYaw = false;
-        osg::Vec3d mPosition;
-        osg::Matrixf mViewMatrix;
+        vsg::dvec3 mPosition;
+        vsg::mat4 mViewMatrix;
 
         float mCameraDistance, mPreferredCameraDistance;
 
-        osg::Vec3f mFirstPersonOffset{ 0, 0, 0 };
+        vsg::vec3 mFirstPersonOffset{ 0, 0, 0 };
 
-        osg::Vec2d mFocalPointCurrentOffset;
-        osg::Vec2d mFocalPointTargetOffset;
+        vsg::dvec2 mFocalPointCurrentOffset;
+        vsg::dvec2 mFocalPointTargetOffset;
         float mFocalPointTransitionSpeedCoef;
         bool mSkipFocalPointTransition;
 
         // This fields are used to make focal point transition smooth if previous transition was not finished.
         float mPreviousTransitionInfluence;
-        osg::Vec2d mFocalPointTransitionSpeed;
-        osg::Vec2d mPreviousTransitionSpeed;
-        osg::Vec2d mPreviousExtraOffset;
+        vsg::dvec2 mFocalPointTransitionSpeed;
+        vsg::dvec2 mPreviousTransitionSpeed;
+        vsg::dvec2 mPreviousExtraOffset;
 
         bool mShowCrosshair;
 
-        osg::Vec3d calculateTrackedPosition() const;
-        osg::Vec3d calculateFirstPersonPosition(const osg::Vec3d& trackedPosition) const;
-        osg::Vec3d getFocalPointOffset() const;
+        vsg::dvec3 calculateTrackedPosition() const;
+        vsg::dvec3 calculateFirstPersonPosition(const vsg::dvec3& trackedPosition) const;
+        vsg::dvec3 getFocalPointOffset() const;
         void updateFocalPointOffset(float duration);
         void updatePosition();
 
         // Used to rotate player to the direction of view after exiting preview or vanity mode.
-        osg::Vec3f mDeferredRotation;
+        vsg::vec3 mDeferredRotation;
         bool mDeferredRotationDisabled;
     };
 }

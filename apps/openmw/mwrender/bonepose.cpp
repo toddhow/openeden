@@ -1,26 +1,16 @@
 #include "bonepose.hpp"
 
-#include <cstring>
-
 #include <components/animation/bones.hpp>
 #include <components/animation/transform.hpp>
+#include <components/misc/vsgmath.hpp>
 
 namespace MWRender
 {
     namespace
     {
-        // osg::Matrixf (row vectors, translation in the last row) and vsg::mat4 (columns, translation in the last
-        // column) share their memory layout (components/vsgadapters/osgcompat.hpp, toOsg).
-        osg::Matrixf toOsgMatrix(const vsg::mat4& matrix)
+        vsg::mat4 localMatrix(const Anim::Transform& transform)
         {
-            osg::Matrixf result;
-            std::memcpy(result.ptr(), matrix.data(), sizeof(float) * 16);
-            return result;
-        }
-
-        osg::Matrixf localMatrix(const Anim::Transform& transform)
-        {
-            return toOsgMatrix(transform.t_transform(vsg::mat4()));
+            return transform.t_transform(vsg::mat4());
         }
     }
 
@@ -43,47 +33,47 @@ namespace MWRender
         return result;
     }
 
-    osg::Matrixf BonePose::getLocal(const Bone& bone) const
+    vsg::mat4 BonePose::getLocal(const Bone& bone) const
     {
-        return bone ? localMatrix(*bone.mNode) : osg::Matrixf();
+        return bone ? localMatrix(*bone.mNode) : vsg::mat4();
     }
 
-    void BonePose::setLocal(const Bone& bone, const osg::Matrixf& local) const
+    void BonePose::setLocal(const Bone& bone, const vsg::mat4& local) const
     {
         if (!bone)
             return;
-        osg::Vec3f translation;
-        osg::Quat rotation;
-        osg::Vec3f scale;
-        osg::Quat scaleOrientation;
-        local.decompose(translation, rotation, scale, scaleOrientation);
-        bone.mNode->translation = vsg::vec3(translation.x(), translation.y(), translation.z());
-        bone.mNode->scale = vsg::vec3(scale.x(), scale.y(), scale.z());
-        bone.mNode->setAttitude(vsg::quat(rotation.x(), rotation.y(), rotation.z(), rotation.w()));
+        vsg::vec3 translation;
+        vsg::dquat rotation;
+        vsg::vec3 scale;
+        vsg::dquat scaleOrientation;
+        Misc::VsgMath::decompose(local, translation, rotation, scale, scaleOrientation);
+        bone.mNode->translation = translation;
+        bone.mNode->scale = scale;
+        bone.mNode->setAttitude(vsg::quat(rotation));
     }
 
-    void BonePose::setLocalRotation(const Bone& bone, const osg::Quat& rotation) const
+    void BonePose::setLocalRotation(const Bone& bone, const vsg::dquat& rotation) const
     {
         if (bone)
-            bone.mNode->setAttitude(vsg::quat(rotation.x(), rotation.y(), rotation.z(), rotation.w()));
+            bone.mNode->setAttitude(vsg::quat(rotation));
     }
 
-    osg::Matrixf BonePose::getModel(const Bone& bone) const
+    vsg::mat4 BonePose::getModel(const Bone& bone) const
     {
-        // osg multiplies row vectors, so a child's local matrix comes first: model = local(bone) * ... * local(root).
-        osg::Matrixf model;
+        // A parent's local matrix comes first: model = local(root) * ... * local(bone).
+        vsg::mat4 model;
         for (auto it = bone.mPath.rbegin(); it != bone.mPath.rend(); ++it)
-            model = model * localMatrix(**it);
+            model = localMatrix(**it) * model;
         return model;
     }
 
-    osg::Matrixf BonePose::getRoot() const
+    vsg::mat4 BonePose::getRoot() const
     {
-        return mRoot ? localMatrix(*mRoot) : osg::Matrixf();
+        return mRoot ? localMatrix(*mRoot) : vsg::mat4();
     }
 
-    osg::Matrixf BonePose::getWorld(const Bone& bone) const
+    vsg::mat4 BonePose::getWorld(const Bone& bone) const
     {
-        return getModel(bone) * getRoot();
+        return getRoot() * getModel(bone);
     }
 }

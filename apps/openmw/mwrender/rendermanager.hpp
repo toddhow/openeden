@@ -15,15 +15,11 @@
 #include <vsg/nodes/Group.h>
 #include <vsg/maths/box.h>
 
-#include <osg/BoundingBox>
-#include <osg/Quat>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
-#include <osg/Vec4i>
 
 #include <components/settings/settings.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm/refid.hpp>
+#include <components/misc/vsgmath.hpp>
 
 namespace MWWorld
 {
@@ -153,8 +149,8 @@ namespace MWRender
         int skyGetSecundaPhase() const;
         void skySetMoonColour(bool red);
 
-        void setSunDirection(const osg::Vec3f& direction);
-        void setSunColour(const osg::Vec4f& diffuse, const osg::Vec4f& specular);
+        void setSunDirection(const vsg::vec3& direction);
+        void setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular);
 
         void configureAmbient(const MWWorld::Cell& cell);
         void configureFog(const MWWorld::Cell& cell);
@@ -162,7 +158,7 @@ namespace MWRender
 
         void addCell(const MWWorld::CellStore* store);
         void removeCell(const MWWorld::CellStore* store);
-        void changeCellGrid(const osg::Vec3f& pos);
+        void changeCellGrid(const vsg::vec3& pos);
         /// The exterior cells the scene loads, which distant objects leave out.
         void setActiveGrid(int x, int y, int halfGrid);
         /// For post-processing's sun position (OpenMW's RenderingManager::setNight).
@@ -173,9 +169,9 @@ namespace MWRender
 
         void updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated);
 
-        void rotateObject(const MWWorld::Ptr& ptr, const osg::Quat& rot);
-        void moveObject(const MWWorld::Ptr& ptr, const osg::Vec3f& pos);
-        void scaleObject(const MWWorld::Ptr& ptr, const osg::Vec3f& scale);
+        void rotateObject(const MWWorld::Ptr& ptr, const vsg::dquat& rot);
+        void moveObject(const MWWorld::Ptr& ptr, const vsg::vec3& pos);
+        void scaleObject(const MWWorld::Ptr& ptr, const vsg::vec3& scale);
 
         void removeObject(const MWWorld::Ptr& ptr);
 
@@ -185,15 +181,15 @@ namespace MWRender
         struct RayResult
         {
             bool mHit = false;
-            osg::Vec3f mHitNormalWorld;
-            osg::Vec3f mHitPointWorld;
+            vsg::vec3 mHitNormalWorld;
+            vsg::vec3 mHitPointWorld;
             MWWorld::Ptr mHitObject;
             ESM::RefNum mHitRefnum = { 0, -1 };
             float mRatio = 0.f;
         };
 
         RayResult castRay(
-            const osg::Vec3f& origin, const osg::Vec3f& dest, bool ignorePlayer, bool ignoreActors = false);
+            const vsg::vec3& origin, const vsg::vec3& dest, bool ignorePlayer, bool ignoreActors = false);
 
         /// Return the object under the mouse cursor / crosshair position, given by nX and nY normalized screen
         /// coordinates, where (0,0) is the top left corner.
@@ -202,12 +198,12 @@ namespace MWRender
 
         /// Get the bounding box of the given object in screen coordinates as (minX, minY, maxX, maxY), with (0,0) being
         /// the top left corner.
-        osg::Vec4f getScreenBounds(const osg::BoundingBox& worldbb);
+        vsg::vec4 getScreenBounds(const vsg::dbox& worldbb);
         /// Normalized screen position of the top centre of the box, from the top left; (0.5, 0) if it is off screen.
-        osg::Vec2f getScreenCoords(const osg::BoundingBox& bb);
+        vsg::vec2 getScreenCoords(const vsg::dbox& bb);
 
         /// The sun light as OpenMW 0.51 reports it: the direction towards the sun, with w = 0.
-        const osg::Vec4f& getSunLightPosition() const { return mSunLightPosition; }
+        const vsg::vec4& getSunLightPosition() const { return mSunLightPosition; }
 
         bool toggleRenderMode(RenderMode mode);
         void setRenderModeActive(RenderMode mode, bool enabled);
@@ -215,7 +211,7 @@ namespace MWRender
         void setSkyEnabled(bool enable);
         Sky* getSky();
 
-        void spawnEffect(const std::string& model, std::string_view texture, const osg::Vec3f& worldPosition,
+        void spawnEffect(const std::string& model, std::string_view texture, const vsg::vec3& worldPosition,
             float scale = 1.f, bool isMagicVFX = true, std::string_view effectId = {}, bool loop = false);
         /// Removes the spawned effects with this ID (OpenMW 0.51 Lua VFX).
         void removeEffect(std::string_view effectId);
@@ -235,7 +231,7 @@ namespace MWRender
 
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr);
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr);
-        void emitWaterRipple(const osg::Vec3f& pos);
+        void emitWaterRipple(const vsg::vec3& pos);
 
         void updatePlayerPtr(const MWWorld::Ptr& ptr);
 
@@ -246,7 +242,7 @@ namespace MWRender
 
         void processChangedSettings(const Settings::CategorySettingVector& settings);
 
-        float getTerrainHeightAt(const osg::Vec3f& pos, ESM::RefId worldspace);
+        float getTerrainHeightAt(const vsg::vec3& pos, ESM::RefId worldspace);
 
         Camera* getCamera() { return mCamera.get(); }
         Projectiles* getProjectiles() { return mProjectiles.get(); }
@@ -260,14 +256,14 @@ namespace MWRender
         float getViewDistance() const { return mViewDistance; }
         void setViewDistance(float distance, bool dummy = true);
 
-        osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& object) const;
+        vsg::vec3 getHalfExtents(const MWWorld::ConstPtr& object) const;
 
         void exportSceneGraph(const MWWorld::Ptr& ptr, const std::filesystem::path& dir);
 
         bool toggleBorders();
 
-        void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<osg::Vec3f>& path,
-            const osg::Vec3f& halfExtents, const osg::Vec3f& start, const osg::Vec3f& end) const;
+        void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
+            const vsg::vec3& halfExtents, const vsg::vec3& start, const vsg::vec3& end) const;
 
         void removeActorPath(const MWWorld::ConstPtr& actor) const;
 
@@ -276,7 +272,7 @@ namespace MWRender
         bool pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled);
         void pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr);
         bool pagingUnlockCache();
-        void getPagedRefnums(const osg::Vec4i& activeGrid, std::set<ESM::RefNum>& out);
+        void getPagedRefnums(const vsg::ivec4& activeGrid, std::set<ESM::RefNum>& out);
 
         void updateExtents(uint32_t w, uint32_t h);
 
@@ -376,7 +372,7 @@ namespace MWRender
         vsg::vec4 mLightDiffuse;
         vsg::vec4 mLightSpecular;
         vsg::vec3 mLightPosition;
-        osg::Vec4f mSunLightPosition;
+        vsg::vec4 mSunLightPosition;
         float mMinimumAmbientLuminance;
         float mNightEyeFactor = 0;
 

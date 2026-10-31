@@ -34,7 +34,6 @@
 #include <components/view/descriptors.hpp>
 #include <components/view/lightgrid.hpp>
 #include <components/view/scene.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/updatethreads.hpp>
 #include <components/vsgutil/compileop.hpp>
 #include <components/vsgutil/bounds.hpp>
@@ -50,6 +49,7 @@
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -563,17 +563,17 @@ namespace MWRender
         mLightPosition = vsg::vec3(-0.15f, 0.15f, 1.f);
     }
 
-    void RenderManager::setSunColour(const osg::Vec4f& diffuse, const osg::Vec4f& specular)
+    void RenderManager::setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular)
     {
-        mLightDiffuse = toVsg(diffuse);
-        mLightSpecular = toVsg(specular);
+        mLightDiffuse = diffuse;
+        mLightSpecular = specular;
     }
 
-    void RenderManager::setSunDirection(const osg::Vec3f& direction)
+    void RenderManager::setSunDirection(const vsg::vec3& direction)
     {
-        osg::Vec3 position = direction * -1;
-        mLightPosition = toVsg(position);
-        mSunLightPosition = osg::Vec4f(position, 0.f);
+        vsg::vec3 position = direction * -1;
+        mLightPosition = position;
+        mSunLightPosition = vsg::vec4(position, 0.f);
         mSky->setSunDirection(position);
     }
 
@@ -631,7 +631,7 @@ namespace MWRender
         }
         const MWWorld::Ptr player = MWMechanics::getPlayer();
         if (!player.isEmpty())
-            mGroundcoverPlayerPosition = toVsg(player.getRefData().getPosition().asVec3());
+            mGroundcoverPlayerPosition = player.getRefData().getPosition().asVec3();
         if (!mGroundcover)
             return;
         // Groundcover belongs to Morrowind's exterior; an interior's or another worldspace's coordinates would select
@@ -701,9 +701,9 @@ namespace MWRender
             mDistantObjects->blacklist(refnum, referenceCells(ptr));
     }
 
-    void RenderManager::changeCellGrid(const osg::Vec3f& pos)
+    void RenderManager::changeCellGrid(const vsg::vec3& pos)
     {
-        updateTerrain(vsg::dvec3(toVsg(pos)));
+        updateTerrain(vsg::dvec3(pos));
     }
 
     void RenderManager::pruneCache()
@@ -744,7 +744,7 @@ namespace MWRender
     void RenderManager::updateSceneData()
     {
         bool isUnderwater
-            = mRenderModes[Render_Water].active && mWater->isUnderwater(vsg::vec3(toVsg(mCamera->getPosition())));
+            = mRenderModes[Render_Water].active && mWater->isUnderwater(vsg::vec3(mCamera->getPosition()));
         auto fogColor = mFog->getFogColor(isUnderwater);
         mRenderGraph->setClearValues(VkClearColorValue{ { fogColor.x, fogColor.y, fogColor.z, 1 } });
 
@@ -930,7 +930,7 @@ namespace MWRender
         static const std::string noEffect;
         mWeatherEffects->setEffect(mRenderModes[Render_Sky] ? mSky->getParticleEffect() : noEffect);
         // Weather particles stop at the water surface, as OpenMW's underwater switch did.
-        const vsg::vec3 cameraPosition(toVsg(mCamera->getPosition()));
+        const vsg::vec3 cameraPosition(mCamera->getPosition());
         const bool aboveWater = !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition));
         mWeatherEffects->update(
             dt, cameraPosition, mSky->getParticleOrientation(), mSky->getPrecipitationAlpha(), aboveWater);
@@ -1005,24 +1005,24 @@ namespace MWRender
         mCamera->attachTo(ptr);
     }
 
-    void RenderManager::rotateObject(const MWWorld::Ptr& ptr, const osg::Quat& rot)
+    void RenderManager::rotateObject(const MWWorld::Ptr& ptr, const vsg::dquat& rot)
     {
         if (ptr == mCamera->getTrackingPtr() && !mCamera->isVanityOrPreviewModeEnabled())
             mCamera->rotateCameraToTrackingPtr();
         if (auto obj = getObject(ptr))
-            obj->transform()->setAttitude(toVsg(rot));
+            obj->transform()->setAttitude(vsg::quat(rot));
     }
 
-    void RenderManager::moveObject(const MWWorld::Ptr& ptr, const osg::Vec3f& pos)
+    void RenderManager::moveObject(const MWWorld::Ptr& ptr, const vsg::vec3& pos)
     {
         if (auto obj = getObject(ptr))
-            obj->transform()->translation = toVsg(pos);
+            obj->transform()->translation = pos;
     }
 
-    void RenderManager::scaleObject(const MWWorld::Ptr& ptr, const osg::Vec3f& scale)
+    void RenderManager::scaleObject(const MWWorld::Ptr& ptr, const vsg::vec3& scale)
     {
         if (auto obj = getObject(ptr))
-            obj->transform()->scale = toVsg(scale);
+            obj->transform()->scale = scale;
         if (ptr == mCamera->getTrackingPtr()) // update height of camera
             mCamera->processViewChange();
     }
@@ -1050,15 +1050,15 @@ namespace MWRender
         mWaterRipples->setWaterHeight(height);
     }
 
-    osg::Vec4f RenderManager::getScreenBounds(const osg::BoundingBox& worldbb)
+    vsg::vec4 RenderManager::getScreenBounds(const vsg::dbox& worldbb)
     {
-        if (!worldbb.valid())
+        if (!Misc::VsgMath::valid(worldbb))
             return {};
         auto viewProj = mProjectionMatrix->transform() * mViewMatrix->transform();
         float min_x = 1.0f, max_x = 0.0f, min_y = 1.0f, max_y = 0.0f;
         for (int i = 0; i < 8; ++i)
         {
-            auto screen = Render::worldToScreen(viewProj, vsg::dvec3(toVsg(worldbb.corner(i))));
+            auto screen = Render::worldToScreen(viewProj, vsg::dvec3(Misc::VsgMath::corner(worldbb, i)));
             min_x = std::min(min_x, screen.x);
             max_x = std::max(max_x, screen.x);
             min_y = std::min(min_y, screen.y);
@@ -1067,31 +1067,32 @@ namespace MWRender
         return { min_x, min_y, max_x, max_y };
     }
 
-    osg::Vec2f RenderManager::getScreenCoords(const osg::BoundingBox& bb)
+    vsg::vec2 RenderManager::getScreenCoords(const vsg::dbox& bb)
     {
         // As OpenMW 0.51 places the focus tooltip: the top centre of the object's bounds.
-        if (bb.valid())
+        if (Misc::VsgMath::valid(bb))
         {
             const vsg::dmat4 viewProj = mProjectionMatrix->transform() * mViewMatrix->transform();
             const vsg::dvec4 clipPoint = viewProj
-                * vsg::dvec4((bb.xMin() + bb.xMax()) * 0.5, (bb.yMin() + bb.yMax()) * 0.5, bb.zMax(), 1.0);
+                * vsg::dvec4((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, bb.max.z, 1.0);
             if (clipPoint.w > 0.0)
             {
                 // Vulkan clip space has y pointing down, so this is already measured from the top.
                 const float screenPointX = static_cast<float>((clipPoint.x / clipPoint.w + 1.0) * 0.5);
                 const float screenPointY = static_cast<float>((clipPoint.y / clipPoint.w + 1.0) * 0.5);
                 if (screenPointX >= 0.f && screenPointX <= 1.f && screenPointY >= 0.f && screenPointY <= 1.f)
-                    return osg::Vec2f(screenPointX, screenPointY);
+                    return vsg::vec2(screenPointX, screenPointY);
             }
         }
 
-        return osg::Vec2f(0.5f, 0.f);
+        return vsg::vec2(0.5f, 0.f);
     }
 
     RenderManager::RayResult RenderManager::castRay(
-        const osg::Vec3f& origin, const osg::Vec3f& dest, bool ignorePlayer, bool ignoreActors)
+        const vsg::vec3& origin, const vsg::vec3& dest, bool ignorePlayer, bool ignoreActors)
     {
-        return MWRender::castRay(vsg::dvec3(toVsg(origin)), vsg::dvec3(toVsg(dest)), ignorePlayer, ignoreActors, *mScene, mIntersectorScene);
+        return MWRender::castRay(
+            vsg::dvec3(origin), vsg::dvec3(dest), ignorePlayer, ignoreActors, *mScene, mIntersectorScene);
     }
 
     RenderManager::RayResult RenderManager::castCameraToViewportRay(
@@ -1107,10 +1108,10 @@ namespace MWRender
         // mActorsPaths->updatePtr(old, updated);
     }
 
-    void RenderManager::spawnEffect(const std::string& model, std::string_view texture, const osg::Vec3f& worldPosition,
+    void RenderManager::spawnEffect(const std::string& model, std::string_view texture, const vsg::vec3& worldPosition,
         float scale, bool isMagicVFX, std::string_view effectId, bool loop)
     {
-        mEffects->add(model, std::string(texture), toVsg(worldPosition), scale, isMagicVFX, effectId, loop);
+        mEffects->add(model, std::string(texture), worldPosition, scale, isMagicVFX, effectId, loop);
     }
 
     void RenderManager::removeEffect(std::string_view effectId)
@@ -1198,9 +1199,9 @@ namespace MWRender
         mWaterRipples->removeEmitter(ptr);
     }
 
-    void RenderManager::emitWaterRipple(const osg::Vec3f& pos)
+    void RenderManager::emitWaterRipple(const vsg::vec3& pos)
     {
-        mWaterRipples->emitRipple(toVsg(pos));
+        mWaterRipples->emitRipple(pos);
     }
 
     void RenderManager::updateProjectionMatrix()
@@ -1239,9 +1240,9 @@ namespace MWRender
     }
 
     //TODO: if there is only ever one worldspace active at a time, isn't the worldspace parameter redundant
-    float RenderManager::getTerrainHeightAt(const osg::Vec3f& pos, ESM::RefId worldspace)
+    float RenderManager::getTerrainHeightAt(const vsg::vec3& pos, ESM::RefId worldspace)
     {
-        return mTerrainStorage->getHeightAt(toVsg(pos), worldspace);
+        return mTerrainStorage->getHeightAt(pos, worldspace);
     }
 
     void RenderManager::overrideFieldOfView(float val)
@@ -1285,7 +1286,7 @@ namespace MWRender
         }
     }
 
-    osg::Vec3f RenderManager::getHalfExtents(const MWWorld::ConstPtr& object) const
+    vsg::vec3 RenderManager::getHalfExtents(const MWWorld::ConstPtr& object) const
     {
         std::string modelName = std::string(object.getClass().getModel(object));
         if (modelName.empty())

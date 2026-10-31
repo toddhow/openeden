@@ -1,12 +1,10 @@
 #ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_FOG_H
 #define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_FOG_H
 
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-#include <osg/Math>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <cstdint>
 #include <string>
@@ -30,7 +28,7 @@ namespace Settings
         SettingValue<bool> mSkyBlending{ mIndex, "Fog", "sky blending" };
         SettingValue<float> mSkyBlendingStart{ mIndex, "Fog", "sky blending start",
             makeClampStrictMaxSanitizerFloat(0, 1) };
-        SettingValue<osg::Vec2f> mSkyRttResolution{ mIndex, "Fog", "sky rtt resolution" };
+        SettingValue<vsg::vec2> mSkyRttResolution{ mIndex, "Fog", "sky rtt resolution" };
     };
 }
 

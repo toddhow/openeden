@@ -3,13 +3,14 @@
 
 #include "sanitizer.hpp"
 
-#include <osg/Vec3f>
 
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
+
+#include <components/misc/vsgmath.hpp>
 
 namespace Settings
 {
@@ -23,7 +24,7 @@ namespace Settings
 
     std::unique_ptr<Sanitizer<float>> makeMaxStrictSanitizerFloat(float max);
 
-    std::unique_ptr<Sanitizer<osg::Vec3f>> makeMaxStrictSanitizerVec3f(const osg::Vec3f& max);
+    std::unique_ptr<Sanitizer<vsg::vec3>> makeMaxStrictSanitizerVec3f(const vsg::vec3& max);
 
     std::unique_ptr<Sanitizer<float>> makeClampSanitizerFloat(float min, float max);
 

@@ -17,6 +17,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
@@ -27,7 +28,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/readnode.hpp>
@@ -168,7 +168,7 @@ namespace MWRender
         SunGlare(const Pipeline::Builder& builder)
         {
             mNode = vsg::StateGroup::create();
-            auto color = toVsg(Fallback::Map::getColour("Weather_Sun_Glare_Fader_Color"));
+            auto color = Fallback::Map::getColour("Weather_Sun_Glare_Fader_Color");
             // Replicating a design flaw in MW. The color was being set on both ambient and emissive properties, which
             // multiplies the result by two, then finally gets clamped by the fixed function pipeline. With the default
             // INI settings, only the red component gets clamped, so the resulting color looks more orange than red.
@@ -418,8 +418,8 @@ namespace MWRender
         }
         void setState(const MoonState state)
         {
-            float radsX = ((state.mRotationFromHorizon) * static_cast<float>(osg::PI)) / 180.0f;
-            float radsZ = ((state.mRotationFromNorth) * static_cast<float>(osg::PI)) / 180.0f;
+            float radsX = ((state.mRotationFromHorizon) * static_cast<float>(Misc::VsgMath::PI)) / 180.0f;
+            float radsZ = ((state.mRotationFromNorth) * static_cast<float>(Misc::VsgMath::PI)) / 180.0f;
 
             vsg::quat rotX(radsX, vsg::vec3(1.0f, 0.0f, 0.0f));
             vsg::quat rotZ(radsZ, vsg::vec3(0.0f, 0.0f, 1.0f));
@@ -531,7 +531,7 @@ namespace MWRender
             vsg::ref_ptr{ new Moon(resourceSystem.textureOptions, Fallback::Map::getFloat("Moons_Secunda_Size") / 125,
                 Moon::Type::Secunda, *resourceSystem.builder) },
             mSwitch, true);
-        mMoonScriptColor = toVsg(Fallback::Map::getColour("Moons_Script_Color"));
+        mMoonScriptColor = Fallback::Map::getColour("Moons_Script_Color");
 
         {
             override_->pipelineOptions = Clouds::pipelineOptions;
@@ -559,11 +559,11 @@ namespace MWRender
         mRainNode = new osg::Group;
 
         mRainParticleSystem = new NifOsg::ParticleSystem;
-        osg::Vec3 rainRange = osg::Vec3(mRainDiameter, mRainDiameter, (mRainMinHeight+mRainMaxHeight)/2.f);
+        vsg::vec3 rainRange = vsg::vec3(mRainDiameter, mRainDiameter, (mRainMinHeight+mRainMaxHeight)/2.f);
 
         mRainParticleSystem->setParticleAlignment(osgParticle::ParticleSystem::FIXED);
-        mRainParticleSystem->setAlignVectorX(osg::Vec3f(0.1,0,0));
-        mRainParticleSystem->setAlignVectorY(osg::Vec3f(0,0,1));
+        mRainParticleSystem->setAlignVectorX(vsg::vec3(0.1,0,0));
+        mRainParticleSystem->setAlignVectorY(vsg::vec3(0,0,1));
 
         osg::ref_ptr<osg::StateSet> stateset = mRainParticleSystem->getOrCreateStateSet();
 
@@ -579,8 +579,8 @@ namespace MWRender
         stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
         osg::ref_ptr<osg::Material> mat = new osg::Material;
-        mat->setAmbient(osg::Material::FRONT_AND_BACK, osg::Vec4f(1,1,1,1));
-        mat->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4f(1,1,1,1));
+        mat->setAmbient(osg::Material::FRONT_AND_BACK, vsg::vec4(1,1,1,1));
+        mat->setDiffuse(osg::Material::FRONT_AND_BACK, vsg::vec4(1,1,1,1));
         mat->setColorMode(osg::Material::AMBIENT_AND_DIFFUSE);
         stateset->setAttributeAndModes(mat);
 
@@ -593,9 +593,9 @@ namespace MWRender
         emitter->setParticleSystem(mRainParticleSystem);
 
         osg::ref_ptr<osgParticle::BoxPlacer> placer = new osgParticle::BoxPlacer;
-        placer->setXRange(-rainRange.x() / 2, rainRange.x() / 2);
-        placer->setYRange(-rainRange.y() / 2, rainRange.y() / 2);
-        placer->setZRange(-rainRange.z() / 2, rainRange.z() / 2);
+        placer->setXRange(-rainRange.x / 2, rainRange.x / 2);
+        placer->setYRange(-rainRange.y / 2, rainRange.y / 2);
+        placer->setZRange(-rainRange.z / 2, rainRange.z / 2);
         emitter->setPlacer(placer);
         mPlacer = placer;
 
@@ -686,11 +686,11 @@ namespace MWRender
         /*
         if (mIsStorm && mParticleNode)
         {
-            osg::Quat quat;
+            vsg::dquat quat;
             quat.makeRotate(MWWorld::Weather::defaultDirection(), mStormParticleDirection);
             // Morrowind deliberately rotates the blizzard mesh, so so should we.
             if (mCurrentParticleEffect == Settings::Manager::getString("weatherblizzard", "Models"))
-                quat.makeRotate(osg::Vec3f(-1,0,0), mStormParticleDirection);
+                quat.makeRotate(vsg::vec3(-1,0,0), mStormParticleDirection);
             mParticleNode->setAttitude(quat);
         }
         */
@@ -707,12 +707,11 @@ namespace MWRender
         }
 
         // morrowind rotates each cloud mesh independently
-        osg::Quat rotation;
-        rotation.makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection);
-        mClouds->setAttitude(toVsg(rotation));
+        vsg::dquat rotation = Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection);
+        mClouds->setAttitude(vsg::quat(rotation));
 
-        rotation.makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection);
-        mNextClouds->setAttitude(toVsg(rotation));
+        rotation = Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection);
+        mNextClouds->setAttitude(vsg::quat(rotation));
 
         mSun->update();
     }
@@ -733,14 +732,14 @@ namespace MWRender
         if (mRainShooter)
         {
             float angle = -std::atan(mWindSpeed/50.f);
-            mRainShooter->setVelocity(osg::Vec3f(0, mRainSpeed*std::sin(angle), -mRainSpeed/std::cos(angle)));
+            mRainShooter->setVelocity(vsg::vec3(0, mRainSpeed*std::sin(angle), -mRainSpeed/std::cos(angle)));
             mRainShooter->setAngle(angle);
 
-            osg::Vec3 rainRange = osg::Vec3(mRainDiameter, mRainDiameter, (mRainMinHeight+mRainMaxHeight)/2.f);
+            vsg::vec3 rainRange = vsg::vec3(mRainDiameter, mRainDiameter, (mRainMinHeight+mRainMaxHeight)/2.f);
 
-            mPlacer->setXRange(-rainRange.x() / 2, rainRange.x() / 2);
-            mPlacer->setYRange(-rainRange.y() / 2, rainRange.y() / 2);
-            mPlacer->setZRange(-rainRange.z() / 2, rainRange.z() / 2);
+            mPlacer->setXRange(-rainRange.x / 2, rainRange.x / 2);
+            mPlacer->setYRange(-rainRange.y / 2, rainRange.y / 2);
+            mPlacer->setZRange(-rainRange.z / 2, rainRange.z / 2);
 
             mCounter->setNumberOfParticlesPerSecondToCreate(mRainMaxRaindrops/mRainEntranceSpeed*20);
         }
@@ -828,7 +827,7 @@ namespace MWRender
 
                     osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
                     if (!mIsStorm)
-                        program->addOperator(new WrapAroundOperator(mCamera,osg::Vec3(1024,1024,800)));
+                        program->addOperator(new WrapAroundOperator(mCamera,vsg::vec3(1024,1024,800)));
                     program->addOperator(new WeatherAlphaOperator(mPrecipitationAlpha, false));
                     program->setParticleSystem(ps);
                     mParticleNode->addChild(program);
@@ -858,11 +857,11 @@ namespace MWRender
         mNextClouds.setEnabled(mCloudBlendFactor > 0.f && mNextClouds->textureValid());
         mCloudSpeed = weather.mCloudSpeed;
 
-        mSkyColor = toVsg(weather.mSkyColor);
+        mSkyColor = weather.mSkyColor;
         mSkyColor.a = weather.mGlareView;
 
-        mSun->setColor(toVsg(weather.mSunDiscColor));
-        mSun->material.setAlpha(weather.mSunDiscColor.a());
+        mSun->setColor(weather.mSunDiscColor);
+        mSun->material.setAlpha(weather.mSunDiscColor.a);
         mSun->glareView = weather.mGlareView;
 
         if (weather.mNight)
@@ -885,7 +884,7 @@ namespace MWRender
         mSun->enabled = false;
     }
 
-    void Sky::setStormParticleDirection(const osg::Vec3f& direction)
+    void Sky::setStormParticleDirection(const vsg::vec3& direction)
     {
         mStormParticleDirection = direction;
     }
@@ -908,17 +907,16 @@ namespace MWRender
         // As OpenMW's SkyManager::update: only storms turn the effect, and it keeps its last turn afterwards.
         if (!mIsStorm)
             return;
-        osg::Quat quat;
-        quat.makeRotate(MWWorld::Weather::defaultDirection(), mStormParticleDirection);
+        vsg::dquat quat = Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mStormParticleDirection);
         // Morrowind deliberately rotates the blizzard mesh, so so should we.
         if (mCurrentParticleEffect == Settings::models().mWeatherblizzard.get().value())
-            quat.makeRotate(osg::Vec3f(-1, 0, 0), mStormParticleDirection);
-        mParticleOrientation = toVsg(quat);
+            quat = Misc::VsgMath::makeRotate(vsg::vec3(-1, 0, 0), mStormParticleDirection);
+        mParticleOrientation = vsg::quat(quat);
     }
 
-    void Sky::setSunDirection(const osg::Vec3f& direction)
+    void Sky::setSunDirection(const vsg::vec3& direction)
     {
-        mSun->setDirection(toVsg(direction));
+        mSun->setDirection(direction);
     }
 
     void Sky::setMasserState(const MoonState& state)

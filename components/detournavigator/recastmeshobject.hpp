@@ -9,7 +9,6 @@
 
 #include <Jolt/Physics/Collision/Shape/CompoundShape.h>
 
-#include <osg/ref_ptr>
 #include <vsg/core/ref_ptr.h>
 
 #include <functional>

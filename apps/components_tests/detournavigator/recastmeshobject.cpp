@@ -1,6 +1,7 @@
 
 #include <components/detournavigator/recastmeshobject.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
@@ -8,7 +9,6 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 
-#include <osg/Matrixd>
 
 #include <gtest/gtest.h>
 
@@ -25,14 +25,14 @@ namespace
 
         CollisionShape* mBoxShape;
         CollisionShape* mCompoundShape;
-        osg::Matrixd mTransform{ Misc::Convert::makeOSGTransform(mObjectTransform.mPosition) };
+        vsg::dmat4 mTransform{ Misc::Convert::makeOSGTransform(mObjectTransform.mPosition) };
         const ObjectTransform mObjectTransform{ ESM::Position{ { 1, 2, 3 }, { 1, 2, 3 } }, 0.5f };
 
         DetourNavigatorRecastMeshObjectTest()
         {
             mBoxShapeImpl = new JPH::BoxShape(JPH::Vec3(1, 2, 3));
-            mCompoundShapeSettings.AddShape(Misc::Convert::toJolt<JPH::Vec3>(mTransform.getTrans()),
-                Misc::Convert::toJolt(mTransform.getRotate()), mBoxShapeImpl);
+            mCompoundShapeSettings.AddShape(Misc::Convert::toJolt<JPH::Vec3>(Misc::VsgMath::getTrans(mTransform)),
+                Misc::Convert::toJolt(Misc::VsgMath::rotationOf(mTransform)), mBoxShapeImpl);
 
             auto createdRes = mCompoundShapeSettings.Create();
             EXPECT_FALSE(createdRes.HasError());
@@ -59,7 +59,7 @@ namespace
     TEST_F(DetourNavigatorRecastMeshObjectTest, update_with_different_transform_should_return_true)
     {
         RecastMeshObject object(*mBoxShape, mTransform, AreaType_ground);
-        EXPECT_TRUE(object.update(osg::Matrixd::identity(), AreaType_ground));
+        EXPECT_TRUE(object.update(vsg::dmat4(), AreaType_ground));
     }
 
     TEST_F(DetourNavigatorRecastMeshObjectTest, update_with_different_flags_should_return_true)
@@ -78,19 +78,19 @@ namespace
     TEST_F(DetourNavigatorRecastMeshObjectTest,
         update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true)
     {
-        osg::Matrixd idTransform = osg::Matrixd::identity();
+        vsg::dmat4 idTransform = vsg::dmat4();
         RecastMeshObject object(*mCompoundShape, mTransform, AreaType_ground);
-        mCompoundShapeImpl->ModifyShape(0, Misc::Convert::toJolt<JPH::Vec3>(idTransform.getTrans()),
-            Misc::Convert::toJolt(idTransform.getRotate()));
+        mCompoundShapeImpl->ModifyShape(0, Misc::Convert::toJolt<JPH::Vec3>(Misc::VsgMath::getTrans(idTransform)),
+            Misc::Convert::toJolt(Misc::VsgMath::rotationOf(idTransform)));
         EXPECT_TRUE(object.update(mTransform, AreaType_ground));
     }
 
     TEST_F(DetourNavigatorRecastMeshObjectTest, repeated_update_for_compound_shape_without_changes_should_return_false)
     {
-        osg::Matrixd idTransform = osg::Matrixd::identity();
+        vsg::dmat4 idTransform = vsg::dmat4();
         RecastMeshObject object(*mCompoundShape, mTransform, AreaType_ground);
-        mCompoundShapeImpl->ModifyShape(0, Misc::Convert::toJolt<JPH::Vec3>(idTransform.getTrans()),
-            Misc::Convert::toJolt(idTransform.getRotate()));
+        mCompoundShapeImpl->ModifyShape(0, Misc::Convert::toJolt<JPH::Vec3>(Misc::VsgMath::getTrans(idTransform)),
+            Misc::Convert::toJolt(Misc::VsgMath::rotationOf(idTransform)));
         object.update(mTransform, AreaType_ground);
         EXPECT_FALSE(object.update(mTransform, AreaType_ground));
     }

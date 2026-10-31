@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_MWRENDER_WATER_H
 #define VSGOPENMW_MWRENDER_WATER_H
 
+#include <components/misc/vsgmath.hpp>
 #include <components/vsgutil/composite.hpp>
 
 namespace Resource
@@ -29,7 +30,7 @@ namespace MWRender
         void addEmitter (const MWWorld::Ptr& ptr, float scale = 1.f, float force = 1.f);
         void removeEmitter (const MWWorld::Ptr& ptr);
         void updateEmitterPtr (const MWWorld::Ptr& old, const MWWorld::Ptr& ptr);
-        void emitRipple(const osg::Vec3f& pos);
+        void emitRipple(const vsg::vec3& pos);
         void removeCell(const MWWorld::CellStore* store); ///< remove all emitters in this cell
         void clearRipples();
         */
