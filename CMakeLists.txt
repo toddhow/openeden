@@ -122,8 +122,6 @@ configure_file ("${OpenMW_SOURCE_DIR}/docs/mainpage.hpp.cmake" "${OpenMW_BINARY_
 
 option(QT_STATIC "Link static build of Qt into the binaries" FALSE)
 
-set(_jolt_static_default ON)
-option(JOLT_STATIC "Build Jolt Physics static libraries" ${_jolt_static_default})
 add_definitions(-DJPH_DEBUG_RENDERER=1)
 
 
