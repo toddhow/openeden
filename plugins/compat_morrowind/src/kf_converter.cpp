@@ -6,9 +6,8 @@
 #include <components/nif/node.hpp>
 
 #include <nlohmann/json.hpp>
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 #include <algorithm>
 #include <cctype>
@@ -35,28 +34,28 @@ namespace compat_morrowind
         // Mapping from engine coordinate frame (+Z up, +Y forward) to glTF 2.0 (+Y up, +Z forward):
         // C = Rz(pi) * Rx(pi/2) maps glTF (x, y, z) to (-x, z, y).
         // The inverse C^-1 maps engine (X, Y, Z) to glTF (-X, Z, Y).
-        osg::Vec3f toGltfTranslation(const osg::Vec3f& vEngine, float unitsPerMeter)
+        vsg::vec3 toGltfTranslation(const vsg::vec3& vEngine, float unitsPerMeter)
         {
             const float invScale = 1.0f / (std::max)(0.0001f, unitsPerMeter);
-            return osg::Vec3f(-vEngine.x() * invScale, vEngine.z() * invScale, vEngine.y() * invScale);
+            return vsg::vec3(-vEngine.x * invScale, vEngine.z * invScale, vEngine.y * invScale);
         }
 
-        osg::Quat toGltfRotation(const osg::Quat& qEngine)
+        vsg::dquat toGltfRotation(const vsg::dquat& qEngine)
         {
             // qC = (0, sqrt(2)/2, sqrt(2)/2, 0) in (x, y, z, w)
             // qC_inv = (0, -sqrt(2)/2, -sqrt(2)/2, 0)
             // qGltf = qC_inv * qEngine * qC
             constexpr float s = 0.7071067811865475f;
-            const osg::Quat qC(0.0f, s, s, 0.0f);
-            const osg::Quat qC_inv(0.0f, -s, -s, 0.0f);
-            osg::Quat res = qC_inv * qEngine * qC;
+            const vsg::dquat qC(0.0f, s, s, 0.0f);
+            const vsg::dquat qC_inv(0.0f, -s, -s, 0.0f);
+            vsg::dquat res = qC_inv * qEngine * qC;
 
-            const double lenSq = static_cast<double>(res.x()) * res.x() + static_cast<double>(res.y()) * res.y()
-                + static_cast<double>(res.z()) * res.z() + static_cast<double>(res.w()) * res.w();
+            const double lenSq = static_cast<double>(res.x) * res.x + static_cast<double>(res.y) * res.y
+                + static_cast<double>(res.z) * res.z + static_cast<double>(res.w) * res.w;
             if (lenSq > 1e-12)
             {
                 const float invLen = static_cast<float>(1.0 / std::sqrt(lenSq));
-                res = res * invLen;
+                res = vsg::dquat(res.x * invLen, res.y * invLen, res.z * invLen, res.w * invLen);
             }
             return res;
         }
@@ -77,8 +76,8 @@ namespace compat_morrowind
             bone.name = toLower(obj->mName);
             bone.parent = parentIndex;
 
-            osg::Vec3f trans = obj->mTransform.mTranslation;
-            osg::Quat rot = Misc::VsgMath::rotationOf(obj->mTransform.mRotation.toOsgMatrix());
+            vsg::vec3 trans = obj->mTransform.mTranslation;
+            vsg::dquat rot = Misc::VsgMath::rotationOf(obj->mTransform.mRotation.toOsgMatrix());
             float scale = obj->mTransform.mScale;
 
             bone.restTranslation = trans;
@@ -423,11 +422,11 @@ namespace compat_morrowind
                     for (float tRel : timeSamples)
                     {
                         float tAbs = clip.startTime + tRel;
-                        osg::Vec3f v = track.getTransform(tAbs).mTranslation.value_or(bone.restTranslation);
-                        osg::Vec3f gltfV = toGltfTranslation(v, options.unitsPerMeter);
-                        transSamples.push_back(gltfV.x());
-                        transSamples.push_back(gltfV.y());
-                        transSamples.push_back(gltfV.z());
+                        vsg::vec3 v = track.getTransform(tAbs).mTranslation.value_or(bone.restTranslation);
+                        vsg::vec3 gltfV = toGltfTranslation(v, options.unitsPerMeter);
+                        transSamples.push_back(gltfV.x);
+                        transSamples.push_back(gltfV.y);
+                        transSamples.push_back(gltfV.z);
                     }
 
                     std::size_t transAccIdx = addAccessorFloat(transSamples, "VEC3", 3);
@@ -453,12 +452,12 @@ namespace compat_morrowind
                     for (float tRel : timeSamples)
                     {
                         float tAbs = clip.startTime + tRel;
-                        osg::Quat q = track.getTransform(tAbs).mRotation.value_or(bone.restRotation);
-                        osg::Quat gltfQ = toGltfRotation(q);
-                        rotSamples.push_back(static_cast<float>(gltfQ.x()));
-                        rotSamples.push_back(static_cast<float>(gltfQ.y()));
-                        rotSamples.push_back(static_cast<float>(gltfQ.z()));
-                        rotSamples.push_back(static_cast<float>(gltfQ.w()));
+                        vsg::dquat q = track.getTransform(tAbs).mRotation.value_or(bone.restRotation);
+                        vsg::dquat gltfQ = toGltfRotation(q);
+                        rotSamples.push_back(static_cast<float>(gltfQ.x));
+                        rotSamples.push_back(static_cast<float>(gltfQ.y));
+                        rotSamples.push_back(static_cast<float>(gltfQ.z));
+                        rotSamples.push_back(static_cast<float>(gltfQ.w));
                     }
 
                     std::size_t rotAccIdx = addAccessorFloat(rotSamples, "VEC4", 4);
@@ -505,14 +504,14 @@ namespace compat_morrowind
             nlohmann::ordered_json node;
             node["name"] = b.name;
 
-            osg::Vec3f gltfRestTrans = toGltfTranslation(b.restTranslation, options.unitsPerMeter);
-            osg::Quat gltfRestRot = toGltfRotation(b.restRotation);
+            vsg::vec3 gltfRestTrans = toGltfTranslation(b.restTranslation, options.unitsPerMeter);
+            vsg::dquat gltfRestRot = toGltfRotation(b.restRotation);
 
-            node["translation"] = { gltfRestTrans.x(), gltfRestTrans.y(), gltfRestTrans.z() };
-            node["rotation"] = { static_cast<float>(gltfRestRot.x()),
-                static_cast<float>(gltfRestRot.y()),
-                static_cast<float>(gltfRestRot.z()),
-                static_cast<float>(gltfRestRot.w()) };
+            node["translation"] = { gltfRestTrans.x, gltfRestTrans.y, gltfRestTrans.z };
+            node["rotation"] = { static_cast<float>(gltfRestRot.x),
+                static_cast<float>(gltfRestRot.y),
+                static_cast<float>(gltfRestRot.z),
+                static_cast<float>(gltfRestRot.w) };
 
             if (!b.children.empty())
                 node["children"] = b.children;

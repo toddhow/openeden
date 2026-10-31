@@ -3,8 +3,8 @@
 #include <components/nif/data.hpp>
 #include <components/nif/nifkey.hpp>
 
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 #include <map>
 #include <memory>
@@ -32,8 +32,8 @@ namespace compat_morrowind
     public:
         struct Transform
         {
-            std::optional<osg::Quat> mRotation;
-            std::optional<osg::Vec3f> mTranslation;
+            std::optional<vsg::dquat> mRotation;
+            std::optional<vsg::vec3> mTranslation;
             std::optional<float> mScale;
         };
 
@@ -59,7 +59,7 @@ namespace compat_morrowind
             return keys && !keys->mKeys.empty();
         }
 
-        osg::Quat getXYZRotation(float time) const;
+        vsg::dquat getXYZRotation(float time) const;
 
         std::shared_ptr<const Nif::QuaternionKeyMap> mRotations;
         std::shared_ptr<const Nif::FloatKeyMap> mXRotations;

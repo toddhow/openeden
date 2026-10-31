@@ -3,8 +3,8 @@
 #include <openeden/contracts/kf_converter_contract.hpp>
 
 #include "kf_animation.hpp"
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 #include <string>
 #include <vector>
@@ -16,8 +16,8 @@ namespace compat_morrowind
         std::string name;
         int parent = -1;
         std::vector<int> children;
-        osg::Vec3f restTranslation{ 0.0f, 0.0f, 0.0f };
-        osg::Quat restRotation{ 0.0f, 0.0f, 0.0f, 1.0f };
+        vsg::vec3 restTranslation{ 0.0f, 0.0f, 0.0f };
+        vsg::dquat restRotation{ 0.0f, 0.0f, 0.0f, 1.0f };
         float restScale = 1.0f;
     };
 

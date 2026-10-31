@@ -3,6 +3,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/nif/controller.hpp>
 #include <components/nif/extra.hpp>
 #include <components/nif/niffile.hpp>
@@ -126,14 +127,14 @@ namespace compat_morrowind
         }
     }
 
-    osg::Quat KfTrack::getXYZRotation(float time) const
+    vsg::dquat KfTrack::getXYZRotation(float time) const
     {
         const float xrot = hasKeys(mXRotations) ? interpKey(*mXRotations, time) : 0.f;
         const float yrot = hasKeys(mYRotations) ? interpKey(*mYRotations, time) : 0.f;
         const float zrot = hasKeys(mZRotations) ? interpKey(*mZRotations, time) : 0.f;
-        const osg::Quat xr(xrot, osg::X_AXIS);
-        const osg::Quat yr(yrot, osg::Y_AXIS);
-        const osg::Quat zr(zrot, osg::Z_AXIS);
+        const vsg::dquat xr = Misc::VsgMath::makeRotateFromAxis(xrot, vsg::vec3(1.f, 0.f, 0.f));
+        const vsg::dquat yr = Misc::VsgMath::makeRotateFromAxis(yrot, vsg::vec3(0.f, 1.f, 0.f));
+        const vsg::dquat zr = Misc::VsgMath::makeRotateFromAxis(zrot, vsg::vec3(0.f, 0.f, 1.f));
         using AxisOrder = Nif::NiKeyframeData::AxisOrder;
         switch (mAxisOrder)
         {

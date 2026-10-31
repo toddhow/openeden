@@ -2,6 +2,7 @@
 #include <compat_morrowind/kf_converter.hpp>
 #include <compat_morrowind/morrowind_compat_plugin.hpp>
 
+#include <components/misc/vsgmath.hpp>
 #include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
 #include <components/nif/extra.hpp>
@@ -17,8 +18,8 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 #include <cmath>
 #include <cstring>
@@ -66,12 +67,12 @@ namespace
     // unresolved index, not a null pointer.
 
     Nif::Vector3KeyMapPtr makeVec3Keys(
-        Nif::InterpolationType type, const std::vector<std::pair<float, osg::Vec3f>>& keys)
+        Nif::InterpolationType type, const std::vector<std::pair<float, vsg::vec3>>& keys)
     {
         auto map = std::make_shared<Nif::Vector3KeyMap>();
         map->mInterpolationType = type;
         for (const auto& [time, value] : keys)
-            map->mKeys.emplace_back(time, Nif::KeyT<vsg::vec3>{ value, osg::Vec3f(), osg::Vec3f() });
+            map->mKeys.emplace_back(time, Nif::KeyT<vsg::vec3>{ value, vsg::vec3(), vsg::vec3() });
         return map;
     }
 
@@ -84,12 +85,12 @@ namespace
         return map;
     }
 
-    Nif::QuaternionKeyMapPtr makeQuatKeys(Nif::InterpolationType type, const std::vector<std::pair<float, osg::Quat>>& keys)
+    Nif::QuaternionKeyMapPtr makeQuatKeys(Nif::InterpolationType type, const std::vector<std::pair<float, vsg::dquat>>& keys)
     {
         auto map = std::make_shared<Nif::QuaternionKeyMap>();
         map->mInterpolationType = type;
         for (const auto& [time, value] : keys)
-            map->mKeys.emplace_back(time, Nif::KeyT<vsg::dquat>{ value, osg::Quat(), osg::Quat() });
+            map->mKeys.emplace_back(time, Nif::KeyT<vsg::dquat>{ value, vsg::dquat(), vsg::dquat() });
         return map;
     }
 
@@ -116,37 +117,37 @@ namespace
         return ctrl;
     }
 
-    void expectVec3Near(const osg::Vec3f& actual, const osg::Vec3f& expected)
+    void expectVec3Near(const vsg::vec3& actual, const vsg::vec3& expected)
     {
-        EXPECT_NEAR(actual.x(), expected.x(), kTolerance);
-        EXPECT_NEAR(actual.y(), expected.y(), kTolerance);
-        EXPECT_NEAR(actual.z(), expected.z(), kTolerance);
+        EXPECT_NEAR(actual.x, expected.x, kTolerance);
+        EXPECT_NEAR(actual.y, expected.y, kTolerance);
+        EXPECT_NEAR(actual.z, expected.z, kTolerance);
     }
 
-    void expectQuatNear(const osg::Quat& actual, const osg::Quat& expected)
+    void expectQuatNear(const vsg::dquat& actual, const vsg::dquat& expected)
     {
-        EXPECT_NEAR(actual.x(), expected.x(), kTolerance);
-        EXPECT_NEAR(actual.y(), expected.y(), kTolerance);
-        EXPECT_NEAR(actual.z(), expected.z(), kTolerance);
-        EXPECT_NEAR(actual.w(), expected.w(), kTolerance);
+        EXPECT_NEAR(actual.x, expected.x, kTolerance);
+        EXPECT_NEAR(actual.y, expected.y, kTolerance);
+        EXPECT_NEAR(actual.z, expected.z, kTolerance);
+        EXPECT_NEAR(actual.w, expected.w, kTolerance);
     }
 
-    osg::Vec3f translationAt(const compat_morrowind::KfTrack& track, float time)
+    vsg::vec3 translationAt(const compat_morrowind::KfTrack& track, float time)
     {
         const auto t = track.getTransform(time);
         EXPECT_TRUE(t.mTranslation.has_value()) << "no translation at time " << time;
-        return t.mTranslation.value_or(osg::Vec3f(-999.f, -999.f, -999.f));
+        return t.mTranslation.value_or(vsg::vec3(-999.f, -999.f, -999.f));
     }
 
-    osg::Quat rotationAt(const compat_morrowind::KfTrack& track, float time)
+    vsg::dquat rotationAt(const compat_morrowind::KfTrack& track, float time)
     {
         const auto t = track.getTransform(time);
         EXPECT_TRUE(t.mRotation.has_value()) << "no rotation at time " << time;
-        return t.mRotation.value_or(osg::Quat(-9.f, -9.f, -9.f, -9.f));
+        return t.mRotation.value_or(vsg::dquat(-9.f, -9.f, -9.f, -9.f));
     }
 
     // Reference cubic Hermite, written out from NifOsg::ValueInterpolator::interpolate (components/nifosg/controller.hpp).
-    osg::Vec3f hermite(const osg::Vec3f& a, const osg::Vec3f& aOutTan, const osg::Vec3f& b, const osg::Vec3f& bInTan,
+    vsg::vec3 hermite(const vsg::vec3& a, const vsg::vec3& aOutTan, const vsg::vec3& b, const vsg::vec3& bInTan,
         float t)
     {
         const float t2 = t * t;
@@ -158,12 +159,12 @@ namespace
         return a * b1 + b * b2 + aOutTan * b3 + bInTan * b4;
     }
 
-    osg::Quat xyz(float x, float y, float z, Nif::NiKeyframeData::AxisOrder order)
+    vsg::dquat xyz(float x, float y, float z, Nif::NiKeyframeData::AxisOrder order)
     {
         // Reference from NifOsg::KeyframeController::getXYZRotation (components/nifosg/controller.cpp).
-        const osg::Quat xr(x, osg::X_AXIS);
-        const osg::Quat yr(y, osg::Y_AXIS);
-        const osg::Quat zr(z, osg::Z_AXIS);
+        const vsg::dquat xr = Misc::VsgMath::makeRotateFromAxis(x, vsg::vec3(1.f, 0.f, 0.f));
+        const vsg::dquat yr = Misc::VsgMath::makeRotateFromAxis(y, vsg::vec3(0.f, 1.f, 0.f));
+        const vsg::dquat zr = Misc::VsgMath::makeRotateFromAxis(z, vsg::vec3(0.f, 0.f, 1.f));
         switch (order)
         {
             case Nif::NiKeyframeData::AxisOrder::Order_XYZ:
@@ -176,7 +177,7 @@ namespace
                 break;
         }
         ADD_FAILURE() << "reference not written for this axis order";
-        return osg::Quat();
+        return vsg::dquat();
     }
 } // namespace
 
@@ -248,15 +249,15 @@ TEST(CompatMorrowindTest, KfToGltfConversionAndCreativeMotionIngestion)
     // Set up a bone controller
     auto transMap = std::make_shared<Nif::Vector3KeyMap>();
     transMap->mInterpolationType = Nif::InterpolationType_Linear;
-    Nif::KeyT<vsg::vec3> k0{ osg::Vec3f(0.0f, 0.0f, 70.0f), {}, {} };
-    Nif::KeyT<vsg::vec3> k1{ osg::Vec3f(0.0f, 140.0f, 70.0f), {}, {} };
+    Nif::KeyT<vsg::vec3> k0{ vsg::vec3(0.0f, 0.0f, 70.0f), {}, {} };
+    Nif::KeyT<vsg::vec3> k1{ vsg::vec3(0.0f, 140.0f, 70.0f), {}, {} };
     transMap->mKeys.emplace_back(0.0f, k0);
     transMap->mKeys.emplace_back(2.0f, k1);
 
     auto rotMap = std::make_shared<Nif::QuaternionKeyMap>();
     rotMap->mInterpolationType = Nif::InterpolationType_Linear;
-    Nif::KeyT<vsg::dquat> r0{ osg::Quat(0.0f, 0.0f, 0.0f, 1.0f), {}, {} };
-    Nif::KeyT<vsg::dquat> r1{ osg::Quat(0.0f, 0.0f, 0.7071068f, 0.7071068f), {}, {} }; // 90 degree yaw
+    Nif::KeyT<vsg::dquat> r0{ vsg::dquat(0.0f, 0.0f, 0.0f, 1.0f), {}, {} };
+    Nif::KeyT<vsg::dquat> r1{ vsg::dquat(0.0f, 0.0f, 0.7071068f, 0.7071068f), {}, {} }; // 90 degree yaw
     rotMap->mKeys.emplace_back(0.0f, r0);
     rotMap->mKeys.emplace_back(2.0f, r1);
 
@@ -275,7 +276,7 @@ TEST(CompatMorrowindTest, KfToGltfConversionAndCreativeMotionIngestion)
     std::vector<compat_morrowind::BoneInfo> bones;
     compat_morrowind::BoneInfo pelvis;
     pelvis.name = "bip01 pelvis";
-    pelvis.restTranslation = osg::Vec3f(0.0f, 0.0f, 70.0f);
+    pelvis.restTranslation = vsg::vec3(0.0f, 0.0f, 70.0f);
     bones.push_back(pelvis);
 
     // 2. Perform Conversion
@@ -358,8 +359,8 @@ TEST(CompatMorrowindKfTrackTest, LinearTranslationExactAtKeysLinearBetweenClampe
 {
     auto data = makeKeyframeData();
     data->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear,
-        { { 1.f, osg::Vec3f(0.f, 0.f, 0.f) }, { 3.f, osg::Vec3f(10.f, 20.f, -40.f) },
-            { 4.f, osg::Vec3f(20.f, 20.f, -40.f) } });
+        { { 1.f, vsg::vec3(0.f, 0.f, 0.f) }, { 3.f, vsg::vec3(10.f, 20.f, -40.f) },
+            { 4.f, vsg::vec3(20.f, 20.f, -40.f) } });
     auto ctrl = makeController(data.get());
     const compat_morrowind::KfTrack track(*ctrl);
 
@@ -367,24 +368,24 @@ TEST(CompatMorrowindKfTrackTest, LinearTranslationExactAtKeysLinearBetweenClampe
     EXPECT_FALSE(track.hasRotation());
 
     // Clamped before the first key
-    expectVec3Near(translationAt(track, -5.f), osg::Vec3f(0.f, 0.f, 0.f));
-    expectVec3Near(translationAt(track, 0.f), osg::Vec3f(0.f, 0.f, 0.f));
+    expectVec3Near(translationAt(track, -5.f), vsg::vec3(0.f, 0.f, 0.f));
+    expectVec3Near(translationAt(track, 0.f), vsg::vec3(0.f, 0.f, 0.f));
     // Exact at keys
-    expectVec3Near(translationAt(track, 1.f), osg::Vec3f(0.f, 0.f, 0.f));
-    expectVec3Near(translationAt(track, 3.f), osg::Vec3f(10.f, 20.f, -40.f));
-    expectVec3Near(translationAt(track, 4.f), osg::Vec3f(20.f, 20.f, -40.f));
+    expectVec3Near(translationAt(track, 1.f), vsg::vec3(0.f, 0.f, 0.f));
+    expectVec3Near(translationAt(track, 3.f), vsg::vec3(10.f, 20.f, -40.f));
+    expectVec3Near(translationAt(track, 4.f), vsg::vec3(20.f, 20.f, -40.f));
     // Linear between
-    expectVec3Near(translationAt(track, 2.f), osg::Vec3f(5.f, 10.f, -20.f));
-    expectVec3Near(translationAt(track, 1.5f), osg::Vec3f(2.5f, 5.f, -10.f));
-    expectVec3Near(translationAt(track, 3.5f), osg::Vec3f(15.f, 20.f, -40.f));
+    expectVec3Near(translationAt(track, 2.f), vsg::vec3(5.f, 10.f, -20.f));
+    expectVec3Near(translationAt(track, 1.5f), vsg::vec3(2.5f, 5.f, -10.f));
+    expectVec3Near(translationAt(track, 3.5f), vsg::vec3(15.f, 20.f, -40.f));
     // Clamped after the last key
-    expectVec3Near(translationAt(track, 4.5f), osg::Vec3f(20.f, 20.f, -40.f));
-    expectVec3Near(translationAt(track, 100.f), osg::Vec3f(20.f, 20.f, -40.f));
+    expectVec3Near(translationAt(track, 4.5f), vsg::vec3(20.f, 20.f, -40.f));
+    expectVec3Near(translationAt(track, 100.f), vsg::vec3(20.f, 20.f, -40.f));
 
     // Evaluating out of order gives the same answers (no stale cached segment)
-    expectVec3Near(translationAt(track, 3.5f), osg::Vec3f(15.f, 20.f, -40.f));
-    expectVec3Near(translationAt(track, 1.5f), osg::Vec3f(2.5f, 5.f, -10.f));
-    expectVec3Near(translationAt(track, 2.f), osg::Vec3f(5.f, 10.f, -20.f));
+    expectVec3Near(translationAt(track, 3.5f), vsg::vec3(15.f, 20.f, -40.f));
+    expectVec3Near(translationAt(track, 1.5f), vsg::vec3(2.5f, 5.f, -10.f));
+    expectVec3Near(translationAt(track, 2.f), vsg::vec3(5.f, 10.f, -20.f));
 
     const auto t = track.getTransform(2.f);
     EXPECT_FALSE(t.mRotation.has_value());
@@ -394,29 +395,29 @@ TEST(CompatMorrowindKfTrackTest, LinearTranslationExactAtKeysLinearBetweenClampe
 TEST(CompatMorrowindKfTrackTest, SingleTranslationKeyHoldsEverywhere)
 {
     auto data = makeKeyframeData();
-    data->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 1.f, osg::Vec3f(1.f, 2.f, 3.f) } });
+    data->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 1.f, vsg::vec3(1.f, 2.f, 3.f) } });
     auto ctrl = makeController(data.get());
     const compat_morrowind::KfTrack track(*ctrl);
 
-    expectVec3Near(translationAt(track, 0.f), osg::Vec3f(1.f, 2.f, 3.f));
-    expectVec3Near(translationAt(track, 1.f), osg::Vec3f(1.f, 2.f, 3.f));
-    expectVec3Near(translationAt(track, 7.f), osg::Vec3f(1.f, 2.f, 3.f));
+    expectVec3Near(translationAt(track, 0.f), vsg::vec3(1.f, 2.f, 3.f));
+    expectVec3Near(translationAt(track, 1.f), vsg::vec3(1.f, 2.f, 3.f));
+    expectVec3Near(translationAt(track, 7.f), vsg::vec3(1.f, 2.f, 3.f));
 }
 
 TEST(CompatMorrowindKfTrackTest, ConstantKeysSwitchOnlyPastTheMidpoint)
 {
     auto data = makeKeyframeData();
     data->mTranslations = makeVec3Keys(
-        Nif::InterpolationType_Constant, { { 0.f, osg::Vec3f(1.f, 1.f, 1.f) }, { 2.f, osg::Vec3f(5.f, 6.f, 7.f) } });
+        Nif::InterpolationType_Constant, { { 0.f, vsg::vec3(1.f, 1.f, 1.f) }, { 2.f, vsg::vec3(5.f, 6.f, 7.f) } });
     data->mScales = makeFloatKeys(Nif::InterpolationType_Constant, { { 0.f, 1.f }, { 2.f, 3.f } });
     auto ctrl = makeController(data.get());
     const compat_morrowind::KfTrack track(*ctrl);
 
-    expectVec3Near(translationAt(track, 0.5f), osg::Vec3f(1.f, 1.f, 1.f));
+    expectVec3Near(translationAt(track, 0.5f), vsg::vec3(1.f, 1.f, 1.f));
     // fraction exactly 0.5 keeps the earlier key (the switch needs fraction > 0.5)
-    expectVec3Near(translationAt(track, 1.0f), osg::Vec3f(1.f, 1.f, 1.f));
-    expectVec3Near(translationAt(track, 1.1f), osg::Vec3f(5.f, 6.f, 7.f));
-    expectVec3Near(translationAt(track, 2.0f), osg::Vec3f(5.f, 6.f, 7.f));
+    expectVec3Near(translationAt(track, 1.0f), vsg::vec3(1.f, 1.f, 1.f));
+    expectVec3Near(translationAt(track, 1.1f), vsg::vec3(5.f, 6.f, 7.f));
+    expectVec3Near(translationAt(track, 2.0f), vsg::vec3(5.f, 6.f, 7.f));
 
     auto scaleAt = [&](float time) { return track.getTransform(time).mScale; };
     ASSERT_TRUE(scaleAt(1.0f).has_value());
@@ -427,15 +428,15 @@ TEST(CompatMorrowindKfTrackTest, ConstantKeysSwitchOnlyPastTheMidpoint)
 
 TEST(CompatMorrowindKfTrackTest, QuadraticVectorKeysUseCubicHermite)
 {
-    const osg::Vec3f a(0.f, 0.f, 0.f);
-    const osg::Vec3f aOut(1.f, 2.f, 0.f);
-    const osg::Vec3f b(4.f, 0.f, 2.f);
-    const osg::Vec3f bIn(3.f, 0.f, -1.f);
+    const vsg::vec3 a(0.f, 0.f, 0.f);
+    const vsg::vec3 aOut(1.f, 2.f, 0.f);
+    const vsg::vec3 b(4.f, 0.f, 2.f);
+    const vsg::vec3 bIn(3.f, 0.f, -1.f);
 
     auto map = std::make_shared<Nif::Vector3KeyMap>();
     map->mInterpolationType = Nif::InterpolationType_Quadratic;
-    map->mKeys.emplace_back(0.f, Nif::KeyT<vsg::vec3>{ a, osg::Vec3f(9.f, 9.f, 9.f), aOut });
-    map->mKeys.emplace_back(2.f, Nif::KeyT<vsg::vec3>{ b, bIn, osg::Vec3f(-9.f, -9.f, -9.f) });
+    map->mKeys.emplace_back(0.f, Nif::KeyT<vsg::vec3>{ a, vsg::vec3(9.f, 9.f, 9.f), aOut });
+    map->mKeys.emplace_back(2.f, Nif::KeyT<vsg::vec3>{ b, bIn, vsg::vec3(-9.f, -9.f, -9.f) });
 
     auto data = makeKeyframeData();
     data->mTranslations = map;
@@ -450,21 +451,21 @@ TEST(CompatMorrowindKfTrackTest, QuadraticVectorKeysUseCubicHermite)
     expectVec3Near(translationAt(track, 3.0f), b);
 
     // Sanity: the curve is not the linear one
-    const osg::Vec3f linearMid = (a + b) * 0.5f;
-    EXPECT_GT((translationAt(track, 1.0f) - linearMid).length(), 0.1f);
+    const vsg::vec3 linearMid = (a + b) * 0.5f;
+    EXPECT_GT(vsg::length(translationAt(track, 1.0f) - linearMid), 0.1f);
 }
 
 TEST(CompatMorrowindKfTrackTest, TcbVectorKeysUseCubicHermiteWithStoredTangents)
 {
-    const osg::Vec3f a(1.f, -1.f, 0.f);
-    const osg::Vec3f aOut(0.5f, 0.f, 2.f);
-    const osg::Vec3f b(2.f, 3.f, 1.f);
-    const osg::Vec3f bIn(-1.f, 1.f, 0.f);
+    const vsg::vec3 a(1.f, -1.f, 0.f);
+    const vsg::vec3 aOut(0.5f, 0.f, 2.f);
+    const vsg::vec3 b(2.f, 3.f, 1.f);
+    const vsg::vec3 bIn(-1.f, 1.f, 0.f);
 
     auto map = std::make_shared<Nif::Vector3KeyMap>();
     map->mInterpolationType = Nif::InterpolationType_TCB;
-    map->mKeys.emplace_back(1.f, Nif::KeyT<vsg::vec3>{ a, osg::Vec3f(), aOut });
-    map->mKeys.emplace_back(5.f, Nif::KeyT<vsg::vec3>{ b, bIn, osg::Vec3f() });
+    map->mKeys.emplace_back(1.f, Nif::KeyT<vsg::vec3>{ a, vsg::vec3(), aOut });
+    map->mKeys.emplace_back(5.f, Nif::KeyT<vsg::vec3>{ b, bIn, vsg::vec3() });
 
     auto data = makeKeyframeData();
     data->mTranslations = map;
@@ -477,9 +478,9 @@ TEST(CompatMorrowindKfTrackTest, TcbVectorKeysUseCubicHermiteWithStoredTangents)
 
 TEST(CompatMorrowindKfTrackTest, QuaternionKeysSlerp)
 {
-    const osg::Quat q0(0.f, osg::Z_AXIS);
-    const osg::Quat q1(kHalfPi, osg::Z_AXIS);
-    const osg::Quat q2(kHalfPi, osg::X_AXIS);
+    const vsg::dquat q0 = Misc::VsgMath::makeRotateFromAxis(0.f, vsg::vec3(0.f, 0.f, 1.f));
+    const vsg::dquat q1 = Misc::VsgMath::makeRotateFromAxis(kHalfPi, vsg::vec3(0.f, 0.f, 1.f));
+    const vsg::dquat q2 = Misc::VsgMath::makeRotateFromAxis(kHalfPi, vsg::vec3(1.f, 0.f, 0.f));
 
     auto data = makeKeyframeData();
     data->mRotations = makeQuatKeys(Nif::InterpolationType_Linear, { { 0.f, q0 }, { 2.f, q1 }, { 3.f, q2 } });
@@ -492,11 +493,10 @@ TEST(CompatMorrowindKfTrackTest, QuaternionKeysSlerp)
     expectQuatNear(rotationAt(track, -1.f), q0);
     expectQuatNear(rotationAt(track, 0.f), q0);
     expectQuatNear(rotationAt(track, 2.f), q1);
-    expectQuatNear(rotationAt(track, 1.f), osg::Quat(kHalfPi * 0.5f, osg::Z_AXIS));
-    expectQuatNear(rotationAt(track, 0.5f), osg::Quat(kHalfPi * 0.25f, osg::Z_AXIS));
+    expectQuatNear(rotationAt(track, 1.f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
+    expectQuatNear(rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.25f, vsg::vec3(0.f, 0.f, 1.f)));
 
-    osg::Quat expected;
-    expected.slerp(0.3f, q1, q2);
+    const vsg::dquat expected = Misc::VsgMath::slerp(0.3f, q1, q2);
     expectQuatNear(rotationAt(track, 2.3f), expected);
 
     expectQuatNear(rotationAt(track, 9.f), q2);
@@ -508,8 +508,8 @@ TEST(CompatMorrowindKfTrackTest, QuaternionKeysSlerp)
 
 TEST(CompatMorrowindKfTrackTest, ConstantQuaternionKeysSwitchOnlyPastTheMidpoint)
 {
-    const osg::Quat q0(0.2f, osg::Y_AXIS);
-    const osg::Quat q1(1.1f, osg::Y_AXIS);
+    const vsg::dquat q0 = Misc::VsgMath::makeRotateFromAxis(0.2f, vsg::vec3(0.f, 1.f, 0.f));
+    const vsg::dquat q1 = Misc::VsgMath::makeRotateFromAxis(1.1f, vsg::vec3(0.f, 1.f, 0.f));
 
     auto data = makeKeyframeData();
     data->mRotations = makeQuatKeys(Nif::InterpolationType_Constant, { { 0.f, q0 }, { 1.f, q1 } });
@@ -554,13 +554,13 @@ TEST(CompatMorrowindKfTrackTest, XyzRotationKeysCombineInZyxOrder)
 
     const auto zyx = Nif::NiKeyframeData::AxisOrder::Order_ZYX;
     const auto xyzOrder = Nif::NiKeyframeData::AxisOrder::Order_XYZ;
-    const osg::Quat expected = xyz(0.5f, 0.5f, -0.4f, zyx);
+    const vsg::dquat expected = xyz(0.5f, 0.5f, -0.4f, zyx);
     expectQuatNear(rotationAt(track, 1.f), expected);
 
     // The order matters for these angles, so the test can tell ZYX from XYZ
-    const osg::Quat other = xyz(0.5f, 0.5f, -0.4f, xyzOrder);
-    EXPECT_GT(std::abs(expected.x() - other.x()) + std::abs(expected.y() - other.y())
-            + std::abs(expected.z() - other.z()) + std::abs(expected.w() - other.w()),
+    const vsg::dquat other = xyz(0.5f, 0.5f, -0.4f, xyzOrder);
+    EXPECT_GT(std::abs(expected.x - other.x) + std::abs(expected.y - other.y)
+            + std::abs(expected.z - other.z) + std::abs(expected.w - other.w),
         1e-3f);
 }
 
@@ -586,13 +586,13 @@ TEST(CompatMorrowindKfTrackTest, SingleAxisRotationKeysTreatMissingAxesAsZero)
 
     EXPECT_TRUE(track.hasRotation());
     EXPECT_FALSE(track.hasTranslation());
-    expectQuatNear(rotationAt(track, 0.5f), osg::Quat(kHalfPi * 0.5f, osg::Z_AXIS));
+    expectQuatNear(rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
     EXPECT_FALSE(track.getTransform(0.5f).mTranslation.has_value());
 }
 
 TEST(CompatMorrowindKfTrackTest, QuaternionKeysTakePrecedenceOverXyzKeys)
 {
-    const osg::Quat q(0.7f, osg::Y_AXIS);
+    const vsg::dquat q = Misc::VsgMath::makeRotateFromAxis(0.7f, vsg::vec3(0.f, 1.f, 0.f));
     auto data = makeKeyframeData();
     data->mRotations = makeQuatKeys(Nif::InterpolationType_Linear, { { 0.f, q } });
     data->mXRotations = makeFloatKeys(Nif::InterpolationType_Linear, { { 0.f, 1.f } });
@@ -656,8 +656,8 @@ TEST(CompatMorrowindKfTrackTest, ControllerWithoutDataOrInterpolatorGivesEmptyTr
 TEST(CompatMorrowindKfTrackTest, TrackSharesKeyMapsAndOutlivesTheRecords)
 {
     auto translations = makeVec3Keys(
-        Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(0.f, 0.f, 0.f) }, { 1.f, osg::Vec3f(2.f, 0.f, 0.f) } });
-    auto rotations = makeQuatKeys(Nif::InterpolationType_Linear, { { 0.f, osg::Quat(0.4f, osg::Z_AXIS) } });
+        Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(0.f, 0.f, 0.f) }, { 1.f, vsg::vec3(2.f, 0.f, 0.f) } });
+    auto rotations = makeQuatKeys(Nif::InterpolationType_Linear, { { 0.f, Misc::VsgMath::makeRotateFromAxis(0.4f, vsg::vec3(0.f, 0.f, 1.f)) } });
 
     compat_morrowind::KfTrack track;
     {
@@ -673,12 +673,12 @@ TEST(CompatMorrowindKfTrackTest, TrackSharesKeyMapsAndOutlivesTheRecords)
     rotations.reset();
 
     // The records and the test's references are gone; the track still owns the key maps.
-    expectVec3Near(translationAt(track, 0.5f), osg::Vec3f(1.f, 0.f, 0.f));
-    expectQuatNear(rotationAt(track, 0.5f), osg::Quat(0.4f, osg::Z_AXIS));
+    expectVec3Near(translationAt(track, 0.5f), vsg::vec3(1.f, 0.f, 0.f));
+    expectQuatNear(rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(0.4f, vsg::vec3(0.f, 0.f, 1.f)));
 
     // And the track copies like a value
     const compat_morrowind::KfTrack copy = track;
-    expectVec3Near(translationAt(copy, 0.25f), osg::Vec3f(0.5f, 0.f, 0.f));
+    expectVec3Near(translationAt(copy, 0.25f), vsg::vec3(0.5f, 0.f, 0.f));
 }
 
 // ---- KfTrack from an NiTransformInterpolator (NifOsg::KeyframeController constructor's first branch) -------------
@@ -687,7 +687,7 @@ TEST(CompatMorrowindKfTrackTest, TransformInterpolatorDataIsUsedInsteadOfControl
 {
     auto interpData = makeKeyframeData();
     interpData->mTranslations = makeVec3Keys(
-        Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(0.f, 0.f, 0.f) }, { 2.f, osg::Vec3f(0.f, 4.f, 0.f) } });
+        Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(0.f, 0.f, 0.f) }, { 2.f, vsg::vec3(0.f, 4.f, 0.f) } });
     interpData->mXRotations = makeFloatKeys(Nif::InterpolationType_Linear, { { 0.f, 0.f }, { 2.f, 1.f } });
     interpData->mYRotations = makeFloatKeys(Nif::InterpolationType_Linear, { { 0.f, 0.25f } });
     interpData->mAxisOrder = Nif::NiKeyframeData::AxisOrder::Order_ZYX;
@@ -695,14 +695,14 @@ TEST(CompatMorrowindKfTrackTest, TransformInterpolatorDataIsUsedInsteadOfControl
 
     Nif::NiTransformInterpolator interp;
     interp.mRecordType = Nif::RC_NiTransformInterpolator;
-    interp.mDefaultValue.mTranslation = osg::Vec3f(7.f, 7.f, 7.f);
-    interp.mDefaultValue.mRotation = osg::Quat(0.9f, osg::X_AXIS);
+    interp.mDefaultValue.mTranslation = vsg::vec3(7.f, 7.f, 7.f);
+    interp.mDefaultValue.mRotation = Misc::VsgMath::makeRotateFromAxis(0.9f, vsg::vec3(1.f, 0.f, 0.f));
     interp.mDefaultValue.mScale = 5.f;
     interp.mData = Nif::NiKeyframeDataPtr(interpData.get());
 
     // Controller data that must be ignored because the controller has an interpolator
     auto ctrlData = makeKeyframeData();
-    ctrlData->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(-50.f, 0.f, 0.f) } });
+    ctrlData->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(-50.f, 0.f, 0.f) } });
 
     auto ctrl = makeController(ctrlData.get());
     ctrl->mInterpolator = Nif::NiInterpolatorPtr(&interp);
@@ -714,7 +714,7 @@ TEST(CompatMorrowindKfTrackTest, TransformInterpolatorDataIsUsedInsteadOfControl
 
     const auto t = track.getTransform(1.f);
     ASSERT_TRUE(t.mTranslation.has_value());
-    expectVec3Near(*t.mTranslation, osg::Vec3f(0.f, 2.f, 0.f));
+    expectVec3Near(*t.mTranslation, vsg::vec3(0.f, 2.f, 0.f));
     ASSERT_TRUE(t.mRotation.has_value());
     expectQuatNear(*t.mRotation, xyz(0.5f, 0.25f, 0.f, Nif::NiKeyframeData::AxisOrder::Order_ZYX));
     ASSERT_TRUE(t.mScale.has_value());
@@ -727,8 +727,8 @@ TEST(CompatMorrowindKfTrackTest, TransformInterpolatorWithoutDataReportsNoChanne
     // KeyframeController::getTransform never returns because it checks empty() first.
     Nif::NiTransformInterpolator interp;
     interp.mRecordType = Nif::RC_NiTransformInterpolator;
-    interp.mDefaultValue.mTranslation = osg::Vec3f(7.f, 7.f, 7.f);
-    interp.mDefaultValue.mRotation = osg::Quat(0.9f, osg::X_AXIS);
+    interp.mDefaultValue.mTranslation = vsg::vec3(7.f, 7.f, 7.f);
+    interp.mDefaultValue.mRotation = Misc::VsgMath::makeRotateFromAxis(0.9f, vsg::vec3(1.f, 0.f, 0.f));
     interp.mDefaultValue.mScale = 5.f;
     interp.mData = Nif::NiKeyframeDataPtr(nullptr);
 
@@ -752,7 +752,7 @@ TEST(CompatMorrowindKfTrackTest, NonTransformInterpolatorIgnoresControllerData)
     interp.mData = Nif::NiFloatDataPtr(nullptr);
 
     auto ctrlData = makeKeyframeData();
-    ctrlData->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(1.f, 2.f, 3.f) } });
+    ctrlData->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(1.f, 2.f, 3.f) } });
     auto ctrl = makeController(ctrlData.get());
     ctrl->mInterpolator = Nif::NiInterpolatorPtr(&interp);
     const compat_morrowind::KfTrack track(*ctrl);
@@ -850,10 +850,10 @@ TEST(CompatMorrowindLoadKfTest, ReadsTextKeysAndTracksByBoneName)
 
     Nif::NiKeyframeData& pelvis = kf.addBone("Bip01 Pelvis");
     pelvis.mTranslations = makeVec3Keys(
-        Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(0.f, 0.f, 0.f) }, { 1.f, osg::Vec3f(0.f, 10.f, 0.f) } });
+        Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(0.f, 0.f, 0.f) }, { 1.f, vsg::vec3(0.f, 10.f, 0.f) } });
     Nif::NiKeyframeData& spine = kf.addBone("Bip01 Spine");
     spine.mRotations = makeQuatKeys(
-        Nif::InterpolationType_Linear, { { 0.f, osg::Quat(0.f, osg::Z_AXIS) }, { 1.f, osg::Quat(kHalfPi, osg::Z_AXIS) } });
+        Nif::InterpolationType_Linear, { { 0.f, Misc::VsgMath::makeRotateFromAxis(0.f, vsg::vec3(0.f, 0.f, 1.f)) }, { 1.f, Misc::VsgMath::makeRotateFromAxis(kHalfPi, vsg::vec3(0.f, 0.f, 1.f)) } });
 
     const compat_morrowind::KfAnimation anim = compat_morrowind::loadKfAnimation(kf.view());
 
@@ -870,12 +870,12 @@ TEST(CompatMorrowindLoadKfTest, ReadsTextKeysAndTracksByBoneName)
     const auto& pelvisTrack = anim.mTracks.at("Bip01 Pelvis");
     EXPECT_TRUE(pelvisTrack.hasTranslation());
     EXPECT_FALSE(pelvisTrack.hasRotation());
-    expectVec3Near(translationAt(pelvisTrack, 0.5f), osg::Vec3f(0.f, 5.f, 0.f));
+    expectVec3Near(translationAt(pelvisTrack, 0.5f), vsg::vec3(0.f, 5.f, 0.f));
 
     const auto& spineTrack = anim.mTracks.at("Bip01 Spine");
     EXPECT_FALSE(spineTrack.hasTranslation());
     EXPECT_TRUE(spineTrack.hasRotation());
-    expectQuatNear(rotationAt(spineTrack, 0.5f), osg::Quat(kHalfPi * 0.5f, osg::Z_AXIS));
+    expectQuatNear(rotationAt(spineTrack, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
 }
 
 TEST(CompatMorrowindLoadKfTest, NoSequenceStreamHelperRootGivesEmptyAnimation)
@@ -901,7 +901,7 @@ TEST(CompatMorrowindLoadKfTest, FirstExtraNotTextKeysGivesEmptyAnimation)
     SyntheticKf kf;
     kf.addTextKey(0.f, "idle: start");
     kf.addBone("Bip01").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(1.f, 1.f, 1.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(1.f, 1.f, 1.f) } });
     // Replace the text keys with the bone's name record, so the first extra is an NiStringExtraData
     kf.mSeq.mExtraList.erase(kf.mSeq.mExtraList.begin());
 
@@ -924,9 +924,9 @@ TEST(CompatMorrowindLoadKfTest, MismatchedExtraSkipsThatPairOnly)
     SyntheticKf kf;
     kf.addTextKey(0.f, "idle: start");
     kf.addBone("Bip01 A").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(1.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(1.f, 0.f, 0.f) } });
     kf.addBone("Bip01 B").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(2.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(2.f, 0.f, 0.f) } });
 
     // Turn the first bone's name record into something that is not an NiStringExtraData
     kf.mNames[0]->mRecordType = Nif::RC_NiTextKeyExtraData;
@@ -936,7 +936,7 @@ TEST(CompatMorrowindLoadKfTest, MismatchedExtraSkipsThatPairOnly)
     ASSERT_EQ(anim.mTracks.size(), 1u);
     ASSERT_EQ(anim.mTracks.count("Bip01 B"), 1u);
     // B pairs with the second controller, not the first
-    expectVec3Near(translationAt(anim.mTracks.at("Bip01 B"), 0.f), osg::Vec3f(2.f, 0.f, 0.f));
+    expectVec3Near(translationAt(anim.mTracks.at("Bip01 B"), 0.f), vsg::vec3(2.f, 0.f, 0.f));
 }
 
 TEST(CompatMorrowindLoadKfTest, DuplicateBoneNameKeepsTheFirstTrack)
@@ -944,13 +944,13 @@ TEST(CompatMorrowindLoadKfTest, DuplicateBoneNameKeepsTheFirstTrack)
     SyntheticKf kf;
     kf.addTextKey(0.f, "idle: start");
     kf.addBone("Bip01 Head").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(1.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(1.f, 0.f, 0.f) } });
     kf.addBone("Bip01 Head").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(9.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(9.f, 0.f, 0.f) } });
 
     const auto anim = compat_morrowind::loadKfAnimation(kf.view());
     ASSERT_EQ(anim.mTracks.size(), 1u);
-    expectVec3Near(translationAt(anim.mTracks.at("Bip01 Head"), 0.f), osg::Vec3f(1.f, 0.f, 0.f));
+    expectVec3Near(translationAt(anim.mTracks.at("Bip01 Head"), 0.f), vsg::vec3(1.f, 0.f, 0.f));
 }
 
 TEST(CompatMorrowindLoadKfTest, ControllersWithoutKeysOrWithUnsupportedInterpolatorAreSkipped)
@@ -961,7 +961,7 @@ TEST(CompatMorrowindLoadKfTest, ControllersWithoutKeysOrWithUnsupportedInterpola
     kf.mControllers[0]->mData = Nif::NiKeyframeDataPtr(nullptr); // no data and no interpolator
 
     kf.addBone("Bip01 Float").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(1.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(1.f, 0.f, 0.f) } });
     Nif::NiFloatInterpolator floatInterp;
     floatInterp.mRecordType = Nif::RC_NiFloatInterpolator;
     floatInterp.mDefaultValue = 0.f;
@@ -969,12 +969,12 @@ TEST(CompatMorrowindLoadKfTest, ControllersWithoutKeysOrWithUnsupportedInterpola
     kf.mControllers[1]->mInterpolator = Nif::NiInterpolatorPtr(&floatInterp);
 
     kf.addBone("Bip01 Good").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(3.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(3.f, 0.f, 0.f) } });
 
     const auto anim = compat_morrowind::loadKfAnimation(kf.view());
     ASSERT_EQ(anim.mTracks.size(), 1u);
     ASSERT_EQ(anim.mTracks.count("Bip01 Good"), 1u);
-    expectVec3Near(translationAt(anim.mTracks.at("Bip01 Good"), 0.f), osg::Vec3f(3.f, 0.f, 0.f));
+    expectVec3Near(translationAt(anim.mTracks.at("Bip01 Good"), 0.f), vsg::vec3(3.f, 0.f, 0.f));
 }
 
 TEST(CompatMorrowindLoadKfTest, ControllerWithTransformInterpolatorIsLoaded)
@@ -984,11 +984,11 @@ TEST(CompatMorrowindLoadKfTest, ControllerWithTransformInterpolatorIsLoaded)
     kf.addBone("Bip01 Interp");
 
     auto interpData = makeKeyframeData();
-    interpData->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(0.f, 0.f, 4.f) } });
+    interpData->mTranslations = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(0.f, 0.f, 4.f) } });
     Nif::NiTransformInterpolator interp;
     interp.mRecordType = Nif::RC_NiTransformInterpolator;
-    interp.mDefaultValue.mTranslation = osg::Vec3f();
-    interp.mDefaultValue.mRotation = osg::Quat();
+    interp.mDefaultValue.mTranslation = vsg::vec3();
+    interp.mDefaultValue.mRotation = vsg::dquat();
     interp.mDefaultValue.mScale = 1.f;
     interp.mData = Nif::NiKeyframeDataPtr(interpData.get());
     kf.mControllers[0]->mInterpolator = Nif::NiInterpolatorPtr(&interp);
@@ -996,7 +996,7 @@ TEST(CompatMorrowindLoadKfTest, ControllerWithTransformInterpolatorIsLoaded)
 
     const auto anim = compat_morrowind::loadKfAnimation(kf.view());
     ASSERT_EQ(anim.mTracks.count("Bip01 Interp"), 1u);
-    expectVec3Near(translationAt(anim.mTracks.at("Bip01 Interp"), 0.f), osg::Vec3f(0.f, 0.f, 4.f));
+    expectVec3Near(translationAt(anim.mTracks.at("Bip01 Interp"), 0.f), vsg::vec3(0.f, 0.f, 4.f));
 }
 
 TEST(CompatMorrowindLoadKfTest, ExtrasBeyondTheControllerChainAreIgnored)
@@ -1004,7 +1004,7 @@ TEST(CompatMorrowindLoadKfTest, ExtrasBeyondTheControllerChainAreIgnored)
     SyntheticKf kf;
     kf.addTextKey(0.f, "idle: start");
     kf.addBone("Bip01 A").mTranslations
-        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, osg::Vec3f(1.f, 0.f, 0.f) } });
+        = makeVec3Keys(Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(1.f, 0.f, 0.f) } });
 
     // A second name with no controller left to pair with
     Nif::NiStringExtraData orphan;

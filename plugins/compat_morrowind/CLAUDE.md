@@ -9,7 +9,7 @@ The Morrowind compatibility pack, the first real plugin. It provides `openeden.g
   - `components/nif`, to read Morrowind's records
   - small engine utilities: `components/misc` strings and `components/debug` logging
   - nlohmann JSON
-  - OSG math types (`osg::Vec3f`, `osg::Quat`), only until task 0013 replaces them engine-wide
+  - VSG math types (`vsg::vec3`, `vsg::dquat`) in the pack's own code, as `components/nif` hands them over; never in a contract
 - **Not allowed:**
   - no renderer: no `NifOsg`, `SceneUtil`, `vsgAdapters` or `Anim` (task 0011 removed the last of them)
   - no other plugin's headers

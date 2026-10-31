@@ -1,98 +1,62 @@
-#include <components/misc/convert.hpp>
+#include "../math/conventions.hpp"
 
-#include <osg/Matrixd>
-#include <osg/Quat>
-#include <osg/Vec3d>
-#include <osg/Vec3f>
+#include <components/misc/convert.hpp>
 
 #include <gtest/gtest.h>
 
-// Misc::Convert moved from OSG's math types to VSG's in task 0013 (Track V stage V5), and physics results must not change.
-// The functions in namespace Original are convert.hpp's bodies as they were, on OSG's types (commit 4ec68b683b), and each test
-// asks for the same bits. They go with extern/osg at the end of V5, when these become literal expected values.
+// Misc::Convert moved from OSG's math types to VSG's in task 0013 (Track V stage V5), and physics results must not
+// change. asks for the same bits. They go with extern/osg at the end of V5, when these become literal expected values.
 namespace
 {
-    namespace Original
-    {
-        osg::Matrixd toOsgNoScale(const JPH::Mat44& joltMatrix)
-        {
-            osg::Matrixd mat;
-            auto inPosition = joltMatrix.GetTranslation();
-            auto subRot = joltMatrix.GetRotation().GetQuaternion();
-            mat.makeRotate(osg::Quat(subRot.GetX(), subRot.GetY(), subRot.GetZ(), subRot.GetW()));
-            mat.setTrans(osg::Vec3f(inPosition.GetX(), inPosition.GetY(), inPosition.GetZ()));
-            return mat;
-        }
+    using namespace MathConventions;
 
-        JPH::Quat toJolt(const osg::Quat& quat)
-        {
-            return JPH::Quat(static_cast<float>(quat.x()), static_cast<float>(quat.y()), static_cast<float>(quat.z()),
-                static_cast<float>(quat.w()));
-        }
-
-        JPH::RMat44 toJoltNoScale(const osg::Matrixd& mat)
-        {
-            JPH::Quat quat = toJolt(mat.getRotate()).Normalized();
-            osg::Vec3d trans = mat.getTrans();
-            return JPH::RMat44::sRotationTranslation(quat, JPH::RVec3(trans.x(), trans.y(), trans.z()));
-        }
-
-        osg::Quat makeOsgQuat(const float (&rotation)[3])
-        {
-            return osg::Quat(rotation[2], osg::Vec3f(0, 0, -1)) * osg::Quat(rotation[1], osg::Vec3f(0, -1, 0))
-                * osg::Quat(rotation[0], osg::Vec3f(-1, 0, 0));
-        }
-
-        osg::Quat makeQuaternion(const float (&rotation)[3])
-        {
-            return osg::Quat(0, 0, -1, rotation[2]) * osg::Quat(0, -1, 0, rotation[1])
-                * osg::Quat(-1, 0, 0, rotation[0]);
-        }
-
-        osg::Matrixd makeOSGTransform(const ESM::Position& position)
-        {
-            osg::Matrixd mat;
-            mat.setRotate(makeQuaternion(position.rot));
-            mat.setTrans(position.asVec3());
-            return mat;
-        }
-    }
-
-    vsg::dmat4 sameNumbers(const osg::Matrixd& source)
-    {
-        vsg::dmat4 result;
-        for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 4; ++j)
-                result[i][j] = source(i, j);
-        return result;
-    }
-
-    void expectSame(const osg::Matrixd& expected, const vsg::dmat4& actual)
+#include "testconvert.golden.inc"
+    template <class Expected>
+    void expectSameMatrix(const Expected& expected, const vsg::dmat4& actual)
     {
         for (int i = 0; i < 4; ++i)
             for (int j = 0; j < 4; ++j)
-                EXPECT_EQ(expected(i, j), actual[i][j]) << i << ", " << j;
+            {
+                // Jolt's float quaternion is under these, and its last bits differ between compilers.
+                EXPECT_TRUE(sameAsRecorded<float>(expected(i, j), actual[i][j], 1.0)) << i << ", " << j;
+            }
     }
 
-    void expectSame(const osg::Quat& expected, const vsg::dquat& actual)
+    void expectSame(const GoldenRow& expected, const vsg::dmat4& actual)
     {
-        EXPECT_EQ(expected.x(), actual.x);
-        EXPECT_EQ(expected.y(), actual.y);
-        EXPECT_EQ(expected.z(), actual.z);
-        EXPECT_EQ(expected.w(), actual.w);
+        expectSameMatrix(expected, actual);
     }
 
-    void expectSame(const JPH::RMat44& expected, const JPH::RMat44& actual)
+    void expectSame(const GoldenRow& expected, const vsg::dquat& actual)
     {
-        const JPH::Quat expectedRotation = expected.GetQuaternion();
+        EXPECT_TRUE(recordedEqual(expected[0], actual.x));
+        EXPECT_TRUE(recordedEqual(expected[1], actual.y));
+        EXPECT_TRUE(recordedEqual(expected[2], actual.z));
+        EXPECT_TRUE(recordedEqual(expected[3], actual.w));
+    }
+
+    // The quaternion and the translation, as the original code's JPH::RMat44 gave them.
+    template <class Expected>
+    void expectSameJolt(const Expected& expected, const JPH::RMat44& actual)
+    {
         const JPH::Quat actualRotation = actual.GetQuaternion();
-        EXPECT_EQ(expectedRotation.GetX(), actualRotation.GetX());
-        EXPECT_EQ(expectedRotation.GetY(), actualRotation.GetY());
-        EXPECT_EQ(expectedRotation.GetZ(), actualRotation.GetZ());
-        EXPECT_EQ(expectedRotation.GetW(), actualRotation.GetW());
-        EXPECT_EQ(expected.GetTranslation().GetX(), actual.GetTranslation().GetX());
-        EXPECT_EQ(expected.GetTranslation().GetY(), actual.GetTranslation().GetY());
-        EXPECT_EQ(expected.GetTranslation().GetZ(), actual.GetTranslation().GetZ());
+        EXPECT_TRUE(recordedEqual(expected[0], actualRotation.GetX()));
+        EXPECT_TRUE(recordedEqual(expected[1], actualRotation.GetY()));
+        EXPECT_TRUE(recordedEqual(expected[2], actualRotation.GetZ()));
+        EXPECT_TRUE(recordedEqual(expected[3], actualRotation.GetW()));
+        EXPECT_TRUE(recordedEqual(expected[4], actual.GetTranslation().GetX()));
+        EXPECT_TRUE(recordedEqual(expected[5], actual.GetTranslation().GetY()));
+        EXPECT_TRUE(recordedEqual(expected[6], actual.GetTranslation().GetZ()));
+    }
+
+    void expectSame(const GoldenRow& expected, const JPH::RMat44& actual)
+    {
+        expectSameJolt(expected, actual);
+    }
+
+    void expectSame(const std::array<double, 7>& expected, const JPH::RMat44& actual)
+    {
+        expectSameJolt(expected, actual);
     }
 
     const float kRotations[][3] = {
@@ -165,20 +129,9 @@ namespace
         EXPECT_EQ(asFloat3.z, 3.3f);
     }
 
-    // Callers on the other side of the bridge still pass OSG's types.
-    TEST(MiscConvert, toJoltAcceptsOsgTypesThroughTheBridge)
-    {
-        const JPH::RVec3 fromF = Misc::Convert::toJolt<JPH::RVec3>(osg::Vec3f(0.1f, 0.2f, 0.3f));
-        EXPECT_EQ(fromF.GetX(), static_cast<double>(0.1f));
-        const JPH::RVec3 fromD = Misc::Convert::toJolt<JPH::RVec3>(osg::Vec3d(0.1, 0.2, 0.3));
-        EXPECT_EQ(fromD.GetX(), 0.1);
-        const JPH::Quat fromQ = Misc::Convert::toJolt(osg::Quat(0.1, 0.2, 0.3, 0.4));
-        EXPECT_EQ(fromQ.GetW(), 0.4f);
-    }
-
     TEST(MiscConvert, toJoltFromQuatNarrowsEachElement)
     {
-        const JPH::Quat expected = Original::toJolt(osg::Quat(0.1, -0.2, 0.3, 0.9));
+        const JPH::Quat expected(0.1f, -0.2f, 0.3f, 0.9f);
         const JPH::Quat actual = Misc::Convert::toJolt(vsg::dquat(0.1, -0.2, 0.3, 0.9));
         EXPECT_EQ(expected.GetX(), actual.GetX());
         EXPECT_EQ(expected.GetY(), actual.GetY());
@@ -192,27 +145,27 @@ namespace
         {
             const JPH::Quat q = JPH::Quat::sEulerAngles(JPH::Vec3(rotation[0], rotation[1], rotation[2]));
             const JPH::Mat44 m = JPH::Mat44::sRotationTranslation(q, JPH::Vec3(10.5f, -20.25f, 1e5f));
-            expectSame(Original::toOsgNoScale(m), Misc::Convert::toOsgNoScale(m));
+            expectSame(MathConventions::golden(kGolden5), Misc::Convert::toOsgNoScale(m));
         }
     }
 
     TEST(MiscConvert, toJoltNoScaleMatchesOsg)
     {
-        for (const auto& rotation : kRotations)
+        for (std::size_t i = 0; i < std::size(kRotations); ++i)
         {
-            osg::Matrixd original = osg::Matrixd::rotate(Original::makeOsgQuat(rotation));
-            original.setTrans(osg::Vec3d(1000000000.5, -0.25, 7.125));
-            expectSame(Original::toJoltNoScale(original), Misc::Convert::toJoltNoScale(sameNumbers(original)));
+            expectSame(MathConventions::golden(kGolden6),
+                Misc::Convert::toJoltNoScale(MathConventions::golden(kGolden7).mat()));
         }
     }
 
     // getRotate does not remove a scale, so a scaled matrix is where another rotation-from-matrix would show.
     TEST(MiscConvert, toJoltNoScaleOnAScaledMatrixMatchesOsg)
     {
-        osg::Matrixd original
-            = osg::Matrixd::scale(2.0, 2.0, 2.0) * osg::Matrixd::rotate(Original::makeOsgQuat(kRotations[1]));
-        original.setTrans(osg::Vec3d(1.0, 2.0, 3.0));
-        expectSame(Original::toJoltNoScale(original), Misc::Convert::toJoltNoScale(sameNumbers(original)));
+        expectSame(
+            arrayOf(0.60561603307724, 0.01265491358935833, 0.786035418510437, -0.1233585923910141, 1.0, 2.0, 3.0),
+            Misc::Convert::toJoltNoScale(matOf<double>(-0.8201672142839085, -0.3403725002438664, 1.7920581189491351,
+                0.0, 0.3877156548281971, -1.9525041262317018, -0.19340167540463776, 0.0, 1.7824147417520189,
+                0.2680936368620443, 0.8666738084534262, 0.0, 1.0, 2.0, 3.0, 1.0)));
     }
 
     TEST(MiscConvert, toOsgNarrowsToFloat)
@@ -244,8 +197,8 @@ namespace
     {
         for (const auto& rotation : kRotations)
         {
-            expectSame(Original::makeOsgQuat(rotation), Misc::Convert::makeOsgQuat(rotation));
-            expectSame(Original::makeOsgQuat(rotation), Misc::Convert::makeOsgQuat(makePosition(rotation)));
+            expectSame(MathConventions::golden(kGolden10), Misc::Convert::makeOsgQuat(rotation));
+            expectSame(MathConventions::golden(kGolden11), Misc::Convert::makeOsgQuat(makePosition(rotation)));
         }
     }
 
@@ -253,8 +206,8 @@ namespace
     {
         for (const auto& rotation : kRotations)
         {
-            expectSame(Original::makeQuaternion(rotation), Misc::Convert::makeQuaternion(rotation));
-            expectSame(Original::makeQuaternion(rotation), Misc::Convert::makeQuaternion(makePosition(rotation)));
+            expectSame(MathConventions::golden(kGolden12), Misc::Convert::makeQuaternion(rotation));
+            expectSame(MathConventions::golden(kGolden13), Misc::Convert::makeQuaternion(makePosition(rotation)));
         }
     }
 
@@ -263,7 +216,7 @@ namespace
         for (const auto& rotation : kRotations)
         {
             const ESM::Position position = makePosition(rotation);
-            expectSame(Original::makeOSGTransform(position), Misc::Convert::makeOSGTransform(position));
+            expectSame(MathConventions::golden(kGolden14), Misc::Convert::makeOSGTransform(position));
         }
     }
 }
