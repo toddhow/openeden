@@ -30,7 +30,6 @@ vsg::ref_ptr<vsg::Node> CSVRender::createColouredGeometry(const Pipeline::Builde
 
     auto state = vsg::StateGroup::create();
     state->stateCommands = { builder.graphics->getOrCreate(options) };
-    state->prototypeArrayState = vsg::NullArrayState::create();
     if (indices)
     {
         auto draw = vsg::VertexIndexDraw::create();

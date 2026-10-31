@@ -26,6 +26,7 @@
 
 #include <apps/opencs/view/render/mask.hpp>
 
+#include "picking.hpp"
 #include "scenehost.hpp"
 
 namespace
@@ -94,11 +95,11 @@ vsg::ref_ptr<vsg::Node> CSVRender::CellMarker::buildMarker() const
 
     const float halfWidth = text.width() / 2.f;
     const float halfHeight = text.height() / 2.f;
-    auto vertices = vsg::vec3Array::create({ { -halfWidth, halfHeight, 0 }, { halfWidth, halfHeight, 0 },
-        { -halfWidth, -halfHeight, 0 }, { halfWidth, -halfHeight, 0 } });
+    auto vertices = vsg::vec3Array::create({ { -halfWidth, -halfHeight, 0 }, { halfWidth, -halfHeight, 0 },
+        { -halfWidth, halfHeight, 0 }, { halfWidth, halfHeight, 0 } });
     auto normals = vsg::vec3Array::create(4, vsg::vec3(0, 0, 1));
     auto colours = vsg::vec4Array::create(4, vsg::vec4(1, 1, 1, 1));
-    auto uvs = vsg::vec2Array::create({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } });
+    auto uvs = vsg::vec2Array::create({ { 0, 1 }, { 1, 1 }, { 0, 0 }, { 1, 0 } });
 
     auto draw = vsg::VertexDraw::create();
     draw->assignArrays(vsg::DataList{ vertices, normals, colours, uvs });
@@ -107,7 +108,6 @@ vsg::ref_ptr<vsg::Node> CSVRender::CellMarker::buildMarker() const
 
     auto state = vsg::StateGroup::create();
     state->stateCommands = { pipeline, bindTexture };
-    state->prototypeArrayState = vsg::NullArrayState::create();
     state->addChild(draw);
     return state;
 }
@@ -130,6 +130,7 @@ CSVRender::CellMarker::CellMarker(
     mMarkerNode->addChild(buildMarker());
     // Any distance works for a bin with no sorting, and the overlay bin keeps it out of the depth sorted one.
     mMaskNode = SceneHost::maskNode(Mask_CellMarker, vsgUtil::createBinSetter(SceneHost::sBinOverlay, mMarkerNode));
+    Picking::setTag(*mMaskNode, mTag);
     update();
     mHost.compileContext()->compile(mMaskNode);
     mCellNode.addChild(mMaskNode);

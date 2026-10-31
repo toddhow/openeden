@@ -381,10 +381,15 @@ CSMDoc::Document& CSVRender::WorldspaceWidget::getDocument()
 CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
     const QPoint& localPos, unsigned int interactionMask) const
 {
-    // Stage C6 ports the intersection, from worldspacewidget.cpp in git history.
-    if (const SceneHost* host = getHost())
-        return WorldspaceHitResult{ false, nullptr, 0, 0, 0, host->getCameraEye() };
-    return WorldspaceHitResult{ false, nullptr, 0, 0, 0, vsg::dvec3() };
+    const SceneHost* host = getHost();
+    if (!host || width() <= 0 || height() <= 0)
+        return WorldspaceHitResult{ false, nullptr, 0, 0, 0, vsg::dvec3() };
+
+    // Selection marker hits (stage C7) come first here, as in the OSG editor's mousePick.
+    const Picking::Result result = host->pick(static_cast<double>(localPos.x()) / width(),
+        static_cast<double>(localPos.y()) / height(), interactionMask,
+        CSMPrefs::get()["3D Scene Editing"]["distance"].toInt());
+    return WorldspaceHitResult{ result.mHit, result.mTag, result.mIndex0, result.mIndex1, result.mIndex2, result.mWorldPos };
 }
 
 CSVRender::EditMode* CSVRender::WorldspaceWidget::getEditMode()

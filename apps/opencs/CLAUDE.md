@@ -5,7 +5,7 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 ## What builds now
 
 - `csmodel`: everything under `model/`, plus three plain Qt widgets it uses. `openmw-cs-tests` links only this, so it needs no view code and no GPU.
-- `openmw-cs-lib`: the table views, documents, dialogues and scene subviews, on `view/render`'s widgets, with stand-ins for what stages C6 to C9 bring (task 0014, C3 log).
+- `openmw-cs-lib`: the table views, documents, dialogues and scene subviews, on `view/render`'s widgets, with stand-ins for what stages C7 to C9 bring (task 0014, C3 log).
 - **Staged list:** `CMakeLists.txt` lists the `view/render` units not compiled yet, in a comment. Each stage moves its units back. `OPENEDEN_CS_VIEW_RENDER_PENDING` guards what still waits. Remove the define with the last stage.
 - OSG files in `view/render` stay on disk unbuilt until stage D1.
 
@@ -45,3 +45,4 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **On-demand frames:** a view draws when asked (`requestRedraw`) or when exposed and a `FrameListener` says `isAnimated`, which means an object with auto-play controllers. A controller that is not auto-play still runs, with `MWAnim::ObjectAnimation::addController`: skins are such controllers, and dropping them draws a skinned model in pieces.
 - **`CompileManager` has no remove.** Add a target once, without a view (`RenderContext::addCompileTarget`), never per view.
 - **Camera:** a controller works on the view matrix through `camerapose.hpp`, in eye space, which is the same as OSG's. Do not flip Y there: the flip is in the projection. A capture's `--camera-script` (`capture.cpp`, `runCameraScript`) calls the controllers and logs each pose.
+- **Picking:** `picking.hpp`, without a window, and `Picking::setTag` on a node marks what it covers. A pickable node must have no `NullArrayState`, and a pipeline with VERTEX at location 0. A triangle's facing counts, so keep quads counter-clockwise seen from their front, also with no culling. In a `--camera-script`, `wait` before a `ray` lets markers follow the camera.

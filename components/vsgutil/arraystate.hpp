@@ -12,7 +12,14 @@ namespace vsgUtil
     class ArrayState : public vsg::ArrayState
     {
     public:
-        vsg::ref_ptr<vsg::ArrayState> clone(vsg::ref_ptr<vsg::ArrayState> arrayState)
+        // openeden-vsg: VSG 1.1 renamed clone, and with the old name an intersector silently got a plain ArrayState, with
+        // no vertices.
+        vsg::ref_ptr<vsg::ArrayState> cloneArrayState() override
+        {
+            return vsg::ref_ptr{ new Derived(static_cast<const Derived&>(*this)) };
+        }
+
+        vsg::ref_ptr<vsg::ArrayState> cloneArrayState(vsg::ref_ptr<vsg::ArrayState> arrayState) override
         {
             auto ret = vsg::ref_ptr{ new Derived(static_cast<const Derived&>(*this)) };
             static_cast<vsg::ArrayState&>(*ret) = *arrayState;

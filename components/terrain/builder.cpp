@@ -71,6 +71,8 @@ namespace Terrain
         }
         vsg::ref_ptr<const vsg::vec3Array> vertexArray(uint32_t instance) override
         {
+            if (!mHeights)
+                return {};
             uint8_t lod = instance & 0xff;
             uint32_t shiftSize = (instance >> 8) & 0xff;
             float chunkScale = 1.f / (1 << shiftSize);

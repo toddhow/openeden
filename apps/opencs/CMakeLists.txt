@@ -158,7 +158,7 @@ opencs_units (view/world
     )
 
 opencs_hdrs (view/render
-    mask tagbase instancedragmodes objectmarker_pending camerapose
+    mask tagbase instancedragmodes objectmarker_pending camerapose picking
     )
 
 

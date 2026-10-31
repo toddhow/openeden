@@ -329,7 +329,7 @@ What each old part became:
 
 Stand-ins until their stages, so that the widgets build and the toolbars keep their buttons:
 - C5, done: see its entry below.
-- C6: `mousePick` always misses, so cell arrows cannot be clicked and scene tooltips do not show. The shortcuts that load cells work without a pick.
+- C6, done: see its entry below.
 - C7: `objectmarker_pending.hpp`, a do-nothing selection marker. `Object::setSelected` keeps the flag and draws no outline.
 - C7 to C9: the edit mode buttons are the plain `EditMode`.
 - The `scene-render-stats` shortcut only logs: `osgViewer::StatsHandler` has no counterpart yet.
@@ -461,3 +461,48 @@ Check list, for a person (the keys are in Preferences > Key Bindings):
 21. **Camera cycle.** Press `scene-cam-cycle`: the toolbar button goes 1st, orbit, free... and the view does not jump.
 22. **Feel.** With the mouse: does it feel like the OSG editor in speed and direction, in each mode? Note anything off. In Preferences > 3D Scene Input, change the sensitivity, invert and speed settings: each takes effect at once.
 23. **Orthographic.** Preferences > Rendering > "Orthographic projection": the view changes and stays the right way up, and is not clipped at the near plane. The size setting zooms it.
+
+### C6 Picking and tags (2026-10-31)
+
+New `picking.hpp`: `viewRay`, `pick` and `pickNearest` over `vsg::LineSegmentIntersector`, with no window and no GPU. `apps/opencs_tests/view/render/testpicking.cpp` (14 cases on a generated scene, written first from the old `mousePick`) checks: nearest hit and its tag, masks, terrain with no tag, a strip's two triangles, empty sky at the placement distance, a back face not counting, triangle indices, a transformed object, and rays at the top, right and middle of a perspective and an orthographic picture, which is where VSG's Y flip and reversed depth show.
+
+- **Tags:** `Picking::setTag` (`vsg::Object::setObject`) on `Object`'s root, `CellArrow`'s and `CellMarker`'s mask nodes. The tag nearest the root of the hit's node path wins. `TagBase` left `osg::Referenced` in C3.
+- **Masks:** the intersector's `traversalMask` against the `Switch` from `SceneHost::maskNode`.
+- **`mousePick`:** `SceneHost::pick`, over `contentRoot` so that the gradient never counts. Marker hits and `handleMarkerHighlight` wait for C7. Orbit's first centre is `SceneHost::pickNearest` at the middle of the view, either side of a triangle, as `LIMIT_NEAREST` was.
+- **Not `CameraDistanceIntersector` or `Render::nearestIntersection`:** the survey named them, but the first has no use without a range limit, and the second takes the nearest with no back-face test and looks for an `Anim::Transform`, whereas the editor wants a tag.
+
+Found on the way, by the rays:
+- **Terrain could not be picked, in the game either: a real bug in shared code, fixed.** `vsgUtil::ArrayState` defined `clone`, the name before VSG 1.1 renamed it `cloneArrayState`, so an intersector got a plain `ArrayState` with no vertices, with no error. Terrain's `HeightArrayState` and `Anim::SoftwareSkin`'s state both use it. So on the game's side, `castRay` with `Mask_Terrain` went through terrain until now, and now does not; software-skinned hits see skinned vertices. New test `vsgutil/testarraystate.cpp`. `HeightArrayState::vertexArray` now returns nothing rather than dereference null if there is no height map. Its data did stay on the CPU: the worry in the survey does not apply there.
+- **`vsg::LineSegmentIntersector` reads triangle lists only,** so water and markers, unindexed strips, were never hit. `Picking::Intersector` adds strips.
+- **`NullArrayState`** hid arrows, borders and markers from intersection, and water: removed in the editor's geometry; `SimpleWater` gets a defaulted `intersectable`, off for the game.
+- **`CellMarker`'s quad was clockwise,** so it counted as a back face, unseen as it does not cull. Now counter-clockwise, and the frame shows the same label.
+
+Scripted rays (`--camera-script "...; wait; ray x y hexmask"`, through `WorldspaceWidget::mousePick`). Seyda Neen, `#-2 -9`, `--neighbours 2`, from the game's camera, 1280x720:
+
+| Pixel, mask | Result |
+|---|---|
+| 700, 240, references | `ex_nord_house_01` at (-12162, -68324, 442), triangle 30 31 32 |
+| 1027, 270, references (a skinned npc) | `eldafire` at (-11420, -68232, 392) |
+| 925, 290, references | `Imperial Guard` at (-11438, -67770, 399) |
+| 640, 450, terrain | no tag, (-12288, -68837, 75.7), triangle 2118 2184 2119 |
+| 640, 650, water | no tag, (-12288, -69219, -1) |
+| 640, 650, terrain | no tag, (-12288, -69143, -36): under the water, as it is |
+| 900, 30, everything | no hit, 50 units along the ray (the preference `distance`) |
+| 640, 370, markers | a marker's tag, at the middle of cell `-2,-8` (-12288, -61440) |
+| 300, 100, arrows, top-down view of `#-2 -9` alone | arrow's tag, `Direction: North` |
+
+Orbit's first centre: from Arrille's door, `mouse 650 0` turned the eye by 1 rad around the door hit at (-242, 124), with the logged eye where the sum says. Terrain through `pickNearest`: the eye moved by what a centre about 985 units ahead gives, where the terrain is at about that distance.
+
+Check of the game, which had a shared-code change: Seyda Neen frame 600, before and after: 2,130 of 921,600 pixels over 6, in moving sky and the water's ripples, viewed; Caldera Mages Guild viewed. Not checked by hand: the game features that use `RenderManager::castRay`, which now stop at terrain (`World` in `worldimp.cpp`: the faced object at 1723 and 1737, dropping an item at the cursor at 1911 and 1939, and the ray at 2039). For a faced object this means terrain now hides what is behind it. toddhow's check: in game, an item dropped from the inventory onto open ground lands where the cursor is, and the crosshair's tooltip does not name something behind a hill.
+
+Tests on Windows: components-tests 2222, with `DetourNavigatorRecastMeshObjectTest` failing in one or two cases in some full runs, the known intermittent one, and passing alone; openmw-tests 717; openmw-cs-tests 181. Linux is in the entry that follows.
+
+Not verified: real clicks (below), Qt coordinates at a display scale other than 100% (`localPos` over `width()` should be right, as both are in logical pixels), and pathgrid hits (C9). Selection itself is C7: a click on an object does nothing visible yet.
+
+Check list, for a person:
+
+24. **Tool tips.** In Preferences > Tooltips turn on scene tool tips. Hold the mouse over a building in `#-2 -9` for the delay: its record ID appears. Over a cell arrow: "Direction: North" and the rest. Over open ground and sky: nothing.
+25. **Arrow clicks.** With only `#-2 -9` in view, zoom out so that the arrows show. `scene-edit-primary` on the north arrow adds cell `#-2 -8`. `scene-edit-secondary` on an arrow adds that cell and removes the old one. `scene-select-primary` and `scene-select-secondary` do likewise for a row of cells. Check that the arrow hit is the one under the pointer at the middle and at the edges of the window, at an odd window size, and with the Windows display scale above 100% if you have it. Tell me if the Y is mirrored: a click at the top of the view hitting what is at the bottom.
+26. **Orbit centre by click.** Press `orbit` over a building in the view's middle: circling goes around the building, not a point 10,000 units away. Over open sky it circles a point 10,000 units ahead.
+27. **Ortho.** Repeat 24 with Orthographic projection on.
+28. **Picking does not stall.** Sweep the mouse over a large exterior with tool tips on. The editor stays smooth. Say if a hover or a click pauses it: terrain's ray recomputes a chunk's vertices.

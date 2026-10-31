@@ -336,10 +336,19 @@ namespace CSVRender
         setCamera(lookAt.mEye, lookAt.mCenter, lookAt.mUp);
     }
 
-    std::optional<vsg::dvec3> SceneHost::pickNearest(double /*x*/, double /*y*/, unsigned int /*mask*/) const
+    std::optional<vsg::dvec3> SceneHost::pickNearest(double x, double y, unsigned int mask) const
     {
-        // Stage C6.
+        vsg::dvec3 position;
+        if (Picking::pickNearest(
+                *mContentRoot, Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y), mask, position))
+            return position;
         return std::nullopt;
+    }
+
+    Picking::Result SceneHost::pick(double x, double y, unsigned int mask, double placementDistance) const
+    {
+        return Picking::pick(*mContentRoot, Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y), mask,
+            placementDistance);
     }
 
     vsg::dvec3 SceneHost::getCameraEye() const

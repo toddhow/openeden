@@ -19,6 +19,7 @@
 
 #include "colouredgeometry.hpp"
 #include "mask.hpp"
+#include "picking.hpp"
 #include "scenehost.hpp"
 
 namespace CSVRender
@@ -161,6 +162,7 @@ CSVRender::CellArrow::CellArrow(
     auto matrix = vsg::MatrixTransform::create(transform());
     matrix->addChild(buildShape());
     mBaseNode = SceneHost::maskNode(Mask_CellArrow, matrix);
+    Picking::setTag(*mBaseNode, mTag);
     mHost.compileContext()->compile(mBaseNode);
     mParentNode.addChild(mBaseNode);
 }

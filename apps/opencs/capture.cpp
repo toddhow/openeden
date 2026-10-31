@@ -19,6 +19,7 @@
 #include <boost/program_options.hpp>
 
 #include <vsg/ui/PointerEvent.h>
+#include <QPoint>
 #include <vsgQt/Window.h>
 
 #include <components/debug/debugging.hpp>
@@ -50,6 +51,8 @@ namespace
     constexpr int sViewHeight = 720;
     // Well before any capture a script is for.
     constexpr std::uint64_t sCameraScriptFrame = 5;
+    // An arrow's tool tip is a long text.
+    constexpr std::size_t sMaxLoggedTag = 40;
 
     struct Request
     {
@@ -97,8 +100,11 @@ namespace
 
     /// Drives the view's camera controller as keys and the mouse would, without Qt events. Commands, separated by ';':
     /// mode 1st|free|orbit, pose ex ey ez cx cy cz ux uy uz, center x y z (orbit), slot name 0|1 (the controller's slot, as
-    /// its shortcut calls it), mouse dx dy, wheel d, update dt, ortho size. The camera is logged after each.
-    void runCameraScript(CSVRender::WorldspaceWidget& view, const std::string& script)
+    /// its shortcut calls it), mouse dx dy, wheel d, update dt, ortho size, ray x y hexmask (logs WorldspaceWidget::mousePick at that
+    /// pixel). The camera is logged after each.
+    /// `wait` stops until the next tick, so that what follows the camera has followed it (cell markers): the rest of the
+    /// script is returned.
+    std::string runCameraScript(CSVRender::WorldspaceWidget& view, const std::string& script)
     {
         std::istringstream commands(script);
         std::string command;
@@ -107,6 +113,12 @@ namespace
             std::istringstream words(command);
             std::string verb;
             words >> verb;
+            if (verb == "wait")
+            {
+                std::string rest;
+                std::getline(commands, rest, '\0');
+                return rest;
+            }
             auto* controller = view.getCameraController();
             if (verb == "mode")
             {
@@ -134,6 +146,20 @@ namespace
                 words >> name >> active;
                 if (!QMetaObject::invokeMethod(controller, name.c_str(), Q_ARG(bool, active != 0)))
                     Log(Debug::Error) << "The camera controller has no slot " << name;
+            }
+            else if (verb == "ray")
+            {
+                int x = 0;
+                int y = 0;
+                unsigned int mask = 0;
+                words >> x >> y >> std::hex >> mask;
+                const CSVRender::WorldspaceHitResult hit = view.mousePick(QPoint(x, y), mask);
+                Log(Debug::Info) << "Ray at " << x << " " << y << " mask " << std::hex << mask << std::dec
+                                 << (hit.hit ? ": hit" : ": no hit") << " at " << hit.worldPos.x << " " << hit.worldPos.y
+                                 << " " << hit.worldPos.z << " tag "
+                                 << (hit.tag ? "of mask " + std::to_string(hit.tag->getMask()) + " " + hit.tag->getToolTip(true, hit).toStdString().substr(0, sMaxLoggedTag)
+                                             : std::string("none"))
+                                 << " triangle " << hit.index0 << " " << hit.index1 << " " << hit.index2;
             }
             else if (verb == "ortho")
             {
@@ -165,6 +191,7 @@ namespace
             Log(Debug::Info) << "After \"" << command << "\":";
             logCamera(*view.getHost());
         }
+        return {};
     }
 
     /// The window of the views: shown, but never takes focus.
@@ -383,9 +410,7 @@ int CS::runCapture(int argc, char** argv)
                 // After the view has had its first frames, so that its default camera is there to start from.
                 if (!request.mCameraScript.empty() && frameCount >= sCameraScriptFrame)
                 {
-                    for (auto* view : views)
-                        runCameraScript(*view, request.mCameraScript);
-                    request.mCameraScript.clear();
+                    request.mCameraScript = runCameraScript(*views.front(), request.mCameraScript);
                 }
                 if (nextCapture != 0 && frameCount >= nextCapture)
                 {

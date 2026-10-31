@@ -32,6 +32,7 @@
 
 #include "actor.hpp"
 #include "mask.hpp"
+#include "picking.hpp"
 #include "scenehost.hpp"
 
 namespace
@@ -218,6 +219,7 @@ CSVRender::Object::Object(CSMWorld::Data& data, SceneHost& host, vsg::Group& par
 
     update(compile);
 
+    Picking::setTag(*mRootNode, mTag);
     mShownNode = SceneHost::maskNode(Mask_Reference, mRootNode);
     mParentNode.addChild(mShownNode);
 }

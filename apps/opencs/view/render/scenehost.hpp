@@ -20,6 +20,7 @@
 #include <components/mwanimation/context.hpp>
 
 #include "lighting.hpp"
+#include "picking.hpp"
 
 namespace vsg
 {
@@ -135,6 +136,8 @@ namespace CSVRender
         /// right, among the elements of mask.hpp's list in \p mask.
         /// \return the world position, if anything is there.
         std::optional<vsg::dvec3> pickNearest(double x, double y, unsigned int mask) const;
+        /// As WorldspaceWidget::mousePick wants it: see Picking::pick. The same point of the view as pickNearest.
+        Picking::Result pick(double x, double y, unsigned int mask, double placementDistance) const;
 
         /// A frame will be drawn on the next timer tick, as flagAsModified was with OSG's ON_DEMAND.
         void requestRedraw() { mRedraw = true; }

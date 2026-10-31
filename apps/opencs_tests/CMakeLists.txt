@@ -3,6 +3,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/world/testinfocollection.cpp
     model/world/testuniversalid.cpp
     view/render/testcamerapose.cpp
+    view/render/testpicking.cpp
 )
 
 source_group(apps\\openmw-cs-tests FILES ${OPENCS_TESTS_SRC_FILES})

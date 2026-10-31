@@ -28,8 +28,9 @@ namespace Render
     public:
         /// \param followCamera keep it centred under the camera, as the game's map renders do. Otherwise it stays centred on
         /// its own transform, as a cell's water in the editor.
+        /// \param intersectable whether a vsg::Intersector sees it: the editor picks it. The game does not.
         SimpleWater(float radius, const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> textureOptions,
-            bool followCamera = true)
+            bool followCamera = true, bool intersectable = false)
         {
             mTransform = new Anim::Transform;
             mNode = vsg::Switch::create();
@@ -56,7 +57,8 @@ namespace Render
                 VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, vsg::Descriptors{ texture });
             auto sg = vsg::StateGroup::create();
             sg->stateCommands = { pipeline, bds };
-            sg->prototypeArrayState = vsg::NullArrayState::create();
+            if (!intersectable)
+                sg->prototypeArrayState = vsg::NullArrayState::create();
 
             auto vertices = vsg::vec3Array::create(4);
             auto uvs = vsg::vec2Array::create(4);
