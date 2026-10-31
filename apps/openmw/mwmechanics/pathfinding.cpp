@@ -332,7 +332,7 @@ namespace MWMechanics
             std::size_t begin = 0;
             for (std::size_t i = 1; i < mPath.size(); ++i)
             {
-                const float sqrDistance = Misc::getVectorToLine(position, mPath[i - 1], mPath[i]).length2();
+                const float sqrDistance = vsg::length2(Misc::getVectorToLine(position, mPath[i - 1], mPath[i]));
                 if (sqrDistance < pointTolerance * pointTolerance && isValidShortcut(position, mPath[i]))
                     begin = i;
             }

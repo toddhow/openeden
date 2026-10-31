@@ -1,15 +1,15 @@
 #ifndef OPENMW_COMPONENTS_MISC_MATH_H
 #define OPENMW_COMPONENTS_MISC_MATH_H
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 namespace Misc
 {
-    inline osg::Vec3f getVectorToLine(const osg::Vec3f& position, const osg::Vec3f& a, const osg::Vec3f& b)
+    inline vsg::vec3 getVectorToLine(const vsg::vec3& position, const vsg::vec3& a, const vsg::vec3& b)
     {
-        osg::Vec3f direction = b - a;
-        direction.normalize();
-        return (position - a) ^ direction;
+        vsg::vec3 direction = b - a;
+        VsgMath::normalizeInPlace(direction);
+        return vsg::cross(position - a, direction);
     }
 }
 

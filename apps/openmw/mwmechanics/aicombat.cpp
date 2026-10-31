@@ -394,7 +394,7 @@ namespace MWMechanics
                             = Misc::makeCoordinateConverter(*storage.mCell->getCell());
 
                         osg::Vec3f localPos = actor.getRefData().getPosition().asVec3();
-                        coords.toLocal(localPos);
+                        localPos = coords.toLocalVec3(localPos);
 
                         const std::size_t closestPointIndex = Misc::getClosestPoint(*pathgrid, localPos);
                         for (std::size_t i = 0; i < pathgrid->mPoints.size(); i++)

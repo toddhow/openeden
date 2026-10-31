@@ -7,6 +7,8 @@
 #include <components/esm4/loadcell.hpp>
 #include <components/misc/constants.hpp>
 
+#include <vsg/maths/vec3.h>
+
 namespace Misc
 {
     /// \brief convert coordinates between world and local cell
@@ -46,29 +48,29 @@ namespace Misc
         }
 
         /// in-place conversion from local to world
-        void toWorld(osg::Vec3f& point) const
+        void toWorld(vsg::vec3& point) const
         {
-            point.x() += static_cast<float>(mCellX);
-            point.y() += static_cast<float>(mCellY);
+            point.x += static_cast<float>(mCellX);
+            point.y += static_cast<float>(mCellY);
         }
 
         /// in-place conversion from world to local
-        void toLocal(osg::Vec3f& point) const
+        void toLocal(vsg::vec3& point) const
         {
-            point.x() -= static_cast<float>(mCellX);
-            point.y() -= static_cast<float>(mCellY);
+            point.x -= static_cast<float>(mCellX);
+            point.y -= static_cast<float>(mCellY);
         }
 
-        osg::Vec3f toWorldVec3(const osg::Vec3f& point) const
+        vsg::vec3 toWorldVec3(const vsg::vec3& point) const
         {
-            osg::Vec3f result = point;
+            vsg::vec3 result = point;
             toWorld(result);
             return result;
         }
 
-        osg::Vec3f toLocalVec3(const osg::Vec3f& point) const
+        vsg::vec3 toLocalVec3(const vsg::vec3& point) const
         {
-            osg::Vec3f result = point;
+            vsg::vec3 result = point;
             toLocal(result);
             return result;
         }

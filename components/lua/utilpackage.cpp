@@ -191,7 +191,7 @@ namespace LuaUtil
         util["vector2"] = [](float x, float y) { return Vec2(x, y); };
         sol::usertype<Vec2> vec2Type = lua.new_usertype<Vec2>("Vec2");
         addVectorMethods<Vec2>(vec2Type);
-        vec2Type["rotate"] = &Misc::rotateVec2f;
+        vec2Type["rotate"] = [](const Vec2& v, float angle) -> Vec2 { return Misc::rotateVec2f(v, angle); };
 
         // Lua bindings for Vec3
         util["vector3"] = [](float x, float y, float z) { return Vec3(x, y, z); };

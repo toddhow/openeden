@@ -1466,7 +1466,7 @@ namespace MWMechanics
                 const osg::Vec3f speed = otherCached.mMovement.asVec3() * otherCached.mMaxSpeed;
                 const float rotZ = otherPtr.getRefData().getPosition().rot[2];
                 const osg::Vec2f relSpeed
-                    = Misc::rotateVec2f(osg::Vec2f(speed.x(), speed.y()), baseRotZ - rotZ) - baseSpeed;
+                    = osg::Vec2f(Misc::rotateVec2f(osg::Vec2f(speed.x(), speed.y()), baseRotZ - rotZ)) - baseSpeed;
 
                 float collisionDist = minGap + halfExtents.x() + otherHalfExtents.x();
                 collisionDist = std::min(collisionDist, relPos.length());

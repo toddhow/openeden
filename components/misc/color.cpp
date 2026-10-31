@@ -25,7 +25,7 @@ namespace Misc
         if (hex.size() != 6)
             throw std::logic_error(std::string("Invalid hex color: ") += hex);
         Color col;
-        col.mValue.a() = 1;
+        col.mValue.a = 1;
         for (unsigned i = 0; i < 3; i++)
         {
             auto sub = hex.substr(i * 2, 2);
@@ -44,9 +44,15 @@ namespace Misc
         return Color(((value >> 0) & 0xFF) / 255.0f, ((value >> 8) & 0xFF) / 255.0f, ((value >> 16) & 0xFF) / 255.0f, 1.f);
     }
 
-    Color Color::fromVec(osg::Vec4f value)
+    Color Color::fromVec(vsg::vec4 value)
     {
         return Color(std::move(value));
+    }
+
+    unsigned int Color::toRGBA() const
+    {
+        const auto clampedByte = [](float value) { return static_cast<unsigned int>(std::clamp(value * 255.0f, 0.0f, 255.0f)); };
+        return clampedByte(mValue[3]) << 24 | clampedByte(mValue[2]) << 16 | clampedByte(mValue[1]) << 8 | clampedByte(mValue[0]);
     }
 
     std::string Color::toHex() const

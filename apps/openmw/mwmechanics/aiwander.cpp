@@ -843,7 +843,7 @@ namespace MWMechanics
         // underground. Adding 20 in adjustPosition() is not enough.
         dest.z() += 60;
 
-        converter.toWorld(dest);
+        dest = converter.toWorldVec3(dest);
 
         state.reset();
 
