@@ -76,6 +76,7 @@
 #include "screenshotinterface.hpp"
 #include "shadow.hpp"
 #include "precipitationoccluder.hpp"
+#include "distantobjects.hpp"
 #include "simplewater.hpp"
 #include "terrainstorage.hpp"
 #include "water.hpp"
@@ -418,6 +419,8 @@ namespace MWRender
         mSceneRoot->addChild(mScene->getObjects());
         if (mGroundcover)
             mSceneRoot->addChild(mGroundcover->node());
+        if (mDistantObjects)
+            mSceneRoot->addChild(mDistantObjects->node());
         mSceneRoot->addChild(mScene->getActors());
         // The opaque scene's colour and depth are copied here, before the water and the depth-sorted bins: the water
         // reflects and refracts with them, and soft particles fade against the depth (task 0012, V4k).
@@ -581,6 +584,12 @@ namespace MWRender
         mGroundcoverStore = store;
         if (!store && mGroundcover)
             mGroundcover->waitForBuilds();
+        // Distant objects read the World's store too; going now waits for their builds.
+        if (!store && mDistantObjects)
+        {
+            mDistantObjects.reset();
+            updateSceneChildren();
+        }
     }
 
     void RenderManager::updateGroundcover(const vsg::vec3& cameraPosition)
@@ -609,6 +618,64 @@ namespace MWRender
             mGroundcover->update(cameraPosition);
         else
             mGroundcover->hide();
+    }
+
+    void RenderManager::setActiveGrid(int x, int y, int halfGrid)
+    {
+        mActiveGrid = { { x, y }, halfGrid };
+        if (mDistantObjects)
+            mDistantObjects->setActiveGrid(mActiveGrid);
+    }
+
+    void RenderManager::updateDistantObjects(const vsg::vec3& cameraPosition)
+    {
+        if (!Settings::terrain().mDistantTerrain || !Settings::terrain().mObjectPaging)
+            return;
+        const MWWorld::Ptr player = MWMechanics::getPlayer();
+        if (player.isEmpty() || !player.isInCell())
+            return;
+        if (!mDistantObjects)
+        {
+            mDistantObjects = std::make_unique<DistantObjects>(mScene->noParticlesContext,
+                MWBase::Environment::get().getWorld()->getStore(), static_cast<float>(ESM::Land::REAL_SIZE),
+                Settings::terrain().mObjectPagingMinSize);
+            mDistantObjects->setActiveGrid(mActiveGrid);
+            updateSceneChildren();
+        }
+        // Morrowind's exterior only: another worldspace's coordinates would select its chunks.
+        if (player.getCell()->isExterior()
+            && player.getCell()->getCell()->getWorldSpace() == ESM::Cell::sDefaultWorldspaceId)
+            mDistantObjects->update(cameraPosition, mViewDistance);
+        else
+            mDistantObjects->hide();
+    }
+
+    namespace
+    {
+        // A chunk is keyed by the cell a reference is stored in, which need not be where it stands.
+        DistantObjects::Cells referenceCells(const MWWorld::ConstPtr& ptr)
+        {
+            const float* pos = ptr.getCellRef().getPosition().pos;
+            return { { ptr.getCell()->getCell()->getGridX(), ptr.getCell()->getCell()->getGridY() },
+                { static_cast<int>(std::floor(pos[0] / ESM::Land::REAL_SIZE)),
+                    static_cast<int>(std::floor(pos[1] / ESM::Land::REAL_SIZE)) } };
+        }
+    }
+
+    bool RenderManager::pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled)
+    {
+        if (!mDistantObjects || !ptr.isInCell() || !ptr.getCell()->isExterior() || !isDistantObjectType(type))
+            return false;
+        return mDistantObjects->setDisabled(ptr.getCellRef().getRefNum(), !enabled, referenceCells(ptr));
+    }
+
+    void RenderManager::pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr)
+    {
+        if (!mDistantObjects || !ptr.isInCell() || !ptr.getCell()->isExterior() || !isDistantObjectType(type))
+            return;
+        const ESM::RefNum refnum = ptr.getCellRef().getRefNum();
+        if (refnum.hasContentFile())
+            mDistantObjects->blacklist(refnum, referenceCells(ptr));
     }
 
     void RenderManager::changeCellGrid(const osg::Vec3f& pos)
@@ -785,6 +852,7 @@ namespace MWRender
         mRain->update(dt, cameraPosition, mRainParameters, aboveWater);
         mWaterRipples->update(dt, paused);
         updateGroundcover(cameraPosition);
+        updateDistantObjects(cameraPosition);
         if (mRenderModes[Render_Sky])
             mSky->update(dt);
 
@@ -978,10 +1046,8 @@ namespace MWRender
         mSky->setMoonColour(false);
 
         notifyWorldSpaceChanged();
-        /*
-        if (mObjectPaging)
-            mObjectPaging->clear();
-            */
+        if (mDistantObjects)
+            mDistantObjects->clear();
     }
 
     MWAnim::Object* RenderManager::getObject(const MWWorld::Ptr& ptr)

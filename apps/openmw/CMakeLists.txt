@@ -23,7 +23,7 @@ add_openmw_dir (mwrender
     animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map worldmap preview shadow
-    fogmanager water simplewater screenshotinterface bonepose actorikcontroller debuggeometry joltdebugdraw navmesh creativemotiondriver weathereffects switches rain occlusionbox precipitationoccluder waterripples groundcoverinstances groundcover
+    fogmanager water simplewater screenshotinterface bonepose actorikcontroller debuggeometry joltdebugdraw navmesh creativemotiondriver weathereffects switches rain occlusionbox precipitationoccluder distantobjectcells distantobjects waterripples groundcoverinstances groundcover
     )
 
 add_openmw_dir (mwinput

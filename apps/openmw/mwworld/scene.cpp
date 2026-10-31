@@ -608,6 +608,7 @@ namespace MWWorld
 
         mHalfGridSize = halfGridSize;
         mCurrentGridCenter = osg::Vec2i(playerCellX, playerCellY);
+        mRendering.setActiveGrid(playerCellX, playerCellY, halfGridSize);
         mRendering.setRenderModeActive(MWRender::Render_Terrain, true);
         mRendering.changeCellGrid(pos);
 

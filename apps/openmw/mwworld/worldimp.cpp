@@ -750,11 +750,7 @@ namespace MWWorld
 
             if (reference.getCellRef().getRefNum().hasContentFile())
             {
-                /*
-                int type = mStore.find(reference.getCellRef().getRefId());
-                if (mRendering->pagingEnableObject(type, reference, true))
-                    mWorldScene->reloadTerrain();
-                    */
+                mRendering->pagingEnableObject(mStore.find(reference.getCellRef().getRefId()), reference, true);
             }
         }
     }
@@ -793,11 +789,7 @@ namespace MWWorld
 
         if (reference.getCellRef().getRefNum().hasContentFile())
         {
-    /*
-            int type = mStore.find(reference.getCellRef().getRefId());
-            if (mRendering->pagingEnableObject(type, reference, false))
-                mWorldScene->reloadTerrain();
-                */
+            mRendering->pagingEnableObject(mStore.find(reference.getCellRef().getRefId()), reference, false);
         }
 
         if (mWorldScene->getActiveCells().find(reference.getCell()) != mWorldScene->getActiveCells().end()
@@ -1118,7 +1110,7 @@ namespace MWWorld
         }
         else
         {
-            // mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
+            mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
             mWorldScene->removeFromPagedRefs(newPtr);
         }
 
@@ -1162,7 +1154,7 @@ namespace MWWorld
             mNavigator->removeAgent(getPathfindingAgentBounds(ptr));
 
         ptr.getCellRef().setScale(scale);
-        // mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
+        mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
         mWorldScene->removeFromPagedRefs(ptr);
 
         // if(ptr.getRefData().getBaseNode() != nullptr)
@@ -1208,7 +1200,7 @@ namespace MWWorld
 
         ptr.getRefData().setPosition(pos);
 
-        // mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
+        mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
         mWorldScene->removeFromPagedRefs(ptr);
 
         // if(ptr.getRefData().getBaseNode() != nullptr)
@@ -1301,7 +1293,7 @@ namespace MWWorld
     {
         // if(ptr.getRefData().getBaseNode() != nullptr)
         {
-            // mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
+            mRendering->pagingBlacklistObject(mStore.find(ptr.getCellRef().getRefId()), ptr);
             mWorldScene->removeFromPagedRefs(ptr);
 
             mRendering->rotateObject(ptr, rotate);

@@ -144,7 +144,7 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Terrain] composite map resolution` | Not read | Remove (as above) |
 | `[Terrain] max composite geometry size` | Not read | Remove (as above) |
 | `[Terrain] debug chunks` | Read | |
-| `[Terrain] object paging` | Read | |
+| `[Terrain] object paging` | Works | Task 0012, V4n, without merging |
 | `[Terrain] object paging active grid` | Not read | Object paging item |
 | `[Terrain] object paging merge factor` | Not read | Object paging item |
 | `[Terrain] object paging min size` | Not read | Object paging item |

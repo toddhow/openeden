@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_MWRENDER_RENDERMANAGER_H
 #define VSGOPENMW_MWRENDER_RENDERMANAGER_H
 
+#include "distantobjectcells.hpp"
 #include "rain.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
@@ -84,6 +85,7 @@ namespace MWAnim
 namespace MWRender
 {
     class PrecipitationOccluder;
+    class DistantObjects;
     class Scene;
     class Reflect;
     class Effects;
@@ -160,6 +162,8 @@ namespace MWRender
         void addCell(const MWWorld::CellStore* store);
         void removeCell(const MWWorld::CellStore* store);
         void changeCellGrid(const osg::Vec3f& pos);
+        /// The exterior cells the scene loads, which distant objects leave out.
+        void setActiveGrid(int x, int y, int halfGrid);
         void pruneCache();
 
         void updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated);
@@ -335,6 +339,9 @@ namespace MWRender
         std::unique_ptr<PrecipitationOccluder> mOccluder;
         bool mOccluderActive = false;
         void updateOccluder(const vsg::vec3& cameraPosition);
+        std::unique_ptr<DistantObjects> mDistantObjects;
+        ActiveCellGrid mActiveGrid;
+        void updateDistantObjects(const vsg::vec3& cameraPosition);
         std::unique_ptr<Rain> mRain;
         Rain::Parameters mRainParameters;
         std::unique_ptr<WaterRipples> mWaterRipples;

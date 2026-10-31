@@ -315,12 +315,18 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
   - **Not checked:** a frame under a real roof, the map's left-right and up-down orientation, and snow. Startup scripts could not place an object over the player, rain did not start in the other towns tried, and snow had not started by frame 3600. Needs a look in game.
   - **Not ported:** `weather particle occlusion small feature culling pixel size`.
   - **Review (fresh agent):** the box lagged the camera by a frame, and the pass drew terrain, both fixed.
-- **Object paging** (only with `distant terrain = true`, off by default). (Weather particle occlusion: **done**, V4l; alpha to coverage: **done**, V4j; soft particles: **done**, V4k.)
+- **Object paging** (V4n, done 2026-10-31, `[Terrain] object paging` with `distant terrain`, which is off by default): `MWRender::DistantObjects` draws the statics, activators and doors of Morrowind's exterior cells beyond the active grid, one chunk per cell, built on its own worker thread as groundcover is. Rules from OpenMW's `ObjectPaging` at `442eec6e2f`: `distantobjectcells.*` (tests: `mwrender/testdistantobjectcells.cpp`).
+  - **Not ported:** merging objects into shared geometry and the merge factor settings, LOD meshes, paging the active grid (`object paging active grid` has no effect) and ESM4. Each object is its own draw, so it costs more than OpenMW at the same settings; not measured.
+  - **Checked:** in Seyda Neen at a viewing distance of 40000, the distant rocks and ridges sit where the OSG build's do. No shader or model errors.
+  - **Not checked in game:** crossing into a new cell, a disabled or moved object, and a new game after one.
+  - **Review (fresh agent), all fixed:** moved actors rebuilt chunks every frame (OpenMW's guards restored); a stale build could win over a newer one (generations); builds could read the store during World destruction (`setGroundcoverStore(nullptr)` destroys this now); particles drew with no controllers (switched off, on a private model cache); disabled state survived a new game (`clear()`); enabling a moved object redrew its old copy (separate sets); the wrong chunk could be forgotten (both cells); a gap when crossing cells (the next ring is built ahead).
+- **Worn shields** (V4o, done 2026-10-31): `Npc::addCarriedLeft` had `getShieldMesh` commented out, so every NPC's shield used its ground model on default settings. It uses the armor's body part model again, as OpenMW's `ActorAnimation::getShieldMesh`. Covered by the build and integration tests only: no frame of a shield was compared.
+- **Weapon and shield sheathing, quivers:** `[Game] weapon sheathing` and `shield sheathing`, off by default, are not rendered (`updateHolsteredWeapon`, `updateQuiver` and `updateHolsteredShield` are commented out in `npc.cpp`). They need a modded skeleton to test.
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
 - **ESM4 terrain** (work item 3).
 - **The deferred 0.49→0.51 renderer changes** (work item 6), checked against research note 0003 section 5.9 on 2026-10-31:
   - Done: graphic herbalism (`MWRender::findSwitches`); the hit overlay's additive blend (texture shader `blend_add` in `MWGui::WindowManager`, so `AdditiveLayer` is not needed, though `additivelayer.*` is still in the tree and not built).
-  - Open: shield sheathing (`useShieldAnims` is false in `character.cpp`, off by default); the 0.51 map window features, including its controller buttons; the main menu background video and the loading screen (not checked).
+  - Open: sheathing (see above); the 0.51 map window features, including its controller buttons; the main menu background video and the loading screen (not checked).
   - Replaced: animation blending rules, by CreativeMotion (toddhow, task 0011).
 - **The settings audit decisions** (research note 0006; toddhow's calls on the "decide" keys).
 - **Gaps listed above:**

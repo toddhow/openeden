@@ -82,6 +82,15 @@ namespace MWRender
         std::size_t pendingCount() const { return mPending.size(); }
         std::size_t cachedCount() const { return mCached.size(); }
 
+        /// Forgets a cell, so the next setWanted() builds it again; a build still running for it is then ignored.
+        void forget(const Cell& cell)
+        {
+            mPending.erase(cell);
+            mShown.erase(cell);
+            if (mCached.erase(cell) > 0)
+                mCacheOrder.remove(cell);
+        }
+
         void clear()
         {
             mWanted.clear();

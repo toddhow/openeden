@@ -20,6 +20,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwrender/testbonepose.cpp
     mwrender/testrain.cpp
+    mwrender/testdistantobjectcells.cpp
     mwrender/testocclusionbox.cpp
     mwrender/testwaterripples.cpp
     mwrender/testgroundcoverinstances.cpp
