@@ -1,5 +1,9 @@
 #include "widgets.hpp"
 
+#include <MyGUI_ComboBox.h>
+
+#include <components/fx/uniformsettings.hpp>
+
 #include <components/widgets/box.hpp>
 
 namespace
@@ -8,11 +12,12 @@ namespace
     void createVectorWidget(
         const std::shared_ptr<Fx::Types::UniformBase>& uniform, MyGUI::Widget* client, Fx::Widgets::UniformBase* base)
     {
+        constexpr int count = static_cast<int>(T::size());
         int height = client->getHeight();
-        base->setSize(base->getSize().width, (base->getSize().height - height) + (height * T::num_components));
-        client->setSize(client->getSize().width, height * T::num_components);
+        base->setSize(base->getSize().width, (base->getSize().height - height) + (height * count));
+        client->setSize(client->getSize().width, height * count);
 
-        for (int i = 0; i < T::num_components; ++i)
+        for (int i = 0; i < count; ++i)
         {
             auto* widget = client->createWidget<WidgetT>(
                 "MW_ValueEditNumber", { 0, height * i, client->getWidth(), height }, MyGUI::Align::Default);
@@ -26,12 +31,24 @@ namespace Fx
 {
     namespace Widgets
     {
+        void EditBase::commit()
+        {
+            if (mShowing)
+                return;
+            storeValue(*mUniform);
+            if (mOnChanged)
+                mOnChanged();
+        }
+
         void EditBool::setValue(bool value)
         {
             mCheckbutton->setCaptionWithReplacing(value ? "#{Interface:On}" : "#{Interface:Off}");
             mFill->setVisible(value);
 
+            const bool changed = mUniform->getValue<bool>() != value;
             mUniform->setValue<bool>(value);
+            if (changed)
+                commit();
         }
 
         void EditBool::setValueFromUniform()
@@ -72,7 +89,10 @@ namespace Fx
                 }
             }
 
+            const bool changed = !(mUniform->template getValue<T>() == value);
             mUniform->template setValue<T>(value);
+            if (changed)
+                commit();
         }
 
         void EditChoice::notifyComboBoxChanged(MyGUI::ComboBox* sender, size_t pos)
@@ -127,7 +147,8 @@ namespace Fx
             mChoices->eventComboChangePosition += MyGUI::newDelegate(this, &EditChoice::notifyComboBoxChanged);
         }
 
-        void UniformBase::init(const std::shared_ptr<Fx::Types::UniformBase>& uniform)
+        void UniformBase::init(
+            const std::shared_ptr<Fx::Types::UniformBase>& uniform, std::function<void()> onChanged)
         {
             if (uniform->mDisplayName.empty())
                 mLabel->setCaption(uniform->mName);
@@ -146,7 +167,7 @@ namespace Fx
             }
 
             std::visit(
-                [this, &uniform](auto&& arg) {
+                [this, &uniform, &onChanged](auto&& arg) {
                     using T = typename std::decay_t<decltype(arg)>::value_type;
 
                     if (arg.mChoices.size() > 0)
@@ -158,15 +179,15 @@ namespace Fx
                     }
                     else
                     {
-                        if constexpr (std::is_same_v<osg::Vec4f, T>)
+                        if constexpr (std::is_same_v<vsg::vec4, T>)
                         {
                             createVectorWidget<T, EditNumberFloat4>(uniform, mClient, this);
                         }
-                        else if constexpr (std::is_same_v<osg::Vec3f, T>)
+                        else if constexpr (std::is_same_v<vsg::vec3, T>)
                         {
                             createVectorWidget<T, EditNumberFloat3>(uniform, mClient, this);
                         }
-                        else if constexpr (std::is_same_v<osg::Vec2f, T>)
+                        else if constexpr (std::is_same_v<vsg::vec2, T>)
                         {
                             createVectorWidget<T, EditNumberFloat2>(uniform, mClient, this);
                         }
@@ -196,7 +217,10 @@ namespace Fx
                     mReset->eventMouseButtonClick += MyGUI::newDelegate(this, &UniformBase::notifyResetClicked);
 
                     for (EditBase* base : mBases)
-                        base->setValueFromUniform();
+                    {
+                        base->setOnChanged(onChanged);
+                        base->showUniform();
+                    }
                 },
                 uniform->mData);
         }

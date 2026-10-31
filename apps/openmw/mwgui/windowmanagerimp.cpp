@@ -68,6 +68,7 @@
 #include "../mwmechanics/npcstats.hpp"
 
 #include "../mwrender/map.hpp"
+#include "../mwrender/postprocess.hpp"
 #include "../mwrender/preview.hpp"
 #include "../mwrender/worldmap.hpp"
 
@@ -95,6 +96,7 @@
 #include "enchantingdialog.hpp"
 #include "exposedwindow.hpp"
 #include "hud.hpp"
+#include "postprocessorhud.hpp"
 #include "inventorytabsoverlay.hpp"
 #include "inventorywindow.hpp"
 #include "itemchargeview.hpp"
@@ -160,6 +162,7 @@ namespace MWGui
         , mConsoleOnlyScripts(consoleOnlyScripts)
         , mCurrentModals()
         , mHud(nullptr)
+        , mPostProcessorHud(nullptr)
         , mMap(nullptr)
         , mStatsWindow(nullptr)
         , mConsole(nullptr)
@@ -240,6 +243,7 @@ namespace MWGui
         ItemChargeView::registerComponents();
         ItemWidget::registerComponents();
         SpellView::registerComponents();
+        PostProcessorHud::registerMyGUIComponents();
         Gui::registerAllWidgets();
         LuaUi::registerAllWidgets();
 
@@ -502,6 +506,11 @@ namespace MWGui
         mDebugWindow = debugWindow.get();
         mWindows.push_back(std::move(debugWindow));
         trackWindow(mDebugWindow, makeDebugWindowSettingValues());
+
+        auto postProcessorHud = std::make_unique<PostProcessorHud>(mCfgMgr);
+        mPostProcessorHud = postProcessorHud.get();
+        mWindows.push_back(std::move(postProcessorHud));
+        trackWindow(mPostProcessorHud, makePostprocessorWindowSettingValues());
 
         auto controllerButtonsOverlay = std::make_unique<ControllerButtonsOverlay>();
         mControllerButtonsOverlay = controllerButtonsOverlay.get();
@@ -1024,6 +1033,8 @@ namespace MWGui
         mDragAndDrop->onFrame();
 
         mHud->onFrame(frameDuration);
+
+        mPostProcessorHud->onFrame(frameDuration);
 
         if (mCharGen)
             mCharGen->onFrame(frameDuration);
@@ -1603,8 +1614,7 @@ namespace MWGui
 
     MWGui::PostProcessorHud* WindowManager::getPostProcessorHud()
     {
-        // openeden-vsg: post-processing returns on VSG in task 0012 (Track V stage V4).
-        return nullptr;
+        return mPostProcessorHud;
     }
     MWGui::TradeWindow* WindowManager::getTradeWindow()
     {
@@ -1672,7 +1682,7 @@ namespace MWGui
 
     bool WindowManager::isGuiMode() const
     {
-        return !mGuiModes.empty() || isConsoleMode() || /*isPostProcessorHudVisible() || */ isInteractiveMessageBoxActive();
+        return !mGuiModes.empty() || isConsoleMode() || isPostProcessorHudVisible() || isInteractiveMessageBoxActive();
     }
 
     bool WindowManager::isConsoleMode() const
@@ -1682,8 +1692,7 @@ namespace MWGui
 
     bool WindowManager::isPostProcessorHudVisible() const
     {
-        // openeden-vsg: post-processing (and its HUD) returns on VSG in task 0012 (Track V stage V4).
-        return false;
+        return mPostProcessorHud && mPostProcessorHud->isVisible();
     }
 
     bool WindowManager::isSettingsWindowVisible() const
@@ -2192,8 +2201,23 @@ namespace MWGui
 
     void WindowManager::togglePostProcessorHud()
     {
-        // openeden-vsg: post-processing returns on VSG in task 0012 (Track V stage V4).
-        messageBox("#{OMWEngine:PostProcessingIsNotEnabled}");
+        if (!MWBase::Environment::get().getWorld()->getPostProcess())
+        {
+            messageBox("#{OMWEngine:PostProcessingIsNotEnabled}");
+            return;
+        }
+
+        bool visible = mPostProcessorHud->isVisible();
+
+        if (!visible && !mGuiModes.empty())
+            mKeyboardNavigation->saveFocus(mGuiModes.back());
+
+        mPostProcessorHud->setVisible(!visible);
+
+        if (visible && !mGuiModes.empty())
+            mKeyboardNavigation->restoreFocus(mGuiModes.back());
+
+        updateVisible();
     }
 
     void WindowManager::toggleSettingsWindow()

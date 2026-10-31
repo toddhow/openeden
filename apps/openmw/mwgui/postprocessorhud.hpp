@@ -5,10 +5,15 @@
 
 #include <MyGUI_ListBox.h>
 
-#include <components/files/configurationmanager.hpp>
-#include <components/settings/shadermanager.hpp>
-#include <components/vfs/pathutil.hpp>
+#include <memory>
+#include <string>
 
+#include <components/files/configurationmanager.hpp>
+
+namespace Fx
+{
+    class Technique;
+}
 namespace MyGUI
 {
     class ScrollView;
@@ -41,8 +46,6 @@ namespace MWGui
 
         void updateTechniques();
 
-        void toggleMode(Settings::ShaderManager::Mode mode);
-
         static void registerMyGUIComponents();
 
     private:
@@ -50,7 +53,7 @@ namespace MWGui
 
         void notifyFilterChanged(MyGUI::EditBox* sender);
 
-        void updateConfigView(VFS::Path::NormalizedView path);
+        void updateConfigView(const std::shared_ptr<Fx::Technique>& technique);
 
         void notifyResetButtonClicked(MyGUI::Widget* sender);
 

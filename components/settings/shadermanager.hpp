@@ -16,6 +16,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/serialization/osgyaml.hpp>
+#include <components/serialization/vsgyaml.hpp>
 
 namespace Settings
 {

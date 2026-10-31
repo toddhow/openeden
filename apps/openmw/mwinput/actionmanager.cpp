@@ -120,6 +120,9 @@ namespace MWInput
             case A_ToggleDebug:
                 windowManager->toggleDebugWindow();
                 break;
+            case A_TogglePostProcessorHUD:
+                windowManager->togglePostProcessorHud();
+                break;
             case A_QuickSave:
                 quickSave();
                 break;
@@ -178,6 +181,12 @@ namespace MWInput
         if (MWBase::Environment::get().getWindowManager()->isConsoleMode())
         {
             MWBase::Environment::get().getWindowManager()->toggleConsole();
+            return;
+        }
+
+        if (MWBase::Environment::get().getWindowManager()->isPostProcessorHudVisible())
+        {
+            MWBase::Environment::get().getWindowManager()->togglePostProcessorHud();
             return;
         }
 

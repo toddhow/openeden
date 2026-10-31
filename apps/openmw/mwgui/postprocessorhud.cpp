@@ -17,16 +17,22 @@
 #include <MyGUI_WidgetInput.h>
 #include <MyGUI_Window.h>
 
+#include <algorithm>
+#include <sstream>
+#include <vector>
+
 #include <components/files/configurationmanager.hpp>
 #include <components/fx/technique.hpp>
 #include <components/fx/widgets.hpp>
+#include <components/settings/settings.hpp>
+#include <components/settings/shadermanager.hpp>
 
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/utf8stream.hpp>
 
 #include <components/widgets/box.hpp>
 
-#include "../mwrender/postprocessor.hpp"
+#include "../mwrender/postprocess.hpp"
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -39,6 +45,20 @@ namespace MWGui
         std::shared_ptr<Fx::Technique>& getTechnique(const MyGUI::ListBox& list, size_t selected)
         {
             return *list.getItemDataAt<std::shared_ptr<Fx::Technique>>(selected);
+        }
+
+        // Compiler messages quote source, whose '#' MyGUI would read as a colour tag.
+        std::string escapeTags(const std::string& text)
+        {
+            std::string escaped;
+            escaped.reserve(text.size());
+            for (const char c : text)
+            {
+                escaped += c;
+                if (c == '#')
+                    escaped += c;
+            }
+            return escaped;
         }
     }
 
@@ -127,7 +147,7 @@ namespace MWGui
         if (index >= sender->getItemCount())
             return;
 
-        updateConfigView(getTechnique(*sender, index)->getFileName());
+        updateConfigView(getTechnique(*sender, index));
     }
 
     void PostProcessorHud::toggleTechnique(bool enabled)
@@ -138,7 +158,7 @@ namespace MWGui
 
         if (selected != MyGUI::ITEM_NONE)
         {
-            auto* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
+            auto* processor = MWBase::Environment::get().getWorld()->getPostProcess();
             mOverrideHint = list->getItemNameAt(selected);
 
             auto technique = getTechnique(*list, selected);
@@ -146,9 +166,9 @@ namespace MWGui
                 return;
 
             if (enabled)
-                processor->enableTechnique(std::move(technique));
+                processor->enableTechnique(technique, std::nullopt);
             else
-                processor->disableTechnique(std::move(technique));
+                processor->disableTechnique(technique);
             processor->saveChain();
         }
     }
@@ -165,7 +185,7 @@ namespace MWGui
 
     void PostProcessorHud::moveShader(Direction direction)
     {
-        auto* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
+        auto* processor = MWBase::Environment::get().getWorld()->getPostProcess();
 
         size_t selected = mActiveList->getIndexSelected();
 
@@ -181,8 +201,7 @@ namespace MWGui
             if (technique->getDynamic() || technique->getInternal())
                 return;
 
-            if (processor->enableTechnique(std::move(technique), static_cast<int>(index) - mOffset)
-                != MWRender::PostProcessor::Status_Error)
+            if (processor->enableTechnique(technique, static_cast<int>(index) - mOffset))
                 processor->saveChain();
         }
     }
@@ -239,7 +258,6 @@ namespace MWGui
 
     void PostProcessorHud::onOpen()
     {
-        toggleMode(Settings::ShaderManager::Mode::Debug);
         updateTechniques();
     }
 
@@ -247,7 +265,6 @@ namespace MWGui
     {
         Settings::ShaderManager::get().save();
         Settings::Manager::saveUser(mCfgMgr.getUserConfigPath() / "settings.cfg");
-        toggleMode(Settings::ShaderManager::Mode::Normal);
     }
 
     void PostProcessorHud::layout()
@@ -292,26 +309,9 @@ namespace MWGui
         notifyListChangePosition(list, index);
     }
 
-    void PostProcessorHud::toggleMode(Settings::ShaderManager::Mode mode)
+    void PostProcessorHud::updateConfigView(const std::shared_ptr<Fx::Technique>& technique)
     {
-        Settings::ShaderManager::get().setMode(mode);
-
-        MWBase::Environment::get().getWorld()->getPostProcessor()->toggleMode();
-
-        if (!isVisible())
-            return;
-
-        if (mInactiveList->getIndexSelected() != MyGUI::ITEM_NONE)
-            updateConfigView(getTechnique(*mInactiveList, mInactiveList->getIndexSelected())->getFileName());
-        else if (mActiveList->getIndexSelected() != MyGUI::ITEM_NONE)
-            updateConfigView(getTechnique(*mActiveList, mActiveList->getIndexSelected())->getFileName());
-    }
-
-    void PostProcessorHud::updateConfigView(VFS::Path::NormalizedView path)
-    {
-        auto* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
-
-        auto technique = processor->loadTechnique(path);
+        auto* processor = MWBase::Environment::get().getWorld()->getPostProcess();
 
         if (technique->getStatus() == Fx::Technique::Status::File_Not_exists)
             return;
@@ -344,6 +344,13 @@ namespace MWGui
             case Fx::Technique::Status::Success:
             case Fx::Technique::Status::Uncompiled:
             {
+                const std::string renderError = processor->getRenderError(technique);
+                if (!renderError.empty())
+                    ss << "#{fontcolourhtml=negative}Shader Compile Error: #{fontcolourhtml=normal} <"
+                       << technique->getName() << "> does not run on this renderer." << endl
+                       << endl
+                       << escapeTags(renderError) << endl
+                       << endl;
                 if (technique->getDynamic())
                     ss << "#{fontcolourhtml=header}#{OMWShaders:ShaderLocked}:      #{fontcolourhtml=normal} "
                           "#{OMWShaders:ShaderLockedDescription}"
@@ -367,7 +374,7 @@ namespace MWGui
                 ss << "#{fontcolourhtml=negative}Shader Compile Error: #{fontcolourhtml=normal} <"
                    << std::string(technique->getName()) << "> failed to compile." << endl
                    << endl
-                   << technique->getLastError();
+                   << escapeTags(technique->getLastError());
                 break;
             case Fx::Technique::Status::File_Not_exists:
                 break;
@@ -375,7 +382,8 @@ namespace MWGui
 
         mShaderInfo->setCaptionWithReplacing(ss.str());
 
-        if (Settings::ShaderManager::get().getMode() == Settings::ShaderManager::Mode::Debug)
+        // OpenMW's HUD showed these only in its debug mode, which turned every value into a uniform while the HUD was
+        // open. Here a value stays a constant, and changing one rebuilds the technique's passes.
         {
             if (technique->getUniformMap().size() > 0)
             {
@@ -403,7 +411,10 @@ namespace MWGui
 
                 Fx::Widgets::UniformBase* uwidget = mConfigArea->createWidget<Fx::Widgets::UniformBase>(
                     "MW_UniformEdit", { 0, 0, 0, 22 }, MyGUI::Align::Default);
-                uwidget->init(uniform);
+                uwidget->init(uniform, [technique] {
+                    if (auto* postProcess = MWBase::Environment::get().getWorld()->getPostProcess())
+                        postProcess->requestRebuild(technique);
+                });
                 uwidget->getLabel()->eventMouseWheel += MyGUI::newDelegate(this, &PostProcessorHud::notifyMouseWheel);
             }
         }
@@ -432,16 +443,11 @@ namespace MWGui
         mInactiveList->removeAllItems();
         mActiveList->removeAllItems();
 
-        auto* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
+        auto* processor = MWBase::Environment::get().getWorld()->getPostProcess();
 
-        std::vector<VFS::Path::NormalizedView> techniques;
-        for (const auto& vfsPath : processor->getTechniqueFiles())
-            techniques.emplace_back(vfsPath);
-        std::sort(techniques.begin(), techniques.end());
-
-        for (VFS::Path::NormalizedView path : techniques)
+        for (const VFS::Path::Normalized& path : processor->getTechniqueFiles())
         {
-            auto technique = processor->loadTechnique(path);
+            auto technique = processor->loadTechniqueFile(path);
 
             if (!technique->getHidden() && !processor->isTechniqueEnabled(technique))
             {

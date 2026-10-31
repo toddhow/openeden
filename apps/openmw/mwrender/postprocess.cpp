@@ -12,6 +12,7 @@
 #include <vsg/commands/ClearAttachments.h>
 #include <vsg/commands/ClearImage.h>
 #include <vsg/commands/Draw.h>
+#include <vsg/io/Logger.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/ColorBlendState.h>
@@ -32,12 +33,20 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/fx/technique.hpp>
+#include <components/fx/uniformsettings.hpp>
+#include <components/misc/pathhelpers.hpp>
 #include <components/render/attachmentformat.hpp>
 #include <components/render/engine.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/image.hpp>
 #include <components/vsgutil/readimage.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
+
+#include "../mwbase/environment.hpp"
+#include "../mwbase/windowmanager.hpp"
+#include "../mwgui/postprocessorhud.hpp"
 
 #include "mask.hpp"
 
@@ -172,15 +181,76 @@ void main()
                 },
                 uniform.mData);
         }
+
+        // Set on the thread of a compile that wants glslang's message.
+        thread_local std::string* tCompilerMessage = nullptr;
+
+        // Passes vsg's messages on, keeping glslang's own for the compile on this thread. Installed once and for good:
+        // swapping vsg::Logger::instance() around each compile would race with other threads logging.
+        class CompilerLogCapture : public vsg::Inherit<vsg::Logger, CompilerLogCapture>
+        {
+        public:
+            vsg::ref_ptr<vsg::Logger> previous;
+
+        protected:
+            void debug_implementation(const std::string_view& text) override { previous->debug(text); }
+            void info_implementation(const std::string_view& text) override { previous->info(text); }
+            void warn_implementation(const std::string_view& text) override
+            {
+                constexpr std::string_view prefix = "glslang info log:";
+                if (tCompilerMessage && text.starts_with(prefix))
+                    *tCompilerMessage = text.substr(prefix.size());
+                previous->warn(text);
+            }
+            void error_implementation(const std::string_view& text) override { previous->error(text); }
+            void fatal_implementation(const std::string_view& text) override { previous->fatal(text); }
+        };
+
+        void installCompilerLogCapture()
+        {
+            static const bool installed = [] {
+                auto capture = CompilerLogCapture::create();
+                capture->previous = vsg::Logger::instance();
+                capture->level = capture->previous->level;
+                vsg::Logger::instance() = capture;
+                return true;
+            }();
+            (void)installed;
+        }
+
+        // Sets tCompilerMessage for one scope, whatever way it ends.
+        struct CompilerMessageScope
+        {
+            explicit CompilerMessageScope(std::string* message) { tCompilerMessage = message; }
+            ~CompilerMessageScope() { tCompilerMessage = nullptr; }
+            CompilerMessageScope(const CompilerMessageScope&) = delete;
+            CompilerMessageScope& operator=(const CompilerMessageScope&) = delete;
+        };
+
+        // Frames with no further edit before an edited static uniform recompiles: dragging a slider would otherwise run
+        // glslang and rebuild every target each frame, and reset shaders that read last frame's targets.
+        constexpr int sRebuildDelayFrames = 15;
     }
 
-    vsg::ref_ptr<vsg::ShaderStage> compileGlsl(VkShaderStageFlagBits stage, const std::string& source)
+    vsg::ref_ptr<vsg::ShaderStage> compileGlsl(
+        VkShaderStageFlagBits stage, const std::string& source, std::string* error)
     {
         auto shaderStage = vsg::ShaderStage::create(stage, "main", source);
         auto compiler = vsg::ShaderCompiler::create();
-        if (!compiler->compile(shaderStage))
+
+        // vsg::ShaderCompiler reports glslang's message only through vsg::Logger.
+        std::string message;
+        bool compiled = false;
         {
-            Log(Debug::Error) << "Failed to compile a post-processing shader";
+            CompilerMessageScope scope(&message);
+            compiled = compiler->compile(shaderStage);
+        }
+
+        if (!compiled)
+        {
+            Log(Debug::Error) << "Failed to compile a post-processing shader: " << message;
+            if (error)
+                *error = message;
             return {};
         }
         return shaderStage;
@@ -230,8 +300,12 @@ void main()
     {
         mBaseView->viewDependentState = nullptr;
         mBaseView->mask = Mask_PostProcess;
+        installCompilerLogCapture();
         mVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
         createCopies();
+        for (const auto& path : mVfs.getRecursiveDirectoryIterator(Fx::Technique::sSubdir))
+            if (path.parent().parent().empty() && Misc::getFileExtension(path) == Fx::Technique::sExt)
+                mTechniqueFiles.emplace(path);
     }
 
     PostProcess::~PostProcess() {}
@@ -447,19 +521,60 @@ void main()
 
     std::shared_ptr<Fx::Technique> PostProcess::loadTechnique(const std::string& name)
     {
-        const auto found = mLoaded.find(name);
+        const VFS::Path::Normalized file = Fx::Technique::makeFileName(name);
+        auto technique = loadTechniqueFile(file);
+        return technique->isValid() ? technique : nullptr;
+    }
+
+    std::shared_ptr<Fx::Technique> PostProcess::loadTechniqueFile(VFS::Path::NormalizedView file)
+    {
+        const auto found = mLoaded.find(file.value());
         if (found != mLoaded.end())
             return found->second;
-        const VFS::Path::Normalized file = Fx::Technique::makeFileName(name);
-        auto technique = std::make_shared<Fx::Technique>(mVfs, file, name, true, false);
-        if (!technique->compile())
+
+        // The file's own spelling names it, as in OpenMW's PostProcessor::loadTechnique: uniforms are stored under it.
+        auto technique = std::make_shared<Fx::Technique>(
+            mVfs, file, mTechniqueFiles.contains(file) ? mVfs.getStem(file) : std::string(file.stem()), true, false);
+        if (technique->compile())
         {
-            Log(Debug::Error) << "Failed to load post-processing shader '" << name
-                              << "': " << technique->getLastError();
-            technique = nullptr;
+            for (const auto& uniform : technique->getUniformMap())
+                Fx::applyStoredValue(*uniform);
         }
-        mLoaded.emplace(name, technique);
+        else
+            Log(Debug::Error) << "Failed to load post-processing shader '" << file
+                              << "': " << technique->getLastError();
+        mLoaded.emplace(std::string(file.value()), technique);
         return technique;
+    }
+
+    void PostProcess::saveChain()
+    {
+        std::vector<std::string> chain;
+        for (const auto& technique : mChain)
+            if (!technique->getDynamic() && !technique->getInternal())
+                chain.push_back(technique->getName());
+        Settings::postProcessing().mChain.set(chain);
+    }
+
+    std::string PostProcess::getRenderError(const std::shared_ptr<Fx::Technique>& technique) const
+    {
+        const auto found = mRenderErrors.find(technique.get());
+        return found != mRenderErrors.end() ? found->second : std::string();
+    }
+
+    void PostProcess::requestRebuild(const std::shared_ptr<Fx::Technique>& technique)
+    {
+        if (isTechniqueEnabled(technique))
+        {
+            mRebuildRequested = true;
+            mRebuildDelay = sRebuildDelayFrames;
+        }
+    }
+
+    void PostProcess::updateHud()
+    {
+        if (auto* hud = MWBase::Environment::get().getWindowManager()->getPostProcessorHud())
+            hud->updateTechniques();
     }
 
     void PostProcess::setChain(const std::vector<std::string>& names)
@@ -473,19 +588,23 @@ void main()
 
     bool PostProcess::enableTechnique(const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location)
     {
-        if (!technique || (location && *location < 0))
+        if (!technique || !technique->isValid() || (location && *location < 0))
             return false;
         std::erase(mChain, technique);
         const std::size_t position = std::min<std::size_t>(location.value_or(mChain.size()), mChain.size());
         mChain.insert(mChain.begin() + static_cast<std::ptrdiff_t>(position), technique);
         rebuild();
+        updateHud();
         return true;
     }
 
     void PostProcess::disableTechnique(const std::shared_ptr<Fx::Technique>& technique)
     {
         if (std::erase(mChain, technique) > 0)
+        {
             rebuild();
+            updateHud();
+        }
     }
 
     bool PostProcess::isTechniqueEnabled(const std::shared_ptr<Fx::Technique>& technique) const
@@ -509,6 +628,8 @@ void main()
             mCompile->detach(child);
         mRoot->children.clear();
         mTechniques.clear();
+        mRenderErrors.clear();
+        mRebuildRequested = false;
         mPending = {};
 
         const Fx::VulkanPassOptions options{ Settings::fog().mRadialFog, Settings::fog().mExponentialFog };
@@ -535,13 +656,19 @@ void main()
                 pass.target = description->getTarget();
                 valid = description->mType == Fx::Types::PassDesc::Type::Pixel
                     && Fx::translatePass(*loaded->technique, *description, options, pass.translated);
+                std::string compileError;
                 if (valid)
-                    pass.fragment = compileGlsl(VK_SHADER_STAGE_FRAGMENT_BIT, pass.translated.fragment);
+                    pass.fragment = compileGlsl(VK_SHADER_STAGE_FRAGMENT_BIT, pass.translated.fragment, &compileError);
                 if (!valid || !pass.fragment)
                 {
-                    valid = false;
                     Log(Debug::Error) << "Post-processing shader '" << name << "': pass '" << description->getName()
                                       << "' is not supported";
+                    if (description->mType == Fx::Types::PassDesc::Type::Compute)
+                        compileError = "Compute passes are not supported.";
+                    else if (!valid)
+                        compileError = "The pass has no fragment shader.";
+                    mRenderErrors[technique.get()] = "Pass '" + description->getName() + "': " + compileError;
+                    valid = false;
                     break;
                 }
                 pass.uniforms = vsg::ubyteArray::create(static_cast<uint32_t>(pass.translated.uniformBytes));
@@ -565,6 +692,7 @@ void main()
                 if (!node)
                 {
                     Log(Debug::Error) << "Failed to compile post-processing shader '" << name << "'";
+                    mRenderErrors[technique.get()] = "The pipeline failed to compile; see the log.";
                     continue;
                 }
                 group->addChild(node);
@@ -669,6 +797,8 @@ void main()
 
     void PostProcess::update(Fx::OmwData data)
     {
+        if (mRebuildRequested && --mRebuildDelay <= 0)
+            rebuild();
         if (mTechniques.empty())
             return;
         for (auto& technique : mTechniques)

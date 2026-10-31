@@ -17,6 +17,7 @@
 #include <components/vsgadapters/sdl/surface.hpp>
 #include <components/vsgadapters/sdl/window.hpp>
 #include <components/vsgutil/readimage.hpp>
+#include <components/settings/shadermanager.hpp>
 #include <components/settings/values.hpp>
 
 #include "mwgui/windowmanagerimp.hpp"
@@ -315,6 +316,8 @@ namespace OMW
 
         Misc::Rng::init(args.randomSeed);
 
+        Settings::ShaderManager::get().load(mCfgMgr.getUserConfigPath() / "shaders.yaml");
+
         mVFS = std::make_unique<VFS::Manager>();
 
         mDataDirs = args.dataDirs;
@@ -465,5 +468,6 @@ namespace OMW
         std::cout << "Quitting peacefully." << std::endl;
 
         Settings::Manager::saveUser(mCfgMgr.getUserConfigPath() / "settings.cfg");
+        Settings::ShaderManager::get().save();
     }
 }

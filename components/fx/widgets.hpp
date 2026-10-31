@@ -11,13 +11,11 @@
 
 #include <algorithm>
 #include <format>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
 
 #include "types.hpp"
 
@@ -51,13 +49,31 @@ namespace Fx
                 mIndex = index;
             }
 
+            /// Called after a change by the user, once the value is stored in Settings::ShaderManager.
+            void setOnChanged(std::function<void()> onChanged) { mOnChanged = std::move(onChanged); }
+
+            /// Shows the uniform's value, without counting as a change.
+            void showUniform()
+            {
+                mShowing = true;
+                setValueFromUniform();
+                mShowing = false;
+            }
+
             virtual void setValueFromUniform() = 0;
 
             virtual void toDefault() = 0;
 
         protected:
+            /// A value changed: stores it and reports it, unless showUniform() is just displaying it.
+            void commit();
+
             std::shared_ptr<Fx::Types::UniformBase> mUniform;
             Index mIndex;
+
+        private:
+            std::function<void()> mOnChanged;
+            bool mShowing = false;
         };
 
         class EditBool : public EditBase, public MyGUI::Widget
@@ -85,6 +101,7 @@ namespace Fx
         public:
             void setValue(T value)
             {
+                bool changed = false;
                 mValue = value;
                 if constexpr (std::is_floating_point_v<T>)
                     mValueLabel->setCaption(std::format("{:.3f}", mValue));
@@ -96,6 +113,7 @@ namespace Fx
 
                 if constexpr (std::is_fundamental_v<UType>)
                 {
+                    changed = mUniform->template getValue<UType>() != mValue;
                     mUniform->template setValue<UType>(mValue);
                     range = static_cast<float>(mUniform->template getMax<UType>() - mUniform->template getMin<UType>());
                     min = static_cast<float>(mUniform->template getMin<UType>());
@@ -103,6 +121,7 @@ namespace Fx
                 else
                 {
                     UType uvalue = mUniform->template getValue<UType>();
+                    changed = uvalue[mIndex] != mValue;
                     uvalue[mIndex] = mValue;
                     mUniform->template setValue<UType>(uvalue);
                     range = mUniform->template getMax<UType>()[mIndex] - mUniform->template getMin<UType>()[mIndex];
@@ -111,6 +130,9 @@ namespace Fx
 
                 float fill = (range == 0.f) ? 1.f : (mValue - min) / range;
                 mFill->setRealSize(fill, 1.0);
+
+                if (changed)
+                    commit();
             }
 
             void setValueFromUniform() override
@@ -224,15 +246,15 @@ namespace Fx
             int mLastPointerX{ 0 };
         };
 
-        class EditNumberFloat4 : public EditNumber<float, osg::Vec4f>
+        class EditNumberFloat4 : public EditNumber<float, vsg::vec4>
         {
             MYGUI_RTTI_DERIVED(EditNumberFloat4)
         };
-        class EditNumberFloat3 : public EditNumber<float, osg::Vec3f>
+        class EditNumberFloat3 : public EditNumber<float, vsg::vec3>
         {
             MYGUI_RTTI_DERIVED(EditNumberFloat3)
         };
-        class EditNumberFloat2 : public EditNumber<float, osg::Vec2f>
+        class EditNumberFloat2 : public EditNumber<float, vsg::vec2>
         {
             MYGUI_RTTI_DERIVED(EditNumberFloat2)
         };
@@ -267,7 +289,8 @@ namespace Fx
             MYGUI_RTTI_DERIVED(UniformBase)
 
         public:
-            void init(const std::shared_ptr<Fx::Types::UniformBase>& uniform);
+            /// onChanged runs after each change by the user.
+            void init(const std::shared_ptr<Fx::Types::UniformBase>& uniform, std::function<void()> onChanged);
 
             void toDefault();
 

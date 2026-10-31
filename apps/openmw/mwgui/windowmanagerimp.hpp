@@ -457,6 +457,7 @@ namespace MWGui
         CustomMarkerCollection mCustomMarkers;
 
         HUD* mHud;
+        PostProcessorHud* mPostProcessorHud;
         MapWindow* mMap;
         MWRender::Map* mLocalMapRender{};
         MWRender::WorldMap* mWorldMapRender{};

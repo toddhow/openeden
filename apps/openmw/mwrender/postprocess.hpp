@@ -2,9 +2,11 @@
 #define OPENEDEN_MWRENDER_POSTPROCESS_H
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,7 @@
 #include <vsg/state/ShaderStage.h>
 
 #include <components/fx/vulkanpass.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
 namespace Render
@@ -79,12 +82,33 @@ namespace MWRender
         /// is logged and left out. An empty result records nothing.
         void setChain(const std::vector<std::string>& names);
 
-        /// The Lua API's operations, as OpenMW's PostProcessor. Changing what is enabled rebuilds the passes.
+        /// Writes the enabled techniques to `[Post Processing] chain`, leaving out dynamic ones (OpenMW's saveChain).
+        void saveChain();
+
+        /// The Lua API's operations, as OpenMW's PostProcessor. Changing what is enabled rebuilds the passes, and refreshes
+        /// the HUD if it is open. enableTechnique refuses a technique that failed to parse.
         /// loadTechnique returns the same technique for the same name, or null if it failed to load.
         std::shared_ptr<Fx::Technique> loadTechnique(const std::string& name);
         bool enableTechnique(const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location);
         void disableTechnique(const std::shared_ptr<Fx::Technique>& technique);
         bool isTechniqueEnabled(const std::shared_ptr<Fx::Technique>& technique) const;
+
+        /// The `.omwfx` files directly in the VFS `shaders/` directory, read once at startup (OpenMW's getTechniqueFiles).
+        const std::set<VFS::Path::Normalized, std::less<>>& getTechniqueFiles() const { return mTechniqueFiles; }
+
+        /// As loadTechnique, but never null: a technique that failed to load is returned with its status and error, so the
+        /// HUD can show them. A stored value (shaders.yaml) replaces each uniform's default.
+        std::shared_ptr<Fx::Technique> loadTechniqueFile(VFS::Path::NormalizedView file);
+
+        /// The enabled techniques, in order.
+        const std::vector<std::shared_ptr<Fx::Technique>>& getTechniques() const { return mChain; }
+
+        /// Why this enabled technique parsed but did not run, or empty. Set by the latest rebuild.
+        std::string getRenderError(const std::shared_ptr<Fx::Technique>& technique) const;
+
+        /// A static uniform of this technique changed. They are constants in the shader, so an enabled technique's passes
+        /// are rebuilt, at most once a frame, by the next update().
+        void requestRebuild(const std::shared_ptr<Fx::Technique>& technique);
 
         /// Rebuilds everything at a new size.
         void resize(uint32_t width, uint32_t height);
@@ -106,6 +130,7 @@ namespace MWRender
         vsg::ref_ptr<vsg::Node> createPass(LoadedPass& pass, Target& target, vsg::ref_ptr<vsg::ImageView> lastShader,
             vsg::ref_ptr<vsg::ImageView> lastPass, LoadedTechnique& technique);
         void rebuild();
+        void updateHud();
 
         Render::Engine& mEngine;
         vsg::ref_ptr<vsg::Context> mContext;
@@ -137,14 +162,19 @@ namespace MWRender
         vsg::ref_ptr<vsg::PipelineBarrier> mBeforeCopyOut;
         vsg::ref_ptr<vsg::PipelineBarrier> mAfterCopyOut;
         vsg::ref_ptr<vsg::BlitImage> mBlitOut;
-        std::map<std::string, std::shared_ptr<Fx::Technique>> mLoaded;
+        std::set<VFS::Path::Normalized, std::less<>> mTechniqueFiles;
+        std::map<std::string, std::shared_ptr<Fx::Technique>, std::less<>> mLoaded; // by file, including failed ones
         std::vector<std::shared_ptr<Fx::Technique>> mChain;
         std::vector<std::unique_ptr<LoadedTechnique>> mTechniques;
+        std::map<const Fx::Technique*, std::string> mRenderErrors;
+        bool mRebuildRequested = false;
+        int mRebuildDelay = 0;
     };
 
     /// Compiles Vulkan GLSL to a shader stage holding SPIR-V, the one place post-processing depends on a compiler
-    /// (task 0012, V4p). On failure logs the compiler's message and returns null.
-    vsg::ref_ptr<vsg::ShaderStage> compileGlsl(VkShaderStageFlagBits stage, const std::string& source);
+    /// (task 0012, V4p). On failure logs the compiler's message, also gives it in `error` if not null, and returns null.
+    vsg::ref_ptr<vsg::ShaderStage> compileGlsl(
+        VkShaderStageFlagBits stage, const std::string& source, std::string* error = nullptr);
 }
 
 #endif

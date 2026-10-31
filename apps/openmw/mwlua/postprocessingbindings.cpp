@@ -11,6 +11,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/fx/technique.hpp>
+#include <components/fx/uniformsettings.hpp>
 #include <components/misc/strings/format.hpp>
 
 #include <vsg/maths/vec2.h>
@@ -98,6 +99,7 @@ namespace MWLua
                         return;
                     }
                     (*it)->setValue(toUniformValue(value));
+                    Fx::storeValue(**it); // as OpenMW's UniformBase::setValue
                 },
                 "SetUniformShaderAction");
         };
