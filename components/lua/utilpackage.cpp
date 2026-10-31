@@ -207,25 +207,26 @@ namespace LuaUtil
 
         // Lua bindings for Box
         util["box"] = sol::overload([](const Vec3& center, const Vec3& halfSize) { return Box(center, halfSize); },
-            [](const TransformM& transform) { return Box(transform.mM); },
+            [](const TransformM& transform) { return Box(osg::Matrixd(transform.mM)); },
             [](const TransformQ& transform) { return Box(Vec3(), Vec3(1, 1, 1), transform.mQ); });
         sol::usertype<Box> boxType = lua.new_usertype<Box>("Box");
-        boxType["center"] = sol::readonly_property([](const Box& b) { return b.mCenter; });
-        boxType["halfSize"] = sol::readonly_property([](const Box& b) { return b.mHalfSize; });
-        boxType["transform"] = sol::readonly_property([](const Box& b) { return TransformM{ b.asTransform() }; });
+        boxType["center"] = sol::readonly_property([](const Box& b) { return Vec3(b.mCenter); });
+        boxType["halfSize"] = sol::readonly_property([](const Box& b) { return Vec3(b.mHalfSize); });
+        boxType["transform"] = sol::readonly_property(
+            [](const Box& b) { return TransformM{ osg::Matrixf(osg::Matrixd(b.asTransform())) }; });
         boxType["vertices"] = sol::readonly_property([lua](const Box& b) {
             sol::table table(lua, sol::create);
             const auto vertices = b.vertices();
             for (size_t i = 0; i < vertices.size(); ++i)
-                table[toLuaIndex(i)] = vertices[i];
+                table[toLuaIndex(i)] = Vec3(vertices[i]);
             return table;
         });
         boxType[sol::meta_function::equal_to] = [](const Box& a, const Box& b) { return a == b; };
         boxType[sol::meta_function::to_string] = [](const Box& b) {
             std::stringstream ss;
             ss << "Box{ ";
-            ss << "center(" << b.mCenter.x() << ", " << b.mCenter.y() << ", " << b.mCenter.z() << ") ";
-            ss << "halfSize(" << b.mHalfSize.x() << ", " << b.mHalfSize.y() << ", " << b.mHalfSize.z() << ")";
+            ss << "center(" << b.mCenter.x << ", " << b.mCenter.y << ", " << b.mCenter.z << ") ";
+            ss << "halfSize(" << b.mHalfSize.x << ", " << b.mHalfSize.y << ", " << b.mHalfSize.z << ")";
             ss << " }";
             return ss.str();
         };

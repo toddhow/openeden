@@ -2,39 +2,39 @@
 
 namespace LuaUtil
 {
-    Box::Box(const osg::Vec3f& center, const osg::Vec3f& halfSize, const osg::Quat& rotation)
+    Box::Box(const vsg::vec3& center, const vsg::vec3& halfSize, const vsg::dquat& rotation)
         : mCenter(center)
         , mHalfSize(halfSize)
         , mRotation(rotation)
     {
     }
 
-    Box::Box(const osg::Matrix& transform)
+    Box::Box(const vsg::dmat4& transform)
     {
-        osg::Quat _;
-        transform.decompose(mCenter, mRotation, mHalfSize, _);
+        vsg::dquat _;
+        Misc::VsgMath::decompose(transform, mCenter, mRotation, mHalfSize, _);
     }
 
-    std::array<osg::Vec3f, 8> Box::vertices() const
+    std::array<vsg::vec3, 8> Box::vertices() const
     {
         return {
-            mCenter + mRotation * osg::Vec3f(-mHalfSize.x(), -mHalfSize.y(), -mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(mHalfSize.x(), -mHalfSize.y(), -mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(mHalfSize.x(), mHalfSize.y(), -mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(-mHalfSize.x(), mHalfSize.y(), -mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(-mHalfSize.x(), -mHalfSize.y(), mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(mHalfSize.x(), -mHalfSize.y(), mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(mHalfSize.x(), mHalfSize.y(), mHalfSize.z()),
-            mCenter + mRotation * osg::Vec3f(-mHalfSize.x(), mHalfSize.y(), mHalfSize.z()),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(-mHalfSize.x, -mHalfSize.y, -mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(mHalfSize.x, -mHalfSize.y, -mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(mHalfSize.x, mHalfSize.y, -mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(-mHalfSize.x, mHalfSize.y, -mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(-mHalfSize.x, -mHalfSize.y, mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(mHalfSize.x, -mHalfSize.y, mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(mHalfSize.x, mHalfSize.y, mHalfSize.z),
+            mCenter + vsg::quat(mRotation) * vsg::vec3(-mHalfSize.x, mHalfSize.y, mHalfSize.z),
         };
     }
 
-    osg::Matrix Box::asTransform() const
+    vsg::dmat4 Box::asTransform() const
     {
-        osg::Matrix transform;
-        transform.preMultTranslate(mCenter);
-        transform.preMultRotate(mRotation);
-        transform.preMultScale(mHalfSize);
+        vsg::dmat4 transform;
+        Misc::VsgMath::preMultTranslate(transform, mCenter);
+        Misc::VsgMath::preMultRotate(transform, mRotation);
+        Misc::VsgMath::preMultScale(transform, mHalfSize);
         return transform;
     }
 
