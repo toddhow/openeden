@@ -11,11 +11,6 @@
 #include <condition_variable>
 
 
-namespace osg
-{
-    class Texture2D;
-}
-
 #if defined(_MSC_VER)
     #pragma warning (push)
     #pragma warning (disable : 4244)
@@ -190,7 +185,7 @@ struct VideoState {
     PacketQueue videoq;
     SwsContext*  sws_context;
     int sws_context_w, sws_context_h;
-    std::array<VideoPicture, VIDEO_PICTURE_QUEUE_SIZE+1> pictq;  // allocate one extra to make sure we do not overwrite the osg::Image currently set on the texture
+    std::array<VideoPicture, VIDEO_PICTURE_QUEUE_SIZE+1> pictq;  // allocate one extra to make sure we do not overwrite the image currently shown
     int pictq_size;
     unsigned long pictq_rindex, pictq_windex;
     std::mutex pictq_mutex;

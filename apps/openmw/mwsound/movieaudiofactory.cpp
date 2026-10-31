@@ -1,8 +1,8 @@
 #include "movieaudiofactory.hpp"
 
-#include <osg-ffmpeg-videoplayer/audiodecoder.hpp>
-#include <osg-ffmpeg-videoplayer/libavutildefines.hpp>
-#include <osg-ffmpeg-videoplayer/videostate.hpp>
+#include <ffmpeg-videoplayer/audiodecoder.hpp>
+#include <ffmpeg-videoplayer/libavutildefines.hpp>
+#include <ffmpeg-videoplayer/videostate.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"

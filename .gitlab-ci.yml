@@ -459,7 +459,7 @@ Ubuntu_Clang:
 Ubuntu_Clang_Tidy_components:
   extends: .Ubuntu_Clang_Tidy_Base
   variables:
-    BUILD_TARGETS: components components_qt oics osg-ffmpeg-videoplayer osgQt
+    BUILD_TARGETS: components components_qt oics ffmpeg-videoplayer osgQt
   timeout: 3h
 
 Ubuntu_Clang_Tidy_openmw:

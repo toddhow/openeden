@@ -176,7 +176,7 @@ target_link_libraries(openmw-lib
     ${MyGUI_LIBRARIES}
     SDL2::SDL2
     ${RecastNavigation_LIBRARIES}
-    osg-ffmpeg-videoplayer
+    ffmpeg-videoplayer
     oics
     components
     vsg::vsg

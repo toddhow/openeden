@@ -182,3 +182,6 @@ The data is the local Morrowind install, so this check is not repeatable in CI.
 - The rest of the save is 16 bytes longer, in `PLAY`: the `DTIM` that `components/esm3/creaturestats.cpp` gained after the old binary, and `WWAT` and `WWSK` differ where the old output held uninitialised bytes.
 
 Not verified: a real Morrowind save, loading a converted save in the game, and `ConvertPROJ::convertBaseState`'s `Misc::VsgMath::makeRotate` (no projectile in the generated save).
+
+**A4, video player.** `extern/osg-ffmpeg-videoplayer` is now `extern/ffmpeg-videoplayer`, target and include path too; `${OSG_LIBRARIES}`, the unused `osg::Texture2D` declaration and the OSG comments went. Its code uses no OSG. Check on Windows with Morrowind's own files: `openmw.exe` without `--skip-menu` opens `bethesda logo.bik` and then `mw_logo.bik` (FFmpeg's log), and a temporary, uncommitted dump in `MWGui::VideoWidget::update` wrote frames 60 and 180 as PNG: the logo fades in correctly, right way up, in the right colours. Not verified: the frame on screen, and sound. `--auto-screenshot` only counts `State_Running`, and with that gate lifted temporarily `A_Screenshot` still does nothing during a video; a window grab is black in play as well, so it cannot see this Vulkan window. toddhow's check: start the game once and watch and hear the logo.
+

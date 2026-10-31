@@ -15,7 +15,7 @@ namespace Video
     class MovieAudioFactory;
 
     /**
-     * @brief Plays a video on an osg texture.
+     * @brief Plays a video, handing its frames to the caller as raw pixels.
      */
     class VideoPlayer
     {

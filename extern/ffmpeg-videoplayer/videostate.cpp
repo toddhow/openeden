@@ -1,5 +1,5 @@
 #include "videostate.hpp"
-#define OSG_FATAL std::cerr
+#define VIDEO_FATAL std::cerr
 
 
 #include <algorithm>
@@ -205,7 +205,7 @@ int VideoPicture::set_dimensions(int w, int h) {
   std::unique_ptr<AVFrame, VideoPicture::AVFrameDeleter> frame{
       av_frame_alloc()};
   if (frame == nullptr) {
-    OSG_FATAL << "av_frame_alloc failed" << std::endl;
+    VIDEO_FATAL << "av_frame_alloc failed" << std::endl;
     return -1;
   }
 
@@ -215,7 +215,7 @@ int VideoPicture::set_dimensions(int w, int h) {
   frame->height = h;
   if (av_image_alloc(frame->data, frame->linesize, frame->width, frame->height,
                      kPixFmt, 1) < 0) {
-    OSG_FATAL << "av_image_alloc failed" << std::endl;
+    VIDEO_FATAL << "av_image_alloc failed" << std::endl;
     return -1;
   }
 
@@ -428,7 +428,7 @@ public:
             }
             catch(std::exception& e)
             {
-                OSG_FATAL << "An error occurred playing the video: " << e.what() << std::endl;
+                VIDEO_FATAL << "An error occurred playing the video: " << e.what() << std::endl;
             }
         })
     {
@@ -553,9 +553,9 @@ public:
                     {
 // In the FFMpeg 4.0 a "filename" field was replaced by "url"
 #if LIBAVCODEC_VERSION_INT < 3805796
-                        OSG_FATAL << "Error seeking " << self->format_ctx->filename << std::endl;
+                        VIDEO_FATAL << "Error seeking " << self->format_ctx->filename << std::endl;
 #else
-                        OSG_FATAL << "Error seeking " << self->format_ctx->url << std::endl;
+                        VIDEO_FATAL << "Error seeking " << self->format_ctx->url << std::endl;
 #endif
                     }
                     else
@@ -621,7 +621,7 @@ public:
             }
         }
         catch(std::exception& e) {
-            OSG_FATAL << "An error occurred playing the video: " << e.what() << std::endl;
+            VIDEO_FATAL << "An error occurred playing the video: " << e.what() << std::endl;
         }
 
         self->mQuit = true;
@@ -675,7 +675,7 @@ int VideoState::stream_open(int stream_index, AVFormatContext *pFormatCtx)
 
         if (!mAudioFactory)
         {
-            OSG_FATAL << "No audio factory registered, can not play audio stream" << std::endl;
+            VIDEO_FATAL << "No audio factory registered, can not play audio stream" << std::endl;
             avcodec_free_context(&this->audio_ctx);
             this->audio_st = nullptr;
             return -1;
@@ -684,7 +684,7 @@ int VideoState::stream_open(int stream_index, AVFormatContext *pFormatCtx)
         mAudioDecoder = mAudioFactory->createDecoder(this);
         if (!mAudioDecoder)
         {
-            OSG_FATAL << "Failed to create audio decoder, can not play audio stream" << std::endl;
+            VIDEO_FATAL << "Failed to create audio decoder, can not play audio stream" << std::endl;
             avcodec_free_context(&this->audio_ctx);
             this->audio_st = nullptr;
             return -1;

@@ -581,7 +581,7 @@ endif()
 
 # Extern
 
-add_subdirectory (extern/osg-ffmpeg-videoplayer)
+add_subdirectory (extern/ffmpeg-videoplayer)
 add_subdirectory (extern/oics)
 if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
     add_subdirectory (extern/osgQt)
