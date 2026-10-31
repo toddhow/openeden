@@ -143,7 +143,7 @@ file(GLOB UNITTEST_SRC_FILES
     math/testmatrixconventions.cpp
     math/testboundsconventions.cpp
     math/testvsgmath.cpp
-    math/testbridge.cpp
+    math/testdeletedproducts.cpp
     math/testvsgmathreview.cpp
     fx/testvulkanpass.cpp
     fx/testuniformsettings.cpp

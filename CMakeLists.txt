@@ -374,10 +374,7 @@ if (USE_SYSTEM_TINYXML)
     include_directories(SYSTEM ${TinyXML_INCLUDE_DIRS})
 endif()
 
-# OSG Headers
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/extern/osg)
-# OpenEden V5 transition, removed by task 0013: the bundled OSG math headers convert to and from VSG math types, so every
-# target that includes them needs VSG's headers, also those that do not link VSG.
+# VSG's math headers are used across components, also by targets that do not link VSG.
 if(OPENEDEN_BUILD_VSG)
     include_directories(SYSTEM ${CMAKE_BINARY_DIR}/extern/fetched/vsg/include)
 else()
@@ -445,10 +442,6 @@ if(HAVE_MULTIVIEW)
 endif(HAVE_MULTIVIEW)
 #]]
 
-# openeden-vsg: OSG headers are bundled in extern/osg for math only and no OSG library is linked
-# (osg::Quat, osg::Matrixf/d come from components/vsgadapters/osg), so OSG_EXPORT must not be
-# __declspec(dllimport) on MSVC. Removed with extern/osg in task 0013 (Track V, V5).
-add_compile_definitions(OSG_LIBRARY_STATIC)
 
 set(BOOST_COMPONENTS iostreams program_options)
 
@@ -488,9 +481,6 @@ include_directories(
     ${SOL_CONFIG_DIR}
     ${ICU_INCLUDE_DIRS}
 )
-# OpenEden V5 transition, removed by task 0013: on Windows the block above puts the vcpkg include folder, which holds a whole OSG,
-# first, so the build silently used vcpkg's OSG headers and never saw the bridge in extern/osg. This puts the bundled ones first.
-include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/extern/osg)
 include_directories(".")
 include_directories("sdk/include")
 

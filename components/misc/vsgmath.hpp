@@ -19,7 +19,7 @@
 // There are no wrapper types here: the engine uses vsg::vec3, vsg::dmat4 and so on directly, and calls these functions
 // where VSG's own answer would differ from OSG's.
 //
-// Sources, which task 0013 deletes at the end of V5, so this file includes neither:
+// Sources, which task 0013 deleted, so this keeps OSG's licence notice above:
 //  - extern/osg/osg: Vec2f, Vec2d, Vec2i, Vec3f, Vec3d, Vec4f, Vec4d, Math, Quat, Matrixf, Matrixd, BoundingBox,
 //    BoundingSphere, Plane;
 //  - components/vsgadapters/osg: Quat.cpp, Matrix_implementation.cpp. MatrixDecomposition.cpp moved to vsgmath.cpp.
@@ -60,22 +60,6 @@ namespace vsg
     dvec3 operator*(const dvec3&, const dvec3&) = delete;
     vec4 operator*(const vec4&, const vec4&) = delete;
     dvec4 operator*(const dvec4&, const dvec4&) = delete;
-
-// OSG multiplies matrices in the opposite order and reads vectors as rows, so each product in a file being converted has to
-// be looked at. Such a file defines this macro before including this header, and removes it once every product is checked.
-// The macro goes away at the end of V5. Nothing in this header uses these operators, so it compiles either way.
-#ifdef OPENEDEN_VSGMATH_CONVERTING
-    mat4 operator*(const mat4&, const mat4&) = delete;
-    dmat4 operator*(const dmat4&, const dmat4&) = delete;
-    vec3 operator*(const vec3&, const mat4&) = delete;
-    vec3 operator*(const mat4&, const vec3&) = delete;
-    dvec3 operator*(const dvec3&, const dmat4&) = delete;
-    dvec3 operator*(const dmat4&, const dvec3&) = delete;
-    vec4 operator*(const vec4&, const mat4&) = delete;
-    vec4 operator*(const mat4&, const vec4&) = delete;
-    dvec4 operator*(const dvec4&, const dmat4&) = delete;
-    dvec4 operator*(const dmat4&, const dvec4&) = delete;
-#endif
 }
 
 namespace Misc::VsgMath
@@ -555,8 +539,7 @@ namespace Misc::VsgMath
 
     namespace Detail
     {
-        // Small products in OSG's own storage order, so that no helper here relies on VSG's operators, which a file under
-        // conversion deletes (see the top of this file).
+        // Small products in OSG's own storage order, so that no helper here relies on VSG's operators.
         template <class T>
         inline T innerProduct(const vsg::t_mat4<T>& a, const vsg::t_mat4<T>& b, int r, int c)
         {

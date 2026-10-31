@@ -10,7 +10,6 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <osg/ref_ptr>
 
 namespace osg
 {
