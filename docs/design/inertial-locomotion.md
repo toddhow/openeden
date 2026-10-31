@@ -68,7 +68,7 @@ The system is organized into four complementary layers:
 
 Add a per-actor `LocomotionState` owned by [`MWPhysics::Actor`](file:///I:/Projects/OpenEden/apps/openmw/mwphysics/actor.hpp):
 
-- `osg::Vec2f smoothedVelocity` (horizontal world units/s)
+- `vsg::vec2 smoothedVelocity` (horizontal world units/s)
 - `float smoothedYaw` (current smoothed body heading, radians)
 - `float lastSpeed` (for calculating linear acceleration $a = \Delta v / \Delta t$)
 - `float angularVelocity` (yaw turn rate, rad/s)
@@ -77,8 +77,8 @@ Add a per-actor `LocomotionState` owned by [`MWPhysics::Actor`](file:///I:/Proje
 #### Ground Step Integration
 On every physics tick on the ground:
 ```cpp
-osg::Vec2f target = requestedVelocity.xy; // from player input or AI
-osg::Vec2f delta  = target - smoothedVelocity;
+vsg::vec2 target = requestedVelocity.xy; // from player input or AI
+vsg::vec2 delta   = target - smoothedVelocity;
 
 // Select acceleration limit depending on whether speeding up, slowing down, or reversing
 float maxRate = 0.0f;

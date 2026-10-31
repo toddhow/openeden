@@ -123,7 +123,7 @@ namespace
         };
 
         auto fallback = vsg::ref_ptr{ new Resource::Fallback };
-        static const char* const sMeshTypes[] = { "nif", "osg", "osgt", "osgb", "osgx", "osg2", "dae" };
+        static const char* const sMeshTypes[] = { "nif", "dae" };
         for (unsigned int i = 0; i < sizeof(sMeshTypes) / sizeof(sMeshTypes[0]); ++i)
             fallback->fallbackFiles.push_back("marker_error." + std::string(sMeshTypes[i]));
         fallback->fallbackObject = vsg::Node::create();

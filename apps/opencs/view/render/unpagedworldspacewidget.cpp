@@ -30,11 +30,6 @@ namespace CSVRender
     class TagBase;
 }
 
-namespace osg
-{
-    class Vec3f;
-}
-
 void CSVRender::UnpagedWorldspaceWidget::update()
 {
     const CSMWorld::Record<CSMWorld::Cell>& record

@@ -2,6 +2,9 @@
 Blender to OpenMW with OSG native
 #################################
 
+.. note::
+   OpenEden has no reader for OSG native models: it renders with VulkanSceneGraph, not OpenSceneGraph. Use COLLADA or NIF.
+
 This article explains how to export a model from Blender to OpenMW using the OSG model format. It supports only basic, static models.
 For more details on the format, refer to `this forum post <https://forum.openmw.org/viewtopic.php?f=20&t=2949&p=35514#p35514>`_.
 

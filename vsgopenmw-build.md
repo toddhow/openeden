@@ -7,6 +7,8 @@ Currently there are no releases or downloadable packages of vsgopenmw.
 Where and how can I build vsgopenmw?
 ====================================
 
+OpenEden note: this file is vsgopenmw's. OpenEden fetches its own pinned VulkanSceneGraph and needs no OpenSceneGraph at all; see README.md and docs/dependencies.md.
+
 You can build vsgopenmw the usual cmake way on any platform that comes with a standards-compliant C++20 environment and Vulkan support. In addition to OpenMW's dependencies, you'll need VulkanSceneGraph-1.0.9 and vsgXchange installed the usual cmake way. OpenSceneGraph headers (not libraries) are still required for the time being.
 
 

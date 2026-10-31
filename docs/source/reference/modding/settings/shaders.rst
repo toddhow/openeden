@@ -50,7 +50,7 @@ Shaders Settings
    :location: :bdg-success:`Launcher > Settings > Visuals > Shaders`
 
    Automatically detect and use object specular maps named with pattern defined by :ref:`specular map pattern`.
-   Only supported in `.osg` files.
+   In OpenEden this applies to NIF models (`components/vsgadapters/nif/automaps.cpp`); OSG native files are not read.
 
 .. omw-setting::
    :title: auto use terrain normal maps

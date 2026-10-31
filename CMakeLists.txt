@@ -128,17 +128,6 @@ add_definitions(-DJPH_DEBUG_RENDERER=1)
 
 
 
-if(NOT OPENEDEN_BUILD_VSG)
-    option(OPENMW_USE_SYSTEM_VSG "Use system provided VulkanSceneGraph libraries" ON)
-    if(OPENMW_USE_SYSTEM_VSG)
-        find_package(vsg 1.0.9 REQUIRED)
-    endif()
-    option(OPENMW_USE_SYSTEM_VSGXCHANGE "Use system provided VulkanSceneGraph plugins" ON)
-    if(OPENMW_USE_SYSTEM_VSGXCHANGE)
-        find_package(vsgXchange 1.0.3 REQUIRED)
-    endif()
-endif()
-
 option(OPENMW_USE_SYSTEM_MYGUI "Use system provided mygui library" ON)
 if(OPENMW_USE_SYSTEM_MYGUI)
     set(_mygui_static_default OFF)
@@ -277,21 +266,9 @@ find_package(LZ4 REQUIRED)
 
 if (USE_QT)
     find_package(QT REQUIRED COMPONENTS Core NAMES Qt6)
-    find_package(Qt6 COMPONENTS Core Widgets Network OpenGL OpenGLWidgets LinguistTools Svg REQUIRED)
+    find_package(Qt6 COMPONENTS Core Widgets Network LinguistTools Svg REQUIRED)
     message(STATUS "Using Qt${QT_VERSION}")
 endif()
-
-#[[
-if(NOT COLLADA_DOM_VERSION_MAJOR)
-    set(COLLADA_DOM_VERSION_MAJOR 2)
-endif()
-
-if(NOT COLLADA_DOM_VERSION_MINOR)
-    set(COLLADA_DOM_VERSION_MINOR 5)
-endif()
-
-find_package(collada_dom 2.5)
-#]]
 
 option(OPENMW_USE_SYSTEM_ICU "Use system ICU library instead of internal. If disabled, requires autotools" ON)
 if(OPENMW_USE_SYSTEM_ICU)
@@ -375,12 +352,7 @@ if (USE_SYSTEM_TINYXML)
 endif()
 
 # VSG's math headers are used across components, also by targets that do not link VSG.
-if(OPENEDEN_BUILD_VSG)
-    include_directories(SYSTEM ${CMAKE_BINARY_DIR}/extern/fetched/vsg/include)
-else()
-    get_target_property(_vsg_include_dirs vsg::vsg INTERFACE_INCLUDE_DIRECTORIES)
-    include_directories(SYSTEM ${_vsg_include_dirs})
-endif()
+include_directories(SYSTEM ${CMAKE_BINARY_DIR}/extern/fetched/vsg/include)
 
 # Platform specific
 if (WIN32)
@@ -392,7 +364,7 @@ if (WIN32)
         NOMINMAX # name conflict with std::min, std::max
         WIN32_LEAN_AND_MEAN
         NOMB # name conflict with MWGui::MessageBox
-        NOGDI # name conflict with osgAnimation::MorphGeometry::RELATIVE
+        NOGDI
     )
 
     # Put Win32 API into UTF-16 mode
@@ -421,26 +393,6 @@ if(NOT HAVE_STDINT_H)
     message(FATAL_ERROR "stdint.h was not found" )
 endif()
 
-#[[
-if(OPENMW_USE_SYSTEM_OSG)
-    find_package(OpenSceneGraph 3.6.5 REQUIRED ${USED_OSG_COMPONENTS})  # Bump to 3.6.6 when released
-
-    if(OSG_STATIC)
-        find_package(OSGPlugins REQUIRED COMPONENTS ${USED_OSG_PLUGINS})
-    endif()
-endif()
-
-include_directories(BEFORE SYSTEM ${OPENSCENEGRAPH_INCLUDE_DIRS})
-
-if(OSG_STATIC)
-    add_compile_definitions(OSG_LIBRARY_STATIC)
-endif()
-
-include(cmake/CheckOsgMultiview.cmake)
-if(HAVE_MULTIVIEW)
-    add_compile_definitions(OSG_HAS_MULTIVIEW)
-endif(HAVE_MULTIVIEW)
-#]]
 
 
 set(BOOST_COMPONENTS iostreams program_options)
@@ -825,7 +777,7 @@ if (OPENMW_OSX_DEPLOYMENT AND APPLE)
     # installs used plugins in bundle at given path (bundle_path must be relative to ${CMAKE_INSTALL_PREFIX})
     # and returns list of install paths for all installed plugins
     function (install_plugins_for_bundle bundle_path plugins_var)
-        set(RELATIVE_PLUGIN_INSTALL_BASE "${bundle_path}/Contents/PlugIns/${OSG_PLUGIN_PREFIX_DIR}")
+        set(RELATIVE_PLUGIN_INSTALL_BASE "${bundle_path}/Contents/PlugIns")
 
         set(PLUGINS "")
         set(PLUGIN_INSTALL_BASE "\${CMAKE_INSTALL_PREFIX}/${RELATIVE_PLUGIN_INSTALL_BASE}")

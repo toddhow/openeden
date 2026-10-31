@@ -256,8 +256,7 @@ add_component_dir(esm attr common defs esmcommon records util luascripts format 
     exteriorcelllocation
     )
 
-# openeden-vsg: only the .omwfx parser, which produces plain data (task 0012). pass and stateupdater still use
-# OSG and stay out of the build until the later post-processing stages port them.
+# openeden-vsg: the .omwfx parser, which produces plain data, and its Vulkan passes (task 0012).
 add_component_dir(fx technique lexer lexertypes parseconstants types vulkanpass uniformsettings widgets)
 
 
@@ -278,12 +277,6 @@ add_component_dir (esm3
 add_component_dir (esm3terrain
     storage
     )
-#[[
-add_component_dir (esmterrain
-    gridsampling
-    storage
-    )
-#]]
 
 add_component_dir (esm4
     actor
@@ -387,10 +380,10 @@ add_component_dir (esm4
 # misc must not depend on other components.
 # misc may be implicitely depended on.
 #add_base_dir(stl
-# vsgopenmw-fixme(find-my-place) = constants resourcehelpers osguservalues color
+# vsgopenmw-fixme(find-my-place) = constants resourcehelpers color
 add_component_dir (misc
     barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameratelimiter
-    guarded math mathutil messageformatparser notnullptr objectpool osguservalues progressreporter resourcehelpers
+    guarded math mathutil messageformatparser notnullptr objectpool progressreporter resourcehelpers
     rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream vsgmath weakcache windows
     )
 
@@ -564,7 +557,6 @@ add_component_dir(loadinglistener
 add_component_dir(serialization
     binaryreader
     binarywriter
-    osgyaml
     vsgyaml
     sizeaccumulator
     )
@@ -768,19 +760,6 @@ if (USE_QT)
     endif()
 endif()
 
-#[[
-if (OSG_STATIC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
-    find_package(X11 REQUIRED COMPONENTS Xinerama Xrandr)
-    target_link_libraries(components ${CMAKE_DL_LIBS} X11::X11 X11::Xinerama X11::Xrandr)
-    find_package(Fontconfig MODULE)
-    if(Fontconfig_FOUND)
-        target_link_libraries(components Fontconfig::Fontconfig)
-    endif()
-endif()
-if (GIT_CHECKOUT)
-    add_dependencies (components git-version)
-endif (GIT_CHECKOUT)
-#]]
 
 if (WIN32)
     target_link_libraries(components shlwapi)

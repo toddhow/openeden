@@ -192,11 +192,10 @@ target_link_libraries(components-tests
     opas_math
 )
 
-if (OPENEDEN_BUILD_VSG)
-    target_link_libraries(components-tests ${VSG_LIBRARIES})
-    target_include_directories(components-tests PRIVATE ${VSG_INCLUDE_DIRS})
-    target_compile_definitions(components-tests PRIVATE OPENEDEN_BUILD_VSG=1)
-endif()
+target_link_libraries(components-tests ${VSG_LIBRARIES})
+target_include_directories(components-tests PRIVATE ${VSG_INCLUDE_DIRS})
+# The build is always VSG's now. Committed tests still test this name under #if, so it stays defined.
+target_compile_definitions(components-tests PRIVATE OPENEDEN_BUILD_VSG=1)
 
 if (WIN32)
     target_sources(components-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)

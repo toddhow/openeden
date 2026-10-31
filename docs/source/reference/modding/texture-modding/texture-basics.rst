@@ -114,6 +114,8 @@ The relevant settings are
 OSG native files
 ################
 
+OpenEden has no reader for OSG native files; this section is OpenMW's.
+
 OpenMW supports all the above shader features for meshes in the Native Mesh Format.
 To have the shader generator recognize specific textures,
 the `osg::Texture2D` must be named appropriately.

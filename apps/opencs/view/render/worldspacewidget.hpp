@@ -8,7 +8,6 @@
 #include <QTimer>
 
 #include <vsg/maths/vec3.h>
-#include <osg/ref_ptr>
 
 #include <string>
 #include <vector>

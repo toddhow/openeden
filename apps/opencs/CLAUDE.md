@@ -34,6 +34,7 @@ The editor (OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0
 - **Masks:** `mask.hpp` is still the OSG build's list. On VSG a scene element hangs under `SceneHost::maskNode(mask, node)`, a `vsg::Switch`, and `setVisibilityMask` sets the view's traversal mask.
 - **`TerrainStorage` serves one cell.** The alteration hooks have no cell argument, so each `Cell` has its own storage and `Terrain::Paging`, and asks for a batch of one cell.
 - **`SimpleWater` follows the camera unless told otherwise:** a cell's water passes `followCamera = false`.
+- **A process started under a debugger gets Windows' debug heap,** and the editor's exit then takes minutes of frees: set `_NO_DEBUG_HEAP=1` for a debug-API runner, or a slow exit looks like a hang (task 0014, "The exit hang").
 - **Debugging a crash here:** the crash catcher did not write a dump for a capture. A small Win32 debug-API runner that writes a minidump at the first access violation, read with a dbghelp stack walker, found each one quickly. `std::cerr` output through `Debug` loses first characters, so trace with `Log`.
 - **Git Bash runs need Qt's `bin` on `PATH`.** Without it, an executable linking Qt exits with 127 and a misleading message about `api-ms-win-crt-locale`.
 - **Inside a class derived from `TagBase`, a plain `Object` means `vsg::Object`,** the base's injected class name. Write `CSVRender::Object`.
