@@ -1,7 +1,9 @@
 #ifndef OPENEDEN_COMPONENTS_INERTIALMOTION_LOCOMOTIONSTATE_H
 #define OPENEDEN_COMPONENTS_INERTIALMOTION_LOCOMOTIONSTATE_H
 
-#include <osg/Vec2f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec2.h>
 
 #include <cmath>
 #include <string>
@@ -65,8 +67,8 @@ namespace InertialMotion
          * @param maxSpeed Actor's maximum speed attribute (scales acceleration curves).
          * @return The smoothed velocity in world units/second.
          */
-        osg::Vec2f update(const osg::Vec2f& requestedVelocity, float dt, const LocomotionParameters& params,
-            float maxSpeed = 300.0f);
+        vsg::vec2 update(
+            const vsg::vec2& requestedVelocity, float dt, const LocomotionParameters& params, float maxSpeed = 300.0f);
 
         /**
          * @brief Smooths actor body heading towards travel trajectory.
@@ -81,9 +83,9 @@ namespace InertialMotion
         /**
          * @brief Resets the locomotion state (e.g. on landing, swimming, teleportation, paralysis).
          */
-        void reset(const osg::Vec2f& seedVelocity = osg::Vec2f(0.f, 0.f), float currentYaw = 0.f);
+        void reset(const vsg::vec2& seedVelocity = vsg::vec2(0.f, 0.f), float currentYaw = 0.f);
 
-        [[nodiscard]] const osg::Vec2f& getSmoothedVelocity() const noexcept { return mSmoothedVelocity; }
+        [[nodiscard]] const vsg::vec2& getSmoothedVelocity() const noexcept { return mSmoothedVelocity; }
         [[nodiscard]] float getSmoothedSpeed() const noexcept { return mSmoothedSpeed; }
         [[nodiscard]] float getSmoothedYaw() const noexcept { return mSmoothedYaw; }
         [[nodiscard]] float getLinearAcceleration() const noexcept { return mLinearAcceleration; }
@@ -91,7 +93,7 @@ namespace InertialMotion
         [[nodiscard]] LocomotionPhase getPhase() const noexcept { return mPhase; }
 
     private:
-        osg::Vec2f mSmoothedVelocity{ 0.f, 0.f };
+        vsg::vec2 mSmoothedVelocity{ 0.f, 0.f };
         float mSmoothedSpeed = 0.f;
         float mSmoothedYaw = 0.f;
         float mLastSpeed = 0.f;

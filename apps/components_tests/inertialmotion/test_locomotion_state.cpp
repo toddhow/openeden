@@ -45,12 +45,12 @@ namespace
     {
         LocomotionState state;
         const auto offParams = getPresetParameters(Preset::Off);
-        const osg::Vec2f target(150.f, -80.f);
+        const vsg::vec2 target(150.f, -80.f);
 
-        const osg::Vec2f result = state.update(target, 0.016f, offParams, 300.f);
-        EXPECT_FLOAT_EQ(result.x(), target.x());
-        EXPECT_FLOAT_EQ(result.y(), target.y());
-        EXPECT_FLOAT_EQ(state.getSmoothedSpeed(), target.length());
+        const vsg::vec2 result = state.update(target, 0.016f, offParams, 300.f);
+        EXPECT_FLOAT_EQ(result.x, target.x);
+        EXPECT_FLOAT_EQ(result.y, target.y);
+        EXPECT_FLOAT_EQ(state.getSmoothedSpeed(), vsg::length(target));
         EXPECT_EQ(state.getPhase(), LocomotionPhase::Moving);
     }
 
@@ -60,7 +60,7 @@ namespace
         const auto medParams = getPresetParameters(Preset::Medium);
         const float maxSpeed = 300.f;
         const float dt = 0.01f;
-        const osg::Vec2f target(200.f, 0.f);
+        const vsg::vec2 target(200.f, 0.f);
 
         float prevSpeed = 0.f;
         const float maxAllowedRate = (maxSpeed / medParams.mAccelTime) * 1.01f;
@@ -76,8 +76,8 @@ namespace
         }
 
         // After accel time (0.25s = 25 steps of 0.01s), target velocity should be reached
-        EXPECT_NEAR(state.getSmoothedVelocity().x(), target.x(), 1e-2f);
-        EXPECT_NEAR(state.getSmoothedVelocity().y(), target.y(), 1e-2f);
+        EXPECT_NEAR(state.getSmoothedVelocity().x, target.x, 1e-2f);
+        EXPECT_NEAR(state.getSmoothedVelocity().y, target.y, 1e-2f);
         EXPECT_EQ(state.getPhase(), LocomotionPhase::Moving);
     }
 
@@ -88,11 +88,11 @@ namespace
         const float maxSpeed = 300.f;
 
         // Seed with running speed
-        state.reset(osg::Vec2f(250.f, 0.f));
+        state.reset(vsg::vec2(250.f, 0.f));
         EXPECT_EQ(state.getPhase(), LocomotionPhase::Moving);
 
         // Release stick/keys (target = 0, 0)
-        const osg::Vec2f target(0.f, 0.f);
+        const vsg::vec2 target(0.f, 0.f);
         const float dt = 0.01f;
 
         // At step 1, should enter Stopping phase
@@ -117,10 +117,10 @@ namespace
         const float maxSpeed = 300.f;
 
         // Running forward in +Y
-        state.reset(osg::Vec2f(0.f, 200.f));
+        state.reset(vsg::vec2(0.f, 200.f));
 
         // Slam input in reverse (-Y)
-        const osg::Vec2f reverseTarget(0.f, -200.f);
+        const vsg::vec2 reverseTarget(0.f, -200.f);
         const float dt = 0.02f;
 
         state.update(reverseTarget, dt, medParams, maxSpeed);
@@ -132,7 +132,7 @@ namespace
         for (int i = 0; i < 40; ++i)
         {
             state.update(reverseTarget, dt, medParams, maxSpeed);
-            if (state.getSmoothedVelocity().y() <= 0.0f)
+            if (state.getSmoothedVelocity().y <= 0.0f)
             {
                 passedThroughZero = true;
                 break;
@@ -146,7 +146,7 @@ namespace
         // 0.24 seconds of acceleration simulated at 30 Hz vs 60 Hz vs 120 Hz
         const auto medParams = getPresetParameters(Preset::Medium);
         const float maxSpeed = 300.f;
-        const osg::Vec2f target(180.f, 120.f);
+        const vsg::vec2 target(180.f, 120.f);
 
         LocomotionState state30;
         const float dt30 = 1.0f / 30.0f;
@@ -158,8 +158,8 @@ namespace
         for (int i = 0; i < 12; ++i) // 0.20s
             state60.update(target, dt60, medParams, maxSpeed);
 
-        EXPECT_NEAR(state30.getSmoothedVelocity().x(), state60.getSmoothedVelocity().x(), 1e-3f);
-        EXPECT_NEAR(state30.getSmoothedVelocity().y(), state60.getSmoothedVelocity().y(), 1e-3f);
+        EXPECT_NEAR(state30.getSmoothedVelocity().x, state60.getSmoothedVelocity().x, 1e-3f);
+        EXPECT_NEAR(state30.getSmoothedVelocity().y, state60.getSmoothedVelocity().y, 1e-3f);
     }
 
     TEST(LocomotionStateTest, YawHeadingSmoothingAndCriticalDamping)
@@ -168,7 +168,7 @@ namespace
         const auto medParams = getPresetParameters(Preset::Medium);
 
         // Moving towards +X (yaw = pi/2)
-        state.reset(osg::Vec2f(100.f, 0.f), 0.0f);
+        state.reset(vsg::vec2(100.f, 0.f), 0.0f);
 
         float currentYaw = 0.0f;
         const float dt = 0.02f;

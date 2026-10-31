@@ -87,8 +87,8 @@ namespace InertialMotion
         return Preset::Off;
     }
 
-    osg::Vec2f LocomotionState::update(const osg::Vec2f& requestedVelocity, float dt,
-        const LocomotionParameters& params, float maxSpeed)
+    vsg::vec2 LocomotionState::update(
+        const vsg::vec2& requestedVelocity, float dt, const LocomotionParameters& params, float maxSpeed)
     {
         if (dt <= 0.0f || !std::isfinite(dt))
             return mSmoothedVelocity;
@@ -97,7 +97,7 @@ namespace InertialMotion
         if (params.mAccelTime <= 0.0f && params.mStopTime <= 0.0f)
         {
             mSmoothedVelocity = requestedVelocity;
-            mSmoothedSpeed = mSmoothedVelocity.length();
+            mSmoothedSpeed = vsg::length(mSmoothedVelocity);
             mLinearAcceleration = 0.0f;
             mLastSpeed = mSmoothedSpeed;
             mPhase = (mSmoothedSpeed > 1e-3f) ? LocomotionPhase::Moving : LocomotionPhase::Idle;
@@ -110,8 +110,8 @@ namespace InertialMotion
         const float skidRate = effectiveMaxSpeed / std::max(0.001f, params.mSkidTurnTime);
         const float turnRate = (accelRate + decelRate) * 0.5f;
 
-        const float targetSpeedSq = requestedVelocity.length2();
-        const float currentSpeedSq = mSmoothedVelocity.length2();
+        const float targetSpeedSq = vsg::length2(requestedVelocity);
+        const float currentSpeedSq = vsg::length2(mSmoothedVelocity);
 
         float maxRate = 0.0f;
         if (targetSpeedSq < 1e-4f)
@@ -122,7 +122,7 @@ namespace InertialMotion
         }
         else
         {
-            const float dot = mSmoothedVelocity * requestedVelocity;
+            const float dot = vsg::dot(mSmoothedVelocity, requestedVelocity);
             if (dot < -0.1f * targetSpeedSq && currentSpeedSq > 25.0f)
             {
                 // Abrupt directional reversal (180 skid)
@@ -143,8 +143,8 @@ namespace InertialMotion
             }
         }
 
-        const osg::Vec2f delta = requestedVelocity - mSmoothedVelocity;
-        const float deltaLen = delta.length();
+        const vsg::vec2 delta = requestedVelocity - mSmoothedVelocity;
+        const float deltaLen = vsg::length(delta);
         const float maxStep = maxRate * dt;
 
         if (deltaLen <= maxStep || deltaLen < 1e-6f)
@@ -156,7 +156,7 @@ namespace InertialMotion
             mSmoothedVelocity += delta * (maxStep / deltaLen);
         }
 
-        mSmoothedSpeed = mSmoothedVelocity.length();
+        mSmoothedSpeed = vsg::length(mSmoothedVelocity);
         if (mSmoothedSpeed > effectiveMaxSpeed && effectiveMaxSpeed > 0.0f)
         {
             mSmoothedVelocity *= (effectiveMaxSpeed / mSmoothedSpeed);
@@ -194,7 +194,7 @@ namespace InertialMotion
         }
 
         // Target angle from velocity vector (atan2(x, y))
-        const float targetYaw = std::atan2(mSmoothedVelocity.x(), mSmoothedVelocity.y());
+        const float targetYaw = std::atan2(mSmoothedVelocity.x, mSmoothedVelocity.y);
 
         // Shortest angular distance [-pi, pi]
         constexpr float kPi = std::numbers::pi_v<float>;
@@ -219,10 +219,10 @@ namespace InertialMotion
         return mSmoothedYaw;
     }
 
-    void LocomotionState::reset(const osg::Vec2f& seedVelocity, float currentYaw)
+    void LocomotionState::reset(const vsg::vec2& seedVelocity, float currentYaw)
     {
         mSmoothedVelocity = seedVelocity;
-        mSmoothedSpeed = seedVelocity.length();
+        mSmoothedSpeed = vsg::length(seedVelocity);
         mSmoothedYaw = currentYaw;
         mLastSpeed = mSmoothedSpeed;
         mLinearAcceleration = 0.0f;
