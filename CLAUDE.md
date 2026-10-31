@@ -295,19 +295,19 @@ P1 to P5 built the plugin system as a tested model in the test host; the game it
 Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built against what the game needs, stages, decisions, risks), under decision 0003. W0 can run now; W1 onward is proposed after Track V's V2, alongside V3–V6, because Track V replaces the engine loop and save flow those stages change.
 
 **W0 SDK 2.0** — task 0019 (`docs/tasks/0019-plugins-w0-sdk-2-trim.md`)
-- [x] Physics read-only with shape casts; collision layers, fixed-step phases and the Lua scripting service removed; events markable for Lua forwarding; SDK version 2.0 (built and tested on Windows; Linux gates not yet run)
+- [x] Physics read-only with shape casts; collision layers, fixed-step phases and the Lua scripting service removed; events markable for Lua forwarding; SDK version 2.0
 
 **W1 The host in the game** — task 0015 (`docs/tasks/0015-plugins-w1-host-in-game.md`)
-- [x] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing (built and tested on Windows, including all 32 Lua tests; Linux gates and frame-time measurement not yet run)
+- [x] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing (frame-time measurement not yet run)
 
 **W2 Data services on the engine** — task 0016 (`docs/tasks/0016-plugins-w2-data-services.md`)
-- [x] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts (built and tested on Windows, including the 32 Lua tests and a real-game check; Linux gates not yet run)
+- [x] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts
 
 **W3 World services on the engine** — task 0017 (`docs/tasks/0017-plugins-w3-world-services.md`)
 - [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events (done, on Windows, 2026-10-31); debug draw and profiler shown (not done: renderer files, see task 0017's notes)
 
 **W4 Real clients and packaging** — task 0018 (`docs/tasks/0018-plugins-w4-clients-and-packaging.md`)
-- [ ] Installed plugin layout, launcher plugin list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample plugin covering every service end to end (done on Windows, 2026-10-31; the launcher page has not been opened, Linux not run; see task 0018's notes)
+- [ ] Installed plugin layout, launcher plugin list, in-game failure reporting, the Morrowind compatibility pack running in the game, a sample plugin covering every service end to end (done on Windows, 2026-10-31; the launcher page has not been opened, and the Linux install layout not checked; see task 0018's notes)
 
 ### P6 Stable C ABI and community SDK
 
@@ -355,6 +355,7 @@ These rules protect the project legally and keep it honest; breaking one blocks 
 
 Learned while finishing the Jolt branch; each cost real time.
 
+- **A contract in an anonymous namespace.** Each library then has a type of its own. It works with MSVC; GCC sees no implementation in the calling library and calls the pure virtual function directly, which aborts. Contracts go in a named namespace.
 - **Windows parallel builds run out of memory.** MSVC with precompiled headers fails with "compiler is out of heap space" at the default parallelism on this machine; build with `-j 8`. In Docker, the same build at `-j $(nproc)` crashed Docker Desktop's engine; use `-j 8` and `--memory 12g`.
 - **Never install into the build directory.** OpenEden's Windows install rule copies the build directory's runtime files, so an install prefix inside it copies itself recursively (`install/install/install/...`). Install to a separate folder.
 - **Windows runtime files.** A runnable Windows build needs the vcpkg `bin` DLLs, `bin/Release/MyGUIEngine.dll`, the `osgPlugins-3.6.5` folder and Qt deployed with `windeployqt`; without MyGUI the tests exit with `0xC0000135`.
@@ -400,6 +401,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-31 | Track W on Linux at `c9037dedd4`, with CI's GCC flags (`-Werror`): the build, `components-tests` 1936, `openmw-tests` 721 and all 32 Lua tests pass; no plugin in those Lua runs, launcher and editor not built. Not run on Linux: clang-format 14, clang-tidy, sanitizers, the real-game plugin checks. New pitfall: a contract must not be in an anonymous namespace |
 | 2026-10-31 | Track W stage W4 (task 0018): plugins build and install to `plugins/<id>/`; the Morrowind compatibility pack is on by default; `plugins/example/` uses every service, with `tools/plugin_example_check/`; the launcher has a Plugins page writing `plugin=` lines; plugin failures show one message at the main menu. Plugin data folders are now full data folders |
 | 2026-10-31 | Track W stage W3 (task 0017), except debug draw and the profiler overlay: plugins query the game's Jolt world in meters, see objects as entities with lifecycle events, and receive physics and game events. `OMW::PluginWorld` queues engine notifications from any thread and delivers on the main thread before `Phase::Input`. Plugins now start in the `Game` state. New `openeden/game_events.hpp`, `MWPhysics::ContactObserver`, `tools/plugin_world_check/`, `apps/openmw/mwphysics/CLAUDE.md` |
 | 2026-10-31 | Track W stage W2 (task 0016): plugin `data/` folders in the game's VFS above `data=` and below `data-local`; settings under `[plugin.<id>]` in `settings.cfg`; save chunks as `OEPL` records in `.omwsave`, preserved without their plugin and handled on the main thread only; marked events reach global scripts as `openeden_<pluginId>_<eventName>`. New `MWBase::PluginManager`, `ESM::PluginChunk` and `tools/plugin_data_check/` |
