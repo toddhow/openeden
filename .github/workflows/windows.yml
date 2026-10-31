@@ -119,7 +119,6 @@ jobs:
     - name: Copy missing DLLs
       run: |
         cp ${{ github.workspace }}/deps/vcpkg-x64-windows-${{ inputs.msvc }}-${{ inputs.vcpkg-deps-tag }}/installed/x64-windows/bin/Release/MyGUIEngine.dll ${{ github.workspace }}/build
-        cp -Filter *.dll -Recurse ${{ github.workspace }}/deps/vcpkg-x64-windows-${{ inputs.msvc }}-${{ inputs.vcpkg-deps-tag }}/installed/x64-windows/bin/osgPlugins-3.6.5 ${{ github.workspace }}/build
         cp ${{ github.workspace }}/deps/vcpkg-x64-windows-${{ inputs.msvc }}-${{ inputs.vcpkg-deps-tag }}/installed/x64-windows/bin/*.dll ${{ github.workspace }}/build
 
     - name: Copy Qt DLLs
@@ -128,8 +127,6 @@ jobs:
         cp bin/Qt6Core.dll ${{ github.workspace }}/build
         cp bin/Qt6Gui.dll ${{ github.workspace }}/build
         cp bin/Qt6Network.dll ${{ github.workspace }}/build
-        cp bin/Qt6OpenGL.dll ${{ github.workspace }}/build
-        cp bin/Qt6OpenGLWidgets.dll ${{ github.workspace }}/build
         cp bin/Qt6Widgets.dll ${{ github.workspace }}/build
         cp bin/Qt6Svg.dll ${{ github.workspace }}/build
         mkdir ${{ github.workspace }}/build/styles

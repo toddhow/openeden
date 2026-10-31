@@ -33,6 +33,12 @@ if(NOT OPENMW_USE_SYSTEM_JOLT)
     # and will enable floating point exceptions during simulation to detect divisions by zero. 
     set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF)
 
+    # openeden: Jolt is a shared library, one copy for the game and the plugins that link it (plugins/compat_morrowind).
+    # It used to follow BUILD_SHARED_LIBS from the cache, which the VSG section below forces on: so the first configure
+    # of a new build folder built a static Jolt without -fPIC, which a plugin cannot link on Linux, and every later
+    # configure a shared one. Every existing build folder had the shared one; this makes the first configure agree.
+    set(BUILD_SHARED_LIBS ON)
+
     include(FetchContent)
     FetchContent_Declare(joltphysics
         URL https://github.com/jrouwe/JoltPhysics/archive/refs/tags/v5.5.0.zip
@@ -44,6 +50,7 @@ if(NOT OPENMW_USE_SYSTEM_JOLT)
 
     set(JOLT_INCLUDE_DIRS ${joltphysics_SOURCE_DIR} PARENT_SCOPE)
     set(JOLT_LIBRARIES Jolt PARENT_SCOPE)
+    unset(BUILD_SHARED_LIBS)
 endif()
 
 if(NOT OPENMW_USE_SYSTEM_MYGUI)
@@ -415,6 +422,10 @@ if (WIN32)
     set(OPENEDEN_VSG_DLL_TARGETS vsg vsgXchange)
     if (TARGET vsgQt)
         list(APPEND OPENEDEN_VSG_DLL_TARGETS vsgQt)
+    endif()
+    # Jolt's DLL too (shared, see the Jolt section): a new build folder otherwise left it in _deps/joltphysics-build.
+    if (TARGET Jolt)
+        list(APPEND OPENEDEN_VSG_DLL_TARGETS Jolt)
     endif()
     foreach(target ${OPENEDEN_VSG_DLL_TARGETS})
         set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fails if any C or C++ file in the repository goes back to OpenSceneGraph (Track V, decision 0002; tasks 0013 and 0014):
 # an include of an OSG header (osg, osgDB, osgUtil, osgQt, OpenThreads and the rest), a name in an osg* namespace
-# (osg::, osgDB::, ...) or a declaration of such a namespace. It also fails on `*=` whose right-hand side is written as a
+# or OpenThreads (osg::, osgDB::, OpenThreads::, ...), a declaration of such a namespace, or an OSG_ macro. It also fails on `*=` whose right-hand side is written as a
 # VSG vector, which is a component-wise product in VSG and has no meaning from OSG; a named vector on the right cannot be
 # told from a scalar by text alone, so that part is a best effort.
 #
@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-git ls-files | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inl|inc|mm)$' | perl -e '
+git ls-files | grep -E '\.(c|cc|cpp|cxx|c\+\+|h|hh|hpp|hxx|h\+\+|inl|inc|ipp|tpp|txx|mm|m)(\.in|\.cmake)?$' | perl -e '
     use strict;
     my $failed = 0;
     while (my $file = <STDIN>) {
@@ -20,10 +20,12 @@ git ls-files | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inl|inc|mm)$' | perl -e '
         my $original = <$h>;
         close $h;
         my $text = $original;
-        # Blank comments and strings, keeping the line count.
-        $text =~ s{//[^\n]*|/\*.*?\*/|"(?:[^"\\\n]|\\.)*"}{
+        # Blank comments, raw strings, strings and character literals, keeping the line count. A character literal
+        # holding a double quote must not start a string; a digit separator (1\x27000) is not a character literal.
+        $text =~ s{R"([^(\s"\\]{0,16})\(.*?\)\1"|//[^\n]*|/\*.*?\*/|"(?:[^"\\\n]|\\.)*"|(?<![0-9A-Za-z_])\x27(?:[^\x27\\\n]|\\.){1,10}\x27}{
             my $m = $&;
-            substr($m, 0, 1) eq "\"" || $m =~ /^\/\// ? ($m =~ /^"/ ? "\"\"" : "") : ($m =~ tr/\n//c, $m =~ s/[^\n]//gr)[1];
+            my $newlines = $m =~ s/[^\n]//gr;
+            $m =~ /^R?"/ ? "\"\"" . $newlines : $newlines;
         }gse;
         # An include written in quotes was just blanked, so includes are read from the original line.
         my @original = split /\n/, $original;
@@ -34,8 +36,9 @@ git ls-files | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inl|inc|mm)$' | perl -e '
             my $include = /^\s*#\s*include\b/
                 && $source =~ /^\s*#\s*include\s*[<"](?:[^>"]*\/)?(?:osg[A-Za-z]*|OpenThreads)(?:\/|\.h\b|\.hpp\b|>)/;
             my $problem = $include                                   ? "OSG include"
-                : /\bnamespace\s+osg[A-Za-z]*\b/                     ? "OSG namespace"
-                : /\bosg[A-Za-z]*::/                                 ? "OSG name"
+                : /\bnamespace\s+(?:osg[A-Za-z]*|OpenThreads)\b/     ? "OSG namespace"
+                : /\b(?:osg[A-Za-z]*|OpenThreads)::/                 ? "OSG name"
+                : /\bOSG_[A-Z0-9_]+\b/                               ? "OSG macro"
                 : /\*=\s*vsg::[di]?vec[234]\b/                       ? "*= with a vector right-hand side"
                 :                                                      "";
             next unless $problem;

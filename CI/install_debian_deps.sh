@@ -34,7 +34,7 @@ declare -rA GROUPED_DEPS=(
     libboost-system-dev libboost-iostreams-dev
 
     libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
-    libsdl2-dev libqt6opengl6-dev qt6-tools-dev qt6-tools-dev-tools libopenal-dev
+    libsdl2-dev qt6-base-dev libgl-dev qt6-tools-dev qt6-tools-dev-tools libopenal-dev
     libunshield-dev libtinyxml-dev liblz4-dev libpng-dev libjpeg-dev
     libluajit-5.1-dev librecast-dev libsqlite3-dev ca-certificates libicu-dev
     libyaml-cpp-dev libqt6svg6 libqt6svg6-dev
@@ -42,21 +42,12 @@ declare -rA GROUPED_DEPS=(
   "
 
   # These dependencies can alternatively be built and linked statically.
-  [openmw-deps-dynamic]="libmygui-dev libopenscenegraph-dev libsqlite3-dev libcollada-dom-dev"
+  [openmw-deps-dynamic]="libmygui-dev libsqlite3-dev"
   [clang-tidy]="clang-tidy-19"
 
-  # Pre-requisites for building MyGUI and OSG for static linking.
-  #
-  # * MyGUI and OSG: libsdl2-dev liblz4-dev libfreetype6-dev
-  # * OSG: libgl-dev
-  #
-  #   Plugins:
-  #   * DAE: libcollada-dom-dev libboost-system-dev libboost-filesystem-dev
-  #   * JPEG: libjpeg-dev
-  #   * PNG: libpng-dev
+  # Pre-requisites for building MyGUI for static linking: libsdl2-dev liblz4-dev libfreetype6-dev
   [openmw-deps-static]="
-    libcollada-dom-dev libfreetype6-dev libjpeg-dev libpng-dev
-    libsdl2-dev libboost-system-dev libboost-filesystem-dev libgl-dev
+    libfreetype6-dev libsdl2-dev liblz4-dev
   "
 
   [openmw-coverage]="pipx"
@@ -72,18 +63,17 @@ declare -rA GROUPED_DEPS=(
     libboost-iostreams1.83.0
     libboost-program-options1.83.0
     libboost-system1.83.0
-    libcollada-dom2.5-dp0
     libicu74
     libjpeg8
     libluajit-5.1-2
     liblz4-1
     libmyguiengine3debian1v5
     libopenal1
-    libopenscenegraph161
     libpng16-16
-    libqt6opengl6
     librecast1
     libsdl2-2.0-0
+    libvulkan1
+    mesa-vulkan-drivers
     libsqlite3-0
     libswresample4
     libswscale7

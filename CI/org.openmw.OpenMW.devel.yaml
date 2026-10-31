@@ -40,16 +40,6 @@ modules:
         url: https://boostorg.jfrog.io/artifactory/main/release/1.75.0/source/boost_1_75_0.tar.gz
         sha256: aeb26f80e80945e82ee93e5939baebdca47b9dee80a07d3144be1e1a6a66dd6a
 
-  - name: collada-dom
-    buildsystem: cmake-ninja
-    config-opts:
-      - "-DOPT_COLLADA14=1"
-      - "-DOPT_COLLADA15=0"
-    sources:
-      - type: archive
-        url: https://github.com/rdiankov/collada-dom/archive/c1e20b7d6ff806237030fe82f126cb86d661f063.zip
-        sha256: 6c51cd068c7d6760b587391884942caaac8a515d138535041e42d00d3e5c9152
-
   - name: ffmpeg
     config-opts:
       - "--disable-static"
@@ -72,28 +62,6 @@ modules:
         sha256: 46e4e64f1dd0233cbc0934b9f1c0da676008cad34725113fb7f802cfa84ccddb
     cleanup:
       - "/share/ffmpeg"
-
-  - name: openscenegraph
-    buildsystem: cmake-ninja
-    config-opts:
-      - "-DBUILD_OSG_PLUGINS_BY_DEFAULT=0"
-      - "-DBUILD_OSG_PLUGIN_OSG=1"
-      - "-DBUILD_OSG_PLUGIN_DDS=1"
-      - "-DBUILD_OSG_PLUGIN_DAE=1"
-      - "-DBUILD_OSG_PLUGIN_TGA=1"
-      - "-DBUILD_OSG_PLUGIN_BMP=1"
-      - "-DBUILD_OSG_PLUGIN_JPEG=1"
-      - "-DBUILD_OSG_PLUGIN_PNG=1"
-      - "-DBUILD_OSG_DEPRECATED_SERIALIZERS=0"
-      - "-DBUILD_OSG_APPLICATIONS=0"
-      - "-DCMAKE_BUILD_TYPE=Release"
-    build-options:
-      env:
-        COLLADA_DIR: /app/include/collada-dom2.5
-    sources:
-      - type: archive
-        url: https://github.com/openmw/osg/archive/76e061739610bc9a3420a59e7c9395e742ce2f97.zip
-        sha256: fa1100362eae260192819d65d90b29ec0b88fdf80e30cee677730b7a0d68637e
 
   - name: jolt
     buildsystem: cmake

@@ -175,8 +175,6 @@ Options:
 		CMake install prefix
 	-b
 		Build benchmarks
-	-M
-		Use a multiview build of OSG
 	-E
 		Use warnings as errors (/WX)
 	-T
@@ -309,16 +307,6 @@ add_runtime_dlls() {
 	local CONFIG=$1
 	shift
 	RUNTIME_DLLS[$CONFIG]="${RUNTIME_DLLS[$CONFIG]} $@"
-}
-
-declare -A OSG_PLUGINS
-OSG_PLUGINS["Release"]=""
-OSG_PLUGINS["Debug"]=""
-OSG_PLUGINS["RelWithDebInfo"]=""
-add_osg_dlls() {
-	local CONFIG=$1
-	shift
-	OSG_PLUGINS[$CONFIG]="${OSG_PLUGINS[$CONFIG]} $@"
 }
 
 declare -A QT_PLATFORMS
@@ -657,7 +645,6 @@ printf "vcpkg packages ${VCPKG_TAG:?}... "
 			add_runtime_dlls ${CONFIGURATION:?} "${VCPKG_DLL_BIN:?}/Release/MyGUIEngine.dll"
 		fi
 
-		add_osg_dlls ${CONFIGURATION:?} "${VCPKG_DLL_BIN:?}/osgPlugins-3.6.5/*.dll"
 		add_runtime_dlls ${CONFIGURATION:?} "${VCPKG_DLL_BIN:?}/*.dll"
 	done
 
@@ -714,7 +701,7 @@ printf "Qt ${QT_VER}... "
 			DLLSUFFIX=""
 		fi
 
-		add_runtime_dlls $CONFIGURATION "$(pwd)/bin/Qt${QT_MAJOR_VER}"{Core,Gui,Network,OpenGL,OpenGLWidgets,Widgets,Svg}${DLLSUFFIX}.dll
+		add_runtime_dlls $CONFIGURATION "$(pwd)/bin/Qt${QT_MAJOR_VER}"{Core,Gui,Network,Widgets,Svg}${DLLSUFFIX}.dll
 
 		# Since Qt 6.7.0 plugin is called "qmodernwindowsstyle"
 		if [ "${QT_MINOR_VER}" -ge 7 ]; then
@@ -795,13 +782,6 @@ fi
 			fi
 			echo "    ${TARGET}."
 			cp "$DLL" "${DLL_PREFIX}$TARGET"
-		done
-		echo
-		echo "- OSG Plugin DLLs..."
-		mkdir -p ${DLL_PREFIX}osgPlugins-3.6.5
-		for DLL in ${OSG_PLUGINS[$CONFIGURATION]}; do
-			echo "    $(basename $DLL)."
-			cp "$DLL" ${DLL_PREFIX}osgPlugins-3.6.5
 		done
 		echo
 		echo "- Qt Platform DLLs..."

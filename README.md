@@ -1,15 +1,12 @@
-OpenMW
+OpenEden
 ======
 
-OpenMW is an open-source open-world RPG game engine that supports playing Morrowind by Bethesda Softworks. You need to own the game for OpenMW to play Morrowind.
+OpenEden is an open-source open-world RPG game engine forked from OpenMW. OpenEden is focused on bring modern game engine features to Bethesda's older games, as well as in the future providing a stable platform for modders that doesn't rely on the whims of Bethesda's update cycle in the case of Skyrim and Fallout 4, currently only Morrowind is in a playable state.
 
 OpenMW also comes with OpenMW-CS, a replacement for Bethesda's Construction Set.
 
 * Version: 0.51.0
-* License: GPLv3 (see [LICENSE](https://gitlab.com/OpenMW/openmw/-/raw/master/LICENSE) for more information)
-* Website: https://www.openmw.org
-* IRC: #openmw on irc.libera.chat
-* Discord: https://discord.gg/bWuqq2e
+* License: GPLv3 (see [LICENSE](https://github.com/toddhow/openeden/blob/master/LICENSE) for more information)
 
 
 Font Licenses:
@@ -23,6 +20,11 @@ Current Status
 The main quests in Morrowind, Tribunal and Bloodmoon are all completable. Some issues with side quests are to be expected (but rare). Check the [bug tracker](https://gitlab.com/OpenMW/openmw/-/issues/?milestone_title=openmw-1.0) for a list of issues we need to resolve before the "1.0" release. Even before the "1.0" release, however, OpenMW boasts some new [features](https://wiki.openmw.org/index.php?title=Features), such as improved graphics and user interfaces.
 
 Pre-existing modifications created for the original Morrowind engine can be hit-and-miss. The OpenMW script compiler performs more thorough error-checking than Morrowind does, meaning that a mod created for Morrowind may not necessarily run in OpenMW. Some mods also rely on quirky behaviour or engine bugs in order to work. We are considering such compatibility issues on a case-by-case basis - in some cases adding a workaround to OpenMW may be feasible, in other cases fixing the mod will be the only option. If you know of any mods that work or don't work, feel free to add them to the [Mod status](https://wiki.openmw.org/index.php?title=Mod_status) wiki page.
+
+Building OpenEden
+-----------------
+
+OpenEden is a fork of OpenMW that renders with Vulkan through VulkanSceneGraph; it needs no OpenSceneGraph. CMake fetches VulkanSceneGraph, vsgXchange, vsgQt, glslang, assimp and Jolt Physics at pinned versions ([docs/dependencies.md](docs/dependencies.md)). The other dependencies are installed as `CI/install_debian_deps.sh` (Ubuntu 24.04) and `CI/before_script.msvc.sh` (Windows) do; running needs a Vulkan driver. The build instructions linked below are OpenMW's and still describe OpenSceneGraph, which OpenEden does not use.
 
 Getting Started
 ---------------
@@ -110,3 +112,6 @@ Command line options
                                             image and XML file in current directory
       --activate-dist arg (=-1)             activation distance override
       --random-seed arg (=<impl defined>)   seed value for random number generator
+
+## Credits
+* [OpenMW](https://gitlab.com/OpenMW/openmw)

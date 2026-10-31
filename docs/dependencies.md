@@ -86,6 +86,11 @@ Stage V0 introduces the dependencies required for the VulkanSceneGraph (VSG) ren
 - **Purpose / Why:** The editor's Vulkan viewport: a `QWindow` that owns a `vsg::Window`, embedded with `QWidget::createWindowContainer` (task 0014).
 - **Build Configuration:** Fetched by `extern/CMakeLists.txt` only when the editor is built, with `QT_PACKAGE_NAME=Qt6` and its examples off. Linux uses XCB only, so a Wayland session needs `QT_QPA_PLATFORM=xcb`.
 
+## Track V: Stage V6, removed
+
+- **OpenSceneGraph** (OpenMW's fork on Linux, vcpkg's 3.6.5 on Windows, its plugins and `extern/osgQt`) and **COLLADA-DOM** (OSG's `.dae` plugin): removed from the source, CMake, `CI/install_debian_deps.sh`, the Windows and Flatpak scripts (task 0014, D1 and D2). Their licences no longer apply to anything OpenEden builds. OpenMW's prebuilt Windows vcpkg archive (`CI/deps_versions.msvc.sh`) still contains OSG, as it is OpenMW's package set; nothing links or copies it now.
+- **Qt's OpenGL and OpenGL Widgets modules:** no longer looked up or deployed. Ubuntu's `qt6-base-dev` still pulls the runtime package in as its own dependency.
+
 ## Proposed, not adopted: Slang shader compiler
 
 **Status: proposed, not adopted.** Nothing in the build uses Slang. Recorded here so the facts are ready if toddhow approves the draft decision in `docs/research/0005-slang-shaders.md` (section 9); until then, glslang (item 3 above) remains the only shader compiler.
