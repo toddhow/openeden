@@ -26,7 +26,7 @@ namespace Nif
         {
             uint16_t mNumVertices;
 
-            void operator()(NIFStream& stream, std::vector<osg::Vec2f>& value) const
+            void operator()(NIFStream& stream, std::vector<vsg::vec2>& value) const
             {
                 stream.readVector(value, mNumVertices);
             }

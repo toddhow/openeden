@@ -24,9 +24,11 @@
 #ifndef OPENMW_COMPONENTS_NIF_NIFTYPES_HPP
 #define OPENMW_COMPONENTS_NIF_NIFTYPES_HPP
 
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/mat4.h>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 // Common types used in NIF files
 
@@ -53,13 +55,13 @@ namespace Nif
             return true;
         }
 
-        osg::Matrixf toOsgMatrix() const
+        vsg::mat4 toOsgMatrix() const
         {
-            osg::Matrixf osgMat;
+            vsg::mat4 osgMat;
 
             for (int i = 0; i < 3; ++i)
                 for (int j = 0; j < 3; ++j)
-                    osgMat(i, j) = mValues[j][i]; // NB: column/row major difference
+                    osgMat[i][j] = mValues[j][i]; // NB: column/row major difference
 
             return osgMat;
         }
@@ -68,51 +70,51 @@ namespace Nif
     struct NiTransform
     {
         Matrix3 mRotation; // this can contain scale components too, including negative and nonuniform scales
-        osg::Vec3f mTranslation;
+        vsg::vec3 mTranslation;
         float mScale;
 
-        osg::Matrixf toMatrix() const
+        vsg::mat4 toMatrix() const
         {
-            osg::Matrixf transform;
-            transform.setTrans(mTranslation);
+            vsg::mat4 transform;
+            Misc::VsgMath::setTrans(transform, mTranslation);
 
             for (int i = 0; i < 3; ++i)
                 for (int j = 0; j < 3; ++j)
-                    transform(j, i) = mRotation.mValues[i][j] * mScale; // NB column/row major difference
+                    transform[j][i] = mRotation.mValues[i][j] * mScale; // NB column/row major difference
 
             return transform;
         }
 
-        bool isIdentity() const { return mRotation.isIdentity() && mTranslation == osg::Vec3f() && mScale == 1.f; }
+        bool isIdentity() const { return mRotation.isIdentity() && mTranslation == vsg::vec3() && mScale == 1.f; }
 
         static const NiTransform& getIdentity()
         {
-            static const NiTransform identity = { Matrix3(), osg::Vec3f(), 1.0f };
+            static const NiTransform identity = { Matrix3(), vsg::vec3(), 1.0f };
             return identity;
         }
     };
 
     struct NiQuatTransform
     {
-        osg::Vec3f mTranslation;
-        osg::Quat mRotation;
+        vsg::vec3 mTranslation;
+        vsg::dquat mRotation;
         float mScale;
 
-        osg::Matrixf toMatrix() const
+        vsg::mat4 toMatrix() const
         {
-            osg::Matrixf transform(mRotation);
-            transform.setTrans(mTranslation);
+            vsg::mat4 transform(Misc::VsgMath::toMatrix(mRotation));
+            Misc::VsgMath::setTrans(transform, mTranslation);
             for (int i = 0; i < 3; i++)
-                transform(i, i) *= mScale;
+                transform[i][i] *= mScale;
 
             return transform;
         }
 
-        bool isIdentity() const { return mTranslation == osg::Vec3f() && mRotation == osg::Quat() && mScale == 1.f; }
+        bool isIdentity() const { return mTranslation == vsg::vec3() && mRotation == vsg::dquat() && mScale == 1.f; }
 
         static const NiQuatTransform& getIdentity()
         {
-            static const NiQuatTransform identity = { osg::Vec3f(), osg::Quat(), 1.f };
+            static const NiQuatTransform identity = { vsg::vec3(), vsg::dquat(), 1.f };
             return identity;
         }
     };

@@ -71,7 +71,7 @@ namespace
         auto map = std::make_shared<Nif::Vector3KeyMap>();
         map->mInterpolationType = type;
         for (const auto& [time, value] : keys)
-            map->mKeys.emplace_back(time, Nif::KeyT<osg::Vec3f>{ value, osg::Vec3f(), osg::Vec3f() });
+            map->mKeys.emplace_back(time, Nif::KeyT<vsg::vec3>{ value, osg::Vec3f(), osg::Vec3f() });
         return map;
     }
 
@@ -89,7 +89,7 @@ namespace
         auto map = std::make_shared<Nif::QuaternionKeyMap>();
         map->mInterpolationType = type;
         for (const auto& [time, value] : keys)
-            map->mKeys.emplace_back(time, Nif::KeyT<osg::Quat>{ value, osg::Quat(), osg::Quat() });
+            map->mKeys.emplace_back(time, Nif::KeyT<vsg::dquat>{ value, osg::Quat(), osg::Quat() });
         return map;
     }
 
@@ -248,15 +248,15 @@ TEST(CompatMorrowindTest, KfToGltfConversionAndCreativeMotionIngestion)
     // Set up a bone controller
     auto transMap = std::make_shared<Nif::Vector3KeyMap>();
     transMap->mInterpolationType = Nif::InterpolationType_Linear;
-    Nif::KeyT<osg::Vec3f> k0{ osg::Vec3f(0.0f, 0.0f, 70.0f), {}, {} };
-    Nif::KeyT<osg::Vec3f> k1{ osg::Vec3f(0.0f, 140.0f, 70.0f), {}, {} };
+    Nif::KeyT<vsg::vec3> k0{ osg::Vec3f(0.0f, 0.0f, 70.0f), {}, {} };
+    Nif::KeyT<vsg::vec3> k1{ osg::Vec3f(0.0f, 140.0f, 70.0f), {}, {} };
     transMap->mKeys.emplace_back(0.0f, k0);
     transMap->mKeys.emplace_back(2.0f, k1);
 
     auto rotMap = std::make_shared<Nif::QuaternionKeyMap>();
     rotMap->mInterpolationType = Nif::InterpolationType_Linear;
-    Nif::KeyT<osg::Quat> r0{ osg::Quat(0.0f, 0.0f, 0.0f, 1.0f), {}, {} };
-    Nif::KeyT<osg::Quat> r1{ osg::Quat(0.0f, 0.0f, 0.7071068f, 0.7071068f), {}, {} }; // 90 degree yaw
+    Nif::KeyT<vsg::dquat> r0{ osg::Quat(0.0f, 0.0f, 0.0f, 1.0f), {}, {} };
+    Nif::KeyT<vsg::dquat> r1{ osg::Quat(0.0f, 0.0f, 0.7071068f, 0.7071068f), {}, {} }; // 90 degree yaw
     rotMap->mKeys.emplace_back(0.0f, r0);
     rotMap->mKeys.emplace_back(2.0f, r1);
 
@@ -434,8 +434,8 @@ TEST(CompatMorrowindKfTrackTest, QuadraticVectorKeysUseCubicHermite)
 
     auto map = std::make_shared<Nif::Vector3KeyMap>();
     map->mInterpolationType = Nif::InterpolationType_Quadratic;
-    map->mKeys.emplace_back(0.f, Nif::KeyT<osg::Vec3f>{ a, osg::Vec3f(9.f, 9.f, 9.f), aOut });
-    map->mKeys.emplace_back(2.f, Nif::KeyT<osg::Vec3f>{ b, bIn, osg::Vec3f(-9.f, -9.f, -9.f) });
+    map->mKeys.emplace_back(0.f, Nif::KeyT<vsg::vec3>{ a, osg::Vec3f(9.f, 9.f, 9.f), aOut });
+    map->mKeys.emplace_back(2.f, Nif::KeyT<vsg::vec3>{ b, bIn, osg::Vec3f(-9.f, -9.f, -9.f) });
 
     auto data = makeKeyframeData();
     data->mTranslations = map;
@@ -463,8 +463,8 @@ TEST(CompatMorrowindKfTrackTest, TcbVectorKeysUseCubicHermiteWithStoredTangents)
 
     auto map = std::make_shared<Nif::Vector3KeyMap>();
     map->mInterpolationType = Nif::InterpolationType_TCB;
-    map->mKeys.emplace_back(1.f, Nif::KeyT<osg::Vec3f>{ a, osg::Vec3f(), aOut });
-    map->mKeys.emplace_back(5.f, Nif::KeyT<osg::Vec3f>{ b, bIn, osg::Vec3f() });
+    map->mKeys.emplace_back(1.f, Nif::KeyT<vsg::vec3>{ a, osg::Vec3f(), aOut });
+    map->mKeys.emplace_back(5.f, Nif::KeyT<vsg::vec3>{ b, bIn, osg::Vec3f() });
 
     auto data = makeKeyframeData();
     data->mTranslations = map;

@@ -132,7 +132,7 @@ namespace Nif
 
         static void readQuadratic(NIFStream& nif, KeyType& key)
         {
-            if constexpr (std::is_same_v<T, osg::Quat>)
+            if constexpr (std::is_same_v<T, vsg::dquat>)
             {
                 readValue(nif, key);
             }
@@ -208,7 +208,7 @@ namespace Nif
             // TODO: is this even legal?
         }
 
-        static void generateTCBTangents(std::vector<TCBKey<osg::Quat>>& keys)
+        static void generateTCBTangents(std::vector<TCBKey<vsg::dquat>>& keys)
         {
             // TODO: implement TCB interpolation for quaternions
         }
@@ -225,9 +225,9 @@ namespace Nif
     }
 
     using FloatKeyMap = KeyMapT<float, &NIFStream::get<float>>;
-    using Vector3KeyMap = KeyMapT<osg::Vec3f, &NIFStream::get<osg::Vec3f>>;
-    using Vector4KeyMap = KeyMapT<osg::Vec4f, &NIFStream::get<osg::Vec4f>>;
-    using QuaternionKeyMap = KeyMapT<osg::Quat, &NIFStream::get<osg::Quat>>;
+    using Vector3KeyMap = KeyMapT<vsg::vec3, &NIFStream::get<vsg::vec3>>;
+    using Vector4KeyMap = KeyMapT<vsg::vec4, &NIFStream::get<vsg::vec4>>;
+    using QuaternionKeyMap = KeyMapT<vsg::dquat, &NIFStream::get<vsg::dquat>>;
     using BoolKeyMap = KeyMapT<bool, &NIFStream::get<bool>>;
 
     using FloatKeyMapPtr = std::shared_ptr<FloatKeyMap>;

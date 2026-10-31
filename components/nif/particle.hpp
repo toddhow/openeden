@@ -59,8 +59,8 @@ namespace Nif
         float mDecay{ 0.f };
         float mForce;
         ForceType mType;
-        osg::Vec3f mPosition;
-        osg::Vec3f mDirection;
+        vsg::vec3 mPosition;
+        vsg::vec3 mDirection;
 
         void read(NIFStream* nif) override;
     };
@@ -73,8 +73,8 @@ namespace Nif
         float mStartTime;
         DecayType mDecayType;
         SymmetryType mSymmetryType;
-        osg::Vec3f mPosition;
-        osg::Vec3f mDirection;
+        vsg::vec3 mPosition;
+        vsg::vec3 mDirection;
 
         void read(NIFStream* nif);
     };
@@ -91,10 +91,10 @@ namespace Nif
     // NiPinaColada
     struct NiPlanarCollider : NiParticleCollider
     {
-        osg::Vec2f mExtents;
-        osg::Vec3f mPosition;
-        osg::Vec3f mXVector, mYVector;
-        osg::Vec3f mPlaneNormal;
+        vsg::vec2 mExtents;
+        vsg::vec3 mPosition;
+        vsg::vec3 mXVector, mYVector;
+        vsg::vec3 mPlaneNormal;
         float mPlaneDistance;
 
         void read(NIFStream* nif) override;
@@ -103,7 +103,7 @@ namespace Nif
     struct NiSphericalCollider : NiParticleCollider
     {
         float mRadius;
-        osg::Vec3f mCenter;
+        vsg::vec3 mCenter;
 
         void read(NIFStream* nif) override;
     };
@@ -111,7 +111,7 @@ namespace Nif
     struct NiParticleRotation : NiParticleModifier
     {
         uint8_t mRandomInitialAxis;
-        osg::Vec3f mInitialAxis;
+        vsg::vec3 mInitialAxis;
         float mRotationSpeed;
 
         void read(NIFStream* nif) override;
@@ -124,12 +124,12 @@ namespace Nif
 
         std::vector<float> mRadii;
         std::vector<float> mSizes;
-        std::vector<osg::Quat> mRotations;
+        std::vector<vsg::dquat> mRotations;
         std::vector<float> mRotationAngles;
-        std::vector<osg::Vec3f> mRotationAxes;
+        std::vector<vsg::vec3> mRotationAxes;
 
         bool mHasTextureIndices{ false };
-        std::vector<osg::Vec4f> mSubtextureOffsets;
+        std::vector<vsg::vec4> mSubtextureOffsets;
         float mAspectRatio{ 1.f };
         uint16_t mAspectFlags{ 0 };
         float mAspectRatio2;
@@ -154,7 +154,7 @@ namespace Nif
 
     struct NiParticleSystem : NiParticles
     {
-        osg::BoundingSpheref mBoundingSphere;
+        vsg::sphere mBoundingSphere;
         std::array<float, 6> mBoundMinMax;
         BSVertexDesc mVertDesc;
         std::array<uint16_t, 4> mNearFar;
@@ -237,7 +237,7 @@ namespace Nif
     struct NiPSysBombModifier : NiPSysModifier
     {
         NiAVObjectPtr mBombObject;
-        osg::Vec3f mBombAxis;
+        vsg::vec3 mBombAxis;
         float mRange;
         float mStrength;
         DecayType mDecayType;
@@ -265,7 +265,7 @@ namespace Nif
     struct NiPSysDragModifier : NiPSysModifier
     {
         NiAVObjectPtr mDragObject;
-        osg::Vec3f mDragAxis;
+        vsg::vec3 mDragAxis;
         float mPercentage;
         float mRange;
         float mRangeFalloff;
@@ -277,7 +277,7 @@ namespace Nif
     struct NiPSysGravityModifier : NiPSysModifier
     {
         NiAVObjectPtr mGravityObject;
-        osg::Vec3f mGravityAxis;
+        vsg::vec3 mGravityAxis;
         float mDecay;
         float mStrength;
         ForceType mForceType;
@@ -316,7 +316,7 @@ namespace Nif
         float mRotationAngleVariation;
         bool mRandomRotSpeedSign;
         bool mRandomAxis;
-        osg::Vec3f mAxis;
+        vsg::vec3 mAxis;
 
         void read(NIFStream* nif) override;
     };
@@ -373,8 +373,8 @@ namespace Nif
 
     struct BSPSysRecycleBoundModifier : NiPSysModifier
     {
-        osg::Vec3f mBoundOffset;
-        osg::Vec3f mBoundExtents;
+        vsg::vec3 mBoundOffset;
+        vsg::vec3 mBoundExtents;
         NiAVObjectPtr mBoundObject;
 
         void read(NIFStream* nif) override;
@@ -396,7 +396,7 @@ namespace Nif
         float mColor1StartPercent;
         float mColor2EndPercent;
         float mColor2StartPercent;
-        std::vector<osg::Vec4f> mColors;
+        std::vector<vsg::vec4> mColors;
 
         void read(NIFStream* nif) override;
     };
@@ -437,7 +437,7 @@ namespace Nif
         float mDeclinationVariation;
         float mPlanarAngle;
         float mPlanarAngleVariation;
-        osg::Vec4f mInitialColor;
+        vsg::vec4 mInitialColor;
         float mInitialRadius;
         float mRadiusVariation;
         float mLifespan;
@@ -477,7 +477,7 @@ namespace Nif
         NiAVObjectList mEmitterMeshes;
         uint32_t mInitialVelocityType;
         uint32_t mEmissionType;
-        osg::Vec3f mEmissionAxis;
+        vsg::vec3 mEmissionAxis;
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -574,8 +574,8 @@ namespace Nif
     {
         float mWidth;
         float mHeight;
-        osg::Vec3f mXAxis;
-        osg::Vec3f mYAxis;
+        vsg::vec3 mXAxis;
+        vsg::vec3 mYAxis;
 
         void read(NIFStream* nif) override;
     };

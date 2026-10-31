@@ -41,8 +41,8 @@ namespace compat_morrowind
             }
         }
 
-        osg::Quat interpolate(
-            const Nif::KeyT<osg::Quat>& a, const Nif::KeyT<osg::Quat>& b, float fraction, unsigned int type)
+        vsg::dquat interpolate(
+            const Nif::KeyT<vsg::dquat>& a, const Nif::KeyT<vsg::dquat>& b, float fraction, unsigned int type)
         {
             switch (type)
             {
@@ -51,9 +51,7 @@ namespace compat_morrowind
                 default:
                 {
                     // Quadratic and TBC quaternion keys are slerped too, as in OpenMW.
-                    osg::Quat result;
-                    result.slerp(fraction, a.mValue, b.mValue);
-                    return result;
+                    return Misc::VsgMath::slerp(fraction, a.mValue, b.mValue);
                 }
             }
         }

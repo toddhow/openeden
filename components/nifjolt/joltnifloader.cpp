@@ -72,15 +72,15 @@ namespace NifJolt
 
     // Some nif scales aren't exactly 1.0f, 1.0f, 1.0f but within a small epsilon
     // detect that so we can skip potentially expensive scaling
-    bool isScaleUniformAndCloseToOne(const osg::Vec3& localScale)
+    bool isScaleUniformAndCloseToOne(const vsg::vec3& localScale)
     {
         const float targetScale = 1.0f;
         const float epsilon = 0.0001f;
 
         // Check if each component of localScale is within epsilon of targetScale
-        bool scaleXCloseToOne = std::abs(localScale.x() - targetScale) < epsilon;
-        bool scaleYCloseToOne = std::abs(localScale.y() - targetScale) < epsilon;
-        bool scaleZCloseToOne = std::abs(localScale.z() - targetScale) < epsilon;
+        bool scaleXCloseToOne = std::abs(localScale.x - targetScale) < epsilon;
+        bool scaleYCloseToOne = std::abs(localScale.y - targetScale) < epsilon;
+        bool scaleZCloseToOne = std::abs(localScale.z - targetScale) < epsilon;
 
         // Return true only if all components are within epsilon of 1.0f
         return scaleXCloseToOne && scaleYCloseToOne && scaleZCloseToOne;
@@ -365,15 +365,15 @@ namespace NifJolt
         if (childShape == nullptr)
             return;
 
-        osg::Matrixf transform = niGeometry.mTransform.toMatrix();
+        vsg::mat4 transform = niGeometry.mTransform.toMatrix();
         for (const Nif::Parent* parent = nodeParent; parent != nullptr; parent = parent->mParent)
-            transform *= parent->mNiNode.mTransform.toMatrix();
+            transform = parent->mNiNode.mTransform.toMatrix() * transform;
 
-        osg::Vec3f localScale = transform.getScale();
-        transform.orthoNormalize(transform);
+        vsg::vec3 localScale(Misc::VsgMath::getScale(transform));
+        transform = Misc::VsgMath::orthoNormalize(transform);
 
-        const osg::Vec3f& osgPos = transform.getTrans();
-        const osg::Quat& osgQuat = transform.getRotate();
+        const vsg::vec3 position(Misc::VsgMath::getTrans(transform));
+        const vsg::dquat rotation = Misc::VsgMath::rotationOf(transform);
 
         // Try create shape, Jolt will validate and give error if it failed (it shouldnt usually)
         auto createdRef = childShape->Create();
@@ -441,7 +441,7 @@ namespace NifJolt
                 mShape->mCollisionSwitches.emplace(niGeometry.mRecordIndex, *args.mCollisionSwitchRecordIndex);
 
             mCompoundShape->AddShape(
-                JPH::Vec3(osgPos.x(), osgPos.y(), osgPos.z()), Misc::Convert::toJolt(osgQuat), createdRef.Get());
+                JPH::Vec3(position.x, position.y, position.z), Misc::Convert::toJolt(rotation), createdRef.Get());
         }
         else
         {
@@ -460,7 +460,7 @@ namespace NifJolt
             }
 
             mAvoidCompoundShape->AddShape(
-                JPH::Vec3(osgPos.x(), osgPos.y(), osgPos.z()), Misc::Convert::toJolt(osgQuat), createdRef.Get());
+                JPH::Vec3(position.x, position.y, position.z), Misc::Convert::toJolt(rotation), createdRef.Get());
         }
 
         // `childShape` is no longer needed after `Create()`, let unique_ptr clean it up.

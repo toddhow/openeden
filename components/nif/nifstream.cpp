@@ -25,7 +25,7 @@ namespace
 
     // Read a range of elements into a dynamic buffer
     // This one should be used if the type can be read contiguously as an array of a different type
-    // (e.g. osg::VecXf can be read as a float array of X elements)
+    // (e.g. vsg::vecX can be read as a float array of X elements)
     template <class elementType, size_t numElements, class T>
     void readAlignedRange(Files::IStreamPtr& stream, T* dest, size_t size)
     {
@@ -102,21 +102,21 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f& vec)
+    void NIFStream::read<vsg::vec2>(vsg::vec2& vec)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, vec.value);
     }
 
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f& vec)
+    void NIFStream::read<vsg::vec3>(vsg::vec3& vec)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, vec.value);
     }
 
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f& vec)
+    void NIFStream::read<vsg::vec4>(vsg::vec4& vec)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, vec.value);
     }
 
     template <>
@@ -126,21 +126,21 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat& quat)
+    void NIFStream::read<vsg::dquat>(vsg::dquat& quat)
     {
         std::array<float, 4> data;
         readArray(data);
-        quat.w() = data[0];
-        quat.x() = data[1];
-        quat.y() = data[2];
-        quat.z() = data[3];
+        quat.w = data[0];
+        quat.x = data[1];
+        quat.y = data[2];
+        quat.z = data[3];
     }
 
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref& sphere)
+    void NIFStream::read<vsg::sphere>(vsg::sphere& sphere)
     {
-        read(sphere.center());
-        read(sphere.radius());
+        read(sphere.center);
+        read(sphere.radius);
     }
 
     template <>
@@ -160,9 +160,9 @@ namespace Nif
         if (getVersion() >= generateVersion(10, 1, 0, 110))
             return;
         if (!get<bool>())
-            transform.mTranslation = osg::Vec3f();
+            transform.mTranslation = vsg::vec3();
         if (!get<bool>())
-            transform.mRotation = osg::Quat();
+            transform.mRotation = vsg::dquat();
         if (!get<bool>())
             transform.mScale = 1.f;
     }
@@ -186,19 +186,19 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, size_t size)
+    void NIFStream::read<vsg::vec2>(vsg::vec2* dest, size_t size)
     {
         readAlignedRange<float, 2>(mStream, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f* dest, size_t size)
+    void NIFStream::read<vsg::vec3>(vsg::vec3* dest, size_t size)
     {
         readAlignedRange<float, 3>(mStream, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f* dest, size_t size)
+    void NIFStream::read<vsg::vec4>(vsg::vec4* dest, size_t size)
     {
         readAlignedRange<float, 4>(mStream, dest, size);
     }
@@ -210,13 +210,13 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat* dest, size_t size)
+    void NIFStream::read<vsg::dquat>(vsg::dquat* dest, size_t size)
     {
         readRange(*this, dest, size);
     }
 
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref* dest, size_t size)
+    void NIFStream::read<vsg::sphere>(vsg::sphere* dest, size_t size)
     {
         readRange(*this, dest, size);
     }

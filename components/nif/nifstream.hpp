@@ -20,10 +20,12 @@
 #include <components/misc/endianness.hpp>
 #include <components/misc/float16.hpp>
 
-#include <osg/BoundingSphere>
-#include <osg/Quat>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
+#include <vsg/maths/plane.h>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/sphere.h>
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
 
 #include "niftypes.hpp"
 
@@ -213,17 +215,17 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f& vec);
+    void NIFStream::read<vsg::vec2>(vsg::vec2& vec);
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f& vec);
+    void NIFStream::read<vsg::vec3>(vsg::vec3& vec);
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f& vec);
+    void NIFStream::read<vsg::vec4>(vsg::vec4& vec);
     template <>
     void NIFStream::read<Matrix3>(Matrix3& mat);
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat& quat);
+    void NIFStream::read<vsg::dquat>(vsg::dquat& quat);
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref& sphere);
+    void NIFStream::read<vsg::sphere>(vsg::sphere& sphere);
     template <>
     void NIFStream::read<NiTransform>(NiTransform& transform);
     template <>
@@ -234,17 +236,17 @@ namespace Nif
     void NIFStream::read<std::string>(std::string& str);
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, size_t size);
+    void NIFStream::read<vsg::vec2>(vsg::vec2* dest, size_t size);
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f* dest, size_t size);
+    void NIFStream::read<vsg::vec3>(vsg::vec3* dest, size_t size);
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f* dest, size_t size);
+    void NIFStream::read<vsg::vec4>(vsg::vec4* dest, size_t size);
     template <>
     void NIFStream::read<Matrix3>(Matrix3* dest, size_t size);
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat* dest, size_t size);
+    void NIFStream::read<vsg::dquat>(vsg::dquat* dest, size_t size);
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref* dest, size_t size);
+    void NIFStream::read<vsg::sphere>(vsg::sphere* dest, size_t size);
     template <>
     void NIFStream::read<NiTransform>(NiTransform* dest, size_t size);
     template <>
@@ -254,6 +256,13 @@ namespace Nif
     template <>
     void NIFStream::read<std::string>(std::string* dest, size_t size);
 
+
+    // A plane stored as four floats; OSG's Plane(Vec4f) widened them.
+    inline vsg::dplane readPlane(NIFStream* nif)
+    {
+        const vsg::vec4 values = nif->get<vsg::vec4>();
+        return vsg::dplane(values[0], values[1], values[2], values[3]);
+    }
 }
 
 #endif

@@ -198,8 +198,8 @@ namespace vsgAdapters
     {
         // OpenEden: a quad reaches the particle size from its centre (main.vert), not half of it.
         return calculateMaxLifetime(partctrl) * (partctrl.mSpeed + partctrl.mSpeedVariation)
-            + std::max(partctrl.mEmitterDimensions.x(),
-                std::max(partctrl.mEmitterDimensions.y(), partctrl.mEmitterDimensions.z()))
+            + std::max(partctrl.mEmitterDimensions.x,
+                std::max(partctrl.mEmitterDimensions.y, partctrl.mEmitterDimensions.z))
             + partctrl.mInitialSize;
     }
 

@@ -40,9 +40,9 @@ namespace Nif
     struct NiLight : NiDynamicEffect
     {
         float mDimmer;
-        osg::Vec3f mAmbient;
-        osg::Vec3f mDiffuse;
-        osg::Vec3f mSpecular;
+        vsg::vec3 mAmbient;
+        vsg::vec3 mDiffuse;
+        vsg::vec3 mSpecular;
 
         void read(NIFStream* nif) override;
     };
@@ -84,7 +84,7 @@ namespace Nif
         };
 
         Matrix3 mProjectionRotation;
-        osg::Vec3f mProjectionPosition;
+        vsg::vec3 mProjectionPosition;
         uint32_t mFilterMode;
         NiSourceTexturePtr mTexture;
         uint16_t mMaxAnisotropy{ 0 };
@@ -92,7 +92,7 @@ namespace Nif
         TextureType mTextureType;
         CoordGenType mCoordGenType;
         uint8_t mEnableClipPlane;
-        osg::Plane mClipPlane;
+        vsg::dplane mClipPlane;
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;

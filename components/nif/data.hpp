@@ -24,13 +24,13 @@ namespace Nif
         uint16_t mNumVertices;
         uint8_t mKeepFlags{ 0 };
         uint8_t mCompressFlags{ 0 };
-        std::vector<osg::Vec3f> mVertices;
+        std::vector<vsg::vec3> mVertices;
         uint16_t mDataFlags{ 0 };
         uint32_t mMaterialHash;
-        std::vector<osg::Vec3f> mNormals, mTangents, mBitangents;
-        osg::BoundingSpheref mBoundingSphere;
-        std::vector<osg::Vec4f> mColors;
-        std::vector<std::vector<osg::Vec2f>> mUVList;
+        std::vector<vsg::vec3> mNormals, mTangents, mBitangents;
+        vsg::sphere mBoundingSphere;
+        std::vector<vsg::vec4> mColors;
+        std::vector<std::vector<vsg::vec2>> mUVList;
         uint16_t mConsistencyType;
 
         void read(NIFStream* nif) override;
@@ -235,7 +235,7 @@ namespace Nif
         NiAVObjectPtr mRoot;
         BSSkinBoneDataPtr mData;
         NiAVObjectList mBones;
-        std::vector<osg::Vec3f> mScales;
+        std::vector<vsg::vec3> mScales;
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -248,7 +248,7 @@ namespace Nif
         struct BoneInfo
         {
             NiTransform mTransform;
-            osg::BoundingSpheref mBoundSphere;
+            vsg::sphere mBoundSphere;
             std::vector<VertWeight> mWeights;
         };
 
@@ -264,7 +264,7 @@ namespace Nif
     {
         struct BoneInfo
         {
-            osg::BoundingSpheref mBoundSphere;
+            vsg::sphere mBoundSphere;
             NiTransform mTransform;
 
             void read(NIFStream* nif);
@@ -308,7 +308,7 @@ namespace Nif
         struct MorphData
         {
             FloatKeyMapPtr mKeyFrames;
-            std::vector<osg::Vec3f> mVertices;
+            std::vector<vsg::vec3> mVertices;
         };
 
         uint8_t mRelativeTargets;
@@ -432,16 +432,16 @@ namespace Nif
 
     struct BSMultiBoundAABB : public BSMultiBoundData
     {
-        osg::Vec3f mPosition;
-        osg::Vec3f mExtents;
+        vsg::vec3 mPosition;
+        vsg::vec3 mExtents;
 
         void read(NIFStream* nif) override;
     };
 
     struct BSMultiBoundOBB : public BSMultiBoundData
     {
-        osg::Vec3f mCenter;
-        osg::Vec3f mSize;
+        vsg::vec3 mCenter;
+        vsg::vec3 mSize;
         Nif::Matrix3 mRotation;
 
         void read(NIFStream* nif) override;
@@ -449,7 +449,7 @@ namespace Nif
 
     struct BSMultiBoundSphere : public BSMultiBoundData
     {
-        osg::BoundingSpheref mSphere;
+        vsg::sphere mSphere;
 
         void read(NIFStream* nif) override;
     };

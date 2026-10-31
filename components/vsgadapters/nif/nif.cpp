@@ -389,7 +389,7 @@ namespace vsgAdapters
                 size_t boneIndex = bones.size();
                 Anim::Transform t;
                 convertTrafo(t, boneData.mTransform);
-                vsg::dsphere bounds(toVsg(boneData.mBoundSphere.center()), boneData.mBoundSphere.radius());
+                vsg::dsphere bounds(toVsg(boneData.mBoundSphere.center), boneData.mBoundSphere.radius);
                 bones.push_back({ t.t_transform(vsg::mat4()), bounds, skin.mBones[i].getPtr()->mName });
                 for (const auto& [vertex, weight] : boneData.mWeights)
                 {
@@ -643,7 +643,7 @@ namespace vsgAdapters
                 if (colliders->mRecordType == Nif::RC_NiPlanarCollider)
                 {
                     const auto& cl = static_cast<const Nif::NiPlanarCollider&>(*colliders.getPtr());
-                    args.collide = { .positionBounce={ toVsg(cl.mPosition), cl.mBounceFactor }, .xVectorRadius={ toVsg(cl.mXVector), cl.mExtents.x()/2 }, .yVectorRadius={ toVsg(cl.mYVector), cl.mExtents.y()/2 }, .plane={ toVsg(cl.mPlaneNormal), cl.mPlaneDistance } };
+                    args.collide = { .positionBounce={ toVsg(cl.mPosition), cl.mBounceFactor }, .xVectorRadius={ toVsg(cl.mXVector), cl.mExtents.x/2 }, .yVectorRadius={ toVsg(cl.mYVector), cl.mExtents.y/2 }, .plane={ toVsg(cl.mPlaneNormal), cl.mPlaneDistance } };
                     modes |= Pipeline::ParticleMode_CollidePlane;
                 }
                 else if (colliders->mRecordType == Nif::RC_NiSphericalCollider)
@@ -1491,7 +1491,7 @@ namespace vsgAdapters
                     auto lodNode = vsgUtil::DistanceLOD::create();
                     lodNode->setValue("lod", std::string(nifNode.mName));
                     lodNode->center = vsg::vec3(
-                        niLodNode.mLODCenter.x(), niLodNode.mLODCenter.y(), niLodNode.mLODCenter.z());
+                        niLodNode.mLODCenter.x, niLodNode.mLODCenter.y, niLodNode.mLODCenter.z);
                     for (const auto& range : niLodNode.mLODLevels)
                         lodNode->ranges.push_back({ range.mMinRange, range.mMaxRange });
                     // Empty child references are skipped, so range i applies to the i-th present child, as in OpenMW.

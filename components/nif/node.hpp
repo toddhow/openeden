@@ -4,7 +4,7 @@
 #include <array>
 #include <unordered_map>
 
-#include <osg/Plane>
+#include <vsg/maths/plane.h>
 
 #include "base.hpp"
 
@@ -33,31 +33,31 @@ namespace Nif
 
         struct NiBoxBV
         {
-            osg::Vec3f mCenter;
+            vsg::vec3 mCenter;
             Matrix3 mAxes;
-            osg::Vec3f mExtents;
+            vsg::vec3 mExtents;
         };
 
         struct NiCapsuleBV
         {
-            osg::Vec3f mCenter, mAxis;
+            vsg::vec3 mCenter, mAxis;
             float mExtent{ 0.f }, mRadius{ 0.f };
         };
 
         struct NiLozengeBV
         {
             float mRadius{ 0.f }, mExtent0{ 0.f }, mExtent1{ 0.f };
-            osg::Vec3f mCenter, mAxis0, mAxis1;
+            vsg::vec3 mCenter, mAxis0, mAxis1;
         };
 
         struct NiHalfSpaceBV
         {
-            osg::Plane mPlane;
-            osg::Vec3f mOrigin;
+            vsg::dplane mPlane;
+            vsg::vec3 mOrigin;
         };
 
         uint32_t mType{ BASE_BV };
-        osg::BoundingSpheref mSphere;
+        vsg::sphere mSphere;
         NiBoxBV mBox;
         NiCapsuleBV mCapsule;
         NiLozengeBV mLozenge;
@@ -86,7 +86,7 @@ namespace Nif
         // Node flags. Interpretation depends on the record type.
         uint32_t mFlags;
         NiTransform mTransform;
-        osg::Vec3f mVelocity;
+        vsg::vec3 mVelocity;
         NiPropertyList mProperties;
         BoundingVolume mBounds;
         NiCollisionObjectPtr mCollision;
@@ -247,7 +247,7 @@ namespace Nif
             void read(NIFStream* nif);
         };
 
-        osg::Vec3f mLODCenter;
+        vsg::vec3 mLODCenter;
         std::vector<LODRange> mLODLevels;
 
         void read(NIFStream* nif) override;
@@ -374,7 +374,7 @@ namespace Nif
 
     struct BSVertexData
     {
-        osg::Vec4f mVertex; // Bitangent X is stored in the fourth component
+        vsg::vec4 mVertex; // Bitangent X is stored in the fourth component
         std::array<Misc::float16_t, 4> mHalfVertex; // Ditto
         std::array<Misc::float16_t, 2> mUV;
         std::array<char, 4> mNormal; // Bitangent Y is stored in the fourth component
@@ -389,7 +389,7 @@ namespace Nif
 
     struct BSTriShape : NiAVObject
     {
-        osg::BoundingSpheref mBoundingSphere;
+        vsg::sphere mBoundingSphere;
         std::array<float, 6> mBoundMinMax;
         RecordPtrT<Record> mSkin;
         BSShaderPropertyPtr mShaderProperty;
@@ -411,7 +411,7 @@ namespace Nif
     struct BSDynamicTriShape : BSTriShape
     {
         uint32_t mDynamicDataSize;
-        std::vector<osg::Vec4f> mDynamicData;
+        std::vector<vsg::vec4> mDynamicData;
 
         void read(NIFStream* nif) override;
     };
@@ -494,7 +494,7 @@ namespace Nif
 
     struct BSOrderedNode : NiNode
     {
-        osg::Vec4f mAlphaSortBound;
+        vsg::vec4 mAlphaSortBound;
         bool mStaticBound;
 
         void read(NIFStream* nif) override;
@@ -520,7 +520,7 @@ namespace Nif
     struct BSDistantObjectInstance
     {
         BSResourceID mResourceID;
-        std::vector<osg::Matrixf> mTransforms;
+        std::vector<vsg::mat4> mTransforms;
 
         void read(NIFStream* nif);
     };

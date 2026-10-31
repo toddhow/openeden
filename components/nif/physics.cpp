@@ -663,7 +663,8 @@ namespace Nif
         nif->skip(8); // Unused
         std::array<float, 16> mat;
         nif->readArray(mat);
-        mTransform.set(mat.data());
+        for (std::size_t i = 0; i < 16; ++i)
+            mTransform[static_cast<int>(i / 4)][static_cast<int>(i % 4)] = mat[i];
     }
 
     void bhkConvexTransformShape::post(Reader& nif)
@@ -712,7 +713,7 @@ namespace Nif
         bhkHeightfieldShape::read(nif);
 
         nif->skip(12); // Unused
-        mPlane = osg::Plane(nif->get<osg::Vec4f>());
+        mPlane = readPlane(nif);
         nif->read(mExtents);
         nif->read(mCenter);
     }
@@ -824,7 +825,8 @@ namespace Nif
         nif->skip(8); // Unused
         std::array<float, 16> mat;
         nif->readArray(mat);
-        mTransform.set(mat.data());
+        for (std::size_t i = 0; i < 16; ++i)
+            mTransform[static_cast<int>(i / 4)][static_cast<int>(i % 4)] = mat[i];
     }
 
     void bhkConstraint::read(NIFStream* nif)

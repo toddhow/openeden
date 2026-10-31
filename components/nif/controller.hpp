@@ -97,8 +97,8 @@ namespace Nif
 
     struct NiParticleInfo
     {
-        osg::Vec3f mVelocity;
-        osg::Vec3f mRotationAxis;
+        vsg::vec3 mVelocity;
+        vsg::vec3 mRotationAxis;
         float mAge;
         float mLifespan;
         float mLastUpdate;
@@ -129,8 +129,8 @@ namespace Nif
         float mDeclinationVariation;
         float mPlanarAngle;
         float mPlanarAngleVariation;
-        osg::Vec3f mInitialNormal;
-        osg::Vec4f mInitialColor;
+        vsg::vec3 mInitialNormal;
+        vsg::vec4 mInitialColor;
         float mInitialSize;
         float mEmitStartTime;
         float mEmitStopTime;
@@ -139,7 +139,7 @@ namespace Nif
         float mLifetime;
         float mLifetimeVariation;
         uint16_t mEmitFlags{ 0 };
-        osg::Vec3f mEmitterDimensions;
+        vsg::vec3 mEmitterDimensions;
         NiAVObjectPtr mEmitter;
         uint16_t mNumSpawnGenerations;
         float mPercentageSpawned;
@@ -462,11 +462,11 @@ namespace Nif
         void post(Reader& nif) override { mData.post(nif); }
     };
 
-    using NiPoint3Interpolator = TypedNiInterpolator<osg::Vec3f, NiPosDataPtr>;
+    using NiPoint3Interpolator = TypedNiInterpolator<vsg::vec3, NiPosDataPtr>;
     using NiBoolInterpolator = TypedNiInterpolator<bool, NiBoolDataPtr>;
     using NiFloatInterpolator = TypedNiInterpolator<float, NiFloatDataPtr>;
     using NiTransformInterpolator = TypedNiInterpolator<NiQuatTransform, NiKeyframeDataPtr>;
-    using NiColorInterpolator = TypedNiInterpolator<osg::Vec4f, NiColorDataPtr>;
+    using NiColorInterpolator = TypedNiInterpolator<vsg::vec4, NiColorDataPtr>;
 
     struct NiPathInterpolator : public NiInterpolator
     {
@@ -563,7 +563,7 @@ namespace Nif
 
     using NiBlendBoolInterpolator = TypedNiBlendInterpolator<uint8_t>;
     using NiBlendFloatInterpolator = TypedNiBlendInterpolator<float>;
-    using NiBlendPoint3Interpolator = TypedNiBlendInterpolator<osg::Vec3f>;
+    using NiBlendPoint3Interpolator = TypedNiBlendInterpolator<vsg::vec3>;
     using NiBlendTransformInterpolator = TypedNiBlendInterpolator<NiQuatTransform>;
 
     // Abstract
@@ -598,7 +598,7 @@ namespace Nif
     // Abstract
     struct NiBSplinePoint3Interpolator : public NiBSplineInterpolator
     {
-        osg::Vec3f mValue;
+        vsg::vec3 mValue;
         uint32_t mHandle;
 
         void read(NIFStream* nif) override;

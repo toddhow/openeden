@@ -37,7 +37,7 @@ namespace Nif
     using NiFloatExtraData = TypedExtra<float>;
     using NiIntegerExtraData = TypedExtra<uint32_t>;
     using NiStringExtraData = TypedExtra<std::string>;
-    using NiVectorExtraData = TypedExtra<osg::Vec4f>;
+    using NiVectorExtraData = TypedExtra<vsg::vec4>;
 
     using BSDistantObjectExtraData = TypedExtra<uint32_t>;
     using BSDistantObjectLargeRefExtraData = TypedExtra<bool>;
@@ -87,7 +87,7 @@ namespace Nif
 
     struct BSBound : public Extra
     {
-        osg::Vec3f mCenter, mExtents;
+        vsg::vec3 mCenter, mExtents;
 
         void read(NIFStream* nif) override;
     };
@@ -96,7 +96,7 @@ namespace Nif
     {
         struct LegacyFurniturePosition
         {
-            osg::Vec3f mOffset;
+            vsg::vec3 mOffset;
             uint16_t mOrientation;
             uint8_t mPositionRef;
             void read(NIFStream* nif);
@@ -104,7 +104,7 @@ namespace Nif
 
         struct FurniturePosition
         {
-            osg::Vec3f mOffset;
+            vsg::vec3 mOffset;
             float mHeading;
             uint16_t mType;
             uint16_t mEntryPoint;
@@ -119,7 +119,7 @@ namespace Nif
 
     struct BSInvMarker : public Extra
     {
-        osg::Quat mRotation;
+        vsg::dquat mRotation;
         float mScale;
 
         void read(NIFStream* nif) override;
@@ -152,8 +152,8 @@ namespace Nif
     {
         struct Block
         {
-            std::vector<osg::Vec3f> mPoints;
-            std::vector<osg::Vec3f> mNormals;
+            std::vector<vsg::vec3> mPoints;
+            std::vector<vsg::vec3> mNormals;
 
             void read(NIFStream* nif);
         };
@@ -213,7 +213,7 @@ namespace Nif
     {
         float mGrayscaleToPaletteScale;
         NiTransform mTransform;
-        osg::BoundingSpheref mBoundingSphere;
+        vsg::sphere mBoundingSphere;
 
         void read(NIFStream* nif);
     };

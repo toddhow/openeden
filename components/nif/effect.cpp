@@ -65,7 +65,7 @@ namespace Nif
         mCoordGenType = static_cast<CoordGenType>(nif->get<uint32_t>());
         mTexture.read(nif);
         nif->read(mEnableClipPlane);
-        mClipPlane = osg::Plane(nif->get<osg::Vec4f>());
+        mClipPlane = readPlane(nif);
         if (nif->getVersion() <= NIFStream::generateVersion(10, 2, 0, 0))
             nif->skip(4); // PS2-specific shorts
         if (nif->getVersion() <= NIFStream::generateVersion(4, 1, 0, 12))

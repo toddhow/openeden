@@ -77,7 +77,9 @@ namespace Nif
         float rotX = nif->get<uint16_t>() / 1000.f;
         float rotY = nif->get<uint16_t>() / 1000.f;
         float rotZ = nif->get<uint16_t>() / 1000.f;
-        mRotation = osg::Quat(rotX, osg::X_AXIS, rotY, osg::Y_AXIS, rotZ, osg::Z_AXIS);
+        mRotation = Misc::VsgMath::makeRotateFromAxis(rotX, vsg::vec3(1, 0, 0))
+            * Misc::VsgMath::makeRotateFromAxis(rotY, vsg::vec3(0, 1, 0))
+            * Misc::VsgMath::makeRotateFromAxis(rotZ, vsg::vec3(0, 0, 1));
         nif->read(mScale);
     }
 

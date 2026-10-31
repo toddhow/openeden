@@ -21,11 +21,11 @@ namespace Nif
             Maya = 2, // mOrigin * mRotation * Back * FromMaya * mOffset * mScale
         };
 
-        osg::Vec2f mOffset;
-        osg::Vec2f mScale;
+        vsg::vec2 mOffset;
+        vsg::vec2 mScale;
         float mRotation;
         Method mTransformMethod;
-        osg::Vec2f mOrigin;
+        vsg::vec2 mOrigin;
 
         void read(NIFStream* nif);
     };
@@ -78,8 +78,8 @@ namespace Nif
         std::vector<Texture> mShaderTextures;
         std::vector<uint32_t> mShaderIds;
 
-        osg::Vec2f mEnvMapLumaBias;
-        osg::Vec4f mBumpMapMatrix;
+        vsg::vec2 mEnvMapLumaBias;
+        vsg::vec4 mBumpMapMatrix;
         float mParallaxOffset;
 
         void read(NIFStream* nif) override;
@@ -140,7 +140,7 @@ namespace Nif
         uint32_t mType{ 0u }, mShaderFlags1{ 0u }, mShaderFlags2{ 0u };
         float mEnvMapScale{ 0.f };
         std::vector<uint32_t> mShaderFlags1Hashes, mShaderFlags2Hashes;
-        osg::Vec2f mUVOffset, mUVScale;
+        vsg::vec2 mUVOffset, mUVScale;
 
         void read(NIFStream* nif) override;
 
@@ -169,7 +169,7 @@ namespace Nif
         BSShaderTextureSetPtr mTextureSet;
         BSSPRefractionParams mRefraction;
         BSSPParallaxParams mParallax;
-        osg::Vec4f mEmissiveColor;
+        vsg::vec4 mEmissiveColor;
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -178,7 +178,7 @@ namespace Nif
     struct BSShaderNoLightingProperty : BSShaderLightingProperty
     {
         std::string mFilename;
-        osg::Vec4f mFalloffParams;
+        vsg::vec4 mFalloffParams;
 
         void read(NIFStream* nif) override;
     };
@@ -278,7 +278,7 @@ namespace Nif
     {
         float mInnerLayerThickness;
         float mRefractionScale;
-        osg::Vec2f mInnerLayerTextureScale;
+        vsg::vec2 mInnerLayerTextureScale;
         float mEnvMapScale;
 
         void read(NIFStream* nif);
@@ -286,7 +286,7 @@ namespace Nif
 
     struct BSSPTranslucencyParams
     {
-        osg::Vec3f mSubsurfaceColor;
+        vsg::vec3 mSubsurfaceColor;
         float mTransmissiveScale;
         float mTurbulence;
         bool mThickObject;
@@ -298,7 +298,7 @@ namespace Nif
     struct BSLightingShaderProperty : BSShaderProperty
     {
         BSShaderTextureSetPtr mTextureSet;
-        osg::Vec3f mEmissive;
+        vsg::vec3 mEmissive;
         float mEmissiveMult{ 1.f };
         std::string mRootMaterial;
         uint32_t mClamp{ 3 };
@@ -306,7 +306,7 @@ namespace Nif
         float mRefractionStrength;
         float mGlossiness{ 80.f };
         float mSmoothness{ 1.f };
-        osg::Vec3f mSpecular;
+        vsg::vec3 mSpecular;
         float mSpecStrength{ 1.f };
         std::array<float, 2> mLightingEffects;
         float mSubsurfaceRolloff;
@@ -323,17 +323,17 @@ namespace Nif
         bool mUseSSR;
         bool mWetnessUseSSR;
 
-        osg::Vec3f mSkinTintColor;
+        vsg::vec3 mSkinTintColor;
         float mSkinTintAlpha{ 1.f };
-        osg::Vec3f mHairTintColor;
+        vsg::vec3 mHairTintColor;
 
         BSSPParallaxParams mParallax;
         BSSPMLParallaxParams mMultiLayerParallax;
-        osg::Vec4f mSparkle;
+        vsg::vec4 mSparkle;
 
         float mCubeMapScale;
-        osg::Vec3f mLeftEyeReflectionCenter;
-        osg::Vec3f mRightEyeReflectionCenter;
+        vsg::vec3 mLeftEyeReflectionCenter;
+        vsg::vec3 mRightEyeReflectionCenter;
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -351,9 +351,9 @@ namespace Nif
         uint8_t mClamp;
         uint8_t mLightingInfluence;
         uint8_t mEnvMapMinLOD;
-        osg::Vec4f mFalloffParams;
+        vsg::vec4 mFalloffParams;
         float mRefractionPower;
-        osg::Vec4f mBaseColor;
+        vsg::vec4 mBaseColor;
         float mBaseColorScale;
         float mFalloffDepth;
         std::string mGreyscaleTexture;
@@ -363,7 +363,7 @@ namespace Nif
         float mEnvMapScale;
         std::string mReflectanceTexture;
         std::string mLightingTexture;
-        osg::Vec3f mEmittanceColor;
+        vsg::vec3 mEmittanceColor;
         std::string mEmitGradientTexture;
         BSSPLuminanceParams mLuminance;
 
@@ -480,7 +480,7 @@ namespace Nif
 
         uint16_t mFlags;
         float mFogDepth;
-        osg::Vec3f mColour;
+        vsg::vec3 mColour;
 
         void read(NIFStream* nif) override;
 
@@ -492,10 +492,10 @@ namespace Nif
     struct NiMaterialProperty : NiProperty
     {
         uint16_t mFlags{ 0u };
-        osg::Vec3f mAmbient{ 1.f, 1.f, 1.f };
-        osg::Vec3f mDiffuse{ 1.f, 1.f, 1.f };
-        osg::Vec3f mSpecular;
-        osg::Vec3f mEmissive;
+        vsg::vec3 mAmbient{ 1.f, 1.f, 1.f };
+        vsg::vec3 mDiffuse{ 1.f, 1.f, 1.f };
+        vsg::vec3 mSpecular;
+        vsg::vec3 mEmissive;
         float mGlossiness{ 0.f };
         float mAlpha{ 0.f };
         float mEmissiveMult{ 1.f };

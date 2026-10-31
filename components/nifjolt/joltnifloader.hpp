@@ -7,7 +7,6 @@
 #include <set>
 #include <string>
 
-#include <osg/BoundingBox>
 #include <vsg/core/ref_ptr.h>
 
 #include <Jolt/Jolt.h>

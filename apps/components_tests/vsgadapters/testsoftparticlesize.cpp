@@ -53,8 +53,8 @@ namespace
         }
 
         in.ctrl.mInitialSize = initialSize;
-        in.ctrl.mInitialColor = osg::Vec4f(1.f, 1.f, 1.f, 1.f);
-        in.ctrl.mInitialNormal = osg::Vec3f(0.f, 0.f, 1.f);
+        in.ctrl.mInitialColor = vsg::vec4(1.f, 1.f, 1.f, 1.f);
+        in.ctrl.mInitialNormal = vsg::vec3(0.f, 0.f, 1.f);
         in.ctrl.mLifetime = 4.f;
         in.ctrl.mNumParticles = static_cast<uint16_t>(numParticles);
         in.ctrl.mNumValid = static_cast<uint16_t>(numActive);
@@ -62,8 +62,8 @@ namespace
         {
             Nif::NiParticleInfo info{};
             const float f = static_cast<float>(i);
-            info.mVelocity = osg::Vec3f(f, 0.f, 1.f);
-            info.mRotationAxis = osg::Vec3f(0.f, 0.f, 1.f);
+            info.mVelocity = vsg::vec3(f, 0.f, 1.f);
+            info.mRotationAxis = vsg::vec3(0.f, 0.f, 1.f);
             info.mAge = 0.25f * f;
             info.mLifespan = (i == 1) ? 0.f : 2.f + f;
             info.mLastUpdate = 0.f;

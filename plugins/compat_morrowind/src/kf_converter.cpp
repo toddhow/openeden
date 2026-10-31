@@ -78,7 +78,7 @@ namespace compat_morrowind
             bone.parent = parentIndex;
 
             osg::Vec3f trans = obj->mTransform.mTranslation;
-            osg::Quat rot = obj->mTransform.mRotation.toOsgMatrix().getRotate();
+            osg::Quat rot = Misc::VsgMath::rotationOf(obj->mTransform.mRotation.toOsgMatrix());
             float scale = obj->mTransform.mScale;
 
             bone.restTranslation = trans;

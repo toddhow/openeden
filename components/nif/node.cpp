@@ -21,9 +21,9 @@ namespace
     void triBasedGeomToJPHMeshShape(JPH::MeshShapeSettings& mesh, const Nif::NiTriBasedGeomData& data)
     {
         // FIXME: copying vertices/indices individually is unreasonable
-        const std::vector<osg::Vec3f>& vertices = data.mVertices;
+        const std::vector<vsg::vec3>& vertices = data.mVertices;
         mesh.mTriangleVertices.reserve(vertices.size());
-        for (const osg::Vec3f& vertex : vertices)
+        for (const vsg::vec3& vertex : vertices)
             mesh.mTriangleVertices.push_back(Misc::Convert::toJolt<JPH::Float3>(vertex));
 
         mesh.mIndexedTriangles.reserve(
@@ -69,11 +69,12 @@ namespace Nif
 
     namespace
     {
-        void readBSDistantObjectInstanceTransform(NIFStream& stream, osg::Matrixf& value)
+        void readBSDistantObjectInstanceTransform(NIFStream& stream, vsg::mat4& value)
         {
             std::array<float, 16> mat;
             stream.readArray(mat);
-            value.set(mat.data());
+            for (std::size_t i = 0; i < 16; ++i)
+                value[static_cast<int>(i / 4)][static_cast<int>(i % 4)] = mat[i];
         }
     }
 
@@ -124,7 +125,7 @@ namespace Nif
             }
             case HALFSPACE_BV:
             {
-                mHalfSpace.mPlane = osg::Plane(nif->get<osg::Vec4f>());
+                mHalfSpace.mPlane = readPlane(nif);
                 if (nif->getVersion() >= NIFStream::generateVersion(4, 2, 1, 0))
                     nif->read(mHalfSpace.mOrigin);
                 break;
