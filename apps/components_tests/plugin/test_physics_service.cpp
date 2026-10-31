@@ -359,6 +359,18 @@ namespace
         expectVecNear(sphere->pointM, { 6.3f, 0.0f, 0.0f }, 1e-3f);
     }
 
+    TEST(PhysicsServiceTest, ValuesThatOverflowInWorldUnitsFindNothing)
+    {
+        // Finite in meters, infinite once multiplied by 10.
+        constexpr float kHuge = std::numeric_limits<float>::max();
+        TestWorld world;
+        const PhysicsServiceImpl service(world.system(), 10.0f);
+        EXPECT_FALSE(service.castRay({ kHuge, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }).has_value());
+        EXPECT_FALSE(service.castRay({ 0.0f, 0.0f, 0.0f }, { kHuge, 0.0f, 0.0f }).has_value());
+        EXPECT_FALSE(service.castShape(SphereShape{ kHuge }, {}, {}, { 1.0f, 0.0f, 0.0f }).has_value());
+        EXPECT_FALSE(service.castShape(SphereShape{ 1.0f }, {}, {}, { kHuge, 0.0f, 0.0f }).has_value());
+    }
+
     TEST(PhysicsServiceTest, CastsCountTheBackOfAMesh)
     {
         // One triangle in the plane x = 3, its front facing -X (Jolt: counter-clockwise from the front).

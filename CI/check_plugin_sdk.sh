@@ -4,7 +4,7 @@
 # This fails if an SDK header declares any of those again. The only Lua words allowed are the ones
 # that ask the core to forward an event; no plugin code runs in Lua.
 
-REMOVED='\b(createBody|destroyBody|createJoint|destroyJoint|createCollisionGroup|setSubGroupsCollide|destroyCollisionGroup|registerCollisionLayer|declareCollisionPair|CollisionLayer|setJointMotor|setJointPositionSteps|setJointTarget|applyImpulse|setVelocity|setBodyDamping|setKinematicTarget|setMotionType|fixedStepSeconds|stepIndex|FixedStep[A-Za-z]*|PhysicsService|JointId|ConstraintId|CollisionGroupId|ScriptingService|getScriptingService|LuaTable|lua_State|sol::[A-Za-z_]+|registerModule)\b|\bstep *\('
+REMOVED='\b(createBody|destroyBody|createJoint|destroyJoint|createCollisionGroup|setSubGroupsCollide|destroyCollisionGroup|registerCollisionLayer|declareCollisionPair|CollisionLayer|setJointMotor|setJointPositionSteps|setJointTarget|applyImpulse|setVelocity|setBodyDamping|setKinematicTarget|setMotionType|fixedStepSeconds|stepIndex|FixedStep[A-Za-z]*|PhysicsService|getPhysicsService|isConstraintValid|BodyDesc|JointDesc|JointMotor|PhysicsWorldConfig|CreateResult|JointId|ConstraintId|CollisionGroupId|ScriptingService|getScriptingService|LuaTable|lua_State|sol::[A-Za-z_]+|registerModule)\b|\bstep *\('
 
 # git grep exits 0 on a match, 1 on none and higher on an error, which must not pass as "none".
 status=0

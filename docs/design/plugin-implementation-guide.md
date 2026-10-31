@@ -22,7 +22,7 @@ Every OpenEden plugin adheres to the architecture defined in [`openeden-plugin-s
    - Query masks are opaque: get them with `queryMask("<name the host publishes>")`, never assume bit numbers.
    - Physics events (`openeden/physics_events.hpp`) arrive on the event bus on the main thread.
 4. **No Lua API**:
-   - Plugins cannot register Lua tables or call into Lua. To let mods react, mark an event type with `eventBus->markForwardedToLua<MyEvent>("<plugin_id>", "<eventName>", fields)` in `registerServices` or `start`, with a flat payload of numbers, fixed char arrays and booleans; the core delivers it to Lua scripts (task 0016).
+   - Plugins cannot register Lua tables or call into Lua. To let mods react, mark an event type with `eventBus->markForwardedToLua<MyEvent>("<plugin_id>", "<eventName>", fields)` in `start`, with a flat payload of numbers, fixed char arrays and booleans; the core delivers it to Lua scripts (task 0016).
 5. **Zero Hot-Path Heap Allocations**:
    - Callbacks registered on `Phase::PreSimulation`, `Phase::PostSimulation`, `Phase::Animation`, and `Phase::PreRender` must not allocate heap memory during normal execution. Pre-allocate vectors and scratch buffers during `start(Host&)` or asset load.
 6. **Save-File Resilience**:
@@ -44,13 +44,13 @@ If the plugin provides a domain contract consumed by other plugins or optional s
 
 namespace openeden::contracts
 {
-    class AnimationContract
+    class MyDomainContract
     {
     public:
-        static constexpr std::string_view kId = "openeden.animation";
-        static constexpr openeden::sdk::Version kVersion{ 1, 1 };
+        static constexpr std::string_view kId = "openeden.my_domain";
+        static constexpr openeden::sdk::Version kVersion{ 1, 0 };
 
-        virtual ~AnimationContract() = default;
+        virtual ~MyDomainContract() = default;
 
         [[nodiscard]] virtual bool isEnabled() const noexcept = 0;
         virtual void setEnabled(bool enabled) = 0;
@@ -89,7 +89,7 @@ Verify your manifest with `writeCanonicalManifest(manifest)` in a round-trip tes
 When integrating an external standalone repository (such as `Reflectron`) via `add_subdirectory(...)`:
 
 1. **Position-Independent Code (`-fPIC`) & Static Internal Libraries**:
-   - External repositories that build internal `STATIC` libraries (`opas_math`, `opas_rig`, etc.) linked into a plugin `SHARED` library must have `CMAKE_POSITION_INDEPENDENT_CODE ON`.
+   - External repositories that build internal `STATIC` libraries linked into a plugin `SHARED` library must have `CMAKE_POSITION_INDEPENDENT_CODE ON`.
    - In OpenEden's root `CMakeLists.txt`, `option(BUILD_SHARED_LIBS ... ON)` is enabled globally on Windows. If the external project calls `add_library(foo src.cpp)` without an explicit `STATIC` keyword, CMake will build `foo` as a `.dll` with no exported symbols unless `BUILD_SHARED_LIBS` is `OFF` inside the subproject.
    - **Rule for external plugin repos**: Add the following to the external repo's top-level `CMakeLists.txt`:
      ```cmake
@@ -125,9 +125,9 @@ In `plugins/<plugin_id>/<plugin_id>_plugin.cpp`:
    - Mark events for Lua via `host.getEventBus()->markForwardedToLua<MyEvent>(...)` if mods should react to them.
    - Register VFS format readers via `host.getVfsService()->registerFormatReader(".ext.json", reader)`.
    - Register save chunk handlers via `host.getSaveService()->registerHandler("plugin_id", handler)`.
-   - Register editor inspection panels via `host.getEditorService()->registerPanel(...)` if `host.getEditorService()->isEditorActive()`.
+   - Register editor inspection panels via `host.getEditorService()->registerInspector("<plugin_id>", inspector)` if `host.getEditorService()->isEditorActive()`.
 4. **`stop()`**:
-   - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`) and save chunk handlers (`save->unregisterHandler(chunkId)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the plugin DLL outlives `DynamicLibrary` unload.
+   - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`) and save chunk handlers (`save->unregisterHandler(pluginId)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the plugin DLL outlives `DynamicLibrary` unload.
    - Release all host pointers and reset state cleanly.
 5. **Export Entry Point (Shared Target Only)**:
    Guard `openeden_plugin_entry` with `#ifdef OPENEDEN_SHARED_PLUGIN` (defined on the `SHARED` target via `target_compile_definitions(<plugin_id> PRIVATE OPENEDEN_SHARED_PLUGIN)`) so `<plugin_id>_plugin_static` does not export duplicate `openeden_plugin_entry` symbols when multiple static plugin libraries are linked into `components-tests`:

@@ -43,7 +43,7 @@ namespace openeden::sdk
      *
      * Plugins have no Lua API (decision 0003): no plugin code runs in Lua, the core copies the
      * payload. The payload is flat, only numbers, strings and booleans. Use
-     * EventBus::markForwardedToLua<T>(name, fields) rather than filling this by hand.
+     * EventBus::markForwardedToLua<T>(pluginId, name, fields) rather than filling this by hand.
      */
     struct ForwardedEventDesc
     {
@@ -150,7 +150,7 @@ namespace openeden::sdk
         virtual void unsubscribe(EventId id, std::string_view pluginId) = 0;
 
         /**
-         * @brief Marks typed event T as forwarded to Lua. Call it from registerServices() or start().
+         * @brief Marks typed event T as forwarded to Lua. Call it from start().
          */
         template <typename T>
         bool markForwardedToLua(

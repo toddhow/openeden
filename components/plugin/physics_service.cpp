@@ -84,6 +84,11 @@ namespace openeden::plugin
             return std::abs(len - 1.0f) <= kUnitTolerance;
         }
 
+        PhysicsVec3 scaled(PhysicsVec3 v, float factor)
+        {
+            return { v.x * factor, v.y * factor, v.z * factor };
+        }
+
         bool isPositiveFinite(float value)
         {
             return value > 0.0f && std::isfinite(value);
@@ -219,7 +224,9 @@ namespace openeden::plugin
     std::optional<RayHit> PhysicsServiceImpl::castRay(
         PhysicsVec3 originM, PhysicsVec3 directionTimesLengthM, BodyId ignore, QueryMask mask) const
     {
-        if (!isFinite(originM) || !isFinite(directionTimesLengthM))
+        // Checked in world units: a huge finite value in meters can overflow when scaled
+        if (!isFinite(scaled(originM, mWorldUnitsPerMeter))
+            || !isFinite(scaled(directionTimesLengthM, mWorldUnitsPerMeter)))
         {
             return std::nullopt;
         }
@@ -251,7 +258,8 @@ namespace openeden::plugin
     std::optional<RayHit> PhysicsServiceImpl::castShape(const PhysicsShape& shape, PhysicsQuat rotation,
         PhysicsVec3 originM, PhysicsVec3 directionTimesLengthM, BodyId ignore, QueryMask mask) const
     {
-        if (!isFinite(originM) || !isFinite(directionTimesLengthM) || !isUnit(rotation))
+        if (!isFinite(scaled(originM, mWorldUnitsPerMeter))
+            || !isFinite(scaled(directionTimesLengthM, mWorldUnitsPerMeter)) || !isUnit(rotation))
         {
             return std::nullopt;
         }
@@ -297,18 +305,18 @@ namespace openeden::plugin
         if (const auto* box = std::get_if<BoxShape>(&shape))
         {
             const PhysicsVec3 h = box->halfExtentsM;
-            if (!isPositiveFinite(h.x) || !isPositiveFinite(h.y) || !isPositiveFinite(h.z))
+            if (!isPositiveFinite(h.x * scale) || !isPositiveFinite(h.y * scale) || !isPositiveFinite(h.z * scale))
             {
                 return std::nullopt;
             }
             const float smallest = std::min({ h.x, h.y, h.z });
-            JPH::BoxShape joltBox(toWorldVec(h, scale), std::min(JPH::cDefaultConvexRadius, 0.5f * smallest * scale));
+            JPH::BoxShape joltBox(toWorldVec(h, scale), std::min(JPH::cDefaultConvexRadius, 0.5f * smallest) * scale);
             joltBox.SetEmbedded();
             return cast(joltBox, worldRotation);
         }
         if (const auto* sphere = std::get_if<SphereShape>(&shape))
         {
-            if (!isPositiveFinite(sphere->radiusM))
+            if (!isPositiveFinite(sphere->radiusM * scale))
             {
                 return std::nullopt;
             }
@@ -318,7 +326,7 @@ namespace openeden::plugin
         }
 
         const auto& capsule = std::get<CapsuleShape>(shape);
-        if (!isPositiveFinite(capsule.halfHeightM) || !isPositiveFinite(capsule.radiusM))
+        if (!isPositiveFinite(capsule.halfHeightM * scale) || !isPositiveFinite(capsule.radiusM * scale))
         {
             return std::nullopt;
         }
