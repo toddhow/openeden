@@ -253,3 +253,11 @@ Open:
 - A collapsed window: what it does at zero extent, including whether `Viewer::acquireNextFrame` spins on it.
 - Closing one window while others stay open.
 - Hosted windows on Linux, and validation layers.
+
+### B4 Altered heights in the VSG terrain storage (2026-10-31)
+
+`ESMTerrain::Storage::getVertexData` (`components/esm3terrain/storage.cpp`) consults `useAlteration()`, `getAlteredHeight` and `adjustColor` again, in the order of the old `Storage::fillVertexBuffers` (`components/esmterrain/storage.cpp`): offset added to the record height or the default height, normals untouched, `adjustColor` before `fixColour`. `getHeightAt` still reads the record only. The hooks have no cell argument, so they apply in every cell of a multi-cell chunk: the editor must ask for its one cell's bounds alone (C-stage work). Tests: `apps/components_tests/esm3terrain/testalteredheights.cpp`, 18 cases, written from the spec.
+
+Check of the game, which supplies no alterations: two runs each before and after, frames viewed. Seyda Neen, terrain filling the frame: 6 to 9 pixels over threshold across the change, 1 and 15 between runs of one build. Balmora: 104,858 to 117,597 across the change, 49,555 and 119,417 between runs.
+
+Not run: the editor's own subclass, which does not build until the editor is ported.

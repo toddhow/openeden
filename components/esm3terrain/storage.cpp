@@ -132,7 +132,7 @@ namespace ESMTerrain
 
         LandCache cache;
 
-        //bool alteration = useAlteration();
+        const bool alteration = useAlteration();
 
         uint32_t vertY_ = 0; // of current cell corner
         for (int cellY = startCellY; cellY < startCellY + std::ceil(bounds.size); ++cellY)
@@ -186,8 +186,8 @@ namespace ESMTerrain
                         float height = defaultHeight;
                         if (heightData)
                             height = heightData->mHeights[col * ESM::Land::LAND_SIZE + row];
-                        //if (alteration)
-                            ///height += getAlteredHeight(col, row);
+                        if (alteration)
+                            height += getAlteredHeight(col, row);
                         (*heights)(vertX, vertY) = height;
                         if (normalData)
                         {
@@ -219,8 +219,8 @@ namespace ESMTerrain
                         }
                         else
                             color = vsg::ubvec4(0xff, 0xff, 0xff, 0xff);
-                        //if (alteration)
-                            //adjustColor(col, row, heightData, color); // Does nothing by default, override in OpenMW-CS
+                        if (alteration)
+                            adjustColor(col, row, heightData, color); // Does nothing by default, override in OpenMW-CS
 
                         // Unlike normals, colors mostly connect seamlessly between cells, but not always...
                         if (col == ESM::Land::LAND_SIZE - 1 || row == ESM::Land::LAND_SIZE - 1)

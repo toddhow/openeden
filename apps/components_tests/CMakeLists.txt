@@ -75,6 +75,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     esmterrain/testgridsampling.cpp
 
+    esm3terrain/testalteredheights.cpp
+
     resource/testobjectcache.cpp
     resource/testresourcesystem.cpp
     resource/testphysicsshapemanager.cpp
