@@ -1,15 +1,19 @@
 #include "converter.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
-
-#include <osgDB/WriteFile>
 
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/creaturestate.hpp>
 
 #include <components/misc/constants.hpp>
+#include <components/misc/vsgmath.hpp>
+#include <components/vsgutil/imagepixels.hpp>
 
 #include "convertcntc.hpp"
 #include "convertcrec.hpp"
@@ -18,14 +22,12 @@
 namespace
 {
 
-    void convertImage(char* data, size_t size, int width, int height, GLenum pf, const std::string& out)
+    void writeRgbaImageFile(const char* data, int width, int height, const std::string& out)
     {
-        osg::ref_ptr<osg::Image> image(new osg::Image);
-        image->allocateImage(width, height, 1, pf, GL_UNSIGNED_BYTE);
-        memcpy(image->data(), data, size);
-        image->flipVertical();
-
-        osgDB::writeImageFile(*image, out);
+        const std::vector<char> encoded = vsgUtil::encodeImage(reinterpret_cast<const unsigned char*>(data),
+            static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), 4, ".tga");
+        std::ofstream file(out, std::ios::binary);
+        file.write(encoded.data(), static_cast<std::streamsize>(encoded.size()));
     }
 
     void convertCellRef(const ESSImport::CellRef& cellref, ESM::ObjectState& objstate)
@@ -98,26 +100,24 @@ namespace ESSImport
     {
         MAPH maph;
         esm.getHNT("MAPH", maph.size, maph.value);
-        std::vector<char> data;
+        std::vector<unsigned char> data;
         esm.getSubNameIs("MAPD");
         esm.getSubHeader();
         data.resize(esm.getSubSize());
         esm.getExact(data.data(), data.size());
-
-        mGlobalMapImage = new osg::Image;
-        mGlobalMapImage->allocateImage(maph.size, maph.size, 1, GL_RGB, GL_UNSIGNED_BYTE);
-        memcpy(mGlobalMapImage->data(), data.data(), data.size());
+        data.resize(std::size_t(maph.size) * maph.size * 3);
 
         // to match openmw size
         // FIXME: filtering?
-        mGlobalMapImage->scaleImage(maph.size * 2, maph.size * 2, 1, GL_UNSIGNED_BYTE);
+        mGlobalMapSize = static_cast<int>(maph.size) * 2;
+        mGlobalMapImage = vsgUtil::doubleImageSize(data, static_cast<int>(maph.size), 3);
     }
 
     void ConvertFMAP::write(ESM::ESMWriter& esm) const
     {
-        int numcells = mGlobalMapImage->s() / 18; // NB truncating, doesn't divide perfectly
+        int numcells = mGlobalMapSize / 18; // NB truncating, doesn't divide perfectly
                                                   // with the 512x512 map the game has by default
-        int cellSize = mGlobalMapImage->s() / numcells;
+        int cellSize = mGlobalMapSize / numcells;
 
         // Note the upper left corner of the (0,0) cell should be at (width/2, height/2)
 
@@ -126,14 +126,9 @@ namespace ESSImport
         mContext->mGlobalMapState.mBounds.mMinY = -(numcells - 1) / 2;
         mContext->mGlobalMapState.mBounds.mMaxY = numcells / 2;
 
-        osg::ref_ptr<osg::Image> image2(new osg::Image);
-        int width = cellSize * numcells;
+                int width = cellSize * numcells;
         int height = cellSize * numcells;
-        std::vector<unsigned char> data;
-        data.resize(width * height * 4, 0);
-
-        image2->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-        memcpy(image2->data(), data.data(), data.size());
+        std::vector<unsigned char> image2(std::size_t(width) * height * 4, 0);
 
         for (const auto& exploredCell : mContext->mExploredCells)
         {
@@ -146,42 +141,25 @@ namespace ESSImport
                 continue;
             }
 
-            int imageLeftSrc = mGlobalMapImage->s() / 2;
-            int imageTopSrc = mGlobalMapImage->t() / 2;
+            int imageLeftSrc = mGlobalMapSize / 2;
+            int imageTopSrc = mGlobalMapSize / 2;
             imageLeftSrc += exploredCell.first * cellSize;
             imageTopSrc -= exploredCell.second * cellSize;
             int imageLeftDst = width / 2;
             int imageTopDst = height / 2;
             imageLeftDst += exploredCell.first * cellSize;
             imageTopDst -= exploredCell.second * cellSize;
-            for (int x = 0; x < cellSize; ++x)
-                for (int y = 0; y < cellSize; ++y)
-                {
-                    unsigned int col = *(unsigned int*)mGlobalMapImage->data(imageLeftSrc + x, imageTopSrc + y, 0);
-                    *(unsigned int*)image2->data(imageLeftDst + x, imageTopDst + y, 0) = col;
-                }
+            vsgUtil::copyRgbSquareToRgba(mGlobalMapImage, mGlobalMapSize, imageLeftSrc, imageTopSrc, image2, width,
+                imageLeftDst, imageTopDst, cellSize);
         }
 
-        std::stringstream ostream;
-        osgDB::ReaderWriter* readerwriter = osgDB::Registry::instance()->getReaderWriterForExtension("png");
-        if (!readerwriter)
+        mContext->mGlobalMapState.mImageData = vsgUtil::encodeImage(image2.data(), static_cast<std::uint32_t>(width),
+            static_cast<std::uint32_t>(height), 4, ".png");
+        if (mContext->mGlobalMapState.mImageData.empty())
         {
-            std::cerr << "Error: can't write global map image, no png readerwriter found" << std::endl;
+            std::cerr << "Error: can't write global map image" << std::endl;
             return;
         }
-
-        image2->flipVertical();
-
-        osgDB::ReaderWriter::WriteResult result = readerwriter->writeImage(*image2, ostream);
-        if (!result.success())
-        {
-            std::cerr << "Error: can't write global map image: " << result.message() << " code " << result.status()
-                      << std::endl;
-            return;
-        }
-
-        std::string outData = ostream.str();
-        mContext->mGlobalMapState.mImageData = std::vector<char>(outData.begin(), outData.end());
 
         esm.startRecord(ESM::REC_GMAP);
         mContext->mGlobalMapState.save(esm);
@@ -251,8 +229,7 @@ namespace ESSImport
                 std::ostringstream filename;
                 filename << "fog_" << cell.mData.mX << "_" << cell.mData.mY << ".tga";
 
-                convertImage(
-                    (char*)&newcell.mFogOfWar[0], newcell.mFogOfWar.size() * 4, 16, 16, GL_RGBA, filename.str());
+                writeRgbaImageFile(reinterpret_cast<const char*>(newcell.mFogOfWar.data()), 16, 16, filename.str());
             }
         }
 
@@ -503,9 +480,7 @@ namespace ESSImport
         base.mId = ESM::RefId::stringRefId(pnam.mArrowId.toString());
         base.mPosition = pnam.mPosition;
 
-        osg::Quat orient;
-        orient.makeRotate(osg::Vec3f(0, 1, 0), pnam.mVelocity);
-        base.mOrientation = orient;
+        base.mOrientation = Misc::VsgMath::makeRotate(vsg::vec3(0, 1, 0), vsg::vec3(pnam.mVelocity));
 
         base.mCaster = convertActorId(pnam.mActorId.toString(), *mContext);
     }

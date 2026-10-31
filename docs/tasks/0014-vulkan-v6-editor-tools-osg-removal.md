@@ -174,3 +174,11 @@ Tests in Context's list that task 0013's rule deleted rather than left: `apps/co
 - Not compared: the full Morrowind exterior, for time, and several worldspaces in one run. The latter differs between two runs of the same binary, because `collectWorldspaceCells` returns an `unordered_map` and the order assigns shape IDs.
 
 The data is the local Morrowind install, so this check is not repeatable in CI.
+
+**A3, essimporter.** `osg::Image` and osgDB gave way to `components/vsgutil/imagepixels` over vsgXchange's stbi writer, already a dependency, so nothing new is recorded in `docs/dependencies.md`. `doubleImageSize` keeps what `osg::Image::scaleImage` did (gluScaleImage: a one-pixel box, wrapping, in 16 bits); `copyRgbSquareToRgba` keeps the old four-byte copy, whose alpha is the next pixel's red, and defines the read past the end of the image as 0. New unit tests: `apps/components_tests/vsgutil/testimagepixels.cpp`, on generated data. Check: a generated `.ess` (no real save was looked for), with header screenshot, 512x512 FMAP map and two exterior CELLs with NAM8, converted by the new binary and the OSG-era one from `build-jolt`:
+- Global map PNG: all 1008 rows decode identically, alpha included.
+- Fog TGA files: decoded pixels identical in both cells, though the bytes differ (stbi writes run-length encoding).
+- Screenshot JPEG: viewed side by side, same orientation and colours. Not byte-identical: stbi's quality is 100, osgDB's was 75 (4,256 and 3,751 bytes here).
+- The rest of the save is 16 bytes longer, in `PLAY`: the `DTIM` that `components/esm3/creaturestats.cpp` gained after the old binary, and `WWAT` and `WWSK` differ where the old output held uninitialised bytes.
+
+Not verified: a real Morrowind save, loading a converted save in the game, and `ConvertPROJ::convertBaseState`'s `Misc::VsgMath::makeRotate` (no projectile in the generated save).

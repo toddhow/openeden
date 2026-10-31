@@ -3,9 +3,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-
-#include <osg/ImageUtils>
-#include <osgDB/ReadFile>
+#include <iostream>
+#include <sstream>
 
 #include <components/esm/defs.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -26,6 +25,7 @@
 #include <components/misc/constants.hpp>
 
 #include <components/toutf8/toutf8.hpp>
+#include <components/vsgutil/imagepixels.hpp>
 
 #include "importercontext.hpp"
 
@@ -42,44 +42,13 @@ namespace
             return;
         }
 
-        osg::ref_ptr<osg::Image> image(new osg::Image);
-        image->allocateImage(128, 128, 1, GL_RGB, GL_UNSIGNED_BYTE);
+        const unsigned char* bgra = reinterpret_cast<const unsigned char*>(fileHeader.mSCRS.data());
+        const std::vector<unsigned char> rgb
+            = vsgUtil::bgraToRgb(std::vector<unsigned char>(bgra, bgra + fileHeader.mSCRS.size()));
 
-        // need to convert pixel format from BGRA to RGB as the jpg readerwriter doesn't support it otherwise
-        auto it = fileHeader.mSCRS.begin();
-        for (int y = 0; y < 128; ++y)
-        {
-            for (int x = 0; x < 128; ++x)
-            {
-                assert(image->data(x, y));
-                *(image->data(x, y) + 2) = *it++;
-                *(image->data(x, y) + 1) = *it++;
-                *image->data(x, y) = *it++;
-                ++it; // skip alpha
-            }
-        }
-
-        image->flipVertical();
-
-        std::stringstream ostream;
-
-        osgDB::ReaderWriter* readerwriter = osgDB::Registry::instance()->getReaderWriterForExtension("jpg");
-        if (!readerwriter)
-        {
-            std::cerr << "Error: can't write screenshot: no jpg readerwriter found" << std::endl;
-            return;
-        }
-
-        osgDB::ReaderWriter::WriteResult result = readerwriter->writeImage(*image, ostream);
-        if (!result.success())
-        {
-            std::cerr << "Error: can't write screenshot: " << result.message() << " code " << result.status()
-                      << std::endl;
-            return;
-        }
-
-        std::string data = ostream.str();
-        out.mScreenshot = std::vector<char>(data.begin(), data.end());
+        out.mScreenshot = vsgUtil::encodeImage(rgb.data(), 128, 128, 3, ".jpg");
+        if (out.mScreenshot.empty())
+            std::cerr << "Error: can't write screenshot" << std::endl;
     }
 
 }

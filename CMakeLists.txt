@@ -684,7 +684,7 @@ if (BUILD_MWINIIMPORTER)
 endif()
 
 if (BUILD_ESSIMPORTER)
-    #add_subdirectory (apps/essimporter )
+    add_subdirectory (apps/essimporter )
 endif()
 
 if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)

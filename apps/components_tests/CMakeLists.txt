@@ -134,6 +134,7 @@ file(GLOB UNITTEST_SRC_FILES
     pipeline/testcoveragemodes.cpp
 
     mwanimation/testclonematerials.cpp
+    vsgutil/testimagepixels.cpp
 
     fx/lexer.cpp
     fx/technique.cpp

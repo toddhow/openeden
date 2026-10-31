@@ -2,9 +2,7 @@
 #define OPENMW_ESSIMPORT_CONVERTER_H
 
 #include <limits>
-
-#include <osg/Image>
-#include <osg/ref_ptr>
+#include <vector>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -334,7 +332,8 @@ namespace ESSImport
         void write(ESM::ESMWriter& esm) const override;
 
     private:
-        osg::ref_ptr<osg::Image> mGlobalMapImage;
+        std::vector<unsigned char> mGlobalMapImage; // RGB, tightly packed
+        int mGlobalMapSize = 0;
     };
 
     class ConvertCell : public Converter

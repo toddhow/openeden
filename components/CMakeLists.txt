@@ -177,7 +177,7 @@ add_component_dir (vsgutil
     # Visitors.
     traverse traversestate nodepath cullnode searchbyname searchbytype cameradistanceintersector arraystate
     # I/O.
-    cache virtualfile imageio readimage decompress readnode readshader share shareimage deletionqueue
+    cache virtualfile imageio imagepixels readimage decompress readnode readshader share shareimage deletionqueue
     # Temporary workarounds.
     setbin sharedview
     )
