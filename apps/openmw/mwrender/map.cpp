@@ -799,8 +799,6 @@ namespace MWRender
         {
             worldToInteriorMapPosition(pos, u, v, x, y);
 
-            // vsg::quat cameraOrient (mAngle, vsg::vec3(0,0,-1));
-            // direction = orientation * cameraOrient.inverse() * osg::Vec3f(0,1,0);
             vsg::quat cameraOrient(-mAngle, vsg::vec3(0, 0, -1));
             direction = (orientation * cameraOrient) * vsg::vec3(0, 1, 0);
         }

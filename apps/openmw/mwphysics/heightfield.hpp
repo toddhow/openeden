@@ -15,11 +15,6 @@
 #include <memory>
 #include <vector>
 
-namespace osg
-{
-    class Object;
-}
-
 namespace MWPhysics
 {
     class PhysicsTaskScheduler;

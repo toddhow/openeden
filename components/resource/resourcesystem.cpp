@@ -231,7 +231,7 @@ namespace Resource
         return mVFS;
     }
 
-    void ResourceSystem::reportStats(unsigned int frameNumber, osg::Stats* stats) const
+    void ResourceSystem::reportStats(unsigned int frameNumber, Misc::Stats* stats) const
     {
     }
 }

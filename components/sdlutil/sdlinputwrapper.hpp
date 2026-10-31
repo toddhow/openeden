@@ -1,17 +1,10 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
 
-#include <osg/ref_ptr>
-
 #include <SDL_events.h>
 #include <SDL_version.h>
 
 #include "events.hpp"
-
-namespace osgViewer
-{
-    class Viewer;
-}
 
 namespace SDLUtil
 {
@@ -19,7 +12,7 @@ namespace SDLUtil
     class InputWrapper
     {
     public:
-        InputWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer, bool grab);
+        InputWrapper(SDL_Window* window, void* viewer, bool grab);
         ~InputWrapper();
 
         void setMouseEventCallback(MouseListener* listen) { mMouseListener = listen; }
@@ -50,7 +43,10 @@ namespace SDLUtil
         void _setWindowScale();
 
         SDL_Window* mSDLWindow;
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
+        // Was the viewer's osg::ref_ptr. apps/openmw/mwinput/mousemanager.cpp still reads this class's layout, while the object
+        // it holds is components/sdlutil/inputwrapper.hpp's, so getMouseRelative() there reads the wrong byte. Dropping this
+        // member would change that behaviour; the fix is to include inputwrapper.hpp there, as toddhow's decision (task 0013).
+        void* mViewer;
 
         MouseListener* mMouseListener;
         SensorListener* mSensorListener;

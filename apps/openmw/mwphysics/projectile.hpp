@@ -7,11 +7,6 @@
 
 #include "ptrholder.hpp"
 
-namespace osg
-{
-    class Vec3f;
-}
-
 namespace JPH
 {
     class Body;

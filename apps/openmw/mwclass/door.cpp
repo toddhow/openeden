@@ -29,7 +29,6 @@
 
 #include "../mwgui/tooltips.hpp"
 
-#include "../mwrender/objects.hpp"
 #include "../mwrender/spellcastglow.hpp"
 #include "../mwrender/renderinginterface.hpp"
 

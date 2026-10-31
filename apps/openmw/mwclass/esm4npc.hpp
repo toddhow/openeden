@@ -6,7 +6,6 @@
 
 #include "../mwgui/tooltips.hpp"
 
-#include "../mwrender/objects.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"

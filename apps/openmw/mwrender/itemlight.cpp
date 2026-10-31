@@ -41,7 +41,6 @@ namespace MWRender
         obj.node()->getValue(sItemLights, lights);
         if (lights.find(item) != lights.end())
             return;
-        // osg::Vec4f ambient(1,1,1,1);
         ItemLight l;
         l.node = MWAnim::addLight(obj.nodeToAddChildrenTo(), obj.nodeToAddChildrenTo(), light, obj.autoPlay.getOrCreateGroup().controllers);
         lights[item] = l;

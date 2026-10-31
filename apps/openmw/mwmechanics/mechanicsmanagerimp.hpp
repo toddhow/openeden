@@ -238,7 +238,7 @@ namespace MWMechanics
         bool isRunning(const MWWorld::Ptr& ptr) override;
         bool isSneaking(const MWWorld::Ptr& ptr) override;
 
-        void reportStats(unsigned int frameNumber, osg::Stats& stats) const override;
+        void reportStats(unsigned int frameNumber, Misc::Stats& stats) const override;
 
         int getGreetingTimer(const MWWorld::Ptr& ptr) const override;
         float getAngleToPlayer(const MWWorld::Ptr& ptr) const override;

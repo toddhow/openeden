@@ -5,8 +5,6 @@
 #include <map>
 #include <set>
 
-#include <osg/Stats>
-
 #include <components/lua/inputactions.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/scripttracker.hpp>
@@ -27,10 +25,6 @@
 #include "objectlists.hpp"
 
 //;
-namespace osg
-{
-    class Stats;
-}
 namespace MWRender
 {
     class RenderManager;

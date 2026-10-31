@@ -1318,20 +1318,6 @@ namespace vsgAdapters
                 handleTexture(*textureEffect.mTexture.getPtr(), textureEffect.mClampMode, Pipeline::Descriptors::ENV_UNIT),
                 Pipeline::Mode::ENV_MAP);
 
-            /*
-            switch (textureEffect->coordGenType)
-            {
-            case Nif::NiTextureEffect::World_Parallel:
-                texGen->setMode(osg::TexGen::OBJECT_LINEAR);
-                break;
-            case Nif::NiTextureEffect::World_Perspective:
-                texGen->setMode(osg::TexGen::EYE_LINEAR);
-                break;
-            case Nif::NiTextureEffect::Sphere_Map:
-                texGen->setMode(osg::TexGen::SPHERE_MAP);
-                break;
-            }
-            */
         }
 
         void handleEffects(const Nif::NiAVObjectList& effects)

@@ -19,11 +19,6 @@
 #include "timestamp.hpp"
 #include "worldmodel.hpp"
 
-namespace osg
-{
-    class Stats;
-}
-
 namespace Resource
 {
     class ResourceSystem;

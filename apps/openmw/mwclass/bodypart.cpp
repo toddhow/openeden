@@ -2,7 +2,6 @@
 
 #include <components/esm3/loadbody.hpp>
 
-#include "../mwrender/objects.hpp"
 #include "../mwrender/renderinginterface.hpp"
 
 #include "../mwworld/cellstore.hpp"

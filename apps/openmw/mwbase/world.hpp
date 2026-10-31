@@ -21,11 +21,6 @@
 
 #include "../mwrender/rendermode.hpp"
 
-namespace osg
-{
-    class Stats;
-}
-
 namespace MWState
 {
     class Loading;

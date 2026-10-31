@@ -17,7 +17,7 @@ namespace VFS
     class Manager;
 }
 
-namespace osg
+namespace Misc
 {
     class Stats;
 }
@@ -63,7 +63,7 @@ namespace Resource
         /// @note May be called from any thread.
         const VFS::Manager* getVFS() const;
 
-        void reportStats(unsigned int frameNumber, osg::Stats* stats) const;
+        void reportStats(unsigned int frameNumber, Misc::Stats* stats) const;
 
     private:
         const VFS::Manager* mVFS;

@@ -9,7 +9,6 @@
 #include "MyGUI_TextureUtility.h"
 
 #include <components/misc/utf8stream.hpp>
-#include <components/sceneutil/depth.hpp>
 #include <components/settings/values.hpp>
 
 namespace
@@ -1304,7 +1303,8 @@ namespace MWGui
 
             RenderXform renderXform(mCroppedParent, textFormat.mRenderItem->getRenderTarget()->getInfo());
 
-            float z = SceneUtil::AutoDepth::isReversed() ? 1.f : -1.f;
+            // AutoDepth::isReversed() was always false here: only the OSG engine's reverse-Z setup could turn it on.
+            float z = -1.f;
 
             GlyphStream glyphStream(textFormat.mFont, static_cast<float>(mCoord.left),
                 static_cast<float>(mCoord.top - mViewTop), z /*mNode->getNodeDepth()*/, vertices, renderXform);

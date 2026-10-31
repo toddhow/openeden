@@ -57,7 +57,6 @@
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/worldmodel.hpp"
 
-#include "../mwrender/objects.hpp"
 #include "../mwrender/bodyparts.hpp"
 #include "../mwrender/renderinginterface.hpp"
 

@@ -47,8 +47,6 @@ namespace MWAnim
                 return;
         }
 
-        // node->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-
         Effect effect;
         effect.mwctx = obj.context();
         effect.effectId = effectId;

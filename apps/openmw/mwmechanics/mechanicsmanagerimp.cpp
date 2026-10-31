@@ -2,8 +2,6 @@
 
 #include <cassert>
 
-// #include <osg/Stats>
-
 #include <components/misc/rng.hpp>
 
 #include <components/esm/records.hpp>
@@ -2050,7 +2048,7 @@ namespace MWMechanics
         mActors.cleanupSummonedCreature(creature);
     }
 
-    void MechanicsManager::reportStats(unsigned int frameNumber, osg::Stats& stats) const
+    void MechanicsManager::reportStats(unsigned int frameNumber, Misc::Stats& stats) const
     {
     }
 

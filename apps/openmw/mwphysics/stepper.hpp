@@ -3,11 +3,6 @@
 
 #include "trace.h"
 
-namespace osg
-{
-    class Vec3f;
-}
-
 namespace MWPhysics
 {
     class Stepper

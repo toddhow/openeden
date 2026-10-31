@@ -1,6 +1,5 @@
 #include "light4.hpp"
 
-#include "../mwrender/objects.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwworld/ptr.hpp"
 

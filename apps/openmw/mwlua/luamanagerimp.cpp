@@ -3,7 +3,6 @@
 #include <filesystem>
 
 #include <MyGUI_InputManager.h>
-//#include <osg/Stats>
 
 #include <sol/object.hpp>
 #include <sol/table.hpp>

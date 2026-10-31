@@ -26,7 +26,6 @@
 
 #include "../mwphysics/physicssystem.hpp"
 
-#include "../mwrender/objects.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwrender/vismask.hpp"
 

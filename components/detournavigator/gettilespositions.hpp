@@ -13,12 +13,6 @@ namespace JPH
     class Shape;
 }
 
-namespace osg
-{
-    class Vec2f;
-    class Matrixd;
-}
-
 namespace DetourNavigator
 {
     struct RecastSettings;

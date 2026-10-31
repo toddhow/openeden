@@ -84,11 +84,6 @@ namespace SDLUtil
     class VideoWrapper;
 }
 
-namespace osgMyGUI
-{
-    class Platform;
-}
-
 namespace Gui
 {
     class FontLoader;
