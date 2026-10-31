@@ -304,7 +304,18 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
         - The shadow pass also runs the per-pixel shader when the maps are on.
         - `components/terrain` has no area guide yet.
     - **Not in this step:** two-channel (Z-reconstructing) terrain normal maps; normal maps of a size or format other than the most common one (not used, see the review).
-- **Object paging** (only with `distant terrain = true`, off by default), `[Shaders] weather particle occlusion`. (Alpha to coverage: **done**, V4j; soft particles: **done**, V4k.)
+- **Point lights** (V4m, done 2026-10-31):
+  - **The bug:** `lib/inout.glsl` declared `vec2 texCoord[numUvSets]` before other members. Its length is a specialization constant but locations are assigned at compile time, so a model with more UV sets overlapped what followed, `pointLightDiffuse` included. At `ca96e2fdd7` the Caldera Mages Guild frame is identical from frame 300 to 800 (mean 19.7) although the shader reads changing light data, and one unused `const int` in `lib/material/bindings.glsl` makes it 36.8 with the same executable. The array is now last; the frame no longer depends on that text.
+  - **OpenMW's falloff, ported:** lights fade between the radius and twice the radius (`lcalcIllumination`), with `[Shaders] classic falloff` turning it off; flicker scales the colour, not the radius (`LightController`); projectile lights have radius 66 (`projectilemanager.cpp`); `[Shaders] minimum interior brightness` applies (`configureAmbient`). `lib/util/quickstep.glsl` had to move out of the commented part of `files/shaders/CMakeLists.txt`: the Windows build folder held an old copy, and the Linux gate caught it.
+  - **Visible change with default settings:** interiors now flicker, as in OpenMW. The Caldera frame's mean is 21.2 to 21.6 here, 12.7 in the OSG build of `cf3dbd3aa7`. One pillar pixel matches exactly; the far right wall (33 against 15) and the tapestry stay brighter, as they already did at `ca96e2fdd7`. Not traced. Needs toddhow's verdict.
+  - **Review (fresh agent):** projectile light radius, found and fixed.
+- **Weather particle occlusion** (V4l, done 2026-10-31, `[Shaders] weather particle occlusion`, off by default): rain and the snow effect are discarded under objects, as OpenMW's `PrecipitationOccluder` at `442eec6e2f`.
+  - `MWRender::PrecipitationOccluder` renders objects from above into a 256 x 256 depth map (no terrain, as OpenMW's cull mask); `MWRender::makeOcclusionBox` and `occlusionCoord` hold its geometry (tests: `mwrender/testocclusionbox.cpp`). The map is bound only on occluded particles (`Mode::PARTICLE_OCCLUSION`, `OCCLUSION_UNIT`); the box's size and height travel in `lightDiffuse.w` and `lightSpecular.w`.
+  - **Checked:** with a temporary debug shader in Seyda Neen rain, no drop in the open is marked; with terrain in the pass, drops shifted 200 units down turned hidden partway along their length, at the ground; with the box temporarily widened, objects are in the map. Rain with the setting on draws with no shader errors. With the setting off the Caldera frame's mean is 21.2 against 21.5 before this step, within flicker.
+  - **Not checked:** a frame under a real roof, the map's left-right and up-down orientation, and snow. Startup scripts could not place an object over the player, rain did not start in the other towns tried, and snow had not started by frame 3600. Needs a look in game.
+  - **Not ported:** `weather particle occlusion small feature culling pixel size`.
+  - **Review (fresh agent):** the box lagged the camera by a frame, and the pass drew terrain, both fixed.
+- **Object paging** (only with `distant terrain = true`, off by default). (Weather particle occlusion: **done**, V4l; alpha to coverage: **done**, V4j; soft particles: **done**, V4k.)
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
 - **ESM4 terrain** (work item 3).
 - **The deferred 0.49→0.51 renderer changes** (work item 6).
@@ -312,6 +323,6 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
 - **Gaps listed above:**
   - the hidden torch flame in the Caldera Mages Guild;
   - snow's one-frame shift;
-  - particle size ignoring node scale;
+  - particle size and node scale: by code reading not a gap. `main.vert` normalises the axes in the particle's local space and draws through a modelview that includes the scale, as OSG 3.6.5's `ParticleSystem::drawImplementation` does for `LOCAL_COORDINATES`, which OpenMW sets (`nifloader.cpp` at `442eec6e2f`). Not confirmed by image: the 2026-10-30 captures of a scaled torch did not show the torch;
   - groundcover's terrain-quadtree chunk sizes, animated models, settings read at creation, and its loading-screen progress.
 - **toddhow's scene verdicts and the performance re-measure** (work items 1 and 8).

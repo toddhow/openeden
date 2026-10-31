@@ -9,6 +9,7 @@
 #include <vsg/core/Array.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Group.h>
+#include <vsg/state/Descriptor.h>
 
 namespace Pipeline
 {
@@ -112,6 +113,9 @@ namespace MWRender
 
         vsg::ref_ptr<vsg::Group> node() const { return mRoot; }
 
+        /// Discards drops under the occlusion map's surface (PrecipitationOccluder). Set before the first update.
+        void setOcclusionMap(vsg::ref_ptr<vsg::Descriptor> map) { mOcclusionMap = std::move(map); }
+
         /// Advances and redraws the rain; visible false (underwater, sky off) hides it and keeps it still.
         void update(float dt, const vsg::vec3& cameraPosition, const Parameters& parameters, bool visible);
 
@@ -123,6 +127,7 @@ namespace MWRender
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<const vsg::Options> mTextureOptions;
         vsg::ref_ptr<vsg::Group> mRoot;
+        vsg::ref_ptr<vsg::Descriptor> mOcclusionMap;
         vsg::ref_ptr<vsg::Node> mContents;
         vsg::ref_ptr<vsg::VertexDraw> mDraw;
         vsg::ref_ptr<vsg::vec3Array> mVertices;

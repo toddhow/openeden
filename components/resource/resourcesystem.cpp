@@ -108,7 +108,8 @@ namespace
     }
 
     vsg::ref_ptr<const vsg::Options> createNodeOptions(
-        const VFS::Manager* vfs, const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> textureOptions, int computeBin, int depthSortedBin)
+        const VFS::Manager* vfs, const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> textureOptions, int computeBin, int depthSortedBin,
+        vsg::ref_ptr<vsgAdapters::nif>& nifReader)
     {
         auto nodeOptions = vsg::Options::create();
         nodeOptions->sharedObjects = vsg::SharedObjects::create();
@@ -128,7 +129,7 @@ namespace
         fallback->fallbackObject = vsg::Node::create();
 
         auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(*vfs) };
-        auto nifReader = vsg::ref_ptr{ new vsgAdapters::nif(builder, textureOptions, computeBin, depthSortedBin) };
+        nifReader = vsg::ref_ptr{ new vsgAdapters::nif(builder, textureOptions, computeBin, depthSortedBin) };
         // openeden-vsg: normal and specular maps next to diffuse textures, off by default (task 0012, V4h).
         const auto& shaders = Settings::shaders();
         nifReader->autoMaps.autoUseNormalMaps = shaders.mAutoUseObjectNormalMaps;
@@ -137,6 +138,8 @@ namespace
         nifReader->autoMaps.normalHeightMapPattern = shaders.mNormalHeightMapPattern;
         nifReader->autoMaps.specularMapPattern = shaders.mSpecularMapPattern;
         nifReader->softParticles = shaders.mSoftParticles;
+        if (shaders.mWeatherParticleOcclusion)
+            nifReader->occludedParticleModel = Settings::models().mWeathersnow.get().value();
         nifReader->textureExists
             = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
         vfsReader->add(nifReader);
@@ -192,7 +195,7 @@ namespace Resource
         , builder(new Pipeline::Builder(shaderOptions, defaultSampler))
         , imageOptions(createImageOptions(vfs, !supportsCompressedImages))
         , textureOptions(createTextureOptions(vfs, *imageOptions))
-        , nodeOptions(createNodeOptions(vfs, *builder, textureOptions, computeBin, depthSortedBin))
+        , nodeOptions(createNodeOptions(vfs, *builder, textureOptions, computeBin, depthSortedBin, nifReader))
         , animationOptions(createAnimationOptions(vfs))
     {
         // openeden-vsg: alpha to coverage, as OpenMW's shouldAddMSAAIntermediateTarget and
@@ -200,6 +203,11 @@ namespace Resource
         builder->graphics->alphaToCoverage
             = Settings::shaders().mAntialiasAlphaTest && Settings::video().mAntialiasing > 1;
         builder->graphics->adjustCoverage = Settings::shaders().mAdjustCoverageForAlphaTest;
+    }
+
+    void ResourceSystem::setOccludedParticleMap(vsg::ref_ptr<vsg::Descriptor> map)
+    {
+        nifReader->occludedParticleMap = std::move(map);
     }
 
     ResourceSystem::~ResourceSystem()

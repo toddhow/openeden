@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -35,6 +35,9 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 #ifdef PARALLAX
 #include "lib/material/parallax.glsl"
+#endif
+#ifdef PARTICLE_OCCLUSION
+#include "lib/particle/weatherocclusion.glsl"
 #endif
 #ifdef SOFT_PARTICLE
 // OpenEden: soft particles fade against the opaque scene's depth (task 0012, V4k).
@@ -109,6 +112,10 @@ void main()
             discard;
         return;
     }
+#ifdef PARTICLE_OCCLUSION
+    if (isOccludedParticle((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz))
+        discard;
+#endif
 
 #ifdef DECAL_MAP
     vec4 decalTex = texture(decalMap, frag_in.texCoord[decalUV]);

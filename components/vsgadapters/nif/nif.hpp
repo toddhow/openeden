@@ -4,6 +4,7 @@
 #include <functional>
 #include <string_view>
 
+#include <vsg/state/Descriptor.h>
 #include <vsg/io/ReaderWriter.h>
 
 #include "automaps.hpp"
@@ -51,6 +52,10 @@ namespace vsgAdapters
         std::function<bool(std::string_view)> textureExists;
         // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
         bool softParticles = false;
+        /// OpenEden: the normalized path of the one model whose particles weather occlusion discards under a roof, empty
+        /// and its occlusion map, unset (task 0012, V4l).
+        std::string occludedParticleModel;
+        vsg::ref_ptr<vsg::Descriptor> occludedParticleMap;
 
         const int mComputeBin;
         const int mDepthSortedBin;

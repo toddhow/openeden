@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <vsg/nodes/Node.h>
+#include <vsg/state/GraphicsPipeline.h>
+#include <vsg/vk/RenderPass.h>
 
 namespace Pipeline::Data
 {
@@ -15,6 +17,13 @@ namespace vsg
     class Context;
 }
 namespace View // namespace vulkanexamples
+{
+    /// A depth-only render pass whose attachment ends readable by shaders, and the pipeline states a depth-only view
+    /// overrides (no colour attachments), shared with MWRender::PrecipitationOccluder (task 0012, V4l).
+    vsg::ref_ptr<vsg::RenderPass> createDepthRenderPass(vsg::Device* device, VkFormat format);
+    vsg::GraphicsPipelineStates depthOnlyPipelineStates(bool depthClamp, VkCullModeFlags cullMode);
+}
+namespace View
 {
     struct Cascade;
 

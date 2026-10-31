@@ -68,6 +68,8 @@ namespace Pipeline
                 return "ADJUST_COVERAGE";
             case Mode::SOFT_PARTICLE:
                 return "SOFT_PARTICLE";
+            case Mode::PARTICLE_OCCLUSION:
+                return "PARTICLE_OCCLUSION";
         }
         return "";
     }
@@ -101,6 +103,7 @@ namespace Pipeline
             { Descriptors::ENV_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::NORMAL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::SPECULAR_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::OCCLUSION_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::TEXMAT_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr }
         };
 

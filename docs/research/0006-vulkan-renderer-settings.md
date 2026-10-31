@@ -101,17 +101,17 @@ For each key in the sections task 0012 lists, the audit finds its member in `com
 | `[Shaders] terrain specular map pattern` | Works (task 0012, V4i) | |
 | `[Shaders] apply lighting to environment maps` | Not read | Remove: in OpenMW it only forced the shader path for env-mapped objects (`ShaderVisitor`, cf3dbd3aa7), and the Vulkan renderer always uses shaders |
 | `[Shaders] lighting method` | Read | |
-| `[Shaders] classic falloff` | Read | |
+| `[Shaders] classic falloff` | Works | Task 0012, V4m |
 | `[Shaders] match sunlight to sun` | Read | |
 | `[Shaders] light bounds multiplier` | Read | |
 | `[Shaders] maximum light distance` | Read | |
 | `[Shaders] light fade start` | Read | |
 | `[Shaders] max lights` | Read | |
-| `[Shaders] minimum interior brightness` | Read | |
+| `[Shaders] minimum interior brightness` | Works | Task 0012, V4m |
 | `[Shaders] antialias alpha test` | Works (task 0012, V4j) | |
 | `[Shaders] adjust coverage for alpha test` | Works (task 0012, V4j) | |
 | `[Shaders] soft particles` | Works (task 0012, V4k) | |
-| `[Shaders] weather particle occlusion` | Not read | Weather particles item |
+| `[Shaders] weather particle occlusion` | Works | Task 0012, V4l; rain seen, snow and a real roof not |
 | `[Shaders] weather particle occlusion small feature culling pixel size` | Not read | Weather particles item |
 | `[Shadows] percentage closer soft shadows` | Read | |
 | `[Shadows] blocker samples` | Read | |

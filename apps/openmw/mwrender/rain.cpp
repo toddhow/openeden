@@ -98,6 +98,8 @@ namespace MWRender
         options.colorMode = sAmbientAndDiffuseColorMode;
         options.cullMode = VK_CULL_MODE_NONE;
         options.blend = true;
+        if (mOcclusionMap)
+            options.shader.addMode(Pipeline::Mode::PARTICLE_OCCLUSION);
         options.depthWrite = false;
         auto pipeline = mBuilder.graphics->getOrCreate(options);
 
@@ -114,7 +116,7 @@ namespace MWRender
         vsgUtil::share_if(mTextureOptions->sharedObjects, sampler);
         auto texture = vsg::DescriptorImage::create(sampler, image);
         auto textures = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
-            Pipeline::TEXTURE_SET, vsg::Descriptors{ texture });
+            Pipeline::TEXTURE_SET, mOcclusionMap ? vsg::Descriptors{ texture, mOcclusionMap } : vsg::Descriptors{ texture });
 
         mDraw = vsg::VertexDraw::create();
         mDraw->assignArrays({ mVertices, normals, mColors, mUvs });

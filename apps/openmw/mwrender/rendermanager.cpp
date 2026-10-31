@@ -75,6 +75,7 @@
 #include "scene.hpp"
 #include "screenshotinterface.hpp"
 #include "shadow.hpp"
+#include "precipitationoccluder.hpp"
 #include "simplewater.hpp"
 #include "terrainstorage.hpp"
 #include "water.hpp"
@@ -149,6 +150,11 @@ namespace MWRender
         }
         descriptors.emplace_back(mReflect->reflectColor());
         descriptors.emplace_back(mReflect->reflectDepth());
+        if (Settings::shaders().mWeatherParticleOcclusion)
+        {
+            mOccluder = std::make_unique<PrecipitationOccluder>(*context);
+            mResourceSystem->setOccludedParticleMap(mOccluder->mapDescriptor());
+        }
         descriptors.emplace_back(mSceneData->descriptor());
 
         auto viewDescriptorSet = View::createViewDescriptorSet(descriptors);
@@ -185,6 +191,8 @@ namespace MWRender
         mEffects = std::make_unique<Effects>(mScene->context);
         mWeatherEffects = std::make_unique<WeatherEffects>(mScene->context);
         mRain = std::make_unique<Rain>(*mResourceSystem->builder, mCompileContext, mResourceSystem->textureOptions);
+        if (mOccluder)
+            mRain->setOcclusionMap(mOccluder->mapDescriptor());
         mWaterRipples = std::make_unique<WaterRipples>(
             *mResourceSystem->builder, mCompileContext, mResourceSystem->textureOptions);
         mProjectiles = std::make_unique<Projectiles>(mScene->context);
@@ -304,6 +312,23 @@ namespace MWRender
             mRecordShadow.push_back(castShadowGraph->recordTraversal);
             if (i == 0)
                 addCompileViews.emplace_back([this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
+        }
+
+        if (mOccluder)
+        {
+            auto rg = mOccluder->renderGraph();
+            auto occlusionGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
+            occlusionGraph->submitOrder = -1;
+            auto view = mOccluder->view();
+            view->mask = Mask_Object; // OpenMW's occluder does not draw terrain.
+            view->bins = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT), vsgUtil::NullBin::create(Bin_Compute) };
+            auto root = createCastShadowState();
+            root->children = { view };
+            rg->children = { root };
+            occlusionGraph->children = { rg };
+            threads.push_back(occlusionGraph);
+            mRecordShadow.push_back(occlusionGraph->recordTraversal);
+            addCompileViews.emplace_back([this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
         }
 
         mRecord = mCommandGraph->recordTraversal;
@@ -654,6 +679,11 @@ namespace MWRender
             static_cast<float>(mEngine.framebufferSamples()));
         sceneData.lightDiffuse = mLightDiffuse;
         sceneData.lightSpecular = mLightSpecular;
+        if (mOccluder)
+        {
+            sceneData.lightDiffuse.w = mOccluder->boxSize();
+            sceneData.lightSpecular.w = mOccluder->boxHeight();
+        }
         sceneData.invView = vsg::mat4(vsg::inverse_4x3(mViewMatrix->transform()));
         mSceneData->setLightPosition(mLightPosition, sceneData.invView);
         sceneData.lightViewPos.a = mRenderModes[Render_Sky] ? mSky->getLightSize() : 8.f;
@@ -663,6 +693,31 @@ namespace MWRender
         mShadow->updateCascades(*mSceneCamera, sceneData, mLightPosition);
         mSceneData->dirty();
         mLightGrid->update();
+    }
+
+    void RenderManager::updateOccluder(const vsg::vec3& cameraPosition)
+    {
+        if (!mOccluder)
+            return;
+        // OpenMW occludes rain and the snow effect, the two it wraps around the camera (SkyManager::update at 442eec6e2f).
+        const bool snow = mRenderModes[Render_Sky] && mSky->getParticleEffect() == Settings::models().mWeathersnow.get().value();
+        const bool active = mRainParameters.enabled || snow;
+        if (active != mOccluderActive)
+        {
+            mOccluderActive = active;
+            if (active)
+                mOccluder->view()->children = { mScene->getObjects() };
+            else
+                mOccluder->view()->children.clear();
+        }
+        if (active)
+        {
+            const vsg::vec3 rainRange(mRainParameters.diameter, mRainParameters.diameter,
+                (mRainParameters.minHeight + mRainParameters.maxHeight) / 2.f);
+            // OpenMW's defaultWrapRange for the snow effect.
+            const vsg::vec3 snowRange(1024.f, 1024.f, 800.f);
+            mOccluder->update(cameraPosition, mRainParameters.enabled ? rainRange : snowRange);
+        }
     }
 
     void RenderManager::configureFog(const MWWorld::Cell& cell)
@@ -744,6 +799,8 @@ namespace MWRender
         */
         mCamera->update(dt, paused);
         mCamera->updateCamera(*mViewMatrix);
+        // After the camera moves: the particle shader centres the box on this frame's view.
+        updateOccluder(vsg::vec3(mViewMatrix->eye));
     }
 
     void RenderManager::setNavMeshNumber(const std::size_t value)

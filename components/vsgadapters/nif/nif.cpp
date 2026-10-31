@@ -18,6 +18,7 @@
 #include <vsg/nodes/VertexIndexDraw.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/vfs/pathutil.hpp>
 #include <components/animation/billboard.hpp>
 #include <components/animation/color.hpp>
 #include <components/animation/cullparticles.hpp>
@@ -196,6 +197,8 @@ namespace vsgAdapters
         const std::function<bool(std::string_view)>* mTextureExists = nullptr;
         // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
         bool mSoftParticles = false;
+        const std::string* mOccludedParticleModel = nullptr;
+        const vsg::ref_ptr<vsg::Descriptor>* mOccludedParticleMap = nullptr;
 
         nifImpl(std::istream& stream, const vsg::Options& options, const vsg::ref_ptr<const vsg::Options>& imageOptions,
             bool showMarkers, int computeBin, int depthSortedBin, const Pipeline::Builder& builder)
@@ -586,6 +589,8 @@ namespace vsgAdapters
             removeAutoMapModes(getNodeOptions().shader);
             if (mSoftParticles)
                 getNodeOptions().shader.addMode(Pipeline::Mode::SOFT_PARTICLE);
+            if (mOccludedParticleMap && mOccludedParticleMap->valid() && VFS::Path::Normalized(mFilename).value() == *mOccludedParticleModel)
+                addModeDescriptor(*mOccludedParticleMap, Pipeline::Mode::PARTICLE_OCCLUSION);
 
             auto maxLifetime = ParticleSystem::calculateMaxLifetime(partctrl);
             Pipeline::Data::SimulateArgs args{};
@@ -1548,6 +1553,8 @@ namespace vsgAdapters
             impl.mAutoMaps = &autoMaps;
             impl.mTextureExists = &textureExists;
             impl.mSoftParticles = softParticles;
+            impl.mOccludedParticleModel = &occludedParticleModel;
+            impl.mOccludedParticleMap = &occludedParticleMap;
             return impl.load();
         }
         catch (std::exception& e)

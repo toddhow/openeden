@@ -14,5 +14,7 @@ const int BUMP_UNIT=12;
 // OpenEden: normal and specular maps (task 0012, V4h).
 const int NORMAL_UNIT=13;
 const int SPECULAR_UNIT=14;
+// OpenEden: weather particle occlusion (task 0012, V4l).
+const int OCCLUSION_UNIT=15;
 
 const int START_UVSET_CONSTANTS=4;

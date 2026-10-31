@@ -19,7 +19,7 @@ namespace
 {
 #include <files/shaders/lib/view/cascades.glsl>
 
-    vsg::ref_ptr<vsg::RenderPass> createDepthRenderPass(vsg::Device* device, VkFormat format)
+    vsg::ref_ptr<vsg::RenderPass> makeDepthRenderPass(vsg::Device* device, VkFormat format)
     {
         auto attachment = vsg::defaultDepthAttachment(format);
         attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -60,6 +60,22 @@ namespace
             rasterState.cullMode = cullMode;
         }
     };
+}
+
+namespace View
+{
+    vsg::ref_ptr<vsg::RenderPass> createDepthRenderPass(vsg::Device* device, VkFormat format)
+    {
+        return makeDepthRenderPass(device, format);
+    }
+
+    vsg::GraphicsPipelineStates depthOnlyPipelineStates(bool depthClamp, VkCullModeFlags cullMode)
+    {
+        auto overrideState = OverrideState::create();
+        overrideState->depthClampEnable = depthClamp;
+        overrideState->cullMode = cullMode;
+        return { overrideState, vsg::ColorBlendState::create() };
+    }
 }
 
 namespace View

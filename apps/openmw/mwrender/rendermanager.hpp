@@ -83,6 +83,7 @@ namespace MWAnim
 }
 namespace MWRender
 {
+    class PrecipitationOccluder;
     class Scene;
     class Reflect;
     class Effects;
@@ -331,6 +332,9 @@ namespace MWRender
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<Effects> mEffects;
         std::unique_ptr<WeatherEffects> mWeatherEffects;
+        std::unique_ptr<PrecipitationOccluder> mOccluder;
+        bool mOccluderActive = false;
+        void updateOccluder(const vsg::vec3& cameraPosition);
         std::unique_ptr<Rain> mRain;
         Rain::Parameters mRainParameters;
         std::unique_ptr<WaterRipples> mWaterRipples;
