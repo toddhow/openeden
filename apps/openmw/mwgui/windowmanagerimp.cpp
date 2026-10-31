@@ -1077,12 +1077,12 @@ namespace MWGui
             mMap->setCellPrefix(std::string(cellCommon->getNameId()));
             mHud->setCellPrefix(std::string(cellCommon->getNameId()));
 
-            osg::Vec3f worldPos;
+            vsg::vec3 worldPos;
             if (!MWBase::Environment::get().getWorld()->findInteriorPositionInWorldSpace(cell, worldPos))
                 worldPos = MWBase::Environment::get().getWorld()->getPlayer().getLastKnownExteriorPosition();
             else
                 MWBase::Environment::get().getWorld()->getPlayer().setLastKnownExteriorPosition(worldPos);
-            mMap->setGlobalMapPlayerPosition(worldPos.x(), worldPos.y());
+            mMap->setGlobalMapPlayerPosition(worldPos.x, worldPos.y);
 
             setActiveMap(0, 0, true);
         }

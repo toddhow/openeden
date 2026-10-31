@@ -42,22 +42,22 @@ namespace MWWorld
             return x * (1 - factor) + y * factor;
         }
         // linear interpolate between x and y based on factor.
-        osg::Vec4f lerp(const osg::Vec4f& x, const osg::Vec4f& y, float factor)
+        vsg::vec4 lerp(const vsg::vec4& x, const vsg::vec4& y, float factor)
         {
             return x * (1 - factor) + y * factor;
         }
 
-        osg::Vec3f calculateStormDirection(const std::string& particleEffect)
+        vsg::vec3 calculateStormDirection(const std::string& particleEffect)
         {
-            osg::Vec3f stormDirection = MWWorld::Weather::defaultDirection();
+            vsg::vec3 stormDirection = MWWorld::Weather::defaultDirection();
             if (particleEffect == Settings::models().mWeatherashcloud.get()
                 || particleEffect == Settings::models().mWeatherblightcloud.get())
             {
-                osg::Vec3f playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
-                playerPos.z() = 0;
-                osg::Vec3f redMountainPos = osg::Vec3f(25000.f, 70000.f, 0.f);
+                vsg::vec3 playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
+                playerPos.z = 0;
+                vsg::vec3 redMountainPos = vsg::vec3(25000.f, 70000.f, 0.f);
                 stormDirection = (playerPos - redMountainPos);
-                stormDirection.normalize();
+                Misc::VsgMath::normalizeInPlace(stormDirection);
             }
             return stormDirection;
         }
@@ -136,11 +136,11 @@ namespace MWWorld
     }
 
     template class MWWorld::TimeOfDayInterpolator<float>;
-    template class MWWorld::TimeOfDayInterpolator<osg::Vec4f>;
+    template class MWWorld::TimeOfDayInterpolator<vsg::vec4>;
 
-    osg::Vec3f Weather::defaultDirection()
+    vsg::vec3 Weather::defaultDirection()
     {
-        static const osg::Vec3f direction = osg::Vec3f(0.f, 1.f, 0.f);
+        static const vsg::vec3 direction = vsg::vec3(0.f, 1.f, 0.f);
         return direction;
     }
 
@@ -830,8 +830,8 @@ namespace MWWorld
             mCurrentWindSpeed = mResult.mCurrentWindSpeed;
             mNextWindSpeed = mResult.mNextWindSpeed;
             // rotate the stars by 360 degrees every 4 days
-            mAtmosphereNightRoll += MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale() * duration
-                * osg::DegreesToRadians(360.f) / (3600 * 96.f);
+            mAtmosphereNightRoll += MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale()
+                * duration * Misc::VsgMath::inDegrees(360.f) / (3600 * 96.f);
             mRendering.getSky()->setAtmosphereNightRoll(mAtmosphereNightRoll);
         }
 
@@ -870,15 +870,15 @@ namespace MWWorld
             double theta;
             if (!isNight)
             {
-                theta = static_cast<float>(osg::PI) * (adjustedHour - mSunriseTime) / dayDuration;
+                theta = static_cast<float>(Misc::VsgMath::PI) * (adjustedHour - mSunriseTime) / dayDuration;
             }
             else
             {
-                theta = static_cast<float>(osg::PI)
-                    - static_cast<float>(osg::PI) * (adjustedHour - adjustedNightStart) / nightDuration;
+                theta = static_cast<float>(Misc::VsgMath::PI)
+                    - static_cast<float>(Misc::VsgMath::PI) * (adjustedHour - adjustedNightStart) / nightDuration;
             }
 
-            osg::Vec3f final(static_cast<float>(cos(theta)),
+            vsg::vec3 final(static_cast<float>(cos(theta)),
                 -0.268f, // approx tan( -15 degrees )
                 static_cast<float>(sin(theta)));
             mRendering.setSunDirection(final * -1);
@@ -976,7 +976,7 @@ namespace MWWorld
         return mIsStorm;
     }
 
-    osg::Vec3f WeatherManager::getStormDirection() const
+    vsg::vec3 WeatherManager::getStormDirection() const
     {
         return mStormDirection;
     }
@@ -1251,7 +1251,7 @@ namespace MWWorld
                 = mWeatherSettings[mNextWeather].calculateThunder(1 - mTransitionFactor, elapsedSeconds, isPaused);
             flash = currentFlash + nextFlash;
         }
-        osg::Vec4f flashColor(flash, flash, flash, 0.0f);
+        vsg::vec4 flashColor(flash, flash, flash, 0.0f);
 
         mResult.mFogColor += flashColor;
         mResult.mAmbientColor += flashColor;
@@ -1309,7 +1309,7 @@ namespace MWWorld
             if (preSunsetTime > 0)
                 factor = (gameHour - (mTimeSettings.mDayEnd - preSunsetTime)) / preSunsetTime;
             factor = std::min(1.f, factor);
-            mResult.mSunDiscColor = lerp(osg::Vec4f(1, 1, 1, 1), current.mSunDiscSunsetColor, factor);
+            mResult.mSunDiscColor = lerp(vsg::vec4(1, 1, 1, 1), current.mSunDiscSunsetColor, factor);
             // The SunDiscSunsetColor in the INI isn't exactly the resulting color on screen, most likely because
             // MW applied the color to the ambient term as well. After the ambient and emissive terms are added
             // together, the fixed pipeline would then clamp the total lighting to (1,1,1). A noticeable change in color
@@ -1321,7 +1321,7 @@ namespace MWWorld
                 mResult.mSunDiscColor[i] = std::min(1.f, mResult.mSunDiscColor[i]);
         }
         else
-            mResult.mSunDiscColor = osg::Vec4f(1, 1, 1, 1);
+            mResult.mSunDiscColor = vsg::vec4(1, 1, 1, 1);
 
         if (gameHour >= mTimeSettings.mDayEnd)
         {

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <components/misc/rng.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/navmeshrendermode.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -22,10 +23,6 @@
 
 namespace osg
 {
-    class Vec3f;
-    class Vec4f;
-    class Matrixf;
-    class Quat;
     class Stats;
 }
 
@@ -281,22 +278,22 @@ namespace MWBase
         virtual void undeleteObject(const MWWorld::Ptr& ptr) = 0;
 
         virtual MWWorld::Ptr moveObject(
-            const MWWorld::Ptr& ptr, const osg::Vec3f& position, bool movePhysics = true, bool moveToActive = false)
+            const MWWorld::Ptr& ptr, const vsg::vec3& position, bool movePhysics = true, bool moveToActive = false)
             = 0;
         ///< @return an updated Ptr in case the Ptr's cell changes
 
-        virtual MWWorld::Ptr moveObject(const MWWorld::Ptr& ptr, MWWorld::CellStore* newCell,
-            const osg::Vec3f& position, bool movePhysics = true, bool keepActive = false)
+        virtual MWWorld::Ptr moveObject(const MWWorld::Ptr& ptr, MWWorld::CellStore* newCell, const vsg::vec3& position,
+            bool movePhysics = true, bool keepActive = false)
             = 0;
         ///< @return an updated Ptr
 
-        virtual MWWorld::Ptr moveObjectBy(const MWWorld::Ptr& ptr, const osg::Vec3f& vec, bool moveToActive) = 0;
+        virtual MWWorld::Ptr moveObjectBy(const MWWorld::Ptr& ptr, const vsg::vec3& vec, bool moveToActive) = 0;
         ///< @return an updated Ptr
 
         virtual void scaleObject(const MWWorld::Ptr& ptr, float scale, bool force = false) = 0;
 
         virtual void rotateObject(
-            const MWWorld::Ptr& ptr, const osg::Vec3f& rot, RotationFlags flags = RotationFlag_inverseOrder)
+            const MWWorld::Ptr& ptr, const vsg::vec3& rot, RotationFlags flags = RotationFlag_inverseOrder)
             = 0;
 
         virtual MWWorld::Ptr placeObject(
@@ -312,7 +309,7 @@ namespace MWBase
         /// relative to \a referenceObject (but the object may be placed somewhere else if the wanted location is
         /// obstructed).
 
-        virtual void queueMovement(const MWWorld::Ptr& ptr, const osg::Vec3f& velocity) = 0;
+        virtual void queueMovement(const MWWorld::Ptr& ptr, const vsg::vec3& velocity) = 0;
         ///< Queues movement for \a ptr (in local space), to be applied in the next call to
         /// doPhysics.
 
@@ -321,7 +318,7 @@ namespace MWBase
         virtual MWPhysics::PhysicsSystem* getPhysicsSystem() const = 0;
         virtual const MWPhysics::RayCastingInterface* getRayCasting() const = 0;
 
-        virtual bool castRenderingRay(MWPhysics::RayCastingResult& res, const osg::Vec3f& from, const osg::Vec3f& to,
+        virtual bool castRenderingRay(MWPhysics::RayCastingResult& res, const vsg::vec3& from, const vsg::vec3& to,
             bool ignorePlayer, bool ignoreActors, std::span<const MWWorld::Ptr> ignoreList = {})
             = 0;
 
@@ -365,12 +362,12 @@ namespace MWBase
         virtual bool isWading(const MWWorld::ConstPtr& object) const = 0;
         /// Is the head of the creature underwater?
         virtual bool isSubmerged(const MWWorld::ConstPtr& object) const = 0;
-        virtual bool isUnderwater(const MWWorld::CellStore* cell, const osg::Vec3f& pos) const = 0;
+        virtual bool isUnderwater(const MWWorld::CellStore* cell, const vsg::vec3& pos) const = 0;
         virtual bool isUnderwater(const MWWorld::ConstPtr& object, const float heightRatio) const = 0;
         virtual bool isWaterWalkingCastableOnTarget(const MWWorld::ConstPtr& target) const = 0;
         virtual bool isOnGround(const MWWorld::Ptr& ptr) const = 0;
 
-        virtual osg::Vec3f getActorHeadPosition(const MWWorld::ConstPtr& actor) const = 0;
+        virtual vsg::vec3 getActorHeadPosition(const MWWorld::ConstPtr& actor) const = 0;
 
         virtual void togglePOV(bool force = false) = 0;
         virtual bool isFirstPerson() const = 0;
@@ -420,7 +417,7 @@ namespace MWBase
         ///< get Line of Sight (morrowind stupid implementation)
 
         virtual float getDistToNearestRayHit(
-            const osg::Vec3f& from, const osg::Vec3f& dir, float maxDist, bool includeWater = false)
+            const vsg::vec3& from, const vsg::vec3& dir, float maxDist, bool includeWater = false)
             = 0;
 
         virtual void enableActorCollision(const MWWorld::Ptr& actor, bool enable) = 0;
@@ -478,11 +475,11 @@ namespace MWBase
 
         virtual void castSpell(const MWWorld::Ptr& actor, bool scriptedSpell = false) = 0;
 
-        virtual void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster,
-            const osg::Vec3f& fallbackDirection, ESM::RefNum item)
+        virtual void launchMagicBolt(
+            const ESM::RefId& spellId, const MWWorld::Ptr& caster, const vsg::vec3& fallbackDirection, ESM::RefNum item)
             = 0;
-        virtual void launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const osg::Vec3f& worldPos,
-            const osg::Quat& orient, MWWorld::Ptr& bow, float speed, float attackStrength)
+        virtual void launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const vsg::vec3& worldPos,
+            const vsg::dquat& orient, MWWorld::Ptr& bow, float speed, float attackStrength)
             = 0;
         virtual void updateProjectilesCasters() = 0;
 
@@ -495,13 +492,13 @@ namespace MWBase
         // Allow NPCs to use torches?
         virtual bool useTorches() const = 0;
 
-        virtual const osg::Vec4f& getSunLightPosition() const = 0;
+        virtual vsg::vec4 getSunLightPosition() const = 0;
         virtual float getSunVisibility() const = 0;
         virtual float getSunPercentage() const = 0;
 
         virtual float getPhysicsFrameRateDt() const = 0;
 
-        virtual bool findInteriorPositionInWorldSpace(const MWWorld::CellStore* cell, osg::Vec3f& result) = 0;
+        virtual bool findInteriorPositionInWorldSpace(const MWWorld::CellStore* cell, vsg::vec3& result) = 0;
 
         /// Teleports \a ptr to the closest reference of \a id (e.g. DivineMarker, PrisonMarker, TempleMarker)
         /// @note id must be lower case
@@ -532,7 +529,7 @@ namespace MWBase
         virtual void spawnRandomCreature(const ESM::RefId& creatureList) = 0;
 
         virtual void spawnEffect(VFS::Path::NormalizedView model, const std::string& textureOverride,
-            const osg::Vec3f& worldPos, float scale = 1.f, bool isMagicVFX = true, bool useAmbientLight = true,
+            const vsg::vec3& worldPos, float scale = 1.f, bool isMagicVFX = true, bool useAmbientLight = true,
             std::string_view effectId = {}, bool loop = false)
             = 0;
 
@@ -542,7 +539,7 @@ namespace MWBase
         virtual bool isInStorm() const = 0;
 
         /// @see MWWorld::WeatherManager::getStormDirection
-        virtual osg::Vec3f getStormDirection() const = 0;
+        virtual vsg::vec3 getStormDirection() const = 0;
 
         /// Resets all actors in the current active cells to their original location within that cell.
         virtual void resetActors() = 0;
@@ -551,7 +548,7 @@ namespace MWBase
 
         /// Return a vector aiming the actor's weapon towards a target.
         /// @note The length of the vector is the distance between actor and target.
-        virtual osg::Vec3f aimToTarget(
+        virtual vsg::vec3 aimToTarget(
             const MWWorld::ConstPtr& actor, const MWWorld::ConstPtr& target, bool isRangedCombat)
             = 0;
 
@@ -565,10 +562,10 @@ namespace MWBase
         virtual void setPlayerTraveling(bool traveling) = 0;
         virtual bool isPlayerTraveling() const = 0;
 
-        virtual void rotateWorldObject(const MWWorld::Ptr& ptr, const osg::Quat& rotate) = 0;
+        virtual void rotateWorldObject(const MWWorld::Ptr& ptr, const vsg::dquat& rotate) = 0;
 
         /// Return terrain height at \a worldPos position.
-        virtual float getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const = 0;
+        virtual float getTerrainHeightAt(const vsg::vec3& worldPos, ESM::RefId worldspace) const = 0;
 
         /// Return physical or rendering half extents of the given actor.
         virtual vsg::vec3 getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const = 0;
@@ -583,7 +580,7 @@ namespace MWBase
         virtual DetourNavigator::Navigator* getNavigator() const = 0;
 
         virtual void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
-            const DetourNavigator::AgentBounds& agentBounds, const osg::Vec3f& start, const osg::Vec3f& end) const
+            const DetourNavigator::AgentBounds& agentBounds, const vsg::vec3& start, const vsg::vec3& end) const
             = 0;
 
         virtual void removeActorPath(const MWWorld::ConstPtr& actor) const = 0;
@@ -595,11 +592,10 @@ namespace MWBase
         virtual DetourNavigator::AgentBounds getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const = 0;
 
         virtual bool hasCollisionWithDoor(
-            const MWWorld::ConstPtr& door, const osg::Vec3f& position, const osg::Vec3f& destination) const
+            const MWWorld::ConstPtr& door, const vsg::vec3& position, const vsg::vec3& destination) const
             = 0;
 
-        virtual bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const = 0;
-
+        virtual bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const vsg::vec3& position) const = 0;
 
         virtual std::vector<MWWorld::Ptr> getAll(const ESM::RefId& id) = 0;
 

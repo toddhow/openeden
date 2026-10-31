@@ -1,15 +1,17 @@
 #ifndef OPENMW_APPS_OPENMW_MWWORLD_POSITIONCELLGRID_H
 #define OPENMW_APPS_OPENMW_MWWORLD_POSITIONCELLGRID_H
 
-#include <osg/Vec3f>
-#include <osg/Vec4i>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
 
 namespace MWWorld
 {
     struct PositionCellGrid
     {
-        osg::Vec3f mPosition;
-        osg::Vec4i mCellBounds;
+        vsg::vec3 mPosition;
+        vsg::ivec4 mCellBounds;
     };
 }
 

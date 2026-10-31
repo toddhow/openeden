@@ -45,7 +45,7 @@ namespace MWClass
         renderingInterface.getObjects().insertModel(ptr, model, !(ref->mBase->mData.mFlags & ESM::Light::OffDefault));
     }
 
-    void Light::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Light::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         MWWorld::LiveCellRef<ESM::Light>* ref = ptr.get<ESM::Light>();
@@ -58,7 +58,7 @@ namespace MWClass
                 ptr, ref->mBase->mSound, 1.0, 1.0, MWSound::Type::Sfx, MWSound::PlayMode::Loop);
     }
 
-    void Light::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Light::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         // TODO: add option somewhere to enable collision for placeable objects

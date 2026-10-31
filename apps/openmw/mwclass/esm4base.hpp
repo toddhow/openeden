@@ -24,7 +24,7 @@ namespace MWClass
     {
         void insertObjectRendering(
             const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface);
-        void insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+        void insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics);
         MWGui::ToolTipInfo getToolTipInfo(std::string_view name, int count);
 
@@ -90,13 +90,13 @@ namespace MWClass
             ESM4Impl::insertObjectRendering(ptr, model, renderingInterface);
         }
 
-        void insertObject(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+        void insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const override
         {
             insertObjectPhysics(ptr, model, rotation, physics);
         }
 
-        void insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+        void insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const override
         {
             ESM4Impl::insertObjectPhysics(ptr, model, rotation, physics);

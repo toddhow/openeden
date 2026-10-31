@@ -1,5 +1,7 @@
 #include "actiontrap.hpp"
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 #include "../mwmechanics/spellcasting.hpp"
 
@@ -10,8 +12,8 @@ namespace MWWorld
 {
     void ActionTrap::executeImp(const Ptr& actor)
     {
-        osg::Vec3f actorPosition(actor.getRefData().getPosition().asVec3());
-        osg::Vec3f trapPosition(mTrapSource.getRefData().getPosition().asVec3());
+        vsg::vec3 actorPosition(actor.getRefData().getPosition().asVec3());
+        vsg::vec3 trapPosition(mTrapSource.getRefData().getPosition().asVec3());
         float trapRange = MWBase::Environment::get().getWorld()->getMaxActivationDistance();
 
         // Note: can't just detonate the trap at the trapped object's location and use the blast

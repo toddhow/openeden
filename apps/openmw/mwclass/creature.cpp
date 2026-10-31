@@ -226,7 +226,7 @@ namespace MWClass
     bool Creature::evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, vsg::vec3& hitPosition) const
     {
         victim = MWWorld::Ptr();
-        hitPosition = osg::Vec3f();
+        hitPosition = vsg::vec3();
 
         // Get the weapon used (if hand-to-hand, weapon = inv.end())
         MWWorld::Ptr weapon;
@@ -241,7 +241,7 @@ namespace MWClass
         MWBase::World* world = MWBase::Environment::get().getWorld();
 
         const float dist = MWMechanics::getMeleeWeaponReach(ptr, weapon);
-        const std::pair<MWWorld::Ptr, osg::Vec3f> result = MWMechanics::getHitContact(ptr, dist);
+        const std::pair<MWWorld::Ptr, vsg::vec3> result = MWMechanics::getHitContact(ptr, dist);
         if (result.first.isEmpty()) // Didn't hit anything
             return true;
 
@@ -255,7 +255,7 @@ namespace MWClass
     }
 
     void Creature::hit(const MWWorld::Ptr& ptr, float attackStrength, int type, const MWWorld::Ptr& victim,
-        const osg::Vec3f& hitPosition, bool success) const
+        const vsg::vec3& hitPosition, bool success) const
     {
         MWMechanics::CreatureStats& stats = getCreatureStats(ptr);
 
@@ -713,7 +713,7 @@ namespace MWClass
             MWBase::World* world = MWBase::Environment::get().getWorld();
             if (world->isFlying(ptr))
                 return -1;
-            osg::Vec3f pos(ptr.getRefData().getPosition().asVec3());
+            vsg::vec3 pos(ptr.getRefData().getPosition().asVec3());
             if (world->isUnderwater(ptr.getCell(), pos) || world->isWalkingOnWater(ptr))
                 return ESM::SoundGenerator::SwimLeft;
             if (world->isOnGround(ptr))
@@ -725,7 +725,7 @@ namespace MWClass
             MWBase::World* world = MWBase::Environment::get().getWorld();
             if (world->isFlying(ptr))
                 return -1;
-            osg::Vec3f pos(ptr.getRefData().getPosition().asVec3());
+            vsg::vec3 pos(ptr.getRefData().getPosition().asVec3());
             if (world->isUnderwater(ptr.getCell(), pos) || world->isWalkingOnWater(ptr))
                 return ESM::SoundGenerator::SwimRight;
             if (world->isOnGround(ptr))

@@ -58,15 +58,15 @@ namespace MWRender
         else if (!ptr.getClass().isNpc())
         {
             auto trans = vsg::ref_ptr{ new Anim::Transform };
-            osg::Vec3f bounds(MWBase::Environment::get().getWorld()->getHalfExtents(ptr) * 2.f);
-            float scale = std::max({ bounds.x(), bounds.y(), bounds.z() / 2.f }) / 64.f;
+            vsg::vec3 bounds(MWBase::Environment::get().getWorld()->getHalfExtents(ptr) * 2.f);
+            float scale = std::max({ bounds.x, bounds.y, bounds.z / 2.f }) / 64.f;
             if (scale > 1.f)
                 trans->setScale(scale);
             float offset = 0.f;
-            if (bounds.z() < 128.f)
-                offset = bounds.z() - 128.f;
-            else if (bounds.z() < bounds.x() + bounds.y())
-                offset = 128.f - bounds.z();
+            if (bounds.z < 128.f)
+                offset = bounds.z - 128.f;
+            else if (bounds.z < bounds.x + bounds.y)
+                offset = 128.f - bounds.z;
             if (world->isFlying(ptr))
                 offset /= 20.f;
             trans->translation = { 0.f, 0.f, offset * scale };

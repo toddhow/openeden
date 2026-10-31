@@ -5,7 +5,8 @@
 #include <set>
 #include <string>
 
-#include <osg/Vec4>
+#include <components/misc/vsgmath.hpp>
+
 #include <vsg/maths/quat.h>
 #include <vsg/maths/vec4.h>
 
@@ -22,11 +23,6 @@ namespace MWPhysics
 namespace Loading
 {
     class Listener;
-}
-
-namespace osg
-{
-    class Quat;
 }
 
 namespace MWRender
@@ -48,11 +44,11 @@ namespace MWWorld
         ProjectileManager(MWRender::RenderManager* rendering, MWPhysics::PhysicsSystem* physics);
 
         /// If caster is an actor, the actor's facing orientation is used. Otherwise fallbackDirection is used.
-        void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster, const osg::Vec3f& fallbackDirection,
+        void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster, const vsg::vec3& fallbackDirection,
             ESM::RefNum item);
 
-        void launchProjectile(const MWWorld::Ptr& actor, const MWWorld::ConstPtr& projectile, const osg::Vec3f& pos,
-            const osg::Quat& orient, const MWWorld::Ptr& bow, float speed, float attackStrength);
+        void launchProjectile(const MWWorld::Ptr& actor, const MWWorld::ConstPtr& projectile, const vsg::vec3& pos,
+            const vsg::dquat& orient, const MWWorld::Ptr& bow, float speed, float attackStrength);
 
         void updateCasters();
 
@@ -113,7 +109,7 @@ namespace MWWorld
             // RefID of the bow or crossbow the actor was using when this projectile was fired (may be empty)
             ESM::RefId mBowId;
 
-            osg::Vec3f mVelocity;
+            vsg::vec3 mVelocity;
             float mAttackStrength;
         };
 

@@ -40,12 +40,12 @@ namespace MWClass
         ///< Adjust position to stand on ground. Must be called post model load
         /// @param force do this even if the ptr is flying
 
-        void insertObject(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+        void insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const override;
 
         bool useAnim() const override;
 
-        osg::Vec3f getRotationVector(const MWWorld::Ptr& ptr) const override;
+        vsg::vec3 getRotationVector(const MWWorld::Ptr& ptr) const override;
         ///< Return desired rotations, as euler angles. Sets getMovementSettings(ptr).mRotation to zero.
 
         float getEncumbrance(const MWWorld::Ptr& ptr) const override;

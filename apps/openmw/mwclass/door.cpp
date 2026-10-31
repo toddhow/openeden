@@ -1,5 +1,7 @@
 #include "door.hpp"
-#include <osg/Quat>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/quat.h>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
@@ -61,7 +63,7 @@ namespace MWClass
         }
     }
 
-    void Door::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Door::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         insertObjectPhysics(ptr, model, rotation, physics);
@@ -77,7 +79,7 @@ namespace MWClass
         }
     }
 
-    void Door::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Door::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         physics.addObject(ptr, VFS::Path::toNormalized(model), rotation, MWPhysics::Layers::DOOR);
@@ -211,14 +213,14 @@ namespace MWClass
                     MWBase::Environment::get().getSoundManager()->fadeOutSound3D(ptr, closeSound, 0.5f);
                     // Doors rotate at 90 degrees per second, so start the sound at
                     // where it would be at the current rotation.
-                    float offset = doorRot / (osg::PIf * 0.5f);
+                    float offset = doorRot / (Misc::VsgMath::PIf * 0.5f);
                     action->setSoundOffset(offset);
                     action->setSound(openSound);
                 }
                 else
                 {
                     MWBase::Environment::get().getSoundManager()->fadeOutSound3D(ptr, openSound, 0.5f);
-                    float offset = 1.0f - doorRot / (osg::PIf * 0.5f);
+                    float offset = 1.0f - doorRot / (Misc::VsgMath::PIf * 0.5f);
                     action->setSoundOffset(std::max(offset, 0.0f));
                     action->setSound(closeSound);
                 }

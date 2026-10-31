@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
-#include <osg/Vec4f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec4.h>
 
 #include "doorstate.hpp"
 #include "ptr.hpp"
@@ -16,11 +18,6 @@
 
 #include <components/esm/refid.hpp>
 #include <components/vfs/pathutil.hpp>
-
-namespace osg
-{
-    class Quat;
-}
 
 namespace ESM
 {
@@ -88,10 +85,10 @@ namespace MWWorld
 
         virtual void insertObjectRendering(
             const Ptr& ptr, const std::string& mesh, MWRender::RenderingInterface& renderingInterface) const;
-        virtual void insertObject(const Ptr& ptr, const std::string& mesh, const osg::Quat& rotation,
+        virtual void insertObject(const Ptr& ptr, const std::string& mesh, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const;
         ///< Add reference into a cell for rendering (default implementation: don't render anything).
-        virtual void insertObjectPhysics(const Ptr& ptr, const std::string& mesh, const osg::Quat& rotation,
+        virtual void insertObjectPhysics(const Ptr& ptr, const std::string& mesh, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const;
 
         virtual std::string_view getName(const ConstPtr& ptr) const = 0;
@@ -139,7 +136,7 @@ namespace MWWorld
         /// (default implementation: throw an exception)
 
         virtual void hit(const Ptr& ptr, float attackStrength, int type = -1, const Ptr& victim = Ptr(),
-            const osg::Vec3f& hitPosition = osg::Vec3f(), bool success = false) const;
+            const vsg::vec3& hitPosition = vsg::vec3(), bool success = false) const;
         ///< Execute a melee hit on the victim at hitPosition, using the current weapon. If the hit was successful,
         ///< apply damage and process corresponding events.
         /// \param attackStrength how long the attack was charged for, a value in 0-1 range.
@@ -202,7 +199,7 @@ namespace MWWorld
         virtual MWMechanics::Movement& getMovementSettings(const Ptr& ptr) const;
         ///< Return desired movement.
 
-        virtual osg::Vec3f getRotationVector(const Ptr& ptr) const;
+        virtual vsg::vec3 getRotationVector(const Ptr& ptr) const;
         ///< Return desired rotations, as euler angles. Sets getMovementSettings(ptr).mRotation to zero.
 
         virtual std::pair<std::vector<int>, bool> getEquipmentSlots(const ConstPtr& ptr) const;
@@ -377,7 +374,7 @@ namespace MWWorld
         virtual float getSkillAdjustedArmorRating(
             const MWWorld::ConstPtr& armor, const MWWorld::Ptr& actor, bool useLuaInterfaceIfAvailable = false) const;
 
-        virtual osg::Vec4f getEnchantmentColor(const MWWorld::ConstPtr& item) const;
+        virtual vsg::vec4 getEnchantmentColor(const MWWorld::ConstPtr& item) const;
 
         virtual void setBaseAISetting(const ESM::RefId& id, MWMechanics::AiSetting setting, int value) const;
 

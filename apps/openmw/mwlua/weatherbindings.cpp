@@ -168,8 +168,11 @@ namespace MWLua
                 });
         weatherT["isStorm"] = sol::property([](const MWWorld::Weather& w) { return w.mIsStorm; },
             [](MWWorld::Weather& w, bool isStorm) { w.mIsStorm = isStorm; });
-        weatherT["stormDirection"] = sol::property([](const MWWorld::Weather& w) { return w.mStormDirection; },
-            [](MWWorld::Weather& w, const FiniteVec3f& stormDirection) { w.mStormDirection = stormDirection; });
+        weatherT["stormDirection"]
+            = sol::property([](const MWWorld::Weather& w) { return osg::Vec3f(w.mStormDirection); },
+                [](MWWorld::Weather& w, const FiniteVec3f& stormDirection) {
+                    w.mStormDirection = osg::Vec3f(stormDirection);
+                });
         weatherT["glareView"] = sol::property([](const MWWorld::Weather& w) { return w.mGlareView; },
             [](MWWorld::Weather& w, const FiniteFloat glareView) { w.mGlareView = glareView; });
         weatherT["rainSpeed"] = sol::property([](const MWWorld::Weather& w) { return w.mRainSpeed; },
@@ -274,7 +277,9 @@ namespace MWLua
         api["getCurrentSunVisibility"] = overloadWeatherGetter(&MWBase::World::getSunVisibility);
         api["getCurrentSunPercentage"] = overloadWeatherGetter(&MWBase::World::getSunPercentage);
         api["getCurrentWindSpeed"] = overloadWeatherGetter(&MWBase::World::getWindSpeed);
-        api["getCurrentStormDirection"] = overloadWeatherGetter(&MWBase::World::getStormDirection);
+        api["getCurrentStormDirection"] = overloadForActiveCell([]() -> std::optional<osg::Vec3f> {
+            return osg::Vec3f(MWBase::Environment::get().getWorld()->getStormDirection());
+        });
 
         return LuaUtil::makeReadOnly(api);
     }

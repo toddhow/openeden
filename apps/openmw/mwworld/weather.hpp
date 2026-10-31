@@ -5,7 +5,9 @@
 #include <map>
 #include <string>
 
-#include <osg/Vec4f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec4.h>
 
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
@@ -127,7 +129,7 @@ namespace MWWorld
     class Weather
     {
     public:
-        static osg::Vec3f defaultDirection();
+        static vsg::vec3 defaultDirection();
 
         Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
             float dlFactor, float dlOffset, const std::string& particleEffect);
@@ -139,19 +141,19 @@ namespace MWWorld
         size_t mCloudTextureIndex = 0;
 
         // Sky (atmosphere) color
-        TimeOfDayInterpolator<osg::Vec4f> mSkyColor;
+        TimeOfDayInterpolator<vsg::vec4> mSkyColor;
         // Fog color
-        TimeOfDayInterpolator<osg::Vec4f> mFogColor;
+        TimeOfDayInterpolator<vsg::vec4> mFogColor;
         // Ambient lighting color
-        TimeOfDayInterpolator<osg::Vec4f> mAmbientColor;
+        TimeOfDayInterpolator<vsg::vec4> mAmbientColor;
         // Sun (directional) lighting color
-        TimeOfDayInterpolator<osg::Vec4f> mSunColor;
+        TimeOfDayInterpolator<vsg::vec4> mSunColor;
 
         // Fog depth/density
         TimeOfDayInterpolator<float> mLandFogDepth;
 
         // Color modulation for the sun itself during sunset
-        osg::Vec4f mSunDiscSunsetColor;
+        vsg::vec4 mSunDiscSunsetColor;
 
         // Used by scripts to animate signs, etc based on the wind (GetWindSpeed)
         float mWindSpeed;
@@ -209,7 +211,7 @@ namespace MWWorld
 
         std::string mRainEffect;
 
-        osg::Vec3f mStormDirection;
+        vsg::vec3 mStormDirection;
 
         float mCloudsMaximumPercent;
 
@@ -327,7 +329,7 @@ namespace MWWorld
         /// Are we in an ash or blight storm?
         bool isInStorm() const;
 
-        osg::Vec3f getStormDirection() const;
+        vsg::vec3 getStormDirection() const;
 
         void advanceTime(double hours, bool incremental);
 
@@ -394,7 +396,7 @@ namespace MWWorld
         float mNextWindSpeed;
         bool mIsStorm;
         bool mPrecipitation;
-        osg::Vec3f mStormDirection;
+        vsg::vec3 mStormDirection;
 
         ESM::RefId mCurrentRegion;
         float mTimePassed;

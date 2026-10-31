@@ -39,12 +39,12 @@ namespace MWWorld
     }
 
     void Class::insertObject(
-        const Ptr& ptr, const std::string& mesh, const osg::Quat& rotation, MWPhysics::PhysicsSystem& physics) const
+        const Ptr& ptr, const std::string& mesh, const vsg::dquat& rotation, MWPhysics::PhysicsSystem& physics) const
     {
     }
 
     void Class::insertObjectPhysics(
-        const Ptr& ptr, const std::string& mesh, const osg::Quat& rotation, MWPhysics::PhysicsSystem& physics) const
+        const Ptr& ptr, const std::string& mesh, const vsg::dquat& rotation, MWPhysics::PhysicsSystem& physics) const
     {
     }
 
@@ -113,7 +113,7 @@ namespace MWWorld
         throw std::runtime_error("class cannot hit");
     }
 
-    void Class::hit(const Ptr& ptr, float attackStrength, int type, const Ptr& victim, const osg::Vec3f& hitPosition,
+    void Class::hit(const Ptr& ptr, float attackStrength, int type, const Ptr& victim, const vsg::vec3& hitPosition,
         bool success) const
     {
         throw std::runtime_error("class cannot hit");
@@ -195,9 +195,9 @@ namespace MWWorld
         throw std::runtime_error("movement settings not supported by class");
     }
 
-    osg::Vec3f Class::getRotationVector(const Ptr& ptr) const
+    vsg::vec3 Class::getRotationVector(const Ptr& ptr) const
     {
-        return osg::Vec3f(0, 0, 0);
+        return vsg::vec3(0, 0, 0);
     }
 
     std::pair<std::vector<int>, bool> Class::getEquipmentSlots(const ConstPtr& ptr) const
@@ -520,9 +520,9 @@ namespace MWWorld
         throw std::runtime_error("class does not support armor ratings");
     }
 
-    osg::Vec4f Class::getEnchantmentColor(const MWWorld::ConstPtr& item) const
+    vsg::vec4 Class::getEnchantmentColor(const MWWorld::ConstPtr& item) const
     {
-        osg::Vec4f result(1, 1, 1, 1);
+        vsg::vec4 result(1, 1, 1, 1);
         const ESM::RefId& enchantmentName = item.getClass().getEnchantment(item);
         if (enchantmentName.empty())
             return result;
@@ -537,9 +537,9 @@ namespace MWWorld
         if (!magicEffect)
             return result;
 
-        result.x() = magicEffect->mData.mRed / 255.f;
-        result.y() = magicEffect->mData.mGreen / 255.f;
-        result.z() = magicEffect->mData.mBlue / 255.f;
+        result.x = magicEffect->mData.mRed / 255.f;
+        result.y = magicEffect->mData.mGreen / 255.f;
+        result.z = magicEffect->mData.mBlue / 255.f;
         return result;
     }
 

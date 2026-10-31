@@ -1,4 +1,5 @@
 #include "localscripts.hpp"
+#include <osg/Vec3f>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"

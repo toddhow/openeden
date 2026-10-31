@@ -24,7 +24,7 @@ namespace MWClass
         MWBase::Environment::get().getWorld()->adjustPosition(ptr, force);
     }
 
-    void Actor::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Actor::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         physics.addActor(ptr, VFS::Path::toNormalized(model));
@@ -37,10 +37,10 @@ namespace MWClass
         return true;
     }
 
-    osg::Vec3f Actor::getRotationVector(const MWWorld::Ptr& ptr) const
+    vsg::vec3 Actor::getRotationVector(const MWWorld::Ptr& ptr) const
     {
         MWMechanics::Movement& movement = getMovementSettings(ptr);
-        osg::Vec3f vec(movement.mRotation[0], movement.mRotation[1], movement.mRotation[2]);
+        vsg::vec3 vec(movement.mRotation[0], movement.mRotation[1], movement.mRotation[2]);
         movement.mRotation[0] = 0.0f;
         movement.mRotation[1] = 0.0f;
         movement.mRotation[2] = 0.0f;

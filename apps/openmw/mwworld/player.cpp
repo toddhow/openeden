@@ -265,7 +265,7 @@ namespace MWWorld
         mCurrentCrimeId = -1;
         mPaidCrimeId = -1;
         mPreviousItems.clear();
-        mLastKnownExteriorPosition = osg::Vec3f(0, 0, 0);
+        mLastKnownExteriorPosition = vsg::vec3(0, 0, 0);
 
         mSaveSkills.fill(0.f);
         mSaveAttributes.fill(0.f);
@@ -290,9 +290,9 @@ namespace MWWorld
 
         player.mBirthsign = mSign;
 
-        player.mLastKnownExteriorPosition[0] = mLastKnownExteriorPosition.x();
-        player.mLastKnownExteriorPosition[1] = mLastKnownExteriorPosition.y();
-        player.mLastKnownExteriorPosition[2] = mLastKnownExteriorPosition.z();
+        player.mLastKnownExteriorPosition[0] = mLastKnownExteriorPosition.x;
+        player.mLastKnownExteriorPosition[1] = mLastKnownExteriorPosition.y;
+        player.mLastKnownExteriorPosition[2] = mLastKnownExteriorPosition.z;
 
         if (mMarkedCell)
         {
@@ -386,9 +386,9 @@ namespace MWWorld
 
             mSign = player.mBirthsign;
 
-            mLastKnownExteriorPosition.x() = player.mLastKnownExteriorPosition[0];
-            mLastKnownExteriorPosition.y() = player.mLastKnownExteriorPosition[1];
-            mLastKnownExteriorPosition.z() = player.mLastKnownExteriorPosition[2];
+            mLastKnownExteriorPosition.x = player.mLastKnownExteriorPosition[0];
+            mLastKnownExteriorPosition.y = player.mLastKnownExteriorPosition[1];
+            mLastKnownExteriorPosition.z = player.mLastKnownExteriorPosition[2];
 
             if (player.mHasMark)
             {

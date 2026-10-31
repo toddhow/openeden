@@ -1,7 +1,9 @@
 #ifndef OPENW_MWORLD_CELL
 #define OPENW_MWORLD_CELL
 
-#include <osg/Vec2i>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec2.h>
 
 #include <components/esm/esmbridge.hpp>
 #include <components/esm/exteriorcelllocation.hpp>
@@ -37,8 +39,8 @@ namespace MWWorld
         explicit Cell(const ESM4::Cell& cell);
         explicit Cell(const ESM::Cell& cell);
 
-        int getGridX() const { return mGridPos.x(); }
-        int getGridY() const { return mGridPos.y(); }
+        int getGridX() const { return mGridPos.x; }
+        int getGridY() const { return mGridPos.y; }
         bool isExterior() const { return mIsExterior; }
         bool isQuasiExterior() const { return mIsQuasiExterior; }
         bool hasWater() const { return mHasWater; }
@@ -54,7 +56,7 @@ namespace MWWorld
 
         ESM::ExteriorCellLocation getExteriorCellLocation() const
         {
-            return ESM::ExteriorCellLocation(mGridPos.x(), mGridPos.y(), getWorldSpace());
+            return ESM::ExteriorCellLocation(mGridPos.x, mGridPos.y, getWorldSpace());
         }
 
     private:
@@ -63,7 +65,7 @@ namespace MWWorld
         bool mHasWater;
         bool mNoSleep;
 
-        osg::Vec2i mGridPos;
+        vsg::ivec2 mGridPos;
         std::string mDisplayname; // How the game displays it
         std::string mNameID; // The name that will be used by the script and console commands
         ESM::RefId mRegion;

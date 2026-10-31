@@ -30,7 +30,6 @@
 #include <components/esm4/loadwrld.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/mwanimation/object.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/computetransform.hpp>
 
 #include <components/misc/convert.hpp>
@@ -941,13 +940,13 @@ namespace MWWorld
         return mDistanceToFocusObject;
     }
 
-    osg::Vec3f World::getActorHeadPosition(const MWWorld::ConstPtr& actor) const
+    vsg::vec3 World::getActorHeadPosition(const MWWorld::ConstPtr& actor) const
     {
         if (auto* anim = mRendering->getObject(actor))
         {
             auto node = anim->headTransform();
             if (!node.empty())
-                return toOsg(vsgUtil::computePosition(node));
+                return vsgUtil::computePosition(node);
         }
         return actor.getRefData().getPosition().asVec3();
     }
@@ -992,10 +991,10 @@ namespace MWWorld
     }
 
     MWWorld::Ptr World::moveObject(
-        const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics, bool keepActive)
+        const Ptr& ptr, CellStore* newCell, const vsg::vec3& position, bool movePhysics, bool keepActive)
     {
         ESM::Position pos = ptr.getRefData().getPosition();
-        std::memcpy(pos.pos, &position, sizeof(osg::Vec3f));
+        std::memcpy(pos.pos, &position, sizeof(vsg::vec3));
         ptr.getRefData().setPosition(pos);
 
         CellStore* currCell = ptr.isInCell()
@@ -1117,13 +1116,13 @@ namespace MWWorld
         return newPtr;
     }
 
-    MWWorld::Ptr World::moveObject(const Ptr& ptr, const osg::Vec3f& position, bool movePhysics, bool moveToActive)
+    MWWorld::Ptr World::moveObject(const Ptr& ptr, const vsg::vec3& position, bool movePhysics, bool moveToActive)
     {
         CellStore* cell = ptr.getCell();
         ESM::RefId worldspaceId
             = cell->isExterior() ? cell->getCell()->getWorldSpace() : ESM::Cell::sDefaultWorldspaceId;
         const ESM::ExteriorCellLocation index
-            = ESM::positionToExteriorCellLocation(position.x(), position.y(), worldspaceId);
+            = ESM::positionToExteriorCellLocation(position.x, position.y, worldspaceId);
 
         CellStore* newCell = cell->isExterior() ? &mWorldModel.getExterior(index) : nullptr;
         bool isCellActive = getPlayerPtr().isInCell() && getPlayerPtr().getCell()->isExterior()
@@ -1135,10 +1134,10 @@ namespace MWWorld
         return moveObject(ptr, cell, position, movePhysics);
     }
 
-    MWWorld::Ptr World::moveObjectBy(const Ptr& ptr, const osg::Vec3f& vec, bool moveToActive)
+    MWWorld::Ptr World::moveObjectBy(const Ptr& ptr, const vsg::vec3& vec, bool moveToActive)
     {
         auto* actor = mPhysics->getActor(ptr);
-        osg::Vec3f newpos = osg::Vec3f(ptr.getRefData().getPosition().asVec3()) + vec;
+        vsg::vec3 newpos = vsg::vec3(ptr.getRefData().getPosition().asVec3()) + vec;
         if (actor)
             actor->adjustPosition(vec);
         if (ptr.getClass().isActor())
@@ -1170,21 +1169,21 @@ namespace MWWorld
             updateNavigatorObject(*object);
     }
 
-    void World::rotateObject(const Ptr& ptr, const osg::Vec3f& rot, MWBase::RotationFlags flags)
+    void World::rotateObject(const Ptr& ptr, const vsg::vec3& rot, MWBase::RotationFlags flags)
     {
         ESM::Position pos = ptr.getRefData().getPosition();
         float* objRot = pos.rot;
         if (flags & MWBase::RotationFlag_adjust)
         {
-            objRot[0] += rot.x();
-            objRot[1] += rot.y();
-            objRot[2] += rot.z();
+            objRot[0] += rot.x;
+            objRot[1] += rot.y;
+            objRot[2] += rot.z;
         }
         else
         {
-            objRot[0] = rot.x();
-            objRot[1] = rot.y();
-            objRot[2] = rot.z();
+            objRot[0] = rot.x;
+            objRot[1] = rot.y;
+            objRot[2] = rot.z;
         }
 
         if (ptr.getClass().isActor())
@@ -1193,7 +1192,7 @@ namespace MWWorld
              * currently it's done so for rotating the camera, which needs
              * clamping.
              */
-            objRot[0] = std::clamp(objRot[0], -osg::PI_2f, osg::PI_2f);
+            objRot[0] = std::clamp(objRot[0], -Misc::VsgMath::PI_2f, Misc::VsgMath::PI_2f);
             objRot[1] = static_cast<float>(Misc::normalizeAngle(objRot[1]));
             objRot[2] = static_cast<float>(Misc::normalizeAngle(objRot[2]));
         }
@@ -1227,12 +1226,12 @@ namespace MWWorld
             // will be adjusted when Ptr's cell becomes active
             return;
         }
-        osg::Vec3f pos(ptr.getRefData().getPosition().asVec3());
+        vsg::vec3 pos(ptr.getRefData().getPosition().asVec3());
 
         const float terrainHeight = ptr.getCell()->isExterior()
             ? getTerrainHeightAt(pos, ptr.getCell()->getCell()->getWorldSpace())
             : -std::numeric_limits<float>::max();
-        pos.z() = std::max(pos.z(), terrainHeight)
+        pos.z = std::max(pos.z, terrainHeight)
             + 20; // place slightly above terrain. will snap down to ground with code below
 
         // We still should trace down dead persistent actors - they do not use the "swimdeath" animation.
@@ -1241,8 +1240,8 @@ namespace MWWorld
         if (force || !ptr.getClass().isActor() || (!isFlying(ptr) && !swims && isActorCollisionEnabled(ptr)))
         {
             float height = static_cast<float>(ESM::getCellSize(ptr.getCell()->getCell()->getWorldSpace()));
-            osg::Vec3f traced = mPhysics->traceDown(ptr, pos, height);
-            pos.z() = std::min(pos.z(), traced.z());
+            vsg::vec3 traced = mPhysics->traceDown(ptr, pos, height);
+            pos.z = std::min(pos.z, traced.z);
         }
 
         moveObject(ptr, ptr.getCell(), pos);
@@ -1253,43 +1252,43 @@ namespace MWWorld
         const MWWorld::Ptr actor = getPlayerPtr();
         const float distance = 128.f;
         ESM::Position esmPos = actor.getRefData().getPosition();
-        osg::Quat orientation(esmPos.rot[2], osg::Vec3f(0, 0, -1));
-        osg::Vec3f pos(esmPos.asVec3());
+        const vsg::dquat orientation = Misc::VsgMath::makeRotateFromAxis(esmPos.rot[2], vsg::vec3(0, 0, -1));
+        vsg::vec3 pos(esmPos.asVec3());
 
         int direction = 0;
         int fallbackDirections[4] = { direction, (direction + 3) % 4, (direction + 2) % 4, (direction + 1) % 4 };
 
-        osg::Vec3f targetPos = pos;
+        vsg::vec3 targetPos = pos;
         for (int i = 0; i < 4; ++i)
         {
             direction = fallbackDirections[i];
             if (direction == 0)
-                targetPos = pos + (orientation * osg::Vec3f(0, 1, 0)) * distance;
+                targetPos = pos + (vsg::quat(orientation) * vsg::vec3(0, 1, 0)) * distance;
             else if (direction == 1)
-                targetPos = pos - (orientation * osg::Vec3f(0, 1, 0)) * distance;
+                targetPos = pos - (vsg::quat(orientation) * vsg::vec3(0, 1, 0)) * distance;
             else if (direction == 2)
-                targetPos = pos - (orientation * osg::Vec3f(1, 0, 0)) * distance;
+                targetPos = pos - (vsg::quat(orientation) * vsg::vec3(1, 0, 0)) * distance;
             else if (direction == 3)
-                targetPos = pos + (orientation * osg::Vec3f(1, 0, 0)) * distance;
+                targetPos = pos + (vsg::quat(orientation) * vsg::vec3(1, 0, 0)) * distance;
 
             // destination is free
             if (!mPhysics->castRay(pos, targetPos, MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR).mHit)
                 break;
         }
-        targetPos.z() += distance / 2.f; // move up a bit to get out from geometry, will snap down later
+        targetPos.z += distance / 2.f; // move up a bit to get out from geometry, will snap down later
         float height = static_cast<float>(ESM::getCellSize(actor.getCell()->getCell()->getWorldSpace()));
-        osg::Vec3f traced = mPhysics->traceDown(actor, targetPos, height);
+        vsg::vec3 traced = mPhysics->traceDown(actor, targetPos, height);
         if (traced != pos)
         {
-            esmPos.pos[0] = traced.x();
-            esmPos.pos[1] = traced.y();
-            esmPos.pos[2] = traced.z();
+            esmPos.pos[0] = traced.x;
+            esmPos.pos[1] = traced.y;
+            esmPos.pos[2] = traced.z;
             ESM::RefId cell = actor.getCell()->getCell()->getId();
             MWWorld::ActionTeleport(cell, esmPos, false).execute(actor);
         }
     }
 
-    void World::rotateWorldObject(const Ptr& ptr, const osg::Quat& rotate)
+    void World::rotateWorldObject(const Ptr& ptr, const vsg::dquat& rotate)
     {
         // if(ptr.getRefData().getBaseNode() != nullptr)
         {
@@ -1313,43 +1312,43 @@ namespace MWWorld
         MWWorld::CellStore* referenceCell, int direction, float distance)
     {
         ESM::Position ipos = referenceObject.getRefData().getPosition();
-        osg::Vec3f pos(ipos.asVec3());
-        osg::Quat orientation(ipos.rot[2], osg::Vec3f(0, 0, -1));
+        vsg::vec3 pos(ipos.asVec3());
+        const vsg::dquat orientation = Misc::VsgMath::makeRotateFromAxis(ipos.rot[2], vsg::vec3(0, 0, -1));
 
         int fallbackDirections[4] = { direction, (direction + 3) % 4, (direction + 2) % 4, (direction + 1) % 4 };
 
-        osg::Vec3f spawnPoint = pos;
+        vsg::vec3 spawnPoint = pos;
 
         for (int i = 0; i < 4; ++i)
         {
             direction = fallbackDirections[i];
             if (direction == 0)
-                spawnPoint = pos + (orientation * osg::Vec3f(0, 1, 0)) * distance;
+                spawnPoint = pos + (vsg::quat(orientation) * vsg::vec3(0, 1, 0)) * distance;
             else if (direction == 1)
-                spawnPoint = pos - (orientation * osg::Vec3f(0, 1, 0)) * distance;
+                spawnPoint = pos - (vsg::quat(orientation) * vsg::vec3(0, 1, 0)) * distance;
             else if (direction == 2)
-                spawnPoint = pos - (orientation * osg::Vec3f(1, 0, 0)) * distance;
+                spawnPoint = pos - (vsg::quat(orientation) * vsg::vec3(1, 0, 0)) * distance;
             else if (direction == 3)
-                spawnPoint = pos + (orientation * osg::Vec3f(1, 0, 0)) * distance;
+                spawnPoint = pos + (vsg::quat(orientation) * vsg::vec3(1, 0, 0)) * distance;
 
             if (!ptr.getClass().isActor())
                 break;
 
             // check if spawn point is safe, fall back to another direction if not
-            spawnPoint.z() += 30; // move up a little to account for slopes, will snap down later
+            spawnPoint.z += 30; // move up a little to account for slopes, will snap down later
 
             if (!mPhysics
-                     ->castRay(spawnPoint, osg::Vec3f(pos.x(), pos.y(), pos.z() + 20),
-                         MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR)
-                     .mHit)
+                    ->castRay(spawnPoint, vsg::vec3(pos.x, pos.y, pos.z + 20),
+                        MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR)
+                    .mHit)
             {
                 // safe
                 break;
             }
         }
-        ipos.pos[0] = spawnPoint.x();
-        ipos.pos[1] = spawnPoint.y();
-        ipos.pos[2] = spawnPoint.z();
+        ipos.pos[0] = spawnPoint.x;
+        ipos.pos[1] = spawnPoint.y;
+        ipos.pos[2] = spawnPoint.z;
 
         if (referenceObject.getClass().isActor())
         {
@@ -1362,7 +1361,7 @@ namespace MWWorld
         return placed;
     }
 
-    void World::queueMovement(const Ptr& ptr, const osg::Vec3f& velocity)
+    void World::queueMovement(const Ptr& ptr, const vsg::vec3& velocity)
     {
         mPhysics->queueObjectMovement(ptr, velocity);
         if (ptr == MWMechanics::getPlayer())
@@ -1426,15 +1425,15 @@ namespace MWWorld
     bool World::rotateDoor(const Ptr door, MWWorld::DoorState state, float duration)
     {
         const ESM::Position& objPos = door.getRefData().getPosition();
-        osg::Vec3f oldRot = objPos.asRotationVec3();
+        vsg::vec3 oldRot = objPos.asRotationVec3();
         auto newRot = oldRot;
 
         float minRot = door.getCellRef().getPosition().rot[2];
-        float maxRot = minRot + osg::DegreesToRadians(90.f);
+        float maxRot = minRot + Misc::VsgMath::inDegrees(90.f);
 
-        float diff = duration * osg::DegreesToRadians(90.f) * (state == MWWorld::DoorState::Opening ? 1 : -1);
-        float targetRot = std::clamp(oldRot.z() + diff, minRot, maxRot);
-        newRot.z() = targetRot;
+        float diff = duration * Misc::VsgMath::inDegrees(90.f) * (state == MWWorld::DoorState::Opening ? 1 : -1);
+        float targetRot = std::clamp(oldRot.z + diff, minRot, maxRot);
+        newRot.z = targetRot;
         rotateObject(door, newRot, MWBase::RotationFlag_none);
 
         bool reached = (targetRot == maxRot && state != MWWorld::DoorState::Idle) || targetRot == minRot;
@@ -1447,11 +1446,12 @@ namespace MWWorld
 
             if (ptr.getClass().isActor())
             {
-                auto localPoint = osg::Vec3f(objPos.asVec3()) - point;
-                osg::Vec3f direction = osg::Quat(diff, osg::Vec3f(0, 0, 1)) * localPoint - localPoint;
-                direction.normalize();
+                auto localPoint = vsg::vec3(objPos.asVec3()) - point;
+                vsg::vec3 direction
+                    = vsg::quat(Misc::VsgMath::makeRotateFromAxis(diff, vsg::vec3(0, 0, 1))) * localPoint - localPoint;
+                Misc::VsgMath::normalizeInPlace(direction);
                 mPhysics->reportCollision(point, normal);
-                if (direction * osg::Vec3f(normal) < 0) // door is turning away from actor
+                if (vsg::dot(direction, normal) < 0) // door is turning away from actor
                     continue;
 
                 collisionWithActor = true;
@@ -1651,24 +1651,25 @@ namespace MWWorld
         const MWRender::Camera* camera = mRendering->getCamera();
         const auto& player = getPlayerPtr();
         const ESM::Position& refpos = player.getRefData().getPosition();
-        osg::Vec3f listenerPos, up, forward;
-        osg::Quat listenerOrient;
+        vsg::vec3 listenerPos, up, forward;
+        vsg::dquat listenerOrient;
 
         if (isFirstPerson() || Settings::sound().mCameraListener)
-            listenerPos = camera->getPosition();
+            listenerPos = osg::Vec3f(camera->getPosition());
         else
-            listenerPos = osg::Vec3f(refpos.asVec3()) + osg::Vec3f(0, 0, 1.85f * mPhysics->getHalfExtents(player).z);
+            listenerPos = vsg::vec3(refpos.asVec3()) + vsg::vec3(0, 0, 1.85f * mPhysics->getHalfExtents(player).z);
 
         if (isFirstPerson() || Settings::sound().mCameraListener)
             listenerOrient = camera->getOrient();
         else
-            listenerOrient = osg::Quat(refpos.rot[1], osg::Vec3f(0, -1, 0))
-                * osg::Quat(refpos.rot[0], osg::Vec3f(-1, 0, 0)) * osg::Quat(refpos.rot[2], osg::Vec3f(0, 0, -1));
+            listenerOrient = Misc::VsgMath::makeRotateFromAxis(refpos.rot[1], vsg::vec3(0, -1, 0))
+                * Misc::VsgMath::makeRotateFromAxis(refpos.rot[0], vsg::vec3(-1, 0, 0))
+                * Misc::VsgMath::makeRotateFromAxis(refpos.rot[2], vsg::vec3(0, 0, -1));
 
-        forward = listenerOrient * osg::Vec3f(0, 1, 0);
-        up = listenerOrient * osg::Vec3f(0, 0, 1);
+        forward = vsg::quat(listenerOrient) * vsg::vec3(0, 1, 0);
+        up = vsg::quat(listenerOrient) * vsg::vec3(0, 0, 1);
 
-        bool underwater = isUnderwater(player.getCell(), camera->getPosition());
+        bool underwater = isUnderwater(player.getCell(), osg::Vec3f(camera->getPosition()));
 
         MWBase::Environment::get().getSoundManager()->setListenerPosDir(listenerPos, forward, up, underwater);
     }
@@ -1689,15 +1690,15 @@ namespace MWWorld
             // retrieve the object's top point's screen position so we know where to place the floating label
             if (!object.isEmpty())
             {
-                osg::BoundingBox bb = mPhysics->getBoundingBox(object);
-                if (!bb.valid())
+                vsg::dbox bb = mPhysics->getBoundingBox(object);
+                if (!Misc::VsgMath::valid(bb))
                 {
                     auto vsgBb = mRendering->getBoundingBox(object);
-                    bb = osg::BoundingBox(osg::Vec3f(vsgBb.min.x, vsgBb.min.y, vsgBb.min.z),
-                        osg::Vec3f(vsgBb.max.x, vsgBb.max.y, vsgBb.max.z));
+                    bb = vsg::dbox(vsg::dvec3(vsg::vec3(vsgBb.min.x, vsgBb.min.y, vsgBb.min.z)),
+                        vsg::dvec3(vsg::vec3(vsgBb.max.x, vsgBb.max.y, vsgBb.max.z)));
                 }
-                const osg::Vec2f pos = mRendering->getScreenCoords(bb);
-                MWBase::Environment::get().getWindowManager()->setFocusObjectScreenCoords(pos.x(), pos.y());
+                const vsg::vec2 pos = mRendering->getScreenCoords(bb);
+                MWBase::Environment::get().getWindowManager()->setFocusObjectScreenCoords(pos.x, pos.y);
             }
 
             MWBase::Environment::get().getWindowManager()->setFocusObject(object);
@@ -1730,7 +1731,7 @@ namespace MWWorld
         return focusObject;
     }
 
-    bool World::castRenderingRay(MWPhysics::RayCastingResult& res, const osg::Vec3f& from, const osg::Vec3f& to,
+    bool World::castRenderingRay(MWPhysics::RayCastingResult& res, const vsg::vec3& from, const vsg::vec3& to,
         bool ignorePlayer, bool ignoreActors, std::span<const MWWorld::Ptr> ignoreList)
     {
         auto rayRes = mRendering->castRay(from, to, ignorePlayer, ignoreActors);
@@ -1941,7 +1942,7 @@ namespace MWWorld
         {
             // check if the wanted position is on a flat surface, and not e.g. against a vertical wall
             if (std::acos((result.mHitNormalWorld / result.mHitNormalWorld.length()) * osg::Vec3f(0, 0, 1))
-                >= osg::DegreesToRadians(30.f))
+                >= Misc::VsgMath::inDegrees(30.f))
                 return false;
 
             return true;
@@ -2009,11 +2010,11 @@ namespace MWWorld
             if (bb.valid())
             {
                 ESM::Position pos = object.getRefData().getPosition();
-                bb = vsg::box(bb.min - toVsg(pos.asVec3()), bb.max - toVsg(pos.asVec3()));
-                osg::Vec3f adjust((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2, bb.min.z);
-                pos.pos[0] -= adjust.x();
-                pos.pos[1] -= adjust.y();
-                pos.pos[2] -= adjust.z();
+                bb = vsg::box(bb.min - pos.asVec3(), bb.max - pos.asVec3());
+                vsg::vec3 adjust((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2, bb.min.z);
+                pos.pos[0] -= adjust.x;
+                pos.pos[1] -= adjust.y;
+                pos.pos[2] -= adjust.z;
                 moveObject(object, pos.asVec3());
             }
         }
@@ -2028,9 +2029,9 @@ namespace MWWorld
         pos.rot[0] = 0;
         pos.rot[1] = 0;
 
-        osg::Vec3f orig = pos.asVec3();
-        orig.z() += 20;
-        osg::Vec3f dir(0, 0, -1);
+        vsg::vec3 orig = pos.asVec3();
+        orig.z += 20;
+        vsg::vec3 dir(0, 0, -1);
 
         float len = 1000000.0;
 
@@ -2111,9 +2112,9 @@ namespace MWWorld
 
     bool World::isUnderwater(const MWWorld::ConstPtr& object, const float heightRatio) const
     {
-        osg::Vec3f pos(object.getRefData().getPosition().asVec3());
+        vsg::vec3 pos(object.getRefData().getPosition().asVec3());
 
-        pos.z() += heightRatio * 2 * mPhysics->getRenderingHalfExtents(object).z;
+        pos.z += heightRatio * 2 * mPhysics->getRenderingHalfExtents(object).z;
 
         const CellStore* currCell = object.isInCell()
             ? object.getCell()
@@ -2122,7 +2123,7 @@ namespace MWWorld
         return isUnderwater(currCell, pos);
     }
 
-    bool World::isUnderwater(const MWWorld::CellStore* cell, const osg::Vec3f& pos) const
+    bool World::isUnderwater(const MWWorld::CellStore* cell, const vsg::vec3& pos) const
     {
         if (!cell)
             return false;
@@ -2131,7 +2132,7 @@ namespace MWWorld
         {
             return false;
         }
-        return pos.z() < cell->getWaterLevel();
+        return pos.z < cell->getWaterLevel();
     }
 
     bool World::isWaterWalkingCastableOnTarget(const MWWorld::ConstPtr& target) const
@@ -2245,7 +2246,7 @@ namespace MWWorld
         mRendering->renderPlayer(player);
 
         scaleObject(player, player.getCellRef().getScale(), true); // apply race height
-        rotateObject(player, osg::Vec3f(), MWBase::RotationFlag_inverseOrder | MWBase::RotationFlag_adjust);
+        rotateObject(player, vsg::vec3(), MWBase::RotationFlag_inverseOrder | MWBase::RotationFlag_adjust);
 
         MWBase::Environment::get().getMechanicsManager()->add(getPlayerPtr());
         MWBase::Environment::get().getWindowManager()->watchActor(getPlayerPtr());
@@ -2272,7 +2273,7 @@ namespace MWWorld
         if (!actor)
             throw std::runtime_error("can't find player");
 
-        const osg::Vec3f playerPos(player.getRefData().getPosition().asVec3());
+        const vsg::vec3 playerPos(player.getRefData().getPosition().asVec3());
         if (isUnderwater(currentCell, playerPos) || isWalkingOnWater(player))
             result |= Rest_PlayerIsUnderwater;
 
@@ -2456,12 +2457,12 @@ namespace MWWorld
             return false;
     }
 
-    osg::Vec3f World::getStormDirection() const
+    vsg::vec3 World::getStormDirection() const
     {
         if (isCellExterior() || isCellQuasiExterior())
             return mWeatherManager->getStormDirection();
         else
-            return osg::Vec3f(0, 1, 0);
+            return vsg::vec3(0, 1, 0);
     }
 
     struct GetContainersOwnedByVisitor
@@ -2517,10 +2518,10 @@ namespace MWWorld
         return mPhysics->getLineOfSight(actor, targetActor);
     }
 
-    float World::getDistToNearestRayHit(const osg::Vec3f& from, const osg::Vec3f& dir, float maxDist, bool includeWater)
+    float World::getDistToNearestRayHit(const vsg::vec3& from, const vsg::vec3& dir, float maxDist, bool includeWater)
     {
-        osg::Vec3f to(dir);
-        to.normalize();
+        vsg::vec3 to(dir);
+        Misc::VsgMath::normalizeInPlace(to);
         to = from + (to * maxDist);
 
         int collisionTypes = MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR;
@@ -2534,7 +2535,7 @@ namespace MWWorld
         if (!result.mHit)
             return maxDist;
         else
-            return (osg::Vec3f(result.mHitPos) - from).length();
+            return vsg::length(result.mHitPos - from);
     }
 
     void World::enableActorCollision(const MWWorld::Ptr& actor, bool enable)
@@ -2700,9 +2701,9 @@ namespace MWWorld
 
         int x = ext->getGridX();
         int y = ext->getGridY();
-        const osg::Vec2f posFromIndex = indexToPosition(ESM::ExteriorCellLocation(x, y, ext->getWorldSpace()), true);
-        pos.pos[0] = posFromIndex.x();
-        pos.pos[1] = posFromIndex.y();
+        const vsg::vec2 posFromIndex = indexToPosition(ESM::ExteriorCellLocation(x, y, ext->getWorldSpace()), true);
+        pos.pos[0] = posFromIndex.x;
+        pos.pos[1] = posFromIndex.y;
 
         // Note: Z pos will be adjusted by adjustPosition later
         pos.pos[2] = 0;
@@ -2902,11 +2903,13 @@ namespace MWWorld
 
                 if (target.isEmpty())
                 {
-                    const osg::Vec3f origin = getActorHeadPosition(actor);
-                    const osg::Quat orient = osg::Quat(actor.getRefData().getPosition().rot[0], osg::Vec3f(-1, 0, 0))
-                        * osg::Quat(actor.getRefData().getPosition().rot[2], osg::Vec3f(0, 0, -1));
-                    const osg::Vec3f direction = orient * osg::Vec3f(0, 1, 0);
-                    const osg::Vec3f dest = origin + direction * getMaxActivationDistance();
+                    const vsg::vec3 origin = getActorHeadPosition(actor);
+                    const vsg::dquat orient = Misc::VsgMath::makeRotateFromAxis(
+                                                  actor.getRefData().getPosition().rot[0], vsg::vec3(-1, 0, 0))
+                        * Misc::VsgMath::makeRotateFromAxis(
+                            actor.getRefData().getPosition().rot[2], vsg::vec3(0, 0, -1));
+                    const vsg::vec3 direction = vsg::quat(orient) * vsg::vec3(0, 1, 0);
+                    const vsg::vec3 dest = origin + direction * getMaxActivationDistance();
                     const auto result = mRendering->castRay(origin, dest, true, true);
                     if (result.mHit)
                         target = result.mHitObject;
@@ -2914,7 +2917,7 @@ namespace MWWorld
             }
         }
 
-        osg::Vec3f hitPosition = actor.getRefData().getPosition().asVec3();
+        vsg::vec3 hitPosition = actor.getRefData().getPosition().asVec3();
         if (!target.isEmpty())
         {
             // Touch explosion placement doesn't depend on where the target was "touched".
@@ -2932,7 +2935,7 @@ namespace MWWorld
                 const float playerHeight = getHalfExtents(actor).z * 2.f;
                 targetHeight = std::min(targetHeight, playerHeight);
             }
-            hitPosition.z() += targetHeight * explosionHeight;
+            hitPosition.z += targetHeight * explosionHeight;
         }
 
         const ESM::RefId& selectedSpell = stats.getSpells().getSelectedSpell();
@@ -2956,16 +2959,15 @@ namespace MWWorld
         }
     }
 
-    void World::launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const osg::Vec3f& worldPos,
-        const osg::Quat& orient, MWWorld::Ptr& bow, float speed, float attackStrength)
+    void World::launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const vsg::vec3& worldPos,
+        const vsg::dquat& orient, MWWorld::Ptr& bow, float speed, float attackStrength)
     {
         // An initial position of projectile can be outside shooter's collision box, so any object between shooter and
         // launch position will be ignored. To avoid this issue, we should check for impact immediately before launch
         // the projectile. So we cast a 1-yard-length ray from shooter to launch position and check if there are
         // collisions in this area.
         // TODO: as a better solutuon we should handle projectiles during physics update, not during world update.
-        const osg::Vec3f sourcePos = worldPos + orient * osg::Vec3f(0, -1, 0) * 64.f;
-
+        const vsg::vec3 sourcePos = worldPos + vsg::quat(orient) * vsg::vec3(0, -1, 0) * 64.f;
 
         // For AI actors, get combat targets to use in the ray cast. Only those targets will return a positive hit
         // result.
@@ -2995,7 +2997,7 @@ namespace MWWorld
     }
 
     void World::launchMagicBolt(
-        const ESM::RefId& spellId, const MWWorld::Ptr& caster, const osg::Vec3f& fallbackDirection, ESM::RefNum item)
+        const ESM::RefId& spellId, const MWWorld::Ptr& caster, const vsg::vec3& fallbackDirection, ESM::RefNum item)
     {
         mProjectileManager->launchMagicBolt(spellId, caster, fallbackDirection, item);
     }
@@ -3059,7 +3061,7 @@ namespace MWWorld
         }
     }
 
-    const osg::Vec4f& World::getSunLightPosition() const
+    vsg::vec4 World::getSunLightPosition() const
     {
         return mRendering->getSunLightPosition();
     }
@@ -3079,7 +3081,7 @@ namespace MWWorld
         return mPhysics->getPhysicsDt();
     }
 
-    bool World::findInteriorPositionInWorldSpace(const MWWorld::CellStore* cell, osg::Vec3f& result)
+    bool World::findInteriorPositionInWorldSpace(const MWWorld::CellStore* cell, vsg::vec3& result)
     {
         if (cell->isExterior())
             return false;
@@ -3166,7 +3168,7 @@ namespace MWWorld
 
                     if (ref.mRef.getDestCell().is<ESM::ESM3ExteriorCellRefId>())
                     {
-                        osg::Vec3f worldPos = ref.mRef.getDoorDest().asVec3();
+                        vsg::vec3 worldPos = ref.mRef.getDoorDest().asVec3();
                         return getClosestMarkerFromExteriorPosition(worldPos, id);
                     }
                     else
@@ -3181,9 +3183,9 @@ namespace MWWorld
         return MWWorld::Ptr();
     }
 
-    MWWorld::ConstPtr World::getClosestMarkerFromExteriorPosition(const osg::Vec3f& worldPos, const ESM::RefId& id)
+    MWWorld::ConstPtr World::getClosestMarkerFromExteriorPosition(const vsg::vec3& worldPos, const ESM::RefId& id)
     {
-        const ESM::ExteriorCellLocation posIndex = ESM::positionToExteriorCellLocation(worldPos.x(), worldPos.y());
+        const ESM::ExteriorCellLocation posIndex = ESM::positionToExteriorCellLocation(worldPos.x, worldPos.y);
 
         // Potential optimization: don't scan the entire world for markers and actually do the Todd spiral
         std::vector<Ptr> markers;
@@ -3202,8 +3204,8 @@ namespace MWWorld
         int minGridSize = std::numeric_limits<int>::max();
         for (const Ptr& marker : markers)
         {
-            const osg::Vec3f markerPos = marker.getRefData().getPosition().asVec3();
-            const ESM::ExteriorCellLocation index = ESM::positionToExteriorCellLocation(markerPos.x(), markerPos.y());
+            const vsg::vec3 markerPos = marker.getRefData().getPosition().asVec3();
+            const ESM::ExteriorCellLocation index = ESM::positionToExteriorCellLocation(markerPos.x, markerPos.y);
 
             const int deltaX = index.mX - posIndex.mX;
             const int deltaY = index.mY - posIndex.mY;
@@ -3313,7 +3315,8 @@ namespace MWWorld
 
         bool operator()(const MWWorld::Ptr& ptr)
         {
-            if ((osg::Vec3f(ptr.getRefData().getPosition().asVec3()) - osg::Vec3f(mDetector.getRefData().getPosition().asVec3())).length2()
+            if (vsg::length2(vsg::vec3(ptr.getRefData().getPosition().asVec3())
+                    - vsg::vec3(mDetector.getRefData().getPosition().asVec3()))
                 >= mSquaredDist)
                 return true;
 
@@ -3541,7 +3544,7 @@ namespace MWWorld
         return mPlayerTraveling;
     }
 
-    float World::getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const
+    float World::getTerrainHeightAt(const vsg::vec3& worldPos, ESM::RefId worldspace) const
     {
         return mRendering->getTerrainHeightAt(worldPos, worldspace);
     }
@@ -3591,7 +3594,7 @@ namespace MWWorld
     }
 
     void World::spawnEffect(VFS::Path::NormalizedView model, const std::string& textureOverride,
-        const osg::Vec3f& worldPos, float scale, bool isMagicVFX, [[maybe_unused]] bool useAmbientLight,
+        const vsg::vec3& worldPos, float scale, bool isMagicVFX, [[maybe_unused]] bool useAmbientLight,
         std::string_view effectId, bool loop)
     {
         // openeden-vsg: useAmbientLight is not applied yet; vsgopenmw lights effects as its materials say.
@@ -3640,12 +3643,12 @@ namespace MWWorld
         return false;
     }
 
-    osg::Vec3f World::aimToTarget(const ConstPtr& actor, const ConstPtr& target, bool isRangedCombat)
+    vsg::vec3 World::aimToTarget(const ConstPtr& actor, const ConstPtr& target, bool isRangedCombat)
     {
-        osg::Vec3f weaponPos = actor.getRefData().getPosition().asVec3();
+        vsg::vec3 weaponPos = actor.getRefData().getPosition().asVec3();
         float heightRatio = isRangedCombat ? 2.f * Constants::TorsoHeight : 1.f;
-        weaponPos.z() += mPhysics->getHalfExtents(actor).z * heightRatio;
-        osg::Vec3f targetPos = mPhysics->getCollisionObjectPosition(target);
+        weaponPos.z += mPhysics->getHalfExtents(actor).z * heightRatio;
+        vsg::vec3 targetPos = mPhysics->getCollisionObjectPosition(target);
         return (targetPos - weaponPos);
     }
 
@@ -3697,7 +3700,7 @@ namespace MWWorld
     }
 
     void World::updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
-        const DetourNavigator::AgentBounds& agentBounds, const osg::Vec3f& start, const osg::Vec3f& end) const
+        const DetourNavigator::AgentBounds& agentBounds, const vsg::vec3& start, const vsg::vec3& end) const
     {
         // mRendering->updateActorPath(actor, path, agentBounds, start, end);
     }
@@ -3729,7 +3732,7 @@ namespace MWWorld
     }
 
     bool World::hasCollisionWithDoor(
-        const MWWorld::ConstPtr& door, const osg::Vec3f& position, const osg::Vec3f& destination) const
+        const MWWorld::ConstPtr& door, const vsg::vec3& position, const vsg::vec3& destination) const
     {
         const auto object = mPhysics->getObject(door);
 
@@ -3738,19 +3741,20 @@ namespace MWWorld
 
         const JPH::AABox aabbBounds = object->getShapeInstance()->mCollisionShape->GetLocalBounds();
 
-        const osg::Matrixd toLocal = osg::Matrixd::inverse(object->getTransform());
-        const JPH::Vec3 localFrom = Misc::Convert::toJolt<JPH::Vec3>(position * toLocal);
-        const JPH::Vec3 localTo = Misc::Convert::toJolt<JPH::Vec3>(destination * toLocal);
+        vsg::dmat4 toLocal;
+        Misc::VsgMath::invert(object->getTransform(), toLocal);
+        const JPH::Vec3 localFrom = Misc::Convert::toJolt<JPH::Vec3>(vsg::vec3(toLocal * vsg::dvec3(position)));
+        const JPH::Vec3 localTo = Misc::Convert::toJolt<JPH::Vec3>(vsg::vec3(toLocal * vsg::dvec3(destination)));
 
         // Test the segment between both points against the local shape bounds
         const JPH::RayInvDirection invDirection(localTo - localFrom);
         return JPH::RayAABox(localFrom, invDirection, aabbBounds.mMin, aabbBounds.mMax) <= 1.0f;
     }
 
-    bool World::isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const
+    bool World::isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const vsg::vec3& position) const
     {
-        const osg::Vec3f halfExtents = getPathfindingAgentBounds(actor).mHalfExtents;
-        const float maxHalfExtent = std::max(halfExtents.x(), std::max(halfExtents.y(), halfExtents.z()));
+        const vsg::vec3 halfExtents = getPathfindingAgentBounds(actor).mHalfExtents;
+        const float maxHalfExtent = std::max(halfExtents.x, std::max(halfExtents.y, halfExtents.z));
         const std::array<MWWorld::ConstPtr, 1> ignore{ actor };
         return mPhysics->isAreaOccupiedByOtherActor(position, 2 * maxHalfExtent, ignore, nullptr);
     }

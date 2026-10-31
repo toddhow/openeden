@@ -1277,7 +1277,7 @@ namespace MWMechanics
         const auto world = MWBase::Environment::get().getWorld();
         if (world->isInStorm())
         {
-            auto stormDirection = vsg::normalize(toVsg(world->getStormDirection()));
+            auto stormDirection = vsg::normalize(world->getStormDirection());
             auto characterDirection = MWAnim::forward(mPtr.getRefData().getPosition());
             if (vsg::dot(stormDirection, characterDirection) < -0.5f)
             {

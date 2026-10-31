@@ -1,8 +1,10 @@
 #ifndef GAME_MWWORLD_SCENE_H
 #define GAME_MWWORLD_SCENE_H
 
-#include <osg/Vec2i>
-#include <osg/Vec4i>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec4.h>
 
 #include "positioncellgrid.hpp"
 #include "ptr.hpp"
@@ -18,11 +20,6 @@ namespace Terrain
 {
     class Preload;
 }
-namespace osg
-{
-    class Vec3f;
-}
-
 namespace ESM
 {
     struct Position;
@@ -94,26 +91,26 @@ namespace MWWorld
 
         int mHalfGridSize = Constants::CellGridRadius;
 
-        osg::Vec3f mLastPlayerPos;
+        vsg::vec3 mLastPlayerPos;
 
         std::vector<ESM::RefNum> mPagedRefs;
 
         void insertCell(CellStore& cell,
             const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
 
-        osg::Vec2i mCurrentGridCenter;
+        vsg::ivec2 mCurrentGridCenter;
 
         // Load and unload cells as necessary to create a cell grid with "X" and "Y" in the center
-        void changeCellGrid(const osg::Vec3f& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent = true);
+        void changeCellGrid(const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent = true);
 
         void preloadCells(float dt);
-        void preloadTeleportDoorDestinations(const osg::Vec3f& playerPos, const osg::Vec3f& predictedPos);
-        void preloadExteriorGrid(const osg::Vec3f& playerPos, const osg::Vec3f& predictedPos);
+        void preloadTeleportDoorDestinations(const vsg::vec3& playerPos, const vsg::vec3& predictedPos);
+        void preloadExteriorGrid(const vsg::vec3& playerPos, const vsg::vec3& predictedPos);
         void preloadFastTravelDestinations(
-            const osg::Vec3f& playerPos, std::vector<PositionCellGrid>& exteriorPositions);
+            const vsg::vec3& playerPos, std::vector<PositionCellGrid>& exteriorPositions);
 
-        osg::Vec4i gridCenterToBounds(const osg::Vec2i& centerCell) const;
-        osg::Vec2i getNewGridCenter(const osg::Vec3f& pos, const osg::Vec2i* currentGridCenter = nullptr) const;
+        vsg::ivec4 gridCenterToBounds(const vsg::ivec2& centerCell) const;
+        vsg::ivec2 getNewGridCenter(const vsg::vec3& pos, const vsg::ivec2* currentGridCenter = nullptr) const;
 
         void unloadCell(CellStore* cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
         void loadCell(CellStore& cell, bool respawn,
@@ -127,13 +124,13 @@ namespace MWWorld
 
         /// @return how much of the preload has completed, from 0 to 1
         float preloadCell(MWWorld::CellStore& cell, bool preloadSurrounding = false);
-        void preloadTerrain(const osg::Vec3f& pos, ESM::RefId worldspace, bool sync = false);
+        void preloadTerrain(const vsg::vec3& pos, ESM::RefId worldspace, bool sync = false);
         void reloadTerrain();
 
-        bool needToChangeCellGrid(const osg::Vec3f& playerPos);
+        bool needToChangeCellGrid(const vsg::vec3& playerPos);
 
         /// Resets the player to the interior's marker after falling into the void (#1415).
-        void playerMoved(const osg::Vec3f& pos);
+        void playerMoved(const vsg::vec3& pos);
 
         void changePlayerCell(CellStore& newCell);
 

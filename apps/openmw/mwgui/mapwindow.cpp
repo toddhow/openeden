@@ -1082,8 +1082,8 @@ namespace MWGui
         if (mInterior)
         {
             auto pos = MWBase::Environment::get().getWorld()->getPlayer().getLastKnownExteriorPosition();
-            x = pos.x();
-            y = pos.y();
+            x = pos.x;
+            y = pos.y;
         }
         setGlobalMapPlayerPosition(x, y);
 

@@ -1,5 +1,7 @@
 #include "activator.hpp"
-#include <osg/Quat>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/quat.h>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
@@ -50,13 +52,13 @@ namespace MWClass
         }
     }
 
-    void Activator::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Activator::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         insertObjectPhysics(ptr, model, rotation, physics);
     }
 
-    void Activator::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const osg::Quat& rotation,
+    void Activator::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         physics.addObject(ptr, VFS::Path::toNormalized(model), rotation, MWPhysics::Layers::WORLD);

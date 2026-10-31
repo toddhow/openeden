@@ -111,10 +111,10 @@ namespace MWScript
                 MWBase::World* world = MWBase::Environment::get().getWorld();
                 MWWorld::Ptr playerPtr = world->getPlayerPtr();
 
-                const osg::Vec2f posFromIndex
+                const vsg::vec2 posFromIndex
                     = ESM::indexToPosition(ESM::ExteriorCellLocation(x, y, ESM::Cell::sDefaultWorldspaceId), true);
-                pos.pos[0] = posFromIndex.x();
-                pos.pos[1] = posFromIndex.y();
+                pos.pos[0] = posFromIndex.x;
+                pos.pos[1] = posFromIndex.y;
                 pos.pos[2] = 0;
 
                 pos.rot[0] = pos.rot[1] = pos.rot[2] = 0;

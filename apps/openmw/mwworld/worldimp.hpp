@@ -165,7 +165,7 @@ namespace MWWorld
         float feetToGameUnits(float feet);
 
         MWWorld::ConstPtr getClosestMarker(const MWWorld::ConstPtr& ptr, const ESM::RefId& id);
-        MWWorld::ConstPtr getClosestMarkerFromExteriorPosition(const osg::Vec3f& worldPos, const ESM::RefId& id);
+        MWWorld::ConstPtr getClosestMarkerFromExteriorPosition(const vsg::vec3& worldPos, const ESM::RefId& id);
 
     public:
         WorldModel& getWorldModel() { return mWorldModel; }
@@ -202,7 +202,7 @@ namespace MWWorld
 
         void setWaterHeight(const float height) override;
 
-        void rotateWorldObject(const MWWorld::Ptr& ptr, const osg::Quat& rotate) override;
+        void rotateWorldObject(const MWWorld::Ptr& ptr, const vsg::dquat& rotate) override;
 
         bool toggleWater() override;
         bool toggleWorld() override;
@@ -334,14 +334,14 @@ namespace MWWorld
         void undeleteObject(const Ptr& ptr) override;
 
         MWWorld::Ptr moveObject(
-            const Ptr& ptr, const osg::Vec3f& position, bool movePhysics = true, bool moveToActive = false) override;
+            const Ptr& ptr, const vsg::vec3& position, bool movePhysics = true, bool moveToActive = false) override;
         ///< @return an updated Ptr in case the Ptr's cell changes
 
-        MWWorld::Ptr moveObject(const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics = true,
+        MWWorld::Ptr moveObject(const Ptr& ptr, CellStore* newCell, const vsg::vec3& position, bool movePhysics = true,
             bool keepActive = false) override;
         ///< @return an updated Ptr
 
-        MWWorld::Ptr moveObjectBy(const Ptr& ptr, const osg::Vec3f& vec, bool moveToActive) override;
+        MWWorld::Ptr moveObjectBy(const Ptr& ptr, const vsg::vec3& vec, bool moveToActive) override;
         ///< @return an updated Ptr
 
         void scaleObject(const Ptr& ptr, float scale, bool force = false) override;
@@ -350,7 +350,7 @@ namespace MWWorld
         /// @note Rotations via this method use a different rotation order than the initial rotations in the CS. This
         /// could be considered a bug, but is needed for MW compatibility.
         /// \param adjust indicates rotation should be set or adjusted
-        void rotateObject(const Ptr& ptr, const osg::Vec3f& rot,
+        void rotateObject(const Ptr& ptr, const vsg::vec3& rot,
             MWBase::RotationFlags flags = MWBase::RotationFlag_inverseOrder) override;
 
         MWWorld::Ptr placeObject(
@@ -366,7 +366,7 @@ namespace MWWorld
 
         float getMaxActivationDistance() const override;
 
-        void queueMovement(const Ptr& ptr, const osg::Vec3f& velocity) override;
+        void queueMovement(const Ptr& ptr, const vsg::vec3& velocity) override;
         ///< Queues movement for \a ptr (in local space), to be applied in the next call to
         /// doPhysics.
 
@@ -375,7 +375,7 @@ namespace MWWorld
         MWPhysics::PhysicsSystem* getPhysicsSystem() const override;
         const MWPhysics::RayCastingInterface* getRayCasting() const override;
 
-        bool castRenderingRay(MWPhysics::RayCastingResult& res, const osg::Vec3f& from, const osg::Vec3f& to,
+        bool castRenderingRay(MWPhysics::RayCastingResult& res, const vsg::vec3& from, const vsg::vec3& to,
             bool ignorePlayer, bool ignoreActors, std::span<const MWWorld::Ptr> ignoreList) override;
 
         void setActorCollisionMode(const Ptr& ptr, bool internal, bool external) override;
@@ -420,13 +420,13 @@ namespace MWWorld
         /// Is the head of the creature underwater?
         bool isSubmerged(const MWWorld::ConstPtr& object) const override;
         bool isSwimming(const MWWorld::ConstPtr& object) const override;
-        bool isUnderwater(const MWWorld::CellStore* cell, const osg::Vec3f& pos) const override;
+        bool isUnderwater(const MWWorld::CellStore* cell, const vsg::vec3& pos) const override;
         bool isUnderwater(const MWWorld::ConstPtr& object, const float heightRatio) const override;
         bool isWading(const MWWorld::ConstPtr& object) const override;
         bool isWaterWalkingCastableOnTarget(const MWWorld::ConstPtr& target) const override;
         bool isOnGround(const MWWorld::Ptr& ptr) const override;
 
-        osg::Vec3f getActorHeadPosition(const MWWorld::ConstPtr& actor) const override;
+        vsg::vec3 getActorHeadPosition(const MWWorld::ConstPtr& actor) const override;
 
         void togglePOV(bool force = false) override;
 
@@ -482,7 +482,7 @@ namespace MWWorld
         ///< get Line of Sight (morrowind stupid implementation)
 
         float getDistToNearestRayHit(
-            const osg::Vec3f& from, const osg::Vec3f& dir, float maxDist, bool includeWater = false) override;
+            const vsg::vec3& from, const vsg::vec3& dir, float maxDist, bool includeWater = false) override;
 
         void enableActorCollision(const MWWorld::Ptr& actor, bool enable) override;
 
@@ -538,10 +538,10 @@ namespace MWWorld
          */
         void castSpell(const MWWorld::Ptr& actor, bool manualSpell = false) override;
 
-        void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster, const osg::Vec3f& fallbackDirection,
+        void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster, const vsg::vec3& fallbackDirection,
             ESM::RefNum item) override;
-        void launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const osg::Vec3f& worldPos,
-            const osg::Quat& orient, MWWorld::Ptr& bow, float speed, float attackStrength) override;
+        void launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const vsg::vec3& worldPos,
+            const vsg::dquat& orient, MWWorld::Ptr& bow, float speed, float attackStrength) override;
         void updateProjectilesCasters() override;
 
         void applyLoopingParticles(const MWWorld::Ptr& ptr) const override;
@@ -552,13 +552,13 @@ namespace MWWorld
         // Allow NPCs to use torches?
         bool useTorches() const override;
 
-        const osg::Vec4f& getSunLightPosition() const override;
+        vsg::vec4 getSunLightPosition() const override;
         float getSunVisibility() const override;
         float getSunPercentage() const override;
 
         float getPhysicsFrameRateDt() const override;
 
-        bool findInteriorPositionInWorldSpace(const MWWorld::CellStore* cell, osg::Vec3f& result) override;
+        bool findInteriorPositionInWorldSpace(const MWWorld::CellStore* cell, vsg::vec3& result) override;
 
         /// Teleports \a ptr to the closest reference of \a id (e.g. DivineMarker, PrisonMarker, TempleMarker)
         /// @note id must be lower case
@@ -582,9 +582,9 @@ namespace MWWorld
         /// Spawn a random creature from a levelled list next to the player
         void spawnRandomCreature(const ESM::RefId& creatureList) override;
 
-        void spawnEffect(VFS::Path::NormalizedView model, const std::string& textureOverride,
-            const osg::Vec3f& worldPos, float scale = 1.f, bool isMagicVFX = true, bool useAmbientLight = true,
-            std::string_view effectId = {}, bool loop = false) override;
+        void spawnEffect(VFS::Path::NormalizedView model, const std::string& textureOverride, const vsg::vec3& worldPos,
+            float scale = 1.f, bool isMagicVFX = true, bool useAmbientLight = true, std::string_view effectId = {},
+            bool loop = false) override;
 
         void removeEffect(std::string_view effectId) override;
 
@@ -592,7 +592,7 @@ namespace MWWorld
         bool isInStorm() const override;
 
         /// @see MWWorld::WeatherManager::getStormDirection
-        osg::Vec3f getStormDirection() const override;
+        vsg::vec3 getStormDirection() const override;
 
         /// Resets all actors in the current active cells to their original location within that cell.
         void resetActors() override;
@@ -601,7 +601,7 @@ namespace MWWorld
 
         /// Return a vector aiming the actor's weapon towards a target.
         /// @note The length of the vector is the distance between actor and target.
-        osg::Vec3f aimToTarget(
+        vsg::vec3 aimToTarget(
             const MWWorld::ConstPtr& actor, const MWWorld::ConstPtr& target, bool isRangedCombat) override;
 
         bool isPlayerInJail() const override;
@@ -610,7 +610,7 @@ namespace MWWorld
         bool isPlayerTraveling() const override;
 
         /// Return terrain height at \a worldPos position.
-        float getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const override;
+        float getTerrainHeightAt(const vsg::vec3& worldPos, ESM::RefId worldspace) const override;
 
         /// Return physical or rendering half extents of the given actor.
         vsg::vec3 getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const override;
@@ -625,8 +625,8 @@ namespace MWWorld
         DetourNavigator::Navigator* getNavigator() const override;
 
         void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
-            const DetourNavigator::AgentBounds& agentBounds, const osg::Vec3f& start,
-            const osg::Vec3f& end) const override;
+            const DetourNavigator::AgentBounds& agentBounds, const vsg::vec3& start,
+            const vsg::vec3& end) const override;
 
         void removeActorPath(const MWWorld::ConstPtr& actor) const override;
 
@@ -637,10 +637,9 @@ namespace MWWorld
         DetourNavigator::AgentBounds getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const override;
 
         bool hasCollisionWithDoor(
-            const MWWorld::ConstPtr& door, const osg::Vec3f& position, const osg::Vec3f& destination) const override;
+            const MWWorld::ConstPtr& door, const vsg::vec3& position, const vsg::vec3& destination) const override;
 
-        bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const osg::Vec3f& position) const override;
-
+        bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const vsg::vec3& position) const override;
 
         std::vector<MWWorld::Ptr> getAll(const ESM::RefId& id) override;
 

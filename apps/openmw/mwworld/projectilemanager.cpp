@@ -19,7 +19,6 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/convert.hpp>
 
 #include <components/settings/values.hpp>
@@ -132,33 +131,31 @@ namespace
         {
             const ESM::MagicEffect* magicEffect
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(enam.mData.mEffectID);
-            lightDiffuseColor += toVsg(magicEffect->getColor());
+            lightDiffuseColor += magicEffect->getColor();
         }
         const size_t numberOfEffects = effects.mList.size();
         return vsgUtil::toVec3(lightDiffuseColor) / static_cast<float>(numberOfEffects);
     }
 
-    osg::Quat lookAt(const osg::Vec3f& pos)
+    vsg::dquat lookAt(const vsg::vec3& pos)
     {
         // Rotate the forward vector towards the position (used for gravity-affected projectiles)
         // Can't use Quat::makeRotate as the shortest angle contains undesirable local roll
-        const float dist = pos.length();
+        const float dist = vsg::length(pos);
         if (dist < 1e-4f)
             return {};
 
-        const osg::Vec3f dir = pos / dist;
-        osg::Vec3f right = dir ^ osg::Z_AXIS;
-        if (right.normalize() < 1e-4f)
-            right = osg::X_AXIS;
+        const vsg::vec3 dir = Misc::VsgMath::divide(pos, dist);
+        vsg::vec3 right = vsg::cross(dir, vsg::vec3(0, 0, 1));
+        if (Misc::VsgMath::normalizeInPlace(right) < 1e-4f)
+            right = vsg::vec3(1, 0, 0);
 
-        const osg::Vec3f up = right ^ dir;
+        const vsg::vec3 up = vsg::cross(right, dir);
 
-        osg::Matrixf mat(right.x(), right.y(), right.z(), 0.f, dir.x(), dir.y(), dir.z(), 0.f, up.x(), up.y(), up.z(),
-            0.f, 0.f, 0.f, 0.f, 1.f);
+        vsg::mat4 mat(
+            right.x, right.y, right.z, 0.f, dir.x, dir.y, dir.z, 0.f, up.x, up.y, up.z, 0.f, 0.f, 0.f, 0.f, 1.f);
 
-        osg::Quat orient;
-        orient.set(mat);
-        return orient;
+        return Misc::VsgMath::rotationOf(mat);
     }
 }
 
@@ -193,26 +190,26 @@ namespace MWWorld
     }
 
     void ProjectileManager::launchMagicBolt(
-        const ESM::RefId& spellId, const Ptr& caster, const osg::Vec3f& fallbackDirection, ESM::RefNum item)
+        const ESM::RefId& spellId, const Ptr& caster, const vsg::vec3& fallbackDirection, ESM::RefNum item)
     {
-        osg::Vec3f pos = caster.getRefData().getPosition().asVec3();
+        vsg::vec3 pos = caster.getRefData().getPosition().asVec3();
         if (caster.getClass().isActor())
         {
             // Note: we ignore the collision box offset, this is required to make some flying creatures work as
             // intended.
-            pos.z() += mPhysics->getRenderingHalfExtents(caster).z * 2 * Constants::TorsoHeight;
+            pos.z += mPhysics->getRenderingHalfExtents(caster).z * 2 * Constants::TorsoHeight;
         }
 
         // Actors can't cast target spells underwater
         if (caster.getClass().isActor() && MWBase::Environment::get().getWorld()->isUnderwater(caster.getCell(), pos))
             return;
 
-        osg::Quat orient;
+        vsg::dquat orient;
         if (caster.getClass().isActor())
-            orient = osg::Quat(caster.getRefData().getPosition().rot[0], osg::Vec3f(-1, 0, 0))
-                * osg::Quat(caster.getRefData().getPosition().rot[2], osg::Vec3f(0, 0, -1));
+            orient = Misc::VsgMath::makeRotateFromAxis(caster.getRefData().getPosition().rot[0], vsg::vec3(-1, 0, 0))
+                * Misc::VsgMath::makeRotateFromAxis(caster.getRefData().getPosition().rot[2], vsg::vec3(0, 0, -1));
         else
-            orient.makeRotate(osg::Vec3f(0, 1, 0), osg::Vec3f(fallbackDirection));
+            orient = Misc::VsgMath::makeRotate(vsg::vec3(0, 1, 0), vsg::vec3(fallbackDirection));
 
         MagicBoltState state;
         state.mSpellId = spellId;
@@ -230,7 +227,7 @@ namespace MWWorld
         if (state.mEffects.mList.empty())
             return;
 
-        if (!caster.getClass().isActor() && fallbackDirection.length2() <= 0)
+        if (!caster.getClass().isActor() && vsg::length2(fallbackDirection) <= 0)
         {
             Log(Debug::Warning) << "Unable to launch magic bolt (direction to target is empty)";
             return;
@@ -242,7 +239,7 @@ namespace MWWorld
         auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
 
         VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
-        createModel(state, model.value(), toVsg(pos), toVsg(orient), true, lightDiffuseColor, {}, texture);
+        createModel(state, model.value(), pos, vsg::quat(orient), true, lightDiffuseColor, {}, texture);
 
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
         for (const auto& soundid : state.mSoundIds)
@@ -265,13 +262,13 @@ namespace MWWorld
         mMagicBolts.push_back(std::move(state));
     }
 
-    void ProjectileManager::launchProjectile(const Ptr& actor, const ConstPtr& projectile, const osg::Vec3f& pos,
-        const osg::Quat& orient, const Ptr& bow, float speed, float attackStrength)
+    void ProjectileManager::launchProjectile(const Ptr& actor, const ConstPtr& projectile, const vsg::vec3& pos,
+        const vsg::dquat& orient, const Ptr& bow, float speed, float attackStrength)
     {
         ProjectileState state;
         state.mCaster = actor.getCellRef().getRefNum();
         state.mBowId = bow.getCellRef().getRefId();
-        state.mVelocity = orient * osg::Vec3f(0, 1, 0) * speed;
+        state.mVelocity = vsg::quat(orient) * vsg::vec3(0, 1, 0) * speed;
         state.mIdArrow = projectile.getCellRef().getRefId();
         state.mCasterHandle = actor;
         state.mAttackStrength = attackStrength;
@@ -280,7 +277,7 @@ namespace MWWorld
         MWWorld::Ptr ptr = ref.getPtr();
 
         const VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
-        createModel(state, model.value(), toVsg(pos), toVsg(orient), false, {}, MWRender::getGlowColor(ptr));
+        createModel(state, model.value(), pos, vsg::quat(orient), false, {}, MWRender::getGlowColor(ptr));
 
         state.mProjectileId = mPhysics->addProjectile(actor, pos, model, false);
         state.mToDelete = false;
@@ -327,8 +324,8 @@ namespace MWWorld
 
             auto isCleanable = [](const ProjectileManager::State& state) -> bool {
                 const float farawayThreshold = 72000.0f;
-                osg::Vec3 playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
-                return vsg::length2(state.handle->position - toVsg(playerPos)) >= farawayThreshold * farawayThreshold;
+                vsg::vec3 playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
+                return vsg::length2(state.handle->position - playerPos) >= farawayThreshold * farawayThreshold;
             };
 
             for (auto& projectileState : mProjectiles)
@@ -379,11 +376,11 @@ namespace MWWorld
                 speed *= npc->isMale() ? race->mData.mMaleWeight : race->mData.mFemaleWeight;
             }
             vsg::vec3 direction = vsg::normalize(orient * vsg::vec3(0, 1, 0));
-            projectile->setVelocity(toOsg(direction) * speed);
+            projectile->setVelocity(direction * speed);
 
             for (const auto& sound : magicBoltState.mSounds)
             {
-                sound->setVelocity(toOsg(direction * speed));
+                sound->setVelocity(direction * speed);
             }
 
             // For AI actors, get combat targets to use in the ray cast. Only those targets will return a positive hit
@@ -408,11 +405,11 @@ namespace MWWorld
             // gravity constant - must be way lower than the gravity affecting actors, since we're not
             // simulating aerodynamics at all
             projectileState.mVelocity
-                -= osg::Vec3f(0, 0, Constants::GravityConst * Constants::UnitsPerMeter * 0.1f) * duration;
+                -= vsg::vec3(0, 0, Constants::GravityConst * Constants::UnitsPerMeter * 0.1f) * duration;
 
             projectile->setVelocity(projectileState.mVelocity);
 
-            projectileState.handle->attitude = toVsg(lookAt(projectileState.mVelocity));
+            projectileState.handle->attitude = vsg::quat(lookAt(projectileState.mVelocity));
 
             MWWorld::Ptr caster = projectileState.getCaster();
 
@@ -435,7 +432,7 @@ namespace MWWorld
             auto* projectile = mPhysics->getProjectile(projectileState.mProjectileId);
 
             const auto pos = projectile->getSimulationPosition();
-            projectileState.handle->position = toVsg(pos);
+            projectileState.handle->position = pos;
 
             if (projectile->isActive())
                 continue;
@@ -476,7 +473,7 @@ namespace MWWorld
             auto* projectile = mPhysics->getProjectile(magicBoltState.mProjectileId);
 
             const auto pos = projectile->getSimulationPosition();
-            magicBoltState.handle->position = toVsg(pos);
+            magicBoltState.handle->position = pos;
             for (const auto& sound : magicBoltState.mSounds)
                 sound->setPosition(pos);
 
@@ -567,8 +564,8 @@ namespace MWWorld
 
             ESM::ProjectileState state;
             state.mId = projectile.mIdArrow;
-            state.mPosition = ESM::Vector3(toOsg(projectile.handle->position));
-            state.mOrientation = ESM::Quaternion(toOsg(projectile.handle->attitude));
+            state.mPosition = ESM::Vector3(projectile.handle->position);
+            state.mOrientation = ESM::Quaternion(vsg::dquat(projectile.handle->attitude));
             state.mCaster = projectile.mCaster;
 
             state.mBowId = projectile.mBowId;
@@ -586,8 +583,8 @@ namespace MWWorld
 
             ESM::MagicBoltState state;
             state.mId = bolt.mIdMagic.at(0);
-            state.mPosition = ESM::Vector3(toOsg(bolt.handle->position));
-            state.mOrientation = ESM::Quaternion(toOsg(bolt.handle->attitude));
+            state.mPosition = ESM::Vector3(bolt.handle->position);
+            state.mOrientation = ESM::Quaternion(vsg::dquat(bolt.handle->attitude));
             state.mCaster = bolt.mCaster;
             state.mItem = bolt.mItem;
             state.mSpellId = bolt.mSpellId;
@@ -623,7 +620,7 @@ namespace MWWorld
                 model = ptr.getClass().getCorrectedModel(ptr);
 
                 state.mProjectileId
-                    = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(vsg::vec3(esm.mPosition)), model, false);
+                    = mPhysics->addProjectile(state.getCaster(), vsg::vec3(vsg::vec3(esm.mPosition)), model, false);
                 glowColor = MWRender::getGlowColor(ptr);
             }
             catch (const std::exception& e)
@@ -633,7 +630,7 @@ namespace MWWorld
                 return true;
             }
 
-            createModel(state, model.value(), toVsg(osg::Vec3f(vsg::vec3(esm.mPosition))), toVsg(osg::Quat(vsg::dquat(esm.mOrientation))), false,
+            createModel(state, model.value(), vsg::vec3(esm.mPosition), vsg::quat(vsg::dquat(esm.mOrientation)), false,
                 {}, glowColor);
 
             mProjectiles.push_back(std::move(state));
@@ -684,9 +681,10 @@ namespace MWWorld
             }
 
             auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
-            createModel(state, model.value(), toVsg(osg::Vec3f(vsg::vec3(esm.mPosition))), toVsg(osg::Quat(vsg::dquat(esm.mOrientation))), true,
+            createModel(state, model.value(), vsg::vec3(esm.mPosition), vsg::quat(vsg::dquat(esm.mOrientation)), true,
                 lightDiffuseColor, {}, texture);
-            state.mProjectileId = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(vsg::vec3(esm.mPosition)), model, true);
+            state.mProjectileId
+                = mPhysics->addProjectile(state.getCaster(), vsg::vec3(vsg::vec3(esm.mPosition)), model, true);
 
             MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
             for (const auto& soundid : state.mSoundIds)

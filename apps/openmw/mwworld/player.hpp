@@ -1,9 +1,11 @@
 #ifndef GAME_MWWORLD_PLAYER_H
 #define GAME_MWWORLD_PLAYER_H
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
 #include <array>
 #include <map>
+#include <vsg/maths/vec3.h>
 
 #include "../mwworld/livecellref.hpp"
 
@@ -42,7 +44,7 @@ namespace MWWorld
         MWWorld::CellStore* mCellStore;
         ESM::RefId mSign;
 
-        osg::Vec3f mLastKnownExteriorPosition;
+        vsg::vec3 mLastKnownExteriorPosition;
 
         ESM::Position mMarkedPosition;
         // If no position was marked, this is nullptr
@@ -76,8 +78,8 @@ namespace MWWorld
         /// Interiors can not always be mapped to a world position. However
         /// world position is still required for divine / almsivi magic effects
         /// and the player arrow on the global map.
-        void setLastKnownExteriorPosition(const osg::Vec3f& position) { mLastKnownExteriorPosition = position; }
-        osg::Vec3f getLastKnownExteriorPosition() const { return mLastKnownExteriorPosition; }
+        void setLastKnownExteriorPosition(const vsg::vec3& position) { mLastKnownExteriorPosition = position; }
+        vsg::vec3 getLastKnownExteriorPosition() const { return mLastKnownExteriorPosition; }
 
         void set(const ESM::NPC* player);
 
