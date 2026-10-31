@@ -232,21 +232,6 @@ add_component_dir (sceneutil
     detourdebugdraw navmesh
     )
 
-#vsgopenmw-delete-me
-#[[
-add_component_dir (shader
-    shadermanager shadervisitor removedalphafunc
-    )
-
-add_component_dir (sceneutil
-    clone attach visitor util statesetupdater controller skeleton riggeometry morphgeometry lightcontroller
-    lightmanager lightutil positionattitudetransform workqueue pathgridutil waterutil writescene serialize optimizer
-    detourdebugdraw navmesh agentpath animblendrules shadow mwshadowtechnique recastmesh shadowsbin osgacontroller rtt
-    screencapture depth color riggeometryosgaextension extradata unrefqueue lightcommon lightingmethod clearcolor
-    cullsafeboundsvisitor keyframe nodecallback textkeymap glextensions
-    )
-]]
-
 add_component_dir (nif
     base controller data effect extra niffile nifkey nifstream niftypes node parent particle physics property record recordptr texture
     )
@@ -276,10 +261,6 @@ add_component_dir(esm attr common defs esmcommon records util luascripts format 
 # openeden-vsg: only the .omwfx parser, which produces plain data (task 0012). pass and stateupdater still use
 # OSG and stay out of the build until the later post-processing stages port them.
 add_component_dir(fx technique lexer lexertypes parseconstants types vulkanpass uniformsettings widgets)
-
-#[[
-add_component_dir(std140 ubo)
-]]
 
 
 add_component_dir (esm3

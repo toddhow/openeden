@@ -149,10 +149,10 @@ file(GLOB UNITTEST_SRC_FILES
     fx/testuniformsettings.cpp
 )
 
-# openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader,
-# components/nifosg, components/sceneutil, Resource::SceneManager) are excluded: resource/testresourcesystem.cpp, shader/parsedefines.cpp, shader/parsefors.cpp,
-# shader/parselinks.cpp, shader/shadermanager.cpp, nifosg/testnifloader.cpp and
-# sceneutil/osgacontroller.cpp. Task 0012 (post-processing, .omwfx) and task 0014 (OSG removal) restore or replace them.
+# openeden-vsg: tests of OSG components that the VSG renderer does not build are excluded: resource/testresourcesystem.cpp,
+# shader/parsedefines.cpp, shader/parsefors.cpp, shader/parselinks.cpp and shader/shadermanager.cpp. Task 0014 restores or
+# replaces them. nifosg/testnifloader.cpp, sceneutil/osgacontroller.cpp and nifloader/testbulletnifloader.cpp went with
+# task 0013's dead code; see docs/tasks/0014.
 
 # The Morrowind compatibility pack's converter, renderer-free since task 0011.
 list(APPEND UNITTEST_SRC_FILES

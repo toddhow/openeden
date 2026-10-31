@@ -55,3 +55,111 @@
 
 1. **Editor viewport:** vsgQt, if it supports Qt 6.6.3; otherwise Qt's own Vulkan window with VSG embedded by OpenEden.
 2. **Eden Studio timing:** port the existing OpenMW-CS views here, keeping the editor usable.
+
+## OSG source left by task 0013 (2026-10-31)
+
+Task 0013 deleted every file under `apps/openmw`, `components` and `apps/components_tests` that the build does not compile or include and that still used OSG, apart from what the uncompiled `apps/opencs`, `apps/navmeshtool`, `apps/esmtool`, `apps/essimporter` and `apps/benchmarks` include, directly or through another such file. Those stay, and this task ports or replaces each one. `tools/` and CI's OSG grep (`CI/check_no_osg.sh`) know them by this list:
+
+<!-- task-0014-osg-files -->
+- `components/esmterrain/storage.cpp`
+- `components/esmterrain/storage.hpp`
+- `components/nifosg/controller.cpp`
+- `components/nifosg/controller.hpp`
+- `components/nifosg/fog.cpp`
+- `components/nifosg/fog.hpp`
+- `components/nifosg/matrixtransform.cpp`
+- `components/nifosg/matrixtransform.hpp`
+- `components/nifosg/nifloader.cpp`
+- `components/nifosg/nifloader.hpp`
+- `components/nifosg/particle.cpp`
+- `components/nifosg/particle.hpp`
+- `components/resource/bgsmfilemanager.cpp`
+- `components/resource/bgsmfilemanager.hpp`
+- `components/resource/errormarker.cpp`
+- `components/resource/imagemanager.cpp`
+- `components/resource/imagemanager.hpp`
+- `components/resource/scenemanager.cpp`
+- `components/resource/scenemanager.hpp`
+- `components/sceneutil/attach.cpp`
+- `components/sceneutil/attach.hpp`
+- `components/sceneutil/clone.cpp`
+- `components/sceneutil/clone.hpp`
+- `components/sceneutil/controller.cpp`
+- `components/sceneutil/controller.hpp`
+- `components/sceneutil/depth.cpp`
+- `components/sceneutil/depth.hpp`
+- `components/sceneutil/extradata.cpp`
+- `components/sceneutil/extradata.hpp`
+- `components/sceneutil/glextensions.cpp`
+- `components/sceneutil/glextensions.hpp`
+- `components/sceneutil/keyframe.hpp`
+- `components/sceneutil/lightcommon.hpp`
+- `components/sceneutil/lightcontroller.cpp`
+- `components/sceneutil/lightcontroller.hpp`
+- `components/sceneutil/lightmanager.cpp`
+- `components/sceneutil/lightmanager.hpp`
+- `components/sceneutil/lightutil.cpp`
+- `components/sceneutil/lightutil.hpp`
+- `components/sceneutil/morphgeometry.cpp`
+- `components/sceneutil/morphgeometry.hpp`
+- `components/sceneutil/mwshadowtechnique.cpp`
+- `components/sceneutil/mwshadowtechnique.hpp`
+- `components/sceneutil/nodecallback.hpp`
+- `components/sceneutil/optimizer.cpp`
+- `components/sceneutil/optimizer.hpp`
+- `components/sceneutil/pathgridutil.cpp`
+- `components/sceneutil/pathgridutil.hpp`
+- `components/sceneutil/positionattitudetransform.cpp`
+- `components/sceneutil/positionattitudetransform.hpp`
+- `components/sceneutil/riggeometry.cpp`
+- `components/sceneutil/riggeometry.hpp`
+- `components/sceneutil/riggeometryosgaextension.cpp`
+- `components/sceneutil/riggeometryosgaextension.hpp`
+- `components/sceneutil/shadow.cpp`
+- `components/sceneutil/shadow.hpp`
+- `components/sceneutil/shadowsbin.cpp`
+- `components/sceneutil/shadowsbin.hpp`
+- `components/sceneutil/skeleton.cpp`
+- `components/sceneutil/skeleton.hpp`
+- `components/sceneutil/statesetupdater.cpp`
+- `components/sceneutil/statesetupdater.hpp`
+- `components/sceneutil/texturetype.hpp`
+- `components/sceneutil/util.cpp`
+- `components/sceneutil/util.hpp`
+- `components/sceneutil/visitor.cpp`
+- `components/sceneutil/visitor.hpp`
+- `components/sceneutil/waterutil.cpp`
+- `components/sceneutil/waterutil.hpp`
+- `components/serialization/osgyaml.hpp`
+- `components/shader/removedalphafunc.cpp`
+- `components/shader/removedalphafunc.hpp`
+- `components/shader/shadermanager.cpp`
+- `components/shader/shadermanager.hpp`
+- `components/shader/shadervisitor.cpp`
+- `components/shader/shadervisitor.hpp`
+- `components/terrain/buffercache.cpp`
+- `components/terrain/buffercache.hpp`
+- `components/terrain/cellborder.cpp`
+- `components/terrain/cellborder.hpp`
+- `components/terrain/chunkmanager.cpp`
+- `components/terrain/chunkmanager.hpp`
+- `components/terrain/compositemaprenderer.cpp`
+- `components/terrain/compositemaprenderer.hpp`
+- `components/terrain/heightcull.hpp`
+- `components/terrain/material.cpp`
+- `components/terrain/material.hpp`
+- `components/terrain/quadtreenode.cpp`
+- `components/terrain/quadtreenode.hpp`
+- `components/terrain/quadtreeworld.cpp`
+- `components/terrain/quadtreeworld.hpp`
+- `components/terrain/terraindrawable.cpp`
+- `components/terrain/terraindrawable.hpp`
+- `components/terrain/terraingrid.cpp`
+- `components/terrain/terraingrid.hpp`
+- `components/terrain/texturemanager.cpp`
+- `components/terrain/texturemanager.hpp`
+- `components/terrain/world.cpp`
+- `components/terrain/world.hpp`
+<!-- /task-0014-osg-files -->
+
+Tests in Context's list that task 0013's rule deleted rather than left: `apps/components_tests/nifosg/testnifloader.cpp`, `apps/components_tests/sceneutil/osgacontroller.cpp`, and with them `apps/components_tests/nifloader/testbulletnifloader.cpp`. Work item 5 restores them from git history (the parent of the deletion commit) or replaces them. The bundled math headers (`extern/osg`) are gone too, so a kept file that names an OSG math type moves to VSG's when it is ported; `extern/osgQt` and `extern/osg-ffmpeg-videoplayer` stay for this task.
