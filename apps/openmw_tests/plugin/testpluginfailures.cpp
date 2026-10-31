@@ -206,7 +206,9 @@ namespace
             EXPECT_THAT(lines[0], HasSubstr(id));
             EXPECT_GT(lines[0].size(), id.size() + 1) << "no reason in: " << lines[0];
             if (!reason.empty())
+            {
                 EXPECT_THAT(lines[0], HasSubstr(reason));
+            }
             EXPECT_THAT(host.takeFailureReport(), IsEmpty());
         }
 

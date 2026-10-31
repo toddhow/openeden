@@ -410,7 +410,9 @@ namespace
             EXPECT_EQ(bus.markForwardedToLua(ForwardedEventDesc{ 901, "plugin", "event", 64, three }),
                 type == ForwardedFieldType::String);
             if (type == ForwardedFieldType::String)
+            {
                 EXPECT_TRUE(bus.isForwardedToLua(901));
+            }
         }
     }
 
