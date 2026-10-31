@@ -3,6 +3,7 @@
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/groups.hpp>
 #include <components/mwanimation/object.hpp>
 #include <components/mwanimation/play.hpp>
@@ -314,7 +315,7 @@ namespace MWLua
         };
 
         api["spawn"]
-            = [context](std::string_view model, const osg::Vec3f& worldPos, sol::optional<sol::table> options) {
+            = [context](std::string_view model, const vsg::vec3& worldPos, sol::optional<sol::table> options) {
                   if (options)
                   {
                       bool magicVfx = options->get_or("mwMagicVfx", true);

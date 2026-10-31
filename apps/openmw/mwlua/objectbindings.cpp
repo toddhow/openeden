@@ -8,8 +8,8 @@
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/mathutil.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/vsgutil/bounds.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
@@ -63,7 +63,7 @@ namespace MWLua
 
     namespace
     {
-        MWWorld::CellStore* findCell(const sol::object& cellOrName, const osg::Vec3f& pos)
+        MWWorld::CellStore* findCell(const sol::object& cellOrName, const vsg::vec3& pos)
         {
             MWWorld::WorldModel* wm = MWBase::Environment::get().getWorldModel();
             MWWorld::CellStore* cell;
@@ -81,20 +81,20 @@ namespace MWLua
                 return cell;
             const ESM::RefId worldspace
                 = cell == nullptr ? ESM::Cell::sDefaultWorldspaceId : cell->getCell()->getWorldSpace();
-            return &wm->getExterior(ESM::positionToExteriorCellLocation(pos.x(), pos.y(), worldspace));
+            return &wm->getExterior(ESM::positionToExteriorCellLocation(pos.x, pos.y, worldspace));
         }
 
-        ESM::Position toPos(const osg::Vec3f& pos, const osg::Vec3f& rot)
+        ESM::Position toPos(const vsg::vec3& pos, const vsg::vec3& rot)
         {
             ESM::Position esmPos;
-            static_assert(sizeof(esmPos) == sizeof(osg::Vec3f) * 2);
-            std::memcpy(esmPos.pos, &pos, sizeof(osg::Vec3f));
-            std::memcpy(esmPos.rot, &rot, sizeof(osg::Vec3f));
+            static_assert(sizeof(esmPos) == sizeof(vsg::vec3) * 2);
+            std::memcpy(esmPos.pos, &pos, sizeof(vsg::vec3));
+            std::memcpy(esmPos.rot, &rot, sizeof(vsg::vec3));
             return esmPos;
         }
 
         void teleportPlayer(
-            MWWorld::CellStore* destCell, const osg::Vec3f& pos, const osg::Vec3f& rot, bool placeOnGround)
+            MWWorld::CellStore* destCell, const vsg::vec3& pos, const vsg::vec3& rot, bool placeOnGround)
         {
             MWBase::World* world = MWBase::Environment::get().getWorld();
             MWWorld::Ptr ptr = world->getPlayerPtr();
@@ -112,8 +112,8 @@ namespace MWLua
             MWBase::Environment::get().getLuaManager()->objectTeleported(newPtr);
         }
 
-        void teleportNotPlayer(const MWWorld::Ptr& ptr, MWWorld::CellStore* destCell, const osg::Vec3f& pos,
-            const osg::Vec3f& rot, bool placeOnGround)
+        void teleportNotPlayer(const MWWorld::Ptr& ptr, MWWorld::CellStore* destCell, const vsg::vec3& pos,
+            const vsg::vec3& rot, bool placeOnGround)
         {
             MWBase::World* world = MWBase::Environment::get().getWorld();
             MWWorld::WorldModel* wm = MWBase::Environment::get().getWorldModel();
@@ -182,24 +182,25 @@ namespace MWLua
             listT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
         }
 
-        osg::Vec3f toEulerRotation(const sol::object& transform, bool isActor)
+        vsg::vec3 toEulerRotation(const sol::object& transform, bool isActor)
         {
             if (transform.is<LuaUtil::TransformQ>())
             {
-                const osg::Quat& q = transform.as<LuaUtil::TransformQ>().mQ;
+                const vsg::dquat& q = transform.as<LuaUtil::TransformQ>().mQ;
                 return isActor ? Misc::toEulerAnglesXZ(q) : Misc::toEulerAnglesZYX(q);
             }
             else
             {
-                const osg::Matrixf& m = LuaUtil::cast<LuaUtil::TransformM>(transform).mM;
+                const vsg::mat4& m = LuaUtil::cast<LuaUtil::TransformM>(transform).mM;
                 return isActor ? Misc::toEulerAnglesXZ(m) : Misc::toEulerAnglesZYX(m);
             }
         }
 
-        osg::Quat toQuat(const ESM::Position& pos, bool isActor)
+        vsg::dquat toQuat(const ESM::Position& pos, bool isActor)
         {
             if (isActor)
-                return osg::Quat(pos.rot[0], osg::Vec3(-1, 0, 0)) * osg::Quat(pos.rot[2], osg::Vec3(0, 0, -1));
+                return Misc::VsgMath::makeRotateFromAxis(pos.rot[0], vsg::vec3(-1, 0, 0))
+                    * Misc::VsgMath::makeRotateFromAxis(pos.rot[2], vsg::vec3(0, 0, -1));
             else
                 return Misc::Convert::makeOsgQuat(pos.rot);
         }
@@ -315,23 +316,23 @@ namespace MWLua
                     return sol::nullopt;
             });
             objectT["position"] = sol::readonly_property(
-                [](const ObjectT& o) -> osg::Vec3f { return o.ptr().getRefData().getPosition().asVec3(); });
+                [](const ObjectT& o) -> vsg::vec3 { return o.ptr().getRefData().getPosition().asVec3(); });
             objectT["scale"]
                 = sol::readonly_property([](const ObjectT& o) -> float { return o.ptr().getCellRef().getScale(); });
             objectT["rotation"] = sol::readonly_property([](const ObjectT& o) -> LuaUtil::TransformQ {
                 return { toQuat(o.ptr().getRefData().getPosition(), o.ptr().getClass().isActor()) };
             });
             objectT["startingPosition"] = sol::readonly_property(
-                [](const ObjectT& o) -> osg::Vec3f { return o.ptr().getCellRef().getPosition().asVec3(); });
+                [](const ObjectT& o) -> vsg::vec3 { return o.ptr().getCellRef().getPosition().asVec3(); });
             objectT["startingRotation"] = sol::readonly_property([](const ObjectT& o) -> LuaUtil::TransformQ {
                 return { toQuat(o.ptr().getCellRef().getPosition(), o.ptr().getClass().isActor()) };
             });
             objectT["getBoundingBox"] = [context](const ObjectT& o) {
-                //osg::BoundingBox bb = renderingManager->getCullSafeBoundingBox(o.ptr());
+                //vsg::dbox bb = renderingManager->getCullSafeBoundingBox(o.ptr());
                 // Note, getBoundingBox isn't thread safe so needs adjusting if we ever want to enable Lua threading.
                 auto bb = context.mRenderManager->getBoundingBox(o.ptr());
                 auto center = vsgUtil::center(bb);
-                return LuaUtil::Box{ toOsg(center), toOsg(bb.max - center) };
+                return LuaUtil::Box{ center, bb.max - center };
             };
 
             objectT["type"] = sol::readonly_property(
@@ -504,13 +505,13 @@ namespace MWLua
                     });
                 };
                 objectT["teleport"] = [removeFn, context](const GObject& object, const sol::object& cellOrName,
-                                          const osg::Vec3f& pos, const sol::object& options) {
+                                          const vsg::vec3& pos, const sol::object& options) {
                     MWWorld::CellStore* cell = findCell(cellOrName, pos);
                     MWWorld::Ptr ptr = object.ptr();
                     int count = ptr.getCellRef().getCount();
                     if (count == 0)
                         throw std::runtime_error("Object is either removed or already in the process of teleporting");
-                    osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
+                    vsg::vec3 rot = ptr.getRefData().getPosition().asRotationVec3();
                     bool placeOnGround = false;
                     if (LuaUtil::isTransform(options))
                         rot = toEulerRotation(options, ptr.getClass().isActor());

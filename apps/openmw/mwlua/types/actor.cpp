@@ -5,6 +5,7 @@
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 #include "apps/openmw/mwbase/environment.hpp"
@@ -382,7 +383,7 @@ namespace MWLua
                 = MWBase::Environment::get().getWorld()->getPathfindingAgentBounds(o.ptr());
             sol::table result(thisState, sol::create);
             result["shapeType"] = agentBounds.mShapeType;
-            result["halfExtents"] = osg::Vec3f(agentBounds.mHalfExtents);
+            result["halfExtents"] = vsg::vec3(agentBounds.mHalfExtents);
             return result;
         };
         actor["isInActorsProcessingRange"] = [](const Object& o) {
@@ -398,9 +399,9 @@ namespace MWLua
                 return false;
 
             const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
-            const osg::Vec3f playerPos = player.getRefData().getPosition().asVec3();
+            const vsg::vec3 playerPos = player.getRefData().getPosition().asVec3();
 
-            const float dist = (playerPos - target.getRefData().getPosition().asVec3()).length2();
+            const float dist = vsg::length2(playerPos - target.getRefData().getPosition().asVec3());
             return dist <= (actorsProcessingRange * actorsProcessingRange);
         };
 

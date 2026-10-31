@@ -1,13 +1,9 @@
 #include "serialization.hpp"
 
-#include <osg/Matrixf>
-#include <osg/Quat>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
 
 #include <components/misc/color.hpp>
 #include <components/misc/endianness.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "luastate.hpp"
 #include "utilpackage.hpp"
@@ -135,48 +131,48 @@ namespace LuaUtil
     static void serializeUserdata(
         BinaryData& out, const sol::userdata& data, const UserdataSerializer* customSerializer)
     {
-        if (data.is<osg::Vec2f>())
+        if (data.is<vsg::vec2>())
         {
             appendType(out, SerializedType::VEC2);
-            osg::Vec2f v = data.as<osg::Vec2f>();
-            appendValue<double>(out, v.x());
-            appendValue<double>(out, v.y());
+            vsg::vec2 v = data.as<vsg::vec2>();
+            appendValue<double>(out, v.x);
+            appendValue<double>(out, v.y);
             return;
         }
-        if (data.is<osg::Vec3f>())
+        if (data.is<vsg::vec3>())
         {
             appendType(out, SerializedType::VEC3);
-            osg::Vec3f v = data.as<osg::Vec3f>();
-            appendValue<double>(out, v.x());
-            appendValue<double>(out, v.y());
-            appendValue<double>(out, v.z());
+            vsg::vec3 v = data.as<vsg::vec3>();
+            appendValue<double>(out, v.x);
+            appendValue<double>(out, v.y);
+            appendValue<double>(out, v.z);
             return;
         }
         if (data.is<TransformM>())
         {
             appendType(out, SerializedType::TRANSFORM_M);
-            osg::Matrixf matrix = data.as<TransformM>().mM;
+            vsg::mat4 matrix = data.as<TransformM>().mM;
             for (int i = 0; i < 4; i++)
                 for (int j = 0; j < 4; j++)
-                    appendValue<double>(out, matrix(i, j));
+                    appendValue<double>(out, matrix[i][j]);
             return;
         }
         if (data.is<TransformQ>())
         {
             appendType(out, SerializedType::TRANSFORM_Q);
-            osg::Quat quat = data.as<TransformQ>().mQ;
+            vsg::dquat quat = data.as<TransformQ>().mQ;
             for (int i = 0; i < 4; i++)
                 appendValue<double>(out, quat[i]);
             return;
         }
-        if (data.is<osg::Vec4f>())
+        if (data.is<vsg::vec4>())
         {
             appendType(out, SerializedType::VEC4);
-            osg::Vec4f v = data.as<osg::Vec4f>();
-            appendValue<double>(out, v.x());
-            appendValue<double>(out, v.y());
-            appendValue<double>(out, v.z());
-            appendValue<double>(out, v.w());
+            vsg::vec4 v = data.as<vsg::vec4>();
+            appendValue<double>(out, v.x);
+            appendValue<double>(out, v.y);
+            appendValue<double>(out, v.z);
+            appendValue<double>(out, v.w);
             return;
         }
         if (data.is<Misc::Color>())
@@ -306,7 +302,7 @@ namespace LuaUtil
             {
                 float x = static_cast<float>(getValue<double>(binaryData));
                 float y = static_cast<float>(getValue<double>(binaryData));
-                sol::stack::push<osg::Vec2f>(lua, osg::Vec2f(x, y));
+                sol::stack::push<vsg::vec2>(lua, vsg::vec2(x, y));
                 return;
             }
             case SerializedType::VEC3:
@@ -314,21 +310,21 @@ namespace LuaUtil
                 float x = static_cast<float>(getValue<double>(binaryData));
                 float y = static_cast<float>(getValue<double>(binaryData));
                 float z = static_cast<float>(getValue<double>(binaryData));
-                sol::stack::push<osg::Vec3f>(lua, osg::Vec3f(x, y, z));
+                sol::stack::push<vsg::vec3>(lua, vsg::vec3(x, y, z));
                 return;
             }
             case SerializedType::TRANSFORM_M:
             {
-                osg::Matrixf mat;
+                vsg::mat4 mat;
                 for (int i = 0; i < 4; i++)
                     for (int j = 0; j < 4; j++)
-                        mat(i, j) = static_cast<float>(getValue<double>(binaryData));
+                        mat[i][j] = static_cast<float>(getValue<double>(binaryData));
                 sol::stack::push<TransformM>(lua, asTransform(mat));
                 return;
             }
             case SerializedType::TRANSFORM_Q:
             {
-                osg::Quat q;
+                vsg::dquat q;
                 for (int i = 0; i < 4; i++)
                     q[i] = getValue<double>(binaryData);
                 sol::stack::push<TransformQ>(lua, asTransform(q));
@@ -340,7 +336,7 @@ namespace LuaUtil
                 float y = static_cast<float>(getValue<double>(binaryData));
                 float z = static_cast<float>(getValue<double>(binaryData));
                 float w = static_cast<float>(getValue<double>(binaryData));
-                sol::stack::push<osg::Vec4f>(lua, osg::Vec4f(x, y, z, w));
+                sol::stack::push<vsg::vec4>(lua, vsg::vec4(x, y, z, w));
                 return;
             }
             case SerializedType::COLOR:

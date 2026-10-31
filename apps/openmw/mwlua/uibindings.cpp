@@ -10,6 +10,7 @@
 #include <components/lua_ui/util.hpp>
 
 #include <components/misc/strings/format.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 #include "context.hpp"
@@ -223,16 +224,16 @@ namespace MWLua
             if (data.mPath.empty())
                 throw std::logic_error("Invalid texture path");
             sol::object offset = LuaUtil::getFieldOrNil(options, "offset");
-            if (offset.is<osg::Vec2f>())
-                data.mOffset = offset.as<osg::Vec2f>();
+            if (offset.is<vsg::vec2>())
+                data.mOffset = offset.as<vsg::vec2>();
             sol::object size = LuaUtil::getFieldOrNil(options, "size");
-            if (size.is<osg::Vec2f>())
-                data.mSize = size.as<osg::Vec2f>();
+            if (size.is<vsg::vec2>())
+                data.mSize = size.as<vsg::vec2>();
             return luaManager->uiResourceManager()->registerTexture(std::move(data));
         };
 
         api["screenSize"] = []() {
-            return osg::Vec2f(
+            return vsg::vec2(
                 static_cast<float>(Settings::video().mResolutionX), static_cast<float>(Settings::video().mResolutionY));
         };
 

@@ -10,6 +10,7 @@
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 
 #include "apps/openmw/mwworld/class.hpp"
@@ -134,7 +135,7 @@ namespace MWLua
         };
         door["isTeleport"] = [](const Object& o) { return doorPtr(o).getCellRef().getTeleport(); };
         door["destPosition"]
-            = [](const Object& o) -> osg::Vec3f { return doorPtr(o).getCellRef().getDoorDest().asVec3(); };
+            = [](const Object& o) -> vsg::vec3 { return doorPtr(o).getCellRef().getDoorDest().asVec3(); };
         door["destRotation"] = [](const Object& o) -> LuaUtil::TransformQ {
             return { Misc::Convert::makeOsgQuat(doorPtr(o).getCellRef().getDoorDest().rot) };
         };
@@ -158,7 +159,7 @@ namespace MWLua
     {
         door["isTeleport"] = [](const Object& o) { return door4Ptr(o).getCellRef().getTeleport(); };
         door["destPosition"]
-            = [](const Object& o) -> osg::Vec3f { return door4Ptr(o).getCellRef().getDoorDest().asVec3(); };
+            = [](const Object& o) -> vsg::vec3 { return door4Ptr(o).getCellRef().getDoorDest().asVec3(); };
         door["destRotation"] = [](const Object& o) -> LuaUtil::TransformQ {
             return { Misc::Convert::makeOsgQuat(door4Ptr(o).getCellRef().getDoorDest().rot) };
         };

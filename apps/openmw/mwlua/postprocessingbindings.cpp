@@ -5,14 +5,12 @@
 #include "../mwbase/world.hpp"
 #include "../mwrender/postprocess.hpp"
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
 
 #include <components/debug/debuglog.hpp>
 #include <components/fx/technique.hpp>
 #include <components/fx/uniformsettings.hpp>
 #include <components/misc/strings/format.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <vsg/maths/vec2.h>
 #include <vsg/maths/vec3.h>
@@ -39,20 +37,6 @@ namespace MWLua
         MWRender::PostProcess* getPostProcess()
         {
             return MWBase::Environment::get().getWorld()->getPostProcess();
-        }
-
-        // Lua's vector types are OSG's until task 0013; uniforms hold VSG's.
-        template <class T>
-        auto toUniformValue(const T& value)
-        {
-            if constexpr (std::is_same_v<T, osg::Vec2f>)
-                return vsg::vec2(value.x(), value.y());
-            else if constexpr (std::is_same_v<T, osg::Vec3f>)
-                return vsg::vec3(value.x(), value.y(), value.z());
-            else if constexpr (std::is_same_v<T, osg::Vec4f>)
-                return vsg::vec4(value.x(), value.y(), value.z(), value.w());
-            else
-                return value;
         }
     }
 
@@ -98,7 +82,7 @@ namespace MWLua
                                             << "] as a uniform";
                         return;
                     }
-                    (*it)->setValue(toUniformValue(value));
+                    (*it)->setValue(value);
                     Fx::storeValue(**it); // as OpenMW's UniformBase::setValue
                 },
                 "SetUniformShaderAction");
@@ -121,7 +105,7 @@ namespace MWLua
                 throw std::runtime_error(Misc::StringUtils::format(
                     "Mismatching uniform array size, got %zu expected %zu", table.size(), *targetSize));
 
-            using Value = decltype(toUniformValue(std::declval<T>()));
+            using Value = T;
             std::vector<Value> values;
             values.reserve(*targetSize);
 
@@ -130,7 +114,7 @@ namespace MWLua
                 sol::object obj = table[i + 1];
                 if (!obj.is<T>())
                     throw std::runtime_error("Invalid type for uniform array");
-                values.push_back(toUniformValue(obj.as<T>()));
+                values.push_back(obj.as<T>());
             }
 
             context.mLuaManager->addAction(
@@ -186,15 +170,15 @@ namespace MWLua
         shaderType["setBool"] = getSetter<bool>(context);
         shaderType["setFloat"] = getSetter<float>(context);
         shaderType["setInt"] = getSetter<int>(context);
-        shaderType["setVector2"] = getSetter<osg::Vec2f>(context);
-        shaderType["setVector3"] = getSetter<osg::Vec3f>(context);
-        shaderType["setVector4"] = getSetter<osg::Vec4f>(context);
+        shaderType["setVector2"] = getSetter<vsg::vec2>(context);
+        shaderType["setVector3"] = getSetter<vsg::vec3>(context);
+        shaderType["setVector4"] = getSetter<vsg::vec4>(context);
 
         shaderType["setFloatArray"] = getArraySetter<float>(context);
         shaderType["setIntArray"] = getArraySetter<int>(context);
-        shaderType["setVector2Array"] = getArraySetter<osg::Vec2f>(context);
-        shaderType["setVector3Array"] = getArraySetter<osg::Vec3f>(context);
-        shaderType["setVector4Array"] = getArraySetter<osg::Vec4f>(context);
+        shaderType["setVector2Array"] = getArraySetter<vsg::vec2>(context);
+        shaderType["setVector3Array"] = getArraySetter<vsg::vec3>(context);
+        shaderType["setVector4Array"] = getArraySetter<vsg::vec4>(context);
 
         api["load"] = [](const std::string& name) {
             MWRender::PostProcess* postProcess = getPostProcess();

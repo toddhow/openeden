@@ -4,6 +4,7 @@
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -73,16 +74,16 @@ namespace MWLua
             = lua.new_usertype<MWPhysics::RayCastingResult>("RayCastingResult");
         rayResult["hit"] = sol::readonly_property([](const MWPhysics::RayCastingResult& r) { return r.mHit; });
         rayResult["hitPos"]
-            = sol::readonly_property([](const MWPhysics::RayCastingResult& r) -> sol::optional<osg::Vec3f> {
+            = sol::readonly_property([](const MWPhysics::RayCastingResult& r) -> sol::optional<vsg::vec3> {
                   if (r.mHit)
-                      return osg::Vec3f(r.mHitPos);
+                      return vsg::vec3(r.mHitPos);
                   else
                       return sol::nullopt;
               });
         rayResult["hitNormal"]
-            = sol::readonly_property([](const MWPhysics::RayCastingResult& r) -> sol::optional<osg::Vec3f> {
+            = sol::readonly_property([](const MWPhysics::RayCastingResult& r) -> sol::optional<vsg::vec3> {
                   if (r.mHit)
-                      return osg::Vec3f(r.mHitNormal);
+                      return vsg::vec3(r.mHitNormal);
                   else
                       return sol::nullopt;
               });
@@ -108,7 +109,7 @@ namespace MWLua
                 { "VisualOnly", MWPhysics::Layers::VISUAL_ONLY },
             }));
 
-        api["castRay"] = [](const osg::Vec3f& from, const osg::Vec3f& to, sol::optional<sol::table> options) {
+        api["castRay"] = [](const vsg::vec3& from, const vsg::vec3& to, sol::optional<sol::table> options) {
             std::vector<MWWorld::ConstPtr> ignore;
             int collisionType = MWPhysics::CollisionMask_Default;
             float radius = 0;
@@ -135,7 +136,7 @@ namespace MWLua
         };
         // TODO: async raycasting
         /*api["asyncCastRay"] = [luaManager = context.mLuaManager](
-            const Callback& luaCallback, const osg::Vec3f& from, const osg::Vec3f& to, sol::optional<sol::table>
+            const Callback& luaCallback, const vsg::vec3& from, const vsg::vec3& to, sol::optional<sol::table>
         options)
         {
             std::function<void(MWPhysics::RayCastingResult)> callback =
@@ -149,7 +150,7 @@ namespace MWLua
             //       and use this callback from the main thread at the beginning of the next frame processing.
             rayCasting->asyncCastRay(callback, from, to, ignore, std::vector<MWWorld::Ptr>(), collisionType);
         };*/
-        api["castRenderingRay"] = [manager = context.mLuaManager](const osg::Vec3f& from, const osg::Vec3f& to,
+        api["castRenderingRay"] = [manager = context.mLuaManager](const vsg::vec3& from, const vsg::vec3& to,
                                       const sol::optional<sol::table>& options) {
             if (!manager->isProcessingInputEvents())
             {
@@ -168,8 +169,8 @@ namespace MWLua
             MWBase::Environment::get().getWorld()->castRenderingRay(res, from, to, false, false, ignore);
             return res;
         };
-        api["asyncCastRenderingRay"] = [context](const sol::table& callback, const osg::Vec3f& from,
-                                           const osg::Vec3f& to, const sol::optional<sol::table>& options) {
+        api["asyncCastRenderingRay"] = [context](const sol::table& callback, const vsg::vec3& from,
+                                           const vsg::vec3& to, const sol::optional<sol::table>& options) {
             std::vector<MWWorld::Ptr> ignore;
             if (options.has_value())
             {
@@ -241,12 +242,12 @@ namespace MWLua
             | DetourNavigator::Flag_swim | DetourNavigator::Flag_openDoor | DetourNavigator::Flag_usePathgrid;
 
         api["findPath"]
-            = [lua](const osg::Vec3f& source, const osg::Vec3f& destination, const sol::optional<sol::table>& options) {
+            = [lua](const vsg::vec3& source, const vsg::vec3& destination, const sol::optional<sol::table>& options) {
                   DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
                   DetourNavigator::Flags includeFlags = defaultIncludeFlags;
                   DetourNavigator::AreaCosts areaCosts{};
                   float destinationTolerance = 1;
-                  std::vector<osg::Vec3f> checkpoints;
+                  std::vector<vsg::vec3> checkpoints;
 
                   if (options.has_value())
                   {
@@ -254,7 +255,7 @@ namespace MWLua
                       {
                           if (const auto& v = t->get<sol::optional<DetourNavigator::CollisionShapeType>>("shapeType"))
                               agentBounds.mShapeType = *v;
-                          if (const auto& v = t->get<sol::optional<osg::Vec3f>>("halfExtents"))
+                          if (const auto& v = t->get<sol::optional<vsg::vec3>>("halfExtents"))
                               agentBounds.mHalfExtents = *v;
                       }
                       if (const auto& v = options->get<sol::optional<DetourNavigator::Flags>>("includeFlags"))
@@ -277,7 +278,7 @@ namespace MWLua
                           for (const auto& [k, v] : *t)
                           {
                               const int index = k.as<int>();
-                              const osg::Vec3f position = v.as<osg::Vec3f>();
+                              const vsg::vec3 position = v.as<vsg::vec3>();
                               if (index != static_cast<int>(checkpoints.size() + 1))
                                   throw std::runtime_error("checkpoints is not an array");
                               checkpoints.push_back(position);
@@ -285,21 +286,21 @@ namespace MWLua
                       }
                   }
 
-                  std::vector<osg::Vec3f> path;
+                  std::vector<vsg::vec3> path;
 
                   const DetourNavigator::Status status = DetourNavigator::findPath(
                       *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, source, destination,
                       includeFlags, areaCosts, destinationTolerance,
-                      std::vector<vsg::vec3>(checkpoints.begin(), checkpoints.end()), std::back_inserter(path));
+                      checkpoints, std::back_inserter(path));
 
                   sol::table result(lua, sol::create);
                   LuaUtil::copyVectorToTable(path, result);
                   return std::make_tuple(status, result);
               };
 
-        api["findRandomPointAroundCircle"] = [](const osg::Vec3f& position, float maxRadius,
+        api["findRandomPointAroundCircle"] = [](const vsg::vec3& position, float maxRadius,
                                                  const sol::optional<sol::table>& options)
-                                                     -> std::optional<osg::Vec3f> {
+                                                     -> std::optional<vsg::vec3> {
             DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
@@ -309,7 +310,7 @@ namespace MWLua
                 {
                     if (const auto& v = t->get<sol::optional<DetourNavigator::CollisionShapeType>>("shapeType"))
                         agentBounds.mShapeType = *v;
-                    if (const auto& v = t->get<sol::optional<osg::Vec3f>>("halfExtents"))
+                    if (const auto& v = t->get<sol::optional<vsg::vec3>>("halfExtents"))
                         agentBounds.mHalfExtents = *v;
                 }
                 if (const auto& v = options->get<sol::optional<DetourNavigator::Flags>>("includeFlags"))
@@ -324,8 +325,8 @@ namespace MWLua
         };
 
         api["castNavigationRay"]
-            = [](const osg::Vec3f& from, const osg::Vec3f& to, const sol::optional<sol::table>& options)
-                -> std::optional<osg::Vec3f> {
+            = [](const vsg::vec3& from, const vsg::vec3& to, const sol::optional<sol::table>& options)
+                -> std::optional<vsg::vec3> {
                   DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
                   DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
@@ -335,7 +336,7 @@ namespace MWLua
                       {
                           if (const auto& v = t->get<sol::optional<DetourNavigator::CollisionShapeType>>("shapeType"))
                               agentBounds.mShapeType = *v;
-                          if (const auto& v = t->get<sol::optional<osg::Vec3f>>("halfExtents"))
+                          if (const auto& v = t->get<sol::optional<vsg::vec3>>("halfExtents"))
                               agentBounds.mHalfExtents = *v;
                       }
                       if (const auto& v = options->get<sol::optional<DetourNavigator::Flags>>("includeFlags"))
@@ -346,10 +347,10 @@ namespace MWLua
                       *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, from, to, includeFlags);
               };
 
-        api["findNearestNavMeshPosition"] = [](const osg::Vec3f& position, const sol::optional<sol::table>& options)
-            -> std::optional<osg::Vec3f> {
+        api["findNearestNavMeshPosition"] = [](const vsg::vec3& position, const sol::optional<sol::table>& options)
+            -> std::optional<vsg::vec3> {
             DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
-            std::optional<osg::Vec3f> searchAreaHalfExtents;
+            std::optional<vsg::vec3> searchAreaHalfExtents;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
             if (options.has_value())
@@ -358,10 +359,10 @@ namespace MWLua
                 {
                     if (const auto& v = t->get<sol::optional<DetourNavigator::CollisionShapeType>>("shapeType"))
                         agentBounds.mShapeType = *v;
-                    if (const auto& v = t->get<sol::optional<osg::Vec3f>>("halfExtents"))
+                    if (const auto& v = t->get<sol::optional<vsg::vec3>>("halfExtents"))
                         agentBounds.mHalfExtents = *v;
                 }
-                if (const auto& v = options->get<sol::optional<osg::Vec3f>>("searchAreaHalfExtents"))
+                if (const auto& v = options->get<sol::optional<vsg::vec3>>("searchAreaHalfExtents"))
                     searchAreaHalfExtents = *v;
                 if (const auto& v = options->get<sol::optional<DetourNavigator::Flags>>("includeFlags"))
                     includeFlags = *v;
@@ -373,7 +374,7 @@ namespace MWLua
                 const float halfExtents = static_cast<float>(isEsm4
                         ? (1 + 2 * Constants::ESM4CellGridRadius) * Constants::ESM4CellSizeInUnits
                         : (1 + 2 * Constants::CellGridRadius) * Constants::CellSizeInUnits);
-                searchAreaHalfExtents = osg::Vec3f(halfExtents, halfExtents, halfExtents);
+                searchAreaHalfExtents = vsg::vec3(halfExtents, halfExtents, halfExtents);
             }
 
             return DetourNavigator::findNearestNavMeshPosition(*MWBase::Environment::get().getWorld()->getNavigator(),

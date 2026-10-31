@@ -22,6 +22,7 @@
 
 #include <components/lua_ui/registerscriptsettings.hpp>
 #include <components/lua_ui/util.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
@@ -599,7 +600,7 @@ namespace MWLua
             data["type"] = attackType;
             data["strength"] = attackStrength;
             data["damage"] = damageTable;
-            data["hitPos"] = osg::Vec3f(hitPos);
+            data["hitPos"] = vsg::vec3(hitPos);
             data["successful"] = successful;
             switch (sourceType)
             {

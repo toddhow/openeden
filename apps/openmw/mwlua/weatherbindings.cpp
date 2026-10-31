@@ -2,13 +2,13 @@
 
 #include <type_traits>
 
-#include <osg/Vec4f>
 
 #include <components/esm3/loadregn.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/color.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -28,7 +28,7 @@ namespace sol
     {
     };
     template <>
-    struct is_automagical<MWWorld::TimeOfDayInterpolator<osg::Vec4f>> : std::false_type
+    struct is_automagical<MWWorld::TimeOfDayInterpolator<vsg::vec4>> : std::false_type
     {
     };
 }
@@ -106,7 +106,7 @@ namespace
     void createColorInterpolator(sol::state_view lua)
     {
         using Misc::Color;
-        using T = MWWorld::TimeOfDayInterpolator<osg::Vec4f>;
+        using T = MWWorld::TimeOfDayInterpolator<vsg::vec4>;
 
         auto interT = lua.new_usertype<T>("TimeOfDayInterpolatorColor");
 
@@ -169,9 +169,9 @@ namespace MWLua
         weatherT["isStorm"] = sol::property([](const MWWorld::Weather& w) { return w.mIsStorm; },
             [](MWWorld::Weather& w, bool isStorm) { w.mIsStorm = isStorm; });
         weatherT["stormDirection"]
-            = sol::property([](const MWWorld::Weather& w) { return osg::Vec3f(w.mStormDirection); },
+            = sol::property([](const MWWorld::Weather& w) { return vsg::vec3(w.mStormDirection); },
                 [](MWWorld::Weather& w, const FiniteVec3f& stormDirection) {
-                    w.mStormDirection = osg::Vec3f(stormDirection);
+                    w.mStormDirection = vsg::vec3(stormDirection);
                 });
         weatherT["glareView"] = sol::property([](const MWWorld::Weather& w) { return w.mGlareView; },
             [](MWWorld::Weather& w, const FiniteFloat glareView) { w.mGlareView = glareView; });
@@ -265,10 +265,10 @@ namespace MWLua
             []() -> const MWWorld::Weather* { return MWBase::Environment::get().getWorld()->getNextWeather(); });
         api["getTransition"] = overloadWeatherGetter(&MWBase::World::getWeatherTransition);
         api["getCurrentSunLightDirection"] = overloadForActiveCell(
-            []() -> std::optional<osg::Vec4f> {
-                osg::Vec4f sunPos = MWBase::Environment::get().getWorld()->getSunLightPosition();
+            []() -> std::optional<vsg::vec4> {
+                vsg::vec4 sunPos = MWBase::Environment::get().getWorld()->getSunLightPosition();
                 // normalize to get the direction towards the sun
-                sunPos.normalize();
+                Misc::VsgMath::normalizeInPlace(sunPos);
 
                 // and invert it to get the direction of the sun light
                 return -sunPos;
@@ -277,8 +277,8 @@ namespace MWLua
         api["getCurrentSunVisibility"] = overloadWeatherGetter(&MWBase::World::getSunVisibility);
         api["getCurrentSunPercentage"] = overloadWeatherGetter(&MWBase::World::getSunPercentage);
         api["getCurrentWindSpeed"] = overloadWeatherGetter(&MWBase::World::getWindSpeed);
-        api["getCurrentStormDirection"] = overloadForActiveCell([]() -> std::optional<osg::Vec3f> {
-            return osg::Vec3f(MWBase::Environment::get().getWorld()->getStormDirection());
+        api["getCurrentStormDirection"] = overloadForActiveCell([]() -> std::optional<vsg::vec3> {
+            return vsg::vec3(MWBase::Environment::get().getWorld()->getStormDirection());
         });
 
         return LuaUtil::makeReadOnly(api);

@@ -9,6 +9,7 @@
 #include <components/lua/luastate.hpp>
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 
 #include "apps/openmw/mwbase/environment.hpp"
@@ -63,7 +64,7 @@ namespace MWLua
                     else
                         cellId = ESM::RefId::stringRefId(dest.mCellName);
                     travelDest["rotation"] = LuaUtil::asTransform(Misc::Convert::makeOsgQuat(dest.mPos.rot));
-                    travelDest["position"] = osg::Vec3f(dest.mPos.asVec3());
+                    travelDest["position"] = vsg::vec3(dest.mPos.asVec3());
                     travelDest["cellId"] = cellId.serializeText();
 
                     travelDests[index] = LuaUtil::makeReadOnly(travelDest);

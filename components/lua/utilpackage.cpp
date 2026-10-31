@@ -1,4 +1,5 @@
 #include "utilpackage.hpp"
+#include <components/misc/vsgmath.hpp>
 
 #include <algorithm>
 #include <array>
@@ -9,6 +10,9 @@
 #include <components/misc/color.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/transform.h>
 
 #include <MyGUI_StringUtility.h>
 
@@ -83,23 +87,23 @@ namespace LuaUtil
         {
             // Generate mapping of swizzle characters to their getter functions
             constexpr auto components = []() {
-                std::array<std::pair<char, float (*)(const T&)>, T::num_components + 2> arr;
+                std::array<std::pair<char, float (*)(const T&)>, T::size() + 2> arr;
 
                 // 0/1 Components
-                arr[T::num_components] = { '0', zero<T> };
-                arr[T::num_components + 1] = { '1', one<T> };
+                arr[T::size()] = { '0', zero<T> };
+                arr[T::size() + 1] = { '1', one<T> };
 
                 // x,y,z,w components
-                if constexpr (T::num_components > 1)
+                if constexpr (T::size() > 1)
                 {
                     arr[0] = { 'x', get<T, 0> };
                     arr[1] = { 'y', get<T, 1> };
                 }
 
-                if constexpr (T::num_components > 2)
+                if constexpr (T::size() > 2)
                     arr[2] = { 'z', get<T, 2> };
 
-                if constexpr (T::num_components > 3)
+                if constexpr (T::size() > 3)
                     arr[3] = { 'w', get<T, 3> };
 
                 return arr;
@@ -136,6 +140,15 @@ namespace LuaUtil
             }
         }
 
+        // Scripts can read this name, v.__type.name, and sol2 would otherwise give the C++ type's new name. It is the name
+        // they have always seen, not a use of OSG.
+        template <typename T>
+        void keepTypeName(sol::usertype<T>& type, const char* name)
+        {
+            sol::table typeTable = type[sol::meta_function::type];
+            typeTable["name"] = name;
+        }
+
         template <typename T>
         void addVectorMethods(sol::usertype<T>& vectorType)
         {
@@ -144,13 +157,13 @@ namespace LuaUtil
             vectorType[sol::meta_function::subtraction] = [](const T& a, const T& b) { return a - b; };
             vectorType[sol::meta_function::equal_to] = [](const T& a, const T& b) { return a == b; };
             vectorType[sol::meta_function::multiplication] = sol::overload(
-                [](const T& a, float c) { return a * c; }, [](const T& a, const T& b) { return a * b; });
-            vectorType[sol::meta_function::division] = [](const T& a, float c) { return a / c; };
-            vectorType["dot"] = [](const T& a, const T b) { return a * b; };
-            vectorType["length"] = &T::length;
-            vectorType["length2"] = &T::length2;
+                [](const T& a, float c) { return a * c; }, [](const T& a, const T& b) { return Misc::VsgMath::dot(a, b); });
+            vectorType[sol::meta_function::division] = [](const T& a, float c) { return Misc::VsgMath::divide(a, c); };
+            vectorType["dot"] = [](const T& a, const T b) { return Misc::VsgMath::dot(a, b); };
+            vectorType["length"] = [](const T& v) { return vsg::length(v); };
+            vectorType["length2"] = [](const T& v) { return vsg::length2(v); };
             vectorType["normalize"] = [](const T& v) {
-                float len = v.length();
+                float len = vsg::length(v);
                 if (len == 0)
                     return std::make_tuple(T(), 0.f);
                 else
@@ -158,13 +171,13 @@ namespace LuaUtil
             };
             vectorType["emul"] = [](const T& a, const T& b) {
                 T result;
-                for (int i = 0; i < T::num_components; ++i)
+                for (std::size_t i = 0; i < T::size(); ++i)
                     result[i] = a[i] * b[i];
                 return result;
             };
             vectorType["ediv"] = [](const T& a, const T& b) {
                 T result;
-                for (int i = 0; i < T::num_components; ++i)
+                for (std::size_t i = 0; i < T::size(); ++i)
                     result[i] = a[i] / b[i];
                 return result;
             };
@@ -172,7 +185,7 @@ namespace LuaUtil
                 std::stringstream ss;
                 ss << std::setprecision(std::numeric_limits<typename T::value_type>::max_exponent10);
                 ss << "(" << v[0];
-                for (int i = 1; i < T::num_components; ++i)
+                for (std::size_t i = 1; i < T::size(); ++i)
                     ss << ", " << v[i];
                 ss << ")";
                 return ss.str();
@@ -191,29 +204,32 @@ namespace LuaUtil
         util["vector2"] = [](float x, float y) { return Vec2(x, y); };
         sol::usertype<Vec2> vec2Type = lua.new_usertype<Vec2>("Vec2");
         addVectorMethods<Vec2>(vec2Type);
+        keepTypeName(vec2Type, "osg::Vec2f");
         vec2Type["rotate"] = [](const Vec2& v, float angle) -> Vec2 { return Misc::rotateVec2f(v, angle); };
 
         // Lua bindings for Vec3
         util["vector3"] = [](float x, float y, float z) { return Vec3(x, y, z); };
         sol::usertype<Vec3> vec3Type = lua.new_usertype<Vec3>("Vec3");
         addVectorMethods<Vec3>(vec3Type);
-        vec3Type[sol::meta_function::involution] = [](const Vec3& a, const Vec3& b) { return a ^ b; };
-        vec3Type["cross"] = [](const Vec3& a, const Vec3& b) { return a ^ b; };
+        keepTypeName(vec3Type, "osg::Vec3f");
+        vec3Type[sol::meta_function::involution] = [](const Vec3& a, const Vec3& b) { return vsg::cross(a, b); };
+        vec3Type["cross"] = [](const Vec3& a, const Vec3& b) { return vsg::cross(a, b); };
 
         // Lua bindings for Vec4
         util["vector4"] = [](float x, float y, float z, float w) { return Vec4(x, y, z, w); };
         sol::usertype<Vec4> vec4Type = lua.new_usertype<Vec4>("Vec4");
         addVectorMethods<Vec4>(vec4Type);
+        keepTypeName(vec4Type, "osg::Vec4f");
 
         // Lua bindings for Box
         util["box"] = sol::overload([](const Vec3& center, const Vec3& halfSize) { return Box(center, halfSize); },
-            [](const TransformM& transform) { return Box(osg::Matrixd(transform.mM)); },
+            [](const TransformM& transform) { return Box(vsg::dmat4(transform.mM)); },
             [](const TransformQ& transform) { return Box(Vec3(), Vec3(1, 1, 1), transform.mQ); });
         sol::usertype<Box> boxType = lua.new_usertype<Box>("Box");
         boxType["center"] = sol::readonly_property([](const Box& b) { return Vec3(b.mCenter); });
         boxType["halfSize"] = sol::readonly_property([](const Box& b) { return Vec3(b.mHalfSize); });
         boxType["transform"] = sol::readonly_property(
-            [](const Box& b) { return TransformM{ osg::Matrixf(osg::Matrixd(b.asTransform())) }; });
+            [](const Box& b) { return TransformM{ vsg::mat4(b.asTransform()) }; });
         boxType["vertices"] = sol::readonly_property([lua](const Box& b) {
             sol::table table(lua, sol::create);
             const auto vertices = b.vertices();
@@ -277,109 +293,106 @@ namespace LuaUtil
         sol::table transforms(lua, sol::create);
         util["transform"] = LuaUtil::makeReadOnly(transforms);
 
-        transforms["identity"] = sol::make_object(lua, TransformQ{ osg::Quat() });
-        transforms["move"] = sol::overload([](const Vec3& v) { return TransformM{ osg::Matrixf::translate(v) }; },
-            [](float x, float y, float z) { return TransformM{ osg::Matrixf::translate(x, y, z) }; });
-        transforms["scale"] = sol::overload([](const Vec3& v) { return TransformM{ osg::Matrixf::scale(v) }; },
-            [](float x, float y, float z) { return TransformM{ osg::Matrixf::scale(x, y, z) }; });
-        transforms["rotate"] = [](float angle, const Vec3& axis) { return TransformQ{ osg::Quat(angle, axis) }; };
-        transforms["rotateX"] = [](float angle) { return TransformQ{ osg::Quat(angle, Vec3(-1, 0, 0)) }; };
-        transforms["rotateY"] = [](float angle) { return TransformQ{ osg::Quat(angle, Vec3(0, -1, 0)) }; };
-        transforms["rotateZ"] = [](float angle) { return TransformQ{ osg::Quat(angle, Vec3(0, 0, -1)) }; };
+        transforms["identity"] = sol::make_object(lua, TransformQ{ vsg::dquat() });
+        transforms["move"] = sol::overload([](const Vec3& v) { return TransformM{ vsg::translate(v) }; },
+            [](float x, float y, float z) { return TransformM{ vsg::translate(x, y, z) }; });
+        transforms["scale"] = sol::overload([](const Vec3& v) { return TransformM{ vsg::scale(v) }; },
+            [](float x, float y, float z) { return TransformM{ vsg::scale(x, y, z) }; });
+        transforms["rotate"] = [](float angle, const Vec3& axis) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, axis) }; };
+        transforms["rotateX"] = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(-1, 0, 0)) }; };
+        transforms["rotateY"] = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(0, -1, 0)) }; };
+        transforms["rotateZ"] = [](float angle) { return TransformQ{ Misc::VsgMath::makeRotateFromAxis(angle, Vec3(0, 0, -1)) }; };
 
         transMType[sol::meta_function::multiplication]
-            = sol::overload([](const TransformM& a, const Vec3& b) { return a.mM.preMult(b); },
-                [](const TransformM& a, const TransformM& b) { return TransformM{ b.mM * a.mM }; },
+            = sol::overload([](const TransformM& a, const Vec3& b) { return a.mM * b; },
+                [](const TransformM& a, const TransformM& b) { return TransformM{ a.mM * b.mM }; },
                 [](const TransformM& a, const TransformQ& b) {
                     TransformM res{ a.mM };
-                    res.mM.preMultRotate(b.mQ);
+                    Misc::VsgMath::preMultRotate(res.mM, b.mQ);
                     return res;
                 });
         transMType[sol::meta_function::to_string] = [](const TransformM& m) {
-            osg::Vec3f trans;
-            osg::Vec3f scale;
-            osg::Quat rotation;
-            osg::Quat so;
-            m.mM.decompose(trans, rotation, scale, so);
-            osg::Quat::value_type rotationAngle;
-            osg::Quat::value_type soAngle;
-            osg::Vec3f rotationAxis;
-            osg::Vec3f soAxis;
-            rotation.getRotate(rotationAngle, rotationAxis);
-            so.getRotate(soAngle, soAxis);
+            vsg::vec3 trans;
+            vsg::vec3 scale;
+            vsg::dquat rotation;
+            vsg::dquat so;
+            Misc::VsgMath::decompose(m.mM, trans, rotation, scale, so);
+            double rotationAngle;
+            double soAngle;
+            vsg::vec3 rotationAxis;
+            vsg::vec3 soAxis;
+            Misc::VsgMath::getRotate(rotation, rotationAngle, rotationAxis);
+            Misc::VsgMath::getRotate(so, soAngle, soAxis);
             std::stringstream ss;
             ss << "TransformM{ ";
-            if (trans.length2() > 0)
-                ss << "move(" << trans.x() << ", " << trans.y() << ", " << trans.z() << ") ";
+            if (vsg::length2(trans) > 0)
+                ss << "move(" << trans.x << ", " << trans.y << ", " << trans.z << ") ";
             if (rotationAngle != 0)
-                ss << "rotation(angle=" << rotationAngle << ", axis=(" << rotationAxis.x() << ", " << rotationAxis.y()
-                   << ", " << rotationAxis.z() << ")) ";
-            if (scale.x() != 1 || scale.y() != 1 || scale.z() != 1)
-                ss << "scale(" << scale.x() << ", " << scale.y() << ", " << scale.z() << ") ";
+                ss << "rotation(angle=" << rotationAngle << ", axis=(" << rotationAxis.x << ", " << rotationAxis.y
+                   << ", " << rotationAxis.z << ")) ";
+            if (scale.x != 1 || scale.y != 1 || scale.z != 1)
+                ss << "scale(" << scale.x << ", " << scale.y << ", " << scale.z << ") ";
             if (soAngle != 0)
-                ss << "rotation(angle=" << soAngle << ", axis=(" << soAxis.x() << ", " << soAxis.y() << ", "
-                   << soAxis.z() << ")) ";
+                ss << "rotation(angle=" << soAngle << ", axis=(" << soAxis.x << ", " << soAxis.y << ", "
+                   << soAxis.z << ")) ";
             ss << "}";
             return ss.str();
         };
-        transMType["apply"] = [](const TransformM& a, const Vec3& b) { return a.mM.preMult(b); },
+        transMType["apply"] = [](const TransformM& a, const Vec3& b) { return a.mM * b; },
         transMType["inverse"] = [](const TransformM& m) {
-            TransformM res;
-            if (!res.mM.invert_4x3(m.mM))
-                throw std::runtime_error("This Transform is not invertible");
-            return res;
+            return TransformM{ Misc::VsgMath::invert4x3(m.mM) };
         };
         transMType["getYaw"] = [](const TransformM& m) {
-            osg::Vec3f angles = Misc::toEulerAnglesXZ(m.mM);
-            return angles.z();
+            vsg::vec3 angles = Misc::toEulerAnglesXZ(m.mM);
+            return angles.z;
         };
         transMType["getPitch"] = [](const TransformM& m) {
-            osg::Vec3f angles = Misc::toEulerAnglesXZ(m.mM);
-            return angles.x();
+            vsg::vec3 angles = Misc::toEulerAnglesXZ(m.mM);
+            return angles.x;
         };
         transMType["getAnglesXZ"] = [](const TransformM& m) {
-            osg::Vec3f angles = Misc::toEulerAnglesXZ(m.mM);
-            return std::make_tuple(angles.x(), angles.z());
+            vsg::vec3 angles = Misc::toEulerAnglesXZ(m.mM);
+            return std::make_tuple(angles.x, angles.z);
         };
         transMType["getAnglesZYX"] = [](const TransformM& m) {
-            osg::Vec3f angles = Misc::toEulerAnglesZYX(m.mM);
-            return std::make_tuple(angles.z(), angles.y(), angles.x());
+            vsg::vec3 angles = Misc::toEulerAnglesZYX(m.mM);
+            return std::make_tuple(angles.z, angles.y, angles.x);
         };
 
         transQType[sol::meta_function::multiplication]
-            = sol::overload([](const TransformQ& a, const Vec3& b) { return a.mQ * b; },
+            = sol::overload([](const TransformQ& a, const Vec3& b) { return vsg::quat(a.mQ) * b; },
                 [](const TransformQ& a, const TransformQ& b) { return TransformQ{ b.mQ * a.mQ }; },
                 [](const TransformQ& a, const TransformM& b) {
                     TransformM res{ b };
-                    res.mM.postMultRotate(a.mQ);
+                    Misc::VsgMath::postMultRotate(res.mM, a.mQ);
                     return res;
                 });
         transQType[sol::meta_function::to_string] = [](const TransformQ& q) {
-            osg::Quat::value_type angle;
-            osg::Vec3f axis;
-            q.mQ.getRotate(angle, axis);
+            double angle;
+            vsg::vec3 axis;
+            Misc::VsgMath::getRotate(q.mQ, angle, axis);
             std::stringstream ss;
-            ss << "TransformQ{ rotation(angle=" << angle << ", axis=(" << axis.x() << ", " << axis.y() << ", "
-               << axis.z() << ")) }";
+            ss << "TransformQ{ rotation(angle=" << angle << ", axis=(" << axis.x << ", " << axis.y << ", "
+               << axis.z << ")) }";
             return ss.str();
         };
-        transQType["apply"] = [](const TransformQ& a, const Vec3& b) { return a.mQ * b; },
-        transQType["inverse"] = [](const TransformQ& q) { return TransformQ{ q.mQ.inverse() }; };
+        transQType["apply"] = [](const TransformQ& a, const Vec3& b) { return vsg::quat(a.mQ) * b; },
+        transQType["inverse"] = [](const TransformQ& q) { return TransformQ{ Misc::VsgMath::inverse(q.mQ) }; };
         transQType["getYaw"] = [](const TransformQ& q) {
-            osg::Vec3f angles = Misc::toEulerAnglesXZ(q.mQ);
-            return angles.z();
+            vsg::vec3 angles = Misc::toEulerAnglesXZ(q.mQ);
+            return angles.z;
         };
         transQType["getPitch"] = [](const TransformQ& q) {
-            osg::Vec3f angles = Misc::toEulerAnglesXZ(q.mQ);
-            return angles.x();
+            vsg::vec3 angles = Misc::toEulerAnglesXZ(q.mQ);
+            return angles.x;
         };
         transQType["getAnglesXZ"] = [](const TransformQ& q) {
-            osg::Vec3f angles = Misc::toEulerAnglesXZ(q.mQ);
-            return std::make_tuple(angles.x(), angles.z());
+            vsg::vec3 angles = Misc::toEulerAnglesXZ(q.mQ);
+            return std::make_tuple(angles.x, angles.z);
         };
         transQType["getAnglesZYX"] = [](const TransformQ& q) {
-            osg::Vec3f angles = Misc::toEulerAnglesZYX(q.mQ);
-            return std::make_tuple(angles.z(), angles.y(), angles.x());
+            vsg::vec3 angles = Misc::toEulerAnglesZYX(q.mQ);
+            return std::make_tuple(angles.z, angles.y, angles.x);
         };
 
         sol::function luaUtilLoader = lua["loadInternalLib"]("util");

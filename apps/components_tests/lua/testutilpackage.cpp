@@ -33,6 +33,17 @@ namespace
         return LuaUtil::toString(lua.safe_script("return " + luaCode));
     }
 
+    // sol2 takes this from the C++ type's name, so it has to be kept when that changes.
+    TEST_F(LuaUtilPackageTest, TypeNamesScriptsCanRead)
+    {
+        sol::state_view lua = mLuaState.unsafeState();
+        EXPECT_EQ(get<std::string>(lua, "util.vector2(1, 2).__type.name"), "osg::Vec2f");
+        EXPECT_EQ(get<std::string>(lua, "util.vector3(1, 2, 3).__type.name"), "osg::Vec3f");
+        EXPECT_EQ(get<std::string>(lua, "util.vector4(1, 2, 3, 4).__type.name"), "osg::Vec4f");
+        EXPECT_EQ(get<std::string>(lua, "util.transform.identity.__type.name"), "LuaUtil::TransformQ");
+        EXPECT_EQ(get<std::string>(lua, "util.transform.move(1, 2, 3).__type.name"), "LuaUtil::TransformM");
+    }
+
     TEST_F(LuaUtilPackageTest, Vector2)
     {
         sol::state_view lua = mLuaState.unsafeState();

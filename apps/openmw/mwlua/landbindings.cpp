@@ -1,4 +1,3 @@
-#include <osg/Vec3f>
 #include "landbindings.hpp"
 
 #include <span>
@@ -12,6 +11,7 @@
 #include <components/esm/util.hpp>
 #include <components/esm3terrain/storage.hpp>
 #include <components/lua/luastate.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -26,14 +26,14 @@ namespace
 {
     // Takes in a corrected world pos to match the visuals.
     ESMTerrain::UniqueTextureId getTextureAt(const std::span<const std::uint16_t> landData, const int plugin,
-        const osg::Vec3f& correctedWorldPos, const float cellSize)
+        const vsg::vec3& correctedWorldPos, const float cellSize)
     {
-        int cellX = static_cast<int>(std::floor(correctedWorldPos.x() / cellSize));
-        int cellY = static_cast<int>(std::floor(correctedWorldPos.y() / cellSize));
+        int cellX = static_cast<int>(std::floor(correctedWorldPos.x / cellSize));
+        int cellY = static_cast<int>(std::floor(correctedWorldPos.y / cellSize));
 
         // Normalized position in the cell
-        float nX = (correctedWorldPos.x() - (cellX * cellSize)) / cellSize;
-        float nY = (correctedWorldPos.y() - (cellY * cellSize)) / cellSize;
+        float nX = (correctedWorldPos.x - (cellX * cellSize)) / cellSize;
+        float nY = (correctedWorldPos.y - (cellY * cellSize)) / cellSize;
 
         int startX = static_cast<int>(nX * ESM::Land::LAND_TEXTURE_SIZE);
         int startY = static_cast<int>(nY * ESM::Land::LAND_TEXTURE_SIZE);
@@ -76,12 +76,12 @@ namespace MWLua
         sol::state_view lua = context.sol();
         sol::table landApi(lua, sol::create);
 
-        landApi["getHeightAt"] = [](const osg::Vec3f& pos, sol::object cellOrId) {
+        landApi["getHeightAt"] = [](const vsg::vec3& pos, sol::object cellOrId) {
             ESM::RefId worldspace = worldspaceAt(cellOrId);
             return MWBase::Environment::get().getWorld()->getTerrainHeightAt(pos, worldspace);
         };
 
-        landApi["getTextureAt"] = [lua = lua](const osg::Vec3f& pos, sol::object cellOrId) {
+        landApi["getTextureAt"] = [lua = lua](const vsg::vec3& pos, sol::object cellOrId) {
             sol::variadic_results values;
             const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
             const MWWorld::Store<ESM::Land>& landStore = store.get<ESM::Land>();
@@ -92,13 +92,13 @@ namespace MWLua
 
             const int cellSize = ESM::getCellSize(worldspace);
             const float offset = (cellSize / ESM::LandRecordData::sLandTextureSize) * 0.25f;
-            const osg::Vec3f correctedPos = pos + osg::Vec3f{ -offset, +offset, 0.0f };
+            const vsg::vec3 correctedPos = pos + vsg::vec3{ -offset, +offset, 0.0f };
 
             const ESM::Land* land = nullptr;
             const ESM::Land::LandData* landData = nullptr;
 
-            int cellX = static_cast<int>(std::floor(correctedPos.x() / cellSize));
-            int cellY = static_cast<int>(std::floor(correctedPos.y() / cellSize));
+            int cellX = static_cast<int>(std::floor(correctedPos.x / cellSize));
+            int cellY = static_cast<int>(std::floor(correctedPos.y / cellSize));
 
             land = landStore.search(cellX, cellY);
 

@@ -6,6 +6,7 @@
 
 #include <components/lua/inputactions.hpp>
 #include <components/lua/luastate.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/values.hpp>
 
@@ -71,7 +72,7 @@ namespace MWLua
                 = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> int { return e.mDevice; });
             touchpadEvent["finger"]
                 = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> int { return e.mFinger; });
-            touchpadEvent["position"] = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> osg::Vec2f {
+            touchpadEvent["position"] = sol::readonly_property([](const SDLUtil::TouchEvent& e) -> vsg::vec2 {
                 return { e.mX, e.mY };
             });
             touchpadEvent["pressure"]

@@ -1,6 +1,7 @@
 #include "widget.hpp"
 
 #include <SDL_events.h>
+#include <components/misc/vsgmath.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
 
 namespace
@@ -190,10 +191,10 @@ namespace LuaUi
     sol::object WidgetExtension::mouseEvent(
         LuaUtil::LuaView& view, int left, int top, MyGUI::MouseButton button = MyGUI::MouseButton::None) const
     {
-        osg::Vec2f position(static_cast<float>(left), static_cast<float>(top));
+        vsg::vec2 position(static_cast<float>(left), static_cast<float>(top));
         MyGUI::IntPoint absolutePosition = mWidget->getAbsolutePosition();
-        osg::Vec2f offset = position
-            - osg::Vec2f(static_cast<float>(absolutePosition.left), static_cast<float>(absolutePosition.top));
+        vsg::vec2 offset = position
+            - vsg::vec2(static_cast<float>(absolutePosition.left), static_cast<float>(absolutePosition.top));
         sol::table table = view.newTable();
         int sdlButton = SDLUtil::myGuiMouseButtonToSdl(button);
         table["position"] = position;
