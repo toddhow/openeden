@@ -41,6 +41,7 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/image.hpp>
 #include <components/vsgutil/readimage.hpp>
+#include <components/vsgutil/setviewportstate.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
 
@@ -156,6 +157,27 @@ void main()
             sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             return sampler;
         }
+
+        // Records commands under a view ID of their own. The GUI pass has no view, so its command buffer holds whatever
+        // view recorded last on it, and a pipeline only exists for the view ID it was compiled for.
+        class RecordWithViewId : public vsg::Inherit<vsg::Command, RecordWithViewId>
+        {
+        public:
+            RecordWithViewId(vsg::ref_ptr<vsg::Commands> inCommands, uint32_t inViewId)
+                : commands(std::move(inCommands))
+                , viewId(inViewId)
+            {
+            }
+            vsg::ref_ptr<vsg::Commands> commands;
+            uint32_t viewId;
+            void record(vsg::CommandBuffer& commandBuffer) const override
+            {
+                const uint32_t previous = commandBuffer.viewID;
+                commandBuffer.viewID = viewId;
+                commands->record(commandBuffer);
+                commandBuffer.viewID = previous;
+            }
+        };
 
         VkImageBlit flippedRegion(VkImageAspectFlags aspect, int32_t width, int32_t height)
         {
@@ -409,12 +431,13 @@ void main()
 
         // The depth attachment is not stored past the main pass, so depth is copied inside it (depthCopy()).
         mBeforeCopyDepth = vsg::PipelineBarrier::create(
-            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // the stage of a depth resolve
             VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
             barrier(VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, dst,
                 mSceneDepth, depth),
-            barrier(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, depthLayout, src, {},
-                depth));
+            barrier(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_ACCESS_TRANSFER_READ_BIT, depthLayout, src, {}, depth));
         mAfterCopyDepth = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0,
             barrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, dst, read, mSceneDepth, depth),
@@ -637,24 +660,25 @@ void main()
             vsg::ImageInfo::create(mNearest, result, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0,
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         auto commands = vsg::Commands::create();
-        commands->children = { pipeline,
+        // The main view's pipeline states make the viewport dynamic, and MyGUI sets its own only after this draw.
+        commands->children = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, mWidth, mHeight)), pipeline,
             vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0,
                 vsg::DescriptorSet::create(setLayout, vsg::Descriptors{ descriptor })),
             vsg::Draw::create(3, 1, 0, 0) };
 
-        // The GUI pass has no view: it records with view ID 0, as MyGUI's pipelines do, in a render pass compatible with
-        // the main view's.
+        // The GUI pass's render pass is compatible with the main view's, so the pipeline is compiled for that view.
         auto presentCompile = mCompile->clone(Mask_PostProcess);
         const vsg::ref_ptr<vsg::View> mainView = mMainView;
-        presentCompile->contextSelectionFunction = [mainView](vsg::Context& context) {
+        uint32_t viewId = 0;
+        presentCompile->contextSelectionFunction = [mainView, &viewId](vsg::Context& context) {
             if (context.view.get() != mainView.get())
                 return false;
-            context.viewID = 0;
+            viewId = context.viewID;
             return true;
         };
         if (!presentCompile->compile(commands))
             return {};
-        return commands;
+        return RecordWithViewId::create(commands, viewId);
     }
 
     void PostProcess::setChain(const std::vector<std::string>& names)
@@ -710,6 +734,8 @@ void main()
         mTechniques.clear();
         mRenderErrors.clear();
         mRebuildRequested = false;
+        for (const auto& child : mPresentSwitch->children)
+            mCompile->detach(child.node);
         mPresentSwitch->children.clear();
         mPending = {};
 
@@ -723,6 +749,7 @@ void main()
         vsg::ref_ptr<vsg::ImageView> lastShader = mSceneColorView;
         vsg::ref_ptr<vsg::ImageView> lastPass = mSceneColorView;
         vsg::ref_ptr<vsg::Image> lastImage;
+        vsg::ref_ptr<vsg::ImageView> lastImageView;
 
         for (const std::shared_ptr<Fx::Technique>& technique : mChain)
         {
@@ -778,7 +805,10 @@ void main()
                 }
                 group->addChild(node);
                 if (pass.target.empty())
+                {
                     lastImage = target->image;
+                    lastImageView = target->view;
+                }
                 lastPass = target->view;
             }
             if (!loaded->targets.empty())
@@ -822,19 +852,6 @@ void main()
         constexpr auto src = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         constexpr auto dst = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         const auto present = mEngine.getPresentLayout();
-        if (mMultisampled)
-        {
-            // The swapchain image goes back for the GUI pass to resolve into, and the result is drawn in that pass.
-            mBackToPresent = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
-                barrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, src, present, {}, color));
-            group->addChild(mBackToPresent);
-            if (auto node = createPresent(lastPass))
-                mPresentSwitch->addChild(mSceneVisible, node);
-            mPending = vsg::Switch::create();
-            mPending->addChild(Mask_PostProcess, group);
-            return;
-        }
         mBlitOut->srcImage = lastImage;
         // The swapchain image is in the transfer source layout since the copy in.
         mBeforeCopyOut = vsg::PipelineBarrier::create(
@@ -850,6 +867,15 @@ void main()
         group->addChild(mBeforeCopyOut);
         group->addChild(mBlitOut);
         group->addChild(mAfterCopyOut);
+        if (mMultisampled)
+        {
+            // The GUI pass resolves its multisampled colour over the swapchain image, so the result is drawn in that pass
+            // too. The copy above stays for screenshots, taken from the swapchain image before that pass.
+            mAfterCopyOut->imageMemoryBarriers.push_back(barrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, src,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, lastImage, color));
+            if (auto node = createPresent(lastImageView))
+                mPresentSwitch->addChild(mSceneVisible, node);
+        }
 
             // Under the scene's mask, so nothing is recorded in frames where the scene is not rendered, such as loading
             // screens: their swapchain images were never set by updateImages(). Shown by updateImages() itself.
@@ -873,14 +899,9 @@ void main()
         mAfterCopyDepth->imageMemoryBarriers[1]->image = srcDepth;
         mBlitColor->srcImage = srcColor;
         mBlitDepth->srcImage = srcDepth;
-        if (mMultisampled)
-            mBackToPresent->imageMemoryBarriers[0]->image = srcColor;
-        else
-        {
-            mBeforeCopyOut->imageMemoryBarriers[1]->image = srcColor;
-            mAfterCopyOut->imageMemoryBarriers[0]->image = srcColor;
-            mBlitOut->dstImage = srcColor;
-        }
+        mBeforeCopyOut->imageMemoryBarriers[1]->image = srcColor;
+        mAfterCopyOut->imageMemoryBarriers[0]->image = srcColor;
+        mBlitOut->dstImage = srcColor;
         // The frame before this one recorded the clears.
         if (!mPending && mFirstFrame)
         {

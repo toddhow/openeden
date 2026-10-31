@@ -56,8 +56,8 @@ namespace MWRender
      * mipmaps (targets are the swapchain's colour format), sampler files other than 2D, normals, point lights, HDR, the
      * flags that turn a technique off in interiors or underwater.
      *
-     * With antialiasing on the GUI pass resolves its multisampled colour over the swapchain image, so the result is drawn
-     * into that colour at the start of the GUI pass (presentNode()) instead of being copied to the swapchain image.
+     * With antialiasing on the GUI pass resolves its multisampled colour over the swapchain image, so the result is also drawn
+     * into that colour at the start of the GUI pass (presentNode()).
      *
      * Owned by RenderManager; every member function runs on the main thread. With no techniques nothing is recorded.
      */
@@ -155,7 +155,6 @@ namespace MWRender
         vsg::ref_ptr<vsg::Switch> mFirstFrame;
         vsg::ref_ptr<vsg::Switch> mPresentSwitch;
         vsg::ref_ptr<vsg::View> mMainView;
-        vsg::ref_ptr<vsg::PipelineBarrier> mBackToPresent;
         vsg::ref_ptr<vsg::ShaderStage> mPresentVertex;
         vsg::ref_ptr<vsg::ShaderStage> mPresentFragment;
         bool mMultisampled = false;

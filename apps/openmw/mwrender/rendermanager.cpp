@@ -300,7 +300,7 @@ namespace MWRender
         {
             mPostProcess->setMainView(mView);
             mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
-                mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
+            mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
         }
         threads.push_back(mCommandGraph);
 
