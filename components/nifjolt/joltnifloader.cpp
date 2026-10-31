@@ -48,7 +48,7 @@ namespace
 
     bool hasValidCollisionBoxExtents(const Resource::CollisionBox& box)
     {
-        return box.mExtents.x() > 0.f && box.mExtents.y() > 0.f && box.mExtents.z() > 0.f;
+        return box.mExtents.x > 0.f && box.mExtents.y > 0.f && box.mExtents.z > 0.f;
     }
 
 }

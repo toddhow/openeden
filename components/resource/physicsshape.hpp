@@ -6,15 +6,13 @@
 #include <memory>
 #include <set>
 
-#include <osg/Matrixd>
-#include <osg/Vec3f>
-
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 
+#include <components/misc/vsgmath.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace NifJolt
@@ -28,8 +26,8 @@ namespace Resource
 
     struct CollisionBox
     {
-        osg::Vec3f mExtents;
-        osg::Vec3f mCenter;
+        vsg::vec3 mExtents;
+        vsg::vec3 mCenter;
     };
 
     enum class VisualCollisionType

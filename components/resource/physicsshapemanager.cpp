@@ -18,6 +18,7 @@
 #include <components/files/hash.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -78,8 +79,8 @@ namespace Resource
                 const JPH::AABox bounds = shape->mCollisionShape->GetLocalBounds();
                 const JPH::Vec3 extents = bounds.GetExtent();
                 const JPH::Vec3 center = bounds.GetCenter();
-                shape->mCollisionBox.mExtents = osg::Vec3f(extents.GetX(), extents.GetY(), extents.GetZ());
-                shape->mCollisionBox.mCenter = osg::Vec3f(center.GetX(), center.GetY(), center.GetZ());
+                shape->mCollisionBox.mExtents = vsg::vec3(extents.GetX(), extents.GetY(), extents.GetZ());
+                shape->mCollisionBox.mCenter = vsg::vec3(center.GetX(), center.GetY(), center.GetZ());
                 return shape;
             }
 

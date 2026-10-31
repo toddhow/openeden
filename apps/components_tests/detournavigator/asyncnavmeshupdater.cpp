@@ -18,6 +18,8 @@
 
 #include <DetourNavMesh.h>
 
+#include <osg/Matrixd>
+
 #include <gtest/gtest.h>
 
 #include <limits>

@@ -8,6 +8,8 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 
+#include <osg/Matrixd>
+
 #include <gtest/gtest.h>
 
 namespace

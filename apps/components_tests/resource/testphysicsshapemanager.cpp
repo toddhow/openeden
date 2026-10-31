@@ -205,12 +205,12 @@ namespace
         const vsg::ref_ptr<const Resource::PhysicsShape> shape = manager.getShape(boxPath);
 
         ASSERT_NE(shape.get(), nullptr);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.x(), 2.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.y(), 3.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.z(), 5.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.x(), 1.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.y(), 1.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.z(), 5.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.x, 2.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.y, 3.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.z, 5.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.x, 1.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.y, 1.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.z, 5.0f, boundsTolerance);
     }
 
     TEST_F(ResourcePhysicsShapeManagerTest, getShape_for_z_up_meter_dae_should_keep_file_coordinates)
@@ -298,12 +298,12 @@ namespace
         ASSERT_NE(shape.get(), nullptr);
         ASSERT_NE(shape->mCollisionShape.GetPtr(), nullptr);
         expectBounds(*shape->mCollisionShape, { 0, 0, 0 }, { 5, 6, 7 });
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.x(), 2.5f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.y(), 3.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.z(), 3.5f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.x(), 2.5f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.y(), 3.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.z(), 3.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.x, 2.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.y, 3.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.z, 3.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.x, 2.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.y, 3.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.z, 3.5f, boundsTolerance);
     }
 
     std::string makeVisualAndCollisionDocument(std::string_view collisionNodeName)
@@ -327,12 +327,12 @@ namespace
         ASSERT_NE(shape.get(), nullptr);
         ASSERT_NE(shape->mCollisionShape.GetPtr(), nullptr);
         expectBounds(*shape->mCollisionShape, { 0, 0, 0 }, { 1, 2, 3 });
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.x(), 0.5f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.y(), 1.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mExtents.z(), 1.5f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.x(), 0.5f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.y(), 1.0f, boundsTolerance);
-        EXPECT_NEAR(shape->mCollisionBox.mCenter.z(), 1.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.x, 0.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.y, 1.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mExtents.z, 1.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.x, 0.5f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.y, 1.0f, boundsTolerance);
+        EXPECT_NEAR(shape->mCollisionBox.mCenter.z, 1.5f, boundsTolerance);
     }
 
     TEST_F(ResourcePhysicsShapeManagerTest, getShape_for_dae_should_match_collision_node_name_case_insensitively)

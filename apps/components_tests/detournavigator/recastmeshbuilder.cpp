@@ -16,6 +16,10 @@
 #include <DetourCommon.h>
 
 #include <gmock/gmock.h>
+#include <osg/Vec3f>
+#include <osg/Quat>
+#include <osg/Matrixd>
+
 #include <gtest/gtest.h>
 
 #include <array>

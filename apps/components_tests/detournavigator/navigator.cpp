@@ -23,6 +23,12 @@
 #include <osg/ref_ptr>
 
 #include <gmock/gmock.h>
+#include <osg/Vec3f>
+#include <osg/Vec3d>
+#include <osg/Quat>
+#include <osg/Math>
+#include <osg/Matrixd>
+
 #include <gtest/gtest.h>
 
 #include <array>

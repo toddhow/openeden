@@ -900,7 +900,7 @@ namespace MWPhysics
         vsg::ref_ptr<const Resource::PhysicsShape> shape = mShapeManager->getShape(animationMesh);
 
         // Try to get shape from basic model as fallback for creatures
-        if (!ptr.getClass().isNpc() && shape && shape->mCollisionBox.mExtents.length2() == 0)
+        if (!ptr.getClass().isNpc() && shape && vsg::length2(shape->mCollisionBox.mExtents) == 0)
         {
             if (animationMesh != mesh)
             {
@@ -926,7 +926,7 @@ namespace MWPhysics
     {
         vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(mesh);
         assert(shapeInstance);
-        float radius = computeRadius ? shapeInstance->mCollisionBox.mExtents.length() / 2.f : 1.f;
+        float radius = computeRadius ? vsg::length(shapeInstance->mCollisionBox.mExtents) / 2.f : 1.f;
 
         mProjectileId++;
 

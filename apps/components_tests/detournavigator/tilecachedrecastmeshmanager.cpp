@@ -12,6 +12,9 @@
 #include <vsg/io/stream.h>
 
 #include <gmock/gmock.h>
+#include <osg/Vec3f>
+#include <osg/Matrixd>
+
 #include <gtest/gtest.h>
 
 namespace
