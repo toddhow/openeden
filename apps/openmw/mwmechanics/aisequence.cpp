@@ -301,7 +301,7 @@ namespace MWMechanics
 
                     const ESM::Position& targetPos = target.getRefData().getPosition();
 
-                    float distTo = (targetPos.asVec3() - vActorPos).length2();
+                    float distTo = (osg::Vec3f(targetPos.asVec3()) - vActorPos).length2();
 
                     // Small threshold for changing target
                     if (it == mPackages.begin())

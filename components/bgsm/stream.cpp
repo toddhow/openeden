@@ -1,8 +1,8 @@
 #include "stream.hpp"
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
 
 #include <format>
 #include <stdexcept>
@@ -11,21 +11,21 @@
 namespace Bgsm
 {
     template <>
-    void BGSMStream::read<osg::Vec2f>(osg::Vec2f& vec)
+    void BGSMStream::read<vsg::vec2>(vsg::vec2& vec)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, vec.value);
     }
 
     template <>
-    void BGSMStream::read<osg::Vec3f>(osg::Vec3f& vec)
+    void BGSMStream::read<vsg::vec3>(vsg::vec3& vec)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, vec.value);
     }
 
     template <>
-    void BGSMStream::read<osg::Vec4f>(osg::Vec4f& vec)
+    void BGSMStream::read<vsg::vec4>(vsg::vec4& vec)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, vec.value);
     }
 
     template <>

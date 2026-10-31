@@ -7,9 +7,9 @@
 #include <vsg/core/ConstVisitor.h>
 #include <vsg/core/Visitor.h>
 
-#include <osg/Plane>
+#include <vsg/maths/plane.h>
 
-#include <components/vsgadapters/osgcompat.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/terrain/bounds.hpp>
 
 namespace ESMTerrain
@@ -385,16 +385,16 @@ namespace ESMTerrain
         vsg::vec3 v2(endXTS, endYTS, getVertexHeight(data, endX, endY) / cellWorldSize);
         vsg::vec3 v3(startXTS, endYTS, getVertexHeight(data, startX, endY) / cellWorldSize);
         // define this plane in terrain space
-        osg::Plane plane;
+        vsg::dplane plane;
         // FIXME: deal with differing triangle alignment
         if (true)
         {
             // odd row
             bool secondTri = ((1.0 - yParam) > xParam);
             if (secondTri)
-                plane = osg::Plane(toOsg(v0), toOsg(v1), toOsg(v3));
+                plane = Misc::VsgMath::makePlane(v0, v1, v3);
             else
-                plane = osg::Plane(toOsg(v1), toOsg(v2), toOsg(v3));
+                plane = Misc::VsgMath::makePlane(v1, v2, v3);
         }
         /*
         else
@@ -409,7 +409,7 @@ namespace ESMTerrain
         */
 
         // Solve plane equation for z
-        return (-plane.getNormal().x() * nX - plane.getNormal().y() * nY - plane[3]) / plane.getNormal().z() * cellWorldSize;
+        return (-plane[0] * nX - plane[1] * nY - plane[3]) / plane[2] * cellWorldSize;
     }
 
     const LandObject* Storage::getLand(int cellX, int cellY, LandCache& cache)

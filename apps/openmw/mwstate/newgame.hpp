@@ -1,5 +1,6 @@
 // vsgopenmw-unity-build
 
+#include <osg/Vec2f>
 #include <sstream>
 #include <optional>
 
@@ -39,7 +40,7 @@ namespace MWState
                 {
                     ESM::ExteriorCellLocation loc = { 0, 0, ESM::Cell::sDefaultWorldspaceId };
                     auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(loc);
-                    auto p = ESM::indexToPosition(loc, true);
+                    osg::Vec2f p = ESM::indexToPosition(loc, true);
                     ESM::Position pos;
                     pos.pos[0] = p.x();
                     pos.pos[1] = p.y();

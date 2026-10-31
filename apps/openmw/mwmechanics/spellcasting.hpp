@@ -1,6 +1,7 @@
 #ifndef MWMECHANICS_SPELLCASTING_H
 #define MWMECHANICS_SPELLCASTING_H
 
+#include <osg/Vec3f>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/effectlist.hpp>
 

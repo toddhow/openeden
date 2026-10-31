@@ -273,7 +273,7 @@ namespace
     {
         const auto world = MWBase::Environment::get().getWorld();
         const auto halfExtents = world->getHalfExtents(actor);
-        const auto position = actor.getRefData().getPosition().asVec3() + osg::Vec3f(0, 0, halfExtents.z());
+        const auto position = osg::Vec3f(actor.getRefData().getPosition().asVec3()) + osg::Vec3f(0, 0, halfExtents.z());
         const auto destination = nextPathPoint + osg::Vec3f(0, 0, halfExtents.z());
 
         return world->hasCollisionWithDoor(door, position, destination);

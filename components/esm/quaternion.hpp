@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_ESM_QUATERNION_H
 #define OPENMW_COMPONENTS_ESM_QUATERNION_H
 
-#include <osg/Quat>
+#include <vsg/maths/quat.h>
 
 namespace ESM
 {
@@ -12,17 +12,17 @@ namespace ESM
 
         Quaternion() = default;
 
-        Quaternion(const osg::Quat& q)
+        Quaternion(const vsg::dquat& q)
             : mValues{
-                static_cast<float>(q.w()),
-                static_cast<float>(q.x()),
-                static_cast<float>(q.y()),
-                static_cast<float>(q.z()),
+                static_cast<float>(q.w),
+                static_cast<float>(q.x),
+                static_cast<float>(q.y),
+                static_cast<float>(q.z),
             }
         {
         }
 
-        operator osg::Quat() const { return osg::Quat(mValues[1], mValues[2], mValues[3], mValues[0]); }
+        operator vsg::dquat() const { return vsg::dquat(mValues[1], mValues[2], mValues[3], mValues[0]); }
     };
 }
 

@@ -1,3 +1,4 @@
+#include <osg/Vec3f>
 #include "landbindings.hpp"
 
 #include <span>

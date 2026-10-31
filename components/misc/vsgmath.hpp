@@ -41,6 +41,7 @@
 
 #include <cmath>
 #include <limits>
+#include <type_traits>
 
 // OSG's a * b between vectors is a dot product; VSG's is a component-wise product. So that a converted file cannot silently
 // change meaning, a file including this header cannot use VSG's product at all: it writes dot(a, b) or componentMultiply(a, b).
@@ -238,6 +239,26 @@ namespace Misc::VsgMath
         return vsg::t_vec4<T>(lhs[0] / rhs[0], lhs[1] / rhs[1], lhs[2] / rhs[2], lhs[3] / rhs[3]);
     }
 
+    // OSG's v / s divides each element. VSG's multiplies by the inverse, which can differ in the last bit. The divisor takes
+    // the vector's own type, as in OSG, so a double narrows for a float vector.
+    template <class T>
+    inline vsg::t_vec2<T> divide(const vsg::t_vec2<T>& v, std::type_identity_t<T> s)
+    {
+        return vsg::t_vec2<T>(v[0] / s, v[1] / s);
+    }
+
+    template <class T>
+    inline vsg::t_vec3<T> divide(const vsg::t_vec3<T>& v, std::type_identity_t<T> s)
+    {
+        return vsg::t_vec3<T>(v[0] / s, v[1] / s, v[2] / s);
+    }
+
+    template <class T>
+    inline vsg::t_vec4<T> divide(const vsg::t_vec4<T>& v, std::type_identity_t<T> s)
+    {
+        return vsg::t_vec4<T>(v[0] / s, v[1] / s, v[2] / s, v[3] / s);
+    }
+
     // osg::Vec2i + int and - int.
     inline vsg::ivec2 add(const vsg::ivec2& v, int rhs)
     {
@@ -393,6 +414,39 @@ namespace Misc::VsgMath
             axis[1] = T(0);
             axis[2] = T(1);
         }
+    }
+
+    // OSG's result.slerp(t, from, to), Quat.cpp. The threshold for falling back to linear interpolation is OSG's fixed 1e-5;
+    // vsg::mix uses machine epsilon. Between opposite-signed quats the path goes through -to, all four negated.
+    inline vsg::dquat slerp(double t, const vsg::dquat& from, const vsg::dquat& to)
+    {
+        const double epsilon = 0.00001;
+        double scaleFrom;
+        double scaleTo;
+
+        vsg::dquat quatTo(to);
+        double cosOmega = from[0] * to[0] + from[1] * to[1] + from[2] * to[2] + from[3] * to[3];
+        if (cosOmega < 0.0)
+        {
+            cosOmega = -cosOmega;
+            quatTo = negate(to);
+        }
+
+        if ((1.0 - cosOmega) > epsilon)
+        {
+            const double omega = std::acos(cosOmega);
+            const double sinOmega = std::sin(omega);
+            scaleFrom = std::sin((1.0 - t) * omega) / sinOmega;
+            scaleTo = std::sin(t * omega) / sinOmega;
+        }
+        else
+        {
+            scaleFrom = 1.0 - t;
+            scaleTo = t;
+        }
+
+        return vsg::dquat(from[0] * scaleFrom + quatTo[0] * scaleTo, from[1] * scaleFrom + quatTo[1] * scaleTo,
+            from[2] * scaleFrom + quatTo[2] * scaleTo, from[3] * scaleFrom + quatTo[3] * scaleTo);
     }
 
     // The rotation matrix of a quat: OSG's Matrix::rotate(q), Matrix_implementation::setRotate. It copes with non-unit quats,
@@ -669,6 +723,27 @@ namespace Misc::VsgMath
         Detail::postMult(m, vsg::t_mat4<T>(toMatrix(q)));
     }
 
+    // OSG's m.orthoNormalize(rhs), despite the name: each of the three scales by the length of {m[0][j], m[1][j], m[2][j]}, and
+    // nothing is made perpendicular. A length2 already within 1e-6 of 1 or of 0 leaves that j as it was. The last row and
+    // column are copied.
+    template <class T>
+    inline vsg::t_mat4<T> orthoNormalize(const vsg::t_mat4<T>& rhs)
+    {
+        vsg::t_mat4<T> m(rhs);
+        for (int j = 0; j < 3; ++j)
+        {
+            T mag = (rhs[0][j] * rhs[0][j]) + (rhs[1][j] * rhs[1][j]) + (rhs[2][j] * rhs[2][j]);
+            if (!equivalent(static_cast<double>(mag), 1.0) && !equivalent(static_cast<double>(mag), 0.0))
+            {
+                mag = std::sqrt(mag);
+                m[0][j] = rhs[0][j] / mag;
+                m[1][j] = rhs[1][j] / mag;
+                m[2][j] = rhs[2][j] / mag;
+            }
+        }
+        return m;
+    }
+
     // OSG's m.invert_4x3(mat), Matrix_implementation.cpp. It keeps OSG's branch on m[3][3]: when that is close to 1 the last
     // column is ignored, even if it is not (0, 0, 0, 1), and the result has 1 there. Otherwise the full inverse is computed.
     // Neither vsg::inverse nor vsg::inverse_4x3 matches this on every input. A singular matrix gives infinity and NaN.
@@ -888,7 +963,8 @@ namespace Misc::VsgMath
         vsg::t_vec3<U> c = transform3x3(m, vsg::t_vec3<U>(U(0), U(0), U(-1)));
         normalizeInPlace(c);
 
-        const U distance = static_cast<U>(lookDistance);
+        // Through the matrix's own type first: OSG's parameter is the matrix's value_type, so a Matrixf narrows it to float.
+        const U distance = static_cast<U>(static_cast<T>(lookDistance));
         eye = e;
         center = vsg::t_vec3<U>(e[0] + c[0] * distance, e[1] + c[1] * distance, e[2] + c[2] * distance);
     }
@@ -960,7 +1036,7 @@ namespace Misc::VsgMath
     template <class T>
     inline vsg::t_box<T> intersect(const vsg::t_box<T>& a, const vsg::t_box<T>& b)
     {
-        const auto maximum = [](T lhs, T rhs) { return lhs < rhs ? rhs : lhs; };
+        const auto maximum = [](T lhs, T rhs) { return lhs > rhs ? lhs : rhs; };
         const auto minimum = [](T lhs, T rhs) { return lhs < rhs ? lhs : rhs; };
         return vsg::t_box<T>(
             vsg::t_vec3<T>(maximum(a.min.x, b.min.x), maximum(a.min.y, b.min.y), maximum(a.min.z, b.min.z)),
@@ -1083,13 +1159,14 @@ namespace Misc::VsgMath
 
     // Not the sphere around the union: OSG adds to a box the point of this sphere opposite each corner, then takes that box's
     // centre and radius. A box with any axis inverted is skipped.
-    template <class T, class R>
-    inline void expandBy(vsg::t_sphere<T>& sphere, const vsg::t_box<R>& box)
+    // The same precision on both sides, so that a mixed call cannot compute differently from OSG's.
+    template <class T>
+    inline void expandBy(vsg::t_sphere<T>& sphere, const vsg::t_box<T>& box)
     {
         if (!valid(box))
             return;
 
-        const vsg::t_box<T> source(box);
+        const vsg::t_box<T>& source = box;
         if (!valid(sphere))
         {
             sphere.center = center(source);

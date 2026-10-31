@@ -71,7 +71,7 @@ namespace Fallback
         return getInt(fall) != 0;
     }
 
-    osg::Vec4f Map::getColour(std::string_view fall)
+    vsg::vec4 Map::getColour(std::string_view fall)
     {
         const std::string_view sum = getString(fall);
 
@@ -88,7 +88,7 @@ namespace Fallback
 
                 if (r.has_value() && g.has_value() && b.has_value())
                 {
-                    return osg::Vec4f(*r / 255.0f, *g / 255.0f, *b / 255.0f, 1.0f);
+                    return vsg::vec4(*r / 255.0f, *g / 255.0f, *b / 255.0f, 1.0f);
                 }
             }
 
@@ -96,6 +96,6 @@ namespace Fallback
                               << ") is not a valid color, using middle gray as a fallback";
         }
 
-        return osg::Vec4f(0.5f, 0.5f, 0.5f, 1.f);
+        return vsg::vec4(0.5f, 0.5f, 0.5f, 1.f);
     }
 }

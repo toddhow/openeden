@@ -10,7 +10,7 @@
 #include "components/esm/refid.hpp"
 #include "components/misc/strings/algorithm.hpp"
 
-#include <osg/Vec4>
+#include <vsg/maths/vec4.h>
 
 namespace ESM
 {
@@ -107,7 +107,7 @@ namespace ESM
         /// Set record to default state (does not touch the ID/index).
         void blank();
 
-        osg::Vec4f getColor() const;
+        vsg::vec4 getColor() const;
 
         static const StringRefId WaterBreathing;
         static const StringRefId SwiftSwim;

@@ -1,3 +1,4 @@
+#include <osg/Vec3f>
 #include "controlswitch.hpp"
 
 #include <components/esm3/controlsstate.hpp>

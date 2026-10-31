@@ -190,7 +190,7 @@ namespace
                 }
                 actor->updateCollisionObjectPosition();
                 frameData.mOldHeight = frameData.mPosition.z();
-                const auto rotation = actor->getPtr().getRefData().getPosition().asRotationVec3();
+                const osg::Vec3f rotation = actor->getPtr().getRefData().getPosition().asRotationVec3();
                 frameData.mRotation = osg::Vec2f(rotation.x(), rotation.z());
                 frameData.mInertia = actor->getInertialForce();
                 frameData.mStuckFrames = actor->getStuckFrames();

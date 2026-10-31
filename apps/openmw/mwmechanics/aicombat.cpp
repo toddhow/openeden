@@ -144,7 +144,7 @@ namespace MWMechanics
                     = storage.mLOS && !storage.mUseCustomDestination ? storage.mAttackRange : 0.0f;
                 const osg::Vec3f destination = storage.mUseCustomDestination
                     ? storage.mCustomDestination
-                    : target.getRefData().getPosition().asVec3();
+                    : osg::Vec3f(target.getRefData().getPosition().asVec3());
                 const bool isTargetReached = pathTo(actor, destination, duration,
                     characterController.getSupportedMovementDirections(), targetReachedTolerance);
                 if (isTargetReached)
@@ -456,7 +456,7 @@ namespace MWMechanics
                                                        ->mValue.getFloat();
 
                 float dist
-                    = (actor.getRefData().getPosition().asVec3() - target.getRefData().getPosition().asVec3()).length();
+                    = (osg::Vec3f(actor.getRefData().getPosition().asVec3()) - osg::Vec3f(target.getRefData().getPosition().asVec3())).length();
                 if ((dist > fFleeDistance && !storage.mLOS)
                     || pathTo(
                         actor, Misc::Convert::makeOsgVec3f(storage.mFleeDest), duration, supportedMovementDirections))
@@ -601,7 +601,7 @@ namespace MWMechanics
             // Currently we take the 35% of actor's height from the ground as vector height.
             // This approach allows us to detect small obstacles (e.g. crates) and curved walls.
             osg::Vec3f halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
-            auto pos = actor.getRefData().getPosition().asVec3();
+            osg::Vec3f pos = actor.getRefData().getPosition().asVec3();
             auto source = pos + osg::Vec3f(0, 0, 0.75f * halfExtents.z());
             auto fallbackDirection = toOsg(-MWAnim::forward(actor.getRefData().getPosition()));
             auto destination = source + fallbackDirection * (halfExtents.y() + 16);

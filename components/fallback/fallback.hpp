@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-#include <osg/Vec4f>
+#include <vsg/maths/vec4.h>
 
 namespace Fallback
 {
@@ -30,7 +30,7 @@ namespace Fallback
         static float getFloat(std::string_view fall);
         static int getInt(std::string_view fall);
         static bool getBool(std::string_view fall);
-        static osg::Vec4f getColour(std::string_view fall);
+        static vsg::vec4 getColour(std::string_view fall);
     };
 }
 #endif

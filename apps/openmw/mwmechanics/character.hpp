@@ -1,6 +1,8 @@
 #ifndef GAME_MWMECHANICS_CHARACTER_HPP
 #define GAME_MWMECHANICS_CHARACTER_HPP
 
+#include <osg/Vec3f>
+#include <osg/Vec2f>
 #include <deque>
 #include <memory>
 

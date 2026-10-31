@@ -1,6 +1,7 @@
 #ifndef MGUI_Inventory_H
 #define MGUI_Inventory_H
 
+#include <osg/Vec2f>
 #include <vsg/core/ref_ptr.h>
 
 #include "mode.hpp"

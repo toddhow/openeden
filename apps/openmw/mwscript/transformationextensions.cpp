@@ -426,7 +426,7 @@ namespace MWScript
                 }
                 if (store)
                 {
-                    auto rot = ptr.getRefData().getPosition().asRotationVec3();
+                    osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
                     // Note that you must specify ZRot in minutes (1 degree = 60 minutes; north = 0, east = 5400, south
                     // = 10800, west = 16200) except for when you position the player, then degrees must be used. See
                     // "Morrowind Scripting for Dummies (9th Edition)" pages 50 and 54 for reference.
@@ -497,7 +497,7 @@ namespace MWScript
                 }
                 dynamic_cast<MWScript::InterpreterContext&>(runtime.getContext()).updatePtr(base, ptr);
 
-                auto rot = ptr.getRefData().getPosition().asRotationVec3();
+                osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
                 // Note that you must specify ZRot in minutes (1 degree = 60 minutes; north = 0, east = 5400, south =
                 // 10800, west = 16200) except for when you position the player, then degrees must be used. See
                 // "Morrowind Scripting for Dummies (9th Edition)" pages 50 and 54 for reference.
@@ -652,7 +652,7 @@ namespace MWScript
                 Interpreter::Type_Float rotation = osg::DegreesToRadians(runtime[0].mFloat * runtime.getContext().dt);
                 runtime.pop();
 
-                auto rot = ptr.getRefData().getPosition().asRotationVec3();
+                osg::Vec3f rot = ptr.getRefData().getPosition().asRotationVec3();
                 // Regardless of the axis argument, the player may only be rotated on Z
                 if (axis == "z" || MWMechanics::getPlayer() == ptr)
                     rot.z() += rotation;

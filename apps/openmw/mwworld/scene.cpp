@@ -1154,7 +1154,7 @@ namespace MWWorld
 
         bool operator()(const MWWorld::Ptr& ptr)
         {
-            if ((ptr.getRefData().getPosition().asVec3() - mPlayerPos).length2() > mPreloadDist * mPreloadDist)
+            if ((osg::Vec3f(ptr.getRefData().getPosition().asVec3()) - mPlayerPos).length2() > mPreloadDist * mPreloadDist)
                 return true;
 
             if (ptr.getClass().isNpc())

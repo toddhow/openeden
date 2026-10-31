@@ -294,7 +294,7 @@ namespace MWPhysics
     void Actor::updatePosition()
     {
         std::scoped_lock lock(mMutex);
-        const auto worldPosition = mPtr.getRefData().getPosition().asVec3();
+        const osg::Vec3f worldPosition = mPtr.getRefData().getPosition().asVec3();
         mPreviousPosition = worldPosition;
         mPosition = worldPosition;
         mSimulationPosition = worldPosition;

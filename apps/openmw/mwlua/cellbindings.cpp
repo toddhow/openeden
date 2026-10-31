@@ -1,3 +1,4 @@
+#include <osg/Vec3f>
 #include "cellbindings.hpp"
 
 #include <components/esm3/loadacti.hpp>

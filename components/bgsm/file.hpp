@@ -6,9 +6,9 @@
 #include <string>
 #include <string_view>
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
 
 #include <components/files/istreamptr.hpp>
 
@@ -27,7 +27,7 @@ namespace Bgsm
         ShaderType mShaderType;
         std::uint32_t mVersion;
         std::uint32_t mClamp;
-        osg::Vec2f mUVOffset, mUVScale;
+        vsg::vec2 mUVOffset, mUVScale;
         float mTransparency;
         bool mAlphaBlend;
         std::uint32_t mSourceBlendMode;
@@ -77,7 +77,7 @@ namespace Bgsm
         bool mTranslucency;
         bool mTranslucencyThickObject;
         bool mTranslucencyMixAlbedoWithSubsurfaceColor;
-        osg::Vec3f mTranslucencySubsurfaceColor;
+        vsg::vec3 mTranslucencySubsurfaceColor;
         float mTranslucencyTransmissiveScale;
         float mTranslucencyTurbulence;
         bool mRimLighting;
@@ -86,7 +86,7 @@ namespace Bgsm
         bool mSubsurfaceLighting;
         float mSubsurfaceLightingRolloff;
         bool mSpecularEnabled;
-        osg::Vec3f mSpecularColor;
+        vsg::vec3 mSpecularColor;
         float mSpecularMult;
         float mSmoothness;
         float mFresnelPower;
@@ -102,13 +102,13 @@ namespace Bgsm
         std::string mRootMaterialPath;
         bool mAnisoLighting;
         bool mEmitEnabled;
-        osg::Vec3f mEmittanceColor;
+        vsg::vec3 mEmittanceColor;
         float mEmittanceMult;
         bool mModelSpaceNormals;
         bool mExternalEmittance;
         float mLumEmittance;
         bool mUseAdaptiveEmissive;
-        osg::Vec3f mAdaptiveEmissiveExposureParams;
+        vsg::vec3 mAdaptiveEmissiveExposureParams;
         bool mBackLighting;
         bool mReceiveShadows;
         bool mHideSecret;
@@ -119,17 +119,17 @@ namespace Bgsm
         bool mEnvMapWindow;
         bool mEnvMapEye;
         bool mHair;
-        osg::Vec3f mHairTintColor;
+        vsg::vec3 mHairTintColor;
         bool mTree;
         bool mFacegen;
         bool mSkinTint;
         bool mTessellate;
-        osg::Vec2f mDisplacementMapParams;
-        osg::Vec3f mTessellationParams;
+        vsg::vec2 mDisplacementMapParams;
+        vsg::vec3 mTessellationParams;
         float mGrayscaleToPaletteScale;
         bool mSkewSpecularAlpha;
         bool mTerrain;
-        osg::Vec3f mTerrainParams;
+        vsg::vec3 mTerrainParams;
 
         void read(BGSMStream& stream) override;
     };
@@ -150,14 +150,14 @@ namespace Bgsm
         bool mFalloffColor;
         bool mGrayscaleToPaletteAlpha;
         bool mSoft;
-        osg::Vec3f mBaseColor;
+        vsg::vec3 mBaseColor;
         float mBaseColorScale;
-        osg::Vec4f mFalloffParams;
+        vsg::vec4 mFalloffParams;
         float mLightingInfluence;
         std::uint8_t mEnvmapMinLOD;
         float mSoftDepth;
-        osg::Vec3f mEmittanceColor;
-        osg::Vec3f mAdaptiveEmissiveExposureParams;
+        vsg::vec3 mEmittanceColor;
+        vsg::vec3 mAdaptiveEmissiveExposureParams;
         bool mGlowMapEnabled;
         bool mEffectPbrSpecular;
 

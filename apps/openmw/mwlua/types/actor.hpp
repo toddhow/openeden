@@ -63,7 +63,7 @@ namespace MWLua
                     else
                         cellId = ESM::RefId::stringRefId(dest.mCellName);
                     travelDest["rotation"] = LuaUtil::asTransform(Misc::Convert::makeOsgQuat(dest.mPos.rot));
-                    travelDest["position"] = dest.mPos.asVec3();
+                    travelDest["position"] = osg::Vec3f(dest.mPos.asVec3());
                     travelDest["cellId"] = cellId.serializeText();
 
                     travelDests[index] = LuaUtil::makeReadOnly(travelDest);

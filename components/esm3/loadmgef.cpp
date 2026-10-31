@@ -788,11 +788,11 @@ namespace ESM
         mDescription.clear();
     }
 
-    osg::Vec4f MagicEffect::getColor() const
+    vsg::vec4 MagicEffect::getColor() const
     {
-        osg::Vec4f color{ mData.mRed / 255.f, mData.mGreen / 255.f, mData.mBlue / 255.f, 1.f };
+        vsg::vec4 color{ mData.mRed / 255.f, mData.mGreen / 255.f, mData.mBlue / 255.f, 1.f };
         if (mData.mFlags & NegativeLight)
-            return osg::Vec4f(1.f, 1.f, 1.f, 2.f) - color;
+            return vsg::vec4(1.f, 1.f, 1.f, 2.f) - color;
         return color;
     }
 

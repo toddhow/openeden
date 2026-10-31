@@ -136,8 +136,8 @@ namespace MWMechanics
         // Fall back to a "caster to target" direction if we have no other means of determining it
         // (e.g. when cast by a non-actor)
         if (!mTarget.isEmpty())
-            fallbackDirection = (mTarget.getRefData().getPosition().asVec3() + offset)
-                - (mCaster.getRefData().getPosition().asVec3());
+            fallbackDirection = (osg::Vec3f(mTarget.getRefData().getPosition().asVec3()) + offset)
+                - (osg::Vec3f(mCaster.getRefData().getPosition().asVec3()));
 
         MWBase::Environment::get().getWorld()->launchMagicBolt(mId, mCaster, fallbackDirection, mItem);
     }

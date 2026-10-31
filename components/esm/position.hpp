@@ -2,7 +2,7 @@
 #define OPENMW_ESM3_POSITION_H
 
 #include <components/misc/concepts.hpp>
-#include <osg/Vec3f>
+#include <vsg/maths/vec3.h>
 #include <tuple>
 
 namespace ESM
@@ -15,9 +15,9 @@ namespace ESM
         // In radians
         float rot[3]{};
 
-        osg::Vec3f asVec3() const { return osg::Vec3f(pos[0], pos[1], pos[2]); }
+        vsg::vec3 asVec3() const { return vsg::vec3(pos[0], pos[1], pos[2]); }
 
-        osg::Vec3f asRotationVec3() const { return osg::Vec3f(rot[0], rot[1], rot[2]); }
+        vsg::vec3 asRotationVec3() const { return vsg::vec3(rot[0], rot[1], rot[2]); }
 
         friend inline bool operator<(const Position& l, const Position& r)
         {

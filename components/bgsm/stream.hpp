@@ -12,9 +12,9 @@
 #include <components/files/istreamptr.hpp>
 #include <components/misc/endianness.hpp>
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
-#include <osg/Vec4f>
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
 
 namespace Bgsm
 {
@@ -65,11 +65,11 @@ namespace Bgsm
     };
 
     template <>
-    void BGSMStream::read<osg::Vec2f>(osg::Vec2f& vec);
+    void BGSMStream::read<vsg::vec2>(vsg::vec2& vec);
     template <>
-    void BGSMStream::read<osg::Vec3f>(osg::Vec3f& vec);
+    void BGSMStream::read<vsg::vec3>(vsg::vec3& vec);
     template <>
-    void BGSMStream::read<osg::Vec4f>(osg::Vec4f& vec);
+    void BGSMStream::read<vsg::vec4>(vsg::vec4& vec);
     template <>
     void BGSMStream::read<std::string>(std::string& str);
 }

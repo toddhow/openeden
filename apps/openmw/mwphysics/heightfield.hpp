@@ -1,6 +1,7 @@
 #ifndef OPENMW_MWPHYSICS_HEIGHTFIELD_H
 #define OPENMW_MWPHYSICS_HEIGHTFIELD_H
 
+#include <osg/Vec3f>
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
 

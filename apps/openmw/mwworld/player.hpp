@@ -1,6 +1,7 @@
 #ifndef GAME_MWWORLD_PLAYER_H
 #define GAME_MWWORLD_PLAYER_H
 
+#include <osg/Vec3f>
 #include <array>
 #include <map>
 

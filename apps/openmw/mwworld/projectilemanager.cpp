@@ -572,7 +572,7 @@ namespace MWWorld
             state.mCaster = projectile.mCaster;
 
             state.mBowId = projectile.mBowId;
-            state.mVelocity = projectile.mVelocity;
+            state.mVelocity = vsg::vec3(projectile.mVelocity);
             state.mAttackStrength = projectile.mAttackStrength;
 
             state.save(writer);
@@ -609,7 +609,7 @@ namespace MWWorld
             ProjectileState state;
             state.mCaster = esm.mCaster;
             state.mBowId = esm.mBowId;
-            state.mVelocity = esm.mVelocity;
+            state.mVelocity = vsg::vec3(esm.mVelocity);
             state.mIdArrow = esm.mId;
             state.mAttackStrength = esm.mAttackStrength;
             state.mToDelete = false;
@@ -623,7 +623,7 @@ namespace MWWorld
                 model = ptr.getClass().getCorrectedModel(ptr);
 
                 state.mProjectileId
-                    = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, false);
+                    = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(vsg::vec3(esm.mPosition)), model, false);
                 glowColor = MWRender::getGlowColor(ptr);
             }
             catch (const std::exception& e)
@@ -633,7 +633,7 @@ namespace MWWorld
                 return true;
             }
 
-            createModel(state, model.value(), toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), false,
+            createModel(state, model.value(), toVsg(osg::Vec3f(vsg::vec3(esm.mPosition))), toVsg(osg::Quat(vsg::dquat(esm.mOrientation))), false,
                 {}, glowColor);
 
             mProjectiles.push_back(std::move(state));
@@ -684,15 +684,15 @@ namespace MWWorld
             }
 
             auto lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
-            createModel(state, model.value(), toVsg(osg::Vec3f(esm.mPosition)), toVsg(osg::Quat(esm.mOrientation)), true,
+            createModel(state, model.value(), toVsg(osg::Vec3f(vsg::vec3(esm.mPosition))), toVsg(osg::Quat(vsg::dquat(esm.mOrientation))), true,
                 lightDiffuseColor, {}, texture);
-            state.mProjectileId = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, true);
+            state.mProjectileId = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(vsg::vec3(esm.mPosition)), model, true);
 
             MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
             for (const auto& soundid : state.mSoundIds)
             {
                 MWBase::Sound* sound = sndMgr->playSound3D(
-                    esm.mPosition, soundid, 1.0f, 1.0f, MWSound::Type::Sfx, MWSound::PlayMode::Loop);
+                    vsg::vec3(esm.mPosition), soundid, 1.0f, 1.0f, MWSound::Type::Sfx, MWSound::PlayMode::Loop);
                 if (sound)
                     state.mSounds.push_back(sound);
             }

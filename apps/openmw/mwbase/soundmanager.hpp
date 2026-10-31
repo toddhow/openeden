@@ -1,6 +1,7 @@
 #ifndef GAME_MWBASE_SOUNDMANAGER_H
 #define GAME_MWBASE_SOUNDMANAGER_H
 
+#include <osg/Vec3f>
 #include <memory>
 #include <set>
 #include <string>

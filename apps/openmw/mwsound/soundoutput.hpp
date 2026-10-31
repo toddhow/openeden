@@ -1,6 +1,7 @@
 #ifndef GAME_SOUND_SOUNDOUTPUT_H
 #define GAME_SOUND_SOUNDOUTPUT_H
 
+#include <osg/Vec3f>
 #include <memory>
 #include <string>
 #include <vector>

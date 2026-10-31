@@ -1,8 +1,8 @@
 #ifndef OPENMW_ESM_PROJECTILESTATE_H
 #define OPENMW_ESM_PROJECTILESTATE_H
 
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 #include "components/esm/quaternion.hpp"
 #include "components/esm/refid.hpp"

@@ -99,7 +99,7 @@ namespace MWWorld
                 && follower.getCell()->getCell()->isExterior())
                 continue;
 
-            if ((follower.getRefData().getPosition().asVec3() - actor.getRefData().getPosition().asVec3()).length2()
+            if ((osg::Vec3f(follower.getRefData().getPosition().asVec3()) - osg::Vec3f(actor.getRefData().getPosition().asVec3())).length2()
                 > 800 * 800)
                 continue;
 

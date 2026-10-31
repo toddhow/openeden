@@ -996,7 +996,7 @@ namespace MWMechanics
         wander->mData.mShouldRepeat = mOptions.mRepeat;
         wander->mStoredInitialActorPosition = mStoredInitialActorPosition;
         if (mStoredInitialActorPosition)
-            wander->mInitialActorPosition = mInitialActorPosition;
+            wander->mInitialActorPosition = vsg::vec3(mInitialActorPosition);
 
         ESM::AiSequence::AiPackageContainer package;
         package.mType = ESM::AiSequence::Ai_Wander;
@@ -1016,7 +1016,7 @@ namespace MWMechanics
         , mUsePathgrid(false)
     {
         if (mStoredInitialActorPosition)
-            mInitialActorPosition = wander->mInitialActorPosition;
+            mInitialActorPosition = vsg::vec3(wander->mInitialActorPosition);
         if (mRemainingDuration <= 0 || mRemainingDuration >= 24)
             mRemainingDuration = static_cast<float>(mDuration);
     }

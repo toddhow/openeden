@@ -1252,7 +1252,7 @@ namespace MWMechanics
             return;
 
         const float dist
-            = (player.getRefData().getPosition().asVec3() - ptr.getRefData().getPosition().asVec3()).length();
+            = (osg::Vec3f(player.getRefData().getPosition().asVec3()) - osg::Vec3f(ptr.getRefData().getPosition().asVec3())).length();
         const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
         if (dist > actorsProcessingRange)
         {
@@ -1451,7 +1451,7 @@ namespace MWMechanics
                     continue;
 
                 const osg::Vec3f& otherHalfExtents = otherCached.mHalfExtents;
-                const osg::Vec3f deltaPos = otherPtr.getRefData().getPosition().asVec3() - basePos;
+                const osg::Vec3f deltaPos = osg::Vec3f(otherPtr.getRefData().getPosition().asVec3()) - basePos;
                 const osg::Vec2f relPos = Misc::rotateVec2f(osg::Vec2f(deltaPos.x(), deltaPos.y()), baseRotZ);
                 const float dist = deltaPos.length();
 
@@ -2147,7 +2147,7 @@ namespace MWMechanics
         {
             if (actor.isInvalid())
                 continue;
-            if ((actor.getPtr().getRefData().getPosition().asVec3() - position).length2() <= radius * radius)
+            if ((osg::Vec3f(actor.getPtr().getRefData().getPosition().asVec3()) - position).length2() <= radius * radius)
                 out.push_back(actor.getPtr());
         }
     }
@@ -2158,7 +2158,7 @@ namespace MWMechanics
         {
             if (actor.isInvalid())
                 continue;
-            if ((actor.getPtr().getRefData().getPosition().asVec3() - position).length2() <= radius * radius)
+            if ((osg::Vec3f(actor.getPtr().getRefData().getPosition().asVec3()) - position).length2() <= radius * radius)
                 return true;
         }
 

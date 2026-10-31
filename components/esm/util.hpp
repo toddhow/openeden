@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-#include <osg/Vec2f>
+#include <vsg/maths/vec2.h>
 
 #include "components/esm3/loadcell.hpp"
 #include "components/misc/constants.hpp"
@@ -34,7 +34,7 @@ namespace ESM
     }
 
     // Convert exterior cell location to position.
-    osg::Vec2f indexToPosition(const ESM::ExteriorCellLocation& cellIndex, bool centre = false);
+    vsg::vec2 indexToPosition(const ESM::ExteriorCellLocation& cellIndex, bool centre = false);
 }
 
 #endif

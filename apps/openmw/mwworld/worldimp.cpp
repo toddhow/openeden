@@ -1138,7 +1138,7 @@ namespace MWWorld
     MWWorld::Ptr World::moveObjectBy(const Ptr& ptr, const osg::Vec3f& vec, bool moveToActive)
     {
         auto* actor = mPhysics->getActor(ptr);
-        osg::Vec3f newpos = ptr.getRefData().getPosition().asVec3() + vec;
+        osg::Vec3f newpos = osg::Vec3f(ptr.getRefData().getPosition().asVec3()) + vec;
         if (actor)
             actor->adjustPosition(vec);
         if (ptr.getClass().isActor())
@@ -1426,7 +1426,7 @@ namespace MWWorld
     bool World::rotateDoor(const Ptr door, MWWorld::DoorState state, float duration)
     {
         const ESM::Position& objPos = door.getRefData().getPosition();
-        auto oldRot = objPos.asRotationVec3();
+        osg::Vec3f oldRot = objPos.asRotationVec3();
         auto newRot = oldRot;
 
         float minRot = door.getCellRef().getPosition().rot[2];
@@ -1447,7 +1447,7 @@ namespace MWWorld
 
             if (ptr.getClass().isActor())
             {
-                auto localPoint = objPos.asVec3() - point;
+                auto localPoint = osg::Vec3f(objPos.asVec3()) - point;
                 osg::Vec3f direction = osg::Quat(diff, osg::Vec3f(0, 0, 1)) * localPoint - localPoint;
                 direction.normalize();
                 mPhysics->reportCollision(point, normal);
@@ -1657,7 +1657,7 @@ namespace MWWorld
         if (isFirstPerson() || Settings::sound().mCameraListener)
             listenerPos = camera->getPosition();
         else
-            listenerPos = refpos.asVec3() + osg::Vec3f(0, 0, 1.85f * mPhysics->getHalfExtents(player).z());
+            listenerPos = osg::Vec3f(refpos.asVec3()) + osg::Vec3f(0, 0, 1.85f * mPhysics->getHalfExtents(player).z());
 
         if (isFirstPerson() || Settings::sound().mCameraListener)
             listenerOrient = camera->getOrient();
@@ -3313,7 +3313,7 @@ namespace MWWorld
 
         bool operator()(const MWWorld::Ptr& ptr)
         {
-            if ((ptr.getRefData().getPosition().asVec3() - mDetector.getRefData().getPosition().asVec3()).length2()
+            if ((osg::Vec3f(ptr.getRefData().getPosition().asVec3()) - osg::Vec3f(mDetector.getRefData().getPosition().asVec3())).length2()
                 >= mSquaredDist)
                 return true;
 
