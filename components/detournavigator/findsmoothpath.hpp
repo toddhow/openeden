@@ -7,11 +7,11 @@
 #include "settingsutils.hpp"
 #include "status.hpp"
 
+#include <components/misc/vsgmath.hpp>
+
 #include <DetourCommon.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
-
-#include <osg/Vec3f>
 
 #include <cassert>
 #include <functional>
@@ -21,15 +21,15 @@
 
 namespace DetourNavigator
 {
-    template <std::output_iterator<osg::Vec3f> OutputIterator>
+    template <std::output_iterator<vsg::vec3> OutputIterator>
     class FromNavMeshCoordinatesIterator
     {
     public:
         using iterator_category = std::output_iterator_tag;
-        using value_type = osg::Vec3f;
+        using value_type = vsg::vec3;
         using difference_type = std::ptrdiff_t;
-        using pointer = osg::Vec3f*;
-        using reference = osg::Vec3f&;
+        using pointer = vsg::vec3*;
+        using reference = vsg::vec3&;
 
         explicit FromNavMeshCoordinatesIterator(OutputIterator& impl, const RecastSettings& settings)
             : mImpl(impl)
@@ -52,7 +52,7 @@ namespace DetourNavigator
             return copy;
         }
 
-        FromNavMeshCoordinatesIterator& operator=(const osg::Vec3f& value)
+        FromNavMeshCoordinatesIterator& operator=(const vsg::vec3& value)
         {
             *mImpl.get() = fromNavMeshCoordinates(mSettings, value);
             return *this;
@@ -83,11 +83,11 @@ namespace DetourNavigator
     };
 
     inline std::optional<std::size_t> findPolygonPath(const dtNavMeshQuery& navMeshQuery, const dtPolyRef startRef,
-        const dtPolyRef endRef, const osg::Vec3f& startPos, const osg::Vec3f& endPos, const dtQueryFilter& queryFilter,
+        const dtPolyRef endRef, const vsg::vec3& startPos, const vsg::vec3& endPos, const dtQueryFilter& queryFilter,
         std::span<dtPolyRef> pathBuffer)
     {
         int pathLen = 0;
-        const auto status = navMeshQuery.findPath(startRef, endRef, startPos.ptr(), endPos.ptr(), &queryFilter,
+        const auto status = navMeshQuery.findPath(startRef, endRef, startPos.data(), endPos.data(), &queryFilter,
             pathBuffer.data(), &pathLen, static_cast<int>(pathBuffer.size()));
         if (!dtStatusSucceed(status))
             return {};
@@ -96,9 +96,9 @@ namespace DetourNavigator
         return static_cast<std::size_t>(pathLen);
     }
 
-    Status makeSmoothPath(const dtNavMeshQuery& navMeshQuery, const osg::Vec3f& start, const osg::Vec3f& end,
+    Status makeSmoothPath(const dtNavMeshQuery& navMeshQuery, const vsg::vec3& start, const vsg::vec3& end,
         std::span<dtPolyRef> polygonPath, std::size_t polygonPathSize, std::size_t maxSmoothPathSize, bool skipFirst,
-        std::output_iterator<osg::Vec3f> auto& out)
+        std::output_iterator<vsg::vec3> auto& out)
     {
         assert(polygonPathSize <= polygonPath.size());
 
@@ -107,7 +107,7 @@ namespace DetourNavigator
         std::vector<dtPolyRef> cornerPolysBuffer(maxSmoothPathSize);
         int cornersCount = 0;
         constexpr int findStraightPathOptions = DT_STRAIGHTPATH_AREA_CROSSINGS | DT_STRAIGHTPATH_ALL_CROSSINGS;
-        if (const dtStatus status = navMeshQuery.findStraightPath(start.ptr(), end.ptr(), polygonPath.data(),
+        if (const dtStatus status = navMeshQuery.findStraightPath(start.data(), end.data(), polygonPath.data(),
                 static_cast<int>(polygonPathSize), cornerVertsBuffer.data(), cornerFlagsBuffer.data(),
                 cornerPolysBuffer.data(), &cornersCount, static_cast<int>(maxSmoothPathSize), findStraightPathOptions);
             dtStatusFailed(status))
@@ -119,10 +119,10 @@ namespace DetourNavigator
         return Status::Success;
     }
 
-    Status findSmoothPath(const dtNavMeshQuery& navMeshQuery, const osg::Vec3f& halfExtents, const osg::Vec3f& start,
-        const osg::Vec3f& end, const Flags includeFlags, const AreaCosts& areaCosts, const DetourSettings& settings,
-        float endTolerance, const ToNavMeshCoordinatesSpan<const osg::Vec3f>& checkpoints,
-        std::output_iterator<osg::Vec3f> auto out)
+    Status findSmoothPath(const dtNavMeshQuery& navMeshQuery, const vsg::vec3& halfExtents, const vsg::vec3& start,
+        const vsg::vec3& end, const Flags includeFlags, const AreaCosts& areaCosts, const DetourSettings& settings,
+        float endTolerance, const ToNavMeshCoordinatesSpan<const vsg::vec3>& checkpoints,
+        std::output_iterator<vsg::vec3> auto out)
     {
         dtQueryFilter queryFilter;
         queryFilter.setIncludeFlags(includeFlags);
@@ -132,36 +132,36 @@ namespace DetourNavigator
         queryFilter.setAreaCost(AreaType_ground, areaCosts.mGround);
 
         constexpr float polyDistanceFactor = 4;
-        const osg::Vec3f polyHalfExtents = halfExtents * polyDistanceFactor;
+        const vsg::vec3 polyHalfExtents = halfExtents * polyDistanceFactor;
 
-        osg::Vec3f startNavMeshPos;
+        vsg::vec3 startNavMeshPos;
         dtPolyRef startRef = 0;
         if (const dtStatus status = navMeshQuery.findNearestPoly(
-                start.ptr(), polyHalfExtents.ptr(), &queryFilter, &startRef, startNavMeshPos.ptr());
+                start.data(), polyHalfExtents.data(), &queryFilter, &startRef, startNavMeshPos.data());
             dtStatusFailed(status) || startRef == 0)
             return Status::StartPolygonNotFound;
 
-        osg::Vec3f endNavMeshPos;
-        const osg::Vec3f endPolyHalfExtents = polyHalfExtents + osg::Vec3f(endTolerance, endTolerance, endTolerance);
+        vsg::vec3 endNavMeshPos;
+        const vsg::vec3 endPolyHalfExtents = polyHalfExtents + vsg::vec3(endTolerance, endTolerance, endTolerance);
         dtPolyRef endRef;
         if (const dtStatus status = navMeshQuery.findNearestPoly(
-                end.ptr(), endPolyHalfExtents.ptr(), &queryFilter, &endRef, endNavMeshPos.ptr());
+                end.data(), endPolyHalfExtents.data(), &queryFilter, &endRef, endNavMeshPos.data());
             dtStatusFailed(status) || endRef == 0)
             return Status::EndPolygonNotFound;
 
         std::vector<dtPolyRef> polygonPath(settings.mMaxPolygonPathSize);
         std::span<dtPolyRef> polygonPathBuffer = polygonPath;
         dtPolyRef currentRef = startRef;
-        osg::Vec3f currentNavMeshPos = startNavMeshPos;
+        vsg::vec3 currentNavMeshPos = startNavMeshPos;
         bool skipFirst = false;
 
         for (std::size_t i = 0; i < checkpoints.size(); ++i)
         {
-            const osg::Vec3f checkpointPos = checkpoints[i];
-            osg::Vec3f checkpointNavMeshPos;
+            const vsg::vec3 checkpointPos = checkpoints[i];
+            vsg::vec3 checkpointNavMeshPos;
             dtPolyRef checkpointRef;
-            if (const dtStatus status = navMeshQuery.findNearestPoly(checkpointPos.ptr(), polyHalfExtents.ptr(),
-                    &queryFilter, &checkpointRef, checkpointNavMeshPos.ptr());
+            if (const dtStatus status = navMeshQuery.findNearestPoly(checkpointPos.data(), polyHalfExtents.data(),
+                    &queryFilter, &checkpointRef, checkpointNavMeshPos.data());
                 dtStatusFailed(status) || checkpointRef == 0)
                 continue;
 
@@ -197,9 +197,9 @@ namespace DetourNavigator
         if (*toEndPathSize == 0)
             return currentRef == endRef ? Status::Success : Status::PartialPath;
 
-        osg::Vec3f targetNavMeshPos;
+        vsg::vec3 targetNavMeshPos;
         if (const dtStatus status = navMeshQuery.closestPointOnPoly(
-                polygonPath[*toEndPathSize - 1], end.ptr(), targetNavMeshPos.ptr(), nullptr);
+                polygonPath[*toEndPathSize - 1], end.data(), targetNavMeshPos.data(), nullptr);
             dtStatusFailed(status))
             return Status::TargetPolygonNotFound;
 

@@ -1,5 +1,6 @@
 #include "settings.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/asyncnavmeshupdater.hpp>
 #include <components/detournavigator/dbrefgeometryobject.hpp>
 #include <components/detournavigator/makenavmesh.hpp>
@@ -29,7 +30,7 @@ namespace
     using namespace DetourNavigator::Tests;
 
     void addHeightFieldPlane(
-        TileCachedRecastMeshManager& recastMeshManager, const osg::Vec2i cellPosition = osg::Vec2i(0, 0))
+        TileCachedRecastMeshManager& recastMeshManager, const vsg::ivec2 cellPosition = vsg::ivec2(0, 0))
     {
         const int cellSize = 8192;
         recastMeshManager.addHeightfield(cellPosition, cellSize, HeightfieldPlane{ 0 }, nullptr);
@@ -260,7 +261,7 @@ namespace
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
         for (int x = -1; x <= 1; ++x)
             for (int y = -1; y <= 1; ++y)
-                addHeightFieldPlane(mRecastMeshManager, osg::Vec2i(x, y));
+                addHeightFieldPlane(mRecastMeshManager, vsg::ivec2(x, y));
         addObject(mBox, mRecastMeshManager);
         auto db = std::make_unique<NavMeshDb>(":memory:", 4097);
         NavMeshDb* const dbPtr = db.get();
@@ -480,7 +481,7 @@ namespace
 
     struct DetourNavigatorSpatialJobQueueTest : Test
     {
-        const AgentBounds mAgentBounds{ CollisionShapeType::Aabb, osg::Vec3f(1, 1, 1) };
+        const AgentBounds mAgentBounds{ CollisionShapeType::Aabb, vsg::vec3(1, 1, 1) };
         const std::shared_ptr<GuardedNavMeshCacheItem> mNavMeshCacheItemPtr;
         const std::weak_ptr<GuardedNavMeshCacheItem> mNavMeshCacheItem = mNavMeshCacheItemPtr;
         const ESM::RefId mWorldspace = ESM::RefId::stringRefId("worldspace");

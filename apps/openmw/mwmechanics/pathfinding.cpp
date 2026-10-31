@@ -110,7 +110,8 @@ namespace
 
         bool operator()(const osg::Vec3f& start, const osg::Vec3f& end) const
         {
-            const auto position = DetourNavigator::raycast(*mNavigator, mAgentBounds, start, end, mFlags);
+            const std::optional<osg::Vec3f> position
+                = DetourNavigator::raycast(*mNavigator, mAgentBounds, start, end, mFlags);
             return position.has_value()
                 && std::abs((position.value() - start).length2() - (end - start).length2()) <= 1;
         }
@@ -425,7 +426,8 @@ namespace MWMechanics
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         const DetourNavigator::Navigator& navigator = *world.getNavigator();
         const DetourNavigator::Status status = DetourNavigator::findPath(
-            navigator, agentBounds, startPoint, endPoint, flags, areaCosts, endTolerance, checkpoints, out);
+            navigator, agentBounds, startPoint, endPoint, flags, areaCosts, endTolerance,
+            std::vector<vsg::vec3>(checkpoints.begin(), checkpoints.end()), out);
 
         if (pathType == PathType::Partial && status == DetourNavigator::Status::PartialPath)
             return DetourNavigator::Status::Success;

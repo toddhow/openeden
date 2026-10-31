@@ -6,9 +6,9 @@
 #include "serialization.hpp"
 #include "settings.hpp"
 
-#include <components/debug/debuglog.hpp>
+#include <vsg/io/stream.h>
 
-#include <osg/io_utils>
+#include <components/debug/debuglog.hpp>
 
 #include <memory>
 #include <optional>

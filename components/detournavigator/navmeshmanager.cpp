@@ -8,10 +8,11 @@
 #include "settingsutils.hpp"
 #include "waitconditiontype.hpp"
 
+#include <vsg/io/stream.h>
+
 #include <components/debug/debuglog.hpp>
 #include <components/esm/util.hpp>
-
-#include <osg/io_utils>
+#include <components/misc/vsgmath.hpp>
 
 #include <DetourNavMesh.h>
 
@@ -39,7 +40,7 @@ namespace DetourNavigator
     {
         int getMaxRadius(int maxTiles)
         {
-            return static_cast<int>(std::ceil(std::sqrt(static_cast<float>(maxTiles) / osg::PIf) + 1));
+            return static_cast<int>(std::ceil(std::sqrt(static_cast<float>(maxTiles) / Misc::VsgMath::PIf) + 1));
         }
 
         TilesPositionsRange makeRange(const TilePosition& center, int radius)
@@ -50,18 +51,18 @@ namespace DetourNavigator
             };
         }
 
-        osg::Vec2f getMinCellGridPosition(const osg::Vec2i& center, int offset, float cellSize)
+        vsg::vec2 getMinCellGridPosition(const vsg::ivec2& center, int offset, float cellSize)
         {
-            const osg::Vec2i cell = center + osg::Vec2i(offset, offset);
-            return osg::Vec2f(static_cast<float>(cell.x()) * cellSize, static_cast<float>(cell.y()) * cellSize);
+            const vsg::ivec2 cell = center + vsg::ivec2(offset, offset);
+            return vsg::vec2(static_cast<float>(cell.x) * cellSize, static_cast<float>(cell.y) * cellSize);
         }
 
         TilesPositionsRange makeCellGridRange(
             const RecastSettings& settings, ESM::RefId worldspace, const CellGridBounds& bounds)
         {
             const float floatCellSize = static_cast<float>(ESM::getCellSize(worldspace));
-            const osg::Vec2f min = getMinCellGridPosition(bounds.mCenter, -bounds.mHalfSize, floatCellSize);
-            const osg::Vec2f max = getMinCellGridPosition(bounds.mCenter, bounds.mHalfSize + 1, floatCellSize);
+            const vsg::vec2 min = getMinCellGridPosition(bounds.mCenter, -bounds.mHalfSize, floatCellSize);
+            const vsg::vec2 max = getMinCellGridPosition(bounds.mCenter, bounds.mHalfSize + 1, floatCellSize);
             return TilesPositionsRange{
                 .mBegin = getTilePosition(settings, toNavMeshCoordinates(settings, min)),
                 .mEnd = getTilePosition(settings, toNavMeshCoordinates(settings, max)),
@@ -77,7 +78,7 @@ namespace DetourNavigator
             return result;
         }
 
-        TilePosition toNavMeshTilePosition(const RecastSettings& settings, const osg::Vec3f& position)
+        TilePosition toNavMeshTilePosition(const RecastSettings& settings, const vsg::vec3& position)
         {
             return getTilePosition(settings, toNavMeshCoordinates(settings, position));
         }
@@ -93,7 +94,7 @@ namespace DetourNavigator
     }
 
     void NavMeshManager::updateBounds(ESM::RefId worldspace, const std::optional<CellGridBounds>& cellGridBounds,
-        const osg::Vec3f& playerPosition, const UpdateGuard* guard)
+        const vsg::vec3& playerPosition, const UpdateGuard* guard)
     {
         if (worldspace != mWorldspace)
         {
@@ -109,14 +110,14 @@ namespace DetourNavigator
         mCellGridBounds = cellGridBounds;
     }
 
-    bool NavMeshManager::addObject(const ObjectId id, const CollisionShape& shape, const osg::Matrixd& transform,
+    bool NavMeshManager::addObject(const ObjectId id, const CollisionShape& shape, const vsg::dmat4& transform,
         const AreaType areaType, const UpdateGuard* guard)
     {
         return mRecastMeshManager.addObject(id, shape, transform, areaType, guard);
     }
 
     bool NavMeshManager::updateObject(
-        const ObjectId id, const osg::Matrixd& transform, const AreaType areaType, const UpdateGuard* guard)
+        const ObjectId id, const vsg::dmat4& transform, const AreaType areaType, const UpdateGuard* guard)
     {
         return mRecastMeshManager.updateObject(id, transform, areaType, guard);
     }
@@ -126,23 +127,23 @@ namespace DetourNavigator
         mRecastMeshManager.removeObject(id, guard);
     }
 
-    void NavMeshManager::addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard)
+    void NavMeshManager::addWater(const vsg::ivec2& cellPosition, int cellSize, float level, const UpdateGuard* guard)
     {
         mRecastMeshManager.addWater(cellPosition, cellSize, level, guard);
     }
 
-    void NavMeshManager::removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard)
+    void NavMeshManager::removeWater(const vsg::ivec2& cellPosition, const UpdateGuard* guard)
     {
         mRecastMeshManager.removeWater(cellPosition, guard);
     }
 
     void NavMeshManager::addHeightfield(
-        const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+        const vsg::ivec2& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
     {
         mRecastMeshManager.addHeightfield(cellPosition, cellSize, shape, guard);
     }
 
-    void NavMeshManager::removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard)
+    void NavMeshManager::removeHeightfield(const vsg::ivec2& cellPosition, const UpdateGuard* guard)
     {
         mRecastMeshManager.removeHeightfield(cellPosition, guard);
     }
@@ -170,7 +171,7 @@ namespace DetourNavigator
     }
 
     void NavMeshManager::addOffMeshConnection(
-        const ObjectId id, const osg::Vec3f& start, const osg::Vec3f& end, const AreaType areaType)
+        const ObjectId id, const vsg::vec3& start, const vsg::vec3& end, const AreaType areaType)
     {
         mOffMeshConnectionsManager.add(id, OffMeshConnection{ start, end, areaType });
 
@@ -190,7 +191,7 @@ namespace DetourNavigator
             mRecastMeshManager.addChangedTile(tile, ChangeType::update);
     }
 
-    void NavMeshManager::update(const osg::Vec3f& playerPosition, const UpdateGuard* guard)
+    void NavMeshManager::update(const vsg::vec3& playerPosition, const UpdateGuard* guard)
     {
         const TilePosition playerTile = toNavMeshTilePosition(mSettings.mRecast, playerPosition);
         if (mLastRecastMeshManagerRevision == mRecastMeshManager.getRevision() && mPlayerTile.has_value()
@@ -207,9 +208,9 @@ namespace DetourNavigator
 
     void NavMeshManager::update(const AgentBounds& agentBounds, const TilePosition& playerTile,
         const TilesPositionsRange& range, const SharedNavMeshCacheItem& cached,
-        const std::map<osg::Vec2i, ChangeType>& changedTiles)
+        const std::map<vsg::ivec2, ChangeType>& changedTiles)
     {
-        std::map<osg::Vec2i, ChangeType> tilesToPost = changedTiles;
+        std::map<vsg::ivec2, ChangeType> tilesToPost = changedTiles;
         {
             const int maxTiles = mSettings.mMaxTilesNumber;
             const auto locked = cached->lockConst();
@@ -218,7 +219,7 @@ namespace DetourNavigator
                 if (changedTiles.find(tile) != changedTiles.end())
                     return;
                 const bool shouldAdd = shouldAddTile(tile, playerTile, maxTiles);
-                const bool presentInNavMesh = navMesh.getTileAt(tile.x(), tile.y(), 0) != nullptr;
+                const bool presentInNavMesh = navMesh.getTileAt(tile.x, tile.y, 0) != nullptr;
                 if (shouldAdd && !presentInNavMesh)
                     tilesToPost.emplace(tile, locked->isEmptyTile(tile) ? ChangeType::update : ChangeType::add);
                 else if (!shouldAdd && presentInNavMesh)

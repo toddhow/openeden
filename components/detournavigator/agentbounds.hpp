@@ -3,7 +3,7 @@
 
 #include "collisionshapetype.hpp"
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 #include <tuple>
 
@@ -12,7 +12,7 @@ namespace DetourNavigator
     struct AgentBounds
     {
         CollisionShapeType mShapeType;
-        osg::Vec3f mHalfExtents;
+        vsg::vec3 mHalfExtents;
     };
 
     inline auto tie(const AgentBounds& value)

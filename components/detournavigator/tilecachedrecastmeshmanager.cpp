@@ -9,6 +9,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/physicshelpers/aabb.hpp>
 
 #include <boost/geometry/geometry.hpp>
@@ -26,7 +27,7 @@ namespace DetourNavigator
 
         struct AddHeightfield
         {
-            osg::Vec2i mCellPosition;
+            vsg::ivec2 mCellPosition;
             int mCellSize;
             RecastMeshBuilder& mBuilder;
 
@@ -157,7 +158,7 @@ namespace DetourNavigator
         mCache.clear();
     }
 
-    bool TileCachedRecastMeshManager::addObject(ObjectId id, const CollisionShape& shape, const osg::Matrixd& transform,
+    bool TileCachedRecastMeshManager::addObject(ObjectId id, const CollisionShape& shape, const vsg::dmat4& transform,
         const AreaType areaType, const UpdateGuard* guard)
     {
         const TilesPositionsRange range = makeTilesPositionsRange(shape.getShape(), transform, mSettings);
@@ -190,7 +191,7 @@ namespace DetourNavigator
     }
 
     bool TileCachedRecastMeshManager::updateObject(
-        ObjectId id, const osg::Matrixd& transform, const AreaType areaType, const UpdateGuard* guard)
+        ObjectId id, const vsg::dmat4& transform, const AreaType areaType, const UpdateGuard* guard)
     {
         TilesPositionsRange newRange;
         TilesPositionsRange oldRange;
@@ -260,9 +261,9 @@ namespace DetourNavigator
     }
 
     void TileCachedRecastMeshManager::addWater(
-        const osg::Vec2i& cellPosition, const int cellSize, const float level, const UpdateGuard* guard)
+        const vsg::ivec2& cellPosition, const int cellSize, const float level, const UpdateGuard* guard)
     {
-        const osg::Vec3f shift = getWaterShift3d(cellPosition, cellSize, level);
+        const vsg::vec3 shift = getWaterShift3d(cellPosition, cellSize, level);
         const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<int>::max()
             ? std::optional<TilesPositionsRange>()
             : makeTilesPositionsRange(cellSize, shift, mSettings);
@@ -287,7 +288,7 @@ namespace DetourNavigator
         addChangedTiles(range, ChangeType::add);
     }
 
-    void TileCachedRecastMeshManager::removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard)
+    void TileCachedRecastMeshManager::removeWater(const vsg::ivec2& cellPosition, const UpdateGuard* guard)
     {
         std::optional<TilesPositionsRange> range;
         {
@@ -307,9 +308,9 @@ namespace DetourNavigator
     }
 
     void TileCachedRecastMeshManager::addHeightfield(
-        const osg::Vec2i& cellPosition, const int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+        const vsg::ivec2& cellPosition, const int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
     {
-        const osg::Vec3f shift = getHeightfieldShift(shape, cellPosition, cellSize);
+        const vsg::vec3 shift = getHeightfieldShift(shape, cellPosition, cellSize);
         const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<int>::max()
             ? std::optional<TilesPositionsRange>()
             : makeTilesPositionsRange(cellSize, shift, mSettings);
@@ -335,7 +336,7 @@ namespace DetourNavigator
         addChangedTiles(range, ChangeType::add);
     }
 
-    void TileCachedRecastMeshManager::removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard)
+    void TileCachedRecastMeshManager::removeHeightfield(const vsg::ivec2& cellPosition, const UpdateGuard* guard)
     {
         std::optional<TilesPositionsRange> range;
         {
@@ -432,7 +433,7 @@ namespace DetourNavigator
             tile->second = changeType == ChangeType::remove ? changeType : tile->second;
     }
 
-    std::map<osg::Vec2i, ChangeType> TileCachedRecastMeshManager::takeChangedTiles(const UpdateGuard* guard)
+    std::map<vsg::ivec2, ChangeType> TileCachedRecastMeshManager::takeChangedTiles(const UpdateGuard* guard)
     {
         {
             const MaybeLockGuard lock(mMutex, guard);
@@ -457,7 +458,7 @@ namespace DetourNavigator
     TileCachedRecastMeshManager::IndexPoint TileCachedRecastMeshManager::makeIndexPoint(
         const TilePosition& tilePosition)
     {
-        return IndexPoint(tilePosition.x(), tilePosition.y());
+        return IndexPoint(tilePosition.x, tilePosition.y);
     }
 
     TileCachedRecastMeshManager::IndexBox TileCachedRecastMeshManager::makeIndexBox(const TilesPositionsRange& range)
@@ -473,13 +474,13 @@ namespace DetourNavigator
     }
 
     TileCachedRecastMeshManager::WaterIndexValue TileCachedRecastMeshManager::makeWaterIndexValue(
-        const TilesPositionsRange& range, std::map<osg::Vec2i, WaterData>::const_iterator it)
+        const TilesPositionsRange& range, std::map<vsg::ivec2, WaterData>::const_iterator it)
     {
         return { makeIndexBox(range), it };
     }
 
     TileCachedRecastMeshManager::HeightfieldIndexValue TileCachedRecastMeshManager::makeHeightfieldIndexValue(
-        const TilesPositionsRange& range, std::map<osg::Vec2i, HeightfieldData>::const_iterator it)
+        const TilesPositionsRange& range, std::map<vsg::ivec2, HeightfieldData>::const_iterator it)
     {
         return { makeIndexBox(range), it };
     }
@@ -495,7 +496,7 @@ namespace DetourNavigator
     {
         RecastMeshBuilder builder(makeRealTileBoundsWithBorder(mSettings, tilePosition));
         using Object = std::tuple<vsg::ref_ptr<const Resource::PhysicsShapeInstance>, ObjectTransform,
-            std::reference_wrapper<const JPH::Shape>, osg::Matrixd, AreaType>;
+            std::reference_wrapper<const JPH::Shape>, vsg::dmat4, AreaType>;
         std::vector<Object> objects;
         Version version;
         bool hasInput = false;

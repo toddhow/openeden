@@ -7,14 +7,14 @@
 #include "settings.hpp"
 #include "version.hpp"
 
+#include <vsg/io/stream.h>
+
 #include <components/debug/debuglog.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/thread.hpp>
 
 #include <DetourNavMesh.h>
-
-#include <osg/io_utils>
 
 #include <boost/geometry.hpp>
 
@@ -31,7 +31,7 @@ namespace DetourNavigator
     {
         int getManhattanDistance(const TilePosition& lhs, const TilePosition& rhs)
         {
-            return std::abs(lhs.x() - rhs.x()) + std::abs(lhs.y() - rhs.y());
+            return std::abs(lhs.x - rhs.x) + std::abs(lhs.y - rhs.y);
         }
 
         bool isAbsentTileTooClose(const TilePosition& position, int distance,
@@ -90,7 +90,7 @@ namespace DetourNavigator
             if (settings.mEnableRecastMeshFileNameRevision)
                 revision = makeRevision(recastMesh.getVersion());
             writeToFile(recastMesh,
-                std::format("{}{}.{}.", settings.mRecastMeshPathPrefix, tilePosition.x(), tilePosition.y()), revision,
+                std::format("{}{}.{}.", settings.mRecastMeshPathPrefix, tilePosition.x, tilePosition.y), revision,
                 settings.mRecast);
         }
 
@@ -147,7 +147,7 @@ namespace DetourNavigator
         if (it == mValues.end())
         {
             it = mValues.emplace_hint(it, job->mChangedTile, std::deque<JobIt>());
-            mIndex.insert(IndexValue(IndexPoint(job->mChangedTile.x(), job->mChangedTile.y()), it));
+            mIndex.insert(IndexValue(IndexPoint(job->mChangedTile.x, job->mChangedTile.y), it));
         }
 
         it->second.push_back(job);
@@ -157,7 +157,7 @@ namespace DetourNavigator
 
     std::optional<JobIt> SpatialJobQueue::pop(TilePosition playerTile)
     {
-        const IndexPoint point(playerTile.x(), playerTile.y());
+        const IndexPoint point(playerTile.x, playerTile.y);
         const auto it = mIndex.qbegin(boost::geometry::index::nearest(point, 1));
 
         if (it == mIndex.qend())
@@ -196,7 +196,7 @@ namespace DetourNavigator
             }
 
             mSize -= it->second.size();
-            mIndex.remove(IndexValue(IndexPoint(it->first.x(), it->first.y()), it));
+            mIndex.remove(IndexValue(IndexPoint(it->first.x, it->first.y), it));
             it = mValues.erase(it);
         }
     }

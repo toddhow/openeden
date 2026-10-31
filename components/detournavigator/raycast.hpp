@@ -3,7 +3,7 @@
 
 #include "flags.hpp"
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 #include <optional>
 
@@ -13,8 +13,8 @@ namespace DetourNavigator
 {
     struct DetourSettings;
 
-    std::optional<osg::Vec3f> raycast(const dtNavMeshQuery& navMeshQuery, const osg::Vec3f& halfExtents,
-        const osg::Vec3f& start, const osg::Vec3f& end, const Flags includeFlags);
+    std::optional<vsg::vec3> raycast(const dtNavMeshQuery& navMeshQuery, const vsg::vec3& halfExtents,
+        const vsg::vec3& start, const vsg::vec3& end, const Flags includeFlags);
 }
 
 #endif

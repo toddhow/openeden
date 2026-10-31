@@ -3,7 +3,7 @@
 
 #include "areatype.hpp"
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 #include <tuple>
 
@@ -11,8 +11,8 @@ namespace DetourNavigator
 {
     struct OffMeshConnection
     {
-        osg::Vec3f mStart;
-        osg::Vec3f mEnd;
+        vsg::vec3 mStart;
+        vsg::vec3 mEnd;
         AreaType mAreaType;
     };
 

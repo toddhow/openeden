@@ -293,8 +293,8 @@ namespace DetourNavigator
             const TilePosition& tilePosition, const std::vector<std::byte>& input)
         {
             Sqlite3::bindParameter(db, statement, ":worldspace", worldspace);
-            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x());
-            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y());
+            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x);
+            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y);
             Sqlite3::bindParameter(db, statement, ":input", input);
         }
 
@@ -307,8 +307,8 @@ namespace DetourNavigator
             const TilePosition& tilePosition, const std::vector<std::byte>& input)
         {
             Sqlite3::bindParameter(db, statement, ":worldspace", worldspace);
-            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x());
-            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y());
+            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x);
+            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y);
             Sqlite3::bindParameter(db, statement, ":input", input);
         }
 
@@ -323,8 +323,8 @@ namespace DetourNavigator
         {
             Sqlite3::bindParameter(db, statement, ":tile_id", tileId);
             Sqlite3::bindParameter(db, statement, ":worldspace", worldspace);
-            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x());
-            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y());
+            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x);
+            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y);
             Sqlite3::bindParameter(db, statement, ":version", version);
             Sqlite3::bindParameter(db, statement, ":input", input);
             Sqlite3::bindParameter(db, statement, ":data", data);
@@ -352,8 +352,8 @@ namespace DetourNavigator
             sqlite3& db, sqlite3_stmt& statement, std::string_view worldspace, const TilePosition& tilePosition)
         {
             Sqlite3::bindParameter(db, statement, ":worldspace", worldspace);
-            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x());
-            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y());
+            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x);
+            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y);
         }
 
         std::string_view DeleteTilesAtExcept::text() noexcept
@@ -365,8 +365,8 @@ namespace DetourNavigator
             const TilePosition& tilePosition, TileId excludeTileId)
         {
             Sqlite3::bindParameter(db, statement, ":worldspace", worldspace);
-            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x());
-            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y());
+            Sqlite3::bindParameter(db, statement, ":tile_position_x", tilePosition.x);
+            Sqlite3::bindParameter(db, statement, ":tile_position_y", tilePosition.y);
             Sqlite3::bindParameter(db, statement, ":exclude_tile_id", excludeTileId);
         }
 
@@ -379,10 +379,10 @@ namespace DetourNavigator
             sqlite3& db, sqlite3_stmt& statement, std::string_view worldspace, const TilesPositionsRange& range)
         {
             Sqlite3::bindParameter(db, statement, ":worldspace", worldspace);
-            Sqlite3::bindParameter(db, statement, ":begin_tile_position_x", range.mBegin.x());
-            Sqlite3::bindParameter(db, statement, ":begin_tile_position_y", range.mBegin.y());
-            Sqlite3::bindParameter(db, statement, ":end_tile_position_x", range.mEnd.x());
-            Sqlite3::bindParameter(db, statement, ":end_tile_position_y", range.mEnd.y());
+            Sqlite3::bindParameter(db, statement, ":begin_tile_position_x", range.mBegin.x);
+            Sqlite3::bindParameter(db, statement, ":begin_tile_position_y", range.mBegin.y);
+            Sqlite3::bindParameter(db, statement, ":end_tile_position_x", range.mEnd.x);
+            Sqlite3::bindParameter(db, statement, ":end_tile_position_y", range.mEnd.y);
         }
 
         std::string_view GetMaxShapeId::text() noexcept

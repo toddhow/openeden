@@ -1,10 +1,8 @@
 #ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_HEIGHFIELDSHAPE_H
 #define OPENMW_COMPONENTS_DETOURNAVIGATOR_HEIGHFIELDSHAPE_H
 
+#include <components/misc/vsgmath.hpp>
 #include <components/physicshelpers/heightfield.hpp>
-
-#include <osg/Vec2i>
-#include <osg/Vec3>
 
 #include <cstddef>
 #include <variant>
@@ -26,19 +24,19 @@ namespace DetourNavigator
 
     using HeightfieldShape = std::variant<HeightfieldPlane, HeightfieldSurface>;
 
-    inline osg::Vec3f getHeightfieldShift(const HeightfieldPlane& v, const osg::Vec2i& cellPosition, int cellSize)
+    inline vsg::vec3 getHeightfieldShift(const HeightfieldPlane& v, const vsg::ivec2& cellPosition, int cellSize)
     {
         return PhysicsSystemHelpers::getHeightfieldShift(
-            cellPosition.x(), cellPosition.y(), cellSize, v.mHeight, v.mHeight);
+            cellPosition.x, cellPosition.y, cellSize, v.mHeight, v.mHeight);
     }
 
-    inline osg::Vec3f getHeightfieldShift(const HeightfieldSurface& v, const osg::Vec2i& cellPosition, int cellSize)
+    inline vsg::vec3 getHeightfieldShift(const HeightfieldSurface& v, const vsg::ivec2& cellPosition, int cellSize)
     {
         return PhysicsSystemHelpers::getHeightfieldShift(
-            cellPosition.x(), cellPosition.y(), cellSize, v.mMinHeight, v.mMaxHeight);
+            cellPosition.x, cellPosition.y, cellSize, v.mMinHeight, v.mMaxHeight);
     }
 
-    inline osg::Vec3f getHeightfieldShift(const HeightfieldShape& v, const osg::Vec2i& cellPosition, int cellSize)
+    inline vsg::vec3 getHeightfieldShift(const HeightfieldShape& v, const vsg::ivec2& cellPosition, int cellSize)
     {
         return std::visit([&](const auto& w) { return getHeightfieldShift(w, cellPosition, cellSize); }, v);
     }

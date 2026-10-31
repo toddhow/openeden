@@ -1,3 +1,4 @@
+#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/gettilespositions.hpp>
 #include <components/detournavigator/settings.hpp>
@@ -34,35 +35,35 @@ namespace
 
     TEST_F(DetourNavigatorGetTilesPositionsTest, for_object_in_single_tile_should_return_one_tile)
     {
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(2, 2), osg::Vec2f(31, 31), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(2, 2), vsg::vec2(31, 31), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions, ElementsAre(TilePosition(0, 0)));
     }
 
     TEST_F(DetourNavigatorGetTilesPositionsTest, for_object_with_x_bounds_in_two_tiles_should_return_two_tiles)
     {
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(0, 0), osg::Vec2f(32, 31), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(0, 0), vsg::vec2(32, 31), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions, ElementsAre(TilePosition(0, 0), TilePosition(1, 0)));
     }
 
     TEST_F(DetourNavigatorGetTilesPositionsTest, for_object_with_y_bounds_in_two_tiles_should_return_two_tiles)
     {
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(0, 0), osg::Vec2f(31, 32), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(0, 0), vsg::vec2(31, 32), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions, ElementsAre(TilePosition(0, 0), TilePosition(0, 1)));
     }
 
     TEST_F(DetourNavigatorGetTilesPositionsTest, tiling_works_only_for_x_and_y_coordinates)
     {
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(0, 0), osg::Vec2f(31, 31), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(0, 0), vsg::vec2(31, 31), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions, ElementsAre(TilePosition(0, 0)));
     }
 
     TEST_F(DetourNavigatorGetTilesPositionsTest, tiling_should_work_with_negative_coordinates)
     {
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(-31, -31), osg::Vec2f(31, 31), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(-31, -31), vsg::vec2(31, 31), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions,
             ElementsAre(TilePosition(-1, -1), TilePosition(-1, 0), TilePosition(0, -1), TilePosition(0, 0)));
@@ -72,7 +73,7 @@ namespace
     {
         mSettings.mBorderSize = 1;
 
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(0, 0), osg::Vec2f(31.5, 31.5), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(0, 0), vsg::vec2(31.5, 31.5), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions,
             ElementsAre(TilePosition(-1, -1), TilePosition(-1, 0), TilePosition(-1, 1), TilePosition(0, -1),
@@ -83,7 +84,7 @@ namespace
     {
         mSettings.mRecastScaleFactor = 0.5;
 
-        getTilesPositions(makeTilesPositionsRange(osg::Vec2f(0, 0), osg::Vec2f(32, 32), mSettings), mCollect);
+        getTilesPositions(makeTilesPositionsRange(vsg::vec2(0, 0), vsg::vec2(32, 32), mSettings), mCollect);
 
         EXPECT_THAT(mTilesPositions, ElementsAre(TilePosition(0, 0)));
     }

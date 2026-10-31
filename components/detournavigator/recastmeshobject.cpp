@@ -7,6 +7,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <cassert>
 
@@ -51,17 +52,17 @@ namespace DetourNavigator
     }
 
     ChildRecastMeshObject::ChildRecastMeshObject(
-        const JPH::CompoundShape::SubShape& shape, const osg::Matrixd& transform, const AreaType areaType)
+        const JPH::CompoundShape::SubShape& shape, const vsg::dmat4& transform, const AreaType areaType)
         : mShape(shape)
         , mTransform(transform)
         , mAreaType(areaType)
-        , mLocalScaling(Misc::Convert::toJolt<JPH::Vec3>(transform.getScale()))
+        , mLocalScaling(Misc::Convert::toJolt<JPH::Vec3>(Misc::VsgMath::getScale(transform)))
         , mChildren(makeChildrenObjects(*shape.mShape.GetPtr(), mAreaType))
     {
     }
 
-    inline bool updateMeshObject(const JPH::Shape& actualShape, const osg::Matrixd& transform, const AreaType areaType,
-        osg::Matrixd& mTransform, AreaType& mAreaType, JPH::Vec3& mLocalScaling,
+    inline bool updateMeshObject(const JPH::Shape& actualShape, const vsg::dmat4& transform, const AreaType areaType,
+        vsg::dmat4& mTransform, AreaType& mAreaType, JPH::Vec3& mLocalScaling,
         std::vector<ChildRecastMeshObject>& mChildren)
     {
         bool result = false;
@@ -94,26 +95,26 @@ namespace DetourNavigator
         return result;
     }
 
-    bool ChildRecastMeshObject::update(const osg::Matrixd& transform, const AreaType areaType)
+    bool ChildRecastMeshObject::update(const vsg::dmat4& transform, const AreaType areaType)
     {
         const JPH::RefConst<JPH::Shape> actualShape = mShape.get().mShape;
         return updateMeshObject(
             *actualShape.GetPtr(), transform, areaType, mTransform, mAreaType, mLocalScaling, mChildren);
     }
 
-    bool RecastMeshObject::update(const osg::Matrixd& transform, const AreaType areaType)
+    bool RecastMeshObject::update(const vsg::dmat4& transform, const AreaType areaType)
     {
         return updateMeshObject(mShape, transform, areaType, mTransform, mAreaType, mLocalScaling, mChildren);
     }
 
     RecastMeshObject::RecastMeshObject(
-        const CollisionShape& shape, const osg::Matrixd& transform, const AreaType areaType)
+        const CollisionShape& shape, const vsg::dmat4& transform, const AreaType areaType)
         : mInstance(shape.getInstance())
         , mObjectTransform(shape.getObjectTransform())
         , mShape(shape.getShape())
         , mTransform(transform)
         , mAreaType(areaType)
-        , mLocalScaling(Misc::Convert::toJolt<JPH::Vec3>(transform.getScale()))
+        , mLocalScaling(Misc::Convert::toJolt<JPH::Vec3>(Misc::VsgMath::getScale(transform)))
         , mChildren(makeChildrenObjects(mShape, mAreaType))
     {
     }

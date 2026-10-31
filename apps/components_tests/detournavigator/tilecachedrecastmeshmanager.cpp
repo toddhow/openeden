@@ -1,4 +1,5 @@
 
+#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/settingsutils.hpp>
 #include <components/detournavigator/tilecachedrecastmeshmanager.hpp>
@@ -8,7 +9,7 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 
-#include <osg/io_utils>
+#include <vsg/io/stream.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -331,7 +332,7 @@ namespace
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, add_water_for_new_water_should_add_changed_tiles)
     {
         TileCachedRecastMeshManager manager(mSettings);
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         const auto changedTiles = manager.takeChangedTiles(nullptr);
@@ -345,7 +346,7 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         for (int x = -1; x < 12; ++x)
@@ -361,7 +362,7 @@ namespace
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
             ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = std::numeric_limits<int>::max();
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         for (int x = -6; x < 6; ++x)
@@ -373,14 +374,14 @@ namespace
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, remove_water_for_absent_cell_should_not_add_changed_tiles)
     {
         TileCachedRecastMeshManager manager(mSettings);
-        manager.removeWater(osg::Vec2i(0, 0), nullptr);
+        manager.removeWater(vsg::ivec2(0, 0), nullptr);
         EXPECT_THAT(manager.takeChangedTiles(nullptr), ElementsAre());
     }
 
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, remove_water_for_existing_cell_should_add_changed_tiles)
     {
         TileCachedRecastMeshManager manager(mSettings);
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.takeChangedTiles(nullptr);
@@ -396,7 +397,7 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeWater(cellPosition, nullptr);
@@ -413,7 +414,7 @@ namespace
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         ASSERT_TRUE(manager.addObject(
             ObjectId(&boxShape), shape, osg::Matrixd::identity(), AreaType::AreaType_ground, nullptr));
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeWater(cellPosition, nullptr);
@@ -427,7 +428,7 @@ namespace
     {
         TileCachedRecastMeshManager manager(mSettings);
         manager.setWorldspace(mWorldspace, nullptr);
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);

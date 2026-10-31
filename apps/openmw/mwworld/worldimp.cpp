@@ -3722,7 +3722,7 @@ namespace MWWorld
         const MWPhysics::Actor* physicsActor = mPhysics->getActor(actor);
         if (physicsActor == nullptr || !actor.isInCell() || actor.getCell()->isExterior())
             return DetourNavigator::AgentBounds{ Settings::game().mActorCollisionShapeType,
-                Settings::game().mDefaultActorPathfindHalfExtents };
+                Settings::game().mDefaultActorPathfindHalfExtents.get() };
         else
             return DetourNavigator::AgentBounds{ physicsActor->getCollisionShapeType(),
                 physicsActor->getHalfExtents() };

@@ -14,6 +14,7 @@
 #include "updateguard.hpp"
 #include "waitconditiontype.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/physicsshape.hpp>
 
 namespace ESM
@@ -50,11 +51,11 @@ namespace DetourNavigator
 
     struct DoorShapes : ObjectShapes
     {
-        osg::Vec3f mConnectionStart;
-        osg::Vec3f mConnectionEnd;
+        vsg::vec3 mConnectionStart;
+        vsg::vec3 mConnectionEnd;
 
         DoorShapes(const vsg::ref_ptr<const Resource::PhysicsShapeInstance>& shapeInstance,
-            const ObjectTransform& transform, const osg::Vec3f& connectionStart, const osg::Vec3f& connectionEnd)
+            const ObjectTransform& transform, const vsg::vec3& connectionStart, const vsg::vec3& connectionEnd)
             : ObjectShapes(shapeInstance, transform)
             , mConnectionStart(connectionStart)
             , mConnectionEnd(connectionEnd)
@@ -96,7 +97,7 @@ namespace DetourNavigator
          * @param playerPosition corresponds to the bounds center
          */
         virtual void updateBounds(ESM::RefId worldspace, const std::optional<CellGridBounds>& cellGridBounds,
-            const osg::Vec3f& playerPosition, const UpdateGuard* guard)
+            const vsg::vec3& playerPosition, const UpdateGuard* guard)
             = 0;
 
         /**
@@ -106,7 +107,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state
          */
         virtual void addObject(
-            const ObjectId id, const ObjectShapes& shapes, const osg::Matrixd& transform, const UpdateGuard* guard)
+            const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform, const UpdateGuard* guard)
             = 0;
 
         /**
@@ -116,7 +117,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state.
          */
         virtual void addObject(
-            const ObjectId id, const DoorShapes& shapes, const osg::Matrixd& transform, const UpdateGuard* guard)
+            const ObjectId id, const DoorShapes& shapes, const vsg::dmat4& transform, const UpdateGuard* guard)
             = 0;
 
         /**
@@ -126,7 +127,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state.
          */
         virtual void updateObject(
-            const ObjectId id, const ObjectShapes& shapes, const osg::Matrixd& transform, const UpdateGuard* guard)
+            const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform, const UpdateGuard* guard)
             = 0;
 
         /**
@@ -136,7 +137,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state.
          */
         virtual void updateObject(
-            const ObjectId id, const DoorShapes& shapes, const osg::Matrixd& transform, const UpdateGuard* guard)
+            const ObjectId id, const DoorShapes& shapes, const vsg::dmat4& transform, const UpdateGuard* guard)
             = 0;
 
         /**
@@ -151,19 +152,19 @@ namespace DetourNavigator
          * @param cellSize set cell borders. std::numeric_limits<int>::max() disables cell borders.
          * @param shift set global shift of cell center.
          */
-        virtual void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard) = 0;
+        virtual void addWater(const vsg::ivec2& cellPosition, int cellSize, float level, const UpdateGuard* guard) = 0;
 
         /**
          * @brief removeWater to make it no more available at the scene.
          * @param cellPosition allows to find cell.
          */
-        virtual void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard) = 0;
+        virtual void removeWater(const vsg::ivec2& cellPosition, const UpdateGuard* guard) = 0;
 
         virtual void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
+            const vsg::ivec2& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
             = 0;
 
-        virtual void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard) = 0;
+        virtual void removeHeightfield(const vsg::ivec2& cellPosition, const UpdateGuard* guard) = 0;
 
         virtual void addPathgrid(const ESM::Cell& cell, const ESM::Pathgrid& pathgrid) = 0;
 
@@ -173,7 +174,7 @@ namespace DetourNavigator
          * @brief update starts background navmesh update using current scene state.
          * @param playerPosition setup initial point to order build tiles of navmesh.
          */
-        virtual void update(const osg::Vec3f& playerPosition, const UpdateGuard* guard) = 0;
+        virtual void update(const vsg::vec3& playerPosition, const UpdateGuard* guard) = 0;
 
         /**
          * @brief wait locks thread until tiles are updated from last update call based on passed condition type.

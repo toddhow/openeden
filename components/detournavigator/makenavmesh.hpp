@@ -5,6 +5,7 @@
 #include "tileposition.hpp"
 
 #include <components/esm/refid.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <memory>
 #include <vector>
@@ -21,9 +22,9 @@ namespace DetourNavigator
     struct AgentBounds;
     struct RecastSettings;
 
-    inline float getLength(const osg::Vec2i& value)
+    inline float getLength(const vsg::ivec2& value)
     {
-        return std::sqrt(float(osg::square(value.x()) + osg::square(value.y())));
+        return std::sqrt(float(value.x * value.x + value.y * value.y));
     }
 
     inline float getDistance(const TilePosition& lhs, const TilePosition& rhs)
@@ -33,7 +34,8 @@ namespace DetourNavigator
 
     inline bool shouldAddTile(const TilePosition& changedTile, const TilePosition& playerTile, int maxTiles)
     {
-        const auto expectedTilesCount = std::ceil(osg::PI * osg::square(getDistance(changedTile, playerTile)));
+        const float distance = getDistance(changedTile, playerTile);
+        const auto expectedTilesCount = std::ceil(Misc::VsgMath::PI * (distance * distance));
         return expectedTilesCount <= maxTiles;
     }
 

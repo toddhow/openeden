@@ -5,12 +5,12 @@
 #include "tilespositionsrange.hpp"
 #include "version.hpp"
 
+#include <vsg/io/stream.h>
+
 #include <components/debug/writeflags.hpp>
 
 #include <DetourNavMesh.h>
 #include <DetourStatus.h>
-
-#include <osg/io_utils>
 
 #include <array>
 #include <filesystem>
@@ -93,8 +93,8 @@ namespace DetourNavigator
 
     std::ostream& operator<<(std::ostream& s, const AgentBounds& v)
     {
-        return s << "AgentBounds {" << v.mShapeType << ", {" << v.mHalfExtents.x() << ", " << v.mHalfExtents.y() << ", "
-                 << v.mHalfExtents.z() << "}}";
+        return s << "AgentBounds {" << v.mShapeType << ", {" << v.mHalfExtents.x << ", " << v.mHalfExtents.y << ", "
+                 << v.mHalfExtents.z << "}}";
     }
 
     namespace

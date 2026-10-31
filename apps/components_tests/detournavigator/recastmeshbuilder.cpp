@@ -1,5 +1,6 @@
 #include "operators.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/recastmesh.hpp>
 #include <components/detournavigator/recastmeshbuilder.hpp>
 
@@ -59,9 +60,9 @@ namespace
 
         DetourNavigatorRecastMeshBuilderTest()
         {
-            mBounds.mMin = osg::Vec2f(-std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon(),
+            mBounds.mMin = vsg::vec2(-std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon(),
                 -std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
-            mBounds.mMax = osg::Vec2f(std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon(),
+            mBounds.mMax = vsg::vec2(std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon(),
                 std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
         }
     };
@@ -393,8 +394,8 @@ namespace
 
     TEST_F(DetourNavigatorRecastMeshBuilderTest, with_bounds_add_bhv_triangle_shape_should_filter_by_bounds)
     {
-        mBounds.mMin = osg::Vec2f(-3, -3);
-        mBounds.mMax = osg::Vec2f(-2, -2);
+        mBounds.mMin = vsg::vec2(-3, -3);
+        mBounds.mMax = vsg::vec2(-2, -2);
 
         JPH::MeshShapeSettings settingsTri1;
         settingsTri1.SetEmbedded();
@@ -430,8 +431,8 @@ namespace
     TEST_F(
         DetourNavigatorRecastMeshBuilderTest, with_bounds_add_rotated_by_x_bhv_triangle_shape_should_filter_by_bounds)
     {
-        mBounds.mMin = osg::Vec2f(-5, -5);
-        mBounds.mMax = osg::Vec2f(5, -2);
+        mBounds.mMin = vsg::vec2(-5, -5);
+        mBounds.mMax = vsg::vec2(5, -2);
 
         JPH::MeshShapeSettings settingsTri1;
         settingsTri1.SetEmbedded();
@@ -467,8 +468,8 @@ namespace
     TEST_F(
         DetourNavigatorRecastMeshBuilderTest, with_bounds_add_rotated_by_y_bhv_triangle_shape_should_filter_by_bounds)
     {
-        mBounds.mMin = osg::Vec2f(-5, -5);
-        mBounds.mMax = osg::Vec2f(-3, 5);
+        mBounds.mMin = vsg::vec2(-5, -5);
+        mBounds.mMax = vsg::vec2(-3, 5);
 
         JPH::MeshShapeSettings settingsTri1;
         settingsTri1.SetEmbedded();
@@ -504,8 +505,8 @@ namespace
     TEST_F(
         DetourNavigatorRecastMeshBuilderTest, with_bounds_add_rotated_by_z_bhv_triangle_shape_should_filter_by_bounds)
     {
-        mBounds.mMin = osg::Vec2f(-5, -5);
-        mBounds.mMax = osg::Vec2f(-1, -1);
+        mBounds.mMin = vsg::vec2(-5, -5);
+        mBounds.mMax = vsg::vec2(-1, -1);
 
         JPH::MeshShapeSettings settingsTri1;
         settingsTri1.SetEmbedded();
@@ -579,10 +580,10 @@ namespace
     TEST_F(DetourNavigatorRecastMeshBuilderTest, add_water_then_get_water_should_return_it)
     {
         RecastMeshBuilder builder(mBounds);
-        builder.addWater(osg::Vec2i(1, 2), Water{ 1000, 300.0f });
+        builder.addWater(vsg::ivec2(1, 2), Water{ 1000, 300.0f });
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(
-            recastMesh->getWater(), std::vector<CellWater>({ CellWater{ osg::Vec2i(1, 2), Water{ 1000, 300.0f } } }));
+            recastMesh->getWater(), std::vector<CellWater>({ CellWater{ vsg::ivec2(1, 2), Water{ 1000, 300.0f } } }));
     }
 
     TEST_F(DetourNavigatorRecastMeshBuilderTest, add_bhv_triangle_mesh_shape_with_duplicated_vertices)
@@ -619,10 +620,10 @@ namespace
 
     TEST_F(DetourNavigatorRecastMeshBuilderTest, add_flat_heightfield_should_add_intersection)
     {
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 1000;
         const float height = 10;
-        mBounds.mMin = osg::Vec2f(100, 100);
+        mBounds.mMin = vsg::vec2(100, 100);
         RecastMeshBuilder builder(mBounds);
         builder.addHeightfield(cellPosition, cellSize, height);
         const auto recastMesh = std::move(builder).create(mVersion);
@@ -640,7 +641,7 @@ namespace
             3, 4, 5, // row 1
             6, 7, 8, // row 2
         } };
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 1000;
         const float minHeight = 0;
         const float maxHeight = 8;
@@ -668,7 +669,7 @@ namespace
             3, 4, 5, // row 1
             6, 7, 8, // row 2
         } };
-        const osg::Vec2i cellPosition(1, 2);
+        const vsg::ivec2 cellPosition(1, 2);
         const int cellSize = 1000;
         const float minHeight = 0;
         const float maxHeight = 8;
@@ -696,11 +697,11 @@ namespace
             3, 4, 5, // row 1
             6, 7, 8, // row 2
         } };
-        const osg::Vec2i cellPosition(0, 0);
+        const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 1000;
         const float minHeight = 0;
         const float maxHeight = 8;
-        mBounds.mMin = osg::Vec2f(750, 750);
+        mBounds.mMin = vsg::vec2(750, 750);
         RecastMeshBuilder builder(mBounds);
         builder.addHeightfield(cellPosition, cellSize, heights.data(), size, minHeight, maxHeight);
         const auto recastMesh = std::move(builder).create(mVersion);

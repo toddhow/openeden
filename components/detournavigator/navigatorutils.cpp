@@ -5,11 +5,12 @@
 #include "raycast.hpp"
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/vsgmath.hpp>
 
 namespace DetourNavigator
 {
-    std::optional<osg::Vec3f> findRandomPointAroundCircle(const Navigator& navigator, const AgentBounds& agentBounds,
-        const osg::Vec3f& start, const float maxRadius, const Flags includeFlags, float (*prng)())
+    std::optional<vsg::vec3> findRandomPointAroundCircle(const Navigator& navigator, const AgentBounds& agentBounds,
+        const vsg::vec3& start, const float maxRadius, const Flags includeFlags, float (*prng)())
     {
         const auto navMesh = navigator.getNavMesh(agentBounds);
         if (!navMesh)
@@ -22,11 +23,11 @@ namespace DetourNavigator
             includeFlags, prng);
         if (!result)
             return std::nullopt;
-        return std::optional<osg::Vec3f>(fromNavMeshCoordinates(settings.mRecast, *result));
+        return std::optional<vsg::vec3>(fromNavMeshCoordinates(settings.mRecast, *result));
     }
 
-    std::optional<osg::Vec3f> raycast(const Navigator& navigator, const AgentBounds& agentBounds,
-        const osg::Vec3f& start, const osg::Vec3f& end, const Flags includeFlags)
+    std::optional<vsg::vec3> raycast(const Navigator& navigator, const AgentBounds& agentBounds,
+        const vsg::vec3& start, const vsg::vec3& end, const Flags includeFlags)
     {
         const auto navMesh = navigator.getNavMesh(agentBounds);
         if (navMesh == nullptr)
@@ -41,15 +42,15 @@ namespace DetourNavigator
         return fromNavMeshCoordinates(settings.mRecast, *result);
     }
 
-    std::optional<osg::Vec3f> findNearestNavMeshPosition(const Navigator& navigator, const AgentBounds& agentBounds,
-        const osg::Vec3f& position, const osg::Vec3f& searchAreaHalfExtents, const Flags includeFlags)
+    std::optional<vsg::vec3> findNearestNavMeshPosition(const Navigator& navigator, const AgentBounds& agentBounds,
+        const vsg::vec3& position, const vsg::vec3& searchAreaHalfExtents, const Flags includeFlags)
     {
         const auto navMesh = navigator.getNavMesh(agentBounds);
         if (navMesh == nullptr)
             return std::nullopt;
 
         const auto& settings = navigator.getSettings();
-        const osg::Vec3f navMeshPosition = toNavMeshCoordinates(settings.mRecast, position);
+        const vsg::vec3 navMeshPosition = toNavMeshCoordinates(settings.mRecast, position);
         const auto lockedNavMesh = navMesh->lockConst();
 
         dtNavMeshQuery navMeshQuery;
@@ -65,11 +66,11 @@ namespace DetourNavigator
         dtQueryFilter queryFilter;
         queryFilter.setIncludeFlags(includeFlags);
 
-        osg::Vec3f nearestNavMeshPos;
-        const osg::Vec3f endPolyHalfExtents = toNavMeshCoordinates(settings.mRecast, searchAreaHalfExtents);
+        vsg::vec3 nearestNavMeshPos;
+        const vsg::vec3 endPolyHalfExtents = toNavMeshCoordinates(settings.mRecast, searchAreaHalfExtents);
         dtPolyRef polyRef;
         if (const dtStatus status = navMeshQuery.findNearestPoly(
-                navMeshPosition.ptr(), endPolyHalfExtents.ptr(), &queryFilter, &polyRef, nearestNavMeshPos.ptr());
+                navMeshPosition.data(), endPolyHalfExtents.data(), &queryFilter, &polyRef, nearestNavMeshPos.data());
             dtStatusFailed(status) || polyRef == 0)
         {
             return std::nullopt;

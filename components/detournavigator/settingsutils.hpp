@@ -5,8 +5,7 @@
 #include "tilebounds.hpp"
 #include "tileposition.hpp"
 
-#include <osg/Vec2f>
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -18,14 +17,14 @@ namespace DetourNavigator
         return value * settings.mRecastScaleFactor;
     }
 
-    inline osg::Vec2f toNavMeshCoordinates(const RecastSettings& settings, osg::Vec2f position)
+    inline vsg::vec2 toNavMeshCoordinates(const RecastSettings& settings, vsg::vec2 position)
     {
         return position * settings.mRecastScaleFactor;
     }
 
-    inline osg::Vec3f toNavMeshCoordinates(const RecastSettings& settings, osg::Vec3f position)
+    inline vsg::vec3 toNavMeshCoordinates(const RecastSettings& settings, vsg::vec3 position)
     {
-        std::swap(position.y(), position.z());
+        std::swap(position.y, position.z);
         return position * settings.mRecastScaleFactor;
     }
 
@@ -39,11 +38,11 @@ namespace DetourNavigator
         return value / settings.mRecastScaleFactor;
     }
 
-    inline osg::Vec3f fromNavMeshCoordinates(const RecastSettings& settings, osg::Vec3f position)
+    inline vsg::vec3 fromNavMeshCoordinates(const RecastSettings& settings, vsg::vec3 position)
     {
         const auto factor = 1.0f / settings.mRecastScaleFactor;
         position *= factor;
-        std::swap(position.y(), position.z());
+        std::swap(position.y, position.z);
         return position;
     }
 
@@ -64,24 +63,24 @@ namespace DetourNavigator
     }
 
     // Returns integer tile position for position in navmesh coordinates
-    inline TilePosition getTilePosition(const RecastSettings& settings, const osg::Vec2f& position)
+    inline TilePosition getTilePosition(const RecastSettings& settings, const vsg::vec2& position)
     {
-        return TilePosition(getTilePosition(settings, position.x()), getTilePosition(settings, position.y()));
+        return TilePosition(getTilePosition(settings, position.x), getTilePosition(settings, position.y));
     }
 
     // Returns integer tile position for position in navmesh coordinates
-    inline TilePosition getTilePosition(const RecastSettings& settings, const osg::Vec3f& position)
+    inline TilePosition getTilePosition(const RecastSettings& settings, const vsg::vec3& position)
     {
-        return getTilePosition(settings, osg::Vec2f(position.x(), position.z()));
+        return getTilePosition(settings, vsg::vec2(position.x, position.z));
     }
 
     // Returns tile bounds in navmesh coordinates
     inline TileBounds makeTileBounds(const RecastSettings& settings, const TilePosition& tilePosition)
     {
         return TileBounds{
-            osg::Vec2f(static_cast<float>(tilePosition.x()), static_cast<float>(tilePosition.y()))
+            vsg::vec2(static_cast<float>(tilePosition.x), static_cast<float>(tilePosition.y))
                 * getTileSize(settings),
-            osg::Vec2f(static_cast<float>(tilePosition.x() + 1), static_cast<float>(tilePosition.y() + 1))
+            vsg::vec2(static_cast<float>(tilePosition.x + 1), static_cast<float>(tilePosition.y + 1))
                 * getTileSize(settings),
         };
     }
@@ -99,7 +98,7 @@ namespace DetourNavigator
 
     inline float getMaxNavmeshAreaRadius(const Settings& settings)
     {
-        return std::floor(std::sqrt(settings.mMaxTilesNumber / osg::PIf)) - 1;
+        return std::floor(std::sqrt(settings.mMaxTilesNumber / Misc::VsgMath::PIf)) - 1;
     }
 
     // Returns tile bounds in real coordinates
@@ -107,10 +106,10 @@ namespace DetourNavigator
     {
         TileBounds result = makeTileBounds(settings, tilePosition);
         const float border = getBorderSize(settings);
-        result.mMin -= osg::Vec2f(border, border);
-        result.mMax += osg::Vec2f(border, border);
-        result.mMin /= settings.mRecastScaleFactor;
-        result.mMax /= settings.mRecastScaleFactor;
+        result.mMin -= vsg::vec2(border, border);
+        result.mMax += vsg::vec2(border, border);
+        result.mMin = Misc::VsgMath::divide(result.mMin, settings.mRecastScaleFactor);
+        result.mMax = Misc::VsgMath::divide(result.mMax, settings.mRecastScaleFactor);
         return result;
     }
 }

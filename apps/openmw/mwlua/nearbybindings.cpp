@@ -235,7 +235,7 @@ namespace MWLua
 
         static const DetourNavigator::AgentBounds defaultAgentBounds{
             Settings::game().mActorCollisionShapeType,
-            Settings::game().mDefaultActorPathfindHalfExtents,
+            Settings::game().mDefaultActorPathfindHalfExtents.get(),
         };
         static constexpr DetourNavigator::Flags defaultIncludeFlags = DetourNavigator::Flag_walk
             | DetourNavigator::Flag_swim | DetourNavigator::Flag_openDoor | DetourNavigator::Flag_usePathgrid;
@@ -289,7 +289,8 @@ namespace MWLua
 
                   const DetourNavigator::Status status = DetourNavigator::findPath(
                       *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, source, destination,
-                      includeFlags, areaCosts, destinationTolerance, checkpoints, std::back_inserter(path));
+                      includeFlags, areaCosts, destinationTolerance,
+                      std::vector<vsg::vec3>(checkpoints.begin(), checkpoints.end()), std::back_inserter(path));
 
                   sol::table result(lua, sol::create);
                   LuaUtil::copyVectorToTable(path, result);

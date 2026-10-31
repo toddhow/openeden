@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <osg/Matrixf>
+#include <osg/Vec3>
 
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
@@ -404,7 +405,7 @@ namespace MWMechanics
                 // findRandomPointAroundCircle uses wanderDistance as limit for random and not as exact distance
                 const auto getRandom
                     = []() { return Misc::Rng::rollProbability(MWBase::Environment::get().getWorld()->getPrng()); };
-                auto destination = DetourNavigator::findRandomPointAroundCircle(
+                std::optional<osg::Vec3f> destination = DetourNavigator::findRandomPointAroundCircle(
                     *navigator, agentBounds, mInitialActorPosition, wanderRadius, navigatorFlags, getRandom);
                 if (destination.has_value())
                 {

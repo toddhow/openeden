@@ -45,7 +45,7 @@ namespace
     {
         const RecastMeshObject object(*mBoxShape, mTransform, AreaType_ground);
         EXPECT_EQ(std::addressof(object.getShape()), std::addressof(*const_cast<const JPH::BoxShape*>(mBoxShapeImpl)));
-        EXPECT_EQ(object.getTransform(), mTransform);
+        EXPECT_EQ(object.getTransform(), vsg::dmat4(mTransform));
     }
 
     TEST_F(DetourNavigatorRecastMeshObjectTest, update_with_same_transform_for_not_compound_shape_should_return_false)

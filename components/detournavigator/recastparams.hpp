@@ -3,7 +3,7 @@
 
 #include "agentbounds.hpp"
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -13,7 +13,7 @@ namespace DetourNavigator
 {
     inline float getAgentHeight(const AgentBounds& agentBounds)
     {
-        return 2.0f * agentBounds.mHalfExtents.z();
+        return 2.0f * agentBounds.mHalfExtents.z;
     }
 
     inline float getAgentRadius(const AgentBounds& agentBounds)
@@ -21,15 +21,15 @@ namespace DetourNavigator
         switch (agentBounds.mShapeType)
         {
             case CollisionShapeType::Aabb:
-                return std::max(agentBounds.mHalfExtents.x(), agentBounds.mHalfExtents.y()) * std::sqrt(2.0f);
+                return std::max(agentBounds.mHalfExtents.x, agentBounds.mHalfExtents.y) * std::sqrt(2.0f);
             case CollisionShapeType::RotatingBox:
-                return agentBounds.mHalfExtents.x();
+                return agentBounds.mHalfExtents.x;
             case CollisionShapeType::Cylinder:
-                return std::max(agentBounds.mHalfExtents.x(), agentBounds.mHalfExtents.y());
+                return std::max(agentBounds.mHalfExtents.x, agentBounds.mHalfExtents.y);
             case CollisionShapeType::Capsule:
-                return std::min(agentBounds.mHalfExtents.x(), agentBounds.mHalfExtents.y());
+                return std::min(agentBounds.mHalfExtents.x, agentBounds.mHalfExtents.y);
             case CollisionShapeType::Compound:
-                return std::max(agentBounds.mHalfExtents.x(), agentBounds.mHalfExtents.y());
+                return std::max(agentBounds.mHalfExtents.x, agentBounds.mHalfExtents.y);
         }
         assert(false && "Unsupported agent shape type");
         return 0;

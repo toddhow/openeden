@@ -1,6 +1,9 @@
 #ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_GETTILESPOSITIONS_H
 #define OPENMW_COMPONENTS_DETOURNAVIGATOR_GETTILESPOSITIONS_H
 
+#include <components/misc/vsgmath.hpp>
+
+
 #include "tilebounds.hpp"
 #include "tileposition.hpp"
 #include "tilespositionsrange.hpp"
@@ -21,22 +24,22 @@ namespace DetourNavigator
     struct RecastSettings;
 
     TilesPositionsRange makeTilesPositionsRange(
-        const osg::Vec2f& aabbMin, const osg::Vec2f& aabbMax, const RecastSettings& settings);
+        const vsg::vec2& aabbMin, const vsg::vec2& aabbMax, const RecastSettings& settings);
 
     TilesPositionsRange makeTilesPositionsRange(
-        const JPH::Shape& shape, const osg::Matrixd& transform, const RecastSettings& settings);
+        const JPH::Shape& shape, const vsg::dmat4& transform, const RecastSettings& settings);
 
-    TilesPositionsRange makeTilesPositionsRange(const JPH::Shape& shape, const osg::Matrixd& transform,
+    TilesPositionsRange makeTilesPositionsRange(const JPH::Shape& shape, const vsg::dmat4& transform,
         const TileBounds& bounds, const RecastSettings& settings);
 
     TilesPositionsRange makeTilesPositionsRange(
-        const int cellSize, const osg::Vec3f& shift, const RecastSettings& settings);
+        const int cellSize, const vsg::vec3& shift, const RecastSettings& settings);
 
     template <class Callback>
     inline void getTilesPositions(const TilesPositionsRange& range, Callback&& callback)
     {
-        for (int tileX = range.mBegin.x(); tileX < range.mEnd.x(); ++tileX)
-            for (int tileY = range.mBegin.y(); tileY < range.mEnd.y(); ++tileY)
+        for (int tileX = range.mBegin.x; tileX < range.mEnd.x; ++tileX)
+            for (int tileY = range.mBegin.y; tileY < range.mEnd.y; ++tileY)
                 callback(TilePosition{ tileX, tileY });
     }
 
@@ -47,8 +50,8 @@ namespace DetourNavigator
 
     inline bool isInTilesPositionsRange(const TilesPositionsRange& range, const TilePosition& position)
     {
-        return isInTilesPositionsRange(range.mBegin.x(), range.mEnd.x(), position.x())
-            && isInTilesPositionsRange(range.mBegin.y(), range.mEnd.y(), position.y());
+        return isInTilesPositionsRange(range.mBegin.x, range.mEnd.x, position.x)
+            && isInTilesPositionsRange(range.mBegin.y, range.mEnd.y, position.y);
     }
 
     TilesPositionsRange getIntersection(const TilesPositionsRange& a, const TilesPositionsRange& b) noexcept;

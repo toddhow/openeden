@@ -4,11 +4,11 @@
 #include "areatype.hpp"
 #include "objecttransform.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/physicsshape.hpp>
 
 #include <Jolt/Physics/Collision/Shape/CompoundShape.h>
 
-#include <osg/Matrixd>
 #include <osg/ref_ptr>
 #include <vsg/core/ref_ptr.h>
 
@@ -17,14 +17,14 @@
 
 namespace DetourNavigator
 {
-    static inline osg::Matrixd getSubShapeTransform(JPH::CompoundShape::SubShape subShape)
+    static inline vsg::dmat4 getSubShapeTransform(JPH::CompoundShape::SubShape subShape)
     {
         auto subRot = subShape.GetRotation();
         auto comPos = subShape.GetPositionCOM();
         auto subPos = comPos - subRot * subShape.mShape->GetCenterOfMass();
-        osg::Matrixd trans;
-        trans.makeRotate(osg::Quat(subRot.GetX(), subRot.GetY(), subRot.GetZ(), subRot.GetW()));
-        trans.setTrans(osg::Vec3f(subPos.GetX(), subPos.GetY(), subPos.GetZ()));
+        vsg::dmat4 trans
+            = Misc::VsgMath::toMatrix(vsg::dquat(subRot.GetX(), subRot.GetY(), subRot.GetZ(), subRot.GetW()));
+        Misc::VsgMath::setTrans(trans, vsg::vec3(subPos.GetX(), subPos.GetY(), subPos.GetZ()));
         return trans;
     }
 
@@ -53,19 +53,19 @@ namespace DetourNavigator
     {
     public:
         ChildRecastMeshObject(
-            const JPH::CompoundShape::SubShape& shape, const osg::Matrixd& transform, const AreaType areaType);
+            const JPH::CompoundShape::SubShape& shape, const vsg::dmat4& transform, const AreaType areaType);
 
-        bool update(const osg::Matrixd& transform, const AreaType areaType);
+        bool update(const vsg::dmat4& transform, const AreaType areaType);
 
         const JPH::RefConst<JPH::Shape> getShape() const { return mShape.get().mShape; }
 
-        const osg::Matrixd& getTransform() const { return mTransform; }
+        const vsg::dmat4& getTransform() const { return mTransform; }
 
         AreaType getAreaType() const { return mAreaType; }
 
     private:
         std::reference_wrapper<const JPH::CompoundShape::SubShape> mShape;
-        osg::Matrixd mTransform;
+        vsg::dmat4 mTransform;
         AreaType mAreaType;
         JPH::Vec3 mLocalScaling;
         std::vector<ChildRecastMeshObject> mChildren;
@@ -74,15 +74,15 @@ namespace DetourNavigator
     class RecastMeshObject
     {
     public:
-        RecastMeshObject(const CollisionShape& shape, const osg::Matrixd& transform, const AreaType areaType);
+        RecastMeshObject(const CollisionShape& shape, const vsg::dmat4& transform, const AreaType areaType);
 
-        bool update(const osg::Matrixd& transform, const AreaType areaType);
+        bool update(const vsg::dmat4& transform, const AreaType areaType);
 
         const vsg::ref_ptr<const Resource::PhysicsShapeInstance>& getInstance() const { return mInstance; }
 
         const JPH::Shape& getShape() const { return mShape; }
 
-        const osg::Matrixd& getTransform() const { return mTransform; }
+        const vsg::dmat4& getTransform() const { return mTransform; }
 
         AreaType getAreaType() const { return mAreaType; }
 
@@ -93,7 +93,7 @@ namespace DetourNavigator
         ObjectTransform mObjectTransform;
 
         const JPH::Shape& mShape;
-        osg::Matrixd mTransform;
+        vsg::dmat4 mTransform;
         AreaType mAreaType;
         JPH::Vec3 mLocalScaling;
         std::vector<ChildRecastMeshObject> mChildren;

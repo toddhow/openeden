@@ -1,6 +1,8 @@
 #ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_TILECACHEDRECASTMESHMANAGER_H
 #define OPENMW_COMPONENTS_DETOURNAVIGATOR_TILECACHEDRECASTMESHMANAGER_H
 
+#include <components/misc/vsgmath.hpp>
+
 #include <Jolt/Jolt.h>
 
 #include "areatype.hpp"
@@ -18,9 +20,6 @@
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/geometry/index/rtree.hpp>
-
-#include <osg/Matrixd>
-#include <osg/Vec2i>
 
 #include <map>
 #include <memory>
@@ -50,21 +49,21 @@ namespace DetourNavigator
 
         void setWorldspace(ESM::RefId worldspace, const UpdateGuard* guard);
 
-        bool addObject(ObjectId id, const CollisionShape& shape, const osg::Matrixd& transform, AreaType areaType,
+        bool addObject(ObjectId id, const CollisionShape& shape, const vsg::dmat4& transform, AreaType areaType,
             const UpdateGuard* guard);
 
-        bool updateObject(ObjectId id, const osg::Matrixd& transform, AreaType areaType, const UpdateGuard* guard);
+        bool updateObject(ObjectId id, const vsg::dmat4& transform, AreaType areaType, const UpdateGuard* guard);
 
         void removeObject(ObjectId id, const UpdateGuard* guard);
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard);
+        void addWater(const vsg::ivec2& cellPosition, int cellSize, float level, const UpdateGuard* guard);
 
-        void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
+        void removeWater(const vsg::ivec2& cellPosition, const UpdateGuard* guard);
 
         void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
+            const vsg::ivec2& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
 
-        void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
+        void removeHeightfield(const vsg::ivec2& cellPosition, const UpdateGuard* guard);
 
         std::shared_ptr<RecastMesh> getMesh(ESM::RefId worldspace, const TilePosition& tilePosition);
 
@@ -78,7 +77,7 @@ namespace DetourNavigator
 
         void addChangedTile(const TilePosition& tilePosition, ChangeType changeType);
 
-        std::map<osg::Vec2i, ChangeType> takeChangedTiles(const UpdateGuard* guard);
+        std::map<vsg::ivec2, ChangeType> takeChangedTiles(const UpdateGuard* guard);
 
         TileCachedRecastMeshManagerStats getStats() const;
 
@@ -124,21 +123,21 @@ namespace DetourNavigator
         using IndexPoint = boost::geometry::model::point<int, 2, boost::geometry::cs::cartesian>;
         using IndexBox = boost::geometry::model::box<IndexPoint>;
         using ObjectIndexValue = std::pair<IndexBox, ObjectData*>;
-        using WaterIndexValue = std::pair<IndexBox, std::map<osg::Vec2i, WaterData>::const_iterator>;
-        using HeightfieldIndexValue = std::pair<IndexBox, std::map<osg::Vec2i, HeightfieldData>::const_iterator>;
+        using WaterIndexValue = std::pair<IndexBox, std::map<vsg::ivec2, WaterData>::const_iterator>;
+        using HeightfieldIndexValue = std::pair<IndexBox, std::map<vsg::ivec2, HeightfieldData>::const_iterator>;
 
         const RecastSettings& mSettings;
         TilesPositionsRange mRange;
         ESM::RefId mWorldspace;
         std::unordered_map<ObjectId, std::unique_ptr<ObjectData>> mObjects;
         boost::geometry::index::rtree<ObjectIndexValue, boost::geometry::index::quadratic<16>> mObjectIndex;
-        std::map<osg::Vec2i, WaterData> mWater;
-        std::map<osg::Vec2i, WaterData>::const_iterator mInfiniteWater = mWater.end();
+        std::map<vsg::ivec2, WaterData> mWater;
+        std::map<vsg::ivec2, WaterData>::const_iterator mInfiniteWater = mWater.end();
         boost::geometry::index::rtree<WaterIndexValue, boost::geometry::index::linear<4>> mWaterIndex;
-        std::map<osg::Vec2i, HeightfieldData> mHeightfields;
-        std::map<osg::Vec2i, HeightfieldData>::const_iterator mInfiniteHeightfield = mHeightfields.end();
+        std::map<vsg::ivec2, HeightfieldData> mHeightfields;
+        std::map<vsg::ivec2, HeightfieldData>::const_iterator mInfiniteHeightfield = mHeightfields.end();
         boost::geometry::index::rtree<HeightfieldIndexValue, boost::geometry::index::linear<4>> mHeightfieldIndex;
-        std::map<osg::Vec2i, ChangeType> mChangedTiles;
+        std::map<vsg::ivec2, ChangeType> mChangedTiles;
         std::map<TilePosition, CachedTile> mCache;
         std::size_t mGeneration = 0;
         std::size_t mRevision = 0;
@@ -152,10 +151,10 @@ namespace DetourNavigator
         inline static ObjectIndexValue makeObjectIndexValue(const TilesPositionsRange& range, ObjectData* data);
 
         inline static WaterIndexValue makeWaterIndexValue(
-            const TilesPositionsRange& range, std::map<osg::Vec2i, WaterData>::const_iterator it);
+            const TilesPositionsRange& range, std::map<vsg::ivec2, WaterData>::const_iterator it);
 
         inline static HeightfieldIndexValue makeHeightfieldIndexValue(
-            const TilesPositionsRange& range, std::map<osg::Vec2i, HeightfieldData>::const_iterator it);
+            const TilesPositionsRange& range, std::map<vsg::ivec2, HeightfieldData>::const_iterator it);
 
         inline static auto makeIndexQuery(const TilePosition& tilePosition)
             -> decltype(boost::geometry::index::intersects(IndexBox()));

@@ -1,13 +1,14 @@
 #ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_CELLGRIDBOUNDS_H
 #define OPENMW_COMPONENTS_DETOURNAVIGATOR_CELLGRIDBOUNDS_H
 
-#include <osg/Vec2i>
+#include <components/misc/vsgmath.hpp>
+
 
 namespace DetourNavigator
 {
     struct CellGridBounds
     {
-        osg::Vec2i mCenter;
+        vsg::ivec2 mCenter;
         int mHalfSize;
     };
 }

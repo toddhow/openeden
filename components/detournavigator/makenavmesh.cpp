@@ -14,6 +14,8 @@
 
 #include "components/debug/debuglog.hpp"
 
+#include <components/misc/vsgmath.hpp>
+
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
 #include <Recast.h>
@@ -39,10 +41,10 @@ namespace DetourNavigator
 
             result.reserve(connections.size() * 6);
 
-            const auto add = [&](const osg::Vec3f& v) {
-                result.push_back(v.x());
-                result.push_back(v.y());
-                result.push_back(v.z());
+            const auto add = [&](const vsg::vec3& v) {
+                result.push_back(v.x);
+                result.push_back(v.y);
+                result.push_back(v.z);
             };
 
             for (const auto& v : connections)
@@ -153,10 +155,10 @@ namespace DetourNavigator
             const int width = size;
             const int height = size;
             const float halfBoundsSize = size * settings.mCellSize * 0.5f;
-            const osg::Vec2f shift
-                = osg::Vec2f(tilePosition.x() + 0.5f, tilePosition.y() + 0.5f) * getTileSize(settings);
-            const osg::Vec3f bmin(shift.x() - halfBoundsSize, minZ, shift.y() - halfBoundsSize);
-            const osg::Vec3f bmax(shift.x() + halfBoundsSize, maxZ, shift.y() + halfBoundsSize);
+            const vsg::vec2 shift
+                = vsg::vec2(tilePosition.x + 0.5f, tilePosition.y + 0.5f) * getTileSize(settings);
+            const vsg::vec3 bmin(shift.x - halfBoundsSize, minZ, shift.y - halfBoundsSize);
+            const vsg::vec3 bmax(shift.x + halfBoundsSize, maxZ, shift.y + halfBoundsSize);
 
             if (size < 0)
             {
@@ -179,7 +181,7 @@ namespace DetourNavigator
             }
 
             return rcCreateHeightfield(
-                &context, solid, width, height, bmin.ptr(), bmax.ptr(), settings.mCellSize, settings.mCellHeight);
+                &context, solid, width, height, bmin.data(), bmax.data(), settings.mCellSize, settings.mCellHeight);
         }
 
         bool isSupportedCoordinate(float value)
@@ -226,10 +228,10 @@ namespace DetourNavigator
             const RecastParams& params, rcHeightfield& solid)
         {
             const std::array vertices{
-                rectangle.mBounds.mMin.x(), rectangle.mHeight, rectangle.mBounds.mMin.y(), // vertex 0
-                rectangle.mBounds.mMin.x(), rectangle.mHeight, rectangle.mBounds.mMax.y(), // vertex 1
-                rectangle.mBounds.mMax.x(), rectangle.mHeight, rectangle.mBounds.mMax.y(), // vertex 2
-                rectangle.mBounds.mMax.x(), rectangle.mHeight, rectangle.mBounds.mMin.y(), // vertex 3
+                rectangle.mBounds.mMin.x, rectangle.mHeight, rectangle.mBounds.mMin.y, // vertex 0
+                rectangle.mBounds.mMin.x, rectangle.mHeight, rectangle.mBounds.mMax.y, // vertex 1
+                rectangle.mBounds.mMax.x, rectangle.mHeight, rectangle.mBounds.mMax.y, // vertex 2
+                rectangle.mBounds.mMax.x, rectangle.mHeight, rectangle.mBounds.mMin.y, // vertex 3
             };
 
             if (!isSupportedCoordinates(vertices.begin(), vertices.end()))
@@ -521,7 +523,7 @@ namespace DetourNavigator
     {
         RecastContext context(worldspace, tilePosition, agentBounds, recastMesh.getVersion(), settings.mMaxLogLevel);
 
-        const auto [minZ, maxZ] = getBoundsByZ(recastMesh, agentBounds.mHalfExtents.z(), settings);
+        const auto [minZ, maxZ] = getBoundsByZ(recastMesh, agentBounds.mHalfExtents.z, settings);
 
         rcHeightfield solid;
         if (!initHeightfield(context, tilePosition, toNavMeshCoordinates(settings, minZ),
@@ -531,7 +533,7 @@ namespace DetourNavigator
         const RecastParams params = makeRecastParams(settings, agentBounds);
 
         if (!rasterizeTriangles(
-                context, tilePosition, agentBounds.mHalfExtents.z(), recastMesh, settings, params, solid))
+                context, tilePosition, agentBounds.mHalfExtents.z, recastMesh, settings, params, solid))
             return nullptr;
 
         rcFilterLowHangingWalkableObstacles(&context, params.mWalkableClimb, solid);
@@ -588,8 +590,8 @@ namespace DetourNavigator
         params.ch = data.mCellHeight;
         params.buildBvTree = true;
         params.userId = data.mUserId;
-        params.tileX = tile.x();
-        params.tileY = tile.y();
+        params.tileX = tile.x;
+        params.tileY = tile.y;
         params.tileLayer = 0;
 
         unsigned char* navMeshData;

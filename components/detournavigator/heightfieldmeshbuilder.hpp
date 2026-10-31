@@ -4,9 +4,8 @@
 #include "recastmesh.hpp"
 #include "tilebounds.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/physicsshape.hpp>
-
-#include <osg/Vec3f>
 
 #include <array>
 #include <functional>

@@ -8,6 +8,7 @@
 #include "settings.hpp"
 
 #include <components/misc/guarded.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <iterator>
 #include <optional>
@@ -26,9 +27,9 @@ namespace DetourNavigator
      * @param checkpoints is a sequence of positions the path should go over if possible.
      * @return Status.
      */
-    inline Status findPath(const Navigator& navigator, const AgentBounds& agentBounds, const osg::Vec3f& start,
-        const osg::Vec3f& end, const Flags includeFlags, const AreaCosts& areaCosts, float endTolerance,
-        std::span<const osg::Vec3f> checkpoints, std::output_iterator<osg::Vec3f> auto out)
+    inline Status findPath(const Navigator& navigator, const AgentBounds& agentBounds, const vsg::vec3& start,
+        const vsg::vec3& end, const Flags includeFlags, const AreaCosts& areaCosts, float endTolerance,
+        std::span<const vsg::vec3> checkpoints, std::output_iterator<vsg::vec3> auto out)
     {
         const auto navMesh = navigator.getNavMesh(agentBounds);
         if (navMesh == nullptr)
@@ -50,8 +51,8 @@ namespace DetourNavigator
      * @param includeFlags setup allowed navmesh areas.
      * @return not empty optional with position if point is found and empty optional if point is not found.
      */
-    std::optional<osg::Vec3f> findRandomPointAroundCircle(const Navigator& navigator, const AgentBounds& agentBounds,
-        const osg::Vec3f& start, const float maxRadius, const Flags includeFlags, float (*prng)());
+    std::optional<vsg::vec3> findRandomPointAroundCircle(const Navigator& navigator, const AgentBounds& agentBounds,
+        const vsg::vec3& start, const float maxRadius, const Flags includeFlags, float (*prng)());
 
     /**
      * @brief raycast finds farest navmesh point from start on a line from start to end that has path from start.
@@ -61,8 +62,8 @@ namespace DetourNavigator
      * @param includeFlags setup allowed navmesh areas.
      * @return not empty optional with position if point is found and empty optional if point is not found.
      */
-    std::optional<osg::Vec3f> raycast(const Navigator& navigator, const AgentBounds& agentBounds,
-        const osg::Vec3f& start, const osg::Vec3f& end, const Flags includeFlags);
+    std::optional<vsg::vec3> raycast(const Navigator& navigator, const AgentBounds& agentBounds,
+        const vsg::vec3& start, const vsg::vec3& end, const Flags includeFlags);
 
     /**
      * @brief findNearestNavMeshPosition finds nearest position on navmesh within given area having given flags.
@@ -72,8 +73,8 @@ namespace DetourNavigator
      * @param includeFlags setup allowed navmesh areas.
      * @return not empty optional with position if position is found and empty optional if position is not found.
      */
-    std::optional<osg::Vec3f> findNearestNavMeshPosition(const Navigator& navigator, const AgentBounds& agentBounds,
-        const osg::Vec3f& position, const osg::Vec3f& searchAreaHalfExtents, const Flags includeFlags);
+    std::optional<vsg::vec3> findNearestNavMeshPosition(const Navigator& navigator, const AgentBounds& agentBounds,
+        const vsg::vec3& position, const vsg::vec3& searchAreaHalfExtents, const Flags includeFlags);
 }
 
 #endif

@@ -5,6 +5,8 @@
 #include "navmeshmanager.hpp"
 #include "updateguard.hpp"
 
+#include <components/misc/vsgmath.hpp>
+
 #include <map>
 #include <memory>
 #include <optional>
@@ -28,36 +30,36 @@ namespace DetourNavigator
         void removeAgent(const AgentBounds& agentBounds) override;
 
         void updateBounds(ESM::RefId worldspace, const std::optional<CellGridBounds>& cellGridBounds,
-            const osg::Vec3f& playerPosition, const UpdateGuard* guard) override;
+            const vsg::vec3& playerPosition, const UpdateGuard* guard) override;
 
-        void addObject(const ObjectId id, const ObjectShapes& shapes, const osg::Matrixd& transform,
+        void addObject(const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform,
             const UpdateGuard* guard) override;
 
-        void addObject(const ObjectId id, const DoorShapes& shapes, const osg::Matrixd& transform,
+        void addObject(const ObjectId id, const DoorShapes& shapes, const vsg::dmat4& transform,
             const UpdateGuard* guard) override;
 
-        void updateObject(const ObjectId id, const ObjectShapes& shapes, const osg::Matrixd& transform,
+        void updateObject(const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform,
             const UpdateGuard* guard) override;
 
-        void updateObject(const ObjectId id, const DoorShapes& shapes, const osg::Matrixd& transform,
+        void updateObject(const ObjectId id, const DoorShapes& shapes, const vsg::dmat4& transform,
             const UpdateGuard* guard) override;
 
         void removeObject(const ObjectId id, const UpdateGuard* guard) override;
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard) override;
+        void addWater(const vsg::ivec2& cellPosition, int cellSize, float level, const UpdateGuard* guard) override;
 
-        void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard) override;
+        void removeWater(const vsg::ivec2& cellPosition, const UpdateGuard* guard) override;
 
-        void addHeightfield(const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape,
+        void addHeightfield(const vsg::ivec2& cellPosition, int cellSize, const HeightfieldShape& shape,
             const UpdateGuard* guard) override;
 
-        void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard) override;
+        void removeHeightfield(const vsg::ivec2& cellPosition, const UpdateGuard* guard) override;
 
         void addPathgrid(const ESM::Cell& cell, const ESM::Pathgrid& pathgrid) override;
 
         void removePathgrid(const ESM::Pathgrid& pathgrid) override;
 
-        void update(const osg::Vec3f& playerPosition, const UpdateGuard* guard) override;
+        void update(const vsg::vec3& playerPosition, const UpdateGuard* guard) override;
 
         void wait(WaitConditionType waitConditionType, Loading::Listener* listener) override;
 
@@ -82,7 +84,7 @@ namespace DetourNavigator
         std::unordered_map<ObjectId, ObjectId> mWaterIds;
 
         inline bool addObjectImpl(
-            const ObjectId id, const ObjectShapes& shapes, const osg::Matrixd& transform, const UpdateGuard* guard);
+            const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform, const UpdateGuard* guard);
 
         inline void updateAvoidShapeId(const ObjectId id, const ObjectId avoidId, const UpdateGuard* guard);
 

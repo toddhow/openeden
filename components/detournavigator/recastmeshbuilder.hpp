@@ -4,9 +4,8 @@
 #include "recastmesh.hpp"
 #include "tilebounds.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/physicsshape.hpp>
-
-#include <osg/Vec3f>
 
 #include <array>
 #include <functional>
@@ -29,7 +28,7 @@ namespace DetourNavigator
     struct RecastMeshTriangle
     {
         AreaType mAreaType;
-        std::array<osg::Vec3f, 3> mVertices;
+        std::array<vsg::vec3, 3> mVertices;
 
         friend inline bool operator<(const RecastMeshTriangle& lhs, const RecastMeshTriangle& rhs)
         {
@@ -45,14 +44,14 @@ namespace DetourNavigator
     public:
         explicit RecastMeshBuilder(const TileBounds& bounds) noexcept;
 
-        void addObject(const JPH::Shape& shape, const osg::Matrixd& transform, const AreaType areaType,
+        void addObject(const JPH::Shape& shape, const vsg::dmat4& transform, const AreaType areaType,
             vsg::ref_ptr<const Resource::PhysicsShape> source, const ObjectTransform& objectTransform);
 
-        void addWater(const osg::Vec2i& cellPosition, const Water& water);
+        void addWater(const vsg::ivec2& cellPosition, const Water& water);
 
-        void addHeightfield(const osg::Vec2i& cellPosition, int cellSize, float height);
+        void addHeightfield(const vsg::ivec2& cellPosition, int cellSize, float height);
 
-        void addHeightfield(const osg::Vec2i& cellPosition, int cellSize, const float* heights, std::size_t size,
+        void addHeightfield(const vsg::ivec2& cellPosition, int cellSize, const float* heights, std::size_t size,
             float minHeight, float maxHeight);
 
         std::shared_ptr<RecastMesh> create(const Version& version) &&;
@@ -65,22 +64,22 @@ namespace DetourNavigator
         std::vector<FlatHeightfield> mFlatHeightfields;
         std::vector<MeshSource> mSources;
 
-        inline void addObject(const JPH::Shape& shape, const osg::Matrixd& transform, const AreaType areaType);
+        inline void addObject(const JPH::Shape& shape, const vsg::dmat4& transform, const AreaType areaType);
 
-        void addObject(const JPH::Shape& shape, const osg::Matrixd& transform, TriangleProcessFunc& processTriangle);
-
-        void addObject(
-            const JPH::HeightFieldShape& shape, const osg::Matrixd& transform, TriangleProcessFunc& processTriangle);
+        void addObject(const JPH::Shape& shape, const vsg::dmat4& transform, TriangleProcessFunc& processTriangle);
 
         void addObject(
-            const JPH::RotatedTranslatedShape& shape, const osg::Matrixd& transform, const AreaType areaType);
+            const JPH::HeightFieldShape& shape, const vsg::dmat4& transform, TriangleProcessFunc& processTriangle);
 
-        void addObject(const JPH::CompoundShape& shape, const osg::Matrixd& transform, const AreaType areaType);
+        void addObject(
+            const JPH::RotatedTranslatedShape& shape, const vsg::dmat4& transform, const AreaType areaType);
 
-        void addObject(const JPH::HeightFieldShape& shape, const osg::Matrixd& transform, const AreaType areaType);
+        void addObject(const JPH::CompoundShape& shape, const vsg::dmat4& transform, const AreaType areaType);
+
+        void addObject(const JPH::HeightFieldShape& shape, const vsg::dmat4& transform, const AreaType areaType);
     };
 
-    Mesh makeMesh(std::vector<RecastMeshTriangle>&& triangles, const osg::Vec3f& shift = osg::Vec3f());
+    Mesh makeMesh(std::vector<RecastMeshTriangle>&& triangles, const vsg::vec3& shift = vsg::vec3());
 
     Mesh makeMesh(const Heightfield& heightfield);
 }

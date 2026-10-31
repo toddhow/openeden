@@ -756,8 +756,9 @@ namespace MWRender
         auto ambient = mAmbientColor;
         ambient += vsg::vec4(0.7, 0.7, 0.7, 0.0) * mNightEyeFactor;
         sceneData.ambient = ambient;
-        sceneData.skyColor
-            = mRenderModes[Render_Sky] ? mSky->getSkyColor() : mFog->getFogColor(false) * vsg::vec4(1.3, 1.3, 1.3, 1);
+        sceneData.skyColor = mRenderModes[Render_Sky]
+            ? mSky->getSkyColor()
+            : Misc::VsgMath::componentMultiply(mFog->getFogColor(false), vsg::vec4(1.3, 1.3, 1.3, 1));
         sceneData.rainIntensity = mRenderModes[Render_Sky] ? mSky->getRainIntensity() : 0;
         // Groundcover's wind and stomping (task 0012), as OpenMW's SharedUniformStateUpdater set them. The player
         // position comes from update(), which runs only in game: this also runs at the main menu, without a player.

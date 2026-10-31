@@ -8,6 +8,7 @@
 #include "settings.hpp"
 #include "tilebounds.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/serialization/binaryreader.hpp>
 #include <components/serialization/binarywriter.hpp>
 #include <components/serialization/format.hpp>
@@ -28,21 +29,21 @@ namespace DetourNavigator
             using Serialization::Format<mode, Format<mode>>::operator();
 
             template <class Visitor>
-            void operator()(Visitor&& visitor, const osg::Vec2i& value) const
+            void operator()(Visitor&& visitor, const vsg::ivec2& value) const
             {
-                visitor(*this, value.ptr(), 2);
+                visitor(*this, value.data(), 2);
             }
 
             template <class Visitor>
-            void operator()(Visitor&& visitor, const osg::Vec2f& value) const
+            void operator()(Visitor&& visitor, const vsg::vec2& value) const
             {
-                visitor(*this, value.ptr(), 2);
+                visitor(*this, value.data(), 2);
             }
 
             template <class Visitor>
-            void operator()(Visitor&& visitor, const osg::Vec3f& value) const
+            void operator()(Visitor&& visitor, const vsg::vec3& value) const
             {
-                visitor(*this, value.ptr(), 3);
+                visitor(*this, value.data(), 3);
             }
 
             template <class Visitor>

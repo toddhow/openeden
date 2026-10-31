@@ -9,8 +9,7 @@
 #include "recastmeshtiles.hpp"
 #include "waitconditiontype.hpp"
 
-#include <osg/Matrixd>
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
 
 #include <map>
 #include <memory>
@@ -27,34 +26,34 @@ namespace DetourNavigator
         ScopedUpdateGuard makeUpdateGuard() { return mRecastMeshManager.makeUpdateGuard(); }
 
         void updateBounds(ESM::RefId worldspace, const std::optional<CellGridBounds>& cellGridBounds,
-            const osg::Vec3f& playerPosition, const UpdateGuard* guard);
+            const vsg::vec3& playerPosition, const UpdateGuard* guard);
 
-        bool addObject(const ObjectId id, const CollisionShape& shape, const osg::Matrixd& transform,
+        bool addObject(const ObjectId id, const CollisionShape& shape, const vsg::dmat4& transform,
             const AreaType areaType, const UpdateGuard* guard);
 
-        bool updateObject(ObjectId id, const osg::Matrixd& transform, AreaType areaType, const UpdateGuard* guard);
+        bool updateObject(ObjectId id, const vsg::dmat4& transform, AreaType areaType, const UpdateGuard* guard);
 
         void removeObject(const ObjectId id, const UpdateGuard* guard);
 
         void addAgent(const AgentBounds& agentBounds);
 
-        void addWater(const osg::Vec2i& cellPosition, int cellSize, float level, const UpdateGuard* guard);
+        void addWater(const vsg::ivec2& cellPosition, int cellSize, float level, const UpdateGuard* guard);
 
-        void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
+        void removeWater(const vsg::ivec2& cellPosition, const UpdateGuard* guard);
 
         void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
+            const vsg::ivec2& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard);
 
-        void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard);
+        void removeHeightfield(const vsg::ivec2& cellPosition, const UpdateGuard* guard);
 
         bool reset(const AgentBounds& agentBounds);
 
         void addOffMeshConnection(
-            const ObjectId id, const osg::Vec3f& start, const osg::Vec3f& end, const AreaType areaType);
+            const ObjectId id, const vsg::vec3& start, const vsg::vec3& end, const AreaType areaType);
 
         void removeOffMeshConnections(const ObjectId id);
 
-        void update(const osg::Vec3f& playerPosition, const UpdateGuard* guard);
+        void update(const vsg::vec3& playerPosition, const UpdateGuard* guard);
 
         void wait(WaitConditionType waitConditionType, Loading::Listener* listener);
 
@@ -83,7 +82,7 @@ namespace DetourNavigator
 
         inline void update(const AgentBounds& agentBounds, const TilePosition& playerTile,
             const TilesPositionsRange& range, const SharedNavMeshCacheItem& cached,
-            const std::map<osg::Vec2i, ChangeType>& changedTiles);
+            const std::map<vsg::ivec2, ChangeType>& changedTiles);
     };
 }
 

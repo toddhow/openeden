@@ -19,7 +19,7 @@ namespace
     bool removeTile(dtNavMesh& navMesh, const TilePosition& position)
     {
         const int layer = 0;
-        const auto tileRef = navMesh.getTileRefAt(position.x(), position.y(), layer);
+        const auto tileRef = navMesh.getTileRefAt(position.x, position.y, layer);
         if (tileRef == 0)
             return false;
         unsigned char** const data = nullptr;
@@ -67,7 +67,7 @@ namespace DetourNavigator
     const dtMeshTile* getTile(const dtNavMesh& navMesh, const TilePosition& position)
     {
         const int layer = 0;
-        return navMesh.getTileAt(position.x(), position.y(), layer);
+        return navMesh.getTileAt(position.x, position.y, layer);
     }
 
     NavMeshCacheItem::NavMeshCacheItem(std::size_t generation, const Settings& settings)

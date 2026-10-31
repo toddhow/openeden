@@ -27,8 +27,8 @@ namespace DetourNavigator
             const AgentBounds& agentBounds, const Version& version)
         {
             std::ostringstream stream;
-            stream << "Worldspace: " << worldspace << "; tile position: " << tilePosition.x() << ", "
-                   << tilePosition.y() << "; agent bounds: " << agentBounds << "; version: " << version << "; ";
+            stream << "Worldspace: " << worldspace << "; tile position: " << tilePosition.x << ", "
+                   << tilePosition.y << "; agent bounds: " << agentBounds << "; version: " << version << "; ";
             return stream.str();
         }
     }

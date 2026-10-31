@@ -1,6 +1,7 @@
 #include "operators.hpp"
 #include "settings.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/navigatorimpl.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/detournavigator/navmeshdb.hpp>
@@ -18,7 +19,7 @@
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 
-#include <osg/io_utils>
+#include <vsg/io/stream.h>
 #include <osg/ref_ptr>
 
 #include <gmock/gmock.h>
@@ -37,12 +38,12 @@ MATCHER_P3(Vec3fEq, x, y, z, "")
     const float xf = static_cast<float>(x);
     const float yf = static_cast<float>(y);
     const float zf = static_cast<float>(z);
-    return std::abs(arg.x() - xf) < 1e-3f && std::abs(arg.y() - yf) < 1e-3f && std::abs(arg.z() - zf) < 1e-3f;
+    return std::abs(arg.x - xf) < 1e-3f && std::abs(arg.y - yf) < 1e-3f && std::abs(arg.z - zf) < 1e-3f;
 }
 
 MATCHER_P4(Vec3fEq, x, y, z, precision, "")
 {
-    return std::abs(arg.x() - x) < precision && std::abs(arg.y() - y) < precision && std::abs(arg.z() - z) < precision;
+    return std::abs(arg.x - x) < precision && std::abs(arg.y - y) < precision && std::abs(arg.z - z) < precision;
 }
 
 namespace
@@ -58,16 +59,16 @@ namespace
         Settings mSettings = makeSettings();
         std::unique_ptr<Navigator> mNavigator = std::make_unique<NavigatorImpl>(
             mSettings, std::make_unique<NavMeshDb>(":memory:", std::numeric_limits<std::uint64_t>::max()));
-        const osg::Vec3f mPlayerPosition{ 256, 256, 0 };
+        const vsg::vec3 mPlayerPosition{ 256, 256, 0 };
         const ESM::RefId mWorldspace = ESM::RefId::stringRefId("sys::default");
         const AgentBounds mAgentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
-        osg::Vec3f mStart{ 52, 460, 1 };
-        osg::Vec3f mEnd{ 460, 52, 1 };
-        std::deque<osg::Vec3f> mPath;
-        std::back_insert_iterator<std::deque<osg::Vec3f>> mOut{ mPath };
+        vsg::vec3 mStart{ 52, 460, 1 };
+        vsg::vec3 mEnd{ 460, 52, 1 };
+        std::deque<vsg::vec3> mPath;
+        std::back_insert_iterator<std::deque<vsg::vec3>> mOut{ mPath };
         AreaCosts mAreaCosts;
         Loading::Listener mListener;
-        const osg::Vec2i mCellPosition{ 0, 0 };
+        const vsg::ivec2 mCellPosition{ 0, 0 };
         const float mEndTolerance = 0;
         const osg::Matrixd mTransform = osg::Matrixd::translate(osg::Vec3f(256, 256, 0));
         const ObjectTransform mObjectTransform{ ESM::Position{ { 256, 256, 0 }, { 0, 0, 0 } }, 0.0f };
@@ -145,18 +146,18 @@ namespace
         vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
     };
 
-    inline osg::Vec3f getHeightfieldShift(
-        const osg::Vec2i& cellPosition, int cellSize, float minHeight, float maxHeight)
+    inline vsg::vec3 getHeightfieldShift(
+        const vsg::ivec2& cellPosition, int cellSize, float minHeight, float maxHeight)
     {
         return PhysicsSystemHelpers::getHeightfieldShift(
-            cellPosition.x(), cellPosition.x(), cellSize, minHeight, maxHeight);
+            cellPosition.x, cellPosition.x, cellSize, minHeight, maxHeight);
     }
 
     TEST_F(DetourNavigatorNavigatorTest, find_path_for_empty_should_return_empty)
     {
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, mStart, mEnd, Flag_walk, mAreaCosts, mEndTolerance, {}, mOut),
             Status::NavMeshNotFound);
-        EXPECT_EQ(mPath, std::deque<osg::Vec3f>());
+        EXPECT_EQ(mPath, std::deque<vsg::vec3>());
     }
 
     TEST_F(DetourNavigatorNavigatorTest, find_path_for_existing_agent_with_no_navmesh_should_throw_exception)
@@ -437,10 +438,10 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        mStart.x() = 256;
-        mStart.z() = 300;
-        mEnd.x() = 256;
-        mEnd.z() = 300;
+        mStart.x = 256;
+        mStart.z = 300;
+        mEnd.x = 256;
+        mEnd.z = 300;
 
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, mStart, mEnd, Flag_swim, mAreaCosts, mEndTolerance, {}, mOut),
             Status::Success);
@@ -471,8 +472,8 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        mStart.x() = 256;
-        mEnd.x() = 256;
+        mStart.x = 256;
+        mEnd.x = 256;
 
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, mStart, mEnd, Flag_swim | Flag_walk, mAreaCosts, mEndTolerance,
                       {}, mOut),
@@ -505,8 +506,8 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        mStart.x() = 256;
-        mEnd.x() = 256;
+        mStart.x = 256;
+        mEnd.x = 256;
 
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, mStart, mEnd, Flag_swim | Flag_walk, mAreaCosts, mEndTolerance,
                       {}, mOut),
@@ -538,8 +539,8 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        mStart.x() = 256;
-        mEnd.x() = 256;
+        mStart.x = 256;
+        mEnd.x = 256;
 
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, mStart, mEnd, Flag_walk, mAreaCosts, mEndTolerance, {}, mOut),
             Status::Success);
@@ -634,7 +635,7 @@ namespace
 
         EXPECT_THAT(*result, Vec3fEq(70.35845947265625, 335.592041015625, -2.6667339801788330078125, 1)) << *result;
 
-        const auto distance = (*result - mStart).length();
+        const auto distance = vsg::length(*result - mStart);
 
         EXPECT_NEAR(distance, 125.80865478515625, 1) << distance;
     }
@@ -647,7 +648,7 @@ namespace
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
-        const osg::Vec3f shift = getHeightfieldShift(mCellPosition, cellSize, surface.mMinHeight, surface.mMaxHeight);
+        const vsg::vec3 shift = getHeightfieldShift(mCellPosition, cellSize, surface.mMinHeight, surface.mMaxHeight);
 
         std::vector<CollisionShapeInstance<JPH::BoxShape>> boxes;
         std::generate_n(
@@ -662,7 +663,7 @@ namespace
             boxes[i].shape().SetEmbedded();
             const double offset = static_cast<double>(i) * 10.0;
             const osg::Matrixd transform
-                = osg::Matrixd::translate(osg::Vec3d(shift.x() + offset, shift.y() + offset, offset));
+                = osg::Matrixd::translate(osg::Vec3d(shift.x + offset, shift.y + offset, offset));
             mNavigator->addObject(
                 ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -673,7 +674,7 @@ namespace
         {
             const double offset = static_cast<double>(i) * 10.0 + 1.0;
             const osg::Matrixd transform
-                = osg::Matrixd::translate(osg::Vec3d(shift.x() + offset, shift.y() + offset, offset));
+                = osg::Matrixd::translate(osg::Vec3d(shift.x + offset, shift.y + offset, offset));
             mNavigator->updateObject(
                 ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance(), mObjectTransform), transform, nullptr);
         }
@@ -749,12 +750,12 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        const osg::Vec3f start(57, 460, 1);
-        const osg::Vec3f end(460, 57, 1);
+        const vsg::vec3 start(57, 460, 1);
+        const vsg::vec3 end(460, 57, 1);
         const auto result = raycast(*mNavigator, mAgentBounds, start, end, Flag_walk);
 
-        ASSERT_THAT(result, Optional(Vec3fEq(end.x(), end.y(), 1.95257937908172607421875)))
-            << (result ? *result : osg::Vec3f());
+        ASSERT_THAT(result, Optional(Vec3fEq(end.x, end.y, 1.95257937908172607421875)))
+            << (result ? *result : vsg::vec3());
     }
 
     TEST_F(DetourNavigatorNavigatorTest,
@@ -903,13 +904,13 @@ namespace
 
     std::pair<TilePosition, TilePosition> getMinMax(const RecastMeshTiles& tiles)
     {
-        const auto lessByX = [](const auto& l, const auto& r) { return l.first.x() < r.first.x(); };
-        const auto lessByY = [](const auto& l, const auto& r) { return l.first.y() < r.first.y(); };
+        const auto lessByX = [](const auto& l, const auto& r) { return l.first.x < r.first.x; };
+        const auto lessByY = [](const auto& l, const auto& r) { return l.first.y < r.first.y; };
 
         const auto [minX, maxX] = std::ranges::minmax_element(tiles, lessByX);
         const auto [minY, maxY] = std::ranges::minmax_element(tiles, lessByY);
 
-        return { TilePosition(minX->first.x(), minY->first.y()), TilePosition(maxX->first.x(), maxY->first.y()) };
+        return { TilePosition(minX->first.x, minY->first.y), TilePosition(maxX->first.x, maxY->first.y) };
     }
 
     TEST_F(DetourNavigatorNavigatorTest, update_for_very_big_object_should_be_limited)
@@ -922,7 +923,7 @@ namespace
             .mScale = 1.0f,
         };
         const std::optional<CellGridBounds> cellGridBounds = std::nullopt;
-        const osg::Vec3f playerPosition(32, 1024, 0);
+        const vsg::vec3 playerPosition(32, 1024, 0);
 
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
@@ -972,10 +973,10 @@ namespace
             .mScale = 1.0f,
         };
         const CellGridBounds cellGridBounds{
-            .mCenter = osg::Vec2i(0, 0),
+            .mCenter = vsg::ivec2(0, 0),
             .mHalfSize = 1,
         };
-        const osg::Vec3f playerPosition(32, 1024, 0);
+        const vsg::vec3 playerPosition(32, 1024, 0);
 
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
@@ -1033,8 +1034,8 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        const osg::Vec3f start(56, 56, 12);
-        const osg::Vec3f end(464, 464, 12);
+        const vsg::vec3 start(56, 56, 12);
+        const vsg::vec3 end(464, 464, 12);
 
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, start, end, Flag_walk, mAreaCosts, mEndTolerance, {}, mOut),
             Status::Success);
@@ -1065,8 +1066,8 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        const osg::Vec3f start(56, 56, 12);
-        const osg::Vec3f end(464, 464, 12);
+        const vsg::vec3 start(56, 56, 12);
+        const vsg::vec3 end(464, 464, 12);
 
         EXPECT_EQ(findPath(*mNavigator, mAgentBounds, start, end, Flag_walk, mAreaCosts, mEndTolerance, {}, mOut),
             Status::Success);
@@ -1097,12 +1098,12 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        const std::vector<osg::Vec3f> checkpoints = {
-            osg::Vec3f(400, 70, 12),
+        const std::vector<vsg::vec3> checkpoints = {
+            vsg::vec3(400, 70, 12),
         };
 
-        const osg::Vec3f start(56, 56, 12);
-        const osg::Vec3f end(464, 464, 12);
+        const vsg::vec3 start(56, 56, 12);
+        const vsg::vec3 end(464, 464, 12);
 
         EXPECT_EQ(
             findPath(*mNavigator, mAgentBounds, start, end, Flag_walk, mAreaCosts, mEndTolerance, checkpoints, mOut),
@@ -1134,14 +1135,14 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        const std::vector<osg::Vec3f> checkpoints = {
-            osg::Vec3f(400, 70, 10000),
-            osg::Vec3f(256, 256, 1000),
-            osg::Vec3f(-1000, -1000, 0),
+        const std::vector<vsg::vec3> checkpoints = {
+            vsg::vec3(400, 70, 10000),
+            vsg::vec3(256, 256, 1000),
+            vsg::vec3(-1000, -1000, 0),
         };
 
-        const osg::Vec3f start(56, 56, 12);
-        const osg::Vec3f end(464, 464, 12);
+        const vsg::vec3 start(56, 56, 12);
+        const vsg::vec3 end(464, 464, 12);
 
         EXPECT_EQ(
             findPath(*mNavigator, mAgentBounds, start, end, Flag_walk, mAreaCosts, mEndTolerance, checkpoints, mOut),
@@ -1168,21 +1169,21 @@ namespace
     }
 
     const std::array notSupportedAgentBounds = {
-        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = osg::Vec3f(0, 0, 0) },
-        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = osg::Vec3f(0, 0, 0) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = osg::Vec3f(0, 0, 0) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = osg::Vec3f(0, 0, 11.34f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = osg::Vec3f(0, 11.34f, 11.34f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = osg::Vec3f(0, 0, 11.34f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = osg::Vec3f(1, 1, 0) },
-        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = osg::Vec3f(1, 1, 0) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = osg::Vec3f(1, 1, 0) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = osg::Vec3f(1, 1, 11.33f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = osg::Vec3f(1, 1, 11.33f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = osg::Vec3f(1, 1, 11.33f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = osg::Vec3f(2043.54f, 2043.54f, 11.34f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = osg::Vec3f(2890, 1, 11.34f) },
-        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = osg::Vec3f(2890, 2890, 11.34f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = vsg::vec3(0, 0, 0) },
+        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = vsg::vec3(0, 0, 0) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = vsg::vec3(0, 0, 0) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = vsg::vec3(0, 0, 11.34f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = vsg::vec3(0, 11.34f, 11.34f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = vsg::vec3(0, 0, 11.34f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = vsg::vec3(1, 1, 0) },
+        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = vsg::vec3(1, 1, 0) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = vsg::vec3(1, 1, 0) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = vsg::vec3(1, 1, 11.33f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = vsg::vec3(1, 1, 11.33f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = vsg::vec3(1, 1, 11.33f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Aabb, .mHalfExtents = vsg::vec3(2043.54f, 2043.54f, 11.34f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::RotatingBox, .mHalfExtents = vsg::vec3(2890, 1, 11.34f) },
+        AgentBounds{ .mShapeType = CollisionShapeType::Cylinder, .mHalfExtents = vsg::vec3(2890, 2890, 11.34f) },
     };
 
     INSTANTIATE_TEST_SUITE_P(NotSupportedAgentBounds, DetourNavigatorNavigatorNotSupportedAgentBoundsTest,
@@ -1200,8 +1201,8 @@ namespace
         updateGuard.reset();
         mNavigator->wait(WaitConditionType::requiredTilesPresent, &mListener);
 
-        const osg::Vec3f position(250, 250, 0);
-        const osg::Vec3f searchAreaHalfExtents(1000, 1000, 1000);
+        const vsg::vec3 position(250, 250, 0);
+        const vsg::vec3 searchAreaHalfExtents(1000, 1000, 1000);
         EXPECT_THAT(findNearestNavMeshPosition(*mNavigator, mAgentBounds, position, searchAreaHalfExtents, Flag_walk),
             Optional(Vec3fEq(250, 250, -62.5186)));
     }
@@ -1218,8 +1219,8 @@ namespace
         updateGuard.reset();
         mNavigator->wait(WaitConditionType::requiredTilesPresent, &mListener);
 
-        const osg::Vec3f position(250, 250, 250);
-        const osg::Vec3f searchAreaHalfExtents(100, 100, 100);
+        const vsg::vec3 position(250, 250, 250);
+        const vsg::vec3 searchAreaHalfExtents(100, 100, 100);
         EXPECT_EQ(findNearestNavMeshPosition(*mNavigator, mAgentBounds, position, searchAreaHalfExtents, Flag_walk),
             std::nullopt);
     }
@@ -1236,8 +1237,8 @@ namespace
         updateGuard.reset();
         mNavigator->wait(WaitConditionType::requiredTilesPresent, &mListener);
 
-        const osg::Vec3f position(250, 250, 0);
-        const osg::Vec3f searchAreaHalfExtents(1000, 1000, 1000);
+        const vsg::vec3 position(250, 250, 0);
+        const vsg::vec3 searchAreaHalfExtents(1000, 1000, 1000);
         EXPECT_EQ(findNearestNavMeshPosition(*mNavigator, mAgentBounds, position, searchAreaHalfExtents, Flag_swim),
             std::nullopt);
     }
@@ -1266,7 +1267,7 @@ namespace
 
         {
             auto updateGuard = navigator.makeUpdateGuard();
-            navigator.update(osg::Vec3f(3000, 3000, 0), updateGuard.get());
+            navigator.update(vsg::vec3(3000, 3000, 0), updateGuard.get());
         }
 
         navigator.wait(WaitConditionType::allJobsDone, &listener);
@@ -1282,7 +1283,7 @@ namespace
 
         {
             auto updateGuard = navigator.makeUpdateGuard();
-            navigator.update(osg::Vec3f(4000, 3000, 0), updateGuard.get());
+            navigator.update(vsg::vec3(4000, 3000, 0), updateGuard.get());
         }
 
         navigator.wait(WaitConditionType::allJobsDone, &listener);
@@ -1311,7 +1312,7 @@ namespace
 
         {
             auto updateGuard = navigator.makeUpdateGuard();
-            navigator.update(osg::Vec3f(3000, 3000, 0), updateGuard.get());
+            navigator.update(vsg::vec3(3000, 3000, 0), updateGuard.get());
         }
 
         navigator.wait(WaitConditionType::requiredTilesPresent, &listener);
@@ -1327,7 +1328,7 @@ namespace
 
         {
             auto updateGuard = navigator.makeUpdateGuard();
-            navigator.update(osg::Vec3f(6000, 3000, 0), updateGuard.get());
+            navigator.update(vsg::vec3(6000, 3000, 0), updateGuard.get());
         }
 
         navigator.wait(WaitConditionType::requiredTilesPresent, &listener);
@@ -1356,7 +1357,7 @@ namespace
 
         {
             auto updateGuard = navigator.makeUpdateGuard();
-            navigator.update(osg::Vec3f(3000, 3000, 0), updateGuard.get());
+            navigator.update(vsg::vec3(3000, 3000, 0), updateGuard.get());
         }
 
         navigator.wait(WaitConditionType::requiredTilesPresent, &listener);
@@ -1372,7 +1373,7 @@ namespace
 
         {
             auto updateGuard = navigator.makeUpdateGuard();
-            navigator.update(osg::Vec3f(6000, 3000, 0), updateGuard.get());
+            navigator.update(vsg::vec3(6000, 3000, 0), updateGuard.get());
         }
 
         navigator.wait(WaitConditionType::requiredTilesPresent, &listener);
@@ -1394,7 +1395,7 @@ namespace
 
         void operator()(Navigator& navigator) const
         {
-            const osg::Vec2i cellPosition(0, 0);
+            const vsg::ivec2 cellPosition(0, 0);
             const HeightfieldSurface surface{
                 .mHeights = sHeights,
                 .mSize = sSize,
@@ -1410,7 +1411,7 @@ namespace
     {
         void operator()(Navigator& navigator) const
         {
-            const osg::Vec2i cellPosition(0, 0);
+            const vsg::ivec2 cellPosition(0, 0);
             const HeightfieldPlane plane{ .mHeight = 0 };
             const int cellSize = 8192;
             navigator.addHeightfield(cellPosition, cellSize, plane, nullptr);
@@ -1421,7 +1422,7 @@ namespace
     {
         void operator()(Navigator& navigator) const
         {
-            const osg::Vec2i cellPosition(0, 0);
+            const vsg::ivec2 cellPosition(0, 0);
             const float level = 0;
             const int cellSize = 8192;
             navigator.addWater(cellPosition, cellSize, level, nullptr);

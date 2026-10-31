@@ -1,6 +1,7 @@
 #ifndef OPENMW_TEST_SUITE_DETOURNAVIGATOR_OPERATORS_H
 #define OPENMW_TEST_SUITE_DETOURNAVIGATOR_OPERATORS_H
 
+#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/debug.hpp>
 
 #include <deque>
@@ -35,26 +36,26 @@ namespace
 namespace testing
 {
     template <>
-    inline testing::Message& Message::operator<<(const osg::Vec3f& value)
+    inline testing::Message& Message::operator<<(const vsg::vec3& value)
     {
-        return (*this) << std::setprecision(std::numeric_limits<float>::max_exponent10) << "Vec3fEq(" << value.x()
-                       << ", " << value.y() << ", " << value.z() << ')';
+        return (*this) << std::setprecision(std::numeric_limits<float>::max_exponent10) << "Vec3fEq(" << value.x
+                       << ", " << value.y << ", " << value.z << ')';
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const osg::Vec2i& value)
+    inline testing::Message& Message::operator<<(const vsg::ivec2& value)
     {
-        return (*this) << "{" << value.x() << ", " << value.y() << '}';
+        return (*this) << "{" << value.x << ", " << value.y << '}';
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const Wrapper<osg::Vec3f>& value)
+    inline testing::Message& Message::operator<<(const Wrapper<vsg::vec3>& value)
     {
         return (*this) << value.mValue;
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const Wrapper<osg::Vec2i>& value)
+    inline testing::Message& Message::operator<<(const Wrapper<vsg::ivec2>& value)
     {
         return (*this) << value.mValue;
     }
@@ -72,19 +73,19 @@ namespace testing
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const std::deque<osg::Vec3f>& value)
+    inline testing::Message& Message::operator<<(const std::deque<vsg::vec3>& value)
     {
         return writeRange(*this, value, 1);
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const std::vector<osg::Vec3f>& value)
+    inline testing::Message& Message::operator<<(const std::vector<vsg::vec3>& value)
     {
         return writeRange(*this, value, 1);
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const std::vector<osg::Vec2i>& value)
+    inline testing::Message& Message::operator<<(const std::vector<vsg::ivec2>& value)
     {
         return writeRange(*this, value, 1);
     }

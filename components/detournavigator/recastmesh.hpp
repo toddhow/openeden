@@ -5,10 +5,8 @@
 #include "objecttransform.hpp"
 #include "version.hpp"
 
+#include <components/misc/vsgmath.hpp>
 #include <components/resource/physicsshape.hpp>
-
-#include <osg/Vec2i>
-#include <osg/Vec3f>
 
 #include <cstdint>
 #include <numeric>
@@ -60,7 +58,7 @@ namespace DetourNavigator
 
     struct CellWater
     {
-        osg::Vec2i mCellPosition;
+        vsg::ivec2 mCellPosition;
         Water mWater;
     };
 
@@ -70,21 +68,21 @@ namespace DetourNavigator
         return tie(lhs) < tie(rhs);
     }
 
-    inline osg::Vec2f getWaterShift2d(const osg::Vec2i& cellPosition, int cellSize)
+    inline vsg::vec2 getWaterShift2d(const vsg::ivec2& cellPosition, int cellSize)
     {
         const float cellSizeF = static_cast<float>(cellSize);
-        return osg::Vec2f((static_cast<float>(cellPosition.x()) + 0.5f) * cellSizeF,
-            (static_cast<float>(cellPosition.y()) + 0.5f) * cellSizeF);
+        return vsg::vec2((static_cast<float>(cellPosition.x) + 0.5f) * cellSizeF,
+            (static_cast<float>(cellPosition.y) + 0.5f) * cellSizeF);
     }
 
-    inline osg::Vec3f getWaterShift3d(const osg::Vec2i& cellPosition, int cellSize, float level)
+    inline vsg::vec3 getWaterShift3d(const vsg::ivec2& cellPosition, int cellSize, float level)
     {
-        return osg::Vec3f(getWaterShift2d(cellPosition, cellSize), level);
+        return vsg::vec3(getWaterShift2d(cellPosition, cellSize), level);
     }
 
     struct Heightfield
     {
-        osg::Vec2i mCellPosition;
+        vsg::ivec2 mCellPosition;
         int mCellSize;
         std::uint8_t mLength;
         float mMinHeight;
@@ -108,7 +106,7 @@ namespace DetourNavigator
 
     struct FlatHeightfield
     {
-        osg::Vec2i mCellPosition;
+        vsg::ivec2 mCellPosition;
         int mCellSize;
         float mHeight;
     };

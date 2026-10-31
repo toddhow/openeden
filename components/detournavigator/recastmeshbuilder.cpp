@@ -5,8 +5,11 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/vsgmath.hpp>
 #include <components/physicshelpers/heightfield.hpp>
 #include <components/physicshelpers/transformboundingbox.hpp>
+
+#include <vsg/maths/transform.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Math/Real.h>
@@ -16,8 +19,6 @@
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
-
-#include <osg/Matrixf>
 
 #include <algorithm>
 #include <array>
@@ -30,12 +31,12 @@ namespace DetourNavigator
 {
     namespace
     {
-        JPH::Float3 joltTransformMult(const JPH::Float3& vec, const osg::Matrixd& mat)
+        JPH::Float3 joltTransformMult(const JPH::Float3& vec, const vsg::dmat4& mat)
         {
-            osg::Vec3d pos(vec.x, vec.y, vec.z);
-            osg::Vec3d result = pos * mat;
+            vsg::dvec3 pos(vec.x, vec.y, vec.z);
+            vsg::dvec3 result = mat * pos;
             return JPH::Float3(
-                static_cast<float>(result.x()), static_cast<float>(result.y()), static_cast<float>(result.z()));
+                static_cast<float>(result.x), static_cast<float>(result.y), static_cast<float>(result.z));
         }
 
         template <class TriangleBatchWalker>
@@ -104,21 +105,21 @@ namespace DetourNavigator
         bool isNan(const RecastMeshTriangle& triangle)
         {
             for (std::size_t i = 0; i < 3; ++i)
-                if (std::isnan(triangle.mVertices[i].x()) || std::isnan(triangle.mVertices[i].y())
-                    || std::isnan(triangle.mVertices[i].z()))
+                if (std::isnan(triangle.mVertices[i].x) || std::isnan(triangle.mVertices[i].y)
+                    || std::isnan(triangle.mVertices[i].z))
                     return true;
             return false;
         }
 
     }
 
-    Mesh makeMesh(std::vector<RecastMeshTriangle>&& triangles, const osg::Vec3f& shift)
+    Mesh makeMesh(std::vector<RecastMeshTriangle>&& triangles, const vsg::vec3& shift)
     {
-        std::vector<osg::Vec3f> uniqueVertices;
+        std::vector<vsg::vec3> uniqueVertices;
         uniqueVertices.reserve(3 * triangles.size());
 
         for (const RecastMeshTriangle& triangle : triangles)
-            for (const osg::Vec3f& vertex : triangle.mVertices)
+            for (const vsg::vec3& vertex : triangle.mVertices)
                 uniqueVertices.push_back(vertex);
 
         std::sort(uniqueVertices.begin(), uniqueVertices.end());
@@ -133,7 +134,7 @@ namespace DetourNavigator
         {
             areaTypes.push_back(triangle.mAreaType);
 
-            for (const osg::Vec3f& vertex : triangle.mVertices)
+            for (const vsg::vec3& vertex : triangle.mVertices)
             {
                 const auto it = std::lower_bound(uniqueVertices.begin(), uniqueVertices.end(), vertex);
                 assert(it != uniqueVertices.end());
@@ -147,11 +148,11 @@ namespace DetourNavigator
         std::vector<float> vertices;
         vertices.reserve(3 * uniqueVertices.size());
 
-        for (const osg::Vec3f& vertex : uniqueVertices)
+        for (const vsg::vec3& vertex : uniqueVertices)
         {
-            vertices.push_back(vertex.x() + shift.x());
-            vertices.push_back(vertex.y() + shift.y());
-            vertices.push_back(vertex.z() + shift.z());
+            vertices.push_back(vertex.x + shift.x);
+            vertices.push_back(vertex.y + shift.y);
+            vertices.push_back(vertex.z + shift.z);
         }
 
         return Mesh(std::move(indices), std::move(vertices), std::move(areaTypes));
@@ -177,15 +178,15 @@ namespace DetourNavigator
         };
         shape.processAllTriangles(callback, aabbMin, aabbMax);
 
-        const osg::Vec2f aabbShift
-            = (osg::Vec2f(aabbMax.GetX(), aabbMax.GetY()) - osg::Vec2f(aabbMin.GetX(), aabbMin.GetY())) * 0.5;
-        const osg::Vec2f tileShift = osg::Vec2f(heightfield.mMinX, heightfield.mMinY) * scale;
-        const osg::Vec2f localShift = aabbShift + tileShift;
+        const vsg::vec2 aabbShift
+            = (vsg::vec2(aabbMax.GetX(), aabbMax.GetY()) - vsg::vec2(aabbMin.GetX(), aabbMin.GetY())) * 0.5;
+        const vsg::vec2 tileShift = vsg::vec2(heightfield.mMinX, heightfield.mMinY) * scale;
+        const vsg::vec2 localShift = aabbShift + tileShift;
         const float cellSize = static_cast<float>(heightfield.mCellSize);
-        const osg::Vec3f cellShift(static_cast<float>(heightfield.mCellPosition.x()) * cellSize,
-            static_cast<float>(heightfield.mCellPosition.y()) * cellSize,
+        const vsg::vec3 cellShift(static_cast<float>(heightfield.mCellPosition.x) * cellSize,
+            static_cast<float>(heightfield.mCellPosition.y) * cellSize,
             (heightfield.mMinHeight + heightfield.mMaxHeight) * 0.5f);
-        return makeMesh(std::move(triangles), cellShift + osg::Vec3f(localShift.x(), localShift.y(), 0));
+        return makeMesh(std::move(triangles), cellShift + vsg::vec3(localShift.x, localShift.y, 0));
     }
 
     RecastMeshBuilder::RecastMeshBuilder(const TileBounds& bounds) noexcept
@@ -193,14 +194,14 @@ namespace DetourNavigator
     {
     }
 
-    void RecastMeshBuilder::addObject(const JPH::Shape& shape, const osg::Matrixd& transform, const AreaType areaType,
+    void RecastMeshBuilder::addObject(const JPH::Shape& shape, const vsg::dmat4& transform, const AreaType areaType,
         vsg::ref_ptr<const Resource::PhysicsShape> source, const ObjectTransform& objectTransform)
     {
         addObject(shape, transform, areaType);
         mSources.push_back(MeshSource{ std::move(source), objectTransform, areaType });
     }
 
-    void RecastMeshBuilder::addObject(const JPH::Shape& shape, const osg::Matrixd& transform, const AreaType areaType)
+    void RecastMeshBuilder::addObject(const JPH::Shape& shape, const vsg::dmat4& transform, const AreaType areaType)
     {
         auto shapeType = shape.GetType();
 
@@ -213,7 +214,7 @@ namespace DetourNavigator
         const JPH::ScaledShape* scaledShape = dynamic_cast<const JPH::ScaledShape*>(&shape);
         if (scaledShape)
             return addObject(*scaledShape->GetInnerShape(),
-                osg::Matrixd::scale(Misc::Convert::toOsg(scaledShape->GetScale())) * transform, areaType);
+                transform * vsg::scale(vsg::dvec3(Misc::Convert::toOsg(scaledShape->GetScale()))), areaType);
 
         const JPH::RotatedTranslatedShape* rotatedTranslatedShape
             = dynamic_cast<const JPH::RotatedTranslatedShape*>(&shape);
@@ -229,29 +230,29 @@ namespace DetourNavigator
     }
 
     void RecastMeshBuilder::addObject(
-        const JPH::RotatedTranslatedShape& shape, const osg::Matrixd& transform, const AreaType areaType)
+        const JPH::RotatedTranslatedShape& shape, const vsg::dmat4& transform, const AreaType areaType)
     {
         auto subPos = shape.GetPosition();
         auto subRot = shape.GetRotation();
-        osg::Matrixd childTransform
-            = osg::Matrixd(osg::Quat(subRot.GetX(), subRot.GetY(), subRot.GetZ(), subRot.GetW()));
-        childTransform.setTrans(osg::Vec3f(subPos.GetX(), subPos.GetY(), subPos.GetZ()));
-        addObject(*shape.GetInnerShape(), childTransform * transform, areaType);
+        vsg::dmat4 childTransform
+            = Misc::VsgMath::toMatrix(vsg::dquat(subRot.GetX(), subRot.GetY(), subRot.GetZ(), subRot.GetW()));
+        Misc::VsgMath::setTrans(childTransform, vsg::vec3(subPos.GetX(), subPos.GetY(), subPos.GetZ()));
+        addObject(*shape.GetInnerShape(), transform * childTransform, areaType);
     }
 
     void RecastMeshBuilder::addObject(
-        const JPH::CompoundShape& shape, const osg::Matrixd& transform, const AreaType areaType)
+        const JPH::CompoundShape& shape, const vsg::dmat4& transform, const AreaType areaType)
     {
         const JPH::uint num = shape.GetNumSubShapes();
         for (JPH::uint i = 0; i < num; ++i)
         {
             auto childTransform = getSubShapeTransform(shape.GetSubShape(i));
-            addObject(*shape.GetSubShape(i).mShape.GetPtr(), childTransform * transform, areaType);
+            addObject(*shape.GetSubShape(i).mShape.GetPtr(), transform * childTransform, areaType);
         }
     }
 
     void RecastMeshBuilder::addObject(
-        const JPH::HeightFieldShape& shape, const osg::Matrixd& transform, const AreaType areaType)
+        const JPH::HeightFieldShape& shape, const vsg::dmat4& transform, const AreaType areaType)
     {
         TriangleProcessFunc callback = [&](JPH::Float3* vertices, int, int) {
             mTriangles.emplace_back(makeRecastMeshTriangle(vertices, areaType));
@@ -259,26 +260,26 @@ namespace DetourNavigator
         addObject(shape, transform, callback);
     }
 
-    void RecastMeshBuilder::addWater(const osg::Vec2i& cellPosition, const Water& water)
+    void RecastMeshBuilder::addWater(const vsg::ivec2& cellPosition, const Water& water)
     {
         mWater.push_back(CellWater{ cellPosition, water });
     }
 
-    void RecastMeshBuilder::addHeightfield(const osg::Vec2i& cellPosition, int cellSize, float height)
+    void RecastMeshBuilder::addHeightfield(const vsg::ivec2& cellPosition, int cellSize, float height)
     {
         if (const auto intersection = getIntersection(mBounds, maxCellTileBounds(cellPosition, cellSize)))
             mFlatHeightfields.emplace_back(FlatHeightfield{ cellPosition, cellSize, height });
     }
 
-    void RecastMeshBuilder::addHeightfield(const osg::Vec2i& cellPosition, int cellSize, const float* heights,
+    void RecastMeshBuilder::addHeightfield(const vsg::ivec2& cellPosition, int cellSize, const float* heights,
         std::size_t size, float minHeight, float maxHeight)
     {
         const auto intersection = getIntersection(mBounds, maxCellTileBounds(cellPosition, cellSize));
         if (!intersection.has_value())
             return;
 
-        const osg::Vec3f shift = PhysicsSystemHelpers::getHeightfieldShift(
-            cellPosition.x(), cellPosition.y(), cellSize, minHeight, maxHeight);
+        const vsg::vec3 shift = PhysicsSystemHelpers::getHeightfieldShift(
+            cellPosition.x, cellPosition.y, cellSize, minHeight, maxHeight);
         const float stepSize = getHeightfieldScale(cellSize, size);
         const float halfCellSize = static_cast<float>(cellSize) * 0.5f;
         const auto local = [&](float v, float axisShift) { return (v - axisShift + halfCellSize) / stepSize; };
@@ -288,10 +289,10 @@ namespace DetourNavigator
                 return 0;
             return std::min(static_cast<std::size_t>(value), size);
         };
-        const std::size_t minX = index(std::round(local(intersection->mMin.x(), shift.x())), -1);
-        const std::size_t minY = index(std::round(local(intersection->mMin.y(), shift.y())), -1);
-        const std::size_t maxX = index(std::round(local(intersection->mMax.x(), shift.x())), 1);
-        const std::size_t maxY = index(std::round(local(intersection->mMax.y(), shift.y())), 1);
+        const std::size_t minX = index(std::round(local(intersection->mMin.x, shift.x)), -1);
+        const std::size_t minY = index(std::round(local(intersection->mMin.y, shift.y)), -1);
+        const std::size_t maxX = index(std::round(local(intersection->mMax.x, shift.x)), 1);
+        const std::size_t maxY = index(std::round(local(intersection->mMax.y, shift.y)), 1);
         const std::size_t endX = std::min(maxX + 1, size);
         const std::size_t endY = std::min(maxY + 1, size);
         const std::size_t sliceSize = (endX - minX) * (endY - minY);
@@ -328,12 +329,12 @@ namespace DetourNavigator
     }
 
     void RecastMeshBuilder::addObject(
-        const JPH::Shape& shape, const osg::Matrixd& transform, TriangleProcessFunc& processTriangle)
+        const JPH::Shape& shape, const vsg::dmat4& transform, TriangleProcessFunc& processTriangle)
     {
         const JPH::AABox bounds = shape.GetLocalBounds();
-        const JPH::Vec3 boundsMin(mBounds.mMin.x(), mBounds.mMin.y(),
+        const JPH::Vec3 boundsMin(mBounds.mMin.x, mBounds.mMin.y,
             -std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
-        const JPH::Vec3 boundsMax(mBounds.mMax.x(), mBounds.mMax.y(),
+        const JPH::Vec3 boundsMax(mBounds.mMax.x, mBounds.mMax.y,
             std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
 
         // Convert to a world space triangle set
@@ -361,7 +362,7 @@ namespace DetourNavigator
     }
 
     void RecastMeshBuilder::addObject(
-        const JPH::HeightFieldShape& shape, const osg::Matrixd& transform, TriangleProcessFunc& processTriangle)
+        const JPH::HeightFieldShape& shape, const vsg::dmat4& transform, TriangleProcessFunc& processTriangle)
     {
         using PhysicsSystemHelpers::transformBoundingBox;
 
@@ -371,15 +372,15 @@ namespace DetourNavigator
 
         transformBoundingBox(joltTransform, bounds.mMin, bounds.mMax);
 
-        bounds.mMin.SetX(std::max(static_cast<float>(mBounds.mMin.x()), bounds.mMin.GetX()));
-        bounds.mMin.SetX(std::min(static_cast<float>(mBounds.mMax.x()), bounds.mMin.GetX()));
-        bounds.mMin.SetY(std::max(static_cast<float>(mBounds.mMin.y()), bounds.mMin.GetY()));
-        bounds.mMin.SetY(std::min(static_cast<float>(mBounds.mMax.y()), bounds.mMin.GetY()));
+        bounds.mMin.SetX(std::max(static_cast<float>(mBounds.mMin.x), bounds.mMin.GetX()));
+        bounds.mMin.SetX(std::min(static_cast<float>(mBounds.mMax.x), bounds.mMin.GetX()));
+        bounds.mMin.SetY(std::max(static_cast<float>(mBounds.mMin.y), bounds.mMin.GetY()));
+        bounds.mMin.SetY(std::min(static_cast<float>(mBounds.mMax.y), bounds.mMin.GetY()));
 
-        bounds.mMax.SetX(std::max(static_cast<float>(mBounds.mMin.x()), bounds.mMax.GetX()));
-        bounds.mMax.SetX(std::min(static_cast<float>(mBounds.mMax.x()), bounds.mMax.GetX()));
-        bounds.mMax.SetY(std::max(static_cast<float>(mBounds.mMin.y()), bounds.mMax.GetY()));
-        bounds.mMax.SetY(std::min(static_cast<float>(mBounds.mMax.y()), bounds.mMax.GetY()));
+        bounds.mMax.SetX(std::max(static_cast<float>(mBounds.mMin.x), bounds.mMax.GetX()));
+        bounds.mMax.SetX(std::min(static_cast<float>(mBounds.mMax.x), bounds.mMax.GetX()));
+        bounds.mMax.SetY(std::max(static_cast<float>(mBounds.mMin.y), bounds.mMax.GetY()));
+        bounds.mMax.SetY(std::min(static_cast<float>(mBounds.mMax.y), bounds.mMax.GetY()));
 
         JPH::RMat44 inverseMatrix = joltTransform.Inversed();
         transformBoundingBox(inverseMatrix, bounds.mMin, bounds.mMax);
