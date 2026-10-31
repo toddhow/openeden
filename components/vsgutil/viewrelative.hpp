@@ -3,6 +3,8 @@
 
 #include <vsg/nodes/Transform.h>
 
+#include <components/misc/vsgmath.hpp>
+
 namespace vsgUtil
 {
     /*
@@ -14,7 +16,7 @@ namespace vsgUtil
         vsg::dmat4 transform(const vsg::dmat4& mat) const override
         {
             auto m = mat;
-            m[3] *= vsg::dvec4(resetAxes, 1);
+            m[3] = Misc::VsgMath::componentMultiply(m[3], vsg::dvec4(resetAxes, 1));
             return m;
         }
     };

@@ -51,7 +51,7 @@ Inherited choices stay as OpenMW made them unless a decision record changes them
 | Windows dependencies | vcpkg package set from OpenMW's deps builds (`CI/deps_versions.msvc.sh`, `VCPKG_TAG`), Qt 6.6.3 through aqtinstall | `CI/before_script.msvc.sh` is the reference; local copies go in `deps/` (git-ignored) |
 | Linux dependencies | Ubuntu 24.04 packages from `CI/install_debian_deps.sh` | Uses OpenMW's PPAs, including its OpenSceneGraph fork |
 | Rendering | Moving to Vulkan on VulkanSceneGraph (VSG) with vsgXchange (decision 0002, Track V); until Track V lands, OpenSceneGraph (OpenMW's fork on Linux CI, vcpkg's 3.6.5 on Windows) | No OpenGL fallback, no DirectX, no abstraction layer; VSG and vsgXchange versions pinned in the Track V spec |
-| Math | Moving from OSG math to VSG math engine-wide (decision 0002); CreativeMotion keeps `opas::math` | Conversions between the two happen at one named boundary per area during the transition |
+| Math | VSG math engine-wide (decision 0002, task 0013), with OSG's exact behaviour in `components/misc/vsgmath.hpp` where VSG's differs; CreativeMotion keeps `opas::math` | `CI/check_no_osg.sh` keeps OSG math out; files listed in task 0014 wait for that task |
 | UI | MyGUI in game, Qt 6 in the launcher, wizard and editor | Inherited |
 | Scripting | Lua (LuaJIT) through OpenMW's Lua host | Lua APIs come only from the core; plugins can only publish events the core forwards to Lua (decision 0003) |
 | Authored data | JSON with a canonical writer that round-trips byte for byte | The project's rule for new formats (CreativeMotion decision 0002, plugin doc 5.2) |
@@ -246,8 +246,8 @@ Decision 0002; background in `docs/research/0001-vulkan-renderer.md`. The next m
 - [ ] Post-processing (`.omwfx`) and VR ported or removed per toddhow's decision; every renderer setting works, migrates or is removed with a reason
 
 **V5 VSG math everywhere** — task 0013 (`docs/tasks/0013-vulkan-v5-vsg-math.md`)
-- [ ] OSG math replaced by VSG math engine-wide behind convention tests, with no behaviour change and the Lua math API unchanged
-- [ ] `extern/osg` and vsgopenmw's OSG math shims deleted
+- [ ] OSG math replaced by VSG math engine-wide behind convention tests, with no behaviour change and the Lua math API unchanged (done and tested, 2026-10-31; the fixed-seed scenario, AI pathing and image comparison are not run, which keeps this open)
+- [x] `extern/osg` and vsgopenmw's OSG math shims deleted; `CI/check_no_osg.sh` added
 
 **V6 Editor, tools and OSG removed** — task 0014 (`docs/tasks/0014-vulkan-v6-editor-tools-osg-removal.md`)
 - [ ] The editor renders through VSG in a Qt Vulkan viewport with its editing features intact; every tool builds; videos play
@@ -367,6 +367,7 @@ Learned while finishing the Jolt branch; each cost real time.
 - **vsgopenmw predates VSG 1.1.** Several VSG 1.1 changes fail silently in vsgopenmw code: compile views registered before `Engine::setup` get no transfer task (geometry never uploads), shared reads clone "dynamic" objects (animation roots lose their bones), `vec3 * mat4` divides by the projective term, and `ViewDependentState` gained hooks that must be overridden. vsgXchange 1.1 also reads TGA, PNG, JPG and BMP as sRGB, which darkened most Morrowind textures until `vsgUtil::removeSrgb` (all image reads go through `vsgUtil::readOptionalImage` or `readImageFromMemory`). Research note 0003 section 5.4 lists each; suspect this first when something renders black or not at all.
 - **Debugging the VSG build on Windows.** No Vulkan validation layers are installed. Crashes write `openmw-crash.dmp` to the user data folder; read it with a dbghelp stack walker against the PDBs in `build-jolt`. Capture frames with `--auto-screenshot N --auto-quit M` rather than screen grabs. Interiors are one-sided, so a camera outside the room shows only effects.
 
+- **VSG's math reads like OSG's and is not.** `*` between vectors, matrix order, `normalize` of a zero vector, a matrix `==` with a NaN, the sixteen-number constructor's order: use `Misc::VsgMath` wherever OSG's answer matters. `vec * vec` of the same type is deleted so that it cannot compile silently; matrix products are not. The expected values in `apps/components_tests/math` are OSG's recorded results and cannot be regenerated: never edit a `*.golden.inc`.
 ## To do
 
 Work toddhow wants done later, not yet a task spec. Each item becomes a spec (or a research note) before work starts.
@@ -400,6 +401,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-31 | Track V stage V5 closed but for its unrun checks (task 0013): OSG math gone from the engine, `extern/osg`, the bridge and `components/vsgadapters/osg` deleted; the Morrowind pack on VSG math; convention tests reduced to OSG's recorded results (`*.golden.inc`), proved against OSG before it went; `osg::Stats` to `Misc::Stats`; 127 dead files deleted, those the editor and tools need listed in task 0014; `CI/check_no_osg.sh`. The fixed-seed scenario, AI pathing and image comparison are not run, so V5 stays unticked |
 | 2026-10-29 | Track V stage V3 (task 0011): foot IK, look-at, smoother turns, lean and compound hitboxes on `MWRender::BonePose`; the CreativeMotion pose driver on vsgopenmw's `Anim` system (`MWAnim::Play::getActiveState`, `Play::updateBones`), matching vsgopenmw's pose with transitions off; Jolt and navmesh debug draws through `MWRender::DebugGeometry`; the compatibility pack's own `.kf` reader (`compat_morrowind::KfTrack`) replacing NifOsg, so the pack builds again; `OPENEDEN_VSG_PENDING_FEATURES` and its registry removed. Module guides `apps/openmw/mwrender/CLAUDE.md` and `plugins/compat_morrowind/CLAUDE.md` added |
 | 2026-10-29 | Track V stage V2 close-out (task 0010): Linux `-Werror` build fixed, all unit tests and 32 Lua integration tests pass on Linux and Windows; reference scenes and frame times compared with an OSG build of `cf3dbd3aa7` (research note 0004); textures read as sRGB fixed (pitfall added). V2 stays open for toddhow's scene verdicts, the exterior CPU cost and the interactive playthrough |
 | 2026-10-29 | Track V stages V3 to V6 approved (tasks 0011 to 0014, toddhow): CreativeMotion handles animation blending (0.51's rules-based blending not ported); distortion moves to V4; OpenEden moves to Slang for shaders, with mod `.omwfx` shaders kept working through Slang's GLSL input and the built-in shaders later ported to Slang or replaced (research note 0005); VR removed for now; `vulkan` becomes the main line after V4 (toddhow merges it); V5 after V4 with a small `vsgmath.hpp`; V6 editor on vsgQt if it supports Qt 6.6.3, porting the existing views |

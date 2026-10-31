@@ -22,7 +22,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 
 - **Off means unchanged:** with every OpenEden setting at its default, the controllers never touch a bone. `ActorIkController` binds no bones, `CharacterController` creates no pose driver, and `Play::updateBones` stays true. Keep it that way: create state lazily, only when a setting is on.
 - **Bones through the bone interface:**
-  - Post-animation features read and write bones only through `BonePose`, which converts to OSG math internally until task 0013.
+  - Post-animation features read and write bones only through `BonePose`, on VSG math.
   - The pose driver writes `Anim::Transform::translation` and `setAttitude` directly; it owns those bones for the actors it drives.
 - **Units:**
   - CreativeMotion works in metres. Its adapters convert with `Constants::UnitsPerMeter` at one boundary each: `CreativeMotionPoseDriver` (`toMetres`, and the output loop in `update`).
