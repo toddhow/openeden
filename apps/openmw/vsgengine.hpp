@@ -76,8 +76,12 @@ namespace OMW
         friend class Game;
         friend class WindowListener;
 
-        // First, so that it is destroyed last: a Game state still alive when the Engine goes uses it to stop
-        // extensions. ~Engine stops extensions before any other member goes.
+        // First of all, so that it is destroyed last. MWBase::Environment::get() is null once it is gone, and things
+        // that tear down late look managers up through it: a movie still playing at exit stops its audio track
+        // through the sound manager. The OSG-era Engine got the same effect by resetting its managers in ~Engine.
+        MWBase::Environment mEnvironment;
+        // Next, so that it is destroyed last of the rest: a Game state still alive when the Engine goes uses it to
+        // stop extensions. ~Engine stops extensions before any other member goes.
         std::unique_ptr<ExtensionHost> mExtensionHost;
         std::unique_ptr<Render::Engine> mRenderEngine;
         SDL_Window* mWindow{};
@@ -97,7 +101,6 @@ namespace OMW
         // openeden-vsg: set by Boot; stops the L10n GMST lookup from reading the World's store once the Game state
         // destroys the World (L10n contexts keep their own copy of the lookup).
         std::function<void()> mDetachGmstLoader;
-        MWBase::Environment mEnvironment;
         std::unique_ptr<ToUTF8::Utf8Encoder> mEncoder;
         Translation::Storage mTranslationDataStorage;
         Files::PathContainer mDataDirs;

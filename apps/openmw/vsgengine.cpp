@@ -402,6 +402,11 @@ namespace OMW
             Version::getOpenmwVersionDescription(), mCfgMgr);
         mEnvironment.setWindowManager(*mWindowManager);
 
+        // As in OpenMW, the Lua manager exists before the input manager: loading screens pump input events, and every
+        // input handler passes them to Lua (inputEvent only queues them). Game::Game initialises it once the world exists.
+        mLuaManager = std::make_unique<MWLua::LuaManager>(mVFS.get(), args.resourceDir / "lua_libs");
+        mEnvironment.setLuaManager(*mLuaManager);
+
         mInputManager = std::make_unique<MWInput::InputManager>(
             mWindow, keybinderUser, keybinderUserExists, userGameControllerdb, gameControllerdb, args.grabMouse);
         mWindowListener = std::make_unique<WindowListener>(*this);

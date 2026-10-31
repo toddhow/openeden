@@ -67,9 +67,8 @@ namespace OMW
             , mEnvironment(e.mEnvironment)
             , mWorld(std::move(world))
         {
-            mEngine.mLuaManager = std::make_unique<MWLua::LuaManager>(mEngine.mVFS.get(), args.resourceDir / "lua_libs");
+            // Created by Engine::prepareEngine, before the input manager, so input during loading reaches a Lua manager.
             mLuaManager = mEngine.mLuaManager.get();
-            mEnvironment.setLuaManager(*mLuaManager);
 
             Compiler::registerExtensions(mExtensions);
             mScriptContext.reset(new MWScript::CompilerContext(MWScript::CompilerContext::Type_Full));
