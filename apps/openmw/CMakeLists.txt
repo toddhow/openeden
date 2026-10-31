@@ -1,6 +1,7 @@
 set(OPENMW_SOURCES
     vsgengine.cpp
     options.cpp
+    pluginhost.cpp
 )
 
 set(OPENMW_RESOURCES
@@ -12,6 +13,7 @@ set(OPENMW_HEADERS
     arguments.hpp
     options.hpp
     vsgengine.hpp
+    pluginhost.hpp
     game.hpp
     boot.hpp
 )

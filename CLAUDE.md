@@ -298,7 +298,7 @@ Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built agains
 - [x] Physics read-only with shape casts; collision layers, fixed-step phases and the Lua scripting service removed; events markable for Lua forwarding; SDK version 2.0 (built and tested on Windows; Linux gates not yet run)
 
 **W1 The host in the game** — task 0015 (`docs/tasks/0015-plugins-w1-host-in-game.md`)
-- [ ] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing
+- [x] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing (built and tested on Windows, including all 32 Lua tests; Linux gates and frame-time measurement not yet run)
 
 **W2 Data services on the engine** — task 0016 (`docs/tasks/0016-plugins-w2-data-services.md`)
 - [ ] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts
@@ -400,6 +400,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-30 | Track W stage W1 (task 0015), started alongside V4 at toddhow's request: `OMW::PluginHost` runs plugins in the game, with `plugin=<id>` in `openmw.cfg`, `--plugin` and `--no-plugins`; frame phases called from `Engine::frame` and `Game::run`; plugin and engine logging bridged; a plugin faulting at runtime disables its dependants. New `apps/openmw/CLAUDE.md`, `tools/check_plugin_phases.sh`, test plugins in `apps/openmw_tests/plugin/` |
 | 2026-10-30 | Track W stage W0 (task 0019): SDK 2.0. `PhysicsService` replaced by the read-only `PhysicsQueryService` (rays, sphere, capsule and box casts, opaque query masks the host publishes), which only attaches to a world the host owns; fixed-step phases, collision layers and `ScriptingService` removed with their tests; event types can be marked as forwarded to Lua (`EventBus::markForwardedToLua`, forwarding itself in task 0016); physics event types declared (`openeden/physics_events.hpp`, published in task 0017); SDK 1.x manifests refused with a clear reason; `CI/check_plugin_sdk.sh` added |
 | 2026-10-29 | Track V stage V3 (task 0011): foot IK, look-at, smoother turns, lean and compound hitboxes on `MWRender::BonePose`; the CreativeMotion pose driver on vsgopenmw's `Anim` system (`MWAnim::Play::getActiveState`, `Play::updateBones`), matching vsgopenmw's pose with transitions off; Jolt and navmesh debug draws through `MWRender::DebugGeometry`; the compatibility pack's own `.kf` reader (`compat_morrowind::KfTrack`) replacing NifOsg, so the pack builds again; `OPENEDEN_VSG_PENDING_FEATURES` and its registry removed. Module guides `apps/openmw/mwrender/CLAUDE.md` and `plugins/compat_morrowind/CLAUDE.md` added |
 | 2026-10-29 | Track V stage V2 close-out (task 0010): Linux `-Werror` build fixed, all unit tests and 32 Lua integration tests pass on Linux and Windows; reference scenes and frame times compared with an OSG build of `cf3dbd3aa7` (research note 0004); textures read as sRGB fixed (pitfall added). V2 stays open for toddhow's scene verdicts, the exterior CPU cost and the interactive playthrough |

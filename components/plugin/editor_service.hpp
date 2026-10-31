@@ -38,6 +38,9 @@ namespace openeden::plugin
 
         void unregisterExtensions(std::string_view pluginId) override;
 
+        /// Drops every object a plugin left here, while its library is still loaded.
+        void releasePluginObjects();
+
         [[nodiscard]] std::vector<std::shared_ptr<openeden::sdk::EditorWorkspace>> getWorkspaces() const override;
         [[nodiscard]] std::vector<std::shared_ptr<openeden::sdk::EditorInspector>> getInspectors() const override;
         [[nodiscard]] std::vector<std::shared_ptr<openeden::sdk::EditorGizmo>> getGizmos() const override;

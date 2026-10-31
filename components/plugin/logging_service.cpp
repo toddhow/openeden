@@ -82,9 +82,27 @@ namespace openeden::plugin
         mSinks.erase(std::remove(mSinks.begin(), mSinks.end(), sink), mSinks.end());
     }
 
+    void LoggingServiceImpl::releasePluginObjects()
+    {
+        // Destroyed after unlocking: a sink may log from its destructor
+        std::vector<std::shared_ptr<openeden::sdk::LogSink>> sinks;
+        std::lock_guard<std::mutex> lock(mMutex);
+        sinks.swap(mSinks);
+    }
+
     void LoggingServiceImpl::dispatch(
         std::string_view pluginId, openeden::sdk::LogLevel level, std::string_view message)
     {
+        // A sink that logs while receiving a line would call itself without end, so its own line is dropped.
+        thread_local bool sDispatching = false;
+        if (sDispatching)
+            return;
+        sDispatching = true;
+        struct Reset
+        {
+            ~Reset() { sDispatching = false; }
+        } reset;
+
         std::vector<std::shared_ptr<openeden::sdk::LogSink>> sinksCopy;
         {
             std::lock_guard<std::mutex> lock(mMutex);

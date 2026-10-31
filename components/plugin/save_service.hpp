@@ -33,6 +33,9 @@ namespace openeden::plugin
 
         void unregisterHandler(std::string_view pluginId) override;
 
+        /// Drops every object a plugin left here, while its library is still loaded.
+        void releasePluginObjects();
+
         /**
          * @brief Serializes all active and unread chunks into binary save data.
          */

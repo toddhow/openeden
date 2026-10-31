@@ -67,6 +67,12 @@ namespace openeden::plugin
 
         void unsubscribe(openeden::sdk::EventId id, std::string_view pluginId) override;
 
+        /// Removes all of one plugin's subscriptions. Not to be called while events are being delivered.
+        void unsubscribeAll(std::string_view pluginId);
+
+        /// Drops every object a plugin left here, while its library is still loaded.
+        void releasePluginObjects();
+
         /**
          * @brief Records an event type as forwarded to Lua. The engine reads the records in task 0016.
          */

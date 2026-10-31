@@ -43,7 +43,7 @@ All at OpenEden `459bd661f4` (or the commit this task starts from).
 - [x] Event types can be marked as forwarded to Lua with a flat payload; the test host records the marking (test).
 - [x] `components-tests` pass with the deleted tests listed in the pull request and every remaining plugin test passing.
 - [x] `components/plugin/CLAUDE.md` and `docs/design/plugin-implementation-guide.md` describe SDK 2.0.
-- [ ] All existing gates pass. Done on Windows: build, `components-tests` and `CI/check_plugin_sdk.sh`. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers and Lua integration tests. `DetourNavigatorRecastMeshObjectTest.update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true` fails now and then, also on the unmodified `vulkan` build.
+- [ ] All existing gates pass. Done on Windows: build, `components-tests` and `CI/check_plugin_sdk.sh`. Not run: Linux `-Werror`, clang-format 14, clang-tidy, sanitizers and Lua integration tests. `DetourNavigatorRecastMeshObjectTest.update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true` fails now and then in a full run and passes alone. This task changes nothing in `components/detournavigator`, but a clean `vulkan` build was not compared.
 
 ## Out of scope
 

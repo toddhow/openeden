@@ -29,6 +29,7 @@
 #include "mwstate/statemanagerimp.hpp"
 
 #include "boot.hpp"
+#include "pluginhost.hpp"
 
 namespace
 {
@@ -126,6 +127,7 @@ namespace OMW
         {
             std::cerr << "!InputManager::update(" << e.what() << ")" << std::endl;
         }
+
         if (mStateManager->getGameState() != gameState)
             return false;
 
@@ -140,6 +142,7 @@ namespace OMW
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             return false;
         }
+        mPluginHost->runPhase(openeden::sdk::Phase::Input, dt);
         if (gameState->updateSound)
             mSoundManager->update(dt);
 
@@ -171,7 +174,9 @@ namespace OMW
             mStateManager->popGameState(gameState);
             return false;
         }
+        mPluginHost->runPhase(openeden::sdk::Phase::PreRender, dt);
         mWindowManager->onFrame(dt);
+        mPluginHost->runPhase(openeden::sdk::Phase::Ui, dt);
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
         if (gameState->requiresScene)
             mRenderManager->onFrame(dt);
@@ -180,6 +185,9 @@ namespace OMW
 
     Engine::~Engine()
     {
+        if (mPluginHost)
+            mPluginHost->stop();
+
         if (mWindow)
         {
             SDL_DestroyWindow(mWindow);
@@ -312,6 +320,9 @@ namespace OMW
 
         Misc::Rng::init(args.randomSeed);
 
+        mPluginHost = std::make_unique<PluginHost>(PluginHost::Config{
+            { mCfgMgr.getLocalPath() / "plugins", mCfgMgr.getUserDataPath() / "plugins" }, args.plugins });
+
         mVFS = std::make_unique<VFS::Manager>();
 
         mDataDirs = args.dataDirs;
@@ -405,6 +416,8 @@ namespace OMW
             mCfgMgr.getUserDataPath() / "saves", args.contentFiles, mRenderManager->getScreenshotInterface());
         mEnvironment.setStateManager(*mStateManager);
 
+        mPluginHost->start();
+
         auto loadingScreen = mWindowManager->createLoadingScreen();
         loadingScreen->loading = std::make_shared<Boot>(*this, args);
         mStateManager->pushGameState(loadingScreen);
@@ -460,6 +473,8 @@ namespace OMW
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
 
         std::cout << "Quitting peacefully." << std::endl;
+
+        mPluginHost->stop();
 
         Settings::Manager::saveUser(mCfgMgr.getUserConfigPath() / "settings.cfg");
     }

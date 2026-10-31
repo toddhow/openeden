@@ -236,4 +236,9 @@ namespace openeden::plugin
             return false;
         }
     }
+
+    void VfsServiceImpl::releasePluginObjects()
+    {
+        mFormatReaders.clear();
+    }
 } // namespace openeden::plugin

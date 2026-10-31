@@ -8,6 +8,7 @@
 #include <openeden/phases.hpp>
 #include <openeden/plugin.hpp>
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <set>
@@ -55,6 +56,11 @@ namespace openeden::plugin
         void shutdown();
 
         /**
+         * @brief Sets a function shutdown() calls when plugins are stopped and destroyed, just before unloading them.
+         */
+        void setBeforeUnload(std::function<void()> callback) { mBeforeUnload = std::move(callback); }
+
+        /**
          * @brief Checks if a plugin is currently running and active.
          */
         bool isPluginActive(std::string_view id) const;
@@ -85,6 +91,7 @@ namespace openeden::plugin
 
         openeden::sdk::Host& mHost;
         ServiceRegistry mRegistry;
+        std::function<void()> mBeforeUnload;
 
         struct PluginRecord
         {

@@ -104,6 +104,21 @@ namespace openeden::plugin
         sortSubscribers(subs);
     }
 
+    void EventBusImpl::unsubscribeAll(std::string_view pluginId)
+    {
+        for (auto& [id, subs] : mSubscribers)
+        {
+            subs.erase(std::remove_if(subs.begin(), subs.end(),
+                           [&](const SubscriberEntry& entry) { return entry.pluginId == pluginId; }),
+                subs.end());
+        }
+    }
+
+    void EventBusImpl::releasePluginObjects()
+    {
+        mSubscribers.clear();
+    }
+
     void EventBusImpl::unsubscribe(openeden::sdk::EventId id, std::string_view pluginId)
     {
         auto it = mSubscribers.find(id);

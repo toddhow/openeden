@@ -52,6 +52,9 @@ namespace openeden::plugin
          */
         void setPluginLoadOrder(const std::vector<std::string>& loadOrder);
 
+        /// Runs the deleters of all entity data and forgets listeners, while plugin libraries are still loaded.
+        void releasePluginObjects();
+
     private:
         struct DataEntry
         {

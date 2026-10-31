@@ -16,6 +16,7 @@ namespace OMW
         std::vector<std::string> groundcoverFiles;
         Files::PathContainer dataDirs;
         std::vector<std::string> archives;
+        std::vector<std::string> plugins;
         std::filesystem::path resourceDir;
         ToUTF8::FromType encoding = ToUTF8::WINDOWS_1252;
 

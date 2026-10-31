@@ -59,6 +59,13 @@ namespace openeden::plugin
         void attachPhysicsWorld(JPH::PhysicsSystem& world, float worldUnitsPerMeter = 1.0f);
         void detachPhysicsWorld() noexcept;
 
+        /// Stops the services calling a plugin that has been disabled. Its format readers and log sinks carry no
+        /// plugin ID, so they stay until releasePluginObjects.
+        void disablePlugin(std::string_view pluginId);
+
+        /// Drops every object plugins left in the services. LifecycleManager calls it before unloading their libraries.
+        void releasePluginObjects();
+
         // Concrete service accessors for engine internals
         [[nodiscard]] EventBusImpl& eventBus() noexcept { return mEventBus; }
         [[nodiscard]] const EventBusImpl& eventBus() const noexcept { return mEventBus; }

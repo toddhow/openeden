@@ -59,8 +59,10 @@ namespace openeden::plugin
 
     /**
      * @brief Scans search directories for plugin folders containing valid plugin.json manifests.
+     * A folder whose manifest cannot be read is skipped; errors, if given, receives its reason (stage "manifest").
      */
-    std::vector<DiscoveredPlugin> discoverPluginDirectories(const std::vector<std::filesystem::path>& searchDirs);
+    std::vector<DiscoveredPlugin> discoverPluginDirectories(
+        const std::vector<std::filesystem::path>& searchDirs, std::vector<PluginLoadError>* errors = nullptr);
 
     /**
      * @brief Filters discovered plugins by an enabled list, preserving discovery order.

@@ -9,6 +9,24 @@ namespace openeden::plugin
         mHostInfo.sdkVersion = openeden::sdk::kSdkVersion;
     }
 
+    void HostImpl::disablePlugin(std::string_view pluginId)
+    {
+        mEventBus.unsubscribeAll(pluginId);
+        mEntityManager.unregisterLifecycleListener(pluginId);
+        mSaveService.unregisterHandler(pluginId);
+        mEditorService.unregisterExtensions(pluginId);
+    }
+
+    void HostImpl::releasePluginObjects()
+    {
+        mEventBus.releasePluginObjects();
+        mEntityManager.releasePluginObjects();
+        mSaveService.releasePluginObjects();
+        mVfsService.releasePluginObjects();
+        mLoggingService.releasePluginObjects();
+        mEditorService.releasePluginObjects();
+    }
+
     const openeden::sdk::HostInfo& HostImpl::getHostInfo() const
     {
         return mHostInfo;

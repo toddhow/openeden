@@ -2,6 +2,7 @@
 
 #include <components/plugin/entity_manager.hpp>
 #include <components/plugin/event_bus.hpp>
+#include <components/plugin/host_impl.hpp>
 #include <components/plugin/settings_service.hpp>
 #include <components/plugin/vfs_service.hpp>
 #include <openeden/debug_draw.hpp>
@@ -9,7 +10,7 @@
 #include <openeden/profiling.hpp>
 
 #include <algorithm>
-#include <iostream>
+#include <components/debug/debuglog.hpp>
 
 namespace openeden::plugin
 {
@@ -57,6 +58,11 @@ namespace openeden::plugin
 
         // Resolve dependencies
         const ResolutionResult resolution = resolveDependencies(manifests, mHost.getHostInfo().sdkVersion);
+
+        for (const auto& error : resolution.errors)
+        {
+            Log(Debug::Error) << "Plugin '" << error.pluginId << "' failed at resolve: " << error.message;
+        }
 
         for (const auto& disabledId : resolution.disabledPlugins)
         {
@@ -119,6 +125,9 @@ namespace openeden::plugin
             }
         }
 
+        // A provider that just failed must not leave its dependants to resolve and start
+        processDeferredFaults();
+
         // Phase 6.5: resolve in load order
         std::set<std::string> newlyDisabled;
         for (const auto& id : mLoadOrder)
@@ -176,6 +185,8 @@ namespace openeden::plugin
                         {
                             if (provision.contract == req.contract && provision.version.major == req.version.major)
                             {
+                                Log(Debug::Error) << "Plugin '" << id << "' failed at resolve: depends on disabled plugin '"
+                                                  << disabledId << "'";
                                 mDisabledPlugins.insert(id);
                                 mActivePlugins.erase(id);
                                 mRegistry.withdrawPlugin(id);
@@ -215,6 +226,8 @@ namespace openeden::plugin
                 {
                     markPluginFaulted(id, "start", "Unknown exception");
                 }
+                // Before the next plugin starts: its provider may just have failed
+                processDeferredFaults();
             }
         }
 
@@ -300,11 +313,11 @@ namespace openeden::plugin
                 }
                 catch (const std::exception& e)
                 {
-                    std::cerr << "OpenEden Plugin System: Error stopping plugin '" << *it << "': " << e.what() << '\n';
+                    Log(Debug::Error) << "Plugin '" << *it << "' failed at stop: " << e.what();
                 }
                 catch (...)
                 {
-                    std::cerr << "OpenEden Plugin System: Unknown error stopping plugin '" << *it << "'\n";
+                    Log(Debug::Error) << "Plugin '" << *it << "' failed at stop: unknown exception";
                 }
                 pluginIt->second.started = false;
             }
@@ -329,6 +342,13 @@ namespace openeden::plugin
         // Clear all registered callbacks (std::function) and contracts BEFORE unloading dynamic libraries
         mRegistry.clear();
 
+        // Plugins may have left objects in the services (a plugin whose start threw never ran stop), and their code
+        // goes away with the library.
+        if (mBeforeUnload)
+            mBeforeUnload();
+        if (auto* host = dynamic_cast<HostImpl*>(&mHost))
+            host->releasePluginObjects();
+
         // Unload dynamic libraries in REVERSE load order AFTER instances and callbacks are destructed
         for (auto it = mLoadOrder.rbegin(); it != mLoadOrder.rend(); ++it)
         {
@@ -352,8 +372,8 @@ namespace openeden::plugin
 
     void LifecycleManager::markPluginFaulted(const std::string& pluginId, const char* stage, const char* reason)
     {
-        std::cerr << "OpenEden Plugin System: Fault in plugin '" << pluginId << "' during stage '"
-                  << (stage ? stage : "unknown") << "': " << (reason ? reason : "no reason given") << '\n';
+        Log(Debug::Error) << "Plugin '" << pluginId << "' failed at " << (stage ? stage : "unknown") << ": "
+                          << (reason ? reason : "no reason given");
 
         mFaultedPlugins.insert(pluginId);
         mActivePlugins.erase(pluginId);
@@ -366,9 +386,33 @@ namespace openeden::plugin
         if (mPendingFaultedPlugins.empty())
             return;
 
-        for (const auto& pluginId : mPendingFaultedPlugins)
+        // The list can grow while walking it: a dependant's own dependants go too
+        for (std::size_t i = 0; i < mPendingFaultedPlugins.size(); ++i)
         {
+            const std::string pluginId = mPendingFaultedPlugins[i];
             mRegistry.withdrawPlugin(pluginId);
+            if (auto* host = dynamic_cast<HostImpl*>(&mHost))
+                host->disablePlugin(pluginId);
+
+            const auto faulted = mPlugins.find(pluginId);
+            if (faulted == mPlugins.end())
+                continue;
+            for (const auto& id : mLoadOrder)
+            {
+                const auto record = mPlugins.find(id);
+                if (record == mPlugins.end() || mActivePlugins.find(id) == mActivePlugins.end())
+                    continue;
+                const auto& required = record->second.manifest.requiredContracts;
+                const bool dependsOnFaulted
+                    = std::any_of(required.begin(), required.end(), [&](const ContractRequirement& req) {
+                          const auto& provided = faulted->second.manifest.providedContracts;
+                          return std::any_of(provided.begin(), provided.end(), [&](const ContractRequirement& offer) {
+                              return offer.contract == req.contract && offer.version.major == req.version.major;
+                          });
+                      });
+                if (dependsOnFaulted)
+                    markPluginFaulted(id, "dependency", ("depends on faulted plugin '" + pluginId + "'").c_str());
+            }
         }
         mPendingFaultedPlugins.clear();
         mDisabledPluginsList.assign(mDisabledPlugins.begin(), mDisabledPlugins.end());

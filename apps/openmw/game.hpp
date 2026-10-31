@@ -27,6 +27,7 @@
 #include "mwclass/classes.hpp"
 #include "mwrender/rendermanager.hpp"
 
+#include "pluginhost.hpp"
 #include "vsgengine.hpp"
 
 namespace OMW
@@ -120,6 +121,9 @@ namespace OMW
         }
         ~Game()
         {
+            // Plugins stop while the World they may hold IDs into still exists.
+            if (mEngine.mPluginHost)
+                mEngine.mPluginHost->stop();
             mEngine.mLuaActive = false;
             if (mLuaManager)
                 mLuaManager->savePermanentStorage(mEngine.mCfgMgr.getUserConfigPath().string());
@@ -171,6 +175,10 @@ namespace OMW
                     mWorld->rechargeItems(dt, true);
                 }
 
+                // Simulation phases run only while the game is unpaused, as the simulation does. dt is simulation time.
+                if (!paused)
+                    mEngine.mPluginHost->runPhase(openeden::sdk::Phase::PreSimulation, dt);
+
                 mMechanicsManager->update(dt, paused);
 
                 mEngine.mStateManager->/*advanceTimePlayed*/ update(dt);
@@ -180,6 +188,9 @@ namespace OMW
 
                 if (!paused)
                 {
+                    mEngine.mPluginHost->runPhase(openeden::sdk::Phase::PostSimulation, dt);
+                    mEngine.mPluginHost->runPhase(openeden::sdk::Phase::Animation, dt);
+
                     timeManager.setSimulationTime(timeManager.getSimulationTime() + dt);
                     timeManager.setRenderingSimulationTime(timeManager.getRenderingSimulationTime() + dt);
                 }

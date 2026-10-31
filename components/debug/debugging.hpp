@@ -27,6 +27,9 @@ namespace Debug
     using LogListener = std::function<void(Debug::Level, std::string_view prefix, std::string_view msg)>;
     void setLogListener(LogListener);
 
+    // Called after the main listener, which belongs to the in-game log viewer.
+    void setExtraLogListener(LogListener);
+
     // Can be used to print messages without timestamps
     std::ostream& getRawStdout();
 

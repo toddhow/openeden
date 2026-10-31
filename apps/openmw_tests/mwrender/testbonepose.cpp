@@ -10,6 +10,7 @@
 // - Anim::Bones built from a scene (components/animation/bones.cpp, InitBones) registers every named
 //   Anim::Transform under normalizeFunc(name); MWAnim::Bones (components/mwanimation/bones.hpp) lowercases.
 
+#include "apps/openmw/pluginhost.hpp"
 #include "apps/openmw/mwrender/bonepose.hpp"
 
 #include <components/animation/bones.hpp>
@@ -544,5 +545,20 @@ namespace
         }
         EXPECT_EQ(allocations, 0u);
         EXPECT_TRUE(std::isfinite(sink));
+    }
+
+    // Task 0015: with zero plugins the engine's phase calls cost nothing. Here because this file owns the counter.
+    TEST(PluginHostAllocationTest, runPhaseAllocatesNothingWithZeroPlugins)
+    {
+        OMW::PluginHost host(OMW::PluginHost::Config{});
+        host.start();
+        std::size_t allocations = 0;
+        {
+            AllocationCounter counter;
+            for (int frame = 0; frame < 100; ++frame)
+                host.runPhase(openeden::sdk::Phase::Input, 0.016f);
+            allocations = counter.count();
+        }
+        EXPECT_EQ(allocations, 0u);
     }
 }

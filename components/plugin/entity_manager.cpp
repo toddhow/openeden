@@ -13,6 +13,13 @@ namespace openeden::plugin
 
     EntityManagerImpl::~EntityManagerImpl()
     {
+        releasePluginObjects();
+    }
+
+    void EntityManagerImpl::releasePluginObjects()
+    {
+        mListeners.clear();
+
         // Clean up any remaining alive entity data slots
         for (std::size_t i = 1; i < mSlots.size(); ++i)
         {

@@ -26,6 +26,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testswitches.cpp
 
     mwscript/testscripts.cpp
+
+    plugin/testpluginhost.cpp
 )
 
 if (MSVC)
@@ -67,6 +69,36 @@ endif()
 target_compile_definitions(openmw-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
+
+# The plugin host's tests (task 0015) load real shared libraries: one source, built once per test ID, SDK only.
+# A provides the contract openeden.test.a, B requires it, C stands alone.
+include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenPlugin.cmake)
+
+foreach(OPENEDEN_TEST_PLUGIN_LETTER a b c)
+    set(OPENEDEN_TEST_PLUGIN_TARGET openeden_test_plugin_${OPENEDEN_TEST_PLUGIN_LETTER})
+    set(OPENEDEN_TEST_PLUGIN_OUTPUT "${CMAKE_BINARY_DIR}/test_plugins/$<CONFIG>")
+    openeden_add_plugin(${OPENEDEN_TEST_PLUGIN_TARGET} SOURCES plugin/testplugin/testplugin.cpp)
+    # Not in the output root: the Windows install rule ships every DLL there.
+    set_target_properties(${OPENEDEN_TEST_PLUGIN_TARGET} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${OPENEDEN_TEST_PLUGIN_OUTPUT}"
+        LIBRARY_OUTPUT_DIRECTORY "${OPENEDEN_TEST_PLUGIN_OUTPUT}")
+    foreach(OPENEDEN_TEST_PLUGIN_CONFIG ${CMAKE_CONFIGURATION_TYPES})
+        string(TOUPPER ${OPENEDEN_TEST_PLUGIN_CONFIG} OPENEDEN_TEST_PLUGIN_CONFIG)
+        set_target_properties(${OPENEDEN_TEST_PLUGIN_TARGET} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY_${OPENEDEN_TEST_PLUGIN_CONFIG} "${OPENEDEN_TEST_PLUGIN_OUTPUT}"
+            LIBRARY_OUTPUT_DIRECTORY_${OPENEDEN_TEST_PLUGIN_CONFIG} "${OPENEDEN_TEST_PLUGIN_OUTPUT}")
+    endforeach()
+    target_compile_definitions(${OPENEDEN_TEST_PLUGIN_TARGET}
+        PRIVATE OPENEDEN_TEST_PLUGIN_ID="${OPENEDEN_TEST_PLUGIN_TARGET}")
+    add_dependencies(openmw-tests ${OPENEDEN_TEST_PLUGIN_TARGET})
+
+    string(TOUPPER ${OPENEDEN_TEST_PLUGIN_LETTER} OPENEDEN_TEST_PLUGIN_LETTER_UPPER)
+    target_compile_definitions(openmw-tests
+        PRIVATE OPENEDEN_TEST_PLUGIN_${OPENEDEN_TEST_PLUGIN_LETTER_UPPER}_PATH="$<TARGET_FILE:${OPENEDEN_TEST_PLUGIN_TARGET}>")
+endforeach()
+
+target_compile_definitions(openeden_test_plugin_a PRIVATE OPENEDEN_TEST_PLUGIN_PROVIDES_A)
+target_compile_definitions(openeden_test_plugin_b PRIVATE OPENEDEN_TEST_PLUGIN_REQUIRES_A)
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-tests PRIVATE

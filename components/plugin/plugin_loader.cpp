@@ -26,7 +26,8 @@ namespace openeden::plugin
 #endif
     }
 
-    std::vector<DiscoveredPlugin> discoverPluginDirectories(const std::vector<std::filesystem::path>& searchDirs)
+    std::vector<DiscoveredPlugin> discoverPluginDirectories(
+        const std::vector<std::filesystem::path>& searchDirs, std::vector<PluginLoadError>* errors)
     {
         std::vector<DiscoveredPlugin> discovered;
 
@@ -61,6 +62,10 @@ namespace openeden::plugin
                     item.directory = directory;
                     item.manifestPath = manifestPath;
                     discovered.push_back(std::move(item));
+                }
+                else if (errors != nullptr)
+                {
+                    errors->push_back({ directory.filename().string(), "manifest", loadErr.toString() });
                 }
             }
         }

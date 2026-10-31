@@ -37,6 +37,9 @@ namespace openeden::plugin
         void addSink(std::shared_ptr<openeden::sdk::LogSink> sink) override;
         void removeSink(std::shared_ptr<openeden::sdk::LogSink> sink) override;
 
+        /// Drops every object a plugin left here, while its library is still loaded.
+        void releasePluginObjects();
+
         void dispatch(std::string_view pluginId, openeden::sdk::LogLevel level, std::string_view message);
 
     private:

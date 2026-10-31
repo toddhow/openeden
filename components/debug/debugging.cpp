@@ -1,5 +1,6 @@
 #include "debugging.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <deque>
 #include <fstream>
@@ -106,6 +107,13 @@ namespace Debug
         logListener = std::move(listener);
     }
 
+    // Unlike logListener, set after worker threads have started.
+    static std::atomic<std::shared_ptr<const LogListener>> extraLogListener;
+    void setExtraLogListener(LogListener listener)
+    {
+        extraLogListener.store(std::make_shared<const LogListener>(std::move(listener)));
+    }
+
     namespace
     {
         class DebugOutputBase : public boost::iostreams::sink
@@ -157,6 +165,8 @@ namespace Debug
                     if (logListener)
                         logListener(
                             level, std::string_view(prefix, prefixSize), std::string_view(msg.data(), lineSize));
+                    if (const auto extra = extraLogListener.load(); extra && *extra)
+                        (*extra)(level, std::string_view(prefix, prefixSize), std::string_view(msg.data(), lineSize));
                     msg = msg.substr(lineSize);
                 }
 

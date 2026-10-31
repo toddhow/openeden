@@ -135,4 +135,11 @@ namespace openeden::plugin
         }
         return nullptr;
     }
+
+    void EditorServiceImpl::releasePluginObjects()
+    {
+        mWorkspaces.clear();
+        mInspectors.clear();
+        mGizmos.clear();
+    }
 } // namespace openeden::plugin

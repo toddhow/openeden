@@ -51,6 +51,9 @@ namespace openeden::plugin
          */
         void setPluginLoadOrder(const std::vector<std::string>& loadOrder);
 
+        /// Drops every object a plugin left here, while its library is still loaded.
+        void releasePluginObjects();
+
     private:
         struct MountPoint
         {

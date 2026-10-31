@@ -279,4 +279,9 @@ namespace openeden::plugin
         }
         return ids;
     }
+
+    void SaveServiceImpl::releasePluginObjects()
+    {
+        mHandlers.clear();
+    }
 } // namespace openeden::plugin
