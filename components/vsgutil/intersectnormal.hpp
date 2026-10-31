@@ -1,6 +1,8 @@
 #ifndef VSGOPENMW_VSGUTIL_INTERSECTNORMAL_H
 #define VSGOPENMW_VSGUTIL_INTERSECTNORMAL_H
 
+#include <cmath>
+
 #include <vsg/maths/transform.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/state/ArrayState.h>
@@ -51,22 +53,28 @@ namespace vsgUtil
         const vsg::dvec3 local = vsg::cross(v1 - v0, v2 - v0);
         if (vsg::length2(local) == 0.0)
             return false;
-        normal = vsg::vec3(vsg::normalize(local * vsg::inverse_3x3(hit.localToWorld)));
+        // A transform with a zero scale has no inverse: inverse_3x3 then gives infinities or NaN.
+        const vsg::dvec3 world = vsg::normalize(local * vsg::inverse_3x3(hit.localToWorld));
+        if (!std::isfinite(world.x) || !std::isfinite(world.y) || !std::isfinite(world.z))
+            return false;
+        normal = vsg::vec3(world);
         return true;
     }
 
     /// The hit triangle's normal, never interpolated from a normal array, as a smooth mesh's vertex normals would change
-    /// what canPlaceObject and Lua's castRenderingRay see. Straight up if the triangle has no area or no vertices.
-    /// The second argument is unused, and stays for existing callers.
+    /// what canPlaceObject and Lua's castRenderingRay see. A zero vector if the triangle has no area or its transform
+    /// cannot be inverted: OSG's intersector never reported a hit on a triangle with no area (its determinant test,
+    /// osgUtil/LineSegmentIntersector.cpp, IntersectFunctor::intersect), so there is no normal to give. Straight up for
+    /// a hit with no triangle vertices to read, as before. The second argument is unused, and stays for existing callers.
     inline vsg::vec3 worldNormal(const vsg::LineSegmentIntersector::Intersection& intersection, int /*arrayID*/ = -1)
     {
+        auto vertices = hitVertices(intersection);
+        if (!vertices || intersection.indexRatios.size() < 3)
+            return { 0, 0, 1 };
         vsg::vec3 normal;
-        if (auto vertices = hitVertices(intersection))
-        {
-            if (geometricWorldNormal(intersection, *vertices, normal))
-                return normal;
-        }
-        return { 0, 0, 1 };
+        if (geometricWorldNormal(intersection, *vertices, normal))
+            return normal;
+        return { 0, 0, 0 };
     }
 }
 

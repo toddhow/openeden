@@ -1940,6 +1940,12 @@ namespace MWWorld
 
         if (result.mHit)
         {
+            // A hit with no normal (a triangle with no area, which OSG's intersector never reported) is not a surface
+            // to place on; acos of NaN would otherwise compare false and accept it.
+            const vsg::vec3& normal = result.mHitNormalWorld;
+            if (!(vsg::length2(normal) > 0.f) || !std::isfinite(normal.x) || !std::isfinite(normal.y)
+                || !std::isfinite(normal.z))
+                return false;
             // check if the wanted position is on a flat surface, and not e.g. against a vertical wall
             if (std::acos(vsg::dot(Misc::VsgMath::divide(result.mHitNormalWorld, vsg::length(result.mHitNormalWorld)),
                     vsg::vec3(0, 0, 1)))

@@ -35,7 +35,9 @@ namespace
         EXPECT_NEAR(normal.z, 1.f, 1e-5f);
     }
 
-    TEST(VsgUtilHitNormalMesh, aDegenerateTriangleGivesStraightUpAndNotNaN)
+    // OSG's intersector never hit a triangle with no area, so there is no normal: a zero vector, which canPlaceObject
+    // refuses (changed with toddhow's approval, 2026-10-31; it was straight up).
+    TEST(VsgUtilHitNormalMesh, aDegenerateTriangleGivesNoNormalAndNotNaN)
     {
         vsg::LineSegmentIntersector::Intersection hit;
         hit.arrays = { vsg::vec3Array::create({ { 1, 2, 3 }, { 1, 2, 3 }, { 1, 2, 3 } }) };
@@ -45,7 +47,7 @@ namespace
         EXPECT_FALSE(std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z));
         EXPECT_EQ(normal.x, 0.f);
         EXPECT_EQ(normal.y, 0.f);
-        EXPECT_EQ(normal.z, 1.f);
+        EXPECT_EQ(normal.z, 0.f);
     }
 
     TEST(VsgUtilHitNormalMesh, aHitWithNoVerticesGivesStraightUp)
