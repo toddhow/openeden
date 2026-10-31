@@ -25,8 +25,8 @@ namespace
 
         CollisionShape* mBoxShape;
         CollisionShape* mCompoundShape;
-        vsg::dmat4 mTransform{ Misc::Convert::makeOSGTransform(mObjectTransform.mPosition) };
         const ObjectTransform mObjectTransform{ ESM::Position{ { 1, 2, 3 }, { 1, 2, 3 } }, 0.5f };
+        vsg::dmat4 mTransform{ Misc::Convert::makeOSGTransform(mObjectTransform.mPosition) };
 
         DetourNavigatorRecastMeshObjectTest()
         {
