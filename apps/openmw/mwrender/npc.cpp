@@ -15,6 +15,17 @@
 #include <components/vsgutil/readnode.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/removechild.hpp>
+#include <components/vsgutil/searchbyname.hpp>
+#include <components/misc/pathhelpers.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
+#include <vsg/io/Options.h>
+#include <vsg/nodes/Switch.h>
+#include <vsg/utils/SharedObjects.h>
 
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/npcstats.hpp"
@@ -87,8 +98,6 @@ namespace MWRender
 
     void Npc::rebuild()
     {
-        // mScabbard.reset();
-        // mHolsteredShield.reset();
         updateNpcBase();
 
         compile();
@@ -122,6 +131,11 @@ namespace MWRender
     {
         for (size_t i = 0; i < ESM::PRT_Count; i++)
             removeIndividualPart((ESM::PartReferenceType)i);
+        removePath(mScabbard);
+        removePath(mHolsteredShield);
+        for (auto& path : mQuiver)
+            removePath(path);
+        mQuiver.clear();
 
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         const ESM::Race* race = store.get<ESM::Race>().find(mNpc->mRace);
@@ -170,45 +184,22 @@ namespace MWRender
         vsg::ref_ptr<const vsg::Node> node = mContext.readActor(smodel);
 
         animation = std::make_unique<MWAnim::Play>(MWAnim::Bones(static_cast<const vsg::Node&>(*node), MWAnim::groups), MWAnim::sNumBlendMasks);
+        if (Settings::game().mWeaponSheathing || Settings::game().mShieldSheathing)
+        {
+            addCustomBones(defaultSkeleton);
+            if (smodel != defaultSkeleton)
+                addCustomBones(smodel);
+        }
         animation->addAnimSources(mContext.readAnimations(sources), smodel);
         assignBones();
+        // Another skeleton may have the shield's sheath bone or not: as OpenMW's viewChange in NpcAnimation::rebuild.
+        updateCarriedLeftVisible();
         updateParts();
     }
 
-    /*
-    std::string Npc::getSheathedShieldMesh(const MWWorld::ConstPtr& shield) const
-    {
-        std::string mesh = getShieldMesh(shield, !mNpc->isMale());
-
-        if (mesh.empty())
-            return std::string();
-
-        std::string holsteredName = mesh;
-        holsteredName = holsteredName.replace(holsteredName.size()-4, 4, "_sh.nif");
-        if(mResourceSystem->getVFS()->exists(holsteredName))
-        {
-            osg::ref_ptr<osg::Node> shieldTemplate = mResourceSystem->getSceneManager()->getInstance(holsteredName);
-            SceneUtil::FindByNameVisitor findVisitor ("Bip01 Sheath");
-            shieldTemplate->accept(findVisitor);
-            osg::ref_ptr<osg::Node> sheathNode = findVisitor.mFoundNode;
-            if(!sheathNode)
-                return std::string();
-        }
-
-        return mesh;
-    }
-    */
-
     void Npc::updateEquipment()
     {
-        /*    static const bool shieldSheathing = Settings::Manager::getBool("shield sheathing", "Game");
-            if (shieldSheathing)
-            {
-                int weaptype = ESM::Weapon::None;
-                MWMechanics::getActiveWeapon(mPtr, &weaptype);
-                showCarriedLeft(updateCarriedLeftVisible(weaptype));
-            }
-        */
+        updateCarriedLeftVisible();
         updateParts();
         compile();
     }
@@ -307,6 +298,7 @@ namespace MWRender
         addWeapon();
         addCarriedLeft();
         addAmmo();
+        updateSheathing();
 
         bool isWerewolf = (getNpcType() == NpcType::Werewolf);
         ESM::RefId race = isWerewolf ? ESM::RefId::stringRefId("werewolf") : mNpc->mRace;
@@ -367,6 +359,13 @@ namespace MWRender
 
     void Npc::update(float dt)
     {
+        if (mQuiverDirty)
+        {
+            // Here and not in show(), which an animation thread may call: compiling is for the main thread.
+            mQuiverDirty = false;
+            updateQuiver();
+            compile();
+        }
         mFace->update(dt);
         Wielding::update(dt);
     }
@@ -376,7 +375,11 @@ namespace MWRender
         mPartPriorities[type] = 0;
         mPartslots[type] = -1;
 
-        auto& path = mParts[type];
+        removePath(mParts[type]);
+    }
+
+    void Npc::removePath(std::vector<vsg::Node*>& path)
+    {
         if (!path.empty())
         {
             mPartContext->compileContext->detach(vsg::ref_ptr{path.back()});
@@ -473,8 +476,6 @@ namespace MWRender
         }
         else
             removeIndividualPart(ESM::PRT_Weapon);
-        // updateHolsteredWeapon(!mShowWeapons);
-        // updateQuiver();
     }
 
     namespace
@@ -507,6 +508,320 @@ namespace MWRender
         }
     }
 
+    namespace
+    {
+        // Adds "_sh" before the extension, as OpenMW's addSuffixBeforeExtension.
+        std::string sheathModel(const std::string& model)
+        {
+            const size_t dot = model.rfind('.');
+            return dot == std::string::npos ? model + "_sh" : model.substr(0, dot) + "_sh" + model.substr(dot);
+        }
+
+        bool modelExists(const std::string& model)
+        {
+            return MWBase::Environment::get().getResourceSystem()->getVFS()->exists(VFS::Path::toNormalized(model));
+        }
+
+        vsg::Group* findGroup(vsg::Node& node, const std::string& name)
+        {
+            auto found = vsgUtil::SearchByName::search(node, name,
+                [](const std::string& a, const std::string& b) { return Misc::StringUtils::ciEqual(a, b); });
+            return found ? found->cast<vsg::Group>() : nullptr;
+        }
+    }
+
+    void Npc::addCustomBones(const std::string& model)
+    {
+        // As OpenMW's injectCustomBones: every .nif in the animations folder named after the skeleton.
+        std::string folder = Misc::StringUtils::lowerCase(model);
+        std::replace(folder.begin(), folder.end(), '\\', '/');
+        if (folder.starts_with("meshes/"))
+            folder.replace(0, 6, "animations");
+        else
+            folder.insert(0, "animations/");
+        const size_t dot = folder.rfind('.');
+        if (dot == std::string::npos)
+            return;
+        folder.resize(dot);
+        folder += '/';
+        for (const VFS::Path::Normalized& name :
+            MWBase::Environment::get().getResourceSystem()->getVFS()->getRecursiveDirectoryIterator(folder))
+        {
+            if (Misc::getFileExtension(name) == "nif")
+                if (auto node = mContext.readActor(std::string(name.value())))
+                    animation->bones.addCustomBones(*node);
+        }
+    }
+
+    vsg::ref_ptr<vsg::Node> Npc::readHolstered(const std::string& model) const
+    {
+        // A copy of its own, because the sheath nodes in it are changed.
+        auto options = vsg::Options::create(*mContext.actorOptions);
+        options->sharedObjects = {};
+        return vsgUtil::readNode(model, options);
+    }
+
+    std::vector<vsg::Node*> Npc::attachHolstered(vsg::ref_ptr<vsg::Node> node, MWAnim::PlaceholderResult& result,
+        const std::string& bone, std::optional<vsg::vec4> glowColor, bool animate)
+    {
+        if (glowColor)
+            addEnv(node, glowColor, getTransparency(*this));
+        auto path = MWAnim::attachBonesAndNode(node, *nodeToAddChildrenTo(), animation->bones, bone);
+        if (path.empty())
+            return path;
+        // A holstered bow keeps still: the weapon's own animation is for when it is drawn.
+        if (animate)
+        {
+            Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
+            auto offset = autoPlay.maxPhaseGroup();
+            result.link(ctx, [this, offset](const Anim::Controller* ctrl, vsg::Object* o) {
+                if (ctrl->hints.autoPlay)
+                    autoPlay.add(ctrl, o, offset);
+                else
+                    mStaticControllers.add(ctrl, o);
+            });
+        }
+        return path;
+    }
+
+    void Npc::updateCarriedLeftVisible()
+    {
+        if (!Settings::game().mShieldSheathing)
+            return;
+        int weaptype = ESM::Weapon::None;
+        MWMechanics::getActiveWeapon(mPtr, &weaptype);
+        show(Wield::CarriedLeft,
+            !hasSheathedShield() && !(MWMechanics::getWeaponType(weaptype)->mFlags & ESM::WeaponType::TwoHanded));
+    }
+
+    void Npc::updateSheathing()
+    {
+        if (Settings::game().mWeaponSheathing)
+        {
+            updateHolsteredWeapon();
+            updateQuiver();
+        }
+        if (Settings::game().mShieldSheathing)
+            updateHolsteredShield();
+    }
+
+    void Npc::updateHolsteredWeapon()
+    {
+        // As OpenMW's ActorAnimation::updateHolsteredWeapon.
+        removePath(mScabbard);
+        mHolsteredWeaponSwitch = {};
+
+        const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
+        auto weapon = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
+        if (weapon == inv.end() || weapon->getType() != ESM::Weapon::sRecordId)
+            return;
+        const auto* weaponType = MWMechanics::getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType);
+        const std::string bone = weaponType->mSheathingBone;
+        const std::string mesh = std::string(weapon->getClass().getModel(*weapon));
+        if (mesh.empty() || bone.empty() || !animation->bones.search(bone))
+            return;
+
+        // Since throwing weapons stack themselves, do not show such a weapon itself.
+        const bool canShowWeapon = weaponType->mWeaponClass != ESM::WeaponType::Thrown;
+        const bool animate = weaponType->mWeaponClass != ESM::WeaponType::Ranged;
+        const std::string scabbard = sheathModel(mesh);
+        auto weaponSwitch = vsg::Switch::create();
+        const bool visible = canShowWeapon && !isShown(Wield::Weapon);
+
+        if (!modelExists(scabbard))
+        {
+            // No scabbard: the weapon itself.
+            if (!canShowWeapon)
+                return;
+            auto node = mContext.readNode(mesh);
+            auto result = MWAnim::decorate(node, nullptr);
+            weaponSwitch->addChild(visible, node);
+            mScabbard = attachHolstered(weaponSwitch, result, bone, getGlowColor(*weapon), animate);
+        }
+        else
+        {
+            auto node = readHolstered(scabbard);
+            if (!node)
+                return;
+            auto result = MWAnim::decorate(node, nullptr);
+            if (vsg::Group* weaponNode = findGroup(*node, "Bip01 Weapon"))
+            {
+                // An empty weapon node places the common weapon mesh, so the _sh file need not hold it. Its contents
+                // go behind a switch, because the drawn weapon must not show in the scabbard too.
+                vsg::Group::Children contents;
+                contents.swap(weaponNode->children);
+                if (contents.empty())
+                {
+                    auto weaponMesh = mContext.readNode(mesh);
+                    MWAnim::decorate(weaponMesh, nullptr);
+                    if (const auto glowColor = getGlowColor(*weapon))
+                        addEnv(weaponMesh, glowColor, getTransparency(*this));
+                    contents.push_back(weaponMesh);
+                }
+                for (auto& child : contents)
+                    weaponSwitch->addChild(visible, child);
+                weaponNode->addChild(weaponSwitch);
+            }
+            mScabbard = attachHolstered(node, result, bone, {}, animate);
+        }
+        if (canShowWeapon)
+            mHolsteredWeaponSwitch = weaponSwitch;
+    }
+
+    void Npc::updateQuiver()
+    {
+        // As OpenMW's ActorAnimation::updateQuiver. Each child of "Bip01 Ammo" holds one arrow or throwing weapon.
+        for (auto& path : mQuiver)
+            removePath(path);
+        mQuiver.clear();
+
+        const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
+        auto weapon = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
+        if (weapon == inv.end() || weapon->getType() != ESM::Weapon::sRecordId)
+            return;
+        auto* ammoBone = animation->bones.search("Bip01 Ammo");
+        if (!ammoBone)
+            return;
+
+        const auto* weaponType = MWMechanics::getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType);
+        auto ammo = weapon;
+        int ammoCount = 0;
+        if (weaponType->mWeaponClass == ESM::WeaponType::Thrown)
+        {
+            // Throwing weapons use no ammunition: they stack, less the one in hand.
+            ammoCount = ammo->getCellRef().getCount();
+            if (isShown(Wield::Weapon))
+                --ammoCount;
+        }
+        else
+        {
+            ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
+            if (ammo == inv.end() || ammo->get<ESM::Weapon>()->mBase->mData.mType != weaponType->mAmmoType)
+                return;
+            ammoCount = ammo->getCellRef().getCount();
+            if (isShown(Wield::Ammo))
+                --ammoCount;
+        }
+
+        // Sorted, as Bones keeps no order and which slots fill first should not change between runs.
+        std::vector<std::string> slots;
+        animation->bones.forEach([&](const std::string& name, Anim::Bone& bone) {
+            if (bone.path.size() >= 2 && bone.path[bone.path.size() - 2].get() == ammoBone->node())
+                slots.push_back(name);
+        });
+        std::sort(slots.begin(), slots.end());
+
+        const std::string model = std::string(ammo->getClass().getModel(*ammo));
+        const auto glowColor = getGlowColor(*ammo);
+        for (int i = 0; i < ammoCount && i < static_cast<int>(slots.size()); ++i)
+        {
+            auto node = mContext.readNode(model);
+            auto result = MWAnim::decorate(node, nullptr);
+            auto path = attachHolstered(node, result, slots[i], glowColor, false);
+            if (!path.empty())
+                mQuiver.push_back(std::move(path));
+        }
+    }
+
+    std::string Npc::getSheathedShieldMesh(const MWWorld::ConstPtr& shield) const
+    {
+        // As OpenMW's NpcAnimation::getSheathedShieldMesh.
+        std::string mesh = getShieldMesh(shield, !mNpc->isMale());
+        if (mesh.empty())
+            return {};
+        const std::string holstered = sheathModel(mesh);
+        if (modelExists(holstered))
+        {
+            auto node = readHolstered(holstered);
+            if (!node || !findGroup(*node, "Bip01 Sheath"))
+                return {};
+        }
+        return mesh;
+    }
+
+    bool Npc::hasSheathedShield() const
+    {
+        if (!Settings::game().mShieldSheathing || !mPtr.getClass().hasInventoryStore(mPtr))
+            return false;
+        if (mPtr.getClass().getCreatureStats(mPtr).getDrawState() != MWMechanics::DrawState::Nothing)
+            return false;
+        if (!animation->bones.search("Bip01 AttachShield"))
+            return false;
+        const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
+        auto shield = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
+        return shield != inv.end() && shield->getType() == ESM::Armor::sRecordId
+            && !getSheathedShieldMesh(*shield).empty();
+    }
+
+    bool Npc::canAnimateShield() const
+    {
+        // As OpenMW's ActorAnimation::useShieldAnimations, whose text key checks are in CharacterController.
+        if (!Settings::game().mShieldSheathing || !mPtr.getClass().hasInventoryStore(mPtr))
+            return false;
+        const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
+        auto weapon = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
+        auto shield = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
+        if (weapon == inv.end() || shield == inv.end() || shield->getType() != ESM::Armor::sRecordId
+            || getSheathedShieldMesh(*shield).empty())
+            return false;
+        if (weapon->getType() == ESM::Weapon::sRecordId)
+            return !(MWMechanics::getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType)->mFlags
+                & ESM::WeaponType::TwoHanded);
+        return weapon->getType() == ESM::Lockpick::sRecordId || weapon->getType() == ESM::Probe::sRecordId;
+    }
+
+    void Npc::updateHolsteredShield()
+    {
+        // As OpenMW's ActorAnimation::updateHolsteredShield, with a switch in place of rebuilding on every show.
+        removePath(mHolsteredShield);
+        mHolsteredShieldSwitch = {};
+
+        const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
+        auto shield = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
+        if (shield == inv.end() || shield->getType() != ESM::Armor::sRecordId)
+            return;
+        // Can not show holstered shields with two-handed weapons at all.
+        auto weapon = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
+        if (weapon == inv.end())
+            return;
+        if (weapon->getType() == ESM::Weapon::sRecordId
+            && (MWMechanics::getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType)->mFlags
+                & ESM::WeaponType::TwoHanded))
+            return;
+        const std::string mesh = getSheathedShieldMesh(*shield);
+        const std::string bone = "Bip01 AttachShield";
+        if (mesh.empty() || !animation->bones.search(bone))
+            return;
+
+        const std::string holstered = sheathModel(mesh);
+        const auto glowColor = getGlowColor(*shield);
+        auto node = modelExists(holstered) ? readHolstered(holstered) : mContext.readNode(mesh);
+        if (!node)
+            return;
+        auto result = MWAnim::decorate(node, nullptr);
+        // An empty sheath node places the common shield mesh, so the _sh file need not hold it.
+        if (vsg::Group* sheath = findGroup(*node, "Bip01 Sheath"); sheath && sheath->children.empty())
+        {
+            auto shieldMesh = mContext.readNode(mesh);
+            MWAnim::decorate(shieldMesh, nullptr);
+            sheath->addChild(shieldMesh);
+        }
+        mHolsteredShieldSwitch = vsg::Switch::create();
+        mHolsteredShieldSwitch->addChild(!isShown(Wield::CarriedLeft), node);
+        mHolsteredShield = attachHolstered(mHolsteredShieldSwitch, result, bone, glowColor, true);
+    }
+
+    void Npc::show(Wield w, bool visible)
+    {
+        Wielding::show(w, visible);
+        if (w == Wield::Weapon && mHolsteredWeaponSwitch)
+            mHolsteredWeaponSwitch->setAllChildren(!visible);
+        else if (w == Wield::CarriedLeft && mHolsteredShieldSwitch)
+            mHolsteredShieldSwitch->setAllChildren(!visible);
+        if ((w == Wield::Weapon || w == Wield::Ammo) && Settings::game().mWeaponSheathing)
+            mQuiverDirty = true;
+    }
+
     void Npc::addCarriedLeft()
     {
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
@@ -530,8 +845,6 @@ namespace MWRender
         }
         else
             removeIndividualPart(ESM::PRT_Shield);
-
-        // updateHolsteredShield(mShowCarriedLeft);
     }
 
     void Npc::addAmmo()
@@ -550,7 +863,6 @@ namespace MWRender
             mAttachAmmo->subgraphRequiresLocalFrustum = true;
             mAttachAmmo->addChild(node);
         }
-        // updateQuiver();
     }
 
     void Npc::setFacialState(bool enable, bool talking, float loudness)

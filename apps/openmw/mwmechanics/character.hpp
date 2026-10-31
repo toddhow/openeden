@@ -303,6 +303,7 @@ namespace MWMechanics
         std::string chooseRandomGroup(const std::string& prefix, int* num = nullptr) const;
 
         bool updateCarriedLeftVisible(int weaptype) const;
+        bool useShieldAnimations() const;
 
         std::string fallbackShortWeaponGroup(
             const std::string& baseGroupName, MWAnim::BlendMask* blendMask = nullptr) const;

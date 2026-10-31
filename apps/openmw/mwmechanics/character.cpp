@@ -1301,8 +1301,17 @@ namespace MWMechanics
         }
     }
 
+    bool CharacterController::useShieldAnimations() const
+    {
+        return mWielding && mWielding->canAnimateShield() && mAnimation->getTextKeyTime("shield: equip attach") >= 0
+            && mAnimation->getTextKeyTime("shield: unequip detach") >= 0;
+    }
+
     bool CharacterController::updateCarriedLeftVisible(const int weaptype) const
     {
+        if (mWielding && mWielding->hasSheathedShield())
+            return false;
+
         // Shields/torches shouldn't be visible during any operation involving two hands
         // There seems to be no text keys for this purpose, except maybe for "[un]equip start/stop",
         // but they are also present in weapon drawing animation.
@@ -1472,9 +1481,7 @@ namespace MWMechanics
                     weapgroup = getWeaponAnimation(mWeaponType);
                     int unequipMask = MWAnim::BlendMask_All;
                     mUpperBodyState = UpperBodyState::Unequipping;
-                    // openeden-vsg: shield sheathing (off by default) is not rendered on VSG yet, so shield
-                    // animations stay off until it is ported (task 0012, Track V stage V4).
-                    const bool useShieldAnims = false;
+                    const bool useShieldAnims = useShieldAnimations();
                     if (useShieldAnims && mWeaponType != ESM::Weapon::HandToHand && mWeaponType != ESM::Weapon::Spell
                         && !(mWeaponType == ESM::Weapon::None && weaptype == ESM::Weapon::Spell))
                     {
@@ -1512,7 +1519,7 @@ namespace MWMechanics
                 if (weaptype != mWeaponType && mUpperBodyState <= UpperBodyState::WeaponEquipped)
                 {
                     forcestateupdate = true;
-                    const bool useShieldAnims = false; // see the unequip path above
+                    const bool useShieldAnims = useShieldAnimations();
                     if (!useShieldAnims)
                         showCarriedLeft(updateCarriedLeftVisible(weaptype));
 

@@ -17,6 +17,9 @@ namespace vsg
 
 namespace Anim
 {
+    /// openeden-vsg: the value set on a skeleton file's node that a mod marks as a new bone.
+    inline constexpr const char* sCustomBoneKey = "CustomBone";
+
     class Transform;
     using BonePath = std::vector<vsg::ref_ptr<Transform>>;
     struct Bone
@@ -33,6 +36,7 @@ namespace Anim
     {
         friend class InitBones;
         friend class CopyBones;
+        friend class FindCustomBones;
         std::unordered_map<std::string, Bone> mByName;
 
     public:
@@ -62,6 +66,10 @@ namespace Anim
         Bones(NormalizeFunc f, vsg::Node& scene);
 
         Bone* search(const std::string& name);
+
+        /// openeden-vsg: adds detached copies of the custom bones in \p graph, each under the existing bone named as its
+        /// parent in that graph. A bone already present stays as it is (task 0012).
+        void addCustomBones(const vsg::Node& graph);
 
         /// openeden-vsg: visits every bone with its normalized name, in no particular order (task 0011).
         template <class Func>

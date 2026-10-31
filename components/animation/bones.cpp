@@ -24,6 +24,11 @@ namespace Anim
             overrideMask = vsg::MASK_ALL;
             mGroupStack.emplace(0);
         }
+        void startUnder(const Bone& parent)
+        {
+            this->path = parent.path;
+            mGroupStack.push(parent.group);
+        }
         using vsg::ConstVisitor::apply;
         void apply(const vsg::Transform& transform) override
         {
@@ -52,6 +57,41 @@ namespace Anim
             transform.traverse(*this);
             if (pushedGroup)
                 mGroupStack.pop();
+        }
+    };
+
+    class FindCustomBones : public vsgUtil::TConstTraverse<vsg::Node>
+    {
+        Bones& mBones;
+        const vsg::Node* mParent = nullptr;
+
+    public:
+        FindCustomBones(Bones& bones)
+            : mBones(bones)
+        {
+            overrideMask = vsg::MASK_ALL;
+        }
+        using vsg::ConstVisitor::apply;
+        void apply(const vsg::Transform& transform) override
+        {
+            bool custom = false;
+            transform.getValue(sCustomBoneKey, custom);
+            if (custom && mParent)
+            {
+                if (const Bone* parent = mBones.search(vsgUtil::getName(*mParent)))
+                {
+                    static const std::map<std::string, uint32_t> noGroups;
+                    CopyBones copy(mBones, noGroups);
+                    copy.startUnder(*parent);
+                    transform.accept(copy);
+                }
+                return;
+            }
+            const vsg::Node* previous = mParent;
+            if (!vsgUtil::getName(transform).empty())
+                mParent = &transform;
+            transform.traverse(*this);
+            mParent = previous;
         }
     };
 
@@ -106,6 +146,12 @@ namespace Anim
     {
         InitBones visitor(*this);
         scene.accept(visitor);
+    }
+
+    void Bones::addCustomBones(const vsg::Node& graph)
+    {
+        FindCustomBones visitor(*this);
+        graph.accept(visitor);
     }
 
     Bone* Bones::search(const std::string& name)

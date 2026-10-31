@@ -29,10 +29,15 @@ namespace MWAnim
             CarriedLeft = 1,
             Ammo = 2
         };
-        void show(Wield w, bool visible);
+        virtual void show(Wield w, bool visible);
         bool isShown(Wield w) const;
         void update(float dt) override;
         std::vector<const Anim::Transform*> getWieldWorldTransform(Wield w) const;
+
+        /// openeden-vsg: whether a shield is on the actor's back while nothing is drawn ([Game] shield sheathing).
+        virtual bool hasSheathedShield() const { return false; }
+        /// openeden-vsg: whether the shield moves between hand and back in step with the current weapon.
+        virtual bool canAnimateShield() const { return false; }
 
     protected:
         vsg::Transform* mAttachAmmo{};

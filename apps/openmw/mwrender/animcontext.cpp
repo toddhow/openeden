@@ -26,9 +26,10 @@ namespace
         options->propagateDynamicObjects = {};
         options->findFileCallback = [resourceSystem](const vsg::Path& file, const vsg::Options* /*options*/) -> vsg::Path
         {
-            // openeden-vsg: accept paths with or without "meshes/", as OpenMW 0.51 callers pass corrected paths.
+            // openeden-vsg: accept paths with or without "meshes/", as OpenMW 0.51 callers pass corrected paths. Skeleton
+            // files that add bones live under "animations/" (Npc::addCustomBones).
             VFS::Path::Normalized path(file.string());
-            if (!path.value().starts_with("meshes/"))
+            if (!path.value().starts_with("meshes/") && !path.value().starts_with("animations/"))
                 path = Misc::ResourceHelpers::correctMeshPath(path);
             return vsg::Path(Misc::ResourceHelpers::correctActorModelPath(path, resourceSystem->getVFS()).value());
         };

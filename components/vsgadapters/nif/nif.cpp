@@ -19,6 +19,7 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/vfs/pathutil.hpp>
+#include <components/animation/bones.hpp>
 #include <components/animation/billboard.hpp>
 #include <components/animation/color.hpp>
 #include <components/animation/cullparticles.hpp>
@@ -156,6 +157,9 @@ namespace
         if (slashpos != std::string::npos && slashpos + 1 < filename.size())
         {
             std::string basename = filename.substr(slashpos + 1);
+            // openeden-vsg: sheathing finds nodes by name in skeleton additions and _sh meshes (Npc::addCustomBones).
+            if (filename.starts_with("animations/") || basename.ends_with("_sh.nif"))
+                return false;
             // xmesh.nif can not be optimized because there are keyframes added in post
             if (!basename.empty() && basename[0] == 'x')
                 return false;
@@ -1439,7 +1443,9 @@ namespace vsgAdapters
                     }
                     else if (sd->mData == "BONE")
                     {
-                        //;
+                        // openeden-vsg: a bone for Anim::Bones::addCustomBones, as OpenMW's nifloader.cpp "CustomBone" (task 0012).
+                        if (group)
+                            group->setValue(Anim::sCustomBoneKey, true);
                     }
                 }
             }
