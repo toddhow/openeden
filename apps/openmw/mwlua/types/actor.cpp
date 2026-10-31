@@ -382,7 +382,7 @@ namespace MWLua
                 = MWBase::Environment::get().getWorld()->getPathfindingAgentBounds(o.ptr());
             sol::table result(thisState, sol::create);
             result["shapeType"] = agentBounds.mShapeType;
-            result["halfExtents"] = agentBounds.mHalfExtents;
+            result["halfExtents"] = osg::Vec3f(agentBounds.mHalfExtents);
             return result;
         };
         actor["isInActorsProcessingRange"] = [](const Object& o) {

@@ -264,9 +264,9 @@ namespace DetourNavigator
         const vsg::ivec2& cellPosition, const int cellSize, const float level, const UpdateGuard* guard)
     {
         const vsg::vec3 shift = getWaterShift3d(cellPosition, cellSize, level);
-        const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<int>::max()
-            ? std::optional<TilesPositionsRange>()
-            : makeTilesPositionsRange(cellSize, shift, mSettings);
+        std::optional<TilesPositionsRange> range;
+        if (cellSize != std::numeric_limits<int>::max())
+            range = makeTilesPositionsRange(cellSize, shift, mSettings);
         {
             const MaybeLockGuard lock(mMutex, guard);
             auto it = mWater.find(cellPosition);
@@ -311,9 +311,9 @@ namespace DetourNavigator
         const vsg::ivec2& cellPosition, const int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
     {
         const vsg::vec3 shift = getHeightfieldShift(shape, cellPosition, cellSize);
-        const std::optional<TilesPositionsRange> range = cellSize == std::numeric_limits<int>::max()
-            ? std::optional<TilesPositionsRange>()
-            : makeTilesPositionsRange(cellSize, shift, mSettings);
+        std::optional<TilesPositionsRange> range;
+        if (cellSize != std::numeric_limits<int>::max())
+            range = makeTilesPositionsRange(cellSize, shift, mSettings);
         {
             const MaybeLockGuard lock(mMutex, guard);
             auto it = mHeightfields.find(cellPosition);

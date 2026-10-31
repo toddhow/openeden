@@ -298,7 +298,8 @@ namespace MWLua
               };
 
         api["findRandomPointAroundCircle"] = [](const osg::Vec3f& position, float maxRadius,
-                                                 const sol::optional<sol::table>& options) {
+                                                 const sol::optional<sol::table>& options)
+                                                     -> std::optional<osg::Vec3f> {
             DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
@@ -323,7 +324,8 @@ namespace MWLua
         };
 
         api["castNavigationRay"]
-            = [](const osg::Vec3f& from, const osg::Vec3f& to, const sol::optional<sol::table>& options) {
+            = [](const osg::Vec3f& from, const osg::Vec3f& to, const sol::optional<sol::table>& options)
+                -> std::optional<osg::Vec3f> {
                   DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
                   DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
@@ -344,7 +346,8 @@ namespace MWLua
                       *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, from, to, includeFlags);
               };
 
-        api["findNearestNavMeshPosition"] = [](const osg::Vec3f& position, const sol::optional<sol::table>& options) {
+        api["findNearestNavMeshPosition"] = [](const osg::Vec3f& position, const sol::optional<sol::table>& options)
+            -> std::optional<osg::Vec3f> {
             DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
             std::optional<osg::Vec3f> searchAreaHalfExtents;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;

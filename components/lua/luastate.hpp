@@ -9,6 +9,8 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include "novsgtypes.hpp"
+
 #include "configuration.hpp"
 #include "luastateptr.hpp"
 
