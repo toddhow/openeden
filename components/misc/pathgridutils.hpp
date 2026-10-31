@@ -5,7 +5,7 @@
 
 #include <components/esm3/loadpgrd.hpp>
 
-#include <osg/Vec3f>
+#include <vsg/maths/vec3.h>
 
 #include <stdexcept>
 
@@ -15,9 +15,9 @@ namespace Misc
     // Caller needs to be careful for very short distances (i.e. less than 1)
     // or when accumuating the results i.e. (a + b)^2 != a^2 + b^2
     //
-    inline float distanceSquared(const ESM::Pathgrid::Point& point, const osg::Vec3f& pos)
+    inline float distanceSquared(const ESM::Pathgrid::Point& point, const vsg::vec3& pos)
     {
-        return (Misc::Convert::makeOsgVec3f(point) - pos).length2();
+        return vsg::length2(Misc::Convert::makeOsgVec3f(point) - pos);
     }
 
     // Return the closest pathgrid point index from the specified position
@@ -26,7 +26,7 @@ namespace Misc
     //
     // NOTE: pos is expected to be in local coordinates, as is grid->mPoints
     //
-    inline std::size_t getClosestPoint(const ESM::Pathgrid& grid, const osg::Vec3f& pos)
+    inline std::size_t getClosestPoint(const ESM::Pathgrid& grid, const vsg::vec3& pos)
     {
         if (grid.mPoints.empty())
             throw std::invalid_argument("Pathgrid has no points");

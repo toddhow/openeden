@@ -248,7 +248,7 @@ namespace MWMechanics
                     const int mask = MWPhysics::Layers::WORLD;
                     const osg::Vec3f zOffset(0.f, 0.f, 16.f);
                     const osg::Vec3f from = startPoint + zOffset;
-                    const osg::Vec3f to = Misc::Convert::makeOsgVec3f(temp) + zOffset;
+                    const osg::Vec3f to = osg::Vec3f(Misc::Convert::makeOsgVec3f(temp)) + zOffset;
                     bool isPathClear
                         = !MWBase::Environment::get().getWorld()->getRayCasting()->castRay(from, to, mask).mHit;
                     if (isPathClear)

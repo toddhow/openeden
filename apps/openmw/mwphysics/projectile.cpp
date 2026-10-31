@@ -27,7 +27,7 @@ namespace MWPhysics
         setCaster(caster);
 
         JPH::BodyCreationSettings bodyCreationSettings
-            = PhysicsSystemHelpers::makePhysicsBodySettings(new JPH::SphereShape(radius), mPosition,
+            = PhysicsSystemHelpers::makePhysicsBodySettings(new JPH::SphereShape(radius), osg::Vec3f(mPosition),
                 osg::Quat(1.0f, 0.0f, 0.0f, 0.0f), Layers::PROJECTILE, JPH::EMotionType::Dynamic);
 
         bodyCreationSettings.mEnhancedInternalEdgeRemoval = true;

@@ -811,7 +811,7 @@ namespace MWMechanics
                 const ESM::Pathgrid::Point& connDest = points[randomIndex];
 
                 // add an offset towards random neighboring node
-                osg::Vec3f dir = Misc::Convert::makeOsgVec3f(connDest) - dest;
+                osg::Vec3f dir = osg::Vec3f(Misc::Convert::makeOsgVec3f(connDest)) - dest;
                 const float length = dir.length();
                 dir.normalize();
 
@@ -946,7 +946,7 @@ namespace MWMechanics
         const ESM::Pathgrid::Point& start, const ESM::Pathgrid::Point& end, AiWanderStorage& storage)
     {
         osg::Vec3f vectorStart = Misc::Convert::makeOsgVec3f(start);
-        osg::Vec3f delta = Misc::Convert::makeOsgVec3f(end) - vectorStart;
+        osg::Vec3f delta = osg::Vec3f(Misc::Convert::makeOsgVec3f(end)) - vectorStart;
         float length = delta.length();
         delta.normalize();
 

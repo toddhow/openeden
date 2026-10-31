@@ -82,7 +82,7 @@ namespace
     osg::Quat makeDirectNodeRotation(const MWWorld::Ptr& ptr)
     {
         const auto& pos = ptr.getRefData().getPosition();
-        return ptr.getClass().isActor() ? makeActorOsgQuat(pos) : Misc::Convert::makeOsgQuat(pos);
+        return ptr.getClass().isActor() ? makeActorOsgQuat(pos) : osg::Quat(Misc::Convert::makeOsgQuat(pos));
     }
 
     osg::Quat makeNodeRotation(const MWWorld::Ptr& ptr, RotationOrder order)
@@ -148,7 +148,7 @@ namespace
                 // The shape instance is unscaled, the object transform includes the scale
                 const JPH::AABox localBounds = object->getShapeInstance()->mCollisionShape->GetLocalBounds();
                 const osg::BoundingBox bounds(
-                    Misc::Convert::toOsg(localBounds.mMin), Misc::Convert::toOsg(localBounds.mMax));
+                    osg::Vec3f(Misc::Convert::toOsg(localBounds.mMin)), osg::Vec3f(Misc::Convert::toOsg(localBounds.mMax)));
                 const osg::Matrixd transform = object->getTransform();
                 for (unsigned int i = 0; i < 8; ++i)
                     lowestPoint = std::min(lowestPoint, static_cast<float>((bounds.corner(i) * transform).z()));

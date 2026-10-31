@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_JOLTHELPERS_AABB_H
 #define OPENMW_COMPONENTS_JOLTHELPERS_AABB_H
 
-#include <osg/Matrixd>
+#include <vsg/maths/mat4.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
@@ -22,12 +22,12 @@ namespace PhysicsSystemHelpers
         return getAabb(&shape, transform);
     }
 
-    inline JPH::AABox getAabb(const JPH::Shape& shape, const osg::Matrixd& transform)
+    inline JPH::AABox getAabb(const JPH::Shape& shape, const vsg::dmat4& transform)
     {
         return getAabb(&shape, Misc::Convert::toJoltNoScale(transform));
     }
 
-    inline JPH::AABox getAabb(const JPH::Shape* shape, const osg::Matrixd& transform)
+    inline JPH::AABox getAabb(const JPH::Shape* shape, const vsg::dmat4& transform)
     {
         return getAabb(shape, Misc::Convert::toJoltNoScale(transform));
     }

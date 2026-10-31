@@ -120,7 +120,7 @@ namespace MWPhysics
         if (rayHit)
         {
             JPH::RVec3 hitPointWorld = ray.GetPointOnRay(hit.mFraction);
-            if (((Misc::Convert::toOsg(hitPointWorld) - tracer.mEndPos + offset).length2() > 35 * 35
+            if (((osg::Vec3f(Misc::Convert::toOsg(hitPointWorld)) - tracer.mEndPos + offset).length2() > 35 * 35
                     || !isWalkableSlope(tracer.mPlaneNormal)))
             {
                 JPH::BodyLockRead lock(physicsSystem->GetBodyLockInterface(), hit.mBodyID);
@@ -128,8 +128,8 @@ namespace MWPhysics
                 {
                     const JPH::Body& hitBody = lock.GetBody();
                     const JPH::Vec3 normal = hitBody.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPointWorld);
-                    actor->setOnSlope(!isWalkableSlope(Misc::Convert::toOsg(normal)));
-                    return Misc::Convert::toOsg(hitPointWorld) + osg::Vec3f(0.f, 0.f, sGroundOffset);
+                    actor->setOnSlope(!isWalkableSlope(osg::Vec3f(Misc::Convert::toOsg(normal))));
+                    return osg::Vec3f(Misc::Convert::toOsg(hitPointWorld)) + osg::Vec3f(0.f, 0.f, sGroundOffset);
                 }
             }
         }
