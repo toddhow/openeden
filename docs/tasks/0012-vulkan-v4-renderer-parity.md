@@ -318,7 +318,10 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
 - **Object paging** (only with `distant terrain = true`, off by default). (Weather particle occlusion: **done**, V4l; alpha to coverage: **done**, V4j; soft particles: **done**, V4k.)
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
 - **ESM4 terrain** (work item 3).
-- **The deferred 0.49→0.51 renderer changes** (work item 6).
+- **The deferred 0.49→0.51 renderer changes** (work item 6), checked against research note 0003 section 5.9 on 2026-10-31:
+  - Done: graphic herbalism (`MWRender::findSwitches`); the hit overlay's additive blend (texture shader `blend_add` in `MWGui::WindowManager`, so `AdditiveLayer` is not needed, though `additivelayer.*` is still in the tree and not built).
+  - Open: shield sheathing (`useShieldAnims` is false in `character.cpp`, off by default); the 0.51 map window features, including its controller buttons; the main menu background video and the loading screen (not checked).
+  - Replaced: animation blending rules, by CreativeMotion (toddhow, task 0011).
 - **The settings audit decisions** (research note 0006; toddhow's calls on the "decide" keys).
 - **Gaps listed above:**
   - the hidden torch flame in the Caldera Mages Guild;
