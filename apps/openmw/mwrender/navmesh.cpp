@@ -1,6 +1,6 @@
 #include "navmesh.hpp"
 
-#include "debuggeometry.hpp"
+#include <components/render/debuggeometry.hpp>
 
 #include <components/detournavigator/guardednavmeshcacheitem.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
@@ -39,7 +39,7 @@ namespace MWRender
                 mTriangleColors[i]);
     }
 
-    NavMesh::NavMesh(DebugGeometry& geometry, bool enabled, Settings::NavMeshRenderMode mode)
+    NavMesh::NavMesh(Render::DebugGeometry& geometry, bool enabled, Settings::NavMeshRenderMode mode)
         : mGeometry(geometry)
         , mEnabled(false)
         , mMode(mode)

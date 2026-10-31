@@ -1,5 +1,5 @@
-#ifndef VSGOPENMW_MWRENDER_SIMPLEWATER_H
-#define VSGOPENMW_MWRENDER_SIMPLEWATER_H
+#ifndef VSGOPENMW_RENDER_SIMPLEWATER_H
+#define VSGOPENMW_RENDER_SIMPLEWATER_H
 
 #include <vsg/nodes/Switch.h>
 #include <vsg/nodes/StateGroup.h>
@@ -19,7 +19,7 @@
 #include <components/vsgutil/share.hpp>
 #include <components/vsgutil/viewrelative.hpp>
 
-namespace MWRender
+namespace Render
 {
     class SimpleWater : public vsgUtil::Composite<vsg::Switch>
     {

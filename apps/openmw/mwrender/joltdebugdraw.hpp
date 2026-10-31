@@ -15,10 +15,13 @@
 
 #include <components/misc/vsgmath.hpp>
 
-namespace MWRender
+namespace Render
 {
     class DebugGeometry;
+}
 
+namespace MWRender
+{
     /**
      * @brief Draws Jolt's bodies, constraints and recent collisions (the `tcb` console toggle).
      *
@@ -60,7 +63,7 @@ namespace MWRender
             std::vector<JPH::Float3> mCorners;
         };
 
-        DebugGeometry& mGeometry;
+        Render::DebugGeometry& mGeometry;
         JPH::PhysicsSystem* mPhysicsSystem;
         bool mDebugOn = false;
 
@@ -75,7 +78,7 @@ namespace MWRender
     public:
         JPH_OVERRIDE_NEW_DELETE
 
-        JoltDebugDrawer(DebugGeometry& geometry, JPH::PhysicsSystem* physicsSystem, int debugMode = 1);
+        JoltDebugDrawer(Render::DebugGeometry& geometry, JPH::PhysicsSystem* physicsSystem, int debugMode = 1);
         ~JoltDebugDrawer();
 
         void step();

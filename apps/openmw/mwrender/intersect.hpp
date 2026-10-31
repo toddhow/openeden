@@ -6,9 +6,7 @@
 
 #include <vsg/core/visit.h>
 
-#include <components/vsgutil/intersectnormal.hpp>
-#include <components/pipeline/mode.hpp>
-#include <components/animation/transform.hpp>
+#include <components/render/intersect.hpp>
 #include <components/vsgutil/cameradistanceintersector.hpp>
 
 /*
@@ -19,34 +17,17 @@ namespace MWRender
     RenderManager::RayResult getIntersectionResult(
         vsg::LineSegmentIntersector& intersector, Scene& scene)
     {
-        auto& intersections = intersector.intersections;
-        if (intersections.empty())
+        const Render::NearestIntersection nearest = Render::nearestIntersection(intersector);
+        if (!nearest.mHit)
             return {};
-        std::sort(
-            intersections.begin(), intersections.end(),
-            [](auto& lhs, auto& rhs) -> auto{ return lhs->ratio < rhs->ratio; });
-
-        const auto& intersection = intersections.front();
-        vsg::vec3 nWorld = vsgUtil::worldNormal(*intersection, static_cast<int>(Pipeline::Mode::NORMAL));
-        /*
-        auto dir = vsg::normalize(eye - vsg::dvec3(result.mHitPointWorld));
-        if (vsg::length2(nWorld) > 0 && vsg::dot(dir, vsg::dvec3(nWorld)) < 0)
-            continue;
-            */
 
         RenderManager::RayResult result;
         result.mHit = true;
-        result.mHitNormalWorld = nWorld;
-        result.mHitPointWorld = vsg::vec3(intersection->worldIntersection);
-        result.mRatio = static_cast<float>(intersection->ratio);
-        for (auto node : intersection->nodePath)
-        {
-            if (auto trans = dynamic_cast<const Anim::Transform*>(node))
-            {
-                result.mHitObject = scene.getPtr(trans);
-                break;;
-            }
-        }
+        result.mHitNormalWorld = nearest.mNormalWorld;
+        result.mHitPointWorld = nearest.mPointWorld;
+        result.mRatio = nearest.mRatio;
+        if (nearest.mTransform)
+            result.mHitObject = scene.getPtr(nearest.mTransform);
         return result;
     }
 

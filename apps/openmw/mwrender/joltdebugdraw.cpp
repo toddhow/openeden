@@ -5,7 +5,7 @@
 #include <components/misc/convert.hpp>
 #include <components/misc/vsgmath.hpp>
 
-#include "debuggeometry.hpp"
+#include <components/render/debuggeometry.hpp>
 
 namespace MWRender
 {
@@ -27,7 +27,7 @@ namespace MWRender
         }
     }
 
-    JoltDebugDrawer::JoltDebugDrawer(DebugGeometry& geometry, JPH::PhysicsSystem* physicsSystem, int debugMode)
+    JoltDebugDrawer::JoltDebugDrawer(Render::DebugGeometry& geometry, JPH::PhysicsSystem* physicsSystem, int debugMode)
         : mGeometry(geometry)
         , mPhysicsSystem(physicsSystem)
     {

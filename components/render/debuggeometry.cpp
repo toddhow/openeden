@@ -9,7 +9,7 @@
 #include <components/pipeline/graphics.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
-namespace MWRender
+namespace Render
 {
     namespace
     {

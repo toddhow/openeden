@@ -36,7 +36,9 @@ namespace Resource
 }
 namespace Render
 {
+    class DebugGeometry;
     class Engine;
+    class SimpleWater;
 }
 namespace vsg
 {
@@ -91,12 +93,10 @@ namespace MWRender
     class Projectiles;
     class FogManager;
     class Sky;
-    class DebugGeometry;
     class Player;
     class Pathgrid;
     class Camera;
     class Water;
-    class SimpleWater;
     class TerrainStorage;
     class LandManager;
     class NavMesh;
@@ -131,7 +131,7 @@ namespace MWRender
         Map* getMap() { return mMap.get(); }
         WorldMap* getWorldMap() { return mWorldMap.get(); }
         /// Debug lines drawn by the renderer (the Jolt debug draw, task 0011).
-        DebugGeometry& getDebugGeometry() { return *mDebugGeometry; }
+        Render::DebugGeometry& getDebugGeometry() { return *mDebugGeometry; }
         /// The navigator whose navmesh the navmesh debug draw shows; set by the world, which owns it, and cleared
         /// (nullptr) when the world is destroyed.
         void setNavigator(const DetourNavigator::Navigator* navigator) { mNavigator = navigator; }
@@ -327,13 +327,13 @@ namespace MWRender
         std::unique_ptr<Reflect> mReflect;
         std::unique_ptr<Scene> mScene;
         std::unique_ptr<Water> mWater;
-        std::unique_ptr<SimpleWater> mSimpleWater;
+        std::unique_ptr<Render::SimpleWater> mSimpleWater;
         std::unique_ptr<Terrain::Paging> mTerrain;
         std::unique_ptr<TerrainStorage> mTerrainStorage;
         std::unique_ptr<Terrain::View> mTerrainView;
         std::unique_ptr<Sky> mSky;
-        std::unique_ptr<DebugGeometry> mDebugGeometry;
-        std::unique_ptr<DebugGeometry> mNavMeshGeometry;
+        std::unique_ptr<Render::DebugGeometry> mDebugGeometry;
+        std::unique_ptr<Render::DebugGeometry> mNavMeshGeometry;
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<Effects> mEffects;
         std::unique_ptr<WeatherEffects> mWeatherEffects;

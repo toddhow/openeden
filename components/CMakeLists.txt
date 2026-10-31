@@ -136,7 +136,7 @@ add_component_dir (pipeline
 # Implements algorithms.
 add_component_dir (render
     engine download screenshot headless limitframerate rendertexture cascade computeimage
-    screen depth attachmentformat renderpass multisample
+    screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect
     )
 # Renders pipelines.
 # Depends on pipeline, render.

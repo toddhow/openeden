@@ -61,7 +61,7 @@
 #include "bin.hpp"
 #include "animcontext.hpp"
 #include "camera.hpp"
-#include "debuggeometry.hpp"
+#include <components/render/debuggeometry.hpp>
 #include "navmesh.hpp"
 #include "weathereffects.hpp"
 #include "groundcover.hpp"
@@ -78,7 +78,7 @@
 #include "precipitationoccluder.hpp"
 #include "distantobjects.hpp"
 #include "postprocess.hpp"
-#include "simplewater.hpp"
+#include <components/render/simplewater.hpp>
 #include "terrainstorage.hpp"
 #include "water.hpp"
 #include "weather.hpp"
@@ -200,17 +200,17 @@ namespace MWRender
         mProjectiles = std::make_unique<Projectiles>(mScene->context);
         // Jolt's debug draw: lines only, refilled every frame; enough for Balmora's colliders.
         constexpr std::size_t joltLineVertices = std::size_t(1) << 21;
-        mDebugGeometry = std::make_unique<DebugGeometry>(*mResourceSystem->builder, mCompileContext, joltLineVertices, 0);
+        mDebugGeometry = std::make_unique<Render::DebugGeometry>(*mResourceSystem->builder, mCompileContext, joltLineVertices, 0);
         // The navmesh debug draw: tile boundaries as lines, polygons as translucent triangles.
         constexpr std::size_t navMeshLineVertices = std::size_t(1) << 20;
         constexpr std::size_t navMeshTriangleVertices = std::size_t(1) << 21;
-        mNavMeshGeometry = std::make_unique<DebugGeometry>(
+        mNavMeshGeometry = std::make_unique<Render::DebugGeometry>(
             *mResourceSystem->builder, mCompileContext, navMeshLineVertices, navMeshTriangleVertices);
         mNavMesh = std::make_unique<NavMesh>(
             *mNavMeshGeometry, Settings::navigator().mEnableNavMeshRender, Settings::navigator().mNavMeshRenderMode);
         mSky = std::make_unique<Sky>(*resourceSystem, mCompileContext->clone(Mask_Sky), mEngine.getEnabledFeatures().occlusionQueryPrecise);
         mWater = std::make_unique<Water>(resourceSystem);
-        mSimpleWater = std::make_unique<SimpleWater>(Constants::CellSizeInUnits, *mResourceSystem->builder, mResourceSystem->textureOptions);
+        mSimpleWater = std::make_unique<Render::SimpleWater>(Constants::CellSizeInUnits, *mResourceSystem->builder, mResourceSystem->textureOptions);
 
         mTerrainStorage = std::make_unique<TerrainStorage>(mResourceSystem);
         // openeden-vsg: terrain normal and specular maps, off by default (task 0012, V4i).

@@ -9,7 +9,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   - `bonepose.*`: the one bone interface the post-animation features use.
   - `actorikcontroller.*`: foot IK, look-at, smoother turns, inertial lean and compound hitboxes.
   - `creativemotiondriver.*`: CreativeMotion's animation runtime.
-  - `debuggeometry.*`, `joltdebugdraw.*` and `navmesh.*`: debug drawing.
+  - `joltdebugdraw.*` and `navmesh.*`: debug drawing, through `Render::DebugGeometry` (`components/render`).
 - **Task 0012's parity work:** `rain.*`, `waterripples.*` and `weathereffects.*` (weather and water effects), `groundcover.*` and `groundcoverinstances.*` (instanced groundcover through `Pipeline::Mode::INSTANCE` and `files/shaders/lib/groundcover.glsl`).
 
 ## Frame order for an actor

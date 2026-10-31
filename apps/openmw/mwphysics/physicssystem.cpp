@@ -388,7 +388,7 @@ namespace MWPhysics
         return mDebugDrawEnabled;
     }
 
-    void PhysicsSystem::setDebugGeometry(MWRender::DebugGeometry& geometry)
+    void PhysicsSystem::setDebugGeometry(Render::DebugGeometry& geometry)
     {
         mJoltDebugDrawer = std::make_unique<MWRender::JoltDebugDrawer>(geometry, &mPhysicsSystem, mDebugDrawEnabled);
         mTaskScheduler->setDebugDrawer(mJoltDebugDrawer.get());

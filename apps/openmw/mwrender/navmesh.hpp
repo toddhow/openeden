@@ -18,10 +18,13 @@ namespace DetourNavigator
     struct Settings;
 }
 
-namespace MWRender
+namespace Render
 {
     class DebugGeometry;
+}
 
+namespace MWRender
+{
     /**
      * @brief Draws one navmesh as debug geometry (OpenEden task 0011; OpenMW's OSG version built per-tile scene
      * graphs on a work queue).
@@ -34,7 +37,7 @@ namespace MWRender
     class NavMesh
     {
     public:
-        explicit NavMesh(DebugGeometry& geometry, bool enabled, Settings::NavMeshRenderMode mode);
+        explicit NavMesh(Render::DebugGeometry& geometry, bool enabled, Settings::NavMeshRenderMode mode);
         ~NavMesh();
 
         bool toggle();
@@ -75,7 +78,7 @@ namespace MWRender
 
         void submit();
 
-        DebugGeometry& mGeometry;
+        Render::DebugGeometry& mGeometry;
         bool mEnabled;
         Settings::NavMeshRenderMode mMode;
         std::size_t mId;

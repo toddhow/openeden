@@ -45,9 +45,13 @@ namespace ToUTF8
     class StatelessUtf8Encoder;
 }
 
-namespace MWRender
+namespace Render
 {
     class DebugGeometry;
+}
+
+namespace MWRender
+{
     class JoltDebugDrawer;
 }
 
@@ -275,7 +279,7 @@ namespace MWPhysics
         bool toggleDebugRendering();
 
         /// Connects the renderer's debug geometry (owned by MWRender::RenderManager, which outlives this) for `tcb`.
-        void setDebugGeometry(MWRender::DebugGeometry& geometry);
+        void setDebugGeometry(Render::DebugGeometry& geometry);
 
         void reportCollision(const vsg::vec3& position, const vsg::vec3& normal);
 

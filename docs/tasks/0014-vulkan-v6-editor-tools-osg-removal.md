@@ -211,3 +211,11 @@ Not run: any window on Linux. The review of A1 to A5 is below.
 ### Review of A1 to A5 (2026-10-31)
 
 A fresh reviewer read the five commits and found no conversion bugs. Fixed: a failed fog encode wrote an empty file silently, a dead `detournavigator/serialization.cpp` entry in the test CMake list, and formatting by hand on the lines it named (clang-format 14 is still not run). Left as it is: `shouldLoadFileWithDefaultNode` only checks that nothing is kept for an identity node; the next test checks the structure. The BS shader gap went to task 0012's open items, since the behaviour is missing and not retired, which work item 5 does not allow as a reason for deleting tests alone.
+
+### B2 Scene helpers lifted to components (2026-10-31)
+
+`MWRender::DebugGeometry` and `MWRender::SimpleWater` moved with `git mv` to `components/render` as `Render::DebugGeometry` and `Render::SimpleWater`, code otherwise unchanged. The part of `apps/openmw/mwrender/intersect.hpp` with no game types is now `Render::nearestIntersection` (`components/render/intersect.hpp`); `getIntersectionResult`, the `Mask_*` choice and the `MWWorld::Ptr` lookup stay in the game on top of it. New `components/render/CLAUDE.md`.
+
+Check: frames from the build before and after, each scene captured twice before and twice after to measure the noise. Balmora and Caldera Mages Guild differ by no more than two runs of one build (pixels over threshold: Balmora 116,365 between runs of one build, 49,416 and 100,109 across the change; Caldera 69 between runs, 0 and 0 across). The `tcb` Jolt draw and `togglenavmesh` navmesh draw were viewed and compared too, so `DebugGeometry` is exercised (`tcb` 0 pixels over threshold, navmesh 111,246, the camera's idle sway as in Balmora).
+
+Not checked directly: `SimpleWater` is drawn only in the map renders, and those frames show no open water; `castRay` and `castCameraToViewportRay` have no scripted check of their own, and the only change there is the moved code.
