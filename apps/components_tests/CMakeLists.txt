@@ -141,6 +141,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testimagepixels.cpp
     vsgutil/testarraystate.cpp
     vsgutil/testhitnormal.cpp
+    vsgutil/testhitnormalmesh.cpp
     vsgutil/testdeletionqueue.cpp
 
     fx/lexer.cpp

@@ -78,9 +78,15 @@ namespace CSVRender
 
     void InstanceSelectionMode::removeVolume()
     {
-        SceneHost* host = getWorldspaceWidget().getHost();
-        if (!mBaseNode || !host)
+        if (!mBaseNode)
             return;
+        // Edit modes belong to the toolbar, which Qt destroys after the view: the widget may be gone.
+        if (mBaseNodeHostAlive.expired())
+        {
+            mBaseNode = nullptr;
+            return;
+        }
+        SceneHost* host = getWorldspaceWidget().getHost();
         auto& children = host->contentRoot().children;
         children.erase(std::remove(children.begin(), children.end(), mBaseNode), children.end());
         host->compileContext()->detach(mBaseNode);
@@ -103,6 +109,7 @@ namespace CSVRender
         transform->addChild(
             createColouredGeometry(*host->resources().builder, topology, vertices, colours, indices, options));
         mBaseNode = vsgUtil::createBinSetter(SceneHost::sBinDepthSorted, transform);
+        mBaseNodeHostAlive = host->aliveToken();
         host->compileContext()->compile(mBaseNode);
         host->contentRoot().addChild(mBaseNode);
         host->requestRedraw();

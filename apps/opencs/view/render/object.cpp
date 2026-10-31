@@ -150,7 +150,7 @@ void CSVRender::Object::update(bool compile)
     mOutline = nullptr;
     mAnimation = std::move(animation);
     if (mAnimation)
-        mRootNode->addChild(vsg::MASK_ALL, mAnimation->node());
+        mRootNode->addChild(mHidden ? vsg::MASK_OFF : vsg::MASK_ALL, mAnimation->node());
     updateOutline();
     mNightDayApply = false;
     adjustTransform();
@@ -292,14 +292,12 @@ void CSVRender::Object::updateOutline()
 void CSVRender::Object::setSelected(bool selected, const vsg::vec4& color)
 {
     const bool changed = selected != mSelected || (selected && (color.r != mOutlineColour.r || color.g != mOutlineColour.g || color.b != mOutlineColour.b));
+    const bool wasSnapTarget = mSnapTarget;
     mSelected = selected;
+    // Not through setSnapTarget, which would clear what was just set. The two exclude each other.
+    mSnapTarget = false;
 
-    if (mSnapTarget)
-    {
-        setSnapTarget(false);
-    }
-
-    if (changed)
+    if (changed || wasSnapTarget)
     {
         mOutlineColour = color;
         updateOutline();
@@ -314,11 +312,9 @@ bool CSVRender::Object::getSelected() const
 void CSVRender::Object::setSnapTarget(bool isSnapTarget)
 {
     mSnapTarget = isSnapTarget;
-
-    if (mSelected)
-    {
-        setSelected(false);
-    }
+    // Not through setSelected, which clears the snap target just set: the old code drew the yellow from its parameter
+    // while its flag said no.
+    mSelected = false;
 
     mOutlineColour = sSnapTargetColour;
     updateOutline();
@@ -337,7 +333,9 @@ vsg::ref_ptr<vsg::Switch> CSVRender::Object::getRootNode()
 void CSVRender::Object::setHidden(bool hidden)
 {
     mHidden = hidden;
-    mRootNode->children[0].mask = hidden ? vsg::MASK_OFF : vsg::MASK_ALL;
+    // An object whose model is missing or failed to load has no child.
+    if (!mRootNode->children.empty())
+        mRootNode->children[0].mask = hidden ? vsg::MASK_OFF : vsg::MASK_ALL;
     mHost.requestRedraw();
 }
 

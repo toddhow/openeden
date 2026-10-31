@@ -55,29 +55,12 @@ namespace vsgUtil
         return true;
     }
 
-    /// A vertex's normal array holds a bind pose, so a posed or computed surface takes its triangle's normal.
-    inline vsg::vec3 worldNormal(const vsg::LineSegmentIntersector::Intersection& intersection, int arrayID)
+    /// The hit triangle's normal, never interpolated from a normal array, as a smooth mesh's vertex normals would change
+    /// what canPlaceObject and Lua's castRenderingRay see. Straight up if the triangle has no area or no vertices.
+    /// The second argument is unused, and stays for existing callers.
+    inline vsg::vec3 worldNormal(const vsg::LineSegmentIntersector::Intersection& intersection, int /*arrayID*/ = -1)
     {
         vsg::vec3 normal;
-        if (auto computed = computedHitVertices(intersection))
-        {
-            if (geometricWorldNormal(intersection, *computed, normal))
-                return normal;
-        }
-        for (auto& data : intersection.arrays)
-        {
-            if (auto id = vsgUtil::ID::get(*data))
-            {
-                if (id->id == arrayID)
-                {
-                    auto& array = static_cast<vsg::vec3Array&>(*data);
-                    vsg::dvec3 n(0, 0, 0);
-                    for (auto& r : intersection.indexRatios)
-                        n += vsg::dvec3(array[r.index]) * r.ratio;
-                    return vsg::vec3(vsg::normalize(n * vsg::inverse_3x3(intersection.localToWorld)));
-                }
-            }
-        }
         if (auto vertices = hitVertices(intersection))
         {
             if (geometricWorldNormal(intersection, *vertices, normal))

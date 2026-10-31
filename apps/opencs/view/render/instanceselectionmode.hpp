@@ -1,6 +1,8 @@
 #ifndef CSV_RENDER_INSTANCE_SELECTION_MODE_H
 #define CSV_RENDER_INSTANCE_SELECTION_MODE_H
 
+#include <memory>
+
 #include <vsg/core/Array.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Node.h>
@@ -69,6 +71,8 @@ namespace CSVRender
         vsg::dvec3 mDragStart;
         /// The volume being dragged, rebuilt at each step of the drag as the OSG editor did.
         vsg::ref_ptr<vsg::Node> mBaseNode;
+        /// Whether the view that mBaseNode hangs in is still there (SceneHost::aliveToken).
+        std::weak_ptr<void> mBaseNodeHostAlive;
 
     private slots:
 

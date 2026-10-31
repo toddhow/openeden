@@ -4,16 +4,12 @@
 <asset><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset>
 <library_effects>
 <effect id="e1"><profile_COMMON><technique sid="c"><lambert><emission><color>1 0.88 0.4 0.5</color></emission><diffuse><color>0.8 0.704 0.32 1</color></diffuse><transparency><float>0.5</float></transparency></lambert></technique></profile_COMMON></effect>
-<effect id="e2"><profile_COMMON><technique sid="c"><lambert><emission><color>0 0 0 1</color></emission><diffuse><color>0.8 0.8 0.8 1</color></diffuse><transparency><float>1</float></transparency></lambert></technique></profile_COMMON></effect>
 <effect id="e3"><profile_COMMON><technique sid="c"><lambert><emission><color>0.22026 0.22026 0.22026 1</color></emission><diffuse><color>0.176208 0.176208 0.176208 1</color></diffuse><transparency><float>1</float></transparency></lambert></technique></profile_COMMON></effect>
-<effect id="e4"><profile_COMMON><technique sid="c"><lambert><emission><color>0 0 0 1</color></emission><diffuse><color>0.8 0.8 0.8 1</color></diffuse><transparency><float>1</float></transparency></lambert></technique></profile_COMMON></effect>
 <effect id="e5"><profile_COMMON><technique sid="c"><lambert><emission><color>0 0 0 1</color></emission><diffuse><color>0.8 0.8 0.8 1</color></diffuse><transparency><float>1</float></transparency></lambert></technique></profile_COMMON></effect>
 </library_effects>
 <library_materials>
 <material id="m1"><instance_effect url="#e1"/></material>
-<material id="m2"><instance_effect url="#e2"/></material>
 <material id="m3"><instance_effect url="#e3"/></material>
-<material id="m4"><instance_effect url="#e4"/></material>
 <material id="m5"><instance_effect url="#e5"/></material>
 </library_materials>
 <library_geometries>
@@ -25,9 +21,9 @@
 </library_geometries>
 <library_visual_scenes><visual_scene id="s">
 <node id="n_1"><instance_geometry url="#g1"><bind_material><technique_common><instance_material symbol="s" target="#m1"/></technique_common></bind_material></instance_geometry></node>
-<node id="n_2"><instance_geometry url="#g2"><bind_material><technique_common><instance_material symbol="s" target="#m2"/></technique_common></bind_material></instance_geometry></node>
+<node id="n_2"><instance_geometry url="#g2"><bind_material><technique_common><instance_material symbol="s" target="#m1"/></technique_common></bind_material></instance_geometry></node>
 <node id="n_3"><instance_geometry url="#g3"><bind_material><technique_common><instance_material symbol="s" target="#m3"/></technique_common></bind_material></instance_geometry></node>
-<node id="n_4"><instance_geometry url="#g4"><bind_material><technique_common><instance_material symbol="s" target="#m4"/></technique_common></bind_material></instance_geometry></node>
+<node id="n_4"><instance_geometry url="#g4"><bind_material><technique_common><instance_material symbol="s" target="#m3"/></technique_common></bind_material></instance_geometry></node>
 <node id="n_5"><instance_geometry url="#g5"><bind_material><technique_common><instance_material symbol="s" target="#m5"/></technique_common></bind_material></instance_geometry></node>
 </visual_scene></library_visual_scenes>
 <scene><instance_visual_scene url="#s"/></scene>
