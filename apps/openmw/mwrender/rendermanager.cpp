@@ -291,15 +291,17 @@ namespace MWRender
 
         mCommandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
         // OpenEden: post-processing runs after the scene, on the finished image, when the setting is on (task 0012, V4p).
-        if (Settings::postProcessing().mEnabled && mEngine.framebufferSamples() != VK_SAMPLE_COUNT_1_BIT)
-            Log(Debug::Warning) << "Post-processing is off: it does not work with antialiasing yet";
-        else if (Settings::postProcessing().mEnabled)
+        if (Settings::postProcessing().mEnabled)
             mPostProcess = std::make_unique<PostProcess>(mEngine, context, mCompileContext, *mResourceSystem->getVFS(),
                 mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
         if (mPostProcess)
-            mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
+        {
+            mPostProcess->setMainView(mView);
+            mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
+        }
         threads.push_back(mCommandGraph);
 
         for (int i = 0; mShadow->shadow && i < mShadow->shadow->numCascades; ++i)
@@ -482,6 +484,8 @@ namespace MWRender
             traversalMask &= ~mask;
         for (auto& traversal : mRecordShadow)
             traversal->traversalMask = enable ? mask : vsg::MASK_OFF;
+        if (mPostProcess && mode == ViewMode::Scene)
+            mPostProcess->setSceneVisible(enable);
     }
 
     bool RenderManager::toggleRenderMode(RenderMode mode)

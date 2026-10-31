@@ -67,6 +67,27 @@ void main()
 }
 )GLSL";
 
+        // Draws a result, in OpenGL's origin, to the screen.
+        const char* const sPresentVertexShader = R"GLSL(#version 450
+layout(location=0) out vec2 texCoord;
+out gl_PerVertex { vec4 gl_Position; };
+void main()
+{
+    vec2 position = vec2(float((gl_VertexIndex << 1) & 2), float(gl_VertexIndex & 2)) * 2.0 - 1.0;
+    gl_Position = vec4(position, 0.0, 1.0);
+    texCoord = vec2(position.x, -position.y) * 0.5 + 0.5;
+}
+)GLSL";
+        const char* const sPresentFragmentShader = R"GLSL(#version 450
+layout(set=0, binding=0) uniform sampler2D result;
+layout(location=0) in vec2 texCoord;
+layout(location=0) out vec4 color;
+void main()
+{
+    color = vec4(texture(result, texCoord).rgb, 1.0);
+}
+)GLSL";
+
         vsg::ref_ptr<vsg::RenderPass> createColorRenderPass(vsg::Device* device, VkFormat format)
         {
             auto attachment = vsg::defaultColorAttachment(format);
@@ -302,6 +323,13 @@ void main()
         mBaseView->mask = Mask_PostProcess;
         installCompilerLogCapture();
         mVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
+        mMultisampled = mEngine.framebufferSamples() != VK_SAMPLE_COUNT_1_BIT;
+        mPresentSwitch = vsg::Switch::create();
+        if (mMultisampled)
+        {
+            mPresentVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, sPresentVertexShader);
+            mPresentFragment = compileGlsl(VK_SHADER_STAGE_FRAGMENT_BIT, sPresentFragmentShader);
+        }
         createCopies();
         for (const auto& path : mVfs.getRecursiveDirectoryIterator(Fx::Technique::sSubdir))
             if (path.parent().parent().empty() && Misc::getFileExtension(path) == Fx::Technique::sExt)
@@ -577,6 +605,58 @@ void main()
             hud->updateTechniques();
     }
 
+    void PostProcess::setSceneVisible(bool visible)
+    {
+        mSceneVisible = visible;
+        if (mPresentSwitch)
+            mPresentSwitch->setAllChildren(visible);
+    }
+
+    vsg::ref_ptr<vsg::Node> PostProcess::createPresent(vsg::ref_ptr<vsg::ImageView> result)
+    {
+        auto setLayout = vsg::DescriptorSetLayout::create(vsg::DescriptorSetLayoutBindings{
+            { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
+        auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout }, vsg::PushConstantRanges{});
+        auto depthStencil = vsg::DepthStencilState::create();
+        depthStencil->depthTestEnable = VK_FALSE;
+        depthStencil->depthWriteEnable = VK_FALSE;
+        auto raster = vsg::RasterizationState::create();
+        raster->cullMode = VK_CULL_MODE_NONE;
+        auto colorBlend = vsg::ColorBlendState::create(vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE,
+            VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO,
+            VK_BLEND_OP_ADD,
+            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+                | VK_COLOR_COMPONENT_A_BIT } });
+        const vsg::GraphicsPipelineStates states{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
+            raster, vsg::MultisampleState::create(), colorBlend, depthStencil,
+            vsg::ViewportState::create(0, 0, mWidth, mHeight) };
+        auto pipeline = vsg::BindGraphicsPipeline::create(
+            vsg::GraphicsPipeline::create(layout, vsg::ShaderStages{ mPresentVertex, mPresentFragment }, states));
+
+        auto descriptor = vsg::DescriptorImage::create(
+            vsg::ImageInfo::create(mNearest, result, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0,
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        auto commands = vsg::Commands::create();
+        commands->children = { pipeline,
+            vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0,
+                vsg::DescriptorSet::create(setLayout, vsg::Descriptors{ descriptor })),
+            vsg::Draw::create(3, 1, 0, 0) };
+
+        // The GUI pass has no view: it records with view ID 0, as MyGUI's pipelines do, in a render pass compatible with
+        // the main view's.
+        auto presentCompile = mCompile->clone(Mask_PostProcess);
+        const vsg::ref_ptr<vsg::View> mainView = mMainView;
+        presentCompile->contextSelectionFunction = [mainView](vsg::Context& context) {
+            if (context.view.get() != mainView.get())
+                return false;
+            context.viewID = 0;
+            return true;
+        };
+        if (!presentCompile->compile(commands))
+            return {};
+        return commands;
+    }
+
     void PostProcess::setChain(const std::vector<std::string>& names)
     {
         mChain.clear();
@@ -630,6 +710,7 @@ void main()
         mTechniques.clear();
         mRenderErrors.clear();
         mRebuildRequested = false;
+        mPresentSwitch->children.clear();
         mPending = {};
 
         const Fx::VulkanPassOptions options{ Settings::fog().mRadialFog, Settings::fog().mExponentialFog };
@@ -741,6 +822,19 @@ void main()
         constexpr auto src = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         constexpr auto dst = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         const auto present = mEngine.getPresentLayout();
+        if (mMultisampled)
+        {
+            // The swapchain image goes back for the GUI pass to resolve into, and the result is drawn in that pass.
+            mBackToPresent = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
+                barrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, src, present, {}, color));
+            group->addChild(mBackToPresent);
+            if (auto node = createPresent(lastPass))
+                mPresentSwitch->addChild(mSceneVisible, node);
+            mPending = vsg::Switch::create();
+            mPending->addChild(Mask_PostProcess, group);
+            return;
+        }
         mBlitOut->srcImage = lastImage;
         // The swapchain image is in the transfer source layout since the copy in.
         mBeforeCopyOut = vsg::PipelineBarrier::create(
@@ -779,9 +873,14 @@ void main()
         mAfterCopyDepth->imageMemoryBarriers[1]->image = srcDepth;
         mBlitColor->srcImage = srcColor;
         mBlitDepth->srcImage = srcDepth;
-        mBeforeCopyOut->imageMemoryBarriers[1]->image = srcColor;
-        mAfterCopyOut->imageMemoryBarriers[0]->image = srcColor;
-        mBlitOut->dstImage = srcColor;
+        if (mMultisampled)
+            mBackToPresent->imageMemoryBarriers[0]->image = srcColor;
+        else
+        {
+            mBeforeCopyOut->imageMemoryBarriers[1]->image = srcColor;
+            mAfterCopyOut->imageMemoryBarriers[0]->image = srcColor;
+            mBlitOut->dstImage = srcColor;
+        }
         // The frame before this one recorded the clears.
         if (!mPending && mFirstFrame)
         {

@@ -16,6 +16,7 @@
 #include <vsg/commands/PipelineBarrier.h>
 #include <vsg/core/Array.h>
 #include <vsg/nodes/Group.h>
+#include <vsg/nodes/Switch.h>
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/state/ShaderStage.h>
 
@@ -53,8 +54,10 @@ namespace MWRender
      *
      * Not ported yet (task 0012 lists them): custom vertex stages, compute passes, blending, render target formats and
      * mipmaps (targets are the swapchain's colour format), sampler files other than 2D, normals, point lights, HDR, the
-     * flags that turn a technique off in interiors or underwater, and multisampling: RenderManager does not create this
-     * object with antialiasing on, because the GUI pass resolves its multisampled colour over the result.
+     * flags that turn a technique off in interiors or underwater.
+     *
+     * With antialiasing on the GUI pass resolves its multisampled colour over the swapchain image, so the result is drawn
+     * into that colour at the start of the GUI pass (presentNode()) instead of being copied to the swapchain image.
      *
      * Owned by RenderManager; every member function runs on the main thread. With no techniques nothing is recorded.
      */
@@ -71,6 +74,13 @@ namespace MWRender
         /// Copies the scene's depth; goes where the main pass is suspended, before the depth-sorted bins, so it is the
         /// opaque depth. Empty until a frame sets its images.
         vsg::ref_ptr<vsg::Commands> depthCopy() const { return mDepthCopy; }
+
+        /// Goes first in the GUI pass. Empty without antialiasing.
+        vsg::ref_ptr<vsg::Node> presentNode() const { return mPresentSwitch; }
+        /// The view whose render pass is compatible with the GUI pass, for compiling presentNode()'s pipeline.
+        void setMainView(vsg::ref_ptr<vsg::View> view) { mMainView = view; }
+        /// Whether the scene renders: in menus and loading screens presentNode() must not draw an old result.
+        void setSceneVisible(bool visible);
 
         /// The view and a framebuffer to register with the compile manager, after Render::Engine::setup, so pipelines are
         /// compiled for this render pass (as RenderManager does for shadow cascades).
@@ -130,6 +140,7 @@ namespace MWRender
         vsg::ref_ptr<vsg::Node> createPass(LoadedPass& pass, Target& target, vsg::ref_ptr<vsg::ImageView> lastShader,
             vsg::ref_ptr<vsg::ImageView> lastPass, LoadedTechnique& technique);
         void rebuild();
+        vsg::ref_ptr<vsg::Node> createPresent(vsg::ref_ptr<vsg::ImageView> result);
         void updateHud();
 
         Render::Engine& mEngine;
@@ -142,6 +153,13 @@ namespace MWRender
         vsg::ref_ptr<vsg::Group> mRoot;
         vsg::ref_ptr<vsg::Switch> mPending;
         vsg::ref_ptr<vsg::Switch> mFirstFrame;
+        vsg::ref_ptr<vsg::Switch> mPresentSwitch;
+        vsg::ref_ptr<vsg::View> mMainView;
+        vsg::ref_ptr<vsg::PipelineBarrier> mBackToPresent;
+        vsg::ref_ptr<vsg::ShaderStage> mPresentVertex;
+        vsg::ref_ptr<vsg::ShaderStage> mPresentFragment;
+        bool mMultisampled = false;
+        bool mSceneVisible = true;
         vsg::ref_ptr<vsg::Sampler> mLinear;
         vsg::ref_ptr<vsg::Sampler> mNearest;
         vsg::ref_ptr<vsg::RenderPass> mRenderPass;
