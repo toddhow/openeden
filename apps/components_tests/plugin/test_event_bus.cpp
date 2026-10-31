@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <span>
@@ -15,6 +16,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 namespace
@@ -701,5 +703,509 @@ namespace
         ASSERT_EQ(ends.size(), 1u);
         EXPECT_EQ(ends[0].bodyA, end.bodyA);
         EXPECT_EQ(ends[0].bodyB, end.bodyB);
+    }
+
+    // ---- decodeForwardedEvent (task 0016) ---------------------------------------------------------------------------
+
+    using openeden::plugin::decodeForwardedEvent;
+    using openeden::plugin::DecodedField;
+    using openeden::plugin::ForwardedEventRecord;
+
+    ForwardedEventRecord allTypesRecord()
+    {
+        EventBusImpl bus;
+        EventBus& pluginView = bus;
+        const auto fields = allTypesFields();
+        EXPECT_TRUE(pluginView.markForwardedToLua<AllTypesEvent>("plugin", "all_types", fields));
+        return bus.forwardedEvents().at(AllTypesEvent::kEventId);
+    }
+
+    ForwardedEventRecord singleFieldRecord(ForwardedFieldType type, std::size_t offset, std::size_t size)
+    {
+        ForwardedEventRecord record;
+        record.pluginId = "plugin";
+        record.name = "single";
+        record.payloadSize = offset + size;
+        record.fields.push_back(ForwardedFieldRecord{ "field", type, offset, size });
+        return record;
+    }
+
+    // The field by name, so these tests do not depend on the order of out.
+    const DecodedField* findDecoded(const std::vector<DecodedField>& fields, std::string_view name)
+    {
+        for (const DecodedField& field : fields)
+            if (field.name == name)
+                return &field;
+        return nullptr;
+    }
+
+    template <typename T>
+    void expectDecoded(const std::vector<DecodedField>& fields, std::string_view name, const T& expected)
+    {
+        const DecodedField* const field = findDecoded(fields, name);
+        ASSERT_NE(field, nullptr) << name;
+        ASSERT_TRUE(std::holds_alternative<T>(field->value)) << name;
+        EXPECT_EQ(std::get<T>(field->value), expected) << name;
+    }
+
+    TEST(DecodeForwardedEventTest, EveryFieldTypeIsDecoded)
+    {
+        AllTypesEvent event;
+        event.mFloat = 1.5f;
+        event.mDouble = 0.1;
+        event.mInt = 42;
+        event.mUInt = 7;
+        event.mBool = true;
+        std::memcpy(event.mText, "hello", 6);
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        EXPECT_EQ(out.size(), 6u);
+        expectDecoded<double>(out, "float_field", 1.5);
+        expectDecoded<double>(out, "double_field", 0.1);
+        expectDecoded<double>(out, "int_field", 42.0);
+        expectDecoded<double>(out, "uint_field", 7.0);
+        expectDecoded<bool>(out, "bool_field", true);
+        expectDecoded<std::string>(out, "text_field", "hello");
+    }
+
+    TEST(DecodeForwardedEventTest, FloatBecomesTheExactSameValueAsADouble)
+    {
+        AllTypesEvent event;
+        event.mFloat = 0.1f;
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        expectDecoded<double>(out, "float_field", static_cast<double>(0.1f));
+    }
+
+    TEST(DecodeForwardedEventTest, FalseBooleanIsABooleanNotANumber)
+    {
+        AllTypesEvent event;
+        event.mBool = false;
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        expectDecoded<bool>(out, "bool_field", false);
+    }
+
+    TEST(DecodeForwardedEventTest, NegativeIntsKeepTheirSign)
+    {
+        for (const std::int32_t value : { -1, -7, std::numeric_limits<std::int32_t>::min() })
+        {
+            AllTypesEvent event;
+            event.mInt = value;
+
+            std::vector<DecodedField> out;
+            std::string error;
+            ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+            expectDecoded<double>(out, "int_field", static_cast<double>(value));
+        }
+    }
+
+    TEST(DecodeForwardedEventTest, UInt32AboveIntMaxIsAPositiveDouble)
+    {
+        for (const std::uint32_t value : { 2147483648u, 3000000000u, std::numeric_limits<std::uint32_t>::max() })
+        {
+            AllTypesEvent event;
+            event.mUInt = value;
+
+            std::vector<DecodedField> out;
+            std::string error;
+            ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+            expectDecoded<double>(out, "uint_field", static_cast<double>(value));
+        }
+    }
+
+    TEST(DecodeForwardedEventTest, StringAtFullSizeWithNoNulEndsAtItsSize)
+    {
+        AllTypesEvent event;
+        std::memcpy(event.mText, "abcdefghijklmnop", 16); // Exactly sizeof(mText), so no terminator
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        expectDecoded<std::string>(out, "text_field", "abcdefghijklmnop");
+    }
+
+    TEST(DecodeForwardedEventTest, StringEndsAtItsFirstNul)
+    {
+        AllTypesEvent event;
+        std::memcpy(event.mText, "hi\0garbage", 10);
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        expectDecoded<std::string>(out, "text_field", "hi");
+    }
+
+    TEST(DecodeForwardedEventTest, AllNulStringIsEmpty)
+    {
+        const AllTypesEvent event;
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        expectDecoded<std::string>(out, "text_field", "");
+    }
+
+    TEST(DecodeForwardedEventTest, ValidMultiByteUtf8IsAccepted)
+    {
+        AllTypesEvent event;
+        std::memcpy(event.mText, "caf\xC3\xA9 \xE2\x82\xAC \xF0\x9F\x98\x80", 14); // e-acute, euro sign, an emoji
+
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error)) << error;
+
+        expectDecoded<std::string>(out, "text_field", "caf\xC3\xA9 \xE2\x82\xAC \xF0\x9F\x98\x80");
+    }
+
+    TEST(DecodeForwardedEventTest, FieldsAtUnalignedOffsetsAreRead)
+    {
+        // The record gives any offset, so a read must not assume alignment. Run under the UBSan gate too.
+        std::array<std::uint8_t, 1 + sizeof(std::int32_t)> intPayload{};
+        const std::int32_t intValue = -5;
+        std::memcpy(intPayload.data() + 1, &intValue, sizeof(intValue));
+        std::vector<DecodedField> out;
+        std::string error;
+        ASSERT_TRUE(decodeForwardedEvent(singleFieldRecord(ForwardedFieldType::Int32, 1, sizeof(std::int32_t)),
+            intPayload.data(), intPayload.size(), out, error))
+            << error;
+        expectDecoded<double>(out, "field", -5.0);
+
+        std::array<std::uint8_t, 3 + sizeof(double)> doublePayload{};
+        const double doubleValue = 2.5;
+        std::memcpy(doublePayload.data() + 3, &doubleValue, sizeof(doubleValue));
+        std::vector<DecodedField> doubleOut;
+        ASSERT_TRUE(decodeForwardedEvent(singleFieldRecord(ForwardedFieldType::Float64, 3, sizeof(double)),
+            doublePayload.data(), doublePayload.size(), doubleOut, error))
+            << error;
+        expectDecoded<double>(doubleOut, "field", 2.5);
+    }
+
+    TEST(DecodeForwardedEventTest, RecordWithNoFieldsDecodesToNothing)
+    {
+        ForwardedEventRecord record;
+        record.pluginId = "plugin";
+        record.name = "empty";
+
+        std::vector<DecodedField> out;
+        std::string error;
+        EXPECT_TRUE(decodeForwardedEvent(record, nullptr, 0, out, error)) << error;
+        EXPECT_TRUE(out.empty());
+    }
+
+    TEST(DecodeForwardedEventTest, ShortPayloadFailsWithAReason)
+    {
+        const AllTypesEvent event;
+        const ForwardedEventRecord record = allTypesRecord();
+
+        for (const std::size_t size : { sizeof(AllTypesEvent) - 1, sizeof(std::int32_t), std::size_t{ 0 } })
+        {
+            std::vector<DecodedField> out;
+            std::string error;
+            EXPECT_FALSE(decodeForwardedEvent(record, &event, size, out, error)) << "size " << size;
+            EXPECT_FALSE(error.empty()) << "size " << size;
+        }
+    }
+
+    TEST(DecodeForwardedEventTest, InvalidUtf8FailsWithAReason)
+    {
+        const std::vector<std::string> invalid{
+            "\xFF\xFE", // Bytes that never appear in UTF-8
+            "a\x80", // Continuation byte with no lead
+            "\xC3", // Lead byte cut off by the end of the string
+            "\xE2\x82", // Three-byte form cut off
+            "\xC0\xAF", // Overlong encoding of '/'
+            "\xED\xA0\x80", // UTF-16 surrogate
+            "\xF4\x90\x80\x80", // Above U+10FFFF
+        };
+        const ForwardedEventRecord record = allTypesRecord();
+
+        for (const std::string& text : invalid)
+        {
+            AllTypesEvent event;
+            std::memcpy(event.mText, text.data(), text.size());
+
+            std::vector<DecodedField> out;
+            std::string error;
+            EXPECT_FALSE(decodeForwardedEvent(record, &event, sizeof(event), out, error));
+            EXPECT_FALSE(error.empty());
+        }
+    }
+
+    TEST(DecodeForwardedEventTest, MultiByteCharacterCutByTheFieldEndIsInvalid)
+    {
+        // The field's last byte starts a two-byte character whose second byte is the next field's
+        AllTypesEvent event;
+        std::memset(event.mText, 'a', sizeof(event.mText));
+        event.mText[sizeof(event.mText) - 1] = '\xC3';
+
+        std::vector<DecodedField> out;
+        std::string error;
+        EXPECT_FALSE(decodeForwardedEvent(allTypesRecord(), &event, sizeof(event), out, error));
+        EXPECT_FALSE(error.empty());
+    }
+
+    // ---- setForwardSink (task 0016) ---------------------------------------------------------------------------------
+
+    struct SinkEntry
+    {
+        std::string pluginId;
+        std::string name;
+        std::vector<std::uint8_t> bytes;
+    };
+
+    openeden::plugin::ForwardSink loggingSink(std::vector<SinkEntry>& log)
+    {
+        return [&log](const ForwardedEventRecord& record, const void* data, std::size_t size) {
+            const auto* bytes = static_cast<const std::uint8_t*>(data);
+            log.push_back(SinkEntry{ record.pluginId, record.name, std::vector<std::uint8_t>(bytes, bytes + size) });
+        };
+    }
+
+    int pointsIn(const SinkEntry& entry)
+    {
+        ScoreEvent event;
+        EXPECT_EQ(entry.bytes.size(), sizeof(event));
+        if (entry.bytes.size() == sizeof(event))
+            std::memcpy(&event, entry.bytes.data(), sizeof(event));
+        return event.points;
+    }
+
+    std::vector<int> pointsIn(const std::vector<SinkEntry>& log)
+    {
+        std::vector<int> result;
+        for (const SinkEntry& entry : log)
+            result.push_back(pointsIn(entry));
+        return result;
+    }
+
+    void markScoreEvent(EventBusImpl& bus)
+    {
+        EventBus& pluginView = bus;
+        const std::array<ForwardedField, 1> fields{ forwardedField(
+            "points", &ScoreEvent::points, offsetof(ScoreEvent, points)) };
+        ASSERT_TRUE(pluginView.markForwardedToLua<ScoreEvent>("plugin_score", "score_changed", fields));
+    }
+
+    TEST(EventBusForwardSinkTest, MarkedImmediateEventReachesTheSinkWithNoSubscribers)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+
+        bus.publishImmediate(ScoreEvent{ 7 });
+
+        ASSERT_EQ(log.size(), 1u);
+        EXPECT_EQ(log[0].pluginId, "plugin_score");
+        EXPECT_EQ(log[0].name, "score_changed");
+        EXPECT_EQ(pointsIn(log[0]), 7);
+    }
+
+    TEST(EventBusForwardSinkTest, DeferredEventReachesTheSinkWhenItsPhaseIsProcessed)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+
+        bus.publishDeferred(ScoreEvent{ 7 }, Phase::PreRender);
+        EXPECT_TRUE(log.empty());
+
+        bus.processDeferredEvents(Phase::Input);
+        EXPECT_TRUE(log.empty());
+
+        bus.processDeferredEvents(Phase::PreRender);
+        ASSERT_EQ(log.size(), 1u);
+        EXPECT_EQ(pointsIn(log[0]), 7);
+
+        // Delivered once
+        bus.processDeferredEvents(Phase::PreRender);
+        EXPECT_EQ(log.size(), 1u);
+    }
+
+    TEST(EventBusForwardSinkTest, EventsReachTheSinkInPublishOrder)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+
+        bus.publishImmediate(ScoreEvent{ 1 });
+        bus.publishImmediate(ScoreEvent{ 2 });
+        bus.publishDeferred(ScoreEvent{ 3 }, Phase::Animation);
+        bus.publishDeferred(ScoreEvent{ 4 }, Phase::Animation);
+        bus.publishDeferred(ScoreEvent{ 5 }, Phase::Animation);
+        bus.processDeferredEvents(Phase::Animation);
+
+        EXPECT_EQ(pointsIn(log), (std::vector<int>{ 1, 2, 3, 4, 5 }));
+    }
+
+    TEST(EventBusForwardSinkTest, UnmarkedEventsNeverReachTheSink)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+
+        int subscriberCalls = 0;
+        bus.subscribe<DamageEvent>("plugin", [&](const DamageEvent&) { ++subscriberCalls; });
+
+        bus.publishImmediate(DamageEvent{ 1, 2.0f });
+        bus.publishDeferred(DamageEvent{ 3, 4.0f }, Phase::Ui);
+        bus.processDeferredEvents(Phase::Ui);
+
+        EXPECT_EQ(subscriberCalls, 2);
+        EXPECT_TRUE(log.empty());
+    }
+
+    TEST(EventBusForwardSinkTest, NullSinkStopsForwardingAndPublishingStillWorks)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+        bus.publishImmediate(ScoreEvent{ 1 });
+        bus.publishDeferred(ScoreEvent{ 2 }, Phase::Input);
+        ASSERT_EQ(log.size(), 1u);
+
+        int subscriberCalls = 0;
+        bus.subscribe<ScoreEvent>("plugin", [&](const ScoreEvent&) { ++subscriberCalls; });
+        bus.setForwardSink(nullptr);
+
+        EXPECT_NO_THROW(bus.publishImmediate(ScoreEvent{ 3 }));
+        // Queued while the sink was set, delivered after it was removed: nobody to give it to
+        EXPECT_NO_THROW(bus.processDeferredEvents(Phase::Input));
+
+        EXPECT_EQ(log.size(), 1u);
+        EXPECT_EQ(subscriberCalls, 2);
+    }
+
+    TEST(EventBusForwardSinkTest, NoSinkEverSetIsFineForMarkedEvents)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        int subscriberCalls = 0;
+        bus.subscribe<ScoreEvent>("plugin", [&](const ScoreEvent&) { ++subscriberCalls; });
+
+        EXPECT_NO_THROW(bus.publishImmediate(ScoreEvent{ 1 }));
+        EXPECT_EQ(subscriberCalls, 1);
+    }
+
+    TEST(EventBusForwardSinkTest, SubscribersStillGetMarkedEvents)
+    {
+        EventBusImpl bus;
+        bus.setPluginLoadOrder({ "plugin_a", "plugin_b" });
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+
+        std::vector<std::string> calls;
+        bus.subscribe<ScoreEvent>(
+            "plugin_b", [&](const ScoreEvent& e) { calls.push_back("b" + std::to_string(e.points)); });
+        bus.subscribe<ScoreEvent>(
+            "plugin_a", [&](const ScoreEvent& e) { calls.push_back("a" + std::to_string(e.points)); });
+
+        bus.publishImmediate(ScoreEvent{ 1 });
+        bus.publishDeferred(ScoreEvent{ 2 }, Phase::Ui);
+        bus.processDeferredEvents(Phase::Ui);
+
+        EXPECT_EQ(calls, (std::vector<std::string>{ "a1", "b1", "a2", "b2" }));
+        EXPECT_EQ(pointsIn(log), (std::vector<int>{ 1, 2 }));
+    }
+
+    TEST(EventBusForwardSinkTest, DeferredPayloadLargerThanTheInlineBufferArrivesWhole)
+    {
+        // Larger than EventBusImpl::kInlinePayloadCapacity (256), so the queue keeps it on the heap
+        constexpr EventId kLargeEventId = 2003;
+        std::vector<std::uint8_t> payload(300);
+        for (std::size_t i = 0; i < payload.size(); ++i)
+            payload[i] = static_cast<std::uint8_t>(i);
+
+        EventBusImpl bus;
+        ASSERT_TRUE(bus.markForwardedToLua(ForwardedEventDesc{ kLargeEventId, "plugin", "large", payload.size(), {} }));
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+
+        bus.publishDeferred(kLargeEventId, payload.data(), payload.size(), Phase::Ui);
+        bus.processDeferredEvents(Phase::Ui);
+
+        ASSERT_EQ(log.size(), 1u);
+        EXPECT_EQ(log[0].bytes, payload);
+    }
+
+    TEST(EventBusForwardSinkTest, ThrowingSinkDoesNotReachThePublisherAndSubscribersStillRun)
+    {
+        // Root CLAUDE.md: no exception crosses the core/plugin boundary in either direction. The publisher is a plugin.
+        EventBusImpl bus;
+        bus.setPluginLoadOrder({ "plugin_a", "plugin_b" });
+        markScoreEvent(bus);
+        int sinkCalls = 0;
+        bus.setForwardSink([&](const ForwardedEventRecord&, const void*, std::size_t) {
+            ++sinkCalls;
+            throw std::runtime_error("sink failed");
+        });
+
+        std::vector<std::string> calls;
+        bus.subscribe<ScoreEvent>("plugin_a", [&](const ScoreEvent&) { calls.push_back("a"); });
+        bus.subscribe<ScoreEvent>("plugin_b", [&](const ScoreEvent&) { calls.push_back("b"); });
+
+        EXPECT_NO_THROW(bus.publishImmediate(ScoreEvent{ 1 }));
+
+        EXPECT_EQ(sinkCalls, 1);
+        EXPECT_EQ(calls, (std::vector<std::string>{ "a", "b" }));
+    }
+
+    TEST(EventBusForwardSinkTest, ThrowingSinkDoesNotLoseDeferredEvents)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        int sinkCalls = 0;
+        bus.setForwardSink([&](const ForwardedEventRecord&, const void*, std::size_t) {
+            ++sinkCalls;
+            throw std::runtime_error("sink failed");
+        });
+
+        std::vector<int> received;
+        bus.subscribe<ScoreEvent>("plugin", [&](const ScoreEvent& e) { received.push_back(e.points); });
+
+        bus.publishDeferred(ScoreEvent{ 1 }, Phase::Ui);
+        bus.publishDeferred(ScoreEvent{ 2 }, Phase::Ui);
+        bus.publishDeferred(ScoreEvent{ 3 }, Phase::Ui);
+        EXPECT_NO_THROW(bus.processDeferredEvents(Phase::Ui));
+
+        EXPECT_EQ(sinkCalls, 3);
+        EXPECT_EQ(received, (std::vector<int>{ 1, 2, 3 }));
+
+        // The queue is drained: nothing is left to deliver again
+        EXPECT_NO_THROW(bus.processDeferredEvents(Phase::Ui));
+        EXPECT_EQ(received.size(), 3u);
+    }
+
+    TEST(EventBusForwardSinkTest, ThrowingSubscriberDoesNotStopTheSink)
+    {
+        EventBusImpl bus;
+        markScoreEvent(bus);
+        std::vector<SinkEntry> log;
+        bus.setForwardSink(loggingSink(log));
+        bus.subscribe<ScoreEvent>("plugin", [](const ScoreEvent&) { throw std::runtime_error("subscriber failed"); });
+
+        EXPECT_NO_THROW(bus.publishImmediate(ScoreEvent{ 1 }));
+
+        EXPECT_EQ(pointsIn(log), (std::vector<int>{ 1 }));
     }
 } // namespace

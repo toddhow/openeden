@@ -46,6 +46,10 @@ With a plugin enabled, the game loads it at startup, gives it the real engine se
 
 Each stage ends with the game building, every gate passing, and a test proving the stage's services work through a plugin, not only in the test host.
 
+### Plugin data in saved games
+
+Each plugin with data has one `OEPL` record in the `.omwsave`, after the engine's own records (`ESM::PluginChunk`, `components/esm3/pluginchunk.hpp`): `NAME` the plugin ID, `VERS` a 32-bit version the plugin chose, `DATA` its bytes, which only the plugin can read. Records are sorted by plugin ID. A game without the plugin keeps the record and writes it back unchanged; a save without plugins has none. An OpenMW build skips the record with a warning (`LoadGame::threadLoad`'s `default` case in our code; check theirs if that ever matters).
+
 ## 4. Decisions
 
 1. **Timing against Track V.** Decision 0002 makes Track V the next major track; Track V's V1 replaces `engine.cpp` with vsgopenmw's `vsgengine.cpp` and its redesigned `apps/openmw/mwstate` (25 new files). The frame loop, save code and startup are exactly what W1–W3 change. Proposed: **W0 now; W1 onward after Track V's V2** (task 0010), run alongside V3 to V6 (they touch different files from V3's rendering work, except the debug draw in W3, which follows V3's debug-draw path). Alternative: do W1 and W2 now on the OSG engine and let task 0009's merge carry them across (more conflicts in V1).

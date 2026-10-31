@@ -30,6 +30,8 @@ namespace openeden::sdk
 
     /**
      * @brief Handler for versioned plugin save game chunks with migration support.
+     *
+     * The game calls it on the main thread, between frames: it never runs on the save or load worker.
      */
     class SaveChunkHandler
     {

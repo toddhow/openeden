@@ -1,5 +1,7 @@
 #include "save_service.hpp"
 
+#include <components/debug/debuglog.hpp>
+
 #include <cstring>
 #include <iostream>
 
@@ -122,6 +124,75 @@ namespace openeden::plugin
     void SaveServiceImpl::unregisterHandler(std::string_view pluginId)
     {
         mHandlers.erase(std::string(pluginId));
+    }
+
+    std::vector<SaveServiceImpl::Chunk> SaveServiceImpl::collectChunks() const
+    {
+        // Ordered by plugin ID, so the save file does not depend on the order plugins registered
+        std::map<std::string, ChunkData, std::less<>> allChunks = mUnreadChunks;
+
+        for (const auto& [pid, handler] : mHandlers)
+        {
+            if (!handler)
+                continue;
+            try
+            {
+                MemoryChunkWriter writer;
+                handler->writeSaveChunk(writer);
+                allChunks[pid] = { handler->currentVersion(), writer.buffer() };
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "Plugin '" << pid << "' failed writing its save chunk: " << e.what();
+            }
+            catch (...)
+            {
+                Log(Debug::Error) << "Plugin '" << pid << "' failed writing its save chunk: unknown exception";
+            }
+        }
+
+        std::vector<Chunk> chunks;
+        chunks.reserve(allChunks.size());
+        for (auto& [pid, chunk] : allChunks)
+            chunks.push_back({ pid, chunk.version, std::move(chunk.bytes) });
+        return chunks;
+    }
+
+    void SaveServiceImpl::loadChunk(const Chunk& chunk)
+    {
+        const auto handlerIt = mHandlers.find(chunk.pluginId);
+        if (handlerIt == mHandlers.end() || !handlerIt->second)
+        {
+            mUnreadChunks[chunk.pluginId] = { chunk.version, chunk.bytes };
+            return;
+        }
+
+        std::string failure;
+        try
+        {
+            MemoryChunkReader reader(chunk.bytes.data(), chunk.bytes.size());
+            handlerIt->second->readSaveChunk(chunk.version, reader);
+            mUnreadChunks.erase(chunk.pluginId);
+            return;
+        }
+        catch (const std::exception& e)
+        {
+            failure = e.what();
+        }
+        catch (...)
+        {
+            failure = "unknown exception";
+        }
+
+        Log(Debug::Error) << "Plugin '" << chunk.pluginId << "' failed reading its save chunk: " << failure;
+        // Withdrawn so that the next save writes the bytes back instead of what the handler half read
+        mUnreadChunks[chunk.pluginId] = { chunk.version, chunk.bytes };
+        mHandlers.erase(handlerIt);
+    }
+
+    void SaveServiceImpl::clearUnreadChunks()
+    {
+        mUnreadChunks.clear();
     }
 
     std::vector<std::uint8_t> SaveServiceImpl::serialize() const

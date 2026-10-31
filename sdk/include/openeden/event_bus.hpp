@@ -150,7 +150,8 @@ namespace openeden::sdk
         virtual void unsubscribe(EventId id, std::string_view pluginId) = 0;
 
         /**
-         * @brief Marks typed event T as forwarded to Lua. Call it from start().
+         * @brief Marks typed event T as forwarded to Lua. Call it from start(), and publish marked events on the main
+         * thread (phase callbacks not registered as parallel).
          */
         template <typename T>
         bool markForwardedToLua(

@@ -1,3 +1,4 @@
+#include <components/esm/defs.hpp>
 #include <components/esm/fourcc.hpp>
 #include <components/esm3/aipackage.hpp>
 #include <components/esm3/aisequence.hpp>
@@ -13,6 +14,7 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/esm3/player.hpp>
+#include <components/esm3/pluginchunk.hpp>
 #include <components/esm3/quickkeys.hpp>
 
 #include <gmock/gmock.h>
@@ -762,5 +764,152 @@ namespace ESM
         }
 
         INSTANTIATE_TEST_SUITE_P(FormatVersions, Esm3SaveLoadRecordTest, ValuesIn(getFormats()));
+
+        // ---- ESM::PluginChunk (task 0016): one plugin's data in a saved game -------------------------------------
+
+        // Writes the records as MWState::StateManager writes a saved game's: the caller starts and ends the record, as
+        // for REC_SAVE, and the struct writes the subrecords.
+        std::unique_ptr<std::istream> makePluginChunkStream(const std::vector<PluginChunk>& chunks)
+        {
+            ESMWriter writer;
+            auto stream = std::make_unique<std::stringstream>();
+            writer.setFormatVersion(CurrentSaveGameFormatVersion);
+            writer.save(*stream);
+            for (const PluginChunk& chunk : chunks)
+            {
+                writer.startRecord(REC_OEPL);
+                chunk.save(writer);
+                writer.endRecord(REC_OEPL);
+            }
+            return stream;
+        }
+
+        void readPluginChunk(ESMReader& reader, PluginChunk& result)
+        {
+            ASSERT_TRUE(reader.hasMoreRecs());
+            ASSERT_EQ(reader.getRecName().toInt(), static_cast<std::uint32_t>(REC_OEPL));
+            reader.getRecHeader();
+            result.load(reader);
+        }
+
+        void expectPluginChunkRoundTrip(const PluginChunk& chunk)
+        {
+            ESMReader reader;
+            reader.open(makePluginChunkStream({ chunk }), "stream");
+            PluginChunk result;
+            readPluginChunk(reader, result);
+            EXPECT_EQ(result.mPluginId, chunk.mPluginId);
+            EXPECT_EQ(result.mVersion, chunk.mVersion);
+            // Not EXPECT_EQ: on a failure gtest would print every byte of the 1 MB case.
+            EXPECT_TRUE(result.mData == chunk.mData) << "sizes " << result.mData.size() << ", " << chunk.mData.size();
+            EXPECT_FALSE(reader.hasMoreSubs());
+            EXPECT_FALSE(reader.hasMoreRecs());
+        }
+
+        TEST(Esm3PluginChunkTest, recordNameIsOepl)
+        {
+            // The name the design proposes and components/esm/defs.hpp declares
+            EXPECT_EQ(static_cast<std::uint32_t>(REC_OEPL), fourCC("OEPL"));
+
+            ESMReader reader;
+            reader.open(makePluginChunkStream({ PluginChunk{ "plugin", 1, { 1 } } }), "stream");
+            ASSERT_TRUE(reader.hasMoreRecs());
+            EXPECT_EQ(reader.getRecName().toString(), "OEPL");
+        }
+
+        TEST(Esm3PluginChunkTest, subrecordsAreNameVersData)
+        {
+            // Layout from the comment in components/esm3/pluginchunk.hpp
+            ESMReader reader;
+            reader.open(makePluginChunkStream({ PluginChunk{ "plugin", 1, { 1, 2, 3 } } }), "stream");
+            ASSERT_TRUE(reader.hasMoreRecs());
+            reader.getRecName();
+            reader.getRecHeader();
+            ASSERT_TRUE(reader.isNextSub("NAME"));
+            reader.skipHSub();
+            ASSERT_TRUE(reader.isNextSub("VERS"));
+            reader.skipHSub();
+            ASSERT_TRUE(reader.isNextSub("DATA"));
+            reader.skipHSub();
+            EXPECT_FALSE(reader.hasMoreSubs());
+        }
+
+        TEST(Esm3PluginChunkTest, emptyDataRoundTrips)
+        {
+            expectPluginChunkRoundTrip(PluginChunk{ "plugin.empty", 3, {} });
+        }
+
+        TEST(Esm3PluginChunkTest, smallDataRoundTrips)
+        {
+            expectPluginChunkRoundTrip(PluginChunk{ "plugin.small", 1, { 0xDE, 0xAD, 0xBE, 0xEF } });
+        }
+
+        TEST(Esm3PluginChunkTest, binaryDataWithEveryByteValueRoundTrips)
+        {
+            // Includes NUL bytes first, in the middle and last: the bytes are not a string
+            std::vector<std::uint8_t> data{ 0, 0 };
+            for (int i = 0; i < 256; ++i)
+                data.push_back(static_cast<std::uint8_t>(i));
+            data.push_back(0);
+            expectPluginChunkRoundTrip(PluginChunk{ "plugin.binary", 2, std::move(data) });
+        }
+
+        TEST(Esm3PluginChunkTest, oneMegabyteOfDataRoundTrips)
+        {
+            std::vector<std::uint8_t> data(1024 * 1024);
+            std::minstd_rand random;
+            std::generate(data.begin(), data.end(), [&] { return static_cast<std::uint8_t>(random()); });
+            expectPluginChunkRoundTrip(PluginChunk{ "plugin.big", 9, std::move(data) });
+        }
+
+        TEST(Esm3PluginChunkTest, extremeVersionsAndLongIdRoundTrip)
+        {
+            expectPluginChunkRoundTrip(PluginChunk{ "plugin.version.zero", 0, { 1 } });
+            expectPluginChunkRoundTrip(
+                PluginChunk{ "plugin.version.max", std::numeric_limits<std::uint32_t>::max(), { 1 } });
+            // Longer than the 32 characters of ESM's old fixed-size strings
+            expectPluginChunkRoundTrip(PluginChunk{ std::string(100, 'p'), 1, { 1 } });
+        }
+
+        TEST(Esm3PluginChunkTest, recordsInARowKeepTheirOwnValues)
+        {
+            const PluginChunk first{ "plugin.first", 1, { 1, 0, 2 } };
+            const PluginChunk second{ "plugin.second", 2, { 3, 0, 0, 4 } };
+
+            ESMReader reader;
+            reader.open(makePluginChunkStream({ first, second }), "stream");
+
+            PluginChunk result;
+            readPluginChunk(reader, result);
+            EXPECT_EQ(result.mPluginId, first.mPluginId);
+            EXPECT_EQ(result.mVersion, first.mVersion);
+            EXPECT_EQ(result.mData, first.mData);
+
+            PluginChunk nextResult;
+            readPluginChunk(reader, nextResult);
+            EXPECT_EQ(nextResult.mPluginId, second.mPluginId);
+            EXPECT_EQ(nextResult.mVersion, second.mVersion);
+            EXPECT_EQ(nextResult.mData, second.mData);
+
+            EXPECT_FALSE(reader.hasMoreRecs());
+        }
+
+        TEST(Esm3PluginChunkTest, readerThatDoesNotKnowTheRecordCanSkipIt)
+        {
+            // Spec, design 3: the record is skipped harmlessly. MWState::StateManager::loadGame's default case skips an
+            // unknown record after reading its header.
+            const PluginChunk second{ "plugin.second", 2, { 5 } };
+            ESMReader reader;
+            reader.open(makePluginChunkStream({ PluginChunk{ "plugin.first", 1, { 1, 2, 3 } }, second }), "stream");
+            ASSERT_TRUE(reader.hasMoreRecs());
+            reader.getRecName();
+            reader.getRecHeader();
+            reader.skipRecord();
+
+            PluginChunk result;
+            readPluginChunk(reader, result);
+            EXPECT_EQ(result.mPluginId, second.mPluginId);
+            EXPECT_EQ(result.mData, second.mData);
+        }
     }
 }

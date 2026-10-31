@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace openeden::plugin
@@ -32,6 +33,31 @@ namespace openeden::plugin
         std::size_t payloadSize = 0;
         std::vector<ForwardedFieldRecord> fields;
     };
+
+    /**
+     * @brief One payload field of a forwarded event, ready for the engine to turn into a Lua value.
+     */
+    struct DecodedField
+    {
+        std::string name;
+        std::variant<double, std::string, bool> value;
+    };
+
+    /**
+     * @brief Reads a marked event's payload by its record.
+     *
+     * @return False, with the reason in error, if the payload is shorter than the record says or a string is not
+     * valid UTF-8. A String field ends at its first NUL or at its size.
+     */
+    [[nodiscard]] bool decodeForwardedEvent(const ForwardedEventRecord& record, const void* data, std::size_t size,
+        std::vector<DecodedField>& out, std::string& error);
+
+    /**
+     * @brief Called for each published event that is marked, in publish order, on the publishing thread. Plugins must
+     * publish marked events on the main thread, so the game's sink needs no lock.
+     */
+    using ForwardSink
+        = std::function<void(const ForwardedEventRecord& record, const void* data, std::size_t size)>;
 
     /**
      * @brief Engine implementation of the OpenEden event bus.
@@ -79,6 +105,12 @@ namespace openeden::plugin
         bool markForwardedToLua(const openeden::sdk::ForwardedEventDesc& desc) override;
 
         [[nodiscard]] bool isForwardedToLua(openeden::sdk::EventId id) const;
+
+        /**
+         * @brief Sets who receives marked events; the game forwards them to Lua. A deferred event arrives when it
+         * is delivered, like a subscriber's. Unmarked events never reach it. Null stops it.
+         */
+        void setForwardSink(ForwardSink sink) { mForwardSink = std::move(sink); }
 
         /**
          * @brief Returns the recorded forwarded events, sorted by event ID.
@@ -146,5 +178,6 @@ namespace openeden::plugin
         std::map<openeden::sdk::EventId, std::vector<SubscriberEntry>> mSubscribers;
 
         std::map<openeden::sdk::EventId, ForwardedEventRecord> mForwardedEvents;
+        ForwardSink mForwardSink;
     };
 } // namespace openeden::plugin

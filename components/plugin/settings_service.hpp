@@ -50,12 +50,24 @@ namespace openeden::plugin
          */
         void loadManifestDefaults(const PluginManifest& manifest);
 
+        /**
+         * @brief Keeps values in Settings::Manager under category "plugin.<id>", as the game's settings.cfg.
+         *
+         * Call it before loadManifestDefaults, which then applies the user's values: one of the wrong type is logged
+         * and the default used. A value equal to its default is removed from the user's settings. Values are cached
+         * here, so reading one does not touch Settings::Manager. Off in a host that does not call this.
+         */
+        void useEngineSettings() { mUseEngineSettings = true; }
+
     private:
+        void storeInEngine(std::string_view pluginId, std::string_view key);
+
         using SettingValue = std::variant<bool, int, float, std::string>;
         using InnerMap = std::map<std::string, SettingValue, std::less<>>;
 
         // pluginId -> (key -> value) with transparent comparators
         std::map<std::string, InnerMap, std::less<>> mValues;
         std::map<std::string, InnerMap, std::less<>> mDefaults;
+        bool mUseEngineSettings = false;
     };
 } // namespace openeden::plugin

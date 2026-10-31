@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include <SDL_events.h>
 
@@ -66,6 +67,16 @@ namespace MWBase
     {
     public:
         virtual ~LuaManager() = default;
+
+        /// One value of a plugin event's flat payload.
+        struct PluginEventField
+        {
+            std::string mName;
+            std::variant<double, std::string, bool> mValue;
+        };
+
+        /// Delivers a plugin's event to global scripts as a table of its fields (decision 0003, task 0016). Main thread.
+        virtual void sendPluginEvent(std::string eventName, const std::vector<PluginEventField>& fields) = 0;
 
         virtual void contentFilesLoaded() = 0;
         virtual void newGameStarted() = 0;

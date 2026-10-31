@@ -37,6 +37,35 @@ namespace openeden::plugin
         void releasePluginObjects();
 
         /**
+         * @brief One plugin's chunk as the game's save file holds it.
+         */
+        struct Chunk
+        {
+            std::string pluginId;
+            std::uint32_t version = 0;
+            std::vector<std::uint8_t> bytes;
+        };
+
+        /**
+         * @brief Asks every handler for its chunk and adds the preserved chunks of plugins not loaded.
+         *
+         * Sorted by plugin ID. A handler that throws is logged, and its previously preserved chunk, if any, is kept.
+         */
+        [[nodiscard]] std::vector<Chunk> collectChunks() const;
+
+        /**
+         * @brief Gives a chunk read from a save to its plugin's handler, or preserves it if there is none.
+         *
+         * If the handler throws, the bytes are preserved and the handler is withdrawn so they are not overwritten.
+         */
+        void loadChunk(const Chunk& chunk);
+
+        /**
+         * @brief Forgets preserved chunks. The game calls it when starting a new game or loading another save.
+         */
+        void clearUnreadChunks();
+
+        /**
          * @brief Serializes all active and unread chunks into binary save data.
          */
         [[nodiscard]] std::vector<std::uint8_t> serialize() const;

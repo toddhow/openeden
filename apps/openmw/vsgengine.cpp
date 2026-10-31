@@ -152,7 +152,10 @@ namespace OMW
         // Game::run, so menu scripts stopped while a menu state was on top.
         const float luaDt = std::min(dt, 0.2f);
         if (mLuaActive && gameState->updateLua)
+        {
+            mPluginHost->sendPendingLuaEvents();
             mLuaManager->synchronizedUpdate(luaDt);
+        }
         // Delayed Lua actions such as teleports may push a state (ChangeCell); 0.51 changed the cell inside
         // synchronizedUpdate, so scripts must not run again until that state has finished.
         if (mStateManager->getGameState() != gameState)
@@ -322,6 +325,7 @@ namespace OMW
 
         mPluginHost = std::make_unique<PluginHost>(PluginHost::Config{
             { mCfgMgr.getLocalPath() / "plugins", mCfgMgr.getUserDataPath() / "plugins" }, args.plugins });
+        mEnvironment.setPluginManager(*mPluginHost);
 
         mVFS = std::make_unique<VFS::Manager>();
 
@@ -331,8 +335,26 @@ namespace OMW
         mFileCollections = Files::Collections(mDataDirs);
         // OpenMW 0.51 decodes archive file names with the content encoding.
         mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
-        VFS::registerArchives(
-            mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+        if (mPluginHost->dataDirs().empty())
+            VFS::registerArchives(
+                mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+        else
+        {
+            // Plugin data goes above data= folders and below data-local (task 0016), in the VFS only: where content
+            // files are looked up does not change.
+            Files::PathContainer vfsDirs = mDataDirs;
+            auto insertAt = std::find(vfsDirs.begin(), vfsDirs.end(), args.dataLocal);
+            for (const openeden::plugin::PluginDataDir& dir : mPluginHost->dataDirs())
+                insertAt = std::next(vfsDirs.insert(insertAt, dir.directory));
+            VFS::registerArchives(
+                mVFS.get(), Files::Collections(vfsDirs), args.archives, true, &mEncoder->getStatelessEncoder());
+
+            VFS::Manager gameData;
+            VFS::registerArchives(
+                &gameData, mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+            mPluginHost->reportDataOverrides(gameData);
+        }
+        mPluginHost->setEngineVfs(mVFS.get());
 
         auto physicalDevice = mRenderEngine->getOrCreatePhysicalDevice();
         bool useTextureCompression = physicalDevice->getFeatures().textureCompressionBC;

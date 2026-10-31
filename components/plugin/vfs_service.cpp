@@ -1,5 +1,9 @@
 #include "vfs_service.hpp"
 
+#include <components/files/istreamptr.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -107,13 +111,61 @@ namespace openeden::plugin
         return {};
     }
 
+    std::vector<DataOverride> findDataOverrides(const VFS::Manager& gameData, const std::vector<PluginDataDir>& dirs)
+    {
+        std::vector<DataOverride> overrides;
+        std::map<std::string, std::string, std::less<>> pluginOwner; // Latest plugin holding each path
+
+        for (const PluginDataDir& dir : dirs)
+        {
+            std::vector<std::string> paths;
+            std::error_code ec;
+            for (std::filesystem::recursive_directory_iterator it(dir.directory, ec), end; !ec && it != end;
+                 it.increment(ec))
+            {
+                if (it->is_regular_file(ec))
+                {
+                    std::string path = std::filesystem::relative(it->path(), dir.directory, ec).generic_string();
+                    VFS::Path::normalizeFilenameInPlace(path);
+                    paths.push_back(std::move(path));
+                }
+            }
+            std::sort(paths.begin(), paths.end());
+            paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
+
+            for (std::string& path : paths)
+            {
+                const auto owner = pluginOwner.find(path);
+                if (owner != pluginOwner.end())
+                    overrides.push_back({ path, dir.pluginId, owner->second });
+                else if (gameData.exists(VFS::Path::Normalized(path)))
+                    overrides.push_back({ path, dir.pluginId, {} });
+                pluginOwner[std::move(path)] = dir.pluginId;
+            }
+        }
+        return overrides;
+    }
+
     bool VfsServiceImpl::hasFile(std::string_view virtualPath) const
     {
+        if (mEngineVfs != nullptr)
+            return mEngineVfs->exists(VFS::Path::Normalized(virtualPath));
+
         return !resolvePhysicalPath(virtualPath).empty();
     }
 
     std::vector<std::uint8_t> VfsServiceImpl::readFile(std::string_view virtualPath) const
     {
+        if (mEngineVfs != nullptr)
+        {
+            const VFS::Path::Normalized path(virtualPath);
+            const Files::IStreamPtr stream = mEngineVfs->find(path);
+            if (!stream)
+                return {};
+            return std::vector<std::uint8_t>(
+                std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
+        }
+
         const auto physicalPath = resolvePhysicalPath(virtualPath);
         if (physicalPath.empty())
             return {};
@@ -167,8 +219,7 @@ namespace openeden::plugin
             outError->message.clear();
         }
 
-        const auto physicalPath = resolvePhysicalPath(virtualPath);
-        if (physicalPath.empty())
+        if (!hasFile(virtualPath))
         {
             if (outError)
             {

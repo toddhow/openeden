@@ -23,11 +23,14 @@ Rules and pitfalls for new OpenEden code here. Rendering has its own guide, `mwr
   A hidden window runs no phases. A frame cut short by a game state change runs only the phases it reached. Menus and loading screens have only `Input`, `PreRender` and `Ui`. `Ui` also does the end-of-frame reset of scratch memory, debug draw and the profiler, and runs before `MWRender::RenderManager::onFrame`, so the renderer must take its debug-draw snapshot before `Ui` (task 0017). The simulation phases receive simulation time, the others real frame time.
 - **Shutdown:** `~Game` stops plugins before the World goes, and `Engine::go` and `~Engine` call `stop()` too, for any path that did not reach `~Game`; it is safe to repeat. Stop, destroy and unload all happen in that one call. Before unloading, `LifecycleManager` drops everything plugins left in the services, through `HostImpl::releasePluginObjects`: a plugin whose `start` threw never ran `stop`. A new service that keeps plugin objects must join that function.
 - **Logging:** plugin lines go to the engine log with their `[pluginId]` prefix. Engine lines reach plugin sinks through `Debug::setExtraLogListener`, so the in-game log viewer keeps `setLogListener`. A plugin's own line reaches its sink once. A line a sink logs while receiving any line is dropped: it would call itself without end, and for an engine line the engine holds its log lock.
+- **Data (task 0016):** the VFS gets plugin `data/` folders above `data=` and below `data-local`, in load order; content files are still looked up without them. Settings live in `[plugin.<id>]` in `settings.cfg`.
+- **Saves:** one `OEPL` record per plugin. `SaveGame` and `LoadGame` run on a worker while frames continue, so plugins are called only on the main thread: `PluginHost::prepareSave` before the worker, `applyLoadedRecords` after it. The save code reaches this through `MWBase::PluginManager`. Chunks of absent plugins are written back unchanged, and forgotten on a new game or load.
+- **Lua:** marked events go to global scripts as `openeden_<pluginId>_<eventName>`, with a table of the flat payload. They wait until a game is running, since global scripts need one; publish them on the main thread.
 - **Zero plugins:** after startup's discovery, which still lists what is installed, every call returns at once and no listener is installed.
 
 ## Checking it
 
-`openmw-tests` runs `PluginHost` against real test plugin libraries (`apps/openmw_tests/plugin/`), but no unit test runs the engine loop. To check the phase calls, install the test plugin, run the game with `OPENEDEN_TEST_PLUGIN_LOG=<file>` and `--plugin=<id> --skip-menu --auto-quit 100`, then run `tools/check_plugin_phases.sh <file>`.
+`openmw-tests` runs `PluginHost` against real test plugin libraries (`apps/openmw_tests/plugin/`), but no unit test runs the engine loop. To check the phase calls, install the test plugin, run the game with `OPENEDEN_TEST_PLUGIN_LOG=<file>` and `--plugin=<id> --skip-menu --auto-quit 100`, then run `tools/check_plugin_phases.sh <file>`. For data, settings, saves and Lua events, run `tools/plugin_data_check/check.sh`.
 
 ## Pitfalls
 

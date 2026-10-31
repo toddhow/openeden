@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -290,5 +291,342 @@ namespace
         ASSERT_TRUE(session3.deserialize(binary2));
         EXPECT_TRUE(session3.hasUnreadChunk("plugin_faulty"));
         EXPECT_EQ(session3.getUnreadChunkRawBytes("plugin_faulty"), (std::vector<std::uint8_t>{ 10, 20, 30 }));
+    }
+
+    // ---- Chunks as the game's save file holds them (task 0016) -----------------------------------------------------
+
+    using Bytes = std::vector<std::uint8_t>;
+
+    // A handler whose written bytes do not depend on what it read, so the two can be told apart, and which counts
+    // calls and throws on request.
+    class ScriptedHandler : public SaveChunkHandler
+    {
+    public:
+        explicit ScriptedHandler(std::uint32_t version, Bytes toWrite = {})
+            : mVersion(version)
+            , mToWrite(std::move(toWrite))
+        {
+        }
+
+        std::uint32_t currentVersion() const noexcept override { return mVersion; }
+
+        void writeSaveChunk(SaveChunkWriter& writer) override
+        {
+            ++mWrites;
+            if (!mToWrite.empty())
+                writer.write(mToWrite.data(), mToWrite.size());
+            if (mThrowOnWrite)
+                throw std::runtime_error("write failed");
+        }
+
+        void readSaveChunk(std::uint32_t chunkVersion, SaveChunkReader& reader) override
+        {
+            ++mReads;
+            mReadVersion = chunkVersion;
+            mReadBytes.resize(reader.size());
+            if (!mReadBytes.empty())
+                reader.read(mReadBytes.data(), mReadBytes.size());
+            if (mThrowOnRead)
+                throw std::runtime_error("read failed");
+        }
+
+        std::uint32_t mVersion;
+        Bytes mToWrite;
+        bool mThrowOnRead = false;
+        bool mThrowOnWrite = false;
+        int mReads = 0;
+        int mWrites = 0;
+        std::uint32_t mReadVersion = 0;
+        Bytes mReadBytes;
+    };
+
+    SaveServiceImpl::Chunk makeChunk(std::string id, std::uint32_t version, Bytes bytes)
+    {
+        SaveServiceImpl::Chunk chunk;
+        chunk.pluginId = std::move(id);
+        chunk.version = version;
+        chunk.bytes = std::move(bytes);
+        return chunk;
+    }
+
+    void expectChunk(
+        const SaveServiceImpl::Chunk& chunk, std::string_view id, std::uint32_t version, const Bytes& bytes)
+    {
+        EXPECT_EQ(chunk.pluginId, id);
+        EXPECT_EQ(chunk.version, version);
+        EXPECT_EQ(chunk.bytes, bytes);
+    }
+
+    TEST(SaveServiceChunksTest, NoPluginsAndNoChunksCollectNothing)
+    {
+        // Saves without plugins stay byte-identical only if there is nothing to write
+        SaveServiceImpl service;
+        EXPECT_TRUE(service.collectChunks().empty());
+    }
+
+    TEST(SaveServiceChunksTest, CollectIsSortedByPluginIdWithEachHandlersCurrentVersion)
+    {
+        SaveServiceImpl service;
+        service.registerHandler("zeta", std::make_shared<ScriptedHandler>(3, Bytes{ 3 }));
+        service.registerHandler("alpha", std::make_shared<ScriptedHandler>(1, Bytes{ 1 }));
+        service.registerHandler("mid", std::make_shared<ScriptedHandler>(2, Bytes{ 2 }));
+
+        const auto chunks = service.collectChunks();
+
+        ASSERT_EQ(chunks.size(), 3u);
+        expectChunk(chunks[0], "alpha", 1, Bytes{ 1 });
+        expectChunk(chunks[1], "mid", 2, Bytes{ 2 });
+        expectChunk(chunks[2], "zeta", 3, Bytes{ 3 });
+    }
+
+    TEST(SaveServiceChunksTest, SeveralWritesFromAHandlerAreJoinedInOrder)
+    {
+        class TwoWritesHandler : public SaveChunkHandler
+        {
+        public:
+            std::uint32_t currentVersion() const noexcept override { return 1; }
+            void writeSaveChunk(SaveChunkWriter& writer) override
+            {
+                const std::uint8_t first[] = { 1, 2 };
+                const std::uint8_t second[] = { 0, 3 };
+                writer.write(first, sizeof(first));
+                writer.write(second, sizeof(second));
+            }
+            void readSaveChunk(std::uint32_t, SaveChunkReader&) override {}
+        };
+
+        SaveServiceImpl service;
+        service.registerHandler("plugin", std::make_shared<TwoWritesHandler>());
+
+        const auto chunks = service.collectChunks();
+
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "plugin", 1, Bytes{ 1, 2, 0, 3 });
+    }
+
+    TEST(SaveServiceChunksTest, PreservedChunksAreCollectedSortedAmongHandlersByteForByte)
+    {
+        const Bytes absentBytes{ 0, 0xFF, 0, 1, 0 };
+
+        SaveServiceImpl service;
+        service.registerHandler("zeta", std::make_shared<ScriptedHandler>(1, Bytes{ 9 }));
+        service.registerHandler("alpha", std::make_shared<ScriptedHandler>(1, Bytes{ 8 }));
+        service.loadChunk(makeChunk("mid_absent", 7, absentBytes));
+
+        const auto chunks = service.collectChunks();
+
+        ASSERT_EQ(chunks.size(), 3u);
+        expectChunk(chunks[0], "alpha", 1, Bytes{ 8 });
+        // The stored version, which is the absent plugin's, not one this host knows
+        expectChunk(chunks[1], "mid_absent", 7, absentBytes);
+        expectChunk(chunks[2], "zeta", 1, Bytes{ 9 });
+    }
+
+    TEST(SaveServiceChunksTest, AbsentPluginsChunkIsWrittenBackUnchangedAcrossSaves)
+    {
+        const Bytes bytes{ 1, 0, 2, 0, 0, 3 };
+
+        SaveServiceImpl first;
+        first.loadChunk(makeChunk("absent", 4, bytes));
+        EXPECT_TRUE(first.hasUnreadChunk("absent"));
+        const auto saved = first.collectChunks();
+        ASSERT_EQ(saved.size(), 1u);
+        expectChunk(saved[0], "absent", 4, bytes);
+
+        // Collecting does not use the chunk up: the game can save twice from one load
+        const auto savedAgain = first.collectChunks();
+        ASSERT_EQ(savedAgain.size(), 1u);
+        expectChunk(savedAgain[0], "absent", 4, bytes);
+
+        // The next session loads what the last one saved
+        SaveServiceImpl second;
+        second.loadChunk(saved[0]);
+        const auto savedBySecond = second.collectChunks();
+        ASSERT_EQ(savedBySecond.size(), 1u);
+        expectChunk(savedBySecond[0], "absent", 4, bytes);
+    }
+
+    TEST(SaveServiceChunksTest, AbsentPluginsEmptyChunkIsStillWrittenBack)
+    {
+        SaveServiceImpl service;
+        service.loadChunk(makeChunk("absent", 2, {}));
+
+        const auto chunks = service.collectChunks();
+
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "absent", 2, {});
+    }
+
+    TEST(SaveServiceChunksTest, LoadChunkReachesTheHandlerWithTheStoredVersion)
+    {
+        const Bytes bytes{ 4, 0, 5 };
+        auto handler = std::make_shared<ScriptedHandler>(1);
+        SaveServiceImpl service;
+        service.registerHandler("plugin", handler);
+
+        service.loadChunk(makeChunk("plugin", 1, bytes));
+
+        EXPECT_EQ(handler->mReads, 1);
+        EXPECT_EQ(handler->mReadVersion, 1u);
+        EXPECT_EQ(handler->mReadBytes, bytes);
+        EXPECT_FALSE(service.hasUnreadChunk("plugin"));
+    }
+
+    TEST(SaveServiceChunksTest, OlderVersionReachesTheMigrationPathAndSavesAsCurrent)
+    {
+        const std::uint32_t v1State = 42;
+        Bytes v1Bytes(sizeof(v1State));
+        std::memcpy(v1Bytes.data(), &v1State, sizeof(v1State));
+
+        auto handler = std::make_shared<MigratingSaveHandler>();
+        SaveServiceImpl service;
+        service.registerHandler("plugin", handler);
+
+        service.loadChunk(makeChunk("plugin", 1, v1Bytes));
+
+        EXPECT_TRUE(handler->mMigrationInvoked);
+        EXPECT_EQ(handler->mLoadedVersion, 1u);
+        EXPECT_EQ(handler->mStateV2, 42000u); // MigratingSaveHandler multiplies a v1 state by 1000
+
+        const auto chunks = service.collectChunks();
+        ASSERT_EQ(chunks.size(), 1u);
+        EXPECT_EQ(chunks[0].version, 2u);
+        EXPECT_EQ(chunks[0].bytes.size(), sizeof(std::uint64_t));
+    }
+
+    TEST(SaveServiceChunksTest, HandlerRegisteredLaterConsumesThePreservedChunk)
+    {
+        const Bytes bytes{ 1, 0, 2 };
+        SaveServiceImpl service;
+        service.loadChunk(makeChunk("plugin", 3, bytes));
+        ASSERT_TRUE(service.hasUnreadChunk("plugin"));
+
+        auto handler = std::make_shared<ScriptedHandler>(5, Bytes{ 7 });
+        service.registerHandler("plugin", handler);
+
+        EXPECT_EQ(handler->mReads, 1);
+        EXPECT_EQ(handler->mReadVersion, 3u);
+        EXPECT_EQ(handler->mReadBytes, bytes);
+        EXPECT_FALSE(service.hasUnreadChunk("plugin"));
+    }
+
+    TEST(SaveServiceChunksTest, LiveHandlerWinsOverAPreservedChunkWithItsId)
+    {
+        SaveServiceImpl service;
+        service.loadChunk(makeChunk("plugin", 3, Bytes{ 1, 2 }));
+        service.registerHandler("plugin", std::make_shared<ScriptedHandler>(5, Bytes{ 7 }));
+
+        const auto chunks = service.collectChunks();
+
+        // Exactly one chunk with that ID, and it is the handler's
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "plugin", 5, Bytes{ 7 });
+    }
+
+    TEST(SaveServiceChunksTest, ThrowingWriteIsContainedAndOtherPluginsStillSave)
+    {
+        auto bad = std::make_shared<ScriptedHandler>(1, Bytes{ 1, 2 });
+        bad->mThrowOnWrite = true;
+
+        SaveServiceImpl service;
+        service.registerHandler("bad", bad);
+        service.registerHandler("good", std::make_shared<ScriptedHandler>(2, Bytes{ 3 }));
+
+        std::vector<SaveServiceImpl::Chunk> chunks;
+        EXPECT_NO_THROW(chunks = service.collectChunks());
+
+        // bad wrote two bytes and then threw: half a chunk must not reach the file
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "good", 2, Bytes{ 3 });
+        EXPECT_EQ(bad->mWrites, 1);
+    }
+
+    TEST(SaveServiceChunksTest, ThrowingHandlerRegisteredLaterKeepsThePreservedChunk)
+    {
+        const Bytes bytes{ 1, 0, 2 };
+        auto bad = std::make_shared<ScriptedHandler>(5, Bytes{ 9, 9 });
+        bad->mThrowOnRead = true;
+        bad->mThrowOnWrite = true;
+
+        SaveServiceImpl service;
+        service.loadChunk(makeChunk("bad", 3, bytes));
+        EXPECT_NO_THROW(service.registerHandler("bad", bad));
+
+        std::vector<SaveServiceImpl::Chunk> chunks;
+        EXPECT_NO_THROW(chunks = service.collectChunks());
+
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "bad", 3, bytes);
+    }
+
+    TEST(SaveServiceChunksTest, ThrowingReadOnLoadKeepsTheBytesAndWithdrawsTheHandler)
+    {
+        const Bytes bytes{ 1, 0, 2, 3 };
+        auto bad = std::make_shared<ScriptedHandler>(5, Bytes{ 9 });
+        bad->mThrowOnRead = true;
+
+        SaveServiceImpl service;
+        service.registerHandler("bad", bad);
+
+        EXPECT_NO_THROW(service.loadChunk(makeChunk("bad", 2, bytes)));
+        EXPECT_EQ(bad->mReads, 1);
+        EXPECT_TRUE(service.hasUnreadChunk("bad"));
+        EXPECT_EQ(service.getUnreadChunkRawBytes("bad"), bytes);
+
+        // Withdrawn: it is not asked to write, so its bytes cannot overwrite the ones it failed to read
+        const auto chunks = service.collectChunks();
+        EXPECT_EQ(bad->mWrites, 0);
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "bad", 2, bytes);
+
+        // And it is not offered the next chunk either
+        const Bytes newer{ 6 };
+        service.loadChunk(makeChunk("bad", 3, newer));
+        EXPECT_EQ(bad->mReads, 1);
+        const auto newerChunks = service.collectChunks();
+        ASSERT_EQ(newerChunks.size(), 1u);
+        expectChunk(newerChunks[0], "bad", 3, newer);
+    }
+
+    TEST(SaveServiceChunksTest, ThrowingReadDoesNotAffectOtherPlugins)
+    {
+        auto bad = std::make_shared<ScriptedHandler>(1);
+        bad->mThrowOnRead = true;
+        auto good = std::make_shared<ScriptedHandler>(1, Bytes{ 5 });
+
+        SaveServiceImpl service;
+        service.registerHandler("bad", bad);
+        service.registerHandler("good", good);
+
+        service.loadChunk(makeChunk("bad", 1, Bytes{ 1 }));
+        service.loadChunk(makeChunk("good", 1, Bytes{ 2 }));
+
+        EXPECT_EQ(good->mReadBytes, Bytes{ 2 });
+        const auto chunks = service.collectChunks();
+        ASSERT_EQ(chunks.size(), 2u);
+        expectChunk(chunks[0], "bad", 1, Bytes{ 1 });
+        expectChunk(chunks[1], "good", 1, Bytes{ 5 });
+    }
+
+    TEST(SaveServiceChunksTest, ClearUnreadChunksForgetsPreservedChunksAndKeepsHandlers)
+    {
+        SaveServiceImpl service;
+        service.registerHandler("live", std::make_shared<ScriptedHandler>(1, Bytes{ 5 }));
+        service.loadChunk(makeChunk("absent_a", 1, Bytes{ 1 }));
+        service.loadChunk(makeChunk("absent_b", 1, Bytes{ 2 }));
+
+        service.clearUnreadChunks();
+
+        EXPECT_FALSE(service.hasUnreadChunk("absent_a"));
+        EXPECT_FALSE(service.hasUnreadChunk("absent_b"));
+        EXPECT_TRUE(service.getUnreadChunkPluginIds().empty());
+        const auto chunks = service.collectChunks();
+        ASSERT_EQ(chunks.size(), 1u);
+        expectChunk(chunks[0], "live", 1, Bytes{ 5 });
+
+        // A handler registered after the clear finds nothing to read
+        auto late = std::make_shared<ScriptedHandler>(1);
+        service.registerHandler("absent_a", late);
+        EXPECT_EQ(late->mReads, 0);
     }
 } // namespace

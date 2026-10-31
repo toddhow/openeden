@@ -104,6 +104,16 @@ namespace MWLua
         initPostLoad();
     }
 
+    void LuaManager::sendPluginEvent(std::string eventName, const std::vector<PluginEventField>& fields)
+    {
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::table payload(view.sol(), sol::create);
+            for (const PluginEventField& field : fields)
+                std::visit([&](const auto& value) { payload[field.mName] = value; }, field.mValue);
+            mLuaEvents.addGlobalEvent({ std::move(eventName), LuaUtil::serialize(payload) });
+        });
+    }
+
     void LuaManager::initPreLoad()
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {

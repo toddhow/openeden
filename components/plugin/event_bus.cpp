@@ -8,6 +8,57 @@ namespace openeden::plugin
 {
     namespace
     {
+        bool isValidUtf8(std::string_view text)
+        {
+            std::size_t i = 0;
+            while (i < text.size())
+            {
+                const auto lead = static_cast<unsigned char>(text[i]);
+                std::size_t extra = 0;
+                std::uint32_t codePoint = 0;
+                std::uint32_t minimum = 0;
+                if (lead < 0x80)
+                {
+                    ++i;
+                    continue;
+                }
+                else if ((lead & 0xE0) == 0xC0)
+                {
+                    extra = 1;
+                    codePoint = lead & 0x1F;
+                    minimum = 0x80;
+                }
+                else if ((lead & 0xF0) == 0xE0)
+                {
+                    extra = 2;
+                    codePoint = lead & 0x0F;
+                    minimum = 0x800;
+                }
+                else if ((lead & 0xF8) == 0xF0)
+                {
+                    extra = 3;
+                    codePoint = lead & 0x07;
+                    minimum = 0x10000;
+                }
+                else
+                    return false;
+
+                if (extra >= text.size() - i)
+                    return false;
+                for (std::size_t j = 1; j <= extra; ++j)
+                {
+                    const auto next = static_cast<unsigned char>(text[i + j]);
+                    if ((next & 0xC0) != 0x80)
+                        return false;
+                    codePoint = (codePoint << 6) | (next & 0x3F);
+                }
+                if (codePoint < minimum || codePoint > 0x10FFFF || (codePoint >= 0xD800 && codePoint <= 0xDFFF))
+                    return false;
+                i += extra + 1;
+            }
+            return true;
+        }
+
         // The core reads a field by its type, so the size must be the one that type needs
         bool hasValidSize(const openeden::sdk::ForwardedField& field)
         {
@@ -28,6 +79,64 @@ namespace openeden::plugin
             }
             return false;
         }
+    }
+
+    bool decodeForwardedEvent(const ForwardedEventRecord& record, const void* data, std::size_t size,
+        std::vector<DecodedField>& out, std::string& error)
+    {
+        using openeden::sdk::ForwardedFieldType;
+
+        if (size < record.payloadSize || (data == nullptr && record.payloadSize != 0))
+        {
+            error = "payload of " + std::to_string(size) + " bytes is shorter than the " + std::to_string(record.payloadSize)
+                + " bytes marked";
+            return false;
+        }
+
+        const auto* bytes = static_cast<const char*>(data);
+        const auto read = [&](const ForwardedFieldRecord& field, auto value) {
+            std::memcpy(&value, bytes + field.offset, sizeof(value));
+            return value;
+        };
+
+        out.clear();
+        out.reserve(record.fields.size());
+        for (const ForwardedFieldRecord& field : record.fields)
+        {
+            std::variant<double, std::string, bool> value;
+            switch (field.type)
+            {
+                case ForwardedFieldType::Float32:
+                    value = static_cast<double>(read(field, float{}));
+                    break;
+                case ForwardedFieldType::Float64:
+                    value = read(field, double{});
+                    break;
+                case ForwardedFieldType::Int32:
+                    value = static_cast<double>(read(field, std::int32_t{}));
+                    break;
+                case ForwardedFieldType::UInt32:
+                    value = static_cast<double>(read(field, std::uint32_t{}));
+                    break;
+                case ForwardedFieldType::Boolean:
+                    value = read(field, char{}) != 0;
+                    break;
+                case ForwardedFieldType::String:
+                {
+                    std::string_view text(bytes + field.offset, field.size);
+                    text = text.substr(0, text.find('\0'));
+                    if (!isValidUtf8(text))
+                    {
+                        error = "field '" + field.name + "' is not valid UTF-8";
+                        return false;
+                    }
+                    value = std::string(text);
+                    break;
+                }
+            }
+            out.push_back({ field.name, std::move(value) });
+        }
+        return true;
     }
 
     EventBusImpl::EventBusImpl(std::size_t capacity)
@@ -171,6 +280,27 @@ namespace openeden::plugin
 
     void EventBusImpl::publishImmediate(openeden::sdk::EventId id, const void* data, std::size_t size)
     {
+        // With nothing marked, this path costs one check and allocates nothing
+        if (mForwardSink && !mForwardedEvents.empty())
+        {
+            const auto forwarded = mForwardedEvents.find(id);
+            if (forwarded != mForwardedEvents.end())
+            {
+                try
+                {
+                    mForwardSink(forwarded->second, data, size);
+                }
+                catch (const std::exception& e)
+                {
+                    std::cerr << "OpenEden EventBus: Exception forwarding event " << id << ": " << e.what() << '\n';
+                }
+                catch (...)
+                {
+                    std::cerr << "OpenEden EventBus: Unknown exception forwarding event " << id << '\n';
+                }
+            }
+        }
+
         auto it = mSubscribers.find(id);
         if (it == mSubscribers.end() || it->second.empty())
             return;

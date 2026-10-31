@@ -8,16 +8,24 @@
 //
 // OPENEDEN_TEST_PLUGIN_THROW="<id>:start" or "<id>:phase" makes this plugin throw at that point.
 
+#include <openeden/event_bus.hpp>
 #include <openeden/logging.hpp>
 #include <openeden/plugin.hpp>
+#include <openeden/save.hpp>
+#include <openeden/settings.hpp>
+#include <openeden/vfs.hpp>
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace
 {
@@ -65,6 +73,45 @@ namespace
     };
 #endif
 
+    // With OPENEDEN_TEST_PLUGIN_DATA, the plugin uses the data services, for tools/plugin_data_check/check.sh.
+    constexpr const char* kChunkText = "chunk-from-plugin";
+    constexpr std::uint32_t kChunkVersion = 3;
+
+    class TestSaveHandler final : public openeden::sdk::SaveChunkHandler
+    {
+    public:
+        [[nodiscard]] std::uint32_t currentVersion() const noexcept override { return kChunkVersion; }
+
+        void writeSaveChunk(openeden::sdk::SaveChunkWriter& writer) override
+        {
+            writer.write(kChunkText, std::strlen(kChunkText));
+        }
+
+        void readSaveChunk(std::uint32_t chunkVersion, openeden::sdk::SaveChunkReader& reader) override
+        {
+            std::string text(reader.size(), '\0');
+            reader.read(text.data(), text.size());
+            record("chunk v" + std::to_string(chunkVersion) + " " + text);
+        }
+    };
+
+    struct PingEvent
+    {
+        static constexpr openeden::sdk::EventId kEventId = 0x54455354;
+
+        std::int32_t count = 0;
+        float value = 0.5f;
+        bool flag = true;
+        char text[16] = {};
+    };
+
+    struct UnmarkedEvent
+    {
+        static constexpr openeden::sdk::EventId kEventId = 0x54455355;
+
+        std::int32_t count = 0;
+    };
+
     // Set while started. With OPENEDEN_TEST_PLUGIN_SINK_LOGS, the sink logs while it receives a line, which must not hang.
     openeden::sdk::Logger* sSinkLogger = nullptr;
 
@@ -111,9 +158,10 @@ namespace
             for (const PhaseName& phase : kPhases)
             {
                 const std::string event = std::string("phase ") + phase.mName;
-                registrar.registerPhaseCallback(phase.mPhase, [event](float /*dt*/) {
+                registrar.registerPhaseCallback(phase.mPhase, [this, event](float /*dt*/) {
                     record(event);
                     throwIfAsked("phase");
+                    publishTestEvents();
                 });
             }
         }
@@ -148,23 +196,83 @@ namespace
                 logger->info("hello from plugin");
             }
             throwIfAsked("start-after-sink");
+
+            if (std::getenv("OPENEDEN_TEST_PLUGIN_DATA") != nullptr)
+                startDataServices(host);
         }
 
         void stop() override
         {
             sSinkLogger = nullptr;
             record("stop");
+            if (mSaves != nullptr)
+                mSaves->unregisterHandler(kPluginId);
             if (mLogging != nullptr && mSink != nullptr)
                 mLogging->removeSink(mSink);
             mSink.reset();
         }
 
     private:
+        void startDataServices(openeden::sdk::Host& host)
+        {
+            const auto textOf = [&](std::string_view path) {
+                const std::vector<std::uint8_t> bytes = host.getVfsService()->readFile(path);
+                return std::string(bytes.begin(), bytes.end());
+            };
+            record("vfs " + textOf("openeden_test/hello.txt"));
+            record("vfs-override " + textOf("openeden_test/overridden.txt"));
+
+            openeden::sdk::SettingsService& settings = *host.getSettingsService();
+            record("setting answer " + std::to_string(settings.getInt(kPluginId, "answer", -1)));
+            record("setting broken " + std::to_string(settings.getInt(kPluginId, "broken", -1)));
+            settings.setInt(kPluginId, "changed", 7);
+
+            mSaveHandler = std::make_shared<TestSaveHandler>();
+            mSaves = host.getSaveService();
+            mSaves->registerHandler(kPluginId, mSaveHandler);
+
+            mEvents = host.getEventBus();
+            const openeden::sdk::ForwardedField fields[] = {
+                openeden::sdk::forwardedField("count", &PingEvent::count, offsetof(PingEvent, count)),
+                openeden::sdk::forwardedField("value", &PingEvent::value, offsetof(PingEvent, value)),
+                openeden::sdk::forwardedField("flag", &PingEvent::flag, offsetof(PingEvent, flag)),
+                openeden::sdk::forwardedField("text", &PingEvent::text, offsetof(PingEvent, text)),
+            };
+            mEvents->markForwardedToLua<PingEvent>(kPluginId, "ping", fields);
+        }
+
+        void publishTestEvents()
+        {
+            if (mEvents == nullptr || mPublished)
+                return;
+            mPublished = true;
+
+            PingEvent event;
+            event.count = 1;
+            std::strcpy(event.text, "first");
+            mEvents->publishImmediate(event);
+
+            // Not valid UTF-8: dropped, and the events around it still arrive in order.
+            PingEvent bad;
+            bad.text[0] = '\xFF';
+            mEvents->publishImmediate(bad);
+
+            mEvents->publishImmediate(UnmarkedEvent{ 1 });
+
+            event.count = 2;
+            std::strcpy(event.text, "second");
+            mEvents->publishImmediate(event);
+        }
+
 #ifdef OPENEDEN_TEST_PLUGIN_PROVIDES_A
         TestAImplementation mImplementation;
 #endif
         openeden::sdk::LoggingService* mLogging = nullptr;
         std::shared_ptr<RecordingSink> mSink;
+        std::shared_ptr<TestSaveHandler> mSaveHandler;
+        openeden::sdk::SaveService* mSaves = nullptr;
+        openeden::sdk::EventBus* mEvents = nullptr;
+        bool mPublished = false;
     };
 
     std::unique_ptr<openeden::sdk::Plugin> createPlugin()

@@ -11,6 +11,7 @@
 #include "../mwbase/journal.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
+#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/scriptmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -256,6 +257,10 @@ namespace MWState
                         MWBase::Environment::get().getLuaManager()->readRecord(reader, n.toInt());
                         break;
 
+                    case ESM::REC_OEPL:
+                        MWBase::Environment::get().getPluginManager()->readRecord(reader, n.toInt());
+                        break;
+
                     default:
                         // ignore invalid records
                         Log(Debug::Warning) << "Warning: Ignoring unknown record: " << n.toStringView();
@@ -267,6 +272,8 @@ namespace MWState
 
         void postLoad()
         {
+            MWBase::Environment::get().getPluginManager()->applyLoadedRecords();
+
             characterManager.setCurrentCharacter(character);
 
             if (character)

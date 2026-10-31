@@ -1,5 +1,7 @@
 #include <components/plugin/load_error.hpp>
 #include <components/plugin/vfs_service.hpp>
+#include <components/vfs/filesystemarchive.hpp>
+#include <components/vfs/manager.hpp>
 #include <openeden/vfs.hpp>
 
 #include <gtest/gtest.h>
@@ -263,5 +265,333 @@ namespace
             EXPECT_FALSE(result);
             EXPECT_NE(error.message.find("Parser crashed"), std::string::npos);
         });
+    }
+
+    // ---- Reading through the game's VFS (task 0016) -----------------------------------------------------------------
+
+    using openeden::plugin::DataOverride;
+    using openeden::plugin::findDataOverrides;
+    using openeden::plugin::PluginDataDir;
+
+    // Built as OMW::Engine builds the game's: archives in priority order, then the index.
+    std::unique_ptr<VFS::Manager> makeGameVfs(const std::vector<std::filesystem::path>& directories)
+    {
+        auto vfs = std::make_unique<VFS::Manager>();
+        for (const std::filesystem::path& directory : directories)
+            vfs->addArchive(std::make_unique<VFS::FileSystemArchive>(directory));
+        vfs->buildIndex();
+        return vfs;
+    }
+
+    std::string readText(const VfsServiceImpl& service, std::string_view path)
+    {
+        const std::vector<std::uint8_t> bytes = service.readFile(path);
+        return std::string(bytes.begin(), bytes.end());
+    }
+
+    TEST(VfsServiceEngineTest, HasFileAndReadFileGoThroughTheGamesVfs)
+    {
+        TempTestDirectory dir("engine_read");
+        dir.writeFile("meshes/x.txt", "game_content");
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+
+        // The game's path, with no "data" prefix (header of setEngineVfs)
+        EXPECT_TRUE(service.hasFile("meshes/x.txt"));
+        EXPECT_FALSE(service.hasFile("meshes/y.txt"));
+        EXPECT_EQ(readText(service, "meshes/x.txt"), "game_content");
+    }
+
+    TEST(VfsServiceEngineTest, BinaryFileIsReadByteForByte)
+    {
+        TempTestDirectory dir("engine_binary");
+        const std::string content("a\0b\r\nc\xFF\0", 8);
+        dir.writeFile("data.bin", content);
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+
+        EXPECT_EQ(readText(service, "data.bin"), content);
+    }
+
+    TEST(VfsServiceEngineTest, ReadAssetDispatchesTheGamesFileToItsReader)
+    {
+        TempTestDirectory dir("engine_asset");
+        dir.writeFile("anims/walk.animgraph", "VALID_ANIMGRAPH_DATA");
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+        auto reader = std::make_shared<MockAnimGraphReader>();
+        service.registerFormatReader(".animgraph", reader);
+
+        FileError error;
+        EXPECT_TRUE(service.readAsset("anims/walk.animgraph", &error));
+
+        EXPECT_EQ(reader->mLastReadPath, "anims/walk.animgraph");
+        EXPECT_EQ(std::string(reader->mLastReadData.begin(), reader->mLastReadData.end()), "VALID_ANIMGRAPH_DATA");
+        EXPECT_TRUE(error.message.empty());
+    }
+
+    TEST(VfsServiceEngineTest, ReaderErrorKeepsItsLocationThroughTheGamesVfs)
+    {
+        TempTestDirectory dir("engine_asset_bad");
+        dir.writeFile("anims/broken.animgraph", "INVALID");
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+        service.registerFormatReader(".animgraph", std::make_shared<MockAnimGraphReader>());
+
+        FileError error;
+        EXPECT_FALSE(service.readAsset("anims/broken.animgraph", &error));
+        EXPECT_EQ(error.file, "anims/broken.animgraph");
+        EXPECT_EQ(error.line, 42u); // Set by MockAnimGraphReader
+        EXPECT_FALSE(error.message.empty());
+    }
+
+    TEST(VfsServiceEngineTest, LaterArchiveWins)
+    {
+        // VFS::Manager's class comment: "the last added archive will have priority"
+        TempTestDirectory earlier("engine_earlier");
+        TempTestDirectory later("engine_later");
+        earlier.writeFile("shared.txt", "from_earlier");
+        earlier.writeFile("only_earlier.txt", "still_here");
+        later.writeFile("shared.txt", "from_later");
+        const auto gameVfs = makeGameVfs({ earlier.path(), later.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+
+        EXPECT_EQ(readText(service, "shared.txt"), "from_later");
+        EXPECT_EQ(readText(service, "only_earlier.txt"), "still_here");
+    }
+
+    TEST(VfsServiceEngineTest, PathsAreCaseInsensitiveAsInTheGamesVfs)
+    {
+        TempTestDirectory dir("engine_case");
+        dir.writeFile("Meshes/Sub/MixedCase.TXT", "content");
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+
+        EXPECT_TRUE(service.hasFile("meshes/sub/mixedcase.txt"));
+        EXPECT_TRUE(service.hasFile("MESHES/SUB/MIXEDCASE.TXT"));
+        EXPECT_TRUE(service.hasFile("Meshes\\Sub\\MixedCase.txt"));
+        EXPECT_EQ(readText(service, "MESHES/sub/MixedCase.txt"), "content");
+    }
+
+    TEST(VfsServiceEngineTest, ReadAssetAcceptsAMixedCasePath)
+    {
+        TempTestDirectory dir("engine_asset_case");
+        dir.writeFile("anims/walk.animgraph", "VALID");
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+        service.registerFormatReader(".animgraph", std::make_shared<MockAnimGraphReader>());
+
+        FileError error;
+        EXPECT_TRUE(service.readAsset("Anims/WALK.animgraph", &error)) << error.message;
+    }
+
+    TEST(VfsServiceEngineTest, MissingFileGivesALocatedErrorWithoutThrowing)
+    {
+        TempTestDirectory dir("engine_missing");
+        const auto gameVfs = makeGameVfs({ dir.path() });
+
+        VfsServiceImpl service;
+        service.setEngineVfs(gameVfs.get());
+        service.registerFormatReader(".animgraph", std::make_shared<MockAnimGraphReader>());
+
+        FileError error;
+        bool result = true;
+        EXPECT_NO_THROW(result = service.readAsset("anims/missing.animgraph", &error));
+        EXPECT_FALSE(result);
+        EXPECT_EQ(error.file, "anims/missing.animgraph");
+        EXPECT_FALSE(error.message.empty());
+
+        // VFS::Manager::get throws on a missing file; no exception crosses to a plugin (plugin doc 6.8)
+        std::vector<std::uint8_t> bytes{ 1 };
+        EXPECT_NO_THROW(bytes = service.readFile("anims/missing.animgraph"));
+        EXPECT_TRUE(bytes.empty());
+    }
+
+    TEST(VfsServiceEngineTest, OwnMountsAreIgnoredWhileSetAndNullRestoresThem)
+    {
+        TempTestDirectory mounted("engine_mounted");
+        TempTestDirectory game("engine_game");
+        mounted.writeFile("mounted.txt", "from_mount");
+        game.writeFile("game.txt", "from_game");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        VfsServiceImpl service;
+        service.mount("data", mounted.path(), 0);
+        ASSERT_TRUE(service.hasFile("data/mounted.txt"));
+        ASSERT_FALSE(service.hasFile("game.txt"));
+
+        service.setEngineVfs(gameVfs.get());
+        EXPECT_FALSE(service.hasFile("data/mounted.txt"));
+        EXPECT_TRUE(service.hasFile("game.txt"));
+
+        service.setEngineVfs(nullptr);
+        EXPECT_TRUE(service.hasFile("data/mounted.txt"));
+        EXPECT_FALSE(service.hasFile("game.txt"));
+        EXPECT_EQ(readText(service, "data/mounted.txt"), "from_mount");
+    }
+
+    // ---- findDataOverrides (acceptance: "a game data file overridden by a plugin is reported once") -----------------
+
+    // Flattened so that gtest prints a failure readably and the whole result, order included, can be compared.
+    std::vector<std::string> flatten(const std::vector<DataOverride>& overrides)
+    {
+        std::vector<std::string> result;
+        for (const DataOverride& entry : overrides)
+            result.push_back(entry.path + "|" + entry.pluginId + "|" + entry.overriddenPluginId);
+        return result;
+    }
+
+    using Lines = std::vector<std::string>;
+
+    TEST(FindDataOverridesTest, FileInGameDataIsReportedWithAnEmptyOverriddenPlugin)
+    {
+        TempTestDirectory game("override_game");
+        TempTestDirectory plugin("override_plugin");
+        game.writeFile("meshes/a.nif", "game");
+        plugin.writeFile("meshes/a.nif", "plugin");
+        plugin.writeFile("meshes/new.nif", "plugin only");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        const auto overrides = findDataOverrides(*gameVfs, { PluginDataDir{ "plugin_a", plugin.path() } });
+
+        EXPECT_EQ(flatten(overrides), Lines{ "meshes/a.nif|plugin_a|" });
+    }
+
+    TEST(FindDataOverridesTest, FileInTwoPluginsIsReportedWithTheEarlierPlugin)
+    {
+        TempTestDirectory game("override2_game");
+        TempTestDirectory first("override2_first");
+        TempTestDirectory second("override2_second");
+        first.writeFile("textures/t.dds", "first");
+        second.writeFile("textures/t.dds", "second");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        const auto overrides = findDataOverrides(
+            *gameVfs, { PluginDataDir{ "plugin_a", first.path() }, PluginDataDir{ "plugin_b", second.path() } });
+
+        EXPECT_EQ(flatten(overrides), Lines{ "textures/t.dds|plugin_b|plugin_a" });
+    }
+
+    TEST(FindDataOverridesTest, EachPluginReportsWhatItDirectlyHides)
+    {
+        // A file in the game and in three plugins: "once per plugin that hides it", and each hides what was on top
+        TempTestDirectory game("override3_game");
+        TempTestDirectory a("override3_a");
+        TempTestDirectory b("override3_b");
+        TempTestDirectory c("override3_c");
+        game.writeFile("x.txt", "game");
+        a.writeFile("x.txt", "a");
+        b.writeFile("x.txt", "b");
+        c.writeFile("x.txt", "c");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        const auto overrides = findDataOverrides(*gameVfs,
+            { PluginDataDir{ "a", a.path() }, PluginDataDir{ "b", b.path() }, PluginDataDir{ "c", c.path() } });
+
+        EXPECT_EQ(flatten(overrides), (Lines{ "x.txt|a|", "x.txt|b|a", "x.txt|c|b" }));
+    }
+
+    TEST(FindDataOverridesTest, NoOverlapGivesNothing)
+    {
+        TempTestDirectory game("override4_game");
+        TempTestDirectory first("override4_first");
+        TempTestDirectory second("override4_second");
+        game.writeFile("game.txt", "game");
+        first.writeFile("first.txt", "first");
+        // The same file name in another folder is another VFS path
+        second.writeFile("sub/first.txt", "second");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        const auto overrides = findDataOverrides(
+            *gameVfs, { PluginDataDir{ "a", first.path() }, PluginDataDir{ "b", second.path() } });
+
+        EXPECT_TRUE(overrides.empty());
+    }
+
+    TEST(FindDataOverridesTest, NoPluginsGiveNothing)
+    {
+        TempTestDirectory game("override5_game");
+        game.writeFile("game.txt", "game");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        EXPECT_TRUE(findDataOverrides(*gameVfs, {}).empty());
+    }
+
+    TEST(FindDataOverridesTest, MissingDirectoryHasNoFiles)
+    {
+        TempTestDirectory game("override6_game");
+        TempTestDirectory real("override6_real");
+        TempTestDirectory later("override6_later");
+        game.writeFile("x.txt", "game");
+        real.writeFile("x.txt", "real");
+        later.writeFile("x.txt", "later");
+        const auto gameVfs = makeGameVfs({ game.path() });
+        const std::filesystem::path missing = game.path() / "no_such_folder";
+
+        std::vector<DataOverride> alone;
+        EXPECT_NO_THROW(alone = findDataOverrides(*gameVfs, { PluginDataDir{ "missing", missing } }));
+        EXPECT_TRUE(alone.empty());
+
+        // It does not stop the others, and it hides nothing between them
+        const auto overrides = findDataOverrides(*gameVfs,
+            { PluginDataDir{ "a", real.path() }, PluginDataDir{ "missing", missing },
+                PluginDataDir{ "b", later.path() } });
+        EXPECT_EQ(flatten(overrides), (Lines{ "x.txt|a|", "x.txt|b|a" }));
+    }
+
+    TEST(FindDataOverridesTest, ResultIsInLoadOrderAndSortedWithinAPluginAndStable)
+    {
+        TempTestDirectory game("override7_game");
+        TempTestDirectory first("override7_first");
+        TempTestDirectory second("override7_second");
+        for (const char* path : { "z.txt", "m/n.txt", "a.txt" })
+        {
+            game.writeFile(path, "game");
+            first.writeFile(path, "first");
+        }
+        // Written out of order, and the plugin that comes later in load order sorts first by ID
+        second.writeFile("c.txt", "second");
+        game.writeFile("c.txt", "game");
+        second.writeFile("b.txt", "second");
+        game.writeFile("b.txt", "game");
+        const auto gameVfs = makeGameVfs({ game.path() });
+        const std::vector<PluginDataDir> dirs{ PluginDataDir{ "zz_first", first.path() },
+            PluginDataDir{ "aa_second", second.path() } };
+
+        const Lines expected{ "a.txt|zz_first|", "m/n.txt|zz_first|", "z.txt|zz_first|", "b.txt|aa_second|",
+            "c.txt|aa_second|" };
+        EXPECT_EQ(flatten(findDataOverrides(*gameVfs, dirs)), expected);
+        EXPECT_EQ(flatten(findDataOverrides(*gameVfs, dirs)), expected);
+    }
+
+    TEST(FindDataOverridesTest, NestedFoldersAndMixedCaseAreNormalized)
+    {
+        TempTestDirectory game("override8_game");
+        TempTestDirectory first("override8_first");
+        TempTestDirectory second("override8_second");
+        game.writeFile("meshes/sub/foo.nif", "game");
+        first.writeFile("Meshes/SUB/Foo.NIF", "first");
+        first.writeFile("Textures/Deep/Er/Bar.DDS", "first");
+        second.writeFile("textures/deep/ER/bar.dds", "second");
+        const auto gameVfs = makeGameVfs({ game.path() });
+
+        const auto overrides = findDataOverrides(
+            *gameVfs, { PluginDataDir{ "a", first.path() }, PluginDataDir{ "b", second.path() } });
+
+        EXPECT_EQ(flatten(overrides), (Lines{ "meshes/sub/foo.nif|a|", "textures/deep/er/bar.dds|b|a" }));
     }
 } // namespace

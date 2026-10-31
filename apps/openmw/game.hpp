@@ -100,6 +100,7 @@ namespace OMW
             // As in OpenMW 0.51, permanent storage is loaded before the load scripts run (LuaManager::init).
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
             mLuaManager->init(mEngine.mRenderManager.get());
+            mEngine.mPluginHost->setLuaManager(mLuaManager);
             mEngine.mLuaActive = true;
 
             if (args.compileAll)
