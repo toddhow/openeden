@@ -11,7 +11,7 @@ Every one of these needs the same four things first, and none of the four exists
 | Stage | What | Needs | Gain on stock Morrowind assets | Size (a guess, not measured) |
 | --- | --- | --- | --- | --- |
 | F0 | GPU timing and a heavy benchmark | nothing | none, but it decides everything after | small |
-| F1 | Shader toolchain (Slang) and a Vulkan floor | decision 0004 draft | none | medium |
+| F1 | Shader toolchain (Slang), and a decision on the Vulkan floor | decision 0004 draft | none | medium |
 | F2 | Linear HDR render path, chosen as a whole | F1 | none alone | large |
 | F3 | Stored depth and normals (and velocity) | F2 | none alone | medium |
 | F4 | Material model | F1 | none alone | medium |
@@ -23,13 +23,13 @@ Every one of these needs the same four things first, and none of the four exists
 | R6 | Dynamic weather | R4, F4 | large | medium to large |
 | R7 | Subsurface scattering | F2, F3, R1 | small on stock skins | medium |
 
-**Order.** toddhow listed subsurface scattering first. I recommend it last, because it needs the most other stages and gains the least on Morrowind's low-detail skin textures; the ranking is his call. Shadows for point lights (section 6) come first of all, because they need no new pipeline.
+**Order.** The request names subsurface scattering first (and toddhow's answer in task 0012 names it as a reason for moving to Slang). I recommend it last, because it needs the most other stages and gains the least on Morrowind's low-detail skin textures; the ranking is his call. Shadows for point lights (section 6) come first of all, because they need no new pipeline.
 
 ## 2. What the renderer has today
 
 Verified by reading; "not verified" marks what I did not trace.
 
-- **Forward renderer, 8-bit.** The main pass renders to `VK_FORMAT_B8G8R8A8_UNORM` with a `D32_SFLOAT` depth (`components/render/attachmentformat.hpp`; `createMainRenderPass`, `apps/openmw/mwrender/renderpass.hpp`). The formats are fixed by render pass compatibility with the swapchain. There is no HDR, no exposure, no tonemap.
+- **Forward renderer, 8-bit.** The main pass renders to `VK_FORMAT_B8G8R8A8_UNORM` with a `D32_SFLOAT` depth (`components/render/attachmentformat.hpp`; `createMainRenderPass`, `apps/openmw/mwrender/renderpass.hpp`). The formats are fixed by render pass compatibility with the swapchain. The main scene has no HDR, no exposure and no tonemap. The ported post-processing chain also draws into targets of the swapchain's colour format and leaves OpenMW's HDR support off: `apps/openmw/mwrender/postprocess.hpp` (lines about 55-58) lists HDR among the parts not ported, `components/fx/vulkanpass.cpp` sets `OMW_HDR 0` so `omw_GetEyeAdaptation()` returns 1.0, the technique flag `hdr` is parsed in `components/fx/technique.cpp` and nothing acts on it, and the setting `auto exposure speed` is documented as having no effect without HDR.
 - **Lighting is computed on display-encoded values.** The shaders contain no sRGB or gamma conversion, and image reads strip the sRGB flag (`vsgUtil::removeSrgb`, root `CLAUDE.md` pitfalls). So lighting adds up gamma-encoded numbers, as the OSG build did. Moving to linear lighting changes how every surface looks, whether or not PBR is used.
 - **Lighting terms.** Ambient plus diffuse plus emission (`lib/material/terms.glsl`). Point-light specular raises a dot product of a reflected vector to a power (`lib/light/pointspecular.glsl`), which is Phong-style. Per-pixel lighting with normal and specular maps is in `default/main.frag` (lines about 15-19 and 131-172). Light falloff uses the game's `LightAttenuation_*` fallback values (`lib/light/equations.glsl`).
 - **Many lights are already cheap.** A compute shader assigns point lights to a grid of tiles (`comp/light/assign.comp`, `lib/light/grid.glsl`, `components/pipeline/lightgrid.*`).
@@ -37,10 +37,10 @@ Verified by reading; "not verified" marks what I did not trace.
 - **Depth is not kept.** The depth attachment is not stored past the main pass, so depth is copied inside it, and only when water reflection, soft particles or post-processing is on (`apps/openmw/mwrender/postprocess.cpp` line about 432; `rendermanager.cpp` lines about 447-451). There is no normal buffer and no velocity buffer.
 - **Water and reflections.** `Reflect` renders reflection colour and depth textures that the shaders bind (`rendermanager.cpp` lines about 154-155; `reflect.hpp`; `files/shaders/water`). A screen-space ray march helper exists (`lib/view/raytrace.glsl`) and is included only by `lib/view/reflect.glsl`. What it traces, and whether it is in use, is not verified.
 - **Sky and weather are colour-driven.** `Sky` has atmosphere, night, cloud, sun and moon passes (`mwrender/weather.hpp`). They are driven by per-weather colours and fog numbers (`WeatherResult` in `weatherdata.hpp`: sky, fog, ambient and sun colours, fog depth, cloud texture and blend, wind). Nothing is physically simulated. The sun's glare uses an occlusion query (`weather.cpp` line about 220). Rain, ripples and weather particles are in `rain.*`, `waterripples.*`, `weathereffects.*`, `precipitationoccluder.*`. Weather scripting commands `ChangeWeather` and `ModRegion` exist (`apps/openmw/mwscript/skyextensions.cpp`).
-- **Post-processing.** The `.omwfx` technique chain is ported (`postprocess.cpp`; `Settings::postProcessing().mChain`). Mods write shaders for it and expect today's picture.
+- **Post-processing.** The `.omwfx` technique chain is ported (`postprocess.cpp`; `Settings::postProcessing().mChain`). Mods write shaders for it and expect today's picture. Techniques that set `hdr` expect a floating-point scene and do their own tonemapping; this port does not offer that yet.
 - **Compute is in use.** Light assignment, particle simulation, fog of war and the world overlay run as compute shaders (`files/shaders/comp/*`).
 - **Shaders and API level.** GLSL compiled by glslang to SPIR-V 1.0 with no optimiser, on a Vulkan 1.0 instance with only `create_renderpass2` and `depth_stencil_resolve` requested (`apps/openmw/vsgengine.cpp` lines about 207-212; research 0005). Slang is not yet adopted (research 0005; a draft decision 0004 exists on another branch).
-- **Performance.** Scenes run at 450 to 1,500 frames a second, so fixed costs dominate and these scenes say little about heavy views (research 0004, section 4). The Balmora and Ald-ruhn exteriors already cost about 46% to 52% more CPU time than the OSG build (same table). There is no GPU timestamp profiling; the only query pool is the sun glare's occlusion query.
+- **Performance.** Scenes run at 450 to 1,500 frames a second, so fixed costs dominate and these scenes say little about heavy views (research 0004, section 4). All five exteriors are already over the 10% budget against the OSG build, by 18% to 66% (task 0012, performance re-measure at `a7c43f8346`: Balmora +66%, Ald-ruhn +50%). These are median wall-clock frame times, and every scene is still under 4 ms at p95. There is no GPU timestamp profiling; the only query pool is the sun glare's occlusion query.
 - **Data the engine already has.** Skin body parts are flagged (`ESM::BodyPart::MT_Skin`, `mwrender/bodyparts.cpp` lines about 30 and 109). Interior cells carry ambient, sunlight and fog colours and a fog density (`components/esm3/loadcell.hpp` lines about 105-106).
 
 ## 3. Rules every stage keeps
@@ -49,7 +49,7 @@ These come from the guide, not from this proposal.
 
 - **Off means today's path.** With every new setting at its default, the picture must match the fork point, compared by frames. A linear HDR path with an identity tonemap is not today's picture (8-bit quantisation and gamma differ), so the new pipeline must be chosen as a whole: when it is off, the current render pass and shaders run unchanged. This means two render paths for a while, with a maintenance cost. Shared shader code behind defines, as `Pipeline::Mode` does today, keeps that cost down.
 - **Original behaviour stays.** A change to vanilla look or mechanics is a new setting that is off by default, not a fix.
-- **Mods keep working.** `.omwfx` shaders run after the tonemap and receive what they receive today. Weather scripts and region changes keep their effect.
+- **Mods keep working.** `.omwfx` shaders run after the tonemap and receive what they receive today; techniques that ask for HDR are the one special case (F2). Weather scripts and region changes keep their effect.
 - **Full loop.** Renderer work follows the Track V loop: tests from the spec, implementation, a fresh reviewer, and a frame captured and viewed before any commit that can change rendering.
 - **Shared code goes in `components/`.** New passes, pipelines and shader libraries live in `components/render`, `components/pipeline`, `components/view` and `files/shaders/lib`, not in `apps/openmw/mwrender`, so Eden Studio's own scene host can use them (it cannot use `mwrender`; see `apps/opencs/CLAUDE.md`).
 - **Authored data** such as material overrides is JSON with a canonical writer.
@@ -58,9 +58,9 @@ These come from the guide, not from this proposal.
 
 **F0 Measure first.** Add GPU timestamp queries per pass, read a few frames later, and a heavier benchmark set: a long view over Balmora or Vivec with many NPCs, and a scripted walk (the gap research 0004 names). Without this, every cost claim below is a guess, and the existing exterior CPU overrun cannot be separated from new GPU cost. Zero risk to the game, and it can start at any time.
 
-**F1 Shader toolchain and floor.** New shaders in Slang compiled at build time to SPIR-V, as research 0005 recommends; existing GLSL stays until a stage touches it. That needs a decision record (draft 0004). It also forces a **minimum Vulkan version**: Slang's default SPIR-V 1.5 needs Vulkan 1.2 (research 0005), and compute-heavy effects want subgroup operations (Vulkan 1.1). Raising the instance version sets the oldest GPU that runs OpenEden, so it is toddhow's decision.
+**F1 Shader toolchain and floor.** New shaders in Slang compiled at build time to SPIR-V, as research 0005 recommends; existing GLSL stays until a stage touches it. That needs a decision record (draft 0004). Slang does not force a higher Vulkan version: research 0005 compiled a Slang port of the sun shader to SPIR-V 1.0 with the same layouts as the GLSL (Slang's default target, SPIR-V 1.5, would need Vulkan 1.2, but `-profile spirv_1_0` is honoured with a warning). A higher **minimum Vulkan version** would come from the features and not the compiler: subgroup operations for the compute passes (Vulkan 1.1), for example. Raising the instance from Vulkan 1.0 sets the oldest GPU that runs OpenEden, so it is toddhow's decision, and F0's numbers should inform it.
 
-**F2 Linear HDR path.** Render the scene in a 16-bit float target, light in linear space (textures read as sRGB again on this path only), then apply exposure, a tonemap and bloom, then write to the swapchain through the existing 8-bit pass. It touches every shader's output: lighting, fog, particles, sky, shadows, transparency. The tonemap goes before the `.omwfx` chain. This is the largest foundation and the one most likely to change the game's look; a "vanilla look" curve that approximates today's picture is part of it, but it cannot be pixel identical, which is why the path is chosen as a whole (section 3).
+**F2 Linear HDR path.** Render the scene in a 16-bit float target, light in linear space (textures read as sRGB again on this path only), then apply exposure, a tonemap and bloom, then write to the swapchain through the existing 8-bit pass. It touches every shader's output: lighting, fog, particles, sky, shadows, transparency. The tonemap goes before the `.omwfx` chain, with one exception: a mod technique that sets `hdr` expects a float scene and tonemaps for itself (section 2), so when the chain contains one, the built-in tonemap should step aside and not be applied twice. The exact rule needs deciding when F2 is specified. This is the largest foundation and the one most likely to change the game's look; a "vanilla look" curve that approximates today's picture is part of it, but it cannot be pixel identical, which is why the path is chosen as a whole (section 3).
 
 **F3 Stored depth, normals and velocity.** Ambient occlusion, reflections, subsurface scattering, volumetrics and temporal anti-aliasing all read depth and normals after the main pass. Two ways:
 - **Extra outputs from the main pass** (normals written alongside colour; depth stored). One geometry pass, but it complicates multisampling.
@@ -105,7 +105,7 @@ Stock skin textures are small and heads are low-poly, so the visible gain is mod
 ## 6. More recommendations
 
 1. **Point-light shadows first.** Shadows are off by default and cover only the sun. Torches, lanterns and candles light most Morrowind interiors and cast nothing. Shadow maps for the few nearest point and spot lights, contact shadows and better filtering lift every interior, need no new pipeline (they can go into today's path), and R2, R5 and R7 look wrong without them.
-2. **GPU-driven culling and indirect draws, with threaded command recording.** Exteriors are already 46% to 52% over the CPU budget (research 0004), and a depth prepass or more shadow passes multiply draw submissions. This pays for the stages above.
+2. **GPU-driven culling and indirect draws, with threaded command recording.** Exteriors are already 18% to 66% over the frame-time budget against the OSG build (task 0012), and a depth prepass or more shadow passes multiply draw submissions. This pays for the stages above.
 3. **Temporal anti-aliasing with motion vectors**, and optionally an upscaler. Noisy effects (ambient occlusion, volumetrics, soft reflections) need the temporal smoothing. MSAA stays as an option; the two do not combine cheaply.
 4. **Probe-based diffuse lighting for interiors** (spherical-harmonic light probes, built when a cell loads). With R2 it is the largest single upgrade to Morrowind interiors. Screen-space or hardware-ray-traced global illumination can come later.
 5. **Water:** waves (Gerstner or FFT), refraction with depth fade, caustics, foam, shoreline blending, underwater fog. Reuses R3 and R5. Rain ripples stay on, as toddhow said.
@@ -136,10 +136,10 @@ Stock skin textures are small and heads are low-poly, so the visible gain is mod
 ## 9. Decisions needed from toddhow
 
 1. **Order of the three next tracks:** rendering, Eden Studio, and the Track W merge. (The only question that cannot wait; the rest wait for Track V.)
-2. **Hardware floor:** the minimum Vulkan version and GPU class.
+2. **Hardware floor:** whether to raise the Vulkan 1.0 instance, and the GPU class to target.
 3. **Slang:** approve the draft decision 0004 for new shaders.
 4. **Default look:** the new pipeline stays off by default, as the guide requires. Should it ever become the default, and by what test?
 5. **Dynamic weather scope:** visual only, or also a new weather simulation behind a setting.
-6. **Feature ranking:** whether subsurface scattering stays first, as listed, or last, as the dependencies suggest.
+6. **Feature priority:** your order of importance among the seven features. Section 1 gives the dependency order and why subsurface scattering comes last in it; the list in your request may have been only examples, not a ranking.
 7. **Ray tracing:** whether a hardware ray-query tier is in scope at all, and when.
 8. **Anti-aliasing:** temporal anti-aliasing alongside MSAA, or MSAA only.
