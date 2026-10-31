@@ -4,7 +4,7 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
 
-#include <components/sdlutil/sdlinputwrapper.hpp>
+#include <components/sdlutil/inputwrapper.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
 #include <components/settings/values.hpp>
 
