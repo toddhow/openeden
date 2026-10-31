@@ -4,13 +4,6 @@
 #include <array>
 #include <string_view>
 
-#include <osg/BlendEquation>
-#include <osg/BlendFunc>
-#include <osg/Image>
-#include <osg/Texture>
-
-#include <components/sceneutil/color.hpp>
-
 #include "technique.hpp"
 
 namespace Fx
@@ -26,106 +19,106 @@ namespace Fx
             { "hidden", Technique::Flag_Hidden },
         } };
 
-        constexpr std::array<std::pair<std::string_view, int>, 6> SourceFormat = { {
-            { "red", GL_RED },
-            { "rg", GL_RG },
-            { "rgb", GL_RGB },
-            { "bgr", GL_BGR },
-            { "rgba", GL_RGBA },
-            { "bgra", GL_BGRA },
+        constexpr std::array<std::pair<std::string_view, Types::SourceFormat>, 6> SourceFormat = { {
+            { "red", Types::SourceFormat::Red },
+            { "rg", Types::SourceFormat::Rg },
+            { "rgb", Types::SourceFormat::Rgb },
+            { "bgr", Types::SourceFormat::Bgr },
+            { "rgba", Types::SourceFormat::Rgba },
+            { "bgra", Types::SourceFormat::Bgra },
         } };
 
-        constexpr std::array<std::pair<std::string_view, int>, 10> SourceType = { {
-            { "byte", GL_BYTE },
-            { "unsigned_byte", GL_UNSIGNED_BYTE },
-            { "short", GL_SHORT },
-            { "unsigned_short", GL_UNSIGNED_SHORT },
-            { "int", GL_INT },
-            { "unsigned_int", GL_UNSIGNED_INT },
-            { "unsigned_int_24_8", GL_UNSIGNED_INT_24_8 },
-            { "half_float", GL_HALF_FLOAT },
-            { "float", GL_FLOAT },
-            { "double", GL_DOUBLE },
+        constexpr std::array<std::pair<std::string_view, Types::SourceType>, 10> SourceType = { {
+            { "byte", Types::SourceType::Byte },
+            { "unsigned_byte", Types::SourceType::UnsignedByte },
+            { "short", Types::SourceType::Short },
+            { "unsigned_short", Types::SourceType::UnsignedShort },
+            { "int", Types::SourceType::Int },
+            { "unsigned_int", Types::SourceType::UnsignedInt },
+            { "unsigned_int_24_8", Types::SourceType::UnsignedInt24_8 },
+            { "half_float", Types::SourceType::HalfFloat },
+            { "float", Types::SourceType::Float },
+            { "double", Types::SourceType::Double },
         } };
 
-        constexpr std::array<std::pair<std::string_view, int>, 16> InternalFormat = { {
-            { "red", GL_RED },
-            { "r16f", GL_R16F },
-            { "r32f", GL_R32F },
-            { "rg", GL_RG },
-            { "rg16f", GL_RG16F },
-            { "rg32f", GL_RG32F },
-            { "rgb", GL_RGB },
-            { "rgb16f", GL_RGB16F },
-            { "rgb32f", GL_RGB32F },
-            { "rgba", GL_RGBA },
-            { "rgba16f", GL_RGBA16F },
-            { "rgba32f", GL_RGBA32F },
-            { "depth_component16", GL_DEPTH_COMPONENT16 },
-            { "depth_component24", GL_DEPTH_COMPONENT24 },
-            { "depth_component32", GL_DEPTH_COMPONENT32 },
-            { "depth_component32f", GL_DEPTH_COMPONENT32F },
+        constexpr std::array<std::pair<std::string_view, Types::InternalFormat>, 16> InternalFormat = { {
+            { "red", Types::InternalFormat::Red },
+            { "r16f", Types::InternalFormat::R16f },
+            { "r32f", Types::InternalFormat::R32f },
+            { "rg", Types::InternalFormat::Rg },
+            { "rg16f", Types::InternalFormat::Rg16f },
+            { "rg32f", Types::InternalFormat::Rg32f },
+            { "rgb", Types::InternalFormat::Rgb },
+            { "rgb16f", Types::InternalFormat::Rgb16f },
+            { "rgb32f", Types::InternalFormat::Rgb32f },
+            { "rgba", Types::InternalFormat::Rgba },
+            { "rgba16f", Types::InternalFormat::Rgba16f },
+            { "rgba32f", Types::InternalFormat::Rgba32f },
+            { "depth_component16", Types::InternalFormat::DepthComponent16 },
+            { "depth_component24", Types::InternalFormat::DepthComponent24 },
+            { "depth_component32", Types::InternalFormat::DepthComponent32 },
+            { "depth_component32f", Types::InternalFormat::DepthComponent32f },
         } };
 
-        constexpr std::array<std::pair<std::string_view, osg::Texture::InternalFormatMode>, 13> Compression = { {
-            { "auto", osg::Texture::USE_USER_DEFINED_FORMAT },
-            { "arb", osg::Texture::USE_ARB_COMPRESSION },
-            { "s3tc_dxt1", osg::Texture::USE_S3TC_DXT1_COMPRESSION },
-            { "s3tc_dxt3", osg::Texture::USE_S3TC_DXT3_COMPRESSION },
-            { "s3tc_dxt5", osg::Texture::USE_S3TC_DXT5_COMPRESSION },
-            { "pvrtc_2bpp", osg::Texture::USE_PVRTC_2BPP_COMPRESSION },
-            { "pvrtc_4bpp", osg::Texture::USE_PVRTC_4BPP_COMPRESSION },
-            { "etc", osg::Texture::USE_ETC_COMPRESSION },
-            { "etc2", osg::Texture::USE_ETC2_COMPRESSION },
-            { "rgtc1", osg::Texture::USE_RGTC1_COMPRESSION },
-            { "rgtc2", osg::Texture::USE_RGTC2_COMPRESSION },
-            { "s3tc_dxt1c", osg::Texture::USE_S3TC_DXT1c_COMPRESSION },
-            { "s3tc_dxt1a", osg::Texture::USE_S3TC_DXT1a_COMPRESSION },
+        constexpr std::array<std::pair<std::string_view, Types::Compression>, 13> Compression = { {
+            { "auto", Types::Compression::Auto },
+            { "arb", Types::Compression::Arb },
+            { "s3tc_dxt1", Types::Compression::S3tcDxt1 },
+            { "s3tc_dxt3", Types::Compression::S3tcDxt3 },
+            { "s3tc_dxt5", Types::Compression::S3tcDxt5 },
+            { "pvrtc_2bpp", Types::Compression::Pvrtc2bpp },
+            { "pvrtc_4bpp", Types::Compression::Pvrtc4bpp },
+            { "etc", Types::Compression::Etc },
+            { "etc2", Types::Compression::Etc2 },
+            { "rgtc1", Types::Compression::Rgtc1 },
+            { "rgtc2", Types::Compression::Rgtc2 },
+            { "s3tc_dxt1c", Types::Compression::S3tcDxt1c },
+            { "s3tc_dxt1a", Types::Compression::S3tcDxt1a },
         } };
 
-        constexpr std::array<std::pair<std::string_view, osg::Texture::WrapMode>, 4> WrapMode = { {
-            { "clamp_to_edge", osg::Texture::CLAMP_TO_EDGE },
-            { "clamp_to_border", osg::Texture::CLAMP_TO_BORDER },
-            { "repeat", osg::Texture::REPEAT },
-            { "mirror", osg::Texture::MIRROR },
+        constexpr std::array<std::pair<std::string_view, Types::WrapMode>, 4> WrapMode = { {
+            { "clamp_to_edge", Types::WrapMode::ClampToEdge },
+            { "clamp_to_border", Types::WrapMode::ClampToBorder },
+            { "repeat", Types::WrapMode::Repeat },
+            { "mirror", Types::WrapMode::Mirror },
         } };
 
-        constexpr std::array<std::pair<std::string_view, osg::Texture::FilterMode>, 6> FilterMode = { {
-            { "linear", osg::Texture::LINEAR },
-            { "linear_mipmap_linear", osg::Texture::LINEAR_MIPMAP_LINEAR },
-            { "linear_mipmap_nearest", osg::Texture::LINEAR_MIPMAP_NEAREST },
-            { "nearest", osg::Texture::NEAREST },
-            { "nearest_mipmap_linear", osg::Texture::NEAREST_MIPMAP_LINEAR },
-            { "nearest_mipmap_nearest", osg::Texture::NEAREST_MIPMAP_NEAREST },
+        constexpr std::array<std::pair<std::string_view, Types::FilterMode>, 6> FilterMode = { {
+            { "linear", Types::FilterMode::Linear },
+            { "linear_mipmap_linear", Types::FilterMode::LinearMipmapLinear },
+            { "linear_mipmap_nearest", Types::FilterMode::LinearMipmapNearest },
+            { "nearest", Types::FilterMode::Nearest },
+            { "nearest_mipmap_linear", Types::FilterMode::NearestMipmapLinear },
+            { "nearest_mipmap_nearest", Types::FilterMode::NearestMipmapNearest },
         } };
 
-        constexpr std::array<std::pair<std::string_view, osg::BlendFunc::BlendFuncMode>, 15> BlendFunc = { {
-            { "dst_alpha", osg::BlendFunc::DST_ALPHA },
-            { "dst_color", osg::BlendFunc::DST_COLOR },
-            { "one", osg::BlendFunc::ONE },
-            { "one_minus_dst_alpha", osg::BlendFunc::ONE_MINUS_DST_ALPHA },
-            { "one_minus_dst_color", osg::BlendFunc::ONE_MINUS_DST_COLOR },
-            { "one_minus_src_alpha", osg::BlendFunc::ONE_MINUS_SRC_ALPHA },
-            { "one_minus_src_color", osg::BlendFunc::ONE_MINUS_SRC_COLOR },
-            { "src_alpha", osg::BlendFunc::SRC_ALPHA },
-            { "src_alpha_saturate", osg::BlendFunc::SRC_ALPHA_SATURATE },
-            { "src_color", osg::BlendFunc::SRC_COLOR },
-            { "constant_color", osg::BlendFunc::CONSTANT_COLOR },
-            { "one_minus_constant_color", osg::BlendFunc::ONE_MINUS_CONSTANT_COLOR },
-            { "constant_alpha", osg::BlendFunc::CONSTANT_ALPHA },
-            { "one_minus_constant_alpha", osg::BlendFunc::ONE_MINUS_CONSTANT_ALPHA },
-            { "zero", osg::BlendFunc::ZERO },
+        constexpr std::array<std::pair<std::string_view, Types::BlendFunc>, 15> BlendFunc = { {
+            { "dst_alpha", Types::BlendFunc::DstAlpha },
+            { "dst_color", Types::BlendFunc::DstColor },
+            { "one", Types::BlendFunc::One },
+            { "one_minus_dst_alpha", Types::BlendFunc::OneMinusDstAlpha },
+            { "one_minus_dst_color", Types::BlendFunc::OneMinusDstColor },
+            { "one_minus_src_alpha", Types::BlendFunc::OneMinusSrcAlpha },
+            { "one_minus_src_color", Types::BlendFunc::OneMinusSrcColor },
+            { "src_alpha", Types::BlendFunc::SrcAlpha },
+            { "src_alpha_saturate", Types::BlendFunc::SrcAlphaSaturate },
+            { "src_color", Types::BlendFunc::SrcColor },
+            { "constant_color", Types::BlendFunc::ConstantColor },
+            { "one_minus_constant_color", Types::BlendFunc::OneMinusConstantColor },
+            { "constant_alpha", Types::BlendFunc::ConstantAlpha },
+            { "one_minus_constant_alpha", Types::BlendFunc::OneMinusConstantAlpha },
+            { "zero", Types::BlendFunc::Zero },
         } };
 
-        constexpr std::array<std::pair<std::string_view, osg::BlendEquation::Equation>, 8> BlendEquation = { {
-            { "rgba_min", osg::BlendEquation::RGBA_MIN },
-            { "rgba_max", osg::BlendEquation::RGBA_MAX },
-            { "alpha_min", osg::BlendEquation::ALPHA_MIN },
-            { "alpha_max", osg::BlendEquation::ALPHA_MAX },
-            { "logic_op", osg::BlendEquation::LOGIC_OP },
-            { "add", osg::BlendEquation::FUNC_ADD },
-            { "subtract", osg::BlendEquation::FUNC_SUBTRACT },
-            { "reverse_subtract", osg::BlendEquation::FUNC_REVERSE_SUBTRACT },
+        constexpr std::array<std::pair<std::string_view, Types::BlendEquation>, 8> BlendEquation = { {
+            { "rgba_min", Types::BlendEquation::RgbaMin },
+            { "rgba_max", Types::BlendEquation::RgbaMax },
+            { "alpha_min", Types::BlendEquation::AlphaMin },
+            { "alpha_max", Types::BlendEquation::AlphaMax },
+            { "logic_op", Types::BlendEquation::LogicOp },
+            { "add", Types::BlendEquation::Add },
+            { "subtract", Types::BlendEquation::Subtract },
+            { "reverse_subtract", Types::BlendEquation::ReverseSubtract },
         } };
     }
 }

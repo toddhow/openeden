@@ -1,21 +1,139 @@
 #ifndef OPENMW_COMPONENTS_FX_TYPES_HPP
 #define OPENMW_COMPONENTS_FX_TYPES_HPP
 
+#include <array>
 #include <format>
+#include <limits>
 #include <optional>
+#include <string>
+#include <tuple>
 #include <variant>
+#include <vector>
 
-#include <osg/Texture2D>
-#include <osg/Uniform>
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
+#include <vsg/maths/vec4.h>
 
 #include <components/debug/debuglog.hpp>
-#include <components/sceneutil/depth.hpp>
-#include <components/settings/shadermanager.hpp>
+#include <components/vfs/pathutil.hpp>
 
+// What a parsed .omwfx file describes, as plain data. Nothing here creates a texture, a shader or a pipeline.
 namespace Fx
 {
     namespace Types
     {
+        enum class FilterMode
+        {
+            Linear,
+            LinearMipmapLinear,
+            LinearMipmapNearest,
+            Nearest,
+            NearestMipmapLinear,
+            NearestMipmapNearest
+        };
+
+        enum class WrapMode
+        {
+            ClampToEdge,
+            ClampToBorder,
+            Repeat,
+            Mirror
+        };
+
+        enum class SourceFormat
+        {
+            Red,
+            Rg,
+            Rgb,
+            Bgr,
+            Rgba,
+            Bgra
+        };
+
+        enum class SourceType
+        {
+            Byte,
+            UnsignedByte,
+            Short,
+            UnsignedShort,
+            Int,
+            UnsignedInt,
+            UnsignedInt24_8,
+            HalfFloat,
+            Float,
+            Double
+        };
+
+        enum class InternalFormat
+        {
+            Red,
+            R16f,
+            R32f,
+            Rg,
+            Rg16f,
+            Rg32f,
+            Rgb,
+            Rgb16f,
+            Rgb32f,
+            Rgba,
+            Rgba16f,
+            Rgba32f,
+            DepthComponent16,
+            DepthComponent24,
+            DepthComponent32,
+            DepthComponent32f
+        };
+
+        enum class Compression
+        {
+            // The default when a sampler names no compression: use the format of the image file.
+            ImageData,
+            Auto,
+            Arb,
+            S3tcDxt1,
+            S3tcDxt3,
+            S3tcDxt5,
+            Pvrtc2bpp,
+            Pvrtc4bpp,
+            Etc,
+            Etc2,
+            Rgtc1,
+            Rgtc2,
+            S3tcDxt1c,
+            S3tcDxt1a
+        };
+
+        enum class BlendFunc
+        {
+            DstAlpha,
+            DstColor,
+            One,
+            OneMinusDstAlpha,
+            OneMinusDstColor,
+            OneMinusSrcAlpha,
+            OneMinusSrcColor,
+            SrcAlpha,
+            SrcAlphaSaturate,
+            SrcColor,
+            ConstantColor,
+            OneMinusConstantColor,
+            ConstantAlpha,
+            OneMinusConstantAlpha,
+            Zero
+        };
+
+        enum class BlendEquation
+        {
+            RgbaMin,
+            RgbaMax,
+            AlphaMin,
+            AlphaMax,
+            LogicOp,
+            Add,
+            Subtract,
+            ReverseSubtract
+        };
+
         struct SizeProxy
         {
             std::optional<float> mWidthRatio;
@@ -42,12 +160,81 @@ namespace Fx
             }
         };
 
+        // A 'render_target' block. The defaults are those of OpenMW's Technique::parseBlockImp<Render_Target> and of
+        // osg::Texture (commit 442eec6e2f). mSize resolves against the render size with SizeProxy::get.
         struct RenderTarget
         {
-            osg::ref_ptr<osg::Texture2D> mTarget = new osg::Texture2D;
+            std::string mName;
             SizeProxy mSize;
+            SourceFormat mSourceFormat = SourceFormat::Rgb;
+            InternalFormat mInternalFormat = InternalFormat::Rgb;
+            SourceType mSourceType = SourceType::UnsignedByte;
+            WrapMode mWrapS = WrapMode::ClampToEdge;
+            WrapMode mWrapT = WrapMode::ClampToEdge;
+            FilterMode mMinFilter = FilterMode::LinearMipmapLinear;
+            FilterMode mMagFilter = FilterMode::Linear;
             bool mMipMap = false;
-            osg::Vec4f mClearColor = osg::Vec4f(0.0, 0.0, 0.0, 1.0);
+            vsg::vec4 mClearColor = vsg::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        };
+
+        enum SamplerType
+        {
+            Texture_1D,
+            Texture_2D,
+            Texture_3D
+        };
+
+        // A 'sampler_1d', 'sampler_2d' or 'sampler_3d' block. The image is only named here, whoever creates the
+        // texture loads it.
+        struct SamplerDesc
+        {
+            std::string mName;
+            VFS::Path::Normalized mSource;
+            SamplerType mType = Texture_2D;
+            WrapMode mWrapS = WrapMode::ClampToEdge;
+            WrapMode mWrapT = WrapMode::ClampToEdge;
+            WrapMode mWrapR = WrapMode::ClampToEdge;
+            FilterMode mMinFilter = FilterMode::LinearMipmapLinear;
+            FilterMode mMagFilter = FilterMode::Linear;
+            Compression mCompression = Compression::ImageData;
+            // OpenMW's Technique::parseSampler (commit 442eec6e2f) parsed source_format but then passed internal_format
+            // to Texture::setSourceFormat. Both are recorded as written; the texture stage must choose.
+            std::optional<SourceFormat> mSourceFormat;
+            std::optional<SourceType> mSourceType;
+            std::optional<InternalFormat> mInternalFormat;
+        };
+
+        // A pass: the shader blocks and block header sharing one name. The sources are the blocks as written, each
+        // with its leading #line directive. The default vertex shader, the generated header and the 'shared' block
+        // are not included here (Technique::getShared has the latter); a later stage assembles them as Fx::Pass did.
+        struct PassDesc
+        {
+            enum class Type
+            {
+                None,
+                Pixel,
+                Compute
+            };
+
+            std::string getName() const { return mName; }
+
+            std::string getTarget() const { return mTarget; }
+
+            std::string mName;
+            Type mType = Type::Pixel;
+            bool mUBO = false;
+
+            std::optional<std::string> mVertex;
+            std::optional<std::string> mFragment;
+            std::optional<std::string> mCompute;
+
+            // The render targets this pass reads (rt1, rt2, rt3) and the one it writes (empty: none named).
+            std::array<std::string, 3> mRenderTargets;
+            std::string mTarget;
+
+            std::optional<BlendFunc> mBlendSource;
+            std::optional<BlendFunc> mBlendDest;
+            std::optional<BlendEquation> mBlendEq;
         };
 
         template <class T>
@@ -78,15 +265,8 @@ namespace Fx
             T getValue() const { return mValue.value_or(mDefault); }
         };
 
-        using Uniform_t = std::variant<Uniform<osg::Vec2f>, Uniform<osg::Vec3f>, Uniform<osg::Vec4f>, Uniform<bool>,
+        using Uniform_t = std::variant<Uniform<vsg::vec2>, Uniform<vsg::vec3>, Uniform<vsg::vec4>, Uniform<bool>,
             Uniform<float>, Uniform<int>>;
-
-        enum SamplerType
-        {
-            Texture_1D,
-            Texture_2D,
-            Texture_3D
-        };
 
         struct UniformBase
         {
@@ -105,9 +285,7 @@ namespace Fx
             template <class T>
             T getValue() const
             {
-                auto value = Settings::ShaderManager::get().getValue<T>(mTechniqueName, mName);
-
-                return value.value_or(std::get<Uniform<T>>(mData).getValue());
+                return std::get<Uniform<T>>(mData).getValue();
             }
 
             size_t getNumElements() const
@@ -143,8 +321,6 @@ namespace Fx
                         if constexpr (std::is_same_v<T, U>)
                         {
                             arg.mValue = value;
-
-                            Settings::ShaderManager::get().setValue(mTechniqueName, mName, value);
                         }
                         else
                         {
@@ -171,7 +347,6 @@ namespace Fx
                         if constexpr (std::is_same_v<T, U>)
                         {
                             arg.mArray = value;
-                            Settings::ShaderManager::get().setValue(mTechniqueName, mName, value);
                         }
                         else
                             Log(Debug::Warning) << "Attempting to set uniform array '" << mName << "' with wrong type";
@@ -179,52 +354,9 @@ namespace Fx
                     mData);
             }
 
-            void setUniform(osg::Uniform* uniform)
-            {
-                auto type = getType();
-                if (!type || type.value() != uniform->getType())
-                    return;
-
-                std::visit(
-                    [&](auto&& arg) {
-                        if (arg.isArray())
-                        {
-                            for (size_t i = 0; i < arg.getArray().size(); ++i)
-                                uniform->setElement(static_cast<unsigned int>(i), arg.getArray()[i]);
-                            uniform->dirty();
-                        }
-                        else
-                            uniform->set(arg.getValue());
-                    },
-                    mData);
-            }
-
-            std::optional<osg::Uniform::Type> getType() const
-            {
-                return std::visit(
-                    [](auto&& arg) -> std::optional<osg::Uniform::Type> {
-                        using T = typename std::decay_t<decltype(arg)>::value_type;
-
-                        if constexpr (std::is_same_v<T, osg::Vec2f>)
-                            return osg::Uniform::FLOAT_VEC2;
-                        else if constexpr (std::is_same_v<T, osg::Vec3f>)
-                            return osg::Uniform::FLOAT_VEC3;
-                        else if constexpr (std::is_same_v<T, osg::Vec4f>)
-                            return osg::Uniform::FLOAT_VEC4;
-                        else if constexpr (std::is_same_v<T, float>)
-                            return osg::Uniform::FLOAT;
-                        else if constexpr (std::is_same_v<T, int>)
-                            return osg::Uniform::INT;
-                        else
-                        {
-                            static_assert(std::is_same_v<T, bool>, "Non-exhaustive visitor");
-                            return osg::Uniform::BOOL;
-                        }
-                    },
-                    mData);
-            }
-
-            std::optional<std::string> getGLSL()
+            // forceUniform: OpenMW's shader manager debug mode, where values stay editable instead of becoming
+            // constants.
+            std::optional<std::string> getGLSL(bool forceUniform) const
             {
                 if (mSamplerType)
                 {
@@ -245,20 +377,18 @@ namespace Fx
 
                         auto value = arg.getValue();
 
-                        const bool useUniform = arg.isArray()
-                            || (Settings::ShaderManager::get().getMode() == Settings::ShaderManager::Mode::Debug
-                                || mStatic == false);
+                        const bool useUniform = arg.isArray() || (forceUniform || mStatic == false);
                         const std::string uname
                             = arg.isArray() ? std::format("{}[{}]", mName, arg.getArray().size()) : mName;
 
-                        if constexpr (std::is_same_v<T, osg::Vec2f>)
+                        if constexpr (std::is_same_v<T, vsg::vec2>)
                         {
                             if (useUniform)
                                 return std::format("uniform vec2 {};", uname);
 
                             return std::format("const vec2 {}=vec2({:f},{:f});", mName, value[0], value[1]);
                         }
-                        else if constexpr (std::is_same_v<T, osg::Vec3f>)
+                        else if constexpr (std::is_same_v<T, vsg::vec3>)
                         {
                             if (useUniform)
                                 return std::format("uniform vec3 {};", uname);
@@ -266,7 +396,7 @@ namespace Fx
                             return std::format(
                                 "const vec3 {}=vec3({:f},{:f},{:f});", mName, value[0], value[1], value[2]);
                         }
-                        else if constexpr (std::is_same_v<T, osg::Vec4f>)
+                        else if constexpr (std::is_same_v<T, vsg::vec4>)
                         {
                             if (useUniform)
                                 return std::format("uniform vec4 {};", uname);

@@ -3,7 +3,6 @@
 
 #include <components/files/configurationmanager.hpp>
 #include <components/fx/technique.hpp>
-#include <components/resource/imagemanager.hpp>
 #include <components/settings/settings.hpp>
 #include <components/testing/util.hpp>
 
@@ -146,7 +145,6 @@ namespace
     struct TechniqueTest : Test
     {
         std::unique_ptr<VFS::Manager> mVFS;
-        Resource::ImageManager mImageManager;
         std::unique_ptr<Technique> mTechnique;
 
         TechniqueTest()
@@ -162,14 +160,12 @@ namespace
                 { invalidNumberHexFloatPath, &invalidNumberHexFloat },
                 { invalidNumberDoublePath, &invalidNumberDouble },
             }))
-            , mImageManager(mVFS.get(), 0)
         {
         }
 
         void compile(const std::string& name)
         {
-            mTechnique = std::make_unique<Technique>(
-                *mVFS.get(), mImageManager, Technique::makeFileName(name), name, 1, 1, true, true);
+            mTechnique = std::make_unique<Technique>(*mVFS.get(), Technique::makeFileName(name), name, true, true);
             mTechnique->compile();
         }
 
@@ -211,19 +207,18 @@ namespace
 
         const std::string_view name = mTechnique->getRenderTargetsMap().begin()->first;
         auto& rt = mTechnique->getRenderTargetsMap().begin()->second;
-        auto& texture = rt.mTarget;
 
         EXPECT_EQ(name, "rendertarget");
         EXPECT_EQ(rt.mMipMap, true);
         EXPECT_EQ(rt.mSize.mWidthRatio, 0.5f);
         EXPECT_EQ(rt.mSize.mHeightRatio, 0.5f);
-        EXPECT_EQ(texture->getWrap(osg::Texture::WRAP_S), osg::Texture::CLAMP_TO_EDGE);
-        EXPECT_EQ(texture->getWrap(osg::Texture::WRAP_T), osg::Texture::REPEAT);
-        EXPECT_EQ(texture->getFilter(osg::Texture::MIN_FILTER), osg::Texture::LINEAR);
-        EXPECT_EQ(texture->getFilter(osg::Texture::MAG_FILTER), osg::Texture::NEAREST);
-        EXPECT_EQ(texture->getSourceType(), static_cast<GLenum>(GL_FLOAT));
-        EXPECT_EQ(texture->getSourceFormat(), static_cast<GLenum>(GL_RED));
-        EXPECT_EQ(texture->getInternalFormat(), static_cast<GLint>(GL_R16F));
+        EXPECT_EQ(rt.mWrapS, Fx::Types::WrapMode::ClampToEdge);
+        EXPECT_EQ(rt.mWrapT, Fx::Types::WrapMode::Repeat);
+        EXPECT_EQ(rt.mMinFilter, Fx::Types::FilterMode::Linear);
+        EXPECT_EQ(rt.mMagFilter, Fx::Types::FilterMode::Nearest);
+        EXPECT_EQ(rt.mSourceType, Fx::Types::SourceType::Float);
+        EXPECT_EQ(rt.mSourceFormat, Fx::Types::SourceFormat::Red);
+        EXPECT_EQ(rt.mInternalFormat, Fx::Types::InternalFormat::R16f);
 
         EXPECT_EQ(mTechnique->getPasses().size(), 2);
         EXPECT_EQ(mTechnique->getPasses()[0]->getTarget(), "rendertarget");
@@ -239,9 +234,9 @@ namespace
 
         EXPECT_TRUE(uniform->mStatic);
         EXPECT_DOUBLE_EQ(uniform->mStep, 0.5);
-        EXPECT_EQ(uniform->getDefault<osg::Vec4f>(), osg::Vec4f(0, 0, 0, 0));
-        EXPECT_EQ(uniform->getMin<osg::Vec4f>(), osg::Vec4f(0, 1, 0, 0));
-        EXPECT_EQ(uniform->getMax<osg::Vec4f>(), osg::Vec4f(0, 0, 1, 0));
+        EXPECT_EQ(uniform->getDefault<vsg::vec4>(), vsg::vec4(0, 0, 0, 0));
+        EXPECT_EQ(uniform->getMin<vsg::vec4>(), vsg::vec4(0, 1, 0, 0));
+        EXPECT_EQ(uniform->getMax<vsg::vec4>(), vsg::vec4(0, 0, 1, 0));
         EXPECT_EQ(uniform->mHeader, "header");
         EXPECT_EQ(uniform->mDescription, "description");
         EXPECT_EQ(uniform->mName, "uVec4");

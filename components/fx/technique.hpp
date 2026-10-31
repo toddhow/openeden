@@ -1,28 +1,19 @@
 #ifndef OPENMW_COMPONENTS_FX_TECHNIQUE_HPP
 #define OPENMW_COMPONENTS_FX_TECHNIQUE_HPP
 
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
-
-#include <osg/BlendEquation>
-#include <osg/BlendFunc>
-#include <osg/FrameBufferObject>
-#include <osg/StateSet>
-#include <osg/Texture2D>
 
 #include <components/vfs/pathutil.hpp>
 
 #include "lexer.hpp"
-#include "pass.hpp"
 #include "types.hpp"
-
-namespace Resource
-{
-    class ImageManager;
-}
 
 namespace VFS
 {
@@ -33,82 +24,13 @@ namespace Fx
 {
     using FlagsType = size_t;
 
-    struct DispatchNode
-    {
-        DispatchNode() = default;
-
-        DispatchNode(const DispatchNode& other, const osg::CopyOp& copyOp = osg::CopyOp::SHALLOW_COPY)
-            : mHandle(other.mHandle)
-            , mFlags(other.mFlags)
-            , mRootStateSet(other.mRootStateSet)
-        {
-            mPasses.reserve(other.mPasses.size());
-
-            for (const auto& subpass : other.mPasses)
-                mPasses.emplace_back(subpass, copyOp);
-        }
-
-        ~DispatchNode() = default;
-
-        DispatchNode& operator=(const DispatchNode&) = default;
-
-        struct SubPass
-        {
-            SubPass() = default;
-
-            osg::ref_ptr<osg::StateSet> mStateSet = new osg::StateSet;
-            osg::ref_ptr<osg::FrameBufferObject> mRenderTarget;
-            osg::ref_ptr<osg::Texture2D> mRenderTexture;
-            bool mResolve = false;
-            Types::SizeProxy mSize;
-            bool mMipMap = false;
-
-            SubPass(const SubPass& other, const osg::CopyOp& copyOp = osg::CopyOp::SHALLOW_COPY)
-                : mStateSet(new osg::StateSet(*other.mStateSet, copyOp))
-                , mResolve(other.mResolve)
-                , mSize(other.mSize)
-                , mMipMap(other.mMipMap)
-            {
-                if (other.mRenderTarget)
-                    mRenderTarget = new osg::FrameBufferObject(*other.mRenderTarget, copyOp);
-                if (other.mRenderTexture)
-                    mRenderTexture = new osg::Texture2D(*other.mRenderTexture, copyOp);
-            }
-
-            ~SubPass() = default;
-
-            SubPass& operator=(const SubPass&) = default;
-        };
-
-        void compile()
-        {
-            for (auto rit = mPasses.rbegin(); rit != mPasses.rend(); ++rit)
-            {
-                if (!rit->mRenderTarget)
-                {
-                    rit->mResolve = true;
-                    break;
-                }
-            }
-        }
-
-        // not safe to read/write in draw thread
-        std::shared_ptr<Fx::Technique> mHandle = nullptr;
-
-        FlagsType mFlags = 0;
-
-        std::vector<SubPass> mPasses;
-
-        osg::ref_ptr<osg::StateSet> mRootStateSet = new osg::StateSet;
-    };
-
-    using DispatchArray = std::vector<DispatchNode>;
-
+    // Parses an .omwfx file into plain data: no renderer, image loading or settings are involved. The renderer stage
+    // builds its pipelines from getPasses(), getSamplers(), getRenderTargetsMap() and getUniformMap().
     class Technique
     {
     public:
-        using PassList = std::vector<std::shared_ptr<Pass>>;
-        using TexList = std::vector<osg::ref_ptr<osg::Texture>>;
+        using PassList = std::vector<std::shared_ptr<Types::PassDesc>>;
+        using SamplerList = std::vector<Types::SamplerDesc>;
 
         using UniformMap = std::vector<std::shared_ptr<Types::UniformBase>>;
         using RenderTargetMap = std::unordered_map<std::string_view, Types::RenderTarget>;
@@ -133,8 +55,10 @@ namespace Fx
 
         static VFS::Path::Normalized makeFileName(std::string_view name);
 
-        Technique(const VFS::Manager& vfs, Resource::ImageManager& imageManager, VFS::Path::NormalizedView fileName,
-            std::string name, int width, int height, bool ubo, bool supportsNormals);
+        // ubo and supportsNormals are what the renderer can do: without ubo the default GLSL version is 120, without
+        // supportsNormals the 'pass_normals' key has no effect.
+        Technique(const VFS::Manager& vfs, VFS::Path::NormalizedView fileName, std::string name, bool ubo,
+            bool supportsNormals);
 
         bool compile();
 
@@ -154,7 +78,10 @@ namespace Fx
 
         const PassList& getPasses() { return mPasses; }
 
-        const TexList& getTextures() const { return mTextures; }
+        const SamplerList& getSamplers() const { return mSamplers; }
+
+        // The 'shared' block with its #line directive, empty if there is none. Goes before each pass's source.
+        const std::string& getShared() const { return mShared; }
 
         Status getStatus() const { return mStatus; }
 
@@ -232,11 +159,11 @@ namespace Fx
 
         int parseInteger();
 
-        int parseInternalFormat();
+        Types::InternalFormat parseInternalFormat();
 
-        int parseSourceType();
+        Types::SourceType parseSourceType();
 
-        int parseSourceFormat();
+        Types::SourceFormat parseSourceFormat();
 
         template <class SrcT, class T>
         void parseWidgetType(Types::Uniform<SrcT>& uniform);
@@ -244,23 +171,23 @@ namespace Fx
         template <class SrcT, class T>
         SrcT getUniformValue();
 
-        osg::BlendEquation::Equation parseBlendEquation();
+        Types::BlendEquation parseBlendEquation();
 
-        osg::BlendFunc::BlendFuncMode parseBlendFuncMode();
+        Types::BlendFunc parseBlendFuncMode();
 
-        osg::Texture::WrapMode parseWrapMode();
+        Types::WrapMode parseWrapMode();
 
-        osg::Texture::InternalFormatMode parseCompression();
+        Types::Compression parseCompression();
 
         FlagsType parseFlags();
 
-        osg::Texture::FilterMode parseFilterMode();
+        Types::FilterMode parseFilterMode();
 
         template <class TDelimeter>
         std::vector<std::string_view> parseLiteralList();
 
-        template <class OSGVec, class T>
-        OSGVec parseVec();
+        template <class Vec, class T>
+        Vec parseVec();
 
         std::string getBlockWithLineDirective();
 
@@ -290,23 +217,20 @@ namespace Fx
         bool mHDR;
         bool mNormals;
         bool mLights;
-        int mWidth;
-        int mHeight;
 
         RenderTargetMap mRenderTargets;
 
-        TexList mTextures;
+        SamplerList mSamplers;
         PassList mPasses;
 
-        std::unordered_map<std::string_view, std::shared_ptr<Pass>> mPassMap;
+        std::unordered_map<std::string_view, std::shared_ptr<Types::PassDesc>> mPassMap;
         std::vector<std::string_view> mPassKeys;
 
-        Pass::Type mLastAppliedType;
+        Types::PassDesc::Type mLastAppliedType;
 
         UniformMap mDefinedUniforms;
 
         const VFS::Manager& mVFS;
-        Resource::ImageManager& mImageManager;
         bool mUBO;
         bool mSupportsNormals;
 

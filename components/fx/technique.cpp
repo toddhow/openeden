@@ -1,40 +1,17 @@
 #include "technique.hpp"
 
+#include <algorithm>
 #include <array>
 #include <format>
+#include <iterator>
 #include <string>
 #include <utility>
 
-#include <osg/Texture1D>
-#include <osg/Texture2D>
-#include <osg/Texture3D>
-
-#include <SDL_opengl_glext.h>
-
 #include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <components/resource/imagemanager.hpp>
-#include <components/stereo/multiview.hpp>
 #include <components/vfs/manager.hpp>
 
 #include "parseconstants.hpp"
-
-namespace
-{
-    struct ProxyTextureData
-    {
-        osg::Texture::WrapMode wrap_s = osg::Texture::CLAMP_TO_EDGE;
-        osg::Texture::WrapMode wrap_t = osg::Texture::CLAMP_TO_EDGE;
-        osg::Texture::WrapMode wrap_r = osg::Texture::CLAMP_TO_EDGE;
-        osg::Texture::FilterMode min_filter = osg::Texture::LINEAR_MIPMAP_LINEAR;
-        osg::Texture::FilterMode mag_filter = osg::Texture::LINEAR;
-        osg::Texture::InternalFormatMode compression = osg::Texture::USE_IMAGE_DATA_FORMAT;
-        std::optional<int> source_format;
-        std::optional<int> source_type;
-        std::optional<int> internal_format;
-    };
-}
 
 namespace Fx
 {
@@ -48,15 +25,12 @@ namespace Fx
         return result;
     }
 
-    Technique::Technique(const VFS::Manager& vfs, Resource::ImageManager& imageManager,
-        VFS::Path::NormalizedView fileName, std::string name, int width, int height, bool ubo, bool supportsNormals)
+    Technique::Technique(
+        const VFS::Manager& vfs, VFS::Path::NormalizedView fileName, std::string name, bool ubo, bool supportsNormals)
         : mName(std::move(name))
         , mFilePath(fileName)
         , mLastModificationTime(std::filesystem::file_time_type::clock::now())
-        , mWidth(width)
-        , mHeight(height)
         , mVFS(vfs)
-        , mImageManager(imageManager)
         , mUBO(ubo)
         , mSupportsNormals(supportsNormals)
     {
@@ -65,7 +39,7 @@ namespace Fx
 
     void Technique::clear()
     {
-        mTextures.clear();
+        mSamplers.clear();
         mStatus = Status::Uncompiled;
         mValid = false;
         mHDR = false;
@@ -77,14 +51,14 @@ namespace Fx
         mPassKeys.clear();
         mDefinedUniforms.clear();
         mRenderTargets.clear();
-        mLastAppliedType = Pass::Type::None;
+        mLastAppliedType = Types::PassDesc::Type::None;
         mFlags = 0;
         mShared.clear();
         mAuthor = {};
         mDescription = {};
         mVersion = {};
         mGLSLExtensions.clear();
-        mGLSLVersion = (mUBO || Stereo::getMultiview()) ? 330 : 120;
+        mGLSLVersion = mUBO ? 330 : 120;
         mGLSLProfile.clear();
         mDynamic = false;
     }
@@ -142,7 +116,7 @@ namespace Fx
                                     "'vertex' or 'compute' block",
                             name));
 
-                if (mLastAppliedType != Pass::Type::None && mLastAppliedType != it->second->mType)
+                if (mLastAppliedType != Types::PassDesc::Type::None && mLastAppliedType != it->second->mType)
                 {
                     swaps++;
                     if (swaps == 2)
@@ -151,15 +125,6 @@ namespace Fx
                 }
                 else
                     mLastAppliedType = it->second->mType;
-
-                if (Stereo::getMultiview())
-                {
-                    mGLSLExtensions.insert("GL_OVR_multiview");
-                    mGLSLExtensions.insert("GL_OVR_multiview2");
-                    mGLSLExtensions.insert("GL_EXT_texture_array");
-                }
-
-                it->second->compile(*this, mShared);
 
                 if (!it->second->mTarget.empty())
                 {
@@ -279,13 +244,7 @@ namespace Fx
             error(std::format("redeclaration of render target '{}'", mBlockName));
 
         Fx::Types::RenderTarget rt;
-        rt.mTarget->setTextureSize(mWidth, mHeight);
-        rt.mTarget->setSourceFormat(GL_RGB);
-        rt.mTarget->setInternalFormat(GL_RGB);
-        rt.mTarget->setSourceType(GL_UNSIGNED_BYTE);
-        rt.mTarget->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
-        rt.mTarget->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
-        rt.mTarget->setName(std::string(mBlockName));
+        rt.mName = mBlockName;
 
         while (!isNext<Lexer::Close_bracket>() && !isNext<Lexer::Eof>())
         {
@@ -296,13 +255,13 @@ namespace Fx
             expect<Lexer::Equal>();
 
             if (key == "min_filter")
-                rt.mTarget->setFilter(osg::Texture2D::MIN_FILTER, parseFilterMode());
+                rt.mMinFilter = parseFilterMode();
             else if (key == "mag_filter")
-                rt.mTarget->setFilter(osg::Texture2D::MAG_FILTER, parseFilterMode());
+                rt.mMagFilter = parseFilterMode();
             else if (key == "wrap_s")
-                rt.mTarget->setWrap(osg::Texture2D::WRAP_S, parseWrapMode());
+                rt.mWrapS = parseWrapMode();
             else if (key == "wrap_t")
-                rt.mTarget->setWrap(osg::Texture2D::WRAP_T, parseWrapMode());
+                rt.mWrapT = parseWrapMode();
             else if (key == "width_ratio")
                 rt.mSize.mWidthRatio = parseFloat();
             else if (key == "height_ratio")
@@ -312,15 +271,15 @@ namespace Fx
             else if (key == "height")
                 rt.mSize.mHeight = parseInteger();
             else if (key == "internal_format")
-                rt.mTarget->setInternalFormat(parseInternalFormat());
+                rt.mInternalFormat = parseInternalFormat();
             else if (key == "source_type")
-                rt.mTarget->setSourceType(parseSourceType());
+                rt.mSourceType = parseSourceType();
             else if (key == "source_format")
-                rt.mTarget->setSourceFormat(parseSourceFormat());
+                rt.mSourceFormat = parseSourceFormat();
             else if (key == "mipmaps")
                 rt.mMipMap = parseBool();
             else if (key == "clear_color")
-                rt.mClearColor = parseVec<osg::Vec4f, Lexer::Vec4>();
+                rt.mClearColor = parseVec<vsg::vec4, Lexer::Vec4>();
             else
                 error(std::format("unexpected key '{}'", key));
 
@@ -339,18 +298,18 @@ namespace Fx
         auto& pass = mPassMap[mBlockName];
 
         if (!pass)
-            pass = std::make_shared<Fx::Pass>();
+            pass = std::make_shared<Types::PassDesc>();
 
         pass->mName = mBlockName;
 
         if (pass->mCompute)
             error("'compute' block already defined. Usage is ambiguous.");
         else if (!pass->mVertex)
-            pass->mVertex = new osg::Shader(osg::Shader::VERTEX, getBlockWithLineDirective());
+            pass->mVertex = getBlockWithLineDirective();
         else
             error(std::format("duplicate vertex shader for block '{}'", mBlockName));
 
-        pass->mType = Pass::Type::Pixel;
+        pass->mType = Types::PassDesc::Type::Pixel;
     }
 
     template <>
@@ -362,7 +321,7 @@ namespace Fx
         auto& pass = mPassMap[mBlockName];
 
         if (!pass)
-            pass = std::make_shared<Fx::Pass>();
+            pass = std::make_shared<Types::PassDesc>();
 
         pass->mUBO = mUBO;
         pass->mName = mBlockName;
@@ -370,11 +329,11 @@ namespace Fx
         if (pass->mCompute)
             error("'compute' block already defined. Usage is ambiguous.");
         else if (!pass->mFragment)
-            pass->mFragment = new osg::Shader(osg::Shader::FRAGMENT, getBlockWithLineDirective());
+            pass->mFragment = getBlockWithLineDirective();
         else
             error(std::format("duplicate fragment shader for block '{}'", mBlockName));
 
-        pass->mType = Pass::Type::Pixel;
+        pass->mType = Types::PassDesc::Type::Pixel;
     }
 
     template <>
@@ -386,7 +345,7 @@ namespace Fx
         auto& pass = mPassMap[mBlockName];
 
         if (!pass)
-            pass = std::make_shared<Fx::Pass>();
+            pass = std::make_shared<Types::PassDesc>();
 
         pass->mName = mBlockName;
 
@@ -395,11 +354,11 @@ namespace Fx
         else if (pass->mVertex)
             error("'vertex' block already defined. Usage is ambiguous.");
         else if (!pass->mFragment)
-            pass->mCompute = new osg::Shader(osg::Shader::COMPUTE, getBlockWithLineDirective());
+            pass->mCompute = getBlockWithLineDirective();
         else
             error(std::format("duplicate compute shader for block '{}'", mBlockName));
 
-        pass->mType = Pass::Type::Compute;
+        pass->mType = Types::PassDesc::Type::Compute;
     }
 
     template <class T>
@@ -408,13 +367,18 @@ namespace Fx
         if (findUniform(mBlockName) != mDefinedUniforms.end())
             error(std::format("redeclaration of uniform '{}'", mBlockName));
 
-        ProxyTextureData proxy;
-        osg::ref_ptr<osg::Texture> sampler;
+        Types::SamplerDesc sampler;
+        bool hasSource = false;
 
         constexpr bool is1D = std::is_same_v<Lexer::Sampler_1D, T>;
         constexpr bool is3D = std::is_same_v<Lexer::Sampler_3D, T>;
 
-        Types::SamplerType type;
+        if constexpr (is1D)
+            sampler.mType = Types::SamplerType::Texture_1D;
+        else if constexpr (is3D)
+            sampler.mType = Types::SamplerType::Texture_3D;
+        else
+            sampler.mType = Types::SamplerType::Texture_2D;
 
         while (!isNext<Lexer::Close_bracket>() && !isNext<Lexer::Eof>())
         {
@@ -425,72 +389,41 @@ namespace Fx
             expect<Lexer::Equal>();
 
             if (!is1D && key == "min_filter")
-                proxy.min_filter = parseFilterMode();
+                sampler.mMinFilter = parseFilterMode();
             else if (!is1D && key == "mag_filter")
-                proxy.mag_filter = parseFilterMode();
+                sampler.mMagFilter = parseFilterMode();
             else if (key == "wrap_s")
-                proxy.wrap_s = parseWrapMode();
+                sampler.mWrapS = parseWrapMode();
             else if (key == "wrap_t")
-                proxy.wrap_t = parseWrapMode();
+                sampler.mWrapT = parseWrapMode();
             else if (is3D && key == "wrap_r")
-                proxy.wrap_r = parseWrapMode();
+                sampler.mWrapR = parseWrapMode();
             else if (key == "compression")
-                proxy.compression = parseCompression();
+                sampler.mCompression = parseCompression();
             else if (key == "source_type")
-                proxy.source_type = parseSourceType();
+                sampler.mSourceType = parseSourceType();
             else if (key == "source_format")
-                proxy.source_format = parseSourceFormat();
+                sampler.mSourceFormat = parseSourceFormat();
             else if (key == "internal_format")
-                proxy.internal_format = parseInternalFormat();
+                sampler.mInternalFormat = parseInternalFormat();
             else if (key == "source")
             {
                 expect<Lexer::String>();
-                const osg::ref_ptr<osg::Image> image
-                    = mImageManager.getImage(VFS::Path::Normalized(std::get<Lexer::String>(mToken).value), is3D);
-                if constexpr (is1D)
-                {
-                    type = Types::SamplerType::Texture_1D;
-                    sampler = new osg::Texture1D(image);
-                }
-                else if constexpr (is3D)
-                {
-                    type = Types::SamplerType::Texture_3D;
-                    sampler = new osg::Texture3D(image);
-                }
-                else
-                {
-                    type = Types::SamplerType::Texture_2D;
-                    sampler = new osg::Texture2D(image);
-                }
+                sampler.mSource = VFS::Path::Normalized(std::get<Lexer::String>(mToken).value);
+                hasSource = true;
             }
             else
                 error(std::format("unexpected key '{}'", key));
 
             expect<Lexer::SemiColon>();
         }
-        if (!sampler)
+        if (!hasSource)
             error(std::format("{} '{}' requires a filename", T::repr, mBlockName));
 
-        if (!is1D)
-        {
-            sampler->setFilter(osg::Texture::MIN_FILTER, proxy.min_filter);
-            sampler->setFilter(osg::Texture::MAG_FILTER, proxy.mag_filter);
-        }
-        if (is3D)
-            sampler->setWrap(osg::Texture::WRAP_R, proxy.wrap_r);
-        sampler->setWrap(osg::Texture::WRAP_S, proxy.wrap_s);
-        sampler->setWrap(osg::Texture::WRAP_T, proxy.wrap_t);
-        sampler->setInternalFormatMode(proxy.compression);
-        if (proxy.internal_format.has_value())
-            sampler->setInternalFormat(proxy.internal_format.value());
-        if (proxy.source_type.has_value())
-            sampler->setSourceType(proxy.source_type.value());
-        if (proxy.internal_format.has_value())
-            sampler->setSourceFormat(proxy.internal_format.value());
-        sampler->setName(std::string{ mBlockName });
-        sampler->setResizeNonPowerOfTwoHint(false);
+        sampler.mName = mBlockName;
+        const Types::SamplerType type = sampler.mType;
 
-        mTextures.emplace_back(sampler);
+        mSamplers.emplace_back(std::move(sampler));
 
         std::shared_ptr<Types::UniformBase> uniform = std::make_shared<Types::UniformBase>();
         uniform->mSamplerType = type;
@@ -502,7 +435,7 @@ namespace Fx
     SrcT Technique::getUniformValue()
     {
         constexpr bool isVec
-            = std::is_same_v<osg::Vec2f, SrcT> || std::is_same_v<osg::Vec3f, SrcT> || std::is_same_v<osg::Vec4f, SrcT>;
+            = std::is_same_v<vsg::vec2, SrcT> || std::is_same_v<vsg::vec3, SrcT> || std::is_same_v<vsg::vec4, SrcT>;
         constexpr bool isFloat = std::is_same_v<float, SrcT>;
         constexpr bool isInt = std::is_same_v<int, SrcT>;
         constexpr bool isBool = std::is_same_v<bool, SrcT>;
@@ -600,19 +533,6 @@ namespace Fx
         uniform->mData = data;
         uniform->mTechniqueName = mName;
 
-        if (data.mArray)
-        {
-            if constexpr (!std::is_same_v<bool, SrcT>)
-            {
-                if (auto cached = Settings::ShaderManager::get().getValue<std::vector<SrcT>>(mName, uniform->mName))
-                    uniform->setValue(cached.value());
-            }
-        }
-        else if (auto cached = Settings::ShaderManager::get().getValue<SrcT>(mName, uniform->mName))
-        {
-            uniform->setValue(cached.value());
-        }
-
         mDefinedUniforms.emplace_back(std::move(uniform));
     }
 
@@ -655,19 +575,19 @@ namespace Fx
     template <>
     void Technique::parseBlockImp<Lexer::Uniform_Vec2>()
     {
-        parseUniform<osg::Vec2f, Lexer::Vec2>();
+        parseUniform<vsg::vec2, Lexer::Vec2>();
     }
 
     template <>
     void Technique::parseBlockImp<Lexer::Uniform_Vec3>()
     {
-        parseUniform<osg::Vec3f, Lexer::Vec3>();
+        parseUniform<vsg::vec3, Lexer::Vec3>();
     }
 
     template <>
     void Technique::parseBlockImp<Lexer::Uniform_Vec4>()
     {
-        parseUniform<osg::Vec4f, Lexer::Vec4>();
+        parseUniform<vsg::vec4, Lexer::Vec4>();
     }
 
     template <class T>
@@ -806,7 +726,7 @@ namespace Fx
         auto& pass = mPassMap[mBlockName];
 
         if (!pass)
-            pass = std::make_shared<Fx::Pass>();
+            pass = std::make_shared<Types::PassDesc>();
 
         while (!isNext<Lexer::Eof>())
         {
@@ -839,16 +759,16 @@ namespace Fx
             else if (key == "blend")
             {
                 expect<Lexer::Open_Parenthesis>();
-                osg::BlendEquation::Equation blendEq = parseBlendEquation();
+                Types::BlendEquation blendEq = parseBlendEquation();
                 expect<Lexer::Comma>();
-                osg::BlendFunc::BlendFuncMode blendSrc = parseBlendFuncMode();
+                Types::BlendFunc blendSrc = parseBlendFuncMode();
                 expect<Lexer::Comma>();
-                osg::BlendFunc::BlendFuncMode blendDest = parseBlendFuncMode();
+                Types::BlendFunc blendDest = parseBlendFuncMode();
                 expect<Lexer::Close_Parenthesis>();
 
                 pass->mBlendSource = blendSrc;
                 pass->mBlendDest = blendDest;
-                if (blendEq != osg::BlendEquation::FUNC_ADD)
+                if (blendEq != Types::BlendEquation::Add)
                     pass->mBlendEq = blendEq;
             }
             else
@@ -894,7 +814,7 @@ namespace Fx
         return flag;
     }
 
-    osg::Texture::FilterMode Technique::parseFilterMode()
+    Types::FilterMode Technique::parseFilterMode()
     {
         expect<Lexer::Literal>();
 
@@ -907,7 +827,7 @@ namespace Fx
         error(std::format("unrecognized filter mode '{}'", asLiteral()));
     }
 
-    osg::Texture::WrapMode Technique::parseWrapMode()
+    Types::WrapMode Technique::parseWrapMode()
     {
         expect<Lexer::Literal>();
 
@@ -925,7 +845,7 @@ namespace Fx
         error(std::format("unrecognized wrap mode '{}'", asLiteral()));
     }
 
-    osg::Texture::InternalFormatMode Technique::parseCompression()
+    Types::Compression Technique::parseCompression()
     {
         expect<Lexer::Literal>();
 
@@ -938,7 +858,7 @@ namespace Fx
         error(std::format("unrecognized compression '{}'", asLiteral()));
     }
 
-    int Technique::parseInternalFormat()
+    Types::InternalFormat Technique::parseInternalFormat()
     {
         expect<Lexer::Literal>();
 
@@ -951,7 +871,7 @@ namespace Fx
         error(std::format("unrecognized internal format '{}'", asLiteral()));
     }
 
-    int Technique::parseSourceType()
+    Types::SourceType Technique::parseSourceType()
     {
         expect<Lexer::Literal>();
 
@@ -964,7 +884,7 @@ namespace Fx
         error(std::format("unrecognized source type '{}'", asLiteral()));
     }
 
-    int Technique::parseSourceFormat()
+    Types::SourceFormat Technique::parseSourceFormat()
     {
         expect<Lexer::Literal>();
 
@@ -977,7 +897,7 @@ namespace Fx
         error(std::format("unrecognized source format '{}'", asLiteral()));
     }
 
-    osg::BlendEquation::Equation Technique::parseBlendEquation()
+    Types::BlendEquation Technique::parseBlendEquation()
     {
         expect<Lexer::Literal>();
 
@@ -990,7 +910,7 @@ namespace Fx
         error(std::format("unrecognized blend equation '{}'", asLiteral()));
     }
 
-    osg::BlendFunc::BlendFuncMode Technique::parseBlendFuncMode()
+    Types::BlendFunc Technique::parseBlendFuncMode()
     {
         expect<Lexer::Literal>();
 
@@ -1095,19 +1015,19 @@ namespace Fx
         return std::get<Lexer::Integer>(mToken).value;
     }
 
-    template <class OSGVec, class T>
-    OSGVec Technique::parseVec()
+    template <class Vec, class T>
+    Vec Technique::parseVec()
     {
         expect<T>();
         expect<Lexer::Open_Parenthesis>();
 
-        OSGVec value;
+        Vec value;
 
-        for (int i = 0; i < OSGVec::num_components; ++i)
+        for (std::size_t i = 0; i < Vec::size(); ++i)
         {
             value[i] = parseFloat();
 
-            if (i < OSGVec::num_components - 1)
+            if (i < Vec::size() - 1)
                 expect<Lexer::Comma>();
         }
 

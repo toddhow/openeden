@@ -131,11 +131,15 @@ file(GLOB UNITTEST_SRC_FILES
     pipeline/testcoveragemodes.cpp
 
     mwanimation/testclonematerials.cpp
+
+    fx/lexer.cpp
+    fx/technique.cpp
+    fx/testtechniquedata.cpp
 )
 
-# openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader, components/fx,
+# openeden-vsg: tests of OSG components that the VSG renderer does not build (components/shader,
 # components/nifosg, components/sceneutil, Resource::SceneManager) are excluded: resource/testresourcesystem.cpp, shader/parsedefines.cpp, shader/parsefors.cpp,
-# shader/parselinks.cpp, shader/shadermanager.cpp, fx/lexer.cpp, fx/technique.cpp, nifosg/testnifloader.cpp and
+# shader/parselinks.cpp, shader/shadermanager.cpp, nifosg/testnifloader.cpp and
 # sceneutil/osgacontroller.cpp. Task 0012 (post-processing, .omwfx) and task 0014 (OSG removal) restore or replace them.
 
 # The Morrowind compatibility pack's converter, renderer-free since task 0011.
