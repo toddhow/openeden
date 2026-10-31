@@ -238,3 +238,18 @@ A throwaway program, not committed and run on Windows only, ran two hosted Engin
 Found by it: `createRenderGraph` has no resize handler, and a render area larger than the swapchain draws nothing, with no error. The editor must set `renderArea` on resize (C3); the program did that on a timer. Recorded in `components/render/CLAUDE.md`.
 
 Not run: the zero-size refusal and null capture, closing one window while others stay (`Viewer::removeWindow` replaces the tasks, so C3 needs its own way), a hosted window on Linux, validation layers (none installed here), `Pipeline::Builder` and the game's shaders in a hosted window (C2).
+
+### Review of B3 (2026-10-31)
+
+A fresh reviewer read `840f9282cd` and found four defects in the hosted path, none in the game's. Fixed:
+- A second Engine's window fell out of `Viewer::_windows` when the first `setup()` went through `assignRecordAndSubmitTaskAndPresentation`, so it stayed blank. `setup()` now adds the window back.
+- Appending did not restart viewer threading, so later graphs were never recorded. `setup()` now stops threading before appending and restarts it if asked; the last call decides for the viewer.
+- A timer's `endFrame()` after a detach could count the frame that last used the object, releasing it before that frame's fence was waited on. Hosted `onDetached` now calls `endFrame()` first; `testdeletionqueue.cpp` shows both orders.
+- `setup()` now checks the swapchain's real format, a hosted `loop()` throws, and `useFrameQueue` is documented as ignored when hosted.
+
+Checked with the throwaway two-window program, both windows constructed before either `setup()`: without threading; with `threading` true then true; and true then false. Each time both windows read back correct at every capture, and boxes compiled afterwards appeared in both. The true-then-false run found one more defect: `Viewer::stopThreading` leaves `status` inactive, which stopped drawing and failed every compile, so `setup()` now sets it active again.
+
+Open:
+- A collapsed window: what it does at zero extent, including whether `Viewer::acquireNextFrame` spins on it.
+- Closing one window while others stay open.
+- Hosted windows on Linux, and validation layers.

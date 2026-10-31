@@ -123,6 +123,9 @@ namespace Render
         if (mDeletionQueue && mWindow)
         {
             mWindow->getOrCreateSwapchain();
+            // The swapchain can fall back to sRGB when the surface lacks the format asked for (vsg::selectSwapSurfaceFormat).
+            if (mHosted && mWindow->surfaceFormat().format != compatibleColorFormat)
+                throw std::invalid_argument("Render::Engine: the surface does not support compatibleColorFormat");
             mDeletionQueue->resize(mWindow->numFrames());
         }
         else if (mHeadless)
@@ -134,7 +137,17 @@ namespace Render
         }
 
         if (mHosted)
+        {
+            // Viewer::setupThreading captures each task's graphs when it starts its threads, so they restart below.
+            mViewer->stopThreading();
+            // stopThreading leaves the viewer's status inactive, and only setupThreading sets it back. While inactive,
+            // the viewer stops drawing and CompileManager::compile fails with "Nothing assigned yet".
+            mViewer->status->set(true);
             appendToViewer(*mViewer, *mWindow, graphs);
+            // The first setup goes through Viewer::assignRecordAndSubmitTaskAndPresentation, which keeps only the windows
+            // in its graphs, so this window may have been dropped by another Engine's setup.
+            mViewer->addWindow(mWindow);
+        }
         else
             mViewer->assignRecordAndSubmitTaskAndPresentation(graphs);
         if (threading)
@@ -161,6 +174,9 @@ namespace Render
 
     void Engine::loop(FrameCallback frameCallback, float framerateLimit)
     {
+        if (mHosted)
+            throw std::logic_error("Render::Engine: a hosted engine's frames are driven by its viewer's owner");
+
         auto limitFramerate = LimitFramerate::create(framerateLimit);
         auto last = std::chrono::steady_clock::now();
 
@@ -343,7 +359,13 @@ namespace Render
         ret->compileManager = compile;
         ret->onCompiled = [this](const vsg::CompileResult& r) { vsg::updateViewer(*mViewer, r); };
         if (mDeletionQueue)
-            ret->onDetached = [this](vsg::ref_ptr<vsg::Object> object) { mDeletionQueue->add(object); };
+            ret->onDetached = [this](vsg::ref_ptr<vsg::Object> object) {
+                // A host's timer may not have run endFrame() yet for the last frame that used the object. That advance
+                // must not count towards the object, or it is freed a frame before the frame's fence is waited on.
+                if (mHosted)
+                    endFrame();
+                mDeletionQueue->add(object);
+            };
         else
             ret->onDetached = [](vsg::ref_ptr<vsg::Object>){};
         return ret;

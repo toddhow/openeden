@@ -13,6 +13,8 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 - `Engine(viewer, window)`: one Engine per window over one viewer. Everything an Engine does but `compile`, `loop` and `createCompileContext` is about one window (`createRenderGraph`, `createCommandGraph`, `setRenderPass`, `screenshotOperation`), so per-window keeps those as they are; one Engine with several windows would have to add a window argument to each.
 - The host drives frames and calls `endFrame()` afterwards. `loop()` is not for it: it blocks.
 - `setup()` appends to the viewer's task rather than calling `Viewer::addRecordAndSubmitTaskAndPresentation`, which replaces every task and leaves earlier compile contexts uploading through a dead `TransferTask`.
+- `setup()` restarts the viewer's threading, so the last Engine's `threading` argument decides for all of them.
+- `endFrame()` runs before anything is queued for deletion, so the frame that last used it is not counted towards its release.
 
 ## Pitfalls
 

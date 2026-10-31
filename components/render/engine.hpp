@@ -47,7 +47,8 @@ namespace Render
          * Hosted: one Engine for one window of a viewer that the caller owns and drives, such as vsgQt::Viewer with its
          * QTimer. Several windows on one device take one Engine each over the same viewer. The window must already be
          * laid out with a non-zero size and ask for compatibleColorFormat (a capture refuses sRGB swapchains); otherwise
-         * this throws std::invalid_argument. The caller must not call loop(); after each frame it calls endFrame().
+         * this throws std::invalid_argument, as setup() does if the surface does not offer that format. loop() throws
+         * std::logic_error; after each frame the caller calls endFrame().
          * createRenderGraph() installs no resize handler, so on a resize the caller sets each graph's renderArea to the
          * new extent, as RenderManager::updateExtents does: a render area larger than the swapchain draws nothing at all.
          * Must be destroyed after the compile contexts it creates, whose callbacks refer to it.
@@ -56,9 +57,11 @@ namespace Render
         ~Engine();
 
         bool useFrameQueue = true; // If set to false, prevents queued frames in the swapchain by inserting a vkDeviceWaitIdle call in between frames.
+        // Ignored by a hosted engine, whose viewer's owner presents and decides whether to wait.
 
         // Hosted, each call adds this window's graphs to the viewer, which keeps those already there; call compile() again
         // after it, then add the window's compile views to the compile manager (see appendToViewer in engine.cpp).
+        // Threading applies to the whole viewer, so the last Engine's call to setup() decides it for every window.
         void setup(std::vector<vsg::ref_ptr<vsg::CommandGraph>> graphs, bool threading);
         void compile();
 

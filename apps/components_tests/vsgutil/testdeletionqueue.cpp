@@ -46,6 +46,36 @@ namespace
         EXPECT_FALSE(queueHoldsObject());
     }
 
+    // Engine's hosted onDetached: frame 7 last used the object and the host's timer has not yet reported it. Reporting it
+    // before add() means 8, 9 and 10 all count, and frame 10's submission has waited on frame 7's fence; the fence ring
+    // is three long (vsg::Viewer::assignRecordAndSubmitTaskAndPresentation, numBuffers).
+    TEST(DeletionQueue, advanceToFrameBeforeAddKeepsObjectUntilThirdNewFrame)
+    {
+        vsgUtil::DeletionQueue queue{ 3 };
+        vsg::ref_ptr<vsg::Object> object = vsg::Object::create();
+        queue.advanceToFrame(7);
+        queue.add(object);
+        queue.advanceToFrame(7);
+        queue.advanceToFrame(8);
+        queue.advanceToFrame(9);
+        EXPECT_GT(object->referenceCount(), 1u);
+        queue.advanceToFrame(10);
+        EXPECT_EQ(object->referenceCount(), 1u);
+    }
+
+    // The defect that order prevents: without reporting frame 7 first, the object goes after frame 9.
+    TEST(DeletionQueue, advanceToFrameAfterAddCountsTheFrameThatUsedTheObject)
+    {
+        vsgUtil::DeletionQueue queue{ 3 };
+        vsg::ref_ptr<vsg::Object> object = vsg::Object::create();
+        queue.advanceToFrame(6);
+        queue.add(object);
+        queue.advanceToFrame(7);
+        queue.advanceToFrame(8);
+        queue.advanceToFrame(9);
+        EXPECT_EQ(object->referenceCount(), 1u);
+    }
+
     TEST_F(DeletionQueueTest, advanceToFrameCountsSkippedFramesAsOne)
     {
         mQueue.add(mObject);
