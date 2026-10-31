@@ -30,6 +30,7 @@
 #include <components/mwanimation/create.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
+#include "actor.hpp"
 #include "mask.hpp"
 #include "scenehost.hpp"
 
@@ -99,9 +100,23 @@ void CSVRender::Object::update(bool compile)
     std::unique_ptr<MWAnim::Object> animation;
     try
     {
-        if (model.empty())
+        if (recordType == CSMWorld::UniversalId::Type_Npc || recordType == CSMWorld::UniversalId::Type_Creature)
+        {
+            if (!mActor)
+                mActor = std::make_unique<Actor>(mReferenceableId, mData, mHost.animContext(), [this] { update(true); });
+            animation = mActor->create();
+        }
+        else if (model.empty())
             throw std::runtime_error(mReferenceableId.getRefIdString() + " has no model");
-        animation = MWAnim::createObject(model, false, light, mHost.animContext());
+        else
+        {
+            // As the classes whose useAnim is true in apps/openmw/mwclass: their models may be skinned, which needs bones.
+            const bool useAnim = recordType == CSMWorld::UniversalId::Type_Door
+                || recordType == CSMWorld::UniversalId::Type_Activator
+                || recordType == CSMWorld::UniversalId::Type_Container
+                || recordType == CSMWorld::UniversalId::Type_Light;
+            animation = MWAnim::createObject(model, useAnim, light, mHost.animContext());
+        }
     }
     catch (const std::exception& e)
     {
@@ -159,7 +174,9 @@ void CSVRender::Object::adjustTransform()
     transform->setAttitude(vsg::quat(Misc::VsgMath::makeRotateFromAxis(position.rot[0], vsg::vec3(-1, 0, 0))
         * Misc::VsgMath::makeRotateFromAxis(position.rot[1], vsg::vec3(0, -1, 0))
         * Misc::VsgMath::makeRotateFromAxis(position.rot[2], vsg::vec3(0, 0, -1))));
-    transform->setScale(getScale());
+    const vsg::vec3 actorScale = mActor ? mActor->getScale() : vsg::vec3(1.f, 1.f, 1.f);
+    const float scale = getScale();
+    transform->scale = actorScale * scale;
     mHost.requestRedraw();
 }
 
@@ -200,6 +217,7 @@ CSVRender::Object::Object(CSMWorld::Data& data, SceneHost& host, vsg::Group& par
 
 CSVRender::Object::~Object()
 {
+    mActor.reset();
     vsg::ref_ptr<vsg::Switch> shown;
     mRootNode->getValue("mask node", shown);
     auto& children = mParentNode.children;

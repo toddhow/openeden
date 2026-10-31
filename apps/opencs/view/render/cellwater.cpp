@@ -1,17 +1,9 @@
 #include "cellwater.hpp"
 
-#include <memory>
-#include <string_view>
+#include <algorithm>
 
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/PositionAttitudeTransform>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
-#include <osg/Texture2D>
-#include <osg/Texture>
-#include <osg/Vec3d>
-#include <osg/Vec3f>
+#include <QAbstractItemModel>
+#include <QModelIndex>
 
 #include <apps/opencs/model/world/collection.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
@@ -19,43 +11,44 @@
 #include <apps/opencs/model/world/universalid.hpp>
 
 #include <components/esm3/loadland.hpp>
-#include <components/fallback/fallback.hpp>
-#include <components/misc/strings/lower.hpp>
-#include <components/resource/imagemanager.hpp>
+#include <components/pipeline/builder.hpp>
+#include <components/render/simplewater.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/sceneutil/waterutil.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/setbin.hpp>
 
 #include "../../model/world/cell.hpp"
 #include "../../model/world/cellcoordinates.hpp"
 #include "../../model/world/data.hpp"
 
 #include "mask.hpp"
+#include "scenehost.hpp"
+
+namespace
+{
+    // The OSG editor's sizes (cellwater.cpp in git history): an interior's plane is twenty cells wide.
+    constexpr int sInteriorScalar = 20;
+}
 
 namespace CSVRender
 {
     const int CellWater::CellSize = ESM::Land::REAL_SIZE;
 
     CellWater::CellWater(
-        CSMWorld::Data& data, osg::Group* cellNode, const std::string& id, const CSMWorld::CellCoordinates& cellCoords)
-        : mData(data)
+        SceneHost& host, vsg::Group& cellNode, const std::string& id, const CSMWorld::CellCoordinates& cellCoords)
+        : mHost(host)
+        , mData(host.data())
         , mId(id)
         , mParentNode(cellNode)
-        , mWaterTransform(nullptr)
-        , mWaterGroup(nullptr)
-        , mWaterGeometry(nullptr)
+        , mCenter(cellCoords.getX() * CellSize + CellSize / 2.f, cellCoords.getY() * CellSize + CellSize / 2.f)
         , mDeleted(false)
         , mExterior(false)
         , mHasWater(false)
     {
-        mWaterTransform = new osg::PositionAttitudeTransform();
-        mWaterTransform->setPosition(osg::Vec3f(
-            cellCoords.getX() * CellSize + CellSize / 2.f, cellCoords.getY() * CellSize + CellSize / 2.f, 0));
-
-        mWaterTransform->setNodeMask(Mask_Water);
-        mParentNode->addChild(mWaterTransform);
-
-        mWaterGroup = new osg::Group();
-        mWaterTransform->addChild(mWaterGroup);
+        mWaterGroup = vsg::Group::create();
+        mMaskNode = SceneHost::maskNode(Mask_Water, mWaterGroup);
+        mHost.compileContext()->compile(mMaskNode);
+        mParentNode.addChild(mMaskNode);
 
         const int cellIndex = mData.getCells().searchId(ESM::RefId::stringRefId(mId));
         if (cellIndex > -1)
@@ -70,7 +63,10 @@ namespace CSVRender
 
     CellWater::~CellWater()
     {
-        mParentNode->removeChild(mWaterTransform);
+        auto& children = mParentNode.children;
+        children.erase(
+            std::remove(children.begin(), children.end(), vsg::ref_ptr<vsg::Node>(mMaskNode)), children.end());
+        mHost.compileContext()->detach(mMaskNode);
     }
 
     void CellWater::updateCellData(const CSMWorld::Record<CSMWorld::Cell>& cellRecord)
@@ -88,20 +84,15 @@ namespace CSVRender
                 recreate();
             }
 
-            float waterHeight = -1;
-            if (!mExterior)
-            {
-                waterHeight = cellRecord.get().mWater;
-            }
-
-            osg::Vec3d pos = mWaterTransform->getPosition();
-            pos.z() = waterHeight;
-            mWaterTransform->setPosition(pos);
+            mHeight = mExterior ? -1.f : cellRecord.get().mWater;
+            if (mWater)
+                mWater->setHeight(mHeight);
         }
         else
         {
             recreate();
         }
+        mHost.requestRedraw();
     }
 
     void CellWater::reloadAssets()
@@ -138,57 +129,24 @@ namespace CSVRender
 
     void CellWater::recreate()
     {
-        const int interiorScalar = 20;
-        const int segmentsPerCell = 1;
-        const int textureRepeatsPerCell = 6;
-
-        const float alpha = 0.5f;
-
-        const int renderBin = osg::StateSet::TRANSPARENT_BIN - 1;
-
-        if (mWaterGeometry)
-        {
-            mWaterGroup->removeChild(mWaterGeometry);
-            mWaterGeometry = nullptr;
-        }
+        for (auto& child : mWaterGroup->children)
+            mHost.compileContext()->detach(child);
+        mWaterGroup->children.clear();
+        mWater.reset();
 
         if (mDeleted || !mHasWater)
             return;
 
-        float size;
-        int segments;
-        float textureRepeats;
+        const float radius = (mExterior ? CellSize : CellSize * sInteriorScalar) / 2.f;
+        Resource::ResourceSystem& resources = mHost.resources();
+        mWater = std::make_unique<Render::SimpleWater>(radius, *resources.builder, resources.textureOptions, false);
+        mWater->setEnabled(true);
+        mWater->setPosition(mCenter);
+        mWater->setHeight(mHeight);
 
-        if (mExterior)
-        {
-            size = CellSize;
-            segments = segmentsPerCell;
-            textureRepeats = textureRepeatsPerCell;
-        }
-        else
-        {
-            size = CellSize * interiorScalar;
-            segments = segmentsPerCell * interiorScalar;
-            textureRepeats = textureRepeatsPerCell * interiorScalar;
-        }
-
-        mWaterGeometry = SceneUtil::createWaterGeometry(size, segments, textureRepeats);
-        mWaterGeometry->setStateSet(SceneUtil::createSimpleWaterStateSet(alpha, renderBin));
-
-        // Add water texture
-        constexpr VFS::Path::NormalizedView prefix("textures/water");
-        VFS::Path::Normalized texturePath(prefix);
-        texturePath /= std::string(Fallback::Map::getString("Water_SurfaceTexture")) + "00.dds";
-
-        Resource::ImageManager* imageManager = mData.getResourceSystem()->getImageManager();
-
-        osg::ref_ptr<osg::Texture2D> waterTexture = new osg::Texture2D();
-        waterTexture->setImage(imageManager->getImage(texturePath));
-        waterTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
-        waterTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
-
-        mWaterGeometry->getStateSet()->setTextureAttributeAndModes(0, waterTexture, osg::StateAttribute::ON);
-
-        mWaterGroup->addChild(mWaterGeometry);
+        // After everything opaque, as the OSG editor's render bin just before the transparent one.
+        auto sorted = vsgUtil::createBinSetter(SceneHost::sBinDepthSorted, mWater->node());
+        mHost.compileContext()->compile(sorted);
+        mWaterGroup->children = { sorted };
     }
 }

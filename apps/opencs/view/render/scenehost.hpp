@@ -74,6 +74,11 @@ namespace CSVRender
     class SceneHost
     {
     public:
+        /// Drawn last, after everything else: cell markers, which the OSG editor put in render bin 11.
+        static constexpr int sBinOverlay = 2;
+        /// Transparent objects, sorted back to front. The game's number (apps/openmw/mwrender/bin.hpp).
+        static constexpr int sBinDepthSorted = 0;
+
         /// Throws if the window has no size yet (Render::Engine's constructor).
         SceneHost(RenderContext& context, vsgQt::Window& window, CSMWorld::Data& data);
         ~SceneHost();

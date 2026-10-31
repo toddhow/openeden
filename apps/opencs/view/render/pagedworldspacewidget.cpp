@@ -477,8 +477,9 @@ void CSVRender::PagedWorldspaceWidget::addCellToScene(const CSMWorld::CellCoordi
 
     auto cell = std::make_unique<Cell>(
         getDocument(), mSelectionMarker.get(), *getHost(), coordinates.getId(mWorldspace), deleted, true);
-    EditMode* editMode = getEditMode();
-    cell->setSubMode(editMode->getSubMode(), editMode->getInteractionMask());
+    // An unattended capture has no toolbar.
+    if (EditMode* editMode = getEditMode())
+        cell->setSubMode(editMode->getSubMode(), editMode->getInteractionMask());
 
     mCells.insert(std::make_pair(coordinates, cell.release()));
 }

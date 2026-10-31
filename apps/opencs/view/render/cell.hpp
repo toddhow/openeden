@@ -18,6 +18,12 @@
 
 class QModelIndex;
 
+namespace Terrain
+{
+    class Paging;
+    class View;
+}
+
 namespace CSMWorld
 {
     class Data;
@@ -47,7 +53,14 @@ namespace CSVRender
         vsg::ref_ptr<vsg::Group> mCellNode;
         std::map<std::string, Object*, Misc::StringUtils::CiComp> mObjects;
         CSMWorld::CellCoordinates mCoordinates;
+        std::unique_ptr<TerrainStorage> mTerrainStorage;
+        std::unique_ptr<Terrain::Paging> mTerrain;
+        std::unique_ptr<Terrain::View> mTerrainView;
+        vsg::ref_ptr<vsg::Node> mTerrainNode;
         std::unique_ptr<CellArrow> mCellArrows[4];
+        std::unique_ptr<CellMarker> mCellMarker;
+        std::unique_ptr<CellBorder> mCellBorder;
+        std::unique_ptr<CellWater> mCellWater;
         bool mDeleted;
         int mSubMode;
         unsigned int mSubModeElementMask;
@@ -113,11 +126,13 @@ namespace CSVRender
         /// this cell?
         bool referenceAdded(const QModelIndex& parent, int start, int end);
 
-        // Stage C4 fills these in.
-        void setAlteredHeight(int inCellX, int inCellY, float height) {}
-        float getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY) { return 0.f; }
-        float* getAlteredHeight(int inCellX, int inCellY) { return nullptr; }
-        void resetAlteredHeights() {}
+        void setAlteredHeight(int inCellX, int inCellY, float height);
+
+        float getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY);
+
+        float* getAlteredHeight(int inCellX, int inCellY);
+
+        void resetAlteredHeights();
 
         // Stage C9: the pathgrid.
         void pathgridModified() {}

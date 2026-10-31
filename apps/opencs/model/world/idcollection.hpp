@@ -66,6 +66,9 @@ namespace CSMWorld
 
         const std::string* getLandTexture(std::uint16_t index, int plugin) const;
 
+        /// (plugin, index) of every land texture
+        const std::map<std::pair<int, std::uint16_t>, ESM::RefId>& getIndices() const { return mIndices; }
+
         bool touchRecord(const ESM::RefId& id) override;
 
         void cloneRecord(

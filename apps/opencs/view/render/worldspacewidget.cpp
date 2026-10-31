@@ -389,7 +389,7 @@ CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
 
 CSVRender::EditMode* CSVRender::WorldspaceWidget::getEditMode()
 {
-    return dynamic_cast<CSVRender::EditMode*>(mEditMode->getCurrent());
+    return mEditMode ? dynamic_cast<CSVRender::EditMode*>(mEditMode->getCurrent()) : nullptr;
 }
 
 void CSVRender::WorldspaceWidget::abortDrag()

@@ -1,131 +1,90 @@
 #include "actor.hpp"
 
-#include <memory>
-#include <unordered_map>
 #include <utility>
-
-#include <osg/Group>
-#include <osg/MatrixTransform>
-#include <osg/Node>
-#include <osg/Vec3d>
 
 #include <apps/opencs/model/world/actoradapter.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 
+#include <components/animation/context.hpp>
 #include <components/esm3/loadbody.hpp>
-#include <components/esm3/mappings.hpp>
-#include <components/misc/resourcehelpers.hpp>
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/attach.hpp>
-#include <components/sceneutil/skeleton.hpp>
+#include <components/mwanimation/attach.hpp>
+#include <components/mwanimation/context.hpp>
+#include <components/mwanimation/create.hpp>
+#include <components/mwanimation/decorate.hpp>
+#include <components/mwanimation/groups.hpp>
+#include <components/mwanimation/partbones.hpp>
+#include <components/vsgutil/readnode.hpp>
 
 #include "../../model/world/data.hpp"
 
 namespace CSVRender
 {
-    const std::string Actor::MeshPrefix = "meshes\\";
-
-    Actor::Actor(const ESM::RefId& id, CSMWorld::Data& data)
+    Actor::Actor(const ESM::RefId& id, CSMWorld::Data& data, const MWAnim::Context& context, std::function<void()> changed)
         : mId(id)
         , mData(data)
-        , mBaseNode(new osg::PositionAttitudeTransform())
-        , mSkeleton(nullptr)
+        , mContext(context)
+        , mChanged(std::move(changed))
     {
         mActorData = mData.getActorAdapter()->getActorData(mId);
         connect(mData.getActorAdapter(), &CSMWorld::ActorAdapter::actorChanged, this, &Actor::handleActorChanged);
     }
 
-    osg::Group* Actor::getBaseNode()
+    std::unique_ptr<MWAnim::Object> Actor::create()
     {
-        return mBaseNode;
+        const std::string skeleton = mActorData->getSkeleton();
+
+        if (mActorData->isCreature())
+            return MWAnim::createCreature<MWAnim::Actor>(skeleton, false, mContext);
+
+        // As MWRender::Npc::updateNpcBase: the skeleton gives the bones, and only the body parts go in the scene, which is
+        // what the OSG editor's CleanObjectRootVisitor left.
+        auto node = mContext.readActor(skeleton);
+        auto actor = std::make_unique<MWAnim::Actor>(mContext);
+        actor->animation = std::make_unique<MWAnim::Play>(
+            MWAnim::Bones(static_cast<const vsg::Node&>(*node), MWAnim::groups), MWAnim::sNumBlendMasks);
+        actor->assignBones();
+
+        for (int i = 0; i < ESM::PRT_Count; ++i)
+        {
+            const auto type = static_cast<ESM::PartReferenceType>(i);
+            const std::string mesh = getBodyPartMesh(mActorData->getPart(type));
+            if (!mesh.empty())
+                attachBodyPart(*actor, type, mesh);
+        }
+        return actor;
     }
 
-    void Actor::update()
+    vsg::vec3 Actor::getScale() const
     {
-        mBaseNode->removeChildren(0, mBaseNode->getNumChildren());
-
-        // Load skeleton
-        VFS::Path::Normalized skeletonModel = mActorData->getSkeleton();
-        skeletonModel
-            = Misc::ResourceHelpers::correctActorModelPath(skeletonModel, mData.getResourceSystem()->getVFS());
-        loadSkeleton(skeletonModel);
-
-        if (!mActorData->isCreature())
-        {
-            // Get rid of the extra attachments
-            SceneUtil::CleanObjectRootVisitor cleanVisitor;
-            mSkeleton->accept(cleanVisitor);
-            cleanVisitor.remove();
-
-            // Attach parts to skeleton
-            loadBodyParts();
-
-            const osg::Vec2f& attributes = mActorData->getRaceWeightHeight();
-
-            mBaseNode->setScale(osg::Vec3d(attributes.x(), attributes.x(), attributes.y()));
-        }
-        else
-        {
-            SceneUtil::RemoveTriBipVisitor removeTriBipVisitor;
-            mSkeleton->accept(removeTriBipVisitor);
-            removeTriBipVisitor.remove();
-        }
-
-        // Post setup
-        mSkeleton->markDirty();
-        mSkeleton->setActive(SceneUtil::Skeleton::Active);
+        if (mActorData->isCreature())
+            return vsg::vec3(1.f, 1.f, 1.f);
+        const vsg::vec2& attributes = mActorData->getRaceWeightHeight();
+        return vsg::vec3(attributes.x, attributes.x, attributes.y);
     }
 
     void Actor::handleActorChanged(const ESM::RefId& refId)
     {
-        if (mId == refId)
-        {
-            update();
-        }
+        if (mId == refId && mChanged)
+            mChanged();
     }
 
-    void Actor::loadSkeleton(const std::string& model)
+    void Actor::attachBodyPart(MWAnim::Actor& actor, ESM::PartReferenceType type, const std::string& mesh)
     {
-        auto sceneMgr = mData.getResourceSystem()->getSceneManager();
+        // As MWRender::Npc::insertBoundedPart, for a part that has no glow, no light and no equipment logic.
+        auto node = vsgUtil::readNode(mesh, mContext.partBoneOptions[type]);
+        const std::string& bone = MWAnim::sPartBones.at(type);
+        const bool mirror = bone.find("Left") != std::string::npos;
+        auto result = MWAnim::decorate(node, nullptr, mirror);
+        auto path = MWAnim::attachBonesAndNode(node, *actor.nodeToAddChildrenTo(), actor.animation->bones, bone);
+        if (path.empty())
+            return;
 
-        osg::ref_ptr<osg::Node> temp = sceneMgr->getInstance(VFS::Path::toNormalized(model));
-        mSkeleton = dynamic_cast<SceneUtil::Skeleton*>(temp.get());
-        if (!mSkeleton)
-        {
-            mSkeleton = new SceneUtil::Skeleton();
-            mSkeleton->addChild(temp);
-        }
-        mBaseNode->addChild(mSkeleton);
-
-        // Map bone names to bones
-        mNodeMap.clear();
-        SceneUtil::NodeMapVisitor nmVisitor(mNodeMap);
-        mSkeleton->accept(nmVisitor);
-    }
-
-    void Actor::loadBodyParts()
-    {
-        for (int i = 0; i < ESM::PRT_Count; ++i)
-        {
-            const auto type = static_cast<ESM::PartReferenceType>(i);
-            attachBodyPart(type, getBodyPartMesh(mActorData->getPart(type)));
-        }
-    }
-
-    void Actor::attachBodyPart(ESM::PartReferenceType type, const std::string& mesh)
-    {
-        auto sceneMgr = mData.getResourceSystem()->getSceneManager();
-
-        // Attach to skeleton
-        std::string boneName = ESM::getBoneName(type);
-        auto node = mNodeMap.find(boneName);
-        if (!mesh.empty() && node != mNodeMap.end())
-        {
-            auto instance = sceneMgr->getInstance(VFS::Path::toNormalized(mesh));
-            SceneUtil::attach(instance, mSkeleton, boneName, node->second, sceneMgr);
-        }
+        Anim::Context context{ { actor.transform() }, path, &actor.animation->bones, &mContext.mask };
+        result.link(context, [&actor](const Anim::Controller* controller, vsg::Object* target) {
+            if (controller->hints.autoPlay)
+                actor.autoPlay.add(controller, target);
+        });
     }
 
     std::string Actor::getBodyPartMesh(const ESM::RefId& bodyPartId)
@@ -134,8 +93,7 @@ namespace CSVRender
 
         const int index = bodyParts.searchId(bodyPartId);
         if (index != -1 && !bodyParts.getRecord(index).isDeleted())
-            return MeshPrefix + bodyParts.getRecord(index).get().mModel;
-        else
-            return "";
+            return bodyParts.getRecord(index).get().mModel;
+        return {};
     }
 }

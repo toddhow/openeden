@@ -33,7 +33,11 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **Create a window only after the previous SceneHost exists.** `vsgQt::Window`'s constructor copies the traits, which hold the shared device only from the first SceneHost on. A window made earlier gets a second device, and the second `Engine::setup` then hung with no message. `SceneHost` now throws on a mismatch.
 - **`vsgQt/Window.h` does not include what it uses:** include `vsg/ui/PointerEvent.h` before it, or MSVC fails on `ButtonMask`.
 - **Medians for a default view:** Morrowind interiors can keep a few objects far outside the room, so a bounding box of the references frames empty space.
-- **`view/render/mask.hpp`** is still the OSG build's list. Only `Mask_ParticleSystem` is in use on VSG so far; the rest belongs to C3 to C9, which decide how masks map to `vsg::Switch` and view masks.
+- **Masks:** `mask.hpp` is still the OSG build's list. On VSG a scene element hangs under `SceneHost::maskNode(mask, node)`, a `vsg::Switch`, and `setVisibilityMask` sets the view's traversal mask.
+- **`TerrainStorage` serves one cell.** The alteration hooks have no cell argument, so each `Cell` has its own storage and `Terrain::Paging`, and asks for a batch of one cell.
+- **Layer indices cannot hold plugin -1,** a land texture of the project being edited; `enumerateLayers` skips those.
+- **`SimpleWater` follows the camera unless told otherwise:** a cell's water passes `followCamera = false`.
+- **Debugging a crash here:** the crash catcher did not write a dump for a capture. A small Win32 debug-API runner that writes a minidump at the first access violation, read with a dbghelp stack walker, found each one quickly. `std::cerr` output through `Debug` loses first characters, so trace with `Log`.
 - **Git Bash runs need Qt's `bin` on `PATH`.** Without it, an executable linking Qt exits with 127 and a misleading message about `api-ms-win-crt-locale`.
 - **Inside a class derived from `TagBase`, a plain `Object` means `vsg::Object`,** the base's injected class name. Write `CSVRender::Object`.
 - **`QApplication::closeAllWindows` stops at the first window that refuses.** `CSVDoc::View` refuses all but a document's last, deleting itself later, so an unattended close repeats it.

@@ -30,6 +30,7 @@ namespace CSMWorld
 
 namespace CSVRender
 {
+    class Actor;
     class Object;
     class SceneHost;
     struct WorldspaceHitResult;
@@ -83,6 +84,7 @@ namespace CSVRender
         vsg::ref_ptr<vsg::Switch> mRootNode;
         vsg::ref_ptr<TagBase> mTag;
         std::unique_ptr<MWAnim::Object> mAnimation;
+        std::unique_ptr<Actor> mActor;
         std::vector<vsg::ref_ptr<vsg::Switch>> mNightDaySwitches;
         unsigned int mNightDayIndex = 0;
         bool mNightDayApply = false;

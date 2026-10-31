@@ -60,6 +60,8 @@ namespace
         std::vector<std::pair<int, int>> mResizes;
         // How many views close after the first capture, to check those left.
         int mCloseViews = 0;
+        // Timer ticks to wait after the last capture with no one asking for frames, logging how many were drawn.
+        int mIdleTicks = 0;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -115,6 +117,7 @@ int CS::runCapture(int argc, char** argv)
     addOption("neighbours", bpo::value<int>()->default_value(0));
     addOption("capture-resize", bpo::value<std::string>());
     addOption("capture-close-views", bpo::value<int>()->default_value(0));
+    addOption("capture-idle-ticks", bpo::value<int>()->default_value(0));
     addOption("data",
         bpo::value<Files::MaybeQuotedPathContainer>()
             ->default_value(Files::MaybeQuotedPathContainer(), "data")
@@ -150,6 +153,7 @@ int CS::runCapture(int argc, char** argv)
         request.mFieldOfView = variables["fov"].as<double>();
     request.mNeighbours = variables["neighbours"].as<int>();
     request.mCloseViews = variables["capture-close-views"].as<int>();
+    request.mIdleTicks = variables["capture-idle-ticks"].as<int>();
     if (variables.count("capture-resize"))
     {
         std::istringstream sizes(variables["capture-resize"].as<std::string>());
@@ -199,6 +203,8 @@ int CS::runCapture(int argc, char** argv)
     std::uint64_t nextCapture = request.mScreenshotFrame;
     std::uint64_t quitFrame = request.mQuitFrame;
     bool closed = false;
+    int idleTicks = 0;
+    std::uint64_t idleStartFrame = 0;
 
     const auto finish = [&](int code) {
         if (quitting)
@@ -315,6 +321,18 @@ int CS::runCapture(int argc, char** argv)
                         quitFrame = nextCapture + request.mQuitFrame;
                     }
                 }
+                if (frameCount >= quitFrame && nextCapture == 0 && idleTicks < request.mIdleTicks)
+                {
+                    // Nothing asks for a frame here, so only a view that animates by itself draws.
+                    if (idleTicks++ == 0)
+                        idleStartFrame = frameCount;
+                    if (idleTicks == request.mIdleTicks)
+                        Log(Debug::Info) << "Idle: " << frameCount - idleStartFrame << " frames in " << idleTicks << " ticks";
+                    return;
+                }
+                // A frame must reach the capture and quit frames even in a view that nothing moves in.
+                for (auto* view : views)
+                    view->flagAsModified();
                 if (frameCount >= quitFrame && nextCapture == 0)
                 {
                     Log(Debug::Info) << "Auto-quit at frame " << frameCount;

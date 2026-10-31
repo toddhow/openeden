@@ -370,3 +370,31 @@ Start `openmw-cs`, choose Edit a content file, open `Morrowind.esm`. In the main
 12. **Mouse tracking.** Nothing to see until C5 and C6: move the mouse over the view and confirm that the editor's frame rate does not fall and nothing logs an error.
 13. **Quit.** Close every window with a scene open, and start again. The editor exits with no crash, and no `openmw-crash.dmp` appears in the user data folder.
 14. **Linux, once:** the same steps 1 to 8 under X11 or with `QT_QPA_PLATFORM=xcb`. vsgQt has no Wayland path.
+
+### C4 Cell contents (2026-10-31)
+
+`Cell` now shows what the OSG editor's did, but for the pathgrid (C9):
+- **Objects:** `MWAnim::createObject`, with bones for the record types whose class has `useAnim` in the game (doors, activators, containers, lights), as a skinned model needs them. Night and day switches follow the mode and `scene-day-night-switch-nodes`. With that preference off a switch shows its first child, not its initial index as in OSG, because the VSG reader does not record the initial index.
+- **Actors:** `CSVRender::Actor`, a thin caller of `MWAnim`. Creatures through `createCreature`; npcs take bones from the skeleton and body parts from `ActorAdapter`, as `MWRender::Npc::insertBoundedPart` does without equipment logic. Bind pose, as the OSG editor. `animContext`'s options are copied to `scenehost.cpp`, as the game's file names game masks.
+- **Terrain:** one `Terrain::Paging` and `TerrainStorage` per cell, asked through `updateViewForCell` with a batch of one cell, because the alteration hooks have no cell argument. `Cell::setAlteredHeight` and its kin are back. Editing them is C8, so no alteration has been seen on screen.
+- **Water:** `Render::SimpleWater` with a new `followCamera = false`, per cell. Its alpha comes from `Water_Map_Alpha`, where the OSG editor used a constant 0.5, and it is lit by the shader's normal path.
+- **Border, arrows:** `createColouredGeometry` (unlit). **Marker text:** QPainter to an image, on a quad that faces the camera at a fixed pixel size, with no depth test, in a new overlay bin.
+- **Neighbouring cells:** exteriors go through `PagedWorldspaceWidget`, so each neighbour is a `Cell` with its arrows. `--neighbours N` selects them for a capture.
+
+Shared code touched: `components/render/simplewater.hpp` (a defaulted parameter and `setPosition`), `components/esm3terrain/storage.cpp` (a negative plugin index in `getBlendmap` now takes the default layer; the game has none), `components/mwanimation/create.hpp` (`createObject` is `inline`), hosted-only code in `engine.cpp`, and `IdCollection<LandTexture>::getIndices`. New land textures of the edited project (plugin -1) show the default layer for now; C8 must settle that. The game's frames below were taken with these in place and viewed. They were not compared pixel by pixel with an earlier build, as none of the changes touches a path the game takes differently.
+
+**Fog and pale foliage, answered.** The OSG editor set no fog: neither its widgets nor its cells set any, and `unpagedworldspacewidget.cpp` says "\todo deal with mSunlight and mFog/mForDensity". So none is added. Foliage still looks paler than in the game with all the editor's content present. Day mode is ambient 0.7 plus white diffuse straight down, as `LightingDay` was, so an upward-facing leaf reaches about 1.7 and saturates, where the game's sunlit ambient is far lower. Night mode (0.2 and 0.2) shows the same trees dark with no paleness, which supports this; it was not measured any further. It is the OSG editor's own lighting and stays. The OSG build cannot be run to compare the old look.
+
+Checks against the game from the same camera, taken from a temporary log of `mViewMatrix` (removed), `--fov 60`. The game's window is 2560x1369, the editor's 1280x720, so the width differs and images are compared by eye:
+- **Seyda Neen exterior (`#-2 -9`, `--neighbours 2`):** terrain shape and textures, buildings, tree, rocks, fence, cell borders (green) and marker labels in the right places. Differences: no sky, sun, distant land or fog, by design; water is flat `SimpleWater`, not the game's reflecting water, and paler; roofs and foliage paler in day (above); a tall tan pole and ropes in the game's frame are missing. Those look like the silt strider's legs: the editor's strider stands in its bind pose elsewhere on screen. Not confirmed. Actors stand in bind pose where the game's are animated. One armoured figure looks broken up at a distance; not examined.
+- **Arrille's Tradehouse:** same door, posts and walls, in similar brightness. In day the wood is nearly the same; the game's cell lighting is not used, as `LightingDay` used only the cell's ambient. Differences: a bottle shows at the door's handle that the game's frame does not show, unexplained (the door is the animated kind, and the handle looks unchanged behind it), and the fern is brighter.
+- **Night and bright:** viewed in both cells; they differ as their values say.
+- **Resize with terrain:** `#-2 -9` at 1280x720, 1400x800, 320x180: complete frames each time.
+- **On-demand frames:** `--capture-idle-ticks 100`: 0 frames in empty exteriors (`#-10 -9`, `#10 -16`, `#-13 2`), 99 in cells with objects.
+- **Normal start:** repeated with this stage's cells in a scene subview.
+
+Tests on Windows: components-tests 2220, openmw-tests 717, openmw-cs-tests 154, all passed. Linux results are in the entry that follows, or noted as not run.
+
+Not verified: everything in C3's list; terrain alteration on screen; the layer-map preview; reloading assets; validation layers; markers and arrows hidden by the visibility toolbar (a person's check, step 15 below).
+
+15. **Visibility toolbar (C4).** In a Scene of `#-2 -9`, use the scene toolbar's visibility buttons to hide and show Instances, Water and Terrain, and the Controls & Guides buttons for cell markers, arrows and borders. Each disappears and comes back, and nothing else changes.

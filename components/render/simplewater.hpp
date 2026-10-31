@@ -26,7 +26,10 @@ namespace Render
         vsg::ref_ptr<Anim::Transform> mTransform;
 
     public:
-        SimpleWater(float radius, const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> textureOptions)
+        /// \param followCamera keep it centred under the camera, as the game's map renders do. Otherwise it stays centred on
+        /// its own transform, as a cell's water in the editor.
+        SimpleWater(float radius, const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> textureOptions,
+            bool followCamera = true)
         {
             mTransform = new Anim::Transform;
             mNode = vsg::Switch::create();
@@ -75,16 +78,26 @@ namespace Render
             draw->assignArrays(vsg::DataList{ vertices, normals, colors, uvs });
             sg->children = { draw };
 
-            auto viewRelative = vsg::ref_ptr{ new vsgUtil::ViewRelative };
-            viewRelative->resetAxes = { 0, 0, 1 };
-            viewRelative->children = { sg };
-            mTransform->children = { viewRelative };
+            if (followCamera)
+            {
+                auto viewRelative = vsg::ref_ptr{ new vsgUtil::ViewRelative };
+                viewRelative->resetAxes = { 0, 0, 1 };
+                viewRelative->children = { sg };
+                mTransform->children = { viewRelative };
+            }
+            else
+                mTransform->children = { sg };
         }
         void setEnabled(bool enable)
         {
             mNode->setAllChildren(enable);
         }
         void setHeight(float h) { mTransform->translation.z = h; }
+        void setPosition(const vsg::vec2& p)
+        {
+            mTransform->translation.x = p.x;
+            mTransform->translation.y = p.y;
+        }
     };
 }
 

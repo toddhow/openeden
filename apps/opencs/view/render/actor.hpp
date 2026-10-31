@@ -1,17 +1,16 @@
 #ifndef OPENCS_VIEW_RENDER_ACTOR_H
 #define OPENCS_VIEW_RENDER_ACTOR_H
 
+#include <functional>
+#include <memory>
 #include <string>
-#include <string_view>
-
-#include <osg/Group>
-#include <osg/PositionAttitudeTransform>
-#include <osg/ref_ptr>
 
 #include <QObject>
 
+#include <vsg/maths/vec3.h>
+
+#include <components/esm/refid.hpp>
 #include <components/esm3/loadarmo.hpp>
-#include <components/sceneutil/visitor.hpp>
 
 #include "../../model/world/actoradapter.hpp"
 
@@ -20,49 +19,45 @@ namespace CSMWorld
     class Data;
 }
 
-namespace SceneUtil
+namespace MWAnim
 {
-    class Skeleton;
+    class Actor;
+    class Object;
+    struct Context;
 }
 
 namespace CSVRender
 {
-    /// Handles loading an npc or creature
+    /// Makes an npc or creature as ActorAdapter describes it, in its bind pose: the thin caller of MWAnim that
+    /// MWRender::Npc is for the game, which needs game objects. Owned by the CSVRender::Object that shows it.
     class Actor : public QObject
     {
         Q_OBJECT
     public:
-        /// Creates an actor.
         /// \param id       The referenceable id
-        /// \param type     The record type
         /// \param data     The data store
-        Actor(const ESM::RefId& id, CSMWorld::Data& data);
+        /// \param changed  Called when the actor must be made again
+        Actor(const ESM::RefId& id, CSMWorld::Data& data, const MWAnim::Context& context, std::function<void()> changed);
 
-        /// Retrieves the base node that meshes are attached to
-        osg::Group* getBaseNode();
+        /// (Re)creates the npc or creature renderable, not compiled.
+        std::unique_ptr<MWAnim::Object> create();
 
-        /// (Re)creates the npc or creature renderable
-        void update();
+        /// The race's width and height, for an npc.
+        vsg::vec3 getScale() const;
 
     private slots:
         void handleActorChanged(const ESM::RefId& refId);
 
     private:
-        void loadSkeleton(const std::string& model);
-        void loadBodyParts();
-        void attachBodyPart(ESM::PartReferenceType, const std::string& mesh);
+        void attachBodyPart(MWAnim::Actor& actor, ESM::PartReferenceType type, const std::string& mesh);
 
         std::string getBodyPartMesh(const ESM::RefId& bodyPartId);
 
-        static const std::string MeshPrefix;
-
         ESM::RefId mId;
         CSMWorld::Data& mData;
+        const MWAnim::Context& mContext;
+        std::function<void()> mChanged;
         CSMWorld::ActorAdapter::ActorDataPtr mActorData;
-
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
-        SceneUtil::Skeleton* mSkeleton;
-        SceneUtil::NodeMap mNodeMap;
     };
 }
 

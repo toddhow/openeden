@@ -10,12 +10,20 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/pipeline/builder.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/terrain/paging.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/compileop.hpp>
 
 #include "../../model/doc/document.hpp"
 #include "../../model/world/idtable.hpp"
 
 #include "cellarrow.hpp"
+#include "cellborder.hpp"
+#include "cellmarker.hpp"
+#include "cellwater.hpp"
+#include "terrainstorage.hpp"
 #include "instancedragmodes.hpp"
 #include "mask.hpp"
 #include "object.hpp"
@@ -87,9 +95,65 @@ bool CSVRender::Cell::addObjects(int start, int end)
     return true;
 }
 
-void CSVRender::Cell::updateLand() {}
+void CSVRender::Cell::updateLand()
+{
+    if (!mUpdateLand || mLandDeleted)
+        return;
 
-void CSVRender::Cell::unloadLand() {}
+    mUpdateLand = false;
+
+    // Cell is deleted
+    if (mDeleted)
+    {
+        unloadLand();
+        return;
+    }
+
+    const CSMWorld::IdCollection<CSMWorld::Land>& land = mData.getLand();
+
+    if (land.getRecord(mId).isDeleted())
+        return;
+
+    const ESM::Land& esmLand = land.getRecord(mId).get();
+
+    if (!mTerrain)
+    {
+        Resource::ResourceSystem& resources = mHost.resources();
+        mTerrain = std::make_unique<Terrain::Paging>(mHost.compileContext(), resources.textureOptions,
+            resources.shaderOptions, resources.builder->createSampler());
+        mTerrain->setStorage(mTerrainStorage.get());
+        mTerrainView = mTerrain->createView();
+        mTerrainNode = SceneHost::maskNode(Mask_Terrain, mTerrainView->node());
+    }
+
+    // One cell's bounds in one batch: the alteration hooks of TerrainStorage do not know which cell they are asked about.
+    if (auto compile = mTerrain->updateViewForCell(
+            *mTerrainView, vsg::ivec2(esmLand.mX, esmLand.mY), mTerrainStorage->cellWorldSize))
+        compile->operate();
+    auto& children = mCellNode->children;
+    if (std::find(children.begin(), children.end(), mTerrainNode) == children.end())
+        mCellNode->addChild(mTerrainNode);
+
+    if (!mCellBorder)
+        mCellBorder = std::make_unique<CellBorder>(mHost, *mCellNode, mCoordinates);
+
+    mCellBorder->buildShape(esmLand);
+    mHost.requestRedraw();
+}
+
+void CSVRender::Cell::unloadLand()
+{
+    if (mTerrain)
+    {
+        mTerrain->clearView(*mTerrainView);
+        auto& children = mCellNode->children;
+        children.erase(std::remove(children.begin(), children.end(), mTerrainNode), children.end());
+    }
+
+    if (mCellBorder)
+        mCellBorder.reset();
+    mHost.requestRedraw();
+}
 
 CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker, SceneHost& host, const std::string& id,
     bool deleted, bool isExterior)
@@ -108,10 +172,14 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
     if (result.second)
         mCoordinates = result.first;
 
+    mTerrainStorage = std::make_unique<TerrainStorage>(mData);
+
     mCellNode = vsg::Group::create();
     mHost.compileContext()->compile(mCellNode);
     mHost.contentRoot().addChild(mCellNode);
     mHost.addListener(*this);
+
+    setCellMarker();
 
     if (!mDeleted)
     {
@@ -121,6 +189,20 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
         int rows = references.rowCount();
 
         addObjects(0, rows - 1);
+
+        if (mUpdateLand)
+        {
+            int landIndex = document.getData().getLand().searchId(mId);
+            if (landIndex == -1)
+            {
+                CSMWorld::IdTable& landTable
+                    = dynamic_cast<CSMWorld::IdTable&>(*mData.getTableModel(CSMWorld::UniversalId::Type_Land));
+                document.getUndoStack().push(new CSMWorld::CreateCommand(landTable, mId.getRefIdString()));
+            }
+            updateLand();
+        }
+
+        mCellWater = std::make_unique<CellWater>(mHost, *mCellNode, mId.getRefIdString(), mCoordinates);
     }
     mHost.requestRedraw();
 }
@@ -131,6 +213,15 @@ CSVRender::Cell::~Cell()
 
     for (std::map<std::string, Object*>::iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
         delete iter->second;
+
+    // Each of these detaches its own nodes. So does the terrain, before the storage it reads goes.
+    mCellWater.reset();
+    mCellBorder.reset();
+    mCellMarker.reset();
+    for (auto& arrow : mCellArrows)
+        arrow.reset();
+    if (mTerrain)
+        mTerrain->clearView(*mTerrainView);
 
     auto& children = mHost.contentRoot().children;
     children.erase(std::remove(children.begin(), children.end(), vsg::ref_ptr<vsg::Node>(mCellNode)), children.end());
@@ -143,6 +234,8 @@ void CSVRender::Cell::frameUpdate(float dt)
     for (auto& [_, object] : mObjects)
         object->frameUpdate(dt);
     updateLand();
+    if (mCellMarker)
+        mCellMarker->update();
 }
 
 std::vector<vsg::dvec3> CSVRender::Cell::getObjectPositions() const
@@ -288,6 +381,28 @@ bool CSVRender::Cell::referenceAdded(const QModelIndex& parent, int start, int e
     return addObjects(start, end);
 }
 
+void CSVRender::Cell::setAlteredHeight(int inCellX, int inCellY, float height)
+{
+    mTerrainStorage->setAlteredHeight(inCellX, inCellY, height);
+    mUpdateLand = true;
+}
+
+float CSVRender::Cell::getSumOfAlteredAndTrueHeight(int cellX, int cellY, int inCellX, int inCellY)
+{
+    return mTerrainStorage->getSumOfAlteredAndTrueHeight(cellX, cellY, inCellX, inCellY);
+}
+
+float* CSVRender::Cell::getAlteredHeight(int inCellX, int inCellY)
+{
+    return mTerrainStorage->getAlteredHeight(inCellX, inCellY);
+}
+
+void CSVRender::Cell::resetAlteredHeights()
+{
+    mTerrainStorage->resetHeights();
+    mUpdateLand = true;
+}
+
 void CSVRender::Cell::landDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
 {
     mUpdateLand = true;
@@ -327,6 +442,10 @@ void CSVRender::Cell::reloadAssets()
         iter->second->reloadAssets();
     }
 
+    mUpdateLand = true;
+
+    if (mCellWater)
+        mCellWater->reloadAssets();
 }
 
 void CSVRender::Cell::setSelection(int elementMask, Selection mode)
@@ -453,7 +572,24 @@ void CSVRender::Cell::setCellArrows(int mask)
     }
 }
 
-void CSVRender::Cell::setCellMarker() {}
+void CSVRender::Cell::setCellMarker()
+{
+    bool cellExists = false;
+    bool isInteriorCell = false;
+
+    int cellIndex = mData.getCells().searchId(mId);
+    if (cellIndex > -1)
+    {
+        const CSMWorld::Record<CSMWorld::Cell>& cellRecord = mData.getCells().getRecord(cellIndex);
+        cellExists = !cellRecord.isDeleted();
+        isInteriorCell = cellRecord.get().mData.mFlags & ESM::Cell::Interior;
+    }
+
+    if (!isInteriorCell)
+    {
+        mCellMarker = std::make_unique<CellMarker>(mHost, *mCellNode, mCoordinates, cellExists);
+    }
+}
 
 CSMWorld::CellCoordinates CSVRender::Cell::getCoordinates() const
 {

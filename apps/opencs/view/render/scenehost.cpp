@@ -60,8 +60,7 @@
 
 namespace
 {
-    // The game's bin numbers (apps/openmw/mwrender/bin.hpp), as RenderContext passes to the model readers.
-    constexpr int sBinDepthSorted = 0;
+    // The game's number (apps/openmw/mwrender/bin.hpp), as RenderContext passes to the model readers.
     constexpr int sBinCompute = 1;
 
     // View::CollectLights' capacity in the game (MWRender::RenderManager::RenderManager).
@@ -252,6 +251,7 @@ namespace CSVRender
         computeBin->commandGraph = mEngine->createCommandGraph(Pipeline::COMPUTE_SET);
         computeBin->commandGraph->submitOrder = -1;
         mView->bins.push_back(computeBin);
+        mView->bins.push_back(vsg::Bin::create(sBinOverlay, vsg::Bin::NO_SORT));
 
         mRenderGraph = mEngine->createRenderGraph();
         mRenderGraph->children = { mView };

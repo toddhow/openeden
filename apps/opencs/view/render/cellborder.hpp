@@ -3,14 +3,8 @@
 
 #include <cstddef>
 
-#include <osg/ref_ptr>
-
-namespace osg
-{
-    class Geometry;
-    class Group;
-    class PositionAttitudeTransform;
-}
+#include <vsg/nodes/Group.h>
+#include <vsg/nodes/MatrixTransform.h>
 
 namespace ESM
 {
@@ -24,26 +18,29 @@ namespace CSMWorld
 
 namespace CSVRender
 {
+    class SceneHost;
 
+    /// The green line that follows the land around a cell. Owned by its Cell.
     class CellBorder
     {
     public:
-        CellBorder(osg::Group* cellNode, const CSMWorld::CellCoordinates& coords);
+        CellBorder(SceneHost& host, vsg::Group& cellNode, const CSMWorld::CellCoordinates& coords);
         ~CellBorder();
 
         void buildShape(const ESM::Land& esmLand);
 
     private:
-        size_t landIndex(int x, int y);
+        CellBorder(const CellBorder&) = delete;
+        CellBorder& operator=(const CellBorder&) = delete;
+
+        std::size_t landIndex(int x, int y);
         float scaleToWorld(int val);
 
-        // unimplemented
-        CellBorder(const CellBorder&);
-        CellBorder& operator=(const CellBorder&);
-
-        osg::Group* mParentNode;
-        osg::ref_ptr<osg::PositionAttitudeTransform> mBaseNode;
-        osg::ref_ptr<osg::Geometry> mBorderGeometry;
+        SceneHost& mHost;
+        vsg::Group& mParentNode;
+        vsg::ref_ptr<vsg::Node> mMaskNode;
+        vsg::ref_ptr<vsg::MatrixTransform> mBaseNode;
+        vsg::ref_ptr<vsg::Node> mBorderGeometry;
     };
 }
 

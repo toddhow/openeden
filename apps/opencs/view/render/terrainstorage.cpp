@@ -1,49 +1,61 @@
 #include "terrainstorage.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <iterator>
+#include <string>
+
 #include <components/esm3/loadltex.hpp>
-#include <components/esmterrain/storage.hpp>
-#include <components/resource/resourcesystem.hpp>
+#include <components/misc/constants.hpp>
 
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/land.hpp>
 #include <apps/opencs/model/world/record.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <iterator>
-#include <memory>
-#include <osg/Vec4ub>
-#include <stdexcept>
-#include <stdlib.h>
-#include <string>
-
 namespace CSVRender
 {
     TerrainStorage::TerrainStorage(const CSMWorld::Data& data)
-        : ESMTerrain::Storage(data.getResourceSystem()->getVFS())
-        , mData(data)
+        : mData(data)
     {
         resetHeights();
     }
 
-    osg::ref_ptr<const ESMTerrain::LandObject> TerrainStorage::getLand(ESM::ExteriorCellLocation cellLocation)
+    vsg::ref_ptr<const ESMTerrain::LandObject> TerrainStorage::getLand(ESM::ExteriorCellLocation cellLocation)
     {
         // The cell isn't guaranteed to have Land. This is because the terrain implementation
         // has to wrap the vertices of the last row and column to the next cell, which may be a nonexisting cell
         const int index = mData.getLand().searchId(
             ESM::RefId::stringRefId(CSMWorld::Land::createUniqueRecordId(cellLocation.mX, cellLocation.mY)));
         if (index == -1)
-            return nullptr;
+            return {};
 
         const ESM::Land& land = mData.getLand().getRecord(index).get();
-        return new ESMTerrain::LandObject(
-            land, ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VCLR | ESM::Land::DATA_VTEX);
+        return vsg::ref_ptr<const ESMTerrain::LandObject>(new ESMTerrain::LandObject(
+            land, ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VCLR | ESM::Land::DATA_VTEX));
     }
 
-    const std::string* TerrainStorage::getLandTexture(std::uint16_t index, int plugin)
+    std::map<TerrainStorage::PluginTexture, std::string> TerrainStorage::enumerateLayers() const
     {
-        return mData.getLandTextures().getLandTexture(index, plugin);
+        // As MWRender::TerrainStorage::enumerateLayers, on the editor's records.
+        std::map<PluginTexture, std::string> layers;
+        static constexpr char defaultTexture[] = "_land_default.dds";
+        const auto& textures = mData.getLandTextures();
+        layers[std::make_pair(static_cast<short>(0), static_cast<short>(0))] = defaultTexture;
+        for (const auto& [pluginIndex, _] : textures.getIndices())
+        {
+            // Plugin -1 is a record of the project being edited, which layer indices cannot hold. Its land shows the
+            // default texture until the texture modes of stage C8 need more.
+            if (pluginIndex.first < 0)
+                continue;
+            const short plugin = static_cast<short>(pluginIndex.first);
+            layers[std::make_pair(static_cast<short>(0), plugin)] = defaultTexture;
+            if (const std::string* texture = textures.getLandTexture(pluginIndex.second, pluginIndex.first))
+                // NB: All vtex ids are +1 compared to the ltex ids
+                layers[std::make_pair(static_cast<short>(pluginIndex.second + 1), plugin)] = *texture;
+        }
+        return layers;
     }
 
     void TerrainStorage::setAlteredHeight(int inCellX, int inCellY, float height)
@@ -74,12 +86,6 @@ namespace CSVRender
     float* TerrainStorage::getAlteredHeight(int inCellX, int inCellY)
     {
         return &mAlteredHeight[inCellY * ESM::Land::LAND_SIZE + inCellX];
-    }
-
-    void TerrainStorage::getBounds(float& minX, float& maxX, float& minY, float& maxY, ESM::RefId worldspace)
-    {
-        // not needed at the moment - this returns the bounds of the whole world, but we only edit individual cells
-        throw std::runtime_error("getBounds not implemented");
     }
 
     int TerrainStorage::getThisHeight(int col, int row, std::span<const float> heightData) const
@@ -146,19 +152,19 @@ namespace CSVRender
             || getHeightDifferenceToDown(col, row, heightData) >= heightWarningLimit;
     }
 
-    void TerrainStorage::adjustColor(int col, int row, const ESM::LandData* heightData, osg::Vec4ub& color) const
+    void TerrainStorage::adjustColor(int col, int row, const ESM::Land::LandData* heightData, vsg::ubvec4& color) const
     {
         if (!heightData)
             return;
         // Highlight broken height changes
-        int heightWarningLimit = 1024;
-        if (((col > 0 && row > 0) && leftOrUpIsOverTheLimit(col, row, heightWarningLimit, heightData->getHeights()))
+        constexpr int heightWarningLimit = 1024;
+        if (((col > 0 && row > 0) && leftOrUpIsOverTheLimit(col, row, heightWarningLimit, heightData->mHeights))
             || ((col < ESM::Land::LAND_SIZE - 1 && row < ESM::Land::LAND_SIZE - 1)
-                && rightOrDownIsOverTheLimit(col, row, heightWarningLimit, heightData->getHeights())))
+                && rightOrDownIsOverTheLimit(col, row, heightWarningLimit, heightData->mHeights)))
         {
-            color.r() = 255;
-            color.g() = 0;
-            color.b() = 0;
+            color.r = 255;
+            color.g = 0;
+            color.b = 0;
         }
     }
 

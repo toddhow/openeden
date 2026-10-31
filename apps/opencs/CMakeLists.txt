@@ -149,7 +149,7 @@ opencs_units (view/widget
 #   commands objectmarker pathgrid
 opencs_units (view/render
     rendercontext scenehost scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget
-    editmode lighting object cell cellarrow colouredgeometry
+    editmode lighting object cell cellarrow colouredgeometry actor cellborder cellmarker cellwater terrainstorage
     )
 
 opencs_units (view/world
