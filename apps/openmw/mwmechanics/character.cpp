@@ -1277,7 +1277,8 @@ namespace MWMechanics
         const auto world = MWBase::Environment::get().getWorld();
         if (world->isInStorm())
         {
-            auto stormDirection = vsg::normalize(world->getStormDirection());
+            vsg::vec3 stormDirection = world->getStormDirection();
+            Misc::VsgMath::normalizeInPlace(stormDirection);
             auto characterDirection = MWAnim::forward(mPtr.getRefData().getPosition());
             if (vsg::dot(stormDirection, characterDirection) < -0.5f)
             {
@@ -2758,7 +2759,7 @@ namespace MWMechanics
             {
                 if (duration != 0.f && movementFromAnimation != vsg::vec3())
                 {
-                    movementFromAnimation /= duration;
+                    movementFromAnimation = Misc::VsgMath::divide(movementFromAnimation, duration);
 
                     // Ensure we're moving in the right general direction.
                     // In vanilla, all horizontal movement is taken from animations, even when moving diagonally (which
@@ -3598,7 +3599,7 @@ namespace MWMechanics
                         = toVsg(MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false));
                 }
             }
-            direction = vsg::normalize(direction);
+            Misc::VsgMath::normalizeInPlace(direction);
 
             auto actorDirection = MWAnim::forward(mPtr.getRefData().getPosition());
 
