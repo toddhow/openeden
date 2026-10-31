@@ -132,11 +132,28 @@ void CSVRender::PreviewWidget::assetTablesChanged()
         mObject->reloadAssets();
 }
 
+CSVRender::PreviewWidget::~PreviewWidget()
+{
+    if (SceneHost* host = getHost())
+        host->removeListener(*this);
+}
+
+void CSVRender::PreviewWidget::frameUpdate(float dt)
+{
+    if (mObject)
+        mObject->frameUpdate(dt);
+}
+
+bool CSVRender::PreviewWidget::isAnimated() const
+{
+    return mObject && mObject->isAnimated();
+}
+
 void CSVRender::PreviewWidget::hostReady()
 {
     SceneWidget::hostReady();
     SceneHost* host = getHost();
     mObject = std::make_unique<Object>(mData, *host, host->contentRoot(), mId, mReferenceable, false, true);
     host->frame({ vsg::dvec3(mObject->getPosition().pos[0], mObject->getPosition().pos[1], mObject->getPosition().pos[2]) });
-    host->setAnimated(true);
+    host->addListener(*this);
 }

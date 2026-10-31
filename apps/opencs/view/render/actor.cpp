@@ -81,9 +81,10 @@ namespace CSVRender
             return;
 
         Anim::Context context{ { actor.transform() }, path, &actor.animation->bones, &mContext.mask };
+        // Every controller, as the game's Npc does with its static controllers: skins are computed by controllers that are
+        // not auto-play, and an unskinned mesh draws in pieces.
         result.link(context, [&actor](const Anim::Controller* controller, vsg::Object* target) {
-            if (controller->hints.autoPlay)
-                actor.autoPlay.add(controller, target);
+            actor.addController(controller, target);
         });
     }
 

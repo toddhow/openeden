@@ -90,6 +90,8 @@ namespace
         auto hints = vsg::ResourceHints::create();
         const uint32_t setsPerPool = 64;
         hints->numDescriptorSets = setsPerPool;
+        // As vsgUtil::createSharedView's views: pipelines take their viewport when drawn, so one compile fits every view.
+        hints->viewportStateHint = vsg::DYNAMIC_VIEWPORTSTATE;
         hints->descriptorPoolSizes = { { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }, { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
             { VK_DESCRIPTOR_TYPE_SAMPLER, 1 }, { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 * setsPerPool },
             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 * setsPerPool },
@@ -263,7 +265,7 @@ namespace CSVRender
         mEngine->setup({ commandGraph }, false);
         mEngine->compile();
         // After setup, so that the compile view gets a transfer task (research note 0003, section 5.4).
-        context.compileContext()->compileManager->add(*window.windowAdapter, mView, viewResourceRequirements());
+        context.addCompileTarget(*window.windowAdapter, viewResourceRequirements());
 
         updateExtent();
         context.add(*this);
@@ -272,8 +274,10 @@ namespace CSVRender
     SceneHost::~SceneHost()
     {
         mContext.remove(*this);
-        // Takes the window's graphs out of the viewer's tasks, and leaves the other views' alone.
-        mContext.viewer()->removeWindow(mWindow.windowAdapter);
+        // Takes the window's graphs out of the viewer's tasks, and leaves the other views' alone. vsgQt did it already if
+        // the surface went first.
+        if (mWindow.windowAdapter)
+            mContext.viewer()->removeWindow(mWindow.windowAdapter);
     }
 
     vsg::ref_ptr<vsgUtil::CompileContext> SceneHost::compileContext() const
@@ -477,6 +481,8 @@ namespace CSVRender
 
     bool SceneHost::capture(const std::filesystem::path& file)
     {
+        if (!hasWindow())
+            return false;
         auto operation = mEngine->screenshotOperation();
         if (!operation)
             return false;
@@ -497,15 +503,28 @@ namespace CSVRender
         updateProjection();
     }
 
+    bool SceneHost::hasWindow() const
+    {
+        return mWindow.windowAdapter.valid();
+    }
+
     bool SceneHost::needsFrame()
     {
-        const bool needed = mRedraw || mAnimated;
+        if (!hasWindow())
+            return false;
+        // A view in a hidden tab or a minimised window is not exposed, and need not draw for what moves by itself.
+        const bool needed = mRedraw
+            || (mWindow.isExposed()
+                && std::any_of(mListeners.begin(), mListeners.end(),
+                    [](const FrameListener* listener) { return listener->isAnimated(); }));
         mRedraw = false;
         return needed;
     }
 
     void SceneHost::update()
     {
+        if (!hasWindow())
+            return;
         const auto extent = mEngine->extent2D();
         if (extent.width != mExtent.width || extent.height != mExtent.height)
         {

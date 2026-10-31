@@ -402,3 +402,29 @@ Not verified: everything in C3's list; terrain alteration on screen; the layer-m
 ### Linux, C3 and C4 (2026-10-31)
 
 `-Werror` found shadowed names and a `memcpy` onto `vsg::ubvec4`, fixed. At `0af702c8c1`: components-tests 2222, openmw-tests 717, all 32 Lua integration tests. Editor targets with those fixes: `openmw-cs` and `openmw-cs-tests` build, 154 pass. Started under xvfb with Mesa's lavapipe on the example suite's `template.omwgame`, with `QT_QPA_PLATFORM=xcb` and `OPENEDEN_CS_UI_CHECK="c:#0 0;4000"`: table and scene opened, windows closed, exit code 0. No frame from that run was captured or viewed, and the suite is not Morrowind data.
+
+### C4's open items and the review of C3 and C4 (2026-10-31)
+
+Each item from C4's captures, measured or looked up at the same camera (`--camera` from a temporary log of the game's `mViewMatrix`, and 1280x720 in both):
+
+- **a. Broken-up figure: a real bug, fixed.** It was Eldafire, a clothed npc at (-11422, -68238, 308): a skirt lying flat at her waist and a gap below it, with rigid armour on another npc correct. `Actor::attachBodyPart` kept only auto-play controllers, and `Anim::Skin` is not auto-play (`vsgadapters/nif/nif.cpp`), so skinned parts never got bone matrices. The game keeps them as static controllers (`Npc::insertBoundedPart`). It now uses `addController`. After the fix she stands whole, in her skirt, in the game's stance. Actors are in bind pose as expected: the OSG editor's `actor.cpp` loaded a skeleton and parts, and played nothing.
+- **b. Bottle at the door: there is no bottle.** No bottle reference lies within 260 units of that door (`esmtool dump -C`). Zoomed to 15 degrees, the "bottle" is the handle of `ex_nord_door_01`, at the same pixels as the handle in the game's frame. Its upward-facing part catches day mode's light from straight above, which the game's interior does not have. Not a bug.
+- **c. Tall pole and ropes: not missing, not reproduced.** No reference of any record lies on that bearing but Eldafire and doors (bearing 0.626 from the camera, within 9,000 units; list from `esmtool`). Fresh game frames at the same camera at frames 100, 300, 600, 1000 and 2000 do not show it. `a_siltstrider` is at (-8800, -70531), about 75 degrees off the view axis, and stands in the editor as a compact strider. So the pole was in that one game frame and is no static content: something that moved, which I could not identify. Ruled out: a reference the editor fails to draw. The strider guess stays unconfirmed.
+- **d. Idle frames: a real bug, fixed.** `Cell::isAnimated` was `!mObjects.empty()`, so any cell with an object drew every tick. It now asks whether any object has auto-play controllers, each tick (so a reference added later counts, the review's finding), and `SceneHost` draws for it only if the window is exposed, so a hidden tab does not. `--capture-idle-ticks 100`: `#-1 -9` (218 objects, none animated) drew 0 frames. `#-2 -9` (9 of 316: six lanterns, three chimney smokes), `#-5 -9` (3 of 143) and Caius Cosades' House (3 of 57: lantern, candles) still draw 99, because those really move. This also corrects C3's entry: the preview subview never called `Object::frameUpdate` and now does, through a `FrameListener`.
+- **e. Paleness: the OSG editor's own lighting, measured and kept.** The OSG editor's `LightingDay` gives ambient 0.7, white diffuse straight down, and material ambient and diffuse of 1 (`scenewidget.cpp` at `124715f58d^`), and its `lightingModel` define was 0; fixed-function lighting clamps at 1. The shader clamps the same (`materialTerms`), as day and bright frames show (mean R of the area, same camera). Bright mode shows the texture itself, as ambient alone reaches 1:
+
+| Area | Bright | Day | Day / bright | Night | Night / bright | Game |
+|---|---|---|---|---|---|---|
+| Vertical wall | 98.6 | 70.3 | 0.71 (expected 0.70) | 20.4 | 0.21 (expected 0.20) | 37.7 |
+| Roof, sloping up | 125.0 | 125.0 | 1.00: clamped | 44.6 | 0.36 | 74.6 |
+
+  So day's roofs and foliage are the unlit texture, nothing is over-bright (0% of pixels at 250 or above), and the game is darker because its sun and ambient are lower. The OSG build of the editor cannot run, so this compares against its code and not its pixels.
+- **f. Frames viewed.** The antialiasing frame from C3 (`antialiasing = 4`) is complete and correct, the default view of the Tradehouse. Bright mode at `#-2 -9` is lit evenly, in the same places.
+
+From the review of C3 and C4, read by a reviewer and checked here:
+- `Object` no longer stores its mask node in its own root's values, a reference cycle that kept removed objects and their Vulkan resources until exit. It is a member now.
+- Each closed view left a compile `Context` in `CompileManager`, which has no remove, holding `viewDependentState` of a dead view, and later compiles ran for it. Now `RenderContext::addCompileTarget` adds one target without a view, once. All views share one view ID and render pass (`vsgUtil::createSharedView`), and pipelines take the viewport dynamically (`viewportStateHint`), so one is enough. Checked: two views with one closed, and a capture of a view opened after that.
+- `UnpagedWorldspaceWidget`'s `mCell` is null before `hostReady`, and its callers now check.
+- `vsgQt::Window::cleanup` nulls `windowAdapter` when Qt destroys the surface. `SceneHost` now checks (`hasWindow`), and a tick with no live window does not render. New `--capture-reparent`, which moves a view to a new top-level window as floating a dock does: on Windows the view kept its window and drew. If a surface ever is destroyed, that view stays blank until reopened and logs nothing: not exercised, so check-list step 6 stands.
+
+Seen once, not explained: a capture of Arrille's Tradehouse exited with a segmentation fault after its screenshot, before the build with these fixes. About 30 later runs, 12 of them the same command before the fixes, did not repeat it.

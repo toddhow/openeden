@@ -161,6 +161,14 @@ void CSVRender::Object::frameUpdate(float dt)
     }
 }
 
+bool CSVRender::Object::isAnimated() const
+{
+    if (!mAnimation)
+        return false;
+    const auto& groups = mAnimation->autoPlay.groups;
+    return std::any_of(groups.begin(), groups.end(), [](const auto& group) { return !group.controllers.empty(); });
+}
+
 void CSVRender::Object::adjustTransform()
 {
     if (mReferenceId.empty() || !mAnimation)
@@ -210,19 +218,16 @@ CSVRender::Object::Object(CSMWorld::Data& data, SceneHost& host, vsg::Group& par
 
     update(compile);
 
-    auto shown = SceneHost::maskNode(Mask_Reference, mRootNode);
-    mParentNode.addChild(shown);
-    mRootNode->setValue("mask node", shown);
+    mShownNode = SceneHost::maskNode(Mask_Reference, mRootNode);
+    mParentNode.addChild(mShownNode);
 }
 
 CSVRender::Object::~Object()
 {
     mActor.reset();
-    vsg::ref_ptr<vsg::Switch> shown;
-    mRootNode->getValue("mask node", shown);
     auto& children = mParentNode.children;
     children.erase(std::remove_if(children.begin(), children.end(),
-                       [&](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == shown.get(); }),
+                       [&](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mShownNode.get(); }),
         children.end());
     mHost.compileContext()->detach(mRootNode);
 }

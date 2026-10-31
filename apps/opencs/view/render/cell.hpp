@@ -104,7 +104,7 @@ namespace CSVRender
         std::vector<vsg::dvec3> getObjectPositions() const;
 
         /// Does something here move by itself, so that the view draws every tick?
-        bool isAnimated() const { return !mObjects.empty(); }
+        bool isAnimated() const override;
 
         /// \return Did this call result in a modification of the visual representation of
         /// this cell?

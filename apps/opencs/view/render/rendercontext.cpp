@@ -8,6 +8,7 @@
 #include <vsg/app/Viewer.h>
 #include <vsg/app/WindowTraits.h>
 #include <vsg/state/Sampler.h>
+#include <vsg/state/ViewportState.h>
 #include <vsg/vk/Device.h>
 #include <vsg/vk/PhysicalDevice.h>
 
@@ -148,6 +149,14 @@ namespace CSVRender
         return mRenderPass;
     }
 
+    void RenderContext::addCompileTarget(vsg::Window& window, const vsg::ResourceRequirements& requirements)
+    {
+        if (mHasCompileTarget)
+            return;
+        mHasCompileTarget = true;
+        mCompileContext->compileManager->add(window, vsg::ref_ptr<vsg::ViewportState>(), requirements);
+    }
+
     std::shared_ptr<Resource::ResourceSystem> RenderContext::resourcesFor(CSMWorld::Data& data)
     {
         const bool created = data.getResourceSystem() == nullptr;
@@ -214,14 +223,17 @@ namespace CSVRender
             return;
         }
 
+        bool anyWindow = false;
         for (SceneHost* host : mHosts)
         {
             host->update();
+            anyWindow = anyWindow || host->hasWindow();
             if (host->needsFrame())
                 mViewer->request();
         }
 
-        mViewer->render();
+        if (anyWindow)
+            mViewer->render();
 
         // Only here, after recordAndSubmit has returned: see Render::Engine::endFrame.
         if (const auto* stamp = mViewer->getFrameStamp())

@@ -79,7 +79,6 @@ void CSVRender::UnpagedWorldspaceWidget::hostReady()
     WorldspaceWidget::hostReady();
     mCell = std::make_unique<Cell>(mDocument, mSelectionMarker.get(), *getHost(), mCellId);
     getHost()->frame(mCell->getObjectPositions());
-    getHost()->setAnimated(mCell->isAnimated());
 }
 
 void CSVRender::UnpagedWorldspaceWidget::cellDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
@@ -131,7 +130,6 @@ bool CSVRender::UnpagedWorldspaceWidget::handleDrop(
     {
         mCell = std::make_unique<Cell>(getDocument(), mSelectionMarker.get(), *host, mCellId);
         host->frame(mCell->getObjectPositions());
-        host->setAnimated(mCell->isAnimated());
     }
     mCamPositionSet = false;
 
@@ -177,13 +175,15 @@ void CSVRender::UnpagedWorldspaceWidget::selectAllWithSameParentId(int elementMa
 void CSVRender::UnpagedWorldspaceWidget::selectInsideCube(
     const vsg::dvec3& pointA, const vsg::dvec3& pointB, DragMode dragMode)
 {
-    mCell->selectInsideCube(pointA, pointB, dragMode);
+    if (mCell)
+        mCell->selectInsideCube(pointA, pointB, dragMode);
 }
 
 void CSVRender::UnpagedWorldspaceWidget::selectWithinDistance(
     const vsg::dvec3& point, float distance, DragMode dragMode)
 {
-    mCell->selectWithinDistance(point, distance, dragMode);
+    if (mCell)
+        mCell->selectWithinDistance(point, distance, dragMode);
 }
 
 std::string CSVRender::UnpagedWorldspaceWidget::getCellId(const vsg::vec3& point) const
@@ -203,40 +203,44 @@ CSVRender::Cell* CSVRender::UnpagedWorldspaceWidget::getCell(const CSMWorld::Cel
 
 vsg::ref_ptr<CSVRender::TagBase> CSVRender::UnpagedWorldspaceWidget::getSnapTarget(unsigned int elementMask) const
 {
-    return mCell->getSnapTarget(elementMask);
+    return mCell ? mCell->getSnapTarget(elementMask) : vsg::ref_ptr<TagBase>();
 }
 
 std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getSelection(
     unsigned int elementMask) const
 {
-    return mCell->getSelection(elementMask);
+    return mCell ? mCell->getSelection(elementMask) : std::vector<vsg::ref_ptr<TagBase>>();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::selectGroup(const std::vector<std::string>& group) const
 {
-    mCell->selectFromGroup(group);
+    if (mCell)
+        mCell->selectFromGroup(group);
 }
 
 void CSVRender::UnpagedWorldspaceWidget::unhideAll() const
 {
-    mCell->unhideAll();
+    if (mCell)
+        mCell->unhideAll();
 }
 
 std::vector<vsg::ref_ptr<CSVRender::TagBase>> CSVRender::UnpagedWorldspaceWidget::getEdited(
     unsigned int elementMask) const
 {
-    return mCell->getEdited(elementMask);
+    return mCell ? mCell->getEdited(elementMask) : std::vector<vsg::ref_ptr<TagBase>>();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::setSubMode(int subMode, unsigned int elementMask)
 {
-    mCell->setSubMode(subMode, elementMask);
+    if (mCell)
+        mCell->setSubMode(subMode, elementMask);
     mSelectionMarker->updateSelectionMarker();
 }
 
 void CSVRender::UnpagedWorldspaceWidget::reset(unsigned int elementMask)
 {
-    mCell->reset(elementMask);
+    if (mCell)
+        mCell->reset(elementMask);
 }
 
 void CSVRender::UnpagedWorldspaceWidget::referenceableDataChanged(
@@ -311,7 +315,8 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridDataChanged(const QModelIndex& 
         const CSMWorld::Pathgrid& pathgrid = pathgrids.getRecord(row).get();
         if (ESM::RefId::stringRefId(mCellId) == pathgrid.mId)
         {
-            mCell->pathgridModified();
+            if (mCell)
+                mCell->pathgridModified();
             flagAsModified();
             return;
         }
@@ -330,7 +335,8 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridAboutToBeRemoved(const QModelIn
             const CSMWorld::Pathgrid& pathgrid = pathgrids.getRecord(row).get();
             if (ESM::RefId::stringRefId(mCellId) == pathgrid.mId)
             {
-                mCell->pathgridRemoved();
+                if (mCell)
+                    mCell->pathgridRemoved();
                 flagAsModified();
                 return;
             }
@@ -349,7 +355,8 @@ void CSVRender::UnpagedWorldspaceWidget::pathgridAdded(const QModelIndex& parent
             const CSMWorld::Pathgrid& pathgrid = pathgrids.getRecord(row).get();
             if (ESM::RefId::stringRefId(mCellId) == pathgrid.mId)
             {
-                mCell->pathgridModified();
+                if (mCell)
+                    mCell->pathgridModified();
                 flagAsModified();
                 return;
             }
@@ -398,5 +405,5 @@ CSVRender::WorldspaceWidget::DropRequirements CSVRender::UnpagedWorldspaceWidget
 
 CSVRender::Object* CSVRender::UnpagedWorldspaceWidget::getObjectByReferenceId(const std::string& referenceId)
 {
-    return mCell->getObjectByReferenceId(referenceId);
+    return mCell ? mCell->getObjectByReferenceId(referenceId) : nullptr;
 }

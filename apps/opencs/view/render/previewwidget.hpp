@@ -7,6 +7,7 @@
 #include <string>
 
 #include "object.hpp"
+#include "scenehost.hpp"
 
 class QModelIndex;
 class QObject;
@@ -19,7 +20,7 @@ namespace CSMWorld
 
 namespace CSVRender
 {
-    class PreviewWidget : public SceneWidget
+    class PreviewWidget : public SceneWidget, private FrameListener
     {
         Q_OBJECT
 
@@ -33,8 +34,14 @@ namespace CSVRender
         explicit PreviewWidget(
             CSMWorld::Data& worldData, const std::string& id, bool referenceable, QWidget* parent = nullptr);
 
+        ~PreviewWidget() override;
+
     protected:
         void hostReady() override;
+
+    private:
+        void frameUpdate(float dt) override;
+        bool isAnimated() const override;
 
     signals:
 

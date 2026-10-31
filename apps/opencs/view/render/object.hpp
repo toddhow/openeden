@@ -82,6 +82,8 @@ namespace CSVRender
         ESM::RefId mReferenceableId;
         /// Shows for Mask_Reference; its child is the model's node, replaced by update().
         vsg::ref_ptr<vsg::Switch> mRootNode;
+        /// The parent's child that shows mRootNode for Mask_Reference.
+        vsg::ref_ptr<vsg::Switch> mShownNode;
         vsg::ref_ptr<TagBase> mTag;
         std::unique_ptr<MWAnim::Object> mAnimation;
         std::unique_ptr<Actor> mActor;
@@ -123,6 +125,9 @@ namespace CSVRender
 
         /// Runs animations that play by themselves, and follows the view's day and night mode.
         void frameUpdate(float dt);
+
+        /// Has it particles, flickering lights or anything else that plays by itself?
+        bool isAnimated() const;
 
         /// Mark the object as selected. Stage C7 brings back the outline.
         void setSelected(bool selected, const vsg::vec4& color = vsg::vec4(1, 1, 1, 1));

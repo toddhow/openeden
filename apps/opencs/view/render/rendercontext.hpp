@@ -8,6 +8,8 @@
 
 #include <QTimer>
 
+#include <vsg/app/Window.h>
+#include <vsg/vk/ResourceRequirements.h>
 #include <vsg/core/ref_ptr.h>
 #include <vsg/vk/Device.h>
 
@@ -89,6 +91,10 @@ namespace CSVRender
         void deviceReady(vsg::ref_ptr<vsg::Device> device, bool supportsAnisotropy);
         vsg::ref_ptr<vsg::RenderPass> renderPass(vsg::Device* device, unsigned int samples, int presentLayout);
         vsg::ref_ptr<vsg::Device> device() const { return mDevice; }
+        /// Lets the compile context compile for this window's render pass, once: CompileManager has no way to remove a
+        /// target, and every view shares one view ID and render pass (vsgUtil::createSharedView), so no target refers to
+        /// a view that may close.
+        void addCompileTarget(vsg::Window& window, const vsg::ResourceRequirements& requirements);
 
         /// onFrame runs after each timer tick, whether or not it drew. For unattended captures.
         void setFrameCallback(std::function<void()> onFrame);
@@ -102,6 +108,8 @@ namespace CSVRender
 
     private:
         friend class SceneHost;
+
+        bool mHasCompileTarget = false;
 
         void add(SceneHost& host);
         void remove(SceneHost& host);

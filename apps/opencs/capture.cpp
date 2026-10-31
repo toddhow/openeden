@@ -62,6 +62,8 @@ namespace
         int mCloseViews = 0;
         // Timer ticks to wait after the last capture with no one asking for frames, logging how many were drawn.
         int mIdleTicks = 0;
+        // After the first capture the view leaves its parent for a window of its own, as floating a dock does.
+        bool mReparent = false;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -118,6 +120,7 @@ int CS::runCapture(int argc, char** argv)
     addOption("capture-resize", bpo::value<std::string>());
     addOption("capture-close-views", bpo::value<int>()->default_value(0));
     addOption("capture-idle-ticks", bpo::value<int>()->default_value(0));
+    addOption("capture-reparent", bpo::bool_switch());
     addOption("data",
         bpo::value<Files::MaybeQuotedPathContainer>()
             ->default_value(Files::MaybeQuotedPathContainer(), "data")
@@ -154,6 +157,7 @@ int CS::runCapture(int argc, char** argv)
     request.mNeighbours = variables["neighbours"].as<int>();
     request.mCloseViews = variables["capture-close-views"].as<int>();
     request.mIdleTicks = variables["capture-idle-ticks"].as<int>();
+    request.mReparent = variables["capture-reparent"].as<bool>();
     if (variables.count("capture-resize"))
     {
         std::istringstream sizes(variables["capture-resize"].as<std::string>());
@@ -203,6 +207,8 @@ int CS::runCapture(int argc, char** argv)
     std::uint64_t nextCapture = request.mScreenshotFrame;
     std::uint64_t quitFrame = request.mQuitFrame;
     bool closed = false;
+    bool reparented = false;
+    std::unique_ptr<QWidget> floatingFrame;
     int idleTicks = 0;
     std::uint64_t idleStartFrame = 0;
 
@@ -312,6 +318,18 @@ int CS::runCapture(int argc, char** argv)
                         nextCapture = frameCount + request.mScreenshotFrame;
                         quitFrame = nextCapture + request.mQuitFrame;
                     }
+                    else if (request.mReparent && !reparented)
+                    {
+                        reparented = true;
+                        floatingFrame = createFrame(1);
+                        floatingFrame->layout()->addWidget(views.front());
+                        floatingFrame->show();
+                        QApplication::processEvents();
+                        Log(Debug::Info) << "Reparented; the view "
+                                         << (views.front()->getHost()->hasWindow() ? "kept" : "lost") << " its window";
+                        nextCapture = frameCount + request.mScreenshotFrame;
+                        quitFrame = nextCapture + request.mQuitFrame;
+                    }
                     else if (resizes < request.mResizes.size())
                     {
                         const auto [width, height] = request.mResizes[resizes++];
@@ -344,5 +362,6 @@ int CS::runCapture(int argc, char** argv)
 
     const int code = QApplication::exec();
     frame.reset();
+    floatingFrame.reset();
     return result != 0 ? result : code;
 }

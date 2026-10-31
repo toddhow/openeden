@@ -42,3 +42,5 @@ The editor (OpenMW-CS), being ported from OpenSceneGraph to VulkanSceneGraph in 
 - **Inside a class derived from `TagBase`, a plain `Object` means `vsg::Object`,** the base's injected class name. Write `CSVRender::Object`.
 - **`QApplication::closeAllWindows` stops at the first window that refuses.** `CSVDoc::View` refuses all but a document's last, deleting itself later, so an unattended close repeats it.
 - **Unattended normal run:** `OPENEDEN_CS_UI_CHECK="c:#-2 -9;5000" openmw-cs path/Morrowind.esm`. Windows do not take focus.
+- **On-demand frames:** a view draws when asked (`requestRedraw`) or when exposed and a `FrameListener` says `isAnimated`, which means an object with auto-play controllers. A controller that is not auto-play still runs, with `MWAnim::ObjectAnimation::addController`: skins are such controllers, and dropping them draws a skinned model in pieces.
+- **`CompileManager` has no remove.** Add a target once, without a view (`RenderContext::addCompileTarget`), never per view.

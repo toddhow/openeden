@@ -151,10 +151,6 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
             iter->second->setCellArrows(mask);
         }
 
-        bool animated = false;
-        for (const auto& [_, cell] : mCells)
-            animated = animated || cell->isAnimated();
-        getHost()->setAnimated(animated);
         getHost()->requestRedraw();
     }
 

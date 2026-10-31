@@ -238,6 +238,12 @@ void CSVRender::Cell::frameUpdate(float dt)
         mCellMarker->update();
 }
 
+bool CSVRender::Cell::isAnimated() const
+{
+    return std::any_of(mObjects.begin(), mObjects.end(),
+        [](const auto& entry) { return entry.second->isAnimated(); });
+}
+
 std::vector<vsg::dvec3> CSVRender::Cell::getObjectPositions() const
 {
     std::vector<vsg::dvec3> positions;

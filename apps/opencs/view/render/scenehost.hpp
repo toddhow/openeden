@@ -65,6 +65,8 @@ namespace CSVRender
     public:
         virtual ~FrameListener() = default;
         virtual void frameUpdate(float dt) = 0;
+        /// Does this move by itself (particles, flickering lights), so that a visible view draws every tick?
+        virtual bool isAnimated() const { return false; }
     };
 
     /// One 3D view: the scene graph, camera, per-view descriptor set and command graphs of one window, what
@@ -127,12 +129,12 @@ namespace CSVRender
 
         /// A frame will be drawn on the next timer tick, as flagAsModified was with OSG's ON_DEMAND.
         void requestRedraw() { mRedraw = true; }
-        /// Something here moves by itself (particles, flickering lights), so every tick draws. The OSG editor did too, as
-        /// any cell's update callback kept checkNeedToDoFrame true.
-        void setAnimated(bool animated) { mAnimated = animated; }
 
         void addListener(FrameListener& listener);
         void removeListener(FrameListener& listener);
+
+        /// False once Qt has destroyed the window's surface (vsgQt::Window::cleanup): nothing can be drawn here any more.
+        bool hasWindow() const;
 
         /// Writes the last frame drawn to a file. \return whether there was a frame to write: a zero-size window has none.
         bool capture(const std::filesystem::path& file);
@@ -183,7 +185,6 @@ namespace CSVRender
         vsg::ref_ptr<vsg::vec4Array> mGradientColours;
 
         bool mRedraw = true;
-        bool mAnimated = false;
         std::vector<FrameListener*> mListeners;
         std::chrono::steady_clock::time_point mLastUpdate;
     };
