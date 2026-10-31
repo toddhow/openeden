@@ -77,11 +77,13 @@ file(GLOB UNITTEST_SRC_FILES
     esmterrain/testgridsampling.cpp
 
     resource/testobjectcache.cpp
+    resource/testresourcesystem.cpp
     resource/testphysicsshapemanager.cpp
     resource/colladadocuments.hpp
     resource/testassimpscene.cpp
 
     vsgadapters/testdaeanimation.cpp
+    vsgadapters/testnifreader.cpp
     vsgadapters/testautomaps.cpp
     vsgadapters/testinternaltexture.cpp
     vsgadapters/testtangents.cpp
@@ -149,11 +151,6 @@ file(GLOB UNITTEST_SRC_FILES
     fx/testvulkanpass.cpp
     fx/testuniformsettings.cpp
 )
-
-# openeden-vsg: tests of OSG components that the VSG renderer does not build are excluded: resource/testresourcesystem.cpp,
-# shader/parsedefines.cpp, shader/parsefors.cpp, shader/parselinks.cpp and shader/shadermanager.cpp. Task 0014 restores or
-# replaces them. nifosg/testnifloader.cpp, sceneutil/osgacontroller.cpp and nifloader/testbulletnifloader.cpp went with
-# task 0013's dead code; see docs/tasks/0014.
 
 # The Morrowind compatibility pack's converter, renderer-free since task 0011.
 list(APPEND UNITTEST_SRC_FILES
