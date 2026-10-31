@@ -329,10 +329,10 @@ namespace CSVRender
 
     void SceneHost::setViewMatrix(const vsg::dmat4& view)
     {
-        // A view that did not change asks for no frame.
-        const CameraPose::LookAt lookAt = CameraPose::lookAtFrom(view);
-        if (lookAt.mEye == mViewMatrix->eye && lookAt.mCenter == mViewMatrix->center && lookAt.mUp == mViewMatrix->up)
+        // A view that did not change asks for no frame. A controller normalizes every tick, so rounding does not count.
+        if (CameraPose::sameView(view, mViewMatrix->transform()))
             return;
+        const CameraPose::LookAt lookAt = CameraPose::lookAtFrom(view);
         setCamera(lookAt.mEye, lookAt.mCenter, lookAt.mUp);
     }
 

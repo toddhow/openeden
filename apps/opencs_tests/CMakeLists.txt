@@ -4,6 +4,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/world/testuniversalid.cpp
     view/render/testcamerapose.cpp
     view/render/testpicking.cpp
+    view/render/testcameraposereview.cpp
 )
 
 source_group(apps\\openmw-cs-tests FILES ${OPENCS_TESTS_SRC_FILES})

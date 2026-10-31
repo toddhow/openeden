@@ -14,6 +14,8 @@
 #include <vsg/state/ArrayState.h>
 #include <vsg/utils/LineSegmentIntersector.h>
 
+#include <components/vsgutil/intersectnormal.hpp>
+
 #include "tagbase.hpp"
 
 /// What's under a point of a view, keeping the rules of the OSG editor's WorldspaceWidget::mousePick. No window and no GPU,
@@ -115,13 +117,13 @@ namespace CSVRender::Picking
         }
     };
 
-    /// Does the hit's triangle face away from the ray? With no vertex array to read, as for terrain, whose vertices its
-    /// shader computes, it counts as facing the ray: terrain is seen from above.
+    /// Does the hit's triangle face away from the ray? Terrain and skinned models compute their vertices, so this reads what
+    /// the intersector saw, not the bind pose: a pick from below terrain does not stop at it, as the OSG editor's did not.
     inline bool isBackface(const vsg::LineSegmentIntersector::Intersection& hit, const vsg::dvec3& worldDirection)
     {
-        if (hit.arrays.empty() || hit.indexRatios.size() < 3)
+        if (hit.indexRatios.size() < 3)
             return false;
-        const auto* vertices = dynamic_cast<const vsg::vec3Array*>(hit.arrays.front().get());
+        const auto vertices = vsgUtil::hitVertices(hit);
         if (!vertices)
             return false;
         const vsg::dvec3 v0((*vertices)[hit.indexRatios[0].index]);

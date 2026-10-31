@@ -376,6 +376,8 @@ namespace CSVRender
     void FreeCameraController::stabilize()
     {
         const auto [eye, center, up] = getLookAt();
+        if (!CameraPose::canStabilize(eye, center, mUp))
+            return;
         setLookAt(eye, center, mUp);
     }
 

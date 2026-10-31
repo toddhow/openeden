@@ -139,6 +139,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testclonematerials.cpp
     vsgutil/testimagepixels.cpp
     vsgutil/testarraystate.cpp
+    vsgutil/testhitnormal.cpp
     vsgutil/testdeletionqueue.cpp
 
     fx/lexer.cpp

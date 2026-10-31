@@ -446,7 +446,7 @@ Checks at Seyda Neen (`#-2 -9`, 1280x720, fov 60), against a direct `--camera` f
 - **Free, 1000 units back, `slot forward 1; update 1`:** the logged eye is the target (`navi-free-lin-speed` 1000), 0 of 921,600 pixels over.
 - **Free, yaw and strafe and wheel out and back:** `mouse 650 0` turns right by 1 rad, forward (0.84, 0.54, 0) as `sin` and `cos` say; 0 pixels over at the end.
 - **Orbit, around a centre 1000 units ahead:** `mouse 300 0` moves the eye to (-11842.6, -69526.1), which is (0, -1000) rotated by +0.46 rad about +z; the wheel changes the distance; strafing moves eye and centre together. The frame has the same size in bytes as the direct one; the logged pose ends exactly at the start.
-- **First person, `mouse 195 0` (0.3 rad):** against the game with `player->setangle z 17.1887` from the same place, the buildings, posts and Eldafire stand at the same x to within a pixel (roof edges at 390 and 655, her at 803, posts at 915, 1050, 1172). The game's frame is 10 pixels lower in the picture throughout, as at yaw 0: its later frames have the player settled lower than the logged eye. The frame C4 logged the pose from has its roof at the same height as the editor's.
+- **First person, `mouse 195 0` (0.3 rad):** against the game with `player->setangle z 17.1887` from the same place, the buildings, posts and Eldafire stand at the same x to within a pixel (roof edges at 390 and 655, her at 803, posts at 915, 1050, 1172). The game's frame is 10 pixels lower in the picture throughout, as at yaw 0. An even shift at every depth means a small difference of pitch, not of height, as a height difference would shift near things more than far ones (correction by review; the cause was not looked for). The frame C4 logged the pose from has its roof at the same height as the editor's.
 - **Ortho, looking down with up +y (`ortho 60`):** the roofs, the dock and the water are south where they are in the game, not mirrored.
 
 Tests: openmw-cs-tests 167.
@@ -493,7 +493,7 @@ Scripted rays (`--camera-script "...; wait; ray x y hexmask"`, through `Worldspa
 
 Orbit's first centre: from Arrille's door, `mouse 650 0` turned the eye by 1 rad around the door hit at (-242, 124), with the logged eye where the sum says. Terrain through `pickNearest`: the eye moved by what a centre about 985 units ahead gives, where the terrain is at about that distance.
 
-Check of the game, which had a shared-code change: Seyda Neen frame 600, before and after: 2,130 of 921,600 pixels over 6, in moving sky and the water's ripples, viewed; Caldera Mages Guild viewed. Not checked by hand: the game features that use `RenderManager::castRay`, which now stop at terrain (`World` in `worldimp.cpp`: the faced object at 1723 and 1737, dropping an item at the cursor at 1911 and 1939, and the ray at 2039). For a faced object this means terrain now hides what is behind it. toddhow's check: in game, an item dropped from the inventory onto open ground lands where the cursor is, and the crosshair's tooltip does not name something behind a hill.
+Check of the game, which had a shared-code change: Seyda Neen frame 600, before and after: 2,130 of 921,600 pixels over 6, in moving sky and the water's ripples, viewed; Caldera Mages Guild viewed. Not checked by hand: the game features that use `RenderManager::castRay`, which now stop at terrain (`World` in `worldimp.cpp`: the faced object at 1723 and 1737, dropping an item at the cursor at 1911 and 1939, and the ray at 2039, touch spells at 2914; and Lua's `castRenderingRay`). For a faced object this means terrain now hides what is behind it. toddhow's check: in game, an item dropped from the inventory onto open ground lands where the cursor is, and the crosshair's tooltip does not name something behind a hill.
 
 Tests on Windows: components-tests 2222, with `DetourNavigatorRecastMeshObjectTest` failing in one or two cases in some full runs, the known intermittent one, and passing alone; openmw-tests 717; openmw-cs-tests 181. Linux is in the entry that follows.
 
@@ -510,3 +510,30 @@ Check list, for a person:
 ### Linux, C5 and C6 (2026-10-31)
 
 At `4a2dc1c8ab`, with `-Werror`: components-tests 2224, openmw-tests 717, all 32 Lua integration tests. `openmw-cs` and `openmw-cs-tests` build, 181 pass, and the editor started and closed under xvfb with lavapipe on the example suite. No Linux frame or ray was captured or viewed. An earlier run had one failure, `CompatMorrowindTest.ManifestValidation`, while another session was using the same build volume; it did not repeat. The seen-once capture crash from C4's items was hunted under a debug runner without a crash, but the runs under it were stopped early, so it stays open.
+
+### Review of C4's fixes, C5 and C6 (2026-10-31)
+
+Read by a reviewer, checked here:
+
+- **Terrain and skinned hits reported the wrong normal: a real bug in the game, fixed.** `vsgUtil::worldNormal` fell back to (0,0,1) for terrain, which has no normal array, so once rays stopped at terrain `World::canPlaceObject` accepted any slope, where OSG's `getWorldIntersectNormal` (`renderingmanager.cpp` at the fork) refused over 30 degrees, and Lua's `castRenderingRay` normals were wrong. Skinned hits read the bind pose's normals. Now `vsgUtil::computedHitVertices` rebuilds the hit's own vertices through its StateGroup's array state (the proxy is overwritten by later draws, so it cannot be read afterwards), and the normal is its triangle's. `HeightArrayState` moved to `components/terrain/heightarraystate.hpp` to be tested. New `vsgutil/testhitnormal.cpp`, with a real intersector and no GPU: slope, flat, a later draw overwriting the proxy, a chunk's vertices, a posed skin, plain geometry. Not done: the drop-on-a-steep-slope script in the game.
+- **Facing test:** `Picking::isBackface` reads those same vertices, so posed limbs test correctly and terrain's back faces now count: a pick from below passes through, as old `mousePick` did. Terrain's triangles face up (the test above).
+- **Frame time of the game with terrain rays** (`scratchpad/compare/perf.sh`, wall ms, median and 95th percentile of the last 400 of 900 frames; "before" has the pre-fix `clone` name restored temporarily, so rays pass through terrain):
+
+| Scene | Before | After |
+|---|---|---|
+| Balmora | 2.93, 3.98 | 2.20, 3.03 |
+| Seyda Neen | 3.40, 4.66 | 2.73, 3.57 |
+| Pelagiad | 2.75, 3.59 | 1.86, 2.53 |
+| Ald-ruhn | 1.80, 2.67 | 1.59, 2.28 |
+| Sadrith Mora | 2.16, 2.91 | 2.98, 3.79 |
+| Vivec Arena | 0.23, 0.49 | 0.23, 0.41 |
+| Ebonheart | 1.55, 2.22 | 1.51, 2.04 |
+| Caldera Mages Guild | 0.99, 1.37 | 1.04, 1.60 |
+| Caius Cosades' House | 1.13, 2.01 | 0.65, 0.92 |
+
+  No cost shows: the differences go both ways and are run-to-run noise, not a saving. So grids are not cached. One pass each, with no input, so GUI mode's 50x range and a sweep across terrain were not measured.
+- **Idle redraw:** `SceneHost::setViewMatrix` compared a lossy round trip exactly, and controllers normalize every tick. It now compares view matrices with a tolerance (`CameraPose::sameView`). `--capture-idle-ticks 100` at `#-1 -9`: 0 frames. The bad count was not reproduced first, so whether it was really broken is not shown.
+- **NaN view:** `stabilize` skips an up along the view (`CameraPose::canStabilize`), tested in `testcameraposereview.cpp`.
+- **The note on yaw's sign:** measured again with `slot naviPrimary 1`. First person `mouse 195 0` moves the centre to +x, a turn to the right, as `setangle z` +17 degrees does; orbit `mouse 300 0` moves the eye from (0, -1000) to (445.3, -895.4) relative to the centre, +0.46 rad about +z, as logged. No wrong sign found, so the note stands but for the pitch correction above.
+
+Not covered by a test: the camera controllers themselves, which need a `SceneHost`.

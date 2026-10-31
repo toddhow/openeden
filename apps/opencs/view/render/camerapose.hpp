@@ -66,6 +66,28 @@ namespace CSVRender::CameraPose
             + unit * (vsg::dot(unit, vector) * (1.0 - cosine));
     }
 
+    /// Is this the same view, but for rounding? Normalizing an unmoved view each tick must ask for no frame.
+    inline bool sameView(const vsg::dmat4& a, const vsg::dmat4& b)
+    {
+        // Rotation entries are unit sized, translations are in world units of up to some 1e6.
+        constexpr double rotationTolerance = 1e-9;
+        constexpr double translationTolerance = 1e-5;
+        for (int column = 0; column < 4; ++column)
+            for (int row = 0; row < 4; ++row)
+                if (std::abs(a[column][row] - b[column][row]) > (column == 3 ? translationTolerance : rotationTolerance))
+                    return false;
+        return true;
+    }
+
+    /// Can a view from eye to centre be held upright by this up? vsg::lookAt's normalize of a zero cross product gives NaN,
+    /// which then stays in the view, where OSG's normalize left a zero alone.
+    inline bool canStabilize(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up)
+    {
+        const vsg::dvec3 forward = center - eye;
+        constexpr double minimumSine2 = 1e-16;
+        return vsg::length2(vsg::cross(forward, up)) > minimumSine2 * vsg::length2(forward) * vsg::length2(up);
+    }
+
     /// As osg::Matrixd::orthoNormal: scales what would be its columns, the rows here, to unit length, and keeps the
     /// translation as it is. It corrects scale drift, not skew.
     inline vsg::dmat4 orthoNormal(const vsg::dmat4& view)
