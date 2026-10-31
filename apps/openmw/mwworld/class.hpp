@@ -133,7 +133,7 @@ namespace MWWorld
         ///< Return item max health or throw an exception, if class does not have item health
         /// (default implementation: throw an exception)
 
-        virtual bool evaluateHit(const Ptr& ptr, Ptr& victim, osg::Vec3f& hitPosition) const;
+        virtual bool evaluateHit(const Ptr& ptr, Ptr& victim, vsg::vec3& hitPosition) const;
         ///< Evaluate the victim of a melee hit produced by ptr in the current circumstances and return dice roll
         ///< success.
         /// (default implementation: throw an exception)

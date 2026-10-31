@@ -1,7 +1,9 @@
 #ifndef GAME_MWMECHANICS_MOVEMENT_H
 #define GAME_MWMECHANICS_MOVEMENT_H
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 namespace MWMechanics
 {
@@ -27,7 +29,7 @@ namespace MWMechanics
             mIsStrafing = false;
         }
 
-        osg::Vec3f asVec3() { return osg::Vec3f(mPosition[0], mPosition[1], mPosition[2]); }
+        vsg::vec3 asVec3() { return vsg::vec3(mPosition[0], mPosition[1], mPosition[2]); }
     };
 }
 

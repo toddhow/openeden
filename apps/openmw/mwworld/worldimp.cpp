@@ -2926,10 +2926,10 @@ namespace MWWorld
             // Note collision object origin is intentionally not used
             hitPosition = target.getRefData().getPosition().asVec3();
             constexpr float explosionHeight = 0.7f;
-            float targetHeight = getHalfExtents(target).z() * 2.f;
+            float targetHeight = getHalfExtents(target).z * 2.f;
             if (!target.getClass().isActor() && casterIsPlayer)
             {
-                const float playerHeight = getHalfExtents(actor).z() * 2.f;
+                const float playerHeight = getHalfExtents(actor).z * 2.f;
                 targetHeight = std::min(targetHeight, playerHeight);
             }
             hitPosition.z() += targetHeight * explosionHeight;
@@ -3546,7 +3546,7 @@ namespace MWWorld
         return mRendering->getTerrainHeightAt(worldPos, worldspace);
     }
 
-    osg::Vec3f World::getHalfExtents(const ConstPtr& object, bool rendering) const
+    vsg::vec3 World::getHalfExtents(const ConstPtr& object, bool rendering) const
     {
         if (!object.getClass().isActor())
             return mRendering->getHalfExtents(object);
@@ -3696,7 +3696,7 @@ namespace MWWorld
         return mNavigator.get();
     }
 
-    void World::updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<osg::Vec3f>& path,
+    void World::updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
         const DetourNavigator::AgentBounds& agentBounds, const osg::Vec3f& start, const osg::Vec3f& end) const
     {
         // mRendering->updateActorPath(actor, path, agentBounds, start, end);

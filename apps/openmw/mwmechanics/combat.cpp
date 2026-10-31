@@ -7,7 +7,6 @@
 #include <components/settings/values.hpp>
 
 #include <components/mwanimation/position.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -46,8 +45,8 @@ namespace
 
 namespace MWMechanics
 {
-    void throwWeapon(MWWorld::Ptr actor, MWWorld::Ptr weapon, float attackStrength, const osg::Vec3f& launchPos,
-        const osg::Quat& orient)
+    void throwWeapon(MWWorld::Ptr actor, MWWorld::Ptr weapon, float attackStrength, const vsg::vec3& launchPos,
+        const vsg::dquat& orient)
     {
         auto& gmst = MWBase::Environment::get().getWorld()->getStore().get<ESM::GameSetting>();
         float fThrownWeaponMinSpeed = gmst.find("fThrownWeaponMinSpeed")->mValue.getFloat();
@@ -58,7 +57,7 @@ namespace MWMechanics
     }
 
     void shoot(MWWorld::Ptr actor, MWWorld::Ptr ammo, MWWorld::Ptr weapon, float attackStrength,
-        const osg::Vec3f launchPos, const osg::Quat& orient)
+        const vsg::vec3 launchPos, const vsg::dquat& orient)
     {
         auto& gmst = MWBase::Environment::get().getWorld()->getStore().get<ESM::GameSetting>();
         float fProjectileMinSpeed = gmst.find("fProjectileMinSpeed")->mValue.getFloat();
@@ -69,7 +68,7 @@ namespace MWMechanics
     }
 
     bool applyOnStrikeEnchantment(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& object,
-        const osg::Vec3f& hitPosition, const bool fromProjectile)
+        const vsg::vec3& hitPosition, const bool fromProjectile)
     {
         const ESM::RefId enchantmentName = !object.isEmpty() ? object.getClass().getEnchantment(object) : ESM::RefId();
         if (!enchantmentName.empty())
@@ -110,8 +109,8 @@ namespace MWMechanics
         if (shield == inv.end() || shield->getType() != ESM::Armor::sRecordId)
             return false;
 
-        float angleDegrees = osg::RadiansToDegrees(signedAngleRadians(
-            toVsg(attacker.getRefData().getPosition().asVec3() - blocker.getRefData().getPosition().asVec3()),
+        float angleDegrees = Misc::VsgMath::radiansToDegrees(signedAngleRadians(
+            attacker.getRefData().getPosition().asVec3() - blocker.getRefData().getPosition().asVec3(),
             MWAnim::forward(blocker.getRefData().getPosition()), { 0, 0, 1 }));
 
         const MWWorld::Store<ESM::GameSetting>& gmst
@@ -241,7 +240,7 @@ namespace MWMechanics
     }
 
     void projectileHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, MWWorld::Ptr weapon,
-        const MWWorld::Ptr& projectile, const osg::Vec3f& hitPosition, float attackStrength)
+        const MWWorld::Ptr& projectile, const vsg::vec3& hitPosition, float attackStrength)
     {
         MWBase::World* world = MWBase::Environment::get().getWorld();
         const MWWorld::Store<ESM::GameSetting>& gmst = world->getStore().get<ESM::GameSetting>();
@@ -568,8 +567,8 @@ namespace MWMechanics
 
     float getFightDistanceBias(const MWWorld::Ptr& actor1, const MWWorld::Ptr& actor2)
     {
-        osg::Vec3f pos1(actor1.getRefData().getPosition().asVec3());
-        osg::Vec3f pos2(actor2.getRefData().getPosition().asVec3());
+        vsg::vec3 pos1(actor1.getRefData().getPosition().asVec3());
+        vsg::vec3 pos2(actor2.getRefData().getPosition().asVec3());
 
         float d = getAggroDistance(actor1, pos1, pos2);
 
@@ -587,7 +586,7 @@ namespace MWMechanics
         return (iFightDistanceBase - fFightDistanceMultiplier * d);
     }
 
-    float getAggroDistance(const MWWorld::Ptr& actor, const osg::Vec3f& lhs, const osg::Vec3f& rhs)
+    float getAggroDistance(const MWWorld::Ptr& actor, const vsg::vec3& lhs, const vsg::vec3& rhs)
     {
         if (canActorMoveByZAxis(actor))
             return distanceIgnoreZ(lhs, rhs);
@@ -596,13 +595,13 @@ namespace MWMechanics
 
     float getDistanceToBounds(const MWWorld::Ptr& actor, const MWWorld::Ptr& target)
     {
-        osg::Vec3f actorPos(actor.getRefData().getPosition().asVec3());
-        osg::Vec3f targetPos(target.getRefData().getPosition().asVec3());
+        vsg::vec3 actorPos(actor.getRefData().getPosition().asVec3());
+        vsg::vec3 targetPos(target.getRefData().getPosition().asVec3());
         MWBase::World* world = MWBase::Environment::get().getWorld();
 
-        float dist = (targetPos - actorPos).length();
-        dist -= world->getHalfExtents(actor).y();
-        dist -= world->getHalfExtents(target).y();
+        float dist = vsg::length(targetPos - actorPos);
+        dist -= world->getHalfExtents(actor).y;
+        dist -= world->getHalfExtents(target).y;
         return dist;
     }
 
@@ -624,11 +623,11 @@ namespace MWMechanics
         return std::abs(heightDiff) < reach && getDistanceToBounds(actor, target) < reach;
     }
 
-    std::pair<MWWorld::Ptr, osg::Vec3f> getHitContact(const MWWorld::Ptr& actor, float reach)
+    std::pair<MWWorld::Ptr, vsg::vec3> getHitContact(const MWWorld::Ptr& actor, float reach)
     {
         // Lasciate ogne speranza, voi ch'entrate
         MWWorld::Ptr result;
-        osg::Vec3f hitPos;
+        vsg::vec3 hitPos;
         float minDist = std::numeric_limits<float>::max();
         MWBase::World* world = MWBase::Environment::get().getWorld();
         const MWWorld::Store<ESM::GameSetting>& store = world->getStore().get<ESM::GameSetting>();
@@ -640,12 +639,13 @@ namespace MWMechanics
         const float fCombatAngleZ = store.find("fCombatAngleZ")->mValue.getFloat() / 90.f;
 
         const ESM::Position& posdata = actor.getRefData().getPosition();
-        const osg::Vec3f actorPos(posdata.asVec3());
-        const osg::Vec3f actorDirXY = osg::Quat(posdata.rot[2], osg::Vec3(0, 0, -1)) * osg::Vec3f(0, 1, 0);
+        const vsg::vec3 actorPos(posdata.asVec3());
+        const vsg::vec3 actorDirXY
+            = vsg::quat(Misc::VsgMath::makeRotateFromAxis(posdata.rot[2], vsg::vec3(0, 0, -1))) * vsg::vec3(0, 1, 0);
         // Only the player can look up, apparently.
         const float actorVerticalAngle = actor == getPlayer() ? -std::sin(posdata.rot[0]) : 0.f;
-        const float actorEyeLevel = world->getHalfExtents(actor, true).z() * 2.f * 0.85f;
-        const osg::Vec3f actorEyePos{ actorPos.x(), actorPos.y(), actorPos.z() + actorEyeLevel };
+        const float actorEyeLevel = world->getHalfExtents(actor, true).z * 2.f * 0.85f;
+        const vsg::vec3 actorEyePos{ actorPos.x, actorPos.y, actorPos.z + actorEyeLevel };
         const bool canMoveByZ = canActorMoveByZAxis(actor);
 
         // The player can target any active actor, non-playable actors only target their targets
@@ -665,19 +665,19 @@ namespace MWMechanics
             if (dist >= minDist || !isInMeleeReach(actor, target, reach))
                 continue;
 
-            const osg::Vec3f targetPos(target.getRefData().getPosition().asVec3());
+            const vsg::vec3 targetPos(target.getRefData().getPosition().asVec3());
 
             // Horizontal angle checks.
-            osg::Vec2f actorToTargetXY{ targetPos.x() - actorPos.x(), targetPos.y() - actorPos.y() };
-            actorToTargetXY.normalize();
+            vsg::vec2 actorToTargetXY{ targetPos.x - actorPos.x, targetPos.y - actorPos.y };
+            Misc::VsgMath::normalizeInPlace(actorToTargetXY);
 
             // Use dot product to check if the target is behind first...
-            if (actorToTargetXY.x() * actorDirXY.x() + actorToTargetXY.y() * actorDirXY.y() <= 0.f)
+            if (actorToTargetXY.x * actorDirXY.x + actorToTargetXY.y * actorDirXY.y <= 0.f)
                 continue;
 
             // And then perp dot product to calculate the hit angle sine.
             // This gives us a horizontal hit range of [-asin(fCombatAngleXY / 90); asin(fCombatAngleXY / 90)]
-            if (std::abs(actorToTargetXY.x() * actorDirXY.y() - actorToTargetXY.y() * actorDirXY.x()) > fCombatAngleXY)
+            if (std::abs(actorToTargetXY.x * actorDirXY.y - actorToTargetXY.y * actorDirXY.x) > fCombatAngleXY)
                 continue;
 
             // Vertical angle checks. Nice cliff racer hack, Todd.
@@ -685,14 +685,14 @@ namespace MWMechanics
             {
                 // The idea is that the body should always be possible to hit.
                 // fCombatAngleZ is the tolerance for hitting the target's feet or head.
-                osg::Vec3f actorToTargetFeet = targetPos - actorEyePos;
-                osg::Vec3f actorToTargetHead = actorToTargetFeet;
-                actorToTargetFeet.normalize();
-                actorToTargetHead.z() += world->getHalfExtents(target, true).z() * 2.f;
-                actorToTargetHead.normalize();
+                vsg::vec3 actorToTargetFeet = targetPos - actorEyePos;
+                vsg::vec3 actorToTargetHead = actorToTargetFeet;
+                Misc::VsgMath::normalizeInPlace(actorToTargetFeet);
+                actorToTargetHead.z += world->getHalfExtents(target, true).z * 2.f;
+                Misc::VsgMath::normalizeInPlace(actorToTargetHead);
 
-                if (actorVerticalAngle - actorToTargetHead.z() > fCombatAngleZ
-                    || actorVerticalAngle - actorToTargetFeet.z() < -fCombatAngleZ)
+                if (actorVerticalAngle - actorToTargetHead.z > fCombatAngleZ
+                    || actorVerticalAngle - actorToTargetFeet.z < -fCombatAngleZ)
                     continue;
             }
 
@@ -712,17 +712,17 @@ namespace MWMechanics
         // that is defined by its width and height
         if (!result.isEmpty())
         {
-            osg::Vec3f resultPos(result.getRefData().getPosition().asVec3());
-            osg::Vec3f dirToActor = actorPos - resultPos;
-            dirToActor.normalize();
+            vsg::vec3 resultPos(result.getRefData().getPosition().asVec3());
+            vsg::vec3 dirToActor = actorPos - resultPos;
+            Misc::VsgMath::normalizeInPlace(dirToActor);
 
-            hitPos = resultPos + dirToActor * world->getHalfExtents(result).y();
+            hitPos = resultPos + dirToActor * world->getHalfExtents(result).y;
             // -25% to 25% of width
             float xOffset = Misc::Rng::deviate(0.f, 0.25f, world->getPrng());
             // 20% to 100% of height
             float zOffset = Misc::Rng::deviate(0.6f, 0.4f, world->getPrng());
-            hitPos.x() += world->getHalfExtents(result).x() * 2.f * xOffset;
-            hitPos.z() += world->getHalfExtents(result).z() * 2.f * zOffset;
+            hitPos.x += world->getHalfExtents(result).x * 2.f * xOffset;
+            hitPos.z += world->getHalfExtents(result).z * 2.f * zOffset;
         }
 
         return std::make_pair(result, hitPos);

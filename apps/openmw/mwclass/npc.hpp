@@ -76,7 +76,7 @@ namespace MWClass
 
         bool hasInventoryStore(const MWWorld::ConstPtr& ptr) const override { return true; }
 
-        bool evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, osg::Vec3f& hitPosition) const override;
+        bool evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, vsg::vec3& hitPosition) const override;
 
         void hit(const MWWorld::Ptr& ptr, float attackStrength, int type, const MWWorld::Ptr& victim,
             const osg::Vec3f& hitPosition, bool success) const override;

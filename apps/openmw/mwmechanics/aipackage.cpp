@@ -26,7 +26,9 @@
 #include "pathgrid.hpp"
 #include "steering.hpp"
 
-#include <osg/Quat>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/quat.h>
 
 namespace
 {
@@ -36,9 +38,9 @@ namespace
                             : dividend / divisor;
     }
 
-    float getPointTolerance(float speed, float duration, const osg::Vec3f& halfExtents)
+    float getPointTolerance(float speed, float duration, const vsg::vec3& halfExtents)
     {
-        const float actorTolerance = 2 * speed * duration + 1.2f * std::max(halfExtents.x(), halfExtents.y());
+        const float actorTolerance = 2 * speed * duration + 1.2f * std::max(halfExtents.x, halfExtents.y);
         return std::max(MWMechanics::MIN_TOLERANCE, actorTolerance);
     }
 
@@ -89,20 +91,20 @@ void MWMechanics::AiPackage::reset()
     mReaction.reset();
     mIsShortcutting = false;
     mShortcutProhibited = false;
-    mShortcutFailPos = osg::Vec3f();
+    mShortcutFailPos = vsg::vec3();
     mTargetNotFound = false;
 
     mPathFinder.clearPath();
     mObstacleCheck.clear();
 }
 
-bool MWMechanics::AiPackage::pathTo(const MWWorld::Ptr& actor, const osg::Vec3f& dest, float duration,
+bool MWMechanics::AiPackage::pathTo(const MWWorld::Ptr& actor, const vsg::vec3& dest, float duration,
     MWWorld::MovementDirectionFlags supportedMovementDirections, float destTolerance, float endTolerance,
     PathType pathType)
 {
     const Misc::TimerStatus timerStatus = mReaction.update(duration);
 
-    const osg::Vec3f position = actor.getRefData().getPosition().asVec3(); // position of the actor
+    const vsg::vec3 position = actor.getRefData().getPosition().asVec3(); // position of the actor
     MWBase::World* world = MWBase::Environment::get().getWorld();
     const DetourNavigator::AgentBounds agentBounds = world->getPathfindingAgentBounds(actor);
 
@@ -167,7 +169,7 @@ bool MWMechanics::AiPackage::pathTo(const MWWorld::Ptr& actor, const osg::Vec3f&
 
             if (!mPathFinder.getPath().empty()) // Path has points in it
             {
-                const osg::Vec3f& lastPos = mPathFinder.getPath().back(); // Get the end of the proposed path
+                const vsg::vec3& lastPos = mPathFinder.getPath().back(); // Get the end of the proposed path
 
                 if (distance(dest, lastPos) > 100) // End of the path is far from the destination
                     mPathFinder.addPointToPath(
@@ -215,9 +217,9 @@ bool MWMechanics::AiPackage::pathTo(const MWWorld::Ptr& actor, const osg::Vec3f&
     }
 
     // turn to next path point by X,Z axes
-    float zAngleToNext = mPathFinder.getZAngleToNext(position.x(), position.y());
+    float zAngleToNext = mPathFinder.getZAngleToNext(position.x, position.y);
     zTurn(actor, duration, zAngleToNext);
-    smoothTurn(actor, duration, mPathFinder.getXAngleToNext(position.x(), position.y(), position.z()), 0);
+    smoothTurn(actor, duration, mPathFinder.getXAngleToNext(position.x, position.y, position.z), 0);
 
     const auto destination = getNextPathPoint(dest);
     mObstacleCheck.update(actor, destination, duration, supportedMovementDirections);
@@ -226,7 +228,7 @@ bool MWMechanics::AiPackage::pathTo(const MWWorld::Ptr& actor, const osg::Vec3f&
     {
         const float smoothTurnReservedDist = 150;
         auto& movement = actor.getClass().getMovementSettings(actor);
-        float distToNextSqr = osg::Vec2f(destination.x() - position.x(), destination.y() - position.y()).length2();
+        float distToNextSqr = vsg::length2(vsg::vec2(destination.x - position.x, destination.y - position.y));
         float diffAngle = zAngleToNext - actor.getRefData().getPosition().rot[2];
         if (std::cos(diffAngle) < -0.1)
             movement.mPosition[0] = movement.mPosition[1] = 0;
@@ -269,12 +271,12 @@ void MWMechanics::AiPackage::evadeObstacles(const MWWorld::Ptr& actor)
 
 namespace
 {
-    bool isDoorOnTheWay(const MWWorld::Ptr& actor, const MWWorld::Ptr& door, const osg::Vec3f& nextPathPoint)
+    bool isDoorOnTheWay(const MWWorld::Ptr& actor, const MWWorld::Ptr& door, const vsg::vec3& nextPathPoint)
     {
         const auto world = MWBase::Environment::get().getWorld();
         const auto halfExtents = world->getHalfExtents(actor);
-        const auto position = osg::Vec3f(actor.getRefData().getPosition().asVec3()) + osg::Vec3f(0, 0, halfExtents.z());
-        const auto destination = nextPathPoint + osg::Vec3f(0, 0, halfExtents.z());
+        const auto position = vsg::vec3(actor.getRefData().getPosition().asVec3()) + vsg::vec3(0, 0, halfExtents.z);
+        const auto destination = nextPathPoint + vsg::vec3(0, 0, halfExtents.z);
 
         return world->hasCollisionWithDoor(door, position, destination);
     }
@@ -329,10 +331,10 @@ const MWMechanics::PathgridGraph& MWMechanics::AiPackage::getPathGridGraph(const
     return *found->second.get();
 }
 
-bool MWMechanics::AiPackage::shortcutPath(const osg::Vec3f& startPoint, const osg::Vec3f& endPoint,
+bool MWMechanics::AiPackage::shortcutPath(const vsg::vec3& startPoint, const vsg::vec3& endPoint,
     const MWWorld::Ptr& actor, bool* destInLOS, bool isPathClear)
 {
-    if (!mShortcutProhibited || (mShortcutFailPos - startPoint).length() >= PATHFIND_SHORTCUT_RETRY_DIST)
+    if (!mShortcutProhibited || vsg::length(mShortcutFailPos - startPoint) >= PATHFIND_SHORTCUT_RETRY_DIST)
     {
         // check if target is clearly visible
         isPathClear = !MWBase::Environment::get()
@@ -362,7 +364,7 @@ bool MWMechanics::AiPackage::shortcutPath(const osg::Vec3f& startPoint, const os
 }
 
 bool MWMechanics::AiPackage::checkWayIsClearForActor(
-    const osg::Vec3f& startPoint, const osg::Vec3f& endPoint, const MWWorld::Ptr& actor)
+    const vsg::vec3& startPoint, const vsg::vec3& endPoint, const MWWorld::Ptr& actor)
 {
     if (canActorMoveByZAxis(actor))
         return true;
@@ -370,7 +372,7 @@ bool MWMechanics::AiPackage::checkWayIsClearForActor(
     const float actorSpeed = actor.getClass().getMaxSpeed(actor);
     const float maxAvoidDist
         = AI_REACTION_TIME * actorSpeed + actorSpeed / getAngularVelocity(actorSpeed) * 2; // *2 - for reliability
-    const float distToTarget = osg::Vec2f(endPoint.x(), endPoint.y()).length();
+    const float distToTarget = vsg::length(vsg::vec2(endPoint.x, endPoint.y));
 
     const float offsetXY = distToTarget > maxAvoidDist * 1.5 ? maxAvoidDist : maxAvoidDist / 2;
 
@@ -380,13 +382,13 @@ bool MWMechanics::AiPackage::checkWayIsClearForActor(
         if (mShortcutProhibited)
         {
             mShortcutProhibited = false;
-            mShortcutFailPos = osg::Vec3f();
+            mShortcutFailPos = vsg::vec3();
         }
         return true;
     }
     else
     {
-        if (mShortcutFailPos == osg::Vec3f())
+        if (mShortcutFailPos == vsg::vec3())
         {
             mShortcutProhibited = true;
             mShortcutFailPos = startPoint;
@@ -396,13 +398,13 @@ bool MWMechanics::AiPackage::checkWayIsClearForActor(
     return false;
 }
 
-bool MWMechanics::AiPackage::doesPathNeedRecalc(const osg::Vec3f& newDest, const MWWorld::Ptr& actor) const
+bool MWMechanics::AiPackage::doesPathNeedRecalc(const vsg::vec3& newDest, const MWWorld::Ptr& actor) const
 {
     return mPathFinder.getPath().empty() || getPathDistance(actor, mPathFinder.getPath().back(), newDest) > 10
         || mPathFinder.getPathCell() != actor.getCell();
 }
 
-bool MWMechanics::AiPackage::isNearInactiveCell(osg::Vec3f position)
+bool MWMechanics::AiPackage::isNearInactiveCell(vsg::vec3 position)
 {
     const MWWorld::Cell* playerCell = getPlayer().getCell()->getCell();
     if (playerCell->isExterior())
@@ -415,8 +417,8 @@ bool MWMechanics::AiPackage::isNearInactiveCell(osg::Vec3f position)
         const float distanceFromEdge = 200.0;
         float minThreshold = (-1.0f * ESM::Land::REAL_SIZE) + distanceFromEdge;
         float maxThreshold = (2.0f * ESM::Land::REAL_SIZE) - distanceFromEdge;
-        return (position.x() < minThreshold) || (maxThreshold < position.x()) || (position.y() < minThreshold)
-            || (maxThreshold < position.y());
+        return (position.x < minThreshold) || (maxThreshold < position.x) || (position.y < minThreshold)
+            || (maxThreshold < position.y);
     }
     else
     {
@@ -424,7 +426,7 @@ bool MWMechanics::AiPackage::isNearInactiveCell(osg::Vec3f position)
     }
 }
 
-bool MWMechanics::AiPackage::isReachableRotatingOnTheRun(const MWWorld::Ptr& actor, const osg::Vec3f& dest)
+bool MWMechanics::AiPackage::isReachableRotatingOnTheRun(const MWWorld::Ptr& actor, const vsg::vec3& dest)
 {
     // get actor's shortest radius for moving in circle
     float speed = actor.getClass().getMaxSpeed(actor);
@@ -433,19 +435,21 @@ bool MWMechanics::AiPackage::isReachableRotatingOnTheRun(const MWWorld::Ptr& act
 
     // get radius direction to the center
     const float* rot = actor.getRefData().getPosition().rot;
-    osg::Quat quatRot(rot[0], -osg::X_AXIS, rot[1], -osg::Y_AXIS, rot[2], -osg::Z_AXIS);
-    osg::Vec3f dir = quatRot * osg::Y_AXIS; // actor's orientation direction is a tangent to circle
-    osg::Vec3f radiusDir = dir ^ osg::Z_AXIS; // radius is perpendicular to a tangent
-    radiusDir.normalize();
+    const vsg::dquat quatRot = Misc::VsgMath::makeRotateFromAxis(rot[0], -vsg::vec3(1, 0, 0))
+        * Misc::VsgMath::makeRotateFromAxis(rot[1], -vsg::vec3(0, 1, 0))
+        * Misc::VsgMath::makeRotateFromAxis(rot[2], -vsg::vec3(0, 0, 1));
+    vsg::vec3 dir = vsg::quat(quatRot) * vsg::vec3(0, 1, 0); // actor's orientation direction is a tangent to circle
+    vsg::vec3 radiusDir = vsg::cross(dir, vsg::vec3(0, 0, 1)); // radius is perpendicular to a tangent
+    Misc::VsgMath::normalizeInPlace(radiusDir);
     radiusDir *= radius;
 
     // pick up the nearest center candidate
-    osg::Vec3f pos = actor.getRefData().getPosition().asVec3();
-    osg::Vec3f center1 = pos - radiusDir;
-    osg::Vec3f center2 = pos + radiusDir;
-    osg::Vec3f center = (center1 - dest).length2() < (center2 - dest).length2() ? center1 : center2;
+    vsg::vec3 pos = actor.getRefData().getPosition().asVec3();
+    vsg::vec3 center1 = pos - radiusDir;
+    vsg::vec3 center2 = pos + radiusDir;
+    vsg::vec3 center = vsg::length2(center1 - dest) < vsg::length2(center2 - dest) ? center1 : center2;
 
-    float distToDest = (center - dest).length();
+    float distToDest = vsg::length(center - dest);
 
     // if pathpoint is reachable for the actor rotating on the run:
     // no points of actor's circle should be farther from the center than destination point
@@ -515,13 +519,12 @@ DetourNavigator::AreaCosts MWMechanics::AiPackage::getAreaCosts(
     return costs;
 }
 
-osg::Vec3f MWMechanics::AiPackage::getNextPathPoint(const osg::Vec3f& destination) const
+vsg::vec3 MWMechanics::AiPackage::getNextPathPoint(const vsg::vec3& destination) const
 {
     return mPathFinder.getPath().empty() ? destination : mPathFinder.getPath().front();
 }
 
-float MWMechanics::AiPackage::getNextPathPointTolerance(
-    float speed, float duration, const osg::Vec3f& halfExtents) const
+float MWMechanics::AiPackage::getNextPathPointTolerance(float speed, float duration, const vsg::vec3& halfExtents) const
 {
     if (mPathFinder.getPathSize() <= 1)
         return std::max(DEFAULT_TOLERANCE, mLastDestinationTolerance);

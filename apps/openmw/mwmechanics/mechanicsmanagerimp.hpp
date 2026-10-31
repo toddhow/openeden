@@ -157,11 +157,11 @@ namespace MWMechanics
         /// paused we may want to do it manually (after equipping permanent enchantment)
         void updateMagicEffects(const MWWorld::Ptr& ptr) override;
 
-        void getObjectsInRange(const osg::Vec3f& position, float radius, std::vector<MWWorld::Ptr>& objects) override;
-        void getActorsInRange(const osg::Vec3f& position, float radius, std::vector<MWWorld::Ptr>& objects) override;
+        void getObjectsInRange(const vsg::vec3& position, float radius, std::vector<MWWorld::Ptr>& objects) override;
+        void getActorsInRange(const vsg::vec3& position, float radius, std::vector<MWWorld::Ptr>& objects) override;
 
         /// Check if there are actors in selected range
-        bool isAnyActorInRange(const osg::Vec3f& position, float radius) override;
+        bool isAnyActorInRange(const vsg::vec3& position, float radius) override;
 
         std::vector<MWWorld::Ptr> getActorsSidingWith(const MWWorld::Ptr& actor) override;
         std::vector<MWWorld::Ptr> getActorsFollowing(const MWWorld::Ptr& actor) override;

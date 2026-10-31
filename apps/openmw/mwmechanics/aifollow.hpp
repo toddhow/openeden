@@ -74,11 +74,11 @@ namespace MWMechanics
 
         void fastForward(const MWWorld::Ptr& actor, AiState& state) override;
 
-        osg::Vec3f getDestination() const override
+        vsg::vec3 getDestination() const override
         {
             MWWorld::Ptr target = getTarget();
             if (target.isEmpty())
-                return osg::Vec3f(0, 0, 0);
+                return vsg::vec3(0, 0, 0);
 
             return target.getRefData().getPosition().asVec3();
         }

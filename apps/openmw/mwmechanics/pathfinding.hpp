@@ -6,7 +6,9 @@
 #include <iterator>
 #include <span>
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 #include <components/detournavigator/areatype.hpp>
 #include <components/detournavigator/flags.hpp>
@@ -31,34 +33,34 @@ namespace MWMechanics
     template <class T>
     inline float distance(const T& lhs, const T& rhs)
     {
-        static_assert(std::is_same<T, osg::Vec2f>::value || std::is_same<T, osg::Vec3f>::value, "T is not a position");
-        return (lhs - rhs).length();
+        static_assert(std::is_same<T, vsg::vec2>::value || std::is_same<T, vsg::vec3>::value, "T is not a position");
+        return vsg::length(lhs - rhs);
     }
 
-    inline float distanceIgnoreZ(const osg::Vec3f& lhs, const osg::Vec3f& rhs)
+    inline float distanceIgnoreZ(const vsg::vec3& lhs, const vsg::vec3& rhs)
     {
-        return distance(osg::Vec2f(lhs.x(), lhs.y()), osg::Vec2f(rhs.x(), rhs.y()));
+        return distance(vsg::vec2(lhs.x, lhs.y), vsg::vec2(rhs.x, rhs.y));
     }
 
-    float getPathDistance(const MWWorld::Ptr& actor, const osg::Vec3f& lhs, const osg::Vec3f& rhs);
+    float getPathDistance(const MWWorld::Ptr& actor, const vsg::vec3& lhs, const vsg::vec3& rhs);
 
-    inline float getZAngleToDir(const osg::Vec3f& dir)
+    inline float getZAngleToDir(const vsg::vec3& dir)
     {
-        return std::atan2(dir.x(), dir.y());
+        return std::atan2(dir.x, dir.y);
     }
 
-    inline float getXAngleToDir(const osg::Vec3f& dir)
+    inline float getXAngleToDir(const vsg::vec3& dir)
     {
-        float dirLen = dir.length();
-        return (dirLen != 0) ? -std::asin(dir.z() / dirLen) : 0;
+        float dirLen = vsg::length(dir);
+        return (dirLen != 0) ? -std::asin(dir.z / dirLen) : 0;
     }
 
-    inline float getZAngleToPoint(const osg::Vec3f& origin, const osg::Vec3f& dest)
+    inline float getZAngleToPoint(const vsg::vec3& origin, const vsg::vec3& dest)
     {
         return getZAngleToDir(dest - origin);
     }
 
-    inline float getXAngleToPoint(const osg::Vec3f& origin, const osg::Vec3f& dest)
+    inline float getXAngleToPoint(const vsg::vec3& origin, const vsg::vec3& dest)
     {
         return getXAngleToDir(dest - origin);
     }
@@ -72,7 +74,7 @@ namespace MWMechanics
 
     // cast up-down ray with some offset from actor position to check for pits/obstacles on the way to target;
     // magnitude of pits/obstacles is defined by PATHFIND_Z_REACH
-    bool checkWayIsClear(const osg::Vec3f& from, const osg::Vec3f& to, float offsetXY);
+    bool checkWayIsClear(const vsg::vec3& from, const vsg::vec3& to, float offsetXY);
 
     enum class PathType
     {
@@ -101,25 +103,25 @@ namespace MWMechanics
             mCell = nullptr;
         }
 
-        void buildStraightPath(const osg::Vec3f& endPoint);
+        void buildStraightPath(const vsg::vec3& endPoint);
 
-        void buildPathByNavMesh(const MWWorld::ConstPtr& actor, const osg::Vec3f& startPoint,
-            const osg::Vec3f& endPoint, const DetourNavigator::AgentBounds& agentBounds,
-            const DetourNavigator::Flags flags, const DetourNavigator::AreaCosts& areaCosts, float endTolerance,
-            PathType pathType, std::span<const osg::Vec3f> checkpoints = {});
+        void buildPathByNavMesh(const MWWorld::ConstPtr& actor, const vsg::vec3& startPoint, const vsg::vec3& endPoint,
+            const DetourNavigator::AgentBounds& agentBounds, const DetourNavigator::Flags flags,
+            const DetourNavigator::AreaCosts& areaCosts, float endTolerance, PathType pathType,
+            std::span<const vsg::vec3> checkpoints = {});
 
-        void buildPath(const MWWorld::ConstPtr& actor, const osg::Vec3f& startPoint, const osg::Vec3f& endPoint,
+        void buildPath(const MWWorld::ConstPtr& actor, const vsg::vec3& startPoint, const vsg::vec3& endPoint,
             const PathgridGraph& pathgridGraph, const DetourNavigator::AgentBounds& agentBounds,
             const DetourNavigator::Flags flags, const DetourNavigator::AreaCosts& areaCosts, float endTolerance,
-            PathType pathType, std::span<const osg::Vec3f> checkpoints = {});
+            PathType pathType, std::span<const vsg::vec3> checkpoints = {});
 
-        void buildLimitedPath(const MWWorld::ConstPtr& actor, const osg::Vec3f& startPoint, const osg::Vec3f& endPoint,
+        void buildLimitedPath(const MWWorld::ConstPtr& actor, const vsg::vec3& startPoint, const vsg::vec3& endPoint,
             const PathgridGraph& pathgridGraph, const DetourNavigator::AgentBounds& agentBounds,
             const DetourNavigator::Flags flags, const DetourNavigator::AreaCosts& areaCosts, float endTolerance,
             PathType pathType);
 
         /// Remove front point if exist and within tolerance
-        void update(const osg::Vec3f& position, float pointTolerance, float destinationTolerance,
+        void update(const vsg::vec3& position, float pointTolerance, float destinationTolerance,
             UpdateFlags updateFlags, const DetourNavigator::AgentBounds& agentBounds, DetourNavigator::Flags pathFlags);
 
         bool checkPathCompleted() const { return mConstructed && mPath.empty(); }
@@ -133,11 +135,11 @@ namespace MWMechanics
 
         std::size_t getPathSize() const { return mPath.size(); }
 
-        const std::deque<osg::Vec3f>& getPath() const { return mPath; }
+        const std::deque<vsg::vec3>& getPath() const { return mPath; }
 
         const MWWorld::CellStore* getPathCell() const { return mCell; }
 
-        void addPointToPath(const osg::Vec3f& point)
+        void addPointToPath(const vsg::vec3& point)
         {
             mConstructed = true;
             mPath.push_back(point);
@@ -145,17 +147,17 @@ namespace MWMechanics
 
     private:
         bool mConstructed = false;
-        std::deque<osg::Vec3f> mPath;
+        std::deque<vsg::vec3> mPath;
         const MWWorld::CellStore* mCell = nullptr;
 
-        void buildPathByPathgridImpl(const osg::Vec3f& startPoint, const osg::Vec3f& endPoint,
-            const PathgridGraph& pathgridGraph, std::back_insert_iterator<std::deque<osg::Vec3f>> out);
+        void buildPathByPathgridImpl(const vsg::vec3& startPoint, const vsg::vec3& endPoint,
+            const PathgridGraph& pathgridGraph, std::back_insert_iterator<std::deque<vsg::vec3>> out);
 
         [[nodiscard]] DetourNavigator::Status buildPathByNavigatorImpl(const MWWorld::ConstPtr& actor,
-            const osg::Vec3f& startPoint, const osg::Vec3f& endPoint, const DetourNavigator::AgentBounds& agentBounds,
+            const vsg::vec3& startPoint, const vsg::vec3& endPoint, const DetourNavigator::AgentBounds& agentBounds,
             const DetourNavigator::Flags flags, const DetourNavigator::AreaCosts& areaCosts, float endTolerance,
-            PathType pathType, std::span<const osg::Vec3f> checkpoints,
-            std::back_insert_iterator<std::deque<osg::Vec3f>> out);
+            PathType pathType, std::span<const vsg::vec3> checkpoints,
+            std::back_insert_iterator<std::deque<vsg::vec3>> out);
     };
 }
 

@@ -3,7 +3,9 @@
 
 #include "apps/openmw/mwworld/movementdirection.hpp"
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 namespace MWWorld
 {
@@ -33,7 +35,7 @@ namespace MWMechanics
         bool isEvading() const;
 
         // Updates internal state, call each frame for moving actor
-        void update(const MWWorld::Ptr& actor, const osg::Vec3f& destination, float duration,
+        void update(const MWWorld::Ptr& actor, const vsg::vec3& destination, float duration,
             MWWorld::MovementDirectionFlags supportedMovementDirection);
 
         // change direction to try to fix "stuck" actor
@@ -52,8 +54,8 @@ namespace MWMechanics
         float mStateDuration = 0;
         float mInitialDistance = 0;
         std::size_t mEvadeDirectionIndex;
-        osg::Vec3f mPrev;
-        osg::Vec3f mDestination;
+        vsg::vec3 mPrev;
+        vsg::vec3 mDestination;
     };
 }
 

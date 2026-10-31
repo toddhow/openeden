@@ -32,10 +32,10 @@ namespace MWMechanics
     private:
         float mDuration;
         const MWWorld::ConstPtr mDoorPtr;
-        osg::Vec3f mLastPos;
+        vsg::vec3 mLastPos;
         int mDirection;
 
-        bool isStuck(const osg::Vec3f& actorPos) const;
+        bool isStuck(const vsg::vec3& actorPos) const;
 
         void adjustDirection();
 

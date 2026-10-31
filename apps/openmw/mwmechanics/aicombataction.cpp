@@ -300,16 +300,16 @@ namespace MWMechanics
 
     float getDistanceMinusHalfExtents(const MWWorld::Ptr& actor1, const MWWorld::Ptr& actor2, bool minusZDist)
     {
-        osg::Vec3f actor1Pos = actor1.getRefData().getPosition().asVec3();
-        osg::Vec3f actor2Pos = actor2.getRefData().getPosition().asVec3();
+        vsg::vec3 actor1Pos = actor1.getRefData().getPosition().asVec3();
+        vsg::vec3 actor2Pos = actor2.getRefData().getPosition().asVec3();
 
-        float dist = (actor1Pos - actor2Pos).length();
+        float dist = vsg::length(actor1Pos - actor2Pos);
 
         if (minusZDist)
-            dist -= std::abs(actor1Pos.z() - actor2Pos.z());
+            dist -= std::abs(actor1Pos.z - actor2Pos.z);
 
-        return (dist - MWBase::Environment::get().getWorld()->getHalfExtents(actor1).y()
-            - MWBase::Environment::get().getWorld()->getHalfExtents(actor2).y());
+        return (dist - MWBase::Environment::get().getWorld()->getHalfExtents(actor1).y
+            - MWBase::Environment::get().getWorld()->getHalfExtents(actor2).y);
     }
 
     float getMaxAttackDistance(const MWWorld::Ptr& actor)

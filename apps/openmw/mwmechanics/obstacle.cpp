@@ -58,9 +58,9 @@ namespace MWMechanics
             , mMinDist(minDist)
         {
             auto dir = MWAnim::forward(actor.getRefData().getPosition());
-            mDir = osg::Vec3f(dir.x, dir.y, dir.z);
-            mPos.z() = 0;
-            mDir.normalize();
+            mDir = vsg::vec3(dir.x, dir.y, dir.z);
+            mPos.z = 0;
+            Misc::VsgMath::normalizeInPlace(mDir);
         }
 
         bool operator()(const MWWorld::Ptr& ptr)
@@ -76,19 +76,19 @@ namespace MWMechanics
             if (doorRot != 0)
                 return true;
 
-            osg::Vec3f doorPos(ref.mData.getPosition().asVec3());
-            doorPos.z() = 0;
+            vsg::vec3 doorPos(ref.mData.getPosition().asVec3());
+            doorPos.z = 0;
 
-            osg::Vec3f actorToDoor = doorPos - mPos;
+            vsg::vec3 actorToDoor = doorPos - mPos;
             // Door is not close enough
-            if (actorToDoor.length2() > mMinDist * mMinDist)
+            if (vsg::length2(actorToDoor) > mMinDist * mMinDist)
                 return true;
 
-            actorToDoor.normalize();
-            const float angle = std::acos(mDir * actorToDoor);
+            Misc::VsgMath::normalizeInPlace(actorToDoor);
+            const float angle = std::acos(vsg::dot(mDir, actorToDoor));
 
             // Allow 60 degrees angle between actor and door
-            if (angle < -osg::PI / 3 || angle > osg::PI / 3)
+            if (angle < -Misc::VsgMath::PI / 3 || angle > Misc::VsgMath::PI / 3)
                 return true;
 
             mResult = ptr;
@@ -96,7 +96,7 @@ namespace MWMechanics
         }
 
     private:
-        osg::Vec3f mPos, mDir;
+        vsg::vec3 mPos, mDir;
         float mMinDist;
     };
 
@@ -140,7 +140,7 @@ namespace MWMechanics
      * u = how long to move sideways
      *
      */
-    void ObstacleCheck::update(const MWWorld::Ptr& actor, const osg::Vec3f& destination, float duration,
+    void ObstacleCheck::update(const MWWorld::Ptr& actor, const vsg::vec3& destination, float duration,
         MWWorld::MovementDirectionFlags supportedMovementDirection)
     {
         const auto position = actor.getRefData().getPosition().asVec3();
@@ -150,7 +150,7 @@ namespace MWMechanics
             mWalkState = WalkState::Norm;
             mStateDuration = 0;
             mPrev = position;
-            mInitialDistance = (destination - position).length();
+            mInitialDistance = vsg::length(destination - position);
             mDestination = destination;
             return;
         }
@@ -159,13 +159,13 @@ namespace MWMechanics
         {
             if (mDestination != destination)
             {
-                mInitialDistance = (destination - mPrev).length();
+                mInitialDistance = vsg::length(destination - mPrev);
                 mDestination = destination;
             }
 
             const float distSameSpot = distanceSameSpot * actor.getClass().getCurrentSpeed(actor) * duration;
-            const float prevDistance = (destination - mPrev).length();
-            const float currentDistance = (destination - position).length();
+            const float prevDistance = vsg::length(destination - mPrev);
+            const float currentDistance = vsg::length(destination - position);
             const float movedDistance = prevDistance - currentDistance;
             const float movedFromInitialDistance = mInitialDistance - currentDistance;
 
@@ -182,7 +182,7 @@ namespace MWMechanics
             {
                 mWalkState = WalkState::CheckStuck;
                 mStateDuration = duration;
-                mInitialDistance = (destination - position).length();
+                mInitialDistance = vsg::length(destination - position);
                 return;
             }
 

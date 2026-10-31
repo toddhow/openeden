@@ -45,7 +45,7 @@ namespace MWMechanics
             return options;
         }
 
-        osg::Vec3f getDestination() const override { return osg::Vec3f(mX, mY, mZ); }
+        vsg::vec3 getDestination() const override { return vsg::vec3(mX, mY, mZ); }
 
     private:
         const float mX;

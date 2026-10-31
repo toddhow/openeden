@@ -568,7 +568,7 @@ namespace MWClass
         return ptr.getRefData().getCustomData()->asNpcCustomData().mNpcStats;
     }
 
-    bool Npc::evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, osg::Vec3f& hitPosition) const
+    bool Npc::evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, vsg::vec3& hitPosition) const
     {
         victim = MWWorld::Ptr();
         hitPosition = osg::Vec3f();

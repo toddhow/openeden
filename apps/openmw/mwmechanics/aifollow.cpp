@@ -18,11 +18,11 @@
 
 namespace
 {
-    osg::Vec3f::value_type getHalfExtents(const MWWorld::ConstPtr& actor)
+    vsg::vec3::value_type getHalfExtents(const MWWorld::ConstPtr& actor)
     {
         if (actor.getClass().isNpc())
             return 64;
-        return MWBase::Environment::get().getWorld()->getHalfExtents(actor).y();
+        return MWBase::Environment::get().getWorld()->getHalfExtents(actor).y;
     }
 }
 
@@ -117,13 +117,13 @@ namespace MWMechanics
             return false;
         }
 
-        const osg::Vec3f actorPos(actor.getRefData().getPosition().asVec3());
-        const osg::Vec3f targetPos(target.getRefData().getPosition().asVec3());
-        const osg::Vec3f targetDir = targetPos - actorPos;
+        const vsg::vec3 actorPos(actor.getRefData().getPosition().asVec3());
+        const vsg::vec3 targetPos(target.getRefData().getPosition().asVec3());
+        const vsg::vec3 targetDir = targetPos - actorPos;
 
         // In the original engine the first follower stays closer to the player than any subsequent followers.
         // Followers beyond the first usually attempt to stand inside each other.
-        osg::Vec3f::value_type floatingDistance = 0;
+        vsg::vec3::value_type floatingDistance = 0;
         auto followers = MWBase::Environment::get().getMechanicsManager()->getActorsFollowingByIndex(target);
         if (followers.size() >= 2 && followers.cbegin()->first != mFollowIndex)
         {
@@ -147,7 +147,7 @@ namespace MWMechanics
             if (storage.mTimer < 0)
             {
                 float activeRange = followDistance + 384.f;
-                if (targetDir.length2() < activeRange * activeRange
+                if (vsg::length2(targetDir) < activeRange * activeRange
                     && MWBase::Environment::get().getWorld()->getLOS(actor, target))
                     mActive = true;
                 storage.mTimer = 0.5f;
@@ -171,8 +171,8 @@ namespace MWMechanics
                 }
             }
 
-            osg::Vec3f finalPos(mX, mY, mZ);
-            if ((actorPos - finalPos).length2() < followDistance * followDistance) // Close-ish to final position
+            vsg::vec3 finalPos(mX, mY, mZ);
+            if (vsg::length2(actorPos - finalPos) < followDistance * followDistance) // Close-ish to final position
             {
                 if (actor.getCell()->isExterior()) // Outside?
                 {
@@ -197,11 +197,11 @@ namespace MWMechanics
         else
             followDistance += threshold;
 
-        if (targetDir.length2() <= followDistance * followDistance)
+        if (vsg::length2(targetDir) <= followDistance * followDistance)
         {
-            float faceAngleRadians = std::atan2(targetDir.x(), targetDir.y());
+            float faceAngleRadians = std::atan2(targetDir.x, targetDir.y);
 
-            if (!zTurn(actor, duration, faceAngleRadians, osg::DegreesToRadians(45.f)))
+            if (!zTurn(actor, duration, faceAngleRadians, Misc::VsgMath::inDegrees(45.f)))
             {
                 storage.mTargetAngleRadians = faceAngleRadians;
                 storage.mTurnActorToTarget = true;
@@ -217,10 +217,10 @@ namespace MWMechanics
         if (storage.mMoving)
         {
             // Check if you're far away
-            if (targetDir.length2() > 450 * 450)
+            if (vsg::length2(targetDir) > 450 * 450)
                 actor.getClass().getCreatureStats(actor).setMovementFlag(
                     MWMechanics::CreatureStats::Flag_Run, true); // Make NPC run
-            else if (targetDir.length2()
+            else if (vsg::length2(targetDir)
                 < 325 * 325) // Have a bit of a dead zone, otherwise npc will constantly flip between running and not
                              // when right on the edge of the running threshold
                 actor.getClass().getCreatureStats(actor).setMovementFlag(

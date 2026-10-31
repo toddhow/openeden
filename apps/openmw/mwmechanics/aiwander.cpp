@@ -2,8 +2,10 @@
 
 #include <algorithm>
 
-#include <osg/Matrixf>
-#include <osg/Vec3>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/mat4.h>
+#include <vsg/maths/vec3.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
@@ -63,27 +65,26 @@ namespace MWMechanics
             return countBeforeReset;
         }
 
-        osg::Vec3f getRandomPointAround(const osg::Vec3f& position, const float distance)
+        vsg::vec3 getRandomPointAround(const vsg::vec3& position, const float distance)
         {
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-            const float randomDirection = Misc::Rng::rollClosedProbability(prng) * 2.f * osg::PIf;
-            osg::Matrixf rotation;
-            rotation.makeRotate(randomDirection, osg::Vec3f(0.f, 0.f, 1.f));
-            return position + osg::Vec3f(distance, 0.f, 0.f) * rotation;
+            const float randomDirection = Misc::Rng::rollClosedProbability(prng) * 2.f * Misc::VsgMath::PIf;
+            const vsg::mat4 rotation(Misc::VsgMath::makeRotate(randomDirection, vsg::vec3(0.f, 0.f, 1.f)));
+            return position + rotation * vsg::vec3(distance, 0.f, 0.f);
         }
 
-        bool isDestinationHidden(const MWWorld::ConstPtr& actor, const osg::Vec3f& destination)
+        bool isDestinationHidden(const MWWorld::ConstPtr& actor, const vsg::vec3& destination)
         {
             const auto position = actor.getRefData().getPosition().asVec3();
             const bool isWaterCreature = actor.getClass().isPureWaterCreature(actor);
             const bool isFlyingCreature = actor.getClass().isPureFlyingCreature(actor);
-            const osg::Vec3f halfExtents
+            const vsg::vec3 halfExtents
                 = MWBase::Environment::get().getWorld()->getPathfindingAgentBounds(actor).mHalfExtents;
-            osg::Vec3f direction = destination - position;
-            direction.normalize();
+            vsg::vec3 direction = destination - position;
+            Misc::VsgMath::normalizeInPlace(direction);
             const auto visibleDestination
-                = (isWaterCreature || isFlyingCreature ? destination : destination + osg::Vec3f(0, 0, halfExtents.z()))
-                + direction * std::max(halfExtents.x(), std::max(halfExtents.y(), halfExtents.z()));
+                = (isWaterCreature || isFlyingCreature ? destination : destination + vsg::vec3(0, 0, halfExtents.z))
+                + direction * std::max(halfExtents.x, std::max(halfExtents.y, halfExtents.z));
             const int mask = MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::DOOR
                 | MWPhysics::Layers::ACTOR;
             return MWBase::Environment::get()
@@ -112,26 +113,26 @@ namespace MWMechanics
             return std::vector<unsigned char>(std::begin(idle), std::end(idle));
         }
 
-        void trimAllowedPositions(const std::deque<osg::Vec3f>& path, std::vector<osg::Vec3f>& allowedPositions)
+        void trimAllowedPositions(const std::deque<vsg::vec3>& path, std::vector<vsg::vec3>& allowedPositions)
         {
             // TODO: how to add these back in once the door opens?
             // Idea: keep a list of detected closed doors (see aicombat.cpp)
             // Every now and then check whether one of the doors is opened. (maybe
             // at the end of playing idle?) If the door is opened then re-calculate
             // allowed positions starting from the spawn point.
-            std::vector<osg::Vec3f> points(path.begin(), path.end());
+            std::vector<vsg::vec3> points(path.begin(), path.end());
             while (points.size() >= 2)
             {
-                const osg::Vec3f point = points.back();
+                const vsg::vec3 point = points.back();
                 for (std::size_t j = 0; j < allowedPositions.size(); j++)
                 {
                     // FIXME: doesn't handle a door with the same X/Y
                     //        coordinates but with a different Z
-                    if (std::abs(allowedPositions[j].x() - point.x()) <= 0.5
-                        && std::abs(allowedPositions[j].y() - point.y()) <= 0.5)
+                    if (std::abs(allowedPositions[j].x - point.x) <= 0.5
+                        && std::abs(allowedPositions[j].y - point.y) <= 0.5)
                     {
                         allowedPositions.erase(
-                            allowedPositions.begin() + static_cast<std::vector<osg::Vec3f>::difference_type>(j));
+                            allowedPositions.begin() + static_cast<std::vector<vsg::vec3>::difference_type>(j));
                         break;
                     }
                 }
@@ -363,7 +364,7 @@ namespace MWMechanics
         return false; // AiWander package not yet completed
     }
 
-    osg::Vec3f AiWander::getDestination(const MWWorld::Ptr& actor) const
+    vsg::vec3 AiWander::getDestination(const MWWorld::Ptr& actor) const
     {
         if (mHasDestination)
             return mDestination;
@@ -405,19 +406,19 @@ namespace MWMechanics
                 // findRandomPointAroundCircle uses wanderDistance as limit for random and not as exact distance
                 const auto getRandom
                     = []() { return Misc::Rng::rollProbability(MWBase::Environment::get().getWorld()->getPrng()); };
-                std::optional<osg::Vec3f> destination = DetourNavigator::findRandomPointAroundCircle(
+                std::optional<vsg::vec3> destination = DetourNavigator::findRandomPointAroundCircle(
                     *navigator, agentBounds, mInitialActorPosition, wanderRadius, navigatorFlags, getRandom);
                 if (destination.has_value())
                 {
-                    osg::Vec3f direction = *destination - mInitialActorPosition;
-                    if (direction.length() > wanderDistanceF)
+                    vsg::vec3 direction = *destination - mInitialActorPosition;
+                    if (vsg::length(direction) > wanderDistanceF)
                     {
-                        direction.normalize();
-                        const osg::Vec3f adjustedDestination = mInitialActorPosition + direction * wanderRadius;
+                        Misc::VsgMath::normalizeInPlace(direction);
+                        const vsg::vec3 adjustedDestination = mInitialActorPosition + direction * wanderRadius;
                         destination = DetourNavigator::raycast(
                             *navigator, agentBounds, currentPosition, adjustedDestination, navigatorFlags);
                         if (destination.has_value()
-                            && (*destination - mInitialActorPosition).length() > wanderDistanceF)
+                            && vsg::length(*destination - mInitialActorPosition) > wanderDistanceF)
                             continue;
                     }
                 }
@@ -459,11 +460,11 @@ namespace MWMechanics
     /*
      * Returns true if the position provided is above water.
      */
-    bool AiWander::destinationIsAtWater(const MWWorld::Ptr& actor, const osg::Vec3f& destination)
+    bool AiWander::destinationIsAtWater(const MWWorld::Ptr& actor, const vsg::vec3& destination)
     {
         float heightToGroundOrWater = MWBase::Environment::get().getWorld()->getDistToNearestRayHit(
-            destination, osg::Vec3f(0, 0, -1), 1000.0, true);
-        osg::Vec3f positionBelowSurface = destination;
+            destination, vsg::vec3(0, 0, -1), 1000.0, true);
+        vsg::vec3 positionBelowSurface = destination;
         positionBelowSurface[2] = positionBelowSurface[2] - heightToGroundOrWater - 1.0f;
         return MWBase::Environment::get().getWorld()->isUnderwater(actor.getCell(), positionBelowSurface);
     }
@@ -551,10 +552,10 @@ namespace MWMechanics
     bool AiWander::isNearAllowedPosition(
         const MWWorld::Ptr& actor, const AiWanderStorage& storage, float distance) const
     {
-        const osg::Vec3f actorPos = actor.getRefData().getPosition().asVec3();
+        const vsg::vec3 actorPos = actor.getRefData().getPosition().asVec3();
         const float squaredDistance = distance * distance;
-        return std::ranges::find_if(storage.mAllowedPositions, [&](const osg::Vec3& v) {
-            return (actorPos - v).length2() < squaredDistance;
+        return std::ranges::find_if(storage.mAllowedPositions, [&](const vsg::vec3& v) {
+            return vsg::length2(actorPos - v) < squaredDistance;
         }) != storage.mAllowedPositions.end();
     }
 
@@ -563,7 +564,7 @@ namespace MWMechanics
     {
         // Is there no destination or are we there yet?
         if ((!mPathFinder.isPathConstructed())
-            || pathTo(actor, osg::Vec3f(mPathFinder.getPath().back()), duration, supportedMovementDirections,
+            || pathTo(actor, vsg::vec3(mPathFinder.getPath().back()), duration, supportedMovementDirections,
                 destinationTolerance))
         {
             stopWalking(actor);
@@ -641,9 +642,9 @@ namespace MWMechanics
         MWBase::World& world = *MWBase::Environment::get().getWorld();
         Misc::Rng::Generator& prng = world.getPrng();
         const std::size_t randomAllowedPositionIndex = Misc::Rng::rollDice(storage.mAllowedPositions.size(), prng);
-        const osg::Vec3f randomAllowedPosition = storage.mAllowedPositions[randomAllowedPositionIndex];
+        const vsg::vec3 randomAllowedPosition = storage.mAllowedPositions[randomAllowedPositionIndex];
 
-        const osg::Vec3f start = actorPos.asVec3();
+        const vsg::vec3 start = actorPos.asVec3();
 
         const MWWorld::Cell& cell = *actor.getCell()->getCell();
         const ESM::Pathgrid* pathgrid = world.getStore().get<ESM::Pathgrid>().search(cell);
@@ -664,14 +665,14 @@ namespace MWMechanics
         if (path.empty())
         {
             storage.mAllowedPositions.erase(storage.mAllowedPositions.begin()
-                + static_cast<std::vector<osg::Vec3f>::difference_type>(randomAllowedPositionIndex));
+                + static_cast<std::vector<vsg::vec3>::difference_type>(randomAllowedPositionIndex));
             return;
         }
 
         // Drop nearest pathgrid point.
         path.pop_front();
 
-        std::vector<osg::Vec3f> checkpoints(path.size());
+        std::vector<vsg::vec3> checkpoints(path.size());
         for (std::size_t i = 0; i < path.size(); ++i)
             checkpoints[i] = Misc::Convert::makeOsgVec3f(converter.toWorldPoint(path[i]));
 
@@ -685,7 +686,7 @@ namespace MWMechanics
         if (!mPathFinder.isPathConstructed())
         {
             storage.mAllowedPositions.erase(storage.mAllowedPositions.begin()
-                + static_cast<std::vector<osg::Vec3f>::difference_type>(randomAllowedPositionIndex));
+                + static_cast<std::vector<vsg::vec3>::difference_type>(randomAllowedPositionIndex));
             return;
         }
 
@@ -695,7 +696,7 @@ namespace MWMechanics
         // Remove this position as an option and add back the previously used position (stops NPC from picking the
         // same position):
         storage.mAllowedPositions.erase(storage.mAllowedPositions.begin()
-            + static_cast<std::vector<osg::Vec3f>::difference_type>(randomAllowedPositionIndex));
+            + static_cast<std::vector<vsg::vec3>::difference_type>(randomAllowedPositionIndex));
         // check if mCurrentPosition was taken out of mAllowedPositions
         if (storage.mTrimCurrentPosition && storage.mAllowedPositions.size() > 1)
             storage.mTrimCurrentPosition = false;
@@ -787,9 +788,9 @@ namespace MWMechanics
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         size_t index = Misc::Rng::rollDice(storage.mAllowedPositions.size(), prng);
-        const osg::Vec3f worldDest = storage.mAllowedPositions[index];
+        const vsg::vec3 worldDest = storage.mAllowedPositions[index];
         const Misc::CoordinateConverter converter = Misc::makeCoordinateConverter(*actor.getCell()->getCell());
-        osg::Vec3f dest = converter.toLocalVec3(worldDest);
+        vsg::vec3 dest = converter.toLocalVec3(worldDest);
 
         const bool isPathGridOccupied
             = MWBase::Environment::get().getMechanicsManager()->isAnyActorInRange(worldDest, 60);
@@ -812,9 +813,9 @@ namespace MWMechanics
                 const ESM::Pathgrid::Point& connDest = points[randomIndex];
 
                 // add an offset towards random neighboring node
-                osg::Vec3f dir = osg::Vec3f(Misc::Convert::makeOsgVec3f(connDest)) - dest;
-                const float length = dir.length();
-                dir.normalize();
+                vsg::vec3 dir = vsg::vec3(Misc::Convert::makeOsgVec3f(connDest)) - dest;
+                const float length = vsg::length(dir);
+                Misc::VsgMath::normalizeInPlace(dir);
 
                 for (int j = 1; j <= 3; j++)
                 {
@@ -842,7 +843,7 @@ namespace MWMechanics
 
         // place above to prevent moving inside objects, e.g. stairs, because a vector between pathgrids can be
         // underground. Adding 20 in adjustPosition() is not enough.
-        dest.z() += 60;
+        dest.z += 60;
 
         dest = converter.toWorldVec3(dest);
 
@@ -853,7 +854,7 @@ namespace MWMechanics
     }
 
     void AiWander::getNeighbouringNodes(
-        const osg::Vec3f& dest, const MWWorld::CellStore* currentCell, ESM::Pathgrid::PointList& points)
+        const vsg::vec3& dest, const MWWorld::CellStore* currentCell, ESM::Pathgrid::PointList& points)
     {
         const ESM::Pathgrid* pathgrid
             = MWBase::Environment::get().getESMStore()->get<ESM::Pathgrid>().search(*currentCell->getCell());
@@ -891,7 +892,7 @@ namespace MWMechanics
         {
             // get NPC's position in local (i.e. cell) coordinates
             const Misc::CoordinateConverter converter = Misc::makeCoordinateConverter(*cellStore->getCell());
-            const osg::Vec3f npcPos = converter.toLocalVec3(mInitialActorPosition);
+            const vsg::vec3 npcPos = converter.toLocalVec3(mInitialActorPosition);
 
             // Find closest pathgrid point
             const std::size_t closestPointIndex = Misc::getClosestPoint(*pathgrid, npcPos);
@@ -902,9 +903,9 @@ namespace MWMechanics
             size_t pointIndex = 0;
             for (size_t counter = 0; counter < pathgrid->mPoints.size(); counter++)
             {
-                const osg::Vec3f nodePos = Misc::Convert::makeOsgVec3f(pathgrid->mPoints[counter]);
+                const vsg::vec3 nodePos = Misc::Convert::makeOsgVec3f(pathgrid->mPoints[counter]);
                 const float mDistanceF = static_cast<float>(mDistance);
-                if ((npcPos - nodePos).length2() <= mDistanceF * mDistanceF
+                if (vsg::length2(npcPos - nodePos) <= mDistanceF * mDistanceF
                     && getPathGridGraph(pathgrid).isPointConnected(closestPointIndex, counter))
                 {
                     storage.mAllowedPositions.push_back(
@@ -946,10 +947,10 @@ namespace MWMechanics
     void AiWander::addPositionBetweenPathgridPoints(
         const ESM::Pathgrid::Point& start, const ESM::Pathgrid::Point& end, AiWanderStorage& storage)
     {
-        osg::Vec3f vectorStart = Misc::Convert::makeOsgVec3f(start);
-        osg::Vec3f delta = osg::Vec3f(Misc::Convert::makeOsgVec3f(end)) - vectorStart;
-        float length = delta.length();
-        delta.normalize();
+        vsg::vec3 vectorStart = Misc::Convert::makeOsgVec3f(start);
+        vsg::vec3 delta = vsg::vec3(Misc::Convert::makeOsgVec3f(end)) - vectorStart;
+        float length = vsg::length(delta);
+        Misc::VsgMath::normalizeInPlace(delta);
 
         unsigned distance = std::max(mDistance / 2, minimumWanderDistance);
 
@@ -965,8 +966,8 @@ namespace MWMechanics
         size_t index = 0;
         for (size_t i = 0; i < storage.mAllowedPositions.size(); ++i)
         {
-            const osg::Vec3f position = storage.mAllowedPositions[i];
-            const float tempDist = (mInitialActorPosition - position).length2();
+            const vsg::vec3 position = storage.mAllowedPositions[i];
+            const float tempDist = vsg::length2(mInitialActorPosition - position);
             if (tempDist < distanceToClosestPosition)
             {
                 index = i;
@@ -975,7 +976,7 @@ namespace MWMechanics
         }
         storage.mCurrentPosition = storage.mAllowedPositions[index];
         storage.mAllowedPositions.erase(
-            storage.mAllowedPositions.begin() + static_cast<std::vector<osg::Vec3f>::difference_type>(index));
+            storage.mAllowedPositions.begin() + static_cast<std::vector<vsg::vec3>::difference_type>(index));
     }
 
     void AiWander::writeState(ESM::AiSequence::AiSequence& sequence) const

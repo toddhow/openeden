@@ -46,7 +46,7 @@ namespace MWMechanics
 
         void fastForward(const MWWorld::Ptr& actor, AiState& state) override;
 
-        osg::Vec3f getDestination() const override { return osg::Vec3f(mX, mY, mZ); }
+        vsg::vec3 getDestination() const override { return vsg::vec3(mX, mY, mZ); }
 
         std::optional<float> getDuration() const override { return mDuration; }
 

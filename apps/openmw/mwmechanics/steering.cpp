@@ -26,10 +26,10 @@ namespace MWMechanics
         float limit
             = getAngularVelocity(actor.getClass().getMaxSpeed(actor)) * dt;
         if (Settings::game().mSmoothMovement)
-            limit *= std::min(absDiff / osg::PIf + 0.1f, 0.5f);
+            limit *= std::min(absDiff / Misc::VsgMath::PIf + 0.1f, 0.5f);
 
         if (absDiff > limit)
-            diff = osg::sign(diff) * limit;
+            diff = Misc::VsgMath::sign(diff) * limit;
 
         movement.mRotation[axis] = diff;
         return false;

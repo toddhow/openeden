@@ -128,16 +128,16 @@ namespace MWMechanics
 
     void CastSpell::launchMagicBolt() const
     {
-        osg::Vec3f fallbackDirection(0, 1, 0);
-        osg::Vec3f offset(0, 0, 0);
+        vsg::vec3 fallbackDirection(0, 1, 0);
+        vsg::vec3 offset(0, 0, 0);
         if (!mTarget.isEmpty() && mTarget.getClass().isActor())
-            offset.z() = MWBase::Environment::get().getWorld()->getHalfExtents(mTarget).z();
+            offset.z = MWBase::Environment::get().getWorld()->getHalfExtents(mTarget).z;
 
         // Fall back to a "caster to target" direction if we have no other means of determining it
         // (e.g. when cast by a non-actor)
         if (!mTarget.isEmpty())
-            fallbackDirection = (osg::Vec3f(mTarget.getRefData().getPosition().asVec3()) + offset)
-                - (osg::Vec3f(mCaster.getRefData().getPosition().asVec3()));
+            fallbackDirection = (vsg::vec3(mTarget.getRefData().getPosition().asVec3()) + offset)
+                - (vsg::vec3(mCaster.getRefData().getPosition().asVec3()));
 
         MWBase::Environment::get().getWorld()->launchMagicBolt(mId, mCaster, fallbackDirection, mItem);
     }
@@ -519,19 +519,19 @@ namespace MWMechanics
                 // If the caster has no animation, add the effect directly to the effectManager
                 // We must scale and position it manually
                 float scale = mCaster.getCellRef().getScale();
-                osg::Vec3f pos(mCaster.getRefData().getPosition().asVec3());
+                vsg::vec3 pos(mCaster.getRefData().getPosition().asVec3());
                 if (!mCaster.getClass().isNpc())
                 {
-                    osg::Vec3f bounds(MWBase::Environment::get().getWorld()->getHalfExtents(mCaster) * 2.f);
-                    scale *= std::max({ bounds.x(), bounds.y(), bounds.z() / 2.f }) / 64.f;
+                    vsg::vec3 bounds(MWBase::Environment::get().getWorld()->getHalfExtents(mCaster) * 2.f);
+                    scale *= std::max({ bounds.x, bounds.y, bounds.z / 2.f }) / 64.f;
                     float offset = 0.f;
-                    if (bounds.z() < 128.f)
-                        offset = bounds.z() - 128.f;
-                    else if (bounds.z() < bounds.x() + bounds.y())
-                        offset = 128.f - bounds.z();
+                    if (bounds.z < 128.f)
+                        offset = bounds.z - 128.f;
+                    else if (bounds.z < bounds.x + bounds.y)
+                        offset = 128.f - bounds.z;
                     if (MWBase::Environment::get().getWorld()->isFlying(mCaster))
                         offset /= 20.f;
-                    pos.z() += offset * scale;
+                    pos.z += offset * scale;
                 }
                 else
                 {

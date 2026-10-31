@@ -1,4 +1,5 @@
 #include "actiontrap.hpp"
+#include <osg/Vec3f>
 
 #include "../mwmechanics/spellcasting.hpp"
 

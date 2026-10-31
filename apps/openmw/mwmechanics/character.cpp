@@ -1788,7 +1788,7 @@ namespace MWMechanics
                     // but the attack animation might be cancelled in a myriad different ways.
                     mAttackSuccess = false;
                     mAttackVictim = MWWorld::Ptr();
-                    mAttackHitPos = osg::Vec3f();
+                    mAttackHitPos = vsg::vec3();
 
                     playBlendedAnimation(mCurrentWeapon, priorityWeapon, MWAnim::BlendMask_All, false, weapSpeed,
                         startKey, stopKey, 0.0f, 0);
@@ -2082,7 +2082,7 @@ namespace MWMechanics
 
         if (cls.isActor() && cls.getCreatureStats(mPtr).wasTeleported())
         {
-            mSmoothedSpeed = osg::Vec2f();
+            mSmoothedSpeed = vsg::vec2();
             cls.getCreatureStats(mPtr).setTeleported(false);
         }
 
@@ -2128,20 +2128,20 @@ namespace MWMechanics
                     movementSettings.mPosition[2] = onground ? 1.f : 0.f;
             }
 
-            osg::Vec3f rot = cls.getRotationVector(mPtr);
-            osg::Vec3f vec(movementSettings.asVec3());
-            movementSettings.mSpeedFactor = std::min(vec.length(), 1.f);
-            vec.normalize();
+            vsg::vec3 rot = cls.getRotationVector(mPtr);
+            vsg::vec3 vec(movementSettings.asVec3());
+            movementSettings.mSpeedFactor = std::min(vsg::length(vec), 1.f);
+            Misc::VsgMath::normalizeInPlace(vec);
 
             const bool smoothMovement = Settings::game().mSmoothMovement;
             if (smoothMovement)
             {
                 float angle = mPtr.getRefData().getPosition().rot[2];
-                osg::Vec2f targetSpeed
-                    = Misc::rotateVec2f(osg::Vec2f(vec.x(), vec.y()), -angle) * movementSettings.mSpeedFactor;
-                osg::Vec2f delta = targetSpeed - mSmoothedSpeed;
-                float speedDelta = movementSettings.mSpeedFactor - mSmoothedSpeed.length();
-                float deltaLen = delta.length();
+                vsg::vec2 targetSpeed
+                    = Misc::rotateVec2f(vsg::vec2(vec.x, vec.y), -angle) * movementSettings.mSpeedFactor;
+                vsg::vec2 delta = targetSpeed - mSmoothedSpeed;
+                float speedDelta = movementSettings.mSpeedFactor - vsg::length(mSmoothedSpeed);
+                float deltaLen = vsg::length(delta);
 
                 float maxDelta;
                 if (isFirstPersonPlayer)
@@ -2160,53 +2160,52 @@ namespace MWMechanics
                     delta *= maxDelta / deltaLen;
                 mSmoothedSpeed += delta;
 
-                osg::Vec2f newSpeed = Misc::rotateVec2f(mSmoothedSpeed, angle);
-                movementSettings.mSpeedFactor = newSpeed.normalize();
-                vec.x() = newSpeed.x();
-                vec.y() = newSpeed.y();
+                vsg::vec2 newSpeed = Misc::rotateVec2f(mSmoothedSpeed, angle);
+                movementSettings.mSpeedFactor = Misc::VsgMath::normalizeInPlace(newSpeed);
+                vec.x = newSpeed.x;
+                vec.y = newSpeed.y;
 
                 const float eps = 0.001f;
                 if (movementSettings.mSpeedFactor < eps)
                 {
                     movementSettings.mSpeedFactor = 0;
-                    vec.x() = 0;
-                    vec.y() = 1;
+                    vec.x = 0;
+                    vec.y = 1;
                 }
-                else if ((vec.y() < 0) != mIsMovingBackward)
+                else if ((vec.y < 0) != mIsMovingBackward)
                 {
-                    if (targetSpeed.length() < eps || (movementSettings.mPosition[1] < 0) == mIsMovingBackward)
-                        vec.y() = mIsMovingBackward ? -eps : eps;
+                    if (vsg::length(targetSpeed) < eps || (movementSettings.mPosition[1] < 0) == mIsMovingBackward)
+                        vec.y = mIsMovingBackward ? -eps : eps;
                 }
-                vec.normalize();
+                Misc::VsgMath::normalizeInPlace(vec);
             }
 
-            float effectiveRotation = rot.z();
+            float effectiveRotation = rot.z;
             bool canMove = cls.getMaxSpeed(mPtr) > 0;
             const bool turnToMovementDirection = Settings::game().mTurnToMovementDirection;
             const bool isBiped = mPtr.getClass().isBipedal(mPtr);
             if (!isBiped || !turnToMovementDirection || isFirstPersonPlayer)
             {
-                movementSettings.mIsStrafing = std::abs(vec.x()) > std::abs(vec.y()) * 2;
+                movementSettings.mIsStrafing = std::abs(vec.x) > std::abs(vec.y) * 2;
                 stats.setSideMovementAngle(0);
             }
             else if (canMove)
             {
-                float targetMovementAngle
-                    = vec.y() >= 0 ? std::atan2(-vec.x(), vec.y()) : std::atan2(vec.x(), -vec.y());
+                float targetMovementAngle = vec.y >= 0 ? std::atan2(-vec.x, vec.y) : std::atan2(vec.x, -vec.y);
                 movementSettings.mIsStrafing = (stats.getDrawState() != MWMechanics::DrawState::Nothing || inwater)
-                    && std::abs(targetMovementAngle) > osg::DegreesToRadians(60.0f);
+                    && std::abs(targetMovementAngle) > Misc::VsgMath::inDegrees(60.0f);
                 if (movementSettings.mIsStrafing)
                     targetMovementAngle = 0;
                 float delta = targetMovementAngle - stats.getSideMovementAngle();
                 float cosDelta = cosf(delta);
 
-                if ((vec.y() < 0) == mIsMovingBackward)
+                if ((vec.y < 0) == mIsMovingBackward)
                     movementSettings.mSpeedFactor
                         *= std::min(std::max(cosDelta, 0.f) + 0.3f, 1.f); // slow down when turn
-                if (std::abs(delta) < osg::DegreesToRadians(20.0f))
-                    mIsMovingBackward = vec.y() < 0;
+                if (std::abs(delta) < Misc::VsgMath::inDegrees(20.0f))
+                    mIsMovingBackward = vec.y < 0;
 
-                float maxDelta = osg::PIf * duration * (2.5f - cosDelta);
+                float maxDelta = Misc::VsgMath::PIf * duration * (2.5f - cosDelta);
                 delta = std::clamp(delta, -maxDelta, maxDelta);
                 stats.setSideMovementAngle(stats.getSideMovementAngle() + delta);
                 effectiveRotation += delta;
@@ -2221,18 +2220,18 @@ namespace MWMechanics
                 mActor->upperBodyYawRadians += mActor->headYawRadians / 2;
 
             speed = cls.getCurrentSpeed(mPtr);
-            vec.x() *= speed;
-            vec.y() *= speed;
+            vec.x *= speed;
+            vec.y *= speed;
 
             if (isKnockedOut() || isKnockedDown() || isRecovery() || isScriptedAnimPlaying())
-                vec = osg::Vec3f();
+                vec = vsg::vec3();
 
             CharacterState movestate = CharState_None;
             CharacterState idlestate = CharState_None;
             JumpingState jumpstate = JumpState_None;
 
             const MWWorld::Store<ESM::GameSetting>& gmst = world->getStore().get<ESM::GameSetting>();
-            if (vec.x() != 0.f || vec.y() != 0.f)
+            if (vec.x != 0.f || vec.y != 0.f)
             {
                 // advance athletics
                 if (isPlayer)
@@ -2301,7 +2300,7 @@ namespace MWMechanics
             const float jumpHeight = cls.getJump(mPtr);
             if (jumpHeight <= 0.f || sneak || inwater || flying || !solid)
             {
-                vec.z() = 0.f;
+                vec.z = 0.f;
                 // Following code might assign some vertical movement regardless, need to reset this manually
                 // This is used for jumping detection
                 movementSettings.mPosition[2] = 0;
@@ -2320,21 +2319,21 @@ namespace MWMechanics
                     float factor = fJumpMoveBase
                         + fJumpMoveMult * mPtr.getClass().getSkill(mPtr, ESM::Skill::Acrobatics) / 100.f;
                     factor = std::min(1.f, factor);
-                    vec.x() *= factor;
-                    vec.y() *= factor;
-                    vec.z() = 0.0f;
+                    vec.x *= factor;
+                    vec.y *= factor;
+                    vec.z = 0.0f;
                 }
                 // Started a jump.
-                else if (mJumpState != JumpState_InAir && vec.z() > 0.f)
+                else if (mJumpState != JumpState_InAir && vec.z > 0.f)
                 {
                     mInJump = true;
-                    if (vec.x() == 0 && vec.y() == 0)
-                        vec.z() = jumpHeight;
+                    if (vec.x == 0 && vec.y == 0)
+                        vec.z = jumpHeight;
                     else
                     {
-                        osg::Vec3f lat(vec.x(), vec.y(), 0.0f);
-                        lat.normalize();
-                        vec = osg::Vec3f(lat.x(), lat.y(), 1.0f) * jumpHeight * 0.707f;
+                        vsg::vec3 lat(vec.x, vec.y, 0.0f);
+                        Misc::VsgMath::normalizeInPlace(lat);
+                        vec = vsg::vec3(lat.x, lat.y, 1.0f) * jumpHeight * 0.707f;
                     }
                 }
             }
@@ -2381,7 +2380,7 @@ namespace MWMechanics
                     if (mPtr.getClass().isNpc())
                     {
                         std::string_view sound;
-                        osg::Vec3f pos(mPtr.getRefData().getPosition().asVec3());
+                        vsg::vec3 pos(mPtr.getRefData().getPosition().asVec3());
                         if (world->isUnderwater(mPtr.getCell(), pos) || world->isWalkingOnWater(mPtr))
                             sound = "DefaultLandWater";
                         else if (onground)
@@ -2396,14 +2395,14 @@ namespace MWMechanics
                 if (mAnimation->isPlaying(mCurrentJump))
                     jumpstate = JumpState_Landing;
 
-                vec.z() = 0.0f;
+                vec.z = 0.0f;
 
                 // Check if an authored transition is actively playing
                 if (inertialActive && isTransitionMovementState(mMovementState) && mAnimation->isPlaying(mCurrentMovement))
                 {
                     if (mMovementState == CharState_RunStop || mMovementState == CharState_WalkStop)
                     {
-                        if (vec.length2() > 0.0f)
+                        if (vsg::length2(vec) > 0.0f)
                             movestate = CharState_None; // interrupt stop to move
                         else if (smoothedSpeed <= 5.0f)
                             movestate = CharState_None; // fully stopped
@@ -2412,7 +2411,7 @@ namespace MWMechanics
                     }
                     else if (mMovementState == CharState_RunStart || mMovementState == CharState_WalkStart)
                     {
-                        if (vec.length2() == 0.0f)
+                        if (vsg::length2(vec) == 0.0f)
                             movestate = CharState_None; // input released during startup
                         else
                             movestate = mMovementState; // continue playing start
@@ -2423,7 +2422,7 @@ namespace MWMechanics
                     }
                     else if (mMovementState == CharState_TurnLeft90 || mMovementState == CharState_TurnRight90)
                     {
-                        if (vec.length2() > 0.0f)
+                        if (vsg::length2(vec) > 0.0f)
                             movestate = CharState_None; // interrupt turn for movement
                         else
                             movestate = mMovementState; // continue playing 90-degree turn
@@ -2455,16 +2454,16 @@ namespace MWMechanics
 
                     if (movementSettings.mIsStrafing)
                     {
-                        if (vec.x() > 0.0f)
+                        if (vec.x > 0.0f)
                             movestate = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
                                                  : (sneak ? CharState_SneakRight
                                                           : (effectiveIsRunning ? CharState_RunRight : CharState_WalkRight)));
-                        else if (vec.x() < 0.0f)
+                        else if (vec.x < 0.0f)
                             movestate = (inwater
                                     ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
                                     : (sneak ? CharState_SneakLeft : (effectiveIsRunning ? CharState_RunLeft : CharState_WalkLeft)));
                     }
-                    else if (vec.length2() > 0.0f)
+                    else if (vsg::length2(vec) > 0.0f)
                     {
                         if (inertialActive && enableAuthored && locPhase == InertialMotion::LocomotionPhase::Skidding
                             && mAnimation->hasAnimation("runskid"))
@@ -2482,7 +2481,7 @@ namespace MWMechanics
 
                         if (movestate == CharState_None)
                         {
-                            if (vec.y() >= 0.0f)
+                            if (vec.y >= 0.0f)
                                 movestate = (inwater ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
                                                      : (sneak ? CharState_SneakForward
                                                               : (effectiveIsRunning ? CharState_RunForward : CharState_WalkForward)));
@@ -2494,7 +2493,7 @@ namespace MWMechanics
                     }
                     else
                     {
-                        // Movement input is 0 (vec.length2() == 0.0f)
+                        // Movement input is 0 (vsg::length2(vec) == 0.0f)
                         if (inertialActive && smoothedSpeed > 5.0f)
                         {
                             // Decelerating with physical inertia
@@ -2557,8 +2556,8 @@ namespace MWMechanics
             if (inwater && isPlayer && !isFirstPersonPlayer && Settings::game().mSwimUpwardCorrection)
             {
                 const float swimUpwardCoef = Settings::game().mSwimUpwardCoef;
-                vec.z() = std::abs(vec.y()) * swimUpwardCoef;
-                vec.y() *= std::sqrt(1.0f - swimUpwardCoef * swimUpwardCoef);
+                vec.z = std::abs(vec.y) * swimUpwardCoef;
+                vec.y *= std::sqrt(1.0f - swimUpwardCoef * swimUpwardCoef);
             }
 
             if (isBiped)
@@ -2605,7 +2604,8 @@ namespace MWMechanics
             {
                 if (duration > 0)
                 {
-                    float turnSpeed = std::min(1.5f, std::abs(rot.z()) / duration / static_cast<float>(osg::PI));
+                    float turnSpeed
+                        = std::min(1.5f, std::abs(rot.z) / duration / static_cast<float>(Misc::VsgMath::PI));
                     mAnimation->adjustSpeedMult(mCurrentMovement, turnSpeed);
                 }
             }
@@ -2618,7 +2618,7 @@ namespace MWMechanics
                 {
                     // Layer 3.B: Dynamic Playback Scaling
                     float groundSpeed = smoothedSpeed;
-                    if (vec.length2() > 0.0f)
+                    if (vsg::length2(vec) > 0.0f)
                         groundSpeed = std::max(groundSpeed, 0.15f * speed);
                     currentSpeed = groundSpeed;
                 }
@@ -2633,14 +2633,14 @@ namespace MWMechanics
             {
                 if (!isKnockedDown() && !isKnockedOut())
                 {
-                    if (rot != osg::Vec3f())
+                    if (rot != vsg::vec3())
                         world->rotateObject(mPtr, rot, true);
                 }
                 else // avoid z-rotating for knockdown
                 {
-                    if (rot.x() != 0 && rot.y() != 0)
+                    if (rot.x != 0 && rot.y != 0)
                     {
-                        rot.z() = 0.0f;
+                        rot.z = 0.0f;
                         world->rotateObject(mPtr, rot, true);
                     }
                 }
@@ -2654,7 +2654,7 @@ namespace MWMechanics
             // Can't reset jump state (mPosition[2]) here in full; we don't know for sure whether the PhysicsSystem will
             // actually handle it in this frame due to the fixed minimum timestep used for the physics update. It will
             // be reset in PhysicsSystem::move once the jump is handled.
-            if (movement.z() == 0.f)
+            if (movement.z == 0.f)
                 movementSettings.mPosition[2] = 0;
         }
         else if (cls.getCreatureStats(mPtr).isDead())
@@ -2750,13 +2750,13 @@ namespace MWMechanics
         const bool isPlayer = mPtr == world->getPlayerPtr();
         const bool godmode = isPlayer && world->getGodModeState();
 
-        osg::Vec3f movementFromAnimation = toOsg(moved);
+        vsg::vec3 movementFromAnimation = moved;
 
         if (cls.isActor() && !isScriptedAnimPlaying())
         {
             if (isMovementAnimationControlled())
             {
-                if (duration != 0.f && movementFromAnimation != osg::Vec3f())
+                if (duration != 0.f && movementFromAnimation != vsg::vec3())
                 {
                     movementFromAnimation /= duration;
 
@@ -2768,18 +2768,19 @@ namespace MWMechanics
                     // Note that while a complete movement animation cycle will have a well defined direction, no
                     // individual frame will, and therefore we have to determine the direction based on the currently
                     // playing cycle instead.
-                    if (speed > 0.f && movement.length2() > 0.0f)
+                    if (speed > 0.f && vsg::length2(movement) > 0.0f)
                     {
                         float animMovementAngle = getAnimationMovementDirection();
-                        float targetMovementAngle = std::atan2(-movement.x(), movement.y());
+                        float targetMovementAngle = std::atan2(-movement.x, movement.y);
                         float diff = targetMovementAngle - animMovementAngle;
-                        movementFromAnimation = osg::Quat(diff, osg::Vec3f(0, 0, 1)) * movementFromAnimation;
+                        movementFromAnimation = vsg::quat(Misc::VsgMath::makeRotateFromAxis(diff, vsg::vec3(0, 0, 1)))
+                            * movementFromAnimation;
                     }
 
-                    if (inertialActive && movement.x() == 0.0f && movement.y() == 0.0f)
+                    if (inertialActive && movement.x == 0.0f && movement.y == 0.0f)
                     {
-                        movement.x() = 0.0f;
-                        movement.y() = 0.0f;
+                        movement.x = 0.0f;
+                        movement.y = 0.0f;
                     }
                     else
                     {
@@ -2788,12 +2789,12 @@ namespace MWMechanics
                 }
                 else
                 {
-                    movement = osg::Vec3f();
+                    movement = vsg::vec3();
                 }
             }
             else if (mSkipAnim)
             {
-                movement = osg::Vec3f();
+                movement = vsg::vec3();
             }
 
             if (mFloatToSurface && world->isSwimming(mPtr))
@@ -2806,12 +2807,12 @@ namespace MWMechanics
                                 .getModifier()
                             > 0))
                 {
-                    movement.z() = 1.0;
+                    movement.z = 1.0;
                 }
             }
 
-            movement.x() *= scale;
-            movement.y() *= scale;
+            movement.x *= scale;
+            movement.y *= scale;
             world->queueMovement(mPtr, movement);
         }
 
@@ -3419,7 +3420,7 @@ namespace MWMechanics
         // orientation dictates otherwise.
         vsg::quat vsgOrient = vsg::quat(mPtr.getRefData().getPosition().rot[0], vsg::vec3(-1, 0, 0))
             * vsg::quat(mPtr.getRefData().getPosition().rot[2], vsg::vec3(0, 0, -1));
-        auto orient = osg::Quat(vsgOrient.x, vsgOrient.y, vsgOrient.z, vsgOrient.w);
+        auto orient = vsg::dquat(vsgOrient.x, vsgOrient.y, vsgOrient.z, vsgOrient.w);
 
         applyFatigueLoss(mPtr, *weapon, mAttackStrength);
 
@@ -3429,7 +3430,7 @@ namespace MWMechanics
             if (path.empty())
                 return;
             auto vsgLaunchPos = vsgUtil::computePosition(path);
-            auto launchPos = osg::Vec3f(vsgLaunchPos.x, vsgLaunchPos.y, vsgLaunchPos.z);
+            auto launchPos = vsg::vec3(vsgLaunchPos.x, vsgLaunchPos.y, vsgLaunchPos.z);
 
             throwWeapon(mPtr, *weapon, mAttackStrength, launchPos, orient);
             showWeapons(false);
@@ -3445,7 +3446,7 @@ namespace MWMechanics
             if (path.empty())
                 return;
             auto vsgLaunchPos = vsgUtil::computePosition(path);
-            auto launchPos = osg::Vec3f(vsgLaunchPos.x, vsgLaunchPos.y, vsgLaunchPos.z);
+            auto launchPos = vsg::vec3(vsgLaunchPos.x, vsgLaunchPos.y, vsgLaunchPos.z);
             shoot(mPtr, *ammo, *weapon, mAttackStrength, launchPos, orient);
             inv.remove(*ammo, 1);
         }
@@ -3541,13 +3542,13 @@ namespace MWMechanics
             case CharState_SwimWalkLeft:
             case CharState_SwimRunLeft:
             case CharState_WalkLeft:
-                return osg::PI_2f;
+                return Misc::VsgMath::PI_2f;
             case CharState_RunRight:
             case CharState_SneakRight:
             case CharState_SwimWalkRight:
             case CharState_SwimRunRight:
             case CharState_WalkRight:
-                return -osg::PI_2f;
+                return -Misc::VsgMath::PI_2f;
             case CharState_RunForward:
             case CharState_SneakForward:
             case CharState_SwimRunForward:
@@ -3564,7 +3565,7 @@ namespace MWMechanics
             case CharState_SwimWalkBack:
             case CharState_SwimRunBack:
             case CharState_WalkBack:
-                return mActor->legsYawRadians - osg::PIf;
+                return mActor->legsYawRadians - Misc::VsgMath::PIf;
             default:
                 return 0.0f;
         }
@@ -3607,8 +3608,8 @@ namespace MWMechanics
             xAngleRadians = std::asin(direction.z);
         }
 
-        const float xLimit = osg::DegreesToRadians(40.f);
-        const float zLimit = osg::DegreesToRadians(30.f);
+        const float xLimit = Misc::VsgMath::inDegrees(40.f);
+        const float zLimit = Misc::VsgMath::inDegrees(30.f);
         const float zLimitOffset = mActor->upperBodyYawRadians;
         xAngleRadians = std::clamp(xAngleRadians, -xLimit, xLimit);
         zAngleRadians = std::clamp(zAngleRadians, -zLimit + zLimitOffset, zLimit + zLimitOffset);

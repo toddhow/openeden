@@ -85,12 +85,12 @@ namespace MWMechanics
         actor.getClass().getCreatureStats(actor).setMovementFlag(CreatureStats::Flag_Run, false);
 
         const MWWorld::Ptr follower = MWBase::Environment::get().getWorld()->getPtr(mTargetActorRefId, false);
-        const osg::Vec3f leaderPos = actor.getRefData().getPosition().asVec3();
-        const osg::Vec3f followerPos = follower.getRefData().getPosition().asVec3();
-        const osg::Vec3f halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
-        const float maxHalfExtent = std::max(halfExtents.x(), std::max(halfExtents.y(), halfExtents.z()));
+        const vsg::vec3 leaderPos = actor.getRefData().getPosition().asVec3();
+        const vsg::vec3 followerPos = follower.getRefData().getPosition().asVec3();
+        const vsg::vec3 halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
+        const float maxHalfExtent = std::max(halfExtents.x, std::max(halfExtents.y, halfExtents.z));
 
-        if ((leaderPos - followerPos).length2() <= mMaxDist * mMaxDist)
+        if (vsg::length2(leaderPos - followerPos) <= mMaxDist * mMaxDist)
         {
             // TESCS allows the creation of Escort packages without a specific destination
             constexpr float nowhere = std::numeric_limits<float>::max();
@@ -105,7 +105,7 @@ namespace MWMechanics
                 return true;
             }
 
-            const osg::Vec3f dest(mX, mY, mZ);
+            const vsg::vec3 dest(mX, mY, mZ);
             if (pathTo(actor, dest, duration, characterController.getSupportedMovementDirections(), maxHalfExtent))
             {
                 mRemainingDuration = mDuration;

@@ -3,11 +3,7 @@
 
 #include <utility>
 
-namespace osg
-{
-    class Vec3f;
-    class Quat;
-}
+#include <components/misc/vsgmath.hpp>
 
 namespace MWWorld
 {
@@ -16,13 +12,13 @@ namespace MWWorld
 
 namespace MWMechanics
 {
-    void throwWeapon(MWWorld::Ptr actor, MWWorld::Ptr weapon, float attackStrength, const osg::Vec3f& launchPos,
-        const osg::Quat& orient);
+    void throwWeapon(MWWorld::Ptr actor, MWWorld::Ptr weapon, float attackStrength, const vsg::vec3& launchPos,
+        const vsg::dquat& orient);
     void shoot(MWWorld::Ptr actor, MWWorld::Ptr ammo, MWWorld::Ptr weapon, float attackStrength,
-        const osg::Vec3f launchPos, const osg::Quat& orient);
+        const vsg::vec3 launchPos, const vsg::dquat& orient);
 
     bool applyOnStrikeEnchantment(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& object,
-        const osg::Vec3f& hitPosition, const bool fromProjectile = false);
+        const vsg::vec3& hitPosition, const bool fromProjectile = false);
 
     /// @return can we block the attack?
     bool blockMeleeAttack(const MWWorld::Ptr& attacker, const MWWorld::Ptr& blocker, const MWWorld::Ptr& weapon,
@@ -39,7 +35,7 @@ namespace MWMechanics
     /// @note for a thrown weapon, \a weapon == \a projectile, for bows/crossbows, \a projectile is the arrow/bolt
     /// @note \a victim may be empty (e.g. for a hit on terrain), a non-actor (environment objects) or an actor
     void projectileHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, MWWorld::Ptr weapon,
-        const MWWorld::Ptr& projectile, const osg::Vec3f& hitPosition, float attackStrength);
+        const MWWorld::Ptr& projectile, const vsg::vec3& hitPosition, float attackStrength);
 
     /// Get the chance (in percent) for \a attacker to successfully hit \a victim with a given weapon skill value
     float getHitChance(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, int skillValue);
@@ -64,7 +60,7 @@ namespace MWMechanics
 
     float getFightDistanceBias(const MWWorld::Ptr& actor1, const MWWorld::Ptr& actor2);
 
-    float getAggroDistance(const MWWorld::Ptr& actor, const osg::Vec3f& lhs, const osg::Vec3f& rhs);
+    float getAggroDistance(const MWWorld::Ptr& actor, const vsg::vec3& lhs, const vsg::vec3& rhs);
 
     // Cursed distance calculation used for combat proximity and hit checks in Morrowind
     float getDistanceToBounds(const MWWorld::Ptr& actor, const MWWorld::Ptr& target);
@@ -74,7 +70,7 @@ namespace MWMechanics
     bool isInMeleeReach(const MWWorld::Ptr& actor, const MWWorld::Ptr& target, const float reach);
 
     // Similarly cursed hit target selection
-    std::pair<MWWorld::Ptr, osg::Vec3f> getHitContact(const MWWorld::Ptr& actor, float reach);
+    std::pair<MWWorld::Ptr, vsg::vec3> getHitContact(const MWWorld::Ptr& actor, float reach);
 
     bool friendlyHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, bool complain);
 }

@@ -94,7 +94,7 @@ namespace MWMechanics
         virtual bool targetIs(const MWWorld::Ptr& ptr) const;
 
         /// Get the destination point of the AI package (not applicable to all AI packages, default return (0, 0, 0))
-        virtual osg::Vec3f getDestination(const MWWorld::Ptr& actor) const { return osg::Vec3f(0, 0, 0); }
+        virtual vsg::vec3 getDestination(const MWWorld::Ptr& actor) const { return vsg::vec3(0, 0, 0); }
 
         /// Return true if having this AiPackage makes the actor side with the target in fights (default false)
         bool sideWithTarget() const { return mOptions.mSideWithTarget; }
@@ -111,7 +111,7 @@ namespace MWMechanics
         /// Return true if this package should repeat.
         bool getRepeat() const { return mOptions.mRepeat; }
 
-        virtual osg::Vec3f getDestination() const { return osg::Vec3f(0, 0, 0); }
+        virtual vsg::vec3 getDestination() const { return vsg::vec3(0, 0, 0); }
 
         virtual std::optional<int> getDistance() const { return std::nullopt; }
 
@@ -126,16 +126,16 @@ namespace MWMechanics
 
         /// Return if actor's rotation speed is sufficient to rotate to the destination pathpoint on the run. Otherwise
         /// actor should rotate while standing.
-        static bool isReachableRotatingOnTheRun(const MWWorld::Ptr& actor, const osg::Vec3f& dest);
+        static bool isReachableRotatingOnTheRun(const MWWorld::Ptr& actor, const vsg::vec3& dest);
 
-        osg::Vec3f getNextPathPoint(const osg::Vec3f& destination) const;
+        vsg::vec3 getNextPathPoint(const vsg::vec3& destination) const;
 
-        float getNextPathPointTolerance(float speed, float duration, const osg::Vec3f& halfExtents) const;
+        float getNextPathPointTolerance(float speed, float duration, const vsg::vec3& halfExtents) const;
 
     protected:
         /// Handles path building and shortcutting with obstacles avoiding
         /** \return If the actor has arrived at his destination **/
-        bool pathTo(const MWWorld::Ptr& actor, const osg::Vec3f& dest, float duration,
+        bool pathTo(const MWWorld::Ptr& actor, const vsg::vec3& dest, float duration,
             MWWorld::MovementDirectionFlags supportedMovementDirections, float destTolerance = 0.0f,
             float endTolerance = 0.0f, PathType pathType = PathType::Full);
 
@@ -143,14 +143,13 @@ namespace MWMechanics
         /// If a shortcut is possible then path will be cleared and filled with the destination point.
         /// \param destInLOS If not nullptr function will return ray cast check result
         /// \return If can shortcut the path
-        bool shortcutPath(const osg::Vec3f& startPoint, const osg::Vec3f& endPoint, const MWWorld::Ptr& actor,
+        bool shortcutPath(const vsg::vec3& startPoint, const vsg::vec3& endPoint, const MWWorld::Ptr& actor,
             bool* destInLOS, bool isPathClear);
 
         /// Check if the way to the destination is clear, taking into account actor speed
-        bool checkWayIsClearForActor(
-            const osg::Vec3f& startPoint, const osg::Vec3f& endPoint, const MWWorld::Ptr& actor);
+        bool checkWayIsClearForActor(const vsg::vec3& startPoint, const vsg::vec3& endPoint, const MWWorld::Ptr& actor);
 
-        bool doesPathNeedRecalc(const osg::Vec3f& newDest, const MWWorld::Ptr& actor) const;
+        bool doesPathNeedRecalc(const vsg::vec3& newDest, const MWWorld::Ptr& actor) const;
 
         void evadeObstacles(const MWWorld::Ptr& actor);
 
@@ -173,7 +172,7 @@ namespace MWMechanics
 
         ESM::RefId mTargetActorRefId;
         mutable ESM::RefNum mTargetActor;
-        osg::Vec3f mShortcutFailPos; // position of last shortcut fail
+        vsg::vec3 mShortcutFailPos; // position of last shortcut fail
         float mLastDestinationTolerance = 0;
         short mRotateOnTheRunChecks = 0; // attempts to check rotation to the pathpoint on the run possibility
         mutable bool mTargetNotFound = false;
@@ -183,7 +182,7 @@ namespace MWMechanics
         friend class AiSequence;
 
     private:
-        bool isNearInactiveCell(osg::Vec3f position);
+        bool isNearInactiveCell(vsg::vec3 position);
     };
 }
 

@@ -3,7 +3,9 @@
 #include <array>
 #include <optional>
 
-#include <osg/Vec2>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec2.h>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -260,11 +262,11 @@ namespace MWMechanics
             throw std::logic_error("Invalid attack type value: " + std::to_string(static_cast<int>(attackType)));
         }
 
-        float getTimeToDestination(const AiPackage& package, const osg::Vec3f& position, float speed, float duration,
-            const osg::Vec3f& halfExtents)
+        float getTimeToDestination(const AiPackage& package, const vsg::vec3& position, float speed, float duration,
+            const vsg::vec3& halfExtents)
         {
             const auto distanceToNextPathPoint
-                = (package.getNextPathPoint(package.getDestination()) - position).length();
+                = vsg::length(package.getNextPathPoint(package.getDestination()) - position);
             return (distanceToNextPathPoint - package.getNextPathPointTolerance(speed, duration, halfExtents)) / speed;
         }
 
@@ -294,20 +296,20 @@ namespace MWMechanics
             if (!currentCell->isExterior() && !(currentCell->isQuasiExterior()))
                 maxDistance *= fInteriorHeadTrackMult;
 
-            const osg::Vec3f actor1Pos(actorRefData.getPosition().asVec3());
-            const osg::Vec3f actor2Pos(targetActor.getRefData().getPosition().asVec3());
-            const float sqrDist = (actor1Pos - actor2Pos).length2();
+            const vsg::vec3 actor1Pos(actorRefData.getPosition().asVec3());
+            const vsg::vec3 actor2Pos(targetActor.getRefData().getPosition().asVec3());
+            const float sqrDist = vsg::length2(actor1Pos - actor2Pos);
 
             if (sqrDist > std::min(maxDistance * maxDistance, sqrHeadTrackDistance) && !inCombatOrPursue)
                 return;
 
             // stop tracking when target is behind the actor
             auto actorDir = MWAnim::forward(actorRefData.getPosition());
-            osg::Vec3f actorDirection = { actorDir.x, actorDir.y, actorDir.z };
-            osg::Vec3f targetDirection(actor2Pos - actor1Pos);
-            actorDirection.z() = 0;
-            targetDirection.z() = 0;
-            if ((actorDirection * targetDirection > 0 || inCombatOrPursue)
+            vsg::vec3 actorDirection = { actorDir.x, actorDir.y, actorDir.z };
+            vsg::vec3 targetDirection(actor2Pos - actor1Pos);
+            actorDirection.z = 0;
+            targetDirection.z = 0;
+            if ((vsg::dot(actorDirection, targetDirection) > 0 || inCombatOrPursue)
                 // check LOS and awareness last as it's the most expensive function
                 && MWBase::Environment::get().getWorld()->getLOS(actor, targetActor)
                 && MWBase::Environment::get().getMechanicsManager()->awarenessCheck(targetActor, actor))
@@ -363,7 +365,7 @@ namespace MWMechanics
             Movement& mov = ptr.getClass().getMovementSettings(ptr);
             CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
             const float speedFactor = isPlayer ? 1.f : mov.mSpeedFactor;
-            const osg::Vec2f movement = osg::Vec2f(mov.mPosition[0], mov.mPosition[1]) * speedFactor;
+            const vsg::vec2 movement = vsg::vec2(mov.mPosition[0], mov.mPosition[1]) * speedFactor;
             const float rotationX = mov.mRotation[0];
             const float rotationZ = mov.mRotation[2];
             const bool jump = mov.mPosition[2] == 1;
@@ -379,7 +381,7 @@ namespace MWMechanics
                 mov.mRotation[0] = controls.mPitchChange;
                 mov.mRotation[1] = 0;
                 mov.mRotation[2] = controls.mYawChange;
-                mov.mSpeedFactor = osg::Vec2(controls.mMovement, controls.mSideMovement).length();
+                mov.mSpeedFactor = vsg::length(vsg::vec2(controls.mMovement, controls.mSideMovement));
                 stats.setMovementFlag(MWMechanics::CreatureStats::Flag_Run, controls.mRun);
                 stats.setMovementFlag(MWMechanics::CreatureStats::Flag_Sneak, controls.mSneak);
 
@@ -393,8 +395,8 @@ namespace MWMechanics
             // All handling of these player controls was moved from C++ to a built-in Lua script.
             if (!isPlayer)
             {
-                controls.mSideMovement = movement.x();
-                controls.mMovement = movement.y();
+                controls.mSideMovement = movement.x;
+                controls.mMovement = movement.y;
                 controls.mJump = jump;
                 controls.mRun = runFlag;
                 controls.mSneak = sneakFlag;
@@ -449,10 +451,10 @@ namespace MWMechanics
         if (seq.isInCombat() || seq.hasPackage(AiPackageTypeId::Follow) || seq.hasPackage(AiPackageTypeId::Escort))
             return;
 
-        const osg::Vec3f playerPos(getPlayer().getRefData().getPosition().asVec3());
-        const osg::Vec3f actorPos(actor.getRefData().getPosition().asVec3());
+        const vsg::vec3 playerPos(getPlayer().getRefData().getPosition().asVec3());
+        const vsg::vec3 actorPos(actor.getRefData().getPosition().asVec3());
         MWBase::World* const world = MWBase::Environment::get().getWorld();
-        if (world->isSwimming(actor) || (playerPos - actorPos).length2() >= 3000 * 3000)
+        if (world->isSwimming(actor) || vsg::length2(playerPos - actorPos) >= 3000 * 3000)
             return;
 
         // Our implementation is not FPS-dependent unlike Morrowind's so it needs to be recalibrated.
@@ -476,9 +478,9 @@ namespace MWMechanics
 
         if (!seq.isEmpty() && seq.getActivePackage().useVariableSpeed())
         {
-            const osg::Vec3f targetPos = seq.getActivePackage().getDestination();
-            const osg::Vec3f actorPos = actor.getRefData().getPosition().asVec3();
-            const float distance = (targetPos - actorPos).length();
+            const vsg::vec3 targetPos = seq.getActivePackage().getDestination();
+            const vsg::vec3 actorPos = actor.getRefData().getPosition().asVec3();
+            const float distance = vsg::length(targetPos - actorPos);
 
             constexpr float decelerateDist = 512.f;
             if (distance < decelerateDist)
@@ -522,7 +524,7 @@ namespace MWMechanics
             // Reduce the turning animation glitch by using a *HUGE* value of
             // epsilon...  TODO: a proper fix might be in either the physics or the
             // animation subsystem
-            if (zTurn(actor, duration, actorState.getAngleToPlayer(), osg::DegreesToRadians(5.f)))
+            if (zTurn(actor, duration, actorState.getAngleToPlayer(), Misc::VsgMath::inDegrees(5.f)))
             {
                 actorState.setTurningToPlayer(false);
             }
@@ -541,10 +543,10 @@ namespace MWMechanics
             = static_cast<float>(actorStats.getAiSetting(AiSetting::Hello).getModified() * iGreetDistanceMultiplier);
 
         const MWWorld::Ptr player = getPlayer();
-        const osg::Vec3f playerPos(player.getRefData().getPosition().asVec3());
-        const osg::Vec3f actorPos(actor.getRefData().getPosition().asVec3());
-        const osg::Vec3f dir = playerPos - actorPos;
-        const float distSquared = dir.length2();
+        const vsg::vec3 playerPos(player.getRefData().getPosition().asVec3());
+        const vsg::vec3 actorPos(actor.getRefData().getPosition().asVec3());
+        const vsg::vec3 dir = playerPos - actorPos;
+        const float distSquared = vsg::length2(dir);
 
         int greetingTimer = actorState.getGreetingTimer();
         if (greetingState == GreetingState::None)
@@ -589,7 +591,7 @@ namespace MWMechanics
         actorState.setGreetingState(greetingState);
     }
 
-    void Actors::turnActorToFacePlayer(const MWWorld::Ptr& actor, Actor& actorState, const osg::Vec3f& dir) const
+    void Actors::turnActorToFacePlayer(const MWWorld::Ptr& actor, Actor& actorState, const vsg::vec3& dir) const
     {
         const CreatureStats& stats = actor.getClass().getCreatureStats(actor);
         if (stats.getMovementFlag(CreatureStats::Flag_ForceJump)
@@ -602,12 +604,12 @@ namespace MWMechanics
 
         if (!actorState.isTurningToPlayer())
         {
-            float from = dir.x();
-            float to = dir.y();
+            float from = dir.x;
+            float to = dir.y;
             float angle = std::atan2(from, to);
             actorState.setAngleToPlayer(angle);
             double deltaAngle = Misc::normalizeAngle(angle - actor.getRefData().getPosition().rot[2]);
-            if (!Settings::game().mSmoothMovement || std::abs(deltaAngle) > osg::DegreesToRadians(60.0))
+            if (!Settings::game().mSmoothMovement || std::abs(deltaAngle) > Misc::VsgMath::inDegrees(60.0))
                 actorState.setTurningToPlayer(true);
         }
     }
@@ -639,9 +641,9 @@ namespace MWMechanics
         if (creatureStats2.isDead())
             return;
 
-        const osg::Vec3f actor1Pos(actor1.getRefData().getPosition().asVec3());
-        const osg::Vec3f actor2Pos(actor2.getRefData().getPosition().asVec3());
-        const float sqrDist = (actor1Pos - actor2Pos).length2();
+        const vsg::vec3 actor1Pos(actor1.getRefData().getPosition().asVec3());
+        const vsg::vec3 actor2Pos(actor2.getRefData().getPosition().asVec3());
+        const float sqrDist = vsg::length2(actor1Pos - actor2Pos);
         const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
 
         if (sqrDist > actorsProcessingRange * actorsProcessingRange)
@@ -1000,7 +1002,7 @@ namespace MWMechanics
 
         const MWBase::World* const world = MWBase::Environment::get().getWorld();
         const bool knockedOutUnderwater
-            = (isKnockedOut && world->isUnderwater(ptr.getCell(), osg::Vec3f(ptr.getRefData().getPosition().asVec3())));
+            = (isKnockedOut && world->isUnderwater(ptr.getCell(), vsg::vec3(ptr.getRefData().getPosition().asVec3())));
         if ((world->isSubmerged(ptr) || knockedOutUnderwater)
             && stats.getMagicEffects().getOrDefault(ESM::MagicEffect::WaterBreathing).getMagnitude() == 0)
         {
@@ -1251,8 +1253,8 @@ namespace MWMechanics
         if (ptr == player)
             return;
 
-        const float dist
-            = (osg::Vec3f(player.getRefData().getPosition().asVec3()) - osg::Vec3f(ptr.getRefData().getPosition().asVec3())).length();
+        const float dist = vsg::length(
+            vsg::vec3(player.getRefData().getPosition().asVec3()) - vsg::vec3(ptr.getRefData().getPosition().asVec3()));
         const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
         if (dist > actorsProcessingRange)
         {
@@ -1309,7 +1311,7 @@ namespace MWMechanics
 
         // Otherwise check if any actor in AI processing range sees the target actor
         std::vector<MWWorld::Ptr> neighbors;
-        osg::Vec3f position(actor.getRefData().getPosition().asVec3());
+        vsg::vec3 position(actor.getRefData().getPosition().asVec3());
         getObjectsInRange(position, static_cast<float>(Settings::game().mActorsProcessingRange), neighbors);
         for (const MWWorld::Ptr& neighbor : neighbors)
         {
@@ -1365,7 +1367,7 @@ namespace MWMechanics
         {
             MWWorld::Ptr mPtr;
             float mMaxSpeed;
-            osg::Vec3f mHalfExtents;
+            vsg::vec3 mHalfExtents;
             Movement& mMovement;
         };
 
@@ -1391,8 +1393,8 @@ namespace MWMechanics
                 continue; // Can't move, so there is no sense to predict collisions.
 
             Movement& movement = cached.mMovement;
-            const osg::Vec2f origMovement(movement.mPosition[0], movement.mPosition[1]);
-            const bool isMoving = origMovement.length2() > 0.01;
+            const vsg::vec2 origMovement(movement.mPosition[0], movement.mPosition[1]);
+            const bool isMoving = vsg::length2(origMovement) > 0.01;
             if (movement.mPosition[1] < 0)
                 continue; // Actors can not see others when move backward.
 
@@ -1428,10 +1430,10 @@ namespace MWMechanics
             if (!shouldAvoidCollision && !shouldGiveWay)
                 continue;
 
-            const osg::Vec2f baseSpeed = origMovement * maxSpeed;
-            const osg::Vec3f basePos = ptr.getRefData().getPosition().asVec3();
+            const vsg::vec2 baseSpeed = origMovement * maxSpeed;
+            const vsg::vec3 basePos = ptr.getRefData().getPosition().asVec3();
             const float baseRotZ = ptr.getRefData().getPosition().rot[2];
-            const osg::Vec3f& halfExtents = cached.mHalfExtents;
+            const vsg::vec3& halfExtents = cached.mHalfExtents;
             const float maxDistToCheck = isMoving ? maxDistForPartialAvoiding : maxDistForStrictAvoiding;
 
             float timeToCheck = maxTimeToCheck;
@@ -1440,7 +1442,7 @@ namespace MWMechanics
                     timeToCheck, getTimeToDestination(**aiSequence.begin(), basePos, maxSpeed, duration, halfExtents));
 
             float timeToCollision = timeToCheck;
-            osg::Vec2f movementCorrection(0, 0);
+            vsg::vec2 movementCorrection(0, 0);
             float angleToApproachingActor = 0;
 
             // Iterate through all other actors and predict collisions.
@@ -1450,31 +1452,31 @@ namespace MWMechanics
                 if (otherPtr == ptr || otherPtr == currentTarget)
                     continue;
 
-                const osg::Vec3f& otherHalfExtents = otherCached.mHalfExtents;
-                const osg::Vec3f deltaPos = osg::Vec3f(otherPtr.getRefData().getPosition().asVec3()) - basePos;
-                const osg::Vec2f relPos = Misc::rotateVec2f(osg::Vec2f(deltaPos.x(), deltaPos.y()), baseRotZ);
-                const float dist = deltaPos.length();
+                const vsg::vec3& otherHalfExtents = otherCached.mHalfExtents;
+                const vsg::vec3 deltaPos = vsg::vec3(otherPtr.getRefData().getPosition().asVec3()) - basePos;
+                const vsg::vec2 relPos = Misc::rotateVec2f(vsg::vec2(deltaPos.x, deltaPos.y), baseRotZ);
+                const float dist = vsg::length(deltaPos);
 
                 // Ignore actors which are not close enough or come from behind.
-                if (dist > maxDistToCheck || relPos.y() < 0)
+                if (dist > maxDistToCheck || relPos.y < 0)
                     continue;
 
                 // Don't check for a collision if vertical distance is greater then the actor's height.
-                if (deltaPos.z() > halfExtents.z() * 2 || deltaPos.z() < -otherHalfExtents.z() * 2)
+                if (deltaPos.z > halfExtents.z * 2 || deltaPos.z < -otherHalfExtents.z * 2)
                     continue;
 
-                const osg::Vec3f speed = otherCached.mMovement.asVec3() * otherCached.mMaxSpeed;
+                const vsg::vec3 speed = otherCached.mMovement.asVec3() * otherCached.mMaxSpeed;
                 const float rotZ = otherPtr.getRefData().getPosition().rot[2];
-                const osg::Vec2f relSpeed
-                    = osg::Vec2f(Misc::rotateVec2f(osg::Vec2f(speed.x(), speed.y()), baseRotZ - rotZ)) - baseSpeed;
+                const vsg::vec2 relSpeed
+                    = vsg::vec2(Misc::rotateVec2f(vsg::vec2(speed.x, speed.y), baseRotZ - rotZ)) - baseSpeed;
 
-                float collisionDist = minGap + halfExtents.x() + otherHalfExtents.x();
-                collisionDist = std::min(collisionDist, relPos.length());
+                float collisionDist = minGap + halfExtents.x + otherHalfExtents.x;
+                collisionDist = std::min(collisionDist, vsg::length(relPos));
 
                 // Find the earliest `t` when |relPos + relSpeed * t| == collisionDist.
-                const float vr = relPos.x() * relSpeed.x() + relPos.y() * relSpeed.y();
-                const float v2 = relSpeed.length2();
-                const float dh = vr * vr - v2 * (relPos.length2() - collisionDist * collisionDist);
+                const float vr = relPos.x * relSpeed.x + relPos.y * relSpeed.y;
+                const float v2 = vsg::length2(relSpeed);
+                const float dh = vr * vr - v2 * (vsg::length2(relPos) - collisionDist * collisionDist);
                 if (dh <= 0 || v2 == 0)
                     continue; // No solution; distance is always >= collisionDist.
                 const float t = (-vr - std::sqrt(dh)) / v2;
@@ -1489,9 +1491,9 @@ namespace MWMechanics
                     continue;
 
                 timeToCollision = t;
-                angleToApproachingActor = std::atan2(deltaPos.x(), deltaPos.y());
-                const osg::Vec2f posAtT = relPos + relSpeed * t;
-                const float coef = (posAtT.x() * relSpeed.x() + posAtT.y() * relSpeed.y())
+                angleToApproachingActor = std::atan2(deltaPos.x, deltaPos.y);
+                const vsg::vec2 posAtT = relPos + relSpeed * t;
+                const float coef = (posAtT.x * relSpeed.x + posAtT.y * relSpeed.y)
                     / (collisionDist * collisionDist * maxSpeed)
                     * std::clamp(
                         (maxDistForPartialAvoiding - dist) / (maxDistForPartialAvoiding - maxDistForStrictAvoiding),
@@ -1499,21 +1501,21 @@ namespace MWMechanics
                 movementCorrection = posAtT * coef;
                 if (otherPtr.getClass().getCreatureStats(otherPtr).isDead())
                     // In case of dead body still try to go around (it looks natural), but reduce the correction twice.
-                    movementCorrection.y() *= 0.5f;
+                    movementCorrection.y *= 0.5f;
             }
 
             if (timeToCollision < timeToCheck)
             {
                 // Try to evade the nearest collision.
-                osg::Vec2f newMovement = origMovement + movementCorrection;
+                vsg::vec2 newMovement = origMovement + movementCorrection;
                 // Step to the side rather than backward. Otherwise player will be able to push the NPC far away from
                 // it's original location.
-                newMovement.y() = std::max(newMovement.y(), 0.f);
-                newMovement.normalize();
+                newMovement.y = std::max(newMovement.y, 0.f);
+                Misc::VsgMath::normalizeInPlace(newMovement);
                 if (isMoving)
-                    newMovement *= origMovement.length(); // Keep the original speed.
-                movement.mPosition[0] = newMovement.x();
-                movement.mPosition[1] = newMovement.y();
+                    newMovement *= vsg::length(origMovement); // Keep the original speed.
+                movement.mPosition[0] = newMovement.x;
+                movement.mPosition[1] = newMovement.y;
                 if (shouldTurnToApproachingActor)
                     zTurn(ptr, duration, angleToApproachingActor);
             }
@@ -1543,7 +1545,7 @@ namespace MWMechanics
             const bool showTorches = world->useTorches();
 
             const MWWorld::Ptr player = getPlayer();
-            const osg::Vec3f playerPos = player.getRefData().getPosition().asVec3();
+            const vsg::vec3 playerPos = player.getRefData().getPosition().asVec3();
 
             /// \todo move update logic to Actor class where appropriate
 
@@ -1571,7 +1573,7 @@ namespace MWMechanics
                 MWBase::LuaManager::ActorControls* luaControls
                     = MWBase::Environment::get().getLuaManager()->getActorControls(actor.getPtr());
 
-                const float distSqr = (playerPos - actor.getPtr().getRefData().getPosition().asVec3()).length2();
+                const float distSqr = vsg::length2(playerPos - actor.getPtr().getRefData().getPosition().asVec3());
                 // AI processing is only done within given distance to the player.
                 const bool inProcessingRange = distSqr <= actorsProcessingRange * actorsProcessingRange;
 
@@ -1689,7 +1691,7 @@ namespace MWMechanics
             {
                 if (actor.isInvalid())
                     continue;
-                const float dist = (playerPos - actor.getPtr().getRefData().getPosition().asVec3()).length();
+                const float dist = vsg::length(playerPos - actor.getPtr().getRefData().getPosition().asVec3());
                 const bool isPlayer = actor.getPtr() == player;
                 CreatureStats& stats = actor.getPtr().getClass().getCreatureStats(actor.getPtr());
                 // Actors with active AI should be able to move.
@@ -1928,7 +1930,7 @@ namespace MWMechanics
             duration /= timeScale;
 
         const MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
-        const osg::Vec3f playerPos = player.getRefData().getPosition().asVec3();
+        const vsg::vec3 playerPos = player.getRefData().getPosition().asVec3();
         const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
 
         for (const Actor& actor : mActors)
@@ -1944,9 +1946,9 @@ namespace MWMechanics
             if (!sleep || actor.getPtr() == player)
                 restoreDynamicStats(actor.getPtr(), hours, sleep);
 
-            if (//(!actor.getPtr().getRefData().getBaseNode()) ||
-                (playerPos - actor.getPtr().getRefData().getPosition().asVec3()).length2()
-                    > actorsProcessingRange * actorsProcessingRange)
+            if ( //(!actor.getPtr().getRefData().getBaseNode()) ||
+                vsg::length2(playerPos - actor.getPtr().getRefData().getPosition().asVec3())
+                > actorsProcessingRange * actorsProcessingRange)
                 continue;
 
             // Get rid of effects pending removal so they are not applied when resting
@@ -1991,7 +1993,7 @@ namespace MWMechanics
             bool detected = false;
 
             std::vector<MWWorld::Ptr> observers;
-            const osg::Vec3f position(player.getRefData().getPosition().asVec3());
+            const vsg::vec3 position(player.getRefData().getPosition().asVec3());
             const float radius = std::min(fSneakUseDist, static_cast<float>(Settings::game().mActorsProcessingRange));
             getObjectsInRange(position, radius, observers);
 
@@ -2141,24 +2143,26 @@ namespace MWMechanics
             iter->second->getCharacterController().clearAnimQueue(clearScripted);
     }
 
-    void Actors::getObjectsInRange(const osg::Vec3f& position, float radius, std::vector<MWWorld::Ptr>& out) const
+    void Actors::getObjectsInRange(const vsg::vec3& position, float radius, std::vector<MWWorld::Ptr>& out) const
     {
         for (const Actor& actor : mActors)
         {
             if (actor.isInvalid())
                 continue;
-            if ((osg::Vec3f(actor.getPtr().getRefData().getPosition().asVec3()) - position).length2() <= radius * radius)
+            if (vsg::length2(vsg::vec3(actor.getPtr().getRefData().getPosition().asVec3()) - position)
+                <= radius * radius)
                 out.push_back(actor.getPtr());
         }
     }
 
-    bool Actors::isAnyObjectInRange(const osg::Vec3f& position, float radius) const
+    bool Actors::isAnyObjectInRange(const vsg::vec3& position, float radius) const
     {
         for (const Actor& actor : mActors)
         {
             if (actor.isInvalid())
                 continue;
-            if ((osg::Vec3f(actor.getPtr().getRefData().getPosition().asVec3()) - position).length2() <= radius * radius)
+            if (vsg::length2(vsg::vec3(actor.getPtr().getRefData().getPosition().asVec3()) - position)
+                <= radius * radius)
                 return true;
         }
 
@@ -2296,7 +2300,7 @@ namespace MWMechanics
     {
         std::vector<MWWorld::Ptr> list;
         std::vector<MWWorld::Ptr> neighbors;
-        const osg::Vec3f position(actor.getRefData().getPosition().asVec3());
+        const vsg::vec3 position(actor.getRefData().getPosition().asVec3());
         getObjectsInRange(position, static_cast<float>(Settings::game().mActorsProcessingRange), neighbors);
         for (const MWWorld::Ptr& neighbor : neighbors)
         {
@@ -2317,7 +2321,7 @@ namespace MWMechanics
     {
         std::vector<MWWorld::Ptr> list;
         std::vector<MWWorld::Ptr> neighbors;
-        osg::Vec3f position(actor.getRefData().getPosition().asVec3());
+        vsg::vec3 position(actor.getRefData().getPosition().asVec3());
         getObjectsInRange(position, static_cast<float>(Settings::game().mActorsProcessingRange), neighbors);
 
         std::set<MWWorld::Ptr> followers;

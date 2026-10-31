@@ -7,7 +7,6 @@
 #include <components/misc/pathgridutils.hpp>
 #include <components/misc/rng.hpp>
 #include <components/mwanimation/position.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 
 #include "../mwphysics/raycasting.hpp"
 
@@ -35,8 +34,8 @@ namespace
     // chooses an attack depending on probability to avoid uniformity
     std::string_view chooseBestAttack(const ESM::Weapon* weapon);
 
-    osg::Vec3f AimDirToMovingTarget(const MWWorld::Ptr& actor, const MWWorld::Ptr& target,
-        const osg::Vec3f& vLastTargetPos, float duration, int weapType, float strength);
+    vsg::vec3 AimDirToMovingTarget(const MWWorld::Ptr& actor, const MWWorld::Ptr& target,
+        const vsg::vec3& vLastTargetPos, float duration, int weapType, float strength);
 
     bool hitAttemptMatchesTarget(const MWWorld::Ptr& actor, const MWWorld::Ptr& target)
     {
@@ -142,9 +141,9 @@ namespace MWMechanics
                 updateLOS(actor, target, duration, storage);
                 const float targetReachedTolerance
                     = storage.mLOS && !storage.mUseCustomDestination ? storage.mAttackRange : 0.0f;
-                const osg::Vec3f destination = storage.mUseCustomDestination
+                const vsg::vec3 destination = storage.mUseCustomDestination
                     ? storage.mCustomDestination
-                    : osg::Vec3f(target.getRefData().getPosition().asVec3());
+                    : vsg::vec3(target.getRefData().getPosition().asVec3());
                 const bool isTargetReached = pathTo(actor, destination, duration,
                     characterController.getSupportedMovementDirections(), targetReachedTolerance);
                 if (isTargetReached)
@@ -250,8 +249,8 @@ namespace MWMechanics
         const ESM::Weapon* weapon = currentAction->getWeapon();
 
         ESM::Position pos = actor.getRefData().getPosition();
-        const osg::Vec3f vActorPos(pos.asVec3());
-        const osg::Vec3f vTargetPos(target.getRefData().getPosition().asVec3());
+        const vsg::vec3 vActorPos(pos.asVec3());
+        const vsg::vec3 vTargetPos(target.getRefData().getPosition().asVec3());
 
         float distToTarget = getDistanceToBounds(actor, target);
 
@@ -260,7 +259,7 @@ namespace MWMechanics
         if (isRangedCombat)
         {
             // rotate actor taking into account target movement direction and projectile speed
-            osg::Vec3f vAimDir = AimDirToMovingTarget(actor, target, storage.mLastTargetPos, AI_REACTION_TIME,
+            vsg::vec3 vAimDir = AimDirToMovingTarget(actor, target, storage.mLastTargetPos, AI_REACTION_TIME,
                 (weapon ? weapon->mData.mType : 0), storage.mStrength);
 
             storage.mMovement.mRotation[0] = getXAngleToDir(vAimDir);
@@ -268,7 +267,7 @@ namespace MWMechanics
         }
         else
         {
-            osg::Vec3f vAimDir = MWBase::Environment::get().getWorld()->aimToTarget(actor, target, false);
+            vsg::vec3 vAimDir = MWBase::Environment::get().getWorld()->aimToTarget(actor, target, false);
             storage.mMovement.mRotation[0] = getXAngleToDir(vAimDir);
             storage.mMovement.mRotation[2] = getZAngleToDir(
                 (vTargetPos - vActorPos)); // using vAimDir results in spastic movements since the head is animated
@@ -296,7 +295,8 @@ namespace MWMechanics
         // is not good enough to attack target.
         if (storage.mCurrentAction->isAttackingOrSpell()
             && ((!storage.mReadyToAttack && !mPathFinder.isPathConstructed())
-                || (storage.mUseCustomDestination && (storage.mCustomDestination - vTargetPos).length() > rangeAttack)))
+                || (storage.mUseCustomDestination
+                    && vsg::length(storage.mCustomDestination - vTargetPos) > rangeAttack)))
         {
             const MWBase::World* world = MWBase::Environment::get().getWorld();
             // Try to build path to the target.
@@ -313,10 +313,10 @@ namespace MWMechanics
                 // If there is no path, try to find a point on a line from the actor position to target projected
                 // on navmesh to attack the target from there.
                 const auto navigator = world->getNavigator();
-                const std::optional<osg::Vec3f> hit
+                const std::optional<vsg::vec3> hit
                     = DetourNavigator::raycast(*navigator, agentBounds, vActorPos, vTargetPos, navigatorFlags);
 
-                if (hit.has_value() && (*hit - vTargetPos).length() <= rangeAttack)
+                if (hit.has_value() && vsg::length(*hit - vTargetPos) <= rangeAttack)
                 {
                     // If the point is close enough, try to find a path to that point.
                     mPathFinder.buildPath(actor, vActorPos, *hit, pathGridGraph, agentBounds, navigatorFlags, areaCosts,
@@ -393,7 +393,7 @@ namespace MWMechanics
                         const Misc::CoordinateConverter coords
                             = Misc::makeCoordinateConverter(*storage.mCell->getCell());
 
-                        osg::Vec3f localPos = actor.getRefData().getPosition().asVec3();
+                        vsg::vec3 localPos = actor.getRefData().getPosition().asVec3();
                         localPos = coords.toLocalVec3(localPos);
 
                         const std::size_t closestPointIndex = Misc::getClosestPoint(*pathgrid, localPos);
@@ -436,7 +436,7 @@ namespace MWMechanics
                     storage.mFleeBlindRunTimer += duration;
 
                     storage.mMovement.mRotation[0] = -actor.getRefData().getPosition().rot[0];
-                    storage.mMovement.mRotation[2] = osg::PIf
+                    storage.mMovement.mRotation[2] = Misc::VsgMath::PIf
                         + getZAngleToDir(
                             target.getRefData().getPosition().asVec3() - actor.getRefData().getPosition().asVec3());
                     storage.mMovement.mPosition[1] = 1;
@@ -455,8 +455,8 @@ namespace MWMechanics
                                                        .find("fFleeDistance")
                                                        ->mValue.getFloat();
 
-                float dist
-                    = (osg::Vec3f(actor.getRefData().getPosition().asVec3()) - osg::Vec3f(target.getRefData().getPosition().asVec3())).length();
+                float dist = vsg::length(vsg::vec3(actor.getRefData().getPosition().asVec3())
+                    - vsg::vec3(target.getRefData().getPosition().asVec3()));
                 if ((dist > fFleeDistance && !storage.mLOS)
                     || pathTo(
                         actor, Misc::Convert::makeOsgVec3f(storage.mFleeDest), duration, supportedMovementDirections))
@@ -472,12 +472,12 @@ namespace MWMechanics
     {
         // apply combat movement
         float deltaAngle = storage.mMovement.mRotation[2] - actor.getRefData().getPosition().rot[2];
-        osg::Vec2f movement = Misc::rotateVec2f(
-            osg::Vec2f(storage.mMovement.mPosition[0], storage.mMovement.mPosition[1]), -deltaAngle);
+        vsg::vec2 movement
+            = Misc::rotateVec2f(vsg::vec2(storage.mMovement.mPosition[0], storage.mMovement.mPosition[1]), -deltaAngle);
 
         MWMechanics::Movement& actorMovementSettings = actor.getClass().getMovementSettings(actor);
-        actorMovementSettings.mPosition[0] = movement.x();
-        actorMovementSettings.mPosition[1] = movement.y();
+        actorMovementSettings.mPosition[0] = movement.x;
+        actorMovementSettings.mPosition[1] = movement.y;
         actorMovementSettings.mPosition[2] = storage.mMovement.mPosition[2];
 
         rotateActorOnAxis(actor, duration, 2, actorMovementSettings, storage);
@@ -490,7 +490,7 @@ namespace MWMechanics
         actorMovementSettings.mRotation[axis] = 0;
         bool isRangedCombat = false;
         storage.mCurrentAction->getCombatRange(isRangedCombat);
-        float eps = isRangedCombat ? osg::DegreesToRadians(0.5f) : osg::DegreesToRadians(3.f);
+        float eps = isRangedCombat ? Misc::VsgMath::inDegrees(0.5f) : Misc::VsgMath::inDegrees(3.f);
         float targetAngleRadians = storage.mMovement.mRotation[axis];
         storage.mRotateMove = !smoothTurn(actor, duration, targetAngleRadians, axis, eps);
     }
@@ -567,7 +567,7 @@ namespace MWMechanics
             // Apply a big side step if enemy tries to get around and come from behind.
             // Otherwise apply a random side step (kind of dodging) with some probability
             // if actor is within range of target's weapon.
-            if (std::abs(angleToTarget) > osg::PI / 4)
+            if (std::abs(angleToTarget) > Misc::VsgMath::PI / 4)
                 moveDuration = 0.2f;
             else if (distToTarget <= rangeAttackOfTarget && Misc::Rng::rollClosedProbability(prng) < 0.25)
                 moveDuration = 0.1f + 0.1f * Misc::Rng::rollClosedProbability(prng);
@@ -600,11 +600,11 @@ namespace MWMechanics
             // Actor can not back up if there is no free space behind
             // Currently we take the 35% of actor's height from the ground as vector height.
             // This approach allows us to detect small obstacles (e.g. crates) and curved walls.
-            osg::Vec3f halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
-            osg::Vec3f pos = actor.getRefData().getPosition().asVec3();
-            auto source = pos + osg::Vec3f(0, 0, 0.75f * halfExtents.z());
-            auto fallbackDirection = toOsg(-MWAnim::forward(actor.getRefData().getPosition()));
-            auto destination = source + fallbackDirection * (halfExtents.y() + 16);
+            vsg::vec3 halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
+            vsg::vec3 pos = actor.getRefData().getPosition().asVec3();
+            auto source = pos + vsg::vec3(0, 0, 0.75f * halfExtents.z);
+            auto fallbackDirection = -MWAnim::forward(actor.getRefData().getPosition());
+            auto destination = source + fallbackDirection * (halfExtents.y + 16);
 
             const auto* rayCasting = MWBase::Environment::get().getWorld()->getRayCasting();
             bool isObstacleDetected = rayCasting->castRay(source, destination, mask).mHit;
@@ -614,8 +614,8 @@ namespace MWMechanics
             // Check if there is nothing behind - probably actor is near cliff.
             // A current approach: cast ray 1.5-yard ray down in 1.5 yard behind actor from 35% of actor's height.
             // If we did not hit anything, there is a cliff behind actor.
-            source = pos + osg::Vec3f(0, 0, 0.75f * halfExtents.z()) + fallbackDirection * (halfExtents.y() + 96);
-            destination = source - osg::Vec3f(0, 0, 0.75f * halfExtents.z() + 96);
+            source = pos + vsg::vec3(0, 0, 0.75f * halfExtents.z) + fallbackDirection * (halfExtents.y + 96);
+            destination = source - vsg::vec3(0, 0, 0.75f * halfExtents.z + 96);
             bool isCliffDetected = !rayCasting->castRay(source, destination, mask).mHit;
             if (isCliffDetected)
                 return;
@@ -750,8 +750,8 @@ namespace
         return MWMechanics::CharacterController::getRandomAttackType();
     }
 
-    osg::Vec3f AimDirToMovingTarget(const MWWorld::Ptr& actor, const MWWorld::Ptr& target,
-        const osg::Vec3f& vLastTargetPos, float duration, int weapType, float strength)
+    vsg::vec3 AimDirToMovingTarget(const MWWorld::Ptr& actor, const MWWorld::Ptr& target,
+        const vsg::vec3& vLastTargetPos, float duration, int weapType, float strength)
     {
         float projSpeed;
         const MWWorld::Store<ESM::GameSetting>& gmst
@@ -780,22 +780,23 @@ namespace
         // idea: perpendicular to dir to target speed components of target move vector and projectile vector should be
         // the same
 
-        osg::Vec3f vTargetPos = target.getRefData().getPosition().asVec3();
-        osg::Vec3f vDirToTarget = MWBase::Environment::get().getWorld()->aimToTarget(actor, target, true);
-        float distToTarget = vDirToTarget.length();
+        vsg::vec3 vTargetPos = target.getRefData().getPosition().asVec3();
+        vsg::vec3 vDirToTarget = MWBase::Environment::get().getWorld()->aimToTarget(actor, target, true);
+        float distToTarget = vsg::length(vDirToTarget);
 
-        osg::Vec3f vTargetMoveDir = vTargetPos - vLastTargetPos;
-        vTargetMoveDir /= duration; // |vTargetMoveDir| is target real speed in units/sec now
+        vsg::vec3 vTargetMoveDir = vTargetPos - vLastTargetPos;
+        vTargetMoveDir
+            = Misc::VsgMath::divide(vTargetMoveDir, duration); // |vTargetMoveDir| is target real speed in units/sec now
 
-        osg::Vec3f vPerpToDir = vDirToTarget ^ osg::Vec3f(0, 0, 1); // cross product
+        vsg::vec3 vPerpToDir = vsg::cross(vDirToTarget, vsg::vec3(0, 0, 1)); // cross product
 
-        vPerpToDir.normalize();
-        osg::Vec3f vDirToTargetNormalized = vDirToTarget;
-        vDirToTargetNormalized.normalize();
+        Misc::VsgMath::normalizeInPlace(vPerpToDir);
+        vsg::vec3 vDirToTargetNormalized = vDirToTarget;
+        Misc::VsgMath::normalizeInPlace(vDirToTargetNormalized);
 
         // dot product
-        float velPerp = vTargetMoveDir * vPerpToDir;
-        float velDir = vTargetMoveDir * vDirToTargetNormalized;
+        float velPerp = vsg::dot(vTargetMoveDir, vPerpToDir);
+        float velDir = vsg::dot(vTargetMoveDir, vDirToTargetNormalized);
 
         // time to collision between target and projectile
         float tCollision;
@@ -803,10 +804,10 @@ namespace
         float projVelDirSquared = projSpeed * projSpeed - velPerp * velPerp;
         if (projVelDirSquared > 0)
         {
-            osg::Vec3f vTargetMoveDirNormalized = vTargetMoveDir;
-            vTargetMoveDirNormalized.normalize();
+            vsg::vec3 vTargetMoveDirNormalized = vTargetMoveDir;
+            Misc::VsgMath::normalizeInPlace(vTargetMoveDirNormalized);
 
-            float projDistDiff = vDirToTarget * vTargetMoveDirNormalized; // dot product
+            float projDistDiff = vsg::dot(vDirToTarget, vTargetMoveDirNormalized); // dot product
             projDistDiff = std::sqrt(distToTarget * distToTarget - projDistDiff * projDistDiff);
 
             tCollision = projDistDiff / (std::sqrt(projVelDirSquared) - velDir);

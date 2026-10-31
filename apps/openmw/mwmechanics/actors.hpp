@@ -21,11 +21,6 @@ namespace vsgUtil
 {
     class UpdateThreads;
 }
-namespace osg
-{
-    class Vec3f;
-}
-
 namespace Loading
 {
     class Listener;
@@ -98,7 +93,7 @@ namespace MWMechanics
         void playIdleDialogue(const MWWorld::Ptr& actor, float dt) const;
         void updateMovementSpeed(const MWWorld::Ptr& actor) const;
         void updateGreetingState(const MWWorld::Ptr& actor, float duration, Actor& actorState, bool turnOnly);
-        void turnActorToFacePlayer(const MWWorld::Ptr& actor, Actor& actorState, const osg::Vec3f& dir) const;
+        void turnActorToFacePlayer(const MWWorld::Ptr& actor, Actor& actorState, const vsg::vec3& dir) const;
 
         void rest(double hours, bool sleep) const;
         ///< Update actors while the player is waiting or sleeping.
@@ -134,9 +129,9 @@ namespace MWMechanics
         void persistAnimationStates() const;
         void clearAnimationQueue(const MWWorld::Ptr& ptr, bool clearScripted);
 
-        void getObjectsInRange(const osg::Vec3f& position, float radius, std::vector<MWWorld::Ptr>& out) const;
+        void getObjectsInRange(const vsg::vec3& position, float radius, std::vector<MWWorld::Ptr>& out) const;
 
-        bool isAnyObjectInRange(const osg::Vec3f& position, float radius) const;
+        bool isAnyObjectInRange(const vsg::vec3& position, float radius) const;
 
         void cleanupSummonedCreature(ESM::RefNum creature) const;
 

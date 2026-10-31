@@ -53,15 +53,15 @@ namespace MWMechanics
         actor.getClass().getCreatureStats(actor).setDrawState(DrawState::Nothing);
 
         // Set the target destination
-        const osg::Vec3f dest = target.getRefData().getPosition().asVec3();
-        const osg::Vec3f actorPos = actor.getRefData().getPosition().asVec3();
+        const vsg::vec3 dest = target.getRefData().getPosition().asVec3();
+        const vsg::vec3 actorPos = actor.getRefData().getPosition().asVec3();
 
         const float pathTolerance = 100.f;
 
         // check the true distance in case the target is far away in Z-direction
         bool reached = pathTo(actor, dest, duration, characterController.getSupportedMovementDirections(),
-                           pathTolerance, (actorPos - dest).length(), PathType::Partial)
-            && std::abs(dest.z() - actorPos.z()) < pathTolerance;
+                           pathTolerance, vsg::length(actorPos - dest), PathType::Partial)
+            && std::abs(dest.z - actorPos.z) < pathTolerance;
 
         if (reached)
         {

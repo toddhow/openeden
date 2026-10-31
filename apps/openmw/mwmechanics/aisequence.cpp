@@ -277,7 +277,7 @@ namespace MWMechanics
             auto itActualCombat = mPackages.end();
 
             float nearestDist = std::numeric_limits<float>::max();
-            osg::Vec3f vActorPos = actor.getRefData().getPosition().asVec3();
+            vsg::vec3 vActorPos = actor.getRefData().getPosition().asVec3();
 
             float bestRating = 0.f;
 
@@ -301,7 +301,7 @@ namespace MWMechanics
 
                     const ESM::Position& targetPos = target.getRefData().getPosition();
 
-                    float distTo = (osg::Vec3f(targetPos.asVec3()) - vActorPos).length2();
+                    float distTo = vsg::length2(vsg::vec3(targetPos.asVec3()) - vActorPos);
 
                     // Small threshold for changing target
                     if (it == mPackages.begin())
@@ -404,7 +404,7 @@ namespace MWMechanics
             && (newTypeId == MWMechanics::AiPackageTypeId::Combat || newTypeId == MWMechanics::AiPackageTypeId::Pursue
                 || newTypeId == MWMechanics::AiPackageTypeId::Cast))
         {
-            osg::Vec3f dest;
+            vsg::vec3 dest;
             if (currentTypeId == MWMechanics::AiPackageTypeId::Wander)
             {
                 dest = getActivePackage().getDestination(actor);
@@ -414,7 +414,7 @@ namespace MWMechanics
                 dest = actor.getRefData().getPosition().asVec3();
             }
 
-            MWMechanics::AiInternalTravel travelPackage(dest.x(), dest.y(), dest.z());
+            MWMechanics::AiInternalTravel travelPackage(dest.x, dest.y, dest.z);
             stack(travelPackage, actor, false);
         }
 

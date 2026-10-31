@@ -20,13 +20,13 @@ namespace
 
     constexpr float TRAVEL_FINISH_TIME = 2.f;
 
-    bool isWithinMaxRange(const osg::Vec3f& pos1, const osg::Vec3f& pos2)
+    bool isWithinMaxRange(const vsg::vec3& pos1, const vsg::vec3& pos2)
     {
         // Maximum travel distance for vanilla compatibility.
         // Was likely meant to prevent NPCs walking into non-loaded exterior cells, but for some reason is used in
         // interior cells as well. We can make this configurable at some point, but the default *must* be the below
         // value. Anything else will break shoddily-written content (*cough* MW *cough*) in bizarre ways.
-        return (pos1 - pos2).length2() <= 7168 * 7168;
+        return vsg::length2(pos1 - pos2) <= 7168 * 7168;
     }
 
 }
@@ -81,8 +81,8 @@ namespace MWMechanics
             && mechMgr->getGreetingState(actor) == GreetingState::InProgress)
             return false;
 
-        const osg::Vec3f actorPos(actor.getRefData().getPosition().asVec3());
-        const osg::Vec3f targetPos(mX, mY, mZ);
+        const vsg::vec3 actorPos(actor.getRefData().getPosition().asVec3());
+        const vsg::vec3 targetPos(mX, mY, mZ);
 
         stats.setMovementFlag(CreatureStats::Flag_Run, false);
         stats.setDrawState(DrawState::Nothing);
@@ -104,7 +104,7 @@ namespace MWMechanics
 
         // Note Morrowind uses the halved eye level, but this is close enough.
         float dist
-            = distanceIgnoreZ(actorPos, targetPos) - MWBase::Environment::get().getWorld()->getHalfExtents(actor).z();
+            = distanceIgnoreZ(actorPos, targetPos) - MWBase::Environment::get().getWorld()->getHalfExtents(actor).z;
         const float endTolerance = std::max(64.f, actor.getClass().getCurrentSpeed(actor) * duration);
 
         // Even if we have entered the threshold, we might have been pushed away. Reset the timer if we're currently too
@@ -125,7 +125,7 @@ namespace MWMechanics
 
     void AiTravel::fastForward(const MWWorld::Ptr& actor, AiState& state)
     {
-        osg::Vec3f pos(mX, mY, mZ);
+        vsg::vec3 pos(mX, mY, mZ);
         if (!isWithinMaxRange(pos, actor.getRefData().getPosition().asVec3()))
             return;
         // does not do any validation on the travel target (whether it's in air, inside collision geometry, etc),

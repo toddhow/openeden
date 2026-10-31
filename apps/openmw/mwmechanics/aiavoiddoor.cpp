@@ -53,7 +53,7 @@ bool MWMechanics::AiAvoidDoor::execute(
     actor.getClass().getCreatureStats(actor).setMovementFlag(CreatureStats::Flag_Run, true);
 
     // Turn away from the door and move when turn completed
-    if (zTurn(actor, std::atan2(y, x) + getAdjustedAngle(), osg::DegreesToRadians(5.f)))
+    if (zTurn(actor, std::atan2(y, x) + getAdjustedAngle(), Misc::VsgMath::inDegrees(5.f)))
         actor.getClass().getMovementSettings(actor).mPosition[1] = 1;
     else
         actor.getClass().getMovementSettings(actor).mPosition[1] = 0;
@@ -75,9 +75,9 @@ bool MWMechanics::AiAvoidDoor::execute(
     return false;
 }
 
-bool MWMechanics::AiAvoidDoor::isStuck(const osg::Vec3f& actorPos) const
+bool MWMechanics::AiAvoidDoor::isStuck(const vsg::vec3& actorPos) const
 {
-    return (actorPos - mLastPos).length2() < 10 * 10;
+    return vsg::length2(actorPos - mLastPos) < 10 * 10;
 }
 
 void MWMechanics::AiAvoidDoor::adjustDirection()
@@ -88,5 +88,5 @@ void MWMechanics::AiAvoidDoor::adjustDirection()
 
 float MWMechanics::AiAvoidDoor::getAdjustedAngle() const
 {
-    return 2 * osg::PIf / MAX_DIRECTIONS * mDirection;
+    return 2 * Misc::VsgMath::PIf / MAX_DIRECTIONS * mDirection;
 }

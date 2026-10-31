@@ -151,10 +151,10 @@ namespace MWMechanics
             iter->second->clearAnimQueue(clearScripted);
     }
 
-    void Objects::getObjectsInRange(const osg::Vec3f& position, float radius, std::vector<MWWorld::Ptr>& out) const
+    void Objects::getObjectsInRange(const vsg::vec3& position, float radius, std::vector<MWWorld::Ptr>& out) const
     {
         for (const CharacterController& object : mObjects)
-            if ((position - object.getPtr().getRefData().getPosition().asVec3()).length2() <= radius * radius)
+            if (vsg::length2(position - object.getPtr().getRefData().getPosition().asVec3()) <= radius * radius)
                 out.push_back(object.getPtr());
     }
 

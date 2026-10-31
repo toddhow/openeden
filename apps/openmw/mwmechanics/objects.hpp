@@ -8,11 +8,6 @@
 #include <string>
 #include <vector>
 
-namespace osg
-{
-    class Vec3f;
-}
-
 namespace MWWorld
 {
     class Ptr;
@@ -54,7 +49,7 @@ namespace MWMechanics
         void persistAnimationStates();
         void clearAnimationQueue(const MWWorld::Ptr& ptr, bool clearScripted);
 
-        void getObjectsInRange(const osg::Vec3f& position, float radius, std::vector<MWWorld::Ptr>& out) const;
+        void getObjectsInRange(const vsg::vec3& position, float radius, std::vector<MWWorld::Ptr>& out) const;
 
         std::size_t size() const { return mObjects.size(); }
     };

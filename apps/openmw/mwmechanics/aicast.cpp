@@ -57,23 +57,23 @@ bool MWMechanics::AiCast::execute(const MWWorld::Ptr& actor, MWMechanics::Charac
         }
     }
 
-    osg::Vec3f targetPos = target.getRefData().getPosition().asVec3();
+    vsg::vec3 targetPos = target.getRefData().getPosition().asVec3();
     // If the target of an on-target spell is an actor that is not the caster
     // the target position must be adjusted so that it's not casted at the actor's feet.
     if (target != actor && target.getClass().isActor())
     {
-        osg::Vec3f halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(target);
-        targetPos.z() += halfExtents.z() * 2 * Constants::TorsoHeight;
+        vsg::vec3 halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(target);
+        targetPos.z += halfExtents.z * 2 * Constants::TorsoHeight;
     }
 
-    osg::Vec3f actorPos = actor.getRefData().getPosition().asVec3();
-    osg::Vec3f halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
-    actorPos.z() += halfExtents.z() * 2 * Constants::TorsoHeight;
+    vsg::vec3 actorPos = actor.getRefData().getPosition().asVec3();
+    vsg::vec3 halfExtents = MWBase::Environment::get().getWorld()->getHalfExtents(actor);
+    actorPos.z += halfExtents.z * 2 * Constants::TorsoHeight;
 
-    osg::Vec3f dir = targetPos - actorPos;
+    vsg::vec3 dir = targetPos - actorPos;
 
-    bool turned = smoothTurn(actor, duration, getZAngleToDir(dir), 2, osg::DegreesToRadians(3.f));
-    turned &= smoothTurn(actor, duration, getXAngleToDir(dir), 0, osg::DegreesToRadians(3.f));
+    bool turned = smoothTurn(actor, duration, getZAngleToDir(dir), 2, Misc::VsgMath::inDegrees(3.f));
+    turned &= smoothTurn(actor, duration, getXAngleToDir(dir), 0, Misc::VsgMath::inDegrees(3.f));
 
     if (!turned)
         return false;

@@ -13,6 +13,6 @@ MWMechanics::AiFace::AiFace(float targetX, float targetY)
 bool MWMechanics::AiFace::execute(const MWWorld::Ptr& actor, MWMechanics::CharacterController& /*characterController*/,
     MWMechanics::AiState& /*state*/, float duration)
 {
-    osg::Vec3f dir = osg::Vec3f(mTargetX, mTargetY, 0) - actor.getRefData().getPosition().asVec3();
-    return zTurn(actor, duration, std::atan2(dir.x(), dir.y()), osg::DegreesToRadians(3.f));
+    vsg::vec3 dir = vsg::vec3(mTargetX, mTargetY, 0) - actor.getRefData().getPosition().asVec3();
+    return zTurn(actor, duration, std::atan2(dir.x, dir.y), Misc::VsgMath::inDegrees(3.f));
 }

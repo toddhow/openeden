@@ -34,14 +34,14 @@ namespace MWMechanics
             return true;
 
         // Turn to target and move to it directly, without pathfinding.
-        const osg::Vec3f targetDir
+        const vsg::vec3 targetDir
             = target.getRefData().getPosition().asVec3() - actor.getRefData().getPosition().asVec3();
 
-        zTurn(actor, std::atan2(targetDir.x(), targetDir.y()), 0.f);
+        zTurn(actor, std::atan2(targetDir.x, targetDir.y), 0.f);
         actor.getClass().getMovementSettings(actor).mPosition[1] = 1;
         actor.getClass().getMovementSettings(actor).mPosition[0] = 0;
 
-        if (MWBase::Environment::get().getWorld()->getMaxActivationDistance() >= targetDir.length())
+        if (MWBase::Environment::get().getWorld()->getMaxActivationDistance() >= vsg::length(targetDir))
         {
             // Note: we intentionally do not cancel package after activation here for backward compatibility with
             // original engine.

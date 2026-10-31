@@ -613,7 +613,7 @@ namespace MWWorld
         float getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const override;
 
         /// Return physical or rendering half extents of the given actor.
-        osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const override;
+        vsg::vec3 getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const override;
 
         /// Export scene graph to a file and return the filename.
         /// \param ptr object to export scene graph for (if empty, export entire scene graph)
@@ -624,7 +624,7 @@ namespace MWWorld
 
         DetourNavigator::Navigator* getNavigator() const override;
 
-        void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<osg::Vec3f>& path,
+        void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
             const DetourNavigator::AgentBounds& agentBounds, const osg::Vec3f& start,
             const osg::Vec3f& end) const override;
 

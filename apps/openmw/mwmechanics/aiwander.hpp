@@ -55,9 +55,9 @@ namespace MWMechanics
         bool mPopulateAvailablePositions;
 
         // allowed destination positions based on mDistance from the spawn point
-        std::vector<osg::Vec3f> mAllowedPositions;
+        std::vector<vsg::vec3> mAllowedPositions;
 
-        osg::Vec3f mCurrentPosition;
+        vsg::vec3 mCurrentPosition;
         bool mTrimCurrentPosition;
 
         float mCheckIdlePositionTimer;
@@ -104,12 +104,12 @@ namespace MWMechanics
 
         void fastForward(const MWWorld::Ptr& actor, AiState& state) override;
 
-        osg::Vec3f getDestination(const MWWorld::Ptr& actor) const override;
+        vsg::vec3 getDestination(const MWWorld::Ptr& actor) const override;
 
-        osg::Vec3f getDestination() const override
+        vsg::vec3 getDestination() const override
         {
             if (!mHasDestination)
-                return osg::Vec3f(0, 0, 0);
+                return vsg::vec3(0, 0, 0);
 
             return mDestination;
         }
@@ -146,7 +146,7 @@ namespace MWMechanics
         bool reactionTimeActions(const MWWorld::Ptr& actor, AiWanderStorage& storage, ESM::Position& pos);
         inline bool isPackageCompleted() const;
         void wanderNearStart(const MWWorld::Ptr& actor, AiWanderStorage& storage, unsigned wanderDistance);
-        bool destinationIsAtWater(const MWWorld::Ptr& actor, const osg::Vec3f& destination);
+        bool destinationIsAtWater(const MWWorld::Ptr& actor, const vsg::vec3& destination);
         void completeManualWalking(const MWWorld::Ptr& actor, AiWanderStorage& storage);
         bool isNearAllowedPosition(const MWWorld::Ptr& actor, const AiWanderStorage& storage, float distance) const;
 
@@ -159,14 +159,14 @@ namespace MWMechanics
 
         bool mStoredInitialActorPosition;
         // Note: an original engine does not reset coordinates even when actor changes a cell
-        osg::Vec3f mInitialActorPosition;
+        vsg::vec3 mInitialActorPosition;
 
         bool mHasDestination;
-        osg::Vec3f mDestination;
+        vsg::vec3 mDestination;
         bool mUsePathgrid;
 
         void getNeighbouringNodes(
-            const osg::Vec3f& dest, const MWWorld::CellStore* currentCell, ESM::Pathgrid::PointList& points);
+            const vsg::vec3& dest, const MWWorld::CellStore* currentCell, ESM::Pathgrid::PointList& points);
 
         void fillAllowedPositions(const MWWorld::Ptr& actor, AiWanderStorage& storage);
 

@@ -33,7 +33,7 @@ namespace MWMechanics
         float mAttackRange;
         bool mCombatMove;
         bool mRotateMove;
-        osg::Vec3f mLastTargetPos;
+        vsg::vec3 mLastTargetPos;
         const MWWorld::CellStore* mCell;
         std::unique_ptr<Action> mCurrentAction;
         float mActionCooldown;
@@ -56,7 +56,7 @@ namespace MWMechanics
         ESM::Pathgrid::Point mFleeDest;
 
         bool mUseCustomDestination;
-        osg::Vec3f mCustomDestination;
+        vsg::vec3 mCustomDestination;
 
         AiCombatStorage();
 

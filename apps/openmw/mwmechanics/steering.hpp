@@ -1,7 +1,7 @@
 #ifndef OPENMW_MECHANICS_STEERING_H
 #define OPENMW_MECHANICS_STEERING_H
 
-#include <osg/Math>
+#include <components/misc/vsgmath.hpp>
 
 #include <algorithm>
 
@@ -18,7 +18,7 @@ namespace MWMechanics
     {
         constexpr float degreesPerFrame = 15.f;
         constexpr int framesPerSecond = 60;
-        const float baseAngularVelocity = osg::DegreesToRadians(degreesPerFrame * framesPerSecond);
+        const float baseAngularVelocity = Misc::VsgMath::inDegrees(degreesPerFrame * framesPerSecond);
         const float baseSpeed = 200;
         return baseAngularVelocity * std::max(actorSpeed / baseSpeed, 1.0f);
     }
@@ -26,11 +26,10 @@ namespace MWMechanics
     /// configure rotation settings for an actor to reach this target angle (eventually)
     /// @return have we reached the target angle?
     bool zTurn(const MWWorld::Ptr& actor, float duration, float targetAngleRadians,
-        float epsilonRadians = osg::DegreesToRadians(0.5));
+        float epsilonRadians = Misc::VsgMath::inDegrees(0.5));
 
     bool smoothTurn(const MWWorld::Ptr& actor, float duration, float targetAngleRadians, int axis,
-        float epsilonRadians = osg::DegreesToRadians(0.5));
-
+        float epsilonRadians = Misc::VsgMath::inDegrees(0.5));
 }
 
 #endif

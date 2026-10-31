@@ -1,10 +1,12 @@
 #ifndef GAME_MWMECHANICS_CHARACTER_HPP
 #define GAME_MWMECHANICS_CHARACTER_HPP
 
-#include <osg/Vec3f>
-#include <osg/Vec2f>
+#include <components/misc/vsgmath.hpp>
+
 #include <deque>
 #include <memory>
+#include <vsg/maths/vec2.h>
+#include <vsg/maths/vec3.h>
 
 #include <vsg/maths/vec3.h>
 #include <components/esm3/loadweap.hpp>
@@ -173,7 +175,7 @@ namespace MWMechanics
         // struct UpdateData {
         float scale = 1.f;
         float speed = 0.f;
-        osg::Vec3f movement;
+        vsg::vec3 movement;
         vsg::vec3 moved;
         // Inertial locomotion (OpenEden), carried from preAnimation to postAnimation.
         bool inertialActive = false;
@@ -240,7 +242,7 @@ namespace MWMechanics
         float mAttackStrength{ -1.f };
         bool mReadyToHit{ false };
         MWWorld::Ptr mAttackVictim;
-        osg::Vec3f mAttackHitPos;
+        vsg::vec3 mAttackHitPos;
         bool mAttackSuccess{ false };
 
         bool mSkipAnim{ false };
@@ -262,7 +264,7 @@ namespace MWMechanics
         bool mCastingScriptedSpell{ false };
 
         bool mIsMovingBackward{ false };
-        osg::Vec2f mSmoothedSpeed;
+        vsg::vec2 mSmoothedSpeed;
 
         std::string_view getMovementBasedAttackType() const;
 
