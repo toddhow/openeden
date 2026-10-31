@@ -34,6 +34,7 @@
 #include "animcontext.hpp"
 #include "bin.hpp"
 #include "env.hpp"
+#include <components/view/env.hpp>
 #include "mask.hpp"
 #include "npc.hpp"
 
@@ -83,7 +84,7 @@ namespace MWRender
         auto collectLights = vsg::ref_ptr{ new View::CollectLights(1) };
         mSceneData = std::make_unique<View::Scene>();
         vsg::Descriptors descriptors = View::createLightingDescriptors(collectLights->data(), false);
-        descriptors.emplace_back(readEnv(resourceSystem->textureOptions));
+        descriptors.emplace_back(View::readEnv(resourceSystem->textureOptions));
         descriptors.emplace_back(View::dummyShadowMap());
         descriptors.emplace_back(View::dummyShadowSampler());
         descriptors.emplace_back(View::dummyReflectDepth());

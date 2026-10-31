@@ -67,6 +67,7 @@
 #include "groundcover.hpp"
 #include "effects.hpp"
 #include "env.hpp"
+#include <components/view/env.hpp>
 #include "fogmanager.hpp"
 #include "mask.hpp"
 #include "player.hpp"
@@ -139,7 +140,7 @@ namespace MWRender
         mSceneData = std::make_unique<View::Scene>();
         auto collectLights = vsg::ref_ptr{ new View::CollectLights(256) };
         vsg::Descriptors descriptors = View::createLightingDescriptors(collectLights->data(), true);
-        descriptors.emplace_back(readEnv(resourceSystem->textureOptions));
+        descriptors.emplace_back(View::readEnv(resourceSystem->textureOptions));
         if (auto shadowMap = mShadow->shadowMap())
         {
             descriptors.emplace_back(shadowMap);

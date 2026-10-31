@@ -166,6 +166,17 @@ namespace Settings
                 + "\" was properly installed.");
         parser.loadSettingsFile(defaultsBin, mDefaultSettings, true, false);
 
+        // The editor draws with the game's renderer, which reads the game's settings, so it has those at their defaults
+        // too (task 0014, C2). Its own openmw-cs.cfg can override them; the game's settings.cfg is not read.
+        if (loadEditorSettings)
+        {
+            const auto gameDefaults = paths.front() / "defaults.cfg";
+            if (!std::filesystem::exists(gameDefaults))
+                throw std::runtime_error("No default settings file found! Make sure the file \"defaults.cfg\" was properly "
+                                         "installed.");
+            parser.loadSettingsFile(gameDefaults, mDefaultSettings, true, false);
+        }
+
         const CategorySettingValueMap originalDefaultSettings = mDefaultSettings;
 
         // Load "settings.cfg" or "openmw-cs.cfg" from every config dir except the last one as additional default
@@ -177,8 +188,7 @@ namespace Settings
                 parser.loadSettingsFile(additionalDefaults, mDefaultSettings, false, true);
         }
 
-        if (!loadEditorSettings)
-            Settings::StaticValues::initDefaults();
+        Settings::StaticValues::initDefaults();
 
         // Load "settings.cfg" or "openmw-cs.cfg" from the last config dir as user settings. This path will be used to
         // save modified settings.
@@ -186,8 +196,7 @@ namespace Settings
         if (std::filesystem::exists(settingspath))
             parser.loadSettingsFile(settingspath, mUserSettings, false, false);
 
-        if (!loadEditorSettings)
-            Settings::StaticValues::init();
+        Settings::StaticValues::init();
 
         for (const auto& [key, value] : originalDefaultSettings)
             if (!sInitialized.contains(key))

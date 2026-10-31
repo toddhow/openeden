@@ -1,3 +1,4 @@
+#include "capture.hpp"
 #include "editor.hpp"
 
 #include <exception>
@@ -40,6 +41,10 @@ int runApplication(int argc, char* argv[])
     Platform::Application application(argc, argv);
 
     application.setWindowIcon(QIcon(":openmw-cs"));
+
+    // Before Editor: an unattended capture opens no editor window, dialogue or IPC server.
+    if (CS::isCaptureRequest(argc, argv))
+        return CS::runCapture(argc, argv);
 
     CS::Editor editor(argc, argv);
 #ifdef __linux__

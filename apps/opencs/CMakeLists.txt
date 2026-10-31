@@ -101,15 +101,12 @@ if (MSVC)
     endif (CMAKE_CL_64)
 endif (MSVC)
 
-# Stage C1: the views do not compile yet, so only the model is built. C2 onwards extends this.
-return()
-
 set (OPENCS_SRC
     )
 set (OPENCS_HDR
     )
 
-opencs_units (. editor)
+opencs_units (. editor capture)
 
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
@@ -128,8 +125,8 @@ opencs_hdrs (view/doc
 
 opencs_units (view/world
     table tablesubview scriptsubview util regionmapsubview tablebottombox creator genericcreator globalcreator
-    cellcreator pathgridcreator referenceablecreator startscriptcreator referencecreator scenesubview
-    infocreator scriptedit dialoguesubview previewsubview regionmap dragrecordtable nestedtable
+    cellcreator pathgridcreator referenceablecreator startscriptcreator referencecreator
+    infocreator scriptedit dialoguesubview regionmap dragrecordtable nestedtable
     dialoguespinbox recordbuttonbar tableeditidaction scripterrortable extendedcommandconfigurator
     bodypartcreator landcreator tableheadermouseeventhandler
     )
@@ -145,20 +142,21 @@ opencs_units (view/widget
     scenetooltoggle2 scenetooltexturebrush scenetoolshapebrush droplineedit
     )
 
+# The staged list of the editor's port to VSG (task 0014, survey section 4). Each stage moves its units from this list
+# into opencs_units below. view/world/scenesubview and previewsubview come back with them, and the code guarded by
+# OPENEDEN_CS_VIEW_RENDER_PENDING with the last.
+#   view/render: scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget editmode
+#   instancemode instanceselectionmode instancemovemode orbitcameramode pathgridmode selectionmode
+#   pathgridselectionmode cameracontroller cellwater terraintexturemode actor terrainselection terrainshapemode brushdraw
+#   commands objectmarker lighting lightingday lightingnight lightingbright object cell terrainstorage cellarrow
+#   cellmarker cellborder pathgrid; header tagbase
+#   view/world: scenesubview previewsubview
 opencs_units (view/render
-    scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget
-    previewwidget editmode instancemode instanceselectionmode instancemovemode
-    orbitcameramode pathgridmode selectionmode pathgridselectionmode cameracontroller
-    cellwater terraintexturemode actor terrainselection terrainshapemode brushdraw commands objectmarker
-    )
-
-opencs_units (view/render
-    lighting lightingday lightingnight lightingbright object cell terrainstorage
-    cellarrow cellmarker cellborder pathgrid
+    rendercontext scenehost
     )
 
 opencs_hdrs (view/render
-    mask tagbase
+    mask
     )
 
 
@@ -274,11 +272,14 @@ endif()
 
 target_link_libraries(openmw-cs-lib
     csmodel
+    vsgQt
 )
+
+target_compile_definitions(openmw-cs-lib PUBLIC OPENEDEN_CS_VIEW_RENDER_PENDING)
 
 target_link_libraries(openmw-cs-lib Qt::Widgets Qt::Core Qt::Network Qt::Svg)
 
-if (WIN32)
+if (WIN32 AND BUILD_OPENCS)
     target_sources(openmw-cs PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
 endif()
 

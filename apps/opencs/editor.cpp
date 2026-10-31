@@ -32,7 +32,6 @@
 #include <components/fallback/validate.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/rng.hpp>
-#include <components/nifosg/nifloader.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
@@ -57,8 +56,6 @@ CS::Editor::Editor(int argc, char** argv)
         mFileToLoad = argv[1];
         mDataDirs = config.first;
     }
-
-    NifOsg::Loader::setShowMarkers(true);
 
     mDocumentManager.setFileData(config.first, config.second);
 

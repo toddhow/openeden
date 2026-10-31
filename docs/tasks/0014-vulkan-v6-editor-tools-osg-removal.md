@@ -282,3 +282,34 @@ New static library `csmodel`, everything under `apps/opencs/model` plus three pl
 - `main.cpp` no longer sets an OpenGL surface format. It is compiled from C2.
 
 Check: `openmw-cs-tests` 154 passed on Windows, and on Linux with `-Werror`. No committed test changed.
+
+### C2 Editor scene host and unattended capture (2026-10-31)
+
+New `CSVRender::RenderContext` (one: viewer, device, render pass, sampler, compile context) and `CSVRender::SceneHost` (one per view, on a hosted `Render::Engine`), and `CS::runCapture` for `--open-cell X --auto-screenshot N --auto-quit M`, with `--camera` and `--capture-views` added for the checks. Rules are in `apps/opencs/CLAUDE.md`. `SceneHost` draws a cell's objects with their lights. The table views now build too, with the scene and preview subviews behind `OPENEDEN_CS_VIEW_RENDER_PENDING`, so `openmw-cs` links.
+
+Shared code touched:
+- `components/settings/settings.cpp`: the editor branch also loads `defaults.cfg` and `StaticValues`. The game's branch is unchanged.
+- `createDefaultSampler` moved to `components/render/defaultsampler.*`, `readEnv` to `components/view/env.*`, code otherwise unchanged.
+
+Design choices for toddhow to overrule if he likes:
+- The compile context and its deletion queue belong to `RenderContext`, not to an Engine, so views can close independently.
+- A capture runs before `CS::Editor` exists, so no editor window, dialogue or IPC server appears, rather than teaching `Editor` a second mode.
+- `Data`'s resource system is per document, so two open documents share a device but not caches, and a pipeline built for one is rebuilt for the other.
+- Interiors use the game's lighting formula, and exteriors the old editor's day mode, until C3 brings the lighting modes back.
+
+Check against the game, same camera taken from a temporary log of `mViewMatrix` (removed), 1280x720, frames viewed:
+- **Seyda Neen, Arrille's Tradehouse:** geometry is identical pixel for pixel by eye and in the diff map. With a threshold of 6 summed over RGB and every second pixel sampled, 5,589 of 230,400 are over, all of them the game's HUD, door tooltip and crosshair. The rest differ by low, brightness-proportional amounts; a wall area averages R/G/B 41.3/29.5/15.8 in the editor and 40.0/28.9/15.6 in the game. The editor draws no fog, which may be the cause, not proven. A trial with lights off gave 32.4/24.8/14.7, so point lights do work.
+- **Seyda Neen exterior (`#-2 -9`):** buildings, tree and rocks are in the same places; 228,118 of 230,400 sampled are over the threshold, as expected at this stage. Missing: terrain, water, sky, the actor, the neighbouring cells and sun lighting. The grey background and day-mode lighting are the editor's. Foliage looks paler and softer against the grey than in the game's frame. That is not explained yet; check at C4 with terrain and matching light before calling it lighting.
+- **Balmora, Caius Cosades' House:** two views on one device (`--capture-views 2`), both written, second viewed, default camera; candlelight visible.
+- A cell that does not exist exits with code 1 and a message.
+
+Check of the game: Caldera Mages Guild, across the moves, 0 sampled pixels over the threshold, as between two runs of one build. Balmora not compared.
+
+Tests: Windows components-tests 2219 of 2220 (`DetourNavigatorRecastMeshObjectTest`, the known intermittent one), openmw-tests 717, openmw-cs-tests 154. Linux with `-Werror`: `openmw-cs` and `openmw-cs-tests` build, 154 pass.
+
+Not verified:
+- `openmw-cs` started normally: it would open windows that take focus. The table views have only been compiled.
+- Any window on Linux.
+- Resizing a view (`SceneHost::updateExtent` is there, not exercised), and closing one view while another stays.
+- `reference.mScale` of 0 and doors or animated objects, drawn without animation (`useAnim` false) until C4.
+- Validation layers, none installed.

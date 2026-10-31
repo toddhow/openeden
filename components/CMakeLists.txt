@@ -136,12 +136,12 @@ add_component_dir (pipeline
 # Implements algorithms.
 add_component_dir (render
     engine download screenshot headless limitframerate rendertexture cascade computeimage
-    screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect
+    screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
     )
 # Renders pipelines.
 # Depends on pipeline, render.
 add_component_dir (view
-    scene descriptors collectlights defaultstate lightgrid shadow
+    scene descriptors collectlights defaultstate lightgrid shadow env
     )
 # Provides dynamic scene graph objects.
 add_component_dir (animation
