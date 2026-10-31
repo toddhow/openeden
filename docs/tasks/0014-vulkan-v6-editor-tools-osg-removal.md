@@ -506,3 +506,7 @@ Check list, for a person:
 26. **Orbit centre by click.** Press `orbit` over a building in the view's middle: circling goes around the building, not a point 10,000 units away. Over open sky it circles a point 10,000 units ahead.
 27. **Ortho.** Repeat 24 with Orthographic projection on.
 28. **Picking does not stall.** Sweep the mouse over a large exterior with tool tips on. The editor stays smooth. Say if a hover or a click pauses it: terrain's ray recomputes a chunk's vertices.
+
+### Linux, C5 and C6 (2026-10-31)
+
+At `4a2dc1c8ab`, with `-Werror`: components-tests 2224, openmw-tests 717, all 32 Lua integration tests. `openmw-cs` and `openmw-cs-tests` build, 181 pass, and the editor started and closed under xvfb with lavapipe on the example suite. No Linux frame or ray was captured or viewed. An earlier run had one failure, `CompatMorrowindTest.ManifestValidation`, while another session was using the same build volume; it did not repeat. The seen-once capture crash from C4's items was hunted under a debug runner without a crash, but the runs under it were stopped early, so it stays open.
