@@ -14,7 +14,7 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 - The host drives frames and calls `endFrame()` afterwards. `loop()` is not for it: it blocks.
 - `setup()` appends to the viewer's task rather than calling `Viewer::addRecordAndSubmitTaskAndPresentation`, which replaces every task and leaves earlier compile contexts uploading through a dead `TransferTask`.
 - `setup()` restarts the viewer's threading, so the last Engine's `threading` argument decides for all of them.
-- `endFrame()` runs before anything is queued for deletion, so the frame that last used it is not counted towards its release.
+- `endFrame()` is the only thing that advances a hosted deletion queue, and the host calls it only after `recordAndSubmit` has returned. A frame is stamped in `advanceToNextFrame`, and its fence wait comes later, in `RecordAndSubmitTask::start`, so never call it from an event handler, an update operation or a detach. The queue holds `max(numFrames, 3) + 1` frames: the fence ring is three long however few swapchain images there are (`vsgUtil::DeletionQueue::sizeForPostFrameAdvance`).
 
 ## Pitfalls
 

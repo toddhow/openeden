@@ -261,3 +261,13 @@ Open:
 Check of the game, which supplies no alterations: two runs each before and after, frames viewed. Seyda Neen, terrain filling the frame: 6 to 9 pixels over threshold across the change, 1 and 15 between runs of one build. Balmora: 104,858 to 117,597 across the change, 49,555 and 119,417 between runs.
 
 Not run: the editor's own subclass, which does not build until the editor is ported.
+
+### Hosted deletion queue fix (2026-10-31)
+
+A review found a use-after-free in B3's `onDetached`, confirmed against the source. `vsgQt::Viewer::render` stamps a frame in `advanceToNextFrame`, runs `handleEvents` and `update`, and only then `recordAndSubmit`, where `RecordAndSubmitTask::start` waits on the fence. So calling `endFrame()` from a detach counted a frame whose wait had not happened: an object last used in frame 7, with 8 and 9 reported, was freed by a detach during frame 10's update, before frame 7's fence was waited on. Separately, a two-image swapchain gave a queue of 2 where the fence ring is 3 (`Viewer::assignRecordAndSubmitTaskAndPresentation`, `numBuffers`).
+
+Fix, all behind `mHosted`: `onDetached` only adds, the host's post-frame `endFrame()` is the only advance, and the queue holds `max(numFrames, 3) + 1` (`DeletionQueue::sizeForPostFrameAdvance`). This corrects B3's review entry above, which added the `endFrame()` call.
+
+Tests changed in `vsgutil/testdeletionqueue.cpp` (coordinator-approved exception): the two tests of the old order, `advanceToFrameBeforeAddKeepsObjectUntilThirdNewFrame` and `advanceToFrameAfterAddCountsTheFrameThatUsedTheObject`, assumed frame 10's submission had already waited when frame 10 was reported from a detach. They are replaced by `postFrameAdvanceKeepsObjectUntilItsFenceHasBeenWaitedOn`, and `sizeForPostFrameAdvanceCoversTheFenceRing` is new. The other tests are unchanged. They test the queue only, not `Engine`.
+
+Check: components-tests (2220), openmw-tests (717) and one game frame of the Caldera Mages Guild, viewed; the game's path has no changed branch. Not run: a hosted window with this fix, which C2 is the first to exercise, and validation layers.

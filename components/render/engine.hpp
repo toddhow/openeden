@@ -72,7 +72,10 @@ namespace Render
         using FrameCallback = std::function<void(double dt, bool& requiresRender, bool& quit)>;
         void loop(FrameCallback cb, float framerateLimit = 0);
         // Hosted: the per-frame work loop() does beyond what the viewer does itself, which is freeing what has been
-        // detached. Safe to call whether or not a frame was drawn, and from every Engine of a viewer.
+        // detached. Call it only between frames, after the viewer's recordAndSubmit has returned: the viewer stamps a frame
+        // in advanceToNextFrame and waits on the fence only in recordAndSubmit (RecordAndSubmitTask::start), so counting a
+        // stamped frame any earlier frees objects a queued frame still uses. Safe whether or not a frame was drawn, and from
+        // every Engine of a viewer.
         void endFrame();
 
         // Hosted, null while the window has zero size (a collapsed splitter): capturing it would crash.

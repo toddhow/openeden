@@ -46,15 +46,17 @@ namespace
         EXPECT_FALSE(queueHoldsObject());
     }
 
-    // Engine's hosted onDetached: frame 7 last used the object and the host's timer has not yet reported it. Reporting it
-    // before add() means 8, 9 and 10 all count, and frame 10's submission has waited on frame 7's fence; the fence ring
-    // is three long (vsg::Viewer::assignRecordAndSubmitTaskAndPresentation, numBuffers).
-    TEST(DeletionQueue, advanceToFrameBeforeAddKeepsObjectUntilThirdNewFrame)
+    // The order in a hosted Engine: a frame is stamped, the host's handleEvents and update run (detaches happen here or
+    // between frames), then recordAndSubmit waits on the fence of three frames back, and only then is the frame reported
+    // with advanceToFrame. Worst case: the object was last used by frame 7 and added before frame 7 was reported. Its fence
+    // is waited on in frame 10's recordAndSubmit, so the report of frame 10, which follows it, is the first safe release.
+    TEST(DeletionQueue, postFrameAdvanceKeepsObjectUntilItsFenceHasBeenWaitedOn)
     {
-        vsgUtil::DeletionQueue queue{ 3 };
+        vsgUtil::DeletionQueue queue{ vsgUtil::DeletionQueue::sizeForPostFrameAdvance(3) };
         vsg::ref_ptr<vsg::Object> object = vsg::Object::create();
-        queue.advanceToFrame(7);
+        queue.advanceToFrame(6);
         queue.add(object);
+        queue.advanceToFrame(7);
         queue.advanceToFrame(7);
         queue.advanceToFrame(8);
         queue.advanceToFrame(9);
@@ -63,17 +65,12 @@ namespace
         EXPECT_EQ(object->referenceCount(), 1u);
     }
 
-    // The defect that order prevents: without reporting frame 7 first, the object goes after frame 9.
-    TEST(DeletionQueue, advanceToFrameAfterAddCountsTheFrameThatUsedTheObject)
+    // The fence ring is three long whatever the swapchain, and a swapchain with more images keeps objects longer.
+    TEST(DeletionQueue, sizeForPostFrameAdvanceCoversTheFenceRing)
     {
-        vsgUtil::DeletionQueue queue{ 3 };
-        vsg::ref_ptr<vsg::Object> object = vsg::Object::create();
-        queue.advanceToFrame(6);
-        queue.add(object);
-        queue.advanceToFrame(7);
-        queue.advanceToFrame(8);
-        queue.advanceToFrame(9);
-        EXPECT_EQ(object->referenceCount(), 1u);
+        EXPECT_EQ(vsgUtil::DeletionQueue::sizeForPostFrameAdvance(2), 4u);
+        EXPECT_EQ(vsgUtil::DeletionQueue::sizeForPostFrameAdvance(3), 4u);
+        EXPECT_EQ(vsgUtil::DeletionQueue::sizeForPostFrameAdvance(4), 5u);
     }
 
     TEST_F(DeletionQueueTest, advanceToFrameCountsSkippedFramesAsOne)

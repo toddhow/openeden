@@ -107,7 +107,8 @@ namespace Render
         if (mTraits->swapchainPreferences.surfaceFormat.format != compatibleColorFormat)
             throw std::invalid_argument("Render::Engine: the window's swapchain must use compatibleColorFormat");
         mViewer->addWindow(mWindow);
-        mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(mTraits->swapchainPreferences.imageCount+1);
+        mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(
+            vsgUtil::DeletionQueue::sizeForPostFrameAdvance(mTraits->swapchainPreferences.imageCount));
         if (mTraits->debugLayer) mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mWindow->getOrCreateInstance());
     }
 
@@ -126,7 +127,8 @@ namespace Render
             // The swapchain can fall back to sRGB when the surface lacks the format asked for (vsg::selectSwapSurfaceFormat).
             if (mHosted && mWindow->surfaceFormat().format != compatibleColorFormat)
                 throw std::invalid_argument("Render::Engine: the surface does not support compatibleColorFormat");
-            mDeletionQueue->resize(mWindow->numFrames());
+            mDeletionQueue->resize(
+                mHosted ? vsgUtil::DeletionQueue::sizeForPostFrameAdvance(mWindow->numFrames()) : mWindow->numFrames());
         }
         else if (mHeadless)
         {
@@ -271,6 +273,7 @@ namespace Render
     void Engine::endFrame()
     {
         // The frame stamp appears on the first advanceToNextFrame, and counts the frames of every window of the viewer.
+        // Only here is it known that the stamped frame's fence wait has happened; see the header.
         if (const auto* stamp = mViewer->getFrameStamp(); stamp && mDeletionQueue)
             mDeletionQueue->advanceToFrame(stamp->frameCount);
     }
@@ -359,13 +362,7 @@ namespace Render
         ret->compileManager = compile;
         ret->onCompiled = [this](const vsg::CompileResult& r) { vsg::updateViewer(*mViewer, r); };
         if (mDeletionQueue)
-            ret->onDetached = [this](vsg::ref_ptr<vsg::Object> object) {
-                // A host's timer may not have run endFrame() yet for the last frame that used the object. That advance
-                // must not count towards the object, or it is freed a frame before the frame's fence is waited on.
-                if (mHosted)
-                    endFrame();
-                mDeletionQueue->add(object);
-            };
+            ret->onDetached = [this](vsg::ref_ptr<vsg::Object> object) { mDeletionQueue->add(object); };
         else
             ret->onDetached = [](vsg::ref_ptr<vsg::Object>){};
         return ret;
