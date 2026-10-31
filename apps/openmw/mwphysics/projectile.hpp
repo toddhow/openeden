@@ -25,8 +25,8 @@ namespace MWPhysics
     class Projectile final : public PtrHolder
     {
     public:
-        Projectile(const MWWorld::Ptr& caster, const osg::Vec3f& position, float radius,
-            PhysicsTaskScheduler* scheduler, PhysicsSystem* physicssystem);
+        Projectile(const MWWorld::Ptr& caster, const vsg::vec3& position, float radius, PhysicsTaskScheduler* scheduler,
+            PhysicsSystem* physicssystem);
         ~Projectile() override;
 
         bool isActive() const { return mActive.load(std::memory_order_acquire); }
@@ -41,19 +41,19 @@ namespace MWPhysics
 
         bool getHitWater() const { return mHitWater.load(std::memory_order_acquire); }
 
-        void hit(const JPH::BodyID target, osg::Vec3f pos, osg::Vec3f normal);
+        void hit(const JPH::BodyID target, vsg::vec3 pos, vsg::vec3 normal);
 
         void setValidTargets(const std::vector<MWWorld::Ptr>& targets);
         bool isValidTarget(const JPH::BodyID target) const;
 
-        osg::Vec3f getHitPosition() const { return mHitPosition; }
+        vsg::vec3 getHitPosition() const { return mHitPosition; }
 
         void onContactAdded(const JPH::Body& withBody, const JPH::ContactManifold& inManifold,
             JPH::ContactSettings& ioSettings) override;
         bool onContactValidate(const JPH::Body& withBody) override;
-        void setVelocity(osg::Vec3f velocity) override;
+        void setVelocity(vsg::vec3 velocity) override;
 
-        osg::Vec3f getSimulationPosition() const override;
+        vsg::vec3 getSimulationPosition() const override;
 
     private:
         std::atomic<bool> mHitWater;
@@ -61,8 +61,8 @@ namespace MWPhysics
         MWWorld::Ptr mCaster;
         JPH::BodyID mCasterColObj;
         JPH::BodyID mHitTarget;
-        osg::Vec3f mHitPosition;
-        osg::Vec3f mHitNormal;
+        vsg::vec3 mHitPosition;
+        vsg::vec3 mHitNormal;
 
         std::vector<JPH::BodyID> mValidTargets;
 

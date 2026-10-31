@@ -518,12 +518,12 @@ namespace MWRender
     void InventoryPreview::onSetup()
     {
         CharacterPreview::onSetup();
-        osg::Vec3f scale(1.f, 1.f, 1.f);
+        vsg::vec3 scale(1.f, 1.f, 1.f);
         mCharacter.getClass().adjustScale(mCharacter, scale, true);
 
         mNode->setScale(scale);
 
-        auto viewMatrix = osg::Matrixf::lookAt(mPosition * scale.z(), mLookAt * scale.z(), osg::Vec3f(0, 0, 1));
+        auto viewMatrix = osg::Matrixf::lookAt(mPosition * scale.z, mLookAt * scale.z, osg::Vec3f(0, 0, 1));
         mRTTNode->setViewMatrix(viewMatrix);
     }
 

@@ -47,7 +47,7 @@ namespace MWPhysics
         class ContactCollectionCallback : public JPH::CollideShapeCollector
         {
         public:
-            explicit ContactCollectionCallback(const osg::Vec3f& velocity)
+            explicit ContactCollectionCallback(const vsg::vec3& velocity)
                 : mVelocity(Misc::Convert::toJolt<JPH::Vec3>(velocity))
             {
             }
@@ -88,13 +88,13 @@ namespace MWPhysics
         };
     }
 
-    osg::Vec3f MovementSolver::traceDown(const MWWorld::Ptr& ptr, const osg::Vec3f& position, Actor* actor,
+    vsg::vec3 MovementSolver::traceDown(const MWWorld::Ptr& ptr, const vsg::vec3& position, Actor* actor,
         JPH::PhysicsSystem* physicsSystem, float maxHeight)
     {
-        osg::Vec3f offset = actor->getCollisionObjectPosition() - ptr.getRefData().getPosition().asVec3();
+        vsg::vec3 offset = actor->getCollisionObjectPosition() - ptr.getRefData().getPosition().asVec3();
 
         ActorTracer tracer;
-        tracer.findGround(actor, position + offset, position + offset - osg::Vec3f(0, 0, maxHeight), physicsSystem);
+        tracer.findGround(actor, position + offset, position + offset - vsg::vec3(0, 0, maxHeight), physicsSystem);
         if (tracer.mFraction >= 1.0f)
         {
             actor->setOnGround(false);
@@ -120,7 +120,7 @@ namespace MWPhysics
         if (rayHit)
         {
             JPH::RVec3 hitPointWorld = ray.GetPointOnRay(hit.mFraction);
-            if (((osg::Vec3f(Misc::Convert::toOsg(hitPointWorld)) - tracer.mEndPos + offset).length2() > 35 * 35
+            if ((vsg::length2(vsg::vec3(Misc::Convert::toOsg(hitPointWorld)) - tracer.mEndPos + offset) > 35 * 35
                     || !isWalkableSlope(tracer.mPlaneNormal)))
             {
                 JPH::BodyLockRead lock(physicsSystem->GetBodyLockInterface(), hit.mBodyID);
@@ -128,15 +128,15 @@ namespace MWPhysics
                 {
                     const JPH::Body& hitBody = lock.GetBody();
                     const JPH::Vec3 normal = hitBody.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPointWorld);
-                    actor->setOnSlope(!isWalkableSlope(osg::Vec3f(Misc::Convert::toOsg(normal))));
-                    return osg::Vec3f(Misc::Convert::toOsg(hitPointWorld)) + osg::Vec3f(0.f, 0.f, sGroundOffset);
+                    actor->setOnSlope(!isWalkableSlope(vsg::vec3(Misc::Convert::toOsg(normal))));
+                    return vsg::vec3(Misc::Convert::toOsg(hitPointWorld)) + vsg::vec3(0.f, 0.f, sGroundOffset);
                 }
             }
         }
 
         actor->setOnSlope(!isWalkableSlope(tracer.mPlaneNormal));
 
-        return tracer.mEndPos - offset + osg::Vec3f(0.f, 0.f, sGroundOffset);
+        return tracer.mEndPos - offset + vsg::vec3(0.f, 0.f, sGroundOffset);
     }
 
     void MovementSolver::move(
@@ -149,8 +149,8 @@ namespace MWPhysics
         // Anything to collide with?
         if (actor.mSkipCollisionDetection)
         {
-            actor.mPosition += (osg::Quat(actor.mRotation.x(), osg::Vec3f(-1, 0, 0))
-                                   * osg::Quat(actor.mRotation.y(), osg::Vec3f(0, 0, -1)))
+            actor.mPosition += vsg::quat(Misc::VsgMath::makeRotateFromAxis(actor.mRotation.x, vsg::vec3(-1, 0, 0))
+                                   * Misc::VsgMath::makeRotateFromAxis(actor.mRotation.y, vsg::vec3(0, 0, -1)))
                 * actor.mMovement * time;
             return;
         }
@@ -160,31 +160,32 @@ namespace MWPhysics
         // own) for compatibility with vanilla assets, we have to derive this from the vertical half extent instead of
         // from internal hull translation if not for this hack, the "correct" collision hull position would be
         // physicActor->getScaledMeshTranslation()
-        actor.mPosition.z() += actor.mHalfExtentsZ; // vanilla-accurate
+        actor.mPosition.z += actor.mHalfExtentsZ; // vanilla-accurate
 
         float swimlevel = actor.mSwimLevel + actor.mHalfExtentsZ;
 
         ActorTracer tracer;
 
-        osg::Vec3f velocity;
+        vsg::vec3 velocity;
 
         // Dead and paralyzed actors underwater will float to the surface,
         // if the CharacterController tells us to do so
-        if (actor.mMovement.z() > 0 && actor.mInert && actor.mPosition.z() < swimlevel)
+        if (actor.mMovement.z > 0 && actor.mInert && actor.mPosition.z < swimlevel)
         {
-            velocity = osg::Vec3f(0, 0, 1) * 25;
+            velocity = vsg::vec3(0, 0, 1) * 25;
         }
-        else if (actor.mPosition.z() < swimlevel || actor.mFlying)
+        else if (actor.mPosition.z < swimlevel || actor.mFlying)
         {
             if (actor.mActor != nullptr)
                 actor.mActor->getLocomotionState().reset();
-            velocity = (osg::Quat(actor.mRotation.x(), osg::Vec3f(-1, 0, 0))
-                           * osg::Quat(actor.mRotation.y(), osg::Vec3f(0, 0, -1)))
+            velocity = vsg::quat(Misc::VsgMath::makeRotateFromAxis(actor.mRotation.x, vsg::vec3(-1, 0, 0))
+                           * Misc::VsgMath::makeRotateFromAxis(actor.mRotation.y, vsg::vec3(0, 0, -1)))
                 * actor.mMovement;
         }
         else
         {
-            velocity = (osg::Quat(actor.mRotation.y(), osg::Vec3f(0, 0, -1))) * actor.mMovement;
+            velocity = vsg::quat(Misc::VsgMath::makeRotateFromAxis(actor.mRotation.y, vsg::vec3(0, 0, -1)))
+                * actor.mMovement;
 
             const std::string& inertialSetting = Settings::values().mGame.mInertialLocomotion.get();
             const bool useInertial = (inertialSetting != "off" && !inertialSetting.empty())
@@ -207,7 +208,8 @@ namespace MWPhysics
 
                 if (!actor.mWasOnGround && actor.mIsOnGround)
                 {
-                    actor.mActor->getLocomotionState().reset(osg::Vec2f(actor.mInertia.x(), actor.mInertia.y()), actor.mRotation.y());
+                    actor.mActor->getLocomotionState().reset(
+                        vsg::vec2(actor.mInertia.x, actor.mInertia.y), actor.mRotation.y);
                 }
 
                 if (actor.mIsOnGround && !actor.mIsOnSlope)
@@ -219,22 +221,22 @@ namespace MWPhysics
                         nominalMaxSpeed = std::max(50.0f, ptr.getClass().getMaxSpeed(ptr));
                     }
 
-                    const float reqLenSq = velocity.x() * velocity.x() + velocity.y() * velocity.y();
+                    const float reqLenSq = velocity.x * velocity.x + velocity.y * velocity.y;
                     if (reqLenSq > nominalMaxSpeed * nominalMaxSpeed && nominalMaxSpeed > 0.0f)
                     {
                         const float reqLen = std::sqrt(reqLenSq);
-                        velocity.x() *= (nominalMaxSpeed / reqLen);
-                        velocity.y() *= (nominalMaxSpeed / reqLen);
+                        velocity.x *= (nominalMaxSpeed / reqLen);
+                        velocity.y *= (nominalMaxSpeed / reqLen);
                     }
 
-                    osg::Vec2f smoothed = actor.mActor->getLocomotionState().update(
-                        osg::Vec2f(velocity.x(), velocity.y()), time, params, nominalMaxSpeed);
-                    velocity.x() = smoothed.x();
-                    velocity.y() = smoothed.y();
+                    vsg::vec2 smoothed = actor.mActor->getLocomotionState().update(
+                        vsg::vec2(velocity.x, velocity.y), time, params, nominalMaxSpeed);
+                    velocity.x = smoothed.x;
+                    velocity.y = smoothed.y;
                 }
 
-                if ((velocity.z() > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
-                    || (velocity.z() > 0.f && velocity.z() + actor.mInertia.z() <= -velocity.z() && actor.mIsOnSlope))
+                if ((velocity.z > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
+                    || (velocity.z > 0.f && velocity.z + actor.mInertia.z <= -velocity.z && actor.mIsOnSlope))
                     actor.mInertia = velocity;
                 else if (!actor.mIsOnGround || actor.mIsOnSlope)
                     velocity = velocity + actor.mInertia;
@@ -244,8 +246,8 @@ namespace MWPhysics
                 if (actor.mActor != nullptr)
                     actor.mActor->getLocomotionState().reset();
 
-                if ((velocity.z() > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
-                    || (velocity.z() > 0.f && velocity.z() + actor.mInertia.z() <= -velocity.z() && actor.mIsOnSlope))
+                if ((velocity.z > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)
+                    || (velocity.z > 0.f && velocity.z + actor.mInertia.z <= -velocity.z && actor.mIsOnSlope))
                     actor.mInertia = velocity;
                 else if (!actor.mIsOnGround || actor.mIsOnSlope)
                     velocity = velocity + actor.mInertia;
@@ -253,17 +255,17 @@ namespace MWPhysics
         }
 
         // Now that we have the effective movement vector, apply wind forces to it
-        if (worldData.mIsInStorm && velocity.length() > 0)
+        if (worldData.mIsInStorm && vsg::length(velocity) > 0)
         {
             const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
             const float fStromWalkMult = store.get<ESM::GameSetting>().find("fStromWalkMult")->mValue.getFloat();
-            const float angleCos = worldData.mStormDirection * velocity / velocity.length();
+            const float angleCos = vsg::dot(worldData.mStormDirection, velocity) / vsg::length(velocity);
             velocity *= 1.f + fStromWalkMult * angleCos;
         }
 
         Stepper stepper(physicsSystem, actor.mPhysicsBody);
-        osg::Vec3f origVelocity = velocity;
-        osg::Vec3f newPosition = actor.mPosition;
+        vsg::vec3 origVelocity = velocity;
+        vsg::vec3 newPosition = actor.mPosition;
         /*
          * A loop to find newPosition using tracer, if successful different from the starting position.
          * nextpos is the local variable used to find potential newPosition, using velocity and remainingTime
@@ -272,25 +274,25 @@ namespace MWPhysics
         float remainingTime = time;
 
         int numTimesSlid = 0;
-        osg::Vec3f lastSlideNormal(0, 0, 1);
-        osg::Vec3f lastSlideNormalFallback(0, 0, 1);
+        vsg::vec3 lastSlideNormal(0, 0, 1);
+        vsg::vec3 lastSlideNormalFallback(0, 0, 1);
         bool forceGroundTest = false;
 
         for (int iterations = 0; iterations < sMaxIterations && remainingTime > 0.0001f; ++iterations)
         {
-            osg::Vec3f nextpos = newPosition + velocity * remainingTime;
-            bool underwater = newPosition.z() < swimlevel;
+            vsg::vec3 nextpos = newPosition + velocity * remainingTime;
+            bool underwater = newPosition.z < swimlevel;
 
             // If not able to fly, don't allow to swim up into the air
-            if (!actor.mFlying && nextpos.z() > swimlevel && underwater)
+            if (!actor.mFlying && nextpos.z > swimlevel && underwater)
             {
-                const osg::Vec3f down(0, 0, -1);
+                const vsg::vec3 down(0, 0, -1);
                 velocity = reject(velocity, down);
                 // NOTE: remainingTime is unchanged before the loop continues
                 continue; // velocity updated, calculate nextpos again
             }
 
-            if ((newPosition - nextpos).length2() > 0.0001)
+            if (vsg::length2(newPosition - nextpos) > 0.0001)
             {
                 // trace to where character would go if there were no obstructions
                 tracer.doTrace(
@@ -315,8 +317,8 @@ namespace MWPhysics
                 && ((actor.mIsOnGround && !actor.mIsOnSlope) || isWalkableSlope(tracer.mPlaneNormal));
 
             // We hit something. Check if we can step up.
-            float hitHeight = tracer.mHitPoint.z() - tracer.mEndPos.z() + actor.mHalfExtentsZ;
-            osg::Vec3f oldPosition = newPosition;
+            float hitHeight = tracer.mHitPoint.z - tracer.mEndPos.z + actor.mHalfExtentsZ;
+            vsg::vec3 oldPosition = newPosition;
             bool usedStepLogic = false;
 
             if (!isActor(tracer.mHitObject))
@@ -341,9 +343,9 @@ namespace MWPhysics
             }
             if (usedStepLogic)
             {
-                if (actor.mIsAquatic && newPosition.z() + actor.mHalfExtentsZ > actor.mWaterlevel)
+                if (actor.mIsAquatic && newPosition.z + actor.mHalfExtentsZ > actor.mWaterlevel)
                     newPosition = oldPosition;
-                else if (!actor.mFlying && actor.mPosition.z() >= swimlevel)
+                else if (!actor.mFlying && actor.mPosition.z >= swimlevel)
                     forceGroundTest = true;
             }
             else
@@ -359,22 +361,23 @@ namespace MWPhysics
                 // pretend that its collision normal is pointing horizontally
                 // (fixes snagging on slightly downward-facing walls, and crawling up the bases of very steep walls
                 // because of the collision margin)
-                if (seenGround && !isWalkableSlope(planeNormal) && planeNormal.z() != 0)
+                if (seenGround && !isWalkableSlope(planeNormal) && planeNormal.z != 0)
                 {
-                    planeNormal.z() = 0;
-                    planeNormal.normalize();
+                    planeNormal.z = 0;
+                    Misc::VsgMath::normalizeInPlace(planeNormal);
                 }
 
                 // Move up to what we ran into (with a bit of a collision margin)
-                if ((newPosition - tracer.mEndPos).length2() > sCollisionMargin * sCollisionMargin)
+                if (vsg::length2(newPosition - tracer.mEndPos) > sCollisionMargin * sCollisionMargin)
                 {
                     auto direction = velocity;
-                    direction.normalize();
+                    Misc::VsgMath::normalizeInPlace(direction);
                     newPosition = tracer.mEndPos;
                     newPosition -= direction * sCollisionMargin;
                 }
 
-                osg::Vec3f newVelocity = (velocity * planeNormal <= 0.0) ? reject(velocity, planeNormal) : velocity;
+                vsg::vec3 newVelocity
+                    = (vsg::dot(velocity, planeNormal) <= 0.0) ? reject(velocity, planeNormal) : velocity;
                 bool usedSeamLogic = false;
 
                 // check for the current and previous collision planes forming an acute angle; slide along the seam if
@@ -382,13 +385,13 @@ namespace MWPhysics
                 // snag
                 if (numTimesSlid > 0)
                 {
-                    auto dotA = lastSlideNormal * origPlaneNormal;
-                    auto dotB = lastSlideNormalFallback * origPlaneNormal;
+                    auto dotA = vsg::dot(lastSlideNormal, origPlaneNormal);
+                    auto dotB = vsg::dot(lastSlideNormalFallback, origPlaneNormal);
                     if (numTimesSlid <= 1) // ignore fallback normal if this is only the first or second slide
                         dotB = 1.0;
                     if (dotA <= 0.0 || dotB <= 0.0)
                     {
-                        osg::Vec3f bestNormal = lastSlideNormal;
+                        vsg::vec3 bestNormal = lastSlideNormal;
                         // use previous-to-previous collision plane if it's acute with current plane but actual previous
                         // plane isn't
                         if (dotB < dotA)
@@ -397,18 +400,18 @@ namespace MWPhysics
                             lastSlideNormal = lastSlideNormalFallback;
                         }
 
-                        auto constraintVector = bestNormal ^ origPlaneNormal; // cross product
-                        if (constraintVector.length2() > 0) // only if it's not zero length
+                        auto constraintVector = vsg::cross(bestNormal, origPlaneNormal); // cross product
+                        if (vsg::length2(constraintVector) > 0) // only if it's not zero length
                         {
-                            constraintVector.normalize();
+                            Misc::VsgMath::normalizeInPlace(constraintVector);
                             newVelocity = project(velocity, constraintVector);
 
                             // version of surface rejection for acute crevices/seams
                             auto averageNormal = bestNormal + origPlaneNormal;
-                            averageNormal.normalize();
+                            Misc::VsgMath::normalizeInPlace(averageNormal);
                             tracer.doTrace(actor.mPhysicsBody, newPosition,
                                 newPosition + averageNormal * (sCollisionMargin * 2.0), physicsSystem, collisionMask);
-                            newPosition = (newPosition + tracer.mEndPos) / 2.0;
+                            newPosition = Misc::VsgMath::divide(newPosition + tracer.mEndPos, 2.0);
 
                             usedSeamLogic = true;
                         }
@@ -424,17 +427,17 @@ namespace MWPhysics
                 {
                     tracer.doTrace(actor.mPhysicsBody, newPosition,
                         newPosition + planeNormal * (sCollisionMargin * 2.0), physicsSystem, collisionMask);
-                    newPosition = (newPosition + tracer.mEndPos) / 2.0;
+                    newPosition = Misc::VsgMath::divide(newPosition + tracer.mEndPos, 2.0);
                 }
 
                 // short circuit if we went backwards, but only if it was mostly horizontal and we're on the ground
-                if (seenGround && newVelocity * origVelocity <= 0.0f)
+                if (seenGround && vsg::dot(newVelocity, origVelocity) <= 0.0f)
                 {
-                    auto perpendicular = newVelocity ^ origVelocity;
-                    if (perpendicular.length2() > 0.0f)
+                    auto perpendicular = vsg::cross(newVelocity, origVelocity);
+                    if (vsg::length2(perpendicular) > 0.0f)
                     {
-                        perpendicular.normalize();
-                        if (std::abs(perpendicular.z()) > 0.7071f)
+                        Misc::VsgMath::normalizeInPlace(perpendicular);
+                        if (std::abs(perpendicular.z) > 0.7071f)
                             break;
                     }
                 }
@@ -445,8 +448,8 @@ namespace MWPhysics
                 // usedSeamLogic) and doing so would actually break air control in some situations where vanilla allows
                 // air control. Vanilla actually allows you to slide up slopes as long as you're in the "walking"
                 // animation, which can be true even in the air, so allowing this for seams isn't a compatibility break.
-                if (newPosition.z() >= swimlevel && !actor.mFlying && !isWalkableSlope(planeNormal) && !usedSeamLogic)
-                    newVelocity.z() = std::min(newVelocity.z(), velocity.z());
+                if (newPosition.z >= swimlevel && !actor.mFlying && !isWalkableSlope(planeNormal) && !usedSeamLogic)
+                    newVelocity.z = std::min(newVelocity.z, velocity.z);
 
                 numTimesSlid += 1;
                 lastSlideNormalFallback = lastSlideNormal;
@@ -457,10 +460,10 @@ namespace MWPhysics
 
         bool isOnGround = false;
         bool isOnSlope = false;
-        if (forceGroundTest || (actor.mInertia.z() <= 0.f && newPosition.z() >= swimlevel))
+        if (forceGroundTest || (actor.mInertia.z <= 0.f && newPosition.z >= swimlevel))
         {
             auto dropDistance = 2 * sGroundOffset + (actor.mIsOnGround ? sStepSizeDown : 0);
-            osg::Vec3f to = newPosition - osg::Vec3f(0, 0, dropDistance);
+            vsg::vec3 to = newPosition - vsg::vec3(0, 0, dropDistance);
             tracer.doTrace(actor.mPhysicsBody, newPosition, to, physicsSystem, collisionMask, actor.mIsOnGround);
             if (tracer.mFraction < 1.0f)
             {
@@ -475,13 +478,13 @@ namespace MWPhysics
                     if (!actor.mFlying && !isOnSlope)
                     {
                         if (tracer.mFraction * dropDistance > sGroundOffset)
-                            newPosition.z() = tracer.mEndPos.z() + sGroundOffset;
+                            newPosition.z = tracer.mEndPos.z + sGroundOffset;
                         else
                         {
-                            newPosition.z() = tracer.mEndPos.z();
+                            newPosition.z = tracer.mEndPos.z;
                             tracer.doTrace(actor.mPhysicsBody, newPosition,
-                                newPosition + osg::Vec3f(0, 0, 2 * sGroundOffset), physicsSystem, collisionMask);
-                            newPosition = (newPosition + tracer.mEndPos) / 2.0;
+                                newPosition + vsg::vec3(0, 0, 2 * sGroundOffset), physicsSystem, collisionMask);
+                            newPosition = Misc::VsgMath::divide(newPosition + tracer.mEndPos, 2.0);
                         }
                     }
                 }
@@ -489,8 +492,8 @@ namespace MWPhysics
                 {
                     // Vanilla allows actors to float on top of other actors. Do not push them off.
                     if (!actor.mFlying && isWalkableSlope(tracer.mPlaneNormal)
-                        && tracer.mEndPos.z() + sGroundOffset <= newPosition.z())
-                        newPosition.z() = tracer.mEndPos.z() + sGroundOffset;
+                        && tracer.mEndPos.z + sGroundOffset <= newPosition.z)
+                        newPosition.z = tracer.mEndPos.z + sGroundOffset;
 
                     isOnGround = false;
                 }
@@ -504,17 +507,17 @@ namespace MWPhysics
             }
         }
 
-        if ((isOnGround && !isOnSlope) || newPosition.z() < swimlevel || actor.mFlying)
-            actor.mInertia = osg::Vec3f(0.f, 0.f, 0.f);
+        if ((isOnGround && !isOnSlope) || newPosition.z < swimlevel || actor.mFlying)
+            actor.mInertia = vsg::vec3(0.f, 0.f, 0.f);
         else
         {
-            actor.mInertia.z() -= time * Constants::GravityConst * Constants::UnitsPerMeter;
-            if (actor.mInertia.z() < 0)
-                actor.mInertia.z() *= actor.mSlowFall;
+            actor.mInertia.z -= time * Constants::GravityConst * Constants::UnitsPerMeter;
+            if (actor.mInertia.z < 0)
+                actor.mInertia.z *= actor.mSlowFall;
             if (actor.mSlowFall < 1.f)
             {
-                actor.mInertia.x() *= actor.mSlowFall;
-                actor.mInertia.y() *= actor.mSlowFall;
+                actor.mInertia.x *= actor.mSlowFall;
+                actor.mInertia.y *= actor.mSlowFall;
             }
         }
         actor.mIsOnGround = isOnGround;
@@ -522,7 +525,7 @@ namespace MWPhysics
 
         actor.mPosition = newPosition;
         // remove what was added earlier in compensating for doTrace not taking interior transformation into account
-        actor.mPosition.z() -= actor.mHalfExtentsZ; // vanilla-accurate
+        actor.mPosition.z -= actor.mHalfExtentsZ; // vanilla-accurate
     }
 
     JPH::Vec3 addMarginToDelta(JPH::Vec3 delta)
@@ -537,14 +540,15 @@ namespace MWPhysics
         if (actor.mSkipCollisionDetection) // noclipping/tcl
             return;
 
-        if (actor.mMovement.length2() == 0) // no AI nor player attempted to move, current position is assumed correct
+        if (vsg::length2(actor.mMovement)
+            == 0) // no AI nor player attempted to move, current position is assumed correct
             return;
 
         auto tempPosition = actor.mPosition;
 
         if (actor.mStuckFrames >= 10)
         {
-            if ((actor.mLastStuckPosition - actor.mPosition).length2() < 100)
+            if (vsg::length2(actor.mLastStuckPosition - actor.mPosition) < 100)
                 return;
             else
             {
@@ -556,11 +560,11 @@ namespace MWPhysics
         // use vanilla-accurate collision hull position hack (do same hitbox offset hack as movement solver)
         // if vanilla compatibility didn't matter, the "correct" collision hull position would be
         // physicActor->getScaledMeshTranslation()
-        const auto verticalHalfExtent = osg::Vec3f(0.0f, 0.0f, actor.mHalfExtentsZ);
+        const auto verticalHalfExtent = vsg::vec3(0.0f, 0.0f, actor.mHalfExtentsZ);
 
         // use a 3d approximation of the movement vector to better judge player intent
-        auto velocity = (osg::Quat(actor.mRotation.x(), osg::Vec3f(-1, 0, 0))
-                            * osg::Quat(actor.mRotation.y(), osg::Vec3f(0, 0, -1)))
+        auto velocity = vsg::quat(Misc::VsgMath::makeRotateFromAxis(actor.mRotation.x, vsg::vec3(-1, 0, 0))
+                            * Misc::VsgMath::makeRotateFromAxis(actor.mRotation.y, vsg::vec3(0, 0, -1)))
             * actor.mMovement;
         // try to pop outside of the world before doing anything else if we're inside of it
         if (!actor.mIsOnGround || actor.mIsOnSlope)
@@ -568,8 +572,8 @@ namespace MWPhysics
 
         // because of the internal collision box offset hack, and the fact that we're moving the collision box manually,
         // we need to replicate part of the collision box's transform process from scratch
-        osg::Vec3f refPosition = tempPosition + verticalHalfExtent;
-        osg::Vec3f goodPosition = refPosition;
+        vsg::vec3 refPosition = tempPosition + verticalHalfExtent;
+        vsg::vec3 goodPosition = refPosition;
 
         JPH::BodyLockRead lock(physicsSystem->GetBodyLockInterface(), actor.mPhysicsBody);
         if (lock.Succeeded())

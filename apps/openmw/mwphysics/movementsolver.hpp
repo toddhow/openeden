@@ -1,7 +1,9 @@
 #ifndef OPENMW_MWPHYSICS_MOVEMENTSOLVER_H
 #define OPENMW_MWPHYSICS_MOVEMENTSOLVER_H
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 #include <components/misc/constants.hpp>
 
@@ -18,13 +20,13 @@ namespace MWWorld
 namespace MWPhysics
 {
     /// Vector projection
-    static inline osg::Vec3f project(const osg::Vec3f& u, const osg::Vec3f& v)
+    static inline vsg::vec3 project(const vsg::vec3& u, const vsg::vec3& v)
     {
-        return v * (u * v);
+        return v * vsg::dot(u, v);
     }
 
     /// Vector rejection
-    static inline osg::Vec3f reject(const osg::Vec3f& direction, const osg::Vec3f& planeNormal)
+    static inline vsg::vec3 reject(const vsg::vec3& direction, const vsg::vec3& planeNormal)
     {
         return direction - project(direction, planeNormal);
     }
@@ -32,8 +34,8 @@ namespace MWPhysics
     template <class Vec3>
     static bool isWalkableSlope(const Vec3& normal)
     {
-        static const float sMaxSlopeCos = std::cos(osg::DegreesToRadians(Constants::sMaxSlope));
-        return (normal.z() > sMaxSlopeCos);
+        static const float sMaxSlopeCos = std::cos(Misc::VsgMath::inDegrees(Constants::sMaxSlope));
+        return (normal.z > sMaxSlopeCos);
     }
 
     class Actor;
@@ -43,7 +45,7 @@ namespace MWPhysics
     class MovementSolver
     {
     public:
-        static osg::Vec3f traceDown(const MWWorld::Ptr& ptr, const osg::Vec3f& position, Actor* actor,
+        static vsg::vec3 traceDown(const MWWorld::Ptr& ptr, const vsg::vec3& position, Actor* actor,
             JPH::PhysicsSystem* collisionWorld, float maxHeight);
         static void move(ActorFrameData& actor, float time, const JPH::PhysicsSystem* physicsSystem,
             const WorldFrameData& worldData);

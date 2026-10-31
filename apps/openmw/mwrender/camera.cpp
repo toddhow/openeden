@@ -139,12 +139,13 @@ namespace MWRender
         float offsetLen = focalOffset.length();
         if (offsetLen > 0)
         {
-            MWPhysics::RayCastingResult result
-                = rayCasting->castSphere(focal - focalOffset, focal, focalObstacleLimit, mCollisionType);
+            MWPhysics::RayCastingResult result = rayCasting->castSphere(
+                osg::Vec3f(focal - focalOffset), osg::Vec3f(focal), focalObstacleLimit, mCollisionType);
             if (result.mHit)
             {
                 double adjustmentCoef
-                    = -(result.mHitPos + result.mHitNormal * focalObstacleLimit - focal).length() / offsetLen;
+                    = -(osg::Vec3f(result.mHitPos + result.mHitNormal * focalObstacleLimit) - focal).length()
+                    / offsetLen;
                 focal += focalOffset * std::max(-1.0, adjustmentCoef);
             }
         }
@@ -154,11 +155,11 @@ namespace MWRender
         osg::Quat orient
             = osg::Quat(mPitch + mExtraPitch, osg::Vec3d(1, 0, 0)) * osg::Quat(mYaw + mExtraYaw, osg::Vec3d(0, 0, 1));
         osg::Vec3d offset = orient * osg::Vec3d(0.f, -mCameraDistance, 0.f);
-        MWPhysics::RayCastingResult result
-            = rayCasting->castSphere(focal, focal + offset, cameraObstacleLimit, mCollisionType);
+        MWPhysics::RayCastingResult result = rayCasting->castSphere(
+            osg::Vec3f(focal), osg::Vec3f(focal + offset), cameraObstacleLimit, mCollisionType);
         if (result.mHit)
         {
-            mCameraDistance = (result.mHitPos + result.mHitNormal * cameraObstacleLimit - focal).length();
+            mCameraDistance = (osg::Vec3f(result.mHitPos + result.mHitNormal * cameraObstacleLimit) - focal).length();
             offset = orient * osg::Vec3d(0.f, -mCameraDistance, 0.f);
         }
 

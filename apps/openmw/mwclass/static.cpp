@@ -1,4 +1,5 @@
 #include "static.hpp"
+#include <osg/Quat>
 
 #include <components/esm3/loadstat.hpp>
 

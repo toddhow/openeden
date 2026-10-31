@@ -1,4 +1,5 @@
 #include "door.hpp"
+#include <osg/Quat>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>

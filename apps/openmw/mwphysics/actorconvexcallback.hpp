@@ -8,7 +8,9 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 #include "../mwrender/joltdebugdraw.hpp"
 
@@ -81,14 +83,14 @@ namespace MWPhysics
                 {
                     auto originA = mSelfCenterWorld;
                     auto originB = Misc::Convert::toOsg(body->GetCenterOfMassTransform().GetTranslation());
-                    osg::Vec3f motion = Misc::Convert::toOsg(mMotion);
-                    osg::Vec3f normal = (originA - originB);
-                    normal.z() = 0;
-                    normal.normalize();
+                    vsg::vec3 motion = Misc::Convert::toOsg(mMotion);
+                    vsg::vec3 normal = (originA - originB);
+                    normal.z = 0;
+                    Misc::VsgMath::normalizeInPlace(normal);
 
                     // only collide if horizontally moving towards the hit actor, otherwise ignore the overlap so
                     // that actors spawned inside each other (e.g. placeatpc) are able to walk apart
-                    if (normal * motion >= 0.0f)
+                    if (vsg::dot(normal, motion) >= 0.0f)
                         return;
 
                     // Get the contact properties
@@ -133,14 +135,14 @@ namespace MWPhysics
         const JPH::Body* mHitCollisionObject = nullptr;
 
         JPH::ObjectLayer mHitCollisionLayer;
-        osg::Vec3f mHitPointWorld;
+        vsg::vec3 mHitPointWorld;
         JPH::Vec3 mHitNormalWorld;
         JPH::Vec3 mMotion;
 
     private:
         const JPH::PhysicsSystem* mPhysicsSystem;
-        osg::Vec3f mSelfCenterWorld;
-        osg::Vec3f mOrigin;
+        vsg::vec3 mSelfCenterWorld;
+        vsg::vec3 mOrigin;
     };
 }
 

@@ -42,8 +42,7 @@ namespace MWPhysics
         JPH::Quat rotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
 
         JPH::BodyCreationSettings bodyCreationSettings(mShapeReference,
-            JPH::RVec3(mWorldOrigin.x(), mWorldOrigin.y(), 0.0f), rotation, JPH::EMotionType::Static,
-            Layers::HEIGHTMAP);
+            JPH::RVec3(mWorldOrigin.x, mWorldOrigin.y, 0.0f), rotation, JPH::EMotionType::Static, Layers::HEIGHTMAP);
 
         mPhysicsBody = mTaskScheduler->createPhysicsBody(bodyCreationSettings);
         mTaskScheduler->addCollisionObject(mPhysicsBody);

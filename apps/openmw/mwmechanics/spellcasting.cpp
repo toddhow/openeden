@@ -536,9 +536,9 @@ namespace MWMechanics
                 else
                 {
                     // Additionally use the NPC's height
-                    osg::Vec3f npcScaleVec(1.f, 1.f, 1.f);
+                    vsg::vec3 npcScaleVec(1.f, 1.f, 1.f);
                     mCaster.getClass().adjustScale(mCaster, npcScaleVec, true);
-                    scale *= npcScaleVec.z();
+                    scale *= npcScaleVec.z;
                 }
                 scale = std::max(scale, 1.f);
                 MWBase::Environment::get().getWorld()->spawnEffect(castStaticModel, effect->mParticle, pos, scale);

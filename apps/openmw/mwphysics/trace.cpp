@@ -74,7 +74,7 @@ namespace MWPhysics
         return collector;
     }
 
-    void ActorTracer::doTrace(const JPH::BodyID actor, const osg::Vec3f& start, const osg::Vec3f& end,
+    void ActorTracer::doTrace(const JPH::BodyID actor, const vsg::vec3& start, const vsg::vec3& end,
         const JPH::PhysicsSystem* physicsSystem, const int collisionMask, bool attemptShortTrace)
     {
         (void)attemptShortTrace;
@@ -98,7 +98,7 @@ namespace MWPhysics
         {
             // fallthrough
             mEndPos = end;
-            mPlaneNormal = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            mPlaneNormal = vsg::vec3(0.0f, 0.0f, 1.0f);
             mFraction = 1.0f;
             mHitPoint = end;
             mHitObject = nullptr;
@@ -107,7 +107,7 @@ namespace MWPhysics
     }
 
     void ActorTracer::findGround(
-        const Actor* actor, const osg::Vec3f& start, const osg::Vec3f& end, const JPH::PhysicsSystem* physicsSystem)
+        const Actor* actor, const vsg::vec3& start, const vsg::vec3& end, const JPH::PhysicsSystem* physicsSystem)
     {
         const auto traceCallback = sweepHelper(actor->getPhysicsBody(), Misc::Convert::toJolt<JPH::RVec3>(start),
             Misc::Convert::toJolt<JPH::RVec3>(end), physicsSystem, true, actor->getCollisionMask(),
@@ -121,7 +121,7 @@ namespace MWPhysics
         else
         {
             mEndPos = end;
-            mPlaneNormal = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            mPlaneNormal = vsg::vec3(0.0f, 0.0f, 1.0f);
             mFraction = 1.0f;
         }
     }

@@ -1,9 +1,11 @@
 #ifndef OPENMW_MWPHYSICS_HEIGHTFIELD_H
 #define OPENMW_MWPHYSICS_HEIGHTFIELD_H
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/maths/vec3.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyManager.h>
@@ -29,12 +31,12 @@ namespace MWPhysics
             const vsg::Object* holdObject, PhysicsTaskScheduler* scheduler);
         ~HeightField();
 
-        const osg::Vec3f& getOrigin() const { return mWorldOrigin; }
+        const vsg::vec3& getOrigin() const { return mWorldOrigin; }
 
     private:
         JPH::Body* mPhysicsBody; // NOTE: memory is managed by Jolt!
         JPH::ShapeRefC mShapeReference;
-        osg::Vec3f mWorldOrigin;
+        vsg::vec3 mWorldOrigin;
         vsg::ref_ptr<const vsg::Object> mHoldObject;
 
         PhysicsTaskScheduler* mTaskScheduler;

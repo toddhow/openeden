@@ -115,7 +115,7 @@ namespace MWClass
         float getArmorRating(const MWWorld::Ptr& ptr, bool useLuaInterfaceIfAvailable) const override;
         ///< @return combined armor rating of this actor
 
-        void adjustScale(const MWWorld::ConstPtr& ptr, osg::Vec3f& scale, bool rendering) const override;
+        void adjustScale(const MWWorld::ConstPtr& ptr, vsg::vec3& scale, bool rendering) const override;
         /// @param rendering Indicates if the scale to adjust is for the rendering mesh, or for the collision mesh
 
         void skillUsageSucceeded(

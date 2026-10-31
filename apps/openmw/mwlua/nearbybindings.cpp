@@ -75,14 +75,14 @@ namespace MWLua
         rayResult["hitPos"]
             = sol::readonly_property([](const MWPhysics::RayCastingResult& r) -> sol::optional<osg::Vec3f> {
                   if (r.mHit)
-                      return r.mHitPos;
+                      return osg::Vec3f(r.mHitPos);
                   else
                       return sol::nullopt;
               });
         rayResult["hitNormal"]
             = sol::readonly_property([](const MWPhysics::RayCastingResult& r) -> sol::optional<osg::Vec3f> {
                   if (r.mHit)
-                      return r.mHitNormal;
+                      return osg::Vec3f(r.mHitNormal);
                   else
                       return sol::nullopt;
               });

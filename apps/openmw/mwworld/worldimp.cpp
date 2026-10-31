@@ -1451,7 +1451,7 @@ namespace MWWorld
                 osg::Vec3f direction = osg::Quat(diff, osg::Vec3f(0, 0, 1)) * localPoint - localPoint;
                 direction.normalize();
                 mPhysics->reportCollision(point, normal);
-                if (direction * normal < 0) // door is turning away from actor
+                if (direction * osg::Vec3f(normal) < 0) // door is turning away from actor
                     continue;
 
                 collisionWithActor = true;
@@ -1657,7 +1657,7 @@ namespace MWWorld
         if (isFirstPerson() || Settings::sound().mCameraListener)
             listenerPos = camera->getPosition();
         else
-            listenerPos = osg::Vec3f(refpos.asVec3()) + osg::Vec3f(0, 0, 1.85f * mPhysics->getHalfExtents(player).z());
+            listenerPos = osg::Vec3f(refpos.asVec3()) + osg::Vec3f(0, 0, 1.85f * mPhysics->getHalfExtents(player).z);
 
         if (isFirstPerson() || Settings::sound().mCameraListener)
             listenerOrient = camera->getOrient();
@@ -2113,7 +2113,7 @@ namespace MWWorld
     {
         osg::Vec3f pos(object.getRefData().getPosition().asVec3());
 
-        pos.z() += heightRatio * 2 * mPhysics->getRenderingHalfExtents(object).z();
+        pos.z() += heightRatio * 2 * mPhysics->getRenderingHalfExtents(object).z;
 
         const CellStore* currCell = object.isInCell()
             ? object.getCell()
@@ -2534,7 +2534,7 @@ namespace MWWorld
         if (!result.mHit)
             return maxDist;
         else
-            return (result.mHitPos - from).length();
+            return (osg::Vec3f(result.mHitPos) - from).length();
     }
 
     void World::enableActorCollision(const MWWorld::Ptr& actor, bool enable)
@@ -3644,7 +3644,7 @@ namespace MWWorld
     {
         osg::Vec3f weaponPos = actor.getRefData().getPosition().asVec3();
         float heightRatio = isRangedCombat ? 2.f * Constants::TorsoHeight : 1.f;
-        weaponPos.z() += mPhysics->getHalfExtents(actor).z() * heightRatio;
+        weaponPos.z() += mPhysics->getHalfExtents(actor).z * heightRatio;
         osg::Vec3f targetPos = mPhysics->getCollisionObjectPosition(target);
         return (targetPos - weaponPos);
     }

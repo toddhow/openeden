@@ -3,9 +3,11 @@
 
 #include "ptrholder.hpp"
 
-#include <osg/Matrixd>
-#include <osg/Quat>
+#include <components/misc/vsgmath.hpp>
+
 #include <vsg/core/ref_ptr.h>
+#include <vsg/maths/mat4.h>
+#include <vsg/maths/quat.h>
 
 #include <map>
 #include <mutex>
@@ -35,16 +37,16 @@ namespace MWPhysics
     class Object final : public PtrHolder
     {
     public:
-        Object(const MWWorld::Ptr& ptr, vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance, osg::Quat rotation,
+        Object(const MWWorld::Ptr& ptr, vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance, vsg::dquat rotation,
             int collisionType, PhysicsTaskScheduler* scheduler);
         ~Object() override;
 
         vsg::ref_ptr<const Resource::PhysicsShapeInstance> getShapeInstance() const;
         void setScale(float scale);
-        void setRotation(osg::Quat quat);
+        void setRotation(vsg::dquat quat);
         void updatePosition();
         void commitPositionChange();
-        osg::Matrixd getTransform() const;
+        vsg::dmat4 getTransform() const;
         /// Return solid flag. Not used by the object itself, true by default.
         bool isSolid() const;
         void setSolid(bool solid);
@@ -57,16 +59,16 @@ namespace MWPhysics
         void resetCollisions();
         static std::vector<const MWWorld::LiveCellRefBase*> consumeCollidedObjects();
 
-        bool isScaleIdentity() const { return mScale == osg::Vec3f(1.0f, 1.0f, 1.0f); }
+        bool isScaleIdentity() const { return mScale == vsg::vec3(1.0f, 1.0f, 1.0f); }
 
     private:
         vsg::ref_ptr<Resource::PhysicsShapeInstance> mShapeInstance;
         JPH::Ref<JPH::Shape> mBasePhysicsShape;
         std::map<int, std::vector<const vsg::Transform*>> mRecIndexToNodePath;
         bool mSolid;
-        osg::Vec3f mScale;
-        osg::Vec3f mPosition;
-        osg::Quat mRotation;
+        vsg::vec3 mScale;
+        vsg::vec3 mPosition;
+        vsg::dquat mRotation;
         bool mUsesScaledShape = false;
         bool mScaleUpdatePending = false;
         bool mTransformUpdatePending = false;

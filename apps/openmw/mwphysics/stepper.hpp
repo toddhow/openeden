@@ -21,7 +21,7 @@ namespace MWPhysics
     public:
         Stepper(const JPH::PhysicsSystem* colWorld, JPH::BodyID colObj);
 
-        bool step(osg::Vec3f& position, osg::Vec3f& velocity, float& remainingTime, const bool& onGround,
+        bool step(vsg::vec3& position, vsg::vec3& velocity, float& remainingTime, const bool& onGround,
             bool firstIteration, const int collisionMask);
     };
 }

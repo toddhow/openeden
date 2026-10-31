@@ -292,14 +292,14 @@ namespace MWRender
     {
         auto p = MWWorld::Ptr(ptr.getBase(), nullptr);
         preview->rebuild(p);
-        osg::Vec3f scale(1.f, 1.f, 1.f);
+        vsg::vec3 scale(1.f, 1.f, 1.f);
         p.getClass().adjustScale(p, scale, true);
         if (preview->npc)
             preview->npc->transform()->scale = toVsg(scale);
 
         vsg::vec3 position{ 0, 700, 71 };
         vsg::vec3 lookAt{ 0, 0, 71 };
-        preview->updateViewMatrix(vsg::dvec3(position * scale.z()), vsg::dvec3(lookAt * scale.z()));
+        preview->updateViewMatrix(vsg::dvec3(position * scale.z), vsg::dvec3(lookAt * scale.z));
     }
 
     RaceSelection::RaceSelection(Preview* p)

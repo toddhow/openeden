@@ -173,17 +173,17 @@ namespace
 
                 const osg::Matrixd closedDoorTransform
                     = osg::Matrixd::rotate(Misc::Convert::makeQuaternion(ptr.getCellRef().getPosition()))
-                    * osg::Matrixd::translate(object->getTransform().getTrans());
+                    * osg::Matrixd::translate(Misc::VsgMath::getTrans(object->getTransform()));
 
                 const osg::Vec3f start = (center + toPoint) * closedDoorTransform;
                 const auto startPoint = physics.castRay(start, start - osg::Vec3f(0, 0, 1000), { ptr }, {},
                     MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::WATER);
-                const auto connectionStart = startPoint.mHit ? startPoint.mHitPos : start;
+                const auto connectionStart = startPoint.mHit ? osg::Vec3f(startPoint.mHitPos) : start;
 
                 const osg::Vec3f end = (center - toPoint) * closedDoorTransform;
                 const auto endPoint = physics.castRay(end, end - osg::Vec3f(0, 0, 1000), { ptr }, {},
                     MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::WATER);
-                const auto connectionEnd = endPoint.mHit ? endPoint.mHitPos : end;
+                const auto connectionEnd = endPoint.mHit ? osg::Vec3f(endPoint.mHitPos) : end;
 
                 navigator.addObject(DetourNavigator::ObjectId(object),
                     DetourNavigator::DoorShapes(
@@ -319,7 +319,7 @@ namespace MWWorld
     void Scene::updateObjectScale(const Ptr& ptr)
     {
         float scale = ptr.getCellRef().getScale();
-        osg::Vec3f scaleVec(scale, scale, scale);
+        vsg::vec3 scaleVec(scale, scale, scale);
         ptr.getClass().adjustScale(ptr, scaleVec, true);
         mRendering.scaleObject(ptr, scaleVec);
         mPhysics->updateScale(ptr);

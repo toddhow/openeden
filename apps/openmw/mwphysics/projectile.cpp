@@ -14,7 +14,7 @@
 
 namespace MWPhysics
 {
-    Projectile::Projectile(const MWWorld::Ptr& caster, const osg::Vec3f& position, float radius,
+    Projectile::Projectile(const MWWorld::Ptr& caster, const vsg::vec3& position, float radius,
         PhysicsTaskScheduler* scheduler, PhysicsSystem* physicssystem)
         : PtrHolder(MWWorld::Ptr(), position)
         , mHitWater(false)
@@ -27,8 +27,8 @@ namespace MWPhysics
         setCaster(caster);
 
         JPH::BodyCreationSettings bodyCreationSettings
-            = PhysicsSystemHelpers::makePhysicsBodySettings(new JPH::SphereShape(radius), osg::Vec3f(mPosition),
-                osg::Quat(1.0f, 0.0f, 0.0f, 0.0f), Layers::PROJECTILE, JPH::EMotionType::Dynamic);
+            = PhysicsSystemHelpers::makePhysicsBodySettings(new JPH::SphereShape(radius), vsg::vec3(mPosition),
+                vsg::dquat(1.0f, 0.0f, 0.0f, 0.0f), Layers::PROJECTILE, JPH::EMotionType::Dynamic);
 
         bodyCreationSettings.mEnhancedInternalEdgeRemoval = true;
         bodyCreationSettings.mMotionQuality
@@ -55,7 +55,7 @@ namespace MWPhysics
         mTaskScheduler->destroyCollisionObject(mPhysicsBody);
     }
 
-    osg::Vec3f Projectile::getSimulationPosition() const
+    vsg::vec3 Projectile::getSimulationPosition() const
     {
         // OPTIMIZATION: dont do each call to here, but each update frame?
         // right now its ok because this method is called only once per projectile update
@@ -67,7 +67,7 @@ namespace MWPhysics
             return Misc::Convert::toOsg(targetTransform.GetTranslation());
         }
 
-        return osg::Vec3f(0.0f, 0.0f, 0.0f);
+        return vsg::vec3(0.0f, 0.0f, 0.0f);
     }
 
     bool Projectile::onContactValidate(const JPH::Body& withBody)
@@ -115,8 +115,8 @@ namespace MWPhysics
         if (!isActive())
             return;
 
-        osg::Vec3f mHitPointWorld = Misc::Convert::toOsg(inManifold.mBaseOffset);
-        osg::Vec3f mHitNormalWorld = Misc::Convert::toOsg(inManifold.mWorldSpaceNormal);
+        vsg::vec3 mHitPointWorld = Misc::Convert::toOsg(inManifold.mBaseOffset);
+        vsg::vec3 mHitNormalWorld = Misc::Convert::toOsg(inManifold.mWorldSpaceNormal);
 
         // If hit projectile, set that projectile as hit with me early at same hit point in world
         // Otherwise if water, we want to set the hit water flag
@@ -140,7 +140,7 @@ namespace MWPhysics
         hit(withBody.GetID(), mHitPointWorld, mHitNormalWorld);
     }
 
-    void Projectile::setVelocity(osg::Vec3f velocity)
+    void Projectile::setVelocity(vsg::vec3 velocity)
     {
         PtrHolder::setVelocity(velocity);
 
@@ -151,7 +151,7 @@ namespace MWPhysics
         }
     }
 
-    void Projectile::hit(const JPH::BodyID target, osg::Vec3f pos, osg::Vec3f normal)
+    void Projectile::hit(const JPH::BodyID target, vsg::vec3 pos, vsg::vec3 normal)
     {
         bool active = true;
         if (!mActive.compare_exchange_strong(active, false, std::memory_order_relaxed) || !active)

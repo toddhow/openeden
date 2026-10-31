@@ -134,13 +134,14 @@ namespace
 {
     bool isUnderWater(const MWPhysics::ActorFrameData& actorData)
     {
-        return actorData.mPosition.z() < actorData.mSwimLevel;
+        return actorData.mPosition.z < actorData.mSwimLevel;
     }
 
-    osg::Vec3f interpolateMovements(const MWPhysics::PtrHolder& ptr, float timeAccum, float physicsDt)
+    vsg::vec3 interpolateMovements(const MWPhysics::PtrHolder& ptr, float timeAccum, float physicsDt)
     {
         const float interpolationFactor = std::clamp(timeAccum / physicsDt, 0.0f, 1.0f);
-        return ptr.getPosition() * interpolationFactor + ptr.getPreviousPosition() * (1.f - interpolationFactor);
+        return vsg::vec3(
+            ptr.getPosition() * interpolationFactor + ptr.getPreviousPosition() * (1.f - interpolationFactor));
     }
 
     using LockedActorSimulation
@@ -181,17 +182,17 @@ namespace
                 auto& [actor, frameDataRef] = *locked;
                 auto& frameData = frameDataRef.get();
                 frameData.mPosition = actor->applyOffsetChange();
-                if (frameData.mWaterCollision && frameData.mPosition.z() < frameData.mWaterlevel
+                if (frameData.mWaterCollision && frameData.mPosition.z < frameData.mWaterlevel
                     && actor->canMoveToWaterSurface(frameData.mWaterlevel, mPhysicsSystem))
                 {
-                    const auto offset = osg::Vec3f(0, 0, frameData.mWaterlevel - frameData.mPosition.z());
+                    const auto offset = vsg::vec3(0, 0, frameData.mWaterlevel - frameData.mPosition.z);
                     MWBase::Environment::get().getWorld()->moveObjectBy(actor->getPtr(), offset, false);
                     frameData.mPosition = actor->applyOffsetChange();
                 }
                 actor->updateCollisionObjectPosition();
-                frameData.mOldHeight = frameData.mPosition.z();
-                const osg::Vec3f rotation = actor->getPtr().getRefData().getPosition().asRotationVec3();
-                frameData.mRotation = osg::Vec2f(rotation.x(), rotation.z());
+                frameData.mOldHeight = frameData.mPosition.z;
+                const vsg::vec3 rotation = actor->getPtr().getRefData().getPosition().asRotationVec3();
+                frameData.mRotation = vsg::vec2(rotation.x, rotation.z);
                 frameData.mInertia = actor->getInertialForce();
                 frameData.mStuckFrames = actor->getStuckFrames();
                 frameData.mLastStuckPosition = actor->getLastStuckPosition();
@@ -250,7 +251,7 @@ namespace
                 auto ptr = actor->getPtr();
 
                 MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
-                const float heightDiff = frameData.mPosition.z() - frameData.mOldHeight;
+                const float heightDiff = frameData.mPosition.z - frameData.mOldHeight;
                 const bool isStillOnGround = (mAdvanceSimulation && frameData.mWasOnGround && frameData.mIsOnGround);
 
                 if (isStillOnGround || frameData.mFlying || isUnderWater(frameData) || frameData.mSlowFall < 1)
@@ -539,12 +540,12 @@ namespace MWPhysics
 
     bool PhysicsTaskScheduler::hasLineOfSight(const Actor* actor1, const Actor* actor2)
     {
-        const float actor1EyeHeight = static_cast<float>(actor1->getHalfExtents().z() * 0.9);
-        const float actor2EyeHeight = static_cast<float>(actor2->getHalfExtents().z() * 0.9);
+        const float actor1EyeHeight = static_cast<float>(actor1->getHalfExtents().z * 0.9);
+        const float actor2EyeHeight = static_cast<float>(actor2->getHalfExtents().z * 0.9);
         JPH::RVec3 from = Misc::Convert::toJolt<JPH::RVec3>(
-            actor1->getCollisionObjectPosition() + osg::Vec3f(0.0f, 0.0f, actor1EyeHeight)); // eye level
+            actor1->getCollisionObjectPosition() + vsg::vec3(0.0f, 0.0f, actor1EyeHeight)); // eye level
         JPH::RVec3 to = Misc::Convert::toJolt<JPH::RVec3>(
-            actor2->getCollisionObjectPosition() + osg::Vec3f(0.0f, 0.0f, actor2EyeHeight));
+            actor2->getCollisionObjectPosition() + vsg::vec3(0.0f, 0.0f, actor2EyeHeight));
 
         auto diff = to - from;
         JPH::RRayCast ray(from, Misc::Convert::toJolt<JPH::Vec3>(diff));

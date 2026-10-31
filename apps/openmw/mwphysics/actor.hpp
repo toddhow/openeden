@@ -15,8 +15,10 @@
 #include <components/detournavigator/collisionshapetype.hpp>
 #include <components/inertialmotion/locomotionstate.hpp>
 
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
 
 namespace Resource
 {
@@ -57,7 +59,7 @@ namespace MWPhysics
         void enableCollisionBody(bool collision);
 
         void updateScale();
-        void setRotation(osg::Quat quat);
+        void setRotation(vsg::dquat quat);
 
         /**
          * Return true if the collision shape looks the same no matter how its Z rotated.
@@ -68,41 +70,41 @@ namespace MWPhysics
          * Used by the physics simulation to store the simulation result. Used in conjunction with mWorldPosition
          * to account for e.g. scripted movements
          */
-        void setSimulationPosition(const osg::Vec3f& position);
+        void setSimulationPosition(const vsg::vec3& position);
 
         void updateCollisionObjectPosition();
 
         /**
          * Returns the half extents of the collision body (scaled according to collision scale)
          */
-        osg::Vec3f getHalfExtents() const;
+        vsg::vec3 getHalfExtents() const;
 
         /**
          * Returns the half extents of the collision body (not scaled)
          */
-        osg::Vec3f getOriginalHalfExtents() const;
+        vsg::vec3 getOriginalHalfExtents() const;
 
         /**
          * Returns the position of the collision body
          * @note The collision shape's origin is in its center, so the position returned can be described as center of
          * the actor collision box in world space.
          */
-        osg::Vec3f getCollisionObjectPosition() const;
+        vsg::vec3 getCollisionObjectPosition() const;
 
         /**
          * Store the current position into mPreviousPosition, then move to this position.
          * Returns true if the new position is different.
          */
-        bool setPosition(const osg::Vec3f& position);
+        bool setPosition(const vsg::vec3& position);
 
         // force set actor position to be as in Ptr::RefData
         void updatePosition();
 
         // register a position offset that will be applied during simulation.
-        void adjustPosition(const osg::Vec3f& offset);
+        void adjustPosition(const vsg::vec3& offset);
 
         // apply position offset. Can't be called during simulation
-        osg::Vec3f applyOffsetChange();
+        vsg::vec3 applyOffsetChange();
 
         /**
          * Returns the half extents of the collision body (scaled according to rendering scale)
@@ -110,17 +112,17 @@ namespace MWPhysics
          * applied to the collision shape, most likely to make environment collision testing easier. However in some
          * cases (swimming level) we want the actual scale.
          */
-        osg::Vec3f getRenderingHalfExtents() const;
+        vsg::vec3 getRenderingHalfExtents() const;
 
         /**
          * Sets the current amount of inertial force (incl. gravity) affecting this physic actor
          */
-        void setInertialForce(const osg::Vec3f& force);
+        void setInertialForce(const vsg::vec3& force);
 
         /**
          * Gets the current amount of inertial force (incl. gravity) affecting this physic actor
          */
-        const osg::Vec3f& getInertialForce() const { return mForce; }
+        const vsg::vec3& getInertialForce() const { return mForce; }
 
         void setOnGround(bool grounded);
 
@@ -143,12 +145,12 @@ namespace MWPhysics
         unsigned int getStuckFrames() const { return mStuckFrames; }
         void setStuckFrames(unsigned int frames) { mStuckFrames = frames; }
 
-        const osg::Vec3f& getLastStuckPosition() const { return mLastStuckPosition; }
-        void setLastStuckPosition(osg::Vec3f position) { mLastStuckPosition = position; }
+        const vsg::vec3& getLastStuckPosition() const { return mLastStuckPosition; }
+        void setLastStuckPosition(vsg::vec3 position) { mLastStuckPosition = position; }
 
         bool canMoveToWaterSurface(float waterlevel, const JPH::PhysicsSystem* physicsSystem) const;
 
-        bool isScaleIdentity() const { return mScale == osg::Vec3f(1.0f, 1.0f, 1.0f); }
+        bool isScaleIdentity() const { return mScale == vsg::vec3(1.0f, 1.0f, 1.0f); }
 
         bool isActive() const { return mActive; }
 
@@ -160,8 +162,8 @@ namespace MWPhysics
 
         struct BoneSegment
         {
-            osg::Vec3f mStart;
-            osg::Vec3f mEnd;
+            vsg::vec3 mStart;
+            vsg::vec3 mEnd;
         };
         static constexpr std::size_t sNumBoneSegments = 13;
 
@@ -178,7 +180,7 @@ namespace MWPhysics
     private:
         MWWorld::Ptr mStandingOnPtr;
 
-        osg::Vec3f getScaledMeshTranslation() const;
+        vsg::vec3 getScaledMeshTranslation() const;
 
         bool mCanWaterWalk;
         bool mWalkingOnWater;
@@ -199,23 +201,23 @@ namespace MWPhysics
         std::array<BoneSegment, sNumBoneSegments> mPendingBoneSegments{};
         bool mBoneSegmentsUpdated = false;
 
-        osg::Vec3f mSimulationPosition;
-        osg::Vec3f mMeshTranslation;
-        osg::Vec3f mOriginalHalfExtents;
-        osg::Vec3f mHalfExtents;
-        osg::Vec3f mRenderingHalfExtents;
-        osg::Quat mRotation;
+        vsg::vec3 mSimulationPosition;
+        vsg::vec3 mMeshTranslation;
+        vsg::vec3 mOriginalHalfExtents;
+        vsg::vec3 mHalfExtents;
+        vsg::vec3 mRenderingHalfExtents;
+        vsg::dquat mRotation;
 
-        osg::Vec3f mScale;
-        osg::Vec3f mPositionOffset;
+        vsg::vec3 mScale;
+        vsg::vec3 mPositionOffset;
         bool mSkipSimulation = true;
         bool mScaleUpdated = false;
         mutable std::mutex mMutex;
 
         unsigned int mStuckFrames;
-        osg::Vec3f mLastStuckPosition;
+        vsg::vec3 mLastStuckPosition;
 
-        osg::Vec3f mForce;
+        vsg::vec3 mForce;
         bool mOnGround;
         bool mOnSlope;
         bool mInternalCollisionMode;

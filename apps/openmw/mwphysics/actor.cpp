@@ -26,27 +26,27 @@
 
 #include <algorithm>
 #include <cmath>
-#include <osg/Drawable>
+#include <components/misc/vsgmath.hpp>
 
 namespace
 {
-    void computeCapsuleTransformAndHalfHeight(const osg::Vec3f& start, const osg::Vec3f& end, float radius,
+    void computeCapsuleTransformAndHalfHeight(const vsg::vec3& start, const vsg::vec3& end, float radius,
         JPH::Vec3& outPos, JPH::Quat& outRot, float& outHalfHeight)
     {
-        osg::Vec3f dir = end - start;
-        float len = dir.length();
+        vsg::vec3 dir = end - start;
+        float len = vsg::length(dir);
         if (len < 1e-3f)
         {
-            dir = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            dir = vsg::vec3(0.0f, 0.0f, 1.0f);
             len = 0.01f;
         }
         else
         {
-            dir /= len;
+            dir = Misc::VsgMath::divide(dir, len);
         }
 
         outHalfHeight = std::max(0.05f, (len - 2.0f * radius) * 0.5f);
-        const osg::Vec3f center = (start + end) * 0.5f;
+        const vsg::vec3 center = (start + end) * 0.5f;
 
         outRot = JPH::Quat::sFromTo(JPH::Vec3::sAxisY(), Misc::Convert::toJolt<JPH::Vec3>(dir));
         outPos = Misc::Convert::toJolt<JPH::Vec3>(center);
@@ -78,39 +78,39 @@ namespace MWPhysics
         // We can not create actor without collisions - he will fall through the ground.
         // In this case we should autogenerate collision box based on mesh shape
         // (NPCs have bodyparts and use a different approach)
-        if (!ptr.getClass().isNpc() && mOriginalHalfExtents.length2() == 0.f)
+        if (!ptr.getClass().isNpc() && vsg::length2(mOriginalHalfExtents) == 0.f)
         {
             if (shape->mCollisionShape)
             {
                 auto shapeRef = shape->mCollisionShape;
                 JPH::AABox bounds = shapeRef->GetLocalBounds();
-                osg::Vec3f min = osg::Vec3f(bounds.mMin.GetX(), bounds.mMin.GetY(), bounds.mMin.GetZ());
-                osg::Vec3f max = osg::Vec3f(bounds.mMax.GetX(), bounds.mMax.GetY(), bounds.mMax.GetZ());
+                vsg::vec3 min = vsg::vec3(bounds.mMin.GetX(), bounds.mMin.GetY(), bounds.mMin.GetZ());
+                vsg::vec3 max = vsg::vec3(bounds.mMax.GetX(), bounds.mMax.GetY(), bounds.mMax.GetZ());
 
-                mOriginalHalfExtents.x() = (max[0] - min[0]) / 2.f;
-                mOriginalHalfExtents.y() = (max[1] - min[1]) / 2.f;
-                mOriginalHalfExtents.z() = (max[2] - min[2]) / 2.f;
+                mOriginalHalfExtents.x = (max[0] - min[0]) / 2.f;
+                mOriginalHalfExtents.y = (max[1] - min[1]) / 2.f;
+                mOriginalHalfExtents.z = (max[2] - min[2]) / 2.f;
 
-                mMeshTranslation = osg::Vec3f(0.f, 0.f, mOriginalHalfExtents.z());
+                mMeshTranslation = vsg::vec3(0.f, 0.f, mOriginalHalfExtents.z);
             }
 
-            if (mOriginalHalfExtents.length2() == 0.f)
+            if (vsg::length2(mOriginalHalfExtents) == 0.f)
                 Log(Debug::Error) << "Error: Failed to calculate bounding box for actor \""
                                   << ptr.getCellRef().getRefId() << "\".";
         }
 
         float extRatio = 0.f;
-        if (mOriginalHalfExtents.y() != 0.f)
-            extRatio = mOriginalHalfExtents.x() / mOriginalHalfExtents.y();
+        if (mOriginalHalfExtents.y != 0.f)
+            extRatio = mOriginalHalfExtents.x / mOriginalHalfExtents.y;
 
-        const bool symmetricExtents = std::abs(mMeshTranslation.x()) < 1e-2f && std::abs(mMeshTranslation.y()) < 1e-2f
+        const bool symmetricExtents = std::abs(mMeshTranslation.x) < 1e-2f && std::abs(mMeshTranslation.y) < 1e-2f
             && extRatio >= 1.f / 1.25f && extRatio <= 1.25f;
         const bool useCompound = (collisionShapeType == DetourNavigator::CollisionShapeType::Compound);
 
         if (useCompound)
         {
-            const float W = std::max(0.01f, std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y()));
-            const float H = std::max(0.01f, mOriginalHalfExtents.z());
+            const float W = std::max(0.01f, std::min(mOriginalHalfExtents.x, mOriginalHalfExtents.y));
+            const float H = std::max(0.01f, mOriginalHalfExtents.z);
 
             const float footRadius = std::clamp(0.18f * W, 3.0f, 4.5f);
             const float calfRadius = std::clamp(0.20f * W, 3.5f, 5.0f);
@@ -124,7 +124,7 @@ namespace MWPhysics
             mCompoundShape = new JPH::MutableCompoundShape();
 
             std::size_t idx = 0;
-            auto addBoneCapsule = [&](const osg::Vec3f& start, const osg::Vec3f& end, float radius) {
+            auto addBoneCapsule = [&](const vsg::vec3& start, const vsg::vec3& end, float radius) {
                 JPH::Vec3 pos;
                 JPH::Quat rot;
                 float halfHeight = 0.05f;
@@ -136,44 +136,39 @@ namespace MWPhysics
             };
 
             // 0..2: Left Leg (Foot, Calf, Thigh)
-            addBoneCapsule(osg::Vec3f(-0.30f * W, -0.15f * W, -H + footRadius),
-                osg::Vec3f(-0.30f * W, 0.25f * W, -H + footRadius), footRadius);
-            addBoneCapsule(osg::Vec3f(-0.30f * W, -0.02f * W, -H + footRadius * 2.0f),
-                osg::Vec3f(-0.28f * W, 0.02f * W, -0.42f * H), calfRadius);
-            addBoneCapsule(osg::Vec3f(-0.28f * W, 0.02f * W, -0.42f * H),
-                osg::Vec3f(-0.20f * W, 0.0f, -0.05f * H), thighRadius);
+            addBoneCapsule(vsg::vec3(-0.30f * W, -0.15f * W, -H + footRadius),
+                vsg::vec3(-0.30f * W, 0.25f * W, -H + footRadius), footRadius);
+            addBoneCapsule(vsg::vec3(-0.30f * W, -0.02f * W, -H + footRadius * 2.0f),
+                vsg::vec3(-0.28f * W, 0.02f * W, -0.42f * H), calfRadius);
+            addBoneCapsule(
+                vsg::vec3(-0.28f * W, 0.02f * W, -0.42f * H), vsg::vec3(-0.20f * W, 0.0f, -0.05f * H), thighRadius);
 
             // 3..5: Right Leg (Foot, Calf, Thigh)
-            addBoneCapsule(osg::Vec3f(0.30f * W, -0.15f * W, -H + footRadius),
-                osg::Vec3f(0.30f * W, 0.25f * W, -H + footRadius), footRadius);
-            addBoneCapsule(osg::Vec3f(0.30f * W, -0.02f * W, -H + footRadius * 2.0f),
-                osg::Vec3f(0.28f * W, 0.02f * W, -0.42f * H), calfRadius);
-            addBoneCapsule(osg::Vec3f(0.28f * W, 0.02f * W, -0.42f * H),
-                osg::Vec3f(0.20f * W, 0.0f, -0.05f * H), thighRadius);
+            addBoneCapsule(vsg::vec3(0.30f * W, -0.15f * W, -H + footRadius),
+                vsg::vec3(0.30f * W, 0.25f * W, -H + footRadius), footRadius);
+            addBoneCapsule(vsg::vec3(0.30f * W, -0.02f * W, -H + footRadius * 2.0f),
+                vsg::vec3(0.28f * W, 0.02f * W, -0.42f * H), calfRadius);
+            addBoneCapsule(
+                vsg::vec3(0.28f * W, 0.02f * W, -0.42f * H), vsg::vec3(0.20f * W, 0.0f, -0.05f * H), thighRadius);
 
             // 6: Pelvis / Hips
-            addBoneCapsule(osg::Vec3f(0.0f, 0.0f, -0.05f * H),
-                osg::Vec3f(0.0f, 0.0f, 0.22f * H), pelvisRadius);
+            addBoneCapsule(vsg::vec3(0.0f, 0.0f, -0.05f * H), vsg::vec3(0.0f, 0.0f, 0.22f * H), pelvisRadius);
 
             // 7: Upper Torso / Chest
-            addBoneCapsule(osg::Vec3f(0.0f, 0.0f, 0.22f * H),
-                osg::Vec3f(0.0f, 0.0f, 0.65f * H), chestRadius);
+            addBoneCapsule(vsg::vec3(0.0f, 0.0f, 0.22f * H), vsg::vec3(0.0f, 0.0f, 0.65f * H), chestRadius);
 
             // 8: Head
-            addBoneCapsule(osg::Vec3f(0.0f, 0.0f, 0.72f * H),
-                osg::Vec3f(0.0f, 0.0f, 0.88f * H), headRadius);
+            addBoneCapsule(vsg::vec3(0.0f, 0.0f, 0.72f * H), vsg::vec3(0.0f, 0.0f, 0.88f * H), headRadius);
 
             // 9..10: Left Arm (Upper arm + Forearm)
-            addBoneCapsule(osg::Vec3f(-0.55f * W, 0.0f, 0.58f * H),
-                osg::Vec3f(-0.60f * W, 0.0f, 0.25f * H), armRadius);
-            addBoneCapsule(osg::Vec3f(-0.60f * W, 0.0f, 0.25f * H),
-                osg::Vec3f(-0.60f * W, 0.0f, -0.05f * H), forearmRadius);
+            addBoneCapsule(vsg::vec3(-0.55f * W, 0.0f, 0.58f * H), vsg::vec3(-0.60f * W, 0.0f, 0.25f * H), armRadius);
+            addBoneCapsule(
+                vsg::vec3(-0.60f * W, 0.0f, 0.25f * H), vsg::vec3(-0.60f * W, 0.0f, -0.05f * H), forearmRadius);
 
             // 11..12: Right Arm (Upper arm + Forearm)
-            addBoneCapsule(osg::Vec3f(0.55f * W, 0.0f, 0.58f * H),
-                osg::Vec3f(0.60f * W, 0.0f, 0.25f * H), armRadius);
-            addBoneCapsule(osg::Vec3f(0.60f * W, 0.0f, 0.25f * H),
-                osg::Vec3f(0.60f * W, 0.0f, -0.05f * H), forearmRadius);
+            addBoneCapsule(vsg::vec3(0.55f * W, 0.0f, 0.58f * H), vsg::vec3(0.60f * W, 0.0f, 0.25f * H), armRadius);
+            addBoneCapsule(
+                vsg::vec3(0.60f * W, 0.0f, 0.25f * H), vsg::vec3(0.60f * W, 0.0f, -0.05f * H), forearmRadius);
 
             mBasePhysicsShape = mCompoundShape.GetPtr();
             mRotationallyInvariant = false;
@@ -194,8 +189,8 @@ namespace MWPhysics
             {
                 case DetourNavigator::CollisionShapeType::Capsule:
                 {
-                    const float radius = std::max(0.01f, std::min(mOriginalHalfExtents.x(), mOriginalHalfExtents.y()));
-                    const float halfHeight = std::max(0.01f, mOriginalHalfExtents.z() - radius);
+                    const float radius = std::max(0.01f, std::min(mOriginalHalfExtents.x, mOriginalHalfExtents.y));
+                    const float halfHeight = std::max(0.01f, mOriginalHalfExtents.z - radius);
                     JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
                     mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation,
                         new JPH::CapsuleShape(halfHeight, radius));
@@ -214,7 +209,7 @@ namespace MWPhysics
                 case DetourNavigator::CollisionShapeType::Cylinder:
                     JPH::Quat shapeRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
                     mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), shapeRotation,
-                        new JPH::CylinderShape(mOriginalHalfExtents.z(), mOriginalHalfExtents.x()));
+                        new JPH::CylinderShape(mOriginalHalfExtents.z, mOriginalHalfExtents.x));
                     mRotationallyInvariant = true;
                     break;
             }
@@ -237,7 +232,7 @@ namespace MWPhysics
         {
             // The rendered actor's attitude is its z rotation, as vsgopenmw's MWAnim::zQuat computes it.
             const vsg::quat q = MWAnim::zQuat(mPtr.getRefData().getPosition());
-            mRotation = osg::Quat(q.x, q.y, q.z, q.w);
+            mRotation = vsg::dquat(q.x, q.y, q.z, q.w);
         }
 
         // Jolt specific
@@ -247,7 +242,7 @@ namespace MWPhysics
         mScaleUpdated = false; // We set the scale just now so cancel update flag set in updateScaleUnsafe
 
         JPH::BodyCreationSettings bodyCreationSettings = PhysicsSystemHelpers::makePhysicsBodySettings(mPhysicsShape,
-            getScaledMeshTranslation() + mPosition, mRotation, Layers::ACTOR, JPH::EMotionType::Kinematic);
+            getScaledMeshTranslation() + vsg::vec3(mPosition), mRotation, Layers::ACTOR, JPH::EMotionType::Kinematic);
         bodyCreationSettings.mEnhancedInternalEdgeRemoval = true;
 
         mPhysicsBody = mTaskScheduler->createPhysicsBody(bodyCreationSettings);
@@ -294,25 +289,25 @@ namespace MWPhysics
     void Actor::updatePosition()
     {
         std::scoped_lock lock(mMutex);
-        const osg::Vec3f worldPosition = mPtr.getRefData().getPosition().asVec3();
+        const vsg::vec3 worldPosition = mPtr.getRefData().getPosition().asVec3();
         mPreviousPosition = worldPosition;
         mPosition = worldPosition;
         mSimulationPosition = worldPosition;
-        mPositionOffset = osg::Vec3f();
+        mPositionOffset = vsg::vec3();
         mStandingOnPtr = nullptr;
         mSkipSimulation = true;
         mLocomotionState.reset();
     }
 
-    void Actor::setSimulationPosition(const osg::Vec3f& position)
+    void Actor::setSimulationPosition(const vsg::vec3& position)
     {
         if (!std::exchange(mSkipSimulation, false))
             mSimulationPosition = position;
     }
 
-    osg::Vec3f Actor::getScaledMeshTranslation() const
+    vsg::vec3 Actor::getScaledMeshTranslation() const
     {
-        return mRotation * osg::componentMultiply(mMeshTranslation, mScale);
+        return vsg::quat(mRotation) * Misc::VsgMath::componentMultiply(mMeshTranslation, mScale);
     }
 
     void Actor::updateCollisionObjectPosition()
@@ -341,7 +336,7 @@ namespace MWPhysics
 
         syncBoneHitboxesUnsafe();
 
-        osg::Vec3f newPosition = getScaledMeshTranslation() + mPosition;
+        vsg::vec3 newPosition = getScaledMeshTranslation() + vsg::vec3(mPosition);
 
         // NOTE: SetPositionAndRotation is thread safe to call
         bodyInterface.SetPositionAndRotation(getPhysicsBody(), Misc::Convert::toJolt<JPH::RVec3>(newPosition),
@@ -366,10 +361,8 @@ namespace MWPhysics
         if (!mBoneSegmentsUpdated || !mCompoundShape || getPhysicsBody().IsInvalid())
             return;
 
-        const osg::Vec3f invScale(
-            mScale.x() != 0.f ? 1.f / mScale.x() : 1.f,
-            mScale.y() != 0.f ? 1.f / mScale.y() : 1.f,
-            mScale.z() != 0.f ? 1.f / mScale.z() : 1.f);
+        const vsg::vec3 invScale(mScale.x != 0.f ? 1.f / mScale.x : 1.f, mScale.y != 0.f ? 1.f / mScale.y : 1.f,
+            mScale.z != 0.f ? 1.f / mScale.z : 1.f);
 
         std::array<JPH::Vec3, sNumBoneSegments> positions;
         std::array<JPH::Quat, sNumBoneSegments> rotations;
@@ -381,8 +374,10 @@ namespace MWPhysics
 
             for (std::size_t i = 0; i < sNumBoneSegments; ++i)
             {
-                const osg::Vec3f start = osg::componentMultiply(mPendingBoneSegments[i].mStart, invScale) - mMeshTranslation;
-                const osg::Vec3f end = osg::componentMultiply(mPendingBoneSegments[i].mEnd, invScale) - mMeshTranslation;
+                const vsg::vec3 start
+                    = Misc::VsgMath::componentMultiply(mPendingBoneSegments[i].mStart, invScale) - mMeshTranslation;
+                const vsg::vec3 end
+                    = Misc::VsgMath::componentMultiply(mPendingBoneSegments[i].mEnd, invScale) - mMeshTranslation;
 
                 float halfHeight = mBoneHalfHeights[i];
                 computeCapsuleTransformAndHalfHeight(start, end, mBoneRadii[i], positions[i], rotations[i], halfHeight);
@@ -403,16 +398,16 @@ namespace MWPhysics
         mBoneSegmentsUpdated = false;
     }
 
-    osg::Vec3f Actor::getCollisionObjectPosition() const
+    vsg::vec3 Actor::getCollisionObjectPosition() const
     {
         std::scoped_lock lock(mMutex);
-        return getScaledMeshTranslation() + mPosition;
+        return getScaledMeshTranslation() + vsg::vec3(mPosition);
     }
 
-    bool Actor::setPosition(const osg::Vec3f& position)
+    bool Actor::setPosition(const vsg::vec3& position)
     {
         std::scoped_lock lock(mMutex);
-        const bool worldPositionChanged = mPositionOffset.length2() != 0;
+        const bool worldPositionChanged = vsg::length2(mPositionOffset) != 0;
         applyOffsetChange();
         if (worldPositionChanged || mSkipSimulation)
             return true;
@@ -421,25 +416,25 @@ namespace MWPhysics
         return mPreviousPosition != mPosition;
     }
 
-    void Actor::adjustPosition(const osg::Vec3f& offset)
+    void Actor::adjustPosition(const vsg::vec3& offset)
     {
         std::scoped_lock lock(mMutex);
         mPositionOffset += offset;
     }
 
-    osg::Vec3f Actor::applyOffsetChange()
+    vsg::vec3 Actor::applyOffsetChange()
     {
-        if (mPositionOffset.length2() != 0)
+        if (vsg::length2(mPositionOffset) != 0)
         {
-            mPosition += mPositionOffset;
-            mPreviousPosition += mPositionOffset;
+            mPosition += vsg::dvec3(mPositionOffset);
+            mPreviousPosition += vsg::dvec3(mPositionOffset);
             mSimulationPosition += mPositionOffset;
-            mPositionOffset = osg::Vec3f();
+            mPositionOffset = vsg::vec3();
         }
-        return mPosition;
+        return vsg::vec3(mPosition);
     }
 
-    void Actor::setRotation(osg::Quat quat)
+    void Actor::setRotation(vsg::dquat quat)
     {
         std::scoped_lock lock(mMutex);
         mRotation = quat;
@@ -460,34 +455,34 @@ namespace MWPhysics
     {
         auto prevScale = mScale;
         float scale = mPtr.getCellRef().getScale();
-        osg::Vec3f scaleVec(scale, scale, scale);
+        vsg::vec3 scaleVec(scale, scale, scale);
 
         mPtr.getClass().adjustScale(mPtr, scaleVec, false);
         mScale = scaleVec;
-        mHalfExtents = osg::componentMultiply(mOriginalHalfExtents, scaleVec);
+        mHalfExtents = Misc::VsgMath::componentMultiply(mOriginalHalfExtents, scaleVec);
 
-        scaleVec = osg::Vec3f(scale, scale, scale);
+        scaleVec = vsg::vec3(scale, scale, scale);
         mPtr.getClass().adjustScale(mPtr, scaleVec, true);
-        mRenderingHalfExtents = osg::componentMultiply(mOriginalHalfExtents, scaleVec);
+        mRenderingHalfExtents = Misc::VsgMath::componentMultiply(mOriginalHalfExtents, scaleVec);
         mScaleUpdated = mScale != prevScale;
     }
 
-    osg::Vec3f Actor::getHalfExtents() const
+    vsg::vec3 Actor::getHalfExtents() const
     {
         return mHalfExtents;
     }
 
-    osg::Vec3f Actor::getOriginalHalfExtents() const
+    vsg::vec3 Actor::getOriginalHalfExtents() const
     {
         return mOriginalHalfExtents;
     }
 
-    osg::Vec3f Actor::getRenderingHalfExtents() const
+    vsg::vec3 Actor::getRenderingHalfExtents() const
     {
         return mRenderingHalfExtents;
     }
 
-    void Actor::setInertialForce(const osg::Vec3f& force)
+    void Actor::setInertialForce(const vsg::vec3& force)
     {
         mForce = force;
     }
@@ -535,10 +530,10 @@ namespace MWPhysics
 
     bool Actor::canMoveToWaterSurface(float waterlevel, const JPH::PhysicsSystem* physicsSystem) const
     {
-        const float halfZ = getHalfExtents().z();
-        const osg::Vec3f actorPosition = getPosition();
-        const osg::Vec3f startingPosition(actorPosition.x(), actorPosition.y(), actorPosition.z() + halfZ);
-        const osg::Vec3f destinationPosition(actorPosition.x(), actorPosition.y(), waterlevel + halfZ);
+        const float halfZ = getHalfExtents().z;
+        const vsg::vec3 actorPosition(getPosition());
+        const vsg::vec3 startingPosition(actorPosition.x, actorPosition.y, actorPosition.z + halfZ);
+        const vsg::vec3 destinationPosition(actorPosition.x, actorPosition.y, waterlevel + halfZ);
         MWPhysics::ActorTracer tracer;
         tracer.doTrace(getPhysicsBody(), startingPosition, destinationPosition, physicsSystem, getCollisionMask());
         return (tracer.mFraction >= 1.0f);

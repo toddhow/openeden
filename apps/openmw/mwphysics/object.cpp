@@ -10,7 +10,6 @@
 #include <components/mwanimation/object.hpp>
 #include <components/physicshelpers/collisionobject.hpp>
 #include <components/resource/physicsshape.hpp>
-#include <components/vsgadapters/osgcompat.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/nodepath.hpp>
 #include <components/vsgutil/traverse.hpp>
@@ -48,8 +47,8 @@ namespace MWPhysics
     }
 
     Object::Object(const MWWorld::Ptr& ptr, vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance,
-        osg::Quat rotation, int collisionType, PhysicsTaskScheduler* scheduler)
-        : PtrHolder(ptr, osg::Vec3f())
+        vsg::dquat rotation, int collisionType, PhysicsTaskScheduler* scheduler)
+        : PtrHolder(ptr, vsg::vec3())
         , mShapeInstance(std::move(shapeInstance))
         , mSolid(true)
         , mScale(ptr.getCellRef().getScale(), ptr.getCellRef().getScale(), ptr.getCellRef().getScale())
@@ -88,7 +87,7 @@ namespace MWPhysics
     void Object::setScale(float scale)
     {
         std::unique_lock<std::mutex> lock(mPositionMutex);
-        osg::Vec3f newScale = { scale, scale, scale };
+        vsg::vec3 newScale = { scale, scale, scale };
         if (mScale != newScale)
         {
             mScale = { scale, scale, scale };
@@ -96,7 +95,7 @@ namespace MWPhysics
         }
     }
 
-    void Object::setRotation(osg::Quat quat)
+    void Object::setRotation(vsg::dquat quat)
     {
         std::unique_lock<std::mutex> lock(mPositionMutex);
         mRotation = quat;
@@ -148,13 +147,13 @@ namespace MWPhysics
         }
     }
 
-    osg::Matrixd Object::getTransform() const
+    vsg::dmat4 Object::getTransform() const
     {
         std::unique_lock<std::mutex> lock(mPositionMutex);
-        osg::Matrixd trans;
-        trans.makeRotate(mRotation);
-        trans.setTrans(mPosition);
-        return osg::Matrixd::scale(mScale) * trans;
+        vsg::dmat4 trans;
+        trans = Misc::VsgMath::toMatrix(mRotation);
+        Misc::VsgMath::setTrans(trans, mPosition);
+        return trans * vsg::scale(vsg::dvec3(mScale));
     }
 
     bool Object::isSolid() const
@@ -244,12 +243,12 @@ namespace MWPhysics
                 }
             }
 
-            osg::Matrixf matrix = toOsg(vsg::mat4(vsg::computeTransform(*nodePath)));
-            osg::Vec3f scale = matrix.getScale();
-            matrix.orthoNormalize(matrix);
+            vsg::mat4 matrix = vsg::mat4(vsg::computeTransform(*nodePath));
+            vsg::vec3 scale(Misc::VsgMath::getScale(matrix));
+            matrix = Misc::VsgMath::orthoNormalize(matrix);
 
-            auto origin = Misc::Convert::toJolt<JPH::Vec3>(matrix.getTrans());
-            auto rotation = Misc::Convert::toJolt(matrix.getRotate());
+            auto origin = Misc::Convert::toJolt<JPH::Vec3>(Misc::VsgMath::getTrans(matrix));
+            auto rotation = Misc::Convert::toJolt(Misc::VsgMath::rotationOf(matrix));
 
             const JPH::ScaledShape* scaledPtr = dynamic_cast<const JPH::ScaledShape*>(subShape.mShape.GetPtr());
             const bool isScaledSubshape = scaledPtr != nullptr;

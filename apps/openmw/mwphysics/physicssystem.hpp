@@ -14,8 +14,10 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyID.h>
 
-#include <osg/BoundingBox>
-#include <osg/Quat>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/box.h>
+#include <vsg/maths/quat.h>
 
 #include <components/vfs/pathutil.hpp>
 
@@ -71,8 +73,8 @@ namespace MWPhysics
     struct ContactPoint
     {
         MWWorld::Ptr mObject;
-        osg::Vec3f mPoint;
-        osg::Vec3f mNormal;
+        vsg::vec3 mPoint;
+        vsg::vec3 mNormal;
     };
 
     struct LOSRequest
@@ -90,8 +92,8 @@ namespace MWPhysics
     {
         ActorFrameData(Actor& actor, bool inert, bool waterCollision, float slowFall, float waterlevel, bool isPlayer);
         Actor* mActor = nullptr;
-        osg::Vec3f mPosition;
-        osg::Vec3f mInertia;
+        vsg::vec3 mPosition;
+        vsg::vec3 mInertia;
         bool mIsOnGround;
         bool mIsOnSlope;
         bool mWalkingOnWater;
@@ -100,9 +102,9 @@ namespace MWPhysics
         JPH::BodyID mPhysicsBody;
         const float mSwimLevel;
         const float mSlowFall;
-        osg::Vec2f mRotation;
-        osg::Vec3f mMovement;
-        osg::Vec3f mLastStuckPosition;
+        vsg::vec2 mRotation;
+        vsg::vec3 mMovement;
+        vsg::vec3 mLastStuckPosition;
         const float mWaterlevel;
         const float mHalfExtentsZ;
         float mOldHeight;
@@ -120,7 +122,7 @@ namespace MWPhysics
     {
         WorldFrameData();
         bool mIsInStorm;
-        osg::Vec3f mStormDirection;
+        vsg::vec3 mStormDirection;
     };
 
     template <class Ptr, class FrameData>
@@ -163,12 +165,12 @@ namespace MWPhysics
         void setWaterHeight(float height);
         void disableWater();
 
-        void addObject(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, osg::Quat rotation,
+        void addObject(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, vsg::dquat rotation,
             int collisionType = Layers::WORLD);
         void addActor(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh);
 
         int addProjectile(
-            const MWWorld::Ptr& caster, const osg::Vec3f& position, VFS::Path::NormalizedView mesh, bool computeRadius);
+            const MWWorld::Ptr& caster, const vsg::vec3& position, VFS::Path::NormalizedView mesh, bool computeRadius);
         void setCaster(int projectileId, const MWWorld::Ptr& caster);
         void removeProjectile(const int projectileId);
 
@@ -185,7 +187,7 @@ namespace MWPhysics
         void remove(const MWWorld::Ptr& ptr);
 
         void updateScale(const MWWorld::Ptr& ptr);
-        void updateRotation(const MWWorld::Ptr& ptr, osg::Quat rotate);
+        void updateRotation(const MWWorld::Ptr& ptr, vsg::dquat rotate);
         void updatePosition(const MWWorld::Ptr& ptr);
 
         void addHeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
@@ -208,17 +210,17 @@ namespace MWPhysics
             int collisionMask) const; ///< get handles this object collides with
         std::vector<ContactPoint> getCollisionsPoints(
             const MWWorld::ConstPtr& ptr, int collisionGroup, int collisionMask) const;
-        osg::Vec3f traceDown(const MWWorld::Ptr& ptr, const osg::Vec3f& position, float maxHeight);
+        vsg::vec3 traceDown(const MWWorld::Ptr& ptr, const vsg::vec3& position, float maxHeight);
         void optimize();
 
         /// @param ignore Optional, a list of Ptr to ignore in the list of results. targets are actors to filter for,
         /// ignoring all other actors.
-        RayCastingResult castRay(const osg::Vec3f& from, const osg::Vec3f& to,
+        RayCastingResult castRay(const vsg::vec3& from, const vsg::vec3& to,
             const std::vector<MWWorld::ConstPtr>& ignore = {}, const std::vector<MWWorld::Ptr>& targets = {},
             int mask = CollisionMask_Default, int group = 0xff) const override;
         using RayCastingInterface::castRay;
 
-        RayCastingResult castSphere(const osg::Vec3f& from, const osg::Vec3f& to, float radius,
+        RayCastingResult castSphere(const vsg::vec3& from, const vsg::vec3& to, float radius,
             int mask = CollisionMask_Default, int group = 0xff) const override;
 
         /// Return true if actor1 can see actor2.
@@ -229,26 +231,26 @@ namespace MWPhysics
         bool canMoveToWaterSurface(const MWWorld::ConstPtr& actor, const float waterlevel);
 
         /// Get physical half extents (scaled) of the given actor.
-        osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& actor) const;
+        vsg::vec3 getHalfExtents(const MWWorld::ConstPtr& actor) const;
 
         /// Get physical half extents (not scaled) of the given actor.
-        osg::Vec3f getOriginalHalfExtents(const MWWorld::ConstPtr& actor) const;
+        vsg::vec3 getOriginalHalfExtents(const MWWorld::ConstPtr& actor) const;
 
         /// @see MWPhysics::Actor::getRenderingHalfExtents
-        osg::Vec3f getRenderingHalfExtents(const MWWorld::ConstPtr& actor) const;
+        vsg::vec3 getRenderingHalfExtents(const MWWorld::ConstPtr& actor) const;
 
         /// Get the position of the collision shape for the actor. Use together with getHalfExtents() to get the
         /// collision bounds in world space.
         /// @note The collision shape's origin is in its center, so the position returned can be described as center of
         /// the actor collision box in world space.
-        osg::Vec3f getCollisionObjectPosition(const MWWorld::ConstPtr& actor) const;
+        vsg::vec3 getCollisionObjectPosition(const MWWorld::ConstPtr& actor) const;
 
         /// Get bounding box in world space of the given object.
-        osg::BoundingBox getBoundingBox(const MWWorld::ConstPtr& object) const;
+        vsg::dbox getBoundingBox(const MWWorld::ConstPtr& object) const;
 
         /// Queues velocity movement for a Ptr. If a Ptr is already queued, its velocity will
         /// be overwritten. Valid until the next call to stepSimulation
-        void queueObjectMovement(const MWWorld::Ptr& ptr, const osg::Vec3f& velocity);
+        void queueObjectMovement(const MWWorld::Ptr& ptr, const vsg::vec3& velocity);
 
         /// Force a collision-shape animation update for a single object.
         void updateAnimatedCollisionShape(const MWWorld::Ptr& ptr);
@@ -275,7 +277,7 @@ namespace MWPhysics
         /// Connects the renderer's debug geometry (owned by MWRender::RenderManager, which outlives this) for `tcb`.
         void setDebugGeometry(MWRender::DebugGeometry& geometry);
 
-        void reportCollision(const osg::Vec3f& position, const osg::Vec3f& normal);
+        void reportCollision(const vsg::vec3& position, const vsg::vec3& normal);
 
         /// Mark the given object as a 'non-solid' object. A non-solid object means that
         /// \a isOnSolidGround will return false for actors standing on that object.
@@ -289,7 +291,7 @@ namespace MWPhysics
             std::for_each(mAnimatedObjects.begin(), mAnimatedObjects.end(), function);
         }
 
-        bool isAreaOccupiedByOtherActor(const osg::Vec3f& position, const float radius,
+        bool isAreaOccupiedByOtherActor(const vsg::vec3& position, const float radius,
             std::span<const MWWorld::ConstPtr> ignore, std::vector<MWWorld::Ptr>* occupyingActors) const;
 
         float getPhysicsDt() const { return mPhysicsDt; }
@@ -353,7 +355,7 @@ namespace MWPhysics
 
         std::size_t mSimulationsCounter = 0;
         std::array<std::vector<Simulation>, 2> mSimulations;
-        std::vector<std::pair<MWWorld::Ptr, osg::Vec3f>> mActorsPositions;
+        std::vector<std::pair<MWWorld::Ptr, vsg::vec3>> mActorsPositions;
 
         PhysicsSystem(const PhysicsSystem&);
         PhysicsSystem& operator=(const PhysicsSystem&);

@@ -200,7 +200,7 @@ namespace MWWorld
         {
             // Note: we ignore the collision box offset, this is required to make some flying creatures work as
             // intended.
-            pos.z() += mPhysics->getRenderingHalfExtents(caster).z() * 2 * Constants::TorsoHeight;
+            pos.z() += mPhysics->getRenderingHalfExtents(caster).z * 2 * Constants::TorsoHeight;
         }
 
         // Actors can't cast target spells underwater

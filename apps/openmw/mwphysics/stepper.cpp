@@ -15,8 +15,8 @@ namespace MWPhysics
     {
         if (!stepper.mHitObject)
             return false;
-        static const float sMaxSlopeCos = std::cos(osg::DegreesToRadians(Constants::sMaxSlope));
-        if (stepper.mPlaneNormal.z() <= sMaxSlopeCos)
+        static const float sMaxSlopeCos = std::cos(Misc::VsgMath::inDegrees(Constants::sMaxSlope));
+        if (stepper.mPlaneNormal.z <= sMaxSlopeCos)
             return false;
 
         return stepper.mHitObjectLayer != Layers::ACTOR;
@@ -28,16 +28,16 @@ namespace MWPhysics
     {
     }
 
-    bool Stepper::step(osg::Vec3f& position, osg::Vec3f& velocity, float& remainingTime, const bool& onGround,
+    bool Stepper::step(vsg::vec3& position, vsg::vec3& velocity, float& remainingTime, const bool& onGround,
         bool firstIteration, const int collisionMask)
     {
-        if (velocity.x() == 0.0 && velocity.y() == 0.0)
+        if (velocity.x == 0.0 && velocity.y == 0.0)
             return false;
 
         // Stairstepping algorithms work by moving up to avoid the step, moving forwards, then moving back down onto the
         // ground. This algorithm has a couple of minor problems, but they don't cause problems for sane geometry, and
         // just prevent stepping on insane geometry.
-        mUpStepper.doTrace(mColObj, position, position + osg::Vec3f(0.0f, 0.0f, Constants::sStepSizeUp), mColWorld,
+        mUpStepper.doTrace(mColObj, position, position + vsg::vec3(0.0f, 0.0f, Constants::sStepSizeUp), mColWorld,
             collisionMask, onGround);
 
         float upDistance = 0;
@@ -52,11 +52,11 @@ namespace MWPhysics
 
         auto toMove = velocity * remainingTime;
 
-        osg::Vec3f tracerPos = position + osg::Vec3f(0.0f, 0.0f, upDistance);
+        vsg::vec3 tracerPos = position + vsg::vec3(0.0f, 0.0f, upDistance);
 
-        osg::Vec3f tracerDest;
+        vsg::vec3 tracerDest;
         auto normalMove = toMove;
-        auto moveDistance = normalMove.normalize();
+        auto moveDistance = Misc::VsgMath::normalizeInPlace(normalMove);
         // attempt 1: normal movement
         // attempt 2: fixed distance movement, only happens on the first movement solver iteration/bounce each frame to
         // avoid a glitch attempt 3: further, less tall fixed distance movement, same as above If you're making a full
@@ -84,7 +84,7 @@ namespace MWPhysics
                 if (upDistance > Constants::sStepSizeUp)
                 {
                     upDistance = Constants::sStepSizeUp;
-                    tracerPos = position + osg::Vec3f(0.0f, 0.0f, upDistance);
+                    tracerPos = position + vsg::vec3(0.0f, 0.0f, upDistance);
                 }
                 moveDistance = sMinStep2;
                 tracerDest = tracerPos + normalMove * sMinStep2;
@@ -121,7 +121,7 @@ namespace MWPhysics
                 downStepSize = upDistance;
             else
                 downStepSize = moveDistance + upDistance + sStepSizeDown;
-            mDownStepper.doTrace(mColObj, tracerDest, tracerDest + osg::Vec3f(0.0f, 0.0f, -downStepSize), mColWorld,
+            mDownStepper.doTrace(mColObj, tracerDest, tracerDest + vsg::vec3(0.0f, 0.0f, -downStepSize), mColWorld,
                 collisionMask, onGround);
 
             // can't step down onto air, non-walkable-slopes, or actors
@@ -160,18 +160,18 @@ namespace MWPhysics
         if (downDistance - sCollisionMargin - sGroundOffset > upDistance && !onGround)
             return false;
 
-        auto newpos = tracerDest + osg::Vec3f(0.0f, 0.0f, -downDistance);
+        auto newpos = tracerDest + vsg::vec3(0.0f, 0.0f, -downDistance);
 
-        if ((position - newpos).length2() < sCollisionMargin * sCollisionMargin)
+        if (vsg::length2(position - newpos) < sCollisionMargin * sCollisionMargin)
             return false;
 
         if (mTracer.mHitObject)
         {
             auto planeNormal = mTracer.mPlaneNormal;
-            if (onGround && !isWalkableSlope(planeNormal) && planeNormal.z() != 0)
+            if (onGround && !isWalkableSlope(planeNormal) && planeNormal.z != 0)
             {
-                planeNormal.z() = 0;
-                planeNormal.normalize();
+                planeNormal.z = 0;
+                Misc::VsgMath::normalizeInPlace(planeNormal);
             }
             velocity = reject(velocity, planeNormal);
         }

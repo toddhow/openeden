@@ -5,7 +5,9 @@
 #include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 
-#include <osg/Vec3f>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 namespace MWPhysics
 {
@@ -15,7 +17,7 @@ namespace MWPhysics
         JPH::BodyID mHitCollisionObject;
         float mClosestHitFraction;
         JPH::Vec3 mHitNormalWorld;
-        osg::Vec3f mHitPointWorld;
+        vsg::vec3 mHitPointWorld;
 
         explicit ClosestConvexResultCallback(JPH::RVec3 origin)
             : mOrigin(Misc::Convert::toOsg(origin))
@@ -42,7 +44,7 @@ namespace MWPhysics
         bool hasHit() const { return !mHitCollisionObject.IsInvalid(); }
 
     protected:
-        osg::Vec3f mOrigin;
+        vsg::vec3 mOrigin;
     };
 
     class ContactTestResultCallback : public JPH::CollideShapeCollector

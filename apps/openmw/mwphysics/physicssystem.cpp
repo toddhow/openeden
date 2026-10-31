@@ -423,7 +423,7 @@ namespace MWPhysics
         return true;
     }
 
-    RayCastingResult PhysicsSystem::castRay(const osg::Vec3f& from, const osg::Vec3f& to,
+    RayCastingResult PhysicsSystem::castRay(const vsg::vec3& from, const vsg::vec3& to,
         const std::vector<MWWorld::ConstPtr>& ignore, const std::vector<MWWorld::Ptr>& targets, int mask,
         int group) const
     {
@@ -511,7 +511,7 @@ namespace MWPhysics
     }
 
     RayCastingResult PhysicsSystem::castSphere(
-        const osg::Vec3f& from, const osg::Vec3f& to, float radius, int mask, int group) const
+        const vsg::vec3& from, const vsg::vec3& to, float radius, int mask, int group) const
     {
         JPH::SphereShape sphere(radius);
         sphere.SetEmbedded();
@@ -586,66 +586,66 @@ namespace MWPhysics
         return physactor && physactor->canMoveToWaterSurface(waterlevel, &mPhysicsSystem);
     }
 
-    osg::Vec3f PhysicsSystem::getHalfExtents(const MWWorld::ConstPtr& actor) const
+    vsg::vec3 PhysicsSystem::getHalfExtents(const MWWorld::ConstPtr& actor) const
     {
         const Actor* physactor = getActor(actor);
         if (physactor)
             return physactor->getHalfExtents();
         else
-            return osg::Vec3f();
+            return vsg::vec3();
     }
 
-    osg::Vec3f PhysicsSystem::getOriginalHalfExtents(const MWWorld::ConstPtr& actor) const
+    vsg::vec3 PhysicsSystem::getOriginalHalfExtents(const MWWorld::ConstPtr& actor) const
     {
         if (const Actor* physactor = getActor(actor))
             return physactor->getOriginalHalfExtents();
         else
-            return osg::Vec3f();
+            return vsg::vec3();
     }
 
-    osg::Vec3f PhysicsSystem::getRenderingHalfExtents(const MWWorld::ConstPtr& actor) const
+    vsg::vec3 PhysicsSystem::getRenderingHalfExtents(const MWWorld::ConstPtr& actor) const
     {
         const Actor* physactor = getActor(actor);
         if (physactor)
             return physactor->getRenderingHalfExtents();
         else
-            return osg::Vec3f();
+            return vsg::vec3();
     }
 
-    osg::BoundingBox PhysicsSystem::getBoundingBox(const MWWorld::ConstPtr& object) const
+    vsg::dbox PhysicsSystem::getBoundingBox(const MWWorld::ConstPtr& object) const
     {
         const Object* physobject = getObject(object);
         if (!physobject)
-            return osg::BoundingBox();
+            return vsg::dbox();
 
         JPH::BodyID bodyId = physobject->getPhysicsBody();
         if (bodyId.IsInvalid())
-            return osg::BoundingBox();
+            return vsg::dbox();
 
         JPH::BodyLockRead lock(mPhysicsSystem.GetBodyLockInterface(), bodyId);
         if (!lock.Succeeded())
-            return osg::BoundingBox();
+            return vsg::dbox();
 
         const JPH::Body& body = lock.GetBody();
 
         // Get body world space translation + shape local space bound
-        osg::Vec3f translation = Misc::Convert::toOsg(body.GetCenterOfMassTransform().GetTranslation());
+        vsg::vec3 translation = Misc::Convert::toOsg(body.GetCenterOfMassTransform().GetTranslation());
         JPH::AABox bounds = body.GetShape()->GetLocalBounds();
 
         // Convert local space bounds to world space
-        osg::Vec3f min = osg::Vec3f(bounds.mMin.GetX(), bounds.mMin.GetY(), bounds.mMin.GetZ()) + translation;
-        osg::Vec3f max = osg::Vec3f(bounds.mMax.GetX(), bounds.mMax.GetY(), bounds.mMax.GetZ()) + translation;
+        vsg::vec3 min = vsg::vec3(bounds.mMin.GetX(), bounds.mMin.GetY(), bounds.mMin.GetZ()) + translation;
+        vsg::vec3 max = vsg::vec3(bounds.mMax.GetX(), bounds.mMax.GetY(), bounds.mMax.GetZ()) + translation;
 
-        return osg::BoundingBox(min, max);
+        return vsg::dbox(vsg::dvec3(min), vsg::dvec3(max));
     }
 
-    osg::Vec3f PhysicsSystem::getCollisionObjectPosition(const MWWorld::ConstPtr& actor) const
+    vsg::vec3 PhysicsSystem::getCollisionObjectPosition(const MWWorld::ConstPtr& actor) const
     {
         const Actor* physactor = getActor(actor);
         if (physactor)
             return physactor->getCollisionObjectPosition();
         else
-            return osg::Vec3f();
+            return vsg::vec3();
     }
 
     std::vector<ContactPoint> PhysicsSystem::getCollisionsPoints(
@@ -708,7 +708,7 @@ namespace MWPhysics
         return actors;
     }
 
-    osg::Vec3f PhysicsSystem::traceDown(const MWWorld::Ptr& ptr, const osg::Vec3f& position, float maxHeight)
+    vsg::vec3 PhysicsSystem::traceDown(const MWWorld::Ptr& ptr, const vsg::vec3& position, float maxHeight)
     {
         ActorMap::iterator found = mActors.find(ptr.mRef);
         if (found == mActors.end())
@@ -744,7 +744,7 @@ namespace MWPhysics
     }
 
     void PhysicsSystem::addObject(
-        const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, osg::Quat rotation, int collisionType)
+        const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, vsg::dquat rotation, int collisionType)
     {
         if (ptr.mRef->mData.mPhysicsPostponed)
             return;
@@ -866,7 +866,7 @@ namespace MWPhysics
         }
     }
 
-    void PhysicsSystem::updateRotation(const MWWorld::Ptr& ptr, osg::Quat rotate)
+    void PhysicsSystem::updateRotation(const MWWorld::Ptr& ptr, vsg::dquat rotate)
     {
         if (auto foundObject = mObjects.find(ptr.mRef); foundObject != mObjects.end())
         {
@@ -922,7 +922,7 @@ namespace MWPhysics
     }
 
     int PhysicsSystem::addProjectile(
-        const MWWorld::Ptr& caster, const osg::Vec3f& position, VFS::Path::NormalizedView mesh, bool computeRadius)
+        const MWWorld::Ptr& caster, const vsg::vec3& position, VFS::Path::NormalizedView mesh, bool computeRadius)
     {
         vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(mesh);
         assert(shapeInstance);
@@ -960,7 +960,7 @@ namespace MWPhysics
         return false;
     }
 
-    void PhysicsSystem::queueObjectMovement(const MWWorld::Ptr& ptr, const osg::Vec3f& velocity)
+    void PhysicsSystem::queueObjectMovement(const MWWorld::Ptr& ptr, const vsg::vec3& velocity)
     {
         ActorMap::iterator found = mActors.find(ptr.mRef);
         if (found != mActors.end())
@@ -986,8 +986,8 @@ namespace MWPhysics
     {
         for (const auto& [_, actor] : mActors)
         {
-            actor->setVelocity(osg::Vec3f());
-            actor->setInertialForce(osg::Vec3f());
+            actor->setVelocity(vsg::vec3());
+            actor->setInertialForce(vsg::vec3());
         }
     }
 
@@ -1208,7 +1208,7 @@ namespace MWPhysics
         mWaterInstance = std::make_unique<MWWater>(mTaskScheduler.get(), mWaterHeight);
     }
 
-    bool PhysicsSystem::isAreaOccupiedByOtherActor(const osg::Vec3f& position, const float radius,
+    bool PhysicsSystem::isAreaOccupiedByOtherActor(const vsg::vec3& position, const float radius,
         std::span<const MWWorld::ConstPtr> ignore, std::vector<MWWorld::Ptr>* occupyingActors) const
     {
         // Build list of ignored body IDs from theire actor ptrs
@@ -1280,7 +1280,8 @@ namespace MWPhysics
         return collector.hasHit();
     }
 
-    void PhysicsSystem::reportCollision([[maybe_unused]] const osg::Vec3f& position, [[maybe_unused]] const osg::Vec3f& normal)
+    void PhysicsSystem::reportCollision(
+        [[maybe_unused]] const vsg::vec3& position, [[maybe_unused]] const vsg::vec3& normal)
     {
         if (mDebugDrawEnabled && mJoltDebugDrawer)
             mJoltDebugDrawer->addCollision(position, normal);
@@ -1306,17 +1307,17 @@ namespace MWPhysics
         , mInert(inert)
         , mPhysicsBody(actor.getPhysicsBody())
         , mSwimLevel(waterlevel
-              - (actor.getRenderingHalfExtents().z() * 2
+              - (actor.getRenderingHalfExtents().z * 2
                   * MWBase::Environment::get()
-                        .getESMStore()
-                        ->get<ESM::GameSetting>()
-                        .find("fSwimHeightScale")
-                        ->mValue.getFloat()))
+                      .getESMStore()
+                      ->get<ESM::GameSetting>()
+                      .find("fSwimHeightScale")
+                      ->mValue.getFloat()))
         , mSlowFall(slowFall)
         , mRotation()
         , mMovement(actor.velocity())
         , mWaterlevel(waterlevel)
-        , mHalfExtentsZ(actor.getHalfExtents().z())
+        , mHalfExtentsZ(actor.getHalfExtents().z)
         , mOldHeight(0)
         , mStuckFrames(0)
         , mFlying(MWBase::Environment::get().getWorld()->isFlying(actor.getPtr()))

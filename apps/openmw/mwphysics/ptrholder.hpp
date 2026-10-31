@@ -5,7 +5,9 @@
 #include <mutex>
 #include <utility>
 
-#include <osg/Vec3d>
+#include <components/misc/vsgmath.hpp>
+
+#include <vsg/maths/vec3.h>
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -17,7 +19,7 @@ namespace MWPhysics
     class PtrHolder
     {
     public:
-        explicit PtrHolder(const MWWorld::Ptr& ptr, const osg::Vec3f& position)
+        explicit PtrHolder(const MWWorld::Ptr& ptr, const vsg::vec3& position)
             : mPtr(ptr)
             , mPosition(position)
             , mPreviousPosition(position)
@@ -40,22 +42,22 @@ namespace MWPhysics
             return mPhysicsBody->GetID();
         }
 
-        virtual void setVelocity(osg::Vec3f velocity) { mVelocity = velocity; }
+        virtual void setVelocity(vsg::vec3 velocity) { mVelocity = velocity; }
 
-        osg::Vec3f velocity() { return std::exchange(mVelocity, osg::Vec3f()); }
+        vsg::vec3 velocity() { return std::exchange(mVelocity, vsg::vec3()); }
 
         // Assumed static by default, override if not
-        virtual osg::Vec3f getSimulationPosition() const { return mPosition; }
+        virtual vsg::vec3 getSimulationPosition() const { return vsg::vec3(mPosition); }
 
-        void setPosition(const osg::Vec3f& position)
+        void setPosition(const vsg::vec3& position)
         {
             mPreviousPosition = mPosition;
-            mPosition = position;
+            mPosition = vsg::dvec3(position);
         }
 
-        osg::Vec3d getPosition() const { return mPosition; }
+        vsg::dvec3 getPosition() const { return mPosition; }
 
-        osg::Vec3d getPreviousPosition() const { return mPreviousPosition; }
+        vsg::dvec3 getPreviousPosition() const { return mPreviousPosition; }
 
         virtual void onContactAdded(
             const JPH::Body& withBody, const JPH::ContactManifold& inManifold, JPH::ContactSettings& ioSettings)
@@ -67,9 +69,9 @@ namespace MWPhysics
     protected:
         MWWorld::Ptr mPtr;
         JPH::Body* mPhysicsBody; // NOTE: memory is managed by Jolt!
-        osg::Vec3f mVelocity;
-        osg::Vec3d mPosition;
-        osg::Vec3d mPreviousPosition;
+        vsg::vec3 mVelocity;
+        vsg::dvec3 mPosition;
+        vsg::dvec3 mPreviousPosition;
     };
 }
 
