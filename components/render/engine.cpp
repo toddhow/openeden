@@ -403,6 +403,16 @@ namespace Render
             return mHeadless->depthImageView;
     }
 
+    VkExtent2D Engine::swapchainExtent()
+    {
+        if (mWindow)
+        {
+            if (auto swapchain = mWindow->getSwapchain())
+                return swapchain->getExtent();
+        }
+        return extent2D();
+    }
+
     void Engine::updateExtents(const VkExtent2D& extent)
     {
         if (mWindow)

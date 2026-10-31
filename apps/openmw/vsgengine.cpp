@@ -154,6 +154,7 @@ namespace OMW
         mWindowManager->onFrame(dt);
         mExtensionHost->runPhase(openeden::sdk::Phase::Ui, dt);
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
+        mRenderManager->syncExtents();
         if (gameState->requiresScene)
             mRenderManager->onFrame(dt);
         return gameState->requiresRender;

@@ -275,6 +275,9 @@ namespace MWRender
         void getPagedRefnums(const vsg::ivec4& activeGrid, std::set<ESM::RefNum>& out);
 
         void updateExtents(uint32_t w, uint32_t h);
+        // Applies the swapchain's current extent to the camera, the render areas and post-processing; call once per frame
+        // before recording, whatever the game state.
+        void syncExtents();
 
         vsg::dmat4 getProjectionMatrix() const;
 
@@ -341,6 +344,7 @@ namespace MWRender
         bool mOccluderActive = false;
         void updateOccluder(const vsg::vec3& cameraPosition);
         std::unique_ptr<PostProcess> mPostProcess;
+        VkExtent2D mAppliedExtent{};
         void updatePostProcess();
         vsg::mat4 mPostProcessLastView;
         float mPostProcessLastTime = 0.f;

@@ -258,10 +258,14 @@ namespace MWRender
         mSuspend = vsg::ref_ptr{ new vsgUtil::SuspendRenderPass(mRenderGraph) };
 
         mGuiRenderGraph = vsg::RenderGraph::create();
+        // Like Engine::createRenderGraph: syncExtents sets the render area. vsg::RenderGraph's own resize handler would
+        // scale it again by new/old when the swapchain changes, to new*new/old (task 0012, resize fix).
+        mGuiRenderGraph->windowResizeHandler = nullptr;
         mGuiRenderGraph->framebuffer = mRenderGraph->framebuffer;
         mGuiRenderGraph->window = mRenderGraph->window;
         mGuiRenderGraph->renderPass = createGuiRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout());
         mGuiRenderGraph->renderArea = mRenderGraph->renderArea;
+        mAppliedExtent = mRenderGraph->renderArea.extent;
         mGuiRenderGraph->children = { gui };
 
         vsg::CommandGraphs threads;
@@ -1325,12 +1329,24 @@ namespace MWRender
 
     void RenderManager::updateExtents(uint32_t w, uint32_t h)
     {
-        mSceneCamera->viewportState->set(0, 0, w, h);
-        mRenderGraph->renderArea = { { 0, 0 }, { w, h } };
-        mGuiRenderGraph->renderArea = { { 0, 0 }, { w, h } };
+        // Only asks the window for a new size. It is rebuilt when the next frame acquires its image, so the render areas
+        // and the camera follow in syncExtents: setting them here would record this frame's passes with an area larger
+        // than the old framebuffer (VUID-VkRenderPassBeginInfo-pNext-02852), which draws nothing and, as seen, left the
+        // window blank after growing.
         mEngine.updateExtents({ w, h });
+    }
+
+    void RenderManager::syncExtents()
+    {
+        const VkExtent2D extent = mEngine.swapchainExtent();
+        if (extent.width == mAppliedExtent.width && extent.height == mAppliedExtent.height)
+            return;
+        mAppliedExtent = extent;
+        mSceneCamera->viewportState->set(0, 0, extent.width, extent.height);
+        mRenderGraph->renderArea = { { 0, 0 }, extent };
+        mGuiRenderGraph->renderArea = { { 0, 0 }, extent };
         if (mPostProcess)
-            mPostProcess->resize(w, h);
+            mPostProcess->resize(extent.width, extent.height);
     }
 
     vsg::ref_ptr<vsg::OperationThreads> RenderManager::getOperationThreads()

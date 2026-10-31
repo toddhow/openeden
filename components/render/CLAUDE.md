@@ -18,4 +18,4 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 
 ## Pitfalls
 
-- **A render area larger than the swapchain renders nothing,** with no error: every pixel reads back as 0, alpha included. `createRenderGraph` has no resize handler, so whoever resizes the window sets `renderArea` (`RenderManager::updateExtents`). A window that grows looks fine but is only drawn in its old area; one that shrinks is blank.
+- **A render area larger than the framebuffer renders nothing,** with no error without the validation layer (VUID-VkRenderPassBeginInfo-pNext-02852): the game then stays blank, not only that frame. The swapchain is rebuilt at the next frame's image acquisition, after the window event that asked for the new size, so never set `renderArea` from the event or from `extent2D()`, which already holds the new size. Set it from `Engine::swapchainExtent()` each frame (`RenderManager::syncExtents`). Graphs with a window or framebuffer need `windowResizeHandler = nullptr`, or VSG scales the area again by new/old.

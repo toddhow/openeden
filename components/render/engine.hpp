@@ -49,8 +49,9 @@ namespace Render
          * laid out with a non-zero size and ask for compatibleColorFormat (a capture refuses sRGB swapchains); otherwise
          * this throws std::invalid_argument, as setup() does if the surface does not offer that format. loop() throws
          * std::logic_error; after each frame the caller calls endFrame().
-         * createRenderGraph() installs no resize handler, so on a resize the caller sets each graph's renderArea to the
-         * new extent, as RenderManager::updateExtents does: a render area larger than the swapchain draws nothing at all.
+         * createRenderGraph() installs no resize handler, so on a resize the caller sets each graph's renderArea to
+         * swapchainExtent() once per frame, as RenderManager::syncExtents does: a render area larger than the swapchain
+         * draws nothing at all, and the swapchain is only rebuilt when the next frame acquires its image.
          * Must be destroyed after the compile contexts it creates, whose callbacks refer to it.
          */
         Engine(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Window> window);
@@ -66,6 +67,9 @@ namespace Render
         void compile();
 
         void updateExtents(const VkExtent2D& extent);
+        // The extent the swapchain images have now, which differs from extent2D() between updateExtents and the rebuild
+        // that the next frame's image acquisition does. Render areas must follow this one (RenderManager::syncExtents).
+        VkExtent2D swapchainExtent();
         VkSampleCountFlagBits framebufferSamples();
         void setRenderPass(vsg::ref_ptr<vsg::RenderPass> renderPass);
 
