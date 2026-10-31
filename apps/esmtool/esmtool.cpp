@@ -254,8 +254,7 @@ namespace
                       << ")\n";
             std::cout << "    Rotation: (" << Misc::VsgMath::radiansToDegrees(ref.mPos.rot[0]) << ", "
                       << Misc::VsgMath::radiansToDegrees(ref.mPos.rot[1]) << ", "
-                      << Misc::VsgMath::radiansToDegrees(ref.mPos.rot[2])
-                      << ")\n";
+                      << Misc::VsgMath::radiansToDegrees(ref.mPos.rot[2]) << ")\n";
             if (ref.mScale != 1.f)
                 std::cout << "    Scale: " << ref.mScale << '\n';
             if (!ref.mOwner.empty())

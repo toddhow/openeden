@@ -192,3 +192,22 @@ Not verified: a real Morrowind save, loading a converted save in the game, and `
 - `shader/parsedefines.cpp`, `parsefors.cpp`, `parselinks.cpp`, `shadermanager.cpp`: deleted. They test `Shader::ShaderManager`'s `@` templates, and no `components/CMakeLists.txt` entry builds `components/shader`. `vsgUtil::readShader` is a wrapper over `vsg::read_cast`, with no parser of its own, so no such test applies; includes and defines are VSG's own shader compiler. `files/shaders/compatibility` still has `@foreach`, unread by the Vulkan build, for the OSG deletion stage to remove.
 - `sceneutil/osgacontroller.cpp`: stays deleted. `SceneUtil::OsgAnimationController` and its emulated animations are not compiled, and nothing in the build reads `.osgb` animations. `vsgadapters/dae/daeanim.cpp` merges clips into one timeline instead, and `testdaeanimation.cpp` checks translations, clip placement, merging and per-node controllers. Its sampling and not-found cases have no API to call now.
 - `fx/*`: already restored before this stage.
+
+### B1 vsgQt spike (2026-10-31)
+
+vsgQt v0.5.0 is fetched and pinned, and builds against VSG v1.1.16 on Windows (Qt 6.6.3) and Linux (Ubuntu 24.04's Qt 6). A throwaway test program, not committed, ran on Windows only and put two `vsgQt::Window`s in a `QSplitter` on one device:
+
+- Both windows rendered their own scene, read back correctly with `Render::Screenshot`, and were still correct after the main window was resized from 820x320 to 1000x600.
+- With `continuousUpdate=false`, 0 frames ran in half a second idle, and 1 frame after `request()` (requests are counted together, so three requests give one frame).
+- The container never took focus in this run, with `WA_ShowWithoutActivating` and `WindowDoesNotAcceptFocus` on the main window. Focus in normal use is for toddhow's check list at C3.
+
+Rules for the editor from this:
+
+- A container laid out at zero width gives a window with zero extent, and `Render::Screenshot` crashed the program on it. Lay out before `initializeWindow()`, and never capture a zero-size window.
+- `Render::download` refuses an sRGB swapchain format (`!download(VkFormat=50)`, no data), so set the format as the game does (`vsgengine.cpp`, `Render::compatibleColorFormat`).
+
+Not run: any window on Linux. The review of A1 to A5 is below.
+
+### Review of A1 to A5 (2026-10-31)
+
+A fresh reviewer read the five commits and found no conversion bugs. Fixed: a failed fog encode wrote an empty file silently, a dead `detournavigator/serialization.cpp` entry in the test CMake list, and formatting by hand on the lines it named (clang-format 14 is still not run). Left as it is: `shouldLoadFileWithDefaultNode` only checks that nothing is kept for an identity node; the next test checks the structure. The BS shader gap went to task 0012's open items, since the behaviour is missing and not retired, which work item 5 does not allow as a reason for deleting tests alone.

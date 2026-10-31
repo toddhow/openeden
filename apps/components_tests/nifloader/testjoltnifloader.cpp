@@ -34,7 +34,8 @@
 // test's input and expected value is kept. What changed is how a result is compared, through the Expected* types below,
 // for what Jolt does differently (task 0014):
 //  - Each child is compared by its triangles in model space, so child transform, scale and vertices are checked
-//    together. Jolt keeps a child's position relative to the compound's centre of mass, so they cannot be compared apart.
+//    together. Jolt keeps a child's position relative to the compound's centre of mass, so they cannot be compared
+//    apart.
 //  - A mesh's triangles compare without their order and first vertex, because JPH::MeshShape reorders them into its
 //    tree; winding is still checked. A static compound also reorders its children, so those compare without order,
 //    while a mutable one keeps them, and mAnimatedShapes indexes them, so those compare in order.

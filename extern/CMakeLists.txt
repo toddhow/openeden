@@ -468,11 +468,29 @@ if(OPENEDEN_BUILD_VSG)
     FetchContent_MakeAvailable(vsgXchange)
     add_dependencies(vsgXchange vsg)
 
+    # 6. vsgQt: the editor's Vulkan viewport (task 0014). Only the editor needs it, and only the editor pulls in Qt.
+    if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
+        set(QT_PACKAGE_NAME Qt6 CACHE STRING "" FORCE)
+        set(VSGQT_BUILD_EXAMPLES OFF CACHE BOOL "")
+        FetchContent_Declare(vsgQt
+            URL https://github.com/vsg-dev/vsgQt/archive/refs/tags/v0.5.0.tar.gz
+            URL_HASH SHA512=1e22e2171b3a470e09b04bce5f27e1fa2ceda38a9ea62c2da558664d47cf289d918f33fc324292c4e237af2bd0eb6affe7ce357639c1151d7f93a9c7cedd6d37
+            SOURCE_DIR fetched/vsgQt
+            SYSTEM
+        )
+        FetchContent_MakeAvailable(vsgQt)
+        add_dependencies(vsgQt vsg)
+    endif()
+
     # openeden-vsg: extern/ is processed before the root CMakeLists.txt sets CMAKE_RUNTIME_OUTPUT_DIRECTORY, and VSG's
     # own CMake writes its DLLs under _deps/vsg-build/lib, so openmw.exe ran with stale or missing VSG DLLs. On Windows
     # the DLLs must sit next to the executables, as the root CMakeLists.txt arranges for OpenEden's own targets.
     if (WIN32)
-        foreach(target vsg vsgXchange)
+        set(OPENEDEN_VSG_DLL_TARGETS vsg vsgXchange)
+        if (TARGET vsgQt)
+            list(APPEND OPENEDEN_VSG_DLL_TARGETS vsgQt)
+        endif()
+        foreach(target ${OPENEDEN_VSG_DLL_TARGETS})
             set_target_properties(${target} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
             foreach(config ${CMAKE_CONFIGURATION_TYPES})
                 string(TOUPPER ${config} upperConfig)

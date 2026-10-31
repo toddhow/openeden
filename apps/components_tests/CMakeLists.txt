@@ -40,7 +40,6 @@ file(GLOB UNITTEST_SRC_FILES
     detournavigator/navmeshtilescache.cpp
     detournavigator/tilecachedrecastmeshmanager.cpp
     detournavigator/navmeshdb.cpp
-    detournavigator/serialization.cpp
     detournavigator/asyncnavmeshupdater.cpp
 
     serialization/binaryreader.cpp

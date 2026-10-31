@@ -21,8 +21,8 @@ namespace
 
     TEST(VsgUtilImagePixelsTest, pngOfRgbaKeepsRowOrderAndEveryChannel)
     {
-        const std::vector<unsigned char> pixels = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-            21, 22, 23, 24 };
+        const std::vector<unsigned char> pixels = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+            20, 21, 22, 23, 24 };
         const auto image = decode(vsgUtil::encodeImage(pixels.data(), 2, 3, 4, ".png"));
         ASSERT_TRUE(image);
         ASSERT_EQ(image->width(), 2u);
@@ -68,8 +68,8 @@ namespace
 
     TEST(VsgUtilImagePixelsTest, doubleImageSizeWeighsThreeQuartersToOneQuarterAndWraps)
     {
-        // The expected values are worked by hand from the box filter in gluScaleImage: the new pixel at i covers the source
-        // range (i + 0.5) / 2 +- 0.5, wrapping around.
+        // The expected values are worked by hand from the box filter in gluScaleImage: the new pixel at i covers the
+        // source range (i + 0.5) / 2 +- 0.5, wrapping around.
         const std::vector<unsigned char> pixels = { 0, 16, 32, 48 };
         const std::vector<unsigned char> result = vsgUtil::doubleImageSize(pixels, 2, 1);
         ASSERT_EQ(result.size(), 16u);
@@ -83,8 +83,8 @@ namespace
 
     TEST(VsgUtilImagePixelsTest, doubleImageSizeRoundsAsGluScaleImagesSixteenBits)
     {
-        // The weighted value here is 62.5. In 16 bits that is 16062.5, which rounds to 16063, whose high byte is 62. The first
-        // is also what the OSG-era importer wrote for these weights.
+        // The weighted value here is 62.5. In 16 bits that is 16062.5, which rounds to 16063, whose high byte is 62. The
+        // first is also what the OSG-era importer wrote for these weights.
         const std::vector<unsigned char> pixels = { 0, 7, 243, 250 };
         EXPECT_EQ(vsgUtil::doubleImageSize(pixels, 2, 1)[0], 62);
     }

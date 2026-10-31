@@ -26,6 +26,11 @@ namespace
     {
         const std::vector<char> encoded = vsgUtil::encodeImage(reinterpret_cast<const unsigned char*>(data),
             static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), 4, ".tga");
+        if (encoded.empty())
+        {
+            std::cerr << "Error: could not encode " << out << std::endl;
+            return;
+        }
         std::ofstream file(out, std::ios::binary);
         file.write(encoded.data(), static_cast<std::streamsize>(encoded.size()));
     }
@@ -116,7 +121,7 @@ namespace ESSImport
     void ConvertFMAP::write(ESM::ESMWriter& esm) const
     {
         int numcells = mGlobalMapSize / 18; // NB truncating, doesn't divide perfectly
-                                                  // with the 512x512 map the game has by default
+                                    // with the 512x512 map the game has by default
         int cellSize = mGlobalMapSize / numcells;
 
         // Note the upper left corner of the (0,0) cell should be at (width/2, height/2)
@@ -126,7 +131,7 @@ namespace ESSImport
         mContext->mGlobalMapState.mBounds.mMinY = -(numcells - 1) / 2;
         mContext->mGlobalMapState.mBounds.mMaxY = numcells / 2;
 
-                int width = cellSize * numcells;
+        int width = cellSize * numcells;
         int height = cellSize * numcells;
         std::vector<unsigned char> image2(std::size_t(width) * height * 4, 0);
 

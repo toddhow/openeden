@@ -366,3 +366,9 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
   | seyda_neen_coast | 2.12 | 2.23 | 2.80 / 3.75 | +32% |
 
   **Over the 10% CPU budget:** all five exteriors and, narrowly, Caldera. V4 added 2 to 26% on V2 in most scenes. Not traced. The budget is toddhow's call: every scene is still under 4 ms at p95. `vivec_arena_interior` read 0.22 ms and has no reference in the note, so it is left out.
+
+### Found by task 0014's review (2026-10-31): post-Morrowind NIF materials
+
+`vsgAdapters::nif` does not read Bethesda's later shader properties: `handleProperty` (`components/vsgadapters/nif/nif.cpp`) has no case for `BSShaderPPLightingProperty`, `BSShaderNoLightingProperty`, `BSLightingShaderProperty` or `BSEffectShaderProperty`, which the old loader handled (`nifosg/nifloader.cpp`). Its shape list also has only `BSLODTriShape` of the old loader's `BSTriShape`, `BSDynamicTriShape`, `BSMeshLODTriShape`, `BSSubIndexTriShape` and `BSSegmentedTriShape`. Morrowind's own meshes do not use these. ESM4 content will lose textures and depth flags or not draw.
+
+Decision for toddhow: do this with the ESM4 work or later. Task 0014 deleted the tests of this behaviour; when it is built, its acceptance list is those cases, in `nifosg/testnifloader.cpp` before `1e921b4ade`: the `bs/` prefix for the four shader types' texture paths, and the prefix and depth flags of `BSLightingShaderProperty`.
