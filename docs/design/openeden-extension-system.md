@@ -211,7 +211,7 @@ The core owns the loop and calls extensions at named phases, in a fixed order:
 - **Logging and profiling:** a per-extension logger and named profiling scopes, shown per extension.
 - **Memory:** extensions may ask the core for frame-scoped scratch memory; the per-step rule stays: no heap allocation in fixed-step or per-frame callbacks.
 - **Debug draw:** extensions submit points, lines and labels as data (the `opas::debug::Overlay` pattern); the core's renderer draws them. Extensions never call the renderer directly.
-- **Editor hooks:** in Eden Studio, an extension may register dockable workspaces, inspectors and viewport gizmos (see the Eden Studio plan); the game host ignores those registrations.
+- **Editor hooks:** today an extension registers a dockable workspace, an inspector or a viewport gizmo from its runtime code, in `start()`, through `host.getEditorService()` (`sdk/include/openeden/editor.hpp`; implementation `components/extension/editor_service.*`). They take effect only when the host is Eden Studio; the game and the headless host ignore them, and Eden Studio does not use them yet. The Eden Studio plan (section 4) plans a separate editor library per extension that the game never loads, with its own `editor` manifest entry. That is not built, its format is not designed, and whether it replaces these hooks is an open question there (question (b)).
 
 ---
 
