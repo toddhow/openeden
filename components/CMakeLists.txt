@@ -288,7 +288,7 @@ add_component_dir (esm3
     loadinfo loadingr loadland loadlevlist loadligh loadlock loadprob loadrepa loadltex loadmgef loadmisc
     loadnpc loadpgrd loadrace loadregn loadscpt loadskil loadsndg loadsoun loadspel loadsscr loadstat
     loadweap aipackage effectlist spelllist variant variantimp loadtes3 cellref filter
-    savedgame pluginchunk journalentry queststate locals globalscript player objectstate cellid cellstate globalmap
+    savedgame journalentry queststate locals globalscript player objectstate cellid cellstate globalmap
     inventorystate containerstate npcstate creaturestate dialoguestate statstate npcstats creaturestats
     weatherstate quickkeys fogstate spellstate activespells creaturelevliststate doorstate projectilestate debugprofile
     aisequence magiceffects custommarkerstate stolenitems transport animationstate controlsstate mappings readerscache
@@ -647,7 +647,6 @@ add_component_dir(plugin
     event_bus
     entity_manager
     settings_service
-    save_service
     vfs_service
     host_impl
     logging_service

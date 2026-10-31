@@ -141,7 +141,6 @@ namespace ESM
 
         // format 16 - Lua scripts in saved games
         REC_LUAM = esm3Recname("LUAM"), // LuaManager data
-        REC_OEPL = esm3Recname("OEPL"), // OpenEden plugin data (saved games only)
 
         // format 21 - Random state in saved games.
         REC_RAND = esm3Recname("RAND"), // Random state.

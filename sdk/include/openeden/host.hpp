@@ -9,7 +9,6 @@ namespace openeden::sdk
     class EventBus;
     class EntityManager;
     class SettingsService;
-    class SaveService;
     class VfsService;
     class PhysicsQueryService;
     class LoggingService;
@@ -43,7 +42,6 @@ namespace openeden::sdk
         [[nodiscard]] virtual EventBus* getEventBus() { return nullptr; }
         [[nodiscard]] virtual EntityManager* getEntityManager() { return nullptr; }
         [[nodiscard]] virtual SettingsService* getSettingsService() { return nullptr; }
-        [[nodiscard]] virtual SaveService* getSaveService() { return nullptr; }
         [[nodiscard]] virtual VfsService* getVfsService() { return nullptr; }
         /// Null if the host has no Jolt world, so check it. A pointer got in start() stays valid until stop() returns.
         [[nodiscard]] virtual PhysicsQueryService* getPhysicsQueryService() { return nullptr; }

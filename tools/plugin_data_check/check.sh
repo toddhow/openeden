@@ -1,14 +1,14 @@
 #!/bin/bash
 # Checks a plugin's data services in the real game (task 0016): data files through the game's VFS, settings in
-# settings.cfg, save chunks in .omwsave files, and marked events reaching Lua. No unit test runs the save and Lua code.
+# settings.cfg, marked events reaching Lua, and saved games that know nothing of the plugin (decision 0005). No unit test runs the save and Lua code.
 #
 # Usage: tools/plugin_data_check/check.sh <build dir> <example suite> <empty work dir>
 # On Windows, PATH must already find the game's runtime libraries.
 #
 # Three runs share one user data folder:
-#   1. plugin enabled: new game, save "a", load it. The chunk is written and read back.
-#   2. no plugin: load "a", save "b". The chunk must be preserved without its plugin.
-#   3. plugin enabled: load "b". The plugin must get its original chunk back.
+#   1. plugin enabled: new game, save "a", load it. The save holds nothing of the plugin.
+#   2. no plugin: load "a", save "b". It loads with no warning about the plugin.
+#   3. plugin enabled: load "b".
 
 set -u
 # pwd -W gives a path Windows programs can read; elsewhere there is no such option.
@@ -107,7 +107,14 @@ check "a wrong-typed setting falls back" "setting broken 5" "$WORK/first.txt"
 check "a wrong-typed setting warns" "is not a int; using the default" "$WORK/first.out"
 check "a changed setting is written" "changed = 7" "$WORK/config/settings.cfg"
 check_not "an unchanged setting is not written" "untouched" "$WORK/config/settings.cfg"
-check "the chunk comes back with its version" "chunk v3 chunk-from-plugin" "$WORK/first.txt"
+# The plugin's ID is in every forwarded event's name, so this also catches an event waiting in Lua when the save was made.
+if ls "$WORK"/userdata/saves/*/a.omwsave > /dev/null 2>&1; then
+    grep -qaF "$ID" "$WORK"/userdata/saves/*/a.omwsave && { echo "FAIL: the save names the plugin"; FAILED=1; } \
+        || echo "ok: the save names no plugin"
+else
+    echo "FAIL: run 1 saved nothing"
+    FAILED=1
+fi
 check "the first event reaches Lua with its payload" "PLUGIN_EVENT 1 0.5 true first" "$WORK/first.out"
 check "the second event follows" "PLUGIN_EVENT 2 0.5 true second" "$WORK/first.out"
 check "an unconvertible event is dropped with a warning" "dropped: field 'text' is not valid UTF-8" "$WORK/first.out"
@@ -120,7 +127,9 @@ check_not "without the plugin nothing about it is warned" "Ignoring unknown reco
 ls "$WORK"/userdata/saves/*/b.omwsave > /dev/null 2>&1 && echo "ok: run 2 saved b" || { echo "FAIL: run 2 saved nothing"; FAILED=1; }
 
 run third --plugin=$ID
-check "the chunk survives a save made without the plugin" "chunk v3 chunk-from-plugin" "$WORK/third.txt"
+check_not "a save made without the plugin loads with no warning about it" "Ignoring unknown record" "$WORK/third.out"
+check "run 3 did load that save" "Loading saved game 'b'" "$WORK/third.out"
+check "the plugin still reads its setting after that load" "setting answer 42" "$WORK/third.txt"
 
 [ "$FAILED" -eq 0 ] && echo "ALL OK" || echo "FAILED"
 exit $FAILED

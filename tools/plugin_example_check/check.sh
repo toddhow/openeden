@@ -8,7 +8,7 @@
 #
 # Three runs share one config and user data folder, never the user's own:
 #   1. new game, save "a", load it.
-#   2. load "a". The counter comes from the save, in a plugin that started afresh.
+#   2. load "a", in a plugin that started afresh.
 #   3. the same, with a broken plugin also installed and enabled: one failure message, and the example still works.
 
 set -u
@@ -62,14 +62,6 @@ check_count() { # description, expected number of lines, text, file
     fi
 }
 
-check_equal() { # description, actual, expected
-    if [ -n "$2" ] && [ "$2" = "$3" ]; then
-        echo "ok: $1 ($2)"
-    else
-        fail "$1: got \"$2\", expected \"$3\""
-    fi
-}
-
 check_at_least() { # description, actual, minimum
     if [ -n "$2" ] && [ "$2" -ge "$3" ]; then
         echo "ok: $1 ($2)"
@@ -80,10 +72,6 @@ check_at_least() { # description, actual, minimum
 
 last_number() { # sed pattern ending just before the number, file
     sed -n "s/.*$1\([0-9][0-9]*\).*/\1/p" "$2" | tail -1
-}
-
-first_number() { # sed pattern ending just before the number, file
-    sed -n "s/.*$1\([0-9][0-9]*\).*/\1/p" "$2" | head -1
 }
 
 # The value of games_seen in [plugin.example] only, so the same key elsewhere cannot pass.
@@ -229,12 +217,11 @@ else
     fail "run 1 saved nothing"
 fi
 
-SAVED=$(last_number '\[example\] saved count=' "$FIRST")
-# Zero could also be a counter that was never saved or loaded, so it would prove nothing below.
-check_at_least "first: the saved counter has counted" "$SAVED" 1
-check_equal "first: the counter loaded is the counter saved" \
-    "$(last_number '\[example\] loaded count=' "$FIRST")" "$SAVED"
-check_equal "first: the chunk has version 2" "$(last_number '\[example\] loaded count=[0-9]* version=' "$FIRST")" 2
+if grep -qaF 'openeden_example' "$WORK"/userdata/saves/*/a.omwsave; then
+    fail "first: the save names the plugin's events"
+else
+    echo "ok: first: the save names none of the plugin's events"
+fi
 
 GAMES_FIRST=$(persisted_games_seen)
 check_at_least "first: games_seen is persisted in [plugin.example]" "$GAMES_FIRST" 1
@@ -247,17 +234,6 @@ check_common second
 check_lua second
 check_not "second: nothing was saved" "[example] event game saved" "$SECOND"
 check_not "second: no failure message without a failure" "$MESSAGE" "$SECOND"
-check_equal "second: the counter loaded is the counter saved in run 1" \
-    "$(first_number '\[example\] loaded count=' "$SECOND")" "$SAVED"
-check_equal "second: the chunk has version 2" "$(last_number '\[example\] loaded count=[0-9]* version=' "$SECOND")" 2
-
-# Any event sent once the game is loaded counts on from the saved value.
-AFTER_LOAD=$(sed -n '/\[example\] loaded count=/,$p' "$SECOND" | grep -F '[example] event sent count=' \
-    | sed -n 's/.*event sent count=\([0-9][0-9]*\).*/\1/p' | head -1)
-if [ -n "$AFTER_LOAD" ]; then
-    check_at_least "second: events continue from the saved counter" "$AFTER_LOAD" "$SAVED"
-fi
-
 GAMES_SECOND=$(persisted_games_seen)
 if [ -n "$GAMES_FIRST" ] && [ -n "$GAMES_SECOND" ] && [ "$GAMES_SECOND" -gt "$GAMES_FIRST" ]; then
     echo "ok: games_seen goes up across runs ($GAMES_FIRST to $GAMES_SECOND)"
@@ -280,8 +256,6 @@ if grep -F "$BROKEN" "$THIRD" | grep -qF "plugin.json"; then
 else
     fail "third: no line naming $BROKEN and its plugin.json in $THIRD"
 fi
-check_equal "third: the example still loads the saved counter" \
-    "$(first_number '\[example\] loaded count=' "$THIRD")" "$SAVED"
 
 [ "$FAILED" -eq 0 ] && echo "ALL OK" || echo "FAILED"
 exit $FAILED

@@ -18,7 +18,7 @@ None of it runs in the game:
 | `LoggingService` | Own sinks | Bridged both ways with `Debug::Log` / `Debug::setLogListener` (`components/debug/debugging.hpp`) |
 | `VfsService` | Own mount table | Plugin `data/` folders mounted in the engine's `VFS::Manager` in load order (built in `OMW::Engine::prepareEngine`, `apps/openmw/engine.cpp`) |
 | `SettingsService` | Own namespaces with manifest defaults | `[plugin.<id>]` sections in `settings.cfg` through `Settings::Manager`, saved with the user's settings |
-| `SaveService` | Own chunk format, unread-chunk preservation | Plugin chunks inside `.omwsave` files as a new ESM record, written and read by `MWState::StateManager` |
+| `SaveService` | Own chunk format, unread-chunk preservation | **Removed** (decision 0005): plugins do not affect save data |
 | `ScriptingService` | Registration callbacks into an abstract `LuaTable` | **Removed** (decision 0003, task 0019); replaced by plugin events forwarded to Lua by the core (task 0016) |
 | `PhysicsServiceImpl` | Owns a Jolt world in tests, full read and write API; *can* attach to an external one | **Read-only** (task 0019), attached to the game's single Jolt world (task 0017) |
 | `CollisionLayerRegistry` | Up to 32 named layers, bits from 0 | **Removed** (decision 0003, task 0019) |
@@ -32,7 +32,7 @@ The guide's P3 to P5 wording has been corrected to say this work runs in the tes
 
 ## 2. Goal
 
-With a plugin enabled, the game loads it at startup, gives it the real engine services, calls it in the documented frame phases, lets it query the game's physics, saves and loads its data with the player's game, forwards the events it marks to Lua scripts, and unloads it at shutdown. With no plugin enabled, the game behaves and performs exactly as without the plugin system.
+With a plugin enabled, the game loads it at startup, gives it the real engine services, calls it in the documented frame phases, lets it query the game's physics, forwards the events it marks to Lua scripts, and unloads it at shutdown. With no plugin enabled, the game behaves and performs exactly as without the plugin system.
 
 ## 3. Stages
 
@@ -40,15 +40,11 @@ With a plugin enabled, the game loads it at startup, gives it the real engine se
 | --- | --- | --- |
 | W0 | task 0019 | SDK 2.0 per decision 0003: physics read-only with shape casts, collision layers, fixed-step phases and Lua removed, events markable for Lua forwarding. Independent of Track V, can run now |
 | W1 | task 0015 | The host in the game: discovery, enable list, load, lifecycle, shutdown; logging bridge; frame phases called from the engine loop; zero-plugin cost and behaviour unchanged |
-| W2 | task 0016 | Data services on the engine: VFS mounts and format readers, settings in `settings.cfg`, save chunks in `.omwsave`, plugin events forwarded to Lua |
+| W2 | task 0016 | Data services on the engine: VFS mounts and format readers, settings in `settings.cfg`, plugin events forwarded to Lua (save chunks built, then removed by decision 0005) |
 | W3 | task 0017 | World services on the engine: the read-only physics service on the game's Jolt world, physics events, entities mapped to game objects with lifecycle events, engine events on the bus, debug draw and profiler shown |
 | W4 | task 0018 | Real clients and packaging: the Morrowind compatibility pack loads in the game, a sample plugin exercises every service end to end, install layout, launcher plugin list, failure reporting |
 
 Each stage ends with the game building, every gate passing, and a test proving the stage's services work through a plugin, not only in the test host.
-
-### Plugin data in saved games
-
-Each plugin with data has one `OEPL` record in the `.omwsave`, after the engine's own records (`ESM::PluginChunk`, `components/esm3/pluginchunk.hpp`): `NAME` the plugin ID, `VERS` a 32-bit version the plugin chose, `DATA` its bytes, which only the plugin can read. Records are sorted by plugin ID. A game without the plugin keeps the record and writes it back unchanged; a save without plugins has none. An OpenMW build skips the record with a warning (`LoadGame::threadLoad`'s `default` case in our code; check theirs if that ever matters).
 
 ## 4. Decisions
 
@@ -62,5 +58,5 @@ Each plugin with data has one `OEPL` record in the `.omwsave`, after the engine'
 
 - **Behaviour without plugins.** Every hook is a no-op with zero plugins, measured: no allocation, no measurable frame time (gate in every stage).
 - **Threading.** Physics runs on worker threads when async physics is on, and Lua on its own worker (`mLuaWorker`); physics queries and event forwarding state which thread may call them, and a debug build asserts it.
-- **Save compatibility.** A save with plugin chunks must load in a build without the plugin (chunks preserved) and in OpenMW-format readers that do not know the record (skipped); tested both ways.
+- **Save compatibility.** Plugins have no part in saves (decision 0005), so a save does not depend on which are installed.
 - **Determinism.** Plugin order, phase order and event order stay fixed (plugin doc 6.3); a test runs a scenario twice with plugins discovered in different orders.

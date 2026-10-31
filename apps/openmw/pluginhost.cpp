@@ -9,10 +9,7 @@
 
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/esm/defs.hpp>
 #include <components/misc/constants.hpp>
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
 #include <components/plugin/dependency_resolver.hpp>
 
 #include "mwbase/environment.hpp"
@@ -231,51 +228,6 @@ namespace OMW
             }
         }
         mPendingLuaEvents.clear();
-    }
-
-    void PluginHost::prepareSave()
-    {
-        mChunksToSave = mHost.saveService().collectChunks();
-    }
-
-    int PluginHost::countSavedGameRecords() const
-    {
-        return static_cast<int>(mChunksToSave.size());
-    }
-
-    void PluginHost::write(ESM::ESMWriter& writer)
-    {
-        ESM::PluginChunk record;
-        for (openeden::plugin::SaveServiceImpl::Chunk& chunk : mChunksToSave)
-        {
-            record.mPluginId = std::move(chunk.pluginId);
-            record.mVersion = chunk.version;
-            record.mData = std::move(chunk.bytes);
-            writer.startRecord(ESM::REC_OEPL);
-            record.save(writer);
-            writer.endRecord(ESM::REC_OEPL);
-        }
-        mChunksToSave.clear();
-    }
-
-    void PluginHost::readRecord(ESM::ESMReader& reader, std::uint32_t type)
-    {
-        if (type != ESM::REC_OEPL)
-            return;
-        mLoadedChunks.emplace_back().load(reader);
-    }
-
-    void PluginHost::applyLoadedRecords()
-    {
-        for (ESM::PluginChunk& record : mLoadedChunks)
-            mHost.saveService().loadChunk({ std::move(record.mPluginId), record.mVersion, std::move(record.mData) });
-        mLoadedChunks.clear();
-    }
-
-    void PluginHost::clearSaveData()
-    {
-        mLoadedChunks.clear();
-        mHost.saveService().clearUnreadChunks();
     }
 
     std::string PluginHost::takeFailureReport()

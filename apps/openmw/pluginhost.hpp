@@ -2,9 +2,7 @@
 #define OPENEDEN_APPS_OPENMW_PLUGINHOST_H
 
 #include <components/plugin/host_impl.hpp>
-#include <components/esm3/pluginchunk.hpp>
 #include <components/plugin/lifecycle_manager.hpp>
-#include <components/plugin/save_service.hpp>
 #include <components/plugin/vfs_service.hpp>
 
 #include "mwbase/luamanager.hpp"
@@ -86,12 +84,6 @@ namespace OMW
         void setLuaManager(MWBase::LuaManager* lua);
 
         // MWBase::PluginManager
-        void prepareSave() override;
-        int countSavedGameRecords() const override;
-        void write(ESM::ESMWriter& writer) override;
-        void readRecord(ESM::ESMReader& reader, std::uint32_t type) override;
-        void applyLoadedRecords() override;
-        void clearSaveData() override;
         void objectAddedToScene(const MWWorld::Ptr& ptr) override;
         void objectRemovedFromScene(const MWWorld::Ptr& ptr) override;
         void cellLoaded(std::string_view name) override;
@@ -132,8 +124,6 @@ namespace OMW
         std::vector<openeden::plugin::PluginDataDir> mDataDirs;
         std::vector<std::string> mLoadFailures;
         std::size_t mReportedFailures = 0;
-        std::vector<openeden::plugin::SaveServiceImpl::Chunk> mChunksToSave;
-        std::vector<ESM::PluginChunk> mLoadedChunks;
         MWBase::LuaManager* mLuaManager = nullptr;
         struct PendingLuaEvent
         {

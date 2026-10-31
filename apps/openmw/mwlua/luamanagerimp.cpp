@@ -111,7 +111,7 @@ namespace MWLua
             sol::table payload(view.sol(), sol::create);
             for (const PluginEventField& field : fields)
                 std::visit([&](const auto& value) { payload[field.mName] = value; }, field.mValue);
-            mLuaEvents.addGlobalEvent({ std::move(eventName), LuaUtil::serialize(payload) });
+            mLuaEvents.addPluginEvent({ std::move(eventName), LuaUtil::serialize(payload) });
         });
     }
 

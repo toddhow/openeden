@@ -114,8 +114,8 @@ public:
     // Offers `impl` as the provider of contract C. The plugin owns impl and
     // keeps it alive until its stop(); the registry stores a non-owning pointer.
     template <typename C> void provide(C& impl);
-    // Event types, phase callbacks, file formats, settings, Lua tables, save
-    // chunks and editor panels are registered here too (sections 4.3 to 4.10).
+    // Event types, phase callbacks, file formats, settings and editor panels are
+    // registered here too (sections 4.3 to 4.10).
 };
 
 // Read by a plugin during resolution.
@@ -203,9 +203,8 @@ The core owns the loop and calls plugins at named phases, in a fixed order:
 - Settings are typed (bool, number with range, enum, string), so the launcher and Eden Studio can draw them without plugin code.
 
 ### 4.9 Save Games
-- A plugin may write its own versioned chunk into a save, keyed by plugin id.
-- **Loading a save whose plugin is missing:** the chunk is kept unread and written back unchanged on the next save, and the player is warned once. Removing a plugin never corrupts a save.
-- **Loading a save written by an older plugin version:** the plugin receives the chunk's version and migrates it.
+
+> **Decision 0005:** plugins do not affect save data; they are like script extender plugins. A plugin cannot write to or read from a saved game. A feature that must live in a save belongs in the core. Plugins hear when a game is loaded or saved through events.
 
 ### 4.10 Scripting, Diagnostics and Editor Hooks
 - ~~**Lua:** a plugin registers Lua tables under its own name (`openeden.<id>`), so mods script it through the existing OpenMW Lua host.~~ Replaced by decision 0003: plugins have no Lua API; event types a plugin marks are forwarded by the core to Lua scripts as events. Lua APIs for features come only from the core.
@@ -262,7 +261,7 @@ JSON, versioned, with a canonical writer that round-trips byte for byte, like th
 
 | Field | Rule |
 | --- | --- |
-| `id` | Lower-case, unique among installed plugins; names its settings namespace, save chunk and Lua table |
+| `id` | Lower-case, unique among installed plugins; names its settings namespace |
 | `kind` | `feature` or `compatibility` (a compatibility pack provides `openeden.game`) |
 | `sdk` | The SDK version the plugin was built against (section 4.1) |
 | `toolchain` | Phase A only: must equal the core's, or the plugin is refused |
@@ -328,7 +327,7 @@ Done from manifests alone, before any plugin code runs:
 4. Topologically sort; ties are broken by plugin id, so the order is the same on every machine. **This order is the load order** used for registration, phase callbacks, event delivery and the VFS overlay of plugin data.
 
 ### 6.4 Register
-In load order, the core calls `registerServices`. A plugin offers its contract implementations, declares its event types and queue sizes, its phase callbacks, file format readers, collision layers, settings, Lua tables, save chunks and editor panels. Registration must not call other plugins: providers further down the order are not registered yet.
+In load order, the core calls `registerServices`. A plugin offers its contract implementations, declares its event types and queue sizes, its phase callbacks, file format readers, settings and editor panels. Registration must not call other plugins: providers further down the order are not registered yet.
 
 ### 6.5 Resolve
 In load order, the core calls `resolve`. The plugin looks up the contracts it needs and caches the pointers. Returning false (for example, an optional feature it depends on behaves unexpectedly) disables the plugin and everything that requires it; their registrations are withdrawn.
@@ -377,7 +376,6 @@ Not in the first version. Eden Studio may later reload a single plugin with no d
 | **Contract conformance suites** | One reusable suite per contract that any provider must pass, so a replacement plugin is checked against the same behaviour as the original |
 | **Determinism** | A scenario with plugins loaded, run twice, gives bit-identical results; the same with plugins enabled in a different discovery order |
 | **Allocation** | Phase callbacks and event publishing allocate nothing per step (the project's allocation counter) |
-| **Save round trip** | A save with a missing plugin's chunk is loaded and saved back unchanged |
 
 The headless test host loads plugins exactly as the game does, without a window or renderer, so all of this runs in CI.
 
@@ -410,7 +408,7 @@ For the OpenEden session implementing the plugin system, the recommended order i
 - Entity IDs, lifecycle events and per-entity plugin data.
 - Event bus with fixed-size queues.
 - VFS mounting of plugin data and file format registration.
-- Settings namespaces and save chunks.
+- Settings namespaces.
 
 ### Phase 4: Scripting, Diagnostics and Editor Hooks
 - Lua table registration per plugin.

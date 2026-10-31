@@ -25,8 +25,8 @@ Every OpenEden plugin adheres to the architecture defined in [`openeden-plugin-s
    - Plugins cannot register Lua tables or call into Lua. To let mods react, mark an event type with `eventBus->markForwardedToLua<MyEvent>("<plugin_id>", "<eventName>", fields)` in `start`, with a flat payload of numbers, fixed char arrays and booleans; the core delivers it to Lua scripts (task 0016).
 5. **Zero Hot-Path Heap Allocations**:
    - Callbacks registered on `Phase::PreSimulation`, `Phase::PostSimulation`, `Phase::Animation`, and `Phase::PreRender` must not allocate heap memory during normal execution. Pre-allocate vectors and scratch buffers during `start(Host&)` or asset load.
-6. **Save-File Resilience**:
-   - Removing or disabling a plugin must never prevent an existing save file from loading. The core's `SaveService` automatically skips unknown chunk IDs with a warning.
+6. **No Part in Saves** (decision 0005):
+   - Plugins are like script extender plugins: a plugin cannot write to or read from a saved game. Keep what must last in your settings. A feature that must live in a save belongs in the core. Decision 0005 lists the two limits: a `content=` line for a file in your data folder is recorded in saves, and a script may store what your events tell it.
 
 ---
 
@@ -124,10 +124,9 @@ In `plugins/<plugin_id>/<plugin_id>_plugin.cpp`:
    - Keep the services you use: `host.getPhysicsQueryService()`, `host.getEventBus()`, etc. The host attaches its world before plugins start and detaches it after they stop, so a kept pointer stays valid until `stop()` returns.
    - Mark events for Lua via `host.getEventBus()->markForwardedToLua<MyEvent>(...)` if mods should react to them.
    - Register VFS format readers via `host.getVfsService()->registerFormatReader(".ext.json", reader)`.
-   - Register save chunk handlers via `host.getSaveService()->registerHandler("plugin_id", handler)`.
    - Register editor inspection panels via `host.getEditorService()->registerInspector("<plugin_id>", inspector)` if `host.getEditorService()->isEditorActive()`.
 4. **`stop()`**:
-   - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`) and save chunk handlers (`save->unregisterHandler(pluginId)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the plugin DLL outlives `DynamicLibrary` unload.
+   - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the plugin DLL outlives `DynamicLibrary` unload.
    - Release all host pointers and reset state cleanly.
 5. **Export Entry Point (Shared Target Only)**:
    Guard `openeden_plugin_entry` with `#ifdef OPENEDEN_SHARED_PLUGIN` (defined on the `SHARED` target via `target_compile_definitions(<plugin_id> PRIVATE OPENEDEN_SHARED_PLUGIN)`) so `<plugin_id>_plugin_static` does not export duplicate `openeden_plugin_entry` symbols when multiple static plugin libraries are linked into `components-tests`:
@@ -153,5 +152,5 @@ Before marking a plugin integration complete, verify all of the following in `ap
 - [ ] `LifecycleManager` initializes the plugin, resolves its provided contract for a downstream consumer plugin, and shuts down in reverse topological order.
 - [ ] **Off-by-default invariant**: Immediately after `initialize()`, `isEnabled()` is `false`, and running all frame phases leaves host state completely untouched.
 - [ ] Enabling the plugin at runtime activates its service in the shared host environment.
-- [ ] VFS format readers, save-game chunk serialization/deserialization, and any events marked for Lua forwarding all function and round-trip cleanly.
+- [ ] VFS format readers and any events marked for Lua forwarding all function and round-trip cleanly.
 

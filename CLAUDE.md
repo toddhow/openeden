@@ -110,6 +110,7 @@ core ─────────────────────────
 - **Game rules live in the compatibility pack:** anything specific to Morrowind (records, races, skeleton names, `.nif`/`.kf` rules) moves out of the core into the Morrowind pack step by step, with Morrowind verified to play the same after each step.
 - **Fixed, ordered phases:** plugins run in the documented phases (plugin doc 4.3), in load order; plugins never read a clock and get `dt` and the step index from the core.
 - **Core never renders for a plugin:** debug drawing is submitted as data (points, lines, labels) and drawn by the core.
+- **Plugins do not affect save data** (decision 0005, toddhow 2026-10-31): they are like script extender plugins; they have no way to write to or read from a saved game. A feature that must live in a save belongs in the core.
 - **Plugins read physics, never change it, and have no Lua API** (decision 0003, toddhow 2026-10-28): plugins may cast rays and shapes, read body states and receive physics events, and may publish events the core forwards to Lua; they never create, move or step bodies, register collision layers, run in fixed physics steps, or register Lua tables. Any system that must do those things goes into the core.
 - **Core feature systems** (decisions 0001 and 0003): CreativeMotion is compiled into the engine; AdvancedBodies and ComplexClothing are planned as core systems too. Reflectron and compatibility packs are plugins. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
 - **Inherited boundaries stay:** `components/` never includes `apps/`; `apps/openmw/mwbase/` interfaces are how game subsystems reach each other. These are the precedent the registry generalizes (plugin doc 3.2).
@@ -276,7 +277,7 @@ P1 to P5 built the plugin system as a tested model in the test host; the game it
 - [x] Entity IDs, lifecycle events and per-entity plugin data
 - [x] Event bus with fixed-size queues; overflow counted and logged
 - [x] VFS mounting of plugin data and file format registration
-- [x] Settings namespaces (off by default) and save chunks; a save with a missing plugin's chunk loads and saves back unchanged
+- [x] Settings namespaces (off by default); ~~save chunks~~ built in task 0003, then removed by decision 0005: plugins do not affect save data
 
 ### P4 Scripting, diagnostics and editor hooks
 
@@ -301,7 +302,7 @@ Plan: `docs/design/working-plugin-system.md` (audit of what P1–P5 built agains
 - [x] `openmw` discovers, loads, starts, stops and unloads enabled plugins; frame phases called from the engine loop; logging bridged; zero plugins changes nothing (frame-time measurement not yet run)
 
 **W2 Data services on the engine** — task 0016 (`docs/tasks/0016-plugins-w2-data-services.md`)
-- [x] Plugin data in the game's VFS, settings in `settings.cfg`, save chunks in `.omwsave`, marked plugin events forwarded to Lua scripts
+- [x] Plugin data in the game's VFS, settings in `settings.cfg`, marked plugin events forwarded to Lua scripts; ~~save chunks in `.omwsave`~~ built, then removed by decision 0005
 
 **W3 World services on the engine** — task 0017 (`docs/tasks/0017-plugins-w3-world-services.md`)
 - [ ] Read-only physics queries on the game's Jolt world and physics events, entities mapped to game objects with lifecycle events, engine events (done, on Windows, 2026-10-31); debug draw and profiler shown (not done: renderer files, see task 0017's notes)
@@ -401,6 +402,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-31 | Plugins do not affect save data (decision 0005, toddhow): they are like script extender plugins. `SaveService`, `SaveChunkHandler`, the `OEPL` record and the engine's hooks for them removed with their tests; plugin doc 4.9, the Track W plan, the implementation guide and the example plugin updated |
 | 2026-10-31 | Track W on Linux at `c9037dedd4`, with CI's GCC flags (`-Werror`): the build, `components-tests` 1936, `openmw-tests` 721 and all 32 Lua tests pass; no plugin in those Lua runs, launcher and editor not built. Not run on Linux: clang-format 14, clang-tidy, sanitizers, the real-game plugin checks. New pitfall: a contract must not be in an anonymous namespace |
 | 2026-10-31 | Track W stage W4 (task 0018): plugins build and install to `plugins/<id>/`; the Morrowind compatibility pack is on by default; `plugins/example/` uses every service, with `tools/plugin_example_check/`; the launcher has a Plugins page writing `plugin=` lines; plugin failures show one message at the main menu. Plugin data folders are now full data folders |
 | 2026-10-31 | Track W stage W3 (task 0017), except debug draw and the profiler overlay: plugins query the game's Jolt world in meters, see objects as entities with lifecycle events, and receive physics and game events. `OMW::PluginWorld` queues engine notifications from any thread and delivers on the main thread before `Phase::Input`. Plugins now start in the `Game` state. New `openeden/game_events.hpp`, `MWPhysics::ContactObserver`, `tools/plugin_world_check/`, `apps/openmw/mwphysics/CLAUDE.md` |

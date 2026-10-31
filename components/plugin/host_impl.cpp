@@ -13,7 +13,6 @@ namespace openeden::plugin
     {
         mEventBus.unsubscribeAll(pluginId);
         mEntityManager.unregisterLifecycleListener(pluginId);
-        mSaveService.unregisterHandler(pluginId);
         mEditorService.unregisterExtensions(pluginId);
     }
 
@@ -21,7 +20,6 @@ namespace openeden::plugin
     {
         mEventBus.releasePluginObjects();
         mEntityManager.releasePluginObjects();
-        mSaveService.releasePluginObjects();
         mVfsService.releasePluginObjects();
         mLoggingService.releasePluginObjects();
         mEditorService.releasePluginObjects();
@@ -45,11 +43,6 @@ namespace openeden::plugin
     openeden::sdk::SettingsService* HostImpl::getSettingsService()
     {
         return &mSettingsService;
-    }
-
-    openeden::sdk::SaveService* HostImpl::getSaveService()
-    {
-        return &mSaveService;
     }
 
     openeden::sdk::VfsService* HostImpl::getVfsService()

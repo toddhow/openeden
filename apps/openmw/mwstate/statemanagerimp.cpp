@@ -13,7 +13,6 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
-#include "../mwbase/pluginmanager.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/journal.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -107,8 +106,6 @@ namespace MWState
 
     void MWState::StateManager::newGame(bool bypass)
     {
-        MWBase::Environment::get().getPluginManager()->clearSaveData();
-
         cleanupAndPush(std::make_shared<NewGame>(*this, mState, std::nullopt));
     }
 
@@ -209,8 +206,6 @@ namespace MWState
 
     void MWState::StateManager::loadGame(const Character* character, const std::filesystem::path& filepath)
     {
-        MWBase::Environment::get().getPluginManager()->clearSaveData();
-
         auto gameState = std::make_shared<LoadGame>(mTimePlayed, mCharacterManager, mState, *this);
         gameState->character = character;
         gameState->filepath = filepath;

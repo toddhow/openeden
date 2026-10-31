@@ -125,8 +125,7 @@ namespace MWState
                 + MWBase::Environment::get().getDialogueManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getMechanicsManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getInputManager()->countSavedGameRecords()
-                + MWBase::Environment::get().getWindowManager()->countSavedGameRecords()
-                + MWBase::Environment::get().getPluginManager()->countSavedGameRecords();
+                + MWBase::Environment::get().getWindowManager()->countSavedGameRecords();
             writer.setRecordCount(static_cast<int>(recordCount));
 
             writer.save(stream);
@@ -149,7 +148,6 @@ namespace MWState
             MWBase::Environment::get().getMechanicsManager()->write(writer, listener);
             MWBase::Environment::get().getInputManager()->write(writer, listener);
             MWBase::Environment::get().getWindowManager()->write(writer, listener);
-            MWBase::Environment::get().getPluginManager()->write(writer);
 
             // Ensure we have written the number of records that was estimated
             if (static_cast<size_t>(writer.getRecordCount()) != recordCount + 1) // 1 extra for TES3 record
@@ -184,7 +182,6 @@ namespace MWState
         {
             if (!screenshot.requested)
             {
-                MWBase::Environment::get().getPluginManager()->prepareSave();
                 requiresScene = true;
                 // *2 to get some nice antialiasing
                 screenshotInterface->request(259 * 2, 133 * 2);

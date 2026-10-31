@@ -4,8 +4,9 @@ A small plugin that uses every service plugins have, as a template for your own.
 `plugin=example` to `openmw.cfg` to try it. It builds against the SDK only, as every plugin should. Start reading at
 `src/example_plugin.cpp`.
 
-It shows what plugins may do, and by leaving them out, what they may not (decision 0003): it never changes physics and
-has no Lua API. Things that must do those belong in the core.
+It shows what plugins may do, and by leaving them out, what they may not: it never changes physics and has no Lua API
+(decision 0003), and it has no part in saved games (decision 0005). What it keeps goes in its settings. Things that must
+do more belong in the core.
 
 ## What it does
 
@@ -14,8 +15,7 @@ Each thing it does is logged with the `[example]` prefix, so you can follow it i
 | Service | What it does | Log line |
 | --- | --- | --- |
 | Data files | Reads `example/greeting.txt` from its `data/` folder through the game's VFS | `greeting: <the file's text>` |
-| Settings | Reads `greeting_count`, an int defaulting to 1, and counts the game loads in `games_seen` | `setting greeting_count=<n>` and `setting games_seen=<n>` |
-| Saved games | Keeps a counter in a save chunk at version 2; a version 1 chunk is migrated | `saved count=<n>` and `loaded count=<n> version=<v>` |
+| Settings | Reads `greeting_count`, an int defaulting to 1, and counts the game loads in `games_seen`, which outlasts the run | `setting greeting_count=<n>` and `setting games_seen=<n>` |
 | Lua | Forwards `greeted` to global scripts as `openeden_example_greeted`, with `count` and `text` | `event sent count=<n>` |
 | Physics | Once per game, casts a ray and a sphere down from above the player, against world and terrain | `ray hit=<yes/no>` and `shape hit=<yes/no>` |
 | Entities | Counts lifecycle events and keeps data on each spawned entity, freed on despawn | `entities spawned=<n> freed=<n>`, on stop |

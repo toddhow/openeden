@@ -107,7 +107,6 @@ file(GLOB UNITTEST_SRC_FILES
     plugin/test_event_bus.cpp
     plugin/test_entity_manager.cpp
     plugin/test_settings_service.cpp
-    plugin/test_save_service.cpp
     plugin/test_vfs_service.cpp
     plugin/test_logging_service.cpp
     plugin/test_profiler_service.cpp

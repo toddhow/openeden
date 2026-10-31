@@ -7,7 +7,6 @@
 #include <components/plugin/logging_service.hpp>
 #include <components/plugin/physics_service.hpp>
 #include <components/plugin/profiler_service.hpp>
-#include <components/plugin/save_service.hpp>
 #include <components/plugin/scratch_memory.hpp>
 #include <components/plugin/settings_service.hpp>
 #include <components/plugin/vfs_service.hpp>
@@ -39,7 +38,6 @@ namespace openeden::plugin
         [[nodiscard]] openeden::sdk::EventBus* getEventBus() override;
         [[nodiscard]] openeden::sdk::EntityManager* getEntityManager() override;
         [[nodiscard]] openeden::sdk::SettingsService* getSettingsService() override;
-        [[nodiscard]] openeden::sdk::SaveService* getSaveService() override;
         [[nodiscard]] openeden::sdk::VfsService* getVfsService() override;
         [[nodiscard]] openeden::sdk::PhysicsQueryService* getPhysicsQueryService() override;
         [[nodiscard]] openeden::sdk::LoggingService* getLoggingService() override;
@@ -76,9 +74,6 @@ namespace openeden::plugin
         [[nodiscard]] SettingsServiceImpl& settingsService() noexcept { return mSettingsService; }
         [[nodiscard]] const SettingsServiceImpl& settingsService() const noexcept { return mSettingsService; }
 
-        [[nodiscard]] SaveServiceImpl& saveService() noexcept { return mSaveService; }
-        [[nodiscard]] const SaveServiceImpl& saveService() const noexcept { return mSaveService; }
-
         [[nodiscard]] VfsServiceImpl& vfsService() noexcept { return mVfsService; }
         [[nodiscard]] const VfsServiceImpl& vfsService() const noexcept { return mVfsService; }
 
@@ -111,7 +106,6 @@ namespace openeden::plugin
         EventBusImpl mEventBus;
         EntityManagerImpl mEntityManager;
         SettingsServiceImpl mSettingsService;
-        SaveServiceImpl mSaveService;
         VfsServiceImpl mVfsService;
         std::optional<PhysicsServiceImpl> mPhysicsService;
         LoggingServiceImpl mLoggingService;

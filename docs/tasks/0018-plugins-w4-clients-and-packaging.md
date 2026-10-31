@@ -1,6 +1,6 @@
 # Task 0018: Track W stage W4 — Real clients, packaging and the launcher
 
-**Status:** implemented on Windows, except plugin settings in the launcher (see Notes), awaiting toddhow's review. Depends on task 0017 (W3).
+**Status:** (Decision 0005 later took save chunks out of the sample plugin, the design's item 3 and its end-to-end test.) Implemented on Windows, except plugin settings in the launcher (see Notes), awaiting toddhow's review. Depends on task 0017 (W3).
 **Design doc section:** `docs/design/working-plugin-system.md` (W4, decision 5); `docs/design/openeden-plugin-system.md` sections 5 (packaging), 6.1 (discovery and enable list), 6.8 (failure reporting), 7.2 (plugin build), 8 (testing), 9 (licence and trust).
 **Goal:** plugins are real for players and authors: OpenEden installs with its first-party plugins in place, the launcher lists them and turns them on and off, failures are shown where the player sees them, the Morrowind compatibility pack runs in the game, and a sample plugin proves every service end to end as a template for authors.
 **Workflow:** full loop.
@@ -67,5 +67,4 @@
 - **A full `cmake --install` needs `BUILD_OPENCS`:** it copies `defaults.bin`, which only that builds. The check here built without it, so the install stopped there, after installing the plugins. No test plugin was in it.
 - **The plugin-example check is not in CI,** and neither are the other real-game checks: they need game runs and a Windows or Linux desktop or xvfb. Whichever CI OpenEden keeps should run them.
 - **`tools/plugin_example_check` accepts `freed=0`,** since its small scene despawns little; freeing on despawn is checked by `tools/plugin_world_check`.
-- **Migration from a version 1 chunk** in the example plugin is written but not run: it would need a crafted save.
 - **Flaky tests:** two tests in `DetourNavigatorRecastMeshObjectTest` have now failed intermittently in full runs on this branch (`update_for_compound_shape_with_same_transform_and_changed_child_transform_should_return_true`, `update_with_different_transform_should_return_true`). They pass alone. The fixture's cause is unknown; worth a look on a clean `vulkan` build.

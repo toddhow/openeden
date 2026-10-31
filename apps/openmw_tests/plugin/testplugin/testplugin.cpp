@@ -19,7 +19,6 @@
 #include <openeden/physics.hpp>
 #include <openeden/physics_events.hpp>
 #include <openeden/plugin.hpp>
-#include <openeden/save.hpp>
 #include <openeden/settings.hpp>
 #include <openeden/vfs.hpp>
 
@@ -230,27 +229,6 @@ namespace
 #endif
 
     // With OPENEDEN_TEST_PLUGIN_DATA, the plugin uses the data services, for tools/plugin_data_check/check.sh.
-    constexpr const char* kChunkText = "chunk-from-plugin";
-    constexpr std::uint32_t kChunkVersion = 3;
-
-    class TestSaveHandler final : public openeden::sdk::SaveChunkHandler
-    {
-    public:
-        [[nodiscard]] std::uint32_t currentVersion() const noexcept override { return kChunkVersion; }
-
-        void writeSaveChunk(openeden::sdk::SaveChunkWriter& writer) override
-        {
-            writer.write(kChunkText, std::strlen(kChunkText));
-        }
-
-        void readSaveChunk(std::uint32_t chunkVersion, openeden::sdk::SaveChunkReader& reader) override
-        {
-            std::string text(reader.size(), '\0');
-            reader.read(text.data(), text.size());
-            record("chunk v" + std::to_string(chunkVersion) + " " + text);
-        }
-    };
-
     struct PingEvent
     {
         static constexpr openeden::sdk::EventId kEventId = 0x54455354;
@@ -684,8 +662,6 @@ namespace
             sSinkLogger = nullptr;
             record("stop");
             mWorld.reset();
-            if (mSaves != nullptr)
-                mSaves->unregisterHandler(kPluginId);
             if (mLogging != nullptr && mSink != nullptr)
                 mLogging->removeSink(mSink);
             mSink.reset();
@@ -705,10 +681,6 @@ namespace
             record("setting answer " + std::to_string(settings.getInt(kPluginId, "answer", -1)));
             record("setting broken " + std::to_string(settings.getInt(kPluginId, "broken", -1)));
             settings.setInt(kPluginId, "changed", 7);
-
-            mSaveHandler = std::make_shared<TestSaveHandler>();
-            mSaves = host.getSaveService();
-            mSaves->registerHandler(kPluginId, mSaveHandler);
 
             mEvents = host.getEventBus();
             const openeden::sdk::ForwardedField fields[] = {
@@ -748,8 +720,6 @@ namespace
 #endif
         openeden::sdk::LoggingService* mLogging = nullptr;
         std::shared_ptr<RecordingSink> mSink;
-        std::shared_ptr<TestSaveHandler> mSaveHandler;
-        openeden::sdk::SaveService* mSaves = nullptr;
         openeden::sdk::EventBus* mEvents = nullptr;
         bool mPublished = false;
         std::unique_ptr<WorldChecker> mWorld;

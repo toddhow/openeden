@@ -1,6 +1,7 @@
 // A small plugin using every service plugins have. See README.md for what it does and why it is here.
 //
-// It includes SDK headers only, and asks the host for everything. No exception may leave a plugin's callbacks in normal
+// It includes SDK headers only, and asks the host for everything. It has no way to affect a saved game (decision 0005):
+// what it keeps goes in its settings. No exception may leave a plugin's callbacks in normal
 // running; the host would catch one and disable the plugin.
 
 #include <openeden/debug_draw.hpp>
@@ -12,7 +13,6 @@
 #include <openeden/physics_events.hpp>
 #include <openeden/plugin.hpp>
 #include <openeden/profiling.hpp>
-#include <openeden/save.hpp>
 #include <openeden/settings.hpp>
 #include <openeden/vfs.hpp>
 
@@ -35,9 +35,6 @@ namespace
     // How far above the player the debug line is, in meters.
     constexpr float kDebugLineHeightM = 3.0f;
 
-    // Version 1 wrote the count as one byte; version 2 as 32 bits. A plugin must read what older versions saved.
-    constexpr std::uint32_t kSaveVersion = 2;
-
     /// Marked for forwarding, so global Lua scripts receive it as openeden_example_greeted. Its fields are flat:
     /// numbers, booleans and fixed char arrays only.
     struct GreetedEvent
@@ -49,7 +46,6 @@ namespace
     };
 
     class ExamplePlugin final : public openeden::sdk::Plugin,
-                                public openeden::sdk::SaveChunkHandler,
                                 public openeden::sdk::EntityLifecycleListener
     {
     public:
@@ -68,17 +64,12 @@ namespace
             mPhysics = host.getPhysicsQueryService();
             mEntities = host.getEntityManager();
             mSettings = host.getSettingsService();
-            mSaves = host.getSaveService();
             mDebugDraw = host.getDebugDrawService();
             mProfiler = host.getProfilerService();
 
             readGreeting(*host.getVfsService());
 
             mLogger->info("setting greeting_count=" + std::to_string(mSettings->getInt(kPluginId, "greeting_count", 1)));
-
-            // The save service shares ownership, but this object outlives it: stop() below unregisters.
-            mSaves->registerHandler(kPluginId, std::shared_ptr<openeden::sdk::SaveChunkHandler>(
-                                                   std::shared_ptr<void>(), static_cast<SaveChunkHandler*>(this)));
 
             mEntities->registerLifecycleListener(kPluginId, this);
 
@@ -101,35 +92,6 @@ namespace
                     openeden::sdk::CellChangedEvent::kEventId, openeden::sdk::PhysicsContactBeginEvent::kEventId })
                 mEvents->unsubscribe(id, kPluginId);
             mEntities->unregisterLifecycleListener(kPluginId);
-            mSaves->unregisterHandler(kPluginId);
-        }
-
-        // SaveChunkHandler: on the main thread, between frames
-        [[nodiscard]] std::uint32_t currentVersion() const noexcept override { return kSaveVersion; }
-
-        void writeSaveChunk(openeden::sdk::SaveChunkWriter& writer) override
-        {
-            mLogger->info("saved count=" + std::to_string(mCount));
-            writer.write(&mCount, sizeof(mCount));
-        }
-
-        void readSaveChunk(std::uint32_t chunkVersion, openeden::sdk::SaveChunkReader& reader) override
-        {
-            if (chunkVersion == 1)
-            {
-                std::uint8_t oldCount = 0;
-                reader.read(&oldCount, sizeof(oldCount));
-                mCount = oldCount;
-            }
-            else if (chunkVersion == kSaveVersion && reader.size() >= sizeof(mCount))
-                reader.read(&mCount, sizeof(mCount));
-            else
-            {
-                // From a newer version of this plugin, or damaged. Guessing could be worse than starting again.
-                mLogger->warning("cannot read a save chunk of version " + std::to_string(chunkVersion));
-                return;
-            }
-            mLogger->info("loaded count=" + std::to_string(mCount) + " version=" + std::to_string(chunkVersion));
         }
 
         // EntityLifecycleListener
@@ -242,7 +204,6 @@ namespace
         openeden::sdk::PhysicsQueryService* mPhysics = nullptr;
         openeden::sdk::EntityManager* mEntities = nullptr;
         openeden::sdk::SettingsService* mSettings = nullptr;
-        openeden::sdk::SaveService* mSaves = nullptr;
         openeden::sdk::DebugDrawService* mDebugDraw = nullptr;
         openeden::sdk::ProfilerService* mProfiler = nullptr;
 

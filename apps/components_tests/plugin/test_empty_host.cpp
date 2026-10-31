@@ -87,7 +87,6 @@ namespace
         EXPECT_NE(host.getEventBus(), nullptr);
         EXPECT_NE(host.getEntityManager(), nullptr);
         EXPECT_NE(host.getSettingsService(), nullptr);
-        EXPECT_NE(host.getSaveService(), nullptr);
         EXPECT_NE(host.getVfsService(), nullptr);
         EXPECT_NE(host.getLoggingService(), nullptr);
         EXPECT_NE(host.getProfilerService(), nullptr);

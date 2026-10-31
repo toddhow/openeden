@@ -257,10 +257,6 @@ namespace MWState
                         MWBase::Environment::get().getLuaManager()->readRecord(reader, n.toInt());
                         break;
 
-                    case ESM::REC_OEPL:
-                        MWBase::Environment::get().getPluginManager()->readRecord(reader, n.toInt());
-                        break;
-
                     default:
                         // ignore invalid records
                         Log(Debug::Warning) << "Warning: Ignoring unknown record: " << n.toStringView();
@@ -272,8 +268,6 @@ namespace MWState
 
         void postLoad()
         {
-            MWBase::Environment::get().getPluginManager()->applyLoadedRecords();
-
             characterManager.setCurrentCharacter(character);
 
             if (character)
