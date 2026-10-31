@@ -323,10 +323,11 @@ Still to do in V4 (toddhow: finish V4 before V5, V6 and Track W). Each is its ow
 - **Worn shields** (V4o, done 2026-10-31): `Npc::addCarriedLeft` had `getShieldMesh` commented out, so every NPC's shield used its ground model on default settings. It uses the armor's body part model again, as OpenMW's `ActorAnimation::getShieldMesh`. Covered by the build and integration tests only: no frame of a shield was compared.
 - **Weapon and shield sheathing, quivers:** `[Game] weapon sheathing` and `shield sheathing`, off by default, are not rendered (`updateHolsteredWeapon`, `updateQuiver` and `updateHolsteredShield` are commented out in `npc.cpp`). They need a modded skeleton to test.
 - **Post-processing through Slang** (answer 1) and its Lua API and HUD.
-- **ESM4 terrain** (work item 3).
+- **ESM4 terrain** (work item 3), not ported, 2026-10-31: `LandManager` reads only ESM3 land, and `Terrain::Paging` assumes ESM3's cell size and one global layer palette, where ESM4 has half-size cells and per-quad textures. Tried with Skyrim SE's `Skyrim.esm` from the user's own install: the game quits after loading, with a missing localized string as the last message, and no frame was captured, so terrain could not be judged. The root guide lists other games' compatibility packs under "Not yet", so a full port waits for that. An ESM4 worldspace now has no land instead of Morrowind's at the same coordinates. toddhow can overrule this.
+- **Map window and menu video** (work item 6), 2026-10-31: the menu background video is present (`MainMenu`). The map window's controller code was restored in `b69400fa24`; nothing was exercised with a controller.
 - **The deferred 0.49→0.51 renderer changes** (work item 6), checked against research note 0003 section 5.9 on 2026-10-31:
   - Done: graphic herbalism (`MWRender::findSwitches`); the hit overlay's additive blend (texture shader `blend_add` in `MWGui::WindowManager`, so `AdditiveLayer` is not needed, though `additivelayer.*` is still in the tree and not built).
-  - Open: sheathing (see above); the 0.51 map window features, including its controller buttons; the main menu background video and the loading screen (not checked).
+  - Open: sheathing (see above); the loading screen (not checked).
   - Replaced: animation blending rules, by CreativeMotion (toddhow, task 0011).
 - **The settings audit decisions** (research note 0006; toddhow's calls on the "decide" keys).
 - **Gaps listed above:**
