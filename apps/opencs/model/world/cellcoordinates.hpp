@@ -7,10 +7,7 @@
 
 #include <QMetaType>
 
-namespace osg
-{
-    class Vec3d;
-}
+#include <vsg/maths/vec3.h>
 
 namespace ESM
 {
@@ -58,10 +55,10 @@ namespace CSMWorld
         static std::pair<int, int> coordinatesToCellIndex(float x, float y);
 
         /// Converts worldspace coordinates to global texture selection, taking in account the texture offset.
-        static std::pair<int, int> toTextureCoords(const osg::Vec3d& worldPos);
+        static std::pair<int, int> toTextureCoords(const vsg::dvec3& worldPos);
 
         /// Converts worldspace coordinates to global vertex selection.
-        static std::pair<int, int> toVertexCoords(const osg::Vec3d& worldPos);
+        static std::pair<int, int> toVertexCoords(const vsg::dvec3& worldPos);
 
         /// Converts global texture coordinate X to worldspace coordinate, offset by 0.25f.
         static float textureGlobalXToWorldCoords(int textureGlobal);

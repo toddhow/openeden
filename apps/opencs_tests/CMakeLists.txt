@@ -12,7 +12,7 @@ target_include_directories(openmw-cs-tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
 target_include_directories(openmw-cs-tests SYSTEM PRIVATE ${GMOCK_INCLUDE_DIRS})
 
 target_link_libraries(openmw-cs-tests PRIVATE
-    openmw-cs-lib
+    csmodel
     GTest::GTest
     GMock::GMock
 )

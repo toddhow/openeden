@@ -67,7 +67,7 @@ namespace CSMWorld
         return mMaleParts[ESM::getMeshPart(index)];
     }
 
-    const osg::Vec2f& ActorAdapter::RaceData::getGenderWeightHeight(bool isFemale)
+    const vsg::vec2& ActorAdapter::RaceData::getGenderWeightHeight(bool isFemale)
     {
         return isFemale ? mWeightsHeights.mFemaleWeightHeight : mWeightsHeights.mMaleWeightHeight;
     }
@@ -169,7 +169,7 @@ namespace CSMWorld
         return it->second.first;
     }
 
-    const osg::Vec2f& ActorAdapter::ActorData::getRaceWeightHeight() const
+    const vsg::vec2& ActorAdapter::ActorData::getRaceWeightHeight() const
     {
         return mRaceData->getGenderWeightHeight(isFemale());
     }
@@ -516,8 +516,8 @@ namespace CSMWorld
 
         auto& race = raceRecord.get();
 
-        WeightsHeights scaleStats = { osg::Vec2f(race.mData.mMaleWeight, race.mData.mMaleHeight),
-            osg::Vec2f(race.mData.mFemaleWeight, race.mData.mFemaleHeight) };
+        WeightsHeights scaleStats = { vsg::vec2(race.mData.mMaleWeight, race.mData.mMaleHeight),
+            vsg::vec2(race.mData.mFemaleWeight, race.mData.mFemaleHeight) };
 
         data->reset_data(id, scaleStats, race.mData.mFlags & ESM::Race::Beast);
 

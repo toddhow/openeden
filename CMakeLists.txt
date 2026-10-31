@@ -583,9 +583,6 @@ endif()
 
 add_subdirectory (extern/ffmpeg-videoplayer)
 add_subdirectory (extern/oics)
-if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
-    add_subdirectory (extern/osgQt)
-endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     add_compile_options("/W4")
@@ -688,7 +685,7 @@ if (BUILD_ESSIMPORTER)
 endif()
 
 if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
-    #add_subdirectory (apps/opencs)
+    add_subdirectory (apps/opencs)
 endif()
 
 if (BUILD_WIZARD)
@@ -720,7 +717,7 @@ if (BUILD_PHYSICSOBJECTTOOL)
 endif()
 
 if (BUILD_OPENCS_TESTS)
-    #add_subdirectory(apps/opencs_tests)
+    add_subdirectory(apps/opencs_tests)
 endif()
 
 if (BUILD_OPENMW_TESTS)

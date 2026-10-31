@@ -271,3 +271,14 @@ Fix, all behind `mHosted`: `onDetached` only adds, the host's post-frame `endFra
 Tests changed in `vsgutil/testdeletionqueue.cpp` (coordinator-approved exception): the two tests of the old order, `advanceToFrameBeforeAddKeepsObjectUntilThirdNewFrame` and `advanceToFrameAfterAddCountsTheFrameThatUsedTheObject`, assumed frame 10's submission had already waited when frame 10 was reported from a detach. They are replaced by `postFrameAdvanceKeepsObjectUntilItsFenceHasBeenWaitedOn`, and `sizeForPostFrameAdvanceCoversTheFenceRing` is new. The other tests are unchanged. They test the queue only, not `Engine`.
 
 Check: components-tests (2220), openmw-tests (717) and one game frame of the Caldera Mages Guild, viewed; the game's path has no changed branch. Not run: a hosted window with this fix, which C2 is the first to exercise, and validation layers.
+
+### C1 Editor model on VSG (2026-10-31)
+
+New static library `csmodel`, everything under `apps/opencs/model` plus three plain Qt widgets the model uses (`coloreditor`, `colorpickerpopup`, `completerpopup`). `openmw-cs-tests` links it alone, and `BUILD_OPENCS_TESTS` works again. `extern/osgQt` is no longer built, though its files stay until D1.
+
+- `actoradapter` uses `vsg::vec2`, `cellcoordinates` uses `vsg::dvec3`, `columnimp` uses `Misc::VsgMath::radiansToDegrees` and `inDegrees`, which keep OSG's operand order.
+- `CSMWorld::Data` no longer builds a `ResourceSystem` in its constructor. The new one needs a sampler and compressed-image support from a device, and a document has none until a 3D view opens, so the first view calls `getOrCreateResourceSystem`. Before that `getResourceSystem()` is null. Nothing in `csmodel` reads it but `assetsChanged`'s `clearCache`, which now checks.
+- The shader defines that `Data` set (`forcePPL`, `clamp`, `preLightEnv`, `radialFog`, `lightingModel`, `reverseZ`, `waterRefraction`, the shadow defines) went with `Shader::ShaderManager`, which no longer exists. They only ever affected drawing, so any look they gave the editor is a C4 question.
+- `main.cpp` no longer sets an OpenGL surface format. It is compiled from C2.
+
+Check: `openmw-cs-tests` 154 passed on Windows, and on Linux with `-Werror`. No committed test changed.

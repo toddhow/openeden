@@ -4,9 +4,6 @@
 #include <string>
 
 #include <QIcon>
-#include <QSurfaceFormat>
-
-#include <osg/DisplaySettings>
 
 #include <components/debug/debugging.hpp>
 #include <components/platform/application.hpp>
@@ -25,27 +22,9 @@ Q_DECLARE_METATYPE(std::string)
 class QEvent;
 class QObject;
 
-void setQSurfaceFormat()
-{
-    osg::DisplaySettings* ds = osg::DisplaySettings::instance().get();
-    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
-    format.setVersion(2, 1);
-    format.setRenderableType(QSurfaceFormat::OpenGL);
-    format.setDepthBufferSize(24);
-    format.setSamples(ds->getMultiSamples());
-    format.setStencilBufferSize(ds->getMinimumNumStencilBits());
-    format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-    format.setAlphaBufferSize(ds->getMinimumNumAlphaBits());
-    QSurfaceFormat::setDefaultFormat(format);
-}
-
 int runApplication(int argc, char* argv[])
 {
     Platform::init();
-
-#ifdef Q_OS_MAC
-    setenv("OSG_GL_TEXTURE_STORAGE", "OFF", 0);
-#endif
 
     Q_INIT_RESOURCE(resources);
 
@@ -57,9 +36,6 @@ int runApplication(int argc, char* argv[])
     qRegisterMetaType<CSMWorld::UniversalId>("CSMWorld::UniversalId");
     qRegisterMetaType<CSMWorld::DisableTag>("CSMWorld::DisableTag");
     qRegisterMetaType<CSMDoc::Message>("CSMDoc::Message");
-
-    setQSurfaceFormat();
-    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 
     Platform::Application application(argc, argv);
 

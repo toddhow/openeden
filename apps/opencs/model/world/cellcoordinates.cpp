@@ -4,7 +4,7 @@
 #include <sstream>
 #include <type_traits>
 
-#include <osg/Vec3d>
+#include <vsg/maths/vec3.h>
 
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadland.hpp>
@@ -86,10 +86,10 @@ std::pair<int, int> CSMWorld::CellCoordinates::coordinatesToCellIndex(float x, f
     return std::make_pair(std::floor(x / Constants::CellSizeInUnits), std::floor(y / Constants::CellSizeInUnits));
 }
 
-std::pair<int, int> CSMWorld::CellCoordinates::toTextureCoords(const osg::Vec3d& worldPos)
+std::pair<int, int> CSMWorld::CellCoordinates::toTextureCoords(const vsg::dvec3& worldPos)
 {
-    const auto xd = static_cast<float>(worldPos.x() * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE - 0.25f);
-    const auto yd = static_cast<float>(worldPos.y() * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE + 0.25f);
+    const auto xd = static_cast<float>(worldPos.x * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE - 0.25f);
+    const auto yd = static_cast<float>(worldPos.y * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE + 0.25f);
 
     const auto x = static_cast<int>(std::floor(xd));
     const auto y = static_cast<int>(std::floor(yd));
@@ -97,10 +97,10 @@ std::pair<int, int> CSMWorld::CellCoordinates::toTextureCoords(const osg::Vec3d&
     return std::make_pair(x, y);
 }
 
-std::pair<int, int> CSMWorld::CellCoordinates::toVertexCoords(const osg::Vec3d& worldPos)
+std::pair<int, int> CSMWorld::CellCoordinates::toVertexCoords(const vsg::dvec3& worldPos)
 {
-    const auto xd = static_cast<float>(worldPos.x() * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5f);
-    const auto yd = static_cast<float>(worldPos.y() * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5f);
+    const auto xd = static_cast<float>(worldPos.x * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5f);
+    const auto yd = static_cast<float>(worldPos.y * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5f);
 
     const auto x = static_cast<int>(std::floor(xd));
     const auto y = static_cast<int>(std::floor(yd));

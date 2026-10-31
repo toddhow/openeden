@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <osg/Math>
+#include <components/misc/vsgmath.hpp>
 
 #include <apps/opencs/model/world/cell.hpp>
 #include <components/esm/defs.hpp>
@@ -1358,7 +1358,7 @@ namespace CSMWorld
             if (!record.get().mTeleport && mIsDoor)
                 return QVariant();
             const ESM::Position& position = record.get().*mPosition;
-            return osg::RadiansToDegrees(position.rot[mIndex]);
+            return Misc::VsgMath::radiansToDegrees(position.rot[mIndex]);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -1367,7 +1367,7 @@ namespace CSMWorld
 
             ESM::Position& position = record2.*mPosition;
 
-            position.rot[mIndex] = osg::DegreesToRadians(data.toFloat());
+            position.rot[mIndex] = Misc::VsgMath::inDegrees(data.toFloat());
 
             record.setModified(record2);
         }

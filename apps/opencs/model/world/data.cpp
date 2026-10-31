@@ -38,13 +38,13 @@
 #include <components/esm3/loadltex.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/files/collections.hpp>
+#include <components/files/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/shadow.hpp>
-#include <components/shader/shadermanager.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
+
+#include <vsg/state/Sampler.h>
 
 #include "../doc/messages.hpp"
 
@@ -143,30 +143,11 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, const Files::PathContainer& data
     , mDataPaths(dataPaths)
     , mArchives(archives)
     , mVFS(std::make_unique<VFS::Manager>())
+    , mResDir(resDir)
 {
     VFS::registerArchives(mVFS.get(), Files::Collections(mDataPaths), mArchives, true, &mEncoder.getStatelessEncoder());
 
     mResourcesManager.setVFS(mVFS.get());
-
-    constexpr double expiryDelay = 0;
-    mResourceSystem
-        = std::make_unique<Resource::ResourceSystem>(mVFS.get(), expiryDelay, &mEncoder.getStatelessEncoder());
-
-    Shader::ShaderManager::DefineMap defines
-        = mResourceSystem->getSceneManager()->getShaderManager().getGlobalDefines();
-    Shader::ShaderManager::DefineMap shadowDefines = SceneUtil::ShadowManager::getShadowsDisabledDefines();
-    defines["forcePPL"] = "0"; // Don't force per-pixel lighting
-    defines["clamp"] = "1"; // Clamp lighting
-    defines["preLightEnv"] = "0"; // Apply environment maps after lighting like Morrowind
-    defines["radialFog"] = "0";
-    defines["lightingModel"] = "0";
-    defines["reverseZ"] = "0";
-    defines["waterRefraction"] = "0";
-    for (const auto& define : shadowDefines)
-        defines[define.first] = define.second;
-    mResourceSystem->getSceneManager()->getShaderManager().setGlobalDefines(defines);
-
-    mResourceSystem->getSceneManager()->setShaderPath(resDir / "shaders");
 
     int index = 0;
 
@@ -686,6 +667,16 @@ CSMWorld::Data::~Data()
 {
     for (std::vector<QAbstractItemModel*>::iterator iter(mModels.begin()); iter != mModels.end(); ++iter)
         delete *iter;
+}
+
+std::shared_ptr<Resource::ResourceSystem> CSMWorld::Data::getOrCreateResourceSystem(
+    vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin, int depthSortedBin)
+{
+    if (!mResourceSystem)
+        mResourceSystem = std::make_shared<Resource::ResourceSystem>(mVFS.get(),
+            Files::pathToUnicodeString(mResDir / "shaders"), std::move(defaultSampler), supportsCompressedImages,
+            computeBin, depthSortedBin);
+    return mResourceSystem;
 }
 
 std::shared_ptr<Resource::ResourceSystem> CSMWorld::Data::getResourceSystem()
@@ -1489,7 +1480,8 @@ void CSMWorld::Data::assetsChanged()
     }
 
     // Get rid of potentially old cached assets
-    mResourceSystem->clearCache();
+    if (mResourceSystem)
+        mResourceSystem->clearCache();
 
     emit assetTablesChanged();
 }

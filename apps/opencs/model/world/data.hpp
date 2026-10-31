@@ -13,6 +13,8 @@
 #include <apps/opencs/model/world/collection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 
+#include <vsg/core/ref_ptr.h>
+
 #include <components/esm3/debugprofile.hpp>
 #include <components/esm3/filter.hpp>
 #include <components/esm3/infoorder.hpp>
@@ -62,6 +64,11 @@ class QModelIndex;
 namespace Resource
 {
     class ResourceSystem;
+}
+
+namespace vsg
+{
+    class Sampler;
 }
 
 namespace VFS
@@ -133,6 +140,7 @@ namespace CSMWorld
         Files::PathContainer mDataPaths;
         std::vector<std::string> mArchives;
         std::unique_ptr<VFS::Manager> mVFS;
+        std::filesystem::path mResDir;
         ResourcesManager mResourcesManager;
         std::shared_ptr<Resource::ResourceSystem> mResourceSystem;
 
@@ -159,6 +167,13 @@ namespace CSMWorld
 
         const VFS::Manager* getVFS() const;
 
+        /// The document's scene resources: pipelines, texture and model readers. They depend on what the device can do,
+        /// and a document has no device until its first 3D view opens, so that view creates them through this. Later
+        /// calls return the same object and ignore the arguments.
+        std::shared_ptr<Resource::ResourceSystem> getOrCreateResourceSystem(vsg::ref_ptr<vsg::Sampler> defaultSampler,
+            bool supportsCompressedImages, int computeBin, int depthSortedBin);
+
+        /// Null until getOrCreateResourceSystem has been called.
         std::shared_ptr<Resource::ResourceSystem> getResourceSystem();
 
         std::shared_ptr<const Resource::ResourceSystem> getResourceSystem() const;

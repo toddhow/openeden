@@ -1,7 +1,8 @@
+# csmodel: the editor's data, documents, tools and preferences (task 0014, stage C1). It must build and be tested
+# without any view code, as must openmw-cs-tests. The three widgets are here because model/prefs/coloursetting.cpp
+# and model/world/idcompletionmanager.cpp use them; they are plain Qt with no 3D.
 set (OPENCS_SRC
     )
-
-opencs_units (. editor)
 
 opencs_units (model/doc
     document operation saving documentmanager loader runner operationholder
@@ -50,6 +51,66 @@ opencs_hdrs (model/tools
     )
 
 
+opencs_units (model/prefs
+    state setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
+    shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory
+    )
+
+opencs_units (model/prefs
+    category
+    )
+
+opencs_units (model/filter
+    unarynode narynode parser andnode ornode notnode textnode valuenode
+    )
+
+opencs_hdrs (model/filter
+    leafnode booleannode
+    )
+
+opencs_units (view/widget
+    coloreditor colorpickerpopup completerpopup
+    )
+
+set (CSMODEL_SRC ${OPENCS_SRC})
+set (CSMODEL_HDR ${OPENCS_HDR})
+
+add_library(csmodel STATIC
+    ${CSMODEL_SRC}
+)
+
+target_link_libraries(csmodel
+    Boost::program_options
+    components_qt
+    Qt::Widgets Qt::Core Qt::Network Qt::Svg
+)
+
+set_property(TARGET csmodel PROPERTY AUTOMOC ON)
+set_property(TARGET csmodel PROPERTY AUTOUIC_SEARCH_PATHS ui)
+set_property(TARGET csmodel PROPERTY AUTOUIC ON)
+
+if (BUILD_WITH_CODE_COVERAGE)
+    target_compile_options(csmodel PRIVATE --coverage)
+    target_link_libraries(csmodel gcov)
+endif()
+
+if (MSVC)
+    # Debug version needs increased number of sections beyond 2^16
+    if (CMAKE_CL_64)
+        target_compile_options(csmodel PRIVATE $<$<CONFIG:Debug>:/bigobj>)
+    endif (CMAKE_CL_64)
+endif (MSVC)
+
+# Stage C1: the views do not compile yet, so only the model is built. C2 onwards extends this.
+return()
+
+set (OPENCS_SRC
+    )
+set (OPENCS_HDR
+    )
+
+opencs_units (. editor)
+
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
     filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview
@@ -81,7 +142,7 @@ opencs_units (view/world
 
 opencs_units (view/widget
     scenetoolbar scenetool scenetoolmode pushbutton scenetooltoggle scenetoolrun modebutton
-    scenetooltoggle2 scenetooltexturebrush scenetoolshapebrush completerpopup coloreditor colorpickerpopup droplineedit
+    scenetooltoggle2 scenetooltexturebrush scenetoolshapebrush droplineedit
     )
 
 opencs_units (view/render
@@ -111,23 +172,6 @@ opencs_units (view/tools
 
 opencs_units (view/prefs
     dialogue pagebase page keybindingpage contextmenulist
-    )
-
-opencs_units (model/prefs
-    state setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
-    shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory
-    )
-
-opencs_units (model/prefs
-    category
-    )
-
-opencs_units (model/filter
-    unarynode narynode parser andnode ornode notnode textnode valuenode
-    )
-
-opencs_hdrs (model/filter
-    leafnode booleannode
     )
 
 opencs_units (view/filter
@@ -229,13 +273,10 @@ if(APPLE AND BUILD_OPENCS)
 endif()
 
 target_link_libraries(openmw-cs-lib
-    # <insert vsg libs here>
-    ${EXTERN_OSGQT_LIBRARY}
-    Boost::program_options
-    components_qt
+    csmodel
 )
 
-target_link_libraries(openmw-cs-lib Qt::Widgets Qt::Core Qt::Network Qt::OpenGL Qt::OpenGLWidgets Qt::Svg)
+target_link_libraries(openmw-cs-lib Qt::Widgets Qt::Core Qt::Network Qt::Svg)
 
 if (WIN32)
     target_sources(openmw-cs PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
