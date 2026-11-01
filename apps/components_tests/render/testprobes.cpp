@@ -1166,9 +1166,10 @@ namespace Render::Gi
     // Added after the review: hostile or sloppy input must fail cleanly and cheaply.
     TEST(RenderProbesHostileInputTest, a_huge_array_is_refused_before_it_is_built)
     {
-        std::string text = "{\"format\": \"openeden.probes\", \"version\": 1, \"cell\": {\"interior\": \"x\"}, "
-                           "\"bake\": {\"rays\": 1, \"bounces\": 0, \"seed\": 0, \"ambient\": [0, 0, 0]}, "
-                           "\"volumes\": [{\"origin\": [0, 0, 0], \"spacing\": 1, \"size\": [1, 1, 1], \"probes\": [";
+        std::string text
+            = "{\"format\": \"openeden.probes\", \"version\": 1, \"cell\": {\"interior\": \"x\"}, "
+              "\"bake\": {\"rays\": 1, \"bounces\": 0, \"seed\": 0, \"ambient\": [0, 0, 0]}, "
+              "\"volumes\": [{\"origin\": [0, 0, 0], \"spacing\": 1, \"size\": [1, 1, 1], \"probes\": [";
         for (int i = 0; i < 20000; ++i)
             text += "0,";
         text += "0]}]}";
