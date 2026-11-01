@@ -56,7 +56,7 @@ Inherited choices stay as OpenMW made them unless a decision record changes them
 | UI | MyGUI in game, Qt 6 in the launcher, wizard and editor | Inherited |
 | Scripting | Lua (LuaJIT) through OpenMW's Lua host | Lua APIs come only from the core; extensions can only publish events the core forwards to Lua (decision 0003) |
 | Authored data | JSON with a canonical writer that round-trips byte for byte | The project's rule for new formats (CreativeMotion decision 0002, extension doc 5.2) |
-| Tests | GoogleTest (`components-tests`, `openmw-tests`, `openmw-cs-tests`), Lua integration tests (`scripts/integration_tests.py`) | Integration tests need OpenMW's example suite at the revision pinned in `.gitlab-ci.yml` |
+| Tests | GoogleTest (`components-tests`, `openmw-tests`, `eden-studio-tests`), Lua integration tests (`scripts/integration_tests.py`) | Integration tests need OpenMW's example suite at the revision pinned in `.gitlab-ci.yml` |
 | Formatting | clang-format 14 (`.clang-format`, `CI/check_clang_format.sh`), clang-tidy (`.clang-tidy`) | CI uses version 14; newer local versions format some untouched code differently, so only format lines you changed |
 | Platforms | Windows (MSVC, x64), Linux (GCC and Clang) | macOS is inherited in CI but not a target until toddhow says so |
 | CI | Inherited GitLab CI (`.gitlab-ci.yml`) and GitHub Actions (`.github/workflows/`) | Confirm which one OpenEden keeps (Open questions) |
@@ -188,7 +188,7 @@ A pull request merges only when every gate below passes; gates are added as the 
 | --- | --- | --- |
 | Build | Compiles on Windows (MSVC) and Linux (GCC, Clang); `-Werror` on Linux, no new MSVC warnings | Every pull request |
 | Format and lint | clang-format 14 clean (`CI/check_clang_format.sh`), clang-tidy clean on changed files | Every pull request |
-| Unit tests | `components-tests`, `openmw-tests`, `openmw-cs-tests` | Every pull request |
+| Unit tests | `components-tests`, `openmw-tests`, `eden-studio-tests` | Every pull request |
 | Integration tests | `scripts/integration_tests.py` against the example suite at the pinned revision, all Lua API tests passing | Every pull request touching `apps/openmw`, `components`, `files` or `scripts` |
 | Sanitizers | AddressSanitizer and UndefinedBehaviorSanitizer test runs on Linux (inherited `Ubuntu_GCC_tests_asan`, `_ubsan` jobs) | Every pull request touching C++ |
 | Translations | Qt `.ts` files match `lupdate` output (`CI/check_qt_translations.sh`) | Every pull request touching launcher, wizard or editor strings |
@@ -393,7 +393,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 - [x] Hosting and CI: GitHub at `toddhow/openeden`, CI on GitHub Actions (decision 0008, toddhow, 2026-10-31; task 0022 drafts the port of the gates). Still open: what to push first and what `master` there becomes
 - [x] Order of Eden Studio against the extension phases: after the extension system is done, with its plan brought up to date first (toddhow, 2026-10-31; decision 0007)
 - [ ] Extension doc open questions 1 to 6: when to add the C ABI, where contracts live, user-overridable load order, hot reload, one game per session, third-party licence policy
-- [ ] Executable and data names: when `openmw`, `openmw-cs` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs are migrated
+- [ ] Executable and data names: when `openmw` and `openmw.cfg` (the editor is already `eden-studio`, task 0024) become OpenEden names, and how existing OpenMW configs are migrated
 - [ ] Whether macOS stays a supported platform (with Vulkan it would need MoltenVK, decision 0002)
 - [x] Renderer direction: Vulkan on VulkanSceneGraph, total move, no abstraction layer (decision 0002, 2026-10-28; background in `docs/research/0001-vulkan-renderer.md`)
 - [ ] The `openeden.animation` contract has had no provider since decision 0001: keep it for extensions that want to drive animation, or remove it from the SDK?
@@ -411,6 +411,7 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-11-01 | Rendering groundwork F0 and F1 (task 0023): GPU timing, a device report, `tools/benchmark.sh` with a baseline (research note 0009: the CPU limits the frame; the Vulkan instance is already 1.4), a pinned Slang toolchain with `openeden_add_slang_shader()` validated by a pinned `spirv-val`, and the sun shader ported behind `[Rendering] slang shaders`, all off by default. Decision 0009 (Slang for new shaders) is a draft for toddhow. Eden Studio shell, stages A to D (task 0024): OpenMW-CS is now Eden Studio (`eden-studio`, `eden-studio.cfg` read once from `openmw-cs.cfg`, `eden-studio-tests`), with an Eden Studio layout (Asset Browser, viewport, Context Inspector, workspace tabs, Output Log) and the old one as Classic, and the extension host with an Extension Manager in the editor; stage E (Jolt world, Play/Pause/Step) and toddhow's hands-on list are open. The whole tree passes clang-format 14 again (the shader headers in `particle.cpp` moved to `particledescriptors.hpp`: the formatter re-indents off/on markers inside a namespace differently on each pass) |
 | 2026-10-31 | Hosting decided: GitHub, `toddhow/openeden`, CI on GitHub Actions (decision 0008, toddhow); task 0022 drafts the port of the gates. The repository holds a copy of upstream OpenMW's `master` only, and nothing of ours is pushed. Order chosen by toddhow: V6, the Track W merge, then rendering's F0 and F1 alongside Eden Studio's first phase (research note 0008, a proposal, nothing decided); Eden Studio follows the extension system with its plan updated first (decision 0007) |
 | 2026-10-31 | Track W merged into `vulkan` (`7d7eb434ee`; three conflicts, each keeping both sides). Found on toddhow's first launch and fixed: a click while loading reached a Lua manager that did not exist yet, and closing the window during the intro movie crashed in its audio decoder (`cca74d7fae`); a window that stayed blank after growing, the render areas now following the swapchain's extent every frame (`5224e0d9af`, `9ae7bbd8d5`). On the merge, Windows: `components-tests` 2358, `openmw-tests` 779, `openmw-cs-tests` 226, 32 Lua tests, the three extension game checks; Linux: 2360, 779 and 32. README corrected: Morrowind only, not affiliated with OpenMW |
 | 2026-10-31 | Track V stage V6, D1 and D2 (task 0014): OpenSceneGraph deleted from the source, CMake (with `OPENEDEN_BUILD_VSG`: VSG is always fetched), CI scripts, the Flatpak manifest and the docs; `CI/check_no_osg.sh` covers every C and C++ file; the OSG-era shaders and stats tools removed; stack table and pitfalls updated (stale build folders, vcpkg's OSG headers). The editor's exit hang under the crash runner was Windows' debug heap. V6 stays open: toddhow's check list is unrun and CI has not run, since hosting is undecided |
