@@ -5,6 +5,10 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QAction>
+#include <QDoubleSpinBox>
+#include <QLineEdit>
+#include <QTreeView>
+#include <QUndoStack>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QRegularExpression>
@@ -13,8 +17,10 @@
 
 #include <boost/program_options.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <memory>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/documentmanager.hpp>
@@ -41,7 +47,17 @@
 #include <components/toutf8/toutf8.hpp>
 
 #include "model/prefs/configmigration.hpp"
+#include "model/world/columns.hpp"
+#include "model/world/data.hpp"
+#include "model/world/idtable.hpp"
+#include "model/world/tablemimedata.hpp"
+#include "view/doc/assetbrowser.hpp"
+#include "view/doc/contextinspector.hpp"
+#include "view/doc/subview.hpp"
+#include "view/render/worldspacewidget.hpp"
+#include "view/world/scenesubview.hpp"
 #include "model/world/universalid.hpp"
+#include "view/doc/logtap.hpp"
 #include "view/doc/viewmanager.hpp"
 
 CS::Editor::Editor(int argc, char** argv)
@@ -55,6 +71,9 @@ CS::Editor::Editor(int argc, char** argv)
     , mServer(nullptr)
     , mClientSocket(nullptr)
 {
+    // Copy everything logged to the Output Log panel (the log file and console get it unchanged).
+    CSVDoc::LogTap::install();
+
     std::pair<Files::PathContainer, std::vector<std::string>> config = readConfig();
 
     mViewManager = new CSVDoc::ViewManager(mDocumentManager);
@@ -478,6 +497,112 @@ namespace
             return false;
         }
     };
+
+
+    /// The Asset Browser check, see startUiCheck: searches, makes the drag data of an object, and opens an object
+    /// and a table the way a double click does.
+    void runAssetCheck(const std::string& search, int milliseconds)
+    {
+        const int step = std::max(500, milliseconds / 8);
+        auto browser = []() -> CSVDoc::AssetBrowser* {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (auto* found = widget->findChild<CSVDoc::AssetBrowser*>())
+                    return found;
+            return nullptr;
+        };
+        QTimer::singleShot(step * 3, qApp, [=] {
+            CSVDoc::AssetBrowser* panel = browser();
+            if (panel == nullptr)
+                return;
+            Log(Debug::Info) << "UI check: assets before search " << panel->visibleItemCount();
+            panel->findChild<QLineEdit*>()->setText(QString::fromStdString(search));
+            Log(Debug::Info) << "UI check: assets after search '" << search << "' " << panel->visibleItemCount();
+
+            QTreeView* tree = panel->findChild<QTreeView*>("assetTree");
+            QAbstractItemModel* model = tree->model();
+            for (int group = 0; group < model->rowCount(); ++group)
+            {
+                const QModelIndex groupIndex = model->index(group, 0);
+                if (model->rowCount(groupIndex) == 0)
+                    continue;
+                const QModelIndex first = model->index(0, 0, groupIndex);
+                Log(Debug::Info) << "UI check: assets group " << groupIndex.data().toString().toStdString()
+                                 << " first match " << first.data().toString().toStdString() << " of "
+                                 << model->rowCount(groupIndex);
+                if (groupIndex.data().toString() == "Objects")
+                {
+                    std::unique_ptr<QMimeData> mime(model->mimeData({ first }));
+                    auto* table = dynamic_cast<CSMWorld::TableMimeData*>(mime.get());
+                    Log(Debug::Info) << "UI check: assets drag data "
+                                     << (table != nullptr && !table->getData().empty()
+                                                ? table->getData().front().toString()
+                                                : std::string("none"));
+                    emit tree->activated(first); // opens the record editor
+                }
+                if (groupIndex.data().toString() == "Tables")
+                    emit tree->activated(first); // opens the first table
+            }
+        });
+        QTimer::singleShot(step * 5, qApp, [=] {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                for (CSVDoc::SubView* subView : widget->findChildren<CSVDoc::SubView*>())
+                    Log(Debug::Info) << "UI check: assets open sub view " << subView->getTitle();
+        });
+    }
+
+    /// The Context Inspector check, see startUiCheck. Free of the editor class: it only needs the document.
+    void runInspectorCheck(CSMDoc::Document* document, const std::string& cell, int milliseconds)
+    {
+        CSMWorld::IdTable* references = dynamic_cast<CSMWorld::IdTable*>(
+            document->getData().getTableModel(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_References)));
+        const int idColumn = references->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
+        const int cellColumn = references->findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
+        const int posXColumn = references->findColumnIndex(CSMWorld::Columns::ColumnId_PositionXPos);
+        std::string id;
+        for (int row = 0; row < references->rowCount() && id.empty(); ++row)
+            if (references->data(references->index(row, cellColumn)).toString().toStdString() == cell)
+                id = references->data(references->index(row, idColumn)).toString().toStdString();
+        Log(Debug::Info) << "UI check: inspector target " << id;
+
+        auto posX = [=] {
+            const QModelIndex row = references->getModelIndex(id, idColumn);
+            return references->data(references->index(row.row(), posXColumn)).toDouble();
+        };
+        // The window that has the scene: the inspector of the window whose scene has the object selected.
+        auto sceneInspector = [] {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (widget->findChild<CSVWorld::SceneSubView*>() != nullptr)
+                    return widget->findChild<CSVDoc::ContextInspector*>();
+            return static_cast<CSVDoc::ContextInspector*>(nullptr);
+        };
+
+        const int step = std::max(500, milliseconds / 10);
+        QTimer::singleShot(step * 4, qApp, [=] {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (auto* scene = widget->findChild<CSVWorld::SceneSubView*>())
+                    if (auto* viewport = scene->getWorldspaceWidget())
+                        viewport->selectGroup({ id });
+            Log(Debug::Info) << "UI check: inspector selected " << id;
+        });
+        QTimer::singleShot(step * 5, qApp, [=] {
+            CSVDoc::ContextInspector* panel = sceneInspector();
+            if (panel == nullptr)
+                return;
+            panel->poll();
+            Log(Debug::Info) << "UI check: inspector shows " << panel->selectedIds().size() << " object(s), posX "
+                             << posX();
+            const double before = posX();
+            auto* field = panel->findChild<QDoubleSpinBox*>("inspectorField0");
+            const int undoBefore = document->getUndoStack().count();
+            field->setValue(before + 100.0);
+            Log(Debug::Info) << "UI check: inspector edit: posX " << before << " -> " << posX() << ", undo stack +"
+                             << (document->getUndoStack().count() - undoBefore);
+        });
+        QTimer::singleShot(step * 6, qApp, [=] {
+            document->getUndoStack().undo();
+            Log(Debug::Info) << "UI check: inspector undo: posX " << posX();
+        });
+    }
 }
 
 void CS::Editor::startUiCheck()
@@ -511,6 +636,14 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_GRAB=<folder>: render every document window with QWidget::grab shortly before the close,
             // as <folder>/window<N>.png. This shows the Qt panels (not the 3D window inside them, which Qt cannot
             // grab); the engine capture (--auto-screenshot) shows that. For checks with nobody at the screen.
+            // OPENEDEN_CS_INSPECT=<cell>: for the Context Inspector check (task 0024, stage C). Selects the first
+            // instance in that cell through the viewport, then moves it by editing the inspector's Position X field
+            // and undoes the edit, logging what each step shows ("UI check: inspector ...").
+            if (const char* cell = std::getenv("OPENEDEN_CS_INSPECT"))
+                runInspectorCheck(document, cell, milliseconds);
+            // OPENEDEN_CS_ASSET=<search text>: for the Asset Browser check (task 0024, stage C).
+            if (const char* search = std::getenv("OPENEDEN_CS_ASSET"))
+                runAssetCheck(search, milliseconds);
             // OPENEDEN_CS_TRIGGER=<text>: a third of the way in, triggers the menu action with that text (for
             // example "Classic" or "Eden Studio" in Window > Layout) in every document window, so that a switch
             // of layout with sub views open can be grabbed.

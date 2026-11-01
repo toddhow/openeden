@@ -85,7 +85,7 @@ namespace CSVDoc
         CSMPrefs::EditorLayout mLayout;
         bool mSceneOpen = false;
 
-        ViewportBackdrop* mBackdrop; // owned by the sub view window while it is its centre widget, else by us
+        ViewportBackdrop* mBackdrop; // a child of the sub view window (deleted with it); its centre widget in Studio
         QDockWidget* mAssetBrowser;
         QDockWidget* mInspector;
         QDockWidget* mWorkspaces;

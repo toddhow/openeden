@@ -17,6 +17,11 @@ class QMenu;
 class QObject;
 class QScrollArea;
 
+namespace CSVRender
+{
+    class WorldspaceWidget;
+}
+
 namespace CSMDoc
 {
     class Document;
@@ -37,6 +42,7 @@ namespace CSVDoc
     class ViewManager;
     class SubView;
     class StudioShell;
+    class ContextInspector;
     class Operations;
     class GlobalDebugProfileMenu;
 
@@ -61,6 +67,7 @@ namespace CSVDoc
         SubViewFactoryManager mSubViewFactory;
         QMainWindow mSubViewWindow;
         StudioShell* mShell = nullptr; // child of this window
+        ContextInspector* mInspector = nullptr; // owned by its dock
         QMenu* mViewMenu = nullptr; // the record table submenus hang off it
         GlobalDebugProfileMenu* mGlobalDebugProfileMenu;
         QScrollArea* mScroll;
@@ -91,6 +98,8 @@ namespace CSVDoc
 
         void setupWindowMenu();
         void setupHelpMenu();
+        void setupPanels();
+        CSVRender::WorldspaceWidget* currentViewport() const;
         void dockSubView(SubView* view);
         void updateSceneOpen();
         void changeLayout(CSMPrefs::EditorLayout layout);

@@ -153,8 +153,8 @@ void CSVDoc::StudioShell::arrangeDefault()
         mOperations->show();
 
     mWindow.resizeDocks({ mAssetBrowser, mInspector }, { 280, 300 }, Qt::Horizontal);
-    mWindow.resizeDocks({ mWorkspaces, mTransport }, { 30, 70 }, Qt::Vertical);
-    mWindow.resizeDocks({ mTransport, mOutputLog }, { 380, 520 }, Qt::Horizontal);
+    mWindow.resizeDocks({ mWorkspaces, mTransport }, { 30, 170 }, Qt::Vertical);
+    mWindow.resizeDocks({ mTransport, mOutputLog }, { 380, 820 }, Qt::Horizontal);
 }
 
 void CSVDoc::StudioShell::applyLayout(CSMPrefs::EditorLayout layout)
@@ -189,6 +189,8 @@ void CSVDoc::StudioShell::applyLayout(CSMPrefs::EditorLayout layout)
         }
         if (mSubViewWindow.centralWidget() == mBackdrop)
             mSubViewWindow.takeCentralWidget();
+        // takeCentralWidget leaves the widget without a parent; give it back so that it is deleted with the window.
+        mBackdrop->setParent(&mSubViewWindow);
         mBackdrop->hide();
 
         if (!saved.isEmpty())

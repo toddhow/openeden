@@ -110,7 +110,7 @@ opencs_units (. editor capture)
 
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
-    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell
+    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell assetbrowser contextinspector outputlogpanel logtap
     )
 
 

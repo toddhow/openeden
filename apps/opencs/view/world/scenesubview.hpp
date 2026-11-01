@@ -58,6 +58,10 @@ namespace CSVWorld
 
         std::string getTitle() const override;
 
+        /// The 3D widget of this sub view (it can be replaced when the scene changes, so read it when needed).
+        /// Eden Studio's Context Inspector reads the selection from it.
+        CSVRender::WorldspaceWidget* getWorldspaceWidget() const { return mScene; }
+
     private:
         void makeConnections(CSVRender::PagedWorldspaceWidget* widget);
 

@@ -23,6 +23,7 @@
 
 #include "../../model/world/idtable.hpp"
 
+#include "../render/worldspacewidget.hpp"
 #include "../world/dialoguesubview.hpp"
 #include "../world/scenesubview.hpp"
 #include "../world/scriptsubview.hpp"
@@ -44,8 +45,11 @@
 #include <components/misc/timeconvert.hpp>
 #include <components/version/version.hpp>
 
+#include "assetbrowser.hpp"
+#include "contextinspector.hpp"
 #include "globaldebugprofilemenu.hpp"
 #include "operations.hpp"
+#include "outputlogpanel.hpp"
 #include "runlogsubview.hpp"
 #include "studioshell.hpp"
 #include "subview.hpp"
@@ -607,6 +611,8 @@ CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, int tot
 
     mSubViewFactory.add(CSMWorld::UniversalId::Type_RunLog, new SubViewFactory<RunLogSubView>);
 
+    setupPanels();
+
     connect(mOperations, &Operations::abortOperation, this, &View::abortOperation);
 
     connect(&CSMPrefs::State::get(), &CSMPrefs::State::settingChanged, this, &View::settingChanged);
@@ -653,6 +659,9 @@ void CSVDoc::View::updateDocumentState()
 
     for (QList<CSVDoc::SubView*>::iterator iter(subViews.begin()); iter != subViews.end(); ++iter)
         (*iter)->setEditLock(state & CSMDoc::State_Locked);
+
+    if (mInspector != nullptr)
+        mInspector->setEditLock(state & CSMDoc::State_Locked);
 }
 
 void CSVDoc::View::updateProgress(int current, int max, int type, int threads)
@@ -737,7 +746,8 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
     dockSubView(view);
 
     // Horizontal orientation doesn't respect layout direction, so we need to move the new view
-    if (windows["subview-open-direction"].toString() == "Open Left" && mSubViews.size() > 1)
+    if (windows["subview-open-direction"].toString() == "Open Left" && mSubViews.size() > 1
+        && mSubViewWindow.dockWidgetArea(view) == Qt::TopDockWidgetArea)
     {
         // Get list of top-area dock widget subviews sorted by coordinates
         QList<SubView*> orderedTopViews;
@@ -852,6 +862,44 @@ void CSVDoc::View::settingChanged(const CSMPrefs::Setting* setting)
             mScroll = nullptr;
         }
     }
+}
+
+void CSVDoc::View::setupPanels()
+{
+    // The panels exist in both layouts; Classic keeps their docks hidden. Each dock owns its panel.
+    auto setContent = [](QDockWidget* dock, QWidget* panel) {
+        QWidget* placeholder = dock->widget();
+        dock->setWidget(panel);
+        delete placeholder;
+    };
+
+    AssetBrowser* browser = new AssetBrowser(*mDocument);
+    setContent(mShell->assetBrowser(), browser);
+    connect(browser, &AssetBrowser::openRequested, this, &View::addSubView);
+
+    mInspector = new ContextInspector(*mDocument, [this] { return currentViewport(); });
+    setContent(mShell->contextInspector(), mInspector);
+    connect(mInspector, &ContextInspector::openRecordRequested, this, [this](const CSMWorld::UniversalId& id) { addSubView(id); });
+    mInspector->setEditLock(mDocument->getState() & CSMDoc::State_Locked);
+
+    setContent(mShell->outputLog(), new OutputLogPanel);
+}
+
+CSVRender::WorldspaceWidget* CSVDoc::View::currentViewport() const
+{
+    // The scene the user is working in: the one that has the keyboard focus, else the first one open.
+    CSVWorld::SceneSubView* first = nullptr;
+    for (SubView* subView : mSubViews)
+    {
+        auto* scene = dynamic_cast<CSVWorld::SceneSubView*>(subView);
+        if (scene == nullptr)
+            continue;
+        if (first == nullptr)
+            first = scene;
+        if (QWidget* focus = QApplication::focusWidget(); focus != nullptr && scene->isAncestorOf(focus))
+            return scene->getWorldspaceWidget();
+    }
+    return first != nullptr ? first->getWorldspaceWidget() : nullptr;
 }
 
 void CSVDoc::View::dockSubView(SubView* view)
