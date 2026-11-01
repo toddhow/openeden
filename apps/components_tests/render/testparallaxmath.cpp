@@ -226,4 +226,35 @@ namespace
             EXPECT_EQ(static_cast<int>(found["POM_REFINE_TAPS"][i]), lim.refineTaps);
         }
     }
+
+    // toddhow's rule (task 0045): no height source, no parallax.
+    TEST(RenderParallaxTest, a_material_without_a_height_source_has_no_parallax)
+    {
+        EXPECT_EQ(decideHeightSource(false, false, false, false), HeightSource::None);
+        // A normal map's alpha that is just opacity (not the `_nh` file) is not a height source.
+        EXPECT_EQ(decideHeightSource(false, false, false, false), HeightSource::None);
+        // A height file that was found but cannot be used counts as absent.
+        EXPECT_EQ(decideHeightSource(true, false, false, false), HeightSource::None);
+    }
+
+    TEST(RenderParallaxTest, a_usable_height_file_or_an_explicit_normal_height_map_is_a_source)
+    {
+        EXPECT_EQ(decideHeightSource(true, true, false, false), HeightSource::HeightFile);
+        EXPECT_EQ(decideHeightSource(false, false, true, false), HeightSource::NormalAlpha);
+        // The height file wins over the normal map's alpha, and an unusable one falls back to the alpha.
+        EXPECT_EQ(decideHeightSource(true, true, true, false), HeightSource::HeightFile);
+        EXPECT_EQ(decideHeightSource(true, false, true, false), HeightSource::NormalAlpha);
+        // A two-channel normal map has no alpha to read.
+        EXPECT_EQ(decideHeightSource(false, false, true, true), HeightSource::None);
+    }
+
+    TEST(RenderParallaxTest, only_unsigned_one_channel_and_plain_colour_formats_are_height_images)
+    {
+        for (VkFormat f : { VK_FORMAT_BC4_UNORM_BLOCK, VK_FORMAT_R8_UNORM, VK_FORMAT_R16_UNORM,
+                 VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_BC1_RGBA_UNORM_BLOCK, VK_FORMAT_BC7_UNORM_BLOCK })
+            EXPECT_TRUE(usableHeightFormat(f)) << f;
+        for (VkFormat f : { VK_FORMAT_UNDEFINED, VK_FORMAT_BC4_SNORM_BLOCK, VK_FORMAT_BC5_UNORM_BLOCK,
+                 VK_FORMAT_R16G16B16A16_SFLOAT, VK_FORMAT_R32_SFLOAT, VK_FORMAT_R8G8_UNORM, VK_FORMAT_R8G8B8A8_SRGB })
+            EXPECT_FALSE(usableHeightFormat(f)) << f;
+    }
 }

@@ -8,6 +8,8 @@
 #include <optional>
 #include <string_view>
 
+#include <vsg/vk/vulkan.h>
+
 namespace Render::Parallax
 {
     // The True PBR height file next to a diffuse texture: <name>_p, one channel (BC4 in Faultier's sets), 1 = the top.
@@ -24,6 +26,50 @@ namespace Render::Parallax
      * once d >= 1 - height(uv(d)). The march takes steps at depth i/N, finds the first one below the surface and
      * refines the hit between that step and the one before.
      */
+
+    // Where a material's height comes from (toddhow's rule, task 0045): the parallax is drawn only with a real height
+    // source, never from a constant. A `_p` file that was found but cannot be read or is not a height image counts as
+    // absent. A normal map's alpha counts only where the engine's convention says it holds height: the `_nh` file
+    // (`AutoMaps::normalHeight`), not an alpha that is just opacity, and not a two-channel normal map.
+    enum class HeightSource
+    {
+        None,
+        HeightFile,
+        NormalAlpha
+    };
+
+    // Formats whose first (red) channel can be read as a height: one-channel files and the ordinary colour formats a
+    // tool may have exported a grey picture in. Not signed, floating point, two-channel (normal) or sRGB ones.
+    inline bool usableHeightFormat(VkFormat format)
+    {
+        switch (format)
+        {
+            case VK_FORMAT_R8_UNORM:
+            case VK_FORMAT_R16_UNORM:
+            case VK_FORMAT_BC4_UNORM_BLOCK:
+            case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_B8G8R8A8_UNORM:
+            case VK_FORMAT_R8G8B8_UNORM:
+            case VK_FORMAT_B8G8R8_UNORM:
+            case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+            case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+            case VK_FORMAT_BC3_UNORM_BLOCK:
+            case VK_FORMAT_BC7_UNORM_BLOCK:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    inline HeightSource decideHeightSource(
+        bool heightFileFound, bool heightFileUsable, bool normalAlphaIsHeight, bool twoChannelNormal)
+    {
+        if (heightFileFound && heightFileUsable)
+            return HeightSource::HeightFile;
+        if (normalAlphaIsHeight && !twoChannelNormal)
+            return HeightSource::NormalAlpha;
+        return HeightSource::None;
+    }
 
     // How the march trades steps against cost (the setting `[Rendering] parallax quality`).
     enum class Quality

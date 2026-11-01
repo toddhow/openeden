@@ -2,6 +2,8 @@
 
 #include <cstring>
 #include <iostream>
+#include <mutex>
+#include <set>
 #include <stack>
 
 #include <vsg/nodes/Switch.h>
@@ -830,8 +832,10 @@ namespace vsgAdapters
 
             auto& nodeOptions = getNodeOptions();
             const auto& base = texprop.mTextures[Nif::NiTexturingProperty::BaseTexture];
-            auto addMap = [&](const std::string& path, uint32_t binding) -> vsg::ref_ptr<vsg::Data> {
-                auto data = vsgUtil::readOptionalImage(path, mImageOptions);
+            auto addMap = [&](const std::string& path, uint32_t binding,
+                              vsg::ref_ptr<vsg::Data> data = {}) -> vsg::ref_ptr<vsg::Data> {
+                if (!data)
+                    data = vsgUtil::readOptionalImage(path, mImageOptions);
                 if (!data)
                 {
                     warn("!readImage(" + path + ")");
@@ -870,9 +874,15 @@ namespace vsgAdapters
             }
             // Task 0045: the height file, for parallax occlusion mapping. It needs the tangent frame of a normal map
             // (the shader reads both with the diffuse texture's UV set).
+            // A file that cannot be read or is not a height image counts as absent (logged once), and then the material
+            // has no parallax from it (Render::Parallax::decideHeightSource).
             if (!maps.heightMap.empty() && hasNormalMap)
             {
-                if (addMap(maps.heightMap, Pipeline::Descriptors::HEIGHT_UNIT))
+                const auto height = vsgUtil::readOptionalImage(maps.heightMap, mImageOptions);
+                const bool usable = height && Render::Parallax::usableHeightFormat(height->properties.format);
+                if (!usable)
+                    warnHeightMapOnce(maps.heightMap, height ? "is not a one-channel or plain colour image" : "cannot be read");
+                if (usable && addMap(maps.heightMap, Pipeline::Descriptors::HEIGHT_UNIT, height))
                 {
                     nodeOptions.shader.addMode(Pipeline::Mode::HEIGHT_MAP);
                     // Dropping fragments that leave the texture only suits a texture that does not tile.
@@ -880,6 +890,16 @@ namespace vsgAdapters
                         nodeOptions.shader.addMode(Pipeline::Mode::PARALLAX_DISCARD);
                 }
             }
+        }
+
+        // Task 0045: one line in the log for each height file that is not used.
+        void warnHeightMapOnce(const std::string& path, const char* why)
+        {
+            static std::mutex mutex;
+            static std::set<std::string> reported;
+            const std::lock_guard<std::mutex> lock(mutex);
+            if (reported.insert(path).second)
+                warn("Height map " + path + " " + why + "; the material has no parallax");
         }
 
         static void removeAutoMapModes(Pipeline::ShaderOptions& shader)

@@ -41,7 +41,8 @@ namespace Terrain
         // Task 0044: reads the files and keeps those of the most common size and format, as the normal map array does
         // (convertToArrayTexture fills any other with grey bytes). Returns, for each path, its place in `kept` or -1.
         std::vector<int> readUniformImages(const std::vector<std::string>& paths,
-            vsg::ref_ptr<const vsg::Options> options, vsg::DataList& kept, const char* what)
+            vsg::ref_ptr<const vsg::Options> options, vsg::DataList& kept, const char* what,
+            bool (*accept)(VkFormat) = nullptr)
         {
             using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
             std::vector<vsg::ref_ptr<vsg::Data>> images;
@@ -49,12 +50,18 @@ namespace Terrain
             for (const auto& path : paths)
             {
                 auto data = vsgUtil::readOptionalImage(path, options);
-                if (data)
+                if (data && accept && !accept(data->properties.format))
+                {
+                    std::cerr << "Terrain " << what << " " << path << " is not a usable image and is not used"
+                              << std::endl;
+                    data = nullptr;
+                }
+                else if (data)
                 {
                     vsgUtil::setName(*data, path);
                     ++counts[{ data->width(), data->height(), data->properties.format }];
                 }
-                else
+                else if (!data)
                     std::cerr << "Terrain " << what << " " << path << " could not be read and is not used" << std::endl;
                 images.push_back(data);
             }
@@ -212,7 +219,8 @@ namespace Terrain
         vsg::ref_ptr<vsg::vec4Array> heights;
         if (mMapSettings.parallaxQuality > 0)
         {
-            heightArrayIndex = readUniformImages(maps.heightMaps, mImageOptions, heightData, "height map");
+            heightArrayIndex = readUniformImages(
+                maps.heightMaps, mImageOptions, heightData, "height map", Render::Parallax::usableHeightFormat);
             heights = vsg::vec4Array::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
             heights->set(0, vsg::vec4(-1.f, 0.f, 0.f, 0.f));
         }

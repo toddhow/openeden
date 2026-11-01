@@ -128,11 +128,13 @@ void main()
     vec2 pomShift = vec2(0.0);
     bool pomActive = false;
     {
-        int dominant = 0;
-        for (int i=1; i<4; ++i)
-            if (blendCoeffs[i] > blendCoeffs[dominant])
+        // Only a layer with a `_p` file has relief: the march follows the strongest of those, and a layer without one
+        // is never shifted by its neighbours' height maps.
+        int dominant = -1;
+        for (int i=0; i<4; ++i)
+            if (layerHeights[textures[i]].x >= 0.0 && (dominant < 0 || blendCoeffs[i] > blendCoeffs[dominant]))
                 dominant = i;
-        vec4 heightInfo = layerHeights[textures[dominant]];
+        vec4 heightInfo = dominant >= 0 ? layerHeights[textures[dominant]] : vec4(-1.0, 0.0, 0.0, 0.0);
         float pomFade = pomDistanceFade(length(frag_in.viewPos));
         if (heightInfo.x >= 0.0 && pomFade > 0.0)
         {
@@ -164,7 +166,7 @@ void main()
         vec2 parallaxOffset = getParallaxOffset(eyeDir, height);
         vec2 layerCoord = diffuseTexCoord + ((hasNormalMap && (flags & PARALLAX_FLAG) != 0u) ? parallaxOffset : vec2(0.0));
 #ifdef PARALLAX_POM
-        if (pomActive)
+        if (pomActive && layerHeights[textures[i]].x >= 0.0)
             layerCoord = diffuseTexCoord + pomShift;
 #endif
         vec4 diffuseTex = texture(diffuseMap, vec3(layerCoord, textures[i]));
