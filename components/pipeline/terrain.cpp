@@ -20,9 +20,8 @@ namespace Pipeline
 #include <files/shaders/terrain/bindings.glsl>
     }
 
-    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(
-        vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps, unsigned int gbufferOutputs, bool giSky,
-        const WetnessOptions& wetness)
+    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
+        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };

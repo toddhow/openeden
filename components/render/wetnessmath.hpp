@@ -1,13 +1,13 @@
 #ifndef OPENEDEN_RENDER_WETNESSMATH_H
 #define OPENEDEN_RENDER_WETNESSMATH_H
 
-// OpenEden (task 0037): the maths of rain wetness and puddles. The shader twin is files/shaders/lib/material/wetness.glsl;
-// change both together. No game types.
+// OpenEden (task 0037): the maths of rain wetness and puddles. The shader twin is
+// files/shaders/lib/material/wetness.glsl; change both together. No game types.
 //
-// A wetness value (0 dry to 1 soaked) rises while the weather rains and falls slowly after (`step`). Where it is applied
-// a wet surface is darker (`darkening`), glossier (`roughness`), and flat ground collects puddles (`puddleMask`) that
-// mirror the sky with ripples while it rains (`ripple`, `waterFresnel`). A place under cover stays dry (`exposure`).
-// Everything here is a pure function, so it is tested without a device.
+// A wetness value (0 dry to 1 soaked) rises while the weather rains and falls slowly after (`step`). Where it is
+// applied a wet surface is darker (`darkening`), glossier (`roughness`), and flat ground collects puddles
+// (`puddleMask`) that mirror the sky with ripples while it rains (`ripple`, `waterFresnel`). A place under cover stays
+// dry (`exposure`). Everything here is a pure function, so it is tested without a device.
 
 #include <algorithm>
 #include <cmath>
@@ -84,16 +84,16 @@ namespace Render::Wetness
     }
 
     // The wetness the weather is heading for: the rain's strength while the weather has a rain effect (rain and
-    // thunderstorm), nothing otherwise (snow, ash, clear, cloudy). `precipitationAlpha` is the weather result's own fade of
-    // the precipitation as a transition passes the point where the rain starts or stops.
+    // thunderstorm), nothing otherwise (snow, ash, clear, cloudy). `precipitationAlpha` is the weather result's own
+    // fade of the precipitation as a transition passes the point where the rain starts or stops.
     inline float target(bool hasRainEffect, float precipitationAlpha)
     {
         return hasRainEffect ? saturate(precipitationAlpha) : 0.f;
     }
 
-    // One step of the curve. Rising to the target takes `riseSeconds` from dry to soaked; falling takes `drySeconds` from
-    // soaked to dry (a rate, so a half wet surface dries in half the time). The result stays in 0 to 1 and never passes
-    // the target. `dt` and `drySeconds` are game time.
+    // One step of the curve. Rising to the target takes `riseSeconds` from dry to soaked; falling takes `drySeconds`
+    // from soaked to dry (a rate, so a half wet surface dries in half the time). The result stays in 0 to 1 and never
+    // passes the target. `dt` and `drySeconds` are game time.
     inline float step(float wet, float targetWet, float dt, float drySeconds)
     {
         wet = saturate(wet);
@@ -152,8 +152,8 @@ namespace Render::Wetness
     // A value in [0, 1) for a lattice point.
     inline float latticeValue(std::int32_t ix, std::int32_t iy, std::uint32_t salt)
     {
-        const std::uint32_t h = hash(static_cast<std::uint32_t>(ix) * 73856093u ^ static_cast<std::uint32_t>(iy) * 19349663u
-            ^ salt);
+        const std::uint32_t h
+            = hash(static_cast<std::uint32_t>(ix) * 73856093u ^ static_cast<std::uint32_t>(iy) * 19349663u ^ salt);
         return static_cast<float>(h >> 8) * (1.f / 16777216.f);
     }
 
@@ -200,9 +200,9 @@ namespace Render::Wetness
         return flatness(normalZ) * smoothstep(threshold - puddleEdge, threshold + puddleEdge, noiseValue);
     }
 
-    // How exposed to the rain a place is, from the share of the sky a flat surface facing up sees there (`visibilityUp`,
-    // 1 in the open) and the weight of the baked data behind the value (`dataWeight`, 0 where no cell has a file, so
-    // that nothing says the place is covered). 0 is fully under cover.
+    // How exposed to the rain a place is, from the share of the sky a flat surface facing up sees there
+    // (`visibilityUp`, 1 in the open) and the weight of the baked data behind the value (`dataWeight`, 0 where no cell
+    // has a file, so that nothing says the place is covered). 0 is fully under cover.
     inline float exposure(float visibilityUp, float dataWeight)
     {
         const float open = smoothstep(coverBelow, coverAbove, visibilityUp);

@@ -819,8 +819,8 @@ namespace MWWorld
 
     // OpenEden (task 0037): the ground's wetness. It heads for the rain's strength while the weather has a rain effect
     // (rain, thunderstorm; snow and ash do not wet) and dries over `wetness dry time` seconds of game time otherwise,
-    // indoors too. It is a property of the weather and the clock only: records, scripts, sounds and saves are untouched.
-    // The renderer is told 0 indoors, where nothing rains.
+    // indoors too. It is a property of the weather and the clock only: records, scripts, sounds and saves are
+    // untouched. The renderer is told 0 indoors, where nothing rains.
     void WeatherManager::updateWetness(float duration, bool paused, bool isExterior)
     {
         if (!Settings::rendering().mWetness)
@@ -829,9 +829,8 @@ namespace MWWorld
         {
             const float gameSeconds
                 = duration * MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale();
-            const float heading = isExterior
-                ? Render::Wetness::target(!mResult.mRainEffect.empty(), mResult.mPrecipitationAlpha)
-                : 0.f;
+            const float heading
+                = isExterior ? Render::Wetness::target(!mResult.mRainEffect.empty(), mResult.mPrecipitationAlpha) : 0.f;
             mWetness = Render::Wetness::step(mWetness, heading, gameSeconds, Settings::rendering().mWetnessDryTime);
         }
         mRendering.setWetness(isExterior ? mWetness : 0.f);
