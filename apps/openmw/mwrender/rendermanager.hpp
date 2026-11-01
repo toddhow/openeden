@@ -413,8 +413,8 @@ namespace MWRender
         Render::Cloud::Params mCloudParamsWritten;
         const float* mCloudGridWritten[2] = { nullptr, nullptr };
         float mWetness = 0.f;
-        // Task 0039: snow and ash cover took effect at start (needs hdr and pbr), its strength, and the current kind and
-        // amount.
+        // Task 0039: snow and ash cover took effect at start (needs hdr and pbr), its strength, and the current kind
+        // and amount.
         bool mCoverEnabled = false;
         float mCoverStrength = 1.f;
         Render::Cover::Kind mCoverKind = Render::Cover::Kind::None;

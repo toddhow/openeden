@@ -852,7 +852,8 @@ namespace MWWorld
             const std::string& particles = mResult.mParticleEffect;
             const auto& models = Settings::models();
             const bool snowy = isExterior && !particles.empty()
-                && (particles == models.mWeathersnow.get().value() || particles == models.mWeatherblizzard.get().value());
+                && (particles == models.mWeathersnow.get().value()
+                    || particles == models.mWeatherblizzard.get().value());
             const bool ashy = isExterior && !particles.empty()
                 && (particles == models.mWeatherashcloud.get().value()
                     || particles == models.mWeatherblightcloud.get().value());

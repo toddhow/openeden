@@ -39,6 +39,7 @@
 #include <components/render/bloom.hpp>
 #include <components/render/cloudgpu.hpp>
 #include <components/render/cloudmath.hpp>
+#include <components/render/covermath.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/gbuffermath.hpp>
@@ -56,7 +57,6 @@
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
-#include <components/render/covermath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>

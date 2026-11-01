@@ -33,7 +33,8 @@ namespace Render::Cover
     constexpr float ashFadeFactor = 4.f;
 
     // Upward means the surface normal's Z (up) component between these: a slope of 37 degrees or less is fully
-    // covered, one of 60 degrees or more not at all, and 45 degrees is covered about three parts in four (the spec's D3).
+    // covered, one of 60 degrees or more not at all, and 45 degrees is covered about three parts in four (the spec's
+    // D3).
     constexpr float upFrom = 0.5f;
     constexpr float upTo = 0.8f;
     // The softness of the cover's edge, in noise value.
@@ -113,7 +114,8 @@ namespace Render::Cover
         const float alpha = saturate(precipitationAlpha);
         State out;
         out.snow = approach(state.snow, weather == Kind::Snow ? alpha : 0.f, dt, buildSeconds, meltSeconds);
-        out.ash = approach(state.ash, weather == Kind::Ash ? alpha : 0.f, dt, buildSeconds, meltSeconds * ashFadeFactor);
+        out.ash
+            = approach(state.ash, weather == Kind::Ash ? alpha : 0.f, dt, buildSeconds, meltSeconds * ashFadeFactor);
         return out;
     }
 

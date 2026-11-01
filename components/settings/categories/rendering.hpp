@@ -93,7 +93,8 @@ namespace Settings
         SettingValue<float> mCoverStrength{ mIndex, "Rendering", "cover strength", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mCoverBuildTime{ mIndex, "Rendering", "cover build time",
             makeClampSanitizerFloat(1, 86400) };
-        SettingValue<float> mCoverMeltTime{ mIndex, "Rendering", "cover melt time", makeClampSanitizerFloat(1, 864000) };
+        SettingValue<float> mCoverMeltTime{ mIndex, "Rendering", "cover melt time",
+            makeClampSanitizerFloat(1, 864000) };
         SettingValue<bool> mCoverDebug{ mIndex, "Rendering", "cover debug" };
         // Task 0038: lit clouds (read at start; needs hdr), their look (`lit` or `flat`), and cloud shadows on the
         // ground (read at start; needs hdr and atmosphere), their strength and a debug view of the shadow mask.
