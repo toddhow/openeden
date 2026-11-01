@@ -35,8 +35,8 @@ namespace Render::Cloud
     constexpr std::size_t headerExtraVec4s = gridOffset + 2 * gridVec4s;
     constexpr std::size_t headerTotalVec4s = Gi::skyHeaderVec4s + headerExtraVec4s;
 
-    // The scroll changes by about 0.006 a second (speed 2); a change under this, an eighth of a grid square, is not worth
-    // uploading the header for (1 / 64 of a picture is 0.0156).
+    // The scroll changes by about 0.006 a second (speed 2); a change under this, an eighth of a grid square, is not
+    // worth uploading the header for (1 / 64 of a picture is 0.0156).
     constexpr float scrollStep = 0.002f;
 
     // A rotation as three columns of three, column-major (the same order as a vsg::mat4's first three columns).
