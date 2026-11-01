@@ -194,6 +194,7 @@ namespace
         sink = numbers;
         const std::size_t inside = window.stop();
         delete numbers;
+        EXPECT_NE(sink, nullptr); // reads the volatile, so it counts as used
         EXPECT_GE(inside, 2u); // the vector object and its elements
 
         std::vector<int>* outside = new std::vector<int>(32);

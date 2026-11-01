@@ -249,7 +249,9 @@ namespace
         opas::motor::BuildResult again = opas::motor::buildRagdoll(*mAdapter, mRig, mProfile, rootWorld());
         EXPECT_TRUE(again.ok()) << again.message;
         if (again.ok())
+        {
             EXPECT_TRUE(opas::motor::destroyRagdoll(*mAdapter, *again.ragdoll));
+        }
         EXPECT_EQ(mHost.numBodies(), bodiesBefore);
     }
 

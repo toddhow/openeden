@@ -491,7 +491,9 @@ namespace
             EXPECT_EQ(result.error, code);
             EXPECT_FALSE(result.id.isValid());
             if (field != nullptr)
+            {
                 EXPECT_TRUE(messageMentions(result.message, field)) << result.message;
+            }
             EXPECT_EQ(mHost.numConstraints(), constraintsBefore);
         };
         const ErrorCode invalid = ErrorCode::InvalidDescription;
