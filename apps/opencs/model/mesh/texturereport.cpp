@@ -59,8 +59,7 @@ namespace CSMMesh
         }
     }
 
-    std::optional<std::pair<std::uint32_t, std::uint32_t>> imageSizeFromHeader(
-        const std::vector<unsigned char>& b)
+    std::optional<std::pair<std::uint32_t, std::uint32_t>> imageSizeFromHeader(const std::vector<unsigned char>& b)
     {
         if (b.size() >= 4 && b[0] == 'D' && b[1] == 'D' && b[2] == 'S' && b[3] == ' ')
             return b.size() >= 20 ? sized(le32(b, 16), le32(b, 12)) : std::nullopt;

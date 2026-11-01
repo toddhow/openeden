@@ -110,8 +110,8 @@ namespace CSVRender
         const double aspect = height() > 0 ? static_cast<double>(width()) / height() : 1.0;
         const CSMMesh::FramePose pose = CSMMesh::frameCamera(mScene->bounds(), sFieldOfView, aspect, sViewDirection);
         const vsg::dvec3 centre(pose.centre[0], pose.centre[1], pose.centre[2]);
-        setCameraPose(vsg::dvec3(pose.eye[0], pose.eye[1], pose.eye[2]), centre,
-            vsg::dvec3(pose.up[0], pose.up[1], pose.up[2]));
+        setCameraPose(
+            vsg::dvec3(pose.eye[0], pose.eye[1], pose.eye[2]), centre, vsg::dvec3(pose.up[0], pose.up[1], pose.up[2]));
         if (mCurrentCamControl == mOrbitCamControl)
             mOrbitCamControl->setCenter(centre);
         flagAsModified();
@@ -153,9 +153,8 @@ namespace CSVRender
             return;
         if ((event->pos() - mPressPosition).manhattanLength() > sClickTolerance)
             return;
-        const auto hits = getHost()->pickAll(
-            static_cast<double>(event->pos().x()) / width(), static_cast<double>(event->pos().y()) / height(),
-            Mask_Reference);
+        const auto hits = getHost()->pickAll(static_cast<double>(event->pos().x()) / width(),
+            static_cast<double>(event->pos().y()) / height(), Mask_Reference);
         for (const auto& hit : hits)
             if (const auto* tag = dynamic_cast<const MeshNodeTag*>(hit.mTag.get()))
             {

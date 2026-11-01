@@ -14,6 +14,7 @@
 #include <exception>
 #include <sstream>
 
+#include <vsg/core/Visitor.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/nodes/Transform.h>
@@ -22,7 +23,6 @@
 #include <vsg/state/ArrayState.h>
 #include <vsg/state/GraphicsPipeline.h>
 #include <vsg/state/InputAssemblyState.h>
-#include <vsg/core/Visitor.h>
 
 #include <components/animation/controllermap.hpp>
 #include <components/debug/debuglog.hpp>
@@ -166,8 +166,8 @@ namespace CSVRender
         }
 
     private:
-        void enter(vsg::Node& node, const std::string& name, const char* type, const vsg::dmat4& world,
-            bool canHide = true)
+        void enter(
+            vsg::Node& node, const std::string& name, const char* type, const vsg::dmat4& world, bool canHide = true)
         {
             const CSMMesh::NodeId id = mScene.mTree.addNode(mNode.back(), name, type);
             if (mScene.mInfos.size() <= static_cast<std::size_t>(id))
@@ -179,8 +179,8 @@ namespace CSVRender
             auto& treeNode = mScene.mTree.mutableNode(id);
             treeNode.translation = { world[3][0], world[3][1], world[3][2] };
             for (int c = 0; c < 3; ++c)
-                treeNode.scale[c] = std::sqrt(world[c][0] * world[c][0] + world[c][1] * world[c][1]
-                    + world[c][2] * world[c][2]);
+                treeNode.scale[c]
+                    = std::sqrt(world[c][0] * world[c][0] + world[c][1] * world[c][1] + world[c][2] * world[c][2]);
             mMatrix.push_back(world);
             mNode.push_back(id);
             mGroup.push_back(dynamic_cast<vsg::Group*>(&node));
@@ -211,7 +211,8 @@ namespace CSVRender
             // skin (two), tangent, then UV sets.
             std::size_t next = 1;
             if (next < draw.arrays.size() && draw.arrays[next])
-                if (const vsg::vec3Array* normals = asVec3(*draw.arrays[next]); normals && normals->size() == positions->size())
+                if (const vsg::vec3Array* normals = asVec3(*draw.arrays[next]);
+                    normals && normals->size() == positions->size())
                 {
                     shape.mMesh.normals.reserve(normals->size());
                     for (const vsg::vec3& n : *normals)
@@ -255,7 +256,8 @@ namespace CSVRender
                 shape.mMesh.topology = CSMMesh::Topology::LineList;
 
             const std::size_t triangleCount = CSMMesh::triangles(shape.mMesh).size();
-            const std::string parentName = mNode.back() == CSMMesh::kNoNode ? std::string() : mScene.mTree.node(mNode.back()).name;
+            const std::string parentName
+                = mNode.back() == CSMMesh::kNoNode ? std::string() : mScene.mTree.node(mNode.back()).name;
             const CSMMesh::NodeId id = mScene.mTree.addNode(mNode.back(), parentName, "Geometry");
             if (mScene.mInfos.size() <= static_cast<std::size_t>(id))
                 mScene.mInfos.resize(id + 1);
@@ -264,9 +266,11 @@ namespace CSVRender
             treeNode.triangleCount = static_cast<std::uint32_t>(triangleCount);
             std::ostringstream flags;
             flags << (shape.mMesh.topology == CSMMesh::Topology::TriangleStrip ? "triangle strip"
-                                                                                : shape.mMesh.topology == CSMMesh::Topology::LineList ? "line list" : "triangle list")
+                    : shape.mMesh.topology == CSMMesh::Topology::LineList      ? "line list"
+                                                                               : "triangle list")
                   << (skinned ? ", skinned (other modes show it unskinned)" : "")
-                  << (shape.mMesh.normals.empty() ? "" : ", normals") << (shape.mMesh.colours.empty() ? "" : ", vertex colours");
+                  << (shape.mMesh.normals.empty() ? "" : ", normals")
+                  << (shape.mMesh.colours.empty() ? "" : ", vertex colours");
             treeNode.flags = flags.str();
             auto& info = mScene.mInfos[id];
             info.mNode = &group;
@@ -303,8 +307,9 @@ namespace CSVRender
         if (mOverlayRoot)
         {
             auto& children = mHost.contentRoot().children;
-            children.erase(std::remove_if(children.begin(), children.end(),
-                               [this](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mOverlayRoot.get(); }),
+            children.erase(
+                std::remove_if(children.begin(), children.end(),
+                    [this](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mOverlayRoot.get(); }),
                 children.end());
         }
         mHost.requestRedraw();
@@ -433,8 +438,8 @@ namespace CSVRender
             for (const JPH::TransformedShape& leaf : leaves.mHits)
             {
                 JPH::Shape::GetTrianglesContext context;
-                leaf.mShape->GetTrianglesStart(
-                    context, everything, JPH::Vec3(leaf.mShapePositionCOM), leaf.mShapeRotation, JPH::Vec3(leaf.mShapeScale));
+                leaf.mShape->GetTrianglesStart(context, everything, JPH::Vec3(leaf.mShapePositionCOM),
+                    leaf.mShapeRotation, JPH::Vec3(leaf.mShapeScale));
                 for (;;)
                 {
                     const int count = leaf.mShape->GetTrianglesNext(context, sBatch, vertices.data());
@@ -490,8 +495,8 @@ namespace CSVRender
     CSMMesh::TextureReport MeshScene::textureReport() const
     {
         const VFS::Manager* vfs = mHost.resources().getVFS();
-        return CSMMesh::buildTextureReport(mTextureNames,
-            [vfs](const std::string& name) -> std::optional<std::pair<std::uint32_t, std::uint32_t>> {
+        return CSMMesh::buildTextureReport(
+            mTextureNames, [vfs](const std::string& name) -> std::optional<std::pair<std::uint32_t, std::uint32_t>> {
                 const VFS::Path::NormalizedView top[] = { VFS::Path::NormalizedView("textures") };
                 const VFS::Path::Normalized corrected = Misc::ResourceHelpers::correctResourcePath(
                     top, VFS::Path::Normalized(name), *vfs, VFS::Path::ExtensionView("dds"));
@@ -601,7 +606,7 @@ namespace CSVRender
                 std::array<float, 4> colour;
                 if (mState.mode == CSMMesh::ViewMode::Flat)
                     colour = CSMMesh::flatShadeColour(CSMMesh::faceNormal(shape.mMesh.positions[t[0]],
-                                                           shape.mMesh.positions[t[1]], shape.mMesh.positions[t[2]]),
+                                                          shape.mMesh.positions[t[1]], shape.mMesh.positions[t[2]]),
                         sFlatLightDirection);
                 else
                 {
@@ -656,7 +661,8 @@ namespace CSVRender
         mOverlay->begin();
         auto add = [this](const std::vector<CSMMesh::Line>& lines) {
             for (const CSMMesh::Line& line : lines)
-                mOverlay->addLine(vsg::vec3(line.a[0], line.a[1], line.a[2]), vsg::vec3(line.b[0], line.b[1], line.b[2]),
+                mOverlay->addLine(vsg::vec3(line.a[0], line.a[1], line.a[2]),
+                    vsg::vec3(line.b[0], line.b[1], line.b[2]),
                     vsg::vec4(line.colour[0], line.colour[1], line.colour[2], line.colour[3]));
         };
 
@@ -718,10 +724,10 @@ namespace CSVRender
         const CSMMesh::MeshNode& n = mTree.node(node);
         const auto totals = mTree.subtreeTotals(node);
         std::ostringstream out;
-        out << "Name: " << (n.name.empty() ? "<unnamed>" : n.name) << "\nType: " << n.type << "\nPath: " << mTree.path(node)
-            << "\nVisible: " << (mTree.isEffectivelyVisible(node) ? "yes" : "no") << "\nTranslation (world): "
-            << n.translation[0] << ", " << n.translation[1] << ", " << n.translation[2] << "\nScale (world): "
-            << n.scale[0] << ", " << n.scale[1] << ", " << n.scale[2];
+        out << "Name: " << (n.name.empty() ? "<unnamed>" : n.name) << "\nType: " << n.type
+            << "\nPath: " << mTree.path(node) << "\nVisible: " << (mTree.isEffectivelyVisible(node) ? "yes" : "no")
+            << "\nTranslation (world): " << n.translation[0] << ", " << n.translation[1] << ", " << n.translation[2]
+            << "\nScale (world): " << n.scale[0] << ", " << n.scale[1] << ", " << n.scale[2];
         if (!n.flags.empty())
             out << "\nFlags: " << n.flags;
         out << "\nThis node: " << n.vertexCount << " vertices, " << n.triangleCount << " triangles"
@@ -790,8 +796,8 @@ namespace CSVRender
     {
         if (!mObject || !mObject->animation)
             return;
-        mObject->animation->play(group, MWAnim::Play::Priority(1), 1, false, 1.f, "start", "stop", startPoint,
-            0xFFFFFFFFu, true);
+        mObject->animation->play(
+            group, MWAnim::Play::Priority(1), 1, false, 1.f, "start", "stop", startPoint, 0xFFFFFFFFu, true);
         mCurrentGroup = group;
         mObject->animation->runAnimation(0.f);
         mHost.requestRedraw();

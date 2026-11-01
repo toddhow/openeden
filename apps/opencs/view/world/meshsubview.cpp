@@ -41,8 +41,9 @@ namespace CSVWorld
         mMode = new QComboBox(this);
         for (const char* name : { "Textured", "Wireframe", "Flat", "Vertex colours", "Normals" })
             mMode->addItem(tr(name));
-        mMode->setToolTip(tr("How the model is drawn. Everything but Textured is drawn from the model's geometry, "
-                             "not with the game's materials."));
+        mMode->setToolTip(
+            tr("How the model is drawn. Everything but Textured is drawn from the model's geometry, "
+               "not with the game's materials."));
         mLighting = new QComboBox(this);
         for (const char* name : { "Headlight", "Sun", "Flat" })
             mLighting->addItem(tr(name));
@@ -217,7 +218,7 @@ namespace CSVWorld
     {
         const CSVRender::MeshScene* scene = mView->scene();
         const auto totals = scene->tree().size() > 0 ? scene->tree().subtreeTotals(scene->tree().roots().front())
-                                                       : CSMMesh::MeshTree::Totals{};
+                                                     : CSMMesh::MeshTree::Totals{};
         mStatus->setText(tr("%1: %2 nodes, %3 vertices, %4 triangles")
                              .arg(QString::fromStdString(scene->path()))
                              .arg(totals.nodes)
@@ -267,8 +268,8 @@ namespace CSVWorld
         {
             QTreeWidgetItem* item = new QTreeWidgetItem(mTextures);
             item->setText(0, QString::fromStdString(entry.name));
-            item->setText(1, entry.found && entry.width > 0 ? QString("%1 x %2").arg(entry.width).arg(entry.height)
-                                                            : QString());
+            item->setText(
+                1, entry.found && entry.width > 0 ? QString("%1 x %2").arg(entry.width).arg(entry.height) : QString());
             item->setText(2, entry.found ? tr("yes") : tr("MISSING"));
             if (!entry.found)
                 item->setForeground(2, QBrush(QColor(0xe0, 0x50, 0x50)));
@@ -379,8 +380,8 @@ namespace CSVWorld
         CSVRender::MeshScene* scene = mView->scene();
         if (!scene)
             return;
-        const QString file = QFileDialog::getOpenFileName(this, tr("Animation file in a data folder"), QString(),
-            tr("Animations (*.kf *.nif *.dae)"));
+        const QString file = QFileDialog::getOpenFileName(
+            this, tr("Animation file in a data folder"), QString(), tr("Animations (*.kf *.nif *.dae)"));
         if (file.isEmpty())
             return;
         const int at = file.toLower().lastIndexOf("/meshes/");
