@@ -881,7 +881,8 @@ namespace vsgAdapters
                 const auto height = vsgUtil::readOptionalImage(maps.heightMap, mImageOptions);
                 const bool usable = height && Render::Parallax::usableHeightFormat(height->properties.format);
                 if (!usable)
-                    warnHeightMapOnce(maps.heightMap, height ? "is not a one-channel or plain colour image" : "cannot be read");
+                    warnHeightMapOnce(
+                        maps.heightMap, height ? "is not a one-channel or plain colour image" : "cannot be read");
                 if (usable && addMap(maps.heightMap, Pipeline::Descriptors::HEIGHT_UNIT, height))
                 {
                     nodeOptions.shader.addMode(Pipeline::Mode::HEIGHT_MAP);
