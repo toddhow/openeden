@@ -55,7 +55,8 @@ namespace Pipeline
         // added by Pipeline::Graphics.
         PBR,
         PBR_PHYSICAL,
-        // OpenEden (task 0027, tier 3): the model's texture has a packed material map (occlusion, roughness, metalness).
+        // OpenEden (task 0027, tier 3): the model's texture has a packed material map (occlusion, roughness,
+        // metalness).
         MATERIAL_MAP
     };
 

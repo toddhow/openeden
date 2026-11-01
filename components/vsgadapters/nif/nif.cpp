@@ -819,7 +819,8 @@ namespace vsgAdapters
         void handleAutoMaps(const Nif::NiTexturingProperty& texprop, vsg::Descriptors& textures)
         {
             if (!mAutoMaps || !mTextureExists || !*mTextureExists
-                || (!mAutoMaps->autoUseNormalMaps && !mAutoMaps->autoUseSpecularMaps && !mAutoMaps->autoUseMaterialMaps))
+                || (!mAutoMaps->autoUseNormalMaps && !mAutoMaps->autoUseSpecularMaps
+                    && !mAutoMaps->autoUseMaterialMaps))
                 return;
             const std::string diffusePath = resolveTexturePath(texprop, Nif::NiTexturingProperty::BaseTexture);
             if (diffusePath.empty())

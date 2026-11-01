@@ -323,8 +323,9 @@ namespace
         OverrideError error;
         EXPECT_FALSE(parseOverrides("[]", "bad.json", error).has_value());
         EXPECT_EQ(error.file, "bad.json");
-        EXPECT_FALSE(parseOverrides(R"({"format":"openeden.material","version":4294967297,"materials":[]})", "bad.json",
-            error).has_value());
+        EXPECT_FALSE(
+            parseOverrides(R"({"format":"openeden.material","version":4294967297,"materials":[]})", "bad.json", error)
+                .has_value());
         EXPECT_NE(error.field.find("version"), std::string::npos);
         EXPECT_FALSE(parseOverrides(R"({"format":"openeden.material","version":1.5,"materials":[]})", "bad.json", error)
                          .has_value());

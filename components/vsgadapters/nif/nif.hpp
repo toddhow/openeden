@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_VSGADAPTERS_NIF_NIF_H
 #define VSGOPENMW_VSGADAPTERS_NIF_NIF_H
 
-#include <memory>
 #include <functional>
+#include <memory>
 #include <string_view>
 
 #include <vsg/io/ReaderWriter.h>
