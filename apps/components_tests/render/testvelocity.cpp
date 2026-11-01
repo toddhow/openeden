@@ -49,8 +49,8 @@ namespace
         const vsg::vec2 prevUv(prevClip.x / prevClip.w * 0.5f + 0.5f, prevClip.y / prevClip.w * 0.5f + 0.5f);
         const vsg::vec2 shaderVelocity(uv.x - prevUv.x, uv.y - prevUv.y);
 
-        const vsg::vec2 twin = GBuffer::reprojectVelocity(uv, depth, vsg::mat4(proj), vsg::mat4(vsg::inverse(view)),
-            vsg::mat4(prevView), vsg::mat4(proj));
+        const vsg::vec2 twin = GBuffer::reprojectVelocity(
+            uv, depth, vsg::mat4(proj), vsg::mat4(vsg::inverse(view)), vsg::mat4(prevView), vsg::mat4(proj));
         EXPECT_NEAR(shaderVelocity.x, twin.x, 1e-5);
         EXPECT_NEAR(shaderVelocity.y, twin.y, 1e-5);
     }

@@ -77,8 +77,8 @@ namespace Render
         /// w bloom strength. Public for the unit tests.
         static vsg::vec4 pushConstants(const Parameters& parameters);
 
-        /// The debug view's second push constant: x the mode (0 none, 1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface), y the depth
-        /// range, z the velocity scale, w 0. Public for the unit tests.
+        /// The debug view's second push constant: x the mode (0 none, 1 normals, 2 depth, 3 velocity, 4 roughness, 5
+        /// material, 6 subsurface), y the depth range, z the velocity scale, w 0. Public for the unit tests.
         static vsg::vec4 debugPushConstants(GBuffer::DebugView view, float depthRange, float velocityScale);
 
     private:

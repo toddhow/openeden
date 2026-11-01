@@ -177,16 +177,17 @@ namespace
 
     TEST(RenderMaterialOverridesTest, error_line_points_at_the_offending_key)
     {
-        const std::string text = "{\n"
-                                 "  \"format\": \"openeden.material\",\n"
-                                 "  \"version\": 1,\n"
-                                 "  \"materials\": [\n"
-                                 "    {\n"
-                                 "      \"match\": { \"texture\": \"a\" },\n"
-                                 "      \"roughness\": 7\n"
-                                 "    }\n"
-                                 "  ]\n"
-                                 "}\n";
+        const std::string text
+            = "{\n"
+              "  \"format\": \"openeden.material\",\n"
+              "  \"version\": 1,\n"
+              "  \"materials\": [\n"
+              "    {\n"
+              "      \"match\": { \"texture\": \"a\" },\n"
+              "      \"roughness\": 7\n"
+              "    }\n"
+              "  ]\n"
+              "}\n";
         expectError(text, "roughness", 7);
     }
 
@@ -315,5 +316,36 @@ namespace
         writer.join();
         reader.join();
         EXPECT_TRUE(table.resolve("meshes/part3.nif", "t", Surface{}).subsurface);
+    }
+
+    TEST(RenderMaterialOverridesTest, odd_top_levels_and_versions_are_errors_not_crashes)
+    {
+        OverrideError error;
+        EXPECT_FALSE(parseOverrides("[]", "bad.json", error).has_value());
+        EXPECT_EQ(error.file, "bad.json");
+        EXPECT_FALSE(parseOverrides(R"({"format":"openeden.material","version":4294967297,"materials":[]})", "bad.json",
+            error).has_value());
+        EXPECT_NE(error.field.find("version"), std::string::npos);
+        EXPECT_FALSE(parseOverrides(R"({"format":"openeden.material","version":1.5,"materials":[]})", "bad.json", error)
+                         .has_value());
+        EXPECT_FALSE(parseOverrides(R"({"format":"openeden.material","version":1,"materials":[3]})", "bad.json", error)
+                         .has_value());
+        EXPECT_FALSE(parseOverrides(R"({"format":5,"version":1,"materials":[]})", "bad.json", error).has_value());
+    }
+
+    TEST(RenderMaterialOverridesTest, resolveValues_leaves_unset_values_unset_and_strips_folders)
+    {
+        OverrideSet set;
+        auto e = entry(OverrideEntry::Kind::Texture, "textures/a.dds");
+        e.values.metalness = 0.5;
+        set.entries.push_back(e);
+        OverrideTable table;
+        table.add(set);
+        const auto values = table.resolveValues("meshes/x.nif", "a.dds"); // the folder is optional on both sides
+        EXPECT_FALSE(values.roughness.has_value());
+        EXPECT_FALSE(values.subsurface.has_value());
+        ASSERT_TRUE(values.metalness.has_value());
+        EXPECT_DOUBLE_EQ(*values.metalness, 0.5);
+        EXPECT_FALSE(table.resolveValues("x.nif", "b.dds").metalness.has_value());
     }
 }

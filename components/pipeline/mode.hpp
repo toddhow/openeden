@@ -54,7 +54,9 @@ namespace Pipeline
         // OpenEden (task 0027): physically based lighting, and its physical look (the vanilla look is PBR alone);
         // added by Pipeline::Graphics.
         PBR,
-        PBR_PHYSICAL
+        PBR_PHYSICAL,
+        // OpenEden (task 0027, tier 3): the model's texture has a packed material map (occlusion, roughness, metalness).
+        MATERIAL_MAP
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
@@ -63,7 +65,8 @@ namespace Pipeline
     const std::vector<Mode> fragmentModes{ Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE /*_TEXCOORD*/,
         Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
-        Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION };
+        Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION,
+        Mode::MATERIAL_MAP };
 
     using Modes = std::vector<bool>;
 

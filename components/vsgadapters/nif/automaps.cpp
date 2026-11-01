@@ -44,6 +44,13 @@ namespace vsgAdapters
             if (!specularMap.empty() && exists(specularMap))
                 maps.specularMap = std::move(specularMap);
         }
+
+        if (settings.autoUseMaterialMaps)
+        {
+            std::string materialMap = autoMapPath(diffusePath, settings.materialMapPattern);
+            if (!materialMap.empty() && exists(materialMap))
+                maps.materialMap = std::move(materialMap);
+        }
         return maps;
     }
 

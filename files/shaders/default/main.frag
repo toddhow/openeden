@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -207,6 +207,9 @@ void main()
    #else
     PbrSurface pbrLit = pbrSurfaceFrom(vec4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
    #endif
+   #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
+    pbrLit = pbrApplyMap(pbrLit, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
+   #endif
     vec3 pbrBase = outColor.xyz;
     vec3 pbrF0 = pbrSpecularF0(pbrBase, pbrLit.metalness, pbrLit.reflectance);
     pbrPointLights(viewPosToScreenCoord(frag_in.viewPos, scene.projection), viewNormal, frag_in.viewPos,
@@ -329,6 +332,9 @@ void main()
     PbrSurface pbrOut = pbrSurfaceFrom(material.pbr, material.subsurface, pbrShininess, pbrSpecular);
   #else
     PbrSurface pbrOut = pbrSurfaceFrom(vec4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
+  #endif
+  #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
+    pbrOut = pbrApplyMap(pbrOut, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
   #endif
     outNormal.w = pbrOut.roughness;
     outMaterial = vec4(pbrOut.metalness, pbrOut.reflectance, pbrOut.occlusion, pbrOut.subsurface);

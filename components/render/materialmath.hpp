@@ -96,9 +96,8 @@ namespace Render::Pbr
 
     inline Surface clampSurface(Surface s)
     {
-        const auto fix = [](float v, float lo, float fallback) {
-            return std::isnan(v) ? fallback : std::clamp(v, lo, 1.f);
-        };
+        const auto fix
+            = [](float v, float lo, float fallback) { return std::isnan(v) ? fallback : std::clamp(v, lo, 1.f); };
         s.roughness = fix(s.roughness, minRoughness, defaultRoughness);
         s.metalness = fix(s.metalness, 0.f, 0.f);
         s.reflectance = fix(s.reflectance, 0.f, defaultReflectance);

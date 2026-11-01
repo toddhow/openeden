@@ -51,10 +51,24 @@ PbrSurface pbrSurfaceFrom(vec4 pbr, float subsurface, float specularShininess, v
     return s;
 }
 
+// Tier 3: a packed map (R occlusion, G roughness, B metalness) fills the values the material descriptor left at their
+// "not set" markers (roughness below zero, metalness 0, occlusion 1); a tier 2 value wins.
+PbrSurface pbrApplyMap(PbrSurface s, vec4 pbr, vec3 packedMap)
+{
+    if (pbr.x < 0.0)
+        s.roughness = clamp(packedMap.g, pbrMinRoughness, 1.0);
+    if (pbr.y <= 0.0)
+        s.metalness = clamp(packedMap.b, 0.0, 1.0);
+    if (pbr.w >= 1.0)
+        s.occlusion = clamp(packedMap.r, 0.0, 1.0);
+    return s;
+}
+
 // OpenEden's lights were never physical: the engine's diffuse is albedo * light * N.L without the 1 / pi, so the
 // specular lobe is scaled by pi to sit beside it (the two then carry the energy a physical renderer would give light of
 // the same colour).
 const float pbrLightScale = pbrPi;
+const float pbrMaxLobe = 256.0;
 
 // GGX distribution, Smith height-correlated visibility and Schlick Fresnel (Render::Pbr's twins).
 float pbrDistribution(float NoH, float roughness)
@@ -93,11 +107,15 @@ vec3 pbrSpecularLobe(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness, 
         return vec3(0.0);
     vec3 toEye = -viewDir;
     float NoV = max(dot(normal, toEye), 1e-3);
-    vec3 halfVec = normalize(lightDir + toEye);
+    vec3 halfSum = lightDir + toEye;
+    vec3 halfVec = halfSum / max(length(halfSum), 1e-4);
     float NoH = clamp(dot(normal, halfVec), 0.0, 1.0);
     float VoH = clamp(dot(toEye, halfVec), 0.0, 1.0);
-    return pbrDistribution(NoH, roughness) * pbrVisibility(NoV, NoL, roughness) * pbrFresnel(VoH, f0) * NoL
+    vec3 lobe = pbrDistribution(NoH, roughness) * pbrVisibility(NoV, NoL, roughness) * pbrFresnel(VoH, f0) * NoL
         * pbrLightScale;
+    // The peak of a near-mirror lobe is far above what the 16-bit float target holds (65504); an infinity would spread
+    // through the bloom as NaN. 256 is far brighter than any sun-lit surface of Morrowind's lights.
+    return min(lobe, vec3(pbrMaxLobe));
 }
 
 #endif

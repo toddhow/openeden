@@ -24,6 +24,7 @@
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/fx/technique.hpp>
+#include <components/misc/pathhelpers.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/color.hpp>
 #include <components/mwanimation/object.hpp>
@@ -39,14 +40,12 @@
 #include <components/render/hdrtarget.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
-#include <components/vsgadapters/nif/nif.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/paging.hpp>
-#include <components/misc/pathhelpers.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
 #include <components/view/barriers.hpp>
@@ -55,6 +54,7 @@
 #include <components/view/descriptors.hpp>
 #include <components/view/lightgrid.hpp>
 #include <components/view/scene.hpp>
+#include <components/vsgadapters/nif/nif.hpp>
 #include <components/vsgutil/bounds.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/compileop.hpp>
@@ -277,15 +277,17 @@ namespace MWRender
             {
                 const auto look = Render::Pbr::parseLook(Settings::rendering().mPbrLook.get());
                 if (!look)
-                    Log(Debug::Warning) << "[Rendering] pbr look: unknown look '" << Settings::rendering().mPbrLook.get()
-                                        << "', using vanilla";
+                    Log(Debug::Warning) << "[Rendering] pbr look: unknown look '"
+                                        << Settings::rendering().mPbrLook.get() << "', using vanilla";
                 resourceSystem->builder->graphics->pbrLook
                     = look.value_or(Render::Pbr::Look::Vanilla) == Render::Pbr::Look::Physical ? 2 : 1;
                 // The overrides and skin marks; the loaders look them up (tier 2, task 0027). Before any model loads.
                 resourceSystem->materialTable = std::make_shared<Render::Pbr::OverrideTable>();
-                resourceSystem->nifReader->materialTable = resourceSystem->materialTable.get();
+                resourceSystem->nifReader->materialTable = resourceSystem->materialTable;
+                resourceSystem->nifReader->autoMaps.autoUseMaterialMaps = Settings::rendering().mPbrMaterialMaps;
                 loadMaterialFiles(*resourceSystem->getVFS(), *resourceSystem->materialTable);
-                Log(Debug::Info) << "PBR: the material model is on" << (materialOutput ? ", stored in the G-buffer" : "");
+                Log(Debug::Info) << "PBR: the material model is on"
+                                 << (materialOutput ? ", stored in the G-buffer" : "");
             }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";

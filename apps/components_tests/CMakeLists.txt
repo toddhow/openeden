@@ -87,6 +87,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgadapters/testdaeanimation.cpp
     vsgadapters/testnifreader.cpp
     vsgadapters/testautomaps.cpp
+    vsgadapters/testmaterialmaps.cpp
     vsgadapters/testinternaltexture.cpp
     vsgadapters/testtangents.cpp
     vsgadapters/testparticleemission.cpp

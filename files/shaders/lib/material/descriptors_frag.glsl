@@ -30,6 +30,10 @@ layout(set=TEXTURE_SET, binding=NORMAL_UNIT) uniform sampler2D normalMap;
 layout(set=TEXTURE_SET, binding=SPECULAR_UNIT) uniform sampler2D specularMap;
 #endif
 
+#ifdef MATERIAL_MAP
+layout(set=TEXTURE_SET, binding=MATERIAL_MAP_UNIT) uniform sampler2D materialMap;
+#endif
+
 #ifdef MATERIAL
 layout(std140, set=TEXTURE_SET, binding=MATERIAL_BINDING) uniform MaterialData {
     Material material;

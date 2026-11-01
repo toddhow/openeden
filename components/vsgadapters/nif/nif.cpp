@@ -20,7 +20,6 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/animation/billboard.hpp>
-#include <components/render/materialoverrides.hpp>
 #include <components/animation/bones.hpp>
 #include <components/animation/color.hpp>
 #include <components/animation/cullparticles.hpp>
@@ -49,6 +48,7 @@
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/particle.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/materialoverrides.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/cullnode.hpp>
 #include <components/vsgutil/distancelod.hpp>
@@ -819,7 +819,7 @@ namespace vsgAdapters
         void handleAutoMaps(const Nif::NiTexturingProperty& texprop, vsg::Descriptors& textures)
         {
             if (!mAutoMaps || !mTextureExists || !*mTextureExists
-                || (!mAutoMaps->autoUseNormalMaps && !mAutoMaps->autoUseSpecularMaps))
+                || (!mAutoMaps->autoUseNormalMaps && !mAutoMaps->autoUseSpecularMaps && !mAutoMaps->autoUseMaterialMaps))
                 return;
             const std::string diffusePath = resolveTexturePath(texprop, Nif::NiTexturingProperty::BaseTexture);
             if (diffusePath.empty())
@@ -856,6 +856,11 @@ namespace vsgAdapters
                 if (addMap(maps.specularMap, Pipeline::Descriptors::SPECULAR_UNIT))
                     nodeOptions.shader.addMode(Pipeline::Mode::SPECULAR_MAP);
             }
+            if (!maps.materialMap.empty())
+            {
+                if (addMap(maps.materialMap, Pipeline::Descriptors::MATERIAL_MAP_UNIT))
+                    nodeOptions.shader.addMode(Pipeline::Mode::MATERIAL_MAP);
+            }
         }
 
         static void removeAutoMapModes(Pipeline::ShaderOptions& shader)
@@ -864,6 +869,7 @@ namespace vsgAdapters
             shader.removeMode(Pipeline::Mode::PARALLAX);
             shader.removeMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
             shader.removeMode(Pipeline::Mode::SPECULAR_MAP);
+            shader.removeMode(Pipeline::Mode::MATERIAL_MAP);
         }
 
         void handleTextureProperty(const Nif::NiTexturingProperty& texprop)
@@ -1590,7 +1596,7 @@ namespace vsgAdapters
         {
             nifImpl impl(stream, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder);
             impl.mAutoMaps = &autoMaps;
-            impl.mMaterialTable = materialTable;
+            impl.mMaterialTable = materialTable.get();
             impl.mTextureExists = &textureExists;
             impl.mSoftParticles = softParticles;
             impl.mOccludedParticleModel = &occludedParticleModel;

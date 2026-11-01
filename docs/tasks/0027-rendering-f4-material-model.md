@@ -84,11 +84,11 @@ Header `components/render/materialoverrides.hpp`, namespace `Render::Pbr`: `Over
 
 ## Acceptance criteria
 - [ ] `pbr = false`: frames of the default path and of the HDR path (with and without `gbuffer`) equal the commit before this task by `diffmap` to within run-to-run noise (Seyda Neen, ToddTest, Caldera Mages Guild, night, water, an NPC, the menu); no define, descriptor, output or table exists.
-- [ ] F4a: `gbuffer debug view = roughness` and `material` show the derived values (uniform roughness on stock surfaces, the terrain's 0.95, a different value where a specular map gives one, skin flagged on an NPC in `subsurface`); the scene itself is unchanged by the outputs; the preview and map still draw.
+- [x] F4a: `gbuffer debug view = roughness` and `material` show the derived values (uniform roughness on stock surfaces, the terrain's 0.95, a different value where a specular map gives one, skin flagged on an NPC in `subsurface`); the scene itself is unchanged by the outputs; the preview and map still draw.
 - [ ] F4b: with `pbr`, both looks draw an exterior, an interior with torches, night and an NPC without artefacts (no NaN speckle, no black surfaces); `vanilla` stays close to the vanilla picture on stock surfaces; a surface with a specular map shows a microfacet highlight; the sun and shadows still apply; viewed by eye and judged by toddhow.
-- [ ] F4c: a test material file changes a chosen texture's roughness and metalness in the debug view and the lit picture; a malformed file is skipped with a located log line; `write(parse(x)) == x` for the canonical sample.
-- [ ] F4d: with `pbr material maps` and a generated `_orm` file next to a diffuse texture, the debug view shows its values; without the setting nothing is read.
-- [ ] Cost: `docs/research/0010-material-model-cost.md` has `hdr`, `hdr + gbuffer`, `hdr + gbuffer + pbr` (both looks) GPU times of the main pass over the heavy scenes.
+- [x] F4c: a test material file changes a chosen texture's roughness and metalness in the debug view and the lit picture; a malformed file is skipped with a located log line; `write(parse(x)) == x` for the canonical sample.
+- [x] F4d: with `pbr material maps` and a generated `_orm` file next to a diffuse texture, the debug view shows its values; without the setting nothing is read.
+- [x] Cost: `docs/research/0010-material-model-cost.md` has `hdr`, `hdr + gbuffer`, `hdr + gbuffer + pbr` (both looks) GPU times of the main pass over the heavy scenes.
 - [ ] Unit tests for the pure parts pass; the Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; `eden-studio-tests` pass and the editor builds; a fresh reviewer read each stage.
 Out of scope: ambient occlusion, reflections and GI themselves; subsurface scattering beyond the flag; per-layer terrain materials; materials for COLLADA models (`dae.cpp` keeps the defaults); the editor's rendering; changing the default look; any Lua API.
 
@@ -118,3 +118,20 @@ These three were written together because the shader changes overlap in `main.fr
 - One game start in the series hung once in the audio device listing (a repeat of the same run worked); not related to this work as far as seen.
 
 **Not verified.** The Linux gate and clang-format (below), the editor build and `eden-studio-tests` (the editor was running, so `eden-studio.exe` and `compat_morrowind.dll` could not be relinked), a window resize with `pbr`, antialiasing 4 with `pbr`.
+
+### 2026-11-01, review of F4a to c, and stage F4d
+
+**Reviewer (a fresh agent that did not write the code) found, and what was done.**
+- *Risk, fixed:* at roughness 0.045 the specular peak can exceed what the 16-bit float target holds, and an infinity would spread through the bloom. `pbrSpecularLobe` now clamps the lobe to 256 (`pbrMaxLobe`) and guards the half vector's length.
+- *Risk, fixed:* `vsgAdapters::nif::materialTable` was a raw pointer to a table whose owner is destroyed first; it is now a `std::shared_ptr`.
+- *Minor bug, fixed:* a `version` such as 4294967297 narrowed to 1 and was accepted; it is read as a 64-bit number now (a new test).
+- *Risk, not fixed, stated:* a model is loaded and cached once, so a skin mark added after its first load (for example by a preloader that loaded the part file earlier, without the mark) is not seen. In the frames checked the head and hands were marked, but the order is not guaranteed. A fix needs either marking at cell-preload time or a material that the mark can change later; left for a decision.
+- Error line numbers come from text searches, so they are approximate when a path itself contains `"match"`; the texture key is compared with the resolved path of the NIF (`.dds`), so a mod writing `.tga` will not match. Both are now written down here and not changed.
+- Nit: `pbr material maps` was documented before it worked; it works from this stage.
+- Added tests: odd top levels and versions are errors, `resolveValues` leaves unset values unset and ignores the folder prefix.
+
+**F4d, in plain language.** With `pbr material maps = true` the model loader also looks for `<diffuse name>_orm` next to each diffuse texture (the same search as `_n` and `_spec`), binds it as a new texture unit (16) and adds the define `MATERIAL_MAP`. The shader fills roughness (green), metalness (blue) and occlusion (red) from it only where the material descriptor does not set them (so a tier 2 file wins). The suffix is `Render::Pbr::materialMapSuffix`.
+
+**Verified.** Generated 3816 flat `_orm` files (roughness 0.2, no metal, occlusion 1) in a data folder: the roughness debug view showed every object at 0.2 and the terrain still at 0.95 (`scratchpad/pbr/d_orm_roughness.png`), and the lit frame drew normally (`d_orm_none.png`). Without the setting the files are not looked for (`nothing_is_read_with_the_setting_off`). `components-tests` 2532, `openmw-tests` 799.
+
+**Cost.** `docs/research/0010-material-model-cost.md`: the main pass moved within the noise of this method; wall-clock frame time unchanged (CPU-bound scene).

@@ -16,5 +16,7 @@ const int NORMAL_UNIT=13;
 const int SPECULAR_UNIT=14;
 // OpenEden: weather particle occlusion (task 0012, V4l).
 const int OCCLUSION_UNIT=15;
+// OpenEden: the packed material map of the material model (task 0027, tier 3).
+const int MATERIAL_MAP_UNIT=16;
 
 const int START_UVSET_CONSTANTS=4;

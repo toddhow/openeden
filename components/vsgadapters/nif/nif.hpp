@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_VSGADAPTERS_NIF_NIF_H
 #define VSGOPENMW_VSGADAPTERS_NIF_NIF_H
 
+#include <memory>
 #include <functional>
 #include <string_view>
 
@@ -58,7 +59,7 @@ namespace vsgAdapters
         std::function<bool(std::string_view)> textureExists;
         // openeden (task 0027, tier 2): material overrides keyed by model and diffuse texture, owned by the renderer;
         // null (the default) means none and no path is looked up.
-        const Render::Pbr::OverrideTable* materialTable = nullptr;
+        std::shared_ptr<const Render::Pbr::OverrideTable> materialTable;
         // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
         bool softParticles = false;
         /// OpenEden: the normalized path of the one model whose particles weather occlusion discards under a roof,

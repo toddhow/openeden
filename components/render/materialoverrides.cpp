@@ -115,7 +115,7 @@ namespace Render::Pbr
         if (!root.contains("format") || !root["format"].is_string() || root["format"] != formatName)
             return fail(keyLine(json, "format", 0), "format", std::string("must be \"") + formatName + "\"");
         if (!root.contains("version") || !root["version"].is_number_integer()
-            || root["version"].get<int>() != formatVersion)
+            || root["version"].get<long long>() != formatVersion)
             return fail(keyLine(json, "version", 0), "version", "must be 1");
         if (!root.contains("materials") || !root["materials"].is_array())
             return fail(keyLine(json, "materials", 0), "materials", "must be an array");
@@ -140,12 +140,11 @@ namespace Render::Pbr
             const bool hasTexture = match->contains("texture");
             const bool hasModel = match->contains("model");
             if (hasTexture == hasModel || match->size() != 1)
-                return fail(keyLine(json, "match", from), prefix + ".match",
-                    "must have exactly one of texture or model");
+                return fail(
+                    keyLine(json, "match", from), prefix + ".match", "must have exactly one of texture or model");
             const char* matchKey = hasTexture ? "texture" : "model";
             if (!(*match)[matchKey].is_string() || (*match)[matchKey].get<std::string>().empty())
-                return fail(keyLine(json, matchKey, from), prefix + ".match." + matchKey,
-                    "must be a non-empty path");
+                return fail(keyLine(json, matchKey, from), prefix + ".match." + matchKey, "must be a non-empty path");
             entry.kind = hasTexture ? OverrideEntry::Kind::Texture : OverrideEntry::Kind::Model;
             entry.path = (*match)[matchKey].get<std::string>();
 

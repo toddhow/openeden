@@ -7,6 +7,8 @@
 
 #include <vsg/vk/vulkan.h>
 
+#include <components/render/materialmath.hpp>
+
 namespace vsgAdapters
 {
     /// The `[Shaders]` settings that find normal and specular maps next to a model's diffuse texture.
@@ -17,6 +19,9 @@ namespace vsgAdapters
         std::string normalMapPattern = "_n";
         std::string normalHeightMapPattern = "_nh";
         std::string specularMapPattern = "_spec";
+        // OpenEden (task 0027, tier 3): a packed occlusion, roughness, metalness file; off unless `pbr material maps`.
+        bool autoUseMaterialMaps = false;
+        std::string materialMapPattern = std::string(Render::Pbr::materialMapSuffix);
     };
 
     struct AutoMaps
@@ -25,6 +30,7 @@ namespace vsgAdapters
         // The normal map's alpha holds height, for parallax.
         bool normalHeight = false;
         std::string specularMap;
+        std::string materialMap;
     };
 
     /// The diffuse path with its last "." replaced by pattern + "." (Misc::StringUtils::replaceLast, as OpenMW's

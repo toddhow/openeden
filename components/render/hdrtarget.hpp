@@ -61,7 +61,8 @@ namespace Render
         std::size_t outputCount() const { return mResolvedColor.size(); }
 
         // Task 0026 (F3): the G-buffer outputs by name, null when the target was made without them. Output 1 is the
-        // view-space normal, 2 the linear depth, 3 the skinned actors' motion, 4 the material (Render::GBuffer::extraColorFormats).
+        // view-space normal, 2 the linear depth, 3 the skinned actors' motion, 4 the material
+        // (Render::GBuffer::extraColorFormats).
         vsg::ref_ptr<vsg::ImageView> normalView() const { return outputOrNull(1); }
         vsg::ref_ptr<vsg::ImageView> linearDepthView() const { return outputOrNull(2); }
         vsg::ref_ptr<vsg::ImageView> objectMotionView() const { return outputOrNull(3); }
