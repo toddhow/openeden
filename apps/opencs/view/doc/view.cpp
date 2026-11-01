@@ -17,6 +17,7 @@
 #include "../../model/doc/document.hpp"
 #include "../../model/doc/state.hpp"
 
+#include "../../model/extension/editorextensionhost.hpp"
 #include "../../model/prefs/layoutstore.hpp"
 #include "../../model/prefs/shortcut.hpp"
 #include "../../model/prefs/state.hpp"
@@ -47,6 +48,7 @@
 
 #include "assetbrowser.hpp"
 #include "contextinspector.hpp"
+#include "extensionmanager.hpp"
 #include "globaldebugprofilemenu.hpp"
 #include "operations.hpp"
 #include "outputlogpanel.hpp"
@@ -366,6 +368,43 @@ void CSVDoc::View::setupDebugMenu()
     connect(runLog, &QAction::triggered, this, &View::addRunLogSubView);
 }
 
+void CSVDoc::View::setupExtensionsMenu()
+{
+    QMenu* extensions = menuBar()->addMenu(tr("Extensions"));
+    const CSMExtension::EditorExtensionHost* host = mViewManager.getExtensionHost();
+
+    QAction* manager = extensions->addAction(tr("Extension Manager..."));
+    connect(manager, &QAction::triggered, this, [this, host] {
+        if (mExtensionManager == nullptr)
+            mExtensionManager = new ExtensionManagerDialog(host, this);
+        else
+            mExtensionManager->refresh();
+        mExtensionManager->show();
+        mExtensionManager->raise();
+    });
+
+    extensions->addSeparator();
+
+    // The host's state, as menu text: what the host did at start-up, and one line for each extension.
+    if (host == nullptr)
+    {
+        extensions->addAction(tr("No extension host"))->setEnabled(false);
+        return;
+    }
+    extensions->addAction(QString::fromStdString(host->summary()))->setEnabled(false);
+    for (const CSMExtension::ExtensionInfo& info : host->extensions())
+    {
+        QString state = tr("not loaded");
+        if (info.mState == CSMExtension::ExtensionInfo::State::Active)
+            state = tr("loaded");
+        else if (info.mState == CSMExtension::ExtensionInfo::State::Failed)
+            state = tr("failed: %1").arg(QString::fromStdString(info.mMessage));
+        QAction* line = extensions->addAction(
+            QString("%1: %2").arg(QString::fromStdString(info.mId).replace("&", "&&"), state.replace("&", "&&")));
+        line->setEnabled(false);
+    }
+}
+
 void CSVDoc::View::setupWindowMenu()
 {
     QMenu* window = menuBar()->addMenu(tr("Window"));
@@ -468,6 +507,7 @@ void CSVDoc::View::setupUi()
     setupCharacterMenu();
     setupAssetsMenu();
     setupDebugMenu(); // the Simulation menu
+    setupExtensionsMenu();
     setupWindowMenu();
     setupHelpMenu();
 }

@@ -14,6 +14,11 @@ namespace CSMDoc
     class DocumentManager;
 }
 
+namespace CSMExtension
+{
+    class EditorExtensionHost;
+}
+
 namespace CSVWorld
 {
     class CommandDelegateFactoryCollection;
@@ -37,6 +42,7 @@ namespace CSVDoc
         CSVWorld::CommandDelegateFactoryCollection* mDelegateFactories;
         bool mExitOnSaveStateChange;
         bool mUserWarned;
+        const CSMExtension::EditorExtensionHost* mExtensionHost = nullptr; // not owned
         Loader mLoader;
 
         // not implemented
@@ -58,6 +64,10 @@ namespace CSVDoc
         ///< The ownership of the returned view is not transferred.
 
         View* addView(CSMDoc::Document* document, const CSMWorld::UniversalId& id, const std::string& hint);
+
+        /// The editor's extension host (not owned; null if the editor runs without one).
+        void setExtensionHost(const CSMExtension::EditorExtensionHost* host) { mExtensionHost = host; }
+        const CSMExtension::EditorExtensionHost* getExtensionHost() const { return mExtensionHost; }
 
         int countViews(const CSMDoc::Document* document) const;
         ///< Return number of views for \a document.

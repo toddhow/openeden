@@ -43,6 +43,7 @@ namespace CSVDoc
     class SubView;
     class StudioShell;
     class ContextInspector;
+    class ExtensionManagerDialog;
     class Operations;
     class GlobalDebugProfileMenu;
 
@@ -68,6 +69,7 @@ namespace CSVDoc
         QMainWindow mSubViewWindow;
         StudioShell* mShell = nullptr; // child of this window
         ContextInspector* mInspector = nullptr; // owned by its dock
+        ExtensionManagerDialog* mExtensionManager = nullptr; // a child window, made when first asked for
         QMenu* mViewMenu = nullptr; // the record table submenus hang off it
         GlobalDebugProfileMenu* mGlobalDebugProfileMenu;
         QScrollArea* mScroll;
@@ -96,6 +98,7 @@ namespace CSVDoc
 
         void setupDebugMenu();
 
+        void setupExtensionsMenu();
         void setupWindowMenu();
         void setupHelpMenu();
         void setupPanels();

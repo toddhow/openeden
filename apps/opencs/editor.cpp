@@ -5,6 +5,8 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QAction>
+#include <QDialog>
+#include <QMenuBar>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QTreeView>
@@ -46,6 +48,7 @@
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "model/extension/editorextensionhost.hpp"
 #include "model/prefs/configmigration.hpp"
 #include "model/world/columns.hpp"
 #include "model/world/data.hpp"
@@ -74,9 +77,12 @@ CS::Editor::Editor(int argc, char** argv)
     // Copy everything logged to the Output Log panel (the log file and console get it unchanged).
     CSVDoc::LogTap::install();
 
+    startExtensionHost();
+
     std::pair<Files::PathContainer, std::vector<std::string>> config = readConfig();
 
     mViewManager = new CSVDoc::ViewManager(mDocumentManager);
+    mViewManager->setExtensionHost(mExtensionHost.get());
     if (argc > 1)
     {
         mFileToLoad = argv[1];
@@ -142,6 +148,13 @@ boost::program_options::variables_map CS::Editor::readConfiguration()
         boost::program_options::value<Files::MaybeQuotedPathContainer::value_type>()->default_value(
             Files::MaybeQuotedPathContainer::value_type(), ""));
     addOption("encoding", boost::program_options::value<std::string>()->default_value("win1252"));
+    // The same names as the game's (apps/openmw/options.cpp): extension= lines in openmw.cfg are shared.
+    addOption("extension",
+        boost::program_options::value<std::vector<std::string>>()
+            ->default_value(std::vector<std::string>(), "")
+            ->multitoken()
+            ->composing(),
+        "OpenEden extension ID(s) to enable (extension= lines in openmw.cfg)");
     addOption("fallback-archive",
         boost::program_options::value<std::vector<std::string>>()
             ->default_value(std::vector<std::string>(), "fallback-archive")
@@ -168,6 +181,20 @@ boost::program_options::variables_map CS::Editor::readConfiguration()
         Log(Debug::Info) << "Copied " << CSMPrefs::legacyConfigFileName << " to " << CSMPrefs::configFileName;
 
     return variables;
+}
+
+void CS::Editor::startExtensionHost()
+{
+    // As the game does (apps/openmw/vsgengine.cpp): extensions/ beside the program, then in the user data folder. The
+    // editor only reads: no world, no phases (task 0024, stage D).
+    CSMExtension::EditorExtensionHost::Config config;
+    config.mSearchDirs = { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions" };
+    for (const std::string& id : mConfigVariables["extension"].as<std::vector<std::string>>())
+        if (!id.empty())
+            config.mEnabled.push_back(id);
+    mExtensionHost = std::make_unique<CSMExtension::EditorExtensionHost>(config);
+    mExtensionHost->start();
+    Log(Debug::Info) << "Extensions: " << mExtensionHost->summary();
 }
 
 std::pair<Files::PathContainer, std::vector<std::string>> CS::Editor::readConfig(bool quiet)
@@ -641,6 +668,35 @@ void CS::Editor::startUiCheck()
             // and undoes the edit, logging what each step shows ("UI check: inspector ...").
             if (const char* cell = std::getenv("OPENEDEN_CS_INSPECT"))
                 runInspectorCheck(document, cell, milliseconds);
+            // OPENEDEN_CS_EXTENSIONS=<folder>: logs the Extensions menu's lines, opens the Extension Manager and
+            // grabs it as <folder>/extensions.png (task 0024, stage D).
+            if (const char* extensionsFolder = std::getenv("OPENEDEN_CS_EXTENSIONS"))
+            {
+                const QString folder = QString::fromUtf8(extensionsFolder);
+                QTimer::singleShot(milliseconds / 3, this, [folder] {
+                    for (QWidget* widget : QApplication::topLevelWidgets())
+                    {
+                        auto* window = qobject_cast<QMainWindow*>(widget);
+                        if (window == nullptr || !window->isVisible())
+                            continue;
+                        for (QAction* menuAction : window->menuBar()->actions())
+                            if (menuAction->menu() != nullptr && menuAction->text() == "Extensions")
+                            {
+                                for (QAction* line : menuAction->menu()->actions())
+                                    Log(Debug::Info) << "UI check: Extensions menu: " << line->text().toStdString();
+                                for (QAction* line : menuAction->menu()->actions())
+                                    if (line->text() == "Extension Manager...")
+                                        line->trigger();
+                                return;
+                            }
+                    }
+                });
+                QTimer::singleShot(milliseconds / 3 + 800, this, [folder] {
+                    for (QWidget* widget : QApplication::topLevelWidgets())
+                        if (auto* dialog = qobject_cast<QDialog*>(widget); dialog && dialog->isVisible())
+                            dialog->grab().save(folder + "/extensions.png");
+                });
+            }
             // OPENEDEN_CS_ASSET=<search text>: for the Asset Browser check (task 0024, stage C).
             if (const char* search = std::getenv("OPENEDEN_CS_ASSET"))
                 runAssetCheck(search, milliseconds);

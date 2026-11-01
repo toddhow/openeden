@@ -8,6 +8,7 @@
 #include <QString>
 
 #include <filesystem>
+#include <memory>
 #include <fstream>
 #include <string>
 #include <utility>
@@ -20,6 +21,7 @@
 #include <components/files/multidircollection.hpp>
 
 #include "model/doc/documentmanager.hpp"
+#include "model/extension/editorextensionhost.hpp"
 #include "model/prefs/state.hpp"
 
 #include "view/doc/filedialog.hpp"
@@ -62,6 +64,7 @@ namespace CS
         std::ofstream mPidFile;
         CSVTools::Merge mMerge;
         CSVDoc::ViewManager* mViewManager;
+        std::unique_ptr<CSMExtension::EditorExtensionHost> mExtensionHost; // after the views: they point at it
         std::filesystem::path mFileToLoad;
         Files::PathContainer mDataDirs;
         std::string mEncodingName;
@@ -71,6 +74,9 @@ namespace CS
         ///< the configuration.
         std::pair<Files::PathContainer, std::vector<std::string>> readConfig(bool quiet = false);
         ///< \return data paths
+
+        void startExtensionHost();
+        ///< Needs mConfigVariables.
 
         void startUiCheck();
 

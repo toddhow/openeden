@@ -60,6 +60,10 @@ opencs_units (model/prefs
     category
     )
 
+opencs_units (model/extension
+    editorextensionhost
+    )
+
 opencs_units (model/filter
     unarynode narynode parser andnode ornode notnode textnode valuenode
     )
@@ -110,7 +114,7 @@ opencs_units (. editor capture)
 
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
-    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell assetbrowser contextinspector outputlogpanel logtap
+    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell extensionmanager assetbrowser contextinspector outputlogpanel logtap
     )
 
 
