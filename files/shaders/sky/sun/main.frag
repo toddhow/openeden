@@ -2,6 +2,7 @@
 
 #include "lib/material/descriptors_frag.glsl"
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
 
 layout(location=0) in Inputs
 {
@@ -13,7 +14,7 @@ layout(location=0) out vec4 outColor;
 void main()
 {
     outColor = texture(diffuseMap, frag_in.texCoord);
-    outColor.xyz *= material.emissive.xyz;
+    outColor.xyz = toLinearIfView(outColor.xyz * material.emissive.xyz);
     outColor.a *= material.diffuse.a * scene.skyColor.a;
     if (outColor.a == 0)
         discard;

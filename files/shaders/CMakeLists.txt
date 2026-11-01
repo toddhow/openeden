@@ -42,6 +42,7 @@ set(SHADER_FILES
     lib/view/depthrange.glsl
     lib/view/screencoord.glsl
     lib/view/scene.glsl
+    lib/view/linear.glsl
     lib/view/raytrace.glsl
     lib/view/reflect.glsl
     lib/view/cascades.glsl

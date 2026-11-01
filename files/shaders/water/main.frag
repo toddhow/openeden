@@ -2,6 +2,7 @@
 
 #include "lib/material/descriptors_frag.glsl"
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
 #include "lib/view/reflect.glsl"
 #include "lib/view/screencoord.glsl"
 #include "lib/view/shadow.glsl"
@@ -68,7 +69,7 @@ vec3 colorRefraction(float waterDepth, float surfaceDepth, vec3 refraction)
 {
     vec3 incidentLight = scene.lightDiffuse.xyz + scene.ambient.xyz;
     float inverseScatterAmount = exp(-0.00045 * waterDepth);
-    vec3 deepColor = incidentLight * waterColorDeep * 0.25;
+    vec3 deepColor = incidentLight * toLinearIfView(waterColorDeep) * 0.25;
     deepColor = applyFog(deepColor, surfaceDepth);
     return mix(deepColor, refraction, clamp(inverseScatterAmount, 0.0, 1.0));
 }

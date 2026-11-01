@@ -358,6 +358,11 @@ namespace MWRender
         std::unique_ptr<PostProcess> mPostProcess;
         VkExtent2D mAppliedExtent{};
         void updatePostProcess();
+        // The scene colours as the game gives them (display-encoded), for the post-processing uniforms
+        // (updateSceneData).
+        vsg::vec4 mDisplayFogColor{};
+        vsg::vec4 mDisplayAmbient{};
+        vsg::vec4 mDisplaySkyColor{};
         vsg::mat4 mPostProcessLastView;
         float mPostProcessLastTime = 0.f;
         float mPostProcessWaterHeight = 0.f;

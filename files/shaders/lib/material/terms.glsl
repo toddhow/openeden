@@ -1,11 +1,12 @@
 #include "material.settings"
+#include "lib/view/linear.glsl"
 
 vec4 getDiffuse(vec4 vertexColor)
 {
     if (colorMode == 2)
-        return vertexColor;
+        return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
 #ifdef MATERIAL
-    return material.diffuse;
+    return vec4(toLinearIfView(material.diffuse.xyz), material.diffuse.w);
 #else
     return vec4(1);
 #endif
@@ -13,9 +14,9 @@ vec4 getDiffuse(vec4 vertexColor)
 vec3 getAmbient(vec4 vertexColor)
 {
     if (colorMode == 2)
-        return vertexColor.xyz;
+        return toLinearIfView(vertexColor.xyz);
 #ifdef MATERIAL
-    return material.ambient.xyz;
+    return toLinearIfView(material.ambient.xyz);
 #else
     return vec3(1);
 #endif
@@ -23,9 +24,9 @@ vec3 getAmbient(vec4 vertexColor)
 vec3 getEmission(vec4 vertexColor)
 {
     if (colorMode == 1)
-        return vertexColor.xyz;
+        return toLinearIfView(vertexColor.xyz);
 #ifdef MATERIAL
-    return material.emissive.xyz;
+    return toLinearIfView(material.emissive.xyz);
 #else
     return vec3(0);
 #endif
@@ -35,13 +36,19 @@ vec4 materialTerms(vec3 lightDiffuse, vec4 vertexColor /*, Material material, Sc
 {
     // OpenEden: colour mode 3 draws the vertex colour unlit, alpha included (debug geometry, mwrender/debuggeometry).
     if (colorMode == 3)
-        return vertexColor;
+        return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
     vec3 ambient = scene.ambient.xyz * getAmbient(vertexColor);
     vec4 materialDiffuse = getDiffuse(vertexColor);
     vec3 diffuse = lightDiffuse * materialDiffuse.xyz;
     vec4 total = vec4(ambient + diffuse + getEmission(vertexColor), materialDiffuse.a);
+    // In the linear view the float target keeps light above 1 for the tonemap, so it is not clamped.
     if (cClampLighting)
-        total = clamp(total, 0.0, 1.0);
+    {
+        if (linearView())
+            total = max(total, 0.0);
+        else
+            total = clamp(total, 0.0, 1.0);
+    }
     else
         total = max(total, 0.0);
     return total;

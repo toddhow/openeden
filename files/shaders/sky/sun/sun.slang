@@ -94,6 +94,9 @@ float4 fragMain(FragmentInput input) : SV_Target
 {
     float4 outColor = diffuseMap.Sample(input.texCoord);
     outColor.xyz *= material.emissive.xyz;
+    // OpenEden (task 0025): the linear view, marked by scene.fogColor.w, as lib/view/linear.glsl (sign preserving).
+    if (scene.fogColor.w > 1.5)
+        outColor.xyz = sign(outColor.xyz) * pow(abs(outColor.xyz), float3(2.2));
     outColor.a *= material.diffuse.a * scene.skyColor.a;
     if (outColor.a == 0)
         discard;

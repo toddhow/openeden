@@ -8,11 +8,16 @@ namespace View
     class CollectLights : public vsg::ViewDependentState
     {
         vsg::ref_ptr<vsg::vec4Array> mData;
+        bool mLinear = false;
 
     public:
         CollectLights(size_t maxLights);
 
         vsg::ref_ptr<vsg::vec4Array> data() { return mData; }
+
+        // The linear HDR path (task 0025): the lights' colours are converted from display-encoded to linear in pack(),
+        // for the view that lights in linear space. Set once, before the first frame.
+        void setLinear(bool linear) { mLinear = linear; }
 
         void traverse(vsg::Visitor& visitor) override {}
         void traverse(vsg::ConstVisitor& visitor) const override {}

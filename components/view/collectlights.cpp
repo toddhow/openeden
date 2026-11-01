@@ -1,6 +1,8 @@
 #include "collectlights.hpp"
 #include <vsg/lighting/PointLight.h>
 
+#include <components/render/hdrmath.hpp>
+
 namespace View
 {
     CollectLights::CollectLights(size_t maxLights)
@@ -21,7 +23,11 @@ namespace View
             auto& mv = l.first;
             auto& light = l.second;
             auto eye_position = vsg::vec3(mv * light->position);
-            (*light_itr++).set(light->color.r, light->color.g, light->color.b, light->intensity);
+            // Darkness lights have negative colours; Render::Hdr::toLinear keeps their sign.
+            vsg::vec3 color(light->color.r, light->color.g, light->color.b);
+            if (mLinear)
+                color = Render::Hdr::toLinear(color);
+            (*light_itr++).set(color.x, color.y, color.z, light->intensity);
             (*light_itr++).set(eye_position.x, eye_position.y, eye_position.z, 0);
         }
         mData->at(1).w = static_cast<float>(lightCount);

@@ -21,6 +21,7 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
 #include "lib/view/env.glsl"
 #include "lib/view/fog.glsl"
 #include "lib/view/shadow.glsl"
@@ -121,6 +122,9 @@ void main()
     vec4 decalTex = texture(decalMap, frag_in.texCoord[decalUV]);
     outColor.xyz = mix(outColor.xyz, decalTex.xyz, decalTex.a /* * diffuseColor.a*/);
 #endif
+    // OpenEden (task 0025): the maps are combined on encoded values, as the detail map's times two is not neutral in linear
+    // light, and converted once. Unchanged outside the linear view.
+    outColor.xyz = toLinearIfView(outColor.xyz);
 
 #ifdef COLOR
     vec4 vertexColor = frag_in.color;
@@ -174,7 +178,7 @@ void main()
 
 #ifdef NORMAL
     if (object.envColor.w != 0)
-        outColor.xyz += texture(sceneEnv, vec3(frag_in.envUV, envIndex(scene.time))).xyz * object.envColor.xyz;
+        outColor.xyz += toLinearIfView(texture(sceneEnv, vec3(frag_in.envUV, envIndex(scene.time))).xyz * object.envColor.xyz);
 #endif
 #ifdef ENV_MAP
     float envLuma = 1.0;
@@ -191,11 +195,11 @@ void main()
 */
  #endif
 
-    outColor.xyz += texture(envMap, envTexCoordGen).xyz * envLuma;
+    outColor.xyz += toLinearIfView(texture(envMap, envTexCoordGen).xyz * envLuma);
 #endif
 
 #ifdef GLOW_MAP
-    outColor.xyz += texture(glowMap, frag_in.texCoord[glowUV]).xyz;
+    outColor.xyz += toLinearIfView(texture(glowMap, frag_in.texCoord[glowUV]).xyz);
 #endif
     // OpenEden: debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
     if (colorMode != 3)

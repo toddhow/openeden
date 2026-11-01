@@ -2,6 +2,7 @@
 
 #include "lib/material/descriptors_frag.glsl"
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
 
 layout(location=0) in Inputs
 {
@@ -17,6 +18,7 @@ void main()
 #else
     outColor = vec4(1.0,1.0,1.0,1.0);
 #endif
+    outColor.xyz = toLinearIfView(outColor.xyz);
     outColor.a *= material.diffuse.a * scene.skyColor.a;
 #ifdef COLOR
     outColor.a *= frag_in.color.a;

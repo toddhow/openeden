@@ -2,6 +2,7 @@
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
 #include "lib/view/fog.glsl"
 #include "lib/view/shadow.glsl"
 #include "lib/light/directional.glsl"
@@ -92,6 +93,9 @@ void main()
 
     vec3 diffuse = frag_in.pointLightDiffuse + directionalDiffuse(normalize(frag_in.viewNormal)) * shadow(frag_in.viewPos, frag_in.viewNormal);
 #endif
+
+    // OpenEden (task 0025): the layers are blended on encoded values and converted once (lib/view/linear.glsl).
+    outColor.xyz = toLinearIfView(outColor.xyz);
 
     vec2 colorTexSize = textureSize(colorMap, 0);
     vec2 colorCoord = (frag_in.texCoord - 0.5) * colorTexSize / (colorTexSize+1) + 0.5;

@@ -2,6 +2,7 @@
 
 #include "lib/material/descriptors_frag.glsl"
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
 
 layout(location=0) out vec4 outColor;
 
@@ -14,6 +15,6 @@ void main()
     float fade = 1.0 - min(1.0, angleRadians / angleMaxRadians);
     if (fade <= 0)
         discard;
-    outColor = vec4(material.emissive.xyz, material.diffuse.a * fade);
+    outColor = vec4(toLinearIfView(material.emissive.xyz), material.diffuse.a * fade);
 }
 

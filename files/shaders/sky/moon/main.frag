@@ -2,6 +2,8 @@
 
 #include "lib/material/descriptors_frag.glsl"
 #include "lib/view/scene.glsl"
+#include "lib/view/linear.glsl"
+#include "lib/view/linear.glsl"
 
 layout(location=0) in Inputs
 {
@@ -15,6 +17,8 @@ void main()
     vec4 phase = texture(glowMap, frag_in.texCoord);
     vec4 mask = texture(diffuseMap, frag_in.texCoord);
     vec4 blendedLayer = phase * material.emissive;
-    outColor = vec4(blendedLayer.xyz + scene.skyColor.xyz, scene.skyColor.a * material.diffuse.a * mask.a);
+    // OpenEden (task 0025): the sum is of encoded colours, as it was chosen, and converted.
+    outColor = vec4(toLinearIfView(blendedLayer.xyz + toEncodedIfView(scene.skyColor.xyz)),
+        scene.skyColor.a * material.diffuse.a * mask.a);
 }
 

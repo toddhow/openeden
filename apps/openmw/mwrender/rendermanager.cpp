@@ -127,6 +127,7 @@ namespace MWRender
             Render::Tonemap::Parameters parameters;
             parameters.curve = choice.curve;
             parameters.exposureStops = choice.exposureStops;
+            parameters.encode = true; // the scene is lit in linear space (stage F2b)
             return parameters;
         }
 
@@ -204,6 +205,7 @@ namespace MWRender
 
         mSceneData = std::make_unique<View::Scene>();
         auto collectLights = vsg::ref_ptr{ new View::CollectLights(256) };
+        collectLights->setLinear(mHdrTarget != nullptr);
         vsg::Descriptors descriptors = View::createLightingDescriptors(collectLights->data(), true);
         descriptors.emplace_back(View::readEnv(resourceSystem->textureOptions));
         if (auto shadowMap = mShadow->shadowMap())
@@ -877,19 +879,30 @@ namespace MWRender
         bool isUnderwater
             = mRenderModes[Render_Water].active && mWater->isUnderwater(vsg::vec3(mCamera->getPosition()));
         auto fogColor = mFog->getFogColor(isUnderwater);
-        mRenderGraph->setClearValues(VkClearColorValue{ { fogColor.x, fogColor.y, fogColor.z, 1 } });
+        // OpenEden (task 0025): with the HDR path the main view lights in linear space (lib/view/linear.glsl), so the
+        // scene's colours are converted here, once. The display-encoded values are kept for what runs on the 8-bit
+        // picture, the post-processing uniforms.
+        const bool linear = mHdrTarget != nullptr;
+        const auto toView = [linear](const vsg::vec4& color) { return linear ? Render::Hdr::toLinear(color) : color; };
+        const vsg::vec4 clearColor = toView(vsg::vec4(fogColor[0], fogColor[1], fogColor[2], 1.f));
+        mRenderGraph->setClearValues(VkClearColorValue{ { clearColor.x, clearColor.y, clearColor.z, 1 } });
 
         mSceneData->setFogRange(mFog->getFogStart(isUnderwater), mFog->getFogEnd(isUnderwater));
 
         auto& sceneData = mSceneData->value();
-        sceneData.fogColor = vsg::vec4(fogColor[0], fogColor[1], fogColor[2], 1.f);
+        mDisplayFogColor = vsg::vec4(fogColor[0], fogColor[1], fogColor[2], 1.f);
+        sceneData.fogColor = toView(mDisplayFogColor);
+        // The marker of the linear view; 1 without HDR, as it always was (lib/view/linear.glsl).
+        sceneData.fogColor.w = linear ? 2.f : 1.f;
 
         auto ambient = mAmbientColor;
         ambient += vsg::vec4(0.7, 0.7, 0.7, 0.0) * mNightEyeFactor;
-        sceneData.ambient = ambient;
-        sceneData.skyColor = mRenderModes[Render_Sky]
+        mDisplayAmbient = ambient;
+        sceneData.ambient = toView(ambient);
+        mDisplaySkyColor = mRenderModes[Render_Sky]
             ? mSky->getSkyColor()
             : Misc::VsgMath::componentMultiply(mFog->getFogColor(false), vsg::vec4(1.3, 1.3, 1.3, 1));
+        sceneData.skyColor = toView(mDisplaySkyColor);
         sceneData.rainIntensity = mRenderModes[Render_Sky] ? mSky->getRainIntensity() : 0;
         // Groundcover's wind and stomping (task 0012), as OpenMW's SharedUniformStateUpdater set them. The player
         // position comes from update(), which runs only in game: this also runs at the main menu, without a player.
@@ -899,8 +912,8 @@ namespace MWRender
             static_cast<float>(Settings::groundcover().mStompIntensity),
             // w: the main view's sample count, for alpha to coverage's sample mask (task 0012, V4j).
             static_cast<float>(mEngine.framebufferSamples()));
-        sceneData.lightDiffuse = mLightDiffuse;
-        sceneData.lightSpecular = mLightSpecular;
+        sceneData.lightDiffuse = toView(mLightDiffuse);
+        sceneData.lightSpecular = toView(mLightSpecular);
         if (mOccluder)
         {
             sceneData.lightDiffuse.w = mOccluder->boxSize();
@@ -962,9 +975,10 @@ namespace MWRender
         data.eyePos = vsg::vec4(vsg::vec3(mViewMatrix->eye), 0.f);
         const vsg::dvec3 eyeVec = vsg::normalize(mViewMatrix->center - mViewMatrix->eye);
         data.eyeVec = vsg::vec4(vsg::vec3(eyeVec), 0.f);
-        data.fogColor = scene.fogColor;
-        data.ambientColor = scene.ambient;
-        data.skyColor = scene.skyColor;
+        // The display-encoded colours: the chain runs on the 8-bit picture, as it does without HDR.
+        data.fogColor = mDisplayFogColor;
+        data.ambientColor = mDisplayAmbient;
+        data.skyColor = mDisplaySkyColor;
         data.sunColor = mLightDiffuse;
         // OpenMW's setSunDirection and StateUpdater::setSunPos: the sun's visible orbit, mirrored at night.
         vsg::vec3 sunPosition = mLightPosition;
