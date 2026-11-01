@@ -291,6 +291,12 @@ void CSVDoc::ContextInspector::hideEvent(QHideEvent* event)
     mTimer->stop();
 }
 
+namespace
+{
+    // A section with many fields (a rig has dozens) scrolls inside the inspector at this height.
+    constexpr int kModuleSectionMaxHeight = 320;
+}
+
 void CSVDoc::ContextInspector::rebuildModuleSections()
 {
     CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
@@ -326,7 +332,7 @@ void CSVDoc::ContextInspector::rebuildModuleSections()
         auto* box = new QGroupBox(QString::fromStdString(found->mDesc.title), this);
         box->setObjectName(QString::fromStdString("moduleSection_" + id));
         auto* boxLayout = new QVBoxLayout(box);
-        boxLayout->addWidget(modules->makePropertyForm(*source, box));
+        boxLayout->addWidget(modules->makeScrollingForm(*source, box, kModuleSectionMaxHeight));
         mModuleSections->addWidget(box);
     }
 }

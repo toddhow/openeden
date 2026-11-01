@@ -356,11 +356,44 @@ target_link_libraries(sample_editor_module PRIVATE nlohmann_json::nlohmann_json)
 set_target_properties(sample_editor_module PROPERTIES
     OUTPUT_NAME "sample_editor_module"
     DEBUG_POSTFIX ""
+    RELEASE_POSTFIX ""
+    RELWITHDEBINFO_POSTFIX ""
+    MINSIZEREL_POSTFIX ""
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
 foreach(config ${CMAKE_CONFIGURATION_TYPES})
     string(TOUPPER ${config} config_upper)
     set_target_properties(sample_editor_module PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules"
+        LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules")
+endforeach()
+
+# CreativeMotion's editor module (task 0032, editor_modules/creativemotion_editor): a core system's tools, in a library of
+# its own that only Eden Studio loads. The sources without the entry point are a static library the tests link as well.
+set(CM_EDITOR_DIR ${CMAKE_SOURCE_DIR}/editor_modules/creativemotion_editor)
+add_library(creativemotion_editor_objects OBJECT
+    ${CM_EDITOR_DIR}/rig_document.cpp ${CM_EDITOR_DIR}/profile_document.cpp
+    ${CM_EDITOR_DIR}/creativemotion_editor_module.cpp)
+target_compile_features(creativemotion_editor_objects PRIVATE cxx_std_20)
+target_link_libraries(creativemotion_editor_objects PUBLIC opas::rig)
+target_include_directories(creativemotion_editor_objects PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include)
+set_property(TARGET creativemotion_editor_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+add_library(creativemotion_editor SHARED ${CM_EDITOR_DIR}/creativemotion_editor_export.cpp
+    $<TARGET_OBJECTS:creativemotion_editor_objects>)
+target_compile_features(creativemotion_editor PRIVATE cxx_std_20)
+target_link_libraries(creativemotion_editor PRIVATE opas::rig)
+set_target_properties(creativemotion_editor PROPERTIES
+    OUTPUT_NAME "creativemotion_editor"
+    DEBUG_POSTFIX ""
+    RELEASE_POSTFIX ""
+    RELWITHDEBINFO_POSTFIX ""
+    MINSIZEREL_POSTFIX ""
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
+foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config} config_upper)
+    set_target_properties(creativemotion_editor PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules"
         LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules")
 endforeach()

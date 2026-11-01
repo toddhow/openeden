@@ -875,6 +875,120 @@ namespace
         });
     }
 
+    /// The CreativeMotion rig check (task 0032): OPENEDEN_CS_RIGCHECK=<prefix>;<rig file>;<profile file>. Opens the rig
+    /// and the profile as module assets, edits a twist limit and a motor gain through the panel's fields, undoes, saves,
+    /// and captures the 3D view. Logged as "UI check: rig ...".
+    void runRigCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
+    {
+        const std::size_t first = spec.find(';');
+        const std::size_t second = spec.find(';', first + 1);
+        const std::string prefix = spec.substr(0, first);
+        const std::filesystem::path rigPath = spec.substr(first + 1, second - first - 1);
+        const std::filesystem::path profilePath = spec.substr(second + 1);
+        const int step = std::max(500, milliseconds / 10);
+
+        auto findField = [](const QString& name) -> QDoubleSpinBox* {
+            for (QWidget* top : QApplication::topLevelWidgets())
+                for (QDoubleSpinBox* spin : top->findChildren<QDoubleSpinBox*>(name))
+                    if (spin->isVisibleTo(top))
+                        return spin;
+            return nullptr;
+        };
+        auto fieldNames = [](const QString& prefixText) {
+            QStringList names;
+            for (QWidget* top : QApplication::topLevelWidgets())
+                for (QDoubleSpinBox* spin : top->findChildren<QDoubleSpinBox*>())
+                    if (spin->isVisibleTo(top) && spin->objectName().startsWith(prefixText))
+                        names << spin->objectName();
+            names.removeDuplicates();
+            return names;
+        };
+
+        QTimer::singleShot(step * 2, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            ui->openAsset(rigPath);
+            Log(Debug::Info) << "UI check: rig opened " << (ui->activeAsset() ? "yes" : "no") << " format "
+                             << ui->activeFormat() << " " << ui->openError();
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* tabs = top->findChild<QTabBar*>("workspaceTabs"))
+                    for (int i = 0; i < tabs->count(); ++i)
+                        if (tabs->tabText(i) == "CreativeMotion")
+                            tabs->setCurrentIndex(i);
+        });
+        QTimer::singleShot(step * 4, qApp, [=] {
+            const QStringList names = fieldNames("property_joint.");
+            Log(Debug::Info) << "UI check: rig joint fields shown: " << names.size() << ", e.g. "
+                             << (names.isEmpty() ? "none" : names.front().toStdString());
+            QDoubleSpinBox* twist = nullptr;
+            for (const QString& name : names)
+                if (name.endsWith(".twistMaxRad") && findField(name)->value() > 0.5)
+                    twist = findField(name);
+            if (twist == nullptr)
+            {
+                Log(Debug::Error) << "UI check: rig: no twistMaxRad field with a value above 0.5";
+                return;
+            }
+            const double before = twist->value();
+            const int steps = document->getUndoStack().count();
+            twist->setValue(before - 0.1);
+            twist->setValue(before - 0.2);
+            Log(Debug::Info) << "UI check: rig twist " << twist->objectName().toStdString() << " unit "
+                             << twist->suffix().toStdString() << " " << before << " -> " << twist->value()
+                             << ", undo steps " << steps << " -> " << document->getUndoStack().count();
+            document->getUndoStack().undo();
+            Log(Debug::Info) << "UI check: rig undo: " << twist->value();
+            document->getUndoStack().redo();
+            std::string error;
+            const bool saved = CSVModule::ModuleUi::get()->activeAsset()->save(error);
+            Log(Debug::Info) << "UI check: rig saved " << saved << " " << error << ", dirty "
+                             << CSVModule::ModuleUi::get()->activeAsset()->isDirty();
+        });
+        QTimer::singleShot(step * 5, qApp, [=] {
+            // The rig stands where the user looked when it opened: look at it from close by (a person is 1.8 m).
+            if (CSVRender::WorldspaceWidget* widget = findWorldspaceWidget())
+                if (CSVRender::SceneHost* host = widget->getHost())
+                    if (const auto hit = host->pickNearest(0.5, 0.5, ~0u))
+                    {
+                        constexpr double units = CSMPhysics::StudioWorld::sUnitsPerMeter;
+                        host->setCamera(*hit + vsg::dvec3(0.0, -4.0 * units, 1.5 * units), *hit + vsg::dvec3(0.0, 0.0, 1.0 * units),
+                            vsg::dvec3(0.0, 0.0, 1.0));
+                    }
+        });
+        QTimer::singleShot(step * 6, qApp, [=] {
+            if (CSVRender::WorldspaceWidget* widget = findWorldspaceWidget())
+                if (CSVRender::SceneHost* host = widget->getHost())
+                {
+                    const std::filesystem::path file = prefix + "_rig.png";
+                    Log(Debug::Info) << "UI check: rig frame " << file.string() << ": "
+                                     << (host->capture(file) ? "written" : "no frame");
+                }
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            ui->openAsset(profilePath);
+            Log(Debug::Info) << "UI check: rig profile opened " << (ui->activeAsset() ? "yes" : "no") << " " << ui->openError();
+        });
+        QTimer::singleShot(step * 8, qApp, [=] {
+            const QStringList names = fieldNames("property_default.");
+            for (const QString& name : names)
+                if (QDoubleSpinBox* spin = findField(name))
+                    Log(Debug::Info) << "UI check: rig motor " << name.toStdString() << " = " << spin->value() << " "
+                                     << spin->suffix().toStdString();
+            if (QDoubleSpinBox* stiffness = findField("property_default.stiffnessNmPerRad"))
+            {
+                const double before = stiffness->value();
+                const int steps = document->getUndoStack().count();
+                stiffness->setValue(before + 100);
+                Log(Debug::Info) << "UI check: rig stiffness edit " << before << " -> " << stiffness->value()
+                                 << ", undo steps " << steps << " -> " << document->getUndoStack().count();
+                document->getUndoStack().undo();
+                Log(Debug::Info) << "UI check: rig stiffness undo " << stiffness->value();
+            }
+            int index = 0;
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (widget->isVisible() && qobject_cast<QMainWindow*>(widget) && index == 0)
+                    widget->grab().save(QString::fromStdString(prefix) + "_window" + QString::number(index++) + ".png");
+        });
+    }
+
     /// The Context Inspector check, see startUiCheck. Free of the editor class: it only needs the document.
     void runInspectorCheck(CSMDoc::Document* document, const std::string& cell, int milliseconds)
     {
@@ -1001,6 +1115,9 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_MODULECHECK=<file prefix>: the editor module check, see runModuleCheck.
             if (const char* prefix = std::getenv("OPENEDEN_CS_MODULECHECK"))
                 runModuleCheck(document, prefix, milliseconds);
+            // OPENEDEN_CS_RIGCHECK=<prefix>;<rig>;<profile>: the CreativeMotion rig check, see runRigCheck.
+            if (const char* spec = std::getenv("OPENEDEN_CS_RIGCHECK"))
+                runRigCheck(document, spec, milliseconds);
             // OPENEDEN_CS_DROP=1: the constructed drop check, see runDropCheck.
             if (std::getenv("OPENEDEN_CS_DROP") != nullptr)
                 runDropCheck(document, milliseconds);

@@ -90,6 +90,10 @@ namespace CSVModule
         /// makeSetCommand. It follows changed() and is rebuilt if the source's description changes. Owned by \a parent.
         QWidget* makePropertyForm(openeden::editor::PropertySource& source, QWidget* parent);
 
+        /// The same form in a scroll area of at most \a maxHeight pixels (0: no limit), so that a source with dozens of
+        /// fields does not stretch the window it is in.
+        QWidget* makeScrollingForm(openeden::editor::PropertySource& source, QWidget* parent, int maxHeight);
+
     signals:
         /// The active asset, or something in it, changed: panels, overlay and timeline redraw.
         void changed();

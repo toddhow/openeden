@@ -250,7 +250,7 @@ namespace CSVDoc
                 mForm = nullptr;
                 if (source != nullptr)
                 {
-                    mForm = mUi.makePropertyForm(*source, this);
+                    mForm = mUi.makeScrollingForm(*source, this, 0);
                     mLayout->addWidget(mForm);
                 }
             }

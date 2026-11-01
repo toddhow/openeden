@@ -11,6 +11,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLineEdit>
+#include <QScrollArea>
 #include <QSpinBox>
 #include <QUndoCommand>
 #include <QWidget>
@@ -444,5 +445,16 @@ namespace CSVModule
     QWidget* ModuleUi::makePropertyForm(PropertySource& source, QWidget* parent)
     {
         return new PropertyForm(*this, source, parent);
+    }
+
+    QWidget* ModuleUi::makeScrollingForm(PropertySource& source, QWidget* parent, int maxHeight)
+    {
+        auto* area = new QScrollArea(parent);
+        area->setWidgetResizable(true);
+        area->setFrameShape(QFrame::NoFrame);
+        if (maxHeight > 0)
+            area->setMaximumHeight(maxHeight);
+        area->setWidget(new PropertyForm(*this, source, area));
+        return area;
     }
 }
