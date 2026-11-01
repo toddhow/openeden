@@ -95,6 +95,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     sceneutil/testdetourdebugdraw.cpp
 
+    terrain/testbordersharing.cpp
     terrain/testlayermaps.cpp
 
     vfs/testpathutil.cpp

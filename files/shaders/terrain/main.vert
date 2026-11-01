@@ -33,8 +33,12 @@ void main()
     float scale = 1.0 / (1 << shiftSize);
     vec2 uv = scale * (gridPos + vert / float(numVerts-1));
     ivec2 texSize = textureSize(heightMap, 0);
-    vec2 vertexCoord = (uv - 0.5) * texSize / (texSize+1) + 0.5;
-    float height = texture(heightMap, vertexCoord).x;
+    // One vertex per texel, so the vertex reads its own texel. The sampler repeats and filters, and the old normalised
+    // coordinate (uv - 0.5) * size / (size + 1) + 0.5 put the first and last vertex half a texel short of the texel
+    // centre, blending in the opposite side of the batch: a border height wrong by a fraction of the whole batch's
+    // relief, and different in the neighbouring batch, which is what opened the crack (task 0012, terrain crack).
+    ivec2 texel = clamp(ivec2(round(uv * vec2(texSize - 1))), ivec2(0), texSize - 1);
+    float height = texelFetch(heightMap, texel, 0).x;
     vec3 cameraPos = (inverse(pc.modelview) * vec4(0,0,0,1)).xyz;
     vec2 cameraCellPos = cameraPos.xy / cellWorldSize; // = scene.cameraCellCalculatedFromDoubleMatrix;
     vec2 offset = (batch.origin - cameraCellPos) * cellWorldSize;
@@ -43,7 +47,7 @@ void main()
     viewPos.w = 1;
     gl_Position = pc.projection * viewPos;
 
-    vec3 normal = texture(normalMap, vertexCoord).xyz;
+    vec3 normal = texelFetch(normalMap, texel, 0).xyz;
     vec3 viewNormal = normalize((inverse(transpose(pc.modelview)) * vec4(normal, 0)).xyz);
     vert_out.viewPos = viewPos.xyz;
     vert_out.texCoord = uv;
