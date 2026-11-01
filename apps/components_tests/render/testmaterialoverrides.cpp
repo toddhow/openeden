@@ -125,7 +125,9 @@ namespace
             << "field was '" << error.field << "', wanted '" << fieldPart << "'";
         EXPECT_FALSE(error.message.empty());
         if (line >= 0)
+        {
             EXPECT_EQ(error.line, line);
+        }
         EXPECT_NE(error.describe().find("bad.json"), std::string::npos);
     }
 
