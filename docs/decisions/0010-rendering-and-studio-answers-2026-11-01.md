@@ -57,3 +57,5 @@ This records what toddhow decided when asked to settle the questions that had pi
 | 0048 | Default of `ao terrain` | **Off**, until he has seen it |
 | 0049 | May single-level compressed textures stay at full size? | **Yes**, since they cannot be cheaply shrunk |
 | 0049 | The unmeasured `auto` budget table | **Not yet answered**; it is a starting point until it is measured |
+| 0049 | The `auto` budget table | **Auto** (accepted as the starting table; measure and revise once the downscaler exists) |
+| 0051 | File extension of the Eden Archive Format | **`.edenpak`** ("edenpak works", toddhow). The collision check in task 0051 stage b still has to confirm it from the extension databases and record the result, and the magic bytes and MIME type are still to be chosen there |

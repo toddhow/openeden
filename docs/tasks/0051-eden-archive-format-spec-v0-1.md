@@ -31,6 +31,8 @@ What the specification must define (each item is a section of the document; the 
 
 ### The collision check (name, extension, magic)
 
+> **Decided 2026-11-01 (toddhow, decision 0010): the extension is `.edenpak`.** The check below now confirms it and records the sources instead of choosing one; if it finds a real clash, stop and ask.
+
 Done from sources and recorded with URLs and the date in the decision record:
 
 - **Extension.** Search the extension databases (file.org, fileinfo.com, file-extensions.org, the Library of Congress digital formats and the UK National Archives PRONOM registry) for the shortlist: `.edenpak`, `.eden`, `.eap`, `.edenarc`. Already known: `.eaf` is ELAN's (rejected). A web search on 2026-11-01 found no use of `.edenpak` or `.eden`, which is not a clearance.
