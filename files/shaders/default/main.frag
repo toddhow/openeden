@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -54,9 +54,19 @@ layout(location=0) in Inputs
 } frag_in;
 
 layout(location=0) out vec4 outColor;
+#ifdef GBUFFER
+// OpenEden (task 0026, F3): the opaque scene's view-space shading normal (w = 1 where written) and the distance along
+// the view axis; both stay zero where nothing opaque is drawn (the pass clears them to zero).
+layout(location=1) out vec4 outNormal;
+layout(location=2) out float outLinearDepth;
+#endif
 
 void main()
 {
+#ifdef GBUFFER
+    outNormal = vec4(0.0);
+    outLinearDepth = 0.0;
+#endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
     // OpenEden: once the shader writes the sample mask, every path must, or the mask is undefined (task 0012, V4j).
     // All samples by default, which is the same as not writing it; narrowed below where the coverage applies.
@@ -235,6 +245,14 @@ void main()
         float softDelta = frag_in.viewPos.z - softSceneViewPos.z;
         outColor.a *= 0.845 * pow(clamp(softDelta / softFalloff, 0.0, 1.0), 1.3);
     }
+#endif
+#ifdef GBUFFER
+ #ifdef NORMAL
+    outNormal = vec4(viewNormal, 1.0);
+ #else
+    outNormal = vec4(0.0, 0.0, 1.0, 1.0);
+ #endif
+    outLinearDepth = -frag_in.viewPos.z;
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
     // The coverage covers that share of the pixel's samples, as the hardware's alpha to coverage would (undithered).

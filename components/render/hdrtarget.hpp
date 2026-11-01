@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include <vsg/app/RenderGraph.h>
 #include <vsg/core/ref_ptr.h>
 #include <vsg/state/ImageView.h>
 #include <vsg/vk/Framebuffer.h>
@@ -28,6 +29,10 @@ namespace Render
      * can be sampled and copied, and is left in SHADER_READ_ONLY_OPTIMAL by the render pass. Depth is the same: a
      * multisampled image resolved (sample zero) into a single-sample one, left in DEPTH_STENCIL_ATTACHMENT_OPTIMAL as
      * the window's depth is, which Reflect and PostProcess::depthCopy rely on.
+     *
+     * Multisampling (task 0026): the extra outputs resolve by averaging, so at an object's edge a normal is the average
+     * of two surfaces' normals (not unit length) and the linear depth lies between two distances; only the hardware
+     * depth is exact (sample zero).
      *
      * Owner: RenderManager. Everything runs on the main thread. A resize replaces the images and the framebuffer and
      * keeps the render pass object, because the scene's pipelines were compiled against it.
@@ -55,6 +60,16 @@ namespace Render
         vsg::ref_ptr<vsg::ImageView> depthView() const { return mResolvedDepth; }
         std::size_t outputCount() const { return mResolvedColor.size(); }
 
+        // Task 0026 (F3): the G-buffer outputs by name, null when the target was made without them. Output 1 is the
+        // view-space normal, 2 the linear depth, 3 the skinned actors' motion (Render::GBuffer::extraColorFormats).
+        vsg::ref_ptr<vsg::ImageView> normalView() const { return outputOrNull(1); }
+        vsg::ref_ptr<vsg::ImageView> linearDepthView() const { return outputOrNull(2); }
+        vsg::ref_ptr<vsg::ImageView> objectMotionView() const { return outputOrNull(3); }
+
+        // The G-buffer outputs start every frame as "no surface" (all zero), not at the scene's clear colour: call
+        // after RenderGraph::setClearValues, which gives every colour attachment the same value.
+        void clearExtraOutputs(vsg::RenderGraph& graph) const;
+
         // Makes new images and a new framebuffer; the old ones are given to `retire`, which must keep them alive until
         // the frames already recorded have drawn (vsgUtil::CompileContext::detach). Does nothing at the same extent.
         template <typename Retire>
@@ -69,6 +84,10 @@ namespace Render
         }
 
     private:
+        vsg::ref_ptr<vsg::ImageView> outputOrNull(std::size_t i) const
+        {
+            return i < mResolvedColor.size() ? mResolvedColor[i] : vsg::ref_ptr<vsg::ImageView>();
+        }
         void createImages(vsg::Context& context, const VkExtent2D& extent);
 
         VkSampleCountFlagBits mSamples;

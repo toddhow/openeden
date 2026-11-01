@@ -45,9 +45,17 @@ layout(set=0, binding=0) uniform sampler2D sceneColor;
 #ifdef BLOOM
 layout(set=0, binding=1) uniform sampler2D bloomColor;
 #endif
+#ifdef DEBUG_VIEW
+layout(set=0, binding=2) uniform sampler2D gNormal;
+layout(set=0, binding=3) uniform sampler2D gLinearDepth;
+layout(set=0, binding=4) uniform sampler2D gVelocity;
+#endif
 layout(push_constant) uniform Push
 {
     vec4 params; // x exposure scale, y curve, z encode, w bloom strength
+#ifdef DEBUG_VIEW
+    vec4 debug;  // x mode (1 normals, 2 depth, 3 velocity), y depth range, z velocity scale
+#endif
 } push;
 layout(location=0) in vec2 texCoord;
 layout(location=0) out vec4 outColor;
@@ -63,6 +71,33 @@ vec3 aces(vec3 x)
 
 void main()
 {
+#ifdef DEBUG_VIEW
+    // Task 0026: a stored image in place of the scene (the CPU twins are Render::GBuffer::debug*).
+    {
+        int mode = int(push.debug.x + 0.5);
+        vec3 shown = vec3(0.0);
+        if (mode == 1)
+        {
+            vec3 n = texture(gNormal, texCoord).xyz;
+            shown = dot(n, n) > 0.0 ? normalize(n) * 0.5 + 0.5 : vec3(0.0);
+        }
+        else if (mode == 2)
+        {
+            float d = texture(gLinearDepth, texCoord).r;
+            shown = vec3((d > 0.0 && push.debug.y > 0.0) ? 1.0 - exp(-d / push.debug.y) : 0.0);
+        }
+        else if (mode == 3)
+        {
+            vec2 v = texture(gVelocity, texCoord).rg;
+            shown = vec3(clamp(0.5 + v * push.debug.z, 0.0, 1.0), 0.5);
+        }
+        if (mode != 0)
+        {
+            outColor = vec4(shown, 1.0);
+            return;
+        }
+    }
+#endif
     vec3 color = texture(sceneColor, texCoord).rgb;
 #ifdef BLOOM
     color += texture(bloomColor, texCoord).rgb * push.params.w;
@@ -82,13 +117,15 @@ void main()
 }
 )GLSL";
 
-        std::string fragmentSource(bool bloom)
+        std::string fragmentSource(bool bloom, bool debug)
         {
             std::ostringstream out;
             out.precision(9);
             out << "#version 450\n";
             if (bloom)
                 out << "#define BLOOM 1\n";
+            if (debug)
+                out << "#define DEBUG_VIEW 1\n";
             out << "#define DISPLAY_GAMMA " << Hdr::displayGamma << "\n";
             out << "#define REINHARD_WHITE " << Hdr::reinhardWhitePoint << "\n";
             out << "#define MAX_TARGET_VALUE " << Hdr::maxTargetValue << "\n";
@@ -134,8 +171,14 @@ void main()
         , mGraph(std::move(graph))
         , mView(vsg::View::create())
         , mPush(vsg::vec4Value::create(pushConstants(Parameters{})))
+        , mPushDebug(vsg::vec4Value::create(debugPushConstants(GBuffer::DebugView::None, 0.f, 0.f)))
     {
         mView->viewDependentState = nullptr;
+    }
+
+    vsg::vec4 Tonemap::debugPushConstants(GBuffer::DebugView view, float depthRange, float velocityScale)
+    {
+        return vsg::vec4(static_cast<float>(static_cast<int>(view)), depthRange, velocityScale, 0.f);
     }
 
     Tonemap::~Tonemap() {}
@@ -144,17 +187,19 @@ void main()
     {
         mParameters = parameters;
         mPush->set(pushConstants(parameters));
+        mPushDebug->set(debugPushConstants(parameters.debugView, parameters.depthRange, parameters.velocityScale));
     }
 
-    bool Tonemap::setSource(
-        vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent)
+    bool Tonemap::setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom,
+        const VkExtent2D& extent, const DebugSources& debugSources)
     {
+        const bool debug = mParameters.debugView != GBuffer::DebugView::None;
         // Compiled once: a resize only changes the image, the viewport and the pipeline built around them.
-        auto& fragment = bloom ? mFragmentBloom : mFragment;
+        auto& fragment = mFragments[(bloom ? 1 : 0) + (debug ? 2 : 0)];
         if (!mVertex)
             mVertex = compile(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
         if (!fragment)
-            fragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentSource(bloom != nullptr));
+            fragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentSource(bloom != nullptr, debug));
         if (!mVertex || !fragment)
             return false;
         const auto vertex = mVertex;
@@ -163,9 +208,13 @@ void main()
         vsg::DescriptorSetLayoutBindings bindings{ { 0, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } };
         if (bloom)
             bindings.push_back({ 1, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+        if (debug)
+            for (uint32_t binding = 2; binding <= 4; ++binding)
+                bindings.push_back({ binding, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
         auto setLayout = vsg::DescriptorSetLayout::create(bindings);
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout },
-            vsg::PushConstantRanges{ { VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vsg::vec4) } });
+            vsg::PushConstantRanges{ { VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                static_cast<uint32_t>(debug ? 2 * sizeof(vsg::vec4) : sizeof(vsg::vec4)) } });
 
         auto depthStencil = vsg::DepthStencilState::create();
         depthStencil->depthTestEnable = VK_FALSE;
@@ -197,13 +246,31 @@ void main()
                 vsg::ImageInfo::create(linear, bloom, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 1, 0, imageType));
         }
 
+        if (debug)
+        {
+            // A missing image shows as black: the one image that exists stands in for it (never read for that mode).
+            const auto fallback = debugSources.normal ? debugSources.normal : color;
+            const auto image = [&](const vsg::ref_ptr<vsg::ImageView>& view, uint32_t binding) {
+                return vsg::DescriptorImage::create(
+                    vsg::ImageInfo::create(sampler, view ? view : fallback, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+                    binding, 0, imageType);
+            };
+            descriptors.push_back(image(debugSources.normal, 2));
+            descriptors.push_back(image(debugSources.linearDepth, 3));
+            descriptors.push_back(image(debugSources.velocity, 4));
+        }
+
         auto commands = vsg::Commands::create();
         commands->children
             = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, extent.width, extent.height)),
                   pipeline,
                   vsg::BindDescriptorSet::create(
                       VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, vsg::DescriptorSet::create(setLayout, descriptors)),
-                  vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mPush), vsg::Draw::create(3, 1, 0, 0) };
+                  vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mPush) };
+        if (debug)
+            commands->children.push_back(
+                vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vsg::vec4), mPushDebug));
+        commands->children.push_back(vsg::Draw::create(3, 1, 0, 0));
 
         // The tonemap pass has no view in its graph: it records under the view it was compiled for.
         auto compileForView = mCompile->clone(~vsg::Mask(0));

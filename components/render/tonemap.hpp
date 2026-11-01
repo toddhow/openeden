@@ -9,6 +9,7 @@
 #include <vsg/state/ImageView.h>
 #include <vsg/state/ShaderStage.h>
 
+#include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
@@ -34,6 +35,20 @@ namespace Render
             bool encode = false;
             // Bloom is added to the scene before the exposure: 0 means none (stage F2d).
             float bloomStrength = 0.f;
+            // Task 0026: draw a stored G-buffer image in place of the scene (None: the scene). `depthRange` is the
+            // distance at which the depth view reaches 63% grey; `velocityScale` multiplies velocity for display.
+            GBuffer::DebugView debugView = GBuffer::DebugView::None;
+            float depthRange = 1000.f;
+            float velocityScale = 40.f;
+        };
+
+        /// The G-buffer images the debug view can show; any may be null, and the debug view then shows black. Only
+        /// read when the parameters' debug view is not None.
+        struct DebugSources
+        {
+            vsg::ref_ptr<vsg::ImageView> normal;
+            vsg::ref_ptr<vsg::ImageView> linearDepth;
+            vsg::ref_ptr<vsg::ImageView> velocity;
         };
 
         /// `compile` compiles for the window's render pass; `graph` is a render graph on that window.
@@ -46,8 +61,10 @@ namespace Render
 
         /// Builds the draw for this source, replacing the previous one (a resize); the old one is detached through the
         /// compile context. `extent` is the swapchain's. `bloom` may be null.
-        bool setSource(
-            vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent);
+        /// With a debug view in the parameters (set before this call: the shader is chosen here), `debug` supplies its
+        /// images.
+        bool setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent,
+            const DebugSources& debug = {});
 
         // Between frames, from the main thread: the record thread reads the value.
         void setParameters(const Parameters& parameters);
@@ -59,14 +76,19 @@ namespace Render
         /// w bloom strength. Public for the unit tests.
         static vsg::vec4 pushConstants(const Parameters& parameters);
 
+        /// The debug view's second push constant: x the mode (0 none, 1 normals, 2 depth, 3 velocity), y the depth
+        /// range, z the velocity scale, w 0. Public for the unit tests.
+        static vsg::vec4 debugPushConstants(GBuffer::DebugView view, float depthRange, float velocityScale);
+
     private:
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
         vsg::ref_ptr<vsg::View> mView;
         vsg::ref_ptr<vsg::vec4Value> mPush;
         vsg::ref_ptr<vsg::ShaderStage> mVertex;
-        vsg::ref_ptr<vsg::ShaderStage> mFragment;
-        vsg::ref_ptr<vsg::ShaderStage> mFragmentBloom;
+        vsg::ref_ptr<vsg::vec4Value> mPushDebug;
+        // Indexed by bloom (1) and debug view (2).
+        vsg::ref_ptr<vsg::ShaderStage> mFragments[4];
         vsg::ref_ptr<vsg::Node> mDraw;
         Parameters mParameters;
     };

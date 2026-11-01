@@ -116,6 +116,23 @@ namespace Render
         createImages(context, extent);
     }
 
+    void HdrTarget::clearExtraOutputs(vsg::RenderGraph& graph) const
+    {
+        // Attachment order (createHdrRenderPass): the multisampled colours first, then, with multisampling, the
+        // resolved ones; the extra outputs are indices 1.. of each group.
+        const std::size_t n = mColorFormats.size();
+        const bool multisampled = mSamples != VK_SAMPLE_COUNT_1_BIT;
+        for (std::size_t i = 1; i < n; ++i)
+        {
+            for (std::size_t index : { i, n + i })
+            {
+                if ((index != i && !multisampled) || index >= graph.clearValues.size())
+                    continue;
+                graph.clearValues[index].color = VkClearColorValue{ { 0.f, 0.f, 0.f, 0.f } };
+            }
+        }
+    }
+
     void HdrTarget::createImages(vsg::Context& context, const VkExtent2D& extent)
     {
         mExtent = extent;

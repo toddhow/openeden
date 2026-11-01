@@ -329,6 +329,8 @@ namespace MWRender
         // mHdrTarget, and mTonemapGraph, a graph on the window, turns the result into the swapchain picture.
         vsg::ref_ptr<vsg::Context> mHdrContext; // before the target: it makes its images
         std::unique_ptr<Render::HdrTarget> mHdrTarget;
+        // Task 0026 (F3): colour outputs of the main pass beyond the scene's own; 0 without the G-buffer.
+        unsigned int mGBufferOutputs = 0;
         std::unique_ptr<Render::Tonemap> mTonemap;
         std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
         bool mTonemapSteppedAside = false; // a post-processing technique that sets `hdr` is enabled

@@ -50,6 +50,9 @@ namespace Pipeline
         // GLSL. The GLSL is still read first, for its stage and entry point, and stays the fallback when there is no
         // .spv.
         bool preferSlang = false;
+        // openeden (task 0026, F3): how many colour outputs the main pass has beyond the scene's own; 0 (the default)
+        // leaves every pipeline as it was. Set by MWRender::RenderManager before the first pipeline is created.
+        unsigned int gbufferOutputs = 0;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> create(const Options& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;

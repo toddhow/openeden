@@ -131,13 +131,13 @@ add_component_dir (vsgadapters/mygui
     )
 # Assembles vulkan pipelines.
 add_component_dir (pipeline
-    builder options override graphics particle particledata terrain descriptorvalue layout sets bindings computebindings viewbindings viewdata material descriptorimagecache descriptorbuffercache lightgrid fogofwar worldoverlay
+    builder options override graphics gbufferblend particle particledata terrain descriptorvalue layout sets bindings computebindings viewbindings viewdata material descriptorimagecache descriptorbuffercache lightgrid fogofwar worldoverlay
     )
 # Implements algorithms.
 add_component_dir (render
     engine download screenshot headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
-    gputiming devicereport hdrmath hdrtarget tonemap bloom
+    gputiming devicereport hdrmath hdrtarget tonemap bloom gbuffermath
     )
 # Renders pipelines.
 # Depends on pipeline, render.

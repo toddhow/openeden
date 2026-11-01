@@ -25,6 +25,10 @@ namespace Settings
         SettingValue<bool> mHdrBloom{ mIndex, "Rendering", "hdr bloom" };
         SettingValue<float> mHdrBloomStrength{ mIndex, "Rendering", "hdr bloom strength",
             makeClampSanitizerFloat(0, 1) };
+
+        // Task 0026 (F3): stored normals, depth and velocity. Read at start; needs `hdr`.
+        SettingValue<bool> mGBuffer{ mIndex, "Rendering", "gbuffer" };
+        SettingValue<std::string> mGBufferDebugView{ mIndex, "Rendering", "gbuffer debug view" };
     };
 }
 

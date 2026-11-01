@@ -16,6 +16,7 @@
 #                    whose frames would make every median look tiny
 #   BENCH_FILTER     only scenes whose name contains this text
 #   BENCH_TIMEOUT    seconds before a scene's run is stopped (default 240)
+#   BENCH_RENDERING  extra lines for the [Rendering] section of settings.cfg, as printf %b text (task 0026)
 #
 # A scene line is  name|start|cell|shot_frame|quit_frame|description|options  with options a comma-separated list of
 #   viewdist=<units>   [Camera] viewing distance
@@ -84,6 +85,8 @@ while IFS='|' read -r name type target shot quit desc options || [[ -n "${name:-
         echo "[Video]"; echo "resolution x = 1280"; echo "resolution y = 720"; echo "fullscreen = false"
         echo "window mode = 2"; echo "vsync mode = 0"; echo "framerate limit = 0"
         echo "[Rendering]"; echo "gpu timing = true"
+        # Extra [Rendering] lines (task 0026): BENCH_RENDERING with backslash-n between lines.
+        [[ -n "${BENCH_RENDERING:-}" ]] && echo -e "$BENCH_RENDERING"
         echo "[Shadows]"; echo "enable shadows = false"
         [[ ",$options," == *",distant,"* ]] && { echo "[Terrain]"; echo "distant terrain = true"; echo "object paging = true"; }
         if [[ "$options" =~ viewdist=([0-9.]+) ]]; then echo "[Camera]"; echo "viewing distance = ${BASH_REMATCH[1]}"; fi

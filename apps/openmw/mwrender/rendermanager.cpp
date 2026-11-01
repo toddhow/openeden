@@ -31,6 +31,8 @@
 #include <components/render/bloom.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
+#include <components/pipeline/gbufferblend.hpp>
+#include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/render/hdrtarget.hpp>
 #include <components/render/screen.hpp>
@@ -132,7 +134,28 @@ namespace MWRender
             parameters.encode = true; // the scene is lit in linear space (stage F2b)
             if (rendering.mHdrBloom)
                 parameters.bloomStrength = rendering.mHdrBloomStrength;
+            // Task 0026: the G-buffer's debug view (only with the G-buffer on; checked where the setting is read).
+            if (rendering.mGBuffer)
+            {
+                const auto view = Render::GBuffer::parseDebugView(rendering.mGBufferDebugView.get());
+                if (!view)
+                    Log(Debug::Warning) << "[Rendering] gbuffer debug view: unknown view '"
+                                        << rendering.mGBufferDebugView.get() << "', showing the scene";
+                parameters.debugView = view.value_or(Render::GBuffer::DebugView::None);
+                if (parameters.debugView == Render::GBuffer::DebugView::Velocity)
+                {
+                    Log(Debug::Warning) << "[Rendering] gbuffer debug view: velocity is not stored yet";
+                    parameters.debugView = Render::GBuffer::DebugView::None;
+                }
+                parameters.depthRange = Settings::camera().mViewingDistance / 8.f;
+            }
             return parameters;
+        }
+
+        // The images the tonemap's debug view can show.
+        Render::Tonemap::DebugSources debugSources(const Render::HdrTarget& target)
+        {
+            return { target.normalView(), target.linearDepthView(), nullptr };
         }
 
         // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass.
@@ -193,11 +216,24 @@ namespace MWRender
         const bool hdr = Render::Hdr::useHdrPath(wantHdr, mEngine.hasWindow());
         if (wantHdr && !hdr)
             Log(Debug::Warning) << "[Rendering] hdr is on but this engine has no window to draw to; HDR is off";
+        if (Settings::rendering().mGBuffer && !hdr)
+            Log(Debug::Warning) << "[Rendering] gbuffer needs hdr (the HDR path owns the render pass that holds its "
+                                   "outputs); the G-buffer is off";
         if (hdr)
         {
             mHdrContext = context;
-            mHdrTarget
-                = std::make_unique<Render::HdrTarget>(*context, mEngine.framebufferSamples(), mEngine.extent2D());
+            // OpenEden (task 0026, F3): the G-buffer is extra colour outputs of this target's render pass, which must
+            // exist before any pipeline of the scene is compiled.
+            const bool gbuffer = Render::GBuffer::useGBuffer(Settings::rendering().mGBuffer, true);
+            const auto gbufferFormats = gbuffer ? Render::GBuffer::extraColorFormats(false) : std::vector<VkFormat>{};
+            mHdrTarget = std::make_unique<Render::HdrTarget>(
+                *context, mEngine.framebufferSamples(), mEngine.extent2D(), gbufferFormats);
+            mGBufferOutputs = static_cast<unsigned int>(gbufferFormats.size());
+            if (gbuffer)
+            {
+                resourceSystem->builder->graphics->gbufferOutputs = mGBufferOutputs;
+                Log(Debug::Info) << "G-buffer: normals and linear depth are stored beside the scene";
+            }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";
             mReflect = std::make_unique<Reflect>(
@@ -289,6 +325,7 @@ namespace MWRender
         mTerrainStorage = std::make_unique<TerrainStorage>(mResourceSystem);
         // openeden-vsg: terrain normal and specular maps, off by default (task 0012, V4i).
         Terrain::TerrainMapSettings terrainMaps;
+        terrainMaps.gbufferOutputs = mGBufferOutputs;
         const auto& shaders = Settings::shaders();
         terrainMaps.autoMaps.autoUseNormalMaps = shaders.mAutoUseTerrainNormalMaps;
         terrainMaps.autoMaps.autoUseSpecularMaps = shaders.mAutoUseTerrainSpecularMaps;
@@ -501,8 +538,8 @@ namespace MWRender
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The bloom passes could not be built");
-            if (!mTonemap->setSource(
-                    mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent()))
+            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr,
+                    mHdrTarget->extent(), debugSources(*mHdrTarget)))
                 throw std::runtime_error("The tonemap pass could not be built");
         }
         if (mPostProcess)
@@ -907,6 +944,8 @@ namespace MWRender
         const auto toView = [linear](const vsg::vec4& color) { return linear ? Render::Hdr::toLinear(color) : color; };
         const vsg::vec4 clearColor = toView(vsg::vec4(fogColor[0], fogColor[1], fogColor[2], 1.f));
         mRenderGraph->setClearValues(VkClearColorValue{ { clearColor.x, clearColor.y, clearColor.z, 1 } });
+        if (mHdrTarget)
+            mHdrTarget->clearExtraOutputs(*mRenderGraph);
 
         mSceneData->setFogRange(mFog->getFogStart(isUnderwater), mFog->getFogEnd(isUnderwater));
 
@@ -1545,7 +1584,8 @@ namespace MWRender
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
-            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent))
+            if (!mTonemap->setSource(
+                    mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent, debugSources(*mHdrTarget)))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }
         updateProjectionMatrix();

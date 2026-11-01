@@ -42,7 +42,10 @@ namespace Pipeline
         // OpenEden: particles fading where they meet the opaque scene (task 0012, V4k).
         SOFT_PARTICLE,
         // OpenEden: weather particles discarded under a roof (task 0012, V4l).
-        PARTICLE_OCCLUSION
+        PARTICLE_OCCLUSION,
+        // OpenEden: the draw writes the G-buffer's extra colour outputs (task 0026); added by Pipeline::Graphics, never
+        // by a loader.
+        GBUFFER
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

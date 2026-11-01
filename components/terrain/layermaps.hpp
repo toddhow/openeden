@@ -27,6 +27,8 @@ namespace Terrain
     {
         vsgAdapters::AutoMapSettings autoMaps;
         std::function<bool(std::string_view)> exists;
+        // openeden (task 0026): colour outputs of the main pass beyond the scene's own; the terrain writes them.
+        unsigned int gbufferOutputs = 0;
 
         bool enabled() const { return exists && (autoMaps.autoUseNormalMaps || autoMaps.autoUseSpecularMaps); }
     };

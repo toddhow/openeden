@@ -13,6 +13,7 @@
 #include <components/vsgutil/readshader.hpp>
 
 #include "bindings.hpp"
+#include "gbufferblend.hpp"
 #include "layout.hpp"
 
 namespace Pipeline
@@ -73,6 +74,8 @@ namespace Pipeline
                 return "SOFT_PARTICLE";
             case Mode::PARTICLE_OCCLUSION:
                 return "PARTICLE_OCCLUSION";
+            case Mode::GBUFFER:
+                return "GBUFFER";
         }
         return "";
     }
@@ -198,6 +201,10 @@ namespace Pipeline
             fragmentStageOptions.addMode(Mode::ALPHA_TO_COVERAGE);
         if (coverage.adjustCoverage)
             fragmentStageOptions.addMode(Mode::ADJUST_COVERAGE);
+        // OpenEden (task 0026): only the draws that write the G-buffer get the define.
+        const bool toGBuffer = gbufferOutputs > 0 && writesGBuffer(key);
+        if (toGBuffer)
+            fragmentStageOptions.addMode(Mode::GBUFFER);
         auto fragmentStage = mFragmentStageCache.getOrCreate(fragmentStageOptions, *this);
 
         vsg::ShaderStages shaders
@@ -314,6 +321,15 @@ namespace Pipeline
             colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
         }
         vsg::ColorBlendState::ColorBlendAttachments colorBlendAttachments = { colorBlendAttachment };
+        vsg::ref_ptr<vsg::ColorBlendState> colorBlendState;
+        if (gbufferOutputs > 0)
+        {
+            // The extra entries for the G-buffer's outputs: written only by the draws that define GBUFFER.
+            const auto entries = gbufferBlendAttachments(colorBlendAttachment, key, 2);
+            colorBlendState = GBufferBlendState::create(colorBlendAttachments, entries[1], 1 + gbufferOutputs);
+        }
+        else
+            colorBlendState = vsg::ColorBlendState::create(colorBlendAttachments);
 
         auto depthStencilState = vsg::DepthStencilState::create();
         depthStencilState->depthTestEnable = key.depthTest;
@@ -333,7 +349,7 @@ namespace Pipeline
         vsg::GraphicsPipelineStates pipelineStates{ vsg::VertexInputState::create(
                                                         vertexBindingsDescriptions, vertexAttributeDescriptions),
             vsg::InputAssemblyState::create(key.primitiveTopology), rasterState,
-            vsg::ColorBlendState::create(colorBlendAttachments), vsg::MultisampleState::create(), depthStencilState };
+            colorBlendState, vsg::MultisampleState::create(), depthStencilState };
 
         return vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(mLayout, shaders, pipelineStates));
     }

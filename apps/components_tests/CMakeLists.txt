@@ -136,6 +136,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testgputiming.cpp
     render/testhdrmath.cpp
     render/testtonemap.cpp
+    render/testgbuffermath.cpp
     view/testcollectlights.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp
@@ -144,6 +145,8 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testarraytexture.cpp
 
     pipeline/testcoveragemodes.cpp
+    pipeline/testgbufferblend.cpp
+    pipeline/testgbufferstates.cpp
 
     mwanimation/testclonematerials.cpp
     vsgutil/testimagepixels.cpp

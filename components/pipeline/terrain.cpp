@@ -10,6 +10,7 @@
 
 #include <components/vsgutil/readshader.hpp>
 
+#include "gbufferblend.hpp"
 #include "layout.hpp"
 
 namespace Pipeline
@@ -19,15 +20,18 @@ namespace Pipeline
 #include <files/shaders/terrain/bindings.glsl>
     }
 
-    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps)
+    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps, unsigned int gbufferOutputs)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
-        if (maps)
+        if (maps || gbufferOutputs > 0)
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
             auto compileSettings = vsg::ShaderCompileSettings::create();
-            compileSettings->defines.insert("TERRAIN_MAPS");
+            if (maps)
+                compileSettings->defines.insert("TERRAIN_MAPS");
+            if (gbufferOutputs > 0)
+                compileSettings->defines.insert("GBUFFER");
             for (auto& stage : shaders)
             {
                 stage = vsg::ShaderStage::create(*stage);
@@ -71,10 +75,15 @@ namespace Pipeline
         colorBlendAttachment.colorWriteMask
             = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         colorBlendAttachments.push_back(colorBlendAttachment);
+        vsg::ref_ptr<vsg::ColorBlendState> colorBlendState;
+        if (gbufferOutputs > 0)
+            colorBlendState = GBufferBlendState::create(colorBlendAttachments, colorBlendAttachment, 1 + gbufferOutputs);
+        else
+            colorBlendState = vsg::ColorBlendState::create(colorBlendAttachments);
 
         vsg::GraphicsPipelineStates pipelineStates{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
             vsg::RasterizationState::create(), vsg::MultisampleState::create(),
-            vsg::ColorBlendState::create(colorBlendAttachments), vsg::DepthStencilState::create() };
+            colorBlendState, vsg::DepthStencilState::create() };
 
         return vsg::BindGraphicsPipeline::create(
             vsg::GraphicsPipeline::create(pipelineLayout, shaders, pipelineStates));
