@@ -66,8 +66,8 @@ namespace OMW
                 // columns lie on such edges, so a miss is tried again a unit to each side (the same order every
                 // time, so both cells sharing a border column get the same answer).
                 constexpr float nudge = 1.f;
-                constexpr float offsets[5][2] = { { 0.f, 0.f }, { nudge, 0.f }, { -nudge, 0.f }, { 0.f, nudge },
-                    { 0.f, -nudge } };
+                constexpr float offsets[5][2]
+                    = { { 0.f, 0.f }, { nudge, 0.f }, { -nudge, 0.f }, { 0.f, nudge }, { 0.f, -nudge } };
                 for (const auto& offset : offsets)
                 {
                     const float px = x + offset[0];
@@ -166,8 +166,8 @@ namespace OMW
             : width * height;
         if (count > static_cast<long long>(maxCells))
         {
-            error = "that names " + std::to_string(count) + " cells; at most " + std::to_string(maxCells)
-                + " at a time";
+            error
+                = "that names " + std::to_string(count) + " cells; at most " + std::to_string(maxCells) + " at a time";
             return cells;
         }
         for (int y = low.second; y <= high.second; ++y)
@@ -213,8 +213,7 @@ namespace OMW
         void setPaths()
         {
             const auto [x, y] = current();
-            const std::filesystem::path base
-                = outFolder / Render::Gi::skyVisFilePath(x, y);
+            const std::filesystem::path base = outFolder / Render::Gi::skyVisFilePath(x, y);
             outFile = base;
             partialFile = base;
             partialFile.replace_extension(".partial");
@@ -326,8 +325,7 @@ namespace OMW
             world = std::make_unique<JoltSkyWorld>(*gameWorld->getPhysicsSystem());
             baker = std::make_unique<Render::Gi::SkyVisBaker>(settings, *world, current().first, current().second);
             Log(Debug::Info) << "[GI] baking exterior cell " << current().first << "," << current().second << ": "
-                             << baker->total() << " probes, " << settings.rays << " rays, spacing "
-                             << settings.spacing;
+                             << baker->total() << " probes, " << settings.rays << " rays, spacing " << settings.spacing;
             tryResume();
             started = lastSave = std::chrono::steady_clock::now();
             lastLogged = 99;
@@ -421,7 +419,8 @@ namespace OMW
                 }
                 auto gameWorld = MWBase::Environment::get().getWorld();
                 const MWWorld::CellStore* cell = gameWorld->getPlayerPtr().getCell();
-                const bool right = cell && cell->getCell()->isExterior() && cell->getCell()->getGridX() == current().first
+                const bool right = cell && cell->getCell()->isExterior()
+                    && cell->getCell()->getGridX() == current().first
                     && cell->getCell()->getGridY() == current().second;
                 if (right)
                     ++settled;

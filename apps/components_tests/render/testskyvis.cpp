@@ -115,7 +115,8 @@ TEST(SkyVisFile, RoundTripsByteForByte)
 TEST(SkyVisFile, CanonicalTextHasTheDocumentedShape)
 {
     const std::string text = writeCanonical(sampleField());
-    EXPECT_EQ(text.rfind("{\n  \"format\": \"openeden.skyvis\",\n  \"version\": 1,\n  \"cell\": {\n    \"exterior\": [-3, 7]\n  },\n",
+    EXPECT_EQ(text.rfind("{\n  \"format\": \"openeden.skyvis\",\n  \"version\": 1,\n  \"cell\": {\n    \"exterior\": "
+                         "[-3, 7]\n  },\n",
                   0),
         0u);
     EXPECT_EQ(text.back(), '\n');

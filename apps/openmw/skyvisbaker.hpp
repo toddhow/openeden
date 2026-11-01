@@ -28,7 +28,8 @@ namespace OMW
     class SkyVisBaker
     {
     public:
-        // `outFolder`: a data folder layout; each file goes to <outFolder>/openeden/probes/exterior/<x>_<y>.skyvis.json.
+        // `outFolder`: a data folder layout; each file goes to
+        // <outFolder>/openeden/probes/exterior/<x>_<y>.skyvis.json.
         SkyVisBaker(std::string argument, std::filesystem::path outFolder, MWRender::RenderManager& rendering);
         ~SkyVisBaker();
 

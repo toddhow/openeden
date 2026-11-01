@@ -1082,8 +1082,8 @@ namespace Render::Gi
 
     float skyVisQuantize(float value)
     {
-        const float scaled = std::clamp(std::round(value * skyVisScale), static_cast<float>(skyVisIntMin),
-            static_cast<float>(skyVisIntMax));
+        const float scaled = std::clamp(
+            std::round(value * skyVisScale), static_cast<float>(skyVisIntMin), static_cast<float>(skyVisIntMax));
         return scaled / skyVisScale;
     }
 

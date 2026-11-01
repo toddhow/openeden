@@ -33,8 +33,8 @@
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/ambientocclusion.hpp>
-#include <components/render/atmospheremath.hpp>
 #include <components/render/aomath.hpp>
+#include <components/render/atmospheremath.hpp>
 #include <components/render/bloom.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
@@ -46,8 +46,8 @@
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
-#include <components/render/skyvisgpu.hpp>
 #include <components/render/screen.hpp>
+#include <components/render/skyvisgpu.hpp>
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
@@ -339,7 +339,8 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] gi needs hdr and pbr; baked light probes are off";
             }
-            // Task 0036: the exterior sky-visibility field. Its sky colours come from the atmosphere model, so that too.
+            // Task 0036: the exterior sky-visibility field. Its sky colours come from the atmosphere model, so that
+            // too.
             if (Settings::rendering().mGiExterior)
             {
                 if (pbr && Render::Atmosphere::useAtmosphere(Settings::rendering().mAtmosphere, true))
@@ -1141,8 +1142,8 @@ namespace MWRender
                     if (!parsed)
                         Log(Debug::Warning) << "[Rendering] gi exterior: skipped file " << error.describe();
                     else if (parsed->cellX != cell.first || parsed->cellY != cell.second)
-                        Log(Debug::Warning) << "[Rendering] gi exterior: " << path
-                                            << " is the bake of another cell, skipped";
+                        Log(Debug::Warning)
+                            << "[Rendering] gi exterior: " << path << " is the bake of another cell, skipped";
                     else
                         field = std::make_unique<Render::Gi::SkyVisField>(std::move(*parsed));
                 }

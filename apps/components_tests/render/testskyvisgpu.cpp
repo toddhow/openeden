@@ -41,8 +41,8 @@ namespace
         std::vector<vsg::vec4> pool = std::vector<vsg::vec4>(2000000 / 4);
         SkyPackResult result;
 
-        void pack(const std::vector<const SkyVisField*>& cells, const Sh9& sky, float strength = 1.f,
-            bool enabled = true)
+        void pack(
+            const std::vector<const SkyVisField*>& cells, const Sh9& sky, float strength = 1.f, bool enabled = true)
         {
             result = packSkyVisibility(cells, header.data(), pool.data(), pool.size());
             writeSkyHeader(header.data(), enabled, strength, sky);

@@ -185,8 +185,8 @@ namespace Render::Gi
         const int south = static_cast<int>(header[0].w);
 
         vsg::vec3 p = worldPos;
-        const float nl = std::sqrt(worldNormal.x * worldNormal.x + worldNormal.y * worldNormal.y
-            + worldNormal.z * worldNormal.z);
+        const float nl
+            = std::sqrt(worldNormal.x * worldNormal.x + worldNormal.y * worldNormal.y + worldNormal.z * worldNormal.z);
         if (nl > 1e-10f)
             p += worldNormal * (normalBiasFraction * spacing / nl);
 
@@ -197,7 +197,8 @@ namespace Render::Gi
         const float fx = gx - static_cast<float>(gx0);
         const float fy = gy - static_cast<float>(gy0);
 
-        // The float offset of the data of the column at global lattice place (cx, cy), or -1 when no loaded cell has it.
+        // The float offset of the data of the column at global lattice place (cx, cy), or -1 when no loaded cell has
+        // it.
         const auto columnOffset = [&](int cx, int cy) -> int {
             const int cellX = detail::floorDiv(cx, divisions);
             const int cellY = detail::floorDiv(cy, divisions);
@@ -241,8 +242,10 @@ namespace Render::Gi
                 const float t = level - static_cast<float>(l0);
                 for (int k = 0; k < shCoefficients; ++k)
                 {
-                    const float a = detail::getFloat(pool, static_cast<std::size_t>(offset + 1 + l0 * shCoefficients + k));
-                    const float b = detail::getFloat(pool, static_cast<std::size_t>(offset + 1 + l1 * shCoefficients + k));
+                    const float a
+                        = detail::getFloat(pool, static_cast<std::size_t>(offset + 1 + l0 * shCoefficients + k));
+                    const float b
+                        = detail::getFloat(pool, static_cast<std::size_t>(offset + 1 + l1 * shCoefficients + k));
                     sum[k] += (a * (1.f - t) + b * t) * w;
                 }
                 weightSum += w;

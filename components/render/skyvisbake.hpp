@@ -49,8 +49,8 @@ namespace Render::Gi
         float invalidDistance = defaultInvalidDistance;
         float invalidFraction = defaultInvalidFraction;
         // A probe from which no ray escapes to the sky and every one stops within this distance is inside a closed room
-        // or a solid mass (a building's shell, a rock): also taken to be invalid, since its darkness would leak out to the
-        // walls around it. Bigger covered places (under a bridge or a dense canopy) keep their shade.
+        // or a solid mass (a building's shell, a rock): also taken to be invalid, since its darkness would leak out to
+        // the walls around it. Bigger covered places (under a bridge or a dense canopy) keep their shade.
         float enclosedDistance = defaultEnclosedDistance;
     };
 

@@ -326,11 +326,11 @@ TEST(SkyVisBake, AProbeInAClosedRoomIsInvalidAndFilledFromOutside)
     TestWorld w;
     // A closed room around column (4, 4): inside x and y from 3896 to 4296 and z from 0 to 350, walls 100 thick.
     const vsg::vec3 lo(3796.f, 3796.f, -100.f), hi(4396.f, 4396.f, 450.f);
-    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 350.f), vsg::vec3(hi.x, hi.y, hi.z) });              // roof
-    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 0.f), vsg::vec3(3896.f, hi.y, 350.f) });             // west
-    w.boxes.push_back({ vsg::vec3(4296.f, lo.y, 0.f), vsg::vec3(hi.x, hi.y, 350.f) });             // east
-    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 0.f), vsg::vec3(hi.x, 3896.f, 350.f) });             // south
-    w.boxes.push_back({ vsg::vec3(lo.x, 4296.f, 0.f), vsg::vec3(hi.x, hi.y, 350.f) });             // north
+    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 350.f), vsg::vec3(hi.x, hi.y, hi.z) }); // roof
+    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 0.f), vsg::vec3(3896.f, hi.y, 350.f) }); // west
+    w.boxes.push_back({ vsg::vec3(4296.f, lo.y, 0.f), vsg::vec3(hi.x, hi.y, 350.f) }); // east
+    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 0.f), vsg::vec3(hi.x, 3896.f, 350.f) }); // south
+    w.boxes.push_back({ vsg::vec3(lo.x, 4296.f, 0.f), vsg::vec3(hi.x, hi.y, 350.f) }); // north
     SkyVisBaker baker(coarse(), w, 0, 0);
     while (!baker.done())
         baker.step(200);
@@ -348,7 +348,8 @@ TEST(SkyVisBake, AProbeInAClosedRoomIsInvalidAndFilledFromOutside)
 
 TEST(SkyVisBake, ACoveredButNotClosedPlaceKeepsItsShade)
 {
-    // A big flat roof, 300 units up, 20000 wide: nothing escapes, but the ground far off is beyond the enclosed distance.
+    // A big flat roof, 300 units up, 20000 wide: nothing escapes, but the ground far off is beyond the enclosed
+    // distance.
     TestWorld w;
     w.boxes.push_back({ vsg::vec3(-30000.f, -30000.f, 300.f), vsg::vec3(30000.f, 30000.f, 360.f) });
     SkyVisBaker baker(coarse(), w, 0, 0);

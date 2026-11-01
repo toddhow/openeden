@@ -115,7 +115,8 @@ namespace Render::Gi
     // lobe (the factors 1, 2/3 and 1/4 of shAmbient), 1 for a surface that sees everything its lobe covers.
     inline float visCosine(const VisSh& v, const vsg::vec3& normal)
     {
-        constexpr std::array<float, 9> band = { 1.f, 2.f / 3.f, 2.f / 3.f, 2.f / 3.f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f };
+        constexpr std::array<float, 9> band
+            = { 1.f, 2.f / 3.f, 2.f / 3.f, 2.f / 3.f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f };
         const auto basis = shBasis(normal);
         float sum = 0.f;
         for (int i = 0; i < shCoefficients; ++i)
