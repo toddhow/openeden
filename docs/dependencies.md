@@ -104,3 +104,18 @@ Stage V0 introduces the dependencies required for the VulkanSceneGraph (VSG) ren
 - **License:** Apache-2.0 WITH LLVM-exception (GPL-3.0-or-later compatible). Bundled third-party notices: glslang, SPIRV-Tools, lz4, mimalloc, miniz, cmark, unordered_dense.
 - **Purpose / Why:** compile new shaders written in the Slang language to SPIR-V 1.0 at build time, from task 0012 (Track V stage V4) on; vsgopenmw's GLSL shaders stay on glslang until ported (research note 0005 explains why Slang is not a drop-in replacement for them).
 - **Proposed build configuration:** host tool only. CMake downloads the pinned archive, checks the hash and runs `slangc` at build time; nothing from Slang ships with the game. Embedding the compiler library for runtime compilation would add about 27 MB (`slang.dll`, `slang-compiler.dll`, `slang-glsl-module.dll`) or about 33 MB with the optimizer (`slang-glslang.dll`), and needs its own decision.
+
+## Rendering groundwork (task 0023)
+
+### Slang (`slangc`, build-time tool)
+
+- **Version:** `v2026.19` (2026-09-29 release tag). Fetched by `extern/CMakeLists.txt` with `FetchContent` into `build/extern/fetched/slang`, behind the option `OPENEDEN_BUILD_SLANG_SHADERS` (on by default; no archive for other platforms, where nothing is built and `[Rendering] slang shaders` falls back to the GLSL).
+- **Windows x86_64:** https://github.com/shader-slang/slang/releases/download/v2026.19/slang-2026.19-windows-x86_64.zip, 63,221,930 bytes
+  - **SHA-512:** `cdd3329697a7307e0e46a03c45f279af9dd437cf842829f7dee579408959bd821982d9a486a4b01b865b19e67292c378ee962d340244c3062a3915b4f2cb967d`
+  - **SHA-256:** `fc922f214b5d115f663932e59e80e0f6b6cc6fae140979cf307da6459b6f8f33` (matches GitHub's published digest)
+- **Linux x86_64:** https://github.com/shader-slang/slang/releases/download/v2026.19/slang-2026.19-linux-x86_64-glibc-2.28.tar.gz, 29,164,768 bytes
+  - **SHA-512:** `68bbb47ec6157d28b9fd353ad700facdd73d5fb56d6b5ef4a88bf8038c8e0f23ef951e596800322a3031573480262419a51900140f94314b45ae21c6dba0b5a7`
+  - **SHA-256:** `bd7afcb0956dee9304f44ed115e9aaa7140704271b5c3294bcb237e3ae67adc7` (matches GitHub's published digest; downloaded and hashed on 2026-11-01)
+- **License:** `Apache-2.0 WITH LLVM-exception`, read from the archive's `LICENSE` on 2026-11-01. Compatible with GPL-3.0-or-later. The archive's `third-party-notices` folder lists the notices of what Slang itself bundles (glslang, SPIRV-Tools and others, all permissive).
+- **Purpose / Why:** compiles `.slang` shaders to SPIR-V 1.0 at build time (`openeden_add_slang_shader()` in `files/shaders/CMakeLists.txt`). A host tool only: nothing of Slang is linked into or shipped with the game, only the `.spv` files it writes. Research note `docs/research/0005-slang-shaders.md`; decision draft `docs/decisions/0009-slang-for-new-shaders.md`.
+- **Runner note:** the download is about 63 MB on Windows and 29 MB on Linux on each fresh build folder. `FetchContent` checks the SHA-512, so a changed or corrupt download stops the configure step.

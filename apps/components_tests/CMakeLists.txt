@@ -129,6 +129,10 @@ file(GLOB UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
 
     vsg/testshadercompile.cpp
+    vsg/testslangshaders.cpp
+
+    render/testgputiming.cpp
+    render/testdevicereport.cpp
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp
@@ -195,6 +199,14 @@ target_link_libraries(components-tests ${VSG_LIBRARIES})
 target_include_directories(components-tests PRIVATE ${VSG_INCLUDE_DIRS})
 # The build is always VSG's now. Committed tests still test this name under #if, so it stays defined.
 target_compile_definitions(components-tests PRIVATE OPENEDEN_BUILD_VSG=1)
+# Task 0023: the Slang sun shader test compares the built SPIR-V with the GLSL it replaces.
+target_compile_definitions(components-tests PRIVATE
+    OPENEDEN_SHADER_SOURCE_DIR="${PROJECT_SOURCE_DIR}/files/shaders"
+    OPENEDEN_SHADER_BUILD_DIR="${OPENMW_RESOURCES_ROOT}/resources/shaders"
+    OPENEDEN_SLANG_ENABLED=$<BOOL:${OPENEDEN_SLANG_SHADERS_BUILT}>)
+if (OPENEDEN_SLANG_SHADERS_BUILT)
+    add_dependencies(components-tests openeden_slang_shaders)
+endif()
 
 if (WIN32)
     target_sources(components-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)

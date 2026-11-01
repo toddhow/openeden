@@ -469,3 +469,44 @@ if (WIN32)
         set(OPENEDEN_SDL2_VULKAN_DLL ${SDL2_VULKAN_PREFIX}/bin/SDL2.dll PARENT_SCOPE)
     endif()
 endif()
+
+# Slang's compiler, slangc (task 0023, F1a; research note 0005; docs/dependencies.md).
+# A build-time tool only: nothing of Slang is linked into or shipped with the game. The release archive is downloaded
+# from its pinned URL and checked against its SHA-512, so this works on a CI runner with no machine-wide install.
+# OPENEDEN_SLANGC is left empty where there is no matching archive (not x86-64 Windows or Linux) or the option is off,
+# and then no .slang shader is compiled and [Rendering] slang shaders falls back to the GLSL.
+option(OPENEDEN_BUILD_SLANG_SHADERS "Compile .slang shaders to SPIR-V at build time with a downloaded, pinned slangc" ON)
+set(OPENEDEN_SLANGC "" CACHE INTERNAL "Path of the pinned slangc, or empty")
+if(OPENEDEN_BUILD_SLANG_SHADERS)
+    set(OPENEDEN_SLANG_VERSION "2026.19")
+    set(OPENEDEN_SLANG_URL "")
+    if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows" AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
+        set(OPENEDEN_SLANG_URL
+            "https://github.com/shader-slang/slang/releases/download/v${OPENEDEN_SLANG_VERSION}/slang-${OPENEDEN_SLANG_VERSION}-windows-x86_64.zip")
+        set(OPENEDEN_SLANG_HASH
+            "cdd3329697a7307e0e46a03c45f279af9dd437cf842829f7dee579408959bd821982d9a486a4b01b865b19e67292c378ee962d340244c3062a3915b4f2cb967d")
+        set(OPENEDEN_SLANG_EXE "bin/slangc.exe")
+    elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+        set(OPENEDEN_SLANG_URL
+            "https://github.com/shader-slang/slang/releases/download/v${OPENEDEN_SLANG_VERSION}/slang-${OPENEDEN_SLANG_VERSION}-linux-x86_64-glibc-2.28.tar.gz")
+        set(OPENEDEN_SLANG_HASH
+            "68bbb47ec6157d28b9fd353ad700facdd73d5fb56d6b5ef4a88bf8038c8e0f23ef951e596800322a3031573480262419a51900140f94314b45ae21c6dba0b5a7")
+        set(OPENEDEN_SLANG_EXE "bin/slangc")
+    endif()
+
+    if(OPENEDEN_SLANG_URL)
+        FetchContent_Declare(slang
+            URL "${OPENEDEN_SLANG_URL}"
+            URL_HASH SHA512=${OPENEDEN_SLANG_HASH}
+            SOURCE_DIR fetched/slang
+        )
+        FetchContent_MakeAvailable(slang)
+        if(EXISTS "${slang_SOURCE_DIR}/${OPENEDEN_SLANG_EXE}")
+            set(OPENEDEN_SLANGC "${slang_SOURCE_DIR}/${OPENEDEN_SLANG_EXE}" CACHE INTERNAL "Path of the pinned slangc, or empty")
+        else()
+            message(WARNING "Slang was downloaded but ${OPENEDEN_SLANG_EXE} is not in it; .slang shaders will not be built")
+        endif()
+    else()
+        message(STATUS "Slang: no pinned archive for ${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_PROCESSOR}; .slang shaders will not be built")
+    endif()
+endif()

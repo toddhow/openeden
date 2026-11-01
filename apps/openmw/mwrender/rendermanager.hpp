@@ -37,6 +37,7 @@ namespace Render
 {
     class DebugGeometry;
     class Engine;
+    class GpuTimer;
     class SimpleWater;
 }
 namespace vsg
@@ -301,6 +302,10 @@ namespace MWRender
         std::vector<Mode> mRenderModes;
 
         Render::Engine& mEngine;
+        // Null unless [Rendering] gpu timing is on and the device supports it (task 0023). Owned by the Engine.
+        Render::GpuTimer* mGpuTimer = nullptr;
+        static constexpr std::size_t noPass = static_cast<std::size_t>(-1);
+        std::size_t mReflectPass = noPass;
         vsg::ref_ptr<vsg::StateGroup> mSceneRoot;
         vsg::ref_ptr<vsg::Group> mIntersectorScene;
         vsg::ref_ptr<vsg::Switch> mPlayerGroup;

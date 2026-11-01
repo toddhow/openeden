@@ -73,6 +73,8 @@ capture_scenes() {
     while IFS='|' read -r scene_name scene_type scene_target shot_frame quit_frame desc || [[ -n "$scene_name" ]]; do
         # Skip empty lines and comments
         [[ -z "$scene_name" || "$scene_name" =~ ^# ]] && continue
+        # The heavy_ scenes are for tools/benchmark.sh (they need its options and run long).
+        [[ "$scene_name" == heavy_* ]] && continue
 
         echo "--- Capturing scene: $scene_name ($desc) ---"
         setup_isolated_env "$base_cfg" "$tmp_work"

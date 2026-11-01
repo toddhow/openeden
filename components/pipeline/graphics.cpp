@@ -7,6 +7,9 @@
 #include <vsg/state/RasterizationState.h>
 #include <vsg/state/VertexInputState.h>
 
+#include <vsg/io/read.h>
+
+#include <components/debug/debuglog.hpp>
 #include <components/vsgutil/readshader.hpp>
 
 #include "bindings.hpp"
@@ -149,6 +152,17 @@ namespace Pipeline
             shaderStage = vsg::ShaderStage::create(*shaderStage);
             shaderStage->module = vsg::ShaderModule::create(*shaderStage->module);
             shaderStage->module->hints = compileSettings;
+        }
+        if (preferSlang)
+        {
+            const std::string spirvPath = path + suffix + ".spv";
+            // The reader finds the file along the shader options' paths; read_cast gives null if there is none.
+            if (auto precompiled = vsg::read_cast<vsg::ShaderModule>(spirvPath, mShaderOptions);
+                precompiled && !precompiled->code.empty())
+            {
+                shaderStage->module = precompiled;
+                Log(Debug::Verbose) << "Using the Slang shader " << spirvPath;
+            }
         }
         return shaderStage;
     }

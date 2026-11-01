@@ -15,12 +15,16 @@
 #include <vsg/commands/Commands.h>
 #include <vsg/core/Exception.h>
 #include <vsg/vk/Device.h>
+#include <vsg/vk/Surface.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/debugmessenger.hpp>
 #include <components/vsgutil/deletionqueue.hpp>
 
 #include "attachmentformat.hpp"
+#include "devicereport.hpp"
+#include "gputiming.hpp"
 #include "headless.hpp"
 #include "limitframerate.hpp"
 #include "screenshot.hpp"
@@ -118,6 +122,10 @@ namespace Render
 
     Engine::~Engine()
     {
+        // The timer's query pool may still be used by frames in flight (loop() waits at its end, a game that aborts or a hosted
+        // engine does not).
+        if (mGpuTimer)
+            mViewer->deviceWaitIdle();
         // loop() does this on leaving; a hosted engine never runs it, and the deletion queue is about to go.
         if (mHosted)
             mViewer->deviceWaitIdle();
@@ -195,7 +203,20 @@ namespace Render
         if (const char* statsPath = std::getenv("OPENEDEN_FRAME_STATS_FILE"))
         {
             frameStats = std::make_unique<std::ofstream>(statsPath);
-            *frameStats << "frame wall_ms wait_ms\n";
+            *frameStats << "frame wall_ms wait_ms";
+            // OpenEden (task 0023): with gpu timing on, each line also tells which frame the GPU times belong to (they
+            // are read a few frames after the frame was drawn) and then one column per pass, in ms, -1 where a pass
+            // was not recorded or not ready. With it off the header and every line are exactly as before.
+            if (mGpuTimer)
+            {
+                *frameStats << " gpu_frame";
+                for (std::string name : mGpuTimer->passNames())
+                {
+                    std::replace(name.begin(), name.end(), ' ', '_');
+                    *frameStats << " gpu_" << name;
+                }
+            }
+            *frameStats << '\n';
         }
         using Clock = std::chrono::steady_clock;
         const auto toMs = [](Clock::duration d) { return std::chrono::duration<double, std::milli>(d).count(); };
@@ -266,10 +287,25 @@ namespace Render
 
             limitFramerate.limit();
 
+            // Main thread, after this frame was submitted: read the GPU times of an earlier, finished frame.
+            if (mGpuTimer)
+                if (const vsg::FrameStamp* stamp = mViewer->getFrameStamp())
+                    mGpuTimer->collect(stamp->frameCount);
+
             if (frameStats)
             {
                 const auto frameEnd = Clock::now();
-                *frameStats << frameNumber << ' ' << toMs(frameEnd - frameStart) << ' ' << toMs(frameWait) << '\n';
+                *frameStats << frameNumber << ' ' << toMs(frameEnd - frameStart) << ' ' << toMs(frameWait);
+                if (mGpuTimer)
+                {
+                    if (mGpuTimer->hasLast())
+                        *frameStats << ' ' << mGpuTimer->lastFrame();
+                    else
+                        *frameStats << " -1";
+                    for (std::size_t pass = 0; pass < mGpuTimer->passNames().size(); ++pass)
+                        *frameStats << ' ' << mGpuTimer->lastMilliseconds(pass);
+                }
+                *frameStats << '\n';
                 frameStart = frameEnd;
                 frameWait = {};
                 ++frameNumber;
@@ -278,6 +314,47 @@ namespace Render
 
         // Wait for GPU before attempting to delete any vulkan objects.
         mViewer->deviceWaitIdle();
+
+        if (mGpuTimer)
+            Log(Debug::Info) << "GPU timing, median and 95th percentile of the last " << gpuTimingWindow
+                             << " frames:\n"
+                             << mGpuTimer->summaryText();
+    }
+
+    DeviceReport Engine::deviceReport()
+    {
+        auto physicalDevice = getOrCreatePhysicalDevice();
+        vsg::ref_ptr<vsg::Surface> surface;
+        uint32_t instanceApi = VK_API_VERSION_1_0;
+        if (mWindow)
+        {
+            surface = mWindow->getOrCreateSurface();
+            instanceApi = mWindow->getOrCreateInstance()->apiVersion;
+        }
+        return collectDeviceReport(physicalDevice, surface, instanceApi);
+    }
+
+    GpuTimer* Engine::enableGpuTiming()
+    {
+        if (mGpuTimingTried)
+            return mGpuTimer.get();
+        mGpuTimingTried = true;
+
+        auto physicalDevice = getOrCreatePhysicalDevice();
+        auto device = getOrCreateDevice();
+        // Timestamps are valid on a queue family when it reports timestampValidBits above zero. The command graphs
+        // use the graphics queue family (vsg::CommandGraph::create(window)).
+        uint32_t validBits = 0;
+        const int family = physicalDevice->getQueueFamily(VK_QUEUE_GRAPHICS_BIT);
+        const auto& families = physicalDevice->getQueueFamilyProperties();
+        if (family >= 0 && static_cast<std::size_t>(family) < families.size())
+            validBits = families[family].timestampValidBits;
+
+        std::string whyNot;
+        mGpuTimer = GpuTimer::create(device, validBits, physicalDevice->getProperties().limits.timestampPeriod, whyNot);
+        if (!mGpuTimer)
+            Log(Debug::Warning) << "GPU timing is on in the settings but is not available: " << whyNot;
+        return mGpuTimer.get();
     }
 
     void Engine::endFrame()

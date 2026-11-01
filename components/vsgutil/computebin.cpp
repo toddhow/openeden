@@ -27,7 +27,10 @@ namespace vsgUtil
         };
 
         auto adapter = TraverseAdapter::create(_elements);
-        commandGraph->children = { adapter };
+        if (timingBegin && timingEnd)
+            commandGraph->children = { timingBegin, adapter, timingEnd };
+        else
+            commandGraph->children = { adapter };
         commandGraph->accept(visitor);
     }
 }

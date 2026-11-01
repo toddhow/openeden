@@ -1,11 +1,16 @@
 #include "vsgengine.hpp"
 
+#include <filesystem>
+#include <fstream>
+
 #include <vsg/threading/OperationThreads.h>
 #include <vsg/vk/DeviceFeatures.h>
 #include <vsgXchange/images.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/render/attachmentformat.hpp>
+#include <components/render/devicereport.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/screenshot.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -349,6 +354,21 @@ namespace OMW
             useTextureCompression, MWRender::Bin_Compute, MWRender::Bin_DepthSorted);
 
         setWindowIcon(args.resourceDir / "openmw.png");
+
+        // OpenEden (task 0023, F0c): what the machine's Vulkan supports, to the log and a JSON file. Off by default.
+        if (Settings::rendering().mDeviceReport)
+        {
+            const Render::DeviceReport report = mRenderEngine->deviceReport();
+            Log(Debug::Info) << "Vulkan device report:\n" << report.toLogText();
+            const std::filesystem::path reportPath = mCfgMgr.getUserDataPath() / "device-report.json";
+            std::error_code error;
+            std::filesystem::create_directories(reportPath.parent_path(), error);
+            std::ofstream out(reportPath, std::ios::binary);
+            if (out << report.toJson())
+                Log(Debug::Info) << "Wrote " << Files::pathToUnicodeString(reportPath);
+            else
+                Log(Debug::Warning) << "Could not write " << Files::pathToUnicodeString(reportPath);
+        }
 
         // vsgopenmw-fixme(global-state)
         mEnvironment.setResourceSystem(*mResourceSystem);

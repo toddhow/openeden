@@ -1,5 +1,6 @@
 #include "rendermanager.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -85,6 +86,7 @@
 #include "weathereffects.hpp"
 #include "worldmap.hpp"
 #include <components/render/debuggeometry.hpp>
+#include <components/render/gputiming.hpp>
 #include <components/render/simplewater.hpp>
 #include <components/view/env.hpp>
 
@@ -105,6 +107,21 @@ namespace MWRender
 
             auto viewDescriptorSet = View::createViewDescriptorSet(descriptors);
             return View::createDefaultState(viewDescriptorSet);
+        }
+
+        // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass. Does
+        // nothing without a timer. The begin node resets the pass's queries, which is not allowed inside a render pass
+        // instance, so `node` must be a child of a command graph, not of a render graph.
+        void timeChild(Render::GpuTimer* timer, vsg::Group::Children& children, const vsg::Node* node, const std::string& name)
+        {
+            if (!timer || !node)
+                return;
+            auto it = std::find_if(children.begin(), children.end(), [node](const auto& child) { return child.get() == node; });
+            if (it == children.end())
+                return;
+            const std::size_t pass = timer->addPass(name);
+            it = children.insert(it, timer->beginNode(pass));
+            children.insert(it + 2, timer->endNode(pass));
         }
     }
 
@@ -128,6 +145,12 @@ namespace MWRender
         // if (compileManager->numCompileTraversals > 1)
         //     numLoadingThreads = std::min(nunLoadingThreads, 1);
         mOperationThreads = vsg::OperationThreads::create(numLoadingThreads);
+
+        // OpenEden (task 0023, F0a): GPU timing. Null, and nothing below does anything, unless the setting is on.
+        mGpuTimer = Settings::rendering().mGpuTiming ? mEngine.enableGpuTiming() : nullptr;
+        // Registered now and not when first used: the frame stats file's header lists the passes when the loop starts.
+        if (mGpuTimer)
+            mReflectPass = mGpuTimer->addPass("reflection and depth copy");
 
         mRenderModes.resize(Render_Count);
         // As OpenMW's RenderingManager (task 0012).
@@ -277,6 +300,8 @@ namespace MWRender
 
         auto guiCommandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
         guiCommandGraph->children = { guiRenderTextures, mGuiRenderGraph };
+        timeChild(mGpuTimer, guiCommandGraph->children, guiRenderTextures.get(), "gui render textures");
+        timeChild(mGpuTimer, guiCommandGraph->children, mGuiRenderGraph.get(), "gui");
         guiCommandGraph->submitOrder = 1;
         threads.push_back(guiCommandGraph);
 
@@ -284,6 +309,12 @@ namespace MWRender
         computeBin->binNumber = Bin_Compute;
         computeBin->commandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
         computeBin->commandGraph->submitOrder = -1;
+        if (mGpuTimer)
+        {
+            const std::size_t pass = mGpuTimer->addPass("compute");
+            computeBin->timingBegin = mGpuTimer->beginNode(pass);
+            computeBin->timingEnd = mGpuTimer->endNode(pass);
+        }
         mView->bins.push_back(computeBin);
 
         // openeden-vsg: in VSG 1.1.x a compile context uploads vertex, index and image data only through a
@@ -315,6 +346,9 @@ namespace MWRender
             mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
             mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
         }
+        timeChild(mGpuTimer, mCommandGraph->children, mRenderGraph.get(), "main scene");
+        if (mPostProcess)
+            timeChild(mGpuTimer, mCommandGraph->children, mPostProcess->node().get(), "post-process");
         threads.push_back(mCommandGraph);
 
         for (int i = 0; mShadow->shadow && i < mShadow->shadow->numCascades; ++i)
@@ -334,6 +368,7 @@ namespace MWRender
             root->children = { view };
             rg->children = { root };
             castShadowGraph->children = { rg };
+            timeChild(mGpuTimer, castShadowGraph->children, rg.get(), "shadow cascade " + std::to_string(i));
             threads.push_back(castShadowGraph);
             mRecordShadow.push_back(castShadowGraph->recordTraversal);
             if (i == 0)
@@ -354,6 +389,7 @@ namespace MWRender
             root->children = { view };
             rg->children = { root };
             occlusionGraph->children = { rg };
+            timeChild(mGpuTimer, occlusionGraph->children, rg.get(), "sun occlusion");
             threads.push_back(occlusionGraph);
             mRecordShadow.push_back(occlusionGraph->recordTraversal);
             addCompileViews.emplace_back(
@@ -461,6 +497,12 @@ namespace MWRender
             mSuspend->children = { mReflect->node() };
             if (mPostProcess)
                 mSuspend->addChild(mPostProcess->depthCopy());
+            // OpenEden (task 0023): time the copies and the reflection, outside the suspended render pass.
+            if (mGpuTimer)
+            {
+                mSuspend->children.insert(mSuspend->children.begin(), mGpuTimer->beginNode(mReflectPass));
+                mSuspend->addChild(mGpuTimer->endNode(mReflectPass));
+            }
             mSceneRoot->addChild(mSuspend);
         }
         if (mRenderModes[Render_Water])

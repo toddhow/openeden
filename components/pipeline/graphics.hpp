@@ -45,6 +45,11 @@ namespace Pipeline
         // set before the first pipeline is created.
         bool alphaToCoverage = false;
         bool adjustCoverage = false;
+        // openeden (task 0023, F1b): `[Rendering] slang shaders`. When set, a shader that has a precompiled SPIR-V file
+        // (<path>/main.vert.spv or main.frag.spv, built from Slang) next to its GLSL uses that file in place of the
+        // GLSL. The GLSL is still read first, for its stage and entry point, and stays the fallback when there is no
+        // .spv.
+        bool preferSlang = false;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> create(const Options& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;

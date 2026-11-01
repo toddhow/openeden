@@ -1,0 +1,3 @@
+tcl
+player->setpos z 3000
+player->setangle x 12

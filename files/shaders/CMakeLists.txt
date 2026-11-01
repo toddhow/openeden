@@ -96,3 +96,64 @@ set(SHADER_FILES
 )
 
 copy_all_resource_files(${CMAKE_CURRENT_SOURCE_DIR} ${OPENMW_RESOURCES_ROOT} ${DDIRRELATIVE} "${SHADER_FILES}")
+
+# Shaders written in Slang (task 0023, F1; research note 0005, section 7).
+#
+# openeden_add_slang_shader(SOURCE <file.slang> OUTPUT_DIR <dir under resources/shaders>
+#                           STAGES <entry>:<stage>:<suffix> ...)
+# runs the pinned slangc once for each stage and writes <OUTPUT_DIR>/main.<suffix>.spv beside the GLSL shaders, where the
+# shader reader finds it. For example vertMain:vertex:vert makes main.vert.spv from the entry point vertMain.
+# slangc takes one output file per run, so each stage is its own command.
+#
+# Flags, and why:
+#   -profile spirv_1_0           the same SPIR-V version the GLSL path produces (Vulkan 1.0 instance)
+#   -matrix-layout-column-major  matrices lie in memory as GLSL's mat4 does, so the C++ side uploads the same bytes
+#   -warnings-disable 50011      Slang warns that SPIR-V 1.0 is old; that is the point
+# slangc validates its output with the SPIRV-Tools inside it unless -skip-spirv-validation is given, which it is not.
+# Where there is no slangc (OPENEDEN_SLANGC empty) nothing is built and the game uses the GLSL.
+set(OPENEDEN_SLANG_SHADERS_BUILT OFF CACHE INTERNAL "True when the .slang shaders are compiled by this build")
+if (OPENEDEN_SLANGC)
+    get_generator_is_multi_config(openeden_multi_config)
+    if (openeden_multi_config)
+        # copy_resource_file writes resources into <root>/<Config>/ for these generators; the .spv files are not.
+        message(WARNING "Slang shaders are not built with a multi-config generator yet; the GLSL shaders are used")
+    else()
+        add_custom_target(openeden_slang_shaders ALL)
+        set(OPENEDEN_SLANG_SHADERS_BUILT ON CACHE INTERNAL "True when the .slang shaders are compiled by this build")
+    endif()
+endif()
+
+function(openeden_add_slang_shader)
+    cmake_parse_arguments(S "" "SOURCE;OUTPUT_DIR" "STAGES" ${ARGN})
+    if (NOT OPENEDEN_SLANG_SHADERS_BUILT)
+        return()
+    endif()
+    set(source "${CMAKE_CURRENT_SOURCE_DIR}/${S_SOURCE}")
+    set(out_dir "${OPENMW_RESOURCES_ROOT}/${DDIRRELATIVE}/${S_OUTPUT_DIR}")
+    file(MAKE_DIRECTORY "${out_dir}")
+    set(outputs "")
+    foreach (stage ${S_STAGES})
+        string(REPLACE ":" ";" parts "${stage}")
+        list(GET parts 0 entry)
+        list(GET parts 1 stage_name)
+        list(GET parts 2 suffix)
+        set(output "${out_dir}/main.${suffix}.spv")
+        add_custom_command(
+            OUTPUT "${output}"
+            COMMAND "${OPENEDEN_SLANGC}" "${source}" -target spirv -profile spirv_1_0 -matrix-layout-column-major
+                    -warnings-disable 50011 -entry ${entry} -stage ${stage_name} -o "${output}"
+            DEPENDS "${source}"
+            COMMENT "Slang: ${S_SOURCE} ${entry} -> ${S_OUTPUT_DIR}/main.${suffix}.spv"
+            VERBATIM)
+        list(APPEND outputs "${output}")
+    endforeach()
+    string(MAKE_C_IDENTIFIER "${S_SOURCE}" target_suffix)
+    add_custom_target(slang_${target_suffix} DEPENDS ${outputs})
+    add_dependencies(openeden_slang_shaders slang_${target_suffix})
+endfunction()
+
+# The sun, ported by hand as the proof of the pipeline (task 0023, F1b). Used when [Rendering] slang shaders is on.
+openeden_add_slang_shader(
+    SOURCE sky/sun/sun.slang
+    OUTPUT_DIR sky/sun
+    STAGES vertMain:vertex:vert fragMain:fragment:frag)

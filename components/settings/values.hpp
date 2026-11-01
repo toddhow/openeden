@@ -16,6 +16,7 @@
 #include "categories/navigator.hpp"
 #include "categories/physics.hpp"
 #include "categories/postprocessing.hpp"
+#include "categories/rendering.hpp"
 #include "categories/saves.hpp"
 #include "categories/shaders.hpp"
 #include "categories/shadows.hpp"
@@ -59,6 +60,7 @@ namespace Settings
         GroundcoverCategory mGroundcover{ mIndex };
         LuaCategory mLua{ mIndex };
         PostProcessingCategory mPostProcessing{ mIndex };
+        RenderingCategory mRendering{ mIndex };
     };
 
     class StaticValues
@@ -203,6 +205,11 @@ namespace Settings
     inline PostProcessingCategory& postProcessing()
     {
         return values().mPostProcessing;
+    }
+
+    inline RenderingCategory& rendering()
+    {
+        return values().mRendering;
     }
 
     template <class T>

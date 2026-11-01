@@ -4,6 +4,7 @@
 // #include <vsgXchange/models.h>
 #include <vsg/io/Options.h>
 #include <vsg/io/glsl.h>
+#include <vsg/io/spirv.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/state/Sampler.h>
 #include <vsg/utils/FindDynamicObjects.h>
@@ -43,7 +44,7 @@ namespace
         auto options = vsg::Options::create();
         auto shaderSettings = vsg::ref_ptr{ new Resource::ShaderSettings };
         options->paths = { shaderPath };
-        options->readerWriters = { shaderSettings, vsg::glsl::create() };
+        options->readerWriters = { shaderSettings, vsg::glsl::create(), vsg::spirv::create() };
         options->sharedObjects = vsg::SharedObjects::create();
         // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
         // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
@@ -207,6 +208,8 @@ namespace Resource
         builder->graphics->alphaToCoverage
             = Settings::shaders().mAntialiasAlphaTest && Settings::video().mAntialiasing > 1;
         builder->graphics->adjustCoverage = Settings::shaders().mAdjustCoverageForAlphaTest;
+        // openeden (task 0023, F1b): the shaders written in Slang, off by default.
+        builder->graphics->preferSlang = Settings::rendering().mSlangShaders;
     }
 
     void ResourceSystem::setOccludedParticleMap(vsg::ref_ptr<vsg::Descriptor> map)

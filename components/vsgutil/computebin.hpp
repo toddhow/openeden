@@ -24,6 +24,10 @@ namespace vsgUtil
         // Users need to create and set up the CommandGraph with device, queueFamily and submitOrder.
         // During traverse(RecordTraversal&), the Bin's contents are automatically assigned to commandGraph->children.
         vsg::ref_ptr<vsg::CommandGraph> commandGraph;
+
+        // Optional GPU timing (task 0023): put round the contents when the nested graph is recorded. Both null: off.
+        vsg::ref_ptr<vsg::Node> timingBegin;
+        vsg::ref_ptr<vsg::Node> timingEnd;
     };
 }
 
