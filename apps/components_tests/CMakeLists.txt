@@ -155,6 +155,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testskyvisbake.cpp
     render/testskyvisgpu.cpp
     render/testskyenv.cpp
+    render/testskyvisdebug.cpp
     view/testcollectlights.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp

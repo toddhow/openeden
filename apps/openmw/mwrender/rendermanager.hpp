@@ -7,6 +7,7 @@
 #include "rendermode.hpp"
 #include "waterripples.hpp"
 
+#include <array>
 #include <atomic>
 #include <deque>
 #include <map>
@@ -380,6 +381,11 @@ namespace MWRender
         void updateSkyVisibility();
         // Stage d: the sky environment image, in the reflection probe buffer while outdoors.
         void updateSkyEnvironment();
+        // Stage e: `gi debug` markers of the sky-visibility field around the camera.
+        void updateSkyDebug();
+        bool mSkyDebugDrawn = false;
+        std::array<int, 4> mSkyDebugKey{};
+        const Render::Gi::SkyVisField* mSkyDebugField = nullptr;
         bool mSkyEnvOwns = false;
         vsg::vec3 mSkyEnvZenith{ -1.f, -1.f, -1.f };
         vsg::vec3 mSkyEnvHorizon{ -1.f, -1.f, -1.f };

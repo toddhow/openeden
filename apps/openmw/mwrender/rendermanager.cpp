@@ -48,6 +48,7 @@
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/skyenvmath.hpp>
+#include <components/render/skyvisdebug.hpp>
 #include <components/render/skyvisgpu.hpp>
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
@@ -458,7 +459,7 @@ namespace MWRender
             *mResourceSystem->builder, mCompileContext, navMeshLineVertices, navMeshTriangleVertices);
         mNavMesh = std::make_unique<NavMesh>(
             *mNavMeshGeometry, Settings::navigator().mEnableNavMeshRender, Settings::navigator().mNavMeshRenderMode);
-        if (mGiEnabled && Settings::rendering().mGiDebug)
+        if ((mGiEnabled || mGiSkyEnabled) && Settings::rendering().mGiDebug)
         {
             // The probe debug view (`gi debug`): one octahedron per light probe and per reflection probe.
             constexpr std::size_t probeTriangleVertices
@@ -1240,6 +1241,40 @@ namespace MWRender
         mSkyEnvOwns = true;
     }
 
+    void RenderManager::updateSkyDebug()
+    {
+        if (!mProbeGeometry || !mGiSkyEnabled)
+            return;
+        // The sky-visibility markers around the camera, refilled when the camera moves to another column (`gi debug`).
+        const vsg::vec3 eye(mViewMatrix->eye);
+        const int cellX = static_cast<int>(std::floor(eye.x / Render::Gi::exteriorCellSize));
+        const int cellY = static_cast<int>(std::floor(eye.y / Render::Gi::exteriorCellSize));
+        const auto found = mSkyFields.find({ cellX, cellY });
+        const Render::Gi::SkyVisField* field = found != mSkyFields.end() ? found->second.get() : nullptr;
+        if (!field)
+        {
+            // Clear what was drawn, unless an interior's own markers are up.
+            if (mSkyDebugDrawn && !mLoadedVolume && !mLoadedReflections)
+            {
+                mProbeGeometry->begin();
+                mProbeGeometry->end();
+            }
+            mSkyDebugDrawn = false;
+            return;
+        }
+        const std::array<int, 4> key{ cellX, cellY, static_cast<int>(std::floor(eye.x / field->spacing)),
+            static_cast<int>(std::floor(eye.y / field->spacing)) };
+        if (mSkyDebugDrawn && key == mSkyDebugKey && field == mSkyDebugField)
+            return;
+        mSkyDebugKey = key;
+        mSkyDebugField = field;
+        mSkyDebugDrawn = true;
+        mProbeGeometry->setEnabled(true);
+        mProbeGeometry->begin();
+        Render::Gi::drawSkyVisibility(*mProbeGeometry, *field, eye, Render::Gi::skyVisDebugRadius);
+        mProbeGeometry->end();
+    }
+
     void RenderManager::setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular)
     {
         mLightDiffuse = diffuse;
@@ -1634,6 +1669,7 @@ namespace MWRender
         updateSceneData();
         updateSkyVisibility();
         updateSkyEnvironment();
+        updateSkyDebug();
         if (mHdrTarget)
         {
             // The scene is in the float target, and its single-sample copies are what the copies and the depth pass

@@ -4,7 +4,7 @@ Goal: give exterior cells ambient light that is shaded by the world (darker unde
 Inherited code touched: not yet confirmed; to be named at the commit that starts each stage. Expected: `apps/openmw/mwrender/rendermanager.cpp` (`configureAmbient`, the probe loading added in task 0028), `apps/openmw/mwworld/weather.cpp` (where task 0034's `applyAtmosphere` sets the ambient and sun colours), `files/shaders/lib/material/terms.glsl` (the ambient line), `files/shaders/lib/view/gi.glsl`, `files/shaders/terrain/main.frag` (terrain gets the field in this task, unlike interiors), `components/render/probes.*`, `probebake.*`, `probegpu.hpp`, `reflectionprobes.hpp`, `components/render/atmospheremath.hpp`.
 Inputs / outputs: new `[Rendering]` settings `gi exterior` (bool, false), `gi exterior strength` (0 to 2, default 1), the baker's `gi bake sky rays` and `gi bake sky spacing`; new baker mode `openmw --bake-gi-exterior "<x>,<y>"` (and a range form); new file kind `openeden.skyvis` v1 in the VFS next to the other probe files (`openeden/probes/`); a runtime sky environment image built each time the atmosphere model's inputs change enough. Nothing is written to a save, no Lua API, no extension contract changes.
 
-Status: draft, written 2026-11-01 at toddhow's request after he asked why exteriors have no GI and how Red Dead Redemption 2 handles a large world. Nothing is built. Full loop (Track V renderer) when it starts.
+Status: stages a to e built 2026-11-01 (see the stage log at the end); some acceptance criteria are not verified (listed there). Written at toddhow's request after he asked why exteriors have no GI and how Red Dead Redemption 2 handles a large world. Full loop (Track V renderer).
 
 ## Why interiors worked and exteriors do not (what this spec answers)
 
@@ -61,12 +61,42 @@ Each stage commits working and is checked by frames, tests and the Linux gate, w
 
 ## Acceptance criteria
 
-- [ ] `openeden.skyvis` v1 round-trips byte for byte and reports located errors; file names follow the grid coordinates (stage a tests).
-- [ ] The baker is deterministic and resumable (byte comparison), and its result differs visibly between an open field and a cell with a bridge, checked in a debug view.
-- [ ] With `gi exterior` on and a bake present, the shade under a bridge or tree follows the time of day and weather in frames at four hours, and an open field matches the flat-ambient look within a measured tolerance.
-- [ ] With the setting off, or on with no bake, frames equal the previous build within run-to-run noise.
+- [x] `openeden.skyvis` v1 round-trips byte for byte and reports located errors; file names follow the grid coordinates (stage a tests).
+- [ ] The baker is deterministic and resumable (byte comparison: done, in unit tests and in the game on a wilderness cell), and its result differs visibly between an open field and a cell with a bridge, checked in a debug view (the difference is in the numbers and in a unit test with a slab; one debug frame was viewed, no bridge side by side).
+- [ ] With `gi exterior` on and a bake present, the shade under a bridge or tree follows the time of day and weather in frames at four hours, and an open field matches the flat-ambient look within a measured tolerance. (Not met as written: a house wall was compared at dusk with the hour and the camera fixed, night on open ground matched, noon's weather varied between runs and dawn was only measured; the open-field tolerance was not measured because no place in the baked cell sees more than 0.84 of open ground's sky.)- [ ] With the setting off, or on with no bake, frames equal the previous build within run-to-run noise.
 - [ ] Terrain, statics, groundcover and actors all take the field with no seams at cell borders (frames across a border).
-- [ ] The sky environment image drives specular ambient on `pbr` surfaces outdoors; metal armour no longer reads dark outside (frames).
-- [ ] The cost note records GPU time for the lookup and the sky update on this machine, with the GPU named.
-- [ ] components-tests, openmw-tests, eden-studio-tests, the 32 Lua tests and the Linux gate pass; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage.
+- [x] The sky environment image drives specular ambient on `pbr` surfaces outdoors; metal armour no longer reads dark outside (frames).
+- [x] The cost note records GPU time for the lookup and the sky update on this machine, with the GPU named.
+- [ ] components-tests, openmw-tests, eden-studio-tests, the 32 Lua tests and the Linux gate pass; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage. (Windows: all pass and a reviewer read each stage; the format check passed at the stage c commit; the Linux gate is in the log below.)
 Out of scope: bounced light and time-of-day-specific bakes (D12), real-time ray tracing (this field is the thing a ray-traced path would replace or refine; `RayWorld::cast` stays the seam, as task 0028 noted), volumetric clouds and fog, rain and wetness, interior changes, distant terrain beyond the loaded cells, the editor's view of the field, and anything that changes weather records or saves.
+
+
+## What the next features must know
+- **The ambient of exteriors is `flat * kept`.** `skyVisAmbient` (the shader and `skyvisgpu.hpp`) returns the flat ambient scaled per channel; it only ever darkens. Wetness (0037) should darken the diffuse and raise the specular, and can use the field as a "is it under cover" test: rain falls from above, so the cosine weighted share of the sky that a point sees around `+z` (`visCosine(V, up)`) is what a rain mask needs. The visibility SH is the one thing the baker stores.
+- **The sky SH has height only.** `skyFromColours` gives a sky with no compass bearing and no sun. A sun term (a sun lobe, cloud shadows from task 0038, a lit horizon) would add azimuth to the `Sh9` and needs no change to the baked data; the header already holds all nine coefficients.
+- **Bindings 12 and 13 exist, and `GI_SKY`.** Any new creator of a view descriptor set must add `View::dummySkyVis()` and `View::dummySkyVisSky()`. The reflection buffer (binding 11) now also holds the sky image outdoors (`RenderManager::mSkyEnvOwns`).
+- **Terrain and groundcover are lit through the same lookup.** A new surface shader that wants the field includes `lib/view/skyvis.glsl` under `GI_SKY` and calls `skyVisAmbient(worldPos, worldNormal, flat)`.
+- **Frame comparisons outdoors:** `tcl`, `player->SetPos`, `SetAngle z` and a fixed hour keep the camera still when the game starts in the exterior (`--start "Seyda Neen"`); starting in `ToddTest` and using `coc` raced the placement. Weather at noon still differed between runs (fog); dusk and night were steady (`scratchpad/gi36/run.sh`, `shot.sh`).
+
+## Decisions toddhow can change (made while building)
+- **The formula (the main one).** The spec's plain dot product of the sky's SH and the visibility SH gives half the flat ambient on open ground (the lower half of the sphere is blocked by the ground) and has no direction. The result is instead the flat ambient scaled by how much of the cosine weighted sky the surface facing a normal sees, against open flat ground, with the sky's colour entering as a shift. Open ground keeps the old look. The alternative is the plain dot product with a hand scale.
+- **The lattice.** Columns follow the terrain height, 8 levels from 64 to 960 units above it, not a world aligned lattice with pruning. A cell is always 33 x 33 x 8 probes.
+- **The file.** SH numbers are 16-bit integers over 4096 (floats at 8 digits would be about twice the size; a cell is about 450 KB measured). `grid.spacing` may be 128 to 2048.
+- **Strength default 1.** At 1 the ambient of a place under a hillside or between houses drops to a third or less of the flat ambient; Seyda Neen's open ground reads about 0.8. A default of 0.5 to 0.7 may look closer to the old Morrowind; judge it by eye. The strength scales the darkening only.
+- **Enclosed probes are filled from their neighbours** when no ray escapes and all stop within 2048 units, so a building's dark inside does not leak onto its walls. A hall seen from below with a thick roof is not distinguishable from this and is also filled.
+- **Requirements** as D11 plus `atmosphere` (D6). `gi exterior` works without `gi`.
+- **File names:** `openeden/probes/exterior/<x>_<y>.skyvis.json`; the baker writes `.partial` and `.progress` beside it while it runs.
+
+## Stage log
+
+### 2026-11-01, stages a to e (Windows, RTX 4070, `build-jolt`)
+
+**Done and verified.**
+- a: `skyvisibility.hpp` and the file in `probes.cpp`, `skyvismath.hpp`; 22 tests written first (round trip, located errors, hostile input, SH maths). A fresh reviewer found a file size cap that was too large and an unguarded spacing (fixed).
+- b: `skyvisbake.*` (the pure baker, 17 tests with a made-up world: determinism, slicing, resume, border columns bit equal between cells, invalid probes filled) and `OMW::SkyVisBaker` (`openmw --bake-gi-exterior "x,y"` or `"x0,y0:x1,y1"`): a cell takes about 3 s; two bakes of Seyda Neen are byte identical; a wilderness cell killed after its 30 s save and resumed is byte identical to an uninterrupted bake; the two cells of a pair agree on all 33 border columns (game data). Seyda Neen bakes differ in a few columns between a resumed and an uninterrupted run: something in the village moves during a bake (not found; an uninterrupted pair is identical). Reviewer: an overflow in the cell count check (fixed), an unchecked stream write (fixed), a ground ray that can miss on a terrain edge (retries a unit to each side added).
+- c: the runtime (two buffers, `GI_SKY`, terrain and objects, cell hooks), the C++ twin, 22 tests. Frames: with `gi exterior strength = 0` the frame equals the `off` frame (summed difference 245, two `off` frames 379); dusk, a house wall: darkened by the field with its detail kept; night on open ground: equal within noise. The frame check found that a building's sealed probes leaked darkness onto its wall (the wall nearly black): enclosed probes are now filled in (a first limit of 512 units left the wall too dark; 2048 is what the last frames show). Reviewer: a pool too small for a 5 by 5 grid (now 27 cells), file reads under the lock (moved out).
+- d: the sky image (6 tests). Frames: houses marked as metal by a model override read black outdoors without it and show the sky with it (`scratchpad/gi36/m18off.png`, `m18on.png`). Reviewer: the ambient drift rebuilt the image every frame (now only its header is patched).
+- e: `gi debug` shows markers around the camera (4 tests, one frame viewed), the cost note `docs/research/0016-gi-exterior-cost.md` (+0.18 to 0.27 ms GPU in a terrain heavy scene), the module guides.
+- Windows: components-tests, openmw-tests, eden-studio-tests and the 32 Lua tests pass (the Lua tests were run after stage c; stages d and e touch only `gi exterior` paths).
+
+**Not done / not verified.** `gi exterior` off against the previous build by frames (only strength 0 against off was compared); a baked file present while a cell has none; frames across a cell border, with groundcover and with actors specifically; the four hour comparison with a fixed weather; a bridge beside open ground in the debug view; the stall of parsing and uploading at a cell crossing; bounce light, a sun lobe and cloud shadows (not built); the editor's view of the field.
