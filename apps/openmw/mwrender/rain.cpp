@@ -13,6 +13,7 @@
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/precipitationmath.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/share.hpp>
@@ -100,6 +101,8 @@ namespace MWRender
         options.blend = true;
         if (mOcclusionMap)
             options.shader.addMode(Pipeline::Mode::PARTICLE_OCCLUSION);
+        if (mLit)
+            options.shader.addMode(Pipeline::Mode::PRECIPITATION_LIT);
         options.depthWrite = false;
         auto pipeline = mBuilder.graphics->getOrCreate(options);
 
@@ -196,6 +199,7 @@ namespace MWRender
         const vsg::vec3 up(0.f, std::sin(angle), std::cos(angle));
         const vsg::vec4 color(1.f, 1.f, 1.f, std::clamp(parameters.alpha, 0.f, 1.f) * sRainAlphaFactor);
         const vsg::vec2 corners[sVerticesPerDrop] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, { 0, 1 } };
+        const float stretch = mLit ? Render::Precipitation::streakStretch(parameters.speed) : 1.f;
         const RainSimulation& drops = *mSimulation;
         for (std::size_t i = 0; i < drops.size(); ++i)
         {
@@ -204,7 +208,8 @@ namespace MWRender
             // osgParticle puts a FIXED particle's corners at centre +- alignX * size +- alignY * size, so the quad is
             // twice the size across (ParticleSystem::drawImplementation, OSG 3.6.5).
             const vsg::vec3 across(sDropWidthFactor * drop.size, 0.f, 0.f);
-            const vsg::vec3 along = up * drop.size;
+            // Task 0040: lit rain is drawn longer the faster it falls, so that fast rain reads as streaks.
+            const vsg::vec3 along = up * (drop.size * stretch);
             for (std::size_t v = 0; v < sVerticesPerDrop; ++v)
             {
                 const vsg::vec2& corner = corners[v];

@@ -116,6 +116,10 @@ namespace MWRender
         /// Discards drops under the occlusion map's surface (PrecipitationOccluder). Set before the first update.
         void setOcclusionMap(vsg::ref_ptr<vsg::Descriptor> map) { mOcclusionMap = std::move(map); }
 
+        /// Task 0040: draw the rain as streaks that scatter the scene's light (lib/light/precipitation.glsl), fade out with
+        /// distance and lengthen with the rain's speed. Set before the first update; off by default.
+        void setLit(bool lit) { mLit = lit; }
+
         /// Advances and redraws the rain; visible false (underwater, sky off) hides it and keeps it still.
         void update(float dt, const vsg::vec3& cameraPosition, const Parameters& parameters, bool visible);
 
@@ -139,6 +143,7 @@ namespace MWRender
         bool mHasLastCameraPosition = false;
         bool mUnavailable = false;
         bool mReportedOverflow = false;
+        bool mLit = false;
     };
 }
 

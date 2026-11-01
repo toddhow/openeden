@@ -98,6 +98,14 @@ namespace Resource
         // openeden-vsg: OpenMW's fog modes (task 0012).
         add("cRadialFog", Settings::Manager::getBool("radial fog", "Fog"), source);
         add("cExponentialFog", Settings::Manager::getBool("exponential fog", "Fog"), source);
+        // OpenEden (task 0040): the sun's glow in haze (lib/view/fog.glsl). The editor and other hosts that never load
+        // the game's settings see the defaults, which are off.
+        const bool sunGlow = Settings::Manager::getBool("sun glow", "Rendering") && hdr
+            && Settings::Manager::getBool("atmosphere", "Rendering");
+        add("cSunGlow", sunGlow, source);
+        add("cSunGlowDebug", sunGlow && Settings::Manager::getBool("sun glow debug", "Rendering"), source);
+        // Read only when it is on: a host without the game's settings file has no such key.
+        add("cSunGlowStrength", sunGlow ? Settings::Manager::getFloat("sun glow strength", "Rendering") : 0.f, source);
         objects["fog.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");

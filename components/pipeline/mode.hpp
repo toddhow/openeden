@@ -73,6 +73,9 @@ namespace Pipeline
         // OpenEden (task 0039): snow and ash cover and its debug view; added by Pipeline::Graphics.
         COVER,
         COVER_DEBUG,
+        // OpenEden (task 0040): rain lit as scattering streaks, not as a surface (lib/light/precipitation.glsl); set by
+        // MWRender::Rain.
+        PRECIPITATION_LIT,
         // OpenEden (task 0045): parallax occlusion mapping. HEIGHT_MAP: the model's texture has a `_p` height file
         // (loader, binding HEIGHT_UNIT); PARALLAX_DISCARD: fragments whose displaced coordinates leave the texture are
         // dropped (loader, clamped textures only); PARALLAX_POM and its quality modes are added by Pipeline::Graphics.
@@ -90,7 +93,8 @@ namespace Pipeline
         Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
         Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION,
-        Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS, Mode::HEIGHT_MAP, Mode::PARALLAX_DISCARD };
+        Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS, Mode::HEIGHT_MAP, Mode::PARALLAX_DISCARD,
+        Mode::PRECIPITATION_LIT };
 
     using Modes = std::vector<bool>;
 

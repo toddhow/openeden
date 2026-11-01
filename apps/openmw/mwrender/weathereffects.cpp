@@ -96,6 +96,10 @@ namespace MWRender
         for (auto& material : mMaterials)
         {
             material->value().diffuse = vsg::vec4(0.f, 0.f, 0.f, alpha);
+            // Task 0040: lit snow. The NIF's emissive colour (0.3 on every flake, a constant glow that lights them at
+            // night) is replaced by the sun's part of their light; the ambient part is the material's own.
+            if (mHasSunLight)
+                material->value().emissive = vsg::vec4(mSunLight, 1.f);
             material->dirty();
         }
     }

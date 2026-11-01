@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD, PRECIPITATION_LIT)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -64,6 +64,10 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
  #ifdef PBR_LIT
 #include "lib/light/pbrlighting.glsl"
  #endif
+#endif
+#ifdef PRECIPITATION_LIT
+// OpenEden (task 0040): rain lit as scattering streaks (lib/light/precipitation.glsl).
+#include "lib/light/precipitation.glsl"
 #endif
 #ifdef PARALLAX_POM
 // OpenEden (task 0045): the height file, read with the caller's derivatives (lib/material/parallax.glsl).
@@ -463,6 +467,15 @@ void main()
 
 #ifdef GLOW_MAP
     outColor.xyz += toLinearIfView(texture(glowMap, frag_in.texCoord[glowUV]).xyz);
+#endif
+#ifdef PRECIPITATION_LIT
+    // OpenEden (task 0040): a streak scatters the scene's light (ambient, the sun it faces, the lamps near it) instead of
+    // being shaded as a surface with a made-up normal; far streaks fade out into the fog. The texture colour stays.
+    outColor.xyz = toLinearIfView(texture(diffuseMap, frag_in.texCoord[diffuseUV].st).xyz) * precipitationLight(frag_in.viewPos, ambientLight);
+    outColor.a *= precipFade(length(frag_in.viewPos));
+ #ifdef GBUFFER_AMBIENT
+    ambientPart = vec3(0.0); // the streak's light is not the surface ambient that ambient occlusion would darken
+ #endif
 #endif
     // OpenEden: debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
     if (colorMode != 3)

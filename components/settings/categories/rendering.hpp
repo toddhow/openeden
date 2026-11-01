@@ -110,6 +110,20 @@ namespace Settings
         SettingValue<float> mCloudShadowStrength{ mIndex, "Rendering", "cloud shadow strength",
             makeClampSanitizerFloat(0, 1) };
         SettingValue<bool> mCloudShadowDebug{ mIndex, "Rendering", "cloud shadow debug" };
+        // Task 0040: lit rain and snow (read at start; needs hdr), lightning as light (needs hdr), its strength (the
+        // brightness of a flash can never pass the cap in components/render/lightningmath.hpp) and a test aid that holds
+        // one flash at a given age in seconds (-1: off), and the sun's glow in haze (needs hdr and atmosphere), its
+        // strength and a debug view.
+        SettingValue<bool> mPrecipitationLighting{ mIndex, "Rendering", "precipitation lighting" };
+        SettingValue<bool> mLightning{ mIndex, "Rendering", "lightning" };
+        SettingValue<float> mLightningStrength{ mIndex, "Rendering", "lightning strength",
+            makeClampSanitizerFloat(0, 2) };
+        SettingValue<float> mLightningDebugAge{ mIndex, "Rendering", "lightning debug age",
+            makeClampSanitizerFloat(-1, 10) };
+        SettingValue<bool> mSunGlow{ mIndex, "Rendering", "sun glow" };
+        SettingValue<float> mSunGlowStrength{ mIndex, "Rendering", "sun glow strength",
+            makeClampSanitizerFloat(0, 2) };
+        SettingValue<bool> mSunGlowDebug{ mIndex, "Rendering", "sun glow debug" };
         SettingValue<int> mGiBakeSkyRays{ mIndex, "Rendering", "gi bake sky rays", makeClampSanitizerInt(1, 65536) };
         SettingValue<float> mGiBakeSkySpacing{ mIndex, "Rendering", "gi bake sky spacing",
             makeClampSanitizerFloat(128, 2048) };

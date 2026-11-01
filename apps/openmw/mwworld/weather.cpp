@@ -3,6 +3,7 @@
 #include <components/esm/stringrefid.hpp>
 #include <components/render/atmospheremath.hpp>
 #include <components/render/covermath.hpp>
+#include <components/render/lightningmath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/settings/values.hpp>
 
@@ -260,6 +261,15 @@ namespace MWWorld
         return mFlashBrightness;
     }
 
+    bool Weather::takeStrike(float& strength)
+    {
+        if (mPendingStrike <= 0.f)
+            return false;
+        strength = mPendingStrike;
+        mPendingStrike = 0.f;
+        return true;
+    }
+
     inline void Weather::flashDecrement(const float elapsedSeconds)
     {
         // The Flash Decrement is measured in whole units per second. This means that if the flash brightness was
@@ -288,6 +298,7 @@ namespace MWWorld
         unsigned int distance = Misc::Rng::rollDice(4, prng);
         // Flash brightness appears additive, since if multiple strikes occur, it takes longer for it to decay to 0.
         mFlashBrightness += 1 - (distance * 0.25f);
+        mPendingStrike = std::max(mPendingStrike, Render::Lightning::strikeStrength(distance));
         MWBase::Environment::get().getSoundManager()->playSound(mThunderSoundID[distance], 1.0, 1.0);
     }
 
@@ -864,6 +875,51 @@ namespace MWWorld
         mRendering.setCover(isExterior ? static_cast<int>(shown.kind) : 0, isExterior ? shown.amount : 0.f);
     }
 
+    // OpenEden (task 0040): lightning as light. The vanilla thunder schedule (Weather::calculateThunder) still decides
+    // when a strike happens and plays the sound; each strike it reports starts a flash here, unless one started less
+    // than Render::Lightning::minInterval seconds ago. The flash is the capped, cold, double-flicker curve of
+    // components/render/lightningmath.hpp, and its direction a hash of the seed and the strike count. Time is the
+    // frame time added up while the game is not paused, never a wall clock. Like the vanilla flash it is not saved.
+    vsg::vec3 WeatherManager::updateLightning(const float elapsedSeconds, const bool isPaused)
+    {
+        if (!mRendering.lightningEnabled())
+            return vsg::vec3(0.f, 0.f, 0.f);
+        if (!isPaused)
+            mLightningTime += elapsedSeconds;
+        // A float of seconds loses precision over hours of play: take an hour off both clocks now and then.
+        constexpr float rebaseSeconds = 3600.f;
+        if (mLightningTime > 2.f * rebaseSeconds)
+        {
+            mLightningTime -= rebaseSeconds;
+            mFlasher.shift(rebaseSeconds);
+        }
+        for (int type : { mCurrentWeather, mNextWeather })
+        {
+            if (type < 0 || static_cast<size_t>(type) >= mWeatherSettings.size())
+                continue;
+            float strength = 0.f;
+            if (mWeatherSettings[type].takeStrike(strength))
+                mFlasher.strike(mLightningTime, strength);
+        }
+        const float setting = mRendering.lightningStrength();
+        const float debugAge = mRendering.lightningDebugAge();
+        float amount = 0.f;
+        vsg::vec3 direction;
+        if (debugAge >= 0.f)
+        {
+            // A test aid: one flash held at this age, in any exterior weather.
+            amount = Render::Lightning::peak(setting, 1.f) * Render::Lightning::envelope(debugAge);
+            direction = Render::Lightning::direction(Render::Lightning::defaultSeed, 0u);
+        }
+        else
+        {
+            amount = mFlasher.intensity(mLightningTime, setting);
+            direction = mFlasher.flashDirection();
+        }
+        mRendering.setLightning(amount, direction);
+        return Render::Lightning::colourAdd(amount);
+    }
+
     void WeatherManager::update(float duration, bool paused, const TimeStamp& time, bool isExterior)
     {
         MWWorld::ConstPtr player = MWMechanics::getPlayer();
@@ -895,6 +951,7 @@ namespace MWWorld
         {
             updateWetness(duration, paused, false);
             updateCover(duration, paused, false);
+            mRendering.setLightning(0.f, vsg::vec3(0.f, 0.f, 1.f));
             mRendering.setSkyEnabled(false);
             stopSounds();
             mWindSpeed = 0.f;
@@ -1349,6 +1406,10 @@ namespace MWWorld
             flash = currentFlash + nextFlash;
         }
         vsg::vec4 flashColor(flash, flash, flash, 0.0f);
+        // OpenEden (task 0040): with `lightning` on, the flash is the renderer's capped, cold, double-flicker one.
+        const vsg::vec3 lightningColour = updateLightning(elapsedSeconds, isPaused);
+        if (mRendering.lightningEnabled())
+            flashColor = vsg::vec4(lightningColour.x, lightningColour.y, lightningColour.z, 0.0f);
 
         mResult.mFogColor += flashColor;
         mResult.mAmbientColor += flashColor;

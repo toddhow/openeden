@@ -153,6 +153,9 @@ file(GLOB UNITTEST_SRC_FILES
     render/testwetnessmath.cpp
     render/testcloudmath.cpp
     render/testcovermath.cpp
+    render/testlightningmath.cpp
+    render/testsunglow.cpp
+    render/testprecipitationmath.cpp
     render/testparallaxdata.cpp
     render/testparallaxmath.cpp
     render/testssspass.cpp

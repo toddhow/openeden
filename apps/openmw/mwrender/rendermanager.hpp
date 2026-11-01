@@ -170,6 +170,17 @@ namespace MWRender
         /// `Render::Cover::Kind`) and how much of it lies on the ground (0 to 1); 0 indoors. Ignored unless
         /// [Rendering] cover took effect at start. Main thread.
         void setCover(int kind, float amount);
+
+        /// Task 0040: whether [Rendering] lightning took effect at start (needs hdr), its strength and the test aid
+        /// age (-1: off).
+        bool lightningEnabled() const { return mLightningEnabled; }
+        float lightningStrength() const { return mLightningStrength; }
+        float lightningDebugAge() const { return mLightningDebugAge; }
+        /// Task 0040: the lightning flash's brightness this frame (0 to Render::Lightning::peakCap, added to the sun,
+        /// ambient and fog colours by the weather manager) and the direction to the flash in world space. The sun's
+        /// light is tilted towards the flash by its share of the light, for the shadows and the shading. 0 indoors.
+        /// Ignored unless lightning took effect. Main thread.
+        void setLightning(float intensity, const vsg::vec3& direction);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;
         int skyGetSecundaPhase() const;
@@ -421,6 +432,14 @@ namespace MWRender
         float mCoverStrength = 1.f;
         Render::Cover::Kind mCoverKind = Render::Cover::Kind::None;
         float mCoverAmount = 0.f;
+        // Task 0040: lit rain and snow took effect at start, lightning took effect (needs hdr), its strength and test
+        // age, and the current flash.
+        bool mPrecipitationLit = false;
+        bool mLightningEnabled = false;
+        float mLightningStrength = 1.f;
+        float mLightningDebugAge = -1.f;
+        float mLightningIntensity = 0.f;
+        vsg::vec3 mLightningDirection{ 0.f, 0.f, 1.f };
         float mSkyVisStrength = 1.f;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisHeader;

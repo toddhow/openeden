@@ -12,6 +12,7 @@
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/render/covermath.hpp>
+#include <components/render/lightningmath.hpp>
 
 #include "../mwbase/soundmanager.hpp"
 
@@ -224,6 +225,11 @@ namespace MWWorld
 
         float calculateThunder(const float transitionRatio, const float elapsedSeconds, const bool isPaused);
 
+        // OpenEden (task 0040): whether a strike has happened since the last call, and how strong the strongest was
+        // (1 for the closest thunder sound, 0.25 for the farthest). Clears the strike. The flash the vanilla game draws
+        // is unchanged; this only lets the renderer's lightning follow the same thunder schedule.
+        bool takeStrike(float& strength);
+
     private:
         float mTransitionDelta;
 
@@ -235,6 +241,7 @@ namespace MWWorld
         float mFlashDecrement;
 
         float mFlashBrightness;
+        float mPendingStrike = 0.f; // task 0040: the strongest strike not yet taken, 0 for none
 
         void flashDecrement(const float elapsedSeconds);
         float thunderChance(const float transitionRatio, const float elapsedSeconds) const;
@@ -416,6 +423,10 @@ namespace MWWorld
         float mWetness = 0.f;
         // task 0039: how much snow and ash lies on the ground, 0 to 1 each (not saved)
         Render::Cover::State mCover;
+        // task 0040: lightning as light (not saved): the flashes shown, the game seconds counted for them, and the
+        // strikes counted for the flash directions
+        Render::Lightning::Flasher mFlasher;
+        float mLightningTime = 0.f;
 
         MWBase::Sound* mAmbientSound{ nullptr };
         ESM::RefId mPlayingAmbientSoundID;
@@ -440,6 +451,9 @@ namespace MWWorld
         void applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const;
         void updateWetness(float duration, bool paused, bool isExterior);
         void updateCover(float duration, bool paused, bool isExterior);
+        // task 0040: the flash colour to add to the sun, ambient and fog this frame (zero when `lightning` is off or the
+        // vanilla flash is used); tells the renderer the flash's brightness and direction
+        vsg::vec3 updateLightning(const float elapsedSeconds, const bool isPaused);
         void calculateResult(const int weatherID, const float gameHour);
         void calculateTransitionResult(const float factor, const float gameHour);
         float calculateWindSpeed(int weatherId, float currentSpeed);

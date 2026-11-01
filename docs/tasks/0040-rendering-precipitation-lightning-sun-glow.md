@@ -4,7 +4,7 @@ Goal: three weather effects that are each small but change the feel: precipitati
 Inherited code touched: not yet confirmed; to be named at the commit that starts each stage. Expected: `apps/openmw/mwrender/rain.*` and `weathereffects.*` (precipitation particles), `apps/openmw/mwrender/weather.*` (the `Sky` class: thunder and lightning flash, which today is a colour change), `apps/openmw/mwworld/weather.cpp` (thunder frequency, flash timing, the lightning colour from the weather record), `files/shaders/sky/*` and `files/shaders/lib/fog.glsl` (or the fog function in the default shader; confirm the file), `files/shaders/lib/light/*`, `components/render/atmospheremath.hpp`.
 Inputs / outputs: new `[Rendering]` settings `precipitation lighting` (bool, false), `lightning` (bool, false), `lightning strength` (0 to 2, 1), `sun glow` (bool, false), `sun glow strength` (0 to 2, 1); pure-maths headers `components/render/lightningmath.hpp` and additions to `atmospheremath.hpp`; no change to weather records, scripts, sounds or saves.
 
-Status: draft, written 2026-11-01 at toddhow's request. Nothing is built. Full loop (Track V renderer) when it starts.
+Status: built 2026-11-01, stages a to e (see the stage log). Full loop (Track V renderer).
 
 ## Design, in plain language
 
@@ -44,10 +44,36 @@ Status: draft, written 2026-11-01 at toddhow's request. Nothing is built. Full l
 
 ## Acceptance criteria
 
-- [ ] The pure maths and shader twins agree; the flash never exceeds the cap and never repeats faster than the minimum interval (tests).
-- [ ] Rain and snow streaks are dark in the dark, bright near a torch or lamp, warm at dusk (frames viewed).
-- [ ] A foggy sunrise and sunset glow around the sun and not elsewhere (frames).
-- [ ] A lightning flash lights outdoor surfaces for a few frames and decays with a double flicker (a frame sequence viewed), with the same seed giving the same flashes.
-- [ ] All three settings off, or on in clear weather, are frame-identical within noise.
-- [ ] Cost note recorded; unit tests, the 32 Lua tests, the Linux gate and the format check pass; a fresh reviewer read each stage.
+- [x] The pure maths and shader twins agree (constants read back from the shader files by tests; formulas compared by a reviewer line by line); the flash never exceeds the cap and never repeats faster than the minimum interval (tests, including dense storms and the one-second window).
+- [x] Rain streaks are lit by the torch near them, dark in the dark, brighter against the low sun (night and dusk frames); snow is dark at night and brighter by day (frames). [ ] "Warm at dusk" for snow not framed; lamps do not light snow.
+- [x] A foggy sunset glows around the sun and not elsewhere (debug view and diff maps, sky and distant objects). [ ] The sunrise glow is weak in frames (the sun was behind a wall) and the effect at strength 1 is subtle by design; warmth was seen in the debug view only.
+- [x] A flash lights outdoor surfaces and decays with a double flicker (frames at ages 0.05, 0.14, 0.25 and 0.6 s, at night and in a thunderstorm with puddles); the same seed gives the same directions (unit test). [ ] The vanilla random schedule driving a flash in the game was not watched; only the debug-age aid was framed.
+- [x] All three settings off, or on in clear weather, are frame-identical within noise (diff maps: only moving people and water); an interior with them on is identical (difference 0).
+- [x] Cost note recorded below. Unit tests and the 32 Lua tests pass on Windows. [ ] Linux gate and format check: see the stage log. A fresh reviewer read the whole change once, not each stage (one change set).
 Out of scope: wetness (0037), cloud shading (0038), snow and ash cover (0039), volumetric fog and light shafts (0041), lightning through windows, new precipitation types, thunder sound changes, a weather simulation, the editor.
+
+## Decisions made while building (2026-11-01)
+
+- **D2 changed: one merged light, not a second light.** The weather manager adds the flash (capped, cold, double flicker) to the sun, ambient and fog colours in place of the vanilla white one, and the renderer tilts the sun's direction (and so the shadow cascades) towards the flash by its share of the light (`Render::Lightning::mergedDirection`, `RenderManager::updateSceneData`). No shader code or buffer is needed, and the flash casts shadows. The price: one direction for all surfaces, and the sun's own direction is lost for the length of a flash.
+- **The colour is not from the weather record:** Morrowind's records hold only thunder frequency, threshold and flash decrement. The flash colour (0.80, 0.90, 1.0) is a chosen constant.
+- **D3:** the direction is a hash of a fixed seed and the strike count (no generator state, no clock). Test aid `lightning debug age` holds one flash at an age, since the vanilla schedule is random.
+- **D6 as built:** cap 1 (the closest vanilla strike), minimum interval 1.5 s between flash starts, two strokes 0.22 s apart: at most two peaks in any second (WCAG 2.2 criterion 2.3.1 allows three). Flashes this size at night are strong; toddhow may want a lower default `lightning strength` (0.7 reads more gently).
+- **D1 changed for snow:** snow already took the shader's ambient light; its NIF material has a constant emissive of 0.3 that lit it at night. With the setting on that emissive is replaced by the sun's part (one colour for the whole fall). Lamps do not light snow. Rain is lit per pixel with lamps (`PRECIPITATION_LIT`).
+- **D4:** haze weight is `1 - Glare_View` (the weather's clearness); brightness follows the fog's, colour is the sun's after the air (warm when low); also applied to the sky dome. Not on the cloud layer, the water or the sun disc.
+- **Slang or GLSL:** all GLSL. The only new shader file, `lib/light/precipitation.glsl`, is an include of the existing GLSL `default/main.frag` (decision 0009 only requires new shaders to be Slang; porting `main.frag` is a later task).
+- **Known interaction:** with `sun glow` and `lightning` both on in haze, the glow follows the tilted light and the flash-brightened colour during a flash (a warm halo around the flash direction, even at night). Left as is.
+
+## Stage log
+
+### 2026-11-01, stages a to e (Windows, RTX 4070, `build-jolt`)
+
+Tests first (46 then 51 new unit tests: lightning, sun glow, precipitation), then the code. Frames compared with an older executable built from the same shaders at HEAD (settings off).
+
+- **a/c Sun glow:** debug view and diff maps show a warm halo round the sun in fog (sky and fogged distance); at strength 1 the real frame is subtly brighter; clear weather identical.
+- **b Precipitation:** rain at night with a torch (streaks lit by the torch, long streaks), at dusk looking towards the sun (brighter streaks); snow at night (dimmer than before) and noon (brighter). The first version lit rain with the NIF's fixed normal; replaced by the scattering light.
+- **d Lightning:** frames at ages 0.05, 0.14, 0.25 and 0.6 s at night (flash, dip, second stroke, gone) and in a thunderstorm with wetness puddles (puddles and wet ground brighten). Interiors unchanged.
+- **e Cost** (`tools/benchmark.sh` method, copied scenes: rain at dusk, fog at sunset, a thunderstorm, 1280 x 720, main scene GPU median): rain 0.118 to 0.131 or 0.146 ms; fog 0.118 to 0.131-0.132 ms; storm 0.118 or 0.190 to 0.147 or 0.203 ms (the storm's own run-to-run spread is 0.07 ms). All three on cost about 0.01 to 0.03 ms on this machine. The debug view is `sun glow debug`; the lightning aid is `lightning debug age`.
+- **Not verified:** a flash driven by the game's own thunder schedule, a sunrise glow frame facing the sun, Linux gate and clang-format (see the final report), lightning through a window (out of scope).
+- **Review notes:** a fresh reviewer found no way around the cap or interval; fixed its minor points (NaN clamp, stale `ambientPart` under `GBUFFER_AMBIENT` for rain, comments). Open: no `WeatherManager` integration test for the cap (the maths is tested; the manager is not unit-testable without the game).
+
+**For task 0041 (volumetric fog):** the sun glow lives in `applyFog(src, viewPos)` and the sky dome, brightness from the fog's colour; a froxel fog should replace both terms and keep `cSunGlow` and `1 - Glare_View` as the haze weight. `scene.lightViewPos` is tilted during a lightning flash, and the scene's light colour includes the flash.

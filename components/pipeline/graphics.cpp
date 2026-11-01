@@ -104,6 +104,8 @@ namespace Pipeline
                 return "COVER";
             case Mode::COVER_DEBUG:
                 return "COVER_DEBUG";
+            case Mode::PRECIPITATION_LIT:
+                return "PRECIPITATION_LIT";
             case Mode::HEIGHT_MAP:
                 return "HEIGHT_MAP";
             case Mode::PARALLAX_POM:

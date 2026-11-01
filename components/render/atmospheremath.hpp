@@ -281,6 +281,81 @@ namespace Render::Atmosphere
         out.cloudTint = mix(vanilla.cloudTint, m.cloudTint, weight);
         return out;
     }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // OpenEden (task 0040, stage c): the glow of the air round the sun. The shader twin is the sun glow part of
+    // files/shaders/lib/view/fog.glsl; change both together.
+    //
+    // In haze and fog, light that meets a droplet bends only a little: most of it carries on nearly straight (forward
+    // scattering). Looking towards the sun through hazy air you therefore see a bright, warm halo round it, falling off
+    // with the angle. The Henyey-Greenstein phase function describes it with one number, g, between -1 and 1 (0 is the
+    // same in every direction, near 1 is a tight forward lobe). It is added to the fog's colour, so it shows where the
+    // fog does, in the direction of the sun.
+    //
+    // Source: Henyey and Greenstein, "Diffuse radiation in the Galaxy", Astrophysical Journal 93 (1941), the form
+    // normalised over the sphere. No code taken.
+    //
+    // The share of the sphere: the integral of the function over all directions is 1.
+    inline float henyeyGreenstein(float cosTheta, float g)
+    {
+        const float c = std::clamp(cosTheta, -1.f, 1.f);
+        const float k = std::clamp(g, -0.99f, 0.99f);
+        const float denominator = 1.f + k * k - 2.f * k * c;
+        return (1.f - k * k) / (4.f * pi * denominator * std::sqrt(denominator));
+    }
+
+    // g for the haze round the sun. Water droplets in fog scatter with g between 0.7 and 0.9 over most of the visible
+    // range (Mie theory); a lower value gives a softer halo that suits a game's hazy fog. Chosen by eye.
+    constexpr float sunGlowAnisotropy = 0.7f;
+    // How bright the halo is, as a share of the brightness of the fog it lights, per unit of phase relative to the same
+    // light spread evenly (the phase times 4 pi, about 19 at the sun for the g above). 6 % of that makes the brightest
+    // point of the halo a little brighter than the fog round it, not a second sun. Chosen by eye.
+    constexpr float sunGlowGain = 0.06f;
+    // The halo is the haze lit by the sun, so its brightness follows the fog's, and its colour is the sun's: the sun's
+    // light after the air has taken the blue out of it (the model's `sunTransmittance` for hazy air, scaled so that its
+    // brightest channel is 1), softened towards white by this much of the way so that a sun at the horizon does not
+    // make a pure red halo. Chosen by eye.
+    constexpr float sunGlowTintShare = 0.7f;
+    // The halo fades out when the light is too dim to be the sun's: at a brightest channel (linear light) of `From` it
+    // is gone, from `To` it is full. At night the light is the moon's, a fifth of that.
+    constexpr float sunGlowPresenceFrom = 0.02f;
+    constexpr float sunGlowPresenceTo = 0.2f;
+
+    // The phase relative to an even spread: 1 means "as bright as with no preference of direction".
+    inline float sunGlowPhase(float cosTheta)
+    {
+        return 4.f * pi * henyeyGreenstein(cosTheta, sunGlowAnisotropy);
+    }
+
+    // How hazy the air is, 0 to 1: the opposite of the weather's clearness (its Glare_View value). A clear day has no
+    // halo, which keeps clear weather exactly as it was.
+    inline float hazeAmount(float clearness)
+    {
+        return 1.f - std::clamp(clearness, 0.f, 1.f);
+    }
+
+    // The colour of the halo for a sun `elevation` radians above the horizon: warm when low, nearly white when high.
+    inline vsg::vec3 sunGlowTint(float elevation)
+    {
+        const vsg::vec3 t = sunTransmittance(std::max(elevation, 0.f), Detail::hazeTurbidity);
+        const float brightest = std::max({ t.x, t.y, t.z, 1e-6f });
+        const vsg::vec3 hue = t / brightest;
+        const vsg::vec3 white(1.f, 1.f, 1.f);
+        return white + (hue - white) * sunGlowTintShare;
+    }
+
+    // The colour the halo adds to the fog colour, in the lighting space of the caller (linear in the HDR view):
+    // `sunColour` is the sun light's colour, `fogColour` the fog's. `cosTheta` is the cosine of the angle between the
+    // view direction (from the eye) and the direction to the sun, `elevation` the sun's height in radians.
+    inline vsg::vec3 sunGlow(const vsg::vec3& sunColour, const vsg::vec3& fogColour, float cosTheta, float elevation,
+        float clearness, float strength)
+    {
+        const float presence = Detail::smoothStep(
+            sunGlowPresenceFrom, sunGlowPresenceTo, std::max({ sunColour.x, sunColour.y, sunColour.z }));
+        const float amount = sunGlowGain * sunGlowPhase(cosTheta) * hazeAmount(clearness) * std::max(strength, 0.f)
+            * presence * Detail::luma(fogColour);
+        return sunGlowTint(elevation) * amount;
+    }
 }
 
 #endif

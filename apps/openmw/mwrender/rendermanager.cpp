@@ -40,6 +40,8 @@
 #include <components/render/cloudgpu.hpp>
 #include <components/render/cloudmath.hpp>
 #include <components/render/covermath.hpp>
+#include <components/render/lightningmath.hpp>
+#include <components/render/precipitationmath.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/gbuffermath.hpp>
@@ -424,6 +426,28 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] cloud shadows need hdr and atmosphere; they are off";
             }
+            // Task 0040: lit rain and snow, and lightning as light. The sun glow is a shader setting
+            // (Resource::ShaderSettings), which needs hdr and atmosphere.
+            if (Settings::rendering().mPrecipitationLighting)
+            {
+                mPrecipitationLit = true;
+                Log(Debug::Info) << "Weather: lit rain and snow on";
+            }
+            if (Settings::rendering().mLightning)
+            {
+                mLightningEnabled = true;
+                mLightningStrength = Settings::rendering().mLightningStrength;
+                mLightningDebugAge = Settings::rendering().mLightningDebugAge;
+                Log(Debug::Info) << "Weather: lightning as light on (peak cap " << Render::Lightning::peakCap
+                                 << ", flashes at least " << Render::Lightning::minInterval << " s apart)";
+            }
+            if (Settings::rendering().mSunGlow)
+            {
+                if (Settings::rendering().mAtmosphere)
+                    Log(Debug::Info) << "Weather: sun glow in haze on";
+                else
+                    Log(Debug::Warning) << "[Rendering] sun glow needs hdr and atmosphere; it is off";
+            }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";
             mReflect = std::make_unique<Reflect>(
@@ -511,6 +535,7 @@ namespace MWRender
         mEffects = std::make_unique<Effects>(mScene->context);
         mWeatherEffects = std::make_unique<WeatherEffects>(mScene->context);
         mRain = std::make_unique<Rain>(*mResourceSystem->builder, mCompileContext, mResourceSystem->textureOptions);
+        mRain->setLit(mPrecipitationLit);
         if (mOccluder)
             mRain->setOcclusionMap(mOccluder->mapDescriptor());
         mWaterRipples = std::make_unique<WaterRipples>(
@@ -1023,6 +1048,16 @@ namespace MWRender
     {
         mCoverKind = static_cast<Render::Cover::Kind>(std::clamp(kind, 0, 2));
         mCoverAmount = Render::Wetness::saturate(amount);
+    }
+
+    void RenderManager::setLightning(float intensity, const vsg::vec3& direction)
+    {
+        if (!mLightningEnabled)
+            return;
+        // The cap is enforced where the flash is made (Render::Lightning::peak); it is repeated here so that no caller
+        // can pass it.
+        mLightningIntensity = intensity > 0.f ? std::min(intensity, Render::Lightning::peakCap) : 0.f;
+        mLightningDirection = direction;
     }
 
     void RenderManager::setWetness(float wetness)
@@ -1670,12 +1705,26 @@ namespace MWRender
             sceneData.lightSpecular.w = mOccluder->boxHeight();
         }
         sceneData.invView = vsg::mat4(vsg::inverse_4x3(mViewMatrix->transform()));
-        mSceneData->setLightPosition(mLightPosition, sceneData.invView);
+        // Task 0040: during a lightning flash the sun's light is tilted towards the flash, by the flash's share of the
+        // light (both measured in the display-encoded brightness the weather colours use). The sun's light colour
+        // already has the flash added (WeatherManager::updateLightning).
+        vsg::vec3 lightPosition = mLightPosition;
+        if (mLightningEnabled && mLightningIntensity > 0.f)
+        {
+            const vsg::vec3 flashColour = Render::Lightning::colourAdd(mLightningIntensity);
+            const float flashWeight = Render::Atmosphere::Detail::luma(flashColour);
+            const float sunWeight
+                = std::max(Render::Atmosphere::Detail::luma(vsg::vec3(mLightDiffuse.x, mLightDiffuse.y, mLightDiffuse.z))
+                        - flashWeight,
+                    0.f);
+            lightPosition = Render::Lightning::mergedDirection(mLightPosition, sunWeight, mLightningDirection, flashWeight);
+        }
+        mSceneData->setLightPosition(lightPosition, sceneData.invView);
         sceneData.lightViewPos.a = mRenderModes[Render_Sky] ? mSky->getLightSize() : 8.f;
 
         const auto& vp = mSceneCamera->getViewport();
         sceneData.resolution = { vp.width, vp.height };
-        mShadow->updateCascades(*mSceneCamera, sceneData, mLightPosition);
+        mShadow->updateCascades(*mSceneCamera, sceneData, lightPosition);
         mSceneData->dirty();
         mLightGrid->update();
         updatePostProcess();
@@ -1928,6 +1977,29 @@ namespace MWRender
         // Weather particles stop at the water surface, as OpenMW's underwater switch did.
         const vsg::vec3 cameraPosition(mCamera->getPosition());
         const bool aboveWater = !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition));
+        // Task 0040: lit snow (and blizzard): the sun's part of the flakes' light, from the sun's colour and the angle
+        // between the camera's direction and the sun, in the display-encoded colour the material's emissive takes.
+        if (mPrecipitationLit && mRenderModes[Render_Sky])
+        {
+            const std::string& particles = mSky->getParticleEffect();
+            const auto& models = Settings::models();
+            if (!particles.empty()
+                && (particles == models.mWeathersnow.get().value() || particles == models.mWeatherblizzard.get().value()))
+            {
+                const vsg::mat4& invView = mSceneData->value().invView;
+                const vsg::vec3 forward(-invView[2][0], -invView[2][1], -invView[2][2]);
+                const float sunLength = vsg::length(mLightPosition);
+                const float forwardLength = vsg::length(forward);
+                const float cosTheta = sunLength > 0.f && forwardLength > 0.f
+                    ? vsg::dot(mLightPosition, forward) / (sunLength * forwardLength)
+                    : 0.f;
+                const vsg::vec3 sunLinear = Render::Hdr::toLinear(vsg::vec3(mLightDiffuse.x, mLightDiffuse.y, mLightDiffuse.z));
+                const vsg::vec3 lit = Render::Hdr::toEncoded(Render::Precipitation::snowSunLight(sunLinear, cosTheta));
+                mWeatherEffects->setSunLight(&lit);
+            }
+            else
+                mWeatherEffects->setSunLight(nullptr);
+        }
         mWeatherEffects->update(
             dt, cameraPosition, mSky->getParticleOrientation(), mSky->getPrecipitationAlpha(), aboveWater);
         mSky->getRainParameters(mRainParameters);
