@@ -167,4 +167,4 @@ Plain words: the adapter is a class that lets CreativeMotion's ragdoll code work
 - Found while building: CreativeMotion's own Jolt is newer than the game's v5.5.0 (no `PositionAndVelocity` motors, so a damping-only motor uses a tiny stiffness; the angular-velocity feed-forward of `setJointTarget` has no effect; open question 8).
 - Fresh reviewer findings fixed: Jolt's default speed cap (500 units/s, about 7 m/s here) is now scaled; group IDs are taken only after a slot is secured; doc comments. Not changed: an unscaled-gain overflow is clamped but not tested at solver level; `setKinematicTarget` has no in-step guard (as the reference).
 - Windows: `components-tests` 2836, `openmw-tests` 799, `eden-studio-tests` 393 pass. The full build's last link steps (`eden-studio.exe`, `compat_morrowind.dll`) failed only because those files were in use by a running program.
-- Not verified yet: the Linux gate (see the commit after this one).
+- Linux gate (HEAD `da9200406f`): passes. `CI/check_clang_format.sh` passes over the whole tree. Not run: clang-tidy, sanitizers, an in-game check (stage a has no game code).
