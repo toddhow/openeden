@@ -363,18 +363,16 @@ namespace Render::Gi
                     throw Failure{ object.line, describe(key), std::string("missing key '") + key + "'" };
         }
 
-        const Value& expectObject(const Value& v, const std::string& field)
+        void expectObject(const Value& v, const std::string& field)
         {
             if (v.type != Value::Type::Object)
                 throw Failure{ v.line, field, "expected an object" };
-            return v;
         }
 
-        const Value& expectArray(const Value& v, const std::string& field)
+        void expectArray(const Value& v, const std::string& field)
         {
             if (v.type != Value::Type::Array)
                 throw Failure{ v.line, field, "expected an array" };
-            return v;
         }
 
         float readFloat(const Value& v, const std::string& field)
@@ -424,7 +422,8 @@ namespace Render::Gi
             if (!(volume.spacing > 0.f) || volume.spacing > maxSpacing)
                 throw Failure{ find(v, "spacing")->line, path + ".spacing",
                     "the spacing must be above 0 and at most 100000" };
-            const Value& size = expectArray(*find(v, "size"), path + ".size");
+            const Value& size = *find(v, "size");
+            expectArray(size, path + ".size");
             if (size.items.size() != 3)
                 throw Failure{ size.line, path + ".size", "expected three integers" };
             std::size_t product = 1;
@@ -438,7 +437,8 @@ namespace Render::Gi
                     throw Failure{ size.line, path + ".size",
                         "a volume holds at most " + std::to_string(maxVolumeProbes) + " probes" };
             }
-            const Value& probes = expectArray(*find(v, "probes"), path + ".probes");
+            const Value& probes = *find(v, "probes");
+            expectArray(probes, path + ".probes");
             if (probes.items.size() != product)
                 throw Failure{ probes.line, path + ".probes",
                     "expected " + std::to_string(product) + " probes (the product of size), found "
@@ -447,7 +447,8 @@ namespace Render::Gi
             for (std::size_t i = 0; i < product; ++i)
             {
                 const std::string probePath = path + ".probes[" + std::to_string(i) + "]";
-                const Value& probe = expectArray(probes.items[i], probePath);
+                const Value& probe = probes.items[i];
+                expectArray(probe, probePath);
                 if (probe.items.size() != probeNumbers)
                     throw Failure{ probe.line, probePath,
                         "expected 27 numbers (nine coefficients of r, g, b), found "
@@ -478,7 +479,8 @@ namespace Render::Gi
             checkKeys(root, "", { "format", "version", "cell", "bake", "volumes" });
 
             ProbeSet set;
-            const Value& cell = expectObject(*find(root, "cell"), "cell");
+            const Value& cell = *find(root, "cell");
+            expectObject(cell, "cell");
             if (cell.members.size() != 1)
                 throw Failure{ cell.line, "cell", "expected exactly one of \"interior\" or \"exterior\"" };
             if (const Value* interior = find(cell, "interior"))
@@ -502,7 +504,8 @@ namespace Render::Gi
             else
                 throw Failure{ cell.keyLines[0], "cell", "expected \"interior\" or \"exterior\"" };
 
-            const Value& bake = expectObject(*find(root, "bake"), "bake");
+            const Value& bake = *find(root, "bake");
+            expectObject(bake, "bake");
             checkKeys(bake, "bake", { "rays", "bounces", "seed", "ambient" });
             set.rays = static_cast<std::uint32_t>(readInteger(*find(bake, "rays"), "bake.rays", 1, 65536));
             set.bounces = static_cast<std::uint32_t>(readInteger(*find(bake, "bounces"), "bake.bounces", 0, 8));
@@ -510,7 +513,8 @@ namespace Render::Gi
                 readInteger(*find(bake, "seed"), "bake.seed", 0, std::numeric_limits<std::uint32_t>::max()));
             set.ambient = readVec3(*find(bake, "ambient"), "bake.ambient");
 
-            const Value& volumes = expectArray(*find(root, "volumes"), "volumes");
+            const Value& volumes = *find(root, "volumes");
+            expectArray(volumes, "volumes");
             if (volumes.items.empty() || volumes.items.size() > maxVolumes)
                 throw Failure{ volumes.line, "volumes", "expected 1 to 64 volumes" };
             for (std::size_t i = 0; i < volumes.items.size(); ++i)

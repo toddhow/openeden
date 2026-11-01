@@ -259,10 +259,10 @@ namespace OMW
                 lightText = lt.str();
             }
 
-            const auto& rendering = Settings::rendering();
-            settings.rays = static_cast<std::uint32_t>(rendering.mGiBakeRays.get());
-            settings.bounces = static_cast<std::uint32_t>(rendering.mGiBakeBounces.get());
-            settings.seed = static_cast<std::uint32_t>(rendering.mGiBakeSeed.get());
+            const auto& renderSettings = Settings::rendering();
+            settings.rays = static_cast<std::uint32_t>(renderSettings.mGiBakeRays.get());
+            settings.bounces = static_cast<std::uint32_t>(renderSettings.mGiBakeBounces.get());
+            settings.seed = static_cast<std::uint32_t>(renderSettings.mGiBakeSeed.get());
             settings.ambient = this->rendering.getLinearAmbient();
             settings.falloff = readFalloff();
 
@@ -275,7 +275,7 @@ namespace OMW
                 Log(Debug::Error) << "[GI] the physics world of \"" << cellName << "\" is empty; nothing to bake";
                 return false;
             }
-            auto volume = Render::Gi::layoutVolume(low, high, rendering.mGiBakeSpacing, Render::Gi::maxVolumeProbes);
+            auto volume = Render::Gi::layoutVolume(low, high, renderSettings.mGiBakeSpacing, Render::Gi::maxVolumeProbes);
             world = std::make_unique<JoltRayWorld>(*physics);
             baker = std::make_unique<Render::Gi::VolumeBaker>(settings, *world, std::move(lights), std::move(volume));
 
