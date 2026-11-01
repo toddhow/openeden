@@ -124,6 +124,15 @@ namespace vsgAdapters
         {
             overrideMask = vsg::MASK_ALL;
         }
+        // Counts a node above the one the search starts at (a bone of the skeleton the part hangs from) in the paths,
+        // without looking at its ID.
+        void enterPathNode(vsg::Node& node)
+        {
+            if (auto trans = dynamic_cast<Anim::Transform*>(&node))
+                mTransformPath.path.push_back(trans);
+            else if (auto sw = dynamic_cast<vsg::Switch*>(&node))
+                mSwitchPath.path.push_back(sw);
+        }
         using vsg::Visitor::apply;
         void apply(vsg::Switch& sw) override
         {
@@ -305,8 +314,13 @@ namespace vsgAdapters
     void ParticleSystem::link(Anim::Context& ctx, vsg::Object&)
     {
         LinkParticleSystem visitor(*this);
-        // ctx.attachmentPath.back()->accept(visitor);
-        ctx.attachmentPath.front()->accept(visitor);
+        // OpenEden: search only the attached node's own subtree. The path may start at the root bone of an actor's
+        // skeleton (a carried torch), and NIF record indices are only unique within one NIF: a bone with the emitter's
+        // index was taken for the emitter, the search stopped there and never reached the torch, so its flame was
+        // emitted from the wrong place. The bones above the node still count towards the transform paths.
+        for (size_t i = 0; i + 1 < ctx.attachmentPath.size(); ++i)
+            visitor.enterPathNode(*ctx.attachmentPath[i]);
+        ctx.attachmentPath.back()->accept(visitor);
 
         if (mEmitterNodeIndex != -1 && !visitor.foundEmitterNode)
             std::cerr << "!LinkParticleSystem::foundEmitterNode(" << mEmitterNodeIndex << ")" << std::endl;

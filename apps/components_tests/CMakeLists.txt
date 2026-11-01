@@ -92,6 +92,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgadapters/testtangents.cpp
     vsgadapters/testparticleemission.cpp
     vsgadapters/testparticleemitterindex.cpp
+    vsgadapters/testparticlelink.cpp
     vsgadapters/testsoftparticlesize.cpp
 
     sceneutil/testdetourdebugdraw.cpp
