@@ -1,6 +1,6 @@
-// Tests for the True PBR `_rmaos` layout of the tier 3 material map (task 0044): the channel decode, the scales, and the
-// two new keys of the `openeden.material` file. Written from the spec (docs/tasks/0044-rendering-pbr-rmaos-textures.md)
-// before the implementation. No GPU, window or game data.
+// Tests for the True PBR `_rmaos` layout of the tier 3 material map (task 0044): the channel decode, the scales, and
+// the two new keys of the `openeden.material` file. Written from the spec
+// (docs/tasks/0044-rendering-pbr-rmaos-textures.md) before the implementation. No GPU, window or game data.
 
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>

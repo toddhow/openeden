@@ -132,8 +132,7 @@ namespace Render::Pbr
                 return fail(lineAt(json, from), prefix, "must be an object");
             for (const auto& [key, value] : item.items())
                 if (key != "match" && key != "roughness" && key != "metalness" && key != "reflectance"
-                    && key != "occlusion" && key != "subsurface" && key != "roughnessScale"
-                    && key != "specularLevel")
+                    && key != "occlusion" && key != "subsurface" && key != "roughnessScale" && key != "specularLevel")
                     return fail(keyLine(json, key, from), prefix + "." + key, "unknown key");
 
             OverrideEntry entry;

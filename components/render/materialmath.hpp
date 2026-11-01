@@ -151,9 +151,9 @@ namespace Render::Pbr
     }
 
     /*
-     * The True PBR `_rmaos` layout of the tier 3 map (task 0044). A community convention (Community Shaders' "True PBR"),
-     * not a standard: R roughness, G metalness, B ambient occlusion (0 = occluded), A specular. The shaders repeat the
-     * decode (`pbrApplyMapRmaos` in files/shaders/lib/material/pbr.glsl): change both together.
+     * The True PBR `_rmaos` layout of the tier 3 map (task 0044). A community convention (Community Shaders' "True
+     * PBR"), not a standard: R roughness, G metalness, B ambient occlusion (0 = occluded), A specular. The shaders
+     * repeat the decode (`pbrApplyMapRmaos` in files/shaders/lib/material/pbr.glsl): change both together.
      */
     constexpr std::string_view rmaosMapSuffix = "_rmaos";
     // The dielectric F0 that a specular level of 1 times a texture alpha of 1 gives; the layout's default.
