@@ -45,7 +45,7 @@ The types matter: snow weather builds snow (white, subsurface-soft, bright), ash
 - [x] In ash storm and blight weather surfaces gather dark grey ash (frames); the slow fade is unit-tested only.
 - [ ] Sheltered places stay clear (frames under roofs and arches): not verified. The code is task 0037's shelter test, which that task saw working in the debug view for one doorway.
 - [x] Rain and clear weather unchanged with cover on, and off is frame-identical to the previous build (diffmaps at a fixed time and weather; only snow flakes, rain drops and moving people differ). [ ] Cloudy and interiors not framed (an interior never receives cover: the weather manager tells the renderer none).
-- [ ] Cost note recorded; unit tests, the 32 Lua tests, the Linux gate and the format check pass; a fresh reviewer read each stage (see the stage log for which of these are done).
+- [x] Cost note recorded (`docs/research/0020-cover-cost.md`); unit tests, the 32 Lua tests, the Linux gate and the format check pass; a fresh reviewer read the whole change once, not each stage on its own (one change set).
 Out of scope: rain wetness (0037), precipitation particles (0040), a weather simulation, footprints or deformable snow, new weather types, sound changes, the editor.
 
 ## Decisions made while building (2026-11-01)
@@ -58,3 +58,21 @@ Out of scope: rain wetness (0037), precipitation particles (0040), a weather sim
 - **Terrain keeps its shading, not its hue:** the land colour map's green and brown tint is pulled to grey under cover, or snow came out olive in the first frame.
 - **Colours** (linear albedo): snow 0.78, 0.80, 0.84, roughness 0.75; ash 0.075, 0.072, 0.07, roughness 0.92. The first ash colour (0.13) read as snow-like pale caps on dark rocks in the blight frame, so it was darkened.
 - **Slang or GLSL:** everything is GLSL. No new shader file exists: `lib/material/cover.glsl` is an include for the existing GLSL shaders `default/main.frag` and `terrain/main.frag` (decision 0009 allows edits and new includes of existing GLSL shaders to stay GLSL), and it also includes `lib/material/wetness.glsl`. Porting those shaders is a later task.
+
+## Stage log
+
+### 2026-11-01, stages a to d (Windows, RTX 4070, `build-jolt`; commits `1ef4625797` and `67cfd27d1b`)
+
+**Done and verified.**
+- a: `covermath.hpp` and 34 tests written first (curves bounded and monotonic, ash slower than snow, upwardness zero on walls and one on flat tops, ragged mask, kinds differ, packing round trip and "no cover is exactly the old wetness alpha", bad inputs, and the shader's constants read back from `cover.glsl`). `WeatherManager::updateCover`.
+- b: snow on statics and terrain behind `[Rendering] cover`. Frames at Seyda Neen, snow, noon, `cover build time = 2`: roofs, rocks and the hill gather white with walls clear; at `cover build time = 6` a frame caught the ground half covered and the edge is ragged patches. The first frame showed olive terrain (the land colour map's tint): fixed by pulling that tint to grey under cover.
+- c: ash and blight: dark grey ash on the ground and roofs; the first ash colour was too light on dark rocks and was darkened. Blizzard builds snow.
+- d: the debug view (`cover debug`: cover amount red, upwardness green, covered share blue; checked on the snow frame, roofs and rocks pink and white, walls red), the cost note, the module guides.
+- Off means unchanged: a frame of the previous build's executable (its own defaults) against the new one with `cover` off at the same time and weather: the difference is snow flakes and walking people only (diffmap viewed). `cover` on in clear weather and in rain (with `wetness` on): the same as off apart from rain drops. An interior (`ToddTest`) with `cover` on: identical to off (difference 0).
+- Gates: `components-tests` 3070, `openmw-tests` 799, `eden-studio-tests` 520, `openmw-cs-tests` 231 on Windows; all 32 Lua tests on Windows; on Linux (commit `3821a64ec8`, CI's flags with `-Werror`) the build, `components-tests` 3046, `openmw-tests` 799 and 32 Lua tests pass; `CI/check_clang_format.sh` (clang-format 14), `check_file_names.sh`, `check_extension_sdk.sh` and `check_no_osg.sh` pass. A fresh reviewer read the diff and found no defects (notes below).
+
+**Not done / not verified.** The melt and the slow fade of ash in the game (only the curves' unit tests: the check script runs at start and the weather cannot be changed later in one run); a frame under a roof, bridge or arch (the shelter code is task 0037's, and needs `gi exterior` with a baked cell; without one, cover also falls on exterior roofs' undersides, which face down and so get none, but on ground under a roof); cloudy weather and Red Mountain's own region (a script used `ChangeWeather` in the Bitter Coast); the editor (it does not take cover: its views leave the ambient alpha at 1 or 0); the shader's functions compared with the C++ ones by a machine (only the constants are, and the packing is unit-tested on the C++ side only); actors and groundcover specifically. Cost: +0.03 ms of GPU in snow in one scene.
+
+**Notes from the review.** Cover under a roof needs the sky visibility file as wetness does. Waiting or sleeping advances cover by only a few frames, as with wetness. The new shader code has two literals without a source comment (the glow and skin tests copied from the wetness code). The packing is by the spare alpha, so a later task that needs that alpha must read `lib/material/cover.glsl`'s `coverUnpack` and `wetness.glsl`'s decode first.
+
+**For task 0040 (precipitation, lightning, sun glow).** `mWetness` and `mCover` (`WeatherManager`) are the places for weather state; the scene block's ambient alpha is now full (wetness, 0 to 1, plus 2 times the cover code). Do not add another field to it: use the cloud header buffer (binding 13, `cloudgpu.hpp`) or push constants. The kind of particles that builds cover is decided in `WeatherManager::updateCover` by comparing `mResult.mParticleEffect` with the `[Models]` particle files.
