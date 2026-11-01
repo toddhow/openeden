@@ -1,6 +1,6 @@
 # World LOD and Asset Streaming: Design
 
-Status: **draft**, 2026-11-01. Written at toddhow's request ("start the research note and design doc first"). Nothing here is built, and nothing here is decided until toddhow answers the table in section 14. Companion to `docs/research/0018-world-lod-and-streaming.md` (facts and measurements to take), `docs/design/eden-archive-format.md` (the pack container) and `docs/design/eden-studio-plan.md` (the editor, which will show and debug tiles).
+Status: **draft, decisions accepted**, 2026-11-01. Written at toddhow's request ("start the research note and design doc first"). Nothing here is built. toddhow answered the table in section 14 the same day (decision record `docs/decisions/0010-rendering-and-studio-answers-2026-11-01.md`, items 22 to 29): the recommendations stand except where section 14 says otherwise. D16 is answered (a software device) and D17 waits. Companion to `docs/research/0018-world-lod-and-streaming.md` (facts and measurements to take), `docs/design/eden-archive-format.md` (the pack container) and `docs/design/eden-studio-plan.md` (the editor, which will show and debug tiles).
 
 Like the archive doc, every fact that has not been checked against a source is marked **verify**. Words in this document: an **extension** is OpenEden's native code system; a **plugin** is an ESP or ESM data file (root `CLAUDE.md`, decision 0006). A **tile** is one square piece of the world with its own simplified data. A **bake** is generating data ahead of time instead of while playing.
 
@@ -103,8 +103,9 @@ Making all those tiles takes a long time (minutes to hours, **unknown until meas
 
 ### 4.2 Process, not thread
 
-- **Recommendation: a separate process**, the same executable started in a bake mode (as `--bake-gi` is a command line mode, task 0028), run at below-normal priority with a limited thread count (default: a quarter of the cores, at least one; setting). Reasons: it cannot stall the render thread through locks or allocator contention; a crash cannot take the game down; it can run while the game is closed (started by the launcher). Cost: it loads the ESM store and VFS a second time (memory; **measure**).
-- It reads game and mod files **read-only**, never writes beside them, and writes only inside the cache folder.
+- **Accepted: a separate process** (D2), the same executable started in a bake mode (as `--bake-gi` is a command line mode, task 0028), run at below-normal priority with a limited thread count (default: a quarter of the cores, at least one; setting). Reasons: it cannot stall the render thread through locks or allocator contention; a crash cannot take the game down; it can run while the game is closed (started by the launcher). Cost: it loads the ESM store and VFS a second time (memory; **measure**).
+- **Both modes from the start** (toddhow, record 0010, item 23): LODs can be **baked ahead of time** (an offline run, for example from the launcher or a command line, whose result can be shipped or kept) or **baked in the background** while the game runs (applied after a restart). One baker, one set of work units and keys, two ways to start it; the output is the same derived packs (archive doc 14.7) either way. The ahead-of-time result can be shipped as an author's own pack (not a derived pack, archive doc section 11).
+- It reads game and mod files **read-only**, never writes beside them, and writes only inside the cache folder (or, for an ahead-of-time run, the output folder the user chose).
 - It does not touch the GPU for terrain and clusters. Impostor rendering needs a GPU context; it is a later stage and may run only when the game is closed (decision D6).
 
 ### 4.3 Work units and resume
@@ -123,7 +124,7 @@ No wall-clock time, no unseeded randomness, no iteration over unordered containe
 Per the archive doc, section 11: key = hash of (source content hashes + tool version + parameters).
 
 - **Tile key** = BLAKE3 (the archive doc's choice; licence note in note 0018, section 4) of: the tile's key (worldspace, level, x, y); the content hashes of every input that affects it, **in load order** (the land record data for the cells, each placed object's record and its model and texture files, terrain textures); the baker's tool id and version; the quality tier's baking parameters (vertex count, error settings, atlas size). A tile at a coarse level lists its children's keys instead of repeating their inputs, so a change deep inside invalidates exactly its ancestors.
-- Inputs are hashed when read. For files inside archives the pack's per-entry hash is used when it exists (the Eden format has them; BSA does not, so the baker hashes the data once and caches the hash by (archive path, size, modification time) in a small table; **verify** that is safe enough, or hash the bytes every time).
+- Inputs are hashed when read. For files inside archives the pack's per-entry hash is used when it exists (the Eden format has them, archive doc 14.5; BSA does not, so the baker hashes the data once and caches the hash by (archive path, size, modification time) in a small table; **verify** that is safe enough, or hash the bytes every time).
 - The whole bake is listed by a **generation manifest**: a small file naming every tile key, a fingerprint of the load order, and the tool version.
 
 ### 4.6 What happens when the load order changes
@@ -281,22 +282,22 @@ Instances per frame and draws per frame at the three radii (note 0018, 5.5); the
 
 ## 11. Staging into specs
 
-Each stage becomes a task spec in `docs/tasks/` (with the template of root `CLAUDE.md`) after toddhow answers section 14. All are full-loop (renderer, loader, untrusted input). Numbers 0045 onward are free at this commit (the latest spec is 0044); they are not reserved here.
+Each stage becomes a task spec in `docs/tasks/` (with the template of root `CLAUDE.md`). All are full-loop (renderer, loader, untrusted input). **The container track comes first** (toddhow, record 0010, item 24): tasks 0050 (VFS: loose files, legacy archives and the future packs, with a range-read interface), 0051 (Eden Archive Format specification v0.1) and 0052 (reference library and tools) are done before S1; dependency order **0050 -> 0051 -> 0052 -> S1 onward**. The launcher's built-in mod organizer (section 13) comes after 0052. The stage specs S0 onward have no numbers yet (0050 to 0052 are taken by the container track).
 
 | Stage | Content | Depends on | Notes |
 | --- | --- | --- | --- |
 | S0 Measure | the scenes and counters of note 0018, section 5; extend the device report (queue families, memory budget, sparse, mesh shader, `multiDrawIndirect`); a second, weaker GPU run | task 0023 (timing, report) | no engine behaviour change |
-| S1 Tile model | tile keys, selection by pixel error, one baked terrain level for Morrowind, a simple internal cache file layout, tile viewer in Eden Studio's mesh viewer (task 0043) for debugging | S0; the archive doc's E2/E3 are not required yet | proves the model; tier Low terrain |
-| S2 Cache and keys | content-hash cache keys, generation manifest, `current` pointer, determinism test; move onto the Eden container when it exists (archive doc E2 to E5) | S1; archive doc E3, E5 | |
+| S1 Tile model | tile keys, selection by pixel error, one baked terrain level for Morrowind **stored in derived packs of the Eden container** (no private layout), tile viewer in Eden Studio's mesh viewer (task 0043) for debugging | S0; tasks 0050 to 0052 (the container) | proves the model; tier Low terrain |
+| S2 Cache and keys | content-hash cache keys, generation manifest, `current` pointer, determinism test, **directly on the container** (no migration stage; archive doc A5 derived data cache) | S1; tasks 0050 to 0052 | |
 | S3 Terrain transitions | geomorphing, composite map bake replaces runtime composite, tile textures | S1; task 0034 for the haze function | |
 | S4 Object clusters | classification, merge, simplify, atlas; active-grid hand-off cross-fade; blacklist/disable overrides fall back to the live chunk for that cell | S1, S2; meshoptimizer licence recorded | needs `DistantObjects` interplay read in detail |
 | S5 Dither cross-fade and LOD chains | per-model LOD chains, dithered cross-fade, hysteresis | S4 | |
-| S6 Streaming core | range-IO interface, IO and decode pools, priorities, staging ring, budgets, eviction, prefetch | S1; the VFS range interface; archive E3 for chunked reads | first with tile data only |
+| S6 Streaming core | range-IO interface, IO and decode pools, priorities, staging ring, budgets, eviction, prefetch | S1; the VFS range interface (task 0050); the reference library's chunked reads (task 0052) | first with tile data only |
 | S7 Grass | thinning by stable hash, bands, far tint, instance buffers | S1 for the far band; independent of S6 | can start early |
-| S8 Background baker and UIs | bake process, work units, resume, status file, launcher World LOD page, in-game status | S2, S4; launcher conventions (task 0018) | |
+| S8 Baker and UIs | bake process in both modes (ahead of time and background), work units, resume, status file, launcher World LOD page, in-game status | S2, S4; launcher conventions (task 0018) | |
 | S9 GPU-driven culling | compute culling of tiles and instances, indirect draws | S1, S4; device report facts; GPU timing | tier High |
 | S10 Impostors | headless render of billboard atlases, view selection, cross-fade | S5, S8 | |
-| S11 Texture mip streaming | tail/chunk layout use, pools or sparse | S6; archive E4 | highest risk; last |
+| S11 Texture mip streaming | tail/chunk layout use, pools or sparse | S6; archive A4 | highest risk; last |
 | S12 New Vegas world source | ESM4 land drawn (a missing task today: `LandManager::create` returns empty land for ESM4), `openeden.worldsource` provider, GRAS scatter, optional shipped-LOD preview | S1 to S4; the compatibility-pack plan | needs a New Vegas data census (note 0018, 5.7) |
 | S13 Cluster LOD | optional | S9 | tier Ultra; may never be built |
 
@@ -304,7 +305,7 @@ Where this touches existing specs: 0034 atmosphere and 0041 fog (the one haze fu
 
 ## 12. Review of the Eden Archive Format draft
 
-The draft is `docs/design/eden-archive-format.md` (committed at `e8530fe6bb`, "written by another agent, placed by toddhow"). I did not edit it; proposed edits are listed in 12.5 for toddhow.
+The draft is `docs/design/eden-archive-format.md` (committed at `e8530fe6bb`, "written by another agent, placed by toddhow"). When this review was written I did not edit it. toddhow then accepted the recommendations of 12.4 and the proposed edits of 12.5 (record 0010, items 24 to 26 and 29), and they were applied to the archive doc the same day (its changelog); this section is kept as the record of why. The draft's milestones E1 to E9 are now A1 to A9.
 
 ### 12.1 What is sound
 
@@ -387,7 +388,7 @@ Today a user manages mods by editing `openmw.cfg` lines (`data=`, `content=`, `g
 - **Load order.** Reorder content files and data folders; show the engine's rule that later wins. Drag and drop; sorting by master dependency uses the same reading of ESM headers the content selector already does.
 - **Enable and disable** a mod (a data folder with its content) without deleting it.
 - **Conflict view.** For two mods that provide the same virtual path, show who wins, and whether the files are byte-identical (same hash, no real conflict; archive doc section 12). Built by scanning each mod's loose files and archive indexes, never by loading the game. Record-level conflicts (two plugins editing one record) are out of scope for the first versions.
-- **Repack into the Eden archive** (once the packer exists, archive doc E3): choose a mod; the packer writes one or more packs into a **managed folder inside OpenEden's own user data** (for example `.../openeden/repacked/<mod>-<hash>/`), verifies them by reading back every entry and comparing hashes, and only then offers "Use repacked". Enabling swaps the mod's entries in the profile for the repacked ones; the source folder stays in the profile as the original.
+- **Repack into the Eden archive** (once the packer exists, archive doc A3, task 0052): choose a mod; the packer writes one or more packs into a **managed folder inside OpenEden's own user data** (for example `.../openeden/repacked/<mod>-<hash>/`), verifies them by reading back every entry and comparing hashes, and only then offers "Use repacked". Enabling swaps the mod's entries in the profile for the repacked ones; the source folder stays in the profile as the original.
 - **Restore originals.** One click removes the swap and, if the user wants, deletes the managed repack.
 - **Safety for the user's game data.** Dry-run listing first; free-space check; writes to a temporary name and atomic rename; an undo log of what the launcher did; refuses to run while the game is running; backs up `openmw.cfg` before every change. It never writes inside a mod folder or the game's `Data Files`.
 - **No network dependence.** Nothing downloads, checks for updates or talks to a mod site. (houseCARL-style Nexus lookups exist as a separate tool elsewhere and are not part of this.)
@@ -409,35 +410,38 @@ A new "Mods" page (or tab group) beside Data Files and Extensions in `maindialog
 ### 13.5 Spec ordering
 
 1. **M0 Profiles and read-only conflict view** (no packer): needs only the launcher and the VFS scan; useful on its own.
-2. **M1 Packer command-line tool** (archive doc E3: reference library, deterministic packer, round-trip tests).
+2. **M1 Packer command-line tool (task 0052, so it exists before the organizer starts)** (archive doc A3, task 0052: reference library, deterministic packer, round-trip tests).
 3. **M2 Repack and restore in the launcher**, with verification and the undo log (needs M0, M1).
 4. **M3 Derived data**: World LOD page and profile awareness (needs S8 of section 11).
 5. **M4** (optional) load order sorting helpers and import of other managers' profiles (**unknown** formats; not started).
 
-## 14. Open decisions for toddhow
+## 14. Decisions
 
-| # | Decision | Recommendation |
-| --- | --- | --- |
-| D1 | Shipped LOD or our own for New Vegas | Our own from full detail; shipped LOD at most a later preview (3.7) |
-| D2 | Baker as a separate low-priority process | Yes (4.2) |
-| D3 | Tile selection by pixel error, with starting thresholds 2/4/8 px | Yes; thresholds set by the S0/S1 measurements |
-| D4 | Transition method | Geomorph for terrain, dithered cross-fade for objects, haze for the rest (7) |
-| D5 | Per-object simplify then merge, or merge then simplify | Simplify per object first, then merge; revisit after S4 data |
-| D6 | Impostors need a GPU bake; allow only when the game is closed | Yes, as a later stage (S10) |
-| D7 | Keep the live terrain and distant-object path as tier 0 and as the fallback for missing tiles | Yes |
-| D8 | DirectStorage | Not required; optional fast path after measurement |
-| D9 | A new `[WorldLod]` settings group, everything off by default | Yes |
-| D10 | Which stage to start with | S0 (measure) and S7 (grass) in parallel, then S1 |
-| D11 | Does the Eden archive container come first, or does S1 use a private cache layout and migrate | Private layout first, migrate at S2 (avoids blocking on the format) |
-| D12 | The eight archive decisions | As in 12.4 |
-| D13 | Add the container reader and writer to the full-loop list in root `CLAUDE.md` | Yes |
-| D14 | Rename the archive doc's E1 to E9 milestones | Yes (12.2) |
-| D15 | Mod organizer scope: start with M0 | Yes, after the launcher has no other large open task (**verify** with toddhow) |
-| D16 | A second, weaker GPU for floor testing | Needed before tier thresholds are fixed |
-| D17 | Pick a groundcover mod (with its licence recorded) as the grass test content | Needed for S7 |
+toddhow's answers of 2026-11-01 (record 0010, items 22 to 29). "Accepted" means the recommendation of this document stands.
+
+| # | Decision | Recommendation | toddhow's answer |
+| --- | --- | --- | --- |
+| D1 | Shipped LOD or our own for New Vegas | Our own from full detail; shipped LOD at most a later preview (3.7) | **Decided: build our own from full detail** (item 22) |
+| D2 | Baker as a separate low-priority process | Yes (4.2) | **Decided: both.** Bake ahead of time (offline, result can be shipped or kept) or in the background while the game runs (applied after a restart); designed for both from the start (item 23; 4.2) |
+| D3 | Tile selection by pixel error, with starting thresholds 2/4/8 px | Yes; thresholds set by the S0/S1 measurements | Accepted (item 29) |
+| D4 | Transition method | Geomorph for terrain, dithered cross-fade for objects, haze for the rest (7) | Accepted (item 29) |
+| D5 | Per-object simplify then merge, or merge then simplify | Simplify per object first, then merge; revisit after S4 data | Accepted (item 29) |
+| D6 | Impostors need a GPU bake; allow only when the game is closed | Yes, as a later stage (S10) | Accepted (item 29) |
+| D7 | Keep the live terrain and distant-object path as tier 0 and as the fallback for missing tiles | Yes | Accepted (item 29) |
+| D8 | DirectStorage | Not required; optional fast path after measurement | Accepted (item 29) |
+| D9 | A new `[WorldLod]` settings group, everything off by default | Yes | Accepted (item 29) |
+| D10 | Which stage to start with | S0 (measure) and S7 (grass) in parallel, then S1 | Accepted (item 29), **after the container track (0050 to 0052)**, which S1 depends on; S0 and S7 do not depend on it and may run in parallel with it |
+| D11 | Does the Eden archive container come first, or does S1 use a private cache layout and migrate | Private layout first, migrate at S2 | **Overruled: the container comes first** (item 24). No private layout; S2 moves straight onto the container |
+| D12 | The eight archive decisions | As in 12.4 | **Accepted** (item 25); recorded in the archive doc, section 17 |
+| D13 | Add the container reader and writer to the full-loop list in root `CLAUDE.md` | Yes | **Accepted** (item 26). The root guide is edited by toddhow |
+| D14 | Rename the archive doc's E1 to E9 milestones | Yes (12.2) | Accepted (item 29): now A1 to A9 |
+| D15 | Mod organizer scope: start with M0 | Yes, after the launcher has no other large open task | Accepted (item 29); it comes **after task 0052** |
+| D16 | A second, weaker GPU for floor testing | Needed before tier thresholds are fixed | **Decided: emulate** with settings and a software device (for example lavapipe, plus settings that cap features and memory) (item 27) |
+| D17 | Pick a groundcover mod (with its licence recorded) as the grass test content | Needed for S7 | **Wait**; decided later (item 28) |
 
 ## Changelog
 
 | Date | Change |
 | --- | --- |
 | 2026-11-01 | Initial draft with research note 0018: the world-LOD model, baker and cache, streaming core, graphics tiers, transitions, grass, staging, a review of the Eden Archive Format draft, and the mod organizer tangent |
+| 2026-11-01 | toddhow's answers recorded (section 14; decision record 0010, items 22 to 29): own LOD data, baker in both modes (ahead of time and background), the container first (0050 -> 0051 -> 0052 -> S1 onward; S2 moves straight onto the container), the archive doc's decisions accepted and applied to it, container reader on the full-loop list, software device for weak-GPU tests, groundcover mod to wait |
