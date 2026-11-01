@@ -1,6 +1,7 @@
 #include "particle.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <iostream>
 
@@ -360,6 +361,11 @@ namespace vsgAdapters
     size_t chooseEmitter(int randValue, size_t count)
     {
         // Spread [0, RAND_MAX] over count equal parts; RAND_MAX + 1.0 keeps the result below count.
+        // A system is linked with at least one emitter (link() adds the node itself when it has none); an empty list
+        // would index past the end, so say so loudly in a debug build and stay in range in a release build.
+        assert(count > 0);
+        if (count == 0)
+            return 0;
         const size_t index = static_cast<size_t>(randValue / (RAND_MAX + 1.0) * count);
         return std::min(index, count - 1);
     }

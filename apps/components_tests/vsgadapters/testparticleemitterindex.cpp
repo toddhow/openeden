@@ -18,7 +18,7 @@ namespace
     {
         const size_t count = 3;
         size_t seen[count] = {};
-        // RAND_MAX is 32767 on MSVC but 2147483647 on glibc: step so that about 32768 values are tried, ending on RAND_MAX.
+        // RAND_MAX is 32767 on MSVC but 2147483647 on glibc: step so that about 32768 values are tried (on glibc the last is a little below RAND_MAX; RAND_MAX itself is the first test).
         const long long step = (RAND_MAX + 1LL) / 32768;
         long long tried = 0;
         for (long long r = 0; r <= RAND_MAX; r += step, ++tried)
