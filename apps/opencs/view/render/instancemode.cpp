@@ -55,6 +55,18 @@
 #include "pagedworldspacewidget.hpp"
 #include "worldspacewidget.hpp"
 
+namespace
+{
+    // The object a hit tag stands for, or null. An object marker's tag is an ObjectTag too, and its object is null
+    // while the marker is detached, which clearing the selection does. So read it before clearing, not after.
+    CSVRender::Object* objectOfTag(const vsg::ref_ptr<CSVRender::TagBase>& tag)
+    {
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+            return objectTag->mObject;
+        return nullptr;
+    }
+}
+
 int CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const
 {
     return id == "move" ? 0 : (id == "rotate" ? 1 : 2);
@@ -397,15 +409,14 @@ void CSVRender::InstanceMode::primarySelectPressed(const WorldspaceHitResult& hi
 {
     auto& worldspaceWidget = getWorldspaceWidget();
 
+    // Before clearing: a hit on the selected object's own marker would find its object detached by the clearing.
+    CSVRender::Object* object = hit.tag ? objectOfTag(hit.tag) : nullptr;
+
     worldspaceWidget.clearSelection(Mask_Reference);
 
-    if (!hit.tag)
-        return;
-
-    if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+    if (object)
     {
         // hit an Object, select it
-        CSVRender::Object* object = objectTag->mObject;
         object->setSelected(true);
         worldspaceWidget.getSelectionMarker()->addToSelectionHistory(object->getReferenceId());
     }
@@ -420,6 +431,8 @@ void CSVRender::InstanceMode::secondarySelectPressed(const WorldspaceHitResult& 
     {
         // hit an Object, toggle its selection state
         CSVRender::Object* object = objectTag->mObject;
+        if (!object)
+            return;
         object->setSelected(!object->getSelected());
 
         const auto selectionMarker = getWorldspaceWidget().getSelectionMarker();
@@ -436,7 +449,8 @@ void CSVRender::InstanceMode::tertiarySelectPressed(const WorldspaceHitResult& h
     if (auto* snapTarget
         = dynamic_cast<CSVRender::ObjectTag*>(getWorldspaceWidget().getSnapTarget(Mask_Reference).get()))
     {
-        snapTarget->mObject->setSnapTarget(false);
+        if (snapTarget->mObject)
+            snapTarget->mObject->setSnapTarget(false);
     }
 
     if (!hit.tag)
@@ -446,6 +460,8 @@ void CSVRender::InstanceMode::tertiarySelectPressed(const WorldspaceHitResult& h
     {
         // hit an Object, toggle its selection state
         CSVRender::Object* object = objectTag->mObject;
+        if (!object)
+            return;
         object->setSnapTarget(!object->getSnapTarget());
     }
 }
@@ -465,10 +481,11 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
         // Only change selection at the start of drag if no object is already selected
         if (hit.tag && CSMPrefs::get()["3D Scene Input"]["context-select"].isTrue())
         {
+            // Read before clearing, as in primarySelectPressed.
+            CSVRender::Object* object = objectOfTag(hit.tag);
             worldspaceWidget.clearSelection(Mask_Reference);
-            if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+            if (object)
             {
-                CSVRender::Object* object = objectTag->mObject;
                 object->setSelected(true);
                 worldspaceWidget.getSelectionMarker()->addToSelectionHistory(object->getReferenceId());
             }
@@ -542,10 +559,11 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
         // Only change selection at the start of drag if no object is already selected
         if (hit.tag && CSMPrefs::get()["3D Scene Input"]["context-select"].isTrue())
         {
+            // Read before clearing, as in primarySelectPressed.
+            CSVRender::Object* object = objectOfTag(hit.tag);
             worldspaceWidget.clearSelection(Mask_Reference);
-            if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+            if (object)
             {
-                CSVRender::Object* object = objectTag->mObject;
                 object->setSelected(true);
                 worldspaceWidget.getSelectionMarker()->addToSelectionHistory(object->getReferenceId());
             }

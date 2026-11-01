@@ -48,5 +48,6 @@ The editor (OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0
 - **`vsg::dquat`'s product has OSG's order:** `a * b` is a, then b. Do not swap operands when porting.
 - **Scripted edits:** `--camera-script` drives the edit modes (`capture.cpp`). A scene widget needs its selectors made, or `getVisibilityMask` crashes on null, so the capture has a hidden toolbar. `--capture-preview ID` captures a `PreviewWidget` of a referenceable.
 - **A terrain rebuild goes through `Paging::clearCache`:** the builder keeps batch data by bounds. A changed set of land textures also needs `setStorage` again (`Cell::mUpdateLayers`).
+- **An object marker's tag is an `ObjectTag` whose object is null while the marker is detached,** and clearing the selection detaches it. A handler that clears the selection and then reads `hit.tag`'s `mObject` crashes when the click was on the selected object's own marker (toddhow's crash, 2026-10-31, `primarySelectPressed`). Read the object first (`objectOfTag` in `instancemode.cpp`), then clear.
 - **Edit modes outlive the view:** they belong to the toolbar. What they hold in the view checks `SceneHost::aliveToken()`.
 - **No terrain rays in a loop:** each ray recomputes a chunk's vertices. A brush outline reads the land (`BrushDraw::getTerrainHeight`).
