@@ -33,12 +33,12 @@ OpenEden starts as roughly a million lines of someone else's working engine. Mos
 
 **Not yet**
 
-- Eden Studio, beyond what the extension system's editor hooks need (its order against the extension phases is an open question)
+- Eden Studio, beyond what the extension system's editor hooks need: it starts after the extension system is done, with its plan brought up to date first (toddhow, 2026-10-31)
 - Compatibility packs for any game other than Morrowind
 - Hot reload of extensions
 - A stable C ABI for third-party extensions (extension phase P6)
 - An OpenGL fallback, a DirectX backend or a renderer abstraction layer (decision 0002: none)
-- New renderer features (PBR, ray tracing) beyond what the Vulkan move brings, until Track V is done
+- New renderer features (PBR, ray tracing) beyond what the Vulkan move brings, until Track V is done. The proposal is `docs/research/0008-modern-rendering-proposal.md` (nothing decided); toddhow's order is V6, then the Track W merge, then its stages F0 (GPU timing, a heavy benchmark) and F1 (the Slang toolchain, the Vulkan floor) alongside Eden Studio's first phase
 
 ## Tech stack and toolchain
 
@@ -219,7 +219,7 @@ Work them in order unless toddhow says otherwise. Each gets a task spec with its
 
 - [x] Full fork decided (CreativeMotion decision 0004) and named OpenEden (2026-10-20)
 - [ ] OpenEden's own `docs/decisions/` started, recording the fork, its base commit and hosting
-- [ ] The fork repository set up under OpenEden's name and hosting (the checkout's remote is still cykoder's GitLab fork)
+- [ ] The fork repository set up under OpenEden's name and hosting: GitHub, `toddhow/openeden` (decision 0008). It holds only a copy of upstream OpenMW's `master` so far, nothing of ours is pushed, and this checkout's `origin` is still cykoder's GitLab fork
 - [ ] The fork builds in CI on Windows and Linux with all gates above that apply
 
 ### Track V: move the renderer to Vulkan on VulkanSceneGraph
@@ -319,7 +319,7 @@ Plan: `docs/design/working-extension-system.md` (audit of what P1–P5 built aga
 
 ### Eden Studio (E1 to E6)
 
-The six phases in `docs/design/eden-studio-plan.md`, section 6: studio shell and viewport, CreativeMotion docking, Reflectron and AdvancedBodies, ComplexClothing, dialogue and face timeline, production hardening. Each gets a task spec; where it starts relative to P1 to P6 is an open question.
+The six phases in `docs/design/eden-studio-plan.md`, section 8 (Phase 1 to Phase 6; design decisions in `docs/decisions/0007-eden-studio-editor-design.md`): studio shell and viewport, CreativeMotion docking, Reflectron and AdvancedBodies, ComplexClothing, dialogue and face timeline, production hardening. Each gets a task spec; where it starts relative to P1 to P6 is an open question.
 
 ### CreativeMotion in game (M8 to M13)
 
@@ -373,6 +373,11 @@ Learned while finishing the Jolt branch; each cost real time.
 - **Debugging the VSG build on Windows.** No Vulkan validation layers are installed. Crashes write `openmw-crash.dmp` to the user data folder; read it with a dbghelp stack walker against the PDBs in `build-jolt`. Capture frames with `--auto-screenshot N --auto-quit M` rather than screen grabs. Interiors are one-sided, so a camera outside the room shows only effects.
 
 - **VSG's math reads like OSG's and is not.** `*` between vectors, matrix order, `normalize` of a zero vector, a matrix `==` with a NaN, the sixteen-number constructor's order: use `Misc::VsgMath` wherever OSG's answer matters. `vec * vec` of the same type is deleted so that it cannot compile silently; matrix products are not. The expected values in `apps/components_tests/math` are OSG's recorded results and cannot be regenerated: never edit a `*.golden.inc`.
+- **Input arrives while the game loads.** Loading screens pump SDL events and every input handler passes them to Lua, so the Lua manager is created before the input manager (`Engine::prepareEngine`), and `MWBase::Environment` is the Engine's first member so it is destroyed last: `Environment::get()` is null once it is gone, and a movie still playing at exit looks the sound manager up through it. Both crashed the game on toddhow's first launch (`cca74d7fae`). Posting `WM_LBUTTONDOWN` to the game's window during start-up, and a `WM_CLOSE` during the intro movie, reproduce them without a real mouse.
+- **The render areas follow the swapchain's extent, not the SDL resize event.** `RenderManager::syncExtents` applies it each frame, because the swapchain is rebuilt only when the next image is acquired and a render area wider than the framebuffer draws nothing (task 0012 stage log, `components/render/CLAUDE.md`). A render graph that has a window or framebuffer keeps VSG's `windowResizeHandler` unless it is set to null, and rescales an area that is already right.
+- **Check scripts take Windows paths.** `tools/extension_*_check/check.sh` write their arguments into config files the game reads, so pass `I:/...` or `cygpath -m` for the suite and the work folder; Git Bash paths fail with "the content file does not exist".
+- **A crashed game shows Windows' Fatal Error box on the real screen.** Scripts that start the game should stop and kill their own run at the first `.dmp`, and only click or resize a window titled for the game, never the dialog that becomes the process's main window after a crash.
+
 ## To do
 
 Work toddhow wants done later, not yet a task spec. Each item becomes a spec (or a research note) before work starts.
@@ -385,8 +390,8 @@ Work toddhow wants done later, not yet a task spec. Each item becomes a spec (or
 
 Claude Code should raise these with toddhow when a task depends on one, rather than deciding alone.
 
-- [ ] Hosting and CI: CreativeMotion decision 0003 moved hosting to GitHub, but this checkout's remote is cykoder's GitLab fork and both GitLab CI and GitHub Actions are present; which does OpenEden keep?
-- [ ] Order of Eden Studio against the extension phases (the studio needs P4's editor hooks)
+- [x] Hosting and CI: GitHub at `toddhow/openeden`, CI on GitHub Actions (decision 0008, toddhow, 2026-10-31; task 0022 drafts the port of the gates). Still open: what to push first and what `master` there becomes
+- [x] Order of Eden Studio against the extension phases: after the extension system is done, with its plan brought up to date first (toddhow, 2026-10-31; decision 0007)
 - [ ] Extension doc open questions 1 to 6: when to add the C ABI, where contracts live, user-overridable load order, hot reload, one game per session, third-party licence policy
 - [ ] Executable and data names: when `openmw`, `openmw-cs` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs are migrated
 - [ ] Whether macOS stays a supported platform (with Vulkan it would need MoltenVK, decision 0002)
@@ -406,6 +411,8 @@ Claude Code should raise these with toddhow when a task depends on one, rather t
 
 | Date | Change |
 | --- | --- |
+| 2026-10-31 | Hosting decided: GitHub, `toddhow/openeden`, CI on GitHub Actions (decision 0008, toddhow); task 0022 drafts the port of the gates. The repository holds a copy of upstream OpenMW's `master` only, and nothing of ours is pushed. Order chosen by toddhow: V6, the Track W merge, then rendering's F0 and F1 alongside Eden Studio's first phase (research note 0008, a proposal, nothing decided); Eden Studio follows the extension system with its plan updated first (decision 0007) |
+| 2026-10-31 | Track W merged into `vulkan` (`7d7eb434ee`; three conflicts, each keeping both sides). Found on toddhow's first launch and fixed: a click while loading reached a Lua manager that did not exist yet, and closing the window during the intro movie crashed in its audio decoder (`cca74d7fae`); a window that stayed blank after growing, the render areas now following the swapchain's extent every frame (`5224e0d9af`, `9ae7bbd8d5`). On the merge, Windows: `components-tests` 2358, `openmw-tests` 779, `openmw-cs-tests` 226, 32 Lua tests, the three extension game checks; Linux: 2360, 779 and 32. README corrected: Morrowind only, not affiliated with OpenMW |
 | 2026-10-31 | Track V stage V6, D1 and D2 (task 0014): OpenSceneGraph deleted from the source, CMake (with `OPENEDEN_BUILD_VSG`: VSG is always fetched), CI scripts, the Flatpak manifest and the docs; `CI/check_no_osg.sh` covers every C and C++ file; the OSG-era shaders and stats tools removed; stack table and pitfalls updated (stale build folders, vcpkg's OSG headers). The editor's exit hang under the crash runner was Windows' debug heap. V6 stays open: toddhow's check list is unrun and CI has not run, since hosting is undecided |
 | 2026-10-31 | Track V stage V6, stages C1 and C2 (task 0014): editor model in `csmodel`, `openmw-cs-tests` building and passing on Windows and Linux; `openmw-cs` builds again with its 3D views staged off, and draws a cell through `CSVRender::SceneHost` on a hosted `Render::Engine` with `--open-cell --auto-screenshot --auto-quit`. Module guide `apps/opencs/CLAUDE.md` added |
 | 2026-10-31 | Track V stage V6, stages C5 and C6 (task 0014): camera controllers on `vsg::LookAt`, picking and tags; `vsgUtil::ArrayState` fixed for VSG 1.1, so that terrain can be intersected, in the game too |
