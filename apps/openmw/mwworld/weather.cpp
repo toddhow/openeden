@@ -1,6 +1,7 @@
 #include "weather.hpp"
 
 #include <components/esm/stringrefid.hpp>
+#include <components/render/atmospheremath.hpp>
 #include <components/settings/values.hpp>
 
 #include <components/misc/rng.hpp>
@@ -784,6 +785,32 @@ namespace MWWorld
         return currentSpeed;
     }
 
+    // OpenEden (task 0034): replaces the sky, ambient and sun colours of a weather result with the atmosphere
+    // model's, in the way the setting `atmosphere look` says. The weather's glare (Weather_<name>_Glare_View, from
+    // the weather's record fallback) says how clear the air is. The alpha channels, the fog and the clouds are not
+    // touched here.
+    void WeatherManager::applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const
+    {
+        using namespace Render::Atmosphere;
+        Colours vanilla;
+        vanilla.sky = vsg::vec3(result.mSkyColor.x, result.mSkyColor.y, result.mSkyColor.z);
+        vanilla.ambient = vsg::vec3(result.mAmbientColor.x, result.mAmbientColor.y, result.mAmbientColor.z);
+        vanilla.sun = vsg::vec3(result.mSunColor.x, result.mSunColor.y, result.mSunColor.z);
+        const float clearness = std::clamp(result.mGlareView, 0.f, 1.f);
+        const Colours out
+            = applyLook(vanilla, sunHeight, clearness, parseLook(Settings::rendering().mAtmosphereLook.get()));
+
+        const auto set = [](vsg::vec4& to, const vsg::vec3& from) { to = vsg::vec4(from.x, from.y, from.z, to.w); };
+        // The sun disc follows the sun light's change, channel by channel.
+        const auto ratio = [](float now, float before) { return before > 1e-4f ? std::clamp(now / before, 0.f, 4.f) : 1.f; };
+        result.mSunDiscColor = vsg::vec4(result.mSunDiscColor.x * ratio(out.sun.x, vanilla.sun.x),
+            result.mSunDiscColor.y * ratio(out.sun.y, vanilla.sun.y),
+            result.mSunDiscColor.z * ratio(out.sun.z, vanilla.sun.z), result.mSunDiscColor.w);
+        set(result.mSkyColor, out.sky);
+        set(result.mAmbientColor, out.ambient);
+        set(result.mSunColor, out.sun);
+    }
+
     void WeatherManager::update(float duration, bool paused, const TimeStamp& time, bool isExterior)
     {
         MWWorld::ConstPtr player = MWMechanics::getPlayer();
@@ -849,6 +876,9 @@ namespace MWWorld
         else
             mRendering.getSky()->sunEnable();
 
+        // OpenEden (task 0034): the sun's height above the horizon, for the atmosphere model.
+        float sunHeight = 0.f;
+
         // Update the sun direction.  Run it east to west at a fixed angle from overhead.
         // The sun's speed at day and night may differ, since mSunriseTime and mNightStart
         // mark when the sun is level with the horizon.
@@ -881,6 +911,7 @@ namespace MWWorld
                 -0.268f, // approx tan( -15 degrees )
                 static_cast<float>(sin(theta)));
             mRendering.setSunDirection(final * -1);
+            sunHeight = Render::Atmosphere::sunElevation(final, isNight);
         }
 
         float underwaterFog = mUnderwaterFog.getValue(time.getHour(), mTimeSettings, "Fog");
@@ -899,12 +930,22 @@ namespace MWWorld
         mRendering.getSky()->setMasserState(mMasser.calculateState(time));
         mRendering.getSky()->setSecundaState(mSecunda.calculateState(time));
 
-        mRendering.configureFog(
-            mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f, mResult.mFogColor);
-        mRendering.setAmbientColour(mResult.mAmbientColor);
-        mRendering.setSunColour(mResult.mSunColor, mResult.mSunColor * mResult.mGlareView * glareFade);
+        // OpenEden (task 0034): with the atmosphere on, the colours handed to the renderer come from the model; the
+        // weather's own result (mResult) is not changed. Off, rendered is mResult itself.
+        const MWRender::WeatherResult* rendered = &mResult;
+        if (Render::Atmosphere::useAtmosphere(Settings::rendering().mAtmosphere, Settings::rendering().mHdr))
+        {
+            mAtmosphereResult = mResult;
+            applyAtmosphere(mAtmosphereResult, sunHeight);
+            rendered = &mAtmosphereResult;
+        }
 
-        mRendering.getSky()->setWeather(mResult);
+        mRendering.configureFog(rendered->mFogDepth, underwaterFog, rendered->mDLFogFactor,
+            rendered->mDLFogOffset / 100.0f, rendered->mFogColor);
+        mRendering.setAmbientColour(rendered->mAmbientColor);
+        mRendering.setSunColour(rendered->mSunColor, rendered->mSunColor * rendered->mGlareView * glareFade);
+
+        mRendering.getSky()->setWeather(*rendered);
 
         // Play sounds
         if (mPlayingAmbientSoundID != mResult.mAmbientLoopSoundID)

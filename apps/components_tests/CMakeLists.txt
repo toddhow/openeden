@@ -145,6 +145,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testprobebake.cpp
     render/testao.cpp
     render/testaopass.cpp
+    render/testatmosphere.cpp
     render/testsss.cpp
     render/testssspass.cpp
     render/testprobes.cpp

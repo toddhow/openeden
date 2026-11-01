@@ -409,6 +409,8 @@ namespace MWWorld
         int mQueuedWeather;
         std::map<ESM::RefId, RegionWeather> mRegions;
         MWRender::WeatherResult mResult;
+        // task 0034: mResult after the atmosphere model, kept between frames to reuse its strings
+        MWRender::WeatherResult mAtmosphereResult;
 
         MWBase::Sound* mAmbientSound{ nullptr };
         ESM::RefId mPlayingAmbientSoundID;
@@ -430,6 +432,7 @@ namespace MWWorld
         void addWeatherTransition(const int weatherID);
 
         void calculateWeatherResult(const float gameHour, const float elapsedSeconds, const bool isPaused);
+        void applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const;
         void calculateResult(const int weatherID, const float gameHour);
         void calculateTransitionResult(const float factor, const float gameHour);
         float calculateWindSpeed(int weatherId, float currentSpeed);

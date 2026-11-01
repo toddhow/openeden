@@ -48,6 +48,8 @@ namespace Settings
         SettingValue<bool> mSss{ mIndex, "Rendering", "sss" };
         SettingValue<float> mSssStrength{ mIndex, "Rendering", "sss strength", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mSssWidth{ mIndex, "Rendering", "sss width", makeClampSanitizerFloat(0.1f, 10) };
+        SettingValue<bool> mAtmosphere{ mIndex, "Rendering", "atmosphere" };
+        SettingValue<std::string> mAtmosphereLook{ mIndex, "Rendering", "atmosphere look" };
 
         // Task 0028: ambient light from baked light probes. Read at start; needs hdr and pbr.
         SettingValue<bool> mGi{ mIndex, "Rendering", "gi" };
