@@ -134,7 +134,7 @@ else()
 endif()
 option(MYGUI_STATIC "Link static build of Mygui into the binaries" ${_mygui_static_default})
 
-option(OPENMW_USE_SYSTEM_RECASTNAVIGATION "Use system provided recastnavigation library" ON)
+option(OPENMW_USE_SYSTEM_RECASTNAVIGATION "Use system provided recastnavigation library" OFF)
 if(OPENMW_USE_SYSTEM_RECASTNAVIGATION)
     set(_recastnavigation_static_default OFF)
     find_package(RecastNavigation REQUIRED CONFIG)
