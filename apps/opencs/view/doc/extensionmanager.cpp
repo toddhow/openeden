@@ -45,7 +45,7 @@ CSVDoc::ExtensionManagerDialog::ExtensionManagerDialog(const CSMExtension::Edito
     QLabel* note = new QLabel(
         tr("Extensions are listed in openmw.cfg as extension=<id> lines (the game reads the same lines). "
            "Changes apply the next time Eden Studio starts. Extensions are loaded read-only here: "
-           "they cannot change a document."),
+           "the host API gives them no access to a document."),
         this);
     note->setWordWrap(true);
 

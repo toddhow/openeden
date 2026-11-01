@@ -1,7 +1,9 @@
 #include "editorextensionhost.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <set>
+#include <string_view>
 
 #include <components/debug/debuglog.hpp>
 #include <components/extension/extension_loader.hpp>
@@ -10,6 +12,36 @@ namespace
 {
     using openeden::extension::DiscoveredExtension;
     using openeden::extension::ExtensionLoadError;
+
+    Debug::Level toDebugLevel(openeden::sdk::LogLevel level)
+    {
+        switch (level)
+        {
+            case openeden::sdk::LogLevel::Trace:
+                return Debug::Debug;
+            case openeden::sdk::LogLevel::Debug:
+                return Debug::Verbose;
+            case openeden::sdk::LogLevel::Info:
+                return Debug::Info;
+            case openeden::sdk::LogLevel::Warning:
+                return Debug::Warning;
+            case openeden::sdk::LogLevel::Error:
+            case openeden::sdk::LogLevel::Fatal:
+                return Debug::Error;
+        }
+        return Debug::Info;
+    }
+
+    /// An extension's own log lines go to the editor's log (and so to the Output Log panel). formattedMessage already
+    /// has the [extensionId] prefix. The editor does not send its lines to extensions, so there is no loop to guard.
+    class EditorLogSink final : public openeden::sdk::LogSink
+    {
+    public:
+        void log(std::string_view, openeden::sdk::LogLevel level, std::string_view formattedMessage) override
+        {
+            Log(toDebugLevel(level)) << formattedMessage;
+        }
+    };
 }
 
 CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
@@ -32,8 +64,9 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
     {
         ExtensionInfo info;
         info.mId = error.extensionId;
-        info.mState = ExtensionInfo::State::Failed;
         info.mEnabled = isEnabled(error.extensionId);
+        // Only a broken extension that was asked for counts as a failure (as in the game); others are just listed.
+        info.mState = info.mEnabled ? ExtensionInfo::State::Failed : ExtensionInfo::State::Installed;
         info.mMessage = error.stage + ": " + error.message;
         mInfos.push_back(std::move(info));
         Log(Debug::Error) << "Extension '" << error.extensionId << "' failed at " << error.stage << ": "
@@ -111,6 +144,7 @@ void CSMExtension::EditorExtensionHost::start()
 {
     if (!mAnyLoaded || mRunning)
         return;
+    mHost.loggingService().addSink(std::make_shared<EditorLogSink>());
     mRunning = true;
     mLifecycle.initialize();
 

@@ -36,8 +36,8 @@ namespace CSMExtension
     /// Read-only here means: the host has no physics world, no entities, no data folders in a VFS and no Lua, and no
     /// phase is called (there is no frame loop of the simulation yet; that is stage E). Extensions are loaded,
     /// registered, resolved and started, so their handshake, contracts and dependencies are checked and their
-    /// failures are reported, and they are stopped and unloaded again when the host goes. Nothing an extension does
-    /// here can change a document.
+    /// failures are reported, and they are stopped and unloaded again when the host goes. The host API has no
+    /// service that reaches a document, so an extension cannot change one through it.
     ///
     /// Ownership: owned by CS::Editor, which lives as long as the program; views hold plain pointers to it.
     /// Threads: main thread only.

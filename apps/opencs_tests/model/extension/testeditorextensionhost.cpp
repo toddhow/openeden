@@ -121,17 +121,22 @@ namespace CSMExtension
 
             const auto list = host.extensions();
             ASSERT_EQ(list.size(), 2u);
-            int failed = 0;
+            // Not asked for: listed with its reason, but not counted as a failure.
             int installed = 0;
             for (const ExtensionInfo& info : list)
             {
-                failed += info.mState == ExtensionInfo::State::Failed;
                 installed += info.mState == ExtensionInfo::State::Installed;
-                if (info.mState == ExtensionInfo::State::Failed)
+                if (info.mId != "alpha")
                     EXPECT_FALSE(info.mMessage.empty());
             }
+            EXPECT_EQ(installed, 2);
+
+            // Asked for: a failure.
+            EditorExtensionHost asked(config({ "broken" }));
+            int failed = 0;
+            for (const ExtensionInfo& info : asked.extensions())
+                failed += info.mState == ExtensionInfo::State::Failed;
             EXPECT_EQ(failed, 1);
-            EXPECT_EQ(installed, 1);
         }
 
         TEST_F(CSMExtensionEditorHostTest, stopAndStartAreSafeToRepeat)
