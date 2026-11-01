@@ -200,9 +200,13 @@ namespace
         const JoltObjectLayerPairFilter pairs;
         const JoltObjectVsBroadPhaseLayerFilter broadPhase;
         for (const JPH::ObjectLayer other : kAllLayers)
+        {
             if (pairs.ShouldCollide(Layers::RAGDOLL, other))
+            {
                 EXPECT_TRUE(broadPhase.ShouldCollide(Layers::RAGDOLL, layerInterface.GetBroadPhaseLayer(other)))
                     << layerName(other);
+            }
+        }
     }
 
     TEST(JoltLayers, RagdollLooksIntoWorldAndMovingBroadPhasesOnly)
