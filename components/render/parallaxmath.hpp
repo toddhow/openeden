@@ -156,9 +156,9 @@ namespace Render::Parallax
     constexpr float maxDisplacementScale = 8.f;
     constexpr float maxParallaxScale = 4.f;
 
-    // The terrain's texture tile is about 512 game units across (a cell is 8192 units, 16 tiles), so the same fraction of
-    // a tile is a far deeper step than on a wall: a quarter of the per-unit depth keeps the relief about 10 units deep
-    // for a displacementScale of 0.5, where 0.2 made the stones of a cobble ground spikes smeared along the view.
+    // The terrain's texture tile is about 512 game units across (a cell is 8192 units, 16 tiles), so the same fraction
+    // of a tile is a far deeper step than on a wall: a quarter of the per-unit depth keeps the relief about 10 units
+    // deep for a displacementScale of 0.5, where 0.2 made the stones of a cobble ground spikes smeared along the view.
     constexpr float terrainUvDepthPerDisplacement = 0.05f;
 
     // displacementScale: the material's (not a number: not set, the default is used); userScale: `parallax scale`
@@ -212,10 +212,10 @@ namespace Render::Parallax
     // material's scale times `parallax scale`, so it may reach maxDisplacementScale * maxParallaxScale. The largest
     // finite high half is 0x7bff, so the pattern is never a not-a-number (that needs 0x7f80 or more) and survives a
     // uniform buffer.
-    // The ray's depth at which the surface "sits" while the amplitude changes. A texture offset of -rayStep * depth moves
-    // every pixel below the top, so when the amplitude fades with distance (or the setting changes) the whole texture
-    // would slide: the picture seemed to swim as the camera came closer. Measuring the offset from the map's mean depth
-    // (read from its smallest mip level) leaves the average surface where it is, and only the relief moves.
+    // The ray's depth at which the surface "sits" while the amplitude changes. A texture offset of -rayStep * depth
+    // moves every pixel below the top, so when the amplitude fades with distance (or the setting changes) the whole
+    // texture would slide: the picture seemed to swim as the camera came closer. Measuring the offset from the map's
+    // mean depth (read from its smallest mip level) leaves the average surface where it is, and only the relief moves.
     inline float pivotDepth(float meanHeight)
     {
         if (std::isnan(meanHeight))

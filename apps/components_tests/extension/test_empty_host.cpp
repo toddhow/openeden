@@ -80,7 +80,10 @@ namespace
     // SDK 3.0 (task 0031, stage C): the runtime editor hooks are gone, so Host has no editor accessor and a host
     // class needs to override only getHostInfo.
     template <class T>
-    concept HasEditorAccessor = requires(T& host) { host.getEditorService(); };
+    concept HasEditorAccessor = requires(T& host)
+    {
+        host.getEditorService();
+    };
     static_assert(!HasEditorAccessor<Host>);
     static_assert(!HasEditorAccessor<MockHost>);
 
