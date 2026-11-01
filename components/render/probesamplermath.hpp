@@ -77,12 +77,12 @@ namespace Render::Gi
         }
         std::array<std::size_t, 3> i0{}, i1{};
         std::array<float, 3> t{};
-        const float coords[3] = { (p.x - v.origin.x) / v.spacing, (p.y - v.origin.y) / v.spacing,
-            (p.z - v.origin.z) / v.spacing };
+        const float coords[3]
+            = { (p.x - v.origin.x) / v.spacing, (p.y - v.origin.y) / v.spacing, (p.z - v.origin.z) / v.spacing };
         for (int a = 0; a < 3; ++a)
         {
             const float top = static_cast<float>(v.size[a] - 1);
-            const float g = std::clamp(coords[a], 0.f, top);
+            const float g = coords[a] >= 0.f ? std::min(coords[a], top) : 0.f; // a NaN becomes 0
             const float f = std::floor(g);
             i0[a] = static_cast<std::size_t>(f);
             i1[a] = std::min<std::size_t>(i0[a] + 1, v.size[a] - 1);

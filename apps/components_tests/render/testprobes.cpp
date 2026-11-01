@@ -57,8 +57,8 @@ namespace
     }
 
     // One volume object, as it appears in canonical text (four spaces of indent). `probeTexts` are whole "[...]".
-    std::string volumeBlock(
-        const std::string& origin, const std::string& spacing, const std::string& size, const std::vector<std::string>& probeTexts)
+    std::string volumeBlock(const std::string& origin, const std::string& spacing, const std::string& size,
+        const std::vector<std::string>& probeTexts)
     {
         std::string text = "    {\n";
         text += "      \"origin\": " + origin + ",\n";
@@ -114,14 +114,16 @@ namespace
     std::string exteriorSample()
     {
         return sampleText("\"exterior\": [-3, 7]",
-            { volumeBlock("[-1024, 2048.5, 0]", "256", "[1, 2, 1]", { probeText(probeTokens(2)), probeText(probeTokens(3)) }) });
+            { volumeBlock(
+                "[-1024, 2048.5, 0]", "256", "[1, 2, 1]", { probeText(probeTokens(2)), probeText(probeTokens(3)) }) });
     }
 
     std::string twoVolumeSample()
     {
         return sampleText("\"interior\": \"Example Hall\"",
             { volumeBlock("[0, 0, 0]", "128", "[2, 1, 1]", { probeText(probeTokens(0)), probeText(probeTokens(1)) }),
-                volumeBlock("[-128.5, 0.25, 1e-05]", "64", "[1, 2, 1]", { probeText(probeTokens(4)), probeText(probeTokens(5)) }) });
+                volumeBlock("[-128.5, 0.25, 1e-05]", "64", "[1, 2, 1]",
+                    { probeText(probeTokens(4)), probeText(probeTokens(5)) }) });
     }
 
     std::string replaceOnce(std::string text, const std::string& from, const std::string& to)
@@ -294,7 +296,8 @@ namespace
         return sh;
     }
 
-    Volume uniformVolume(const vsg::vec3& origin, float spacing, std::array<std::uint32_t, 3> size, const vsg::vec3& radiance)
+    Volume uniformVolume(
+        const vsg::vec3& origin, float spacing, std::array<std::uint32_t, 3> size, const vsg::vec3& radiance)
     {
         Volume v;
         v.origin = origin;
@@ -376,8 +379,8 @@ namespace
 
     TEST(RenderProbesTest, writing_then_parsing_keeps_floats_bit_equal)
     {
-        const std::array<float, 9> awkward = { 0.1f, 1e-05f, -0.f, 16777216.f, 3.4028235e38f, 0.3f, -1.5e-30f, 123456.79f,
-            std::numeric_limits<float>::denorm_min() };
+        const std::array<float, 9> awkward = { 0.1f, 1e-05f, -0.f, 16777216.f, 3.4028235e38f, 0.3f, -1.5e-30f,
+            123456.79f, std::numeric_limits<float>::denorm_min() };
 
         ProbeSet set;
         set.cell.interior = false;
@@ -508,7 +511,8 @@ namespace
 
     TEST(RenderProbesTest, an_unknown_key_is_refused_at_its_line)
     {
-        const ProbeError error = mustFail(replaceOnce(interiorSample(), "  \"version\": 1,\n", "  \"version\": 1,\n  \"extra\": 1,\n"));
+        const ProbeError error
+            = mustFail(replaceOnce(interiorSample(), "  \"version\": 1,\n", "  \"version\": 1,\n  \"extra\": 1,\n"));
         EXPECT_EQ(error.line, 4);
         EXPECT_TRUE(contains(error.field + error.message, "extra")) << error.describe();
     }
@@ -616,7 +620,8 @@ namespace
         EXPECT_TRUE(contains(zero.field, "spacing")) << zero.field;
         mustFail(replaceOnce(text, "\"spacing\": 128", "\"spacing\": -128"));
         mustFail(replaceOnce(text, "\"spacing\": 128", "\"spacing\": 100001"));
-        EXPECT_FLOAT_EQ(mustParse(replaceOnce(text, "\"spacing\": 128", "\"spacing\": 100000")).volumes[0].spacing, 100000.f);
+        EXPECT_FLOAT_EQ(
+            mustParse(replaceOnce(text, "\"spacing\": 128", "\"spacing\": 100000")).volumes[0].spacing, 100000.f);
     }
 
     TEST(RenderProbesTest, origin_and_ambient_need_three_numbers)
@@ -715,8 +720,8 @@ namespace
 
     TEST(RenderProbesTest, interior_key_sanitising_rules)
     {
-        for (const std::string name : { "Example Hall", "  Hall  ", "A--B", "__x__", "a  b   c", "Tel Aruhn, Sathil Dres: Cellar",
-                 "UPPER lower 123", "dots.and/slashes\\too" })
+        for (const std::string name : { "Example Hall", "  Hall  ", "A--B", "__x__", "a  b   c",
+                 "Tel Aruhn, Sathil Dres: Cellar", "UPPER lower 123", "dots.and/slashes\\too" })
             EXPECT_EQ(cellKey(interiorCell(name)), expectedInteriorKey(name)) << name;
 
         EXPECT_EQ(cellKey(interiorCell("  Hall  ")).rfind("interior/hall-", 0), 0u);
@@ -794,7 +799,8 @@ namespace
             EXPECT_NEAR(x[static_cast<std::size_t>(i)], expectedX[static_cast<std::size_t>(i)], t) << "x, term " << i;
 
         const auto y = shBasis(vsg::vec3(0.f, 1.f, 0.f));
-        const std::array<float, 9> expectedY = { 0.282095f, 0.488603f, 0.f, 0.f, 0.f, 0.f, -0.315392f, 0.f, -0.546274f };
+        const std::array<float, 9> expectedY
+            = { 0.282095f, 0.488603f, 0.f, 0.f, 0.f, 0.f, -0.315392f, 0.f, -0.546274f };
         for (int i = 0; i < 9; ++i)
             EXPECT_NEAR(y[static_cast<std::size_t>(i)], expectedY[static_cast<std::size_t>(i)], t) << "y, term " << i;
     }
@@ -856,8 +862,9 @@ namespace
         for (const vsg::vec3& d : directions)
             shAdd(sh, d, radiance, weight);
 
-        const std::vector<vsg::vec3> normals = { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(0.f, 0.f, -1.f), vsg::vec3(1.f, 0.f, 0.f),
-            vsg::vec3(0.f, -1.f, 0.f), vsg::vec3(1.f, 2.f, 3.f), vsg::vec3(-0.3f, 0.8f, -0.1f) };
+        const std::vector<vsg::vec3> normals
+            = { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(0.f, 0.f, -1.f), vsg::vec3(1.f, 0.f, 0.f),
+                  vsg::vec3(0.f, -1.f, 0.f), vsg::vec3(1.f, 2.f, 3.f), vsg::vec3(-0.3f, 0.8f, -0.1f) };
         for (const vsg::vec3& n : normals)
             expectNear(radiance, shAmbient(sh, n), 2e-3f);
     }
@@ -904,8 +911,8 @@ namespace
         {
             expectNear(a.c[i], atZero.c[i], 1e-6f);
             expectNear(b.c[i], atOne.c[i], 1e-6f);
-            expectNear(vsg::vec3((a.c[i].x + b.c[i].x) / 2.f, (a.c[i].y + b.c[i].y) / 2.f, (a.c[i].z + b.c[i].z) / 2.f), middle.c[i],
-                1e-5f);
+            expectNear(vsg::vec3((a.c[i].x + b.c[i].x) / 2.f, (a.c[i].y + b.c[i].y) / 2.f, (a.c[i].z + b.c[i].z) / 2.f),
+                middle.c[i], 1e-5f);
             expectNear(vsg::vec3(0.75f * a.c[i].x + 0.25f * b.c[i].x, 0.75f * a.c[i].y + 0.25f * b.c[i].y,
                            0.75f * a.c[i].z + 0.25f * b.c[i].z),
                 quarter.c[i], 1e-5f);
@@ -927,9 +934,10 @@ namespace
         shAdd(sh, vsg::vec3(1.f, 0.f, 0.f), vsg::vec3(0.1f, 0.2f, 0.3f), 1.f);
         v.probes.push_back(sh);
 
-        const std::vector<vsg::vec3> positions
-            = { vsg::vec3(10.f, 20.f, 30.f), vsg::vec3(-5000.f, 3.f, 7.f), vsg::vec3(60.f, 70.f, 80.f), vsg::vec3(1e5f, 1e5f, -1e5f) };
-        const std::vector<vsg::vec3> normals = { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(1.f, 0.f, 0.f), vsg::vec3(-1.f, -2.f, 0.5f) };
+        const std::vector<vsg::vec3> positions = { vsg::vec3(10.f, 20.f, 30.f), vsg::vec3(-5000.f, 3.f, 7.f),
+            vsg::vec3(60.f, 70.f, 80.f), vsg::vec3(1e5f, 1e5f, -1e5f) };
+        const std::vector<vsg::vec3> normals
+            = { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(1.f, 0.f, 0.f), vsg::vec3(-1.f, -2.f, 0.5f) };
         for (const vsg::vec3& p : positions)
             for (const vsg::vec3& n : normals)
                 expectNear(shAmbient(sh, n), sampleAmbient(v, p, n), 1e-5f);
@@ -944,7 +952,8 @@ namespace
         v.probes = { uniformProbe(vsg::vec3(1.f, 0.f, 0.f)), uniformProbe(vsg::vec3(0.f, 0.f, 1.f)) };
 
         // The normal bias moves the sample along the normal; with +Z or +Y normals it does not change x.
-        for (const vsg::vec3& normal : { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(0.f, 1.f, 0.f), vsg::vec3(0.f, 0.f, -1.f) })
+        for (const vsg::vec3& normal :
+            { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(0.f, 1.f, 0.f), vsg::vec3(0.f, 0.f, -1.f) })
         {
             expectNear(vsg::vec3(1.f, 0.f, 0.f), sampleAmbient(v, vsg::vec3(0.f, 0.f, 0.f), normal), 1e-4f);
             expectNear(vsg::vec3(0.75f, 0.f, 0.25f), sampleAmbient(v, vsg::vec3(25.f, 0.f, 0.f), normal), 1e-4f);
@@ -964,9 +973,11 @@ namespace
         // Bias distance = normalBiasFraction * spacing = 30 units.
         EXPECT_FLOAT_EQ(normalBiasFraction, 0.3f);
         // A point at x = 20 facing +X is sampled at x = 50, the middle of the two probes.
-        expectNear(vsg::vec3(0.5f, 0.f, 0.5f), sampleAmbient(v, vsg::vec3(20.f, 0.f, 0.f), vsg::vec3(2.f, 0.f, 0.f)), 1e-4f);
+        expectNear(
+            vsg::vec3(0.5f, 0.f, 0.5f), sampleAmbient(v, vsg::vec3(20.f, 0.f, 0.f), vsg::vec3(2.f, 0.f, 0.f)), 1e-4f);
         // Facing -X it is sampled at x = -10, which clamps to the first probe.
-        expectNear(vsg::vec3(1.f, 0.f, 0.f), sampleAmbient(v, vsg::vec3(20.f, 0.f, 0.f), vsg::vec3(-1.f, 0.f, 0.f)), 1e-4f);
+        expectNear(
+            vsg::vec3(1.f, 0.f, 0.f), sampleAmbient(v, vsg::vec3(20.f, 0.f, 0.f), vsg::vec3(-1.f, 0.f, 0.f)), 1e-4f);
     }
 
     TEST(RenderProbesMathTest, positions_outside_the_lattice_clamp_to_the_edge_probes)
@@ -1000,11 +1011,13 @@ namespace
         // Normal +Z: the bias is 0.3 spacing along z, so the z lattice coordinate is 0.25 + 0.3 = 0.55.
         const vsg::vec3 position(10.f + 0.25f * 64.f, 20.f + 0.5f * 64.f, 30.f + 0.25f * 64.f);
         const float expected = (0.25f + 2.f * 0.5f + 4.f * 0.55f) / 7.f;
-        expectNear(vsg::vec3(expected, expected, expected), sampleAmbient(v, position, vsg::vec3(0.f, 0.f, 1.f)), 1e-4f);
+        expectNear(
+            vsg::vec3(expected, expected, expected), sampleAmbient(v, position, vsg::vec3(0.f, 0.f, 1.f)), 1e-4f);
 
         // Normal -Z: z coordinate 0.25 - 0.3 clamps to 0.
         const float expectedDown = (0.25f + 2.f * 0.5f) / 7.f;
-        expectNear(vsg::vec3(expectedDown, expectedDown, expectedDown), sampleAmbient(v, position, vsg::vec3(0.f, 0.f, -1.f)), 1e-4f);
+        expectNear(vsg::vec3(expectedDown, expectedDown, expectedDown),
+            sampleAmbient(v, position, vsg::vec3(0.f, 0.f, -1.f)), 1e-4f);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1048,7 +1061,8 @@ namespace
 
     // The spec's formula, written out: w = volumeWeight; gi = max(baked * strength + (flat - bakedAmbient), 0);
     // result = mix(flat, gi, w).
-    vsg::vec3 expectedGi(const vsg::vec3& probe, const vsg::vec3& flat, const vsg::vec3& bakedAmbient, float strength, float w)
+    vsg::vec3 expectedGi(
+        const vsg::vec3& probe, const vsg::vec3& flat, const vsg::vec3& bakedAmbient, float strength, float w)
     {
         auto channel = [&](float p, float f, float b) {
             const float gi = std::max(p * strength + (f - b), 0.f);
@@ -1058,14 +1072,15 @@ namespace
             channel(probe.z, flat.z, bakedAmbient.z));
     }
 
-    const std::vector<vsg::vec3> someNormals = { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(0.f, 0.f, -1.f), vsg::vec3(1.f, 0.f, 0.f),
-        vsg::vec3(-1.f, 1.f, 0.5f) };
+    const std::vector<vsg::vec3> someNormals
+        = { vsg::vec3(0.f, 0.f, 1.f), vsg::vec3(0.f, 0.f, -1.f), vsg::vec3(1.f, 0.f, 0.f), vsg::vec3(-1.f, 1.f, 0.5f) };
 
     TEST(RenderProbesMathTest, giAmbient_without_a_volume_is_the_flat_ambient)
     {
         const vsg::vec3 flat(0.3f, 0.2f, 0.1f);
         for (const vsg::vec3& n : someNormals)
-            expectNear(flat, giAmbient(nullptr, vsg::vec3(12.f, 34.f, 56.f), n, flat, vsg::vec3(0.5f, 0.5f, 0.5f), 1.f), 1e-6f);
+            expectNear(flat, giAmbient(nullptr, vsg::vec3(12.f, 34.f, 56.f), n, flat, vsg::vec3(0.5f, 0.5f, 0.5f), 1.f),
+                1e-6f);
     }
 
     TEST(RenderProbesMathTest, giAmbient_of_a_uniform_probe_equal_to_the_baked_ambient_reproduces_the_flat_ambient)
@@ -1073,7 +1088,8 @@ namespace
         const vsg::vec3 ambient(0.2f, 0.3f, 0.4f);
         const Volume v = uniformVolume(vsg::vec3(0.f, 0.f, 0.f), 100.f, { 2, 2, 2 }, ambient);
         for (const vsg::vec3& n : someNormals)
-            for (const vsg::vec3& p : { vsg::vec3(50.f, 50.f, 50.f), vsg::vec3(10.f, 90.f, 30.f), vsg::vec3(0.f, 0.f, 0.f) })
+            for (const vsg::vec3& p :
+                { vsg::vec3(50.f, 50.f, 50.f), vsg::vec3(10.f, 90.f, 30.f), vsg::vec3(0.f, 0.f, 0.f) })
                 expectNear(ambient, giAmbient(&v, p, n, ambient, ambient, 1.f), 1e-4f);
     }
 
@@ -1086,9 +1102,10 @@ namespace
             expectNear(flat, giAmbient(&v, vsg::vec3(50.f, 50.f, 50.f), n, flat, baked, 1.f), 1e-4f);
 
         // A brighter probe than the baked ambient shows up on top of the offset.
-        const Volume brighter = uniformVolume(vsg::vec3(0.f, 0.f, 0.f), 100.f, { 2, 2, 2 }, vsg::vec3(0.5f, 0.5f, 0.5f));
-        expectNear(vsg::vec3(1.2f, 1.2f, 1.2f), giAmbient(&brighter, vsg::vec3(50.f, 50.f, 50.f), vsg::vec3(0.f, 0.f, 1.f), flat, baked, 1.f),
-            1e-4f);
+        const Volume brighter
+            = uniformVolume(vsg::vec3(0.f, 0.f, 0.f), 100.f, { 2, 2, 2 }, vsg::vec3(0.5f, 0.5f, 0.5f));
+        expectNear(vsg::vec3(1.2f, 1.2f, 1.2f),
+            giAmbient(&brighter, vsg::vec3(50.f, 50.f, 50.f), vsg::vec3(0.f, 0.f, 1.f), flat, baked, 1.f), 1e-4f);
     }
 
     TEST(RenderProbesMathTest, giAmbient_strength_scales_the_baked_term_only)
@@ -1101,7 +1118,8 @@ namespace
         const vsg::vec3 normal(0.f, 0.f, 1.f);
 
         for (const float strength : { 0.f, 0.5f, 1.f, 2.f })
-            expectNear(expectedGi(probe, flat, baked, strength, 1.f), giAmbient(&v, position, normal, flat, baked, strength), 1e-4f);
+            expectNear(expectedGi(probe, flat, baked, strength, 1.f),
+                giAmbient(&v, position, normal, flat, baked, strength), 1e-4f);
 
         // With the unchanged ambient (flat == baked) strength 2 doubles the probe and strength 0 leaves nothing.
         expectNear(vsg::vec3(0.4f, 0.6f, 0.8f), giAmbient(&v, position, normal, probe, probe, 2.f), 1e-4f);
@@ -1140,5 +1158,37 @@ namespace
         // One spacing or more outside: exactly the flat ambient.
         expectNear(flat, giAmbient(&v, vsg::vec3(200.f, 50.f, 50.f), normal, flat, baked, 1.f), 1e-5f);
         expectNear(flat, giAmbient(&v, vsg::vec3(-3000.f, 50.f, 50.f), normal, flat, baked, 1.f), 1e-5f);
+    }
+}
+
+namespace Render::Gi
+{
+    // Added after the review: hostile or sloppy input must fail cleanly and cheaply.
+    TEST(RenderProbesHostileInputTest, a_huge_array_is_refused_before_it_is_built)
+    {
+        std::string text = "{\"format\": \"openeden.probes\", \"version\": 1, \"cell\": {\"interior\": \"x\"}, "
+                           "\"bake\": {\"rays\": 1, \"bounces\": 0, \"seed\": 0, \"ambient\": [0, 0, 0]}, "
+                           "\"volumes\": [{\"origin\": [0, 0, 0], \"spacing\": 1, \"size\": [1, 1, 1], \"probes\": [";
+        for (int i = 0; i < 20000; ++i)
+            text += "0,";
+        text += "0]}]}";
+        ProbeError error;
+        EXPECT_FALSE(parseProbes(text, "big.json", error));
+        EXPECT_FALSE(error.message.empty());
+    }
+
+    TEST(RenderProbesHostileInputTest, a_leading_zero_is_not_json)
+    {
+        ProbeError error;
+        EXPECT_FALSE(parseProbes("{\"format\": 007}", "z.json", error));
+        EXPECT_FALSE(error.message.empty());
+    }
+
+    TEST(RenderProbesHostileInputTest, deep_nesting_fails_cleanly)
+    {
+        const std::string text(10000, '[');
+        ProbeError error;
+        EXPECT_FALSE(parseProbes(text, "deep.json", error));
+        EXPECT_EQ(error.file, "deep.json");
     }
 }

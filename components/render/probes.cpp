@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <limits>
 #include <memory>
+#include <new>
 
 namespace Render::Gi
 {
@@ -16,6 +17,10 @@ namespace Render::Gi
         constexpr float maxSpacing = 100000.f;
         constexpr std::size_t probeNumbers = 27;
         constexpr int maxJsonDepth = 16;
+        // A hostile file must not make the reader build a huge tree: the longest legitimate array is a volume's probes.
+        constexpr std::size_t maxArrayItems = maxVolumeProbes;
+        constexpr std::size_t maxObjectMembers = 16;
+        constexpr std::size_t maxFileBytes = 256u * 1024u * 1024u;
 
         // A problem found while reading; turned into a ProbeError at the top.
         struct Failure
@@ -65,7 +70,10 @@ namespace Render::Gi
             }
 
         private:
-            [[noreturn]] void fail(const std::string& message) { throw Failure{ mLine, "", "invalid JSON: " + message }; }
+            [[noreturn]] void fail(const std::string& message)
+            {
+                throw Failure{ mLine, "", "invalid JSON: " + message };
+            }
 
             void skipSpace()
             {
@@ -117,6 +125,8 @@ namespace Render::Gi
                         if (!consume(':'))
                             fail("expected ':' after a key");
                         v.keyLines.push_back(keyLine);
+                        if (v.members.size() >= maxObjectMembers)
+                            fail("too many keys in an object");
                         v.members.emplace_back(std::move(key), readValue(depth + 1));
                     } while (consume(','));
                     if (!consume('}'))
@@ -130,6 +140,8 @@ namespace Render::Gi
                         return v;
                     do
                     {
+                        if (v.items.size() >= maxArrayItems)
+                            fail("too many items in an array");
                         v.items.push_back(readValue(depth + 1));
                     } while (consume(','));
                     if (!consume(']'))
@@ -180,6 +192,13 @@ namespace Render::Gi
                 };
                 if (digits() == 0)
                     fail("a number needs digits");
+                {
+                    // JSON has no leading zeros: "007" is an error, "0" and "0.5" are fine.
+                    const std::size_t first = start + (mText[start] == '-' ? 1 : 0);
+                    if (mText[first] == '0' && mPos - first > 1)
+                        fail("a number has a leading zero");
+                }
+
                 if (mPos < mText.size() && mText[mPos] == '.')
                 {
                     ++mPos;
@@ -265,14 +284,30 @@ namespace Render::Gi
                     const char e = mText[mPos++];
                     switch (e)
                     {
-                        case '"': out += '"'; break;
-                        case '\\': out += '\\'; break;
-                        case '/': out += '/'; break;
-                        case 'b': out += '\b'; break;
-                        case 'f': out += '\f'; break;
-                        case 'n': out += '\n'; break;
-                        case 'r': out += '\r'; break;
-                        case 't': out += '\t'; break;
+                        case '"':
+                            out += '"';
+                            break;
+                        case '\\':
+                            out += '\\';
+                            break;
+                        case '/':
+                            out += '/';
+                            break;
+                        case 'b':
+                            out += '\b';
+                            break;
+                        case 'f':
+                            out += '\f';
+                            break;
+                        case 'n':
+                            out += '\n';
+                            break;
+                        case 'r':
+                            out += '\r';
+                            break;
+                        case 't':
+                            out += '\t';
+                            break;
                         case 'u':
                         {
                             unsigned cp = readHex4();
@@ -288,7 +323,8 @@ namespace Render::Gi
                             appendUtf8(out, cp);
                             break;
                         }
-                        default: fail("an unknown escape in a string");
+                        default:
+                            fail("an unknown escape in a string");
                     }
                 }
             }
@@ -348,7 +384,7 @@ namespace Render::Gi
             float out = 0.f;
             const auto [ptr, ec] = std::from_chars(v.text.data(), v.text.data() + v.text.size(), out);
             if (ec == std::errc::result_out_of_range || !std::isfinite(out))
-                throw Failure{ v.line, field, "the number is not a finite 32-bit float" };
+                throw Failure{ v.line, field, "the number is not a finite 32-bit float (too large or too small)" };
             if (ec != std::errc() || ptr != v.text.data() + v.text.size())
                 throw Failure{ v.line, field, "cannot read the number" };
             return out;
@@ -386,7 +422,8 @@ namespace Render::Gi
             volume.origin = readVec3(*find(v, "origin"), path + ".origin");
             volume.spacing = readFloat(*find(v, "spacing"), path + ".spacing");
             if (!(volume.spacing > 0.f) || volume.spacing > maxSpacing)
-                throw Failure{ find(v, "spacing")->line, path + ".spacing", "the spacing must be above 0 and at most 100000" };
+                throw Failure{ find(v, "spacing")->line, path + ".spacing",
+                    "the spacing must be above 0 and at most 100000" };
             const Value& size = expectArray(*find(v, "size"), path + ".size");
             if (size.items.size() != 3)
                 throw Failure{ size.line, path + ".size", "expected three integers" };
@@ -435,8 +472,7 @@ namespace Render::Gi
             }
             if (const Value* version = find(root, "version"))
             {
-                if (version->type != Value::Type::Number
-                    || version->text != std::to_string(formatVersion))
+                if (version->type != Value::Type::Number || version->text != std::to_string(formatVersion))
                     throw Failure{ version->line, "version", "unsupported version, expected 1" };
             }
             checkKeys(root, "", { "format", "version", "cell", "bake", "volumes" });
@@ -537,6 +573,11 @@ namespace Render::Gi
 
     std::optional<ProbeSet> parseProbes(std::string_view json, std::string_view fileName, ProbeError& error)
     {
+        if (json.size() > maxFileBytes)
+        {
+            error = ProbeError{ std::string(fileName), 1, "", "the file is too large" };
+            return std::nullopt;
+        }
         try
         {
             Reader reader(json);
@@ -551,6 +592,11 @@ namespace Render::Gi
             error.message = f.message;
             return std::nullopt;
         }
+        catch (const std::bad_alloc&)
+        {
+            error = ProbeError{ std::string(fileName), 1, "", "out of memory while reading the file" };
+            return std::nullopt;
+        }
     }
 
     std::string validate(const ProbeSet& set)
@@ -559,9 +605,8 @@ namespace Render::Gi
             return "bake.rays must be 1 to 65536";
         if (set.bounces > 8)
             return "bake.bounces must be 0 to 8";
-        const auto finite3 = [](const vsg::vec3& v) {
-            return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
-        };
+        const auto finite3
+            = [](const vsg::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
         if (!finite3(set.ambient))
             return "bake.ambient must be finite";
         if (set.volumes.empty() || set.volumes.size() > maxVolumes)
