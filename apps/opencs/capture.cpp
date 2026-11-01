@@ -641,9 +641,9 @@ int CS::runCapture(int argc, char** argv)
                         {
                             const CSMMesh::NodeId hit = meshView->pickAt(std::stod(request.mMeshPick.substr(0, comma)),
                                 std::stod(request.mMeshPick.substr(comma + 1)));
-                            Log(Debug::Info) << "Mesh pick " << request.mMeshPick << ": "
-                                             << (hit == CSMMesh::kNoNode ? std::string("nothing")
-                                                                         : scene->tree().path(hit));
+                            Log(Debug::Info)
+                                << "Mesh pick " << request.mMeshPick << ": "
+                                << (hit == CSMMesh::kNoNode ? std::string("nothing") : scene->tree().path(hit));
                         }
                         catch (const std::exception&)
                         {
