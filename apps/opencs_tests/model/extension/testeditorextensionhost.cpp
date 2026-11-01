@@ -127,7 +127,9 @@ namespace CSMExtension
             {
                 installed += info.mState == ExtensionInfo::State::Installed;
                 if (info.mId != "alpha")
+                {
                     EXPECT_FALSE(info.mMessage.empty());
+                }
             }
             EXPECT_EQ(installed, 2);
 

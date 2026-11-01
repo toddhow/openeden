@@ -25,8 +25,7 @@ namespace
     namespace Columns = CSMWorld::Columns;
 
     constexpr int pollIntervalMs = 250;
-    constexpr int positionDecimals = 3;
-    constexpr int scaleDecimals = 3;
+    constexpr int fieldDecimals = 3; // positions, rotations and scale alike: the table shows about this many
     constexpr double fieldLimit = 1.0e9; // far beyond any Morrowind coordinate; only keeps the spin boxes finite
     // A change smaller than this is the spin box rounding what the table holds, not an edit by the user.
     constexpr double editThreshold = 1.0e-4;
@@ -79,7 +78,7 @@ CSVDoc::ContextInspector::ContextInspector(CSMDoc::Document& document, ViewportP
     {
         QDoubleSpinBox* box = new QDoubleSpinBox(this);
         box->setRange(-fieldLimit, fieldLimit);
-        box->setDecimals(field == Field_Scale ? scaleDecimals : positionDecimals);
+        box->setDecimals(fieldDecimals);
         box->setKeyboardTracking(false); // one change when Enter is pressed or focus leaves, not one per digit
         box->setObjectName(QString("inspectorField%1").arg(field));
         connect(box, &QDoubleSpinBox::valueChanged, this, [this, field] { fieldEdited(field); });
