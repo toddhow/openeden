@@ -18,6 +18,11 @@ vec3 viewTangent;
 vec3 viewBinormal;
 #endif
 vec3 pointLightDiffuse;
+#ifdef GBUFFER_MOTION
+// OpenEden (task 0026, F3c): how far this vertex moved on screen since the previous frame because its bones moved
+// (half the difference of the two normalised device positions, in texture coordinates).
+vec2 motion;
+#endif
 // OpenEden: last in the block. Its length is a specialization constant but locations are assigned at compile time, so
 // with more UV sets it would overlap whatever follows it, pointLightDiffuse included (task 0012).
 #if defined(TEXCOORD) || defined(PARTICLE)

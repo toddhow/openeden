@@ -76,6 +76,8 @@ namespace Pipeline
                 return "PARTICLE_OCCLUSION";
             case Mode::GBUFFER:
                 return "GBUFFER";
+            case Mode::GBUFFER_MOTION:
+                return "GBUFFER_MOTION";
         }
         return "";
     }
@@ -182,12 +184,17 @@ namespace Pipeline
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> Graphics::create(const Options& key) const
     {
+        // OpenEden (task 0026): only the draws that write the G-buffer get its defines; a skinned one also its motion.
+        const bool toGBuffer = gbufferOutputs > 0 && writesGBuffer(key);
+        const bool gbufferMotion = toGBuffer && key.shader.hasMode(Mode::SKIN);
         VertexStageOptions vertexStageOptions{ key.shader.path, {} };
         for (auto mode : vertexModes)
         {
             if (key.shader.hasMode(mode))
                 vertexStageOptions.addMode(mode);
         }
+        if (gbufferMotion)
+            vertexStageOptions.addMode(Mode::GBUFFER_MOTION);
         auto vertexStage = mVertexStageCache.getOrCreate(vertexStageOptions, *this);
 
         FragmentStageOptions fragmentStageOptions{ key.shader.path, {} };
@@ -201,10 +208,10 @@ namespace Pipeline
             fragmentStageOptions.addMode(Mode::ALPHA_TO_COVERAGE);
         if (coverage.adjustCoverage)
             fragmentStageOptions.addMode(Mode::ADJUST_COVERAGE);
-        // OpenEden (task 0026): only the draws that write the G-buffer get the define.
-        const bool toGBuffer = gbufferOutputs > 0 && writesGBuffer(key);
         if (toGBuffer)
             fragmentStageOptions.addMode(Mode::GBUFFER);
+        if (gbufferMotion)
+            fragmentStageOptions.addMode(Mode::GBUFFER_MOTION);
         auto fragmentStage = mFragmentStageCache.getOrCreate(fragmentStageOptions, *this);
 
         vsg::ShaderStages shaders

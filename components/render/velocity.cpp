@@ -44,6 +44,7 @@ void main()
         // behind the previous camera, has no velocity.
         const char* const sFragmentShader = R"GLSL(#version 450
 layout(set=0, binding=0) uniform sampler2D linearDepth;
+layout(set=0, binding=1) uniform sampler2D objectMotion; // skinned actors' own motion, from the scene pass
 layout(push_constant) uniform Push
 {
     mat4 toPrevClip;
@@ -57,12 +58,12 @@ void main()
     outVelocity = vec4(0.0);
     if (!(d > 0.0))
         return;
+    vec2 velocity = texture(objectMotion, texCoord).rg;
     vec3 viewPos = vec3((texCoord * 2.0 - 1.0) * d / push.projScale.xy, -d);
     vec4 prevClip = push.toPrevClip * vec4(viewPos, 1.0);
-    if (prevClip.w <= 0.0)
-        return;
-    vec2 prevUv = prevClip.xy / prevClip.w * 0.5 + 0.5;
-    outVelocity = vec4(texCoord - prevUv, 0.0, 0.0);
+    if (prevClip.w > 0.0)
+        velocity += texCoord - (prevClip.xy / prevClip.w * 0.5 + 0.5);
+    outVelocity = vec4(velocity, 0.0, 0.0);
 }
 )GLSL";
 
@@ -134,13 +135,14 @@ void main()
         return vsg::Framebuffer::create(mPass, vsg::ImageViews{ view }, 1, 1, 1);
     }
 
-    bool Velocity::build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth, const VkExtent2D& extent)
+    bool Velocity::build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth,
+        vsg::ref_ptr<vsg::ImageView> objectMotion, const VkExtent2D& extent)
     {
         if (!mVertex)
             mVertex = compile(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
         if (!mFragment)
             mFragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sFragmentShader);
-        if (!mVertex || !mFragment || !linearDepth)
+        if (!mVertex || !mFragment || !linearDepth || !objectMotion)
             return false;
 
         auto image = vsgUtil::createImage(
@@ -156,7 +158,8 @@ void main()
         sampler->minFilter = sampler->magFilter = VK_FILTER_NEAREST;
         sampler->addressModeU = sampler->addressModeV = sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         auto setLayout = vsg::DescriptorSetLayout::create(
-            vsg::DescriptorSetLayoutBindings{ { 0, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
+            vsg::DescriptorSetLayoutBindings{ { 0, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+                { 1, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout },
             vsg::PushConstantRanges{
                 { VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(sizeof(vsg::mat4) + sizeof(vsg::vec4)) } });
@@ -176,7 +179,9 @@ void main()
         auto pipeline = vsg::BindGraphicsPipeline::create(
             vsg::GraphicsPipeline::create(layout, vsg::ShaderStages{ mVertex, mFragment }, states));
         vsg::Descriptors descriptors{ vsg::DescriptorImage::create(
-            vsg::ImageInfo::create(sampler, linearDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0, imageType) };
+            vsg::ImageInfo::create(sampler, linearDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0, imageType),
+        vsg::DescriptorImage::create(
+            vsg::ImageInfo::create(sampler, objectMotion, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 1, 0, imageType) };
 
         auto commands = vsg::Commands::create();
         commands->children = { vsgUtil::SetViewportState::create(

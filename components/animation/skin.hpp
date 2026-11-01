@@ -33,6 +33,7 @@ namespace Anim
         std::vector<PrivateBoneData> mBones;
         std::vector<const Transform*> mReferenceFrame;
         std::vector<vsg::dsphere*> mDynamicBounds;
+        bool mWrittenOnce = false;
 
     public:
         Skin();
@@ -45,6 +46,11 @@ namespace Anim
         vsg::ref_ptr<vsg::vec4Array> boneIndices;
         vsg::ref_ptr<vsg::vec4Array> boneWeights;
         std::optional<vsg::mat4> transform;
+
+        /// Task 0026 (F3c): when set before skinned models are loaded, each bone matrix array is twice as long as the
+        /// skin has bones: the first half is this frame's matrices, as always, the second half the previous frame's
+        /// (the G-buffer's motion output needs them). Set once at start, by RenderManager, only with the G-buffer on.
+        static inline bool keepPreviousMatrices = false;
 
         void apply(vsg::mat4Array& array, float);
         /*

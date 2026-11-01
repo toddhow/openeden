@@ -28,7 +28,8 @@ namespace Render
      * Screen motion of the opaque scene from camera motion (task 0026, F3b). A fullscreen pass reads the G-buffer's
      * linear depth, rebuilds each pixel's view-space position, moves it into the previous frame's clip space with one
      * matrix and writes `currentUV - previousUV` (RG16F). Every pixel is treated as static scenery: exact for the world,
-     * and wrong for anything that moves on its own (stage c adds skinned actors' own motion). The CPU twin of the
+     * and wrong for anything that moves on its own, except for skinned actors' bones: the scene pass writes their
+     * motion (the G-buffer's object motion output) and this pass adds it. The CPU twin of the
      * shader is Render::GBuffer::reprojectVelocity.
      *
      * Not exact for the first-person weapon, which is drawn with another field of view than the one used here: while
@@ -73,13 +74,13 @@ namespace Render
 
         /// Builds the pass for a scene of this size, reading its linear depth; retired objects go to `retire`.
         template <typename Retire>
-        bool setSource(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth, const VkExtent2D& extent,
-            Retire&& retire)
+        bool setSource(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth,
+            vsg::ref_ptr<vsg::ImageView> objectMotion, const VkExtent2D& extent, Retire&& retire)
         {
             for (const auto& object : mLive)
                 retire(object);
             mLive.clear();
-            return build(context, linearDepth, extent);
+            return build(context, linearDepth, objectMotion, extent);
         }
 
         /// Between frames, from the main thread: `toPreviousClip` and the current projection's x and y scales.
@@ -90,7 +91,8 @@ namespace Render
         vsg::ref_ptr<vsg::ImageView> result() const { return mResult; }
 
     private:
-        bool build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth, const VkExtent2D& extent);
+        bool build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth,
+            vsg::ref_ptr<vsg::ImageView> objectMotion, const VkExtent2D& extent);
 
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::View> mView;

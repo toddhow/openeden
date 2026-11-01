@@ -127,11 +127,20 @@ namespace Anim
         if (transform)
             skinMatrix = (*transform) * skinMatrix;
 
+        // Task 0026 (F3c): an array twice as long as the skin has bones keeps the previous frame's matrices in its
+        // second half. The first time, there is no previous frame: the second half gets this frame's matrices too, so
+        // the first frame has no motion.
+        const bool keepPrevious = array.size() >= 2 * mBones.size();
         for (size_t i = 0; i < mBones.size(); ++i)
         {
+            if (keepPrevious && mWrittenOnce)
+                array.at(mBones.size() + i) = array.at(i);
             mBones[i].matrix = skinMatrix * vsgUtil::computeTransform(mBones[i].path);
             array.at(i) = mBones[i].matrix * mBones[i].invBindMatrix;
+            if (keepPrevious && !mWrittenOnce)
+                array.at(mBones.size() + i) = array.at(i);
         }
+        mWrittenOnce = true;
 
         if (!mDynamicBounds.empty())
             updateBounds();

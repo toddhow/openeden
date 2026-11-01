@@ -1,4 +1,4 @@
-#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP, SOFT_PARTICLE)
+#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP, SOFT_PARTICLE, GBUFFER_MOTION)
 
 #include "lib/pushconstants.glsl"
 #include "lib/material/descriptors_vert.glsl"
@@ -79,6 +79,16 @@ void main()
         inBoneWeights.y * boneMatrices[int(inBoneIndices.y)] +
         inBoneWeights.z * boneMatrices[int(inBoneIndices.z)] +
         inBoneWeights.w * boneMatrices[int(inBoneIndices.w)];
+#ifdef GBUFFER_MOTION
+    // The second half of the bone array holds the previous frame's matrices (Anim::Skin::keepPreviousMatrices).
+    uint boneCount = uint(boneMatrices.length()) / 2u;
+    mat4 prevSkinMat =
+        inBoneWeights.x * boneMatrices[int(inBoneIndices.x) + int(boneCount)] +
+        inBoneWeights.y * boneMatrices[int(inBoneIndices.y) + int(boneCount)] +
+        inBoneWeights.z * boneMatrices[int(inBoneIndices.z) + int(boneCount)] +
+        inBoneWeights.w * boneMatrices[int(inBoneIndices.w) + int(boneCount)];
+    vec4 prevVertex = prevSkinMat * vertex;
+#endif
     vertex = skinMat * vertex;
  #ifdef NORMAL
     vec3 normal = (vec4(inNormal,0) * inverse(skinMat)).xyz;
@@ -124,6 +134,12 @@ void main()
 
     vert_out.viewPos = viewPos.xyz;
     gl_Position = pc.projection * viewPos;
+#ifdef GBUFFER_MOTION
+    // The same vertex with the previous frame's bones, through this frame's camera and model: only the bones' motion.
+    vec4 prevClip = pc.projection * (pc.modelview * prevVertex);
+    vert_out.motion = (prevClip.w > 0.0 && gl_Position.w > 0.0)
+        ? 0.5 * (gl_Position.xy / gl_Position.w - prevClip.xy / prevClip.w) : vec2(0.0);
+#endif
 #ifdef INSTANCE
     if (length((pc.modelview * vec4(inInstanceOffset.xyz, 1.0)).xyz) > scene.groundcoverParams.x)
         gl_Position = vec4(0.0, 0.0, 0.0, 1.0);

@@ -27,6 +27,7 @@
 #include <components/mwanimation/object.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/pipeline/builder.hpp>
+#include <components/animation/skin.hpp>
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/bloom.hpp>
@@ -222,13 +223,15 @@ namespace MWRender
             // OpenEden (task 0026, F3): the G-buffer is extra colour outputs of this target's render pass, which must
             // exist before any pipeline of the scene is compiled.
             const bool gbuffer = Render::GBuffer::useGBuffer(Settings::rendering().mGBuffer, true);
-            const auto gbufferFormats = gbuffer ? Render::GBuffer::extraColorFormats(false) : std::vector<VkFormat>{};
+            const auto gbufferFormats = gbuffer ? Render::GBuffer::extraColorFormats(true) : std::vector<VkFormat>{};
             mHdrTarget = std::make_unique<Render::HdrTarget>(
                 *context, mEngine.framebufferSamples(), mEngine.extent2D(), gbufferFormats);
             mGBufferOutputs = static_cast<unsigned int>(gbufferFormats.size());
             if (gbuffer)
             {
                 resourceSystem->builder->graphics->gbufferOutputs = mGBufferOutputs;
+                // Skinned models keep the previous frame's bone matrices (stage c); before any is loaded.
+                Anim::Skin::keepPreviousMatrices = true;
                 Log(Debug::Info) << "G-buffer: normals and linear depth are stored beside the scene";
             }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
@@ -549,7 +552,8 @@ namespace MWRender
         {
             mTonemap->setParameters(tonemapParameters(false));
             if (mVelocity
-                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->extent(),
+                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(),
+                    mHdrTarget->objectMotionView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The velocity pass could not be built");
             if (mBloom
@@ -1629,7 +1633,8 @@ namespace MWRender
             mRenderGraph->framebuffer = mHdrTarget->framebuffer();
             mTonemapGraph->renderArea = { { 0, 0 }, extent };
             if (mVelocity
-                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), extent,
+                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(),
+                    mHdrTarget->objectMotionView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The velocity pass could not be rebuilt after a resize";
             if (mBloom

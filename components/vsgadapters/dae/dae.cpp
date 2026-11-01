@@ -304,7 +304,9 @@ namespace vsgAdapters
                 dataList.emplace_back(boneIndices);
                 dataList.emplace_back(weights);
 
-                auto boneMatrices = vsg::mat4Array::create(ctrl->bones.size());
+                // With the G-buffer, the previous frame's matrices follow the current ones (Anim::Skin).
+                auto boneMatrices
+                    = vsg::mat4Array::create(ctrl->bones.size() * (Anim::Skin::keepPreviousMatrices ? 2 : 1));
                 ctrl->attachTo(*boneMatrices);
                 options.descriptors.emplace_back(vsg::DescriptorBuffer::create(
                     boneMatrices, Pipeline::Descriptors::BONE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));

@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -59,6 +59,8 @@ layout(location=0) out vec4 outColor;
 // the view axis; both stay zero where nothing opaque is drawn (the pass clears them to zero).
 layout(location=1) out vec4 outNormal;
 layout(location=2) out float outLinearDepth;
+// The motion of skinned actors' bones on screen; zero for everything else.
+layout(location=3) out vec2 outMotion;
 #endif
 
 void main()
@@ -66,6 +68,7 @@ void main()
 #ifdef GBUFFER
     outNormal = vec4(0.0);
     outLinearDepth = 0.0;
+    outMotion = vec2(0.0);
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
     // OpenEden: once the shader writes the sample mask, every path must, or the mask is undefined (task 0012, V4j).
@@ -253,6 +256,9 @@ void main()
     outNormal = vec4(0.0, 0.0, 1.0, 1.0);
  #endif
     outLinearDepth = -frag_in.viewPos.z;
+ #ifdef GBUFFER_MOTION
+    outMotion = frag_in.motion;
+ #endif
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
     // The coverage covers that share of the pixel's samples, as the hardware's alpha to coverage would (undithered).

@@ -45,7 +45,9 @@ namespace Pipeline
         PARTICLE_OCCLUSION,
         // OpenEden: the draw writes the G-buffer's extra colour outputs (task 0026); added by Pipeline::Graphics, never
         // by a loader.
-        GBUFFER
+        GBUFFER,
+        // OpenEden: a skinned draw that writes the G-buffer also writes the motion of its bones (task 0026, F3c).
+        GBUFFER_MOTION
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

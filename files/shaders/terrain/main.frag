@@ -41,6 +41,7 @@ layout(location=0) out vec4 outColor;
 // OpenEden (task 0026, F3): see default/main.frag.
 layout(location=1) out vec4 outNormal;
 layout(location=2) out float outLinearDepth;
+layout(location=3) out vec2 outMotion;
 #endif
 
 void main()
@@ -122,6 +123,7 @@ void main()
     outNormal = vec4(normalize(frag_in.viewNormal), 1.0);
  #endif
     outLinearDepth = -frag_in.viewPos.z;
+    outMotion = vec2(0.0);
 #endif
 
 #ifdef DEBUG_CHUNKS

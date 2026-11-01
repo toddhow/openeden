@@ -72,7 +72,7 @@ Same machine and method as section 1; `tools/benchmark.sh` with `BENCH_RENDERING
 
 | Scene | `gpu_main_scene` median, `hdr` | with `gbuffer` (normals and linear depth, stage a) |
 | --- | --- | --- |
-| `heavy_balmora_longview`, two runs of `hdr`, first run of `gbuffer` | 0.328 and 0.335 ms | 0.362 ms |
+| `heavy_balmora_longview`, two runs of `hdr`, first run of `gbuffer` (stage a: two outputs) | 0.328 and 0.335 ms | 0.362 ms |
 
-- **Reading:** the two extra outputs cost about 0.03 ms of GPU time (10% of the main pass) at 1280 x 720 on this GPU, and the frame is CPU-bound as before (note 0009 section 3). A second `gbuffer` run was disturbed by another process building on the machine and read 0.469 ms; it is not used. Stage b: the velocity pass is a fullscreen triangle and takes 0.019 ms (`gpu_velocity`, `heavy_balmora_walk`). Stage c adds a row here.
+- **Reading:** the two extra outputs cost about 0.03 ms of GPU time (10% of the main pass) at 1280 x 720 on this GPU, and the frame is CPU-bound as before (note 0009 section 3). A second `gbuffer` run was disturbed by another process building on the machine and read 0.469 ms; it is not used. Stage b: the velocity pass is a fullscreen triangle and takes 0.019 ms (`gpu_velocity`, `heavy_balmora_walk`). Stage c (all three extra outputs, `heavy_balmora_longview`): `hdr` 0.318 and 0.349 ms, `hdr` + `gbuffer` 0.375 and 0.373 ms, so the three outputs cost about 0.03 to 0.06 ms (10 to 17% of the main pass), and `gpu_velocity` is 0.015 ms; wall-clock frame times did not move (3.5 to 3.9 ms, CPU-bound).
 - The default path and the HDR path without `gbuffer` have no extra attachment, pass, image or define, and their frames match the build before the stage (task 0026, stage a log).
