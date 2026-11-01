@@ -45,7 +45,7 @@ Determinism: no randomness except a fixed interleaved-gradient noise by pixel po
 - **c. Cost and temporal:** GPU time with `gpu timing` and `tools/benchmark.sh` into `docs/research/0012-ao-cost.md`; optional temporal accumulation.
 
 ## Acceptance criteria
-- [ ] Unit tests for the maths pass (the limits above, symmetry, monotonic in the horizon, the filter weights, `removeOcclusion`).
+- [x] Unit tests for the maths pass (the limits above, symmetry, monotonic in the horizon, the filter weights, `removeOcclusion`).
 - [ ] `ao = false`: frames of the default path, of `hdr + gbuffer` and of `hdr + gbuffer + pbr + gi` equal the commit before by `diffmap` within noise.
 - [ ] With `ao`: a corner of a room is darker than the open floor in the ambient only; a torch-lit surface keeps its direct light; viewed by eye in an interior, a night exterior and an NPC scene.
 - [ ] Cost measured and written down.
@@ -56,4 +56,8 @@ Out of scope: contact shadows, screen-space reflections, multi-bounce colour ble
 (Filled in with the stage log.)
 
 ## Stage log
-(Nothing built yet; see the report that came with this spec.)
+### 2026-11-01, stage a (Windows)
+
+**Done and verified.** `components/render/aomath.hpp` and `apps/components_tests/render/testao.cpp` (16 tests, written from this spec first, all pass; `components-tests` 2708 in all). `horizonCosine` takes `(delta, radius, falloff)` as the spec now says. The Linux gate was run before this stage and did not include it (a header with tests, no renderer change).
+
+**Not done.** Stages b and c: the ambient output of the main pass, the half resolution pass and filter, the tonemap's apply step, the settings, the debug view, the cost note, and every other acceptance box. Nothing in the renderer changed, so there is nothing to compare by frames. The decisions table is still a recommendation.

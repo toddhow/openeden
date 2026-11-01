@@ -31,10 +31,10 @@ namespace Render::Ao
             + 0.25f * (-std::cos(2.f * h2 - n) + cosN + 2.f * h2 * sinN);
     }
 
-    // The cosine of the horizon a sample makes. `delta` is the sample's offset from the pixel in a frame whose +Z points
-    // at the camera. A sample at or beyond `radius` (and a sample at the pixel itself) counts as no occluder, -1. With
-    // `falloff` between 0 and 1 a nearer sample is also pulled towards -1 the farther it is, so occluders fade out at
-    // the radius instead of ending in a ring.
+    // The cosine of the horizon a sample makes. `delta` is the sample's offset from the pixel in a frame whose +Z
+    // points at the camera. A sample at or beyond `radius` (and a sample at the pixel itself) counts as no occluder,
+    // -1. With `falloff` between 0 and 1 a nearer sample is also pulled towards -1 the farther it is, so occluders fade
+    // out at the radius instead of ending in a ring.
     inline float horizonCosine(const vsg::vec3& delta, float radius, float falloff)
     {
         const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
