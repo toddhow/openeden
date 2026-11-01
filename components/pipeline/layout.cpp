@@ -34,7 +34,10 @@ namespace Pipeline
             { Descriptors::VIEW_REFLECT_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::VIEW_REFLECT_DEPTH_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            // OpenEden (task 0028): the baked light probes.
+            { Descriptors::VIEW_PROBE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr } });
         return sceneLayout;
     }
 

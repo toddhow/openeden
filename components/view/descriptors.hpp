@@ -2,6 +2,7 @@
 #define VSGOPENMW_VIEW_DESCRIPTORS_H
 
 #include <vsg/core/Data.h>
+#include <vsg/core/Array.h>
 #include <vsg/state/DescriptorSet.h>
 
 namespace View
@@ -18,6 +19,10 @@ namespace View
     vsg::ref_ptr<vsg::Descriptor> dummyEnvMap();
     vsg::ref_ptr<vsg::Descriptor> dummyShadowMap();
     vsg::ref_ptr<vsg::Descriptor> dummyShadowSampler();
+    // OpenEden (task 0028): the light probe buffer: a stand-in with no volume, and the full-size one the game fills.
+    vsg::ref_ptr<vsg::Descriptor> dummyProbes();
+    vsg::ref_ptr<vsg::Descriptor> probeBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
+
     // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();
 

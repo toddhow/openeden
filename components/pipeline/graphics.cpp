@@ -86,6 +86,8 @@ namespace Pipeline
                 return "PBR_PHYSICAL";
             case Mode::MATERIAL_MAP:
                 return "MATERIAL_MAP";
+            case Mode::GI:
+                return "GI";
         }
         return "";
     }
@@ -227,6 +229,9 @@ namespace Pipeline
             if (pbrLook > 1)
                 fragmentStageOptions.addMode(Mode::PBR_PHYSICAL);
         }
+        // Task 0028: baked light probes, for every lit draw that is not a particle or debug geometry.
+        if (giEnabled && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+            fragmentStageOptions.addMode(Mode::GI);
         if (toGBuffer && gbufferOutputs >= 4)
             fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);
         if (gbufferMotion)

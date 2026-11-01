@@ -228,6 +228,7 @@ namespace CSVRender
         descriptors.emplace_back(View::dummyShadowMap());
         descriptors.emplace_back(View::dummyShadowSampler());
         descriptors.emplace_back(View::dummyReflectDepth());
+        descriptors.emplace_back(View::dummyProbes());
         descriptors.emplace_back(mSceneData->descriptor());
         auto viewDescriptorSet = View::createViewDescriptorSet(descriptors);
         mSceneRoot = View::createDefaultState(viewDescriptorSet);

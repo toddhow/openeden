@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -35,6 +35,9 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #include "lib/material/terms.glsl"
 #if defined(GBUFFER_MATERIAL) || defined(PBR)
 #include "lib/material/pbr.glsl"
+#endif
+#ifdef GI
+#include "lib/view/gi.glsl"
 #endif
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
@@ -167,6 +170,8 @@ void main()
     float pbrShininess = 0.0;
     vec3 pbrSpecular = vec3(0.0);
 #endif
+    // The ambient light: the cell's flat colour, or the baked probes' value (task 0028).
+    vec3 ambientLight = scene.ambient.xyz;
 #ifdef NORMAL
  #if defined(NORMAL_MAP) && defined(TEXCOORD)
     vec3 tangentNormal = texture(normalMap, frag_in.texCoord[diffuseUV] + offset).xyz * 2.0 - 1.0;
@@ -184,6 +189,9 @@ void main()
  #endif
     // The shadow bias uses the geometry normal, as OpenMW's shadowing never saw the normal map.
     float sunShadow = shadow(frag_in.viewPos, normalize(frag_in.viewNormal));
+#ifdef GI
+    ambientLight = giAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
+#endif
  #ifdef PER_PIXEL_LIGHTING
     // OpenMW's doLighting with PER_PIXEL_LIGHTING: point lights summed here, specular from the specular map.
   #if defined(SPECULAR_MAP) && defined(TEXCOORD)
@@ -247,11 +255,15 @@ void main()
         float pbrAmbientScale = pbrDiffuseScale;
         float pbrSpecularScale = max(clamp((pbrLit.reflectance - 0.5) * 2.0, 0.0, 1.0), pbrLit.metalness);
   #endif
-        outColor *= materialTermsScaled(diffuseLight, vertexColor, pbrAmbientScale, pbrDiffuseScale);
+        outColor *= materialTermsScaled(ambientLight, diffuseLight, vertexColor, pbrAmbientScale, pbrDiffuseScale);
         outColor.xyz += specularLight * pbrSpecularScale;
     }
 #else
+#ifdef GI
+    outColor *= materialTermsAmbient(ambientLight, diffuseLight, vertexColor);
+#else
     outColor *= materialTerms(diffuseLight, vertexColor);
+#endif
  #ifdef PER_PIXEL_LIGHTING
     outColor.xyz += specularColor * specularLight;
  #endif

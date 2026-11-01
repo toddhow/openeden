@@ -8,5 +8,7 @@ const int VIEW_SHADOW_MAP_BINDING=6;
 const int VIEW_SHADOW_SAMPLER_BINDING=7;
 const int VIEW_REFLECT_MAP_BINDING=8;
 const int VIEW_REFLECT_DEPTH_MAP_BINDING=9;
+// OpenEden (task 0028): the baked light probes (lib/view/gi.glsl).
+const int VIEW_PROBE_BINDING=10;
 
 const int VIEW_ENV_COUNT=32;

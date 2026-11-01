@@ -160,6 +160,9 @@ namespace MWRender
         void setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular);
 
         void configureAmbient(const MWWorld::Cell& cell);
+        // Task 0028: the interior's baked light probes, if it has a file (and gi is on); disableProbes for any cell without.
+        void loadProbes(const MWWorld::Cell& cell);
+        void disableProbes();
         void configureFog(const MWWorld::Cell& cell);
         void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour);
 
@@ -334,6 +337,11 @@ namespace MWRender
         std::unique_ptr<Render::HdrTarget> mHdrTarget;
         // Task 0026 (F3): colour outputs of the main pass beyond the scene's own; 0 without the G-buffer.
         unsigned int mGBufferOutputs = 0;
+        // Task 0028: baked light probes ([Rendering] gi). The buffer is the main view's probe descriptor; it is null with gi
+        // off. Written on the main thread only.
+        vsg::ref_ptr<vsg::vec4Array> mProbeData;
+        bool mGiEnabled = false;
+        float mProbeStrength = 1.f;
         std::unique_ptr<Render::Tonemap> mTonemap;
         std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
         // Task 0026, stage b: null unless [Rendering] gbuffer. The previous frame's camera, for its motion.

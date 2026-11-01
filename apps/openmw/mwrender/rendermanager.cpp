@@ -40,6 +40,7 @@
 #include <components/render/hdrtarget.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
+#include <components/render/probegpu.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
@@ -117,6 +118,7 @@ namespace MWRender
             descriptors.emplace_back(View::dummyShadowMap());
             descriptors.emplace_back(View::dummyShadowSampler());
             descriptors.emplace_back(View::dummyReflectDepth());
+            descriptors.emplace_back(View::dummyProbes());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -289,6 +291,19 @@ namespace MWRender
                 Log(Debug::Info) << "PBR: the material model is on"
                                  << (materialOutput ? ", stored in the G-buffer" : "");
             }
+            // Task 0028: baked light probes; the lighting needs the material model's ambient scale, so pbr too.
+            if (Settings::rendering().mGi)
+            {
+                if (pbr)
+                {
+                    resourceSystem->builder->graphics->giEnabled = true;
+                    mGiEnabled = true;
+                    mProbeStrength = Settings::rendering().mGiStrength;
+                    Log(Debug::Info) << "GI: ambient light from baked light probes";
+                }
+                else
+                    Log(Debug::Warning) << "[Rendering] gi needs hdr and pbr; baked light probes are off";
+            }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";
             mReflect = std::make_unique<Reflect>(
@@ -315,6 +330,11 @@ namespace MWRender
         }
         descriptors.emplace_back(mReflect->reflectColor());
         descriptors.emplace_back(mReflect->reflectDepth());
+        // Task 0028: the light probe buffer when gi is on and the pipelines use it, else a stand-in without a volume.
+        if (mGiEnabled)
+            descriptors.emplace_back(View::probeBuffer(mProbeData));
+        else
+            descriptors.emplace_back(View::dummyProbes());
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -817,6 +837,53 @@ namespace MWRender
         mSky->setMoonColour(red);
     }
 
+    void RenderManager::disableProbes()
+    {
+        if (!mProbeData)
+            return;
+        // The header's "enabled" entry; the shader then returns the flat ambient.
+        (*mProbeData)[1].w = 0.f;
+        mProbeData->dirty();
+    }
+
+    void RenderManager::loadProbes(const MWWorld::Cell& cell)
+    {
+        if (!mProbeData)
+            return;
+        disableProbes();
+        if (cell.isExterior())
+            return;
+        const Render::Gi::CellId id{ true, std::string(cell.getNameId()), 0, 0 };
+        const std::string path = Render::Gi::probeFilePath(id);
+        const VFS::Manager& vfs = *mResourceSystem->getVFS();
+        if (!vfs.exists(path))
+            return;
+        std::string text;
+        {
+            const auto stream = vfs.get(path);
+            std::ostringstream buffer;
+            buffer << stream->rdbuf();
+            text = buffer.str();
+        }
+        Render::Gi::ProbeError error;
+        const auto set = Render::Gi::parseProbes(text, path, error);
+        if (!set)
+        {
+            Log(Debug::Warning) << "[Rendering] gi: skipped probe file " << error.describe();
+            return;
+        }
+        if (set->cell.interior != id.interior || set->cell.name != id.name)
+        {
+            Log(Debug::Warning) << "[Rendering] gi: " << path << " is the bake of another cell (" << set->cell.name
+                                << "), skipped";
+            return;
+        }
+        const auto packed = Render::Gi::packVolume(set->volumes.front(), set->ambient, mProbeStrength);
+        std::copy(packed.begin(), packed.end(), mProbeData->begin());
+        mProbeData->dirty();
+        Log(Debug::Info) << "GI: " << set->volumes.front().probes.size() << " probe(s) for " << id.name;
+    }
+
     void RenderManager::configureAmbient(const MWWorld::Cell& cell)
     {
         auto ambient = vsg::vec4(MWAnim::rgbColor(cell.getMood().mAmbiantColor), 1.f);
@@ -824,6 +891,7 @@ namespace MWRender
         if (!cell.isExterior() && !cell.isQuasiExterior() && !Settings::shaders().mClassicFalloff)
             MWAnim::brighten(ambient, mMinimumAmbientLuminance);
         setAmbientColour(ambient);
+        loadProbes(cell);
 
         auto diffuse = vsg::vec4(MWAnim::rgbColor(cell.getMood().mDirectionalColor), 1.f);
         mLightDiffuse = diffuse;

@@ -502,6 +502,8 @@ namespace MWWorld
 
         if (!cell.isExterior() && !cellVariant.isQuasiExterior())
             mRendering.configureAmbient(cellVariant);
+        else
+            mRendering.disableProbes(); // task 0028: exteriors keep the flat ambient
     }
 
     void Scene::clear()

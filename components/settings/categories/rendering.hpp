@@ -34,6 +34,10 @@ namespace Settings
         SettingValue<bool> mPbr{ mIndex, "Rendering", "pbr" };
         SettingValue<std::string> mPbrLook{ mIndex, "Rendering", "pbr look" };
         SettingValue<bool> mPbrMaterialMaps{ mIndex, "Rendering", "pbr material maps" };
+
+        // Task 0028: ambient light from baked light probes. Read at start; needs hdr and pbr.
+        SettingValue<bool> mGi{ mIndex, "Rendering", "gi" };
+        SettingValue<float> mGiStrength{ mIndex, "Rendering", "gi strength", makeClampSanitizerFloat(0, 2) };
     };
 }
 

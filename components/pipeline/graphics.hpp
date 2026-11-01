@@ -57,6 +57,8 @@ namespace Pipeline
         // physical look. With gbufferOutputs of 4 the draws that write the G-buffer also write the material. Set before
         // the first pipeline is created.
         unsigned int pbrLook = 0;
+        // Task 0028: lit draws take their ambient light from the baked light probes (a buffer that may hold no volume).
+        bool giEnabled = false;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> create(const Options& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;

@@ -57,7 +57,9 @@ namespace Pipeline
         PBR_PHYSICAL,
         // OpenEden (task 0027, tier 3): the model's texture has a packed material map (occlusion, roughness,
         // metalness).
-        MATERIAL_MAP
+        MATERIAL_MAP,
+        // OpenEden (task 0028): the ambient light comes from the baked light probes; added by Pipeline::Graphics.
+        GI
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

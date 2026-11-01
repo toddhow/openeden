@@ -28,6 +28,7 @@ set(SHADER_FILES
     lib/particle/data.glsl
     lib/material/terms.glsl
     lib/material/pbr.glsl
+    lib/view/gi.glsl
     lib/material/bindings.glsl
     lib/material/data.glsl
     lib/material/descriptors_vert.glsl

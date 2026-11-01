@@ -7,6 +7,7 @@
 #include <components/pipeline/layout.hpp>
 #include <components/pipeline/viewbindings.hpp>
 #include <components/render/depth.hpp>
+#include <components/render/probegpu.hpp>
 #include <components/vsgutil/share.hpp>
 
 #include "gridsize.hpp"
@@ -68,6 +69,23 @@ namespace View
         auto image = vsg::floatArray2D::create(1, 1, Render::farDepth, vsg::Data::Properties(VK_FORMAT_D32_SFLOAT));
         return vsg::DescriptorImage::create(sampler, image, Pipeline::Descriptors::VIEW_REFLECT_DEPTH_MAP_BINDING, 0,
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyProbes()
+    {
+        auto data = vsg::vec4Array::create(Render::Gi::headerVec4s);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        return vsg::DescriptorBuffer::create(data, Pipeline::Descriptors::VIEW_PROBE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> probeBuffer(vsg::ref_ptr<vsg::vec4Array>& data)
+    {
+        data = vsg::vec4Array::create(Render::Gi::headerVec4s + Render::Gi::vec4sPerProbe * Render::Gi::maxVolumeProbes);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        return vsg::DescriptorBuffer::create(data, Pipeline::Descriptors::VIEW_PROBE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
     vsg::ref_ptr<vsg::DescriptorSet> createViewDescriptorSet(const vsg::Descriptors& descriptors)
