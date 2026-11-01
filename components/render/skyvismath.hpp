@@ -110,6 +110,53 @@ namespace Render::Gi
         const auto channel = [](float a, float b) { return b > 1e-6f ? std::clamp(a / b, 0.f, 1.f) : 1.f; };
         return vsg::vec3(channel(here.x, ground.x), channel(here.y, ground.y), channel(here.z, ground.z));
     }
+
+    // The cosine weighted share of the sphere a surface facing `normal` sees: the visibility convolved with the cosine
+    // lobe (the factors 1, 2/3 and 1/4 of shAmbient), 1 for a surface that sees everything its lobe covers.
+    inline float visCosine(const VisSh& v, const vsg::vec3& normal)
+    {
+        constexpr std::array<float, 9> band = { 1.f, 2.f / 3.f, 2.f / 3.f, 2.f / 3.f, 0.25f, 0.25f, 0.25f, 0.25f, 0.25f };
+        const auto basis = shBasis(normal);
+        float sum = 0.f;
+        for (int i = 0; i < shCoefficients; ++i)
+            sum += v[i] * basis[i] * band[i];
+        return sum;
+    }
+
+    // visCosine of hemisphereVisibility() for a unit normal, in closed form: 0.5 + 0.5 z.
+    inline float hemisphereCosine(const vsg::vec3& unitNormal)
+    {
+        return 0.5f + 0.5f * unitNormal.z;
+    }
+
+    // The share of the flat ambient a surface keeps, per channel: the geometric share (what the surface can see of what
+    // open ground it faces would see, from visCosine) times the shift in colour that comes from seeing only part of the
+    // sky (skyOcclusion against the plain share, so it is not counted twice). A zero normal gives skyOcclusion.
+    inline vsg::vec3 skyOcclusionNormal(const Sh9& sky, const VisSh& vis, const vsg::vec3& normal)
+    {
+        const vsg::vec3 ground = skyDot(sky, hemisphereVisibility());
+        const vsg::vec3 here = skyDot(sky, vis);
+        const float openGround = hemisphereVisibility()[0];
+        const float omni = vis[0] / openGround;
+        const auto rawChannel = [](float a, float b) { return b > 1e-6f ? a / b : 1.f; };
+        const vsg::vec3 skyRatio(
+            rawChannel(here.x, ground.x), rawChannel(here.y, ground.y), rawChannel(here.z, ground.z));
+        const float length = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+        float geometric = std::clamp(omni, 0.f, 1.f);
+        if (length > 1e-10f)
+        {
+            const vsg::vec3 n = normal * (1.f / length);
+            const float groundShare = hemisphereCosine(n);
+            // A surface facing straight down sees none of open ground: it keeps the plain share.
+            const float s = std::clamp(groundShare / 0.2f, 0.f, 1.f);
+            const float weight = s * s * (3.f - 2.f * s);
+            const float facing = std::clamp(visCosine(vis, n) / std::max(groundShare, 1e-3f), 0.f, 1.f);
+            geometric = geometric * (1.f - weight) + facing * weight;
+        }
+        const vsg::vec3 shift = omni > 1e-3f ? skyRatio * (1.f / omni) : vsg::vec3(1.f, 1.f, 1.f);
+        const auto clamp01 = [](float x) { return std::clamp(x, 0.f, 1.f); };
+        return vsg::vec3(clamp01(geometric * shift.x), clamp01(geometric * shift.y), clamp01(geometric * shift.z));
+    }
 }
 
 #endif

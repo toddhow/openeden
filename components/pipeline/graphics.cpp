@@ -88,6 +88,8 @@ namespace Pipeline
                 return "MATERIAL_MAP";
             case Mode::GI:
                 return "GI";
+            case Mode::GI_SKY:
+                return "GI_SKY";
             case Mode::GBUFFER_AMBIENT:
                 return "GBUFFER_AMBIENT";
         }
@@ -232,8 +234,11 @@ namespace Pipeline
                 fragmentStageOptions.addMode(Mode::PBR_PHYSICAL);
         }
         // Task 0028: baked light probes, for every lit draw that is not a particle or debug geometry.
-        if (giEnabled && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+        if ((giEnabled || giSkyEnabled) && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
             fragmentStageOptions.addMode(Mode::GI);
+        // Task 0036: the exterior sky-visibility field, in the same draws.
+        if (giSkyEnabled && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+            fragmentStageOptions.addMode(Mode::GI_SKY);
         if (toGBuffer && gbufferOutputs >= 4)
             fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);
         if (toGBuffer && gbufferOutputs >= 5)

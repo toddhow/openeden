@@ -12,5 +12,8 @@ const int VIEW_REFLECT_DEPTH_MAP_BINDING=9;
 const int VIEW_PROBE_BINDING=10;
 // OpenEden (task 0028, stage d): the baked reflection probes (lib/view/reflection.glsl).
 const int VIEW_REFLECTION_BINDING=11;
+// OpenEden (task 0036): the exterior sky-visibility field: the cells' data (lib/view/skyvis.glsl), and its small header.
+const int VIEW_SKYVIS_BINDING=12;
+const int VIEW_SKYVIS_SKY_BINDING=13;
 
 const int VIEW_ENV_COUNT=32;

@@ -40,6 +40,11 @@ namespace Pipeline
                 nullptr },
             // OpenEden (task 0028, stage d): the baked reflection probes.
             { Descriptors::VIEW_REFLECTION_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            // OpenEden (task 0036): the exterior sky-visibility field and its header.
+            { Descriptors::VIEW_SKYVIS_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::VIEW_SKYVIS_SKY_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
                 nullptr } });
         return sceneLayout;
     }

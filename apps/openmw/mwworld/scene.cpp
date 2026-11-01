@@ -339,6 +339,8 @@ namespace MWWorld
         if (mActiveCells.find(cell) == mActiveCells.end())
             return;
         Log(Debug::Info) << "Unloading cell " << cell->getCell()->getDescription();
+        if (cell->isExterior())
+            mRendering.exteriorCellUnloaded(cell->getCell()->getGridX(), cell->getCell()->getGridY());
         MWBase::Environment::get().getExtensionManager()->cellUnloaded(cell->getCell()->getDescription());
 
         ListAndResetObjectsVisitor visitor;
@@ -504,6 +506,8 @@ namespace MWWorld
             mRendering.configureAmbient(cellVariant);
         else
             mRendering.disableProbes(); // task 0028: exteriors keep the flat ambient
+        if (cell.isExterior())
+            mRendering.exteriorCellLoaded(cellX, cellY); // task 0036: the sky-visibility field of the exterior
     }
 
     void Scene::clear()

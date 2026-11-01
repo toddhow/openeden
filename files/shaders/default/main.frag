@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI, GBUFFER_AMBIENT)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI, GI_SKY, GBUFFER_AMBIENT)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -39,6 +39,9 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #ifdef GI
 #include "lib/view/gi.glsl"
 #include "lib/view/reflection.glsl"
+ #ifdef GI_SKY
+#include "lib/view/skyvis.glsl"
+ #endif
 #endif
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
@@ -202,6 +205,10 @@ void main()
     float sunShadow = shadow(frag_in.viewPos, normalize(frag_in.viewNormal));
 #ifdef GI
     ambientLight = giAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
+ #ifdef GI_SKY
+    // Task 0036: the exterior sky-visibility field (it leaves the flat ambient alone where no cell has a file).
+    ambientLight = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
+ #endif
 #endif
  #ifdef PER_PIXEL_LIGHTING
     // OpenMW's doLighting with PER_PIXEL_LIGHTING: point lights summed here, specular from the specular map.

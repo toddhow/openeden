@@ -30,6 +30,7 @@ set(SHADER_FILES
     lib/material/pbr.glsl
     lib/view/gi.glsl
     lib/view/reflection.glsl
+    lib/view/skyvis.glsl
     lib/material/bindings.glsl
     lib/material/data.glsl
     lib/material/descriptors_vert.glsl

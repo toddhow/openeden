@@ -320,3 +320,42 @@ TEST(SkyVisBake, TheRayLengthLimitsWhatBlocks)
     const SkyVisField f = bakeAll(coarse(), w, 0, 0);
     EXPECT_GT(occlusionOf(f, 4, 4, 0).x, 0.9f);
 }
+
+TEST(SkyVisBake, AProbeInAClosedRoomIsInvalidAndFilledFromOutside)
+{
+    TestWorld w;
+    // A closed room around column (4, 4): inside x and y from 3896 to 4296 and z from 0 to 350, walls 100 thick.
+    const vsg::vec3 lo(3796.f, 3796.f, -100.f), hi(4396.f, 4396.f, 450.f);
+    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 350.f), vsg::vec3(hi.x, hi.y, hi.z) });              // roof
+    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 0.f), vsg::vec3(3896.f, hi.y, 350.f) });             // west
+    w.boxes.push_back({ vsg::vec3(4296.f, lo.y, 0.f), vsg::vec3(hi.x, hi.y, 350.f) });             // east
+    w.boxes.push_back({ vsg::vec3(lo.x, lo.y, 0.f), vsg::vec3(hi.x, 3896.f, 350.f) });             // south
+    w.boxes.push_back({ vsg::vec3(lo.x, 4296.f, 0.f), vsg::vec3(hi.x, hi.y, 350.f) });             // north
+    SkyVisBaker baker(coarse(), w, 0, 0);
+    while (!baker.done())
+        baker.step(200);
+    for (std::uint32_t level = 0; level < 3; ++level)
+    {
+        const std::size_t room = probeIndex(baker.field(), 4, 4, level);
+        EXPECT_TRUE(baker.invalid()[room]) << "level " << level;
+    }
+    // The open ground next to it is not touched by the rule.
+    EXPECT_FALSE(baker.invalid()[probeIndex(baker.field(), 1, 1, 0)]);
+    const SkyVisField done = baker.finish();
+    // Filled from outside: it reads as open ground, not as a hole of darkness.
+    EXPECT_GT(occlusionOf(done, 4, 4, 0).x, 0.5f);
+}
+
+TEST(SkyVisBake, ACoveredButNotClosedPlaceKeepsItsShade)
+{
+    // A big flat roof, 300 units up, 20000 wide: nothing escapes, but the ground far off is beyond the enclosed distance.
+    TestWorld w;
+    w.boxes.push_back({ vsg::vec3(-30000.f, -30000.f, 300.f), vsg::vec3(30000.f, 30000.f, 360.f) });
+    SkyVisBaker baker(coarse(), w, 0, 0);
+    while (!baker.done())
+        baker.step(500);
+    // Below the roof the sky is hidden everywhere, yet the probe is valid (a hall, a canopy, a deck).
+    EXPECT_FALSE(baker.invalid()[probeIndex(baker.field(), 4, 4, 0)]);
+    const SkyVisField done = baker.finish();
+    EXPECT_LT(occlusionOf(done, 4, 4, 0).x, 0.1f);
+}

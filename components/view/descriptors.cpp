@@ -9,6 +9,7 @@
 #include <components/render/depth.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
+#include <components/render/skyvisgpu.hpp>
 #include <components/vsgutil/share.hpp>
 
 #include "gridsize.hpp"
@@ -109,6 +110,43 @@ namespace View
         data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
         return vsg::DescriptorBuffer::create(
             data, Pipeline::Descriptors::VIEW_REFLECTION_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummySkyVis()
+    {
+        auto data = vsg::vec4Array::create(1);
+        (*data)[0] = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_SKYVIS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> skyVisBuffer(vsg::ref_ptr<vsg::vec4Array>& data)
+    {
+        data = vsg::vec4Array::create(Render::Gi::skyPoolVec4s);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_SKYVIS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummySkyVisSky()
+    {
+        auto data = vsg::vec4Array::create(Render::Gi::skyHeaderVec4s);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_SKYVIS_SKY_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> skyVisSkyBuffer(vsg::ref_ptr<vsg::vec4Array>& data)
+    {
+        data = vsg::vec4Array::create(Render::Gi::skyHeaderVec4s);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_SKYVIS_SKY_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
     vsg::ref_ptr<vsg::DescriptorSet> createViewDescriptorSet(const vsg::Descriptors& descriptors)

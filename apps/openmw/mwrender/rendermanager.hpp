@@ -9,8 +9,11 @@
 
 #include <atomic>
 #include <deque>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <set>
 
 #include <chrono>
 
@@ -22,6 +25,7 @@
 #include <components/misc/vsgmath.hpp>
 #include <components/render/probes.hpp>
 #include <components/render/reflectionprobes.hpp>
+#include <components/render/skyvisibility.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/settings/settings.hpp>
 
@@ -175,6 +179,10 @@ namespace MWRender
         void loadReflections(const Render::Gi::CellId& id);
         void disableReflections();
         void updateProbeDebug();
+        // Task 0036: the loaded exterior cells, from the scene (any thread; read in onFrame). The renderer reads each
+        // cell's sky-visibility file when it is wanted and drops it when the cell is unloaded.
+        void exteriorCellLoaded(int x, int y);
+        void exteriorCellUnloaded(int x, int y);
         void configureFog(const MWWorld::Cell& cell);
         void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour);
 
@@ -368,6 +376,21 @@ namespace MWRender
         std::unique_ptr<Render::DebugGeometry> mProbeGeometry;
         std::unique_ptr<Render::Gi::Volume> mLoadedVolume;
         std::unique_ptr<Render::Gi::ReflectionSet> mLoadedReflections;
+        // Task 0036: the exterior sky-visibility field (bindings 12 and 13), null with gi exterior off.
+        void updateSkyVisibility();
+        bool mGiSkyEnabled = false;
+        float mSkyVisStrength = 1.f;
+        vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;
+        vsg::ref_ptr<vsg::vec4Array> mSkyVisHeader;
+        std::mutex mSkyVisMutex;
+        std::set<std::pair<int, int>> mSkyCells;
+        bool mSkyCellsChanged = false;
+        // The parsed files of the loaded cells; a null entry is a cell with no (or a bad) file.
+        std::map<std::pair<int, int>, std::unique_ptr<Render::Gi::SkyVisField>> mSkyFields;
+        // The sky colours the header was last written for, to write it again only when they move.
+        vsg::vec3 mSkyVisLastSky{ -1.f, -1.f, -1.f };
+        vsg::vec3 mSkyVisLastHorizon{ -1.f, -1.f, -1.f };
+        bool mSkyVisHeaderWritten = false;
         std::unique_ptr<Render::Tonemap> mTonemap;
         std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
         // Task 0026, stage b: null unless [Rendering] gbuffer. The previous frame's camera, for its motion.

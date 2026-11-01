@@ -25,6 +25,12 @@ namespace View
     // OpenEden (task 0028, stage d): the same for the reflection probes (binding 11).
     vsg::ref_ptr<vsg::Descriptor> dummyReflections();
     vsg::ref_ptr<vsg::Descriptor> reflectionBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
+    // OpenEden (task 0036): the exterior sky-visibility field: the cells' data (binding 12) and its small header
+    // (binding 13), as stand-ins that switch it off, and the full-size ones the game fills.
+    vsg::ref_ptr<vsg::Descriptor> dummySkyVis();
+    vsg::ref_ptr<vsg::Descriptor> skyVisBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
+    vsg::ref_ptr<vsg::Descriptor> dummySkyVisSky();
+    vsg::ref_ptr<vsg::Descriptor> skyVisSkyBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
 
     // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();

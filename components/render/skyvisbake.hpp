@@ -31,6 +31,9 @@ namespace Render::Gi
     constexpr float defaultSkyDistance = 8192.f;
     // The ground height of a column with no terrain (open water, nothing loaded): sea level, Morrowind's water at 0.
     constexpr float defaultSkyFallbackHeight = 0.f;
+    // The farthest a ray may travel and still count as being in a closed room (game units; a house is a few hundred, a
+    // great hall a thousand or two).
+    constexpr float defaultEnclosedDistance = 2048.f;
 
     struct SkyBakeSettings
     {
@@ -45,6 +48,10 @@ namespace Render::Gi
         // geometry.
         float invalidDistance = defaultInvalidDistance;
         float invalidFraction = defaultInvalidFraction;
+        // A probe from which no ray escapes to the sky and every one stops within this distance is inside a closed room
+        // or a solid mass (a building's shell, a rock): also taken to be invalid, since its darkness would leak out to the
+        // walls around it. Bigger covered places (under a bridge or a dense canopy) keep their shade.
+        float enclosedDistance = defaultEnclosedDistance;
     };
 
     struct SkyProbeResult

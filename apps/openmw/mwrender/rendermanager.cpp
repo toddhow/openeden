@@ -33,6 +33,7 @@
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/ambientocclusion.hpp>
+#include <components/render/atmospheremath.hpp>
 #include <components/render/aomath.hpp>
 #include <components/render/bloom.hpp>
 #include <components/render/download.hpp>
@@ -45,6 +46,7 @@
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
+#include <components/render/skyvisgpu.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
@@ -125,6 +127,8 @@ namespace MWRender
             descriptors.emplace_back(View::dummyReflectDepth());
             descriptors.emplace_back(View::dummyProbes());
             descriptors.emplace_back(View::dummyReflections());
+            descriptors.emplace_back(View::dummySkyVis());
+            descriptors.emplace_back(View::dummySkyVisSky());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -335,6 +339,19 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] gi needs hdr and pbr; baked light probes are off";
             }
+            // Task 0036: the exterior sky-visibility field. Its sky colours come from the atmosphere model, so that too.
+            if (Settings::rendering().mGiExterior)
+            {
+                if (pbr && Render::Atmosphere::useAtmosphere(Settings::rendering().mAtmosphere, true))
+                {
+                    resourceSystem->builder->graphics->giSkyEnabled = true;
+                    mGiSkyEnabled = true;
+                    mSkyVisStrength = Settings::rendering().mGiExteriorStrength;
+                    Log(Debug::Info) << "GI: exterior ambient light from the baked sky-visibility field";
+                }
+                else
+                    Log(Debug::Warning) << "[Rendering] gi exterior needs hdr, pbr and atmosphere; it is off";
+            }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";
             mReflect = std::make_unique<Reflect>(
@@ -371,6 +388,17 @@ namespace MWRender
             descriptors.emplace_back(View::reflectionBuffer(mReflectionData));
         else
             descriptors.emplace_back(View::dummyReflections());
+        // Task 0036: the exterior sky-visibility field (cells' data, then its header), or stand-ins that switch it off.
+        if (mGiSkyEnabled)
+        {
+            descriptors.emplace_back(View::skyVisBuffer(mSkyVisPool));
+            descriptors.emplace_back(View::skyVisSkyBuffer(mSkyVisHeader));
+        }
+        else
+        {
+            descriptors.emplace_back(View::dummySkyVis());
+            descriptors.emplace_back(View::dummySkyVisSky());
+        }
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -445,6 +473,7 @@ namespace MWRender
         // openeden-vsg: terrain normal and specular maps, off by default (task 0012, V4i).
         Terrain::TerrainMapSettings terrainMaps;
         terrainMaps.gbufferOutputs = mGBufferOutputs;
+        terrainMaps.giSky = mGiSkyEnabled;
         const auto& shaders = Settings::shaders();
         terrainMaps.autoMaps.autoUseNormalMaps = shaders.mAutoUseTerrainNormalMaps;
         terrainMaps.autoMaps.autoUseSpecularMaps = shaders.mAutoUseTerrainSpecularMaps;
@@ -1052,6 +1081,103 @@ namespace MWRender
         mLightPosition = vsg::vec3(-0.15f, 0.15f, 1.f);
     }
 
+    void RenderManager::exteriorCellLoaded(int x, int y)
+    {
+        if (!mGiSkyEnabled)
+            return;
+        std::lock_guard<std::mutex> lock(mSkyVisMutex);
+        mSkyCells.insert({ x, y });
+        mSkyCellsChanged = true;
+    }
+
+    void RenderManager::exteriorCellUnloaded(int x, int y)
+    {
+        if (!mGiSkyEnabled)
+            return;
+        std::lock_guard<std::mutex> lock(mSkyVisMutex);
+        mSkyCells.erase({ x, y });
+        mSkyCellsChanged = true;
+    }
+
+    void RenderManager::updateSkyVisibility()
+    {
+        if (!mGiSkyEnabled)
+            return;
+        bool rewritten = false;
+        // The scene may load and unload cells on another thread: take the wanted set under the lock, and read and
+        // parse files without it (the files and the packed buffers are only touched here, on the render thread).
+        std::set<std::pair<int, int>> wanted;
+        bool changed = false;
+        {
+            std::lock_guard<std::mutex> lock(mSkyVisMutex);
+            changed = mSkyCellsChanged;
+            mSkyCellsChanged = false;
+            if (changed)
+                wanted = mSkyCells;
+        }
+        if (changed)
+        {
+            // Cells no longer loaded are forgotten; newly loaded ones are read from the data folders, once.
+            for (auto it = mSkyFields.begin(); it != mSkyFields.end();)
+                it = wanted.count(it->first) ? std::next(it) : mSkyFields.erase(it);
+            const VFS::Manager& vfs = *mResourceSystem->getVFS();
+            for (const auto& cell : wanted)
+            {
+                if (mSkyFields.count(cell))
+                    continue;
+                std::unique_ptr<Render::Gi::SkyVisField> field;
+                const std::string path = Render::Gi::skyVisFilePath(cell.first, cell.second);
+                if (vfs.exists(path))
+                {
+                    std::string text;
+                    {
+                        const auto stream = vfs.get(path);
+                        std::ostringstream buffer;
+                        buffer << stream->rdbuf();
+                        text = buffer.str();
+                    }
+                    Render::Gi::ProbeError error;
+                    auto parsed = Render::Gi::parseSkyVis(text, path, error);
+                    if (!parsed)
+                        Log(Debug::Warning) << "[Rendering] gi exterior: skipped file " << error.describe();
+                    else if (parsed->cellX != cell.first || parsed->cellY != cell.second)
+                        Log(Debug::Warning) << "[Rendering] gi exterior: " << path
+                                            << " is the bake of another cell, skipped";
+                    else
+                        field = std::make_unique<Render::Gi::SkyVisField>(std::move(*parsed));
+                }
+                mSkyFields[cell] = std::move(field);
+            }
+            // The map is ordered by cell, so the pool is laid out the same way every time.
+            std::vector<const Render::Gi::SkyVisField*> fields;
+            for (const auto& entry : mSkyFields)
+                if (entry.second)
+                    fields.push_back(entry.second.get());
+            const auto result = Render::Gi::packSkyVisibility(
+                fields, mSkyVisHeader->data(), mSkyVisPool->data(), mSkyVisPool->size());
+            mSkyVisPool->dirty();
+            if (result.skipped > 0)
+                Log(Debug::Warning) << "[Rendering] gi exterior: " << result.skipped
+                                    << " cell file(s) do not fit the field and are not used";
+            if (!fields.empty())
+                Log(Debug::Info) << "GI: sky-visibility field for " << result.packedCells << " exterior cell(s)";
+            rewritten = true;
+        }
+        // The sky's colours change slowly with the hour and the weather; the header is written only when they move.
+        const vsg::vec4 skyColour = mDisplaySkyColor;
+        const vsg::vec4 horizon = mFog->getFogColor(false);
+        const vsg::vec3 sky(skyColour.x, skyColour.y, skyColour.z);
+        const vsg::vec3 horizonColour(horizon.x, horizon.y, horizon.z);
+        if (!rewritten && mSkyVisHeaderWritten && sky == mSkyVisLastSky && horizonColour == mSkyVisLastHorizon)
+            return;
+        mSkyVisLastSky = sky;
+        mSkyVisLastHorizon = horizonColour;
+        mSkyVisHeaderWritten = true;
+        Render::Gi::writeSkyHeader(
+            mSkyVisHeader->data(), true, mSkyVisStrength, Render::Gi::skyFromColours(sky, horizonColour));
+        mSkyVisHeader->dirty();
+    }
+
     void RenderManager::setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular)
     {
         mLightDiffuse = diffuse;
@@ -1444,6 +1570,7 @@ namespace MWRender
     void RenderManager::onFrame(float dt)
     {
         updateSceneData();
+        updateSkyVisibility();
         if (mHdrTarget)
         {
             // The scene is in the float target, and its single-sample copies are what the copies and the depth pass

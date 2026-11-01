@@ -37,21 +37,30 @@ namespace Render::Gi
         const float weight = skySphere / static_cast<float>(settings.rays);
         SkyProbeResult result;
         std::uint32_t close = 0;
+        std::uint32_t escaped = 0;
+        float farthestHit = 0.f;
         for (std::uint32_t i = 0; i < settings.rays; ++i)
         {
             const vsg::vec3 dir = spiralDirection(i, settings.rays, offset);
             vsg::vec3 hitPos, hitNormal;
             if (world.cast(position, position + dir * settings.skyDistance, hitPos, hitNormal))
             {
-                if (length(hitPos - position) <= settings.invalidDistance)
+                const float distance = length(hitPos - position);
+                if (distance <= settings.invalidDistance)
                     ++close;
+                farthestHit = std::max(farthestHit, distance);
             }
             else
+            {
                 visAdd(result.sh, dir, weight);
+                ++escaped;
+            }
         }
         for (float& v : result.sh)
             v = skyVisQuantize(v);
         result.invalid = static_cast<float>(close) >= settings.invalidFraction * static_cast<float>(settings.rays);
+        if (escaped == 0 && farthestHit <= settings.enclosedDistance)
+            result.invalid = true;
         return result;
     }
 

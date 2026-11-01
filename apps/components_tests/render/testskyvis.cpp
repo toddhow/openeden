@@ -417,3 +417,83 @@ TEST(SkyVisMath, SkyFromTheAtmosphereColoursIsLinearAndFinite)
         EXPECT_TRUE(std::isfinite(k.x) && std::isfinite(k.y) && std::isfinite(k.z));
     EXPECT_GT(sky.c[0].x, 0.f);
 }
+
+// ---- Task 0036 (stage c): the share of the ambient a surface keeps depends on which way it faces ----
+
+namespace
+{
+    Sh9 testSky()
+    {
+        return projectSky(vsg::vec3(0.3f, 0.5f, 0.9f), vsg::vec3(0.8f, 0.6f, 0.4f), vsg::vec3(0.1f, 0.1f, 0.1f));
+    }
+}
+
+TEST(SkyVisNormal, CosineVisibilityOfOpenGroundFollowsTheHeightOfTheNormal)
+{
+    const VisSh h = hemisphereVisibility();
+    EXPECT_NEAR(visCosine(h, vsg::vec3(0, 0, 1)), 1.f, 1e-3f);
+    EXPECT_NEAR(visCosine(h, vsg::vec3(1, 0, 0)), 0.5f, 1e-3f);
+    EXPECT_NEAR(visCosine(h, vsg::vec3(0, 0, -1)), 0.f, 1e-3f);
+    EXPECT_NEAR(visCosine(openVisibility(), vsg::vec3(0.3f, 0.2f, -0.7f)), 1.f, 1e-3f);
+    EXPECT_FLOAT_EQ(visCosine(blockedVisibility(), vsg::vec3(0, 1, 0)), 0.f);
+}
+
+TEST(SkyVisNormal, OpenGroundKeepsEverythingForAnyNormal)
+{
+    const Sh9 sky = testSky();
+    for (const vsg::vec3& n : { vsg::vec3(0, 0, 1), vsg::vec3(1, 0, 0), vsg::vec3(0, -1, 0), vsg::vec3(0, 0, -1),
+             vsg::vec3(0.6f, 0.0f, 0.8f), vsg::vec3(0, 0, 0) })
+    {
+        const vsg::vec3 o = skyOcclusionNormal(sky, hemisphereVisibility(), n);
+        EXPECT_NEAR(o.x, 1.f, 1e-4f) << n.x << " " << n.y << " " << n.z;
+        EXPECT_NEAR(o.y, 1.f, 1e-4f);
+        EXPECT_NEAR(o.z, 1.f, 1e-4f);
+    }
+}
+
+TEST(SkyVisNormal, AWallSeesLessOnTheSideItFacesTheBuilding)
+{
+    // A building to the west: the sky is hidden for directions with x < -0.2 and below the horizon.
+    VisSh v{};
+    for (std::uint32_t i = 0; i < 6000; ++i)
+    {
+        const vsg::vec3 d = spiralDirection(i, 6000, 0.5f);
+        if (d.z > 0.f && d.x > -0.2f)
+            visAdd(v, d, 12.5663706f / 6000.f);
+    }
+    const Sh9 sky = testSky();
+    const vsg::vec3 facingAway = skyOcclusionNormal(sky, v, vsg::vec3(1, 0, 0));
+    const vsg::vec3 facingIn = skyOcclusionNormal(sky, v, vsg::vec3(-1, 0, 0));
+    EXPECT_GT(facingAway.x, 0.8f);
+    EXPECT_LT(facingIn.x, 0.4f);
+    EXPECT_GT(facingAway.x, facingIn.x + 0.4f);
+    // Up facing is in between, and a blocked point is dark whatever it faces.
+    const vsg::vec3 up = skyOcclusionNormal(sky, v, vsg::vec3(0, 0, 1));
+    EXPECT_GT(up.x, facingIn.x);
+    EXPECT_LE(up.x, 1.f);
+    for (const vsg::vec3& n : { vsg::vec3(1, 0, 0), vsg::vec3(0, 0, 1), vsg::vec3(0, 0, 0) })
+    {
+        const vsg::vec3 b = skyOcclusionNormal(sky, blockedVisibility(), n);
+        EXPECT_FLOAT_EQ(b.x, 0.f);
+        EXPECT_FLOAT_EQ(b.z, 0.f);
+    }
+}
+
+TEST(SkyVisNormal, NoNormalGivesTheOmniShare)
+{
+    const Sh9 sky = testSky();
+    VisSh half = hemisphereVisibility();
+    for (float& v : half)
+        v *= 0.5f;
+    const vsg::vec3 withNone = skyOcclusionNormal(sky, half, vsg::vec3(0, 0, 0));
+    const vsg::vec3 omni = skyOcclusion(sky, half);
+    EXPECT_NEAR(withNone.x, omni.x, 1e-5f);
+    EXPECT_NEAR(withNone.z, omni.z, 1e-5f);
+}
+
+TEST(SkyVisNormal, ASkyWithNoLightKeepsTheFlatAmbientWhateverTheNormal)
+{
+    const Sh9 dark = projectSky(vsg::vec3(0, 0, 0), vsg::vec3(0, 0, 0), vsg::vec3(0, 0, 0));
+    const vsg::vec3 o = skyOcclusionNormal(dark, blockedVisibility(), vsg::vec3(0, 0, 1));
+    EXPECT_TRUE(std::isfinite(o.x) && std::isfinite(o.y) && std::isfinite(o.z));
+}

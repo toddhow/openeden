@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT)
+#pragma import_defines (TERRAIN_MAPS, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -7,6 +7,9 @@ const int colorMode = 2;
 #include "lib/view/shadow.glsl"
 #include "lib/light/directional.glsl"
 #include "lib/material/terms.glsl"
+#ifdef GI_SKY
+#include "lib/view/skyvis.glsl"
+#endif
 #include "bindings.glsl"
 #include "terrain.settings"
 
@@ -114,7 +117,13 @@ void main()
     vec2 colorTexSize = textureSize(colorMap, 0);
     vec2 colorCoord = (frag_in.texCoord - 0.5) * colorTexSize / (colorTexSize+1) + 0.5;
     vec4 vertexColor = texture(colorMap, colorCoord);
+#ifdef GI_SKY
+    // Task 0036: the exterior sky-visibility field, with the terrain's geometry normal.
+    outColor *= materialTermsAmbient(skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
+        mat3(scene.invView) * normalize(frag_in.viewNormal), scene.ambient.xyz), diffuse, vertexColor);
+#else
     outColor *= materialTerms(diffuse, vertexColor);
+#endif
 #ifdef TERRAIN_MAPS
     outColor.xyz += specularStrength * specularLight;
 #endif

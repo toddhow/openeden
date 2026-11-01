@@ -41,7 +41,8 @@ namespace Terrain
         , mSamplerOptions(in_samplerOptions)
         , mMapSettings(std::move(in_mapSettings))
     {
-        mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs);
+        mPipeline = Pipeline::terrain(
+            in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs, mMapSettings.giSky);
     }
 
     Builder::~Builder() {}

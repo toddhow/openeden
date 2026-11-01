@@ -59,6 +59,8 @@ namespace Pipeline
         unsigned int pbrLook = 0;
         // Task 0028: lit draws take their ambient light from the baked light probes (a buffer that may hold no volume).
         bool giEnabled = false;
+        // Task 0036: lit draws also scale the ambient light by the exterior sky-visibility field (implies the GI define).
+        bool giSkyEnabled = false;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> create(const Options& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;
