@@ -47,8 +47,7 @@ namespace CSVWorld
         for (const char* name : { "Headlight", "Sun", "Flat" })
             mLighting->addItem(tr(name));
         mCollision = new QCheckBox(tr("Collision"), this);
-        mCollision->setToolTip(tr("Not built yet: the collision shape (task 0043, stage 5)."));
-        mCollision->setEnabled(false);
+        mCollision->setToolTip(tr("The collision shape the game builds for this model (Jolt), as green lines."));
         mBounds = new QCheckBox(tr("Bounds"), this);
         mSkeleton = new QCheckBox(tr("Skeleton"), this);
         mSkeleton->setToolTip(tr("Lines from each transform node to its parent transform."));
@@ -127,6 +126,7 @@ namespace CSVWorld
         splitter->addWidget(mTabs);
         splitter->setStretchFactor(0, 4);
         splitter->setStretchFactor(1, 1);
+        splitter->setSizes({ 760, 380 });
         mView->setMinimumSize(320, 240);
 
         QVBoxLayout* layout = new QVBoxLayout;
@@ -223,6 +223,9 @@ namespace CSVWorld
                              .arg(totals.nodes)
                              .arg(totals.vertices)
                              .arg(totals.triangles));
+        mCollision->setEnabled(scene->hasCollision());
+        if (!scene->hasCollision())
+            mCollision->setChecked(false);
         fillTree();
         fillTextures();
         fillAnimation();

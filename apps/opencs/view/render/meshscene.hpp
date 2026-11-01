@@ -12,6 +12,7 @@
 #include <apps/opencs/model/mesh/animationkeys.hpp>
 #include <apps/opencs/model/mesh/framemath.hpp>
 #include <apps/opencs/model/mesh/meshgeometry.hpp>
+#include <apps/opencs/model/mesh/meshoverlay.hpp>
 #include <apps/opencs/model/mesh/meshtree.hpp>
 #include <apps/opencs/model/mesh/meshviewstate.hpp>
 #include <apps/opencs/model/mesh/texturereport.hpp>
@@ -26,6 +27,11 @@ namespace MWAnim
 namespace Render
 {
     class DebugGeometry;
+}
+
+namespace CSMPhysics
+{
+    class JoltRuntime;
 }
 
 namespace Anim
@@ -83,6 +89,8 @@ namespace CSVRender
         /// Looks each one up in the VFS the way the engine does (.tga falls back to .dds).
         CSMMesh::TextureReport textureReport() const;
 
+        /// Whether the engine builds a collision shape for this model (task 0043, stage 5).
+        bool hasCollision() const { return !mCollisionLines.empty(); }
         const CSMMesh::MeshViewState& state() const { return mState; }
         void setState(const CSMMesh::MeshViewState& state);
 
@@ -126,6 +134,7 @@ namespace CSVRender
         void collect();
         void readTextureNames();
         void rebuildOverlay();
+        void buildCollision();
         void rebuildSolid();
         void applyHelperNodes();
         CSMMesh::Aabb nodeBounds(CSMMesh::NodeId node) const;
@@ -142,6 +151,8 @@ namespace CSVRender
         CSMMesh::NodeId mSelected = CSMMesh::kNoNode;
 
         std::unique_ptr<MWAnim::Object> mObject;
+        std::unique_ptr<CSMPhysics::JoltRuntime> mJolt;
+        std::vector<CSMMesh::Line> mCollisionLines;
         vsg::ref_ptr<vsg::Group> mRoot; // under contentRoot()
         vsg::ref_ptr<vsg::Switch> mModelSwitch;
         vsg::ref_ptr<vsg::Group> mSolidHolder;

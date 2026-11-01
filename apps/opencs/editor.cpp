@@ -1074,6 +1074,11 @@ void CS::Editor::startUiCheck()
             mViewManager->addView(
                 document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Scene, "sys::default"), hint);
             Log(Debug::Info) << "UI check: views opened";
+            // OPENEDEN_CS_MESH=<vfs path>: also opens the mesh viewer on that model, as the Asset Browser does
+            // (task 0043). The grab (OPENEDEN_CS_GRAB) then shows its panels.
+            if (const char* mesh = std::getenv("OPENEDEN_CS_MESH"))
+                mViewManager->addView(
+                    document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, std::string(mesh)), "");
             // OPENEDEN_CS_GRAB=<folder>: render every document window with QWidget::grab shortly before the close,
             // as <folder>/window<N>.png. This shows the Qt panels (not the 3D window inside them, which Qt cannot
             // grab); the engine capture (--auto-screenshot) shows that. For checks with nobody at the screen.

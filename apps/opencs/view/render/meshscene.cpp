@@ -1,5 +1,14 @@
 #include "meshscene.hpp"
 
+// clang-format off
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/Shape/DecoratedShape.h>
+#include <Jolt/Physics/Collision/ShapeFilter.h>
+#include <Jolt/Physics/Collision/TransformedShape.h>
+#include <Jolt/Physics/Collision/Shape/Shape.h>
+// clang-format on
+
 #include <algorithm>
 #include <cmath>
 #include <exception>
@@ -26,6 +35,8 @@
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/options.hpp>
 #include <components/render/debuggeometry.hpp>
+#include <components/resource/niffilemanager.hpp>
+#include <components/resource/physicsshapemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -33,6 +44,7 @@
 #include <components/vsgutil/setbin.hpp>
 
 #include <apps/opencs/model/mesh/meshoverlay.hpp>
+#include <apps/opencs/model/physics/joltruntime.hpp>
 
 #include "picking.hpp"
 #include "scenehost.hpp"
@@ -211,6 +223,8 @@ namespace CSVRender
             std::size_t run = 0;
             while (next + run < draw.arrays.size() && draw.arrays[next + run] && asVec4(*draw.arrays[next + run]))
                 ++run;
+            // Two vec4 arrays after the colour are the bone indices and weights.
+            const bool skinned = run >= 2;
             if (run % 2 == 1)
                 if (const vsg::vec4Array* colours = asVec4(*draw.arrays[next]); colours->size() == positions->size())
                     for (const vsg::vec4& c : *colours)
@@ -251,6 +265,7 @@ namespace CSVRender
             std::ostringstream flags;
             flags << (shape.mMesh.topology == CSMMesh::Topology::TriangleStrip ? "triangle strip"
                                                                                 : shape.mMesh.topology == CSMMesh::Topology::LineList ? "line list" : "triangle list")
+                  << (skinned ? ", skinned (other modes show it unskinned)" : "")
                   << (shape.mMesh.normals.empty() ? "" : ", normals") << (shape.mMesh.colours.empty() ? "" : ", vertex colours");
             treeNode.flags = flags.str();
             auto& info = mScene.mInfos[id];
@@ -339,6 +354,7 @@ namespace CSVRender
             for (const auto& p : shape.mMesh.positions)
                 CSMMesh::expand(mBounds, { p[0], p[1], p[2] });
         readTextureNames();
+        buildCollision();
 
         mHost.compileContext()->compile(mObject->node());
         mRoot = vsg::Group::create();
@@ -349,7 +365,7 @@ namespace CSVRender
         mRoot->addChild(mSolidHolder);
         mHost.contentRoot().addChild(mRoot);
 
-        std::size_t lineVertices = 4096 + mInfos.size() * 8;
+        std::size_t lineVertices = 4096 + mInfos.size() * 8 + mCollisionLines.size() * 2;
         for (const Shape& shape : mShapes)
             lineVertices += shape.mMesh.indices.size() * 2 + shape.mMesh.positions.size() * 2;
         lineVertices = std::min(lineVertices, sMaxOverlayVertices);
@@ -380,6 +396,70 @@ namespace CSVRender
             corners.emplace_back((i & 1) ? mBounds.max[0] : mBounds.min[0], (i & 2) ? mBounds.max[1] : mBounds.min[1],
                 (i & 4) ? mBounds.max[2] : mBounds.min[2]);
         return corners;
+    }
+
+    void MeshScene::buildCollision()
+    {
+        mCollisionLines.clear();
+        try
+        {
+            // The shape the game builds: Resource::PhysicsShapeManager over the same VFS (components/resource). Jolt
+            // must be running for it.
+            mJolt = std::make_unique<CSMPhysics::JoltRuntime>();
+            const VFS::Manager* vfs = mHost.resources().getVFS();
+            Resource::NifFileManager nifFiles(vfs, nullptr);
+            Resource::PhysicsShapeManager shapes(vfs, &nifFiles, 0.0);
+            const auto shape = shapes.getShape(VFS::Path::Normalized(mPath));
+            if (!shape || !shape->mCollisionShape)
+            {
+                Log(Debug::Info) << "Mesh viewer: " << mPath << " has no collision shape";
+                return;
+            }
+            const JPH::Shape& collision = *shape->mCollisionShape;
+            Log(Debug::Info) << "Mesh viewer: collision shape type " << static_cast<int>(collision.GetSubType())
+                             << ", mesh data " << (collision.MustBeStatic() ? "static" : "other") << ", bounds "
+                             << collision.GetLocalBounds().GetSize().GetX() << " x "
+                             << collision.GetLocalBounds().GetSize().GetY() << " x "
+                             << collision.GetLocalBounds().GetSize().GetZ();
+            // A decorating shape (rotated, translated, compound) has no triangles itself: collect its leaves, which
+            // come with their places, in the frame where the shape's centre of mass is where it says it is.
+            const JPH::AABox everything(JPH::Vec3::sReplicate(-1.0e7f), JPH::Vec3::sReplicate(1.0e7f));
+            JPH::AllHitCollisionCollector<JPH::TransformedShapeCollector> leaves;
+            collision.CollectTransformedShapes(everything, collision.GetCenterOfMass(), JPH::Quat::sIdentity(),
+                JPH::Vec3::sReplicate(1.0f), JPH::SubShapeIDCreator(), leaves, JPH::ShapeFilter());
+            constexpr int sBatch = 64;
+            std::vector<JPH::Float3> vertices(sBatch * 3);
+            const std::array<float, 4> colour{ 0.3f, 1.f, 0.4f, 1.f };
+            for (const JPH::TransformedShape& leaf : leaves.mHits)
+            {
+                JPH::Shape::GetTrianglesContext context;
+                leaf.mShape->GetTrianglesStart(
+                    context, everything, JPH::Vec3(leaf.mShapePositionCOM), leaf.mShapeRotation, JPH::Vec3(leaf.mShapeScale));
+                for (;;)
+                {
+                    const int count = leaf.mShape->GetTrianglesNext(context, sBatch, vertices.data());
+                    if (count == 0)
+                        break;
+                    for (int i = 0; i < count; ++i)
+                    {
+                        const JPH::Float3* t = &vertices[i * 3];
+                        for (int edge = 0; edge < 3; ++edge)
+                        {
+                            const JPH::Float3& a = t[edge];
+                            const JPH::Float3& b = t[(edge + 1) % 3];
+                            mCollisionLines.push_back({ { a.x, a.y, a.z }, { b.x, b.y, b.z }, colour });
+                        }
+                    }
+                }
+            }
+            Log(Debug::Info) << "Mesh viewer: collision of " << mPath << ": " << mCollisionLines.size() / 3
+                             << " triangles";
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Warning) << "Mesh viewer: no collision shape for " << mPath << ": " << e.what();
+            mCollisionLines.clear();
+        }
     }
 
     void MeshScene::readTextureNames()
@@ -597,6 +677,8 @@ namespace CSVRender
             for (const Shape& shape : mShapes)
                 if (shapeVisible(shape))
                     add(CSMMesh::normalLines(shape.mMesh, static_cast<float>(radius * 0.04), sNormalColour));
+        if (mState.showCollision)
+            add(mCollisionLines);
         if (mState.showBounds)
             add(CSMMesh::boxLines(mBounds, sBoundsColour));
         if (mSelected != CSMMesh::kNoNode)
