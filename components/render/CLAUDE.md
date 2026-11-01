@@ -80,3 +80,13 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 - **The twin** is `sssmath.hpp` (the constants are written into the shader from it); change both together. Debug view: `gbuffer debug view = sss` (eight times the change).
 - **Pitfalls found by the frame check:** a difference (wide minus narrow) instead of a ratio made dark noses and mouths take red from the fur around them; a per-pixel turn of the 16 tap spiral made faces dotted. The skin mark covers the whole head model, eyes included, and there is no albedo to tell lit skin from dark texture, so the effect stays mild by default.
 - **Not built:** transmission through thin things, a separable kernel, diffuse light kept apart from specular.
+
+## The atmosphere (task 0034, R6 stages a to c)
+
+- **`[Rendering] atmosphere`** (off by default; needs `hdr`), `atmosphere look` (`vanilla` or `physical`). Off, the weather manager hands the renderer its own result and nothing below runs.
+- **`atmospheremath.hpp`** has no shader twin: the model runs on the CPU, once per frame, in `MWWorld::WeatherManager::applyAtmosphere` (`apps/openmw/mwworld/weather.cpp`), on a copy of the weather's result (`mAtmosphereResult`; `mResult` is never changed, so records, scripts, sounds and transitions are untouched). It changes the sky, ambient, sun, sun disc and fog colours and `mCloudTint`. The fog distance is not touched.
+- **Blending rules:** weight = `dayWeight(sun height) * clearness`, and `clearness` is the weather's `Glare_View`. Night, and any weather with no glare, give the vanilla colours exactly. The sun height comes from the manager's own sun vector (negated at night, where the manager mirrors it), so the model follows the sun that is drawn.
+- **Colour spaces:** all `Colours` are display-encoded, like the weather's own. The cloud shader multiplies encoded colours, so the cloud tint is encoded too (found by the reviewer).
+- **Clouds:** `sky/clouds/main.frag` multiplies by `material.diffuse.xyz` (`Pipeline::Material::setTint`), white unless the atmosphere sets it.
+- **Fixing the weather and hour for frames:** start in an interior, run `ChangeWeather "Bitter Coast Region" <id>`, `coc "Seyda Neen"` (entering a new region forces that weather at once, `WeatherManager::playerTeleported`), `set gamehour to <h>`, `set timescale to 1`.
+- **Not built:** moon light, a sun glow in the fog (no room in the scene uniform block), volumetric clouds, surface wetness, snow and ash cover, precipitation changes.
