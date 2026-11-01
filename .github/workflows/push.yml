@@ -39,7 +39,16 @@ jobs:
         -D CMAKE_INSTALL_PREFIX=install
 
     - name: Build
-      run: cmake --build . -- -j$(nproc)
+      run: |
+        rc=0
+        cmake --build . -- -j$(nproc) -k 0 > build.log 2>&1 || rc=$?
+        if [ "$rc" != 0 ]; then
+          # The job log needs admin rights to read, so the first compiler errors go to a public annotation.
+          errs=$( (grep -E 'error|Error [0-9]|FAILED' build.log || true) | head -12 | cut -c1-300 | tr '\n' '|')
+          echo "::error::build failed ($rc): $errs"
+        fi
+        tail -n 5 build.log
+        exit $rc
 
     - name: Run components tests
       run: ./components-tests
