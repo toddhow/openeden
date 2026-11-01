@@ -8,8 +8,8 @@ namespace vsgAdapters
 {
     vsg::ref_ptr<vsg::Object> vfs::read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const
     {
-        auto readImpl = [this] (const vsg::Path& path, vsg::ref_ptr<const vsg::Options> readOptions) -> vsg::ref_ptr<vsg::Object>
-        {
+        auto readImpl
+            = [this](const vsg::Path& path, vsg::ref_ptr<const vsg::Options> readOptions) -> vsg::ref_ptr<vsg::Object> {
             std::string filenameStr = path.string();
             if (!mVfs.exists(filenameStr))
                 return {};

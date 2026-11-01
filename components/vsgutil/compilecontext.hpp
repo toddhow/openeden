@@ -3,8 +3,8 @@
 
 #include <functional>
 
-#include <vsg/core/Object.h>
 #include <vsg/core/Mask.h>
+#include <vsg/core/Object.h>
 
 namespace vsg
 {
@@ -20,7 +20,8 @@ namespace vsgUtil
      * Controls Vulkan object lifetime.
      * @note CompileManager contains a thread safe queue of available compile traversals.
      * @note Multiple threads compiling unrelated objects may safely use independent CompileManagers.
-     * @note Multiple threads compiling overlapping objects must use a shared CompileManager with numCompileTraversals set to 1.
+     * @note Multiple threads compiling overlapping objects must use a shared CompileManager with numCompileTraversals
+     * set to 1.
      */
     class CompileContext : public vsg::Object
     {
@@ -43,10 +44,11 @@ namespace vsgUtil
         bool compile(vsg::ref_ptr<vsg::Object> obj) const;
 
         /*
-         * Signifies that object has been detached from the scene graph and its Vulkan objects are no longer required after this frame.
+         * Signifies that object has been detached from the scene graph and its Vulkan objects are no longer required
+         * after this frame.
          */
         std::function<void(vsg::ref_ptr<vsg::Object>)> onDetached;
-        void detach(vsg::ref_ptr<vsg::Object> obj) const  { onDetached(obj); }
+        void detach(vsg::ref_ptr<vsg::Object> obj) const { onDetached(obj); }
 
         /*
          * Conveniently assigns contextSelectionFunction for views with this mask.

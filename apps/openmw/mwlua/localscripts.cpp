@@ -191,8 +191,7 @@ namespace MWLua
             std::string_view cellNameId;
             if (cell)
                 cellNameId = cell->mStore->getCell()->getNameId();
-            ai.stack(
-                MWMechanics::AiFollow(getId(target.ptr()), cellNameId, duration, dest.x, dest.y, dest.z, repeat),
+            ai.stack(MWMechanics::AiFollow(getId(target.ptr()), cellNameId, duration, dest.x, dest.y, dest.z, repeat),
                 ptr, cancelOther);
         };
         selfAPI["_startAiEscort"] = [](SelfObject& self, const LObject& target, LCell cell, float duration,

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 
-
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/data.hpp>

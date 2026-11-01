@@ -23,20 +23,20 @@
 #include "../../model/world/commands.hpp"
 #include "../../model/world/data.hpp"
 
+#include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/mwanimation/create.hpp>
-#include <components/animation/transform.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/setbin.hpp>
 
 #include "actor.hpp"
-#include "instancemath.hpp"
 #include "colouredgeometry.hpp"
+#include "instancemath.hpp"
 #include "mask.hpp"
 #include "picking.hpp"
 #include "scenehost.hpp"
@@ -48,7 +48,8 @@ namespace
     constexpr float sMinimumOutlineHalfSize = 8.f;
     const vsg::vec4 sSnapTargetColour(1, 1, 0, 1);
 
-    // A model that does not exist comes back as Resource::Fallback's stand-in, as the error cube of the OSG editor stood in.
+    // A model that does not exist comes back as Resource::Fallback's stand-in, as the error cube of the OSG editor
+    // stood in.
     const std::string sMissingModel = "marker_error.nif";
 
     /// As MWRender::findSwitches in the game: every child, also those switched off.
@@ -115,14 +116,16 @@ void CSVRender::Object::update(bool compile)
         if (recordType == CSMWorld::UniversalId::Type_Npc || recordType == CSMWorld::UniversalId::Type_Creature)
         {
             if (!mActor)
-                mActor = std::make_unique<Actor>(mReferenceableId, mData, mHost.animContext(), [this] { update(true); });
+                mActor
+                    = std::make_unique<Actor>(mReferenceableId, mData, mHost.animContext(), [this] { update(true); });
             animation = mActor->create();
         }
         else if (model.empty())
             throw std::runtime_error(mReferenceableId.getRefIdString() + " has no model");
         else
         {
-            // As the classes whose useAnim is true in apps/openmw/mwclass: their models may be skinned, which needs bones.
+            // As the classes whose useAnim is true in apps/openmw/mwclass: their models may be skinned, which needs
+            // bones.
             const bool useAnim = recordType == CSMWorld::UniversalId::Type_Door
                 || recordType == CSMWorld::UniversalId::Type_Activator
                 || recordType == CSMWorld::UniversalId::Type_Container
@@ -171,7 +174,8 @@ void CSVRender::Object::frameUpdate(float dt)
         const unsigned int index = mNightDayApply ? mNightDayIndex : 0;
         for (auto& nightDay : mNightDaySwitches)
             for (std::size_t i = 0; i < nightDay->children.size(); ++i)
-                nightDay->children[i].mask = i == (nightDay->children.size() > index ? index : 0) ? vsg::MASK_ALL : vsg::MASK_OFF;
+                nightDay->children[i].mask
+                    = i == (nightDay->children.size() > index ? index : 0) ? vsg::MASK_ALL : vsg::MASK_OFF;
     }
 }
 
@@ -191,11 +195,13 @@ void CSVRender::Object::adjustTransform()
     ESM::Position position = getPosition();
     auto* transform = mAnimation->transform();
 
-    transform->translation = mForceBaseToZero ? vsg::vec3() : vsg::vec3(position.pos[0], position.pos[1], position.pos[2]);
-    // The OSG editor's zr * yr * xr, which InstanceMath's rotation tool assumes. The game's objects take the other order
-    // (apps/openmw/mwworld/scene.cpp, makeInversedOrderObjectOsgQuat), so an object tilted on two axes looks different here, as
-    // it did in the OSG editor (task 0014, C7).
-    transform->setAttitude(vsg::quat(InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]))));
+    transform->translation
+        = mForceBaseToZero ? vsg::vec3() : vsg::vec3(position.pos[0], position.pos[1], position.pos[2]);
+    // The OSG editor's zr * yr * xr, which InstanceMath's rotation tool assumes. The game's objects take the other
+    // order (apps/openmw/mwworld/scene.cpp, makeInversedOrderObjectOsgQuat), so an object tilted on two axes looks
+    // different here, as it did in the OSG editor (task 0014, C7).
+    transform->setAttitude(
+        vsg::quat(InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]))));
     const vsg::vec3 actorScale = mActor ? mActor->getScale() : vsg::vec3(1.f, 1.f, 1.f);
     const float scale = getScale();
     transform->scale = actorScale * scale;
@@ -291,7 +297,8 @@ void CSVRender::Object::updateOutline()
 
 void CSVRender::Object::setSelected(bool selected, const vsg::vec4& color)
 {
-    const bool changed = selected != mSelected || (selected && (color.r != mOutlineColour.r || color.g != mOutlineColour.g || color.b != mOutlineColour.b));
+    const bool changed = selected != mSelected
+        || (selected && (color.r != mOutlineColour.r || color.g != mOutlineColour.g || color.b != mOutlineColour.b));
     const bool wasSnapTarget = mSnapTarget;
     mSelected = selected;
     // Not through setSnapTarget, which would clear what was just set. The two exclude each other.
@@ -356,8 +363,8 @@ std::vector<vsg::dvec3> CSVRender::Object::getBoundsCorners()
     std::vector<vsg::dvec3> corners;
     for (int i = 0; i < 8; ++i)
         corners.push_back(origin
-            + vsg::dvec3(i & 1 ? bounds.bounds.max.x : bounds.bounds.min.x, i & 2 ? bounds.bounds.max.y : bounds.bounds.min.y,
-                i & 4 ? bounds.bounds.max.z : bounds.bounds.min.z));
+            + vsg::dvec3(i & 1 ? bounds.bounds.max.x : bounds.bounds.min.x,
+                i & 2 ? bounds.bounds.max.y : bounds.bounds.min.y, i & 4 ? bounds.bounds.max.z : bounds.bounds.min.z));
     return corners;
 }
 
@@ -368,7 +375,8 @@ float CSVRender::Object::getBottomOffset()
     const ESM::Position position = getPosition();
     vsg::ComputeBounds bounds;
     bounds.useNodeBounds = false;
-    bounds.matrixStack.emplace_back(vsg::rotate(vsg::dquat(InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]))))
+    bounds.matrixStack.emplace_back(
+        vsg::rotate(vsg::dquat(InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]))))
         * vsg::scale(static_cast<double>(getScale())));
     for (auto& child : mAnimation->transform()->children)
         if (child != mOutline)

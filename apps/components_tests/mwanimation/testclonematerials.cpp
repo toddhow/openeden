@@ -674,7 +674,8 @@ namespace
         vsg::ref_ptr<vsg::Node> node = g.root;
         int calls = 0;
 
-        Anim::cloneIfRequired(node, {}, [](const vsg::Data&) { return false; }, [&](vsg::Data&) { ++calls; });
+        Anim::cloneIfRequired(
+            node, {}, [](const vsg::Data&) { return false; }, [&](vsg::Data&) { ++calls; });
 
         ASSERT_TRUE(node);
         EXPECT_EQ(calls, 0);

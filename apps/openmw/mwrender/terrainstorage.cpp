@@ -12,15 +12,13 @@
 namespace MWRender
 {
     TerrainStorage::TerrainStorage(Resource::ResourceSystem* resourceSystem)
-        : mLandManager(new LandManager(
-              ESM::Land::DATA_VCLR | ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VTEX))
+        : mLandManager(
+            new LandManager(ESM::Land::DATA_VCLR | ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VTEX))
         , mResourceSystem(resourceSystem)
     {
     }
 
-    TerrainStorage::~TerrainStorage()
-    {
-    }
+    TerrainStorage::~TerrainStorage() {}
 
     LandManager* TerrainStorage::getLandManager() const
     {
@@ -51,7 +49,8 @@ namespace MWRender
             const std::string* lt = store.search(texture, plugin);
             if (lt)
             {
-                auto corrected = Misc::ResourceHelpers::correctTexturePath(VFS::Path::Normalized(*lt), *mResourceSystem->getVFS());
+                auto corrected
+                    = Misc::ResourceHelpers::correctTexturePath(VFS::Path::Normalized(*lt), *mResourceSystem->getVFS());
                 if (mResourceSystem->getVFS()->exists(corrected))
                 {
                     // NB: All vtex ids are +1 compared to the ltex ids

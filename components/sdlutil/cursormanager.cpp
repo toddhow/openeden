@@ -56,8 +56,8 @@ namespace SDLUtil
             SDL_SetCursor(it->second);
     }
 
-    void CursorManager::createCursor(std::string_view name, int rotDegrees, SDL_Surface* surface, Uint8 hotspot_x,
-        Uint8 hotspot_y, Uint8 w, Uint8 h)
+    void CursorManager::createCursor(
+        std::string_view name, int rotDegrees, SDL_Surface* surface, Uint8 hotspot_x, Uint8 hotspot_y, Uint8 w, Uint8 h)
     {
         if (mCursorMap.find(std::string(name)) != mCursorMap.end())
             return;

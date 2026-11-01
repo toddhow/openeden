@@ -71,8 +71,7 @@ namespace DetourNavigator
         void addObject(
             const JPH::HeightFieldShape& shape, const vsg::dmat4& transform, TriangleProcessFunc& processTriangle);
 
-        void addObject(
-            const JPH::RotatedTranslatedShape& shape, const vsg::dmat4& transform, const AreaType areaType);
+        void addObject(const JPH::RotatedTranslatedShape& shape, const vsg::dmat4& transform, const AreaType areaType);
 
         void addObject(const JPH::CompoundShape& shape, const vsg::dmat4& transform, const AreaType areaType);
 

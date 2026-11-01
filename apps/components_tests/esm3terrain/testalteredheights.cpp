@@ -113,8 +113,8 @@ namespace
             if (land == nullptr)
                 return {};
             // vsg::ref_ptr is intrusive and LandObject has no vsg::Inherit create(), so it adopts this new directly.
-            return vsg::ref_ptr<const ESMTerrain::LandObject>(new ESMTerrain::LandObject(*land,
-                ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VCLR | ESM::Land::DATA_VTEX));
+            return vsg::ref_ptr<const ESMTerrain::LandObject>(new ESMTerrain::LandObject(
+                *land, ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VCLR | ESM::Land::DATA_VTEX));
         }
 
         std::map<PluginTexture, std::string> enumerateLayers() const override { return {}; }
@@ -259,11 +259,8 @@ namespace
             Terrain::Bounds mBounds;
         };
         const Case cases[] = {
-            { 0, makeBounds(0, 0, 1) },
-            { 0, makeBounds(0, 0, 2) },
-            { 1, makeBounds(0, 0, 1) },
-            { 2, makeBounds(0, 0, 2) },
-            { 0, makeBounds(5, 5, 1) }, // no land at all
+            { 0, makeBounds(0, 0, 1) }, { 0, makeBounds(0, 0, 2) }, { 1, makeBounds(0, 0, 1) },
+            { 2, makeBounds(0, 0, 2) }, { 0, makeBounds(5, 5, 1) }, // no land at all
         };
 
         for (const Case& c : cases)

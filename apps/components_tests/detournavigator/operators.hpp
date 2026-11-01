@@ -1,8 +1,8 @@
 #ifndef OPENMW_TEST_SUITE_DETOURNAVIGATOR_OPERATORS_H
 #define OPENMW_TEST_SUITE_DETOURNAVIGATOR_OPERATORS_H
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/debug.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <deque>
 #include <iomanip>
@@ -38,8 +38,8 @@ namespace testing
     template <>
     inline testing::Message& Message::operator<<(const vsg::vec3& value)
     {
-        return (*this) << std::setprecision(std::numeric_limits<float>::max_exponent10) << "Vec3fEq(" << value.x
-                       << ", " << value.y << ", " << value.z << ')';
+        return (*this) << std::setprecision(std::numeric_limits<float>::max_exponent10) << "Vec3fEq(" << value.x << ", "
+                       << value.y << ", " << value.z << ')';
     }
 
     template <>

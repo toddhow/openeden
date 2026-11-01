@@ -606,8 +606,6 @@ namespace MWGui
         mWeapBox->setUserData(MyGUI::Any::Null);
         mSpellBox->clearUserStrings();
         mSpellBox->setUserData(MyGUI::Any::Null);
-
-
     }
 
     void HUD::customMarkerCreated(MyGUI::Widget* marker)

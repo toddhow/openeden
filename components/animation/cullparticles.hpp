@@ -5,9 +5,9 @@
 
 #include "channel.hpp"
 #include "context.hpp"
+#include "deltatime.hpp"
 #include "mask.hpp"
 #include "tmutable.hpp"
-#include "deltatime.hpp"
 
 namespace Anim
 {

@@ -25,7 +25,8 @@ namespace MWAnim
             bool enable = std::abs(legsYawRadians) > epsilon || std::abs(bodyPitchRadians) > epsilon;
             if (enable && animation->isRotationControlled(*mRoot))
             {
-                Anim::rotateBone(*mRoot, vsg::rotate(bodyPitchRadians, { 1, 0, 0 }) * vsg::rotate(legsYawRadians, { 0, 0, 1 }));
+                Anim::rotateBone(
+                    *mRoot, vsg::rotate(bodyPitchRadians, { 1, 0, 0 }) * vsg::rotate(legsYawRadians, { 0, 0, 1 }));
                 yawOffset = legsYawRadians;
             }
         }

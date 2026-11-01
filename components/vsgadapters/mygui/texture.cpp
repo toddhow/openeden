@@ -55,7 +55,8 @@ namespace vsgAdapters::mygui
         if (mFormat == MyGUI::PixelFormat::R8G8B8)
             mLockedImage = vsg::ubvec3Array2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8G8B8_UNORM });
         else if (mFormat == MyGUI::PixelFormat::R8G8B8A8)
-            mLockedImage = vsg::ubvec4Array2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+            mLockedImage
+                = vsg::ubvec4Array2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
         else if (mFormat == MyGUI::PixelFormat::L8)
             mLockedImage = vsg::ubyteArray2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8_UNORM });
         else if (mFormat == MyGUI::PixelFormat::L8A8)
@@ -69,9 +70,11 @@ namespace vsgAdapters::mygui
         mTexture = vsg::DescriptorImage::create(vsgUtil::share<vsg::Sampler>(sampler), mLockedImage);
 
         if (mFormat == MyGUI::PixelFormat::L8)
-            mTexture->imageInfoList[0]->imageView->components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R };
+            mTexture->imageInfoList[0]->imageView->components
+                = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R };
         else if (mFormat == MyGUI::PixelFormat::L8A8)
-            mTexture->imageInfoList[0]->imageView->components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
+            mTexture->imageInfoList[0]->imageView->components
+                = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
     }
 
     void Texture::destroy()

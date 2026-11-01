@@ -20,7 +20,8 @@
 
 namespace CSVRender
 {
-    Actor::Actor(const ESM::RefId& id, CSMWorld::Data& data, const MWAnim::Context& context, std::function<void()> changed)
+    Actor::Actor(
+        const ESM::RefId& id, CSMWorld::Data& data, const MWAnim::Context& context, std::function<void()> changed)
         : mId(id)
         , mData(data)
         , mContext(context)
@@ -37,8 +38,8 @@ namespace CSVRender
         if (mActorData->isCreature())
             return MWAnim::createCreature<MWAnim::Actor>(skeleton, false, mContext);
 
-        // As MWRender::Npc::updateNpcBase: the skeleton gives the bones, and only the body parts go in the scene, which is
-        // what the OSG editor's CleanObjectRootVisitor left.
+        // As MWRender::Npc::updateNpcBase: the skeleton gives the bones, and only the body parts go in the scene, which
+        // is what the OSG editor's CleanObjectRootVisitor left.
         auto node = mContext.readActor(skeleton);
         auto actor = std::make_unique<MWAnim::Actor>(mContext);
         actor->animation = std::make_unique<MWAnim::Play>(
@@ -81,8 +82,8 @@ namespace CSVRender
             return;
 
         Anim::Context context{ { actor.transform() }, path, &actor.animation->bones, &mContext.mask };
-        // Every controller, as the game's Npc does with its static controllers: skins are computed by controllers that are
-        // not auto-play, and an unskinned mesh draws in pieces.
+        // Every controller, as the game's Npc does with its static controllers: skins are computed by controllers that
+        // are not auto-play, and an unskinned mesh draws in pieces.
         result.link(context, [&actor](const Anim::Controller* controller, vsg::Object* target) {
             actor.addController(controller, target);
         });

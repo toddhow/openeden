@@ -139,7 +139,8 @@ namespace CSVRender
 
         const float radius = (mExterior ? CellSize : CellSize * sInteriorScalar) / 2.f;
         Resource::ResourceSystem& resources = mHost.resources();
-        mWater = std::make_unique<Render::SimpleWater>(radius, *resources.builder, resources.textureOptions, false, true);
+        mWater
+            = std::make_unique<Render::SimpleWater>(radius, *resources.builder, resources.textureOptions, false, true);
         mWater->setEnabled(true);
         mWater->setPosition(mCenter);
         mWater->setHeight(mHeight);

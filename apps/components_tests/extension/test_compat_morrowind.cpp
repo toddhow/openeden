@@ -42,8 +42,7 @@ namespace
 
         std::vector<ProvidedService> mProvidedServices;
 
-        void provideService(
-            std::string_view contractId, openeden::sdk::Version version, void* implPointer) override
+        void provideService(std::string_view contractId, openeden::sdk::Version version, void* implPointer) override
         {
             mProvidedServices.push_back({ std::string(contractId), version, implPointer });
         }
@@ -80,7 +79,8 @@ namespace
         return map;
     }
 
-    Nif::QuaternionKeyMapPtr makeQuatKeys(Nif::InterpolationType type, const std::vector<std::pair<float, vsg::dquat>>& keys)
+    Nif::QuaternionKeyMapPtr makeQuatKeys(
+        Nif::InterpolationType type, const std::vector<std::pair<float, vsg::dquat>>& keys)
     {
         auto map = std::make_shared<Nif::QuaternionKeyMap>();
         map->mInterpolationType = type;
@@ -141,9 +141,10 @@ namespace
         return t.mRotation.value_or(vsg::dquat(-9.f, -9.f, -9.f, -9.f));
     }
 
-    // Reference cubic Hermite, written out from NifOsg::ValueInterpolator::interpolate (components/nifosg/controller.hpp).
-    vsg::vec3 hermite(const vsg::vec3& a, const vsg::vec3& aOutTan, const vsg::vec3& b, const vsg::vec3& bInTan,
-        float t)
+    // Reference cubic Hermite, written out from NifOsg::ValueInterpolator::interpolate
+    // (components/nifosg/controller.hpp).
+    vsg::vec3 hermite(
+        const vsg::vec3& a, const vsg::vec3& aOutTan, const vsg::vec3& b, const vsg::vec3& bInTan, float t)
     {
         const float t2 = t * t;
         const float t3 = t2 * t;
@@ -187,7 +188,8 @@ TEST(CompatMorrowindTest, ManifestValidation)
 
     openeden::extension::LoadError err;
     auto manifestOpt = openeden::extension::loadManifestFile(manifestPath, err);
-    ASSERT_TRUE(manifestOpt.has_value()) << "Manifest parse error: " << err.message << " at " << err.file << ":" << err.line;
+    ASSERT_TRUE(manifestOpt.has_value()) << "Manifest parse error: " << err.message << " at " << err.file << ":"
+                                         << err.line;
 
     const auto& m = *manifestOpt;
     EXPECT_EQ(m.id, "compat_morrowind");
@@ -225,7 +227,8 @@ TEST(CompatMorrowindTest, ExtensionRegistrationAndGameContract)
     EXPECT_NEAR(gameContract->getUnitsPerMeter(), 69.9912f, 0.001f);
     EXPECT_EQ(gameContract->getDefaultHumanoidSkeleton(), "meshes/base_anim.nif");
 
-    auto* kfConverter = static_cast<openeden::contracts::KfConverterContract*>(registrar.mProvidedServices[1].implPointer);
+    auto* kfConverter
+        = static_cast<openeden::contracts::KfConverterContract*>(registrar.mProvidedServices[1].implPointer);
     ASSERT_NE(kfConverter, nullptr);
 }
 
@@ -324,8 +327,7 @@ TEST(CompatMorrowindTest, KfToGltfConversionAndCreativeMotionIngestion)
 
     // 4. Test CreativeMotion Sidecar Parsing & Application
     auto sidecarLoadResult = opas::anim::loadClipSidecar(convResult.sidecarJson, "walkforward.events.json");
-    ASSERT_TRUE(sidecarLoadResult.value.has_value())
-        << "Failed to parse sidecar: " << sidecarLoadResult.error.message;
+    ASSERT_TRUE(sidecarLoadResult.value.has_value()) << "Failed to parse sidecar: " << sidecarLoadResult.error.message;
 
     opas::anim::applyClipSidecar(sidecarLoadResult.value.value(), anims.clips);
     EXPECT_EQ(anims.clips[0].events.size(), 5u);
@@ -489,7 +491,8 @@ TEST(CompatMorrowindKfTrackTest, QuaternionKeysSlerp)
     expectQuatNear(rotationAt(track, 0.f), q0);
     expectQuatNear(rotationAt(track, 2.f), q1);
     expectQuatNear(rotationAt(track, 1.f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
-    expectQuatNear(rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.25f, vsg::vec3(0.f, 0.f, 1.f)));
+    expectQuatNear(
+        rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.25f, vsg::vec3(0.f, 0.f, 1.f)));
 
     const vsg::dquat expected = Misc::VsgMath::slerp(0.3f, q1, q2);
     expectQuatNear(rotationAt(track, 2.3f), expected);
@@ -554,8 +557,8 @@ TEST(CompatMorrowindKfTrackTest, XyzRotationKeysCombineInZyxOrder)
 
     // The order matters for these angles, so the test can tell ZYX from XYZ
     const vsg::dquat other = xyz(0.5f, 0.5f, -0.4f, xyzOrder);
-    EXPECT_GT(std::abs(expected.x - other.x) + std::abs(expected.y - other.y)
-            + std::abs(expected.z - other.z) + std::abs(expected.w - other.w),
+    EXPECT_GT(std::abs(expected.x - other.x) + std::abs(expected.y - other.y) + std::abs(expected.z - other.z)
+            + std::abs(expected.w - other.w),
         1e-3f);
 }
 
@@ -581,7 +584,8 @@ TEST(CompatMorrowindKfTrackTest, SingleAxisRotationKeysTreatMissingAxesAsZero)
 
     EXPECT_TRUE(track.hasRotation());
     EXPECT_FALSE(track.hasTranslation());
-    expectQuatNear(rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
+    expectQuatNear(
+        rotationAt(track, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
     EXPECT_FALSE(track.getTransform(0.5f).mTranslation.has_value());
 }
 
@@ -652,7 +656,8 @@ TEST(CompatMorrowindKfTrackTest, TrackSharesKeyMapsAndOutlivesTheRecords)
 {
     auto translations = makeVec3Keys(
         Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(0.f, 0.f, 0.f) }, { 1.f, vsg::vec3(2.f, 0.f, 0.f) } });
-    auto rotations = makeQuatKeys(Nif::InterpolationType_Linear, { { 0.f, Misc::VsgMath::makeRotateFromAxis(0.4f, vsg::vec3(0.f, 0.f, 1.f)) } });
+    auto rotations = makeQuatKeys(
+        Nif::InterpolationType_Linear, { { 0.f, Misc::VsgMath::makeRotateFromAxis(0.4f, vsg::vec3(0.f, 0.f, 1.f)) } });
 
     compat_morrowind::KfTrack track;
     {
@@ -847,8 +852,9 @@ TEST(CompatMorrowindLoadKfTest, ReadsTextKeysAndTracksByBoneName)
     pelvis.mTranslations = makeVec3Keys(
         Nif::InterpolationType_Linear, { { 0.f, vsg::vec3(0.f, 0.f, 0.f) }, { 1.f, vsg::vec3(0.f, 10.f, 0.f) } });
     Nif::NiKeyframeData& spine = kf.addBone("Bip01 Spine");
-    spine.mRotations = makeQuatKeys(
-        Nif::InterpolationType_Linear, { { 0.f, Misc::VsgMath::makeRotateFromAxis(0.f, vsg::vec3(0.f, 0.f, 1.f)) }, { 1.f, Misc::VsgMath::makeRotateFromAxis(kHalfPi, vsg::vec3(0.f, 0.f, 1.f)) } });
+    spine.mRotations = makeQuatKeys(Nif::InterpolationType_Linear,
+        { { 0.f, Misc::VsgMath::makeRotateFromAxis(0.f, vsg::vec3(0.f, 0.f, 1.f)) },
+            { 1.f, Misc::VsgMath::makeRotateFromAxis(kHalfPi, vsg::vec3(0.f, 0.f, 1.f)) } });
 
     const compat_morrowind::KfAnimation anim = compat_morrowind::loadKfAnimation(kf.view());
 
@@ -870,7 +876,8 @@ TEST(CompatMorrowindLoadKfTest, ReadsTextKeysAndTracksByBoneName)
     const auto& spineTrack = anim.mTracks.at("Bip01 Spine");
     EXPECT_FALSE(spineTrack.hasTranslation());
     EXPECT_TRUE(spineTrack.hasRotation());
-    expectQuatNear(rotationAt(spineTrack, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
+    expectQuatNear(
+        rotationAt(spineTrack, 0.5f), Misc::VsgMath::makeRotateFromAxis(kHalfPi * 0.5f, vsg::vec3(0.f, 0.f, 1.f)));
 }
 
 TEST(CompatMorrowindLoadKfTest, NoSequenceStreamHelperRootGivesEmptyAnimation)

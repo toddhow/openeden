@@ -25,13 +25,13 @@
 #include "cellborder.hpp"
 #include "cellmarker.hpp"
 #include "cellwater.hpp"
-#include "terrainstorage.hpp"
 #include "instancedragmodes.hpp"
 #include "mask.hpp"
 #include "object.hpp"
-#include "pathgrid.hpp"
 #include "objectmarker.hpp"
+#include "pathgrid.hpp"
 #include "scenehost.hpp"
+#include "terrainstorage.hpp"
 #include "worldspacewidget.hpp"
 
 #include <apps/opencs/model/world/cell.hpp>
@@ -139,7 +139,8 @@ void CSVRender::Cell::updateLand()
     }
     mTerrain->clearCache();
 
-    // One cell's bounds in one batch: the alteration hooks of TerrainStorage do not know which cell they are asked about.
+    // One cell's bounds in one batch: the alteration hooks of TerrainStorage do not know which cell they are asked
+    // about.
     if (auto compile = mTerrain->updateViewForCell(
             *mTerrainView, vsg::ivec2(esmLand.mX, esmLand.mY), mTerrainStorage->cellWorldSize))
         compile->operate();
@@ -151,8 +152,9 @@ void CSVRender::Cell::updateLand()
         mCellBorder = std::make_unique<CellBorder>(mHost, *mCellNode, mCoordinates);
 
     mCellBorder->buildShape(esmLand);
-    Log(Debug::Debug) << "Terrain of " << mId.getRefIdString() << " rebuilt in "
-                      << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - rebuildStart).count() << " ms";
+    Log(Debug::Debug)
+        << "Terrain of " << mId.getRefIdString() << " rebuilt in "
+        << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - rebuildStart).count() << " ms";
     mHost.requestRedraw();
 }
 
@@ -259,8 +261,7 @@ void CSVRender::Cell::frameUpdate(float dt)
 
 bool CSVRender::Cell::isAnimated() const
 {
-    return std::any_of(mObjects.begin(), mObjects.end(),
-        [](const auto& entry) { return entry.second->isAnimated(); });
+    return std::any_of(mObjects.begin(), mObjects.end(), [](const auto& entry) { return entry.second->isAnimated(); });
 }
 
 std::vector<vsg::dvec3> CSVRender::Cell::getObjectPositions() const
@@ -612,8 +613,8 @@ void CSVRender::Cell::selectWithinDistance(const vsg::dvec3& point, float distan
             object.second->setSelected(false);
 
         const ESM::Position position = object.second->getPosition();
-        const float distanceFromObject = static_cast<float>(
-            vsg::length(point - vsg::dvec3(position.pos[0], position.pos[1], position.pos[2])));
+        const float distanceFromObject
+            = static_cast<float>(vsg::length(point - vsg::dvec3(position.pos[0], position.pos[1], position.pos[2])));
         if (distanceFromObject < distance)
             handleSelectDrag(object.second, dragMode);
     }

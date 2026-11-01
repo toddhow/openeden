@@ -34,7 +34,7 @@ namespace MWRender
 
         auto [anim, node] = MWAnim::Effect::load(mContext, mContext.readNode(model), textureOverride, !isMagicVFX);
         transform->children = { node };
-        effect.compile(anim, transform, { transform }, { node.get() } );
+        effect.compile(anim, transform, { transform }, { node.get() });
 
         effect.attachTo(mNode.get());
         mEffects->effects.push_back(effect);

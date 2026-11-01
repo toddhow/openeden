@@ -1,7 +1,7 @@
 // vsgopenmw-unity-build
 
-#include <sstream>
 #include <optional>
+#include <sstream>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"

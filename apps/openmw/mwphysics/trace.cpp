@@ -25,14 +25,12 @@ namespace MWPhysics
         {
             const JPH::Body& actorBody = lock.GetBody();
             const Actor* actorPtr = Misc::Convert::toPointerFromUserData<Actor>(actorBody.GetUserData());
-            const JPH::ShapeRefC shapeRef = (actorPtr && actorPtr->getMovementShape())
-                ? actorPtr->getMovementShape()
-                : actorBody.GetShape();
+            const JPH::ShapeRefC shapeRef
+                = (actorPtr && actorPtr->getMovementShape()) ? actorPtr->getMovementShape() : actorBody.GetShape();
             const JPH::RMat44& trans = actorBody.GetWorldTransform();
 
-            JPH::RMat44 transFrom = (actorPtr && actorPtr->isMovementRotationallyInvariant())
-                ? JPH::RMat44::sTranslation(from)
-                : trans;
+            JPH::RMat44 transFrom
+                = (actorPtr && actorPtr->isMovementRotationallyInvariant()) ? JPH::RMat44::sTranslation(from) : trans;
             transFrom.SetTranslation(from);
 
             // Convex shapes (actors) should always check backfaces. Triangle behavior depends on query type.

@@ -21,7 +21,6 @@
 
 #include <DetourNavMesh.h>
 
-
 #include <gtest/gtest.h>
 
 #include <limits>

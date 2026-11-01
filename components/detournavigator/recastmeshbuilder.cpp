@@ -278,8 +278,8 @@ namespace DetourNavigator
         if (!intersection.has_value())
             return;
 
-        const vsg::vec3 shift = PhysicsSystemHelpers::getHeightfieldShift(
-            cellPosition.x, cellPosition.y, cellSize, minHeight, maxHeight);
+        const vsg::vec3 shift
+            = PhysicsSystemHelpers::getHeightfieldShift(cellPosition.x, cellPosition.y, cellSize, minHeight, maxHeight);
         const float stepSize = getHeightfieldScale(cellSize, size);
         const float halfCellSize = static_cast<float>(cellSize) * 0.5f;
         const auto local = [&](float v, float axisShift) { return (v - axisShift + halfCellSize) / stepSize; };
@@ -332,10 +332,10 @@ namespace DetourNavigator
         const JPH::Shape& shape, const vsg::dmat4& transform, TriangleProcessFunc& processTriangle)
     {
         const JPH::AABox bounds = shape.GetLocalBounds();
-        const JPH::Vec3 boundsMin(mBounds.mMin.x, mBounds.mMin.y,
-            -std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
-        const JPH::Vec3 boundsMax(mBounds.mMax.x, mBounds.mMax.y,
-            std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
+        const JPH::Vec3 boundsMin(
+            mBounds.mMin.x, mBounds.mMin.y, -std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
+        const JPH::Vec3 boundsMax(
+            mBounds.mMax.x, mBounds.mMax.y, std::numeric_limits<float>::max() * std::numeric_limits<float>::epsilon());
 
         // Convert to a world space triangle set
         auto walkerFunc = [&](JPH::Float3* batchVertices, int triangleCount, int firstTriangleIndex) {

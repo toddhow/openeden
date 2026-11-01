@@ -6,8 +6,8 @@
 
 namespace Pipeline
 {
-    /// openeden-vsg: with maps, the shaders are compiled with TERRAIN_MAPS and the layout gains the normal map array and
-    /// the layer flags (task 0012, V4i).
+    /// openeden-vsg: with maps, the shaders are compiled with TERRAIN_MAPS and the layout gains the normal map array
+    /// and the layer flags (task 0012, V4i).
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps = false);
 }
 

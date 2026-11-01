@@ -41,8 +41,8 @@ namespace DetourNavigator
         return makeTilesPositionsRange(bounds.mMin, bounds.mMax, settings);
     }
 
-    TilesPositionsRange makeTilesPositionsRange(const JPH::Shape& shape, const vsg::dmat4& transform,
-        const TileBounds& bounds, const RecastSettings& settings)
+    TilesPositionsRange makeTilesPositionsRange(
+        const JPH::Shape& shape, const vsg::dmat4& transform, const TileBounds& bounds, const RecastSettings& settings)
     {
         if (const auto intersection = getIntersection(bounds, makeObjectTileBounds(shape, transform)))
             return makeTilesPositionsRange(intersection->mMin, intersection->mMax, settings);

@@ -280,8 +280,8 @@ namespace
         const JPH::BodyID staticBody = world.addBox(kUnitBoxHalfExtents, JPH::RVec3(3.0, 0.0, 0.0));
         const JPH::BodyID dynamicBody = world.addBox(kUnitBoxHalfExtents, JPH::RVec3(6.0, 1.0, 0.0), kLayerMoving,
             JPH::EMotionType::Dynamic, JPH::Quat::sIdentity(), JPH::EActivation::Activate);
-        const JPH::BodyID sleepingBody = world.addBox(
-            kUnitBoxHalfExtents, JPH::RVec3(9.0, 2.0, 0.0), kLayerMoving, JPH::EMotionType::Dynamic);
+        const JPH::BodyID sleepingBody
+            = world.addBox(kUnitBoxHalfExtents, JPH::RVec3(9.0, 2.0, 0.0), kLayerMoving, JPH::EMotionType::Dynamic);
         world.bodies().SetLinearAndAngularVelocity(
             dynamicBody, JPH::Vec3(1.0f, 2.0f, 3.0f), JPH::Vec3(0.1f, 0.2f, 0.3f));
         const std::array jphIds{ staticBody, dynamicBody, sleepingBody };
@@ -308,7 +308,8 @@ namespace
             EXPECT_TRUE(service.castShape(SphereShape{ 0.5f }, PhysicsQuat{}, kOrigin, kTenMetersX).has_value());
             EXPECT_TRUE(
                 service.castShape(BoxShape{ { 0.5f, 0.5f, 0.5f } }, PhysicsQuat{}, kOrigin, kTenMetersX).has_value());
-            EXPECT_TRUE(service.castShape(CapsuleShape{ 0.5f, 0.25f }, PhysicsQuat{}, kOrigin, kTenMetersX).has_value());
+            EXPECT_TRUE(
+                service.castShape(CapsuleShape{ 0.5f, 0.25f }, PhysicsQuat{}, kOrigin, kTenMetersX).has_value());
             service.publishQueryMask("static", kMaskStatic);
             EXPECT_EQ(service.queryMask("static"), kMaskStatic);
         }
@@ -335,8 +336,8 @@ namespace
         // A box 70 world units from the origin, half extent 7, at 10 world units per meter.
         constexpr float kUnitsPerMeter = 10.0f;
         TestWorld world;
-        const JPH::BodyID box = world.addBox(JPH::Vec3(7.0f, 7.0f, 7.0f), JPH::RVec3(70.0, 0.0, 0.0), kLayerMoving,
-            JPH::EMotionType::Dynamic);
+        const JPH::BodyID box = world.addBox(
+            JPH::Vec3(7.0f, 7.0f, 7.0f), JPH::RVec3(70.0, 0.0, 0.0), kLayerMoving, JPH::EMotionType::Dynamic);
         world.bodies().SetLinearVelocity(box, JPH::Vec3(20.0f, 0.0f, 0.0f));
         const PhysicsServiceImpl service(world.system(), kUnitsPerMeter);
 
@@ -376,8 +377,8 @@ namespace
         // One triangle in the plane x = 3, its front facing -X (Jolt: counter-clockwise from the front).
         TestWorld world;
         JPH::TriangleList triangles;
-        triangles.push_back(JPH::Triangle(JPH::Float3(3.0f, -5.0f, -5.0f), JPH::Float3(3.0f, 5.0f, -5.0f),
-            JPH::Float3(3.0f, 0.0f, 5.0f)));
+        triangles.push_back(JPH::Triangle(
+            JPH::Float3(3.0f, -5.0f, -5.0f), JPH::Float3(3.0f, 5.0f, -5.0f), JPH::Float3(3.0f, 0.0f, 5.0f)));
         JPH::MeshShapeSettings mesh(triangles);
         const JPH::BodyCreationSettings settings(
             mesh.Create().Get(), JPH::RVec3::sZero(), JPH::Quat::sIdentity(), JPH::EMotionType::Static, kLayerStatic);
@@ -511,7 +512,8 @@ namespace
     TEST(PhysicsServiceTest, BatchReadStopsAtTheShorterSpan)
     {
         TestWorld world;
-        const std::array ids{ PhysicsServiceImpl::toBodyId(world.addBox(kUnitBoxHalfExtents, JPH::RVec3(1.0, 0.0, 0.0))),
+        const std::array ids{ PhysicsServiceImpl::toBodyId(
+                                  world.addBox(kUnitBoxHalfExtents, JPH::RVec3(1.0, 0.0, 0.0))),
             PhysicsServiceImpl::toBodyId(world.addBox(kUnitBoxHalfExtents, JPH::RVec3(2.0, 0.0, 0.0))),
             PhysicsServiceImpl::toBodyId(world.addBox(kUnitBoxHalfExtents, JPH::RVec3(3.0, 0.0, 0.0))) };
         const PhysicsServiceImpl service(world.system());
@@ -743,9 +745,10 @@ namespace
     TEST(PhysicsServiceTest, QueryMasksFilterRaysAndShapesByObjectLayer)
     {
         TestWorld world;
-        const BodyId staticBody = PhysicsServiceImpl::toBodyId(world.addBox(kUnitBoxHalfExtents, JPH::RVec3(3.0, 0.0, 0.0)));
-        const BodyId movingBody = PhysicsServiceImpl::toBodyId(world.addBox(
-            kUnitBoxHalfExtents, JPH::RVec3(6.0, 0.0, 0.0), kLayerMoving, JPH::EMotionType::Kinematic));
+        const BodyId staticBody
+            = PhysicsServiceImpl::toBodyId(world.addBox(kUnitBoxHalfExtents, JPH::RVec3(3.0, 0.0, 0.0)));
+        const BodyId movingBody = PhysicsServiceImpl::toBodyId(
+            world.addBox(kUnitBoxHalfExtents, JPH::RVec3(6.0, 0.0, 0.0), kLayerMoving, JPH::EMotionType::Kinematic));
         const PhysicsServiceImpl service(world.system());
 
         const auto ray = [&](QueryMask mask) { return service.castRay(kOrigin, kTenMetersX, BodyId{}, mask); };
@@ -900,7 +903,8 @@ namespace
         expectVecNear(standing->normal, { 0.0f, 0.0f, 1.0f }, kNormalTolerance);
 
         // Turning about Z leaves the long axis where it is.
-        const auto spun = service.castShape(capsule, PhysicsQuat{ 0.0f, 0.0f, kSinHalf90, kSinHalf90 }, start, kTenMetersDownZ);
+        const auto spun
+            = service.castShape(capsule, PhysicsQuat{ 0.0f, 0.0f, kSinHalf90, kSinHalf90 }, start, kTenMetersDownZ);
         ASSERT_TRUE(spun.has_value());
         EXPECT_NEAR(spun->fraction, standingFraction, kFractionTolerance);
 
@@ -989,8 +993,8 @@ namespace
         EXPECT_NEAR(sphere->fraction, 0.2499f, kFractionTolerance);
 
         // Laid along X by 90 degrees about Y: half length 0.001 + 0.001
-        const auto capsule = service.castShape(CapsuleShape{ 0.001f, 0.001f },
-            PhysicsQuat{ 0.0f, kSinHalf90, 0.0f, kSinHalf90 }, kOrigin, kTenMetersX);
+        const auto capsule = service.castShape(
+            CapsuleShape{ 0.001f, 0.001f }, PhysicsQuat{ 0.0f, kSinHalf90, 0.0f, kSinHalf90 }, kOrigin, kTenMetersX);
         ASSERT_TRUE(capsule.has_value());
         EXPECT_NEAR(capsule->fraction, 0.2498f, kFractionTolerance);
     }

@@ -339,8 +339,8 @@ float omw_EstimateFogCoverageFromUV(vec2 uv)
             options.radialFog ? 1 : 0, options.exponentialFog ? 1 : 0);
         out.fragment += samplers;
         out.fragment += constants;
-        out.fragment += std::format(
-            "layout(std140, set=0, binding={}) uniform _data {{\n    _omw_data omw;\n{}}};\n", int(VulkanBinding_Uniforms), members);
+        out.fragment += std::format("layout(std140, set=0, binding={}) uniform _data {{\n    _omw_data omw;\n{}}};\n",
+            int(VulkanBinding_Uniforms), members);
         out.fragment += sHelpers;
         out.fragment += technique.getShared();
         out.fragment += '\n';

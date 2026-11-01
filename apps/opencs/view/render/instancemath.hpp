@@ -11,8 +11,8 @@
 
 #include <components/misc/vsgmath.hpp>
 
-/// The sums of InstanceMode, with no window, so that openmw-cs-tests can check them. vsg::dquat's a * b means a, then b, as
-/// osg::Quat's did: its formula is OSG's (vsg/maths/quat.h).
+/// The sums of InstanceMode, with no window, so that openmw-cs-tests can check them. vsg::dquat's a * b means a, then
+/// b, as osg::Quat's did: its formula is OSG's (vsg/maths/quat.h).
 namespace CSVRender::InstanceMath
 {
     inline vsg::vec3 quatToEuler(const vsg::dquat& rot)
@@ -81,28 +81,30 @@ namespace CSVRender::InstanceMath
         euler = quatToEuler(eulerToQuat(euler) * rotation);
     }
 
-    /// Where a point is in the picture: x and y from -1 to 1, y going down as VSG's projections have it, and z its depth,
-    /// which mousePlaneCoords takes back.
+    /// Where a point is in the picture: x and y from -1 to 1, y going down as VSG's projections have it, and z its
+    /// depth, which mousePlaneCoords takes back.
     inline vsg::vec3 projectionCoords(const vsg::dmat4& projection, const vsg::dmat4& view, const vsg::vec3& position)
     {
         return vsg::vec3(projection * (view * vsg::dvec3(position)));
     }
 
-    /// The world's point at a place in the picture, where (0, 0) is its top left and (1, 1) its bottom right, at a depth
-    /// from projectionCoords.
-    inline vsg::vec3 mousePlaneCoords(const vsg::dmat4& projection, const vsg::dmat4& view, double x, double y, double depth)
+    /// The world's point at a place in the picture, where (0, 0) is its top left and (1, 1) its bottom right, at a
+    /// depth from projectionCoords.
+    inline vsg::vec3 mousePlaneCoords(
+        const vsg::dmat4& projection, const vsg::dmat4& view, double x, double y, double depth)
     {
         return vsg::vec3(
             vsg::inverse(view) * (vsg::inverse(projection) * vsg::dvec3(x * 2.0 - 1.0, y * 2.0 - 1.0, depth)));
     }
 
-    /// In pixels of a window of this size, with y counted from the bottom, as OSG's window matrix did and as drag() expects.
+    /// In pixels of a window of this size, with y counted from the bottom, as OSG's window matrix did and as drag()
+    /// expects.
     inline vsg::vec3 windowCoords(
         const vsg::dmat4& projection, const vsg::dmat4& view, const vsg::vec3& position, int width, int height)
     {
         const vsg::vec3 ndc = projectionCoords(projection, view, position);
-        return vsg::vec3((ndc.x + 1.f) * 0.5f * static_cast<float>(width), (1.f - ndc.y) * 0.5f * static_cast<float>(height),
-            ndc.z);
+        return vsg::vec3(
+            (ndc.x + 1.f) * 0.5f * static_cast<float>(width), (1.f - ndc.y) * 0.5f * static_cast<float>(height), ndc.z);
     }
 }
 

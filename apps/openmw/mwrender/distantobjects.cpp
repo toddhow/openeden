@@ -4,8 +4,8 @@
 #include <map>
 
 #include <vsg/commands/Dispatch.h>
-#include <vsg/nodes/CullGroup.h>
 #include <vsg/core/Visitor.h>
+#include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/threading/OperationThreads.h>
@@ -47,11 +47,14 @@ namespace MWRender
                 if (!found)
                     object.traverse(*this);
             }
-            void apply(vsg::Command& command) override { found = found || dynamic_cast<vsg::Dispatch*>(&command) != nullptr; }
+            void apply(vsg::Command& command) override
+            {
+                found = found || dynamic_cast<vsg::Dispatch*>(&command) != nullptr;
+            }
         };
 
-        // Switches off a NIF particle system's switch. Nothing here runs the particles' controllers (MWAnim::create does
-        // for placed objects), and these models are read from this object's own cache, so changing them is safe.
+        // Switches off a NIF particle system's switch. Nothing here runs the particles' controllers (MWAnim::create
+        // does for placed objects), and these models are read from this object's own cache, so changing them is safe.
         class HideParticles : public vsg::Visitor
         {
         public:
@@ -179,7 +182,8 @@ namespace MWRender
                 auto lod = vsgUtil::DistanceLOD::create();
                 lod->center = vsg::vec3(modelBound.center);
                 // The range is in the transform's units, which the scale above it divides distance by.
-                lod->ranges = { { 0.f, distantObjectMaxDistance(static_cast<float>(modelBound.radius), 1.f, minSize) } };
+                lod->ranges
+                    = { { 0.f, distantObjectMaxDistance(static_cast<float>(modelBound.radius), 1.f, minSize) } };
                 lod->addChild(prototype);
                 transform->addChild(lod);
                 objects->addChild(transform);

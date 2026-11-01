@@ -25,7 +25,8 @@ namespace MWBase
         virtual void cellChanged(std::string_view name) = 0;
         virtual void actorDied(const MWWorld::Ptr& actor) = 0;
         virtual void actorRevived(const MWWorld::Ptr& actor) = 0;
-        virtual void actorHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, float damage, bool successful) = 0;
+        virtual void actorHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, float damage, bool successful)
+            = 0;
         virtual void gameLoaded() = 0;
         virtual void playerRebuilt(const MWWorld::Ptr& player) = 0;
         virtual void gameSaved() = 0;

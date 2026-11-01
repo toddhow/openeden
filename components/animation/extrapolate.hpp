@@ -1,9 +1,9 @@
 #ifndef VSGOPENMW_ANIMATION_EXTRAPOLATE_H
 #define VSGOPENMW_ANIMATION_EXTRAPOLATE_H
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <algorithm>
 
 #include "channel.hpp"
 
@@ -85,7 +85,8 @@ namespace Anim
     }
 
     template <class T>
-    channel_ptr<T> makeExtrapolator(channel_ptr<T> channel, const ExtrapolationSettings& settings, ExtrapolationMode mode)
+    channel_ptr<T> makeExtrapolator(
+        channel_ptr<T> channel, const ExtrapolationSettings& settings, ExtrapolationMode mode)
     {
         if (mode == ExtrapolationMode::Constant)
             return makeExtrapolator<T, ExtrapolationMode::Constant>(channel, settings);

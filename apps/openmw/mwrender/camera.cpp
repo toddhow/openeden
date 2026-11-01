@@ -27,8 +27,7 @@ namespace MWRender
     Camera::Camera()
         : mHeightScale(1.f)
         , mCollisionType(
-              (MWPhysics::CollisionMask_Default & ~MWPhysics::Layers::ACTOR)
-              | MWPhysics::Layers::CAMERA_ONLY)
+              (MWPhysics::CollisionMask_Default & ~MWPhysics::Layers::ACTOR) | MWPhysics::Layers::CAMERA_ONLY)
         , mAnimation(nullptr)
         , mFirstPersonView(true)
         , mMode(Mode::FirstPerson)
@@ -106,8 +105,7 @@ namespace MWRender
     vsg::dvec3 Camera::calculateFirstPersonPosition(const vsg::dvec3& trackedPosition) const
     {
         vsg::dvec3 res = trackedPosition;
-        vsg::vec2 horizontalOffset
-            = Misc::rotateVec2f(vsg::vec2(mFirstPersonOffset.x, mFirstPersonOffset.y), mYaw);
+        vsg::vec2 horizontalOffset = Misc::rotateVec2f(vsg::vec2(mFirstPersonOffset.x, mFirstPersonOffset.y), mYaw);
         res.x += horizontalOffset.x;
         res.y += horizontalOffset.y;
         res.z += mFirstPersonOffset.z;
@@ -135,7 +133,7 @@ namespace MWRender
         vsg::dvec3 focalOffset = getFocalPointOffset();
         vsg::dvec3 focal = mTrackedPosition + focalOffset;
         focalOffset.z += 10.f; // Needed to avoid camera clipping through the ceiling because
-                                 // character's head can be a bit higher than the collision area.
+                               // character's head can be a bit higher than the collision area.
         float offsetLen = vsg::length(focalOffset);
         if (offsetLen > 0)
         {
@@ -155,8 +153,8 @@ namespace MWRender
         vsg::dquat orient = Misc::VsgMath::makeRotateFromAxis(mPitch + mExtraPitch, vsg::dvec3(1, 0, 0))
             * Misc::VsgMath::makeRotateFromAxis(mYaw + mExtraYaw, vsg::dvec3(0, 0, 1));
         vsg::dvec3 offset = orient * vsg::dvec3(0.f, -mCameraDistance, 0.f);
-        MWPhysics::RayCastingResult result = rayCasting->castSphere(
-            vsg::vec3(focal), vsg::vec3(focal + offset), cameraObstacleLimit, mCollisionType);
+        MWPhysics::RayCastingResult result
+            = rayCasting->castSphere(vsg::vec3(focal), vsg::vec3(focal + offset), cameraObstacleLimit, mCollisionType);
         if (result.mHit)
         {
             mCameraDistance
@@ -167,7 +165,8 @@ namespace MWRender
         mPosition = focal + offset;
     }
 
-    // openeden-vsg: OpenMW 0.51's camera orientation, used by World for the sound listener (Settings::sound().mCameraListener).
+    // openeden-vsg: OpenMW 0.51's camera orientation, used by World for the sound listener
+    // (Settings::sound().mCameraListener).
     vsg::dquat Camera::getOrient() const
     {
         return Misc::VsgMath::makeRotateFromAxis(mRoll + mExtraRoll, vsg::dvec3(0, 1, 0))
@@ -230,8 +229,7 @@ namespace MWRender
         if (mPreviousTransitionInfluence > 0)
         {
             mFocalPointCurrentOffset -= mPreviousExtraOffset;
-            mPreviousExtraOffset
-                = Misc::VsgMath::divide(mPreviousExtraOffset, mPreviousTransitionInfluence)
+            mPreviousExtraOffset = Misc::VsgMath::divide(mPreviousExtraOffset, mPreviousTransitionInfluence)
                 + mPreviousTransitionSpeed * duration;
             mPreviousTransitionInfluence
                 = std::max(0.f, mPreviousTransitionInfluence - duration * mFocalPointTransitionSpeedCoef);

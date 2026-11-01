@@ -3,7 +3,6 @@
 
 #include <components/misc/vsgmath.hpp>
 
-
 #include "navigator.hpp"
 #include "settings.hpp"
 #include "stats.hpp"

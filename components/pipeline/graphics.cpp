@@ -77,8 +77,8 @@ namespace Pipeline
     CoverageModes coverageModes(const Options& key, bool alphaToCoverage, bool adjustCoverage)
     {
         // OpenMW's ShaderVisitor::createProgram: only when the alpha func is not ALWAYS and there is no blending.
-        const bool applies = key.alphaTestMode != 0 && !key.blend && key.shader.path.empty()
-            && key.shader.hasMode(Mode::MATERIAL);
+        const bool applies
+            = key.alphaTestMode != 0 && !key.blend && key.shader.path.empty() && key.shader.hasMode(Mode::MATERIAL);
         return { applies && alphaToCoverage, applies && adjustCoverage };
     }
 
@@ -89,21 +89,34 @@ namespace Pipeline
          * A fixed layout may allow the implementation to cheaply switch pipelines without reprogramming the bindings.
          */
         vsg::DescriptorSetLayoutBindings descriptorBindings = {
-            { Descriptors::MATERIAL_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::PARTICLE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr },
+            { Descriptors::MATERIAL_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::PARTICLE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT,
+                nullptr },
             { Descriptors::MORPH_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr },
-            { Descriptors::MORPH_WEIGHTS_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr },
+            { Descriptors::MORPH_WEIGHTS_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT,
+                nullptr },
             { Descriptors::BONE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr },
-            { Descriptors::DIFFUSE_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::DARK_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::DETAIL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::DECAL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::GLOW_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::BUMP_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::ENV_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::NORMAL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::SPECULAR_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::OCCLUSION_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::DIFFUSE_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::DARK_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::DETAIL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::DECAL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::GLOW_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::BUMP_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::ENV_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::NORMAL_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::SPECULAR_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::OCCLUSION_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
             { Descriptors::TEXMAT_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr }
         };
 
@@ -118,7 +131,8 @@ namespace Pipeline
 
     Graphics::~Graphics() {}
 
-    vsg::ref_ptr<vsg::ShaderStage> Graphics::createShaderStage(const ShaderOptions& key, const std::string& suffix) const
+    vsg::ref_ptr<vsg::ShaderStage> Graphics::createShaderStage(
+        const ShaderOptions& key, const std::string& suffix) const
     {
         auto compileSettings = vsg::ShaderCompileSettings::create();
         for (size_t i = 0; i < key.modes.size(); ++i)
@@ -130,7 +144,7 @@ namespace Pipeline
         if (path.empty())
             path = "default";
         auto shaderStage = vsgUtil::readShader(path + suffix, mShaderOptions);
-        //if (!compileSettings->defines.empty())
+        // if (!compileSettings->defines.empty())
         {
             shaderStage = vsg::ShaderStage::create(*shaderStage);
             shaderStage->module = vsg::ShaderModule::create(*shaderStage->module);
@@ -172,7 +186,8 @@ namespace Pipeline
             fragmentStageOptions.addMode(Mode::ADJUST_COVERAGE);
         auto fragmentStage = mFragmentStageCache.getOrCreate(fragmentStageOptions, *this);
 
-        vsg::ShaderStages shaders = { vsg::ShaderStage::create(*vertexStage), vsg::ShaderStage::create(*fragmentStage) };
+        vsg::ShaderStages shaders
+            = { vsg::ShaderStage::create(*vertexStage), vsg::ShaderStage::create(*fragmentStage) };
 
         auto numUvSets = key.numUvSets;
         vsg::ShaderStage::SpecializationConstants specConstants = { { 0, vsg::intValue::create(numUvSets) } };
@@ -271,8 +286,8 @@ namespace Pipeline
         colorBlendAttachment.blendEnable = key.blend;
         if (key.colorWrite)
         {
-            colorBlendAttachment.colorWriteMask
-                = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+            colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
+                | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         }
         if (key.blend)
         {
@@ -300,7 +315,6 @@ namespace Pipeline
             rasterState->depthBiasConstantFactor = 10000;
             rasterState->depthBiasSlopeFactor = 10000;
         }
-
 
         vsg::GraphicsPipelineStates pipelineStates{ vsg::VertexInputState::create(
                                                         vertexBindingsDescriptions, vertexAttributeDescriptions),

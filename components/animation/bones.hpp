@@ -44,8 +44,10 @@ namespace Anim
         ~Bones();
 
         /*
-         * Specifies whether bone nodes are initially attached to each other. If set to false, all bones' children are initially empty and their hierarchy can only be obtained from the BonePath member.
-         * @note Attaching only required bones as needed can reduce the size of the scene graph that needs to be traversed each frame.
+         * Specifies whether bone nodes are initially attached to each other. If set to false, all bones' children are
+         * initially empty and their hierarchy can only be obtained from the BonePath member.
+         * @note Attaching only required bones as needed can reduce the size of the scene graph that needs to be
+         * traversed each frame.
          */
         const bool attached;
 
@@ -67,8 +69,8 @@ namespace Anim
 
         Bone* search(const std::string& name);
 
-        /// openeden-vsg: adds detached copies of the custom bones in \p graph, each under the existing bone named as its
-        /// parent in that graph. A bone already present stays as it is (task 0012).
+        /// openeden-vsg: adds detached copies of the custom bones in \p graph, each under the existing bone named as
+        /// its parent in that graph. A bone already present stays as it is (task 0012).
         void addCustomBones(const vsg::Node& graph);
 
         /// openeden-vsg: visits every bone with its normalized name, in no particular order (task 0011).

@@ -15,10 +15,7 @@ namespace MWState
                 : loading(in_loading)
             {
             }
-            void operate() override
-            {
-                loading->threadLoad();
-            }
+            void operate() override { loading->threadLoad(); }
         };
     }
 

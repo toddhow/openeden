@@ -3,21 +3,22 @@
 #include <functional>
 
 #include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 #include "../mwbase/statemanager.hpp"
+#include "../mwbase/windowmanager.hpp"
 #include "../mwworld/worldmodel.hpp"
 
 #include <components/esm/refid.hpp>
 
-#include "preloadcell.hpp"
-#include "operation.hpp"
 #include "loadingscreen.hpp"
+#include "operation.hpp"
+#include "preloadcell.hpp"
 
 namespace MWState
 {
     class ChangeCell : public Operation
     {
         MWWorld::Scene& mScene;
+
     public:
         ChangeCell(MWWorld::Scene& scene)
             : mScene(scene)
@@ -30,7 +31,8 @@ namespace MWState
 
         bool useFading(const MWWorld::CellStore& cellStore) const
         {
-            return (cellStore.isExterior() && changeEvent) || (!cellStore.isExterior() && mScene.getCurrentCell() != nullptr);
+            return (cellStore.isExterior() && changeEvent)
+                || (!cellStore.isExterior() && mScene.getCurrentCell() != nullptr);
         }
 
         void pushPreloadState(MWBase::StateManager& stateMgr)

@@ -8,7 +8,8 @@
 namespace Anim
 {
     /*
-     * Meta is simply a way to attach Content flags describing the subgraph, typically set on the root of an animation model.
+     * Meta is simply a way to attach Content flags describing the subgraph, typically set on the root of an animation
+     * model.
      */
     class Meta : public vsgUtil::Attachable<Meta>
     {

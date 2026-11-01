@@ -10,12 +10,12 @@ namespace Pipeline
     enum ParticleModeFlagBits : uint32_t
     {
         ParticleMode_Color = 1,
-        ParticleMode_Size = 1<<1,
-        ParticleMode_GravityPlane = 1<<2,
-        ParticleMode_GravityPoint = 1<<3,
-        ParticleMode_CollidePlane = 1<<4,
-        ParticleMode_CollideSphere = 1<<5,
-        ParticleMode_WorldSpace = 1<<6,
+        ParticleMode_Size = 1 << 1,
+        ParticleMode_GravityPlane = 1 << 2,
+        ParticleMode_GravityPoint = 1 << 3,
+        ParticleMode_CollidePlane = 1 << 4,
+        ParticleMode_CollideSphere = 1 << 5,
+        ParticleMode_WorldSpace = 1 << 6,
     };
     using ParticleModeFlags = uint32_t;
 

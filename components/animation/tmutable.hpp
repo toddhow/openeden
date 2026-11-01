@@ -24,7 +24,7 @@ namespace Anim
         void attachTo(vsg::Object& to) = delete;
         inline void attachTo(Target& to) { Controller::attachTo(to); }
 
-        template<typename... Args>
+        template <typename... Args>
         static vsg::ref_ptr<Derived> create(Args&&... args)
         {
             return vsg::ref_ptr<Derived>(new Derived(args...));

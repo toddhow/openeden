@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_VSGUTIL_PROJECTION_H
 #define VSGOPENMW_VSGUTIL_PROJECTION_H
 
-#include <vsg/vk/State.h>
 #include <vsg/app/ProjectionMatrix.h>
+#include <vsg/vk/State.h>
 
 namespace vsgUtil
 {
@@ -33,7 +33,8 @@ namespace vsgUtil
         vsg::dmat4 transform() const override
         {
             if (perspective)
-                return vsg::perspective(vsg::radians(static_cast<double>(fieldOfViewY)), perspective->aspectRatio, perspective->nearDistance, perspective->farDistance);
+                return vsg::perspective(vsg::radians(static_cast<double>(fieldOfViewY)), perspective->aspectRatio,
+                    perspective->nearDistance, perspective->farDistance);
             return {};
         }
     };

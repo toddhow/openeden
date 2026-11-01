@@ -1,16 +1,16 @@
 #ifndef VSGOPENMW_VSGADAPTERS_NIF_PARTICLE_H
 #define VSGOPENMW_VSGADAPTERS_NIF_PARTICLE_H
 
+#include <deque>
 #include <memory>
 #include <optional>
-#include <deque>
 
+#include <vsg/commands/Command.h>
 #include <vsg/core/Array.h>
 #include <vsg/core/Value.h>
-#include <vsg/commands/Command.h>
 
-#include <components/animation/deltatime.hpp>
 #include <components/animation/channel.hpp>
+#include <components/animation/deltatime.hpp>
 #include <components/animation/updatedata.hpp>
 #include <components/pipeline/particledata.hpp>
 
@@ -26,7 +26,7 @@ namespace Anim
 }
 namespace Pipeline::Data
 {
-    #include <files/shaders/comp/particle/data.glsl>
+#include <files/shaders/comp/particle/data.glsl>
 }
 namespace vsgAdapters
 {
@@ -73,6 +73,7 @@ namespace vsgAdapters
          * Stops emitting particles when the emitter node is switched off.
          */
         bool emitterVisible() const;
+
     public:
         ParticleSystem(const Nif::NiParticleSystemController& partctrl, int particleNodeIndex, bool worldSpace);
         Anim::channel_ptr<bool> active;
@@ -99,13 +100,14 @@ namespace vsgAdapters
     /// carry.
     int particlesToEmit(float& carry, float dt, float perSecond);
 
-    /// OpenEden: picks one of count emitters from a std::rand() result in [0, RAND_MAX]. The earlier rand() / RAND_MAX * count
-    /// reached count itself for RAND_MAX, one past the end of the emitter paths. count must be above 0.
+    /// OpenEden: picks one of count emitters from a std::rand() result in [0, RAND_MAX]. The earlier rand() / RAND_MAX
+    /// * count reached count itself for RAND_MAX, one past the end of the emitter paths. count must be above 0.
     size_t chooseEmitter(int randValue, size_t count);
 
     Pipeline::Data::EmitArgs handleEmitterData(const Nif::NiParticleSystemController& partctrl);
 
-    void handleInitialParticles(vsg::Array<Pipeline::Data::Particle>& array, const Nif::NiParticlesData& data, const Nif::NiParticleSystemController& partctrl);
+    void handleInitialParticles(vsg::Array<Pipeline::Data::Particle>& array, const Nif::NiParticlesData& data,
+        const Nif::NiParticleSystemController& partctrl);
 
     vsg::ref_ptr<vsg::Data> createColorCurve(const Nif::NiColorData& clrdata, int numSteps);
     vsg::ref_ptr<vsg::Command> createParticleDispatch(uint32_t numParticles);

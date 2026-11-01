@@ -44,8 +44,8 @@ namespace
     std::unique_ptr<CSVRender::RenderContext> sContext;
 
     /// vsg::Viewer::removeWindow rebuilds every task, which leaves the compile contexts uploading through a dead
-    /// TransferTask (research note 0003, section 5.4). This takes one window out of the tasks it is in and leaves them, so
-    /// a view can close while others stay, and vsgQt::Window's own cleanup comes through here too.
+    /// TransferTask (research note 0003, section 5.4). This takes one window out of the tasks it is in and leaves them,
+    /// so a view can close while others stay, and vsgQt::Window's own cleanup comes through here too.
     class SharedViewer : public vsgQt::Viewer
     {
     public:
@@ -125,7 +125,8 @@ namespace CSVRender
         // Later windows must share this device: a second one could not use the same pipelines or images.
         mTraits->device = device;
         auto physicalDevice = device->getPhysicalDevice();
-        mSampler = Render::createDefaultSampler(vsg::ref_ptr<vsg::PhysicalDevice>(const_cast<vsg::PhysicalDevice*>(physicalDevice)), supportsAnisotropy);
+        mSampler = Render::createDefaultSampler(
+            vsg::ref_ptr<vsg::PhysicalDevice>(const_cast<vsg::PhysicalDevice*>(physicalDevice)), supportsAnisotropy);
         mSupportsCompressedImages = physicalDevice->getFeatures().textureCompressionBC;
         // A debugging override shared with the game (apps/openmw/vsgengine.cpp).
         if (const char* overrideString = std::getenv("VSGOPENMW_DECOMPRESS_BC"))
@@ -138,10 +139,11 @@ namespace CSVRender
         mCompileContext->onDetached = [this](vsg::ref_ptr<vsg::Object> object) { mDeletionQueue->add(object); };
     }
 
-    vsg::ref_ptr<vsg::RenderPass> RenderContext::renderPass(vsg::Device* device, unsigned int samples, int presentLayout)
+    vsg::ref_ptr<vsg::RenderPass> RenderContext::renderPass(
+        vsg::Device* device, unsigned int samples, int presentLayout)
     {
-        // The game's createMainRenderPass (apps/openmw/mwrender/renderpass.hpp). All windows use one, so that a pipeline
-        // compiled for one view is valid in all of them.
+        // The game's createMainRenderPass (apps/openmw/mwrender/renderpass.hpp). All windows use one, so that a
+        // pipeline compiled for one view is valid in all of them.
         if (!mRenderPass)
             mRenderPass = Render::createMultisampledRenderPass(device, Render::compatibleColorFormat,
                 Render::compatibleDepthFormat, static_cast<VkSampleCountFlagBits>(samples), false, true,

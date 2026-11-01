@@ -87,9 +87,11 @@ namespace vsgAdapters
                 for (size_t i = 0; i + 2 < indices.size(); ++i)
                 {
                     if (i % 2 == 0)
-                        computeTriangle(vertices, normals, texCoords, indices[i], indices[i + 1], indices[i + 2], basis);
+                        computeTriangle(
+                            vertices, normals, texCoords, indices[i], indices[i + 1], indices[i + 2], basis);
                     else
-                        computeTriangle(vertices, normals, texCoords, indices[i + 1], indices[i], indices[i + 2], basis);
+                        computeTriangle(
+                            vertices, normals, texCoords, indices[i + 1], indices[i], indices[i + 2], basis);
                 }
             }
             else

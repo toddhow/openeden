@@ -6,14 +6,15 @@
 namespace vsgUtil
 {
     /*
-     * Adds convenience functionality to vsg::ArrayState, such as an automatically provided clone(..) implementation, based on the Curiously Recurring Template Pattern.
+     * Adds convenience functionality to vsg::ArrayState, such as an automatically provided clone(..) implementation,
+     * based on the Curiously Recurring Template Pattern.
      */
     template <class Derived>
     class ArrayState : public vsg::ArrayState
     {
     public:
-        // openeden-vsg: VSG 1.1 renamed clone, and with the old name an intersector silently got a plain ArrayState, with
-        // no vertices.
+        // openeden-vsg: VSG 1.1 renamed clone, and with the old name an intersector silently got a plain ArrayState,
+        // with no vertices.
         vsg::ref_ptr<vsg::ArrayState> cloneArrayState() override
         {
             return vsg::ref_ptr{ new Derived(static_cast<const Derived&>(*this)) };
@@ -26,7 +27,7 @@ namespace vsgUtil
             return ret;
         }
 
-        template<typename... Args>
+        template <typename... Args>
         static vsg::ref_ptr<Derived> create(Args&&... args)
         {
             return vsg::ref_ptr<Derived>(new Derived(args...));

@@ -13,8 +13,8 @@ namespace vsgUtil
     template <class Group, class Child>
     void removeChild(Group parent, Child child)
     {
-        auto found = std::find_if(parent->children.begin(), parent->children.end(),
-            [child](const auto& rhs) { return &*child == &*rhs; });
+        auto found = std::find_if(
+            parent->children.begin(), parent->children.end(), [child](const auto& rhs) { return &*child == &*rhs; });
         if (found != parent->children.end())
             parent->children.erase(found);
     }
@@ -22,8 +22,8 @@ namespace vsgUtil
     template <class Group, class Child>
     void removeSwitchChild(Group parent, Child child)
     {
-        auto found = std::find_if(parent->children.begin(), parent->children.end(),
-            [child](const auto& rhs) { return rhs.node == &*child; });
+        auto found = std::find_if(
+            parent->children.begin(), parent->children.end(), [child](const auto& rhs) { return rhs.node == &*child; });
         if (found != parent->children.end())
             parent->children.erase(found);
     }

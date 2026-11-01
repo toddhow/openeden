@@ -1,7 +1,6 @@
 #ifndef OPENMW_COMPONENTS_MISC_FINITEVALUES_HPP
 #define OPENMW_COMPONENTS_MISC_FINITEVALUES_HPP
 
-
 #include <components/lua/luastate.hpp>
 #include <components/misc/vsgmath.hpp>
 

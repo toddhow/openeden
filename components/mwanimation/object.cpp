@@ -2,12 +2,12 @@
 
 #include <vsg/nodes/StateGroup.h>
 
-#include <components/animation/transform.hpp>
 #include <components/animation/bones.hpp>
+#include <components/animation/transform.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
-#include "play.hpp"
 #include "context.hpp"
+#include "play.hpp"
 
 namespace MWAnim
 {

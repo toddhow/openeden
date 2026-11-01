@@ -1,14 +1,15 @@
 #ifndef VSGOPENMW_ARGUMENTS_H
 #define VSGOPENMW_ARGUMENTS_H
 
+#include <components/esm/refid.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/toutf8/toutf8.hpp>
-#include <components/esm/refid.hpp>
 
 namespace OMW
 {
     /*
-     * Arguments is simply a struct of options that can vary per invocation/run of the game/application, typically specified on the command line.
+     * Arguments is simply a struct of options that can vary per invocation/run of the game/application, typically
+     * specified on the command line.
      */
     struct Arguments
     {

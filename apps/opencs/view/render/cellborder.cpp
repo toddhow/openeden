@@ -52,7 +52,8 @@ void CSVRender::CellBorder::buildShape(const ESM::Land& esmLand)
     auto vertices = vsg::vec3Array::create(VertexCount);
     unsigned count = 0;
     const auto add = [&](int x, int y) {
-        const float height = landData ? landData->mHeights[landIndex(x, y)] : static_cast<float>(ESM::Land::DEFAULT_HEIGHT);
+        const float height
+            = landData ? landData->mHeights[landIndex(x, y)] : static_cast<float>(ESM::Land::DEFAULT_HEIGHT);
         vertices->at(count++) = vsg::vec3(scaleToWorld(x), scaleToWorld(y), height);
     };
 
@@ -76,8 +77,8 @@ void CSVRender::CellBorder::buildShape(const ESM::Land& esmLand)
 
     auto colours = vsg::vec4Array::create(VertexCount, vsg::vec4(0.f, 0.5f, 0.f, 1.f));
 
-    auto geometry = createColouredGeometry(
-        *mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, vertices, colours);
+    auto geometry
+        = createColouredGeometry(*mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, vertices, colours);
     mHost.compileContext()->compile(geometry);
     if (mBorderGeometry)
         mHost.compileContext()->detach(mBorderGeometry);

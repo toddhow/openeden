@@ -27,11 +27,16 @@ namespace Pipeline
     {
         vsg::ref_ptr<const vsg::Options> mShaderOptions;
         vsgUtil::RefCache<Options, vsg::BindGraphicsPipeline> mPipelineCache;
-        class VertexStageOptions : public ShaderOptions{};
-        class FragmentStageOptions : public ShaderOptions{};
+        class VertexStageOptions : public ShaderOptions
+        {
+        };
+        class FragmentStageOptions : public ShaderOptions
+        {
+        };
         vsgUtil::RefCache<VertexStageOptions, vsg::ShaderStage> mVertexStageCache;
         vsgUtil::RefCache<FragmentStageOptions, vsg::ShaderStage> mFragmentStageCache;
         vsg::ref_ptr<vsg::PipelineLayout> mLayout;
+
     public:
         Graphics(vsg::ref_ptr<const vsg::Options> readShaderOptions);
         ~Graphics();

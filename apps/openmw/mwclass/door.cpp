@@ -29,8 +29,8 @@
 
 #include "../mwgui/tooltips.hpp"
 
-#include "../mwrender/spellcastglow.hpp"
 #include "../mwrender/renderinginterface.hpp"
+#include "../mwrender/spellcastglow.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
 
@@ -131,7 +131,8 @@ namespace MWClass
                 const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
                 const ESM::MagicEffect* effect = store.get<ESM::MagicEffect>().find(ESM::MagicEffect::Telekinesis);
 
-                MWRender::addSpellCastGlow(animation, *effect, 1); // 1 second glow to match the time taken for a door opening or closing
+                MWRender::addSpellCastGlow(
+                    animation, *effect, 1); // 1 second glow to match the time taken for a door opening or closing
             }
         }
 

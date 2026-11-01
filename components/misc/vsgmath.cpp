@@ -16,9 +16,9 @@
 // http://www.acm.org/pubs/tog/GraphicsGems/gemsiv/polar_decomp
 // Copyright (C) 1993 Ken Shoemake <shoemake@graphics.cis.upenn.edu>
 
-// Moved from components/vsgadapters/osg/MatrixDecomposition.cpp, which task 0013 deletes at the end of Track V stage V5.
-// The algorithm is unchanged. Only OSG's types around it are gone: osg::Vec4d became plain numbers, and the entry point at the
-// bottom takes plain doubles.
+// Moved from components/vsgadapters/osg/MatrixDecomposition.cpp, which task 0013 deletes at the end of Track V stage
+// V5. The algorithm is unchanged. Only OSG's types around it are gone: osg::Vec4d became plain numbers, and the entry
+// point at the bottom takes plain doubles.
 
 #include "vsgmath.hpp"
 

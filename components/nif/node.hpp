@@ -108,7 +108,11 @@ namespace Nif
             Emitter = (1 << 1)
         };
         int useFlags{ 0 };
-        void setBone() { mIsBone = true; useFlags |= Bone; }
+        void setBone()
+        {
+            mIsBone = true;
+            useFlags |= Bone;
+        }
     };
 
     struct NiNode : NiAVObject
@@ -116,7 +120,7 @@ namespace Nif
         enum BSAnimFlags
         {
             AnimFlag_AutoPlay = 0x0020,
-            AnimFlag_NotRandom = 0x0040 //0x40
+            AnimFlag_NotRandom = 0x0040 // 0x40
         };
 
         enum BSParticleFlags

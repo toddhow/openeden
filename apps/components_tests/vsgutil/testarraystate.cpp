@@ -5,7 +5,8 @@
 namespace
 {
     // An intersector clones a StateGroup's prototypeArrayState through vsg::ArrayState's virtual functions (VSG 1.1,
-    // Intersector::apply(const StateGroup&)). A clone that lost the derived class would lose its vertices, with no error.
+    // Intersector::apply(const StateGroup&)). A clone that lost the derived class would lose its vertices, with no
+    // error.
     class TestState : public vsgUtil::ArrayState<TestState>
     {
     public:

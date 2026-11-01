@@ -495,7 +495,8 @@ void CS::Editor::startUiCheck()
                 return;
             }
             mViewManager->addView(document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_References), "");
-            mViewManager->addView(document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Scene, "sys::default"), hint);
+            mViewManager->addView(
+                document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Scene, "sys::default"), hint);
             Log(Debug::Info) << "UI check: views opened";
             // Repeatedly: a window that is not the document's last refuses its close event, deleting itself later, and
             // closeAllWindows stops at the first refusal.

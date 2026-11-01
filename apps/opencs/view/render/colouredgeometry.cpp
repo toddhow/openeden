@@ -48,9 +48,9 @@ vsg::ref_ptr<vsg::Node> CSVRender::wrapColouredDraw(const Pipeline::Builder& bui
     return state;
 }
 
-vsg::ref_ptr<vsg::Node> CSVRender::createColouredGeometry(const Pipeline::Builder& builder, VkPrimitiveTopology topology,
-    vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours, vsg::ref_ptr<vsg::Data> indices,
-    const ColouredOptions& options)
+vsg::ref_ptr<vsg::Node> CSVRender::createColouredGeometry(const Pipeline::Builder& builder,
+    VkPrimitiveTopology topology, vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours,
+    vsg::ref_ptr<vsg::Data> indices, const ColouredOptions& options)
 {
     if (indices)
     {
@@ -68,9 +68,9 @@ vsg::ref_ptr<vsg::Node> CSVRender::createColouredGeometry(const Pipeline::Builde
     return wrapColouredDraw(builder, topology, draw, options);
 }
 
-vsg::ref_ptr<vsg::Node> CSVRender::createColouredGeometry(const Pipeline::Builder& builder, VkPrimitiveTopology topology,
-    vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours, vsg::ref_ptr<vsg::ushortArray> indices,
-    bool twoSided)
+vsg::ref_ptr<vsg::Node> CSVRender::createColouredGeometry(const Pipeline::Builder& builder,
+    VkPrimitiveTopology topology, vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours,
+    vsg::ref_ptr<vsg::ushortArray> indices, bool twoSided)
 {
     ColouredOptions options;
     options.mTwoSided = twoSided;

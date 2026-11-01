@@ -1,30 +1,30 @@
 #include "vsgengine.hpp"
 
+#include <vsg/threading/OperationThreads.h>
 #include <vsg/vk/DeviceFeatures.h>
 #include <vsgXchange/images.h>
-#include <vsg/threading/OperationThreads.h>
 
+#include <components/files/conversion.hpp>
 #include <components/render/attachmentformat.hpp>
-#include <components/render/screenshot.hpp>
 #include <components/render/engine.hpp>
+#include <components/render/screenshot.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sdlutil/init.hpp>
-#include <components/files/conversion.hpp>
+#include <components/settings/shadermanager.hpp>
+#include <components/settings/values.hpp>
+#include <components/toutf8/toutf8.hpp>
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
-#include <components/toutf8/toutf8.hpp>
 #include <components/vfs/registerarchives.hpp>
 #include <components/vsgadapters/sdl/surface.hpp>
 #include <components/vsgadapters/sdl/window.hpp>
 #include <components/vsgutil/readimage.hpp>
-#include <components/settings/shadermanager.hpp>
-#include <components/settings/values.hpp>
 
 #include "mwgui/windowmanagerimp.hpp"
 #include "mwinput/actions.hpp"
 #include "mwinput/inputmanagerimp.hpp"
-#include "mwrender/rendermanager.hpp"
 #include "mwrender/bin.hpp"
+#include "mwrender/rendermanager.hpp"
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/statemanagerimp.hpp"
@@ -95,7 +95,8 @@ namespace OMW
             return false;
 
         if (mInputManager->getScreenshotRequest())
-            screenshot(*mRenderEngine, mRenderManager->getOperationThreads(), mCfgMgr.getScreenshotPath(), mResourceSystem->imageOptions);
+            screenshot(*mRenderEngine, mRenderManager->getOperationThreads(), mCfgMgr.getScreenshotPath(),
+                mResourceSystem->imageOptions);
 
         if (gameState->showCursor)
             mInputManager->enableMouse(*gameState->showCursor);
@@ -203,8 +204,7 @@ namespace OMW
         if (!windowBorder)
             flags |= SDL_WINDOW_BORDERLESS;
 
-        SDL_SetHint(
-            SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
+        SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
 
         mWindow = SDL_CreateWindow("OpenMW", pos_x, pos_y, width, height, flags);
         if (!mWindow)
@@ -225,10 +225,13 @@ namespace OMW
         unsigned int antialiasing = Settings::video().mAntialiasing;
 
         auto traits = vsg::WindowTraits::create();
-        // if we are multisampling then to enable copying of the depth buffer we have to enable a depth buffer resolve extension for vsg::RenderPass
+        // if we are multisampling then to enable copying of the depth buffer we have to enable a depth buffer resolve
+        // extension for vsg::RenderPass
         if (antialiasing)
         {
-            traits->deviceExtensionNames.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME); /* .dependencies = */ traits->deviceExtensionNames.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME); traits->deviceExtensionNames.push_back(VK_KHR_MAINTENANCE_2_EXTENSION_NAME);
+            traits->deviceExtensionNames.push_back(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME); /* .dependencies = */
+            traits->deviceExtensionNames.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+            traits->deviceExtensionNames.push_back(VK_KHR_MAINTENANCE_2_EXTENSION_NAME);
 
             traits->deviceExtensionNames.push_back(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME);
         }
@@ -242,7 +245,8 @@ namespace OMW
         // OpenEden: post-processing copies its result back to the swapchain image (task 0012, V4p).
         if (Settings::postProcessing().mEnabled)
             traits->swapchainPreferences.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        traits->swapchainPreferences.presentMode = vsync != 0 ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
+        traits->swapchainPreferences.presentMode
+            = vsync != 0 ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
         // if (vsync == 2) {}
         traits->swapchainPreferences.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // enableScreenshot
         traits->depthImageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // enableReflectionDepth
@@ -279,7 +283,7 @@ namespace OMW
             featureStruct.occlusionQueryPrecise = VK_TRUE;
         if (supportedFeatures.depthClamp)
             featureStruct.depthClamp = VK_TRUE;
-        //if (supportedFeatures.fillModeNonSolid
+        // if (supportedFeatures.fillModeNonSolid
         featureStruct.fillModeNonSolid = true;
     }
 
@@ -314,8 +318,7 @@ namespace OMW
         // OpenMW 0.51 decodes archive file names with the content encoding.
         mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
         if (mExtensionHost->dataDirs().empty())
-            VFS::registerArchives(
-                mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+            VFS::registerArchives(mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
         else
         {
             // Extension data goes above data= folders and below data-local (task 0016). They are data folders in full,
@@ -328,8 +331,7 @@ namespace OMW
                 mVFS.get(), Files::Collections(vfsDirs), args.archives, true, &mEncoder->getStatelessEncoder());
 
             VFS::Manager gameData;
-            VFS::registerArchives(
-                &gameData, mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
+            VFS::registerArchives(&gameData, mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
             mExtensionHost->reportDataOverrides(gameData);
 
             mDataDirs = std::move(vfsDirs);
@@ -343,7 +345,8 @@ namespace OMW
             useTextureCompression = overrideString == std::string("0");
         mResourceSystem = std::make_unique<Resource::ResourceSystem>(mVFS.get(),
             Files::pathToUnicodeString(args.resourceDir / "shaders"),
-            Render::createDefaultSampler(physicalDevice, mRenderEngine->getEnabledFeatures().samplerAnisotropy), useTextureCompression, MWRender::Bin_Compute, MWRender::Bin_DepthSorted);
+            Render::createDefaultSampler(physicalDevice, mRenderEngine->getEnabledFeatures().samplerAnisotropy),
+            useTextureCompression, MWRender::Bin_Compute, MWRender::Bin_DepthSorted);
 
         setWindowIcon(args.resourceDir / "openmw.png");
 
@@ -404,7 +407,8 @@ namespace OMW
         mEnvironment.setWindowManager(*mWindowManager);
 
         // As in OpenMW, the Lua manager exists before the input manager: loading screens pump input events, and every
-        // input handler passes them to Lua (inputEvent only queues them). Game::Game initialises it once the world exists.
+        // input handler passes them to Lua (inputEvent only queues them). Game::Game initialises it once the world
+        // exists.
         mLuaManager = std::make_unique<MWLua::LuaManager>(mVFS.get(), args.resourceDir / "lua_libs");
         mEnvironment.setLuaManager(*mLuaManager);
 
@@ -414,8 +418,8 @@ namespace OMW
         mInputManager->setWindowListener(mWindowListener.get());
         mEnvironment.setInputManager(*mInputManager);
 
-        mRenderManager = std::make_unique<MWRender::RenderManager>(*mRenderEngine, vsg::ref_ptr{ mWindowManager->node() },
-            mResourceSystem.get() /*, *mNavigator*/);
+        mRenderManager = std::make_unique<MWRender::RenderManager>(
+            *mRenderEngine, vsg::ref_ptr{ mWindowManager->node() }, mResourceSystem.get() /*, *mNavigator*/);
 
         mSoundManager = std::make_unique<MWSound::SoundManager>(mVFS.get(), args.useSound);
         mEnvironment.setSoundManager(*mSoundManager);
@@ -423,7 +427,6 @@ namespace OMW
         mStateManager = std::make_unique<MWState::StateManager>(
             mCfgMgr.getUserDataPath() / "saves", args.contentFiles, mRenderManager->getScreenshotInterface());
         mEnvironment.setStateManager(*mStateManager);
-
 
         auto loadingScreen = mWindowManager->createLoadingScreen();
         loadingScreen->loading = std::make_shared<Boot>(*this, args);
@@ -449,7 +452,7 @@ namespace OMW
         bool autoScreenshotFired = false;
         bool autoQuitFired = false;
         auto callback = [this, &args, &runningFrame, &autoScreenshotFired, &autoQuitFired](
-            double dt, bool& requiresRender, bool& quit) {
+                            double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
             if (quit)
@@ -462,8 +465,7 @@ namespace OMW
                 && state->updateLua)
             {
                 ++runningFrame;
-                if (args.autoScreenshotFrame && !autoScreenshotFired
-                    && runningFrame >= args.autoScreenshotFrame)
+                if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
                 {
                     Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
                     mInputManager->executeAction(MWInput::A_Screenshot);

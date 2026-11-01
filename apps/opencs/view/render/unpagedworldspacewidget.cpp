@@ -24,7 +24,6 @@
 
 #include "../widget/scenetooltoggle2.hpp"
 
-
 namespace CSVRender
 {
     class TagBase;
@@ -376,8 +375,8 @@ std::string CSVRender::UnpagedWorldspaceWidget::getStartupInstruction()
 
     std::ostringstream stream;
 
-    stream << "player->positionCell " << position.x << ", " << position.y << ", " << position.z << ", 0, \""
-           << mCellId << "\"";
+    stream << "player->positionCell " << position.x << ", " << position.y << ", " << position.z << ", 0, \"" << mCellId
+           << "\"";
 
     return stream.str();
 }

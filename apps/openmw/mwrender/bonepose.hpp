@@ -6,7 +6,6 @@
 
 #include <components/misc/vsgmath.hpp>
 
-
 namespace Anim
 {
     class Bones;

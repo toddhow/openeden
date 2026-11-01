@@ -32,9 +32,11 @@ namespace vsgAdapters::sdl
 
         auto srcFormat = toUnorm(data->properties.format);
         auto pixelOrder = SDL_PIXELORDER(surface->format->format);
-        if (surface->format->BytesPerPixel == data->valueSize() && (
-            ((pixelOrder == SDL_PACKEDORDER_ABGR || pixelOrder == SDL_PACKEDORDER_XBGR) && srcFormat == VK_FORMAT_R8G8B8A8_UNORM)
-         || ((pixelOrder == SDL_PACKEDORDER_ARGB || pixelOrder == SDL_PACKEDORDER_XRGB) && srcFormat == VK_FORMAT_B8G8R8A8_UNORM)))
+        if (surface->format->BytesPerPixel == data->valueSize()
+            && (((pixelOrder == SDL_PACKEDORDER_ABGR || pixelOrder == SDL_PACKEDORDER_XBGR)
+                    && srcFormat == VK_FORMAT_R8G8B8A8_UNORM)
+                || ((pixelOrder == SDL_PACKEDORDER_ARGB || pixelOrder == SDL_PACKEDORDER_XRGB)
+                    && srcFormat == VK_FORMAT_B8G8R8A8_UNORM)))
         {
             auto* pDst = (Uint8*)surface->pixels;
             auto* pSrc = (Uint8*)data->dataPointer();
@@ -65,13 +67,15 @@ namespace vsgAdapters::sdl
                         {
                             clr = { *pixel++, *pixel++, *pixel++, *pixel };
                             break;
-                        }                                           case VK_FORMAT_B8G8R8A8_UNORM:
+                        }
+                        case VK_FORMAT_B8G8R8A8_UNORM:
                         {
                             clr = { pixel[2], pixel[1], pixel[0], pixel[3] };
                             break;
                         }
                         default:
-                            throw std::runtime_error("!SDL_MapRGBA(VkFormat=" + std::to_string(data->properties.format) + ")");
+                            throw std::runtime_error(
+                                "!SDL_MapRGBA(VkFormat=" + std::to_string(data->properties.format) + ")");
                     }
                     int bpp = surface->format->BytesPerPixel;
                     auto* p = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;

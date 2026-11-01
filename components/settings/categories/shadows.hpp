@@ -4,7 +4,6 @@
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -15,7 +14,7 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
-        //vsgopenmw-settings
+        // vsgopenmw-settings
         SettingValue<bool> mPCSS{ mIndex, "Shadows", "percentage closer soft shadows" };
         SettingValue<int> mBlockerSamples{ mIndex, "Shadows", "blocker samples", makeClampSanitizerInt(4, 16) };
         SettingValue<int> mPCFSamples{ mIndex, "Shadows", "pcf samples", makeClampSanitizerInt(4, 16) };

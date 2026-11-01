@@ -9,7 +9,6 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 
-
 #include <gtest/gtest.h>
 
 namespace

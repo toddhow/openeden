@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_MWANIMATION_CONTEXT_H
 #define VSGOPENMW_MWANIMATION_CONTEXT_H
 
-#include <vsg/io/Options.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/io/Options.h>
 
 #include <components/animation/mask.hpp>
 

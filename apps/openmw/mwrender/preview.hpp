@@ -39,7 +39,8 @@ namespace MWRender
         Preview& operator=(const Preview&);
 
     public:
-        Preview(vsg::Context& ctx, VkSampleCountFlagBits samples, const MWAnim::Context& in_animContext, Resource::ResourceSystem* resourceSystem);
+        Preview(vsg::Context& ctx, VkSampleCountFlagBits samples, const MWAnim::Context& in_animContext,
+            Resource::ResourceSystem* resourceSystem);
         ~Preview();
         void setViewport(uint32_t w, uint32_t h);
 

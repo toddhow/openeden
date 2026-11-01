@@ -219,8 +219,8 @@ namespace CSVRender
 
         virtual CSVRender::Object* getObjectByReferenceId(const std::string& id) = 0;
 
-        /// What a press and release at this point does, or a drag between two points in steps, for unattended checks: the same
-        /// calls on the edit mode as the shortcuts make, without Qt's events.
+        /// What a press and release at this point does, or a drag between two points in steps, for unattended checks:
+        /// the same calls on the edit mode as the shortcuts make, without Qt's events.
         void scriptPress(InteractionType type, const QPoint& pos);
         void scriptDrag(InteractionType type, const QPoint& from, const QPoint& to, int steps);
 

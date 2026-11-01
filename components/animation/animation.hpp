@@ -18,7 +18,8 @@ namespace Anim
         Controllers controllers;
         std::vector<std::pair<Controller*, vsg::Object*>> clonedControllers; //{.updateOrder=controllers.updateOrder+1}
 
-        // Run the Controller::link(..) procedure for all controller/object pairs and pass them to the specified callback.
+        // Run the Controller::link(..) procedure for all controller/object pairs and pass them to the specified
+        // callback.
         void link(Context& ctx, std::function<void(const Controller*, vsg::Object*)> onLinked);
     };
 }

@@ -436,7 +436,7 @@ namespace MWScript
 
                     if (isPlayer)
                     {
-                        ESM::Position pos { { x, y, z }, { rot.x, rot.y, rot.z } };
+                        ESM::Position pos{ { x, y, z }, { rot.x, rot.y, rot.z } };
                         world->changeToCell(store->getCell()->getId(), pos, true);
                     }
                     else
@@ -506,7 +506,8 @@ namespace MWScript
                 rot.z = Misc::VsgMath::inDegrees(zRot);
                 world->rotateObject(ptr, rot);
                 bool cellActive = MWBase::Environment::get().getWorldScene()->isCellActive(*ptr.getCell());
-                ptr.getClass().adjustPosition(ptr, isPlayer || !cellActive); //if (isPlayer) world->changeToCell(.adjustPosition=true
+                ptr.getClass().adjustPosition(
+                    ptr, isPlayer || !cellActive); // if (isPlayer) world->changeToCell(.adjustPosition=true
                 MWBase::Environment::get().getLuaManager()->objectTeleported(ptr);
             }
         };

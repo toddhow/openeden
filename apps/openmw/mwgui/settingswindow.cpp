@@ -60,7 +60,7 @@ namespace
         return "#{OMWEngine:TextureFilteringOther}";
     }
 
-    //vsgopenmw-delete-me
+    // vsgopenmw-delete-me
     /*
     MyGUI::UString lightingMethodToStr(SceneUtil::LightingMethod method)
     {
@@ -646,7 +646,7 @@ namespace MWGui
 
     void SettingsWindow::onLightsResetButtonClicked(MyGUI::Widget* /*sender*/)
     {
-        //vsgopenmw-delete-me
+        // vsgopenmw-delete-me
         /*
         std::vector<std::string> buttons = { "#{Interface:Yes}", "#{Interface:No}" };
         MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
@@ -854,7 +854,7 @@ namespace MWGui
 
     void SettingsWindow::updateLightSettings()
     {
-        //vsgopenmw-delete-me
+        // vsgopenmw-delete-me
         /*
         auto lightingMethod = MWBase::Environment::get().getResourceSystem()->getSceneManager()->getLightingMethod();
         MyGUI::UString lightingMethodStr = lightingMethodToStr(lightingMethod);

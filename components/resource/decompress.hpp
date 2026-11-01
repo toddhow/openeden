@@ -11,11 +11,11 @@ namespace Resource
     class Decompress : public vsg::CompositeReaderWriter
     {
         vsg::ref_ptr<vsg::Object> decompress(vsg::ref_ptr<vsg::Object> obj) const;
+
     public:
         vsg::ref_ptr<vsg::Object> read(
             const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options = {}) const override;
-        vsg::ref_ptr<vsg::Object> read(
-            std::istream&, vsg::ref_ptr<const vsg::Options> options = {}) const override;
+        vsg::ref_ptr<vsg::Object> read(std::istream&, vsg::ref_ptr<const vsg::Options> options = {}) const override;
     };
 }
 

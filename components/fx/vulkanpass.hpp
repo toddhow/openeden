@@ -90,8 +90,8 @@ namespace Fx
         bool exponentialFog = false;
     };
 
-    /// Translates a parsed pass to Vulkan GLSL (task 0012, V4p), keeping OpenMW's `omw_` helpers of Fx::Pass::getPassHeader
-    /// at 442eec6e2f, so `.omwfx` code is used unchanged:
+    /// Translates a parsed pass to Vulkan GLSL (task 0012, V4p), keeping OpenMW's `omw_` helpers of
+    /// Fx::Pass::getPassHeader at 442eec6e2f, so `.omwfx` code is used unchanged:
     /// - Plain uniforms become members of one anonymous uniform block, after `omw`, so their bare names still resolve;
     ///   constant uniforms stay constants.
     /// - Samplers get explicit bindings.
@@ -100,7 +100,8 @@ namespace Fx
     ///
     /// Reversed depth is on, as the renderer's. Point lights are declared with a count of zero, and normals, HDR and
     /// multiview are off. A pass with no fragment source returns false.
-    bool translatePass(Technique& technique, const Types::PassDesc& pass, const VulkanPassOptions& options, VulkanPass& out);
+    bool translatePass(
+        Technique& technique, const Types::PassDesc& pass, const VulkanPassOptions& options, VulkanPass& out);
 }
 
 #endif

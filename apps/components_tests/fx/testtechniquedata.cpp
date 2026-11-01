@@ -9,7 +9,8 @@
 #include <components/fx/technique.hpp>
 #include <components/testing/util.hpp>
 
-// What the renderer-free parser records: the built-in shaders parse, and samplers, passes and defaults come out as data.
+// What the renderer-free parser records: the built-in shaders parse, and samplers, passes and defaults come out as
+// data.
 namespace
 {
     using namespace testing;
@@ -17,7 +18,8 @@ namespace
 
     std::unique_ptr<TestingOpenMW::VFSTestFile> readShader(const std::string& fileName)
     {
-        std::ifstream stream(std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data" / "shaders" / fileName,
+        std::ifstream stream(
+            std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data" / "shaders" / fileName,
             std::ios::binary);
         EXPECT_TRUE(stream.is_open()) << fileName;
         return std::make_unique<TestingOpenMW::VFSTestFile>(

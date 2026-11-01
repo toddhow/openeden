@@ -1,21 +1,19 @@
 #include "wielding.hpp"
 
 #include <components/animation/transform.hpp>
-#include <components/vsgutil/traverse.hpp>
 #include <components/vsgutil/nodepath.hpp>
+#include <components/vsgutil/traverse.hpp>
 #include <vsg/nodes/Switch.h>
 
 namespace
 {
-    class GetTransformPath : public vsgUtil::SearchPath<const Anim::Transform*>, public vsgUtil::TConstTraverse<vsg::Node>
+    class GetTransformPath : public vsgUtil::SearchPath<const Anim::Transform*>,
+                             public vsgUtil::TConstTraverse<vsg::Node>
     {
     public:
         vsg::Node* needle{};
         using vsg::ConstVisitor::apply;
-        void apply(const vsg::Transform& transform) override
-        {
-            accumulateCastAndTraverse(transform, *this);
-        }
+        void apply(const vsg::Transform& transform) override { accumulateCastAndTraverse(transform, *this); }
         void apply(const vsg::Switch& sw) override
         {
             if (&sw == needle)

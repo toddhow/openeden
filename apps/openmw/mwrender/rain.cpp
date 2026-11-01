@@ -116,7 +116,8 @@ namespace MWRender
         vsgUtil::share_if(mTextureOptions->sharedObjects, sampler);
         auto texture = vsg::DescriptorImage::create(sampler, image);
         auto textures = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
-            Pipeline::TEXTURE_SET, mOcclusionMap ? vsg::Descriptors{ texture, mOcclusionMap } : vsg::Descriptors{ texture });
+            Pipeline::TEXTURE_SET,
+            mOcclusionMap ? vsg::Descriptors{ texture, mOcclusionMap } : vsg::Descriptors{ texture });
 
         mDraw = vsg::VertexDraw::create();
         mDraw->assignArrays({ mVertices, normals, mColors, mUvs });

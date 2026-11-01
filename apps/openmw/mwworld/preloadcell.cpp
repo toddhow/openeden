@@ -1,20 +1,20 @@
 #include "preloadcell.hpp"
 
 #include <atomic>
-#include <limits>
 #include <iostream>
+#include <limits>
 
 #include <vsg/core/Objects.h>
 #include <vsg/io/read.h>
 #include <vsg/threading/OperationThreads.h>
 
+#include <components/animation/controllermap.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/mwanimation/context.hpp>
 #include <components/resource/physicsshapemanager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <components/mwanimation/context.hpp>
-#include <components/animation/controllermap.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/compileop.hpp>
 
@@ -83,7 +83,9 @@ namespace MWWorld
                 {
                     mPreloadedObjects.insert(mLandManager->getLand({ mX, mY, {} }));
                 }
-                catch (std::exception&) {}
+                catch (std::exception&)
+                {
+                }
                 ++mProgress;
             }
             for (size_t i = 0; !abort && i < mMeshes.size(); ++i)
@@ -124,7 +126,8 @@ namespace MWWorld
             if (!mPreloadedNodes->children.empty())
             {
                 if (compileThreads)
-                    compileThreads->add(vsg::ref_ptr{ new vsgUtil::CompileOp(mPreloadedNodes, mAnimContext.compileContext) });
+                    compileThreads->add(
+                        vsg::ref_ptr{ new vsgUtil::CompileOp(mPreloadedNodes, mAnimContext.compileContext) });
                 else
                     mAnimContext.compileContext->compile(mPreloadedNodes);
             }
@@ -136,7 +139,9 @@ namespace MWWorld
                 mPreloadedObjects.insert(mAnimContext.readActor(mAnimContext.files.baseanimkna));
                 mPreloadedObjects.insert(mAnimContext.readActor(mAnimContext.files.baseanimfemale));
             }
-            catch (std::exception&) {}
+            catch (std::exception&)
+            {
+            }
 
             mProgress = mProgressRange;
         }
@@ -145,7 +150,7 @@ namespace MWWorld
         {
             if (mProgress == mProgressRange)
                 return 1;
-            return static_cast<float>(mProgress)/static_cast<float>(mProgressRange);
+            return static_cast<float>(mProgress) / static_cast<float>(mProgressRange);
         }
     };
 
@@ -154,7 +159,8 @@ namespace MWWorld
         : mAnimContext(animContext)
         , mShapeManager(shapeManager)
         , mLandManager(landManager)
-        , mCompileThreads(vsg::OperationThreads::create(1/*CompileManager::numCompileTraversals*/)) //if(supportsNonBlockingCompile) mCompileThreads={}
+        , mCompileThreads(vsg::OperationThreads::create(
+              1 /*CompileManager::numCompileTraversals*/)) // if(supportsNonBlockingCompile) mCompileThreads={}
         , mOperationThreads(threads)
     {
     }
@@ -200,7 +206,8 @@ namespace MWWorld
                 }
             }
 
-            if (std::chrono::duration_cast<std::chrono::duration<double>>(timestamp - *oldestTimestamp).count() > threshold)
+            if (std::chrono::duration_cast<std::chrono::duration<double>>(timestamp - *oldestTimestamp).count()
+                > threshold)
             {
                 oldestCell->second.operation->abort = true;
                 mPreloadCells.erase(oldestCell);
@@ -209,11 +216,12 @@ namespace MWWorld
                 return 1;
         }
 
-        vsg::ref_ptr<PreloadCell> item(new PreloadCell(cell, mAnimContext, mShapeManager, mPreloadInstances, mLandManager));
+        vsg::ref_ptr<PreloadCell> item(
+            new PreloadCell(cell, mAnimContext, mShapeManager, mPreloadInstances, mLandManager));
         item->compileThreads = mCompileThreads;
         mOperationThreads->add(item);
 
-        mPreloadCells[&cell] = PreloadEntry{timestamp, item};
+        mPreloadCells[&cell] = PreloadEntry{ timestamp, item };
         return 0;
     }
 
@@ -222,7 +230,9 @@ namespace MWWorld
         auto timestamp = std::chrono::steady_clock::now();
         for (auto it = mPreloadCells.begin(); it != mPreloadCells.end();)
         {
-            if (mPreloadCells.size() >= mMinCacheSize && std::chrono::duration_cast<std::chrono::duration<double>>(timestamp - it->second.timeStamp).count() > mExpiryDelay)
+            if (mPreloadCells.size() >= mMinCacheSize
+                && std::chrono::duration_cast<std::chrono::duration<double>>(timestamp - it->second.timeStamp).count()
+                    > mExpiryDelay)
             {
                 if (it->second.operation)
                     it->second.operation->abort = true;

@@ -1,7 +1,7 @@
 // vsgopenmw-unity-build
 
-#include <stdexcept>
 #include <cassert>
+#include <stdexcept>
 
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/View.h>
@@ -62,7 +62,8 @@ namespace Render // namespace vsgExamples
         VkExtent2D extent2D() const { return mExtent; }
 
         vsg::ref_ptr<vsg::RenderPass> getRenderPass() { return mRenderPass; }
-        void setRenderPass(vsg::ref_ptr<vsg::RenderPass> renderPass) {
+        void setRenderPass(vsg::ref_ptr<vsg::RenderPass> renderPass)
+        {
             mRenderPass = renderPass;
             if (mRenderGraph)
                 mRenderGraph->renderPass = renderPass;
@@ -84,22 +85,21 @@ namespace Render // namespace vsgExamples
         {
             if (mPhysicalDevice)
                 return mPhysicalDevice;
-            std::tie(mPhysicalDevice, mQueueFamily) = getOrCreateInstance()->getPhysicalDeviceAndQueueFamily(mTraits->queueFlags);
+            std::tie(mPhysicalDevice, mQueueFamily)
+                = getOrCreateInstance()->getPhysicalDeviceAndQueueFamily(mTraits->queueFlags);
             if (!mPhysicalDevice || mQueueFamily < 0)
                 throw std::runtime_error("Could not create PhysicalDevice");
             return mPhysicalDevice;
         }
-        vsg::ref_ptr<vsg::Device> getDevice()
-        {
-            return mDevice;
-        }
+        vsg::ref_ptr<vsg::Device> getDevice() { return mDevice; }
         vsg::ref_ptr<vsg::Device> getOrCreateDevice()
         {
             if (mDevice)
                 return mDevice;
             auto physicalDevice = getOrCreatePhysicalDevice();
             vsg::QueueSettings queueSettings{ vsg::QueueSetting{ mQueueFamily, { 1.0 } } };
-            mDevice = vsg::Device::create(physicalDevice, queueSettings, mTraits->requestedLayers, mTraits->deviceExtensionNames, mTraits->deviceFeatures);
+            mDevice = vsg::Device::create(physicalDevice, queueSettings, mTraits->requestedLayers,
+                mTraits->deviceExtensionNames, mTraits->deviceFeatures);
             return mDevice;
         }
 
@@ -123,21 +123,24 @@ namespace Render // namespace vsgExamples
             bool multisampling = samples != VK_SAMPLE_COUNT_1_BIT;
             /*
             if (!mRenderPass)
-                mRenderPass = vsg::createMultisampledRenderPass(device, colorFormat, depthFormat, samples, requiresDepthRead);
+                mRenderPass = vsg::createMultisampledRenderPass(device, colorFormat, depthFormat, samples,
+            requiresDepthRead);
             */
             assert(mRenderPass);
             vsg::ImageViews attachments;
             vsg::ref_ptr<vsg::ImageView> multisampleImageView;
             if (multisampling)
             {
-                multisampleImageView = createImageView(device, mExtent, colorFormat, mTraits->swapchainPreferences.imageUsage, samples);
+                multisampleImageView
+                    = createImageView(device, mExtent, colorFormat, mTraits->swapchainPreferences.imageUsage, samples);
                 attachments.push_back(multisampleImageView);
             }
             colorImageView = createImageView(device, mExtent, colorFormat, mTraits->swapchainPreferences.imageUsage);
             attachments.push_back(colorImageView);
             if (multisampling)
             {
-                auto multisampleDepthImageView = createImageView(device, mExtent, depthFormat, mTraits->depthImageUsage, samples);
+                auto multisampleDepthImageView
+                    = createImageView(device, mExtent, depthFormat, mTraits->depthImageUsage, samples);
                 attachments.push_back(multisampleDepthImageView);
             }
             if (!multisampling || (multisampling && requiresDepthRead))
@@ -150,33 +153,30 @@ namespace Render // namespace vsgExamples
             // ensure image attachments are setup on GPU.
             {
                 auto commandPool = vsg::CommandPool::create(mDevice, mQueueFamily);
-                vsg::submitCommandsToQueue(commandPool, mDevice->getQueue(mQueueFamily), [&](vsg::CommandBuffer& commandBuffer) {
-                    auto depthImageBarrier = vsg::ImageMemoryBarrier::create(
-                        0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                        VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-                        depthImageView->image,
-                        depthImageView->subresourceRange);
+                vsg::submitCommandsToQueue(
+                    commandPool, mDevice->getQueue(mQueueFamily), [&](vsg::CommandBuffer& commandBuffer) {
+                        auto depthImageBarrier = vsg::ImageMemoryBarrier::create(0,
+                            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, depthImageView->image,
+                            depthImageView->subresourceRange);
 
-                    auto pipelineBarrier = vsg::PipelineBarrier::create(
-                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                        0, depthImageBarrier);
-                    pipelineBarrier->record(commandBuffer);
+                        auto pipelineBarrier = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, depthImageBarrier);
+                        pipelineBarrier->record(commandBuffer);
 
-                    if (multisampling)
-                    {
-                        auto msImageBarrier = vsg::ImageMemoryBarrier::create(
-                            0, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-                            multisampleImageView->image,
-                            VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
-                        auto msPipelineBarrier = vsg::PipelineBarrier::create(
-                            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                            0, msImageBarrier);
-                        msPipelineBarrier->record(commandBuffer);
-                    }
-                });
+                        if (multisampling)
+                        {
+                            auto msImageBarrier = vsg::ImageMemoryBarrier::create(0,
+                                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, multisampleImageView->image,
+                                VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+                            auto msPipelineBarrier = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, msImageBarrier);
+                            msPipelineBarrier->record(commandBuffer);
+                        }
+                    });
             }
 
             mRenderGraph->framebuffer = framebuffer;
@@ -184,7 +184,8 @@ namespace Render // namespace vsgExamples
             mRenderGraph->setClearValues(VkClearColorValue{ { 0.2f, 0.2f, 0.2f, 1.f } });
 
             // create support for copying the color buffer
-            mDownloadData = vsg::ubvec4Array2D::create(mExtent.width, mExtent.height, vsg::Data::Properties(colorFormat));
+            mDownloadData
+                = vsg::ubvec4Array2D::create(mExtent.width, mExtent.height, vsg::Data::Properties(colorFormat));
 
             vsg::ref_ptr<vsg::Commands> tmp_commands;
             std::tie(tmp_commands, mHostImage) = createDownloadCommands(

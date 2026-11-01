@@ -256,7 +256,6 @@ namespace Nif
     template <>
     void NIFStream::read<std::string>(std::string* dest, size_t size);
 
-
     // A plane stored as four floats; OSG's Plane(Vec4f) widened them.
     inline vsg::dplane readPlane(NIFStream* nif)
     {

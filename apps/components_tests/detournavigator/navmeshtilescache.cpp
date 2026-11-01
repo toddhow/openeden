@@ -1,11 +1,10 @@
 #include "generate.hpp"
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/navmeshtilescache.hpp>
 #include <components/detournavigator/preparednavmeshdata.hpp>
 #include <components/detournavigator/recast.hpp>
 #include <components/detournavigator/recastmesh.hpp>
-
+#include <components/misc/vsgmath.hpp>
 
 #include <RecastAlloc.h>
 

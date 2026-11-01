@@ -1,7 +1,7 @@
 #include "computeimage.hpp"
 
-#include <vsg/commands/PipelineBarrier.h>
 #include <vsg/commands/ClearImage.h>
+#include <vsg/commands/PipelineBarrier.h>
 #include <vsg/vk/CommandBuffer.h>
 
 namespace Render
@@ -59,14 +59,14 @@ namespace Render
         clearRequests.clear();
     }
 
-    void ComputeImage::compute(
-        vsg::RecordTraversal& visitor, vsg::ref_ptr<vsg::Image> image, uint32_t w, uint32_t h, uint32_t workGroupSize) const
+    void ComputeImage::compute(vsg::RecordTraversal& visitor, vsg::ref_ptr<vsg::Image> image, uint32_t w, uint32_t h,
+        uint32_t workGroupSize) const
     {
         mPreComputeBarrier->imageMemoryBarriers[0]->image = image;
         visitor.apply(*mPreComputeBarrier);
 
-        mDispatch->groupCountX = std::ceil(w/static_cast<float>(workGroupSize));
-        mDispatch->groupCountY = std::ceil(h/static_cast<float>(workGroupSize));
+        mDispatch->groupCountX = std::ceil(w / static_cast<float>(workGroupSize));
+        mDispatch->groupCountY = std::ceil(h / static_cast<float>(workGroupSize));
 
         traverse(visitor);
 

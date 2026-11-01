@@ -110,8 +110,8 @@ namespace MWSound
         void startUpdate() override;
         void finishUpdate() override;
 
-        void updateListener(const vsg::vec3& pos, const vsg::vec3& atdir, const vsg::vec3& updir,
-            const vsg::vec3& vel, Environment env) override;
+        void updateListener(const vsg::vec3& pos, const vsg::vec3& atdir, const vsg::vec3& updir, const vsg::vec3& vel,
+            Environment env) override;
 
         void pauseSounds(int types) override;
         void resumeSounds(int types) override;

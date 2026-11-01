@@ -1,16 +1,16 @@
 #ifndef VSGOPENMW_MWANIMATION_CREATE_H
 #define VSGOPENMW_MWANIMATION_CREATE_H
 
-#include <components/vsgutil/addchildren.hpp>
-#include <components/animation/controllermap.hpp>
 #include <components/animation/context.hpp>
+#include <components/animation/controllermap.hpp>
+#include <components/vsgutil/addchildren.hpp>
 
-#include "clone.hpp"
-#include "play.hpp"
+#include "actor.hpp"
 #include "bones.hpp"
+#include "clone.hpp"
 #include "light.hpp"
 #include "objectanim.hpp"
-#include "actor.hpp"
+#include "play.hpp"
 
 namespace MWAnim
 {
@@ -23,22 +23,23 @@ namespace MWAnim
         Anim::Bones* bones = obj.animation ? &obj.animation->bones : nullptr;
         Anim::Context ctx{ { obj.transform() }, { node.get() }, bones, &obj.context().mask };
 
-        controllers.link(ctx, [&obj](const Anim::Controller* ctrl, vsg::Object* target) {
-            obj.addController(ctrl, target);
-        });
+        controllers.link(
+            ctx, [&obj](const Anim::Controller* ctrl, vsg::Object* target) { obj.addController(ctrl, target); });
 
         vsgUtil::addChildren(*obj.nodeToAddChildrenTo(), *node);
     }
 
     template <class ObjectType>
-    std::unique_ptr<ObjectType> create(const Context& ctx, vsg::ref_ptr<vsg::Node>& node, const ESM::Light* light, bool bones)
+    std::unique_ptr<ObjectType> create(
+        const Context& ctx, vsg::ref_ptr<vsg::Node>& node, const ESM::Light* light, bool bones)
     {
         auto obj = std::make_unique<ObjectType>(ctx);
         CloneResult result;
         if (light)
         {
             auto presult = clonePlaceholdersIfRequired(node);
-            addLight(presult.placeholders.attachLight, obj->transform(), *light, obj->autoPlay.getOrCreateGroup().controllers);
+            addLight(presult.placeholders.attachLight, obj->transform(), *light,
+                obj->autoPlay.getOrCreateGroup().controllers);
             result = presult;
         }
         else
@@ -54,7 +55,8 @@ namespace MWAnim
         return obj;
     }
 
-    inline std::unique_ptr<Object> createObject(const std::string& mesh, bool useAnim, const ESM::Light* light, const Context& ctx)
+    inline std::unique_ptr<Object> createObject(
+        const std::string& mesh, bool useAnim, const ESM::Light* light, const Context& ctx)
     {
         std::unique_ptr<Object> obj;
         if (mesh.empty())
@@ -84,7 +86,7 @@ namespace MWAnim
         }
     }
 
-    template <class Creature=Actor>
+    template <class Creature = Actor>
     std::unique_ptr<Creature> createCreature(const std::string& mesh, bool biped, const Context& ctx)
     {
         auto node = ctx.readActor(mesh);
@@ -103,4 +105,3 @@ namespace MWAnim
 }
 
 #endif
-

@@ -1,13 +1,13 @@
 #include "wieldingcreature.hpp"
 
 #include <components/animation/context.hpp>
-#include <components/mwanimation/play.hpp>
+#include <components/mwanimation/attach.hpp>
 #include <components/mwanimation/clone.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/mwanimation/decorate.hpp>
-#include <components/mwanimation/attach.hpp>
-#include <components/vsgutil/removechild.hpp>
+#include <components/mwanimation/play.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/removechild.hpp>
 
 #include "../mwmechanics/weapontype.hpp"
 #include "../mwworld/class.hpp"
@@ -48,10 +48,10 @@ namespace MWRender
             auto& path = mParts[i];
             if (!path.empty())
             {
-                mContext.compileContext->detach(vsg::ref_ptr{path.back()});
-                //vsgUtil::prune<vsg::Group>(path);
+                mContext.compileContext->detach(vsg::ref_ptr{ path.back() });
+                // vsgUtil::prune<vsg::Group>(path);
                 if (path.size() >= 2)
-                    if (auto group = (*(path.rbegin()+1))->cast<vsg::Group>())
+                    if (auto group = (*(path.rbegin() + 1))->cast<vsg::Group>())
                         vsgUtil::removeChild(group, path.back());
                 path.clear();
             }

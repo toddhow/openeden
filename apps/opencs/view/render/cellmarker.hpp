@@ -24,8 +24,8 @@ namespace CSVRender
         CellMarker* getCellMarker() const;
     };
 
-    /// \brief Marker to display cell coordinates. The build has no text renderer, so QPainter draws the text into an image,
-    /// and a quad shows that image at a fixed size on screen, always facing the camera, in front of everything.
+    /// \brief Marker to display cell coordinates. The build has no text renderer, so QPainter draws the text into an
+    /// image, and a quad shows that image at a fixed size on screen, always facing the camera, in front of everything.
     /// Owned by its Cell.
     class CellMarker
     {
@@ -50,7 +50,8 @@ namespace CSVRender
         /// \param cellNode Cell to create marker for.
         /// \param coordinates Coordinates of cell.
         /// \param cellExists Whether or not cell exists.
-        CellMarker(SceneHost& host, vsg::Group& cellNode, const CSMWorld::CellCoordinates& coordinates, bool cellExists);
+        CellMarker(
+            SceneHost& host, vsg::Group& cellNode, const CSMWorld::CellCoordinates& coordinates, bool cellExists);
 
         ~CellMarker();
 

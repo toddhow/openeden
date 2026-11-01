@@ -12,16 +12,16 @@
 #include <vector>
 
 #include <QApplication>
+#include <QHBoxLayout>
+#include <QMetaObject>
 #include <QMouseEvent>
 #include <QUndoStack>
-#include <QMetaObject>
-#include <QHBoxLayout>
 #include <QWidget>
 
 #include <boost/program_options.hpp>
 
-#include <vsg/ui/PointerEvent.h>
 #include <QPoint>
+#include <vsg/ui/PointerEvent.h>
 #include <vsgQt/Window.h>
 
 #include <components/debug/debugging.hpp>
@@ -35,21 +35,18 @@
 #include <components/toutf8/toutf8.hpp>
 
 #include "model/doc/document.hpp"
+#include "model/doc/documentmanager.hpp"
+#include "model/prefs/state.hpp"
 #include "model/world/data.hpp"
 #include "model/world/idcollection.hpp"
 #include "model/world/land.hpp"
 #include "model/world/record.hpp"
-#include "model/doc/documentmanager.hpp"
-#include "model/prefs/state.hpp"
+#include "view/render/cameracontroller.hpp"
 #include "view/render/camerapose.hpp"
 #include "view/render/editmode.hpp"
 #include "view/render/mask.hpp"
-#include "view/render/objectmarker.hpp"
 #include "view/render/object.hpp"
-#include "view/widget/scenetoolbar.hpp"
-#include "view/widget/scenetoolmode.hpp"
-#include "view/widget/scenetooltoggle2.hpp"
-#include "view/render/cameracontroller.hpp"
+#include "view/render/objectmarker.hpp"
 #include "view/render/pagedworldspacewidget.hpp"
 #include "view/render/previewwidget.hpp"
 #include "view/render/rendercontext.hpp"
@@ -57,6 +54,9 @@
 #include "view/render/terrainshapemode.hpp"
 #include "view/render/terraintexturemode.hpp"
 #include "view/render/unpagedworldspacewidget.hpp"
+#include "view/widget/scenetoolbar.hpp"
+#include "view/widget/scenetoolmode.hpp"
+#include "view/widget/scenetooltoggle2.hpp"
 
 namespace
 {
@@ -133,36 +133,37 @@ namespace
             if (const auto* object = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
             {
                 const ESM::Position position = object->mObject->getPosition();
-                Log(Debug::Info) << "  " << object->mObject->getReferenceId() << " " << object->mObject->getReferenceableId()
-                                 << " at " << position.pos[0] << " " << position.pos[1] << " " << position.pos[2]
-                                 << " rot " << position.rot[0] << " " << position.rot[1] << " " << position.rot[2]
-                                 << " scale " << object->mObject->getScale();
+                Log(Debug::Info) << "  " << object->mObject->getReferenceId() << " "
+                                 << object->mObject->getReferenceableId() << " at " << position.pos[0] << " "
+                                 << position.pos[1] << " " << position.pos[2] << " rot " << position.rot[0] << " "
+                                 << position.rot[1] << " " << position.rot[2] << " scale "
+                                 << object->mObject->getScale();
             }
     }
 
     void logUndo(CSVRender::WorldspaceWidget& view)
     {
         const QUndoStack& stack = view.getDocument().getUndoStack();
-        Log(Debug::Info) << "Undo stack: " << stack.count() << " at " << stack.index() << ", next undo: "
-                         << stack.undoText().toStdString();
+        Log(Debug::Info) << "Undo stack: " << stack.count() << " at " << stack.index()
+                         << ", next undo: " << stack.undoText().toStdString();
     }
 
     void logCamera(const CSVRender::SceneHost& host)
     {
         const auto lookAt = CSVRender::CameraPose::lookAtFrom(host.getViewMatrix());
         Log(Debug::Info) << "Camera eye " << lookAt.mEye.x << " " << lookAt.mEye.y << " " << lookAt.mEye.z << " centre "
-                         << lookAt.mCenter.x << " " << lookAt.mCenter.y << " " << lookAt.mCenter.z << " up " << lookAt.mUp.x
-                         << " " << lookAt.mUp.y << " " << lookAt.mUp.z;
+                         << lookAt.mCenter.x << " " << lookAt.mCenter.y << " " << lookAt.mCenter.z << " up "
+                         << lookAt.mUp.x << " " << lookAt.mUp.y << " " << lookAt.mUp.z;
     }
 
     /// Drives the view's camera controller as keys and the mouse would, without Qt events. Commands, separated by ';':
-    /// mode 1st|free|orbit, pose ex ey ez cx cy cz ux uy uz, center x y z (orbit), slot name 0|1 (the controller's slot, as
-    /// its shortcut calls it), mouse dx dy, wheel d, update dt, ortho size, ray x y hexmask (logs WorldspaceWidget::mousePick at that
-    /// pixel). The camera is logged after each. For the edit modes, through the same calls as the shortcuts: editmode id, press
-    /// edit|edit2|select|select2|select3 x y, drag type x0 y0 x1 y1 steps, hover x y (a real mouse move event), submode 0|1|2,
-    /// modeslot name [int] (a slot of the current edit mode), selection, undo, redo, undolog.
-    /// `wait` stops until the next tick, so that what follows the camera has followed it (cell markers): the rest of the
-    /// script is returned.
+    /// mode 1st|free|orbit, pose ex ey ez cx cy cz ux uy uz, center x y z (orbit), slot name 0|1 (the controller's
+    /// slot, as its shortcut calls it), mouse dx dy, wheel d, update dt, ortho size, ray x y hexmask (logs
+    /// WorldspaceWidget::mousePick at that pixel). The camera is logged after each. For the edit modes, through the
+    /// same calls as the shortcuts: editmode id, press edit|edit2|select|select2|select3 x y, drag type x0 y0 x1 y1
+    /// steps, hover x y (a real mouse move event), submode 0|1|2, modeslot name [int] (a slot of the current edit
+    /// mode), selection, undo, redo, undolog. `wait` stops until the next tick, so that what follows the camera has
+    /// followed it (cell markers): the rest of the script is returned.
     std::string runCameraScript(CSVRender::WorldspaceWidget& view, const std::string& script)
     {
         std::istringstream commands(script);
@@ -214,9 +215,10 @@ namespace
                 words >> x >> y >> std::hex >> mask;
                 const CSVRender::WorldspaceHitResult hit = view.mousePick(QPoint(x, y), mask);
                 Log(Debug::Info) << "Ray at " << x << " " << y << " mask " << std::hex << mask << std::dec
-                                 << (hit.hit ? ": hit" : ": no hit") << " at " << hit.worldPos.x << " " << hit.worldPos.y
-                                 << " " << hit.worldPos.z << " tag "
-                                 << (hit.tag ? "of mask " + std::to_string(hit.tag->getMask()) + " " + hit.tag->getToolTip(true, hit).toStdString().substr(0, sMaxLoggedTag)
+                                 << (hit.hit ? ": hit" : ": no hit") << " at " << hit.worldPos.x << " "
+                                 << hit.worldPos.y << " " << hit.worldPos.z << " tag "
+                                 << (hit.tag ? "of mask " + std::to_string(hit.tag->getMask()) + " "
+                                                + hit.tag->getToolTip(true, hit).toStdString().substr(0, sMaxLoggedTag)
                                              : std::string("none"))
                                  << " triangle " << hit.index0 << " " << hit.index1 << " " << hit.index2;
                 if (const auto* marker = dynamic_cast<const CSVRender::ObjectMarkerTag*>(hit.tag.get()))
@@ -248,8 +250,8 @@ namespace
                 int x = 0;
                 int y = 0;
                 words >> x >> y;
-                QMouseEvent event(QEvent::MouseMove, QPointF(x, y), QPointF(view.mapToGlobal(QPoint(x, y))), Qt::NoButton,
-                    Qt::NoButton, Qt::NoModifier);
+                QMouseEvent event(QEvent::MouseMove, QPointF(x, y), QPointF(view.mapToGlobal(QPoint(x, y))),
+                    Qt::NoButton, Qt::NoButton, Qt::NoModifier);
                 QApplication::sendEvent(&view, &event);
             }
             else if (verb == "submode")
@@ -298,8 +300,11 @@ namespace
                 std::string first, second;
                 int x = 0, y = 0;
                 words >> first >> second >> x >> y;
-                const ESM::Land& land
-                    = view.getDocument().getData().getLand().getRecord(ESM::RefId::stringRefId(first + " " + second)).get();
+                const ESM::Land& land = view.getDocument()
+                                            .getData()
+                                            .getLand()
+                                            .getRecord(ESM::RefId::stringRefId(first + " " + second))
+                                            .get();
                 const auto* data = land.getLandData(ESM::Land::DATA_VHGT);
                 Log(Debug::Info) << "Land " << first << " " << second << " at " << x << " " << y << ": "
                                  << data->mHeights[y * ESM::Land::LAND_SIZE + x];
@@ -397,10 +402,15 @@ int CS::runCapture(int argc, char** argv)
         bpo::value<Files::MaybeQuotedPathContainer::value_type>()->default_value(
             Files::MaybeQuotedPathContainer::value_type(), ""));
     addOption("content",
-        bpo::value<std::vector<std::string>>()->default_value(std::vector<std::string>(), "")->multitoken()->composing());
+        bpo::value<std::vector<std::string>>()
+            ->default_value(std::vector<std::string>(), "")
+            ->multitoken()
+            ->composing());
     addOption("encoding", bpo::value<std::string>()->default_value("win1252"));
     addOption("fallback-archive",
-        bpo::value<std::vector<std::string>>()->default_value(std::vector<std::string>(), "fallback-archive")->multitoken());
+        bpo::value<std::vector<std::string>>()
+            ->default_value(std::vector<std::string>(), "fallback-archive")
+            ->multitoken());
     addOption("fallback",
         bpo::value<Fallback::FallbackMap>()->default_value(Fallback::FallbackMap(), "")->multitoken()->composing(),
         "fallback values");
@@ -443,7 +453,8 @@ int CS::runCapture(int argc, char** argv)
     const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>().u8string();
     Files::PathContainer dataDirs = Files::asPathContainer(variables["data"].as<Files::MaybeQuotedPathContainer>());
     cfgMgr.filterOutNonExistingPaths(dataDirs);
-    const std::filesystem::path local = variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>().u8string();
+    const std::filesystem::path local
+        = variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>().u8string();
     if (!local.empty() && std::filesystem::exists(local))
         dataDirs.push_back(local);
     dataDirs.insert(dataDirs.begin(), resources / "vfs");
@@ -604,7 +615,8 @@ int CS::runCapture(int argc, char** argv)
                             return;
                         }
                     }
-                    if (preview && !preview->getHost()->capture(screenshots / ("preview" + std::to_string(captures) + ".png")))
+                    if (preview
+                        && !preview->getHost()->capture(screenshots / ("preview" + std::to_string(captures) + ".png")))
                     {
                         Log(Debug::Error) << "Failed to capture the preview";
                         finish(1);
@@ -649,7 +661,8 @@ int CS::runCapture(int argc, char** argv)
                     if (idleTicks++ == 0)
                         idleStartFrame = frameCount;
                     if (idleTicks == request.mIdleTicks)
-                        Log(Debug::Info) << "Idle: " << frameCount - idleStartFrame << " frames in " << idleTicks << " ticks";
+                        Log(Debug::Info) << "Idle: " << frameCount - idleStartFrame << " frames in " << idleTicks
+                                         << " ticks";
                     return;
                 }
                 // A frame must reach the capture and quit frames even in a view that nothing moves in.

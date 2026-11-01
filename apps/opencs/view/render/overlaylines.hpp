@@ -18,9 +18,10 @@ namespace CSVRender
 {
     class SceneHost;
 
-    /// Coloured lines drawn over everything, unlit and not pickable, that change often: what the OSG editor put in render
-    /// bin 11 with no depth test. As Render::DebugGeometry, the arrays are kept and refilled, so that a change needs no
-    /// compile unless the lines outgrow them. Owned by whichever tool draws them, which may outlive the SceneHost.
+    /// Coloured lines drawn over everything, unlit and not pickable, that change often: what the OSG editor put in
+    /// render bin 11 with no depth test. As Render::DebugGeometry, the arrays are kept and refilled, so that a change
+    /// needs no compile unless the lines outgrow them. Owned by whichever tool draws them, which may outlive the
+    /// SceneHost.
     class OverlayLines
     {
     public:

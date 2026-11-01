@@ -17,11 +17,13 @@ namespace Terrain
     class Preload
     {
     public:
-        Preload(Paging* terrain, vsg::ref_ptr<vsg::OperationThreads> loadThreads, vsg::ref_ptr<vsg::OperationThreads> compileThreads);
+        Preload(Paging* terrain, vsg::ref_ptr<vsg::OperationThreads> loadThreads,
+            vsg::ref_ptr<vsg::OperationThreads> compileThreads);
         ~Preload();
 
         using Position = std::pair<vsg::dvec3, float>; // float viewDistance
         void setPositions(const std::vector<Position>& positions);
+
     private:
         std::vector<std::unique_ptr<View>> mViews;
         std::vector<Position> mPositions;

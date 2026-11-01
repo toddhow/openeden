@@ -145,7 +145,8 @@ namespace MWAnim
         mAnimSources.emplace_back(std::move(anim));
     }
 
-    void Play::addAnimSources(const std::vector<vsg::ref_ptr<Anim::ControllerMap>>& sources, const std::string& debugName)
+    void Play::addAnimSources(
+        const std::vector<vsg::ref_ptr<Anim::ControllerMap>>& sources, const std::string& debugName)
     {
         for (auto& anim : sources)
             addSingleAnimSource(anim, debugName);

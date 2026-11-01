@@ -21,10 +21,12 @@ namespace MWRender
     OcclusionBox makeOcclusionBox(const vsg::vec3& cameraPosition, const vsg::vec3& range);
 
     /// A world position in the box's depth map: x and y in [0, 1] across the box (0 at the box's low world X and Y),
-    /// z the reversed depth, 1 at the top and 0 at the bottom. files/shaders/lib/particle/weatherocclusion.glsl does the same.
+    /// z the reversed depth, 1 at the top and 0 at the bottom. files/shaders/lib/particle/weatherocclusion.glsl does
+    /// the same.
     vsg::vec3 occlusionCoord(const OcclusionBox& box, const vsg::vec3& worldPosition);
 
-    /// True if a particle at this reversed depth is under the surface the depth map holds. Equal depths are not occluded.
+    /// True if a particle at this reversed depth is under the surface the depth map holds. Equal depths are not
+    /// occluded.
     inline bool isOccluded(float particleDepth, float sceneDepth)
     {
         return particleDepth < sceneDepth;

@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-
 #include <vsg/maths/quat.h>
 
 #include "rain.hpp"
@@ -39,7 +38,8 @@ namespace MWRender
     class Sky : public vsgUtil::Composite<vsg::Group>
     {
     public:
-        Sky(Resource::ResourceSystem& resourceSystem, vsg::ref_ptr<vsgUtil::CompileContext> compile, bool occlusionQueryPrecise);
+        Sky(Resource::ResourceSystem& resourceSystem, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+            bool occlusionQueryPrecise);
         ~Sky();
 
         vsg::ref_ptr<vsg::Node> resetNode();
@@ -113,7 +113,6 @@ namespace MWRender
         std::map<std::string, vsg::ref_ptr<vsg::Descriptor>> mCloudTextures;
         vsg::ref_ptr<const vsg::Options> mTextureOptions;
         vsg::ref_ptr<vsg::Switch> mSwitch;
-
 
         std::unique_ptr<Atmosphere> mAtmosphere;
         vsgUtil::Toggle<AtmosphereNight> mAtmosphereNight;

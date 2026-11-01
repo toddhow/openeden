@@ -1,6 +1,6 @@
 #include "capture.hpp"
-#include "view/render/rendercontext.hpp"
 #include "editor.hpp"
+#include "view/render/rendercontext.hpp"
 
 #include <exception>
 #include <string>

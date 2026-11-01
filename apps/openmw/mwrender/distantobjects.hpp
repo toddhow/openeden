@@ -58,8 +58,8 @@ namespace MWRender
         /// Leaves a disabled reference out, or draws it again once enabled, and rebuilds the chunks of cells if that
         /// changes anything. OpenMW's ObjectPaging::enableObject.
         bool setDisabled(ESM::RefNum ref, bool disabled, const Cells& cells);
-        /// Leaves out for good a reference the scene now draws (moved, scaled, rotated or deleted), rebuilding the chunks
-        /// of cells if that changes anything. OpenMW's ObjectPaging::blacklistObject.
+        /// Leaves out for good a reference the scene now draws (moved, scaled, rotated or deleted), rebuilding the
+        /// chunks of cells if that changes anything. OpenMW's ObjectPaging::blacklistObject.
         bool blacklist(ESM::RefNum ref, const Cells& cells);
         /// Forgets every chunk and reference state, for a new or loaded game.
         void clear();

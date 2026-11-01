@@ -3,7 +3,6 @@
 
 #include <components/misc/vsgmath.hpp>
 
-
 namespace DetourNavigator
 {
     using TilePosition = vsg::ivec2;

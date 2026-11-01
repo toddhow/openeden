@@ -8,6 +8,7 @@
 #include <components/lua_ui/util.hpp>
 #include <components/vsgutil/updatethreads.hpp>
 
+#include "mwclass/classes.hpp"
 #include "mwdialogue/dialoguemanagerimp.hpp"
 #include "mwdialogue/journalimp.hpp"
 #include "mwdialogue/scripttest.hpp"
@@ -15,6 +16,7 @@
 #include "mwlua/luamanagerimp.hpp"
 #include "mwmechanics/creaturestats.hpp"
 #include "mwmechanics/mechanicsmanagerimp.hpp"
+#include "mwrender/rendermanager.hpp"
 #include "mwscript/interpretercontext.hpp"
 #include "mwscript/scriptmanagerimp.hpp"
 #include "mwstate/gamestate.hpp"
@@ -22,10 +24,8 @@
 #include "mwworld/class.hpp"
 #include "mwworld/datetimemanager.hpp"
 #include "mwworld/localscripts.hpp"
-#include "mwworld/worldimp.hpp"
 #include "mwworld/scene.hpp"
-#include "mwclass/classes.hpp"
-#include "mwrender/rendermanager.hpp"
+#include "mwworld/worldimp.hpp"
 
 #include "extensionhost.hpp"
 #include "vsgengine.hpp"
@@ -67,7 +67,8 @@ namespace OMW
             , mEnvironment(e.mEnvironment)
             , mWorld(std::move(world))
         {
-            // Created by Engine::prepareEngine, before the input manager, so input during loading reaches a Lua manager.
+            // Created by Engine::prepareEngine, before the input manager, so input during loading reaches a Lua
+            // manager.
             mLuaManager = mEngine.mLuaManager.get();
 
             Compiler::registerExtensions(mExtensions);
@@ -88,13 +89,14 @@ namespace OMW
                 = std::make_unique<MWDialogue::DialogueManager>(mExtensions, mEngine.mTranslationDataStorage);
             mEnvironment.setDialogueManager(*mDialogueManager);
 
-            // As in OpenMW 0.51, the player is set up before Lua is initialised, so its local scripts start with a new or
-            // loaded game (World::clear calls setupPlayer again) rather than at the main menu with storage inactive.
+            // As in OpenMW 0.51, the player is set up before Lua is initialised, so its local scripts start with a new
+            // or loaded game (World::clear calls setupPlayer again) rather than at the main menu with storage inactive.
             mWorld->setupPlayer();
 
             auto& wm = mEngine.mWindowManager;
             wm->setStore(mEnvironment.getWorld()->getStore());
-            wm->initUI(mEngine.mRenderManager->getMap(), mEngine.mRenderManager->getWorldMap(), mEngine.mRenderManager->getPreview());
+            wm->initUI(mEngine.mRenderManager->getMap(), mEngine.mRenderManager->getWorldMap(),
+                mEngine.mRenderManager->getPreview());
 
             // As in OpenMW 0.51, permanent storage is loaded before the load scripts run (LuaManager::init).
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
@@ -108,15 +110,15 @@ namespace OMW
                 std::pair<int, int> result = mEnvironment.getScriptManager()->compileAll();
                 if (result.first)
                     std::cout << "compiled " << result.second << " of " << result.first << " scripts ("
-                                     << 100 * static_cast<double>(result.second) / result.first << "%)" << std::endl;
+                              << 100 * static_cast<double>(result.second) / result.first << "%)" << std::endl;
             }
             if (args.compileAllDialogue)
             {
                 std::pair<int, int> result = MWDialogue::ScriptTest::compileAll(&mExtensions, args.warningsMode);
                 if (result.first)
                     std::cout << "compiled " << result.second << " of " << result.first
-                                     << " dialogue script/actor combinations ("
-                                     << 100 * static_cast<double>(result.second) / result.first << "%)" << std::endl;
+                              << " dialogue script/actor combinations ("
+                              << 100 * static_cast<double>(result.second) / result.first << "%)" << std::endl;
             }
 
             // Extensions start here rather than with the engine, because they get the world's services for good at
@@ -133,7 +135,8 @@ namespace OMW
             if (mLuaManager)
                 mLuaManager->savePermanentStorage(mEngine.mCfgMgr.getUserConfigPath().string());
             // openeden-vsg: as in OpenMW 0.51's Engine destructor, the game systems and the World (whose objects hold
-            // Lua scripts) go before the Lua manager. The Lua manager itself is owned by the Engine and outlives the window manager.
+            // Lua scripts) go before the Lua manager. The Lua manager itself is owned by the Engine and outlives the
+            // window manager.
             mMechanicsManager = nullptr;
             mDialogueManager = nullptr;
             mJournal = nullptr;

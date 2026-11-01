@@ -43,8 +43,8 @@ namespace
         font.setPixelSize(sCharacterSize);
         const QString string = QString::fromStdString(text);
         const QFontMetrics metrics(font);
-        QImage image(metrics.horizontalAdvance(string) + 2 * sMargin, metrics.height() + 2 * sMargin,
-            QImage::Format_RGBA8888);
+        QImage image(
+            metrics.horizontalAdvance(string) + 2 * sMargin, metrics.height() + 2 * sMargin, QImage::Format_RGBA8888);
         // If cell exists then show black bounding box otherwise show red.
         image.fill(cellExists ? QColor(0, 0, 0) : QColor(255, 0, 0));
         QPainter painter(&image);
@@ -68,7 +68,8 @@ CSVRender::CellMarker* CSVRender::CellMarkerTag::getCellMarker() const
 
 vsg::ref_ptr<vsg::Node> CSVRender::CellMarker::buildMarker() const
 {
-    const QImage text = drawText(std::to_string(mCoordinates.getX()) + "," + std::to_string(mCoordinates.getY()), mExists);
+    const QImage text
+        = drawText(std::to_string(mCoordinates.getX()) + "," + std::to_string(mCoordinates.getY()), mExists);
 
     auto image = vsg::ubvec4Array2D::create(static_cast<uint32_t>(text.width()), static_cast<uint32_t>(text.height()),
         vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
@@ -90,8 +91,8 @@ vsg::ref_ptr<vsg::Node> CSVRender::CellMarker::buildMarker() const
     const Pipeline::Builder& builder = *mHost.resources().builder;
     auto pipeline = builder.graphics->getOrCreate(options);
     auto texture = vsg::DescriptorImage::create(builder.createSampler(), image);
-    auto bindTexture = vsg::BindDescriptorSet::create(
-        VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout, Pipeline::TEXTURE_SET, vsg::Descriptors{ texture });
+    auto bindTexture = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
+        Pipeline::TEXTURE_SET, vsg::Descriptors{ texture });
 
     const float halfWidth = text.width() / 2.f;
     const float halfHeight = text.height() / 2.f;
@@ -123,8 +124,8 @@ CSVRender::CellMarker::CellMarker(
     const int cellSize = Constants::CellSizeInUnits;
 
     // Move marker to center of cell.
-    mPosition = vsg::dvec3((mCoordinates.getX() * cellSize) + (cellSize / 2.0),
-        (mCoordinates.getY() * cellSize) + (cellSize / 2.0), 0.0);
+    mPosition = vsg::dvec3(
+        (mCoordinates.getX() * cellSize) + (cellSize / 2.0), (mCoordinates.getY() * cellSize) + (cellSize / 2.0), 0.0);
 
     mMarkerNode = vsg::MatrixTransform::create();
     mMarkerNode->addChild(buildMarker());

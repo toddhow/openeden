@@ -8,33 +8,33 @@
 #include <vsg/maths/vec2.h>
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/state/PushConstants.h>
-#include <vsg/vk/Context.h>
 #include <vsg/utils/ComputeBounds.h>
+#include <vsg/vk/Context.h>
 
 #include <components/esm3/fogstate.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/constants.hpp>
 #include <components/pipeline/fogofwar.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/attachmentformat.hpp>
 #include <components/render/computeimage.hpp>
 #include <components/render/rendertexture.hpp>
-#include <components/render/attachmentformat.hpp>
+#include <components/terrain/paging.hpp>
 #include <components/view/collectlights.hpp>
 #include <components/view/defaultstate.hpp>
-#include <components/view/scene.hpp>
 #include <components/view/descriptors.hpp>
-#include <components/vsgutil/imageio.hpp>
-#include <components/vsgutil/sharedview.hpp>
-#include <components/vsgutil/compilecontext.hpp>
+#include <components/view/scene.hpp>
 #include <components/vsgutil/bounds.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/image.hpp>
+#include <components/vsgutil/imageio.hpp>
 #include <components/vsgutil/nullbin.hpp>
-#include <components/terrain/paging.hpp>
+#include <components/vsgutil/sharedview.hpp>
 
 #include "../mwworld/cellstore.hpp"
 
-#include "mask.hpp"
 #include "bin.hpp"
+#include "mask.hpp"
 
 namespace FogConstants
 {
@@ -49,11 +49,11 @@ namespace
         MWWorld::ConstPtr northmarker = cell->searchConst(ESM::RefId::stringRefId("northmarker"));
 
         if (northmarker.isEmpty())
-            return {0, 1};
+            return { 0, 1 };
 
         vsg::quat orient(-northmarker.getRefData().getPosition().rot[2], vsg::vec3(0, 0, 1));
         auto dir = orient * vsg::vec3(0, 1, 0);
-        return {dir.x, dir.y};
+        return { dir.x, dir.y };
     }
 
     vsg::dvec2 rotatePoint(const vsg::dvec2& point, const vsg::dvec2& center, float angle)
@@ -93,8 +93,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::Group> mSceneRoot;
 
     public:
-
-        Blit(int32_t resolution, vsg::ref_ptr<vsg::Image> srcImage, vsg::ref_ptr<vsg::View> view, vsg::ref_ptr<vsg::Group> sceneRoot)
+        Blit(int32_t resolution, vsg::ref_ptr<vsg::Image> srcImage, vsg::ref_ptr<vsg::View> view,
+            vsg::ref_ptr<vsg::Group> sceneRoot)
             : mView(view)
             , mSceneRoot(sceneRoot)
         {
@@ -124,7 +124,8 @@ namespace MWRender
                     /*dstImage*/ vsg::ref_ptr<vsg::Image>(), range));
 
             mPostBarrier = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT/*supportsWorldMap*/,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT /*supportsWorldMap*/,
                 0 /*VK_DEPENDENCY_BY_REGION_BIT*/,
                 vsg::MemoryBarrier::create(
                     VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT), // srcImage
@@ -209,7 +210,7 @@ namespace MWRender
                 mData->at(1) = vsg::vec4(r.center.x, r.center.y, 0, 0);
                 visitor.apply(*r.bds);
 
-                #include <files/shaders/comp/fogofwar/workgroupsize.glsl>
+#include <files/shaders/comp/fogofwar/workgroupsize.glsl>
                 // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
                 static_assert(workGroupSize * workGroupSize <= 128);
                 compute(visitor, r.image, r.rect.z - r.rect.x, r.rect.w - r.rect.y, workGroupSize);
@@ -228,7 +229,9 @@ namespace MWRender
         vsg::ref_ptr<vsg::ubyteArray2D> data;
     };
 
-    Map::Map(vsg::Context& ctx, VkSampleCountFlagBits samples, vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<vsg::Node> scene, Terrain::Paging* terrain, float referenceViewDistance, uint32_t resolution, const vsg::Options* shaderOptions)
+    Map::Map(vsg::Context& ctx, VkSampleCountFlagBits samples, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+        vsg::ref_ptr<vsg::Node> scene, Terrain::Paging* terrain, float referenceViewDistance, uint32_t resolution,
+        const vsg::Options* shaderOptions)
         : mContext(&ctx)
         , mSceneGraph(scene)
         , mTerrain(terrain)
@@ -241,7 +244,7 @@ namespace MWRender
         auto camera = vsg::Camera::create();
         camera->viewportState = vsg::ViewportState::create(0, 0, resolution, resolution);
 
-        auto collectLights = vsg::ref_ptr{ new View::CollectLights(256) }; //CollectAndCullLights(64)
+        auto collectLights = vsg::ref_ptr{ new View::CollectLights(256) }; // CollectAndCullLights(64)
         mLightData = collectLights->data();
 
         auto root = vsg::Group::create();
@@ -249,14 +252,13 @@ namespace MWRender
         auto view = vsgUtil::createSharedView(camera, root);
         // auto lightGrid = std::make_unique<View::LightGrid>(shaderOptions);
         // setResolution()
-        view->mask = ~(Mask_Particle|Mask_GUI);
+        view->mask = ~(Mask_Particle | Mask_GUI);
         view->viewDependentState = collectLights;
-        view->bins = {
-            vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING),
-            vsgUtil::NullBin::create(Bin_Compute)
-        };
+        view->bins = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING), vsgUtil::NullBin::create(Bin_Compute) };
 
-        auto [renderGraph, srcImageView] = Render::createRenderTexture(ctx, samples, VkExtent2D{ resolution, resolution }, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL); // vsgopenmw-optimization-mwrender-map-reuse-render-texture
+        auto [renderGraph, srcImageView] = Render::createRenderTexture(ctx, samples,
+            VkExtent2D{ resolution, resolution }, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL); // vsgopenmw-optimization-mwrender-map-reuse-render-texture
         renderGraph->setClearValues(VkClearColorValue{ { 0, 0, 0, 1 } });
         renderGraph->children = { view };
 
@@ -371,7 +373,8 @@ namespace MWRender
             return tex;
         }
 
-        auto dstImage = vsgUtil::createImage(Render::compatibleColorFormat, VkExtent2D{ mResolution, mResolution }, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        auto dstImage = vsgUtil::createImage(Render::compatibleColorFormat, VkExtent2D{ mResolution, mResolution },
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
         auto imageInfo = vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(),
             vsg::createImageView(*mContext, dstImage, VK_IMAGE_ASPECT_COLOR_BIT), VK_IMAGE_LAYOUT_UNDEFINED);
         auto tex = std::make_unique<Texture>();
@@ -389,7 +392,9 @@ namespace MWRender
             return tex;
         }
 
-        auto dstImage = vsgUtil::createImage(sFogTextureFormat, VkExtent2D{ FogConstants::resolution, FogConstants::resolution }, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+        auto dstImage
+            = vsgUtil::createImage(sFogTextureFormat, VkExtent2D{ FogConstants::resolution, FogConstants::resolution },
+                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 
         auto imageView = vsg::ImageView::create(dstImage, VK_IMAGE_ASPECT_COLOR_BIT);
         imageView->components
@@ -442,7 +447,8 @@ namespace MWRender
         entry->sceneData = std::move(sceneData);
         entry->descriptorSet = descriptorSet;
         entry->state = View::createDefaultState(descriptorSet);
-        // Create a specialized terrain view that contains just the cell we need, and is unaffected by view distance culling of the 3D scene's view distance.
+        // Create a specialized terrain view that contains just the cell we need, and is unaffected by view distance
+        // culling of the 3D scene's view distance.
         entry->terrainView = mTerrain->createView();
 
         if (!mCompile->compile(entry->state))
@@ -530,11 +536,13 @@ namespace MWRender
         float zmax = bounds.max.z;
 
         auto viewData = setupRenderToTexture(cell->getCell()->getGridX(), cell->getCell()->getGridY(),
-            x * mMapWorldSize + mMapWorldSize / 2.f, y * mMapWorldSize + mMapWorldSize / 2.f, vsg::dvec3(0, 1, 0), zmin, zmax);
+            x * mMapWorldSize + mMapWorldSize / 2.f, y * mMapWorldSize + mMapWorldSize / 2.f, vsg::dvec3(0, 1, 0), zmin,
+            zmax);
         if (!viewData)
             return;
         viewData->sceneChildren = { mSceneGraph };
-        if (auto compileOp = mTerrain->updateViewForCell(*viewData->terrainView, vsg::ivec2(x, y), mReferenceViewDistance))
+        if (auto compileOp
+            = mTerrain->updateViewForCell(*viewData->terrainView, vsg::ivec2(x, y), mReferenceViewDistance))
         {
             compileOp->compile();
             viewData->sceneChildren.push_back(viewData->terrainView->node());
@@ -580,7 +588,8 @@ namespace MWRender
         mBounds = bounds;
 
         // vsgopenmw-rewrite-me
-        // The following code for dividing interior cells is messy, breaks under certain circumstances and doesn't support lazy-loading of individual segments.
+        // The following code for dividing interior cells is messy, breaks under certain circumstances and doesn't
+        // support lazy-loading of individual segments.
 
         // Get the cell's NorthMarker rotation. This is used to rotate the entire map.
         mAngle = std::atan2(north.x, north.y);
@@ -625,7 +634,8 @@ namespace MWRender
             if (std::abs(mAngle - fog->mNorthMarkerAngle) < vsg::radians(5.f))
             {
                 // Expand mBounds so the saved textures fit the same grid
-                // vsgopenmw-fixme The following code is incomplete or broken. It consistently breaks the map on save load when epsilon is removed.
+                // vsgopenmw-fixme The following code is incomplete or broken. It consistently breaks the map on save
+                // load when epsilon is removed.
                 int xOffset = 0;
                 int yOffset = 0;
                 const float epsilon = 0.01f;
@@ -849,8 +859,7 @@ namespace MWRender
                 vsg::vec2 center(-mx * FogConstants::resolution + u * FogConstants::resolution,
                     -my * FogConstants::resolution + v * FogConstants::resolution);
 
-                vsg::vec4 rect(
-                    std::max(0.f, std::floor(center.x - exploreRadius)),
+                vsg::vec4 rect(std::max(0.f, std::floor(center.x - exploreRadius)),
                     std::max(0.f, std::floor(center.y - exploreRadius)),
                     std::min(static_cast<float>(FogConstants::resolution), std::ceil(center.x + exploreRadius)),
                     std::min(static_cast<float>(FogConstants::resolution), std::ceil(center.y + exploreRadius)));
@@ -859,8 +868,8 @@ namespace MWRender
                 {
                     for (int texV = rect.y; texV < rect.w; ++texV)
                     {
-                        //float sqrDist = square(texU - center.x) + square(texV - center.y);
-                        // openmw-7373-fog-of-war-borders
+                        // float sqrDist = square(texU - center.x) + square(texV - center.y);
+                        //  openmw-7373-fog-of-war-borders
                         float sqrDist = square(texU + 0.5 - center.x) + square(texV + 0.5 - center.y);
                         auto& val = (*tex.data)(texU, texV);
                         val = std::min(
@@ -872,7 +881,8 @@ namespace MWRender
                  * Reduces transfer operations by recomputing updated region on the GPU.
                  */
                 // if (!useComputeShader) tex.data->dirty(); else
-                mUpdateFog->requests.push_back({ tex.bds, tex.imageInfo->imageView->image, rect, center }); // vsgopenmw-optimization-mwrender-map-compute-fog
+                mUpdateFog->requests.push_back({ tex.bds, tex.imageInfo->imageView->image, rect,
+                    center }); // vsgopenmw-optimization-mwrender-map-compute-fog
 
                 segment.hasFogState = true;
             }

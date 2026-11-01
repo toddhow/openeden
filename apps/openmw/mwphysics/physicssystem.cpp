@@ -1,8 +1,8 @@
 #include "physicssystem.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <array>
+#include <chrono>
 #include <cstdarg>
 #include <cstdint>
 #include <limits>
@@ -21,9 +21,9 @@
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/ShapeCast.h>
 #include <Jolt/Physics/Collision/ShapeFilter.h>
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/SimShapeFilter.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -284,8 +284,7 @@ namespace MWPhysics
         }
     }
 
-    PhysicsSystem::PhysicsSystem(
-        Resource::ResourceSystem* resourceSystem, const ToUTF8::StatelessUtf8Encoder* encoder)
+    PhysicsSystem::PhysicsSystem(Resource::ResourceSystem* resourceSystem, const ToUTF8::StatelessUtf8Encoder* encoder)
         : mNifFileManager(std::make_unique<Resource::NifFileManager>(resourceSystem->getVFS(), encoder))
         , mShapeManager(std::make_unique<Resource::PhysicsShapeManager>(
               resourceSystem->getVFS(), mNifFileManager.get(), Settings::cells().mCacheExpiryDelay))
@@ -1320,10 +1319,10 @@ namespace MWPhysics
         , mSwimLevel(waterlevel
               - (actor.getRenderingHalfExtents().z * 2
                   * MWBase::Environment::get()
-                      .getESMStore()
-                      ->get<ESM::GameSetting>()
-                      .find("fSwimHeightScale")
-                      ->mValue.getFloat()))
+                        .getESMStore()
+                        ->get<ESM::GameSetting>()
+                        .find("fSwimHeightScale")
+                        ->mValue.getFloat()))
         , mSlowFall(slowFall)
         , mRotation()
         , mMovement(actor.velocity())

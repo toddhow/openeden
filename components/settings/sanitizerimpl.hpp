@@ -3,7 +3,6 @@
 
 #include "sanitizer.hpp"
 
-
 #include <cstdint>
 #include <initializer_list>
 #include <memory>

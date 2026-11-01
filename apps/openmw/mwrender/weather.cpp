@@ -18,7 +18,6 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/vsgmath.hpp>
-#include <components/vfs/manager.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/material.hpp>
@@ -28,6 +27,7 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/readnode.hpp>
@@ -132,7 +132,7 @@ namespace MWRender
                     found = mTextureMap.emplace(texture, bds).first;
             }
             if (found != mTextureMap.end())
-                mStateSwitch->children = {{ vsg::MASK_ALL, found->second }};
+                mStateSwitch->children = { { vsg::MASK_ALL, found->second } };
         }
     };
 
@@ -143,7 +143,8 @@ namespace MWRender
         CelestialBody(float scaleFactor = 1.f) { scale = vsg::vec3(450, 450, 450) * scaleFactor; }
         Pipeline::Options pipelineOptions(const std::string& shader)
         {
-            auto options = Pipeline::Options{ .shader = { shader, Pipeline::modes({ Pipeline::Mode::MATERIAL, Pipeline::Mode::DIFFUSE_MAP }) },
+            auto options = Pipeline::Options{ .shader
+                = { shader, Pipeline::modes({ Pipeline::Mode::MATERIAL, Pipeline::Mode::DIFFUSE_MAP }) },
                 .primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
                 .blend = true,
                 .cullMode = VK_CULL_MODE_NONE };
@@ -163,6 +164,7 @@ namespace MWRender
     class SunGlare : public vsgUtil::Composite<vsg::StateGroup>
     {
         float mFaderMax;
+
     public:
         Pipeline::Material material;
         SunGlare(const Pipeline::Builder& builder)
@@ -182,7 +184,8 @@ namespace MWRender
 
             auto pipelineOptions
                 = Pipeline::Options{ .shader = { "sky/sunglare", Pipeline::modes({ Pipeline::Mode::MATERIAL }) },
-                    .blend = true, .cullMode = VK_CULL_MODE_NONE };
+                      .blend = true,
+                      .cullMode = VK_CULL_MODE_NONE };
             depthOff(pipelineOptions);
 
             auto pipeline = builder.graphics->getOrCreate(pipelineOptions);
@@ -210,7 +213,8 @@ namespace MWRender
         float glareTimeOfDayFade = 1.f;
         float visibleRatio = 0.f;
         bool enabled = true;
-        Sun(vsg::ref_ptr<const vsg::Options> textureOptions, const Pipeline::Builder& builder, bool occlusionQueryPrecise)
+        Sun(vsg::ref_ptr<const vsg::Options> textureOptions, const Pipeline::Builder& builder,
+            bool occlusionQueryPrecise)
         {
             VkQueryControlFlags queryControlFlags{};
             if (occlusionQueryPrecise)
@@ -260,7 +264,7 @@ namespace MWRender
                 share(flashSampler, textureOptions);
                 auto descriptorImage = vsg::DescriptorImage::create(flashSampler, flashTex);
 
-                sunFlashMaterial.value().emissive = vsg::vec4(1, 1, 1, 1 );
+                sunFlashMaterial.value().emissive = vsg::vec4(1, 1, 1, 1);
                 auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
                     Pipeline::TEXTURE_SET, vsg::Descriptors{ descriptorImage, sunFlashMaterial.descriptor() });
                 sg->stateCommands = { pipeline, bds };
@@ -475,7 +479,8 @@ namespace MWRender
         MoonState::Phase mPhase;
     };
 
-    Sky::Sky(Resource::ResourceSystem& resourceSystem, vsg::ref_ptr<vsgUtil::CompileContext> compile, bool occlusionQueryPrecise)
+    Sky::Sky(Resource::ResourceSystem& resourceSystem, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+        bool occlusionQueryPrecise)
         : mCompile(compile)
         , mTextureOptions(resourceSystem.textureOptions)
         , mStormParticleDirection(MWWorld::Weather::defaultDirection())
@@ -521,7 +526,9 @@ namespace MWRender
             mAtmosphereNight.setup(t, mSwitch, false);
             override_->material = {};
         }
-        mSun.setup(vsg::ref_ptr{ new Sun(resourceSystem.textureOptions, *resourceSystem.builder, occlusionQueryPrecise) }, mSwitch, true);
+        mSun.setup(
+            vsg::ref_ptr{ new Sun(resourceSystem.textureOptions, *resourceSystem.builder, occlusionQueryPrecise) },
+            mSwitch, true);
 
         mMasser.setup(
             vsg::ref_ptr{ new Moon(resourceSystem.textureOptions, Fallback::Map::getFloat("Moons_Masser_Size") / 125,
@@ -550,9 +557,7 @@ namespace MWRender
         return mSun->resetNode();
     }
 
-    void Sky::createRain()
-    {
-    }
+    void Sky::createRain() {}
 
     void Sky::destroyRain()
     {

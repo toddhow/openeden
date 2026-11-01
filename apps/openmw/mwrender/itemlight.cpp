@@ -42,7 +42,8 @@ namespace MWRender
         if (lights.find(item) != lights.end())
             return;
         ItemLight l;
-        l.node = MWAnim::addLight(obj.nodeToAddChildrenTo(), obj.nodeToAddChildrenTo(), light, obj.autoPlay.getOrCreateGroup().controllers);
+        l.node = MWAnim::addLight(
+            obj.nodeToAddChildrenTo(), obj.nodeToAddChildrenTo(), light, obj.autoPlay.getOrCreateGroup().controllers);
         lights[item] = l;
         obj.node()->setValue(sItemLights, lights);
     }

@@ -9,9 +9,9 @@
 #include <QTimer>
 
 #include <vsg/app/Window.h>
-#include <vsg/vk/ResourceRequirements.h>
 #include <vsg/core/ref_ptr.h>
 #include <vsg/vk/Device.h>
+#include <vsg/vk/ResourceRequirements.h>
 
 namespace vsg
 {
@@ -46,9 +46,9 @@ namespace CSVRender
 {
     class SceneHost;
 
-    /// What every 3D view of the editor shares: the viewer, the device, the render pass and the compile context. It drives
-    /// the frames from one Qt timer on the main thread. The viewer does not run threads, so everything here and in
-    /// SceneHost runs on the main thread, and the timer can never fire in the middle of a frame.
+    /// What every 3D view of the editor shares: the viewer, the device, the render pass and the compile context. It
+    /// drives the frames from one Qt timer on the main thread. The viewer does not run threads, so everything here and
+    /// in SceneHost runs on the main thread, and the timer can never fire in the middle of a frame.
     ///
     /// Owned by whoever opens 3D views, and destroyed after all its SceneHosts and after any document whose
     /// ResourceSystem it created has no views left.
@@ -76,8 +76,9 @@ namespace CSVRender
 
         /// A window for one view, with the traits every view shares. Qt owns it through its container. Set its size and
         /// lay it out before constructing a SceneHost on it: a zero-size window is refused. Create the next window only
-        /// after the previous SceneHost exists: vsgQt::Window copies the traits here, and those hold the shared device only
-        /// from the first SceneHost on, so an earlier window would get a second device. SceneHost refuses one that has.
+        /// after the previous SceneHost exists: vsgQt::Window copies the traits here, and those hold the shared device
+        /// only from the first SceneHost on, so an earlier window would get a second device. SceneHost refuses one that
+        /// has.
         vsgQt::Window* createWindow();
 
         /// The document's resources, created on the first call for the document. Needs a device, so only a SceneHost
@@ -92,8 +93,8 @@ namespace CSVRender
         vsg::ref_ptr<vsg::RenderPass> renderPass(vsg::Device* device, unsigned int samples, int presentLayout);
         vsg::ref_ptr<vsg::Device> device() const { return mDevice; }
         /// Lets the compile context compile for this window's render pass, once: CompileManager has no way to remove a
-        /// target, and every view shares one view ID and render pass (vsgUtil::createSharedView), so no target refers to
-        /// a view that may close.
+        /// target, and every view shares one view ID and render pass (vsgUtil::createSharedView), so no target refers
+        /// to a view that may close.
         void addCompileTarget(vsg::Window& window, const vsg::ResourceRequirements& requirements);
 
         /// onFrame runs after each timer tick, whether or not it drew. For unattended captures.
@@ -123,8 +124,8 @@ namespace CSVRender
         vsg::ref_ptr<vsg::Sampler> mSampler;
         bool mSupportsCompressedImages = false;
         vsg::ref_ptr<vsgUtil::CompileContext> mCompileContext;
-        // Not an Engine's: a view can close while others stay open, and an Engine's compile context must not outlive it.
-        // Advanced only after a frame has been submitted (DeletionQueue::sizeForPostFrameAdvance).
+        // Not an Engine's: a view can close while others stay open, and an Engine's compile context must not outlive
+        // it. Advanced only after a frame has been submitted (DeletionQueue::sizeForPostFrameAdvance).
         std::unique_ptr<vsgUtil::DeletionQueue> mDeletionQueue;
         std::vector<SceneHost*> mHosts;
         QTimer mTimer;

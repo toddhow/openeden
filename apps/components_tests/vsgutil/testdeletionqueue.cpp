@@ -47,9 +47,10 @@ namespace
     }
 
     // The order in a hosted Engine: a frame is stamped, the host's handleEvents and update run (detaches happen here or
-    // between frames), then recordAndSubmit waits on the fence of three frames back, and only then is the frame reported
-    // with advanceToFrame. Worst case: the object was last used by frame 7 and added before frame 7 was reported. Its fence
-    // is waited on in frame 10's recordAndSubmit, so the report of frame 10, which follows it, is the first safe release.
+    // between frames), then recordAndSubmit waits on the fence of three frames back, and only then is the frame
+    // reported with advanceToFrame. Worst case: the object was last used by frame 7 and added before frame 7 was
+    // reported. Its fence is waited on in frame 10's recordAndSubmit, so the report of frame 10, which follows it, is
+    // the first safe release.
     TEST(DeletionQueue, postFrameAdvanceKeepsObjectUntilItsFenceHasBeenWaitedOn)
     {
         vsgUtil::DeletionQueue queue{ vsgUtil::DeletionQueue::sizeForPostFrameAdvance(3) };

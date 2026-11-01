@@ -4,8 +4,8 @@
 //#include <chrono>
 #include <functional>
 
-#include "operation.hpp"
 #include "compilecontext.hpp"
+#include "operation.hpp"
 
 namespace vsgUtil
 {
@@ -15,7 +15,13 @@ namespace vsgUtil
         vsg::ref_ptr<vsg::Object> object;
         std::function<void()> onError;
 
-        CompileOp(vsg::ref_ptr<vsg::Object> in_obj, vsg::ref_ptr<vsgUtil::CompileContext> in_context, std::function<void()> in_onError = {}) : context(in_context), object(in_obj), onError(in_onError) {}
+        CompileOp(vsg::ref_ptr<vsg::Object> in_obj, vsg::ref_ptr<vsgUtil::CompileContext> in_context,
+            std::function<void()> in_onError = {})
+            : context(in_context)
+            , object(in_obj)
+            , onError(in_onError)
+        {
+        }
 
         bool compile()
         {
@@ -26,7 +32,7 @@ namespace vsgUtil
         }
         void operate() override
         {
-            //auto start = std::chrono::steady_clock::now();
+            // auto start = std::chrono::steady_clock::now();
             if (!compile())
                 throw std::runtime_error("!CompileOp");
             /*

@@ -13,7 +13,6 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-
 #include "../mwrender/switches.hpp"
 
 #include "class.hpp"

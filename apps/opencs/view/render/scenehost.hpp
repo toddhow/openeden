@@ -72,9 +72,10 @@ namespace CSVRender
     };
 
     /// One 3D view: the scene graph, camera, per-view descriptor set and command graphs of one window, what
-    /// MWRender::RenderManager is for the game's one view. Device, render pass, compile context and resource caches come
-    /// from RenderContext and CSMWorld::Data. Owned by the view that shows it, and must not outlive the RenderContext.
-    /// Every method runs on the main thread. What it shows comes from CSVRender::Cell or Object, which add to contentRoot.
+    /// MWRender::RenderManager is for the game's one view. Device, render pass, compile context and resource caches
+    /// come from RenderContext and CSMWorld::Data. Owned by the view that shows it, and must not outlive the
+    /// RenderContext. Every method runs on the main thread. What it shows comes from CSVRender::Cell or Object, which
+    /// add to contentRoot.
     class SceneHost
     {
     public:
@@ -132,9 +133,9 @@ namespace CSVRender
         unsigned int getNightDayIndex() const { return mNightDayIndex; }
         bool getNightDayApply() const { return mNightDayApply; }
 
-        /// The nearest thing under a point of the view, where (0, 0) is the view's top left corner and (1, 1) its bottom
-        /// right, among the elements of mask.hpp's list in \p mask.
-        /// \return the world position, if anything is there.
+        /// The nearest thing under a point of the view, where (0, 0) is the view's top left corner and (1, 1) its
+        /// bottom right, among the elements of mask.hpp's list in \p mask. \return the world position, if anything is
+        /// there.
         std::optional<vsg::dvec3> pickNearest(double x, double y, unsigned int mask) const;
         /// As WorldspaceWidget::mousePick wants it: see Picking::pick. The same point of the view as pickNearest.
         Picking::Result pick(double x, double y, unsigned int mask, double placementDistance) const;
@@ -153,10 +154,12 @@ namespace CSVRender
         void addListener(FrameListener& listener);
         void removeListener(FrameListener& listener);
 
-        /// False once Qt has destroyed the window's surface (vsgQt::Window::cleanup): nothing can be drawn here any more.
+        /// False once Qt has destroyed the window's surface (vsgQt::Window::cleanup): nothing can be drawn here any
+        /// more.
         bool hasWindow() const;
 
-        /// Writes the last frame drawn to a file. \return whether there was a frame to write: a zero-size window has none.
+        /// Writes the last frame drawn to a file. \return whether there was a frame to write: a zero-size window has
+        /// none.
         bool capture(const std::filesystem::path& file);
 
     private:

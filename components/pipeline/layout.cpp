@@ -8,24 +8,33 @@ namespace Pipeline
     vsg::DescriptorSetLayouts getCompatibleDescriptorSetLayouts()
     {
         static const auto objectLayout = vsg::DescriptorSetLayout::create(vsg::DescriptorSetLayoutBindings{
-            { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
-        });
+            { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
         return { getViewDescriptorSetLayout(), objectLayout };
     }
 
     vsg::ref_ptr<vsg::DescriptorSetLayout> getViewDescriptorSetLayout()
     {
         static const auto sceneLayout = vsg::DescriptorSetLayout::create(vsg::DescriptorSetLayoutBindings{
-            { Descriptors::VIEW_SCENE_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, lightStages | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            { Descriptors::VIEW_ENV_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::VIEW_LIGHTS_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            { Descriptors::VIEW_LIGHT_GRID_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            { Descriptors::VIEW_LIGHT_INDICES_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            { Descriptors::VIEW_LIGHT_GRID_SIZE_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            { Descriptors::VIEW_SHADOW_MAP_BINDING, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::VIEW_SHADOW_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::VIEW_REFLECT_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-            { Descriptors::VIEW_REFLECT_DEPTH_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
+            { Descriptors::VIEW_SCENE_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+                lightStages | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { Descriptors::VIEW_ENV_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::VIEW_LIGHTS_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { Descriptors::VIEW_LIGHT_GRID_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { Descriptors::VIEW_LIGHT_INDICES_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { Descriptors::VIEW_LIGHT_GRID_SIZE_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+                lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { Descriptors::VIEW_SHADOW_MAP_BINDING, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::VIEW_SHADOW_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            { Descriptors::VIEW_REFLECT_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::VIEW_REFLECT_DEPTH_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
         return sceneLayout;
     }
 

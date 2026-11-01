@@ -6,7 +6,6 @@
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -66,8 +65,8 @@ namespace Settings
         SettingValue<bool> mGraphicHerbalism{ mIndex, "Game", "graphic herbalism" };
         SettingValue<bool> mAllowActorsToFollowOverWaterSurface{ mIndex, "Game",
             "allow actors to follow over water surface" };
-        SettingValue<vsg::vec3> mDefaultActorPathfindHalfExtents{ mIndex, "Game",
-            "default actor pathfind half extents", makeMaxStrictSanitizerVec3f(vsg::vec3(0, 0, 0)) };
+        SettingValue<vsg::vec3> mDefaultActorPathfindHalfExtents{ mIndex, "Game", "default actor pathfind half extents",
+            makeMaxStrictSanitizerVec3f(vsg::vec3(0, 0, 0)) };
         SettingValue<bool> mDayNightSwitches{ mIndex, "Game", "day night switches" };
         SettingValue<DetourNavigator::CollisionShapeType> mActorCollisionShapeType{ mIndex, "Game",
             "actor collision shape type" };
@@ -82,8 +81,8 @@ namespace Settings
         SettingValue<float> mLeanScale{ mIndex, "Game", "lean scale", makeClampSanitizerFloat(0.0f, 3.0f) };
         SettingValue<bool> mCreativeMotionAnimation{ mIndex, "Game", "creativemotion animation" };
         SettingValue<bool> mCreativeMotionAnimationCompare{ mIndex, "Game", "creativemotion animation compare" };
-        SettingValue<float> mCreativeMotionAnimationTransition{ mIndex, "Game",
-            "creativemotion animation transition", makeMaxSanitizerFloat(0.0f) };
+        SettingValue<float> mCreativeMotionAnimationTransition{ mIndex, "Game", "creativemotion animation transition",
+            makeMaxSanitizerFloat(0.0f) };
     };
 }
 

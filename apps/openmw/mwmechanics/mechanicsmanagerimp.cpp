@@ -2048,9 +2048,7 @@ namespace MWMechanics
         mActors.cleanupSummonedCreature(creature);
     }
 
-    void MechanicsManager::reportStats(unsigned int frameNumber, Misc::Stats& stats) const
-    {
-    }
+    void MechanicsManager::reportStats(unsigned int frameNumber, Misc::Stats& stats) const {}
 
     int MechanicsManager::getGreetingTimer(const MWWorld::Ptr& ptr) const
     {

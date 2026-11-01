@@ -72,8 +72,7 @@ namespace
     TEST(VsgAdaptersTangentsTest, uvAlongXYGivesTangentX)
     {
         const auto vertices = quad();
-        const auto result
-            = vsgAdapters::generateTangents(vertices, upNormals(4), uvXY(vertices), quadTriangles, false);
+        const auto result = vsgAdapters::generateTangents(vertices, upNormals(4), uvXY(vertices), quadTriangles, false);
         ASSERT_EQ(result.size(), 4u);
         for (const auto& t : result)
             expectTangent(t, 1, 0, 0, 1);
@@ -181,7 +180,8 @@ namespace
     {
         const std::vector<vsg::vec3> vertices{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 2, 0, 0 } };
         const std::vector<vsg::vec2> uvs{ { 0, 0 }, { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -2 } };
-        const auto one = vsgAdapters::generateTangents(vertices, upNormals(5), uvs, Lists{ { 0, 1, 2, 0, 3, 4 } }, false);
+        const auto one
+            = vsgAdapters::generateTangents(vertices, upNormals(5), uvs, Lists{ { 0, 1, 2, 0, 3, 4 } }, false);
         const auto two
             = vsgAdapters::generateTangents(vertices, upNormals(5), uvs, Lists{ { 0, 1, 2 }, { 0, 3, 4 } }, false);
         ASSERT_EQ(one.size(), 5u);
@@ -194,8 +194,8 @@ namespace
     {
         auto vertices = quad();
         vertices.emplace_back(5.0f, 5.0f, 5.0f);
-        const auto result = vsgAdapters::generateTangents(
-            vertices, upNormals(5), uvXY(vertices), Lists{ { 0, 1, 2 } }, false);
+        const auto result
+            = vsgAdapters::generateTangents(vertices, upNormals(5), uvXY(vertices), Lists{ { 0, 1, 2 } }, false);
         ASSERT_EQ(result.size(), 5u);
         expectTangent(result[0], 1, 0, 0, 1);
         expectTangent(result[1], 1, 0, 0, 1);
@@ -270,8 +270,8 @@ namespace
     {
         // Non-planar, irregular geometry without normals, so face normals and their winding
         // matter. Strip (0,1,2,3,4) = triangles (0,1,2), (2,1,3), (2,3,4).
-        const std::vector<vsg::vec3> vertices{
-            { 0, 0, 0 }, { 1, 0, 0.3f }, { 0.2f, 1, 0.1f }, { 1.1f, 1.2f, -0.2f }, { 0.3f, 2, 0.4f } };
+        const std::vector<vsg::vec3> vertices{ { 0, 0, 0 }, { 1, 0, 0.3f }, { 0.2f, 1, 0.1f }, { 1.1f, 1.2f, -0.2f },
+            { 0.3f, 2, 0.4f } };
         const std::vector<vsg::vec2> uvs{ { 0, 0 }, { 1, 0.1f }, { 0.1f, 1 }, { 1.2f, 0.9f }, { 0.2f, 2.1f } };
         const auto strip = vsgAdapters::generateTangents(vertices, {}, uvs, Lists{ { 0, 1, 2, 3, 4 } }, true);
         const auto list
@@ -305,8 +305,8 @@ namespace
     TEST(VsgAdaptersTangentsTest, stripShorterThanThreeIndicesHasNoTriangles)
     {
         const auto vertices = stripQuad();
-        const auto result = vsgAdapters::generateTangents(
-            vertices, upNormals(4), uvXY(vertices), Lists{ { 0, 1 }, {}, { 3 } }, true);
+        const auto result
+            = vsgAdapters::generateTangents(vertices, upNormals(4), uvXY(vertices), Lists{ { 0, 1 }, {}, { 3 } }, true);
         ASSERT_EQ(result.size(), 4u);
         for (const auto& t : result)
             expectTangent(t, 0, 0, 0, 1);
@@ -345,8 +345,10 @@ namespace
     TEST(VsgAdaptersTangentsTest, mismatchedNormalCountGivesEmpty)
     {
         const auto vertices = quad();
-        EXPECT_TRUE(vsgAdapters::generateTangents(vertices, upNormals(3), uvXY(vertices), quadTriangles, false).empty());
-        EXPECT_TRUE(vsgAdapters::generateTangents(vertices, upNormals(5), uvXY(vertices), quadTriangles, false).empty());
+        EXPECT_TRUE(
+            vsgAdapters::generateTangents(vertices, upNormals(3), uvXY(vertices), quadTriangles, false).empty());
+        EXPECT_TRUE(
+            vsgAdapters::generateTangents(vertices, upNormals(5), uvXY(vertices), quadTriangles, false).empty());
     }
 
     TEST(VsgAdaptersTangentsTest, mismatchedTexCoordCountGivesEmpty)
@@ -362,13 +364,10 @@ namespace
     {
         const auto vertices = quad();
         const auto uvs = uvXY(vertices);
-        EXPECT_TRUE(
-            vsgAdapters::generateTangents(vertices, upNormals(4), uvs, Lists{ { 0, 1, 4 } }, false).empty());
-        EXPECT_TRUE(
-            vsgAdapters::generateTangents(vertices, upNormals(4), uvs, Lists{ { 0, 1, 2 }, { 0, 2, 9 } }, false)
-                .empty());
-        EXPECT_TRUE(
-            vsgAdapters::generateTangents(vertices, upNormals(4), uvs, Lists{ { 0, 1, 2, 4 } }, true).empty());
+        EXPECT_TRUE(vsgAdapters::generateTangents(vertices, upNormals(4), uvs, Lists{ { 0, 1, 4 } }, false).empty());
+        EXPECT_TRUE(vsgAdapters::generateTangents(vertices, upNormals(4), uvs, Lists{ { 0, 1, 2 }, { 0, 2, 9 } }, false)
+                        .empty());
+        EXPECT_TRUE(vsgAdapters::generateTangents(vertices, upNormals(4), uvs, Lists{ { 0, 1, 2, 4 } }, true).empty());
         EXPECT_TRUE(vsgAdapters::generateTangents(vertices, {}, uvs, Lists{ { 0, 65535, 2 } }, false).empty());
     }
 

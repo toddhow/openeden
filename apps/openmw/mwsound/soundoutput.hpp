@@ -62,8 +62,8 @@ namespace MWSound
         virtual void startUpdate() = 0;
         virtual void finishUpdate() = 0;
 
-        virtual void updateListener(const vsg::vec3& pos, const vsg::vec3& atdir, const vsg::vec3& updir,
-            const vsg::vec3& vel, Environment env)
+        virtual void updateListener(
+            const vsg::vec3& pos, const vsg::vec3& atdir, const vsg::vec3& updir, const vsg::vec3& vel, Environment env)
             = 0;
 
         virtual void pauseSounds(int types) = 0;

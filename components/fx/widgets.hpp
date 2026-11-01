@@ -16,7 +16,6 @@
 #include <string>
 #include <vector>
 
-
 #include "types.hpp"
 
 namespace Gui

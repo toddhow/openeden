@@ -10,8 +10,7 @@ namespace Resource
         return decompress(CompositeReaderWriter::read(filename, options));
     }
 
-    vsg::ref_ptr<vsg::Object> Decompress::read(
-        std::istream& stream, vsg::ref_ptr<const vsg::Options> options) const
+    vsg::ref_ptr<vsg::Object> Decompress::read(std::istream& stream, vsg::ref_ptr<const vsg::Options> options) const
     {
         return decompress(CompositeReaderWriter::read(stream, options));
     }

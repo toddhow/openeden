@@ -117,8 +117,7 @@ namespace MWLua
             const int width = Settings::video().mResolutionX;
             const int height = Settings::video().mResolutionY;
 
-            vsg::dmat4 windowMatrix
-                = vsg::scale(0.5 * width, 0.5 * height, 0.5) * vsg::translate(1.0, 1.0, 1.0);
+            vsg::dmat4 windowMatrix = vsg::scale(0.5 * width, 0.5 * height, 0.5) * vsg::translate(1.0, 1.0, 1.0);
             const vsg::mat4& viewMatrix = camera->getViewMatrix();
             const vsg::mat4 projectionMatrix(renderingManager->getProjectionMatrix());
             vsg::vec3 vpCoords = vsg::mat4(windowMatrix) * (projectionMatrix * viewMatrix) * pos;

@@ -159,7 +159,8 @@ namespace MWState
     void MWState::StateManager::quickSave(std::string name)
     {
         if (!(mState == State_Running
-                && MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sCharGenState) == -1 // char gen
+                && MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sCharGenState)
+                    == -1 // char gen
                 && MWBase::Environment::get().getWindowManager()->isSavingAllowed()))
         {
             // You can not save your game right now

@@ -25,7 +25,6 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/scalableicon.hpp>
 
-
 #include "../../model/prefs/shortcut.hpp"
 
 #include "../../model/world/idtable.hpp"
@@ -36,9 +35,9 @@
 #include "cellarrow.hpp"
 #include "editmode.hpp"
 #include "mask.hpp"
+#include "objectmarker.hpp"
 #include "terrainshapemode.hpp"
 #include "terraintexturemode.hpp"
-#include "objectmarker.hpp"
 
 class QWidget;
 
@@ -682,7 +681,7 @@ void CSVRender::PagedWorldspaceWidget::setCellSelection(const CSMWorld::CellSele
 
     if (first)
 
-    emit cellSelectionChanged(mSelection);
+        emit cellSelectionChanged(mSelection);
 }
 
 const CSMWorld::CellSelection& CSVRender::PagedWorldspaceWidget::getCellSelection() const

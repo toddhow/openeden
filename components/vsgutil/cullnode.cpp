@@ -2,14 +2,14 @@
 
 #include <iostream>
 
-#include <vsg/io/stream.h>
 #include <vsg/core/visit.h>
-#include <vsg/nodes/DepthSorted.h>
+#include <vsg/io/stream.h>
 #include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/CullNode.h>
+#include <vsg/nodes/DepthSorted.h>
+#include <vsg/nodes/LOD.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/Switch.h>
-#include <vsg/nodes/LOD.h>
 #include <vsg/nodes/Transform.h>
 #include <vsg/utils/ComputeBounds.h>
 
@@ -71,10 +71,7 @@ namespace vsgUtil
                 group.traverse(*this);
             }
         }
-        void apply(vsg::VertexIndexDraw& group) override
-        {
-            std::cerr << "(VertexIndexDraw)" << std::endl;
-        }
+        void apply(vsg::VertexIndexDraw& group) override { std::cerr << "(VertexIndexDraw)" << std::endl; }
     };
 #endif
 
@@ -88,19 +85,13 @@ namespace vsgUtil
         vsg::ref_ptr<vsg::Node> replaced;
 
         AddLeafCullNodes() { overrideMask = vsg::MASK_ALL; }
-        void apply(vsg::Node& n) override
-        {
-            std::cerr << "!AddLeafCullNodes<" << typeid(n).name() << ">" << std::endl;
-        }
+        void apply(vsg::Node& n) override { std::cerr << "!AddLeafCullNodes<" << typeid(n).name() << ">" << std::endl; }
         void setRequiresLocalFrustum()
         {
             if (!mTransformPath.path.empty())
                 mTransformPath.path.back()->subgraphRequiresLocalFrustum = true;
         }
-        void apply(vsg::DepthSorted& node) override
-        {
-            setRequiresLocalFrustum();
-        }
+        void apply(vsg::DepthSorted& node) override { setRequiresLocalFrustum(); }
         void apply(vsg::CullNode& node) override
         {
             setRequiresLocalFrustum();

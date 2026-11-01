@@ -4,37 +4,39 @@
 #include <map>
 #include <tuple>
 
-#include <vsg/utils/SharedObjects.h>
-#include <vsg/state/BindDescriptorSet.h>
-#include <vsg/state/DescriptorImage.h>
-#include <vsg/state/DescriptorBuffer.h>
-#include <vsg/nodes/CullNode.h>
-#include <vsg/commands/DrawIndexed.h>
 #include <vsg/commands/Commands.h>
+#include <vsg/commands/DrawIndexed.h>
+#include <vsg/nodes/CullNode.h>
+#include <vsg/state/BindDescriptorSet.h>
+#include <vsg/state/DescriptorBuffer.h>
+#include <vsg/state/DescriptorImage.h>
+#include <vsg/utils/SharedObjects.h>
 
 #include <components/pipeline/sets.hpp>
 #include <components/pipeline/terrain.hpp>
 #include <components/vsgutil/arraystate.hpp>
-#include <components/vsgutil/bounds.hpp>
-#include <components/vsgutil/readimage.hpp>
-#include <components/vsgutil/name.hpp>
 #include <components/vsgutil/arraytexture.hpp>
+#include <components/vsgutil/bounds.hpp>
+#include <components/vsgutil/name.hpp>
+#include <components/vsgutil/readimage.hpp>
 
 #include "heightarraystate.hpp"
 #include "indexbuffer.hpp"
 
 namespace Pipeline::Descriptors
 {
-    #include <files/shaders/terrain/bindings.glsl>
+#include <files/shaders/terrain/bindings.glsl>
 }
 namespace Pipeline::Data
 {
     using vsg::vec2;
-    #include <files/shaders/terrain/data.glsl>
+#include <files/shaders/terrain/data.glsl>
 }
 namespace Terrain
 {
-    Builder::Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions, TerrainMapSettings in_mapSettings)
+    Builder::Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions,
+        vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions,
+        TerrainMapSettings in_mapSettings)
         : mImageOptions(in_imageOptions)
         , mSamplerOptions(in_samplerOptions)
         , mMapSettings(std::move(in_mapSettings))
@@ -88,7 +90,8 @@ namespace Terrain
             imageData.push_back(data);
         }
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
-        mLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
+        mLayerDescriptor
+            = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
     }
 
     void Builder::setLayersWithMaps(const std::vector<LayerInfo>& layers)
@@ -163,7 +166,8 @@ namespace Terrain
             flags->set(i, value);
         }
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
-        mLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
+        mLayerDescriptor
+            = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
 
         if (normalData.empty())
         {
@@ -191,32 +195,36 @@ namespace Terrain
         auto blendSampler = vsg::Sampler::create();
         if (auto& sharedObjects = mImageOptions->sharedObjects)
             sharedObjects->share(blendSampler);
-        auto blendDescriptor = vsg::DescriptorImage::create(blendSampler, blendmap, Pipeline::Descriptors::BLENDMAP_BINDING);
+        auto blendDescriptor
+            = vsg::DescriptorImage::create(blendSampler, blendmap, Pipeline::Descriptors::BLENDMAP_BINDING);
 
-        auto heightsDescriptor = vsg::DescriptorImage::create(mSamplerOptions, data.heights, Pipeline::Descriptors::HEIGHTMAP_BINDING);
-        auto normalsDescriptor = vsg::DescriptorImage::create(mSamplerOptions, data.normals, Pipeline::Descriptors::NORMALMAP_BINDING);
-        auto colorDescriptor = vsg::DescriptorImage::create(mSamplerOptions, data.colors, Pipeline::Descriptors::COLORMAP_BINDING);
+        auto heightsDescriptor
+            = vsg::DescriptorImage::create(mSamplerOptions, data.heights, Pipeline::Descriptors::HEIGHTMAP_BINDING);
+        auto normalsDescriptor
+            = vsg::DescriptorImage::create(mSamplerOptions, data.normals, Pipeline::Descriptors::NORMALMAP_BINDING);
+        auto colorDescriptor
+            = vsg::DescriptorImage::create(mSamplerOptions, data.colors, Pipeline::Descriptors::COLORMAP_BINDING);
 
-        auto batchData = vsg::Value<Pipeline::Data::Batch>::create(Pipeline::Data::Batch{
-            .origin = bounds.min,
+        auto batchData = vsg::Value<Pipeline::Data::Batch>::create(Pipeline::Data::Batch{ .origin = bounds.min,
             .numVerts = static_cast<float>(mStorage->numVerts(bounds.size, lod)),
-            .vertexScale = mStorage->cellWorldSize * bounds.size
-        });
+            .vertexScale = mStorage->cellWorldSize * bounds.size });
         auto batchDescriptor = vsg::DescriptorBuffer::create(batchData, Pipeline::Descriptors::BATCH_DATA_BINDING);
 
-        vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, mLayerDescriptor, heightsDescriptor, normalsDescriptor, colorDescriptor };
+        vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, mLayerDescriptor, heightsDescriptor,
+            normalsDescriptor, colorDescriptor };
         if (mNormalLayerDescriptor)
         {
             descriptors.push_back(mNormalLayerDescriptor);
             descriptors.push_back(mLayerFlagsDescriptor);
         }
 
-        auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, descriptors);
+        auto bds = vsg::BindDescriptorSet::create(
+            VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, descriptors);
 
         /*
          * Assigns grid of height ranges so we can quickly look up the bounds for a given chunk.
          */
-        uint32_t gridSize = bounds.size/Bounds::minSize;
+        uint32_t gridSize = bounds.size / Bounds::minSize;
         auto ranges = vsg::vec2Array2D::create(gridSize, gridSize);
         {
             for (uint32_t gridX = 0; gridX < gridSize; ++gridX)
@@ -226,8 +234,8 @@ namespace Terrain
                     float minH = std::numeric_limits<float>::max();
                     float maxH = -std::numeric_limits<float>::max();
                     uint32_t verts0 = mStorage->numVerts(bounds.size / gridSize, lod);
-                    uint32_t startX = gridX * (verts0-1);
-                    uint32_t startY = gridY * (verts0-1);
+                    uint32_t startX = gridX * (verts0 - 1);
+                    uint32_t startY = gridY * (verts0 - 1);
                     for (uint32_t x = startX; x < startX + verts0; ++x)
                     {
                         for (uint32_t y = startY; y < startY + verts0; ++y)
@@ -269,12 +277,13 @@ namespace Terrain
         return dataCache.getOrCreate(std::make_pair(bounds, lod), *this);
     }
 
-    vsg::ref_ptr<vsg::Node> Builder::createDraw(const Builder::Batch& batch, const Bounds& bounds, uint8_t lod, uint32_t lodFlags) const
+    vsg::ref_ptr<vsg::Node> Builder::createDraw(
+        const Builder::Batch& batch, const Bounds& bounds, uint8_t lod, uint32_t lodFlags) const
     {
         uint32_t numVerts = mStorage->numVerts(bounds.size, lod);
         auto bindIndexBuffer = indexCache.getOrCreate(std::make_pair(numVerts, lodFlags), CreateIndexBuffer());
         uint32_t instance = static_cast<uint32_t>(lod - batch.lod);
-        uint32_t shiftSize = ilog2(batch.bounds.size/bounds.size);
+        uint32_t shiftSize = ilog2(batch.bounds.size / bounds.size);
         instance |= shiftSize << 8;
         vsg::vec2 gridPos = (bounds.min - batch.bounds.min) / bounds.size;
         instance |= static_cast<uint32_t>(gridPos.x) << 16;
@@ -288,7 +297,8 @@ namespace Terrain
             return commands;
     }
 
-    vsg::ref_ptr<vsg::Node> Builder::createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds, const Builder::BatchData& data, const Bounds& bounds) const
+    vsg::ref_ptr<vsg::Node> Builder::createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds,
+        const Builder::BatchData& data, const Bounds& bounds) const
     {
         vsg::vec2 heightRangeGridPos = (bounds.min - batchBounds.min) / Bounds::minSize;
         uint32_t heightRangeWidth = static_cast<uint32_t>(bounds.size / Bounds::minSize);
@@ -300,8 +310,8 @@ namespace Terrain
             {
                 uint32_t hx = x + heightRangeGridPos.x;
                 uint32_t hy = y + heightRangeGridPos.y;
-                hx = std::max(0u, std::min(hx, data.heightRanges->width()-1));
-                hy = std::max(0u, std::min(hy, data.heightRanges->height()-1));
+                hx = std::max(0u, std::min(hx, data.heightRanges->width() - 1));
+                hy = std::max(0u, std::min(hy, data.heightRanges->height() - 1));
                 const auto& range = data.heightRanges->at(hx, hy);
                 minH = std::min(range.x, minH);
                 maxH = std::max(range.y, maxH);
@@ -309,7 +319,8 @@ namespace Terrain
         }
         float worldSize = bounds.size * mStorage->cellWorldSize;
         vsg::vec2 offset = bounds.min * mStorage->cellWorldSize;
-        vsg::dbox bb = { vsg::dvec3(offset.x, offset.y, minH), vsg::dvec3(offset.x + worldSize, offset.y + worldSize, maxH) };
+        vsg::dbox bb
+            = { vsg::dvec3(offset.x, offset.y, minH), vsg::dvec3(offset.x + worldSize, offset.y + worldSize, maxH) };
         return vsg::CullNode::create(vsgUtil::toSphere(bb), child);
     }
 }

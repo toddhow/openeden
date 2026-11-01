@@ -44,7 +44,8 @@ namespace Resource
     {
     public:
         explicit ResourceSystem(const VFS::Manager* vfs, const std::string& shaderPath,
-            vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin, int depthSortedBin);
+            vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin,
+            int depthSortedBin);
         ~ResourceSystem();
 
         /// OpenEden: the weather particle occlusion map, for the model the setting names (task 0012, V4l). Set before

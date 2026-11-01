@@ -155,8 +155,7 @@ namespace DetourNavigator
             const int width = size;
             const int height = size;
             const float halfBoundsSize = size * settings.mCellSize * 0.5f;
-            const vsg::vec2 shift
-                = vsg::vec2(tilePosition.x + 0.5f, tilePosition.y + 0.5f) * getTileSize(settings);
+            const vsg::vec2 shift = vsg::vec2(tilePosition.x + 0.5f, tilePosition.y + 0.5f) * getTileSize(settings);
             const vsg::vec3 bmin(shift.x - halfBoundsSize, minZ, shift.y - halfBoundsSize);
             const vsg::vec3 bmax(shift.x + halfBoundsSize, maxZ, shift.y + halfBoundsSize);
 
@@ -532,8 +531,7 @@ namespace DetourNavigator
 
         const RecastParams params = makeRecastParams(settings, agentBounds);
 
-        if (!rasterizeTriangles(
-                context, tilePosition, agentBounds.mHalfExtents.z, recastMesh, settings, params, solid))
+        if (!rasterizeTriangles(context, tilePosition, agentBounds.mHalfExtents.z, recastMesh, settings, params, solid))
             return nullptr;
 
         rcFilterLowHangingWalkableObstacles(&context, params.mWalkableClimb, solid);

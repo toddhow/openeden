@@ -13,11 +13,11 @@
 #include <apps/opencs/view/render/selectionmarkergeometry.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
 
-// toddhow's report: a drag that starts on one of the object marker's arrows does a box selection instead of an axis move.
-// The marker is drawn at a size that follows its distance (SceneWidget::update's divide by 75, times the preference
-// object-marker-scale, 5), so that an arrow's shaft, 0.033 across in the marker's own units, is a pixel or two wide on the
-// screen. A ray through the pixel next to it misses, and a mouse press never lands exactly. These build the marker's
-// triangles as ObjectMarker does, put them where the capture of Seyda Neen had them, and aim.
+// toddhow's report: a drag that starts on one of the object marker's arrows does a box selection instead of an axis
+// move. The marker is drawn at a size that follows its distance (SceneWidget::update's divide by 75, times the
+// preference object-marker-scale, 5), so that an arrow's shaft, 0.033 across in the marker's own units, is a pixel or
+// two wide on the screen. A ray through the pixel next to it misses, and a mouse press never lands exactly. These build
+// the marker's triangles as ObjectMarker does, put them where the capture of Seyda Neen had them, and aim.
 namespace
 {
     using namespace CSVRender;
@@ -95,8 +95,9 @@ namespace
         std::optional<Picking::Result> aim(double px, double py, double radius) const
         {
             return Picking::pickNear(*mRoot, mProjection, mView, px / sWidth, py / sHeight, sWidth, sHeight, radius,
-                vsg::Mask(Mask_Reference),
-                [](const Picking::Result& result) { return dynamic_cast<TestMarkerTag*>(result.mTag.get()) != nullptr; });
+                vsg::Mask(Mask_Reference), [](const Picking::Result& result) {
+                    return dynamic_cast<TestMarkerTag*>(result.mTag.get()) != nullptr;
+                });
         }
 
         int axisOf(const std::optional<Picking::Result>& result) const

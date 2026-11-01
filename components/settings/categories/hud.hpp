@@ -3,7 +3,6 @@
 
 #include <components/settings/settingvalue.hpp>
 
-
 #include <cstdint>
 #include <string>
 #include <string_view>

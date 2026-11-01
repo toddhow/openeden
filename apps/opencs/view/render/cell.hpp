@@ -196,7 +196,6 @@ namespace CSVRender
         void reset(unsigned int elementMask);
 
         CSVRender::Object* getObjectByReferenceId(const std::string& referenceId);
-
     };
 }
 

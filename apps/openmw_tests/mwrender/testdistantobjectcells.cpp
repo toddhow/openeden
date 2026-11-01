@@ -359,8 +359,8 @@ namespace
     TEST(MWRenderDistantObjectMatrixTest, allThreeAxesInOrder)
     {
         // Z: (1, 2, 3) -> (2, -1, 3); Y: -> (-3, -1, 2); X: -> (-3, 2, 1).
-        const vsg::dmat4 matrix = distantObjectMatrix(
-            vsg::vec3(0.f, 0.f, 0.f), vsg::vec3(sQuarterTurn, sQuarterTurn, sQuarterTurn), 1.f);
+        const vsg::dmat4 matrix
+            = distantObjectMatrix(vsg::vec3(0.f, 0.f, 0.f), vsg::vec3(sQuarterTurn, sQuarterTurn, sQuarterTurn), 1.f);
         expectTransforms(matrix, vsg::dvec3(1, 2, 3), vsg::dvec3(-3, 2, 1));
     }
 

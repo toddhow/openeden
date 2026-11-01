@@ -11,6 +11,7 @@ namespace Resource
     class Fallback : public vsg::ReaderWriter
     {
         vsg::ref_ptr<vsg::Object> readFallback(vsg::ref_ptr<const vsg::Options> options) const;
+
     public:
         std::vector<std::string> fallbackFiles;
         vsg::ref_ptr<vsg::Object> fallbackObject;

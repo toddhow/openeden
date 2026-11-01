@@ -581,7 +581,7 @@ namespace MWGui
             if (widgetCropped(entry.mMapWidget, mLocalMap))
                 continue;
 
-            auto setBlack = [this] (MapEntry& target) {
+            auto setBlack = [this](MapEntry& target) {
                 if (!target.mBlack)
                 {
                     target.mFogWidget->setImageTexture("black");
@@ -599,7 +599,8 @@ namespace MWGui
             bool useFog = mFogOfWarToggled && mFogOfWarEnabled;
             if (!mInterior && useFog)
             {
-                const auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId));
+                const auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(
+                    ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId));
                 if ((!cell.getFog() && !mLocalMapRender->isCellExplored(entry.mCellX, entry.mCellY)))
                 {
                     setBlack(entry);
@@ -619,8 +620,8 @@ namespace MWGui
                     }
                 }
                 if (!mInterior && !entry.mMapTexture)
-                    requestMapRender(
-                        &MWBase::Environment::get().getWorldModel()->getExterior(ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)));
+                    requestMapRender(&MWBase::Environment::get().getWorldModel()->getExterior(
+                        ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)));
                 auto mapTex = mLocalMapRender->getMapTexture(entry.mCellX, entry.mCellY);
                 if (!mapTex)
                 {
@@ -666,7 +667,9 @@ namespace MWGui
             for (MapEntry& entry : mMaps)
             {
                 if (!entry.mBlack)
-                    world->getDoorMarkers(worldModel->getExterior(ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)), doors);
+                    world->getDoorMarkers(worldModel->getExterior(ESM::ExteriorCellLocation(
+                                              entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)),
+                        doors);
             }
             if (doors.empty())
                 return;
@@ -1056,8 +1059,8 @@ namespace MWGui
                 return; // the zoom out is too big, we switch to the global map
             }
 
-            //if (zoomOut)
-            //    mNeedDoorMarkersUpdate = true;
+            // if (zoomOut)
+            //     mNeedDoorMarkersUpdate = true;
         }
         zoomOnCursor(speedDiff);
     }
@@ -1322,7 +1325,7 @@ namespace MWGui
     {
         if (Settings::gui().mControllerMenus)
             return;
-        else         if (MyGUI::InputManager::getInstance().isShiftPressed())
+        else if (MyGUI::InputManager::getInstance().isShiftPressed())
             MWBase::Environment::get().getWindowManager()->toggleMaximized(this);
         else if (!mPinned)
             MWBase::Environment::get().getWindowManager()->toggleVisible(GW_Map);

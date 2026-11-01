@@ -8,8 +8,7 @@ namespace vsgUtil
     /*
      * Reads a model or throws.
      */
-    vsg::ref_ptr<vsg::Node> readNode(
-        const std::string& path, vsg::ref_ptr<const vsg::Options> options);
+    vsg::ref_ptr<vsg::Node> readNode(const std::string& path, vsg::ref_ptr<const vsg::Options> options);
 }
 
 #endif

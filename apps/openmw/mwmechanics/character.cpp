@@ -3,8 +3,8 @@
 #include <array>
 #include <unordered_set>
 
-#include <sstream>
 #include <iostream>
+#include <sstream>
 
 #include <components/animation/transform.hpp>
 #include <components/esm/records.hpp>
@@ -22,8 +22,8 @@
 #include <components/settings/values.hpp>
 
 #include "../mwrender/actorikcontroller.hpp"
-#include "../mwrender/effect.hpp"
 #include "../mwrender/creativemotiondriver.hpp"
+#include "../mwrender/effect.hpp"
 #include "../mwrender/itemlight.hpp"
 #include "../mwrender/player.hpp"
 #include "../mwrender/transparency.hpp"
@@ -788,8 +788,8 @@ namespace MWMechanics
         uint32_t numLoops = isTransition ? 0 : std::numeric_limits<uint32_t>::max();
         bool autodisable = isTransition;
 
-        playBlendedAnimation(mCurrentMovement, Priority_Movement, movemask, autodisable, 1.f, "start", "stop", startpoint,
-            numLoops, true);
+        playBlendedAnimation(mCurrentMovement, Priority_Movement, movemask, autodisable, 1.f, "start", "stop",
+            startpoint, numLoops, true);
     }
 
     void CharacterController::refreshIdleAnims(CharacterState idle, bool force)
@@ -2398,7 +2398,8 @@ namespace MWMechanics
                 vec.z = 0.0f;
 
                 // Check if an authored transition is actively playing
-                if (inertialActive && isTransitionMovementState(mMovementState) && mAnimation->isPlaying(mCurrentMovement))
+                if (inertialActive && isTransitionMovementState(mMovementState)
+                    && mAnimation->isPlaying(mCurrentMovement))
                 {
                     if (mMovementState == CharState_RunStop || mMovementState == CharState_WalkStop)
                     {
@@ -2455,13 +2456,15 @@ namespace MWMechanics
                     if (movementSettings.mIsStrafing)
                     {
                         if (vec.x > 0.0f)
-                            movestate = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
-                                                 : (sneak ? CharState_SneakRight
-                                                          : (effectiveIsRunning ? CharState_RunRight : CharState_WalkRight)));
+                            movestate
+                                = (inwater ? (isrunning ? CharState_SwimRunRight : CharState_SwimWalkRight)
+                                           : (sneak ? CharState_SneakRight
+                                                    : (effectiveIsRunning ? CharState_RunRight : CharState_WalkRight)));
                         else if (vec.x < 0.0f)
-                            movestate = (inwater
-                                    ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
-                                    : (sneak ? CharState_SneakLeft : (effectiveIsRunning ? CharState_RunLeft : CharState_WalkLeft)));
+                            movestate
+                                = (inwater ? (isrunning ? CharState_SwimRunLeft : CharState_SwimWalkLeft)
+                                           : (sneak ? CharState_SneakLeft
+                                                    : (effectiveIsRunning ? CharState_RunLeft : CharState_WalkLeft)));
                     }
                     else if (vsg::length2(vec) > 0.0f)
                     {
@@ -2470,7 +2473,8 @@ namespace MWMechanics
                         {
                             movestate = CharState_RunSkid;
                         }
-                        else if (inertialActive && enableAuthored && locPhase == InertialMotion::LocomotionPhase::Starting
+                        else if (inertialActive && enableAuthored
+                            && locPhase == InertialMotion::LocomotionPhase::Starting
                             && (mMovementState == CharState_None || isTurning()) && smoothedSpeed < 20.0f)
                         {
                             if (effectiveIsRunning && mAnimation->hasAnimation("runstart"))
@@ -2482,13 +2486,16 @@ namespace MWMechanics
                         if (movestate == CharState_None)
                         {
                             if (vec.y >= 0.0f)
-                                movestate = (inwater ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
-                                                     : (sneak ? CharState_SneakForward
-                                                              : (effectiveIsRunning ? CharState_RunForward : CharState_WalkForward)));
+                                movestate = (inwater
+                                        ? (isrunning ? CharState_SwimRunForward : CharState_SwimWalkForward)
+                                        : (sneak
+                                                ? CharState_SneakForward
+                                                : (effectiveIsRunning ? CharState_RunForward : CharState_WalkForward)));
                             else
                                 movestate = (inwater
                                         ? (isrunning ? CharState_SwimRunBack : CharState_SwimWalkBack)
-                                        : (sneak ? CharState_SneakBack : (effectiveIsRunning ? CharState_RunBack : CharState_WalkBack)));
+                                        : (sneak ? CharState_SneakBack
+                                                 : (effectiveIsRunning ? CharState_RunBack : CharState_WalkBack)));
                         }
                     }
                     else
@@ -2609,7 +2616,8 @@ namespace MWMechanics
                     mAnimation->adjustSpeedMult(mCurrentMovement, turnSpeed);
                 }
             }
-            else if (mMovementState != CharState_None && mAdjustMovementAnimSpeed && !isTransitionMovementState(mMovementState))
+            else if (mMovementState != CharState_None && mAdjustMovementAnimSpeed
+                && !isTransitionMovementState(mMovementState))
             {
                 // Vanilla caps the played animation speed.
                 const float maxSpeedMult = 10.f;
@@ -3248,11 +3256,8 @@ namespace MWMechanics
 
         auto& stats = mPtr.getClass().getCreatureStats(mPtr);
 
-        float light = stats.getMagicEffects()
-                          .getOrDefault(ESM::MagicEffect::Light)
-                          .getMagnitude();
-        light *= std::ceil(Constants::UnitsPerFoot)
-            * /*arbitraryMultiplierToMakeCutoffLessObvious*/ 3;
+        float light = stats.getMagicEffects().getOrDefault(ESM::MagicEffect::Light).getMagnitude();
+        light *= std::ceil(Constants::UnitsPerFoot) * /*arbitraryMultiplierToMakeCutoffLessObvious*/ 3;
         MWAnim::setLightEffect(*mObject, light);
 
         // If you're dead you don't care about whether you've started/stopped being a vampire or not
@@ -3262,10 +3267,10 @@ namespace MWMechanics
         if (mNpc)
         {
             bool vampire = mPtr.getClass()
-                           .getCreatureStats(mPtr)
-                           .getMagicEffects()
-                           .getOrDefault(ESM::MagicEffect::Vampirism)
-                           .getMagnitude()
+                               .getCreatureStats(mPtr)
+                               .getMagicEffects()
+                               .getOrDefault(ESM::MagicEffect::Vampirism)
+                               .getMagnitude()
                 > 0.0f;
             mNpc->setVampire(vampire);
         }
@@ -3594,8 +3599,7 @@ namespace MWMechanics
                 else
                 {
                     // no head node to look at, fall back to look at center of collision box
-                    direction
-                        = MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false);
+                    direction = MWBase::Environment::get().getWorld()->aimToTarget(mPtr, mHeadTrackTarget, false);
                 }
             }
             Misc::VsgMath::normalizeInPlace(direction);
@@ -3717,8 +3721,10 @@ namespace MWMechanics
                 break;
         }
 
-        auto addMovementDirections = [&result, &prefixes] (const std::string& animation) {
-            if (std::find_if(prefixes.begin(), prefixes.end(), [&](std::string_view v) { return animation.starts_with(v); }) == prefixes.end())
+        auto addMovementDirections = [&result, &prefixes](const std::string& animation) {
+            if (std::find_if(
+                    prefixes.begin(), prefixes.end(), [&](std::string_view v) { return animation.starts_with(v); })
+                == prefixes.end())
                 return;
             else if (animation.ends_with("forward"))
                 result |= MWWorld::MovementDirectionFlag_Forward;

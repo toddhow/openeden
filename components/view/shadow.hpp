@@ -38,7 +38,8 @@ namespace View
         vsg::ref_ptr<vsg::View> mBaseView;
 
     public:
-        Shadow(vsg::Context& ctx, int in_numCascades, uint32_t res, bool filter, bool supportsDepthClamp, bool frontFaceCulling);
+        Shadow(vsg::Context& ctx, int in_numCascades, uint32_t res, bool filter, bool supportsDepthClamp,
+            bool frontFaceCulling);
         ~Shadow();
         const uint32_t resolution;
         const int numCascades;
@@ -46,7 +47,8 @@ namespace View
         vsg::Descriptor* shadowMap();
         vsg::Descriptor* shadowSampler();
 
-        void updateCascades(const vsg::Camera& camera, Pipeline::Data::Scene& data, const vsg::vec3& lightPos, float maxZ, float cascadeSplitLambda);
+        void updateCascades(const vsg::Camera& camera, Pipeline::Data::Scene& data, const vsg::vec3& lightPos,
+            float maxZ, float cascadeSplitLambda);
 
         vsg::ref_ptr<vsg::View> cascadeView(int i);
         vsg::ref_ptr<vsg::RenderGraph> renderGraph(int i);

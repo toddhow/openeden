@@ -266,7 +266,8 @@ namespace MWLua
                         particleTexture = options->get_or<std::string>("particleTextureOverride", ""),
                         useAmbientLight = options->get_or("useAmbientLight", true)] {
                         checkEffectTargetOrThrow(object);
-                        // openeden-vsg: useAmbientLight is not applied yet; vsgopenmw lights effects as its materials say.
+                        // openeden-vsg: useAmbientLight is not applied yet; vsgopenmw lights effects as its materials
+                        // say.
                         static_cast<void>(useAmbientLight);
                         MWRender::addEffectModel(object.ptr(), model, effectId, loop, boneName, particleTexture);
                     },
@@ -314,33 +315,32 @@ namespace MWLua
                 "openmw.vfx.remove");
         };
 
-        api["spawn"]
-            = [context](std::string_view model, const vsg::vec3& worldPos, sol::optional<sol::table> options) {
-                  if (options)
-                  {
-                      bool magicVfx = options->get_or("mwMagicVfx", true);
-                      std::string texture = options->get_or<std::string>("particleTextureOverride", "");
-                      float scale = options->get_or("scale", 1.f);
-                      std::string vfxId = options->get_or<std::string>("vfxId", "");
-                      bool loop = options->get_or("loop", false);
-                      bool useAmbientLight = options->get_or("useAmbientLight", true);
-                      context.mLuaManager->addAction(
-                          [model = VFS::Path::Normalized(model), texture = std::move(texture), worldPos, scale,
-                              magicVfx, useAmbientLight, vfxId = std::move(vfxId), loop]() {
-                              MWBase::Environment::get().getWorld()->spawnEffect(
-                                  model, texture, worldPos, scale, magicVfx, useAmbientLight, vfxId, loop);
-                          },
-                          "openmw.vfx.spawn");
-                  }
-                  else
-                  {
-                      context.mLuaManager->addAction(
-                          [model = VFS::Path::Normalized(model), worldPos]() {
-                              MWBase::Environment::get().getWorld()->spawnEffect(model, "", worldPos, 1.f);
-                          },
-                          "openmw.vfx.spawn");
-                  }
-              };
+        api["spawn"] = [context](std::string_view model, const vsg::vec3& worldPos, sol::optional<sol::table> options) {
+            if (options)
+            {
+                bool magicVfx = options->get_or("mwMagicVfx", true);
+                std::string texture = options->get_or<std::string>("particleTextureOverride", "");
+                float scale = options->get_or("scale", 1.f);
+                std::string vfxId = options->get_or<std::string>("vfxId", "");
+                bool loop = options->get_or("loop", false);
+                bool useAmbientLight = options->get_or("useAmbientLight", true);
+                context.mLuaManager->addAction(
+                    [model = VFS::Path::Normalized(model), texture = std::move(texture), worldPos, scale, magicVfx,
+                        useAmbientLight, vfxId = std::move(vfxId), loop]() {
+                        MWBase::Environment::get().getWorld()->spawnEffect(
+                            model, texture, worldPos, scale, magicVfx, useAmbientLight, vfxId, loop);
+                    },
+                    "openmw.vfx.spawn");
+            }
+            else
+            {
+                context.mLuaManager->addAction(
+                    [model = VFS::Path::Normalized(model), worldPos]() {
+                        MWBase::Environment::get().getWorld()->spawnEffect(model, "", worldPos, 1.f);
+                    },
+                    "openmw.vfx.spawn");
+            }
+        };
 
         return api;
     }

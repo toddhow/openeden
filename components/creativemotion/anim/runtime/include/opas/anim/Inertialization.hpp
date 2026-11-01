@@ -25,76 +25,78 @@
 #include <span>
 #include <vector>
 
-namespace opas::anim {
+namespace opas::anim
+{
 
-class Inertializer {
-public:
-    explicit Inertializer(std::size_t boneCount); // allocates here only
+    class Inertializer
+    {
+    public:
+        explicit Inertializer(std::size_t boneCount); // allocates here only
 
-    // Starts a transition of durationS from `outgoing` to `incoming` (both
-    // poses at the transition step); previousOutgoing is the outgoing pose
-    // dtS earlier, for the velocity (dtS <= 0 or non-finite means no
-    // velocity). durationS <= 0 or non-finite, or any pose not boneCount long,
-    // clears instead (no transition). Allocates nothing.
-    void start(std::span<const math::Transform> previousOutgoing,
-               std::span<const math::Transform> outgoing, std::span<const math::Transform> incoming,
-               double dtS, double durationS);
+        // Starts a transition of durationS from `outgoing` to `incoming` (both
+        // poses at the transition step); previousOutgoing is the outgoing pose
+        // dtS earlier, for the velocity (dtS <= 0 or non-finite means no
+        // velocity). durationS <= 0 or non-finite, or any pose not boneCount long,
+        // clears instead (no transition). Allocates nothing.
+        void start(std::span<const math::Transform> previousOutgoing, std::span<const math::Transform> outgoing,
+            std::span<const math::Transform> incoming, double dtS, double durationS);
 
-    // As above, with the incoming pose dtS earlier too, so the offset's rate
-    // is the outgoing velocity minus the incoming one and the output
-    // (incoming + offset) keeps the outgoing velocity at the switch even when
-    // the incoming animation moves. The overload above assumes an incoming
-    // pose that is still (previousIncoming = incoming).
-    void start(std::span<const math::Transform> previousOutgoing,
-               std::span<const math::Transform> outgoing,
-               std::span<const math::Transform> previousIncoming,
-               std::span<const math::Transform> incoming, double dtS, double durationS);
+        // As above, with the incoming pose dtS earlier too, so the offset's rate
+        // is the outgoing velocity minus the incoming one and the output
+        // (incoming + offset) keeps the outgoing velocity at the switch even when
+        // the incoming animation moves. The overload above assumes an incoming
+        // pose that is still (previousIncoming = incoming).
+        void start(std::span<const math::Transform> previousOutgoing, std::span<const math::Transform> outgoing,
+            std::span<const math::Transform> previousIncoming, std::span<const math::Transform> incoming, double dtS,
+            double durationS);
 
-    // Adds the offset at the current elapsed time to `pose` (the incoming pose
-    // sampled at the same time). Right after start (elapsed 0) this turns the
-    // incoming pose into the outgoing pose. Leaves pose unchanged when not
-    // active or when pose is not boneCount long. Allocates nothing.
-    void apply(std::span<math::Transform> pose) const;
+        // Adds the offset at the current elapsed time to `pose` (the incoming pose
+        // sampled at the same time). Right after start (elapsed 0) this turns the
+        // incoming pose into the outgoing pose. Leaves pose unchanged when not
+        // active or when pose is not boneCount long. Allocates nothing.
+        void apply(std::span<math::Transform> pose) const;
 
-    // Advances elapsed time by dtS (negative or non-finite counts as 0), then
-    // applies. Each offset is 0 from its own (possibly shortened) end time on;
-    // once elapsed reaches the start's durationS (within 1e-9 s, as summed
-    // steps round) the transition ends: pose is left exactly as given and
-    // active() is false.
-    void advanceAndApply(double dtS, std::span<math::Transform> pose);
+        // Advances elapsed time by dtS (negative or non-finite counts as 0), then
+        // applies. Each offset is 0 from its own (possibly shortened) end time on;
+        // once elapsed reaches the start's durationS (within 1e-9 s, as summed
+        // steps round) the transition ends: pose is left exactly as given and
+        // active() is false.
+        void advanceAndApply(double dtS, std::span<math::Transform> pose);
 
-    void clear();
-    [[nodiscard]] bool active() const { return active_; }
-    [[nodiscard]] double elapsedS() const { return elapsedS_; }
-    [[nodiscard]] std::size_t boneCount() const { return bones_.size(); }
+        void clear();
+        [[nodiscard]] bool active() const { return active_; }
+        [[nodiscard]] double elapsedS() const { return elapsedS_; }
+        [[nodiscard]] std::size_t boneCount() const { return bones_.size(); }
 
-private:
-    // One decaying scalar: the quintic's coefficients and its end time.
-    struct Curve {
-        double x0 = 0.0;
-        double v0 = 0.0;
-        double a0 = 0.0;
-        double durationS = 0.0;
-        double c3 = 0.0;
-        double c4 = 0.0;
-        double c5 = 0.0;
+    private:
+        // One decaying scalar: the quintic's coefficients and its end time.
+        struct Curve
+        {
+            double x0 = 0.0;
+            double v0 = 0.0;
+            double a0 = 0.0;
+            double durationS = 0.0;
+            double c3 = 0.0;
+            double c4 = 0.0;
+            double c5 = 0.0;
+        };
+        struct BoneOffset
+        {
+            math::Vec3 direction; // unit, or zero when there is no translation offset
+            math::Vec3 axis; // unit, or zero when there is no rotation offset
+            Curve translation;
+            Curve rotation;
+        };
+
+        // The curve for offset x0 with rate v0, ending by durationS (header rules).
+        static Curve makeCurve(double x0, double v0, double durationS);
+        // The offset at elapsed time t; 0 from the curve's end on.
+        static double evaluate(const Curve& curve, double t);
+
+        std::vector<BoneOffset> bones_;
+        double durationS_ = 0.0;
+        double elapsedS_ = 0.0;
+        bool active_ = false;
     };
-    struct BoneOffset {
-        math::Vec3 direction; // unit, or zero when there is no translation offset
-        math::Vec3 axis;      // unit, or zero when there is no rotation offset
-        Curve translation;
-        Curve rotation;
-    };
-
-    // The curve for offset x0 with rate v0, ending by durationS (header rules).
-    static Curve makeCurve(double x0, double v0, double durationS);
-    // The offset at elapsed time t; 0 from the curve's end on.
-    static double evaluate(const Curve& curve, double t);
-
-    std::vector<BoneOffset> bones_;
-    double durationS_ = 0.0;
-    double elapsedS_ = 0.0;
-    bool active_ = false;
-};
 
 } // namespace opas::anim

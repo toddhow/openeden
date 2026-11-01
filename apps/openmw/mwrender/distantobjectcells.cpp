@@ -30,8 +30,10 @@ namespace MWRender
                 const std::pair<int, int> cell(x, y);
                 if (active.contains(cell))
                     continue;
-                const float dx = std::max({ x * cellSize - cameraPosition.x, 0.f, cameraPosition.x - (x + 1) * cellSize });
-                const float dy = std::max({ y * cellSize - cameraPosition.y, 0.f, cameraPosition.y - (y + 1) * cellSize });
+                const float dx
+                    = std::max({ x * cellSize - cameraPosition.x, 0.f, cameraPosition.x - (x + 1) * cellSize });
+                const float dy
+                    = std::max({ y * cellSize - cameraPosition.y, 0.f, cameraPosition.y - (y + 1) * cellSize });
                 if (dx * dx + dy * dy <= viewDistance * viewDistance)
                     cells.push_back(cell);
             }

@@ -68,8 +68,7 @@ namespace openeden::extension
         [[nodiscard]] openeden::sdk::EntityId entityOfBody(openeden::sdk::BodyId body) const override;
 
         [[nodiscard]] bool isBodyValid(openeden::sdk::BodyId id) const override;
-        [[nodiscard]] std::optional<openeden::sdk::MotionType> getMotionType(
-            openeden::sdk::BodyId body) const override;
+        [[nodiscard]] std::optional<openeden::sdk::MotionType> getMotionType(openeden::sdk::BodyId body) const override;
 
         bool readBody(openeden::sdk::BodyId body, openeden::sdk::BodyState& out) const override;
         std::size_t readBodies(

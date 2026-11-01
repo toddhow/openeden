@@ -35,7 +35,8 @@ namespace MWGui
         if (!mPlayer->getVideoData())
             return;
 
-        if (mTexture && (mTexture->getWidth() != mPlayer->getVideoWidth() || mTexture->getHeight() != mPlayer->getVideoHeight()))
+        if (mTexture
+            && (mTexture->getWidth() != mPlayer->getVideoWidth() || mTexture->getHeight() != mPlayer->getVideoHeight()))
         {
             MyGUI::RenderManager::getInstance().destroyTexture(mTexture);
             mTexture = {};
@@ -44,7 +45,8 @@ namespace MWGui
         if (!mTexture)
         {
             mTexture = MyGUI::RenderManager::getInstance().createTexture("video");
-            mTexture->createManual(mPlayer->getVideoWidth(), mPlayer->getVideoHeight(), MyGUI::TextureUsage::Dynamic, MyGUI::PixelFormat::R8G8B8A8);
+            mTexture->createManual(mPlayer->getVideoWidth(), mPlayer->getVideoHeight(), MyGUI::TextureUsage::Dynamic,
+                MyGUI::PixelFormat::R8G8B8A8);
         }
 
         setBackgroundImage(mTexture, stretch);

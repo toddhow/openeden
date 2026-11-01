@@ -74,7 +74,6 @@ namespace MWWorld
             return store.insert(record);
         }
 
-
         std::tuple<Cell, bool> createExteriorCell(ESM::ExteriorCellLocation location, ESMStore& store)
         {
             if (ESM::isEsm4Ext(location.mWorldspace))

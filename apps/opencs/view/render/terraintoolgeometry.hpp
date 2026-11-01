@@ -13,8 +13,8 @@
 
 #include "../../model/world/cellcoordinates.hpp"
 
-/// The lines that the terrain tools draw and the sums they make, with no window or GPU, as the OSG editor's brushdraw.cpp,
-/// terrainselection.cpp and TerrainShapeMode have them.
+/// The lines that the terrain tools draw and the sums they make, with no window or GPU, as the OSG editor's
+/// brushdraw.cpp, terrainselection.cpp and TerrainShapeMode have them.
 namespace CSVRender::TerrainToolGeometry
 {
     inline constexpr float sOutlineHeight = 1.f;
@@ -54,8 +54,8 @@ namespace CSVRender::TerrainToolGeometry
     std::vector<vsg::vec3> pointLines(const vsg::dvec3& p, Height&& height)
     {
         const double s = sCrossHeadSize;
-        return { onGround(p.x - s, p.y - s, height), onGround(p.x + s, p.y + s, height), onGround(p.x + s, p.y - s, height),
-            onGround(p.x - s, p.y + s, height) };
+        return { onGround(p.x - s, p.y - s, height), onGround(p.x + s, p.y + s, height),
+            onGround(p.x + s, p.y - s, height), onGround(p.x - s, p.y + s, height) };
     }
 
     template <class Height>
@@ -118,8 +118,8 @@ namespace CSVRender::TerrainToolGeometry
             const vsg::vec3 point(worldX, worldY, static_cast<float>(height(x, y)));
             const auto add = [&](int nx, int ny) {
                 lines.push_back(point);
-                lines.emplace_back(Coordinates::vertexGlobalToWorldCoords(nx), Coordinates::vertexGlobalToWorldCoords(ny),
-                    static_cast<float>(height(nx, ny)));
+                lines.emplace_back(Coordinates::vertexGlobalToWorldCoords(nx),
+                    Coordinates::vertexGlobalToWorldCoords(ny), static_cast<float>(height(nx, ny)));
             };
             add(x, y - 1);
             add(x - 1, y);

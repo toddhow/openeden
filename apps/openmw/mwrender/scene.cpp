@@ -6,16 +6,16 @@
 #include <vsg/nodes/Switch.h>
 
 #include <components/animation/transform.hpp>
-#include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadcont.hpp>
+#include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
-#include <components/settings/values.hpp>
 #include <components/mwanimation/create.hpp>
-#include <components/vsgutil/removechild.hpp>
+#include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
-#include <components/vsgutil/updatethreads.hpp>
 #include <components/vsgutil/operation.hpp>
+#include <components/vsgutil/removechild.hpp>
+#include <components/vsgutil/updatethreads.hpp>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/containerstore.hpp"
@@ -48,7 +48,10 @@ namespace MWRender
         {
             Scene::Cell& cell;
             float dt = 0;
-            Update(Scene::Cell& c) : cell(c) {}
+            Update(Scene::Cell& c)
+                : cell(c)
+            {
+            }
             void run() override
             {
                 for (auto& [p, o] : cell.objects)
@@ -303,7 +306,7 @@ namespace MWRender
     void Scene::update(float dt)
     {
         std::vector<vsg::Operation*> operations;
-        operations.reserve(mActorCells.size()+mObjectCells.size());
+        operations.reserve(mActorCells.size() + mObjectCells.size());
         auto addOperations = [&operations, dt](CellMap& map) {
             for (auto& [cellstore, cell] : map)
             {

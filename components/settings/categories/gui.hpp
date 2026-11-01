@@ -4,7 +4,6 @@
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-
 #include <MyGUI_Colour.h>
 
 #include <string_view>

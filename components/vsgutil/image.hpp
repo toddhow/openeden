@@ -8,7 +8,8 @@ namespace vsgUtil
     /*
      * Adds a convenience constructor for vsg::Image.
      */
-    inline vsg::ref_ptr<vsg::Image> createImage(VkFormat format, const VkExtent2D& extent, VkImageUsageFlags usage, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT)
+    inline vsg::ref_ptr<vsg::Image> createImage(VkFormat format, const VkExtent2D& extent, VkImageUsageFlags usage,
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT)
     {
         auto image = vsg::Image::create();
         image->imageType = VK_IMAGE_TYPE_2D;

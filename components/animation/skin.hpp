@@ -12,14 +12,15 @@ namespace Anim
     struct BoneData
     {
         vsg::mat4 invBindMatrix;
-        /*vsg::sphere*/vsg::dsphere bounds;
+        /*vsg::sphere*/ vsg::dsphere bounds;
         std::string name;
     };
     class Transform;
 
     /*
      * Controller class for accumulating bone matrices for use by skinning shaders.
-     * The link(..) method will find the parent Cull/DepthSorted and StateGroup nodes, for updating the bounds automatically, and setting up a SoftwareSkin object for the StateGroup to use for intersections on the CPU.
+     * The link(..) method will find the parent Cull/DepthSorted and StateGroup nodes, for updating the bounds
+     * automatically, and setting up a SoftwareSkin object for the StateGroup to use for intersections on the CPU.
      */
     class Skin : public MUpdateData<Skin, vsg::mat4Array>
     {
@@ -32,6 +33,7 @@ namespace Anim
         std::vector<PrivateBoneData> mBones;
         std::vector<const Transform*> mReferenceFrame;
         std::vector<vsg::dsphere*> mDynamicBounds;
+
     public:
         Skin();
         Skin(const Skin&);

@@ -5,22 +5,22 @@
 #include <cmath>
 #include <iostream>
 
-#include <vsg/nodes/Switch.h>
-#include <vsg/nodes/DepthSorted.h>
-#include <vsg/nodes/CullGroup.h>
-#include <vsg/nodes/CullNode.h>
 #include <vsg/commands/Dispatch.h>
 #include <vsg/maths/transform.h>
+#include <vsg/nodes/CullGroup.h>
+#include <vsg/nodes/CullNode.h>
+#include <vsg/nodes/DepthSorted.h>
+#include <vsg/nodes/Switch.h>
 
 #include <components/animation/bones.hpp>
 #include <components/animation/context.hpp>
 #include <components/animation/range.hpp>
 #include <components/animation/transform.hpp>
+#include <components/nif/particle.hpp>
 #include <components/vsgutil/computetransform.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/nodepath.hpp>
 #include <components/vsgutil/traverse.hpp>
-#include <components/nif/particle.hpp>
 
 #include "anim.hpp"
 
@@ -38,13 +38,14 @@ namespace vsgAdapters
 
     Pipeline::Data::EmitArgs handleEmitterData(const Nif::NiParticleSystemController& partctrl)
     {
-        // openeden-vsg: the shader multiplies these by a random value in -1 to 1, and OpenMW's range is half the dimension and
-        // half the variation either way (nifloader.cpp at 442eec6e2f, BoxPlacer and ParticleShooter; task 0012).
-        Pipeline::Data::EmitArgs data{
-            .offsetRandom = { partctrl.mEmitterDimensions * 0.5f, 0 },
-            .direction = { partctrl.mPlanarAngle, partctrl.mPlanarAngleVariation, partctrl.mDeclination, partctrl.mDeclinationVariation },
-            .velocityLifetime = { partctrl.mSpeed, partctrl.mSpeedVariation * 0.5f, partctrl.mLifetime, partctrl.mLifetimeVariation }
-        };
+        // openeden-vsg: the shader multiplies these by a random value in -1 to 1, and OpenMW's range is half the
+        // dimension and half the variation either way (nifloader.cpp at 442eec6e2f, BoxPlacer and ParticleShooter; task
+        // 0012).
+        Pipeline::Data::EmitArgs data{ .offsetRandom = { partctrl.mEmitterDimensions * 0.5f, 0 },
+            .direction = { partctrl.mPlanarAngle, partctrl.mPlanarAngleVariation, partctrl.mDeclination,
+                partctrl.mDeclinationVariation },
+            .velocityLifetime
+            = { partctrl.mSpeed, partctrl.mSpeedVariation * 0.5f, partctrl.mLifetime, partctrl.mLifetimeVariation } };
         return data;
     }
 
@@ -76,8 +77,8 @@ namespace vsgAdapters
 
     vsg::ref_ptr<vsg::Data> createColorCurve(const Nif::NiColorData& clrdata, int numSteps)
     {
-        // openeden-vsg: the keys are in fractions of a particle's life and the shader samples age / lifetime, as OpenMW's
-        // ParticleColorAffector::operate, so the array spans 0 to 1 whatever the lifetime (task 0012).
+        // openeden-vsg: the keys are in fractions of a particle's life and the shader samples age / lifetime, as
+        // OpenMW's ParticleColorAffector::operate, so the array spans 0 to 1 whatever the lifetime (task 0012).
         auto channel = handleInterpolatedKeyframes<vsg::vec4>(clrdata.mKeyMap);
         auto data = vsg::vec4Array::create(numSteps, vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
         for (int i = 0; i < numSteps; ++i)
@@ -95,7 +96,7 @@ namespace vsgAdapters
             nodeBounds.push_back(&node.bound);
             node.traverse(*this);
         }
-         void apply(vsg::CullNode& node) override
+        void apply(vsg::CullNode& node) override
         {
             nodeBounds.push_back(&node.bound);
             node.traverse(*this);
@@ -113,6 +114,7 @@ namespace vsgAdapters
         vsgUtil::AccumulatePath<const Anim::Transform*> mTransformPath;
         vsgUtil::AccumulatePath<const vsg::Switch*> mSwitchPath;
         bool mCollectEmitters = false;
+
     public:
         bool foundEmitterNode = false;
         bool foundParticleNode = false;
@@ -140,10 +142,7 @@ namespace vsgAdapters
                 checkAndTraverse(node);
             }
         }
-        void apply(vsg::Node& node) override
-        {
-            checkAndTraverse(node);
-        }
+        void apply(vsg::Node& node) override { checkAndTraverse(node); }
 
         void checkAndTraverse(vsg::Node& node)
         {
@@ -200,8 +199,8 @@ namespace vsgAdapters
     {
         // OpenEden: a quad reaches the particle size from its centre (main.vert), not half of it.
         return calculateMaxLifetime(partctrl) * (partctrl.mSpeed + partctrl.mSpeedVariation)
-            + std::max(partctrl.mEmitterDimensions.x,
-                std::max(partctrl.mEmitterDimensions.y, partctrl.mEmitterDimensions.z))
+            + std::max(
+                partctrl.mEmitterDimensions.x, std::max(partctrl.mEmitterDimensions.y, partctrl.mEmitterDimensions.z))
             + partctrl.mInitialSize;
     }
 
@@ -210,7 +209,8 @@ namespace vsgAdapters
         return partctrl.mLifetime + partctrl.mLifetimeVariation;
     }
 
-    ParticleSystem::ParticleSystem(const Nif::NiParticleSystemController& partctrl, int particleNodeIndex, bool worldSpace)
+    ParticleSystem::ParticleSystem(
+        const Nif::NiParticleSystemController& partctrl, int particleNodeIndex, bool worldSpace)
         : mWorldSpace(worldSpace)
         , mParticleNodeIndex(particleNodeIndex)
     {
@@ -265,12 +265,13 @@ namespace vsgAdapters
                 data.worldOffset = vsg::inverse_4x3(worldMatrix) * (*mLastWorldMatrix);
             else
             {
-                // calculate the worldOffset matrix, used by compute shaders to transform the previous frame's particle positions/velocities, leaving a trail of particles behind in local space
+                // calculate the worldOffset matrix, used by compute shaders to transform the previous frame's particle
+                // positions/velocities, leaving a trail of particles behind in local space
                 data.worldOffset = vsg::inverse_4x3(worldMatrix) * (*mLastWorldMatrix);
 
                 // update Cull/DepthSorted bounds to include trailing particles
                 mWorldBound.timer += dt;
-                auto movement = data.worldOffset * vsg::vec4(0,0,0,1);
+                auto movement = data.worldOffset * vsg::vec4(0, 0, 0, 1);
                 vsg::vec3 movementVec(movement.x, movement.y, movement.z);
                 float moved = vsg::length(movementVec);
                 const float epsilon = 0.003f;
@@ -286,8 +287,8 @@ namespace vsgAdapters
                 }
                 updateBounds();
             }
-            // OpenEden: with no time passing the particles are not simulated this frame (CullParticles skips the dispatch),
-            // so the movement is kept for the next frame's offset rather than lost (task 0012, V4c).
+            // OpenEden: with no time passing the particles are not simulated this frame (CullParticles skips the
+            // dispatch), so the movement is kept for the next frame's offset rather than lost (task 0012, V4c).
             if (dt > 0.f || !mLastWorldMatrix)
                 mLastWorldMatrix = worldMatrix;
         }
@@ -295,7 +296,7 @@ namespace vsgAdapters
         if (active->value(time) && emitterVisible())
         {
             data.emitMatrix = calculateEmitMatrix();
-            data.emitCount = vsg::ivec4(calculateEmitCount(dt), 0, 0, 0 );
+            data.emitCount = vsg::ivec4(calculateEmitCount(dt), 0, 0, 0);
         }
         else
             data.emitCount = vsg::ivec4();
@@ -304,7 +305,7 @@ namespace vsgAdapters
     void ParticleSystem::link(Anim::Context& ctx, vsg::Object&)
     {
         LinkParticleSystem visitor(*this);
-        //ctx.attachmentPath.back()->accept(visitor);
+        // ctx.attachmentPath.back()->accept(visitor);
         ctx.attachmentPath.front()->accept(visitor);
 
         if (mEmitterNodeIndex != -1 && !visitor.foundEmitterNode)
@@ -412,9 +413,9 @@ namespace vsgAdapters
 
     vsg::ref_ptr<vsg::Command> createParticleDispatch(uint32_t numParticles)
     {
-        #include <files/shaders/comp/particle/workgroupsize.glsl>
+#include <files/shaders/comp/particle/workgroupsize.glsl>
         // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
         static_assert(workGroupSizeX <= 128);
-        return vsg::Dispatch::create(std::ceil(numParticles/static_cast<float>(workGroupSizeX)), 1, 1);
+        return vsg::Dispatch::create(std::ceil(numParticles / static_cast<float>(workGroupSizeX)), 1, 1);
     }
 }

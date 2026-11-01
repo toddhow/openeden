@@ -6,8 +6,8 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm4/loadcell.hpp>
 #include <components/fallback/fallback.hpp>
-#include <components/settings/values.hpp>
 #include <components/mwanimation/color.hpp>
+#include <components/settings/values.hpp>
 
 #include "apps/openmw/mwworld/cell.hpp"
 

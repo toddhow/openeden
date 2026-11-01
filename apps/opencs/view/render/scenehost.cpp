@@ -76,8 +76,8 @@ namespace
     const vsg::dvec3 sDefaultViewDirection(-0.6, -0.6, 0.5);
     constexpr double sMinimumViewDistance = 500.0;
     constexpr double sViewDistanceScale = 2.0;
-    // The OSG editor let OSG compute near and far from what it drew, which VSG does not do. This covers a large selection
-    // of exterior cells.
+    // The OSG editor let OSG compute near and far from what it drew, which VSG does not do. This covers a large
+    // selection of exterior cells.
     constexpr double sFarClip = 200000.0;
     // As the OSG editor: half the height of an orthographic view is ten units per step of camera-ortho-size.
     constexpr double sOrthoUnitsPerSize = 10.0;
@@ -92,7 +92,8 @@ namespace
         auto hints = vsg::ResourceHints::create();
         const uint32_t setsPerPool = 64;
         hints->numDescriptorSets = setsPerPool;
-        // As vsgUtil::createSharedView's views: pipelines take their viewport when drawn, so one compile fits every view.
+        // As vsgUtil::createSharedView's views: pipelines take their viewport when drawn, so one compile fits every
+        // view.
         hints->viewportStateHint = vsg::DYNAMIC_VIEWPORTSTATE;
         hints->descriptorPoolSizes = { { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }, { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
             { VK_DESCRIPTOR_TYPE_SAMPLER, 1 }, { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 * setsPerPool },
@@ -113,8 +114,8 @@ namespace
         return *middle;
     }
 
-    // The options of MWRender::animContext (apps/openmw/mwrender/animcontext.cpp), which the game's file cannot give the
-    // editor: it names game masks and lives in the game's tree.
+    // The options of MWRender::animContext (apps/openmw/mwrender/animcontext.cpp), which the game's file cannot give
+    // the editor: it names game masks and lives in the game's tree.
     vsg::ref_ptr<vsg::Options> sharedReadOptions(const vsg::Options& base)
     {
         auto options = vsg::Options::create(base);
@@ -218,8 +219,8 @@ namespace CSVRender
         mAnimContext.animOptions = mResources->animationOptions;
         mAnimContext.compileContext = context.compileContext();
 
-        // The view's descriptors, in the game's order but with the stand-ins of its shadow pass for shadows and the water's
-        // reflections, which an editor view does not have (RenderManager::createCastShadowState).
+        // The view's descriptors, in the game's order but with the stand-ins of its shadow pass for shadows and the
+        // water's reflections, which an editor view does not have (RenderManager::createCastShadowState).
         mSceneData = std::make_unique<View::Scene>();
         auto collectLights = vsg::ref_ptr{ new View::CollectLights(sMaxLights) };
         vsg::Descriptors descriptors = View::createLightingDescriptors(collectLights->data(), true);
@@ -263,7 +264,8 @@ namespace CSVRender
         auto commandGraph = mEngine->createCommandGraph(Pipeline::COMPUTE_SET);
         commandGraph->children = { View::postComputeBarrier(), mRenderGraph };
 
-        // threading = false: the viewer's owner is a Qt timer on the main thread, and it decides for all of its windows.
+        // threading = false: the viewer's owner is a Qt timer on the main thread, and it decides for all of its
+        // windows.
         mEngine->setup({ commandGraph }, false);
         mEngine->compile();
         // After setup, so that the compile view gets a transfer task (research note 0003, section 5.4).
@@ -276,8 +278,8 @@ namespace CSVRender
     SceneHost::~SceneHost()
     {
         mContext.remove(*this);
-        // Takes the window's graphs out of the viewer's tasks, and leaves the other views' alone. vsgQt did it already if
-        // the surface went first.
+        // Takes the window's graphs out of the viewer's tasks, and leaves the other views' alone. vsgQt did it already
+        // if the surface went first.
         if (mWindow.windowAdapter)
             mContext.viewer()->removeWindow(mWindow.windowAdapter);
     }
@@ -358,16 +360,16 @@ namespace CSVRender
     std::optional<vsg::dvec3> SceneHost::pickNearest(double x, double y, unsigned int mask) const
     {
         vsg::dvec3 position;
-        if (Picking::pickNearest(
-                *mContentRoot, Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y), mask, position))
+        if (Picking::pickNearest(*mContentRoot,
+                Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y), mask, position))
             return position;
         return std::nullopt;
     }
 
     Picking::Result SceneHost::pick(double x, double y, unsigned int mask, double placementDistance) const
     {
-        return Picking::pick(*mContentRoot, Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y), mask,
-            placementDistance);
+        return Picking::pick(*mContentRoot, Picking::viewRay(mProjection->transform(), mViewMatrix->transform(), x, y),
+            mask, placementDistance);
     }
 
     vsg::dvec3 SceneHost::getCameraEye() const
@@ -479,8 +481,8 @@ namespace CSVRender
 
     void SceneHost::createGradient()
     {
-        // The OSG editor's camera of its own, with a quad filling the view. Here the quad's corners go through the inverse
-        // of the projection, so one pipeline and no second camera do. It is the first thing the view draws.
+        // The OSG editor's camera of its own, with a quad filling the view. Here the quad's corners go through the
+        // inverse of the projection, so one pipeline and no second camera do. It is the first thing the view draws.
         mGradientVertices = vsg::vec3Array::create(4);
         mGradientColours = vsg::vec4Array::create(4);
         mGradientVertices->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
@@ -521,7 +523,8 @@ namespace CSVRender
         const double corners[4][2] = { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } };
         for (int i = 0; i < 4; ++i)
         {
-            const vsg::dvec4 view = inverseProjection * vsg::dvec4(corners[i][0], corners[i][1], sGradientNdcDepth, 1.0);
+            const vsg::dvec4 view
+                = inverseProjection * vsg::dvec4(corners[i][0], corners[i][1], sGradientNdcDepth, 1.0);
             mGradientVertices->at(i) = vsg::vec3(vsg::dvec3(view.x, view.y, view.z) / view.w);
             mGradientColours->at(i) = i < 2 ? mTopColour : mBottomColour;
         }

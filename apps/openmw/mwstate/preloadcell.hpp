@@ -2,9 +2,9 @@
 
 #include <components/esm/refid.hpp>
 
+#include "../mwbase/environment.hpp"
 #include "../mwworld/scene.hpp"
 #include "../mwworld/worldmodel.hpp"
-#include "../mwbase/environment.hpp"
 
 #include "loading.hpp"
 
@@ -13,6 +13,7 @@ namespace MWState
     class PreloadCell : public Loading
     {
         MWWorld::Scene& mScene;
+
     public:
         ESM::RefId cell;
         PreloadCell(MWWorld::Scene& scene, const ESM::RefId& in_cell)

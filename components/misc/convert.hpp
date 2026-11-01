@@ -145,7 +145,8 @@ namespace Misc::Convert
 
     inline vsg::dquat makeQuaternion(const float (&rotation)[3])
     {
-        return vsg::dquat(0, 0, -1, rotation[2]) * vsg::dquat(0, -1, 0, rotation[1]) * vsg::dquat(-1, 0, 0, rotation[0]);
+        return vsg::dquat(0, 0, -1, rotation[2]) * vsg::dquat(0, -1, 0, rotation[1])
+            * vsg::dquat(-1, 0, 0, rotation[0]);
     }
 
     inline vsg::dquat makeQuaternion(const ESM::Position& position)

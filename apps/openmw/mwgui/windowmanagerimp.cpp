@@ -95,7 +95,6 @@
 #include "enchantingdialog.hpp"
 #include "exposedwindow.hpp"
 #include "hud.hpp"
-#include "postprocessorhud.hpp"
 #include "inventorytabsoverlay.hpp"
 #include "inventorywindow.hpp"
 #include "itemchargeview.hpp"
@@ -111,6 +110,7 @@
 #include "mainmenu.hpp"
 #include "merchantrepair.hpp"
 #include "messagebox.hpp"
+#include "postprocessorhud.hpp"
 #include "quickkeysmenu.hpp"
 #include "recharge.hpp"
 #include "repair.hpp"
@@ -154,7 +154,8 @@ namespace MWGui
 
     WindowManager::WindowManager(SDL_Window* window, vsg::ref_ptr<vsgUtil::CompileContext> compile,
         Resource::ResourceSystem* resourceSystem, const std::filesystem::path& logpath, bool consoleOnlyScripts,
-        Translation::Storage& translationDataStorage, ToUTF8::FromType encoding, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
+        Translation::Storage& translationDataStorage, ToUTF8::FromType encoding, const std::string& versionDescription,
+        Files::ConfigurationManager& cfgMgr)
         : mCompile(compile)
         , mStore(nullptr)
         , mResourceSystem(resourceSystem)
@@ -207,12 +208,12 @@ namespace MWGui
         SDL_Vulkan_GetDrawableSize(window, &dw, &dh);
 
         */
-        mScalingFactor = Settings::gui().mScalingFactor;// * (dw / w);
+        mScalingFactor = Settings::gui().mScalingFactor; // * (dw / w);
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
-        mGuiPlatform = std::make_unique<MyGUIPlatform::Platform>(MyGUI::IntSize{ w, h }, compile,
-            mResourceSystem->imageOptions, mResourceSystem->shaderOptions, mScalingFactor, mResourceSystem->getVFS(),
-            logpath / "MyGUI.log");
+        mGuiPlatform
+            = std::make_unique<MyGUIPlatform::Platform>(MyGUI::IntSize{ w, h }, compile, mResourceSystem->imageOptions,
+                mResourceSystem->shaderOptions, mScalingFactor, mResourceSystem->getVFS(), logpath / "MyGUI.log");
 
         mGui = std::make_unique<MyGUI::Gui>();
         mGui->initialise({});
@@ -222,9 +223,8 @@ namespace MWGui
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &WindowManager::onRetrieveTag);
 
         // Load fonts
-        mFontLoader
-            = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mScalingFactor,
-                /*exportFonts, the 0.51 --export-fonts developer option the VSG engine does not pass yet*/ false);
+        mFontLoader = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mScalingFactor,
+            /*exportFonts, the 0.51 --export-fonts developer option the VSG engine does not pass yet*/ false);
 
         // Register own widgets with MyGUI
         MyGUI::FactoryManager::getInstance().registerFactory<MWGui::Widgets::MWSkill>("Widget");
@@ -301,7 +301,8 @@ namespace MWGui
         mStatsWatcher = std::make_unique<StatsWatcher>();
     }
 
-    void WindowManager::initUI(MWRender::Map* localMapRender, MWRender::WorldMap* worldMapRender, MWRender::Preview* preview)
+    void WindowManager::initUI(
+        MWRender::Map* localMapRender, MWRender::WorldMap* worldMapRender, MWRender::Preview* preview)
     {
         mPreview = preview;
         mLocalMapRender = localMapRender;
@@ -751,8 +752,8 @@ namespace MWGui
         popGuiMode();
     }
 
-    void WindowManager::interactiveMessageBox(
-        std::string_view message, const std::vector<std::string>& buttons, [[maybe_unused]] bool block, int defaultFocus)
+    void WindowManager::interactiveMessageBox(std::string_view message, const std::vector<std::string>& buttons,
+        [[maybe_unused]] bool block, int defaultFocus)
     {
         mMessageBoxManager->createInteractiveMessageBox(message, buttons, block, defaultFocus);
         updateVisible();
@@ -1390,7 +1391,8 @@ namespace MWGui
         mKeyboardNavigation->restoreFocus(mode);
 
         updateVisible();
-        // Note, vsgengine.cpp will push/pop GUI mode during the boot loading screen before the game/LuaManager is created.
+        // Note, vsgengine.cpp will push/pop GUI mode during the boot loading screen before the game/LuaManager is
+        // created.
         if (MWBase::Environment::get().getLuaManager())
             MWBase::Environment::get().getLuaManager()->uiModeChanged(arg);
 
@@ -1410,7 +1412,6 @@ namespace MWGui
             }
         }
     }
-
 
     void WindowManager::popGuiMode(bool forceExit)
     {
@@ -1433,7 +1434,8 @@ namespace MWGui
             {
                 mGuiModes.pop_back();
                 mGuiModeStates[mode].update(false);
-                // Note, vsgengine.cpp will push/pop GUI mode during the boot loading screen before the game/LuaManager is created.
+                // Note, vsgengine.cpp will push/pop GUI mode during the boot loading screen before the game/LuaManager
+                // is created.
                 if (MWBase::Environment::get().getLuaManager())
                     MWBase::Environment::get().getLuaManager()->uiModeChanged(MWWorld::Ptr());
             }
@@ -1483,7 +1485,8 @@ namespace MWGui
         }
 
         updateVisible();
-        // Note, vsgengine.cpp will push/pop GUI mode during the boot loading screen before the game/LuaManager is created.
+        // Note, vsgengine.cpp will push/pop GUI mode during the boot loading screen before the game/LuaManager is
+        // created.
         if (MWBase::Environment::get().getLuaManager())
             MWBase::Environment::get().getLuaManager()->uiModeChanged(MWWorld::Ptr());
     }

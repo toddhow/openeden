@@ -11,7 +11,8 @@ namespace
     // Review of C5: a controller normalizes every tick, which must not count as a change of view.
     TEST(CameraPoseReviewTest, normalizingAnUnmovedViewIsTheSameView)
     {
-        const vsg::dmat4 view = Pose::viewFrom(vsg::dvec3(-12000.5, -68000.25, 300.125), vsg::dvec3(-11000, -67000, 100), vsg::dvec3(0, 0, 1));
+        const vsg::dmat4 view = Pose::viewFrom(
+            vsg::dvec3(-12000.5, -68000.25, 300.125), vsg::dvec3(-11000, -67000, 100), vsg::dvec3(0, 0, 1));
         EXPECT_TRUE(Pose::sameView(view, Pose::orthoNormal(view)));
         EXPECT_FALSE(Pose::sameView(view, Pose::translatedInEye(view, vsg::dvec3(0.01, 0, 0))));
         EXPECT_FALSE(Pose::sameView(view, Pose::rotatedInEye(view, 1e-4, vsg::dvec3(0, 1, 0))));

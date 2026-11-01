@@ -8,6 +8,7 @@ namespace Anim
 {
     void Roll::apply(Transform& transform, float time)
     {
-        transform.rotation = transform.rotation * vsgUtil::getRotation(vsg::rotate(speed->value(time) * mDt.get(time), axis));
+        transform.rotation
+            = transform.rotation * vsgUtil::getRotation(vsg::rotate(speed->value(time) * mDt.get(time), axis));
     }
 }

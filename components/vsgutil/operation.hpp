@@ -1,16 +1,16 @@
 #ifndef VSGOPENMW_VSGUTIL_OPERATION_H
 #define VSGOPENMW_VSGUTIL_OPERATION_H
 
-#include <iostream>
 #include <atomic>
+#include <condition_variable>
 #include <functional>
+#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <condition_variable>
 
-#include <vsg/threading/OperationQueue.h>
 #include <vsg/core/Exception.h>
+#include <vsg/threading/OperationQueue.h>
 
 namespace vsgUtil
 {
@@ -56,6 +56,7 @@ namespace vsgUtil
             if (mError)
                 throw std::runtime_error(*mError);
         }
+
     private:
         std::condition_variable mCv;
         std::mutex mMutex;
@@ -65,7 +66,10 @@ namespace vsgUtil
     struct OperationFunc : public Operation
     {
         std::function<void()> func;
-        OperationFunc(std::function<void()> f) : func(f) {}
+        OperationFunc(std::function<void()> f)
+            : func(f)
+        {
+        }
         void operate() override { func(); }
     };
 }

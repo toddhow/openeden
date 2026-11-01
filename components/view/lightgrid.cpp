@@ -1,7 +1,7 @@
 #include "lightgrid.hpp"
 
-#include <vsg/commands/Dispatch.h>
 #include <vsg/commands/Commands.h>
+#include <vsg/commands/Dispatch.h>
 #include <vsg/io/Options.h>
 #include <vsg/state/BindDescriptorSet.h>
 
@@ -22,11 +22,13 @@ namespace View
         auto layout = bindComputePipeline->pipeline->layout;
         auto descriptorSet = vsg::DescriptorSet::create(
             layout->setLayouts[Pipeline::COMPUTE_SET], vsg::Descriptors{ mIndexCount.descriptor() });
-        auto bindComputeSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::COMPUTE_SET, descriptorSet);
+        auto bindComputeSet = vsg::BindDescriptorSet::create(
+            VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::COMPUTE_SET, descriptorSet);
 
-        auto bindViewSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::VIEW_SET, viewSet);
+        auto bindViewSet
+            = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::VIEW_SET, viewSet);
 
-        #include <files/shaders/comp/light/workgroupsize.glsl>
+#include <files/shaders/comp/light/workgroupsize.glsl>
         // ensure there are no remainders to avoid the need for range checking the workGroupID in the compute shader
         static_assert(gridSizeX % workGroupSizeX == 0);
         static_assert(gridSizeY % workGroupSizeY == 0);
@@ -35,7 +37,8 @@ namespace View
         // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
         static_assert(workGroupSizeX * workGroupSizeY * workGroupSizeZ <= 128);
 
-        auto dispatch = vsg::Dispatch::create(gridSizeX/workGroupSizeX, gridSizeY/workGroupSizeY, gridSizeZ/workGroupSizeZ);
+        auto dispatch
+            = vsg::Dispatch::create(gridSizeX / workGroupSizeX, gridSizeY / workGroupSizeY, gridSizeZ / workGroupSizeZ);
 
         auto commands = vsg::Commands::create(); // vsg::StateGroup::create();
         commands->children = { bindComputePipeline, bindComputeSet, bindViewSet, dispatch };

@@ -62,8 +62,8 @@ namespace DetourNavigator
      * @param includeFlags setup allowed navmesh areas.
      * @return not empty optional with position if point is found and empty optional if point is not found.
      */
-    std::optional<vsg::vec3> raycast(const Navigator& navigator, const AgentBounds& agentBounds,
-        const vsg::vec3& start, const vsg::vec3& end, const Flags includeFlags);
+    std::optional<vsg::vec3> raycast(const Navigator& navigator, const AgentBounds& agentBounds, const vsg::vec3& start,
+        const vsg::vec3& end, const Flags includeFlags);
 
     /**
      * @brief findNearestNavMeshPosition finds nearest position on navmesh within given area having given flags.

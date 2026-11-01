@@ -11,7 +11,6 @@
 #include "spellmodel.hpp"
 #include "windowbase.hpp"
 
-
 namespace MWGui
 {
 

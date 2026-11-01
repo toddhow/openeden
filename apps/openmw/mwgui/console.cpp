@@ -145,7 +145,6 @@ namespace MWGui
                     mNames.push_back(cell.mEditorId);
             }
 
-
             // sort
             std::sort(mNames.begin(), mNames.end());
 

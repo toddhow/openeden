@@ -172,8 +172,9 @@ namespace Settings
         {
             const auto gameDefaults = paths.front() / "defaults.cfg";
             if (!std::filesystem::exists(gameDefaults))
-                throw std::runtime_error("No default settings file found! Make sure the file \"defaults.cfg\" was properly "
-                                         "installed.");
+                throw std::runtime_error(
+                    "No default settings file found! Make sure the file \"defaults.cfg\" was properly "
+                    "installed.");
             parser.loadSettingsFile(gameDefaults, mDefaultSettings, true, false);
         }
 

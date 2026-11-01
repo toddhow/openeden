@@ -831,8 +831,7 @@ namespace
         triangles->addTriangle(vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(1, 1, 0));
         std::unique_ptr<ExpectedMesh> mesh(new ExpectedMesh(triangles.release(), true));
         std::unique_ptr<ExpectedCompound> shape(new ExpectedCompound);
-        shape->addChildShape(
-            mTransformScale4, new ExpectedScaledMesh(mesh.release(), vsg::vec3(12, 12, 12)));
+        shape->addChildShape(mTransformScale4, new ExpectedScaledMesh(mesh.release(), vsg::vec3(12, 12, 12)));
         ExpectedPhysicsShape expected;
         expected.mCollisionShape.reset(shape.release());
         expected.mAnimatedShapes = { { -1, 0 } };
@@ -898,8 +897,7 @@ namespace
         triangles->addTriangle(vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(1, 1, 0));
         std::unique_ptr<ExpectedMesh> mesh(new ExpectedMesh(triangles.release(), true));
         std::unique_ptr<ExpectedCompound> shape(new ExpectedCompound);
-        shape->addChildShape(
-            mTransformScale4, new ExpectedScaledMesh(mesh.release(), vsg::vec3(12, 12, 12)));
+        shape->addChildShape(mTransformScale4, new ExpectedScaledMesh(mesh.release(), vsg::vec3(12, 12, 12)));
         ExpectedPhysicsShape expected;
         expected.mCollisionShape.reset(shape.release());
         expected.mAnimatedShapes = { { -1, 0 } };
@@ -939,10 +937,8 @@ namespace
         std::unique_ptr<ExpectedMesh> mesh2(new ExpectedMesh(triangles2.release(), true));
 
         std::unique_ptr<ExpectedCompound> shape(new ExpectedCompound);
-        shape->addChildShape(
-            mTransformScale4, new ExpectedScaledMesh(mesh.release(), vsg::vec3(12, 12, 12)));
-        shape->addChildShape(
-            mTransformScale4, new ExpectedScaledMesh(mesh2.release(), vsg::vec3(12, 12, 12)));
+        shape->addChildShape(mTransformScale4, new ExpectedScaledMesh(mesh.release(), vsg::vec3(12, 12, 12)));
+        shape->addChildShape(mTransformScale4, new ExpectedScaledMesh(mesh2.release(), vsg::vec3(12, 12, 12)));
         ExpectedPhysicsShape expected;
         expected.mCollisionShape.reset(shape.release());
         expected.mAnimatedShapes = { { -1, 1 } };
@@ -1406,10 +1402,8 @@ namespace
         triangles2->addTriangle(vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(1, 1, 0));
         std::unique_ptr<ExpectedMesh> mesh2(new ExpectedMesh(triangles2.release(), true));
         std::unique_ptr<ExpectedCompound> shape(new ExpectedCompound);
-        shape->addChildShape(
-            mTransformScale2, new ExpectedScaledMesh(mesh1.release(), vsg::vec3(8, 8, 8)));
-        shape->addChildShape(
-            mTransformScale3, new ExpectedScaledMesh(mesh2.release(), vsg::vec3(12, 12, 12)));
+        shape->addChildShape(mTransformScale2, new ExpectedScaledMesh(mesh1.release(), vsg::vec3(8, 8, 8)));
+        shape->addChildShape(mTransformScale3, new ExpectedScaledMesh(mesh2.release(), vsg::vec3(12, 12, 12)));
         ExpectedPhysicsShape expected;
         expected.mCollisionShape.reset(shape.release());
         expected.mAnimatedShapes = { { -1, 0 } };

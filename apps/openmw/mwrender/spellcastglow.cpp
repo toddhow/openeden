@@ -2,11 +2,11 @@
 
 #include <vsg/state/StateSwitch.h>
 
-#include <components/mwanimation/context.hpp>
-#include <components/mwanimation/color.hpp>
-#include <components/mwanimation/object.hpp>
 #include <components/animation/tcontroller.hpp>
 #include <components/animation/transform.hpp>
+#include <components/mwanimation/color.hpp>
+#include <components/mwanimation/context.hpp>
+#include <components/mwanimation/object.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
 #include "env.hpp"
@@ -17,7 +17,10 @@ namespace MWRender
     {
         struct Timeout : public Anim::TController<Timeout, vsg::StateSwitch>
         {
-            Timeout(float in_timeout) : timeout(in_timeout) {}
+            Timeout(float in_timeout)
+                : timeout(in_timeout)
+            {
+            }
             float timeout = 0;
             void apply(vsg::StateSwitch& sw, float timer) const
             {

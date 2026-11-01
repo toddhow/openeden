@@ -15,19 +15,19 @@
 #include <components/l10n/manager.hpp>
 #include <components/misc/strings/format.hpp>
 #include <components/misc/strings/lower.hpp>
-#include <components/vsgadapters/mygui/manualtexture.hpp>
-#include <components/vsgutil/imageio.hpp>
 #include <components/misc/timeconvert.hpp>
 #include <components/settings/values.hpp>
+#include <components/vsgadapters/mygui/manualtexture.hpp>
+#include <components/vsgutil/imageio.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwstate/character.hpp"
 #include "../mwworld/datetimemanager.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/timestamp.hpp"
-#include "../mwstate/character.hpp"
 
 #include "confirmationdialog.hpp"
 
@@ -479,7 +479,6 @@ namespace MWGui
 
         // Reset the image for the case we're unable to recover a screenshot
         mScreenshot->setRenderItemTexture(nullptr);
-
 
         // Decode screenshot
         if (auto data = vsgUtil::readImageFromMemory(mCurrentSlot->mProfile.mScreenshot))

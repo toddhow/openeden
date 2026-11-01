@@ -204,8 +204,8 @@ namespace MWRender
         }
     };
 
-    Groundcover::Groundcover(const MWAnim::Context& context, const MWWorld::GroundcoverStore& store, float density,
-        float renderingDistance)
+    Groundcover::Groundcover(
+        const MWAnim::Context& context, const MWWorld::GroundcoverStore& store, float density, float renderingDistance)
         : mContext(context)
         , mStore(store)
         , mDensity(density)

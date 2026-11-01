@@ -2,8 +2,8 @@
 #define OPENMW_ESM3_POSITION_H
 
 #include <components/misc/concepts.hpp>
-#include <vsg/maths/vec3.h>
 #include <tuple>
+#include <vsg/maths/vec3.h>
 
 namespace ESM
 {

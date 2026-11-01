@@ -21,7 +21,10 @@ namespace vsgUtil
 
     inline void setID(vsg::Object& o, int i)
     {
-        vsg::ref_ptr{new ID(i)}->attachTo(o);
+        vsg::ref_ptr
+        {
+            new ID(i)
+            } -> attachTo(o);
     }
 }
 

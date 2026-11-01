@@ -6,16 +6,18 @@
 #include <cstddef>
 #include <string>
 
-namespace opas::format {
+namespace opas::format
+{
 
-struct LoadError {
-    std::string file;     // as passed by the caller
-    std::size_t line = 0; // 1-based
-    std::string field;    // JSON pointer, e.g. "/markers/2/toleranceM"; "" for the whole document
-    std::string message;
+    struct LoadError
+    {
+        std::string file; // as passed by the caller
+        std::size_t line = 0; // 1-based
+        std::string field; // JSON pointer, e.g. "/markers/2/toleranceM"; "" for the whole document
+        std::string message;
 
-    // "file:line: field: message"
-    [[nodiscard]] std::string toString() const;
-};
+        // "file:line: field: message"
+        [[nodiscard]] std::string toString() const;
+    };
 
 } // namespace opas::format

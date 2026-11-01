@@ -14,7 +14,6 @@
 
 #include "../../model/prefs/state.hpp"
 
-
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -98,7 +97,8 @@ vsg::vec3 CSVRender::InstanceMode::getScreenCoords(const vsg::vec3& pos)
 {
     const WorldspaceWidget& widget = getWorldspaceWidget();
     const SceneHost& host = *widget.getHost();
-    return InstanceMath::windowCoords(host.getProjectionMatrix(), host.getViewMatrix(), pos, widget.width(), widget.height());
+    return InstanceMath::windowCoords(
+        host.getProjectionMatrix(), host.getViewMatrix(), pos, widget.width(), widget.height());
 }
 
 vsg::vec3 CSVRender::InstanceMode::getProjectionSpaceCoords(const vsg::vec3& pos)
@@ -240,8 +240,7 @@ QString CSVRender::InstanceMode::getTooltip()
         "<li>Use {scene-instance-drop} to drop instances</li></ul>");
 }
 
-CSVRender::InstanceMode::InstanceMode(
-    WorldspaceWidget* worldspaceWidget, QWidget* parent)
+CSVRender::InstanceMode::InstanceMode(WorldspaceWidget* worldspaceWidget, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-instance"),
         Mask_Reference | Mask_Terrain, getTooltip(), parent)
     , mSubMode(nullptr)
@@ -761,23 +760,25 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
     }
     else if (mSelectionMode->getCurrentId() == "cube-centre")
     {
-        const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
+        const vsg::vec3 mousePlanePoint
+            = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
         mSelectionMode->drawSelectionCubeCentre(mousePlanePoint);
         return;
     }
     else if (mSelectionMode->getCurrentId() == "cube-corner")
     {
-        const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
+        const vsg::vec3 mousePlanePoint
+            = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
         mSelectionMode->drawSelectionCubeCorner(mousePlanePoint);
         return;
     }
     else if (mSelectionMode->getCurrentId() == "sphere")
     {
-        const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
+        const vsg::vec3 mousePlanePoint
+            = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
         mSelectionMode->drawSelectionSphere(mousePlanePoint);
         return;
     }
-
 
     // Multiselect rotation needs to be applied to transform matrixes, not angles,
     //  and we need them to have a collective center.
@@ -859,7 +860,8 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 {
                     ESM::Position position = objectTag->mObject->getPosition();
 
-                    const vsg::dquat currentRot = InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]));
+                    const vsg::dquat currentRot
+                        = InstanceMath::eulerToQuat(vsg::vec3(position.rot[0], position.rot[1], position.rot[2]));
                     const vsg::dquat combined = currentRot * rotation;
 
                     const vsg::vec3 euler = InstanceMath::quatToEuler(combined);
@@ -993,12 +995,9 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
                     }
                 }
 
-                position.rot[0]
-                    = InstanceMath::roundToMult(position.rot[0], Misc::VsgMath::inDegrees(snap)) + xOffset;
-                position.rot[1]
-                    = InstanceMath::roundToMult(position.rot[1], Misc::VsgMath::inDegrees(snap)) + yOffset;
-                position.rot[2]
-                    = InstanceMath::roundToMult(position.rot[2], Misc::VsgMath::inDegrees(snap)) + zOffset;
+                position.rot[0] = InstanceMath::roundToMult(position.rot[0], Misc::VsgMath::inDegrees(snap)) + xOffset;
+                position.rot[1] = InstanceMath::roundToMult(position.rot[1], Misc::VsgMath::inDegrees(snap)) + yOffset;
+                position.rot[2] = InstanceMath::roundToMult(position.rot[2], Misc::VsgMath::inDegrees(snap)) + zOffset;
 
                 objectTag->mObject->setRotation(position.rot);
             }
@@ -1047,7 +1046,8 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
                     if (snapTarget)
                     {
-                        const vsg::vec3 translation(static_cast<float>(snap), static_cast<float>(snap), static_cast<float>(snap));
+                        const vsg::vec3 translation(
+                            static_cast<float>(snap), static_cast<float>(snap), static_cast<float>(snap));
 
                         auto snapTargetPosition = snapTarget->mObject->getPosition();
                         auto newPosition = InstanceMath::snapRelativeToTarget(preMovedObjectPosition,
@@ -1067,8 +1067,8 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
                 objectTag->mObject->setPosition(position.pos);
                 const vsg::vec3 thisPoint(position.pos[0], position.pos[1], position.pos[2]);
-                mDragStart = getMousePlaneCoords(
-                    getWorldspaceWidget().mapFromGlobal(QCursor::pos()), vsg::dvec3(getProjectionSpaceCoords(thisPoint)));
+                mDragStart = getMousePlaneCoords(getWorldspaceWidget().mapFromGlobal(QCursor::pos()),
+                    vsg::dvec3(getProjectionSpaceCoords(thisPoint)));
                 mObjectsAtDragStart[j] = thisPoint;
             }
         }
@@ -1202,7 +1202,8 @@ void CSVRender::InstanceMode::subModeChanged(const std::string& id)
 
 void CSVRender::InstanceMode::handleSelectDrag(const QPoint& pos)
 {
-    const vsg::vec3 mousePlanePoint = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
+    const vsg::vec3 mousePlanePoint
+        = getMousePlaneCoords(pos, vsg::dvec3(getProjectionSpaceCoords(vsg::vec3(mSelectionMode->getDragStart()))));
     mSelectionMode->dragEnded(vsg::dvec3(mousePlanePoint), mDragMode);
     mDragMode = DragMode_None;
 }

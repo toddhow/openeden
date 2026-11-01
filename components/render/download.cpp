@@ -13,9 +13,9 @@
 
 namespace Render // namespace vsgExamples
 {
-    std::pair<vsg::ref_ptr<vsg::Commands>, vsg::ref_ptr<vsg::Image>> createDownloadCommands(
-        vsg::Device* device, vsg::ref_ptr<vsg::Image> srcImage, VkRect2D srcRect,
-        VkFormat srcImageFormat, VkImageLayout srcImageLayout, std::optional<VkExtent2D> optional_dstExtent)
+    std::pair<vsg::ref_ptr<vsg::Commands>, vsg::ref_ptr<vsg::Image>> createDownloadCommands(vsg::Device* device,
+        vsg::ref_ptr<vsg::Image> srcImage, VkRect2D srcRect, VkFormat srcImageFormat, VkImageLayout srcImageLayout,
+        std::optional<VkExtent2D> optional_dstExtent)
     {
         auto targetImageFormat = srcImageFormat;
         auto dstExtent = srcRect.extent;
@@ -30,7 +30,8 @@ namespace Render // namespace vsgExamples
         vkGetPhysicalDeviceFormatProperties(*(physicalDevice), srcImageFormat, &srcFormatProperties);
 
         VkFormatProperties destFormatProperties;
-        vkGetPhysicalDeviceFormatProperties(*(physicalDevice), targetImageFormat/*downloadFormat*/, &destFormatProperties);
+        vkGetPhysicalDeviceFormatProperties(
+            *(physicalDevice), targetImageFormat /*downloadFormat*/, &destFormatProperties);
 
         bool supportsBlit = ((srcFormatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT) != 0)
             && ((destFormatProperties.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0);
@@ -82,22 +83,15 @@ namespace Render // namespace vsgExamples
             VkImageBlit region{};
             region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             region.srcSubresource.layerCount = 1;
-            region.srcOffsets[0] = {
-                static_cast<int32_t>(srcRect.offset.x),
-                static_cast<int32_t>(srcRect.offset.y),
-                0 };
-            region.srcOffsets[1] = {
-                static_cast<int32_t>(srcRect.offset.x + srcRect.extent.width),
-                static_cast<int32_t>(srcRect.offset.y + srcRect.extent.height),
-                1 };
+            region.srcOffsets[0]
+                = { static_cast<int32_t>(srcRect.offset.x), static_cast<int32_t>(srcRect.offset.y), 0 };
+            region.srcOffsets[1] = { static_cast<int32_t>(srcRect.offset.x + srcRect.extent.width),
+                static_cast<int32_t>(srcRect.offset.y + srcRect.extent.height), 1 };
 
             region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             region.dstSubresource.layerCount = 1;
             region.dstOffsets[0] = { 0, 0, 0 };
-            region.dstOffsets[1] = {
-                static_cast<int32_t>(dstExtent.width),
-                static_cast<int32_t>(dstExtent.height),
-                1 };
+            region.dstOffsets[1] = { static_cast<int32_t>(dstExtent.width), static_cast<int32_t>(dstExtent.height), 1 };
 
             auto blitImage = vsg::BlitImage::create();
             blitImage->srcImage = srcImage;
@@ -118,8 +112,8 @@ namespace Render // namespace vsgExamples
             region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             region.dstSubresource.layerCount = 1;
             region.srcOffset = { srcRect.offset.x, srcRect.offset.y, 0 };
-            region.extent
-                = { std::min(srcRect.extent.width, dstExtent.width), std::min(srcRect.extent.height, dstExtent.height), 1 };
+            region.extent = { std::min(srcRect.extent.width, dstExtent.width),
+                std::min(srcRect.extent.height, dstExtent.height), 1 };
 
             auto copyImage = vsg::CopyImage::create();
             copyImage->srcImage = srcImage;
@@ -150,12 +144,11 @@ namespace Render // namespace vsgExamples
         return { commands, dstImage };
     }
 
-    bool mapAndCopy(
-        vsg::Device* device, vsg::ref_ptr<vsg::Image> dstImage, vsg::ref_ptr<vsg::Data> out_data)
+    bool mapAndCopy(vsg::Device* device, vsg::ref_ptr<vsg::Image> dstImage, vsg::ref_ptr<vsg::Data> out_data)
     {
         if (out_data->properties.format != dstImage->format)
         {
-            //std::cerr << "out_data->properties.format != dstImage->format" << std::endl;
+            // std::cerr << "out_data->properties.format != dstImage->format" << std::endl;
             return false;
         }
 
@@ -179,8 +172,8 @@ namespace Render // namespace vsgExamples
         return true;
     }
 
-    vsg::ref_ptr<vsg::Data> download(vsg::Device* device, vsg::ref_ptr<vsg::Image> srcImage,
-        VkRect2D srcRect, VkFormat srcImageFormat, VkImageLayout srcImageLayout)
+    vsg::ref_ptr<vsg::Data> download(vsg::Device* device, vsg::ref_ptr<vsg::Image> srcImage, VkRect2D srcRect,
+        VkFormat srcImageFormat, VkImageLayout srcImageLayout)
     {
         auto [commands, dstImage] = createDownloadCommands(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
         submit(device, commands);

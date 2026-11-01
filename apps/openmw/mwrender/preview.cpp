@@ -2,9 +2,9 @@
 
 #include <iostream>
 
-#include <vsg/commands/PipelineBarrier.h>
 #include <vsg/app/Camera.h>
 #include <vsg/app/View.h>
+#include <vsg/commands/PipelineBarrier.h>
 #include <vsg/io/Options.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/state/DynamicState.h>
@@ -22,10 +22,10 @@
 #include <components/view/defaultstate.hpp>
 #include <components/view/descriptors.hpp>
 #include <components/view/scene.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/computetransform.hpp>
 #include <components/vsgutil/nullbin.hpp>
 #include <components/vsgutil/sharedview.hpp>
-#include <components/vsgutil/compilecontext.hpp>
 
 #include "../mwmechanics/weapontype.hpp"
 #include "../mwworld/class.hpp"
@@ -34,9 +34,9 @@
 #include "animcontext.hpp"
 #include "bin.hpp"
 #include "env.hpp"
-#include <components/view/env.hpp>
 #include "mask.hpp"
 #include "npc.hpp"
+#include <components/view/env.hpp>
 
 namespace
 {
@@ -67,11 +67,11 @@ namespace
 }
 namespace MWRender
 {
-    Preview::Preview(
-        vsg::Context& ctx, VkSampleCountFlagBits samples, const MWAnim::Context& in_animContext, Resource::ResourceSystem* resourceSystem)
+    Preview::Preview(vsg::Context& ctx, VkSampleCountFlagBits samples, const MWAnim::Context& in_animContext,
+        Resource::ResourceSystem* resourceSystem)
     {
-        mContext = std::make_unique<MWAnim::Context>(
-            animContext(resourceSystem, in_animContext.compileContext, premultAlphaOptions(*in_animContext.nodeOptions)));
+        mContext = std::make_unique<MWAnim::Context>(animContext(
+            resourceSystem, in_animContext.compileContext, premultAlphaOptions(*in_animContext.nodeOptions)));
         VkExtent2D extent{ textureWidth, textureHeight };
         constexpr float fovY = 12.3f;
         constexpr float near = 4.0f;
@@ -100,32 +100,28 @@ namespace MWRender
         mView = vsgUtil::createSharedView(camera, mSceneGraph);
         mView->viewDependentState = collectLights;
         mView->mask = ~Mask_GUI;
-        mView->bins = {
-            vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING),
-            vsgUtil::NullBin::create(Bin_Compute)
-        };
+        mView->bins
+            = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING), vsgUtil::NullBin::create(Bin_Compute) };
 
         auto& sceneData = mSceneData->value();
         sceneData.lightDiffuse = vsg::vec4(Fallback::Map::getFloat("Inventory_DirectionalDiffuseR"),
             Fallback::Map::getFloat("Inventory_DirectionalDiffuseG"),
-            Fallback::Map::getFloat("Inventory_DirectionalDiffuseB"), 1 );
+            Fallback::Map::getFloat("Inventory_DirectionalDiffuseB"), 1);
         sceneData.ambient = vsg::vec4(Fallback::Map::getFloat("Inventory_DirectionalAmbientR"),
             Fallback::Map::getFloat("Inventory_DirectionalAmbientG"),
-            Fallback::Map::getFloat("Inventory_DirectionalAmbientB"), 1 );
+            Fallback::Map::getFloat("Inventory_DirectionalAmbientB"), 1);
 
         vsg::ref_ptr<vsg::RenderGraph> renderGraph;
         std::tie(renderGraph, mTexture) = Render::createRenderTexture(ctx, samples, extent);
         renderGraph->setClearValues(VkClearColorValue{ { 0, 0, 0, 0 } });
         renderGraph->children = { mView };
 
-        auto preBarrier = vsg::PipelineBarrier::create(
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0 /*VK_DEPENDENCY_BY_REGION_BIT*/,       vsg::MemoryBarrier::create(VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-        );
-        auto postBarrier = vsg::PipelineBarrier::create(
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0 /*VK_DEPENDENCY_BY_REGION_BIT*/,               vsg::MemoryBarrier::create(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT)
-        );
+        auto preBarrier = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0 /*VK_DEPENDENCY_BY_REGION_BIT*/,
+            vsg::MemoryBarrier::create(VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT));
+        auto postBarrier = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0 /*VK_DEPENDENCY_BY_REGION_BIT*/,
+            vsg::MemoryBarrier::create(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT));
 
         auto group = vsg::Group::create();
         group->children = { preBarrier, renderGraph, postBarrier };

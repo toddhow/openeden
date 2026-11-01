@@ -160,8 +160,8 @@ namespace
             "test_subscriber", [&received](const TestFrameEvent& e) { received.push_back(e.counter); });
 
         // Published latest phase first: only the phase order decides the delivery order
-        constexpr std::array<Phase, 6> framePhases
-            = { Phase::Input, Phase::PreSimulation, Phase::PostSimulation, Phase::Animation, Phase::PreRender, Phase::Ui };
+        constexpr std::array<Phase, 6> framePhases = { Phase::Input, Phase::PreSimulation, Phase::PostSimulation,
+            Phase::Animation, Phase::PreRender, Phase::Ui };
         for (int i = static_cast<int>(framePhases.size()) - 1; i >= 0; --i)
             host.getEventBus()->publishDeferred(TestFrameEvent{ i }, framePhases[static_cast<std::size_t>(i)]);
 

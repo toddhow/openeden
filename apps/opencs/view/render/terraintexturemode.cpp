@@ -12,7 +12,6 @@
 #include <QSlider>
 #include <QWidget>
 
-
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
@@ -47,8 +46,7 @@
 #include "pagedworldspacewidget.hpp"
 #include "worldspacewidget.hpp"
 
-CSVRender::TerrainTextureMode::TerrainTextureMode(
-    WorldspaceWidget* worldspaceWidget, QWidget* parent)
+CSVRender::TerrainTextureMode::TerrainTextureMode(WorldspaceWidget* worldspaceWidget, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-texture"),
         Mask_Terrain | Mask_Reference, "Terrain texture editing", parent)
     , mBrushSize(1)

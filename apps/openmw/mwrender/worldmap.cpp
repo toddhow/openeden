@@ -13,14 +13,14 @@
 #include <components/esm3/globalmap.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/pipeline/worldoverlay.hpp>
+#include <components/render/attachmentformat.hpp>
 #include <components/render/computeimage.hpp>
 #include <components/render/screenshot.hpp>
-#include <components/render/attachmentformat.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/deletionqueue.hpp>
 #include <components/vsgutil/image.hpp>
 #include <components/vsgutil/imageio.hpp>
 #include <components/vsgutil/share.hpp>
-#include <components/vsgutil/deletionqueue.hpp>
-#include <components/vsgutil/compilecontext.hpp>
 
 #include "../mwworld/esmstore.hpp"
 
@@ -28,8 +28,7 @@ namespace MWRender
 {
     struct WorldMap::CreateMap : public vsgUtil::Operation
     {
-        CreateMap(int width, int height, const Bounds& bounds, int cellSize,
-            const MWWorld::Store<ESM::Land>& landStore)
+        CreateMap(int width, int height, const Bounds& bounds, int cellSize, const MWWorld::Store<ESM::Land>& landStore)
             : mWidth(width)
             , mHeight(height)
             , mBounds(bounds)
@@ -42,7 +41,7 @@ namespace MWRender
         {
             // note, RGB image data has to be converted to RGBA when copying to a VkImage,
             // this makes RGB substantially slower than using RGBA data.
-            //mBaseData = vsg::ubvec3Array2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8G8B8_UNORM });
+            // mBaseData = vsg::ubvec3Array2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8G8B8_UNORM });
             mBaseData = vsg::ubvec4Array2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
             mAlphaData = vsg::ubyteArray2D::create(mWidth, mHeight, vsg::Data::Properties{ VK_FORMAT_R8_UNORM });
 
@@ -138,11 +137,9 @@ namespace MWRender
     public:
         vsg::PipelineLayout* layout{};
 
-        UpdateOverlay()
-        {
-            mClearColorImage->color = { { 0, 0, 0, 0 } };
-        }
-        void createComputeGraph(vsg::ref_ptr<vsg::BindComputePipeline> pipeline, vsg::ref_ptr<vsg::ImageView> alphaTexture, vsg::ref_ptr<vsg::Image> overlayImage)
+        UpdateOverlay() { mClearColorImage->color = { { 0, 0, 0, 0 } }; }
+        void createComputeGraph(vsg::ref_ptr<vsg::BindComputePipeline> pipeline,
+            vsg::ref_ptr<vsg::ImageView> alphaTexture, vsg::ref_ptr<vsg::Image> overlayImage)
         {
             layout = pipeline->pipeline->layout;
             auto pc = vsg::PushConstants::create(VK_SHADER_STAGE_COMPUTE_BIT, 0, mArgs);
@@ -153,7 +150,7 @@ namespace MWRender
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
             auto maskTexture
                 = vsg::DescriptorImage::create(vsg::ImageInfo::create(vsgUtil::shareDefault<vsg::Sampler>(),
-                    alphaTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+                                                   alphaTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
                     1);
 
             auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::TEXTURE_SET,
@@ -184,7 +181,7 @@ namespace MWRender
                 visitor.apply(*r.bds);
                 mDeletionQueue.add(r.bds);
 
-                #include <files/shaders/comp/worldoverlay/workgroupsize.glsl>                           // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
+#include <files/shaders/comp/worldoverlay/workgroupsize.glsl> // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
                 static_assert(workGroupSize * workGroupSize <= 128);
                 compute(visitor, r.image, r.dstRect.z - r.dstRect.x, r.dstRect.w - r.dstRect.y, workGroupSize);
             }
@@ -197,7 +194,8 @@ namespace MWRender
         }
     };
 
-    WorldMap::WorldMap(vsg::ref_ptr<vsgUtil::CompileContext> compile, const vsg::Options* shaderOptions, vsg::ref_ptr<vsg::OperationThreads> threads)
+    WorldMap::WorldMap(vsg::ref_ptr<vsgUtil::CompileContext> compile, const vsg::Options* shaderOptions,
+        vsg::ref_ptr<vsg::OperationThreads> threads)
         : mOperationThreads(threads)
         , mCompile(compile)
         , mShaderOptions(shaderOptions)
@@ -223,9 +221,11 @@ namespace MWRender
         mOperationThreads->add(mCreateMap);
 
         mOverlayTexture = vsgUtil::createImageAndView(Render::compatibleColorFormat, VkExtent2D{ mWidth, mHeight },
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-        mAlphaTexture = vsgUtil::createImageAndView(VK_FORMAT_R8_UNORM, VkExtent2D{ mWidth, mHeight }, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+        mAlphaTexture = vsgUtil::createImageAndView(VK_FORMAT_R8_UNORM, VkExtent2D{ mWidth, mHeight },
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     }
 
     WorldMap::~WorldMap()
@@ -243,9 +243,11 @@ namespace MWRender
 
     void WorldMap::worldPosToImageSpace(float x, float y, float& imageX, float& imageY) const
     {
-        imageX = (float(x / float(Constants::CellSizeInUnits) - mBounds.minX) / (mBounds.maxX - mBounds.minX)) * getWidth();
+        imageX = (float(x / float(Constants::CellSizeInUnits) - mBounds.minX) / (mBounds.maxX - mBounds.minX))
+            * getWidth();
 
-        imageY = (1.f - float(y / float(Constants::CellSizeInUnits) - mBounds.minY) / (mBounds.maxY - mBounds.minY)) * getHeight();
+        imageY = (1.f - float(y / float(Constants::CellSizeInUnits) - mBounds.minY) / (mBounds.maxY - mBounds.minY))
+            * getHeight();
     }
 
     void WorldMap::exploreCell(int cellX, int cellY, vsg::ImageView* localMapTexture)
@@ -269,7 +271,8 @@ namespace MWRender
         auto bds = vsg::BindDescriptorSet::create(
             VK_PIPELINE_BIND_POINT_COMPUTE, mUpdate->layout, Pipeline::COMPUTE_SET, vsg::Descriptors{ descriptor });
         if (mCompile->compile(bds))
-            mUpdate->requests.push_back({ bds, mOverlayTexture->image, vsg::vec4(originX, originY, originX + mCellSize, originY + mCellSize) });
+            mUpdate->requests.push_back(
+                { bds, mOverlayTexture->image, vsg::vec4(originX, originY, originX + mCellSize, originY + mCellSize) });
     }
 
     void WorldMap::clear()
@@ -294,18 +297,16 @@ namespace MWRender
         }
     }
 
-    vsg::ivec4 WorldMap::cropImageRect(const Bounds& srcBounds, const Bounds& dstBounds, int cellWidth, int cellHeight, int imageWidth, int imageHeight) const
+    vsg::ivec4 WorldMap::cropImageRect(const Bounds& srcBounds, const Bounds& dstBounds, int cellWidth, int cellHeight,
+        int imageWidth, int imageHeight) const
     {
         int leftDiff = (dstBounds.minX - srcBounds.minX);
         int topDiff = (dstBounds.minY - srcBounds.minY);
         int bottomDiff = (srcBounds.maxY - dstBounds.maxY);
         int rightDiff = (srcBounds.maxX - dstBounds.maxX);
-        return {
-            std::max(0, leftDiff * cellWidth),
-            std::max(0, topDiff * cellHeight),
+        return { std::max(0, leftDiff * cellWidth), std::max(0, topDiff * cellHeight),
             std::min(imageWidth, imageWidth - rightDiff * cellWidth),
-            std::min(imageHeight, imageHeight - bottomDiff * cellHeight)
-        };
+            std::min(imageHeight, imageHeight - bottomDiff * cellHeight) };
     }
 
     void WorldMap::read(ESM::GlobalMap& map)
@@ -334,7 +335,7 @@ namespace MWRender
         int cellWidthSrc = imageWidth / (savedBounds.maxX - savedBounds.minX);
         int cellHeightSrc = imageHeight / (savedBounds.maxY - savedBounds.minY);
 
-       // If cell bounds of the currently loaded content and the loaded savegame do not match,
+        // If cell bounds of the currently loaded content and the loaded savegame do not match,
         // we need to resize source/dest boxes to accommodate
         // This means nonexisting cells will be dropped silently
         vsg::ivec4 srcRect = cropImageRect(savedBounds, mBounds, cellWidthSrc, cellHeightSrc, imageWidth, imageHeight);
@@ -343,7 +344,8 @@ namespace MWRender
         // In case of a changed map resolution, we'll want filtering.
         // Draw the image.
         auto drawData = image;
-        if (srcRect.x != 0 || srcRect.y != 0 || srcRect.z != static_cast<int>(imageWidth) || srcRect.w != static_cast<int>(imageHeight))
+        if (srcRect.x != 0 || srcRect.y != 0 || srcRect.z != static_cast<int>(imageWidth)
+            || srcRect.w != static_cast<int>(imageHeight))
         {
             uint32_t w = srcRect.z - srcRect.x;
             uint32_t h = srcRect.w - srcRect.y;
@@ -396,9 +398,9 @@ namespace MWRender
         // mSave->srcRect = { 0, 0, mWidth, mHeight };
         // openmw-7192-world-map-size
         // vsgopenmw-optimization-mwrender-worldmap-save-explored-region
-        mSave->srcRect = {
-            { static_cast<int32_t>(exploredRect.x), static_cast<int32_t>(exploredRect.y) },
-            { static_cast<uint32_t>(exploredRect.z - exploredRect.x), static_cast<uint32_t>(exploredRect.w - exploredRect.y) }};
+        mSave->srcRect = { { static_cast<int32_t>(exploredRect.x), static_cast<int32_t>(exploredRect.y) },
+            { static_cast<uint32_t>(exploredRect.z - exploredRect.x),
+                static_cast<uint32_t>(exploredRect.w - exploredRect.y) } };
 
         mOperationThreads->add(mSave);
     }
@@ -416,12 +418,8 @@ namespace MWRender
 
     WorldMap::Bounds WorldMap::Bounds::intersect(const Bounds& lhs, const Bounds& rhs)
     {
-        Bounds intersection{
-            std::max(lhs.minX, rhs.minX),
-            std::min(lhs.maxX, rhs.maxX),
-            std::max(lhs.minY, rhs.minY),
-            std::min(lhs.maxY, rhs.maxY)
-        };
+        Bounds intersection{ std::max(lhs.minX, rhs.minX), std::min(lhs.maxX, rhs.maxX), std::max(lhs.minY, rhs.minY),
+            std::min(lhs.maxY, rhs.maxY) };
         if (intersection.valid())
             return intersection;
         return {};
@@ -430,23 +428,23 @@ namespace MWRender
     void WorldMap::Bounds::addCellArea(int cellX, int cellY)
     {
         minX = std::min(minX, cellX);
-        maxX = std::max(maxX, cellX+1);
+        maxX = std::max(maxX, cellX + 1);
         minY = std::min(minY, cellY);
-        maxY = std::max(maxY, cellY+1);
+        maxY = std::max(maxY, cellY + 1);
     }
 
     WorldMap::Bounds WorldMap::Bounds::read(const ESM::GlobalMap& esm)
     {
         if (esm.mBounds.mMinX > esm.mBounds.mMaxX || esm.mBounds.mMinY > esm.mBounds.mMaxY)
             return {};
-        return { esm.mBounds.mMinX, esm.mBounds.mMaxX+1, esm.mBounds.mMinY, esm.mBounds.mMaxY+1 };
+        return { esm.mBounds.mMinX, esm.mBounds.mMaxX + 1, esm.mBounds.mMinY, esm.mBounds.mMaxY + 1 };
     }
 
     void WorldMap::Bounds::write(ESM::GlobalMap& esm) const
     {
         esm.mBounds.mMinX = minX;
-        esm.mBounds.mMaxX = maxX-1;
+        esm.mBounds.mMaxX = maxX - 1;
         esm.mBounds.mMinY = minY;
-        esm.mBounds.mMaxY = maxY-1;
+        esm.mBounds.mMaxY = maxY - 1;
     }
 }

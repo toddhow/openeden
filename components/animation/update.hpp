@@ -14,14 +14,8 @@ namespace Anim
     struct Update
     {
         Controllers controllers;
-        inline void clear()
-        {
-            controllers.clear();
-        }
-        inline void add(const Controller* ctrl, vsg::Object* o)
-        {
-            controllers.emplace_back(ctrl, o);
-        }
+        inline void clear() { controllers.clear(); }
+        inline void add(const Controller* ctrl, vsg::Object* o) { controllers.emplace_back(ctrl, o); }
         inline void update(float time)
         {
             for (auto& [ctrl, target] : controllers)

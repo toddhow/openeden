@@ -93,7 +93,8 @@ namespace OMW
         // openeden-vsg: created by the Game state, owned here so that, as in OpenMW 0.51, it is destroyed after the
         // window manager (GUI windows hold Lua-built widgets) and after the Game state's World.
         std::unique_ptr<MWLua::LuaManager> mLuaManager;
-        // True while a Game state exists: Engine::frame runs Lua every frame, as OpenMW 0.51 did, but only with a World.
+        // True while a Game state exists: Engine::frame runs Lua every frame, as OpenMW 0.51 did, but only with a
+        // World.
         bool mLuaActive = false;
         std::unique_ptr<MWGui::WindowManager> mWindowManager;
         std::unique_ptr<MWState::StateManager> mStateManager;

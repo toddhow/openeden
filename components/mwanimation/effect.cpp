@@ -5,9 +5,9 @@
 
 #include <components/animation/context.hpp>
 #include <components/animation/update.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/removechild.hpp>
-#include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/share.hpp>
 
 #include "clone.hpp"
@@ -16,7 +16,9 @@
 
 namespace MWAnim
 {
-    std::pair<Anim::Animation, vsg::ref_ptr<vsg::Node>> Effect::load(const Context& in_mwctx, vsg::ref_ptr<vsg::Node> in_node, const std::string& overrideTexture, bool overrideAllTextures, const std::vector<vsg::ref_ptr<vsg::Node>>& replaceDummyNodes)
+    std::pair<Anim::Animation, vsg::ref_ptr<vsg::Node>> Effect::load(const Context& in_mwctx,
+        vsg::ref_ptr<vsg::Node> in_node, const std::string& overrideTexture, bool overrideAllTextures,
+        const std::vector<vsg::ref_ptr<vsg::Node>>& replaceDummyNodes)
     {
         MWAnim::CloneResult result;
         if (!overrideTexture.empty() || !replaceDummyNodes.empty())
@@ -37,7 +39,8 @@ namespace MWAnim
         return std::make_pair(result, in_node);
     }
 
-    void Effect::compile(Anim::Animation& animation, vsg::ref_ptr<vsg::Node> in_node, const std::vector<Anim::Transform*>& worldAttachmentPath, const std::vector<vsg::Node*>& localAttachmentPath)
+    void Effect::compile(Anim::Animation& animation, vsg::ref_ptr<vsg::Node> in_node,
+        const std::vector<Anim::Transform*>& worldAttachmentPath, const std::vector<vsg::Node*>& localAttachmentPath)
     {
         node = in_node;
 

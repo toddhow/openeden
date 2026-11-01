@@ -426,9 +426,8 @@ namespace MWMechanics
     {
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         const DetourNavigator::Navigator& navigator = *world.getNavigator();
-        const DetourNavigator::Status status = DetourNavigator::findPath(
-            navigator, agentBounds, startPoint, endPoint, flags, areaCosts, endTolerance,
-            std::vector<vsg::vec3>(checkpoints.begin(), checkpoints.end()), out);
+        const DetourNavigator::Status status = DetourNavigator::findPath(navigator, agentBounds, startPoint, endPoint,
+            flags, areaCosts, endTolerance, std::vector<vsg::vec3>(checkpoints.begin(), checkpoints.end()), out);
 
         if (pathType == PathType::Partial && status == DetourNavigator::Status::PartialPath)
             return DetourNavigator::Status::Success;

@@ -88,8 +88,8 @@ namespace openeden::extension
 
         if (size < record.payloadSize || (data == nullptr && record.payloadSize != 0))
         {
-            error = "payload of " + std::to_string(size) + " bytes is shorter than the " + std::to_string(record.payloadSize)
-                + " bytes marked";
+            error = "payload of " + std::to_string(size) + " bytes is shorter than the "
+                + std::to_string(record.payloadSize) + " bytes marked";
             return false;
         }
 

@@ -32,12 +32,10 @@ namespace Anim
         template <typename T>
         inline vsg::t_mat4<T> t_transform(const vsg::t_mat4<T>& in) const
         {
-            vsg::t_mat4<T> matrix = {
-                rotation[0][0] * scale[0], rotation[0][1] * scale[0], rotation[0][2] * scale[0], 0,
-                rotation[1][0] * scale[1], rotation[1][1] * scale[1], rotation[1][2] * scale[1], 0,
-                rotation[2][0] * scale[2], rotation[2][1] * scale[2], rotation[2][2] * scale[2], 0,
-                translation[0], translation[1], translation[2], 1
-            };
+            vsg::t_mat4<T> matrix = { rotation[0][0] * scale[0], rotation[0][1] * scale[0], rotation[0][2] * scale[0],
+                0, rotation[1][0] * scale[1], rotation[1][1] * scale[1], rotation[1][2] * scale[1], 0,
+                rotation[2][0] * scale[2], rotation[2][1] * scale[2], rotation[2][2] * scale[2], 0, translation[0],
+                translation[1], translation[2], 1 };
             return in * matrix;
         }
 

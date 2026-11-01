@@ -237,8 +237,7 @@ namespace MWWorld
     World::World(MWRender::RenderManager& render, Resource::ResourceSystem* resourceSystem,
         const Files::Collections& fileCollections, const std::vector<std::string>& contentFiles,
         const std::vector<std::string>& groundcoverFiles, ToUTF8::Utf8Encoder* encoder, MWState::Loading& state,
-        int activationDistanceOverride,
-        const std::filesystem::path& userDataPath)
+        int activationDistanceOverride, const std::filesystem::path& userDataPath)
         : mLocalScripts(mStore)
         , mWorldModel(mStore, mReaders)
         , mTimeManager(std::make_unique<DateTimeManager>())
@@ -868,28 +867,29 @@ namespace MWWorld
         changeCell->cell = cellId;
         changeCell->position = position;
         changeCell->changeEvent = changeEvent;
-        changeCell->onCellChanged = [this, position, adjustPlayerPos, changeEvent](const MWWorld::CellStore& cellStore) {
-            // Movement queued while the cell loaded belongs to the previous cell.
-            mPhysics->clearQueuedMovement();
-            mDiscardMovements = true;
-            if (mCurrentWorldSpace != cellStore.getCell()->getNameId())
-            {
-                if (changeEvent)
-                {
-                    mProjectileManager->clear();
-                    mRendering->notifyWorldSpaceChanged();
-                }
-                mCurrentWorldSpace = cellStore.getCell()->getNameId();
-            }
-            if (adjustPlayerPos)
-            {
-                auto player = getPlayerPtr();
-                moveObject(player, position.asVec3());
-                rotateObject(player, position.asRotationVec3());
-                adjustPosition(player, true);
-            }
-            mRendering->getCamera()->instantTransition();
-        };
+        changeCell->onCellChanged
+            = [this, position, adjustPlayerPos, changeEvent](const MWWorld::CellStore& cellStore) {
+                  // Movement queued while the cell loaded belongs to the previous cell.
+                  mPhysics->clearQueuedMovement();
+                  mDiscardMovements = true;
+                  if (mCurrentWorldSpace != cellStore.getCell()->getNameId())
+                  {
+                      if (changeEvent)
+                      {
+                          mProjectileManager->clear();
+                          mRendering->notifyWorldSpaceChanged();
+                      }
+                      mCurrentWorldSpace = cellStore.getCell()->getNameId();
+                  }
+                  if (adjustPlayerPos)
+                  {
+                      auto player = getPlayerPtr();
+                      moveObject(player, position.asVec3());
+                      rotateObject(player, position.asRotationVec3());
+                      adjustPosition(player, true);
+                  }
+                  mRendering->getCamera()->instantTransition();
+              };
         auto& stateMgr = *MWBase::Environment::get().getStateManager();
         stateMgr.pushGameState(changeCell);
         changeCell->pushPreloadState(stateMgr);
@@ -1339,9 +1339,9 @@ namespace MWWorld
             spawnPoint.z += 30; // move up a little to account for slopes, will snap down later
 
             if (!mPhysics
-                    ->castRay(spawnPoint, vsg::vec3(pos.x, pos.y, pos.z + 20),
-                        MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR)
-                    .mHit)
+                     ->castRay(spawnPoint, vsg::vec3(pos.x, pos.y, pos.z + 20),
+                         MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR)
+                     .mHit)
             {
                 // safe
                 break;
@@ -1717,7 +1717,8 @@ namespace MWWorld
         MWWorld::Ptr focusObject;
         MWRender::RenderManager::RayResult rayToObject;
 
-        float x = 0.5f; float y = 0.5f;
+        float x = 0.5f;
+        float y = 0.5f;
         if (MWBase::Environment::get().getWindowManager()->isGuiMode())
             MWBase::Environment::get().getWindowManager()->getMousePosition(x, y);
 
@@ -2582,7 +2583,6 @@ namespace MWWorld
             sortedDoors.push_back(&door.mRef);
         }
 
-
         // Sort teleporting doors alphabetically, first by ID, then by destination cell to make search consistent
         std::sort(sortedDoors.begin(), sortedDoors.end(), [](const MWWorld::CellRef* lhs, const MWWorld::CellRef* rhs) {
             if (lhs->getRefId() != rhs->getRefId())
@@ -2614,7 +2614,6 @@ namespace MWWorld
                 if (cellId == destDoor.mRef.getDestCell())
                     return destDoor.mRef.getDoorDest();
             }
-
         }
 
         return std::nullopt;
@@ -3608,7 +3607,8 @@ namespace MWWorld
         std::string_view effectId, bool loop)
     {
         // openeden-vsg: useAmbientLight is not applied yet; vsgopenmw lights effects as its materials say.
-        mRendering->spawnEffect(std::string(model.value()), textureOverride, worldPos, scale, isMagicVFX, effectId, loop);
+        mRendering->spawnEffect(
+            std::string(model.value()), textureOverride, worldPos, scale, isMagicVFX, effectId, loop);
     }
 
     void World::removeEffect(std::string_view effectId)

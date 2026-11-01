@@ -398,9 +398,9 @@ namespace
         using openeden::sdk::ForwardedField;
         using openeden::sdk::ForwardedFieldType;
         EventBusImpl bus;
-        const ForwardedFieldType types[] = { ForwardedFieldType::Float32, ForwardedFieldType::Float64,
-            ForwardedFieldType::Int32, ForwardedFieldType::UInt32, ForwardedFieldType::Boolean,
-            ForwardedFieldType::String };
+        const ForwardedFieldType types[]
+            = { ForwardedFieldType::Float32, ForwardedFieldType::Float64, ForwardedFieldType::Int32,
+                  ForwardedFieldType::UInt32, ForwardedFieldType::Boolean, ForwardedFieldType::String };
         for (const ForwardedFieldType type : types)
         {
             // Size 0 is wrong for every type, and 3 is wrong for every type but String.
@@ -498,7 +498,8 @@ namespace
         EXPECT_EQ(record.name, "an_event_name_long_enough_to_be_on_the_heap_too");
         EXPECT_EQ(record.payloadSize, kRawPayloadSize);
         ASSERT_EQ(record.fields.size(), 1u);
-        expectField(record.fields[0], "a_field_name_long_enough_to_be_on_the_heap_too", ForwardedFieldType::Int32, 4, 4);
+        expectField(
+            record.fields[0], "a_field_name_long_enough_to_be_on_the_heap_too", ForwardedFieldType::Int32, 4, 4);
     }
 
     TEST(EventBusForwardingTest, EventWithNoFieldsIsAllowed)

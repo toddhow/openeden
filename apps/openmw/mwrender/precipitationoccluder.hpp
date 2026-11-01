@@ -33,8 +33,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::View> view() const { return mView; }
         vsg::ref_ptr<vsg::Descriptor> mapDescriptor() const { return mMap; }
 
-        /// The box's XY size (rain and snow both wrap in a square) and height, which the particle shader reads from the scene
-        /// data (lib/particle/weatherocclusion.glsl).
+        /// The box's XY size (rain and snow both wrap in a square) and height, which the particle shader reads from the
+        /// scene data (lib/particle/weatherocclusion.glsl).
         float boxSize() const { return mBoxSize; }
         float boxHeight() const { return mBoxHeight; }
 

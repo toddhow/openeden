@@ -219,8 +219,8 @@ namespace LuaUtil
         sol::usertype<Box> boxType = lua.new_usertype<Box>("Box");
         boxType["center"] = sol::readonly_property([](const Box& b) { return Vec3(b.mCenter); });
         boxType["halfSize"] = sol::readonly_property([](const Box& b) { return Vec3(b.mHalfSize); });
-        boxType["transform"] = sol::readonly_property(
-            [](const Box& b) { return TransformM{ vsg::mat4(b.asTransform()) }; });
+        boxType["transform"]
+            = sol::readonly_property([](const Box& b) { return TransformM{ vsg::mat4(b.asTransform()) }; });
         boxType["vertices"] = sol::readonly_property([lua](const Box& b) {
             sol::table table(lua, sol::create);
             const auto vertices = b.vertices();
@@ -329,15 +329,13 @@ namespace LuaUtil
             if (scale.x != 1 || scale.y != 1 || scale.z != 1)
                 ss << "scale(" << scale.x << ", " << scale.y << ", " << scale.z << ") ";
             if (soAngle != 0)
-                ss << "rotation(angle=" << soAngle << ", axis=(" << soAxis.x << ", " << soAxis.y << ", "
-                   << soAxis.z << ")) ";
+                ss << "rotation(angle=" << soAngle << ", axis=(" << soAxis.x << ", " << soAxis.y << ", " << soAxis.z
+                   << ")) ";
             ss << "}";
             return ss.str();
         };
         transMType["apply"] = [](const TransformM& a, const Vec3& b) { return a.mM * b; },
-        transMType["inverse"] = [](const TransformM& m) {
-            return TransformM{ Misc::VsgMath::invert4x3(m.mM) };
-        };
+        transMType["inverse"] = [](const TransformM& m) { return TransformM{ Misc::VsgMath::invert4x3(m.mM) }; };
         transMType["getYaw"] = [](const TransformM& m) {
             vsg::vec3 angles = Misc::toEulerAnglesXZ(m.mM);
             return angles.z;
@@ -368,8 +366,8 @@ namespace LuaUtil
             vsg::vec3 axis;
             Misc::VsgMath::getRotate(q.mQ, angle, axis);
             std::stringstream ss;
-            ss << "TransformQ{ rotation(angle=" << angle << ", axis=(" << axis.x << ", " << axis.y << ", "
-               << axis.z << ")) }";
+            ss << "TransformQ{ rotation(angle=" << angle << ", axis=(" << axis.x << ", " << axis.y << ", " << axis.z
+               << ")) }";
             return ss.str();
         };
         transQType["apply"] = [](const TransformQ& a, const Vec3& b) { return vsg::quat(a.mQ) * b; },

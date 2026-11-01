@@ -1,15 +1,15 @@
 #ifndef VSGOPENMW_TERRAIN_BUILDER_H
 #define VSGOPENMW_TERRAIN_BUILDER_H
 
-#include <vsg/nodes/StateGroup.h>
 #include <vsg/core/Array2D.h>
+#include <vsg/nodes/StateGroup.h>
 
 #include <components/vsgutil/cache.hpp>
 
-#include "storage.hpp"
-#include "indexbuffer.hpp"
 #include "bounds.hpp"
+#include "indexbuffer.hpp"
 #include "layermaps.hpp"
+#include "storage.hpp"
 
 namespace vsg
 {
@@ -22,7 +22,8 @@ namespace Terrain
      */
     struct Builder
     {
-        Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions, TerrainMapSettings in_mapSettings = {});
+        Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions, vsg::ref_ptr<const vsg::Options> in_shaderOptions,
+            vsg::ref_ptr<vsg::Sampler> in_samplerOptions, TerrainMapSettings in_mapSettings = {});
         ~Builder();
 
         void pruneCache() const;
@@ -54,7 +55,9 @@ namespace Terrain
         };
         Batch createBatch(const Bounds& bounds, uint8_t lod = 0) const;
 
-        vsg::ref_ptr<vsg::Node> createDraw(const Batch& batch, const Bounds& bounds, uint8_t lod = 0, uint32_t lodFlags = 0) const;
+        vsg::ref_ptr<vsg::Node> createDraw(
+            const Batch& batch, const Bounds& bounds, uint8_t lod = 0, uint32_t lodFlags = 0) const;
+
     private:
         // openeden-vsg: the layer arrays with normal and specular maps, and each layer's flags for the shader
         // (files/shaders/terrain/main.frag): the normal map index in the low 16 bits, then parallax and specular.
@@ -63,10 +66,12 @@ namespace Terrain
         static constexpr uint32_t sSpecularFlag = 1u << 17;
         void setLayersWithMaps(const std::vector<LayerInfo>& layers);
 
-        vsg::ref_ptr<vsg::Node> createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds, const BatchData& data, const Bounds& bounds) const;
+        vsg::ref_ptr<vsg::Node> createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds,
+            const BatchData& data, const Bounds& bounds) const;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> mPipeline;
-        Storage* mStorage = nullptr;                vsg::ref_ptr<const vsg::Options> mImageOptions;
+        Storage* mStorage = nullptr;
+        vsg::ref_ptr<const vsg::Options> mImageOptions;
         vsg::ref_ptr<vsg::Sampler> mSamplerOptions;
         vsg::ref_ptr<vsg::Descriptor> mLayerDescriptor;
         // openeden-vsg: terrain normal and specular maps (task 0012, V4i); descriptors are null with the maps off.

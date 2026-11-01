@@ -162,8 +162,7 @@ namespace openeden::extension
             const Files::IStreamPtr stream = mEngineVfs->find(path);
             if (!stream)
                 return {};
-            return std::vector<std::uint8_t>(
-                std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
+            return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
         }
 
         const auto physicalPath = resolvePhysicalPath(virtualPath);

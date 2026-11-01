@@ -25,8 +25,9 @@ namespace Resource
                 // vsgopenmw-nif-istream
                 Nif::NIFFile nifFile({});
                 Nif::Reader reader(nifFile);
-                reader.parse(Files::IStreamPtr(new std::istream(stream.rdbuf()))); //reader.parse(stream); //vsgopenmw-fixme
-                Nif::FileView nif (nifFile);
+                reader.parse(
+                    Files::IStreamPtr(new std::istream(stream.rdbuf()))); // reader.parse(stream); //vsgopenmw-fixme
+                Nif::FileView nif(nifFile);
                 return loader.load(nif);
             }
             catch (std::exception& e)

@@ -51,8 +51,8 @@ namespace MWRender::FootIk
 
     /// @param target where the ankle should go (world); @param pole bend direction hint for the knee;
     /// @param footNormal the (already clamped) ground normal the foot is tilted to; @param weight 0..1 IK blend.
-    LegSolution solveLegPose(const LegWorld& leg, const vsg::vec3& target, const vsg::vec3& pole,
-        const vsg::vec3& footNormal, float weight);
+    LegSolution solveLegPose(
+        const LegWorld& leg, const vsg::vec3& target, const vsg::vec3& pole, const vsg::vec3& footNormal, float weight);
 
     /// The local rotations that give the thigh, calf and foot the solved world rotations. The foot keeps its animated
     /// world orientation, tilted.

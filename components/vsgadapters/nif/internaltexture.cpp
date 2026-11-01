@@ -122,8 +122,8 @@ namespace vsgAdapters
             case Format::BGRA:
             {
                 auto image = vsg::ubvec4Array2D::create(width, height,
-                    vsg::Data::Properties{ format == Format::RGBA ? VK_FORMAT_R8G8B8A8_UNORM
-                                                                  : VK_FORMAT_B8G8R8A8_UNORM });
+                    vsg::Data::Properties{
+                        format == Format::RGBA ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_B8G8R8A8_UNORM });
                 std::memcpy(static_cast<void*>(image->data()), source, size);
                 return image;
             }
@@ -131,8 +131,8 @@ namespace vsgAdapters
             case Format::BGR:
             {
                 auto image = vsg::ubvec4Array2D::create(width, height,
-                    vsg::Data::Properties{ format == Format::RGB ? VK_FORMAT_R8G8B8A8_UNORM
-                                                                 : VK_FORMAT_B8G8R8A8_UNORM });
+                    vsg::Data::Properties{
+                        format == Format::RGB ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_B8G8R8A8_UNORM });
                 for (std::size_t i = 0; i < std::size_t(width) * height; ++i)
                     image->at(i) = vsg::ubvec4(source[i * 3], source[i * 3 + 1], source[i * 3 + 2], 255);
                 return image;
@@ -147,8 +147,8 @@ namespace vsgAdapters
                 }
                 const auto& colors = pixelData.mPalette->mColors;
                 const bool alpha = format == Format::PaletteAlpha;
-                auto image = vsg::ubvec4Array2D::create(
-                    width, height, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+                auto image
+                    = vsg::ubvec4Array2D::create(width, height, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
                 for (std::size_t i = 0; i < std::size_t(width) * height; ++i)
                 {
                     // Palette colours are stored as bytes R, G, B, A.

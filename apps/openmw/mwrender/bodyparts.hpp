@@ -16,8 +16,7 @@ namespace MWRender
     std::string getHeadModel(bool werewolf, bool vampire, bool female, const ESM::RefId& race,
         const ESM::RefId& bodypartName, const MWWorld::Store<ESM::BodyPart>& store);
 
-    std::string getHairModel(
-        bool werewolf, const ESM::RefId& bodypartName, const MWWorld::Store<ESM::BodyPart>& store);
+    std::string getHairModel(bool werewolf, const ESM::RefId& bodypartName, const MWWorld::Store<ESM::BodyPart>& store);
 
     const ESM::BodyPart* getBodyPart(
         bool firstPerson, bool female, const ESM::PartReference& part, const MWWorld::Store<ESM::BodyPart>& store);

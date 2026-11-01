@@ -44,8 +44,7 @@ namespace openeden::contracts
          * @brief Spawns a physical ragdoll and reconciliation harness for the given entity
          * inside the host's shared physics world.
          */
-        virtual bool spawnCharacter(
-            sdk::EntityId entity, sdk::PhysicsVec3 rootPositionM = {}, float yawRad = 0.0f) = 0;
+        virtual bool spawnCharacter(sdk::EntityId entity, sdk::PhysicsVec3 rootPositionM = {}, float yawRad = 0.0f) = 0;
 
         /**
          * @brief Despawns the physical ragdoll and frees physics bodies/joints for the entity.
@@ -60,8 +59,8 @@ namespace openeden::contracts
         /**
          * @brief Applies a physical hit impulse to the character's ragdoll at the specified world point.
          */
-        virtual bool applyHitImpulse(
-            sdk::EntityId entity, sdk::PhysicsVec3 impulseNs, sdk::PhysicsVec3 contactPointM) = 0;
+        virtual bool applyHitImpulse(sdk::EntityId entity, sdk::PhysicsVec3 impulseNs, sdk::PhysicsVec3 contactPointM)
+            = 0;
 
         /**
          * @brief Queries the current physical pelvis world position in meters.
@@ -131,7 +130,7 @@ namespace openeden::contracts
             sdk::PhysicsVec3 targetPosition;
             float currentYawRad = 0.0f;
             float currentPitchRad = 0.0f;
-            float maxYawRad = 1.2217f;   // ~70 degrees
+            float maxYawRad = 1.2217f; // ~70 degrees
             float maxPitchRad = 0.7854f; // ~45 degrees
             float speedRadPerS = 8.0f;
             float dt = 0.0f;
@@ -155,27 +154,23 @@ namespace openeden::contracts
         /**
          * @brief Pure analytic two-bone IK solver with hinge limits on the middle joint.
          */
-        [[nodiscard]] virtual TwoBoneResult solveTwoBone(
-            const TwoBoneChain& chain, sdk::PhysicsVec3 target, sdk::PhysicsVec3 poleDirection,
-            const HingeLimits& limits = {}) const = 0;
+        [[nodiscard]] virtual TwoBoneResult solveTwoBone(const TwoBoneChain& chain, sdk::PhysicsVec3 target,
+            sdk::PhysicsVec3 poleDirection, const HingeLimits& limits = {}) const = 0;
 
         /**
          * @brief Solves foot placement, knee bend, foot normal alignment, and pelvis offset for uneven terrain.
          */
-        [[nodiscard]] virtual FootPlacementResult solveFootPlacement(
-            const FootPlacementInput& input) const = 0;
+        [[nodiscard]] virtual FootPlacementResult solveFootPlacement(const FootPlacementInput& input) const = 0;
 
         /**
          * @brief Solves gaze tracking with angular limits and smooth temporal interpolation.
          */
-        [[nodiscard]] virtual LookAtResult solveLookAt(
-            const LookAtInput& input) const = 0;
+        [[nodiscard]] virtual LookAtResult solveLookAt(const LookAtInput& input) const = 0;
 
         /**
          * @brief Exponential angular decay smoothing for actor yaw across +/-pi boundary.
          */
-        [[nodiscard]] virtual float solveTurnSmoothing(
-            const TurnSmoothingInput& input) const = 0;
+        [[nodiscard]] virtual float solveTurnSmoothing(const TurnSmoothingInput& input) const = 0;
     };
 
     using TwoBoneChain = AnimationContract::TwoBoneChain;

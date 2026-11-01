@@ -43,9 +43,10 @@ namespace SDLUtil
         void _setWindowScale();
 
         SDL_Window* mSDLWindow;
-        // Was the viewer's osg::ref_ptr. apps/openmw/mwinput/mousemanager.cpp still reads this class's layout, while the object
-        // it holds is components/sdlutil/inputwrapper.hpp's, so getMouseRelative() there reads the wrong byte. Dropping this
-        // member would change that behaviour; the fix is to include inputwrapper.hpp there, as toddhow's decision (task 0013).
+        // Was the viewer's osg::ref_ptr. apps/openmw/mwinput/mousemanager.cpp still reads this class's layout, while
+        // the object it holds is components/sdlutil/inputwrapper.hpp's, so getMouseRelative() there reads the wrong
+        // byte. Dropping this member would change that behaviour; the fix is to include inputwrapper.hpp there, as
+        // toddhow's decision (task 0013).
         void* mViewer;
 
         MouseListener* mMouseListener;

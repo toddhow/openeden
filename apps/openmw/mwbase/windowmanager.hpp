@@ -306,7 +306,6 @@ namespace MWBase
         virtual void setKeyFocusWidget(MyGUI::Widget* widget) = 0;
         virtual std::shared_ptr<MWState::LoadingScreen> createLoadingScreen() = 0;
 
-
         /// Should the cursor be visible?
         virtual bool getCursorVisible() = 0;
 

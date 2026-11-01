@@ -4,8 +4,8 @@
 #include <functional>
 #include <string_view>
 
-#include <vsg/state/Descriptor.h>
 #include <vsg/io/ReaderWriter.h>
+#include <vsg/state/Descriptor.h>
 
 #include "automaps.hpp"
 
@@ -27,7 +27,8 @@ namespace vsgAdapters
         vsg::ref_ptr<const vsg::Options> mImageOptions;
 
     public:
-        nif(const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> imageOptions, int computeBin, int depthSortedBin)
+        nif(const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> imageOptions, int computeBin,
+            int depthSortedBin)
             : mBuilder(builder)
             , mImageOptions(imageOptions)
             , mComputeBin(computeBin)
@@ -46,14 +47,14 @@ namespace vsgAdapters
         // This is used for NiCollisionSwitch nodes with NiCollisionSwitch state set to disabled.
         unsigned int intersectionDisabledMask = ~0;
 
-        // openeden-vsg: normal and specular maps found next to diffuse textures (task 0012, V4h), and how to tell whether
-        // a texture path exists.
+        // openeden-vsg: normal and specular maps found next to diffuse textures (task 0012, V4h), and how to tell
+        // whether a texture path exists.
         AutoMapSettings autoMaps;
         std::function<bool(std::string_view)> textureExists;
         // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
         bool softParticles = false;
-        /// OpenEden: the normalized path of the one model whose particles weather occlusion discards under a roof, empty
-        /// and its occlusion map, unset (task 0012, V4l).
+        /// OpenEden: the normalized path of the one model whose particles weather occlusion discards under a roof,
+        /// empty and its occlusion map, unset (task 0012, V4l).
         std::string occludedParticleModel;
         vsg::ref_ptr<vsg::Descriptor> occludedParticleMap;
 

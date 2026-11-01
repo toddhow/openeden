@@ -14,17 +14,18 @@ namespace Terrain
         static constexpr float minSize = 0.125f;
         vsg::vec2 min;
         bool valid() const { return size > 0.f; }
-        vsg::vec2 center() const { return min + vsg::vec2(size*0.5f, size*0.5f); }
+        vsg::vec2 center() const { return min + vsg::vec2(size * 0.5f, size * 0.5f); }
         vsg::vec2 max() const { return min + vsg::vec2(size, size); }
         bool contains(const vsg::vec2& point) const
         {
             const vsg::vec2& mincorner = min;
             vsg::vec2 maxcorner = max();
-            return (point.x >= mincorner.x && point.x <= maxcorner.x && point.y >= mincorner.y && point.y <= maxcorner.y);
+            return (
+                point.x >= mincorner.x && point.x <= maxcorner.x && point.y >= mincorner.y && point.y <= maxcorner.y);
         }
         float radius() const { return size * 0.5f; }
-        bool operator == (const Bounds&) const = default;
-        bool operator < (const Bounds& rhs) const
+        bool operator==(const Bounds&) const = default;
+        bool operator<(const Bounds& rhs) const
         {
             if (size < rhs.size)
                 return true;
@@ -44,4 +45,3 @@ namespace Terrain
 }
 
 #endif
-

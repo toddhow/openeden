@@ -4,8 +4,8 @@
 #include <components/terrain/storage.hpp>
 
 #include <components/esm/util.hpp>
-#include <components/esm3/loadltex.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/esm3/loadltex.hpp>
 
 namespace ESMTerrain
 {
@@ -16,7 +16,8 @@ namespace ESMTerrain
     class LandObject : public vsg::Object
     {
     public:
-        LandObject() = default; // Note, a default constructed LandObject indicates there is no terrain at the specified cell coordinates.
+        LandObject() = default; // Note, a default constructed LandObject indicates there is no terrain at the specified
+                                // cell coordinates.
         LandObject(const ESM::Land& land, int loadFlags);
         virtual ~LandObject();
 
@@ -55,7 +56,8 @@ namespace ESMTerrain
         using PluginTexture = std::pair<short, short>;
 
         // Not implemented in this class, because we need different Store implementations for game and editor
-        // TODO: wouldn't it be more efficient to pass worldspaces elsewhere? create a Storage or View object per worldspace?
+        // TODO: wouldn't it be more efficient to pass worldspaces elsewhere? create a Storage or View object per
+        // worldspace?
         virtual vsg::ref_ptr<const LandObject> getLand(ESM::ExteriorCellLocation cellLocation) = 0;
         virtual std::map<PluginTexture, std::string> enumerateLayers() const = 0;
 

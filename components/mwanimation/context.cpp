@@ -4,8 +4,8 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/animation/controllermap.hpp>
-#include <components/vsgutil/readnode.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/readnode.hpp>
 
 namespace MWAnim
 {
@@ -44,7 +44,8 @@ namespace MWAnim
         return vsg::read_cast<Anim::ControllerMap>(file, animOptions);
     }
 
-    std::vector<vsg::ref_ptr<Anim::ControllerMap>> Context::readAnimations(const std::vector<std::string>& fileNames) const
+    std::vector<vsg::ref_ptr<Anim::ControllerMap>> Context::readAnimations(
+        const std::vector<std::string>& fileNames) const
     {
         std::vector<vsg::ref_ptr<Anim::ControllerMap>> ret;
         for (auto& file : fileNames)
@@ -57,7 +58,10 @@ namespace MWAnim
 
     void Context::prune() const
     {
-        auto pruneSharedObjects = [](const vsg::ref_ptr<const vsg::Options>& options) { if (options->sharedObjects) options->sharedObjects->prune(); };
+        auto pruneSharedObjects = [](const vsg::ref_ptr<const vsg::Options>& options) {
+            if (options->sharedObjects)
+                options->sharedObjects->prune();
+        };
 
         for (auto& options : partBoneOptions)
             pruneSharedObjects(options);
@@ -65,6 +69,6 @@ namespace MWAnim
         pruneSharedObjects(effectOptions);
         pruneSharedObjects(actorOptions);
         pruneSharedObjects(textureOptions);
-        //pruneSharedObjects(animOptions);
+        // pruneSharedObjects(animOptions);
     }
 }

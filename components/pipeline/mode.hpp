@@ -46,8 +46,12 @@ namespace Pipeline
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
-        Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE, Mode::NORMAL_MAP, Mode::SOFT_PARTICLE };
-    const std::vector<Mode> fragmentModes { Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE/*_TEXCOORD*/, Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP, Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP, Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION };
+        Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE, Mode::NORMAL_MAP,
+        Mode::SOFT_PARTICLE };
+    const std::vector<Mode> fragmentModes{ Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE /*_TEXCOORD*/,
+        Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
+        Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
+        Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION };
 
     using Modes = std::vector<bool>;
 
@@ -75,7 +79,7 @@ namespace Pipeline
         return i < vec.size() && vec[i];
     }
 
-    inline Modes modes (const std::vector<Mode>& vec)
+    inline Modes modes(const std::vector<Mode>& vec)
     {
         Modes ret;
         for (auto mode : vec)

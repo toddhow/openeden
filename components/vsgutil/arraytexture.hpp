@@ -235,9 +235,9 @@ namespace vsgUtil
         std::map<Key, size_t> keyCounts;
         for (const auto& image : images)
             ++keyCounts[keyOf(*image)];
-        const Key reference
-            = std::max_element(keyCounts.begin(), keyCounts.end(), [](auto& a, auto& b) { return a.second < b.second; })
-                  ->first;
+        const Key reference = std::max_element(keyCounts.begin(), keyCounts.end(), [](auto& a, auto& b) {
+            return a.second < b.second;
+        })->first;
         const vsg::Data* referenceImage = nullptr;
         for (const auto& image : images)
             if (keyOf(*image) == reference)
@@ -268,15 +268,16 @@ namespace vsgUtil
         {
             levelOffsets.push_back(totalSize);
             if (layout)
-                layout->set(level,
-                    vsg::uivec4(levels[level].width, levels[level].height, 1, static_cast<uint32_t>(totalSize)));
+                layout->set(
+                    level, vsg::uivec4(levels[level].width, levels[level].height, 1, static_cast<uint32_t>(totalSize)));
             totalSize += levels[level].size * depth;
         }
 
         auto properties = first.properties;
         properties.imageViewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         properties.mipLevels = compressed ? static_cast<uint8_t>(levels.size()) : 0; // 0: VSG generates mipmaps
-        properties.allocatorType = vsg::ALLOCATOR_TYPE_VSG_ALLOCATOR; // the layers are copied into vsg::allocate'd memory
+        properties.allocatorType
+            = vsg::ALLOCATOR_TYPE_VSG_ALLOCATOR; // the layers are copied into vsg::allocate'd memory
 
         vsg::ref_ptr<vsg::Data> array;
         if (first.valueSize() == 8)
@@ -309,7 +310,9 @@ namespace vsgUtil
             }
             else if (!compressed && image.properties.format == properties.format)
                 detail::resampleRgba8(image, pDst + i * levels[0].size, width, height);
-            else if (const auto decoded = (!compressed && detail::isRgba8(properties.format)) ? detail::decodeBlockCompressed(image) : std::vector<uint32_t>{};
+            else if (const auto decoded = (!compressed && detail::isRgba8(properties.format))
+                         ? detail::decodeBlockCompressed(image)
+                         : std::vector<uint32_t>{};
                      !decoded.empty())
             {
                 detail::resampleRgba8(

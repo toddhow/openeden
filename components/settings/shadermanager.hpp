@@ -9,7 +9,6 @@
 
 #include <yaml-cpp/yaml.h>
 
-
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/vsgmath.hpp>

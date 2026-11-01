@@ -2,15 +2,15 @@
 
 #include <iostream>
 
-#include <vsg/nodes/StateGroup.h>
-#include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/CullGroup.h>
+#include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/DepthSorted.h>
+#include <vsg/nodes/StateGroup.h>
 #include <vsg/utils/ComputeBounds.h>
 
+#include <components/vsgutil/bounds.hpp>
 #include <components/vsgutil/computetransform.hpp>
 #include <components/vsgutil/nodepath.hpp>
-#include <components/vsgutil/bounds.hpp>
 
 #include "bones.hpp"
 #include "context.hpp"
@@ -31,18 +31,15 @@ namespace Anim
                 for (unsigned i = 0; i < 3; ++i)
                 {
                     float tmp = node->translation[i];
-                    matrix[0][i] -= tmp*matrix[0][3];
-                    matrix[1][i] -= tmp*matrix[1][3];
-                    matrix[2][i] -= tmp*matrix[2][3];
-                    matrix[3][i] -= tmp*matrix[3][3];
+                    matrix[0][i] -= tmp * matrix[0][3];
+                    matrix[1][i] -= tmp * matrix[1][3];
+                    matrix[2][i] -= tmp * matrix[2][3];
+                    matrix[3][i] -= tmp * matrix[3][3];
                 }
                 // invRotation = transpose(node.rotation);
-                vsg::mat4 invRotation = {
-                    node->rotation[0][0], node->rotation[1][0], node->rotation[2][0], 0,
-                    node->rotation[0][1], node->rotation[1][1], node->rotation[2][1], 0,
-                    node->rotation[0][2], node->rotation[1][2], node->rotation[2][2], 0,
-                    0, 0, 0, 1
-                };
+                vsg::mat4 invRotation = { node->rotation[0][0], node->rotation[1][0], node->rotation[2][0], 0,
+                    node->rotation[0][1], node->rotation[1][1], node->rotation[2][1], 0, node->rotation[0][2],
+                    node->rotation[1][2], node->rotation[2][2], 0, 0, 0, 0, 1 };
                 matrix = invRotation * matrix;
             }
             return matrix;
@@ -68,8 +65,9 @@ namespace Anim
             {
                 if (!mCurrentNodeBounds.empty())
                 {
-                    //if (childContainsSkin)
-                    //   std::cerr << "!GetSkinPath::apply(vsg::Transform&): transforming bounds is not implemented, ignoring transform node." << std::endl;
+                    // if (childContainsSkin)
+                    //    std::cerr << "!GetSkinPath::apply(vsg::Transform&): transforming bounds is not implemented,
+                    //    ignoring transform node." << std::endl;
                 }
                 transformPath.accumulateCastAndTraverse(transform, *this);
             }
@@ -147,7 +145,8 @@ namespace Anim
             return;
         }
 
-        mReferenceFrame = vsgUtil::extract<const Transform>(context.attachmentPath);            GetSkinPath visitor(&target);
+        mReferenceFrame = vsgUtil::extract<const Transform>(context.attachmentPath);
+        GetSkinPath visitor(&target);
         context.attachmentPath.back()->accept(visitor);
         auto& addPath = visitor.transformPath.foundPath;
         if (!addPath.empty())
@@ -158,7 +157,8 @@ namespace Anim
         }
 
         if (!visitor.statePath.foundPath.empty())
-            visitor.statePath.foundPath.back()->prototypeArrayState = SoftwareSkin::create(vsg::ref_ptr{ target.cast<const vsg::mat4Array>() }, vsg::ref_ptr{this});
+            visitor.statePath.foundPath.back()->prototypeArrayState
+                = SoftwareSkin::create(vsg::ref_ptr{ target.cast<const vsg::mat4Array>() }, vsg::ref_ptr{ this });
         else
             std::cerr << "!GetSkinPath(" << this << ")" << std::endl;
 

@@ -1,14 +1,14 @@
 #include "animcontext.hpp"
 
-#include <vsg/utils/SharedObjects.h>
 #include <vsg/utils/FindDynamicObjects.h>
 #include <vsg/utils/PropagateDynamicObjects.h>
+#include <vsg/utils/SharedObjects.h>
 
 #include <components/animation/mask.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/mwanimation/partbones.hpp>
-#include <components/pipeline/override.hpp>
 #include <components/pipeline/material.hpp>
+#include <components/pipeline/override.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
 
@@ -20,14 +20,15 @@ namespace
     {
         auto options = vsg::Options::create(*resourceSystem->nodeOptions);
         options->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
-        options->findFileCallback = [resourceSystem](const vsg::Path& file, const vsg::Options* /*options*/) -> vsg::Path
-        {
-            // openeden-vsg: accept paths with or without "meshes/", as OpenMW 0.51 callers pass corrected paths. Skeleton
-            // files that add bones live under "animations/" (Npc::addCustomBones).
+        options->findFileCallback
+            = [resourceSystem](const vsg::Path& file, const vsg::Options* /*options*/) -> vsg::Path {
+            // openeden-vsg: accept paths with or without "meshes/", as OpenMW 0.51 callers pass corrected paths.
+            // Skeleton files that add bones live under "animations/" (Npc::addCustomBones).
             VFS::Path::Normalized path(file.string());
             if (!path.value().starts_with("meshes/") && !path.value().starts_with("animations/"))
                 path = Misc::ResourceHelpers::correctMeshPath(path);
@@ -40,8 +41,9 @@ namespace
     {
         auto options = vsg::Options::create(base);
         options->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
         auto override_ = vsg::ref_ptr{ new Pipeline::Override };
@@ -60,8 +62,9 @@ namespace
         {
             auto options = vsg::Options::create(base);
             options->sharedObjects = vsg::SharedObjects::create();
-            // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-            // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+            // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+            // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+            // (mwanimation/clone.hpp).
             options->findDynamicObjects = {};
             options->propagateDynamicObjects = {};
             auto& bonename = MWAnim::sPartBones.at(static_cast<ESM::PartReferenceType>(i));
@@ -84,8 +87,8 @@ namespace
 }
 namespace MWRender
 {
-    MWAnim::Context animContext(Resource::ResourceSystem* resourceSystem, vsg::ref_ptr<vsgUtil::CompileContext> in_compile,
-        const vsg::Options* baseNodeOptions /*,Settings::Manager &*/)
+    MWAnim::Context animContext(Resource::ResourceSystem* resourceSystem,
+        vsg::ref_ptr<vsgUtil::CompileContext> in_compile, const vsg::Options* baseNodeOptions /*,Settings::Manager &*/)
     {
         if (!baseNodeOptions)
             baseNodeOptions = resourceSystem->nodeOptions;

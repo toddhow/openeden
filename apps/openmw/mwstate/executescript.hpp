@@ -10,7 +10,10 @@ namespace MWState
 {
     struct ExecuteScript : public Operation
     {
-        ExecuteScript(const std::string& f) : filename(f) {}
+        ExecuteScript(const std::string& f)
+            : filename(f)
+        {
+        }
         std::string filename;
         bool run(float dt)
         {

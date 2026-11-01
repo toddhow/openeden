@@ -4,17 +4,16 @@
 
 #include <vsg/io/Options.h>
 
+#include <components/resource/decompress.hpp>
 #include <components/sdlutil/cursormanager.hpp>
 #include <components/vsgadapters/sdl/surface.hpp>
 #include <components/vsgutil/readimage.hpp>
-#include <components/resource/decompress.hpp>
 
 #include "cursor.hpp"
 
 namespace MWGui
 {
-    void createCursors(vsg::ref_ptr<const vsg::Options> imageOptions,
-        SDLUtil::CursorManager* cursorManager)
+    void createCursors(vsg::ref_ptr<const vsg::Options> imageOptions, SDLUtil::CursorManager* cursorManager)
     {
         auto decompressOptions = vsg::Options::create(*imageOptions);
         auto decompress = vsg::ref_ptr{ new Resource::Decompress };

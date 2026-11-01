@@ -1,14 +1,15 @@
 #include "preload.hpp"
 
-#include <components/vsgutil/operation.hpp>
 #include <components/vsgutil/compileop.hpp>
+#include <components/vsgutil/operation.hpp>
 
 #include "paging.hpp"
 
 namespace
 {
     template <class Contained>
-    bool contains(const std::vector<Terrain::Preload::Position>& container, const Contained& contained, float sqrTolerance)
+    bool contains(
+        const std::vector<Terrain::Preload::Position>& container, const Contained& contained, float sqrTolerance)
     {
         for (const auto& pos : contained)
         {
@@ -29,7 +30,8 @@ namespace
 }
 namespace Terrain
 {
-    Preload::Preload(Paging* terrain, vsg::ref_ptr<vsg::OperationThreads> loadThreads, vsg::ref_ptr<vsg::OperationThreads> compileThreads)
+    Preload::Preload(Paging* terrain, vsg::ref_ptr<vsg::OperationThreads> loadThreads,
+        vsg::ref_ptr<vsg::OperationThreads> compileThreads)
         : mTerrain(terrain)
         , mLoadThreads(loadThreads)
         , mCompileThreads(compileThreads)
@@ -65,14 +67,14 @@ namespace Terrain
             mPositions = positions;
             if (!positions.empty())
             {
-                mOperation = new vsgUtil::OperationFunc( [this, positions]() {
+                mOperation = new vsgUtil::OperationFunc([this, positions]() {
                     for (size_t i = 0; i < positions.size(); ++i)
                     {
                         auto compile = mTerrain->updateView(*mViews[i], positions[i].first, positions[i].second, true);
                         if (compile)
                             compile->compile();
-                        //if(lastCompile->done())
-                        //    mCompileThreads->add(compile);
+                        // if(lastCompile->done())
+                        //     mCompileThreads->add(compile);
                     }
                 });
                 mLoadThreads->add(mOperation);

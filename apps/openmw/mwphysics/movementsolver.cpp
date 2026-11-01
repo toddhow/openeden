@@ -11,14 +11,14 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadgmst.hpp>
+#include <components/inertialmotion/locomotionstate.hpp>
 #include <components/misc/convert.hpp>
 #include <components/settings/values.hpp>
-#include <components/inertialmotion/locomotionstate.hpp>
 
 #include "../mwbase/environment.hpp"
 
-#include "../mwworld/esmstore.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/esmstore.hpp"
 
 #include "actor.hpp"
 #include "constants.hpp"
@@ -580,9 +580,8 @@ namespace MWPhysics
         {
             const JPH::Body& actorBody = lock.GetBody();
             const Actor* actorPtr = Misc::Convert::toPointerFromUserData<Actor>(actorBody.GetUserData());
-            const JPH::ShapeRefC shape = (actorPtr && actorPtr->getMovementShape())
-                ? actorPtr->getMovementShape()
-                : actorBody.GetShape();
+            const JPH::ShapeRefC shape
+                = (actorPtr && actorPtr->getMovementShape()) ? actorPtr->getMovementShape() : actorBody.GetShape();
             const JPH::RMat44& trans = actorBody.GetWorldTransform();
 
             JPH::RMat44 newTransformJolt = (actorPtr && actorPtr->isMovementRotationallyInvariant())

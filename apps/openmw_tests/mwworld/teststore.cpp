@@ -24,8 +24,8 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/testing/util.hpp>
 
-#include "apps/openmw/mwworld/esmstore.hpp"
 #include "apps/openmw/mwstate/loading.hpp"
+#include "apps/openmw/mwworld/esmstore.hpp"
 
 // openeden-vsg: ESMStore::load reports progress to a vsgopenmw loading state instead of a Loading::Listener.
 struct DummyLoading : MWState::Loading

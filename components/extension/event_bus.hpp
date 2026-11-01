@@ -56,8 +56,7 @@ namespace openeden::extension
      * @brief Called for each published event that is marked, in publish order, on the publishing thread. Extensions
      * must publish marked events on the main thread, so the game's sink needs no lock.
      */
-    using ForwardSink
-        = std::function<void(const ForwardedEventRecord& record, const void* data, std::size_t size)>;
+    using ForwardSink = std::function<void(const ForwardedEventRecord& record, const void* data, std::size_t size)>;
 
     /**
      * @brief Engine implementation of the OpenEden event bus.

@@ -22,7 +22,6 @@
 #include <vsg/maths/transform.h>
 #include <vsg/nodes/Group.h>
 
-
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -34,7 +33,8 @@
 // A narrowly scoped allocation counter for the no-allocation test. The replacement global operator new counts only
 // while sCountAllocations is set on the calling thread, so every other test in openmw-tests is unaffected apart from
 // one thread-local branch per allocation. Only the plain (non-aligned) forms are replaced; their deletes are replaced
-// to match. The same technique backs CreativeMotion's opas_alloc_tests (components/creativemotion/core/motor/CLAUDE.md).
+// to match. The same technique backs CreativeMotion's opas_alloc_tests
+// (components/creativemotion/core/motor/CLAUDE.md).
 namespace
 {
     thread_local bool sCountAllocations = false;
@@ -142,9 +142,8 @@ namespace
         for (int i = 0; i < 4; ++i)
             for (int j = 0; j < 4; ++j)
                 if (!(std::abs(actual[i][j] - expected[i][j]) <= tolerance))
-                    return ::testing::AssertionFailure()
-                        << "element (" << i << ", " << j << "): actual " << actual[i][j] << ", expected "
-                        << expected[i][j];
+                    return ::testing::AssertionFailure() << "element (" << i << ", " << j << "): actual "
+                                                         << actual[i][j] << ", expected " << expected[i][j];
         return ::testing::AssertionSuccess();
     }
 
@@ -406,8 +405,8 @@ namespace
 
         // A point on the local X axis turns by +0.6 rad about Z (the scale leaves the direction unchanged).
         const vsg::vec3 rotated = pose.getLocal(spine) * vsg::vec3(1.f, 0.f, 0.f);
-        EXPECT_TRUE(vecNear(rotated,
-            vsg::vec3(-4.f + 1.5f * std::cos(0.6f), 5.f + 1.5f * std::sin(0.6f), 6.f), sTolerance));
+        EXPECT_TRUE(
+            vecNear(rotated, vsg::vec3(-4.f + 1.5f * std::cos(0.6f), 5.f + 1.5f * std::sin(0.6f), 6.f), sTolerance));
     }
 
     TEST(MWRenderBonePoseTest, GetModelComposesThePathInRowVectorConvention)

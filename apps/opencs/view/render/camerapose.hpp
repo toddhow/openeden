@@ -9,8 +9,8 @@
 #include <vsg/maths/vec3.h>
 
 /// What the camera controllers do to a view matrix, keeping what the OSG editor's osg::Matrixd calls gave. No Qt and no
-/// scene, so that openmw-cs-tests can check it. Eye space is the same in OSG and VSG (x right, y up, looking along -z): VSG's
-/// Y flip and depth range are in the projection, so nothing here knows of them.
+/// scene, so that openmw-cs-tests can check it. Eye space is the same in OSG and VSG (x right, y up, looking along -z):
+/// VSG's Y flip and depth range are in the projection, so nothing here knows of them.
 namespace CSVRender::CameraPose
 {
     struct LookAt
@@ -74,13 +74,14 @@ namespace CSVRender::CameraPose
         constexpr double translationTolerance = 1e-5;
         for (int column = 0; column < 4; ++column)
             for (int row = 0; row < 4; ++row)
-                if (std::abs(a[column][row] - b[column][row]) > (column == 3 ? translationTolerance : rotationTolerance))
+                if (std::abs(a[column][row] - b[column][row])
+                    > (column == 3 ? translationTolerance : rotationTolerance))
                     return false;
         return true;
     }
 
-    /// Can a view from eye to centre be held upright by this up? vsg::lookAt's normalize of a zero cross product gives NaN,
-    /// which then stays in the view, where OSG's normalize left a zero alone.
+    /// Can a view from eye to centre be held upright by this up? vsg::lookAt's normalize of a zero cross product gives
+    /// NaN, which then stays in the view, where OSG's normalize left a zero alone.
     inline bool canStabilize(const vsg::dvec3& eye, const vsg::dvec3& center, const vsg::dvec3& up)
     {
         const vsg::dvec3 forward = center - eye;
@@ -95,7 +96,8 @@ namespace CSVRender::CameraPose
         vsg::dmat4 result = view;
         for (int row = 0; row < 3; ++row)
         {
-            const double length = std::sqrt(view[0][row] * view[0][row] + view[1][row] * view[1][row] + view[2][row] * view[2][row]);
+            const double length
+                = std::sqrt(view[0][row] * view[0][row] + view[1][row] * view[1][row] + view[2][row] * view[2][row]);
             if (length == 0.0)
                 continue;
             for (int column = 0; column < 3; ++column)

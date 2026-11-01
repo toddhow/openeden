@@ -11,7 +11,7 @@ namespace MWRender
     class Shadow
     {
     public:
-        Shadow(vsg::Context& ctx, bool supportsDepthClamp/*, Settings::Manager&*/);
+        Shadow(vsg::Context& ctx, bool supportsDepthClamp /*, Settings::Manager&*/);
         ~Shadow();
         void updateCascades(const vsg::Camera& camera, Pipeline::Data::Scene& data, const vsg::vec3& lightPos);
         vsg::Mask viewMask() const;

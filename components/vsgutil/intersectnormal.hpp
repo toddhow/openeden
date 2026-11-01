@@ -12,8 +12,9 @@
 
 namespace vsgUtil
 {
-    /// The ArrayState that computes a hit's vertices, if it has one: terrain's from its height map, a software skin's posed.
-    /// What such a state returns is a proxy that later draws overwrite, so it is computed again here, for this hit.
+    /// The ArrayState that computes a hit's vertices, if it has one: terrain's from its height map, a software skin's
+    /// posed. What such a state returns is a proxy that later draws overwrite, so it is computed again here, for this
+    /// hit.
     inline vsg::ref_ptr<const vsg::vec3Array> computedHitVertices(const vsg::LineSegmentIntersector::Intersection& hit)
     {
         for (auto it = hit.nodePath.rbegin(); it != hit.nodePath.rend(); ++it)
@@ -41,9 +42,10 @@ namespace vsgUtil
         return vsg::ref_ptr<const vsg::vec3Array>(dynamic_cast<const vsg::vec3Array*>(hit.arrays.front().get()));
     }
 
-    /// The hit triangle's normal in the world, as osgUtil's getWorldIntersectNormal gave it, or nothing for a degenerate one.
-    inline bool geometricWorldNormal(const vsg::LineSegmentIntersector::Intersection& hit, const vsg::vec3Array& vertices,
-        vsg::vec3& normal)
+    /// The hit triangle's normal in the world, as osgUtil's getWorldIntersectNormal gave it, or nothing for a
+    /// degenerate one.
+    inline bool geometricWorldNormal(
+        const vsg::LineSegmentIntersector::Intersection& hit, const vsg::vec3Array& vertices, vsg::vec3& normal)
     {
         if (hit.indexRatios.size() < 3)
             return false;
@@ -61,11 +63,12 @@ namespace vsgUtil
         return true;
     }
 
-    /// The hit triangle's normal, never interpolated from a normal array, as a smooth mesh's vertex normals would change
-    /// what canPlaceObject and Lua's castRenderingRay see. A zero vector if the triangle has no area or its transform
-    /// cannot be inverted: OSG's intersector never reported a hit on a triangle with no area (its determinant test,
-    /// osgUtil/LineSegmentIntersector.cpp, IntersectFunctor::intersect), so there is no normal to give. Straight up for
-    /// a hit with no triangle vertices to read, as before. The second argument is unused, and stays for existing callers.
+    /// The hit triangle's normal, never interpolated from a normal array, as a smooth mesh's vertex normals would
+    /// change what canPlaceObject and Lua's castRenderingRay see. A zero vector if the triangle has no area or its
+    /// transform cannot be inverted: OSG's intersector never reported a hit on a triangle with no area (its determinant
+    /// test, osgUtil/LineSegmentIntersector.cpp, IntersectFunctor::intersect), so there is no normal to give. Straight
+    /// up for a hit with no triangle vertices to read, as before. The second argument is unused, and stays for existing
+    /// callers.
     inline vsg::vec3 worldNormal(const vsg::LineSegmentIntersector::Intersection& intersection, int /*arrayID*/ = -1)
     {
         auto vertices = hitVertices(intersection);

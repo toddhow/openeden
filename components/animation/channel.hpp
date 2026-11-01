@@ -6,8 +6,9 @@
 namespace Anim
 {
     /*
-     * Channel is an abstract base class/interface class for computing template animation values as a function of time, usually implemented with a keyframe track.
-     * Keeping it abstract allows for other uses, like composite channels that alter the value of an input channel or the time passed into it.
+     * Channel is an abstract base class/interface class for computing template animation values as a function of time,
+     * usually implemented with a keyframe track. Keeping it abstract allows for other uses, like composite channels
+     * that alter the value of an input channel or the time passed into it.
      */
     template <typename T>
     class Channel : public vsg::Object
@@ -20,9 +21,10 @@ namespace Anim
     using channel_ptr = vsg::ref_ptr<Channel<T>>;
 
     /*
-     * Convenience function that mirrors vsg::Object::create(..) functionality for objects not derived from vsg::Inherit.
+     * Convenience function that mirrors vsg::Object::create(..) functionality for objects not derived from
+     * vsg::Inherit.
      */
-    template <typename T, typename ... Args>
+    template <typename T, typename... Args>
     vsg::ref_ptr<T> make_channel(Args&&... args)
     {
         return vsg::ref_ptr<T>(new T(args...));

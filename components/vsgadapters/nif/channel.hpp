@@ -32,7 +32,8 @@ namespace vsgAdapters
         std::shared_ptr<std::vector<std::pair<float, bool>>> data;
         bool value(float time) const override
         {
-            auto iter = std::upper_bound(data->begin(), data->end(), time, [](float t, const std::pair<float, bool>& elem) { return t < elem.first; });
+            auto iter = std::upper_bound(data->begin(), data->end(), time,
+                [](float t, const std::pair<float, bool>& elem) { return t < elem.first; });
             if (iter != data->begin())
                 --iter;
             return iter->second;

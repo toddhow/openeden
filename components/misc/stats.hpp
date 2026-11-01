@@ -8,7 +8,8 @@
 
 namespace Misc
 {
-    /// Numbers reported per frame by name, in place of osg::Stats and the part of it reportStats callers used (task 0013).
+    /// Numbers reported per frame by name, in place of osg::Stats and the part of it reportStats callers used (task
+    /// 0013).
     class Stats
     {
     public:

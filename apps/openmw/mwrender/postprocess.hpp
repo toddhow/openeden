@@ -56,8 +56,8 @@ namespace MWRender
      * mipmaps (targets are the swapchain's colour format), sampler files other than 2D, normals, point lights, HDR, the
      * flags that turn a technique off in interiors or underwater.
      *
-     * With antialiasing on the GUI pass resolves its multisampled colour over the swapchain image, so the result is also drawn
-     * into that colour at the start of the GUI pass (presentNode()).
+     * With antialiasing on the GUI pass resolves its multisampled colour over the swapchain image, so the result is
+     * also drawn into that colour at the start of the GUI pass (presentNode()).
      *
      * Owned by RenderManager; every member function runs on the main thread. With no techniques nothing is recorded.
      */
@@ -82,32 +82,33 @@ namespace MWRender
         /// Whether the scene renders: in menus and loading screens presentNode() must not draw an old result.
         void setSceneVisible(bool visible);
 
-        /// The view and a framebuffer to register with the compile manager, after Render::Engine::setup, so pipelines are
-        /// compiled for this render pass (as RenderManager does for shadow cascades).
+        /// The view and a framebuffer to register with the compile manager, after Render::Engine::setup, so pipelines
+        /// are compiled for this render pass (as RenderManager does for shadow cascades).
         vsg::ref_ptr<vsg::View> baseView() const { return mBaseView; }
         vsg::ref_ptr<vsg::Framebuffer> registrationFramebuffer();
         vsg::ref_ptr<vsgUtil::CompileContext> compileContext() const { return mCompile; }
 
-        /// Loads the techniques named (OpenMW's `[Post Processing] chain`) and enables them. A technique that fails to load
-        /// is logged and left out. An empty result records nothing.
+        /// Loads the techniques named (OpenMW's `[Post Processing] chain`) and enables them. A technique that fails to
+        /// load is logged and left out. An empty result records nothing.
         void setChain(const std::vector<std::string>& names);
 
         /// Writes the enabled techniques to `[Post Processing] chain`, leaving out dynamic ones (OpenMW's saveChain).
         void saveChain();
 
-        /// The Lua API's operations, as OpenMW's PostProcessor. Changing what is enabled rebuilds the passes, and refreshes
-        /// the HUD if it is open. enableTechnique refuses a technique that failed to parse.
-        /// loadTechnique returns the same technique for the same name, or null if it failed to load.
+        /// The Lua API's operations, as OpenMW's PostProcessor. Changing what is enabled rebuilds the passes, and
+        /// refreshes the HUD if it is open. enableTechnique refuses a technique that failed to parse. loadTechnique
+        /// returns the same technique for the same name, or null if it failed to load.
         std::shared_ptr<Fx::Technique> loadTechnique(const std::string& name);
         bool enableTechnique(const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location);
         void disableTechnique(const std::shared_ptr<Fx::Technique>& technique);
         bool isTechniqueEnabled(const std::shared_ptr<Fx::Technique>& technique) const;
 
-        /// The `.omwfx` files directly in the VFS `shaders/` directory, read once at startup (OpenMW's getTechniqueFiles).
+        /// The `.omwfx` files directly in the VFS `shaders/` directory, read once at startup (OpenMW's
+        /// getTechniqueFiles).
         const std::set<VFS::Path::Normalized, std::less<>>& getTechniqueFiles() const { return mTechniqueFiles; }
 
-        /// As loadTechnique, but never null: a technique that failed to load is returned with its status and error, so the
-        /// HUD can show them. A stored value (shaders.yaml) replaces each uniform's default.
+        /// As loadTechnique, but never null: a technique that failed to load is returned with its status and error, so
+        /// the HUD can show them. A stored value (shaders.yaml) replaces each uniform's default.
         std::shared_ptr<Fx::Technique> loadTechniqueFile(VFS::Path::NormalizedView file);
 
         /// The enabled techniques, in order.
@@ -116,8 +117,8 @@ namespace MWRender
         /// Why this enabled technique parsed but did not run, or empty. Set by the latest rebuild.
         std::string getRenderError(const std::shared_ptr<Fx::Technique>& technique) const;
 
-        /// A static uniform of this technique changed. They are constants in the shader, so an enabled technique's passes
-        /// are rebuilt, at most once a frame, by the next update().
+        /// A static uniform of this technique changed. They are constants in the shader, so an enabled technique's
+        /// passes are rebuilt, at most once a frame, by the next update().
         void requestRebuild(const std::shared_ptr<Fx::Technique>& technique);
 
         /// Rebuilds everything at a new size.
@@ -189,7 +190,8 @@ namespace MWRender
     };
 
     /// Compiles Vulkan GLSL to a shader stage holding SPIR-V, the one place post-processing depends on a compiler
-    /// (task 0012, V4p). On failure logs the compiler's message, also gives it in `error` if not null, and returns null.
+    /// (task 0012, V4p). On failure logs the compiler's message, also gives it in `error` if not null, and returns
+    /// null.
     vsg::ref_ptr<vsg::ShaderStage> compileGlsl(
         VkShaderStageFlagBits stage, const std::string& source, std::string* error = nullptr);
 }

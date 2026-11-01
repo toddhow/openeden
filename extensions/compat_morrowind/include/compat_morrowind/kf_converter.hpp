@@ -24,14 +24,10 @@ namespace compat_morrowind
     class KfConverter : public openeden::contracts::KfConverterContract
     {
     public:
-        ConversionResult convertKfToGltf(
-            std::span<const std::uint8_t> kfBytes,
-            std::span<const std::uint8_t> skeletonNifBytes,
-            const ConversionOptions& options = {}) override;
+        ConversionResult convertKfToGltf(std::span<const std::uint8_t> kfBytes,
+            std::span<const std::uint8_t> skeletonNifBytes, const ConversionOptions& options = {}) override;
 
         ConversionResult convertParsedKfToGltf(
-            const KfAnimation& animation,
-            const std::vector<BoneInfo>& bones,
-            const ConversionOptions& options = {});
+            const KfAnimation& animation, const std::vector<BoneInfo>& bones, const ConversionOptions& options = {});
     };
 } // namespace compat_morrowind

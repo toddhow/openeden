@@ -45,15 +45,15 @@ namespace
     // The eight corners' colours and twelve faces of the OSG editor's selection box.
     vsg::ref_ptr<vsg::vec4Array> boxColours()
     {
-        return vsg::vec4Array::create({ { 0.3f, 0.3f, 0.5f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f },
-            { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f },
-            { 0.9f, 0.9f, 1.0f, 0.2f } });
+        return vsg::vec4Array::create({ { 0.3f, 0.3f, 0.5f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f },
+            { 0.3f, 0.3f, 0.4f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f },
+            { 0.9f, 0.9f, 1.0f, 0.2f }, { 0.3f, 0.3f, 0.4f, 0.2f }, { 0.9f, 0.9f, 1.0f, 0.2f } });
     }
 
     vsg::ref_ptr<vsg::ushortArray> boxIndices()
     {
-        return vsg::ushortArray::create({ 2, 1, 0, 3, 1, 2, 4, 5, 6, 6, 5, 7, 1, 4, 0, 4, 1, 5, 4, 2, 0, 6, 2, 4, 6, 3, 2, 7, 3,
-            6, 1, 3, 5, 5, 3, 7 });
+        return vsg::ushortArray::create({ 2, 1, 0, 3, 1, 2, 4, 5, 6, 6, 5, 7, 1, 4, 0, 4, 1, 5, 4, 2, 0, 6, 2, 4, 6, 3,
+            2, 7, 3, 6, 1, 3, 5, 5, 3, 7 });
     }
 }
 

@@ -9,7 +9,8 @@ namespace vsgUtil
 {
     /*
      * Provides single precision devirtualized version of vsg::computeTransform.
-     * Useful for speeding up computations when the type of vsg::Transform node that is used, such as vsg::MatrixTransform, is known.
+     * Useful for speeding up computations when the type of vsg::Transform node that is used, such as
+     * vsg::MatrixTransform, is known.
      */
     template <class Nodes>
     inline vsg::mat4 computeTransform(const Nodes& nodes)

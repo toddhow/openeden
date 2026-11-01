@@ -587,8 +587,8 @@ namespace MWMechanics
             {
                 const VFS::Path::Normalized castStaticModel
                     = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(castStatic->mModel));
-                MWRender::addEffectModel(target, castStaticModel.value(), magicEffect.mId.getRefIdString(), loop, {},
-                    magicEffect.mParticle);
+                MWRender::addEffectModel(
+                    target, castStaticModel.value(), magicEffect.mId.getRefIdString(), loop, {}, magicEffect.mParticle);
             }
         }
     }

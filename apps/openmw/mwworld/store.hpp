@@ -583,7 +583,6 @@ namespace MWWorld
     {
     };
 
-
 } // end namespace
 
 #endif

@@ -23,8 +23,8 @@ namespace CSVRender
         bool mPickable = true;
     };
 
-    /// Unlit lines or triangles with a colour per vertex, as the OSG editor drew its guides with lighting off. Not compiled:
-    /// that is the caller's.
+    /// Unlit lines or triangles with a colour per vertex, as the OSG editor drew its guides with lighting off. Not
+    /// compiled: that is the caller's.
     vsg::ref_ptr<vsg::Node> createColouredGeometry(const Pipeline::Builder& builder, VkPrimitiveTopology topology,
         vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours,
         vsg::ref_ptr<vsg::ushortArray> indices = {}, bool twoSided = true);

@@ -41,7 +41,8 @@ namespace Misc
     Color Color::fromRGB(unsigned int value)
     {
         // openeden-vsg: SceneUtil::colourFromRGB is not built with VSG; same unpacking, inlined.
-        return Color(((value >> 0) & 0xFF) / 255.0f, ((value >> 8) & 0xFF) / 255.0f, ((value >> 16) & 0xFF) / 255.0f, 1.f);
+        return Color(
+            ((value >> 0) & 0xFF) / 255.0f, ((value >> 8) & 0xFF) / 255.0f, ((value >> 16) & 0xFF) / 255.0f, 1.f);
     }
 
     Color Color::fromVec(vsg::vec4 value)
@@ -51,8 +52,10 @@ namespace Misc
 
     unsigned int Color::toRGBA() const
     {
-        const auto clampedByte = [](float value) { return static_cast<unsigned int>(std::clamp(value * 255.0f, 0.0f, 255.0f)); };
-        return clampedByte(mValue[3]) << 24 | clampedByte(mValue[2]) << 16 | clampedByte(mValue[1]) << 8 | clampedByte(mValue[0]);
+        const auto clampedByte
+            = [](float value) { return static_cast<unsigned int>(std::clamp(value * 255.0f, 0.0f, 255.0f)); };
+        return clampedByte(mValue[3]) << 24 | clampedByte(mValue[2]) << 16 | clampedByte(mValue[1]) << 8
+            | clampedByte(mValue[0]);
     }
 
     std::string Color::toHex() const

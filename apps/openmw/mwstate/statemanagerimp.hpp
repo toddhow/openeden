@@ -49,7 +49,7 @@ namespace MWState
 
         void cleanupAndPush(std::shared_ptr<GameState> next, bool forceCleanup = false);
 
-        void newGame(bool /*vsgopenmw-delete-me*/bypass = false) override;
+        void newGame(bool /*vsgopenmw-delete-me*/ bypass = false) override;
         void bypassNewGame(const std::string& startCell);
 
         ///< Start a new game.

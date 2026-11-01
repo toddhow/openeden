@@ -23,7 +23,7 @@ namespace
 
     vsg::ref_ptr<vsg::uintArray> createLightIndices(int maxLights, int numClusters, bool setDefaults)
     {
-        #include <files/shaders/lib/light/maxlights.glsl>
+#include <files/shaders/lib/light/maxlights.glsl>
         int maxPer = std::min(maxLights, maxLightsPerCluster);
         auto array = vsg::uintArray::create(numClusters * maxPer);
         if (setDefaults)
@@ -50,15 +50,16 @@ namespace View
     {
         auto image = vsg::floatArray3D::create(1, 1, 1, Render::farDepth, vsg::Data::Properties(VK_FORMAT_D32_SFLOAT));
         image->properties.imageViewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-        return vsg::DescriptorImage::create(vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(), image), Pipeline::Descriptors::VIEW_SHADOW_MAP_BINDING, 0,
-            VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+        return vsg::DescriptorImage::create(vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(), image),
+            Pipeline::Descriptors::VIEW_SHADOW_MAP_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
     }
 
     vsg::ref_ptr<vsg::Descriptor> dummyShadowSampler()
     {
         auto sampler = vsg::Sampler::create();
         sampler->minFilter = sampler->magFilter = VK_FILTER_NEAREST;
-        return vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, vsg::ref_ptr<vsg::ImageView>()), Pipeline::Descriptors::VIEW_SHADOW_SAMPLER_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLER);
+        return vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, vsg::ref_ptr<vsg::ImageView>()),
+            Pipeline::Descriptors::VIEW_SHADOW_SAMPLER_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLER);
     }
 
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth()
@@ -76,7 +77,8 @@ namespace View
 
     vsg::Descriptors createLightingDescriptors(vsg::ref_ptr<vsg::Data> lightData, bool compute)
     {
-        size_t maxLights = std::max<size_t>(1, lightData->valueCount()/2); //vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
+        size_t maxLights = std::max<size_t>(
+            1, lightData->valueCount() / 2); // vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
         vsg::uivec3 gridSize = { gridSizeX, gridSizeY, gridSizeZ };
         if (maxLights <= 1)
             gridSize = { 1, 1, 1 };
@@ -89,7 +91,8 @@ namespace View
 
         auto lightDescriptor = vsg::DescriptorBuffer::create(
             lightData, Pipeline::Descriptors::VIEW_LIGHTS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        auto gridSizeDescriptor = vsg::DescriptorBuffer::create(vsg::uivec4Value::create(vsg::uivec4(gridSize, 0)), Pipeline::Descriptors::VIEW_LIGHT_GRID_SIZE_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        auto gridSizeDescriptor = vsg::DescriptorBuffer::create(vsg::uivec4Value::create(vsg::uivec4(gridSize, 0)),
+            Pipeline::Descriptors::VIEW_LIGHT_GRID_SIZE_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
         return vsg::Descriptors{ lightDescriptor, gridSizeDescriptor, lightGrid, lightIndices };
     }

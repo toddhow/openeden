@@ -57,7 +57,6 @@ namespace openeden::extension
                                 [&](const FrameCallbackEntry& e) { return e.extensionId == extensionId; }),
                 callbacks.end());
         }
-
     }
 
     void ServiceRegistry::clear()

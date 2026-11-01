@@ -38,7 +38,7 @@ namespace Terrain
             bool anyDeltas = (lodDeltas[North] || lodDeltas[South] || lodDeltas[West] || lodDeltas[East]);
             size_t indexCount = (verts - 1) * (verts - 1) * 2 * 3;
 
-            for (int i=0; i<4; ++i)
+            for (int i = 0; i < 4; ++i)
             {
                 if (lodDeltas[i])
                 {

@@ -17,7 +17,8 @@ namespace vsgUtil
         const unsigned char* pixels, std::uint32_t width, std::uint32_t height, int channels, const char* extension);
 
     // Doubles the width and height of a square image, as osg::Image::scaleImage did (gluScaleImage): each new pixel is
-    // the average of a one-pixel box around its centre, which gives weights of 3/4 and 1/4, and the box wraps at the edges.
+    // the average of a one-pixel box around its centre, which gives weights of 3/4 and 1/4, and the box wraps at the
+    // edges.
     std::vector<unsigned char> doubleImageSize(const std::vector<unsigned char>& pixels, int size, int channels);
 
     // Drops the alpha channel of BGRA pixels and swaps red and blue, giving RGB.

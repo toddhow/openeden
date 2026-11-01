@@ -15,38 +15,42 @@
 #include <optional>
 #include <vector>
 
-namespace opas::sensors {
+namespace opas::sensors
+{
 
-struct GrabTarget {
-    math::Vec3 positionM{};
-    math::Vec3 surfaceNormal{0.0, 0.0, 1.0};
-    double distanceM = 0.0;
-    std::size_t handBodyIndex = 0;
-    arbiter::BodyPart handPart = arbiter::BodyPart::RightArm;
-};
-
-class GrabProbeSensor {
-public:
-    struct HandProbe {
-        std::size_t bodyIndex = 0;
-        arbiter::BodyPart part = arbiter::BodyPart::RightArm;
-        math::Vec3 localRayDirection{1.0, 0.0, 0.0}; // ray direction in hand body local frame
-        double maxReachM = 0.55;
+    struct GrabTarget
+    {
+        math::Vec3 positionM{};
+        math::Vec3 surfaceNormal{ 0.0, 0.0, 1.0 };
+        double distanceM = 0.0;
+        std::size_t handBodyIndex = 0;
+        arbiter::BodyPart handPart = arbiter::BodyPart::RightArm;
     };
 
-    explicit GrabProbeSensor(std::vector<HandProbe> probes);
+    class GrabProbeSensor
+    {
+    public:
+        struct HandProbe
+        {
+            std::size_t bodyIndex = 0;
+            arbiter::BodyPart part = arbiter::BodyPart::RightArm;
+            math::Vec3 localRayDirection{ 1.0, 0.0, 0.0 }; // ray direction in hand body local frame
+            double maxReachM = 0.55;
+        };
 
-    // Casts rays from hand bodies into world, ignoring ragdoll hand bodies.
-    // Zero heap allocations.
-    void update(const physics::PhysicsWorld& world, const motor::Ragdoll& ragdoll);
+        explicit GrabProbeSensor(std::vector<HandProbe> probes);
 
-    [[nodiscard]] bool hasTarget() const noexcept;
-    [[nodiscard]] std::optional<GrabTarget> bestTarget() const noexcept; // closest reachable target
-    [[nodiscard]] std::optional<GrabTarget> targetForHand(arbiter::BodyPart handPart) const noexcept;
+        // Casts rays from hand bodies into world, ignoring ragdoll hand bodies.
+        // Zero heap allocations.
+        void update(const physics::PhysicsWorld& world, const motor::Ragdoll& ragdoll);
 
-private:
-    std::vector<HandProbe> probes_;
-    std::vector<std::optional<GrabTarget>> targets_;
-};
+        [[nodiscard]] bool hasTarget() const noexcept;
+        [[nodiscard]] std::optional<GrabTarget> bestTarget() const noexcept; // closest reachable target
+        [[nodiscard]] std::optional<GrabTarget> targetForHand(arbiter::BodyPart handPart) const noexcept;
+
+    private:
+        std::vector<HandProbe> probes_;
+        std::vector<std::optional<GrabTarget>> targets_;
+    };
 
 } // namespace opas::sensors

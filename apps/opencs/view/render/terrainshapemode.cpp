@@ -11,7 +11,6 @@
 #include <QIcon>
 #include <QWidget>
 
-
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
@@ -56,8 +55,7 @@ namespace CSMWorld
     struct Cell;
 }
 
-CSVRender::TerrainShapeMode::TerrainShapeMode(
-    WorldspaceWidget* worldspaceWidget, QWidget* parent)
+CSVRender::TerrainShapeMode::TerrainShapeMode(WorldspaceWidget* worldspaceWidget, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-shape"), Mask_Terrain,
         "Terrain land editing", parent)
 {

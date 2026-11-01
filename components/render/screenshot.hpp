@@ -27,8 +27,7 @@ namespace Render
         VkFormat srcImageFormat;
         VkImageLayout srcImageLayout;
 
-        Screenshot(
-            vsg::Device* in_device, vsg::ref_ptr<vsg::Image> in_srcImage, VkImageLayout in_srcImageLayout);
+        Screenshot(vsg::Device* in_device, vsg::ref_ptr<vsg::Image> in_srcImage, VkImageLayout in_srcImageLayout);
         Screenshot(vsg::ref_ptr<vsg::Window> window);
 
         void generateFilename(const std::filesystem::path& path, const std::string& ext);

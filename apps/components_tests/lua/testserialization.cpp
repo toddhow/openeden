@@ -1,7 +1,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-
 #include <components/lua/serialization.hpp>
 #include <components/lua/utilpackage.hpp>
 

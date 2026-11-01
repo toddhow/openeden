@@ -3,7 +3,6 @@
 
 #include <components/misc/vsgmath.hpp>
 
-
 namespace DetourNavigator
 {
     struct CellGridBounds

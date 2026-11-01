@@ -5,17 +5,16 @@
 #include "../mwbase/world.hpp"
 #include "../mwrender/postprocess.hpp"
 
-
 #include <components/debug/debuglog.hpp>
 #include <components/fx/technique.hpp>
 #include <components/fx/uniformsettings.hpp>
 #include <components/misc/strings/format.hpp>
 #include <components/misc/vsgmath.hpp>
 
+#include "luamanagerimp.hpp"
 #include <vsg/maths/vec2.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/maths/vec4.h>
-#include "luamanagerimp.hpp"
 
 namespace MWLua
 {
@@ -78,8 +77,8 @@ namespace MWLua
                         return;
                     if ((*it)->mStatic)
                     {
-                        Log(Debug::Warning) << "Attempting to set a configuration variable [" << name
-                                            << "] as a uniform";
+                        Log(Debug::Warning)
+                            << "Attempting to set a configuration variable [" << name << "] as a uniform";
                         return;
                     }
                     (*it)->setValue(value);

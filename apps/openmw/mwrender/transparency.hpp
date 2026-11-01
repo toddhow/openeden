@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_MWRENDER_TRANSPARENCY_H
 #define VSGOPENMW_MWRENDER_TRANSPARENCY_H
 
-#include <vsg/state/BindDescriptorSet.h>
 #include <vsg/nodes/StateGroup.h>
+#include <vsg/state/BindDescriptorSet.h>
 
 #include <components/mwanimation/object.hpp>
 #include <components/pipeline/layout.hpp>
@@ -23,9 +23,7 @@ namespace MWRender
             overrideMask = vsg::MASK_ALL;
         }
         using vsg::Visitor::apply;
-        void apply(vsg::BindDescriptorSets& bds)
-        {
-        }
+        void apply(vsg::BindDescriptorSets& bds) {}
         void apply(vsg::BindDescriptorSet& bds)
         {
             if (bds.firstSet != Pipeline::OBJECT_SET || bds.pipelineBindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS)
@@ -50,9 +48,7 @@ namespace MWRender
     public:
         vsg::ref_ptr<vsg::Value<Pipeline::Data::Object>> value;
         using vsg::Visitor::apply;
-        void apply(vsg::BindDescriptorSets& bds)
-        {
-        }
+        void apply(vsg::BindDescriptorSets& bds) {}
         void apply(vsg::BindDescriptorSet& bds)
         {
             if (bds.firstSet != Pipeline::OBJECT_SET || bds.pipelineBindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS)
@@ -110,9 +106,9 @@ namespace MWRender
                 Pipeline::Object objectData;
                 objectData.value().alpha = alpha;
                 auto layout = Pipeline::getCompatiblePipelineLayout();
-                sg->stateCommands = { vsg::BindDescriptorSet::create(
-                    VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::OBJECT_SET, vsg::Descriptors{ objectData.descriptor() }) };
-                obj.context().compileContext->compile(vsg::ref_ptr{sg});
+                sg->stateCommands = { vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout,
+                    Pipeline::OBJECT_SET, vsg::Descriptors{ objectData.descriptor() }) };
+                obj.context().compileContext->compile(vsg::ref_ptr{ sg });
                 sg->traverse(visitor);
             }
             else

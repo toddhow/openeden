@@ -1,6 +1,5 @@
 #include "footikmath.hpp"
 
-
 #include <opas/ik/TwoBoneIk.hpp>
 #include <opas/math/Vec3.hpp>
 
@@ -31,8 +30,8 @@ namespace MWRender::FootIk
         }
     }
 
-    LegSolution solveLegPose(const LegWorld& leg, const vsg::vec3& target, const vsg::vec3& pole,
-        const vsg::vec3& footNormal, float weight)
+    LegSolution solveLegPose(
+        const LegWorld& leg, const vsg::vec3& target, const vsg::vec3& pole, const vsg::vec3& footNormal, float weight)
     {
         LegSolution result;
 

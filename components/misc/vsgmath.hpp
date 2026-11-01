@@ -24,11 +24,12 @@
 //    BoundingSphere, Plane;
 //  - components/vsgadapters/osg: Quat.cpp, Matrix_implementation.cpp. MatrixDecomposition.cpp moved to vsgmath.cpp.
 //
-// Reading a matrix: VSG's m[i][j] is the same stored number as OSG's m(i, j). VSG calls i a column and OSG calls it a row,
-// but the sixteen numbers stay where they are and are never transposed (apps/components_tests/math/testmatrixconventions.cpp).
+// Reading a matrix: VSG's m[i][j] is the same stored number as OSG's m(i, j). VSG calls i a column and OSG calls it a
+// row, but the sixteen numbers stay where they are and are never transposed
+// (apps/components_tests/math/testmatrixconventions.cpp).
 //
-// The comparisons and the order of each sum keep OSG's, because results must stay bit-identical where they can. Please do
-// not tidy them. The tests are in apps/components_tests/math/testvsgmath.cpp.
+// The comparisons and the order of each sum keep OSG's, because results must stay bit-identical where they can. Please
+// do not tidy them. The tests are in apps/components_tests/math/testvsgmath.cpp.
 
 #include <vsg/maths/box.h>
 #include <vsg/maths/mat4.h>
@@ -43,13 +44,14 @@
 #include <limits>
 #include <type_traits>
 
-// OSG's a * b between vectors is a dot product; VSG's is a component-wise product. So that a converted file cannot silently
-// change meaning, a file including this header cannot use VSG's product at all: it writes dot(a, b) or componentMultiply(a, b).
+// OSG's a * b between vectors is a dot product; VSG's is a component-wise product. So that a converted file cannot
+// silently change meaning, a file including this header cannot use VSG's product at all: it writes dot(a, b) or
+// componentMultiply(a, b).
 //
 // How this works: when a plain function and a template fit a call equally well, C++ picks the plain function
-// ([over.match.best]), and if that function is deleted the call does not compile. The scalar forms are not affected: VSG's
-// friend operators take (vector, T) and (T, vector), and these do not fit a call with a scalar, as a scalar does not convert
-// to a vector.
+// ([over.match.best]), and if that function is deleted the call does not compile. The scalar forms are not affected:
+// VSG's friend operators take (vector, T) and (T, vector), and these do not fit a call with a scalar, as a scalar does
+// not convert to a vector.
 //
 // vsg::ivec2 stays out on purpose: osg::Vec2i's own * is component-wise as well, so it has nothing to trap.
 namespace vsg
@@ -69,7 +71,8 @@ namespace Misc::VsgMath
     using vsg::dot;
     using vsg::length2;
 
-    // ------------------------------------------------------------------------------------------------- scalars (osg/Math)
+    // ------------------------------------------------------------------------------------------------- scalars
+    // (osg/Math)
 
     inline constexpr double PI = 3.14159265358979323846;
     inline constexpr double PI_2 = 1.57079632679489661923;
@@ -135,9 +138,11 @@ namespace Misc::VsgMath
         return angle * 180.0 / PI;
     }
 
-    // -------------------------------------------------------------------------------------------------------------- vectors
+    // --------------------------------------------------------------------------------------------------------------
+    // vectors
 
-    // OSG's v.normalize(): changes v and returns its previous length. A zero vector stays zero, where vsg::normalize makes NaN.
+    // OSG's v.normalize(): changes v and returns its previous length. A zero vector stays zero, where vsg::normalize
+    // makes NaN.
     template <class T>
     inline T normalizeInPlace(vsg::t_vec2<T>& v)
     {
@@ -223,8 +228,8 @@ namespace Misc::VsgMath
         return vsg::t_vec4<T>(lhs[0] / rhs[0], lhs[1] / rhs[1], lhs[2] / rhs[2], lhs[3] / rhs[3]);
     }
 
-    // OSG's v / s divides each element. VSG's multiplies by the inverse, which can differ in the last bit. The divisor takes
-    // the vector's own type, as in OSG, so a double narrows for a float vector.
+    // OSG's v / s divides each element. VSG's multiplies by the inverse, which can differ in the last bit. The divisor
+    // takes the vector's own type, as in OSG, so a double narrows for a float vector.
     template <class T>
     inline vsg::t_vec2<T> divide(const vsg::t_vec2<T>& v, std::type_identity_t<T> s)
     {
@@ -273,7 +278,8 @@ namespace Misc::VsgMath
         return std::isnan(v[0]) || std::isnan(v[1]) || std::isnan(v[2]) || std::isnan(v[3]);
     }
 
-    // ---------------------------------------------------------------------------------------------------------- quaternions
+    // ----------------------------------------------------------------------------------------------------------
+    // quaternions
 
     // VSG has length and dot for quats, but no length2.
     template <class T>
@@ -307,13 +313,13 @@ namespace Misc::VsgMath
         const double inversenorm = 1.0 / length;
         const double coshalfangle = std::cos(0.5 * angle);
         const double sinhalfangle = std::sin(0.5 * angle);
-        return vsg::dquat(x * sinhalfangle * inversenorm, y * sinhalfangle * inversenorm, z * sinhalfangle * inversenorm,
-            coshalfangle);
+        return vsg::dquat(x * sinhalfangle * inversenorm, y * sinhalfangle * inversenorm,
+            z * sinhalfangle * inversenorm, coshalfangle);
     }
 
-    // The rotation taking one vector to another: OSG's Quat::makeRotate(from, to) by Nicolas Brodu, in Quat.cpp. It works
-    // for vectors of any length. vsg::dquat(from, to) can make NaN from parallel vectors, and picks another axis for opposite
-    // ones. A zero vector gives NaN here, as it does in OSG.
+    // The rotation taking one vector to another: OSG's Quat::makeRotate(from, to) by Nicolas Brodu, in Quat.cpp. It
+    // works for vectors of any length. vsg::dquat(from, to) can make NaN from parallel vectors, and picks another axis
+    // for opposite ones. A zero vector gives NaN here, as it does in OSG.
     inline vsg::dquat makeRotate(const vsg::dvec3& from, const vsg::dvec3& to)
     {
         vsg::dvec3 sourceVector = from;
@@ -346,8 +352,8 @@ namespace Misc::VsgMath
         // "Dot product plus one" as the test, as it is reused later on.
         const double dotProdPlus1 = 1.0 + vsg::dot(sourceVector, targetVector);
 
-        // The degenerate case of a full u-turn. Take a vector orthogonal to the source as the axis, with an angle of pi. At
-        // least one element of a unit vector is over 0.6, so one of these branches avoids a tiny norm.
+        // The degenerate case of a full u-turn. Take a vector orthogonal to the source as the axis, with an angle of
+        // pi. At least one element of a unit vector is over 0.6, so one of these branches avoids a tiny norm.
         if (dotProdPlus1 < 1e-7)
         {
             if (std::fabs(sourceVector[0]) < 0.6)
@@ -364,8 +370,8 @@ namespace Misc::VsgMath
             return vsg::dquat(sourceVector[1] / norm, -sourceVector[0] / norm, 0.0, 0.0);
         }
 
-        // The shortest rotation between the two normalized vectors; still valid when they are parallel. The division comes
-        // before the cross product: in OSG's source ^ target / (2.0 * s), / binds tighter than ^.
+        // The shortest rotation between the two normalized vectors; still valid when they are parallel. The division
+        // comes before the cross product: in OSG's source ^ target / (2.0 * s), / binds tighter than ^.
         const double s = std::sqrt(0.5 * dotProdPlus1);
         const double divisor = 2.0 * s;
         const vsg::dvec3 scaledTarget(targetVector[0] / divisor, targetVector[1] / divisor, targetVector[2] / divisor);
@@ -400,8 +406,8 @@ namespace Misc::VsgMath
         }
     }
 
-    // OSG's result.slerp(t, from, to), Quat.cpp. The threshold for falling back to linear interpolation is OSG's fixed 1e-5;
-    // vsg::mix uses machine epsilon. Between opposite-signed quats the path goes through -to, all four negated.
+    // OSG's result.slerp(t, from, to), Quat.cpp. The threshold for falling back to linear interpolation is OSG's fixed
+    // 1e-5; vsg::mix uses machine epsilon. Between opposite-signed quats the path goes through -to, all four negated.
     inline vsg::dquat slerp(double t, const vsg::dquat& from, const vsg::dquat& to)
     {
         const double epsilon = 0.00001;
@@ -433,9 +439,9 @@ namespace Misc::VsgMath
             from[2] * scaleFrom + quatTo[2] * scaleTo, from[3] * scaleFrom + quatTo[3] * scaleTo);
     }
 
-    // The rotation matrix of a quat: OSG's Matrix::rotate(q), Matrix_implementation::setRotate. It copes with non-unit quats,
-    // and a zero quat gives a zero rotation block, where vsg::rotate assumes unit length and gives the identity for zero.
-    // For OSG's Matrixf::rotate(q), narrow the result: vsg::mat4(toMatrix(q)).
+    // The rotation matrix of a quat: OSG's Matrix::rotate(q), Matrix_implementation::setRotate. It copes with non-unit
+    // quats, and a zero quat gives a zero rotation block, where vsg::rotate assumes unit length and gives the identity
+    // for zero. For OSG's Matrixf::rotate(q), narrow the result: vsg::mat4(toMatrix(q)).
     inline vsg::dmat4 toMatrix(const vsg::dquat& q)
     {
         vsg::dmat4 m;
@@ -481,8 +487,8 @@ namespace Misc::VsgMath
         return m;
     }
 
-    // OSG's Matrix::getRotate. The scale is not removed, unlike vsg::decompose, and nothing checks the last row or column.
-    // In a float matrix the traces are computed in float.
+    // OSG's Matrix::getRotate. The scale is not removed, unlike vsg::decompose, and nothing checks the last row or
+    // column. In a float matrix the traces are computed in float.
     template <class T>
     inline vsg::dquat rotationOf(const vsg::t_mat4<T>& m)
     {
@@ -535,7 +541,8 @@ namespace Misc::VsgMath
         return q;
     }
 
-    // ------------------------------------------------------------------------------------------------------------- matrices
+    // -------------------------------------------------------------------------------------------------------------
+    // matrices
 
     namespace Detail
     {
@@ -612,8 +619,8 @@ namespace Misc::VsgMath
         m[3][2] = static_cast<T>(v[2]);
     }
 
-    // OSG's m.getScale() reads across the storage, not along m[i]. With a rotation and a non-uniform scale its answer is not
-    // the scale at all, and that is what callers got and must keep.
+    // OSG's m.getScale() reads across the storage, not along m[i]. With a rotation and a non-uniform scale its answer
+    // is not the scale at all, and that is what callers got and must keep.
     template <class T>
     inline vsg::dvec3 getScale(const vsg::t_mat4<T>& m)
     {
@@ -640,8 +647,8 @@ namespace Misc::VsgMath
             static_cast<U>(m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]));
     }
 
-    // OSG's in-place forms. A zero component of a translation is skipped, so an infinity in the matching row stays out of the
-    // result, where a plain product would make NaN from 0 * infinity.
+    // OSG's in-place forms. A zero component of a translation is skipped, so an infinity in the matching row stays out
+    // of the result, where a plain product would make NaN from 0 * infinity.
     template <class T, class U>
     inline void preMultTranslate(vsg::t_mat4<T>& m, const vsg::t_vec3<U>& v)
     {
@@ -688,8 +695,8 @@ namespace Misc::VsgMath
                 m[i][j] = static_cast<T>(m[i][j] * v[j]);
     }
 
-    // OSG returns early on the identity quat, so the matrix stays exactly as it was, including any infinity a product would
-    // spread. The rotation is narrowed first in a float matrix, as OSG's Matrixf::setRotate does.
+    // OSG returns early on the identity quat, so the matrix stays exactly as it was, including any infinity a product
+    // would spread. The rotation is narrowed first in a float matrix, as OSG's Matrixf::setRotate does.
     template <class T>
     inline void preMultRotate(vsg::t_mat4<T>& m, const vsg::dquat& q)
     {
@@ -706,9 +713,9 @@ namespace Misc::VsgMath
         Detail::postMult(m, vsg::t_mat4<T>(toMatrix(q)));
     }
 
-    // OSG's m.orthoNormalize(rhs), despite the name: each of the three scales by the length of {m[0][j], m[1][j], m[2][j]}, and
-    // nothing is made perpendicular. A length2 already within 1e-6 of 1 or of 0 leaves that j as it was. The last row and
-    // column are copied.
+    // OSG's m.orthoNormalize(rhs), despite the name: each of the three scales by the length of {m[0][j], m[1][j],
+    // m[2][j]}, and nothing is made perpendicular. A length2 already within 1e-6 of 1 or of 0 leaves that j as it was.
+    // The last row and column are copied.
     template <class T>
     inline vsg::t_mat4<T> orthoNormalize(const vsg::t_mat4<T>& rhs)
     {
@@ -727,9 +734,10 @@ namespace Misc::VsgMath
         return m;
     }
 
-    // OSG's m.invert_4x3(mat), Matrix_implementation.cpp. It keeps OSG's branch on m[3][3]: when that is close to 1 the last
-    // column is ignored, even if it is not (0, 0, 0, 1), and the result has 1 there. Otherwise the full inverse is computed.
-    // Neither vsg::inverse nor vsg::inverse_4x3 matches this on every input. A singular matrix gives infinity and NaN.
+    // OSG's m.invert_4x3(mat), Matrix_implementation.cpp. It keeps OSG's branch on m[3][3]: when that is close to 1 the
+    // last column is ignored, even if it is not (0, 0, 0, 1), and the result has 1 there. Otherwise the full inverse is
+    // computed. Neither vsg::inverse nor vsg::inverse_4x3 matches this on every input. A singular matrix gives infinity
+    // and NaN.
     template <class T>
     inline vsg::t_mat4<T> invert4x3(const vsg::t_mat4<T>& mat)
     {
@@ -826,8 +834,9 @@ namespace Misc::VsgMath
         return m;
     }
 
-    // OSG's m.invert(mat): invert4x3 when the last column is exactly (0, 0, 0, 1), and otherwise OSG's invert_4x4 (Gauss-Jordan
-    // elimination with full pivoting). Returns false for a matrix it cannot invert, leaving result part-way, as OSG does.
+    // OSG's m.invert(mat): invert4x3 when the last column is exactly (0, 0, 0, 1), and otherwise OSG's invert_4x4
+    // (Gauss-Jordan elimination with full pivoting). Returns false for a matrix it cannot invert, leaving result
+    // part-way, as OSG does.
     template <class T>
     inline bool invert(const vsg::t_mat4<T>& mat, vsg::t_mat4<T>& result)
     {
@@ -914,11 +923,11 @@ namespace Misc::VsgMath
         return true;
     }
 
-    // OSG's polar decomposition, m.decompose(t, r, s, so), from Graphics Gems IV (vsgmath.cpp). Where vsg::decompose can fail or
-    // loses a mirror, this always gives parts that rebuild the matrix. A negative scale comes back negative.
+    // OSG's polar decomposition, m.decompose(t, r, s, so), from Graphics Gems IV (vsgmath.cpp). Where vsg::decompose
+    // can fail or loses a mirror, this always gives parts that rebuild the matrix. A negative scale comes back
+    // negative.
     template <class T, class U>
-    inline void decompose(
-        const vsg::t_mat4<T>& m, vsg::t_vec3<U>& t, vsg::dquat& r, vsg::t_vec3<U>& s, vsg::dquat& so)
+    inline void decompose(const vsg::t_mat4<T>& m, vsg::t_vec3<U>& t, vsg::dquat& r, vsg::t_vec3<U>& s, vsg::dquat& so)
     {
         double values[4][4];
         for (int i = 0; i < 4; ++i)
@@ -946,21 +955,23 @@ namespace Misc::VsgMath
         vsg::t_vec3<U> c = transform3x3(m, vsg::t_vec3<U>(U(0), U(0), U(-1)));
         normalizeInPlace(c);
 
-        // Through the matrix's own type first: OSG's parameter is the matrix's value_type, so a Matrixf narrows it to float.
+        // Through the matrix's own type first: OSG's parameter is the matrix's value_type, so a Matrixf narrows it to
+        // float.
         const U distance = static_cast<U>(static_cast<T>(lookDistance));
         eye = e;
         center = vsg::t_vec3<U>(e[0] + c[0] * distance, e[1] + c[1] * distance, e[2] + c[2] * distance);
     }
 
-    // The matrix form of makeRotate; the from, to form above returns a quat. OSG's Matrix::rotate(angle, axis) goes through a
-    // quat: a zero axis gives the identity, where vsg::rotate(angle, axis) gives cos(angle) on the diagonal.
+    // The matrix form of makeRotate; the from, to form above returns a quat. OSG's Matrix::rotate(angle, axis) goes
+    // through a quat: a zero axis gives the identity, where vsg::rotate(angle, axis) gives cos(angle) on the diagonal.
     template <class T>
     inline vsg::dmat4 makeRotate(double angle, const vsg::t_vec3<T>& axis)
     {
         return toMatrix(makeRotateFromAxis(angle, axis));
     }
 
-    // ---------------------------------------------------------------------------------------------------------------- boxes
+    // ----------------------------------------------------------------------------------------------------------------
+    // boxes
 
     // All three axes. vsg::t_box::valid checks X only.
     template <class T>
@@ -995,8 +1006,8 @@ namespace Misc::VsgMath
     template <class T>
     inline vsg::t_vec3<T> corner(const vsg::t_box<T>& box, unsigned int pos)
     {
-        return vsg::t_vec3<T>((pos & 1) ? box.max.x : box.min.x, (pos & 2) ? box.max.y : box.min.y,
-            (pos & 4) ? box.max.z : box.min.z);
+        return vsg::t_vec3<T>(
+            (pos & 1) ? box.max.x : box.min.x, (pos & 2) ? box.max.y : box.min.y, (pos & 4) ? box.max.z : box.min.z);
     }
 
     // Inclusive at the faces; false for an invalid box.
@@ -1035,7 +1046,8 @@ namespace Misc::VsgMath
         box.add(other);
     }
 
-    // -------------------------------------------------------------------------------------------------------------- spheres
+    // --------------------------------------------------------------------------------------------------------------
+    // spheres
 
     template <class T>
     inline bool valid(const vsg::t_sphere<T>& sphere)
@@ -1059,8 +1071,8 @@ namespace Misc::VsgMath
         }
     }
 
-    // An unset sphere becomes the point with radius 0. Outside the sphere, the centre moves to minimise the increase. Inside,
-    // nothing changes. The point is widened or narrowed to the sphere's type first.
+    // An unset sphere becomes the point with radius 0. Outside the sphere, the centre moves to minimise the increase.
+    // Inside, nothing changes. The point is widened or narrowed to the sphere's type first.
     template <class T, class R>
     inline void expandBy(vsg::t_sphere<T>& sphere, const vsg::t_vec3<R>& point)
     {
@@ -1140,9 +1152,9 @@ namespace Misc::VsgMath
         sphere.radius = static_cast<T>(newRadius);
     }
 
-    // Not the sphere around the union: OSG adds to a box the point of this sphere opposite each corner, then takes that box's
-    // centre and radius. A box with any axis inverted is skipped.
-    // The same precision on both sides, so that a mixed call cannot compute differently from OSG's.
+    // Not the sphere around the union: OSG adds to a box the point of this sphere opposite each corner, then takes that
+    // box's centre and radius. A box with any axis inverted is skipped. The same precision on both sides, so that a
+    // mixed call cannot compute differently from OSG's.
     template <class T>
     inline void expandBy(vsg::t_sphere<T>& sphere, const vsg::t_box<T>& box)
     {
@@ -1171,10 +1183,11 @@ namespace Misc::VsgMath
         sphere.radius = radius(newBox);
     }
 
-    // --------------------------------------------------------------------------------------------------------------- planes
+    // ---------------------------------------------------------------------------------------------------------------
+    // planes
 
-    // OSG's three-point constructor. VSG has none. Points too close to a line (a cross product at most 1e-6 long) give a zero
-    // normal and d of 0, not NaN.
+    // OSG's three-point constructor. VSG has none. Points too close to a line (a cross product at most 1e-6 long) give
+    // a zero normal and d of 0, not NaN.
     template <class T>
     inline vsg::dplane makePlane(const vsg::t_vec3<T>& p1, const vsg::t_vec3<T>& p2, const vsg::t_vec3<T>& p3)
     {
@@ -1200,8 +1213,9 @@ namespace Misc::VsgMath
         return vsg::dplane(norm[0], norm[1], norm[2], -norm[0] * p[0] - norm[1] * p[1] - norm[2] * p[2]);
     }
 
-    // OSG's matrix a == b, Matrixf::compare: `<` both ways over the sixteen numbers, so a NaN compares equal to anything,
-    // where VSG's == says a matrix with a NaN differs even from itself. Use it where the OSG comparison met such a matrix.
+    // OSG's matrix a == b, Matrixf::compare: `<` both ways over the sixteen numbers, so a NaN compares equal to
+    // anything, where VSG's == says a matrix with a NaN differs even from itself. Use it where the OSG comparison met
+    // such a matrix.
     template <class T>
     inline bool compareEqual(const vsg::t_mat4<T>& lhs, const vsg::t_mat4<T>& rhs)
     {
@@ -1228,7 +1242,8 @@ namespace Misc::VsgMath
     template <class T>
     inline void makeUnitLength(vsg::t_plane<T>& plane)
     {
-        const T invLength = static_cast<T>(1.0 / std::sqrt(plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2]));
+        const T invLength
+            = static_cast<T>(1.0 / std::sqrt(plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2]));
         plane[0] *= invLength;
         plane[1] *= invLength;
         plane[2] *= invLength;

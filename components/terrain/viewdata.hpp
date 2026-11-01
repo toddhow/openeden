@@ -1,13 +1,13 @@
 #ifndef VSGOPENMW_TERRAIN_VIEWDATA_H
 #define VSGOPENMW_TERRAIN_VIEWDATA_H
 
-#include <vector>
 #include <compare>
+#include <vector>
 
 #include <vsg/nodes/Group.h>
 
-#include "view.hpp"
 #include "bounds.hpp"
+#include "view.hpp"
 
 namespace Terrain
 {
@@ -31,10 +31,7 @@ namespace Terrain
     class ViewData : public View
     {
     public:
-        ViewData()
-        {
-            mNode = rootNode = vsg::Group::create();
-        }
+        ViewData() { mNode = rootNode = vsg::Group::create(); }
 
         void add(const Bounds& bounds, float distance)
         {

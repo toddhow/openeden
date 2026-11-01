@@ -193,8 +193,8 @@ namespace LuaUi
     {
         vsg::vec2 position(static_cast<float>(left), static_cast<float>(top));
         MyGUI::IntPoint absolutePosition = mWidget->getAbsolutePosition();
-        vsg::vec2 offset = position
-            - vsg::vec2(static_cast<float>(absolutePosition.left), static_cast<float>(absolutePosition.top));
+        vsg::vec2 offset
+            = position - vsg::vec2(static_cast<float>(absolutePosition.left), static_cast<float>(absolutePosition.top));
         sol::table table = view.newTable();
         int sdlButton = SDLUtil::myGuiMouseButtonToSdl(button);
         table["position"] = position;

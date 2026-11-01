@@ -460,7 +460,6 @@ namespace MWWorld
             loadImpl<X>(ref, esmStore, mList);
     }
 
-
     template <typename X>
     bool operator==(const LiveCellRef<X>& ref, int pRefnum)
     {

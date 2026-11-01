@@ -10,10 +10,10 @@
 
 #include <components/misc/vsgmath.hpp>
 
-#include <vsg/maths/transform.h>
 #include <components/mwanimation/object.hpp>
 #include <components/mwanimation/play.hpp>
 #include <components/settings/values.hpp>
+#include <vsg/maths/transform.h>
 
 #include "footikmath.hpp"
 
@@ -83,8 +83,8 @@ namespace MWRender
             const auto* rayCasting = world->getRayCasting();
             if (!rayCasting)
                 return nullptr;
-            auto* physics = const_cast<MWPhysics::PhysicsSystem*>(
-                static_cast<const MWPhysics::PhysicsSystem*>(rayCasting));
+            auto* physics
+                = const_cast<MWPhysics::PhysicsSystem*>(static_cast<const MWPhysics::PhysicsSystem*>(rayCasting));
             return physics->getActor(ptr);
         }
     }
@@ -260,8 +260,7 @@ namespace MWRender
         vsg::vec3 combinedNormal = heelNormal;
 
         vsg::vec3 toePos, toeNormal;
-        if (castDown(ankle + toeVec, toePos, toeNormal)
-            && std::abs(toePos.z - heelPos.z) < sSnapDistance * actorScale)
+        if (castDown(ankle + toeVec, toePos, toeNormal) && std::abs(toePos.z - heelPos.z) < sSnapDistance * actorScale)
         {
             if (vsg::length2(toeNormal) > 1e-6f)
             {
@@ -271,8 +270,8 @@ namespace MWRender
             combinedNormal = clampTilt(combinedNormal);
 
             // Height of the tilted sole at the toe relative to the ankle:
-            const float alignedRise = -(combinedNormal.x * toeVec.x + combinedNormal.y * toeVec.y)
-                / std::max(combinedNormal.z, 0.25f);
+            const float alignedRise
+                = -(combinedNormal.x * toeVec.x + combinedNormal.y * toeVec.y) / std::max(combinedNormal.z, 0.25f);
             groundZ = std::max(heelPos.z, toePos.z - alignedRise);
         }
         else
@@ -439,8 +438,8 @@ namespace MWRender
             updateHitboxes(root, forward, actorScale);
     }
 
-    void ActorIkController::solveLeg(LegState& leg, float actorZ, float pelvisOffset, float weight,
-        const vsg::vec3& actorForward, float actorScale)
+    void ActorIkController::solveLeg(
+        LegState& leg, float actorZ, float pelvisOffset, float weight, const vsg::vec3& actorForward, float actorScale)
     {
         if (!leg.mThigh.mBone || !leg.mCalf.mBone || !leg.mFoot.mBone)
             return;
@@ -573,8 +572,7 @@ namespace MWRender
                 : (neckPos + vsg::vec3(side * 12.f * actorScale, 0.f, -4.f * actorScale));
             const vsg::vec3 elbow
                 = arm.mForearm ? worldPos(arm.mForearm) : (shoulder + vsg::vec3(0.f, 0.f, -20.f * actorScale));
-            const vsg::vec3 wrist
-                = arm.mHand ? worldPos(arm.mHand) : (elbow + vsg::vec3(0.f, 0.f, -18.f * actorScale));
+            const vsg::vec3 wrist = arm.mHand ? worldPos(arm.mHand) : (elbow + vsg::vec3(0.f, 0.f, -18.f * actorScale));
 
             segments[baseIdx + 0] = { toActorLocal(shoulder), toActorLocal(elbow) };
             segments[baseIdx + 1] = { toActorLocal(elbow), toActorLocal(wrist) };

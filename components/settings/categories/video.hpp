@@ -6,7 +6,6 @@
 #include <components/settings/settingvalue.hpp>
 #include <components/settings/windowmode.hpp>
 
-
 #include <cstdint>
 #include <string>
 #include <string_view>

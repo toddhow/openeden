@@ -121,10 +121,7 @@ namespace vsgAdapters
         {
             Anim::channel_ptr<float> lhs;
             float rhs{};
-            float value(float time) const
-            {
-                return lhs->value(time) * rhs;
-            }
+            float value(float time) const { return lhs->value(time) * rhs; }
         };
         auto mult = Anim::make_channel<Multiply>();
         mult->lhs = handleKeyframes<float>(rollctrl, rollctrl.mData->mKeyList);
@@ -137,7 +134,8 @@ namespace vsgAdapters
     {
         bool hasTransformCtrl = false;
         callActiveControllers(node.mController, [&hasTransformCtrl](auto& ctrl) {
-            if (ctrl.mRecordType == Nif::RC_NiKeyframeController || ctrl.mRecordType == Nif::RC_NiPathController || ctrl.mRecordType == Nif::RC_NiRollController)
+            if (ctrl.mRecordType == Nif::RC_NiKeyframeController || ctrl.mRecordType == Nif::RC_NiPathController
+                || ctrl.mRecordType == Nif::RC_NiRollController)
                 hasTransformCtrl = true;
         });
         return hasTransformCtrl;

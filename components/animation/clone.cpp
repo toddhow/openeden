@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include <vsg/commands/Commands.h>
 #include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/DepthSorted.h>
@@ -9,7 +10,6 @@
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/nodes/Transform.h>
-#include <vsg/commands/Commands.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/DescriptorBuffer.h>
 #include <vsg/state/StateSwitch.h>
@@ -158,8 +158,8 @@ namespace Anim
                 cloned = found->second;
             else
             {
-                cloned = vsg::DescriptorBuffer::create(
-                    vsg::ref_ptr{ static_cast<vsg::Data*>(cloned.get()) }, d.dstBinding, d.dstArrayElement, d.descriptorType);
+                cloned = vsg::DescriptorBuffer::create(vsg::ref_ptr{ static_cast<vsg::Data*>(cloned.get()) },
+                    d.dstBinding, d.dstArrayElement, d.descriptorType);
                 mClonedObjects[&d] = cloned;
             }
         }
@@ -281,8 +281,8 @@ namespace Anim
         return cloneIfRequired(node, std::move(f), {}, {});
     }
 
-    Animation cloneIfRequired(vsg::ref_ptr<vsg::Node>& node, CloneCallback f, DataCloneFilter cloneData,
-        DataClonedCallback onDataCloned)
+    Animation cloneIfRequired(
+        vsg::ref_ptr<vsg::Node>& node, CloneCallback f, DataCloneFilter cloneData, DataClonedCallback onDataCloned)
     {
         Animation ret;
         if (f)

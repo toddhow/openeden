@@ -6,9 +6,9 @@
 
 #include <apps/opencs/view/render/camerapose.hpp>
 
-// Written from the OSG editor's cameracontroller.cpp: `getViewMatrix() *= osg::Matrixd::rotate(value, axis)` applies the
-// rotation after the view matrix, in eye space, and osg::Matrixd::getLookAt gives eye, centre and up. Eye space is the same
-// on both: x right, y up, looking along -z. VSG's Y flip is in the projection, not here.
+// Written from the OSG editor's cameracontroller.cpp: `getViewMatrix() *= osg::Matrixd::rotate(value, axis)` applies
+// the rotation after the view matrix, in eye space, and osg::Matrixd::getLookAt gives eye, centre and up. Eye space is
+// the same on both: x right, y up, looking along -z. VSG's Y flip is in the projection, not here.
 namespace
 {
     namespace Pose = CSVRender::CameraPose;
@@ -64,8 +64,8 @@ namespace
 
     TEST(CameraPose, positiveRotationAboutEyeZRollsTheCameraClockwiseSeenFromBehind)
     {
-        // Eye +z points back at the viewer; a world up vector appearing to rotate counter-clockwise means the camera rolled
-        // clockwise, towards its right.
+        // Eye +z points back at the viewer; a world up vector appearing to rotate counter-clockwise means the camera
+        // rolled clockwise, towards its right.
         const double angle = 0.25;
         const auto lookAt = Pose::lookAtFrom(Pose::rotatedInEye(startView(), angle, vsg::dvec3(0, 0, 1)));
         expectNear(lookAt.mUp, sUp * std::cos(angle) + sRight * std::sin(angle));

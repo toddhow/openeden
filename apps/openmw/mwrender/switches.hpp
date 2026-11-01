@@ -11,9 +11,9 @@
 namespace MWRender
 {
     // OpenMW's built-in NIF switch nodes (task 0012, V4; OpenMW's mwrender/animation.cpp): NiSwitchNodes named
-    // Constants::NightDayLabel show child 0 by day and 1 at night, and those named Constants::HerbalismLabel show child 1
-    // once an organic container has been harvested. The NIF reader keeps a NiSwitchNode's name as the switch's "switch"
-    // value.
+    // Constants::NightDayLabel show child 0 by day and 1 at night, and those named Constants::HerbalismLabel show child
+    // 1 once an organic container has been harvested. The NIF reader keeps a NiSwitchNode's name as the switch's
+    // "switch" value.
 
     /// The first switch below node whose "switch" value is name, or nullptr.
     const vsg::Switch* findSwitch(const vsg::Node& node, std::string_view name);

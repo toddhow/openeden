@@ -25,7 +25,8 @@ namespace MWRender
 
         void pruneCache();
 
-        // TODO: wouldn't it be more efficient to pass worldspaces elsewhere? create a Storage or View object per worldspace?
+        // TODO: wouldn't it be more efficient to pass worldspaces elsewhere? create a Storage or View object per
+        // worldspace?
         vsg::ref_ptr<const ESMTerrain::LandObject> getLand(ESM::ExteriorCellLocation cellLocation) override;
         void setStore(const MWWorld::ESMStore* store) { mEsmStore = store; }
 

@@ -48,8 +48,9 @@ namespace CSVRender
         QString getToolTip(bool hideBasics, const WorldspaceHitResult& hit) const override;
     };
 
-    /// One instance or referenceable in a view. Owned by its Cell or PreviewWidget. Its nodes hang from a group that the
-    /// owner gives it, and the owner decides when that group is compiled, so that a cell compiles its objects at once.
+    /// One instance or referenceable in a view. Owned by its Cell or PreviewWidget. Its nodes hang from a group that
+    /// the owner gives it, and the owner decides when that group is compiled, so that a cell compiles its objects at
+    /// once.
     class Object
     {
     public:

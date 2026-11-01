@@ -29,8 +29,7 @@ namespace MWPhysics
         /// ignoring all other actors.
         virtual RayCastingResult castRay(const vsg::vec3& from, const vsg::vec3& to,
             const std::vector<MWWorld::ConstPtr>& ignore = {}, const std::vector<MWWorld::Ptr>& targets = {},
-            int mask = CollisionMask_Default, int group = 0xff) const
-            = 0;
+            int mask = CollisionMask_Default, int group = 0xff) const = 0;
 
         RayCastingResult castRay(const vsg::vec3& from, const vsg::vec3& to, int mask) const
         {
@@ -38,8 +37,7 @@ namespace MWPhysics
         }
 
         virtual RayCastingResult castSphere(const vsg::vec3& from, const vsg::vec3& to, float radius,
-            int mask = CollisionMask_Default, int group = 0xff) const
-            = 0;
+            int mask = CollisionMask_Default, int group = 0xff) const = 0;
 
         /// Return true if actor1 can see actor2.
         virtual bool getLineOfSight(const MWWorld::ConstPtr& actor1, const MWWorld::ConstPtr& actor2) const = 0;

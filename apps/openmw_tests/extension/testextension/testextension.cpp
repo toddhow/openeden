@@ -218,7 +218,7 @@ namespace
             && std::memcmp(result.glbData.data(), kGlbMagic.data(), kGlbMagic.size()) == 0;
         record(magicOk ? "kf glb magic ok" : "kf failed glb magic");
         record(result.sidecarJson.find("\"idle\"") != std::string::npos ? "kf sidecar names clip idle"
-                                                                         : "kf failed sidecar: " + result.sidecarJson);
+                                                                        : "kf failed sidecar: " + result.sidecarJson);
 
         NifBytes garbage;
         garbage.raw("this is not a nif file");
@@ -282,8 +282,8 @@ namespace
     // With OPENEDEN_TEST_EXTENSION_WORLD: one line per event, prefixed "world ", read by
     // tools/extension_world_check/check.sh.
     constexpr std::string_view kWorldDataSlot = "world_check";
-    // A fixed segment around the height where the Lua integration tests place the player (1745 units, about 25 m), so the
-    // fractions depend only on the point cast over and the scene, never on where the player happens to rest.
+    // A fixed segment around the height where the Lua integration tests place the player (1745 units, about 25 m), so
+    // the fractions depend only on the point cast over and the scene, never on where the player happens to rest.
     constexpr float kProbeTopM = 60.0f;
     constexpr float kProbeLengthM = 120.0f;
     constexpr float kProbeSphereRadiusM = 0.25f;
@@ -477,7 +477,7 @@ namespace
 
             const openeden::sdk::BodyId bodyBack = mPhysics->bodyOfEntity(mPhysics->entityOfBody(body));
             record(mPhysics->entityOfBody(body) == player && bodyBack == body ? "world player-body-roundtrip ok"
-                                                                               : "world player-body-roundtrip wrong");
+                                                                              : "world player-body-roundtrip wrong");
 
             const openeden::sdk::PhysicsVec3 down{ 0.0f, 0.0f, -kProbeLengthM };
             const openeden::sdk::PhysicsVec3 origin{ mProbeXM, mProbeYM, kProbeTopM };
@@ -546,7 +546,8 @@ namespace
             watch<GameSavedEvent>([](const GameSavedEvent&) { return std::string("game-saved"); });
             watch<CellChangedEvent>(
                 [](const CellChangedEvent& event) { return "cell-changed " + nameIn(event.cellName); });
-            watch<CellLoadedEvent>([](const CellLoadedEvent& event) { return "cell-loaded " + nameIn(event.cellName); });
+            watch<CellLoadedEvent>(
+                [](const CellLoadedEvent& event) { return "cell-loaded " + nameIn(event.cellName); });
             watch<CellUnloadedEvent>(
                 [](const CellUnloadedEvent& event) { return "cell-unloaded " + nameIn(event.cellName); });
             watch<ActorHitEvent>([](const ActorHitEvent& event) {

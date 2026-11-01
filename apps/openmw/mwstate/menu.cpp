@@ -1,8 +1,8 @@
 #include "menu.hpp"
 
 #include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
 #include "../mwbase/soundmanager.hpp"
+#include "../mwbase/statemanager.hpp"
 #include "../mwsound/constants.hpp"
 
 namespace MWState
@@ -17,7 +17,8 @@ namespace MWState
         auto state = MWBase::Environment::get().getStateManager()->getState();
         auto soundMgr = MWBase::Environment::get().getSoundManager();
 
-        // TODO: could we split up this class into Menu/MenuSplash classes, and retire the StateManager::mState variable?
+        // TODO: could we split up this class into Menu/MenuSplash classes, and retire the StateManager::mState
+        // variable?
         if (state == MWBase::StateManager::State_NoGame && !soundMgr->isMusicPlaying())
         {
             soundMgr->streamMusic(MWSound::titleMusic, MWSound::MusicType::Normal);

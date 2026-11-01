@@ -8,11 +8,11 @@
 #include <vsg/maths/vec2.h>
 #include <vsg/maths/vec3.h>
 
-#include <vsg/maths/vec3.h>
 #include <components/esm3/loadweap.hpp>
+#include <vsg/maths/vec3.h>
 
-#include "../mwworld/ptr.hpp"
 #include "../mwworld/movementdirection.hpp"
+#include "../mwworld/ptr.hpp"
 
 #include <components/animation/tags.hpp>
 #include <components/mwanimation/groups.hpp>
@@ -134,14 +134,10 @@ namespace MWMechanics
 
     inline bool isTransitionMovementState(CharacterState state)
     {
-        return state == CharState_WalkStart || state == CharState_RunStart
-            || state == CharState_WalkStop || state == CharState_RunStop
-            || state == CharState_RunSkid
-            || state == CharState_TurnLeft90 || state == CharState_TurnRight90;
+        return state == CharState_WalkStart || state == CharState_RunStart || state == CharState_WalkStop
+            || state == CharState_RunStop || state == CharState_RunSkid || state == CharState_TurnLeft90
+            || state == CharState_TurnRight90;
     }
-
-
-
 
     enum class UpperBodyState
     {
@@ -276,7 +272,8 @@ namespace MWMechanics
         void resetCurrentWeaponState();
         void resetCurrentDeathState();
 
-        void refreshCurrentAnims(CharacterState idle, CharacterState movementState, JumpingState jump, bool force = false);
+        void refreshCurrentAnims(
+            CharacterState idle, CharacterState movementState, JumpingState jump, bool force = false);
         void refreshHitRecoilAnims();
         void refreshJumpAnims(JumpingState jump, bool force = false);
         void refreshMovementAnims(CharacterState movementState, bool force = false);
@@ -365,8 +362,8 @@ namespace MWMechanics
 
         void persistAnimationState() const;
         bool playGroup(std::string_view groupname, int mode, uint32_t count, bool scripted = false);
-        bool playGroupLua(std::string_view groupname, float playSpeed, std::string_view startKey, std::string_view stopKey,
-            uint32_t loops, bool forceLoop);
+        bool playGroupLua(std::string_view groupname, float playSpeed, std::string_view startKey,
+            std::string_view stopKey, uint32_t loops, bool forceLoop);
         void enableLuaAnimations(bool enable);
         void skipAnim();
         bool isAnimPlaying(std::string_view groupName) const;

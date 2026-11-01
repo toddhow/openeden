@@ -116,9 +116,8 @@ vsg::dmat4 CSVRender::CellArrow::transform() const
     };
 
     // osg::Quat's zr * yr * xr turns by x first, then y, then z; so do these matrix products.
-    return vsg::translate(static_cast<double>(x), static_cast<double>(y), 0.0)
-        * vsg::rotate(zr, vsg::dvec3(0, 0, 1)) * vsg::rotate(yr, vsg::dvec3(0, 1, 0))
-        * vsg::rotate(xr, vsg::dvec3(1, 0, 0));
+    return vsg::translate(static_cast<double>(x), static_cast<double>(y), 0.0) * vsg::rotate(zr, vsg::dvec3(0, 0, 1))
+        * vsg::rotate(yr, vsg::dvec3(0, 1, 0)) * vsg::rotate(xr, vsg::dvec3(1, 0, 0));
 }
 
 vsg::ref_ptr<vsg::Node> CSVRender::CellArrow::buildShape() const
@@ -145,7 +144,8 @@ vsg::ref_ptr<vsg::Node> CSVRender::CellArrow::buildShape() const
         }
 
     // top, bottom, back and sides
-    auto indices = vsg::ushortArray::create({ 0, 1, 2, 5, 4, 3, 9, 10, 7, 9, 7, 6, 6, 8, 11, 6, 11, 9, 10, 11, 8, 10, 8, 7 });
+    auto indices
+        = vsg::ushortArray::create({ 0, 1, 2, 5, 4, 3, 9, 10, 7, 9, 7, 6, 6, 8, 11, 6, 11, 9, 10, 11, 8, 10, 8, 7 });
 
     return createColouredGeometry(
         *mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, colours, indices);

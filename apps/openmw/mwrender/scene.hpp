@@ -57,8 +57,7 @@ namespace MWRender
 
         /// @param animated Attempt to load separate keyframes from a .kf file matching the model file?
         /// @param allowLight If false, no lights will be created, and particles systems will be removed.
-        void insertModel(
-            const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true) override;
+        void insertModel(const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true) override;
 
         void insertNPC(const MWWorld::Ptr& ptr) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;

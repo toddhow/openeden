@@ -5,6 +5,7 @@
 
 #include "opas/format/JsonSupport.hpp"
 
-namespace opas::markers {
-namespace detail = ::opas::format::detail;
+namespace opas::markers
+{
+    namespace detail = ::opas::format::detail;
 } // namespace opas::markers

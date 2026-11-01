@@ -71,7 +71,8 @@ namespace vsgUtil
             for (int y = 0; y < cellSize; ++y)
             {
                 const std::size_t in = (std::size_t(sourceTop + y) * sourceWidth + (sourceLeft + x)) * 3;
-                const std::size_t out = (std::size_t(destinationTop + y) * destinationWidth + (destinationLeft + x)) * 4;
+                const std::size_t out
+                    = (std::size_t(destinationTop + y) * destinationWidth + (destinationLeft + x)) * 4;
                 for (std::size_t c = 0; c < 4; ++c)
                     destination[out + c] = in + c < source.size() ? source[in + c] : 0;
             }

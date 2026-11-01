@@ -320,8 +320,8 @@ namespace OMW
                 notify(EntityLifecycleEvent::Revived, entityOf(item.mObject));
                 break;
             case Kind::ActorHit:
-                bus.publishImmediate(
-                    ActorHitEvent{ entityOf(item.mOtherObject), entityOf(item.mObject), item.mDamage, item.mSuccessful });
+                bus.publishImmediate(ActorHitEvent{
+                    entityOf(item.mOtherObject), entityOf(item.mObject), item.mDamage, item.mSuccessful });
                 break;
             case Kind::GameLoaded:
                 updatePlayer(item);
@@ -334,7 +334,8 @@ namespace OMW
                 bus.publishImmediate(GameSavedEvent{});
                 break;
             case Kind::ContactBegin:
-                bus.publishImmediate(PhysicsContactBeginEvent{ item.mBody, item.mOtherBody, item.mPoint, item.mNormal });
+                bus.publishImmediate(
+                    PhysicsContactBeginEvent{ item.mBody, item.mOtherBody, item.mPoint, item.mNormal });
                 break;
             case Kind::ContactEnd:
                 bus.publishImmediate(PhysicsContactEndEvent{ item.mBody, item.mOtherBody });

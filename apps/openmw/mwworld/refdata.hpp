@@ -69,7 +69,6 @@ namespace MWWorld
         RefData(const ESM4::Reference& cellRef);
         RefData(const ESM4::ActorCharacter& cellRef);
 
-
         RefData(const ESM::ObjectState& objectState, bool deletedByContentFile);
         ///< Ignores local variables and custom data (not enough context available here to
         /// perform these operations).
@@ -85,7 +84,6 @@ namespace MWWorld
 
         RefData& operator=(const RefData& refData);
         RefData& operator=(RefData&& other);
-
 
         void setLocals(const ESM::Script& script);
 

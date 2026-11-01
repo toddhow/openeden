@@ -16,9 +16,9 @@
 #include <vsg/core/Exception.h>
 #include <vsg/vk/Device.h>
 
-#include <components/vsgutil/deletionqueue.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/debugmessenger.hpp>
+#include <components/vsgutil/deletionqueue.hpp>
 
 #include "attachmentformat.hpp"
 #include "headless.hpp"
@@ -34,10 +34,10 @@ namespace Render
          *
          * Not Viewer::addRecordAndSubmitTaskAndPresentation, because that replaces every task (VSG 1.1.16,
          * Viewer::assignRecordAndSubmitTaskAndPresentation). Compile contexts made earlier keep the old task's
-         * TransferTask, and Device::transferTask stays on the first task's (RecordAndSubmitTask's constructor), so nothing
-         * they compile would upload any more: the "geometry never uploads" failure of research note 0003, section 5.4.
-         * Appending to the task keeps its TransferTask. Compile views of a later window are therefore added with
-         * CompileManager::add after setup(), as RenderManager does in the game.
+         * TransferTask, and Device::transferTask stays on the first task's (RecordAndSubmitTask's constructor), so
+         * nothing they compile would upload any more: the "geometry never uploads" failure of research note 0003,
+         * section 5.4. Appending to the task keeps its TransferTask. Compile views of a later window are therefore
+         * added with CompileManager::add after setup(), as RenderManager does in the game.
          */
         void appendToViewer(vsg::Viewer& viewer, vsg::Window& window, const vsg::CommandGraphs& graphs)
         {
@@ -82,8 +82,9 @@ namespace Render
         mViewer = vsg::Viewer::create();
         mViewer->addWindow(mWindow);
         mTraits = mWindow->traits();
-        mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(mTraits->swapchainPreferences.imageCount+1);
-        if (mTraits->debugLayer) mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mWindow->getOrCreateInstance());
+        mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(mTraits->swapchainPreferences.imageCount + 1);
+        if (mTraits->debugLayer)
+            mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mWindow->getOrCreateInstance());
     }
 
     Engine::Engine(Callback headlessCallback, vsg::ref_ptr<vsg::WindowTraits> traits)
@@ -91,9 +92,10 @@ namespace Render
         mHeadless = std::make_unique<Headless>(headlessCallback, traits);
         mViewer = vsg::Viewer::create();
         mTraits = traits;
-        //mDeletionQueue = {};
+        // mDeletionQueue = {};
         mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(3);
-        if (mTraits->debugLayer) mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mHeadless->getOrCreateInstance());
+        if (mTraits->debugLayer)
+            mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mHeadless->getOrCreateInstance());
     }
 
     Engine::Engine(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Window> window)
@@ -110,7 +112,8 @@ namespace Render
         mViewer->addWindow(mWindow);
         mDeletionQueue = std::make_unique<vsgUtil::DeletionQueue>(
             vsgUtil::DeletionQueue::sizeForPostFrameAdvance(mTraits->swapchainPreferences.imageCount));
-        if (mTraits->debugLayer) mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mWindow->getOrCreateInstance());
+        if (mTraits->debugLayer)
+            mDebugMessenger = std::make_unique<vsgUtil::DebugMessenger>(mWindow->getOrCreateInstance());
     }
 
     Engine::~Engine()
@@ -125,7 +128,8 @@ namespace Render
         if (mDeletionQueue && mWindow)
         {
             mWindow->getOrCreateSwapchain();
-            // The swapchain can fall back to sRGB when the surface lacks the format asked for (vsg::selectSwapSurfaceFormat).
+            // The swapchain can fall back to sRGB when the surface lacks the format asked for
+            // (vsg::selectSwapSurfaceFormat).
             if (mHosted && mWindow->surfaceFormat().format != compatibleColorFormat)
                 throw std::invalid_argument("Render::Engine: the surface does not support compatibleColorFormat");
             mDeletionQueue->resize(
@@ -147,8 +151,8 @@ namespace Render
             // the viewer stops drawing and CompileManager::compile fails with "Nothing assigned yet".
             mViewer->status->set(true);
             appendToViewer(*mViewer, *mWindow, graphs);
-            // The first setup goes through Viewer::assignRecordAndSubmitTaskAndPresentation, which keeps only the windows
-            // in its graphs, so this window may have been dropped by another Engine's setup.
+            // The first setup goes through Viewer::assignRecordAndSubmitTaskAndPresentation, which keeps only the
+            // windows in its graphs, so this window may have been dropped by another Engine's setup.
             mViewer->addWindow(mWindow);
         }
         else
@@ -165,7 +169,7 @@ namespace Render
             mViewer->compile();
             auto end = std::chrono::steady_clock::now();
             auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
-            std::cout <<"Engine::compile() = " << dt << "s" << std::endl;
+            std::cout << "Engine::compile() = " << dt << "s" << std::endl;
         }
         catch (const vsg::Exception& e)
         {
@@ -231,8 +235,7 @@ namespace Render
                  */
                 if (!requiresRender)
                     last = std::chrono::steady_clock::now();
-            }
-            while (!requiresRender && !quit);
+            } while (!requiresRender && !quit);
 
             if (quit)
                 break;
@@ -247,10 +250,16 @@ namespace Render
                 mHeadless->copyOutput();
             }
             else
-                timeWait([this] { mViewer->present(); return true; });
+                timeWait([this] {
+                    mViewer->present();
+                    return true;
+                });
 
             if (!useFrameQueue)
-                timeWait([this] { mViewer->deviceWaitIdle(); return true; });
+                timeWait([this] {
+                    mViewer->deviceWaitIdle();
+                    return true;
+                });
 
             if (mDeletionQueue)
                 mDeletionQueue->advanceFrame();
@@ -318,8 +327,9 @@ namespace Render
             graph = vsg::CommandGraph::create(mWindow);
         else
             graph = vsg::CommandGraph::create(mHeadless->getOrCreateDevice(), mHeadless->getQueueFamily());
-        //int maxSlot = 1 + maxDescriptorSet;
-        // int maxSlot = 4; // At the moment, reducing maxSlot won't help because vsg::updateViewer will update the maxSlot for all command graphs.
+        // int maxSlot = 1 + maxDescriptorSet;
+        //  int maxSlot = 4; // At the moment, reducing maxSlot won't help because vsg::updateViewer will update the
+        //  maxSlot for all command graphs.
         graph->recordTraversal = new vsg::RecordTraversal;
         graph->maxSlots = vsg::Slots{ 4, 4 };
         return graph;
@@ -338,7 +348,8 @@ namespace Render
             graph->framebuffer = inherit_framebuffer->framebuffer;
         }
         graph->recordTraversal = new vsg::RecordTraversal;
-        graph->maxSlots = vsg::Slots{ static_cast<uint32_t>(maxDescriptorSet + 1), static_cast<uint32_t>(maxDescriptorSet + 1) };
+        graph->maxSlots
+            = vsg::Slots{ static_cast<uint32_t>(maxDescriptorSet + 1), static_cast<uint32_t>(maxDescriptorSet + 1) };
         return graph;
     }
 
@@ -355,8 +366,8 @@ namespace Render
 
     vsg::ref_ptr<vsgUtil::CompileContext> Engine::createCompileContext()
     {
-        // we don't have any views / renderGraphs assigned to the viewer yet so assigning a ref_ptr<ResourceHints> will not be effective.
-        // instead we'll pass resourceRequirements to CompileManager::add(..).
+        // we don't have any views / renderGraphs assigned to the viewer yet so assigning a ref_ptr<ResourceHints> will
+        // not be effective. instead we'll pass resourceRequirements to CompileManager::add(..).
         auto compile = vsg::CompileManager::create(*mViewer, vsg::ref_ptr<vsg::ResourceHints>());
         auto ret = vsg::ref_ptr{ new vsgUtil::CompileContext };
         ret->device = getOrCreateDevice();
@@ -365,7 +376,7 @@ namespace Render
         if (mDeletionQueue)
             ret->onDetached = [this](vsg::ref_ptr<vsg::Object> object) { mDeletionQueue->add(object); };
         else
-            ret->onDetached = [](vsg::ref_ptr<vsg::Object>){};
+            ret->onDetached = [](vsg::ref_ptr<vsg::Object>) {};
         return ret;
     }
 
@@ -376,7 +387,8 @@ namespace Render
         if (mWindow)
             return vsg::ref_ptr{ new Screenshot(mWindow) };
         else
-            return vsg::ref_ptr{ new Screenshot(getOrCreateDevice(), mHeadless->colorImageView->image, mHeadless->presentLayout) };
+            return vsg::ref_ptr{ new Screenshot(
+                getOrCreateDevice(), mHeadless->colorImageView->image, mHeadless->presentLayout) };
     }
 
     size_t Engine::numFrames() const
@@ -456,7 +468,8 @@ namespace Render
 
     VkImageLayout Engine::getPresentLayout() const
     {
-        // we can't use VK_IMAGE_LAYOUT_PRESENT_SRC_KHR unless the associated extension has been enabled in vsg::Device creation.
+        // we can't use VK_IMAGE_LAYOUT_PRESENT_SRC_KHR unless the associated extension has been enabled in vsg::Device
+        // creation.
         if (mWindow)
             return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         else

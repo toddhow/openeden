@@ -82,13 +82,13 @@ namespace View
 {
     struct Cascade
     {
-        Cascade(
-            vsg::ref_ptr<vsg::RenderGraph> in_rendergraph, const vsg::View& shared_baseView)
+        Cascade(vsg::ref_ptr<vsg::RenderGraph> in_rendergraph, const vsg::View& shared_baseView)
             : rendergraph(in_rendergraph)
         {
             view = vsg::View::create(shared_baseView); // shareViewID()
             view->camera = vsg::Camera::create(ortho, lookAt,
-                vsg::ViewportState::create(0, 0, in_rendergraph->renderArea.extent.width, in_rendergraph->renderArea.extent.height));
+                vsg::ViewportState::create(
+                    0, 0, in_rendergraph->renderArea.extent.width, in_rendergraph->renderArea.extent.height));
         }
         vsg::ref_ptr<vsg::RenderGraph> rendergraph;
         vsg::ref_ptr<vsg::Orthographic> ortho = vsg::Orthographic::create();
@@ -96,26 +96,25 @@ namespace View
         vsg::ref_ptr<vsg::View> view;
     };
 
-    Shadow::Shadow(vsg::Context& ctx, int in_numCascades, uint32_t res, bool filter, bool supportsDepthClamp, bool frontFaceCulling)
+    Shadow::Shadow(vsg::Context& ctx, int in_numCascades, uint32_t res, bool filter, bool supportsDepthClamp,
+        bool frontFaceCulling)
         : resolution(res)
         , numCascades(std::max(1, std::min(in_numCascades, maxCascades)))
     {
         mBaseView = vsg::View::create(); // obtainSharedViewID()
         mBaseView->viewDependentState = nullptr;
         auto overrideState = OverrideState::create();
-        if(supportsDepthClamp)
+        if (supportsDepthClamp)
             overrideState->depthClampEnable = true; // Depth clamp to avoid near plane clipping
         else
             std::cerr << "!supportsDepthClamp(components-view-shadow)" << std::endl;
         overrideState->cullMode = frontFaceCulling ? VK_CULL_MODE_FRONT_BIT : VK_CULL_MODE_NONE;
-        mBaseView->overridePipelineStates = {
-            overrideState,
-            vsg::ColorBlendState::create()
-        };
+        mBaseView->overridePipelineStates = { overrideState, vsg::ColorBlendState::create() };
 
         const auto format = VK_FORMAT_D32_SFLOAT;
 
-        auto image = vsgUtil::createImage(format, VkExtent2D{ res, res }, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        auto image = vsgUtil::createImage(
+            format, VkExtent2D{ res, res }, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         image->arrayLayers = numCascades;
         image->compile(ctx);
 
@@ -129,16 +128,15 @@ namespace View
         sampler->maxAnisotropy = 1.0f;
         sampler->minLod = 0.0f;
         sampler->maxLod = 1.0f;
-        //sampler->borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        // sampler->borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
         sampler->borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK; // vsgopenmw-reverse-depth
         sampler->compareEnable = VK_TRUE;
         sampler->compareOp = VK_COMPARE_OP_GREATER; // vsgopenmw-reverse-depth
 
-        mShadowMap = vsg::DescriptorImage::create(
-            vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(), imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL),
+        mShadowMap = vsg::DescriptorImage::create(vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(), imageView,
+                                                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL),
             Pipeline::Descriptors::VIEW_SHADOW_MAP_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-        mShadowSampler = vsg::DescriptorImage::create(
-            vsg::ImageInfo::create(sampler, vsg::ref_ptr<vsg::ImageView>()),
+        mShadowSampler = vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, vsg::ref_ptr<vsg::ImageView>()),
             Pipeline::Descriptors::VIEW_SHADOW_SAMPLER_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLER);
 
         auto renderPass = createDepthRenderPass(ctx.device, format);
@@ -185,10 +183,11 @@ namespace View
         return mCascades[i]->rendergraph;
     }
 
-    void Shadow::updateCascades(const vsg::Camera& camera, Pipeline::Data::Scene& data, const vsg::vec3& lightPos, float maxZ, float cascadeSplitLambda)
+    void Shadow::updateCascades(const vsg::Camera& camera, Pipeline::Data::Scene& data, const vsg::vec3& lightPos,
+        float maxZ, float cascadeSplitLambda)
     {
-        auto splits = Render::cascade(mCascades.size(), data.zNear, data.zFar, maxZ, cascadeSplitLambda, camera,
-            vsg::normalize(lightPos * -1.f));
+        auto splits = Render::cascade(
+            mCascades.size(), data.zNear, data.zFar, maxZ, cascadeSplitLambda, camera, vsg::normalize(lightPos * -1.f));
         const vsg::dmat4 clipSpaceToUv(0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 1.0);
         for (size_t i = 0; i < splits.size(); ++i)
         {

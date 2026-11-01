@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include <vsg/maths/quat.h>
 #include <vsg/maths/mat4.h>
+#include <vsg/maths/quat.h>
 
 #include "channel.hpp"
 

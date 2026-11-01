@@ -7,8 +7,8 @@
 #include <vsg/vk/vulkan.h>
 
 #include <map>
-#include <set>
 #include <memory>
+#include <set>
 #include <vector>
 
 namespace MWWorld
@@ -41,7 +41,9 @@ namespace MWRender
     class Map
     {
     public:
-        Map(vsg::Context& ctx, VkSampleCountFlagBits samples, vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<vsg::Node> scene, Terrain::Paging* terrain, float referenceViewDistance, uint32_t resolution, const vsg::Options* shaderOptions);
+        Map(vsg::Context& ctx, VkSampleCountFlagBits samples, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+            vsg::ref_ptr<vsg::Node> scene, Terrain::Paging* terrain, float referenceViewDistance, uint32_t resolution,
+            const vsg::Options* shaderOptions);
         ~Map();
 
         /**

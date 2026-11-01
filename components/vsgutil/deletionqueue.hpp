@@ -17,12 +17,14 @@ namespace vsgUtil
         using Queue = std::vector<vsg::ref_ptr<vsg::Object>>;
         std::vector<Queue> _queues;
         std::optional<std::uint64_t> _lastFrame;
+
     public:
         /*
          * The size for a queue advanced only after each frame's submission. vsg::Viewer gives each task a ring of three
-         * fences (Viewer::assignRecordAndSubmitTaskAndPresentation, numBuffers), however few swapchain images there are,
-         * so frame N's fence is waited on during frame N + 3's submission. An object can be added after frame N's submission
-         * and before that frame is reported, which counts as one advance, so it needs N, N + 1, N + 2 and N + 3 to pass.
+         * fences (Viewer::assignRecordAndSubmitTaskAndPresentation, numBuffers), however few swapchain images there
+         * are, so frame N's fence is waited on during frame N + 3's submission. An object can be added after frame N's
+         * submission and before that frame is reported, which counts as one advance, so it needs N, N + 1, N + 2 and N
+         * + 3 to pass.
          */
         static constexpr size_t sizeForPostFrameAdvance(size_t numFrames)
         {
@@ -30,23 +32,14 @@ namespace vsgUtil
             return (numFrames > fenceRing ? numFrames : fenceRing) + 1;
         }
 
-        DeletionQueue(size_t numFrames)
-        {
-            _queues.resize(numFrames);
-        }
-        void resize(size_t numFrames)
-        {
-            _queues.resize(numFrames);
-        }
-        void add(vsg::ref_ptr<vsg::Object> object)
-        {
-            _queues[0].push_back(object);
-        }
+        DeletionQueue(size_t numFrames) { _queues.resize(numFrames); }
+        void resize(size_t numFrames) { _queues.resize(numFrames); }
+        void add(vsg::ref_ptr<vsg::Object> object) { _queues[0].push_back(object); }
         void advanceFrame()
         {
             _queues.back().clear();
-            for (size_t i = _queues.size()-1; i > 0; --i)
-                _queues[i].swap(_queues[i-1]);
+            for (size_t i = _queues.size() - 1; i > 0; --i)
+                _queues[i].swap(_queues[i - 1]);
         }
         /*
          * Advances once for each new frame number, however often it is called. For a host that does not draw every time

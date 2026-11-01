@@ -3,7 +3,6 @@
 
 #include <components/misc/vsgmath.hpp>
 
-
 #include "tilebounds.hpp"
 #include "tileposition.hpp"
 #include "tilespositionsrange.hpp"
@@ -23,8 +22,8 @@ namespace DetourNavigator
     TilesPositionsRange makeTilesPositionsRange(
         const JPH::Shape& shape, const vsg::dmat4& transform, const RecastSettings& settings);
 
-    TilesPositionsRange makeTilesPositionsRange(const JPH::Shape& shape, const vsg::dmat4& transform,
-        const TileBounds& bounds, const RecastSettings& settings);
+    TilesPositionsRange makeTilesPositionsRange(
+        const JPH::Shape& shape, const vsg::dmat4& transform, const TileBounds& bounds, const RecastSettings& settings);
 
     TilesPositionsRange makeTilesPositionsRange(
         const int cellSize, const vsg::vec3& shift, const RecastSettings& settings);

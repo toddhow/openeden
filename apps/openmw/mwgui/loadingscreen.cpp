@@ -77,6 +77,6 @@ namespace MWGui
             }
         }
 
-        mProgressBar->setTrackSize(complete * (mProgressBar->getLineSize()-1));
+        mProgressBar->setTrackSize(complete * (mProgressBar->getLineSize() - 1));
     }
 }

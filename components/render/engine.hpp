@@ -1,12 +1,12 @@
 #ifndef VSGOPENMW_RENDER_ENGINE_H
 #define VSGOPENMW_RENDER_ENGINE_H
 
+#include <functional>
 #include <memory>
 #include <vector>
-#include <functional>
 
-#include <vsg/vk/vulkan.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/vk/vulkan.h>
 
 namespace vsg
 {
@@ -46,23 +46,25 @@ namespace Render
         /*
          * Hosted: one Engine for one window of a viewer that the caller owns and drives, such as vsgQt::Viewer with its
          * QTimer. Several windows on one device take one Engine each over the same viewer. The window must already be
-         * laid out with a non-zero size and ask for compatibleColorFormat (a capture refuses sRGB swapchains); otherwise
-         * this throws std::invalid_argument, as setup() does if the surface does not offer that format. loop() throws
-         * std::logic_error; after each frame the caller calls endFrame().
-         * createRenderGraph() installs no resize handler, so on a resize the caller sets each graph's renderArea to
-         * swapchainExtent() once per frame, as RenderManager::syncExtents does: a render area larger than the swapchain
-         * draws nothing at all, and the swapchain is only rebuilt when the next frame acquires its image.
-         * Must be destroyed after the compile contexts it creates, whose callbacks refer to it.
+         * laid out with a non-zero size and ask for compatibleColorFormat (a capture refuses sRGB swapchains);
+         * otherwise this throws std::invalid_argument, as setup() does if the surface does not offer that format.
+         * loop() throws std::logic_error; after each frame the caller calls endFrame(). createRenderGraph() installs no
+         * resize handler, so on a resize the caller sets each graph's renderArea to swapchainExtent() once per frame,
+         * as RenderManager::syncExtents does: a render area larger than the swapchain draws nothing at all, and the
+         * swapchain is only rebuilt when the next frame acquires its image. Must be destroyed after the compile
+         * contexts it creates, whose callbacks refer to it.
          */
         Engine(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Window> window);
         ~Engine();
 
-        bool useFrameQueue = true; // If set to false, prevents queued frames in the swapchain by inserting a vkDeviceWaitIdle call in between frames.
+        bool useFrameQueue = true; // If set to false, prevents queued frames in the swapchain by inserting a
+                                   // vkDeviceWaitIdle call in between frames.
         // Ignored by a hosted engine, whose viewer's owner presents and decides whether to wait.
 
-        // Hosted, each call adds this window's graphs to the viewer, which keeps those already there; call compile() again
-        // after it, then add the window's compile views to the compile manager (see appendToViewer in engine.cpp).
-        // Threading applies to the whole viewer, so the last Engine's call to setup() decides it for every window.
+        // Hosted, each call adds this window's graphs to the viewer, which keeps those already there; call compile()
+        // again after it, then add the window's compile views to the compile manager (see appendToViewer in
+        // engine.cpp). Threading applies to the whole viewer, so the last Engine's call to setup() decides it for every
+        // window.
         void setup(std::vector<vsg::ref_ptr<vsg::CommandGraph>> graphs, bool threading);
         void compile();
 
@@ -76,10 +78,10 @@ namespace Render
         using FrameCallback = std::function<void(double dt, bool& requiresRender, bool& quit)>;
         void loop(FrameCallback cb, float framerateLimit = 0);
         // Hosted: the per-frame work loop() does beyond what the viewer does itself, which is freeing what has been
-        // detached. Call it only between frames, after the viewer's recordAndSubmit has returned: the viewer stamps a frame
-        // in advanceToNextFrame and waits on the fence only in recordAndSubmit (RecordAndSubmitTask::start), so counting a
-        // stamped frame any earlier frees objects a queued frame still uses. Safe whether or not a frame was drawn, and from
-        // every Engine of a viewer.
+        // detached. Call it only between frames, after the viewer's recordAndSubmit has returned: the viewer stamps a
+        // frame in advanceToNextFrame and waits on the fence only in recordAndSubmit (RecordAndSubmitTask::start), so
+        // counting a stamped frame any earlier frees objects a queued frame still uses. Safe whether or not a frame was
+        // drawn, and from every Engine of a viewer.
         void endFrame();
 
         // Hosted, null while the window has zero size (a collapsed splitter): capturing it would crash.

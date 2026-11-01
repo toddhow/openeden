@@ -2,10 +2,10 @@
 
 #include <QIcon>
 
-#include <components/misc/scalableicon.hpp>
-#include "pathgridgeometry.hpp"
 #include "camerapose.hpp"
+#include "pathgridgeometry.hpp"
 #include "scenehost.hpp"
+#include <components/misc/scalableicon.hpp>
 
 #include "../../model/prefs/state.hpp"
 
@@ -24,7 +24,6 @@
 #include <apps/opencs/model/prefs/setting.hpp>
 #include <apps/opencs/view/render/editmode.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
-
 
 #include <vector>
 

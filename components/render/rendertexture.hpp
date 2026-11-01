@@ -5,8 +5,8 @@
 
 namespace Render // namespace vsgExamples
 {
-    std::pair<vsg::ref_ptr<vsg::RenderGraph>, vsg::ref_ptr<vsg::ImageView>> createRenderTexture(vsg::Context& context, VkSampleCountFlagBits samples, const VkExtent2D& extent,
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT,
+    std::pair<vsg::ref_ptr<vsg::RenderGraph>, vsg::ref_ptr<vsg::ImageView>> createRenderTexture(vsg::Context& context,
+        VkSampleCountFlagBits samples, const VkExtent2D& extent, VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT,
         VkImageLayout finalColorLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 

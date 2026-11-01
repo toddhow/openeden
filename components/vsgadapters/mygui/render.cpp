@@ -11,12 +11,12 @@
 #include <vsg/state/DepthStencilState.h>
 #include <vsg/state/DescriptorImage.h> //vsgopenmw-fixme
 #include <vsg/state/DescriptorSet.h>
+#include <vsg/state/DynamicState.h>
 #include <vsg/state/InputAssemblyState.h>
 #include <vsg/state/MultisampleState.h>
 #include <vsg/state/RasterizationState.h>
 #include <vsg/state/VertexInputState.h>
 #include <vsg/state/ViewportState.h>
-#include <vsg/state/DynamicState.h>
 #include <vsg/vk/CommandBuffer.h>
 
 #include <components/vsgutil/readshader.hpp>
@@ -64,8 +64,12 @@ namespace vsgAdapters::mygui
     class VertexBuffer : public MyGUI::IVertexBuffer
     {
         const vsgUtil::CompileContext& mCompileContext;
+
     public:
-        VertexBuffer(const vsgUtil::CompileContext& compile) : mCompileContext(compile) {}
+        VertexBuffer(const vsgUtil::CompileContext& compile)
+            : mCompileContext(compile)
+        {
+        }
         ~VertexBuffer()
         {
             if (mCompiled)
@@ -121,9 +125,9 @@ namespace vsgAdapters::mygui
     {
         mNode = vsg::ref_ptr{ new Node(*this) };
 
-        mCompileTraversal = vsg::CompileTraversal::create(vsg::ref_ptr{mCompileContext->device});
-        // To help reduce the number of vsg::DescriptorPool that need to be allocated we'll provide a minimum requirement via ResourceHints.
-        // for (auto& context : mCompileTraversal->contexts)
+        mCompileTraversal = vsg::CompileTraversal::create(vsg::ref_ptr{ mCompileContext->device });
+        // To help reduce the number of vsg::DescriptorPool that need to be allocated we'll provide a minimum
+        // requirement via ResourceHints. for (auto& context : mCompileTraversal->contexts)
         // {
         //     context->minimum_maxSets = 64u;
         //     context->minimum_descriptorPoolSizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 64u });
@@ -139,7 +143,7 @@ namespace vsgAdapters::mygui
             vsg::DescriptorSetLayouts{ vsg::DescriptorSetLayout::create(textureBindings) }, vsg::PushConstantRanges{});
     }
 
-    Render::~Render() { }
+    Render::~Render() {}
 
     MyGUI::IVertexBuffer* Render::createVertexBuffer()
     {

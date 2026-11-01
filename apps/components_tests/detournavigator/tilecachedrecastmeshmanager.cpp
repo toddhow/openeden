@@ -6,7 +6,6 @@
 
 #include <vsg/maths/transform.h>
 
-
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -28,7 +27,8 @@ namespace
         RecastSettings mSettings;
         const ObjectTransform mObjectTransform{ ESM::Position{ { 0, 0, 0 }, { 0, 0, 0 } }, 0.0f };
         const vsg::ref_ptr<const Resource::PhysicsShape> mShape{ new Resource::PhysicsShape };
-        const vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance{ new Resource::PhysicsShapeInstance(mShape) };
+        const vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance{ new Resource::PhysicsShapeInstance(
+            mShape) };
         const ESM::RefId mWorldspace = ESM::RefId::stringRefId("worldspace");
         const ESM::RefId mOtherWorldspace = ESM::RefId::stringRefId("other");
 
@@ -58,8 +58,7 @@ namespace
         TileCachedRecastMeshManager manager(mSettings);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        EXPECT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        EXPECT_TRUE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
     }
 
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, add_object_for_existing_object_should_return_false)
@@ -68,8 +67,7 @@ namespace
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
-        EXPECT_FALSE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        EXPECT_FALSE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
     }
 
     TEST_F(DetourNavigatorTileCachedRecastMeshManagerTest, add_object_should_add_tiles)
@@ -78,8 +76,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        ASSERT_TRUE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         for (int x = -1; x < 1; ++x)
             for (int y = -1; y < 1; ++y)
                 ASSERT_NE(manager.getMesh(mWorldspace, TilePosition(x, y)), nullptr);
@@ -113,8 +110,7 @@ namespace
         manager.setRange(range, nullptr);
         manager.addObject(ObjectId(&boxShape), shape, transform, AreaType::AreaType_ground, nullptr);
         manager.takeChangedTiles(nullptr);
-        EXPECT_TRUE(
-            manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        EXPECT_TRUE(manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         EXPECT_THAT(manager.takeChangedTiles(nullptr),
             ElementsAre(std::pair(TilePosition(-1, -1), ChangeType::add),
                 std::pair(TilePosition(-1, 0), ChangeType::add), std::pair(TilePosition(0, -1), ChangeType::update),
@@ -130,8 +126,7 @@ namespace
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         manager.takeChangedTiles(nullptr);
-        EXPECT_FALSE(
-            manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        EXPECT_FALSE(manager.updateObject(ObjectId(&boxShape), vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         EXPECT_THAT(manager.takeChangedTiles(nullptr), IsEmpty());
     }
 
@@ -280,8 +275,7 @@ namespace
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
         manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr);
         const auto beforeAddRevision = manager.getRevision();
-        EXPECT_FALSE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        EXPECT_FALSE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         EXPECT_EQ(manager.getRevision(), beforeAddRevision);
     }
 
@@ -364,8 +358,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        ASSERT_TRUE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = std::numeric_limits<int>::max();
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
@@ -416,8 +409,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        ASSERT_TRUE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         const vsg::ivec2 cellPosition(0, 0);
         const int cellSize = 8192;
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
@@ -436,8 +428,7 @@ namespace
         const int cellSize = 8192;
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(mInstance, boxShape, mObjectTransform);
-        ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        ASSERT_TRUE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         manager.addWater(cellPosition, cellSize, 0.0f, nullptr);
         manager.removeObject(ObjectId(&boxShape), nullptr);
         for (int x = -1; x < 12; ++x)
@@ -451,8 +442,7 @@ namespace
         manager.setWorldspace(mWorldspace, nullptr);
         const JPH::BoxShape boxShape(JPH::Vec3(20, 20, 100));
         const CollisionShape shape(nullptr, boxShape, mObjectTransform);
-        ASSERT_TRUE(manager.addObject(
-            ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
+        ASSERT_TRUE(manager.addObject(ObjectId(&boxShape), shape, vsg::dmat4(), AreaType::AreaType_ground, nullptr));
         manager.setWorldspace(mOtherWorldspace, nullptr);
         for (int x = -1; x < 1; ++x)
             for (int y = -1; y < 1; ++y)

@@ -30,8 +30,8 @@ namespace MWRender
     /// typeFilter with far set, without its ESM4 types.
     bool isDistantObjectType(int type);
 
-    /// The distance from the eye beyond which an object is culled, OpenMW's radius * scale < distance * minSize. Zero or
-    /// negative minSize never culls, returning the largest float.
+    /// The distance from the eye beyond which an object is culled, OpenMW's radius * scale < distance * minSize. Zero
+    /// or negative minSize never culls, returning the largest float.
     float distantObjectMaxDistance(float radius, float scale, float minSize);
 
     /// An object's matrix from its reference's position, rotation (radians) and scale: scaled, rotated about Z, then Y,

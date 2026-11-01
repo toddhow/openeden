@@ -67,13 +67,16 @@ namespace vsgAdapters
 
         if (ctrl.mTimeStop - ctrl.mTimeStart <= 0)
         {
-            channel = Anim::make_constant(channel->value(ctrl.mTimeStart)); // vsgopenmw-optimization-nif-constant-channel
+            channel
+                = Anim::make_constant(channel->value(ctrl.mTimeStart)); // vsgopenmw-optimization-nif-constant-channel
             return;
         }
-        if (ctrl.mFrequency == 1 && ctrl.mPhase == 0 && mode == Anim::ExtrapolationMode::Constant && ctrl.mTimeStart <= startKey && ctrl.mTimeStop >= stopKey)
+        if (ctrl.mFrequency == 1 && ctrl.mPhase == 0 && mode == Anim::ExtrapolationMode::Constant
+            && ctrl.mTimeStart <= startKey && ctrl.mTimeStop >= stopKey)
             return; // vsgopenmw-optimization-nif-prune-extrapolator
 
-        channel = Anim::makeExtrapolator<T>(channel, { ctrl.mFrequency, ctrl.mPhase, ctrl.mTimeStart, ctrl.mTimeStop }, mode);
+        channel = Anim::makeExtrapolator<T>(
+            channel, { ctrl.mFrequency, ctrl.mPhase, ctrl.mTimeStart, ctrl.mTimeStop }, mode);
     }
 
     template <class T, class Src>
@@ -102,7 +105,8 @@ namespace vsgAdapters
             return {};
         }
         if (src->mKeys.size() == 1)
-            return Anim::make_constant(T(src->mKeys.begin()->second.mValue)); // vsgopenmw-optimization-nif-constant-channel
+            return Anim::make_constant(
+                T(src->mKeys.begin()->second.mValue)); // vsgopenmw-optimization-nif-constant-channel
 
         auto ret = handleInterpolatedKeyframes<T>(src);
         float startKey = src->mKeys.begin()->first;

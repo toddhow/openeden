@@ -8,8 +8,8 @@
 #include <sol/table.hpp>
 #include <sol/types.hpp>
 
-#include <components/mwanimation/groups.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/mwanimation/groups.hpp>
 
 #include <components/esm/luascripts.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -27,9 +27,8 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-
-#include "../mwworld/datetimemanager.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/datetimemanager.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
 #include "../mwworld/ptr.hpp"
@@ -530,8 +529,8 @@ namespace MWLua
     }
 
     void LuaManager::playAnimation(const MWWorld::Ptr& actor, const std::string& groupname,
-        const MWAnim::Priority& priority, int blendMask, bool autodisable, float speedmult,
-        std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
+        const MWAnim::Priority& priority, int blendMask, bool autodisable, float speedmult, std::string_view start,
+        std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table options = view.newTable();

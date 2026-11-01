@@ -18,13 +18,14 @@ namespace MWRender
         // The terrain storage asks with an empty worldspace, which means the default one.
         if (!cellIndex.mWorldspace.empty() && ESM::isEsm4Ext(cellIndex.mWorldspace))
             return vsg::ref_ptr{ new ESMTerrain::LandObject() };
-        const ESM::Land* land = MWBase::Environment::get().getESMStore()->get<ESM::Land>().search(cellIndex.mX, cellIndex.mY);
+        const ESM::Land* land
+            = MWBase::Environment::get().getESMStore()->get<ESM::Land>().search(cellIndex.mX, cellIndex.mY);
         if (land)
             return vsg::ref_ptr{ new ESMTerrain::LandObject(*land, mLoadFlags) };
         else
             return vsg::ref_ptr{ new ESMTerrain::LandObject() };
     }
- 
+
     vsg::ref_ptr<ESMTerrain::LandObject> LandManager::getLand(ESM::ExteriorCellLocation cellIndex) const
     {
         return mCache.getOrCreate(cellIndex, *this);

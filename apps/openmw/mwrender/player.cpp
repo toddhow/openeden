@@ -2,8 +2,8 @@
 
 #include <vsg/maths/transform.h>
 
-#include <components/mwanimation/play.hpp>
 #include <components/animation/rotate.hpp>
+#include <components/mwanimation/play.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
@@ -11,8 +11,7 @@
 
 namespace MWRender
 {
-    Player::Player(
-        const MWAnim::Context& mwctx, const MWWorld::Ptr& ptr, ViewMode viewMode)
+    Player::Player(const MWAnim::Context& mwctx, const MWWorld::Ptr& ptr, ViewMode viewMode)
         : Npc(mwctx, ptr, viewMode)
     {
         assignBones();

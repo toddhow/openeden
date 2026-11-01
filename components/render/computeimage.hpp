@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_RENDER_COMPUTEIMAGE_H
 #define VSGOPENMW_RENDER_COMPUTEIMAGE_H
 
-#include <vsg/commands/Dispatch.h>
 #include <vsg/commands/ClearImage.h>
+#include <vsg/commands/Dispatch.h>
 #include <vsg/nodes/Group.h>
 #include <vsg/state/Image.h>
 
@@ -27,7 +27,8 @@ namespace Render
 
         void clear(vsg::ref_ptr<vsg::Image> image, vsg::RecordTraversal& visitor) const;
         void handleClearRequests(vsg::RecordTraversal& visitor) const;
-        void compute(vsg::RecordTraversal& visitor, vsg::ref_ptr<vsg::Image> image, uint32_t w, uint32_t h, uint32_t workGroupSize) const;
+        void compute(vsg::RecordTraversal& visitor, vsg::ref_ptr<vsg::Image> image, uint32_t w, uint32_t h,
+            uint32_t workGroupSize) const;
 
     public:
         ComputeImage();

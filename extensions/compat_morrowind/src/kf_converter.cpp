@@ -60,8 +60,8 @@ namespace compat_morrowind
             return res;
         }
 
-        void collectBonesFromNode(
-            const Nif::NiAVObject* obj, int parentIndex, std::vector<BoneInfo>& bones, std::map<const Nif::NiAVObject*, int>& visited)
+        void collectBonesFromNode(const Nif::NiAVObject* obj, int parentIndex, std::vector<BoneInfo>& bones,
+            std::map<const Nif::NiAVObject*, int>& visited)
         {
             if (!obj)
                 return;
@@ -109,10 +109,8 @@ namespace compat_morrowind
         };
     } // namespace
 
-    KfConverter::ConversionResult KfConverter::convertKfToGltf(
-        std::span<const std::uint8_t> kfBytes,
-        std::span<const std::uint8_t> skeletonNifBytes,
-        const ConversionOptions& options)
+    KfConverter::ConversionResult KfConverter::convertKfToGltf(std::span<const std::uint8_t> kfBytes,
+        std::span<const std::uint8_t> skeletonNifBytes, const ConversionOptions& options)
     {
         ConversionResult result;
         if (kfBytes.empty())
@@ -173,9 +171,7 @@ namespace compat_morrowind
     }
 
     KfConverter::ConversionResult KfConverter::convertParsedKfToGltf(
-        const KfAnimation& animation,
-        const std::vector<BoneInfo>& initialBones,
-        const ConversionOptions& options)
+        const KfAnimation& animation, const std::vector<BoneInfo>& initialBones, const ConversionOptions& options)
     {
         ConversionResult result;
 
@@ -349,7 +345,8 @@ namespace compat_morrowind
         std::vector<BufferViewDesc> bufferViews;
         std::vector<AccessorDesc> accessors;
 
-        auto addAccessorFloat = [&](const std::vector<float>& values, std::string_view type, std::size_t compCount) -> std::size_t {
+        auto addAccessorFloat
+            = [&](const std::vector<float>& values, std::string_view type, std::size_t compCount) -> std::size_t {
             align4(binData);
             std::size_t viewOffset = binData.size();
             std::size_t byteLen = values.size() * sizeof(float);
@@ -508,10 +505,8 @@ namespace compat_morrowind
             vsg::dquat gltfRestRot = toGltfRotation(b.restRotation);
 
             node["translation"] = { gltfRestTrans.x, gltfRestTrans.y, gltfRestTrans.z };
-            node["rotation"] = { static_cast<float>(gltfRestRot.x),
-                static_cast<float>(gltfRestRot.y),
-                static_cast<float>(gltfRestRot.z),
-                static_cast<float>(gltfRestRot.w) };
+            node["rotation"] = { static_cast<float>(gltfRestRot.x), static_cast<float>(gltfRestRot.y),
+                static_cast<float>(gltfRestRot.z), static_cast<float>(gltfRestRot.w) };
 
             if (!b.children.empty())
                 node["children"] = b.children;
@@ -526,20 +521,17 @@ namespace compat_morrowind
         nlohmann::ordered_json bufferViewsJson = nlohmann::ordered_json::array();
         for (const auto& bv : bufferViews)
         {
-            bufferViewsJson.push_back({ { "buffer", 0 }, { "byteOffset", bv.byteOffset }, { "byteLength", bv.byteLength } });
+            bufferViewsJson.push_back(
+                { { "buffer", 0 }, { "byteOffset", bv.byteOffset }, { "byteLength", bv.byteLength } });
         }
         gltf["bufferViews"] = bufferViewsJson;
 
         nlohmann::ordered_json accessorsJson = nlohmann::ordered_json::array();
         for (const auto& acc : accessors)
         {
-            accessorsJson.push_back({ { "bufferView", acc.bufferView },
-                { "byteOffset", acc.byteOffset },
-                { "componentType", acc.componentType },
-                { "count", acc.count },
-                { "type", acc.type },
-                { "min", acc.min },
-                { "max", acc.max } });
+            accessorsJson.push_back({ { "bufferView", acc.bufferView }, { "byteOffset", acc.byteOffset },
+                { "componentType", acc.componentType }, { "count", acc.count }, { "type", acc.type },
+                { "min", acc.min }, { "max", acc.max } });
         }
         gltf["accessors"] = accessorsJson;
 

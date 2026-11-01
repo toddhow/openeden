@@ -1,6 +1,5 @@
 #include "sanitizerimpl.hpp"
 
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -59,8 +58,7 @@ namespace Settings
 
             vsg::vec3 apply(const vsg::vec3& value) const override
             {
-                return vsg::vec3(
-                    std::max(value.x, mMax.x), std::max(value.y, mMax.y), std::max(value.z, mMax.z));
+                return vsg::vec3(std::max(value.x, mMax.x), std::max(value.y, mMax.y), std::max(value.z, mMax.z));
             }
         };
 

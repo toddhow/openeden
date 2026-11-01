@@ -10,20 +10,21 @@ namespace Render
         // image layout transition
         // depth buffer is shared between swap chain images
         // color buffer can be written by a previous render pass
-        vsg::SubpassDependency dependency = {
-            VK_SUBPASS_EXTERNAL, 0,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        vsg::SubpassDependency dependency = { VK_SUBPASS_EXTERNAL, 0,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            VK_DEPENDENCY_BY_REGION_BIT
-        };
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_DEPENDENCY_BY_REGION_BIT };
         return { dependency };
     }
 
     /*
      * Creates general purpose compatible render pass.
      */
-    inline vsg::ref_ptr<vsg::RenderPass> createStandardRenderPass(vsg::Device* device, VkFormat imageFormat, VkFormat depthFormat, bool load, bool store, VkImageLayout finalColorLayout)
+    inline vsg::ref_ptr<vsg::RenderPass> createStandardRenderPass(vsg::Device* device, VkFormat imageFormat,
+        VkFormat depthFormat, bool load, bool store, VkImageLayout finalColorLayout)
     {
         auto colorAttachment = vsg::defaultColorAttachment(imageFormat);
         auto depthAttachment = vsg::defaultDepthAttachment(depthFormat);
@@ -40,7 +41,7 @@ namespace Render
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         }
 
-        vsg::RenderPass::Attachments attachments{colorAttachment, depthAttachment};
+        vsg::RenderPass::Attachments attachments{ colorAttachment, depthAttachment };
 
         vsg::AttachmentReference colorAttachmentRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
         vsg::AttachmentReference depthAttachmentRef = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
@@ -50,7 +51,7 @@ namespace Render
         subpass.colorAttachments.emplace_back(colorAttachmentRef);
         subpass.depthStencilAttachments.emplace_back(depthAttachmentRef);
 
-        vsg::RenderPass::Subpasses subpasses{subpass};
+        vsg::RenderPass::Subpasses subpasses{ subpass };
 
         return vsg::RenderPass::create(device, attachments, subpasses, standardDependencies());
     }
@@ -58,7 +59,8 @@ namespace Render
     /*
      * Creates general purpose compatible multisampled render pass.
      */
-    inline vsg::ref_ptr<vsg::RenderPass> createMultisampledRenderPass(vsg::Device* device, VkFormat imageFormat, VkFormat depthFormat, VkSampleCountFlagBits samples, bool load, bool store, VkImageLayout finalColorLayout)
+    inline vsg::ref_ptr<vsg::RenderPass> createMultisampledRenderPass(vsg::Device* device, VkFormat imageFormat,
+        VkFormat depthFormat, VkSampleCountFlagBits samples, bool load, bool store, VkImageLayout finalColorLayout)
     {
         if (samples == VK_SAMPLE_COUNT_1_BIT)
         {
@@ -112,9 +114,9 @@ namespace Render
         if (store)
             depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-        vsg::RenderPass::Attachments attachments{colorAttachment, resolveAttachment, depthAttachment};
+        vsg::RenderPass::Attachments attachments{ colorAttachment, resolveAttachment, depthAttachment };
 
-        //if (store || ensureCompatibleRenderPass)
+        // if (store || ensureCompatibleRenderPass)
         {
             vsg::AttachmentDescription depthResolveAttachment = {};
             depthResolveAttachment.format = depthFormat;
@@ -138,21 +140,21 @@ namespace Render
         subpass.resolveAttachments.emplace_back(resolveAttachmentRef);
         subpass.depthStencilAttachments.emplace_back(depthAttachmentRef);
 
-        // "As an additional special case, if two render passes have a single subpass, the resolve attachment reference compatibility requirements are ignored."
-        // if (store || ensureCompatible)
+        // "As an additional special case, if two render passes have a single subpass, the resolve attachment reference
+        // compatibility requirements are ignored." if (store || ensureCompatible)
         if (store)
         {
             vsg::AttachmentReference depthResolveAttachmentRef = {};
             depthResolveAttachmentRef.attachment = 3;
             depthResolveAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-            //if (supportsAverage) subpass.depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+            // if (supportsAverage) subpass.depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
             subpass.depthResolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
             subpass.stencilResolveMode = VK_RESOLVE_MODE_NONE;
             subpass.depthStencilResolveAttachments.emplace_back(depthResolveAttachmentRef);
         }
 
-        vsg::RenderPass::Subpasses subpasses{subpass};
+        vsg::RenderPass::Subpasses subpasses{ subpass };
 
         return vsg::RenderPass::create(device, attachments, subpasses, standardDependencies());
     }

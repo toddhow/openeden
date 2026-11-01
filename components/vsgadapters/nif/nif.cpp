@@ -11,17 +11,16 @@
 #include <vsg/state/DescriptorImage.h>
 // #include <vsg/nodes/LOD.h>
 #include <vsg/commands/BindIndexBuffer.h>
-#include <vsg/commands/Draw.h>
 #include <vsg/commands/Commands.h>
+#include <vsg/commands/Draw.h>
 #include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/DepthSorted.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/VertexIndexDraw.h>
 #include <vsg/utils/SharedObjects.h>
 
-#include <components/vfs/pathutil.hpp>
-#include <components/animation/bones.hpp>
 #include <components/animation/billboard.hpp>
+#include <components/animation/bones.hpp>
 #include <components/animation/color.hpp>
 #include <components/animation/cullparticles.hpp>
 #include <components/animation/meta.hpp>
@@ -40,8 +39,8 @@
 #include <components/nif/extra.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/nif/node.hpp>
-#include <components/nif/property.hpp>
 #include <components/nif/particle.hpp>
+#include <components/nif/property.hpp>
 #include <components/nif/texture.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
@@ -49,11 +48,12 @@
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/particle.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/cullnode.hpp>
 #include <components/vsgutil/distancelod.hpp>
 
-#include "internaltexture.hpp"
 #include "../tangents.hpp"
+#include "internaltexture.hpp"
 #include <components/vsgutil/group.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/name.hpp>
@@ -77,7 +77,7 @@ namespace
 
 namespace Pipeline::Descriptors
 {
-    #include <files/shaders/comp/particle/bindings.glsl>
+#include <files/shaders/comp/particle/bindings.glsl>
 }
 namespace
 {
@@ -237,14 +237,12 @@ namespace vsgAdapters
             mNifFile.reset(new Nif::NIFFile({}));
             Nif::Reader reader(*mNifFile);
             // vsgopenmw-nif-istream
-            reader.parse(Files::IStreamPtr(new std::istream(stream.rdbuf()))); //reader.parse(stream); //vsgopenmw-fixme
-                                                        mNif.reset(new Nif::FileView(*mNifFile));
+            reader.parse(Files::IStreamPtr(new std::istream(stream.rdbuf()))); // reader.parse(stream);
+                                                                               // //vsgopenmw-fixme
+            mNif.reset(new Nif::FileView(*mNifFile));
         }
 
-        void warn(const std::string& msg)
-        {
-            std::cerr << msg << " (" << mFilename << ")" << std::endl;
-        }
+        void warn(const std::string& msg) { std::cerr << msg << " (" << mFilename << ")" << std::endl; }
 
         template <class T>
         void share(vsg::ref_ptr<T>& obj)
@@ -298,7 +296,8 @@ namespace vsgAdapters
             vsgUtil::removeGroup(nodes);
 
             vsg::ref_ptr<vsg::Node> ret;
-            if (!mContents.contains(Anim::Contents::TransformControllers | Anim::Contents::DynamicBounds | Anim::Contents::Placeholders))
+            if (!mContents.contains(Anim::Contents::TransformControllers | Anim::Contents::DynamicBounds
+                    | Anim::Contents::Placeholders))
             {
                 ret = vsgUtil::createCullNode(nodes);
                 vsgUtil::addLeafCullNodes(ret, 2);
@@ -485,8 +484,8 @@ namespace vsgAdapters
             handleGeometryControllers(niGeometry.mController, data.mVertices.size());
 
             vsg::DataList dataList;
-            dataList.reserve(!data.mVertices.empty() + !data.mNormals.empty() + !data.mColors.empty() + data.mUVList.size()
-                + (!niGeometry.mSkin.empty()) * 2);
+            dataList.reserve(!data.mVertices.empty() + !data.mNormals.empty() + !data.mColors.empty()
+                + data.mUVList.size() + (!niGeometry.mSkin.empty()) * 2);
 
             static_assert(static_cast<int>(Pipeline::Mode::VERTEX) == 0);
             if (!data.mVertices.empty())
@@ -517,8 +516,7 @@ namespace vsgAdapters
 
             static_assert(static_cast<int>(Pipeline::Mode::TEXCOORD) == 4);
             for (size_t uvSet = 0; uvSet < data.mUVList.size(); ++uvSet)
-                dataList.emplace_back(
-                    copyModeArray<vsg::vec2Array>(data.mUVList[uvSet], Pipeline::Mode::TEXCOORD));
+                dataList.emplace_back(copyModeArray<vsg::vec2Array>(data.mUVList[uvSet], Pipeline::Mode::TEXCOORD));
             auto& nodeOptions = getNodeOptions();
             nodeOptions.numUvSets = data.mUVList.size();
             if (nodeOptions.shader.hasMode(Pipeline::Mode::NORMAL_MAP))
@@ -595,8 +593,8 @@ namespace vsgAdapters
 
             auto sw = vsg::Switch::create();
             auto particleArray = vsg::Array<Pipeline::Data::Particle>::create(maxParticles);
-            //particleArray->properties.dataVariance = DYNAMIC_DATA_COMPUTE;
-            //particleArray->setObject(Anim::Controller::sAttachKey, vsg::ref_ptr<vsg::Object>());
+            // particleArray->properties.dataVariance = DYNAMIC_DATA_COMPUTE;
+            // particleArray->setObject(Anim::Controller::sAttachKey, vsg::ref_ptr<vsg::Object>());
             particleArray->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
 
             handleInitialParticles(*particleArray, particledata, partctrl);
@@ -608,7 +606,8 @@ namespace vsgAdapters
             removeAutoMapModes(getNodeOptions().shader);
             if (mSoftParticles)
                 getNodeOptions().shader.addMode(Pipeline::Mode::SOFT_PARTICLE);
-            if (mOccludedParticleMap && mOccludedParticleMap->valid() && VFS::Path::Normalized(mFilename).value() == *mOccludedParticleModel)
+            if (mOccludedParticleMap && mOccludedParticleMap->valid()
+                && VFS::Path::Normalized(mFilename).value() == *mOccludedParticleModel)
                 addModeDescriptor(*mOccludedParticleMap, Pipeline::Mode::PARTICLE_OCCLUSION);
 
             auto maxLifetime = ParticleSystem::calculateMaxLifetime(partctrl);
@@ -628,7 +627,8 @@ namespace vsgAdapters
                 else if (affectors->mRecordType == Nif::RC_NiGravity)
                 {
                     const auto& gr = static_cast<const Nif::NiGravity&>(*affectors.getPtr());
-                    args.gravity = { .positionDecay={ gr.mPosition, -gr.mDecay }, .directionForce={ vsg::normalize(gr.mDirection), gr.mForce*1.6f } };
+                    args.gravity = { .positionDecay = { gr.mPosition, -gr.mDecay },
+                        .directionForce = { vsg::normalize(gr.mDirection), gr.mForce * 1.6f } };
                     if (gr.mType == Nif::ForceType::Wind)
                         modes |= Pipeline::ParticleMode_GravityPlane;
                     else
@@ -655,12 +655,15 @@ namespace vsgAdapters
                 if (colliders->mRecordType == Nif::RC_NiPlanarCollider)
                 {
                     const auto& cl = static_cast<const Nif::NiPlanarCollider&>(*colliders.getPtr());
-                    args.collide = { .positionBounce={ cl.mPosition, cl.mBounceFactor }, .xVectorRadius={ cl.mXVector, cl.mExtents.x/2 }, .yVectorRadius={ cl.mYVector, cl.mExtents.y/2 }, .plane={ cl.mPlaneNormal, cl.mPlaneDistance } };
+                    args.collide = { .positionBounce = { cl.mPosition, cl.mBounceFactor },
+                        .xVectorRadius = { cl.mXVector, cl.mExtents.x / 2 },
+                        .yVectorRadius = { cl.mYVector, cl.mExtents.y / 2 },
+                        .plane = { cl.mPlaneNormal, cl.mPlaneDistance } };
                     modes |= Pipeline::ParticleMode_CollidePlane;
                 }
                 else if (colliders->mRecordType == Nif::RC_NiSphericalCollider)
                 {
-                    ;//const auto& cl = static_cast<const Nif::NiSphericalCollider&>(*colliders.getPtr());
+                    ; // const auto& cl = static_cast<const Nif::NiSphericalCollider&>(*colliders.getPtr());
                 }
                 else
                     warn("Unhandled particle collider " + colliders->mRecordName);
@@ -675,17 +678,19 @@ namespace vsgAdapters
                 argsValue, Pipeline::Descriptors::SIMULATE_ARGS_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
             share(argsDescriptor);
             vsg::Descriptors descriptors{ argsDescriptor, frameArgsDescriptor, particlesDescriptor };
-            //if (colorCurve)
+            // if (colorCurve)
             {
                 if (!colorCurve)
                 {
-                    static const auto dummyColorCurve = vsg::vec4Array::create(1, vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
+                    static const auto dummyColorCurve
+                        = vsg::vec4Array::create(1, vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
                     colorCurve = dummyColorCurve;
                 }
                 auto sampler = mBuilder.createSampler();
                 sampler->addressModeU = sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
                 share(sampler);
-                descriptors.emplace_back(vsg::DescriptorImage::create(sampler, colorCurve, Pipeline::Descriptors::COLOR_CURVE_BINDING));
+                descriptors.emplace_back(
+                    vsg::DescriptorImage::create(sampler, colorCurve, Pipeline::Descriptors::COLOR_CURVE_BINDING));
             }
 
             auto& nodeOptions = getNodeOptions();
@@ -697,13 +702,10 @@ namespace vsgAdapters
                 modes |= Pipeline::ParticleMode_WorldSpace;
 
             auto bindComputePipeline = mBuilder.particle->getOrCreate(modes);
-            auto computeBds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, bindComputePipeline->pipeline->layout, Pipeline::TEXTURE_SET, descriptors);
+            auto computeBds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE,
+                bindComputePipeline->pipeline->layout, Pipeline::TEXTURE_SET, descriptors);
             auto computeGroup = vsg::Commands::create(); // vsg::StateGroup::create();
-            computeGroup->children = {
-                bindComputePipeline,
-                computeBds,
-                createParticleDispatch(maxParticles)
-            };
+            computeGroup->children = { bindComputePipeline, computeBds, createParticleDispatch(maxParticles) };
 
             auto draw = vsg::Draw::create(maxParticles * 6, 1, 0, 0);
             auto drawGroup = createStateGroup(draw);
@@ -712,10 +714,8 @@ namespace vsgAdapters
             vsg::dsphere bound(vsg::dvec3(), maxRadius);
             // bound.dataVariance = DYNAMIC;
 
-            sw->children = {
-                { vsg::MASK_ALL, vsg::DepthSorted::create(mDepthSortedBin, bound, drawGroup) },
-                { vsg::MASK_ALL, vsg::DepthSorted::create(mComputeBin, bound, computeGroup) }
-            };
+            sw->children = { { vsg::MASK_ALL, vsg::DepthSorted::create(mDepthSortedBin, bound, drawGroup) },
+                { vsg::MASK_ALL, vsg::DepthSorted::create(mComputeBin, bound, computeGroup) } };
 
             auto ctrl = ParticleSystem::create(partctrl, particles.mRecordIndex, worldSpace);
             setup(partctrl, *ctrl, *frameArgsData);
@@ -733,7 +733,7 @@ namespace vsgAdapters
             cullCtrl->hints.autoPlay = true;
 
             addAnimContents(Anim::Contents::Particles | Anim::Contents::DynamicBounds);
-            //return sw;
+            // return sw;
             return vsg::CullNode::create(bound, sw);
         }
 
@@ -741,7 +741,8 @@ namespace vsgAdapters
         {
             const Nif::NiParticleSystemController* partctrl = nullptr;
             callActiveControllers(particles.mController, [&partctrl](auto& ctrl) {
-                if (ctrl.mRecordType == Nif::RC_NiParticleSystemController || ctrl.mRecordType == Nif::RC_NiBSPArrayController)
+                if (ctrl.mRecordType == Nif::RC_NiParticleSystemController
+                    || ctrl.mRecordType == Nif::RC_NiBSPArrayController)
                     partctrl = &static_cast<const Nif::NiParticleSystemController&>(ctrl);
             });
             if (partctrl)
@@ -943,24 +944,25 @@ namespace vsgAdapters
                     if (matctrl.mData.empty())
                         return;
                     auto targetColor = matctrl.mTargetColor;
-                    if (targetColor == Nif::NiMaterialColorController::TargetColor::Specular && mNif->getVersion() <= Nif::NIFFile::NIFVersion::VER_MW)
+                    if (targetColor == Nif::NiMaterialColorController::TargetColor::Specular
+                        && mNif->getVersion() <= Nif::NIFFile::NIFVersion::VER_MW)
                         return;
                     size_t offset = 0;
                     switch (targetColor)
                     {
-                    case Nif::NiMaterialColorController::TargetColor::Ambient:
-                    default:
-                        offset = offsetof(Pipeline::Data::Material, ambient);
-                        break;
-                    case Nif::NiMaterialColorController::TargetColor::Diffuse:
-                        offset = offsetof(Pipeline::Data::Material, diffuse);
-                        break;
-                    case Nif::NiMaterialColorController::TargetColor::Specular:
-                        offset = offsetof(Pipeline::Data::Material, specular);
-                        break;
-                    case Nif::NiMaterialColorController::TargetColor::Emissive:
-                        offset = offsetof(Pipeline::Data::Material, emissive);
-                        break;
+                        case Nif::NiMaterialColorController::TargetColor::Ambient:
+                        default:
+                            offset = offsetof(Pipeline::Data::Material, ambient);
+                            break;
+                        case Nif::NiMaterialColorController::TargetColor::Diffuse:
+                            offset = offsetof(Pipeline::Data::Material, diffuse);
+                            break;
+                        case Nif::NiMaterialColorController::TargetColor::Specular:
+                            offset = offsetof(Pipeline::Data::Material, specular);
+                            break;
+                        case Nif::NiMaterialColorController::TargetColor::Emissive:
+                            offset = offsetof(Pipeline::Data::Material, emissive);
+                            break;
                     }
                     color->colorOffset = offset;
                     color->color = handleKeyframes<vsg::vec3>(matctrl, matctrl.mData->mKeyList);
@@ -1004,9 +1006,12 @@ namespace vsgAdapters
         void handleStencilProperty(const Nif::NiStencilProperty& stencilprop)
         {
             auto& nodeOptions = getNodeOptions();
-            nodeOptions.frontFace
-                = stencilprop.mDrawMode == Nif::NiStencilProperty::DrawMode::Clockwise ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
-            nodeOptions.cullMode = stencilprop.mDrawMode == Nif::NiStencilProperty::DrawMode::Both ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
+            nodeOptions.frontFace = stencilprop.mDrawMode == Nif::NiStencilProperty::DrawMode::Clockwise
+                ? VK_FRONT_FACE_CLOCKWISE
+                : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+            nodeOptions.cullMode = stencilprop.mDrawMode == Nif::NiStencilProperty::DrawMode::Both
+                ? VK_CULL_MODE_NONE
+                : VK_CULL_MODE_BACK_BIT;
         }
 
         void handleWireframeProperty(const Nif::NiWireframeProperty& wireprop)
@@ -1122,7 +1127,8 @@ namespace vsgAdapters
                 for (auto& d : list)
                 {
                     auto db = d->cast<vsg::DescriptorBuffer>();
-                    if (db && !db->bufferInfoList.empty() && db->bufferInfoList[0]->data && db->bufferInfoList[0]->data->dynamic())
+                    if (db && !db->bufferInfoList.empty() && db->bufferInfoList[0]->data
+                        && db->bufferInfoList[0]->data->dynamic())
                         return true;
                 }
                 return false;
@@ -1314,10 +1320,9 @@ namespace vsgAdapters
             if (textureEffect.mTexture.empty())
                 return;
 
-            addModeDescriptor(
-                handleTexture(*textureEffect.mTexture.getPtr(), textureEffect.mClampMode, Pipeline::Descriptors::ENV_UNIT),
+            addModeDescriptor(handleTexture(*textureEffect.mTexture.getPtr(), textureEffect.mClampMode,
+                                  Pipeline::Descriptors::ENV_UNIT),
                 Pipeline::Mode::ENV_MAP);
-
         }
 
         void handleEffects(const Nif::NiAVObjectList& effects)
@@ -1371,11 +1376,14 @@ namespace vsgAdapters
             {
                 auto& nodeOptions = getNodeOptions();
                 nodeOptions.animFlags = nifNode.mFlags;
-                nodeOptions.phaseGroup = (nifNode.mFlags & Nif::NiNode::AnimFlag_NotRandom) ? 0u : ++mPhaseGroups; // openmw-6455-controller-random-phase
+                nodeOptions.phaseGroup = (nifNode.mFlags & Nif::NiNode::AnimFlag_NotRandom)
+                    ? 0u
+                    : ++mPhaseGroups; // openmw-6455-controller-random-phase
             }
         }
 
-        vsg::ref_ptr<vsg::Node> handleNode(const Nif::NiAVObject& nifNode, bool hasMarkers = false, bool skipMeshes = false)
+        vsg::ref_ptr<vsg::Node> handleNode(
+            const Nif::NiAVObject& nifNode, bool hasMarkers = false, bool skipMeshes = false)
         {
             ScopedPushPop spp(mNodeStack);
 
@@ -1401,7 +1409,7 @@ namespace vsgAdapters
             if (!canOptimizeTransform(nifNode))
             {
                 auto trans = handleTransform(nifNode);
-                trans->subgraphRequiresLocalFrustum = false;//nodeOptions.depthSorted;
+                trans->subgraphRequiresLocalFrustum = false; // nodeOptions.depthSorted;
                 retNode = group = trans;
             }
             if (nifNode.useFlags & Nif::NiAVObject::Emitter /* || animatedCollision*/)
@@ -1444,7 +1452,8 @@ namespace vsgAdapters
                     }
                     else if (sd->mData == "BONE")
                     {
-                        // openeden-vsg: a bone for Anim::Bones::addCustomBones, as OpenMW's nifloader.cpp "CustomBone" (task 0012).
+                        // openeden-vsg: a bone for Anim::Bones::addCustomBones, as OpenMW's nifloader.cpp "CustomBone"
+                        // (task 0012).
                         if (group)
                             group->setValue(Anim::sCustomBoneKey, true);
                     }
@@ -1488,8 +1497,7 @@ namespace vsgAdapters
                     auto& niLodNode = static_cast<const Nif::NiLODNode&>(nifNode);
                     auto lodNode = vsgUtil::DistanceLOD::create();
                     lodNode->setValue("lod", std::string(nifNode.mName));
-                    lodNode->center = vsg::vec3(
-                        niLodNode.mLODCenter.x, niLodNode.mLODCenter.y, niLodNode.mLODCenter.z);
+                    lodNode->center = vsg::vec3(niLodNode.mLODCenter.x, niLodNode.mLODCenter.y, niLodNode.mLODCenter.z);
                     for (const auto& range : niLodNode.mLODLevels)
                         lodNode->ranges.push_back({ range.mMinRange, range.mMaxRange });
                     // Empty child references are skipped, so range i applies to the i-th present child, as in OpenMW.

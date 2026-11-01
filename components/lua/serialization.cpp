@@ -1,6 +1,5 @@
 #include "serialization.hpp"
 
-
 #include <components/misc/color.hpp>
 #include <components/misc/endianness.hpp>
 #include <components/misc/vsgmath.hpp>

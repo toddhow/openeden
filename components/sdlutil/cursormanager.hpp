@@ -20,8 +20,8 @@ namespace SDLUtil
         ///        name of the cursor we changed to ("arrow", "ibeam", etc)
         void cursorChanged(std::string_view name);
 
-        void createCursor(std::string_view name, int rotDegrees, SDL_Surface* surface, Uint8 hotspot_x,
-            Uint8 hotspot_y, Uint8 w, Uint8 h);
+        void createCursor(std::string_view name, int rotDegrees, SDL_Surface* surface, Uint8 hotspot_x, Uint8 hotspot_y,
+            Uint8 w, Uint8 h);
 
     private:
         using CursorMap = std::map<std::string, SDL_Cursor*>;

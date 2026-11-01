@@ -54,8 +54,7 @@ namespace
             mOrder.push_back(Kind::Line);
         }
 
-        void addTriangle(
-            const vsg::vec3& a, const vsg::vec3& b, const vsg::vec3& c, const vsg::vec4& color) override
+        void addTriangle(const vsg::vec3& a, const vsg::vec3& b, const vsg::vec3& c, const vsg::vec4& color) override
         {
             mTriangles.push_back({ a, b, c, color });
             mOrder.push_back(Kind::Triangle);

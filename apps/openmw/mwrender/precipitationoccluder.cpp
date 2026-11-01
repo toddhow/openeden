@@ -32,8 +32,8 @@ namespace MWRender
         mRenderGraph = vsg::RenderGraph::create();
         mRenderGraph->renderArea.offset = {};
         mRenderGraph->renderArea.extent = { sMapSize, sMapSize };
-        mRenderGraph->framebuffer = vsg::Framebuffer::create(View::createDepthRenderPass(context.device, format),
-            vsg::ImageViews{ imageView }, sMapSize, sMapSize, 1);
+        mRenderGraph->framebuffer = vsg::Framebuffer::create(
+            View::createDepthRenderPass(context.device, format), vsg::ImageViews{ imageView }, sMapSize, sMapSize, 1);
         mRenderGraph->clearValues = { { .depthStencil = { Render::farDepth, 0 } } };
 
         mOrtho = vsg::Orthographic::create();
@@ -41,8 +41,7 @@ namespace MWRender
         mView = vsg::View::create();
         mView->viewDependentState = nullptr;
         mView->overridePipelineStates = View::depthOnlyPipelineStates(false, VK_CULL_MODE_NONE);
-        mView->camera
-            = vsg::Camera::create(mOrtho, mLookAt, vsg::ViewportState::create(0, 0, sMapSize, sMapSize));
+        mView->camera = vsg::Camera::create(mOrtho, mLookAt, vsg::ViewportState::create(0, 0, sMapSize, sMapSize));
 
         // Particles outside the box see the far depth, so nothing occludes them (OpenMW's border colour).
         auto sampler = vsg::Sampler::create();

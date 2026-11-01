@@ -8,7 +8,6 @@
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/render/instancedragmodes.hpp>
 
-
 #include "cell.hpp"
 #include "worldspacewidget.hpp"
 

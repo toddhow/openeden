@@ -54,7 +54,8 @@ namespace MWLua
             { MWGui::GM_Review, "ChargenClassReview" },
             { MWGui::GM_Loading, "Loading" },
             // Note, GM_Loading is used for wallpapers in vsgopenmw.
-            // Note, we don't run Lua scripts during MWState::LoadingScreen so the Loading/LoadingWallpaper modes should be irrelevant for the Lua API.
+            // Note, we don't run Lua scripts during MWState::LoadingScreen so the Loading/LoadingWallpaper modes should
+            // be irrelevant for the Lua API.
             //{ MWGui::GM_LoadingWallpaper, "LoadingWallpaper" },
             { MWGui::GM_Jail, "Jail" },
             { MWGui::GM_QuickKeysMenu, "QuickKeysMenu" },

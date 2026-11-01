@@ -121,7 +121,7 @@ namespace ESSImport
     void ConvertFMAP::write(ESM::ESMWriter& esm) const
     {
         int numcells = mGlobalMapSize / 18; // NB truncating, doesn't divide perfectly
-                                    // with the 512x512 map the game has by default
+                                            // with the 512x512 map the game has by default
         int cellSize = mGlobalMapSize / numcells;
 
         // Note the upper left corner of the (0,0) cell should be at (width/2, height/2)
@@ -158,8 +158,8 @@ namespace ESSImport
                 imageLeftDst, imageTopDst, cellSize);
         }
 
-        mContext->mGlobalMapState.mImageData = vsgUtil::encodeImage(image2.data(), static_cast<std::uint32_t>(width),
-            static_cast<std::uint32_t>(height), 4, ".png");
+        mContext->mGlobalMapState.mImageData = vsgUtil::encodeImage(
+            image2.data(), static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), 4, ".png");
         if (mContext->mGlobalMapState.mImageData.empty())
         {
             std::cerr << "Error: can't write global map image" << std::endl;

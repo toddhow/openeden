@@ -53,8 +53,8 @@ float CSVRender::BrushDraw::getTerrainHeight(float worldX, float worldY) const
     const float vertexY = worldY / vertexSize;
     const int x = static_cast<int>(std::floor(vertexX));
     const int y = static_cast<int>(std::floor(vertexY));
-    return TerrainToolGeometry::bilinear(vertexX - static_cast<float>(x), vertexY - static_cast<float>(y), vertexHeight(x, y),
-        vertexHeight(x + 1, y), vertexHeight(x, y + 1), vertexHeight(x + 1, y + 1));
+    return TerrainToolGeometry::bilinear(vertexX - static_cast<float>(x), vertexY - static_cast<float>(y),
+        vertexHeight(x, y), vertexHeight(x + 1, y), vertexHeight(x, y + 1), vertexHeight(x + 1, y + 1));
 }
 
 void CSVRender::BrushDraw::update(const vsg::dvec3& point, int brushSize, CSVWidget::BrushShape toolShape)

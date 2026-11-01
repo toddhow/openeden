@@ -5,7 +5,6 @@
 
 #include <vector>
 
-
 #include "../../model/world/commandmacro.hpp"
 
 #include <apps/opencs/model/doc/document.hpp>

@@ -37,7 +37,8 @@ namespace CSVRender
         /// \param id       The referenceable id
         /// \param data     The data store
         /// \param changed  Called when the actor must be made again
-        Actor(const ESM::RefId& id, CSMWorld::Data& data, const MWAnim::Context& context, std::function<void()> changed);
+        Actor(
+            const ESM::RefId& id, CSMWorld::Data& data, const MWAnim::Context& context, std::function<void()> changed);
 
         /// (Re)creates the npc or creature renderable, not compiled.
         std::unique_ptr<MWAnim::Object> create();

@@ -3,11 +3,11 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <components/animation/transform.hpp>
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/misc/constants.hpp>
-#include <components/animation/transform.hpp>
 #include <components/mwanimation/object.hpp>
 #include <components/settings/values.hpp>
 

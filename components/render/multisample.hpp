@@ -5,7 +5,8 @@
 
 namespace Render
 {
-    inline VkSampleCountFlagBits supportedSamples(VkSampleCountFlags requestedSamples, vsg::PhysicalDevice* physicalDevice)
+    inline VkSampleCountFlagBits supportedSamples(
+        VkSampleCountFlags requestedSamples, vsg::PhysicalDevice* physicalDevice)
     {
         if (requestedSamples != VK_SAMPLE_COUNT_1_BIT)
         {

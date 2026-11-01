@@ -169,8 +169,8 @@ namespace MWLua
             MWBase::Environment::get().getWorld()->castRenderingRay(res, from, to, false, false, ignore);
             return res;
         };
-        api["asyncCastRenderingRay"] = [context](const sol::table& callback, const vsg::vec3& from,
-                                           const vsg::vec3& to, const sol::optional<sol::table>& options) {
+        api["asyncCastRenderingRay"] = [context](const sol::table& callback, const vsg::vec3& from, const vsg::vec3& to,
+                                           const sol::optional<sol::table>& options) {
             std::vector<MWWorld::Ptr> ignore;
             if (options.has_value())
             {
@@ -290,8 +290,7 @@ namespace MWLua
 
                   const DetourNavigator::Status status = DetourNavigator::findPath(
                       *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, source, destination,
-                      includeFlags, areaCosts, destinationTolerance,
-                      checkpoints, std::back_inserter(path));
+                      includeFlags, areaCosts, destinationTolerance, checkpoints, std::back_inserter(path));
 
                   sol::table result(lua, sol::create);
                   LuaUtil::copyVectorToTable(path, result);
@@ -299,8 +298,7 @@ namespace MWLua
               };
 
         api["findRandomPointAroundCircle"] = [](const vsg::vec3& position, float maxRadius,
-                                                 const sol::optional<sol::table>& options)
-                                                     -> std::optional<vsg::vec3> {
+                                                 const sol::optional<sol::table>& options) -> std::optional<vsg::vec3> {
             DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
@@ -324,31 +322,30 @@ namespace MWLua
                 agentBounds, position, maxRadius, includeFlags, getRandom);
         };
 
-        api["castNavigationRay"]
-            = [](const vsg::vec3& from, const vsg::vec3& to, const sol::optional<sol::table>& options)
-                -> std::optional<vsg::vec3> {
-                  DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
-                  DetourNavigator::Flags includeFlags = defaultIncludeFlags;
+        api["castNavigationRay"] = [](const vsg::vec3& from, const vsg::vec3& to,
+                                       const sol::optional<sol::table>& options) -> std::optional<vsg::vec3> {
+            DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
+            DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
-                  if (options.has_value())
-                  {
-                      if (const auto& t = options->get<sol::optional<sol::table>>("agentBounds"))
-                      {
-                          if (const auto& v = t->get<sol::optional<DetourNavigator::CollisionShapeType>>("shapeType"))
-                              agentBounds.mShapeType = *v;
-                          if (const auto& v = t->get<sol::optional<vsg::vec3>>("halfExtents"))
-                              agentBounds.mHalfExtents = *v;
-                      }
-                      if (const auto& v = options->get<sol::optional<DetourNavigator::Flags>>("includeFlags"))
-                          includeFlags = *v;
-                  }
+            if (options.has_value())
+            {
+                if (const auto& t = options->get<sol::optional<sol::table>>("agentBounds"))
+                {
+                    if (const auto& v = t->get<sol::optional<DetourNavigator::CollisionShapeType>>("shapeType"))
+                        agentBounds.mShapeType = *v;
+                    if (const auto& v = t->get<sol::optional<vsg::vec3>>("halfExtents"))
+                        agentBounds.mHalfExtents = *v;
+                }
+                if (const auto& v = options->get<sol::optional<DetourNavigator::Flags>>("includeFlags"))
+                    includeFlags = *v;
+            }
 
-                  return DetourNavigator::raycast(
-                      *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, from, to, includeFlags);
-              };
+            return DetourNavigator::raycast(
+                *MWBase::Environment::get().getWorld()->getNavigator(), agentBounds, from, to, includeFlags);
+        };
 
-        api["findNearestNavMeshPosition"] = [](const vsg::vec3& position, const sol::optional<sol::table>& options)
-            -> std::optional<vsg::vec3> {
+        api["findNearestNavMeshPosition"]
+            = [](const vsg::vec3& position, const sol::optional<sol::table>& options) -> std::optional<vsg::vec3> {
             DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
             std::optional<vsg::vec3> searchAreaHalfExtents;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;

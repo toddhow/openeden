@@ -6,23 +6,23 @@
 #include <vsg/io/glsl.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/state/Sampler.h>
-#include <vsg/utils/SharedObjects.h>
 #include <vsg/utils/FindDynamicObjects.h>
 #include <vsg/utils/PropagateDynamicObjects.h>
+#include <vsg/utils/SharedObjects.h>
 
 #include <components/misc/resourcehelpers.hpp>
-#include <components/settings/values.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
+#include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vsgadapters/dae/dae.hpp>
 #include <components/vsgadapters/dae/daeanim.hpp>
 #include <components/vsgadapters/nif/kf.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
-#include <components/vfs/manager.hpp>
 #include <components/vsgadapters/vfs.hpp>
 
-#include "fallback.hpp"
 #include "decompress.hpp"
+#include "fallback.hpp"
 #include "shadersettings.hpp"
 
 namespace
@@ -45,8 +45,9 @@ namespace
         options->paths = { shaderPath };
         options->readerWriters = { shaderSettings, vsg::glsl::create() };
         options->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
         return options;
@@ -68,8 +69,9 @@ namespace
 
         options->readerWriters = { vsg::ref_ptr{ new vsgAdapters::vfs(*vfs, children) } };
         options->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
         return options;
@@ -80,8 +82,9 @@ namespace
         auto textureOptions = vsg::Options::create(imageOptions);
         textureOptions->paths = { "textures" };
         textureOptions->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         textureOptions->findDynamicObjects = {};
         textureOptions->propagateDynamicObjects = {};
         textureOptions->findFileCallback = [vfs](const vsg::Path& file, const vsg::Options* options) -> vsg::Path {
@@ -92,7 +95,8 @@ namespace
                 VFS::Path::Normalized normalizedDir(dir.string());
                 VFS::Path::NormalizedView topDirs[] = { normalizedDir };
                 // openeden-vsg: prefer the .dds of a texture named .tga, as OpenMW's correctTexturePath does (0.51 made
-                // the extension an argument; without it, models naming a .tga that only exists as .dds got the fallback).
+                // the extension an argument; without it, models naming a .tga that only exists as .dds got the
+                // fallback).
                 auto corrected = Misc::ResourceHelpers::correctResourcePath(
                     topDirs, normalizedFile, *vfs, VFS::Path::ExtensionView("dds"));
                 if (!corrected.empty() && corrected.value() != fileStr)
@@ -107,18 +111,18 @@ namespace
         return textureOptions;
     }
 
-    vsg::ref_ptr<const vsg::Options> createNodeOptions(
-        const VFS::Manager* vfs, const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> textureOptions, int computeBin, int depthSortedBin,
+    vsg::ref_ptr<const vsg::Options> createNodeOptions(const VFS::Manager* vfs, const Pipeline::Builder& builder,
+        vsg::ref_ptr<const vsg::Options> textureOptions, int computeBin, int depthSortedBin,
         vsg::ref_ptr<vsgAdapters::nif>& nifReader)
     {
         auto nodeOptions = vsg::Options::create();
         nodeOptions->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         nodeOptions->findDynamicObjects = {};
         nodeOptions->propagateDynamicObjects = {};
-        nodeOptions->findFileCallback = [](const vsg::Path& file, const vsg::Options* options) -> vsg::Path
-        {
+        nodeOptions->findFileCallback = [](const vsg::Path& file, const vsg::Options* options) -> vsg::Path {
             return vsg::Path(inMeshesDirectory(file));
         };
 
@@ -140,8 +144,7 @@ namespace
         nifReader->softParticles = shaders.mSoftParticles;
         if (shaders.mWeatherParticleOcclusion)
             nifReader->occludedParticleModel = Settings::models().mWeathersnow.get().value();
-        nifReader->textureExists
-            = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
+        nifReader->textureExists = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
         vfsReader->add(nifReader);
         // vfsReader->add(vsgXchange::models::create());
         // openeden-vsg: COLLADA models, which OpenMW 0.51 read through OpenSceneGraph (task 0010).
@@ -178,8 +181,9 @@ namespace
         };
         options->readerWriters = { vfsReader };
         options->sharedObjects = vsg::SharedObjects::create();
-        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's Anim::Transform
-        // roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself (mwanimation/clone.hpp).
+        // openeden-vsg: VSG 1.1.x clones "dynamic" objects of shared reads by default, which turns vsgopenmw's
+        // Anim::Transform roots into plain groups (losing Bip01); vsgopenmw clones what it needs itself
+        // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
         return options;
@@ -210,28 +214,23 @@ namespace Resource
         nifReader->occludedParticleMap = std::move(map);
     }
 
-    ResourceSystem::~ResourceSystem()
-    {
-    }
+    ResourceSystem::~ResourceSystem() {}
 
     void ResourceSystem::updateCache(double referenceTime)
     {
-        std::vector<vsg::ref_ptr<const vsg::Options>> options = { imageOptions, textureOptions, nodeOptions, animationOptions };
+        std::vector<vsg::ref_ptr<const vsg::Options>> options
+            = { imageOptions, textureOptions, nodeOptions, animationOptions };
         for (auto& o : options)
             if (auto& sharedObjects = o->sharedObjects)
                 sharedObjects->prune();
     }
 
-    void ResourceSystem::clearCache()
-    {
-    }
+    void ResourceSystem::clearCache() {}
 
     const VFS::Manager* ResourceSystem::getVFS() const
     {
         return mVFS;
     }
 
-    void ResourceSystem::reportStats(unsigned int frameNumber, Misc::Stats* stats) const
-    {
-    }
+    void ResourceSystem::reportStats(unsigned int frameNumber, Misc::Stats* stats) const {}
 }

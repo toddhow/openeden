@@ -3,7 +3,6 @@
 #include <iostream>
 #include <vector>
 
-
 namespace Resource
 {
     void MultiObjectCache::removeUnreferencedObjectsInCache()

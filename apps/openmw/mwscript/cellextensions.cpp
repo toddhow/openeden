@@ -11,15 +11,15 @@
 
 #include <components/misc/strings/algorithm.hpp>
 
-#include <components/esm/util.hpp>
-#include "../mwstate/testcells.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwstate/testcells.hpp"
 #include "../mwworld/actionteleport.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/scene.hpp"
+#include <components/esm/util.hpp>
 
 #include "../mwmechanics/actorutil.hpp"
 
@@ -48,7 +48,8 @@ namespace MWScript
                     return;
                 }
 
-                MWBase::Environment::get().getStateManager()->pushGameState(MWState::TestCells::makeLoadingScreen(false));
+                MWBase::Environment::get().getStateManager()->pushGameState(
+                    MWState::TestCells::makeLoadingScreen(false));
             }
         };
 
@@ -64,7 +65,8 @@ namespace MWScript
                     return;
                 }
 
-                MWBase::Environment::get().getStateManager()->pushGameState(MWState::TestCells::makeLoadingScreen(true));
+                MWBase::Environment::get().getStateManager()->pushGameState(
+                    MWState::TestCells::makeLoadingScreen(true));
             }
         };
 

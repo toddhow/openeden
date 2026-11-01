@@ -147,8 +147,7 @@ namespace Fx
             mChoices->eventComboChangePosition += MyGUI::newDelegate(this, &EditChoice::notifyComboBoxChanged);
         }
 
-        void UniformBase::init(
-            const std::shared_ptr<Fx::Types::UniformBase>& uniform, std::function<void()> onChanged)
+        void UniformBase::init(const std::shared_ptr<Fx::Types::UniformBase>& uniform, std::function<void()> onChanged)
         {
             if (uniform->mDisplayName.empty())
                 mLabel->setCaption(uniform->mName);

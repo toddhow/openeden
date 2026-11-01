@@ -119,7 +119,6 @@ namespace MWPhysics
         mutable std::shared_mutex mSimulationMutex;
         mutable std::shared_mutex mLOSCacheMutex;
 
-
         unsigned mPrevStepCount;
         Misc::BudgetMeasurement mBudget;
         Misc::BudgetMeasurement mAsyncBudget;

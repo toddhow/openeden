@@ -12,8 +12,9 @@
 
 #include <components/misc/vsgmath.hpp>
 
-/// The transform gizmo of ObjectMarker as plain data, with no window or GPU. It replaces files/opencs/selectionmarker.osgt:
-/// the numbers below are that file's, after its transforms, and its triangle counts are kept (see testselectionmarker.cpp).
+/// The transform gizmo of ObjectMarker as plain data, with no window or GPU. It replaces
+/// files/opencs/selectionmarker.osgt: the numbers below are that file's, after its transforms, and its triangle counts
+/// are kept (see testselectionmarker.cpp).
 namespace CSVRender::SelectionMarkerGeometry
 {
     /// Unindexed triangles of one colour. mAxis is 0, 1 or 2 for X, Y or Z.
@@ -161,7 +162,8 @@ namespace CSVRender::SelectionMarkerGeometry
         {
             std::vector<vsg::vec3> out;
             const auto point = [](int major, int minor) {
-                const float a = 2.f * Misc::VsgMath::PIf * static_cast<float>(major) / static_cast<float>(sRingSegments);
+                const float a
+                    = 2.f * Misc::VsgMath::PIf * static_cast<float>(major) / static_cast<float>(sRingSegments);
                 const float b
                     = 2.f * Misc::VsgMath::PIf * static_cast<float>(minor) / static_cast<float>(sRingTubeSegments);
                 const float radius = sRingRadius + sRingTube * std::cos(b);
@@ -225,9 +227,10 @@ namespace CSVRender::SelectionMarkerGeometry
         return vsg::vec4(c[0] * factor, c[1] * factor, c[2] * factor, alpha ? sPaneAlpha : 1.f);
     }
 
-    /// What the old clip plane through the marker's centre left of a ring: triangles on the far side from the eye collapse
-    /// to a point, so that they neither draw nor get picked. \p eye is the eye's position relative to the marker's centre.
-    /// There is no clip plane in the pipelines. \p out must be as long as \p full, and is written without allocating.
+    /// What the old clip plane through the marker's centre left of a ring: triangles on the far side from the eye
+    /// collapse to a point, so that they neither draw nor get picked. \p eye is the eye's position relative to the
+    /// marker's centre. There is no clip plane in the pipelines. \p out must be as long as \p full, and is written
+    /// without allocating.
     inline void clipRing(const std::vector<vsg::vec3>& full, const vsg::vec3& eye, std::vector<vsg::vec3>& out)
     {
         for (std::size_t i = 0; i + 2 < full.size(); i += 3)
@@ -274,9 +277,8 @@ namespace CSVRender::SelectionMarkerGeometry
     {
         std::vector<vsg::vec3> lines;
         lines.reserve(24);
-        const auto corner = [&](int x, int y, int z) {
-            return vsg::vec3(x ? max.x : min.x, y ? max.y : min.y, z ? max.z : min.z);
-        };
+        const auto corner
+            = [&](int x, int y, int z) { return vsg::vec3(x ? max.x : min.x, y ? max.y : min.y, z ? max.z : min.z); };
         for (int a = 0; a < 2; ++a)
             for (int b = 0; b < 2; ++b)
             {

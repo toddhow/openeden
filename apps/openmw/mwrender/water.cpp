@@ -24,7 +24,7 @@ namespace MWRender
         mTransform = new Anim::Transform;
         mNode = mTransform;
 
-        Pipeline::Options pipelineOptions{ .shader = { "water", { Pipeline::modes({ Pipeline::Mode::BUMP_MAP }) }},
+        Pipeline::Options pipelineOptions{ .shader = { "water", { Pipeline::modes({ Pipeline::Mode::BUMP_MAP }) } },
             .primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
             .depthWrite = false,
             .cullMode = VK_CULL_MODE_NONE };

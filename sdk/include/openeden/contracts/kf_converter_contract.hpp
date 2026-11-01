@@ -47,9 +47,8 @@ namespace openeden::contracts
          * @brief Converts a NetImmerse .kf buffer and companion skeleton .nif buffer into
          * a binary glTF 2.0 (.glb) container and an opas.clipsidecar JSON string.
          */
-        virtual ConversionResult convertKfToGltf(
-            std::span<const std::uint8_t> kfBytes,
-            std::span<const std::uint8_t> skeletonNifBytes,
-            const ConversionOptions& options = {}) = 0;
+        virtual ConversionResult convertKfToGltf(std::span<const std::uint8_t> kfBytes,
+            std::span<const std::uint8_t> skeletonNifBytes, const ConversionOptions& options = {})
+            = 0;
     };
 } // namespace openeden::contracts

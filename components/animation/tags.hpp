@@ -43,6 +43,7 @@ namespace Anim
         using ConstIterator = std::multimap<float, std::string>::const_iterator;
 
         const std::set<std::string, std::less<>>& getGroups() const { return mGroups; }
+
     private:
         std::set<std::string, std::less<>> mGroups;
         std::multimap<float, std::string> mTags;

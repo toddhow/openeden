@@ -6,7 +6,6 @@
 #include <set>
 #include <stddef.h>
 
-
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/columns.hpp>
@@ -56,8 +55,9 @@ namespace CSVRender
             return array;
         }
 
-        vsg::ref_ptr<vsg::Node> indexedDraw(SceneHost& host, VkPrimitiveTopology topology, vsg::ref_ptr<vsg::vec3Array> vertices,
-            vsg::ref_ptr<vsg::vec4Array> colours, const std::vector<unsigned>& indices)
+        vsg::ref_ptr<vsg::Node> indexedDraw(SceneHost& host, VkPrimitiveTopology topology,
+            vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec4Array> colours,
+            const std::vector<unsigned>& indices)
         {
             auto indexArray = vsg::uintArray::create(static_cast<uint32_t>(indices.size()));
             std::copy(indices.begin(), indices.end(), indexArray->begin());
@@ -582,9 +582,11 @@ namespace CSVRender
                 auto vertices = toArray(grid.mVertices);
                 auto colours = toArray(grid.mColours);
                 auto group = vsg::Group::create();
-                group->addChild(indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, colours, grid.mTriangles));
+                group->addChild(
+                    indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, vertices, colours, grid.mTriangles));
                 if (!grid.mLines.empty())
-                    group->addChild(indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vertices, colours, grid.mLines));
+                    group->addChild(
+                        indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, vertices, colours, grid.mLines));
                 mPathgridGeometry = group;
                 addGeometry(mPathgridGeometry);
             }
@@ -618,8 +620,8 @@ namespace CSVRender
         const PathgridGeometry::Grid wire = PathgridGeometry::createSelectedWireframe(source, mSelected);
         if (wire.mVertices.empty())
             return;
-        mSelectedGeometry
-            = indexedDraw(mHost, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, toArray(wire.mVertices), toArray(wire.mColours), wire.mLines);
+        mSelectedGeometry = indexedDraw(
+            mHost, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, toArray(wire.mVertices), toArray(wire.mColours), wire.mLines);
         addGeometry(mSelectedGeometry);
     }
 
@@ -659,7 +661,8 @@ namespace CSVRender
         ColouredOptions options;
         options.mPickable = false;
         mDragGeometry = createColouredGeometry(*mHost.resources().builder, VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
-            vsg::vec3Array::create({ start, end }), vsg::vec4Array::create(2, colour), vsg::ref_ptr<vsg::Data>(), options);
+            vsg::vec3Array::create({ start, end }), vsg::vec4Array::create(2, colour), vsg::ref_ptr<vsg::Data>(),
+            options);
         addGeometry(mDragGeometry);
     }
 

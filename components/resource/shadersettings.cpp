@@ -1,7 +1,7 @@
 #include "shadersettings.hpp"
 
-#include <sstream>
 #include <algorithm>
+#include <sstream>
 
 #include <vsg/state/ShaderModule.h>
 

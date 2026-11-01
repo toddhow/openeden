@@ -3,12 +3,12 @@
 
 #include <vsg/threading/OperationQueue.h>
 
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <set>
 #include <string>
-#include <atomic>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
 
 namespace vsgUtil
 {
@@ -21,6 +21,7 @@ namespace vsgUtil
         int mPending = 0;
         std::mutex mMutex;
         std::condition_variable mCv;
+
     public:
         explicit UpdateThreads(uint32_t numThreads, vsg::ref_ptr<vsg::ActivityStatus> in_status = {});
         UpdateThreads(const UpdateThreads&) = delete;
@@ -30,14 +31,14 @@ namespace vsgUtil
         size_t numThreads() const { return threads.size(); }
 
         /// add multiple objects to the back of the queue
-        template<typename Iterator>
+        template <typename Iterator>
         void add(Iterator begin, Iterator end)
         {
             std::unique_lock<std::mutex> lock(mMutex);
-            mPending += end-begin;
+            mPending += end - begin;
             queue->add(begin, end);
         }
-        template<typename Iterator>
+        template <typename Iterator>
         void run(Iterator begin, Iterator end)
         {
             add(begin, end);

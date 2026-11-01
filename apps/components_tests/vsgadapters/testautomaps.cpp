@@ -95,8 +95,8 @@ namespace
 
     TEST(VsgAdaptersAutoMapsTest, normalHeightIsPreferredOverNormal)
     {
-        const auto maps = find("textures/a.dds", "", settings(true, false),
-            { "textures/a.dds", "textures/a_n.dds", "textures/a_nh.dds" });
+        const auto maps = find(
+            "textures/a.dds", "", settings(true, false), { "textures/a.dds", "textures/a_n.dds", "textures/a_nh.dds" });
         EXPECT_EQ(maps.normalMap, "textures/a_nh.dds");
         EXPECT_TRUE(maps.normalHeight);
         EXPECT_TRUE(maps.specularMap.empty());
@@ -138,16 +138,15 @@ namespace
 
     TEST(VsgAdaptersAutoMapsTest, differentBumpMapDoesNotRejectTheNormalMap)
     {
-        const auto maps
-            = find("textures/a.dds", "textures/a_bump.dds", settings(true, false), { "textures/a_n.dds" });
+        const auto maps = find("textures/a.dds", "textures/a_bump.dds", settings(true, false), { "textures/a_n.dds" });
         EXPECT_EQ(maps.normalMap, "textures/a_n.dds");
         EXPECT_FALSE(maps.normalHeight);
     }
 
     TEST(VsgAdaptersAutoMapsTest, bumpRejectionKeepsTheSpecularMap)
     {
-        const auto maps = find("textures/a.dds", "textures/a_n.dds", settings(true, true),
-            { "textures/a_n.dds", "textures/a_spec.dds" });
+        const auto maps = find(
+            "textures/a.dds", "textures/a_n.dds", settings(true, true), { "textures/a_n.dds", "textures/a_spec.dds" });
         EXPECT_TRUE(maps.normalMap.empty());
         EXPECT_FALSE(maps.normalHeight);
         EXPECT_EQ(maps.specularMap, "textures/a_spec.dds");
@@ -173,7 +172,8 @@ namespace
 
     TEST(VsgAdaptersAutoMapsTest, specularMapIgnoredWhenOff)
     {
-        const auto maps = find("textures/a.dds", "", settings(true, false), { "textures/a_n.dds", "textures/a_spec.dds" });
+        const auto maps
+            = find("textures/a.dds", "", settings(true, false), { "textures/a_n.dds", "textures/a_spec.dds" });
         EXPECT_TRUE(maps.specularMap.empty());
         EXPECT_EQ(maps.normalMap, "textures/a_n.dds");
     }
@@ -203,7 +203,8 @@ namespace
 
     TEST(VsgAdaptersAutoMapsTest, diffusePathWithoutDotFindsNothing)
     {
-        expectNothing(find("textures/a", "", settings(true, true), { "textures/a", "textures/a_n", "textures/a_spec" }));
+        expectNothing(
+            find("textures/a", "", settings(true, true), { "textures/a", "textures/a_n", "textures/a_spec" }));
     }
 
     TEST(VsgAdaptersAutoMapsTest, customPatternsAreUsed)
@@ -214,7 +215,8 @@ namespace
         config.specularMapPattern = "_s";
 
         const auto plain = find("textures/a.dds", "", config,
-            { "textures/a_n.dds", "textures/a_nh.dds", "textures/a_spec.dds", "textures/a_norm.dds", "textures/a_s.dds" });
+            { "textures/a_n.dds", "textures/a_nh.dds", "textures/a_spec.dds", "textures/a_norm.dds",
+                "textures/a_s.dds" });
         EXPECT_EQ(plain.normalMap, "textures/a_norm.dds");
         EXPECT_FALSE(plain.normalHeight);
         EXPECT_EQ(plain.specularMap, "textures/a_s.dds");
@@ -231,7 +233,8 @@ namespace
         config.normalMapPattern = "_norm";
         config.normalHeightMapPattern = "_height";
         config.specularMapPattern = "_s";
-        expectNothing(find("textures/a.dds", "", config, { "textures/a_n.dds", "textures/a_nh.dds", "textures/a_spec.dds" }));
+        expectNothing(
+            find("textures/a.dds", "", config, { "textures/a_n.dds", "textures/a_nh.dds", "textures/a_spec.dds" }));
     }
 
     TEST(VsgAdaptersAutoMapsTest, diffusePathWithSeveralDotsUsesTheLastOne)

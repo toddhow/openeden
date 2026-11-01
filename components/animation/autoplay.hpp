@@ -6,8 +6,9 @@
 namespace Anim
 {
     /*
-     * AutoPlay is a composite class that manages distinct groups of controller/object pairs where each group plays with a different time offset (phase).
-     * A phase group of 0 corresponds to no time offset, for all other groups a random offset is chosen when the group is created.
+     * AutoPlay is a composite class that manages distinct groups of controller/object pairs where each group plays with
+     * a different time offset (phase). A phase group of 0 corresponds to no time offset, for all other groups a random
+     * offset is chosen when the group is created.
      */
     struct AutoPlay
     {
@@ -31,7 +32,7 @@ namespace Anim
         /*
          * @param phaseGroupOffset Signifies that controller belongs to another file with distinct groups.
          */
-        void add(const Controller* ctrl, vsg::Object* target, int phaseGroupOffset=0)
+        void add(const Controller* ctrl, vsg::Object* target, int phaseGroupOffset = 0)
         {
             int phaseGroup = ctrl->hints.phaseGroup;
             if (phaseGroup != 0)
@@ -39,7 +40,7 @@ namespace Anim
             auto& group = getOrCreateGroup(phaseGroup);
             group.controllers.emplace_back(ctrl, target);
         }
-        Group& getOrCreateGroup(int phaseGroup=0)
+        Group& getOrCreateGroup(int phaseGroup = 0)
         {
             for (auto& i : groups)
             {
@@ -52,10 +53,7 @@ namespace Anim
                 group.timer = std::rand() / static_cast<float>(RAND_MAX) * 3600;
             return group;
         }
-        void clear()
-        {
-            groups.clear();
-        }
+        void clear() { groups.clear(); }
     };
 }
 

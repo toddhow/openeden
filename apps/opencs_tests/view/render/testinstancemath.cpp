@@ -81,7 +81,8 @@ namespace
     {
         // Turned a quarter of a turn about z by osg::Quat(pi/2, z), which takes the world's x to its y.
         const float quarter = 1.5707964f;
-        const vsg::vec3 result = Math::snapRelativeToTarget({ 0, 3, 0 }, { 0, 0, 0 }, { 0, 0, quarter }, { 0, 0, 0 }, 8.0);
+        const vsg::vec3 result
+            = Math::snapRelativeToTarget({ 0, 3, 0 }, { 0, 0, 0 }, { 0, 0, quarter }, { 0, 0, 0 }, 8.0);
         // Local: (0, 3, 0) rotated to (-3, 0, 0), rounded to (0 or -8): -3 / 8 rounds to 0.
         expectNear(result, { 0, 0, 0 }, 1e-3f);
         const vsg::vec3 far = Math::snapRelativeToTarget({ 0, 5, 0 }, { 0, 0, 0 }, { 0, 0, quarter }, { 0, 0, 0 }, 8.0);

@@ -243,8 +243,9 @@ CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CS
         "<li>Mouse wheel moves the camera forward/backward</li>"
         "<li>Hold {free-forward:mod} to speed up movement</li>"
         "</ul>");
-    tool->addButton(new CSVRender::OrbitCameraMode(this, Misc::ScalableIcon::load(":scenetoolbar/orbiting-camera"),
-                        "Orbiting Camera"
+    tool->addButton(
+        new CSVRender::OrbitCameraMode(this, Misc::ScalableIcon::load(":scenetoolbar/orbiting-camera"),
+            "Orbiting Camera"
             "<ul><li>Always facing the centre point</li>"
             "<li>Rotate around the centre point via {orbit-up}, {orbit-left}, {orbit-down}, {orbit-right} or by moving "
             "the mouse while holding {scene-navi-primary}</li>"
@@ -254,7 +255,7 @@ CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CS
             "<li>Mouse wheel moves camera away or towards centre point but can not pass through it</li>"
             "<li>Hold {scene-speed-modifier} to speed up movement</li>"
             "</ul>",
-                        tool),
+            tool),
         "orbit");
 
     mCameraMode = tool;
@@ -423,15 +424,18 @@ CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
     const double y = static_cast<double>(localPos.y()) / height();
     const double placementDistance = CSMPrefs::get()["3D Scene Editing"]["distance"].toInt();
     const auto toHit = [](const Picking::Result& result) {
-        return WorldspaceHitResult{ result.mHit, result.mTag, result.mIndex0, result.mIndex1, result.mIndex2, result.mWorldPos };
+        return WorldspaceHitResult{ result.mHit, result.mTag, result.mIndex0, result.mIndex1, result.mIndex2,
+            result.mWorldPos };
     };
 
-    // The selection marker comes first wherever it is on the ray, or a few pixels from it, as it is drawn over everything.
+    // The selection marker comes first wherever it is on the ray, or a few pixels from it, as it is drawn over
+    // everything.
     if (interactionMask & Mask_Reference)
         if (const auto marker = mSelectionMarker->pick(x, y, width(), height()))
             return toHit(*marker);
 
-    // What is left is the scene, with no marker: a far half of a ring, which the marker does not take, is not it either.
+    // What is left is the scene, with no marker: a far half of a ring, which the marker does not take, is not it
+    // either.
     const std::vector<Picking::Result> hits = host->pickAll(x, y, interactionMask);
     for (const Picking::Result& hit : hits)
         if (!dynamic_cast<ObjectMarkerTag*>(hit.mTag.get()))

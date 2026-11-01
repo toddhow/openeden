@@ -8,7 +8,8 @@
 //      one vertex per texel; the mapping below mirrors its `texelFetch` index. The shader itself cannot be run here,
 //      so this tests a model of it: change main.vert and the model together.
 // The crack itself was seen as dashed 1 pixel lines along a batch border in the Seyda Neen start view; the shader
-// used to sample the border heights with a repeating, filtering sampler (see OldSamplingBledTheFarSideIntoTheBorderVertex).
+// used to sample the border heights with a repeating, filtering sampler (see
+// OldSamplingBledTheFarSideIntoTheBorderVertex).
 
 #ifdef _MSC_VER
 // indexbuffer.hpp narrows size_t to the 16-bit index type in its templates; Terrain::Builder compiles the same warning.

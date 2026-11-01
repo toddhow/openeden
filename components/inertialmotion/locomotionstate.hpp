@@ -32,12 +32,12 @@ namespace InertialMotion
 
     struct LocomotionParameters
     {
-        float mAccelTime = 0.25f;            // Seconds from rest to full speed
-        float mStopTime = 0.18f;             // Seconds from full speed to zero
-        float mSkidTurnTime = 0.25f;         // Seconds for 180-deg reversal skid
-        float mTurnHalfLife = 0.12f;         // Half-life in seconds for body yaw heading tracking
+        float mAccelTime = 0.25f; // Seconds from rest to full speed
+        float mStopTime = 0.18f; // Seconds from full speed to zero
+        float mSkidTurnTime = 0.25f; // Seconds for 180-deg reversal skid
+        float mTurnHalfLife = 0.12f; // Half-life in seconds for body yaw heading tracking
         float mTurnInPlaceThreshold = 50.0f; // Look error threshold in degrees to trigger stationary pivot
-        float mMaxLeanDegrees = 7.0f;        // Maximum torso lean/bank tilt in degrees
+        float mMaxLeanDegrees = 7.0f; // Maximum torso lean/bank tilt in degrees
         bool mEnableAuthoredTransitions = true;
         bool mProceduralLean = true;
         float mLeanScale = 1.0f;

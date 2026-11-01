@@ -7,9 +7,9 @@
 
 #include <apps/opencs/view/render/selectionmarkergeometry.hpp>
 
-// Written from files/opencs/selectionmarker.osgt, which this geometry replaces: the sizes are that file's bounds after its
-// transforms (a factor of 253.52 for the move and scale parts and of 1 for the rotate rings), its triangle counts and its
-// material colours; and from objectmarker.cpp and SceneWidget::update for the rest.
+// Written from files/opencs/selectionmarker.osgt, which this geometry replaces: the sizes are that file's bounds after
+// its transforms (a factor of 253.52 for the move and scale parts and of 1 for the rotate rings), its triangle counts
+// and its material colours; and from objectmarker.cpp and SceneWidget::update for the rest.
 namespace
 {
     namespace Marker = CSVRender::SelectionMarkerGeometry;
@@ -112,7 +112,8 @@ namespace
 
     TEST(SelectionMarkerGeometryTest, solidPartsFaceOutwards)
     {
-        // The picking rule counts a triangle only from its front. An arrow's triangles face away from its axis or along it.
+        // The picking rule counts a triangle only from its front. An arrow's triangles face away from its axis or along
+        // it.
         for (const char* name : { "X_Axis", "Y_Axis", "Z_Axis" })
         {
             const auto parts = Marker::moveParts();
@@ -171,8 +172,8 @@ namespace
 
     TEST(SelectionMarkerGeometryTest, flipFollowsTheOldQuadrantRule)
     {
-        // SceneWidget::update: flip when the camera is neither in the front right quadrant (both above 0.1) nor anywhere
-        // but behind (either at or above 1).
+        // SceneWidget::update: flip when the camera is neither in the front right quadrant (both above 0.1) nor
+        // anywhere but behind (either at or above 1).
         EXPECT_FALSE(Marker::cameraWantsFlip({ 100, 100, 50 }));
         EXPECT_TRUE(Marker::cameraWantsFlip({ -100, -100, 50 }));
         EXPECT_FALSE(Marker::cameraWantsFlip({ -100, 100, 50 }));

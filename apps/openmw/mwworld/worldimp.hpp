@@ -173,8 +173,7 @@ namespace MWWorld
         World(MWRender::RenderManager& render, Resource::ResourceSystem* resourceSystem,
             const Files::Collections& fileCollections, const std::vector<std::string>& contentFiles,
             const std::vector<std::string>& groundcoverFiles, ToUTF8::Utf8Encoder* encoder, MWState::Loading& state,
-            int activationDistanceOverride,
-            const std::filesystem::path& userDataPath);
+            int activationDistanceOverride, const std::filesystem::path& userDataPath);
 
         virtual ~World();
 
@@ -430,7 +429,7 @@ namespace MWWorld
 
         bool toggleVanityMode(bool enable) override;
 
-        //MWRender::Camera* getCamera() override;
+        // MWRender::Camera* getCamera() override;
         bool vanityRotateCamera(const float* rot) override;
 
         void applyDeferredPreviewRotationToPlayer(float dt) override;
@@ -491,7 +490,6 @@ namespace MWWorld
         MWAnim::Object* getAnimation(const MWWorld::Ptr& ptr) override;
         const MWAnim::Object* getAnimation(const MWWorld::ConstPtr& ptr) const override;
         void reattachPlayerCamera() override;
-
 
         /// Find center of exterior cell above land surface
         /// \return false if exterior with given name not exists, true otherwise
@@ -640,7 +638,7 @@ namespace MWWorld
 
         Misc::Rng::Generator& getPrng() override;
 
-        //MWRender::RenderingManager* getRenderingManager() override { return mRendering.get(); }
+        // MWRender::RenderingManager* getRenderingManager() override { return mRendering.get(); }
 
         MWRender::PostProcess* getPostProcess() override;
 

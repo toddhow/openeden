@@ -27,8 +27,8 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadclas.hpp>
-#include <components/loadinglistener/loadinglistener.hpp>
 #include <components/files/conversion.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/imageio.hpp>
 
@@ -174,9 +174,9 @@ namespace MWState
 
             const auto finish = std::chrono::steady_clock::now();
 
-            Log(Debug::Info) << '\'' << description << "' is saved in "
-                             << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(finish - start).count()
-                             << "ms";
+            Log(Debug::Info)
+                << '\'' << description << "' is saved in "
+                << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(finish - start).count() << "ms";
         }
         bool run(float dt) override
         {
@@ -210,7 +210,8 @@ namespace MWState
                 error << "Failed to save game: " << e.what();
                 Log(Debug::Error) << error.str();
 
-                MWBase::Environment::get().getWindowManager()->interactiveMessageBox(error.str(), { "#{Interface:OK}" });
+                MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
+                    error.str(), { "#{Interface:OK}" });
 
                 // If no file was written, clean up the slot
                 if (character && slot && !std::filesystem::exists(slot->mPath))

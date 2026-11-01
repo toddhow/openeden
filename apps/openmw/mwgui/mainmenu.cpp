@@ -53,8 +53,6 @@ namespace MWGui
         mHeight = h;
 
         updateMenu();
-
-
     }
 
     void MainMenu::setVisible(bool visible)

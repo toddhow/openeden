@@ -12,9 +12,9 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
+#include <components/mwanimation/position.hpp>
 #include <components/physicshelpers/collisionobject.hpp>
 #include <components/resource/physicsshape.hpp>
-#include <components/mwanimation/position.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwmechanics/creaturestats.hpp"
@@ -192,8 +192,8 @@ namespace MWPhysics
                     const float radius = std::max(0.01f, std::min(mOriginalHalfExtents.x, mOriginalHalfExtents.y));
                     const float halfHeight = std::max(0.01f, mOriginalHalfExtents.z - radius);
                     JPH::Quat capsuleRotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
-                    mBasePhysicsShape = new JPH::RotatedTranslatedShape(JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation,
-                        new JPH::CapsuleShape(halfHeight, radius));
+                    mBasePhysicsShape = new JPH::RotatedTranslatedShape(
+                        JPH::Vec3(0.0f, 0.0f, 0.0f), capsuleRotation, new JPH::CapsuleShape(halfHeight, radius));
                     mRotationallyInvariant = true;
                     break;
                 }
@@ -329,7 +329,8 @@ namespace MWPhysics
         {
             // Jolt handles destroying of the original shape when SetShape is called!
             mPhysicsShape = new JPH::ScaledShape(mBasePhysicsShape, Misc::Convert::toJolt<JPH::Vec3>(mScale));
-            mMovementShape = new JPH::ScaledShape(mBaseMovementShape.GetPtr(), Misc::Convert::toJolt<JPH::Vec3>(mScale));
+            mMovementShape
+                = new JPH::ScaledShape(mBaseMovementShape.GetPtr(), Misc::Convert::toJolt<JPH::Vec3>(mScale));
             bodyInterface.SetShape(getPhysicsBody(), mPhysicsShape, false, JPH::EActivation::DontActivate);
             mScaleUpdated = false;
         }
@@ -385,12 +386,13 @@ namespace MWPhysics
                 if (std::abs(halfHeight - mBoneHalfHeights[i]) > 0.35f)
                 {
                     mBoneHalfHeights[i] = halfHeight;
-                    mCompoundShape->ModifyShape(
-                        static_cast<JPH::uint>(i), positions[i], rotations[i], new JPH::CapsuleShape(halfHeight, mBoneRadii[i]));
+                    mCompoundShape->ModifyShape(static_cast<JPH::uint>(i), positions[i], rotations[i],
+                        new JPH::CapsuleShape(halfHeight, mBoneRadii[i]));
                 }
             }
 
-            mCompoundShape->ModifyShapes(0, static_cast<JPH::uint>(sNumBoneSegments), positions.data(), rotations.data());
+            mCompoundShape->ModifyShapes(
+                0, static_cast<JPH::uint>(sNumBoneSegments), positions.data(), rotations.data());
         }
 
         mTaskScheduler->getBodyInterface().NotifyShapeChanged(

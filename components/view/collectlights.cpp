@@ -6,7 +6,7 @@ namespace View
     CollectLights::CollectLights(size_t maxLights)
         : vsg::ViewDependentState(0)
     {
-        mData = vsg::vec4Array::create(maxLights * 2); //vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
+        mData = vsg::vec4Array::create(maxLights * 2); // vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
         mData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
     }
 

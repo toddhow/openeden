@@ -26,8 +26,8 @@ namespace DetourNavigator
         return std::optional<vsg::vec3>(fromNavMeshCoordinates(settings.mRecast, *result));
     }
 
-    std::optional<vsg::vec3> raycast(const Navigator& navigator, const AgentBounds& agentBounds,
-        const vsg::vec3& start, const vsg::vec3& end, const Flags includeFlags)
+    std::optional<vsg::vec3> raycast(const Navigator& navigator, const AgentBounds& agentBounds, const vsg::vec3& start,
+        const vsg::vec3& end, const Flags includeFlags)
     {
         const auto navMesh = navigator.getNavMesh(agentBounds);
         if (navMesh == nullptr)

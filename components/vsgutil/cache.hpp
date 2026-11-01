@@ -37,7 +37,7 @@ namespace vsgUtil
         void removeObjects(Condition condition) const
         {
             std::lock_guard<std::mutex> guard(this->mMutex);
-            for (auto it = this->mMap.begin(); it != this->mMap.end(); )
+            for (auto it = this->mMap.begin(); it != this->mMap.end();)
             {
                 if (condition(it->second))
                     it = this->mMap.erase(it);

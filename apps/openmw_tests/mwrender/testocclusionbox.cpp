@@ -19,8 +19,8 @@ namespace
 {
     using MWRender::isOccluded;
     using MWRender::makeOcclusionBox;
-    using MWRender::occlusionCoord;
     using MWRender::OcclusionBox;
+    using MWRender::occlusionCoord;
 
     constexpr float sEpsilon = 1e-4f;
     constexpr float sCellSize = 8192.f;

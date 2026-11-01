@@ -118,9 +118,10 @@ namespace CSVRender
 
     bool RenderWidget::eventFilter(QObject* watched, QEvent* event)
     {
-        // Events over the view go to the window, not to this widget as they did with a QOpenGLWidget child. Give them to
-        // this widget too: its handlers and the shortcut system's filter on it expect them. The coordinates mean the same,
-        // as the window fills this widget. vsgQt's own handlers still run, but nothing reads the events they buffer.
+        // Events over the view go to the window, not to this widget as they did with a QOpenGLWidget child. Give them
+        // to this widget too: its handlers and the shortcut system's filter on it expect them. The coordinates mean the
+        // same, as the window fills this widget. vsgQt's own handlers still run, but nothing reads the events they
+        // buffer.
         if (watched == mWindow)
         {
             switch (event->type())
@@ -326,49 +327,49 @@ namespace CSVRender
         {
             mFreeCamControl->setCameraSensitivity(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/p-navi-orbit-sensitivity")
+        else if (*setting == "3D Scene Input/p-navi-orbit-sensitivity")
         {
             mOrbitCamControl->setCameraSensitivity(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/p-navi-free-invert")
+        else if (*setting == "3D Scene Input/p-navi-free-invert")
         {
             mFreeCamControl->setInverted(setting->isTrue());
         }
-        else         if (*setting == "3D Scene Input/p-navi-orbit-invert")
+        else if (*setting == "3D Scene Input/p-navi-orbit-invert")
         {
             mOrbitCamControl->setInverted(setting->isTrue());
         }
-        else         if (*setting == "3D Scene Input/s-navi-sensitivity")
+        else if (*setting == "3D Scene Input/s-navi-sensitivity")
         {
             mFreeCamControl->setSecondaryMovementMultiplier(setting->toDouble());
             mOrbitCamControl->setSecondaryMovementMultiplier(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-wheel-factor")
+        else if (*setting == "3D Scene Input/navi-wheel-factor")
         {
             mFreeCamControl->setWheelMovementMultiplier(setting->toDouble());
             mOrbitCamControl->setWheelMovementMultiplier(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-free-lin-speed")
+        else if (*setting == "3D Scene Input/navi-free-lin-speed")
         {
             mFreeCamControl->setLinearSpeed(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-free-rot-speed")
+        else if (*setting == "3D Scene Input/navi-free-rot-speed")
         {
             mFreeCamControl->setRotationalSpeed(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-free-speed-mult")
+        else if (*setting == "3D Scene Input/navi-free-speed-mult")
         {
             mFreeCamControl->setSpeedMultiplier(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-orbit-rot-speed")
+        else if (*setting == "3D Scene Input/navi-orbit-rot-speed")
         {
             mOrbitCamControl->setOrbitSpeed(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-orbit-speed-mult")
+        else if (*setting == "3D Scene Input/navi-orbit-speed-mult")
         {
             mOrbitCamControl->setOrbitSpeedMultiplier(setting->toDouble());
         }
-        else         if (*setting == "3D Scene Input/navi-orbit-const-roll")
+        else if (*setting == "3D Scene Input/navi-orbit-const-roll")
         {
             mOrbitCamControl->setConstRoll(setting->isTrue());
         }
@@ -390,8 +391,8 @@ namespace CSVRender
 
     void SceneWidget::selectNavigationMode(const std::string& mode)
     {
-        // Until the view exists, setCamera(nullptr) on the old controller and a null host on the new leave them inactive;
-        // hostReady activates whichever is current.
+        // Until the view exists, setCamera(nullptr) on the old controller and a null host on the new leave them
+        // inactive; hostReady activates whichever is current.
         mCurrentCamControl->setCamera(nullptr);
         if (mode == "orbit")
         {

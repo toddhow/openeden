@@ -12,14 +12,13 @@
 #include <memory>
 #include <optional>
 
-#include <vsg/nodes/Group.h>
 #include <vsg/maths/box.h>
+#include <vsg/nodes/Group.h>
 
-
-#include <components/settings/settings.hpp>
-#include <components/esm3/cellref.hpp>
 #include <components/esm/refid.hpp>
+#include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/settings/settings.hpp>
 
 namespace MWWorld
 {
@@ -188,8 +187,7 @@ namespace MWRender
             float mRatio = 0.f;
         };
 
-        RayResult castRay(
-            const vsg::vec3& origin, const vsg::vec3& dest, bool ignorePlayer, bool ignoreActors = false);
+        RayResult castRay(const vsg::vec3& origin, const vsg::vec3& dest, bool ignorePlayer, bool ignoreActors = false);
 
         /// Return the object under the mouse cursor / crosshair position, given by nX and nY normalized screen
         /// coordinates, where (0,0) is the top left corner.
@@ -275,8 +273,8 @@ namespace MWRender
         void getPagedRefnums(const vsg::ivec4& activeGrid, std::set<ESM::RefNum>& out);
 
         void updateExtents(uint32_t w, uint32_t h);
-        // Applies the swapchain's current extent to the camera, the render areas and post-processing; call once per frame
-        // before recording, whatever the game state.
+        // Applies the swapchain's current extent to the camera, the render areas and post-processing; call once per
+        // frame before recording, whatever the game state.
         void syncExtents();
 
         vsg::dmat4 getProjectionMatrix() const;

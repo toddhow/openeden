@@ -14,9 +14,9 @@
 #include <components/misc/mathutil.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
-#include <components/settings/values.hpp>
 #include <components/mwanimation/position.hpp>
 #include <components/mwanimation/wielding.hpp>
+#include <components/settings/values.hpp>
 
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadgmst.hpp>
@@ -222,7 +222,8 @@ namespace
                 if (caster == MWMechanics::getPlayer())
                     MWBase::Environment::get().getWindowManager()->messageBox("#{sSoultrapSuccess}");
 
-                if (const ESM::Static* fx = world->getStore().get<ESM::Static>().search(ESM::RefId::stringRefId("VFX_Soul_Trap")))
+                if (const ESM::Static* fx
+                    = world->getStore().get<ESM::Static>().search(ESM::RefId::stringRefId("VFX_Soul_Trap")))
                     world->spawnEffect(Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(fx->mModel)), "",
                         creature.getRefData().getPosition().asVec3());
 
@@ -409,13 +410,9 @@ namespace MWMechanics
         }
     }
 
-    Actors::Actors()
-    {
-    }
+    Actors::Actors() {}
 
-    Actors::~Actors()
-    {
-    }
+    Actors::~Actors() {}
 
     struct Actors::RunAnimations : public vsg::Operation
     {
@@ -1705,7 +1702,8 @@ namespace MWMechanics
                 const bool inRange = isPlayer || dist <= actorsProcessingRange || alwaysActive;
                 const int activeFlag = isPlayer ? 2 : 1; // Can be changed back to '2' to keep updating bounding boxes
                                                          // off screen (more accurate, but slower)
-                [[maybe_unused]] const int active = inRange ? activeFlag : 0; // vsgopenmw no longer sets node masks with it
+                [[maybe_unused]] const int active
+                    = inRange ? activeFlag : 0; // vsgopenmw no longer sets node masks with it
 
                 CharacterController& ctrl = actor.getCharacterController();
                 if (!inRange)
@@ -1799,7 +1797,8 @@ namespace MWMechanics
             charactersToUpdate[i]->preAnimation(dt);
             mUpdateOperations[i % mUpdateOperations.size()]->characters.push_back(charactersToUpdate[i]);
         }
-        mUpdateThreads->run(mUpdateOperations.begin(), mUpdateOperations.end()); // vsgopenmw-optimization-mwanim-play-updatethreads
+        mUpdateThreads->run(
+            mUpdateOperations.begin(), mUpdateOperations.end()); // vsgopenmw-optimization-mwanim-play-updatethreads
         for (auto ctrl : charactersToUpdate)
             ctrl->postAnimation(dt);
     }

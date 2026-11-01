@@ -55,10 +55,10 @@ namespace DetourNavigator
 
     inline TileBounds maxCellTileBounds(const vsg::ivec2& position, int size)
     {
-        return TileBounds{ vsg::vec2(static_cast<float>(position.x), static_cast<float>(position.y))
-                * static_cast<float>(size),
-            vsg::vec2(static_cast<float>(position.x + 1), static_cast<float>(position.y + 1))
-                * static_cast<float>(size) };
+        return TileBounds{
+            vsg::vec2(static_cast<float>(position.x), static_cast<float>(position.y)) * static_cast<float>(size),
+            vsg::vec2(static_cast<float>(position.x + 1), static_cast<float>(position.y + 1)) * static_cast<float>(size)
+        };
     }
 
     inline TileBounds makeObjectTileBounds(const JPH::Shape& shape, const vsg::dmat4& transform)

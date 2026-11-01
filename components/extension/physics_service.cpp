@@ -280,8 +280,8 @@ namespace openeden::extension
         const JPH::RVec3 baseOffset = toWorldPos(originM, scale);
 
         const auto cast = [&](const JPH::Shape& joltShape, JPH::QuatArg shapeRotation) -> std::optional<RayHit> {
-            const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(&joltShape, JPH::Vec3::sOne(),
-                JPH::RMat44::sRotationTranslation(shapeRotation, baseOffset), direction);
+            const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(
+                &joltShape, JPH::Vec3::sOne(), JPH::RMat44::sRotationTranslation(shapeRotation, baseOffset), direction);
 
             JPH::ShapeCastSettings settings;
             settings.mReturnDeepestPoint = true;

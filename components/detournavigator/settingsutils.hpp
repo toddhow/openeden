@@ -78,8 +78,7 @@ namespace DetourNavigator
     inline TileBounds makeTileBounds(const RecastSettings& settings, const TilePosition& tilePosition)
     {
         return TileBounds{
-            vsg::vec2(static_cast<float>(tilePosition.x), static_cast<float>(tilePosition.y))
-                * getTileSize(settings),
+            vsg::vec2(static_cast<float>(tilePosition.x), static_cast<float>(tilePosition.y)) * getTileSize(settings),
             vsg::vec2(static_cast<float>(tilePosition.x + 1), static_cast<float>(tilePosition.y + 1))
                 * getTileSize(settings),
         };

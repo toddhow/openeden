@@ -6,9 +6,8 @@
 #include <string>
 #include <vector>
 
-
-#include <vsg/maths/vec3.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/maths/vec3.h>
 
 #include "editmode.hpp"
 #include "instancedragmodes.hpp"

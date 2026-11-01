@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_MWRENDER_EFFECTS_H
 #define VSGOPENMW_MWRENDER_EFFECTS_H
 
-#include <components/vsgutil/composite.hpp>
 #include <components/mwanimation/context.hpp>
+#include <components/vsgutil/composite.hpp>
 
 namespace MWAnim
 {

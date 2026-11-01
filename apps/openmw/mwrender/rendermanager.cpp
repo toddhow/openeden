@@ -7,87 +7,86 @@
 #include <vsg/app/CommandGraph.h>
 #include <vsg/app/CompileManager.h>
 #include <vsg/app/RenderGraph.h>
-#include <vsg/io/write.h>
-#include <vsg/vk/Context.h>
-#include <vsg/threading/OperationThreads.h>
 #include <vsg/core/Objects.h>
+#include <vsg/io/write.h>
+#include <vsg/threading/OperationThreads.h>
 #include <vsg/utils/ComputeBounds.h>
+#include <vsg/vk/Context.h>
 
 #include <components/animation/transform.hpp>
-#include <components/esm3/loadcell.hpp>
-#include <components/mwanimation/color.hpp>
-#include <components/mwanimation/object.hpp>
-#include <components/pipeline/sets.hpp>
-#include <components/pipeline/builder.hpp>
-#include <components/render/download.hpp>
-#include <components/render/engine.hpp>
-#include <components/render/screen.hpp>
-#include <components/resource/resourcesystem.hpp>
-#include <components/nif/niffile.hpp>
-#include <components/settings/values.hpp>
-#include <components/vfs/manager.hpp>
-#include <components/terrain/paging.hpp>
-#include <components/view/barriers.hpp>
-#include <components/view/collectlights.hpp>
-#include <components/view/scene.hpp>
-#include <components/view/defaultstate.hpp>
-#include <components/view/descriptors.hpp>
-#include <components/view/lightgrid.hpp>
-#include <components/view/scene.hpp>
-#include <components/vsgutil/updatethreads.hpp>
-#include <components/vsgutil/compileop.hpp>
-#include <components/vsgutil/bounds.hpp>
-#include <components/vsgutil/computebin.hpp>
-#include <components/vsgutil/nullbin.hpp>
-#include <components/vsgutil/readnode.hpp>
-#include <components/vsgutil/sharedview.hpp>
-#include <components/vsgutil/suspendrenderpass.hpp>
-#include <components/vsgutil/compilecontext.hpp>
-#include <components/vsgutil/projection.hpp>
-#include <components/vsgutil/setbin.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/mwanimation/color.hpp>
+#include <components/mwanimation/object.hpp>
+#include <components/nif/niffile.hpp>
+#include <components/pipeline/builder.hpp>
+#include <components/pipeline/sets.hpp>
+#include <components/render/download.hpp>
+#include <components/render/engine.hpp>
+#include <components/render/screen.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/settings/values.hpp>
+#include <components/terrain/paging.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/view/barriers.hpp>
+#include <components/view/collectlights.hpp>
+#include <components/view/defaultstate.hpp>
+#include <components/view/descriptors.hpp>
+#include <components/view/lightgrid.hpp>
+#include <components/view/scene.hpp>
+#include <components/vsgutil/bounds.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/compileop.hpp>
+#include <components/vsgutil/computebin.hpp>
+#include <components/vsgutil/nullbin.hpp>
+#include <components/vsgutil/projection.hpp>
+#include <components/vsgutil/readnode.hpp>
+#include <components/vsgutil/setbin.hpp>
+#include <components/vsgutil/sharedview.hpp>
+#include <components/vsgutil/suspendrenderpass.hpp>
+#include <components/vsgutil/updatethreads.hpp>
 
-#include "extentsync.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
+#include "extentsync.hpp"
 
-#include "renderpass.hpp"
-#include "bin.hpp"
 #include "animcontext.hpp"
+#include "bin.hpp"
 #include "camera.hpp"
-#include <components/render/debuggeometry.hpp>
-#include "navmesh.hpp"
-#include "weathereffects.hpp"
-#include "groundcover.hpp"
+#include "distantobjects.hpp"
 #include "effects.hpp"
 #include "env.hpp"
-#include <components/view/env.hpp>
 #include "fogmanager.hpp"
+#include "groundcover.hpp"
+#include "intersect.hpp"
+#include "map.hpp"
 #include "mask.hpp"
+#include "navmesh.hpp"
 #include "player.hpp"
+#include "postprocess.hpp"
+#include "precipitationoccluder.hpp"
+#include "preview.hpp"
 #include "projectiles.hpp"
 #include "reflect.hpp"
+#include "renderpass.hpp"
 #include "scene.hpp"
 #include "screenshotinterface.hpp"
 #include "shadow.hpp"
-#include "precipitationoccluder.hpp"
-#include "distantobjects.hpp"
-#include "postprocess.hpp"
-#include <components/render/simplewater.hpp>
 #include "terrainstorage.hpp"
 #include "water.hpp"
 #include "weather.hpp"
-#include "map.hpp"
+#include "weathereffects.hpp"
 #include "worldmap.hpp"
-#include "preview.hpp"
-#include "intersect.hpp"
+#include <components/render/debuggeometry.hpp>
+#include <components/render/simplewater.hpp>
+#include <components/view/env.hpp>
 
 namespace MWRender
 {
@@ -122,11 +121,12 @@ namespace MWRender
         , mFieldOfView(Settings::camera().mFieldOfView)
     {
         vsg::ref_ptr<vsg::Context> context = vsg::Context::create(mEngine.getOrCreateDevice());
-        mEngine.setRenderPass(createMainRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout()));
+        mEngine.setRenderPass(
+            createMainRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout()));
 
         const int numLoadingThreads = 1;
-        //if (compileManager->numCompileTraversals > 1)
-        //    numLoadingThreads = std::min(nunLoadingThreads, 1);
+        // if (compileManager->numCompileTraversals > 1)
+        //     numLoadingThreads = std::min(nunLoadingThreads, 1);
         mOperationThreads = vsg::OperationThreads::create(numLoadingThreads);
 
         mRenderModes.resize(Render_Count);
@@ -175,13 +175,12 @@ namespace MWRender
         uint32_t setsPerPool = 64;
         resourceHints->numDescriptorSets = setsPerPool;
         resourceHints->descriptorPoolSizes = {
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }, { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1 },
             { VK_DESCRIPTOR_TYPE_SAMPLER, 1 },
             //, builder->graphics->descriptorSetLayout {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2*setsPerPool },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4*setsPerPool },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 7*setsPerPool }
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 * setsPerPool },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 * setsPerPool },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 7 * setsPerPool }
             // }
         };
         vsg::ResourceRequirements resourceRequirements(resourceHints);
@@ -202,7 +201,8 @@ namespace MWRender
         mProjectiles = std::make_unique<Projectiles>(mScene->context);
         // Jolt's debug draw: lines only, refilled every frame; enough for Balmora's colliders.
         constexpr std::size_t joltLineVertices = std::size_t(1) << 21;
-        mDebugGeometry = std::make_unique<Render::DebugGeometry>(*mResourceSystem->builder, mCompileContext, joltLineVertices, 0);
+        mDebugGeometry
+            = std::make_unique<Render::DebugGeometry>(*mResourceSystem->builder, mCompileContext, joltLineVertices, 0);
         // The navmesh debug draw: tile boundaries as lines, polygons as translucent triangles.
         constexpr std::size_t navMeshLineVertices = std::size_t(1) << 20;
         constexpr std::size_t navMeshTriangleVertices = std::size_t(1) << 21;
@@ -210,9 +210,11 @@ namespace MWRender
             *mResourceSystem->builder, mCompileContext, navMeshLineVertices, navMeshTriangleVertices);
         mNavMesh = std::make_unique<NavMesh>(
             *mNavMeshGeometry, Settings::navigator().mEnableNavMeshRender, Settings::navigator().mNavMeshRenderMode);
-        mSky = std::make_unique<Sky>(*resourceSystem, mCompileContext->clone(Mask_Sky), mEngine.getEnabledFeatures().occlusionQueryPrecise);
+        mSky = std::make_unique<Sky>(
+            *resourceSystem, mCompileContext->clone(Mask_Sky), mEngine.getEnabledFeatures().occlusionQueryPrecise);
         mWater = std::make_unique<Water>(resourceSystem);
-        mSimpleWater = std::make_unique<Render::SimpleWater>(Constants::CellSizeInUnits, *mResourceSystem->builder, mResourceSystem->textureOptions);
+        mSimpleWater = std::make_unique<Render::SimpleWater>(
+            Constants::CellSizeInUnits, *mResourceSystem->builder, mResourceSystem->textureOptions);
 
         mTerrainStorage = std::make_unique<TerrainStorage>(mResourceSystem);
         // openeden-vsg: terrain normal and specular maps, off by default (task 0012, V4i).
@@ -225,23 +227,24 @@ namespace MWRender
         terrainMaps.autoMaps.specularMapPattern = shaders.mTerrainSpecularMapPattern;
         const VFS::Manager* vfs = mResourceSystem->getVFS();
         terrainMaps.exists = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
-        mTerrain = std::make_unique<Terrain::Paging>(mCompileContext->clone(Mask_Terrain), mResourceSystem->textureOptions, mResourceSystem->shaderOptions, mResourceSystem->builder->createSampler(), std::move(terrainMaps));
+        mTerrain
+            = std::make_unique<Terrain::Paging>(mCompileContext->clone(Mask_Terrain), mResourceSystem->textureOptions,
+                mResourceSystem->shaderOptions, mResourceSystem->builder->createSampler(), std::move(terrainMaps));
         mTerrain->lodFactor = Settings::terrain().mLodFactor;
         mTerrain->vertexLodMod = Settings::terrain().mVertexLodMod;
 
         mTerrainView = mTerrain->createView();
         mPreview = std::make_unique<Preview>(*context, mEngine.framebufferSamples(), mScene->context, mResourceSystem);
         mWorldMap = std::make_unique<WorldMap>(mCompileContext, mResourceSystem->shaderOptions, mOperationThreads);
-        mMap = std::make_unique<Map>(*context, mEngine.framebufferSamples(), mCompileContext, createMapScene(), mTerrain.get(), mViewDistance,
-            Settings::map().mLocalMapResolution, mResourceSystem->shaderOptions);
+        mMap = std::make_unique<Map>(*context, mEngine.framebufferSamples(), mCompileContext, createMapScene(),
+            mTerrain.get(), mViewDistance, Settings::map().mLocalMapResolution, mResourceSystem->shaderOptions);
         auto guiRenderTextures = vsg::Group::create();
         guiRenderTextures->children.emplace_back(mPreview->node());
         guiRenderTextures->children.emplace_back(mMap->getNode());
         guiRenderTextures->children.emplace_back(mMap->getFogNode());
         guiRenderTextures->children.emplace_back(mWorldMap->node());
 
-        mLightGrid
-            = std::make_unique<View::LightGrid>(*resourceSystem->shaderOptions, viewDescriptorSet);
+        mLightGrid = std::make_unique<View::LightGrid>(*resourceSystem->shaderOptions, viewDescriptorSet);
         auto computeGroup = vsg::Group::create();
         computeGroup->children = { View::preComputeBarrier(), mLightGrid->node(), mSky->resetNode() };
         auto computeBinContents = vsgUtil::createBinSetter(Bin_Compute, computeGroup);
@@ -264,7 +267,8 @@ namespace MWRender
         mGuiRenderGraph->windowResizeHandler = nullptr;
         mGuiRenderGraph->framebuffer = mRenderGraph->framebuffer;
         mGuiRenderGraph->window = mRenderGraph->window;
-        mGuiRenderGraph->renderPass = createGuiRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout());
+        mGuiRenderGraph->renderPass
+            = createGuiRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout());
         mGuiRenderGraph->renderArea = mRenderGraph->renderArea;
         mAppliedExtent = mRenderGraph->renderArea.extent;
         mGuiRenderGraph->children = { gui };
@@ -289,14 +293,17 @@ namespace MWRender
         // ("Context::record() ... Need to implement copying of data").
         std::vector<std::function<void()>> addCompileViews;
         if (mRenderGraph->window)
-            addCompileViews.emplace_back(
-                [this, resourceRequirements] { mCompileContext->compileManager->add(*mRenderGraph->window, mView, resourceRequirements); });
+            addCompileViews.emplace_back([this, resourceRequirements] {
+                mCompileContext->compileManager->add(*mRenderGraph->window, mView, resourceRequirements);
+            });
         else
-            addCompileViews.emplace_back(
-                [this, resourceRequirements] { mCompileContext->compileManager->add(*mRenderGraph->framebuffer, mView, resourceRequirements); });
+            addCompileViews.emplace_back([this, resourceRequirements] {
+                mCompileContext->compileManager->add(*mRenderGraph->framebuffer, mView, resourceRequirements);
+            });
 
         mCommandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
-        // OpenEden: post-processing runs after the scene, on the finished image, when the setting is on (task 0012, V4p).
+        // OpenEden: post-processing runs after the scene, on the finished image, when the setting is on (task 0012,
+        // V4p).
         if (Settings::postProcessing().mEnabled)
             mPostProcess = std::make_unique<PostProcess>(mEngine, context, mCompileContext, *mResourceSystem->getVFS(),
                 mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
@@ -316,13 +323,13 @@ namespace MWRender
             auto castShadowGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
             castShadowGraph->submitOrder = -1;
             auto view = mShadow->shadow->cascadeView(i);
-            // Note, createCastShadowScene(..) will omit root nodes that are not required so the record traversal won't have to traverse them.
-            // The View's mask is set to allow the vsg::CompileManager::compile(..)'s ContextSelectionFunction to skip shadow compile contexts when models/subgraphs are added to the scene that don't require shadow casting.
+            // Note, createCastShadowScene(..) will omit root nodes that are not required so the record traversal won't
+            // have to traverse them. The View's mask is set to allow the vsg::CompileManager::compile(..)'s
+            // ContextSelectionFunction to skip shadow compile contexts when models/subgraphs are added to the scene
+            // that don't require shadow casting.
             view->mask = mShadow->viewMask();
-            view->bins = {
-                vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT),
-                vsgUtil::NullBin::create(Bin_Compute)
-            };
+            view->bins
+                = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT), vsgUtil::NullBin::create(Bin_Compute) };
             auto root = createCastShadowState();
             root->children = { view };
             rg->children = { root };
@@ -330,7 +337,8 @@ namespace MWRender
             threads.push_back(castShadowGraph);
             mRecordShadow.push_back(castShadowGraph->recordTraversal);
             if (i == 0)
-                addCompileViews.emplace_back([this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
+                addCompileViews.emplace_back(
+                    [this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
         }
 
         if (mOccluder)
@@ -340,14 +348,16 @@ namespace MWRender
             occlusionGraph->submitOrder = -1;
             auto view = mOccluder->view();
             view->mask = Mask_Object; // OpenMW's occluder does not draw terrain.
-            view->bins = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT), vsgUtil::NullBin::create(Bin_Compute) };
+            view->bins
+                = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT), vsgUtil::NullBin::create(Bin_Compute) };
             auto root = createCastShadowState();
             root->children = { view };
             rg->children = { root };
             occlusionGraph->children = { rg };
             threads.push_back(occlusionGraph);
             mRecordShadow.push_back(occlusionGraph->recordTraversal);
-            addCompileViews.emplace_back([this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
+            addCompileViews.emplace_back(
+                [this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
         }
 
         mRecord = mCommandGraph->recordTraversal;
@@ -368,13 +378,10 @@ namespace MWRender
         /*
          * Asynchronously compiles pipeline-heavy objects.
          */
-        //updateSceneChildren();
+        // updateSceneChildren();
         auto objectsToCompile = vsg::Objects::create();
-        objectsToCompile->children = {
-            mWater->node(),
-            mSky->node()
-        };
-        mCompileOp = new vsgUtil::CompileOp(objectsToCompile, mCompileContext->clone(Mask_Water|Mask_Sky));
+        objectsToCompile->children = { mWater->node(), mSky->node() };
+        mCompileOp = new vsgUtil::CompileOp(objectsToCompile, mCompileContext->clone(Mask_Water | Mask_Sky));
         mOperationThreads->add(mCompileOp);
         createIntersectorScene();
         setupScreenshotInterface();
@@ -631,8 +638,8 @@ namespace MWRender
         }
         else if (store && !mGroundcover && Settings::groundcover().mEnabled)
         {
-            mGroundcover = std::make_unique<Groundcover>(mScene->context, *store, Settings::groundcover().mDensity,
-                Settings::groundcover().mRenderingDistance);
+            mGroundcover = std::make_unique<Groundcover>(
+                mScene->context, *store, Settings::groundcover().mDensity, Settings::groundcover().mRenderingDistance);
             updateSceneChildren();
         }
         const MWWorld::Ptr player = MWMechanics::getPlayer();
@@ -718,7 +725,7 @@ namespace MWRender
             mResourceSystem->updateCache(0);
             mTerrain->pruneCache();
             mScene->context.prune();
-            //mPreview->mContext->prune();
+            // mPreview->mContext->prune();
         }) });
     }
 
@@ -732,7 +739,7 @@ namespace MWRender
     {
         setRenderModeActive(Render_Sky, enabled);
 
-        auto &shadow = mShadow->shadow;
+        auto& shadow = mShadow->shadow;
         for (int i = 0; shadow && i < shadow->numCascades; ++i)
             shadow->cascadeView(i)->children = createCastShadowScene(enabled);
     }
@@ -797,8 +804,10 @@ namespace MWRender
     {
         if (!mOccluder)
             return;
-        // OpenMW occludes rain and the snow effect, the two it wraps around the camera (SkyManager::update at 442eec6e2f).
-        const bool snow = mRenderModes[Render_Sky] && mSky->getParticleEffect() == Settings::models().mWeathersnow.get().value();
+        // OpenMW occludes rain and the snow effect, the two it wraps around the camera (SkyManager::update at
+        // 442eec6e2f).
+        const bool snow
+            = mRenderModes[Render_Sky] && mSky->getParticleEffect() == Settings::models().mWeathersnow.get().value();
         const bool active = mRainParameters.enabled || snow;
         if (active != mOccluderActive)
         {
@@ -904,12 +913,12 @@ namespace MWRender
     {
         mScreenshotInterface->request = [&](int w, int h) {
             auto device = mCompileContext->device;
-            auto pair = Render::createDownloadCommands(device, mEngine.colorImageView(0)->image, { { 0, 0 }, mEngine.swapchainExtent() },
-                Render::compatibleColorFormat, mEngine.getPresentLayout(),
+            auto pair = Render::createDownloadCommands(device, mEngine.colorImageView(0)->image,
+                { { 0, 0 }, mEngine.swapchainExtent() }, Render::compatibleColorFormat, mEngine.getPresentLayout(),
                 VkExtent2D{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) });
             auto commands = pair.first;
             auto dstImage = pair.second;
-            mScreenshotSwitch->children = {{ true, commands }};
+            mScreenshotSwitch->children = { { true, commands } };
             mScreenshotInterface->framesUntilReady = mEngine.numFrames();
             mScreenshotInterface->retrieve = [this, device, dstImage]() -> std::pair<vsg::ref_ptr<vsg::Data>, bool> {
                 mScreenshotSwitch->children.clear();
@@ -927,7 +936,7 @@ namespace MWRender
     void RenderManager::update(float dt, bool paused)
     {
         if (paused)
-            dt = 0; //return;
+            dt = 0; // return;
         else
             mSceneData->value().time += dt;
 
@@ -1079,8 +1088,8 @@ namespace MWRender
         if (Misc::VsgMath::valid(bb))
         {
             const vsg::dmat4 viewProj = mProjectionMatrix->transform() * mViewMatrix->transform();
-            const vsg::dvec4 clipPoint = viewProj
-                * vsg::dvec4((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, bb.max.z, 1.0);
+            const vsg::dvec4 clipPoint
+                = viewProj * vsg::dvec4((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, bb.max.z, 1.0);
             if (clipPoint.w > 0.0)
             {
                 // Vulkan clip space has y pointing down, so this is already measured from the top.
@@ -1104,7 +1113,8 @@ namespace MWRender
     RenderManager::RayResult RenderManager::castCameraToViewportRay(
         float nX, float nY, float maxDistance, bool ignorePlayer, bool ignoreActors)
     {
-        return MWRender::castCameraToViewportRay(nX, nY, maxDistance, ignorePlayer, ignoreActors, *mSceneCamera, *mScene, mIntersectorScene);
+        return MWRender::castCameraToViewportRay(
+            nX, nY, maxDistance, ignorePlayer, ignoreActors, *mSceneCamera, *mScene, mIntersectorScene);
     }
 
     void RenderManager::updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& updated)
@@ -1216,8 +1226,7 @@ namespace MWRender
         const VkExtent2D windowSize = mAppliedExtent; // the extent drawn into, not the one requested
         // Field by field: vsg::Perspective's implicit copy assignment is deprecated.
         mProjectionMatrix->fieldOfViewY = fov;
-        mProjectionMatrix->aspectRatio
-            = static_cast<double>(windowSize.width) / static_cast<double>(windowSize.height);
+        mProjectionMatrix->aspectRatio = static_cast<double>(windowSize.width) / static_cast<double>(windowSize.height);
         mProjectionMatrix->nearDistance = mNearClip;
         mProjectionMatrix->farDistance = mViewDistance;
 
@@ -1245,7 +1254,7 @@ namespace MWRender
         }
     }
 
-    //TODO: if there is only ever one worldspace active at a time, isn't the worldspace parameter redundant
+    // TODO: if there is only ever one worldspace active at a time, isn't the worldspace parameter redundant
     float RenderManager::getTerrainHeightAt(const vsg::vec3& pos, ESM::RefId worldspace)
     {
         return mTerrainStorage->getHeightAt(pos, worldspace);
@@ -1330,16 +1339,17 @@ namespace MWRender
 
     void RenderManager::updateExtents(uint32_t w, uint32_t h)
     {
-        // Only asks the window for a new size. It is rebuilt when the next frame acquires its image, so the render areas
-        // and the camera follow in syncExtents: setting them here would record this frame's passes with an area larger
-        // than the old framebuffer (VUID-VkRenderPassBeginInfo-pNext-02852), which draws nothing and, as seen, left the
-        // window blank after growing.
+        // Only asks the window for a new size. It is rebuilt when the next frame acquires its image, so the render
+        // areas and the camera follow in syncExtents: setting them here would record this frame's passes with an area
+        // larger than the old framebuffer (VUID-VkRenderPassBeginInfo-pNext-02852), which draws nothing and, as seen,
+        // left the window blank after growing.
         mEngine.updateExtents({ w, h });
     }
 
     void RenderManager::syncExtents()
     {
-        // Before the viewer acquires the next image, which is when the swapchain is rebuilt to the requested size: see clampArea.
+        // Before the viewer acquires the next image, which is when the swapchain is rebuilt to the requested size: see
+        // clampArea.
         const VkExtent2D extent = clampArea(mAppliedExtent, mEngine.swapchainExtent(), mEngine.extent2D());
         if (extent.width == mAppliedExtent.width && extent.height == mAppliedExtent.height)
             return;
@@ -1375,11 +1385,11 @@ namespace MWRender
                 firstPersonProjection->projection = fov;
                 mFirstPersonProjection = firstPersonProjection;
             }
-            mPlayerGroup->children = {{ Mask_FirstPerson, mFirstPersonProjection }};
+            mPlayerGroup->children = { { Mask_FirstPerson, mFirstPersonProjection } };
             mFirstPersonProjection->children = { mPlayer->node() };
         }
         else
-            mPlayerGroup->children = {{ Mask_Player, mPlayer->node() }};
+            mPlayerGroup->children = { { Mask_Player, mPlayer->node() } };
     }
 
     vsg::dmat4 RenderManager::getProjectionMatrix() const

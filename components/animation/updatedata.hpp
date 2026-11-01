@@ -29,7 +29,7 @@ namespace Anim
             to.properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
             Controller::attachTo(to);
         }
-        template<typename... Args>
+        template <typename... Args>
         static vsg::ref_ptr<Derived> create(Args&&... args)
         {
             return vsg::ref_ptr<Derived>(new Derived(args...));
@@ -60,7 +60,7 @@ namespace Anim
         {
             return vsg::ref_ptr{ new Derived(static_cast<const Derived&>(*this)) };
         }
-        template<typename... Args>
+        template <typename... Args>
         static vsg::ref_ptr<Derived> create(Args&&... args)
         {
             return vsg::ref_ptr<Derived>(new Derived(args...));

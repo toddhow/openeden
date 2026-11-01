@@ -2,8 +2,8 @@
 
 #include <limits>
 
-#include <components/settings/values.hpp>
 #include <components/pipeline/viewdata.hpp>
+#include <components/settings/values.hpp>
 
 #include "mask.hpp"
 
@@ -14,11 +14,8 @@ namespace MWRender
         if (Settings::shadows().mEnableShadows)
         {
             shadow = std::make_unique<View::Shadow>(ctx, Settings::shadows().mNumberOfShadowMaps,
-                Settings::shadows().mShadowMapResolution,
-                Settings::shadows().mFilterShadowMaps,
-                supportsDepthClamp,
-                Settings::shadows().mUseFrontFaceCulling
-            );
+                Settings::shadows().mShadowMapResolution, Settings::shadows().mFilterShadowMaps, supportsDepthClamp,
+                Settings::shadows().mUseFrontFaceCulling);
         }
         maxZ = Settings::shadows().mMaximumShadowMapDistance;
         if (maxZ == 0)
@@ -46,7 +43,7 @@ namespace MWRender
         vsg::Mask mask = vsg::MASK_OFF;
         if (Settings::shadows().mTerrainShadows)
             mask |= Mask_Terrain;
-        if (/*exterior && */Settings::shadows().mObjectShadows)
+        if (/*exterior && */ Settings::shadows().mObjectShadows)
             mask |= Mask_Object;
         if (Settings::shadows().mActorShadows)
             mask |= Mask_Actor;

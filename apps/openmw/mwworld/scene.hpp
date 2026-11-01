@@ -95,8 +95,7 @@ namespace MWWorld
 
         std::vector<ESM::RefNum> mPagedRefs;
 
-        void insertCell(CellStore& cell,
-            const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
+        void insertCell(CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
 
         vsg::ivec2 mCurrentGridCenter;
 
@@ -113,8 +112,7 @@ namespace MWWorld
         vsg::ivec2 getNewGridCenter(const vsg::vec3& pos, const vsg::ivec2* currentGridCenter = nullptr) const;
 
         void unloadCell(CellStore* cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
-        void loadCell(CellStore& cell, bool respawn,
-            const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
+        void loadCell(CellStore& cell, bool respawn, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
 
     public:
         Scene(MWWorld::World& world, MWRender::RenderManager& rendering, MWPhysics::PhysicsSystem* physics,
@@ -149,8 +147,7 @@ namespace MWWorld
         ///< Move to interior cell.
         /// @param changeEvent Set cellChanged flag?
 
-        void changeToExteriorCell(
-            const ESM::RefId& extCellId, const ESM::Position& position, bool changeEvent = true);
+        void changeToExteriorCell(const ESM::RefId& extCellId, const ESM::Position& position, bool changeEvent = true);
         ///< Move to exterior cell.
         /// @param changeEvent Set cellChanged flag?
 

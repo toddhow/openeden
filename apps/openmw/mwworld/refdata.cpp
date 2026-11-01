@@ -101,7 +101,6 @@ namespace MWWorld
     {
     }
 
-
     RefData::RefData(const ESM::ObjectState& objectState, bool deletedByContentFile)
         : mPosition(objectState.mPosition)
         , mAnimationState(objectState.mAnimationState)

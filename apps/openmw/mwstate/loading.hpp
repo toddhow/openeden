@@ -64,6 +64,7 @@ namespace MWState
         ~ThreadLoading();
         bool run(float dt) override;
         virtual void threadLoad() = 0;
+
     private:
         vsg::ref_ptr<vsgUtil::Operation> mOperation;
     };

@@ -5,9 +5,9 @@
 
 namespace Pipeline::Data
 {
+    using vsg::ivec4;
     using vsg::mat4;
     using vsg::vec4;
-    using vsg::ivec4;
 #include <files/shaders/lib/particle/data.glsl>
 }
 

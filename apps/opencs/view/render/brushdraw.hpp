@@ -12,8 +12,8 @@ namespace CSVRender
     class OverlayLines;
     class WorldspaceWidget;
 
-    /// The outline of a terrain brush under the pointer. Owned by its edit mode. Its lines hang in the view from the first
-    /// update on, so the view must exist by then and outlive this.
+    /// The outline of a terrain brush under the pointer. Owned by its edit mode. Its lines hang in the view from the
+    /// first update on, so the view must exist by then and outlive this.
     class BrushDraw
     {
     public:

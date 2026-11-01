@@ -1,6 +1,6 @@
 
-#include <components/misc/vsgmath.hpp>
 #include <components/detournavigator/settingsutils.hpp>
+#include <components/misc/vsgmath.hpp>
 
 #include <gtest/gtest.h>
 
@@ -63,7 +63,6 @@ namespace
 
     TEST_F(DetourNavigatorMakeTileBoundsTest, tile_bounds_are_multiplied_by_tile_position)
     {
-        EXPECT_EQ(
-            makeTileBounds(mSettings, TilePosition(1, 2)), (TileBounds{ vsg::vec2(32, 64), vsg::vec2(64, 96) }));
+        EXPECT_EQ(makeTileBounds(mSettings, TilePosition(1, 2)), (TileBounds{ vsg::vec2(32, 64), vsg::vec2(64, 96) }));
     }
 }

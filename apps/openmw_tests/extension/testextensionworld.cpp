@@ -125,8 +125,7 @@ namespace
     TEST_F(ExtensionWorldContactTest, aLongCellNameIsCutAndEndsInNul)
     {
         CellChangedEvent received;
-        mHost.eventBus().subscribe<CellChangedEvent>(
-            "test", [&](const CellChangedEvent& event) { received = event; });
+        mHost.eventBus().subscribe<CellChangedEvent>("test", [&](const CellChangedEvent& event) { received = event; });
         mWorld.cellChanged(std::string(kEventNameCapacity * 2, 'x'));
         mWorld.deliver();
         EXPECT_EQ(std::string(received.cellName), std::string(kEventNameCapacity - 1, 'x'));

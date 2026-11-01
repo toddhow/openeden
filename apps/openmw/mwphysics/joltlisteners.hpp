@@ -85,8 +85,7 @@ namespace MWPhysics
                 if (hit2 && !hit1)
                     observer->contactAdded(inBody2.GetID(), inBody1.GetID(), point, inManifold.mWorldSpaceNormal, true);
                 else
-                    observer->contactAdded(
-                        inBody1.GetID(), inBody2.GetID(), point, inManifold.mWorldSpaceNormal, hit1);
+                    observer->contactAdded(inBody1.GetID(), inBody2.GetID(), point, inManifold.mWorldSpaceNormal, hit1);
             }
         }
 

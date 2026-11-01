@@ -17,8 +17,9 @@ namespace CSVRender
 {
     class WorldspaceWidget;
 
-    /// How far from the pointer, in pixels, an arrow or ring still counts as under it. Their shafts are about two pixels wide
-    /// at the preference's default scale, and a drag begins at the first mouse move, a pixel or more from the press.
+    /// How far from the pointer, in pixels, an arrow or ring still counts as under it. Their shafts are about two
+    /// pixels wide at the preference's default scale, and a drag begins at the first mouse move, a pixel or more from
+    /// the press.
     inline constexpr double sPickRadiusPixels = 4.0;
 
     class ObjectMarkerTag : public ObjectTag
@@ -32,8 +33,8 @@ namespace CSVRender
     };
 
     /// The transform gizmo, drawn at the object last selected. Owned by its WorldspaceWidget. The geometry is
-    /// selectionmarkergeometry.hpp's. It has one node in the scene and follows the object each frame, rather than hanging
-    /// under the object as the OSG one did, so that no object's deletion can take it along.
+    /// selectionmarkergeometry.hpp's. It has one node in the scene and follows the object each frame, rather than
+    /// hanging under the object as the OSG one did, so that no object's deletion can take it along.
     class ObjectMarker : public FrameListener
     {
         struct Part
@@ -95,8 +96,9 @@ namespace CSVRender
         /// Is a hit on the far half of the rotate rings, which the old clip plane hid?
         bool hitBehindMarker(const vsg::dvec3& hitPos) const;
 
-        /// The marker part at a point of the view, (0, 0) its top left and (1, 1) its bottom right, or near it: a shaft is a
-        /// pixel or two wide. Empty if there is none, the marker is hidden, or it is the far half of a rotate ring.
+        /// The marker part at a point of the view, (0, 0) its top left and (1, 1) its bottom right, or near it: a shaft
+        /// is a pixel or two wide. Empty if there is none, the marker is hidden, or it is the far half of a rotate
+        /// ring.
         std::optional<Picking::Result> pick(double x, double y, double widthPixels, double heightPixels) const;
 
         void detachMarker();

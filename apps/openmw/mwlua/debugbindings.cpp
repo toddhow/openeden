@@ -10,8 +10,8 @@
 
 #include "../mwinput/actions.hpp"
 
-#include <components/settings/navmeshrendermode.hpp>
 #include <components/lua/luastate.hpp>
+#include <components/settings/navmeshrendermode.hpp>
 
 namespace MWLua
 {
@@ -73,11 +73,9 @@ namespace MWLua
                 [value] { MWBase::Environment::get().getWorld()->setNavMeshRenderMode(value); });
         };
 
-        api["triggerShaderReload"] = [/*context*/]() {
-        };
+        api["triggerShaderReload"] = [/*context*/]() {};
 
-        api["setShaderHotReloadEnabled"] = [/*context*/](bool /*value*/) {
-        };
+        api["setShaderHotReloadEnabled"] = [/*context*/](bool /*value*/) {};
 
         return LuaUtil::makeReadOnly(api);
     }

@@ -1,10 +1,10 @@
 #ifndef VSGOPENMW_MWRENDER_WORLDMAP_H
 #define VSGOPENMW_MWRENDER_WORLDMAP_H
 
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
-#include <limits>
 
 #include <vsg/core/Array2D.h>
 
@@ -31,7 +31,8 @@ namespace MWRender
     class WorldMap
     {
     public:
-        WorldMap(vsg::ref_ptr<vsgUtil::CompileContext> compile, const vsg::Options* shaderOptions, vsg::ref_ptr<vsg::OperationThreads> threads);
+        WorldMap(vsg::ref_ptr<vsgUtil::CompileContext> compile, const vsg::Options* shaderOptions,
+            vsg::ref_ptr<vsg::OperationThreads> threads);
         ~WorldMap();
 
         void load(const MWWorld::ESMStore& esmStore, int cellSize);
@@ -99,7 +100,8 @@ namespace MWRender
         Bounds mBounds;
         Bounds mExploredBounds;
 
-        vsg::ivec4 cropImageRect(const Bounds& srcBounds, const Bounds& dstBounds, int cellWidth, int cellHeight, int imageWidth, int imageHeight) const;
+        vsg::ivec4 cropImageRect(const Bounds& srcBounds, const Bounds& dstBounds, int cellWidth, int cellHeight,
+            int imageWidth, int imageHeight) const;
     };
 }
 

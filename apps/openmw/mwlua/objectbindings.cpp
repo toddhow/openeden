@@ -328,8 +328,8 @@ namespace MWLua
                 return { toQuat(o.ptr().getCellRef().getPosition(), o.ptr().getClass().isActor()) };
             });
             objectT["getBoundingBox"] = [context](const ObjectT& o) {
-                //vsg::dbox bb = renderingManager->getCullSafeBoundingBox(o.ptr());
-                // Note, getBoundingBox isn't thread safe so needs adjusting if we ever want to enable Lua threading.
+                // vsg::dbox bb = renderingManager->getCullSafeBoundingBox(o.ptr());
+                //  Note, getBoundingBox isn't thread safe so needs adjusting if we ever want to enable Lua threading.
                 auto bb = context.mRenderManager->getBoundingBox(o.ptr());
                 auto center = vsgUtil::center(bb);
                 return LuaUtil::Box{ center, bb.max - center };

@@ -149,8 +149,7 @@ namespace
         vsg::ref_ptr<const Resource::PhysicsShapeInstance> mInstance;
     };
 
-    inline vsg::vec3 getHeightfieldShift(
-        const vsg::ivec2& cellPosition, int cellSize, float minHeight, float maxHeight)
+    inline vsg::vec3 getHeightfieldShift(const vsg::ivec2& cellPosition, int cellSize, float minHeight, float maxHeight)
     {
         return PhysicsSystemHelpers::getHeightfieldShift(
             cellPosition.x, cellPosition.x, cellSize, minHeight, maxHeight);
@@ -931,8 +930,8 @@ namespace
 
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform),
-            vsg::dmat4(), nullptr);
+        mNavigator->addObject(
+            ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform), vsg::dmat4(), nullptr);
 
         bool updated = false;
         std::condition_variable updateFinished;
@@ -984,8 +983,8 @@ namespace
 
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform),
-            vsg::dmat4(), nullptr);
+        mNavigator->addObject(
+            ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform), vsg::dmat4(), nullptr);
 
         bool updated = false;
         std::condition_variable updateFinished;

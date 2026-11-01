@@ -6,7 +6,6 @@
 #include <utility>
 #include <vector>
 
-
 namespace CSVRender
 {
     class OverlayLines;
@@ -47,7 +46,6 @@ namespace CSVRender
         void update();
 
     protected:
-
         int calculateLandHeight(int x, int y);
 
     private:

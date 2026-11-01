@@ -76,7 +76,6 @@
 namespace
 {
 
-
     void addToLevList(ESM::LevelledListBase* list, const ESM::RefId& itemId, uint16_t level)
     {
         for (auto& levelItem : list->mList)

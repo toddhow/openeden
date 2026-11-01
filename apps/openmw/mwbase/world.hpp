@@ -433,7 +433,6 @@ namespace MWBase
         virtual const MWAnim::Object* getAnimation(const MWWorld::ConstPtr& ptr) const = 0;
         virtual void reattachPlayerCamera() = 0;
 
-
         /// Find default position inside exterior cell specified by name
         /// \return empty RefId if exterior with given name not exists, the cell's RefId otherwise
         virtual ESM::RefId findExteriorPosition(std::string_view name, ESM::Position& pos) = 0;
@@ -575,8 +574,7 @@ namespace MWBase
         virtual DetourNavigator::Navigator* getNavigator() const = 0;
 
         virtual void updateActorPath(const MWWorld::ConstPtr& actor, const std::deque<vsg::vec3>& path,
-            const DetourNavigator::AgentBounds& agentBounds, const vsg::vec3& start, const vsg::vec3& end) const
-            = 0;
+            const DetourNavigator::AgentBounds& agentBounds, const vsg::vec3& start, const vsg::vec3& end) const = 0;
 
         virtual void removeActorPath(const MWWorld::ConstPtr& actor) const = 0;
 
@@ -587,8 +585,7 @@ namespace MWBase
         virtual DetourNavigator::AgentBounds getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const = 0;
 
         virtual bool hasCollisionWithDoor(
-            const MWWorld::ConstPtr& door, const vsg::vec3& position, const vsg::vec3& destination) const
-            = 0;
+            const MWWorld::ConstPtr& door, const vsg::vec3& position, const vsg::vec3& destination) const = 0;
 
         virtual bool isAreaOccupiedByOtherActor(const MWWorld::ConstPtr& actor, const vsg::vec3& position) const = 0;
 

@@ -8,19 +8,20 @@
 
 #include <Jolt/Core/Factory.h>
 
-namespace opas::physics::jolt {
-
-JoltVersion linkedJoltVersion()
+namespace opas::physics::jolt
 {
-    return JoltVersion{JPH_VERSION_MAJOR, JPH_VERSION_MINOR, JPH_VERSION_PATCH};
-}
 
-std::size_t countRegisteredJoltTypes()
-{
-    // Shares Jolt's process-wide setup with any live worlds instead of
-    // replacing it underneath them.
-    const detail::JoltRuntimeRef runtime;
-    return JPH::Factory::sInstance->GetAllClasses().size();
-}
+    JoltVersion linkedJoltVersion()
+    {
+        return JoltVersion{ JPH_VERSION_MAJOR, JPH_VERSION_MINOR, JPH_VERSION_PATCH };
+    }
+
+    std::size_t countRegisteredJoltTypes()
+    {
+        // Shares Jolt's process-wide setup with any live worlds instead of
+        // replacing it underneath them.
+        const detail::JoltRuntimeRef runtime;
+        return JPH::Factory::sInstance->GetAllClasses().size();
+    }
 
 } // namespace opas::physics::jolt

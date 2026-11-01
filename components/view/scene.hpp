@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_VIEW_SCENE_H
 #define VSGOPENMW_VIEW_SCENE_H
 
-#include <components/pipeline/viewdata.hpp>
 #include <components/pipeline/descriptorvalue.hpp>
+#include <components/pipeline/viewdata.hpp>
 
 namespace View
 {

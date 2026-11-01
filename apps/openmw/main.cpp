@@ -5,8 +5,8 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/rng.hpp>
 #include <components/platform/platform.hpp>
-#include <components/version/version.hpp>
 #include <components/settings/settings.hpp>
+#include <components/version/version.hpp>
 
 #include "options.hpp"
 #include "vsgengine.hpp"

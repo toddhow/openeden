@@ -23,7 +23,7 @@ namespace MWAnim
     class Play
     {
     public:
-        Play(const Anim::Bones& in_bones={}, size_t boneGroupCount = 1);
+        Play(const Anim::Bones& in_bones = {}, size_t boneGroupCount = 1);
         ~Play();
 
         struct TagEvent
@@ -49,8 +49,9 @@ namespace MWAnim
 
         Anim::Bones bones;
 
-        void addSingleAnimSource(vsg::ref_ptr<Anim::ControllerMap> map, const std::string& debugName={});
-        void addAnimSources(const std::vector<vsg::ref_ptr<Anim::ControllerMap>>& sources, const std::string& debugName={});
+        void addSingleAnimSource(vsg::ref_ptr<Anim::ControllerMap> map, const std::string& debugName = {});
+        void addAnimSources(
+            const std::vector<vsg::ref_ptr<Anim::ControllerMap>>& sources, const std::string& debugName = {});
 
         /// Holds an animation priority value for each BoneGroup.
         struct Priority

@@ -18,11 +18,11 @@
 #include <apps/opencs/view/render/picking.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
 
-// Written from the OSG editor's WorldspaceWidget::mousePick (worldspacewidget.cpp at 124715f58d^), with no GPU: a scene of
-// generated quads in known places, each under a Switch for its element of mask.hpp, as in an editor cell. The old code's
-// rules: the ray goes from the near plane to the far plane through the pixel; only what the mask lets through counts; a hit
-// on the back of a triangle does not count; with no hit the result is `start + direction * distance`, not hit; the first
-// hit's nearest-the-root tag is the result, and with no tag it is still a hit (terrain).
+// Written from the OSG editor's WorldspaceWidget::mousePick (worldspacewidget.cpp at 124715f58d^), with no GPU: a scene
+// of generated quads in known places, each under a Switch for its element of mask.hpp, as in an editor cell. The old
+// code's rules: the ray goes from the near plane to the far plane through the pixel; only what the mask lets through
+// counts; a hit on the back of a triangle does not count; with no hit the result is `start + direction * distance`, not
+// hit; the first hit's nearest-the-root tag is the result, and with no tag it is still a hit (terrain).
 namespace
 {
     using namespace CSVRender;
@@ -47,8 +47,8 @@ namespace
         const float fx = static_cast<float>(x);
         const float fy = static_cast<float>(y);
         const float fz = static_cast<float>(z);
-        auto vertices = vsg::vec3Array::create({ { fx - h, fy - h, fz }, { fx + h, fy - h, fz }, { fx + h, fy + h, fz },
-            { fx - h, fy + h, fz } });
+        auto vertices = vsg::vec3Array::create(
+            { { fx - h, fy - h, fz }, { fx + h, fy - h, fz }, { fx + h, fy + h, fz }, { fx - h, fy + h, fz } });
         auto indices = vsg::ushortArray::create({ 0, 1, 2, 0, 2, 3 });
         auto draw = vsg::VertexIndexDraw::create();
         draw->assignArrays({ vertices });
@@ -65,8 +65,8 @@ namespace
         const float fx = static_cast<float>(x);
         const float fy = static_cast<float>(y);
         const float fz = static_cast<float>(z);
-        auto vertices = vsg::vec3Array::create({ { fx - h, fy - h, fz }, { fx + h, fy - h, fz }, { fx - h, fy + h, fz },
-            { fx + h, fy + h, fz } });
+        auto vertices = vsg::vec3Array::create(
+            { { fx - h, fy - h, fz }, { fx + h, fy - h, fz }, { fx - h, fy + h, fz }, { fx + h, fy + h, fz } });
         auto draw = vsg::VertexDraw::create();
         draw->assignArrays({ vertices });
         draw->vertexCount = 4;

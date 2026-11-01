@@ -38,12 +38,12 @@
 #include <components/render/attachmentformat.hpp>
 #include <components/render/engine.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/image.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
-#include <components/vfs/manager.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -103,8 +103,8 @@ void main()
             // Reads of an earlier pass's target finish before this pass writes; this target is read after it.
             const vsg::RenderPass::Dependencies dependencies{
                 { VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0 },
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0 },
                 { 0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT, 0 }
@@ -425,13 +425,13 @@ void main()
             barrier(VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, dst,
                 mSceneColor, color),
             barrier(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, present, src, {}, color));
-        mAfterCopyIn = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-            barrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, dst, read, mSceneColor, color));
+        mAfterCopyIn
+            = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                barrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, dst, read, mSceneColor, color));
 
         // The depth attachment is not stored past the main pass, so depth is copied inside it (depthCopy()).
-        mBeforeCopyDepth = vsg::PipelineBarrier::create(
-            VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+        mBeforeCopyDepth = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
                 | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // the stage of a depth resolve
             VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
             barrier(VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, dst,
@@ -531,11 +531,11 @@ void main()
         auto setLayout = vsg::DescriptorSetLayout::create(bindings);
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout }, vsg::PushConstantRanges{});
 
-        auto colorBlend = vsg::ColorBlendState::create(vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE,
-            VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO,
-            VK_BLEND_OP_ADD,
-            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
-                | VK_COLOR_COMPONENT_A_BIT } });
+        auto colorBlend
+            = vsg::ColorBlendState::create(vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE, VK_BLEND_FACTOR_ONE,
+                VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+                VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+                    | VK_COLOR_COMPONENT_A_BIT } });
         auto depthStencil = vsg::DepthStencilState::create();
         depthStencil->depthTestEnable = VK_FALSE;
         depthStencil->depthWriteEnable = VK_FALSE;
@@ -645,11 +645,11 @@ void main()
         depthStencil->depthWriteEnable = VK_FALSE;
         auto raster = vsg::RasterizationState::create();
         raster->cullMode = VK_CULL_MODE_NONE;
-        auto colorBlend = vsg::ColorBlendState::create(vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE,
-            VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO,
-            VK_BLEND_OP_ADD,
-            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
-                | VK_COLOR_COMPONENT_A_BIT } });
+        auto colorBlend
+            = vsg::ColorBlendState::create(vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE, VK_BLEND_FACTOR_ONE,
+                VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+                VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+                    | VK_COLOR_COMPONENT_A_BIT } });
         const vsg::GraphicsPipelineStates states{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
             raster, vsg::MultisampleState::create(), colorBlend, depthStencil,
             vsg::ViewportState::create(0, 0, mWidth, mHeight) };
@@ -661,10 +661,11 @@ void main()
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         auto commands = vsg::Commands::create();
         // The main view's pipeline states make the viewport dynamic, and MyGUI sets its own only after this draw.
-        commands->children = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, mWidth, mHeight)), pipeline,
-            vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0,
-                vsg::DescriptorSet::create(setLayout, vsg::Descriptors{ descriptor })),
-            vsg::Draw::create(3, 1, 0, 0) };
+        commands->children
+            = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, mWidth, mHeight)), pipeline,
+                  vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0,
+                      vsg::DescriptorSet::create(setLayout, vsg::Descriptors{ descriptor })),
+                  vsg::Draw::create(3, 1, 0, 0) };
 
         // The GUI pass's render pass is compatible with the main view's, so the pipeline is compiled for that view.
         auto presentCompile = mCompile->clone(Mask_PostProcess);
@@ -820,18 +821,18 @@ void main()
                 VkClearColorValue clearColor{};
                 const auto description = loaded->technique->getRenderTargetsMap().find(targetName);
                 if (description != loaded->technique->getRenderTargetsMap().end())
-                    clearColor = VkClearColorValue{ { description->second.mClearColor.r,
-                        description->second.mClearColor.g, description->second.mClearColor.b,
-                        description->second.mClearColor.a } };
+                    clearColor
+                        = VkClearColorValue{ { description->second.mClearColor.r, description->second.mClearColor.g,
+                            description->second.mClearColor.b, description->second.mClearColor.a } };
                 auto clear = vsg::ClearColorImage::create();
                 clear->image = target->image;
                 clear->imageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
                 clear->color = clearColor;
                 clear->ranges = { VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } };
-                firstFrame->addChild(vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-                    barrier(0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, target->image, VK_IMAGE_ASPECT_COLOR_BIT)));
+                firstFrame->addChild(
+                    vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                        barrier(0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, target->image, VK_IMAGE_ASPECT_COLOR_BIT)));
                 firstFrame->addChild(clear);
                 firstFrame->addChild(vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
@@ -862,25 +863,25 @@ void main()
             barrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, src, dst, {}, color));
         mAfterCopyOut = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-            barrier(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, dst,
-                present, {}, color));
+            barrier(VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, dst, present, {}, color));
         group->addChild(mBeforeCopyOut);
         group->addChild(mBlitOut);
         group->addChild(mAfterCopyOut);
         if (mMultisampled)
         {
-            // The GUI pass resolves its multisampled colour over the swapchain image, so the result is drawn in that pass
-            // too. The copy above stays for screenshots, taken from the swapchain image before that pass.
-            mAfterCopyOut->imageMemoryBarriers.push_back(barrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, src,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, lastImage, color));
+            // The GUI pass resolves its multisampled colour over the swapchain image, so the result is drawn in that
+            // pass too. The copy above stays for screenshots, taken from the swapchain image before that pass.
+            mAfterCopyOut->imageMemoryBarriers.push_back(barrier(VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
+                src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, lastImage, color));
             if (auto node = createPresent(lastImageView))
                 mPresentSwitch->addChild(mSceneVisible, node);
         }
 
-            // Under the scene's mask, so nothing is recorded in frames where the scene is not rendered, such as loading
-            // screens: their swapchain images were never set by updateImages(). Shown by updateImages() itself.
-            mPending = vsg::Switch::create();
-            mPending->addChild(Mask_PostProcess, group);
+        // Under the scene's mask, so nothing is recorded in frames where the scene is not rendered, such as loading
+        // screens: their swapchain images were never set by updateImages(). Shown by updateImages() itself.
+        mPending = vsg::Switch::create();
+        mPending->addChild(Mask_PostProcess, group);
     }
 
     void PostProcess::updateImages()

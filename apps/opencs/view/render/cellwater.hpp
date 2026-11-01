@@ -35,7 +35,8 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        CellWater(SceneHost& host, vsg::Group& cellNode, const std::string& id, const CSMWorld::CellCoordinates& cellCoords);
+        CellWater(
+            SceneHost& host, vsg::Group& cellNode, const std::string& id, const CSMWorld::CellCoordinates& cellCoords);
 
         ~CellWater();
 

@@ -4,7 +4,6 @@
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
-
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -15,7 +14,7 @@ namespace Settings
     {
         using WithIndex::WithIndex;
 
-        //vsgopenmw-settings
+        // vsgopenmw-settings
         SettingValue<int> mAnimationThreads{ mIndex, "Cells", "animation threads" };
 
         SettingValue<bool> mPreloadEnabled{ mIndex, "Cells", "preload enabled" };

@@ -101,7 +101,7 @@ namespace ESMTerrain
         {
             color = vsg::ubvec4(data->mColours[col * ESM::Land::LAND_SIZE * 3 + row * 3],
                 data->mColours[col * ESM::Land::LAND_SIZE * 3 + row * 3 + 1],
-                data->mColours[col * ESM::Land::LAND_SIZE * 3 + row * 3 + 2], 0xff );
+                data->mColours[col * ESM::Land::LAND_SIZE * 3 + row * 3 + 2], 0xff);
         }
         else
         {
@@ -119,10 +119,13 @@ namespace ESMTerrain
 
         auto numVerts = Storage::numVerts(bounds.size, lodLevel);
 
-        auto heights = vsg::floatArray2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R32_SFLOAT});
-        // openeden-vsg: RGBA rather than RGB: three-channel 32-bit float images are not sampleable on common Windows drivers.
-        auto normals = vsg::vec4Array2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R32G32B32A32_SFLOAT});
-        auto colours = vsg::ubvec4Array2D::create(numVerts, numVerts, vsg::Data::Properties{VK_FORMAT_R8G8B8A8_UNORM});
+        auto heights = vsg::floatArray2D::create(numVerts, numVerts, vsg::Data::Properties{ VK_FORMAT_R32_SFLOAT });
+        // openeden-vsg: RGBA rather than RGB: three-channel 32-bit float images are not sampleable on common Windows
+        // drivers.
+        auto normals
+            = vsg::vec4Array2D::create(numVerts, numVerts, vsg::Data::Properties{ VK_FORMAT_R32G32B32A32_SFLOAT });
+        auto colours
+            = vsg::ubvec4Array2D::create(numVerts, numVerts, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
 
         vsg::vec3 normal;
         vsg::ubvec4 color;
@@ -164,10 +167,12 @@ namespace ESMTerrain
                 // Only relevant for chunks smaller than (contained in) one cell
                 rowStart += (bounds.min.x - startCellX) * ESM::Land::LAND_SIZE;
                 colStart += (bounds.min.y - startCellY) * ESM::Land::LAND_SIZE;
-                int rowEnd = std::min(static_cast<int>(rowStart + std::min(1.f, bounds.size) * (ESM::Land::LAND_SIZE - 1) + 1),
-                    static_cast<int>(ESM::Land::LAND_SIZE));
-                int colEnd = std::min(static_cast<int>(colStart + std::min(1.f, bounds.size) * (ESM::Land::LAND_SIZE - 1) + 1),
-                    static_cast<int>(ESM::Land::LAND_SIZE));
+                int rowEnd
+                    = std::min(static_cast<int>(rowStart + std::min(1.f, bounds.size) * (ESM::Land::LAND_SIZE - 1) + 1),
+                        static_cast<int>(ESM::Land::LAND_SIZE));
+                int colEnd
+                    = std::min(static_cast<int>(colStart + std::min(1.f, bounds.size) * (ESM::Land::LAND_SIZE - 1) + 1),
+                        static_cast<int>(ESM::Land::LAND_SIZE));
 
                 vertY = vertY_;
                 for (int col = colStart; col < colEnd; col += increment, ++vertY)
@@ -208,14 +213,14 @@ namespace ESMTerrain
                             && (col == 0 || col == ESM::Land::LAND_SIZE - 1))
                             averageNormal(normal, cellX, cellY, col, row, cache);
 
-                        //assert(normal.z() > 0);
+                        // assert(normal.z() > 0);
 
                         (*normals)(vertX, vertY) = vsg::vec4(normal.x, normal.y, normal.z, 0.f);
 
                         if (colourData)
                         {
-                            color = vsg::ubvec4(colourData->mColours[srcArrayIndex], colourData->mColours[srcArrayIndex + 1],
-                                colourData->mColours[srcArrayIndex + 2], 0xff);
+                            color = vsg::ubvec4(colourData->mColours[srcArrayIndex],
+                                colourData->mColours[srcArrayIndex + 1], colourData->mColours[srcArrayIndex + 2], 0xff);
                         }
                         else
                             color = vsg::ubvec4(0xff, 0xff, 0xff, 0xff);
@@ -299,10 +304,10 @@ namespace ESMTerrain
                 mProjectLayerIndices[static_cast<std::size_t>(id.first)] = static_cast<unsigned int>(index);
                 continue;
             }
-            if (static_cast<short>(mLayerIndices.size()) < id.first+1)
-                mLayerIndices.resize(id.first+1);
-            if (static_cast<short>(mLayerIndices[id.first].size()) < id.second+1)
-                mLayerIndices[id.first].resize(id.second+1);
+            if (static_cast<short>(mLayerIndices.size()) < id.first + 1)
+                mLayerIndices.resize(id.first + 1);
+            if (static_cast<short>(mLayerIndices[id.first].size()) < id.second + 1)
+                mLayerIndices[id.first].resize(id.second + 1);
             mLayerIndices[id.first][id.second] = index;
         }
         return layerInfos;
@@ -320,22 +325,25 @@ namespace ESMTerrain
 
         LandCache cache;
 
-        auto image = vsg::ubvec4Array2D::create(blendmapSize, blendmapSize, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }); // _UINT
+        auto image = vsg::ubvec4Array2D::create(
+            blendmapSize, blendmapSize, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }); // _UINT
         for (int x = 0; x < blendmapSize; x++)
         {
             for (int y = 0; y < blendmapSize; y++)
             {
                 for (int i = 0; i < 4; ++i)
                 {
-                    vsg::ivec2 offset = { i&1, (i&2)>>1 };
-                    PluginTexture id = getVtexIndexAt(cellX, cellY, x + rowStart + offset.x, y + colStart + offset.y, cache);
+                    vsg::ivec2 offset = { i & 1, (i & 2) >> 1 };
+                    PluginTexture id
+                        = getVtexIndexAt(cellX, cellY, x + rowStart + offset.x, y + colStart + offset.y, cache);
                     unsigned int layerIndex = 0;
                     if (id.second < 0)
                     {
                         if (static_cast<std::size_t>(id.first) < mProjectLayerIndices.size())
                             layerIndex = mProjectLayerIndices[static_cast<std::size_t>(id.first)];
                     }
-                    else                     if (/*id.first < static_cast<short>(mLayerIndices.size()) && */id.second >= 0 && id.second < static_cast<short>(mLayerIndices[id.first].size()))
+                    else if (/*id.first < static_cast<short>(mLayerIndices.size()) && */ id.second >= 0
+                        && id.second < static_cast<short>(mLayerIndices[id.first].size()))
                         layerIndex = mLayerIndices[id.first][id.second];
                     (*image)(x, y)[i] = static_cast<unsigned char>(layerIndex);
                 }
@@ -431,7 +439,8 @@ namespace ESMTerrain
             return found->second;
         else
         {
-            found = cache.mMap.insert(std::make_pair(std::make_pair(cellX, cellY), getLand({ cellX, cellY, {} }))).first;
+            found
+                = cache.mMap.insert(std::make_pair(std::make_pair(cellX, cellY), getLand({ cellX, cellY, {} }))).first;
             return found->second;
         }
     }

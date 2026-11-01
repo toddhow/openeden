@@ -43,7 +43,8 @@ namespace
         EXPECT_EQ(get<std::string>(lua, "util.transform.identity.__type.name"), "LuaUtil::TransformQ");
         EXPECT_EQ(get<std::string>(lua, "util.transform.move(1, 2, 3).__type.name"), "LuaUtil::TransformM");
 
-        // How mwlua keeps the name of core.weather's colour interpolators; the integration test 'nan vector' reads the real one.
+        // How mwlua keeps the name of core.weather's colour interpolators; the integration test 'nan vector' reads the
+        // real one.
         struct Interpolator
         {
         };

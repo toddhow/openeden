@@ -43,7 +43,8 @@ namespace CSVRender
             return;
         mHost->removeListener(*this);
         auto& children = mHost->contentRoot().children;
-        children.erase(std::remove(children.begin(), children.end(), vsg::ref_ptr<vsg::Node>(mRootNode)), children.end());
+        children.erase(
+            std::remove(children.begin(), children.end(), vsg::ref_ptr<vsg::Node>(mRootNode)), children.end());
         mHost->compileContext()->detach(mRootNode);
     }
 
@@ -77,8 +78,8 @@ namespace CSVRender
             options.mNoDepth = true;
             options.mBlend = source.mAlpha;
             options.mTwoSided = source.mAlpha;
-            auto node = createColouredGeometry(builder, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, part.mVertices, part.mColours,
-                vsg::ref_ptr<vsg::Data>(), options);
+            auto node = createColouredGeometry(builder, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, part.mVertices,
+                part.mColours, vsg::ref_ptr<vsg::Data>(), options);
             Picking::setTag(*node, part.mTag);
             group->addChild(node);
             mParts.push_back(std::move(part));
@@ -211,7 +212,8 @@ namespace CSVRender
             return std::nullopt;
         return Picking::pickNear(*mRootNode, mHost->getProjectionMatrix(), mHost->getViewMatrix(), x, y, widthPixels,
             heightPixels, sPickRadiusPixels, vsg::Mask(Mask_Reference), [this](const Picking::Result& result) {
-                return dynamic_cast<ObjectMarkerTag*>(result.mTag.get()) != nullptr && !hitBehindMarker(result.mWorldPos);
+                return dynamic_cast<ObjectMarkerTag*>(result.mTag.get()) != nullptr
+                    && !hitBehindMarker(result.mWorldPos);
             });
     }
 

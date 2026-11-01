@@ -16,7 +16,6 @@
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 
-
 #include "components/debug/debuglog.hpp"
 #include "components/misc/convert.hpp"
 #include <components/misc/barrier.hpp>

@@ -10,10 +10,10 @@
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/weatherstate.hpp>
 
-#include "../mwworld/datetimemanager.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwworld/datetimemanager.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
 
@@ -899,8 +899,8 @@ namespace MWWorld
         mRendering.getSky()->setMasserState(mMasser.calculateState(time));
         mRendering.getSky()->setSecundaState(mSecunda.calculateState(time));
 
-        mRendering.configureFog(mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f,
-            mResult.mFogColor);
+        mRendering.configureFog(
+            mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f, mResult.mFogColor);
         mRendering.setAmbientColour(mResult.mAmbientColor);
         mRendering.setSunColour(mResult.mSunColor, mResult.mSunColor * mResult.mGlareView * glareFade);
 

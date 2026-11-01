@@ -277,8 +277,9 @@ namespace NavMeshTool
         }
 
         for (const TilePosition& tilePosition : worldspaceTiles)
-            workQueue.addWorkItem(vsg::ref_ptr<SceneUtil::WorkItem>(new GenerateNavMeshTile(data.mWorldspace, tilePosition,
-                RecastMeshProvider(*data.mTileCachedRecastMeshManager), agentBounds, settings, navMeshTileConsumer)));
+            workQueue.addWorkItem(vsg::ref_ptr<SceneUtil::WorkItem>(new GenerateNavMeshTile(data.mWorldspace,
+                tilePosition, RecastMeshProvider(*data.mTileCachedRecastMeshManager), agentBounds, settings,
+                navMeshTileConsumer)));
 
         const Status status = navMeshTileConsumer->wait();
         if (status == Status::Ok)

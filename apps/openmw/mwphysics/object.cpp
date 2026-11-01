@@ -28,8 +28,7 @@ namespace MWPhysics
         std::vector<const MWWorld::LiveCellRefBase*> sCollidedObjects;
 
         // Finds the path to the transform tagged with a NIF record index by vsgopenmw's NIF reader.
-        class GetNodePath : public vsgUtil::SearchPath<const vsg::Transform*>,
-                            public vsgUtil::TConstTraverse<vsg::Node>
+        class GetNodePath : public vsgUtil::SearchPath<const vsg::Transform*>, public vsgUtil::TConstTraverse<vsg::Node>
         {
         public:
             int needle{};

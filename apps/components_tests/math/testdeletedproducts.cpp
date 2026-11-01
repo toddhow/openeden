@@ -6,12 +6,15 @@
 
 #include <type_traits>
 
-// The deleted operators in components/misc/vsgmath.hpp, as compile-time checks: a requires expression is false when overload
-// resolution picks a deleted function or finds an ambiguity, so these fail the build if the rules change.
+// The deleted operators in components/misc/vsgmath.hpp, as compile-time checks: a requires expression is false when
+// overload resolution picks a deleted function or finds an ambiguity, so these fail the build if the rules change.
 namespace
 {
     template <class A, class B>
-    concept Multipliable = requires(const A& a, const B& b) { a * b; };
+    concept Multipliable = requires(const A& a, const B& b)
+    {
+        a* b;
+    };
 
     // The trap itself: VSG's component-wise product does not compile.
     static_assert(!Multipliable<vsg::vec2, vsg::vec2>);
@@ -21,8 +24,8 @@ namespace
     static_assert(!Multipliable<vsg::vec4, vsg::vec4>);
     static_assert(!Multipliable<vsg::dvec4, vsg::dvec4>);
 
-    // The scalar friends still win; the deleted overloads do not fit a scalar, so nothing is ambiguous. Both orders, and a
-    // scalar of the other precision, which the friend converts (vec3.h:118).
+    // The scalar friends still win; the deleted overloads do not fit a scalar, so nothing is ambiguous. Both orders,
+    // and a scalar of the other precision, which the friend converts (vec3.h:118).
     static_assert(std::is_same_v<decltype(vsg::vec3() * 2.f), vsg::vec3>);
     static_assert(std::is_same_v<decltype(2.f * vsg::vec3()), vsg::vec3>);
     static_assert(std::is_same_v<decltype(vsg::vec3() * 2.0), vsg::vec3>);

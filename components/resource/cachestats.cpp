@@ -1,6 +1,5 @@
 #include "cachestats.hpp"
 
-
 namespace Resource
 {
     namespace

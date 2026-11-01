@@ -175,8 +175,7 @@ namespace InertialMotion
         return mSmoothedVelocity;
     }
 
-    float LocomotionState::updateYaw(float currentYaw, float dt, const LocomotionParameters& params,
-        bool strafeOrAim)
+    float LocomotionState::updateYaw(float currentYaw, float dt, const LocomotionParameters& params, bool strafeOrAim)
     {
         if (dt <= 0.0f || !std::isfinite(dt) || params.mTurnHalfLife <= 0.0f || strafeOrAim)
         {

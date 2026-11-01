@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <memory>
 
-
 #include <MyGUI_ITexture.h>
 
 #include "windowpinnablebase.hpp"

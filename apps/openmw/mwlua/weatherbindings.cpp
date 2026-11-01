@@ -2,7 +2,6 @@
 
 #include <type_traits>
 
-
 #include <components/esm3/loadregn.hpp>
 #include <components/lua/util.hpp>
 #include <components/lua/utilpackage.hpp>

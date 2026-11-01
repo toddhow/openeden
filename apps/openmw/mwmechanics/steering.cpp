@@ -23,8 +23,7 @@ namespace MWMechanics
         if (absDiff < epsilonRadians)
             return true;
 
-        float limit
-            = getAngularVelocity(actor.getClass().getMaxSpeed(actor)) * dt;
+        float limit = getAngularVelocity(actor.getClass().getMaxSpeed(actor)) * dt;
         if (Settings::game().mSmoothMovement)
             limit *= std::min(absDiff / Misc::VsgMath::PIf + 0.1f, 0.5f);
 

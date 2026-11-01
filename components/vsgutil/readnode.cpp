@@ -7,8 +7,7 @@
 
 namespace vsgUtil
 {
-    vsg::ref_ptr<vsg::Node> readNode(
-        const std::string& path, vsg::ref_ptr<const vsg::Options> options)
+    vsg::ref_ptr<vsg::Node> readNode(const std::string& path, vsg::ref_ptr<const vsg::Options> options)
     {
         if (auto node = vsg::read_cast<vsg::Node>(path, options))
             return node;

@@ -38,7 +38,8 @@ namespace MWRender
         for (auto& m : additionalModels)
             replaceDummyNodes.push_back(mContext.readNode(m));
 
-        auto [anim, node] = MWAnim::Effect::load(mContext, mContext.readNode(model), textureOverride, true, replaceDummyNodes);
+        auto [anim, node]
+            = MWAnim::Effect::load(mContext, mContext.readNode(model), textureOverride, true, replaceDummyNodes);
 
         Projectile p;
         p.effect.mwctx = mContext;
@@ -71,7 +72,8 @@ namespace MWRender
             auto light = vsg::PointLight::create();
             light->color = *lightColor;
             // light->ambientColor = {1,1,1};
-            light->intensity = 66; // OpenEden: the radius of OpenMW's projectile light (projectilemanager.cpp at 442eec6e2f).
+            light->intensity
+                = 66; // OpenEden: the radius of OpenMW's projectile light (projectilemanager.cpp at 442eec6e2f).
             p.transform->addChild(light);
         }
 

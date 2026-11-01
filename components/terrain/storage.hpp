@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_TERRAIN_STORAGE_H
 #define VSGOPENMW_TERRAIN_STORAGE_H
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <vsg/core/Array2D.h>
 #include <vsg/core/ref_ptr.h>
@@ -21,7 +21,11 @@ namespace Terrain
     class Storage
     {
     public:
-        Storage(float in_cellWorldSize, uint32_t in_cellVertices) : cellWorldSize(in_cellWorldSize), cellVertices(in_cellVertices) {}
+        Storage(float in_cellWorldSize, uint32_t in_cellVertices)
+            : cellWorldSize(in_cellWorldSize)
+            , cellVertices(in_cellVertices)
+        {
+        }
         virtual ~Storage() {}
 
         /// Fill vertex buffers for a terrain chunk.

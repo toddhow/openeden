@@ -8,8 +8,9 @@
 
 #include <components/esm3/loadpgrd.hpp>
 
-/// What a pathgrid looks like, as plain data with no window or GPU: the OSG build's components/sceneutil/pathgridutil.cpp,
-/// with its numbers. Each point has a diamond of six vertices and four more for edges to start from, in its own colour.
+/// What a pathgrid looks like, as plain data with no window or GPU: the OSG build's
+/// components/sceneutil/pathgridutil.cpp, with its numbers. Each point has a diamond of six vertices and four more for
+/// edges to start from, in its own colour.
 namespace CSVRender::PathgridGeometry
 {
     inline constexpr float sDiamondHalfHeight = 40.f;
@@ -34,8 +35,8 @@ namespace CSVRender::PathgridGeometry
         {
             const float w = sDiamondHalfWidth;
             const float h = sDiamondHalfHeight;
-            const vsg::vec3 points[sDiamondVertexCount] = { { 0, 0, h * 2 }, { -w, -w, h }, { -w, w, h }, { w, -w, h },
-                { w, w, h }, { 0, 0, 0 } };
+            const vsg::vec3 points[sDiamondVertexCount]
+                = { { 0, 0, h * 2 }, { -w, -w, h }, { -w, w, h }, { w, -w, h }, { w, w, h }, { 0, 0, 0 } };
             return points[i];
         }
 
@@ -100,8 +101,10 @@ namespace CSVRender::PathgridGeometry
             else if (x >= 0 && y < 0)
                 connector = 2;
 
-            grid.mLines.push_back(static_cast<unsigned>(edge.mV0) * sTotalVertexCount + sDiamondVertexCount + connector);
-            grid.mLines.push_back(static_cast<unsigned>(edge.mV1) * sTotalVertexCount + sDiamondVertexCount + connector);
+            grid.mLines.push_back(
+                static_cast<unsigned>(edge.mV0) * sTotalVertexCount + sDiamondVertexCount + connector);
+            grid.mLines.push_back(
+                static_cast<unsigned>(edge.mV1) * sTotalVertexCount + sDiamondVertexCount + connector);
         }
         return grid;
     }

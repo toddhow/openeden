@@ -1,10 +1,13 @@
 #include "npc.hpp"
 
-#include <components/settings/values.hpp>
 #include <components/animation/context.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/misc/pathhelpers.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
 #include <components/mwanimation/attach.hpp>
 #include <components/mwanimation/bones.hpp>
 #include <components/mwanimation/clone.hpp>
@@ -12,18 +15,15 @@
 #include <components/mwanimation/face.hpp>
 #include <components/mwanimation/groups.hpp>
 #include <components/mwanimation/partbones.hpp>
-#include <components/vsgutil/readnode.hpp>
-#include <components/vsgutil/compilecontext.hpp>
-#include <components/vsgutil/removechild.hpp>
-#include <components/vsgutil/searchbyname.hpp>
-#include <components/misc/pathhelpers.hpp>
-#include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/readnode.hpp>
+#include <components/vsgutil/removechild.hpp>
+#include <components/vsgutil/searchbyname.hpp>
 #include <vsg/io/Options.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/utils/SharedObjects.h>
@@ -191,7 +191,8 @@ namespace MWRender
 
         vsg::ref_ptr<const vsg::Node> node = mContext.readActor(smodel);
 
-        animation = std::make_unique<MWAnim::Play>(MWAnim::Bones(static_cast<const vsg::Node&>(*node), MWAnim::groups), MWAnim::sNumBlendMasks);
+        animation = std::make_unique<MWAnim::Play>(
+            MWAnim::Bones(static_cast<const vsg::Node&>(*node), MWAnim::groups), MWAnim::sNumBlendMasks);
         if (Settings::game().mWeaponSheathing || Settings::game().mShieldSheathing)
         {
             addCustomBones(defaultSkeleton);
@@ -390,7 +391,7 @@ namespace MWRender
     {
         if (!path.empty())
         {
-            mPartContext->compileContext->detach(vsg::ref_ptr{path.back()});
+            mPartContext->compileContext->detach(vsg::ref_ptr{ path.back() });
             vsgUtil::prune<vsg::Group>(path, nodeToAddChildrenTo());
             path.clear();
         }
@@ -488,8 +489,8 @@ namespace MWRender
 
     namespace
     {
-        // OpenMW's ActorAnimation::getShieldMesh at 442eec6e2f: a worn shield uses its body part's model, with the ground
-        // model as the fallback when the armor has no shield part. Empty when the part names something unusable.
+        // OpenMW's ActorAnimation::getShieldMesh at 442eec6e2f: a worn shield uses its body part's model, with the
+        // ground model as the fallback when the armor has no shield part. Empty when the part names something unusable.
         std::string getShieldMesh(const MWWorld::ConstPtr& shield, bool female)
         {
             const std::vector<ESM::PartReference>& parts = shield.get<ESM::Armor>()->mBase->mParts.mParts;
@@ -518,12 +519,11 @@ namespace MWRender
 
     namespace
     {
-        // Adds "_sh" before the extension, as OpenMW's addSuffixBeforeExtension. Records name models without "meshes/", which
-        // the VFS needs.
+        // Adds "_sh" before the extension, as OpenMW's addSuffixBeforeExtension. Records name models without "meshes/",
+        // which the VFS needs.
         std::string sheathModel(const std::string& record)
         {
-            const std::string model(
-                Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(record)).value());
+            const std::string model(Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(record)).value());
             const size_t dot = model.rfind('.');
             return dot == std::string::npos ? model + "_sh" : model.substr(0, dot) + "_sh" + model.substr(dot);
         }
@@ -837,7 +837,8 @@ namespace MWRender
             mHolsteredWeaponSwitch->setAllChildren(!visible);
         else if (w == Wield::CarriedLeft && mHolsteredShieldSwitch)
             mHolsteredShieldSwitch->setAllChildren(!visible);
-        if ((w == Wield::Weapon || w == Wield::Ammo) && mViewMode != ViewMode::HeadOnly && Settings::game().mWeaponSheathing)
+        if ((w == Wield::Weapon || w == Wield::Ammo) && mViewMode != ViewMode::HeadOnly
+            && Settings::game().mWeaponSheathing)
             mQuiverDirty = true;
     }
 

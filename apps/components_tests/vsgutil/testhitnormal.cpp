@@ -94,8 +94,8 @@ namespace
 
     TEST(VsgUtilHitNormal, aLaterDrawOverwritingTheProxyDoesNotChangeTheHit)
     {
-        // Five by five, flat in x up to the middle and steep after it, drawn as two chunks of a half each in x: the hit is
-        // in the first and the second draw fills the proxy last.
+        // Five by five, flat in x up to the middle and steep after it, drawn as two chunks of a half each in x: the hit
+        // is in the first and the second draw fills the proxy last.
         auto heights = vsg::floatArray2D::create(5, 5);
         for (uint32_t x = 0; x < 5; ++x)
             for (uint32_t y = 0; y < 5; ++y)

@@ -53,7 +53,9 @@ namespace Misc
     {
         float y = -std::asin(up.x);
         float x = std::atan2(up.y, up.z);
-        vsg::vec3 forwardZ = vsg::quat(VsgMath::makeRotateFromAxis(x, vsg::vec3(1, 0, 0)) * VsgMath::makeRotateFromAxis(y, vsg::vec3(0, 1, 0))) * forward;
+        vsg::vec3 forwardZ = vsg::quat(VsgMath::makeRotateFromAxis(x, vsg::vec3(1, 0, 0))
+                                 * VsgMath::makeRotateFromAxis(y, vsg::vec3(0, 1, 0)))
+            * forward;
         float z = std::atan2(forwardZ.x, forwardZ.y);
         return vsg::vec3(x, y, z);
     }

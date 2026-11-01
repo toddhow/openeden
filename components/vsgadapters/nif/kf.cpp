@@ -22,8 +22,9 @@ namespace vsgAdapters
             // vsgopenmw-nif-istream
             Nif::NIFFile nifFile({});
             Nif::Reader reader(nifFile);
-            reader.parse(Files::IStreamPtr(new std::istream(stream.rdbuf()))); //reader.parse(stream); //vsgopenmw-fixme
-            Nif::FileView nif (nifFile);
+            reader.parse(Files::IStreamPtr(new std::istream(stream.rdbuf()))); // reader.parse(stream);
+                                                                               // //vsgopenmw-fixme
+            Nif::FileView nif(nifFile);
 
             auto controllers = vsg::ref_ptr{ new Anim::ControllerMap };
             for (size_t i = 0; i < nif.numRoots(); ++i)

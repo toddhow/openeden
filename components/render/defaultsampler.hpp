@@ -12,7 +12,8 @@ namespace vsg
 namespace Render
 {
     /// The texture sampler the [General] settings describe, within what the device supports.
-    vsg::ref_ptr<vsg::Sampler> createDefaultSampler(vsg::ref_ptr<vsg::PhysicalDevice> physicalDevice, bool supportsAnisotropy);
+    vsg::ref_ptr<vsg::Sampler> createDefaultSampler(
+        vsg::ref_ptr<vsg::PhysicalDevice> physicalDevice, bool supportsAnisotropy);
 }
 
 #endif

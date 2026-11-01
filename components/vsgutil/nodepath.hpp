@@ -17,7 +17,11 @@ namespace vsgUtil
     {
         NodePath& nodePath;
         template <class Node>
-        PushPopNode(NodePath& np, Node node) : nodePath(np) { nodePath.emplace_back(node); }
+        PushPopNode(NodePath& np, Node node)
+            : nodePath(np)
+        {
+            nodePath.emplace_back(node);
+        }
         ~PushPopNode() { nodePath.pop_back(); }
     };
 
@@ -98,7 +102,7 @@ namespace vsgUtil
     /*
      * Concatenates paths.
      */
-    template<class Dst, class Src>
+    template <class Dst, class Src>
     void addPath(std::vector<Dst>& dst, const std::vector<Src>& src)
     {
         for (auto& node : src)
@@ -108,7 +112,7 @@ namespace vsgUtil
     /*
      * Conveniently adapts node qualifiers.
      */
-    template<class Dst, class Src>
+    template <class Dst, class Src>
     std::vector<Dst> path(const std::vector<Src>& src)
     {
         std::vector<Dst> dst;

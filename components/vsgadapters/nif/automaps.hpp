@@ -32,8 +32,8 @@ namespace vsgAdapters
     std::string autoMapPath(std::string_view diffusePath, std::string_view pattern);
 
     /// Finds the normal and specular maps for a diffuse texture's resolved path (task 0012, V4h), as OpenMW's
-    /// Shader::ShaderVisitor::applyStateSet at 442eec6e2f: the normal-height map before the plain normal map, unless the
-    /// found map is the model's own bump texture (bumpPath), then the specular map.
+    /// Shader::ShaderVisitor::applyStateSet at 442eec6e2f: the normal-height map before the plain normal map, unless
+    /// the found map is the model's own bump texture (bumpPath), then the specular map.
     AutoMaps findAutoMaps(std::string_view diffusePath, std::string_view bumpPath, const AutoMapSettings& settings,
         const std::function<bool(std::string_view)>& exists);
 

@@ -120,7 +120,8 @@ namespace
 
     std::unique_ptr<TestingOpenMW::VFSTestFile> readShader(const std::string& fileName)
     {
-        std::ifstream stream(std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data" / "shaders" / fileName,
+        std::ifstream stream(
+            std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data" / "shaders" / fileName,
             std::ios::binary);
         EXPECT_TRUE(stream.is_open()) << fileName;
         return std::make_unique<TestingOpenMW::VFSTestFile>(

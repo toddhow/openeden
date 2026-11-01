@@ -21,7 +21,8 @@ namespace vsgUtil
                 {
                     auto [i, inserted] = loggedErrors.insert(e.what());
                     if (inserted)
-                        std::cerr << "!UpdateThreads<" << typeid(*this).name() <<  ">::run(" << e.what() << ")" << std::endl;
+                        std::cerr << "!UpdateThreads<" << typeid(*this).name() << ">::run(" << e.what() << ")"
+                                  << std::endl;
                 }
                 std::unique_lock<std::mutex> lock(mMutex);
                 if (--mPending == 0)

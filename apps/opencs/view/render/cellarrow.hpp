@@ -58,7 +58,8 @@ namespace CSVRender
         vsg::ref_ptr<vsg::Node> buildShape() const;
 
     public:
-        CellArrow(SceneHost& host, vsg::Group& cellNode, Direction direction, const CSMWorld::CellCoordinates& coordinates);
+        CellArrow(
+            SceneHost& host, vsg::Group& cellNode, Direction direction, const CSMWorld::CellCoordinates& coordinates);
 
         ~CellArrow();
 

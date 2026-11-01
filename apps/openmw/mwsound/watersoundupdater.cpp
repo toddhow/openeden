@@ -7,7 +7,6 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/vsgmath.hpp>
 
-
 namespace MWSound
 {
     WaterSoundUpdater::WaterSoundUpdater(const WaterSoundUpdaterSettings& settings)

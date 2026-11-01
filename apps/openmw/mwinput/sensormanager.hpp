@@ -5,7 +5,6 @@
 
 #include <SDL_sensor.h>
 
-
 #include <components/misc/vsgmath.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/settings.hpp>

@@ -17,8 +17,8 @@ namespace Render // namespace vulkanexamples
     /*
      * Progressively covers view frustum.
      */
-    inline std::vector<Cascade> cascade(
-        size_t count, float near, float far, float maxZ, float cascadeSplitLambda, const vsg::Camera& cam, const vsg::vec3& lightDir)
+    inline std::vector<Cascade> cascade(size_t count, float near, float far, float maxZ, float cascadeSplitLambda,
+        const vsg::Camera& cam, const vsg::vec3& lightDir)
     {
         using vec3 = vsg::dvec3;
         std::vector<Cascade> cascades(count);
@@ -27,7 +27,7 @@ namespace Render // namespace vulkanexamples
         double clipRange = far - near;
 
         double minZ = near;
-        //double maxZ = near + clipRange;
+        // double maxZ = near + clipRange;
 
         double range = maxZ - minZ;
         double ratio = maxZ / minZ;

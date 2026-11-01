@@ -3,7 +3,6 @@
 #ifndef OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 #define OPENMW_MWRENDER_ACTORIKCONTROLLER_H
 
-
 #include "../mwworld/ptr.hpp"
 
 #include <components/misc/vsgmath.hpp>

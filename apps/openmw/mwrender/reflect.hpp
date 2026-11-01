@@ -34,9 +34,11 @@ namespace MWRender
             : mEngine(engine)
         {
             VkExtent2D res{ 512, 512 };
-            mDstColorImage = vsgUtil::createImage(Render::compatibleColorFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            mDstColorImage = vsgUtil::createImage(
+                Render::compatibleColorFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-            mDstDepthImage = vsgUtil::createImage(Render::compatibleDepthFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            mDstDepthImage = vsgUtil::createImage(
+                Render::compatibleDepthFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
             auto initialColorLayout = mEngine.getPresentLayout();
             auto initialDepthLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;

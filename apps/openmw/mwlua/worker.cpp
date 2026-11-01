@@ -2,7 +2,6 @@
 
 #include "luamanagerimp.hpp"
 
-
 #include <components/debug/debuglog.hpp>
 #include <components/settings/values.hpp>
 

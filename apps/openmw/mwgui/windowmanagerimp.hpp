@@ -613,7 +613,6 @@ namespace MWGui
 
         void pushGuiMode(GuiMode mode, const MWWorld::Ptr& arg, bool force);
 
-
         void setActiveMap(int x, int y, bool interior);
         ///< set the indices of the map texture that should be used
 

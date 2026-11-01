@@ -4,7 +4,8 @@
 
 namespace vsgUtil
 {
-    vsg::ref_ptr<vsg::ImageInfo> sharedImageInfo(vsg::ref_ptr<vsg::SharedObjects> sharedObjects, vsg::ref_ptr<vsg::Sampler>& sampler, vsg::ref_ptr<vsg::Data> data)
+    vsg::ref_ptr<vsg::ImageInfo> sharedImageInfo(vsg::ref_ptr<vsg::SharedObjects> sharedObjects,
+        vsg::ref_ptr<vsg::Sampler>& sampler, vsg::ref_ptr<vsg::Data> data)
     {
         share_if(sharedObjects, sampler);
 
@@ -20,7 +21,8 @@ namespace vsgUtil
         return imageInfo;
     }
 
-    vsg::ref_ptr<vsg::DescriptorImage> sharedDescriptorImage(vsg::ref_ptr<vsg::SharedObjects> sharedObjects, vsg::ref_ptr<vsg::Sampler>& sampler, vsg::ref_ptr<vsg::Data> data, uint32_t dstBinding)
+    vsg::ref_ptr<vsg::DescriptorImage> sharedDescriptorImage(vsg::ref_ptr<vsg::SharedObjects> sharedObjects,
+        vsg::ref_ptr<vsg::Sampler>& sampler, vsg::ref_ptr<vsg::Data> data, uint32_t dstBinding)
     {
         auto imageInfo = sharedImageInfo(sharedObjects, sampler, data);
         auto descriptor = vsg::DescriptorImage::create(imageInfo, dstBinding);

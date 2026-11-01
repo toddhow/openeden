@@ -198,10 +198,7 @@ namespace
     {
         vsg::ref_ptr<Anim::ControllerMap> map{ new Anim::ControllerMap };
 
-        Source()
-        {
-            map->tags = vsg::ref_ptr<Anim::Tags>(new Anim::Tags);
-        }
+        Source() { map->tags = vsg::ref_ptr<Anim::Tags>(new Anim::Tags); }
 
         void add(const std::string& boneName, Anim::channel_ptr<vsg::vec3> translate,
             Anim::channel_ptr<vsg::quat> rotate = {}, Anim::channel_ptr<float> scale = {})
@@ -285,9 +282,8 @@ TEST(CreativeMotionRuntimeTest, SkeletonDiscoveryAndHierarchyValidation)
     const auto& skel = driver.getSkeleton();
     EXPECT_EQ(skel.bones.size(), 11u);
 
-    for (const char* name : { "bip01", "bip01 pelvis", "bip01 spine1", "bip01 neck", "bip01 head",
-             "bip01 l clavicle", "bip01 l upperarm", "bip01 r clavicle", "bip01 r upperarm", "bip01 l thigh",
-             "bip01 r thigh" })
+    for (const char* name : { "bip01", "bip01 pelvis", "bip01 spine1", "bip01 neck", "bip01 head", "bip01 l clavicle",
+             "bip01 l upperarm", "bip01 r clavicle", "bip01 r upperarm", "bip01 l thigh", "bip01 r thigh" })
     {
         const int i = driver.getBoneIndex(name);
         ASSERT_GE(i, 0) << name;
@@ -323,9 +319,9 @@ TEST(CreativeMotionRuntimeTest, SkeletonOrderIsByDepthThenNormalizedName)
     CreativeMotionPoseDriver driver(*rig.bones);
     ASSERT_TRUE(driver.isValid());
 
-    const std::vector<std::string> expected = { "bip01", "bip01 pelvis", "bip01 l thigh", "bip01 r thigh",
-        "bip01 spine1", "bip01 l clavicle", "bip01 neck", "bip01 r clavicle", "bip01 head", "bip01 l upperarm",
-        "bip01 r upperarm" };
+    const std::vector<std::string> expected
+        = { "bip01", "bip01 pelvis", "bip01 l thigh", "bip01 r thigh", "bip01 spine1", "bip01 l clavicle", "bip01 neck",
+              "bip01 r clavicle", "bip01 head", "bip01 l upperarm", "bip01 r upperarm" };
     const auto& skel = driver.getSkeleton();
     ASSERT_EQ(skel.bones.size(), expected.size());
     for (size_t i = 0; i < expected.size(); ++i)
@@ -514,7 +510,8 @@ TEST(CreativeMotionRuntimeTest, UnregisteredSourceIsRegisteredOnTheFly)
     ASSERT_TRUE(driver.isValid());
 
     Source source;
-    source.add("Bip01 Pelvis", linear<vsg::vec3>({ { 0.f, vsg::vec3(0.f, 0.f, 60.f) }, { 1.f, vsg::vec3(0.f, 0.f, 70.f) } }));
+    source.add(
+        "Bip01 Pelvis", linear<vsg::vec3>({ { 0.f, vsg::vec3(0.f, 0.f, 60.f) }, { 1.f, vsg::vec3(0.f, 0.f, 70.f) } }));
     driver.update(1.f / 60.f, activeIn(0, source, "idle", 0.5f), 0.f);
 
     const int pelvis = index(driver, "bip01 pelvis");
@@ -537,9 +534,8 @@ namespace
         void sample(const Source& source, float t) { driver.update(1.f / 60.f, activeIn(0, source, "idle", t), 0.f); }
     };
 
-    const std::vector<float> sSampleTimes
-        = { -0.5f, 0.f, 0.05f, 0.1f, 0.2f, 0.25f, 0.3f, 0.33f, 0.4f, 0.5f, 0.61f, 0.7f, 0.75f, 0.9f, 1.f, 1.2f, 1.37f,
-              1.5f, 1.8f, 2.f, 2.5f, 10.f };
+    const std::vector<float> sSampleTimes = { -0.5f, 0.f, 0.05f, 0.1f, 0.2f, 0.25f, 0.3f, 0.33f, 0.4f, 0.5f, 0.61f,
+        0.7f, 0.75f, 0.9f, 1.f, 1.2f, 1.37f, 1.5f, 1.8f, 2.f, 2.5f, 10.f };
 }
 
 TEST(CreativeMotionRuntimeTest, LinearTranslationMatchesChannel)
@@ -610,8 +606,8 @@ TEST(CreativeMotionRuntimeTest, CubicHermiteRotationIsSlerpedLikeLinear)
     ASSERT_TRUE(s.driver.isValid());
     const vsg::vec3 y(0.f, 1.f, 0.f);
     auto channel = Anim::make_channel<Anim::CubicHermiteSpline<vsg::quat>>();
-    channel->keys
-        = { { 0.f, axisAngle(0.f, y) }, { 0.4f, axisAngle(1.f, y) }, { 1.f, axisAngle(0.3f, vsg::vec3(0.f, 0.f, 1.f)) } };
+    channel->keys = { { 0.f, axisAngle(0.f, y) }, { 0.4f, axisAngle(1.f, y) },
+        { 1.f, axisAngle(0.3f, vsg::vec3(0.f, 0.f, 1.f)) } };
     Source source;
     source.add("Bip01 Pelvis", {}, channel);
     ASSERT_TRUE(s.driver.registerSource(source.ref()));

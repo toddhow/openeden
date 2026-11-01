@@ -67,8 +67,9 @@ namespace MWRender
             if (now - view.mCreated < sCollisionLifetime)
                 mGeometry.addLine(view.mOrig, view.mEnd, sCollisionColor);
         }
-        mCollisionViews.erase(std::remove_if(mCollisionViews.begin(), mCollisionViews.end(),
-                                  [&now](const CollisionView& view) { return now - view.mCreated >= sCollisionLifetime; }),
+        mCollisionViews.erase(
+            std::remove_if(mCollisionViews.begin(), mCollisionViews.end(),
+                [&now](const CollisionView& view) { return now - view.mCreated >= sCollisionLifetime; }),
             mCollisionViews.end());
     }
 
@@ -130,8 +131,8 @@ namespace MWRender
         return batch;
     }
 
-    JPH::DebugRenderer::Batch JoltDebugDrawer::CreateTriangleBatch(const JPH::DebugRenderer::Vertex* inVertices,
-        int inVertexCount, const JPH::uint32* inIndices, int inIndexCount)
+    JPH::DebugRenderer::Batch JoltDebugDrawer::CreateTriangleBatch(
+        const JPH::DebugRenderer::Vertex* inVertices, int inVertexCount, const JPH::uint32* inIndices, int inIndexCount)
     {
         BatchImpl* batch = new BatchImpl;
         if (inVertices == nullptr || inIndices == nullptr || inVertexCount <= 0 || inIndexCount <= 0)
@@ -169,8 +170,8 @@ namespace MWRender
         }
     }
 
-    void JoltDebugDrawer::DrawText3D(
-        JPH::RVec3Arg /*inPosition*/, const std::string_view& /*inString*/, JPH::ColorArg /*inColor*/, float /*inHeight*/)
+    void JoltDebugDrawer::DrawText3D(JPH::RVec3Arg /*inPosition*/, const std::string_view& /*inString*/,
+        JPH::ColorArg /*inColor*/, float /*inHeight*/)
     {
         // Not drawn, as on the OSG build.
     }

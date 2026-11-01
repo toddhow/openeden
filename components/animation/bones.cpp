@@ -3,8 +3,8 @@
 #include <stack>
 
 #include <components/vsgutil/name.hpp>
-#include <components/vsgutil/traverse.hpp>
 #include <components/vsgutil/nodepath.hpp>
+#include <components/vsgutil/traverse.hpp>
 
 #include "transform.hpp"
 

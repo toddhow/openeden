@@ -46,7 +46,6 @@ namespace Resource
 
         void clearCache() override;
 
-
     private:
         vsg::ref_ptr<PhysicsShapeInstance> createInstance(VFS::Path::NormalizedView name);
 

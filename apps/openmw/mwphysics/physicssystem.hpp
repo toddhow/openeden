@@ -307,7 +307,6 @@ namespace MWPhysics
 
         float getPhysicsDt() const { return mPhysicsDt; }
 
-
         inline const JPH::BodyLockInterfaceLocking& getBodyLockInterface() const;
 
         const JPH::BodyInterface& getBodyInterface() const;
@@ -360,7 +359,6 @@ namespace MWPhysics
         // Null until setDebugGeometry() connects the renderer's debug geometry.
         std::unique_ptr<MWRender::JoltDebugDrawer> mJoltDebugDrawer;
         MWRender::JoltDebugDrawer* getJoltDebugDrawer() const { return mJoltDebugDrawer.get(); }
-
 
         float mPhysicsDt;
 

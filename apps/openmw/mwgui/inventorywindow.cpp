@@ -28,8 +28,8 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/inventorystore.hpp"
 
-#include "../mwmechanics/npcstats.hpp"
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/npcstats.hpp"
 
 #include "../mwrender/preview.hpp"
 
@@ -957,7 +957,6 @@ namespace MWGui
 
         const MyGUI::IntSize viewport = getPreviewViewportSize();
         return vsg::vec2(normalisedX * (viewport.width - 1), normalisedY * (viewport.height - 1));
-
     }
 
     ControllerButtons* InventoryWindow::getControllerButtons()
@@ -1105,6 +1104,5 @@ namespace MWGui
 
         mItemView->setActiveControllerWindow(active);
         WindowBase::setActiveControllerWindow(active);
-
     }
 }

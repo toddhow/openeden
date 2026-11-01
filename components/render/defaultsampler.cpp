@@ -11,13 +11,16 @@
 
 namespace Render
 {
-    vsg::ref_ptr<vsg::Sampler> createDefaultSampler(vsg::ref_ptr<vsg::PhysicalDevice> physicalDevice, bool supportsAnisotropy)
+    vsg::ref_ptr<vsg::Sampler> createDefaultSampler(
+        vsg::ref_ptr<vsg::PhysicalDevice> physicalDevice, bool supportsAnisotropy)
     {
         auto sampler = vsg::Sampler::create();
         sampler->anisotropyEnable = supportsAnisotropy;
-        sampler->maxAnisotropy = std::min(static_cast<int>(Settings::general().mAnisotropy), static_cast<int>(physicalDevice->getProperties().limits.maxSamplerAnisotropy));
+        sampler->maxAnisotropy = std::min(static_cast<int>(Settings::general().mAnisotropy),
+            static_cast<int>(physicalDevice->getProperties().limits.maxSamplerAnisotropy));
 
-        auto getFilterMode = [](const std::string& s) -> auto {
+        auto getFilterMode = [](const std::string& s) -> auto
+        {
             if (s == "nearest")
                 return VK_FILTER_NEAREST;
             else if (s == "linear")

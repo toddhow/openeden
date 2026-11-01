@@ -37,8 +37,9 @@ namespace MWAnim
             effects->update(dt);
     }
 
-    void addEffect(MWAnim::Object& obj, vsg::Group* attachBone, vsg::ref_ptr<vsg::Node> prototype, const std::vector<Anim::Transform*>& worldAttachmentPath,
-        std::string_view effectId, bool loop, const std::string& overrideTexture, bool overrideAllTextures)
+    void addEffect(MWAnim::Object& obj, vsg::Group* attachBone, vsg::ref_ptr<vsg::Node> prototype,
+        const std::vector<Anim::Transform*>& worldAttachmentPath, std::string_view effectId, bool loop,
+        const std::string& overrideTexture, bool overrideAllTextures)
     {
         auto effects = Effects::getOrCreate(*obj.node());
         for (auto& e : effects->effects)

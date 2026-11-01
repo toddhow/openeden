@@ -22,10 +22,10 @@ namespace Anim
             vsg::vec2 s(scale[0]->value(time), scale[1]->value(time));
             vsg::vec2 trans(translate[0]->value(time), translate[1]->value(time));
             auto& mat = value.value();
-            mat(0,0) = s[0];
-            mat(1,1) = s[1];
-            mat(3,0) = s[0] * -0.5f + 0.5f + trans.x;
-            mat(3,1) = s[1] * -0.5f + 0.5f + trans.y;
+            mat(0, 0) = s[0];
+            mat(1, 1) = s[1];
+            mat(3, 0) = s[0] * -0.5f + 0.5f + trans.x;
+            mat(3, 1) = s[1] * -0.5f + 0.5f + trans.y;
         }
     };
 }

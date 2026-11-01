@@ -6,8 +6,8 @@ namespace Pipeline
 {
     namespace Descriptors
     {
-        #include <files/shaders/lib/material/bindings.glsl>
-        #include <files/shaders/comp/particle/bindings.glsl>
+#include <files/shaders/comp/particle/bindings.glsl>
+#include <files/shaders/lib/material/bindings.glsl>
     }
 
     Particle::Particle(vsg::ref_ptr<const vsg::Options> readShaderOptions)
@@ -22,11 +22,8 @@ namespace Pipeline
             { Descriptors::COLOR_CURVE_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, computeStage, nullptr }
         };
         static const auto nullDsl = vsg::DescriptorSetLayout::create();
-        vsg::DescriptorSetLayouts descriptorSetLayouts = {
-            nullDsl,
-            nullDsl,
-            vsg::DescriptorSetLayout::create(descriptorBindings)
-        };
+        vsg::DescriptorSetLayouts descriptorSetLayouts
+            = { nullDsl, nullDsl, vsg::DescriptorSetLayout::create(descriptorBindings) };
 
         mLayout = vsg::PipelineLayout::create(descriptorSetLayouts, vsg::PushConstantRanges());
     }
@@ -37,14 +34,12 @@ namespace Pipeline
     {
         auto shaderStage = vsgUtil::readShader("comp/particle/simulate.comp", mShaderOptions);
         shaderStage = vsg::ShaderStage::create(*shaderStage);
-        shaderStage->specializationConstants = {
-            { 0, vsg::Value<VkBool32>::create(modes & ParticleMode_Size) },
+        shaderStage->specializationConstants = { { 0, vsg::Value<VkBool32>::create(modes & ParticleMode_Size) },
             { 1, vsg::Value<VkBool32>::create(modes & ParticleMode_Color) },
             { 2, vsg::Value<VkBool32>::create(modes & ParticleMode_GravityPlane) },
             { 3, vsg::Value<VkBool32>::create(modes & ParticleMode_GravityPoint) },
             { 4, vsg::Value<VkBool32>::create(modes & ParticleMode_CollidePlane) },
-            { 5, vsg::Value<VkBool32>::create(modes & ParticleMode_WorldSpace) }
-        };
+            { 5, vsg::Value<VkBool32>::create(modes & ParticleMode_WorldSpace) } };
         return vsg::BindComputePipeline::create(vsg::ComputePipeline::create(mLayout, shaderStage));
     }
 }

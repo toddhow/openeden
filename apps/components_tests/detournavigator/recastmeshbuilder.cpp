@@ -6,7 +6,6 @@
 
 #include <vsg/maths/transform.h>
 
-
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
@@ -92,8 +91,8 @@ namespace
         const auto shape = settings.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
             std::vector<float>({
@@ -150,8 +149,8 @@ namespace
         JPH::ShapeRefC shape = createdRes.Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
@@ -186,8 +185,8 @@ namespace
         shape.SetEmbedded();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
@@ -251,8 +250,8 @@ namespace
         const auto shape = compoundSettings.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
@@ -377,8 +376,8 @@ namespace
         const auto shape = settingsTri1.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
         // NOTE: jolt mesh shape triangle walk causes this inprecision
@@ -416,8 +415,8 @@ namespace
         const auto shape = settingsTri1.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
 
         // NOTE: jolt mesh shape triangle walk causes this inprecision
@@ -565,10 +564,10 @@ namespace
         const auto shape2 = settingsTri2.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape1), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape2), vsg::dmat4(), AreaType_null, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape1), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape2), vsg::dmat4(), AreaType_null, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
             std::vector<float>({
@@ -610,8 +609,8 @@ namespace
         const auto shape = settingsTri1.Create().Get();
 
         RecastMeshBuilder builder(mBounds);
-        builder.addObject(static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource,
-            mObjectTransform);
+        builder.addObject(
+            static_cast<const JPH::Shape&>(*shape), vsg::dmat4(), AreaType_ground, mSource, mObjectTransform);
         const auto recastMesh = std::move(builder).create(mVersion);
         EXPECT_EQ(recastMesh->getMesh().getVertices(),
             std::vector<float>({

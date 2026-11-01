@@ -98,8 +98,8 @@ namespace
 
     // A <node> instancing a geometry, with optional transform elements (e.g. "<translate>1 2 3</translate>") and
     // optional child nodes.
-    std::string makeNode(std::string_view name, std::string_view transform, std::string_view geometryId,
-        std::string_view children = {})
+    std::string makeNode(
+        std::string_view name, std::string_view transform, std::string_view geometryId, std::string_view children = {})
     {
         std::ostringstream stream;
         stream << "<node id=\"" << name << "\" name=\"" << name << "\" type=\"NODE\">" << transform;
@@ -167,8 +167,7 @@ namespace
                 fileMap.emplace(VFS::Path::Normalized(path), mFiles.back().get());
             }
             mVfs = TestingOpenMW::createTestVFS(std::move(fileMap));
-            mNifFileManager
-                = std::make_unique<Resource::NifFileManager>(mVfs.get(), &mEncoder.getStatelessEncoder());
+            mNifFileManager = std::make_unique<Resource::NifFileManager>(mVfs.get(), &mEncoder.getStatelessEncoder());
             mManager = std::make_unique<Resource::PhysicsShapeManager>(mVfs.get(), mNifFileManager.get(), 1.0);
             return *mManager;
         }
@@ -467,8 +466,7 @@ namespace
                 makeBoxGeometry("first", { 0, 0, 0 }, { 1, 2, 3 }),
                 makeBoxGeometry("second", { 20, 20, 20 }, { 21, 22, 23 }),
             },
-            makeNodeWithId("Visual-node", "Visual", "visual")
-                + makeNodeWithId("Collision-first", "Collision", "first")
+            makeNodeWithId("Visual-node", "Visual", "visual") + makeNodeWithId("Collision-first", "Collision", "first")
                 + makeNodeWithId("Collision-second", "Collision", "second"));
         Resource::PhysicsShapeManager& manager = makeManager({ { boxPath.value(), document } });
 

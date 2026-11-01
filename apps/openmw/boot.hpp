@@ -32,11 +32,9 @@ namespace OMW
         void threadLoad() override
         {
             MWClass::registerClasses();
-            mWorld
-                = std::make_unique<MWWorld::World>(*mEngine.mRenderManager, mEngine.mResourceSystem.get(),
-                    mEngine.mFileCollections, mArgs.contentFiles, mArgs.groundcoverFiles,
-                    mEngine.mEncoder.get(), *this, mArgs.activationDistanceOverride,
-                    mEngine.mCfgMgr.getUserDataPath());
+            mWorld = std::make_unique<MWWorld::World>(*mEngine.mRenderManager, mEngine.mResourceSystem.get(),
+                mEngine.mFileCollections, mArgs.contentFiles, mArgs.groundcoverFiles, mEngine.mEncoder.get(), *this,
+                mArgs.activationDistanceOverride, mEngine.mCfgMgr.getUserDataPath());
             mEnvironment.setWorld(*mWorld);
             mEnvironment.setWorldModel(mWorld->getWorldModel());
             mEnvironment.setWorldScene(mWorld->getWorldScene());
@@ -82,7 +80,8 @@ namespace OMW
             mEngine.mStateManager->pushGameState(std::make_shared<Game>(mEngine, mWorld, mArgs));
 
             if (!mArgs.startupScript.empty())
-                mEnvironment.getStateManager()->pushGameState(std::make_shared<MWState::ExecuteScript>(mArgs.startupScript));
+                mEnvironment.getStateManager()->pushGameState(
+                    std::make_shared<MWState::ExecuteScript>(mArgs.startupScript));
 
             if (!mArgs.saveGameFile.empty())
                 mEngine.mStateManager->loadGame(mArgs.saveGameFile);
@@ -100,6 +99,7 @@ namespace OMW
                 mEngine.mStateManager->bypassNewGame(mArgs.cellName);
             return false;
         }
+
     public:
         Boot(Engine& engine, const Arguments& args)
             : mEngine(engine)

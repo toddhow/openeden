@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <map>
-#include <system_error>
 #include <mutex>
 #include <set>
 #include <string_view>
+#include <system_error>
 
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
@@ -371,9 +371,8 @@ namespace OMW
         mLogBridge = std::make_shared<LogBridge>();
         mLogBridge->mService = &mHost.loggingService();
         mHost.loggingService().addSink(std::make_shared<EngineLogSink>());
-        Debug::setExtraLogListener([bridge = mLogBridge](Debug::Level level, std::string_view, std::string_view message) {
-            bridge->forward(level, message);
-        });
+        Debug::setExtraLogListener([bridge = mLogBridge](Debug::Level level, std::string_view,
+                                       std::string_view message) { bridge->forward(level, message); });
 
         // The name scheme is in task 0016. Extension code never runs in Lua: the payload is copied here.
         mHost.eventBus().setForwardSink(

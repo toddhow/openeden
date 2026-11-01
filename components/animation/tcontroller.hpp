@@ -23,7 +23,7 @@ namespace Anim
         void link(Context&, vsg::Object&) /*=delete*/ final override {}
         vsg::ref_ptr<Controller> cloneIfRequired() const final override { return {}; }
 
-        template<typename... Args>
+        template <typename... Args>
         static vsg::ref_ptr<Derived> create(Args&&... args)
         {
             return vsg::ref_ptr<Derived>(new Derived(args...));
