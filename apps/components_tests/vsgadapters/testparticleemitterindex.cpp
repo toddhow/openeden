@@ -18,14 +18,17 @@ namespace
     {
         const size_t count = 3;
         size_t seen[count] = {};
-        for (int r = 0; r <= RAND_MAX; ++r)
+        // RAND_MAX is 32767 on MSVC but 2147483647 on glibc: step so that about 32768 values are tried, ending on RAND_MAX.
+        const long long step = (RAND_MAX + 1LL) / 32768;
+        long long tried = 0;
+        for (long long r = 0; r <= RAND_MAX; r += step, ++tried)
         {
-            const size_t index = vsgAdapters::chooseEmitter(r, count);
+            const size_t index = vsgAdapters::chooseEmitter(static_cast<int>(r), count);
             ASSERT_LT(index, count) << r;
             ++seen[index];
         }
         for (size_t n : seen)
-            EXPECT_NEAR(static_cast<double>(n), (RAND_MAX + 1.0) / count, 1.0);
+            EXPECT_NEAR(static_cast<double>(n), static_cast<double>(tried) / count, 1.0);
     }
 
     TEST(VsgAdaptersChooseEmitterTest, singleEmitterIsAlwaysFirst)
