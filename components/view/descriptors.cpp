@@ -7,6 +7,7 @@
 #include <components/pipeline/layout.hpp>
 #include <components/pipeline/viewbindings.hpp>
 #include <components/render/depth.hpp>
+#include <components/render/cloudgpu.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/skyvisgpu.hpp>
@@ -132,7 +133,8 @@ namespace View
 
     vsg::ref_ptr<vsg::Descriptor> dummySkyVisSky()
     {
-        auto data = vsg::vec4Array::create(Render::Gi::skyHeaderVec4s);
+        // OpenEden (task 0038): the header is followed by the cloud shadow data (Render::Cloud, cloudgpu.hpp).
+        auto data = vsg::vec4Array::create(Render::Cloud::headerTotalVec4s);
         for (auto& v : *data)
             v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
         return vsg::DescriptorBuffer::create(
@@ -141,7 +143,7 @@ namespace View
 
     vsg::ref_ptr<vsg::Descriptor> skyVisSkyBuffer(vsg::ref_ptr<vsg::vec4Array>& data)
     {
-        data = vsg::vec4Array::create(Render::Gi::skyHeaderVec4s);
+        data = vsg::vec4Array::create(Render::Cloud::headerTotalVec4s);
         for (auto& v : *data)
             v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
         data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;

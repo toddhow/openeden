@@ -4,10 +4,12 @@
 // vsgopenmw-move-me("sky.hpp")
 
 #include <components/misc/vsgmath.hpp>
+#include <components/render/cloudgpu.hpp>
 #include <components/vsgutil/composite.hpp>
 #include <components/vsgutil/toggle.hpp>
 
 #include <memory>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -90,6 +92,20 @@ namespace MWRender
         /// The current weather's rain, for Rain (task 0012).
         void getRainParameters(Rain::Parameters& out) const;
 
+        /// OpenEden (task 0038): what the renderer needs to draw the clouds' shadows on the ground. The grids belong to
+        /// the Sky and stay valid until the next call of setWeather or update; `valid` is false when cloud shadows are
+        /// off or the weather has no cloud picture.
+        struct CloudShadowInput
+        {
+            bool valid = false;
+            const float* grid[2] = { nullptr, nullptr };
+            float scroll = 0.f;
+            float blend = 0.f;
+            float share = 0.f;
+            Render::Cloud::Rotation rotation[2] = { Render::Cloud::identityRotation, Render::Cloud::identityRotation };
+        };
+        CloudShadowInput getCloudShadow() const;
+
         void setSunDirection(const vsg::vec3& direction);
 
         void setMasserState(const MoonState& state);
@@ -137,6 +153,17 @@ namespace MWRender
         vsg::vec3 mNextStormDirection;
 
         float mCloudBlendFactor = 0.f;
+        // OpenEden (task 0038): the lit look of the clouds, and the weather's share of it (now, and heading for).
+        bool mCloudsLit = false;
+        // Cloud shadows (task 0038): whether they are on, the coarse grid of each cloud picture (built once per picture,
+        // from its pixels), the two layers' current pictures and rotations (dome space to world).
+        bool mCloudShadowsOn = false;
+        std::map<std::string, std::vector<float>> mCloudGrids;
+        const std::vector<float>* mCloudGrid[2] = { nullptr, nullptr };
+        Render::Cloud::Rotation mCloudRotation[2] = { Render::Cloud::identityRotation, Render::Cloud::identityRotation };
+        float mCloudShare = 0.f;
+        float mCloudShareTarget = 0.f;
+        bool mCloudShareSet = false;
         float mCloudSpeed = 0.f;
         vsg::vec4 mSkyColor;
 

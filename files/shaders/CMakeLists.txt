@@ -31,6 +31,7 @@ set(SHADER_FILES
     lib/view/gi.glsl
     lib/view/reflection.glsl
     lib/view/skyvis.glsl
+    lib/view/cloudshadow.glsl
     lib/material/wetness.glsl
     lib/material/bindings.glsl
     lib/material/data.glsl
@@ -77,6 +78,7 @@ set(SHADER_FILES
     sky/atmosphere/main.frag
     sky/atmosphere/main.vert
     sky/clouds/inout.glsl
+    sky/clouds/lit.glsl
     sky/clouds/main.frag
     sky/clouds/main.vert
     sky/moon/main.frag

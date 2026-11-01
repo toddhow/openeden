@@ -33,6 +33,8 @@ namespace Pipeline
             update(value().diffuse.g, tint.y);
             update(value().diffuse.b, tint.z);
         }
+        // OpenEden (task 0038): the cloud shader's share of the lit look (the specular alpha, which it does not use).
+        void setCloudShare(float share) { update(value().specular.a, share); }
         static Data::Material createDefault()
         {
             return { vsg::vec4(1, 1, 1, 1), vsg::vec4(1, 1, 1, 1), vsg::vec4(0, 0, 0, 1), vsg::vec4(0, 0, 0, 0), 0.f,

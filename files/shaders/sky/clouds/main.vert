@@ -5,6 +5,7 @@ layout(constant_id=0) const int numUvSets=1;
 #include "lib/material/descriptors_vert.glsl"
 #include "lib/pushconstants.glsl"
 #include "lib/attributes.glsl"
+#include "lib/view/scene.glsl"
 
 layout(location=0) out Outputs
 {
@@ -23,4 +24,7 @@ void main()
     else
         vert_out.color.a = 1.f;
     vert_out.texCoord = (texmat * vec4(inTexCoord[0], 0.0, 1.0)).xy;
+    // OpenEden (task 0038): the dome has a rotation and no scale, so its inverse is its transpose.
+    vert_out.domeDir = inVertex;
+    vert_out.sunLocal = transpose(mat3(pc.modelview)) * scene.lightViewPos.xyz;
 }

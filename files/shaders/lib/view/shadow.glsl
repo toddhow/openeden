@@ -2,6 +2,10 @@
 
 #include "shadow.settings"
 
+#ifdef CLOUD_SHADOW
+#include "cloudshadow.glsl"
+#endif
+
 layout(set=VIEW_SET, binding=VIEW_SHADOW_MAP_BINDING) uniform texture2DArray shadowMap;
 layout(set=VIEW_SET, binding=VIEW_SHADOW_SAMPLER_BINDING) uniform sampler shadowSampler;
 
@@ -70,7 +74,7 @@ float shadowPCSS_ortho_directional(vec4 shadowCoord, uint cascadeIndex)
     return shadowPCF(shadowCoord, penumbraWidth, cShadowSamples, cascadeIndex);
 }
 
-float shadow(vec3 viewPos, vec3 viewNormal/*, Scene scene*/)
+float shadowMaps(vec3 viewPos, vec3 viewNormal/*, Scene scene*/)
 {
     if (!cEnableShadows)
         return 1;
@@ -111,6 +115,21 @@ float shadow(vec3 viewPos, vec3 viewNormal/*, Scene scene*/)
         return mix(shadow, 1, fade);
     }
     return 1;
+}
+
+// The sun's shadow on the ground. OpenEden (task 0038): the clouds' shadow multiplies the shadow maps' (it darkens the
+// direct sun only, which is all this value is used for). Without CLOUD_SHADOW it is the shadow maps' alone, as before.
+float shadow(vec3 viewPos, vec3 viewNormal/*, Scene scene*/)
+{
+#ifdef CLOUD_SHADOW
+ #ifdef CLOUD_SHADOW_DEBUG
+    return cloudShadow(viewPos);
+ #else
+    return shadowMaps(viewPos, viewNormal) * cloudShadow(viewPos);
+ #endif
+#else
+    return shadowMaps(viewPos, viewNormal);
+#endif
 }
 
 #ifdef DEBUG_SHADOW

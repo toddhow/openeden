@@ -386,6 +386,7 @@ namespace MWRender
         void updateSkyEnvironment();
         // Stage e: `gi debug` markers of the sky-visibility field around the camera.
         void updateSkyDebug();
+        void updateCloudShadow();
         bool mSkyDebugDrawn = false;
         std::array<int, 4> mSkyDebugKey{};
         const Render::Gi::SkyVisField* mSkyDebugField = nullptr;
@@ -397,6 +398,12 @@ namespace MWRender
         // Task 0037: rain wetness took effect at start (needs hdr and pbr), its strength, and the current value.
         bool mWetnessEnabled = false;
         float mWetnessStrength = 1.f;
+        // Task 0038: the clouds' shadows (the data rides in mSkyVisHeader), and which grids it holds now.
+        bool mCloudShadowEnabled = false;
+        bool mCloudShadowDebug = false;
+        float mCloudShadowStrength = 0.75f;
+        bool mCloudShadowWritten = false;
+        const float* mCloudGridWritten[2] = { nullptr, nullptr };
         float mWetness = 0.f;
         float mSkyVisStrength = 1.f;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;

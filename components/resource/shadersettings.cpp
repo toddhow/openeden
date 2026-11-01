@@ -6,6 +6,7 @@
 #include <vsg/state/ShaderModule.h>
 
 #include <components/fallback/fallback.hpp>
+#include <components/render/cloudmath.hpp>
 #include <components/settings/settings.hpp>
 
 namespace
@@ -65,9 +66,29 @@ namespace Resource
         add("cShadowSamples", std::clamp(Settings::Manager::getInt("pcf samples", "Shadows"), 0, 16), source);
         add("cShadowMaxDist", Settings::Manager::getFloat("maximum shadow map distance", "Shadows"), source);
         add("cShadowFadeStart", Settings::Manager::getFloat("shadow fade start", "Shadows"), source);
+        // OpenEden (task 0038): cloud shadows multiply the sun's shadow (lib/view/shadow.glsl). The editor and other
+        // hosts that never load the game's settings see the defaults, which are off.
+        const bool hdr = Settings::Manager::getBool("hdr", "Rendering");
+        const bool cloudShadows = Render::Cloud::useShadows(Settings::Manager::getBool("cloud shadows", "Rendering"),
+            hdr, Settings::Manager::getBool("atmosphere", "Rendering"));
+        if (cloudShadows)
+        {
+            source << "#define CLOUD_SHADOW 1\n";
+            if (Settings::Manager::getBool("cloud shadow debug", "Rendering"))
+                source << "#define CLOUD_SHADOW_DEBUG 1\n";
+        }
         if (Settings::Manager::getBool("enable debug hud", "Shadows"))
             source << "#define DEBUG_SHADOW 1\n";
         objects["shadow.settings"] = vsg::ShaderModule::create(source.str());
+
+        source.str("");
+        // OpenEden (task 0038): the lit look of the sky's clouds (sky/clouds/main.frag).
+        add("cCloudsLit",
+            Render::Cloud::useClouds(Settings::Manager::getBool("clouds", "Rendering"), hdr)
+                && Render::Cloud::parseLook(Settings::Manager::getString("clouds look", "Rendering"))
+                    == Render::Cloud::Look::Lit,
+            source);
+        objects["cloud.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");
         add("cClampLighting", Settings::Manager::getBool("clamp lighting", "Shaders"), source);

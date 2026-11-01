@@ -14,6 +14,7 @@
 
 #include <components/animation/clone.hpp>
 #include <components/animation/transform.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
@@ -23,6 +24,7 @@
 #include <components/pipeline/material.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/cloudmath.hpp>
 #include <components/resource/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
@@ -44,10 +46,39 @@
 
 namespace
 {
+    // OpenEden (task 0038): how long the clouds take to take on the lit look of a new weather, in seconds of game time.
+    // A short fade, by eye; no source.
+    constexpr float cloudShareSeconds = 3.f;
+
     void depthOff(Pipeline::Options& o)
     {
         o.depthTest = false;
         o.depthWrite = false;
+    }
+
+    // OpenEden (task 0038): the coarse thickness grid of a cloud picture, for the clouds' shadows. Only the 8 bit four
+    // channel pictures Morrowind's skies use are read (an RGBA or BGRA .dds or .tga); anything else gives no shadow.
+    std::vector<float> buildCloudGrid(const std::string& file, const vsg::Data& data)
+    {
+        std::vector<float> grid(Render::Cloud::gridSize * Render::Cloud::gridSize, 0.f);
+        bool bgra = false;
+        switch (data.properties.format)
+        {
+            case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_R8G8B8A8_SRGB:
+                break;
+            case VK_FORMAT_B8G8R8A8_UNORM:
+            case VK_FORMAT_B8G8R8A8_SRGB:
+                bgra = true;
+                break;
+            default:
+                Log(Debug::Warning) << "Cloud shadows: the cloud picture " << file << " has format "
+                                    << static_cast<int>(data.properties.format) << ", which is not read; it casts no shadow";
+                return grid;
+        }
+        Render::Cloud::buildGrid(
+            static_cast<const unsigned char*>(data.dataPointer()), data.width(), data.height(), bgra, grid.data());
+        return grid;
     }
 
     template <class T>
@@ -489,6 +520,11 @@ namespace MWRender
         , mSnowRipplesEnabled(Fallback::Map::getBool("Weather_Snow_Ripples"))
     {
         mNode = new vsgUtil::ViewRelative;
+        // OpenEden (task 0038): the lit look of the clouds (the shader's own switch is `cCloudsLit` in cloud.settings).
+        mCloudsLit = Render::Cloud::useClouds(Settings::rendering().mClouds, Settings::rendering().mHdr)
+            && Render::Cloud::parseLook(Settings::rendering().mCloudsLook.get()) == Render::Cloud::Look::Lit;
+        mCloudShadowsOn = Render::Cloud::useShadows(
+            Settings::rendering().mCloudShadows, Settings::rendering().mHdr, Settings::rendering().mAtmosphere);
         auto nodeOptions = vsg::Options::create(*resourceSystem.nodeOptions);
         // openeden-vsg: an unreadable sky model (the example suite's .osgt clouds and stars: an OpenSceneGraph format
         // the VSG build has no reader for) must stay empty. The world's fallback would draw the error marker, which can
@@ -617,6 +653,22 @@ namespace MWRender
         }
         */
 
+        // OpenEden (task 0038): the share of the lit look the weather has moves to its target over a few seconds of
+        // game time, so a change of weather does not make the clouds jump. It rides in the clouds' material
+        // (specular alpha, which the cloud shader does not otherwise use); 0, as created, when the look is off.
+        if (mCloudsLit || mCloudShadowsOn)
+        {
+            const float step = duration / cloudShareSeconds;
+            mCloudShare += std::clamp(mCloudShareTarget - mCloudShare, -step, step);
+        }
+        if (mCloudsLit)
+        {
+            for (auto* clouds : { &*mClouds, &*mNextClouds })
+            {
+                clouds->material.setCloudShare(mCloudShare);
+            }
+        }
+
         // UV Scroll the clouds
         mCloudAnimationTimer += duration * mCloudSpeed * 0.003;
         vsg::mat4 texmat = vsg::translate(vsg::vec3(0, -mCloudAnimationTimer, 0));
@@ -634,6 +686,19 @@ namespace MWRender
 
         rotation = Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection);
         mNextClouds->setAttitude(vsg::quat(rotation));
+        if (mCloudShadowsOn)
+        {
+            // The same rotations as the layers above, as the shader's matrices (dome space to world).
+            const vsg::dquat layerRotation[2] = { Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection),
+                Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection) };
+            for (int layer = 0; layer < 2; ++layer)
+            {
+                const vsg::mat4 m = vsg::rotate(vsg::quat(layerRotation[layer]));
+                for (int column = 0; column < 3; ++column)
+                    for (int row = 0; row < 3; ++row)
+                        mCloudRotation[layer][column * 3 + row] = m[column][row];
+            }
+        }
 
         mSun->update();
     }
@@ -726,6 +791,23 @@ namespace MWRender
         }
         mNextClouds.setEnabled(mCloudBlendFactor > 0.f && mNextClouds->textureValid());
         mCloudSpeed = weather.mCloudSpeed;
+        if (mCloudsLit || mCloudShadowsOn)
+        {
+            mCloudShareTarget = Render::Cloud::weatherShare(weather.mGlareView, weather.mIsStorm);
+            // The first weather (a new game or a load) starts at its share instead of fading in.
+            if (!mCloudShareSet)
+                mCloudShare = mCloudShareTarget;
+            mCloudShareSet = true;
+        }
+        if (mCloudShadowsOn)
+        {
+            const auto gridOf = [this](const std::string& file) -> const std::vector<float>* {
+                const auto found = mCloudGrids.find(file);
+                return found != mCloudGrids.end() ? &found->second : nullptr;
+            };
+            mCloudGrid[0] = gridOf(weather.mCloudTexture);
+            mCloudGrid[1] = weather.mNextCloudTexture.empty() ? nullptr : gridOf(weather.mNextCloudTexture);
+        }
 
         mSkyColor = weather.mSkyColor;
         mSkyColor.a = weather.mGlareView;
@@ -813,6 +895,22 @@ namespace MWRender
         mSun->glareTimeOfDayFade = val;
     }
 
+    Sky::CloudShadowInput Sky::getCloudShadow() const
+    {
+        CloudShadowInput input;
+        if (!mCloudShadowsOn || mCloudGrid[0] == nullptr)
+            return input;
+        input.valid = true;
+        input.grid[0] = mCloudGrid[0]->data();
+        input.grid[1] = mCloudGrid[1] != nullptr && mCloudBlendFactor > 0.f ? mCloudGrid[1]->data() : nullptr;
+        input.scroll = mCloudAnimationTimer;
+        input.blend = input.grid[1] != nullptr ? mCloudBlendFactor : 0.f;
+        input.share = mCloudShare;
+        input.rotation[0] = mCloudRotation[0];
+        input.rotation[1] = mCloudRotation[1];
+        return input;
+    }
+
     vsg::ref_ptr<vsg::Descriptor> Sky::getOrCreateCloudTexture(const std::string& file)
     {
         auto found = mCloudTextures.find(file);
@@ -822,6 +920,8 @@ namespace MWRender
             auto sampler = vsg::Sampler::create();
             share(sampler, mTextureOptions);
             auto descriptor = vsg::DescriptorImage::create(sampler, data);
+            if (mCloudShadowsOn)
+                mCloudGrids.emplace(file, buildCloudGrid(file, *data));
             found = mCloudTextures.emplace(file, descriptor).first;
         }
         return found->second;

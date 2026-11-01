@@ -1,9 +1,12 @@
 // OpenEden (task 0036): the exterior sky-visibility field. The C++ twin is skyVisAmbient in
 // components/render/skyvisgpu.hpp, which also documents the two buffers' layout; change them together. Include after
 // lib/view/bindings.glsl and lib/sets.glsl.
+// With CLOUD_SHADOW (task 0038) lib/view/cloudshadow.glsl has already declared the header buffer, which it shares.
+#ifndef CLOUD_SHADOW
 layout(std430, set=VIEW_SET, binding=VIEW_SKYVIS_SKY_BINDING) readonly buffer SkyVisHeader {
     vec4 skyHeader[];
 };
+#endif
 layout(std430, set=VIEW_SET, binding=VIEW_SKYVIS_BINDING) readonly buffer SkyVisPool {
     float skyData[];
 };

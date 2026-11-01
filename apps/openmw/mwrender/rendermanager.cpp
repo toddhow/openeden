@@ -1,6 +1,7 @@
 #include "rendermanager.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -36,6 +37,8 @@
 #include <components/render/aomath.hpp>
 #include <components/render/atmospheremath.hpp>
 #include <components/render/bloom.hpp>
+#include <components/render/cloudgpu.hpp>
+#include <components/render/cloudmath.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/gbuffermath.hpp>
@@ -373,6 +376,20 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] wetness needs hdr and pbr; it is off";
             }
+            // Task 0038: the clouds' shadows. The shader term is switched by `shadow.settings` (Resource::ShaderSettings,
+            // from the same settings); here the data buffer is made real.
+            if (Settings::rendering().mCloudShadows)
+            {
+                if (Render::Cloud::useShadows(true, true, Settings::rendering().mAtmosphere))
+                {
+                    mCloudShadowEnabled = true;
+                    mCloudShadowStrength = Settings::rendering().mCloudShadowStrength;
+                    mCloudShadowDebug = Settings::rendering().mCloudShadowDebug;
+                    Log(Debug::Info) << "Weather: cloud shadows on";
+                }
+                else
+                    Log(Debug::Warning) << "[Rendering] cloud shadows need hdr and atmosphere; they are off";
+            }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";
             mReflect = std::make_unique<Reflect>(
@@ -410,16 +427,15 @@ namespace MWRender
         else
             descriptors.emplace_back(View::dummyReflections());
         // Task 0036: the exterior sky-visibility field (cells' data, then its header), or stand-ins that switch it off.
+        // Task 0038: the clouds' shadows share the header's buffer, so it is real with them too; the cells' data is not.
         if (mGiSkyEnabled)
-        {
             descriptors.emplace_back(View::skyVisBuffer(mSkyVisPool));
-            descriptors.emplace_back(View::skyVisSkyBuffer(mSkyVisHeader));
-        }
         else
-        {
             descriptors.emplace_back(View::dummySkyVis());
+        if (mGiSkyEnabled || mCloudShadowEnabled)
+            descriptors.emplace_back(View::skyVisSkyBuffer(mSkyVisHeader));
+        else
             descriptors.emplace_back(View::dummySkyVisSky());
-        }
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -1219,6 +1235,45 @@ namespace MWRender
         mSkyVisHeader->dirty();
     }
 
+    void RenderManager::updateCloudShadow()
+    {
+        if (!mCloudShadowEnabled || !mSkyVisHeader)
+            return;
+        // Task 0038: the clouds' picture grids, scroll, rotations and the weather's share go into the end of the header.
+        // Indoors, or with no clouds, the strength is 0 and the shader returns at once. The scroll is the sky's own
+        // (game time, advanced in Sky::update), so the shadow follows the clouds overhead.
+        Render::Cloud::Params params;
+        const Sky::CloudShadowInput input = mRenderModes[Render_Sky].active ? mSky->getCloudShadow() : Sky::CloudShadowInput{};
+        vsg::vec4* header = mSkyVisHeader->data();
+        if (input.valid)
+        {
+            // The sun's light is dim at night (the manager's mirrored light), and then there are no shadows (spec D6).
+            const vsg::vec4& sunLight = mSceneData->value().lightDiffuse;
+            const float sunLuminance = Render::Cloud::luminance(sunLight.x, sunLight.y, sunLight.z);
+            params.strength = mCloudShadowDebug
+                ? 1.f
+                : mCloudShadowStrength * Render::Cloud::strength(sunLuminance, input.share);
+            params.blend = input.blend;
+            // The grids wrap, so only the fraction counts, and a float that has grown over hours keeps its precision.
+            params.scroll = input.scroll - std::floor(input.scroll);
+            for (int layer = 0; layer < 2; ++layer)
+            {
+                params.rotation[layer] = input.rotation[layer];
+                params.hasLayer[layer] = input.grid[layer] != nullptr;
+            }
+        }
+        // The grids are copied only when the weather's pictures change.
+        for (std::size_t layer = 0; layer < 2; ++layer)
+            if (mCloudGridWritten[layer] != input.grid[layer] || !mCloudShadowWritten)
+            {
+                Render::Cloud::writeGrid(header, layer, input.grid[layer]);
+                mCloudGridWritten[layer] = input.grid[layer];
+            }
+        mCloudShadowWritten = true;
+        Render::Cloud::writeParams(header, params);
+        mSkyVisHeader->dirty();
+    }
+
     void RenderManager::updateSkyEnvironment()
     {
         if (!mGiSkyEnabled || !mReflectionData)
@@ -1711,6 +1766,7 @@ namespace MWRender
         updateSkyVisibility();
         updateSkyEnvironment();
         updateSkyDebug();
+        updateCloudShadow();
         if (mHdrTarget)
         {
             // The scene is in the float target, and its single-sample copies are what the copies and the depth pass
