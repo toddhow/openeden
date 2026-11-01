@@ -105,6 +105,10 @@ namespace Render
         const VkPhysicalDeviceFeatures& getEnabledFeatures() const;
         VkImageLayout getPresentLayout() const;
 
+        // Whether frames go to a window's swapchain, as opposed to the headless engine's image: the linear HDR path
+        // (task 0025) writes the swapchain through a pass of its own and needs one.
+        bool hasWindow() const { return mWindow != nullptr; }
+
         // GPU timing (task 0023, F0a). Creates the timer on the first call and returns it, or returns null, and says
         // why in the log once, when the device cannot time passes. Call before the command graphs are built; whoever
         // builds them adds the passes to the timer. Never called when [Rendering] gpu timing is off: then there is no

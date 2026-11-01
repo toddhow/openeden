@@ -1,6 +1,8 @@
 #ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_RENDERING_H
 #define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_RENDERING_H
 
+#include <string>
+
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
 
@@ -15,6 +17,14 @@ namespace Settings
         SettingValue<bool> mGpuTiming{ mIndex, "Rendering", "gpu timing" };
         SettingValue<bool> mSlangShaders{ mIndex, "Rendering", "slang shaders" };
         SettingValue<bool> mDeviceReport{ mIndex, "Rendering", "device report" };
+
+        // Task 0025 (F2): the linear HDR path. Read at start.
+        SettingValue<bool> mHdr{ mIndex, "Rendering", "hdr" };
+        SettingValue<std::string> mHdrTonemap{ mIndex, "Rendering", "hdr tonemap" };
+        SettingValue<float> mHdrExposure{ mIndex, "Rendering", "hdr exposure", makeClampSanitizerFloat(-8, 8) };
+        SettingValue<bool> mHdrBloom{ mIndex, "Rendering", "hdr bloom" };
+        SettingValue<float> mHdrBloomStrength{ mIndex, "Rendering", "hdr bloom strength",
+            makeClampSanitizerFloat(0, 1) };
     };
 }
 

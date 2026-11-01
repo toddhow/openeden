@@ -20,6 +20,8 @@ namespace MWRender
     class Reflect : public vsgUtil::Composite<vsg::Node>
     {
         Render::Engine& mEngine;
+        vsg::ref_ptr<vsg::ImageView> mSourceColor;
+        vsg::ref_ptr<vsg::ImageView> mSourceDepth;
         vsg::ref_ptr<vsg::Image> mDstColorImage;
         vsg::ref_ptr<vsg::Image> mDstDepthImage;
         vsg::ref_ptr<vsg::DescriptorImage> mReflectColor;
@@ -30,17 +32,22 @@ namespace MWRender
         vsg::ref_ptr<vsg::BlitImage> mBlitDepth;
 
     public:
-        Reflect(Render::Engine& engine)
+        // With `sourceColorLayout` set, the copy is of the images given to setSource() and not of the window's (the
+        // linear HDR path, task 0025), and `colorFormat` is the format of the scene's colour: a float scene needs a
+        // float copy.
+        Reflect(Render::Engine& engine, VkFormat colorFormat = Render::compatibleColorFormat,
+            VkImageLayout sourceColorLayout = VK_IMAGE_LAYOUT_MAX_ENUM)
             : mEngine(engine)
         {
             VkExtent2D res{ 512, 512 };
-            mDstColorImage = vsgUtil::createImage(
-                Render::compatibleColorFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+            mDstColorImage
+                = vsgUtil::createImage(colorFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
             mDstDepthImage = vsgUtil::createImage(
                 Render::compatibleDepthFormat, res, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-            auto initialColorLayout = mEngine.getPresentLayout();
+            auto initialColorLayout
+                = sourceColorLayout != VK_IMAGE_LAYOUT_MAX_ENUM ? sourceColorLayout : mEngine.getPresentLayout();
             auto initialDepthLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             mTransitionForTransferBarrier
                 = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
@@ -121,15 +128,21 @@ namespace MWRender
         }
         vsg::ref_ptr<vsg::DescriptorImage> reflectColor() { return mReflectColor; }
         vsg::ref_ptr<vsg::DescriptorImage> reflectDepth() { return mReflectDepth; }
+        // The single-sample images the next update() copies. Call every frame: a resize replaces them.
+        void setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth)
+        {
+            mSourceColor = color;
+            mSourceDepth = depth;
+        }
         void update()
         {
-            auto srcColor = mEngine.colorImageView(0)->image;
+            auto srcColor = mSourceColor ? mSourceColor->image : mEngine.colorImageView(0)->image;
             mTransitionForTransferBarrier->imageMemoryBarriers[2]->image
                 = mTransitionFromTransferBarrier->imageMemoryBarriers[2]->image = mBlitColor->srcImage = srcColor;
             mBlitColor->regions[0].srcOffsets[1] = VkOffset3D{ static_cast<int32_t>(srcColor->extent.width),
                 static_cast<int32_t>(srcColor->extent.height), 1 };
 
-            auto srcDepth = mEngine.depthImageView()->image;
+            auto srcDepth = mSourceDepth ? mSourceDepth->image : mEngine.depthImageView()->image;
             mTransitionForTransferBarrier->imageMemoryBarriers[3]->image
                 = mTransitionFromTransferBarrier->imageMemoryBarriers[3]->image = mBlitDepth->srcImage = srcDepth;
             mBlitDepth->regions[0].srcOffsets[1] = VkOffset3D{ static_cast<int32_t>(srcDepth->extent.width),

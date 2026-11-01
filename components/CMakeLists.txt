@@ -137,7 +137,7 @@ add_component_dir (pipeline
 add_component_dir (render
     engine download screenshot headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
-    gputiming devicereport
+    gputiming devicereport hdrmath hdrtarget tonemap
     )
 # Renders pipelines.
 # Depends on pipeline, render.
@@ -172,7 +172,7 @@ add_component_dir (vsgutil
     # Object extensions.
     attachable name id operation image debugmessenger
     # Nodes.
-    setviewportstate projection viewrelative computebin nullbin suspendrenderpass distancelod
+    setviewportstate projection viewrelative computebin nullbin suspendrenderpass distancelod recordwithviewid
     # Algorithms.
     convert bounds transform computetransform intersectnormal toggle group compilecontext compileop updatethreads arraytexture
     # Visitors.

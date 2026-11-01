@@ -38,11 +38,14 @@ namespace Render
     class DebugGeometry;
     class Engine;
     class GpuTimer;
+    class HdrTarget;
     class SimpleWater;
+    class Tonemap;
 }
 namespace vsg
 {
     class Camera;
+    class Context;
     class LookAt;
     class Perspective;
     class View;
@@ -321,6 +324,12 @@ namespace MWRender
 
         vsg::ref_ptr<vsg::RenderGraph> mRenderGraph;
         vsg::ref_ptr<vsg::RenderGraph> mGuiRenderGraph;
+        // The linear HDR path (task 0025, [Rendering] hdr); all null with it off. mRenderGraph then draws into
+        // mHdrTarget, and mTonemapGraph, a graph on the window, turns the result into the swapchain picture.
+        vsg::ref_ptr<vsg::Context> mHdrContext; // before the target: it makes its images
+        std::unique_ptr<Render::HdrTarget> mHdrTarget;
+        std::unique_ptr<Render::Tonemap> mTonemap;
+        vsg::ref_ptr<vsg::RenderGraph> mTonemapGraph;
         vsg::ref_ptr<vsg::CommandGraph> mCommandGraph;
         vsg::ref_ptr<vsg::RecordTraversal> mRecord;
         std::vector<vsg::ref_ptr<vsg::RecordTraversal>> mRecordShadow;

@@ -133,6 +133,8 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testslangshaders.cpp
 
     render/testgputiming.cpp
+    render/testhdrmath.cpp
+    render/testtonemap.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp
 

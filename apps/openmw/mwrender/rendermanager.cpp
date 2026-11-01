@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <stdexcept>
 
 #include <vsg/app/CommandGraph.h>
 #include <vsg/app/CompileManager.h>
@@ -28,7 +29,10 @@
 #include <components/pipeline/sets.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
+#include <components/render/hdrmath.hpp>
+#include <components/render/hdrtarget.hpp>
 #include <components/render/screen.hpp>
+#include <components/render/tonemap.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/paging.hpp>
@@ -109,6 +113,23 @@ namespace MWRender
             return View::createDefaultState(viewDescriptorSet);
         }
 
+        // OpenEden (task 0025, F2): the tonemap's settings. `steppedAside`: a post-processing technique tonemaps for
+        // itself (Render::Hdr::resolveTonemap).
+        Render::Tonemap::Parameters tonemapParameters(bool steppedAside)
+        {
+            const auto& rendering = Settings::rendering();
+            const auto curve = Render::Hdr::parseTonemap(rendering.mHdrTonemap.get());
+            if (!curve)
+                Log(Debug::Warning) << "[Rendering] hdr tonemap: unknown curve '" << rendering.mHdrTonemap.get()
+                                    << "', using vanilla";
+            const auto choice = Render::Hdr::resolveTonemap(
+                curve.value_or(Render::Hdr::Tonemap::Vanilla), rendering.mHdrExposure, steppedAside);
+            Render::Tonemap::Parameters parameters;
+            parameters.curve = choice.curve;
+            parameters.exposureStops = choice.exposureStops;
+            return parameters;
+        }
+
         // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass.
         // Does nothing without a timer. The begin node resets the pass's queries, which is not allowed inside a render
         // pass instance, so `node` must be a child of a command graph, not of a render graph.
@@ -160,7 +181,25 @@ namespace MWRender
         mCamera.reset(new Camera);
 
         mShadow = std::make_unique<Shadow>(*context, mEngine.getEnabledFeatures().depthClamp);
-        mReflect = std::make_unique<Reflect>(mEngine);
+        // OpenEden (task 0025, F2): the linear HDR path. The scene then draws into a float target (made here, because
+        // the water's copy of the scene is made in its format) and a pass on the window turns it into the swapchain
+        // picture.
+        const bool wantHdr = Settings::rendering().mHdr;
+        const bool hdr = Render::Hdr::useHdrPath(wantHdr, mEngine.hasWindow());
+        if (wantHdr && !hdr)
+            Log(Debug::Warning) << "[Rendering] hdr is on but this engine has no window to draw to; HDR is off";
+        if (hdr)
+        {
+            mHdrContext = context;
+            mHdrTarget
+                = std::make_unique<Render::HdrTarget>(*context, mEngine.framebufferSamples(), mEngine.extent2D());
+            Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
+                             << " sample(s) to a 16-bit float target";
+            mReflect = std::make_unique<Reflect>(
+                mEngine, Render::HdrTarget::colorFormat, Render::HdrTarget::colorFinalLayout);
+        }
+        else
+            mReflect = std::make_unique<Reflect>(mEngine);
         mScreenshotInterface = std::make_unique<ScreenshotInterface>();
 
         mSceneData = std::make_unique<View::Scene>();
@@ -282,7 +321,22 @@ namespace MWRender
 
         mScreenshotSwitch = vsg::Switch::create();
 
-        mRenderGraph = mEngine.createRenderGraph();
+        if (mHdrTarget)
+        {
+            // The scene draws into the float target. The render pass is the target's, so the scene's pipelines are
+            // compiled for it (the compile view is added on the framebuffer, below).
+            mRenderGraph = vsg::RenderGraph::create();
+            mRenderGraph->framebuffer = mHdrTarget->framebuffer();
+            mRenderGraph->renderArea = { { 0, 0 }, mHdrTarget->extent() };
+            mRenderGraph->windowResizeHandler = nullptr;
+            mRenderGraph->setClearValues(VkClearColorValue{ { 0.f, 0.f, 0.f, 1.f } });
+            mTonemapGraph = mEngine.createRenderGraph();
+            mTonemap = std::make_unique<Render::Tonemap>(mCompileContext->clone(~vsg::Mask(0)), mTonemapGraph);
+        }
+        else
+            mRenderGraph = mEngine.createRenderGraph();
+        // The graph that has the window: the one the GUI pass and the extents follow.
+        const vsg::ref_ptr<vsg::RenderGraph> windowGraph = mTonemapGraph ? mTonemapGraph : mRenderGraph;
         mRenderGraph->children = { mView };
         mSuspend = vsg::ref_ptr{ new vsgUtil::SuspendRenderPass(mRenderGraph) };
 
@@ -290,12 +344,12 @@ namespace MWRender
         // Like Engine::createRenderGraph: syncExtents sets the render area. vsg::RenderGraph's own resize handler would
         // scale it again by new/old when the swapchain changes, to new*new/old (task 0012, resize fix).
         mGuiRenderGraph->windowResizeHandler = nullptr;
-        mGuiRenderGraph->framebuffer = mRenderGraph->framebuffer;
-        mGuiRenderGraph->window = mRenderGraph->window;
+        mGuiRenderGraph->framebuffer = windowGraph->framebuffer;
+        mGuiRenderGraph->window = windowGraph->window;
         mGuiRenderGraph->renderPass
             = createGuiRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout());
-        mGuiRenderGraph->renderArea = mRenderGraph->renderArea;
-        mAppliedExtent = mRenderGraph->renderArea.extent;
+        mGuiRenderGraph->renderArea = windowGraph->renderArea;
+        mAppliedExtent = windowGraph->renderArea.extent;
         mGuiRenderGraph->children = { gui };
 
         vsg::CommandGraphs threads;
@@ -325,6 +379,7 @@ namespace MWRender
         // added earlier, compiled scene objects got no transfer task and their data was dropped
         // ("Context::record() ... Need to implement copying of data").
         std::vector<std::function<void()>> addCompileViews;
+        // The scene view is compiled on the window, or, with the float target, on that target's framebuffer.
         if (mRenderGraph->window)
             addCompileViews.emplace_back([this, resourceRequirements] {
                 mCompileContext->compileManager->add(*mRenderGraph->window, mView, resourceRequirements);
@@ -342,13 +397,26 @@ namespace MWRender
                 mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
+        if (mTonemapGraph)
+        {
+            // Scene, then tonemap into the swapchain, then everything that works on the 8-bit picture.
+            mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mTonemapGraph);
+            addCompileViews.emplace_back([this, resourceRequirements] {
+                mCompileContext->compileManager->add(*mTonemapGraph->window, mTonemap->view(), resourceRequirements);
+            });
+        }
         if (mPostProcess)
         {
-            mPostProcess->setMainView(mView);
+            // The GUI pass's render pass is the window's, so the present pipeline is compiled for the tonemap's view
+            // when the scene has a render pass of its own.
+            mPostProcess->setMainView(mTonemap ? mTonemap->view() : mView);
             mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
-            mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mPostProcess->node());
+            mCommandGraph->children.insert(
+                mCommandGraph->children.begin() + (mTonemapGraph ? 3 : 2), mPostProcess->node());
         }
         timeChild(mGpuTimer, mCommandGraph->children, mRenderGraph.get(), "main scene");
+        if (mTonemapGraph)
+            timeChild(mGpuTimer, mCommandGraph->children, mTonemapGraph.get(), "tonemap");
         if (mPostProcess)
             timeChild(mGpuTimer, mCommandGraph->children, mPostProcess->node().get(), "post-process");
         threads.push_back(mCommandGraph);
@@ -408,6 +476,12 @@ namespace MWRender
         }
         for (const auto& addCompileView : addCompileViews)
             addCompileView();
+        if (mTonemap)
+        {
+            mTonemap->setParameters(tonemapParameters(false));
+            if (!mTonemap->setSource(mHdrTarget->colorView(), {}, mHdrTarget->extent()))
+                throw std::runtime_error("The tonemap pass could not be built");
+        }
         if (mPostProcess)
             mPostProcess->setChain(Settings::postProcessing().mChain.get());
 
@@ -945,6 +1019,14 @@ namespace MWRender
     void RenderManager::onFrame(float dt)
     {
         updateSceneData();
+        if (mHdrTarget)
+        {
+            // The scene is in the float target, and its single-sample copies are what the copies and the depth pass
+            // read.
+            mReflect->setSource(mHdrTarget->colorView(), mHdrTarget->depthView());
+            if (mPostProcess)
+                mPostProcess->setDepthSource(mHdrTarget->depthView());
+        }
         mReflect->update();
         if (mPostProcess)
             mPostProcess->updateImages();
@@ -1401,6 +1483,17 @@ namespace MWRender
         mSceneCamera->viewportState->set(0, 0, extent.width, extent.height);
         mRenderGraph->renderArea = { { 0, 0 }, extent };
         mGuiRenderGraph->renderArea = { { 0, 0 }, extent };
+        if (mHdrTarget)
+        {
+            // New images and a new framebuffer, in the same render pass; the render area follows in the same call, as a
+            // render area larger than the framebuffer draws nothing.
+            mHdrTarget->resize(
+                *mHdrContext, extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); });
+            mRenderGraph->framebuffer = mHdrTarget->framebuffer();
+            mTonemapGraph->renderArea = { { 0, 0 }, extent };
+            if (!mTonemap->setSource(mHdrTarget->colorView(), {}, extent))
+                Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
+        }
         updateProjectionMatrix();
         if (mPostProcess)
             mPostProcess->resize(extent.width, extent.height);

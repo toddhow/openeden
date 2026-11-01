@@ -43,6 +43,7 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/image.hpp>
 #include <components/vsgutil/readimage.hpp>
+#include <components/vsgutil/recordwithviewid.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -157,27 +158,6 @@ void main()
             sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             return sampler;
         }
-
-        // Records commands under a view ID of their own. The GUI pass has no view, so its command buffer holds whatever
-        // view recorded last on it, and a pipeline only exists for the view ID it was compiled for.
-        class RecordWithViewId : public vsg::Inherit<vsg::Command, RecordWithViewId>
-        {
-        public:
-            RecordWithViewId(vsg::ref_ptr<vsg::Commands> inCommands, uint32_t inViewId)
-                : commands(std::move(inCommands))
-                , viewId(inViewId)
-            {
-            }
-            vsg::ref_ptr<vsg::Commands> commands;
-            uint32_t viewId;
-            void record(vsg::CommandBuffer& commandBuffer) const override
-            {
-                const uint32_t previous = commandBuffer.viewID;
-                commandBuffer.viewID = viewId;
-                commands->record(commandBuffer);
-                commandBuffer.viewID = previous;
-            }
-        };
 
         VkImageBlit flippedRegion(VkImageAspectFlags aspect, int32_t width, int32_t height)
         {
@@ -679,7 +659,7 @@ void main()
         };
         if (!presentCompile->compile(commands))
             return {};
-        return RecordWithViewId::create(commands, viewId);
+        return vsgUtil::RecordWithViewId::create(commands, viewId);
     }
 
     void PostProcess::setChain(const std::vector<std::string>& names)
@@ -894,7 +874,7 @@ void main()
         }
         mDepthCopy->children = { mBeforeCopyDepth, mBlitDepth, mAfterCopyDepth };
         auto srcColor = mEngine.colorImageView(0)->image;
-        auto srcDepth = mEngine.depthImageView()->image;
+        auto srcDepth = mDepthSource ? mDepthSource->image : mEngine.depthImageView()->image;
         mBeforeCopyIn->imageMemoryBarriers[1]->image = srcColor;
         mBeforeCopyDepth->imageMemoryBarriers[1]->image = srcDepth;
         mAfterCopyDepth->imageMemoryBarriers[1]->image = srcDepth;

@@ -79,6 +79,10 @@ namespace MWRender
         vsg::ref_ptr<vsg::Node> presentNode() const { return mPresentSwitch; }
         /// The view whose render pass is compatible with the GUI pass, for compiling presentNode()'s pipeline.
         void setMainView(vsg::ref_ptr<vsg::View> view) { mMainView = view; }
+        /// The depth image to copy for the depth pass, when the scene is not drawn into the window's own depth (the
+        /// linear HDR path, task 0025). Single-sample, left in DEPTH_STENCIL_ATTACHMENT_OPTIMAL. Call every frame: a
+        /// resize replaces it.
+        void setDepthSource(vsg::ref_ptr<vsg::ImageView> depth) { mDepthSource = depth; }
         /// Whether the scene renders: in menus and loading screens presentNode() must not draw an old result.
         void setSceneVisible(bool visible);
 
@@ -156,6 +160,7 @@ namespace MWRender
         vsg::ref_ptr<vsg::Switch> mFirstFrame;
         vsg::ref_ptr<vsg::Switch> mPresentSwitch;
         vsg::ref_ptr<vsg::View> mMainView;
+        vsg::ref_ptr<vsg::ImageView> mDepthSource;
         vsg::ref_ptr<vsg::ShaderStage> mPresentVertex;
         vsg::ref_ptr<vsg::ShaderStage> mPresentFragment;
         bool mMultisampled = false;
