@@ -275,7 +275,8 @@ namespace OMW
                 Log(Debug::Error) << "[GI] the physics world of \"" << cellName << "\" is empty; nothing to bake";
                 return false;
             }
-            auto volume = Render::Gi::layoutVolume(low, high, renderSettings.mGiBakeSpacing, Render::Gi::maxVolumeProbes);
+            auto volume
+                = Render::Gi::layoutVolume(low, high, renderSettings.mGiBakeSpacing, Render::Gi::maxVolumeProbes);
             world = std::make_unique<JoltRayWorld>(*physics);
             baker = std::make_unique<Render::Gi::VolumeBaker>(settings, *world, std::move(lights), std::move(volume));
 
