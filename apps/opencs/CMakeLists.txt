@@ -69,7 +69,7 @@ opencs_units (model/module
     )
 
 opencs_units (model/mesh
-    meshviewstate meshtree framemath meshgeometry texturereport animationkeys
+    meshviewstate meshtree framemath meshgeometry texturereport animationkeys meshoverlay
     )
 
 opencs_units (model/physics
@@ -165,14 +165,14 @@ opencs_units (view/widget
 opencs_units (view/render
     rendercontext scenehost physicshub scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget
     editmode lighting object cell cellarrow colouredgeometry actor cellborder cellmarker cellwater terrainstorage
-    cameracontroller orbitcameramode
+    cameracontroller orbitcameramode meshscene meshviewwidget
     instancemode instanceselectionmode instancemovemode selectionmode objectmarker overlaylines
     terrainshapemode terraintexturemode terrainselection brushdraw commands
     pathgrid pathgridmode pathgridselectionmode
     )
 
 opencs_units (view/world
-    scenesubview previewsubview
+    scenesubview previewsubview meshsubview
     )
 
 opencs_hdrs (view/render

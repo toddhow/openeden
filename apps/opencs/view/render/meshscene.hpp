@@ -1,0 +1,160 @@
+#ifndef OPENCS_VIEW_MESHSCENE_H
+#define OPENCS_VIEW_MESHSCENE_H
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include <vsg/maths/mat4.h>
+#include <vsg/nodes/Group.h>
+#include <vsg/nodes/Switch.h>
+
+#include <apps/opencs/model/mesh/animationkeys.hpp>
+#include <apps/opencs/model/mesh/framemath.hpp>
+#include <apps/opencs/model/mesh/meshgeometry.hpp>
+#include <apps/opencs/model/mesh/meshtree.hpp>
+#include <apps/opencs/model/mesh/meshviewstate.hpp>
+#include <apps/opencs/model/mesh/texturereport.hpp>
+
+#include "tagbase.hpp"
+
+namespace MWAnim
+{
+    class Object;
+}
+
+namespace Render
+{
+    class DebugGeometry;
+}
+
+namespace Anim
+{
+    class ControllerMap;
+}
+
+namespace CSVRender
+{
+    class SceneHost;
+
+    /// Marks the geometry of one tree node, so that a click in the viewport finds the node (task 0043).
+    class MeshNodeTag : public TagBase
+    {
+    public:
+        explicit MeshNodeTag(CSMMesh::NodeId node)
+            : TagBase(Mask_Reference)
+            , mNode(node)
+        {
+        }
+        CSMMesh::NodeId mNode;
+    };
+
+    /// One model opened in the mesh viewer (task 0043): loaded through the engine's own reader
+    /// (MWAnim::createObject over the document's VFS), analysed into a CSMMesh::MeshTree, and drawn in the view
+    /// modes of CSMMesh::MeshViewState. View modes other than Textured never touch the renderer's pipelines: the
+    /// textured model is hidden and the mode is drawn from overlay lines (Render::DebugGeometry) or from one
+    /// unlit solid mesh made here.
+    ///
+    /// Ownership: the SceneHost owns what is attached to contentRoot(); this object owns the nodes it made and
+    /// detaches them in its destructor, so it must not outlive the host (check SceneHost::aliveToken()).
+    /// Threads: main thread only.
+    class MeshScene
+    {
+    public:
+        explicit MeshScene(SceneHost& host);
+        ~MeshScene();
+
+        MeshScene(const MeshScene&) = delete;
+        MeshScene& operator=(const MeshScene&) = delete;
+
+        /// \param path a VFS path, with or without the leading "meshes/". \return false and an error text if the
+        /// model is not in the VFS or the reader fails.
+        bool load(const std::string& path, std::string& error);
+        bool loaded() const { return mRoot != nullptr; }
+        const std::string& path() const { return mPath; }
+
+        const CSMMesh::MeshTree& tree() const { return mTree; }
+        CSMMesh::Aabb bounds() const { return mBounds; }
+        /// Corner positions of the model's bounds (for the default view).
+        std::vector<vsg::dvec3> boundsCorners() const;
+
+        /// Texture file names the model's NIF names (empty for other formats), as the NIF says them.
+        const std::vector<std::string>& textureNames() const { return mTextureNames; }
+        /// Looks each one up in the VFS the way the engine does (.tga falls back to .dds).
+        CSMMesh::TextureReport textureReport() const;
+
+        const CSMMesh::MeshViewState& state() const { return mState; }
+        void setState(const CSMMesh::MeshViewState& state);
+
+        void setNodeVisible(CSMMesh::NodeId node, bool visible);
+        void setSelected(CSMMesh::NodeId node);
+        CSMMesh::NodeId selected() const { return mSelected; }
+
+        /// Text of the tree node, for the Properties panel.
+        std::string describeNode(CSMMesh::NodeId node) const;
+
+        // Animation (stage 4). Groups come from the model's own source and from added .kf files.
+        bool addAnimationFile(const std::string& vfsPath, std::string& error);
+        std::vector<CSMMesh::AnimationGroup> animationGroups() const;
+        /// The .kf the engine would pair with this model (empty if none).
+        std::string defaultAnimationFile() const;
+        void playGroup(const std::string& group, float startPoint);
+        void setAnimationPaused(bool paused) { mAnimationPaused = paused; }
+        bool animationPaused() const { return mAnimationPaused; }
+        std::string currentGroup() const { return mCurrentGroup; }
+        float animationCompletion() const;
+        /// Advances animation by dt seconds if not paused. \return whether anything moves by itself.
+        void update(float dt);
+        bool isAnimated() const;
+
+    private:
+        struct NodeInfo
+        {
+            vsg::Node* mNode = nullptr;
+            vsg::Group* mParent = nullptr;
+            vsg::ref_ptr<vsg::Switch> mWrapper;
+            vsg::dmat4 mWorld;
+            std::vector<std::size_t> mShapes;
+        };
+        struct Shape
+        {
+            CSMMesh::NodeId mNode = CSMMesh::kNoNode;
+            CSMMesh::IndexedMesh mMesh; // positions and normals in model space (the root's frame)
+        };
+        friend class MeshCollector;
+
+        void collect();
+        void readTextureNames();
+        void rebuildOverlay();
+        void rebuildSolid();
+        void applyHelperNodes();
+        CSMMesh::Aabb nodeBounds(CSMMesh::NodeId node) const;
+        bool shapeVisible(const Shape& shape) const;
+
+        SceneHost& mHost;
+        std::string mPath;
+        CSMMesh::MeshTree mTree;
+        std::vector<NodeInfo> mInfos;
+        std::vector<Shape> mShapes;
+        CSMMesh::Aabb mBounds;
+        std::vector<std::string> mTextureNames;
+        CSMMesh::MeshViewState mState;
+        CSMMesh::NodeId mSelected = CSMMesh::kNoNode;
+
+        std::unique_ptr<MWAnim::Object> mObject;
+        vsg::ref_ptr<vsg::Group> mRoot; // under contentRoot()
+        vsg::ref_ptr<vsg::Switch> mModelSwitch;
+        vsg::ref_ptr<vsg::Group> mSolidHolder;
+        vsg::ref_ptr<vsg::Node> mSolid;
+        std::unique_ptr<Render::DebugGeometry> mOverlay;
+        vsg::ref_ptr<vsg::Node> mOverlayRoot;
+
+        bool mAnimationPaused = true;
+        std::string mCurrentGroup;
+        std::vector<vsg::ref_ptr<Anim::ControllerMap>> mAnimationSources;
+        std::vector<CSMMesh::TextKey> mTextKeys;
+        std::vector<std::string> mAnimationFiles;
+    };
+}
+
+#endif

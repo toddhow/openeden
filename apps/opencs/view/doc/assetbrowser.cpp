@@ -383,8 +383,19 @@ void CSVDoc::AssetBrowser::itemActivated(const QModelIndex& proxyIndex)
             if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
                 modules->openAsset(std::filesystem::path(index.data(roleId).toString().toStdString()));
             break;
-        case Kind_Table:
         case Kind_Resource:
+        {
+            // A model opens in the mesh viewer (task 0043); the group's own entry and other files open the table.
+            const QString lower = QString::fromStdString(id).toLower();
+            if (type == UniversalId::Type_Meshes && (lower.endsWith(".nif") || lower.endsWith(".dae")))
+            {
+                emit openRequested(UniversalId(UniversalId::Type_Mesh, id), "");
+                break;
+            }
+            emit openRequested(UniversalId(type), "");
+            break;
+        }
+        case Kind_Table:
             emit openRequested(UniversalId(type), "");
             break;
         case Kind_Record:

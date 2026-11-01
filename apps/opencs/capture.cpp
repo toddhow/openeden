@@ -48,6 +48,8 @@
 #include "view/render/object.hpp"
 #include "view/render/objectmarker.hpp"
 #include "view/render/pagedworldspacewidget.hpp"
+#include "view/render/meshscene.hpp"
+#include "view/render/meshviewwidget.hpp"
 #include "view/render/previewwidget.hpp"
 #include "view/render/rendercontext.hpp"
 #include "view/render/scenehost.hpp"
@@ -93,6 +95,16 @@ namespace
         std::string mCameraScript;
         // A referenceable to show in a preview, the widget of the Preview subview, in the frame beside the cell's view.
         std::string mPreview;
+        // A model of the virtual file system to open in the mesh viewer instead of a cell (task 0043), with how to show
+        // it: --mesh-mode, --mesh-light, --mesh-show (bounds,skeleton,axes,collision,grid), --mesh-select and
+        // --mesh-hide (node name parts), --mesh-anim (group[:completion 0 to 1]).
+        std::string mMesh;
+        std::string mMeshMode = "textured";
+        std::string mMeshLight = "headlight";
+        std::string mMeshShow = "grid";
+        std::string mMeshSelect;
+        std::string mMeshHide;
+        std::string mMeshAnim;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -368,7 +380,7 @@ namespace
 bool CS::isCaptureRequest(int argc, char** argv)
 {
     for (int i = 1; i < argc; ++i)
-        if (std::string_view(argv[i]) == "--open-cell")
+        if (std::string_view(argv[i]) == "--open-cell" || std::string_view(argv[i]) == "--open-mesh")
             return true;
     return false;
 }
@@ -379,7 +391,14 @@ int CS::runCapture(int argc, char** argv)
     bpo::variables_map variables;
     bpo::options_description desc("Syntax: eden-studio --open-cell X --auto-screenshot N --auto-quit M");
     auto addOption = desc.add_options();
-    addOption("open-cell", bpo::value<std::string>()->required());
+    addOption("open-cell", bpo::value<std::string>()->default_value(""));
+    addOption("open-mesh", bpo::value<std::string>());
+    addOption("mesh-mode", bpo::value<std::string>()->default_value("textured"));
+    addOption("mesh-light", bpo::value<std::string>()->default_value("headlight"));
+    addOption("mesh-show", bpo::value<std::string>()->default_value("grid"));
+    addOption("mesh-select", bpo::value<std::string>()->default_value(""));
+    addOption("mesh-hide", bpo::value<std::string>()->default_value(""));
+    addOption("mesh-anim", bpo::value<std::string>()->default_value(""));
     addOption("auto-screenshot", bpo::value<std::uint64_t>()->default_value(0));
     addOption("auto-quit", bpo::value<std::uint64_t>()->required());
     addOption("camera", bpo::value<std::string>());
@@ -425,6 +444,14 @@ int CS::runCapture(int argc, char** argv)
 
     Request request;
     request.mCell = variables["open-cell"].as<std::string>();
+    if (variables.count("open-mesh"))
+        request.mMesh = variables["open-mesh"].as<std::string>();
+    request.mMeshMode = variables["mesh-mode"].as<std::string>();
+    request.mMeshLight = variables["mesh-light"].as<std::string>();
+    request.mMeshShow = variables["mesh-show"].as<std::string>();
+    request.mMeshSelect = variables["mesh-select"].as<std::string>();
+    request.mMeshHide = variables["mesh-hide"].as<std::string>();
+    request.mMeshAnim = variables["mesh-anim"].as<std::string>();
     request.mScreenshotFrame = variables["auto-screenshot"].as<std::uint64_t>();
     request.mQuitFrame = variables["auto-quit"].as<std::uint64_t>();
     request.mViews = variables["capture-views"].as<int>();
@@ -522,6 +549,102 @@ int CS::runCapture(int argc, char** argv)
             }
 
             CSMWorld::Data& data = document->getData();
+
+            if (!request.mMesh.empty())
+            {
+                auto& meshContext = CSVRender::RenderContext::get();
+                frame = createFrame(1);
+                frame->show();
+                auto* meshView = new CSVRender::MeshViewWidget(data, frame.get());
+                meshView->setFixedSize(sViewWidth, sViewHeight);
+                frame->layout()->addWidget(meshView);
+                meshView->show();
+                QApplication::processEvents();
+                if (!meshView->ensureHost())
+                {
+                    finish(1);
+                    return;
+                }
+                CSMMesh::MeshViewState state;
+                if (auto mode = CSMMesh::parseViewMode(request.mMeshMode))
+                    state.mode = *mode;
+                if (auto light = CSMMesh::parseLightingPreset(request.mMeshLight))
+                    state.lighting = *light;
+                state.showGrid = false;
+                std::istringstream shown(request.mMeshShow);
+                for (std::string item; std::getline(shown, item, ',');)
+                {
+                    state.showBounds = state.showBounds || item == "bounds";
+                    state.showSkeleton = state.showSkeleton || item == "skeleton";
+                    state.showNodeAxes = state.showNodeAxes || item == "axes";
+                    state.showCollision = state.showCollision || item == "collision";
+                    state.showGrid = state.showGrid || item == "grid";
+                }
+                meshView->setViewState(state);
+                meshView->openMesh(request.mMesh);
+                bool prepared = false;
+                meshContext.setFrameCallback([&, meshView, prepared]() mutable {
+                    const std::uint64_t frameCount = CSVRender::RenderContext::get().frameCount();
+                    if (quitting)
+                        return;
+                    CSVRender::MeshScene* scene = meshView->scene();
+                    if (!prepared && frameCount >= 3)
+                    {
+                        prepared = true;
+                        if (!scene)
+                        {
+                            Log(Debug::Error) << "The mesh \"" << request.mMesh << "\" did not load";
+                            finish(1);
+                            return;
+                        }
+                        const auto& tree = scene->tree();
+                        Log(Debug::Info) << "Mesh " << scene->path() << ": " << tree.size() << " tree nodes";
+                        if (!request.mMeshHide.empty())
+                            for (CSMMesh::NodeId node : tree.findByName(request.mMeshHide))
+                                scene->setNodeVisible(node, false);
+                        if (!request.mMeshSelect.empty())
+                            if (auto found = tree.findByName(request.mMeshSelect); !found.empty())
+                            {
+                                scene->setSelected(found.front());
+                                Log(Debug::Info) << scene->describeNode(found.front());
+                            }
+                        if (!request.mMeshAnim.empty())
+                        {
+                            const auto colon = request.mMeshAnim.find(':');
+                            const std::string group = request.mMeshAnim.substr(0, colon);
+                            const float at
+                                = colon == std::string::npos ? 0.f : std::stof(request.mMeshAnim.substr(colon + 1));
+                            for (const auto& g : scene->animationGroups())
+                                Log(Debug::Info) << "Animation group " << g.name << " " << g.start << " to " << g.stop;
+                            scene->playGroup(group, at);
+                            scene->setAnimationPaused(true);
+                        }
+                        for (const auto& warning : scene->textureReport().warnings)
+                            Log(Debug::Info) << warning;
+                    }
+                    if (nextCapture != 0 && frameCount >= nextCapture)
+                    {
+                        const std::filesystem::path file = screenshots / ("mesh" + std::to_string(captures) + ".png");
+                        if (!meshView->saveScreenshot(file))
+                        {
+                            Log(Debug::Error) << "Failed to capture the mesh view";
+                            finish(1);
+                            return;
+                        }
+                        Log(Debug::Info) << "Auto-screenshot at frame " << frameCount;
+                        ++captures;
+                        nextCapture = 0;
+                    }
+                    meshView->flagAsModified();
+                    if (frameCount >= quitFrame && nextCapture == 0)
+                    {
+                        Log(Debug::Info) << "Auto-quit at frame " << frameCount;
+                        finish(0);
+                    }
+                });
+                return;
+            }
+
             const ESM::RefId cell = CSVRender::SceneHost::findCell(data, request.mCell);
             if (cell.empty())
             {

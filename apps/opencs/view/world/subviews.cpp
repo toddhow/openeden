@@ -15,6 +15,7 @@
 #include "referenceablecreator.hpp"
 #include "referencecreator.hpp"
 #include "regionmapsubview.hpp"
+#include "meshsubview.hpp"
 #include "scenesubview.hpp"
 #include "scriptsubview.hpp"
 #include "startscriptcreator.hpp"
@@ -117,6 +118,7 @@ void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
     manager.add(CSMWorld::UniversalId::Type_RegionMap, new CSVDoc::SubViewFactory<RegionMapSubView>);
 
     manager.add(CSMWorld::UniversalId::Type_Scene, new CSVDoc::SubViewFactory<SceneSubView>);
+    manager.add(CSMWorld::UniversalId::Type_Mesh, new CSVDoc::SubViewFactory<MeshSubView>);
 
     // More other stuff
     manager.add(CSMWorld::UniversalId::Type_Filters,

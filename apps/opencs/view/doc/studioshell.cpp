@@ -113,6 +113,8 @@ namespace CSVDoc
             tabs->setDrawBase(true);
             // The only built-in workspace. Extensions' editor modules add tabs here (plan section 3.2).
             tabs->addTab(QObject::tr("World && Scene"));
+            // The mesh viewer (task 0043); View connects it.
+            tabs->addTab(QObject::tr("Mesh"));
             return tabs;
         }
 

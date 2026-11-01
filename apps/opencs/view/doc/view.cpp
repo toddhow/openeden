@@ -8,11 +8,13 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDockWidget>
+#include <QFileDialog>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QTabBar>
 
 #include <algorithm>
 #include <filesystem>
@@ -30,6 +32,7 @@
 
 #include "../render/worldspacewidget.hpp"
 #include "../world/dialoguesubview.hpp"
+#include "../world/meshsubview.hpp"
 #include "../world/scenesubview.hpp"
 #include "../world/scriptsubview.hpp"
 #include "../world/subviews.hpp"
@@ -116,6 +119,11 @@ void CSVDoc::View::setupFileMenu()
 
     QAction* meta = createMenuEntry(CSMWorld::UniversalId::Type_MetaDatas, file, "document-file-metadata");
     connect(meta, &QAction::triggered, this, &View::addMetaDataSubView);
+
+    // The mesh viewer (task 0043).
+    QAction* openMesh = file->addAction(tr("Open Mesh..."));
+    openMesh->setObjectName("document-file-openmesh");
+    connect(openMesh, &QAction::triggered, this, &View::openMeshFile);
 
     file->addSeparator();
 
@@ -717,6 +725,24 @@ CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, int tot
     mShell->setOperationsDock(mOperations);
     mShell->start();
 
+    // The workspace strip's second tab is the mesh viewer (task 0043): it shows the open one, or asks for a file.
+    if (QDockWidget* strip = mShell->workspaces())
+        if (QTabBar* tabs = strip->findChild<QTabBar*>("workspaceTabs"))
+            connect(tabs, &QTabBar::currentChanged, this, [this, tabs](int index) {
+                if (index != 1)
+                    return;
+                for (SubView* subView : mSubViews)
+                    if (dynamic_cast<CSVWorld::MeshSubView*>(subView) != nullptr)
+                    {
+                        subView->setFocus();
+                        subView->raise();
+                        return;
+                    }
+                openMeshFile();
+                if (tabs->currentIndex() == 1)
+                    tabs->setCurrentIndex(0);
+            });
+
     setContextMenuPolicy(Qt::NoContextMenu);
 
     updateTitle();
@@ -1033,7 +1059,7 @@ void CSVDoc::View::dockSubView(SubView* view)
 
     // Eden Studio: 3D scenes are the viewport, in the top area. Everything else (record tables, editors, scripts)
     // is a workspace page: the bottom area, as tabs.
-    if (dynamic_cast<CSVWorld::SceneSubView*>(view) != nullptr)
+    if (dynamic_cast<CSVWorld::SceneSubView*>(view) != nullptr || dynamic_cast<CSVWorld::MeshSubView*>(view) != nullptr)
     {
         mSubViewWindow.addDockWidget(Qt::TopDockWidgetArea, view);
         return;
@@ -1054,7 +1080,8 @@ void CSVDoc::View::updateSceneOpen()
 {
     bool open = false;
     for (SubView* subView : mSubViews)
-        if (dynamic_cast<CSVWorld::SceneSubView*>(subView) != nullptr)
+        if (dynamic_cast<CSVWorld::SceneSubView*>(subView) != nullptr
+            || dynamic_cast<CSVWorld::MeshSubView*>(subView) != nullptr)
             open = true;
     mShell->setSceneOpen(open);
 }
@@ -1091,6 +1118,22 @@ void CSVDoc::View::changeLayout(CSMPrefs::EditorLayout layout)
     }
     updateSceneOpen();
     updateSubViewIndices();
+}
+
+void CSVDoc::View::openMeshFile()
+{
+    const QString file = QFileDialog::getOpenFileName(this, tr("Open Mesh"), QString(), tr("Models (*.nif *.dae)"));
+    if (file.isEmpty())
+        return;
+    // The viewer reads through the virtual file system, so the file must be in a "meshes" folder of a data folder.
+    const int at = file.toLower().lastIndexOf("/meshes/");
+    if (at < 0)
+    {
+        QMessageBox::warning(this, tr("Open Mesh"),
+            tr("The file must be inside a \"meshes\" folder of one of the data folders in use."));
+        return;
+    }
+    addSubView(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, file.mid(at + 8).toStdString()));
 }
 
 void CSVDoc::View::newView()

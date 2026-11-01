@@ -24,6 +24,11 @@ namespace CSMMesh
         std::vector<std::string> warnings;
     };
 
+    /// (width, height) from the first bytes of a DDS, TGA, BMP or PNG file; nothing for anything else, too few bytes
+    /// or zero sizes (task 0043).
+    std::optional<std::pair<std::uint32_t, std::uint32_t>> imageSizeFromHeader(
+        const std::vector<unsigned char>& firstBytes);
+
     /// The Textures panel's data (task 0043): distinct names (case-insensitive; the first spelling and order are
     /// kept; empty names skipped), each looked up once. \param lookup the size of the texture, or nothing if the
     /// virtual file system has none. A missing one gets the warning "missing texture: <name>".
