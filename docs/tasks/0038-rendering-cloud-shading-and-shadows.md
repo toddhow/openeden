@@ -44,10 +44,45 @@ This is a faked shading, not a volumetric simulation. Real volumetric clouds (a 
 
 ## Acceptance criteria
 
-- [ ] The pure maths and its shader twins agree (unit tests: thickness limits, edge glow towards and away from the sun, silver lining only with the sun behind, shadow factor in [0, 1]).
-- [ ] Clouds show bright edges towards the sun and dark undersides, in frames at dawn, noon and dusk in cloudy and overcast weather, viewed.
+- [x] The pure maths and its shader twins agree (35 unit tests pass; the twins were compared constant by constant by a fresh reviewer reading, not by a machine; unit tests: thickness limits, edge glow towards and away from the sun, silver lining only with the sun behind, shadow factor in [0, 1]).
+- [x] Clouds show bright edges towards the sun and dark undersides, in frames at dawn, noon and dusk in cloudy and overcast weather, viewed. (Cloudy at 06:30, 12:00 and 17:30, overcast at 12:00 and 17:30; overcast at dawn was not taken.)
 - [ ] Cloud shadows move across the ground with the clouds and agree with their position overhead (frames a few seconds apart).
-- [ ] Fog, ash and blight weathers keep their vanilla look (frames); interiors unchanged.
-- [ ] Off is frame-identical to the previous build within noise.
-- [ ] Cost note recorded; unit tests, the 32 Lua tests, the Linux gate and the format check pass; a fresh reviewer read each stage.
+- [ ] Fog, ash and blight weathers keep their vanilla look (frames); interiors unchanged. (Ash storm at noon equals the off frame; blight was not taken; the foggy weather is shaded mildly, see D3 as built; interiors have no sky so the cloud code never runs there, not framed.)
+- [x] Off is frame-identical to the previous build within noise. (Default settings, cloudy and ash, with this build's shaders against the shaders of HEAD copied over them: 684 pixels of 230,000 differ by more than 6, the noise of two frames of the same scene.)
+- [x] Cost note recorded (`docs/research/0019-cloud-cost.md`); unit tests (3010, 799, 520), the 32 Lua tests (Windows) and the format check pass; a fresh reviewer read stages a and b, and c and d. The Linux gate (`-Werror`, commit `b7e64d6a44`): builds, `components-tests`, `openmw-tests` and the 32 Lua tests pass.
 Out of scope: ray-marched volumetric clouds (D7), new cloud types or per-weather cloud settings, a weather simulation, rain and wetness (0037), snow and ash (0039), lightning (0040), volumetric fog (0041), the editor.
+
+## Shader language (toddhow's decision 0009, received during the work)
+
+No whole new shader was written. `sky/clouds/lit.glsl` and `lib/view/cloudshadow.glsl` are include files of existing GLSL shaders (the cloud shader and every shader that includes `lib/view/shadow.glsl`), which cannot mix with Slang modules; the edits to `main.frag`, `main.vert`, `shadow.glsl` and `skyvis.glsl` stay GLSL. Settings reach them as generated includes (`cloud.settings`, and two defines in `shadow.settings`), as the shadow settings already did, because the shaders that read them are compiled at run time. A Slang twin of the cloud shader behind `slang shaders` was not written (the sun's was a port of a whole shader; the clouds' change is a small edit of one that the decision says to leave).
+
+## Decisions as built (changes to the table above, all open to toddhow)
+
+- **D2 changed: no separate shadow pass, no new view binding.** The shadow is a factor inside `shadow()` (`lib/view/shadow.glsl`), the one function every sun term takes its shadow from, so there is no hunk in `default/main.frag`, `terrain/main.frag` or `lib/light/directional.glsl` (the 0044 agent's files). The data (a 64 by 64 thickness grid per cloud picture, scroll, rotation, strength) rides at the end of binding 13, the sky-visibility header buffer, so no view creator (the editor's `SceneHost` included) needed a new binding. Cost: the stand-in header is 2,100 vec4 long for every view.
+- **The ground is shaded by the cloud the sky shows in that direction.** The ground point is sent along the sun's ray to a layer 15000 units above the camera, looked at from the camera, and that direction goes through the same dome mapping, scroll and rotation as the sky (`domePoint`, `domeUv`; the dome's UVs were read from `meshes/sky_clouds_01.nif`: a flat projection of X and Y, 0.0024975 per unit). A real cloud layer would be about 70000 units up and one picture repeat would then be a kilometre across; 15000 makes it about 270 m (by eye). toddhow may want to change `layerHeight`.
+- **D3 as built: the weather's share of the effect is `weatherShare(glare, isStorm)`:** storms (ash, blight and blizzard have winds over the storm speed) 0; the rest from 0.5 (no glare, overcast) to 1 (glare 1, clear and cloudy). The foggy weather (glare 0.25) therefore gets 0.62, so it is shaded a little: nothing in a weather record distinguishes fog from overcast except fog depth, which thunderstorms and snow share. If fog must be exactly vanilla, the rule needs a new record field, which D3 forbids. The share eases to a new weather's value over 3 s.
+- **D6 as built:** at night the light is the manager's mirrored, dim light; lit clouds and shadows scale by its luminance (`strength`, 0.08 to 0.5), so the night is unshaded and has no shadows from the moon.
+- **Thickness:** from the picture's alpha, made thinner where it is bright (`thickness`, pivot 0.55, gain 2): the overcast picture is opaque everywhere and its structure is in its brightness.
+- **Strengths by eye:** `maxShade` 0.65, `silverGain` 1.6, `extinction` 4 (lit clouds); shadow extinction 2 and setting `cloud shadow strength` 0.75.
+- **Frames cannot look up:** the console cannot set the player's pitch after a cell change (`player->setangle` and `setpos` after `coc` are ignored), so frames use `[Camera] field of view = 110` to show more sky, and a Balmora start does not force the weather. The frame check is therefore less precise about the sun's position than a camera aimed at the sky would be.
+
+## Stage log
+
+### 2026-11-01, stages a to e (Windows, RTX 4070, `build-jolt`)
+
+**Done and verified.**
+- a: `cloudmath.hpp` and `cloudgpu.hpp`, 35 tests written first (4 corrected after the first run: a ring radius tolerance, the mesh's exact UV scale, a colour order test that saturated, a sampling edge); all pass.
+- b: the lit cloud look (`sky/clouds/lit.glsl`, `main.frag`, `main.vert`, `Sky::update` easing the share, `Pipeline::Material::setCloudShare`). Frames of cloudy weather at 06:30, 12:00 and 17:30 and overcast at 12:00 and 17:30, `clouds` on against off: dark undersides under the thick parts of the cloud and a bright edge at the dawn sun; overcast gets more structure. The first version was too weak (the cloud pictures are mostly thin) and was tuned up, then down a little.
+- c: `lib/view/cloudshadow.glsl`, `shadow()`, `Sky::getCloudShadow`, `RenderManager::updateCloudShadow`. Debug view (`cloud shadow debug`, stage d) and a ratio picture of it against off, at two times 20 s apart: the ground's ratio changes between the two frames and varies over the hill, the water and the distance, and the sky does not change.
+- d: the cost note (within noise); `cloud shadow debug`; the upload throttle (found by the cost run: 0.55 ms of wall time when the header was uploaded every frame).
+- e: notes in `components/render/CLAUDE.md`.
+- Review: a fresh reviewer for a and b found a NaN risk with a zero sun direction (fixed), a per-frame material upload (fixed with `update`) and a fade-in at start (fixed); one for c and d found night shadows (fixed: the strength follows the light's luminance) and the scroll's precision (fixed: its fraction is uploaded).
+- Unit tests 3010, 799 and 520 (Windows), the 32 Lua tests (Windows), `CI/check_file_names.sh`, `check_extension_sdk.sh`, `check_no_osg.sh`, and the whole-tree clang-format 14 check pass. Commits `e3f3ce01df`, `2d60c7be36` and `b7e64d6a44`.
+
+**Not verified.**
+- That the shadow of a cloud lies where that cloud is overhead, by a frame: the unit tests prove the mapping at the camera (`shadowAndSkyAgreeAtTheCamera`) and against two mesh vertices, and the shadow's change in time was seen, but no frame shows a shadow beside the cloud that casts it (no way to aim the camera at the sky).
+- The dome mesh's own transform in the game (a rotation of the mesh by its parents would shift the mapping); the storm-direction rotation is applied as the sky applies it.
+- Overcast at dawn, blight, fog exactly vanilla (see the decision), interiors by frame, the editor (it never takes the setting, and its stand-in header grew).
+- A frame with `cloud shadows` on and `gi exterior` on together (the two share the header; the declaration order was reviewed by reading).
+
+**Note on a white or red-skied frame seen by the 0044 agent while this work was uncommitted:** the shaders are copied into `build-jolt/resources` by the build, and the new cloud shader includes `cloud.settings`, which only an executable built after `shadersettings.cpp` changed provides. With the executable and shaders from one build, a default-settings frame of cloudy and ash weather equals one made with the shaders of HEAD copied over them (white cloudy and red ash skies are the default non-HDR look in both).
