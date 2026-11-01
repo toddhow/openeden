@@ -78,6 +78,9 @@ namespace Terrain
         TerrainMapSettings mMapSettings;
         vsg::ref_ptr<vsg::Descriptor> mNormalLayerDescriptor;
         vsg::ref_ptr<vsg::Descriptor> mLayerFlagsDescriptor;
+        // Task 0044: the material map array (binding 8) and the per-layer scales (binding 9), with `pbr`.
+        vsg::ref_ptr<vsg::Descriptor> mMaterialLayerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> mLayerScalesDescriptor;
     };
 }
 

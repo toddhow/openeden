@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -261,7 +261,13 @@ void main()
     PbrSurface pbrLit = pbrSurfaceFrom(vec4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
    #endif
    #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
+   #ifdef MATERIAL_MAP_RMAOS
+    // Task 0044: the True PBR layout; the scale is in the descriptor's spare float (0: none).
+    pbrLit = pbrApplyMapRmaos(pbrLit, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset),
+        material.align_dummy2);
+   #else
     pbrLit = pbrApplyMap(pbrLit, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
+   #endif
    #endif
     vec3 pbrBase = outColor.xyz;
 #ifdef WET_LIT
@@ -446,7 +452,12 @@ void main()
     PbrSurface pbrOut = pbrSurfaceFrom(vec4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
   #endif
   #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
+   #ifdef MATERIAL_MAP_RMAOS
+    pbrOut = pbrApplyMapRmaos(pbrOut, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset),
+        material.align_dummy2);
+   #else
     pbrOut = pbrApplyMap(pbrOut, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
+   #endif
   #endif
     outNormal.w = pbrOut.roughness;
     outMaterial = vec4(pbrOut.metalness, pbrOut.reflectance, pbrOut.occlusion, pbrOut.subsurface);

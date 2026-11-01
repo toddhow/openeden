@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
+#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -10,9 +10,12 @@ const int colorMode = 2;
 #ifdef GI_SKY
 #include "lib/view/skyvis.glsl"
 #endif
-#ifdef WETNESS
-// OpenEden (task 0037): rain wetness; its specular lobe is the material model's.
+#if defined(WETNESS) || defined(TERRAIN_PBR)
+// OpenEden (task 0037): rain wetness; its specular lobe is the material model's. Task 0044: so is the terrain's with
+// its packed material maps.
 #include "lib/material/pbr.glsl"
+#endif
+#ifdef WETNESS
 #include "lib/material/wetness.glsl"
 #endif
 #include "bindings.glsl"
@@ -37,6 +40,19 @@ const uint SPECULAR_FLAG = 1u << 17;
 #include "lib/view/screencoord.glsl"
 #include "lib/light/pixellighting.glsl"
 #include "lib/material/parallax.glsl"
+#ifdef TERRAIN_PBR
+// Task 0044: bits 18 (the map has the `_rmaos` layout) and 20 to 31 (its index, 0xfff for none) of the same flags
+// (Terrain::packLayerFlags); the maps themselves; and per layer a roughness scale (0: none) and a reflectance (< 0:
+// the default 0.5), which the tier 2 files give.
+const uint RMAOS_FLAG = 1u << 18;
+const uint MATERIAL_SHIFT = 20u;
+const uint NO_MATERIAL_MAP = 0xfffu;
+layout(set=TEXTURE_SET, binding=MATERIAL_LAYER_BINDING) uniform sampler2DArray materialLayers;
+layout(std430, set=TEXTURE_SET, binding=LAYER_SCALES_BINDING) readonly buffer LayerScales {
+    vec4 layerScales[];
+};
+#include "lib/light/pbrlighting.glsl"
+#endif
 #endif
 
 layout(location=0) in Inputs
@@ -81,6 +97,16 @@ void main()
     vec3 eyeDir = transpose(normalToView) * normalize(-frag_in.viewPos);
     vec3 blendedNormal = vec3(0);
     float specularStrength = 0.0;
+#ifdef TERRAIN_PBR
+    // Task 0044: the layers' material values, blended like their colours. A layer with no map has the tier 1 terrain
+    // values (Render::Pbr::terrainRoughness, no metal, F0 0.04, no occlusion).
+    PbrSurface terrainS;
+    terrainS.roughness = 0.0;
+    terrainS.metalness = 0.0;
+    terrainS.reflectance = 0.0;
+    terrainS.occlusion = 0.0;
+    terrainS.subsurface = 0.0;
+#endif
     for (int i=0; i<4; ++i)
     {
         // Layers change per blend map texel, so neighbouring pixels may take different layers: every texture is
@@ -97,6 +123,23 @@ void main()
         specularStrength += ((flags & SPECULAR_FLAG) != 0u ? diffuseTex.a : 0.0) * blendCoeffs[i];
         vec3 mapNormal = texture(normalLayers, vec3(layerCoord, normalIndex)).xyz * 2.0 - 1.0;
         blendedNormal += (hasNormalMap ? mapNormal : vec3(0.0, 0.0, 1.0)) * blendCoeffs[i];
+#ifdef TERRAIN_PBR
+        uint materialIndex = (flags >> MATERIAL_SHIFT) & NO_MATERIAL_MAP;
+        vec4 layerMap = texture(materialLayers, vec3(layerCoord, materialIndex));
+        vec4 layerScale = layerScales[textures[i]];
+        PbrSurface layerS;
+        layerS.roughness = 0.95;
+        layerS.metalness = 0.0;
+        layerS.reflectance = layerScale.y >= 0.0 ? layerScale.y : pbrDefaultReflectance;
+        layerS.occlusion = 1.0;
+        layerS.subsurface = 0.0;
+        if (materialIndex != NO_MATERIAL_MAP)
+            layerS = pbrSurfaceFromMap(layerS, (flags & RMAOS_FLAG) != 0u, layerMap, layerScale.x);
+        terrainS.roughness += layerS.roughness * blendCoeffs[i];
+        terrainS.metalness += layerS.metalness * blendCoeffs[i];
+        terrainS.reflectance += layerS.reflectance * blendCoeffs[i];
+        terrainS.occlusion += layerS.occlusion * blendCoeffs[i];
+#endif
     }
     vec3 viewNormal = normalize(normalToView * blendedNormal);
     // The shadow bias keeps the geometry normal, as OpenMW's shadows did.
@@ -104,11 +147,24 @@ void main()
     // terrain.frag's specular: shininess 128 and the layer's diffuse alpha as a grey specular colour.
     const float shininess = 128.0;
     vec3 pointDiffuse, pointSpecular;
+#ifdef TERRAIN_PBR
+    // Task 0044: the material model, over the same lights (the encoded colours are converted below, so the metal tint
+    // uses the encoded base colour converted here).
+    vec3 pbrBase = toLinearIfView(outColor.xyz);
+    vec3 pbrF0 = pbrSpecularF0(pbrBase, terrainS.metalness, terrainS.reflectance);
+    pbrPointLights(viewPosToScreenCoord(frag_in.viewPos, scene.projection), viewNormal, frag_in.viewPos,
+        terrainS.roughness, pbrF0, pointDiffuse, pointSpecular);
+    vec3 diffuse = pointDiffuse + directionalDiffuse(viewNormal) * sunShadow;
+    vec3 specularLight = pointSpecular + scene.lightSpecular.xyz
+        * pbrSpecularLobe(viewNormal, normalize(frag_in.viewPos), scene.lightViewPos.xyz, terrainS.roughness, pbrF0)
+        * sunShadow;
+#else
     pointLightsPerPixel(viewPosToScreenCoord(frag_in.viewPos, scene.projection), viewNormal, frag_in.viewPos,
         shininess, pointDiffuse, pointSpecular);
     vec3 diffuse = pointDiffuse + directionalDiffuse(viewNormal) * sunShadow;
     vec3 specularLight = pointSpecular + scene.lightSpecular.xyz
         * specularIntensity(viewNormal, normalize(frag_in.viewPos), shininess, scene.lightViewPos.xyz) * sunShadow;
+#endif
 #else
     for (int i=0; i<4; ++i)
         outColor.xyz += texture(diffuseMap, vec3(diffuseTexCoord, textures[i])).xyz * blendCoeffs[i];
@@ -121,7 +177,11 @@ void main()
 #ifdef WETNESS
     // Task 0037: rain wetness (the terrain takes the darker and glossier terms and puddles; roughness is the material
     // model's terrain value, Render::Pbr::terrainRoughness).
+#ifdef TERRAIN_PBR
+    float wetTerrainRoughness = terrainS.roughness;
+#else
     const float wetTerrainRoughness = 0.95;
+#endif
     vec3 wetWorldPos = (scene.invView * vec4(frag_in.viewPos, 1.0)).xyz;
     WetSurface wetS = wetSurfaceAt(wetWorldPos, mat3(scene.invView) * normalize(frag_in.viewNormal));
     if (wetS.wet > 0.0)
@@ -131,15 +191,31 @@ void main()
     vec2 colorTexSize = textureSize(colorMap, 0);
     vec2 colorCoord = (frag_in.texCoord - 0.5) * colorTexSize / (colorTexSize+1) + 0.5;
     vec4 vertexColor = texture(colorMap, colorCoord);
-#ifdef GI_SKY
+#ifdef TERRAIN_PBR
+    {
+        // Task 0044: metals have no diffuse, and the maps' occlusion darkens the ambient light (the AO pass cannot do
+        // it: the terrain writes no ambient part). With the sky-visibility field it scales that field's result.
+        vec3 terrainAmbient = scene.ambient.xyz;
+ #ifdef GI_SKY
+        terrainAmbient = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
+            mat3(scene.invView) * normalize(frag_in.viewNormal), terrainAmbient);
+ #endif
+        float terrainDiffuseScale = 1.0 - terrainS.metalness;
+        outColor *= materialTermsScaled(
+            terrainAmbient, diffuse, vertexColor, terrainDiffuseScale * terrainS.occlusion, terrainDiffuseScale);
+        outColor.xyz += specularLight;
+    }
+#else
+ #ifdef GI_SKY
     // Task 0036: the exterior sky-visibility field, with the terrain's geometry normal.
     outColor *= materialTermsAmbient(skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
         mat3(scene.invView) * normalize(frag_in.viewNormal), scene.ambient.xyz), diffuse, vertexColor);
-#else
+ #else
     outColor *= materialTerms(diffuse, vertexColor);
-#endif
-#ifdef TERRAIN_MAPS
+ #endif
+ #ifdef TERRAIN_MAPS
     outColor.xyz += specularStrength * specularLight;
+ #endif
 #endif
 #ifdef WETNESS
     if (wetS.wet > 0.0)
@@ -180,8 +256,14 @@ void main()
     outMotion = vec2(0.0);
 #ifdef GBUFFER_MATERIAL
     // Render::Pbr::terrainRoughness (materialmath.hpp) in the normal's w; reflectance 0.5, occlusion 1.
+#ifdef TERRAIN_PBR
+    // Task 0044: the blended layer values.
+    outNormal.w = terrainS.roughness;
+    outMaterial = vec4(terrainS.metalness, terrainS.reflectance, terrainS.occlusion, 0.0);
+#else
     outNormal.w = 0.95;
     outMaterial = vec4(0.0, 0.5, 1.0, 0.0);
+#endif
 #endif
 #ifdef GBUFFER_AMBIENT
     outAmbient = vec4(0.0);

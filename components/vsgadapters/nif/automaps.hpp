@@ -22,6 +22,8 @@ namespace vsgAdapters
         // OpenEden (task 0027, tier 3): a packed occlusion, roughness, metalness file; off unless `pbr material maps`.
         bool autoUseMaterialMaps = false;
         std::string materialMapPattern = std::string(Render::Pbr::materialMapSuffix);
+        // Task 0044: the True PBR layout, looked for before the `_orm` one.
+        std::string rmaosMapPattern = std::string(Render::Pbr::rmaosMapSuffix);
     };
 
     struct AutoMaps
@@ -31,7 +33,20 @@ namespace vsgAdapters
         bool normalHeight = false;
         std::string specularMap;
         std::string materialMap;
+        // Which channel layout `materialMap` has (task 0044).
+        Render::Pbr::MapLayout materialLayout = Render::Pbr::MapLayout::Orm;
     };
+
+    struct MaterialMapFile
+    {
+        std::string path;
+        Render::Pbr::MapLayout layout = Render::Pbr::MapLayout::Orm;
+    };
+
+    /// The packed material map next to a diffuse texture (task 0044): `_rmaos` if it exists, else `_orm`; nothing
+    /// unless settings.autoUseMaterialMaps.
+    MaterialMapFile findMaterialMap(std::string_view diffusePath, const AutoMapSettings& settings,
+        const std::function<bool(std::string_view)>& exists);
 
     /// The diffuse path with its last "." replaced by pattern + "." (Misc::StringUtils::replaceLast, as OpenMW's
     /// ShaderVisitor named the maps); empty if the path has no ".".

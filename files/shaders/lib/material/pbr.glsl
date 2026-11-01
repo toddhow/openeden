@@ -64,6 +64,42 @@ PbrSurface pbrApplyMap(PbrSurface s, vec4 pbr, vec3 packedMap)
     return s;
 }
 
+// Task 0044: the True PBR `_rmaos` layout (R roughness, G metalness, B occlusion with 0 = occluded, A specular) or the
+// `_orm` one (R occlusion, G roughness, B metalness). Twin of Render::Pbr::decodeMapTexel, scaledRoughness, dielectricF0
+// and reflectanceFromF0 (materialmath.hpp): change both together.
+float pbrReflectanceFromF0(float f0)
+{
+    return clamp(sqrt(max(f0, 0.0) / 0.16), 0.0, 1.0);
+}
+
+// All of the texel's values replace the base's; the texture's alpha multiplies the base's F0 (a `_rmaos` file only).
+PbrSurface pbrSurfaceFromMap(PbrSurface base, bool rmaos, vec4 texel, float roughnessScale)
+{
+    PbrSurface s = base;
+    float r = rmaos ? texel.r : texel.g;
+    float m = rmaos ? texel.g : texel.b;
+    float o = rmaos ? texel.b : texel.r;
+    float a = rmaos ? texel.a : 1.0;
+    s.roughness = clamp(r * (roughnessScale > 0.0 ? roughnessScale : 1.0), pbrMinRoughness, 1.0);
+    s.metalness = clamp(m, 0.0, 1.0);
+    s.occlusion = clamp(o, 0.0, 1.0);
+    s.reflectance = pbrReflectanceFromF0(pbrF0FromReflectance(base.reflectance) * clamp(a, 0.0, 1.0));
+    return s;
+}
+
+// The objects' version: a value the material descriptor sets (tier 2) wins over the map, as pbrApplyMap has it.
+PbrSurface pbrApplyMapRmaos(PbrSurface s, vec4 pbr, vec4 texel, float roughnessScale)
+{
+    PbrSurface m = pbrSurfaceFromMap(s, true, texel, roughnessScale);
+    if (pbr.x >= 0.0)
+        m.roughness = s.roughness;
+    if (pbr.y > 0.0)
+        m.metalness = s.metalness;
+    if (pbr.w < 1.0)
+        m.occlusion = s.occlusion;
+    return m;
+}
+
 // OpenEden's lights were never physical: the engine's diffuse is albedo * light * N.L without the 1 / pi, so the
 // specular lobe is scaled by pi to sit beside it (the two then carry the energy a physical renderer would give light of
 // the same colour).

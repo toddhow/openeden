@@ -26,6 +26,10 @@ namespace Render::Pbr
         std::optional<double> reflectance;
         std::optional<double> occlusion;
         std::optional<bool> subsurface;
+        // Task 0044: the True PBR sets' scales. A multiplier of the map's roughness (0 to maxRoughnessScale) and the
+        // dielectric F0 before the map's alpha multiplies it (0 to 1).
+        std::optional<double> roughnessScale;
+        std::optional<double> specularLevel;
     };
 
     struct OverrideEntry

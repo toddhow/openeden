@@ -860,7 +860,11 @@ namespace vsgAdapters
             if (!maps.materialMap.empty())
             {
                 if (addMap(maps.materialMap, Pipeline::Descriptors::MATERIAL_MAP_UNIT))
+                {
                     nodeOptions.shader.addMode(Pipeline::Mode::MATERIAL_MAP);
+                    if (maps.materialLayout == Render::Pbr::MapLayout::Rmaos)
+                        nodeOptions.shader.addMode(Pipeline::Mode::MATERIAL_MAP_RMAOS);
+                }
             }
         }
 
@@ -871,6 +875,7 @@ namespace vsgAdapters
             shader.removeMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
             shader.removeMode(Pipeline::Mode::SPECULAR_MAP);
             shader.removeMode(Pipeline::Mode::MATERIAL_MAP);
+            shader.removeMode(Pipeline::Mode::MATERIAL_MAP_RMAOS);
         }
 
         void handleTextureProperty(const Nif::NiTexturingProperty& texprop)
@@ -1113,6 +1118,12 @@ namespace vsgAdapters
                     pbr.w = static_cast<float>(*values.occlusion);
                 if (values.subsurface)
                     data->value().subsurface = *values.subsurface ? 1.f : 0.f;
+                // Task 0044: a True PBR set's scales. The specular level is the F0 before the map's alpha, stored as
+                // a reflectance unless a file sets one; the roughness scale goes in the spare float (0: none).
+                if (values.specularLevel && !values.reflectance)
+                    pbr.z = Render::Pbr::reflectanceFromF0(static_cast<float>(*values.specularLevel));
+                if (values.roughnessScale)
+                    data->value().align_dummy2 = static_cast<float>(*values.roughnessScale);
             }
             if (mOverride && mOverride->materialData)
                 mOverride->materialData(data->value());

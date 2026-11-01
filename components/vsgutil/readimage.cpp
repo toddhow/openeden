@@ -33,6 +33,23 @@ namespace vsgUtil
             case VK_FORMAT_B8G8R8A8_SRGB:
                 format = VK_FORMAT_B8G8R8A8_UNORM;
                 break;
+            // Task 0044: a DDS with a DX10 header can be tagged sRGB in a block-compressed format (Skyrim's True PBR
+            // colour files are). The sampler would then convert to linear and the shader would do it again.
+            case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+                format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+                break;
+            case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+                format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+                break;
+            case VK_FORMAT_BC2_SRGB_BLOCK:
+                format = VK_FORMAT_BC2_UNORM_BLOCK;
+                break;
+            case VK_FORMAT_BC3_SRGB_BLOCK:
+                format = VK_FORMAT_BC3_UNORM_BLOCK;
+                break;
+            case VK_FORMAT_BC7_SRGB_BLOCK:
+                format = VK_FORMAT_BC7_UNORM_BLOCK;
+                break;
             default:
                 break;
         }

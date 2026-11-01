@@ -21,7 +21,7 @@ namespace Pipeline
     }
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
-        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness)
+        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
@@ -31,6 +31,8 @@ namespace Pipeline
             auto compileSettings = vsg::ShaderCompileSettings::create();
             if (maps)
                 compileSettings->defines.insert("TERRAIN_MAPS");
+            if (maps && pbr)
+                compileSettings->defines.insert("TERRAIN_PBR");
             if (gbufferOutputs > 0)
                 compileSettings->defines.insert("GBUFFER");
             // Task 0036: the terrain takes the exterior sky-visibility field.
@@ -77,6 +79,13 @@ namespace Pipeline
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
             descriptorBindings.push_back({ Pipeline::Descriptors::LAYER_FLAGS_BINDING,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+            if (pbr)
+            {
+                descriptorBindings.push_back({ Pipeline::Descriptors::MATERIAL_LAYER_BINDING,
+                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+                descriptorBindings.push_back({ Pipeline::Descriptors::LAYER_SCALES_BINDING,
+                    VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+            }
         }
 
         vsg::DescriptorSetLayouts descriptorSetLayouts = getCompatibleDescriptorSetLayouts();

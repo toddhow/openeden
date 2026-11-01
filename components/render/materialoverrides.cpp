@@ -50,7 +50,8 @@ namespace Render::Pbr
         };
 
         std::optional<double> readNumber(const nlohmann::ordered_json& entry, const char* key, double low,
-            std::string_view text, std::size_t from, std::size_t index, std::optional<Failure>& failure)
+            std::string_view text, std::size_t from, std::size_t index, std::optional<Failure>& failure,
+            double high = 1.0, bool lowExclusive = false)
         {
             const auto it = entry.find(key);
             if (it == entry.end())
@@ -62,10 +63,11 @@ namespace Render::Pbr
                 return std::nullopt;
             }
             const double value = it->get<double>();
-            if (!(value >= low && value <= 1.0))
+            if (!(lowExclusive ? value > low : value >= low) || !(value <= high))
             {
                 failure = Failure{ keyLine(text, key, from), field,
-                    "must be between " + nlohmann::ordered_json(low).dump() + " and 1" };
+                    "must be " + std::string(lowExclusive ? "above " : "between ") + nlohmann::ordered_json(low).dump()
+                        + (lowExclusive ? " and at most " : " and ") + nlohmann::ordered_json(high).dump() };
                 return std::nullopt;
             }
             return value;
@@ -130,7 +132,8 @@ namespace Render::Pbr
                 return fail(lineAt(json, from), prefix, "must be an object");
             for (const auto& [key, value] : item.items())
                 if (key != "match" && key != "roughness" && key != "metalness" && key != "reflectance"
-                    && key != "occlusion" && key != "subsurface")
+                    && key != "occlusion" && key != "subsurface" && key != "roughnessScale"
+                    && key != "specularLevel")
                     return fail(keyLine(json, key, from), prefix + "." + key, "unknown key");
 
             OverrideEntry entry;
@@ -156,6 +159,11 @@ namespace Render::Pbr
                 entry.values.reflectance = readNumber(item, "reflectance", 0.0, json, from, index, failure);
             if (!failure)
                 entry.values.occlusion = readNumber(item, "occlusion", 0.0, json, from, index, failure);
+            if (!failure)
+                entry.values.roughnessScale
+                    = readNumber(item, "roughnessScale", 0.0, json, from, index, failure, maxRoughnessScale, true);
+            if (!failure)
+                entry.values.specularLevel = readNumber(item, "specularLevel", 0.0, json, from, index, failure);
             if (failure)
                 return fail(failure->line, failure->field, failure->message);
             if (const auto it = item.find("subsurface"); it != item.end())
@@ -165,7 +173,8 @@ namespace Render::Pbr
                 entry.values.subsurface = it->get<bool>();
             }
             if (!entry.values.roughness && !entry.values.metalness && !entry.values.reflectance
-                && !entry.values.occlusion && !entry.values.subsurface)
+                && !entry.values.occlusion && !entry.values.subsurface && !entry.values.roughnessScale
+                && !entry.values.specularLevel)
                 return fail(lineAt(json, from), prefix, "needs at least one value besides match");
             set.entries.push_back(std::move(entry));
             ++index;
@@ -194,6 +203,10 @@ namespace Render::Pbr
                 item["occlusion"] = number(*entry.values.occlusion);
             if (entry.values.subsurface)
                 item["subsurface"] = *entry.values.subsurface;
+            if (entry.values.roughnessScale)
+                item["roughnessScale"] = number(*entry.values.roughnessScale);
+            if (entry.values.specularLevel)
+                item["specularLevel"] = number(*entry.values.specularLevel);
             materials.push_back(std::move(item));
         }
         root["materials"] = std::move(materials);
@@ -261,6 +274,10 @@ namespace Render::Pbr
                 into.occlusion = values.occlusion;
             if (values.subsurface)
                 into.subsurface = values.subsurface;
+            if (values.roughnessScale)
+                into.roughnessScale = values.roughnessScale;
+            if (values.specularLevel)
+                into.specularLevel = values.specularLevel;
         }
     }
 

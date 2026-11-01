@@ -47,11 +47,34 @@ namespace vsgAdapters
 
         if (settings.autoUseMaterialMaps)
         {
-            std::string materialMap = autoMapPath(diffusePath, settings.materialMapPattern);
-            if (!materialMap.empty() && exists(materialMap))
-                maps.materialMap = std::move(materialMap);
+            MaterialMapFile found = findMaterialMap(diffusePath, settings, exists);
+            maps.materialMap = std::move(found.path);
+            maps.materialLayout = found.layout;
         }
         return maps;
+    }
+
+    MaterialMapFile findMaterialMap(std::string_view diffusePath, const AutoMapSettings& settings,
+        const std::function<bool(std::string_view)>& exists)
+    {
+        MaterialMapFile result;
+        if (!settings.autoUseMaterialMaps)
+            return result;
+        // The True PBR layout first, then task 0027's.
+        std::string rmaos = autoMapPath(diffusePath, settings.rmaosMapPattern);
+        if (!rmaos.empty() && exists(rmaos))
+        {
+            result.path = std::move(rmaos);
+            result.layout = Render::Pbr::MapLayout::Rmaos;
+            return result;
+        }
+        std::string orm = autoMapPath(diffusePath, settings.materialMapPattern);
+        if (!orm.empty() && exists(orm))
+        {
+            result.path = std::move(orm);
+            result.layout = Render::Pbr::MapLayout::Orm;
+        }
+        return result;
     }
 
     bool isTwoChannelFormat(VkFormat format)

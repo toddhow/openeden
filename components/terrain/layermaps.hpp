@@ -1,12 +1,14 @@
 #ifndef OPENEDEN_COMPONENTS_TERRAIN_LAYERMAPS_H
 #define OPENEDEN_COMPONENTS_TERRAIN_LAYERMAPS_H
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include <components/pipeline/terrain.hpp>
+#include <components/render/materialoverrides.hpp>
 #include <components/vsgadapters/nif/automaps.hpp>
 
 namespace Terrain
@@ -20,7 +22,36 @@ namespace Terrain
         bool parallax = false;
         // The diffuse map's alpha is the specular strength.
         bool specular = false;
+        // Task 0044: index into TerrainLayerMaps::materialMaps, or -1, and that file's channel layout.
+        int materialMapIndex = -1;
+        Render::Pbr::MapLayout materialLayout = Render::Pbr::MapLayout::Orm;
     };
+
+    // The terrain shader's per-layer flags word (files/shaders/terrain/main.frag repeats it): the normal map's index in
+    // the low 16 bits (0xffff: none), parallax (bit 16), specular (bit 17), the `_rmaos` layout (bit 18), the material
+    // map's index in bits 20 to 31 (0xfff: none).
+    constexpr uint32_t layerNormalMask = 0xffffu;
+    constexpr uint32_t layerParallaxFlag = 1u << 16;
+    constexpr uint32_t layerSpecularFlag = 1u << 17;
+    constexpr uint32_t layerRmaosFlag = 1u << 18;
+    constexpr uint32_t layerMaterialShift = 20;
+    constexpr uint32_t layerMaterialMask = 0xfffu;
+
+    inline uint32_t packLayerFlags(
+        int normalIndex, bool parallax, bool specular, int materialIndex, Render::Pbr::MapLayout layout)
+    {
+        uint32_t value = normalIndex >= 0 ? static_cast<uint32_t>(normalIndex) & layerNormalMask : layerNormalMask;
+        if (parallax && normalIndex >= 0)
+            value |= layerParallaxFlag;
+        if (specular)
+            value |= layerSpecularFlag;
+        const uint32_t material
+            = materialIndex >= 0 ? static_cast<uint32_t>(materialIndex) & layerMaterialMask : layerMaterialMask;
+        value |= material << layerMaterialShift;
+        if (materialIndex >= 0 && layout == Render::Pbr::MapLayout::Rmaos)
+            value |= layerRmaosFlag;
+        return value;
+    }
 
     /// The `[Shaders]` terrain map settings (specularMapPattern holds the terrain specular pattern) and how to tell
     /// whether a texture path exists.
@@ -34,14 +65,26 @@ namespace Terrain
         bool giSky = false;
         // Task 0037: the terrain shader takes rain wetness.
         Pipeline::WetnessOptions wetness;
+        // Task 0044: the terrain is lit with the material model and reads the layers' material maps (autoMaps must ask
+        // for them and for normal maps). `layerValues` gives a layer texture's tier 2 values (the two scales and a
+        // reflectance); it may run on loader threads.
+        bool pbr = false;
+        std::function<Render::Pbr::OverrideValues(std::string_view texturePath)> layerValues;
 
-        bool enabled() const { return exists && (autoMaps.autoUseNormalMaps || autoMaps.autoUseSpecularMaps); }
+        // Task 0044: the material maps need the per-pixel path as well.
+        bool enabled() const
+        {
+            return exists
+                && (autoMaps.autoUseNormalMaps || autoMaps.autoUseSpecularMaps || autoMaps.autoUseMaterialMaps);
+        }
     };
 
     struct TerrainLayerMaps
     {
         std::vector<TerrainLayer> layers;
         std::vector<std::string> normalMaps;
+        // Task 0044: the `_rmaos` / `_orm` files of the layers, each listed once.
+        std::vector<std::string> materialMaps;
     };
 
     /// Finds each terrain layer's normal and specular maps (task 0012, V4i), as OpenMW's

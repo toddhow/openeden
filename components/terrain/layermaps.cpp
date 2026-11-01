@@ -9,6 +9,7 @@ namespace Terrain
     {
         TerrainLayerMaps result;
         std::map<std::string, int, std::less<>> normalMapIndices;
+        std::map<std::string, int, std::less<>> materialMapIndices;
         result.layers.reserve(layerPaths.size());
         for (const std::string& path : layerPaths)
         {
@@ -40,6 +41,19 @@ namespace Terrain
                 {
                     layer.diffuseMap = std::move(specularMap);
                     layer.specular = true;
+                }
+            }
+            if (!path.empty() && settings.autoUseMaterialMaps)
+            {
+                vsgAdapters::MaterialMapFile found = vsgAdapters::findMaterialMap(path, settings, exists);
+                if (!found.path.empty())
+                {
+                    auto [it, inserted]
+                        = materialMapIndices.emplace(found.path, static_cast<int>(result.materialMaps.size()));
+                    if (inserted)
+                        result.materialMaps.push_back(found.path);
+                    layer.materialMapIndex = it->second;
+                    layer.materialLayout = found.layout;
                 }
             }
             result.layers.push_back(std::move(layer));

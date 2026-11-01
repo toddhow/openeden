@@ -67,7 +67,9 @@ namespace Pipeline
         // OpenEden (task 0037): rain wetness, its puddles and the debug view; added by Pipeline::Graphics.
         WETNESS,
         WETNESS_PUDDLES,
-        WETNESS_DEBUG
+        WETNESS_DEBUG,
+        // OpenEden (task 0044, tier 3): the packed material map has the True PBR `_rmaos` layout, not `_orm`.
+        MATERIAL_MAP_RMAOS
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
@@ -77,7 +79,7 @@ namespace Pipeline
         Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
         Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION,
-        Mode::MATERIAL_MAP };
+        Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS };
 
     using Modes = std::vector<bool>;
 

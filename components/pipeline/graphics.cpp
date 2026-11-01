@@ -86,6 +86,8 @@ namespace Pipeline
                 return "PBR_PHYSICAL";
             case Mode::MATERIAL_MAP:
                 return "MATERIAL_MAP";
+            case Mode::MATERIAL_MAP_RMAOS:
+                return "MATERIAL_MAP_RMAOS";
             case Mode::GI:
                 return "GI";
             case Mode::GI_SKY:

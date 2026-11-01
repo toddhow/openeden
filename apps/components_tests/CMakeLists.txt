@@ -88,6 +88,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgadapters/testnifreader.cpp
     vsgadapters/testautomaps.cpp
     vsgadapters/testmaterialmaps.cpp
+    vsgadapters/testrmaosmaps.cpp
     vsgadapters/testinternaltexture.cpp
     vsgadapters/testtangents.cpp
     vsgadapters/testparticleemission.cpp
@@ -99,6 +100,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     terrain/testbordersharing.cpp
     terrain/testlayermaps.cpp
+    terrain/testlayerrmaos.cpp
 
     vfs/testpathutil.cpp
 
@@ -142,6 +144,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testgbuffermath.cpp
     render/testmaterialmath.cpp
     render/testmaterialoverrides.cpp
+    render/testrmaos.cpp
     render/testprobegpu.cpp
     render/testprobebake.cpp
     render/testao.cpp
@@ -174,6 +177,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testhitnormal.cpp
     vsgutil/testhitnormalmesh.cpp
     vsgutil/testdeletionqueue.cpp
+    vsgutil/testremovesrgb.cpp
 
     fx/lexer.cpp
     fx/technique.cpp

@@ -34,6 +34,54 @@ namespace Pipeline::Data
 }
 namespace Terrain
 {
+    namespace
+    {
+        // Task 0044: reads the files and keeps those of the most common size and format, as the normal map array does
+        // (convertToArrayTexture fills any other with grey bytes). Returns, for each path, its place in `kept` or -1.
+        std::vector<int> readUniformImages(const std::vector<std::string>& paths,
+            vsg::ref_ptr<const vsg::Options> options, vsg::DataList& kept, const char* what)
+        {
+            using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
+            std::vector<vsg::ref_ptr<vsg::Data>> images;
+            std::map<ImageKey, size_t> counts;
+            for (const auto& path : paths)
+            {
+                auto data = vsgUtil::readOptionalImage(path, options);
+                if (data)
+                {
+                    vsgUtil::setName(*data, path);
+                    ++counts[{ data->width(), data->height(), data->properties.format }];
+                }
+                else
+                    std::cerr << "Terrain " << what << " " << path << " could not be read and is not used" << std::endl;
+                images.push_back(data);
+            }
+            ImageKey reference{};
+            size_t referenceCount = 0;
+            for (const auto& [key, count] : counts)
+                if (count > referenceCount)
+                {
+                    reference = key;
+                    referenceCount = count;
+                }
+            std::vector<int> indices(paths.size(), -1);
+            for (size_t i = 0; i < images.size(); ++i)
+            {
+                if (!images[i])
+                    continue;
+                if (ImageKey{ images[i]->width(), images[i]->height(), images[i]->properties.format } != reference)
+                {
+                    std::cerr << "Terrain " << what << " " << paths[i]
+                              << " differs in size or format from the others and is not used" << std::endl;
+                    continue;
+                }
+                indices[i] = static_cast<int>(kept.size());
+                kept.push_back(images[i]);
+            }
+            return indices;
+        }
+    }
+
     Builder::Builder(vsg::ref_ptr<const vsg::Options> in_imageOptions,
         vsg::ref_ptr<const vsg::Options> in_shaderOptions, vsg::ref_ptr<vsg::Sampler> in_samplerOptions,
         TerrainMapSettings in_mapSettings)
@@ -42,7 +90,7 @@ namespace Terrain
         , mMapSettings(std::move(in_mapSettings))
     {
         mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs,
-            mMapSettings.giSky, mMapSettings.wetness);
+            mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr);
     }
 
     Builder::~Builder() {}
@@ -149,9 +197,23 @@ namespace Terrain
             normalData.push_back(image);
         }
 
+        // Task 0044: the same for the packed material maps.
+        vsg::DataList materialData;
+        std::vector<int> materialArrayIndex;
+        if (mMapSettings.pbr)
+            materialArrayIndex = readUniformImages(maps.materialMaps, mImageOptions, materialData, "material map");
+
         vsg::DataList imageData;
         auto flags = vsg::uintArray::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
-        flags->set(0, sNoNormalMap);
+        // Task 0044: the scales exist only with pbr; without it the flags keep the bits they had (the low 20).
+        vsg::ref_ptr<vsg::vec4Array> scales;
+        if (mMapSettings.pbr)
+        {
+            scales = vsg::vec4Array::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
+            scales->set(0, vsg::vec4(0.f, -1.f, 0.f, 0.f));
+        }
+        const uint32_t flagMask = mMapSettings.pbr ? 0xffffffffu : (1u << layerMaterialShift) - 1u;
+        flags->set(0, packLayerFlags(-1, false, false, -1, Render::Pbr::MapLayout::Orm) & flagMask);
         for (size_t i = 0; i < maps.layers.size(); ++i)
         {
             const TerrainLayer& layer = maps.layers[i];
@@ -159,12 +221,26 @@ namespace Terrain
             vsgUtil::setName(*data, layer.diffuseMap);
             imageData.push_back(data);
             const int normalIndex = layer.normalMapIndex >= 0 ? arrayIndex[layer.normalMapIndex] : -1;
-            uint32_t value = normalIndex >= 0 ? static_cast<uint32_t>(normalIndex) : sNoNormalMap;
-            if (layer.parallax && normalIndex >= 0)
-                value |= sParallaxFlag;
-            if (layer.specular)
-                value |= sSpecularFlag;
-            flags->set(i, value);
+            const int materialIndex = (layer.materialMapIndex >= 0 && !materialArrayIndex.empty())
+                ? materialArrayIndex[layer.materialMapIndex]
+                : -1;
+            flags->set(i,
+                packLayerFlags(normalIndex, layer.parallax, layer.specular, materialIndex, layer.materialLayout)
+                    & flagMask);
+            // The tier 2 scales of the layer's texture: a roughness scale (0: none) and a reflectance (-1: none).
+            vsg::vec4 scale(0.f, -1.f, 0.f, 0.f);
+            if (mMapSettings.pbr && mMapSettings.layerValues)
+            {
+                const Render::Pbr::OverrideValues values = mMapSettings.layerValues(resolved[i]);
+                if (values.roughnessScale)
+                    scale.x = static_cast<float>(*values.roughnessScale);
+                if (values.reflectance)
+                    scale.y = static_cast<float>(*values.reflectance);
+                else if (values.specularLevel)
+                    scale.y = Render::Pbr::reflectanceFromF0(static_cast<float>(*values.specularLevel));
+            }
+            if (scales)
+                scales->set(i, scale);
         }
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
         mLayerDescriptor
@@ -180,6 +256,19 @@ namespace Terrain
             mSamplerOptions, vsgUtil::convertToArrayTexture(normalData), Pipeline::Descriptors::NORMAL_LAYER_BINDING);
         mLayerFlagsDescriptor = vsg::DescriptorBuffer::create(
             flags, Pipeline::Descriptors::LAYER_FLAGS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        if (mMapSettings.pbr)
+        {
+            if (materialData.empty())
+            {
+                // A neutral texel so the binding is valid; no layer refers to it.
+                materialData.push_back(vsg::ubvec4Array2D::create(
+                    1, 1, vsg::ubvec4(255, 0, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
+            }
+            mMaterialLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions,
+                vsgUtil::convertToArrayTexture(materialData), Pipeline::Descriptors::MATERIAL_LAYER_BINDING);
+            mLayerScalesDescriptor = vsg::DescriptorBuffer::create(
+                scales, Pipeline::Descriptors::LAYER_SCALES_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        }
     }
 
     Builder::BatchData Builder::create(const Key& key) const
@@ -217,6 +306,11 @@ namespace Terrain
         {
             descriptors.push_back(mNormalLayerDescriptor);
             descriptors.push_back(mLayerFlagsDescriptor);
+        }
+        if (mMaterialLayerDescriptor)
+        {
+            descriptors.push_back(mMaterialLayerDescriptor);
+            descriptors.push_back(mLayerScalesDescriptor);
         }
 
         auto bds = vsg::BindDescriptorSet::create(

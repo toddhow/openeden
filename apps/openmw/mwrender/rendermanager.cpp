@@ -506,6 +506,17 @@ namespace MWRender
         terrainMaps.autoMaps.specularMapPattern = shaders.mTerrainSpecularMapPattern;
         const VFS::Manager* vfs = mResourceSystem->getVFS();
         terrainMaps.exists = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
+        if (mResourceSystem->materialTable && Settings::rendering().mPbrMaterialMaps)
+        {
+            // Task 0044: with the material model and its maps on, the terrain layers read `_rmaos` / `_orm` and `_n`
+            // files next to their textures and are lit with the material model.
+            terrainMaps.pbr = true;
+            terrainMaps.autoMaps.autoUseMaterialMaps = true;
+            terrainMaps.autoMaps.autoUseNormalMaps = true;
+            terrainMaps.layerValues = [table = mResourceSystem->materialTable](std::string_view texturePath) {
+                return table->resolveValues("", texturePath);
+            };
+        }
         mTerrain
             = std::make_unique<Terrain::Paging>(mCompileContext->clone(Mask_Terrain), mResourceSystem->textureOptions,
                 mResourceSystem->shaderOptions, mResourceSystem->builder->createSampler(), std::move(terrainMaps));
