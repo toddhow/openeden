@@ -161,6 +161,8 @@ namespace MWRender
                     Log(Debug::Warning) << "[Rendering] gbuffer debug view: unknown view '"
                                         << rendering.mGBufferDebugView.get() << "', showing the scene";
                 parameters.debugView = view.value_or(Render::GBuffer::DebugView::None);
+                if (parameters.debugView == Render::GBuffer::DebugView::Sss && !rendering.mSss)
+                    Log(Debug::Warning) << "[Rendering] gbuffer debug view sss needs sss on; the view will be black";
                 parameters.depthRange = Settings::camera().mViewingDistance / 8.f;
             }
             return parameters;
