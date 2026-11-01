@@ -27,10 +27,16 @@ namespace CSMPrefs
     class Setting;
 }
 
+namespace CSMPrefs
+{
+    enum class EditorLayout;
+}
+
 namespace CSVDoc
 {
     class ViewManager;
     class SubView;
+    class StudioShell;
     class Operations;
     class GlobalDebugProfileMenu;
 
@@ -54,6 +60,8 @@ namespace CSVDoc
         Operations* mOperations;
         SubViewFactoryManager mSubViewFactory;
         QMainWindow mSubViewWindow;
+        StudioShell* mShell = nullptr; // child of this window
+        QMenu* mViewMenu = nullptr; // the record table submenus hang off it
         GlobalDebugProfileMenu* mGlobalDebugProfileMenu;
         QScrollArea* mScroll;
         bool mScrollbarOnly;
@@ -81,7 +89,11 @@ namespace CSVDoc
 
         void setupDebugMenu();
 
+        void setupWindowMenu();
         void setupHelpMenu();
+        void dockSubView(SubView* view);
+        void updateSceneOpen();
+        void changeLayout(CSMPrefs::EditorLayout layout);
 
         void setupUi();
 

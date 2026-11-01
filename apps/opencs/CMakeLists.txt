@@ -52,7 +52,7 @@ opencs_hdrs (model/tools
 
 
 opencs_units (model/prefs
-    state configmigration setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
+    state configmigration layoutstore setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
     shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory
     )
 
@@ -110,7 +110,7 @@ opencs_units (. editor capture)
 
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
-    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview
+    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell
     )
 
 

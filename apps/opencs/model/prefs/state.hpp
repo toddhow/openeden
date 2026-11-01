@@ -1,6 +1,7 @@
 #ifndef CSM_PREFS_STATE_H
 #define CSM_PREFS_STATE_H
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -92,6 +93,9 @@ namespace CSMPrefs
         State& operator=(const State&) = delete;
 
         void save();
+
+        /// The folder that holds eden-studio.cfg and the layout file.
+        std::filesystem::path getUserConfigPath() const { return mConfigurationManager.getUserConfigPath(); }
 
         Iterator begin();
 

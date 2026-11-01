@@ -4,6 +4,8 @@
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QAction>
+#include <QMainWindow>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QTimer>
@@ -506,6 +508,33 @@ void CS::Editor::startUiCheck()
             mViewManager->addView(
                 document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Scene, "sys::default"), hint);
             Log(Debug::Info) << "UI check: views opened";
+            // OPENEDEN_CS_GRAB=<folder>: render every document window with QWidget::grab shortly before the close,
+            // as <folder>/window<N>.png. This shows the Qt panels (not the 3D window inside them, which Qt cannot
+            // grab); the engine capture (--auto-screenshot) shows that. For checks with nobody at the screen.
+            // OPENEDEN_CS_TRIGGER=<text>: a third of the way in, triggers the menu action with that text (for
+            // example "Classic" or "Eden Studio" in Window > Layout) in every document window, so that a switch
+            // of layout with sub views open can be grabbed.
+            if (const char* trigger = std::getenv("OPENEDEN_CS_TRIGGER"))
+            {
+                const QString text = QString::fromUtf8(trigger);
+                QTimer::singleShot(milliseconds / 3, this, [text] {
+                    for (QWidget* widget : QApplication::topLevelWidgets())
+                        if (qobject_cast<QMainWindow*>(widget))
+                            for (QAction* action : widget->findChildren<QAction*>())
+                                if (action->text() == text && action->isCheckable())
+                                    action->trigger();
+                });
+            }
+            if (const char* grabFolder = std::getenv("OPENEDEN_CS_GRAB"))
+            {
+                const QString folder = QString::fromUtf8(grabFolder);
+                QTimer::singleShot(milliseconds > 1500 ? milliseconds - 1500 : 0, this, [folder] {
+                    int index = 0;
+                    for (QWidget* widget : QApplication::topLevelWidgets())
+                        if (widget->isVisible() && qobject_cast<QMainWindow*>(widget))
+                            widget->grab().save(folder + "/window" + QString::number(index++) + ".png");
+                });
+            }
             // Repeatedly: a window that is not the document's last refuses its close event, deleting itself later, and
             // closeAllWindows stops at the first refusal.
             QTimer::singleShot(milliseconds, this, [this] {

@@ -1,7 +1,9 @@
 #include "view.hpp"
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QCloseEvent>
+#include <QDockWidget>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QScreen>
@@ -15,6 +17,7 @@
 #include "../../model/doc/document.hpp"
 #include "../../model/doc/state.hpp"
 
+#include "../../model/prefs/layoutstore.hpp"
 #include "../../model/prefs/shortcut.hpp"
 #include "../../model/prefs/state.hpp"
 
@@ -44,6 +47,7 @@
 #include "globaldebugprofilemenu.hpp"
 #include "operations.hpp"
 #include "runlogsubview.hpp"
+#include "studioshell.hpp"
 #include "subview.hpp"
 #include "subviewfactoryimp.hpp"
 #include "viewmanager.hpp"
@@ -64,6 +68,7 @@ void CSVDoc::View::closeEvent(QCloseEvent* event)
         event->ignore();
     else
     {
+        mShell->saveDockState();
         // closeRequest() returns true if last document
         mViewManager.removeDocAndView(mDocument);
     }
@@ -160,25 +165,19 @@ void CSVDoc::View::setupEditMenu()
 
 void CSVDoc::View::setupViewMenu()
 {
+    // The record tables (World, Mechanics, Characters, Assets) are submenus of View, added by their own functions.
     QMenu* view = menuBar()->addMenu(tr("View"));
-
-    QAction* newWindow = createMenuEntry("New View", ":menu-new-window", view, "document-view-newview");
-    connect(newWindow, &QAction::triggered, this, &View::newView);
-
-    mShowStatusBar = createMenuEntry("Toggle Status Bar", ":menu-status-bar", view, "document-view-statusbar");
-    connect(mShowStatusBar, &QAction::toggled, this, &View::toggleShowStatusBar);
-    mShowStatusBar->setCheckable(true);
-    mShowStatusBar->setChecked(CSMPrefs::get()["Windows"]["show-statusbar"].isTrue());
-
-    view->addAction(mShowStatusBar);
+    mViewMenu = view;
 
     QAction* filters = createMenuEntry(CSMWorld::UniversalId::Type_Filters, view, "document-mechanics-filters");
     connect(filters, &QAction::triggered, this, &View::addFiltersSubView);
+
+    view->addSeparator();
 }
 
 void CSVDoc::View::setupWorldMenu()
 {
-    QMenu* world = menuBar()->addMenu(tr("World"));
+    QMenu* world = mViewMenu->addMenu(tr("World"));
 
     QAction* referenceables
         = createMenuEntry(CSMWorld::UniversalId::Type_Referenceables, world, "document-world-referencables");
@@ -213,7 +212,7 @@ void CSVDoc::View::setupWorldMenu()
 
 void CSVDoc::View::setupMechanicsMenu()
 {
-    QMenu* mechanics = menuBar()->addMenu(tr("Mechanics"));
+    QMenu* mechanics = mViewMenu->addMenu(tr("Mechanics"));
 
     QAction* scripts = createMenuEntry(CSMWorld::UniversalId::Type_Scripts, mechanics, "document-mechanics-scripts");
     connect(scripts, &QAction::triggered, this, &View::addScriptsSubView);
@@ -244,7 +243,7 @@ void CSVDoc::View::setupMechanicsMenu()
 
 void CSVDoc::View::setupCharacterMenu()
 {
-    QMenu* characters = menuBar()->addMenu(tr("Characters"));
+    QMenu* characters = mViewMenu->addMenu(tr("Characters"));
 
     QAction* skills = createMenuEntry(CSMWorld::UniversalId::Type_Skills, characters, "document-character-skills");
     connect(skills, &QAction::triggered, this, &View::addSkillsSubView);
@@ -288,7 +287,7 @@ void CSVDoc::View::setupCharacterMenu()
 
 void CSVDoc::View::setupAssetsMenu()
 {
-    QMenu* assets = menuBar()->addMenu(tr("Assets"));
+    QMenu* assets = mViewMenu->addMenu(tr("Assets"));
 
     QAction* reload = createMenuEntry("Reload", ":menu-reload", assets, "document-assets-reload");
     connect(reload, &QAction::triggered, &mDocument->getData(), &CSMWorld::Data::assetsChanged);
@@ -324,7 +323,18 @@ void CSVDoc::View::setupAssetsMenu()
 
 void CSVDoc::View::setupDebugMenu()
 {
-    QMenu* debug = menuBar()->addMenu(tr("Debug"));
+    QMenu* debug = menuBar()->addMenu(tr("Simulation"));
+
+    // Play, Pause and Step belong to the editor's own physics world, which does not exist yet (stage E). They are
+    // shown so that the menu has the shape of the plan, and say why they are off.
+    for (const char* text : { "Play", "Pause", "Step" })
+    {
+        QAction* transport = debug->addAction(tr(text));
+        transport->setEnabled(false);
+        transport->setToolTip(tr("The editor's physics world is not built yet (task 0024, stage E)."));
+        transport->setStatusTip(transport->toolTip());
+    }
+    debug->addSeparator();
 
     QAction* profiles = createMenuEntry(CSMWorld::UniversalId::Type_DebugProfiles, debug, "document-debug-profiles");
     connect(profiles, &QAction::triggered, this, &View::addDebugProfilesSubView);
@@ -350,6 +360,54 @@ void CSVDoc::View::setupDebugMenu()
 
     QAction* runLog = createMenuEntry(CSMWorld::UniversalId::Type_RunLog, debug, "document-debug-runlog");
     connect(runLog, &QAction::triggered, this, &View::addRunLogSubView);
+}
+
+void CSVDoc::View::setupWindowMenu()
+{
+    QMenu* window = menuBar()->addMenu(tr("Window"));
+
+    QAction* newWindow = createMenuEntry("New View", ":menu-new-window", window, "document-view-newview");
+    connect(newWindow, &QAction::triggered, this, &View::newView);
+
+    mShowStatusBar = createMenuEntry("Toggle Status Bar", ":menu-status-bar", window, "document-view-statusbar");
+    connect(mShowStatusBar, &QAction::toggled, this, &View::toggleShowStatusBar);
+    mShowStatusBar->setCheckable(true);
+    mShowStatusBar->setChecked(CSMPrefs::get()["Windows"]["show-statusbar"].isTrue());
+
+    window->addAction(mShowStatusBar);
+
+    window->addSeparator();
+
+    // Layout: the two arrangements, and a way back to the first-run docks of the one in use.
+    QMenu* layout = window->addMenu(tr("Layout"));
+    QActionGroup* group = new QActionGroup(this);
+    const std::pair<const char*, CSMPrefs::EditorLayout> choices[]
+        = { { "Eden Studio", CSMPrefs::EditorLayout::EdenStudio }, { "Classic", CSMPrefs::EditorLayout::Classic } };
+    for (const auto& [name, value] : choices)
+    {
+        QAction* choice = layout->addAction(tr(name));
+        choice->setCheckable(true);
+        choice->setChecked(mShell->layout() == value);
+        group->addAction(choice);
+        connect(choice, &QAction::triggered, this, [this, value] { changeLayout(value); });
+        connect(mShell, &StudioShell::layoutChanged, choice, [choice, value](CSMPrefs::EditorLayout current) {
+            choice->setChecked(current == value);
+        });
+    }
+    layout->addSeparator();
+    QAction* reset = layout->addAction(tr("Reset Layout"));
+    connect(reset, &QAction::triggered, this, [this] { mShell->resetLayout(); });
+
+    // One toggle per panel of the Eden Studio layout; they have no meaning in Classic.
+    QMenu* panels = window->addMenu(tr("Panels"));
+    for (QDockWidget* dock : mShell->panels())
+    {
+        QAction* toggle = dock->toggleViewAction();
+        panels->addAction(toggle);
+        connect(mShell, &StudioShell::layoutChanged, toggle,
+            [toggle](CSMPrefs::EditorLayout current) { toggle->setEnabled(current == CSMPrefs::EditorLayout::EdenStudio); });
+        toggle->setEnabled(mShell->isStudio());
+    }
 }
 
 void CSVDoc::View::setupHelpMenu()
@@ -405,7 +463,8 @@ void CSVDoc::View::setupUi()
     setupMechanicsMenu();
     setupCharacterMenu();
     setupAssetsMenu();
-    setupDebugMenu();
+    setupDebugMenu(); // the Simulation menu
+    setupWindowMenu();
     setupHelpMenu();
 }
 
@@ -449,6 +508,8 @@ void CSVDoc::View::updateSubViewIndices(SubView* view)
         if (windows["mainwindow-scrollbar"].toString() == "Grow then Scroll")
             updateScrollbar();
     }
+
+    updateSceneOpen();
 
     bool hideTitle = windows["hide-subview"].isTrue() && mSubViews.size() == 1 && !mSubViews.at(0)->isFloating();
 
@@ -509,7 +570,12 @@ CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, int tot
 
     mSubViewWindow.setDockOptions(QMainWindow::AllowNestedDocks);
 
-    if (windows["mainwindow-scrollbar"].toString() == "Grow Only")
+    mShell = new StudioShell(*this, mSubViewWindow,
+        CSMPrefs::LayoutStore(CSMPrefs::State::get().getUserConfigPath() / CSMPrefs::layoutStateFileName));
+
+    // Eden Studio puts the sub view area straight in the middle: its docks and the window's own size do the work
+    // that the scroll area does for Classic.
+    if (mShell->isStudio() || windows["mainwindow-scrollbar"].toString() == "Grow Only")
     {
         setCentralWidget(&mSubViewWindow);
     }
@@ -518,8 +584,15 @@ CSVDoc::View::View(ViewManager& viewManager, CSMDoc::Document* document, int tot
         createScrollArea();
     }
 
+    // Eden Studio has side panels and a bottom row, which need more room than the old default window gave a table.
+    if (mShell->isStudio())
+        resize(std::max(width, 1360), std::max(height, 860));
+
     mOperations = new Operations;
+    mOperations->setObjectName("operations"); // saveState needs it
     addDockWidget(Qt::BottomDockWidgetArea, mOperations);
+    mShell->setOperationsDock(mOperations);
+    mShell->start();
 
     setContextMenuPolicy(Qt::NoContextMenu);
 
@@ -661,7 +734,7 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
 
     updateWidth(true, minWidth);
 
-    mSubViewWindow.addDockWidget(Qt::TopDockWidgetArea, view);
+    dockSubView(view);
 
     // Horizontal orientation doesn't respect layout direction, so we need to move the new view
     if (windows["subview-open-direction"].toString() == "Open Left" && mSubViews.size() > 1)
@@ -722,6 +795,8 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
     }
 
     view->show();
+    view->raise(); // in a tab group, the new sub view should be the visible tab
+    updateSceneOpen();
 
     if (!hint.empty())
         view->useHint(hint);
@@ -747,6 +822,8 @@ void CSVDoc::View::settingChanged(const CSMPrefs::Setting* setting)
         updateSubViewIndices(nullptr);
     else if (*setting == "Windows/mainwindow-scrollbar")
     {
+        if (mShell->isStudio())
+            return;
         if (setting->toString() != "Grow Only")
         {
             if (mScroll)
@@ -775,6 +852,77 @@ void CSVDoc::View::settingChanged(const CSMPrefs::Setting* setting)
             mScroll = nullptr;
         }
     }
+}
+
+void CSVDoc::View::dockSubView(SubView* view)
+{
+    // Classic: every sub view in the top area, as OpenMW-CS always did.
+    if (!mShell->isStudio())
+    {
+        mSubViewWindow.addDockWidget(Qt::TopDockWidgetArea, view);
+        return;
+    }
+
+    // Eden Studio: 3D scenes are the viewport, in the top area. Everything else (record tables, editors, scripts)
+    // is a workspace page: the bottom area, as tabs.
+    if (dynamic_cast<CSVWorld::SceneSubView*>(view) != nullptr)
+    {
+        mSubViewWindow.addDockWidget(Qt::TopDockWidgetArea, view);
+        return;
+    }
+
+    SubView* sibling = nullptr;
+    for (SubView* other : mSubViews)
+        if (other != view && !other->isFloating() && mSubViewWindow.dockWidgetArea(other) == Qt::BottomDockWidgetArea)
+            sibling = other;
+
+    mSubViewWindow.setTabPosition(Qt::BottomDockWidgetArea, QTabWidget::North);
+    mSubViewWindow.addDockWidget(Qt::BottomDockWidgetArea, view);
+    if (sibling != nullptr)
+        mSubViewWindow.tabifyDockWidget(sibling, view);
+}
+
+void CSVDoc::View::updateSceneOpen()
+{
+    bool open = false;
+    for (SubView* subView : mSubViews)
+        if (dynamic_cast<CSVWorld::SceneSubView*>(subView) != nullptr)
+            open = true;
+    mShell->setSceneOpen(open);
+}
+
+void CSVDoc::View::changeLayout(CSMPrefs::EditorLayout layout)
+{
+    mShell->setLayout(layout);
+
+    // The central widget: Eden Studio has the sub view area directly, Classic keeps the user's scroll setting.
+    if (mShell->isStudio())
+    {
+        if (mScroll)
+        {
+            mScroll->takeWidget();
+            setCentralWidget(&mSubViewWindow); // deletes the scroll area later
+            mScroll = nullptr;
+        }
+        mSubViewWindow.setMinimumWidth(0);
+    }
+    else if (!mScroll && CSMPrefs::State::get()["Windows"]["mainwindow-scrollbar"].toString() != "Grow Only")
+    {
+        takeCentralWidget(); // setCentralWidget would delete the sub view area, which is a member
+        createScrollArea();
+    }
+
+    // Sub views that are already open move to the places of the new layout.
+    for (SubView* subView : mSubViews)
+    {
+        if (subView->isFloating())
+            continue;
+        mSubViewWindow.removeDockWidget(subView);
+        dockSubView(subView);
+        subView->show();
+    }
+    updateSceneOpen();
+    updateSubViewIndices();
 }
 
 void CSVDoc::View::newView()
@@ -1100,6 +1248,7 @@ void CSVDoc::View::closeRequest(SubView* subView)
     {
         subView->deleteLater();
         mSubViews.removeOne(subView);
+        updateSceneOpen();
     }
     else if (mViewManager.closeRequest(this))
         mViewManager.removeDocAndView(mDocument);
