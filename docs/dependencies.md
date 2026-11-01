@@ -119,3 +119,23 @@ Stage V0 introduces the dependencies required for the VulkanSceneGraph (VSG) ren
 - **License:** `Apache-2.0 WITH LLVM-exception`, read from the archive's `LICENSE` on 2026-11-01. Compatible with GPL-3.0-or-later. The archive's `third-party-notices` folder lists the notices of what Slang itself bundles (glslang, SPIRV-Tools and others, all permissive).
 - **Purpose / Why:** compiles `.slang` shaders to SPIR-V 1.0 at build time (`openeden_add_slang_shader()` in `files/shaders/CMakeLists.txt`). A host tool only: nothing of Slang is linked into or shipped with the game, only the `.spv` files it writes. Research note `docs/research/0005-slang-shaders.md`; decision draft `docs/decisions/0009-slang-for-new-shaders.md`.
 - **Runner note:** the download is about 63 MB on Windows and 29 MB on Linux on each fresh build folder. `FetchContent` checks the SHA-512, so a changed or corrupt download stops the configure step.
+
+### SPIRV-Tools and SPIRV-Headers (`spirv-val`, build-time tool)
+
+Slang's release archive does not contain `spirv-val` (its SPIRV-Tools is compiled into `slang-compiler`/`slang-glslang`), and Khronos publishes no standalone binary. So the build compiles the validator from source, from pinned tags, only when a `.slang` shader needs checking. Chosen over the LunarG Vulkan SDK (a machine-wide installer, not usable on a clean runner without an install step) and over `apt`/vcpkg (not pinned, and not the same version on Windows and Linux).
+
+- **Version:** both at the tag `vulkan-sdk-1.4.357.0`.
+- **SPIRV-Tools:** https://github.com/KhronosGroup/SPIRV-Tools/archive/refs/tags/vulkan-sdk-1.4.357.0.zip, 4,985,921 bytes
+  - **SHA-512:** `98ddcf34189abf79a2d4ac5f554e6432c09de64c2d1c1652ab452813d51200ff07065fcdc7ce61b8a76fe6dc6fd6393878bd2bdc4a6104499afcc10f430f7e71`
+  - **SHA-256:** `09f70a9197d9cd28e1e10a2fca5ffde8c5e269f363eed9afa838ad88ed2649c9`
+- **SPIRV-Headers:** https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-1.4.357.0.zip, 667,873 bytes
+  - **SHA-512:** `651e1d08e95e56a8512045d79b89afb7fe3ccfb9ba862a2e084440c65a9267e45b218b1df95d03cd3b2da476a51bac46cf66067ec1c4b1cbbcb55748293c7251`
+  - **SHA-256:** `7d40c8c1983c1aba6f6f2fcbcf7be345d33a5693aeee0cc5b8c579fb8e3f2fea`
+- **License:** Apache-2.0 (SPIRV-Tools `LICENSE`, read 2026-11-01; SPIRV-Headers is MIT-style/Apache-2.0 per its own `LICENSE`, permissive). Compatible with GPL-3.0-or-later.
+- **Purpose / Why:** `openeden_add_slang_shader()` runs `spirv-val --target-env vulkan1.0` on every compiled `.spv` before it is put in place, so an invalid shader fails the build.
+- **Build configuration:** `FetchContent` in `extern/CMakeLists.txt`, with tests, install rules and `-Werror` off. Its directory is `EXCLUDE_FROM_ALL`: only the `spirv-val` target is built, and only when `.slang` shaders are built. Nothing of it is linked into or shipped with the game.
+- **Python (Windows only, when none is found):** SPIRV-Tools generates its grammar tables with Python 3 while it configures and builds. Linux and the GitHub runners have one. A Windows machine without Python (this one) gets the embeddable package, used as a build tool only and not shipped:
+  - **Source:** https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip, 11,133,606 bytes (Python 3.12.10)
+  - **SHA-512:** `98375769d8181a1553d361afdcda1cef34fd59cced20c2c8dc7ef0de349ad917057b59b6a66572bd6126bc352ef784f31a08e937ad185f6bc8d6c9271ab29411`
+  - **SHA-256:** `4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3`
+  - **License:** Python Software Foundation License (permissive, GPL-compatible).

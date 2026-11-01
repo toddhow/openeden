@@ -18,7 +18,7 @@ Acceptance criteria:
 - [x] With `gpu timing` on, a Seyda Neen run writes per-pass GPU times; with it off, `OPENEDEN_FRAME_STATS_FILE` is byte-for-byte as before and no query pool exists (tested by a unit test of the timing helper and by a frame comparison).
 - [ ] `tools/benchmark.sh` runs on Windows and Linux (the Linux gate), prints a table, and the baseline note exists with the GPU named.
 - [ ] The device report lists every item above, the JSON round-trips byte for byte, and a device without an item reports it absent and does not crash.
-- [ ] `slangc` is fetched and pinned on Windows and Linux; a `.slang` shader compiles in the normal build; its SPIR-V passes `spirv-val` and matches the GLSL's layouts (a test compares reflection data, not text).
+- [x] `slangc` is fetched and pinned on Windows and Linux; a `.slang` shader compiles in the normal build; its SPIR-V passes `spirv-val` and matches the GLSL's layouts (a test compares reflection data, not text).
 - [x] The ported sun shader draws the same frame as the GLSL one within noise, and the default (setting off) path is unchanged.
 - [ ] components-tests, openmw-tests, openmw-cs-tests, the 32 Lua tests and the Linux gate pass; a fresh reviewer reads the work.
 Out of scope: the HDR path (F2), stored depth and normals (F3), the material model (F4), any visible rendering feature, raising the Vulkan instance version (the report informs that decision), porting other shaders, ray tracing, changing the editor's rendering.
@@ -43,8 +43,16 @@ Out of scope: the HDR path (F2), stored depth and normals (F3), the material mod
 
 **Not verified / open:**
 - The Linux build with `-Werror` found missing-initializer errors in `devicereport.cpp` (Vulkan structures initialised with only `sType`), fixed with `makeStruct<T>`; the Linux gate was re-run after the fix: the build with `-Werror` passes, `components-tests` 2393 (the Slang layout test ran there too, so the Linux `slangc` download and build work) and `openmw-tests` 799 pass. The gate did not run the Lua integration tests, `openmw-cs-tests`, clang-format or the sanitizers.
-- `spirv-val` is not installed here. The build relies on `slangc`'s own validation (it is on unless `-skip-spirv-validation`), and the test compares declarations. The checkbox says `spirv-val`, so it is left unticked.
+- `spirv-val`: resolved in the follow-up below (the build now runs it).
 - `tools/benchmark.sh` was run on Windows only (needs game data, which the Linux image has not). clang-format 14 and clang-tidy were not run (not installed here; two long lines in `devicereport.cpp` need the formatter).
 - No validation-layer run of the timestamp placements. The tests were written by the implementing agent from the spec, not by a separate test-writing subagent, which the full loop asks for; a reviewer read them.
 - The walk scene moves the player forward with collision off; it covers little ground and does not stream much. A real route (with a Lua script that teleports along a path) would be better.
 - The device report's "absent" path is exercised by unit tests of the format, not by a device that lacks a feature.
+
+### 2026-11-01, follow-up: the build runs `spirv-val`
+
+- Slang's archive has no `spirv-val`, and Khronos publishes no binary. So `extern/CMakeLists.txt` builds it from SPIRV-Tools and SPIRV-Headers at the tag `vulkan-sdk-1.4.357.0` (URL, SHA-512 and licence in `docs/dependencies.md`, recorded before it was added). The two directories are `EXCLUDE_FROM_ALL`, so only the `spirv-val` target is built, and only because the Slang shaders depend on it (about 90 small compile steps).
+- SPIRV-Tools needs Python 3 for its tables. Linux and the GitHub runners have it; this Windows machine does not, so CMake fetches the pinned python.org embeddable package (3.12.10) as a build tool, only when no Python 3 is found.
+- `openeden_add_slang_shader()` now writes `<output>.tmp`, runs `spirv-val --target-env vulkan1.0` on it, and renames it to `<output>` only if it passes. A bad shader fails the build and leaves no `.spv` for a second build to take as up to date.
+- Test: the `openeden_spirv_val_rejects_bad_input` target (`files/shaders/check_spirv_val_rejects.cmake`) feeds `spirv-val` a file that is not SPIR-V and fails the build if it is accepted or rejected for another reason than the magic number. A truncated copy of a real shader was also rejected by hand. The sun shaders pass.
+- Verified on Windows: configure, `openeden_slang_shaders`, `components-tests` (2391 pass). Linux gate (Docker, `-Werror`, Python from apt): `spirv-val` built, the shaders validated and the rejection check ran in the build; `components-tests` 2393 and `openmw-tests` 799 pass. No opt-out option was added, because the tool can be had.

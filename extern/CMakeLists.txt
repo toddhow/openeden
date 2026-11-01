@@ -510,3 +510,40 @@ if(OPENEDEN_BUILD_SLANG_SHADERS)
         message(STATUS "Slang: no pinned archive for ${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_PROCESSOR}; .slang shaders will not be built")
     endif()
 endif()
+
+# spirv-val, to check every compiled Slang shader (task 0023 follow-up; docs/dependencies.md). Slang's archive has no
+# validator and Khronos publishes no binary, so it is built from pinned sources. Its directory is EXCLUDE_FROM_ALL:
+# only the spirv-val target is built, and only because openeden_add_slang_shader() depends on it.
+if(OPENEDEN_SLANGC)
+    # SPIRV-Tools needs Python 3 for its generated tables. Where there is none (a Windows machine without Python),
+    # use the pinned embeddable package, as a build tool only.
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(NOT Python3_EXECUTABLE AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+        FetchContent_Declare(buildpython
+            URL https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip
+            URL_HASH SHA512=98375769d8181a1553d361afdcda1cef34fd59cced20c2c8dc7ef0de349ad917057b59b6a66572bd6126bc352ef784f31a08e937ad185f6bc8d6c9271ab29411
+            SOURCE_DIR fetched/buildpython
+        )
+        FetchContent_MakeAvailable(buildpython)
+        set(Python3_EXECUTABLE "${buildpython_SOURCE_DIR}/python.exe" CACHE FILEPATH "Python 3 for build tools" FORCE)
+    endif()
+    set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)
+    set(SPIRV_WERROR OFF CACHE BOOL "" FORCE)
+    set(SPIRV_BUILD_FUZZER OFF CACHE BOOL "" FORCE)
+    set(SKIP_SPIRV_TOOLS_INSTALL ON CACHE BOOL "" FORCE)
+    set(SPIRV_HEADERS_SKIP_INSTALL ON CACHE BOOL "" FORCE)
+    set(SPIRV_HEADERS_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)
+    FetchContent_Declare(spirv_headers
+        URL https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-1.4.357.0.zip
+        URL_HASH SHA512=651e1d08e95e56a8512045d79b89afb7fe3ccfb9ba862a2e084440c65a9267e45b218b1df95d03cd3b2da476a51bac46cf66067ec1c4b1cbbcb55748293c7251
+        SOURCE_DIR fetched/spirv-headers
+    )
+    FetchContent_Declare(spirv_tools
+        URL https://github.com/KhronosGroup/SPIRV-Tools/archive/refs/tags/vulkan-sdk-1.4.357.0.zip
+        URL_HASH SHA512=98ddcf34189abf79a2d4ac5f554e6432c09de64c2d1c1652ab452813d51200ff07065fcdc7ce61b8a76fe6dc6fd6393878bd2bdc4a6104499afcc10f430f7e71
+        SOURCE_DIR fetched/spirv-tools
+    )
+    FetchContent_MakeAvailable(spirv_headers spirv_tools)
+    set_property(DIRECTORY "${spirv_headers_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
+    set_property(DIRECTORY "${spirv_tools_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
+endif()

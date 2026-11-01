@@ -110,6 +110,9 @@ copy_all_resource_files(${CMAKE_CURRENT_SOURCE_DIR} ${OPENMW_RESOURCES_ROOT} ${D
 #   -matrix-layout-column-major  matrices lie in memory as GLSL's mat4 does, so the C++ side uploads the same bytes
 #   -warnings-disable 50011      Slang warns that SPIR-V 1.0 is old; that is the point
 # slangc validates its output with the SPIRV-Tools inside it unless -skip-spirv-validation is given, which it is not.
+# On top of that every output is checked by the pinned spirv-val (extern/CMakeLists.txt) for Vulkan 1.0. slangc writes
+# to <output>.tmp, spirv-val checks it, and only a valid file is renamed to <output>: a rejected shader fails the build
+# and leaves no .spv behind that a second build would take as up to date.
 # Where there is no slangc (OPENEDEN_SLANGC empty) nothing is built and the game uses the GLSL.
 set(OPENEDEN_SLANG_SHADERS_BUILT OFF CACHE INTERNAL "True when the .slang shaders are compiled by this build")
 if (OPENEDEN_SLANGC)
@@ -119,6 +122,15 @@ if (OPENEDEN_SLANGC)
         message(WARNING "Slang shaders are not built with a multi-config generator yet; the GLSL shaders are used")
     else()
         add_custom_target(openeden_slang_shaders ALL)
+        # Proof that the validator rejects a broken file (otherwise "passes spirv-val" would mean nothing).
+        add_custom_target(openeden_spirv_val_rejects_bad_input ALL
+            COMMAND ${CMAKE_COMMAND} -DSPIRV_VAL=$<TARGET_FILE:spirv-val>
+                    -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/check_spirv_val_rejects.cmake
+            DEPENDS spirv-val
+            COMMENT "spirv-val: a broken SPIR-V file must be rejected"
+            VERBATIM)
+        add_dependencies(openeden_slang_shaders openeden_spirv_val_rejects_bad_input)
         set(OPENEDEN_SLANG_SHADERS_BUILT ON CACHE INTERNAL "True when the .slang shaders are compiled by this build")
     endif()
 endif()
@@ -141,8 +153,10 @@ function(openeden_add_slang_shader)
         add_custom_command(
             OUTPUT "${output}"
             COMMAND "${OPENEDEN_SLANGC}" "${source}" -target spirv -profile spirv_1_0 -matrix-layout-column-major
-                    -warnings-disable 50011 -entry ${entry} -stage ${stage_name} -o "${output}"
-            DEPENDS "${source}"
+                    -warnings-disable 50011 -entry ${entry} -stage ${stage_name} -o "${output}.tmp"
+            COMMAND $<TARGET_FILE:spirv-val> --target-env vulkan1.0 "${output}.tmp"
+            COMMAND ${CMAKE_COMMAND} -E rename "${output}.tmp" "${output}"
+            DEPENDS "${source}" spirv-val
             COMMENT "Slang: ${S_SOURCE} ${entry} -> ${S_OUTPUT_DIR}/main.${suffix}.spv"
             VERBATIM)
         list(APPEND outputs "${output}")
