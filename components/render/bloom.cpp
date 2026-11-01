@@ -256,11 +256,11 @@ void main()
         const vsg::ref_ptr<vsg::View> view = mView;
         uint32_t viewId = 0;
         bool matched = false;
-        compileForView->contextSelectionFunction = [view, &viewId, &matched](vsg::Context& context) {
-            if (context.view.get() != view.get())
+        compileForView->contextSelectionFunction = [view, &viewId, &matched](vsg::Context& selected) {
+            if (selected.view.get() != view.get())
                 return false;
             matched = true;
-            viewId = context.viewID;
+            viewId = selected.viewID;
             return true;
         };
 
