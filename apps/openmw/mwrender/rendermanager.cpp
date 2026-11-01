@@ -51,6 +51,7 @@
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/misc/vsgmath.hpp>
 
+#include "extentsync.hpp"
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwmechanics/actorutil.hpp"
@@ -903,7 +904,7 @@ namespace MWRender
     {
         mScreenshotInterface->request = [&](int w, int h) {
             auto device = mCompileContext->device;
-            auto pair = Render::createDownloadCommands(device, mEngine.colorImageView(0)->image, { { 0, 0 }, mEngine.extent2D() },
+            auto pair = Render::createDownloadCommands(device, mEngine.colorImageView(0)->image, { { 0, 0 }, mEngine.swapchainExtent() },
                 Render::compatibleColorFormat, mEngine.getPresentLayout(),
                 VkExtent2D{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) });
             auto commands = pair.first;
@@ -1212,7 +1213,7 @@ namespace MWRender
     void RenderManager::updateProjectionMatrix()
     {
         float fov = getFieldOfView();
-        auto windowSize = mEngine.extent2D();
+        const VkExtent2D windowSize = mAppliedExtent; // the extent drawn into, not the one requested
         // Field by field: vsg::Perspective's implicit copy assignment is deprecated.
         mProjectionMatrix->fieldOfViewY = fov;
         mProjectionMatrix->aspectRatio
@@ -1338,13 +1339,15 @@ namespace MWRender
 
     void RenderManager::syncExtents()
     {
-        const VkExtent2D extent = mEngine.swapchainExtent();
+        // Before the viewer acquires the next image, which is when the swapchain is rebuilt to the requested size: see clampArea.
+        const VkExtent2D extent = clampArea(mAppliedExtent, mEngine.swapchainExtent(), mEngine.extent2D());
         if (extent.width == mAppliedExtent.width && extent.height == mAppliedExtent.height)
             return;
         mAppliedExtent = extent;
         mSceneCamera->viewportState->set(0, 0, extent.width, extent.height);
         mRenderGraph->renderArea = { { 0, 0 }, extent };
         mGuiRenderGraph->renderArea = { { 0, 0 }, extent };
+        updateProjectionMatrix();
         if (mPostProcess)
             mPostProcess->resize(extent.width, extent.height);
     }

@@ -26,6 +26,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testgroundcoverinstances.cpp
     mwrender/testgroundcoverchunks.cpp
     mwrender/testswitches.cpp
+    mwrender/testextentsync.cpp
 
     mwscript/testscripts.cpp
 
