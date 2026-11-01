@@ -1,6 +1,6 @@
 # 0009 — New shaders are written in Slang; glslang stays for vsgopenmw's GLSL until it is ported
 
-Date: (when decided) · Status: **proposed**, for toddhow · Drafted 2026-11-01 in task 0023 (F1)
+Date: 2026-11-01 · Status: **accepted** (toddhow: "New shaders should be written in Slang not GLSL", 2026-11-01) · Drafted 2026-11-01 in task 0023 (F1)
 
 Numbered 0009 because 0004 is a draft on the branch `research/slang-shaders` (research note 0005, section 9) and 0008 is the hosting decision. This is that draft, brought up to date with what task 0023 built and measured.
 
