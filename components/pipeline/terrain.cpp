@@ -21,11 +21,12 @@ namespace Pipeline
     }
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(
-        vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps, unsigned int gbufferOutputs, bool giSky)
+        vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps, unsigned int gbufferOutputs, bool giSky,
+        const WetnessOptions& wetness)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
-        if (maps || gbufferOutputs > 0 || giSky)
+        if (maps || gbufferOutputs > 0 || giSky || wetness.enabled)
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
             auto compileSettings = vsg::ShaderCompileSettings::create();
@@ -36,6 +37,14 @@ namespace Pipeline
             // Task 0036: the terrain takes the exterior sky-visibility field.
             if (giSky)
                 compileSettings->defines.insert("GI_SKY");
+            if (wetness.enabled)
+            {
+                compileSettings->defines.insert("WETNESS");
+                if (wetness.puddles)
+                    compileSettings->defines.insert("WETNESS_PUDDLES");
+                if (wetness.debug)
+                    compileSettings->defines.insert("WETNESS_DEBUG");
+            }
             // The fourth extra output is the material (Render::GBuffer::extraColorFormats, task 0027).
             if (gbufferOutputs >= 4)
                 compileSettings->defines.insert("GBUFFER_MATERIAL");

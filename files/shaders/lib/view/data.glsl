@@ -9,7 +9,7 @@ struct Scene
     vec4 lightDiffuse;
     vec4 lightSpecular;
     vec4 lightViewPos;
-    vec4 ambient;
+    vec4 ambient; //.a=1 + the rain wetness in the main view (task 0037; lib/material/wetness.glsl)
     vec4 fogColor;
     vec4 skyColor; //.a=glareView;
     vec2 resolution;

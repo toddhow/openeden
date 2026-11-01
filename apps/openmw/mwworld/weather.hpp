@@ -411,6 +411,8 @@ namespace MWWorld
         MWRender::WeatherResult mResult;
         // task 0034: mResult after the atmosphere model, kept between frames to reuse its strings
         MWRender::WeatherResult mAtmosphereResult;
+        // task 0037: how wet the ground is, 0 to 1 (not saved: after a load it builds up again in seconds)
+        float mWetness = 0.f;
 
         MWBase::Sound* mAmbientSound{ nullptr };
         ESM::RefId mPlayingAmbientSoundID;
@@ -433,6 +435,7 @@ namespace MWWorld
 
         void calculateWeatherResult(const float gameHour, const float elapsedSeconds, const bool isPaused);
         void applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const;
+        void updateWetness(float duration, bool paused, bool isExterior);
         void calculateResult(const int weatherID, const float gameHour);
         void calculateTransitionResult(const float factor, const float gameHour);
         float calculateWindSpeed(int weatherId, float currentSpeed);

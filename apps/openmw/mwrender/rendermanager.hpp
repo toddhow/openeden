@@ -160,6 +160,9 @@ namespace MWRender
 
         void setNightEyeFactor(float factor);
         void setAmbientColour(const vsg::vec4& colour);
+        /// Task 0037: the rain wetness (0 dry to 1 soaked) the weather manager worked out; 0 indoors. Ignored unless
+        /// [Rendering] wetness took effect at start. Main thread.
+        void setWetness(float wetness);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;
         int skyGetSecundaPhase() const;
@@ -391,6 +394,10 @@ namespace MWRender
         vsg::vec3 mSkyEnvHorizon{ -1.f, -1.f, -1.f };
         vsg::vec3 mSkyEnvAmbient{ -1.f, -1.f, -1.f };
         bool mGiSkyEnabled = false;
+        // Task 0037: rain wetness took effect at start (needs hdr and pbr), its strength, and the current value.
+        bool mWetnessEnabled = false;
+        float mWetnessStrength = 1.f;
+        float mWetness = 0.f;
         float mSkyVisStrength = 1.f;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisHeader;

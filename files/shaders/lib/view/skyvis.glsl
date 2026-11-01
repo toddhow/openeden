@@ -88,11 +88,11 @@ vec3 skyOcclusion(float v[9], vec3 normal)
     return clamp(geometric * shift, vec3(0.0), vec3(1.0));
 }
 
-// The ambient light at a point: the flat ambient scaled by the share of it the place keeps (skyVisAmbient).
-vec3 skyVisAmbient(vec3 worldPos, vec3 worldNormal, vec3 flatAmbient)
+// The visibility field at a point, interpolated between the four surrounding columns and the two levels. Returns the
+// share of the four columns that have data (0 where no loaded cell does; `sum` is then unset). Shared by skyVisAmbient
+// and skyVisUp.
+float skyVisSample(vec3 worldPos, vec3 worldNormal, out float sum[9])
 {
-    if (skyHeader[0].x < 0.5)
-        return flatAmbient;
     float spacing = skyHeader[1].x;
     float levelSpacing = skyHeader[1].y;
     int levels = int(skyHeader[1].z);
@@ -110,7 +110,8 @@ vec3 skyVisAmbient(vec3 worldPos, vec3 worldNormal, vec3 flatAmbient)
     vec2 f = g - vec2(g0);
 
     float weightSum = 0.0;
-    float sum[9] = float[9](0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    for (int k = 0; k < 9; ++k)
+        sum[k] = 0.0;
     for (int dy = 0; dy < 2; ++dy)
         for (int dx = 0; dx < 2; ++dx)
         {
@@ -128,12 +129,37 @@ vec3 skyVisAmbient(vec3 worldPos, vec3 worldNormal, vec3 flatAmbient)
                 sum[k] += mix(skyData[offset + 1 + l0 * 9 + k], skyData[offset + 1 + l1 * 9 + k], t) * w;
             weightSum += w;
         }
+    if (weightSum > 1e-4)
+        for (int k = 0; k < 9; ++k)
+            sum[k] /= weightSum;
+    return weightSum;
+}
+
+// The ambient light at a point: the flat ambient scaled by the share of it the place keeps (skyVisAmbient).
+vec3 skyVisAmbient(vec3 worldPos, vec3 worldNormal, vec3 flatAmbient)
+{
+    if (skyHeader[0].x < 0.5)
+        return flatAmbient;
+    float sum[9];
+    float weightSum = skyVisSample(worldPos, worldNormal, sum);
     if (weightSum <= 1e-4)
         return flatAmbient;
-    for (int k = 0; k < 9; ++k)
-        sum[k] /= weightSum;
     vec3 occlusion = skyOcclusion(sum, worldNormal);
     float strength = skyHeader[0].y;
     vec3 kept = max(vec3(1.0) - strength * (vec3(1.0) - occlusion), vec3(0.0));
     return flatAmbient * mix(vec3(1.0), kept, weightSum);
+}
+
+// OpenEden (task 0037): how much sky a flat surface facing up sees at a point (1 in the open, near 0 under a roof or
+// bridge; x) and the weight of the data behind it (y, 0 where no loaded cell has a file). The shelter test for rain
+// wetness (Render::Wetness::exposure).
+vec2 skyVisUp(vec3 worldPos)
+{
+    if (skyHeader[0].x < 0.5)
+        return vec2(1.0, 0.0);
+    float sum[9];
+    float weightSum = skyVisSample(worldPos, vec3(0.0, 0.0, 1.0), sum);
+    if (weightSum <= 1e-4)
+        return vec2(1.0, 0.0);
+    return vec2(skyVisCosine(sum, vec3(0.0, 0.0, 1.0)), weightSum);
 }

@@ -31,6 +31,7 @@ set(SHADER_FILES
     lib/view/gi.glsl
     lib/view/reflection.glsl
     lib/view/skyvis.glsl
+    lib/material/wetness.glsl
     lib/material/bindings.glsl
     lib/material/data.glsl
     lib/material/descriptors_vert.glsl

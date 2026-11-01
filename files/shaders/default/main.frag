@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI, GI_SKY, GBUFFER_AMBIENT)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -23,6 +23,10 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #if defined(NORMAL) && defined(PBR)
 #define PBR_LIT 1
 #endif
+// OpenEden (task 0037): rain wetness, in the lit surfaces that take the material model.
+#if defined(NORMAL) && defined(PBR) && defined(WETNESS)
+#define WET_LIT 1
+#endif
 
 #include "lib/view/scene.glsl"
 #include "lib/view/linear.glsl"
@@ -42,6 +46,9 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
  #ifdef GI_SKY
 #include "lib/view/skyvis.glsl"
  #endif
+#endif
+#ifdef WET_LIT
+#include "lib/material/wetness.glsl"
 #endif
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
@@ -203,6 +210,26 @@ void main()
  #endif
     // The shadow bias uses the geometry normal, as OpenMW's shadowing never saw the normal map.
     float sunShadow = shadow(frag_in.viewPos, normalize(frag_in.viewNormal));
+#ifdef WET_LIT
+    // Task 0037: rain wetness at this point (0 under cover, indoors and in dry weather). Skin and glowing surfaces stay
+    // dry. A puddle flattens the shading normal and tilts it with the ripples; the rain's darkening and the gloss come
+    // below, once the surface's roughness is known.
+    WetSurface wetS = wetSurfaceAt((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal);
+    vec3 wetWorldPos = (scene.invView * vec4(frag_in.viewPos, 1.0)).xyz;
+    {
+  #ifdef MATERIAL
+        float wetSkin = material.subsurface > 0.5 ? 1.0 : 0.0;
+  #else
+        float wetSkin = 0.0;
+  #endif
+        float wetGlow = smoothstep(0.0, 0.3, dot(getEmission(vertexColor), vec3(1.0)));
+        float wetKeep = (1.0 - wetSkin) * (1.0 - wetGlow);
+        wetS.wet *= wetKeep;
+        wetS.puddle *= wetKeep;
+        if (wetS.puddle > 0.0)
+            viewNormal = normalize(mix(viewNormal, transpose(mat3(scene.invView)) * wetPuddleNormal(wetWorldPos), wetS.puddle));
+    }
+#endif
 #ifdef GI
     ambientLight = giAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
  #ifdef GI_SKY
@@ -237,6 +264,16 @@ void main()
     pbrLit = pbrApplyMap(pbrLit, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
    #endif
     vec3 pbrBase = outColor.xyz;
+#ifdef WET_LIT
+    // Task 0037: wet surfaces are darker and smoother (a puddle most of all). Metals keep their colour.
+    if (wetS.wet > 0.0)
+    {
+        float wetSurface = wetS.wet * (1.0 - pbrLit.metalness);
+        outColor.xyz *= wetDarkening(wetSurface, pbrLit.roughness)
+            * mix(1.0, wetPuddleDarkening, wetS.puddle);
+        pbrLit.roughness = mix(wetRoughnessOf(pbrLit.roughness, wetSurface), wetPuddleRoughness, wetS.puddle);
+    }
+#endif
     vec3 pbrF0 = pbrSpecularF0(pbrBase, pbrLit.metalness, pbrLit.reflectance);
     pbrPointLights(viewPosToScreenCoord(frag_in.viewPos, scene.projection), viewNormal, frag_in.viewPos,
         pbrLit.roughness, pbrF0, pointDiffuse, pointSpecular);
@@ -296,6 +333,20 @@ void main()
    #endif
             outColor.xyz += reflLight * (pbrF0 * reflAB.x + vec3(reflAB.y)) * reflScale;
         }
+  #endif
+  #ifdef WET_LIT
+        if (wetS.puddle > 0.0)
+        {
+            // The sky in the puddle (task 0037): the world's mirror direction off the rippled water, times water's Fresnel.
+            vec3 wetEye = mat3(scene.invView) * normalize(frag_in.viewPos);
+            vec3 wetN = mat3(scene.invView) * viewNormal;
+            vec3 wetDir = reflect(wetEye, wetN);
+            vec3 wetSky = wetSkyReflection(wetWorldPos, wetDir, wetPuddleRoughness);
+            outColor.xyz += wetSky * (wetFresnel(dot(wetN, -wetEye)) * wetPuddleReflection * wetS.puddle);
+        }
+   #ifdef WETNESS_DEBUG
+        outColor.xyz = vec3(wetS.wet, wetS.exposure, wetS.puddle);
+   #endif
   #endif
     }
 #else

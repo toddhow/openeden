@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY)
+#pragma import_defines (TERRAIN_MAPS, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -9,6 +9,11 @@ const int colorMode = 2;
 #include "lib/material/terms.glsl"
 #ifdef GI_SKY
 #include "lib/view/skyvis.glsl"
+#endif
+#ifdef WETNESS
+// OpenEden (task 0037): rain wetness; its specular lobe is the material model's.
+#include "lib/material/pbr.glsl"
+#include "lib/material/wetness.glsl"
 #endif
 #include "bindings.glsl"
 #include "terrain.settings"
@@ -113,6 +118,15 @@ void main()
 
     // OpenEden (task 0025): the layers are blended on encoded values and converted once (lib/view/linear.glsl).
     outColor.xyz = toLinearIfView(outColor.xyz);
+#ifdef WETNESS
+    // Task 0037: rain wetness (the terrain takes the darker and glossier terms and puddles; roughness is the material
+    // model's terrain value, Render::Pbr::terrainRoughness).
+    const float wetTerrainRoughness = 0.95;
+    vec3 wetWorldPos = (scene.invView * vec4(frag_in.viewPos, 1.0)).xyz;
+    WetSurface wetS = wetSurfaceAt(wetWorldPos, mat3(scene.invView) * normalize(frag_in.viewNormal));
+    if (wetS.wet > 0.0)
+        outColor.xyz *= wetDarkening(wetS.wet, wetTerrainRoughness) * mix(1.0, wetPuddleDarkening, wetS.puddle);
+#endif
 
     vec2 colorTexSize = textureSize(colorMap, 0);
     vec2 colorCoord = (frag_in.texCoord - 0.5) * colorTexSize / (colorTexSize+1) + 0.5;
@@ -126,6 +140,29 @@ void main()
 #endif
 #ifdef TERRAIN_MAPS
     outColor.xyz += specularStrength * specularLight;
+#endif
+#ifdef WETNESS
+    if (wetS.wet > 0.0)
+    {
+        vec3 wetN = normalize(frag_in.viewNormal);
+        if (wetS.puddle > 0.0)
+            wetN = normalize(mix(wetN, transpose(mat3(scene.invView)) * wetPuddleNormal(wetWorldPos), wetS.puddle));
+        float wetRough = mix(wetRoughnessOf(wetTerrainRoughness, wetS.wet), wetPuddleRoughness, wetS.puddle);
+        float wetShadow = shadow(frag_in.viewPos, frag_in.viewNormal);
+        outColor.xyz += scene.lightSpecular.xyz
+            * pbrSpecularLobe(wetN, normalize(frag_in.viewPos), scene.lightViewPos.xyz, wetRough, vec3(0.04)) * wetShadow
+            * wetS.wet;
+        if (wetS.puddle > 0.0)
+        {
+            vec3 wetEye = mat3(scene.invView) * normalize(frag_in.viewPos);
+            vec3 wetNW = mat3(scene.invView) * wetN;
+            vec3 wetSky = wetSkyReflection(wetWorldPos, reflect(wetEye, wetNW), wetPuddleRoughness);
+            outColor.xyz += wetSky * (wetFresnel(dot(wetNW, -wetEye)) * wetPuddleReflection * wetS.puddle);
+        }
+    }
+ #ifdef WETNESS_DEBUG
+    outColor.xyz = vec3(wetS.wet, wetS.exposure, wetS.puddle);
+ #endif
 #endif
     outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
 

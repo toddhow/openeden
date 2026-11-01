@@ -79,6 +79,14 @@ namespace Settings
         SettingValue<bool> mGiExterior{ mIndex, "Rendering", "gi exterior" };
         SettingValue<float> mGiExteriorStrength{ mIndex, "Rendering", "gi exterior strength",
             makeClampSanitizerFloat(0, 2) };
+        // Task 0037: rain wetness (read at start; needs hdr and pbr): its strength, whether flat ground collects
+        // puddles, the seconds of game time a soaked surface takes to dry, and a debug view of wetness and cover.
+        SettingValue<bool> mWetness{ mIndex, "Rendering", "wetness" };
+        SettingValue<float> mWetnessStrength{ mIndex, "Rendering", "wetness strength", makeClampSanitizerFloat(0, 1) };
+        SettingValue<bool> mWetnessPuddles{ mIndex, "Rendering", "wetness puddles" };
+        SettingValue<float> mWetnessDryTime{ mIndex, "Rendering", "wetness dry time",
+            makeClampSanitizerFloat(1, 86400) };
+        SettingValue<bool> mWetnessDebug{ mIndex, "Rendering", "wetness debug" };
         SettingValue<int> mGiBakeSkyRays{ mIndex, "Rendering", "gi bake sky rays", makeClampSanitizerInt(1, 65536) };
         SettingValue<float> mGiBakeSkySpacing{ mIndex, "Rendering", "gi bake sky spacing",
             makeClampSanitizerFloat(128, 2048) };

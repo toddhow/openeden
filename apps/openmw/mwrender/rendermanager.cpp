@@ -53,6 +53,7 @@
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
+#include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/paging.hpp>
@@ -356,6 +357,22 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] gi exterior needs hdr, pbr and atmosphere; it is off";
             }
+            // Task 0037: rain wetness acts in the material model's lighting, so it needs pbr.
+            if (Settings::rendering().mWetness)
+            {
+                if (pbr)
+                {
+                    auto& graphics = *resourceSystem->builder->graphics;
+                    graphics.wetnessEnabled = true;
+                    graphics.wetnessPuddles = Settings::rendering().mWetnessPuddles;
+                    graphics.wetnessDebug = Settings::rendering().mWetnessDebug;
+                    mWetnessEnabled = true;
+                    mWetnessStrength = Settings::rendering().mWetnessStrength;
+                    Log(Debug::Info) << "Weather: rain wetness on";
+                }
+                else
+                    Log(Debug::Warning) << "[Rendering] wetness needs hdr and pbr; it is off";
+            }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";
             mReflect = std::make_unique<Reflect>(
@@ -478,6 +495,9 @@ namespace MWRender
         Terrain::TerrainMapSettings terrainMaps;
         terrainMaps.gbufferOutputs = mGBufferOutputs;
         terrainMaps.giSky = mGiSkyEnabled;
+        terrainMaps.wetness.enabled = mWetnessEnabled;
+        terrainMaps.wetness.puddles = mWetnessEnabled && Settings::rendering().mWetnessPuddles;
+        terrainMaps.wetness.debug = mWetnessEnabled && Settings::rendering().mWetnessDebug;
         const auto& shaders = Settings::shaders();
         terrainMaps.autoMaps.autoUseNormalMaps = shaders.mAutoUseTerrainNormalMaps;
         terrainMaps.autoMaps.autoUseSpecularMaps = shaders.mAutoUseTerrainSpecularMaps;
@@ -921,6 +941,11 @@ namespace MWRender
     void RenderManager::setAmbientColour(const vsg::vec4& colour)
     {
         mAmbientColor = colour;
+    }
+
+    void RenderManager::setWetness(float wetness)
+    {
+        mWetness = Render::Wetness::saturate(wetness);
     }
 
     void RenderManager::skySetDate(int day, int month)
@@ -1480,6 +1505,11 @@ namespace MWRender
         ambient += vsg::vec4(0.7, 0.7, 0.7, 0.0) * mNightEyeFactor;
         mDisplayAmbient = ambient;
         sceneData.ambient = toView(ambient);
+        // Task 0037: the wetness rides in the ambient colour's alpha, as 1 + wetness (the scene block cannot grow, see
+        // lib/view/data.glsl). Other views (map, preview, editor) leave the alpha at 1 or 0 and so see a dry world; the
+        // shaders read max(alpha - 1, 0). Off, the alpha is not touched.
+        if (mWetnessEnabled)
+            sceneData.ambient.w = 1.f + mWetness * mWetnessStrength;
         mDisplaySkyColor = mRenderModes[Render_Sky]
             ? mSky->getSkyColor()
             : Misc::VsgMath::componentMultiply(mFog->getFogColor(false), vsg::vec4(1.3, 1.3, 1.3, 1));

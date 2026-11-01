@@ -42,7 +42,7 @@ namespace Terrain
         , mMapSettings(std::move(in_mapSettings))
     {
         mPipeline = Pipeline::terrain(
-            in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs, mMapSettings.giSky);
+            in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs, mMapSettings.giSky, mMapSettings.wetness);
     }
 
     Builder::~Builder() {}

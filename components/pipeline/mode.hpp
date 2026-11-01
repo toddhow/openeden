@@ -63,7 +63,11 @@ namespace Pipeline
         GI_SKY,
         // OpenEden (task 0029): the draw also writes the ambient part of its colour (the G-buffer's fifth extra
         // output, for ambient occlusion); added by Pipeline::Graphics.
-        GBUFFER_AMBIENT
+        GBUFFER_AMBIENT,
+        // OpenEden (task 0037): rain wetness, its puddles and the debug view; added by Pipeline::Graphics.
+        WETNESS,
+        WETNESS_PUDDLES,
+        WETNESS_DEBUG
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

@@ -55,3 +55,25 @@ A **wetness** number (0 to 1) rises while the weather is raining (the weather ma
 - [ ] Setting off, or on in dry weather, is frame-identical to the previous build within noise.
 - [ ] Cost note recorded; unit tests, the 32 Lua tests, the Linux gate and the whole-tree format check pass; a fresh reviewer read each stage.
 Out of scope: snow and ash cover (task 0039), precipitation particles and lightning (0040), cloud shadows (0038), volumetric fog (0041), new weather states or a weather simulation, water shading, sound changes, the editor.
+
+## Decisions made while building (2026-11-01)
+
+- **D3 changed: shelter comes from the sky visibility field of task 0036, not a new top-down depth map.** Reading the code: `skyVisUp` (`lib/view/skyvis.glsl`, `visCosine(V, up)`) already says how much sky a flat surface facing up sees, so `Render::Wetness::exposure` fades wetness by it. The existing precipitation occluder (`mwrender/precipitationoccluder.*`) was rejected: it renders only while it rains, only around the camera, and its map is bound in the per-material texture set. Cost of the choice: the shelter exists only with `gi exterior` and a baked cell, and cannot resolve an eave narrower than the field's 256 unit spacing. Without it everything outdoors gets wet and interiors dry.
+- **Where the value rides:** `Scene.ambient.w` as `1 + wetness` (the scene block cannot grow past 640 bytes, and the map and preview views leave that alpha at 1, so reading `max(w - 1, 0)` keeps them dry).
+- **D6 as built:** the setting needs `hdr` and `pbr`; puddles do not need the stored normals (they use the surface's own normal in the shader); the debug view is a `wetness debug` setting, not a tonemap view.
+- **D7, D8:** groundcover and actors take the same lit path as statics, so they get darker, glossier and puddle terms alike (a puddle on an actor needs a flat surface and so does not occur); skin and glowing surfaces stay dry (D5).
+- **Terrain:** darker, a wet sun highlight (the material model's lobe at roughness 0.18) and puddles; its roughness is the terrain's 0.95.
+- **Tuning from the frame check:** the first puddles (55 percent coverage, 220 unit patches, full Fresnel) looked like snow; now 40 percent, 120 units, reflection times 0.5, and "flat" means under 8 degrees (fully) to 20 degrees (not at all).
+
+## Stage log
+
+### 2026-11-01, stages a to e (Windows, RTX 4070, `build-jolt`)
+
+**Done and verified.**
+- a: `wetnessmath.hpp` and 32 tests written first (curve rise and fall, never negative or above one, NaN input, darkening, roughness, flatness, puddle fill and mask, noise range and determinism, exposure, Fresnel, ripples bounded and moving); `WeatherManager::updateWetness`; the setting block.
+- b, c, d: the shader terms in `default/main.frag` and `terrain/main.frag` (`lib/material/wetness.glsl`), the pipeline modes, `RenderManager::setWetness`. Frames at Seyda Neen, rain at noon, `gi exterior` on with the cell baked: the ground and walls are darker and the flat parts of the hill are mirrors of the sky; the debug view shows exposed ground yellow (wet and open), puddles white, and a doorway recess of a house black (covered). With `wetness` off, the frame equals the previous build's except for rain drops and moving things (a static scene, diffmap viewed). With `wetness` on in clear weather the frame equals `off` (difference 33901 over the frame, two `off` frames differ by 125102). In snow the frame equals `off` apart from flakes.
+- e: cost note `docs/research/0017-wetness-cost.md` (+0.07 ms GPU in rain, none in clear weather); module guides.
+
+**Not done / not verified.** Ripples seen in a frame (the console script could not place the camera close to flat ground: `SetPos` after `coc` is ignored); the drying after the rain stops in the game (only the curve's unit tests); a bridge or doorway tested beside open ground with exact positions (one house doorway seen in the debug view); the shader twin compared with the C++ numbers by a machine (only by reading); actors and groundcover specifically; `wetness strength` below 1; a hand-checked frame of statics without a baked file; the Linux gate and the Lua tests are listed in the commit.
+
+Notes from the review: puddles need wetness above 0.5 after `wetness strength` is applied, so a strength below 0.5 gives no puddles; waiting, resting and fast-forward do not call the weather update with a large step, so the ground does not dry across a sleep.

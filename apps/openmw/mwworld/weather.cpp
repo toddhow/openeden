@@ -2,6 +2,7 @@
 
 #include <components/esm/stringrefid.hpp>
 #include <components/render/atmospheremath.hpp>
+#include <components/render/wetnessmath.hpp>
 #include <components/settings/values.hpp>
 
 #include <components/misc/rng.hpp>
@@ -816,6 +817,26 @@ namespace MWWorld
         result.mCloudTint = out.cloudTint;
     }
 
+    // OpenEden (task 0037): the ground's wetness. It heads for the rain's strength while the weather has a rain effect
+    // (rain, thunderstorm; snow and ash do not wet) and dries over `wetness dry time` seconds of game time otherwise,
+    // indoors too. It is a property of the weather and the clock only: records, scripts, sounds and saves are untouched.
+    // The renderer is told 0 indoors, where nothing rains.
+    void WeatherManager::updateWetness(float duration, bool paused, bool isExterior)
+    {
+        if (!Settings::rendering().mWetness)
+            return;
+        if (!paused)
+        {
+            const float gameSeconds
+                = duration * MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale();
+            const float heading = isExterior
+                ? Render::Wetness::target(!mResult.mRainEffect.empty(), mResult.mPrecipitationAlpha)
+                : 0.f;
+            mWetness = Render::Wetness::step(mWetness, heading, gameSeconds, Settings::rendering().mWetnessDryTime);
+        }
+        mRendering.setWetness(isExterior ? mWetness : 0.f);
+    }
+
     void WeatherManager::update(float duration, bool paused, const TimeStamp& time, bool isExterior)
     {
         MWWorld::ConstPtr player = MWMechanics::getPlayer();
@@ -845,6 +866,7 @@ namespace MWWorld
 
         if (!isExterior)
         {
+            updateWetness(duration, paused, false);
             mRendering.setSkyEnabled(false);
             stopSounds();
             mWindSpeed = 0.f;
@@ -854,6 +876,7 @@ namespace MWWorld
         }
 
         calculateWeatherResult(time.getHour(), duration, paused);
+        updateWetness(duration, paused, true);
 
         if (!paused)
         {

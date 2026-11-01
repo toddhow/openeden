@@ -62,6 +62,10 @@ namespace Pipeline
         // Task 0036: lit draws also scale the ambient light by the exterior sky-visibility field (implies the GI
         // define).
         bool giSkyEnabled = false;
+        // Task 0037: lit draws get rain wetness, with puddles, and the debug view of it (needs pbrLook above zero).
+        bool wetnessEnabled = false;
+        bool wetnessPuddles = false;
+        bool wetnessDebug = false;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> create(const Options& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;

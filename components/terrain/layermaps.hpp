@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/pipeline/terrain.hpp>
 #include <components/vsgadapters/nif/automaps.hpp>
 
 namespace Terrain
@@ -31,6 +32,8 @@ namespace Terrain
         unsigned int gbufferOutputs = 0;
         // Task 0036: the terrain shader takes the exterior sky-visibility field.
         bool giSky = false;
+        // Task 0037: the terrain shader takes rain wetness.
+        Pipeline::WetnessOptions wetness;
 
         bool enabled() const { return exists && (autoMaps.autoUseNormalMaps || autoMaps.autoUseSpecularMaps); }
     };

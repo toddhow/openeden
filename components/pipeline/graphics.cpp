@@ -92,6 +92,12 @@ namespace Pipeline
                 return "GI_SKY";
             case Mode::GBUFFER_AMBIENT:
                 return "GBUFFER_AMBIENT";
+            case Mode::WETNESS:
+                return "WETNESS";
+            case Mode::WETNESS_PUDDLES:
+                return "WETNESS_PUDDLES";
+            case Mode::WETNESS_DEBUG:
+                return "WETNESS_DEBUG";
         }
         return "";
     }
@@ -239,6 +245,15 @@ namespace Pipeline
         // Task 0036: the exterior sky-visibility field, in the same draws.
         if (giSkyEnabled && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
             fragmentStageOptions.addMode(Mode::GI_SKY);
+        // Task 0037: rain wetness, in lit draws that take the material model (the lighting it changes).
+        if (wetnessEnabled && pbrLook > 0 && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+        {
+            fragmentStageOptions.addMode(Mode::WETNESS);
+            if (wetnessPuddles)
+                fragmentStageOptions.addMode(Mode::WETNESS_PUDDLES);
+            if (wetnessDebug)
+                fragmentStageOptions.addMode(Mode::WETNESS_DEBUG);
+        }
         if (toGBuffer && gbufferOutputs >= 4)
             fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);
         if (toGBuffer && gbufferOutputs >= 5)
