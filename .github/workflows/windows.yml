@@ -194,7 +194,7 @@ jobs:
         rc=0
         build/components-tests.exe > test-output.log 2>&1 || rc=$?
         # The job log is not readable without admin rights, so failed test names go to a public annotation.
-        failed=$(grep -E '^\[  FAILED  \]' test-output.log | sort -u | head -60 | tr -d '\r' | tr '\n' '|')
+        failed=$(grep -E '^\[  FAILED  \]' test-output.log | sort -u | head -60 | tr -d '\r' | tr '\n' '|' || true)
         tailtext=$(tail -n 40 test-output.log | tr -d '\r' | tr '\n' '|')
         if [ "$rc" != 0 ]; then echo "::error::exit $rc; failed: $failed; tail: $tailtext"; fi
         tail -n 20 test-output.log
@@ -207,7 +207,7 @@ jobs:
         rc=0
         build/openmw-tests.exe > test-output.log 2>&1 || rc=$?
         # The job log is not readable without admin rights, so failed test names go to a public annotation.
-        failed=$(grep -E '^\[  FAILED  \]' test-output.log | sort -u | head -60 | tr -d '\r' | tr '\n' '|')
+        failed=$(grep -E '^\[  FAILED  \]' test-output.log | sort -u | head -60 | tr -d '\r' | tr '\n' '|' || true)
         tailtext=$(tail -n 40 test-output.log | tr -d '\r' | tr '\n' '|')
         if [ "$rc" != 0 ]; then echo "::error::exit $rc; failed: $failed; tail: $tailtext"; fi
         tail -n 20 test-output.log
@@ -220,7 +220,7 @@ jobs:
         rc=0
         build/eden-studio-tests.exe > test-output.log 2>&1 || rc=$?
         # The job log is not readable without admin rights, so failed test names go to a public annotation.
-        failed=$(grep -E '^\[  FAILED  \]' test-output.log | sort -u | head -60 | tr -d '\r' | tr '\n' '|')
+        failed=$(grep -E '^\[  FAILED  \]' test-output.log | sort -u | head -60 | tr -d '\r' | tr '\n' '|' || true)
         tailtext=$(tail -n 40 test-output.log | tr -d '\r' | tr '\n' '|')
         if [ "$rc" != 0 ]; then echo "::error::exit $rc; failed: $failed; tail: $tailtext"; fi
         tail -n 20 test-output.log
