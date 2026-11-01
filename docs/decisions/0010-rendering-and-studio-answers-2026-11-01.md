@@ -40,5 +40,11 @@ This records what toddhow decided when asked to settle the questions that had pi
 | # | Question | Answer |
 | --- | --- | --- |
 | 22 | D1: where the distant-land data comes from | **Build our own from full detail** |
-| 23 | D2: baker as a separate process or in the game | The answer was cut off ("LOD"); **still open** |
-| 24 to 36 | The rest of the list (container first, archive decisions, test hardware, groundcover mod, pushing policy, branch plan, scratch folders, `CLAUDE.md` open questions) | **Not yet answered** |
+| 23 | D2: baker as a separate process or in the game | **Both.** LODs can be baked ahead of time (an offline run whose result can be shipped or kept) or baked in the background while the game runs (applied after a restart). The baker is designed for both modes from the start |
+| 24 | D11: container or private cache layout first | **Container first** (the Eden Archive Format comes before the LOD tile cache; the design doc's "private layout first" recommendation is overruled) |
+| 25 | D12: the archive draft's eight open decisions | **Accept the design doc's answers** (`docs/design/world-lod-and-streaming.md`, review section) |
+| 26 | D13: container reader on the full-loop list | **Accept** (the reader handles untrusted input) |
+| 27 | D16: a weaker GPU for testing | **Emulate with settings and a software device** (for example lavapipe, plus settings that cap features and memory) |
+| 28 | D17: a groundcover mod for grass tests | **Wait**; to be decided later |
+| 29 | The remaining D3 to D10, D14, D15 | **Accept the recommended answers** |
+| 30 to 36 | Pushing policy, branch plan, scratch folders and the `CLAUDE.md` open questions | **Not yet answered** |
