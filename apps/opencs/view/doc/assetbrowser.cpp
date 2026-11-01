@@ -107,16 +107,11 @@ namespace
 
     QIcon iconFor(UniversalId::Type type)
     {
-        static QMap<int, QIcon> cache;
-        auto found = cache.find(static_cast<int>(type));
-        if (found != cache.end())
-            return *found;
-        QIcon icon;
+        // No cache: a static QIcon cache would be destroyed after QApplication, and ScalableIcon::load is cheap.
         const std::string name = UniversalId(type).getIcon();
-        if (!name.empty() && name != ":placeholder")
-            icon = Misc::ScalableIcon::load(QString::fromStdString(name));
-        cache.insert(static_cast<int>(type), icon);
-        return icon;
+        if (name.empty() || name == ":placeholder")
+            return QIcon();
+        return Misc::ScalableIcon::load(QString::fromStdString(name));
     }
 
     bool isUnfilled(const QStandardItem* group)

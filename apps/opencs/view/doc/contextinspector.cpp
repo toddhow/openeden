@@ -237,7 +237,7 @@ void CSVDoc::ContextInspector::refreshValues()
         const int column = table->searchColumnIndex(fieldColumns[field]);
         const bool present = column >= 0;
         mFields[field]->setEnabled(present && !mLocked);
-        if (present && !mFields[field]->hasFocus())
+        if (present)
             mFields[field]->setValue(table->data(table->index(row.row(), column)).toDouble());
     }
     mUpdating = false;
