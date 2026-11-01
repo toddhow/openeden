@@ -1,6 +1,10 @@
 file(GLOB OPENCS_TESTS_SRC_FILES
     main.cpp
     model/extension/testeditorextensionhost.cpp
+    model/extension/testeditorextensionhostphysics.cpp
+    model/physics/testdebuglinedrawer.cpp
+    model/physics/testjoltruntime.cpp
+    model/physics/teststudioworld.cpp
     model/prefs/testconfigmigration.cpp
     model/prefs/testlayoutstore.cpp
     model/world/testinfocollection.cpp

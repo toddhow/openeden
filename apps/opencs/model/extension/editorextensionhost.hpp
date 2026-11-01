@@ -8,6 +8,12 @@
 
 #include <components/extension/host_impl.hpp>
 #include <components/extension/lifecycle_manager.hpp>
+#include <openeden/physics.hpp>
+
+namespace JPH
+{
+    class PhysicsSystem;
+}
 
 namespace CSMExtension
 {
@@ -59,6 +65,20 @@ namespace CSMExtension
 
         EditorExtensionHost(const EditorExtensionHost&) = delete;
         EditorExtensionHost& operator=(const EditorExtensionHost&) = delete;
+
+        /// Gives extensions read-only queries on the editor's Jolt world (task 0030), and publishes the query masks
+        /// "world" and "dynamic_world" under the values CSMPhysics::StudioWorld uses. Call it before start(), with a
+        /// world that outlives the host's running extensions. \param unitsPerMeter the world's length unit.
+        void attachPhysicsWorld(JPH::PhysicsSystem& world, float unitsPerMeter);
+
+        /// Null until attachPhysicsWorld has been called.
+        openeden::sdk::PhysicsQueryService* getPhysicsQueryService();
+
+        /// Around a physics step (CSMPhysics::StudioWorld::StepObserver): beforeStep runs Phase::PreSimulation;
+        /// afterStep runs Phase::PostSimulation and then Phase::Ui, which resets the per-frame scratch memory and
+        /// profiler. They do nothing unless the host is running. No other phase runs in the editor (no game frame).
+        void beforeStep(float dt);
+        void afterStep(float dt);
 
         /// Registers, resolves and starts the loaded extensions. Calling it again does nothing.
         void start();

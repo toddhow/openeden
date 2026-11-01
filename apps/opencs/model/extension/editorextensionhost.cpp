@@ -7,6 +7,9 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/extension/extension_loader.hpp>
+#include <components/extension/physics_service.hpp>
+
+#include "../physics/studioworld.hpp"
 
 namespace
 {
@@ -138,6 +141,35 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
 CSMExtension::EditorExtensionHost::~EditorExtensionHost()
 {
     stop();
+}
+
+void CSMExtension::EditorExtensionHost::attachPhysicsWorld(JPH::PhysicsSystem& world, float unitsPerMeter)
+{
+    mHost.attachPhysicsWorld(world, unitsPerMeter);
+    openeden::extension::PhysicsServiceImpl& queries = *mHost.physicsService();
+    // The same names and values as the game's host (apps/openmw/extensionhost.cpp) for the layers the editor has.
+    queries.publishQueryMask("world", CSMPhysics::StudioWorld::sLayerWorld);
+    queries.publishQueryMask("dynamic_world", CSMPhysics::StudioWorld::sLayerDynamicWorld);
+}
+
+openeden::sdk::PhysicsQueryService* CSMExtension::EditorExtensionHost::getPhysicsQueryService()
+{
+    return mHost.getPhysicsQueryService();
+}
+
+void CSMExtension::EditorExtensionHost::beforeStep(float dt)
+{
+    if (!mRunning)
+        return;
+    mLifecycle.runPhase(openeden::sdk::Phase::PreSimulation, dt);
+}
+
+void CSMExtension::EditorExtensionHost::afterStep(float dt)
+{
+    if (!mRunning)
+        return;
+    mLifecycle.runPhase(openeden::sdk::Phase::PostSimulation, dt);
+    mLifecycle.runPhase(openeden::sdk::Phase::Ui, dt);
 }
 
 void CSMExtension::EditorExtensionHost::start()

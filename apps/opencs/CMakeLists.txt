@@ -64,6 +64,10 @@ opencs_units (model/extension
     editorextensionhost
     )
 
+opencs_units (model/physics
+    joltruntime studioworld debuglinedrawer
+    )
+
 opencs_units (model/filter
     unarynode narynode parser andnode ornode notnode textnode valuenode
     )
