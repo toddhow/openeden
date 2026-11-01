@@ -44,8 +44,8 @@ namespace MWPhysics
         // Sensors only collide with DYNAMIC_WORLD objects
         static constexpr JPH::ObjectLayer SENSOR = 1 << 10;
 
-        // A limb of a CreativeMotion ragdoll (task 0035). Meets only WORLD, HEIGHTMAP, DOOR and other ragdoll limbs, so it
-        // never pushes the living, is never hit by projectiles and ignores its own corpse's DEBRIS capsule.
+        // A limb of a CreativeMotion ragdoll (task 0035). Meets only WORLD, HEIGHTMAP, DOOR and other ragdoll limbs, so
+        // it never pushes the living, is never hit by projectiles and ignores its own corpse's DEBRIS capsule.
         static constexpr JPH::ObjectLayer RAGDOLL = 1 << 11;
     }
 

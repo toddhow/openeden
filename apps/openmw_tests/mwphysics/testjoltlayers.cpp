@@ -121,8 +121,8 @@ namespace
         return table;
     }
 
-    const std::array<JPH::BroadPhaseLayer, 4> kAllBroadPhases = { BroadPhaseLayers::WORLD, BroadPhaseLayers::MOVING,
-        BroadPhaseLayers::DEBRIS, BroadPhaseLayers::SENSOR };
+    const std::array<JPH::BroadPhaseLayer, 4> kAllBroadPhases
+        = { BroadPhaseLayers::WORLD, BroadPhaseLayers::MOVING, BroadPhaseLayers::DEBRIS, BroadPhaseLayers::SENSOR };
 
     // The old broad phase of the 11 old layers: SENSOR and DEBRIS have their own, ACTOR and PROJECTILE are MOVING,
     // the rest are WORLD.

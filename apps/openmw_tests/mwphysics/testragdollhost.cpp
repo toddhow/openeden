@@ -253,8 +253,8 @@ namespace
 
         // A mask that includes RAGDOLL hits one of the ragdoll's bodies, above the floor.
         JPH::RayCastResult withRagdoll;
-        const MaskLayerFilter ragdollFilter(
-            static_cast<unsigned>(MWPhysics::CollisionMask_Default) | static_cast<unsigned>(MWPhysics::Layers::RAGDOLL));
+        const MaskLayerFilter ragdollFilter(static_cast<unsigned>(MWPhysics::CollisionMask_Default)
+            | static_cast<unsigned>(MWPhysics::Layers::RAGDOLL));
         ASSERT_TRUE(query.CastRay(ray, withRagdoll, {}, ragdollFilter));
         bool isRagdollBody = false;
         for (const JPH::BodyID id : ragdollBodies)

@@ -135,11 +135,11 @@ namespace
             inCenterOfMassTransform2, ioCollideShapeSettings, ioCollector, inShapeFilter);
     }
 
-    constexpr std::array<JPH::ObjectLayer, 12> sRaycastObjectLayers = { MWPhysics::Layers::WORLD,
-        MWPhysics::Layers::DOOR, MWPhysics::Layers::ACTOR, MWPhysics::Layers::HEIGHTMAP, MWPhysics::Layers::PROJECTILE,
-        MWPhysics::Layers::WATER, MWPhysics::Layers::CAMERA_ONLY, MWPhysics::Layers::VISUAL_ONLY,
-        MWPhysics::Layers::DYNAMIC_WORLD, MWPhysics::Layers::DEBRIS, MWPhysics::Layers::SENSOR,
-        MWPhysics::Layers::RAGDOLL };
+    constexpr std::array<JPH::ObjectLayer, 12> sRaycastObjectLayers
+        = { MWPhysics::Layers::WORLD, MWPhysics::Layers::DOOR, MWPhysics::Layers::ACTOR, MWPhysics::Layers::HEIGHTMAP,
+              MWPhysics::Layers::PROJECTILE, MWPhysics::Layers::WATER, MWPhysics::Layers::CAMERA_ONLY,
+              MWPhysics::Layers::VISUAL_ONLY, MWPhysics::Layers::DYNAMIC_WORLD, MWPhysics::Layers::DEBRIS,
+              MWPhysics::Layers::SENSOR, MWPhysics::Layers::RAGDOLL };
 
     int getQueryObjectMask(int mask, int group)
     {

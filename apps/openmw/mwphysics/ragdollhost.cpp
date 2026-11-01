@@ -106,8 +106,8 @@ namespace MWPhysics
         // after this, in its own file).
         const auto toMetres = [this](double units) { return units / static_cast<double>(mUnitsPerMeter); };
         opas::math::Transform rootWorld;
-        rootWorld.translation = opas::math::Vec3{ toMetres(feetUnits.GetX()), toMetres(feetUnits.GetY()),
-            toMetres(feetUnits.GetZ()) };
+        rootWorld.translation
+            = opas::math::Vec3{ toMetres(feetUnits.GetX()), toMetres(feetUnits.GetY()), toMetres(feetUnits.GetZ()) };
         rootWorld.rotation = yawToQuat(yawRadians);
 
         opas::motor::BuildResult built = opas::motor::buildRagdoll(*mWorld, *rig.value, *profile.value, rootWorld);
