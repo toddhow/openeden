@@ -142,13 +142,20 @@ jobs:
       shell: bash
       run: |
         # The unit tests link the Vulkan loader. The runner has no GPU, only the loader is needed.
-        if [ -n "$VULKAN_SDK" ] && [ -f "$VULKAN_SDK/Bin/vulkan-1.dll" ]; then
-          cp "$VULKAN_SDK/Bin/vulkan-1.dll" build/
-        else
-          echo "VULKAN_SDK is '$VULKAN_SDK'; installing the Vulkan runtime"
-          choco install vulkan-runtime -y --no-progress
-          cp /c/Windows/System32/vulkan-1.dll build/
+        found=""
+        for c in "$VULKAN_SDK/Bin/vulkan-1.dll" /c/VulkanSDK/*/Bin/vulkan-1.dll /c/Windows/System32/vulkan-1.dll; do
+          if [ -f "$c" ]; then found="$c"; break; fi
+        done
+        if [ -z "$found" ]; then
+          choco install vulkan-runtime -y --no-progress || true
+          if [ -f /c/Windows/System32/vulkan-1.dll ]; then found=/c/Windows/System32/vulkan-1.dll; fi
         fi
+        if [ -z "$found" ]; then
+          echo "::error::no vulkan-1.dll found; VULKAN_SDK='$VULKAN_SDK'; /c/VulkanSDK: $(ls /c/VulkanSDK 2>&1 | tr '\n' ' ')"
+          exit 1
+        fi
+        echo "using $found"
+        cp "$found" build/
 
     - name: Move pdb files
       run: |
