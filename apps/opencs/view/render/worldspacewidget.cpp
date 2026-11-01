@@ -1,5 +1,7 @@
 #include "worldspacewidget.hpp"
 
+#include "physicshub.hpp"
+
 #include <algorithm>
 #include <set>
 
@@ -149,6 +151,9 @@ CSVRender::WorldspaceWidget::~WorldspaceWidget() = default;
 void CSVRender::WorldspaceWidget::hostReady()
 {
     SceneWidget::hostReady();
+    // The editor's physics world, drawn in this view (task 0030). Neither exists in tools without an editor.
+    if (PhysicsHub::get() != nullptr)
+        mPhysicsView = std::make_unique<PhysicsDebugView>(*getHost());
     mSelectionMarker->setHost(*getHost());
 }
 

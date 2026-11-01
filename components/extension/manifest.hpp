@@ -2,6 +2,7 @@
 
 #include <openeden/version.hpp>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,16 @@ namespace openeden::extension
     using SettingDesc = ExtensionSetting;
 
     /**
+     * @brief The optional "editor" entry: the extension's editor module library, loaded only by Eden Studio
+     * (docs/design/eden-studio-plan.md section 4.1, task 0031). The game and the loader ignore it.
+     */
+    struct EditorEntry
+    {
+        std::string library; ///< File name, next to the manifest.
+        openeden::sdk::Version editorApi; ///< The Editor Module API the library was built for.
+    };
+
+    /**
      * @brief In-memory representation of extension.json manifest.
      */
     struct ExtensionManifest
@@ -65,5 +76,6 @@ namespace openeden::extension
         std::string dataPath = "data";
         std::vector<ExtensionSetting> settings;
         std::string licence;
+        std::optional<EditorEntry> editor;
     };
 } // namespace openeden::extension

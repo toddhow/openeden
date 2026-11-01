@@ -1,5 +1,6 @@
 #include "studioworld.hpp"
 
+#include <cmath>
 #include <stdexcept>
 
 // clang-format off
@@ -90,6 +91,8 @@ namespace CSMPhysics
         const JPH::BodyCreationSettings settings(
             shape, centre, JPH::Quat::sIdentity(), JPH::EMotionType::Static, sLayerWorld);
         const JPH::BodyID id = mSystem.GetBodyInterface().CreateAndAddBody(settings, JPH::EActivation::DontActivate);
+        if (id.IsInvalid())
+            throw std::runtime_error("StudioWorld::addStaticBox: the world has no room for another body");
         mBodies.insert(id);
         mSystem.OptimizeBroadPhase();
         ++mRevision;
@@ -98,12 +101,14 @@ namespace CSMPhysics
 
     JPH::BodyID StudioWorld::addDynamicSphere(const JPH::RVec3& centre, float radius)
     {
-        if (!(radius > 0.0f))
+        if (!(radius > 0.0f) || !std::isfinite(radius))
             throw std::invalid_argument("StudioWorld::addDynamicSphere: the radius must be positive");
         const JPH::RefConst<JPH::Shape> shape = new JPH::SphereShape(radius);
         const JPH::BodyCreationSettings settings(
             shape, centre, JPH::Quat::sIdentity(), JPH::EMotionType::Dynamic, sLayerDynamicWorld);
         const JPH::BodyID id = mSystem.GetBodyInterface().CreateAndAddBody(settings, JPH::EActivation::Activate);
+        if (id.IsInvalid())
+            throw std::runtime_error("StudioWorld::addDynamicSphere: the world has no room for another body");
         mBodies.insert(id);
         ++mRevision;
         return id;
@@ -157,7 +162,10 @@ namespace CSMPhysics
             }
         }
 
-        mSystem.Update(sStepSeconds, 1, &mTempAllocator, &mJobSystem);
+        const JPH::EPhysicsUpdateError error = mSystem.Update(sStepSeconds, 1, &mTempAllocator, &mJobSystem);
+        if (error != JPH::EPhysicsUpdateError::None)
+            Log(Debug::Error) << "Physics step reported an error (capacity of the editor's world exceeded), code "
+                              << static_cast<unsigned>(error);
         ++mStepIndex;
         ++mRevision;
 

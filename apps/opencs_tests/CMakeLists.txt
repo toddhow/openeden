@@ -2,6 +2,13 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     main.cpp
     model/extension/testeditorextensionhost.cpp
     model/extension/testeditorextensionhostphysics.cpp
+    model/extension/testeditormodulesources.cpp
+    model/module/testheader_module.cpp
+    model/module/testheader_registrar.cpp
+    model/module/testheader_types.cpp
+    model/module/testmodulehost.cpp
+    model/module/testmoduleregistry.cpp
+    model/module/testsamplemodule.cpp
     model/physics/testdebuglinedrawer.cpp
     model/physics/testjoltruntime.cpp
     model/physics/teststudioworld.cpp
@@ -21,7 +28,13 @@ file(GLOB OPENCS_TESTS_SRC_FILES
 
 source_group(apps\\eden-studio-tests FILES ${OPENCS_TESTS_SRC_FILES})
 
+# The sample editor module's source is also linked into the tests, for the static loading tests (task 0031).
+list(APPEND OPENCS_TESTS_SRC_FILES ${CMAKE_SOURCE_DIR}/sdk/examples/sample_editor_module/sample_editor_module.cpp)
+
 openmw_add_executable(eden-studio-tests ${OPENCS_TESTS_SRC_FILES})
+add_dependencies(eden-studio-tests sample_editor_module)
+target_compile_definitions(eden-studio-tests PRIVATE
+    "SAMPLE_EDITOR_MODULE_PATH=\"$<TARGET_FILE:sample_editor_module>\"")
 
 target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
 target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GMOCK_INCLUDE_DIRS})

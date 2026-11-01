@@ -1,0 +1,121 @@
+#ifndef CSM_MODULE_MODULEREGISTRY_H
+#define CSM_MODULE_MODULEREGISTRY_H
+
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <openeden/editor_module/registrar.hpp>
+#include <openeden/editor_module/types.hpp>
+
+namespace CSMModule
+{
+    template <class Desc>
+    struct Entry
+    {
+        std::string mModule; ///< The module that registered it.
+        Desc mDesc;
+    };
+
+    /// Everything the loaded editor modules registered (task 0031; plan sections 3.1 to 3.9). It implements the
+    /// registrar the modules see, for one module at a time (beginModule / endModule), keeps each registration with
+    /// its owner, and withdraws a module's registrations as a whole.
+    ///
+    /// Studio does not call a module's callbacks directly: it calls runCommand, panelSource, gizmosOf, openAsset and
+    /// the like, which catch what a callback throws, withdraw that module and tell whoever listens (ModuleHost, which
+    /// then marks the module Failed). No exception leaves them. Main thread only.
+    ///
+    /// Ownership: it owns the descriptions (copies); the objects the callbacks return belong to the module.
+    class ModuleRegistry final : public openeden::editor::EditorRegistrar
+    {
+    public:
+        using WorkspaceEntry = Entry<openeden::editor::WorkspaceDesc>;
+        using PanelEntry = Entry<openeden::editor::PanelDesc>;
+        using CommandEntry = Entry<openeden::editor::CommandDesc>;
+        using GizmoProviderEntry = Entry<openeden::editor::GizmoProviderDesc>;
+        using AssetTypeEntry = Entry<openeden::editor::AssetTypeDesc>;
+        using SectionEntry = Entry<openeden::editor::InspectorSectionDesc>;
+        using TrackProviderEntry = Entry<openeden::editor::TimelineTrackProviderDesc>;
+
+        ModuleRegistry();
+        ~ModuleRegistry() override;
+
+        ModuleRegistry(const ModuleRegistry&) = delete;
+        ModuleRegistry& operator=(const ModuleRegistry&) = delete;
+
+        /// What registrations made until endModule() belong to. Not nestable.
+        void beginModule(const std::string& moduleId);
+        void endModule();
+        /// Withdraws every registration of the module. Does nothing for an unknown one.
+        void removeModule(const std::string& moduleId);
+
+        /// What modules get from context(). Null (the default) gives them a context that does nothing.
+        void setContext(openeden::editor::EditorContext* context) { mContext = context; }
+        /// Called after a module's registrations were withdrawn because one of its callbacks threw.
+        void setFailureHandler(std::function<void(const std::string& moduleId, const std::string& message)> handler)
+        {
+            mOnFailure = std::move(handler);
+        }
+
+        // EditorRegistrar
+        openeden::editor::Registration registerWorkspace(const openeden::editor::WorkspaceDesc& desc) override;
+        openeden::editor::Registration registerPanel(const openeden::editor::PanelDesc& desc) override;
+        openeden::editor::Registration registerCommand(const openeden::editor::CommandDesc& desc) override;
+        openeden::editor::Registration registerGizmoProvider(const openeden::editor::GizmoProviderDesc& desc) override;
+        openeden::editor::Registration registerAssetType(const openeden::editor::AssetTypeDesc& desc) override;
+        openeden::editor::Registration registerInspectorSection(
+            const openeden::editor::InspectorSectionDesc& desc) override;
+        openeden::editor::Registration registerTimelineTrackProvider(
+            const openeden::editor::TimelineTrackProviderDesc& desc) override;
+        openeden::editor::EditorContext& context() override;
+
+        const std::vector<WorkspaceEntry>& workspaces() const { return mWorkspaces; }
+        const std::vector<PanelEntry>& panels() const { return mPanels; }
+        const std::vector<CommandEntry>& commands() const { return mCommands; }
+        const std::vector<GizmoProviderEntry>& gizmoProviders() const { return mGizmoProviders; }
+        const std::vector<AssetTypeEntry>& assetTypes() const { return mAssetTypes; }
+        const std::vector<SectionEntry>& sections() const { return mSections; }
+        const std::vector<TrackProviderEntry>& trackProviders() const { return mTrackProviders; }
+
+        /// The asset type with the longest file extension the path's file name ends with, or null.
+        const AssetTypeEntry* findAssetType(const std::filesystem::path& path) const;
+
+        /// Runs a command's handler if it exists and is enabled. \return false if unknown, disabled or it threw.
+        bool runCommand(std::string_view commandId);
+        /// Whether a command is enabled now (false for unknown, or if enabledWhen threw).
+        bool isCommandEnabled(std::string_view commandId);
+        /// The panel's current source, or null.
+        openeden::editor::PropertySource* panelSource(std::string_view panelId);
+        std::vector<openeden::editor::Gizmo*> gizmosOf(std::string_view providerId);
+        std::vector<openeden::editor::TimelineTrack*> tracksOf(std::string_view providerId);
+        /// The section's source for an asset, or null.
+        openeden::editor::PropertySource* sectionSource(std::string_view sectionId, openeden::editor::AssetDocument&);
+        /// Opens through the registered type for the path. Null with \a error set if there is none or it failed.
+        std::unique_ptr<openeden::editor::AssetDocument> openAsset(const std::filesystem::path& path, std::string& error);
+
+    private:
+        class NullContext;
+
+        openeden::editor::Registration refuse(const std::string& why) const;
+        bool inModule(openeden::editor::Registration& result) const;
+        void fail(const std::string& moduleId, const std::string& message);
+
+        std::vector<WorkspaceEntry> mWorkspaces;
+        std::vector<PanelEntry> mPanels;
+        std::vector<CommandEntry> mCommands;
+        std::vector<GizmoProviderEntry> mGizmoProviders;
+        std::vector<AssetTypeEntry> mAssetTypes;
+        std::vector<SectionEntry> mSections;
+        std::vector<TrackProviderEntry> mTrackProviders;
+        std::string mCurrent;
+        bool mHasCurrent = false;
+        openeden::editor::EditorContext* mContext = nullptr;
+        std::unique_ptr<NullContext> mNullContext;
+        std::function<void(const std::string&, const std::string&)> mOnFailure;
+    };
+}
+
+#endif

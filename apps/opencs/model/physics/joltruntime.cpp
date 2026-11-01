@@ -16,12 +16,14 @@ namespace CSMPhysics
 
     JoltRuntime::JoltRuntime()
     {
-        if (sUsers++ == 0)
+        if (sUsers == 0)
         {
             JPH::RegisterDefaultAllocator();
             JPH::Factory::sInstance = new JPH::Factory();
             JPH::RegisterTypes();
         }
+        // After the start-up worked: a constructor that throws leaves no destructor to run.
+        ++sUsers;
     }
 
     JoltRuntime::~JoltRuntime()

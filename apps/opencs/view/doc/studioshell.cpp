@@ -1,5 +1,7 @@
 #include "studioshell.hpp"
 
+#include "../render/physicshub.hpp"
+
 #include <QDockWidget>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -8,6 +10,7 @@
 #include <QPainter>
 #include <QSlider>
 #include <QTabBar>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -42,9 +45,7 @@ namespace CSVDoc
 
     namespace
     {
-        const char* const transportTip
-            = "Play, Pause and Step drive the physics world of the editor. That world is "
-              "not built yet (task 0024, stage E), so they stay disabled.";
+        const char* const transportTip = "Play, Pause and Step drive the physics world of the editor (task 0030).";
 
         QWidget* makeTransportRow(QWidget* parent)
         {
@@ -60,6 +61,36 @@ namespace CSVDoc
                 button->setEnabled(false);
                 button->setToolTip(QObject::tr(transportTip));
                 layout->addWidget(button);
+            }
+
+            QLabel* info = new QLabel(row);
+            info->setObjectName("transportInfo");
+            layout->addWidget(info);
+
+            // Live when the editor has a physics world.
+            if (CSVRender::PhysicsHub* hub = CSVRender::PhysicsHub::get())
+            {
+                QToolButton* play = row->findChild<QToolButton*>("transportPlay");
+                QToolButton* pause = row->findChild<QToolButton*>("transportPause");
+                QToolButton* step = row->findChild<QToolButton*>("transportStep");
+                QObject::connect(play, &QToolButton::clicked, hub, &CSVRender::PhysicsHub::play);
+                QObject::connect(pause, &QToolButton::clicked, hub, &CSVRender::PhysicsHub::pause);
+                QObject::connect(step, &QToolButton::clicked, hub, &CSVRender::PhysicsHub::step);
+                step->setEnabled(true);
+                auto update = [=] {
+                    play->setEnabled(!hub->isPlaying());
+                    pause->setEnabled(hub->isPlaying());
+                    info->setText(QObject::tr("Step %1, %2 bodies")
+                                      .arg(static_cast<qulonglong>(hub->world().stepIndex()))
+                                      .arg(hub->world().bodyCount()));
+                };
+                QObject::connect(hub, &CSVRender::PhysicsHub::stateChanged, row, update);
+                // Steps while playing do not signal each time (that would be 60 signals a second); the label follows
+                // at a calmer pace.
+                QTimer* labelTimer = new QTimer(row);
+                QObject::connect(labelTimer, &QTimer::timeout, row, update);
+                labelTimer->start(250);
+                update();
             }
 
             QSlider* timeline = new QSlider(Qt::Horizontal, row);

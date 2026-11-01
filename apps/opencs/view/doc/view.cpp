@@ -1,5 +1,7 @@
 #include "view.hpp"
 
+#include "../render/physicshub.hpp"
+
 #include <QActionGroup>
 #include <QApplication>
 #include <QCloseEvent>
@@ -331,14 +333,37 @@ void CSVDoc::View::setupDebugMenu()
 {
     QMenu* debug = menuBar()->addMenu(tr("Simulation"));
 
-    // Play, Pause and Step belong to the editor's own physics world, which does not exist yet (stage E). They are
-    // shown so that the menu has the shape of the plan, and say why they are off.
-    for (const char* text : { "Play", "Pause", "Step" })
+    // Play, Pause and Step drive the editor's physics world (task 0030). Without a hub (no editor around the
+    // window) they stay off.
+    CSVRender::PhysicsHub* hub = CSVRender::PhysicsHub::get();
+    QAction* play = debug->addAction(tr("Play"));
+    QAction* pause = debug->addAction(tr("Pause"));
+    QAction* step = debug->addAction(tr("Step"));
+    QAction* dropBall = debug->addAction(tr("Drop Test Ball"));
+    QAction* clearWorld = debug->addAction(tr("Clear Physics World"));
+    QAction* drawBodies = debug->addAction(tr("Physics Debug Draw"));
+    drawBodies->setCheckable(true);
+    dropBall->setToolTip(tr("Adds a ground slab and a ball to the physics world, a test until cells fill it."));
+    for (QAction* action : { play, pause, step, dropBall, clearWorld, drawBodies })
     {
-        QAction* transport = debug->addAction(tr(text));
-        transport->setEnabled(false);
-        transport->setToolTip(tr("The editor's physics world is not built yet (task 0024, stage E)."));
-        transport->setStatusTip(transport->toolTip());
+        action->setEnabled(hub != nullptr);
+        action->setStatusTip(action->toolTip());
+    }
+    if (hub != nullptr)
+    {
+        connect(play, &QAction::triggered, hub, &CSVRender::PhysicsHub::play);
+        connect(pause, &QAction::triggered, hub, &CSVRender::PhysicsHub::pause);
+        connect(step, &QAction::triggered, hub, &CSVRender::PhysicsHub::step);
+        connect(dropBall, &QAction::triggered, hub, &CSVRender::PhysicsHub::dropTestBall);
+        connect(clearWorld, &QAction::triggered, hub, &CSVRender::PhysicsHub::clearWorld);
+        connect(drawBodies, &QAction::toggled, hub, &CSVRender::PhysicsHub::setDebugDraw);
+        auto update = [=] {
+            play->setEnabled(!hub->isPlaying());
+            pause->setEnabled(hub->isPlaying());
+            drawBodies->setChecked(hub->debugDrawEnabled());
+        };
+        connect(hub, &CSVRender::PhysicsHub::stateChanged, this, update);
+        update();
     }
     debug->addSeparator();
 

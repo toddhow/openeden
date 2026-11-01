@@ -9,6 +9,7 @@
 
 #include <vsg/maths/vec3.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,11 @@ namespace CSMWorld
 {
     class CellCoordinates;
     class UniversalId;
+}
+
+namespace CSVRender
+{
+    class PhysicsDebugView;
 }
 
 namespace CSVWidget
@@ -77,6 +83,7 @@ namespace CSVRender
         CSVWidget::SceneToolMode* mCameraMode;
         bool mLocked;
         int mDragMode;
+        std::unique_ptr<PhysicsDebugView> mPhysicsView; ///< Null without an editor-wide PhysicsHub.
         /// Where the button that started the drag went down: a drag starts there, not where the first mouse move lands.
         QPoint mDragPressPos;
         bool mDragging;
@@ -192,6 +199,10 @@ namespace CSVRender
         WorldspaceHitResult mousePick(const QPoint& localPos, unsigned int interactionMask) const;
 
         virtual std::string getCellId(const vsg::vec3& point) const = 0;
+
+        /// Runs the drop handling as the window's forwarded Drop event does. For unattended checks, where Qt's own
+        /// delivery of a constructed event did not reach dropEvent (task 0030).
+        void deliverDropForCheck(QDropEvent* event) { dropEvent(event); }
 
         /// \note Returns the cell if it exists, otherwise a null pointer
         virtual Cell* getCell(const vsg::dvec3& point) const = 0;

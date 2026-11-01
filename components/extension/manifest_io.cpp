@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 
@@ -61,7 +62,7 @@ namespace openeden::extension
         // Validate allowed keys at root to catch typos
         static const std::vector<std::string_view> kAllowedRootKeys
             = { "format", "version", "id", "name", "extensionVersion", "kind", "sdk", "toolchain", "library",
-                  "provides", "requires", "optional", "loadAfter", "data", "settings", "licence", "license" };
+                  "provides", "requires", "optional", "loadAfter", "data", "settings", "licence", "license", "editor" };
 
         for (auto it = root.begin(); it != root.end(); ++it)
         {
@@ -344,6 +345,42 @@ namespace openeden::extension
         else if (root.contains("license") && root["license"].is_string())
             manifest.licence = root["license"].get<std::string>();
 
+        // editor (optional): the editor module library, for Eden Studio only (task 0031)
+        if (root.contains("editor"))
+        {
+            const auto fail = [&](const std::string& field, const std::string& message) {
+                error.file = std::string(filename);
+                error.line = findKeyLine(jsonText, "editor");
+                error.field = field;
+                error.message = message;
+                return std::nullopt;
+            };
+            const auto& editor = root["editor"];
+            if (!editor.is_object())
+                return fail("/editor", "field 'editor' must be an object");
+            for (auto it = editor.begin(); it != editor.end(); ++it)
+                if (it.key() != "library" && it.key() != "editorApi")
+                    return fail("/editor/" + it.key(), "unknown key \"" + it.key() + "\" in 'editor'");
+            if (!editor.contains("library") || !editor["library"].is_string())
+                return fail("/editor/library", "'editor' needs a string 'library'");
+            if (!editor.contains("editorApi") || !editor["editorApi"].is_object())
+                return fail("/editor/editorApi", "'editor' needs an 'editorApi' object with 'major' and 'minor'");
+            const auto& api = editor["editorApi"];
+            for (const char* part : { "major", "minor" })
+                if (!api.contains(part) || !api[part].is_number_integer() || api[part].get<long long>() < 0
+                    || api[part].get<long long>() > 65535)
+                    return fail(std::string("/editor/editorApi/") + part,
+                        std::string("'editorApi' needs an integer '") + part + "' from 0 to 65535");
+            for (auto it = api.begin(); it != api.end(); ++it)
+                if (it.key() != "major" && it.key() != "minor")
+                    return fail("/editor/editorApi/" + it.key(), "unknown key \"" + it.key() + "\" in 'editorApi'");
+            EditorEntry entry;
+            entry.library = editor["library"].get<std::string>();
+            entry.editorApi.major = static_cast<std::uint16_t>(api["major"].get<int>());
+            entry.editorApi.minor = static_cast<std::uint16_t>(api["minor"].get<int>());
+            manifest.editor = std::move(entry);
+        }
+
         return manifest;
     }
 
@@ -405,6 +442,14 @@ namespace openeden::extension
 
         if (!manifest.licence.empty())
             j["licence"] = manifest.licence;
+
+        if (manifest.editor)
+        {
+            j["editor"] = nlohmann::ordered_json{ { "library", manifest.editor->library },
+                { "editorApi",
+                    nlohmann::ordered_json{
+                        { "major", manifest.editor->editorApi.major }, { "minor", manifest.editor->editorApi.minor } } } };
+        }
 
         return j.dump(2);
     }

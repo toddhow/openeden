@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <stdexcept>
 #include <string_view>
 
 #include <components/debug/debuglog.hpp>
@@ -92,6 +93,7 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
         info.mName = item.manifest.name;
         info.mVersion = item.manifest.extensionVersion;
         info.mDirectory = item.directory;
+        info.mEditor = item.manifest.editor;
         info.mEnabled = isEnabled(id);
 
         if (!info.mEnabled)
@@ -145,6 +147,8 @@ CSMExtension::EditorExtensionHost::~EditorExtensionHost()
 
 void CSMExtension::EditorExtensionHost::attachPhysicsWorld(JPH::PhysicsSystem& world, float unitsPerMeter)
 {
+    if (mRunning)
+        throw std::logic_error("EditorExtensionHost::attachPhysicsWorld: extensions are already running");
     mHost.attachPhysicsWorld(world, unitsPerMeter);
     openeden::extension::PhysicsServiceImpl& queries = *mHost.physicsService();
     // The same names and values as the game's host (apps/openmw/extensionhost.cpp) for the layers the editor has.
@@ -207,6 +211,21 @@ void CSMExtension::EditorExtensionHost::stop()
     mRunning = false;
     Log(Debug::Info) << "Stopping extensions";
     mLifecycle.shutdown();
+}
+
+std::vector<CSMModule::ModuleSource> CSMExtension::EditorExtensionHost::editorModuleSources() const
+{
+    std::vector<CSMModule::ModuleSource> sources;
+    for (const std::string& id : mLifecycle.getLoadOrder())
+    {
+        const auto info = std::find_if(mInfos.begin(), mInfos.end(), [&](const ExtensionInfo& item) {
+            return item.mId == id && item.mState == ExtensionInfo::State::Active && item.mEditor.has_value();
+        });
+        if (info != mInfos.end())
+            sources.push_back(
+                { info->mId, info->mDirectory / info->mEditor->library, CSMModule::ModuleSource::Origin::Extension });
+    }
+    return sources;
 }
 
 std::vector<CSMExtension::ExtensionInfo> CSMExtension::EditorExtensionHost::extensions() const

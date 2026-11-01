@@ -64,6 +64,10 @@ opencs_units (model/extension
     editorextensionhost
     )
 
+opencs_units (model/module
+    moduleregistry modulehost
+    )
+
 opencs_units (model/physics
     joltruntime studioworld debuglinedrawer
     )
@@ -151,7 +155,7 @@ opencs_units (view/widget
     )
 
 opencs_units (view/render
-    rendercontext scenehost scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget
+    rendercontext scenehost physicshub scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget previewwidget
     editmode lighting object cell cellarrow colouredgeometry actor cellborder cellmarker cellwater terrainstorage
     cameracontroller orbitcameramode
     instancemode instanceselectionmode instancemovemode selectionmode objectmarker overlaylines
@@ -339,3 +343,20 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <vector>
     )
 endif()
+
+# The sample editor module (task 0031, sdk/examples/sample_editor_module): a real module library in editor-modules/,
+# where Eden Studio looks for the core systems' ones. The tests load it, and so can OPENEDEN_CS_MODULES.
+add_library(sample_editor_module SHARED ${CMAKE_SOURCE_DIR}/sdk/examples/sample_editor_module/sample_editor_module.cpp)
+target_compile_features(sample_editor_module PRIVATE cxx_std_20)
+target_link_libraries(sample_editor_module PRIVATE nlohmann_json::nlohmann_json)
+set_target_properties(sample_editor_module PROPERTIES
+    OUTPUT_NAME "sample_editor_module"
+    DEBUG_POSTFIX ""
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
+foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config} config_upper)
+    set_target_properties(sample_editor_module PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules"
+        LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules")
+endforeach()

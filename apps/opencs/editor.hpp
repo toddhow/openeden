@@ -22,12 +22,14 @@
 
 #include "model/doc/documentmanager.hpp"
 #include "model/extension/editorextensionhost.hpp"
+#include "model/physics/studioworld.hpp"
 #include "model/prefs/state.hpp"
 
 #include "view/doc/filedialog.hpp"
 #include "view/doc/newgame.hpp"
 #include "view/doc/startup.hpp"
 #include "view/prefs/dialogue.hpp"
+#include "view/render/physicshub.hpp"
 #include "view/tools/merge.hpp"
 
 class QLocalServer;
@@ -45,7 +47,7 @@ namespace CSVDoc
 
 namespace CS
 {
-    class Editor : public QObject
+    class Editor : public QObject, private CSMPhysics::StudioWorld::StepObserver
     {
         Q_OBJECT
 
@@ -64,7 +66,15 @@ namespace CS
         std::ofstream mPidFile;
         CSVTools::Merge mMerge;
         CSVDoc::ViewManager* mViewManager;
+        // Eden Studio's one physics world (task 0030) and what draws and steps it. After the views, which point at
+        // the hub; before the extension host, which reads the world and so must go first.
+        CSMPhysics::StudioWorld mPhysicsWorld;
+        CSVRender::PhysicsHub mPhysicsHub{ mPhysicsWorld };
         std::unique_ptr<CSMExtension::EditorExtensionHost> mExtensionHost; // after the views: they point at it
+
+        // CSMPhysics::StudioWorld::StepObserver: the extension host's phases run around each step.
+        void beforeStep(float dt) override;
+        void afterStep(float dt) override;
         std::filesystem::path mFileToLoad;
         Files::PathContainer mDataDirs;
         std::string mEncodingName;

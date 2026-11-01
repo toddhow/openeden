@@ -3,11 +3,15 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <components/extension/host_impl.hpp>
 #include <components/extension/lifecycle_manager.hpp>
+#include <components/extension/manifest.hpp>
+
+#include "../module/modulehost.hpp"
 #include <openeden/physics.hpp>
 
 namespace JPH
@@ -34,6 +38,8 @@ namespace CSMExtension
         State mState = State::Installed;
         bool mEnabled = false; ///< In the enable list (extension= lines in openmw.cfg, or --extension).
         std::string mMessage; ///< Why, for Failed; empty otherwise.
+        /// The manifest's "editor" entry (task 0031), if it has one. Not used by the game.
+        std::optional<openeden::extension::EditorEntry> mEditor;
     };
 
     /// Eden Studio's extension host (task 0024, stage D; decision 0007, Phase 1): it loads the enabled extensions the
@@ -68,7 +74,7 @@ namespace CSMExtension
 
         /// Gives extensions read-only queries on the editor's Jolt world (task 0030), and publishes the query masks
         /// "world" and "dynamic_world" under the values CSMPhysics::StudioWorld uses. Call it before start(), with a
-        /// world that outlives the host's running extensions. \param unitsPerMeter the world's length unit.
+        /// world that outlives the host (there is no detach). 	hrows std::logic_error if extensions are running. \param unitsPerMeter the world's length unit.
         void attachPhysicsWorld(JPH::PhysicsSystem& world, float unitsPerMeter);
 
         /// Null until attachPhysicsWorld has been called.
@@ -79,6 +85,10 @@ namespace CSMExtension
         /// profiler. They do nothing unless the host is running. No other phase runs in the editor (no game frame).
         void beforeStep(float dt);
         void afterStep(float dt);
+
+        /// The editor modules of the extensions that are active and have an "editor" manifest entry, in load order,
+        /// each with its library next to the manifest (Origin::Extension). Eden Studio loads them after the core list.
+        std::vector<CSMModule::ModuleSource> editorModuleSources() const;
 
         /// Registers, resolves and starts the loaded extensions. Calling it again does nothing.
         void start();

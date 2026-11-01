@@ -2,15 +2,18 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QAbstractItemModel>
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QFileInfo>
 #include <QLineEdit>
+#include <QDropEvent>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QRegularExpression>
 #include <QTimer>
 #include <QTreeView>
@@ -22,6 +25,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <memory>
 
 #include <apps/opencs/model/doc/document.hpp>
@@ -60,6 +64,8 @@
 #include "view/doc/logtap.hpp"
 #include "view/doc/subview.hpp"
 #include "view/doc/viewmanager.hpp"
+#include "view/render/physicshub.hpp"
+#include "view/render/scenehost.hpp"
 #include "view/render/worldspacewidget.hpp"
 #include "view/world/scenesubview.hpp"
 
@@ -122,8 +128,21 @@ CS::Editor::Editor(int argc, char** argv)
     connect(&mNewGame, &CSVDoc::NewGameDialogue::cancelCreateGame, this, &Editor::cancelCreateGame);
 }
 
+void CS::Editor::beforeStep(float dt)
+{
+    if (mExtensionHost)
+        mExtensionHost->beforeStep(dt);
+}
+
+void CS::Editor::afterStep(float dt)
+{
+    if (mExtensionHost)
+        mExtensionHost->afterStep(dt);
+}
+
 CS::Editor::~Editor()
 {
+    mPhysicsWorld.setStepObserver(nullptr);
     delete mViewManager;
 
     mLockFile.unlock();
@@ -193,6 +212,9 @@ void CS::Editor::startExtensionHost()
         if (!id.empty())
             config.mEnabled.push_back(id);
     mExtensionHost = std::make_unique<CSMExtension::EditorExtensionHost>(config);
+    // Read-only queries on the editor's world, before extensions start (task 0030).
+    mExtensionHost->attachPhysicsWorld(mPhysicsWorld.system(), CSMPhysics::StudioWorld::sUnitsPerMeter);
+    mPhysicsWorld.setStepObserver(this);
     mExtensionHost->start();
     Log(Debug::Info) << "Extensions: " << mExtensionHost->summary();
 }
@@ -576,6 +598,113 @@ namespace
         });
     }
 
+    /// Finds the first 3D world-space view of any window.
+    CSVRender::WorldspaceWidget* findWorldspaceWidget()
+    {
+        for (QWidget* widget : QApplication::topLevelWidgets())
+            if (auto* found = widget->findChild<CSVRender::WorldspaceWidget*>())
+                return found;
+        return nullptr;
+    }
+
+    /// The physics check, see startUiCheck (task 0030): drops the test ball, captures the 3D view before and after
+    /// steps, plays and pauses. Everything it sees is logged as "UI check: physics ...".
+    void runPhysicsCheck(const std::string& prefix, int milliseconds)
+    {
+        const int step = std::max(500, milliseconds / 8);
+        auto report = [](const char* what) {
+            CSVRender::PhysicsHub* hub = CSVRender::PhysicsHub::get();
+            const JPH::RVec3 p = hub->world().position(hub->lastBall());
+            Log(Debug::Info) << "UI check: physics " << what << ": step " << hub->world().stepIndex() << ", bodies "
+                             << hub->world().bodyCount() << ", ball z " << static_cast<double>(p.GetZ()) << " units, "
+                             << (hub->isPlaying() ? "playing" : "paused");
+        };
+        auto capture = [prefix](const char* name) {
+            if (CSVRender::WorldspaceWidget* widget = findWorldspaceWidget())
+                if (CSVRender::SceneHost* host = widget->getHost())
+                {
+                    const std::filesystem::path file = prefix + name + ".png";
+                    Log(Debug::Info) << "UI check: physics frame " << file.string() << ": "
+                                     << (host->capture(file) ? "written" : "no frame");
+                }
+        };
+        QTimer::singleShot(step * 2, qApp, [=] {
+            CSVRender::PhysicsHub::get()->dropTestBall();
+            report("dropped");
+        });
+        QTimer::singleShot(step * 3, qApp, [=] {
+            report("before steps");
+            capture("_0_dropped");
+        });
+        QTimer::singleShot(step * 4, qApp, [=] {
+            for (int i = 0; i < 30; ++i)
+                CSVRender::PhysicsHub::get()->step();
+            report("after 30 Step presses");
+            capture("_1_stepped");
+        });
+        QTimer::singleShot(step * 5, qApp, [=] {
+            CSVRender::PhysicsHub::get()->play();
+            report("play pressed");
+        });
+        QTimer::singleShot(step * 6, qApp, [=] {
+            report("while playing");
+            CSVRender::PhysicsHub::get()->pause();
+        });
+        QTimer::singleShot(step * 7, qApp, [=] {
+            report("after Pause");
+            capture("_2_played");
+        });
+    }
+
+    /// The drop check (task 0030, task 0024 box 28): a constructed drop of the Asset Browser's first object on the
+    /// 3D view, counting the References table's rows before and after.
+    void runDropCheck(CSMDoc::Document* document, int milliseconds)
+    {
+        QTimer::singleShot(milliseconds / 2, qApp, [=] {
+            CSVRender::WorldspaceWidget* widget = findWorldspaceWidget();
+            CSVDoc::AssetBrowser* panel = nullptr;
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (panel == nullptr)
+                    panel = top->findChild<CSVDoc::AssetBrowser*>();
+            if (widget == nullptr || panel == nullptr)
+            {
+                Log(Debug::Error) << "UI check: drop: no 3D view or Asset Browser";
+                return;
+            }
+            panel->findChild<QLineEdit*>()->setText("menhir");
+            QAbstractItemModel* model = panel->findChild<QTreeView*>("assetTree")->model();
+            std::unique_ptr<QMimeData> mime;
+            for (int group = 0; group < model->rowCount() && !mime; ++group)
+            {
+                const QModelIndex groupIndex = model->index(group, 0);
+                if (groupIndex.data().toString() == "Objects" && model->rowCount(groupIndex) > 0)
+                    mime.reset(model->mimeData({ model->index(0, 0, groupIndex) }));
+            }
+            if (!mime)
+            {
+                Log(Debug::Error) << "UI check: drop: the Asset Browser has no object";
+                return;
+            }
+            CSMWorld::IdTable* references = dynamic_cast<CSMWorld::IdTable*>(
+                document->getData().getTableModel(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_References)));
+            const int before = references->rowCount();
+            const QPointF centre(widget->width() / 2.0, widget->height() / 2.0);
+            QDropEvent drop(centre, Qt::CopyAction, mime.get(), Qt::LeftButton, Qt::NoModifier);
+            const CSVRender::WorldspaceHitResult hit
+                = widget->mousePick(centre.toPoint(), widget->getInteractionMask());
+            Log(Debug::Info) << "UI check: drop: pick hit " << hit.hit << " at " << hit.worldPos.x << ", "
+                             << hit.worldPos.y << ", " << hit.worldPos.z << " cell '"
+                             << widget->getCellId(vsg::vec3(hit.worldPos)) << "' size " << widget->width() << "x"
+                             << widget->height() << " enabled " << widget->isEnabled() << " drops " << widget->acceptDrops()
+                             << " mime ids " << static_cast<CSMWorld::TableMimeData*>(mime.get())->getData().size();
+            widget->deliverDropForCheck(&drop);
+            const bool handled = true;
+            Log(Debug::Info) << "UI check: drop: handled " << handled << " accepted " << drop.isAccepted()
+                             << ", references " << before << " -> " << references->rowCount()
+                             << ", undo stack count " << document->getUndoStack().count();
+        });
+    }
+
     /// The Context Inspector check, see startUiCheck. Free of the editor class: it only needs the document.
     void runInspectorCheck(CSMDoc::Document* document, const std::string& cell, int milliseconds)
     {
@@ -696,6 +825,12 @@ void CS::Editor::startUiCheck()
                             dialog->grab().save(folder + "/extensions.png");
                 });
             }
+            // OPENEDEN_CS_PHYSICS=<file prefix>: the physics check (task 0030), see runPhysicsCheck.
+            if (const char* prefix = std::getenv("OPENEDEN_CS_PHYSICS"))
+                runPhysicsCheck(prefix, milliseconds);
+            // OPENEDEN_CS_DROP=1: the constructed drop check, see runDropCheck.
+            if (std::getenv("OPENEDEN_CS_DROP") != nullptr)
+                runDropCheck(document, milliseconds);
             // OPENEDEN_CS_ASSET=<search text>: for the Asset Browser check (task 0024, stage C).
             if (const char* search = std::getenv("OPENEDEN_CS_ASSET"))
                 runAssetCheck(search, milliseconds);
