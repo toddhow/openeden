@@ -1042,9 +1042,14 @@ namespace MWMechanics
         }
         persistAnimationState();
 
-        if (mActor)
+        // OpenEden: loading a game while one is running clears the world first and the mechanics after, so the actor's
+        // custom data (its inventory) may be gone by now. Asking for the store would make a new one, which fills itself
+        // from the ESM data and throws (Class::getServices) inside this destructor: the game aborted on quickload. An
+        // actor with no custom data has no store and so no listener to remove.
+        const bool hasStore = mPtr.getRefData().getCustomData() != nullptr;
+        if (mActor && hasStore)
             MWRender::removeListener(mPtr.getClass().getContainerStore(mPtr));
-        if (mWielding)
+        if (mWielding && hasStore)
         {
             delete mPtr.getClass().getInventoryStore(mPtr).getInvListener();
             mPtr.getClass().getInventoryStore(mPtr).setInvListener(nullptr);
