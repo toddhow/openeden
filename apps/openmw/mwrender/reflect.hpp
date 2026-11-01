@@ -139,8 +139,13 @@ namespace MWRender
             auto srcColor = mSourceColor ? mSourceColor->image : mEngine.colorImageView(0)->image;
             mTransitionForTransferBarrier->imageMemoryBarriers[2]->image
                 = mTransitionFromTransferBarrier->imageMemoryBarriers[2]->image = mBlitColor->srcImage = srcColor;
-            mBlitColor->regions[0].srcOffsets[1] = VkOffset3D{ static_cast<int32_t>(srcColor->extent.width),
-                static_cast<int32_t>(srcColor->extent.height), 1 };
+            // A swapchain image is a bare handle that knows nothing of its size (extent 0x0, format and usage 0), which
+            // left the default path's colour copy empty; the window's depth image and the HDR target's are full images.
+            VkExtent2D srcExtent{ srcColor->extent.width, srcColor->extent.height };
+            if (srcExtent.width == 0)
+                srcExtent = mEngine.swapchainExtent();
+            mBlitColor->regions[0].srcOffsets[1]
+                = VkOffset3D{ static_cast<int32_t>(srcExtent.width), static_cast<int32_t>(srcExtent.height), 1 };
 
             auto srcDepth = mSourceDepth ? mSourceDepth->image : mEngine.depthImageView()->image;
             mTransitionForTransferBarrier->imageMemoryBarriers[3]->image
