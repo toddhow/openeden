@@ -14,7 +14,8 @@ namespace CSMMesh
             if (separator == std::string::npos)
                 continue;
             const std::string name = key.text.substr(0, separator);
-            auto it = std::find_if(groups.begin(), groups.end(), [&](const AnimationGroup& g) { return g.name == name; });
+            auto it
+                = std::find_if(groups.begin(), groups.end(), [&](const AnimationGroup& g) { return g.name == name; });
             if (it == groups.end())
             {
                 groups.emplace_back();

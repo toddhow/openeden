@@ -188,9 +188,11 @@ namespace CSMMesh
             const FramePose tall = frameCamera(box, 50.0, 0.5);
 
             // wide window: fovY is the smaller one
-            EXPECT_NEAR(distanceBetween(wide.eye, wide.centre), expectedDistance(std::sqrt(3.0), 50.0, 2.0, 1.15), 1e-9);
+            EXPECT_NEAR(
+                distanceBetween(wide.eye, wide.centre), expectedDistance(std::sqrt(3.0), 50.0, 2.0, 1.15), 1e-9);
             // tall window: fovX is the smaller one, so the camera must be further away
-            EXPECT_NEAR(distanceBetween(tall.eye, tall.centre), expectedDistance(std::sqrt(3.0), 50.0, 0.5, 1.15), 1e-9);
+            EXPECT_NEAR(
+                distanceBetween(tall.eye, tall.centre), expectedDistance(std::sqrt(3.0), 50.0, 0.5, 1.15), 1e-9);
             EXPECT_GT(distanceBetween(tall.eye, tall.centre), distanceBetween(wide.eye, wide.centre));
         }
 

@@ -74,8 +74,7 @@ namespace CSMMesh
     FramePose frameCamera(
         const Aabb& box, double fovYDegrees, double aspect, const std::array<double, 3>& viewDirection, double margin)
     {
-        const double length = std::sqrt(
-            viewDirection[0] * viewDirection[0] + viewDirection[1] * viewDirection[1]
+        const double length = std::sqrt(viewDirection[0] * viewDirection[0] + viewDirection[1] * viewDirection[1]
             + viewDirection[2] * viewDirection[2]);
         if (length == 0.0)
             throw std::invalid_argument("the view direction of frameCamera must not be zero");

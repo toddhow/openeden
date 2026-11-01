@@ -11,7 +11,8 @@ namespace CSMMesh
     {
         bool endsWith(const std::string& text, const std::string& suffix)
         {
-            return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+            return text.size() >= suffix.size()
+                && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
         }
 
         TEST(CSMMeshAnimationKeysTest, noKeysGiveNoGroups)
@@ -33,7 +34,8 @@ namespace CSMMesh
 
         TEST(CSMMeshAnimationKeysTest, groupsAreInOrderOfFirstAppearance)
         {
-            const std::vector<TextKey> keys{ { 5.0f, "Zeta: Start" }, { 0.0f, "Alpha: Start" }, { 6.0f, "Zeta: Stop" } };
+            const std::vector<TextKey> keys{ { 5.0f, "Zeta: Start" }, { 0.0f, "Alpha: Start" },
+                { 6.0f, "Zeta: Stop" } };
             const std::vector<AnimationGroup> groups = groupTextKeys(keys);
             ASSERT_EQ(groups.size(), 2u);
             EXPECT_EQ(groups[0].name, "Zeta");

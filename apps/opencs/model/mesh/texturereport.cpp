@@ -16,8 +16,8 @@ namespace CSMMesh
             if (name.empty())
                 continue;
             std::string key = name;
-            std::transform(
-                key.begin(), key.end(), key.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(key.begin(), key.end(), key.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (!seen.insert(key).second)
                 continue;
 

@@ -38,8 +38,8 @@ namespace CSMMesh
     std::optional<ViewMode> parseViewMode(std::string_view text)
     {
         const std::string name = lower(text);
-        for (ViewMode mode : { ViewMode::Textured, ViewMode::Wireframe, ViewMode::Flat, ViewMode::VertexColours,
-                 ViewMode::Normals })
+        for (ViewMode mode :
+            { ViewMode::Textured, ViewMode::Wireframe, ViewMode::Flat, ViewMode::VertexColours, ViewMode::Normals })
             if (name == viewModeName(mode))
                 return mode;
         return std::nullopt;
