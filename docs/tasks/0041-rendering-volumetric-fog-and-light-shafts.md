@@ -1,0 +1,62 @@
+# Task: Rendering R5, volumetric fog and light shafts
+Design doc section: `docs/research/0008-modern-rendering-proposal.md`, section 5 (R5 volumetrics); builds on `docs/tasks/0025-rendering-f2-linear-hdr.md`, `0026-rendering-f3-stored-gbuffer.md` (depth and velocity), `0029-rendering-ao.md`, `0034-rendering-weather-atmosphere.md` and `0040-rendering-precipitation-lightning-sun-glow.md` (the cheap sun glow this replaces where it is on).
+Goal: let fog be a real volume that light passes through: sun shafts through trees and doorways, local fog banks, and lit fog around lanterns and torches, with interiors' own fog colour and density as a data source, at a quality the player can choose.
+Inherited code touched: not yet confirmed; to be named at the commit that starts each stage. Expected: `components/render/hdrtarget.*` and the render graph in `apps/openmw/mwrender/rendermanager.*` (a compute pass between the scene and the tonemap, as the AO pass does), `components/vsgutil/computebin.*` and `components/pipeline/*` (compute pipelines), the sun's shadow data (`apps/openmw/mwrender/` shadow code and `files/shaders/lib/shadow*.glsl`; confirm the files), `files/shaders/lib/light/grid.glsl` (the light grid read by the volume), `files/shaders/lib/fog.glsl` or the fog function in the default shader (confirm), `apps/openmw/mwworld/weather.cpp` and `rendermanager.cpp` (`configureFog`, the interior and exterior fog values).
+Inputs / outputs: new `[Rendering]` settings `volumetrics` (bool, false), `volumetrics quality` (`low`, `medium`, `high`; default `medium`), `volumetrics density` (scale), `volumetrics anisotropy` (the scattering lobe, -1 to 1), `volumetrics temporal` (bool, true); new compute shaders under `files/shaders/comp/volume/` (each listed in `files/shaders/CMakeLists.txt`); a new pure-maths header `components/render/volumemath.hpp`; no change to weather records, saves, Lua or contracts.
+
+Status: draft, written 2026-11-01 at toddhow's request. Nothing is built. This is the heaviest of the GPU costs in note 0008, so quality tiers and measurement are part of the spec. Full loop (Track V renderer) when it starts.
+
+## Design, in plain language
+
+Ordinary fog in a game is a colour that mixes in with distance. A *volumetric* fog is a 3D fog density, and every point in it can be lit: where sunlight reaches the fog it glows (a shaft), where a tree or wall shadows it, it is dark, and around a lantern it forms a lit halo.
+
+We fill a **froxel grid**: a 3D grid of small boxes (voxels) that follow the camera's view frustum (so "froxel": frustum voxel), wide near the screen and deep along the view (for example 160 x 90 x 64 at `medium`), with depth slices spaced so that near ones are thin. A compute shader runs once per froxel and works out:
+1. the fog **density** there (from the weather's fog value, a height falloff, and for interiors the cell's own fog colour and density, which is the natural data source the note names),
+2. how much **sun** reaches it (looked up in the sun's shadow cascades the game already renders), and
+3. how much light the **point lights** around it add (read from the light grid).
+Then a second compute pass walks each view ray front to back through the froxels accumulating the light that scatters towards the camera and how much the fog dims what is behind it. The result is two small 3D textures (scattered light and transmittance) that the ordinary forward shaders and the tonemap read, so transparent things, particles and water fog correctly too. A temporal step blends the previous frame's froxels (reprojected with the stored velocity of task 0026) and jitters the sample positions each frame, so the result is smooth and cheap; it is why noisy effects want task 0026's velocity.
+
+### Decisions toddhow can change (my recommendation first)
+
+| # | Decision | Recommended | Alternative |
+| --- | --- | --- | --- |
+| D1 | Technique | A froxel grid filled by compute (Wronski 2014), then an integration pass, read by forward shaders | Raymarching in the fragment shader per pixel (simpler, much more expensive at high quality); screen-space god rays only (cheap, wrong in many views) |
+| D2 | Grid size by tier | `low` 80 x 45 x 32, `medium` 160 x 90 x 64, `high` 240 x 135 x 96, depth distributed exponentially, depth range limited to the fog's visible distance | One size |
+| D3 | Sun light | The existing sun shadow cascades, sampled at each froxel centre; with no shadow setting on, shafts come only from the cascades the volume asks for (a cost to measure: the volume may need the cascades even if the player turned shadows off, so a decision is recorded at stage a) | Its own low-resolution shadow map |
+| D4 | Point lights | The light grid (`lib/light/grid.glsl`), the same lights the surfaces use; a few brightest per froxel cluster | Only the sun |
+| D5 | Density sources | Weather fog value (`configureFog`), a height falloff, interior cell fog, and later local fog volumes from a data file; no per-object fog | Artist-placed volumes only |
+| D6 | Temporal | On by default at `medium` and `high`, using task 0026's velocity; off at `low` | Always off |
+| D7 | Interaction with other fog | With `volumetrics` on, the volume replaces the cheap sun glow of task 0040 and the fragment shader's distance fog for the range the volume covers; beyond it the old fog continues so the horizon blends | Both stacked |
+| D8 | Water and transparency | Read the volume in the same shaders; underwater fog is untouched in v1 | Full integration |
+| D9 | Requirements | `hdr`, `gbuffer` (for velocity); better with `atmosphere` | Fewer |
+| D10 | Budget | A tier is acceptable if the pass costs under 1.0 ms (`low`), 2.0 ms (`medium`), 3.5 ms (`high`) on the benchmark machine's GPU; measured in stage e and recorded, not promised | |
+
+## Stages
+
+- **a. Maths and grid.** `volumemath.hpp` (the slice depth function and its inverse, the phase function, the transmittance and integration step, the jitter sequence), the grid sizes, a test of integration against a closed form for uniform fog; the cascade question of D3 settled by a measurement.
+- **b. Fill and integrate with fog only.** The compute passes with uniform and height fog, no lights; the forward shaders and the tonemap read the result; frames of an outdoor view, with `volumetrics` off the same as before.
+- **c. Sun shafts.** Sample the cascades; frames through a doorway, under trees and at a low sun.
+- **d. Local lights and interiors.** The light grid in the fill pass and the interior fog source; frames in a torchlit interior and around a lantern.
+- **e. Temporal and quality tiers, cost.** Reprojection with velocity and jitter, the three tiers, GPU timing and `tools/benchmark.sh`, a cost note, a debug view of a froxel slice.
+- **f. Notes.** A module guide entry; what a later volumetric cloud pass could share (the froxel grid, the sun shadow lookup).
+
+## Constraints
+
+- Off by default and frame-identical when off (diffmap at a fixed time and weather). The compute pipelines and 3D images are created only when the setting is on.
+- No allocation per frame after start; the grid is resized only when the tier or the window changes.
+- Determinism: the jitter sequence is fixed (a low-discrepancy sequence indexed by the frame counter), no wall-clock time.
+- A new shader file must be listed in `files/shaders/CMakeLists.txt`; new view-set bindings need dummies in every view-set creator (task 0028's notes); do not enable `DebugGeometry` in the `RenderManager` constructor; check a frame after every shader change.
+- The editor's `SceneHost` keeps building and drawing; it does not take volumetrics.
+- Weather records, saves, Lua and contracts untouched.
+
+## Acceptance criteria
+
+- [ ] The integration maths matches a closed form for uniform fog within a stated tolerance (unit tests), and the slice depth function round-trips.
+- [ ] Outdoors in fog, distant things fade into a lit fog volume, not a flat colour (frames viewed), and the horizon blends with the old fog.
+- [ ] Sun shafts appear through a doorway and between trees at a low sun and move as the sun moves (frames a few game minutes apart).
+- [ ] Lit fog forms around lanterns and torches in an interior and a night street (frames).
+- [ ] The temporal option removes visible grid noise and does not ghost on a turning camera (a frame sequence viewed).
+- [ ] The three tiers differ in smoothness and cost; the costs are recorded against the D10 budgets with the GPU named.
+- [ ] `volumetrics` off is frame-identical to the previous build within noise.
+- [ ] Unit tests, the 32 Lua tests, the Linux gate and the whole-tree format check pass; a fresh reviewer read each stage.
+Out of scope: ray-marched volumetric clouds, cloud shadows (0038), wetness (0037), snow and ash (0039), lightning (0040), local fog volume authoring tools, underwater volumes, particles that write density, ray tracing, the editor.
