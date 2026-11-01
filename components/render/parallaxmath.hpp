@@ -72,7 +72,8 @@ namespace Render::Parallax
     {
         const QualityLimits lim = limits(quality);
         const float c = std::isnan(viewCosine) ? 0.f : std::clamp(viewCosine, 0.f, 1.f);
-        const float steps = static_cast<float>(lim.minSteps) + static_cast<float>(lim.maxSteps - lim.minSteps) * (1.f - c);
+        const float steps
+            = static_cast<float>(lim.minSteps) + static_cast<float>(lim.maxSteps - lim.minSteps) * (1.f - c);
         return std::clamp(static_cast<int>(std::ceil(steps)), lim.minSteps, lim.maxSteps);
     }
 
@@ -101,8 +102,8 @@ namespace Render::Parallax
     }
 
     // The depth of a surface in texture coordinates is the set's displacement scale (Community Shaders' height unit)
-    // times this. 0.5, the value of the Faultier stone wall, then gives 0.1 of a texture tile (the old single offset had a range of
-    // 0.04). Chosen by eye on the Faultier wall: 0.1 per unit was barely visible.
+    // times this. 0.5, the value of the Faultier stone wall, then gives 0.1 of a texture tile (the old single offset
+    // had a range of 0.04). Chosen by eye on the Faultier wall: 0.1 per unit was barely visible.
     constexpr float uvDepthPerDisplacement = 0.2f;
     // Used when a material file sets no scale.
     constexpr float defaultDisplacementScale = 0.5f;
@@ -114,7 +115,7 @@ namespace Render::Parallax
     inline float uvDepth(float displacementScale, float userScale)
     {
         const float material = std::isnan(displacementScale) ? defaultDisplacementScale
-                                                              : std::clamp(displacementScale, 0.f, maxDisplacementScale);
+                                                             : std::clamp(displacementScale, 0.f, maxDisplacementScale);
         const float user = std::isnan(userScale) ? 1.f : std::clamp(userScale, 0.f, maxParallaxScale);
         return material * user * uvDepthPerDisplacement;
     }
@@ -157,8 +158,9 @@ namespace Render::Parallax
     // half floats: the roughness scale of task 0044 in the low half and the displacement scale in the high half. Zero
     // in both is the float 0.0, "neither set", as before. A displacement scale of 0 reads back as "not set", so a
     // material cannot switch its depth off completely: give it a tiny one (0.001). The displacement part is the
-    // material's scale times `parallax scale`, so it may reach maxDisplacementScale * maxParallaxScale. The largest finite high half is
-    // 0x7bff, so the pattern is never a not-a-number (that needs 0x7f80 or more) and survives a uniform buffer.
+    // material's scale times `parallax scale`, so it may reach maxDisplacementScale * maxParallaxScale. The largest
+    // finite high half is 0x7bff, so the pattern is never a not-a-number (that needs 0x7f80 or more) and survives a
+    // uniform buffer.
     struct Scales
     {
         float roughness = 0.f; // 0: none
@@ -168,7 +170,8 @@ namespace Render::Parallax
     inline float packScales(float roughnessScale, float displacementScale)
     {
         const uint32_t bits = static_cast<uint32_t>(floatToHalf(roughnessScale))
-            | (static_cast<uint32_t>(floatToHalf(std::min(displacementScale, maxDisplacementScale * maxParallaxScale))) << 16);
+            | (static_cast<uint32_t>(floatToHalf(std::min(displacementScale, maxDisplacementScale * maxParallaxScale)))
+                << 16);
         float result;
         std::memcpy(&result, &bits, sizeof(result));
         return result;

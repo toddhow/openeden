@@ -303,8 +303,8 @@ namespace Terrain
             {
                 // A height file of a format the array cannot hold (one byte a texel, say): no layer uses its file.
                 std::cerr << "Terrain height maps are not used: " << e.what() << std::endl;
-                heightArray = vsgUtil::convertToArrayTexture(vsg::DataList{ vsg::ubvec4Array2D::create(1, 1,
-                    vsg::ubvec4(255, 255, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }) });
+                heightArray = vsgUtil::convertToArrayTexture(vsg::DataList{ vsg::ubvec4Array2D::create(
+                    1, 1, vsg::ubvec4(255, 255, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }) });
                 for (size_t i = 0; i < heights->size(); ++i)
                 {
                     vsg::vec4 info = heights->at(i);

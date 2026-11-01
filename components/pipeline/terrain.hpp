@@ -24,9 +24,9 @@ namespace Pipeline
     /// openeden-vsg: with maps, the shaders are compiled with TERRAIN_MAPS and the layout gains the normal map array
     /// and the layer flags (task 0012, V4i). With gbufferOutputs the pass has that many colour outputs beyond the
     /// scene's own, which the terrain writes (task 0026). With pbr (needs maps) the terrain is lit with the material
-    /// model and reads the layers' packed material maps, so the layout gains bindings 8 and 9 (task 0044). With maps and
-    /// a parallaxQuality (1 low, 2 medium, 3 high) the layers' `_p` height files are marched (bindings 10 and 11, task
-    /// 0045).
+    /// model and reads the layers' packed material maps, so the layout gains bindings 8 and 9 (task 0044). With maps
+    /// and a parallaxQuality (1 low, 2 medium, 3 high) the layers' `_p` height files are marched (bindings 10 and 11,
+    /// task 0045).
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps = false,
         unsigned int gbufferOutputs = 0, bool giSky = false, const WetnessOptions& wetness = {}, bool pbr = false,
         const CoverOptions& cover = {}, unsigned int parallaxQuality = 0);

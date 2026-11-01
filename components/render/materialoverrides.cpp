@@ -167,8 +167,8 @@ namespace Render::Pbr
             if (!failure)
                 entry.values.specularLevel = readNumber(item, "specularLevel", 0.0, json, from, index, failure);
             if (!failure)
-                entry.values.displacementScale = readNumber(item, "displacementScale", 0.0, json, from, index,
-                    failure, Render::Parallax::maxDisplacementScale, true);
+                entry.values.displacementScale = readNumber(item, "displacementScale", 0.0, json, from, index, failure,
+                    Render::Parallax::maxDisplacementScale, true);
             if (failure)
                 return fail(failure->line, failure->field, failure->message);
             if (const auto it = item.find("subsurface"); it != item.end())

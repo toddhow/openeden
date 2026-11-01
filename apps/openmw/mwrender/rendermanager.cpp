@@ -47,6 +47,7 @@
 #include <components/render/hdrtarget.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
+#include <components/render/parallaxmath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
@@ -57,7 +58,6 @@
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
-#include <components/render/parallaxmath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>

@@ -21,13 +21,12 @@ namespace Pipeline
     }
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
-        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr,
-        const CoverOptions& cover, unsigned int parallaxQuality)
+        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover,
+        unsigned int parallaxQuality)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
-        if (maps || gbufferOutputs > 0 || giSky || wetness.enabled || cover.enabled
-            || (maps && parallaxQuality > 0))
+        if (maps || gbufferOutputs > 0 || giSky || wetness.enabled || cover.enabled || (maps && parallaxQuality > 0))
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
             auto compileSettings = vsg::ShaderCompileSettings::create();

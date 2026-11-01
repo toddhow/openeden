@@ -73,9 +73,9 @@ namespace Pipeline
         // OpenEden (task 0039): snow and ash cover and its debug view; added by Pipeline::Graphics.
         COVER,
         COVER_DEBUG,
-        // OpenEden (task 0045): parallax occlusion mapping. HEIGHT_MAP: the model's texture has a `_p` height file (loader,
-        // binding HEIGHT_UNIT); PARALLAX_DISCARD: fragments whose displaced coordinates leave the texture are dropped
-        // (loader, clamped textures only); PARALLAX_POM and its quality modes are added by Pipeline::Graphics.
+        // OpenEden (task 0045): parallax occlusion mapping. HEIGHT_MAP: the model's texture has a `_p` height file
+        // (loader, binding HEIGHT_UNIT); PARALLAX_DISCARD: fragments whose displaced coordinates leave the texture are
+        // dropped (loader, clamped textures only); PARALLAX_POM and its quality modes are added by Pipeline::Graphics.
         HEIGHT_MAP,
         PARALLAX_POM,
         PARALLAX_POM_LOW,

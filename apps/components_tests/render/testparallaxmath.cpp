@@ -194,8 +194,8 @@ namespace
     // quality rows are in the `#if` branches, so they are read in order of appearance: low, high, then medium.
     TEST(RenderParallaxTest, the_shader_twin_holds_the_same_constants)
     {
-        const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / "files"
-            / "shaders" / "lib" / "material" / "parallax.glsl";
+        const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
+            / "files" / "shaders" / "lib" / "material" / "parallax.glsl";
         std::ifstream in(source);
         if (!in)
             GTEST_SKIP() << "the shader source is not beside the test sources";
