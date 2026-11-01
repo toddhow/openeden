@@ -30,6 +30,13 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testextentsync.cpp
 
     mwscript/testscripts.cpp
+    mwscript/testragdollcommands.cpp
+
+    # Task 0035 stage b: the RAGDOLL layer, HostedWorldConfig::gravityFactor and MWPhysics::RagdollHost.
+    mwphysics/testjoltlayers.cpp
+    mwphysics/testgravityfactor.cpp
+    mwphysics/testragdollhost.cpp
+    mwphysics/testragdollscale.cpp
 
     extension/testextensionfailures.cpp
     extension/testextensionhost.cpp

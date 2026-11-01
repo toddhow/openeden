@@ -487,4 +487,8 @@ op 0x2000324: ModPCVisionBonus
 op 0x2000325: TestModels, T3D
 op 0x2000326: FillJournal
 
-opcodes 0x2000327-0x3ffffff unused
+op 0x2000327: CmRagdoll (debug, task 0035)
+op 0x2000328: CmRagdoll, explicit
+op 0x2000329: CmRagdollOff
+
+opcodes 0x200032a-0x3ffffff unused

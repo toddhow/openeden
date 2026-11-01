@@ -50,6 +50,7 @@
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
+#include "../mwworld/refdata.hpp"
 
 #include "../mwrender/joltdebugdraw.hpp"
 
@@ -63,6 +64,7 @@
 #include "mtphysics.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
+#include "ragdollhost.hpp"
 #include "water.hpp"
 
 #include "joltcallbacks.hpp"
@@ -133,10 +135,11 @@ namespace
             inCenterOfMassTransform2, ioCollideShapeSettings, ioCollector, inShapeFilter);
     }
 
-    constexpr std::array<JPH::ObjectLayer, 11> sRaycastObjectLayers = { MWPhysics::Layers::WORLD,
+    constexpr std::array<JPH::ObjectLayer, 12> sRaycastObjectLayers = { MWPhysics::Layers::WORLD,
         MWPhysics::Layers::DOOR, MWPhysics::Layers::ACTOR, MWPhysics::Layers::HEIGHTMAP, MWPhysics::Layers::PROJECTILE,
         MWPhysics::Layers::WATER, MWPhysics::Layers::CAMERA_ONLY, MWPhysics::Layers::VISUAL_ONLY,
-        MWPhysics::Layers::DYNAMIC_WORLD, MWPhysics::Layers::DEBRIS, MWPhysics::Layers::SENSOR };
+        MWPhysics::Layers::DYNAMIC_WORLD, MWPhysics::Layers::DEBRIS, MWPhysics::Layers::SENSOR,
+        MWPhysics::Layers::RAGDOLL };
 
     int getQueryObjectMask(int mask, int group)
     {
@@ -354,6 +357,9 @@ namespace MWPhysics
     {
         Log(Debug::Info) << "Destroying physics system...";
 
+        // The ragdoll adapter's bodies go before anything else, while the system is still whole.
+        mRagdollHost.reset();
+
         mWaterInstance.reset();
         mTaskScheduler->releaseSharedStates();
         mHeightFields.clear();
@@ -396,6 +402,45 @@ namespace MWPhysics
         if (mJoltDebugDrawer)
             mJoltDebugDrawer->setDebugMode(mDebugDrawEnabled);
         return mDebugDrawEnabled;
+    }
+
+    bool PhysicsSystem::spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message)
+    {
+        if (!Settings::physics().mCreativeMotionRagdolls)
+        {
+            message = "creativemotion ragdolls is off (see [Physics] in settings.cfg)";
+            return false;
+        }
+
+        // Bodies are added while the actor job may be querying: take the same lock stepSimulation takes.
+        std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
+
+        if (mRagdollHost == nullptr)
+        {
+            mRagdollHost = RagdollHost::create(mPhysicsSystem, Constants::UnitsPerMeter, mPhysicsDt, &message);
+            if (mRagdollHost == nullptr)
+                return false;
+        }
+
+        const ESM::Position& position = ptr.getRefData().getPosition();
+        if (!mRagdollHost->spawn(
+                JPH::RVec3(position.pos[0], position.pos[1], position.pos[2]), position.rot[2], &message))
+            return false;
+
+        mRagdollHost->setProgressLogging(true);
+        const RagdollStatus status = mRagdollHost->status();
+        Log(Debug::Info) << "Ragdoll: " << status.bodies << " bodies at " << position.pos[0] << " " << position.pos[1]
+                         << " " << position.pos[2];
+        message = "Ragdoll spawned";
+        return true;
+    }
+
+    void PhysicsSystem::removeDebugRagdoll()
+    {
+        if (mRagdollHost == nullptr)
+            return;
+        std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
+        mRagdollHost->remove();
     }
 
     void PhysicsSystem::setDebugGeometry(Render::DebugGeometry& geometry)
@@ -1104,7 +1149,12 @@ namespace MWPhysics
         while (mTimeAccumJolt >= mPhysicsDt)
         {
             mTimeAccumJolt -= mPhysicsDt;
+            // With the ragdoll setting off there is no host, and this is the only cost: two null tests.
+            if (mRagdollHost != nullptr)
+                mRagdollHost->beginStep();
             mPhysicsSystem.Update(mPhysicsDt, cCollisionSteps, mMemoryAllocator.get(), mPhysicsJobSystem.get());
+            if (mRagdollHost != nullptr)
+                mRagdollHost->endStep();
         }
 
 #ifdef JPH_PROFILE_ENABLED

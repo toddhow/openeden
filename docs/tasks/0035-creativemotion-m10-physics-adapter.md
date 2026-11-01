@@ -125,6 +125,69 @@ Include path for users: `<components/cmphysics/hostedjoltworld.hpp>`; the interf
 
 `StudioWorld` creates a `HostedJoltWorld` over its own system (`unitsPerMeter` = `StudioWorld::sUnitsPerMeter`, `stepSeconds` = `sStepSeconds`, `movingLayer` = `sLayerDynamicWorld`, `staticLayer` = `sLayerWorld`), exposes `opas::physics::PhysicsWorld& cmWorld()`, and `stepOnce` calls `beginStep()` before and `endStep()` after `Update` (so the CreativeMotion drivers run in the editor's step, observer order: `StepObserver::beforeStep`, adapter pre-step listeners, `Update`, adapter post-step listeners, `afterStep`). `clear()` destroys the adapter's bodies too. Eden Studio's push sandbox (plan 5.1 item 3) is a later task that uses `cmWorld()`. Needs `components/cmphysics` in `csmodel`'s link line; no render or Qt types.
 
+### Stage b as decided (2026-11-01, toddhow's answers 17 to 20 in `docs/decisions/0010-rendering-and-studio-answers-2026-11-01.md`)
+
+This section replaces the stage b text above where they differ. The exact interfaces are here because tests are written from them.
+
+- **Layer `RAGDOLL` (answer 17):** as in "Stage b" above (`1 << 11`, broad phase `MOVING`, meets exactly `WORLD`, `HEIGHTMAP`, `DOOR`, `RAGDOLL`; `WORLD`, `HEIGHTMAP`, `DOOR` gain `RAGDOLL`; `JoltObjectVsBroadPhaseLayerFilter`: `RAGDOLL` collides with broad phases `WORLD` and `MOVING`). `sRaycastObjectLayers` has 12 entries and includes `RAGDOLL`; `CollisionMask_Default` and `CollisionMask_AnyPhysical` do not.
+- **Gravity (open question 2, settled without touching the game's gravity):** the game's actors do not use Jolt's gravity. They fall by their own `mInertia.z -= time * GravityConst * UnitsPerMeter` (`apps/openmw/mwphysics/movementsolver.cpp`, around line 514, a downward pull), while `PhysicsSystem::PhysicsSystem` sets Jolt's gravity to `+Z` (`physicssystem.cpp`, `SetGravity`). The call is **not changed**. Instead `HostedWorldConfig` gets `float gravityFactor = 1.0f` (finite, otherwise `create` fails with a message); every Dynamic body the adapter creates gets `JPH::BodyCreationSettings::mGravityFactor = gravityFactor`. The game passes `-1.0f`, so a ragdoll falls down in a world whose gravity points up; the editor's `StudioWorld` (stage c) keeps 1. This is the same mechanism Jolt offers per body; the adapter applies it to all its bodies, so ragdoll code stays free of sign hacks. (Projectiles keep their own factor 0.)
+- **Motors (answer 19):** the damping-only-motor workaround of stage a stays (`kDampingOnlyStiffness`); nothing to build.
+- **Scale (answer 19):** this stage measures it. Report: whether a settled limp ragdoll at 70 units per meter jitters, sleeps, or rests inside the floor (numbers in the stage log). The adapter converts meters at one place only (stage a, unchanged).
+- **CreativeMotion edits:** none were needed by this stage (list here any that are made).
+- **`MWPhysics::RagdollHost`** (`apps/openmw/mwphysics/ragdollhost.hpp` and `.cpp`; game-side, testable without `PhysicsSystem`). Owns one `CMPhysics::HostedJoltWorld` over a `JPH::PhysicsSystem&` it does not own, and at most one debug ragdoll built from an embedded humanoid rig and profile (the two JSON files of CreativeMotion's repository `data/rigs/humanoid.rig.json` and `data/profiles/humanoid-default.profile.json`, source commit named in the `.cpp`; embedded so no data file has to be installed). Header:
+
+```cpp
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <cstddef>
+#include <memory>
+#include <string>
+
+namespace MWPhysics
+{
+    // Where the debug ragdoll is removed on its own: its lowest body this far below its spawn point (metres).
+    constexpr float cRagdollKillDepthMetres = 20.0f;
+
+    struct RagdollStatus
+    {
+        bool present = false;          // a ragdoll exists
+        std::size_t bodies = 0;        // its body count
+        double lowestZ = 0.0;          // lowest and highest body centre, in game units
+        double highestZ = 0.0;
+        float maxSpeedMetresPerSecond = 0.0f; // fastest linear speed of any body
+        bool allAsleep = false;        // every body is asleep in Jolt
+    };
+
+    class RagdollHost
+    {
+    public:
+        // Main thread. nullptr and a message if the adapter refuses. The system must outlive the host.
+        static std::unique_ptr<RagdollHost> create(
+            JPH::PhysicsSystem& system, float unitsPerMeter, float stepSeconds, std::string* error = nullptr);
+        ~RagdollHost(); // removes the ragdoll, then the adapter: the system is left as it was found
+
+        // Builds (replacing any earlier one) a limp humanoid ragdoll standing at feet (game units, double precision)
+        // facing game yaw (radians, the NPC's rot[2]). Returns false and a message on failure; then no ragdoll exists.
+        bool spawn(const JPH::RVec3& feetUnits, float yawRadians, std::string* error = nullptr);
+        void remove();                 // no ragdoll afterwards; no-op if none
+        bool hasRagdoll() const;
+
+        // Around the host's PhysicsSystem::Update, main thread, once per Update. endStep also removes the ragdoll
+        // if cRagdollKillDepthMetres was passed. No allocation.
+        void beginStep();
+        void endStep();
+
+        RagdollStatus status() const;  // no allocation
+    };
+}
+```
+  Layers: the adapter's `movingLayer` is `Layers::RAGDOLL`, `staticLayer` empty, ray filters allow `WORLD | HEIGHTMAP | DOOR | RAGDOLL` (object layers) and the broad phases `WORLD` and `MOVING`, `gravityFactor` -1, `maxBodies` 64 and `maxJoints` 64 (a debug scenario, one ragdoll). The ragdoll is built, then made limp with `opas::motor::makeLimp` using the profile (`death` section), so it falls and settles. The conversion of the spawn pose to meters is one function, `RagdollHost::toMetres`, private to the `.cpp` and the only code there that divides by `unitsPerMeter`.
+- **Hosting in `PhysicsSystem`:** `std::unique_ptr<RagdollHost> mRagdollHost`, created lazily by the first successful `spawnDebugRagdoll`, never when the setting is off; reset first in `~PhysicsSystem`. `stepSimulation` calls `mRagdollHost->beginStep()` before and `endStep()` after each `Update` in the loop, only if the pointer is non-null. New public methods `bool PhysicsSystem::spawnDebugRagdoll(const MWWorld::ConstPtr&, std::string& message)` and `void removeDebugRagdoll()`; `MWBase::World` gets `bool spawnDebugRagdoll(const MWWorld::ConstPtr&, std::string&)` and `void removeDebugRagdoll()`, forwarded by `World`.
+- **Setting:** `[Physics] creativemotion ragdolls = false` (`Settings::physics().mCreativeMotionRagdolls`). With it false, `spawnDebugRagdoll` returns false with the message `creativemotion ragdolls is off` and creates nothing.
+- **Console commands (answer 18):** `cmRagdoll` (implicit or explicit reference, so `cmRagdoll` with an NPC selected in the console, or `"name"->cmRagdoll`) and `cmRagdollOff`, opcodes `0x2000327` (`cmRagdoll`), `0x2000328` (explicit) and `0x2000329` (`cmRagdollOff`) in `components/compiler/opcodes.hpp` (`Compiler::Misc`), registered in `components/compiler/extensions0.cpp`, implemented in `apps/openmw/mwscript/miscextensions.cpp`, listed in `apps/openmw/mwscript/docs/vmformat.txt`. They report the result in the console. A separate command `cmRagdollOff` was chosen over an argument because segment 5 instructions take no optional arguments.
+- **Cell unload:** not hooked. The ragdoll is removed by `cmRagdollOff`, by the next `cmRagdoll`, by the kill depth, and when the physics system is destroyed. (Deviation from the first text, which said "or when the cell unloads"; reason: the world has no single place that tells the physics system a cell unloaded, and the kill depth covers the case that matters, a ragdoll falling through a vanished floor.)
+- **Threads:** `spawn`, `remove`, `beginStep`, `endStep`, `status` and both listeners run on the main thread: the script interpreter and `stepSimulation` are both called from `World::update` on the main thread, one after the other. The asynchronous actor job (`MWSimulation`) may run at the same time; it reaches Jolt through the thread-safe `BodyInterface` and queries with masks that exclude `RAGDOLL`, and `HostedJoltWorld` calls `PhysicsSystem::GetBodyInterface()` (the locking one), so adding and removing bodies is allowed alongside it. Nothing of the host runs on a Jolt worker thread. Nothing in `RagdollHost` locks.
+
 ## Constraints
 Determinism, allocation and threading as above. Never a second Jolt world: the adapter takes a `JPH::PhysicsSystem&` and has no constructor that creates one. Jolt usage per the root guide: `<Jolt/Jolt.h>` first in its own include block, `JPH::RVec3` for world positions, no shape smaller than its convex radius (the box radius rule above; sphere and capsule have none to violate beyond Jolt's own checks, and the adapter's validation requires positive dimensions). `components/` includes nothing from `apps/`. `components/creativemotion/` is not edited. Public header: Jolt types appear only in `HostedWorldConfig` (filters, layers) and in the constructor argument; no Jolt type appears in the `PhysicsWorld` signatures. clang-format 14 and `-Werror` clean. Off by default: stage a has no setting because nothing in the game uses it.
 
@@ -143,9 +206,9 @@ Stage a (implemented now):
 - [x] `components-tests`, `openmw-tests`, `eden-studio-tests` pass on Windows; the Linux gate passes; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read stage a and found nothing unresolved.
 
 Stages b and c (not implemented now; written so they are testable when they start):
-- [ ] (b) With `creativemotion ragdolls = false`: `PhysicsSystem` creates no adapter; the Jolt body count after loading a cell equals the fork point's; no existing query mask includes `RAGDOLL`; the 32 Lua integration tests pass.
-- [ ] (b) A layer test: `JoltObjectLayerPairFilter` and `JoltObjectVsBroadPhaseLayerFilter` are symmetric for all pairs including `RAGDOLL` (a unit test over every pair of the 12 layers), `RAGDOLL` meets exactly `WORLD`, `HEIGHTMAP`, `DOOR`, `RAGDOLL`, and every pair of the previous 11 layers has the same answer as before the change.
-- [ ] (b) In the game with the setting on, `cmRagdoll` on a dead NPC: the ragdoll's bodies fall and rest on the floor (logged heights), appear in the Jolt debug draw (a frame captured and looked at), do not move the NPC's capsule, the player or other actors (positions logged before and after), and `cmRagdoll off` leaves the body count as before.
+- [ ] (b) (partly verified, see the stage b log) With `creativemotion ragdolls = false`: `PhysicsSystem` creates no adapter; the Jolt body count after loading a cell equals the fork point's; no existing query mask includes `RAGDOLL`; the 32 Lua integration tests pass.
+- [x] (b) A layer test: `JoltObjectLayerPairFilter` and `JoltObjectVsBroadPhaseLayerFilter` are symmetric for all pairs including `RAGDOLL` (a unit test over every pair of the 12 layers), `RAGDOLL` meets exactly `WORLD`, `HEIGHTMAP`, `DOOR`, `RAGDOLL`, and every pair of the previous 11 layers has the same answer as before the change.
+- [ ] (b) (partly verified, see the stage b log) In the game with the setting on, `cmRagdoll` on a dead NPC: the ragdoll's bodies fall and rest on the floor (logged heights), appear in the Jolt debug draw (a frame captured and looked at), do not move the NPC's capsule, the player or other actors (positions logged before and after), and `cmRagdoll off` leaves the body count as before.
 - [ ] (c) `StudioWorld` exposes `cmWorld()`, a ragdoll built through it falls and rests on the editor's static box, the editor's tests for stepping, transport, determinism and the observer order still pass with the adapter present, and `clear()` removes the ragdoll.
 Out of scope: the actor capsule following the pelvis, mesh and bone write-back, the animation driving the rig, balance and sensors (M11), per-character jobs (M10's third item), water, projectiles and living actors colliding with ragdolls, hit reactions from combat, a Lua or extension API for ragdolls, publishing a query mask for extensions, save games, sub-stepping above the host's `cCollisionSteps`, any change to `components/creativemotion/`.
 
@@ -168,3 +231,13 @@ Plain words: the adapter is a class that lets CreativeMotion's ragdoll code work
 - Fresh reviewer findings fixed: Jolt's default speed cap (500 units/s, about 7 m/s here) is now scaled; group IDs are taken only after a slot is secured; doc comments. Not changed: an unscaled-gain overflow is clamped but not tested at solver level; `setKinematicTarget` has no in-step guard (as the reference).
 - Windows: `components-tests` 2836, `openmw-tests` 799, `eden-studio-tests` 393 pass. The full build's last link steps (`eden-studio.exe`, `compat_morrowind.dll`) failed only because those files were in use by a running program.
 - Linux gate (HEAD `da9200406f`): passes. `CI/check_clang_format.sh` passes over the whole tree. Not run: clang-tidy, sanitizers, an in-game check (stage a has no game code).
+
+### Stage b (2026-11-01)
+Plain words: the game can now drop one limp CreativeMotion ragdoll into its single Jolt world for testing, only when `[Physics] creativemotion ragdolls = true`, started by the console command `cmRagdoll` and removed by `cmRagdollOff`. Nothing in normal play uses it. A separate test-writing agent wrote 30 tests (openmw-tests: layers, gravity factor, `RagdollHost`, a scale measurement, the console commands) from the spec before the code existed; two of its tests had bugs of their own (Jolt started after the first Jolt object was built; a claim that extra command arguments do not compile) and it fixed them. A fresh reviewer then read the diff.
+- **Built:** `RAGDOLL` layer (`joltlayers.hpp`, plus `sRaycastObjectLayers`); `HostedWorldConfig::gravityFactor`; `MWPhysics::RagdollHost` and the embedded humanoid rig and profile (copies of CreativeMotion `data/rigs/humanoid.rig.json` and `data/profiles/humanoid-default.profile.json`, CreativeMotion commit 00751a6a7e); `PhysicsSystem::spawnDebugRagdoll/removeDebugRagdoll`, `mRagdollHost` (the spec called it `mRagdollWorld`), the two step hooks; `MWBase::World` forwards; opcodes 0x2000327 to 0x2000329; the setting. No edits to `components/creativemotion/`.
+- **Deviations from the spec text above:** the off command is `cmRagdollOff`, not `cmRagdoll off` (no optional arguments in segment 5); no cell-unload hook (kill depth 20 m, the next spawn, `cmRagdollOff` and shutdown remove it); gravity by `gravityFactor` -1, not by touching `SetGravity` (actors fall by `mInertia.z` in `movementsolver.cpp`, unrelated to Jolt's gravity); `RagdollHost::setProgressLogging` was added so the debug scenario logs the ragdoll's heights every 120 steps (it allocates, so it is off unless the console command turned it on); `spawn` and `remove` take the simulation mutex that `stepSimulation` takes, on the reviewer's advice, because the actor job may be querying.
+- **Allocation test not registered:** `testbonepose.cpp` already replaces the global `operator new`, a program may do it once, and the fix needs an edit to an existing test (needs toddhow). The adapter's own allocation was tested in stage a; `RagdollHost::beginStep/endStep/status` were reviewed by reading only.
+- **Scale finding (answer 19, measured by `RagdollScale` and in the game):** a limp 16-body humanoid dropped on a floor at 70 units per metre comes to rest in about 2 s (top speed below 6 cm/s) but **never goes to sleep** in 10 s: all 16 bodies stay awake, creeping at 1 to 6 cm/s, up to 1 mm per step. Cause (read from Jolt's defaults, not yet proven by an experiment): its sleep speed threshold is in world units per second and is tuned for meters, so it is about 70 times too strict here. Bodies also rest slightly inside the floor at first (lowest centre about 2 to 11 cm below the floor surface, rising slowly back to about 2 cm over 10 s: Jolt's penetration recovery). No explosion, no NaN, no tunnelling. A follow-up task could scale the sleep thresholds with `PhysicsSettings` (a game-world setting, so inherited code), or put ragdolls to sleep by hand.
+- **Checks run:** `openmw-tests` new tests 30 of 30 pass; `components-tests` 3066 and `eden-studio-tests` 520 pass; the 32 Lua integration tests pass with the setting off (run again after the last edits); 7 `ExtensionFailureReportTest` tests in `openmw-tests` fail for a reason that is not this change (stale test extension built for SDK 2.0, the host provides 3.0: the SDK work in another session). In the game (example suite cell "Museum of Wonders", `player->cmRagdoll`, `tcb`): 16 bodies spawned at the player's feet, fell about 30 units onto the floor and settled (logged lowest/highest body heights at 120, 240, 360 steps, identical in two runs), drawn by the Jolt debug draw; a frame was captured and looked at (a heap of capsules and spheres with one limb upright). With the setting off the command spawns nothing and the game runs normally.
+- **Not verified:** the ragdoll on a dead NPC (spawned on the player); other actors' positions before and after; `cmRagdollOff` in the game (the unit test covers `remove`); the Jolt body count after loading a cell with the setting off (no adapter exists then, by code); the Linux gate; clang-tidy; sanitizers. Reviewer nits kept: a live ragdoll enlarges `getWorldBounds` (debug only); a caller passing a query `group` or `mask` with bit 11 set would now see ragdoll pairs (no caller does; Lua `castRay` defaults are `CollisionMask_Default` and 0xff).
+- **For stage c (editor):** pass `gravityFactor` 1 and `staticLayer` set, as the spec says; `RagdollHost` is game-side and not for the editor, which uses `HostedJoltWorld` directly. **For M11:** sleeping (above), a hand-off between actor capsule and pelvis, motors with real gains (only the limp case is exercised in the game), and the host's collision steps for balance.

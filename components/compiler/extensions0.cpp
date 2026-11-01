@@ -239,6 +239,8 @@ namespace Compiler
             extensions.registerInstruction("togglecollisionboxes", "", opcodeToggleCollisionBoxes);
             extensions.registerInstruction("togglecollisiongrid", "", opcodeToggleCollisionDebug);
             extensions.registerInstruction("tcb", "", opcodeToggleCollisionBoxes);
+            extensions.registerInstruction("cmragdoll", "", opcodeCmRagdoll, opcodeCmRagdollExplicit);
+            extensions.registerInstruction("cmragdolloff", "", opcodeCmRagdollOff);
             extensions.registerInstruction("tcg", "", opcodeToggleCollisionDebug);
             extensions.registerInstruction("twf", "", opcodeToggleWireframe);
             extensions.registerInstruction("togglewireframe", "", opcodeToggleWireframe);

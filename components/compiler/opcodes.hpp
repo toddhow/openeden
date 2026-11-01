@@ -221,6 +221,9 @@ namespace Compiler
         const int opcodeUnlockExplicit = 0x200008d;
         const int opcodeToggleCollisionDebug = 0x2000132;
         const int opcodeToggleCollisionBoxes = 0x20001ac;
+        const int opcodeCmRagdoll = 0x2000327;
+        const int opcodeCmRagdollExplicit = 0x2000328;
+        const int opcodeCmRagdollOff = 0x2000329;
         const int opcodeToggleWireframe = 0x200013b;
         const int opcodeFadeIn = 0x200013c;
         const int opcodeFadeOut = 0x200013d;

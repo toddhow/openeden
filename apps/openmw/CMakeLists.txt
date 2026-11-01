@@ -97,6 +97,7 @@ add_openmw_dir (mwphysics
     physicssystem trace collisiontype actor convert object heightfield closestnotmerayresultcallback
     contacttestresultcallback stepper movementsolver projectile
     actorconvexcallback raycasting mtphysics water contacttestwrapper projectileconvexcallback
+    ragdollhost ragdollrigdata
     )
 
 add_openmw_dir (mwclass
@@ -197,6 +198,7 @@ if (TARGET opas::anim_runtime)
         opas::anim_clip
         opas::anim_gltf
         opas::rig
+        opas::motor
         opas::math
     )
 endif()

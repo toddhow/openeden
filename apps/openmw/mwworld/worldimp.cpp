@@ -1563,6 +1563,16 @@ namespace MWWorld
         }
     }
 
+    bool World::spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message)
+    {
+        return mPhysics->spawnDebugRagdoll(ptr, message);
+    }
+
+    void World::removeDebugRagdoll()
+    {
+        mPhysics->removeDebugRagdoll();
+    }
+
     void World::update(float duration, bool paused)
     {
         if (mGoToJail && !paused)

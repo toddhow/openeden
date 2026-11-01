@@ -300,6 +300,8 @@ namespace CMPhysics
                 return "maxBodies must be > 0";
             if (config.maxJoints == 0)
                 return "maxJoints must be > 0";
+            if (!std::isfinite(config.gravityFactor))
+                return "gravityFactor must be finite";
             return {};
         }
     }
@@ -426,6 +428,8 @@ namespace CMPhysics
         settings.mUserData = 0;
         // Jolt caps linear speed at 500 world units per second by default, which is about 7 m/s at the game's scale.
         settings.mMaxLinearVelocity *= s;
+        // The host decides which way gravity pulls ragdolls (the game: -1, because its Jolt gravity points up).
+        settings.mGravityFactor = mConfig.gravityFactor;
         if (group != nullptr)
             settings.mCollisionGroup = JPH::CollisionGroup(group->table, group->joltGroupId, desc.subGroup);
         if (desc.motion == MotionType::Dynamic || (desc.motion == MotionType::Kinematic && desc.massKg > 0.0f))

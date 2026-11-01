@@ -43,6 +43,10 @@ namespace MWPhysics
 
         // Sensors only collide with DYNAMIC_WORLD objects
         static constexpr JPH::ObjectLayer SENSOR = 1 << 10;
+
+        // A limb of a CreativeMotion ragdoll (task 0035). Meets only WORLD, HEIGHTMAP, DOOR and other ragdoll limbs, so it
+        // never pushes the living, is never hit by projectiles and ignores its own corpse's DEBRIS capsule.
+        static constexpr JPH::ObjectLayer RAGDOLL = 1 << 11;
     }
 
     enum CollisionMask
@@ -81,6 +85,7 @@ namespace MWPhysics
                     return BroadPhaseLayers::DEBRIS;
                 case Layers::ACTOR:
                 case Layers::PROJECTILE:
+                case Layers::RAGDOLL:
                     return BroadPhaseLayers::MOVING;
             }
             return BroadPhaseLayers::WORLD;
@@ -124,6 +129,8 @@ namespace MWPhysics
                     return broadPhaseLayer == BroadPhaseLayers::WORLD;
                 case Layers::SENSOR:
                     return broadPhaseLayer == BroadPhaseLayers::MOVING || broadPhaseLayer == BroadPhaseLayers::SENSOR;
+                case Layers::RAGDOLL:
+                    return broadPhaseLayer == BroadPhaseLayers::WORLD || broadPhaseLayer == BroadPhaseLayers::MOVING;
                 default:
                     return false;
             }
@@ -147,7 +154,8 @@ namespace MWPhysics
                 case Layers::WATER:
                 case Layers::HEIGHTMAP:
                     return inObject2 == Layers::DYNAMIC_WORLD || inObject2 == Layers::ACTOR
-                        || inObject2 == Layers::PROJECTILE || inObject2 == Layers::DEBRIS;
+                        || inObject2 == Layers::PROJECTILE || inObject2 == Layers::DEBRIS
+                        || (inObject2 == Layers::RAGDOLL && inObject1 != Layers::WATER);
 
                 // Any dynamic/moving layers should collide with all static geometry, sensors and other dynamics
                 case Layers::DYNAMIC_WORLD:
@@ -164,6 +172,11 @@ namespace MWPhysics
                 // Debris layer should only collide with static world for performance
                 case Layers::DEBRIS:
                     return inObject2 == Layers::WORLD || inObject2 == Layers::HEIGHTMAP;
+
+                // A ragdoll limb meets the static world, doors and other ragdoll limbs only
+                case Layers::RAGDOLL:
+                    return inObject2 == Layers::WORLD || inObject2 == Layers::HEIGHTMAP || inObject2 == Layers::DOOR
+                        || inObject2 == Layers::RAGDOLL;
 
                 default:
                     return false;

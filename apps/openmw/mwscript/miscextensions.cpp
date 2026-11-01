@@ -390,6 +390,31 @@ namespace MWScript
             }
         };
 
+        // Debug console command of task 0035: drops a limp CreativeMotion ragdoll where the target stands.
+        template <class R>
+        class OpCmRagdoll : public Interpreter::Opcode0
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime) override
+            {
+                MWWorld::Ptr ptr = R()(runtime);
+
+                std::string message;
+                MWBase::Environment::get().getWorld()->spawnDebugRagdoll(ptr, message);
+                runtime.getContext().report(message);
+            }
+        };
+
+        class OpCmRagdollOff : public Interpreter::Opcode0
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime) override
+            {
+                MWBase::Environment::get().getWorld()->removeDebugRagdoll();
+                runtime.getContext().report("Ragdoll removed");
+            }
+        };
+
         class OpToggleWireframe : public Interpreter::Opcode0
         {
         public:
@@ -1755,6 +1780,9 @@ namespace MWScript
             interpreter.installSegment5<OpUnlock<ExplicitRef>>(Compiler::Misc::opcodeUnlockExplicit);
             interpreter.installSegment5<OpToggleCollisionDebug>(Compiler::Misc::opcodeToggleCollisionDebug);
             interpreter.installSegment5<OpToggleCollisionBoxes>(Compiler::Misc::opcodeToggleCollisionBoxes);
+            interpreter.installSegment5<OpCmRagdoll<ImplicitRef>>(Compiler::Misc::opcodeCmRagdoll);
+            interpreter.installSegment5<OpCmRagdoll<ExplicitRef>>(Compiler::Misc::opcodeCmRagdollExplicit);
+            interpreter.installSegment5<OpCmRagdollOff>(Compiler::Misc::opcodeCmRagdollOff);
             interpreter.installSegment5<OpToggleWireframe>(Compiler::Misc::opcodeToggleWireframe);
             interpreter.installSegment5<OpFadeIn>(Compiler::Misc::opcodeFadeIn);
             interpreter.installSegment5<OpFadeOut>(Compiler::Misc::opcodeFadeOut);

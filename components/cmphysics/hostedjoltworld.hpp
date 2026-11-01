@@ -57,6 +57,9 @@ namespace CMPhysics
         std::optional<JPH::ObjectLayer> staticLayer;
         std::uint32_t maxBodies = 1024;
         std::uint32_t maxJoints = 1024;
+        /// Multiplies the host system's gravity for every body the adapter creates. The game's Jolt gravity points +Z
+        /// (actors fall by their own code), so it passes -1; the editor keeps 1. Must be finite.
+        float gravityFactor = 1.0f;
         /// Filters for castRay, not owned, must outlive the adapter. Null: everything.
         const JPH::BroadPhaseLayerFilter* rayBroadPhaseFilter = nullptr;
         const JPH::ObjectLayerFilter* rayObjectLayerFilter = nullptr;

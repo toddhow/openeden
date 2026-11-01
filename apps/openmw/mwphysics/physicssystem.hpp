@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <string>
 #include <unordered_map>
 #include <variant>
 
@@ -70,6 +71,7 @@ namespace MWPhysics
     class Actor;
     class PhysicsTaskScheduler;
     class Projectile;
+    class RagdollHost;
     enum ScriptedCollisionType : char;
 
     using ActorMap = std::unordered_map<const MWWorld::LiveCellRefBase*, std::shared_ptr<Actor>>;
@@ -183,6 +185,11 @@ namespace MWPhysics
         /// The one Jolt world. The extension host gives extensions read-only queries on it; nothing else should need
         /// it.
         JPH::PhysicsSystem& getJoltWorld() { return mPhysicsSystem; }
+
+        /// Task 0035 stage b, the cmRagdoll debug console command. Main thread. Returns false and a message when the
+        /// setting `[Physics] creativemotion ragdolls` is off or the ragdoll cannot be built.
+        bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message);
+        void removeDebugRagdoll();
 
         /// The box around every body of the Jolt world (task 0028: the light probe baker sizes its volume with it).
         void getWorldBounds(vsg::vec3& low, vsg::vec3& high) const;
@@ -329,6 +336,9 @@ namespace MWPhysics
         std::unique_ptr<PhysicsTaskScheduler> mTaskScheduler;
         std::unique_ptr<JPH::TempAllocatorImpl> mMemoryAllocator;
         std::unique_ptr<JPH::JobSystem> mPhysicsJobSystem;
+        // Created by the first successful spawnDebugRagdoll, never when the setting is off. Declared after the system
+        // and the job system so that it goes first; ~PhysicsSystem also resets it before anything else.
+        std::unique_ptr<RagdollHost> mRagdollHost;
         // openeden-vsg: physics owns its NIF cache, since vsgopenmw's ResourceSystem has no NIF manager.
         std::unique_ptr<Resource::NifFileManager> mNifFileManager;
         std::unique_ptr<Resource::PhysicsShapeManager> mShapeManager;

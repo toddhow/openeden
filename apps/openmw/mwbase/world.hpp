@@ -6,6 +6,7 @@
 #include <deque>
 #include <set>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -326,6 +327,10 @@ namespace MWBase
         /// \return Resulting mode
 
         virtual bool toggleRenderMode(MWRender::RenderMode mode) = 0;
+
+        /// The cmRagdoll debug console command (task 0035). Returns false, with the reason in message, if it did not run.
+        virtual bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message) = 0;
+        virtual void removeDebugRagdoll() = 0;
         ///< Toggle a render mode.
         ///< \return Resulting mode
 

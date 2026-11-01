@@ -381,6 +381,9 @@ namespace MWWorld
         ///< \return Resulting mode
 
         bool toggleRenderMode(MWRender::RenderMode mode) override;
+
+        bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message) override;
+        void removeDebugRagdoll() override;
         ///< Toggle a render mode.
         ///< \return Resulting mode
 
