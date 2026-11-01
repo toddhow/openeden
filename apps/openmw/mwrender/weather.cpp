@@ -717,10 +717,12 @@ namespace MWRender
         mClouds.setEnabled(mClouds->textureValid());
         mCloudBlendFactor = std::clamp(weather.mCloudBlendFactor, 0.f, 1.f);
         mClouds->material.setAlpha(1.f - mCloudBlendFactor);
+        mClouds->material.setTint(weather.mCloudTint);
         if (!weather.mNextCloudTexture.empty())
         {
             mNextClouds->setTexture(getOrCreateCloudTexture(weather.mNextCloudTexture), *mCompile);
             mNextClouds->material.setAlpha(mCloudBlendFactor);
+            mNextClouds->material.setTint(weather.mCloudTint);
         }
         mNextClouds.setEnabled(mCloudBlendFactor > 0.f && mNextClouds->textureValid());
         mCloudSpeed = weather.mCloudSpeed;

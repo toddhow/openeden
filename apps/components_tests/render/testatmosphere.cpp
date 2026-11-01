@@ -283,4 +283,55 @@ namespace Render::Atmosphere
             }
         }
     }
+
+    // Stage b: clouds.
+    TEST(RenderAtmosphereTest, a_cloud_at_noon_is_nearly_white)
+    {
+        const auto t = model(70.f * deg, 1.f).cloudTint;
+        EXPECT_GT(t.x, 0.9f);
+        EXPECT_GT(t.y, 0.9f);
+        EXPECT_GT(t.z, 0.85f);
+        EXPECT_LE(std::max({ t.x, t.y, t.z }), 1.f);
+    }
+
+    TEST(RenderAtmosphereTest, a_cloud_at_sunset_is_warm_and_dimmer)
+    {
+        const auto low = model(2.f * deg, 1.f).cloudTint;
+        const auto high = model(70.f * deg, 1.f).cloudTint;
+        EXPECT_GT(low.x / low.z, high.x / high.z);
+        EXPECT_LT(luma(low), luma(high));
+        EXPECT_GT(low.x, low.y);
+        EXPECT_GT(low.y, low.z);
+    }
+
+    TEST(RenderAtmosphereTest, the_cloud_tint_dims_smoothly_as_the_sun_sinks)
+    {
+        float last = 2.f;
+        for (int e = 90; e >= 0; e -= 5)
+        {
+            const float l = luma(model(static_cast<float>(e) * deg, 1.f).cloudTint);
+            EXPECT_LE(l, last + 1e-6f) << e;
+            last = l;
+        }
+    }
+
+    TEST(RenderAtmosphereTest, the_clouds_of_a_hazy_weather_keep_the_vanilla_tint)
+    {
+        const Colours v = vanilla();
+        const Colours out = applyLook(v, 40.f * deg, 0.f, Look::Physical);
+        expectSame(out.cloudTint, v.cloudTint);
+    }
+
+    TEST(RenderAtmosphereTest, the_cloud_tint_is_blended_by_the_look)
+    {
+        const Colours v = vanilla();
+        const float low = 3.f * deg;
+        const auto soft = applyLook(v, low, 1.f, Look::Vanilla).cloudTint;
+        const auto hard = applyLook(v, low, 1.f, Look::Physical).cloudTint;
+        const auto target = model(low, 1.f).cloudTint;
+        // the physical look is nearer to the model than the vanilla one, and neither passes it
+        EXPECT_LT(maxDifference(hard, target), maxDifference(soft, target));
+        EXPECT_LE(hard.z, v.cloudTint.z);
+        EXPECT_GE(hard.z, target.z - 1e-5f);
+    }
 }

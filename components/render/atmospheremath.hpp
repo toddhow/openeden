@@ -246,7 +246,7 @@ namespace Render::Atmosphere
         out.horizon = clampColour(Hdr::toEncoded(horizonLinear), maximumColour);
         out.ambient = clampColour(Hdr::toEncoded(ambientLinear), maximumColour);
         out.sun = clampColour(Hdr::toEncoded(sunLinear), maximumColour);
-        out.cloudTint = clampColour(cloudLinear, 1.f);
+        out.cloudTint = clampColour(Hdr::toEncoded(cloudLinear), 1.f); // the cloud shader multiplies encoded colours
         return out;
     }
 

@@ -796,6 +796,7 @@ namespace MWWorld
         vanilla.sky = vsg::vec3(result.mSkyColor.x, result.mSkyColor.y, result.mSkyColor.z);
         vanilla.ambient = vsg::vec3(result.mAmbientColor.x, result.mAmbientColor.y, result.mAmbientColor.z);
         vanilla.sun = vsg::vec3(result.mSunColor.x, result.mSunColor.y, result.mSunColor.z);
+        vanilla.cloudTint = result.mCloudTint;
         const float clearness = std::clamp(result.mGlareView, 0.f, 1.f);
         const Colours out
             = applyLook(vanilla, sunHeight, clearness, parseLook(Settings::rendering().mAtmosphereLook.get()));
@@ -809,6 +810,7 @@ namespace MWWorld
         set(result.mSkyColor, out.sky);
         set(result.mAmbientColor, out.ambient);
         set(result.mSunColor, out.sun);
+        result.mCloudTint = out.cloudTint;
     }
 
     void WeatherManager::update(float duration, bool paused, const TimeStamp& time, bool isExterior)

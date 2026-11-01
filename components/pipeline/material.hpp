@@ -26,6 +26,13 @@ namespace Pipeline
             value() = createDefault();
         }
         void setAlpha(float a) { update(value().diffuse.a, a); }
+        // OpenEden (task 0034): the colour part of the diffuse colour (the cloud shader multiplies by it).
+        void setTint(const vsg::vec3& tint)
+        {
+            update(value().diffuse.r, tint.x);
+            update(value().diffuse.g, tint.y);
+            update(value().diffuse.b, tint.z);
+        }
         static Data::Material createDefault()
         {
             return { vsg::vec4(1, 1, 1, 1), vsg::vec4(1, 1, 1, 1), vsg::vec4(0, 0, 0, 1), vsg::vec4(0, 0, 0, 0), 0.f,

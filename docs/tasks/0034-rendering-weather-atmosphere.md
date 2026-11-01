@@ -71,3 +71,9 @@ Out of scope: everything under "Not started" above; any change to the weather re
 - Not verified: off-equals-the-commit-before by frames (no build of the previous commit was made; the off path passes the same values, which the reviewer confirmed by reading). A fresh reviewer's notes: sunrise and sunset get weight about 0.35 at elevation 0 (a design question, left); `mAtmosphereResult` copies two strings per frame (no new allocation after the first frame, but not strictly zero).
 - How the weather and hour were fixed: start in the interior `ToddTest`, a console script `ChangeWeather "Bitter Coast Region" <id>`, `coc "Seyda Neen"` (entering a new region forces the region's weather at once, `WeatherManager::playerTeleported`), `set gamehour to <h>`, `set timescale to 1`.
 
+
+### Stage b (2026-11-01)
+- Built: `WeatherResult::mCloudTint` (white by default), `Pipeline::Material::setTint`, `Sky::setWeather` giving it to both cloud layers, and `sky/clouds/main.frag` multiplying by the cloud material's diffuse colour (exactly 1 when off, so the shader's result is unchanged). The model's tint is the sun's colour softened (power 0.25) and dimmer as the sun sinks, blended by the same weight as the other colours.
+- A fresh reviewer found the tint was linear while the shader multiplies encoded colours; fixed (`model` encodes it).
+- Tests: 5 more in `testatmosphere.cpp` (28 in all) pass. Frames viewed: clear sky with clouds at 12:00 and 17:30, off, vanilla and physical: at 17:30 the physical clouds are warmer and a little dimmer; at noon they look as before.
+- Not verified: a before/after frame difference of the off path against the commit before.

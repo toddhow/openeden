@@ -13,6 +13,8 @@ namespace MWRender
         std::string mCloudTexture;
         std::string mNextCloudTexture;
         float mCloudBlendFactor;
+        // OpenEden (task 0034): multiplies the cloud texture; white (as before) unless the atmosphere sets it.
+        vsg::vec3 mCloudTint{ 1.f, 1.f, 1.f };
 
         vsg::vec4 mFogColor;
 
