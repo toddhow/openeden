@@ -837,6 +837,11 @@ namespace MWRender
         mSky->setMoonColour(red);
     }
 
+    vsg::vec3 RenderManager::getLinearAmbient() const
+    {
+        return Render::Hdr::toLinear(vsg::vec3(mAmbientColor.x, mAmbientColor.y, mAmbientColor.z));
+    }
+
     void RenderManager::disableProbes()
     {
         if (!mProbeData)

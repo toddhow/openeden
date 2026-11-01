@@ -1,5 +1,6 @@
 set(OPENMW_SOURCES
     vsgengine.cpp
+    probebaker.cpp
     options.cpp
     extensionhost.cpp
     extensionworld.cpp
@@ -14,6 +15,7 @@ set(OPENMW_HEADERS
     arguments.hpp
     options.hpp
     vsgengine.hpp
+    probebaker.hpp
     extensionhost.hpp
     extensionworld.hpp
     game.hpp

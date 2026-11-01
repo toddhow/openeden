@@ -112,6 +112,14 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.startupScript = variables["script-run"].as<std::string>();
     args.autoScreenshotFrame = variables["auto-screenshot"].as<unsigned int>();
     args.autoQuitFrame = variables["auto-quit"].as<unsigned int>();
+    args.bakeGiCell = variables["bake-gi"].as<std::string>();
+    args.bakeGiOut = variables["bake-gi-out"].as<std::string>();
+    if (!args.bakeGiCell.empty())
+    {
+        // The baker needs the cell loaded: start in it, without the menu.
+        args.cellName = args.bakeGiCell;
+        args.skipMenu = true;
+    }
     args.warningsMode = variables["script-warn"].as<int>();
 
     // other settings

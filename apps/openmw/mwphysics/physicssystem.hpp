@@ -184,6 +184,9 @@ namespace MWPhysics
         /// it.
         JPH::PhysicsSystem& getJoltWorld() { return mPhysicsSystem; }
 
+        /// The box around every body of the Jolt world (task 0028: the light probe baker sizes its volume with it).
+        void getWorldBounds(vsg::vec3& low, vsg::vec3& high) const;
+
         /// Null stops it. It must stay alive until then.
         void setContactObserver(ContactObserver* observer) { mContactListener.setObserver(observer); }
 

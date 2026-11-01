@@ -44,6 +44,11 @@ namespace OMW
         // autoQuitFrame:       requestQuit() after N frames of State_Running.
         unsigned int autoScreenshotFrame = 0;
         unsigned int autoQuitFrame = 0;
+
+        // Task 0028: bake light probes for this interior cell, writing a data folder layout to bakeGiOut (the user data
+        // folder if empty), then quit.
+        std::string bakeGiCell;
+        std::string bakeGiOut;
     };
 }
 

@@ -433,6 +433,13 @@ namespace MWPhysics
         return true;
     }
 
+    void PhysicsSystem::getWorldBounds(vsg::vec3& low, vsg::vec3& high) const
+    {
+        const JPH::AABox bounds = mPhysicsSystem.GetBounds();
+        low = Misc::Convert::toOsg(bounds.mMin);
+        high = Misc::Convert::toOsg(bounds.mMax);
+    }
+
     RayCastingResult PhysicsSystem::castRay(const vsg::vec3& from, const vsg::vec3& to,
         const std::vector<MWWorld::ConstPtr>& ignore, const std::vector<MWWorld::Ptr>& targets, int mask,
         int group) const

@@ -160,6 +160,8 @@ namespace MWRender
         void setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular);
 
         void configureAmbient(const MWWorld::Cell& cell);
+        // Task 0028: the cell's flat ambient colour in linear light, without night eye: what the light probe baker assumes.
+        vsg::vec3 getLinearAmbient() const;
         // Task 0028: the interior's baked light probes, if it has a file (and gi is on); disableProbes for any cell
         // without.
         void loadProbes(const MWWorld::Cell& cell);

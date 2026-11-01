@@ -26,6 +26,7 @@
 #include <components/vsgutil/readimage.hpp>
 
 #include "mwgui/windowmanagerimp.hpp"
+#include "probebaker.hpp"
 #include "mwinput/actions.hpp"
 #include "mwinput/inputmanagerimp.hpp"
 #include "mwrender/bin.hpp"
@@ -469,9 +470,16 @@ namespace OMW
         // Reference / A/B automation counters. Count only frames where the world is
         // in State_Running (skips loading screens etc.). Fire once for the screenshot.
         unsigned int runningFrame = 0;
+        // Task 0028: the light probe baker (--bake-gi), only when asked for.
+        std::unique_ptr<ProbeBaker> probeBaker;
+        if (!args.bakeGiCell.empty())
+        {
+            const std::filesystem::path out = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            probeBaker = std::make_unique<ProbeBaker>(args.bakeGiCell, out, *mRenderManager);
+        }
         bool autoScreenshotFired = false;
         bool autoQuitFired = false;
-        auto callback = [this, &args, &runningFrame, &autoScreenshotFired, &autoQuitFired](
+        auto callback = [this, &args, &probeBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired](
                             double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
@@ -485,6 +493,11 @@ namespace OMW
                 && state->updateLua)
             {
                 ++runningFrame;
+                if (probeBaker && probeBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
                 if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
                 {
                     Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
