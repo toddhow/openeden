@@ -2,8 +2,8 @@
 #define OPENEDEN_RENDER_VELOCITY_H
 
 #include <cmath>
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/View.h>
@@ -27,10 +27,10 @@ namespace Render
     /*
      * Screen motion of the opaque scene from camera motion (task 0026, F3b). A fullscreen pass reads the G-buffer's
      * linear depth, rebuilds each pixel's view-space position, moves it into the previous frame's clip space with one
-     * matrix and writes `currentUV - previousUV` (RG16F). Every pixel is treated as static scenery: exact for the world,
-     * and wrong for anything that moves on its own, except for skinned actors' bones: the scene pass writes their
-     * motion (the G-buffer's object motion output) and this pass adds it. The CPU twin of the
-     * shader is Render::GBuffer::reprojectVelocity.
+     * matrix and writes `currentUV - previousUV` (RG16F). Every pixel is treated as static scenery: exact for the
+     * world, and wrong for anything that moves on its own, except for skinned actors' bones: the scene pass writes
+     * their motion (the G-buffer's object motion output) and this pass adds it. The CPU twin of the shader is
+     * Render::GBuffer::reprojectVelocity.
      *
      * Not exact for the first-person weapon, which is drawn with another field of view than the one used here: while
      * the camera turns it shows as an odd patch in the debug view.
@@ -45,8 +45,8 @@ namespace Render
         static constexpr VkFormat format = VK_FORMAT_R16G16_SFLOAT;
 
         // The camera has jumped, and the previous frame's matrices are not used, when it moves further than this in one
-        // frame. A cell of the game world is 8192 units across; no walking, flying or levitation reaches that in a frame,
-        // so only a teleport or a cell change does.
+        // frame. A cell of the game world is 8192 units across; no walking, flying or levitation reaches that in a
+        // frame, so only a teleport or a cell change does.
         static constexpr double cameraJumpDistance = 4096.0;
 
         /// The matrix the shader takes a view-space position of this frame into the previous frame's clip space with:

@@ -140,7 +140,9 @@ namespace Anim
             if (keepPrevious && !mWrittenOnce)
                 array.at(mBones.size() + i) = array.at(i);
         }
-        mWrittenOnce = true;
+        // Only once the skin has bones (an unlinked skin writes nothing, and its first real write must set both halves).
+        if (!mBones.empty())
+            mWrittenOnce = true;
 
         if (!mDynamicBounds.empty())
             updateBounds();

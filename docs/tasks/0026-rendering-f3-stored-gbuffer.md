@@ -133,3 +133,5 @@ Out of scope: F4 and the material model; any consumer (ambient occlusion, reflec
 - `components-tests` 2488 pass.
 
 **Not covered, stated.** Objects that move as a whole (doors, thrown items, a creature's root motion, and the walk of any actor across the ground, which is a model-view change and not a bone change) have camera motion only. Creatures and NPCs that are not skinned (rigid parts) too. A unit test of `Skin::apply`'s second half was not written: a skin needs a whole animation context to run, and there is no test of one in the tree; the behaviour is checked by the viewed frame above.
+
+**Reviewer notes kept, not fixed:** an actor whose skin is not updated for some frames (culled, paused) shows one frame of exaggerated motion when it returns, because the previous half still holds the old pose; vertices that cross the near plane in either frame get zero motion and so can streak; the motion ignores morph targets and billboards (none occur on skinned Morrowind meshes). The Linux gate result is recorded below.

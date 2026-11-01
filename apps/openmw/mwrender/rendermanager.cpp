@@ -15,6 +15,7 @@
 #include <vsg/utils/ComputeBounds.h>
 #include <vsg/vk/Context.h>
 
+#include <components/animation/skin.hpp>
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
@@ -27,7 +28,6 @@
 #include <components/mwanimation/object.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/pipeline/builder.hpp>
-#include <components/animation/skin.hpp>
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/bloom.hpp>
@@ -552,8 +552,8 @@ namespace MWRender
         {
             mTonemap->setParameters(tonemapParameters(false));
             if (mVelocity
-                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(),
-                    mHdrTarget->objectMotionView(), mHdrTarget->extent(),
+                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->objectMotionView(),
+                    mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The velocity pass could not be built");
             if (mBloom
@@ -1633,16 +1633,14 @@ namespace MWRender
             mRenderGraph->framebuffer = mHdrTarget->framebuffer();
             mTonemapGraph->renderArea = { { 0, 0 }, extent };
             if (mVelocity
-                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(),
-                    mHdrTarget->objectMotionView(), extent,
-                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->objectMotionView(),
+                    extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The velocity pass could not be rebuilt after a resize";
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
-            if (!mTonemap->setSource(
-                    mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent,
+            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent,
                     debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr)))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }

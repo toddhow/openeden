@@ -1,8 +1,7 @@
 #include "velocity.hpp"
 
-#include <vsg/commands/Draw.h>
 #include <vsg/commands/Commands.h>
-#include <vsg/state/Sampler.h>
+#include <vsg/commands/Draw.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/ColorBlendState.h>
 #include <vsg/state/DepthStencilState.h>
@@ -12,6 +11,7 @@
 #include <vsg/state/MultisampleState.h>
 #include <vsg/state/PushConstants.h>
 #include <vsg/state/RasterizationState.h>
+#include <vsg/state/Sampler.h>
 #include <vsg/state/VertexInputState.h>
 #include <vsg/state/ViewDependentState.h>
 #include <vsg/state/ViewportState.h>
@@ -40,8 +40,8 @@ void main()
 
         // The CPU twin is Render::GBuffer::reprojectVelocity (gbuffermath.hpp): change both together. The linear depth
         // is the distance in front of the camera (view space looks down -Z); projScale holds the projection's x and y
-        // scales, which carry the sign of the target's y axis. A pixel with no opaque surface (depth 0), or one that was
-        // behind the previous camera, has no velocity.
+        // scales, which carry the sign of the target's y axis. A pixel with no opaque surface (depth 0), or one that
+        // was behind the previous camera, has no velocity.
         const char* const sFragmentShader = R"GLSL(#version 450
 layout(set=0, binding=0) uniform sampler2D linearDepth;
 layout(set=0, binding=1) uniform sampler2D objectMotion; // skinned actors' own motion, from the scene pass
@@ -145,10 +145,11 @@ void main()
         if (!mVertex || !mFragment || !linearDepth || !objectMotion)
             return false;
 
-        auto image = vsgUtil::createImage(
-            format, extent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        auto image
+            = vsgUtil::createImage(format, extent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         auto resultView = vsg::createImageView(context, image, VK_IMAGE_ASPECT_COLOR_BIT);
-        auto framebuffer = vsg::Framebuffer::create(mPass, vsg::ImageViews{ resultView }, extent.width, extent.height, 1);
+        auto framebuffer
+            = vsg::Framebuffer::create(mPass, vsg::ImageViews{ resultView }, extent.width, extent.height, 1);
         mLive.push_back(resultView);
         mLive.push_back(framebuffer);
 
@@ -168,9 +169,9 @@ void main()
         depthStencil->depthWriteEnable = VK_FALSE;
         auto raster = vsg::RasterizationState::create();
         raster->cullMode = VK_CULL_MODE_NONE;
-        auto blend = vsg::ColorBlendState::create(
-            vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO,
-                VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+        auto blend
+            = vsg::ColorBlendState::create(vsg::ColorBlendState::ColorBlendAttachments{ { VK_FALSE, VK_BLEND_FACTOR_ONE,
+                VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
                 VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
                     | VK_COLOR_COMPONENT_A_BIT } });
         const vsg::GraphicsPipelineStates states{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
@@ -178,20 +179,22 @@ void main()
             vsg::ViewportState::create(0, 0, extent.width, extent.height) };
         auto pipeline = vsg::BindGraphicsPipeline::create(
             vsg::GraphicsPipeline::create(layout, vsg::ShaderStages{ mVertex, mFragment }, states));
-        vsg::Descriptors descriptors{ vsg::DescriptorImage::create(
-            vsg::ImageInfo::create(sampler, linearDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0, imageType),
-        vsg::DescriptorImage::create(
-            vsg::ImageInfo::create(sampler, objectMotion, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 1, 0, imageType) };
+        vsg::Descriptors descriptors{ vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, linearDepth,
+                                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+                                          0, 0, imageType),
+            vsg::DescriptorImage::create(
+                vsg::ImageInfo::create(sampler, objectMotion, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 1, 0,
+                imageType) };
 
         auto commands = vsg::Commands::create();
-        commands->children = { vsgUtil::SetViewportState::create(
-                                   vsg::ViewportState::create(0, 0, extent.width, extent.height)),
-            pipeline,
-            vsg::BindDescriptorSet::create(
-                VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, vsg::DescriptorSet::create(setLayout, descriptors)),
-            vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mMatrix),
-            vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vsg::mat4), mScale),
-            vsg::Draw::create(3, 1, 0, 0) };
+        commands->children
+            = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, extent.width, extent.height)),
+                  pipeline,
+                  vsg::BindDescriptorSet::create(
+                      VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, vsg::DescriptorSet::create(setLayout, descriptors)),
+                  vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mMatrix),
+                  vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vsg::mat4), mScale),
+                  vsg::Draw::create(3, 1, 0, 0) };
 
         // As the bloom: compiled for the view that the pass's render pass was registered with.
         auto compileForView = mCompile->clone(~vsg::Mask(0));
