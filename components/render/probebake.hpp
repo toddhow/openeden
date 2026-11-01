@@ -53,8 +53,8 @@ namespace Render::Gi
         virtual ~RayWorld() = default;
         // True when something is hit between `from` and `to`; then `hitPos` and `hitNormal` (unit length, facing the
         // side the ray came from) are set.
-        virtual bool cast(const vsg::vec3& from, const vsg::vec3& to, vsg::vec3& hitPos, vsg::vec3& hitNormal) const
-            = 0;
+        virtual bool cast(
+            const vsg::vec3& from, const vsg::vec3& to, vsg::vec3& hitPos, vsg::vec3& hitNormal) const = 0;
     };
 
     // How far a ray looks for a surface, and the distance at which the ambient light counts as fully open (game units).

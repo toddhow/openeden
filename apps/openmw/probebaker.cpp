@@ -47,7 +47,8 @@ namespace OMW
             {
             }
 
-            bool cast(const vsg::vec3& from, const vsg::vec3& to, vsg::vec3& hitPos, vsg::vec3& hitNormal) const override
+            bool cast(
+                const vsg::vec3& from, const vsg::vec3& to, vsg::vec3& hitPos, vsg::vec3& hitNormal) const override
             {
                 const auto result = mPhysics.castRay(from, to, bakeMask);
                 if (!result.mHit)
@@ -137,12 +138,12 @@ namespace OMW
             const auto& v = baker->volume();
             std::ostringstream s;
             s << "rays " << settings.rays << " bounces " << settings.bounces << " seed " << settings.seed << " lights "
-              << lightCount << " size " << v.size[0] << " " << v.size[1] << " " << v.size[2] << " spacing "
-              << v.spacing << " origin " << v.origin.x << " " << v.origin.y << " " << v.origin.z << " ambient "
-              << settings.ambient.x << " " << settings.ambient.y << " " << settings.ambient.z
-              << " falloff " << settings.falloff.useConstant << settings.falloff.constantValue << settings.falloff.useLinear
-              << settings.falloff.linearMethod << settings.falloff.linearValue << settings.falloff.linearRadiusMult
-              << settings.falloff.useQuadratic << settings.falloff.quadraticMethod << settings.falloff.quadraticValue
+              << lightCount << " size " << v.size[0] << " " << v.size[1] << " " << v.size[2] << " spacing " << v.spacing
+              << " origin " << v.origin.x << " " << v.origin.y << " " << v.origin.z << " ambient " << settings.ambient.x
+              << " " << settings.ambient.y << " " << settings.ambient.z << " falloff " << settings.falloff.useConstant
+              << settings.falloff.constantValue << settings.falloff.useLinear << settings.falloff.linearMethod
+              << settings.falloff.linearValue << settings.falloff.linearRadiusMult << settings.falloff.useQuadratic
+              << settings.falloff.quadraticMethod << settings.falloff.quadraticValue
               << settings.falloff.quadraticRadiusMult << settings.falloff.classic << " lightdata " << lightText;
             return s.str();
         }
@@ -253,8 +254,8 @@ namespace OMW
             {
                 std::ostringstream lt;
                 for (const auto& l : lights)
-                    lt << l.position.x << ',' << l.position.y << ',' << l.position.z << ',' << l.color.x << ',' << l.color.y
-                       << ',' << l.color.z << ',' << l.radius << ';';
+                    lt << l.position.x << ',' << l.position.y << ',' << l.position.z << ',' << l.color.x << ','
+                       << l.color.y << ',' << l.color.z << ',' << l.radius << ';';
                 lightText = lt.str();
             }
 
@@ -267,7 +268,8 @@ namespace OMW
 
             vsg::vec3 low, high;
             physics->getWorldBounds(low, high);
-            const auto finite = [](const vsg::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
+            const auto finite
+                = [](const vsg::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
             if (!finite(low) || !finite(high) || low.x > high.x || low.y > high.y || low.z > high.z)
             {
                 Log(Debug::Error) << "[GI] the physics world of \"" << cellName << "\" is empty; nothing to bake";
@@ -275,15 +277,14 @@ namespace OMW
             }
             auto volume = Render::Gi::layoutVolume(low, high, rendering.mGiBakeSpacing, Render::Gi::maxVolumeProbes);
             world = std::make_unique<JoltRayWorld>(*physics);
-            baker = std::make_unique<Render::Gi::VolumeBaker>(
-                settings, *world, std::move(lights), std::move(volume));
+            baker = std::make_unique<Render::Gi::VolumeBaker>(settings, *world, std::move(lights), std::move(volume));
 
             const std::string key = Render::Gi::cellKey(cellId);
             outFile = outFolder / "openeden" / "probes" / (key + ".json");
             partialFile = outFolder / "openeden" / "probes" / (key + ".partial");
             progressFile = outFolder / "openeden" / "probes" / (key + ".progress");
-            Log(Debug::Info) << "[GI] baking \"" << cellId.name << "\": " << baker->total() << " probes, "
-                             << lightCount << " light(s), " << settings.rays << " rays, " << settings.bounces
+            Log(Debug::Info) << "[GI] baking \"" << cellId.name << "\": " << baker->total() << " probes, " << lightCount
+                             << " light(s), " << settings.rays << " rays, " << settings.bounces
                              << " bounce(s), spacing " << baker->volume().spacing;
             tryResume();
             started = lastSave = std::chrono::steady_clock::now();
@@ -333,10 +334,12 @@ namespace OMW
                 if (!begin())
                     return true;
             }
-            // The player left the cell (a door, a teleport): the world the rays hit is gone, so stop with nothing written.
+            // The player left the cell (a door, a teleport): the world the rays hit is gone, so stop with nothing
+            // written.
             if (MWBase::Environment::get().getWorld()->getPlayerPtr().getCell() != bakedCell)
             {
-                Log(Debug::Error) << "[GI] the player left \"" << cellId.name << "\" during the bake; nothing was written";
+                Log(Debug::Error) << "[GI] the player left \"" << cellId.name
+                                  << "\" during the bake; nothing was written";
                 return true;
             }
             const auto budget = std::chrono::milliseconds(Settings::rendering().mGiBakeBudget.get());

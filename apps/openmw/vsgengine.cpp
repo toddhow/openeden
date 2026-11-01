@@ -26,7 +26,6 @@
 #include <components/vsgutil/readimage.hpp>
 
 #include "mwgui/windowmanagerimp.hpp"
-#include "probebaker.hpp"
 #include "mwinput/actions.hpp"
 #include "mwinput/inputmanagerimp.hpp"
 #include "mwrender/bin.hpp"
@@ -34,6 +33,7 @@
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/statemanagerimp.hpp"
+#include "probebaker.hpp"
 
 #include <components/render/defaultsampler.hpp>
 
@@ -474,7 +474,8 @@ namespace OMW
         std::unique_ptr<ProbeBaker> probeBaker;
         if (!args.bakeGiCell.empty())
         {
-            const std::filesystem::path out = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             probeBaker = std::make_unique<ProbeBaker>(args.bakeGiCell, out, *mRenderManager);
         }
         bool autoScreenshotFired = false;

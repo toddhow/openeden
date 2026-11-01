@@ -77,7 +77,8 @@ namespace Render::Gi
         // The light arriving at `origin` from `dir`: the ambient light where the ray escapes, otherwise the ambient
         // light weighted by how far the surface is (a stand-in for how open the space is), plus the light the surface
         // reflects: its direct light and, while bounces remain, what reaches it from one random direction.
-        vsg::vec3 radiance(const Context& c, Pcg32& rng, const vsg::vec3& origin, const vsg::vec3& dir, std::uint32_t depth)
+        vsg::vec3 radiance(
+            const Context& c, Pcg32& rng, const vsg::vec3& origin, const vsg::vec3& dir, std::uint32_t depth)
         {
             const BakeSettings& s = c.settings;
             vsg::vec3 hitPos, hitNormal;
@@ -93,8 +94,8 @@ namespace Render::Gi
                 {
                     const float u1 = rng.nextFloat();
                     const float u2 = rng.nextFloat();
-                    incoming += radiance(c, rng, hitPos + hitNormal * surfaceOffset, cosineDirection(hitNormal, u1, u2),
-                        depth + 1);
+                    incoming += radiance(
+                        c, rng, hitPos + hitNormal * surfaceOffset, cosineDirection(hitNormal, u1, u2), depth + 1);
                 }
                 result += incoming * s.albedo;
             }
@@ -276,8 +277,8 @@ namespace Render::Gi
         const std::int64_t sx = volume.size[0];
         const std::int64_t sy = volume.size[1];
         const std::int64_t sz = volume.size[2];
-        static constexpr int steps[6][3] = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 },
-            { 0, 0, -1 } };
+        static constexpr int steps[6][3]
+            = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
         for (int pass = 0; pass < fillPasses; ++pass)
         {
             std::vector<bool> filled = invalid;
@@ -347,8 +348,8 @@ namespace Render::Gi
         if (volume.probes.size() != mVolume.probes.size() || invalid.size() != mInvalid.size()
             || next > mVolume.probes.size())
             return;
-        std::copy(volume.probes.begin(), volume.probes.begin() + static_cast<std::ptrdiff_t>(next),
-            mVolume.probes.begin());
+        std::copy(
+            volume.probes.begin(), volume.probes.begin() + static_cast<std::ptrdiff_t>(next), mVolume.probes.begin());
         mInvalid = invalid;
         mNext = next;
     }

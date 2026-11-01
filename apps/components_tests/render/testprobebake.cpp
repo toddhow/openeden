@@ -191,7 +191,8 @@ namespace
                 return false;
             hitPos = vsg::vec3(from.x + d.x * tEnter, from.y + d.y * tEnter, from.z + d.z * tEnter);
             const float sign = component(d, enterAxis) > 0.f ? -1.f : 1.f;
-            hitNormal = vsg::vec3(enterAxis == 0 ? sign : 0.f, enterAxis == 1 ? sign : 0.f, enterAxis == 2 ? sign : 0.f);
+            hitNormal
+                = vsg::vec3(enterAxis == 0 ? sign : 0.f, enterAxis == 1 ? sign : 0.f, enterAxis == 2 ? sign : 0.f);
             return true;
         }
 
@@ -217,9 +218,8 @@ namespace
             const bool hitB = mB.cast(from, to, posB, normalB);
             if (!hitA && !hitB)
                 return false;
-            const auto distance = [&](const vsg::vec3& p) {
-                return lengthOf(vsg::vec3(p.x - from.x, p.y - from.y, p.z - from.z));
-            };
+            const auto distance
+                = [&](const vsg::vec3& p) { return lengthOf(vsg::vec3(p.x - from.x, p.y - from.y, p.z - from.z)); };
             if (hitA && (!hitB || distance(posA) <= distance(posB)))
             {
                 hitPos = posA;
@@ -765,7 +765,8 @@ namespace
 
         for (std::size_t i = 0; i < shCoefficients; ++i)
         {
-            const vsg::vec3 expected = (uniformProbe(vsg::vec3(1, 0, 0)).c[i] + uniformProbe(vsg::vec3(0, 1, 0)).c[i]) * 0.5f;
+            const vsg::vec3 expected
+                = (uniformProbe(vsg::vec3(1, 0, 0)).c[i] + uniformProbe(vsg::vec3(0, 1, 0)).c[i]) * 0.5f;
             EXPECT_NEAR(v.probes[1].c[i].x, expected.x, 1e-5f);
             EXPECT_NEAR(v.probes[1].c[i].y, expected.y, 1e-5f);
             EXPECT_NEAR(v.probes[1].c[i].z, expected.z, 1e-5f);
