@@ -141,21 +141,14 @@ jobs:
     - name: Copy the Vulkan loader
       shell: bash
       run: |
-        # The unit tests link the Vulkan loader. The runner has no GPU, only the loader is needed.
-        found=""
-        for c in "$VULKAN_SDK/Bin/vulkan-1.dll" /c/VulkanSDK/*/Bin/vulkan-1.dll /c/Windows/System32/vulkan-1.dll; do
-          if [ -f "$c" ]; then found="$c"; break; fi
-        done
-        if [ -z "$found" ]; then
-          choco install vulkan-runtime -y --no-progress || true
-          if [ -f /c/Windows/System32/vulkan-1.dll ]; then found=/c/Windows/System32/vulkan-1.dll; fi
-        fi
-        if [ -z "$found" ]; then
-          echo "::error::no vulkan-1.dll found; VULKAN_SDK='$VULKAN_SDK'; /c/VulkanSDK: $(ls /c/VulkanSDK 2>&1 | tr '\n' ' ')"
-          exit 1
-        fi
-        echo "using $found"
-        cp "$found" build/
+        # The unit tests link the Vulkan loader, and the runner has neither the SDK nor a GPU: only the loader DLL is
+        # needed. It is LunarG's Vulkan Runtime (MIT and Apache 2.0), pinned by version and SHA-256 (docs/dependencies.md).
+        ver=1.4.363.0
+        sha=a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a
+        curl -sSL --fail -o vkrt.zip "https://sdk.lunarg.com/sdk/download/${ver}/windows/VulkanRT-X64-${ver}-Components.zip"
+        echo "${sha}  vkrt.zip" | sha256sum -c -
+        unzip -q -o vkrt.zip -d vkrt
+        cp "vkrt/VulkanRT-X64-${ver}-Components/x64/vulkan-1.dll" build/
 
     - name: Move pdb files
       run: |

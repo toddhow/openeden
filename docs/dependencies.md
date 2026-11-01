@@ -139,3 +139,10 @@ Slang's release archive does not contain `spirv-val` (its SPIRV-Tools is compile
   - **SHA-512:** `98375769d8181a1553d361afdcda1cef34fd59cced20c2c8dc7ef0de349ad917057b59b6a66572bd6126bc352ef784f31a08e937ad185f6bc8d6c9271ab29411`
   - **SHA-256:** `4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3`
   - **License:** Python Software Foundation License (permissive, GPL-compatible).
+
+## CI only: the Vulkan Runtime loader (Windows runner)
+
+- **What:** `vulkan-1.dll` from LunarG's Vulkan Runtime 1.4.363.0, copied beside the unit-test programs in `.github/workflows/windows.yml`. The GitHub Windows runner has neither the Vulkan SDK nor a GPU, and the test programs link the loader. It is never installed by the game, never redistributed and never committed.
+- **Source:** https://sdk.lunarg.com/sdk/download/1.4.363.0/windows/VulkanRT-X64-1.4.363.0-Components.zip, 18,211,191 bytes
+- **SHA-256:** `a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a`
+- **License:** MIT and Apache 2.0 components (the zip's `VulkanRT-License.txt`); the Apache-2.0 and GPL-3.0 compatibility question recorded for the Eden archive work applies here only to a CI tool, not to anything we ship.
