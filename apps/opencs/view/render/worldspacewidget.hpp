@@ -77,6 +77,8 @@ namespace CSVRender
         CSVWidget::SceneToolMode* mCameraMode;
         bool mLocked;
         int mDragMode;
+        /// Where the button that started the drag went down: a drag starts there, not where the first mouse move lands.
+        QPoint mDragPressPos;
         bool mDragging;
         int mDragX;
         int mDragY;

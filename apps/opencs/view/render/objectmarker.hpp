@@ -10,11 +10,16 @@
 #include <vsg/nodes/Switch.h>
 
 #include "object.hpp"
+#include "picking.hpp"
 #include "scenehost.hpp"
 
 namespace CSVRender
 {
     class WorldspaceWidget;
+
+    /// How far from the pointer, in pixels, an arrow or ring still counts as under it. Their shafts are about two pixels wide
+    /// at the preference's default scale, and a drag begins at the first mouse move, a pixel or more from the press.
+    inline constexpr double sPickRadiusPixels = 4.0;
 
     class ObjectMarkerTag : public ObjectTag
     {
@@ -89,6 +94,10 @@ namespace CSVRender
 
         /// Is a hit on the far half of the rotate rings, which the old clip plane hid?
         bool hitBehindMarker(const vsg::dvec3& hitPos) const;
+
+        /// The marker part at a point of the view, (0, 0) its top left and (1, 1) its bottom right, or near it: a shaft is a
+        /// pixel or two wide. Empty if there is none, the marker is hidden, or it is the far half of a rotate ring.
+        std::optional<Picking::Result> pick(double x, double y, double widthPixels, double heightPixels) const;
 
         void detachMarker();
 

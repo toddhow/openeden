@@ -44,6 +44,7 @@
 #include "view/render/camerapose.hpp"
 #include "view/render/editmode.hpp"
 #include "view/render/mask.hpp"
+#include "view/render/objectmarker.hpp"
 #include "view/render/object.hpp"
 #include "view/widget/scenetoolbar.hpp"
 #include "view/widget/scenetoolmode.hpp"
@@ -218,6 +219,8 @@ namespace
                                  << (hit.tag ? "of mask " + std::to_string(hit.tag->getMask()) + " " + hit.tag->getToolTip(true, hit).toStdString().substr(0, sMaxLoggedTag)
                                              : std::string("none"))
                                  << " triangle " << hit.index0 << " " << hit.index1 << " " << hit.index2;
+                if (const auto* marker = dynamic_cast<const CSVRender::ObjectMarkerTag*>(hit.tag.get()))
+                    Log(Debug::Info) << "  marker part " << marker->mNode << " axis " << marker->mAxis;
             }
             else if (verb == "editmode")
             {

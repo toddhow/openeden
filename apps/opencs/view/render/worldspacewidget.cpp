@@ -426,16 +426,17 @@ CSVRender::WorldspaceHitResult CSVRender::WorldspaceWidget::mousePick(
         return WorldspaceHitResult{ result.mHit, result.mTag, result.mIndex0, result.mIndex1, result.mIndex2, result.mWorldPos };
     };
 
-    // The selection marker comes first wherever it is on the ray, as it is drawn over everything.
+    // The selection marker comes first wherever it is on the ray, or a few pixels from it, as it is drawn over everything.
+    if (interactionMask & Mask_Reference)
+        if (const auto marker = mSelectionMarker->pick(x, y, width(), height()))
+            return toHit(*marker);
+
+    // What is left is the scene, with no marker: a far half of a ring, which the marker does not take, is not it either.
     const std::vector<Picking::Result> hits = host->pickAll(x, y, interactionMask);
     for (const Picking::Result& hit : hits)
-        if (dynamic_cast<ObjectMarkerTag*>(hit.mTag.get()))
-        {
-            if (mSelectionMarker->hitBehindMarker(hit.mWorldPos))
-                return toHit(host->missAt(x, y, placementDistance));
+        if (!dynamic_cast<ObjectMarkerTag*>(hit.mTag.get()))
             return toHit(hit);
-        }
-    return toHit(hits.empty() ? host->missAt(x, y, placementDistance) : hits.front());
+    return toHit(host->missAt(x, y, placementDistance));
 }
 
 CSVRender::EditMode* CSVRender::WorldspaceWidget::getEditMode()
@@ -598,12 +599,10 @@ void CSVRender::WorldspaceWidget::handleMarkerHighlight(const QPoint& pos)
     if (!host || !mSelectionMarker->isAttached() || width() <= 0 || height() <= 0)
         return;
 
-    for (const Picking::Result& hit : host->pickAll(
-             static_cast<double>(pos.x()) / width(), static_cast<double>(pos.y()) / height(), Mask_Reference))
+    if (const auto hit = mSelectionMarker->pick(
+            static_cast<double>(pos.x()) / width(), static_cast<double>(pos.y()) / height(), width(), height()))
     {
-        if (mSelectionMarker->hitBehindMarker(hit.mWorldPos))
-            continue;
-        if (const auto* marker = dynamic_cast<ObjectMarkerTag*>(hit.mTag.get()))
+        if (const auto* marker = dynamic_cast<ObjectMarkerTag*>(hit->mTag.get()))
         {
             mSelectionMarker->updateMarkerHighlight(marker->mNode, marker->mAxis);
             return;
@@ -639,13 +638,13 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
         EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
 
         if (mDragMode == InteractionType_PrimaryEdit)
-            mDragging = editMode.primaryEditStartDrag(event->position().toPoint());
+            mDragging = editMode.primaryEditStartDrag(mDragPressPos);
         else if (mDragMode == InteractionType_SecondaryEdit)
-            mDragging = editMode.secondaryEditStartDrag(event->position().toPoint());
+            mDragging = editMode.secondaryEditStartDrag(mDragPressPos);
         else if (mDragMode == InteractionType_PrimarySelect)
-            mDragging = editMode.primarySelectStartDrag(event->position().toPoint());
+            mDragging = editMode.primarySelectStartDrag(mDragPressPos);
         else if (mDragMode == InteractionType_SecondarySelect)
-            mDragging = editMode.secondarySelectStartDrag(event->position().toPoint());
+            mDragging = editMode.secondarySelectStartDrag(mDragPressPos);
 
         if (mDragging)
         {
@@ -782,7 +781,10 @@ void CSVRender::WorldspaceWidget::handleInteraction(InteractionType type, bool a
     if (activate)
     {
         if (!mDragging)
+        {
             mDragMode = type;
+            mDragPressPos = mapFromGlobal(QCursor::pos());
+        }
     }
     else
     {

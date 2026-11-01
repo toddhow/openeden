@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include <vsg/app/ProjectionMatrix.h>
@@ -24,6 +25,9 @@
 namespace CSVRender::Picking
 {
     inline constexpr const char* sTagKey = "editor tag";
+
+    /// pickNear's spacing of rays, in pixels: closer than a thin shaft's width, so that none slips between them.
+    inline constexpr double sNearStepPixels = 1.0;
 
     /// Marks a node, and so whatever a ray hits beneath it, as an element of the scene. The node shares the tag.
     inline void setTag(vsg::Object& node, vsg::ref_ptr<TagBase> tag)
@@ -237,6 +241,41 @@ namespace CSVRender::Picking
             return false;
         position = first->worldIntersection;
         return true;
+    }
+
+    /// What is on the ray through a pixel, or if it hits nothing the accept function wants, near it: the nearest of the rays
+    /// through pixels up to \p radiusPixels away that does. A thin thing, like a shaft of the object marker which is a pixel or
+    /// two wide, cannot otherwise be aimed at. \p accept takes a Result and says whether it is what is wanted.
+    /// \param x, y the point, as for viewRay.
+    template <class Accept>
+    inline std::optional<Result> pickNear(const vsg::Node& root, const vsg::dmat4& projection, const vsg::dmat4& view,
+        double x, double y, double widthPixels, double heightPixels, double radiusPixels, vsg::Mask mask, Accept accept)
+    {
+        // The pixels to try, nearest to the point first: the point itself, then a grid with sNearStepPixels between rays.
+        struct Offset
+        {
+            double mX, mY, mDistance;
+        };
+        std::vector<Offset> offsets;
+        const int steps = static_cast<int>(std::floor(radiusPixels / sNearStepPixels));
+        for (int j = -steps; j <= steps; ++j)
+            for (int i = -steps; i <= steps; ++i)
+            {
+                const double dx = i * sNearStepPixels;
+                const double dy = j * sNearStepPixels;
+                const double distance = std::sqrt(dx * dx + dy * dy);
+                if (distance <= radiusPixels)
+                    offsets.push_back({ dx, dy, distance });
+            }
+        std::stable_sort(offsets.begin(), offsets.end(),
+            [](const Offset& lhs, const Offset& rhs) { return lhs.mDistance < rhs.mDistance; });
+
+        for (const Offset& offset : offsets)
+            for (const Result& result :
+                pickAll(root, viewRay(projection, view, x + offset.mX / widthPixels, y + offset.mY / heightPixels), mask))
+                if (accept(result))
+                    return result;
+        return std::nullopt;
     }
 }
 

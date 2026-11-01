@@ -204,6 +204,17 @@ namespace CSVRender
         return Geometry::hitBehind(hitPos, markerPosition, forward);
     }
 
+    std::optional<Picking::Result> ObjectMarker::pick(
+        const double x, const double y, const double widthPixels, const double heightPixels) const
+    {
+        if (!mHost || !mRootNode || !isAttached() || mRootNode->children[0].mask == vsg::MASK_OFF)
+            return std::nullopt;
+        return Picking::pickNear(*mRootNode, mHost->getProjectionMatrix(), mHost->getViewMatrix(), x, y, widthPixels,
+            heightPixels, sPickRadiusPixels, vsg::Mask(Mask_Reference), [this](const Picking::Result& result) {
+                return dynamic_cast<ObjectMarkerTag*>(result.mTag.get()) != nullptr && !hitBehindMarker(result.mWorldPos);
+            });
+    }
+
     void ObjectMarker::setSubMode(const int subMode)
     {
         if (subMode == mSubMode)
