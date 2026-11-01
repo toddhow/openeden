@@ -77,6 +77,13 @@ namespace
     static_assert(Phase::Animation < Phase::PreRender);
     static_assert(Phase::PreRender < Phase::Ui);
 
+    // SDK 3.0 (task 0031, stage C): the runtime editor hooks are gone, so Host has no editor accessor and a host
+    // class needs to override only getHostInfo.
+    template <class T>
+    concept HasEditorAccessor = requires(T& host) { host.getEditorService(); };
+    static_assert(!HasEditorAccessor<Host>);
+    static_assert(!HasEditorAccessor<MockHost>);
+
     TEST(EmptyHostTest, HostImplHasEveryServiceExceptPhysicsUntilAWorldIsAttached)
     {
         openeden::extension::HostImpl host("TestOpenEdenHost");
@@ -92,7 +99,6 @@ namespace
         EXPECT_NE(host.getProfilerService(), nullptr);
         EXPECT_NE(host.getScratchMemoryService(), nullptr);
         EXPECT_NE(host.getDebugDrawService(), nullptr);
-        EXPECT_NE(host.getEditorService(), nullptr);
 
         // The host never creates a world itself (decision 0003)
         EXPECT_EQ(host.getPhysicsQueryService(), nullptr);

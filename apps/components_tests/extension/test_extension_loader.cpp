@@ -88,7 +88,7 @@ namespace
                                     "  \"name\": \"" + id + "\",\n"
                                     "  \"extensionVersion\": \"1.0.0\",\n"
                                     "  \"kind\": \"feature\",\n"
-                                    "  \"sdk\": {\"major\": 2, \"minor\": 0},\n"
+                                    "  \"sdk\": {\"major\": 3, \"minor\": 0},\n"
                                     "  \"toolchain\": \"" + getHostToolchain() + "\"\n"
                                     "}";
 
@@ -256,7 +256,7 @@ TEST(ExtensionLoaderTest, LoadExtensionLibrary_SdkVersionMismatch_RejectedBefore
 
     DiscoveredExtension discovered;
     discovered.manifest.id = "old_extension";
-    discovered.manifest.sdkVersion = Version{ 1, 0 }; // Built before SDK 2.0 removed API
+    discovered.manifest.sdkVersion = Version{ 1, 0 }; // Built before SDK 2.0 removed API (and long before 3.0)
     discovered.manifest.toolchain = getHostToolchain();
 
     const ExtensionLoadResult result = loadExtensionLibrary(discovered, host.getHostInfo());
@@ -264,7 +264,7 @@ TEST(ExtensionLoaderTest, LoadExtensionLibrary_SdkVersionMismatch_RejectedBefore
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.error.extensionId, "old_extension");
     EXPECT_EQ(result.error.stage, "sdk");
-    EXPECT_NE(result.error.message.find("built for SDK 1.0; this host provides 2.0"), std::string::npos)
+    EXPECT_NE(result.error.message.find("built for SDK 1.0; this host provides 3.0"), std::string::npos)
         << result.error.message;
 }
 
@@ -281,8 +281,30 @@ TEST(ExtensionLoaderTest, LoadExtensionLibrary_Sdk1xMessageNamesTheRealMinor)
 
     EXPECT_FALSE(result.success);
     EXPECT_EQ(result.error.stage, "sdk");
-    EXPECT_NE(result.error.message.find("built for SDK 1.7; this host provides 2.0"), std::string::npos)
+    EXPECT_NE(result.error.message.find("built for SDK 1.7; this host provides 3.0"), std::string::npos)
         << result.error.message;
+}
+
+// Task 0031 stage C: SDK 3.0 removed the Host editor accessor, so a library built for 2.x must not be loaded.
+TEST(ExtensionLoaderTest, LoadExtensionLibrary_Sdk2x_RejectedBeforeLibraryLoadWithAClearReason)
+{
+    MockHost host;
+
+    for (const std::uint16_t minor : { 0, 7 })
+    {
+        DiscoveredExtension discovered;
+        discovered.manifest.id = "sdk2_extension";
+        discovered.manifest.sdkVersion = Version{ 2, minor };
+        discovered.manifest.toolchain = getHostToolchain();
+
+        const ExtensionLoadResult result = loadExtensionLibrary(discovered, host.getHostInfo());
+
+        EXPECT_FALSE(result.success);
+        EXPECT_EQ(result.error.extensionId, "sdk2_extension");
+        EXPECT_EQ(result.error.stage, "sdk");
+        const std::string expected = "built for SDK 2." + std::to_string(minor) + "; this host provides 3.0";
+        EXPECT_NE(result.error.message.find(expected), std::string::npos) << result.error.message;
+    }
 }
 
 TEST(ExtensionLoaderTest, LoadExtensionLibrary_NewerSdkMajor_RejectedBeforeLibraryLoad)
@@ -291,7 +313,7 @@ TEST(ExtensionLoaderTest, LoadExtensionLibrary_NewerSdkMajor_RejectedBeforeLibra
 
     DiscoveredExtension discovered;
     discovered.manifest.id = "future_extension";
-    discovered.manifest.sdkVersion = Version{ 3, 0 };
+    discovered.manifest.sdkVersion = Version{ 4, 0 };
     discovered.manifest.toolchain = getHostToolchain();
 
     const ExtensionLoadResult result = loadExtensionLibrary(discovered, host.getHostInfo());
@@ -385,7 +407,7 @@ TEST(ExtensionLoaderTest, HandshakeValidation_SdkVersionMismatch_Rejected)
     manifest.id = "extensionA";
     manifest.sdkVersion = Version{ 1, 0 };
 
-    const ExtensionDescriptor descriptor{ Version{ 2, 2 }, // Mismatch with manifest's 2.0
+    const ExtensionDescriptor descriptor{ Version{ 2, 2 }, // Mismatch with manifest's current SDK
         "extensionA", &createSampleExtension };
 
     ExtensionLoadError error;
@@ -441,7 +463,7 @@ TEST(ExtensionLoaderTest, HandshakeValidation_LibraryBuiltForSdk1_Rejected)
 {
     MockHost host;
 
-    // The manifest claims 2.0, but the library itself says it was built for 1.0
+    // The manifest claims the current SDK, but the library itself says it was built for 1.0
     ExtensionManifest manifest;
     manifest.id = "extensionA";
     manifest.sdkVersion = kSdkVersion;
@@ -533,7 +555,7 @@ namespace
     struct InstalledManifest
     {
         std::string mId;
-        int mSdkMajor = 2;
+        int mSdkMajor = 3;
         std::string mName = "A name";
         std::string mLicence = "GPL-3.0-or-later";
     };
@@ -602,7 +624,7 @@ TEST(ListInstalledExtensionsTest, ErrorOfAnIncompleteManifestNamesTheMissingFiel
     // Valid JSON without "kind", which the manifest parser requires (components/extension/manifest_io.cpp).
     writeText(tempDir.path() / "no_kind" / "extension.json",
         "{ \"format\": \"openeden.extension\", \"version\": 1, \"id\": \"inner_id\", \"name\": \"n\", "
-        "\"extensionVersion\": \"1.0.0\", \"sdk\": { \"major\": 2, \"minor\": 0 }, \"toolchain\": \"\" }");
+        "\"extensionVersion\": \"1.0.0\", \"sdk\": { \"major\": 3, \"minor\": 0 }, \"toolchain\": \"\" }");
 
     const std::vector<InstalledExtension> installed = listInstalledExtensions({ tempDir.path() });
 
@@ -627,12 +649,42 @@ TEST(ListInstalledExtensionsTest, Sdk1ManifestIsListedWithItsDetailsAndAnError)
     EXPECT_NE(installed[0].error.find("1.0"), std::string::npos) << installed[0].error;
 }
 
+TEST(ListInstalledExtensionsTest, Sdk2ManifestIsListedWithItsDetailsAndAnErrorNamingBothVersions)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "sdk2_extension";
+    options.mSdkMajor = 2;
+    writeInstalledManifest(tempDir.path() / "sdk2_extension", options);
+
+    const std::vector<InstalledExtension> installed = listInstalledExtensions({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_EQ(installed[0].manifest.id, "sdk2_extension");
+    EXPECT_NE(installed[0].error.find("Built for SDK 2.0; this build provides 3.0"), std::string::npos)
+        << installed[0].error;
+}
+
+TEST(ListInstalledExtensionsTest, CurrentSdkManifestIsListedWithoutAnError)
+{
+    TempDirectoryGuard tempDir;
+    InstalledManifest options;
+    options.mId = "current_extension";
+    options.mSdkMajor = 3;
+    writeInstalledManifest(tempDir.path() / "current_extension", options);
+
+    const std::vector<InstalledExtension> installed = listInstalledExtensions({ tempDir.path() });
+
+    ASSERT_EQ(installed.size(), 1u);
+    EXPECT_TRUE(installed[0].error.empty()) << installed[0].error;
+}
+
 TEST(ListInstalledExtensionsTest, NewerSdkMajorIsListedWithAnError)
 {
     TempDirectoryGuard tempDir;
     InstalledManifest options;
     options.mId = "future_extension";
-    options.mSdkMajor = 3;
+    options.mSdkMajor = 4;
     writeInstalledManifest(tempDir.path() / "future_extension", options);
 
     const std::vector<InstalledExtension> installed = listInstalledExtensions({ tempDir.path() });

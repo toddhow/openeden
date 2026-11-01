@@ -631,7 +631,6 @@ add_component_dir(extension
     profiler_service
     scratch_memory
     debug_draw_service
-    editor_service
     physics_service
 )
 

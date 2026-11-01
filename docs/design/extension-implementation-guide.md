@@ -1,6 +1,6 @@
 # OpenEden Extension Implementation Guide
 
-This guide documents everything required to implement, build, test, and integrate a native C++20 extension into OpenEden against **SDK 2.0**. Its lessons come from the first extension work; CreativeMotion has since moved into the engine (decision 0001), and the Morrowind compatibility pack ([`extensions/compat_morrowind/`](../../extensions/compat_morrowind/)) is the first real client. **Start from the sample extension, [`extensions/example/`](../../extensions/example/),** which uses every service in the running game.
+This guide documents everything required to implement, build, test, and integrate a native C++20 extension into OpenEden against **SDK 3.0**. Its lessons come from the first extension work; CreativeMotion has since moved into the engine (decision 0001), and the Morrowind compatibility pack ([`extensions/compat_morrowind/`](../../extensions/compat_morrowind/)) is the first real client. **Start from the sample extension, [`extensions/example/`](../../extensions/example/),** which uses every service in the running game.
 
 Use this guide when implementing upcoming extensions, such as **Reflectron** and further compatibility packs. A system that must change physics or extend Lua is not an extension: it goes into the core (decision 0003), as AdvancedBodies and ComplexClothing are planned to.
 
@@ -71,7 +71,7 @@ Create `extensions/<extension_id>/extension.json` following the canonical key or
 4. `"name"`
 5. `"extensionVersion"`
 6. `"kind"` (`"feature"` or `"compatibility"`)
-7. `"sdk"` (`{"major": 2, "minor": 0}`; a manifest for another major is refused)
+7. `"sdk"` (`{"major": 3, "minor": 0}`; a manifest for another major is refused)
 8. `"toolchain"` (optional toolchain string)
 9. `"library"` (`{"windows": "<extension_id>.dll", "linux": "lib<extension_id>.so"}`)
 10. `"provides"` (array of `{"contract": "...", "version": [1, 1]}`)
@@ -124,7 +124,7 @@ In `extensions/<extension_id>/<extension_id>_extension.cpp`:
    - Keep the services you use: `host.getPhysicsQueryService()`, `host.getEventBus()`, etc. The host attaches its world before extensions start and detaches it after they stop, so a kept pointer stays valid until `stop()` returns.
    - Mark events for Lua via `host.getEventBus()->markForwardedToLua<MyEvent>(...)` if mods should react to them.
    - Register VFS format readers via `host.getVfsService()->registerFormatReader(".ext.json", reader)`.
-   - Register editor inspection panels via `host.getEditorService()->registerInspector("<extension_id>", inspector)` if `host.getEditorService()->isEditorActive()`.
+   - There is no editor hook in the runtime API (removed in SDK 3.0). Tools for Eden Studio are a separate editor module that the extension's manifest names in its optional `editor` entry (`sdk/include/openeden/editor_module/`, `docs/design/eden-studio-plan.md` section 4).
 4. **`stop()`**:
    - Unregister all VFS format readers (`vfs->registerFormatReader(ext, nullptr)`) so no `std::shared_ptr` or `std::function` with a vtable/deleter inside the extension DLL outlives `DynamicLibrary` unload.
    - Release all host pointers and reset state cleanly.

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <components/extension/debug_draw_service.hpp>
-#include <components/extension/editor_service.hpp>
 #include <components/extension/entity_manager.hpp>
 #include <components/extension/event_bus.hpp>
 #include <components/extension/logging_service.hpp>
@@ -22,7 +21,7 @@ namespace openeden::extension
     class HostImpl : public openeden::sdk::Host
     {
     public:
-        explicit HostImpl(std::string hostName = "OpenEden", bool editorActive = false);
+        explicit HostImpl(std::string hostName = "OpenEden");
         ~HostImpl() override = default;
 
         // Non-copyable
@@ -44,7 +43,6 @@ namespace openeden::extension
         [[nodiscard]] openeden::sdk::ProfilerService* getProfilerService() override;
         [[nodiscard]] openeden::sdk::ScratchMemoryService* getScratchMemoryService() override;
         [[nodiscard]] openeden::sdk::DebugDrawService* getDebugDrawService() override;
-        [[nodiscard]] openeden::sdk::EditorService* getEditorService() override;
 
         /**
          * @brief Gives extensions read-only queries on a Jolt world the host owns.
@@ -99,9 +97,6 @@ namespace openeden::extension
         [[nodiscard]] DebugDrawServiceImpl& debugDrawService() noexcept { return mDebugDrawService; }
         [[nodiscard]] const DebugDrawServiceImpl& debugDrawService() const noexcept { return mDebugDrawService; }
 
-        [[nodiscard]] EditorServiceImpl& editorService() noexcept { return mEditorService; }
-        [[nodiscard]] const EditorServiceImpl& editorService() const noexcept { return mEditorService; }
-
     private:
         openeden::sdk::HostInfo mHostInfo;
         EventBusImpl mEventBus;
@@ -113,6 +108,5 @@ namespace openeden::extension
         ProfilerServiceImpl mProfilerService;
         ScratchMemoryServiceImpl mScratchMemoryService;
         DebugDrawServiceImpl mDebugDrawService;
-        EditorServiceImpl mEditorService;
     };
 } // namespace openeden::extension

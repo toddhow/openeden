@@ -127,7 +127,6 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_profiler_service.cpp
     extension/test_scratch_memory.cpp
     extension/test_debug_draw.cpp
-    extension/test_editor_service.cpp
     extension/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp
 

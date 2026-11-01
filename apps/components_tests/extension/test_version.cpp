@@ -118,11 +118,13 @@ namespace
         EXPECT_TRUE(isCompatible(sdkVer, sdkVer));
     }
 
-    TEST(VersionTest, SdkVersionIsTwoPointZero)
+    TEST(VersionTest, SdkVersionIsThreePointZero)
     {
-        // Decision 0003 removed API, a major version change (extension doc 4.2)
-        static_assert(openeden::sdk::kSdkVersion == Version{ 2, 0 });
-        EXPECT_EQ(openeden::sdk::kSdkVersion, (Version{ 2, 0 }));
+        // Decision 0003 removed API (2.0); task 0031 stage C removed the runtime editor hooks (3.0). Both are major
+        // version changes (extension doc 4.2), so every older major is refused.
+        static_assert(openeden::sdk::kSdkVersion == Version{ 3, 0 });
+        EXPECT_EQ(openeden::sdk::kSdkVersion, (Version{ 3, 0 }));
         EXPECT_FALSE(isCompatible(Version{ 1, 0 }, openeden::sdk::kSdkVersion));
+        EXPECT_FALSE(isCompatible(Version{ 2, 0 }, openeden::sdk::kSdkVersion));
     }
 }

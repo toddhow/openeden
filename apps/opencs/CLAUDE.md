@@ -76,7 +76,7 @@ The editor (Eden Studio, formerly OpenMW-CS), ported from OpenSceneGraph to Vulk
 - **`CSVModule::ModuleUi`** (`view/module/`) is the `EditorContext`: the active asset, module commands on the active document's undo stack (a step of a replaced asset does nothing), forms built from property descriptions (`makePropertyForm`, `makeScrollingForm`), overlay lines (the one place where meters become Morrowind units: `LineSink::convert`), timeline keys. Panels and workspace tabs are in `StudioShell::addModuleUi`, sections in `ContextInspector::rebuildModuleSections`, the Module assets group in `AssetBrowser`, menu items in `View::setupExtensionsMenu`, the overlay in `WorldspaceWidget::updateModuleOverlay` (origin chosen once per asset: the point under the middle of the view).
 - **Library outputs have no build postfix** (`DEBUG_POSTFIX ""` and the others), or the core list does not find them.
 - Checks: `OPENEDEN_CS_MODULECHECK=<prefix>` (the sample module), `OPENEDEN_CS_RIGCHECK=<prefix>;<rig>;<profile>` (CreativeMotion's), with `OPENEDEN_CS_ASSETDIR=<folder>` naming where the Asset Browser looks. Paths in these variables are `C:/...` style.
-- Not yet: labels, picking and dragging overlay handles, bone selection, modules in the Extension Manager, settings pages, background tasks, the editor event bus; removing the old `EditorService` hooks (task 0031 stage C, needs toddhow).
+- Not yet: labels, picking and dragging overlay handles, bone selection, modules in the Extension Manager, settings pages, background tasks, the editor event bus; the old `EditorService` hooks are gone (task 0031 stage C, SDK 3.0): the editor host (`EditorExtensionHost`) never used them.
 
 ## The mesh viewer (task 0043)
 

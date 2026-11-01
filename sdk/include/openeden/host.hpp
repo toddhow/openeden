@@ -15,7 +15,6 @@ namespace openeden::sdk
     class ProfilerService;
     class ScratchMemoryService;
     class DebugDrawService;
-    class EditorService;
 
     /**
      * @brief Host metadata provided to extensions.
@@ -49,6 +48,5 @@ namespace openeden::sdk
         [[nodiscard]] virtual ProfilerService* getProfilerService() { return nullptr; }
         [[nodiscard]] virtual ScratchMemoryService* getScratchMemoryService() { return nullptr; }
         [[nodiscard]] virtual DebugDrawService* getDebugDrawService() { return nullptr; }
-        [[nodiscard]] virtual EditorService* getEditorService() { return nullptr; }
     };
 } // namespace openeden::sdk

@@ -15,7 +15,7 @@ namespace
     {
         return std::string("{\n  \"format\": \"openeden.extension\",\n  \"version\": 1,\n  \"id\": \"") + id
             + "\",\n  \"name\": \"Test\",\n  \"extensionVersion\": \"1.0.0\",\n  \"kind\": \"feature\",\n"
-              "  \"sdk\": { \"major\": 2, \"minor\": 0 },\n  \"toolchain\": \"\",\n"
+              "  \"sdk\": { \"major\": 3, \"minor\": 0 },\n  \"toolchain\": \"\",\n"
               "  \"library\": { \"windows\": \"a.dll\", \"linux\": \"liba.so\" },\n"
               "  \"provides\": [], \"requires\": [], \"optional\": [], \"loadAfter\": [], \"data\": \"data\",\n"
               "  \"settings\": [],\n  \"editor\": { \"library\": \""

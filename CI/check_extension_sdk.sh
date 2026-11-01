@@ -31,3 +31,15 @@ if [ -n "$other" ]; then
     echo 'An SDK header mentions Lua other than to forward events: extensions have no Lua API (decision 0003)'
     exit 1
 fi
+
+# Task 0031 stage C (SDK 3.0, decision 0007): the runtime-side editor hooks are gone. Eden Studio's tools come from
+# editor modules (sdk/include/openeden/editor_module/), which the game never loads.
+status=0
+git grep -nE '\b(EditorService|EditorWorkspace|EditorInspector|EditorGizmo|getEditorService)\b' -- 'sdk/include/openeden/' || status=$?
+if [ "$status" -eq 0 ]; then
+    echo 'An SDK header declares the removed runtime editor hooks: use an editor module instead (docs/decisions/0007-eden-studio-editor-design.md)'
+    exit 1
+elif [ "$status" -ne 1 ]; then
+    echo "git grep failed with status $status"
+    exit "$status"
+fi

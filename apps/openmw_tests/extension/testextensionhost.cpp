@@ -71,7 +71,7 @@ namespace
     {
         std::string mId;
         std::string mLibraryFile;
-        int mSdkMajor = 2;
+        int mSdkMajor = 3;
         bool mProvidesA = false;
         bool mRequiresA = false;
     };
@@ -586,6 +586,26 @@ namespace
 
         expectOnlyCRuns(host);
         EXPECT_THAT(engineLog(), HasSubstr(kA));
+        EXPECT_EQ(count(kA, "register"), 0);
+    }
+
+    TEST_F(ExtensionHostTest, sdk2ManifestIsRefusedAndDisablesOnlyThatExtensionAndItsDependant)
+    {
+        const fs::path directoryA = install(kA);
+        install(kB);
+        install(kC);
+        ManifestOptions options;
+        options.mId = kA;
+        options.mLibraryFile = builtLibrary(kA).filename().string();
+        options.mSdkMajor = 2; // SDK 3.0 removed the editor hooks from Host (task 0031, stage C)
+        options.mProvidesA = true;
+        writeTextFile(directoryA / "extension.json", makeManifest(options));
+
+        OMW::ExtensionHost host(config({ kA, kB, kC }));
+        host.start();
+
+        expectOnlyCRuns(host);
+        EXPECT_THAT(engineLog(), HasSubstr("built for SDK 2.0; this host provides 3.0"));
         EXPECT_EQ(count(kA, "register"), 0);
     }
 

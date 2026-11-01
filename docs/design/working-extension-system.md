@@ -26,7 +26,7 @@ None of it runs in the game:
 | `EventBus` | Works in isolation | Engine events (including physics events) published; deferred queues flushed at the engine's phases; marked events forwarded to Lua |
 | `DebugDrawService` | Snapshots nothing reads | Drawn by the renderer |
 | `ProfilerService` | Own timings | Shown with the engine's profiler overlay |
-| `EditorService` | Inert | Used by the editor (Eden Studio), not the game |
+| `EditorService` | Inert | Removed in SDK 3.0 (task 0031 stage C): Eden Studio loads separate editor modules instead |
 
 The guide's P3 to P5 wording has been corrected to say this work runs in the test host.
 

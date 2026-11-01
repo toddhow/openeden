@@ -199,7 +199,7 @@ namespace
         const ExtensionManifest oldMinorExtension = makeManifest("oldMinorExtension", {}, {}, {}, {}, Version{ 1, 7 });
         const ExtensionManifest currentExtension = makeManifest("currentExtension");
 
-        // No host version given: the default is the SDK's own, 2.0
+        // No host version given: the default is the SDK's own, 3.0
         const ResolutionResult result = resolveDependencies({ oldExtension, oldMinorExtension, currentExtension });
 
         EXPECT_FALSE(result.success);
@@ -217,9 +217,37 @@ namespace
             }
             return {};
         };
-        EXPECT_NE(messageFor("oldExtension").find("built for SDK 1.0; this host provides 2.0"), std::string::npos)
+        EXPECT_NE(messageFor("oldExtension").find("built for SDK 1.0; this host provides 3.0"), std::string::npos)
             << messageFor("oldExtension");
-        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 1.7; this host provides 2.0"), std::string::npos)
+        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 1.7; this host provides 3.0"), std::string::npos)
+            << messageFor("oldMinorExtension");
+    }
+
+    // Task 0031 stage C: SDK 3.0 removed the editor hooks from Host, so a manifest built for 2.x is refused.
+    TEST(DependencyResolverTest, Sdk2xManifestRefusedWithDefaultHostVersion)
+    {
+        const ExtensionManifest oldExtension = makeManifest("oldExtension", {}, {}, {}, {}, Version{ 2, 0 });
+        const ExtensionManifest oldMinorExtension = makeManifest("oldMinorExtension", {}, {}, {}, {}, Version{ 2, 7 });
+        const ExtensionManifest currentExtension = makeManifest("currentExtension");
+
+        const ResolutionResult result = resolveDependencies({ oldExtension, oldMinorExtension, currentExtension });
+
+        EXPECT_FALSE(result.success);
+        EXPECT_TRUE(contains(result.disabledExtensions, "oldExtension"));
+        EXPECT_TRUE(contains(result.disabledExtensions, "oldMinorExtension"));
+        EXPECT_TRUE(contains(result.loadOrder, "currentExtension"));
+
+        const auto messageFor = [&result](const std::string& extensionId) -> std::string {
+            for (const auto& err : result.errors)
+            {
+                if (err.extensionId == extensionId)
+                    return err.message;
+            }
+            return {};
+        };
+        EXPECT_NE(messageFor("oldExtension").find("built for SDK 2.0; this host provides 3.0"), std::string::npos)
+            << messageFor("oldExtension");
+        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 2.7; this host provides 3.0"), std::string::npos)
             << messageFor("oldMinorExtension");
     }
 

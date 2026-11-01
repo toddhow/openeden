@@ -41,14 +41,15 @@ This component implements the engine groundwork for OpenEden's runtime and stati
     - In the game (task 0016), `SettingsServiceImpl::useEngineSettings`, `VfsServiceImpl::setEngineVfs` and `EventBusImpl::setForwardSink` connect services to the engine; a test host calling none of them keeps the models.
     - `VfsService`: Overlaid data mount hierarchies pre-sorted by load order, supporting multi-dot asset format extension readers and located error reporting.
     - `HostImpl`: Concrete engine host wiring core services and deferred event flushing at phase boundaries (`runPhase`).
-11. **Diagnostics, Memory & Editor Services (Phase 4):**
+11. **Diagnostics & Memory Services (Phase 4):**
     - `LoggingService`: Per-extension logger caching prefixing messages with `[extensionId]`. Atomic log levels (`mLevel`, `mGlobalLogLevel`) protect against multi-threaded data races. Log sink exceptions are caught and contained at the boundary.
     - `ProfilerService`: Named scope timing using RAII `ProfileScope` (`std::string_view` keys). Pre-allocated active scope pool (512 entries) with thread ID identification isolates parallel worker threads. Pre-reserved scope statistics (1024 entries) achieve strictly zero dynamic heap allocations on the hot path. Aggregated metrics reset per frame at `Phase::Ui`.
     - `ScratchMemoryService`: Pre-allocated frame-scoped linear bump allocator. Validates non-zero power-of-two alignments and safely prevents integer overflow during bounds checks. Memory reuses cleanly across frames via `LifecycleManager::runPhase(Phase::Ui)`.
     - `DebugDrawService`: Decoupled primitive queues (points, lines, boxes, spheres, text) pre-reserved with 4096 capacity and protected by `MaxPrimitivesPerCategory = 32768`. Thread-safe submission across worker threads. Transient primitives clear at frame boundaries; persistent primitives decay cleanly. Snapshot extraction provides render data without renderer coupling.
-    - `EditorService`: Decoupled Eden Studio hooks (workspaces, inspectors, gizmos). Off-by-default and inert in game and headless host modes (`editorActive = false`), no-oping without heap allocations or side effects.
-12. **SDK 2.0 (decision 0003, task 0019):**
+    - The runtime-side `EditorService` hooks were removed in SDK 3.0 (task 0031 stage C, decision 0007): Eden Studio's tools come from editor modules (`sdk/include/openeden/editor_module/`), which the game never loads. `Host` has no editor accessor.
+12. **SDK 2.0 (decision 0003, task 0019) and SDK 3.0 (task 0031 stage C):**
     - Extensions read physics and never change it, run only in the per-frame phases, and have no Lua API. A system that must step or change physics or extend Lua goes into the core.
     - The loader and resolver refuse a manifest from another SDK major, saying which SDK it was built for and which the host provides.
-    - `CI/check_extension_sdk.sh` fails if an SDK header declares a removed operation again.
+    - SDK 3.0 removed `Host::getEditorService` and the `EditorService` hooks (a change to `Host`'s layout, so a major bump). A manifest or library built for 2.x is refused like a 1.x one: `Built for SDK 2.0; this host provides 3.0`, naming the extension, at stage `sdk`.
+    - `CI/check_extension_sdk.sh` fails if an SDK header declares a removed operation, or one of the removed editor hooks, again.
 13. **The manifest's optional `editor` entry (task 0031):** `{ "library": "<file name>", "editorApi": { "major", "minor" } }` names an editor module library that only Eden Studio loads. The parser checks it with located errors (the library must be a plain file name), the canonical writer writes it last and only when present, and the loader and resolver ignore it: the game never loads editor code.

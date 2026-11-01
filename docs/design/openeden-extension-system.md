@@ -13,7 +13,7 @@ This document describes the mechanism only: what an extension is, what the core 
 
 > **Decision 0001 (toddhow, 2026-10-28):** CreativeMotion is compiled into the engine, not loaded as an extension, because it needs engine internals every frame and animation is groundwork every host needs. The exception covers CreativeMotion only; every other feature system stays an extension as described here. See `docs/decisions/0001-creativemotion-compiled-into-the-engine.md`. Mentions of CreativeMotion below describe its earlier plan as an extension, kept because the patterns they cite (its physics interface, event queue, debug overlay) still apply.
 
-> **Decision 0003 (toddhow, 2026-10-28):** extensions read physics but never change it, have no fixed-step phases, and have no Lua API; they may publish events the core forwards to Lua. Systems that must change physics or extend Lua go into the core: CreativeMotion, AdvancedBodies and ComplexClothing are planned as core systems; Reflectron stays an extension. The SDK becomes 2.0. See `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`. Sections 4.3, 4.4 and 4.10 below are marked where the decision changes them.
+> **Decision 0003 (toddhow, 2026-10-28):** extensions read physics but never change it, have no fixed-step phases, and have no Lua API; they may publish events the core forwards to Lua. Systems that must change physics or extend Lua go into the core: CreativeMotion, AdvancedBodies and ComplexClothing are planned as core systems; Reflectron stays an extension. The SDK becomes 2.0 (and 3.0 when the runtime editor hooks were removed, task 0031 stage C). See `docs/decisions/0003-plugins-do-not-change-physics-or-lua.md`. Sections 4.3, 4.4 and 4.10 below are marked where the decision changes them.
 
 ---
 
@@ -206,12 +206,12 @@ The core owns the loop and calls extensions at named phases, in a fixed order:
 
 > **Decision 0005:** extensions do not affect save data; they are like script extender plugins. An extension cannot write to or read from a saved game. A feature that must live in a save belongs in the core. Extensions hear when a game is loaded or saved through events.
 
-### 4.10 Scripting, Diagnostics and Editor Hooks
+### 4.10 Scripting, Diagnostics and Editor Hooks (hooks removed in SDK 3.0)
 - ~~**Lua:** an extension registers Lua tables under its own name (`openeden.<id>`), so mods script it through the existing OpenMW Lua host.~~ Replaced by decision 0003: extensions have no Lua API; event types an extension marks are forwarded by the core to Lua scripts as events. Lua APIs for features come only from the core.
 - **Logging and profiling:** a per-extension logger and named profiling scopes, shown per extension.
 - **Memory:** extensions may ask the core for frame-scoped scratch memory; the per-step rule stays: no heap allocation in fixed-step or per-frame callbacks.
 - **Debug draw:** extensions submit points, lines and labels as data (the `opas::debug::Overlay` pattern); the core's renderer draws them. Extensions never call the renderer directly.
-- **Editor hooks:** today an extension registers a dockable workspace, an inspector or a viewport gizmo from its runtime code, in `start()`, through `host.getEditorService()` (`sdk/include/openeden/editor.hpp`; implementation `components/extension/editor_service.*`). They take effect only when the host is Eden Studio; the game and the headless host ignore them, and Eden Studio does not use them yet. The Eden Studio plan (section 4) has a separate editor library per extension that the game never loads, with its own `editor` manifest entry. That is not built and its format is not designed; decision 0007 removes these hooks when the editor API is built (Phase 3), and no code is removed yet.
+- **Editor hooks:** removed in SDK 3.0 (task 0031 stage C, decision 0007). An extension no longer registers a workspace, an inspector or a gizmo from its runtime code, and `Host` has no editor accessor. Eden Studio's tools are a separate editor library per extension (or per core system) that the game never loads, named by the manifest's optional `editor` entry (Eden Studio plan, section 4; API in `sdk/include/openeden/editor_module/`). An extension or manifest built for SDK 2.x is refused with a clear reason, as 1.x ones were.
 
 ---
 

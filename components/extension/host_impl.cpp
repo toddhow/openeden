@@ -2,8 +2,7 @@
 
 namespace openeden::extension
 {
-    HostImpl::HostImpl(std::string hostName, bool editorActive)
-        : mEditorService(editorActive)
+    HostImpl::HostImpl(std::string hostName)
     {
         mHostInfo.hostName = std::move(hostName);
         mHostInfo.sdkVersion = openeden::sdk::kSdkVersion;
@@ -13,7 +12,6 @@ namespace openeden::extension
     {
         mEventBus.unsubscribeAll(extensionId);
         mEntityManager.unregisterLifecycleListener(extensionId);
-        mEditorService.unregisterEditorHooks(extensionId);
     }
 
     void HostImpl::releaseExtensionObjects()
@@ -22,7 +20,6 @@ namespace openeden::extension
         mEntityManager.releaseExtensionObjects();
         mVfsService.releaseExtensionObjects();
         mLoggingService.releaseExtensionObjects();
-        mEditorService.releaseExtensionObjects();
     }
 
     const openeden::sdk::HostInfo& HostImpl::getHostInfo() const
@@ -83,10 +80,5 @@ namespace openeden::extension
     openeden::sdk::DebugDrawService* HostImpl::getDebugDrawService()
     {
         return &mDebugDrawService;
-    }
-
-    openeden::sdk::EditorService* HostImpl::getEditorService()
-    {
-        return &mEditorService;
     }
 } // namespace openeden::extension

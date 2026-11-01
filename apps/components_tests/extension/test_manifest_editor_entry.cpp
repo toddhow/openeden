@@ -28,7 +28,7 @@ namespace
   "extensionVersion": "1.0.0",
   "kind": "feature",
   "sdk": {
-    "major": 2,
+    "major": 3,
     "minor": 0
   },
   "toolchain": "",
@@ -87,7 +87,7 @@ TEST(ManifestEditorEntryTest, ParsesTheEditorEntry)
     EXPECT_EQ(manifest->editor->editorApi, (Version{ 1, 0 }));
     // The rest of the manifest is read as before.
     EXPECT_EQ(manifest->id, "studio_tool");
-    EXPECT_EQ(manifest->sdkVersion, (Version{ 2, 0 }));
+    EXPECT_EQ(manifest->sdkVersion, (Version{ 3, 0 }));
 }
 
 TEST(ManifestEditorEntryTest, ParsesAnEntryWrittenCompactly)
