@@ -75,7 +75,7 @@ apps/
   components_tests/  openmw_tests/  opencs_tests/  benchmarks/
 components/               shared engine libraries (resource, nif, nifjolt, physicshelpers, detournavigator, lua, vfs, ...)
   extension/              the extension loader, registry, lifecycle and core services behind the host API
-  creativemotion/         vendored copy of CreativeMotion, compiled into the engine (decision 0001); never edited in place
+  creativemotion/         CreativeMotion, compiled into the engine (decision 0001); part of OpenEden, edited here through OpenEden task specs (decision 0010)
   inertialmotion/         inertial locomotion state (docs/design/inertial-locomotion.md)
 sdk/                      the SDK: host API headers, contract headers (extension doc 7.1)
 extensions/<id>/          first-party extensions, each built against the SDK only (extension doc 5.1, 7.2); compat_morrowind first
@@ -113,7 +113,7 @@ core ─────────────────────────
 - **Core never renders for an extension:** debug drawing is submitted as data (points, lines, labels) and drawn by the core.
 - **Extensions do not affect save data** (decision 0005, toddhow 2026-10-31): they are like script extender plugins; they have no way to write to or read from a saved game. A feature that must live in a save belongs in the core.
 - **Extensions read physics, never change it, and have no Lua API** (decision 0003, toddhow 2026-10-28): extensions may cast rays and shapes, read body states and receive physics events, and may publish events the core forwards to Lua; they never create, move or step bodies, register collision layers, run in fixed physics steps, or register Lua tables. Any system that must do those things goes into the core.
-- **Core feature systems** (decisions 0001 and 0003): CreativeMotion is compiled into the engine; AdvancedBodies and ComplexClothing are planned as core systems too. Reflectron and compatibility packs are extensions. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` is a copy of CreativeMotion's repository: never patch it in place; a needed change becomes a CreativeMotion task spec, and the copy is refreshed with the source commit named in the commit message.
+- **Core feature systems** (decisions 0001 and 0003): CreativeMotion is compiled into the engine; AdvancedBodies and ComplexClothing are planned as core systems too. Reflectron and compatibility packs are extensions. CreativeMotion's own code stays free of engine types; only the engine-side adapters (`apps/openmw/mwrender/creativemotiondriver.*`, `ActorIkController`) touch both. `components/creativemotion/` began as a copy of CreativeMotion's repository and is now part of OpenEden (toddhow, 2026-11-01, decision 0010): its edits and tasks are made in this repository through OpenEden task specs, and the standalone CreativeMotion repository is no longer the source of truth. Its code still stays free of engine types
 - **Inherited boundaries stay:** `components/` never includes `apps/`; `apps/openmw/mwbase/` interfaces are how game subsystems reach each other. These are the precedent the registry generalizes (extension doc 3.2).
 
 ## Coding standards
