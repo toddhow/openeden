@@ -66,6 +66,9 @@ namespace Pipeline
         bool wetnessEnabled = false;
         bool wetnessPuddles = false;
         bool wetnessDebug = false;
+        // Task 0039: lit draws get snow and ash cover, and the debug view of it (needs pbrLook above zero).
+        bool coverEnabled = false;
+        bool coverDebug = false;
 
         vsg::ref_ptr<vsg::BindGraphicsPipeline> create(const Options& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;

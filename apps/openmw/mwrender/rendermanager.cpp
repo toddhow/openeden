@@ -56,6 +56,7 @@
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
+#include <components/render/covermath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
@@ -376,6 +377,21 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] wetness needs hdr and pbr; it is off";
             }
+            // Task 0039: snow and ash cover acts in the material model's lighting too, so it needs pbr.
+            if (Settings::rendering().mCover)
+            {
+                if (pbr)
+                {
+                    auto& graphics = *resourceSystem->builder->graphics;
+                    graphics.coverEnabled = true;
+                    graphics.coverDebug = Settings::rendering().mCoverDebug;
+                    mCoverEnabled = true;
+                    mCoverStrength = Settings::rendering().mCoverStrength;
+                    Log(Debug::Info) << "Weather: snow and ash cover on";
+                }
+                else
+                    Log(Debug::Warning) << "[Rendering] cover needs hdr and pbr; it is off";
+            }
             // Task 0038: the clouds' shadows. The shader term is switched by `shadow.settings`
             // (Resource::ShaderSettings, from the same settings); here the data buffer is made real.
             if (Settings::rendering().mCloudShadows)
@@ -515,6 +531,8 @@ namespace MWRender
         terrainMaps.wetness.enabled = mWetnessEnabled;
         terrainMaps.wetness.puddles = mWetnessEnabled && Settings::rendering().mWetnessPuddles;
         terrainMaps.wetness.debug = mWetnessEnabled && Settings::rendering().mWetnessDebug;
+        terrainMaps.cover.enabled = mCoverEnabled;
+        terrainMaps.cover.debug = mCoverEnabled && Settings::rendering().mCoverDebug;
         const auto& shaders = Settings::shaders();
         terrainMaps.autoMaps.autoUseNormalMaps = shaders.mAutoUseTerrainNormalMaps;
         terrainMaps.autoMaps.autoUseSpecularMaps = shaders.mAutoUseTerrainSpecularMaps;
@@ -969,6 +987,12 @@ namespace MWRender
     void RenderManager::setAmbientColour(const vsg::vec4& colour)
     {
         mAmbientColor = colour;
+    }
+
+    void RenderManager::setCover(int kind, float amount)
+    {
+        mCoverKind = static_cast<Render::Cover::Kind>(std::clamp(kind, 0, 2));
+        mCoverAmount = Render::Wetness::saturate(amount);
     }
 
     void RenderManager::setWetness(float wetness)
@@ -1591,6 +1615,10 @@ namespace MWRender
         // shaders read max(alpha - 1, 0). Off, the alpha is not touched.
         if (mWetnessEnabled)
             sceneData.ambient.w = 1.f + mWetness * mWetnessStrength;
+        // Task 0039: snow and ash cover share that alpha (Render::Cover::pack); without cover it is the line above.
+        if (mCoverEnabled)
+            sceneData.ambient.w = Render::Cover::pack(
+                mWetnessEnabled ? mWetness * mWetnessStrength : 0.f, mCoverKind, mCoverAmount * mCoverStrength);
         mDisplaySkyColor = mRenderModes[Render_Sky]
             ? mSky->getSkyColor()
             : Misc::VsgMath::componentMultiply(mFog->getFogColor(false), vsg::vec4(1.3, 1.3, 1.3, 1));

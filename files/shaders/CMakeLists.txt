@@ -33,6 +33,7 @@ set(SHADER_FILES
     lib/view/skyvis.glsl
     lib/view/cloudshadow.glsl
     lib/material/wetness.glsl
+    lib/material/cover.glsl
     lib/material/bindings.glsl
     lib/material/data.glsl
     lib/material/descriptors_vert.glsl

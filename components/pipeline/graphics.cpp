@@ -100,6 +100,10 @@ namespace Pipeline
                 return "WETNESS_PUDDLES";
             case Mode::WETNESS_DEBUG:
                 return "WETNESS_DEBUG";
+            case Mode::COVER:
+                return "COVER";
+            case Mode::COVER_DEBUG:
+                return "COVER_DEBUG";
         }
         return "";
     }
@@ -255,6 +259,13 @@ namespace Pipeline
                 fragmentStageOptions.addMode(Mode::WETNESS_PUDDLES);
             if (wetnessDebug)
                 fragmentStageOptions.addMode(Mode::WETNESS_DEBUG);
+        }
+        // Task 0039: snow and ash cover, in the same draws.
+        if (coverEnabled && pbrLook > 0 && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+        {
+            fragmentStageOptions.addMode(Mode::COVER);
+            if (coverDebug)
+                fragmentStageOptions.addMode(Mode::COVER_DEBUG);
         }
         if (toGBuffer && gbufferOutputs >= 4)
             fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);

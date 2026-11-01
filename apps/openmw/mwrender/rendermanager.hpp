@@ -25,6 +25,7 @@
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/render/cloudgpu.hpp>
+#include <components/render/covermath.hpp>
 #include <components/render/probes.hpp>
 #include <components/render/reflectionprobes.hpp>
 #include <components/render/skyvisibility.hpp>
@@ -164,6 +165,11 @@ namespace MWRender
         /// Task 0037: the rain wetness (0 dry to 1 soaked) the weather manager worked out; 0 indoors. Ignored unless
         /// [Rendering] wetness took effect at start. Main thread.
         void setWetness(float wetness);
+
+        /// Task 0039: the snow or ash cover the weather manager worked out: the kind (0 none, 1 snow, 2 ash, as
+        /// `Render::Cover::Kind`) and how much of it lies on the ground (0 to 1); 0 indoors. Ignored unless
+        /// [Rendering] cover took effect at start. Main thread.
+        void setCover(int kind, float amount);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;
         int skyGetSecundaPhase() const;
@@ -407,6 +413,12 @@ namespace MWRender
         Render::Cloud::Params mCloudParamsWritten;
         const float* mCloudGridWritten[2] = { nullptr, nullptr };
         float mWetness = 0.f;
+        // Task 0039: snow and ash cover took effect at start (needs hdr and pbr), its strength, and the current kind and
+        // amount.
+        bool mCoverEnabled = false;
+        float mCoverStrength = 1.f;
+        Render::Cover::Kind mCoverKind = Render::Cover::Kind::None;
+        float mCoverAmount = 0.f;
         float mSkyVisStrength = 1.f;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisHeader;

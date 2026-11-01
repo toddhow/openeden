@@ -87,6 +87,14 @@ namespace Settings
         SettingValue<float> mWetnessDryTime{ mIndex, "Rendering", "wetness dry time",
             makeClampSanitizerFloat(1, 86400) };
         SettingValue<bool> mWetnessDebug{ mIndex, "Rendering", "wetness debug" };
+        // Task 0039: snow and ash cover (read at start; needs hdr and pbr): its strength, the seconds of game time it
+        // takes to build up while it snows or ash falls and to melt after, and a debug view of cover and upwardness.
+        SettingValue<bool> mCover{ mIndex, "Rendering", "cover" };
+        SettingValue<float> mCoverStrength{ mIndex, "Rendering", "cover strength", makeClampSanitizerFloat(0, 1) };
+        SettingValue<float> mCoverBuildTime{ mIndex, "Rendering", "cover build time",
+            makeClampSanitizerFloat(1, 86400) };
+        SettingValue<float> mCoverMeltTime{ mIndex, "Rendering", "cover melt time", makeClampSanitizerFloat(1, 864000) };
+        SettingValue<bool> mCoverDebug{ mIndex, "Rendering", "cover debug" };
         // Task 0038: lit clouds (read at start; needs hdr), their look (`lit` or `flat`), and cloud shadows on the
         // ground (read at start; needs hdr and atmosphere), their strength and a debug view of the shadow mask.
         SettingValue<bool> mClouds{ mIndex, "Rendering", "clouds" };

@@ -65,6 +65,8 @@ namespace Terrain
         bool giSky = false;
         // Task 0037: the terrain shader takes rain wetness.
         Pipeline::WetnessOptions wetness;
+        // Task 0039: the terrain shader takes snow and ash cover.
+        Pipeline::CoverOptions cover;
         // Task 0044: the terrain is lit with the material model and reads the layers' material maps (autoMaps must ask
         // for them and for normal maps). `layerValues` gives a layer texture's tier 2 values (the two scales and a
         // reflectance); it may run on loader threads.

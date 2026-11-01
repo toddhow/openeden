@@ -69,7 +69,10 @@ namespace Pipeline
         WETNESS_PUDDLES,
         WETNESS_DEBUG,
         // OpenEden (task 0044, tier 3): the packed material map has the True PBR `_rmaos` layout, not `_orm`.
-        MATERIAL_MAP_RMAOS
+        MATERIAL_MAP_RMAOS,
+        // OpenEden (task 0039): snow and ash cover and its debug view; added by Pipeline::Graphics.
+        COVER,
+        COVER_DEBUG
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

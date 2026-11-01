@@ -157,6 +157,9 @@ WetSurface wetSurfaceAt(vec3 worldPos, vec3 worldNormal)
     s.puddle = 0.0;
     // 1 + wetness in the main view; other views leave the alpha at 1 or 0, which is dry.
     float raw = max(scene.ambient.w - 1.0, 0.0);
+    // Task 0039: snow and ash cover ride in the same alpha, in whole steps of 2 above the wetness (lib/material/cover.glsl);
+    // without cover this changes nothing.
+    raw -= 2.0 * floor(raw * 0.5);
     if (raw <= 0.0)
         return s;
 #ifdef GI_SKY

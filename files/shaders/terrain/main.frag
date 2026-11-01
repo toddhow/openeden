@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
+#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -17,6 +17,10 @@ const int colorMode = 2;
 #endif
 #ifdef WETNESS
 #include "lib/material/wetness.glsl"
+#endif
+#ifdef COVER
+// OpenEden (task 0039): snow and ash cover.
+#include "lib/material/cover.glsl"
 #endif
 #include "bindings.glsl"
 #include "terrain.settings"
@@ -90,6 +94,11 @@ void main()
     vec2 diffuseTexCoord = frag_in.texCoord * blendTexSize;
 
     outColor = vec4(0,0,0,1);
+#ifdef COVER
+    // Task 0039: snow or ash on this point of the ground (the colour changes after the layers are blended).
+    CoverSurface coverS = coverSurfaceAt(
+        (scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * normalize(frag_in.viewNormal));
+#endif
 #ifdef TERRAIN_MAPS
     // The four layers' colours, tangent-space normals and specular strengths are blended, then lit once per pixel
     // (OpenMW drew one pass per layer and blended the lit results; compatibility/terrain.frag).
@@ -141,6 +150,11 @@ void main()
         terrainS.occlusion += layerS.occlusion * blendCoeffs[i];
 #endif
     }
+#if defined(COVER) && defined(TERRAIN_PBR)
+    // Task 0039: a layer of snow or ash is rough and not a metal.
+    terrainS.roughness = mix(terrainS.roughness, coverRoughnessOf(coverS.kind), coverS.mask);
+    terrainS.metalness *= 1.0 - coverS.mask;
+#endif
     vec3 viewNormal = normalize(normalToView * blendedNormal);
     // The shadow bias keeps the geometry normal, as OpenMW's shadows did.
     float sunShadow = shadow(frag_in.viewPos, frag_in.viewNormal);
@@ -174,6 +188,9 @@ void main()
 
     // OpenEden (task 0025): the layers are blended on encoded values and converted once (lib/view/linear.glsl).
     outColor.xyz = toLinearIfView(outColor.xyz);
+#ifdef COVER
+    outColor.xyz = mix(outColor.xyz, coverColourOf(coverS.kind), coverS.mask);
+#endif
 #ifdef WETNESS
     // Task 0037: rain wetness (the terrain takes the darker and glossier terms and puddles; roughness is the material
     // model's terrain value, Render::Pbr::terrainRoughness).
@@ -191,6 +208,10 @@ void main()
     vec2 colorTexSize = textureSize(colorMap, 0);
     vec2 colorCoord = (frag_in.texCoord - 0.5) * colorTexSize / (colorTexSize+1) + 0.5;
     vec4 vertexColor = texture(colorMap, colorCoord);
+#ifdef COVER
+    // Task 0039: the land's colour map tints the ground green and brown; snow and ash keep its shading and lose that hue.
+    vertexColor.xyz = mix(vertexColor.xyz, vec3(dot(vertexColor.xyz, vec3(1.0 / 3.0))), coverS.mask);
+#endif
 #ifdef TERRAIN_PBR
     {
         // Task 0044: metals have no diffuse, and the maps' occlusion darkens the ambient light (the AO pass cannot do
@@ -239,6 +260,9 @@ void main()
  #ifdef WETNESS_DEBUG
     outColor.xyz = vec3(wetS.wet, wetS.exposure, wetS.puddle);
  #endif
+#endif
+#ifdef COVER_DEBUG
+    outColor.xyz = vec3(coverS.amount, coverS.upwardness, coverS.mask);
 #endif
     outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
 

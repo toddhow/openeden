@@ -90,7 +90,7 @@ namespace Terrain
         , mMapSettings(std::move(in_mapSettings))
     {
         mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs,
-            mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr);
+            mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr, mMapSettings.cover);
     }
 
     Builder::~Builder() {}

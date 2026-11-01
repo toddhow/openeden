@@ -11,6 +11,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/render/covermath.hpp>
 
 #include "../mwbase/soundmanager.hpp"
 
@@ -413,6 +414,8 @@ namespace MWWorld
         MWRender::WeatherResult mAtmosphereResult;
         // task 0037: how wet the ground is, 0 to 1 (not saved: after a load it builds up again in seconds)
         float mWetness = 0.f;
+        // task 0039: how much snow and ash lies on the ground, 0 to 1 each (not saved)
+        Render::Cover::State mCover;
 
         MWBase::Sound* mAmbientSound{ nullptr };
         ESM::RefId mPlayingAmbientSoundID;
@@ -436,6 +439,7 @@ namespace MWWorld
         void calculateWeatherResult(const float gameHour, const float elapsedSeconds, const bool isPaused);
         void applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const;
         void updateWetness(float duration, bool paused, bool isExterior);
+        void updateCover(float duration, bool paused, bool isExterior);
         void calculateResult(const int weatherID, const float gameHour);
         void calculateTransitionResult(const float factor, const float gameHour);
         float calculateWindSpeed(int weatherId, float currentSpeed);

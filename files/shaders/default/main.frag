@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -27,6 +27,10 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #if defined(NORMAL) && defined(PBR) && defined(WETNESS)
 #define WET_LIT 1
 #endif
+// OpenEden (task 0039): snow and ash cover, in the same surfaces.
+#if defined(NORMAL) && defined(PBR) && defined(COVER)
+#define COVER_LIT 1
+#endif
 
 #include "lib/view/scene.glsl"
 #include "lib/view/linear.glsl"
@@ -49,6 +53,9 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 #ifdef WET_LIT
 #include "lib/material/wetness.glsl"
+#endif
+#ifdef COVER_LIT
+#include "lib/material/cover.glsl"
 #endif
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
@@ -230,6 +237,21 @@ void main()
             viewNormal = normalize(mix(viewNormal, transpose(mat3(scene.invView)) * wetPuddleNormal(wetWorldPos), wetS.puddle));
     }
 #endif
+#ifdef COVER_LIT
+    // Task 0039: snow or ash on this point (nothing indoors, in other weather, on walls and under cover). Skin and
+    // glowing surfaces stay bare. The colour and roughness change below, once the surface's own are known.
+    CoverSurface coverS = coverSurfaceAt((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal);
+    if (coverS.mask > 0.0)
+    {
+  #ifdef MATERIAL
+        float coverSkin = material.subsurface > 0.5 ? 1.0 : 0.0;
+  #else
+        float coverSkin = 0.0;
+  #endif
+        float coverGlow = smoothstep(0.0, 0.3, dot(getEmission(vertexColor), vec3(1.0)));
+        coverS.mask *= (1.0 - coverSkin) * (1.0 - coverGlow);
+    }
+#endif
 #ifdef GI
     ambientLight = giAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
  #ifdef GI_SKY
@@ -270,6 +292,17 @@ void main()
    #endif
    #endif
     vec3 pbrBase = outColor.xyz;
+#ifdef COVER_LIT
+    // Task 0039: a layer of snow or ash: its colour replaces the surface's, it is not a metal, and it is rough.
+    if (coverS.mask > 0.0)
+    {
+        vec3 coverColour = coverColourOf(coverS.kind);
+        pbrBase = mix(pbrBase, coverColour, coverS.mask);
+        outColor.xyz = mix(outColor.xyz, coverColour, coverS.mask);
+        pbrLit.metalness *= 1.0 - coverS.mask;
+        pbrLit.roughness = mix(pbrLit.roughness, coverRoughnessOf(coverS.kind), coverS.mask);
+    }
+#endif
 #ifdef WET_LIT
     // Task 0037: wet surfaces are darker and smoother (a puddle most of all). Metals keep their colour.
     if (wetS.wet > 0.0)
@@ -353,6 +386,9 @@ void main()
    #ifdef WETNESS_DEBUG
         outColor.xyz = vec3(wetS.wet, wetS.exposure, wetS.puddle);
    #endif
+  #endif
+  #ifdef COVER_DEBUG
+        outColor.xyz = vec3(coverS.amount, coverS.upwardness, coverS.mask);
   #endif
     }
 #else

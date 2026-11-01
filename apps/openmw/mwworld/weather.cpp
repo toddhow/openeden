@@ -2,6 +2,7 @@
 
 #include <components/esm/stringrefid.hpp>
 #include <components/render/atmospheremath.hpp>
+#include <components/render/covermath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/settings/values.hpp>
 
@@ -836,6 +837,32 @@ namespace MWWorld
         mRendering.setWetness(isExterior ? mWetness : 0.f);
     }
 
+    // OpenEden (task 0039): the snow and ash on the ground. It builds while the weather's particles are snow (snow,
+    // blizzard) or ash (ash storm, blight), heads for nothing otherwise, melts over `cover melt time` (ash fades four
+    // times slower), indoors too. Like the wetness it is a property of the weather and the clock only: records,
+    // scripts, sounds and saves are untouched. The renderer is told nothing is there indoors.
+    void WeatherManager::updateCover(float duration, bool paused, bool isExterior)
+    {
+        if (!Settings::rendering().mCover)
+            return;
+        if (!paused)
+        {
+            const float gameSeconds
+                = duration * MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale();
+            const std::string& particles = mResult.mParticleEffect;
+            const auto& models = Settings::models();
+            const bool snowy = isExterior && !particles.empty()
+                && (particles == models.mWeathersnow.get().value() || particles == models.mWeatherblizzard.get().value());
+            const bool ashy = isExterior && !particles.empty()
+                && (particles == models.mWeatherashcloud.get().value()
+                    || particles == models.mWeatherblightcloud.get().value());
+            mCover = Render::Cover::step(mCover, Render::Cover::kindOf(snowy, ashy), mResult.mPrecipitationAlpha,
+                gameSeconds, Settings::rendering().mCoverBuildTime, Settings::rendering().mCoverMeltTime);
+        }
+        const Render::Cover::Dominant shown = Render::Cover::dominant(mCover);
+        mRendering.setCover(isExterior ? static_cast<int>(shown.kind) : 0, isExterior ? shown.amount : 0.f);
+    }
+
     void WeatherManager::update(float duration, bool paused, const TimeStamp& time, bool isExterior)
     {
         MWWorld::ConstPtr player = MWMechanics::getPlayer();
@@ -866,6 +893,7 @@ namespace MWWorld
         if (!isExterior)
         {
             updateWetness(duration, paused, false);
+            updateCover(duration, paused, false);
             mRendering.setSkyEnabled(false);
             stopSounds();
             mWindSpeed = 0.f;
@@ -876,6 +904,7 @@ namespace MWWorld
 
         calculateWeatherResult(time.getHour(), duration, paused);
         updateWetness(duration, paused, true);
+        updateCover(duration, paused, true);
 
         if (!paused)
         {
