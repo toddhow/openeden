@@ -32,7 +32,7 @@ namespace openeden::editor
     {
     public:
         virtual ~EditorContext() = default;
-        /// Executes redo() and records one undo step (merging by Command::mergeId).
+        /// Executes redo() and records one undo entry (merging by Command::mergeId).
         virtual void pushCommand(std::unique_ptr<Command> command) = 0;
         virtual void markDirty(std::string_view assetId) = 0;
         /// The module's own log channel, prefixed with its id.
