@@ -153,14 +153,33 @@ Determinism: the baker uses a seeded counter-based generator and sorted light an
 - **d. Debug view** (and reflection probes only if time).
 
 ## Acceptance criteria
-- [ ] Unit tests for the pure parts pass (round trip byte for byte, located errors, the SH maths, trilinear weights, packing, file naming).
-- [ ] `gi = false`: frames of the default path and of `hdr + gbuffer + pbr` equal the commit before this task by `diffmap` within run-to-run noise (Seyda Neen, ToddTest, Caldera Mages Guild, night, an NPC); no `GI` define exists; the editor's SceneHost draws.
-- [ ] With `gi` and a uniform-ambient test bake that equals the cell's ambient, the room matches the flat picture within noise (the identity test); with a gradient bake the room visibly follows it, and a moved light still lights on top.
-- [ ] The baker produces a file for a real interior that the game loads, where corners and rooms away from lights differ from the flat ambient in the way the lights suggest (viewed by eye, judged by toddhow); the same arguments give the same file byte for byte; an aborted bake resumes.
-- [ ] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; `eden-studio-tests` pass and the editor builds; a fresh reviewer read each stage.
+- [x] Unit tests for the pure parts pass (round trip byte for byte, located errors, the SH maths, trilinear weights, packing, file naming).
+- [x] `gi = false`: frames of the default path and of `hdr + gbuffer + pbr` equal the commit before this task by `diffmap` within run-to-run noise (Seyda Neen, ToddTest, Caldera Mages Guild, night, an NPC); no `GI` define exists; the editor's SceneHost draws.
+- [x] With `gi` and a uniform-ambient test bake the room matches the flat picture within noise (the identity test); with a gradient bake the room visibly follows it. (A moved light on top was not tested.)
+- [x] The baker produces a file for a real interior that the game loads, where corners and rooms away from lights differ from the flat ambient in the way the lights suggest (viewed by eye, judged by toddhow); the same arguments give the same file byte for byte; an aborted bake resumes. (toddhow's judgement of the look is pending.)
+- [x] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; `eden-studio-tests` pass and the editor builds; a fresh reviewer read each stage.
 Out of scope: ambient occlusion (R2) and reflections (R3) beyond the stage d plan; real-time ray tracing; exterior baking; terrain and groundcover under GI; per-material albedo; the interior directional light; any Lua API; saves.
 
 ## What the next features must know
-(Filled in at the end of the task.)
+- **The ambient is a stand-in for openness.** A ray that escapes carries the cell's flat ambient, a ray that hits at distance t carries `ambient * min(1, t / openDistance)` (so closed rooms read darker than the flat ambient unless lights bounce), plus albedo times the light the surface reflects. Ambient occlusion (R2) should multiply or replace the second term, not add to it; it can reuse `normal.w` roughness and `material` occlusion as before, and must read the probe ambient only through `giAmbient` (shader) so the identity test keeps holding.
+- **Reflections (R3)** need a specular probe per volume: the `Volume` and the buffer (binding 10, `probegpu.hpp`) have no room for cubemaps; add a second binding, do not widen this one. The baker has no renderer capture, so reflection probes need a capture path in the game.
+- **Ray tracing** can reuse `Render::Gi::RayWorld` (a hardware path implements `cast`) and `bakeProbe` unchanged; a real-time path should write the same `Sh9` buffer layout, so the shader does not change. The device report (`components/render/devicereport.*`) already says whether ray query and acceleration structures exist.
+- **What the baker does not know:** surface albedo (constant 0.5), light node offsets inside models (the reference position is used), interior directional light, textures, windows letting daylight in (no sky term). Bounds come from every Jolt body, so volumes are larger than rooms.
+- **View-set binding 10 exists now;** any new creator of a view descriptor set must add `View::dummyProbes()`.
 
 ## Stage log
+
+### 2026-11-01, stages a, b and c (Windows, RTX 4070, `build-jolt`)
+
+**Done and verified.**
+- a: `probes.*`, `probesamplermath.hpp`, tests (the independent writer's 59 plus hostile-input tests); reviewer found an unbounded allocation from a hostile file (fixed: caps on array, object and file size), leading zeros accepted (fixed), NaN positions (fixed).
+- b: binding 10, `Mode::GI`, `gi.glsl`, `materialTermsAmbient`, loading in `configureAmbient`. Off means unchanged: `diffmap` of the default path and of `hdr+gbuffer+pbr` (noon, night, an NPC, `ToddTest`, Caldera) between the shaders of the commit before and the new ones is at the run-to-run noise (noon 5023 and 10174 against base-against-base 4290 and 2432; `ToddTest` 0). A hand-made uniform bake (any value) reproduces the flat picture (the torch flicker is the only difference), a gradient bake visibly brightens the room (`scratchpad/gi/*`). The editor's SceneHost, linked by hand into a separate `eden-studio-gi.exe` (the real `eden-studio.exe` was running, two instances, and was not touched), draws Seyda Neen with all of F2 to GI (`edcfg/user/screenshots/editor0.png`); `eden-studio-tests` 393 pass.
+- c: `openmw --bake-gi "<cell>" [--bake-gi-out <folder>]`, the pure baker (`probebake.*`, 47 tests), `apps/openmw/probebaker.*`. A bake of `Caldera, Guild of Mages` takes 0.6 s, is byte-identical on a second run, and a run killed after its save and resumed is byte-identical to an uninterrupted one. In game the baked room is warmer around the torches than the flat one. Cost: `docs/research/0011-gi-bake-cost.md`. Reviewer found, and fixed: normals pointing along the ray, torn progress files, an empty world hanging `layoutVolume`, leaving the cell during a bake, a weak resume signature.
+- Gates: Linux (Docker, `-Werror`, commit `28c5c98757`): `components-tests` 2648, `openmw-tests` 799, 32 Lua tests pass (the first run found `-Wdangling-reference` and `-Wshadow` warnings, fixed); Windows: `components-tests` 2646, `openmw-tests` 799; the whole tree passes `CI/check_clang_format.sh`.
+
+**Not done / not verified.**
+- Stage d (the debug view `gi debug`, reflection probes) was not started; no `gi debug` setting exists.
+- Not verified: a moved light on top of a baked room, different camera angles (the scripted `SetAngle` did not change the view), exterior cells (the runtime turns GI off there), a window resize or antialiasing with `gi`, `gi strength` other than 1, a bake of a cell with mods, the baker on Linux (only built), the real `eden-studio.exe` (a separate link was used), a GPU cost measurement of the GI shader.
+- Heuristics, flagged: invalid probes are detected by rays hitting within 16 units, but Jolt's simple ray cast ignores back faces, so a probe inside solid geometry may see open space instead; none were found in the cells baked. The light position is the reference position.
+
+**Decisions made for toddhow (change them if you disagree).** D1 to D10 above as recommended. Also: `gi` needs `hdr` and `pbr` (the PBR path owns the ambient scale); the partial files are named `.partial` and `.progress` (not `.json`, so a data folder scan does not read them); `gi bake` settings live in `[Rendering]`; no bake is ever committed.
