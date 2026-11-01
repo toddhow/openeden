@@ -9,6 +9,11 @@
 
 #include "automaps.hpp"
 
+namespace Render::Pbr
+{
+    class OverrideTable;
+}
+
 namespace Pipeline
 {
     class Builder;
@@ -51,6 +56,9 @@ namespace vsgAdapters
         // whether a texture path exists.
         AutoMapSettings autoMaps;
         std::function<bool(std::string_view)> textureExists;
+        // openeden (task 0027, tier 2): material overrides keyed by model and diffuse texture, owned by the renderer;
+        // null (the default) means none and no path is looked up.
+        const Render::Pbr::OverrideTable* materialTable = nullptr;
         // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
         bool softParticles = false;
         /// OpenEden: the normalized path of the one model whose particles weather occlusion discards under a roof,

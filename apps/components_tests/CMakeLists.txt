@@ -138,6 +138,8 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtonemap.cpp
     render/testvelocity.cpp
     render/testgbuffermath.cpp
+    render/testmaterialmath.cpp
+    render/testmaterialoverrides.cpp
     view/testcollectlights.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp

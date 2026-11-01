@@ -25,7 +25,12 @@ namespace Render::GBuffer
         None,
         Normals,
         Depth,
-        Velocity
+        Velocity,
+        // Task 0027: the stored material (roughness in the normal image's w; metalness, reflectance and occlusion in
+        // the material output; whether a pixel is marked as skin).
+        Roughness,
+        Material,
+        Subsurface
     };
 
     inline std::optional<DebugView> parseDebugView(std::string_view name)
@@ -38,6 +43,12 @@ namespace Render::GBuffer
             return DebugView::Depth;
         if (name == "velocity")
             return DebugView::Velocity;
+        if (name == "roughness")
+            return DebugView::Roughness;
+        if (name == "material")
+            return DebugView::Material;
+        if (name == "subsurface")
+            return DebugView::Subsurface;
         return std::nullopt;
     }
 
@@ -56,12 +67,17 @@ namespace Render::GBuffer
     // currentUV - previousUV (stage b).
     constexpr VkFormat velocityFormat = VK_FORMAT_R16G16_SFLOAT;
 
-    // The colour outputs after the scene's own, in output order (1, 2, 3).
-    inline std::vector<VkFormat> extraColorFormats(bool objectMotion)
+    // Metalness, reflectance, occlusion and the subsurface mark (task 0027); only with the material model on.
+    constexpr VkFormat materialFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+    // The colour outputs after the scene's own, in output order (1, 2, 3, and 4 with the material model).
+    inline std::vector<VkFormat> extraColorFormats(bool objectMotion, bool material = false)
     {
         std::vector<VkFormat> formats{ normalFormat, linearDepthFormat };
         if (objectMotion)
             formats.push_back(objectMotionFormat);
+        if (material && objectMotion)
+            formats.push_back(materialFormat);
         return formats;
     }
 

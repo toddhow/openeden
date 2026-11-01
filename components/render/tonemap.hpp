@@ -49,6 +49,7 @@ namespace Render
             vsg::ref_ptr<vsg::ImageView> normal;
             vsg::ref_ptr<vsg::ImageView> linearDepth;
             vsg::ref_ptr<vsg::ImageView> velocity;
+            vsg::ref_ptr<vsg::ImageView> material; // task 0027
         };
 
         /// `compile` compiles for the window's render pass; `graph` is a render graph on that window.
@@ -76,7 +77,7 @@ namespace Render
         /// w bloom strength. Public for the unit tests.
         static vsg::vec4 pushConstants(const Parameters& parameters);
 
-        /// The debug view's second push constant: x the mode (0 none, 1 normals, 2 depth, 3 velocity), y the depth
+        /// The debug view's second push constant: x the mode (0 none, 1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface), y the depth
         /// range, z the velocity scale, w 0. Public for the unit tests.
         static vsg::vec4 debugPushConstants(GBuffer::DebugView view, float depthRange, float velocityScale);
 

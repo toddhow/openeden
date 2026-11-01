@@ -20,12 +20,14 @@ set(SHADER_FILES
     lib/light/pointspecular.glsl
     lib/light/pointdiffuse.glsl
     lib/light/pixellighting.glsl
+    lib/light/pbrlighting.glsl
     lib/light/directional.glsl
     lib/particle/util.glsl
     lib/particle/weatherocclusion.glsl
     lib/util/quickstep.glsl
     lib/particle/data.glsl
     lib/material/terms.glsl
+    lib/material/pbr.glsl
     lib/material/bindings.glsl
     lib/material/data.glsl
     lib/material/descriptors_vert.glsl

@@ -33,6 +33,9 @@ namespace Pipeline
                 compileSettings->defines.insert("TERRAIN_MAPS");
             if (gbufferOutputs > 0)
                 compileSettings->defines.insert("GBUFFER");
+            // The fourth extra output is the material (Render::GBuffer::extraColorFormats, task 0027).
+            if (gbufferOutputs >= 4)
+                compileSettings->defines.insert("GBUFFER_MATERIAL");
             for (auto& stage : shaders)
             {
                 stage = vsg::ShaderStage::create(*stage);

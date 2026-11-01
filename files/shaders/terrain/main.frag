@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, GBUFFER)
+#pragma import_defines (TERRAIN_MAPS, GBUFFER, GBUFFER_MATERIAL)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -42,6 +42,10 @@ layout(location=0) out vec4 outColor;
 layout(location=1) out vec4 outNormal;
 layout(location=2) out float outLinearDepth;
 layout(location=3) out vec2 outMotion;
+#ifdef GBUFFER_MATERIAL
+// OpenEden (task 0027): metalness, reflectance, occlusion, subsurface. The terrain has no per-layer data.
+layout(location=4) out vec4 outMaterial;
+#endif
 #endif
 
 void main()
@@ -124,6 +128,11 @@ void main()
  #endif
     outLinearDepth = -frag_in.viewPos.z;
     outMotion = vec2(0.0);
+#ifdef GBUFFER_MATERIAL
+    // Render::Pbr::terrainRoughness (materialmath.hpp) in the normal's w; reflectance 0.5, occlusion 1.
+    outNormal.w = 0.95;
+    outMaterial = vec4(0.0, 0.5, 1.0, 0.0);
+#endif
 #endif
 
 #ifdef DEBUG_CHUNKS

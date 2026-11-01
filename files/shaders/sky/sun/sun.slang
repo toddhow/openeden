@@ -28,8 +28,9 @@ struct Material
     float4 specular;
     float shininess;
     float alphaTestCutoff;
-    float align_dummy1;
+    float subsurface;
     float align_dummy2;
+    float4 pbr;
 };
 // lib/material/bindings.glsl: MATERIAL_BINDING = 1, DIFFUSE_UNIT = 0, both in TEXTURE_SET
 [[vk::binding(1, 2)]] ConstantBuffer<Material> material;

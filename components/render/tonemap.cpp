@@ -49,12 +49,13 @@ layout(set=0, binding=1) uniform sampler2D bloomColor;
 layout(set=0, binding=2) uniform sampler2D gNormal;
 layout(set=0, binding=3) uniform sampler2D gLinearDepth;
 layout(set=0, binding=4) uniform sampler2D gVelocity;
+layout(set=0, binding=5) uniform sampler2D gMaterial;
 #endif
 layout(push_constant) uniform Push
 {
     vec4 params; // x exposure scale, y curve, z encode, w bloom strength
 #ifdef DEBUG_VIEW
-    vec4 debug;  // x mode (1 normals, 2 depth, 3 velocity), y depth range, z velocity scale
+    vec4 debug;  // x mode (1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface), y depth range, z velocity scale
 #endif
 } push;
 layout(location=0) in vec2 texCoord;
@@ -91,6 +92,16 @@ void main()
             vec2 v = texture(gVelocity, texCoord).rg;
             shown = vec3(clamp(0.5 + v * push.debug.z, 0.0, 1.0), 0.5);
         }
+        else if (mode == 4)
+        {
+            // Task 0027: roughness is the normal image's w; black where there is no surface.
+            vec4 n = texture(gNormal, texCoord);
+            shown = vec3(dot(n.xyz, n.xyz) > 0.0 ? n.w : 0.0);
+        }
+        else if (mode == 5)
+            shown = texture(gMaterial, texCoord).rgb; // metalness, reflectance, occlusion
+        else if (mode == 6)
+            shown = vec3(texture(gMaterial, texCoord).a);
         if (mode != 0)
         {
             outColor = vec4(shown, 1.0);
@@ -209,7 +220,7 @@ void main()
         if (bloom)
             bindings.push_back({ 1, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
         if (debug)
-            for (uint32_t binding = 2; binding <= 4; ++binding)
+            for (uint32_t binding = 2; binding <= 5; ++binding)
                 bindings.push_back({ binding, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
         auto setLayout = vsg::DescriptorSetLayout::create(bindings);
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout },
@@ -258,6 +269,7 @@ void main()
             descriptors.push_back(image(debugSources.normal, 2));
             descriptors.push_back(image(debugSources.linearDepth, 3));
             descriptors.push_back(image(debugSources.velocity, 4));
+            descriptors.push_back(image(debugSources.material, 5));
         }
 
         auto commands = vsg::Commands::create();

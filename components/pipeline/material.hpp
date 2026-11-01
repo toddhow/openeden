@@ -29,7 +29,7 @@ namespace Pipeline
         static Data::Material createDefault()
         {
             return { vsg::vec4(1, 1, 1, 1), vsg::vec4(1, 1, 1, 1), vsg::vec4(0, 0, 0, 1), vsg::vec4(0, 0, 0, 0), 0.f,
-                1.f, 0.f, 0.f };
+                1.f, 0.f, 0.f, vsg::vec4(-1, 0, -1, 1) };
         }
         static vsg::ref_ptr<value_type> createDefaultValue() { return value_type::create(createDefault()); }
 

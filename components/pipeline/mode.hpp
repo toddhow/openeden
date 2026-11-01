@@ -47,7 +47,14 @@ namespace Pipeline
         // by a loader.
         GBUFFER,
         // OpenEden: a skinned draw that writes the G-buffer also writes the motion of its bones (task 0026, F3c).
-        GBUFFER_MOTION
+        GBUFFER_MOTION,
+        // OpenEden (task 0027): the draw also writes the material output and the roughness; added by
+        // Pipeline::Graphics.
+        GBUFFER_MATERIAL,
+        // OpenEden (task 0027): physically based lighting, and its physical look (the vanilla look is PBR alone);
+        // added by Pipeline::Graphics.
+        PBR,
+        PBR_PHYSICAL
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

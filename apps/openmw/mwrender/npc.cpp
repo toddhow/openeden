@@ -15,6 +15,7 @@
 #include <components/mwanimation/face.hpp>
 #include <components/mwanimation/groups.hpp>
 #include <components/mwanimation/partbones.hpp>
+#include <components/render/materialoverrides.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
@@ -45,6 +46,19 @@
 
 namespace MWRender
 {
+    namespace
+    {
+        // Task 0027: body parts of the skin type mark their model as skin for the material model (a no-op without
+        // `[Rendering] pbr`). Called before the part is loaded, so the loader sees the mark.
+        void markSkinModel(const std::string& model)
+        {
+            if (model.empty())
+                return;
+            if (auto& table = MWBase::Environment::get().getResourceSystem()->materialTable)
+                table->markSubsurfaceModel(model);
+        }
+    }
+
     Npc::Npc(const MWAnim::Context& mwctx, const MWWorld::Ptr& ptr, ViewMode viewMode)
         : Wielding(mwctx)
         , mPtr(ptr)
@@ -297,7 +311,10 @@ namespace MWRender
         if (mViewMode != ViewMode::FirstPerson)
         {
             if (mPartPriorities[ESM::PRT_Head] < 1 && !mHeadModel.empty())
+            {
+                markSkinModel(mHeadModel);
                 addOrReplaceIndividualPart(ESM::PRT_Head, -1, 1, mHeadModel);
+            }
             if (mPartPriorities[ESM::PRT_Hair] < 1 && mPartPriorities[ESM::PRT_Head] <= 1 && !mHairModel.empty())
                 addOrReplaceIndividualPart(ESM::PRT_Hair, -1, 1, mHairModel);
         }
@@ -321,7 +338,10 @@ namespace MWRender
             {
                 const ESM::BodyPart* bodypart = parts[part];
                 if (bodypart)
+                {
+                    markSkinModel(bodypart->mModel);
                     addOrReplaceIndividualPart((ESM::PartReferenceType)part, -1, 1, bodypart->mModel);
+                }
             }
         }
     }
@@ -466,8 +486,12 @@ namespace MWRender
         for (const ESM::PartReference& part : parts)
         {
             if (auto bodypart = getBodyPart(firstPerson, female, part, bodyPartStore))
+            {
+                if (bodypart->mData.mType == ESM::BodyPart::MT_Skin)
+                    markSkinModel(bodypart->mModel);
                 addOrReplaceIndividualPart(
                     (ESM::PartReferenceType)part.mPart, group, priority, bodypart->mModel, glowColor);
+            }
             else
                 reserveIndividualPart((ESM::PartReferenceType)part.mPart, group, priority);
         }

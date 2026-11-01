@@ -61,10 +61,12 @@ namespace Render
         std::size_t outputCount() const { return mResolvedColor.size(); }
 
         // Task 0026 (F3): the G-buffer outputs by name, null when the target was made without them. Output 1 is the
-        // view-space normal, 2 the linear depth, 3 the skinned actors' motion (Render::GBuffer::extraColorFormats).
+        // view-space normal, 2 the linear depth, 3 the skinned actors' motion, 4 the material (Render::GBuffer::extraColorFormats).
         vsg::ref_ptr<vsg::ImageView> normalView() const { return outputOrNull(1); }
         vsg::ref_ptr<vsg::ImageView> linearDepthView() const { return outputOrNull(2); }
         vsg::ref_ptr<vsg::ImageView> objectMotionView() const { return outputOrNull(3); }
+        // Task 0027: metalness, reflectance, occlusion and the subsurface mark; only with the material model.
+        vsg::ref_ptr<vsg::ImageView> materialView() const { return outputOrNull(4); }
 
         // The G-buffer outputs start every frame as "no surface" (all zero), not at the scene's clear colour: call
         // after RenderGraph::setClearValues, which gives every colour attachment the same value.

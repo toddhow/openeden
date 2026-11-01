@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <stdexcept>
 
 #include <vsg/app/CommandGraph.h>
@@ -36,13 +37,18 @@
 #include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/render/hdrtarget.hpp>
+#include <components/render/materialmath.hpp>
+#include <components/render/materialoverrides.hpp>
+#include <components/vsgadapters/nif/nif.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/paging.hpp>
+#include <components/misc/pathhelpers.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
 #include <components/view/barriers.hpp>
 #include <components/view/collectlights.hpp>
 #include <components/view/defaultstate.hpp>
@@ -149,11 +155,38 @@ namespace MWRender
             return parameters;
         }
 
+        // OpenEden (task 0027, tier 2): reads every `openeden/materials/*.json` of the VFS into the table, in file name
+        // order. A bad file is skipped whole, with one located line in the log.
+        void loadMaterialFiles(const VFS::Manager& vfs, Render::Pbr::OverrideTable& table)
+        {
+            for (const VFS::Path::Normalized& name : vfs.getRecursiveDirectoryIterator("openeden/materials/"))
+            {
+                if (Misc::getFileExtension(name) != "json")
+                    continue;
+                std::string text;
+                {
+                    const auto stream = vfs.get(name);
+                    std::ostringstream buffer;
+                    buffer << stream->rdbuf();
+                    text = buffer.str();
+                }
+                Render::Pbr::OverrideError error;
+                const auto set = Render::Pbr::parseOverrides(text, name.value(), error);
+                if (!set)
+                {
+                    Log(Debug::Warning) << "[Rendering] pbr: skipped material file " << error.describe();
+                    continue;
+                }
+                table.add(*set);
+                Log(Debug::Info) << "PBR: " << set->entries.size() << " material override(s) from " << name.value();
+            }
+        }
+
         // The images the tonemap's debug view can show.
         Render::Tonemap::DebugSources debugSources(
             const Render::HdrTarget& target, const vsg::ref_ptr<vsg::ImageView>& velocity)
         {
-            return { target.normalView(), target.linearDepthView(), velocity };
+            return { target.normalView(), target.linearDepthView(), velocity, target.materialView() };
         }
 
         // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass.
@@ -214,6 +247,8 @@ namespace MWRender
         const bool hdr = Render::Hdr::useHdrPath(wantHdr, mEngine.hasWindow());
         if (wantHdr && !hdr)
             Log(Debug::Warning) << "[Rendering] hdr is on but this engine has no window to draw to; HDR is off";
+        if (Settings::rendering().mPbr && !hdr)
+            Log(Debug::Warning) << "[Rendering] pbr needs hdr (it lights in linear space); the material model is off";
         if (Settings::rendering().mGBuffer && !hdr)
             Log(Debug::Warning) << "[Rendering] gbuffer needs hdr (the HDR path owns the render pass that holds its "
                                    "outputs); the G-buffer is off";
@@ -223,7 +258,11 @@ namespace MWRender
             // OpenEden (task 0026, F3): the G-buffer is extra colour outputs of this target's render pass, which must
             // exist before any pipeline of the scene is compiled.
             const bool gbuffer = Render::GBuffer::useGBuffer(Settings::rendering().mGBuffer, true);
-            const auto gbufferFormats = gbuffer ? Render::GBuffer::extraColorFormats(true) : std::vector<VkFormat>{};
+            // OpenEden (task 0027, F4): the material model; its values are stored only with the G-buffer.
+            const bool pbr = Render::Pbr::usePbr(Settings::rendering().mPbr, true);
+            const bool materialOutput = Render::Pbr::useMaterialOutput(pbr, gbuffer);
+            const auto gbufferFormats
+                = gbuffer ? Render::GBuffer::extraColorFormats(true, materialOutput) : std::vector<VkFormat>{};
             mHdrTarget = std::make_unique<Render::HdrTarget>(
                 *context, mEngine.framebufferSamples(), mEngine.extent2D(), gbufferFormats);
             mGBufferOutputs = static_cast<unsigned int>(gbufferFormats.size());
@@ -233,6 +272,20 @@ namespace MWRender
                 // Skinned models keep the previous frame's bone matrices (stage c); before any is loaded.
                 Anim::Skin::keepPreviousMatrices = true;
                 Log(Debug::Info) << "G-buffer: normals and linear depth are stored beside the scene";
+            }
+            if (pbr)
+            {
+                const auto look = Render::Pbr::parseLook(Settings::rendering().mPbrLook.get());
+                if (!look)
+                    Log(Debug::Warning) << "[Rendering] pbr look: unknown look '" << Settings::rendering().mPbrLook.get()
+                                        << "', using vanilla";
+                resourceSystem->builder->graphics->pbrLook
+                    = look.value_or(Render::Pbr::Look::Vanilla) == Render::Pbr::Look::Physical ? 2 : 1;
+                // The overrides and skin marks; the loaders look them up (tier 2, task 0027). Before any model loads.
+                resourceSystem->materialTable = std::make_shared<Render::Pbr::OverrideTable>();
+                resourceSystem->nifReader->materialTable = resourceSystem->materialTable.get();
+                loadMaterialFiles(*resourceSystem->getVFS(), *resourceSystem->materialTable);
+                Log(Debug::Info) << "PBR: the material model is on" << (materialOutput ? ", stored in the G-buffer" : "");
             }
             Log(Debug::Info) << "HDR: rendering the scene in " << static_cast<int>(mHdrTarget->samples())
                              << " sample(s) to a 16-bit float target";

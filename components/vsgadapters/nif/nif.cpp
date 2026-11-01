@@ -20,6 +20,7 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/animation/billboard.hpp>
+#include <components/render/materialoverrides.hpp>
 #include <components/animation/bones.hpp>
 #include <components/animation/color.hpp>
 #include <components/animation/cullparticles.hpp>
@@ -213,6 +214,7 @@ namespace vsgAdapters
     public:
         // openeden-vsg: the reader's normal and specular map settings (task 0012, V4h); set before load().
         const AutoMapSettings* mAutoMaps = nullptr;
+        const Render::Pbr::OverrideTable* mMaterialTable = nullptr;
         const std::function<bool(std::string_view)>* mTextureExists = nullptr;
         // openeden-vsg: `[Shaders] soft particles` (task 0012, V4k).
         bool mSoftParticles = false;
@@ -261,6 +263,8 @@ namespace vsgAdapters
             vsg::ref_ptr<MaterialValue> material;
             vsg::ref_ptr<Anim::Color> materialController;
             float alphaTestCutoff = 1.f;
+            // The base texture's resolved path, kept only to look up material overrides (task 0027).
+            std::string diffuseTexture;
             bool depthSorted = false;
             uint32_t animFlags = 0;
             uint32_t phaseGroup = 0;
@@ -869,6 +873,8 @@ namespace vsgAdapters
             nodeOptions.nonStandardUvSets.clear();
             nodeOptions.stateSwitch = {};
             removeAutoMapModes(nodeOptions.shader);
+            if (mMaterialTable)
+                nodeOptions.diffuseTexture = resolveTexturePath(texprop, Nif::NiTexturingProperty::BaseTexture);
             vsg::Descriptors textures;
             auto flipctrl = searchController<Nif::NiFlipController>(texprop.mController, Nif::RC_NiFlipController);
             size_t i = 0;
@@ -1084,6 +1090,23 @@ namespace vsgAdapters
             else
                 data = MaterialValue::create(Pipeline::Material::createDefault());
             data->value().alphaTestCutoff = options.alphaTestCutoff;
+            if (mMaterialTable)
+            {
+                // Task 0027, tier 2 and the skin marks: values no layer sets stay "derive" (roughness and reflectance
+                // below zero).
+                const auto values = mMaterialTable->resolveValues(mFilename, options.diffuseTexture);
+                auto& pbr = data->value().pbr;
+                if (values.roughness)
+                    pbr.x = static_cast<float>(*values.roughness);
+                if (values.metalness)
+                    pbr.y = static_cast<float>(*values.metalness);
+                if (values.reflectance)
+                    pbr.z = static_cast<float>(*values.reflectance);
+                if (values.occlusion)
+                    pbr.w = static_cast<float>(*values.occlusion);
+                if (values.subsurface)
+                    data->value().subsurface = *values.subsurface ? 1.f : 0.f;
+            }
             if (mOverride && mOverride->materialData)
                 mOverride->materialData(data->value());
             // if (isDefault) return {}; // Increases shader variations.
@@ -1567,6 +1590,7 @@ namespace vsgAdapters
         {
             nifImpl impl(stream, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder);
             impl.mAutoMaps = &autoMaps;
+            impl.mMaterialTable = materialTable;
             impl.mTextureExists = &textureExists;
             impl.mSoftParticles = softParticles;
             impl.mOccludedParticleModel = &occludedParticleModel;

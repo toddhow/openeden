@@ -29,6 +29,11 @@ namespace Settings
         // Task 0026 (F3): stored normals, depth and velocity. Read at start; needs `hdr`.
         SettingValue<bool> mGBuffer{ mIndex, "Rendering", "gbuffer" };
         SettingValue<std::string> mGBufferDebugView{ mIndex, "Rendering", "gbuffer debug view" };
+
+        // Task 0027 (F4, R1): the material model and physically based lighting. Read at start; needs `hdr`.
+        SettingValue<bool> mPbr{ mIndex, "Rendering", "pbr" };
+        SettingValue<std::string> mPbrLook{ mIndex, "Rendering", "pbr look" };
+        SettingValue<bool> mPbrMaterialMaps{ mIndex, "Rendering", "pbr material maps" };
     };
 }
 

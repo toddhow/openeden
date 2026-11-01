@@ -35,6 +35,11 @@ namespace vsg
     class Descriptor;
 }
 
+namespace Render::Pbr
+{
+    class OverrideTable;
+}
+
 namespace Resource
 {
     /*
@@ -81,6 +86,9 @@ namespace Resource
         vsg::ref_ptr<vsgAdapters::nif> nifReader;
         const vsg::ref_ptr<const vsg::Options> nodeOptions;
         const vsg::ref_ptr<const vsg::Options> animationOptions;
+        // OpenEden (task 0027): the material overrides, made by the renderer when `[Rendering] pbr` is on; null
+        // otherwise, and then nothing is looked up or marked.
+        std::shared_ptr<Render::Pbr::OverrideTable> materialTable;
     };
 
 }

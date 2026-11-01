@@ -54,3 +54,25 @@ vec4 materialTerms(vec3 lightDiffuse, vec4 vertexColor /*, Material material, Sc
         total = max(total, 0.0);
     return total;
 }
+
+// OpenEden (task 0027, R1): materialTerms with the ambient and the diffuse light scaled, for the metal tint, the energy
+// conserving diffuse and the baked occlusion. Emission is not scaled. With both scales at 1 it is materialTerms.
+vec4 materialTermsScaled(vec3 lightDiffuse, vec4 vertexColor, float ambientScale, float diffuseScale)
+{
+    if (colorMode == 3)
+        return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    vec3 ambient = scene.ambient.xyz * getAmbient(vertexColor) * ambientScale;
+    vec4 materialDiffuse = getDiffuse(vertexColor);
+    vec3 diffuse = lightDiffuse * materialDiffuse.xyz * diffuseScale;
+    vec4 total = vec4(ambient + diffuse + getEmission(vertexColor), materialDiffuse.a);
+    if (cClampLighting)
+    {
+        if (linearView())
+            total = max(total, 0.0);
+        else
+            total = clamp(total, 0.0, 1.0);
+    }
+    else
+        total = max(total, 0.0);
+    return total;
+}

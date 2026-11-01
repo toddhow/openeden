@@ -78,6 +78,12 @@ namespace Pipeline
                 return "GBUFFER";
             case Mode::GBUFFER_MOTION:
                 return "GBUFFER_MOTION";
+            case Mode::GBUFFER_MATERIAL:
+                return "GBUFFER_MATERIAL";
+            case Mode::PBR:
+                return "PBR";
+            case Mode::PBR_PHYSICAL:
+                return "PBR_PHYSICAL";
         }
         return "";
     }
@@ -210,6 +216,15 @@ namespace Pipeline
             fragmentStageOptions.addMode(Mode::ADJUST_COVERAGE);
         if (toGBuffer)
             fragmentStageOptions.addMode(Mode::GBUFFER);
+        // Task 0027: the material model, for every lit draw that is not a particle or debug geometry.
+        if (pbrLook > 0 && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+        {
+            fragmentStageOptions.addMode(Mode::PBR);
+            if (pbrLook > 1)
+                fragmentStageOptions.addMode(Mode::PBR_PHYSICAL);
+        }
+        if (toGBuffer && gbufferOutputs >= 4)
+            fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);
         if (gbufferMotion)
             fragmentStageOptions.addMode(Mode::GBUFFER_MOTION);
         auto fragmentStage = mFragmentStageCache.getOrCreate(fragmentStageOptions, *this);

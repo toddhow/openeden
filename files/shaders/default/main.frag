@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -16,8 +16,12 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 // they have no specialization constants of their own.
 
 // OpenEden: normal and specular maps light each pixel, as OpenMW's PER_PIXEL_LIGHTING (task 0012, V4h).
-#if defined(NORMAL) && (defined(NORMAL_MAP) || defined(SPECULAR_MAP))
+#if defined(NORMAL) && (defined(NORMAL_MAP) || defined(SPECULAR_MAP) || defined(PBR))
 #define PER_PIXEL_LIGHTING 1
+#endif
+// OpenEden (task 0027, R1): lit surfaces with the material model's lighting.
+#if defined(NORMAL) && defined(PBR)
+#define PBR_LIT 1
 #endif
 
 #include "lib/view/scene.glsl"
@@ -29,10 +33,16 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #include "lib/object/object.glsl"
 #include "lib/material/alphatest.glsl"
 #include "lib/material/terms.glsl"
+#if defined(GBUFFER_MATERIAL) || defined(PBR)
+#include "lib/material/pbr.glsl"
+#endif
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
 #include "lib/view/screencoord.glsl"
 #include "lib/light/pixellighting.glsl"
+ #ifdef PBR_LIT
+#include "lib/light/pbrlighting.glsl"
+ #endif
 #endif
 #ifdef PARALLAX
 #include "lib/material/parallax.glsl"
@@ -61,6 +71,10 @@ layout(location=1) out vec4 outNormal;
 layout(location=2) out float outLinearDepth;
 // The motion of skinned actors' bones on screen; zero for everything else.
 layout(location=3) out vec2 outMotion;
+#ifdef GBUFFER_MATERIAL
+// OpenEden (task 0027): metalness, reflectance, occlusion and the subsurface mark; roughness goes in outNormal.w.
+layout(location=4) out vec4 outMaterial;
+#endif
 #endif
 
 void main()
@@ -69,6 +83,9 @@ void main()
     outNormal = vec4(0.0);
     outLinearDepth = 0.0;
     outMotion = vec2(0.0);
+ #ifdef GBUFFER_MATERIAL
+    outMaterial = vec4(0.0);
+ #endif
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
     // OpenEden: once the shader writes the sample mask, every path must, or the mask is undefined (task 0012, V4j).
@@ -145,6 +162,11 @@ void main()
     vec4 vertexColor = vec4(1);
 #endif
 
+#if defined(GBUFFER_MATERIAL) || defined(PBR)
+    // The specular map's shininess and colour, when the surface has one (task 0027, tier 1).
+    float pbrShininess = 0.0;
+    vec3 pbrSpecular = vec3(0.0);
+#endif
 #ifdef NORMAL
  #if defined(NORMAL_MAP) && defined(TEXCOORD)
     vec3 tangentNormal = texture(normalMap, frag_in.texCoord[diffuseUV] + offset).xyz * 2.0 - 1.0;
@@ -168,25 +190,68 @@ void main()
     vec4 specularTex = texture(specularMap, frag_in.texCoord[diffuseUV]);
     float shininess = max(specularTex.a * 255.0, 1e-4);
     vec3 specularColor = toLinearIfView(specularTex.xyz);
+   #if defined(GBUFFER_MATERIAL) || defined(PBR)
+    pbrShininess = shininess;
+    pbrSpecular = specularTex.xyz;
+   #endif
   #else
     float shininess = 1e-4;
     vec3 specularColor = vec3(0);
   #endif
     vec3 pointDiffuse, pointSpecular;
+  #ifdef PBR_LIT
+    // The material model: the vanilla diffuse light, a microfacet specular (the specular map's colour and shininess
+    // are read as its roughness and reflectance, lib/material/pbr.glsl).
+   #ifdef MATERIAL
+    PbrSurface pbrLit = pbrSurfaceFrom(material.pbr, material.subsurface, pbrShininess, pbrSpecular);
+   #else
+    PbrSurface pbrLit = pbrSurfaceFrom(vec4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
+   #endif
+    vec3 pbrBase = outColor.xyz;
+    vec3 pbrF0 = pbrSpecularF0(pbrBase, pbrLit.metalness, pbrLit.reflectance);
+    pbrPointLights(viewPosToScreenCoord(frag_in.viewPos, scene.projection), viewNormal, frag_in.viewPos,
+        pbrLit.roughness, pbrF0, pointDiffuse, pointSpecular);
+    vec3 diffuseLight = pointDiffuse + directionalDiffuse(viewNormal) * sunShadow;
+    vec3 specularLight = pointSpecular + scene.lightSpecular.xyz
+        * pbrSpecularLobe(viewNormal, normalize(frag_in.viewPos), scene.lightViewPos.xyz, pbrLit.roughness, pbrF0)
+        * sunShadow;
+  #else
     pointLightsPerPixel(viewPosToScreenCoord(frag_in.viewPos, scene.projection), viewNormal, frag_in.viewPos,
         shininess, pointDiffuse, pointSpecular);
     vec3 diffuseLight = pointDiffuse + directionalDiffuse(viewNormal) * sunShadow;
     vec3 specularLight = pointSpecular + scene.lightSpecular.xyz
         * specularIntensity(viewNormal, normalize(frag_in.viewPos), shininess, scene.lightViewPos.xyz) * sunShadow;
+  #endif
  #else
     vec3 diffuseLight = frag_in.pointLightDiffuse + directionalDiffuse(viewNormal) * sunShadow;
  #endif
 #else
     vec3 diffuseLight = vec3(0);
 #endif
+#ifdef PBR_LIT
+    {
+        // Metals have no diffuse (and tint their specular with the base colour). `physical` also takes the share of
+        // light the Fresnel reflection already carried away, scales the ambient by the baked occlusion, and lets every
+        // surface reflect; `vanilla` keeps the vanilla diffuse and reflects only where there is specular data.
+        float pbrNoV = max(dot(viewNormal, -normalize(frag_in.viewPos)), 1e-3);
+  #ifdef PBR_PHYSICAL
+        vec3 pbrKd = vec3(1.0) - pbrFresnel(pbrNoV, pbrF0);
+        float pbrDiffuseScale = (1.0 - pbrLit.metalness) * dot(pbrKd, vec3(1.0 / 3.0));
+        float pbrAmbientScale = (1.0 - pbrLit.metalness) * pbrLit.occlusion;
+        float pbrSpecularScale = 1.0;
+  #else
+        float pbrDiffuseScale = 1.0 - pbrLit.metalness;
+        float pbrAmbientScale = pbrDiffuseScale;
+        float pbrSpecularScale = max(clamp((pbrLit.reflectance - 0.5) * 2.0, 0.0, 1.0), pbrLit.metalness);
+  #endif
+        outColor *= materialTermsScaled(diffuseLight, vertexColor, pbrAmbientScale, pbrDiffuseScale);
+        outColor.xyz += specularLight * pbrSpecularScale;
+    }
+#else
     outColor *= materialTerms(diffuseLight, vertexColor);
-#ifdef PER_PIXEL_LIGHTING
+ #ifdef PER_PIXEL_LIGHTING
     outColor.xyz += specularColor * specularLight;
+ #endif
 #endif
 
 #ifdef NORMAL
@@ -258,6 +323,15 @@ void main()
     outLinearDepth = -frag_in.viewPos.z;
  #ifdef GBUFFER_MOTION
     outMotion = frag_in.motion;
+ #endif
+ #ifdef GBUFFER_MATERIAL
+  #ifdef MATERIAL
+    PbrSurface pbrOut = pbrSurfaceFrom(material.pbr, material.subsurface, pbrShininess, pbrSpecular);
+  #else
+    PbrSurface pbrOut = pbrSurfaceFrom(vec4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
+  #endif
+    outNormal.w = pbrOut.roughness;
+    outMaterial = vec4(pbrOut.metalness, pbrOut.reflectance, pbrOut.occlusion, pbrOut.subsurface);
  #endif
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
