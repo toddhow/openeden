@@ -95,6 +95,8 @@ namespace MWRender
         RootState getRoot() const;
         vsg::vec3 worldPos(const BonePose::Bone& bone) const;
         void writeBone(BoneState& bone, const vsg::mat4& local);
+        /// Writes only the bone's rotation (foot IK); translation and scale stay as animated.
+        void writeRotation(BoneState& bone, const vsg::mat4& rotation);
         void restoreBones();
         bool restoreBase(BoneState& bone);
         void probeLegGround(LegState& leg, const vsg::vec3& actorPos, const vsg::vec3& actorForward, float actorScale);

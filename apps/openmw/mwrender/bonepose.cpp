@@ -67,6 +67,35 @@ namespace MWRender
         return model;
     }
 
+    namespace
+    {
+        // The bone's rotation alone, without its scale or translation.
+        vsg::mat4 rotationMatrixOf(const Anim::Transform& transform)
+        {
+            vsg::mat4 matrix;
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    matrix[i][j] = transform.rotation[i][j];
+            return matrix;
+        }
+    }
+
+    vsg::mat4 BonePose::getWorldRotation(const Bone& bone) const
+    {
+        vsg::mat4 rotation = mRoot ? rotationMatrixOf(*mRoot) : vsg::mat4();
+        for (const Anim::Transform* node : bone.mPath)
+            rotation = rotation * rotationMatrixOf(*node);
+        return rotation;
+    }
+
+    vsg::mat4 BonePose::getParentWorldRotation(const Bone& bone) const
+    {
+        vsg::mat4 rotation = mRoot ? rotationMatrixOf(*mRoot) : vsg::mat4();
+        for (std::size_t i = 0; i + 1 < bone.mPath.size(); ++i)
+            rotation = rotation * rotationMatrixOf(*bone.mPath[i]);
+        return rotation;
+    }
+
     vsg::mat4 BonePose::getRoot() const
     {
         return mRoot ? localMatrix(*mRoot) : vsg::mat4();

@@ -15,8 +15,7 @@
 #include <components/mwanimation/play.hpp>
 #include <components/settings/values.hpp>
 
-#include <opas/ik/TwoBoneIk.hpp>
-#include <opas/math/Vec3.hpp>
+#include "footikmath.hpp"
 
 #include <algorithm>
 #include <array>
@@ -53,21 +52,11 @@ namespace MWRender
             return std::clamp(1.f - std::exp(-rate * dt), 0.f, 1.f);
         }
 
-        vsg::mat4 rotateAbout(const vsg::vec3& pivot, const vsg::mat4& rotation)
-        {
-            return vsg::translate(pivot) * (rotation * vsg::translate(-pivot));
-        }
-
         vsg::mat4 inverseOf(const vsg::mat4& matrix)
         {
             vsg::mat4 result;
             Misc::VsgMath::invert(matrix, result);
             return result;
-        }
-
-        vsg::mat4 rotationMatrix(const vsg::dquat& rotation)
-        {
-            return vsg::mat4(Misc::VsgMath::toMatrix(rotation));
         }
 
         // OSG's m.setRotate(q): only the rotation block changes.
@@ -77,16 +66,6 @@ namespace MWRender
             for (int i = 0; i < 3; ++i)
                 for (int j = 0; j < 3; ++j)
                     matrix[i][j] = static_cast<float>(block[i][j]);
-        }
-
-        vsg::vec3 toVsg(const opas::math::Vec3& v)
-        {
-            return vsg::vec3(static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
-        }
-
-        opas::math::Vec3 toOpas(const vsg::vec3& v)
-        {
-            return { v.x, v.y, v.z };
         }
 
         vsg::vec3 clampTilt(vsg::vec3 n)
@@ -232,6 +211,13 @@ namespace MWRender
         mPose->setLocal(bone.mBone, local);
         // Store the matrix as the bone gives it back (it keeps translation, rotation and scale separately), so the
         // next frame's restoreBase can tell exactly whether the animation wrote this bone again.
+        bone.mWritten = mPose->getLocal(bone.mBone);
+        bone.mHasWritten = true;
+    }
+
+    void ActorIkController::writeRotation(BoneState& bone, const vsg::mat4& rotation)
+    {
+        mPose->setLocalRotation(bone.mBone, Misc::VsgMath::rotationOf(rotation));
         bone.mWritten = mPose->getLocal(bone.mBone);
         bone.mHasWritten = true;
     }
@@ -529,43 +515,19 @@ namespace MWRender
         // Bias the knee pole vector along actorForward so nearly-straight legs do not wobble laterally.
         const vsg::vec3 pole = (knee - (hip + ankle) * 0.5f) + actorForward * (8.0f * actorScale);
 
-        const opas::ik::TwoBoneChain chain{ toOpas(hip), toOpas(knee), toOpas(ankle) };
-        const opas::ik::HingeLimits limits{ 0.0, 2.8 };
-        const opas::ik::TwoBoneResult ik = opas::ik::solveTwoBone(chain, toOpas(target), toOpas(pole), limits);
-        if (!ik.valid)
+        const FootIk::LegSolution solution
+            = FootIk::solveLegPose({ thighWorld, calfWorld, footWorld }, target, pole, clampedNormal, weight);
+        if (!solution.mValid)
             return;
 
-        const vsg::vec3 newKnee = toVsg(ik.mid);
-        const vsg::vec3 newAnkle = toVsg(ik.end);
+        // Only the three bones' rotations change; their translations and scales stay as animated.
+        const FootIk::LegLocalRotations rotations = FootIk::solveLocalRotations(solution,
+            { mPose->getParentWorldRotation(leg.mThigh.mBone), mPose->getWorldRotation(leg.mThigh.mBone),
+                mPose->getWorldRotation(leg.mCalf.mBone), mPose->getWorldRotation(leg.mFoot.mBone) });
 
-        // World-space joint rotations derived from CreativeMotion's solved joint positions.
-        const vsg::mat4 rot1 = rotationMatrix(Misc::VsgMath::makeRotate(knee - hip, newKnee - hip));
-        const vsg::vec3 calfDirAfterHip = Misc::VsgMath::transform3x3(ankle - knee, rot1);
-        const vsg::mat4 rot2 = rotationMatrix(Misc::VsgMath::makeRotate(calfDirAfterHip, newAnkle - newKnee));
-
-        const vsg::mat4 aroundHip = rotateAbout(hip, rot1);
-        const vsg::mat4 aroundKnee = rotateAbout(newKnee, rot2);
-
-        // Foot keeps its animated world orientation, then is tilted to the (filtered) ground normal.
-        const vsg::dquat tilt = Misc::VsgMath::makeRotate(vsg::vec3(0.f, 0.f, 1.f), clampedNormal);
-        const vsg::dquat weightedTilt = Misc::VsgMath::slerp(weight, vsg::dquat(), tilt);
-
-        const vsg::mat4 newThighWorld = aroundHip * thighWorld;
-        const vsg::mat4 newCalfWorld = aroundKnee * (aroundHip * calfWorld);
-        const vsg::mat4 newFootWorld
-            = vsg::translate(newAnkle) * (rotationMatrix(weightedTilt) * (vsg::translate(-ankle) * footWorld));
-
-        auto writeLocal = [this](BoneState& bone, const vsg::mat4& oldWorld, const vsg::mat4& newWorld,
-                              const vsg::mat4& parentDelta) {
-            const vsg::mat4 local = mPose->getLocal(bone.mBone);
-            const vsg::mat4 parentWorld = oldWorld * inverseOf(local);
-            const vsg::mat4 newParentWorld = parentDelta * parentWorld;
-            writeBone(bone, inverseOf(newParentWorld) * newWorld);
-        };
-
-        writeLocal(leg.mThigh, thighWorld, newThighWorld, vsg::mat4());
-        writeLocal(leg.mCalf, calfWorld, newCalfWorld, aroundHip);
-        writeLocal(leg.mFoot, footWorld, newFootWorld, aroundKnee * aroundHip);
+        writeRotation(leg.mThigh, rotations.mThigh);
+        writeRotation(leg.mCalf, rotations.mCalf);
+        writeRotation(leg.mFoot, rotations.mFoot);
     }
 
     void ActorIkController::updateHitboxes(const RootState& root, const vsg::vec3& actorForward, float actorScale)

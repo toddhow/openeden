@@ -19,6 +19,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/weightedsearch.cpp
 
     mwrender/testbonepose.cpp
+    mwrender/testfootik.cpp
     mwrender/testrain.cpp
     mwrender/testdistantobjectcells.cpp
     mwrender/testocclusionbox.cpp

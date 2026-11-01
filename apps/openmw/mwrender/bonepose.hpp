@@ -57,6 +57,12 @@ namespace MWRender
         vsg::mat4 getModel(const Bone& bone) const;
         /// The bone's transform in world space.
         vsg::mat4 getWorld(const Bone& bone) const;
+        /// The bone's rotation in world space with every scale left out: the root's rotation times the bones' own
+        /// rotations. Scaled bones (race weight) make the full world matrix sheared once rotated; use this to compute
+        /// rotations to write back with setLocalRotation.
+        vsg::mat4 getWorldRotation(const Bone& bone) const;
+        /// The same for the bone's parent (the actor root's rotation for a model's first bone).
+        vsg::mat4 getParentWorldRotation(const Bone& bone) const;
         /// The actor's root transform in world space (identity without a root).
         vsg::mat4 getRoot() const;
 
