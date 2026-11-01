@@ -1,0 +1,49 @@
+name: Checks
+
+# The gates from the guide's table that need no build: formatting, naming, no OpenSceneGraph left, the extension SDK
+# version rule, and the Qt translation files. They mirror the GitLab jobs Clang_Format and Lupdate (task 0022).
+
+on:
+- push
+- pull_request
+
+jobs:
+  Format-and-lint:
+    runs-on: ubuntu-latest
+    env:
+      CLANG_FORMAT: clang-format-14
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install clang-format 14
+      run: sudo CI/install_debian_deps.sh openmw-clang-format
+
+    - name: CMake format
+      run: CI/check_cmake_format.sh
+
+    - name: File names
+      run: CI/check_file_names.sh
+
+    - name: No OpenSceneGraph
+      run: CI/check_no_osg.sh
+
+    - name: clang-format
+      run: CI/check_clang_format.sh
+
+    - name: Extension SDK version
+      run: CI/check_extension_sdk.sh
+
+  Translations:
+    runs-on: ubuntu-latest
+    env:
+      LUPDATE: /usr/lib/qt6/bin/lupdate
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Qt tools
+      run: sudo CI/install_debian_deps.sh openmw-qt-translations
+
+    - name: Qt translations
+      run: CI/check_qt_translations.sh

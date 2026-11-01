@@ -35,6 +35,7 @@ jobs:
         -D BUILD_COMPONENTS_TESTS=ON
         -D BUILD_OPENMW_TESTS=ON
         -D BUILD_OPENCS_TESTS=ON
+        -D "OPENMW_CXX_FLAGS=-Werror -Werror=implicit-fallthrough"
         -D CMAKE_INSTALL_PREFIX=install
 
     - name: Build
@@ -48,6 +49,28 @@ jobs:
 
     - name: Run OpenMW-CS tests
       run: ./openmw-cs-tests
+
+    # The Lua API tests, against OpenMW's example suite at the revision pinned here (the same as .gitlab-ci.yml). The game
+    # needs a Vulkan device, so a software one (lavapipe) runs under a virtual X server. Task 0022.
+    - name: Install integration test dependencies
+      run: >
+        sudo apt-get install -y --no-install-recommends xvfb python3 python3-pip git-lfs mesa-vulkan-drivers libvulkan1
+        && pip3 install --user --break-system-packages numpy matplotlib termtables click
+
+    - name: Run integration tests
+      env:
+        EXAMPLE_SUITE_REVISION: a1ba6fc9d7315c2158ef4c60349fc4e71b7ca343
+      run: |
+        git lfs install
+        mkdir example-suite
+        cd example-suite
+        git init
+        git remote add origin https://gitlab.com/OpenMW/example-suite.git
+        git fetch --depth=1 origin ${EXAMPLE_SUITE_REVISION}
+        git checkout FETCH_HEAD
+        cd ..
+        xvfb-run --auto-servernum --server-args='-screen 0 640x480x24x60' \
+          scripts/integration_tests.py --verbose --omw ./openmw --workdir integration_tests_output example-suite/
 
     # - name: Install
     #   shell: bash
@@ -66,25 +89,8 @@ jobs:
     #     path: ./build_artifact.7z
     #     name: build_artifact.7z
 
-  MacOS:
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install Building Dependencies
-      run: CI/before_install.macos.sh
-
-    - name: Prime ccache
-      uses: hendrikmuhs/ccache-action@v1
-      with:
-        key: ${{ matrix.os }}-${{ env.BUILD_TYPE }}
-        max-size: 1000M
-
-    - name: Configure
-      run: CI/before_script.macos.sh -C
-    - name: Build
-      run: CI/macos/build.sh
+  # The MacOS job is left out: macOS is not a target until toddhow says so (guide, "Platforms"), and with Vulkan it would
+  # need MoltenVK (decision 0002). Its scripts stay in CI/. Task 0022.
 
   Output-Envs:
     name: Read .env file and expose it as output
