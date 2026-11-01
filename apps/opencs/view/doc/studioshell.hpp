@@ -1,6 +1,8 @@
 #ifndef CSV_DOC_STUDIOSHELL_H
 #define CSV_DOC_STUDIOSHELL_H
 
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <QObject>
@@ -78,6 +80,8 @@ namespace CSVDoc
         QDockWidget* makeDock(const QString& title, const QString& objectName, QWidget* content);
         void arrangeDefault();
         void applyLayout(CSMPrefs::EditorLayout layout);
+        /// The editor modules' workspaces, panels and timeline strip (task 0031), if there are any.
+        void addModuleUi();
 
         QMainWindow& mWindow;
         QMainWindow& mSubViewWindow;
@@ -92,6 +96,7 @@ namespace CSVDoc
         QDockWidget* mTransport;
         QDockWidget* mOutputLog;
         QDockWidget* mOperations = nullptr;
+        std::vector<std::pair<std::string, QDockWidget*>> mModulePanels; ///< workspace ID, dock
     };
 }
 

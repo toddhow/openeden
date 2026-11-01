@@ -3,7 +3,11 @@
 #include <QAction>
 #include <QApplication>
 #include <QAbstractItemModel>
+#include <QCoreApplication>
 #include <QDialog>
+#include <QGroupBox>
+#include <QMenu>
+#include <QTabBar>
 #include <QDoubleSpinBox>
 #include <QFileInfo>
 #include <QLineEdit>
@@ -63,6 +67,7 @@
 #include "view/doc/contextinspector.hpp"
 #include "view/doc/logtap.hpp"
 #include "view/doc/subview.hpp"
+#include "view/module/moduleui.hpp"
 #include "view/doc/viewmanager.hpp"
 #include "view/render/physicshub.hpp"
 #include "view/render/scenehost.hpp"
@@ -86,6 +91,8 @@ CS::Editor::Editor(int argc, char** argv)
     startExtensionHost();
 
     std::pair<Files::PathContainer, std::vector<std::string>> config = readConfig();
+
+    startModules(config.first);
 
     mViewManager = new CSVDoc::ViewManager(mDocumentManager);
     mViewManager->setExtensionHost(mExtensionHost.get());
@@ -140,10 +147,51 @@ void CS::Editor::afterStep(float dt)
         mExtensionHost->afterStep(dt);
 }
 
+CSMDoc::Document* CS::Editor::activeDocument()
+{
+    return mViewManager != nullptr ? mViewManager->activeDocument() : nullptr;
+}
+
+void CS::Editor::startModules(const Files::PathContainer& dataDirs)
+{
+    mModuleHost = std::make_unique<CSMModule::ModuleHost>(mModuleRegistry, mModuleUi);
+
+    // Core systems' modules first (decision 0007), then the extensions' (their manifests' "editor" entries).
+    std::vector<CSMModule::ModuleSource> sources
+        = CSMModule::coreModuleSources(std::filesystem::path(QCoreApplication::applicationDirPath().toStdString())
+            / "editor-modules");
+    // OPENEDEN_CS_MODULES=<id>=<library path>[;<id>=<library path>...]: more core modules, for checks.
+    if (const char* extra = std::getenv("OPENEDEN_CS_MODULES"))
+        for (const QString& item : QString::fromUtf8(extra).split(';', Qt::SkipEmptyParts))
+        {
+            const int equals = item.indexOf('=');
+            if (equals > 0)
+                sources.push_back({ item.left(equals).toStdString(), std::filesystem::path(item.mid(equals + 1).toStdString()),
+                    CSMModule::ModuleSource::Origin::Core });
+        }
+    if (mExtensionHost)
+        for (CSMModule::ModuleSource& source : mExtensionHost->editorModuleSources())
+            sources.push_back(std::move(source));
+    mModuleHost->load(sources);
+    for (const CSMModule::ModuleInfo& info : mModuleHost->modules())
+        if (info.mState == CSMModule::ModuleInfo::State::Failed)
+            Log(Debug::Error) << "Editor module '" << info.mId << "' failed: " << info.mMessage;
+
+    std::vector<std::filesystem::path> roots;
+    for (const std::filesystem::path& dir : dataDirs)
+        roots.push_back(dir);
+    if (const char* folder = std::getenv("OPENEDEN_CS_ASSETDIR"))
+        roots.push_back(std::filesystem::path(folder));
+    mModuleUi.setAssetRoots(std::move(roots));
+}
+
 CS::Editor::~Editor()
 {
     mPhysicsWorld.setStepObserver(nullptr);
     delete mViewManager;
+    // What the modules handed over has code in their libraries: gone before the libraries are.
+    mModuleUi.releaseModuleObjects();
+    mModuleHost.reset();
 
     mLockFile.unlock();
     mPidFile.close();
@@ -705,6 +753,128 @@ namespace
         });
     }
 
+    /// The editor module check (task 0031, stage B), see startUiCheck. Run with OPENEDEN_CS_MODULES naming the sample
+    /// module and OPENEDEN_CS_ASSETDIR a folder with a .note.json file. Everything it sees is logged as "UI check:
+    /// module ...".
+    void runModuleCheck(CSMDoc::Document* document, const std::string& prefix, int milliseconds)
+    {
+        const int step = std::max(500, milliseconds / 9);
+        QTimer::singleShot(step * 2, qApp, [=] {
+            // The Extensions menu: the module's submenu and items, then the sample command.
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (auto* window = qobject_cast<QMainWindow*>(widget); window && window->isVisible())
+                {
+                    for (QAction* action : window->findChildren<QAction*>())
+                        if (action->objectName().startsWith("moduleCommand_"))
+                        {
+                            Log(Debug::Info) << "UI check: module menu item " << action->text().toStdString() << " ("
+                                             << action->objectName().toStdString() << ")";
+                            action->trigger();
+                        }
+                    for (QMenu* menu : window->findChildren<QMenu*>())
+                        if (menu->objectName().startsWith("moduleMenu_"))
+                            Log(Debug::Info) << "UI check: module menu " << menu->title().toStdString();
+                    break;
+                }
+        });
+        QTimer::singleShot(step * 3, qApp, [=] {
+            // The Asset Browser's "Module assets" group.
+            CSVDoc::AssetBrowser* panel = nullptr;
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (panel == nullptr)
+                    panel = top->findChild<CSVDoc::AssetBrowser*>();
+            if (panel == nullptr)
+            {
+                Log(Debug::Error) << "UI check: module: no Asset Browser";
+                return;
+            }
+            QTreeView* tree = panel->findChild<QTreeView*>("assetTree");
+            QAbstractItemModel* model = tree->model();
+            for (int group = 0; group < model->rowCount(); ++group)
+            {
+                const QModelIndex groupIndex = model->index(group, 0);
+                if (groupIndex.data().toString() != "Module assets")
+                    continue;
+                tree->expand(groupIndex);
+                Log(Debug::Info) << "UI check: module assets listed: " << model->rowCount(groupIndex);
+                if (model->rowCount(groupIndex) > 0)
+                {
+                    Log(Debug::Info) << "UI check: module asset "
+                                     << model->index(0, 0, groupIndex).data().toString().toStdString();
+                    emit tree->activated(model->index(0, 0, groupIndex));
+                }
+            }
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            Log(Debug::Info) << "UI check: module active asset " << (ui->activeAsset() ? "open" : "none") << " format "
+                             << ui->activeFormat() << " " << ui->openError();
+        });
+        QTimer::singleShot(step * 4, qApp, [=] {
+            // The workspace tab shows the panel; its form edits the weight through the undo stack.
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* tabs = top->findChild<QTabBar*>("workspaceTabs"))
+                    for (int i = 0; i < tabs->count(); ++i)
+                        if (tabs->tabText(i) == "Sample")
+                        {
+                            Log(Debug::Info) << "UI check: module workspace tab Sample found";
+                            tabs->setCurrentIndex(i);
+                        }
+        });
+        QTimer::singleShot(step * 5, qApp, [=] {
+            QDoubleSpinBox* weight = nullptr;
+            QLineEdit* title = nullptr;
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (weight == nullptr)
+                {
+                    for (QDoubleSpinBox* spin : top->findChildren<QDoubleSpinBox*>("property_weight"))
+                        if (spin->isVisibleTo(top))
+                            weight = spin;
+                    for (QLineEdit* line : top->findChildren<QLineEdit*>("property_title"))
+                        if (line->isVisibleTo(top))
+                            title = line;
+                }
+            if (weight == nullptr)
+            {
+                Log(Debug::Error) << "UI check: module: no visible weight field in the panel";
+                return;
+            }
+            Log(Debug::Info) << "UI check: module panel shows title " << (title ? title->text().toStdString() : "?")
+                             << " weight " << weight->value() << " unit " << weight->suffix().toStdString();
+            const int before = document->getUndoStack().count();
+            weight->setValue(6.0);
+            weight->setValue(7.5);
+            Log(Debug::Info) << "UI check: module edit: undo steps " << before << " -> "
+                             << document->getUndoStack().count() << " (two edits merge into one), weight "
+                             << weight->value();
+            document->getUndoStack().undo();
+            Log(Debug::Info) << "UI check: module undo: weight " << weight->value() << ", undo steps "
+                             << document->getUndoStack().count();
+            document->getUndoStack().redo();
+            Log(Debug::Info) << "UI check: module redo: weight " << weight->value();
+            // The inspector section and the timeline strip.
+            for (QWidget* top : QApplication::topLevelWidgets())
+            {
+                if (auto* box = top->findChild<QGroupBox*>("moduleSection_sample.section"))
+                    Log(Debug::Info) << "UI check: module inspector section " << box->title().toStdString();
+                if (auto* strip = top->findChild<QWidget*>("moduleTimeline"))
+                    Log(Debug::Info) << "UI check: module timeline strip " << strip->width() << "x" << strip->height();
+            }
+            Log(Debug::Info) << "UI check: module timeline keys " << CSVModule::ModuleUi::get()->timelineKeys().size();
+        });
+        QTimer::singleShot(step * 7, qApp, [=] {
+            if (CSVRender::WorldspaceWidget* widget = findWorldspaceWidget())
+                if (CSVRender::SceneHost* host = widget->getHost())
+                {
+                    const std::filesystem::path file = prefix + "_overlay.png";
+                    Log(Debug::Info) << "UI check: module frame " << file.string() << ": "
+                                     << (host->capture(file) ? "written" : "no frame");
+                }
+            int index = 0;
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (widget->isVisible() && qobject_cast<QMainWindow*>(widget))
+                    widget->grab().save(QString::fromStdString(prefix) + "_window" + QString::number(index++) + ".png");
+        });
+    }
+
     /// The Context Inspector check, see startUiCheck. Free of the editor class: it only needs the document.
     void runInspectorCheck(CSMDoc::Document* document, const std::string& cell, int milliseconds)
     {
@@ -828,6 +998,9 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_PHYSICS=<file prefix>: the physics check (task 0030), see runPhysicsCheck.
             if (const char* prefix = std::getenv("OPENEDEN_CS_PHYSICS"))
                 runPhysicsCheck(prefix, milliseconds);
+            // OPENEDEN_CS_MODULECHECK=<file prefix>: the editor module check, see runModuleCheck.
+            if (const char* prefix = std::getenv("OPENEDEN_CS_MODULECHECK"))
+                runModuleCheck(document, prefix, milliseconds);
             // OPENEDEN_CS_DROP=1: the constructed drop check, see runDropCheck.
             if (std::getenv("OPENEDEN_CS_DROP") != nullptr)
                 runDropCheck(document, milliseconds);

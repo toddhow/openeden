@@ -20,7 +20,16 @@ namespace CSMPhysics
         {
             JPH::RegisterDefaultAllocator();
             JPH::Factory::sInstance = new JPH::Factory();
-            JPH::RegisterTypes();
+            try
+            {
+                JPH::RegisterTypes();
+            }
+            catch (...)
+            {
+                delete JPH::Factory::sInstance;
+                JPH::Factory::sInstance = nullptr;
+                throw;
+            }
         }
         // After the start-up worked: a constructor that throws leaves no destructor to run.
         ++sUsers;

@@ -111,6 +111,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_lifecycle.cpp
     extension/test_empty_host.cpp
     extension/test_manifest_editor_entry.cpp
+    extension/test_manifest_editor_library.cpp
     extension/test_manifest_io.cpp
     extension/test_dynamic_library.cpp
     extension/test_extension_loader.cpp

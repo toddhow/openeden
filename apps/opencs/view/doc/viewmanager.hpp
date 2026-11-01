@@ -69,6 +69,9 @@ namespace CSVDoc
         void setExtensionHost(const CSMExtension::EditorExtensionHost* host) { mExtensionHost = host; }
         const CSMExtension::EditorExtensionHost* getExtensionHost() const { return mExtensionHost; }
 
+        /// The document of the window that has the focus, else of the first window; null without windows.
+        CSMDoc::Document* activeDocument();
+
         int countViews(const CSMDoc::Document* document) const;
         ///< Return number of views for \a document.
 

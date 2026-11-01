@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
@@ -350,7 +351,22 @@ namespace openeden::extension
         {
             const auto fail = [&](const std::string& field, const std::string& message) {
                 error.file = std::string(filename);
-                error.line = findKeyLine(jsonText, "editor");
+                // The "editor" that is a key (followed by a colon), not a value that spells the same.
+                std::size_t at = 0;
+                std::size_t found = std::string_view::npos;
+                while ((at = jsonText.find("\"editor\"", at)) != std::string_view::npos)
+                {
+                    std::size_t after = at + 8;
+                    while (after < jsonText.size() && (jsonText[after] == ' ' || jsonText[after] == '	'))
+                        ++after;
+                    if (after < jsonText.size() && jsonText[after] == ':')
+                    {
+                        found = at;
+                        break;
+                    }
+                    at += 8;
+                }
+                error.line = found != std::string_view::npos ? computeLineNumber(jsonText, found) : 1;
                 error.field = field;
                 error.message = message;
                 return std::nullopt;
@@ -363,6 +379,13 @@ namespace openeden::extension
                     return fail("/editor/" + it.key(), "unknown key \"" + it.key() + "\" in 'editor'");
             if (!editor.contains("library") || !editor["library"].is_string())
                 return fail("/editor/library", "'editor' needs a string 'library'");
+            {
+                // A file name beside the manifest: the library cannot reach out of the extension's folder.
+                const std::string library = editor["library"].get<std::string>();
+                if (library.empty() || library == "." || library == ".."
+                    || std::filesystem::path(library).filename() != std::filesystem::path(library))
+                    return fail("/editor/library", "'library' must be a file name in the extension's folder");
+            }
             if (!editor.contains("editorApi") || !editor["editorApi"].is_object())
                 return fail("/editor/editorApi", "'editor' needs an 'editorApi' object with 'major' and 'minor'");
             const auto& api = editor["editorApi"];

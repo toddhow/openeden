@@ -22,7 +22,7 @@ namespace
     constexpr const char* sFormatId = "sample.note";
     constexpr double sWeightMin = 0.0;
     constexpr double sWeightMax = 10.0;
-    constexpr double sAxisHalfLengthM = 0.5; // The axis cross reaches this far each way, in meters.
+    constexpr double sAxisHalfLengthM = 3.0; // The axis cross reaches this far each way, in meters.
     constexpr double sHandleStartHeightM = 1.0; // Where a new note's handle starts.
     constexpr double sSecondKeySeconds = 1.5;
 

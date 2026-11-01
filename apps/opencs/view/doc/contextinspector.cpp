@@ -6,8 +6,13 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QUndoStack>
+#include <QGroupBox>
 #include <QVBoxLayout>
 
+#include <apps/opencs/model/module/moduleregistry.hpp>
+#include "../module/moduleui.hpp"
+
+#include <algorithm>
 #include <cmath>
 #include <exception>
 
@@ -94,7 +99,14 @@ CSVDoc::ContextInspector::ContextInspector(CSMDoc::Document& document, ViewportP
     layout->addWidget(mTitle);
     layout->addLayout(form);
     layout->addWidget(mOpen);
+    mModuleSections = new QVBoxLayout;
+    layout->addLayout(mModuleSections);
     layout->addStretch(1);
+    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+    {
+        connect(modules, &CSVModule::ModuleUi::changed, this, &ContextInspector::rebuildModuleSections);
+        rebuildModuleSections();
+    }
 
     connect(mOpen, &QPushButton::clicked, this, [this] {
         if (mIds.size() == 1)
@@ -277,4 +289,44 @@ void CSVDoc::ContextInspector::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
     mTimer->stop();
+}
+
+void CSVDoc::ContextInspector::rebuildModuleSections()
+{
+    CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+    if (modules == nullptr || mModuleSections == nullptr)
+        return;
+    // Sections are rebuilt only when the set that applies changes, not at every edit (an edit refreshes the forms).
+    std::vector<std::string> wanted;
+    if (modules->activeAsset() != nullptr)
+        for (const auto& section : modules->registry().sections())
+            if (section.mDesc.selectionKind == modules->activeFormat())
+                wanted.push_back(section.mDesc.id);
+    if (wanted == mModuleSectionIds && (!wanted.empty() || mModuleSections->count() == 0)
+        && mModuleSectionAsset == modules->activeAsset())
+        return;
+    mModuleSectionIds = wanted;
+    mModuleSectionAsset = modules->activeAsset();
+    while (QLayoutItem* item = mModuleSections->takeAt(0))
+    {
+        delete item->widget();
+        delete item;
+    }
+    if (mModuleSectionAsset == nullptr)
+        return;
+    for (const std::string& id : wanted)
+    {
+        const auto& sections = modules->registry().sections();
+        const auto found = std::find_if(sections.begin(), sections.end(), [&](const auto& s) { return s.mDesc.id == id; });
+        if (found == sections.end())
+            continue;
+        openeden::editor::PropertySource* source = modules->registry().sectionSource(id, *modules->activeAsset());
+        if (source == nullptr)
+            continue;
+        auto* box = new QGroupBox(QString::fromStdString(found->mDesc.title), this);
+        box->setObjectName(QString::fromStdString("moduleSection_" + id));
+        auto* boxLayout = new QVBoxLayout(box);
+        boxLayout->addWidget(modules->makePropertyForm(*source, box));
+        mModuleSections->addWidget(box);
+    }
 }

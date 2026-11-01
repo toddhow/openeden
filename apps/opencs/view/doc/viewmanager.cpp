@@ -147,6 +147,14 @@ CSVDoc::ViewManager::~ViewManager()
         delete *iter;
 }
 
+CSMDoc::Document* CSVDoc::ViewManager::activeDocument()
+{
+    for (View* view : mViews)
+        if (view == QApplication::activeWindow())
+            return view->getDocument();
+    return mViews.empty() ? nullptr : mViews.front()->getDocument();
+}
+
 CSVDoc::View* CSVDoc::ViewManager::addView(CSMDoc::Document* document)
 {
     if (countViews(document) == 0)

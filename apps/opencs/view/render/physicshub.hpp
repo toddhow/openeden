@@ -101,7 +101,8 @@ namespace CSVRender
     class PhysicsDebugView
     {
     public:
-        explicit PhysicsDebugView(SceneHost& host);
+        /// \param registerWithHub the view shows the physics world (true), or is filled by its owner with show().
+        explicit PhysicsDebugView(SceneHost& host, bool registerWithHub = true);
         ~PhysicsDebugView();
 
         PhysicsDebugView(const PhysicsDebugView&) = delete;
@@ -115,6 +116,7 @@ namespace CSVRender
     private:
         SceneHost& mHost;
         std::weak_ptr<void> mHostAlive;
+        bool mRegistered;
         std::unique_ptr<Render::DebugGeometry> mGeometry;
         vsg::ref_ptr<vsg::Node> mRoot; ///< The geometry's node in the overlay bin: what hangs under contentRoot.
     };

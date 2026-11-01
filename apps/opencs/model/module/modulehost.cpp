@@ -176,6 +176,12 @@ namespace CSMModule
             mInfos.push_back(info);
         };
 
+        if (std::any_of(mInfos.begin(), mInfos.end(), [&](const ModuleInfo& other) { return other.mId == id; }))
+        {
+            // Not through fail(): its record would share the id, and a failure of this one must not touch the first.
+            Log(Debug::Error) << "Editor module '" << id << "' ignored: a module with this id was loaded already";
+            return;
+        }
         if (!openeden::sdk::isCompatible(descriptor.apiVersion, kApiVersion))
         {
             fail("it was built for editor API " + versionText(descriptor.apiVersion) + ", this Eden Studio provides "

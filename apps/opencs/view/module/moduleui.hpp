@@ -1,0 +1,113 @@
+#ifndef CSV_MODULE_MODULEUI_H
+#define CSV_MODULE_MODULEUI_H
+
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+#include <QObject>
+#include <QPointer>
+#include <QUndoStack>
+
+#include <openeden/editor_module/registrar.hpp>
+#include <openeden/editor_module/types.hpp>
+
+#include <apps/opencs/model/physics/debuglinedrawer.hpp>
+
+class QWidget;
+
+namespace CSMDoc
+{
+    class Document;
+}
+
+namespace CSMModule
+{
+    class ModuleRegistry;
+}
+
+namespace CSVModule
+{
+    /// What Eden Studio gives the editor modules (task 0031, stage B): the EditorContext they call, the active asset,
+    /// and the drawing of what they registered (property forms, overlay lines, timeline keys). Qt types stay here:
+    /// the API itself has none.
+    ///
+    /// Commands a module pushes go on the active document's undo stack (the editor's one stack) wrapped in a
+    /// QUndoCommand, so Edit > Undo undoes them. The objects a module hands over (commands, the active asset) have
+    /// code in the module's library, so releaseModuleObjects() must run before the library is unloaded.
+    ///
+    /// Owned by CS::Editor, after the registry and before the module host. Main thread only.
+    class ModuleUi : public QObject, public openeden::editor::EditorContext
+    {
+        Q_OBJECT
+
+    public:
+        /// \param documentProvider the document commands go to (the active window's), or null if there is none.
+        ModuleUi(CSMModule::ModuleRegistry& registry, std::function<CSMDoc::Document*()> documentProvider);
+        ~ModuleUi() override;
+
+        /// The editor's, or null (capture mode and tests have none).
+        static ModuleUi* get() { return sInstance; }
+
+        CSMModule::ModuleRegistry& registry() { return mRegistry; }
+
+        // EditorContext
+        void pushCommand(std::unique_ptr<openeden::editor::Command> command) override;
+        void markDirty(std::string_view assetId) override;
+        void log(openeden::editor::LogLevel level, std::string_view message) override;
+        void requestRedraw() override;
+        openeden::editor::AssetDocument* openAsset(const std::filesystem::path& path) override;
+        openeden::editor::AssetDocument* activeAsset() override { return mActive.get(); }
+
+        /// The format ID of the active asset's type, or empty.
+        const std::string& activeFormat() const { return mActiveFormat; }
+        const std::string& openError() const { return mOpenError; }
+
+        /// Closes the active asset and empties the undo stacks that hold module commands. Call before the module
+        /// host unloads the libraries.
+        void releaseModuleObjects();
+
+        /// Where the Asset Browser looks for module assets (the editor sets it: the data folders, and for checks the
+        /// folder in OPENEDEN_CS_ASSETDIR).
+        void setAssetRoots(std::vector<std::filesystem::path> roots) { mAssetRoots = std::move(roots); }
+        const std::vector<std::filesystem::path>& assetRoots() const { return mAssetRoots; }
+
+        /// Files under the roots that a registered asset type handles, sorted by path.
+        std::vector<std::filesystem::path> findAssets(const std::vector<std::filesystem::path>& roots) const;
+
+        /// Every gizmo of the active asset and of the registered providers drawn into lines, in the world's unit
+        /// (Morrowind units), moved by \a origin (the world position that module coordinates are relative to). This is
+        /// the one place where the modules' meters become world units.
+        std::vector<CSMPhysics::DebugLine> overlayLines(const float origin[3]) const;
+
+        /// The keys of every track of the active asset and of the registered providers: (track title, key).
+        std::vector<std::pair<std::string, openeden::editor::TimelineKey>> timelineKeys() const;
+
+        /// A form for a property source: one editor widget per described property, writing through
+        /// makeSetCommand. It follows changed() and is rebuilt if the source's description changes. Owned by \a parent.
+        QWidget* makePropertyForm(openeden::editor::PropertySource& source, QWidget* parent);
+
+    signals:
+        /// The active asset, or something in it, changed: panels, overlay and timeline redraw.
+        void changed();
+
+    private:
+        class UndoCommand;
+
+        CSMModule::ModuleRegistry& mRegistry;
+        std::function<CSMDoc::Document*()> mDocumentProvider;
+        std::unique_ptr<openeden::editor::AssetDocument> mActive;
+        std::string mActiveFormat;
+        std::string mOpenError;
+        std::vector<std::filesystem::path> mAssetRoots;
+        std::set<std::string> mDirtyAssets;
+        std::vector<QPointer<QUndoStack>> mStacks;
+        QUndoStack mOwnStack; // used when there is no document
+        static ModuleUi* sInstance;
+    };
+}
+
+#endif

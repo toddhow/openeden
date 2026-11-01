@@ -120,6 +120,10 @@ set (OPENCS_HDR
 
 opencs_units (. editor capture)
 
+opencs_units (view/module
+    moduleui
+    )
+
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
     filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell extensionmanager assetbrowser contextinspector outputlogpanel logtap

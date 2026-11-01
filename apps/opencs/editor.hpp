@@ -22,12 +22,15 @@
 
 #include "model/doc/documentmanager.hpp"
 #include "model/extension/editorextensionhost.hpp"
+#include "model/module/modulehost.hpp"
+#include "model/module/moduleregistry.hpp"
 #include "model/physics/studioworld.hpp"
 #include "model/prefs/state.hpp"
 
 #include "view/doc/filedialog.hpp"
 #include "view/doc/newgame.hpp"
 #include "view/doc/startup.hpp"
+#include "view/module/moduleui.hpp"
 #include "view/prefs/dialogue.hpp"
 #include "view/render/physicshub.hpp"
 #include "view/tools/merge.hpp"
@@ -71,6 +74,12 @@ namespace CS
         CSMPhysics::StudioWorld mPhysicsWorld;
         CSVRender::PhysicsHub mPhysicsHub{ mPhysicsWorld };
         std::unique_ptr<CSMExtension::EditorExtensionHost> mExtensionHost; // after the views: they point at it
+        // The editor modules (task 0031): the registry and the UI they talk to come first, the host that owns the
+        // modules last, so that the modules go before the extensions whose manifests named some of them.
+        CSMModule::ModuleRegistry mModuleRegistry;
+        CSVModule::ModuleUi mModuleUi{ mModuleRegistry, [this] { return activeDocument(); } };
+        CSMDoc::Document* activeDocument();
+        std::unique_ptr<CSMModule::ModuleHost> mModuleHost;
 
         // CSMPhysics::StudioWorld::StepObserver: the extension host's phases run around each step.
         void beforeStep(float dt) override;
@@ -87,6 +96,9 @@ namespace CS
 
         void startExtensionHost();
         ///< Needs mConfigVariables.
+
+        void startModules(const Files::PathContainer& dataDirs);
+        ///< After the extension host and the configuration, before the first view.
 
         void startUiCheck();
 

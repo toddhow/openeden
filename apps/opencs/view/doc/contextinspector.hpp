@@ -13,6 +13,7 @@
 class QDoubleSpinBox;
 class QLabel;
 class QPushButton;
+class QVBoxLayout;
 class QTimer;
 
 namespace CSMDoc
@@ -86,6 +87,8 @@ namespace CSVDoc
         void refreshValues();
         void fieldEdited(int field);
         void setFieldsEnabled(bool enabled);
+        /// The sections editor modules registered for the active asset (task 0031).
+        void rebuildModuleSections();
 
         CSMDoc::Document& mDocument;
         ViewportProvider mProvider;
@@ -96,6 +99,9 @@ namespace CSVDoc
         QLabel* mCell;
         std::array<QDoubleSpinBox*, FieldCount> mFields{};
         QPushButton* mOpen;
+        QVBoxLayout* mModuleSections = nullptr;
+        std::vector<std::string> mModuleSectionIds;
+        const void* mModuleSectionAsset = nullptr;
         std::vector<std::string> mIds;
         bool mUpdating = false; // true while the fields are being filled from the table
         bool mLocked = false;

@@ -1,5 +1,10 @@
 #include "assetbrowser.hpp"
 
+#include <filesystem>
+
+#include <apps/opencs/model/module/moduleregistry.hpp>
+#include "../module/moduleui.hpp"
+
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QMap>
@@ -36,6 +41,7 @@ namespace
         Kind_Cell, ///< A cell: opens a 3D scene.
         Kind_Resource, ///< An asset file: opens the table of that asset type.
         Kind_Table, ///< A table: opens it.
+        Kind_ModuleAsset, ///< A file an editor module handles: opens it through the module (task 0031).
     };
 
     enum GroupSource
@@ -43,6 +49,7 @@ namespace
         Source_Records, ///< The rows of an id table (record type column and id column).
         Source_Resources, ///< The files of an asset folder.
         Source_Tables, ///< The fixed list of tables.
+        Source_ModuleAssets, ///< Files with an extension an editor module registered.
     };
 
     constexpr int roleKind = Qt::UserRole + 1;
@@ -186,6 +193,21 @@ CSVDoc::AssetBrowser::AssetBrowser(CSMDoc::Document& document, QWidget* parent)
     connect(mSearch, &QLineEdit::textChanged, this, &AssetBrowser::filterChanged);
 
     addGroups();
+
+    // The files editor modules handle (task 0031), when any module registered an asset type.
+    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get(); modules != nullptr && !modules->registry().assetTypes().empty())
+    {
+        QStandardItem* group = new QStandardItem(tr("Module assets"));
+        group->setData(Kind_Group, roleKind);
+        group->setData(static_cast<int>(UniversalId::Type_None), roleType);
+        group->setData(static_cast<int>(Source_ModuleAssets), roleSource);
+        group->setData(static_cast<int>(Kind_ModuleAsset), roleChildKind);
+        group->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        QStandardItem* placeholder = new QStandardItem;
+        placeholder->setData(Kind_Placeholder, roleKind);
+        group->appendRow(placeholder);
+        mModel->appendRow(group);
+    }
 }
 
 void CSVDoc::AssetBrowser::addGroups()
@@ -291,6 +313,16 @@ void CSVDoc::AssetBrowser::populate(QStandardItem* group)
                 makeChild(name, type, name);
             }
         }
+        else if (source == Source_ModuleAssets)
+        {
+            if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+                for (const std::filesystem::path& path : modules->findAssets(modules->assetRoots()))
+                {
+                    makeChild(QString::fromStdString(path.filename().string()), UniversalId::Type_None,
+                        QString::fromStdString(path.string()));
+                    children.last()->setToolTip(QString::fromStdString(path.string()));
+                }
+        }
         else
         {
             for (UniversalId::Type tableType : tableTypes)
@@ -345,6 +377,10 @@ void CSVDoc::AssetBrowser::itemActivated(const QModelIndex& proxyIndex)
     {
         case Kind_Group:
             mTree->setExpanded(proxyIndex, !mTree->isExpanded(proxyIndex));
+            break;
+        case Kind_ModuleAsset:
+            if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+                modules->openAsset(std::filesystem::path(index.data(roleId).toString().toStdString()));
             break;
         case Kind_Table:
         case Kind_Resource:

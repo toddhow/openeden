@@ -1,6 +1,8 @@
 #include "view.hpp"
 
+#include "../module/moduleui.hpp"
 #include "../render/physicshub.hpp"
+#include <apps/opencs/model/module/moduleregistry.hpp>
 
 #include <QActionGroup>
 #include <QApplication>
@@ -409,6 +411,57 @@ void CSVDoc::View::setupExtensionsMenu()
     });
 
     extensions->addSeparator();
+
+    // The editor modules' commands (task 0031): one submenu per module, items by menuPath.
+    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+    {
+        std::vector<std::string> moduleIds;
+        for (const auto& command : modules->registry().commands())
+            if (std::find(moduleIds.begin(), moduleIds.end(), command.mModule) == moduleIds.end())
+                moduleIds.push_back(command.mModule);
+        for (const std::string& moduleId : moduleIds)
+        {
+            QMenu* moduleMenu = extensions->addMenu(QString::fromStdString(moduleId));
+            moduleMenu->setObjectName(QString::fromStdString("moduleMenu_" + moduleId));
+            std::vector<std::pair<QAction*, std::string>> actions;
+            for (const auto& command : modules->registry().commands())
+            {
+                if (command.mModule != moduleId)
+                    continue;
+                QMenu* target = moduleMenu;
+                QString text = QString::fromStdString(command.mDesc.label);
+                if (!command.mDesc.menuPath.empty())
+                {
+                    const QStringList parts = QString::fromStdString(command.mDesc.menuPath).split('/', Qt::SkipEmptyParts);
+                    for (int i = 0; i + 1 < parts.size(); ++i)
+                    {
+                        QMenu* sub = target->findChild<QMenu*>(parts[i], Qt::FindDirectChildrenOnly);
+                        if (sub == nullptr)
+                        {
+                            sub = target->addMenu(parts[i]);
+                            sub->setObjectName(parts[i]);
+                        }
+                        target = sub;
+                    }
+                    if (!parts.isEmpty())
+                        text = parts.last();
+                }
+                QAction* action = target->addAction(text);
+                action->setObjectName(QString::fromStdString("moduleCommand_" + command.mDesc.id));
+                if (!command.mDesc.defaultShortcut.empty())
+                    action->setShortcut(QKeySequence(QString::fromStdString(command.mDesc.defaultShortcut)));
+                const std::string id = command.mDesc.id;
+                connect(action, &QAction::triggered, this, [modules, id] { modules->registry().runCommand(id); });
+                actions.emplace_back(action, id);
+            }
+            connect(moduleMenu, &QMenu::aboutToShow, this, [modules, actions] {
+                for (const auto& [action, id] : actions)
+                    action->setEnabled(modules->registry().isCommandEnabled(id));
+            });
+        }
+        if (!moduleIds.empty())
+            extensions->addSeparator();
+    }
 
     // The host's state, as menu text: what the host did at start-up, and one line for each extension.
     if (host == nullptr)

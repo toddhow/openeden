@@ -76,15 +76,23 @@ namespace CSVRender
         }
 
         Log(Debug::Info) << "Physics test ball above " << centre.x << ", " << centre.y << ", " << centre.z;
-        if (mWorld.bodyCount() == 0)
+        try
         {
-            // The slab's top face is at the camera centre's height.
-            const float half = cSlabHalfSize * units;
-            const float halfZ = cSlabHalfThickness * units;
-            mWorld.addStaticBox(JPH::RVec3(centre.x, centre.y, centre.z - halfZ), JPH::Vec3(half, half, halfZ));
+            if (mWorld.bodyCount() == 0)
+            {
+                // The slab's top face is at the picked height.
+                const float half = cSlabHalfSize * units;
+                const float halfZ = cSlabHalfThickness * units;
+                mWorld.addStaticBox(JPH::RVec3(centre.x, centre.y, centre.z - halfZ), JPH::Vec3(half, half, halfZ));
+            }
+            mLastBall = mWorld.addDynamicSphere(
+                JPH::RVec3(centre.x, centre.y, centre.z + (cBallHeight + cBallRadius) * units), cBallRadius * units);
         }
-        mLastBall = mWorld.addDynamicSphere(
-            JPH::RVec3(centre.x, centre.y, centre.z + (cBallHeight + cBallRadius) * units), cBallRadius * units);
+        catch (const std::exception& e)
+        {
+            // A slot must not throw: a full world is reported and left as it is.
+            Log(Debug::Error) << "Cannot add the test ball: " << e.what();
+        }
         refresh();
         emit stateChanged();
     }
@@ -92,6 +100,7 @@ namespace CSVRender
     void PhysicsHub::clearWorld()
     {
         mWorld.clear();
+        mLastBall = JPH::BodyID();
         refresh();
         emit stateChanged();
     }
@@ -143,22 +152,23 @@ namespace CSVRender
             view->show(wantDraw ? mDrawer.lines() : none);
     }
 
-    PhysicsDebugView::PhysicsDebugView(SceneHost& host)
+    PhysicsDebugView::PhysicsDebugView(SceneHost& host, bool registerWithHub)
         : mHost(host)
         , mHostAlive(host.aliveToken())
+        , mRegistered(registerWithHub)
         , mGeometry(std::make_unique<Render::DebugGeometry>(
               *host.resources().builder, host.compileContext(), cLineVertexCapacity, 0))
     {
         // In the overlay bin, drawn after everything else as the editor's other helpers are.
         mRoot = vsgUtil::createBinSetter(SceneHost::sBinOverlay, mGeometry->node());
         host.contentRoot().addChild(mRoot);
-        if (PhysicsHub* hub = PhysicsHub::get())
+        if (PhysicsHub* hub = PhysicsHub::get(); hub != nullptr && registerWithHub)
             hub->add(*this);
     }
 
     PhysicsDebugView::~PhysicsDebugView()
     {
-        if (PhysicsHub* hub = PhysicsHub::get())
+        if (PhysicsHub* hub = PhysicsHub::get(); hub != nullptr && mRegistered)
             hub->remove(*this);
         if (!mHostAlive.expired())
         {

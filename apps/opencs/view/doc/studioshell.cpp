@@ -1,8 +1,12 @@
 #include "studioshell.hpp"
 
+#include "../module/moduleui.hpp"
 #include "../render/physicshub.hpp"
+#include <apps/opencs/model/module/moduleregistry.hpp>
 
 #include <QDockWidget>
+#include <QHelpEvent>
+#include <QToolTip>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLinearGradient>
@@ -140,6 +144,163 @@ CSVDoc::StudioShell::StudioShell(QMainWindow& window, QMainWindow& subViewWindow
     // The workspace strip is a bar, not a panel: no title, no moving, no closing.
     mWorkspaces->setFeatures(QDockWidget::NoDockWidgetFeatures);
     mWorkspaces->setTitleBarWidget(new QWidget(mWorkspaces));
+
+    addModuleUi();
+}
+
+namespace CSVDoc
+{
+    namespace
+    {
+        /// The keys of the active asset's timeline tracks as ticks (task 0031). Read only.
+        class TimelineStrip final : public QWidget
+        {
+        public:
+            explicit TimelineStrip(CSVModule::ModuleUi& ui, QWidget* parent)
+                : QWidget(parent)
+                , mUi(ui)
+            {
+                setObjectName("moduleTimeline");
+                setMinimumHeight(24);
+                setMouseTracking(true);
+                connect(&ui, &CSVModule::ModuleUi::changed, this, [this] { refresh(); });
+                refresh();
+            }
+
+            std::size_t keyCount() const { return mKeys.size(); }
+
+        protected:
+            void paintEvent(QPaintEvent*) override
+            {
+                QPainter painter(this);
+                const int baseline = height() / 2;
+                painter.setPen(palette().color(QPalette::Mid));
+                painter.drawLine(4, baseline, width() - 4, baseline);
+                painter.setPen(palette().color(QPalette::Highlight));
+                for (const auto& [x, text] : ticks())
+                    painter.drawLine(x, baseline - 6, x, baseline + 6);
+            }
+
+            bool event(QEvent* event) override
+            {
+                if (event->type() == QEvent::ToolTip)
+                {
+                    const auto* help = static_cast<QHelpEvent*>(event);
+                    for (const auto& [x, text] : ticks())
+                        if (std::abs(x - help->pos().x()) < 5)
+                        {
+                            QToolTip::showText(help->globalPos(), text, this);
+                            return true;
+                        }
+                    QToolTip::hideText();
+                    return true;
+                }
+                return QWidget::event(event);
+            }
+
+        private:
+            void refresh()
+            {
+                mKeys = mUi.timelineKeys();
+                update();
+            }
+
+            std::vector<std::pair<int, QString>> ticks() const
+            {
+                double last = 0.0;
+                for (const auto& [track, key] : mKeys)
+                    last = std::max(last, key.timeSeconds);
+                const double span = last > 0.0 ? last : 1.0;
+                std::vector<std::pair<int, QString>> result;
+                for (const auto& [track, key] : mKeys)
+                    result.emplace_back(4 + static_cast<int>((width() - 8) * (key.timeSeconds / span)),
+                        QString("%1: %2 (%3 s)")
+                            .arg(QString::fromStdString(track), QString::fromStdString(key.label))
+                            .arg(key.timeSeconds));
+                return result;
+            }
+
+            CSVModule::ModuleUi& mUi;
+            std::vector<std::pair<std::string, openeden::editor::TimelineKey>> mKeys;
+        };
+
+        /// One module panel: the form of the panel's current property source, rebuilt when the source changes.
+        class ModulePanel final : public QWidget
+        {
+        public:
+            ModulePanel(CSVModule::ModuleUi& ui, std::string panelId, QWidget* parent)
+                : QWidget(parent)
+                , mUi(ui)
+                , mPanelId(std::move(panelId))
+                , mLayout(new QVBoxLayout(this))
+            {
+                setObjectName(QString::fromStdString("modulePanel_" + mPanelId));
+                connect(&ui, &CSVModule::ModuleUi::changed, this, [this] { rebuild(); });
+                rebuild();
+            }
+
+        private:
+            void rebuild()
+            {
+                openeden::editor::PropertySource* source = mUi.registry().panelSource(mPanelId);
+                if (source == mSource && (source != nullptr) == (mForm != nullptr))
+                    return;
+                mSource = source;
+                delete mForm;
+                mForm = nullptr;
+                if (source != nullptr)
+                {
+                    mForm = mUi.makePropertyForm(*source, this);
+                    mLayout->addWidget(mForm);
+                }
+            }
+
+            CSVModule::ModuleUi& mUi;
+            std::string mPanelId;
+            QVBoxLayout* mLayout;
+            QWidget* mForm = nullptr;
+            openeden::editor::PropertySource* mSource = nullptr;
+        };
+    }
+}
+
+void CSVDoc::StudioShell::addModuleUi()
+{
+    CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+    if (modules == nullptr)
+        return;
+    const auto& registry = modules->registry();
+
+    if (auto* tabs = mWorkspaces->findChild<QTabBar*>("workspaceTabs"))
+    {
+        for (const auto& workspace : registry.workspaces())
+        {
+            const int index = tabs->addTab(QString::fromStdString(workspace.mDesc.title));
+            tabs->setTabData(index, QString::fromStdString(workspace.mDesc.id));
+        }
+        // Shows the panels of the chosen workspace; "World & Scene" (the built-in tab, no data) shows none.
+        connect(tabs, &QTabBar::currentChanged, this, [this, tabs](int index) {
+            const QString id = tabs->tabData(index).toString();
+            for (const auto& [workspaceId, dock] : mModulePanels)
+                dock->setVisible(!id.isEmpty() && QString::fromStdString(workspaceId) == id);
+        });
+    }
+
+    for (const auto& panel : registry.panels())
+    {
+        const auto area = panel.mDesc.dock == openeden::editor::DockArea::Left ? Qt::LeftDockWidgetArea
+            : panel.mDesc.dock == openeden::editor::DockArea::Bottom           ? Qt::BottomDockWidgetArea
+                                                                               : Qt::RightDockWidgetArea;
+        QDockWidget* dock = makeDock(QString::fromStdString(panel.mDesc.title),
+            QString::fromStdString("modulePanel_" + panel.mDesc.id), new ModulePanel(*modules, panel.mDesc.id, &mWindow));
+        mWindow.addDockWidget(area, dock);
+        dock->hide();
+        mModulePanels.emplace_back(panel.mDesc.workspaceId, dock);
+    }
+
+    if (QWidget* row = mTransport->widget())
+        if (auto* layout = qobject_cast<QHBoxLayout*>(row->layout()))
+            layout->addWidget(new TimelineStrip(*modules, row), 1);
 }
 
 QDockWidget* CSVDoc::StudioShell::makeDock(const QString& title, const QString& objectName, QWidget* content)

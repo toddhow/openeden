@@ -2,6 +2,8 @@
 
 #include "physicshub.hpp"
 
+#include "../module/moduleui.hpp"
+
 #include <algorithm>
 #include <set>
 
@@ -154,6 +156,13 @@ void CSVRender::WorldspaceWidget::hostReady()
     // The editor's physics world, drawn in this view (task 0030). Neither exists in tools without an editor.
     if (PhysicsHub::get() != nullptr)
         mPhysicsView = std::make_unique<PhysicsDebugView>(*getHost());
+    // The editor modules' overlay (task 0031): redrawn when the active asset or its data changes.
+    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+    {
+        mModuleOverlay = std::make_unique<PhysicsDebugView>(*getHost(), false);
+        connect(modules, &CSVModule::ModuleUi::changed, this, [this] { updateModuleOverlay(); });
+        updateModuleOverlay();
+    }
     mSelectionMarker->setHost(*getHost());
 }
 
@@ -521,6 +530,20 @@ void CSVRender::WorldspaceWidget::dropEvent(QDropEvent* event)
         else
             dynamic_cast<EditMode&>(*mEditMode->getCurrent()).dropEvent(event);
     }
+}
+
+void CSVRender::WorldspaceWidget::updateModuleOverlay()
+{
+    CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+    if (modules == nullptr || !mModuleOverlay || getHost() == nullptr)
+        return;
+    // Module coordinates are relative to what is under the middle of the view when the data changes (else the camera's
+    // centre), so that a module's gizmo shows up where the user is looking: the assets have no place in the world of
+    // their own.
+    const std::optional<vsg::dvec3> hit = getHost()->pickNearest(0.5, 0.5, ~0u);
+    const vsg::dvec3 centre = hit ? *hit : getHost()->getCameraCenter();
+    const float origin[3] = { static_cast<float>(centre.x), static_cast<float>(centre.y), static_cast<float>(centre.z) };
+    mModuleOverlay->show(modules->overlayLines(origin));
 }
 
 void CSVRender::WorldspaceWidget::runRequest(const std::string& profile)
