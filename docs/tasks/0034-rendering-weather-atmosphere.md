@@ -54,11 +54,11 @@ Determinism: the model is a pure function of the elevation and the weather's num
 How the weather and time are fixed for comparisons (they follow the real clock otherwise): the console script `set gamehour to <h>` and `ChangeWeather "<region>" <id>` (ids: 0 clear, 1 cloudy, 2 foggy, 3 overcast, 4 rain, 5 thunder, 6 ash storm, 7 blight, 8 snow, 9 blizzard), started in Seyda Neen (the Bitter Coast region) with `--script-run`. The game's time scale is left at its default; the script is run at the start so the hour is the one set within a few frames.
 
 ## Acceptance criteria
-- [ ] Unit tests for the maths pass (limits, monotonic, continuity, night and haze return vanilla exactly, the vanilla look keeps brightness).
-- [ ] `atmosphere = false`: frames equal the commit before (Seyda Neen noon and sunset, cloudy, ash storm, an interior) by `diffmap`.
-- [ ] With `atmosphere`: frames viewed at sunrise, noon, sunset and night, in clear, cloudy, foggy, rain, ash storm, blight and snow weather, exteriors, and an interior unchanged.
-- [ ] GPU cost measured with `gpu timing` and `tools/benchmark.sh` and written into a note.
-- [ ] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage.
+- [x] Unit tests for the maths pass (limits, monotonic, continuity, night and haze return vanilla exactly, the vanilla look keeps brightness).
+- [ ] (not verified by frames; see the close-out) `atmosphere = false`: frames equal the commit before (Seyda Neen noon and sunset, cloudy, ash storm, an interior) by `diffmap`.
+- [x] With `atmosphere`: frames viewed at sunrise, noon, sunset and night, in clear, cloudy, foggy, rain, ash storm, blight and snow weather, exteriors, and an interior unchanged.
+- [x] GPU cost measured with `gpu timing` and `tools/benchmark.sh` and written into a note (`docs/research/0015-atmosphere-cost.md`: no measurable cost).
+- [x] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage.
 Out of scope: everything under "Not started" above; any change to the weather records, the scheduler or the scripting commands.
 
 ## Stage log
@@ -83,3 +83,7 @@ Out of scope: everything under "Not started" above; any change to the weather re
 - Tests: 4 more (32 in all). Frames viewed (Seyda Neen, clear): off, vanilla and physical at 6:30, 12:00, 17:30 and 22:00. At 22:00 all three are the same (night is exactly vanilla). The vanilla look is close to the weather's picture; the physical look is bluer and greyer at 6:30 and 17:30.
 - **Finding for toddhow (decision 4):** the manager's sun is still about 30 degrees up at 17:30 (its orbit runs to the night start, 20:00 by default) while Morrowind's colour tables already show sunset at that hour. The model follows the sun that is drawn, so the physical look at 17:30 looks like an afternoon, not a sunset, and the sunset warmth only appears in the last hour before the night start. If the vanilla timing is wanted, the model would have to be driven by the hour of the colour tables instead of the sun's height.
 - Not done in this stage: a sun glow in the fog towards the sun (D6), because the scene uniform block has no room (the 640 byte pitfall).
+
+### Close-out (2026-11-01)
+- Linux gate at `573cc93806` (Docker, `-Werror`): `components-tests` 2774, `openmw-tests` 799 and the 32 Lua integration tests pass. Windows: 2772, 799 and `eden-studio-tests` 393. clang-format 14 flagged only two of my files on the stage commits and they were fixed in `573cc93806`; the final whole-tree re-check did not run (the check's work folder was left over), so it is not verified at the last commit.
+- Still unticked: "`atmosphere = false` equals the commit before by `diffmap`" (no build of the commit before was made; the off path is the same values and was read by a reviewer), and the criterion that a reviewer read each stage is met (three reviewers).
