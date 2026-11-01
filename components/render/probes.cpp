@@ -1,6 +1,7 @@
 #include "probes.hpp"
 
 #include "reflectionprobes.hpp"
+#include "skyvisibility.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -959,5 +960,215 @@ namespace Render::Gi
     std::string reflectionFilePath(const CellId& cell)
     {
         return "openeden/probes/" + cellKey(cell) + ".reflections.json";
+    }
+
+    // ---- The exterior sky-visibility field (task 0036): `openeden.skyvis` v1 ----
+
+    namespace
+    {
+        constexpr const char* skyVisFormatName = "openeden.skyvis";
+        // The file holds integers of 16 bits: whole multiples of skyVisQuantum.
+        constexpr long long skyVisIntMin = -32768;
+        constexpr long long skyVisIntMax = 32767;
+        constexpr float skyVisScale = 4096.f;
+        // 65 by 65 columns of 16 levels of 9 numbers plus a height is about 620k numbers, about 10 MB of text at most.
+        constexpr std::size_t maxSkyVisFileBytes = 12u * 1024u * 1024u;
+
+        // The spacing must cut the cell into a whole number of parts between the limits.
+        bool validSpacing(float spacing)
+        {
+            if (!(spacing > 0.f) || !std::isfinite(spacing))
+                return false;
+            const float parts = exteriorCellSize / spacing;
+            const float rounded = std::round(parts);
+            return rounded >= static_cast<float>(minSkyDivisions) && rounded <= static_cast<float>(maxSkyDivisions)
+                && rounded * spacing == exteriorCellSize;
+        }
+
+        SkyVisField readSkyVis(const Value& root)
+        {
+            expectObject(root, "");
+            if (const Value* format = find(root, "format"))
+            {
+                if (format->type != Value::Type::String || format->text != skyVisFormatName)
+                    throw Failure{ format->line, "format", std::string("expected \"") + skyVisFormatName + "\"" };
+            }
+            if (const Value* version = find(root, "version"))
+            {
+                if (version->type != Value::Type::Number || version->text != "1")
+                    throw Failure{ version->line, "version", "unsupported version, expected 1" };
+            }
+            checkKeys(root, "", { "format", "version", "cell", "bake", "grid", "columns" });
+
+            SkyVisField field;
+            const Value& cell = *find(root, "cell");
+            expectObject(cell, "cell");
+            checkKeys(cell, "cell", { "exterior" });
+            const Value& exterior = *find(cell, "exterior");
+            expectArray(exterior, "cell.exterior");
+            if (exterior.items.size() != 2)
+                throw Failure{ exterior.line, "cell.exterior", "expected two integers" };
+            constexpr long long low = std::numeric_limits<std::int32_t>::min();
+            constexpr long long high = std::numeric_limits<std::int32_t>::max();
+            field.cellX = static_cast<int>(readInteger(exterior.items[0], "cell.exterior[0]", low, high));
+            field.cellY = static_cast<int>(readInteger(exterior.items[1], "cell.exterior[1]", low, high));
+
+            const Value& bake = *find(root, "bake");
+            expectObject(bake, "bake");
+            checkKeys(bake, "bake", { "rays", "seed" });
+            field.rays = static_cast<std::uint32_t>(readInteger(*find(bake, "rays"), "bake.rays", 1, 65536));
+            field.seed = static_cast<std::uint32_t>(
+                readInteger(*find(bake, "seed"), "bake.seed", 0, std::numeric_limits<std::uint32_t>::max()));
+
+            const Value& grid = *find(root, "grid");
+            expectObject(grid, "grid");
+            checkKeys(grid, "grid", { "spacing", "levelSpacing", "levels" });
+            field.spacing = readFloat(*find(grid, "spacing"), "grid.spacing");
+            if (!validSpacing(field.spacing))
+                throw Failure{ find(grid, "spacing")->line, "grid.spacing",
+                    "the spacing must cut the 8192 unit cell into 4 to 64 equal parts" };
+            field.levelSpacing = readFloat(*find(grid, "levelSpacing"), "grid.levelSpacing");
+            if (!(field.levelSpacing > 0.f) || field.levelSpacing > 100000.f)
+                throw Failure{ find(grid, "levelSpacing")->line, "grid.levelSpacing",
+                    "the level spacing must be above 0 and at most 100000" };
+            field.levels = static_cast<std::uint32_t>(
+                readInteger(*find(grid, "levels"), "grid.levels", 1, static_cast<long long>(maxSkyLevels)));
+
+            const std::size_t side = skyVisColumnsPerSide(field.spacing);
+            const Value& columns = *find(root, "columns");
+            expectArray(columns, "columns");
+            if (columns.items.size() != side * side)
+                throw Failure{ columns.line, "columns",
+                    "expected " + std::to_string(side * side) + " columns, found "
+                        + std::to_string(columns.items.size()) };
+            field.base.reserve(side * side);
+            field.probes.reserve(side * side * field.levels);
+            const std::size_t numbers = 1 + static_cast<std::size_t>(field.levels) * shCoefficients;
+            for (std::size_t c = 0; c < columns.items.size(); ++c)
+            {
+                const std::string path = "columns[" + std::to_string(c) + "]";
+                const Value& column = columns.items[c];
+                expectArray(column, path);
+                if (column.items.size() != numbers)
+                    throw Failure{ column.line, path,
+                        "expected " + std::to_string(numbers) + " numbers (a ground height, then "
+                            + std::to_string(field.levels) + " levels of 9 coefficients), found "
+                            + std::to_string(column.items.size()) };
+                field.base.push_back(readFloat(column.items[0], path + "[0]"));
+                for (std::uint32_t l = 0; l < field.levels; ++l)
+                {
+                    VisSh sh{};
+                    for (int k = 0; k < shCoefficients; ++k)
+                    {
+                        const std::size_t index = 1 + static_cast<std::size_t>(l) * shCoefficients + k;
+                        const long long n = readInteger(
+                            column.items[index], path + "[" + std::to_string(index) + "]", skyVisIntMin, skyVisIntMax);
+                        sh[k] = static_cast<float>(n) / skyVisScale;
+                    }
+                    field.probes.push_back(sh);
+                }
+            }
+            return field;
+        }
+    }
+
+    std::uint32_t skyVisColumnsPerSide(float spacing)
+    {
+        if (!(spacing > 0.f) || !std::isfinite(spacing)
+            || spacing < exteriorCellSize / static_cast<float>(maxSkyDivisions))
+            return 0;
+        return static_cast<std::uint32_t>(std::lround(exteriorCellSize / spacing)) + 1;
+    }
+
+    float skyVisQuantize(float value)
+    {
+        const float scaled = std::clamp(std::round(value * skyVisScale), static_cast<float>(skyVisIntMin),
+            static_cast<float>(skyVisIntMax));
+        return scaled / skyVisScale;
+    }
+
+    std::optional<SkyVisField> parseSkyVis(std::string_view json, std::string_view fileName, ProbeError& error)
+    {
+        if (json.size() > maxSkyVisFileBytes)
+        {
+            error = ProbeError{ std::string(fileName), 1, "", "the file is too large" };
+            return std::nullopt;
+        }
+        try
+        {
+            Reader reader(json);
+            const Value root = reader.readDocument();
+            return readSkyVis(root);
+        }
+        catch (const Failure& f)
+        {
+            error.file = std::string(fileName);
+            error.line = f.line;
+            error.field = f.field;
+            error.message = f.message;
+            return std::nullopt;
+        }
+        catch (const std::bad_alloc&)
+        {
+            error = ProbeError{ std::string(fileName), 1, "", "out of memory while reading the file" };
+            return std::nullopt;
+        }
+    }
+
+    std::string validate(const SkyVisField& field)
+    {
+        if (field.rays < 1 || field.rays > 65536)
+            return "bake.rays must be 1 to 65536";
+        if (!validSpacing(field.spacing))
+            return "grid.spacing must cut the 8192 unit cell into 4 to 64 equal parts";
+        if (!(field.levelSpacing > 0.f) || !std::isfinite(field.levelSpacing) || field.levelSpacing > 100000.f)
+            return "grid.levelSpacing must be above 0 and at most 100000";
+        if (field.levels < 1 || field.levels > maxSkyLevels)
+            return "grid.levels must be 1 to 16";
+        const std::size_t side = skyVisColumnsPerSide(field.spacing);
+        if (field.base.size() != side * side)
+            return "base does not match the number of columns";
+        if (field.probes.size() != side * side * field.levels)
+            return "probes does not match columns times levels";
+        for (std::size_t c = 0; c < field.base.size(); ++c)
+            if (!std::isfinite(field.base[c]))
+                return "columns[" + std::to_string(c) + "] height must be finite";
+        for (std::size_t p = 0; p < field.probes.size(); ++p)
+            for (const float v : field.probes[p])
+                if (!std::isfinite(v) || skyVisQuantize(v) != v)
+                    return "probes[" + std::to_string(p) + "] must be finite multiples of 1/4096 within 16 bits";
+        return {};
+    }
+
+    std::string writeCanonical(const SkyVisField& field)
+    {
+        std::string out;
+        out += "{\n  \"format\": \"openeden.skyvis\",\n  \"version\": 1,\n  \"cell\": {\n    \"exterior\": ["
+            + std::to_string(field.cellX) + ", " + std::to_string(field.cellY) + "]\n  },\n  \"bake\": {\n";
+        out += "    \"rays\": " + std::to_string(field.rays) + ",\n";
+        out += "    \"seed\": " + std::to_string(field.seed) + "\n  },\n  \"grid\": {\n    \"spacing\": ";
+        appendFloat(out, field.spacing);
+        out += ",\n    \"levelSpacing\": ";
+        appendFloat(out, field.levelSpacing);
+        out += ",\n    \"levels\": " + std::to_string(field.levels) + "\n  },\n  \"columns\": [\n";
+        for (std::size_t c = 0; c < field.base.size(); ++c)
+        {
+            out += "    [";
+            appendFloat(out, field.base[c]);
+            for (std::uint32_t l = 0; l < field.levels; ++l)
+                for (const float v : field.probes[c * field.levels + l])
+                {
+                    out += ", ";
+                    out += std::to_string(static_cast<int>(std::lround(v * skyVisScale)));
+                }
+            out += c + 1 < field.base.size() ? "],\n" : "]\n";
+        }
+        out += "  ]\n}\n";
+        return out;
+    }
+
+    std::string skyVisFilePath(int cellX, int cellY)
+    {
+        return "openeden/probes/exterior/" + std::to_string(cellX) + "_" + std::to_string(cellY) + ".skyvis.json";
     }
 }

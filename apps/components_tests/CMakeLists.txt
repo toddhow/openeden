@@ -151,6 +151,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testssspass.cpp
     render/testprobes.cpp
     render/testreflectionprobes.cpp
+    render/testskyvis.cpp
     view/testcollectlights.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp
