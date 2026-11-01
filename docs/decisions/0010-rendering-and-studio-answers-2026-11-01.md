@@ -48,3 +48,12 @@ This records what toddhow decided when asked to settle the questions that had pi
 | 28 | D17: a groundcover mod for grass tests | **Wait**; to be decided later |
 | 29 | The remaining D3 to D10, D14, D15 | **Accept the recommended answers** |
 | 30 to 36 | Pushing policy, branch plan, scratch folders and the `CLAUDE.md` open questions | **Not yet answered** |
+
+## Specs 0047 to 0049 (written 2026-11-01)
+
+| Spec | Question | Answer |
+| --- | --- | --- |
+| 0047 D4 | Does the procedural sun move the drawn sun's orbit too? | **Colours only**, with the sun and the shadows staying where Morrowind puts them |
+| 0048 | Default of `ao terrain` | **Off**, until he has seen it |
+| 0049 | May single-level compressed textures stay at full size? | **Yes**, since they cannot be cheaply shrunk |
+| 0049 | The unmeasured `auto` budget table | **Not yet answered**; it is a starting point until it is measured |
