@@ -77,3 +77,6 @@ Plain words: `JoltRuntime` starts Jolt once for the process (the game does it in
 
 ## Check list for toddhow
 (filled in at the end)
+
+### Gates (2026-11-01, commit 3e21d9a6fe)
+Windows: `eden-studio-tests` 393, `components-tests` 2479, `openmw-tests` 799 pass. Linux (Docker, CI's flags): the gate script gave `components-tests` 2444, `openmw-tests` 799 and 32 Lua tests; the editor and `eden-studio-tests` (393) build and pass on Linux from the working tree, and the editor starts under xvfb. `CI/check_clang_format.sh` passes over the whole tree at that commit. Not run: clang-tidy, sanitizers.
