@@ -1140,17 +1140,20 @@ namespace vsgAdapters
                     pbr.z = Render::Pbr::reflectanceFromF0(static_cast<float>(*values.specularLevel));
                 if (values.roughnessScale)
                     data->value().align_dummy2 = static_cast<float>(*values.roughnessScale);
-                // Task 0045: with a height file the float carries two half floats, the roughness scale and the
-                // displacement scale (the material's, or the default) times `parallax scale`.
-                if (options.shader.hasMode(Pipeline::Mode::HEIGHT_MAP))
-                {
-                    const double displacement = values.displacementScale.value_or(
-                        static_cast<double>(Render::Parallax::defaultDisplacementScale));
-                    const float userScale = mAutoMaps ? mAutoMaps->parallaxScale : 1.f;
-                    data->value().align_dummy2 = Render::Parallax::packScales(
-                        values.roughnessScale ? static_cast<float>(*values.roughnessScale) : 0.f,
-                        static_cast<float>(displacement) * userScale);
-                }
+            }
+            // Task 0045: with a height file the float carries two half floats, the roughness scale and the displacement
+            // scale (the material's, or the default) times `parallax scale`. Without the material table (no pbr) there
+            // are no per-material values. A scale of 0 would read as "not set", so the depth is never below 0.001.
+            if (options.shader.hasMode(Pipeline::Mode::HEIGHT_MAP))
+            {
+                const auto values = mMaterialTable ? mMaterialTable->resolveValues(mFilename, options.diffuseTexture)
+                                                   : Render::Pbr::OverrideValues{};
+                const double displacement = values.displacementScale.value_or(
+                    static_cast<double>(Render::Parallax::defaultDisplacementScale));
+                const float userScale = mAutoMaps ? mAutoMaps->parallaxScale : 1.f;
+                data->value().align_dummy2 = Render::Parallax::packScales(
+                    values.roughnessScale ? static_cast<float>(*values.roughnessScale) : 0.f,
+                    std::max(static_cast<float>(displacement) * userScale, 0.001f));
             }
             if (mOverride && mOverride->materialData)
                 mOverride->materialData(data->value());
