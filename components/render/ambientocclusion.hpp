@@ -44,7 +44,8 @@ namespace Render
             int steps = 6;
         };
 
-        AmbientOcclusion(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile, const Settings& settings);
+        AmbientOcclusion(
+            vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile, const Settings& settings);
         ~AmbientOcclusion();
 
         /// Register with the compile manager (CompileManager::add(framebuffer, view)) after Engine::setup, before

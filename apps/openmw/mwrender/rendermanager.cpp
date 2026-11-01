@@ -32,6 +32,8 @@
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/ambientocclusion.hpp>
+#include <components/render/aomath.hpp>
 #include <components/render/bloom.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
@@ -40,8 +42,6 @@
 #include <components/render/hdrtarget.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
-#include <components/render/ambientocclusion.hpp>
-#include <components/render/aomath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
@@ -273,11 +273,11 @@ namespace MWRender
             const bool wantAo = Settings::rendering().mAo;
             const bool ao = Render::Ao::useAo(wantAo, gbuffer, materialOutput);
             if (wantAo && !ao)
-                Log(Debug::Warning) << "[Rendering] ao needs hdr, gbuffer and pbr (it reads the stored depth, normals and "
-                                       "the material output); ambient occlusion is off";
-            const auto gbufferFormats = gbuffer
-                ? Render::GBuffer::extraColorFormats(true, materialOutput, ao)
-                : std::vector<VkFormat>{};
+                Log(Debug::Warning)
+                    << "[Rendering] ao needs hdr, gbuffer and pbr (it reads the stored depth, normals and "
+                       "the material output); ambient occlusion is off";
+            const auto gbufferFormats
+                = gbuffer ? Render::GBuffer::extraColorFormats(true, materialOutput, ao) : std::vector<VkFormat>{};
             mHdrTarget = std::make_unique<Render::HdrTarget>(
                 *context, mEngine.framebufferSamples(), mEngine.extent2D(), gbufferFormats);
             mGBufferOutputs = static_cast<unsigned int>(gbufferFormats.size());
@@ -1446,7 +1446,8 @@ namespace MWRender
         if (mAmbientOcclusion)
         {
             const vsg::dmat4 projection = mProjectionMatrix->transform();
-            mAmbientOcclusion->setProjection(static_cast<float>(projection(0, 0)), static_cast<float>(projection(1, 1)));
+            mAmbientOcclusion->setProjection(
+                static_cast<float>(projection(0, 0)), static_cast<float>(projection(1, 1)));
         }
         mReflect->update();
         if (mPostProcess)

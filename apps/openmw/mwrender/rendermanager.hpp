@@ -21,8 +21,8 @@
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/render/probes.hpp>
-#include <components/render/tonemap.hpp>
 #include <components/render/reflectionprobes.hpp>
+#include <components/render/tonemap.hpp>
 #include <components/settings/settings.hpp>
 
 namespace MWWorld

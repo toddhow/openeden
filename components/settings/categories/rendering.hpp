@@ -35,7 +35,8 @@ namespace Settings
         SettingValue<std::string> mPbrLook{ mIndex, "Rendering", "pbr look" };
         SettingValue<bool> mPbrMaterialMaps{ mIndex, "Rendering", "pbr material maps" };
 
-        // Task 0029 (R2): ambient occlusion from the stored depth and normals. Read at start; needs hdr, gbuffer and pbr.
+        // Task 0029 (R2): ambient occlusion from the stored depth and normals. Read at start; needs hdr, gbuffer and
+        // pbr.
         SettingValue<bool> mAo{ mIndex, "Rendering", "ao" };
         SettingValue<float> mAoRadius{ mIndex, "Rendering", "ao radius", makeClampSanitizerFloat(8, 1000) };
         SettingValue<float> mAoStrength{ mIndex, "Rendering", "ao strength", makeClampSanitizerFloat(0, 4) };

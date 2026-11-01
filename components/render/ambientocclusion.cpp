@@ -274,13 +274,12 @@ void main()
                 vsg::ImageInfo::create(sampler, normal, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 1, 0, imageType) };
 
         auto commands = vsg::Commands::create();
-        commands->children
-            = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, extent.width, extent.height)),
-                  pipeline,
-                  vsg::BindDescriptorSet::create(
-                      VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, vsg::DescriptorSet::create(setLayout, descriptors)),
-                  vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mProjection),
-                  vsg::Draw::create(3, 1, 0, 0) };
+        commands->children = {
+            vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, extent.width, extent.height)), pipeline,
+            vsg::BindDescriptorSet::create(
+                VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, vsg::DescriptorSet::create(setLayout, descriptors)),
+            vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mProjection), vsg::Draw::create(3, 1, 0, 0)
+        };
 
         // As the velocity pass: compiled for the view that the pass's render pass was registered with.
         auto compileForView = mCompile->clone(~vsg::Mask(0));

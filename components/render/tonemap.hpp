@@ -97,8 +97,8 @@ namespace Render
         /// material, 6 subsurface), y the depth range, z the velocity scale, w 0. Public for the unit tests.
         static vsg::vec4 debugPushConstants(GBuffer::DebugView view, float depthRange, float velocityScale);
 
-        /// The ambient occlusion's push constants: the size of one texel of the half resolution occlusion image, and the
-        /// strength. Public for the unit tests.
+        /// The ambient occlusion's push constants: the size of one texel of the half resolution occlusion image, and
+        /// the strength. Public for the unit tests.
         static vsg::vec4 aoPushConstants(const VkExtent2D& aoExtent, float strength);
 
     private:
