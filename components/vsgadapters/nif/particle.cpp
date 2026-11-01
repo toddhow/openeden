@@ -1,5 +1,6 @@
 #include "particle.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -356,6 +357,13 @@ namespace vsgAdapters
         return static_cast<int>(whole);
     }
 
+    size_t chooseEmitter(int randValue, size_t count)
+    {
+        // Spread [0, RAND_MAX] over count equal parts; RAND_MAX + 1.0 keeps the result below count.
+        const size_t index = static_cast<size_t>(randValue / (RAND_MAX + 1.0) * count);
+        return std::min(index, count - 1);
+    }
+
     int ParticleSystem::calculateEmitCount(float dt)
     {
         // OpenEden: OpenMW's rate (components/nifosg/nifloader.cpp, cf3dbd3aa7); vsgopenmw scaled it by 0.01.
@@ -364,7 +372,7 @@ namespace vsgAdapters
 
     vsg::mat4 ParticleSystem::calculateEmitMatrix()
     {
-        int emitIndex = std::rand() / static_cast<double>(RAND_MAX) * mPathsToEmitters.size();
+        const size_t emitIndex = chooseEmitter(std::rand(), mPathsToEmitters.size());
         const auto& pathToEmitter = mPathsToEmitters[emitIndex];
         auto emitterToWorld = vsgUtil::computeTransform(pathToEmitter);
         auto worldToPs = vsg::inverse_4x3(vsgUtil::computeTransform(mPathToParticle));

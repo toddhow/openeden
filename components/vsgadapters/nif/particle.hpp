@@ -99,6 +99,10 @@ namespace vsgAdapters
     /// carry.
     int particlesToEmit(float& carry, float dt, float perSecond);
 
+    /// OpenEden: picks one of count emitters from a std::rand() result in [0, RAND_MAX]. The earlier rand() / RAND_MAX * count
+    /// reached count itself for RAND_MAX, one past the end of the emitter paths. count must be above 0.
+    size_t chooseEmitter(int randValue, size_t count);
+
     Pipeline::Data::EmitArgs handleEmitterData(const Nif::NiParticleSystemController& partctrl);
 
     void handleInitialParticles(vsg::Array<Pipeline::Data::Particle>& array, const Nif::NiParticlesData& data, const Nif::NiParticleSystemController& partctrl);
