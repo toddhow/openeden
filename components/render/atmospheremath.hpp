@@ -65,8 +65,8 @@ namespace Render::Atmosphere
     // the manager mirrors the sun at night (its z stays positive), so at night the angle is negated.
     inline float sunElevation(const vsg::vec3& sunPosition, bool night)
     {
-        const float length = std::sqrt(sunPosition.x * sunPosition.x + sunPosition.y * sunPosition.y
-            + sunPosition.z * sunPosition.z);
+        const float length
+            = std::sqrt(sunPosition.x * sunPosition.x + sunPosition.y * sunPosition.y + sunPosition.z * sunPosition.z);
         if (length <= 0.f)
             return 0.f;
         const float elevation = std::asin(std::clamp(sunPosition.z / length, -1.f, 1.f));
@@ -139,8 +139,8 @@ namespace Render::Atmosphere
 
         inline vsg::vec3 clampColour(const vsg::vec3& c, float maximum)
         {
-            return vsg::vec3(std::clamp(c.x, 0.f, maximum), std::clamp(c.y, 0.f, maximum),
-                std::clamp(c.z, 0.f, maximum));
+            return vsg::vec3(
+                std::clamp(c.x, 0.f, maximum), std::clamp(c.y, 0.f, maximum), std::clamp(c.z, 0.f, maximum));
         }
 
         inline float smoothStep(float edge0, float edge1, float x)
@@ -221,8 +221,7 @@ namespace Render::Atmosphere
         const vsg::vec3 filter = power(transmittance, skyFilterPower);
         const vsg::vec3 whitened = mix(rayleighColour, white, skyWhitening);
         vsg::vec3 skyLinear(whitened.x * filter.x, whitened.y * filter.y, whitened.z * filter.z);
-        skyLinear = skyLinear * (skyBrightness / luma(skyLinear))
-            * (skyDimAtHorizon + (1.f - skyDimAtHorizon) * up);
+        skyLinear = skyLinear * (skyBrightness / luma(skyLinear)) * (skyDimAtHorizon + (1.f - skyDimAtHorizon) * up);
 
         // Haze: a grey of the same brightness, and a little darker.
         const float dim = hazeDim + (1.f - hazeDim) * c;

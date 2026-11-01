@@ -804,7 +804,8 @@ namespace MWWorld
 
         const auto set = [](vsg::vec4& to, const vsg::vec3& from) { to = vsg::vec4(from.x, from.y, from.z, to.w); };
         // The sun disc follows the sun light's change, channel by channel.
-        const auto ratio = [](float now, float before) { return before > 1e-4f ? std::clamp(now / before, 0.f, 4.f) : 1.f; };
+        const auto ratio
+            = [](float now, float before) { return before > 1e-4f ? std::clamp(now / before, 0.f, 4.f) : 1.f; };
         result.mSunDiscColor = vsg::vec4(result.mSunDiscColor.x * ratio(out.sun.x, vanilla.sun.x),
             result.mSunDiscColor.y * ratio(out.sun.y, vanilla.sun.y),
             result.mSunDiscColor.z * ratio(out.sun.z, vanilla.sun.z), result.mSunDiscColor.w);
