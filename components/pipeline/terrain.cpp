@@ -21,11 +21,13 @@ namespace Pipeline
     }
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
-        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover)
+        unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr,
+        const CoverOptions& cover, unsigned int parallaxQuality)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
-        if (maps || gbufferOutputs > 0 || giSky || wetness.enabled || cover.enabled)
+        if (maps || gbufferOutputs > 0 || giSky || wetness.enabled || cover.enabled
+            || (maps && parallaxQuality > 0))
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
             auto compileSettings = vsg::ShaderCompileSettings::create();
@@ -33,6 +35,14 @@ namespace Pipeline
                 compileSettings->defines.insert("TERRAIN_MAPS");
             if (maps && pbr)
                 compileSettings->defines.insert("TERRAIN_PBR");
+            if (maps && parallaxQuality > 0)
+            {
+                compileSettings->defines.insert("PARALLAX_POM");
+                if (parallaxQuality == 1)
+                    compileSettings->defines.insert("PARALLAX_POM_LOW");
+                else if (parallaxQuality == 3)
+                    compileSettings->defines.insert("PARALLAX_POM_HIGH");
+            }
             if (gbufferOutputs > 0)
                 compileSettings->defines.insert("GBUFFER");
             // Task 0036: the terrain takes the exterior sky-visibility field.
@@ -92,6 +102,14 @@ namespace Pipeline
                 descriptorBindings.push_back({ Pipeline::Descriptors::LAYER_SCALES_BINDING,
                     VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
             }
+        }
+
+        if (maps && parallaxQuality > 0)
+        {
+            descriptorBindings.push_back({ Pipeline::Descriptors::HEIGHT_LAYER_BINDING,
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+            descriptorBindings.push_back({ Pipeline::Descriptors::LAYER_HEIGHTS_BINDING,
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
         }
 
         vsg::DescriptorSetLayouts descriptorSetLayouts = getCompatibleDescriptorSetLayouts();

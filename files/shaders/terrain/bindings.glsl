@@ -10,3 +10,6 @@ const int LAYER_FLAGS_BINDING = 7;
 // OpenEden (task 0044): the layers' packed material maps and their per-layer scales.
 const int MATERIAL_LAYER_BINDING = 8;
 const int LAYER_SCALES_BINDING = 9;
+// OpenEden (task 0045): the layers' `_p` height files (an array) and per layer its array index and depth.
+const int HEIGHT_LAYER_BINDING = 10;
+const int LAYER_HEIGHTS_BINDING = 11;

@@ -57,6 +57,7 @@
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
+#include <components/render/parallaxmath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
@@ -276,6 +277,23 @@ namespace MWRender
         if (Settings::rendering().mGBuffer && !hdr)
             Log(Debug::Warning) << "[Rendering] gbuffer needs hdr (the HDR path owns the render pass that holds its "
                                    "outputs); the G-buffer is off";
+        // Task 0045: parallax occlusion mapping from the `_p` height files. Independent of hdr and pbr; before any
+        // model loads (the loaders look for the files).
+        if (Settings::rendering().mParallax)
+        {
+            const auto quality = Render::Parallax::parseQuality(Settings::rendering().mParallaxQuality.get());
+            if (!quality)
+                Log(Debug::Warning) << "[Rendering] parallax quality: unknown '"
+                                    << Settings::rendering().mParallaxQuality.get() << "', using medium";
+            mParallaxQuality = static_cast<unsigned int>(quality.value_or(Render::Parallax::Quality::Medium)) + 1;
+            resourceSystem->builder->graphics->parallaxQuality = mParallaxQuality;
+            auto& objectMaps = resourceSystem->nifReader->autoMaps;
+            objectMaps.autoUseHeightMaps = true;
+            objectMaps.parallaxDiscardEdges = Settings::rendering().mParallaxDiscardEdges;
+            objectMaps.parallaxScale = Settings::rendering().mParallaxScale;
+            Log(Debug::Info) << "Parallax: occlusion mapping from height files, quality "
+                             << Settings::rendering().mParallaxQuality.get();
+        }
         if (hdr)
         {
             mHdrContext = context;
@@ -539,6 +557,18 @@ namespace MWRender
         terrainMaps.autoMaps.normalMapPattern = shaders.mNormalMapPattern;
         terrainMaps.autoMaps.normalHeightMapPattern = shaders.mNormalHeightMapPattern;
         terrainMaps.autoMaps.specularMapPattern = shaders.mTerrainSpecularMapPattern;
+        // Task 0045: the terrain layers' height files (their displacement scales come from the material table, which
+        // exists with pbr).
+        if (mParallaxQuality > 0)
+        {
+            terrainMaps.autoMaps.autoUseHeightMaps = true;
+            terrainMaps.parallaxQuality = mParallaxQuality;
+            terrainMaps.parallaxScale = Settings::rendering().mParallaxScale;
+            if (mResourceSystem->materialTable)
+                terrainMaps.layerValues = [table = mResourceSystem->materialTable](std::string_view texturePath) {
+                    return table->resolveValues("", texturePath);
+                };
+        }
         const VFS::Manager* vfs = mResourceSystem->getVFS();
         terrainMaps.exists = [vfs](std::string_view path) { return vfs->exists(VFS::Path::Normalized(path)); };
         if (mResourceSystem->materialTable && Settings::rendering().mPbrMaterialMaps)

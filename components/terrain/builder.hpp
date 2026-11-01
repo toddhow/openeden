@@ -81,6 +81,9 @@ namespace Terrain
         // Task 0044: the material map array (binding 8) and the per-layer scales (binding 9), with `pbr`.
         vsg::ref_ptr<vsg::Descriptor> mMaterialLayerDescriptor;
         vsg::ref_ptr<vsg::Descriptor> mLayerScalesDescriptor;
+        // Task 0045: the height array (binding 10) and per layer its index and depth (binding 11), with parallax.
+        vsg::ref_ptr<vsg::Descriptor> mHeightLayerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> mLayerHeightsDescriptor;
     };
 }
 

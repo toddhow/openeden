@@ -35,6 +35,12 @@ namespace Settings
         SettingValue<std::string> mPbrLook{ mIndex, "Rendering", "pbr look" };
         SettingValue<bool> mPbrMaterialMaps{ mIndex, "Rendering", "pbr material maps" };
 
+        // Task 0045: parallax occlusion mapping from the True PBR height files (`_p`). Read at start.
+        SettingValue<bool> mParallax{ mIndex, "Rendering", "parallax" };
+        SettingValue<std::string> mParallaxQuality{ mIndex, "Rendering", "parallax quality" };
+        SettingValue<float> mParallaxScale{ mIndex, "Rendering", "parallax scale", makeClampSanitizerFloat(0, 4) };
+        SettingValue<bool> mParallaxDiscardEdges{ mIndex, "Rendering", "parallax discard edges" };
+
         // Task 0029 (R2): ambient occlusion from the stored depth and normals. Read at start; needs hdr, gbuffer and
         // pbr.
         SettingValue<bool> mAo{ mIndex, "Rendering", "ao" };

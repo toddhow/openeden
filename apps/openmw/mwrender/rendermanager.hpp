@@ -404,6 +404,8 @@ namespace MWRender
         bool mGiSkyEnabled = false;
         // Task 0037: rain wetness took effect at start (needs hdr and pbr), its strength, and the current value.
         bool mWetnessEnabled = false;
+        // Task 0045: parallax occlusion mapping took effect at start: 0 off, 1 low, 2 medium, 3 high.
+        unsigned int mParallaxQuality = 0;
         float mWetnessStrength = 1.f;
         // Task 0038: the clouds' shadows (the data rides in mSkyVisHeader), and which grids it holds now.
         bool mCloudShadowEnabled = false;

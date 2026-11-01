@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -65,8 +65,22 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #include "lib/light/pbrlighting.glsl"
  #endif
 #endif
-#ifdef PARALLAX
+#ifdef PARALLAX_POM
+// OpenEden (task 0045): the height file, read with the caller's derivatives (lib/material/parallax.glsl).
+float pomHeight(vec2 uv, vec2 dx, vec2 dy)
+{
+    return textureGrad(heightMap, uv, dx, dy).r;
+}
+#endif
+#if defined(PARALLAX) || defined(PARALLAX_POM)
 #include "lib/material/parallax.glsl"
+#endif
+// OpenEden (task 0045): with a height file the descriptor's spare float holds two half floats (the roughness scale and
+// the displacement scale, Render::Parallax::packScales); without one it is the roughness scale itself.
+#ifdef HEIGHT_MAP
+#define MATERIAL_ROUGHNESS_SCALE unpackHalf2x16(floatBitsToUint(material.align_dummy2)).x
+#else
+#define MATERIAL_ROUGHNESS_SCALE material.align_dummy2
 #endif
 #ifdef PARTICLE_OCCLUSION
 #include "lib/particle/weatherocclusion.glsl"
@@ -124,7 +138,30 @@ void main()
     vec2 offset = vec2(0.0);
 #if defined(NORMAL_MAP) && defined(TEXCOORD)
     mat3 normalToView = mat3(frag_in.viewTangent, frag_in.viewBinormal, frag_in.viewNormal);
- #ifdef PARALLAX
+ #if defined(HEIGHT_MAP) && defined(PARALLAX_POM)
+    // Task 0045: the height file wins over a normal map's alpha. The derivatives are taken before any branch; the
+    // march is skipped in the shadow pass (the depth is not displaced) and beyond the fade distance.
+    {
+        vec2 pomDx = dFdx(frag_in.texCoord[diffuseUV].st);
+        vec2 pomDy = dFdy(frag_in.texCoord[diffuseUV].st);
+        float pomFade = pomDistanceFade(length(frag_in.viewPos));
+  #ifdef MATERIAL
+        float pomDisplacement = unpackHalf2x16(floatBitsToUint(material.align_dummy2)).y;
+  #else
+        float pomDisplacement = 0.0;
+  #endif
+        float pomDepth = (pomDisplacement > 0.0 ? pomDisplacement : POM_DEFAULT_DISPLACEMENT)
+            * POM_UV_DEPTH_PER_DISPLACEMENT * pomFade;
+        if (pomFade > 0.0 && dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) != 0)
+            offset = pomOffset(frag_in.texCoord[diffuseUV].st, transpose(normalToView) * normalize(-frag_in.viewPos),
+                pomDepth, pomDx, pomDy);
+  #ifdef PARALLAX_DISCARD
+        vec2 pomUv = frag_in.texCoord[diffuseUV].st + offset;
+        if (pomUv.x < 0.0 || pomUv.y < 0.0 || pomUv.x > 1.0 || pomUv.y > 1.0)
+            discard;
+  #endif
+    }
+ #elif defined(PARALLAX)
     float height = texture(normalMap, frag_in.texCoord[diffuseUV]).a;
     offset = getParallaxOffset(transpose(normalToView) * normalize(-frag_in.viewPos), height);
  #endif
@@ -286,7 +323,7 @@ void main()
    #ifdef MATERIAL_MAP_RMAOS
     // Task 0044: the True PBR layout; the scale is in the descriptor's spare float (0: none).
     pbrLit = pbrApplyMapRmaos(pbrLit, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset),
-        material.align_dummy2);
+        MATERIAL_ROUGHNESS_SCALE);
    #else
     pbrLit = pbrApplyMap(pbrLit, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
    #endif
@@ -490,7 +527,7 @@ void main()
   #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
    #ifdef MATERIAL_MAP_RMAOS
     pbrOut = pbrApplyMapRmaos(pbrOut, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset),
-        material.align_dummy2);
+        MATERIAL_ROUGHNESS_SCALE);
    #else
     pbrOut = pbrApplyMap(pbrOut, material.pbr, texture(materialMap, frag_in.texCoord[diffuseUV] + offset).rgb);
    #endif

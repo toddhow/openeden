@@ -7,6 +7,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "parallaxmath.hpp"
+
 namespace Render::Pbr
 {
     namespace
@@ -132,7 +134,8 @@ namespace Render::Pbr
                 return fail(lineAt(json, from), prefix, "must be an object");
             for (const auto& [key, value] : item.items())
                 if (key != "match" && key != "roughness" && key != "metalness" && key != "reflectance"
-                    && key != "occlusion" && key != "subsurface" && key != "roughnessScale" && key != "specularLevel")
+                    && key != "occlusion" && key != "subsurface" && key != "roughnessScale" && key != "specularLevel"
+                    && key != "displacementScale")
                     return fail(keyLine(json, key, from), prefix + "." + key, "unknown key");
 
             OverrideEntry entry;
@@ -163,6 +166,9 @@ namespace Render::Pbr
                     = readNumber(item, "roughnessScale", 0.0, json, from, index, failure, maxRoughnessScale, true);
             if (!failure)
                 entry.values.specularLevel = readNumber(item, "specularLevel", 0.0, json, from, index, failure);
+            if (!failure)
+                entry.values.displacementScale = readNumber(item, "displacementScale", 0.0, json, from, index,
+                    failure, Render::Parallax::maxDisplacementScale, true);
             if (failure)
                 return fail(failure->line, failure->field, failure->message);
             if (const auto it = item.find("subsurface"); it != item.end())
@@ -173,7 +179,7 @@ namespace Render::Pbr
             }
             if (!entry.values.roughness && !entry.values.metalness && !entry.values.reflectance
                 && !entry.values.occlusion && !entry.values.subsurface && !entry.values.roughnessScale
-                && !entry.values.specularLevel)
+                && !entry.values.specularLevel && !entry.values.displacementScale)
                 return fail(lineAt(json, from), prefix, "needs at least one value besides match");
             set.entries.push_back(std::move(entry));
             ++index;
@@ -206,6 +212,8 @@ namespace Render::Pbr
                 item["roughnessScale"] = number(*entry.values.roughnessScale);
             if (entry.values.specularLevel)
                 item["specularLevel"] = number(*entry.values.specularLevel);
+            if (entry.values.displacementScale)
+                item["displacementScale"] = number(*entry.values.displacementScale);
             materials.push_back(std::move(item));
         }
         root["materials"] = std::move(materials);
@@ -277,6 +285,8 @@ namespace Render::Pbr
                 into.roughnessScale = values.roughnessScale;
             if (values.specularLevel)
                 into.specularLevel = values.specularLevel;
+            if (values.displacementScale)
+                into.displacementScale = values.displacementScale;
         }
     }
 

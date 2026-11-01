@@ -820,7 +820,7 @@ namespace vsgAdapters
         {
             if (!mAutoMaps || !mTextureExists || !*mTextureExists
                 || (!mAutoMaps->autoUseNormalMaps && !mAutoMaps->autoUseSpecularMaps
-                    && !mAutoMaps->autoUseMaterialMaps))
+                    && !mAutoMaps->autoUseMaterialMaps && !mAutoMaps->autoUseHeightMaps))
                 return;
             const std::string diffusePath = resolveTexturePath(texprop, Nif::NiTexturingProperty::BaseTexture);
             if (diffusePath.empty())
@@ -841,10 +841,12 @@ namespace vsgAdapters
                 textures.emplace_back(createTextureDescriptor(data, base.mClamp, binding));
                 return data;
             };
+            bool hasNormalMap = false;
             if (!maps.normalMap.empty())
             {
                 if (auto data = addMap(maps.normalMap, Pipeline::Descriptors::NORMAL_UNIT))
                 {
+                    hasNormalMap = true;
                     nodeOptions.shader.addMode(Pipeline::Mode::NORMAL_MAP);
                     if (isTwoChannelFormat(data->properties.format))
                         nodeOptions.shader.addMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
@@ -866,10 +868,24 @@ namespace vsgAdapters
                         nodeOptions.shader.addMode(Pipeline::Mode::MATERIAL_MAP_RMAOS);
                 }
             }
+            // Task 0045: the height file, for parallax occlusion mapping. It needs the tangent frame of a normal map
+            // (the shader reads both with the diffuse texture's UV set).
+            if (!maps.heightMap.empty() && hasNormalMap)
+            {
+                if (addMap(maps.heightMap, Pipeline::Descriptors::HEIGHT_UNIT))
+                {
+                    nodeOptions.shader.addMode(Pipeline::Mode::HEIGHT_MAP);
+                    // Dropping fragments that leave the texture only suits a texture that does not tile.
+                    if (mAutoMaps->parallaxDiscardEdges && base.mClamp)
+                        nodeOptions.shader.addMode(Pipeline::Mode::PARALLAX_DISCARD);
+                }
+            }
         }
 
         static void removeAutoMapModes(Pipeline::ShaderOptions& shader)
         {
+            shader.removeMode(Pipeline::Mode::HEIGHT_MAP);
+            shader.removeMode(Pipeline::Mode::PARALLAX_DISCARD);
             shader.removeMode(Pipeline::Mode::NORMAL_MAP);
             shader.removeMode(Pipeline::Mode::PARALLAX);
             shader.removeMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
@@ -1124,6 +1140,17 @@ namespace vsgAdapters
                     pbr.z = Render::Pbr::reflectanceFromF0(static_cast<float>(*values.specularLevel));
                 if (values.roughnessScale)
                     data->value().align_dummy2 = static_cast<float>(*values.roughnessScale);
+                // Task 0045: with a height file the float carries two half floats, the roughness scale and the
+                // displacement scale (the material's, or the default) times `parallax scale`.
+                if (options.shader.hasMode(Pipeline::Mode::HEIGHT_MAP))
+                {
+                    const double displacement = values.displacementScale.value_or(
+                        static_cast<double>(Render::Parallax::defaultDisplacementScale));
+                    const float userScale = mAutoMaps ? mAutoMaps->parallaxScale : 1.f;
+                    data->value().align_dummy2 = Render::Parallax::packScales(
+                        values.roughnessScale ? static_cast<float>(*values.roughnessScale) : 0.f,
+                        static_cast<float>(displacement) * userScale);
+                }
             }
             if (mOverride && mOverride->materialData)
                 mOverride->materialData(data->value());

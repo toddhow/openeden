@@ -30,6 +30,9 @@ namespace Render::Pbr
         // dielectric F0 before the map's alpha multiplies it (0 to 1).
         std::optional<double> roughnessScale;
         std::optional<double> specularLevel;
+        // Task 0045: the True PBR set's displacement scale for parallax (above 0, at most
+        // Render::Parallax::maxDisplacementScale).
+        std::optional<double> displacementScale;
     };
 
     struct OverrideEntry

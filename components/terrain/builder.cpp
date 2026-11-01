@@ -1,6 +1,7 @@
 #include "builder.hpp"
 
 #include <iostream>
+#include <limits>
 #include <map>
 #include <tuple>
 
@@ -14,6 +15,7 @@
 
 #include <components/pipeline/sets.hpp>
 #include <components/pipeline/terrain.hpp>
+#include <components/render/parallaxmath.hpp>
 #include <components/vsgutil/arraystate.hpp>
 #include <components/vsgutil/arraytexture.hpp>
 #include <components/vsgutil/bounds.hpp>
@@ -90,7 +92,8 @@ namespace Terrain
         , mMapSettings(std::move(in_mapSettings))
     {
         mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs,
-            mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr, mMapSettings.cover);
+            mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr, mMapSettings.cover,
+            mMapSettings.parallaxQuality);
     }
 
     Builder::~Builder() {}
@@ -203,6 +206,17 @@ namespace Terrain
         if (mMapSettings.pbr)
             materialArrayIndex = readUniformImages(maps.materialMaps, mImageOptions, materialData, "material map");
 
+        // Task 0045: the same for the height files.
+        vsg::DataList heightData;
+        std::vector<int> heightArrayIndex;
+        vsg::ref_ptr<vsg::vec4Array> heights;
+        if (mMapSettings.parallaxQuality > 0)
+        {
+            heightArrayIndex = readUniformImages(maps.heightMaps, mImageOptions, heightData, "height map");
+            heights = vsg::vec4Array::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
+            heights->set(0, vsg::vec4(-1.f, 0.f, 0.f, 0.f));
+        }
+
         vsg::DataList imageData;
         auto flags = vsg::uintArray::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
         // Task 0044: the scales exist only with pbr; without it the flags keep the bits they had (the low 20).
@@ -241,6 +255,21 @@ namespace Terrain
             }
             if (scales)
                 scales->set(i, scale);
+            if (heights)
+            {
+                // The layer's array index (-1: none) and its depth in texture coordinates, `parallax scale` included.
+                const int heightIndex = layer.heightMapIndex >= 0 ? heightArrayIndex[layer.heightMapIndex] : -1;
+                float displacement = std::numeric_limits<float>::quiet_NaN(); // not set: the default
+                if (mMapSettings.layerValues)
+                {
+                    const Render::Pbr::OverrideValues values = mMapSettings.layerValues(resolved[i]);
+                    if (values.displacementScale)
+                        displacement = static_cast<float>(*values.displacementScale);
+                }
+                heights->set(i,
+                    vsg::vec4(static_cast<float>(heightIndex),
+                        Render::Parallax::uvDepth(displacement, mMapSettings.parallaxScale), 0.f, 0.f));
+            }
         }
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
         mLayerDescriptor
@@ -256,6 +285,38 @@ namespace Terrain
             mSamplerOptions, vsgUtil::convertToArrayTexture(normalData), Pipeline::Descriptors::NORMAL_LAYER_BINDING);
         mLayerFlagsDescriptor = vsg::DescriptorBuffer::create(
             flags, Pipeline::Descriptors::LAYER_FLAGS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        if (heights)
+        {
+            if (heightData.empty())
+            {
+                // A single RGBA texel (the array conversion takes only RGBA8 or block formats) so the binding is valid;
+                // no layer refers to it.
+                heightData.push_back(vsg::ubvec4Array2D::create(
+                    1, 1, vsg::ubvec4(255, 255, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
+            }
+            vsg::ref_ptr<vsg::Data> heightArray;
+            try
+            {
+                heightArray = vsgUtil::convertToArrayTexture(heightData);
+            }
+            catch (const std::exception& e)
+            {
+                // A height file of a format the array cannot hold (one byte a texel, say): no layer uses its file.
+                std::cerr << "Terrain height maps are not used: " << e.what() << std::endl;
+                heightArray = vsgUtil::convertToArrayTexture(vsg::DataList{ vsg::ubvec4Array2D::create(1, 1,
+                    vsg::ubvec4(255, 255, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }) });
+                for (size_t i = 0; i < heights->size(); ++i)
+                {
+                    vsg::vec4 info = heights->at(i);
+                    info.x = -1.f;
+                    heights->set(i, info);
+                }
+            }
+            mHeightLayerDescriptor = vsg::DescriptorImage::create(
+                mSamplerOptions, heightArray, Pipeline::Descriptors::HEIGHT_LAYER_BINDING);
+            mLayerHeightsDescriptor = vsg::DescriptorBuffer::create(
+                heights, Pipeline::Descriptors::LAYER_HEIGHTS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        }
         if (mMapSettings.pbr)
         {
             if (materialData.empty())
@@ -311,6 +372,12 @@ namespace Terrain
         {
             descriptors.push_back(mMaterialLayerDescriptor);
             descriptors.push_back(mLayerScalesDescriptor);
+        }
+
+        if (mHeightLayerDescriptor)
+        {
+            descriptors.push_back(mHeightLayerDescriptor);
+            descriptors.push_back(mLayerHeightsDescriptor);
         }
 
         auto bds = vsg::BindDescriptorSet::create(

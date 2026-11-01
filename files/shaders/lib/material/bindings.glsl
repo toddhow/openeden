@@ -18,5 +18,7 @@ const int SPECULAR_UNIT=14;
 const int OCCLUSION_UNIT=15;
 // OpenEden: the packed material map of the material model (task 0027, tier 3).
 const int MATERIAL_MAP_UNIT=16;
+// OpenEden (task 0045): the True PBR height file (`_p`), for parallax occlusion mapping.
+const int HEIGHT_UNIT=17;
 
 const int START_UVSET_CONSTANTS=4;

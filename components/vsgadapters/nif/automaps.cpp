@@ -51,7 +51,27 @@ namespace vsgAdapters
             maps.materialMap = std::move(found.path);
             maps.materialLayout = found.layout;
         }
+        maps.heightMap = findHeightMap(diffusePath, settings, exists);
+        // The march needs the surface's tangent frame, which comes with a normal map: look for one next to a height
+        // file even when normal maps are not asked for.
+        if (!maps.heightMap.empty() && maps.normalMap.empty() && !settings.autoUseNormalMaps)
+        {
+            std::string normalMap = autoMapPath(diffusePath, settings.normalMapPattern);
+            if (!normalMap.empty() && normalMap != bumpPath && exists(normalMap))
+                maps.normalMap = std::move(normalMap);
+        }
         return maps;
+    }
+
+    std::string findHeightMap(std::string_view diffusePath, const AutoMapSettings& settings,
+        const std::function<bool(std::string_view)>& exists)
+    {
+        if (!settings.autoUseHeightMaps)
+            return {};
+        std::string path = autoMapPath(diffusePath, settings.heightMapPattern);
+        if (path.empty() || !exists(path))
+            return {};
+        return path;
     }
 
     MaterialMapFile findMaterialMap(std::string_view diffusePath, const AutoMapSettings& settings,

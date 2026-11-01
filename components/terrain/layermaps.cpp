@@ -10,6 +10,7 @@ namespace Terrain
         TerrainLayerMaps result;
         std::map<std::string, int, std::less<>> normalMapIndices;
         std::map<std::string, int, std::less<>> materialMapIndices;
+        std::map<std::string, int, std::less<>> heightMapIndices;
         result.layers.reserve(layerPaths.size());
         for (const std::string& path : layerPaths)
         {
@@ -54,6 +55,18 @@ namespace Terrain
                         result.materialMaps.push_back(found.path);
                     layer.materialMapIndex = it->second;
                     layer.materialLayout = found.layout;
+                }
+            }
+            if (!path.empty())
+            {
+                std::string heightMap = vsgAdapters::findHeightMap(path, settings, exists);
+                if (!heightMap.empty())
+                {
+                    auto [it, inserted]
+                        = heightMapIndices.emplace(heightMap, static_cast<int>(result.heightMaps.size()));
+                    if (inserted)
+                        result.heightMaps.push_back(std::move(heightMap));
+                    layer.heightMapIndex = it->second;
                 }
             }
             result.layers.push_back(std::move(layer));

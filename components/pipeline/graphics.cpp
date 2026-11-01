@@ -104,6 +104,16 @@ namespace Pipeline
                 return "COVER";
             case Mode::COVER_DEBUG:
                 return "COVER_DEBUG";
+            case Mode::HEIGHT_MAP:
+                return "HEIGHT_MAP";
+            case Mode::PARALLAX_POM:
+                return "PARALLAX_POM";
+            case Mode::PARALLAX_POM_LOW:
+                return "PARALLAX_POM_LOW";
+            case Mode::PARALLAX_POM_HIGH:
+                return "PARALLAX_POM_HIGH";
+            case Mode::PARALLAX_DISCARD:
+                return "PARALLAX_DISCARD";
         }
         return "";
     }
@@ -153,6 +163,8 @@ namespace Pipeline
                 nullptr },
             { Descriptors::MATERIAL_MAP_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::HEIGHT_UNIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
             { Descriptors::TEXMAT_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr }
         };
 
@@ -266,6 +278,16 @@ namespace Pipeline
             fragmentStageOptions.addMode(Mode::COVER);
             if (coverDebug)
                 fragmentStageOptions.addMode(Mode::COVER_DEBUG);
+        }
+        // Task 0045: parallax occlusion mapping, for draws whose texture has a height file (the loader sets HEIGHT_MAP
+        // only with the setting on).
+        if (parallaxQuality > 0 && key.shader.hasMode(Mode::HEIGHT_MAP))
+        {
+            fragmentStageOptions.addMode(Mode::PARALLAX_POM);
+            if (parallaxQuality == 1)
+                fragmentStageOptions.addMode(Mode::PARALLAX_POM_LOW);
+            else if (parallaxQuality == 3)
+                fragmentStageOptions.addMode(Mode::PARALLAX_POM_HIGH);
         }
         if (toGBuffer && gbufferOutputs >= 4)
             fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);

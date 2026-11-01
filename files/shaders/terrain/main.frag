@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG)
+#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -43,6 +43,20 @@ const uint PARALLAX_FLAG = 1u << 16;
 const uint SPECULAR_FLAG = 1u << 17;
 #include "lib/view/screencoord.glsl"
 #include "lib/light/pixellighting.glsl"
+#ifdef PARALLAX_POM
+// OpenEden (task 0045): the layers' `_p` height files (an array) and per layer its array index (below zero: none) in x and
+// its depth in texture coordinates, `parallax scale` included, in y. One march a pixel, on the layer with the largest
+// blend weight; pomLayer is the array layer the height function reads.
+layout(set=TEXTURE_SET, binding=HEIGHT_LAYER_BINDING) uniform sampler2DArray heightLayers;
+layout(std430, set=TEXTURE_SET, binding=LAYER_HEIGHTS_BINDING) readonly buffer LayerHeights {
+    vec4 layerHeights[];
+};
+float pomLayer = 0.0;
+float pomHeight(vec2 uv, vec2 dx, vec2 dy)
+{
+    return textureGrad(heightLayers, vec3(uv, pomLayer), dx, dy).r;
+}
+#endif
 #include "lib/material/parallax.glsl"
 #ifdef TERRAIN_PBR
 // Task 0044: bits 18 (the map has the `_rmaos` layout) and 20 to 31 (its index, 0xfff for none) of the same flags
@@ -106,6 +120,28 @@ void main()
     vec3 eyeDir = transpose(normalToView) * normalize(-frag_in.viewPos);
     vec3 blendedNormal = vec3(0);
     float specularStrength = 0.0;
+#ifdef PARALLAX_POM
+    // Task 0045: the march, once, on the dominant layer; every layer then reads at the shifted coordinates. The
+    // derivatives are taken before any branch.
+    vec2 pomDx = dFdx(diffuseTexCoord);
+    vec2 pomDy = dFdy(diffuseTexCoord);
+    vec2 pomShift = vec2(0.0);
+    bool pomActive = false;
+    {
+        int dominant = 0;
+        for (int i=1; i<4; ++i)
+            if (blendCoeffs[i] > blendCoeffs[dominant])
+                dominant = i;
+        vec4 heightInfo = layerHeights[textures[dominant]];
+        float pomFade = pomDistanceFade(length(frag_in.viewPos));
+        if (heightInfo.x >= 0.0 && pomFade > 0.0)
+        {
+            pomLayer = heightInfo.x;
+            pomShift = pomOffset(diffuseTexCoord, eyeDir, heightInfo.y * pomFade, pomDx, pomDy);
+            pomActive = true;
+        }
+    }
+#endif
 #ifdef TERRAIN_PBR
     // Task 0044: the layers' material values, blended like their colours. A layer with no map has the tier 1 terrain
     // values (Render::Pbr::terrainRoughness, no metal, F0 0.04, no occlusion).
@@ -127,6 +163,10 @@ void main()
         float height = texture(normalLayers, vec3(diffuseTexCoord, normalIndex)).a;
         vec2 parallaxOffset = getParallaxOffset(eyeDir, height);
         vec2 layerCoord = diffuseTexCoord + ((hasNormalMap && (flags & PARALLAX_FLAG) != 0u) ? parallaxOffset : vec2(0.0));
+#ifdef PARALLAX_POM
+        if (pomActive)
+            layerCoord = diffuseTexCoord + pomShift;
+#endif
         vec4 diffuseTex = texture(diffuseMap, vec3(layerCoord, textures[i]));
         outColor.xyz += diffuseTex.xyz * blendCoeffs[i];
         specularStrength += ((flags & SPECULAR_FLAG) != 0u ? diffuseTex.a : 0.0) * blendCoeffs[i];

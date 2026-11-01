@@ -25,6 +25,8 @@ namespace Terrain
         // Task 0044: index into TerrainLayerMaps::materialMaps, or -1, and that file's channel layout.
         int materialMapIndex = -1;
         Render::Pbr::MapLayout materialLayout = Render::Pbr::MapLayout::Orm;
+        // Task 0045: index into TerrainLayerMaps::heightMaps, or -1.
+        int heightMapIndex = -1;
     };
 
     // The terrain shader's per-layer flags word (files/shaders/terrain/main.frag repeats it): the normal map's index in
@@ -71,13 +73,19 @@ namespace Terrain
         // for them and for normal maps). `layerValues` gives a layer texture's tier 2 values (the two scales and a
         // reflectance); it may run on loader threads.
         bool pbr = false;
+        // Task 0045: the layers' `_p` height files are marched (1 low, 2 medium, 3 high; 0 off), with `parallax scale`
+        // folded into each layer's depth. The layers' `displacementScale` comes from layerValues, so it needs the
+        // material table.
+        unsigned int parallaxQuality = 0;
+        float parallaxScale = 1.f;
         std::function<Render::Pbr::OverrideValues(std::string_view texturePath)> layerValues;
 
         // Task 0044: the material maps need the per-pixel path as well.
         bool enabled() const
         {
             return exists
-                && (autoMaps.autoUseNormalMaps || autoMaps.autoUseSpecularMaps || autoMaps.autoUseMaterialMaps);
+                && (autoMaps.autoUseNormalMaps || autoMaps.autoUseSpecularMaps || autoMaps.autoUseMaterialMaps
+                    || autoMaps.autoUseHeightMaps);
         }
     };
 
@@ -87,6 +95,8 @@ namespace Terrain
         std::vector<std::string> normalMaps;
         // Task 0044: the `_rmaos` / `_orm` files of the layers, each listed once.
         std::vector<std::string> materialMaps;
+        // Task 0045: the `_p` height files of the layers, each listed once.
+        std::vector<std::string> heightMaps;
     };
 
     /// Finds each terrain layer's normal and specular maps (task 0012, V4i), as OpenMW's

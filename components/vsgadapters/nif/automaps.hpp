@@ -8,6 +8,7 @@
 #include <vsg/vk/vulkan.h>
 
 #include <components/render/materialmath.hpp>
+#include <components/render/parallaxmath.hpp>
 
 namespace vsgAdapters
 {
@@ -24,6 +25,12 @@ namespace vsgAdapters
         std::string materialMapPattern = std::string(Render::Pbr::materialMapSuffix);
         // Task 0044: the True PBR layout, looked for before the `_orm` one.
         std::string rmaosMapPattern = std::string(Render::Pbr::rmaosMapSuffix);
+        // Task 0045: the True PBR height file for parallax occlusion mapping; off unless `[Rendering] parallax`.
+        bool autoUseHeightMaps = false;
+        std::string heightMapPattern = std::string(Render::Parallax::heightMapSuffix);
+        // `parallax discard edges` (objects, clamped textures only) and `parallax scale` (folded into the material).
+        bool parallaxDiscardEdges = false;
+        float parallaxScale = 1.f;
     };
 
     struct AutoMaps
@@ -35,6 +42,8 @@ namespace vsgAdapters
         std::string materialMap;
         // Which channel layout `materialMap` has (task 0044).
         Render::Pbr::MapLayout materialLayout = Render::Pbr::MapLayout::Orm;
+        // Task 0045: the `_p` height file, or empty.
+        std::string heightMap;
     };
 
     struct MaterialMapFile
@@ -46,6 +55,11 @@ namespace vsgAdapters
     /// The packed material map next to a diffuse texture (task 0044): `_rmaos` if it exists, else `_orm`; nothing
     /// unless settings.autoUseMaterialMaps.
     MaterialMapFile findMaterialMap(std::string_view diffusePath, const AutoMapSettings& settings,
+        const std::function<bool(std::string_view)>& exists);
+
+    /// The height file next to a diffuse texture (task 0045): `_p` if it exists; nothing unless
+    /// settings.autoUseHeightMaps.
+    std::string findHeightMap(std::string_view diffusePath, const AutoMapSettings& settings,
         const std::function<bool(std::string_view)>& exists);
 
     /// The diffuse path with its last "." replaced by pattern + "." (Misc::StringUtils::replaceLast, as OpenMW's

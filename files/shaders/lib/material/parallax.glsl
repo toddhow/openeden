@@ -9,4 +9,102 @@ vec2 getParallaxOffset(vec3 eyeDir, float height)
     return vec2(eyeDir.x, eyeDir.y) * ( height * PARALLAX_SCALE + PARALLAX_BIAS );
 }
 
+#ifdef PARALLAX_POM
+// OpenEden (task 0045): parallax occlusion mapping, a stepped march with a refined hit. The twin of
+// components/render/parallaxmath.hpp (Render::Parallax::march, limits, stepCount, distanceFade): change both together.
+//
+// The including shader defines, before including this file,
+//     float pomHeight(vec2 uv, vec2 dx, vec2 dy)
+// which reads the height file (1 = the top of the surface) with explicit derivatives. That is the only place that names
+// a texture, so a Slang port is this function as an interface method plus a mechanical translation of the rest.
+//
+// The ray goes down into the surface; at depth d (0 at the surface, 1 the deepest the map can have) its texture
+// coordinate is uv - eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z) * d * uvDepth, and it is below the surface once
+// d >= 1 - pomHeight(there).
+#if defined(PARALLAX_POM_LOW)
+const int POM_MIN_STEPS = 8;
+const int POM_MAX_STEPS = 12;
+const int POM_REFINE_TAPS = 0;
+#elif defined(PARALLAX_POM_HIGH)
+const int POM_MIN_STEPS = 16;
+const int POM_MAX_STEPS = 32;
+const int POM_REFINE_TAPS = 4;
+#else
+const int POM_MIN_STEPS = 10;
+const int POM_MAX_STEPS = 20;
+const int POM_REFINE_TAPS = 4;
+#endif
+const float POM_MIN_VIEW_Z = 0.1;
+// Render::Parallax::uvDepthPerDisplacement and defaultDisplacementScale.
+const float POM_UV_DEPTH_PER_DISPLACEMENT = 0.2;
+const float POM_DEFAULT_DISPLACEMENT = 0.5;
+// The march fades out between these distances (game units), and is skipped beyond the second.
+const float POM_FADE_START = 700.0;
+const float POM_FADE_END = 1800.0;
+
+float pomDistanceFade(float distance)
+{
+    float t = clamp((distance - POM_FADE_START) / (POM_FADE_END - POM_FADE_START), 0.0, 1.0);
+    return 1.0 - t * t * (3.0 - 2.0 * t);
+}
+
+// How far the ray is above the surface at depth d: positive above, zero or less once it is under it.
+float pomAbove(vec2 uv, vec2 rayStep, float d, vec2 dx, vec2 dy)
+{
+    return (1.0 - pomHeight(uv - rayStep * d, dx, dy)) - d;
+}
+
+// The texture coordinate offset to add to uv. eyeDir: the unit vector from the surface to the eye in tangent space;
+// uvDepth: the depth of the surface in texture coordinates (already faded); dx and dy: the derivatives of uv.
+vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, vec2 dx, vec2 dy)
+{
+    float viewCos = clamp(abs(eyeDir.z), 0.0, 1.0);
+    int steps = int(ceil(mix(float(POM_MIN_STEPS), float(POM_MAX_STEPS), 1.0 - viewCos)));
+    vec2 rayStep = eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z) * uvDepth;
+    float loDepth = 0.0;
+    float loAbove = pomAbove(uv, rayStep, 0.0, dx, dy);
+    if (loAbove <= 0.0)
+        return vec2(0.0);
+    float hiDepth = 1.0;
+    float hiAbove = 0.0;
+    bool hit = false;
+    for (int i = 1; i <= POM_MAX_STEPS; ++i)
+    {
+        if (i > steps)
+            break;
+        float depth = float(i) / float(steps);
+        float a = pomAbove(uv, rayStep, depth, dx, dy);
+        if (a <= 0.0)
+        {
+            hiDepth = depth;
+            hiAbove = a;
+            hit = true;
+            break;
+        }
+        loDepth = depth;
+        loAbove = a;
+    }
+    if (!hit)
+        return -rayStep;
+    for (int k = 0; k < POM_REFINE_TAPS; ++k)
+    {
+        float mid = 0.5 * (loDepth + hiDepth);
+        float m = pomAbove(uv, rayStep, mid, dx, dy);
+        if (m <= 0.0)
+        {
+            hiDepth = mid;
+            hiAbove = m;
+        }
+        else
+        {
+            loDepth = mid;
+            loAbove = m;
+        }
+    }
+    float span = loAbove - hiAbove;
+    float t = span > 0.0 ? clamp(loAbove / span, 0.0, 1.0) : 1.0;
+    return -rayStep * (loDepth + t * (hiDepth - loDepth));
+}
+#endif
+
 #endif
