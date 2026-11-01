@@ -18,13 +18,11 @@ namespace vsg
 namespace Render
 {
     /*
-     * What the machine's Vulkan can do (task 0023, F0c), as an ordered list of text key and value pairs. The point is to
-     * inform the choice of Vulkan floor (research note 0008, F1), so every item research note 0008 names is here, and
-     * each one says plainly if the device does not have it:
-     *   "present"            the device offers it
-     *   "absent"             the device does not
-     *   "unknown (needs ...)" it could not be asked (for example a feature query needs Vulkan 1.1)
-     * Other items are numbers or names. A missing item never throws.
+     * What the machine's Vulkan can do (task 0023, F0c), as an ordered list of text key and value pairs. The point is
+     * to inform the choice of Vulkan floor (research note 0008, F1), so every item research note 0008 names is here,
+     * and each one says plainly if the device does not have it: "present"            the device offers it "absent" the
+     * device does not "unknown (needs ...)" it could not be asked (for example a feature query needs Vulkan 1.1) Other
+     * items are numbers or names. A missing item never throws.
      */
     class DeviceReport
     {

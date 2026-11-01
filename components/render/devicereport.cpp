@@ -255,8 +255,8 @@ namespace Render
 
         // The probe instance. Vulkan 1.1 is where vkGetPhysicalDeviceFeatures2 appeared, so a 1.0 loader cannot be
         // asked about most features and the entries say "unknown".
-        const uint32_t probeApi = loaderVersion >= VK_API_VERSION_1_1 ? std::min(loaderVersion, VK_API_VERSION_1_3)
-                                                                       : VK_API_VERSION_1_0;
+        const uint32_t probeApi
+            = loaderVersion >= VK_API_VERSION_1_1 ? std::min(loaderVersion, VK_API_VERSION_1_3) : VK_API_VERSION_1_0;
         VkApplicationInfo appInfo = makeStruct<VkApplicationInfo>(VK_STRUCTURE_TYPE_APPLICATION_INFO);
         appInfo.pApplicationName = "OpenEden device report";
         appInfo.apiVersion = probeApi;
@@ -283,8 +283,7 @@ namespace Render
         {
             VkPhysicalDeviceProperties p;
             vkGetPhysicalDeviceProperties(candidate, &p);
-            const bool matches = used
-                && std::strcmp(p.deviceName, used->getProperties().deviceName) == 0
+            const bool matches = used && std::strcmp(p.deviceName, used->getProperties().deviceName) == 0
                 && p.vendorID == used->getProperties().vendorID && p.deviceID == used->getProperties().deviceID;
             if (matches || (!used && device == VK_NULL_HANDLE))
             {
@@ -380,8 +379,8 @@ namespace Render
         const std::string needs12 = "unknown (needs Vulkan 1.2)";
         auto getFeatures2 = instanceProc<PFN_vkGetPhysicalDeviceFeatures2>(probe, "vkGetPhysicalDeviceFeatures2");
         auto getProperties2 = instanceProc<PFN_vkGetPhysicalDeviceProperties2>(probe, "vkGetPhysicalDeviceProperties2");
-        const bool canAsk = probeApi >= VK_API_VERSION_1_1 && api >= VK_API_VERSION_1_1 && getFeatures2
-            && getProperties2;
+        const bool canAsk
+            = probeApi >= VK_API_VERSION_1_1 && api >= VK_API_VERSION_1_1 && getFeatures2 && getProperties2;
 
         VkPhysicalDeviceFeatures coreFeatures{};
         vkGetPhysicalDeviceFeatures(device, &coreFeatures);
@@ -389,16 +388,23 @@ namespace Render
 
         if (canAsk)
         {
-            VkPhysicalDeviceMultiviewFeatures multiview = makeStruct<VkPhysicalDeviceMultiviewFeatures>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
-            VkPhysicalDevice16BitStorageFeatures storage16 = makeStruct<VkPhysicalDevice16BitStorageFeatures>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES);
-            VkPhysicalDeviceVulkan12Features v12 = makeStruct<VkPhysicalDeviceVulkan12Features>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
-            VkPhysicalDeviceRayQueryFeaturesKHR rayQuery = makeStruct<VkPhysicalDeviceRayQueryFeaturesKHR>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
-            VkPhysicalDeviceAccelerationStructureFeaturesKHR accel = makeStruct<VkPhysicalDeviceAccelerationStructureFeaturesKHR>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR);
+            VkPhysicalDeviceMultiviewFeatures multiview
+                = makeStruct<VkPhysicalDeviceMultiviewFeatures>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
+            VkPhysicalDevice16BitStorageFeatures storage16 = makeStruct<VkPhysicalDevice16BitStorageFeatures>(
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES);
+            VkPhysicalDeviceVulkan12Features v12
+                = makeStruct<VkPhysicalDeviceVulkan12Features>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
+            VkPhysicalDeviceRayQueryFeaturesKHR rayQuery = makeStruct<VkPhysicalDeviceRayQueryFeaturesKHR>(
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
+            VkPhysicalDeviceAccelerationStructureFeaturesKHR accel
+                = makeStruct<VkPhysicalDeviceAccelerationStructureFeaturesKHR>(
+                    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR);
             const bool haveV12 = api >= VK_API_VERSION_1_2;
             const bool haveRay = hasExtension(deviceExtensions, "VK_KHR_ray_query");
             const bool haveAccel = hasExtension(deviceExtensions, "VK_KHR_acceleration_structure");
 
-            VkPhysicalDeviceFeatures2 features2 = makeStruct<VkPhysicalDeviceFeatures2>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+            VkPhysicalDeviceFeatures2 features2
+                = makeStruct<VkPhysicalDeviceFeatures2>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
             void** tail = &features2.pNext;
             auto chain = [&tail](auto& s) {
                 *tail = &s;
@@ -416,7 +422,8 @@ namespace Render
 
             r.add("feature.multiview", multiview.multiview == VK_TRUE);
             r.add("feature.storageBuffer16BitAccess", storage16.storageBuffer16BitAccess == VK_TRUE);
-            r.add("feature.uniformAndStorageBuffer16BitAccess", storage16.uniformAndStorageBuffer16BitAccess == VK_TRUE);
+            r.add(
+                "feature.uniformAndStorageBuffer16BitAccess", storage16.uniformAndStorageBuffer16BitAccess == VK_TRUE);
             r.add("feature.storagePushConstant16", storage16.storagePushConstant16 == VK_TRUE);
             r.add("feature.rayQuery", haveRay ? rayQuery.rayQuery == VK_TRUE : false);
             r.add("feature.accelerationStructure", haveAccel ? accel.accelerationStructure == VK_TRUE : false);
@@ -446,9 +453,12 @@ namespace Render
                     r.add(key, needs12);
             }
 
-            VkPhysicalDeviceSubgroupProperties subgroup = makeStruct<VkPhysicalDeviceSubgroupProperties>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES);
-            VkPhysicalDeviceDriverProperties driver = makeStruct<VkPhysicalDeviceDriverProperties>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES);
-            VkPhysicalDeviceProperties2 properties2 = makeStruct<VkPhysicalDeviceProperties2>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2);
+            VkPhysicalDeviceSubgroupProperties subgroup
+                = makeStruct<VkPhysicalDeviceSubgroupProperties>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES);
+            VkPhysicalDeviceDriverProperties driver
+                = makeStruct<VkPhysicalDeviceDriverProperties>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES);
+            VkPhysicalDeviceProperties2 properties2
+                = makeStruct<VkPhysicalDeviceProperties2>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2);
             properties2.pNext = &subgroup;
             if (haveV12)
                 subgroup.pNext = &driver;

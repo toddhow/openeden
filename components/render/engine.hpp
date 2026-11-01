@@ -105,15 +105,16 @@ namespace Render
         const VkPhysicalDeviceFeatures& getEnabledFeatures() const;
         VkImageLayout getPresentLayout() const;
 
-        // GPU timing (task 0023, F0a). Creates the timer on the first call and returns it, or returns null, and says why
-        // in the log once, when the device cannot time passes. Call before the command graphs are built; whoever builds
-        // them adds the passes to the timer. Never called when [Rendering] gpu timing is off: then there is no query
-        // pool and loop() records and reads nothing. When there is a timer, loop() reads its results each frame, adds
-        // a column per pass to the OPENEDEN_FRAME_STATS_FILE, and prints the summary when it ends.
+        // GPU timing (task 0023, F0a). Creates the timer on the first call and returns it, or returns null, and says
+        // why in the log once, when the device cannot time passes. Call before the command graphs are built; whoever
+        // builds them adds the passes to the timer. Never called when [Rendering] gpu timing is off: then there is no
+        // query pool and loop() records and reads nothing. When there is a timer, loop() reads its results each frame,
+        // adds a column per pass to the OPENEDEN_FRAME_STATS_FILE, and prints the summary when it ends.
         GpuTimer* enableGpuTiming();
         GpuTimer* gpuTimer() const { return mGpuTimer.get(); }
 
-        // What the machine's Vulkan supports (task 0023, F0c): asks the device, so it takes a moment; call it once, at start.
+        // What the machine's Vulkan supports (task 0023, F0c): asks the device, so it takes a moment; call it once, at
+        // start.
         DeviceReport deviceReport();
 
     private:

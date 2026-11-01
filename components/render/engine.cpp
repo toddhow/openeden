@@ -122,8 +122,8 @@ namespace Render
 
     Engine::~Engine()
     {
-        // The timer's query pool may still be used by frames in flight (loop() waits at its end, a game that aborts or a hosted
-        // engine does not).
+        // The timer's query pool may still be used by frames in flight (loop() waits at its end, a game that aborts or
+        // a hosted engine does not).
         if (mGpuTimer)
             mViewer->deviceWaitIdle();
         // loop() does this on leaving; a hosted engine never runs it, and the deletion queue is about to go.
@@ -316,8 +316,7 @@ namespace Render
         mViewer->deviceWaitIdle();
 
         if (mGpuTimer)
-            Log(Debug::Info) << "GPU timing, median and 95th percentile of the last " << gpuTimingWindow
-                             << " frames:\n"
+            Log(Debug::Info) << "GPU timing, median and 95th percentile of the last " << gpuTimingWindow << " frames:\n"
                              << mGpuTimer->summaryText();
     }
 

@@ -61,8 +61,8 @@ namespace Render
         mTimer->record(*recordTraversal.getCommandBuffer(), stamp->frameCount, mPass, mIsBegin);
     }
 
-    std::unique_ptr<GpuTimer> GpuTimer::create(vsg::ref_ptr<vsg::Device> device, uint32_t timestampValidBits,
-        float timestampPeriodNs, std::string& whyNot)
+    std::unique_ptr<GpuTimer> GpuTimer::create(
+        vsg::ref_ptr<vsg::Device> device, uint32_t timestampValidBits, float timestampPeriodNs, std::string& whyNot)
     {
         if (!device)
         {
@@ -140,9 +140,9 @@ namespace Render
             // Two queries, each a value and an availability word, read without VK_QUERY_RESULT_WAIT_BIT: a result the
             // GPU has not produced yet is reported as unavailable, and nothing stalls.
             std::array<uint64_t, 4> data{};
-            const VkResult result = vkGetQueryPoolResults(*mDevice, mPool->vk(), gpuTimingFirstQuery(slot, pass), 2,
-                sizeof(data), data.data(), 2 * sizeof(uint64_t),
-                VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+            const VkResult result
+                = vkGetQueryPoolResults(*mDevice, mPool->vk(), gpuTimingFirstQuery(slot, pass), 2, sizeof(data),
+                    data.data(), 2 * sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
             if ((result != VK_SUCCESS && result != VK_NOT_READY) || data[1] == 0 || data[3] == 0)
             {
                 ++mNotReady;
@@ -167,8 +167,8 @@ namespace Render
         for (std::size_t pass = 0; pass < mNames.size(); ++pass)
         {
             const SampleSummary s = mWindows[pass].summarize(scratch);
-            out << "  " << mNames[pass] << ": median " << s.median << " ms, p95 " << s.p95 << " ms, samples "
-                << s.count << '\n';
+            out << "  " << mNames[pass] << ": median " << s.median << " ms, p95 " << s.p95 << " ms, samples " << s.count
+                << '\n';
         }
         if (mNotReady)
             out << "  (" << mNotReady << " samples were not ready when read and are left out)\n";

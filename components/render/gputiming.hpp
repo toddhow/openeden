@@ -82,7 +82,8 @@ namespace Render
     /*
      * Placed in a command graph. Records either the start of a pass (which first resets that pass's two queries, so it
      * must be outside any render pass instance) or its end. Owned by the scene graph; refers to its GpuTimer, which
-     * must outlive the command buffers that use it: Engine waits for the device to be idle before it destroys the timer.
+     * must outlive the command buffers that use it: Engine waits for the device to be idle before it destroys the
+     * timer.
      */
     class GpuTimestampNode : public vsg::Inherit<vsg::Node, GpuTimestampNode>
     {

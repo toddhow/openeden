@@ -125,9 +125,10 @@ namespace
                         const char* direction = storage == ScInput ? "in" : "out";
                         if (const auto location = decoration(id, DecLocation))
                         {
-                            // GLSL declares an interface block (a struct, one location per member here, all vec2), Slang
-                            // separate variables; the locations and member types are what the next stage sees.
-                            if (const auto it = mTypes.find(pointee); it != mTypes.end() && it->second.op == OpTypeStruct)
+                            // GLSL declares an interface block (a struct, one location per member here, all vec2),
+                            // Slang separate variables; the locations and member types are what the next stage sees.
+                            if (const auto it = mTypes.find(pointee);
+                                it != mTypes.end() && it->second.op == OpTypeStruct)
                             {
                                 for (uint32_t m = 0; m < it->second.operands.size(); ++m)
                                     lines.insert(std::string(direction) + " location=" + std::to_string(*location + m)
@@ -266,9 +267,9 @@ namespace
                     {
                         const bool colMajor = memberDecoration(id, m, DecColMajor).has_value();
                         const auto stride = memberDecoration(id, m, DecMatrixStride);
-                        // Slang writes its float4x4 as the transposed SPIR-V matrix with RowMajor, which has the same bytes
-                        // as GLSL's mat4 with ColMajor; the offsets and stride below are the bytes, so the majority
-                        // decoration is left out. That the maths agree is checked by the frame comparison.
+                        // Slang writes its float4x4 as the transposed SPIR-V matrix with RowMajor, which has the same
+                        // bytes as GLSL's mat4 with ColMajor; the offsets and stride below are the bytes, so the
+                        // majority decoration is left out. That the maths agree is checked by the frame comparison.
                         (void)colMajor;
                         leaves.back() += " stride" + std::to_string(stride.value_or(0));
                     }
@@ -339,7 +340,8 @@ namespace
         GTEST_SKIP() << "this build has no slangc (OPENEDEN_BUILD_SLANG_SHADERS is off or there is no archive)";
 #else
         const std::string name = GetParam(); // "vert" or "frag"
-        const auto slangWords = readSpirv(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "sky/sun" / ("main." + name + ".spv"));
+        const auto slangWords
+            = readSpirv(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "sky/sun" / ("main." + name + ".spv"));
         ASSERT_FALSE(slangWords.empty()) << "main." << name << ".spv was not built";
         const auto glslWords = compileGlsl("sky/sun/main." + name);
         ASSERT_FALSE(glslWords.empty()) << "the GLSL stage did not compile";

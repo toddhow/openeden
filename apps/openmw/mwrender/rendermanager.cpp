@@ -109,14 +109,16 @@ namespace MWRender
             return View::createDefaultState(viewDescriptorSet);
         }
 
-        // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass. Does
-        // nothing without a timer. The begin node resets the pass's queries, which is not allowed inside a render pass
-        // instance, so `node` must be a child of a command graph, not of a render graph.
-        void timeChild(Render::GpuTimer* timer, vsg::Group::Children& children, const vsg::Node* node, const std::string& name)
+        // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass.
+        // Does nothing without a timer. The begin node resets the pass's queries, which is not allowed inside a render
+        // pass instance, so `node` must be a child of a command graph, not of a render graph.
+        void timeChild(
+            Render::GpuTimer* timer, vsg::Group::Children& children, const vsg::Node* node, const std::string& name)
         {
             if (!timer || !node)
                 return;
-            auto it = std::find_if(children.begin(), children.end(), [node](const auto& child) { return child.get() == node; });
+            auto it = std::find_if(
+                children.begin(), children.end(), [node](const auto& child) { return child.get() == node; });
             if (it == children.end())
                 return;
             const std::size_t pass = timer->addPass(name);
