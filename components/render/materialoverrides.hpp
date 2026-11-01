@@ -14,8 +14,9 @@
 namespace Render::Pbr
 {
     /*
-     * Data-driven material overrides (task 0027, tier 2): JSON files in `openeden/materials/` (names ending in .json), format
-     * `openeden.material` version 1. Values are doubles so that the canonical writer reproduces a file byte for byte.
+     * Data-driven material overrides (task 0027, tier 2): JSON files in `openeden/materials/` (names ending in .json),
+     * format `openeden.material` version 1. Values are doubles so that the canonical writer reproduces a file byte for
+     * byte.
      */
 
     struct OverrideValues
