@@ -257,4 +257,45 @@ namespace
                  VK_FORMAT_R16G16B16A16_SFLOAT, VK_FORMAT_R32_SFLOAT, VK_FORMAT_R8G8_UNORM, VK_FORMAT_R8G8B8A8_SRGB })
             EXPECT_FALSE(usableHeightFormat(f)) << f;
     }
+
+    TEST(RenderParallaxTest, the_terrain_has_a_shallower_depth_per_displacement_than_objects)
+    {
+        EXPECT_LT(terrainUvDepthPerDisplacement, uvDepthPerDisplacement);
+        EXPECT_FLOAT_EQ(uvDepth(0.5f, 1.f, terrainUvDepthPerDisplacement), 0.5f * terrainUvDepthPerDisplacement);
+        // The default argument is the objects' value.
+        EXPECT_FLOAT_EQ(uvDepth(0.5f, 1.f), uvDepth(0.5f, 1.f, uvDepthPerDisplacement));
+    }
+
+    TEST(RenderParallaxTest, the_pivot_is_the_mean_depth_and_never_leaves_the_unit_range)
+    {
+        EXPECT_FLOAT_EQ(pivotDepth(1.f), 0.f);
+        EXPECT_FLOAT_EQ(pivotDepth(0.f), 1.f);
+        EXPECT_FLOAT_EQ(pivotDepth(0.7f), 0.3f);
+        EXPECT_FLOAT_EQ(pivotDepth(5.f), 0.f);
+        EXPECT_FLOAT_EQ(pivotDepth(-5.f), 1.f);
+        EXPECT_FLOAT_EQ(pivotDepth(nan), 0.5f);
+    }
+
+    // The swimming found by toddhow: when the amplitude fades with distance the average surface must not slide.
+    TEST(RenderParallaxTest, a_surface_at_the_mean_height_does_not_move_whatever_the_amplitude)
+    {
+        const float mean = 0.7f;
+        const float pivot = pivotDepth(mean);
+        // A flat field at the mean height is hit at depth 1 - mean, which is the pivot: no offset at any amplitude.
+        const MarchResult hit = march([mean](float) { return mean; }, 12, 4);
+        EXPECT_NEAR(offsetFraction(hit.depth, pivot), 0.f, 1e-4f);
+        for (float rayLength : { 0.f, 0.01f, 0.1f, 0.5f })
+            EXPECT_NEAR(-rayLength * offsetFraction(hit.depth, pivot), 0.f, 1e-4f);
+        // Without the pivot the same surface slid by amplitude * depth.
+        EXPECT_NEAR(-0.1f * offsetFraction(hit.depth, 0.f), -0.1f * 0.3f, 1e-4f);
+    }
+
+    TEST(RenderParallaxTest, relief_above_and_below_the_mean_moves_in_opposite_directions)
+    {
+        const float pivot = pivotDepth(0.7f);
+        const MarchResult high = march([](float) { return 0.9f; }, 12, 4); // hit at depth 0.1
+        const MarchResult low = march([](float) { return 0.5f; }, 12, 4); // hit at depth 0.5
+        EXPECT_LT(offsetFraction(high.depth, pivot), 0.f);
+        EXPECT_GT(offsetFraction(low.depth, pivot), 0.f);
+    }
 }

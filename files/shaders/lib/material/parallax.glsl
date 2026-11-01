@@ -55,8 +55,10 @@ float pomAbove(vec2 uv, vec2 rayStep, float d, vec2 dx, vec2 dy)
 }
 
 // The texture coordinate offset to add to uv. eyeDir: the unit vector from the surface to the eye in tangent space;
-// uvDepth: the depth of the surface in texture coordinates (already faded); dx and dy: the derivatives of uv.
-vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, vec2 dx, vec2 dy)
+// uvDepth: the depth of the surface in texture coordinates (already faded); pivot: the ray depth that stays in place
+// (1 - the map's mean height, Render::Parallax::pivotDepth), so that fading the depth does not slide the whole
+// texture; dx and dy: the derivatives of uv.
+vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, vec2 dy)
 {
     float viewCos = clamp(abs(eyeDir.z), 0.0, 1.0);
     int steps = int(ceil(mix(float(POM_MIN_STEPS), float(POM_MAX_STEPS), 1.0 - viewCos)));
@@ -64,7 +66,7 @@ vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, vec2 dx, vec2 dy)
     float loDepth = 0.0;
     float loAbove = pomAbove(uv, rayStep, 0.0, dx, dy);
     if (loAbove <= 0.0)
-        return vec2(0.0);
+        return rayStep * pivot;
     float hiDepth = 1.0;
     float hiAbove = 0.0;
     bool hit = false;
@@ -85,7 +87,7 @@ vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, vec2 dx, vec2 dy)
         loAbove = a;
     }
     if (!hit)
-        return -rayStep;
+        return -rayStep * (1.0 - pivot);
     for (int k = 0; k < POM_REFINE_TAPS; ++k)
     {
         float mid = 0.5 * (loDepth + hiDepth);
@@ -103,7 +105,7 @@ vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, vec2 dx, vec2 dy)
     }
     float span = loAbove - hiAbove;
     float t = span > 0.0 ? clamp(loAbove / span, 0.0, 1.0) : 1.0;
-    return -rayStep * (loDepth + t * (hiDepth - loDepth));
+    return -rayStep * (loDepth + t * (hiDepth - loDepth) - pivot);
 }
 #endif
 

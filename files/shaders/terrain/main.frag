@@ -139,7 +139,8 @@ void main()
         if (heightInfo.x >= 0.0 && pomFade > 0.0)
         {
             pomLayer = heightInfo.x;
-            pomShift = pomOffset(diffuseTexCoord, eyeDir, heightInfo.y * pomFade, pomDx, pomDy);
+            pomShift = pomOffset(diffuseTexCoord, eyeDir, heightInfo.y * pomFade,
+                1.0 - textureLod(heightLayers, vec3(0.5, 0.5, pomLayer), 16.0).r, pomDx, pomDy);
             pomActive = true;
         }
     }

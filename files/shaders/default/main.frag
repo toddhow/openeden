@@ -154,7 +154,7 @@ void main()
             * POM_UV_DEPTH_PER_DISPLACEMENT * pomFade;
         if (pomFade > 0.0 && dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) != 0)
             offset = pomOffset(frag_in.texCoord[diffuseUV].st, transpose(normalToView) * normalize(-frag_in.viewPos),
-                pomDepth, pomDx, pomDy);
+                pomDepth, 1.0 - textureLod(heightMap, vec2(0.5), 16.0).r, pomDx, pomDy);
   #ifdef PARALLAX_DISCARD
         vec2 pomUv = frag_in.texCoord[diffuseUV].st + offset;
         if (pomUv.x < 0.0 || pomUv.y < 0.0 || pomUv.x > 1.0 || pomUv.y > 1.0)

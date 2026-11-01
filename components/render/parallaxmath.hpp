@@ -156,14 +156,19 @@ namespace Render::Parallax
     constexpr float maxDisplacementScale = 8.f;
     constexpr float maxParallaxScale = 4.f;
 
+    // The terrain's texture tile is about 512 game units across (a cell is 8192 units, 16 tiles), so the same fraction of
+    // a tile is a far deeper step than on a wall: a quarter of the per-unit depth keeps the relief about 10 units deep
+    // for a displacementScale of 0.5, where 0.2 made the stones of a cobble ground spikes smeared along the view.
+    constexpr float terrainUvDepthPerDisplacement = 0.05f;
+
     // displacementScale: the material's (not a number: not set, the default is used); userScale: `parallax scale`
     // (not a number: 1). The result is in texture coordinates.
-    inline float uvDepth(float displacementScale, float userScale)
+    inline float uvDepth(float displacementScale, float userScale, float perDisplacement = uvDepthPerDisplacement)
     {
         const float material = std::isnan(displacementScale) ? defaultDisplacementScale
                                                              : std::clamp(displacementScale, 0.f, maxDisplacementScale);
         const float user = std::isnan(userScale) ? 1.f : std::clamp(userScale, 0.f, maxParallaxScale);
-        return material * user * uvDepthPerDisplacement;
+        return material * user * perDisplacement;
     }
 
     // IEEE half floats for non-negative values: not a number and negative values become 0, large ones the largest
@@ -207,6 +212,23 @@ namespace Render::Parallax
     // material's scale times `parallax scale`, so it may reach maxDisplacementScale * maxParallaxScale. The largest
     // finite high half is 0x7bff, so the pattern is never a not-a-number (that needs 0x7f80 or more) and survives a
     // uniform buffer.
+    // The ray's depth at which the surface "sits" while the amplitude changes. A texture offset of -rayStep * depth moves
+    // every pixel below the top, so when the amplitude fades with distance (or the setting changes) the whole texture
+    // would slide: the picture seemed to swim as the camera came closer. Measuring the offset from the map's mean depth
+    // (read from its smallest mip level) leaves the average surface where it is, and only the relief moves.
+    inline float pivotDepth(float meanHeight)
+    {
+        if (std::isnan(meanHeight))
+            return 0.5f;
+        return 1.f - std::clamp(meanHeight, 0.f, 1.f);
+    }
+
+    // The texture coordinate offset, in units of the ray step (uv offset = -rayStep * this).
+    inline float offsetFraction(float hitDepth, float pivot)
+    {
+        return hitDepth - pivot;
+    }
+
     struct Scales
     {
         float roughness = 0.f; // 0: none
