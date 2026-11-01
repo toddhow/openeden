@@ -190,6 +190,14 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/morrowind_compat_extension.cpp
 )
 
+# Task 0035 stage a: CMPhysics::HostedJoltWorld (CreativeMotion's PhysicsWorld over the host's Jolt system).
+# testhostedjoltallocation.cpp replaces the global operator new to count allocations (see the comment in that file).
+list(APPEND UNITTEST_SRC_FILES
+    cmphysics/testhostedjoltworld.cpp
+    cmphysics/testhostedjoltallocation.cpp
+    cmphysics/testhostedjoltragdoll.cpp
+)
+
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
@@ -203,6 +211,8 @@ target_include_directories(components-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/rig/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/math/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/format/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/core/motor/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/physics/interface/include
 )
 
 target_link_libraries(components-tests
@@ -214,6 +224,7 @@ target_link_libraries(components-tests
     opas_anim_clip
     opas_rig
     opas_math
+    opas_motor
 )
 
 target_link_libraries(components-tests ${VSG_LIBRARIES})

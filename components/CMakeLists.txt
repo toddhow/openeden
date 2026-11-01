@@ -208,6 +208,11 @@ add_component_dir (physicshelpers
     transformboundingbox
     )
 
+# CreativeMotion's physics interface over a Jolt world the host owns (task 0035).
+add_component_dir (cmphysics
+    hostedjoltworld
+    )
+
 add_component_dir (vfs
     manager archive bsaarchive filesystemarchive pathutil registerarchives
     )
@@ -695,6 +700,8 @@ add_library(components STATIC ${COMPONENT_FILES})
 
 target_include_directories(components PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(components SYSTEM BEFORE PUBLIC ${JOLT_INCLUDE_DIRS})
+# The vendored CreativeMotion physics interface (headers only, standard library only) that components/cmphysics implements.
+target_include_directories(components SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/components/creativemotion/physics/interface/include)
 # openeden-vsg: pugixml, compiled into the assimp library, reads COLLADA animation clips (vsgadapters/dae/daeanim.cpp).
 target_include_directories(components SYSTEM PRIVATE ${OPENEDEN_PUGIXML_INCLUDE_DIR})
 
