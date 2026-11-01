@@ -103,6 +103,41 @@ namespace CSVRender
         {
             return dynamic_cast<const vsg::vec4Array*>(info.data.get());
         }
+
+        // Tangents (components/vsgadapters/nif/nif.cpp createTangents): a unit direction and a sign in w.
+        bool looksLikeTangents(const vsg::vec4Array& array)
+        {
+            if (array.size() == 0)
+                return false;
+            for (const vsg::vec4& v : array)
+            {
+                const float length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+                if (std::abs(length - 1.f) > 0.05f || std::abs(std::abs(v.w) - 1.f) > 0.01f)
+                    return false;
+            }
+            return true;
+        }
+
+        // Moeller and Trumbore, on either side of the triangle. Returns the ratio along the segment, or a negative.
+        double hitTriangle(const vsg::dvec3& start, const vsg::dvec3& direction, const std::array<float, 3>& a,
+            const std::array<float, 3>& b, const std::array<float, 3>& c)
+        {
+            const vsg::dvec3 v0(a[0], a[1], a[2]);
+            const vsg::dvec3 edge1 = vsg::dvec3(b[0], b[1], b[2]) - v0;
+            const vsg::dvec3 edge2 = vsg::dvec3(c[0], c[1], c[2]) - v0;
+            const vsg::dvec3 p = vsg::cross(direction, edge2);
+            const double determinant = vsg::dot(edge1, p);
+            if (std::abs(determinant) < 1e-12)
+                return -1.0;
+            const vsg::dvec3 s = start - v0;
+            const double u = vsg::dot(s, p) / determinant;
+            const vsg::dvec3 q = vsg::cross(s, edge1);
+            const double v = vsg::dot(direction, q) / determinant;
+            const double ratio = vsg::dot(edge2, q) / determinant;
+            if (u < 0.0 || v < 0.0 || u + v > 1.0 || ratio < 0.0 || ratio > 1.0)
+                return -1.0;
+            return ratio;
+        }
     }
 
     /// Walks the model's scene graph once after loading: fills the MeshTree, the per-node info and the shapes.
@@ -219,11 +254,14 @@ namespace CSVRender
                         shape.mMesh.normals.push_back(transformDirection(world, { n.x, n.y, n.z }));
                     ++next;
                 }
-            // A run of vec4 arrays of odd length starts with the vertex colours (a lone tangent looks the same: a
-            // limit of this guess, see the task's notes).
+            // A run of vec4 arrays: [colours], [bone indices, bone weights], [tangent]. A last array whose vertices
+            // all have a unit xyz and a w of plus or minus one is a tangent, which is left out of the count; then an
+            // odd run starts with the vertex colours.
             std::size_t run = 0;
             while (next + run < draw.arrays.size() && draw.arrays[next + run] && asVec4(*draw.arrays[next + run]))
                 ++run;
+            if (run > 0 && looksLikeTangents(*asVec4(*draw.arrays[next + run - 1])))
+                --run;
             // Two vec4 arrays after the colour are the bone indices and weights.
             const bool skinned = run >= 2;
             if (run % 2 == 1)
@@ -279,7 +317,6 @@ namespace CSVRender
             info.mShapes.push_back(mScene.mShapes.size());
             shape.mNode = id;
             mScene.mShapes.push_back(std::move(shape));
-            Picking::setTag(group, vsg::ref_ptr<TagBase>(new MeshNodeTag(id)));
             return true;
         }
 
@@ -291,11 +328,22 @@ namespace CSVRender
 
     MeshScene::MeshScene(SceneHost& host)
         : mHost(host)
+        , mHostAlive(host.aliveToken())
     {
     }
 
     MeshScene::~MeshScene()
     {
+        // The model's graph is shared with other views of the same model: put it back as it was found.
+        for (NodeInfo& info : mInfos)
+            if (info.mWrapper && info.mParent)
+                for (auto& child : info.mParent->children)
+                    if (child.get() == info.mWrapper.get())
+                        child = vsg::ref_ptr<vsg::Node>(info.mNode);
+        if (mHostAlive.expired())
+            return;
+        if (mOverlay)
+            mHost.compileContext()->detach(mOverlay->node());
         if (mRoot)
         {
             auto& children = mHost.contentRoot().children;
@@ -435,8 +483,12 @@ namespace CSVRender
             constexpr int sBatch = 64;
             std::vector<JPH::Float3> vertices(sBatch * 3);
             const std::array<float, 4> colour{ 0.3f, 1.f, 0.4f, 1.f };
+            // A model with more collision triangles than this draws the first ones.
+            constexpr std::size_t sMaxCollisionLines = 600000;
             for (const JPH::TransformedShape& leaf : leaves.mHits)
             {
+                if (mCollisionLines.size() >= sMaxCollisionLines)
+                    break;
                 JPH::Shape::GetTrianglesContext context;
                 leaf.mShape->GetTrianglesStart(context, everything, JPH::Vec3(leaf.mShapePositionCOM),
                     leaf.mShapeRotation, JPH::Vec3(leaf.mShapeScale));
@@ -533,7 +585,9 @@ namespace CSVRender
     void MeshScene::setNodeVisible(CSMMesh::NodeId node, bool visible)
     {
         mTree.setVisible(node, visible);
-        NodeInfo& info = mInfos.at(node);
+        if (node < 0 || static_cast<std::size_t>(node) >= mInfos.size())
+            return;
+        NodeInfo& info = mInfos[node];
         if (info.mParent && info.mNode)
         {
             if (!info.mWrapper)
@@ -554,6 +608,29 @@ namespace CSVRender
         rebuildSolid();
         rebuildOverlay();
         mHost.requestRedraw();
+    }
+
+    CSMMesh::NodeId MeshScene::pickNode(const vsg::dvec3& start, const vsg::dvec3& end) const
+    {
+        const vsg::dvec3 direction = end - start;
+        double best = 2.0;
+        CSMMesh::NodeId node = CSMMesh::kNoNode;
+        for (const Shape& shape : mShapes)
+        {
+            if (!shapeVisible(shape))
+                continue;
+            for (const auto& t : CSMMesh::triangles(shape.mMesh))
+            {
+                const double ratio = hitTriangle(start, direction, shape.mMesh.positions[t[0]],
+                    shape.mMesh.positions[t[1]], shape.mMesh.positions[t[2]]);
+                if (ratio >= 0.0 && ratio < best)
+                {
+                    best = ratio;
+                    node = shape.mNode;
+                }
+            }
+        }
+        return node;
     }
 
     void MeshScene::setSelected(CSMMesh::NodeId node)

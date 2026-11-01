@@ -7,6 +7,7 @@
 
 #include "cameracontroller.hpp"
 #include "lighting.hpp"
+#include "picking.hpp"
 #include <apps/opencs/model/mesh/framemath.hpp>
 
 namespace CSVRender
@@ -153,15 +154,17 @@ namespace CSVRender
             return;
         if ((event->pos() - mPressPosition).manhattanLength() > sClickTolerance)
             return;
-        const auto hits = getHost()->pickAll(static_cast<double>(event->pos().x()) / width(),
-            static_cast<double>(event->pos().y()) / height(), Mask_Reference);
-        for (const auto& hit : hits)
-            if (const auto* tag = dynamic_cast<const MeshNodeTag*>(hit.mTag.get()))
-            {
-                emit nodePicked(tag->mNode);
-                return;
-            }
-        emit nodePicked(CSMMesh::kNoNode);
+        emit nodePicked(
+            pickAt(static_cast<double>(event->pos().x()) / width(), static_cast<double>(event->pos().y()) / height()));
+    }
+
+    CSMMesh::NodeId MeshViewWidget::pickAt(double x, double y) const
+    {
+        if (!mScene || !getHost())
+            return CSMMesh::kNoNode;
+        // From the collected triangles, so it works in every view mode.
+        const Picking::Ray ray = Picking::viewRay(getHost()->getProjectionMatrix(), getHost()->getViewMatrix(), x, y);
+        return mScene->pickNode(ray.mStart, ray.mEnd);
     }
 
     void MeshViewWidget::keyPressEvent(QKeyEvent* event)

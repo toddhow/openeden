@@ -38,6 +38,8 @@ namespace CSVRender
         void frameObject();
         void selectNode(CSMMesh::NodeId node);
         bool saveScreenshot(const std::filesystem::path& file);
+        /// The tree node under a point of the view, (0, 0) its top left and (1, 1) its bottom right; kNoNode if none.
+        CSMMesh::NodeId pickAt(double x, double y) const;
 
     signals:
         void modelLoaded();

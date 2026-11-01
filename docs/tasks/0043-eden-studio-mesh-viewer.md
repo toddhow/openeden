@@ -29,21 +29,68 @@ The viewer shows what the engine core loads, through the same reader the game an
 No change to `components/render`, `components/pipeline`, `apps/openmw/mwrender`, `files/shaders`, `settings-default.cfg`. Main thread only for 3D. Off means unchanged: the Mesh view is opened only by the user; with no mesh opened the editor behaves as before. No game files in the repository; committed tests use constructed data. Renderer requests (written here, not done): real wireframe and untextured modes would need a per-draw polygon-mode and texture override in `Pipeline::Graphics`; a UV checker needs a material override. Until then the overlay modes above stand in.
 
 ## Acceptance criteria
-- [ ] `CSMMesh` unit tests (no GPU, no window, no game data): view state names and flags, tree add/visibility/path/filter/totals/depth-first, bounds and frame maths, triangle/edge extraction, flat shading, texture report, text key grouping and the `.kf` sidecar rule, each as specified above.
-- [ ] Opening a model from the VFS shows it (checked by `--open-mesh` screenshots of at least three Morrowind models from the installed game, looked at).
-- [ ] Every view mode and overlay toggle draws something visibly different (screenshots looked at).
-- [ ] The node tree lists the node names and types of the loaded model, visibility toggles hide the node, and picking in the viewport selects the node.
-- [ ] Textures panel flags a missing texture. Animation keys listed; play/pause/scrub if reachable, else logged as remaining.
-- [ ] Both layouts (Eden Studio and Classic) reach the Mesh view.
-- [ ] `eden-studio-tests`, `components-tests`, `openmw-tests` pass on Windows; Linux gate; `CI/check_clang_format.sh`, `check_file_names.sh`, `check_extension_sdk.sh`, `check_no_osg.sh`; a fresh reviewer read each stage.
-- [ ] With no mesh open, the editor behaves as before (the existing Eden Studio and cell checks still run).
+- [x] `CSMMesh` unit tests (no GPU, no window, no game data): view state names and flags, tree add/visibility/path/filter/totals/depth-first, bounds and frame maths, triangle/edge extraction, flat shading, texture report, image sizes, overlay lines, text key grouping and the `.kf` sidecar rule, each as specified above. (127 tests, all in `eden-studio-tests`, which has 520 tests passing.)
+- [x] Opening a model from the VFS shows it, checked by `--open-mesh` frames of three Morrowind models (barrel `meshes/o/contain_barrel_01.nif`, the dancing girl test rig `meshes/xanim_dancingGirl.nif`, the Frost Atronach `meshes/r/Atronach_Frost.nif`), looked at.
+- [x] Every view mode and overlay toggle draws something visibly different: Textured, Wireframe, Flat, Normals (looked at; Vertex colours was drawn but the barrel has none, so it shows the flat grey; the creature frame shows it), Bounds, Skeleton, Node axes, Collision, Grid, a selected node's box.
+- [x] The node tree lists the node names and types of the loaded model (grab of the Mesh sub view), the visibility check boxes hide a node (`--mesh-hide` frame: the barrel vanished, its selection box stayed), and picking selects a node (`--mesh-pick`: a point on the barrel gave the node path in Textured and Flat modes, a point in the empty background gave nothing). A real mouse click on the viewport and the tree were not tried.
+- [x] The Textures panel gets names from the NIF, finds them as the engine does and flags a missing one with "missing texture" (code and unit tests; no installed model had a missing texture, so the red MISSING row was not seen).
+- [ ] Animation: the groups come from the `.kf` text keys, play, pause and scrub use `MWAnim::Play` (the dancing girl frame at 40 percent of `idle9` shows the arms up). The Play, Pause button and the slider were not clicked by a person; the groups of a model's own built-in animation (not a `.kf`) are not listed (see the notes).
+- [x] Both layouts reach the Mesh view: it is a sub view docked in the top area in Eden Studio and in Classic (`View::dockSubView`). Only the Eden Studio layout was run (grab of the window).
+- [ ] `eden-studio-tests` (520) and `openmw-tests` (799) pass on Windows; `components-tests` has one failure in the other agent's uncommitted cloud work (`RenderCloud.edgesTowardsTheSunAreBrighterThanAwayAndThickIsDarkerThanThin`), not in this task. The Linux gate (`BUILD_OPENCS=OFF` there, so it does not build the editor) passed: components-tests 2943, openmw-tests 799, 32 Lua tests. `CI/check_clang_format.sh` (in the Linux image), `check_file_names.sh`, `check_extension_sdk.sh` and `check_no_osg.sh` pass. The Qt translation check does not cover `apps/opencs`. A fresh reviewer read stages 2 to 4; its findings are in the stage log.
+- [x] With no mesh open, the editor behaves as before: the new code runs only from a mesh sub view, the capture branch, the Mesh tab and the Asset Browser entry for model files (the same call as before for other files). The Eden Studio UI check with a cell still opens as before (window grab).
 Out of scope: editing NIFs (a later spec: needs a NIF block model with a writer that round-trips, undo commands on the editor's stack, and a save path through `components/nif`), OpenGL-style render modes in the renderer, UV checker, particle simulation controls, macOS.
 
 ## Stage log
-(filled in as stages complete)
+Plain words: the viewer is built from a small tested model (`CSMMesh`) and two views of it. The model has the node tree, the view settings, the maths for framing the camera, and the lists of lines and triangles that the viewer draws. The scene (`MeshScene`) loads a model through the same reader the game uses, walks its scene graph once to fill the tree and to copy out the triangles, and draws the view modes from that copy. The renderer is not touched.
+
+### Stage 1: spec and pure model (commits 269b734f79, 303a598814)
+98 tests written from the spec by a separate agent. One test had a wrong expected light vector (dot 0.87, not 0.5); the writer fixed its own test, the implementation followed the spec.
+
+### Stage 2 and 3: viewer, panels, entry points (commit c1702fc24c)
+- `MeshScene`, `MeshViewWidget`, `CSVWorld::MeshSubView` (registered for `UniversalId::Type_Mesh`), Asset Browser double click on a `.nif` or `.dae`, File > Open Mesh, the "Mesh" workspace tab (second tab), `--open-mesh` with `--mesh-mode`, `--mesh-light`, `--mesh-show`, `--mesh-select`, `--mesh-hide`, `--mesh-anim`, `--mesh-pick`, and `OPENEDEN_CS_MESH=<vfs path>` for the UI check.
+- **Placement decision:** the panels are tabs inside the Mesh sub view (beside the viewport, in a splitter), not docks of the shell. A dock for one view would need the shell to know about it and to remember it per layout; a tab strip inside the sub view works in both layouts and goes away with the view.
+- **Wireframe, flat, vertex colours and normals** are drawn from the copied geometry: lines through `Render::DebugGeometry` in the overlay bin, and one unlit solid mesh (own pipeline from `Pipeline::Builder::graphics`, depth written) for flat and vertex colours. Real polygon-mode and untextured materials would need a renderer change (request below).
+- **Picking** is on the CPU from the copied triangles (so it works in every mode and puts no tags in the model, which is a shared cached graph).
+- **Hiding a node** wraps it in a `vsg::Switch` inside its parent group; the destructor puts the graph back as found. A model that is also open in a cell view of the same document shares that graph while the viewer is open, so a hidden part is hidden there too (limit).
+- **Vertex data order** is read from `handleGeometry` in `components/vsgadapters/nif/nif.cpp`: position, normal, then a run of 4-component arrays (colour, bone indices and weights, tangent). A last array of unit directions with a w of plus or minus one is taken for tangents. A colour array of exactly such values would be mistaken for it; the clean fix is for the loader to mark the colour array with `vsgUtil::setID` (request below).
+- Texture sizes come from the first bytes of the file (`imageSizeFromHeader`: DDS, TGA, BMP, PNG).
+
+### Stage 4: collision shape (commit 72613f1e02)
+`Resource::PhysicsShapeManager` over the document's VFS gives the shape the game builds; its triangles are read with `Shape::CollectTransformedShapes` and `GetTrianglesStart/Next` (a decorating shape cannot give triangles itself: `RotatedTranslatedShape::GetTrianglesStart` asserts, as its header says). A `CSMPhysics::JoltRuntime` keeps Jolt running meanwhile. The barrel's shape (18 triangles) sat on the model in the frame.
+
+### Review (fresh reviewer, stages 2 to 4) and what was done
+1. Picking only worked in Textured mode: fixed (CPU picking).
+2. Tangent arrays confused the colour and skin guess: fixed (tangent test), still a guess.
+3. Shared cached nodes mutated (tags, switch wrappers): tags removed, wrappers restored in the destructor; sharing while open stays a limit.
+4. Children of switch nodes (LOD or damage states) are all collected: not changed, listed as a limit. Hiding a Switch node in the tree hides only the overlay copy.
+5. Groups only come from added `.kf` files: comment corrected; the engine's pairing for `x`-prefixed models is added at load.
+6. Host lifetime and overlay detach: `aliveToken` checked, overlay detached.
+7. Smaller: collision lines capped at 600000, `--mesh-anim` parse errors caught, `mInfos` access checked.
+
+### Limits found
+- In the non-Textured modes a skinned model is drawn unskinned and an animated one does not move (the copy is of the load pose). The Properties panel says "skinned" for such shapes.
+- Skeleton lines join transform nodes, not only bones.
+- The UV checker was not built (needs a material override in the renderer).
+- The sidecar `.kf` is only paired by the engine's rule (`x` prefix); others are added by hand ("Add .kf from the VFS").
+
+### Requests to the rendering agent (nothing done here)
+1. A polygon-mode and untextured override in `Pipeline::Graphics` so that Wireframe and Flat can use the real pipeline (skinned and animated models would then work).
+2. `vsgUtil::setID(*colourArray, Pipeline::Mode::COLOR)` in `nif.cpp` `handleGeometry`, so tools need not guess the array order.
+3. A UV checker texture override.
+
+### What the later "edit NIF" spec needs
+The viewer reads through the loaded scene graph, which has lost the NIF's records. Editing needs: a NIF block model that reads with `Nif::NIFFile` and writes back (components/nif has a reader only), a node id that maps tree nodes to NIF record indices (`vsgUtil::setID` already stores `mRecordIndex` on nodes), undo commands on the editor's stack, and a save path to a data folder (the VFS is read only). The tree, properties and picking here would then edit through those ids.
 
 ## Check list for toddhow
-(filled in at the end)
+1. Start `eden-studio.exe` and open a Morrowind document. In the Asset Browser open "Meshes" and double click a `.nif` (for example `o/contain_barrel_01.nif`). A Mesh view opens with the model, a grid and the controls on top.
+2. Orbit with the left mouse button, pan and zoom as in a cell view. Press F in the viewport: the camera frames the whole model.
+3. Change "View" to Wireframe, Flat, Vertex colours, Normals and back to Textured. Change "Light" between Headlight, Sun and Flat. Tick Bounds, Skeleton, Node axes, Collision, and untick Grid. Use Background... to pick a colour.
+4. Nodes tab: click a node, the Properties tab shows its name, type, place and counts, and a yellow box marks it in the view. Untick the check box of a node: it disappears. Type in the filter box to find nodes. Click the model in the view: the clicked node is selected in the tree.
+5. Textures tab: the model's texture names with their size and "yes" or "MISSING". A missing one is red and the tab says "(!)".
+6. Open `xanim_dancingGirl.nif` (File > Open Mesh also works for a file inside a data folder's `meshes` folder, or click the "Mesh" tab at the bottom). Animation tab: click a group, then Play and drag the slider.
+7. Screenshot... saves the view as a PNG.
+8. Window > Layout > Classic: open a mesh again; it opens in the top area as well.
+9. With no mesh open, nothing else in the editor should look different.
 
 ## Addendum to the pure model (stage 2, `CSMMesh`)
 - `meshoverlay.hpp`: `struct Line { std::array<float,3> a, b; std::array<float,4> colour; }`; `std::vector<Line> boxLines(const Aabb&, const std::array<float,4>& colour)` (the 12 edges of the box; none if invalid); `double gridSpacing(double modelRadius)` (the smallest of 1, 2, 5, 10, 20, 50, ... (1-2-5 times a power of ten, powers may be negative only down to 0.001) that is at least `modelRadius / 4`; 1 if the radius is not positive); `std::vector<Line> gridLines(double spacing, int halfCount)` (in the plane z = 0, `2*halfCount+1` lines parallel to X and as many parallel to Y, from `-halfCount*spacing` to `+halfCount*spacing`; the line along X through the origin is red (1,0.3,0.3,1), the one along Y through the origin is green (0.3,1,0.3,1), the others grey (0.5,0.5,0.5,0.6); `halfCount <= 0` or `spacing <= 0` gives none); `std::vector<Line> axesLines(const std::array<float,3>& origin, float length)` (three lines from the origin along +X red, +Y green, +Z blue, colours (1,0,0,1), (0,1,0,1), (0,0,1,1)); `std::vector<Line> normalLines(const IndexedMesh&, float length, const std::array<float,4>& colour)` (one line per vertex that has a normal, from the position to position + normal * length; none if there are no normals).

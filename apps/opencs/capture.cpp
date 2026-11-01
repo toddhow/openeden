@@ -105,6 +105,8 @@ namespace
         std::string mMeshSelect;
         std::string mMeshHide;
         std::string mMeshAnim;
+        // Where to pick in the view, "x,y" from 0 to 1, logging the tree node found.
+        std::string mMeshPick;
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -399,6 +401,7 @@ int CS::runCapture(int argc, char** argv)
     addOption("mesh-select", bpo::value<std::string>()->default_value(""));
     addOption("mesh-hide", bpo::value<std::string>()->default_value(""));
     addOption("mesh-anim", bpo::value<std::string>()->default_value(""));
+    addOption("mesh-pick", bpo::value<std::string>()->default_value(""));
     addOption("auto-screenshot", bpo::value<std::uint64_t>()->default_value(0));
     addOption("auto-quit", bpo::value<std::uint64_t>()->required());
     addOption("camera", bpo::value<std::string>());
@@ -452,6 +455,7 @@ int CS::runCapture(int argc, char** argv)
     request.mMeshSelect = variables["mesh-select"].as<std::string>();
     request.mMeshHide = variables["mesh-hide"].as<std::string>();
     request.mMeshAnim = variables["mesh-anim"].as<std::string>();
+    request.mMeshPick = variables["mesh-pick"].as<std::string>();
     request.mScreenshotFrame = variables["auto-screenshot"].as<std::uint64_t>();
     request.mQuitFrame = variables["auto-quit"].as<std::uint64_t>();
     request.mViews = variables["capture-views"].as<int>();
@@ -612,8 +616,16 @@ int CS::runCapture(int argc, char** argv)
                         {
                             const auto colon = request.mMeshAnim.find(':');
                             const std::string group = request.mMeshAnim.substr(0, colon);
-                            const float at
-                                = colon == std::string::npos ? 0.f : std::stof(request.mMeshAnim.substr(colon + 1));
+                            float at = 0.f;
+                            if (colon != std::string::npos)
+                                try
+                                {
+                                    at = std::stof(request.mMeshAnim.substr(colon + 1));
+                                }
+                                catch (const std::exception&)
+                                {
+                                    Log(Debug::Error) << "--mesh-anim wants group[:completion]";
+                                }
                             for (const auto& g : scene->animationGroups())
                                 Log(Debug::Info) << "Animation group " << g.name << " " << g.start << " to " << g.stop;
                             scene->playGroup(group, at);
@@ -621,6 +633,23 @@ int CS::runCapture(int argc, char** argv)
                         }
                         for (const auto& warning : scene->textureReport().warnings)
                             Log(Debug::Info) << warning;
+                    }
+                    if (!request.mMeshPick.empty() && scene && frameCount >= 10)
+                    {
+                        const auto comma = request.mMeshPick.find(',');
+                        try
+                        {
+                            const CSMMesh::NodeId hit = meshView->pickAt(std::stod(request.mMeshPick.substr(0, comma)),
+                                std::stod(request.mMeshPick.substr(comma + 1)));
+                            Log(Debug::Info) << "Mesh pick " << request.mMeshPick << ": "
+                                             << (hit == CSMMesh::kNoNode ? std::string("nothing")
+                                                                         : scene->tree().path(hit));
+                        }
+                        catch (const std::exception&)
+                        {
+                            Log(Debug::Error) << "--mesh-pick wants x,y";
+                        }
+                        request.mMeshPick.clear();
                     }
                     if (nextCapture != 0 && frameCount >= nextCapture)
                     {

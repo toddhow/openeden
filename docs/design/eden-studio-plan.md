@@ -97,6 +97,7 @@ These exist with zero extensions loaded, because they mirror the engine core:
 - Docking is Qt: `SubView` derives from `QDockWidget` (`apps/opencs/view/doc/subview.hpp`). OpenEden's own code has no ImGui, so "Qt6 docking or ImGui" is settled as Qt.
 - The viewport is `CSVRender::SceneHost` (`apps/opencs/view/render/scenehost.hpp`), the editor's own render-only counterpart of the game's `MWRender::RenderManager`, which is bound to the game's world types. The editor has no Jolt world and no extension host yet.
 - So "Eden Studio runs the real engine core" (section 6.1) is a goal, not today's state.
+- **Mesh viewer (task 0043, 2026-11-01):** the viewport also opens a model from the virtual file system (`.nif`, `.dae`) in a read-only Mesh view, with view modes, overlays (collision, bounds, skeleton, node axes, grid), a node tree, properties, textures and animation. It belongs to Eden Studio itself, like the cell viewport: it shows what the engine core loads and knows no game records. Editing NIFs is a later task.
 
 
 ### 2.2 What Eden Studio Does Not Provide

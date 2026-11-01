@@ -17,8 +17,6 @@
 #include <apps/opencs/model/mesh/meshviewstate.hpp>
 #include <apps/opencs/model/mesh/texturereport.hpp>
 
-#include "tagbase.hpp"
-
 namespace MWAnim
 {
     class Object;
@@ -42,18 +40,6 @@ namespace Anim
 namespace CSVRender
 {
     class SceneHost;
-
-    /// Marks the geometry of one tree node, so that a click in the viewport finds the node (task 0043).
-    class MeshNodeTag : public TagBase
-    {
-    public:
-        explicit MeshNodeTag(CSMMesh::NodeId node)
-            : TagBase(Mask_Reference)
-            , mNode(node)
-        {
-        }
-        CSMMesh::NodeId mNode;
-    };
 
     /// One model opened in the mesh viewer (task 0043): loaded through the engine's own reader
     /// (MWAnim::createObject over the document's VFS), analysed into a CSMMesh::MeshTree, and drawn in the view
@@ -96,12 +82,15 @@ namespace CSVRender
 
         void setNodeVisible(CSMMesh::NodeId node, bool visible);
         void setSelected(CSMMesh::NodeId node);
+        /// The tree node whose geometry the ray hits first (any view mode, hidden nodes excluded), else kNoNode.
+        /// Done on the CPU from the collected triangles, so it needs no tags in the model's (shared) scene graph.
+        CSMMesh::NodeId pickNode(const vsg::dvec3& start, const vsg::dvec3& end) const;
         CSMMesh::NodeId selected() const { return mSelected; }
 
         /// Text of the tree node, for the Properties panel.
         std::string describeNode(CSMMesh::NodeId node) const;
 
-        // Animation (stage 4). Groups come from the model's own source and from added .kf files.
+        // Animation (stage 4). Groups and keys come from the .kf files added (the engine's pairing is added at load).
         bool addAnimationFile(const std::string& vfsPath, std::string& error);
         std::vector<CSMMesh::AnimationGroup> animationGroups() const;
         /// The .kf the engine would pair with this model (empty if none).
@@ -141,6 +130,7 @@ namespace CSVRender
         bool shapeVisible(const Shape& shape) const;
 
         SceneHost& mHost;
+        std::weak_ptr<void> mHostAlive;
         std::string mPath;
         CSMMesh::MeshTree mTree;
         std::vector<NodeInfo> mInfos;
