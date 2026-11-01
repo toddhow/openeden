@@ -47,7 +47,7 @@ So R is roughness, G metalness, B ambient occlusion (0 = occluded), as the layou
 - [x] With the setting on, the debug view `roughness` and `material` on the terrain show the map's values at layers that have one and 0.95 elsewhere; the lit frame draws normally.
 - [x] With the setting off, the default frame is identical to before (`diffmap` empty).
 - [x] GPU memory and time with the Skyrim sets are measured and reported.
-- [ ] Linux gate, whole-tree clang-format, `CI/check_*` scripts, `components-tests`, `openmw-tests`, `eden-studio-tests`, 32 Lua tests pass.
+- [x] Linux gate, whole-tree clang-format, `CI/check_*` scripts, `components-tests`, `openmw-tests`, `eden-studio-tests`, 32 Lua tests pass.
 Out of scope: the AO pass; parallax from `_p`; subsurface JSON keys; `_g` glow and `_m`/`_s` maps; layers of another resolution; the editor's rendering; shipping or converting any Skyrim file in the repository; reading Skyrim's JSON folder at run time; the Vanaheimr or other landscape packs (the AIO has no Skyrim "landscape" ground sets, only ground-like architecture sets).
 
 ## Stage log
@@ -71,6 +71,8 @@ Out of scope: the AO pass; parallax from `_p`; subsurface JSON keys; `_g` glow a
 
 **Cost (balmora_longview, RTX 4070, 1280 by 720, `tools/benchmark.sh`, GPU main scene, median).** `hdr`+`gbuffer`+`pbr` physical, no extra data: 0.411 ms; with the Faultier folder, maps off: 0.405 ms; maps on: 0.231 ms (a different scene state is possible; the same note 0010 says this method moves 0.1 to 0.2 ms between runs, and the stand-in layers are not in Balmora, so read it as "no measurable cost"). Whole-GPU memory sampled with `nvidia-smi` while the game ran: idle about 2300 MiB, peak 2540 MiB without the data, 2582 MiB with it, maps on or off (no measurable difference from the extra terrain arrays: eight 256 by 256 BC1/BC7 layers). A full-size set (2048 by 2048: BC7 colour 5.3 MB, `_n` 5.3 MB, BC1 `_rmaos` 2.7 MB, all with mip chains) is about 13 MB, held compressed. Loading time was not measured separately.
 
-**Not verified.** The Linux gate and clang-format (below, if run), a window resize and antialiasing 4 with the maps, `_orm` on terrain in a frame (unit-tested only), snow and ash stand-ins in a frame (the snow texture names of Bloodmoon were not looked up), a low-sun frame for visible highlights (all frames are at noon, so the specular lobe is faint), terrain at a resolution above the array's, the editor.
+**Gates.** Commits `5f8a9f6837` and, for clang-format 14 on three files, `9e389b7fdb`. Linux (Docker, `-Werror`, commit `9e389b7fdb`): `components-tests` 2977, `openmw-tests` 799 and the 32 Lua tests pass, no warnings; the whole tree passes `CI/check_clang_format.sh`; `CI/check_file_names.sh`, `check_extension_sdk.sh` and `check_no_osg.sh` pass. Windows: `components-tests` 3010, `openmw-tests` 799, `eden-studio-tests` 520.
+
+**Not verified.** A window resize and antialiasing 4 with the maps, `_orm` on terrain in a frame (unit-tested only), snow and ash stand-ins in a frame (the snow texture names of Bloodmoon were not looked up), a low-sun frame for visible highlights (all frames are at noon, so the specular lobe is faint), terrain at a resolution above the array's, the editor.
 
 **Not built.** Parallax and displacement from `_p` (D3), `_g` glow, subsurface keys, layers above the array's size (D6).
