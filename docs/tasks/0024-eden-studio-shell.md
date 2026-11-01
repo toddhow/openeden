@@ -61,6 +61,9 @@ Out of scope: the Editor Module API (Phase 3) and removing the runtime-side hook
 - **Left for toddhow's eye:** the layout file is shared by every window of the editor, so with several windows the last to close or switch wins; a floating scene sub view still hides the backdrop. Both are small.
 - **Stage A review note:** an `openmw-cs.cfg` in a global or local config folder (not the user folder) is no longer read as extra defaults, since the editor now looks for `eden-studio.cfg` there; only the user folder is migrated.
 
+## Update 2026-11-01 (task 0030)
+Stage E is task 0030 (the Jolt world, Play/Pause/Step). Boxes 27 and 28 as far as unattended checking goes: frames of the 3D view in the Eden Studio layout were captured through the scene host (`OPENEDEN_CS_PHYSICS`), and a constructed drop of an Asset Browser object made one reference and one undo step (`OPENEDEN_CS_DROP`). A real mouse drag and the look of the docked viewport stay on the check list below (items 3 and 9).
+
 ## Check list for toddhow's hands-on review
 
 Start `eden-studio.exe` (from the build folder, or the install) with Morrowind.esm loaded.

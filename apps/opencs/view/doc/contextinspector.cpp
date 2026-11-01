@@ -309,16 +309,17 @@ void CSVDoc::ContextInspector::rebuildModuleSections()
             if (section.mDesc.selectionKind == modules->activeFormat())
                 wanted.push_back(section.mDesc.id);
     if (wanted == mModuleSectionIds && (!wanted.empty() || mModuleSections->count() == 0)
-        && mModuleSectionAsset == modules->activeAsset())
+        && mModuleSectionGeneration == modules->generation())
         return;
     mModuleSectionIds = wanted;
-    mModuleSectionAsset = modules->activeAsset();
+    mModuleSectionGeneration = modules->generation();
     while (QLayoutItem* item = mModuleSections->takeAt(0))
     {
-        delete item->widget();
+        if (item->widget() != nullptr)
+            item->widget()->deleteLater();
         delete item;
     }
-    if (mModuleSectionAsset == nullptr)
+    if (modules->activeAsset() == nullptr)
         return;
     for (const std::string& id : wanted)
     {

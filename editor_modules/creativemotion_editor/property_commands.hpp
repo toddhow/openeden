@@ -30,7 +30,11 @@ namespace creativemotion_editor
             *mTarget = mNew;
             *mDirty = true;
         }
-        void undo() override { *mTarget = mOld; }
+        void undo() override
+        {
+            *mTarget = mOld;
+            *mDirty = true; // the file no longer matches what was saved
+        }
         int mergeId() const override { return mMergeId; }
         bool mergeWith(const openeden::editor::Command& next) override
         {

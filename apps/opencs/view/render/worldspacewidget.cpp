@@ -540,10 +540,17 @@ void CSVRender::WorldspaceWidget::updateModuleOverlay()
     // Module coordinates are relative to what is under the middle of the view when the data changes (else the camera's
     // centre), so that a module's gizmo shows up where the user is looking: the assets have no place in the world of
     // their own.
-    const std::optional<vsg::dvec3> hit = getHost()->pickNearest(0.5, 0.5, ~0u);
-    const vsg::dvec3 centre = hit ? *hit : getHost()->getCameraCenter();
-    const float origin[3] = { static_cast<float>(centre.x), static_cast<float>(centre.y), static_cast<float>(centre.z) };
-    mModuleOverlay->show(modules->overlayLines(origin));
+    // The origin is chosen once for each asset: an edit must not move the gizmo.
+    if (mOverlayGeneration != modules->generation())
+    {
+        mOverlayGeneration = modules->generation();
+        const std::optional<vsg::dvec3> hit = getHost()->pickNearest(0.5, 0.5, ~0u);
+        const vsg::dvec3 centre = hit ? *hit : getHost()->getCameraCenter();
+        mOverlayOrigin[0] = static_cast<float>(centre.x);
+        mOverlayOrigin[1] = static_cast<float>(centre.y);
+        mOverlayOrigin[2] = static_cast<float>(centre.z);
+    }
+    mModuleOverlay->show(modules->overlayLines(mOverlayOrigin));
 }
 
 void CSVRender::WorldspaceWidget::runRequest(const std::string& profile)

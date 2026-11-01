@@ -101,7 +101,7 @@ namespace CSVDoc
         QPushButton* mOpen;
         QVBoxLayout* mModuleSections = nullptr;
         std::vector<std::string> mModuleSectionIds;
-        const void* mModuleSectionAsset = nullptr;
+        unsigned long mModuleSectionGeneration = ~0ul;
         std::vector<std::string> mIds;
         bool mUpdating = false; // true while the fields are being filled from the table
         bool mLocked = false;

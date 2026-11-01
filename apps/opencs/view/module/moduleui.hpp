@@ -65,6 +65,8 @@ namespace CSVModule
         /// The format ID of the active asset's type, or empty.
         const std::string& activeFormat() const { return mActiveFormat; }
         const std::string& openError() const { return mOpenError; }
+        /// Changes whenever the active asset is replaced or closed (an address may be reused, a generation is not).
+        unsigned long generation() const { return mGeneration; }
 
         /// Closes the active asset and empties the undo stacks that hold module commands. Call before the module
         /// host unloads the libraries.
@@ -104,7 +106,11 @@ namespace CSVModule
         CSMModule::ModuleRegistry& mRegistry;
         std::function<CSMDoc::Document*()> mDocumentProvider;
         std::unique_ptr<openeden::editor::AssetDocument> mActive;
+        // Alive while mActive is the same asset: the undo steps of an asset that was replaced do nothing (their
+        // commands point into that asset), see UndoCommand.
+        std::shared_ptr<void> mAssetToken;
         std::string mActiveFormat;
+        unsigned long mGeneration = 0;
         std::string mOpenError;
         std::vector<std::filesystem::path> mAssetRoots;
         std::set<std::string> mDirtyAssets;

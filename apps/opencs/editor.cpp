@@ -189,6 +189,7 @@ CS::Editor::~Editor()
 {
     mPhysicsWorld.setStepObserver(nullptr);
     delete mViewManager;
+    mViewManager = nullptr;
     // What the modules handed over has code in their libraries: gone before the libraries are.
     mModuleUi.releaseModuleObjects();
     mModuleHost.reset();

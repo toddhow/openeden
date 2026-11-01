@@ -27,15 +27,36 @@ namespace creativemotion_editor
                 panel.dock = DockArea::Right;
                 // The panel shows the active rig or profile.
                 panel.source = [this]() -> PropertySource* {
-                    AssetDocument* active = mContext->activeAsset();
+                    AssetDocument* active = mContext != nullptr ? mContext->activeAsset() : nullptr;
                     return active != nullptr ? &active->properties() : nullptr;
                 };
                 registrar.registerPanel(panel);
 
+                CommandDesc save;
+                save.id = "creativemotion.save";
+                save.label = "Save";
+                save.menuPath = "Rig/Save";
+                save.defaultShortcut = "Ctrl+Alt+S";
+                save.enabledWhen = [this] {
+                    AssetDocument* active = mContext != nullptr ? mContext->activeAsset() : nullptr;
+                    return active != nullptr && active->isDirty();
+                };
+                save.handler = [](EditorContext& context) {
+                    AssetDocument* active = context.activeAsset();
+                    if (active == nullptr)
+                        return;
+                    std::string error;
+                    if (active->save(error))
+                        context.log(LogLevel::Info, std::string("Saved ") + std::string(active->assetId()));
+                    else
+                        context.log(LogLevel::Error, error);
+                };
+                registrar.registerCommand(save);
+
                 GizmoProviderDesc gizmos;
                 gizmos.id = "creativemotion.gizmos";
                 gizmos.gizmos = [this]() -> std::vector<Gizmo*> {
-                    AssetDocument* active = mContext->activeAsset();
+                    AssetDocument* active = mContext != nullptr ? mContext->activeAsset() : nullptr;
                     return active != nullptr ? active->gizmos() : std::vector<Gizmo*>();
                 };
                 registrar.registerGizmoProvider(gizmos);

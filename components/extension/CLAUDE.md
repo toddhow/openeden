@@ -51,3 +51,4 @@ This component implements the engine groundwork for OpenEden's runtime and stati
     - Extensions read physics and never change it, run only in the per-frame phases, and have no Lua API. A system that must step or change physics or extend Lua goes into the core.
     - The loader and resolver refuse a manifest from another SDK major, saying which SDK it was built for and which the host provides.
     - `CI/check_extension_sdk.sh` fails if an SDK header declares a removed operation again.
+13. **The manifest's optional `editor` entry (task 0031):** `{ "library": "<file name>", "editorApi": { "major", "minor" } }` names an editor module library that only Eden Studio loads. The parser checks it with located errors (the library must be a plain file name), the canonical writer writes it last and only when present, and the loader and resolver ignore it: the game never loads editor code.

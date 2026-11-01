@@ -246,7 +246,8 @@ namespace CSVDoc
                 if (source == mSource && (source != nullptr) == (mForm != nullptr))
                     return;
                 mSource = source;
-                delete mForm;
+                if (mForm != nullptr)
+                    mForm->deleteLater();
                 mForm = nullptr;
                 if (source != nullptr)
                 {

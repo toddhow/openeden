@@ -86,6 +86,8 @@ namespace CSVRender
         std::unique_ptr<PhysicsDebugView> mPhysicsView; ///< Null without an editor-wide PhysicsHub.
         std::unique_ptr<PhysicsDebugView> mModuleOverlay; ///< The editor modules' gizmos (task 0031); null without any.
         void updateModuleOverlay();
+        unsigned long mOverlayGeneration = ~0ul; ///< The ModuleUi generation the overlay origin was chosen for.
+        float mOverlayOrigin[3] = { 0.f, 0.f, 0.f };
         /// Where the button that started the drag went down: a drag starts there, not where the first mouse move lands.
         QPoint mDragPressPos;
         bool mDragging;

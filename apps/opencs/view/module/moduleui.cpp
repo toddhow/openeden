@@ -178,7 +178,8 @@ namespace CSVModule
                                 [this, id](double value) { edit(id, PropertyValue(value)); });
                             show = [spin](const PropertyValue& v) {
                                 if (const double* n = std::get_if<double>(&v))
-                                    spin->setValue(*n);
+                                    if (std::abs(spin->value() - *n) > 1e-9)
+                                        spin->setValue(*n);
                             };
                             editor = spin;
                             break;
@@ -275,14 +276,24 @@ namespace CSVModule
     class ModuleUi::UndoCommand final : public QUndoCommand
     {
     public:
-        explicit UndoCommand(std::unique_ptr<Command> command)
+        UndoCommand(std::unique_ptr<Command> command, std::weak_ptr<void> assetToken)
             : QUndoCommand(QString::fromUtf8(command->label().data(), static_cast<int>(command->label().size())))
             , mCommand(std::move(command))
+            , mAssetToken(std::move(assetToken))
         {
         }
 
-        void redo() override { mCommand->redo(); }
-        void undo() override { mCommand->undo(); }
+        // A step of an asset that was closed or replaced is left alone: its command points into that asset.
+        void redo() override
+        {
+            if (!mAssetToken.expired())
+                mCommand->redo();
+        }
+        void undo() override
+        {
+            if (!mAssetToken.expired())
+                mCommand->undo();
+        }
         int id() const override
         {
             const int mergeId = mCommand->mergeId();
@@ -296,6 +307,7 @@ namespace CSVModule
 
     private:
         std::unique_ptr<Command> mCommand;
+        std::weak_ptr<void> mAssetToken;
     };
 
     ModuleUi::ModuleUi(CSMModule::ModuleRegistry& registry, std::function<CSMDoc::Document*()> documentProvider)
@@ -325,7 +337,7 @@ namespace CSVModule
             if (stack != &mOwnStack)
                 connect(stack, &QUndoStack::indexChanged, this, &ModuleUi::changed);
         }
-        stack->push(new UndoCommand(std::move(command)));
+        stack->push(new UndoCommand(std::move(command), mAssetToken));
         emit changed();
     }
 
@@ -362,7 +374,11 @@ namespace CSVModule
         mOpenError.clear();
         const auto* type = mRegistry.findAssetType(path);
         mActiveFormat = type != nullptr ? type->mDesc.formatId : std::string();
+        // Old steps stop touching the old asset before it is destroyed.
+        mAssetToken.reset();
         mActive = std::move(document);
+        mAssetToken = std::make_shared<int>(0);
+        ++mGeneration;
         Log(Debug::Info) << "Opened '" << path.string() << "' (" << mActiveFormat << ")";
         emit changed();
         return mActive.get();
@@ -370,6 +386,8 @@ namespace CSVModule
 
     void ModuleUi::releaseModuleObjects()
     {
+        mAssetToken.reset();
+        ++mGeneration;
         mActive.reset();
         mActiveFormat.clear();
         for (const QPointer<QUndoStack>& stack : mStacks)

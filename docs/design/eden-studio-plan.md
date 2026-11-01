@@ -21,7 +21,9 @@
 
 > **Decision 0007 (toddhow, 2026-10-31):** Eden Studio's editor design. Core systems' tools are editor libraries that Eden Studio loads from a fixed list of core systems; the plan's separate editor library stays and the SDK's runtime-side hooks go in Phase 3; Studio keeps the V6 `SceneHost` for its viewport and adds the Jolt world and the extension host beside it. See `docs/decisions/0007-eden-studio-editor-design.md` and section 10.
 
-> **What exists today (2026-10-31).** Almost none of this plan is built. The SDK has an `EditorService` with three abstract hooks (workspace, inspector and gizmo) that an extension registers from its runtime code; it is inactive in the game and the headless host, and nothing in Eden Studio uses it yet (`sdk/include/openeden/editor.hpp`). These hooks (`EditorService`, `EditorWorkspace`, `EditorInspector`, `EditorGizmo`) are on their way out: decision 0007 removes them when the editor API is built, in Phase 3, and no code is removed yet. Everything else in section 3 (panels, commands, asset types, timeline tracks and so on) is plan, and the loading of separate editor libraries in section 4 is plan too. Section 8, Phase 3 is unbuilt. Section 2.1 says where the editor application stands. The three questions this plan used to carry are decided (decision 0007, section 10).
+> **Update 2026-11-01.** Built since: the editor's Jolt world with Play, Pause and Step and a debug draw pass (task 0030; it holds test bodies only, the cell's objects are not in it yet); the Editor Module API 1.0 as a first subset (task 0031: panels, commands, gizmos as overlay data, asset types, inspector sections, timeline tracks, undoable commands; no settings pages, background tasks, event bus, picking or labels), the module loader with failure isolation, the `editor` entry in `extension.json`, the core list and a sample module; and CreativeMotion's first module, `creativemotion_editor` (task 0032), with the Rig & Motor Limits Inspector of section 5.1. The old runtime-side hooks are still in the SDK (task 0031 stage C is waiting for toddhow). Phases 3 and 4 below are therefore partly done.
+
+> **What exists today (2026-10-31, before the update above).** Almost none of this plan is built. The SDK has an `EditorService` with three abstract hooks (workspace, inspector and gizmo) that an extension registers from its runtime code; it is inactive in the game and the headless host, and nothing in Eden Studio uses it yet (`sdk/include/openeden/editor.hpp`). These hooks (`EditorService`, `EditorWorkspace`, `EditorInspector`, `EditorGizmo`) are on their way out: decision 0007 removes them when the editor API is built, in Phase 3, and no code is removed yet. Everything else in section 3 (panels, commands, asset types, timeline tracks and so on) is plan, and the loading of separate editor libraries in section 4 is plan too. Section 8, Phase 3 is unbuilt. Section 2.1 says where the editor application stands. The three questions this plan used to carry are decided (decision 0007, section 10).
 
 
 ---
@@ -352,11 +354,13 @@ For the OpenEden development session implementing Eden Studio, the recommended p
 - Extension manager (list, enable, disable, show errors).
 
 ### Phase 3: Editor Module API
+*Status 2026-11-01: first subset built (task 0031); the hooks removal (stage C) is not run; section 3.2 dialogs, 3.3 canvases, 3.10 events, 3.11 settings and tasks are not built.*
 - Define and publish the Editor Module API (sections 3.1 to 3.11) with its own version.
 - Load editor libraries from extension manifests (section 4), and for core systems from the fixed core list, with failure isolation. Per decision 0007 this is the only way tools are added: remove the runtime-side hooks in `sdk/include/openeden/editor.hpp` (`EditorService`, `EditorWorkspace`, `EditorInspector`, `EditorGizmo`) in this phase, with their implementation (`components/extension/editor_service.*`) and tests.
 - Build a small sample editor module in the OpenEden repository that exercises every part of the API (a panel, a command, a gizmo, an asset type, an inspector section, a timeline track), as the reference for extension teams and as a test.
 
 ### Phase 4: First Real Module
+*Status 2026-11-01: the rig and motor inspector exists (task 0032); the push sandbox needs the in-engine ragdoll adapter (M10); the animation graph, arbiter and face tools are not started. Gaps the first tool met are listed in task 0032.*
 - CreativeMotion's tools (starting with the rig inspector and push sandbox) are built against the published API; every gap they hit is meant to be fixed by extending the API, not by adding CreativeMotion code to Eden Studio. CreativeMotion's editor module is a separate library on the core list, so that guardrail holds (decision 0007).
 
 ### Phase 5: Further Editor Modules (owned by the extension teams)
