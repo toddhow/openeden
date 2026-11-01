@@ -192,8 +192,8 @@ namespace Render::Gi
     // solid geometry, and enclosed on at least reflectionEnclosure of their sphere), the most enclosed first, then
     // each next one the farthest from those chosen so far until the best is closer than minDistance or maxProbes are
     // chosen. Deterministic; the order is the order of choice.
-    std::vector<vsg::vec3> chooseReflectionPositions(
-        const BakeSettings& settings, const RayWorld& world, const Volume& lattice, const ReflectionSettings& reflection);
+    std::vector<vsg::vec3> chooseReflectionPositions(const BakeSettings& settings, const RayWorld& world,
+        const Volume& lattice, const ReflectionSettings& reflection);
 
     // The base map (resolution * resolution texels) of a probe at `position`: each texel is the average of `samples`
     // radiance paths in the direction the texel stands for. The random numbers depend only on the seed, the probe's

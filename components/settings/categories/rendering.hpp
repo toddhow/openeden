@@ -48,8 +48,8 @@ namespace Settings
         SettingValue<int> mGiBakeBounces{ mIndex, "Rendering", "gi bake bounces", makeClampSanitizerInt(0, 8) };
         SettingValue<float> mGiBakeSpacing{ mIndex, "Rendering", "gi bake spacing", makeClampSanitizerFloat(16, 4096) };
         SettingValue<int> mGiBakeSeed{ mIndex, "Rendering", "gi bake seed", makeClampSanitizerInt(0, 2147483647) };
-        // Reflection probes: the most to place, rays averaged per texel, and the map's width in texels (8, 16, 32 or 64;
-        // other values are rounded down to one of these).
+        // Reflection probes: the most to place, rays averaged per texel, and the map's width in texels (8, 16, 32 or
+        // 64; other values are rounded down to one of these).
         SettingValue<int> mGiBakeReflectionProbes{ mIndex, "Rendering", "gi bake reflection probes",
             makeClampSanitizerInt(0, 16) };
         SettingValue<int> mGiBakeReflectionSamples{ mIndex, "Rendering", "gi bake reflection samples",

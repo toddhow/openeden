@@ -332,8 +332,8 @@ namespace OMW
                 = outFolder / "openeden" / "probes" / (Render::Gi::cellKey(cellId) + ".reflections.progress");
             if (reflectionSettings.maxProbes == 0)
                 return false;
-            reflectionPositions = Render::Gi::chooseReflectionPositions(
-                settings, *world, baker->volume(), reflectionSettings);
+            reflectionPositions
+                = Render::Gi::chooseReflectionPositions(settings, *world, baker->volume(), reflectionSettings);
             if (reflectionPositions.empty())
             {
                 Log(Debug::Warning) << "[GI] no place inside the cell for a reflection probe; none baked";
@@ -343,8 +343,8 @@ namespace OMW
             reflectionBaker = std::make_unique<Render::Gi::ReflectionBaker>(
                 settings, reflectionSettings, *world, lightList, reflectionPositions);
             Log(Debug::Info) << "[GI] baking " << reflectionPositions.size() << " reflection probe(s), "
-                             << reflectionSettings.resolution << " by " << reflectionSettings.resolution
-                             << " texels, " << reflectionSettings.samples << " sample(s) each";
+                             << reflectionSettings.resolution << " by " << reflectionSettings.resolution << " texels, "
+                             << reflectionSettings.samples << " sample(s) each";
             tryResumeReflections();
             lastSave = std::chrono::steady_clock::now();
             return true;
@@ -447,8 +447,8 @@ namespace OMW
                 if (reflectionProblem.empty())
                 {
                     writeFile(reflectionFile, Render::Gi::writeCanonical(reflections));
-                    Log(Debug::Info) << "[GI] wrote " << reflectionFile.string() << " ("
-                                     << reflections.probes.size() << " reflection probe(s))";
+                    Log(Debug::Info) << "[GI] wrote " << reflectionFile.string() << " (" << reflections.probes.size()
+                                     << " reflection probe(s))";
                 }
                 else
                     Log(Debug::Error) << "[GI] the reflection bake is not valid: " << reflectionProblem;

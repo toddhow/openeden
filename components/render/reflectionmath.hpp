@@ -142,7 +142,8 @@ namespace Render::Gi
     }
 
     // Bilinear read of one copy at `uv`; reads outside the square are clamped to its edge. Known limit: this does not
-    // mirror across the octahedron's fold, so a faint seam shows along the square's edges (the GLSL twin does the same).
+    // mirror across the octahedron's fold, so a faint seam shows along the square's edges (the GLSL twin does the
+    // same).
     inline vsg::vec3 sampleReflectionLevel(const vsg::vec3* level, std::uint32_t size, const vsg::vec2& uv)
     {
         const float maxIndex = static_cast<float>(size - 1);

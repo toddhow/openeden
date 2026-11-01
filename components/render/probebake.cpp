@@ -229,8 +229,8 @@ namespace Render::Gi
         return radiance(context, rng, origin, dir, 0);
     }
 
-    std::vector<vsg::vec3> chooseReflectionPositions(
-        const BakeSettings& settings, const RayWorld& world, const Volume& lattice, const ReflectionSettings& reflection)
+    std::vector<vsg::vec3> chooseReflectionPositions(const BakeSettings& settings, const RayWorld& world,
+        const Volume& lattice, const ReflectionSettings& reflection)
     {
         struct Candidate
         {

@@ -351,7 +351,8 @@ namespace Render::Gi
 
     TEST(RenderReflectionMathTest, many_probes_use_the_two_nearest_and_the_weights_add_to_one)
     {
-        const vsg::vec3 p[4] = { vsg::vec3(0, 0, 0), vsg::vec3(100, 0, 0), vsg::vec3(0, 300, 0), vsg::vec3(900, 900, 0) };
+        const vsg::vec3 p[4]
+            = { vsg::vec3(0, 0, 0), vsg::vec3(100, 0, 0), vsg::vec3(0, 300, 0), vsg::vec3(900, 900, 0) };
         const auto blend = reflectionBlend(p, 4, vsg::vec3(30, 0, 0));
         ASSERT_EQ(blend.count, 2u);
         EXPECT_EQ(blend.index[0], 0u);
@@ -407,7 +408,8 @@ namespace Render::Gi
     TEST(RenderReflectionFileTest, the_canonical_text_starts_with_the_fixed_header)
     {
         const std::string text = writeCanonical(sampleSet());
-        EXPECT_TRUE(text.rfind("{\n  \"format\": \"openeden.reflections\",\n  \"version\": 1,\n  \"cell\": {\n", 0) == 0)
+        EXPECT_TRUE(
+            text.rfind("{\n  \"format\": \"openeden.reflections\",\n  \"version\": 1,\n  \"cell\": {\n", 0) == 0)
             << text.substr(0, 120);
         EXPECT_EQ(text.back(), '\n');
         EXPECT_EQ(text.find('\r'), std::string::npos);
@@ -467,8 +469,7 @@ namespace Render::Gi
     TEST(RenderReflectionFileTest, a_wrong_format_name_or_version_is_refused_with_the_field)
     {
         const std::string text = writeCanonical(sampleSet());
-        EXPECT_TRUE(contains(
-            mustFail(replaceOnce(text, "openeden.reflections", "openeden.probes")).field, "format"));
+        EXPECT_TRUE(contains(mustFail(replaceOnce(text, "openeden.reflections", "openeden.probes")).field, "format"));
         EXPECT_TRUE(contains(mustFail(replaceOnce(text, "\"version\": 1,", "\"version\": 2,")).field, "version"));
         EXPECT_TRUE(contains(mustFail(replaceOnce(text, "\"version\": 1,", "\"version\": 1.0,")).field, "version"));
     }
@@ -754,7 +755,8 @@ namespace Render::Gi
         ReflectionSettings reflection;
         reflection.resolution = 8;
         reflection.samples = 2;
-        const std::vector<vsg::vec3> positions{ vsg::vec3(100, 100, 100), vsg::vec3(300, 100, 100), vsg::vec3(200, 300, 100) };
+        const std::vector<vsg::vec3> positions{ vsg::vec3(100, 100, 100), vsg::vec3(300, 100, 100),
+            vsg::vec3(200, 300, 100) };
 
         ReflectionBaker whole(settings, reflection, room, {}, positions);
         EXPECT_TRUE(whole.step(100));
@@ -774,8 +776,8 @@ namespace Render::Gi
         for (std::size_t p = 0; p < 3; ++p)
         {
             EXPECT_EQ(resumed.probes()[p].position, whole.probes()[p].position);
-            EXPECT_EQ(std::memcmp(resumed.probes()[p].texels.data(), whole.probes()[p].texels.data(),
-                          64 * sizeof(vsg::vec3)),
+            EXPECT_EQ(
+                std::memcmp(resumed.probes()[p].texels.data(), whole.probes()[p].texels.data(), 64 * sizeof(vsg::vec3)),
                 0);
         }
     }

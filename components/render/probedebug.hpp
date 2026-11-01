@@ -69,8 +69,8 @@ namespace Render::Gi
         for (std::size_t i = 0; i < volume.probes.size(); ++i)
         {
             const vsg::vec3 position = volume.origin
-                + vsg::vec3(static_cast<float>(i % sx), static_cast<float>((i / sx) % sy),
-                      static_cast<float>(i / (sx * sy)))
+                + vsg::vec3(
+                      static_cast<float>(i % sx), static_cast<float>((i / sx) % sy), static_cast<float>(i / (sx * sy)))
                     * volume.spacing;
             drawDebugMarker(sink, position, radius, debugColor(shAmbient(volume.probes[i], vsg::vec3(0.f, 0.f, 1.f))));
         }
