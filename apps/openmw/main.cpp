@@ -114,6 +114,9 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.autoQuitFrame = variables["auto-quit"].as<unsigned int>();
     args.bakeGiCell = variables["bake-gi"].as<std::string>();
     args.bakeGiOut = variables["bake-gi-out"].as<std::string>();
+    args.bakeGiExterior = variables["bake-gi-exterior"].as<std::string>();
+    if (!args.bakeGiExterior.empty())
+        args.skipMenu = true;
     if (!args.bakeGiCell.empty())
     {
         // The baker needs the cell loaded: start in it, without the menu.

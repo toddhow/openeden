@@ -49,6 +49,8 @@ namespace OMW
         // folder if empty), then quit.
         std::string bakeGiCell;
         std::string bakeGiOut;
+        // Task 0036: bake the sky visibility of these exterior cells ("x,y" or "x0,y0:x1,y1"), into bakeGiOut too.
+        std::string bakeGiExterior;
     };
 }
 

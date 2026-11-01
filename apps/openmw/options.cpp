@@ -90,6 +90,9 @@ namespace OpenMW
         addOption("bake-gi", bpo::value<std::string>()->default_value(""),
             "bake light probes for this interior cell (needs the game data; writes openeden/probes/ and quits)");
 
+        addOption("bake-gi-exterior", bpo::value<std::string>()->default_value(""),
+            "bake the sky visibility of exterior cells, \"<x>,<y>\" or \"<x0>,<y0>:<x1>,<y1>\" (needs the game data; writes openeden/probes/exterior/ and quits)");
+
         addOption("bake-gi-out", bpo::value<std::string>()->default_value(""),
             "folder the baked probes are written to (default: the user data folder)");
 

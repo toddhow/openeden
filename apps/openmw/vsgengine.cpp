@@ -34,6 +34,7 @@
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/statemanagerimp.hpp"
 #include "probebaker.hpp"
+#include "skyvisbaker.hpp"
 
 #include <components/render/defaultsampler.hpp>
 
@@ -478,9 +479,17 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             probeBaker = std::make_unique<ProbeBaker>(args.bakeGiCell, out, *mRenderManager);
         }
+        // Task 0036: the sky visibility baker (--bake-gi-exterior), only when asked for.
+        std::unique_ptr<SkyVisBaker> skyVisBaker;
+        if (!args.bakeGiExterior.empty())
+        {
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            skyVisBaker = std::make_unique<SkyVisBaker>(args.bakeGiExterior, out, *mRenderManager);
+        }
         bool autoScreenshotFired = false;
         bool autoQuitFired = false;
-        auto callback = [this, &args, &probeBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired](
+        auto callback = [this, &args, &probeBaker, &skyVisBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired](
                             double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
@@ -495,6 +504,11 @@ namespace OMW
             {
                 ++runningFrame;
                 if (probeBaker && probeBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (skyVisBaker && skyVisBaker->update() && !autoQuitFired)
                 {
                     mStateManager->requestQuit();
                     autoQuitFired = true;

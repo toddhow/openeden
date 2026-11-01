@@ -73,6 +73,15 @@ namespace Settings
         SettingValue<int> mGiBakeReflectionResolution{ mIndex, "Rendering", "gi bake reflection resolution",
             makeClampSanitizerInt(8, 64) };
         SettingValue<int> mGiBakeBudget{ mIndex, "Rendering", "gi bake budget ms", makeClampSanitizerInt(1, 200) };
+        // Task 0036: ambient light for exteriors from a baked field of how much sky each place sees, lit by the live sky
+        // (read at start; needs hdr, pbr and atmosphere), its strength, and the baker (openmw --bake-gi-exterior):
+        // rays per probe and the distance between columns in game units (rounded to a size that divides a cell).
+        SettingValue<bool> mGiExterior{ mIndex, "Rendering", "gi exterior" };
+        SettingValue<float> mGiExteriorStrength{ mIndex, "Rendering", "gi exterior strength",
+            makeClampSanitizerFloat(0, 2) };
+        SettingValue<int> mGiBakeSkyRays{ mIndex, "Rendering", "gi bake sky rays", makeClampSanitizerInt(1, 65536) };
+        SettingValue<float> mGiBakeSkySpacing{ mIndex, "Rendering", "gi bake sky spacing",
+            makeClampSanitizerFloat(128, 2048) };
     };
 }
 
