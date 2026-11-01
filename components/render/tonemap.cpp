@@ -20,6 +20,7 @@
 #include <vsg/vk/Context.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/render/sssmath.hpp>
 #include <components/vsgutil/recordwithviewid.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
 
@@ -52,6 +53,11 @@ layout(set=0, binding=7) uniform sampler2D gAo;       // half resolution, neares
 layout(set=0, binding=8) uniform sampler2D gAoNormal;
 layout(set=0, binding=9) uniform sampler2D gAoDepth;
 #endif
+#ifdef SSS
+layout(set=0, binding=10) uniform sampler2D gSssMaterial; // alpha: 1 on skin
+layout(set=0, binding=11) uniform sampler2D gSssDepth;
+layout(set=0, binding=12) uniform sampler2D gSssNormal;
+#endif
 #ifdef DEBUG_VIEW
 layout(set=0, binding=2) uniform sampler2D gNormal;
 layout(set=0, binding=3) uniform sampler2D gLinearDepth;
@@ -64,8 +70,11 @@ layout(push_constant) uniform Push
 #ifdef AO
     vec4 ao;     // xy the size of one texel of the occlusion image, z strength
 #endif
+#ifdef SSS
+    vec4 sss;    // x strength, y width in game units, z focal length in pixels
+#endif
 #ifdef DEBUG_VIEW
-    vec4 debug;  // x mode (1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface), y depth range, z velocity scale
+    vec4 debug;  // x mode (1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface, 7 ao, 8 ambient, 9 sss), y depth range, z velocity scale
 #endif
 } push;
 layout(location=0) in vec2 texCoord;
@@ -127,6 +136,81 @@ float aoFiltered(vec2 uv)
 }
 #endif
 
+#ifdef SSS
+// Task 0033: the CPU twins are Render::Sss::gaussian, tapOffset, surfaceWeight and scatter (sssmath.hpp). For a pixel on
+// skin, each colour channel becomes: itself times a gain, the gain being a wide Gaussian average of the neighbouring
+// skin on the same surface over a very narrow one, blended in by the strength. The constants repeat sssmath.hpp (the
+// numbers are written in).
+float sssSmooth(float low, float high, float x)
+{
+    float t = clamp((x - low) / (high - low), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+float sssGaussian(float distance, float sigma)
+{
+    if (!(sigma > 0.0))
+        return distance == 0.0 ? 1.0 : 0.0;
+    return exp(-distance * distance / (2.0 * sigma * sigma));
+}
+float sssSurface(float depthDelta, float width, float normalDot)
+{
+    float limit = max(width, 1e-4);
+    return (1.0 - sssSmooth(limit, 2.0 * limit, abs(depthDelta))) * sssSmooth(0.2, 0.6, normalDot);
+}
+vec3 sssApply(vec2 uv, vec3 centre)
+{
+    // Skin is marked by the material output's alpha; multisampling averages it, so an edge pixel counts when half is skin.
+    if (!(push.sss.x > 0.0) || texture(gSssMaterial, uv).a < 0.5)
+        return centre;
+    float depth = texture(gSssDepth, uv).r;
+    if (!(depth > 0.0))
+        return centre;
+    float width = push.sss.y;
+    float pixelsPerUnit = push.sss.z / depth;
+    vec3 n0 = texture(gSssNormal, uv).xyz;
+    n0 = dot(n0, n0) > 0.0 ? normalize(n0) : vec3(0.0, 0.0, 1.0);
+    vec2 texel = 1.0 / vec2(textureSize(sceneColor, 0));
+    // The spiral is not turned from pixel to pixel: with 16 taps a per-pixel turn made the wide and the narrow averages
+    // differ by noise, and the face came out dotted (found by the frame check).
+    float rotation = 0.0;
+    vec3 sigma = SSS_CHANNEL_SIGMA * width;
+    float narrow = SSS_NARROW_SIGMA * width;
+    float reach = SSS_REACH * width;
+    vec3 wideSum = centre;
+    vec3 wideWeight = vec3(1.0);
+    vec3 narrowSum = centre;
+    float narrowWeight = 1.0;
+    for (int i = 0; i < SSS_TAPS; ++i)
+    {
+        float r = reach * sqrt((float(i) + 0.5) / float(SSS_TAPS));
+        float a = float(i) * 2.39996323 + rotation;
+        vec2 tap = uv + vec2(cos(a), sin(a)) * (r * pixelsPerUnit) * texel;
+        if (any(lessThan(tap, vec2(0.0))) || any(greaterThan(tap, vec2(1.0))))
+            continue;
+        if (texture(gSssMaterial, tap).a < 0.5)
+            continue;
+        float d = texture(gSssDepth, tap).r;
+        if (!(d > 0.0))
+            continue;
+        vec3 n = texture(gSssNormal, tap).xyz;
+        n = dot(n, n) > 0.0 ? normalize(n) : n0;
+        float v = sssSurface(d - depth, width, dot(n, n0));
+        if (v <= 0.0)
+            continue;
+        vec3 c = texture(sceneColor, tap).rgb;
+        vec3 w1 = vec3(sssGaussian(r, sigma.x), sssGaussian(r, sigma.y), sssGaussian(r, sigma.z)) * v;
+        float w2 = sssGaussian(r, narrow) * v;
+        wideSum += c * w1;
+        wideWeight += w1;
+        narrowSum += c * w2;
+        narrowWeight += w2;
+    }
+    vec3 gain = clamp((wideSum / wideWeight + SSS_EPSILON) / (narrowSum / narrowWeight + SSS_EPSILON),
+        vec3(SSS_GAIN_MIN), vec3(SSS_GAIN_MAX));
+    return max(centre * (vec3(1.0) + push.sss.x * (gain - vec3(1.0))), vec3(0.0));
+}
+#endif
+
 void main()
 {
 #ifdef DEBUG_VIEW
@@ -165,6 +249,13 @@ void main()
         else if (mode == 8)
             shown = texture(gAmbient, texCoord).rgb;
 #endif
+#ifdef SSS
+        else if (mode == 9)
+        {
+            vec3 base = texture(sceneColor, texCoord).rgb;
+            shown = clamp(abs(sssApply(texCoord, base) - base) * 8.0, vec3(0.0), vec3(1.0));
+        }
+#endif
         if (mode != 0)
         {
             outColor = vec4(shown, 1.0);
@@ -173,6 +264,9 @@ void main()
     }
 #endif
     vec3 color = texture(sceneColor, texCoord).rgb;
+#ifdef SSS
+    color = sssApply(texCoord, color);
+#endif
 #ifdef AO
     // Only the ambient part of the colour is darkened (Render::Ao::removeOcclusion).
     color = max(color - texture(gAmbient, texCoord).rgb * (1.0 - aoApply(aoFiltered(texCoord), push.ao.z)), vec3(0.0));
@@ -195,13 +289,25 @@ void main()
 }
 )GLSL";
 
-        std::string fragmentSource(bool bloom, bool debug, bool ao)
+        std::string fragmentSource(bool bloom, bool debug, bool ao, bool sss)
         {
             std::ostringstream out;
             out.precision(9);
             out << "#version 450\n";
             if (ao)
                 out << "#define AO 1\n";
+            if (sss)
+            {
+                const auto& sigma = Sss::channelSigma;
+                out << "#define SSS 1\n";
+                out << "#define SSS_CHANNEL_SIGMA vec3(" << sigma.x << ", " << sigma.y << ", " << sigma.z << ")\n";
+                out << "#define SSS_NARROW_SIGMA " << Sss::narrowSigma << "\n";
+                out << "#define SSS_REACH " << Sss::reachInWidths << "\n";
+                out << "#define SSS_TAPS " << Sss::tapCount << "\n";
+                out << "#define SSS_EPSILON " << Sss::epsilon << "\n";
+                out << "#define SSS_GAIN_MIN " << Sss::gainMin << "\n";
+                out << "#define SSS_GAIN_MAX " << Sss::gainMax << "\n";
+            }
             if (bloom)
                 out << "#define BLOOM 1\n";
             if (debug)
@@ -253,6 +359,7 @@ void main()
         , mPush(vsg::vec4Value::create(pushConstants(Parameters{})))
         , mPushDebug(vsg::vec4Value::create(debugPushConstants(GBuffer::DebugView::None, 0.f, 0.f)))
         , mPushAo(vsg::vec4Value::create(aoPushConstants(VkExtent2D{ 1, 1 }, 1.f)))
+        , mPushSss(vsg::vec4Value::create(sssPushConstants(0.f, 1.f, 0.f)))
     {
         mView->viewDependentState = nullptr;
     }
@@ -268,6 +375,11 @@ void main()
             1.f / static_cast<float>(std::max(1u, aoExtent.height)), strength, 0.f);
     }
 
+    vsg::vec4 Tonemap::sssPushConstants(float strength, float width, float focalPixels)
+    {
+        return vsg::vec4(strength, width, focalPixels, 0.f);
+    }
+
     Tonemap::~Tonemap() {}
 
     void Tonemap::setParameters(const Parameters& parameters)
@@ -276,30 +388,39 @@ void main()
         mPush->set(pushConstants(parameters));
         mPushDebug->set(debugPushConstants(parameters.debugView, parameters.depthRange, parameters.velocityScale));
         mPushAo->set(aoPushConstants(mAoExtent, parameters.aoStrength));
+        mPushSss->set(sssPushConstants(parameters.sssStrength, parameters.sssWidth, parameters.sssFocalPixels));
     }
 
     bool Tonemap::setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom,
         const VkExtent2D& extent, const DebugSources& debugSources)
     {
-        return setSource(std::move(color), std::move(bloom), extent, debugSources, AoSources());
+        return setSource(std::move(color), std::move(bloom), extent, debugSources, AoSources(), SssSources());
     }
 
     bool Tonemap::setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom,
         const VkExtent2D& extent, const DebugSources& debugSources, const AoSources& aoSources)
     {
+        return setSource(std::move(color), std::move(bloom), extent, debugSources, aoSources, SssSources());
+    }
+
+    bool Tonemap::setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom,
+        const VkExtent2D& extent, const DebugSources& debugSources, const AoSources& aoSources,
+        const SssSources& sssSources)
+    {
         const bool debug = mParameters.debugView != GBuffer::DebugView::None;
         const bool ao = aoSources.valid();
+        const bool sss = sssSources.valid();
         if (ao)
         {
             mAoExtent = aoSources.aoExtent;
             mPushAo->set(aoPushConstants(mAoExtent, mParameters.aoStrength));
         }
         // Compiled once: a resize only changes the image, the viewport and the pipeline built around them.
-        auto& fragment = mFragments[(bloom ? 1 : 0) + (debug ? 2 : 0) + (ao ? 4 : 0)];
+        auto& fragment = mFragments[(bloom ? 1 : 0) + (debug ? 2 : 0) + (ao ? 4 : 0) + (sss ? 8 : 0)];
         if (!mVertex)
             mVertex = compile(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
         if (!fragment)
-            fragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentSource(bloom != nullptr, debug, ao));
+            fragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentSource(bloom != nullptr, debug, ao, sss));
         if (!mVertex || !fragment)
             return false;
         const auto vertex = mVertex;
@@ -314,10 +435,15 @@ void main()
         if (ao)
             for (uint32_t binding = 6; binding <= 9; ++binding)
                 bindings.push_back({ binding, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
+        if (sss)
+            for (uint32_t binding = 10; binding <= 12; ++binding)
+                bindings.push_back({ binding, imageType, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr });
         auto setLayout = vsg::DescriptorSetLayout::create(bindings);
-        // The push constants in order: the parameters, the occlusion's (with it) and the debug view's (with it).
+        // The push constants in order: the parameters, the occlusion's (with it), the subsurface scattering's (with it)
+        // and the debug view's (with it).
         const uint32_t aoOffset = sizeof(vsg::vec4);
-        const uint32_t debugOffset = static_cast<uint32_t>(sizeof(vsg::vec4)) * (ao ? 2 : 1);
+        const uint32_t sssOffset = static_cast<uint32_t>(sizeof(vsg::vec4)) * (ao ? 2 : 1);
+        const uint32_t debugOffset = static_cast<uint32_t>(sizeof(vsg::vec4)) * (1 + (ao ? 1 : 0) + (sss ? 1 : 0));
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout },
             vsg::PushConstantRanges{ { VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                 static_cast<uint32_t>(debugOffset + (debug ? sizeof(vsg::vec4) : 0)) } });
@@ -380,6 +506,18 @@ void main()
             descriptors.push_back(aoImage(aoSources.linearDepth, 9));
         }
 
+        if (sss)
+        {
+            const auto sssImage = [&](const vsg::ref_ptr<vsg::ImageView>& view, uint32_t binding) {
+                return vsg::DescriptorImage::create(
+                    vsg::ImageInfo::create(sampler, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), binding, 0,
+                    imageType);
+            };
+            descriptors.push_back(sssImage(sssSources.material, 10));
+            descriptors.push_back(sssImage(sssSources.linearDepth, 11));
+            descriptors.push_back(sssImage(sssSources.normal, 12));
+        }
+
         auto commands = vsg::Commands::create();
         commands->children
             = { vsgUtil::SetViewportState::create(vsg::ViewportState::create(0, 0, extent.width, extent.height)),
@@ -389,6 +527,9 @@ void main()
                   vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, 0, mPush) };
         if (ao)
             commands->children.push_back(vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, aoOffset, mPushAo));
+        if (sss)
+            commands->children.push_back(
+                vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, sssOffset, mPushSss));
         if (debug)
             commands->children.push_back(
                 vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, debugOffset, mPushDebug));

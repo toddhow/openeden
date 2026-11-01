@@ -33,7 +33,9 @@ namespace Render::GBuffer
         Subsurface,
         // Task 0029: the filtered occlusion, and the ambient part of the colour that it darkens.
         Ao,
-        Ambient
+        Ambient,
+        // Task 0033: what subsurface scattering changes (eight times the difference), white on skin.
+        Sss
     };
 
     inline std::optional<DebugView> parseDebugView(std::string_view name)
@@ -56,6 +58,8 @@ namespace Render::GBuffer
             return DebugView::Ao;
         if (name == "ambient")
             return DebugView::Ambient;
+        if (name == "sss")
+            return DebugView::Sss;
         return std::nullopt;
     }
 

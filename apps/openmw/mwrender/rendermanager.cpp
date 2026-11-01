@@ -46,6 +46,7 @@
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
+#include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -150,6 +151,8 @@ namespace MWRender
             if (rendering.mHdrBloom)
                 parameters.bloomStrength = rendering.mHdrBloomStrength;
             parameters.aoStrength = rendering.mAoStrength;
+            parameters.sssStrength = rendering.mSssStrength;
+            parameters.sssWidth = rendering.mSssWidth;
             // Task 0026: the G-buffer's debug view (only with the G-buffer on; checked where the setting is read).
             if (rendering.mGBuffer)
             {
@@ -276,6 +279,15 @@ namespace MWRender
                 Log(Debug::Warning)
                     << "[Rendering] ao needs hdr, gbuffer and pbr (it reads the stored depth, normals and "
                        "the material output); ambient occlusion is off";
+            // OpenEden (task 0033, R7): subsurface scattering reads the skin mark of the material output.
+            const bool wantSss = Settings::rendering().mSss;
+            const bool sss = Render::Sss::useSss(wantSss, gbuffer, materialOutput);
+            if (wantSss && !sss)
+                Log(Debug::Warning) << "[Rendering] sss needs hdr, gbuffer and pbr (it reads the skin mark of the "
+                                       "material output); subsurface scattering is off";
+            mSssEnabled = sss;
+            if (sss)
+                Log(Debug::Info) << "SSS: subsurface scattering of skin in the tonemap";
             const auto gbufferFormats
                 = gbuffer ? Render::GBuffer::extraColorFormats(true, materialOutput, ao) : std::vector<VkFormat>{};
             mHdrTarget = std::make_unique<Render::HdrTarget>(
@@ -693,7 +705,7 @@ namespace MWRender
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The bloom passes could not be built");
             if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent(),
-                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources()))
+                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources(), sssSources()))
                 throw std::runtime_error("The tonemap pass could not be built");
         }
         if (mPostProcess)
@@ -1374,6 +1386,17 @@ namespace MWRender
         mFog->configure(mViewDistance, fogDepth, underwaterFog, dlFactor, dlOffset, color);
     }
 
+    Render::Tonemap::SssSources RenderManager::sssSources() const
+    {
+        Render::Tonemap::SssSources sources;
+        if (!mSssEnabled || !mHdrTarget)
+            return sources;
+        sources.material = mHdrTarget->materialView();
+        sources.linearDepth = mHdrTarget->linearDepthView();
+        sources.normal = mHdrTarget->normalView();
+        return sources;
+    }
+
     Render::Tonemap::AoSources RenderManager::aoSources() const
     {
         Render::Tonemap::AoSources sources;
@@ -1443,6 +1466,18 @@ namespace MWRender
             }
         }
         updateVelocity();
+        if (mSssEnabled && mTonemap && mHdrTarget)
+        {
+            // The blur's size on the screen follows the projection and the target's height; set only when it moves.
+            const vsg::dmat4 projection = mProjectionMatrix->transform();
+            auto parameters = mTonemap->parameters();
+            const float focal = static_cast<float>(0.5 * mHdrTarget->extent().height * projection(1, 1));
+            if (parameters.sssFocalPixels != focal)
+            {
+                parameters.sssFocalPixels = focal;
+                mTonemap->setParameters(parameters);
+            }
+        }
         if (mAmbientOcclusion)
         {
             const vsg::dmat4 projection = mProjectionMatrix->transform();
@@ -1926,7 +1961,7 @@ namespace MWRender
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
             if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent,
-                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources()))
+                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources(), sssSources()))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }
         updateProjectionMatrix();

@@ -43,6 +43,12 @@ namespace Settings
         SettingValue<int> mAoSlices{ mIndex, "Rendering", "ao slices", makeClampSanitizerInt(1, 8) };
         SettingValue<int> mAoSteps{ mIndex, "Rendering", "ao steps", makeClampSanitizerInt(1, 16) };
 
+        // Task 0033 (R7): screen-space subsurface scattering on skin. Read at start; needs hdr, gbuffer and pbr. The
+        // width is in game units.
+        SettingValue<bool> mSss{ mIndex, "Rendering", "sss" };
+        SettingValue<float> mSssStrength{ mIndex, "Rendering", "sss strength", makeClampSanitizerFloat(0, 1) };
+        SettingValue<float> mSssWidth{ mIndex, "Rendering", "sss width", makeClampSanitizerFloat(0.1f, 10) };
+
         // Task 0028: ambient light from baked light probes. Read at start; needs hdr and pbr.
         SettingValue<bool> mGi{ mIndex, "Rendering", "gi" };
         SettingValue<float> mGiStrength{ mIndex, "Rendering", "gi strength", makeClampSanitizerFloat(0, 2) };

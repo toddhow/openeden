@@ -10,9 +10,11 @@
 // reimplementation from that description and no code of theirs; unlike their pass it is one non-separable gather with a
 // fixed spiral of taps, because the cheapest tier is meant to cost one fullscreen read.
 //
-// The result for each colour channel is: the pixel's own colour, plus `strength` times (a wide Gaussian average of
-// its neighbours on the same skin surface, minus a very narrow one). Subtracting the narrow average keeps the fine
-// detail of the texture (pores, freckles, lips' edges) and moves only the soft, low frequency light.
+// The result for each colour channel is: the pixel's own colour times a gain, where the gain is the wide Gaussian
+// average of its neighbours on the same skin surface divided by a very narrow one (blended in by `strength`). A ratio,
+// not a difference, because the engine stores no albedo: with a difference a black nose or a dark mouth took red from
+// the bright fur around it (found by the frame check). With a ratio black stays black and detail finer than the narrow
+// Gaussian is untouched; only soft, low frequency light is moved.
 
 #include <algorithm>
 #include <cmath>
@@ -25,9 +27,9 @@ namespace Render::Sss
     constexpr float pi = 3.14159265358979f;
 
     // The defaults of `sss strength` (0 to 1) and `sss width` (game units; Morrowind's unit is about 1.4 cm, so this is
-    // about 2 cm for the red channel's Gaussian).
-    constexpr float defaultStrength = 1.f;
-    constexpr float defaultWidth = 1.5f;
+    // about 1 cm for the red channel's Gaussian).
+    constexpr float defaultStrength = 0.5f;
+    constexpr float defaultWidth = 0.7f;
 
     // The Gaussian widths of the red, green and blue channels as fractions of `width`: red spreads farthest. These are
     // the ratios of skin's measured profile in the paper above, rounded; the tuning is by eye.
@@ -38,6 +40,12 @@ namespace Render::Sss
     constexpr float reachInWidths = 3.f;
     // The taps in the spiral.
     constexpr int tapCount = 16;
+
+    // The gain is limited to this range, so a bright patch next to a dark one cannot flare, and `epsilon` keeps the ratio
+    // of two dark averages from jumping about.
+    constexpr float gainMin = 0.5f;
+    constexpr float gainMax = 2.f;
+    constexpr float epsilon = 1e-3f;
 
     // The pass needs its setting and the material output (which holds the skin mark); that output exists only with the
     // G-buffer and the material model.
@@ -102,7 +110,7 @@ namespace Render::Sss
     };
 
     // The scattered colour of one pixel. The pixel itself counts with weight 1 in both averages. `strength` 0 returns
-    // `centre`. Never below 0 in any channel.
+    // `centre`; a centre of 0 stays 0. Never below 0 in any channel.
     inline vsg::vec3 scatter(const vsg::vec3& centre, const Tap* taps, int count, float strength, float width)
     {
         vsg::vec3 result = centre;
@@ -124,7 +132,9 @@ namespace Render::Sss
                 narrowSum += taps[i].colour[channel] * w2;
                 narrowWeight += w2;
             }
-            result[channel] = std::max(0.f, centre[channel] + strength * (wideSum / wideWeight - narrowSum / narrowWeight));
+            const float gain = std::clamp(
+                (wideSum / wideWeight + epsilon) / (narrowSum / narrowWeight + epsilon), gainMin, gainMax);
+            result[channel] = std::max(0.f, centre[channel] * (1.f + strength * (gain - 1.f)));
         }
         return result;
     }

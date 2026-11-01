@@ -61,24 +61,43 @@ namespace Render::Sss
 
     TEST(RenderSssTest, red_light_reaches_farther_than_blue)
     {
-        // A dark pixel in a bright neighbourhood: the red channel brightens more than the blue.
-        const vsg::vec3 centre(0.f, 0.f, 0.f);
+        // A dim pixel in a bright neighbourhood: the red channel brightens more than the blue.
+        const vsg::vec3 centre(0.6f, 0.6f, 0.6f);
         const auto taps = field(vsg::vec3(1.f, 1.f, 1.f), 1.5f);
         const auto out = scatter(centre, taps.data(), static_cast<int>(taps.size()), 1.f, 1.5f);
         EXPECT_GT(out.x, out.y);
         EXPECT_GT(out.y, out.z);
-        EXPECT_GT(out.x, 0.f);
+        EXPECT_GT(out.z, centre.z);
+    }
+
+    TEST(RenderSssTest, black_stays_black_whatever_the_neighbours)
+    {
+        const vsg::vec3 centre(0.f, 0.f, 0.f);
+        const auto taps = field(vsg::vec3(1.f, 1.f, 1.f), 1.5f);
+        const auto out = scatter(centre, taps.data(), static_cast<int>(taps.size()), 1.f, 1.5f);
+        EXPECT_EQ(out, centre);
+    }
+
+    TEST(RenderSssTest, the_gain_is_limited)
+    {
+        const vsg::vec3 centre(0.1f, 0.1f, 0.1f);
+        const auto taps = field(vsg::vec3(100.f, 100.f, 100.f), 1.5f);
+        const auto out = scatter(centre, taps.data(), static_cast<int>(taps.size()), 1.f, 1.5f);
+        EXPECT_LE(out.x, centre.x * gainMax + 1e-6f);
+        EXPECT_LE(out.y, centre.y * gainMax + 1e-6f);
+        EXPECT_LE(out.z, centre.z * gainMax + 1e-6f);
     }
 
     TEST(RenderSssTest, a_stronger_setting_moves_the_result_further)
     {
-        const vsg::vec3 centre(0.f, 0.f, 0.f);
+        const vsg::vec3 centre(0.1f, 0.1f, 0.1f);
         const auto taps = field(vsg::vec3(1.f, 1.f, 1.f), 1.5f);
         const int n = static_cast<int>(taps.size());
         const auto half = scatter(centre, taps.data(), n, 0.5f, 1.5f);
         const auto full = scatter(centre, taps.data(), n, 1.f, 1.5f);
         EXPECT_GT(full.x, half.x);
-        EXPECT_NEAR(half.x * 2.f, full.x, 1e-5f);
+        EXPECT_GT(half.x, centre.x);
+        EXPECT_NEAR((half.x - centre.x) * 2.f, full.x - centre.x, 1e-5f);
     }
 
     TEST(RenderSssTest, no_channel_goes_below_zero)

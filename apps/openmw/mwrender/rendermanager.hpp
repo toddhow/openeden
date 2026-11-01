@@ -355,6 +355,9 @@ namespace MWRender
         bool mAoEnabled = false;
         std::unique_ptr<Render::AmbientOcclusion> mAmbientOcclusion;
         Render::Tonemap::AoSources aoSources() const;
+        // Task 0033: subsurface scattering of skin ([Rendering] sss); off without its images. Read at start.
+        bool mSssEnabled = false;
+        Render::Tonemap::SssSources sssSources() const;
         vsg::ref_ptr<vsg::vec4Array> mProbeData;
         bool mGiEnabled = false;
         float mProbeStrength = 1.f;

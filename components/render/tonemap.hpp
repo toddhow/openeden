@@ -42,6 +42,22 @@ namespace Render
             float velocityScale = 200.f;
             // Task 0029: how much of the occlusion applies (pow(ao, strength)); only with ambient occlusion on.
             float aoStrength = 1.f;
+            // Task 0033: subsurface scattering of skin. `sssStrength` 0 means none; the width is in game units and the
+            // focal length (the projection's, in pixels of the target) turns it into a size on the screen. Only with
+            // the step on (SssSources given).
+            float sssStrength = 1.f;
+            float sssWidth = 1.5f;
+            float sssFocalPixels = 0.f;
+        };
+
+        /// Task 0033: what the subsurface scattering step needs: the material output (its alpha marks skin), and the
+        /// stored linear depth and normals that keep the blur on one surface. All three, or none.
+        struct SssSources
+        {
+            vsg::ref_ptr<vsg::ImageView> material;
+            vsg::ref_ptr<vsg::ImageView> linearDepth;
+            vsg::ref_ptr<vsg::ImageView> normal;
+            bool valid() const { return material && linearDepth && normal; }
         };
 
         /// Task 0029: what the ambient occlusion step needs: the ambient part of the scene colour, the half
@@ -79,6 +95,8 @@ namespace Render
         /// With a debug view in the parameters (set before this call: the shader is chosen here), `debug` supplies its
         /// images.
         bool setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent,
+            const DebugSources& debug, const AoSources& aoSources, const SssSources& sssSources);
+        bool setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent,
             const DebugSources& debug, const AoSources& aoSources);
         bool setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent,
             const DebugSources& debug = {});
@@ -101,6 +119,10 @@ namespace Render
         /// the strength. Public for the unit tests.
         static vsg::vec4 aoPushConstants(const VkExtent2D& aoExtent, float strength);
 
+        /// The subsurface scattering's push constants: x strength, y width in game units, z the focal length in
+        /// pixels, w 0. Public for the unit tests.
+        static vsg::vec4 sssPushConstants(float strength, float width, float focalPixels);
+
     private:
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
@@ -109,9 +131,10 @@ namespace Render
         vsg::ref_ptr<vsg::ShaderStage> mVertex;
         vsg::ref_ptr<vsg::vec4Value> mPushDebug;
         vsg::ref_ptr<vsg::vec4Value> mPushAo;
+        vsg::ref_ptr<vsg::vec4Value> mPushSss;
         VkExtent2D mAoExtent{ 1, 1 };
-        // Indexed by bloom (1), debug view (2) and ambient occlusion (4).
-        vsg::ref_ptr<vsg::ShaderStage> mFragments[8];
+        // Indexed by bloom (1), debug view (2), ambient occlusion (4) and subsurface scattering (8).
+        vsg::ref_ptr<vsg::ShaderStage> mFragments[16];
         vsg::ref_ptr<vsg::Node> mDraw;
         Parameters mParameters;
     };
