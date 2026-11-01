@@ -1,11 +1,11 @@
 # apps/opencs
 
-The editor (OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0014, stages C1 to C9. Read the root `CLAUDE.md`, `components/render/CLAUDE.md` and the task's stage log first.
+The editor (Eden Studio, formerly OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0014, stages C1 to C9. Read the root `CLAUDE.md`, `components/render/CLAUDE.md` and the task's stage log first.
 
 ## What builds now
 
-- `csmodel`: everything under `model/`, plus three plain Qt widgets it uses. `openmw-cs-tests` links only this, so it needs no view code and no GPU.
-- `openmw-cs-lib`: everything else, with `view/render` whole.
+- `csmodel`: everything under `model/`, plus three plain Qt widgets it uses. `eden-studio-tests` links only this, so it needs no view code and no GPU.
+- `eden-studio-lib`: everything else, with `view/render` whole.
 
 ## The 3D design
 
@@ -14,11 +14,11 @@ The editor (OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0
 - **`CSVRender::SceneHost`** is one per view: window, `Render::Engine`, scene graph, camera and view descriptors. It is the editor's counterpart of `MWRender::RenderManager`, which is game-bound and cannot be used here.
 - **`CSMWorld::Data`** owns the document's `Resource::ResourceSystem` (pipelines, texture and model caches), created by the first view through `getOrCreateResourceSystem` because it needs a device. It is null before that, so model code must not assume it.
 - **The compile context is not an Engine's:** an Engine's compile context must not outlive that Engine, and a view can close while others stay. `RenderContext` builds its own.
-- **Settings:** `Settings::Manager::load(cfg, true)` now also loads the game's `defaults.cfg` and `StaticValues`, as the shared renderer reads `Settings::shaders()` and others. The editor sees them at their defaults, or as overridden in `openmw-cs.cfg`; it does not read the game's `settings.cfg`.
+- **Settings:** `Settings::Manager::load(cfg, true)` now also loads the game's `defaults.cfg` and `StaticValues`, as the shared renderer reads `Settings::shaders()` and others. The editor sees them at their defaults, or as overridden in `eden-studio.cfg` (a first run copies an old `openmw-cs.cfg` there, `model/prefs/configmigration.hpp`); it does not read the game's `settings.cfg`.
 
 ## Capture
 
-`openmw-cs --open-cell X --auto-screenshot N --auto-quit M [--camera ex,ey,ez,cx,cy,cz,ux,uy,uz] [--camera-script "cmd;..."] [--capture-views V]`, plus the usual `--replace=config --config DIR --user-data DIR`. `capture.cpp` runs it before `CS::Editor` exists, so there is no editor window, dialogue or IPC server, but it uses the worldspace widgets themselves. Also `--lighting day|night|bright`, `--fov`, `--neighbours N`, `--capture-resize WxH,...` and `--capture-close-views N`. The one window takes no focus. It opens the configuration's `content=` files, and writes `screenshots/editor<i>.png` in the user data folder. X is a record ID (`#-2 -9`) or a cell name; a name shared by exterior cells takes the first. Point `--config` at a scratch folder: the settings state belongs to that folder.
+`eden-studio --open-cell X --auto-screenshot N --auto-quit M [--camera ex,ey,ez,cx,cy,cz,ux,uy,uz] [--camera-script "cmd;..."] [--capture-views V]`, plus the usual `--replace=config --config DIR --user-data DIR`. `capture.cpp` runs it before `CS::Editor` exists, so there is no editor window, dialogue or IPC server, but it uses the worldspace widgets themselves. Also `--lighting day|night|bright`, `--fov`, `--neighbours N`, `--capture-resize WxH,...` and `--capture-close-views N`. The one window takes no focus. It opens the configuration's `content=` files, and writes `screenshots/editor<i>.png` in the user data folder. X is a record ID (`#-2 -9`) or a cell name; a name shared by exterior cells takes the first. Point `--config` at a scratch folder: the settings state belongs to that folder.
 
 ## Rules
 
@@ -39,7 +39,7 @@ The editor (OpenMW-CS), ported from OpenSceneGraph to VulkanSceneGraph in task 0
 - **Git Bash runs need Qt's `bin` on `PATH`.** Without it, an executable linking Qt exits with 127 and a misleading message about `api-ms-win-crt-locale`.
 - **Inside a class derived from `TagBase`, a plain `Object` means `vsg::Object`,** the base's injected class name. Write `CSVRender::Object`.
 - **`QApplication::closeAllWindows` stops at the first window that refuses.** `CSVDoc::View` refuses all but a document's last, deleting itself later, so an unattended close repeats it.
-- **Unattended normal run:** `OPENEDEN_CS_UI_CHECK="c:#-2 -9;5000" openmw-cs path/Morrowind.esm`. Windows do not take focus.
+- **Unattended normal run:** `OPENEDEN_CS_UI_CHECK="c:#-2 -9;5000" eden-studio path/Morrowind.esm`. Windows do not take focus.
 - **On-demand frames:** a view draws when asked (`requestRedraw`) or when exposed and a `FrameListener` says `isAnimated`, which means an object with auto-play controllers. A controller that is not auto-play still runs, with `MWAnim::ObjectAnimation::addController`: skins are such controllers, and dropping them draws a skinned model in pieces.
 - **`CompileManager` has no remove.** Add a target once, without a view (`RenderContext::addCompileTarget`), never per view.
 - **Camera:** a controller works on the view matrix through `camerapose.hpp`, in eye space, which is the same as OSG's. Do not flip Y there: the flip is in the projection. A capture's `--camera-script` (`capture.cpp`, `runCameraScript`) calls the controllers and logs each pose.

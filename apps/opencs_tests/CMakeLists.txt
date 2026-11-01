@@ -1,5 +1,6 @@
 file(GLOB OPENCS_TESTS_SRC_FILES
     main.cpp
+    model/prefs/testconfigmigration.cpp
     model/world/testinfocollection.cpp
     model/world/testuniversalid.cpp
     view/render/testcamerapose.cpp
@@ -12,32 +13,32 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     view/render/testpathgridgeometry.cpp
 )
 
-source_group(apps\\openmw-cs-tests FILES ${OPENCS_TESTS_SRC_FILES})
+source_group(apps\\eden-studio-tests FILES ${OPENCS_TESTS_SRC_FILES})
 
-openmw_add_executable(openmw-cs-tests ${OPENCS_TESTS_SRC_FILES})
+openmw_add_executable(eden-studio-tests ${OPENCS_TESTS_SRC_FILES})
 
-target_include_directories(openmw-cs-tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
-target_include_directories(openmw-cs-tests SYSTEM PRIVATE ${GMOCK_INCLUDE_DIRS})
+target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
+target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GMOCK_INCLUDE_DIRS})
 
-target_link_libraries(openmw-cs-tests PRIVATE
+target_link_libraries(eden-studio-tests PRIVATE
     csmodel
     GTest::GTest
     GMock::GMock
 )
 
 if (WIN32)
-    target_sources(openmw-cs-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
+    target_sources(eden-studio-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
 endif()
 
 if (UNIX AND NOT APPLE)
-    target_link_libraries(openmw-cs-tests PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(eden-studio-tests PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-cs-tests PRIVATE --coverage)
-    target_link_libraries(openmw-cs-tests PRIVATE gcov)
+    target_compile_options(eden-studio-tests PRIVATE --coverage)
+    target_link_libraries(eden-studio-tests PRIVATE gcov)
 endif()
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
-    target_precompile_headers(openmw-cs-tests REUSE_FROM components)
+    target_precompile_headers(eden-studio-tests REUSE_FROM components)
 endif()

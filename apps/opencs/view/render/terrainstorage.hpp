@@ -20,7 +20,7 @@ namespace CSMWorld
 namespace CSVRender
 {
     /**
-     * @brief A bridge between the terrain component and OpenCS's terrain data storage.
+     * @brief A bridge between the terrain component and Eden Studio's terrain data storage.
      *
      * The alteration hooks have no cell argument, so one storage serves one cell: ask it only for that cell's bounds
      * (Cell, through Terrain::Paging::updateViewForCell with a batch of one cell).

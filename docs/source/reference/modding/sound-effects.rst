@@ -18,11 +18,11 @@ For sound effects we suggest using 16-bit ``.wav`` files.
 Sound File, Sound, Sound Gen
 ****************************
 
-* `Sound File` record in OpenMW-CS is the audio file on the disk. When files are placed in ``data/sound`` and its subfolders, OpenMW-CS will list them in a table. `Sound File` records aren't used directly in OpenMW-CS but must first be assigned to a `Sound` record. 
-* `Sound` is the record that can be assigned to other records in OpenMW-CS. It needs a `Sound File` assigned, has volume, min range, and max range properties.
+* `Sound File` record in Eden Studio is the audio file on the disk. When files are placed in ``data/sound`` and its subfolders, Eden Studio will list them in a table. `Sound File` records aren't used directly in Eden Studio but must first be assigned to a `Sound` record. 
+* `Sound` is the record that can be assigned to other records in Eden Studio. It needs a `Sound File` assigned, has volume, min range, and max range properties.
 * `Sound Generator` record is used for creature animation events (groan, get hit, die, footsteps). It takes the `Sound` record and defines what creature uses this effect and when.
 
-.. note:: Newly created `Sound` records in OpenMW-CS have their `Max Range` value set to 255.
+.. note:: Newly created `Sound` records in Eden Studio have their `Max Range` value set to 255.
     This can cause the sound to not be audible in-game. To fix this, set the mentioned value to 0.
 
 

@@ -31,7 +31,7 @@ Use Value 1, 2, 3, 4
     experience points. Athletics have Use Value 1 = 0,02, and Use Value 2 = 0,03. 
     For each second of running the player's athletics skill will be raised by 0,02 
     experience points, while for each second of swimming by 0,03 points. Note that not 
-    all of the skills use all of the Use Values and OpenMW-CS currently doesn't tell 
+    all of the skills use all of the Use Values and Eden Studio currently doesn't tell 
     what action a skill's Use Value is associated with.
     
 Description

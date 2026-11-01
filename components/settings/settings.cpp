@@ -156,7 +156,7 @@ namespace Settings
         else
         {
             defaultSettingsFile = "defaults-cs.cfg";
-            userSettingsFile = "openmw-cs.cfg";
+            userSettingsFile = "eden-studio.cfg";
         }
 
         // Create the settings manager and load default settings file.
@@ -167,7 +167,7 @@ namespace Settings
         parser.loadSettingsFile(defaultsBin, mDefaultSettings, true, false);
 
         // The editor draws with the game's renderer, which reads the game's settings, so it has those at their defaults
-        // too (task 0014, C2). Its own openmw-cs.cfg can override them; the game's settings.cfg is not read.
+        // too (task 0014, C2). Its own eden-studio.cfg can override them; the game's settings.cfg is not read.
         if (loadEditorSettings)
         {
             const auto gameDefaults = paths.front() / "defaults.cfg";
@@ -180,7 +180,7 @@ namespace Settings
 
         const CategorySettingValueMap originalDefaultSettings = mDefaultSettings;
 
-        // Load "settings.cfg" or "openmw-cs.cfg" from every config dir except the last one as additional default
+        // Load "settings.cfg" or "eden-studio.cfg" from every config dir except the last one as additional default
         // settings.
         for (int i = 0; i < static_cast<int>(paths.size()) - 1; ++i)
         {
@@ -191,7 +191,7 @@ namespace Settings
 
         Settings::StaticValues::initDefaults();
 
-        // Load "settings.cfg" or "openmw-cs.cfg" from the last config dir as user settings. This path will be used to
+        // Load "settings.cfg" or "eden-studio.cfg" from the last config dir as user settings. This path will be used to
         // save modified settings.
         auto settingspath = paths.back() / userSettingsFile;
         if (std::filesystem::exists(settingspath))

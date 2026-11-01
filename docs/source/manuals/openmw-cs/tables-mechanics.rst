@@ -10,7 +10,7 @@ Scripts
 
 Scripts are useful to expand the base functionality offered by the engine
 or to create complex quest lines. Entries can be freely added or removed
-through OpenMW-CS. When creating a new script, it can be defined as local
+through Eden Studio. When creating a new script, it can be defined as local
 or global.
 
 

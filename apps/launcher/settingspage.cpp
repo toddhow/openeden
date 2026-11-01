@@ -80,7 +80,7 @@ namespace
         Role_LauncherLog,
         Role_OpenMWCfg,
         Role_OpenMWLog,
-        Role_OpenMWCSLog,
+        Role_EdenStudioLog,
         Role_SettingsCfg,
     };
 
@@ -95,7 +95,7 @@ namespace
         FileType{ Role_LauncherLog, "launcher.log", false },
         FileType{ Role_OpenMWCfg, "openmw.cfg", true },
         FileType{ Role_OpenMWLog, "openmw.log", false },
-        FileType{ Role_OpenMWCSLog, "openmw-cs.log", false },
+        FileType{ Role_EdenStudioLog, "eden-studio.log", false },
         FileType{ Role_SettingsCfg, "settings.cfg", true },
     };
 }

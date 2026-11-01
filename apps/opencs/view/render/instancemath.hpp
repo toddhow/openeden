@@ -11,7 +11,7 @@
 
 #include <components/misc/vsgmath.hpp>
 
-/// The sums of InstanceMode, with no window, so that openmw-cs-tests can check them. vsg::dquat's a * b means a, then
+/// The sums of InstanceMode, with no window, so that eden-studio-tests can check them. vsg::dquat's a * b means a, then
 /// b, as osg::Quat's did: its formula is OSG's (vsg/maths/quat.h).
 namespace CSVRender::InstanceMath
 {

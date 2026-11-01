@@ -85,14 +85,14 @@ Ubuntu_GCC_preprocess:
     - cmake --install .
     - if [[ "${BUILD_TESTS_ONLY}" ]]; then ./components-tests --gtest_output="xml:components-tests.xml"; fi
     - if [[ "${BUILD_TESTS_ONLY}" ]]; then ./openmw-tests --gtest_output="xml:openmw-tests.xml"; fi
-    - if [[ "${BUILD_TESTS_ONLY}" ]]; then ./openmw-cs-tests --gtest_output="xml:openmw-cs-tests.xml"; fi
+    - if [[ "${BUILD_TESTS_ONLY}" ]]; then ./eden-studio-tests --gtest_output="xml:eden-studio-tests.xml"; fi
     - if [[ "${BUILD_TESTS_ONLY}" && ! "${BUILD_WITH_CODE_COVERAGE}" ]]; then ./openmw_detournavigator_navmeshtilescache_benchmark; fi
     - if [[ "${BUILD_TESTS_ONLY}" && ! "${BUILD_WITH_CODE_COVERAGE}" ]]; then ./openmw_esm_refid_benchmark; fi
     - if [[ "${BUILD_TESTS_ONLY}" && ! "${BUILD_WITH_CODE_COVERAGE}" ]]; then ./openmw_settings_access_benchmark; fi
     - ccache -svv
     - df -h
     - if [[ "${BUILD_WITH_CODE_COVERAGE}" ]]; then ~/.local/bin/gcovr --xml-pretty --exclude-unreachable-branches --gcov-ignore-parse-errors=negative_hits.warn_once_per_file --print-summary --root "${CI_PROJECT_DIR}" -j $(nproc) -o ../coverage.xml; fi
-    - ls | grep -v -e '^extern$' -e '^install$' -e '^components-tests.xml$' -e '^openmw-tests.xml$' -e '^openmw-cs-tests.xml$' | xargs -I '{}' rm -rf './{}'
+    - ls | grep -v -e '^extern$' -e '^install$' -e '^components-tests.xml$' -e '^openmw-tests.xml$' -e '^eden-studio-tests.xml$' | xargs -I '{}' rm -rf './{}'
     - cd ..
     - df -h
     - du -sh build/
@@ -471,12 +471,12 @@ Ubuntu_Clang_Tidy_openmw:
     BUILD_TARGETS: openmw openmw-tests
   timeout: 3h
 
-Ubuntu_Clang_Tidy_openmw-cs:
+Ubuntu_Clang_Tidy_eden-studio:
   extends: .Ubuntu_Clang_Tidy_Base
   needs:
     - Ubuntu_Clang_Tidy_components
   variables:
-    BUILD_TARGETS: openmw-cs openmw-cs-tests
+    BUILD_TARGETS: eden-studio eden-studio-tests
   timeout: 3h
 
 Ubuntu_Clang_Tidy_other:
@@ -727,7 +727,7 @@ macOS15_Xcode16_arm64:
   group_name: "group-one"
 
 .variables-for-split-jobs: &target-group-two
-  targets: "bsatool components-tests esmtool niftest openmw-cs openmw-cs-tests openmw_detournavigator_navmeshtilescache_benchmark openmw_esm_refid_benchmark openmw_settings_access_benchmark openmw-physicsobjecttool openmw-essimporter openmw-iniimporter openmw-launcher openmw-navmeshtool openmw-wizard"
+  targets: "bsatool components-tests esmtool niftest eden-studio eden-studio-tests openmw_detournavigator_navmeshtilescache_benchmark openmw_esm_refid_benchmark openmw_settings_access_benchmark openmw-physicsobjecttool openmw-essimporter openmw-iniimporter openmw-launcher openmw-navmeshtool openmw-wizard"
   group_name: "group-two"
 
 .Windows_Ninja_Base:
@@ -891,7 +891,7 @@ macOS15_Xcode16_arm64:
   variables:
     config: "RelWithDebInfo"
     # Gitlab can't successfully execute following binaries due to unknown reason
-    # executables: "components-tests.exe,openmw-tests.exe,openmw-cs-tests.exe,openmw_detournavigator_navmeshtilescache_benchmark.exe"
+    # executables: "components-tests.exe,openmw-tests.exe,eden-studio-tests.exe,openmw_detournavigator_navmeshtilescache_benchmark.exe"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
@@ -1152,7 +1152,7 @@ Windows_Ninja_CacheInit_RelWithDebInfo:
   variables:
     config: "RelWithDebInfo"
     # Gitlab can't successfully execute following binaries due to unknown reason
-    # executables: "components-tests.exe,openmw-tests.exe,openmw-cs-tests.exe,openmw_detournavigator_navmeshtilescache_benchmark.exe"
+    # executables: "components-tests.exe,openmw-tests.exe,eden-studio-tests.exe,openmw_detournavigator_navmeshtilescache_benchmark.exe"
   # temporarily enabled while we're linking these on the downloads page
   rules:
     # run this for both pushes and schedules so 'latest successful pipeline for branch' always includes it

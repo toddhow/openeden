@@ -1,7 +1,7 @@
-OpenMW CS Starting Dialog
+Eden Studio Starting Dialog
 #########################
 
-In this chapter we will cover starting up OpenMW CS and the starting interface.
+In this chapter we will cover starting up Eden Studio and the starting interface.
 Start the CS the way intended for your operating system and you will be
 presented with a window and three main buttons and a small button with a
 wrench-icon. The wrench will open the configuration dialog which we will cover

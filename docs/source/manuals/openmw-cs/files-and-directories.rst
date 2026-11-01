@@ -2,9 +2,9 @@ Files and Directories
 #####################
 
 In this chapter of the manual we will cover the usage of files and directories
-by OpenMW CS. Files and directories are file system concepts of your operating
+by Eden Studio. Files and directories are file system concepts of your operating
 system, so we will not be going into specifics about that, we will only focus
-on what is relevant to OpenMW CS.
+on what is relevant to Eden Studio.
 
 
 Basics
@@ -14,7 +14,7 @@ Basics
 Directories
 ===========
 
-OpenMW and OpenMW CS use multiple directories on the file system. First of all
+OpenMW and Eden Studio use multiple directories on the file system. First of all
 there is a *user directory* that holds configuration files and a number of
 different sub-directories. The location of the user directory is hard-coded
 into the CS and depends on your operating system.
@@ -27,7 +27,7 @@ OS X              ``~/Library/Application Support/openmw/``
 Windows           ``C:\Users\ *Username* \Documents\my games\OpenMW``
 ================  =========================================
 
-In addition to to this single hard-coded directory both OpenMW and OpenMW CS
+In addition to to this single hard-coded directory both OpenMW and Eden Studio
 need a place to search for actual data files of the game: textures, 3D models,
 sounds and record files that store objects in game; dialogues and so on. These
 files are called *content files*. We support multiple such paths (we call them
@@ -79,7 +79,7 @@ Using our content files is recommended for projects that are intended to use
 the OpenMW engine. However, some players might wish to still use the
 original Morrowind engine. In addition thousands of *ESP*/*ESM* files were
 created since 2002, some of them with really outstanding content. Because of
-this OpenMW CS simply has no other choice but to support *ESP*/*ESM* files. If
+this Eden Studio simply has no other choice but to support *ESP*/*ESM* files. If
 you decide to choose *ESP*/*ESM* file instead of using our own content file
 types you are most likely aiming at compatibility with the original engine. This
 subject is covered in its own chapter of this manual.
@@ -89,7 +89,7 @@ subject is covered in its own chapter of this manual.
 
 The actual creation of new files is described in the next chapter. Here we are
 going to focus only on the details you need to know in order to create your
-first OpenMW CS file while fully understanding your needs. For now let’s just
+first Eden Studio file while fully understanding your needs. For now let’s just
 remember that content files are created inside the user directory in the the
 ``data`` subdirectory (that is the one special data directory mentioned
 earlier).
@@ -123,7 +123,7 @@ Project files
 -------------
 
 Project files act as containers for data not used by the OpenMW game engine
-itself, but still useful for OpenMW CS. The shining examples of this data
+itself, but still useful for Eden Studio. The shining examples of this data
 category are without doubt record filters (described in a later chapter of the
 manual). As a mod author you probably do not need or want to distribute project
 files at all, they are meant to be used only by you and your team.
@@ -139,7 +139,7 @@ is associated with a ``swords.omwaddon.project`` file.
 
 Project files are stored inside the user directory, in the ``projects``
 subdirectory. This is the path location for both freshly created project files,
-and a place where OpenMW CS looks for already existing files.
+and a place where Eden Studio looks for already existing files.
 
 
 Resource files

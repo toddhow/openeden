@@ -356,7 +356,7 @@ namespace
         auto frame = std::make_unique<QWidget>();
         frame->setAttribute(Qt::WA_ShowWithoutActivating);
         frame->setWindowFlag(Qt::WindowDoesNotAcceptFocus);
-        frame->setWindowTitle("OpenMW-CS capture");
+        frame->setWindowTitle("Eden Studio capture");
         frame->setFixedSize(sViewWidth * views, sViewHeight);
         auto layout = new QHBoxLayout(frame.get());
         layout->setContentsMargins(0, 0, 0, 0);
@@ -377,7 +377,7 @@ int CS::runCapture(int argc, char** argv)
 {
     Files::ConfigurationManager cfgMgr;
     bpo::variables_map variables;
-    bpo::options_description desc("Syntax: openmw-cs --open-cell X --auto-screenshot N --auto-quit M");
+    bpo::options_description desc("Syntax: eden-studio --open-cell X --auto-screenshot N --auto-quit M");
     auto addOption = desc.add_options();
     addOption("open-cell", bpo::value<std::string>()->required());
     addOption("auto-screenshot", bpo::value<std::uint64_t>()->default_value(0));
@@ -420,7 +420,7 @@ int CS::runCapture(int argc, char** argv)
     cfgMgr.readConfiguration(variables, desc, false);
     bpo::notify(variables);
     Settings::Manager::load(cfgMgr, true);
-    Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW-CS");
+    Debug::setupLogging(cfgMgr.getLogPath(), "Eden-Studio");
     Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
 
     Request request;

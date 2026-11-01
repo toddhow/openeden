@@ -362,7 +362,7 @@ void CSVDoc::View::setupHelpMenu()
     QAction* tutorial = createMenuEntry("Tutorial", ":info", help, "document-help-tutorial");
     connect(tutorial, &QAction::triggered, this, &View::tutorial);
 
-    QAction* about = createMenuEntry("About OpenMW-CS", ":info", help, "document-help-about");
+    QAction* about = createMenuEntry("About Eden Studio", ":info", help, "document-help-about");
     connect(about, &QAction::triggered, this, &View::infoAbout);
 
     QAction* aboutQt = createMenuEntry("About Qt", ":qt", help, "document-help-qt");
@@ -814,7 +814,7 @@ void CSVDoc::View::infoAbout()
 
     QString aboutText = QString(
         "<p style=\"white-space: pre-wrap;\">"
-        "<b><h2>OpenMW Construction Set</h2></b>"
+        "<b><h2>Eden Studio</h2></b>"
         "%1\n\n"
         "%2\n\n"
         "%3\n\n"
@@ -827,12 +827,12 @@ void CSVDoc::View::infoAbout()
         "</table>"
         "</p>")
                             .arg(versionInfo,
-                                tr("OpenMW-CS is a content file editor for OpenMW, a modern, free and open source game "
-                                   "engine."),
+                                tr("Eden Studio is the content and scene editor of OpenEden, a free and open source game engine "
+                                   "based on OpenMW."),
                                 tr(copyrightInfo.c_str()), tr("Home Page:"), tr("Forum:"), tr("Bug Tracker:"),
                                 tr("IRC:"));
 
-    QMessageBox::about(this, "About OpenMW-CS", aboutText);
+    QMessageBox::about(this, "About Eden Studio", aboutText);
 }
 
 void CSVDoc::View::infoAboutQt()

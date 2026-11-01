@@ -1,14 +1,14 @@
 Drag and Drop
 #############
 
-Many tasks in OpenMW-CS become noticeably easier and faster by using the drag and
+Many tasks in Eden Studio become noticeably easier and faster by using the drag and
 drop functionality. This article covers the many situations where this works.
 
 
 Records to Input Fields
 ***********************
 
-Certain record types in OpenMW-CS have input fields where other records need to 
+Certain record types in Eden Studio have input fields where other records need to 
 be assigned. Assignment can be done manually by typing the ID of the record in 
 the chosen input field. This can be slow though, and in the spirit of this 
 article, a record can simply be dragged into a valid field that accepts its 
@@ -35,13 +35,13 @@ Filtering
 *********
 
 Using regular expressions to filter table contents is powerful, but can at the same 
-time be rather complicated for users not familiar with the syntax. OpenMW-CS thus
+time be rather complicated for users not familiar with the syntax. Eden Studio thus
 supports drag and drop of records or variables directly into the filters field,
 automatically creating the appropriate filter.
 
 Below are just two examples of how easy it is to create filters on-the-fly to 
 improve your workflow. Many more uses are possible as the same logic works and
-can be used for filtering across OpenMW-CS.
+can be used for filtering across Eden Studio.
 
 .. figure:: https://gitlab.com/OpenMW/openmw-docs/-/raw/master/docs/source/manuals/openmw-cs/_static/drag_object_filter.webp
     :align: center

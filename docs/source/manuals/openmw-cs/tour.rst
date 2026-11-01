@@ -1,4 +1,4 @@
-A Tour through OpenMW CS: making a magic ring
+A Tour through Eden Studio: making a magic ring
 #############################################
 
 In this first chapter we will create a mod that adds a new ring with a simple
@@ -17,10 +17,10 @@ In this first section we will define what our new ring is, what it looks like,
 and what it does. Getting it to work is the first step before we go further.
 
 
-Starting up OpenMW CS
+Starting up Eden Studio
 =====================
 
-We will start by launching OpenMW CS, the location of the program depends on
+We will start by launching Eden Studio, the location of the program depends on
 your operating system. You will be presented with a dialogue with three
 options: create a new game, create a new addon, edit a content file.
 
@@ -50,7 +50,7 @@ a blank window rather than a table choose *World* → *Objects* from the menu.
 .. figure:: https://gitlab.com/OpenMW/openmw-docs/raw/master/docs/source/manuals/openmw-cs/_static/images/chapter-1/new-project.png
    :alt: The table showing all object records in the game.
 
-Let's talk about the interface for a second. Every window in OpenMW CS has
+Let's talk about the interface for a second. Every window in Eden Studio has
 *panels*, these are often but not always tables. You can close a panel by
 clicking the small *X* on the title bar of the panel, or you can detach it by
 either dragging the title bar or clicking the icon with the two windows. A
@@ -120,7 +120,7 @@ We will add an icon first. Open the *Icons* table the same way you opened the
 crowded remember that you can detach panels. The table is huge and not every
 ring icon starts with :code:`ring`, so we have to use filters to find what we want.
 
-Filters are a central element of OpenMW CS and a major departure from how the
+Filters are a central element of Eden Studio and a major departure from how the
 original Morrowind CS was used. In fact, filters are so important that they
 have their own table as well. We won't be going that far for now though. There
 are three types of filters: *Project filters* are part of the project and are
@@ -337,7 +337,7 @@ There is advice in Scripting for Dummies, the definitive manual for Morrowind Sc
    this will put them right at the beginning of the list and keep them neatly together."
 
 This is valid for the rather poorer navigation facilities there, but it's not sensible for
-the OpenMW CS. Some modders took it further, and started script names and object id with numbers,
+Eden Studio. Some modders took it further, and started script names and object id with numbers,
 typically :code:`1`, to bring the items even earlier in the default alphabetical sorts. In fact
 the CS won't allow names/ids to start with numbers or to include :code:`.`.
 

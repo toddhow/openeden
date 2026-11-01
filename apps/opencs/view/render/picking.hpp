@@ -21,7 +21,7 @@
 #include "tagbase.hpp"
 
 /// What's under a point of a view, keeping the rules of the OSG editor's WorldspaceWidget::mousePick. No window and no
-/// GPU, so that openmw-cs-tests can check it: this reads the vertex arrays that nodes keep after they upload.
+/// GPU, so that eden-studio-tests can check it: this reads the vertex arrays that nodes keep after they upload.
 namespace CSVRender::Picking
 {
     inline constexpr const char* sTagKey = "editor tag";

@@ -3,12 +3,12 @@ Object Record Types
 ###################
 
 A game world contains many items, such as chests, weapons and monsters. All of
-these items are merely instances of templates we call Objects. The OpenMW-CS
+these items are merely instances of templates we call Objects. The Eden Studio
 Objects table contains information about each of these template objects, such
 as its value and weight in the case of items, or an aggression level in the
 case of NPCs.
 
-The following is a list of all Record Types and what you can tell OpenMW-CS
+The following is a list of all Record Types and what you can tell Eden Studio
 about each of them.
 
 Activator

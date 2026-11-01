@@ -127,7 +127,7 @@ CSVWorld::ScriptEdit::ScriptEdit(const CSMDoc::Document& document, ScriptHighlig
 {
     wrapLines(false);
     setTabWidth();
-    setUndoRedoEnabled(false); // we use OpenCS-wide undo/redo instead
+    setUndoRedoEnabled(false); // we use Eden Studio-wide undo/redo instead
 
     mAllowedTypes << CSMWorld::UniversalId::Type_Journal << CSMWorld::UniversalId::Type_Global
                   << CSMWorld::UniversalId::Type_Topic << CSMWorld::UniversalId::Type_Sound

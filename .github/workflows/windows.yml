@@ -221,9 +221,9 @@ jobs:
       if: ${{ ! inputs.package }}
       run: build/openmw-tests.exe
 
-    - name: Run OpenMW-CS tests
+    - name: Run Eden Studio tests
       if: ${{ ! inputs.package }}
-      run: build/openmw-cs-tests.exe
+      run: build/eden-studio-tests.exe
 
     - name: Run detournavigator navmeshtilescache benchmark
       if: ${{ ! inputs.package }}

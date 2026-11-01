@@ -67,7 +67,7 @@ Putting the model in-game
 Place the exported model in the Meshes sub-folder of a data folder recognized by the game,
 e.g. the Morrowind Data Files folder, or the local data folder.
 Place all required textures in the Textures sub-folder.
-Now start OpenMW-CS, create a new addon file
+Now start Eden Studio, create a new addon file
 and you should see your mesh in the Assets -> Meshes table.
 Go ahead and make some object use your mesh.
 You can now preview by right clicking on the object -> Preview to see what the mesh will look like.

@@ -73,7 +73,7 @@ Screenshots
 Override directory (data-local)
 -------------------------------
 
-This is the directory in which OpenMW-CS saves generated content files. 
+This is the directory in which Eden Studio saves generated content files. 
 Additionally, this is always the last-loaded data directory in OpenMW, overriding any which came before it.
 This can be useful, for instance, for placing automatically-generated plugins created by external tools or to be very certain that particular assets are always overridden regardless of load order.
 You may define your own, custom ``data-local`` directory by using it as a key in ``openmw.cfg``, e.g. ``data-local=C:/Games/OpenMW/data``.

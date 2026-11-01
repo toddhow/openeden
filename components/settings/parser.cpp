@@ -305,7 +305,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
             ostream << "#" << std::endl;
             ostream << "#   https://openmw.readthedocs.io/en/master/reference/modding/settings/index.html" << std::endl;
         }
-        else if (filename == "openmw-cs.cfg")
+        else if (filename == "eden-studio.cfg")
         {
             ostream << "# For available settings, see the file 'apps/opencs/model/prefs/values.hpp' in our source repo."
                     << std::endl;

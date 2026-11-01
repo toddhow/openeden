@@ -3,7 +3,7 @@ Install Game Files
 ##################
 
 OpenMW is a complete game engine that can either run `Morrowind`_
-or original projects created with OpenMW-CS, such as `Example Suite`_.
+or original projects created with Eden Studio, such as `Example Suite`_.
 
 Morrowind
 #########

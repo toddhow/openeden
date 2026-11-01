@@ -216,7 +216,7 @@ Getting the Model In-game
 
 Once the Land Racer is exported, both of its ``.dae`` and ``.txt`` files need to 
 be placed in the correct folder where OpenMW will read it. Afterwards in 
-OpenMW-CS, it should be visible in the Assets->Meshes table and can be assigned 
+Eden Studio, it should be visible in the Assets->Meshes table and can be assigned 
 to the ``Model/Animation`` field of a creature.
 
 .. image:: https://gitlab.com/OpenMW/openmw-docs/-/raw/master/docs/source/reference/modding/custom-models/_static/landracer-in-openmwcs.jpg

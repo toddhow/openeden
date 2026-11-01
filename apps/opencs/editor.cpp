@@ -38,6 +38,7 @@
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "model/prefs/configmigration.hpp"
 #include "model/world/universalid.hpp"
 #include "view/doc/viewmanager.hpp"
 
@@ -45,10 +46,10 @@ CS::Editor::Editor(int argc, char** argv)
     : mConfigVariables(readConfiguration())
     , mSettingsState(mCfgMgr)
     , mDocumentManager(mCfgMgr)
-    , mPid(std::filesystem::temp_directory_path() / "openmw-cs.pid")
+    , mPid(std::filesystem::temp_directory_path() / "eden-studio.pid")
     , mLockFile(QFileInfo(Files::pathToQString(mPid)).absoluteFilePath() + ".lock")
     , mMerge(mDocumentManager)
-    , mIpcServerName("org.openmw.OpenCS")
+    , mIpcServerName("org.openeden.EdenStudio")
     , mServer(nullptr)
     , mClientSocket(nullptr)
 {
@@ -108,7 +109,7 @@ CS::Editor::~Editor()
 boost::program_options::variables_map CS::Editor::readConfiguration()
 {
     boost::program_options::variables_map variables;
-    boost::program_options::options_description desc("Syntax: openmw-cs <options>\nAllowed options");
+    boost::program_options::options_description desc("Syntax: eden-studio <options>\nAllowed options");
 
     auto addOption = desc.add_options();
     addOption("data",
@@ -135,8 +136,15 @@ boost::program_options::variables_map CS::Editor::readConfiguration()
     boost::program_options::notify(variables);
 
     mCfgMgr.readConfiguration(variables, desc, false);
+
+    // OpenMW-CS kept its settings in openmw-cs.cfg. The first run of Eden Studio copies that file to eden-studio.cfg
+    // (the old file is only read) so that the user keeps their preferences; see model/prefs/configmigration.hpp.
+    const bool migrated = CSMPrefs::migrateLegacyConfig(mCfgMgr.getUserConfigPath());
+
     Settings::Manager::load(mCfgMgr, true);
-    Debug::setupLogging(mCfgMgr.getLogPath(), "OpenMW-CS");
+    Debug::setupLogging(mCfgMgr.getLogPath(), "Eden-Studio");
+    if (migrated)
+        Log(Debug::Info) << "Copied " << CSMPrefs::legacyConfigFileName << " to " << CSMPrefs::configFileName;
 
     return variables;
 }
@@ -183,7 +191,7 @@ std::pair<Files::PathContainer, std::vector<std::string>> CS::Editor::readConfig
         messageBox.setIcon(QMessageBox::Critical);
         messageBox.setStandardButtons(QMessageBox::Ok);
         messageBox.setText(
-            tr("<br><b>OpenCS is unable to access the local data directory. This may indicate a faulty configuration "
+            tr("<br><b>Eden Studio is unable to access the local data directory. This may indicate a faulty configuration "
                "or a broken install.</b>"));
         messageBox.exec();
 
@@ -336,7 +344,7 @@ bool CS::Editor::makeIPCServer()
 
         if (!mLockFile.tryLock())
         {
-            Log(Debug::Error) << "Error: OpenMW-CS is already running.";
+            Log(Debug::Error) << "Error: Eden Studio is already running.";
             return false;
         }
 

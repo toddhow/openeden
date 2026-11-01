@@ -67,7 +67,7 @@ probably do not want when you are making your own game.
 Define paths to essential models
 ================================
 
-Certain models, essential to OpenMW, cannot be assigned through OpenMW-CS but
+Certain models, essential to OpenMW, cannot be assigned through Eden Studio but
 are instead assigned through ``settings.cfg``. These models are player and NPC
 animations, and meshes for the sky. In ``settings.cfg`` used by your OpenMW
 install, add the following lines under the ``[Models]`` section.

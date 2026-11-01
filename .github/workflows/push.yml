@@ -47,8 +47,8 @@ jobs:
     - name: Run OpenMW tests
       run: ./openmw-tests
 
-    - name: Run OpenMW-CS tests
-      run: ./openmw-cs-tests
+    - name: Run Eden Studio tests
+      run: ./eden-studio-tests
 
     # The Lua API tests, against OpenMW's example suite at the revision pinned here (the same as .gitlab-ci.yml). The game
     # needs a Vulkan device, so a software one (lavapipe) runs under a virtual X server. Task 0022.

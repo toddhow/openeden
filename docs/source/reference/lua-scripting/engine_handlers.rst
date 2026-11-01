@@ -25,7 +25,7 @@ Engine handler is a function defined by a script, that can be called by the engi
 
   * - onInit(initData)
     - | Called once when the script is created (not loaded). `InitData can be`
-      | `assigned to a script in openmw-cs (not yet implemented).`
+      | `assigned to a script in Eden Studio (not yet implemented).`
       | ``onInterfaceOverride`` can be called before ``onInit``.
   * - onUpdate(dt)
     - | Called every frame in the Lua thread (even if the game is paused). `dt` is

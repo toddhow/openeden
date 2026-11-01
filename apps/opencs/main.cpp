@@ -41,7 +41,7 @@ int runApplication(int argc, char* argv[])
 
     Platform::Application application(argc, argv);
 
-    application.setWindowIcon(QIcon(":openmw-cs"));
+    application.setWindowIcon(QIcon(":eden-studio"));
 
 #ifdef __linux__
     setlocale(LC_NUMERIC, "C");
@@ -67,5 +67,5 @@ int runApplication(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW-CS");
+    return Debug::wrapApplication(&runApplication, argc, argv, "Eden-Studio");
 }

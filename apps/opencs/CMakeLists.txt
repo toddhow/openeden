@@ -1,5 +1,5 @@
 # csmodel: the editor's data, documents, tools and preferences (task 0014, stage C1). It must build and be tested
-# without any view code, as must openmw-cs-tests. The three widgets are here because model/prefs/coloursetting.cpp
+# without any view code, as must eden-studio-tests. The three widgets are here because model/prefs/coloursetting.cpp
 # and model/world/idcompletionmanager.cpp use them; they are plain Qt with no 3D.
 set (OPENCS_SRC
     )
@@ -52,7 +52,7 @@ opencs_hdrs (model/tools
 
 
 opencs_units (model/prefs
-    state setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
+    state configmigration setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
     shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory
     )
 
@@ -183,7 +183,7 @@ set (OPENCS_RES ${CMAKE_SOURCE_DIR}/files/opencs/resources.qrc
                 ${CMAKE_SOURCE_DIR}/files/launcher/launcher.qrc
     )
 
-source_group (openmw-cs FILES main.cpp ${OPENCS_SRC} ${OPENCS_HDR})
+source_group (eden-studio FILES main.cpp ${OPENCS_SRC} ${OPENCS_HDR})
 
 if(WIN32)
     set(OPENCS_RES ${OPENCS_RES} ${CMAKE_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc)
@@ -196,7 +196,7 @@ endif(WIN32)
 qt_add_resources(OPENCS_RES_SRC ${OPENCS_RES})
 
 if(APPLE)
-    set (OPENCS_MAC_ICON "${CMAKE_SOURCE_DIR}/files/mac/openmw-cs.icns")
+    set (OPENCS_MAC_ICON "${CMAKE_SOURCE_DIR}/files/mac/eden-studio.icns")
     set (OPENCS_CFG "${OpenMW_BINARY_DIR}/defaults-cs.cfg")
     set (OPENCS_DEFAULT_FILTERS_FILE "${OpenMW_BINARY_DIR}/resources/defaultfilters")
     set (OPENCS_OPENMW_CFG "${OpenMW_BINARY_DIR}/openmw.cfg")
@@ -207,7 +207,7 @@ else()
     set (OPENCS_OPENMW_CFG "")
 endif(APPLE)
 
-add_library(openmw-cs-lib STATIC
+add_library(eden-studio-lib STATIC
     ${OPENCS_SRC}
     ${OPENCS_UI_HDR}
     ${OPENCS_MOC_SRC}
@@ -215,7 +215,7 @@ add_library(openmw-cs-lib STATIC
 )
 
 if(BUILD_OPENCS)
-    openmw_add_executable(openmw-cs
+    openmw_add_executable(eden-studio
         MACOSX_BUNDLE
         ${OPENCS_MAC_ICON}
         ${OPENCS_CFG}
@@ -225,35 +225,35 @@ if(BUILD_OPENCS)
         main.cpp
     )
 
-    target_link_libraries(openmw-cs openmw-cs-lib)
+    target_link_libraries(eden-studio eden-studio-lib)
 
-    set_property(TARGET openmw-cs PROPERTY AUTOMOC ON)
-    set_property(TARGET openmw-cs PROPERTY AUTOUIC_SEARCH_PATHS ui)
-    set_property(TARGET openmw-cs PROPERTY AUTOUIC ON)
+    set_property(TARGET eden-studio PROPERTY AUTOMOC ON)
+    set_property(TARGET eden-studio PROPERTY AUTOUIC_SEARCH_PATHS ui)
+    set_property(TARGET eden-studio PROPERTY AUTOUIC ON)
 
     if (BUILD_WITH_CODE_COVERAGE)
-        target_compile_options(openmw-cs PRIVATE --coverage)
-        target_link_libraries(openmw-cs gcov)
+        target_compile_options(eden-studio PRIVATE --coverage)
+        target_link_libraries(eden-studio gcov)
     endif()
 endif()
 
 if(APPLE AND BUILD_OPENCS)
-    set(OPENCS_BUNDLE_NAME "OpenMW-CS")
+    set(OPENCS_BUNDLE_NAME "Eden Studio")
     set(OPENCS_BUNDLE_RESOURCES_DIR "${OpenMW_BINARY_DIR}/${OPENCS_BUNDLE_NAME}.app/Contents/Resources")
 
     set(OPENMW_RESOURCES_ROOT ${OPENCS_BUNDLE_RESOURCES_DIR})
 
     add_subdirectory(../../files/ ${CMAKE_CURRENT_BINARY_DIR}/files)
 
-    set_target_properties(openmw-cs PROPERTIES
+    set_target_properties(eden-studio PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}"
         OUTPUT_NAME ${OPENCS_BUNDLE_NAME}
-        MACOSX_BUNDLE_ICON_FILE "openmw-cs.icns"
-        MACOSX_BUNDLE_BUNDLE_NAME "OpenMW-CS"
+        MACOSX_BUNDLE_ICON_FILE "eden-studio.icns"
+        MACOSX_BUNDLE_BUNDLE_NAME "Eden Studio"
         MACOSX_BUNDLE_GUI_IDENTIFIER "org.openmw.opencs"
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${OPENMW_VERSION}
         MACOSX_BUNDLE_BUNDLE_VERSION ${OPENMW_VERSION}
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/files/mac/openmw-cs-Info.plist.in"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/files/mac/eden-studio-Info.plist.in"
         )
 
     set_source_files_properties(${OPENCS_MAC_ICON} PROPERTIES
@@ -265,24 +265,24 @@ if(APPLE AND BUILD_OPENCS)
     set_source_files_properties(${OPENCS_OPENMW_CFG} PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources)
 
-    add_custom_command(TARGET openmw-cs
+    add_custom_command(TARGET eden-studio
         POST_BUILD
         COMMAND cp "${OpenMW_BINARY_DIR}/resources/version" "${OPENCS_BUNDLE_RESOURCES_DIR}/resources")
 endif()
 
-target_link_libraries(openmw-cs-lib
+target_link_libraries(eden-studio-lib
     csmodel
     vsgQt
 )
 
-target_link_libraries(openmw-cs-lib Qt::Widgets Qt::Core Qt::Network Qt::Svg)
+target_link_libraries(eden-studio-lib Qt::Widgets Qt::Core Qt::Network Qt::Svg)
 
 if (WIN32 AND BUILD_OPENCS)
-    target_sources(openmw-cs PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
+    target_sources(eden-studio PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
 endif()
 
 if (WIN32 AND BUILD_OPENCS)
-    INSTALL(TARGETS openmw-cs RUNTIME DESTINATION ".")
+    INSTALL(TARGETS eden-studio RUNTIME DESTINATION ".")
 
     get_generator_is_multi_config(multi_config)
     if (multi_config)
@@ -304,22 +304,22 @@ if (MSVC)
 endif (MSVC)
 
 if(APPLE AND BUILD_OPENCS)
-    INSTALL(TARGETS openmw-cs BUNDLE DESTINATION "." COMPONENT Bundle)
+    INSTALL(TARGETS eden-studio BUNDLE DESTINATION "." COMPONENT Bundle)
 endif()
 
 if(USE_QT)
-    set_property(TARGET openmw-cs-lib PROPERTY AUTOMOC ON)
-    set_property(TARGET openmw-cs-lib PROPERTY AUTOUIC_SEARCH_PATHS ui)
-    set_property(TARGET openmw-cs-lib PROPERTY AUTOUIC ON)
+    set_property(TARGET eden-studio-lib PROPERTY AUTOMOC ON)
+    set_property(TARGET eden-studio-lib PROPERTY AUTOUIC_SEARCH_PATHS ui)
+    set_property(TARGET eden-studio-lib PROPERTY AUTOUIC ON)
 endif(USE_QT)
 
 if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-cs-lib PRIVATE --coverage)
-    target_link_libraries(openmw-cs-lib gcov)
+    target_compile_options(eden-studio-lib PRIVATE --coverage)
+    target_link_libraries(eden-studio-lib gcov)
 endif()
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
-    target_precompile_headers(openmw-cs-lib PRIVATE
+    target_precompile_headers(eden-studio-lib PRIVATE
         <boost/program_options/options_description.hpp>
 
         <algorithm>

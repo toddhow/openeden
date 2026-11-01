@@ -163,7 +163,7 @@ The texture path can also be set manually in the exported COLLADA file.
 Textures Not Visible
 ====================
 
-If a texture doesn't show on the exported model in OpenMW-CS or in-game, it's likely
+If a texture doesn't show on the exported model in Eden Studio or in-game, it's likely
 the file path to the texture is incorrect and OpenMW can't find it.
 To fix this you can open the exported ``.dae`` file in a text editor and check
 the texture's filepath. In the example of this barrel model it's found on lines 13-17.
@@ -214,7 +214,7 @@ Getting the Model in-game
 *************************
 
 Once the model is exported, it needs to be placed in the correct folder where 
-OpenMW will read it. In OpenMW-CS it can then be assigned to an object and added 
+OpenMW will read it. In Eden Studio it can then be assigned to an object and added 
 to a world cell.
 
 

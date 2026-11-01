@@ -9,7 +9,7 @@
 #include <vsg/maths/vec3.h>
 
 /// What the camera controllers do to a view matrix, keeping what the OSG editor's osg::Matrixd calls gave. No Qt and no
-/// scene, so that openmw-cs-tests can check it. Eye space is the same in OSG and VSG (x right, y up, looking along -z):
+/// scene, so that eden-studio-tests can check it. Eye space is the same in OSG and VSG (x right, y up, looking along -z):
 /// VSG's Y flip and depth range are in the projection, so nothing here knows of them.
 namespace CSVRender::CameraPose
 {

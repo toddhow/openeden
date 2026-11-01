@@ -3,7 +3,7 @@ OpenEden
 
 OpenEden is an open-source open-world RPG game engine forked from OpenMW. It plays Morrowind by Bethesda Softworks (you need to own the game), and it aims to bring modern engine features to Bethesda's older games. Morrowind is the only game it supports. OpenEden is not OpenMW and is not affiliated with or endorsed by the OpenMW project.
 
-OpenEden also comes with an editor, based on OpenMW-CS, a replacement for Bethesda's Construction Set.
+OpenEden also comes with an editor, based on OpenMW-CS (now Eden Studio), a replacement for Bethesda's Construction Set.
 
 * Version: 0.51.0
 * License: GPLv3 (see [LICENSE](LICENSE) for more information)

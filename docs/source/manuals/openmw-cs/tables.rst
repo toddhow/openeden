@@ -1,7 +1,7 @@
 Tables
 ######
 
-If you have launched OpenMW CS already and played around with it for a bit, you
+If you have launched Eden Studio already and played around with it for a bit, you
 will have noticed that the interface is made entirely of tables. This does not
 mean it works just like a spreadsheet application though, it would be more
 accurate to think of databases instead. Due to the vast amounts of information
@@ -13,7 +13,7 @@ Used Terms
 **********
 
 Record
-   An entry in OpenMW CS representing an item, location, sound, NPC or anything
+   An entry in Eden Studio representing an item, location, sound, NPC or anything
    else.
 
 Instance, Object
@@ -31,17 +31,17 @@ Instance, Object
    than 400, you would only need to change the object Exquisite Belt rather
    than all exquisite belt instances individually.
 
-Some columns are recurring throughout OpenMW CS, they show up in (nearly) every
+Some columns are recurring throughout Eden Studio, they show up in (nearly) every
 table.
 
 ID
    Each item, location, sound, etc. gets the same unique identifier in both
-   OpenMW CS and Morrowind. This is usually a very self-explanatory name. For
+   Eden Studio and Morrowind. This is usually a very self-explanatory name. For
    example, the ID for the (unique) black pants of Caius Cosades is
    ``Caius_pants``. This allows players to manipulate the game in many ways.
    For example, they could add these pants to their inventory by opening the
    console and entering: ``player- >addItem Caius_pants``. In both Morrowind
-   and OpenMW CS the ID is the primary way to identify all these different
+   and Eden Studio the ID is the primary way to identify all these different
    parts of the game.
 
 Modified

@@ -1,14 +1,14 @@
 Record Filters
 ##############
 
-Filters are a key element of the OpenMW CS user interface, they allow rapid and
+Filters are a key element of Eden Studio user interface, they allow rapid and
 easy access to records presented in all tables. In order to use this
 application effectively you need to familiarise yourself with all the concepts
 and instructions explained in this chapter. The filter system is somewhat
 unusual at first glance, but once you understand the basics it will be fairly
 intuitive and easy to use
 
-Filters are a key element to using the OpenMW CS efficiently by allowing you to
+Filters are a key element to using Eden Studio efficiently by allowing you to
 narrow down the table entries very quickly and find what you are looking for.
 The filter system might appear unusual at first, you don't just type in a word
 and get all instances where it occurs, instead filters are first-class objects
@@ -52,7 +52,7 @@ Interface
 *********
 
 Above each table there is a text field which is used to enter a filter: either
-one predefined by the OpenMW CS developers or one  made by you. Another
+one predefined by Eden Studio developers or one  made by you. Another
 important element is the filter table found under *View* → *Filters*. You
 should see the default filters made by the OpenMW team in the table. The table
 has the columns *Filter*, *Description* and *Modified*.
@@ -112,7 +112,7 @@ before writing you own.
 Writing your own filters
 ************************
 
-As mentioned before, filters are just another type of record in the OpenMW CS.
+As mentioned before, filters are just another type of record in Eden Studio.
 To create a new filter you will have to add a new record to the *Filters* table
 and set its properties to your liking. Filters are created by combining
 existing filters into more complex ones.
@@ -130,7 +130,7 @@ that determines the lifetime of the filter. These are the supported scopes:
 
 ``session::``
    Indicates that the filter is not stored between multiple sessions and once
-   you quit the OpenMW CS application the filter will be gone. Until then it
+   you quit Eden Studio application the filter will be gone. Until then it
    can be found inside the filters table.
 
 Project-filters are stored in an internal project file, not final content file
@@ -196,7 +196,7 @@ Comparison Expressions
       Will evaluate to ``true`` [#]_ for all records containing word ``true`` inside
       *Portable* column cell.
 
-.. [#] There is no Boolean (``true`` or ``false``) value in the OpenMW CS. You
+.. [#] There is no Boolean (``true`` or ``false``) value in Eden Studio. You
        should use a string for those.
 
        
@@ -258,7 +258,7 @@ Anonymous filters
 =================
 
 Creating a whole new filter when you only intend to use it once can be
-cumbersome. For that reason the OpenMW CS supports *anonymous* filters which
+cumbersome. For that reason Eden Studio supports *anonymous* filters which
 can be typed directly into the filters field of a table. They are not stored
 anywhere, when you clear the field the filter is gone forever.
 
@@ -282,7 +282,7 @@ have to edit the filter record.
 Replacing the default filters set
 =================================
 
-OpenMW CS allows you to substitute the default filter set for the entire
+Eden Studio allows you to substitute the default filter set for the entire
 application. This will affect the default filters for all content files that
 have not been edited on this computer and user account.
 

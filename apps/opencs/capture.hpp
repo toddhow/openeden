@@ -9,7 +9,7 @@ namespace CS
     /// Opens the content files of the configuration, shows one cell and writes a frame of it to the screenshots folder,
     /// with no person present: no editor window, no dialogue and no IPC server, and its one window takes no focus.
     ///
-    /// openmw-cs --open-cell X --auto-screenshot N --auto-quit M [--camera ex,ey,ez,cx,cy,cz,ux,uy,uz] [--capture-views
+    /// eden-studio --open-cell X --auto-screenshot N --auto-quit M [--camera ex,ey,ez,cx,cy,cz,ux,uy,uz] [--capture-views
     /// V]
     ///
     /// X is a cell's record ID ("#-2 -9") or its name. N and M count frames. --camera sets the view as eye, centre and

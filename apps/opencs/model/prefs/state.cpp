@@ -19,6 +19,7 @@
 #include <components/settings/settings.hpp>
 
 #include "boolsetting.hpp"
+#include "configmigration.hpp"
 #include "coloursetting.hpp"
 #include "doublesetting.hpp"
 #include "intsetting.hpp"
@@ -550,7 +551,7 @@ void CSMPrefs::State::declareSubcategory(const QString& label)
 }
 
 CSMPrefs::State::State(const Files::ConfigurationManager& configurationManager)
-    : mConfigFile("openmw-cs.cfg")
+    : mConfigFile(configFileName)
     , mDefaultConfigFile("defaults-cs.cfg")
     , mConfigurationManager(configurationManager)
     , mCurrentCategory(mCategories.end())

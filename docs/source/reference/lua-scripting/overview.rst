@@ -121,7 +121,7 @@ The options are:
 
     PLAYER: scripts/example/player.lua
 
-2. (not implemented yet) Add the script in OpenMW CS on "Lua scripts" view and save as "my_lua_mod.omwaddon".
+2. (not implemented yet) Add the script in Eden Studio on "Lua scripts" view and save as "my_lua_mod.omwaddon".
 
 
 Enable it in ``openmw.cfg`` the same way as any other mod:

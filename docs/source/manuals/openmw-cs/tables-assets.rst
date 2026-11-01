@@ -34,7 +34,7 @@ case, events and triggers occurring at particular animation frames.
 
 For example, a typical textkey entry intended for a Sound Generator would be
 named ``SoundGen: Left`` and be hand placed by an animator whenever the left leg
-of the creature touches the ground. In OpenMW-CS, the appropriate Sound
+of the creature touches the ground. In Eden Studio, the appropriate Sound
 Generator of an appropriate type would then be connected to the animated creature.
 In this case the type would be `Left Foot`. Once in-game, OpenMW will play the
 sound whenever its textkey occurs in the currently playing animation.
@@ -61,7 +61,7 @@ Meshes
 
 Meshes are 3D assets that need to be assigned to objects to render them in the 
 game world. Entries in this table are based on contents of ``data/meshes`` 
-folder and cannot be edited from OpenMW-CS.  
+folder and cannot be edited from Eden Studio.  
 
 
 Icons
@@ -70,7 +70,7 @@ Icons
 Icons are images used in the user interface to represent inventory items, 
 spells, and attributes. They can be assigned to relevant records through other 
 dialogues in the editor. Entries in this table are based on contents of 
-``data/icons`` folder and cannot be edited from OpenMW-CS.  
+``data/icons`` folder and cannot be edited from Eden Studio.  
  
 
 Music Files
@@ -78,7 +78,7 @@ Music Files
 
 Music is played in the background during the game and at special events such as 
 intro, death, or level up. Entries in this table are based on contents of 
-``data/music`` folder and cannot be edited from OpenMW-CS.  
+``data/music`` folder and cannot be edited from Eden Studio.  
 
 
 Sound Files
@@ -86,7 +86,7 @@ Sound Files
 
 Sound files are the source audio files on the hard-drive and are used by other
 records related to sound. Entries in this table are based on contents of
-``data/sounds`` folder and cannot be edited from OpenMW-CS. 
+``data/sounds`` folder and cannot be edited from Eden Studio. 
 
 
 Textures
@@ -97,7 +97,7 @@ interface and more. Definitions which mesh uses which texture are included in
 the mesh files and cannot be assigned through the editor. To use a texture to 
 paint the terrain, a separate entry is needed in the Land Textures table. 
 Entries in this table are based on contents of ``data/textures`` folder and 
-cannot be edited from OpenMW-CS.
+cannot be edited from Eden Studio.
 
 
 Videos
@@ -105,4 +105,4 @@ Videos
 
 Videos can be shown at various points in the game, depending on where they are 
 called. Entries in this table are based on contents of ``data/videos`` folder 
-and cannot be edited from OpenMW-CS.
+and cannot be edited from Eden Studio.

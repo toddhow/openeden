@@ -313,13 +313,13 @@ void CSVWorld::GenericCreator::setScope(unsigned int scope)
             addScope("Project", CSMWorld::Scope_Project,
                 "Record will be stored in a local project file.<p>"
                 "Record will be created in the reserved namespace \"project\".<p>"
-                "Record is available when running OpenMW via OpenCS.");
+                "Record is available when running OpenMW via Eden Studio.");
 
         if (mScopes & CSMWorld::Scope_Session)
             addScope("Session", CSMWorld::Scope_Session,
                 "Record exists only for the duration of the current editing session.<p>"
                 "Record will be created in the reserved namespace \"session\".<p>"
-                "Record is not available when running OpenMW via OpenCS.");
+                "Record is not available when running OpenMW via Eden Studio.");
 
         connect(mScope, qOverload<int>(&QComboBox::currentIndexChanged), this, &GenericCreator::scopeChanged);
 
