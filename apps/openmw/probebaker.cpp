@@ -14,6 +14,7 @@
 #include <components/render/hdrmath.hpp>
 #include <components/render/probebake.hpp>
 #include <components/render/probes.hpp>
+#include <components/render/reflectionprobes.hpp>
 #include <components/settings/values.hpp>
 
 #include "mwbase/environment.hpp"
@@ -61,6 +62,16 @@ namespace OMW
         private:
             const MWPhysics::PhysicsSystem& mPhysics;
         };
+
+        // The largest valid map width that is not above `wanted` (8, 16, 32 or 64).
+        std::uint32_t reflectionResolutionFor(int wanted)
+        {
+            std::uint32_t resolution = Render::Gi::minReflectionResolution;
+            while (resolution * 2 <= static_cast<std::uint32_t>(std::max(wanted, 0))
+                && resolution * 2 <= Render::Gi::maxReflectionResolution)
+                resolution *= 2;
+            return resolution;
+        }
 
         Render::Gi::LightFalloff readFalloff()
         {
@@ -112,12 +123,22 @@ namespace OMW
 
         std::unique_ptr<JoltRayWorld> world;
         std::unique_ptr<Render::Gi::VolumeBaker> baker;
+        // Stage d: after the light probes, the reflection probes. Null until the light probes are done.
+        std::unique_ptr<Render::Gi::ReflectionBaker> reflectionBaker;
+        Render::Gi::ReflectionSettings reflectionSettings;
+        bool reflectionsStarted = false;
+        bool lightsSaved = false;
+        std::filesystem::path reflectionFile;
+        std::filesystem::path reflectionPartialFile;
+        std::filesystem::path reflectionProgressFile;
         Render::Gi::BakeSettings settings;
         Render::Gi::CellId cellId;
         std::filesystem::path outFile;
         std::filesystem::path partialFile;
         std::filesystem::path progressFile;
         std::size_t lightCount = 0;
+        std::vector<Render::Gi::BakeLight> lightList;
+        std::vector<vsg::vec3> reflectionPositions;
         // Everything about the lights and the falloff that changes the bake, as text, for the signature.
         std::string lightText;
         MWWorld::CellStore* bakedCell = nullptr;
@@ -214,6 +235,121 @@ namespace OMW
             Log(Debug::Info) << "[GI] resumed at probe " << baker->next() << " of " << baker->total();
         }
 
+        // Everything that changes the reflection bake, on top of the light probes' signature.
+        std::string reflectionSignature() const
+        {
+            std::ostringstream s;
+            s << signature() << "\nreflections resolution " << reflectionSettings.resolution << " samples "
+              << reflectionSettings.samples << " max " << reflectionSettings.maxProbes << " mindistance "
+              << reflectionSettings.minDistance << " positions";
+            for (const auto& p : reflectionPositions)
+                s << ' ' << p.x << ',' << p.y << ',' << p.z;
+            return s.str();
+        }
+
+        Render::Gi::ReflectionSet makeReflectionSet(const std::vector<Render::Gi::ReflectionProbe>& probes) const
+        {
+            Render::Gi::ReflectionSet set;
+            set.cell = cellId;
+            set.samples = reflectionSettings.samples;
+            set.bounces = settings.bounces;
+            set.seed = settings.seed;
+            set.ambient = settings.ambient;
+            set.resolution = reflectionSettings.resolution;
+            set.probes = probes;
+            return set;
+        }
+
+        void saveReflectionPartial() const
+        {
+            if (reflectionBaker->probes().empty())
+                return;
+            const auto set = makeReflectionSet(reflectionBaker->probes());
+            if (!Render::Gi::validate(set).empty())
+                return;
+            writeFile(reflectionPartialFile, Render::Gi::writeCanonical(set));
+            std::ostringstream p;
+            p << reflectionSignature() << "\nnext " << reflectionBaker->next() << "\nend\n";
+            writeFile(reflectionProgressFile, p.str());
+        }
+
+        void tryResumeReflections()
+        {
+            if (!std::filesystem::exists(reflectionProgressFile) || !std::filesystem::exists(reflectionPartialFile))
+                return;
+            // The progress file is the signature (several lines) then "next N" then "end".
+            std::istringstream progress(readFile(reflectionProgressFile));
+            const std::string expected = reflectionSignature();
+            std::string text = progress.str();
+            if (text.compare(0, expected.size(), expected) != 0)
+            {
+                Log(Debug::Warning) << "[GI] ignoring " << reflectionProgressFile.string()
+                                    << ": it is from other settings";
+                return;
+            }
+            std::istringstream tail(text.substr(expected.size()));
+            std::string word;
+            std::size_t next = 0;
+            tail >> word >> next;
+            std::string endWord;
+            tail >> endWord;
+            if (word != "next" || endWord != "end")
+            {
+                Log(Debug::Warning) << "[GI] cannot resume: " << reflectionProgressFile.string() << " is incomplete";
+                return;
+            }
+            Render::Gi::ProbeError error;
+            const auto set
+                = Render::Gi::parseReflections(readFile(reflectionPartialFile), reflectionPartialFile.string(), error);
+            if (!set)
+            {
+                Log(Debug::Warning) << "[GI] cannot resume: " << error.describe();
+                return;
+            }
+            if (!reflectionBaker->resume(set->probes, next))
+            {
+                Log(Debug::Warning) << "[GI] cannot resume: " << reflectionPartialFile.string()
+                                    << " does not match this bake";
+                return;
+            }
+            Log(Debug::Info) << "[GI] resumed the reflection probes at " << reflectionBaker->next() << " of "
+                             << reflectionBaker->total();
+        }
+
+        // Once the light probes are done: picks where the reflection probes go. False when there are none to bake
+        // (the bake then ends with the light probes alone).
+        bool startReflections()
+        {
+            reflectionsStarted = true;
+            const auto& renderSettings = Settings::rendering();
+            reflectionSettings.resolution = reflectionResolutionFor(renderSettings.mGiBakeReflectionResolution);
+            reflectionSettings.samples = static_cast<std::uint32_t>(renderSettings.mGiBakeReflectionSamples.get());
+            reflectionSettings.maxProbes = static_cast<std::uint32_t>(renderSettings.mGiBakeReflectionProbes.get());
+            reflectionFile = outFolder / "openeden" / "probes" / (Render::Gi::cellKey(cellId) + ".reflections.json");
+            reflectionPartialFile
+                = outFolder / "openeden" / "probes" / (Render::Gi::cellKey(cellId) + ".reflections.partial");
+            reflectionProgressFile
+                = outFolder / "openeden" / "probes" / (Render::Gi::cellKey(cellId) + ".reflections.progress");
+            if (reflectionSettings.maxProbes == 0)
+                return false;
+            reflectionPositions = Render::Gi::chooseReflectionPositions(
+                settings, *world, baker->volume(), reflectionSettings);
+            if (reflectionPositions.empty())
+            {
+                Log(Debug::Warning) << "[GI] no place inside the cell for a reflection probe; none baked";
+                return false;
+            }
+            // The lights are the baker's own, so the reflection baker is given the same list.
+            reflectionBaker = std::make_unique<Render::Gi::ReflectionBaker>(
+                settings, reflectionSettings, *world, lightList, reflectionPositions);
+            Log(Debug::Info) << "[GI] baking " << reflectionPositions.size() << " reflection probe(s), "
+                             << reflectionSettings.resolution << " by " << reflectionSettings.resolution
+                             << " texels, " << reflectionSettings.samples << " sample(s) each";
+            tryResumeReflections();
+            lastSave = std::chrono::steady_clock::now();
+            return true;
+        }
+
         bool begin()
         {
             auto gameWorld = MWBase::Environment::get().getWorld();
@@ -251,6 +387,7 @@ namespace OMW
             for (const auto& f : found)
                 lights.push_back(f.second);
             lightCount = lights.size();
+            lightList = lights;
             {
                 std::ostringstream lt;
                 for (const auto& l : lights)
@@ -303,8 +440,29 @@ namespace OMW
             }
             writeFile(outFile, Render::Gi::writeCanonical(set));
             std::error_code ignored;
+            if (reflectionBaker && reflectionBaker->done())
+            {
+                const auto reflections = makeReflectionSet(reflectionBaker->probes());
+                const std::string reflectionProblem = Render::Gi::validate(reflections);
+                if (reflectionProblem.empty())
+                {
+                    writeFile(reflectionFile, Render::Gi::writeCanonical(reflections));
+                    Log(Debug::Info) << "[GI] wrote " << reflectionFile.string() << " ("
+                                     << reflections.probes.size() << " reflection probe(s))";
+                }
+                else
+                    Log(Debug::Error) << "[GI] the reflection bake is not valid: " << reflectionProblem;
+            }
+            else if (reflectionsStarted)
+            {
+                // No reflection probes this time: an older file would belong to another bake.
+                std::filesystem::remove(reflectionFile, ignored);
+                Log(Debug::Info) << "[GI] no reflection probes baked; any older reflection file was removed";
+            }
             std::filesystem::remove(partialFile, ignored);
             std::filesystem::remove(progressFile, ignored);
+            std::filesystem::remove(reflectionPartialFile, ignored);
+            std::filesystem::remove(reflectionProgressFile, ignored);
             const auto seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
             std::size_t invalidCount = 0;
             for (const bool b : baker->invalid())
@@ -355,8 +513,37 @@ namespace OMW
             }
             if (baker->done())
             {
-                finish();
-                return true;
+                // The light probes are done. Keep them whole in the partial files first, so a stop during the
+                // reflection probes resumes without baking them again.
+                if (!reflectionsStarted)
+                {
+                    if (!lightsSaved)
+                    {
+                        savePartial();
+                        lightsSaved = true;
+                    }
+                    startReflections();
+                    if (!reflectionBaker)
+                    {
+                        finish();
+                        return true;
+                    }
+                    return false;
+                }
+                // One reflection probe at a time, within the frame's budget.
+                while (!reflectionBaker->done() && std::chrono::steady_clock::now() - start < budget)
+                    reflectionBaker->step(1);
+                if (reflectionBaker->done())
+                {
+                    finish();
+                    return true;
+                }
+                if (std::chrono::steady_clock::now() - lastSave > saveEvery)
+                {
+                    saveReflectionPartial();
+                    lastSave = std::chrono::steady_clock::now();
+                }
+                return false;
             }
             if (std::chrono::steady_clock::now() - lastSave > saveEvery)
             {

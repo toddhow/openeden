@@ -20,6 +20,8 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/render/probes.hpp>
+#include <components/render/reflectionprobes.hpp>
 #include <components/settings/settings.hpp>
 
 namespace MWWorld
@@ -167,6 +169,10 @@ namespace MWRender
         // without.
         void loadProbes(const MWWorld::Cell& cell);
         void disableProbes();
+        // Stage d: the reflection probes of an interior (their own file), and no reflections.
+        void loadReflections(const Render::Gi::CellId& id);
+        void disableReflections();
+        void updateProbeDebug();
         void configureFog(const MWWorld::Cell& cell);
         void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour);
 
@@ -346,6 +352,13 @@ namespace MWRender
         vsg::ref_ptr<vsg::vec4Array> mProbeData;
         bool mGiEnabled = false;
         float mProbeStrength = 1.f;
+        // Stage d: the reflection probe buffer (binding 11), null with gi off.
+        vsg::ref_ptr<vsg::vec4Array> mReflectionData;
+        float mReflectionStrength = 1.f;
+        // `gi debug`: markers for the loaded probes, and the volume they were made from.
+        std::unique_ptr<Render::DebugGeometry> mProbeGeometry;
+        std::unique_ptr<Render::Gi::Volume> mLoadedVolume;
+        std::unique_ptr<Render::Gi::ReflectionSet> mLoadedReflections;
         std::unique_ptr<Render::Tonemap> mTonemap;
         std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
         // Task 0026, stage b: null unless [Rendering] gbuffer. The previous frame's camera, for its motion.

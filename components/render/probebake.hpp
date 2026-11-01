@@ -13,6 +13,8 @@
 #include <vsg/maths/vec3.h>
 
 #include "probes.hpp"
+#include "reflectionmath.hpp"
+#include "reflectionprobes.hpp"
 
 namespace Render::Gi
 {
@@ -159,6 +161,73 @@ namespace Render::Gi
         std::vector<BakeLight> mLights;
         Volume mVolume;
         std::vector<bool> mInvalid;
+        std::size_t mNext = 0;
+    };
+
+    // ---- Reflection probes (stage d) ----
+
+    // How a cell's reflection probes are chosen and baked.
+    struct ReflectionSettings
+    {
+        std::uint32_t resolution = defaultReflectionResolution;
+        // Random paths averaged per texel (they differ only in their bounces).
+        std::uint32_t samples = 4;
+        std::uint32_t maxProbes = 8;
+        // Chosen probes are at least this far apart (game units), unless the cell is too small for more.
+        float minDistance = 256.f;
+    };
+
+    // A candidate position counts as inside a room when at least this share of its rays hit something within twice the
+    // open distance (a position outside a building sees about half its sphere blocked).
+    constexpr float reflectionEnclosure = 0.75f;
+    // Rays per candidate when judging a position.
+    constexpr std::uint32_t reflectionCandidateRays = 64;
+
+    // The light arriving at `origin` from `dir`, as one light probe ray gets it (ambient light where it escapes,
+    // otherwise openness-weighted ambient plus the light the surface reflects).
+    vsg::vec3 bakeRadiance(const BakeSettings& settings, const RayWorld& world, const std::vector<BakeLight>& lights,
+        Pcg32& rng, const vsg::vec3& origin, const vsg::vec3& dir);
+
+    // Where to put reflection probes: among the light probe lattice's positions that are inside a room (not inside
+    // solid geometry, and enclosed on at least reflectionEnclosure of their sphere), the most enclosed first, then
+    // each next one the farthest from those chosen so far until the best is closer than minDistance or maxProbes are
+    // chosen. Deterministic; the order is the order of choice.
+    std::vector<vsg::vec3> chooseReflectionPositions(
+        const BakeSettings& settings, const RayWorld& world, const Volume& lattice, const ReflectionSettings& reflection);
+
+    // The base map (resolution * resolution texels) of a probe at `position`: each texel is the average of `samples`
+    // radiance paths in the direction the texel stands for. The random numbers depend only on the seed, the probe's
+    // index and the texel, so the result does not depend on the order of baking.
+    std::vector<vsg::vec3> bakeReflectionMap(const BakeSettings& settings, const RayWorld& world,
+        const std::vector<BakeLight>& lights, const vsg::vec3& position, std::uint32_t probeIndex,
+        const ReflectionSettings& reflection);
+
+    // Bakes the maps of a list of positions a few at a time, like VolumeBaker.
+    class ReflectionBaker
+    {
+    public:
+        ReflectionBaker(const BakeSettings& settings, const ReflectionSettings& reflection, const RayWorld& world,
+            std::vector<BakeLight> lights, std::vector<vsg::vec3> positions);
+
+        // Bakes up to `count` more probes; true when all are done.
+        bool step(std::size_t count);
+        bool done() const { return mNext >= mPositions.size(); }
+        std::size_t next() const { return mNext; }
+        std::size_t total() const { return mPositions.size(); }
+
+        // Continues a bake that stopped: the first `next` probes are taken from `done` (whose positions must match).
+        // Returns false and changes nothing when they do not.
+        bool resume(const std::vector<ReflectionProbe>& done, std::size_t next);
+        // The probes finished so far.
+        const std::vector<ReflectionProbe>& probes() const { return mProbes; }
+
+    private:
+        BakeSettings mSettings;
+        ReflectionSettings mReflection;
+        const RayWorld& mWorld;
+        std::vector<BakeLight> mLights;
+        std::vector<vsg::vec3> mPositions;
+        std::vector<ReflectionProbe> mProbes;
         std::size_t mNext = 0;
     };
 }

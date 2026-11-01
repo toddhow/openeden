@@ -135,13 +135,24 @@ The ray's radiance is added to the probe's `Sh9` with `shAdd(..., 4*pi / rays)`.
 
 **Fall-back (d).** Flat ambient (D4).
 
-## Debug view (stage e)
+## Debug view (stage e, first plan; see "Debug view (stage d, built)" below)
 
 `gi debug` (with `gi` and a loaded volume): `Render::DebugGeometry` (no new pass) draws a small octahedron at every probe, coloured by `shAmbient(sh, +Z)` (its up-facing ambient) clamped to 1; refilled when a volume loads. Producer-owned geometry, capacity fixed by the probe count (a full buffer drops primitives and logs once), as the rules in `apps/openmw/mwrender/CLAUDE.md`.
 
-## Reflection probes (stage d, if time)
+## Reflection probes (stage d, built 2026-11-01)
 
-Not started unless the stages above are done and reviewed. Plan if it is: one specular cubemap per volume (a coarse 32 by 32 face, 6 faces, RGBA16F, captured by the baker through the renderer), sampled with the reflection vector and roughness-biased mip, only on `pbr` surfaces. This needs a render capture the CPU baker does not have, so it is likely a follow-up task.
+The first plan (a cubemap per volume captured through the renderer) was dropped: a GPU capture is not deterministic (torch flicker, animations) and the baker has no renderer. What was built instead, in plain language:
+
+- **A reflection probe is a small picture of the room from one point,** stored as an *octahedral map* (the sphere of directions unfolded into one square; 32 by 32 texels by default, 8 to 64 allowed). The baker makes it with the same rays as the light probes: each texel is the light that arrives from its direction (`bakeRadiance`, the ray rule of stage c), averaged over `gi bake reflection samples` random paths (4). So it shows the room's shape and its lights, with the constant albedo of D5, not textures.
+- **Where they go:** among the light probe lattice's positions that are inside a room (not inside geometry, and with at least 75% of 64 test rays hitting something within twice the open distance): the most enclosed first, then each next the farthest from those chosen, until the best is closer than 256 units or `gi bake reflection probes` (8, at most 16) are placed. Deterministic.
+- **File:** `openeden/probes/<cellKey>.reflections.json`, format `openeden.reflections` v1, beside the light probe file, with the same located errors and a canonical writer that round-trips byte for byte (`Render::Gi::parseReflections`, `writeCanonical`, `validate`, in `probes.cpp`; `reflectionprobes.hpp`). It is a separate file and not version 2 of `openeden.probes` because the version 1 reader refuses any other version (and its test says so): a cell with either file alone works. Only the sharp map is stored; the blurrier copies are built when it is loaded (box average of 2 by 2, down to 4 by 4; `buildReflectionChain`).
+- **In the shader** (`files/shaders/lib/view/reflection.glsl`, a new view-set binding 11, `reflectiongpu.hpp` for the layout): on `pbr` surfaces with `gi`, the mirror direction is read from the two nearest probes (weights from the third nearest, so a probe leaving the pair has weight 0), blurred by roughness (`lod = roughness * (levels - 1)`), times the split-sum environment BRDF of Karis (2014, analytic fit) and the surface's specular colour, and added. It is scaled by the same `pbrSpecularScale` as the point light specular, so in the `vanilla` look only surfaces that already had specular data (or metalness) reflect, and in `physical` all do, times occlusion. The baked ambient is swapped for the current one as the diffuse term does (night eye brightens reflections too). `gi reflection strength` scales it; 0 turns it off. No file, or `gi` off: nothing is added.
+- **Baker:** after the light probes (`probebaker.cpp`); a stop in this phase resumes (`.reflections.partial` and `.reflections.progress`, saved every 30 s, the light probes kept whole in their partial files meanwhile). Checked: two bakes give identical files; a run killed during the reflection phase and started again gives the same bytes as an uninterrupted one. A bake that places no probes removes an older reflections file.
+- **Not built (decisions):** box (parallax) correction; seams along the octahedral fold are not mirrored (clamped); the blur is a box average, not a GGX prefilter; one probe is one uninterruptible step (at 64 by 64 with 64 samples about 2.5 s a probe, so `gi bake budget ms` is exceeded then); no probe from the sky for exteriors.
+
+## Debug view (stage d, built 2026-11-01)
+
+`[Rendering] gi debug` (with `gi`): `RenderManager::mProbeGeometry`, one more `DebugGeometry` (triangles only), refilled whenever a cell's probes load or unload: an octahedron at every light probe (radius a tenth of the spacing, coloured by the ambient it gives an upward facing surface, display-encoded) and a larger one (16 units) at every reflection probe (coloured by what it sees straight up). The primitives come from `probedebug.hpp` through the sink interface, so the tests count them. It is enabled on first use and not in the constructor: enabling it in the constructor hung the game at start (a run timed out), most likely because its buffers are compiled before the engine runs; enabling it on first use worked.
 
 ## Constraints
 Determinism: the baker uses a seeded counter-based generator and sorted light and probe order; the same arguments on the same data give a byte-identical file. Allocation: nothing per frame except one float written on strength change; the probe buffer is allocated once. Threading: main thread only (baker, loader, buffer writes); the shader reads. Ownership: the probe buffer is owned by `RenderManager` (a `vsg::ref_ptr` held beside the descriptor set, because VSG's descriptor set shares it). Off by default and unchanged when off (above). No bake or game-derived data is ever committed; unit-test fixtures use a fictional cell name and generated numbers.
@@ -157,6 +168,7 @@ Determinism: the baker uses a seeded counter-based generator and sorted light an
 - [x] `gi = false`: frames of the default path and of `hdr + gbuffer + pbr` equal the commit before this task by `diffmap` within run-to-run noise (Seyda Neen, ToddTest, Caldera Mages Guild, night, an NPC); no `GI` define exists; the editor's SceneHost draws.
 - [x] With `gi` and a uniform-ambient test bake the room matches the flat picture within noise (the identity test); with a gradient bake the room visibly follows it. (A moved light on top was not tested.)
 - [x] The baker produces a file for a real interior that the game loads, where corners and rooms away from lights differ from the flat ambient in the way the lights suggest (viewed by eye, judged by toddhow); the same arguments give the same file byte for byte; an aborted bake resumes. (toddhow's judgement of the look is pending.)
+- [x] Stage d: reflection probes (own file, own binding, baked by `--bake-gi`, deterministic, resumable, no file means no change) and `gi debug`; frames viewed, off means unchanged by `diffmap` within noise.
 - [x] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; `eden-studio-tests` pass and the editor builds; a fresh reviewer read each stage.
 Out of scope: ambient occlusion (R2) and reflections (R3) beyond the stage d plan; real-time ray tracing; exterior baking; terrain and groundcover under GI; per-material albedo; the interior directional light; any Lua API; saves.
 
@@ -165,9 +177,22 @@ Out of scope: ambient occlusion (R2) and reflections (R3) beyond the stage d pla
 - **Reflections (R3)** need a specular probe per volume: the `Volume` and the buffer (binding 10, `probegpu.hpp`) have no room for cubemaps; add a second binding, do not widen this one. The baker has no renderer capture, so reflection probes need a capture path in the game.
 - **Ray tracing** can reuse `Render::Gi::RayWorld` (a hardware path implements `cast`) and `bakeProbe` unchanged; a real-time path should write the same `Sh9` buffer layout, so the shader does not change. The device report (`components/render/devicereport.*`) already says whether ray query and acceleration structures exist.
 - **What the baker does not know:** surface albedo (constant 0.5), light node offsets inside models (the reference position is used), interior directional light, textures, windows letting daylight in (no sky term). Bounds come from every Jolt body, so volumes are larger than rooms.
-- **View-set binding 10 exists now;** any new creator of a view descriptor set must add `View::dummyProbes()`.
+- **View-set bindings 10 (light probes) and 11 (reflection probes) exist now;** any new creator of a view descriptor set must add `View::dummyProbes()` and `View::dummyReflections()`.
+- **Stage d added:** the reflection probe buffer (binding 11, `View::reflectionBuffer` for the main view) and `reflection.glsl`. Ambient occlusion should multiply the *diffuse ambient* (`giAmbient`) only and may also multiply the reflection term (specular occlusion); it must not touch `bakeRadiance`'s numbers. Ray tracing can implement `RayWorld::cast` to fill both files, or write the same buffers each frame (`packVolume`, `packReflections`). Dynamic weather changes the flat ambient: the shader already adds `flat - baked` to both terms, but a change of sky colour or a sun that moves is not in the bake (the baked rays that escaped saw the cell's ambient, not a sky). Subsurface scattering reads `material.w` as before and needs no probe data.
 
 ## Stage log
+
+### 2026-11-01, stage d (Windows, RTX 4070, `build-jolt`)
+
+**Done and verified.**
+- Reflection probes and the debug view as described above. Tests first: `apps/components_tests/render/testreflectionprobes.cpp` (112 tests across the render suites; written from this spec before the code, by me and not by a separate agent; every other test file is untouched). `components-tests` 2692, `openmw-tests` 799, `eden-studio-tests` 393 pass.
+- Frames viewed (`scratchpad/refl/s1.png`, `c1.png`): in the guild's stair hall a metal bucket (a model override with metalness 1) with the bake and reflections on is cooler and picks up the room, against warm flat metal without them; the debug view draws the markers (`scratchpad/pbr/rf_dbg.png`). Off means unchanged: `diffmap` of HEAD's shaders and the new ones for the default path, `pbr` and `pbr + gi` (no bake) in Seyda Neen noon, night, an NPC, `ToddTest` (0) and the guild: the sums sit at the base-against-base noise (the NPC and noon frames move; the guild's torches flicker so its frames differ run to run by the same amount).
+- The editor's SceneHost still draws (a hand-linked `eden-studio-refl.exe`, since the real `eden-studio.exe` was running; `scratchpad/edshots/refl1-editor0.png`).
+- A fresh reviewer found no blocking defect; fixed: a stale reflections file after a bake with none placed, a 16 MB cap for the reflection file reader, a zero minimum distance, a note on the seams.
+
+**Not done / not verified.** Armoured NPCs (metal tested on buckets with an override, because the stock assets have no metal data); a moved light on top; exteriors; GPU cost of the reflection lookup (no measurement; it adds up to 16 buffer reads per reflecting pixel); the baker on Linux beyond the build; toddhow's judgement of the look.
+
+**Decisions for toddhow.** Separate `.reflections.json` file; probes inside rooms by a ray test, at most 8; box average blur; vanilla look reflects only where the surface already had specular data or metalness.
 
 ### 2026-11-01, stages a, b and c (Windows, RTX 4070, `build-jolt`)
 

@@ -222,6 +222,136 @@ namespace Render::Gi
         return result;
     }
 
+    vsg::vec3 bakeRadiance(const BakeSettings& settings, const RayWorld& world, const std::vector<BakeLight>& lights,
+        Pcg32& rng, const vsg::vec3& origin, const vsg::vec3& dir)
+    {
+        const Context context{ settings, world, lights };
+        return radiance(context, rng, origin, dir, 0);
+    }
+
+    std::vector<vsg::vec3> chooseReflectionPositions(
+        const BakeSettings& settings, const RayWorld& world, const Volume& lattice, const ReflectionSettings& reflection)
+    {
+        struct Candidate
+        {
+            vsg::vec3 position;
+            std::uint32_t hits;
+        };
+        std::vector<Candidate> candidates;
+        const std::uint32_t needed
+            = static_cast<std::uint32_t>(std::ceil(reflectionEnclosure * static_cast<float>(reflectionCandidateRays)));
+        for (std::size_t i = 0; i < lattice.probes.size(); ++i)
+        {
+            const vsg::vec3 position = probePosition(lattice, i);
+            std::uint32_t hits = 0;
+            std::uint32_t close = 0;
+            for (std::uint32_t r = 0; r < reflectionCandidateRays; ++r)
+            {
+                const vsg::vec3 dir = spiralDirection(r, reflectionCandidateRays, 0.5f);
+                vsg::vec3 hitPos, hitNormal;
+                if (world.cast(position, position + dir * (2.f * settings.openDistance), hitPos, hitNormal))
+                {
+                    ++hits;
+                    if (length(hitPos - position) <= settings.invalidDistance)
+                        ++close;
+                }
+            }
+            // Inside solid geometry (nearly every ray stops at once) is not a place to look from.
+            const bool inside
+                = static_cast<float>(close) >= settings.invalidFraction * static_cast<float>(reflectionCandidateRays);
+            if (hits >= needed && !inside)
+                candidates.push_back({ position, hits });
+        }
+        std::vector<vsg::vec3> chosen;
+        if (candidates.empty() || reflection.maxProbes == 0)
+            return chosen;
+        const std::size_t limit = std::min<std::size_t>(reflection.maxProbes, maxReflectionProbes);
+        // The most enclosed first (the lowest index among equals).
+        std::size_t best = 0;
+        for (std::size_t i = 1; i < candidates.size(); ++i)
+            if (candidates[i].hits > candidates[best].hits)
+                best = i;
+        chosen.push_back(candidates[best].position);
+        // Then always the one farthest from those chosen (the lowest index among equals).
+        std::vector<float> nearestChosen(candidates.size());
+        for (std::size_t i = 0; i < candidates.size(); ++i)
+            nearestChosen[i] = length(candidates[i].position - chosen[0]);
+        while (chosen.size() < limit)
+        {
+            std::size_t far = 0;
+            for (std::size_t i = 1; i < candidates.size(); ++i)
+                if (nearestChosen[i] > nearestChosen[far])
+                    far = i;
+            if (nearestChosen[far] < reflection.minDistance || !(nearestChosen[far] > 0.f))
+                break;
+            chosen.push_back(candidates[far].position);
+            for (std::size_t i = 0; i < candidates.size(); ++i)
+                nearestChosen[i] = std::min(nearestChosen[i], length(candidates[i].position - chosen.back()));
+        }
+        return chosen;
+    }
+
+    std::vector<vsg::vec3> bakeReflectionMap(const BakeSettings& settings, const RayWorld& world,
+        const std::vector<BakeLight>& lights, const vsg::vec3& position, std::uint32_t probeIndex,
+        const ReflectionSettings& reflection)
+    {
+        const std::uint32_t resolution = reflection.resolution;
+        const std::uint32_t samples = std::max<std::uint32_t>(1, reflection.samples);
+        std::vector<vsg::vec3> map;
+        map.reserve(static_cast<std::size_t>(resolution) * resolution);
+        for (std::uint32_t y = 0; y < resolution; ++y)
+            for (std::uint32_t x = 0; x < resolution; ++x)
+            {
+                const vsg::vec3 dir = reflectionTexelDirection(resolution, x, y);
+                // A random stream of its own for this probe and texel; the light probes use the streams below 2^32.
+                const std::uint64_t stream
+                    = (std::uint64_t(1) << 40) | (std::uint64_t(probeIndex) << 20) | (y * resolution + x);
+                Pcg32 rng(settings.seed, stream);
+                vsg::vec3 sum(0.f, 0.f, 0.f);
+                for (std::uint32_t s = 0; s < samples; ++s)
+                    sum += bakeRadiance(settings, world, lights, rng, position, dir);
+                map.push_back(sum * (1.f / static_cast<float>(samples)));
+            }
+        return map;
+    }
+
+    ReflectionBaker::ReflectionBaker(const BakeSettings& settings, const ReflectionSettings& reflection,
+        const RayWorld& world, std::vector<BakeLight> lights, std::vector<vsg::vec3> positions)
+        : mSettings(settings)
+        , mReflection(reflection)
+        , mWorld(world)
+        , mLights(std::move(lights))
+        , mPositions(std::move(positions))
+    {
+    }
+
+    bool ReflectionBaker::step(std::size_t count)
+    {
+        const std::size_t end = std::min(mNext + count, mPositions.size());
+        for (; mNext < end; ++mNext)
+        {
+            ReflectionProbe probe;
+            probe.position = mPositions[mNext];
+            probe.texels = bakeReflectionMap(
+                mSettings, mWorld, mLights, probe.position, static_cast<std::uint32_t>(mNext), mReflection);
+            mProbes.push_back(std::move(probe));
+        }
+        return done();
+    }
+
+    bool ReflectionBaker::resume(const std::vector<ReflectionProbe>& done, std::size_t next)
+    {
+        if (next > done.size() || next > mPositions.size())
+            return false;
+        const std::size_t texels = static_cast<std::size_t>(mReflection.resolution) * mReflection.resolution;
+        for (std::size_t i = 0; i < next; ++i)
+            if (!(done[i].position == mPositions[i]) || done[i].texels.size() != texels)
+                return false;
+        mProbes.assign(done.begin(), done.begin() + static_cast<std::ptrdiff_t>(next));
+        mNext = next;
+        return true;
+    }
+
     Volume layoutVolume(const vsg::vec3& low, const vsg::vec3& high, float spacing, std::size_t maxProbes)
     {
         constexpr float growth = 1.05f;

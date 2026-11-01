@@ -40,7 +40,9 @@
 #include <components/render/hdrtarget.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
+#include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
+#include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
@@ -119,6 +121,7 @@ namespace MWRender
             descriptors.emplace_back(View::dummyShadowSampler());
             descriptors.emplace_back(View::dummyReflectDepth());
             descriptors.emplace_back(View::dummyProbes());
+            descriptors.emplace_back(View::dummyReflections());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -299,6 +302,7 @@ namespace MWRender
                     resourceSystem->builder->graphics->giEnabled = true;
                     mGiEnabled = true;
                     mProbeStrength = Settings::rendering().mGiStrength;
+                    mReflectionStrength = Settings::rendering().mGiReflectionStrength;
                     Log(Debug::Info) << "GI: ambient light from baked light probes";
                 }
                 else
@@ -335,6 +339,11 @@ namespace MWRender
             descriptors.emplace_back(View::probeBuffer(mProbeData));
         else
             descriptors.emplace_back(View::dummyProbes());
+        // Task 0028, stage d: the same for the reflection probes.
+        if (mGiEnabled)
+            descriptors.emplace_back(View::reflectionBuffer(mReflectionData));
+        else
+            descriptors.emplace_back(View::dummyReflections());
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -391,6 +400,14 @@ namespace MWRender
             *mResourceSystem->builder, mCompileContext, navMeshLineVertices, navMeshTriangleVertices);
         mNavMesh = std::make_unique<NavMesh>(
             *mNavMeshGeometry, Settings::navigator().mEnableNavMeshRender, Settings::navigator().mNavMeshRenderMode);
+        if (mGiEnabled && Settings::rendering().mGiDebug)
+        {
+            // The probe debug view (`gi debug`): one octahedron per light probe and per reflection probe.
+            constexpr std::size_t probeTriangleVertices
+                = Render::Gi::debugMarkerVertices * (Render::Gi::maxVolumeProbes + Render::Gi::maxReflectionProbes);
+            mProbeGeometry = std::make_unique<Render::DebugGeometry>(
+                *mResourceSystem->builder, mCompileContext, 0, probeTriangleVertices);
+        }
         mSky = std::make_unique<Sky>(
             *resourceSystem, mCompileContext->clone(Mask_Sky), mEngine.getEnabledFeatures().occlusionQueryPrecise);
         mWater = std::make_unique<Water>(resourceSystem);
@@ -751,6 +768,8 @@ namespace MWRender
             mSceneRoot->addChild(mRain->node());
         mSceneRoot->addChild(mDebugGeometry->node());
         mSceneRoot->addChild(mNavMeshGeometry->node());
+        if (mProbeGeometry)
+            mSceneRoot->addChild(mProbeGeometry->node());
     }
 
     void RenderManager::createIntersectorScene()
@@ -849,6 +868,74 @@ namespace MWRender
         // The header's "enabled" entry; the shader then returns the flat ambient.
         (*mProbeData)[1].w = 0.f;
         mProbeData->dirty();
+        disableReflections();
+        mLoadedVolume.reset();
+        // Also called alone for exteriors, so the markers must be cleared here too.
+        updateProbeDebug();
+    }
+
+    void RenderManager::updateProbeDebug()
+    {
+        if (!mProbeGeometry)
+            return;
+        // Enabled here and not in the constructor: its vertex storage is compiled on first use, which needs the
+        // running engine (as the other debug geometry, enabled from the console).
+        mProbeGeometry->setEnabled(true);
+        // Refilled whenever a cell's probes change; empty when it has none.
+        mProbeGeometry->begin();
+        if (mLoadedVolume)
+            Render::Gi::drawProbes(*mProbeGeometry, *mLoadedVolume);
+        if (mLoadedReflections)
+            Render::Gi::drawReflectionProbes(*mProbeGeometry, *mLoadedReflections);
+        mProbeGeometry->end();
+    }
+
+    void RenderManager::disableReflections()
+    {
+        if (!mReflectionData)
+            return;
+        // The header's "enabled" entry; the shader then adds no reflection.
+        (*mReflectionData)[0].w = 0.f;
+        mReflectionData->dirty();
+        mLoadedReflections.reset();
+    }
+
+    void RenderManager::loadReflections(const Render::Gi::CellId& id)
+    {
+        if (!mReflectionData)
+            return;
+        const std::string path = Render::Gi::reflectionFilePath(id);
+        const VFS::Manager& vfs = *mResourceSystem->getVFS();
+        if (!vfs.exists(path))
+            return;
+        std::string text;
+        {
+            const auto stream = vfs.get(path);
+            std::ostringstream buffer;
+            buffer << stream->rdbuf();
+            text = buffer.str();
+        }
+        Render::Gi::ProbeError error;
+        const auto set = Render::Gi::parseReflections(text, path, error);
+        if (!set)
+        {
+            Log(Debug::Warning) << "[Rendering] gi: skipped reflection file " << error.describe();
+            return;
+        }
+        if (set->cell.interior != id.interior || set->cell.name != id.name)
+        {
+            Log(Debug::Warning) << "[Rendering] gi: " << path << " is the bake of another cell (" << set->cell.name
+                                << "), skipped";
+            return;
+        }
+        const auto packed = Render::Gi::packReflections(*set, mReflectionStrength);
+        if (packed.size() > mReflectionData->size())
+            return; // cannot happen (the parser limits a set), but never write past the buffer
+        std::copy(packed.begin(), packed.end(), mReflectionData->begin());
+        mReflectionData->dirty();
+        if (mProbeGeometry)
+            mLoadedReflections = std::make_unique<Render::Gi::ReflectionSet>(*set);
+        Log(Debug::Info) << "GI: " << set->probes.size() << " reflection probe(s) for " << id.name;
     }
 
     void RenderManager::loadProbes(const MWWorld::Cell& cell)
@@ -861,6 +948,8 @@ namespace MWRender
         const Render::Gi::CellId id{ true, std::string(cell.getNameId()), 0, 0 };
         const std::string path = Render::Gi::probeFilePath(id);
         const VFS::Manager& vfs = *mResourceSystem->getVFS();
+        // The reflection probes have a file of their own, and work without light probes and the other way round.
+        loadReflections(id);
         if (!vfs.exists(path))
             return;
         std::string text;
@@ -889,6 +978,8 @@ namespace MWRender
         std::copy(packed.begin(), packed.end(), mProbeData->begin());
         mProbeData->dirty();
         Log(Debug::Info) << "GI: " << set->volumes.front().probes.size() << " probe(s) for " << id.name;
+        if (mProbeGeometry)
+            mLoadedVolume = std::make_unique<Render::Gi::Volume>(set->volumes.front());
     }
 
     void RenderManager::configureAmbient(const MWWorld::Cell& cell)
@@ -899,6 +990,7 @@ namespace MWRender
             MWAnim::brighten(ambient, mMinimumAmbientLuminance);
         setAmbientColour(ambient);
         loadProbes(cell);
+        updateProbeDebug();
 
         auto diffuse = vsg::vec4(MWAnim::rgbColor(cell.getMood().mDirectionalColor), 1.f);
         mLightDiffuse = diffuse;

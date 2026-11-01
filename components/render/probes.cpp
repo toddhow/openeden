@@ -1,5 +1,7 @@
 #include "probes.hpp"
 
+#include "reflectionprobes.hpp"
+
 #include <algorithm>
 #include <charconv>
 #include <cmath>
@@ -731,5 +733,231 @@ namespace Render::Gi
     std::string probeFilePath(const CellId& cell)
     {
         return "openeden/probes/" + cellKey(cell) + ".json";
+    }
+
+    // ---- Reflection probes (stage d): the `openeden.reflections` file, beside the light probe file ----
+
+    namespace
+    {
+        constexpr const char* reflectionFormatName = "openeden.reflections";
+        constexpr long long maxReflectionSamples = 256;
+
+        void readCell(const Value& cell, CellId& out)
+        {
+            expectObject(cell, "cell");
+            if (cell.members.size() != 1)
+                throw Failure{ cell.line, "cell", "expected exactly one of \"interior\" or \"exterior\"" };
+            if (const Value* interior = find(cell, "interior"))
+            {
+                if (interior->type != Value::Type::String)
+                    throw Failure{ interior->line, "cell.interior", "expected a string" };
+                out.interior = true;
+                out.name = interior->text;
+            }
+            else if (const Value* exterior = find(cell, "exterior"))
+            {
+                expectArray(*exterior, "cell.exterior");
+                if (exterior->items.size() != 2)
+                    throw Failure{ exterior->line, "cell.exterior", "expected two integers" };
+                constexpr long long low = std::numeric_limits<std::int32_t>::min();
+                constexpr long long high = std::numeric_limits<std::int32_t>::max();
+                out.interior = false;
+                out.x = static_cast<int>(readInteger(exterior->items[0], "cell.exterior[0]", low, high));
+                out.y = static_cast<int>(readInteger(exterior->items[1], "cell.exterior[1]", low, high));
+            }
+            else
+                throw Failure{ cell.keyLines[0], "cell", "expected \"interior\" or \"exterior\"" };
+        }
+
+        ReflectionSet readReflectionSet(const Value& root)
+        {
+            expectObject(root, "");
+            if (const Value* format = find(root, "format"))
+            {
+                if (format->type != Value::Type::String || format->text != reflectionFormatName)
+                    throw Failure{ format->line, "format", std::string("expected \"") + reflectionFormatName + "\"" };
+            }
+            if (const Value* version = find(root, "version"))
+            {
+                if (version->type != Value::Type::Number || version->text != std::to_string(formatVersion))
+                    throw Failure{ version->line, "version", "unsupported version, expected 1" };
+            }
+            checkKeys(root, "", { "format", "version", "cell", "bake", "resolution", "probes" });
+
+            ReflectionSet set;
+            readCell(*find(root, "cell"), set.cell);
+
+            const Value& bake = *find(root, "bake");
+            expectObject(bake, "bake");
+            checkKeys(bake, "bake", { "samples", "bounces", "seed", "ambient" });
+            set.samples = static_cast<std::uint32_t>(
+                readInteger(*find(bake, "samples"), "bake.samples", 1, maxReflectionSamples));
+            set.bounces = static_cast<std::uint32_t>(readInteger(*find(bake, "bounces"), "bake.bounces", 0, 8));
+            set.seed = static_cast<std::uint32_t>(
+                readInteger(*find(bake, "seed"), "bake.seed", 0, std::numeric_limits<std::uint32_t>::max()));
+            set.ambient = readVec3(*find(bake, "ambient"), "bake.ambient");
+
+            const Value& resolution = *find(root, "resolution");
+            set.resolution = static_cast<std::uint32_t>(
+                readInteger(resolution, "resolution", 1, std::numeric_limits<std::int32_t>::max()));
+            if (!validReflectionResolution(set.resolution))
+                throw Failure{ resolution.line, "resolution", "the resolution must be 8, 16, 32 or 64" };
+
+            const Value& probes = *find(root, "probes");
+            expectArray(probes, "probes");
+            if (probes.items.empty() || probes.items.size() > maxReflectionProbes)
+                throw Failure{ probes.line, "probes", "expected 1 to 16 probes" };
+            for (std::size_t p = 0; p < probes.items.size(); ++p)
+            {
+                const std::string path = "probes[" + std::to_string(p) + "]";
+                const Value& probe = probes.items[p];
+                expectObject(probe, path);
+                checkKeys(probe, path, { "position", "texels" });
+                ReflectionProbe out;
+                out.position = readVec3(*find(probe, "position"), path + ".position");
+                const Value& rows = *find(probe, "texels");
+                expectArray(rows, path + ".texels");
+                if (rows.items.size() != set.resolution)
+                    throw Failure{ rows.line, path + ".texels",
+                        "expected " + std::to_string(set.resolution) + " rows, found "
+                            + std::to_string(rows.items.size()) };
+                out.texels.reserve(static_cast<std::size_t>(set.resolution) * set.resolution);
+                for (std::size_t r = 0; r < rows.items.size(); ++r)
+                {
+                    const std::string rowPath = path + ".texels[" + std::to_string(r) + "]";
+                    const Value& row = rows.items[r];
+                    expectArray(row, rowPath);
+                    if (row.items.size() != 3u * set.resolution)
+                        throw Failure{ row.line, rowPath,
+                            "expected " + std::to_string(3u * set.resolution) + " numbers (r, g, b for each of "
+                                + std::to_string(set.resolution) + " texels), found "
+                                + std::to_string(row.items.size()) };
+                    for (std::size_t t = 0; t < set.resolution; ++t)
+                    {
+                        const auto number = [&](std::size_t k) {
+                            return readFloat(row.items[3 * t + k], rowPath + "[" + std::to_string(3 * t + k) + "]");
+                        };
+                        const float cr = number(0);
+                        const float cg = number(1);
+                        const float cb = number(2);
+                        out.texels.emplace_back(cr, cg, cb);
+                    }
+                }
+                set.probes.push_back(std::move(out));
+            }
+            return set;
+        }
+    }
+
+    std::optional<ReflectionSet> parseReflections(std::string_view json, std::string_view fileName, ProbeError& error)
+    {
+        // 16 probes of 64 by 64 texels come to about 3 MB of text; anything far above is not a reflection file.
+        constexpr std::size_t maxReflectionFileBytes = 16u * 1024u * 1024u;
+        if (json.size() > maxReflectionFileBytes)
+        {
+            error = ProbeError{ std::string(fileName), 1, "", "the file is too large" };
+            return std::nullopt;
+        }
+        try
+        {
+            Reader reader(json);
+            const Value root = reader.readDocument();
+            return readReflectionSet(root);
+        }
+        catch (const Failure& f)
+        {
+            error.file = std::string(fileName);
+            error.line = f.line;
+            error.field = f.field;
+            error.message = f.message;
+            return std::nullopt;
+        }
+        catch (const std::bad_alloc&)
+        {
+            error = ProbeError{ std::string(fileName), 1, "", "out of memory while reading the file" };
+            return std::nullopt;
+        }
+    }
+
+    std::string validate(const ReflectionSet& set)
+    {
+        const auto finite3
+            = [](const vsg::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
+        if (set.samples < 1 || set.samples > maxReflectionSamples)
+            return "bake.samples must be 1 to 256";
+        if (set.bounces > 8)
+            return "bake.bounces must be 0 to 8";
+        if (!finite3(set.ambient))
+            return "bake.ambient must be finite";
+        if (!validReflectionResolution(set.resolution))
+            return "resolution must be 8, 16, 32 or 64";
+        if (set.probes.empty() || set.probes.size() > maxReflectionProbes)
+            return "a reflection set holds 1 to 16 probes";
+        const std::size_t texels = static_cast<std::size_t>(set.resolution) * set.resolution;
+        for (std::size_t p = 0; p < set.probes.size(); ++p)
+        {
+            const ReflectionProbe& probe = set.probes[p];
+            const std::string path = "probes[" + std::to_string(p) + "]";
+            if (!finite3(probe.position))
+                return path + ".position must be finite";
+            if (probe.texels.size() != texels)
+                return path + ".texels does not match the resolution";
+            for (std::size_t t = 0; t < texels; ++t)
+                if (!finite3(probe.texels[t]))
+                    return path + ".texels[" + std::to_string(t) + "] must be finite";
+        }
+        return {};
+    }
+
+    std::string writeCanonical(const ReflectionSet& set)
+    {
+        std::string out;
+        out += "{\n  \"format\": \"openeden.reflections\",\n  \"version\": 1,\n  \"cell\": {\n    ";
+        if (set.cell.interior)
+        {
+            out += "\"interior\": ";
+            appendString(out, set.cell.name);
+        }
+        else
+            out += "\"exterior\": [" + std::to_string(set.cell.x) + ", " + std::to_string(set.cell.y) + "]";
+        out += "\n  },\n  \"bake\": {\n";
+        out += "    \"samples\": " + std::to_string(set.samples) + ",\n";
+        out += "    \"bounces\": " + std::to_string(set.bounces) + ",\n";
+        out += "    \"seed\": " + std::to_string(set.seed) + ",\n";
+        out += "    \"ambient\": ";
+        appendVec3(out, set.ambient);
+        out += "\n  },\n  \"resolution\": " + std::to_string(set.resolution) + ",\n  \"probes\": [\n";
+        for (std::size_t p = 0; p < set.probes.size(); ++p)
+        {
+            const ReflectionProbe& probe = set.probes[p];
+            out += "    {\n      \"position\": ";
+            appendVec3(out, probe.position);
+            out += ",\n      \"texels\": [\n";
+            for (std::uint32_t y = 0; y < set.resolution; ++y)
+            {
+                out += "        [";
+                for (std::uint32_t x = 0; x < set.resolution; ++x)
+                {
+                    const vsg::vec3& t = probe.texels[static_cast<std::size_t>(y) * set.resolution + x];
+                    if (x != 0)
+                        out += ", ";
+                    appendFloat(out, t.x);
+                    out += ", ";
+                    appendFloat(out, t.y);
+                    out += ", ";
+                    appendFloat(out, t.z);
+                }
+                out += y + 1 < set.resolution ? "],\n" : "]\n";
+            }
+            out += "      ]\n    }";
+            out += p + 1 < set.probes.size() ? ",\n" : "\n";
+        }
+        out += "  ]\n}\n";
+        return out;
+    }
+
+    std::string reflectionFilePath(const CellId& cell)
+    {
+        return "openeden/probes/" + cellKey(cell) + ".reflections.json";
     }
 }

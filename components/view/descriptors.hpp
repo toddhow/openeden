@@ -22,6 +22,9 @@ namespace View
     // OpenEden (task 0028): the light probe buffer: a stand-in with no volume, and the full-size one the game fills.
     vsg::ref_ptr<vsg::Descriptor> dummyProbes();
     vsg::ref_ptr<vsg::Descriptor> probeBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
+    // OpenEden (task 0028, stage d): the same for the reflection probes (binding 11).
+    vsg::ref_ptr<vsg::Descriptor> dummyReflections();
+    vsg::ref_ptr<vsg::Descriptor> reflectionBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
 
     // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();

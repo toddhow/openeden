@@ -38,12 +38,24 @@ namespace Settings
         // Task 0028: ambient light from baked light probes. Read at start; needs hdr and pbr.
         SettingValue<bool> mGi{ mIndex, "Rendering", "gi" };
         SettingValue<float> mGiStrength{ mIndex, "Rendering", "gi strength", makeClampSanitizerFloat(0, 2) };
+        // Stage d: scales the reflections of the baked reflection probes (0 turns them off), and draws the probes.
+        SettingValue<float> mGiReflectionStrength{ mIndex, "Rendering", "gi reflection strength",
+            makeClampSanitizerFloat(0, 2) };
+        SettingValue<bool> mGiDebug{ mIndex, "Rendering", "gi debug" };
         // The baker (openmw --bake-gi): rays per probe, bounces, probe spacing in game units, random seed, and how many
         // milliseconds of each frame it may use.
         SettingValue<int> mGiBakeRays{ mIndex, "Rendering", "gi bake rays", makeClampSanitizerInt(1, 65536) };
         SettingValue<int> mGiBakeBounces{ mIndex, "Rendering", "gi bake bounces", makeClampSanitizerInt(0, 8) };
         SettingValue<float> mGiBakeSpacing{ mIndex, "Rendering", "gi bake spacing", makeClampSanitizerFloat(16, 4096) };
         SettingValue<int> mGiBakeSeed{ mIndex, "Rendering", "gi bake seed", makeClampSanitizerInt(0, 2147483647) };
+        // Reflection probes: the most to place, rays averaged per texel, and the map's width in texels (8, 16, 32 or 64;
+        // other values are rounded down to one of these).
+        SettingValue<int> mGiBakeReflectionProbes{ mIndex, "Rendering", "gi bake reflection probes",
+            makeClampSanitizerInt(0, 16) };
+        SettingValue<int> mGiBakeReflectionSamples{ mIndex, "Rendering", "gi bake reflection samples",
+            makeClampSanitizerInt(1, 64) };
+        SettingValue<int> mGiBakeReflectionResolution{ mIndex, "Rendering", "gi bake reflection resolution",
+            makeClampSanitizerInt(8, 64) };
         SettingValue<int> mGiBakeBudget{ mIndex, "Rendering", "gi bake budget ms", makeClampSanitizerInt(1, 200) };
     };
 }

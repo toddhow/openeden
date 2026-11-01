@@ -37,6 +37,9 @@ namespace Pipeline
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             // OpenEden (task 0028): the baked light probes.
             { Descriptors::VIEW_PROBE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr },
+            // OpenEden (task 0028, stage d): the baked reflection probes.
+            { Descriptors::VIEW_REFLECTION_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
                 nullptr } });
         return sceneLayout;
     }

@@ -10,5 +10,7 @@ const int VIEW_REFLECT_MAP_BINDING=8;
 const int VIEW_REFLECT_DEPTH_MAP_BINDING=9;
 // OpenEden (task 0028): the baked light probes (lib/view/gi.glsl).
 const int VIEW_PROBE_BINDING=10;
+// OpenEden (task 0028, stage d): the baked reflection probes (lib/view/reflection.glsl).
+const int VIEW_REFLECTION_BINDING=11;
 
 const int VIEW_ENV_COUNT=32;

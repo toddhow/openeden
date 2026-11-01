@@ -144,6 +144,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testprobegpu.cpp
     render/testprobebake.cpp
     render/testprobes.cpp
+    render/testreflectionprobes.cpp
     view/testcollectlights.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp

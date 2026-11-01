@@ -38,6 +38,7 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 #ifdef GI
 #include "lib/view/gi.glsl"
+#include "lib/view/reflection.glsl"
 #endif
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
@@ -257,6 +258,23 @@ void main()
   #endif
         outColor *= materialTermsScaled(ambientLight, diffuseLight, vertexColor, pbrAmbientScale, pbrDiffuseScale);
         outColor.xyz += specularLight * pbrSpecularScale;
+  #ifdef GI
+        // Baked reflection probes (task 0028, stage d): what the room around looks like in the mirror direction,
+        // blurred by roughness, times the split-sum environment BRDF. Only where the surface reflects at all.
+        if (giReflectionEnabled())
+        {
+            vec3 reflWorldPos = (scene.invView * vec4(frag_in.viewPos, 1.0)).xyz;
+            vec3 reflWorldDir = mat3(scene.invView) * reflect(normalize(frag_in.viewPos), viewNormal);
+            vec2 reflAB = reflEnvBrdf(pbrLit.roughness, pbrNoV);
+            vec3 reflLight = giReflection(reflWorldPos, reflWorldDir, pbrLit.roughness, scene.ambient.xyz);
+   #ifdef PBR_PHYSICAL
+            float reflScale = pbrSpecularScale * pbrLit.occlusion;
+   #else
+            float reflScale = pbrSpecularScale;
+   #endif
+            outColor.xyz += reflLight * (pbrF0 * reflAB.x + vec3(reflAB.y)) * reflScale;
+        }
+  #endif
     }
 #else
 #ifdef GI
