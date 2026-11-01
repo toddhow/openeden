@@ -35,3 +35,7 @@ Loading a save while a game was running aborted the game (exit 0xC0000409 with n
 ## Not verified
 
 The menu frame, character generation, an NPC (not the player) in armour, the Slang sun disc, other resolutions than 1280 x 720 and 1500 x 900, the real `eden-studio.exe`.
+
+## Gates (Linux, Docker, at 23c8b1f094)
+
+`components-tests` 2710, `openmw-tests` 799 and the 32 Lua integration tests pass with `-Werror`; `CI/check_clang_format.sh` passes on the whole tree. Windows: 2740, 799 and `eden-studio-tests` 393.

@@ -48,7 +48,7 @@ Determinism: no noise and no time, the tap pattern is fixed. Allocation: none pe
 - [ ] With `sss`: close ups of NPC faces and hands in several races look softer at light edges with texture detail kept; no halo across the jaw line onto the background; viewed by eye (night, noon, interior torchlight).
 - [x] The debug view shows only skin pixels changed (the head lit up, nothing else).
 - [x] Cost measured and written down (`docs/research/0014-sss-cost.md`: one scene, a lower bound).
-- [ ] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage.
+- [x] The Linux gate builds with `-Werror` (components-tests 2710, openmw-tests 799, 32 Lua tests pass); the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read stage b (stage a is the maths, read with it).
 Out of scope: transmission, a separable kernel, diffuse and specular kept apart, per-race tuning, creatures other than what the skin mark already covers, any Lua API, saves.
 
 ## Stage log
