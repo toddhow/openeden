@@ -47,6 +47,7 @@
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
+#include <components/render/skyenvmath.hpp>
 #include <components/render/skyvisgpu.hpp>
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
@@ -348,6 +349,7 @@ namespace MWRender
                     resourceSystem->builder->graphics->giSkyEnabled = true;
                     mGiSkyEnabled = true;
                     mSkyVisStrength = Settings::rendering().mGiExteriorStrength;
+                    mReflectionStrength = Settings::rendering().mGiReflectionStrength;
                     Log(Debug::Info) << "GI: exterior ambient light from the baked sky-visibility field";
                 }
                 else
@@ -384,8 +386,8 @@ namespace MWRender
             descriptors.emplace_back(View::probeBuffer(mProbeData));
         else
             descriptors.emplace_back(View::dummyProbes());
-        // Task 0028, stage d: the same for the reflection probes.
-        if (mGiEnabled)
+        // Task 0028, stage d: the same for the reflection probes (and, task 0036, the sky environment image).
+        if (mGiEnabled || mGiSkyEnabled)
             descriptors.emplace_back(View::reflectionBuffer(mReflectionData));
         else
             descriptors.emplace_back(View::dummyReflections());
@@ -976,8 +978,8 @@ namespace MWRender
 
     void RenderManager::disableReflections()
     {
-        if (!mReflectionData)
-            return;
+        if (!mReflectionData || mSkyEnvOwns)
+            return; // the sky environment image owns the buffer outdoors; updateSkyEnvironment switches it off
         // The header's "enabled" entry; the shader then adds no reflection.
         (*mReflectionData)[0].w = 0.f;
         mReflectionData->dirty();
@@ -1017,6 +1019,7 @@ namespace MWRender
             return; // cannot happen (the parser limits a set), but never write past the buffer
         std::copy(packed.begin(), packed.end(), mReflectionData->begin());
         mReflectionData->dirty();
+        mSkyEnvOwns = false;
         if (mProbeGeometry)
             mLoadedReflections = std::make_unique<Render::Gi::ReflectionSet>(*set);
         Log(Debug::Info) << "GI: " << set->probes.size() << " reflection probe(s) for " << id.name;
@@ -1177,6 +1180,64 @@ namespace MWRender
         Render::Gi::writeSkyHeader(
             mSkyVisHeader->data(), true, mSkyVisStrength, Render::Gi::skyFromColours(sky, horizonColour));
         mSkyVisHeader->dirty();
+    }
+
+    void RenderManager::updateSkyEnvironment()
+    {
+        if (!mGiSkyEnabled || !mReflectionData)
+            return;
+        bool outdoors;
+        {
+            std::lock_guard<std::mutex> lock(mSkyVisMutex);
+            outdoors = !mSkyCells.empty();
+        }
+        if (!outdoors)
+        {
+            if (mSkyEnvOwns)
+            {
+                // Left the exterior: the buffer is free again (an interior's own reflection probes load themselves).
+                mSkyEnvOwns = false;
+                (*mReflectionData)[0].w = 0.f;
+                mReflectionData->dirty();
+            }
+            return;
+        }
+        const vsg::vec4 skyColour = mDisplaySkyColor;
+        const vsg::vec4 horizon = mFog->getFogColor(false);
+        const vsg::vec3 zenithLinear = Render::Hdr::toLinear(vsg::vec3(skyColour.x, skyColour.y, skyColour.z));
+        const vsg::vec3 horizonLinear = Render::Hdr::toLinear(vsg::vec3(horizon.x, horizon.y, horizon.z));
+        const vsg::vec3 ambient = getLinearAmbient();
+        // Rebuilt only when the sky has moved (the hour or the weather), not every frame.
+        if (mSkyEnvOwns
+            && !Render::Gi::skyEnvironmentChanged(mSkyEnvZenith, mSkyEnvHorizon, zenithLinear, horizonLinear))
+        {
+            // The image is still right. The ambient light drifts with the hour: only the header's copy of it (what
+            // the lookup compares the current ambient with) is patched, with the same tolerance, without repacking.
+            if (Render::Gi::skyEnvironmentChanged(mSkyEnvAmbient, mSkyEnvAmbient, ambient, ambient))
+            {
+                mSkyEnvAmbient = ambient;
+                (*mReflectionData)[1] = vsg::vec4(mReflectionStrength, ambient.x, ambient.y, ambient.z);
+                mReflectionData->dirty();
+            }
+            return;
+        }
+        mSkyEnvZenith = zenithLinear;
+        mSkyEnvHorizon = horizonLinear;
+        mSkyEnvAmbient = ambient;
+        Render::Gi::ReflectionSet set;
+        set.cell = Render::Gi::CellId{ false, std::string(), 0, 0 };
+        set.samples = 1;
+        set.resolution = Render::Gi::skyEnvironmentResolution;
+        // The reflection lookup adds what the ambient light has gained since the bake; this one is made now.
+        set.ambient = ambient;
+        set.probes.push_back(Render::Gi::makeSkyEnvironmentProbe(
+            zenithLinear, horizonLinear, horizonLinear * Render::Gi::groundSkyFactor, set.resolution));
+        const auto packed = Render::Gi::packReflections(set, mReflectionStrength);
+        if (packed.size() > mReflectionData->size())
+            return;
+        std::copy(packed.begin(), packed.end(), mReflectionData->begin());
+        mReflectionData->dirty();
+        mSkyEnvOwns = true;
     }
 
     void RenderManager::setSunColour(const vsg::vec4& diffuse, const vsg::vec4& specular)
@@ -1572,6 +1633,7 @@ namespace MWRender
     {
         updateSceneData();
         updateSkyVisibility();
+        updateSkyEnvironment();
         if (mHdrTarget)
         {
             // The scene is in the float target, and its single-sample copies are what the copies and the depth pass

@@ -378,6 +378,12 @@ namespace MWRender
         std::unique_ptr<Render::Gi::ReflectionSet> mLoadedReflections;
         // Task 0036: the exterior sky-visibility field (bindings 12 and 13), null with gi exterior off.
         void updateSkyVisibility();
+        // Stage d: the sky environment image, in the reflection probe buffer while outdoors.
+        void updateSkyEnvironment();
+        bool mSkyEnvOwns = false;
+        vsg::vec3 mSkyEnvZenith{ -1.f, -1.f, -1.f };
+        vsg::vec3 mSkyEnvHorizon{ -1.f, -1.f, -1.f };
+        vsg::vec3 mSkyEnvAmbient{ -1.f, -1.f, -1.f };
         bool mGiSkyEnabled = false;
         float mSkyVisStrength = 1.f;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;
