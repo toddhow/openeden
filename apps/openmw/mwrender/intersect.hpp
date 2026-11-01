@@ -1,9 +1,9 @@
 #ifndef VSGOPENMW_MWRENDER_INTERSECT_H
 #define VSGOPENMW_MWRENDER_INTERSECT_H
 
+#include "mask.hpp"
 #include "rendermanager.hpp"
 #include "scene.hpp"
-#include "mask.hpp"
 
 #include <vsg/core/visit.h>
 

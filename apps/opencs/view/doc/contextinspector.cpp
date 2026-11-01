@@ -40,15 +40,15 @@ namespace
         Columns::ColumnId_Scale,
     };
 
-    const char* const fieldNames[] = { "Position X", "Position Y", "Position Z", "Rotation X", "Rotation Y",
-        "Rotation Z", "Scale" };
+    const char* const fieldNames[]
+        = { "Position X", "Position Y", "Position Z", "Rotation X", "Rotation Y", "Rotation Z", "Scale" };
 
     CSMWorld::IdTable* referencesTable(CSMDoc::Document& document)
     {
         try
         {
-            return dynamic_cast<CSMWorld::IdTable*>(document.getData().getTableModel(
-                CSMWorld::UniversalId(CSMWorld::UniversalId::Type_References)));
+            return dynamic_cast<CSMWorld::IdTable*>(
+                document.getData().getTableModel(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_References)));
         }
         catch (const std::exception&)
         {
@@ -211,8 +211,8 @@ void CSVDoc::ContextInspector::refreshValues()
     mRecordType->clear();
     try
     {
-        auto* objects = dynamic_cast<CSMWorld::IdTable*>(mDocument.getData().getTableModel(
-            CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Referenceables)));
+        auto* objects = dynamic_cast<CSMWorld::IdTable*>(
+            mDocument.getData().getTableModel(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Referenceables)));
         if (objects != nullptr)
         {
             const QModelIndex objectRow
@@ -220,7 +220,8 @@ void CSVDoc::ContextInspector::refreshValues()
             if (objectRow.isValid())
             {
                 const auto type = static_cast<CSMWorld::UniversalId::Type>(
-                    objects->data(objects->index(objectRow.row(), objects->findColumnIndex(Columns::ColumnId_RecordType)))
+                    objects
+                        ->data(objects->index(objectRow.row(), objects->findColumnIndex(Columns::ColumnId_RecordType)))
                         .toInt());
                 mRecordType->setText(QString::fromStdString(CSMWorld::UniversalId(type).getTypeName()));
             }

@@ -6,8 +6,8 @@ namespace Pipeline
 {
     namespace Descriptors
     {
-        // The shader headers are C++ here, and the second needs the first's macros: keep this order.
-        // clang-format off
+// The shader headers are C++ here, and the second needs the first's macros: keep this order.
+// clang-format off
         #include <files/shaders/lib/material/bindings.glsl>
         #include <files/shaders/comp/particle/bindings.glsl>
         // clang-format on
