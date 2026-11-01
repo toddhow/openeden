@@ -21,8 +21,8 @@ namespace Render::Gi
     // The sky counts as changed when any channel of the sky or horizon colour moved by more than this (linear light).
     constexpr float skyEnvironmentTolerance = 0.004f;
 
-    // The sky's colour in a direction (any length): the horizon's at the horizon, the zenith's straight up, the ground's
-    // below the horizon (the same sky as projectSky). A zero direction gives the horizon colour.
+    // The sky's colour in a direction (any length): the horizon's at the horizon, the zenith's straight up, the
+    // ground's below the horizon (the same sky as projectSky). A zero direction gives the horizon colour.
     inline vsg::vec3 skyRadiance(
         const vsg::vec3& zenith, const vsg::vec3& horizon, const vsg::vec3& ground, const vsg::vec3& dir)
     {

@@ -16,7 +16,8 @@ namespace Render::Gi
 {
     // A marker's radius as a share of the spacing between columns.
     constexpr float skyVisDebugRadiusFraction = 0.08f;
-    // How far from the camera the markers are drawn (game units): about 80 columns of 8 levels with the default spacing.
+    // How far from the camera the markers are drawn (game units): about 80 columns of 8 levels with the default
+    // spacing.
     constexpr float skyVisDebugRadius = 1024.f;
 
     // The most markers drawSkyVisibility can draw for columns `spacing` apart, `levels` levels and this radius.
@@ -48,8 +49,7 @@ namespace Render::Gi
                 {
                     const VisSh& v = field.probes[column * field.levels + level];
                     const float share = v[0] / openGround;
-                    const vsg::vec3 position(
-                        x, y, skyVisLevelHeight(field.base[column], level, field.levelSpacing));
+                    const vsg::vec3 position(x, y, skyVisLevelHeight(field.base[column], level, field.levelSpacing));
                     drawDebugMarker(sink, position, markerRadius, debugColor(vsg::vec3(share, share, share)));
                     ++drawn;
                 }
