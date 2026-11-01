@@ -328,10 +328,12 @@ namespace
         add("negative angular damping", "angularDamping", [](BodyDesc& d) { d.angularDamping = -1.0f; });
         add("zero sphere radius", "radiusM", [](BodyDesc& d) { d.shape = SphereShape{ 0.0f }; });
         add("NaN sphere radius", "radiusM", [](BodyDesc& d) { d.shape = SphereShape{ kNaN }; });
-        add("box with a zero half extent", "halfExtentsM",
-            [](BodyDesc& d) { d.shape = BoxShape{ Vec3{ 0.5f, 0.0f, 0.5f } }; });
-        add("box with an infinite half extent", "halfExtentsM",
-            [](BodyDesc& d) { d.shape = BoxShape{ Vec3{ 0.5f, kInf, 0.5f } }; });
+        add("box with a zero half extent", "halfExtentsM", [](BodyDesc& d) {
+            d.shape = BoxShape{ Vec3{ 0.5f, 0.0f, 0.5f } };
+        });
+        add("box with an infinite half extent", "halfExtentsM", [](BodyDesc& d) {
+            d.shape = BoxShape{ Vec3{ 0.5f, kInf, 0.5f } };
+        });
         add("capsule with zero half height", "halfHeightM", [](BodyDesc& d) { d.shape = CapsuleShape{ 0.0f, 0.25f }; });
         add("capsule with zero radius", "radiusM", [](BodyDesc& d) { d.shape = CapsuleShape{ 0.5f, 0.0f }; });
 
@@ -498,11 +500,13 @@ namespace
         expectRefused("unknown bodyB", ErrorCode::InvalidHandle, "bodyB", [](JointDesc& j) { j.bodyB = BodyId{}; });
         expectRefused("same body twice", invalid, "bodyB", [&](JointDesc& j) { j.bodyB = a; });
         expectRefused("NaN anchor", invalid, "anchorM", [](JointDesc& j) { j.anchorM.x = kNaN; });
-        expectRefused(
-            "twist axis not unit", invalid, "twistAxis", [](JointDesc& j) { j.twistAxis = Vec3{ 0, 0, -2 }; });
+        expectRefused("twist axis not unit", invalid, "twistAxis", [](JointDesc& j) {
+            j.twistAxis = Vec3{ 0, 0, -2 };
+        });
         expectRefused("plane axis not unit", invalid, "planeAxis", [](JointDesc& j) { j.planeAxis = Vec3{ 2, 0, 0 }; });
-        expectRefused("plane axis not perpendicular", invalid, "planeAxis",
-            [](JointDesc& j) { j.planeAxis = Vec3{ 0, 0, 1 }; });
+        expectRefused("plane axis not perpendicular", invalid, "planeAxis", [](JointDesc& j) {
+            j.planeAxis = Vec3{ 0, 0, 1 };
+        });
         expectRefused("cone that is not symmetric", invalid, "planeSwing", [](JointDesc& j) {
             j.planeSwingMinRad = -0.2f;
             j.planeSwingMaxRad = 0.5f;
@@ -1221,8 +1225,7 @@ namespace
         adapter->step();
         adapter->step();
 
-        const std::vector<std::string> oneStep
-            = { "first.pre", "second.pre", "update", "first.post", "second.post" };
+        const std::vector<std::string> oneStep = { "first.pre", "second.pre", "update", "first.post", "second.post" };
         std::vector<std::string> expected = oneStep;
         expected.insert(expected.end(), oneStep.begin(), oneStep.end());
         EXPECT_EQ(log.events, expected);

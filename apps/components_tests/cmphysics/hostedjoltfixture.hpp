@@ -248,8 +248,8 @@ namespace CMPhysicsTest
     inline bool isFiniteState(const opas::physics::BodyState& s)
     {
         const float values[] = { s.positionM.x, s.positionM.y, s.positionM.z, s.rotation.x, s.rotation.y, s.rotation.z,
-            s.rotation.w, s.linearVelocityMps.x, s.linearVelocityMps.y, s.linearVelocityMps.z,
-            s.angularVelocityRadps.x, s.angularVelocityRadps.y, s.angularVelocityRadps.z };
+            s.rotation.w, s.linearVelocityMps.x, s.linearVelocityMps.y, s.linearVelocityMps.z, s.angularVelocityRadps.x,
+            s.angularVelocityRadps.y, s.angularVelocityRadps.z };
         return std::all_of(std::begin(values), std::end(values), [](float v) { return std::isfinite(v); });
     }
 

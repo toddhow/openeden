@@ -393,8 +393,7 @@ namespace CMPhysics
             if (group == nullptr)
                 return failure<BodyId>(ErrorCode::InvalidHandle, "collisionGroup is not a live group");
             if (desc.subGroup >= group->subGroupCount)
-                return failure<BodyId>(
-                    ErrorCode::InvalidDescription, "subGroup must be < the group's subGroupCount");
+                return failure<BodyId>(ErrorCode::InvalidDescription, "subGroup must be < the group's subGroupCount");
         }
         const float s = mConfig.unitsPerMeter;
         const JPH::ShapeRefC shape = createJoltShape(desc.shape, s);
