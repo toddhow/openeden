@@ -354,9 +354,9 @@ Not verified:
 
 #### Check list for toddhow
 
-Start `openmw-cs`, choose Edit a content file, open `Morrowind.esm`. In the main window use World > Scene.
+Start `openmw-cs`, choose Edit a content file, open `Morrowind.esm`. There is no World > Scene entry, and there never was in the OSG editor: a scene opens from a table. In World > Cells, right-click a cell and choose View (Ctrl and a double click does the same). Corrected 2026-10-31 after toddhow could not find the entry.
 
-1. **Scene opens.** A dock appears with toolbar, 3D view and status bar, and the view has a grey gradient. Expect the view to be empty until a cell is chosen.
+1. **Scene opens.** In World > Cells, right-click "Seyda Neen, Arrille's Tradehouse" and choose View. A dock appears with toolbar, 3D view and status bar, and the interior is drawn in the view.
 2. **Choose a cell.** In World > Cells, right-click "Seyda Neen, Arrille's Tradehouse" and choose View. The interior appears. In the Cells table again, drag an exterior such as `#-2 -9` onto a new Scene subview: it appears there. This checks drag and drop into the Vulkan window.
 3. **Resize larger.** Drag the main window's corner to make it about twice as wide. The view fills its dock with no black strip and no stale pixels.
 4. **Resize smaller.** Drag it as small as it goes. The view stays correct and the editor does not hang. Drag it back.
