@@ -35,6 +35,7 @@ namespace Resource
 }
 namespace Render
 {
+    class Bloom;
     class DebugGeometry;
     class Engine;
     class GpuTimer;
@@ -329,6 +330,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::Context> mHdrContext; // before the target: it makes its images
         std::unique_ptr<Render::HdrTarget> mHdrTarget;
         std::unique_ptr<Render::Tonemap> mTonemap;
+        std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
+        bool mTonemapSteppedAside = false; // a post-processing technique that sets `hdr` is enabled
         vsg::ref_ptr<vsg::RenderGraph> mTonemapGraph;
         vsg::ref_ptr<vsg::CommandGraph> mCommandGraph;
         vsg::ref_ptr<vsg::RecordTraversal> mRecord;

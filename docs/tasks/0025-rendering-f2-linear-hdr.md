@@ -121,3 +121,19 @@ Out of scope: F3 and F4; automatic exposure; HDR display output; changing any de
 **Differences seen, by design or open.** Water: see stage F2a. Night: the sky has a stronger purple glow in the HDR frame; the sky layers (clouds, stars) are alpha blended over the gradient, and blending in linear light is brighter than blending on encoded values. Not tuned. The linear-light fog and sky mixes are deliberately kept on encoded values, so fog density matches.
 
 **Not verified.** The Slang sun with `hdr` on (the Slang branch is written and compiles, a frame with both settings on was not taken); particles with `hdr` on beyond rain; the editor.
+
+### 2026-11-01, stages F2c and F2d: tonemap, exposure, the `hdr` technique rule, bloom (built and committed together)
+
+**What was built.**
+- `hdr tonemap` (`vanilla`, `reinhard`, `aces`) and `hdr exposure` (EV) reach the tonemap pass as push constants. An unknown curve name logs a warning and uses `vanilla`.
+- The `.omwfx` rule: `RenderManager::onFrame` checks the enabled chain each frame; if a technique that runs (parsed, and no render error) sets `hdr`, the built-in tonemap only clips and encodes at exposure 0 (`Render::Hdr::resolveTonemap`), and the log says so once. The technique still gets the 8-bit picture, as stated in the Design section; a float scene for it is not offered. No shipped technique sets `hdr` (`grep` of `files/data/shaders`), so it was tested with a technique written for the purpose (`scratchpad/hdr/hdrdata/shaders/hdrtest.omwfx`).
+- Bloom (`Render::Bloom`, `[Rendering] hdr bloom`, `hdr bloom strength`): a chain of up to six half-size float images, a 13-tap downsample down, a 3x3 tent upsample added back up, the largest image added to the scene inside the tonemap before exposure. No threshold. Bloom stays on when a technique steps the curve aside.
+
+**Verified (Windows).**
+- Exposure: mean brightness of one frame 78.3 at 0 EV, 131.0 at +2 EV; viewed at +1 and -1 EV (brighter, darker). `aces` and `reinhard` draw (viewed `aces`; `reinhard` drew, not compared closely).
+- Stepping aside: with the test technique enabled and `hdr exposure = 2`, the frame's mean is 78.3, the 0 EV value; the log line appears.
+- Bloom on at strength 0.15 in Seyda Neen: a soft glow on the sky and mist, nothing else changed (viewed); also with antialiasing 4. Bloom off (the default): no object exists.
+- `components-tests` pass for everything of this task (38 tests in the HDR, tonemap, CollectLights and Slang suites run alone; one test of another session fails in the full run: `ManifestEditorLibraryTest`); `openmw-tests` 799.
+- A fresh reviewer read both stages' diffs. Its findings were fixed: a failed technique no longer steps the curve aside, a NaN texel no longer spreads in the bloom chain, comments.
+
+**Not verified.** Bloom after a window resize (the code path replaces the chain and the tonemap source in `syncExtents`; cannot be driven here); GPU timing with every pass registered at once (the table holds 16; this adds `tonemap` and `bloom` to about 11 passes); the Slang sun with `hdr` on; the whole-tree clang-format check and the Linux gate are recorded at the end of this log.

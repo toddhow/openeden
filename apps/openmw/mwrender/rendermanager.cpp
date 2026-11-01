@@ -21,12 +21,14 @@
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/fx/technique.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/color.hpp>
 #include <components/mwanimation/object.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/bloom.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/hdrmath.hpp>
@@ -128,6 +130,8 @@ namespace MWRender
             parameters.curve = choice.curve;
             parameters.exposureStops = choice.exposureStops;
             parameters.encode = true; // the scene is lit in linear space (stage F2b)
+            if (rendering.mHdrBloom)
+                parameters.bloomStrength = rendering.mHdrBloomStrength;
             return parameters;
         }
 
@@ -334,6 +338,8 @@ namespace MWRender
             mRenderGraph->setClearValues(VkClearColorValue{ { 0.f, 0.f, 0.f, 1.f } });
             mTonemapGraph = mEngine.createRenderGraph();
             mTonemap = std::make_unique<Render::Tonemap>(mCompileContext->clone(~vsg::Mask(0)), mTonemapGraph);
+            if (Settings::rendering().mHdrBloom)
+                mBloom = std::make_unique<Render::Bloom>(*context, mCompileContext->clone(~vsg::Mask(0)));
         }
         else
             mRenderGraph = mEngine.createRenderGraph();
@@ -401,8 +407,16 @@ namespace MWRender
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
         if (mTonemapGraph)
         {
-            // Scene, then tonemap into the swapchain, then everything that works on the 8-bit picture.
-            mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mTonemapGraph);
+            // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
+            if (mBloom)
+            {
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mBloom->node());
+                addCompileViews.emplace_back([this, context, resourceRequirements] {
+                    mCompileContext->compileManager->add(
+                        *mBloom->registrationFramebuffer(*context), mBloom->view(), resourceRequirements);
+                });
+            }
+            mCommandGraph->children.insert(mCommandGraph->children.begin() + (mBloom ? 3 : 2), mTonemapGraph);
             addCompileViews.emplace_back([this, resourceRequirements] {
                 mCompileContext->compileManager->add(*mTonemapGraph->window, mTonemap->view(), resourceRequirements);
             });
@@ -414,9 +428,11 @@ namespace MWRender
             mPostProcess->setMainView(mTonemap ? mTonemap->view() : mView);
             mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
             mCommandGraph->children.insert(
-                mCommandGraph->children.begin() + (mTonemapGraph ? 3 : 2), mPostProcess->node());
+                mCommandGraph->children.begin() + (mTonemapGraph ? (mBloom ? 4 : 3) : 2), mPostProcess->node());
         }
         timeChild(mGpuTimer, mCommandGraph->children, mRenderGraph.get(), "main scene");
+        if (mBloom)
+            timeChild(mGpuTimer, mCommandGraph->children, mBloom->node().get(), "bloom");
         if (mTonemapGraph)
             timeChild(mGpuTimer, mCommandGraph->children, mTonemapGraph.get(), "tonemap");
         if (mPostProcess)
@@ -481,7 +497,12 @@ namespace MWRender
         if (mTonemap)
         {
             mTonemap->setParameters(tonemapParameters(false));
-            if (!mTonemap->setSource(mHdrTarget->colorView(), {}, mHdrTarget->extent()))
+            if (mBloom
+                && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), mHdrTarget->extent(),
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                throw std::runtime_error("The bloom passes could not be built");
+            if (!mTonemap->setSource(
+                    mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent()))
                 throw std::runtime_error("The tonemap pass could not be built");
         }
         if (mPostProcess)
@@ -1040,6 +1061,21 @@ namespace MWRender
             mReflect->setSource(mHdrTarget->colorView(), mHdrTarget->depthView());
             if (mPostProcess)
                 mPostProcess->setDepthSource(mHdrTarget->depthView());
+            // A technique that sets `hdr` tonemaps for itself: the built-in curve then only clips and encodes
+            // (Render::Hdr::resolveTonemap). Parameters change between frames, here.
+            const bool steppedAside = mPostProcess
+                && std::any_of(mPostProcess->getTechniques().begin(), mPostProcess->getTechniques().end(),
+                    [this](const auto& technique) {
+                        // Only one that runs: a technique that failed to build draws nothing and tonemaps nothing.
+                        return technique->getHDR() && mPostProcess->getRenderError(technique).empty();
+                    });
+            if (steppedAside != mTonemapSteppedAside)
+            {
+                mTonemapSteppedAside = steppedAside;
+                mTonemap->setParameters(tonemapParameters(steppedAside));
+                if (steppedAside)
+                    Log(Debug::Info) << "HDR: a post-processing technique sets hdr, so the built-in tonemap only clips";
+            }
         }
         mReflect->update();
         if (mPostProcess)
@@ -1505,7 +1541,11 @@ namespace MWRender
                 *mHdrContext, extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); });
             mRenderGraph->framebuffer = mHdrTarget->framebuffer();
             mTonemapGraph->renderArea = { { 0, 0 }, extent };
-            if (!mTonemap->setSource(mHdrTarget->colorView(), {}, extent))
+            if (mBloom
+                && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), extent,
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
+            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }
         updateProjectionMatrix();
