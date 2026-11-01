@@ -528,8 +528,7 @@ void main()
         if (ao)
             commands->children.push_back(vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, aoOffset, mPushAo));
         if (sss)
-            commands->children.push_back(
-                vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, sssOffset, mPushSss));
+            commands->children.push_back(vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, sssOffset, mPushSss));
         if (debug)
             commands->children.push_back(
                 vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, debugOffset, mPushDebug));

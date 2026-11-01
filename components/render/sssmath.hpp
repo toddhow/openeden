@@ -41,8 +41,8 @@ namespace Render::Sss
     // The taps in the spiral.
     constexpr int tapCount = 16;
 
-    // The gain is limited to this range, so a bright patch next to a dark one cannot flare, and `epsilon` keeps the ratio
-    // of two dark averages from jumping about.
+    // The gain is limited to this range, so a bright patch next to a dark one cannot flare, and `epsilon` keeps the
+    // ratio of two dark averages from jumping about.
     constexpr float gainMin = 0.5f;
     constexpr float gainMax = 2.f;
     constexpr float epsilon = 1e-3f;
@@ -76,8 +76,9 @@ namespace Render::Sss
         return std::exp(-distance * distance / (2.f * sigma * sigma));
     }
 
-    // Tap `index` of `count`, as an offset in units from the pixel: a golden-angle spiral that covers the disc of radius
-    // `reach` evenly. `rotation` (radians) turns the whole pattern, so that neighbouring pixels can use different ones.
+    // Tap `index` of `count`, as an offset in units from the pixel: a golden-angle spiral that covers the disc of
+    // radius `reach` evenly. `rotation` (radians) turns the whole pattern, so that neighbouring pixels can use
+    // different ones.
     inline vsg::vec2 tapOffset(int index, int count, float reach, float rotation)
     {
         constexpr float goldenAngle = 2.39996323f;
@@ -92,10 +93,10 @@ namespace Render::Sss
         return t * t * (3.f - 2.f * t);
     }
 
-    // How much a neighbour counts: 1 when it is on the same surface as the pixel, 0 when it is another surface. `depthDelta`
-    // is the difference of the two linear depths (units), `width` the scatter width, `normalDot` the dot of the two
-    // normals. A neighbour more than two widths nearer or farther, or facing more than about 70 degrees away, does not
-    // count, so light does not leak across a jaw line or from a hand onto the cloth behind it.
+    // How much a neighbour counts: 1 when it is on the same surface as the pixel, 0 when it is another surface.
+    // `depthDelta` is the difference of the two linear depths (units), `width` the scatter width, `normalDot` the dot
+    // of the two normals. A neighbour more than two widths nearer or farther, or facing more than about 70 degrees
+    // away, does not count, so light does not leak across a jaw line or from a hand onto the cloth behind it.
     inline float surfaceWeight(float depthDelta, float width, float normalDot)
     {
         const float limit = std::max(width, 1e-4f);
@@ -105,8 +106,8 @@ namespace Render::Sss
     struct Tap
     {
         vsg::vec3 colour; // the neighbour's scene colour, linear
-        float distance;   // from the pixel, in game units, in the screen's plane
-        float validity;   // surfaceWeight times 1 if the neighbour is marked as skin, 0 if not
+        float distance; // from the pixel, in game units, in the screen's plane
+        float validity; // surfaceWeight times 1 if the neighbour is marked as skin, 0 if not
     };
 
     // The scattered colour of one pixel. The pixel itself counts with weight 1 in both averages. `strength` 0 returns
@@ -132,8 +133,8 @@ namespace Render::Sss
                 narrowSum += taps[i].colour[channel] * w2;
                 narrowWeight += w2;
             }
-            const float gain = std::clamp(
-                (wideSum / wideWeight + epsilon) / (narrowSum / narrowWeight + epsilon), gainMin, gainMax);
+            const float gain
+                = std::clamp((wideSum / wideWeight + epsilon) / (narrowSum / narrowWeight + epsilon), gainMin, gainMax);
             result[channel] = std::max(0.f, centre[channel] * (1.f + strength * (gain - 1.f)));
         }
         return result;
