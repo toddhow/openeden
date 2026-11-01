@@ -4,7 +4,7 @@ Goal: every gate in the guide's table that can run in CI runs on GitHub Actions 
 Inherited code touched: `.gitlab-ci.yml` (read, as the reference), `.github/workflows/push.yml`, `release.yml`, `windows.yml`, `CI/*.sh`, `docker/Dockerfile.ubuntu`. No source under `apps/` or `components/`.
 Inputs / outputs: new or changed workflow files under `.github/workflows/`; the `CI/` scripts they call; a short `CI/README`-style note in the guide's pitfalls if a job needs a trick.
 
-Status: draft for toddhow's approval. It cannot be run from here: GitHub holds only a copy of upstream OpenMW's `master`, so a workflow only runs once a branch is pushed, which needs toddhow's word. Candidate for the lighter loop (CI scripts are outside the guide's full-loop list); toddhow marks it.
+Status: approved by toddhow, 2026-10-31. A workflow only runs once a branch is pushed; `vulkan` is pushed on the same day. Not marked as the lighter loop, so the loop applies in full where it can: there is no unit-testable code here, so the workflow runs are the tests, and a fresh reviewer reads the result. toddhow can still mark it lighter.
 
 Constraints:
 - **Mirror what exists.** Port the GitLab jobs one by one; do not redesign. The jobs and what each checks: `Ubuntu_GCC` (build with `-Werror`), `Ubuntu_GCC_tests` (unit tests, the 32 Lua integration tests against the example suite at the pinned revision), `_tests_asan`, `_tests_ubsan`, `Ubuntu_Clang`, `Clang_Format` (clang-format 14), the clang-tidy jobs, `CI/check_no_osg.sh`, `CI/check_qt_translations.sh`, and the Windows MSVC build and tests.
