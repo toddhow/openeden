@@ -160,8 +160,8 @@ void CSMExtension::EditorExtensionHost::start()
             continue;
         }
         info.mState = ExtensionInfo::State::Failed;
-        const auto failure = std::find_if(failures.begin(), failures.end(),
-            [&](const auto& item) { return item.extensionId == info.mId; });
+        const auto failure = std::find_if(
+            failures.begin(), failures.end(), [&](const auto& item) { return item.extensionId == info.mId; });
         info.mMessage = failure != failures.end() ? failure->stage + ": " + failure->reason : "not started";
         Log(Debug::Error) << "Extension '" << info.mId << "' is disabled: " << info.mMessage;
     }
@@ -184,10 +184,10 @@ std::vector<CSMExtension::ExtensionInfo> CSMExtension::EditorExtensionHost::exte
 
 std::string CSMExtension::EditorExtensionHost::summary() const
 {
-    const auto active = std::count_if(
-        mInfos.begin(), mInfos.end(), [](const ExtensionInfo& info) { return info.mState == ExtensionInfo::State::Active; });
-    const auto failed = std::count_if(
-        mInfos.begin(), mInfos.end(), [](const ExtensionInfo& info) { return info.mState == ExtensionInfo::State::Failed; });
+    const auto active = std::count_if(mInfos.begin(), mInfos.end(),
+        [](const ExtensionInfo& info) { return info.mState == ExtensionInfo::State::Active; });
+    const auto failed = std::count_if(mInfos.begin(), mInfos.end(),
+        [](const ExtensionInfo& info) { return info.mState == ExtensionInfo::State::Failed; });
     std::string text = std::to_string(active) + " of " + std::to_string(mInfos.size()) + " extensions active";
     if (failed > 0)
         text += ", " + std::to_string(failed) + " failed";

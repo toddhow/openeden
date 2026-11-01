@@ -1,20 +1,20 @@
 #include "editor.hpp"
 
+#include <QAction>
 #include <QApplication>
+#include <QDialog>
+#include <QDoubleSpinBox>
 #include <QFileInfo>
+#include <QLineEdit>
 #include <QLocalServer>
 #include <QLocalSocket>
-#include <QAction>
-#include <QDialog>
-#include <QMenuBar>
-#include <QDoubleSpinBox>
-#include <QLineEdit>
-#include <QTreeView>
-#include <QUndoStack>
 #include <QMainWindow>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QTimer>
+#include <QTreeView>
+#include <QUndoStack>
 #include <QWidget>
 
 #include <boost/program_options.hpp>
@@ -54,14 +54,14 @@
 #include "model/world/data.hpp"
 #include "model/world/idtable.hpp"
 #include "model/world/tablemimedata.hpp"
+#include "model/world/universalid.hpp"
 #include "view/doc/assetbrowser.hpp"
 #include "view/doc/contextinspector.hpp"
+#include "view/doc/logtap.hpp"
 #include "view/doc/subview.hpp"
+#include "view/doc/viewmanager.hpp"
 #include "view/render/worldspacewidget.hpp"
 #include "view/world/scenesubview.hpp"
-#include "model/world/universalid.hpp"
-#include "view/doc/logtap.hpp"
-#include "view/doc/viewmanager.hpp"
 
 CS::Editor::Editor(int argc, char** argv)
     : mConfigVariables(readConfiguration())
@@ -238,9 +238,9 @@ std::pair<Files::PathContainer, std::vector<std::string>> CS::Editor::readConfig
         messageBox.setWindowTitle(tr("No local data path available"));
         messageBox.setIcon(QMessageBox::Critical);
         messageBox.setStandardButtons(QMessageBox::Ok);
-        messageBox.setText(
-            tr("<br><b>Eden Studio is unable to access the local data directory. This may indicate a faulty configuration "
-               "or a broken install.</b>"));
+        messageBox.setText(tr(
+            "<br><b>Eden Studio is unable to access the local data directory. This may indicate a faulty configuration "
+            "or a broken install.</b>"));
         messageBox.exec();
 
         QApplication::exit(1);
@@ -524,7 +524,6 @@ namespace
             return false;
         }
     };
-
 
     /// The Asset Browser check, see startUiCheck: searches, makes the drag data of an object, and opens an object
     /// and a table the way a double click does.

@@ -42,11 +42,11 @@ CSVDoc::ExtensionManagerDialog::ExtensionManagerDialog(const CSMExtension::Edito
     mList->setUniformRowHeights(true);
     mList->setHeaderLabels({ tr("Name"), tr("ID"), tr("Version"), tr("Enabled"), tr("State"), tr("Details") });
 
-    QLabel* note = new QLabel(
-        tr("Extensions are listed in openmw.cfg as extension=<id> lines (the game reads the same lines). "
-           "Changes apply the next time Eden Studio starts. Extensions are loaded read-only here: "
-           "the host API gives them no access to a document."),
-        this);
+    QLabel* note
+        = new QLabel(tr("Extensions are listed in openmw.cfg as extension=<id> lines (the game reads the same lines). "
+                        "Changes apply the next time Eden Studio starts. Extensions are loaded read-only here: "
+                        "the host API gives them no access to a document."),
+            this);
     note->setWordWrap(true);
 
     QDialogButtonBox* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);

@@ -42,8 +42,9 @@ namespace CSVDoc
 
     namespace
     {
-        const char* const transportTip = "Play, Pause and Step drive the physics world of the editor. That world is "
-                                         "not built yet (task 0024, stage E), so they stay disabled.";
+        const char* const transportTip
+            = "Play, Pause and Step drive the physics world of the editor. That world is "
+              "not built yet (task 0024, stage E), so they stay disabled.";
 
         QWidget* makeTransportRow(QWidget* parent)
         {

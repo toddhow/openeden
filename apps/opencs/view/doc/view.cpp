@@ -433,9 +433,8 @@ void CSVDoc::View::setupWindowMenu()
         choice->setChecked(mShell->layout() == value);
         group->addAction(choice);
         connect(choice, &QAction::triggered, this, [this, value] { changeLayout(value); });
-        connect(mShell, &StudioShell::layoutChanged, choice, [choice, value](CSMPrefs::EditorLayout current) {
-            choice->setChecked(current == value);
-        });
+        connect(mShell, &StudioShell::layoutChanged, choice,
+            [choice, value](CSMPrefs::EditorLayout current) { choice->setChecked(current == value); });
     }
     layout->addSeparator();
     QAction* reset = layout->addAction(tr("Reset Layout"));
@@ -447,8 +446,9 @@ void CSVDoc::View::setupWindowMenu()
     {
         QAction* toggle = dock->toggleViewAction();
         panels->addAction(toggle);
-        connect(mShell, &StudioShell::layoutChanged, toggle,
-            [toggle](CSMPrefs::EditorLayout current) { toggle->setEnabled(current == CSMPrefs::EditorLayout::EdenStudio); });
+        connect(mShell, &StudioShell::layoutChanged, toggle, [toggle](CSMPrefs::EditorLayout current) {
+            toggle->setEnabled(current == CSMPrefs::EditorLayout::EdenStudio);
+        });
         toggle->setEnabled(mShell->isStudio());
     }
 }
@@ -919,7 +919,8 @@ void CSVDoc::View::setupPanels()
 
     mInspector = new ContextInspector(*mDocument, [this] { return currentViewport(); });
     setContent(mShell->contextInspector(), mInspector);
-    connect(mInspector, &ContextInspector::openRecordRequested, this, [this](const CSMWorld::UniversalId& id) { addSubView(id); });
+    connect(mInspector, &ContextInspector::openRecordRequested, this,
+        [this](const CSMWorld::UniversalId& id) { addSubView(id); });
     mInspector->setEditLock(mDocument->getState() & CSMDoc::State_Locked);
 
     setContent(mShell->outputLog(), new OutputLogPanel);
@@ -1048,25 +1049,26 @@ void CSVDoc::View::infoAbout()
     // Get current year
     const auto copyrightInfo = Misc::timeToString(std::chrono::system_clock::now(), "Copyright © 2008-%Y OpenMW Team");
 
-    QString aboutText = QString(
-        "<p style=\"white-space: pre-wrap;\">"
-        "<b><h2>Eden Studio</h2></b>"
-        "%1\n\n"
-        "%2\n\n"
-        "%3\n\n"
-        "<table>"
-        "<tr><td>%4</td><td><a href=\"https://openmw.org\">https://openmw.org</a></td></tr>"
-        "<tr><td>%5</td><td><a href=\"https://forum.openmw.org\">https://forum.openmw.org</a></td></tr>"
-        "<tr><td>%6</td><td><a "
-        "href=\"https://gitlab.com/OpenMW/openmw/issues\">https://gitlab.com/OpenMW/openmw/issues</a></td></tr>"
-        "<tr><td>%7</td><td><a href=\"https://web.libera.chat/#openmw\">ircs://irc.libera.chat/#openmw</a></td></tr>"
-        "</table>"
-        "</p>")
-                            .arg(versionInfo,
-                                tr("Eden Studio is the content and scene editor of OpenEden, a free and open source game engine "
-                                   "based on OpenMW."),
-                                tr(copyrightInfo.c_str()), tr("Home Page:"), tr("Forum:"), tr("Bug Tracker:"),
-                                tr("IRC:"));
+    QString aboutText
+        = QString(
+            "<p style=\"white-space: pre-wrap;\">"
+            "<b><h2>Eden Studio</h2></b>"
+            "%1\n\n"
+            "%2\n\n"
+            "%3\n\n"
+            "<table>"
+            "<tr><td>%4</td><td><a href=\"https://openmw.org\">https://openmw.org</a></td></tr>"
+            "<tr><td>%5</td><td><a href=\"https://forum.openmw.org\">https://forum.openmw.org</a></td></tr>"
+            "<tr><td>%6</td><td><a "
+            "href=\"https://gitlab.com/OpenMW/openmw/issues\">https://gitlab.com/OpenMW/openmw/issues</a></td></tr>"
+            "<tr><td>%7</td><td><a "
+            "href=\"https://web.libera.chat/#openmw\">ircs://irc.libera.chat/#openmw</a></td></tr>"
+            "</table>"
+            "</p>")
+              .arg(versionInfo,
+                  tr("Eden Studio is the content and scene editor of OpenEden, a free and open source game engine "
+                     "based on OpenMW."),
+                  tr(copyrightInfo.c_str()), tr("Home Page:"), tr("Forum:"), tr("Bug Tracker:"), tr("IRC:"));
 
     QMessageBox::about(this, "About Eden Studio", aboutText);
 }

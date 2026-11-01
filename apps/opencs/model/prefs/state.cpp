@@ -19,8 +19,8 @@
 #include <components/settings/settings.hpp>
 
 #include "boolsetting.hpp"
-#include "configmigration.hpp"
 #include "coloursetting.hpp"
+#include "configmigration.hpp"
 #include "doublesetting.hpp"
 #include "intsetting.hpp"
 #include "modifiersetting.hpp"

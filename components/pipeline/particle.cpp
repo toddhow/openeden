@@ -1,18 +1,11 @@
 #include "particle.hpp"
 
+#include "particledescriptors.hpp"
+
 #include <components/vsgutil/readshader.hpp>
 
 namespace Pipeline
 {
-    namespace Descriptors
-    {
-        // clang-format off
-        // The shader headers are C++ here, and the second needs the first's macros: keep this order.
-        #include <files/shaders/lib/material/bindings.glsl>
-        #include <files/shaders/comp/particle/bindings.glsl>
-        // clang-format on
-    }
-
     Particle::Particle(vsg::ref_ptr<const vsg::Options> readShaderOptions)
         : mShaderOptions(readShaderOptions)
     {
