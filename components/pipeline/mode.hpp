@@ -59,7 +59,10 @@ namespace Pipeline
         // metalness).
         MATERIAL_MAP,
         // OpenEden (task 0028): the ambient light comes from the baked light probes; added by Pipeline::Graphics.
-        GI
+        GI,
+        // OpenEden (task 0029): the draw also writes the ambient part of its colour (the G-buffer's fifth extra
+        // output, for ambient occlusion); added by Pipeline::Graphics.
+        GBUFFER_AMBIENT
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

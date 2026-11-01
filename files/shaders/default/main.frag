@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, GI, GBUFFER_AMBIENT)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -79,6 +79,10 @@ layout(location=3) out vec2 outMotion;
 // OpenEden (task 0027): metalness, reflectance, occlusion and the subsurface mark; roughness goes in outNormal.w.
 layout(location=4) out vec4 outMaterial;
 #endif
+#ifdef GBUFFER_AMBIENT
+// OpenEden (task 0029): the ambient part of the colour (linear), which ambient occlusion darkens in the tonemap.
+layout(location=5) out vec4 outAmbient;
+#endif
 #endif
 
 void main()
@@ -89,6 +93,9 @@ void main()
     outMotion = vec2(0.0);
  #ifdef GBUFFER_MATERIAL
     outMaterial = vec4(0.0);
+ #endif
+ #ifdef GBUFFER_AMBIENT
+    outAmbient = vec4(0.0);
  #endif
 #endif
 #if defined(MATERIAL) && defined(ALPHA_TO_COVERAGE)
@@ -170,6 +177,9 @@ void main()
     // The specular map's shininess and colour, when the surface has one (task 0027, tier 1).
     float pbrShininess = 0.0;
     vec3 pbrSpecular = vec3(0.0);
+#endif
+#ifdef GBUFFER_AMBIENT
+    vec3 ambientPart = vec3(0.0);
 #endif
     // The ambient light: the cell's flat colour, or the baked probes' value (task 0028).
     vec3 ambientLight = scene.ambient.xyz;
@@ -256,6 +266,11 @@ void main()
         float pbrAmbientScale = pbrDiffuseScale;
         float pbrSpecularScale = max(clamp((pbrLit.reflectance - 0.5) * 2.0, 0.0, 1.0), pbrLit.metalness);
   #endif
+#ifdef GBUFFER_AMBIENT
+        // The part of the colour that ambient light makes, as materialTermsScaled adds it: the texture colour times the
+        // ambient light times the material's ambient colour. Ambient occlusion takes the occluded share of it out.
+        ambientPart = outColor.xyz * (ambientLight * getAmbient(vertexColor) * pbrAmbientScale);
+#endif
         outColor *= materialTermsScaled(ambientLight, diffuseLight, vertexColor, pbrAmbientScale, pbrDiffuseScale);
         outColor.xyz += specularLight * pbrSpecularScale;
   #ifdef GI
@@ -314,7 +329,13 @@ void main()
 #endif
     // OpenEden: debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
     if (colorMode != 3)
+    {
+#ifdef GBUFFER_AMBIENT
+        // Fog keeps this share of the colour (mix(fog, c, k) = k * c + (1 - k) * fog): the ambient part shrinks with it.
+        ambientPart *= applyFog(vec3(1.0), frag_in.viewPos) - applyFog(vec3(0.0), frag_in.viewPos);
+#endif
         outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
+    }
 
 #ifdef DEBUG_SHADOW
     outColor = debugShadow(outColor);
@@ -354,6 +375,9 @@ void main()
     outNormal = vec4(0.0, 0.0, 1.0, 1.0);
  #endif
     outLinearDepth = -frag_in.viewPos.z;
+ #ifdef GBUFFER_AMBIENT
+    outAmbient = vec4(ambientPart, 1.0);
+ #endif
  #ifdef GBUFFER_MOTION
     outMotion = frag_in.motion;
  #endif

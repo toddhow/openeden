@@ -30,7 +30,10 @@ namespace Render::GBuffer
         // the material output; whether a pixel is marked as skin).
         Roughness,
         Material,
-        Subsurface
+        Subsurface,
+        // Task 0029: the filtered occlusion, and the ambient part of the colour that it darkens.
+        Ao,
+        Ambient
     };
 
     inline std::optional<DebugView> parseDebugView(std::string_view name)
@@ -49,6 +52,10 @@ namespace Render::GBuffer
             return DebugView::Material;
         if (name == "subsurface")
             return DebugView::Subsurface;
+        if (name == "ao")
+            return DebugView::Ao;
+        if (name == "ambient")
+            return DebugView::Ambient;
         return std::nullopt;
     }
 
@@ -70,14 +77,20 @@ namespace Render::GBuffer
     // Metalness, reflectance, occlusion and the subsurface mark (task 0027); only with the material model on.
     constexpr VkFormat materialFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
-    // The colour outputs after the scene's own, in output order (1, 2, 3, and 4 with the material model).
-    inline std::vector<VkFormat> extraColorFormats(bool objectMotion, bool material = false)
+    // The ambient part of each opaque pixel's colour, in linear light (task 0029); only with ambient occlusion on.
+    constexpr VkFormat ambientFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+    // The colour outputs after the scene's own, in output order (1, 2, 3, 4 with the material model, and 5 with the
+    // ambient output, which needs the material model before it).
+    inline std::vector<VkFormat> extraColorFormats(bool objectMotion, bool material = false, bool ambient = false)
     {
         std::vector<VkFormat> formats{ normalFormat, linearDepthFormat };
         if (objectMotion)
             formats.push_back(objectMotionFormat);
         if (material && objectMotion)
             formats.push_back(materialFormat);
+        if (ambient && material && objectMotion)
+            formats.push_back(ambientFormat);
         return formats;
     }
 

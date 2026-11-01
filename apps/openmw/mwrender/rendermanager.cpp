@@ -40,6 +40,8 @@
 #include <components/render/hdrtarget.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
+#include <components/render/ambientocclusion.hpp>
+#include <components/render/aomath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
@@ -147,6 +149,7 @@ namespace MWRender
             parameters.encode = true; // the scene is lit in linear space (stage F2b)
             if (rendering.mHdrBloom)
                 parameters.bloomStrength = rendering.mHdrBloomStrength;
+            parameters.aoStrength = rendering.mAoStrength;
             // Task 0026: the G-buffer's debug view (only with the G-buffer on; checked where the setting is read).
             if (rendering.mGBuffer)
             {
@@ -266,11 +269,21 @@ namespace MWRender
             // OpenEden (task 0027, F4): the material model; its values are stored only with the G-buffer.
             const bool pbr = Render::Pbr::usePbr(Settings::rendering().mPbr, true);
             const bool materialOutput = Render::Pbr::useMaterialOutput(pbr, gbuffer);
-            const auto gbufferFormats
-                = gbuffer ? Render::GBuffer::extraColorFormats(true, materialOutput) : std::vector<VkFormat>{};
+            // OpenEden (task 0029, R2): ambient occlusion also stores the ambient part of the colour.
+            const bool wantAo = Settings::rendering().mAo;
+            const bool ao = Render::Ao::useAo(wantAo, gbuffer, materialOutput);
+            if (wantAo && !ao)
+                Log(Debug::Warning) << "[Rendering] ao needs hdr, gbuffer and pbr (it reads the stored depth, normals and "
+                                       "the material output); ambient occlusion is off";
+            const auto gbufferFormats = gbuffer
+                ? Render::GBuffer::extraColorFormats(true, materialOutput, ao)
+                : std::vector<VkFormat>{};
             mHdrTarget = std::make_unique<Render::HdrTarget>(
                 *context, mEngine.framebufferSamples(), mEngine.extent2D(), gbufferFormats);
             mGBufferOutputs = static_cast<unsigned int>(gbufferFormats.size());
+            mAoEnabled = ao;
+            if (ao)
+                Log(Debug::Info) << "AO: ambient occlusion at half resolution";
             if (gbuffer)
             {
                 resourceSystem->builder->graphics->gbufferOutputs = mGBufferOutputs;
@@ -472,6 +485,16 @@ namespace MWRender
             // Task 0026, stage b: screen motion from the stored depth, with the G-buffer.
             if (mGBufferOutputs > 0)
                 mVelocity = std::make_unique<Render::Velocity>(*context, mCompileContext->clone(~vsg::Mask(0)));
+            // Task 0029: the occlusion pass, after the scene (it reads the scene's depth and normals).
+            if (mAoEnabled)
+            {
+                Render::AmbientOcclusion::Settings aoSettings;
+                aoSettings.radius = Settings::rendering().mAoRadius;
+                aoSettings.slices = Settings::rendering().mAoSlices;
+                aoSettings.steps = Settings::rendering().mAoSteps;
+                mAmbientOcclusion = std::make_unique<Render::AmbientOcclusion>(
+                    *context, mCompileContext->clone(~vsg::Mask(0)), aoSettings);
+            }
         }
         else
             mRenderGraph = mEngine.createRenderGraph();
@@ -537,7 +560,8 @@ namespace MWRender
                 mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
-        const int afterScene = mVelocity ? 3 : 2; // the first index after the scene (and its velocity pass)
+        // The first index after the scene (and its velocity and occlusion passes).
+        const int afterScene = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0);
         if (mTonemapGraph)
         {
             // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
@@ -548,6 +572,15 @@ namespace MWRender
                 addCompileViews.emplace_back([this, context, resourceRequirements] {
                     mCompileContext->compileManager->add(
                         *mVelocity->registrationFramebuffer(*context), mVelocity->view(), resourceRequirements);
+                });
+            }
+            if (mAmbientOcclusion)
+            {
+                mCommandGraph->children.insert(
+                    mCommandGraph->children.begin() + 2 + (mVelocity ? 1 : 0), mAmbientOcclusion->graph());
+                addCompileViews.emplace_back([this, context, resourceRequirements] {
+                    mCompileContext->compileManager->add(*mAmbientOcclusion->registrationFramebuffer(*context),
+                        mAmbientOcclusion->view(), resourceRequirements);
                 });
             }
             if (mBloom)
@@ -577,6 +610,8 @@ namespace MWRender
         timeChild(mGpuTimer, mCommandGraph->children, mRenderGraph.get(), "main scene");
         if (mVelocity)
             timeChild(mGpuTimer, mCommandGraph->children, mVelocity->graph().get(), "velocity");
+        if (mAmbientOcclusion)
+            timeChild(mGpuTimer, mCommandGraph->children, mAmbientOcclusion->graph().get(), "ao");
         if (mBloom)
             timeChild(mGpuTimer, mCommandGraph->children, mBloom->node().get(), "bloom");
         if (mTonemapGraph)
@@ -648,12 +683,17 @@ namespace MWRender
                     mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The velocity pass could not be built");
+            if (mAmbientOcclusion
+                && !mAmbientOcclusion->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->normalView(),
+                    mHdrTarget->extent(),
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                throw std::runtime_error("The ambient occlusion pass could not be built");
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The bloom passes could not be built");
             if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent(),
-                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr)))
+                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources()))
                 throw std::runtime_error("The tonemap pass could not be built");
         }
         if (mPostProcess)
@@ -1334,6 +1374,19 @@ namespace MWRender
         mFog->configure(mViewDistance, fogDepth, underwaterFog, dlFactor, dlOffset, color);
     }
 
+    Render::Tonemap::AoSources RenderManager::aoSources() const
+    {
+        Render::Tonemap::AoSources sources;
+        if (!mAmbientOcclusion || !mHdrTarget)
+            return sources;
+        sources.ambient = mHdrTarget->ambientView();
+        sources.ao = mAmbientOcclusion->result();
+        sources.normal = mHdrTarget->normalView();
+        sources.linearDepth = mHdrTarget->linearDepthView();
+        sources.aoExtent = mAmbientOcclusion->resultExtent();
+        return sources;
+    }
+
     void RenderManager::updateVelocity()
     {
         if (!mVelocity)
@@ -1390,6 +1443,11 @@ namespace MWRender
             }
         }
         updateVelocity();
+        if (mAmbientOcclusion)
+        {
+            const vsg::dmat4 projection = mProjectionMatrix->transform();
+            mAmbientOcclusion->setProjection(static_cast<float>(projection(0, 0)), static_cast<float>(projection(1, 1)));
+        }
         mReflect->update();
         if (mPostProcess)
             mPostProcess->updateImages();
@@ -1858,12 +1916,16 @@ namespace MWRender
                 && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->objectMotionView(),
                     extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The velocity pass could not be rebuilt after a resize";
+            if (mAmbientOcclusion
+                && !mAmbientOcclusion->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->normalView(),
+                    extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                Log(Debug::Error) << "The ambient occlusion pass could not be rebuilt after a resize";
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
             if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent,
-                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr)))
+                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources()))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }
         updateProjectionMatrix();

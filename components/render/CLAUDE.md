@@ -58,6 +58,13 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 - **Skin:** `Npc` marks the models of `MT_Skin` body parts and the head before loading them (`markSkinModel`).
 - **Lighting:** with `pbr`, lit surfaces take the per-pixel path (`PBR_LIT`, `lib/light/pbrlighting.glsl`) over the same light grid and falloff; the specular lobe is scaled by pi because the engine's diffuse has no 1/pi (`pbrLightScale`).
 
+## Ambient occlusion (task 0029, R2)
+
+- **`[Rendering] ao`** (off by default; needs `hdr`, `gbuffer` and `pbr`, read at start by `MWRender::RenderManager`), `ao radius`, `ao strength`, `ao slices`, `ao steps`. Off, none of the objects below exist: no ambient output, no `GBUFFER_AMBIENT` define, no pass, no tonemap variant.
+- **The ambient output** is the fifth extra colour output (`GBuffer::ambientFormat`, `HdrTarget::ambientView()`): the ambient part of each opaque pixel's colour, which `default/main.frag` writes beside the colour (terrain: zero). The pass reads the stored linear depth and normals and writes a half resolution R8 image (`AmbientOcclusion`, `Ao::halfExtent`); the tonemap's AO variant filters it (5 by 5, `Ao::bilateralWeight`) and subtracts `ambient * (1 - ao)`.
+- **The twins** are `aomath.hpp` and the shaders inline in `ambientocclusion.cpp` (the slice integral, the horizon cosine) and `tonemap.cpp` (the filter weights): change them together. The tonemap's push constants are the parameters, then the occlusion's (with AO), then the debug view's (with a debug view): `Tonemap::setSource` computes the offsets.
+- **Pitfall:** GCC refuses a default argument of a nested struct type that has member initializers, so `Tonemap::setSource` has an overload instead of a default for `AoSources`.
+
 ## Baked light probes (task 0028, GI)
 
 - **`[Rendering] gi`** (off by default, needs `hdr` and `pbr`, read at start by `MWRender::RenderManager`), `gi strength`. Off, no `GI` define exists and the probe binding holds a stand-in with no volume.

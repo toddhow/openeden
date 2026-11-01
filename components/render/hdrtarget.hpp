@@ -68,6 +68,8 @@ namespace Render
         vsg::ref_ptr<vsg::ImageView> objectMotionView() const { return outputOrNull(3); }
         // Task 0027: metalness, reflectance, occlusion and the subsurface mark; only with the material model.
         vsg::ref_ptr<vsg::ImageView> materialView() const { return outputOrNull(4); }
+        // Task 0029: the ambient part of the colour, for the occlusion; only with ambient occlusion on.
+        vsg::ref_ptr<vsg::ImageView> ambientView() const { return outputOrNull(5); }
 
         // The G-buffer outputs start every frame as "no surface" (all zero), not at the scene's clear colour: call
         // after RenderGraph::setClearValues, which gives every colour attachment the same value.

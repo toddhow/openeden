@@ -88,6 +88,8 @@ namespace Pipeline
                 return "MATERIAL_MAP";
             case Mode::GI:
                 return "GI";
+            case Mode::GBUFFER_AMBIENT:
+                return "GBUFFER_AMBIENT";
         }
         return "";
     }
@@ -234,6 +236,8 @@ namespace Pipeline
             fragmentStageOptions.addMode(Mode::GI);
         if (toGBuffer && gbufferOutputs >= 4)
             fragmentStageOptions.addMode(Mode::GBUFFER_MATERIAL);
+        if (toGBuffer && gbufferOutputs >= 5)
+            fragmentStageOptions.addMode(Mode::GBUFFER_AMBIENT);
         if (gbufferMotion)
             fragmentStageOptions.addMode(Mode::GBUFFER_MOTION);
         auto fragmentStage = mFragmentStageCache.getOrCreate(fragmentStageOptions, *this);

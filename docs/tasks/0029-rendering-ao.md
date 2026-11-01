@@ -46,16 +46,35 @@ Determinism: no randomness except a fixed interleaved-gradient noise by pixel po
 
 ## Acceptance criteria
 - [x] Unit tests for the maths pass (the limits above, symmetry, monotonic in the horizon, the filter weights, `removeOcclusion`).
-- [ ] `ao = false`: frames of the default path, of `hdr + gbuffer` and of `hdr + gbuffer + pbr + gi` equal the commit before by `diffmap` within noise.
-- [ ] With `ao`: a corner of a room is darker than the open floor in the ambient only; a torch-lit surface keeps its direct light; viewed by eye in an interior, a night exterior and an NPC scene.
-- [ ] Cost measured and written down.
+- [x] `ao = false`: frames of the default path, of `hdr + gbuffer`, `+ pbr` and `+ gi` equal the commit before by `diffmap` within noise (Seyda Neen noon, night, NPC, `ToddTest` exactly 0, the guild: the torches flicker so those frames differ run to run by the same amount).
+- [x] With `ao`: the debug view shows creases and corners occluded and the open floor open; the scene darkens around the pillar and tapestry in the guild at strength 4 and slightly at 1; viewed by eye in an interior (with and without a bake, the metal bucket scene), a night exterior and an NPC scene. The effect at strength 1 is faint because Morrowind interiors' ambient is low; not judged by toddhow.
+- [x] Cost measured and written down (`docs/research/0012-ao-cost.md`: about 0.28 ms of GPU time for the pass and the dearer tonemap together).
 - [ ] The Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage; the editor's SceneHost still builds and draws.
 Out of scope: contact shadows, screen-space reflections, multi-bounce colour bleeding, temporal anti-aliasing, ray-traced occlusion (it can replace the pass and write the same `ao` image), any Lua API, saves.
 
+## What was built, and where it differs from the plan above (stages b and c, 2026-11-01)
+
+- **Needs `hdr`, `gbuffer` and `pbr` (D6 changed).** The ambient output is the fifth extra colour output and the material output (fourth) exists only with `pbr`, so the ambient output follows it. `Render::Ao::useAo`.
+- **Terrain writes zero ambient (D5 changed):** it is occluded by nothing, but it still gives depth and normals, so it occludes others. The terrain's own ambient is not separated in its shader.
+- **The filter is in the tonemap, not a separate pass (D3 changed):** the tonemap's AO variant filters the half resolution image over 5 by 5 texels with `bilateralWeight` (stored depth and normal at each texel's centre), applies `pow(ao, strength)` and subtracts `ambient * (1 - ao)` from the scene colour. One pass fewer, but the tonemap is dearer (note 0012). The shaders are inline in `ambientocclusion.cpp` and `tonemap.cpp` (like the velocity pass), not in `files/shaders/lib/ao`.
+- **Temporal accumulation: not built** (`ao temporal` does not exist). The noise is a fixed interleaved gradient noise of the pixel position, so the picture is stable but grainy at low strength; the 5 by 5 filter hides most of it.
+- **Contact shadows: not built** (D7).
+- **Bloom is made from the scene colour before the subtraction,** so it does not see the occlusion. Fog: the ambient output is scaled by the fog's share of the colour, so fogged distance keeps its ambient fraction right.
+- **Debug views** `gbuffer debug view = ao` (the filtered occlusion with the strength applied) and `ambient` (the ambient part of the colour, linear and unscaled, so it looks nearly black in dim rooms).
+- **Settings:** `ao`, `ao radius` (100 units), `ao strength` (1; 0 means none), `ao slices` (2), `ao steps` (6). `Render::AmbientOcclusion` owns the half resolution R8 image and its pass (modelled on `Velocity`); `Render::Tonemap::AoSources` hands the images to the tonemap.
+
 ## What the next features must know
-(Filled in with the stage log.)
+- The ambient part of the colour is available per pixel in `HdrTarget::ambientView()` (linear, before fog's mix, scaled by fog share). Anything that wants to treat ambient light apart from direct light (subsurface scattering, volumetric fog, dynamic weather's wet look, ray traced occlusion) can read it. A ray traced occlusion pass can replace `AmbientOcclusion` and write the same R8 image at any resolution (`AoSources::aoExtent`).
+- A change to the number of G-buffer outputs touches `GBuffer::extraColorFormats`, `Graphics::gbufferOutputs` (the `>= N` tests in `graphics.cpp` and `terrain.cpp`), both main fragment shaders and the tonemap's debug sources.
+- With `gi` on, the ambient is the baked probe ambient (already including its own openness) times `ao`: use `ao strength` below 1 to taste.
 
 ## Stage log
+### 2026-11-01, stages b and c (Windows, RTX 4070, `build-jolt`)
+
+**Done and verified.** Everything under "What was built". Tests first (`testaopass.cpp`, 10 new tests; all pass: `components-tests` 2717, `openmw-tests` 799). Frames viewed (scratchpad `refl/ao1.png`, `ao3.png`, `af1.png`, `af2.png`): no artefacts, no blank frame, the debug views work. Off means unchanged by `diffmap` against the commit before (above). A fresh reviewer found two real defects (the slice axis was not normalised; `pow(0, 0)` at strength 0), both fixed, plus fog and the filter's fallback (fixed) and the terrain note (kept).
+
+**Not verified.** MSAA with ao on (the extra outputs average, as the other outputs do); other resolutions and a window resize with ao on; armoured NPCs; the editor does not take ao (`SceneHost` never makes an `HdrTarget`); a weaker GPU. The look at strength 1 awaits toddhow.
+
 ### 2026-11-01, stage a (Windows)
 
 **Done and verified.** `components/render/aomath.hpp` and `apps/components_tests/render/testao.cpp` (16 tests, written from this spec first, all pass; `components-tests` 2708 in all). `horizonCosine` takes `(delta, radius, falloff)` as the spec now says. The Linux gate was run before this stage and did not include it (a header with tests, no renderer change).

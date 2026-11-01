@@ -12,11 +12,30 @@
 #include <cmath>
 
 #include <vsg/maths/vec3.h>
+#include <vsg/vk/vulkan.h>
 
 namespace Render::Ao
 {
     constexpr float pi = 3.14159265358979f;
     constexpr float halfPi = pi * 0.5f;
+
+    // The defaults of `ao radius` (game units, about 1.4 m), `ao slices` and `ao steps` (each side of a slice).
+    constexpr float defaultRadius = 100.f;
+    constexpr int defaultSlices = 2;
+    constexpr int defaultSteps = 6;
+
+    // The pass needs its setting, the G-buffer (depth and normals) and the material model's output (the ambient output
+    // is the one after it: Render::GBuffer::extraColorFormats).
+    inline bool useAo(bool settingOn, bool gbuffer, bool materialOutput)
+    {
+        return settingOn && gbuffer && materialOutput;
+    }
+
+    // The occlusion image is half the scene's size in each direction, rounded up, and at least one texel.
+    inline VkExtent2D halfExtent(const VkExtent2D& extent)
+    {
+        return VkExtent2D{ std::max(1u, (extent.width + 1) / 2), std::max(1u, (extent.height + 1) / 2) };
+    }
 
     // The visibility of one slice: `n` is the angle of the slice's projected normal from the view vector, `h1` (at most
     // 0) and `h2` (at least 0) the horizon angles on its two sides from the view vector. The horizons are first limited
@@ -49,6 +68,9 @@ namespace Render::Ao
     // Strength 1 keeps the value, 0 removes all occlusion, more than 1 darkens it further.
     inline float aoCurve(float visibility, float strength)
     {
+        // pow(0, 0) is not defined everywhere, and strength 0 means no occlusion at all.
+        if (!(strength > 0.f))
+            return 1.f;
         return std::pow(std::clamp(visibility, 0.f, 1.f), strength);
     }
 

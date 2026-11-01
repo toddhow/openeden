@@ -40,6 +40,20 @@ namespace Render
             GBuffer::DebugView debugView = GBuffer::DebugView::None;
             float depthRange = 1000.f;
             float velocityScale = 200.f;
+            // Task 0029: how much of the occlusion applies (pow(ao, strength)); only with ambient occlusion on.
+            float aoStrength = 1.f;
+        };
+
+        /// Task 0029: what the ambient occlusion step needs: the ambient part of the scene colour, the half
+        /// resolution occlusion, and the stored normals and linear depth the filter compares. All four, or none.
+        struct AoSources
+        {
+            vsg::ref_ptr<vsg::ImageView> ambient;
+            vsg::ref_ptr<vsg::ImageView> ao;
+            vsg::ref_ptr<vsg::ImageView> normal;
+            vsg::ref_ptr<vsg::ImageView> linearDepth;
+            VkExtent2D aoExtent{};
+            bool valid() const { return ambient && ao && normal && linearDepth; }
         };
 
         /// The G-buffer images the debug view can show; any may be null, and the debug view then shows black. Only
@@ -65,6 +79,8 @@ namespace Render
         /// With a debug view in the parameters (set before this call: the shader is chosen here), `debug` supplies its
         /// images.
         bool setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent,
+            const DebugSources& debug, const AoSources& aoSources);
+        bool setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom, const VkExtent2D& extent,
             const DebugSources& debug = {});
 
         // Between frames, from the main thread: the record thread reads the value.
@@ -81,6 +97,10 @@ namespace Render
         /// material, 6 subsurface), y the depth range, z the velocity scale, w 0. Public for the unit tests.
         static vsg::vec4 debugPushConstants(GBuffer::DebugView view, float depthRange, float velocityScale);
 
+        /// The ambient occlusion's push constants: the size of one texel of the half resolution occlusion image, and the
+        /// strength. Public for the unit tests.
+        static vsg::vec4 aoPushConstants(const VkExtent2D& aoExtent, float strength);
+
     private:
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
@@ -88,8 +108,10 @@ namespace Render
         vsg::ref_ptr<vsg::vec4Value> mPush;
         vsg::ref_ptr<vsg::ShaderStage> mVertex;
         vsg::ref_ptr<vsg::vec4Value> mPushDebug;
-        // Indexed by bloom (1) and debug view (2).
-        vsg::ref_ptr<vsg::ShaderStage> mFragments[4];
+        vsg::ref_ptr<vsg::vec4Value> mPushAo;
+        VkExtent2D mAoExtent{ 1, 1 };
+        // Indexed by bloom (1), debug view (2) and ambient occlusion (4).
+        vsg::ref_ptr<vsg::ShaderStage> mFragments[8];
         vsg::ref_ptr<vsg::Node> mDraw;
         Parameters mParameters;
     };

@@ -21,6 +21,7 @@
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/render/probes.hpp>
+#include <components/render/tonemap.hpp>
 #include <components/render/reflectionprobes.hpp>
 #include <components/settings/settings.hpp>
 
@@ -41,6 +42,7 @@ namespace Render
 {
     class Bloom;
     class Velocity;
+    class AmbientOcclusion;
     class DebugGeometry;
     class Engine;
     class GpuTimer;
@@ -349,6 +351,10 @@ namespace MWRender
         unsigned int mGBufferOutputs = 0;
         // Task 0028: baked light probes ([Rendering] gi). The buffer is the main view's probe descriptor; it is null
         // with gi off. Written on the main thread only.
+        // Task 0029: ambient occlusion ([Rendering] ao); null without it. Read at start.
+        bool mAoEnabled = false;
+        std::unique_ptr<Render::AmbientOcclusion> mAmbientOcclusion;
+        Render::Tonemap::AoSources aoSources() const;
         vsg::ref_ptr<vsg::vec4Array> mProbeData;
         bool mGiEnabled = false;
         float mProbeStrength = 1.f;
