@@ -135,3 +135,10 @@ These three were written together because the shader changes overlap in `main.fr
 **Verified.** Generated 3816 flat `_orm` files (roughness 0.2, no metal, occlusion 1) in a data folder: the roughness debug view showed every object at 0.2 and the terrain still at 0.95 (`scratchpad/pbr/d_orm_roughness.png`), and the lit frame drew normally (`d_orm_none.png`). Without the setting the files are not looked for (`nothing_is_read_with_the_setting_off`). `components-tests` 2532, `openmw-tests` 799.
 
 **Cost.** `docs/research/0010-material-model-cost.md`: the main pass moved within the noise of this method; wall-clock frame time unchanged (CPU-bound scene).
+
+### 2026-11-01, close-out
+
+- **Gates.** Linux (Docker, `-Werror`, commit `2011965a7a`): `components-tests` 2534, `openmw-tests` 799 and the 32 Lua integration tests pass (the first Linux run found two warnings in the new code, an `/*` inside a comment and a dangling `else` in a test, fixed in `77aca634a2`). Windows: `components-tests` 2532, `openmw-tests` 799, `eden-studio-tests` 393. The whole tree passes `CI/check_clang_format.sh` (`b6cd2e18fb` and after; `testvelocity.cpp` and `skin.cpp` from task 0026 needed formatting only).
+- **Preview and map with `hdr` + `gbuffer` + `pbr`:** drawn normally (`scratchpad/pbr/tab_pbr.png`).
+- **Not verified.** The editor: `eden-studio.exe` and `compat_morrowind.dll` were in use by a running editor, so they could not be relinked (their objects compile and `eden-studio-tests` pass), and the SceneHost drawing was not re-run. A window resize and antialiasing 4 with `pbr`. The skin mark depends on load order (see the reviewer note). Whether the `physical` look pleases is toddhow's eye; metals look dark until probes or reflections exist.
+- **Commits.** Water fix `20f635c3d2`; F4a to c `0019ce56e1`; F4d, reviewer fixes, cost note `20f2e5e830`; formatting `b6cd2e18fb`, `77aca634a2`, `2011965a7a`.
