@@ -39,7 +39,7 @@ namespace Render
             // distance at which the depth view reaches 63% grey; `velocityScale` multiplies velocity for display.
             GBuffer::DebugView debugView = GBuffer::DebugView::None;
             float depthRange = 1000.f;
-            float velocityScale = 40.f;
+            float velocityScale = 200.f;
         };
 
         /// The G-buffer images the debug view can show; any may be null, and the debug view then shows black. Only

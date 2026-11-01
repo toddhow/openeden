@@ -10,8 +10,8 @@
 
 namespace
 {
-    constexpr VkColorComponentFlags rgba = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-        | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    constexpr VkColorComponentFlags rgba
+        = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     // The plain default-shader opaque draw: the case that writes the G-buffer.
     Pipeline::Options qualifyingKey()

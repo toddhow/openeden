@@ -12,8 +12,8 @@ namespace
         return state;
     }
 
-    constexpr VkColorComponentFlags rgba = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
-        | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    constexpr VkColorComponentFlags rgba
+        = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     TEST(PipelineGBufferStatesTest, blend_states_with_the_same_entries_compare_equal)
     {

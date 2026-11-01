@@ -12,6 +12,8 @@
 #include <memory>
 #include <optional>
 
+#include <chrono>
+
 #include <vsg/maths/box.h>
 #include <vsg/nodes/Group.h>
 
@@ -36,6 +38,7 @@ namespace Resource
 namespace Render
 {
     class Bloom;
+    class Velocity;
     class DebugGeometry;
     class Engine;
     class GpuTimer;
@@ -333,6 +336,14 @@ namespace MWRender
         unsigned int mGBufferOutputs = 0;
         std::unique_ptr<Render::Tonemap> mTonemap;
         std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
+        // Task 0026, stage b: null unless [Rendering] gbuffer. The previous frame's camera, for its motion.
+        std::unique_ptr<Render::Velocity> mVelocity;
+        vsg::dmat4 mPreviousView;
+        vsg::dmat4 mPreviousProjection;
+        vsg::dvec3 mPreviousEye;
+        bool mHavePreviousCamera = false;
+        std::chrono::steady_clock::time_point mPreviousCameraTime;
+        void updateVelocity();
         bool mTonemapSteppedAside = false; // a post-processing technique that sets `hdr` is enabled
         vsg::ref_ptr<vsg::RenderGraph> mTonemapGraph;
         vsg::ref_ptr<vsg::CommandGraph> mCommandGraph;

@@ -348,8 +348,8 @@ namespace Pipeline
 
         vsg::GraphicsPipelineStates pipelineStates{ vsg::VertexInputState::create(
                                                         vertexBindingsDescriptions, vertexAttributeDescriptions),
-            vsg::InputAssemblyState::create(key.primitiveTopology), rasterState,
-            colorBlendState, vsg::MultisampleState::create(), depthStencilState };
+            vsg::InputAssemblyState::create(key.primitiveTopology), rasterState, colorBlendState,
+            vsg::MultisampleState::create(), depthStencilState };
 
         return vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(mLayout, shaders, pipelineStates));
     }

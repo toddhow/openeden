@@ -27,16 +27,17 @@
 #include <components/mwanimation/object.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/pipeline/builder.hpp>
+#include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/bloom.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
-#include <components/pipeline/gbufferblend.hpp>
 #include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/render/hdrtarget.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/tonemap.hpp>
+#include <components/render/velocity.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/paging.hpp>
@@ -142,20 +143,16 @@ namespace MWRender
                     Log(Debug::Warning) << "[Rendering] gbuffer debug view: unknown view '"
                                         << rendering.mGBufferDebugView.get() << "', showing the scene";
                 parameters.debugView = view.value_or(Render::GBuffer::DebugView::None);
-                if (parameters.debugView == Render::GBuffer::DebugView::Velocity)
-                {
-                    Log(Debug::Warning) << "[Rendering] gbuffer debug view: velocity is not stored yet";
-                    parameters.debugView = Render::GBuffer::DebugView::None;
-                }
                 parameters.depthRange = Settings::camera().mViewingDistance / 8.f;
             }
             return parameters;
         }
 
         // The images the tonemap's debug view can show.
-        Render::Tonemap::DebugSources debugSources(const Render::HdrTarget& target)
+        Render::Tonemap::DebugSources debugSources(
+            const Render::HdrTarget& target, const vsg::ref_ptr<vsg::ImageView>& velocity)
         {
-            return { target.normalView(), target.linearDepthView(), nullptr };
+            return { target.normalView(), target.linearDepthView(), velocity };
         }
 
         // OpenEden (task 0023, F0a): puts a GPU timestamp before and after `node` in `children`, as one named pass.
@@ -377,6 +374,9 @@ namespace MWRender
             mTonemap = std::make_unique<Render::Tonemap>(mCompileContext->clone(~vsg::Mask(0)), mTonemapGraph);
             if (Settings::rendering().mHdrBloom)
                 mBloom = std::make_unique<Render::Bloom>(*context, mCompileContext->clone(~vsg::Mask(0)));
+            // Task 0026, stage b: screen motion from the stored depth, with the G-buffer.
+            if (mGBufferOutputs > 0)
+                mVelocity = std::make_unique<Render::Velocity>(*context, mCompileContext->clone(~vsg::Mask(0)));
         }
         else
             mRenderGraph = mEngine.createRenderGraph();
@@ -442,18 +442,29 @@ namespace MWRender
                 mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
+        const int afterScene = mVelocity ? 3 : 2; // the first index after the scene (and its velocity pass)
         if (mTonemapGraph)
         {
             // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
+            // The velocity pass follows the scene: it reads the scene's linear depth.
+            if (mVelocity)
+            {
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mVelocity->graph());
+                addCompileViews.emplace_back([this, context, resourceRequirements] {
+                    mCompileContext->compileManager->add(
+                        *mVelocity->registrationFramebuffer(*context), mVelocity->view(), resourceRequirements);
+                });
+            }
             if (mBloom)
             {
-                mCommandGraph->children.insert(mCommandGraph->children.begin() + 2, mBloom->node());
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene, mBloom->node());
                 addCompileViews.emplace_back([this, context, resourceRequirements] {
                     mCompileContext->compileManager->add(
                         *mBloom->registrationFramebuffer(*context), mBloom->view(), resourceRequirements);
                 });
             }
-            mCommandGraph->children.insert(mCommandGraph->children.begin() + (mBloom ? 3 : 2), mTonemapGraph);
+            mCommandGraph->children.insert(
+                mCommandGraph->children.begin() + afterScene + (mBloom ? 1 : 0), mTonemapGraph);
             addCompileViews.emplace_back([this, resourceRequirements] {
                 mCompileContext->compileManager->add(*mTonemapGraph->window, mTonemap->view(), resourceRequirements);
             });
@@ -465,9 +476,12 @@ namespace MWRender
             mPostProcess->setMainView(mTonemap ? mTonemap->view() : mView);
             mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
             mCommandGraph->children.insert(
-                mCommandGraph->children.begin() + (mTonemapGraph ? (mBloom ? 4 : 3) : 2), mPostProcess->node());
+                mCommandGraph->children.begin() + (mTonemapGraph ? (mBloom ? 1 : 0) + afterScene + 1 : 2),
+                mPostProcess->node());
         }
         timeChild(mGpuTimer, mCommandGraph->children, mRenderGraph.get(), "main scene");
+        if (mVelocity)
+            timeChild(mGpuTimer, mCommandGraph->children, mVelocity->graph().get(), "velocity");
         if (mBloom)
             timeChild(mGpuTimer, mCommandGraph->children, mBloom->node().get(), "bloom");
         if (mTonemapGraph)
@@ -534,12 +548,16 @@ namespace MWRender
         if (mTonemap)
         {
             mTonemap->setParameters(tonemapParameters(false));
+            if (mVelocity
+                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->extent(),
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                throw std::runtime_error("The velocity pass could not be built");
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The bloom passes could not be built");
-            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr,
-                    mHdrTarget->extent(), debugSources(*mHdrTarget)))
+            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent(),
+                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr)))
                 throw std::runtime_error("The tonemap pass could not be built");
         }
         if (mPostProcess)
@@ -1090,6 +1108,35 @@ namespace MWRender
         mFog->configure(mViewDistance, fogDepth, underwaterFog, dlFactor, dlOffset, color);
     }
 
+    void RenderManager::updateVelocity()
+    {
+        if (!mVelocity)
+            return;
+        // This frame's camera against the previous frame's (Render::Velocity). The first frame, and a jump of the
+        // camera (a teleport or a cell change), compare the camera with itself, so that no frame of nonsense motion
+        // reaches a consumer.
+        const vsg::dmat4 view = mViewMatrix->transform();
+        const vsg::dmat4 projection = mProjectionMatrix->transform();
+        const vsg::dvec3 eye = mViewMatrix->eye;
+        // onFrame does not run while a menu or loading screen is up, so a long gap since the last call means the camera
+        // may have been replaced (a loaded save, a new game): a quarter of a second is far longer than any frame.
+        const auto now = std::chrono::steady_clock::now();
+        const bool resumed = now - mPreviousCameraTime > std::chrono::milliseconds(250);
+        mPreviousCameraTime = now;
+        if (!mHavePreviousCamera || resumed || Render::Velocity::cameraJumped(mPreviousEye, eye))
+        {
+            mPreviousView = view;
+            mPreviousProjection = projection;
+            mPreviousEye = eye;
+            mHavePreviousCamera = true;
+        }
+        mVelocity->setMatrix(Render::Velocity::toPreviousClip(mPreviousProjection, mPreviousView, vsg::inverse(view)),
+            static_cast<float>(projection(0, 0)), static_cast<float>(projection(1, 1)));
+        mPreviousView = view;
+        mPreviousProjection = projection;
+        mPreviousEye = eye;
+    }
+
     void RenderManager::onFrame(float dt)
     {
         updateSceneData();
@@ -1116,6 +1163,7 @@ namespace MWRender
                     Log(Debug::Info) << "HDR: a post-processing technique sets hdr, so the built-in tonemap only clips";
             }
         }
+        updateVelocity();
         mReflect->update();
         if (mPostProcess)
             mPostProcess->updateImages();
@@ -1580,12 +1628,17 @@ namespace MWRender
                 *mHdrContext, extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); });
             mRenderGraph->framebuffer = mHdrTarget->framebuffer();
             mTonemapGraph->renderArea = { { 0, 0 }, extent };
+            if (mVelocity
+                && !mVelocity->setSource(*mHdrContext, mHdrTarget->linearDepthView(), extent,
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                Log(Debug::Error) << "The velocity pass could not be rebuilt after a resize";
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
             if (!mTonemap->setSource(
-                    mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent, debugSources(*mHdrTarget)))
+                    mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent,
+                    debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr)))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }
         updateProjectionMatrix();

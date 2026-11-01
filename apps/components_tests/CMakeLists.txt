@@ -136,6 +136,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testgputiming.cpp
     render/testhdrmath.cpp
     render/testtonemap.cpp
+    render/testvelocity.cpp
     render/testgbuffermath.cpp
     view/testcollectlights.cpp
     render/testdevicereport.cpp

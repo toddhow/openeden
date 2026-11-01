@@ -137,7 +137,7 @@ add_component_dir (pipeline
 add_component_dir (render
     engine download screenshot headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
-    gputiming devicereport hdrmath hdrtarget tonemap bloom gbuffermath
+    gputiming devicereport hdrmath hdrtarget tonemap bloom gbuffermath velocity
     )
 # Renders pipelines.
 # Depends on pipeline, render.

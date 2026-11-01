@@ -96,7 +96,7 @@ namespace Render::GBuffer
             (uv.y * 2.f - 1.f) * linearDepth / projection(1, 1), -linearDepth, 1.f);
         const vsg::vec4 world = invView * viewPos;
         const vsg::vec4 prevClip = prevProjection * (prevView * world);
-        if (prevClip.w == 0.f)
+        if (prevClip.w <= 0.f) // behind the previous camera, as the shader
             return vsg::vec2(0.f, 0.f);
         const vsg::vec2 prevUv(prevClip.x / prevClip.w * 0.5f + 0.5f, prevClip.y / prevClip.w * 0.5f + 0.5f);
         return vsg::vec2(uv.x - prevUv.x, uv.y - prevUv.y);

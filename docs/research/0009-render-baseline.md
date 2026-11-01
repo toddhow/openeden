@@ -74,5 +74,5 @@ Same machine and method as section 1; `tools/benchmark.sh` with `BENCH_RENDERING
 | --- | --- | --- |
 | `heavy_balmora_longview`, two runs of `hdr`, first run of `gbuffer` | 0.328 and 0.335 ms | 0.362 ms |
 
-- **Reading:** the two extra outputs cost about 0.03 ms of GPU time (10% of the main pass) at 1280 x 720 on this GPU, and the frame is CPU-bound as before (note 0009 section 3). A second `gbuffer` run was disturbed by another process building on the machine and read 0.469 ms; it is not used. Stages b and c add rows here.
+- **Reading:** the two extra outputs cost about 0.03 ms of GPU time (10% of the main pass) at 1280 x 720 on this GPU, and the frame is CPU-bound as before (note 0009 section 3). A second `gbuffer` run was disturbed by another process building on the machine and read 0.469 ms; it is not used. Stage b: the velocity pass is a fullscreen triangle and takes 0.019 ms (`gpu_velocity`, `heavy_balmora_walk`). Stage c adds a row here.
 - The default path and the HDR path without `gbuffer` have no extra attachment, pass, image or define, and their frames match the build before the stage (task 0026, stage a log).

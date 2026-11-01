@@ -20,7 +20,8 @@ namespace Pipeline
 #include <files/shaders/terrain/bindings.glsl>
     }
 
-    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps, unsigned int gbufferOutputs)
+    vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(
+        vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps, unsigned int gbufferOutputs)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
@@ -77,13 +78,14 @@ namespace Pipeline
         colorBlendAttachments.push_back(colorBlendAttachment);
         vsg::ref_ptr<vsg::ColorBlendState> colorBlendState;
         if (gbufferOutputs > 0)
-            colorBlendState = GBufferBlendState::create(colorBlendAttachments, colorBlendAttachment, 1 + gbufferOutputs);
+            colorBlendState
+                = GBufferBlendState::create(colorBlendAttachments, colorBlendAttachment, 1 + gbufferOutputs);
         else
             colorBlendState = vsg::ColorBlendState::create(colorBlendAttachments);
 
         vsg::GraphicsPipelineStates pipelineStates{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
-            vsg::RasterizationState::create(), vsg::MultisampleState::create(),
-            colorBlendState, vsg::DepthStencilState::create() };
+            vsg::RasterizationState::create(), vsg::MultisampleState::create(), colorBlendState,
+            vsg::DepthStencilState::create() };
 
         return vsg::BindGraphicsPipeline::create(
             vsg::GraphicsPipeline::create(pipelineLayout, shaders, pipelineStates));

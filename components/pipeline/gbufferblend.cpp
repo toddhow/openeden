@@ -29,8 +29,8 @@ namespace Pipeline
         return result;
     }
 
-    GBufferBlendState::GBufferBlendState(
-        const vsg::ColorBlendState::ColorBlendAttachments& first, const VkPipelineColorBlendAttachmentState& in_extra, std::size_t in_total)
+    GBufferBlendState::GBufferBlendState(const vsg::ColorBlendState::ColorBlendAttachments& first,
+        const VkPipelineColorBlendAttachmentState& in_extra, std::size_t in_total)
         : Inherit(first)
         , extra(in_extra)
         , total(in_total)
