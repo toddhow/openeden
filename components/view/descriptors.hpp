@@ -1,8 +1,8 @@
 #ifndef VSGOPENMW_VIEW_DESCRIPTORS_H
 #define VSGOPENMW_VIEW_DESCRIPTORS_H
 
-#include <vsg/core/Data.h>
 #include <vsg/core/Array.h>
+#include <vsg/core/Data.h>
 #include <vsg/state/DescriptorSet.h>
 
 namespace View

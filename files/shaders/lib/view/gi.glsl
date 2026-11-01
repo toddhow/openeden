@@ -23,7 +23,7 @@ vec3 giProbeAmbient(int index, vec3 n)
 // Trilinear in the lattice after the normal bias (sampleAmbient).
 vec3 giSampleAmbient(vec3 worldPos, vec3 worldNormal)
 {
-    vec3 n = normalize(worldNormal);
+    vec3 n = dot(worldNormal, worldNormal) > 1e-20 ? normalize(worldNormal) : vec3(0.0, 0.0, 1.0);
     float spacing = giData[0].w;
     vec3 p = worldPos + n * (giData[2].x * spacing);
     vec3 size = giData[1].xyz;

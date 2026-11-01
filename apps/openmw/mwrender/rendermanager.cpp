@@ -879,6 +879,8 @@ namespace MWRender
             return;
         }
         const auto packed = Render::Gi::packVolume(set->volumes.front(), set->ambient, mProbeStrength);
+        if (packed.size() > mProbeData->size())
+            return; // cannot happen (the parser limits a volume), but never write past the buffer
         std::copy(packed.begin(), packed.end(), mProbeData->begin());
         mProbeData->dirty();
         Log(Debug::Info) << "GI: " << set->volumes.front().probes.size() << " probe(s) for " << id.name;
