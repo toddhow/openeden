@@ -154,7 +154,7 @@ void main()
   #if defined(SPECULAR_MAP) && defined(TEXCOORD)
     vec4 specularTex = texture(specularMap, frag_in.texCoord[diffuseUV]);
     float shininess = max(specularTex.a * 255.0, 1e-4);
-    vec3 specularColor = specularTex.xyz;
+    vec3 specularColor = toLinearIfView(specularTex.xyz);
   #else
     float shininess = 1e-4;
     vec3 specularColor = vec3(0);

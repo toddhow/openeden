@@ -62,7 +62,8 @@ vec3 getNormal(vec3 worldPos)
 vec3 ambientReflection(vec3 worldDir)
 {
     float fraction = worldDir.z > 0 ? clamp(worldDir.z*2-0.15, 0, 1) : 1-clamp(-worldDir.z*2-0.15,0.35,1);
-    return mix(scene.fogColor.xyz, scene.skyColor.xyz, fraction);
+    // OpenEden (task 0025): mixed on encoded colours like the sky's gradient it reflects.
+    return toLinearIfView(mix(toEncodedIfView(scene.fogColor.xyz), toEncodedIfView(scene.skyColor.xyz), fraction));
 }
 
 vec3 colorRefraction(float waterDepth, float surfaceDepth, vec3 refraction)

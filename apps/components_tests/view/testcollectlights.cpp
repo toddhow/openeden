@@ -57,3 +57,22 @@ namespace
         EXPECT_NEAR(packed.x, -std::pow(0.5f, 2.2f), 1e-6f);
     }
 }
+
+namespace
+{
+    TEST(ViewCollectLightsTest, pack_converts_every_light_and_counts_them)
+    {
+        View::CollectLights collect(4);
+        collect.setLinear(true);
+        auto first = makeLight(vsg::vec3(0.5f, 0.5f, 0.5f), 100.f);
+        auto second = makeLight(vsg::vec3(0.25f, 0.25f, 0.25f), 200.f);
+        collect.pointLights.emplace_back(vsg::dmat4(), first.get());
+        collect.pointLights.emplace_back(vsg::dmat4(), second.get());
+        collect.pack();
+        // Two vec4 per light: colour and intensity, then position; the count is in the first light's position.w.
+        EXPECT_NEAR(collect.data()->at(0).x, std::pow(0.5f, 2.2f), 1e-6f);
+        EXPECT_NEAR(collect.data()->at(2).x, std::pow(0.25f, 2.2f), 1e-6f);
+        EXPECT_FLOAT_EQ(collect.data()->at(2).w, 200.f);
+        EXPECT_FLOAT_EQ(collect.data()->at(1).w, 2.f);
+    }
+}

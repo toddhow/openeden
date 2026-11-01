@@ -1,4 +1,5 @@
 #include "material.settings"
+// Needs lib/view/scene.glsl included first (linearView() reads scene).
 #include "lib/view/linear.glsl"
 
 vec4 getDiffuse(vec4 vertexColor)

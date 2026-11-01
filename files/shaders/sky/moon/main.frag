@@ -3,7 +3,6 @@
 #include "lib/material/descriptors_frag.glsl"
 #include "lib/view/scene.glsl"
 #include "lib/view/linear.glsl"
-#include "lib/view/linear.glsl"
 
 layout(location=0) in Inputs
 {
