@@ -12,6 +12,12 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testmodulehost.cpp
     model/module/testmoduleregistry.cpp
     model/module/testsamplemodule.cpp
+    model/mesh/testanimationkeys.cpp
+    model/mesh/testframemath.cpp
+    model/mesh/testmeshgeometry.cpp
+    model/mesh/testmeshtree.cpp
+    model/mesh/testmeshviewstate.cpp
+    model/mesh/testtexturereport.cpp
     model/physics/testdebuglinedrawer.cpp
     model/physics/testjoltruntime.cpp
     model/physics/teststudioworld.cpp

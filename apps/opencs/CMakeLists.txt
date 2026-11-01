@@ -68,6 +68,10 @@ opencs_units (model/module
     moduleregistry modulehost
     )
 
+opencs_units (model/mesh
+    meshviewstate meshtree framemath meshgeometry texturereport animationkeys
+    )
+
 opencs_units (model/physics
     joltruntime studioworld debuglinedrawer
     )
