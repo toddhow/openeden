@@ -37,10 +37,10 @@ namespace openeden::editor
 
 /// Defines the library's exported entry point for a module class with a default constructor.
 #define OPENEDEN_EDITOR_MODULE(ModuleId, ModuleClass)                                                                  \
-    extern "C" OPENEDEN_EDITOR_MODULE_EXPORT const openeden::editor::EditorModuleDescriptor*                          \
+    extern "C" OPENEDEN_EDITOR_MODULE_EXPORT const openeden::editor::EditorModuleDescriptor*                           \
     openeden_editor_module_descriptor()                                                                                \
     {                                                                                                                  \
-        static const openeden::editor::EditorModuleDescriptor descriptor{ openeden::editor::kApiVersion, ModuleId,    \
+        static const openeden::editor::EditorModuleDescriptor descriptor{ openeden::editor::kApiVersion, ModuleId,     \
             []() -> openeden::editor::EditorModule* { return new ModuleClass(); },                                     \
             [](openeden::editor::EditorModule* module) { delete module; } };                                           \
         return &descriptor;                                                                                            \

@@ -432,7 +432,8 @@ void CSVDoc::View::setupExtensionsMenu()
                 QString text = QString::fromStdString(command.mDesc.label);
                 if (!command.mDesc.menuPath.empty())
                 {
-                    const QStringList parts = QString::fromStdString(command.mDesc.menuPath).split('/', Qt::SkipEmptyParts);
+                    const QStringList parts
+                        = QString::fromStdString(command.mDesc.menuPath).split('/', Qt::SkipEmptyParts);
                     for (int i = 0; i + 1 < parts.size(); ++i)
                     {
                         QMenu* sub = target->findChild<QMenu*>(parts[i], Qt::FindDirectChildrenOnly);

@@ -5,9 +5,8 @@
 #include <apps/opencs/model/module/moduleregistry.hpp>
 
 #include <QDockWidget>
-#include <QHelpEvent>
-#include <QToolTip>
 #include <QHBoxLayout>
+#include <QHelpEvent>
 #include <QLabel>
 #include <QLinearGradient>
 #include <QMainWindow>
@@ -16,6 +15,7 @@
 #include <QTabBar>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 namespace CSVDoc
@@ -293,7 +293,8 @@ void CSVDoc::StudioShell::addModuleUi()
             : panel.mDesc.dock == openeden::editor::DockArea::Bottom           ? Qt::BottomDockWidgetArea
                                                                                : Qt::RightDockWidgetArea;
         QDockWidget* dock = makeDock(QString::fromStdString(panel.mDesc.title),
-            QString::fromStdString("modulePanel_" + panel.mDesc.id), new ModulePanel(*modules, panel.mDesc.id, &mWindow));
+            QString::fromStdString("modulePanel_" + panel.mDesc.id),
+            new ModulePanel(*modules, panel.mDesc.id, &mWindow));
         mWindow.addDockWidget(area, dock);
         dock->hide();
         mModulePanels.emplace_back(panel.mDesc.workspaceId, dock);

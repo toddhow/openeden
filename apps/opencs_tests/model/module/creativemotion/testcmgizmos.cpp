@@ -64,9 +64,9 @@ namespace CMTest
             if (std::abs(actual.x - expected.x) <= tolerance && std::abs(actual.y - expected.y) <= tolerance
                 && std::abs(actual.z - expected.z) <= tolerance)
                 return ::testing::AssertionSuccess();
-            return ::testing::AssertionFailure() << "(" << actual.x << ", " << actual.y << ", " << actual.z
-                                                 << ") is not (" << expected.x << ", " << expected.y << ", "
-                                                 << expected.z << ")";
+            return ::testing::AssertionFailure()
+                << "(" << actual.x << ", " << actual.y << ", " << actual.z << ") is not (" << expected.x << ", "
+                << expected.y << ", " << expected.z << ")";
         }
 
         struct ExpectedLine
@@ -92,10 +92,12 @@ namespace CMTest
                 const math::Vec3 x = joint.twistAxis;
                 const math::Vec3 z = joint.planeAxis;
                 const math::Vec3 y = math::cross(z, x);
-                const auto dirWorld = [&](double dx, double dy, double dz)
-                { return math::rotate(bone.rotation, dx * x + dy * y + dz * z); };
-                const auto swingDir = [&](double p, double n)
-                { return dirWorld(std::cos(p) * std::cos(n), std::cos(p) * std::sin(n), -std::sin(p)); };
+                const auto dirWorld = [&](double dx, double dy, double dz) {
+                    return math::rotate(bone.rotation, dx * x + dy * y + dz * z);
+                };
+                const auto swingDir = [&](double p, double n) {
+                    return dirWorld(std::cos(p) * std::cos(n), std::cos(p) * std::sin(n), -std::sin(p));
+                };
 
                 // 1. the twist axis
                 lines.push_back({ o, o + kLimitLengthM * dirWorld(1.0, 0.0, 0.0), kWhite });
@@ -110,7 +112,8 @@ namespace CMTest
                         for (int k = 0; k < kRimSegments; ++k)
                         {
                             const double t = 2.0 * std::numbers::pi * k / kRimSegments;
-                            rim.push_back(o + kLimitLengthM * swingDir(planeHalf * std::cos(t), normalHalf * std::sin(t)));
+                            rim.push_back(
+                                o + kLimitLengthM * swingDir(planeHalf * std::cos(t), normalHalf * std::sin(t)));
                         }
                         for (int k = 0; k < kRimSegments; ++k)
                             lines.push_back({ rim[k], rim[(k + 1) % kRimSegments], kOrange });
@@ -227,10 +230,12 @@ namespace CMTest
             }
 
             const std::vector<math::Transform> world = worldRest(value);
-            const auto bodyWorld = [&](std::size_t body)
-            { return world[boneIndex(value, value.bodies[body].bone)] * value.bodies[body].local; };
-            const auto toLocal = [](const math::Transform& t, const edit::Vec3& p)
-            { return math::rotate(math::conjugate(t.rotation), toMath(p) - t.translation); };
+            const auto bodyWorld = [&](std::size_t body) {
+                return world[boneIndex(value, value.bodies[body].bone)] * value.bodies[body].local;
+            };
+            const auto toLocal = [](const math::Transform& t, const edit::Vec3& p) {
+                return math::rotate(math::conjugate(t.rotation), toMath(p) - t.translation);
+            };
 
             // The box: 12 edges between corners of the box in the world.
             {
@@ -241,8 +246,7 @@ namespace CMTest
                     for (int sy : { -1, 1 })
                         for (int sz : { -1, 1 })
                             corners.push_back(math::transformPoint(t, { sx * h.x, sy * h.y, sz * h.z }));
-                const auto isCorner = [&](const edit::Vec3& p)
-                {
+                const auto isCorner = [&](const edit::Vec3& p) {
                     return std::any_of(corners.begin(), corners.end(),
                         [&](const math::Vec3& c) { return distanceBetween(p, c) <= kTol; });
                 };
@@ -301,8 +305,8 @@ namespace CMTest
                         const math::Vec3 local = toLocal(t, p);
                         // Distance from the axis segment from (0, 0, -h) to (0, 0, h).
                         const double clampedZ = std::clamp(local.z, -h, h);
-                        const double distance = std::sqrt(local.x * local.x + local.y * local.y
-                            + (local.z - clampedZ) * (local.z - clampedZ));
+                        const double distance = std::sqrt(
+                            local.x * local.x + local.y * local.y + (local.z - clampedZ) * (local.z - clampedZ));
                         EXPECT_LE(distance, r + kTol) << "capsule line " << i;
                         minZ = std::min(minZ, local.z);
                         maxZ = std::max(maxZ, local.z);
@@ -400,11 +404,9 @@ namespace CMTest
             EXPECT_FLOAT_EQ(lines[base].colour.g, 1.0f);
             EXPECT_FLOAT_EQ(lines[base].colour.b, 1.0f);
 
-            const auto arcPoint = [&](double angle)
-            {
+            const auto arcPoint = [&](double angle) {
                 return bone.translation
-                    + 0.25 * kLimitLengthM
-                    * math::rotate(bone.rotation, std::cos(angle) * y + std::sin(angle) * z);
+                    + 0.25 * kLimitLengthM * math::rotate(bone.rotation, std::cos(angle) * y + std::sin(angle) * z);
             };
             // First point at twistMin = 0, last at twistMax = 2.
             EXPECT_TRUE(isNear(lines[base + 1].a, arcPoint(hinge.twistMinRad)));
@@ -433,13 +435,12 @@ namespace CMTest
             const math::Vec3 x = joint.twistAxis;
             const math::Vec3 z = joint.planeAxis;
             const math::Vec3 y = math::cross(z, x);
-            const auto rimPoint = [&](int k)
-            {
+            const auto rimPoint = [&](int k) {
                 const double t = 2.0 * std::numbers::pi * k / 24.0;
                 const double p = joint.planeSwingMaxRad * std::cos(t);
                 const double n = joint.normalSwingMaxRad * std::sin(t);
-                const math::Vec3 direction = std::cos(p) * std::cos(n) * x + std::cos(p) * std::sin(n) * y
-                    + (-std::sin(p)) * z;
+                const math::Vec3 direction
+                    = std::cos(p) * std::cos(n) * x + std::cos(p) * std::sin(n) * y + (-std::sin(p)) * z;
                 return bone.translation + kLimitLengthM * math::rotate(bone.rotation, direction);
             };
             for (int k = 0; k < 24; ++k)
@@ -470,10 +471,9 @@ namespace CMTest
             const math::Vec3 x = joint.twistAxis;
             const math::Vec3 z = joint.planeAxis;
             const math::Vec3 y = math::cross(z, x);
-            const auto corner = [&](double p, double n)
-            {
-                const math::Vec3 direction = std::cos(p) * std::cos(n) * x + std::cos(p) * std::sin(n) * y
-                    + (-std::sin(p)) * z;
+            const auto corner = [&](double p, double n) {
+                const math::Vec3 direction
+                    = std::cos(p) * std::cos(n) * x + std::cos(p) * std::sin(n) * y + (-std::sin(p)) * z;
                 return bone.translation + kLimitLengthM * math::rotate(bone.rotation, direction);
             };
             const math::Vec3 corners[4] = {
@@ -560,7 +560,8 @@ namespace CMTest
             ASSERT_NE(gizmo, nullptr);
             const std::vector<DrawnLine> before = draw(*gizmo);
 
-            auto planeMax = document->properties().makeSetCommand("joint.LeftThigh.planeSwingMaxRad", PropertyValue(0.9));
+            auto planeMax
+                = document->properties().makeSetCommand("joint.LeftThigh.planeSwingMaxRad", PropertyValue(0.9));
             auto twistMax = document->properties().makeSetCommand("joint.LeftShin.twistMaxRad", PropertyValue(1.5));
             auto coneTwist = document->properties().makeSetCommand("joint.Spine.twistMaxRad", PropertyValue(0.1));
             ASSERT_NE(planeMax, nullptr);

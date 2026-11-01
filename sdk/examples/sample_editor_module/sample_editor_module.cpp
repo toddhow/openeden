@@ -311,7 +311,8 @@ namespace
             command.id = "sample.command";
             command.label = "Say Hello";
             command.menuPath = "Sample/Hello";
-            command.handler = [](EditorContext& context) { context.log(LogLevel::Info, "Hello from the sample module"); };
+            command.handler
+                = [](EditorContext& context) { context.log(LogLevel::Info, "Hello from the sample module"); };
             registrar.registerCommand(command);
 
             GizmoProviderDesc gizmos;

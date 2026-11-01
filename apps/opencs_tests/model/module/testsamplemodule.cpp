@@ -12,7 +12,8 @@
 //  - Edits through makeSetCommand mark the document dirty once redo() ran; save() clears the dirty flag.
 //    Weight edits carry a mergeId >= 0 (the same for both edits); mergeWith absorbs the later command into the
 //    earlier one, so that the earlier command's undo() restores the value from before both.
-//  - The document's gizmos() returns exactly one gizmo, which draws exactly 3 lines (an axis cross) and 1 point at the note's position, and
+//  - The document's gizmos() returns exactly one gizmo, which draws exactly 3 lines (an axis cross) and 1 point at the
+//  note's position, and
 //    has one handle "sample.handle" at that position. drag("sample.handle", p) returns a command that moves the handle
 //    to p on redo() and back on undo().
 //  - The document's tracks() returns one track with 2 keys at 0.0 and 1.5 seconds.
@@ -158,7 +159,8 @@ namespace CSMModule
             EXPECT_FALSE(document.isDirty());
 
             const std::vector<PropertyDesc> descs = document.properties().describe();
-            const auto title = std::find_if(descs.begin(), descs.end(), [](const PropertyDesc& d) { return d.id == "title"; });
+            const auto title
+                = std::find_if(descs.begin(), descs.end(), [](const PropertyDesc& d) { return d.id == "title"; });
             const auto weight
                 = std::find_if(descs.begin(), descs.end(), [](const PropertyDesc& d) { return d.id == "weight"; });
             ASSERT_NE(title, descs.end());
@@ -335,7 +337,8 @@ namespace CSMModule
             {
                 const bool touches = (a.x == centre.x && a.y == centre.y && a.z == centre.z)
                     || (b.x == centre.x && b.y == centre.y && b.z == centre.z)
-                    || (0.5 * (a.x + b.x) == centre.x && 0.5 * (a.y + b.y) == centre.y && 0.5 * (a.z + b.z) == centre.z);
+                    || (0.5 * (a.x + b.x) == centre.x && 0.5 * (a.y + b.y) == centre.y
+                        && 0.5 * (a.z + b.z) == centre.z);
                 EXPECT_TRUE(touches);
             }
 
@@ -412,7 +415,8 @@ namespace CSMModule
             PropertySource* source = section.create(document);
             ASSERT_NE(source, nullptr);
             const std::vector<PropertyDesc> descs = source->describe();
-            const bool hasTitle = std::any_of(descs.begin(), descs.end(), [](const PropertyDesc& d) { return d.id == "title"; });
+            const bool hasTitle
+                = std::any_of(descs.begin(), descs.end(), [](const PropertyDesc& d) { return d.id == "title"; });
             const bool hasWeight
                 = std::any_of(descs.begin(), descs.end(), [](const PropertyDesc& d) { return d.id == "weight"; });
             EXPECT_TRUE(hasTitle);

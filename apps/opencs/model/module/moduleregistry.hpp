@@ -94,7 +94,8 @@ namespace CSMModule
         /// The section's source for an asset, or null.
         openeden::editor::PropertySource* sectionSource(std::string_view sectionId, openeden::editor::AssetDocument&);
         /// Opens through the registered type for the path. Null with \a error set if there is none or it failed.
-        std::unique_ptr<openeden::editor::AssetDocument> openAsset(const std::filesystem::path& path, std::string& error);
+        std::unique_ptr<openeden::editor::AssetDocument> openAsset(
+            const std::filesystem::path& path, std::string& error);
 
     private:
         class NullContext;

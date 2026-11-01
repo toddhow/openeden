@@ -2,15 +2,15 @@
 
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QLabel>
 #include <QPushButton>
 #include <QTimer>
 #include <QUndoStack>
-#include <QGroupBox>
 #include <QVBoxLayout>
 
-#include <apps/opencs/model/module/moduleregistry.hpp>
 #include "../module/moduleui.hpp"
+#include <apps/opencs/model/module/moduleregistry.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -324,7 +324,8 @@ void CSVDoc::ContextInspector::rebuildModuleSections()
     for (const std::string& id : wanted)
     {
         const auto& sections = modules->registry().sections();
-        const auto found = std::find_if(sections.begin(), sections.end(), [&](const auto& s) { return s.mDesc.id == id; });
+        const auto found
+            = std::find_if(sections.begin(), sections.end(), [&](const auto& s) { return s.mDesc.id == id; });
         if (found == sections.end())
             continue;
         openeden::editor::PropertySource* source = modules->registry().sectionSource(id, *modules->activeAsset());

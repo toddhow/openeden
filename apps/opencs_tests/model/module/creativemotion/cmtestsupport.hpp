@@ -105,10 +105,10 @@ namespace CMTest
         result.bodies = {
             makeBody("Pelvis", rig::BoxShape{ { 0.1, 0.12, 0.08 } }, math::Transform{}, 5.0),
             makeBody("Spine", rig::CapsuleShape{ 0.1, 0.06 }, math::Transform{ { 0.0, 0.0, 0.1 }, math::Quat{} }, 4.0),
-            makeBody("LeftThigh", rig::CapsuleShape{ 0.15, 0.05 },
-                math::Transform{ { 0.0, 0.0, -0.2 }, math::Quat{} }, 3.0),
-            makeBody("LeftShin", rig::CapsuleShape{ 0.15, 0.04 },
-                math::Transform{ { 0.0, 0.0, -0.2 }, math::Quat{} }, 2.0),
+            makeBody(
+                "LeftThigh", rig::CapsuleShape{ 0.15, 0.05 }, math::Transform{ { 0.0, 0.0, -0.2 }, math::Quat{} }, 3.0),
+            makeBody(
+                "LeftShin", rig::CapsuleShape{ 0.15, 0.04 }, math::Transform{ { 0.0, 0.0, -0.2 }, math::Quat{} }, 2.0),
         };
         result.joints = {
             makeCone("Spine", { 0.0, 0.0, 1.0 }, { 1.0, 0.0, 0.0 }, 0.4, 0.7, -0.2, 0.3),
@@ -197,8 +197,8 @@ namespace CMTest
 
     inline bool sameLine(const DrawnLine& l, const DrawnLine& r)
     {
-        return l.a.x == r.a.x && l.a.y == r.a.y && l.a.z == r.a.z && l.b.x == r.b.x && l.b.y == r.b.y
-            && l.b.z == r.b.z && l.colour.r == r.colour.r && l.colour.g == r.colour.g && l.colour.b == r.colour.b
+        return l.a.x == r.a.x && l.a.y == r.a.y && l.a.z == r.a.z && l.b.x == r.b.x && l.b.y == r.b.y && l.b.z == r.b.z
+            && l.colour.r == r.colour.r && l.colour.g == r.colour.g && l.colour.b == r.colour.b
             && l.colour.a == r.colour.a;
     }
 

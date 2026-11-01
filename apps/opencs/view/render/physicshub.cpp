@@ -174,7 +174,7 @@ namespace CSVRender
         {
             auto& children = mHost.contentRoot().children;
             children.erase(std::remove_if(children.begin(), children.end(),
-                                  [this](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mRoot.get(); }),
+                               [this](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mRoot.get(); }),
                 children.end());
         }
     }

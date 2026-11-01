@@ -55,7 +55,8 @@ namespace CSVRender
         void pause();
         void step();
         /// Test fixture until cells fill the world: a ground slab under the middle of the first 3D view's camera and a
-        /// ball (3 m radius, so that it can be seen from a cell-sized distance) dropped 12 m above it. The slab's middle is what is under the middle of the view, else the camera's centre.
+        /// ball (3 m radius, so that it can be seen from a cell-sized distance) dropped 12 m above it. The slab's
+        /// middle is what is under the middle of the view, else the camera's centre.
         void dropTestBall();
         void clearWorld();
 

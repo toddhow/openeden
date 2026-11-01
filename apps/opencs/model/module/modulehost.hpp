@@ -83,8 +83,8 @@ namespace CSMModule
         void load(const std::vector<ModuleSource>& sources);
 
         /// For a module linked into the program (tests). \a descriptor is read during the call only.
-        void loadStatic(std::string id, const openeden::editor::EditorModuleDescriptor& descriptor,
-            ModuleSource::Origin origin);
+        void loadStatic(
+            std::string id, const openeden::editor::EditorModuleDescriptor& descriptor, ModuleSource::Origin origin);
 
         std::vector<ModuleInfo> modules() const;
 

@@ -1,24 +1,24 @@
 #include "editor.hpp"
 
+#include <QAbstractItemModel>
 #include <QAction>
 #include <QApplication>
-#include <QAbstractItemModel>
 #include <QCoreApplication>
 #include <QDialog>
-#include <QGroupBox>
-#include <QMenu>
-#include <QTabBar>
 #include <QDoubleSpinBox>
-#include <QFileInfo>
-#include <QLineEdit>
 #include <QDropEvent>
+#include <QFileInfo>
+#include <QGroupBox>
+#include <QLineEdit>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMainWindow>
+#include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QRegularExpression>
+#include <QTabBar>
 #include <QTimer>
 #include <QTreeView>
 #include <QUndoStack>
@@ -67,8 +67,8 @@
 #include "view/doc/contextinspector.hpp"
 #include "view/doc/logtap.hpp"
 #include "view/doc/subview.hpp"
-#include "view/module/moduleui.hpp"
 #include "view/doc/viewmanager.hpp"
+#include "view/module/moduleui.hpp"
 #include "view/render/physicshub.hpp"
 #include "view/render/scenehost.hpp"
 #include "view/render/worldspacewidget.hpp"
@@ -157,17 +157,16 @@ void CS::Editor::startModules(const Files::PathContainer& dataDirs)
     mModuleHost = std::make_unique<CSMModule::ModuleHost>(mModuleRegistry, mModuleUi);
 
     // Core systems' modules first (decision 0007), then the extensions' (their manifests' "editor" entries).
-    std::vector<CSMModule::ModuleSource> sources
-        = CSMModule::coreModuleSources(std::filesystem::path(QCoreApplication::applicationDirPath().toStdString())
-            / "editor-modules");
+    std::vector<CSMModule::ModuleSource> sources = CSMModule::coreModuleSources(
+        std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "editor-modules");
     // OPENEDEN_CS_MODULES=<id>=<library path>[;<id>=<library path>...]: more core modules, for checks.
     if (const char* extra = std::getenv("OPENEDEN_CS_MODULES"))
         for (const QString& item : QString::fromUtf8(extra).split(';', Qt::SkipEmptyParts))
         {
             const int equals = item.indexOf('=');
             if (equals > 0)
-                sources.push_back({ item.left(equals).toStdString(), std::filesystem::path(item.mid(equals + 1).toStdString()),
-                    CSMModule::ModuleSource::Origin::Core });
+                sources.push_back({ item.left(equals).toStdString(),
+                    std::filesystem::path(item.mid(equals + 1).toStdString()), CSMModule::ModuleSource::Origin::Core });
         }
     if (mExtensionHost)
         for (CSMModule::ModuleSource& source : mExtensionHost->editorModuleSources())
@@ -744,13 +743,14 @@ namespace
             Log(Debug::Info) << "UI check: drop: pick hit " << hit.hit << " at " << hit.worldPos.x << ", "
                              << hit.worldPos.y << ", " << hit.worldPos.z << " cell '"
                              << widget->getCellId(vsg::vec3(hit.worldPos)) << "' size " << widget->width() << "x"
-                             << widget->height() << " enabled " << widget->isEnabled() << " drops " << widget->acceptDrops()
-                             << " mime ids " << static_cast<CSMWorld::TableMimeData*>(mime.get())->getData().size();
+                             << widget->height() << " enabled " << widget->isEnabled() << " drops "
+                             << widget->acceptDrops() << " mime ids "
+                             << static_cast<CSMWorld::TableMimeData*>(mime.get())->getData().size();
             widget->deliverDropForCheck(&drop);
             const bool handled = true;
             Log(Debug::Info) << "UI check: drop: handled " << handled << " accepted " << drop.isAccepted()
-                             << ", references " << before << " -> " << references->rowCount()
-                             << ", undo stack count " << document->getUndoStack().count();
+                             << ", references " << before << " -> " << references->rowCount() << ", undo stack count "
+                             << document->getUndoStack().count();
         });
     }
 
@@ -877,8 +877,8 @@ namespace
     }
 
     /// The CreativeMotion rig check (task 0032): OPENEDEN_CS_RIGCHECK=<prefix>;<rig file>;<profile file>. Opens the rig
-    /// and the profile as module assets, edits a twist limit and a motor gain through the panel's fields, undoes, saves,
-    /// and captures the 3D view. Logged as "UI check: rig ...".
+    /// and the profile as module assets, edits a twist limit and a motor gain through the panel's fields, undoes,
+    /// saves, and captures the 3D view. Logged as "UI check: rig ...".
     void runRigCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
     {
         const std::size_t first = spec.find(';');
@@ -951,8 +951,8 @@ namespace
                     if (const auto hit = host->pickNearest(0.5, 0.5, ~0u))
                     {
                         constexpr double units = CSMPhysics::StudioWorld::sUnitsPerMeter;
-                        host->setCamera(*hit + vsg::dvec3(0.0, -4.0 * units, 1.5 * units), *hit + vsg::dvec3(0.0, 0.0, 1.0 * units),
-                            vsg::dvec3(0.0, 0.0, 1.0));
+                        host->setCamera(*hit + vsg::dvec3(0.0, -4.0 * units, 1.5 * units),
+                            *hit + vsg::dvec3(0.0, 0.0, 1.0 * units), vsg::dvec3(0.0, 0.0, 1.0));
                     }
         });
         QTimer::singleShot(step * 6, qApp, [=] {
@@ -965,7 +965,8 @@ namespace
                 }
             CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
             ui->openAsset(profilePath);
-            Log(Debug::Info) << "UI check: rig profile opened " << (ui->activeAsset() ? "yes" : "no") << " " << ui->openError();
+            Log(Debug::Info) << "UI check: rig profile opened " << (ui->activeAsset() ? "yes" : "no") << " "
+                             << ui->openError();
         });
         QTimer::singleShot(step * 8, qApp, [=] {
             const QStringList names = fieldNames("property_default.");

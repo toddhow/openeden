@@ -18,7 +18,8 @@ namespace creativemotion_editor
     inline constexpr const char* kRigFormat = "opas.rig";
     inline constexpr const char* kProfileFormat = "opas.profile";
 
-    /// A rig file as an asset. Null with \a error set (the loader's located message) if it cannot be read or is invalid.
+    /// A rig file as an asset. Null with \a error set (the loader's located message) if it cannot be read or is
+    /// invalid.
     std::unique_ptr<openeden::editor::AssetDocument> openRig(const std::filesystem::path& path, std::string& error);
 
     /// A profile file as an asset: checked on its own, as the loader does (no rig is known).

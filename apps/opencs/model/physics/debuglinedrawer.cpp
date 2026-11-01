@@ -1,8 +1,8 @@
 #include "debuglinedrawer.hpp"
 
 #include <atomic>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
 namespace CSMPhysics
 {

@@ -2,8 +2,8 @@
 
 #include <filesystem>
 
-#include <apps/opencs/model/module/moduleregistry.hpp>
 #include "../module/moduleui.hpp"
+#include <apps/opencs/model/module/moduleregistry.hpp>
 
 #include <QHeaderView>
 #include <QLineEdit>
@@ -195,7 +195,8 @@ CSVDoc::AssetBrowser::AssetBrowser(CSMDoc::Document& document, QWidget* parent)
     addGroups();
 
     // The files editor modules handle (task 0031), when any module registered an asset type.
-    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get(); modules != nullptr && !modules->registry().assetTypes().empty())
+    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+        modules != nullptr && !modules->registry().assetTypes().empty())
     {
         QStandardItem* group = new QStandardItem(tr("Module assets"));
         group->setData(Kind_Group, roleKind);

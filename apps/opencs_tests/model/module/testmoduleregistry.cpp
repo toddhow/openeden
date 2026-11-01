@@ -77,8 +77,7 @@ namespace CSMModule
             desc.formatId = formatId;
             desc.fileExtension = extension;
             desc.label = "Label " + formatId;
-            desc.open = [](const std::filesystem::path&, std::string& error) -> std::unique_ptr<AssetDocument>
-            {
+            desc.open = [](const std::filesystem::path&, std::string& error) -> std::unique_ptr<AssetDocument> {
                 error = "not implemented in this test";
                 return nullptr;
             };
@@ -104,8 +103,8 @@ namespace CSMModule
         }
 
         /// Registers one of every kind under `prefix`, inside beginModule/endModule.
-        void registerAll(
-            ModuleRegistry& registry, const std::string& module, const std::string& prefix, const std::string& extension)
+        void registerAll(ModuleRegistry& registry, const std::string& module, const std::string& prefix,
+            const std::string& extension)
         {
             registry.beginModule(module);
             EXPECT_TRUE(registry.registerWorkspace(workspace(prefix + ".workspace")).ok);
@@ -440,8 +439,9 @@ namespace CSMModule
 
             registry.beginModule("bad");
             AssetTypeDesc desc = assetType("bad.asset", ".bad.json");
-            desc.open = [](const std::filesystem::path&, std::string&) -> std::unique_ptr<AssetDocument>
-            { throw std::runtime_error("boom"); };
+            desc.open = [](const std::filesystem::path&, std::string&) -> std::unique_ptr<AssetDocument> {
+                throw std::runtime_error("boom");
+            };
             ASSERT_TRUE(registry.registerAssetType(desc).ok);
             registry.endModule();
 

@@ -470,8 +470,8 @@ namespace openeden::extension
         {
             j["editor"] = nlohmann::ordered_json{ { "library", manifest.editor->library },
                 { "editorApi",
-                    nlohmann::ordered_json{
-                        { "major", manifest.editor->editorApi.major }, { "minor", manifest.editor->editorApi.minor } } } };
+                    nlohmann::ordered_json{ { "major", manifest.editor->editorApi.major },
+                        { "minor", manifest.editor->editorApi.minor } } } };
         }
 
         return j.dump(2);

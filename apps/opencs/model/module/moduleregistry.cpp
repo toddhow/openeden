@@ -39,7 +39,8 @@ namespace CSMModule
 
         bool endsWith(const std::string& text, const std::string& suffix)
         {
-            return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+            return text.size() >= suffix.size()
+                && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
         }
 
         std::string describe(const std::exception_ptr& error)
@@ -132,8 +133,8 @@ namespace CSMModule
         if (hasId(mPanels, desc.id))
             return refuse("the panel id '" + desc.id + "' is already registered");
         if (!hasId(mWorkspaces, desc.workspaceId))
-            return refuse("the panel '" + desc.id + "' names the workspace '" + desc.workspaceId
-                + "', which nobody registered");
+            return refuse(
+                "the panel '" + desc.id + "' names the workspace '" + desc.workspaceId + "', which nobody registered");
         if (!desc.source)
             return refuse("the panel '" + desc.id + "' has no source callback");
         mPanels.push_back({ mCurrent, desc });

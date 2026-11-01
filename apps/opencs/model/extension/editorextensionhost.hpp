@@ -74,7 +74,8 @@ namespace CSMExtension
 
         /// Gives extensions read-only queries on the editor's Jolt world (task 0030), and publishes the query masks
         /// "world" and "dynamic_world" under the values CSMPhysics::StudioWorld uses. Call it before start(), with a
-        /// world that outlives the host (there is no detach). 	hrows std::logic_error if extensions are running. \param unitsPerMeter the world's length unit.
+        /// world that outlives the host (there is no detach). 	hrows std::logic_error if extensions are running. \param
+        /// unitsPerMeter the world's length unit.
         void attachPhysicsWorld(JPH::PhysicsSystem& world, float unitsPerMeter);
 
         /// Null until attachPhysicsWorld has been called.

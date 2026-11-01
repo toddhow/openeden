@@ -206,8 +206,8 @@ TEST(ManifestEditorEntryTest, UnknownKeysInsideEditorAreRejected)
 TEST(ManifestEditorEntryTest, ErrorLineIsInsideTheEditorEntry)
 {
     LoadError err;
-    EXPECT_FALSE(parseManifest(
-        withEditor("{\n    \"library\": 5,\n    \"editorApi\": { \"major\": 1, \"minor\": 0 }\n  }"), "extension.json",
-        err));
+    EXPECT_FALSE(
+        parseManifest(withEditor("{\n    \"library\": 5,\n    \"editorApi\": { \"major\": 1, \"minor\": 0 }\n  }"),
+            "extension.json", err));
     EXPECT_GE(err.line, kEditorLine);
 }

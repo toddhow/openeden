@@ -180,7 +180,8 @@ namespace CSMModule
             using openeden::sdk::isCompatible;
             using openeden::sdk::Version;
             EXPECT_TRUE(isCompatible(Version{ 1, 0 }, kApiVersion));
-            EXPECT_FALSE(isCompatible(Version{ 1, static_cast<std::uint16_t>(kApiVersion.minor + 1) }, kApiVersion)); // module wants a newer minor
+            EXPECT_FALSE(isCompatible(Version{ 1, static_cast<std::uint16_t>(kApiVersion.minor + 1) },
+                kApiVersion)); // module wants a newer minor
             EXPECT_FALSE(isCompatible(Version{ 0, 0 }, kApiVersion)); // different major
             EXPECT_FALSE(isCompatible(Version{ static_cast<std::uint16_t>(kApiVersion.major + 1), 0 }, kApiVersion));
         }
@@ -286,8 +287,7 @@ namespace CSMModule
 
         TEST_F(CSMModuleHostTest, aThrowingRegisterUiFailsThatModuleWithdrawsPartialRegistrationsAndTheNextStillLoads)
         {
-            sSlots[0].registerUi = [](EditorRegistrar& r)
-            {
+            sSlots[0].registerUi = [](EditorRegistrar& r) {
                 r.registerCommand(commandDesc("m0.partial"));
                 throw std::runtime_error("ui boom");
             };
@@ -319,8 +319,8 @@ namespace CSMModule
         {
             ModuleHost host(mRegistry, mContext);
             const EditorModuleDescriptor tooNewMajor = descriptor<0>(openeden::sdk::Version{ 2, 0 });
-            const EditorModuleDescriptor tooNewMinor
-                = descriptor<1>(openeden::sdk::Version{ kApiVersion.major, static_cast<std::uint16_t>(kApiVersion.minor + 1) });
+            const EditorModuleDescriptor tooNewMinor = descriptor<1>(
+                openeden::sdk::Version{ kApiVersion.major, static_cast<std::uint16_t>(kApiVersion.minor + 1) });
             host.loadStatic("m0", tooNewMajor, Origin::Core);
             host.loadStatic("m1", tooNewMinor, Origin::Core);
 
@@ -410,8 +410,7 @@ namespace CSMModule
 
         TEST_F(CSMModuleHostTest, aThrowingCommandHandlerDisablesOnlyThatModule)
         {
-            sSlots[0].registerUi = [](EditorRegistrar& r)
-            {
+            sSlots[0].registerUi = [](EditorRegistrar& r) {
                 CommandDesc desc = commandDesc("m0.command");
                 desc.handler = [](EditorContext&) { throw std::runtime_error("handler boom"); };
                 r.registerCommand(desc);

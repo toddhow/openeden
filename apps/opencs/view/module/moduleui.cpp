@@ -141,7 +141,8 @@ namespace CSVModule
                         case PropertyType::Bool:
                         {
                             auto* box = new QCheckBox(this);
-                            connect(box, &QCheckBox::toggled, this, [this, id](bool on) { edit(id, PropertyValue(on)); });
+                            connect(
+                                box, &QCheckBox::toggled, this, [this, id](bool on) { edit(id, PropertyValue(on)); });
                             show = [box](const PropertyValue& v) {
                                 if (const bool* on = std::get_if<bool>(&v))
                                     box->setChecked(*on);
@@ -152,12 +153,14 @@ namespace CSVModule
                         case PropertyType::Int:
                         {
                             auto* spin = new QSpinBox(this);
-                            spin->setRange(static_cast<int>(std::max<double>(desc.min, std::numeric_limits<int>::min())),
+                            spin->setRange(
+                                static_cast<int>(std::max<double>(desc.min, std::numeric_limits<int>::min())),
                                 static_cast<int>(std::min<double>(desc.max, std::numeric_limits<int>::max())));
                             if (!desc.unit.empty())
                                 spin->setSuffix(" " + QString::fromStdString(desc.unit));
-                            connect(spin, &QSpinBox::editingFinished, this,
-                                [this, id, spin] { edit(id, PropertyValue(static_cast<std::int64_t>(spin->value()))); });
+                            connect(spin, &QSpinBox::editingFinished, this, [this, id, spin] {
+                                edit(id, PropertyValue(static_cast<std::int64_t>(spin->value())));
+                            });
                             show = [spin](const PropertyValue& v) {
                                 if (const auto* n = std::get_if<std::int64_t>(&v))
                                     spin->setValue(static_cast<int>(*n));
@@ -225,7 +228,8 @@ namespace CSVModule
                                 spin->setSingleStep(desc.step > 0 ? desc.step : cDefaultSpinStep);
                                 row->addWidget(spin);
                                 connect(spin, &QDoubleSpinBox::valueChanged, this, [this, id, spins](double) {
-                                    edit(id, PropertyValue(Vec3{ spins[0]->value(), spins[1]->value(), spins[2]->value() }));
+                                    edit(id,
+                                        PropertyValue(Vec3{ spins[0]->value(), spins[1]->value(), spins[2]->value() }));
                                 });
                             }
                             show = [spins](const PropertyValue& v) {
@@ -331,7 +335,8 @@ namespace CSVModule
         if (mDocumentProvider)
             if (CSMDoc::Document* document = mDocumentProvider())
                 stack = &document->getUndoStack();
-        if (std::none_of(mStacks.begin(), mStacks.end(), [&](const QPointer<QUndoStack>& known) { return known == stack; }))
+        if (std::none_of(
+                mStacks.begin(), mStacks.end(), [&](const QPointer<QUndoStack>& known) { return known == stack; }))
         {
             mStacks.emplace_back(stack);
             if (stack != &mOwnStack)

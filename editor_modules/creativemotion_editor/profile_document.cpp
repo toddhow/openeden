@@ -143,14 +143,8 @@ namespace creativemotion_editor
                 }
             }
 
-            Located locate(std::string_view id)
-            {
-                return locateIn(id);
-            }
-            Located locate(std::string_view id) const
-            {
-                return const_cast<ProfileDocument*>(this)->locateIn(id);
-            }
+            Located locate(std::string_view id) { return locateIn(id); }
+            Located locate(std::string_view id) const { return const_cast<ProfileDocument*>(this)->locateIn(id); }
 
             Located locateIn(std::string_view id)
             {

@@ -1,7 +1,8 @@
 // Task 0032: the creativemotion_editor module as Eden Studio loads it, written from the spec alone.
 //
 // Assumptions (see the report):
-//  - documents.hpp declares `const openeden::editor::EditorModuleDescriptor* creativemotion_editor::moduleDescriptor()`,
+//  - documents.hpp declares `const openeden::editor::EditorModuleDescriptor*
+//  creativemotion_editor::moduleDescriptor()`,
 //    the module's descriptor for ModuleHost::loadStatic (the exported C entry point would clash with the sample
 //    module's in this executable). Its id is "creativemotion_editor".
 //  - CREATIVEMOTION_EDITOR_PATH is a compile definition: a string literal naming the built shared library.
@@ -146,8 +147,7 @@ namespace CMTest
 
             // The two asset types.
             ASSERT_EQ(mRegistry.assetTypes().size(), 2u);
-            const auto findType = [&](const std::string& format) -> const AssetTypeDesc*
-            {
+            const auto findType = [&](const std::string& format) -> const AssetTypeDesc* {
                 for (const auto& entry : mRegistry.assetTypes())
                     if (entry.mDesc.formatId == format)
                         return &entry.mDesc;

@@ -55,8 +55,14 @@ namespace creativemotion_editor
         };
         constexpr int kJointFieldCount = 6;
 
-        V add(V a, V b) { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
-        V scaled(V v, double s) { return { v.x * s, v.y * s, v.z * s }; }
+        V add(V a, V b)
+        {
+            return { a.x + b.x, a.y + b.y, a.z + b.z };
+        }
+        V scaled(V v, double s)
+        {
+            return { v.x * s, v.y * s, v.z * s };
+        }
 
         void line(OverlaySink& sink, const V& a, const V& b, const Colour& colour)
         {
@@ -232,8 +238,8 @@ namespace creativemotion_editor
                     V previous{};
                     for (int i = 0; i <= kTwistArcSegments; ++i)
                     {
-                        const double a = joint.twistMinRad
-                            + (joint.twistMaxRad - joint.twistMinRad) * i / kTwistArcSegments;
+                        const double a
+                            = joint.twistMinRad + (joint.twistMaxRad - joint.twistMinRad) * i / kTwistArcSegments;
                         const V p = add(origin,
                             scaled(direction(0, std::cos(a), std::sin(a)), kTwistArcRadiusFactor * kLimitLengthM));
                         if (i > 0)
@@ -316,7 +322,8 @@ namespace creativemotion_editor
                         d.max = kPi;
                         d.step = 0.01;
                         d.group = joint.bone;
-                        d.tooltip = "Limit of the joint on this bone, in radians from the rest pose (docs/formats/rig.md)";
+                        d.tooltip
+                            = "Limit of the joint on this bone, in radians from the rest pose (docs/formats/rig.md)";
                         descs.push_back(std::move(d));
                     }
                 }
@@ -355,8 +362,9 @@ namespace creativemotion_editor
                 candidate.joints[found.mJoint].*kJointFields[found.mField].mMember = *number;
                 if (!opas::rig::validateRig(candidate).empty())
                     return nullptr;
-                return std::make_unique<SetNumberCommand>("Change " + std::string(id), &(mRig.joints[found.mJoint].*kJointFields[found.mField].mMember),
-                    &mDirty, *number, kMergeBase + found.mJoint * kJointFieldCount + found.mField);
+                return std::make_unique<SetNumberCommand>("Change " + std::string(id),
+                    &(mRig.joints[found.mJoint].*kJointFields[found.mField].mMember), &mDirty, *number,
+                    kMergeBase + found.mJoint * kJointFieldCount + found.mField);
             }
 
         private:

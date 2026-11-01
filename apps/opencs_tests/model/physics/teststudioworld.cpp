@@ -121,8 +121,7 @@ namespace CSMPhysics
 
         TEST(CSMPhysicsStudioWorldTest, twoWorldsGiveBitIdenticalResults)
         {
-            auto run = [](double& x, double& y, double& z)
-            {
+            auto run = [](double& x, double& y, double& z) {
                 StudioWorld world;
                 addSlab(world);
                 const JPH::BodyID a = world.addDynamicSphere(JPH::RVec3(3, 5, 2.0 * kUnits), kBallRadius);

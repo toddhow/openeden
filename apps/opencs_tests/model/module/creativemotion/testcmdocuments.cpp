@@ -456,7 +456,8 @@ namespace CMTest
             auto document = openRig(path);
             ASSERT_NE(document, nullptr);
 
-            auto command = document->properties().makeSetCommand("joint.LeftThigh.planeSwingMaxRad", PropertyValue(1.0));
+            auto command
+                = document->properties().makeSetCommand("joint.LeftThigh.planeSwingMaxRad", PropertyValue(1.0));
             ASSERT_NE(command, nullptr);
             command->redo();
             ASSERT_TRUE(document->isDirty());

@@ -40,8 +40,7 @@ namespace CSMPhysics
             drawer.rebuild(world.system());
             ASSERT_FALSE(drawer.lines().empty());
 
-            auto inBox = [](const float p[3], const JPH::RVec3& c, const JPH::Vec3& h)
-            {
+            auto inBox = [](const float p[3], const JPH::RVec3& c, const JPH::Vec3& h) {
                 return std::abs(p[0] - c.GetX()) <= h.GetX() + kSlack && std::abs(p[1] - c.GetY()) <= h.GetY() + kSlack
                     && std::abs(p[2] - c.GetZ()) <= h.GetZ() + kSlack;
             };
