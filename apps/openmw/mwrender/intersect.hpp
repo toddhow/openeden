@@ -3,6 +3,7 @@
 
 #include "rendermanager.hpp"
 #include "scene.hpp"
+#include "mask.hpp"
 
 #include <vsg/core/visit.h>
 
