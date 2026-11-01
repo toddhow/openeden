@@ -17,3 +17,6 @@
 ddb0522bbf2aa8aa7c9e139ff7395fb8ed6a841f
 
 88ec8a95231341e7962b85716510d414e9f0c424
+
+# clang-format 14 over the files changed or imported since the base with upstream OpenMW (task 0022)
+e90a2db6e073e485da2273926a197b98210644d6
