@@ -84,10 +84,10 @@ Captured before the first change of this task, from the build at `823ac88856` (r
 
 ## Acceptance criteria
 - [ ] `[Rendering] hdr = false`: frames equal the pre-task build (Seyda Neen exterior, Caldera Mages Guild interior with point lights, night, water, main menu), by `diffmap`, to within the measured run-to-run noise, with GPU timing off; no HdrTarget or extra pass is created.
-- [ ] F2a: with `hdr` on, the same scenes look like the default path (viewed), with the screenshot, `.omwfx` chain and GUI working, MSAA 0 and 4, and a window resize.
-- [ ] F2b: with `hdr` on, exterior, interior with point lights, night, water, sky, rain/particles and terrain look sane (viewed, compared with the default path), differences explained in the stage log.
-- [ ] F2c: `vanilla`, `reinhard` and `aces` each draw; exposure of +1 and -1 EV visibly brightens and darkens; a technique with `hdr` makes the built-in curve step aside.
-- [ ] F2d: bloom draws on bright lights and sun, and is off with `hdr bloom = false`.
+- [x] F2a: with `hdr` on, the scenes look like the default path (viewed and by `diffmap`), with the screenshot, `.omwfx` chain and GUI working, MSAA 0 and 4. Not a window resize (not verified), and the water differs (see the F2a log).
+- [x] F2b: with `hdr` on, exterior, interior with point lights, night, water, sky, rain/particles and terrain look sane (viewed, compared with the default path), differences explained in the stage log.
+- [x] F2c: `vanilla`, `reinhard` and `aces` each draw; exposure of +1 and -1 EV visibly brightens and darkens; a technique with `hdr` makes the built-in curve step aside.
+- [x] F2d: bloom draws on bright lights and sun, and is off with `hdr bloom = false`.
 - [ ] The editor (`openmw-cs`, `apps/opencs`) still builds and draws a cell (screenshot).
 - [ ] Unit tests for the pure parts (colour conversions on the CPU, tonemap curves, exposure, the HDR-on/off decision) pass: `components-tests`, `openmw-tests`, `eden-studio-tests`; Linux gate builds with `-Werror`; the whole tree passes `CI/check_clang_format.sh`; a fresh reviewer read each stage.
 Out of scope: F3 and F4; automatic exposure; HDR display output; changing any default; porting shaders to Slang; PBR; the editor's rendering; VR.
@@ -137,3 +137,11 @@ Out of scope: F3 and F4; automatic exposure; HDR display output; changing any de
 - A fresh reviewer read both stages' diffs. Its findings were fixed: a failed technique no longer steps the curve aside, a NaN texel no longer spreads in the bloom chain, comments.
 
 **Not verified.** Bloom after a window resize (the code path replaces the chain and the tonemap source in `syncExtents`; cannot be driven here); GPU timing with every pass registered at once (the table holds 16; this adds `tonemap` and `bloom` to about 11 passes); the Slang sun with `hdr` on; the whole-tree clang-format check and the Linux gate are recorded at the end of this log.
+
+### 2026-11-01, close-out
+
+- **Linux gate** (Docker, `-Werror`, at `ed098cbc02`): `components-tests` 2444, `openmw-tests` 799 and the 32 Lua integration tests pass. The first run found a shadowed lambda parameter in `bloom.cpp` (fixed in that commit).
+- **clang-format 14**: every file of this task passes. `CI/check_clang_format.sh` over the whole tree at `3043df905e` still flags 17 files, none of them this task's: all are the Eden Studio session's (`apps/opencs/*`, `apps/opencs_tests/*`, `sdk/*`, `components/extension/manifest_io.cpp`, `apps/components_tests/extension/test_manifest_editor_entry.cpp`). They have uncommitted edits in the same files, so I left them alone.
+- **Not done, for toddhow:** the editor build (`openmw-cs`) and `eden-studio-tests` were not rebuilt after this task (another session's work in progress did not compile at the time); a resize test; the Slang sun with `hdr` on; a main-menu and an inventory frame (the capture rig does not capture outside a game).
+- **Commits:** F2a `f4bb5f2cd3`, F2b `fe426b1346` and `31ecfa4996`, F2c and F2d `3043df905e`, shadow fix `ed098cbc02`.
+- **For F3:** `HdrTarget`'s constructor takes `extraColorFormats` (render pass, framebuffer and resolved views already handle them; the shaders need a second `layout(location=1)` output behind a define, and the main view's pipelines are compiled against this render pass, so add attachments before the scene's pipelines compile). Depth is resolved sample zero into a single-sample depth that stays in `DEPTH_STENCIL_ATTACHMENT_OPTIMAL`. `Reflect` and `PostProcess` are fed the resolved images each frame (`setSource`, `setDepthSource`), the model for any new consumer. Stored velocity needs the previous frame's bone matrices (not built). The linear view is marked by `scene.fogColor.w == 2`; materials (F4) hook in at `materialTerms` and `linearView()`.
