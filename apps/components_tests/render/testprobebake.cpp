@@ -885,3 +885,33 @@ namespace
         }
     }
 }
+
+namespace Render::Gi
+{
+    // Added after the review: a world may report a surface normal that points away from the ray.
+    TEST(RenderGiProbeBakeFacing, a_normal_pointing_along_the_ray_is_turned_around)
+    {
+        const vsg::vec3 n = facingNormal(vsg::vec3(0.f, 0.f, 2.f), vsg::vec3(0.f, 0.f, 5.f));
+        EXPECT_FLOAT_EQ(n.z, -1.f);
+        EXPECT_FLOAT_EQ(n.x, 0.f);
+    }
+
+    TEST(RenderGiProbeBakeFacing, a_normal_facing_the_ray_source_is_only_made_a_unit_vector)
+    {
+        const vsg::vec3 n = facingNormal(vsg::vec3(3.f, 0.f, 0.f), vsg::vec3(-1.f, 0.f, 0.f));
+        EXPECT_FLOAT_EQ(n.x, 1.f);
+    }
+
+    TEST(RenderGiProbeBakeFacing, a_zero_normal_becomes_the_reverse_of_the_ray)
+    {
+        const vsg::vec3 n = facingNormal(vsg::vec3(0.f, 0.f, 0.f), vsg::vec3(0.f, 4.f, 0.f));
+        EXPECT_FLOAT_EQ(n.y, -1.f);
+    }
+
+    TEST(RenderGiProbeBakeLayout, a_box_that_is_not_finite_gives_one_probe_and_returns)
+    {
+        const float inf = std::numeric_limits<float>::infinity();
+        const Volume v = layoutVolume(vsg::vec3(inf, inf, inf), vsg::vec3(-inf, -inf, -inf), 128.f, 100);
+        EXPECT_EQ(v.probes.size(), 1u);
+    }
+}

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -52,7 +53,7 @@ namespace OMW
                 if (!result.mHit)
                     return false;
                 hitPos = result.mHitPos;
-                hitNormal = result.mHitNormal;
+                hitNormal = result.mHitNormal; // the baker turns it to face the ray (Render::Gi::facingNormal)
                 return true;
             }
 
@@ -85,11 +86,17 @@ namespace OMW
             return buffer.str();
         }
 
+        // Writes to a temporary file and renames it, so a killed game never leaves half a file under the real name.
         void writeFile(const std::filesystem::path& path, const std::string& text)
         {
             std::filesystem::create_directories(path.parent_path());
-            std::ofstream out(path, std::ios::binary | std::ios::trunc);
-            out << text;
+            std::filesystem::path temporary = path;
+            temporary += ".tmp";
+            {
+                std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
+                out << text;
+            }
+            std::filesystem::rename(temporary, path);
         }
     }
 
@@ -110,6 +117,9 @@ namespace OMW
         std::filesystem::path partialFile;
         std::filesystem::path progressFile;
         std::size_t lightCount = 0;
+        // Everything about the lights and the falloff that changes the bake, as text, for the signature.
+        std::string lightText;
+        MWWorld::CellStore* bakedCell = nullptr;
         std::chrono::steady_clock::time_point started;
         std::chrono::steady_clock::time_point lastSave;
         std::size_t lastLogged = 99;
@@ -129,7 +139,11 @@ namespace OMW
             s << "rays " << settings.rays << " bounces " << settings.bounces << " seed " << settings.seed << " lights "
               << lightCount << " size " << v.size[0] << " " << v.size[1] << " " << v.size[2] << " spacing "
               << v.spacing << " origin " << v.origin.x << " " << v.origin.y << " " << v.origin.z << " ambient "
-              << settings.ambient.x << " " << settings.ambient.y << " " << settings.ambient.z;
+              << settings.ambient.x << " " << settings.ambient.y << " " << settings.ambient.z
+              << " falloff " << settings.falloff.useConstant << settings.falloff.constantValue << settings.falloff.useLinear
+              << settings.falloff.linearMethod << settings.falloff.linearValue << settings.falloff.linearRadiusMult
+              << settings.falloff.useQuadratic << settings.falloff.quadraticMethod << settings.falloff.quadraticValue
+              << settings.falloff.quadraticRadiusMult << settings.falloff.classic << " lightdata " << lightText;
             return s.str();
         }
 
@@ -181,6 +195,13 @@ namespace OMW
             while (progress >> index)
                 if (index < invalid.size())
                     invalid[index] = true;
+            progress.clear();
+            progress >> word;
+            if (word != "end")
+            {
+                Log(Debug::Warning) << "[GI] cannot resume: " << progressFile.string() << " is incomplete";
+                return;
+            }
             Render::Gi::ProbeError error;
             const auto set = Render::Gi::parseProbes(readFile(partialFile), partialFile.string(), error);
             if (!set || set->volumes.empty())
@@ -202,6 +223,7 @@ namespace OMW
                 return false;
             }
             // The name the game gave the cell, which is the one the runtime asks for.
+            bakedCell = cell;
             cellId = Render::Gi::CellId{ true, std::string(cell->getCell()->getNameId()), 0, 0 };
             auto* physics = gameWorld->getPhysicsSystem();
 
@@ -228,6 +250,13 @@ namespace OMW
             for (const auto& f : found)
                 lights.push_back(f.second);
             lightCount = lights.size();
+            {
+                std::ostringstream lt;
+                for (const auto& l : lights)
+                    lt << l.position.x << ',' << l.position.y << ',' << l.position.z << ',' << l.color.x << ',' << l.color.y
+                       << ',' << l.color.z << ',' << l.radius << ';';
+                lightText = lt.str();
+            }
 
             const auto& rendering = Settings::rendering();
             settings.rays = static_cast<std::uint32_t>(rendering.mGiBakeRays.get());
@@ -238,6 +267,12 @@ namespace OMW
 
             vsg::vec3 low, high;
             physics->getWorldBounds(low, high);
+            const auto finite = [](const vsg::vec3& v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); };
+            if (!finite(low) || !finite(high) || low.x > high.x || low.y > high.y || low.z > high.z)
+            {
+                Log(Debug::Error) << "[GI] the physics world of \"" << cellName << "\" is empty; nothing to bake";
+                return false;
+            }
             auto volume = Render::Gi::layoutVolume(low, high, rendering.mGiBakeSpacing, Render::Gi::maxVolumeProbes);
             world = std::make_unique<JoltRayWorld>(*physics);
             baker = std::make_unique<Render::Gi::VolumeBaker>(
@@ -245,7 +280,7 @@ namespace OMW
 
             const std::string key = Render::Gi::cellKey(cellId);
             outFile = outFolder / "openeden" / "probes" / (key + ".json");
-            partialFile = outFolder / "openeden" / "probes" / (key + ".partial.json");
+            partialFile = outFolder / "openeden" / "probes" / (key + ".partial");
             progressFile = outFolder / "openeden" / "probes" / (key + ".progress");
             Log(Debug::Info) << "[GI] baking \"" << cellId.name << "\": " << baker->total() << " probes, "
                              << lightCount << " light(s), " << settings.rays << " rays, " << settings.bounces
@@ -297,6 +332,12 @@ namespace OMW
                     return false;
                 if (!begin())
                     return true;
+            }
+            // The player left the cell (a door, a teleport): the world the rays hit is gone, so stop with nothing written.
+            if (MWBase::Environment::get().getWorld()->getPlayerPtr().getCell() != bakedCell)
+            {
+                Log(Debug::Error) << "[GI] the player left \"" << cellId.name << "\" during the bake; nothing was written";
+                return true;
             }
             const auto budget = std::chrono::milliseconds(Settings::rendering().mGiBakeBudget.get());
             const auto start = std::chrono::steady_clock::now();

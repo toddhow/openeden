@@ -83,6 +83,7 @@ namespace Render::Gi
             vsg::vec3 hitPos, hitNormal;
             if (!c.world.cast(origin, origin + dir * s.openDistance, hitPos, hitNormal))
                 return s.ambient;
+            hitNormal = facingNormal(hitNormal, dir);
             const float distance = length(hitPos - origin);
             vsg::vec3 result = s.ambient * std::min(1.f, distance / s.openDistance);
             if (depth < s.bounces)
@@ -173,6 +174,18 @@ namespace Render::Gi
         return vsg::vec3(r * std::cos(phi), r * std::sin(phi), z);
     }
 
+    vsg::vec3 facingNormal(const vsg::vec3& normal, const vsg::vec3& rayDir)
+    {
+        const float n = length(normal);
+        const float r = length(rayDir);
+        const vsg::vec3 reverse = r > 0.f ? rayDir * (-1.f / r) : vsg::vec3(0.f, 0.f, 1.f);
+        constexpr float minLength = 1e-4f;
+        if (!(n > minLength))
+            return reverse;
+        const vsg::vec3 unit = normal * (1.f / n);
+        return dot(unit, rayDir) > 0.f ? unit * -1.f : unit;
+    }
+
     vsg::vec3 cosineDirection(const vsg::vec3& normal, float u1, float u2)
     {
         const float r = std::sqrt(u1);
@@ -218,7 +231,11 @@ namespace Render::Gi
             const float half = s * 0.5f;
             const vsg::vec3 lo = low - vsg::vec3(half, half, half);
             const vsg::vec3 hi = high + vsg::vec3(half, half, half);
-            const float extent[3] = { hi.x - lo.x, hi.y - lo.y, hi.z - lo.z };
+            // A box that is not finite (an empty world) is one probe.
+            float extent[3] = { hi.x - lo.x, hi.y - lo.y, hi.z - lo.z };
+            for (float& e : extent)
+                if (!std::isfinite(e) || e < 0.f)
+                    e = 0.f;
             std::size_t product = 1;
             for (int a = 0; a < 3; ++a)
             {

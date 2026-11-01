@@ -107,6 +107,9 @@ namespace Render::Gi
 
     // The `index`-th of `count` directions of a spiral over the sphere, shifted by `offset` in [0, 1).
     vsg::vec3 spiralDirection(std::uint32_t index, std::uint32_t count, float offset);
+    // `normal` turned to face against `rayDir` (a surface normal may point either way), as a unit vector; a zero normal
+    // becomes the reverse of the ray.
+    vsg::vec3 facingNormal(const vsg::vec3& normal, const vsg::vec3& rayDir);
     // A direction around `normal`, cosine weighted, from two numbers in [0, 1).
     vsg::vec3 cosineDirection(const vsg::vec3& normal, float u1, float u2);
 
