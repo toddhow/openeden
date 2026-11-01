@@ -80,6 +80,28 @@ namespace MWRender
         }
     }
 
+    vsg::mat4 BonePose::getLocalRotation(const Bone& bone) const
+    {
+        return bone ? rotationMatrixOf(*bone.mNode) : vsg::mat4();
+    }
+
+    void BonePose::setLocalRotationMatrix(const Bone& bone, const vsg::mat4& rotation) const
+    {
+        if (bone)
+            bone.mNode->setRotation(rotation);
+    }
+
+    vsg::vec3 BonePose::getLocalTranslation(const Bone& bone) const
+    {
+        return bone ? bone.mNode->translation : vsg::vec3();
+    }
+
+    void BonePose::setLocalTranslation(const Bone& bone, const vsg::vec3& translation) const
+    {
+        if (bone)
+            bone.mNode->translation = translation;
+    }
+
     vsg::mat4 BonePose::getWorldRotation(const Bone& bone) const
     {
         vsg::mat4 rotation = mRoot ? rotationMatrixOf(*mRoot) : vsg::mat4();

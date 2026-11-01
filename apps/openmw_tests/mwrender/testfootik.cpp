@@ -19,7 +19,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <string>
 
 namespace
@@ -54,6 +56,7 @@ namespace
         vsg::ref_ptr<Anim::Transform> mThigh = makeBone("Bip01 L Thigh");
         vsg::ref_ptr<Anim::Transform> mCalf = makeBone("Bip01 L Calf");
         vsg::ref_ptr<Anim::Transform> mFoot = makeBone("Bip01 L Foot");
+        vsg::ref_ptr<Anim::Transform> mSpine = makeBone("Bip01 Spine1");
 
         explicit Leg(const vsg::vec3& actorPosition = vsg::vec3(4096.f * 3, -2048.f, 150.f), float actorYaw = 0.5f)
         {
@@ -77,6 +80,9 @@ namespace
             mCalf->children.push_back(mFoot);
             mThigh->children.push_back(mCalf);
             mPelvis->children.push_back(mThigh);
+            mSpine->translation = vsg::vec3(0.f, 0.f, 12.f);
+            setAngle(*mSpine, 0.1f, vsg::vec3(0.f, 1.f, 0.f));
+            mPelvis->children.push_back(mSpine);
             mBip->children.push_back(mPelvis);
             mScene->children.push_back(mBip);
         }
@@ -90,6 +96,7 @@ namespace
         BonePose::Bone mThigh = mPose.find("Bip01 L Thigh");
         BonePose::Bone mCalf = mPose.find("Bip01 L Calf");
         BonePose::Bone mFoot = mPose.find("Bip01 L Foot");
+        BonePose::Bone mSpine = mPose.find("Bip01 Spine1");
 
         FootIk::LegWorld world() const
         {
@@ -107,12 +114,42 @@ namespace
             const FootIk::LegSolution s = FootIk::solveLegPose(world(), target, pole, normal, weight);
             if (!s.mValid)
                 return false;
-            const FootIk::LegLocalRotations r = FootIk::solveLocalRotations(s,
-                { mPose.getParentWorldRotation(mThigh), mPose.getWorldRotation(mThigh),
-                    mPose.getWorldRotation(mCalf), mPose.getWorldRotation(mFoot) });
-            mPose.setLocalRotation(mThigh, Misc::VsgMath::rotationOf(r.mThigh));
-            mPose.setLocalRotation(mCalf, Misc::VsgMath::rotationOf(r.mCalf));
-            mPose.setLocalRotation(mFoot, Misc::VsgMath::rotationOf(r.mFoot));
+            FootIk::applyLeg(mPose, mThigh, mCalf, mFoot, s);
+            return true;
+        }
+
+        // The write-back before the fix: world matrices turned into full local matrices.
+        bool solveAndWriteOld(const vsg::vec3& target, const vsg::vec3& pole, const vsg::vec3& normal, float weight)
+        {
+            const FootIk::LegWorld old = world();
+            const FootIk::LegSolution s = FootIk::solveLegPose(old, target, pole, normal, weight);
+            if (!s.mValid)
+                return false;
+            auto invert = [](const vsg::mat4& m) {
+                vsg::mat4 r;
+                Misc::VsgMath::invert(m, r);
+                return r;
+            };
+            auto about = [](const vsg::vec3& pivot, const vsg::mat4& rotation) {
+                return vsg::translate(pivot) * (rotation * vsg::translate(-pivot));
+            };
+            const vsg::vec3 hip(Misc::VsgMath::getTrans(old.mThigh));
+            const vsg::vec3 ankle(Misc::VsgMath::getTrans(old.mFoot));
+            const vsg::mat4 aroundHip = about(hip, s.mHipRotation);
+            const vsg::mat4 aroundKnee = about(s.mNewKnee, s.mKneeRotation);
+            const vsg::mat4 newThigh = aroundHip * old.mThigh;
+            const vsg::mat4 newCalf = aroundKnee * (aroundHip * old.mCalf);
+            const vsg::mat4 newFoot
+                = vsg::translate(s.mNewAnkle) * (s.mFootTilt * (vsg::translate(-ankle) * old.mFoot));
+            auto write = [&](const BonePose::Bone& bone, const vsg::mat4& oldWorld, const vsg::mat4& newWorld,
+                             const vsg::mat4& delta) {
+                const vsg::mat4 local = mPose.getLocal(bone);
+                const vsg::mat4 newParent = delta * (oldWorld * invert(local));
+                mPose.setLocal(bone, invert(newParent) * newWorld);
+            };
+            write(mThigh, old.mThigh, newThigh, vsg::mat4());
+            write(mCalf, old.mCalf, newCalf, aroundHip);
+            write(mFoot, old.mFoot, newFoot, aroundKnee * aroundHip);
             return true;
         }
     };
@@ -245,49 +282,180 @@ namespace
         EXPECT_NEAR(angleBetween(before, after), expected, 0.01f);
     }
 
-    TEST(MWRenderFootIkTest, RotationsOnlyAreWrittenAndScalesStayAsAnimated)
+    // Race weight scales an actor's x and y; here the root and some bones carry such a scale.
+    void scaleLikeWeight(Fixture& f)
     {
-        // Race weight scales an actor's x and y. Writing a world-space rotation back as a full local matrix turned the
-        // resulting shear into wild local scales (millions on the foot) that the animation never rewrote, so they
-        // compounded every frame and exploded the mesh. Here the actor root and a bone carry such a scale.
-        Fixture f;
         f.mLeg.mActor->scale = vsg::vec3(1.08f, 1.08f, 1.0f);
         f.mLeg.mPelvis->scale = vsg::vec3(1.0f, 0.93f, 1.0f);
         f.mLeg.mCalf->scale = vsg::vec3(1.02f, 0.97f, 1.0f);
+        f.mLeg.mSpine->scale = vsg::vec3(1.03f, 0.96f, 1.0f);
+    }
 
-        const Anim::Transform* nodes[] = { f.mLeg.mThigh.get(), f.mLeg.mCalf.get(), f.mLeg.mFoot.get() };
+    // The bone's local matrix must stay a rotation times its scale: orthogonal columns, unchanged scale.
+    void expectRotationTimesScale(const Anim::Transform& t, const vsg::vec3& scale, int frame)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            EXPECT_EQ(t.scale[i], scale[i]) << frame;
+            EXPECT_NEAR(vsg::length(t.rotation[i]), 1.f, 1e-4f) << frame;
+        }
+        EXPECT_NEAR(vsg::dot(t.rotation[0], t.rotation[1]), 0.f, 1e-4f) << frame;
+        EXPECT_NEAR(vsg::dot(t.rotation[0], t.rotation[2]), 0.f, 1e-4f) << frame;
+        EXPECT_NEAR(vsg::dot(t.rotation[1], t.rotation[2]), 0.f, 1e-4f) << frame;
+        EXPECT_GT(vsg::dot(vsg::cross(t.rotation[0], t.rotation[1]), t.rotation[2]), 0.999f) << frame;
+    }
+
+    // Runs the animation and a write-back for 60 frames the way the controller does: the animation rewrites the
+    // rotations (never the scale), then the IK writes. Returns the largest deviation of a leg bone's scale from what
+    // the animation set, or infinity once one is not finite.
+    template <class Write>
+    float runFrames(Fixture& f, Write write)
+    {
+        Anim::Transform* nodes[] = { f.mLeg.mThigh.get(), f.mLeg.mCalf.get(), f.mLeg.mFoot.get() };
         vsg::vec3 scales[3];
-        vsg::vec3 translations[3];
-        vsg::mat3 animated[3];
+        vsg::mat3 rotations[3];
         for (int i = 0; i < 3; ++i)
         {
             scales[i] = nodes[i]->scale;
-            translations[i] = nodes[i]->translation;
-            animated[i] = nodes[i]->rotation;
+            rotations[i] = nodes[i]->rotation;
         }
+        const vsg::vec3 ankle0 = f.pos(f.mFoot);
+        float worst = 0.f;
+        for (int frame = 0; frame < 60; ++frame)
+        {
+            for (int i = 0; i < 3; ++i)
+                nodes[i]->rotation = rotations[i];
+            const float dz = (frame % 2 == 0) ? -4.f : 5.f;
+            write(ankle0 + vsg::vec3(0.f, 0.f, dz));
+            for (int i = 0; i < 3; ++i)
+                for (int k = 0; k < 3; ++k)
+                {
+                    const float s = nodes[i]->scale[k];
+                    if (!std::isfinite(s))
+                        return std::numeric_limits<float>::infinity();
+                    worst = std::max(worst, std::abs(s - scales[i][k]));
+                }
+        }
+        return worst;
+    }
 
+    TEST(MWRenderFootIkTest, OldWriteBackBlowsUpScalesOnAScaledSkeleton)
+    {
+        // Documents the bug: the write-back used before the fix, run on a weight-scaled skeleton, leaves bone scales
+        // far from the animated ones. The fix does not use this path.
+        Fixture f;
+        scaleLikeWeight(f);
+        const float worst = runFrames(f, [&](const vsg::vec3& target) {
+            f.solveAndWriteOld(target, poleOf(f) + vsg::vec3(0.f, 8.f, 0.f), vsg::vec3(0.f, 0.2f, 0.98f), 1.f);
+        });
+        EXPECT_GT(worst, 0.05f);
+    }
+
+    TEST(MWRenderFootIkTest, NewWriteBackKeepsEveryLocalMatrixARotationTimesItsScale)
+    {
+        Fixture f;
+        scaleLikeWeight(f);
+        Anim::Transform* nodes[] = { f.mLeg.mThigh.get(), f.mLeg.mCalf.get(), f.mLeg.mFoot.get() };
+        const vsg::vec3 scales[] = { nodes[0]->scale, nodes[1]->scale, nodes[2]->scale };
+        const vsg::mat3 rotations[] = { nodes[0]->rotation, nodes[1]->rotation, nodes[2]->rotation };
         const vsg::vec3 ankle0 = f.pos(f.mFoot);
         for (int frame = 0; frame < 60; ++frame)
         {
-            // The animation writes the rotations again each frame and never the scale.
             for (int i = 0; i < 3; ++i)
-                const_cast<Anim::Transform*>(nodes[i])->rotation = animated[i];
-
-            const float dz = (frame % 2 == 0) ? -4.f : 5.f;
-            ASSERT_TRUE(f.solveAndWrite(
-                ankle0 + vsg::vec3(0.f, 0.f, dz), poleOf(f) + vsg::vec3(0.f, 8.f, 0.f), vsg::vec3(0.f, 0.2f, 0.98f), 1.f));
-
+                nodes[i]->rotation = rotations[i];
+            ASSERT_TRUE(f.solveAndWrite(ankle0 + vsg::vec3(0.f, 0.f, (frame % 2) ? 5.f : -4.f),
+                poleOf(f) + vsg::vec3(0.f, 8.f, 0.f), vsg::vec3(0.f, 0.2f, 0.98f), 1.f));
             for (int i = 0; i < 3; ++i)
-            {
-                for (int k = 0; k < 3; ++k)
-                {
-                    EXPECT_EQ(nodes[i]->scale[k], scales[i][k]) << frame;
-                    EXPECT_EQ(nodes[i]->translation[k], translations[i][k]) << frame;
-                }
-                EXPECT_TRUE(finite(f.mPose.getWorld(i == 0 ? f.mThigh : i == 1 ? f.mCalf : f.mFoot))) << frame;
-            }
+                expectRotationTimesScale(*nodes[i], scales[i], frame);
             // Directions are only approximate in a scaled skeleton, but the ankle follows the ground closely.
-            EXPECT_LT(std::abs(f.pos(f.mFoot).z - (ankle0.z + dz)), 2.0f) << frame;
+            EXPECT_LT(std::abs(f.pos(f.mFoot).z - (ankle0.z + ((frame % 2) ? 5.f : -4.f))), 2.0f) << frame;
         }
+    }
+
+    TEST(MWRenderFootIkTest, LeanKeepsTheSpineScaleAndRotationAcrossFrames)
+    {
+        Fixture f;
+        scaleLikeWeight(f);
+        Anim::Transform& spine = *f.mLeg.mSpine;
+        const vsg::vec3 scale = spine.scale;
+        const vsg::mat3 animated = spine.rotation;
+        const vsg::dquat actorRotation = Misc::VsgMath::rotationOf(f.mPose.getRoot());
+        const vsg::dquat lean = Misc::VsgMath::makeRotateFromAxis(0.12, vsg::vec3(1.f, 0.f, 0.f));
+        FootIk::BoneBase base;
+        const vsg::mat4 before = f.mPose.getWorldRotation(f.mSpine);
+        for (int frame = 0; frame < 30; ++frame)
+        {
+            FootIk::restoreBase(f.mPose, f.mSpine, base);
+            FootIk::applyLean(f.mPose, f.mSpine, actorRotation, lean);
+            FootIk::markRotationWritten(f.mPose, f.mSpine, base);
+            expectRotationTimesScale(spine, scale, frame);
+        }
+        // The lean tilts the spine by its angle in the world, and nothing builds up over the frames.
+        EXPECT_NEAR(angleBetween(before, f.mPose.getWorldRotation(f.mSpine)), 0.12f, 0.02f);
+        // An undone lean leaves the animated rotation exactly.
+        FootIk::restoreBase(f.mPose, f.mSpine, base);
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                EXPECT_EQ(spine.rotation[i][j], animated[i][j]);
+    }
+
+    TEST(MWRenderFootIkTest, AnAnimationThatWritesOnlyTranslationDoesNotAccumulateTheFootTilt)
+    {
+        Fixture f;
+        FootIk::BoneBase thigh, calf, foot;
+        const vsg::vec3 translation = f.mLeg.mFoot->translation;
+        vsg::mat4 firstFoot;
+        for (int frame = 0; frame < 10; ++frame)
+        {
+            // The animation writes the foot's translation (a different value each frame) but not its rotation.
+            f.mLeg.mFoot->translation = translation + vsg::vec3(0.01f * float(frame), 0.f, 0.f);
+            FootIk::restoreBase(f.mPose, f.mThigh, thigh);
+            FootIk::restoreBase(f.mPose, f.mCalf, calf);
+            FootIk::restoreBase(f.mPose, f.mFoot, foot);
+            ASSERT_TRUE(f.solveAndWrite(f.pos(f.mFoot) + vsg::vec3(0.f, 0.f, -2.f), poleOf(f),
+                vsg::normalize(vsg::vec3(0.f, 0.3f, 0.95f)), 1.f));
+            FootIk::markRotationWritten(f.mPose, f.mThigh, thigh);
+            FootIk::markRotationWritten(f.mPose, f.mCalf, calf);
+            FootIk::markRotationWritten(f.mPose, f.mFoot, foot);
+            if (frame == 0)
+                firstFoot = f.mPose.getWorldRotation(f.mFoot);
+            else
+                EXPECT_LT(angleBetween(firstFoot, f.mPose.getWorldRotation(f.mFoot)), 0.01f) << frame;
+        }
+    }
+
+    TEST(MWRenderFootIkTest, AnAnimationThatWritesTheRotationBecomesTheNewBase)
+    {
+        Fixture f;
+        FootIk::BoneBase foot;
+        FootIk::restoreBase(f.mPose, f.mFoot, foot);
+        f.solveAndWrite(f.pos(f.mFoot) + vsg::vec3(0.f, 0.f, -2.f), poleOf(f), vsg::vec3(0.f, 0.2f, 0.98f), 1.f);
+        FootIk::markRotationWritten(f.mPose, f.mFoot, foot);
+
+        // The animation writes a new rotation: it must be kept, not undone.
+        setAngle(*f.mLeg.mFoot, 0.4f, vsg::vec3(0.f, 0.f, 1.f));
+        const vsg::mat4 animated = f.mPose.getLocalRotation(f.mFoot);
+        FootIk::restoreBase(f.mPose, f.mFoot, foot);
+        EXPECT_TRUE(Misc::VsgMath::compareEqual(animated, f.mPose.getLocalRotation(f.mFoot)));
+        EXPECT_TRUE(Misc::VsgMath::compareEqual(animated, foot.mBaseRotation));
+    }
+
+    TEST(MWRenderFootIkTest, PelvisTranslationIsUndoneAndScaleStays)
+    {
+        Fixture f;
+        scaleLikeWeight(f);
+        const BonePose::Bone pelvis = f.mPose.find("Bip01 Pelvis");
+        const vsg::vec3 translation = f.mLeg.mPelvis->translation;
+        const vsg::vec3 scale = f.mLeg.mPelvis->scale;
+        FootIk::BoneBase base;
+        for (int frame = 0; frame < 5; ++frame)
+        {
+            FootIk::restoreBase(f.mPose, pelvis, base);
+            f.mPose.setLocalTranslation(pelvis, f.mPose.getLocalTranslation(pelvis) + vsg::vec3(0.f, 0.f, -3.f));
+            FootIk::markTranslationWritten(f.mPose, pelvis, base);
+        }
+        FootIk::restoreBase(f.mPose, pelvis, base);
+        EXPECT_EQ(f.mLeg.mPelvis->translation, translation);
+        EXPECT_EQ(f.mLeg.mPelvis->scale, scale);
     }
 }

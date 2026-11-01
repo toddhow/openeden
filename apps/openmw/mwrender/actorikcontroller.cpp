@@ -59,15 +59,6 @@ namespace MWRender
             return result;
         }
 
-        // OSG's m.setRotate(q): only the rotation block changes.
-        void setRotate(vsg::mat4& matrix, const vsg::dquat& rotation)
-        {
-            const vsg::dmat4 block = Misc::VsgMath::toMatrix(rotation);
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
-                    matrix[i][j] = static_cast<float>(block[i][j]);
-        }
-
         vsg::vec3 clampTilt(vsg::vec3 n)
         {
             const vsg::vec3 up(0.f, 0.f, 1.f);
@@ -206,38 +197,11 @@ namespace MWRender
         return vsg::vec3(Misc::VsgMath::getTrans(mPose->getWorld(bone)));
     }
 
-    void ActorIkController::writeBone(BoneState& bone, const vsg::mat4& local)
-    {
-        mPose->setLocal(bone.mBone, local);
-        // Store the matrix as the bone gives it back (it keeps translation, rotation and scale separately), so the
-        // next frame's restoreBase can tell exactly whether the animation wrote this bone again.
-        bone.mWritten = mPose->getLocal(bone.mBone);
-        bone.mHasWritten = true;
-    }
-
-    void ActorIkController::writeRotation(BoneState& bone, const vsg::mat4& rotation)
-    {
-        mPose->setLocalRotation(bone.mBone, Misc::VsgMath::rotationOf(rotation));
-        bone.mWritten = mPose->getLocal(bone.mBone);
-        bone.mHasWritten = true;
-    }
-
     bool ActorIkController::restoreBase(BoneState& bone)
     {
         if (!bone.mBone)
             return false;
-
-        const vsg::mat4 current = mPose->getLocal(bone.mBone);
-        if (bone.mHasWritten && Misc::VsgMath::compareEqual(current, bone.mWritten))
-        {
-            // No controller re-animated this bone since our last write: undo it so IK never accumulates.
-            mPose->setLocal(bone.mBone, bone.mBase);
-        }
-        else
-        {
-            bone.mBase = current;
-        }
-        bone.mHasWritten = false;
+        FootIk::restoreBase(*mPose, bone.mBone, bone.mBase);
         return true;
     }
 
@@ -363,16 +327,8 @@ namespace MWRender
                     * Misc::VsgMath::makeRotateFromAxis(bank, vsg::vec3(0.f, 1.f, 0.f))
                     * Misc::VsgMath::makeRotateFromAxis(0.f, vsg::vec3(0.f, 0.f, 1.f));
 
-                const vsg::mat4 local = mPose->getLocal(mSpine1.mBone);
-                const vsg::mat4 parentWorld = mPose->getWorld(mSpine1.mBone) * inverseOf(local);
-                const vsg::dquat parentRot = Misc::VsgMath::rotationOf(parentWorld);
-                const vsg::dquat actorRot = root.mAttitude;
-                const vsg::dquat worldLean = actorRot * leanRot * Misc::VsgMath::inverse(actorRot);
-                const vsg::dquat localLean = Misc::VsgMath::inverse(parentRot) * worldLean * parentRot;
-
-                vsg::mat4 moved = local;
-                setRotate(moved, localLean * Misc::VsgMath::rotationOf(local));
-                writeBone(mSpine1, moved);
+                FootIk::applyLean(*mPose, mSpine1.mBone, root.mAttitude, leanRot);
+                FootIk::markRotationWritten(*mPose, mSpine1.mBone, mSpine1.mBase);
             }
         }
 
@@ -470,9 +426,8 @@ namespace MWRender
             const vsg::vec3 localDelta
                 = Misc::VsgMath::transform3x3(vsg::vec3(0.f, 0.f, appliedPelvis), inverseOf(parentWorld));
 
-            vsg::mat4 moved = local;
-            Misc::VsgMath::setTrans(moved, Misc::VsgMath::getTrans(local) + vsg::dvec3(localDelta));
-            writeBone(mPelvis, moved);
+            mPose->setLocalTranslation(mPelvis.mBone, mPose->getLocalTranslation(mPelvis.mBone) + localDelta);
+            FootIk::markTranslationWritten(*mPose, mPelvis.mBone, mPelvis.mBase);
         }
 
         // 3. Solve both legs against the actual animated pose of this frame.
@@ -521,13 +476,10 @@ namespace MWRender
             return;
 
         // Only the three bones' rotations change; their translations and scales stay as animated.
-        const FootIk::LegLocalRotations rotations = FootIk::solveLocalRotations(solution,
-            { mPose->getParentWorldRotation(leg.mThigh.mBone), mPose->getWorldRotation(leg.mThigh.mBone),
-                mPose->getWorldRotation(leg.mCalf.mBone), mPose->getWorldRotation(leg.mFoot.mBone) });
-
-        writeRotation(leg.mThigh, rotations.mThigh);
-        writeRotation(leg.mCalf, rotations.mCalf);
-        writeRotation(leg.mFoot, rotations.mFoot);
+        FootIk::applyLeg(*mPose, leg.mThigh.mBone, leg.mCalf.mBone, leg.mFoot.mBone, solution);
+        FootIk::markRotationWritten(*mPose, leg.mThigh.mBone, leg.mThigh.mBase);
+        FootIk::markRotationWritten(*mPose, leg.mCalf.mBone, leg.mCalf.mBase);
+        FootIk::markRotationWritten(*mPose, leg.mFoot.mBone, leg.mFoot.mBase);
     }
 
     void ActorIkController::updateHitboxes(const RootState& root, const vsg::vec3& actorForward, float actorScale)

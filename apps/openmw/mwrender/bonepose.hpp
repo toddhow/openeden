@@ -52,6 +52,13 @@ namespace MWRender
         void setLocal(const Bone& bone, const vsg::mat4& local) const;
         /// Replaces only the bone's local rotation.
         void setLocalRotation(const Bone& bone, const vsg::dquat& rotation) const;
+        /// The bone's local rotation alone (no scale, no translation) as a rotation matrix.
+        vsg::mat4 getLocalRotation(const Bone& bone) const;
+        /// Replaces the bone's local rotation block with a rotation matrix; translation and scale stay.
+        void setLocalRotationMatrix(const Bone& bone, const vsg::mat4& rotation) const;
+        vsg::vec3 getLocalTranslation(const Bone& bone) const;
+        /// Replaces only the bone's local translation; rotation and scale stay.
+        void setLocalTranslation(const Bone& bone, const vsg::vec3& translation) const;
 
         /// The bone's transform in the actor model's space.
         vsg::mat4 getModel(const Bone& bone) const;

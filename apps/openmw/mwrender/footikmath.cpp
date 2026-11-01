@@ -74,4 +74,60 @@ namespace MWRender::FootIk
         result.mFoot = inverseOf(newCalf) * newFoot;
         return result;
     }
+
+    void restoreBase(const BonePose& pose, const BonePose::Bone& bone, BoneBase& base)
+    {
+        if (!bone)
+            return;
+
+        const vsg::mat4 rotation = pose.getLocalRotation(bone);
+        if (base.mRotationWritten && Misc::VsgMath::compareEqual(rotation, base.mWrittenRotation))
+            pose.setLocalRotationMatrix(bone, base.mBaseRotation);
+        else
+            base.mBaseRotation = rotation;
+
+        const vsg::vec3 translation = pose.getLocalTranslation(bone);
+        if (base.mTranslationWritten && translation == base.mWrittenTranslation)
+            pose.setLocalTranslation(bone, base.mBaseTranslation);
+        else
+            base.mBaseTranslation = translation;
+
+        base.mRotationWritten = false;
+        base.mTranslationWritten = false;
+    }
+
+    void markRotationWritten(const BonePose& pose, const BonePose::Bone& bone, BoneBase& base)
+    {
+        base.mWrittenRotation = pose.getLocalRotation(bone);
+        base.mRotationWritten = true;
+    }
+
+    void markTranslationWritten(const BonePose& pose, const BonePose::Bone& bone, BoneBase& base)
+    {
+        base.mWrittenTranslation = pose.getLocalTranslation(bone);
+        base.mTranslationWritten = true;
+    }
+
+    void applyLeg(const BonePose& pose, const BonePose::Bone& thigh, const BonePose::Bone& calf,
+        const BonePose::Bone& foot, const LegSolution& solution)
+    {
+        if (!solution.mValid)
+            return;
+        const LegLocalRotations rotations = solveLocalRotations(solution,
+            { pose.getParentWorldRotation(thigh), pose.getWorldRotation(thigh), pose.getWorldRotation(calf),
+                pose.getWorldRotation(foot) });
+        pose.setLocalRotationMatrix(thigh, rotations.mThigh);
+        pose.setLocalRotationMatrix(calf, rotations.mCalf);
+        pose.setLocalRotationMatrix(foot, rotations.mFoot);
+    }
+
+    void applyLean(
+        const BonePose& pose, const BonePose::Bone& bone, const vsg::dquat& actorRotation, const vsg::dquat& leanRot)
+    {
+        const vsg::dquat parentRot = Misc::VsgMath::rotationOf(pose.getParentWorldRotation(bone));
+        const vsg::dquat worldLean = actorRotation * leanRot * Misc::VsgMath::inverse(actorRotation);
+        const vsg::dquat localLean = Misc::VsgMath::inverse(parentRot) * worldLean * parentRot;
+        const vsg::dquat local = Misc::VsgMath::rotationOf(pose.getLocalRotation(bone));
+        pose.setLocalRotationMatrix(bone, vsg::mat4(Misc::VsgMath::toMatrix(localLean * local)));
+    }
 }
