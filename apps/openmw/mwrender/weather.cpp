@@ -73,7 +73,8 @@ namespace
                 break;
             default:
                 Log(Debug::Warning) << "Cloud shadows: the cloud picture " << file << " has format "
-                                    << static_cast<int>(data.properties.format) << ", which is not read; it casts no shadow";
+                                    << static_cast<int>(data.properties.format)
+                                    << ", which is not read; it casts no shadow";
                 return grid;
         }
         Render::Cloud::buildGrid(
@@ -689,8 +690,9 @@ namespace MWRender
         if (mCloudShadowsOn)
         {
             // The same rotations as the layers above, as the shader's matrices (dome space to world).
-            const vsg::dquat layerRotation[2] = { Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection),
-                Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection) };
+            const vsg::dquat layerRotation[2]
+                = { Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection),
+                      Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection) };
             for (int layer = 0; layer < 2; ++layer)
             {
                 const vsg::mat4 m = vsg::rotate(vsg::quat(layerRotation[layer]));

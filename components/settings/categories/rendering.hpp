@@ -87,8 +87,8 @@ namespace Settings
         SettingValue<float> mWetnessDryTime{ mIndex, "Rendering", "wetness dry time",
             makeClampSanitizerFloat(1, 86400) };
         SettingValue<bool> mWetnessDebug{ mIndex, "Rendering", "wetness debug" };
-        // Task 0038: lit clouds (read at start; needs hdr), their look (`lit` or `flat`), and cloud shadows on the ground
-        // (read at start; needs hdr and atmosphere), their strength and a debug view of the shadow mask.
+        // Task 0038: lit clouds (read at start; needs hdr), their look (`lit` or `flat`), and cloud shadows on the
+        // ground (read at start; needs hdr and atmosphere), their strength and a debug view of the shadow mask.
         SettingValue<bool> mClouds{ mIndex, "Rendering", "clouds" };
         SettingValue<std::string> mCloudsLook{ mIndex, "Rendering", "clouds look" };
         SettingValue<bool> mCloudShadows{ mIndex, "Rendering", "cloud shadows" };

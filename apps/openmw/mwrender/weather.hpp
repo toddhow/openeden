@@ -8,8 +8,8 @@
 #include <components/vsgutil/composite.hpp>
 #include <components/vsgutil/toggle.hpp>
 
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -155,12 +155,13 @@ namespace MWRender
         float mCloudBlendFactor = 0.f;
         // OpenEden (task 0038): the lit look of the clouds, and the weather's share of it (now, and heading for).
         bool mCloudsLit = false;
-        // Cloud shadows (task 0038): whether they are on, the coarse grid of each cloud picture (built once per picture,
-        // from its pixels), the two layers' current pictures and rotations (dome space to world).
+        // Cloud shadows (task 0038): whether they are on, the coarse grid of each cloud picture (built once per
+        // picture, from its pixels), the two layers' current pictures and rotations (dome space to world).
         bool mCloudShadowsOn = false;
         std::map<std::string, std::vector<float>> mCloudGrids;
         const std::vector<float>* mCloudGrid[2] = { nullptr, nullptr };
-        Render::Cloud::Rotation mCloudRotation[2] = { Render::Cloud::identityRotation, Render::Cloud::identityRotation };
+        Render::Cloud::Rotation mCloudRotation[2]
+            = { Render::Cloud::identityRotation, Render::Cloud::identityRotation };
         float mCloudShare = 0.f;
         float mCloudShareTarget = 0.f;
         bool mCloudShareSet = false;

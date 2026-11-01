@@ -6,8 +6,8 @@
 
 #include <components/pipeline/layout.hpp>
 #include <components/pipeline/viewbindings.hpp>
-#include <components/render/depth.hpp>
 #include <components/render/cloudgpu.hpp>
+#include <components/render/depth.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/skyvisgpu.hpp>

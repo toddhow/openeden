@@ -1,10 +1,10 @@
 # Task: Rendering weather, stage 2: cloud shading and cloud shadows
 Design doc section: `docs/research/0008-modern-rendering-proposal.md`, section 5 (R6: "clouds cast moving shadows"; R5's closing line: "Raymarched volumetric clouds are a later, optional addition"); builds on `docs/tasks/0034-rendering-weather-atmosphere.md` (cloud tint, stage b) and `0025-rendering-f2-linear-hdr.md`.
 Goal: make the clouds read as thick layers lit by the sun (bright edges against the sun, dark undersides, a silver lining) and let them throw soft moving shadows on the ground, driven by the weather's existing cloud texture, speed and colour.
-Inherited code touched: not yet confirmed; to be named at the commit that starts each stage. Expected: `apps/openmw/mwrender/weather.cpp` and `weather.hpp` (the `Sky` class: cloud layers, `setWeather`, cloud texture and speed), `apps/openmw/mwworld/weather.cpp` (cloud texture, speed and opacity from the weather record), `files/shaders/sky/*` (the cloud shader, listed in `files/shaders/CMakeLists.txt`), `files/shaders/lib/light/directional.glsl` (the sun's contribution), `components/render/atmospheremath.hpp`.
+Inherited code touched (as built): `apps/openmw/mwrender/weather.cpp` and `weather.hpp` (`Sky::update`, `Sky::setWeather`, `Sky::getOrCreateCloudTexture`), `apps/openmw/mwrender/rendermanager.cpp` and `.hpp` (the header buffer binding in the constructor, `onFrame`), `files/shaders/sky/clouds/main.frag`, `main.vert`, `inout.glsl`, `files/shaders/lib/view/shadow.glsl` (`shadow()` now wraps the old function, `shadowMaps()`), `files/shaders/lib/view/skyvis.glsl` (leaves out its header declaration with `CLOUD_SHADOW`), `components/resource/shadersettings.cpp` (two generated includes), `components/view/descriptors.cpp` (the stand-in header is as long as the real one), `components/pipeline/material.hpp` (`setCloudShare`). `apps/openmw/mwworld/weather.cpp` and `lib/light/directional.glsl` are NOT touched (see the decisions logged below).
 Inputs / outputs: new `[Rendering]` settings `clouds` (bool, false), `clouds look` (`flat` or `lit`, default `lit` when on), `cloud shadows` (bool, false), `cloud shadow strength` (0 to 1); a new pure-maths header `components/render/cloudmath.hpp`; no change to weather records, saves, Lua or contracts.
 
-Status: draft, written 2026-11-01 at toddhow's request. Nothing is built. Full loop (Track V renderer) when it starts.
+Status: stages a to d built 2026-11-01 (see the stage log at the end); stage e is notes only. Full loop (Track V renderer).
 
 ## Design, in plain language
 
@@ -29,7 +29,7 @@ This is a faked shading, not a volumetric simulation. Real volumetric clouds (a 
 
 ## Stages
 
-- **a. Maths.** `cloudmath.hpp`: thickness from brightness and opacity, the lit colour (edge glow, thick shading, silver lining), the shadow factor from a cloud sample, with C++ twins of the shader code; tests.
+- **a. Maths.** `cloudmath.hpp`: thickness from brightness and opacity, the lit colour (edge glow, thick shading, silver lining), the shadow factor from a cloud sample, with C++ twins of the shader code (GLSL: they are parts of existing GLSL shaders, see "Shader language"); tests.
 - **b. Lit clouds.** The sky cloud shader gains the lit mode behind `[Rendering] clouds`, using the sun direction and colour from the weather manager; frames at four hours and several weathers.
 - **c. Cloud shadows.** A shadow term in the sun's lighting (statics, terrain, groundcover, actors) from the projected cloud texture, scrolling with the layer; check that the shadow position matches the clouds overhead and moves with them.
 - **d. Cost, debug view.** GPU timing into a note, a debug view of the cloud shadow mask.

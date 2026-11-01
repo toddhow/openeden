@@ -376,8 +376,8 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] wetness needs hdr and pbr; it is off";
             }
-            // Task 0038: the clouds' shadows. The shader term is switched by `shadow.settings` (Resource::ShaderSettings,
-            // from the same settings); here the data buffer is made real.
+            // Task 0038: the clouds' shadows. The shader term is switched by `shadow.settings`
+            // (Resource::ShaderSettings, from the same settings); here the data buffer is made real.
             if (Settings::rendering().mCloudShadows)
             {
                 if (Render::Cloud::useShadows(true, true, Settings::rendering().mAtmosphere))
@@ -427,7 +427,8 @@ namespace MWRender
         else
             descriptors.emplace_back(View::dummyReflections());
         // Task 0036: the exterior sky-visibility field (cells' data, then its header), or stand-ins that switch it off.
-        // Task 0038: the clouds' shadows share the header's buffer, so it is real with them too; the cells' data is not.
+        // Task 0038: the clouds' shadows share the header's buffer, so it is real with them too; the cells' data is
+        // not.
         if (mGiSkyEnabled)
             descriptors.emplace_back(View::skyVisBuffer(mSkyVisPool));
         else
@@ -1239,20 +1240,20 @@ namespace MWRender
     {
         if (!mCloudShadowEnabled || !mSkyVisHeader)
             return;
-        // Task 0038: the clouds' picture grids, scroll, rotations and the weather's share go into the end of the header.
-        // Indoors, or with no clouds, the strength is 0 and the shader returns at once. The scroll is the sky's own
-        // (game time, advanced in Sky::update), so the shadow follows the clouds overhead.
+        // Task 0038: the clouds' picture grids, scroll, rotations and the weather's share go into the end of the
+        // header. Indoors, or with no clouds, the strength is 0 and the shader returns at once. The scroll is the sky's
+        // own (game time, advanced in Sky::update), so the shadow follows the clouds overhead.
         Render::Cloud::Params params;
-        const Sky::CloudShadowInput input = mRenderModes[Render_Sky].active ? mSky->getCloudShadow() : Sky::CloudShadowInput{};
+        const Sky::CloudShadowInput input
+            = mRenderModes[Render_Sky].active ? mSky->getCloudShadow() : Sky::CloudShadowInput{};
         vsg::vec4* header = mSkyVisHeader->data();
         if (input.valid)
         {
             // The sun's light is dim at night (the manager's mirrored light), and then there are no shadows (spec D6).
             const vsg::vec4& sunLight = mSceneData->value().lightDiffuse;
             const float sunLuminance = Render::Cloud::luminance(sunLight.x, sunLight.y, sunLight.z);
-            params.strength = mCloudShadowDebug
-                ? 1.f
-                : mCloudShadowStrength * Render::Cloud::strength(sunLuminance, input.share);
+            params.strength
+                = mCloudShadowDebug ? 1.f : mCloudShadowStrength * Render::Cloud::strength(sunLuminance, input.share);
             params.blend = input.blend;
             // The grids wrap, so only the fraction counts, and a float that has grown over hours keeps its precision.
             params.scroll = input.scroll - std::floor(input.scroll);
@@ -1263,13 +1264,27 @@ namespace MWRender
             }
         }
         // The grids are copied only when the weather's pictures change.
+        bool gridsDirty = false;
         for (std::size_t layer = 0; layer < 2; ++layer)
             if (mCloudGridWritten[layer] != input.grid[layer] || !mCloudShadowWritten)
             {
                 Render::Cloud::writeGrid(header, layer, input.grid[layer]);
                 mCloudGridWritten[layer] = input.grid[layer];
+                gridsDirty = true;
             }
+        // The whole header is uploaded when it is dirtied (about 34 KB), and the scroll moves a few thousandths of a
+        // picture a second, far less than a grid square (1 / 64) in a tenth of a second: a change smaller than
+        // `Render::Cloud::scrollStep` alone is not worth an upload.
+        const bool gridsChanged = !mCloudShadowWritten;
+        const auto& last = mCloudParamsWritten;
+        const bool same = !gridsChanged && last.strength == params.strength && last.blend == params.blend
+            && last.rotation[0] == params.rotation[0] && last.rotation[1] == params.rotation[1]
+            && last.hasLayer[0] == params.hasLayer[0] && last.hasLayer[1] == params.hasLayer[1]
+            && std::abs(last.scroll - params.scroll) < Render::Cloud::scrollStep;
         mCloudShadowWritten = true;
+        if (same && !gridsDirty)
+            return;
+        mCloudParamsWritten = params;
         Render::Cloud::writeParams(header, params);
         mSkyVisHeader->dirty();
     }

@@ -14,7 +14,8 @@
 //
 // The dome: the sky's cloud model is Morrowind's meshes/sky_clouds_01.nif, a dome around the camera. Its texture
 // coordinates are a flat projection of the vertex's X and Y (read from the file's vertices: u = 2.5 + 0.0024975 x,
-// v = -1.5 - 0.0024975 y, so one repeat of the picture is about 400 units wide), and the weather scrolls v by a growing amount
+// v = -1.5 - 0.0024975 y, so one repeat of the picture is about 400 units wide), and the weather scrolls v by a growing
+// amount
 // (`Sky::update`, mCloudAnimationTimer). `domePoint` finds where a ray from the camera meets the dome.
 
 #include <algorithm>
@@ -85,7 +86,7 @@ namespace Render::Cloud
 
     // --- Lit clouds ------------------------------------------------------------------------------------------------
 
-    // The extinction of a cloud per unit of thickness (Beer-Lambert: light through thickness t keeps exp(-k t)). 
+    // The extinction of a cloud per unit of thickness (Beer-Lambert: light through thickness t keeps exp(-k t)).
     // With 4, a fully thick cloud passes 2 % of the light.
     constexpr float extinction = 4.f;
     // How much a fully thick cloud's underside is darkened (multiplier 1 - this) when the sun is high.
@@ -278,7 +279,8 @@ namespace Render::Cloud
                     for (std::size_t x = x0; x < x1 && x < width; ++x)
                     {
                         const unsigned char* p = pixels + (y * width + x) * 4;
-                        const float r = (bgra ? p[2] : p[0]) / 255.f, g = p[1] / 255.f, b = (bgra ? p[0] : p[2]) / 255.f;
+                        const float r = (bgra ? p[2] : p[0]) / 255.f, g = p[1] / 255.f,
+                                    b = (bgra ? p[0] : p[2]) / 255.f;
                         sum += thickness(luminance(r, g, b), p[3] / 255.f);
                         ++count;
                     }

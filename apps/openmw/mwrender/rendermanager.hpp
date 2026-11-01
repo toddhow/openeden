@@ -24,6 +24,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/render/cloudgpu.hpp>
 #include <components/render/probes.hpp>
 #include <components/render/reflectionprobes.hpp>
 #include <components/render/skyvisibility.hpp>
@@ -403,6 +404,7 @@ namespace MWRender
         bool mCloudShadowDebug = false;
         float mCloudShadowStrength = 0.75f;
         bool mCloudShadowWritten = false;
+        Render::Cloud::Params mCloudParamsWritten;
         const float* mCloudGridWritten[2] = { nullptr, nullptr };
         float mWetness = 0.f;
         float mSkyVisStrength = 1.f;
