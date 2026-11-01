@@ -77,3 +77,9 @@ Out of scope: everything under "Not started" above; any change to the weather re
 - A fresh reviewer found the tint was linear while the shader multiplies encoded colours; fixed (`model` encodes it).
 - Tests: 5 more in `testatmosphere.cpp` (28 in all) pass. Frames viewed: clear sky with clouds at 12:00 and 17:30, off, vanilla and physical: at 17:30 the physical clouds are warmer and a little dimmer; at noon they look as before.
 - Not verified: a before/after frame difference of the off path against the commit before.
+
+### Stage c (2026-11-01)
+- Built: the fog colour (`mFogColor`, what far terrain fades into and the sky's lower edge) goes through the same blend as the horizon colour of the model (a warm glow near a low sun, paler and greyer above). Fog distance and density (the weather's rule) are unchanged. Because `configureFog` takes the colour from the same result, the sky's horizon band and the fog stay in step. Interior and underwater fog are not touched.
+- Tests: 4 more (32 in all). Frames viewed (Seyda Neen, clear): off, vanilla and physical at 6:30, 12:00, 17:30 and 22:00. At 22:00 all three are the same (night is exactly vanilla). The vanilla look is close to the weather's picture; the physical look is bluer and greyer at 6:30 and 17:30.
+- **Finding for toddhow (decision 4):** the manager's sun is still about 30 degrees up at 17:30 (its orbit runs to the night start, 20:00 by default) while Morrowind's colour tables already show sunset at that hour. The model follows the sun that is drawn, so the physical look at 17:30 looks like an afternoon, not a sunset, and the sunset warmth only appears in the last hour before the night start. If the vanilla timing is wanted, the model would have to be driven by the hour of the colour tables instead of the sun's height.
+- Not done in this stage: a sun glow in the fog towards the sun (D6), because the scene uniform block has no room (the 640 byte pitfall).

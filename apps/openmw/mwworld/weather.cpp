@@ -787,8 +787,8 @@ namespace MWWorld
 
     // OpenEden (task 0034): replaces the sky, ambient and sun colours of a weather result with the atmosphere
     // model's, in the way the setting `atmosphere look` says. The weather's glare (Weather_<name>_Glare_View, from
-    // the weather's record fallback) says how clear the air is. The alpha channels, the fog and the clouds are not
-    // touched here.
+    // the weather's record fallback) says how clear the air is. The alpha channels are kept, and the fog's
+    // distance (the weather's rule) is not touched, only its colour.
     void WeatherManager::applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const
     {
         using namespace Render::Atmosphere;
@@ -797,6 +797,7 @@ namespace MWWorld
         vanilla.ambient = vsg::vec3(result.mAmbientColor.x, result.mAmbientColor.y, result.mAmbientColor.z);
         vanilla.sun = vsg::vec3(result.mSunColor.x, result.mSunColor.y, result.mSunColor.z);
         vanilla.cloudTint = result.mCloudTint;
+        vanilla.horizon = vsg::vec3(result.mFogColor.x, result.mFogColor.y, result.mFogColor.z);
         const float clearness = std::clamp(result.mGlareView, 0.f, 1.f);
         const Colours out
             = applyLook(vanilla, sunHeight, clearness, parseLook(Settings::rendering().mAtmosphereLook.get()));
@@ -810,6 +811,7 @@ namespace MWWorld
         set(result.mSkyColor, out.sky);
         set(result.mAmbientColor, out.ambient);
         set(result.mSunColor, out.sun);
+        set(result.mFogColor, out.horizon);
         result.mCloudTint = out.cloudTint;
     }
 

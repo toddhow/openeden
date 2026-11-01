@@ -334,4 +334,43 @@ namespace Render::Atmosphere
         EXPECT_LE(hard.z, v.cloudTint.z);
         EXPECT_GE(hard.z, target.z - 1e-5f);
     }
+
+    // Stage c: fog (the horizon colour).
+    TEST(RenderAtmosphereTest, the_vanilla_look_keeps_the_fog_brightness)
+    {
+        const Colours v = vanilla();
+        for (int e = 8; e <= 70; e += 8)
+        {
+            const Colours out = applyLook(v, static_cast<float>(e) * deg, 1.f, Look::Vanilla);
+            EXPECT_NEAR(luma(out.horizon), luma(v.horizon), 2e-3f) << e;
+        }
+    }
+
+    TEST(RenderAtmosphereTest, the_physical_fog_turns_warm_at_sunset)
+    {
+        Colours v = vanilla();
+        v.horizon = vsg::vec3(0.6f, 0.6f, 0.6f);
+        const Colours out = applyLook(v, 3.f * deg, 1.f, Look::Physical);
+        EXPECT_GT(out.horizon.x, out.horizon.z);
+        const Colours noon = applyLook(v, 60.f * deg, 1.f, Look::Physical);
+        EXPECT_GT(out.horizon.x / out.horizon.z, noon.horizon.x / noon.horizon.z);
+    }
+
+    TEST(RenderAtmosphereTest, the_fog_of_a_foggy_weather_is_left_alone)
+    {
+        const Colours v = vanilla();
+        EXPECT_EQ(applyLook(v, 40.f * deg, 0.f, Look::Physical).horizon, v.horizon);
+    }
+
+    TEST(RenderAtmosphereTest, the_fog_changes_smoothly_with_the_hour)
+    {
+        const Colours v = vanilla();
+        Colours last = applyLook(v, -10.f * deg, 1.f, Look::Physical);
+        for (int tenth = -99; tenth <= 900; ++tenth)
+        {
+            const Colours now = applyLook(v, static_cast<float>(tenth) * 0.1f * deg, 1.f, Look::Physical);
+            ASSERT_LT(maxDifference(now.horizon, last.horizon), 0.05f) << tenth;
+            last = now;
+        }
+    }
 }
