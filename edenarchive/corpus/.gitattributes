@@ -1,0 +1,2 @@
+*.edenpak binary
+expected.txt text eol=lf

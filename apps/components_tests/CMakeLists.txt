@@ -107,6 +107,7 @@ file(GLOB UNITTEST_SRC_FILES
     vfs/testvfsnormalization.cpp
     vfs/testvfsoverrides.cpp
     vfs/testvfsrange.cpp
+    vfs/testedenarchive.cpp
     vfs/testvfsthreads.cpp
     vfs/testvfsarchivekinds.cpp
     vfs/testvfsentryname.cpp
@@ -259,6 +260,7 @@ target_link_libraries(components-tests
     GTest::GTest
     GMock::GMock
     components
+    edenarchive-testsupport
     opas_anim_gltf
     opas_anim_runtime
     opas_anim_clip

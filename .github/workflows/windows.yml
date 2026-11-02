@@ -212,6 +212,11 @@ jobs:
         tail -n 20 test-output.log
         exit $rc
 
+    - name: Run Eden Archive tests
+      if: ${{ ! inputs.package }}
+      shell: bash
+      run: build/edenarchive-tests.exe
+
     - name: Run OpenMW tests
       if: ${{ ! inputs.package }}
       shell: bash

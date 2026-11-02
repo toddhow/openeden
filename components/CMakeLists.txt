@@ -215,6 +215,7 @@ add_component_dir (cmphysics
 
 add_component_dir (vfs
     manager archive bsaarchive filesystemarchive pathutil registerarchives rangeread archivefactory file entryname
+    edenarchive
     )
 
 #<vsgopenmw-code-style="pending">
@@ -719,6 +720,8 @@ target_link_libraries(components
     Boost::iostreams
     vsg::vsg
     vsgXchange::vsgXchange
+    # The Eden Archive reference library (task 0052), Apache-2.0, used by vfs/edenarchive.cpp
+    edenarchive
     # openeden-vsg: collision shapes of non-NIF models (resource/physicsshapemanager.cpp)
     assimp::assimp
     SDL2::SDL2

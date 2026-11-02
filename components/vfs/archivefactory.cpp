@@ -6,6 +6,7 @@
 #include <components/files/conversion.hpp>
 
 #include "bsaarchive.hpp"
+#include "edenarchive.hpp"
 
 namespace VFS
 {
@@ -36,6 +37,11 @@ namespace VFS
             if (std::unique_ptr<Archive> archive = factory(path, encoder))
                 return archive;
         }
+
+        // The Eden Archive reader (task 0052) is built in like the Bethesda one: a file that begins with the seven
+        // bytes EDENPAK is a pack, so `fallback-archive=` can name one without any start-up call.
+        if (std::unique_ptr<Archive> archive = makeEdenArchive(path, encoder))
+            return archive;
 
         // makeBsaArchive throws "Unknown archive type '<path>'" for a file it does not recognise.
         return makeBsaArchive(path, encoder);

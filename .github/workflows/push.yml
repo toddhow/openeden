@@ -54,6 +54,12 @@ jobs:
     - name: Run components tests
       run: ./components-tests
 
+    - name: Run Eden Archive tests (library, corpus, deterministic fuzz run)
+      run: ./edenarchive-tests
+
+    - name: Check the Eden Archive command-line tools
+      run: bash edenarchive/tests/tools/check.sh ./edenpack ./edenunpack ./edenlist ./edenvalidate "${RUNNER_TEMP}/edenarchive-tools"
+
     - name: Run OpenMW tests
       run: ./openmw-tests
 

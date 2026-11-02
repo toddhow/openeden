@@ -146,3 +146,28 @@ Slang's release archive does not contain `spirv-val` (its SPIRV-Tools is compile
 - **Source:** https://sdk.lunarg.com/sdk/download/1.4.363.0/windows/VulkanRT-X64-1.4.363.0-Components.zip, 18,211,191 bytes
 - **SHA-256:** `a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a`
 - **License:** MIT and Apache 2.0 components (the zip's `VulkanRT-License.txt`); the Apache-2.0 and GPL-3.0 compatibility question recorded for the Eden archive work applies here only to a CI tool, not to anything we ship.
+
+## Task 0052: Eden Archive reference library (`edenarchive/`)
+
+Recorded before either library was added to `extern/CMakeLists.txt` (root `CLAUDE.md`, Guardrails). Both are fetched as source archives, pinned by tag and SHA-512, and built by `edenarchive/CMakeLists.txt` as static libraries with their SIMD code in the intrinsics form (no assembler). Checked on 2026-11-01 by downloading each archive and reading its licence files.
+
+### zstd
+
+- **Version:** `v1.5.7`
+- **Source:** https://github.com/facebook/zstd/archive/refs/tags/v1.5.7.zip
+- **Archive hash (SHA-512):** `d2958014b11ba0fb579b5fd85260caf66955f28e67d9c0ff7b77970ab2ce4d293a55e4ea9c7f00680fb84726777d7cb0e3c2ae2661d97daa8f57b8126d23a7d3`
+- **License:** dual, BSD (the file `LICENSE`, three clauses, Meta Platforms) or GPLv2 (`COPYING`), per its `README.md` ("dual-licensed under BSD OR GPLv2"). OpenEden uses the BSD option. The FSF's licence list calls the modified (3-clause) BSD licence compatible with the GNU GPL (https://www.gnu.org/licenses/license-list.html#ModifiedBSD, read 2026-11-01).
+- **Purpose:** the codec of compressed chunks (codec 1) in the Eden Archive Format.
+- **Note:** OpenMW's Windows vcpkg set also contains a `zstd.h`; the pinned copy is named by the macro `EDENARCHIVE_ZSTD_H` and a unit test compares the header's version number with the linked library's.
+
+### BLAKE3
+
+- **Version:** `1.8.2`
+- **Source:** https://github.com/BLAKE3-team/BLAKE3/archive/refs/tags/1.8.2.zip
+- **Archive hash (SHA-512):** `90d8196cddf9fc0d6668a0759c67db1523bd0f11e17703c14cb1e629fba224d4f5829437e1121e4bc16f8a2411a6633ab1a1c4f08ee774b6aaaca4e70b879e4c`
+- **License:** CC0 1.0 (`LICENSE_CC0`), alternatively Apache 2.0 (`LICENSE_A2`) or Apache 2.0 with LLVM exceptions (`LICENSE_A2LLVM`), per its `README.md` ("Licenses"). OpenEden uses it under the Apache-2.0 option, which is also what the library's own licence is.
+- **Purpose:** the hash of the Eden Archive Format (content, chunk, path, header, metadata and manifest digests).
+
+### Licence of the reference library itself
+
+`edenarchive/` is Apache-2.0 (decision 8 of the archive design doc). The FSF's licence list states that the Apache License 2.0 is "a free software license, compatible with version 3 of the GNU GPL" and not with GPL version 2: https://www.gnu.org/licenses/license-list.html#apache2 (read 2026-11-01). So the GPL-3.0-or-later engine may link and include it; the library must therefore never include engine code, and only `components/vfs/edenarchive.*` and the tools in `apps/edenarchive/` (GPL) depend on both.

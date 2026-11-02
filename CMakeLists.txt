@@ -590,6 +590,8 @@ if (OPENMW_CXX_FLAGS)
 endif()
 
 # Components
+# Eden Archive reference library (task 0052): Apache-2.0, independent of the engine, so it is added before the components.
+add_subdirectory(edenarchive)
 add_subdirectory (components)
 
 # CreativeMotion (OpenEden's animation and procedural motion subsystem)
@@ -653,6 +655,11 @@ endif()
 
 if (BUILD_NIFTEST)
     add_subdirectory(apps/niftest)
+endif()
+
+option(BUILD_EDENARCHIVE_TOOLS "Build the Eden Archive command-line tools" ON)
+if (BUILD_EDENARCHIVE_TOOLS)
+    add_subdirectory(apps/edenarchive)
 endif()
 
 add_subdirectory(extensions)

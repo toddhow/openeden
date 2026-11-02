@@ -547,3 +547,21 @@ if(OPENEDEN_SLANGC)
     set_property(DIRECTORY "${spirv_headers_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
     set_property(DIRECTORY "${spirv_tools_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
 endif()
+
+# Task 0052: BLAKE3 and zstd for the Eden Archive reference library (edenarchive/). Only the sources are fetched here;
+# edenarchive/CMakeLists.txt builds them as static libraries with its own flags, so that the pinned copy is the one
+# that is used (OpenMW's Windows vcpkg set also contains a zstd, which this does not touch). Records, licences and
+# hashes: docs/dependencies.md.
+FetchContent_Declare(zstd_src
+    URL https://github.com/facebook/zstd/archive/refs/tags/v1.5.7.zip
+    URL_HASH SHA512=d2958014b11ba0fb579b5fd85260caf66955f28e67d9c0ff7b77970ab2ce4d293a55e4ea9c7f00680fb84726777d7cb0e3c2ae2661d97daa8f57b8126d23a7d3
+    SOURCE_DIR fetched/zstd
+)
+FetchContent_Declare(blake3_src
+    URL https://github.com/BLAKE3-team/BLAKE3/archive/refs/tags/1.8.2.zip
+    URL_HASH SHA512=90d8196cddf9fc0d6668a0759c67db1523bd0f11e17703c14cb1e629fba224d4f5829437e1121e4bc16f8a2411a6633ab1a1c4f08ee774b6aaaca4e70b879e4c
+    SOURCE_DIR fetched/blake3
+)
+FetchContent_MakeAvailable(zstd_src blake3_src)
+set(OPENEDEN_ZSTD_SOURCE_DIR "${zstd_src_SOURCE_DIR}" PARENT_SCOPE)
+set(OPENEDEN_BLAKE3_SOURCE_DIR "${blake3_src_SOURCE_DIR}" PARENT_SCOPE)

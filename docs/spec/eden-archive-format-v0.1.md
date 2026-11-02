@@ -211,7 +211,7 @@ A stored path MUST satisfy all of the following (the rules of `VFS::Path::checkP
 5. It does not start or end with `/`.
 6. It has no empty component and no component that is exactly `.` or `..`.
 
-A reader MUST reject a pack with a stored path that breaks a rule (`E_NAME`). The check is on the stored bytes; a reader MUST NOT "repair" a name.
+A reader MUST reject a pack with a stored path that breaks a rule: `E_LIMIT` when it breaks the length limits of rule 1 (path longer than 1024 bytes, component longer than 255 bytes, empty path), `E_NAME` for every other rule. The check is on the stored bytes; a reader MUST NOT "repair" a name.
 
 Further rules apply when a *tool writes entries to disk*; they are in section 15.3.
 
@@ -219,7 +219,7 @@ Further rules apply when a *tool writes entries to disk*; they are in section 15
 
 Entries with a path are sorted by their path bytes compared **bytewise as unsigned values, shortest first on a common prefix** (the order of `memcmp` on the common length, then the shorter name first). Paths MUST be unique: after sorting two equal paths would be adjacent. With `cmp(a, b)`: `m = min(len a, len b); c = memcmp(a, b, m); if c != 0 return sign(c); return sign(len a - len b)`, each path MUST satisfy `cmp(previous, current) < 0`. A reader that finds `cmp == 0` rejects the pack with `E_DUPLICATE`, and `cmp > 0` with `E_ORDER`. This order does not treat `/` specially: `a-x` sorts before `a/b`.
 
-**File and directory with one name.** A pack MUST NOT contain a path that is also a proper directory prefix of another path (`a` and `a/b`): a validator rejects it (`E_NAME`), a reader MAY accept it, and a tool that writes entries to disk MUST refuse it (section 15.4).
+**File and directory with one name.** A pack MUST NOT contain a path that is also a proper directory prefix of another path (`a` and `a/b`): a validator in canonical mode rejects it (`E_NAME`), a reader MAY accept it, and a tool that writes entries to disk MUST refuse it (section 15.4).
 
 #### 7.3.3 Path hash
 
@@ -550,7 +550,7 @@ A keyed entry contributes `pathLength` 0 and no path bytes; an entry with no con
 
 ### 14.1 Error classes
 
-A reader that rejects a pack or an entry SHOULD report one of these classes (the class is for diagnostics; the **rejection** is what is required):
+A reader that rejects a pack or an entry SHOULD report one of these classes, together with the **byte offset** of the offending field (an absolute file offset; 0 when there is none) and the **field name** as spelled in the tables of this document (for example `chunk[2].offset`). A conformance test compares the class and, where the corpus says so, the offset, never message text. The reference tools exit with 0 when the pack is valid, 1 when it is invalid or a read fails, and 2 for a usage or input/output error (the class is for diagnostics; the **rejection** is what is required):
 
 | Class | Meaning |
 | --- | --- |
@@ -559,7 +559,7 @@ A reader that rejects a pack or an entry SHOULD report one of these classes (the
 | `E_TRUNCATED` | the file is shorter or longer than it says, or the footer is missing or not at the end |
 | `E_CHECKSUM` | header checksum, metadata digest or header/footer disagreement |
 | `E_RANGE` | an offset, size or count outside its region, misaligned, or an arithmetic overflow, or a field that contradicts another |
-| `E_OVERLAP` | two chunks, or two metadata regions, overlap |
+| `E_OVERLAP` | two chunks overlap or are out of order (sub-regions of the metadata region that do not tile are `E_RANGE`) |
 | `E_ORDER` | entries, path index or key index out of order |
 | `E_DUPLICATE` | a path or a key appears twice |
 | `E_NAME` | a stored path breaks section 7.3.1 |
@@ -627,7 +627,7 @@ A pack is hostile until proven otherwise (design doc 3 and 16). In addition to t
 
 1. **Bounds.** Every offset, size and count is bounds-checked against its region before it is used, with overflow-safe arithmetic (section 3.8). Table sizes are bounded by the limits before they are multiplied.
 2. **Allocation.** A reader's allocation is bounded by the limits: no buffer larger than one chunk's `uncompressedSize` (at most 8 MiB) is allocated from a chunk record, and no table larger than the limits allows. It never allocates according to an unchecked field.
-3. **Decompression bombs.** A zstd frame can expand by a very large factor. The defences are: the declared `uncompressedSize` is limited (8 MiB per chunk, 4 GiB per entry, 2^46 per pack); the decoder is given an output buffer of exactly the declared size and a frame that would write more fails; the frame's own content-size field must agree with the chunk record; the window is bounded; and a reader that serves untrusted packs SHOULD also keep a time and memory budget per request. A reader or validator MUST accept a caller-supplied budget of decoded bytes and fail with `E_LIMIT` when it is exceeded; the tools default to 2^36 bytes unless told otherwise. Because the chunk hash is over decoded bytes, **the decoder runs before the hash can be checked**; this is why the decoder limits above are required, and why a reader SHOULD keep the zstd library up to date.
+3. **Decompression bombs.** A zstd frame can expand by a very large factor. The defences are: the declared `uncompressedSize` is limited (8 MiB per chunk, 4 GiB per entry, 2^40 per pack); the decoder is given an output buffer of exactly the declared size and a frame that would write more fails; the frame's own content-size field must agree with the chunk record; the window is bounded; and a reader that serves untrusted packs SHOULD also keep a time and memory budget per request. A reader or validator MUST accept a caller-supplied budget of decoded bytes and fail with `E_LIMIT` when it is exceeded; the tools default to 2^36 bytes unless told otherwise. Because the chunk hash is over decoded bytes, **the decoder runs before the hash can be checked**; this is why the decoder limits above are required, and why a reader SHOULD keep the zstd library up to date.
 4. **Path traversal and name tricks.** The stored-name rules (7.3.1) forbid `..`, leading `/`, `\` and control characters. A tool that writes entries to a disk folder MUST additionally apply the stricter extraction rules of `VFS::Path::checkExtractionSafe` (`components/vfs/entryname.cpp`, read 2026-11-01): reject a component that contains any of `: < > " | ? * \`; reject a component that ends with `.` or a space; reject a component whose part before the first `.` (ignoring trailing spaces) is a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `conin$`, `conout$`, `clock$`, `com1` to `com9`, `lpt1` to `lpt9`, and `com`/`lpt` followed by a superscript 1, 2 or 3), whatever the case; and write only inside the chosen target folder; refuse a path that is also a directory prefix of another path of the pack (`a` and `a/b`); and never follow a symbolic link or junction found in the output folder. Names that differ only by Unicode normalization or by non-ASCII case are different names to the container; an extractor on a case-insensitive file system SHOULD detect two entries that map to one file and refuse.
 5. **Duplicates and shadowing.** Duplicate paths and keys are rejected, so a lookup has one answer.
 6. **No code, no secrets.** The format has no executable content, no scripting and no encryption or DRM. A consumer must not execute an entry because of its type or name.
@@ -993,3 +993,4 @@ Open points for toddhow:
 | --- | --- | --- |
 | 2026-11-01 | 1 | First draft (task 0051), checked by its author only |
 | 2026-11-01 | 2 | Independent review (task 0052, step 0; a reviewer who read only this text and the task). Annex B decoded byte by byte with no mismatch. Changes: `headerSize` fixed at 512, `dataOffset` fixed at 4096, `metadataOffset` derived, metadata sub-regions exactly tiled (no gaps, empty offsets defined), zero-ness of the padding after the header and before the metadata; caps added: `metadataSize` 2^32, strides 512 and 256, chunks per pack 2^25, `storedSize` 2^24 for every codec, pack total 2^40; counts of path and key entries bounded before multiplication; string table, chunk tables and provenance records laid out back to back so they cannot alias; chunk stored ranges strictly ascending in (entry, chunk) order (one pass, no sort); `HASH_PRESENT` mandatory; checks of 14.2 renumbered, ordered and given exact classes (precedence rule); zero/consistency rules for unused fields; entry type 0x10 to 0x13 requires a key with the matching tag; zstd frame checks spelled out; extension-block walk made an open-time check; decoded-byte budget; path compare pseudocode and the file/directory name rule; manifest digest assigned to the validator; canonical writer uses the default layout for all types, version and level 0 when no codec 1; Annex C wording (I06, I09, I10, I17) and further cases |
+| 2026-11-01 | 2 (clarified) | After the independent test writer worked from draft 2 (task 0052): 15.3 says 2^40 like section 12; 14.1 gives E_OVERLAP to chunks only; the file-and-directory name rule is checked by a validator in canonical mode; a reported error carries the offset of the first field the failed check names |
