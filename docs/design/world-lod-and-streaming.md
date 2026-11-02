@@ -291,10 +291,10 @@ Each stage becomes a task spec in `docs/tasks/` (with the template of root `CLAU
 | S2 Cache and keys | content-hash cache keys, generation manifest, `current` pointer, determinism test, **directly on the container** (no migration stage; archive doc A5 derived data cache) | S1; tasks 0050 to 0052 | |
 | S3 Terrain transitions | geomorphing, composite map bake replaces runtime composite, tile textures | S1; task 0034 for the haze function | |
 | S4 Object clusters | classification, merge, simplify, atlas; active-grid hand-off cross-fade; blacklist/disable overrides fall back to the live chunk for that cell | S1, S2; meshoptimizer licence recorded | needs `DistantObjects` interplay read in detail |
-| S5 Dither cross-fade and LOD chains | per-model LOD chains, dithered cross-fade, hysteresis | S4 | |
-| S6 Streaming core | range-IO interface, IO and decode pools, priorities, staging ring, budgets, eviction, prefetch | S1; the VFS range interface (task 0050); the reference library's chunked reads (task 0052) | first with tile data only |
+| S5 Dither cross-fade and LOD chains | per-model LOD chains, dithered cross-fade, hysteresis | S4 | Specified in `docs/tasks/0062-lod-s5-model-lod-chains.md` (draft, with a go/no-go gate after its measuring stage) |
+| S6 Streaming core | range-IO interface, IO and decode pools, priorities, staging ring, budgets, eviction, prefetch | S1; the VFS range interface (task 0050); the reference library's chunked reads (task 0052) | first with tile data only. Specified in `docs/tasks/0060-lod-s6-streaming-core.md` (draft) |
 | S7 Grass | thinning by stable hash, bands, far tint, instance buffers | S1 for the far band; independent of S6 | can start early |
-| S8 Baker and UIs | bake process in both modes (ahead of time and background), work units, resume, status file, launcher World LOD page, in-game status | S2, S4; launcher conventions (task 0018) | |
+| S8 Baker and UIs | bake process in both modes (ahead of time and background), work units, resume, status file, launcher World LOD page, in-game status | S2, S4; launcher conventions (task 0018) | Baker specified in `docs/tasks/0061-lod-s8-background-baker.md` (draft); the launcher page is task 0058 |
 | S9 GPU-driven culling | compute culling of tiles and instances, indirect draws | S1, S4; device report facts; GPU timing | tier High |
 | S10 Impostors | headless render of billboard atlases, view selection, cross-fade | S5, S8 | |
 | S11 Texture mip streaming | tail/chunk layout use, pools or sparse | S6; archive A4 | highest risk; last |
@@ -445,3 +445,4 @@ toddhow's answers of 2026-11-01 (record 0010, items 22 to 29). "Accepted" means 
 | --- | --- |
 | 2026-11-01 | Initial draft with research note 0018: the world-LOD model, baker and cache, streaming core, graphics tiers, transitions, grass, staging, a review of the Eden Archive Format draft, and the mod organizer tangent |
 | 2026-11-01 | toddhow's answers recorded (section 14; decision record 0010, items 22 to 29): own LOD data, baker in both modes (ahead of time and background), the container first (0050 -> 0051 -> 0052 -> S1 onward; S2 moves straight onto the container), the archive doc's decisions accepted and applied to it, container reader on the full-loop list, software device for weak-GPU tests, groundcover mod to wait |
+| 2026-11-02 | Draft task specs written for S5 (`docs/tasks/0062-lod-s5-model-lod-chains.md`), S6 (`0060-lod-s6-streaming-core.md`) and S8 (`0061-lod-s8-background-baker.md`), linked in the staging table in section 11; nothing else in this document changed |
