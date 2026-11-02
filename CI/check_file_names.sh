@@ -8,6 +8,8 @@ git ls-files -- ':(exclude)extern/' \
         ':(exclude)editor_modules' ':(exclude)apps/components_tests/extension' ':(exclude)apps/opencs_tests/model/module' \
         ':(exclude)apps/components_tests/inertialmotion/test_locomotion_state.cpp' \
         ':(exclude)apps/components_tests/mwrender/test_creativemotion_runtime.cpp' \
+        ':(exclude)apps/components_tests/mwrender/test_creativemotion_style.cpp' \
+        ':(exclude)apps/components_tests/mwrender/test_creativemotion_style_driver.cpp' \
         ':(exclude)apps/openmw_tests/test_vsg_v1_invariants.cpp' \
         '*.cpp' '*.hpp' '*.h' |
     grep -vP '/[a-z0-9]+\.(cpp|hpp|h)$' &&
