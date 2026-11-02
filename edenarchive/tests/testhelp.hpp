@@ -161,19 +161,19 @@ namespace EdenTestSuite
             EXPECT_EQ(entry.mHasPath, want.mPath.has_value());
             if (want.mPath.has_value())
             {
-                    EXPECT_EQ(std::string(entry.mPath), *want.mPath);
+                EXPECT_EQ(std::string(entry.mPath), *want.mPath);
             }
             EXPECT_EQ(entry.mHasKey, want.mKey.has_value());
             if (want.mKey.has_value())
             {
-                    EXPECT_EQ(entry.mKey, *want.mKey);
+                EXPECT_EQ(entry.mKey, *want.mKey);
             }
             EXPECT_EQ(entry.mType, want.mType);
             EXPECT_EQ(entry.mSize, want.mContent.size());
             EXPECT_EQ(entry.mChunkCount, want.mChunkCount);
             if (want.mReadable)
             {
-                    EXPECT_EQ(toDigest(entry.mContentHash), EdenTest::blake3Of(want.mContent));
+                EXPECT_EQ(toDigest(entry.mContentHash), EdenTest::blake3Of(want.mContent));
             }
             EXPECT_EQ(entry.mHasProvenance, want.mHasProvenance);
             if (want.mHasProvenance)

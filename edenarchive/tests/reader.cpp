@@ -115,7 +115,7 @@ namespace EdenTestSuite
                         << "got " << className(error) << ", want " << joined(c.mClasses) << ": " << error.describe();
                     if (c.mOffset.has_value())
                     {
-                            EXPECT_EQ(error.mOffset, *c.mOffset) << error.describe();
+                        EXPECT_EQ(error.mOffset, *c.mOffset) << error.describe();
                     }
                     break;
 
@@ -182,12 +182,12 @@ namespace EdenTestSuite
                             ch = (ch >= 'a' && ch <= 'z') ? static_cast<char>(ch - 'a' + 'A') : ch;
                         if (upper != *want.mPath)
                         {
-                                EXPECT_FALSE(archive->findPath(upper).has_value()) << "lookup is on normalized names only";
+                            EXPECT_FALSE(archive->findPath(upper).has_value()) << "lookup is on normalized names only";
                         }
                     }
                     if (want.mKey.has_value())
                     {
-                            EXPECT_EQ(archive->findKey(*want.mKey), std::optional<std::size_t>(i));
+                        EXPECT_EQ(archive->findKey(*want.mKey), std::optional<std::size_t>(i));
                     }
                 }
                 EXPECT_FALSE(archive->findPath("").has_value());
@@ -207,7 +207,7 @@ namespace EdenTestSuite
                               });
                         if (!used)
                         {
-                                EXPECT_FALSE(archive->findKey(other).has_value()) << other;
+                            EXPECT_FALSE(archive->findKey(other).has_value()) << other;
                         }
                     }
                 }

@@ -66,7 +66,7 @@ namespace EdenTestSuite
                 const std::string name = item.path().filename().string();
                 if (item.path().extension() == ".edenpak")
                 {
-                        EXPECT_TRUE(listed.count(name) > 0) << "committed file with no case: " << name;
+                    EXPECT_TRUE(listed.count(name) > 0) << "committed file with no case: " << name;
                 }
             }
 #endif
@@ -117,7 +117,7 @@ namespace EdenTestSuite
                     }
                     if (fields[4] != "-")
                     {
-                            EXPECT_EQ(error.mOffset, std::stoull(fields[4], nullptr, 16));
+                        EXPECT_EQ(error.mOffset, std::stoull(fields[4], nullptr, 16));
                     }
                 }
                 ++checked;

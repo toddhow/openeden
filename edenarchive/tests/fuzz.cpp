@@ -253,7 +253,7 @@ namespace EdenTestSuite
             // opens, the digest repair is not reaching the structural checks.
             if (iterations >= 1000)
             {
-                    EXPECT_GT(opened, 0u) << "no mutated input opened in " << iterations << " iterations";
+                EXPECT_GT(opened, 0u) << "no mutated input opened in " << iterations << " iterations";
             }
             RecordProperty("opened", static_cast<int>(opened));
         }

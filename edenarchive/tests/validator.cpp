@@ -71,7 +71,7 @@ namespace EdenTestSuite
                         EXPECT_FALSE(canonical.mFindings.empty()) << "the canonical validator must report this pack";
                         if (!c.mCanonicalClasses.empty())
                         {
-                                EXPECT_TRUE(hasClass(canonical, c.mCanonicalClasses)) << describeAll(canonical);
+                            EXPECT_TRUE(hasClass(canonical, c.mCanonicalClasses)) << describeAll(canonical);
                         }
                     }
                     break;
@@ -89,7 +89,7 @@ namespace EdenTestSuite
                             << "got " << className(report.mFindings[0]) << ", want " << joined(c.mClasses);
                         if (c.mOffset.has_value())
                         {
-                                EXPECT_EQ(report.mFindings[0].mOffset, *c.mOffset);
+                            EXPECT_EQ(report.mFindings[0].mOffset, *c.mOffset);
                         }
                     }
                     break;
