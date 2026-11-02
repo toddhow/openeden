@@ -201,6 +201,8 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testtilebake.cpp
     lod/testtexturedecode.cpp
     lod/testalbedobake.cpp
+    lod/testobjectcluster.cpp
+    lod/testclusterbuild.cpp
     lod/testtiletree.cpp
     lod/testtilebakelevels.cpp
     vsg/testscenedata.cpp

@@ -171,3 +171,14 @@ Recorded before either library was added to `extern/CMakeLists.txt` (root `CLAUD
 ### Licence of the reference library itself
 
 `edenarchive/` is Apache-2.0 (decision 8 of the archive design doc). The FSF's licence list states that the Apache License 2.0 is "a free software license, compatible with version 3 of the GNU GPL" and not with GPL version 2: https://www.gnu.org/licenses/license-list.html#apache2 (read 2026-11-01). So the GPL-3.0-or-later engine may link and include it; the library must therefore never include engine code, and only `components/vfs/edenarchive.*` and the tools in `apps/edenarchive/` (GPL) depend on both.
+
+## Task 0059: meshoptimizer (object cluster baker)
+
+Recorded before it was added to `extern/CMakeLists.txt` (root `CLAUDE.md`, Guardrails). Checked on 2026-11-02 by downloading the archive and reading `LICENSE.md` and the `README.md` licence section.
+
+- **Version:** `v1.3` (released 2026-09-25, more than two weeks before it was pinned)
+- **Source:** https://github.com/zeux/meshoptimizer/archive/refs/tags/v1.3.zip (653,284 bytes)
+- **Archive hash (SHA-512):** `bb037ba6c9ac1c616bc796afc55ca3d2955ec69189db0093171615903d6e632ed24b2cdb4d38087562046b0e4d43ee962df04dd95891932f53df7ffca1998b98`
+- **License:** MIT (`LICENSE.md`, "Copyright (c) 2016-2026 Arseny Kapoulkine"). MIT is compatible with the GPL-3.0-or-later (FSF licence list, Expat license: https://www.gnu.org/licenses/license-list.html#Expat). The README (section "License") asks that the product's user-facing documentation or credits name the library: a credit line is needed in the project's credits (toddhow's file).
+- **Purpose:** the mesh simplifier (`simplifier.cpp`) and the index and vertex helpers that the object cluster baker uses (every `src/*.cpp` is compiled, since the simplifier uses the allocator and index code). Only the baker (`components/lod/objectcluster*`) calls it; the running game does not.
+- **How it is built:** the sources are fetched by `extern/CMakeLists.txt` and compiled by it into the static library `openeden_meshoptimizer` with the project's third-party flags (warnings off, position independent), not by the library's own CMake file.

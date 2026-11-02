@@ -105,7 +105,7 @@ add_component_dir (bgsm
 # World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.
 # DRAFT layouts, kept behind this one folder. Depends on edenarchive.
 add_component_dir (lod
-    loderror tilekey tileselection terraintile tilepack tilebake texturedecode albedobake
+    loderror tilekey tileselection terraintile tilepack tilebake texturedecode albedobake objectcluster clusterbuild
     )
 
 #<vsgopenmw-code-style>
@@ -729,6 +729,8 @@ target_link_libraries(components
     vsgXchange::vsgXchange
     # The Eden Archive reference library (task 0052), Apache-2.0, used by vfs/edenarchive.cpp
     edenarchive
+    # meshoptimizer (task 0059, MIT), used by lod/clusterbuild.cpp
+    openeden_meshoptimizer
     # openeden-vsg: collision shapes of non-NIF models (resource/physicsshapemanager.cpp)
     assimp::assimp
     SDL2::SDL2

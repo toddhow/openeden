@@ -565,3 +565,24 @@ FetchContent_Declare(blake3_src
 FetchContent_MakeAvailable(zstd_src blake3_src)
 set(OPENEDEN_ZSTD_SOURCE_DIR "${zstd_src_SOURCE_DIR}" PARENT_SCOPE)
 set(OPENEDEN_BLAKE3_SOURCE_DIR "${blake3_src_SOURCE_DIR}" PARENT_SCOPE)
+
+# Task 0059: meshoptimizer v1.3 (MIT) for the object cluster baker. Fetched and compiled here with the project's
+# third-party flags (not by its own CMake file). Record and licence: docs/dependencies.md.
+FetchContent_Declare(meshoptimizer_src
+    URL https://github.com/zeux/meshoptimizer/archive/refs/tags/v1.3.zip
+    URL_HASH SHA512=bb037ba6c9ac1c616bc796afc55ca3d2955ec69189db0093171615903d6e632ed24b2cdb4d38087562046b0e4d43ee962df04dd95891932f53df7ffca1998b98
+    SOURCE_DIR fetched/meshoptimizer
+    # Its own CMake file is not used (the sources are compiled below), so add_subdirectory must find nothing.
+    SOURCE_SUBDIR does-not-exist
+)
+FetchContent_MakeAvailable(meshoptimizer_src)
+file(GLOB OPENEDEN_MESHOPT_SOURCES "${meshoptimizer_src_SOURCE_DIR}/src/*.cpp")
+add_library(openeden_meshoptimizer STATIC ${OPENEDEN_MESHOPT_SOURCES})
+if (MSVC)
+    target_compile_options(openeden_meshoptimizer PRIVATE /W0)
+else()
+    target_compile_options(openeden_meshoptimizer PRIVATE -w)
+endif()
+set_target_properties(openeden_meshoptimizer PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(openeden_meshoptimizer SYSTEM PUBLIC "${meshoptimizer_src_SOURCE_DIR}/src")
+target_compile_features(openeden_meshoptimizer PUBLIC cxx_std_11)
