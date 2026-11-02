@@ -32,8 +32,7 @@ namespace
     {
         OverrideTable table;
         table.markSubsurfaceModel("meshes/b/b_n_breton_f_head_01.nif");
-        const OverrideValues v
-            = table.resolveValues("b/b_n_breton_f_head_01.nif", "textures/tx_b_n_breton_f_h01.dds");
+        const OverrideValues v = table.resolveValues("b/b_n_breton_f_head_01.nif", "textures/tx_b_n_breton_f_h01.dds");
         ASSERT_TRUE(v.subsurface.has_value());
         EXPECT_TRUE(*v.subsurface);
     }
