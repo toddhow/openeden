@@ -1031,8 +1031,12 @@ namespace MWWorld
             // drawn sun and the light direction (set above) keep the orbit.
             if (Settings::rendering().mSunFollowsColourTables)
             {
-                const Render::Sun::TimeOfDayWindows windows{ mTimeSettings.mNightEnd, mTimeSettings.mDayStart,
-                    mTimeSettings.mDayEnd, mTimeSettings.mNightStart };
+                // The sky's windows (the sky colour is what the model mostly drives): the same numbers as
+                // TimeOfDayInterpolator::getValue uses for "Sky", pre and post times included.
+                const WeatherSetting sky = mTimeSettings.getSetting("Sky");
+                const Render::Sun::TimeOfDayWindows windows{ mTimeSettings.mNightEnd - sky.mPreSunriseTime,
+                    mTimeSettings.mDayStart + sky.mPostSunriseTime, mTimeSettings.mDayEnd - sky.mPreSunsetTime,
+                    mTimeSettings.mNightStart + sky.mPostSunsetTime };
                 sunHeight = Render::Sun::tableElevation(time.getHour(), windows);
             }
         }

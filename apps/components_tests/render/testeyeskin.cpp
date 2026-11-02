@@ -14,7 +14,7 @@ namespace
     TEST(RenderEyeSkin, EyeTextureNamesAreRecognised)
     {
         EXPECT_TRUE(isEyeTexture("textures/tx_b_n_breton_m_eyes_01.dds"));
-        EXPECT_TRUE(isEyeTexture("Textures\TX_Eye.TGA"));
+        EXPECT_TRUE(isEyeTexture("Textures\\TX_Eye.TGA"));
         EXPECT_TRUE(isEyeTexture("tx_a_eye"));
         EXPECT_TRUE(isEyeTexture("textures/eyes/brown.dds"));
     }

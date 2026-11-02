@@ -5,9 +5,9 @@
 //
 // tableElevation: Morrowind's colour tables (sky, fog, ambient and sun colours for sunrise, day, sunset and night)
 // blend in windows around the sunrise and sunset hours, and show their pure "sunset" colours at the middle of the
-// sunset window (19:00 with the default INI values). The sun that is drawn, though, sinks until 20:00 (the night
-// start), so a physical sky driven by the drawn sun's height shows sunset colours an hour or more too late. The
-// elevation computed here is the height a sun would have if it crossed the horizon at the middle of the two windows,
+// sunset window of the Sky colour table (about 18:30 with the default INI values). The sun that is drawn, though,
+// sinks until 20:00 (the night start), so a physical sky driven by the drawn sun's height shows sunset colours an
+// hour or more too late. The elevation computed here is the height a sun would have if it crossed the horizon at the middle of the two windows,
 // so a model driven by it is at its sunset at the tables' sunset. It is used for colours only: the drawn sun, the
 // light direction and the shadows keep following the weather manager's own orbit.
 
