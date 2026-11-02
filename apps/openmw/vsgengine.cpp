@@ -25,6 +25,7 @@
 #include <components/vsgadapters/sdl/window.hpp>
 #include <components/vsgutil/readimage.hpp>
 
+#include "lodterrainbaker.hpp"
 #include "mwgui/windowmanagerimp.hpp"
 #include "mwinput/actions.hpp"
 #include "mwinput/inputmanagerimp.hpp"
@@ -33,7 +34,6 @@
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/statemanagerimp.hpp"
-#include "lodterrainbaker.hpp"
 #include "probebaker.hpp"
 #include "skyvisbaker.hpp"
 
@@ -498,8 +498,8 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             lodTerrainBaker = std::make_unique<LodTerrainBaker>(out, *mResourceSystem);
         }
-        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired](
-                            double dt, bool& requiresRender, bool& quit) {
+        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &runningFrame, &autoScreenshotFired,
+                            &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
             if (quit)

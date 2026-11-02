@@ -91,9 +91,8 @@ namespace OMW
         if (state.mFinished)
             return true;
 
+        // Only called in the running state, where the store exists (the accessor asserts it).
         const MWWorld::ESMStore* store = MWBase::Environment::get().getESMStore();
-        if (store == nullptr)
-            return false;
 
         if (!state.mStarted)
         {
@@ -124,7 +123,7 @@ namespace OMW
             if (const Lod::LodError error
                 = Lod::bakeTerrainTile(state.mSource, state.mIds[state.mTiles.size()], state.mSettings, tile))
             {
-                Log(Debug::Error) << "LOD terrain bake failed: " << error.describe();
+                Log(Debug::Error) << "LOD terrain bake failed, no pack written: " << error.describe();
                 state.mFinished = true;
                 return true;
             }
@@ -174,9 +173,12 @@ namespace OMW
         options.mGeneration = generation;
         options.mSourceDigest = digest;
         options.mThreads = 2;
+        // Stored, not compressed: the pack is small (a few MiB) and its bytes then depend only on the land data,
+        // on any machine and with any zstd version.
+        options.mStoreOnly = true;
         if (const Lod::LodError error = Lod::writeTilePack(state.mManifest, state.mTiles, options, path))
         {
-            Log(Debug::Error) << "LOD terrain bake: cannot write the pack: " << error.describe();
+            Log(Debug::Error) << "LOD terrain bake failed, the old pack (if any) is unchanged: " << error.describe();
             return true;
         }
 
