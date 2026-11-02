@@ -125,3 +125,11 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 ## Texture size cap (task 0049)
 
 - Read images through `vsgUtil::readOptionalImage` or `readImage` with an `ImageUse` to opt in to `[Rendering] texture max size` and friends; reads without one are never capped. With a cap the terrain array's "most common size" rule now sees capped sizes, so a set of mixed 512 to 2048 layers joins one array at the cap. Details and limits are in `components/render/CLAUDE.md`.
+
+## Detaching nodes from a worker thread (LOD S0 crash, 2026-11-02)
+
+- **What happened:** the "hang" in a fast flight with `[Terrain] distant terrain = true` was a crash. The crash catcher's "Fatal Error" box was waiting on the screen, so the process sat idle (the main thread was in `NtUserWaitMessage`, and a crash dump `openmw-crash.dmp` was in the user folder). The main thread crashed in `Render::Engine::loop` at `mDeletionQueue->advanceFrame()` while freeing a node tree (`Group`, `CullNode`, `Commands` destructors).
+- **Cause:** `vsgUtil::DeletionQueue::add` was called from the terrain preload thread (`Terrain::Preload::setPositions` runs `Paging::updateView`, which calls `mCompile->detach` on the chunks it replaces) at the same moment the main thread advanced the queue. The queue had no lock, so both threads changed the same vector: an object was kept twice or lost, and a later advance freed a tree with bad memory.
+- **Fix:** `DeletionQueue` has a mutex and releases leaving objects after the lock is let go (`components/vsgutil/deletionqueue.hpp`). Test: `DeletionQueueThreads` in `apps/components_tests/vsgutil/testdeletionqueuethreads.cpp` (crashed every time before the fix).
+- **Rule:** `CompileContext::detach` may be called from any thread now; anything else a worker thread does to a node that the render threads can reach is still unsynchronised. `Paging::updateView` edits `view.rootNode->children` on the worker, which is safe only while that preload view is not in the scene.
+- **Finding a "hang":** check for an `openmw-crash.dmp` and a Fatal Error window first. `scratchpad`-style runner: start the game under the Win32 debug API (`crashrun`) with `_NO_DEBUG_HEAP=1`, which writes a dump at the first access violation and shows no dialog.
