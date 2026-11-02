@@ -32,8 +32,8 @@ namespace View
     vsg::ref_ptr<vsg::Descriptor> dummySkyVisSky();
     vsg::ref_ptr<vsg::Descriptor> skyVisSkyBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
 
-    // OpenEden (task 0041): the volumetric fog's volume (binding 14) and parameter block (binding 15). The stand-ins hold
-    // a volume of one clear texel and parameters that say "off"; `volumeParamsBuffer` is the game's dynamic block.
+    // OpenEden (task 0041): the volumetric fog's volume (binding 14) and parameter block (binding 15). The stand-ins
+    // hold a volume of one clear texel and parameters that say "off"; `volumeParamsBuffer` is the game's dynamic block.
     vsg::ref_ptr<vsg::Descriptor> dummyVolume();
     vsg::ref_ptr<vsg::Descriptor> dummyVolumeParams();
     vsg::ref_ptr<vsg::Descriptor> volumeParamsBuffer(vsg::ref_ptr<vsg::vec4Array>& data);

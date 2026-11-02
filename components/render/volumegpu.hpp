@@ -10,10 +10,10 @@
 #include "volumemath.hpp"
 
 /*
- * OpenEden (task 0041): what the volumetric fog's shaders read from the parameter block (view set binding 15). The block
- * is std140 and ten vec4 long: six vec4 and a mat4. `files/shaders/lib/view/volume.glsl` and
- * `files/shaders/comp/volume/volume.slang` declare the same block: change the three together (a test compares the member
- * order).
+ * OpenEden (task 0041): what the volumetric fog's shaders read from the parameter block (view set binding 15). The
+ * block is std140 and ten vec4 long: six vec4 and a mat4. `files/shaders/lib/view/volume.glsl` and
+ * `files/shaders/comp/volume/volume.slang` declare the same block: change the three together (a test compares the
+ * member order).
  */
 namespace Render::Volume
 {

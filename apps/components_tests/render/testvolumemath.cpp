@@ -369,8 +369,8 @@ namespace
 
     TEST(RenderVolume, fogExtinctionStaysFiniteWhenEndIsNotBeyondHalfStart)
     {
-        for (const auto& pair : { std::pair{ 100.f, 50.f }, std::pair{ 100.f, 10.f }, std::pair{ 0.f, 0.f },
-                 std::pair{ 1000.f, -5.f } })
+        for (const auto& pair :
+            { std::pair{ 100.f, 50.f }, std::pair{ 100.f, 10.f }, std::pair{ 0.f, 0.f }, std::pair{ 1000.f, -5.f } })
         {
             const float e = fogExtinction(pair.first, pair.second);
             EXPECT_TRUE(std::isfinite(e));

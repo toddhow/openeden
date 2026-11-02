@@ -91,8 +91,9 @@ namespace Render::Volume
     constexpr float pi = 3.14159265358979f;
 
     // Henyey-Greenstein phase function: how much light a particle scatters towards the eye. `cosTheta` is the dot
-    // product of the view ray (from the eye) and the direction to the sun, so 1 looks straight at the sun; `g` is the lobe (-1 backwards, 0 even, 1 forwards). It integrates to
-    // 1 over the sphere. Same formula as `sunGlowHenyeyGreenstein` in lib/view/fog.glsl.
+    // product of the view ray (from the eye) and the direction to the sun, so 1 looks straight at the sun; `g` is the
+    // lobe (-1 backwards, 0 even, 1 forwards). It integrates to 1 over the sphere. Same formula as
+    // `sunGlowHenyeyGreenstein` in lib/view/fog.glsl.
     inline float henyeyGreenstein(float cosTheta, float g)
     {
         const float c = std::clamp(cosTheta, -1.f, 1.f);
@@ -145,8 +146,8 @@ namespace Render::Volume
     // that lies low, not a layer. A named constant; the settings do not expose it.
     constexpr float defaultHeightScale = 4096.f;
 
-    // How bright the sun's scattered light is against the fog's own colour, before the phase function (a chosen value, set
-    // by looking at frames: shafts show without turning a clear day into a glare).
+    // How bright the sun's scattered light is against the fog's own colour, before the phase function (a chosen value,
+    // set by looking at frames: shafts show without turning a clear day into a glare).
     constexpr float defaultSunGain = 0.2f;
 
     // Past the grid the shader keeps the fog going with the same extinction, so the horizon joins the old fog.
@@ -192,9 +193,9 @@ namespace Render::Volume
     // How bright a lamp's scattered light is against the lamp's own colour (a chosen value, set by looking at frames).
     constexpr float defaultLampGain = 0.5f;
 
-    // A move of the camera longer than this between two frames (game units) is a jump (a teleport or a new cell), and the
-    // history is thrown away. The same limit the velocity pass uses (Velocity::cameraJumpDistance is the camera's, in
-    // double precision; this one only needs to be of the same size).
+    // A move of the camera longer than this between two frames (game units) is a jump (a teleport or a new cell), and
+    // the history is thrown away. The same limit the velocity pass uses (Velocity::cameraJumpDistance is the camera's,
+    // in double precision; this one only needs to be of the same size).
     constexpr double cameraJumpDistance = 256.0;
 
     inline bool cameraJumped(double px, double py, double pz, double cx, double cy, double cz)

@@ -661,8 +661,8 @@ namespace MWRender
         {
             if (mVolumeFog->createCommands(mResourceSystem->shaderOptions, viewDescriptorSet))
             {
-                viewRoot->children.insert(viewRoot->children.begin() + 1,
-                    vsgUtil::createBinSetter(Bin_Volume, mVolumeFog->node()));
+                viewRoot->children.insert(
+                    viewRoot->children.begin() + 1, vsgUtil::createBinSetter(Bin_Volume, mVolumeFog->node()));
                 volumeBin = vsgUtil::ComputeBin::create();
                 volumeBin->binNumber = Bin_Volume;
                 Log(Debug::Info) << "Volumetrics: a froxel volume of " << mVolumeFog->grid().x << " x "
@@ -1954,8 +1954,8 @@ namespace MWRender
         input.densityScale = rendering.mVolumetricsDensity;
         input.heightScale = Render::Volume::defaultHeightScale;
         input.anisotropy = rendering.mVolumetricsAnisotropy;
-        // The sun's light and its shadow cascades. With `enable shadows` off there are no cascades (spec D3): the fog is
-        // lit by the sun everywhere, as an even glow round it, and never forces the cascades on.
+        // The sun's light and its shadow cascades. With `enable shadows` off there are no cascades (spec D3): the fog
+        // is lit by the sun everywhere, as an even glow round it, and never forces the cascades on.
         input.sunGain = Render::Volume::defaultSunGain;
         input.lampGain = Render::Volume::defaultLampGain;
         input.debug = rendering.mVolumetricsDebug;

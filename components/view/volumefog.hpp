@@ -5,10 +5,10 @@
 #include <chrono>
 
 #include <vsg/commands/Commands.h>
-#include <vsg/maths/mat4.h>
-#include <vsg/nodes/Switch.h>
 #include <vsg/core/Array.h>
 #include <vsg/io/Options.h>
+#include <vsg/maths/mat4.h>
+#include <vsg/nodes/Switch.h>
 #include <vsg/state/DescriptorSet.h>
 #include <vsg/state/Image.h>
 
@@ -23,7 +23,8 @@ namespace View
      * Owns the 3D images (the fill image and the result the forward shaders read), the parameter block, and the compute
      * commands that fill and integrate the volume. Made only when `[Rendering] volumetrics` is on, so with it off none
      * of this exists. The main thread creates it and calls `setParams` each frame; the record thread reads the
-     * parameter block and the images through the descriptors. Ownership: the commands hold the images and the pipelines.
+     * parameter block and the images through the descriptors. Ownership: the commands hold the images and the
+     * pipelines.
      *
      * The commands use the main view's descriptor set (the scene block, the sun's shadow cascades, the light grid), so
      * they must run after the shadow maps and the light grid are done: see `RenderManager`.
@@ -50,8 +51,8 @@ namespace View
 
         bool temporal() const { return mTemporal; }
 
-        // Main thread, each frame, with the camera's view and projection matrices of this frame: the history is looked up
-        // through the previous frame's pair, and thrown away on the first frame and after a jump of the camera.
+        // Main thread, each frame, with the camera's view and projection matrices of this frame: the history is looked
+        // up through the previous frame's pair, and thrown away on the first frame and after a jump of the camera.
         void setParams(Render::Volume::ParamsInput input, const vsg::dmat4& view, const vsg::dmat4& projection);
 
     private:
@@ -61,8 +62,8 @@ namespace View
         vsg::ref_ptr<vsg::Image> mFillImage;
         vsg::ref_ptr<vsg::Image> mResultImage;
         std::array<vsg::ref_ptr<vsg::Image>, 2> mBlendImages; // the blend and the history, swapping each frame
-        // Which of the two sets of commands runs (it follows the frame counter), and which barrier: the first frame puts
-        // the blend images into their layout, later ones keep their contents.
+        // Which of the two sets of commands runs (it follows the frame counter), and which barrier: the first frame
+        // puts the blend images into their layout, later ones keep their contents.
         vsg::ref_ptr<vsg::Switch> mParitySwitch;
         vsg::ref_ptr<vsg::Switch> mBarrierSwitch;
         std::uint32_t mFrame = 0;

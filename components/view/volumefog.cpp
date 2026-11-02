@@ -68,7 +68,8 @@ namespace View
 
         vsg::ref_ptr<vsg::DescriptorImage> storageDescriptor(vsg::ref_ptr<vsg::Image> image, uint32_t binding)
         {
-            // A storage image's view is not shared with the sampled one (VUID-VkWriteDescriptorSet-descriptorType-00336).
+            // A storage image's view is not shared with the sampled one
+            // (VUID-VkWriteDescriptorSet-descriptorType-00336).
             return vsg::DescriptorImage::create(
                 vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(), createVolumeView(image), VK_IMAGE_LAYOUT_GENERAL),
                 binding, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -150,11 +151,11 @@ namespace View
             = vsg::Dispatch::create(dispatchGroups(mGrid.x, groupSizeXY), dispatchGroups(mGrid.y, groupSizeXY), 1);
 
         const VkImageSubresourceRange range{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-        // Everything the earlier graphs and the last frame wrote or read: the shadow maps (depth writes), the light grid
-        // and the history (compute writes), and the last frame's fragment reads of the result.
+        // Everything the earlier graphs and the last frame wrote or read: the shadow maps (depth writes), the light
+        // grid and the history (compute writes), and the last frame's fragment reads of the result.
         auto memory = [] {
-            return vsg::MemoryBarrier::create(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT
-                    | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            return vsg::MemoryBarrier::create(
+                VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                 VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
         };
         const VkPipelineStageFlags beforeSources = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
@@ -179,9 +180,9 @@ namespace View
         mBarrierSwitch->addChild(true, first);
         mBarrierSwitch->addChild(false, normal);
 
-        auto between = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
-            vsg::MemoryBarrier::create(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT));
+        auto between
+            = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                0, vsg::MemoryBarrier::create(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT));
         auto after = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
             vsg::MemoryBarrier::create(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT));
@@ -239,9 +240,10 @@ namespace View
         const vsg::dvec3 eye(inverseView(3, 0), inverseView(3, 1), inverseView(3, 2));
         // The history is looked up where the camera was: nothing to look up on the first frame, and a jump of the
         // camera (a teleport, a new cell) makes the old picture meaningless.
-        // setParams runs on every update, but a menu or a loading screen records no frame: a long gap since the last call
-        // means the previous matrices may belong to a frame the GPU never drew. A change of the grid's reach (weather,
-        // a new cell, going under water) changes where the slices are, so the history no longer lines up either.
+        // setParams runs on every update, but a menu or a loading screen records no frame: a long gap since the last
+        // call means the previous matrices may belong to a frame the GPU never drew. A change of the grid's reach
+        // (weather, a new cell, going under water) changes where the slices are, so the history no longer lines up
+        // either.
         const auto now = std::chrono::steady_clock::now();
         const bool resumed = now - mPreviousTime > std::chrono::milliseconds(250);
         mPreviousTime = now;

@@ -238,8 +238,8 @@ namespace
     // The shader twin: the parameter block's members are read back from the GLSL and the Slang text.
     std::string readShaderFile(const std::vector<std::string>& parts)
     {
-        std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / "files"
-            / "shaders";
+        std::filesystem::path source
+            = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / "files" / "shaders";
         for (const std::string& part : parts)
             source /= part;
         std::ifstream in(source);
