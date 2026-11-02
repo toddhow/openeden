@@ -255,9 +255,13 @@ namespace
             EXPECT_GE(g, 0.f);
             EXPECT_LE(g, 1.f + tol);
             if (f <= 0.1f)
+            {
                 EXPECT_GE(g, previous - tol) << f;
+            }
             else if (f >= 0.6f)
+            {
                 EXPECT_LE(g, previous + tol) << f;
+            }
             previous = g;
         }
         EXPECT_GT(heightGradient(0.05f), 0.f);
@@ -713,7 +717,9 @@ namespace
                 EXPECT_TRUE(std::isfinite(s.enter));
                 EXPECT_TRUE(std::isfinite(s.exit));
                 if (s.hit)
+                {
                     EXPECT_GE(s.exit, s.enter);
+                }
             }
     }
 
@@ -771,7 +777,9 @@ namespace
                 const float step = lightStepLength(i, count, 600.f);
                 EXPECT_GT(step, 0.f);
                 if (i > 0)
+                {
                     EXPECT_GT(step, previous);
+                }
                 previous = step;
                 sum += step;
             }
