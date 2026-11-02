@@ -4,7 +4,7 @@ Goal: draw the far world's objects (towers, rocks, trees, buildings) from baked,
 Inherited code touched (re-read at the commit that starts each stage; writing this spec changes nothing): `apps/openmw/mwrender/distantobjects.{hpp,cpp}` (`collectReferences`, `buildChunk`, `DistantObjects::update`, `setDisabled`, `blacklist`, `forget`), `apps/openmw/mwrender/distantobjectcells.{hpp,cpp}` (`isDistantObjectType`, `distantObjectMaxDistance`, `distantObjectMatrix`, `ActiveCellGrid`), `apps/openmw/mwrender/rendermanager.cpp` (`updateDistantObjects`, `pagingEnableObject`, `pagingBlacklistObject`, `referenceCells`, `setActiveGrid`), `components/vsgadapters/nif/nif.cpp` (`handleGeometry`: what a NIF mesh looks like as VSG data), `components/vsgutil/cullnode.hpp` (`getBounds`), `files/shaders/default/main.frag` (dither, stage d only), `components/lod/` (`tilekey`, `tileselection`, `tilepack`: reused, not changed).
 Inputs / outputs: a derived pack `<user data>/openeden/lod/objects.edenpak` (entry type `0x0011`, key tag `0x11`, **layout version 0, draft**), a baker mode `openmw --bake-lod-objects`, settings `[WorldLod] object clusters` (false) and companions, a new third-party library (meshoptimizer v1.3, MIT).
 
-Status: DRAFT written 2026-11-02, not approved. The cluster entry layout below is a **draft (version 0)** that toddhow must approve before it freezes (the same procedure as the S1 tile layout). Full loop (renderer, loader, untrusted input, a new derived-data format, a new dependency).
+Status: DRAFT written 2026-11-02, not approved. Stages a and b built (see the stage log); c and d not started. The cluster entry layout below is a **draft (version 0)** that toddhow must approve before it freezes (the same procedure as the S1 tile layout). Full loop (renderer, loader, untrusted input, a new derived-data format, a new dependency).
 
 ## What S0 told us (from `docs/research/0025-lod-baseline.md`; RTX 4070, i7-13700K)
 
@@ -132,9 +132,9 @@ The reader refuses anything else: magic, version, flags, counts above the caps (
 
 ## Acceptance criteria
 
-- [ ] meshoptimizer v1.3 recorded in `docs/dependencies.md` (version, source, SHA-512, MIT, what is built) before it is added to `extern/CMakeLists.txt`; the build uses only the pinned copy.
-- [ ] Classification, merge and simplify tests pass on generated meshes (listed in stage a), including byte-for-byte determinism across input order and thread counts.
-- [ ] Payload tests: round trip, canonical bytes, every malformed-input case in the list above refused with a located error, mutation test clean.
+- [x] meshoptimizer v1.3 recorded in `docs/dependencies.md` (version, source, SHA-512, MIT, what is built) before it is added to `extern/CMakeLists.txt`; the build uses only the pinned copy.
+- [x] Classification, merge and simplify tests pass on generated meshes (listed in stage a), including byte-for-byte determinism across input order and thread counts.
+- [x] Payload tests: round trip, canonical bytes, every malformed-input case in the list above refused with a located error, mutation test clean.
 - [ ] The bake command produces `objects.edenpak` from real Morrowind data, deterministically (two bakes give the same SHA-256), `edenvalidate` accepts it, and the report gives counts, group numbers, sizes and time.
 - [ ] With `object clusters` on, frames at the far horizon of the S0 poses show towers, rocks and trees at 30000 view, no seam at tile-to-tile or cluster-to-live joins and no pop in a walking sequence (frames looked at and described in the stage log); census draws, triangles, memory and frame time recorded against S0's rows.
 - [ ] A reference disabled by script or moved falls back to the live chunk for its cell (a test of the rule on generated data, and a check in the game).
@@ -145,4 +145,9 @@ Out of scope: impostors for trees and landmarks (S10), per-model LOD chains of t
 
 ## Stage log (implementer's notes)
 
-(empty: nothing is built yet)
+### Stages a and b (2026-11-02, Windows)
+
+- **Where.** `components/lod/clusterbuild.*` (classification, transform, per-object `meshopt_simplify` with an absolute error, merge by (texture, flags, cutoff), cell ranges and reference lists), `components/lod/objectcluster.*` (draft layout version 0: writer, strict reader, validator, `packClusterKey`), `extern/CMakeLists.txt` (meshoptimizer v1.3 compiled as `openeden_meshoptimizer`), `docs/dependencies.md` (recorded first). Tests: 60 written by a separate agent from the spec text and the declaration headers before any implementation existed (all passed at the first build), 6 more from the reviewer's findings (`testclusterreview.cpp`). `components-tests`: 4335 pass.
+- **Choices the spec left open.** Group order is (texture, flags, cutoff) (the cutoff is a third key; the spec says two). Group path offsets are canonical (back to back in group order). The reader refuses anything that is not the exact canonical bytes. A mirrored transform multiplies the cofactor matrix by the sign of the determinant so normals keep pointing out. A piece with a texture the payload cannot hold is made normal (lower case, forward slashes, no leading slash) or left out; a piece whose tile-space position overflows a float is left out; a piece that collapses completely adds half its bounding diagonal to the geometric error. An object whose pieces all vanish is counted as excluded `Empty`.
+- **Reviewer findings fixed:** non-finite values reaching meshoptimizer, unstorable pieces failing the whole tile, overhang rounding, range and vertex cell slots not cross-checked, control characters in paths, per-vertex string building. **Not fixed (nice to have):** a reference in two cells of one cluster is accepted by the reader; the reader reports offset 0 for table-content errors; errors for a payload stored under the wrong tile key check only the level; `-0` and `+0` decode the same; a tile above the range or vertex caps is a hard error; the group loop is O(groups x pieces).
+- **Not done:** stage c (bake command; the flattening of a `vsg::Node` model into triangle lists is still the unknown), stage d (runtime, mask, dither). Nothing in the game uses clusters yet; `[WorldLod] object clusters` does not exist yet, so nothing can change when it is off.
