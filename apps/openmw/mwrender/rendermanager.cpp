@@ -40,16 +40,16 @@
 #include <components/render/cloudgpu.hpp>
 #include <components/render/cloudmath.hpp>
 #include <components/render/covermath.hpp>
-#include <components/render/lightningmath.hpp>
-#include <components/render/precipitationmath.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
 #include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/render/hdrtarget.hpp>
+#include <components/render/lightningmath.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
 #include <components/render/parallaxmath.hpp>
+#include <components/render/precipitationmath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
@@ -1713,11 +1713,12 @@ namespace MWRender
         {
             const vsg::vec3 flashColour = Render::Lightning::colourAdd(mLightningIntensity);
             const float flashWeight = Render::Atmosphere::Detail::luma(flashColour);
-            const float sunWeight
-                = std::max(Render::Atmosphere::Detail::luma(vsg::vec3(mLightDiffuse.x, mLightDiffuse.y, mLightDiffuse.z))
-                        - flashWeight,
-                    0.f);
-            lightPosition = Render::Lightning::mergedDirection(mLightPosition, sunWeight, mLightningDirection, flashWeight);
+            const float sunWeight = std::max(
+                Render::Atmosphere::Detail::luma(vsg::vec3(mLightDiffuse.x, mLightDiffuse.y, mLightDiffuse.z))
+                    - flashWeight,
+                0.f);
+            lightPosition
+                = Render::Lightning::mergedDirection(mLightPosition, sunWeight, mLightningDirection, flashWeight);
         }
         mSceneData->setLightPosition(lightPosition, sceneData.invView);
         sceneData.lightViewPos.a = mRenderModes[Render_Sky] ? mSky->getLightSize() : 8.f;
@@ -1984,7 +1985,8 @@ namespace MWRender
             const std::string& particles = mSky->getParticleEffect();
             const auto& models = Settings::models();
             if (!particles.empty()
-                && (particles == models.mWeathersnow.get().value() || particles == models.mWeatherblizzard.get().value()))
+                && (particles == models.mWeathersnow.get().value()
+                    || particles == models.mWeatherblizzard.get().value()))
             {
                 const vsg::mat4& invView = mSceneData->value().invView;
                 const vsg::vec3 forward(-invView[2][0], -invView[2][1], -invView[2][2]);
@@ -1993,7 +1995,8 @@ namespace MWRender
                 const float cosTheta = sunLength > 0.f && forwardLength > 0.f
                     ? vsg::dot(mLightPosition, forward) / (sunLength * forwardLength)
                     : 0.f;
-                const vsg::vec3 sunLinear = Render::Hdr::toLinear(vsg::vec3(mLightDiffuse.x, mLightDiffuse.y, mLightDiffuse.z));
+                const vsg::vec3 sunLinear
+                    = Render::Hdr::toLinear(vsg::vec3(mLightDiffuse.x, mLightDiffuse.y, mLightDiffuse.z));
                 const vsg::vec3 lit = Render::Hdr::toEncoded(Render::Precipitation::snowSunLight(sunLinear, cosTheta));
                 mWeatherEffects->setSunLight(&lit);
             }

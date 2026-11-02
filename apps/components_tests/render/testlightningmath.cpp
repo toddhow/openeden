@@ -172,8 +172,8 @@ namespace
 
     TEST(RenderLightning, anyOneSecondHoldsAtMostThreePeaks)
     {
-        // WCAG 2.3.1: no more than three flashes in any one second. Count the stroke peaks in every one-second window of
-        // a dense storm (a strike every 0.05 s for a minute), as the limiter lets them through.
+        // WCAG 2.3.1: no more than three flashes in any one second. Count the stroke peaks in every one-second window
+        // of a dense storm (a strike every 0.05 s for a minute), as the limiter lets them through.
         std::vector<float> peaks;
         Flasher flasher;
         for (int i = 0; i < 1200; ++i)

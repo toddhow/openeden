@@ -50,9 +50,9 @@ namespace Render::Lightning
     // The flash is gone by `duration`; it eases to nothing over the last `fadeOutTime` of it.
     constexpr float duration = 1.f;
     constexpr float fadeOutTime = 0.25f;
-    // A flash's colour as an add to display-encoded colours: a cold white with a touch of blue. Chosen by eye; Morrowind's
-    // weather records hold no lightning colour (the Weather_* fallback keys have a thunder frequency, threshold and
-    // flash decrement only), so the colour is OpenEden's.
+    // A flash's colour as an add to display-encoded colours: a cold white with a touch of blue. Chosen by eye;
+    // Morrowind's weather records hold no lightning colour (the Weather_* fallback keys have a thunder frequency,
+    // threshold and flash decrement only), so the colour is OpenEden's.
     constexpr vsg::vec3 colour{ 0.80f, 0.90f, 1.0f };
     // The part of the sky a flash comes from: the direction's height above the horizon is between these.
     constexpr float minElevation = 25.f * pi / 180.f;
@@ -210,8 +210,8 @@ namespace Render::Lightning
     {
         const float ws = sunWeight > 0.f ? sunWeight : 0.f;
         const float wf = flashWeight > 0.f ? flashWeight : 0.f;
-        const float length
-            = std::sqrt(sunDirection.x * sunDirection.x + sunDirection.y * sunDirection.y + sunDirection.z * sunDirection.z);
+        const float length = std::sqrt(
+            sunDirection.x * sunDirection.x + sunDirection.y * sunDirection.y + sunDirection.z * sunDirection.z);
         if (!(wf > 0.f) || !(length > 0.f))
             return sunDirection;
         const vsg::vec3 unitSun = sunDirection / length;

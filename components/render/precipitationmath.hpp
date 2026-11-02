@@ -1,8 +1,9 @@
 #ifndef OPENEDEN_RENDER_PRECIPITATIONMATH_H
 #define OPENEDEN_RENDER_PRECIPITATIONMATH_H
 
-// OpenEden (task 0040, stage b): the light of rain and snow. The shader twin is files/shaders/lib/light/precipitation.glsl
-// (rain, per pixel); the snow's colour is worked out here once a frame (`snowColour`). No game types.
+// OpenEden (task 0040, stage b): the light of rain and snow. The shader twin is
+// files/shaders/lib/light/precipitation.glsl (rain, per pixel); the snow's colour is worked out here once a frame
+// (`snowColour`). No game types.
 //
 // In plain words. A raindrop or a flake is a tiny thing that scatters the light that falls on it towards the viewer.
 // So a streak is lit by what is around it, with no "surface" for the light to fall on:
@@ -34,8 +35,9 @@ namespace Render::Precipitation
     // (Weather_*_Rain_Diameter), so drops at its edge are 300 away and at its corners 424.
     constexpr float fadeStart = 200.f;
     constexpr float fadeEnd = 380.f;
-    // A streak is drawn this much longer at this rain speed (the one global rain speed of weather.cpp, so in practice a constant stretch), and in proportion below it. Chosen by
-    // eye; the stretch is the lengthening of the streak along its fall.
+    // A streak is drawn this much longer at this rain speed (the one global rain speed of weather.cpp, so in practice a
+    // constant stretch), and in proportion below it. Chosen by eye; the stretch is the lengthening of the streak along
+    // its fall.
     constexpr float maxStretch = 0.6f;
     constexpr float stretchSpeed = 800.f;
     // The share of the lit colour the snow takes from the sun's phase, which for flakes is flatter than for rain
@@ -54,8 +56,8 @@ namespace Render::Precipitation
         return 4.f * Atmosphere::pi * Atmosphere::henyeyGreenstein(cosTheta, sunAnisotropy);
     }
 
-    // The light on a streak, from the scene's ambient light, its sun colour, the cosine to the sun, and the lamps' summed
-    // light at the streak (all in the same lighting space, linear in the HDR view). Never negative.
+    // The light on a streak, from the scene's ambient light, its sun colour, the cosine to the sun, and the lamps'
+    // summed light at the streak (all in the same lighting space, linear in the HDR view). Never negative.
     inline vsg::vec3 lightColour(
         const vsg::vec3& ambient, const vsg::vec3& sun, float cosTheta, const vsg::vec3& points)
     {

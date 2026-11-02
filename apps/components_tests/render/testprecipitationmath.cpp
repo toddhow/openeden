@@ -1,6 +1,6 @@
-// Tests for the precipitation light maths, Render::Precipitation (task 0040, stage b): the light on a streak (dark in the
-// dark, bright near a lamp, brighter against the sun), the distance fade, the stretch, the snow colour, and that the
-// shader twin (files/shaders/lib/light/precipitation.glsl) holds the same constants. Pure CPU maths.
+// Tests for the precipitation light maths, Render::Precipitation (task 0040, stage b): the light on a streak (dark in
+// the dark, bright near a lamp, brighter against the sun), the distance fade, the stretch, the snow colour, and that
+// the shader twin (files/shaders/lib/light/precipitation.glsl) holds the same constants. Pure CPU maths.
 
 #include <components/render/precipitationmath.hpp>
 

@@ -107,7 +107,8 @@ namespace
 
     TEST(RenderSunGlow, hazierAirGlowsMore)
     {
-        EXPECT_GT(sunGlow(white, white, 0.9f, elevationLow, 0.2f, 1.f).x, sunGlow(white, white, 0.9f, elevationLow, 0.8f, 1.f).x);
+        EXPECT_GT(sunGlow(white, white, 0.9f, elevationLow, 0.2f, 1.f).x,
+            sunGlow(white, white, 0.9f, elevationLow, 0.8f, 1.f).x);
     }
 
     TEST(RenderSunGlow, aLowSunGlowsWarmAndAHighSunNearlyWhite)

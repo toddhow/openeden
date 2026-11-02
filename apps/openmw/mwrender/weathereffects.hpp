@@ -50,8 +50,9 @@ namespace MWRender
         void update(float dt, const vsg::vec3& cameraPosition, const vsg::quat& orientation, float alpha, bool visible);
 
         /// Task 0040: lights the effect by the sun's part of its light (the display-encoded colour the material's
-        /// emissive takes), replacing the NIF's constant emissive glow; null only stops writing it (the effect's materials are cloned anew whenever the particle file
-        /// changes, so a stale colour never outlives the snow). Main thread.
+        /// emissive takes), replacing the NIF's constant emissive glow; null only stops writing it (the effect's
+        /// materials are cloned anew whenever the particle file changes, so a stale colour never outlives the snow).
+        /// Main thread.
         void setSunLight(const vsg::vec3* encodedColour)
         {
             mHasSunLight = encodedColour != nullptr;

@@ -451,8 +451,8 @@ namespace MWWorld
         void applyAtmosphere(MWRender::WeatherResult& result, float sunHeight) const;
         void updateWetness(float duration, bool paused, bool isExterior);
         void updateCover(float duration, bool paused, bool isExterior);
-        // task 0040: the flash colour to add to the sun, ambient and fog this frame (zero when `lightning` is off or the
-        // vanilla flash is used); tells the renderer the flash's brightness and direction
+        // task 0040: the flash colour to add to the sun, ambient and fog this frame (zero when `lightning` is off or
+        // the vanilla flash is used); tells the renderer the flash's brightness and direction
         vsg::vec3 updateLightning(const float elapsedSeconds, const bool isPaused);
         void calculateResult(const int weatherID, const float gameHour);
         void calculateTransitionResult(const float factor, const float gameHour);
