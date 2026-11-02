@@ -20,6 +20,9 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/mesh/testmeshtree.cpp
     model/mesh/testmeshviewstate.cpp
     model/mesh/testtexturereport.cpp
+    model/lod/testtilemodel.cpp
+    model/lod/testtilemesh.cpp
+    model/lod/testworldgrid.cpp
     model/physics/testdebuglinedrawer.cpp
     model/physics/testjoltruntime.cpp
     model/physics/teststudioworld.cpp

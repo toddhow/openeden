@@ -30,6 +30,7 @@
 
 #include "../../model/world/idtable.hpp"
 
+#include "../lod/tileviewer.hpp"
 #include "../render/worldspacewidget.hpp"
 #include "../world/dialoguesubview.hpp"
 #include "../world/meshsubview.hpp"
@@ -124,6 +125,11 @@ void CSVDoc::View::setupFileMenu()
     QAction* openMesh = file->addAction(tr("Open Mesh..."));
     openMesh->setObjectName("document-file-openmesh");
     connect(openMesh, &QAction::triggered, this, &View::openMeshFile);
+
+    // The LOD tile viewer (task 0055, stage S1e).
+    QAction* openLod = file->addAction(tr("Open LOD Tile Pack..."));
+    openLod->setObjectName("document-file-openlodpack");
+    connect(openLod, &QAction::triggered, this, &View::openLodPack);
 
     file->addSeparator();
 
@@ -1134,6 +1140,25 @@ void CSVDoc::View::openMeshFile()
         return;
     }
     addSubView(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, file.mid(at + 8).toStdString()));
+}
+
+void CSVDoc::View::openLodPack()
+{
+    const QString file
+        = QFileDialog::getOpenFileName(this, tr("Open LOD Tile Pack"), QString(), tr("Eden packs (*.edenpak)"));
+    if (file.isEmpty())
+        return;
+    // A window of its own, owned by this one and deleted with it (Qt parent), so no handle is kept.
+    auto* viewer = new CSVLod::TileViewer(this);
+    viewer->setAttribute(Qt::WA_DeleteOnClose);
+    QString error;
+    if (!viewer->openPack(file, error))
+    {
+        QMessageBox::warning(this, tr("Open LOD Tile Pack"), error);
+        delete viewer;
+        return;
+    }
+    viewer->show();
 }
 
 void CSVDoc::View::newView()

@@ -188,3 +188,36 @@ Tests changed because of the freeze (each fixes bytes or a number of the layout,
 - `LodTilePack.open_refuses_a_pack_without_the_derived_flag` needed no edit of its own: it builds on the pinned manifest text above.
 
 Re-bake under version 1: two bakes of the real data (Morrowind, Tribunal, Bloodmoon) into two folders are byte-identical (same SHA-256), 414 tiles, 414 read back, `edenvalidate` OK.
+
+### S1e: the Eden Studio tile viewer, GPU-free (done 2026-11-02)
+
+- **Built.** `apps/opencs/model/lod/tilemodel.*` (the model: table rows, tile mesh as a triangle list with decoded normals, height/normal/albedo RGBA8 pictures, the world map and its selection states with the forced Tile/Live/Auto toggle, `parseCameraSpec`), `apps/opencs/view/lod/tileviewer.*` (the Qt panel, File > Open LOD Tile Pack...), `apps/opencs/lodcheck.*` (`eden-studio --open-lod-pack PACK [--lod-camera x,y,z,heading,fov,viewport,threshold,mode] [--lod-tile ROW]`, writes PNGs to the screenshots folder and logs one summary line). Notes in `apps/opencs/CLAUDE.md`, "Tile viewer".
+- **Tests.** 44 tests in `apps/opencs_tests/model/lod/`, written by a separate agent from the header `tilemodel.hpp` alone before the implementation existed; all pass first time. No GPU, window or game data.
+- **Choices the spec left open.** The map's camera and view cone are those of `Lod::selectTiles` (the viewer adds none); a map pixel is a cell times a scale, north at the top; forced modes override only the reported state; the albedo picture is the first mip of an Rgba8 albedo (none in S1 packs, so the panel shows "no albedo"); the check hook ignores `--auto-screenshot/--auto-quit` counts because nothing is drawn by a GPU.
+- **Not built.** A 3D viewport of the tile mesh (the mesh function exists and is tested; `MeshScene` was not looked at), block-compressed albedo, a map that follows a flying camera.
+- **How to check.** Run the command above against a baked pack and open `lod-map.png`, `lod-height.png`, `lod-normal.png`, `lod-panel.png`. Real data (414 tiles, camera -20000,-10000,3000 heading 45, threshold 64): 7 tiles drawn, 1 live, 406 skipped; the map shows the Morrowind land outline with the tiles ahead of the camera in green and the one the camera stands over in orange.
+
+### S1f: cost and calibration (2026-11-02, Windows, RTX 4070, level 1 tiles with the live blend maps, layout version 1)
+
+Method: `[Camera] viewing distance = 30000`, distant terrain on, 1280 x 720, `[Rendering] frame counters = true`, one run per row, last 300 frames of a 600-frame run, a frame at running frame 300 compared with the run without tiles by `imgdiff`-style difference (`System.Drawing`, max channel difference). Poses: Balmora is `tools/benchmark_data/balmora_view.txt` (3000 up, north); Vivec is the same with the player at x 30000, y -74000, z 3000 (a scratchpad script, not committed). "Draws" and "triangles" are the S0 census of the scene graph with no culling (an upper bound, not issued draw commands). Run-to-run noise of the frame time on this machine: two identical Balmora runs gave medians 3.66 and 4.37 ms.
+
+| Pose | Threshold (px) | Tiles drawn | Frame ms median / p95 | Census draws | Census triangles | Pixels differing by more than 4 / 16 against no tiles |
+| --- | --- | --- | --- | --- | --- | --- |
+| Balmora | off | 0 | 4.04 / 4.67 | 33823 | 2,416,311 | - |
+| Balmora | 4 | 0 | 3.95 / 4.79 | 33823 | 2,416,311 | 0.030 % / 0.005 % |
+| Balmora | 8 | 4 | 3.80 / 4.50 | 33820 | 2,366,967 | 0.013 % / 0.001 % |
+| Balmora | 16 | 4 | 3.85 / 4.56 | 33820 | 2,366,967 | 0.055 % / 0.007 % |
+| Balmora | 64 | 7 | 3.73 / 4.41 | 33814 | 2,299,511 | 0.66 % / 0.09 % |
+| Balmora | 256 | 8 | 3.86 / 4.69 | 33799 | 2,268,727 | 4.2 % / 0.92 % |
+| Vivec | off | 0 | 7.19 / 8.12 | 41058 | 2,466,504 | - |
+| Vivec | 4 | 1 | 7.14 / 8.28 | 41058 | 2,460,264 | 0.69 % / 0.14 % |
+| Vivec | 8 | 5 | 7.03 / 7.84 | 41055 | 2,410,952 | 0.74 % / 0.14 % |
+| Vivec | 16 | 7 | 7.12 / 8.01 | 41049 | 2,349,704 | 3.7 % / 0.63 % |
+| Vivec | 64 | 7 | 7.03 / 7.82 | 41049 | 2,349,704 | 3.8 % / 0.64 % |
+| Vivec | 256 | 9 | 7.09 / 7.94 | 40977 | 2,288,200 | 21 % / 3.4 % |
+
+(The runs at 2 px drew no tile in either pose and are the same as off.)
+
+- **What it says.** Level 1 tiles with the live blend maps do not reduce the draw census (at most 81 fewer of 41058) and cut triangles by 2 to 7 percent at thresholds up to 256; the frame time differences (up to 0.3 ms) are inside the run-to-run spread, so no gain is claimed. The process holds 86 to 112 MiB more (RSS 793 to 879 to 905 MiB in Balmora, 1008 to 1094 to 1109 in Vivec) with the system on, whether or not a tile is drawn: the second terrain builder with its own layer array, the tiles and the staleness check's bake. That cost was not split further.
+- **Calibrated default: 8 pixels.** Thresholds up to 8 keep the frame within the noise of the baseline in both poses (Balmora 0.013 to 0.03 % of pixels over 4 grey levels, against 0.34 % for two runs with no tiles; Vivec 0.69 to 0.74 %, the same as at 4); at 16 the Vivec frame changes by 3.7 % of its pixels and at 64 and 256 the differences grow (Balmora at 64 was looked at: only far ridges change; the Vivec frames were not looked at). So 8 is the largest tested threshold with no visible difference, and it is now the default in `files/settings-default.cfg`. The 95th-percentile method of the spec (per tile forced-level differences) was not done; this is a coarser calibration from two poses and seven thresholds.
+- **Seams (crack fix, looked at).** Live chunks next to a tile are split until their vertex detail is not coarser than the tile's (`Terrain::Coverage::touchedVertexLod`, `Paging::updateView`), so neither side needs a stitched edge. Frames at thresholds 400 and 2000 in the Balmora pose, cropped at 3 times the size at the join of tile and live terrain, show no seam or sliver, only the coarser shape and shading of the tile. Only a few tiles were in view in each pose (the view is one direction), and no walk along the whole border was done.

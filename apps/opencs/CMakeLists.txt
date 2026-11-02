@@ -72,6 +72,10 @@ opencs_units (model/mesh
     meshviewstate meshtree framemath meshgeometry texturereport animationkeys meshoverlay
     )
 
+opencs_units (model/lod
+    tilemodel
+    )
+
 opencs_units (model/physics
     joltruntime studioworld debuglinedrawer
     )
@@ -122,7 +126,11 @@ set (OPENCS_SRC
 set (OPENCS_HDR
     )
 
-opencs_units (. editor capture)
+opencs_units (. editor capture lodcheck)
+
+opencs_units (view/lod
+    tileviewer
+    )
 
 opencs_units (view/module
     moduleui

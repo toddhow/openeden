@@ -188,6 +188,7 @@ namespace CSVDoc
         void newView();
 
         void openMeshFile();
+        void openLodPack();
 
         void save();
 

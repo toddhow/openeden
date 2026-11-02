@@ -1,5 +1,6 @@
 #include "capture.hpp"
 #include "editor.hpp"
+#include "lodcheck.hpp"
 #include "view/render/rendercontext.hpp"
 
 #include <exception>
@@ -46,6 +47,10 @@ int runApplication(int argc, char* argv[])
 #ifdef __linux__
     setlocale(LC_NUMERIC, "C");
 #endif
+
+    // The tile viewer check draws nothing on a GPU, so it needs no render context (task 0055, stage S1e).
+    if (CS::isLodPackRequest(argc, argv))
+        return CS::runLodPackCheck(argc, argv);
 
     // Before anything that opens a view, so that the device goes after every view and document.
     CSVRender::RenderContext::Lifetime renderContext;
