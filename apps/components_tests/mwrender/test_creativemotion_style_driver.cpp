@@ -64,6 +64,16 @@ namespace
         return 2.f * std::acos(std::min(1.f, std::abs(quatDot(a, b))));
     }
 
+    // Quaternions q and -q are the same rotation: compare after aligning their signs.
+    void expectQuatNear(const vsg::quat& actual, const vsg::quat& expected, float tol)
+    {
+        const float sign = quatDot(actual, expected) < 0.f ? -1.f : 1.f;
+        EXPECT_NEAR(actual.x * sign, expected.x, tol);
+        EXPECT_NEAR(actual.y * sign, expected.y, tol);
+        EXPECT_NEAR(actual.z * sign, expected.z, tol);
+        EXPECT_NEAR(actual.w * sign, expected.w, tol);
+    }
+
     float distance(const vsg::vec3& a, const vsg::vec3& b)
     {
         const float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
@@ -310,7 +320,10 @@ TEST(CreativeMotionStyleDriverTest, UnmappedBonesAreLeftAlone)
     for (const char* name : { "bip01", "bip01 tail" })
     {
         EXPECT_LT(distance(styled.translation(name), reference.translation(name)), 1e-5f) << name;
-        EXPECT_LT(quatAngle(styled.rotation(name), reference.rotation(name)), 1e-4f) << name;
+        // Compare the components, not an angle: acos of a float dot product near 1 cannot resolve better than about
+        // 7e-4 rad (the dot of a unit quaternion with itself may come out 0.99999994 with fused multiply-add, as on
+        // GCC), so an angle bound of 1e-4 would fail for two identical rotations.
+        expectQuatNear(styled.rotation(name), reference.rotation(name), 1e-6f);
     }
 }
 
