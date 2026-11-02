@@ -646,8 +646,8 @@ namespace MWRender
         // The hand-over order is Lod::stepCoverage's: a cluster dithers in over the live objects, is solid while they
         // leave out its statics, and when it is no longer wanted stays solid until they draw the statics again (or
         // another solid cluster covers the cell).
-        const Lod::LiveReadyFn ready
-            = liveReady ? Lod::LiveReadyFn(liveReady) : Lod::LiveReadyFn([](const Lod::Cell&) { return true; });
+        static const Lod::LiveReadyFn alwaysReady = [](const Lod::Cell&) { return true; };
+        const Lod::LiveReadyFn& ready = liveReady ? liveReady : alwaysReady;
         if (Lod::stepCoverage(state.mCover, static_cast<float>(seconds), setup.mFadeSeconds, ready))
             state.mClusteredDirty = true;
 

@@ -23,14 +23,15 @@ namespace Lod
     inline constexpr std::uint8_t blendCutoutThreshold = 128;
     /// Bumped when the foliage rule (flattenNifModel's blendAsCutout, textureLooksTranslucent) changes; the baker puts
     /// it in the digest parameters so that older packs go stale.
-    inline constexpr std::uint32_t foliageRuleVersion = 2;
+    inline constexpr std::uint32_t foliageRuleVersion = 3;
 
     /// Whether a texture file name is a translucent surface (water, ice, glass, mist, smoke, rope, web, a window, a
     /// bottle, a ghost, bubbles, glows and shafts of light) that would draw wrong as a solid cutout. The base name
     /// (without folders and extension) is split into words at everything that is not a letter and lower-cased; a word
     /// matches when it equals a keyword (ray, rays, mist, fog, rope, ropes, web, webs, window, windows, bottle,
     /// bottles, ghost, bubble, bubbles, smoke, steam, glass, glow, cloud, clouds, water, ice) or begins with one of
-    /// water, ice, glass, glow, smoke, steam, cloud, ghost, bubble (so icelayer and waterfall match; gray, tray, array,
+    /// water, ice, glass, glow, smoke, steam, cloud, ghost, bubble, window, rope, fog, mist (so icelayer, waterfall,
+    /// windowpane, ropebridge and fogbank match; gray, tray, array,
     /// office and notice do not).
     bool textureLooksTranslucent(std::string_view texture);
 

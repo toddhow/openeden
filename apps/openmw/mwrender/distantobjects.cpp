@@ -325,10 +325,12 @@ namespace MWRender
 
     bool DistantObjects::staticsReady(const std::pair<int, int>& cell) const
     {
+        if (!mHasUpdated)
+            return true; // hidden or not started: the live objects draw nothing, there is nothing to wait for
         std::optional<bool> shown;
         if (const auto it = mShownSkipsStatics.find(cell); it != mShownSkipsStatics.end())
             shown = it->second;
-        return Lod::liveStaticsReady(mClustered.contains(cell), mRebuilding.contains(cell), shown,
+        return Lod::liveStaticsReady(mClustered.contains(cell), mRebuilding.contains(cell) || mTracker.isPending(cell), shown,
             std::binary_search(mWantedCells.begin(), mWantedCells.end(), cell));
     }
 

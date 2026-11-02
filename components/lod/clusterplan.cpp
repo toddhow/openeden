@@ -1,7 +1,7 @@
 #include "clusterplan.hpp"
 
 #include <algorithm>
-#include <map>
+#include <vector>
 
 namespace Lod
 {
@@ -17,14 +17,14 @@ namespace Lod
     bool stepCoverage(std::span<CoverTile> tiles, float seconds, float fadeSeconds, const LiveReadyFn& liveReady)
     {
         // The cells that a Solid tile covers, taken before anything moves, and only when some tile needs them.
-        std::map<Cell, int> solid;
+        std::vector<Cell> solid; // sorted: the cells a Solid tile covers
         const bool needed = std::any_of(
             tiles.begin(), tiles.end(), [](const CoverTile& tile) { return needsLiveObjects(tile.mFade.mPhase); });
         if (needed)
             for (const CoverTile& tile : tiles)
                 if (tile.mFade.mPhase == FadePhase::Solid)
-                    for (const Cell& cell : tile.mCells)
-                        ++solid[cell];
+                    solid.insert(solid.end(), tile.mCells.begin(), tile.mCells.end());
+        std::sort(solid.begin(), solid.end());
 
         bool changed = false;
         for (CoverTile& tile : tiles)
@@ -37,7 +37,7 @@ namespace Lod
                 {
                     // Another Solid tile covers the cell: the clusters hand over to each other (this tile is not Solid
                     // in these phases, so any count is another tile's).
-                    if (solid.contains(cell))
+                    if (std::binary_search(solid.begin(), solid.end(), cell))
                         continue;
                     if (!liveReady(cell))
                     {

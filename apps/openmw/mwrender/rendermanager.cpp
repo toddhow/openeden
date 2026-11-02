@@ -1828,8 +1828,11 @@ namespace MWRender
         camera.mAspect = mProjectionMatrix->aspectRatio;
         camera.mViewportHeight = mAppliedExtent.height;
         camera.mViewDistance = mViewDistance;
-        mLodClusters->update(camera, dt, [this](const std::pair<int, int>& cell) {
-            return !mDistantObjects || mDistantObjects->staticsReady(cell);
+        // Outside the exterior the live objects are not drawn at all (DistantObjects is hidden and does not rebuild), so
+        // waiting for them would keep a cluster on screen in an interior: nothing to wait for there.
+        const bool exterior = camera.mEnabled;
+        mLodClusters->update(camera, dt, [this, exterior](const std::pair<int, int>& cell) {
+            return !exterior || !mDistantObjects || mDistantObjects->staticsReady(cell);
         });
         // The live distant objects stop drawing the statics of the cells a cluster draws (and take them back).
         if (mDistantObjects && mLodClusters->clusteredCellsVersion() != mLodClustersPushed)
