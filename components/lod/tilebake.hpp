@@ -3,7 +3,7 @@
 
 // OpenEden world LOD (task 0055, stage S1c). Baking one terrain tile from full-detail land data. Pure code: the land
 // comes through the LandSource interface, which the game implements over the same terrain storage the live terrain
-// uses (apps/openmw/lodterrainbaker.*) and the tests implement with generated data. DRAFT, layout version 0.
+// uses (apps/openmw/lodterrainbaker.*) and the tests implement with generated data. Layout version 1.
 //
 // What a bake does for a tile of 2^level x 2^level cells with N x N vertices:
 //  - heights: the full-detail grid sampled every 2^lod vertices, where 64 * cells / 2^lod + 1 == N (so 33 for a
@@ -29,8 +29,9 @@
 
 namespace Lod
 {
-    /// Version of the baker's behaviour (goes into the manifest and the provenance parameters). Draft: 0.
-    inline constexpr std::uint32_t bakerVersion = 0;
+    /// Version of the baker's behaviour (goes into the manifest and the provenance parameters). Version 1 (the approved
+    /// layout).
+    inline constexpr std::uint32_t bakerVersion = 1;
     /// Vertices per side of one cell of land in Morrowind (ESM::Land::LAND_SIZE); a cell has 64 intervals.
     inline constexpr std::uint32_t landVerticesPerCell = 65;
 

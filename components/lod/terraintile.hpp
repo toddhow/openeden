@@ -4,9 +4,10 @@
 // OpenEden world LOD (task 0055, stage S1b). The payload of one baked terrain tile: a height grid, normals and an
 // albedo picture. The bytes are one Eden Archive entry of type 0x0010.
 //
-// DRAFT: this is "layout version 0" (the spec's proposal, not approved by toddhow). The header's version field holds
-// terrainTilePayloadVersion (0), and the reader refuses any other value, so a later final layout cannot be mistaken
-// for this one. Nothing outside components/lod may depend on offsets; use these functions.
+// Layout version 1, approved by toddhow on 2026-11-02 (decision 0010). The header's version field holds
+// terrainTilePayloadVersion (1), and the reader refuses any other value, so a later layout cannot be mistaken for
+// this one (version 0 was the draft; its packs are refused and must be baked again). Nothing outside components/lod
+// may depend on offsets; use these functions.
 //
 // Reading untrusted bytes: every size and offset is checked before it is used; a failure returns a LodError and
 // never throws or reads outside the span.
@@ -21,7 +22,7 @@
 namespace Lod
 {
     inline constexpr std::uint16_t entryTypeTerrainTile = 0x0010;
-    inline constexpr std::uint16_t terrainTilePayloadVersion = 0; // draft
+    inline constexpr std::uint16_t terrainTilePayloadVersion = 1;
     inline constexpr std::size_t terrainTileHeaderSize = 88;
     inline constexpr std::uint32_t minGridSize = 3;
     inline constexpr std::uint32_t maxGridSize = 129;

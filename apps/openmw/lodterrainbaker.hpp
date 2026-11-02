@@ -2,8 +2,8 @@
 #define OPENMW_LODTERRAINBAKER_H
 
 // OpenEden (task 0055, stage S1c): `openmw --bake-lod-terrain` bakes the terrain of the loaded game data into a
-// derived Eden Archive pack of tiles (<user data>/openeden/lod/terrain.edenpak, or under --bake-gi-out). DRAFT:
-// the tile layout is version 0 (components/lod).
+// derived Eden Archive pack of tiles (<user data>/openeden/lod/terrain.edenpak, or under --bake-gi-out). Layout
+// version 1 (components/lod).
 //
 // Runs inside the game, once per frame while the game is running, on the main thread, like the other bakers: each
 // call bakes tiles for about 10 milliseconds so that the window stays alive, and when all are done it writes the pack

@@ -212,7 +212,7 @@ namespace
         return bytes;
     }
 
-    const std::string canonicalManifest = R"({"albedoSize":256,"bakerVersion":1,"gridSize":33,"layoutVersion":0,)"
+    const std::string canonicalManifest = R"({"albedoSize":256,"bakerVersion":1,"gridSize":33,"layoutVersion":1,)"
                                           R"("levels":[1],"worldspaces":[{"cellSize":8192,"index":0,)"
                                           R"("name":"Morrowind"}]})";
 
@@ -271,7 +271,7 @@ namespace
     {
         EXPECT_EQ(writeManifestJson(canonicalValue()), canonicalManifest);
         EXPECT_EQ(canonicalManifest,
-            "{\"albedoSize\":256,\"bakerVersion\":1,\"gridSize\":33,\"layoutVersion\":0,\"levels\":[1],"
+            "{\"albedoSize\":256,\"bakerVersion\":1,\"gridSize\":33,\"layoutVersion\":1,\"levels\":[1],"
             "\"worldspaces\":[{\"cellSize\":8192,\"index\":0,\"name\":\"Morrowind\"}]}");
     }
 
@@ -668,10 +668,10 @@ namespace
 
     TEST(LodTilePack, open_refuses_a_manifest_with_another_layout_version)
     {
-        for (const char* version : { "1", "2", "4000000000" })
+        for (const char* version : { "0", "2", "4000000000" })
         {
             const std::string text
-                = replaceOnce(canonicalManifest, "\"layoutVersion\":0", std::string("\"layoutVersion\":") + version);
+                = replaceOnce(canonicalManifest, "\"layoutVersion\":1", std::string("\"layoutVersion\":") + version);
             const std::vector<std::uint8_t> bytes = rawPack(true, &text, {});
             LodError error;
             const std::unique_ptr<TilePack> pack = openBytes(bytes, error);

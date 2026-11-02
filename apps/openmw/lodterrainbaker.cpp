@@ -81,7 +81,7 @@ namespace OMW
             state.mManifest.mBakerVersion = Lod::bakerVersion;
             state.mTiles.reserve(state.mIds.size());
             Log(Debug::Info) << "LOD terrain bake: " << cells.size() << " land cells, " << state.mIds.size()
-                             << " tiles of level " << state.mSettings.mLevel << " (draft layout version "
+                             << " tiles of level " << state.mSettings.mLevel << " (layout version "
                              << Lod::tileKeyLayoutVersion << "). No albedo is baked in this stage.";
         }
 

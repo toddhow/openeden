@@ -623,7 +623,8 @@ namespace Lod
             return nullptr;
         if (impl->mManifest.mLayoutVersion != tileKeyLayoutVersion)
         {
-            error = fail("layoutVersion", 0, "the pack was made with another (draft) tile layout version");
+            error = fail("layoutVersion", 0,
+                "the pack was made with another tile layout version (a draft version 0 pack must be baked again)");
             return nullptr;
         }
         std::vector<std::uint64_t> keys;

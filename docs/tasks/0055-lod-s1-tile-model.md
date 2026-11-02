@@ -174,3 +174,17 @@ toddhow has NOT approved the tile key and payload layouts above. They are built 
   - The second `Terrain::Builder` builds a second copy of the layer texture array; memory not measured.
   - The Eden Studio tile viewer (stage e) was not built.
   - Shadows, picking and the map do not see the tiles (they use the live view only).
+
+### Layout freeze: version 1 (2026-11-02, approved by toddhow, decision 0010 "LOD tile layouts")
+
+The key layout, the 88-byte payload header and the canonical manifest of this spec are approved as written, with one change from the proposal: the header's version field is **1** (the draft built so far wrote 0). `Lod::tileKeyLayoutVersion` and `Lod::terrainTilePayloadVersion` are both 1; the reader accepts only 1; the manifest says `"layoutVersion":1`; `Lod::bakerVersion` is 1. A pack baked with the draft (version 0) is refused with a located error and must be baked again. The "draft" wording is removed from the code, the setting's comment and the module notes. The text of the "Draft status" section above is history.
+
+Tests changed because of the freeze (each fixes bytes or a number of the layout, so it changed with it; nothing else was touched):
+- `LodTerrainTile.header_bytes_of_a_tiny_tile_derived_by_hand`: the version bytes 4 to 5 are `01 00` (were `00 00`), and the check of `terrainTilePayloadVersion` is 1.
+- `LodTerrainTile.header_words_of_a_tile_with_normals_and_albedo`: the version byte is checked against 1.
+- `LodTerrainTile.a_version_other_than_one_is_refused_at_offset_4` (was `..._zero_...`): the refused values are 0, 2, 0x100, 0xFFFF (were 1, 2, 0x100, 0xFFFF).
+- `LodTilePack.manifest_writes_the_pinned_canonical_text` and `manifest_parses_the_pinned_text_and_round_trips_byte_for_byte`: the pinned text has `"layoutVersion":1`.
+- `LodTilePack.open_refuses_a_manifest_with_another_layout_version`: refused values 0, 2, 4000000000 (were 1, 2, 4000000000).
+- `LodTilePack.open_refuses_a_pack_without_the_derived_flag` needed no edit of its own: it builds on the pinned manifest text above.
+
+Re-bake under version 1: two bakes of the real data (Morrowind, Tribunal, Bloodmoon) into two folders are byte-identical (same SHA-256), 414 tiles, 414 read back, `edenvalidate` OK.

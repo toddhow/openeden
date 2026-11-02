@@ -362,8 +362,8 @@ namespace
 
         const std::vector<std::uint8_t> expected = { // 0: magic "ETT1"
             0x45, 0x54, 0x54, 0x31,
-            // 4: version 0, 6: flags 0
-            0x00, 0x00, 0x00, 0x00,
+            // 4: version 1 (layout freeze, 2026-11-02), 6: flags 0
+            0x01, 0x00, 0x00, 0x00,
             // 8: N = 3, 12: level = 1
             0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
             // 16: side 16384.0f, 20: origin x -16384.0f, 24: origin y 0.0f
@@ -388,7 +388,7 @@ namespace
         ASSERT_TRUE(writeTerrainTile(tile, bytes).ok());
         EXPECT_EQ(bytes, expected);
         EXPECT_EQ(terrainTileHeaderSize, 88u);
-        EXPECT_EQ(terrainTilePayloadVersion, 0);
+        EXPECT_EQ(terrainTilePayloadVersion, 1);
     }
 
     TEST(LodTerrainTile, header_words_of_a_tile_with_normals_and_albedo)
@@ -397,7 +397,7 @@ namespace
         const std::vector<std::uint8_t> bytes = payloadOf(tile);
         ASSERT_EQ(bytes.size(), 224u);
         EXPECT_EQ(getU32(bytes, offMagic), 0x31545445u); // "ETT1" read as a little-endian word
-        EXPECT_EQ(bytes[offVersion], 0u);
+        EXPECT_EQ(bytes[offVersion], 1u);
         EXPECT_EQ(bytes[offVersion + 1], 0u);
         EXPECT_EQ(bytes[offFlags], 0x03u); // normals and albedo
         EXPECT_EQ(bytes[offFlags + 1], 0x00u);
@@ -536,10 +536,10 @@ namespace
         }
     }
 
-    TEST(LodTerrainTile, a_version_other_than_zero_is_refused_at_offset_4)
+    TEST(LodTerrainTile, a_version_other_than_one_is_refused_at_offset_4)
     {
         for (const std::uint16_t version :
-            { std::uint16_t{ 1 }, std::uint16_t{ 2 }, std::uint16_t{ 0x100 }, std::uint16_t{ 0xFFFF } })
+            { std::uint16_t{ 0 }, std::uint16_t{ 2 }, std::uint16_t{ 0x100 }, std::uint16_t{ 0xFFFF } })
         {
             std::vector<std::uint8_t> bytes = payloadOf(baseTile());
             setU16(bytes, offVersion, version);

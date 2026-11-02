@@ -3,7 +3,7 @@
 
 // OpenEden world LOD (task 0055, stage S1a). The tile key of a baked terrain tile.
 //
-// DRAFT: this layout is "layout version 0". toddhow has not approved it and it is NOT stable. Nothing outside
+// Layout version 1, approved by toddhow on 2026-11-02 (decision 0010). Version 0 was the draft. Nothing outside
 // components/lod may depend on the bit positions: use the functions below.
 //
 // A key is 64 bits: bits 63..56 the tag (0x10 terrain tile), bits 55..48 the worldspace index, bits 47..44 the level
@@ -15,8 +15,8 @@
 
 namespace Lod
 {
-    /// Version of the key layout and the payload layout together. 0 means "draft, may change without notice".
-    inline constexpr std::uint32_t tileKeyLayoutVersion = 0;
+    /// Version of the key layout and the payload layout together: 1, approved 2026-11-02 (0 was the draft).
+    inline constexpr std::uint32_t tileKeyLayoutVersion = 1;
     /// The container's key tag of a terrain tile (spec section 10.3, 11.3).
     inline constexpr std::uint8_t tagTerrainTile = 0x10;
     inline constexpr std::uint32_t maxLevel = 15;

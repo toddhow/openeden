@@ -2,7 +2,7 @@
 #define OPENMW_MWRENDER_LODTERRAIN_H
 
 // OpenEden world LOD (task 0055, stage S1d): baked terrain tiles drawn for the far field, behind `[WorldLod] enabled`.
-// DRAFT: the tile layout is version 0 (components/lod).
+// The tile layout is version 1 (components/lod), approved 2026-11-02.
 //
 // What it does, in plain words. At start it asks a worker thread to open <user data>/openeden/lod/terrain.edenpak,
 // to check that the pack was made from the land the game has loaded (the pack's content digest against a digest of

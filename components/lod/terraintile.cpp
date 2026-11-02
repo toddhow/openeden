@@ -11,7 +11,7 @@ namespace Lod
 {
     namespace
     {
-        // Byte offsets of the header fields (the 88-byte table of the draft layout).
+        // Byte offsets of the header fields (the 88-byte table of layout version 1).
         constexpr std::size_t offMagic = 0;
         constexpr std::size_t offVersion = 4;
         constexpr std::size_t offFlags = 6;
@@ -260,7 +260,7 @@ namespace Lod
         if (std::memcmp(h + offMagic, magic, 4) != 0)
             return fail("magic", offMagic, "the magic is not ETT1");
         if (getU16(h + offVersion) != terrainTilePayloadVersion)
-            return fail("version", offVersion, "unsupported payload version (only the draft version 0 is read)");
+            return fail("version", offVersion, "unsupported payload version (only version 1 is read)");
         const std::uint16_t flags = getU16(h + offFlags);
         if ((flags & ~(flagHasNormals | flagHasAlbedo)) != 0)
             return fail("flags", offFlags, "unknown or unsupported flag bits");

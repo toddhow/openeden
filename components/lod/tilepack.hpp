@@ -2,7 +2,7 @@
 #define OPENMW_COMPONENTS_LOD_TILEPACK_H
 
 // OpenEden world LOD (task 0055, stage S1b). A derived Eden Archive pack of baked terrain tiles: one keyed entry per
-// tile (type 0x0010, key tag 0x10) plus the manifest entry `lod/manifest.json`. DRAFT, layout version 0.
+// tile (type 0x0010, key tag 0x10) plus the manifest entry `lod/manifest.json`. Layout version 1.
 
 #include <cstdint>
 #include <filesystem>

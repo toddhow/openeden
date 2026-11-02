@@ -134,7 +134,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Rule:** `CompileContext::detach` may be called from any thread now; anything else a worker thread does to a node that the render threads can reach is still unsynchronised. `Paging::updateView` edits `view.rootNode->children` on the worker, which is safe only while that preload view is not in the scene.
 - **Finding a "hang":** check for an `openmw-crash.dmp` and a Fatal Error window first. `scratchpad`-style runner: start the game under the Win32 debug API (`crashrun`) with `_NO_DEBUG_HEAP=1`, which writes a dump at the first access violation and shows no dialog.
 
-## World LOD terrain tiles (task 0055, stages S1c and S1d; DRAFT layouts, version 0)
+## World LOD terrain tiles (task 0055, stages S1c and S1d; layout version 1, approved 2026-11-02)
 
 - **Where:** `components/lod/` (pure: keys, selection, payload, pack, bake; all layout knowledge is there), `apps/openmw/lodterrainbaker.*` (`--bake-lod-terrain`), `apps/openmw/mwrender/lodterrain.*` (the runtime), `components/terrain/coverage.hpp` and the `coverage` parameter of `Paging::updateView`.
 - **Off means unchanged:** `RenderManager` makes `LodTerrain` only with `[WorldLod] enabled`; `updateView` gets `nullptr` otherwise and the preload thread never passes a coverage. Keep it that way.

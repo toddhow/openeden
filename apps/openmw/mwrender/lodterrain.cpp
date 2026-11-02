@@ -255,8 +255,8 @@ namespace MWRender
             }
             mCoverage.squares.reserve(mStates.size());
             Log(Debug::Info) << "World LOD terrain tiles: " << mStates.size() << " tiles of level " << mSettings.mLevel
-                             << " loaded (draft layout version " << Lod::tileKeyLayoutVersion << "), threshold "
-                             << mThreshold << " px.";
+                             << " loaded (layout version " << Lod::tileKeyLayoutVersion << "), threshold " << mThreshold
+                             << " px.";
         }
 
         bool build(std::size_t index)

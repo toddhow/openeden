@@ -3,7 +3,7 @@
 
 // OpenEden world LOD (task 0055, stage S1a). Choosing, for each baked tile, whether to draw the tile or the live
 // terrain, from the tile's error in screen pixels. Pure code: no GPU, no clock, no allocation (the caller owns the
-// array of states). DRAFT: thresholds are starting values (see the stage log of the spec).
+// array of states). Thresholds are starting values (see the stage log of the spec).
 
 #include <cstddef>
 #include <cstdint>
