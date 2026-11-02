@@ -754,8 +754,8 @@ namespace Lod
             const std::size_t at = layout.mVertices + i * clusterVertexSize;
             ClusterVertex& v = c.mVertices[i];
             const auto number = [&b, at](std::size_t offset) {
-                return static_cast<double>(static_cast<unsigned>(b[at + offset])
-                    | (static_cast<unsigned>(b[at + offset + 1]) << 8));
+                return static_cast<double>(
+                    static_cast<unsigned>(b[at + offset]) | (static_cast<unsigned>(b[at + offset + 1]) << 8));
             };
             v.mPosition[0] = static_cast<float>(readGrid.mBaseX + number(0) * readGrid.mStep);
             v.mPosition[1] = static_cast<float>(readGrid.mBaseY + number(2) * readGrid.mStep);
