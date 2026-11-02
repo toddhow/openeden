@@ -39,7 +39,7 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 8;
+        constexpr std::uint32_t bakerVersion = 9;
         // Per level (1, 2, 3): the largest simplification error in world units. Starting values of task 0059, D4: about
         // 1.6 pixels at 7,500, 20,000 and 60,000 units at an 8 pixel threshold; to be calibrated by looking at frames.
         constexpr std::uint32_t levelErrors[3] = { 128, 320, 960 };
@@ -291,8 +291,10 @@ namespace OMW
                         ++state.mBadReferences;
                         continue;
                     }
-                    object.mCellX = static_cast<std::int32_t>(std::floor(ref.mPos.pos[0] / ESM::Land::REAL_SIZE));
-                    object.mCellY = static_cast<std::int32_t>(std::floor(ref.mPos.pos[1] / ESM::Land::REAL_SIZE));
+                    // The cell the reference is stored in, as the live chunks and the active grid know it (not the cell
+                    // it stands in: the two can differ).
+                    object.mCellX = cell.first;
+                    object.mCellY = cell.second;
                     state.mObjects.push_back(std::move(object));
                 }
             }

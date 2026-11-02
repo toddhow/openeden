@@ -2567,7 +2567,11 @@ namespace MWRender
         if (mDistantObjects)
             mDistantObjects->clear();
         if (mLodClusters)
+        {
             mLodClusters->clearOverrides();
+            // clear() emptied the live objects' set of clustered cells: send it again.
+            mLodClustersPushed = ~std::uint64_t{ 0 };
+        }
     }
 
     MWAnim::Object* RenderManager::getObject(const MWWorld::Ptr& ptr)

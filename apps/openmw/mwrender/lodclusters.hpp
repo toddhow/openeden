@@ -24,6 +24,7 @@
 #include <set>
 #include <utility>
 
+#include <vsg/io/Options.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Group.h>
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <exception>
 #include <future>
 #include <map>
 #include <memory>
@@ -82,6 +83,7 @@ namespace MWRender
             float mFade = 0;
             bool mWanted = false;
             std::uint64_t mMaskVersion = 0;
+            std::set<int> mMasked; // the cell slots the draws leave out
             std::size_t mDraws = 0;
             std::size_t mTriangles = 0;
             // The cells of the cluster that are not masked.
@@ -110,6 +112,9 @@ namespace MWRender
         ActiveCellGrid mActive;
         std::set<std::pair<std::uint32_t, std::uint32_t>> mOverrides; // (index, content file)
         std::uint64_t mMaskVersion = 1;
+        vsg::ref_ptr<vsg::Sampler> mSampler;
+        std::uint64_t mClusteredSignature = 0; // rises when a mask rebuild changed a tile's free cells
+        std::uint64_t mClusteredSignatureSeen = ~std::uint64_t{ 0 };
 
         std::set<std::pair<int, int>> mClustered;
         std::uint64_t mClusteredVersion = 0;
@@ -121,7 +126,7 @@ namespace MWRender
     namespace
     {
         // Runs on a worker: opens the pack and reads every header.
-        OpenResult openPack(const std::filesystem::path& path)
+        OpenResult openPackUnchecked(const std::filesystem::path& path)
         {
             OpenResult result;
             Lod::LodError error;
@@ -148,8 +153,23 @@ namespace MWRender
             return result;
         }
 
+        // A worker must not let an exception reach the frame loop through future::get().
+        OpenResult openPack(const std::filesystem::path& path)
+        {
+            try
+            {
+                return openPackUnchecked(path);
+            }
+            catch (const std::exception& e)
+            {
+                OpenResult result;
+                result.mError = e.what();
+                return result;
+            }
+        }
+
         // Runs on a worker: reads and decodes one cluster and the pictures of its groups.
-        Loaded loadCluster(const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id,
+        Loaded loadClusterUnchecked(const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id,
             vsg::ref_ptr<const vsg::Options> images)
         {
             Loaded loaded;
@@ -173,6 +193,20 @@ namespace MWRender
             loaded.mOk = true;
             loaded.mMilliseconds = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
             return loaded;
+        }
+
+        Loaded loadCluster(const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id,
+            vsg::ref_ptr<const vsg::Options> images)
+        {
+            try
+            {
+                return loadClusterUnchecked(pack, id, images);
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "LOD clusters: cannot load a cluster: " << e.what();
+                return Loaded{};
+            }
         }
 
         std::pair<int, int> cellOf(const Lod::ClusterCell& cell)
@@ -279,7 +313,8 @@ namespace MWRender
         }
 
         // Builds the draws of one cluster for the cells that are not masked. Main thread.
-        vsg::ref_ptr<vsg::Node> buildNode(Tile& tile, const LodClusters::Setup& setup, const std::set<int>& masked)
+        vsg::ref_ptr<vsg::Node> buildNode(
+            Tile& tile, const LodClusters::Setup& setup, const std::set<int>& masked, vsg::ref_ptr<vsg::Sampler>& sampler)
         {
             const Lod::ObjectCluster& cluster = tile.mData->mCluster;
             tile.mMaterials.clear();
@@ -326,9 +361,12 @@ namespace MWRender
                 if (g < tile.mData->mImages.size() && tile.mData->mImages[g])
                 {
                     options.shader.addMode(Pipeline::Mode::DIFFUSE_MAP);
-                    auto sampler = setup.mBuilder->createSampler();
-                    sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-                    sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+                    if (!sampler)
+                    {
+                        sampler = setup.mBuilder->createSampler();
+                        sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+                        sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+                    }
                     descriptors.push_back(vsgUtil::sharedDescriptorImage(setup.mImageOptions->sharedObjects, sampler,
                         tile.mData->mImages[g], Pipeline::Descriptors::DIFFUSE_UNIT));
                 }
@@ -502,13 +540,17 @@ namespace MWRender
                 {
                     const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
                     tile.mFade = 0;
-                    tile.mNode = buildNode(tile, setup, masked);
+                    tile.mNode = buildNode(tile, setup, masked, state.mSampler);
                     tile.mMaskVersion = state.mMaskVersion;
+                    tile.mMasked = masked;
                     ++builds;
-                    if (tile.mNode)
-                    {
-                        setup.mCompile->compile(tile.mNode);
+                    if (tile.mNode && setup.mCompile->compile(tile.mNode))
                         state.mRoot->addChild(tile.mNode);
+                    else
+                    {
+                        // Not compiled: no draws for this tile (the live objects keep it).
+                        tile.mNode = {};
+                        tile.mMaterials.clear();
                     }
                     tile.mFreeCells.clear();
                     for (std::size_t slot = 0; slot < tile.mData->mCluster.mCells.size(); ++slot)
@@ -521,23 +563,33 @@ namespace MWRender
                 continue;
 
             // The mask changed: rebuild the draws for the new set of cells.
+            std::set<int> masked;
+            bool rebuild = false;
             if (tile.mMaskVersion != state.mMaskVersion && builds < maxBuildsPerFrame + 1)
             {
-                const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
-                vsg::ref_ptr<vsg::Node> old = tile.mNode;
-                tile.mNode = buildNode(tile, setup, masked);
+                masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
                 tile.mMaskVersion = state.mMaskVersion;
+                rebuild = masked != tile.mMasked;
+            }
+            if (rebuild)
+            {
+                vsg::ref_ptr<vsg::Node> old = tile.mNode;
+                tile.mNode = buildNode(tile, setup, masked, state.mSampler);
+                tile.mMasked = masked;
                 ++builds;
+                ++state.mClusteredSignature;
                 if (old)
                 {
                     auto& children = state.mRoot->children;
                     children.erase(std::remove(children.begin(), children.end(), old), children.end());
                     setup.mCompile->detach(old);
                 }
-                if (tile.mNode)
-                {
-                    setup.mCompile->compile(tile.mNode);
+                if (tile.mNode && setup.mCompile->compile(tile.mNode))
                     state.mRoot->addChild(tile.mNode);
+                else
+                {
+                    tile.mNode = {};
+                    tile.mMaterials.clear();
                 }
                 tile.mFreeCells.clear();
                 for (std::size_t slot = 0; slot < tile.mData->mCluster.mCells.size(); ++slot)
@@ -573,9 +625,19 @@ namespace MWRender
             }
         }
 
-        // The cells whose statics the clusters draw: wanted, fully in, not masked.
-        std::set<std::pair<int, int>> clustered;
+        // The cells whose statics the clusters draw: wanted, fully in, not masked. Worked out again only when the
+        // tiles that count, or a mask, changed (a signature of them), not every frame.
+        std::uint64_t signature = state.mClusteredSignature * 1000003u;
         std::size_t built = 0, shown = 0, draws = 0, triangles = 0;
+        for (std::size_t i = 0; i < state.mTiles.size(); ++i)
+        {
+            const Tile& tile = state.mTiles[i];
+            if (tile.mPhase == Tile::Phase::Built && tile.mWanted && tile.mFade >= 1.f)
+                signature = signature * 31u + i + 1;
+        }
+        const bool recompute = signature != state.mClusteredSignatureSeen;
+        state.mClusteredSignatureSeen = signature;
+        std::set<std::pair<int, int>> clustered;
         for (const Tile& tile : state.mTiles)
         {
             if (tile.mPhase != Tile::Phase::Built)
@@ -586,10 +648,10 @@ namespace MWRender
             ++shown;
             draws += tile.mDraws;
             triangles += tile.mTriangles;
-            if (tile.mFade >= 1.f)
+            if (recompute && tile.mFade >= 1.f)
                 clustered.insert(tile.mFreeCells.begin(), tile.mFreeCells.end());
         }
-        if (clustered != state.mClustered)
+        if (recompute && clustered != state.mClustered)
         {
             state.mClustered = std::move(clustered);
             ++state.mClusteredVersion;
