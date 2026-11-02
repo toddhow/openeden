@@ -59,3 +59,11 @@ This records what toddhow decided when asked to settle the questions that had pi
 | 0049 | The unmeasured `auto` budget table | **Not yet answered**; it is a starting point until it is measured |
 | 0049 | The `auto` budget table | **Auto** (accepted as the starting table; measure and revise once the downscaler exists) |
 | 0051 | File extension of the Eden Archive Format | **`.edenpak`** ("edenpak works", toddhow). The collision check in task 0051 stage b still has to confirm it from the extension databases and record the result, and the magic bytes and MIME type are still to be chosen there |
+
+## LOD tile layouts (task 0055, 2026-11-02)
+
+| Spec | Question | Answer |
+| --- | --- | --- |
+| 0055 | The draft tile key and payload layouts (key: tag 0x10, 8-bit worldspace index, 4-bit level, 44-bit Morton code of the biased coordinates; the 88-byte payload header with heights, normals and albedo each 8-aligned and padding zero; the canonical manifest JSON; `hintMemorySize` is the payload size) | **Approved** ("I approve the draft layout", toddhow). The layout version in the payload header moves from the draft value 0 to 1 |
+| 0055 | Bake albedo into tiles, or reuse the live blend maps | Not yet answered; the code keeps reusing the live blend maps |
+| 0055 | Level 1 tiles, or level 2 / a coarser threshold | Not yet answered; the code keeps level 1 and threshold 4 |
