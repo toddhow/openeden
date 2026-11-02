@@ -88,7 +88,8 @@ namespace Lod
                 [](char c) { return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c; });
             while (!built.mTexture.empty() && built.mTexture.front() == '/')
                 built.mTexture.erase(built.mTexture.begin());
-            if (!isValidClusterTexturePath(built.mTexture) || (piece.mFlags & ~(clusterFlagAlphaTest | clusterFlagTwoSided)) != 0)
+            if (!isValidClusterTexturePath(built.mTexture)
+                || (piece.mFlags & ~(clusterFlagAlphaTest | clusterFlagTwoSided)) != 0)
                 return false;
             const std::size_t vertexCount = piece.mVertices.size();
 

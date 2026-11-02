@@ -286,9 +286,11 @@ namespace Lod
                     return fail("indices[" + std::to_string(i) + "]", 0, "index beyond the vertex count");
             // The ranges (used to mask a cell) and the vertices (used to fade it) must agree on the cell.
             for (std::size_t i = 0; i < c.mRanges.size(); ++i)
-                for (std::uint64_t k = c.mRanges[i].mFirstIndex; k < std::uint64_t{ c.mRanges[i].mFirstIndex } + c.mRanges[i].mIndexCount; ++k)
+                for (std::uint64_t k = c.mRanges[i].mFirstIndex;
+                     k < std::uint64_t{ c.mRanges[i].mFirstIndex } + c.mRanges[i].mIndexCount; ++k)
                     if (c.mVertices[c.mIndices[k]].mCellSlot != c.mRanges[i].mCellSlot)
-                        return fail("ranges[" + std::to_string(i) + "]", 0, "a vertex has another cell slot than its range");
+                        return fail(
+                            "ranges[" + std::to_string(i) + "]", 0, "a vertex has another cell slot than its range");
             return {};
         }
 
