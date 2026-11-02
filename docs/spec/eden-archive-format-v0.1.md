@@ -1,6 +1,6 @@
 # Eden Archive Format: container specification, version 0.1 (draft)
 
-Status: **draft 0.1**, written 2026-11-01 (task 0051, archive milestone A2). Version 0.x makes **no compatibility promise** (section 16). Nothing in this document is implemented yet; the reference library and the conformance corpus are task 0052.
+Status: **draft 2 of version 0.1**: written 2026-11-01 (task 0051, archive milestone A2) and revised the same day after an independent review that read only this text (task 0052, step 0; changelog at the end). Version 0.x makes **no compatibility promise** (section 16). The reference library and the conformance corpus are task 0052.
 
 Licence of this text: CC BY 4.0 (decision 8 of `docs/design/eden-archive-format.md` section 17; that this licence suits a standard text is **verify** before publication).
 
@@ -129,33 +129,33 @@ The header is **512 bytes** in this version (`headerSize` = 512). It starts at o
 | 0 | 8 | bytes | `magic` | MUST equal `45 44 45 4E 50 41 4B 01` |
 | 8 | 2 | u16 | `versionMajor` | 0 for this specification |
 | 10 | 2 | u16 | `versionMinor` | 1 for this specification |
-| 12 | 4 | u32 | `headerSize` | MUST be a multiple of 8 and at least 512; this version writes 512. A reader MUST accept a larger value only for the same major version (the bytes from 512 to `headerSize` are then unknown and ignored; section 16). MUST be at most 4096. |
+| 12 | 4 | u32 | `headerSize` | MUST be 512 in version 0.1 (`E_VERSION` otherwise). From version 1.0 a later minor version may write a larger multiple of 8 (at most 4096) and a reader of that major version ignores the extra bytes (section 16.1); `headerChecksum` is then at `headerSize - 32`. |
 | 16 | 8 | u64 | `packFlags` | section 11.4. Bits 0 to 31 are *critical*: a reader MUST reject the pack (`E_UNSUPPORTED`) if it sees a set bit it does not know. Bits 32 to 63 are *ignorable*. |
 | 24 | 8 | u64 | `fileSize` | MUST equal the real size of the file |
 | 32 | 4 | u32 | `chunkSize` | nominal chunk size in bytes: a power of two from 4096 to 8388608 (section 8.2) |
-| 36 | 4 | u32 | `entryRecordSize` | size in bytes of one entry record (section 7.4); MUST be a multiple of 8 and at least 112, at most 4096. Readers use it as the stride |
-| 40 | 4 | u32 | `chunkRecordSize` | size of one chunk record (section 7.7); a multiple of 8, at least 56, at most 4096 |
+| 36 | 4 | u32 | `entryRecordSize` | size in bytes of one entry record (section 7.4); MUST be a multiple of 8, at least 112 and at most 512. Readers use it as the stride |
+| 40 | 4 | u32 | `chunkRecordSize` | size of one chunk record (section 7.7); a multiple of 8, at least 56, at most 256 |
 | 44 | 4 | u32 | `compressorVersion` | informative: the version number of the zstd library that wrote codec-1 chunks, in zstd's `ZSTD_VERSION_NUMBER` form (`major*10000 + minor*100 + release`, `zstd.h` in https://github.com/facebook/zstd, read 2026-11-01); 0 if none was used |
 | 48 | 4 | i32 | `compressorLevel` | informative: the zstd compression level used; 0 if none |
 | 52 | 4 | u32 | reserved | |
 | 56 | 8 | u64 | `entryCount` | number of entry records |
 | 64 | 8 | u64 | `pathEntryCount` | number of entries with a path (flag `HAS_PATH`) |
 | 72 | 8 | u64 | `keyEntryCount` | number of entries with a key (flag `HAS_KEY`) |
-| 80 | 8 | u64 | `dataOffset` | start of the data region; a multiple of 8 and at least `headerSize` (canonical: 4096) |
-| 88 | 8 | u64 | `dataSize` | length of the data region in bytes, from `dataOffset` to the end of the last stored byte (no trailing padding) |
-| 96 | 8 | u64 | `metadataOffset` | start of the metadata region; a multiple of 8 (canonical: 4096-aligned) |
-| 104 | 8 | u64 | `metadataSize` | length of the metadata region; a multiple of 8 |
+| 80 | 8 | u64 | `dataOffset` | start of the data region; MUST be 4096 in version 0.1 |
+| 88 | 8 | u64 | `dataSize` | length of the data region in bytes: 0 if no entry has a chunk, otherwise the end offset of the last chunk's stored bytes minus `dataOffset` (no trailing padding) |
+| 96 | 8 | u64 | `metadataOffset` | start of the metadata region; MUST be the smallest multiple of 4096 that is at least `dataOffset + dataSize` |
+| 104 | 8 | u64 | `metadataSize` | length of the metadata region; MUST equal the sum of the seven sub-region sizes (section 7.1), is a multiple of 8 and at most 2^32 |
 | 112 | 8 | u64 | `stringTableOffset` | start of the string table |
-| 120 | 8 | u64 | `stringTableSize` | its length, a multiple of 8 |
-| 128 | 8 | u64 | `entryTableOffset` | start of the entry table (`entryCount * entryRecordSize` bytes) |
+| 120 | 8 | u64 | `stringTableSize` | its length, a multiple of 8 (section 7.2) |
+| 128 | 8 | u64 | `entryTableOffset` | start of the entry table (`entryCount * entryRecordSize` bytes; there is no size field) |
 | 136 | 8 | u64 | `pathIndexOffset` | start of the path index (`pathEntryCount * 16` bytes) |
 | 144 | 8 | u64 | `keyIndexOffset` | start of the key index (`keyEntryCount * 16` bytes) |
 | 152 | 8 | u64 | `chunkTablesOffset` | start of the chunk tables region |
-| 160 | 8 | u64 | `chunkTablesSize` | its length |
+| 160 | 8 | u64 | `chunkTablesSize` | its length: MUST equal `chunkRecordSize` times the total number of chunk records (section 7.7) |
 | 168 | 8 | u64 | `provenanceOffset` | start of the provenance region |
-| 176 | 8 | u64 | `provenanceSize` | its length (0 if there are no provenance records) |
+| 176 | 8 | u64 | `provenanceSize` | its length: the sum of the provenance record sizes (section 7.8), 0 if there are none |
 | 184 | 8 | u64 | `extensionOffset` | start of the extension blocks (section 16.3) |
-| 192 | 8 | u64 | `extensionSize` | its length (0 if none) |
+| 192 | 8 | u64 | `extensionSize` | its length, a multiple of 8, at most 16 MiB (0 if none) |
 | 200 | 8 | u64 | `generation` | for a derived pack (flag `DERIVED`), the generation number it belongs to (section 18); otherwise 0 |
 | 208 | 32 | bytes | `sourceDigest` | for a derived pack, the 32-byte digest of the packs and inputs it was built from (section 18); otherwise 32 zero bytes |
 | 240 | 32 | bytes | `manifestDigest` | the logical digest of section 13.5 |
@@ -163,9 +163,11 @@ The header is **512 bytes** in this version (`headerSize` = 512). It starts at o
 | 304 | 176 | bytes | reserved | zero; room for fields of later minor versions |
 | 480 | 32 | bytes | `headerChecksum` | BLAKE3-256 of the header bytes `[0, headerSize - 32)` (all of the header except this field). For `headerSize` 512 these are bytes 0 to 479 |
 
-A region whose size is 0 is **empty**: its offset is ignored by readers (a canonical writer writes the offset where the region would begin, which is the end of the previous region).
+The path index and the key index have no size field: their sizes are `pathEntryCount * 16` and `keyEntryCount * 16`; the entry table's size is `entryCount * entryRecordSize`. "Empty" means size 0.
 
-The sub-regions of the metadata region (string table, entry table, path index, key index, chunk tables, provenance, extension blocks) MUST all lie inside `[metadataOffset, metadataOffset + metadataSize)` and MUST NOT overlap each other. Their order in the metadata region is free for a reader; the canonical order is in section 7.1.
+**The metadata region is exactly tiled.** The seven sub-regions follow each other in the order of section 7.1, each starting exactly where the previous one ends (the string table at `metadataOffset`), whether or not a sub-region is empty: the offset of an empty sub-region is therefore the end of the previous one. Every sub-region size is a multiple of 8. The last sub-region ends at `metadataOffset + metadataSize`, which is `fileSize - 128`. A pack that does not satisfy this is rejected (`E_RANGE`). (Draft 1 allowed free order and gaps; the review found that bytes in gaps are covered by no digest, so draft 2 forbids them.)
+
+**Fixed outer layout in 0.1.** `dataOffset` is 4096, `metadataOffset` follows from the end of the data, and `fileSize = metadataOffset + metadataSize + 128`. The bytes `[headerSize, dataOffset)` and `[dataOffset + dataSize, metadataOffset)` MUST be zero (a reader checks them; they are at most 4095 bytes each). Gaps between the data blocks inside the data region (section 8.1) are not covered by any digest either: they MUST be zero, a validator checks it, a reader MAY skip it.
 
 ## 6. Footer
 
@@ -190,11 +192,11 @@ A reader that starts from the end of the file reads the last 128 bytes, checks `
 
 ### 7.1 Canonical order of the sub-regions
 
-All sub-regions follow each other with zero padding up to a multiple of 8 and nothing else between: **string table, entry table, path index, key index, chunk tables, provenance records, extension blocks.** The metadata region ends exactly at `fileSize - 128` in canonical form.
+The sub-regions MUST follow each other in this order, with nothing between them (section 5, "exactly tiled"): **string table, entry table, path index, key index, chunk tables, provenance records, extension blocks.** Padding to a multiple of 8 is part of the sub-region it follows (the string table, each provenance record). The metadata region ends exactly at `fileSize - 128`.
 
 ### 7.2 String table
 
-A byte array of the entries' paths, concatenated, with no separators and no terminators. Each path-bearing entry points into it with an offset and a length. Canonical form: paths in entry-table order, each stored once, then zero padding to a multiple of 8. A reader MUST check that each (offset, length) pair lies inside `stringTableSize`.
+A byte array of the entries' paths, concatenated, with no separators and no terminators. Each path-bearing entry points into it with an offset and a length. Paths are stored in entry-table order, each stored once and back to back: the `pathOffset` of the first path entry is 0 and each next one equals the previous `pathOffset + pathLength` (`E_RANGE`); the sum of all path lengths rounded up to a multiple of 8 MUST equal `stringTableSize`, and the padding bytes are zero. So no two paths overlap or share bytes. A reader MUST check that each (offset, length) pair lies inside `stringTableSize`.
 
 ### 7.3 Paths
 
@@ -215,7 +217,9 @@ Further rules apply when a *tool writes entries to disk*; they are in section 15
 
 #### 7.3.2 Ordering and uniqueness
 
-Entries with a path are sorted by their path bytes compared **bytewise as unsigned values, shortest first on a common prefix** (the order of `memcmp` on the common length, then the shorter name first). Paths MUST be unique: after sorting two equal paths would be adjacent. A reader that finds a path that is not strictly greater than the one before it rejects the pack (`E_ORDER`, or `E_DUPLICATE` if equal).
+Entries with a path are sorted by their path bytes compared **bytewise as unsigned values, shortest first on a common prefix** (the order of `memcmp` on the common length, then the shorter name first). Paths MUST be unique: after sorting two equal paths would be adjacent. With `cmp(a, b)`: `m = min(len a, len b); c = memcmp(a, b, m); if c != 0 return sign(c); return sign(len a - len b)`, each path MUST satisfy `cmp(previous, current) < 0`. A reader that finds `cmp == 0` rejects the pack with `E_DUPLICATE`, and `cmp > 0` with `E_ORDER`. This order does not treat `/` specially: `a-x` sorts before `a/b`.
+
+**File and directory with one name.** A pack MUST NOT contain a path that is also a proper directory prefix of another path (`a` and `a/b`): a validator rejects it (`E_NAME`), a reader MAY accept it, and a tool that writes entries to disk MUST refuse it (section 15.4).
 
 #### 7.3.3 Path hash
 
@@ -225,7 +229,7 @@ The *path hash* of a path is the first 8 bytes of the BLAKE3-256 digest of the p
 
 The entry table has `entryCount` records of `entryRecordSize` bytes, in the **entry order**:
 
-1. First, every entry that has a path, in path order (7.3.2). An entry that has both a path and a key is in this group.
+1. First, every entry that has a path, in path order (7.3.2). An entry that has both a path and a key is in this group and is ordered by its path only; its key takes no part in the ordering of group 2, but all keys of both groups together MUST be unique (`E_DUPLICATE`, found by the index check, section 14.2 item 12).
 2. Then, every entry that has a key and no path, in ascending key order (unsigned numeric, 7.5).
 
 An entry with neither a path nor a key is invalid. The order is part of the canonical form, and a reader MUST check it (`E_ORDER`). Data blocks are laid out in entry order (section 8.1), so keyed entries are stored in key order (for tile keys: in Morton order, section 7.5).
@@ -242,7 +246,7 @@ Entry record (112 bytes in this version; a later minor version MAY append fields
 | 24 | 4 | u32 | `entryFlags` | section 11.5. Bits 0 to 15 critical, bits 16 to 31 ignorable |
 | 28 | 4 | u32 | `chunkCount` | number of chunk records; 0 exactly when `uncompressedSize` is 0; at most 1,048,576 (section 12) |
 | 32 | 8 | u64 | `uncompressedSize` | size of the content in bytes; at most 4 GiB (section 12) |
-| 40 | 8 | u64 | `chunkTableOffset` | absolute offset of this entry's chunk records, a multiple of 8, inside the chunk tables region; 0 if `chunkCount` is 0 |
+| 40 | 8 | u64 | `chunkTableOffset` | absolute offset of this entry's chunk records (section 7.7: fully determined by the chunk counts of the earlier entries); 0 if `chunkCount` is 0 |
 | 48 | 32 | bytes | `contentHash` | BLAKE3-256 of the entry's whole content (section 13.1). For an empty entry the hash of zero bytes |
 | 80 | 8 | u64 | `provenanceOffset` | absolute offset of this entry's provenance record (section 7.8), inside the provenance region, a multiple of 8; 0 unless `HAS_PROVENANCE` is set |
 | 88 | 4 | u32 | `hintMemorySize` | hint: size of the decoded in-memory form in bytes, valid if `HINT_MEMSIZE` is set; 0 otherwise |
@@ -277,21 +281,21 @@ A lookup by normalized path computes the path hash, binary-searches the run of r
 
 ### 7.7 Chunk tables and chunk record
 
-The chunk tables region holds one table per non-empty entry, in entry order; each table is `chunkCount` records of `chunkRecordSize` bytes (56 in this version; a reader uses `chunkRecordSize` as the stride). The chunk records of one entry are in content order: chunk 0 holds the first bytes of the content.
+The chunk tables region holds one table per non-empty entry, in entry order, back to back; each table is `chunkCount` records of `chunkRecordSize` bytes (56 in this version; a reader uses `chunkRecordSize` as the stride). The table of an entry starts at `chunkTablesOffset + chunkRecordSize * (the sum of the chunkCount of the earlier entries)`; the tables fill the region exactly (`chunkTablesSize` = `chunkRecordSize` times the total number of chunks, at most 2^25). So tables cannot overlap or be shared (`E_RANGE`). The chunk records of one entry are in content order: chunk 0 holds the first bytes of the content.
 
 | Offset | Size | Type | Field | Rule |
 | --- | --- | --- | --- | --- |
 | 0 | 8 | u64 | `offset` | absolute offset of the chunk's stored bytes, inside the data region |
-| 8 | 4 | u32 | `storedSize` | length of the stored bytes; at least 1 |
+| 8 | 4 | u32 | `storedSize` | length of the stored bytes; 1 to 2^24, for every codec including unknown ones |
 | 12 | 4 | u32 | `uncompressedSize` | length of the chunk's content; 1 to 8,388,608 |
 | 16 | 2 | u16 | `codec` | section 11.1 |
-| 18 | 2 | u16 | `chunkFlags` | section 11.6 |
+| 18 | 2 | u16 | `chunkFlags` | section 11.6; `HASH_PRESENT` MUST be set in version 0.1 |
 | 20 | 4 | u32 | reserved | |
-| 24 | 32 | bytes | `chunkHash` | BLAKE3-256 of this chunk's **uncompressed** bytes (section 13.2); all zero if `HASH_PRESENT` is clear |
+| 24 | 32 | bytes | `chunkHash` | BLAKE3-256 of this chunk's **uncompressed** bytes (section 13.2) |
 
 The chunk's content bytes lie at the position of the sum of the `uncompressedSize` of the earlier chunks of the entry. The sum of an entry's chunk `uncompressedSize` values MUST equal the entry's `uncompressedSize`. A chunk table is read, decoded and verified **alone**: nothing in any chunk depends on another chunk.
 
-An entry whose content fits in one chunk has `chunkCount` 1, and its `chunkHash` equals its `contentHash` when `HASH_PRESENT` is set (a reader MUST check this).
+An entry whose content fits in one chunk has `chunkCount` 1, and its `chunkHash` equals its `contentHash` (a reader MUST check this at open). A reader MUST size its buffers from the chunk record's `uncompressedSize` (at most 8 MiB), never from the header's `chunkSize`.
 
 ### 7.8 Provenance record
 
@@ -308,7 +312,7 @@ Present for an entry with `HAS_PROVENANCE`. Used for **derived** entries: those 
 | 48 | `toolIdLength` | UTF-8 | `toolId` | tool name and version, for example `tilebaker/0.3.1` (no NUL) |
 | next | `parametersLength` | bytes | `parameters` | the tool's canonical parameter encoding; opaque to the container |
 
-`recordSize` MUST equal `48 + toolIdLength + parametersLength` rounded up to a multiple of 8.
+`recordSize` MUST equal `48 + toolIdLength + parametersLength` rounded up to a multiple of 8 (so it never exceeds 60,304; the limit of 65,536 is a defensive bound). A reader MUST check that 48 bytes lie inside the region before it reads `recordSize` or the lengths. `toolId` MUST be valid UTF-8 without NUL. The records fill the provenance region exactly: the record of the first entry that has one starts at `provenanceOffset`, each next one where the previous ended, in entry order; `provenanceSize` is the sum of the `recordSize` values. Records are never shared between entries. `HAS_PROVENANCE` with `provenanceSize` 0 is `E_RANGE`. Padding bytes of a record MUST be zero (the manifest digest covers them).
 
 ### 7.9 Residency hints
 
@@ -318,15 +322,15 @@ The hints are fields of the entry record (`hintMemorySize`, `hintGroup`) and fla
 
 ### 8.1 Data blocks
 
-An entry with at least one chunk has one **data block**: its chunks' stored bytes. The first chunk of the block MUST start at an **absolute file offset that is a multiple of 4096** (not an offset relative to `dataOffset`), inside the data region (this lets a reader use sector-aligned reads). In canonical form the chunks of one entry follow each other with **no gap** (chunk *k+1* starts where chunk *k* ends) and the next entry's block starts at the next multiple of 4096 after the end of the previous entry's last chunk; the gap is zero bytes. Blocks follow the entry order (section 7.4). An empty entry (content of 0 bytes) has no chunks and no block.
+An entry with at least one chunk has one **data block**: its chunks' stored bytes. The first chunk of the block MUST start at an **absolute file offset that is a multiple of 4096** (not an offset relative to `dataOffset`), inside the data region (this lets a reader use sector-aligned reads). In canonical form the chunks of one entry follow each other with **no gap** (chunk *k+1* starts where chunk *k* ends) and the next entry's block starts at the smallest multiple of 4096 that is at least the end of the previous entry's last chunk (a block that ends on a multiple of 4096 is followed directly by the next); the gap is zero bytes. Blocks follow the entry order (section 7.4). An empty entry (content of 0 bytes) has no chunks and no block.
 
-A reader MUST NOT assume that the chunks of an entry are adjacent or in the file in table order; it uses each chunk's `offset`. It MUST check that no two chunks of the whole pack overlap (section 14). Gaps between chunks are allowed for a non-canonical pack.
+A reader uses each chunk's `offset` and does not assume that chunks are adjacent. Taken in the order (entry order, chunk order), the stored ranges of all chunks of the pack MUST be strictly ascending and disjoint: `offset[k+1] >= offset[k] + storedSize[k]` (`E_OVERLAP`). This is checked in one pass with no sorting. Gaps between chunks are allowed in a non-canonical pack (they MUST be zero bytes, see section 5); chunks may not be shared between entries. The first chunk starts at or after `dataOffset`, and the last chunk ends exactly at `dataOffset + dataSize`.
 
 ### 8.2 Chunking
 
 `chunkSize` in the header is the **nominal** uncompressed chunk size: a power of two from 4096 (2^12) to 8,388,608 (2^23) bytes. **Proposal for the default: 131,072 bytes (128 KiB).** Reasons: it lies in the 64 to 256 KiB range chosen in the design document, and it equals the largest block size the zstd format allows (the zstd format's `Block_Maximum_Size` is the smaller of the window size and 128 KB, https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md, read 2026-11-01), so a chunk of that size is not split into more blocks than a smaller one would be. The final default is set by the measurement of task 0051 stage g and then by the streaming prototype; a pack carries its own `chunkSize`, so a changed default breaks nothing.
 
-**Default layout.** Entries of generic type (and of any type whose annex defines no layout) are cut at multiples of `chunkSize`: every chunk but the last has exactly `chunkSize` uncompressed bytes, and the last has 1 to `chunkSize` bytes. A **typed layout** (section 10) may define other boundaries; the hard limits of section 12 still apply to every chunk. A reader MUST NOT require the default layout (it checks sizes only against the limits and the sum), while a validator in canonical mode MUST check it.
+**Default layout.** In version 0.1 the canonical writer cuts every entry, whatever its type, by the default layout; typed boundaries (section 10) are non-canonical until their annex is frozen. Entries are cut at multiples of `chunkSize`: every chunk but the last has exactly `chunkSize` uncompressed bytes, and the last has 1 to `chunkSize` bytes. A **typed layout** (section 10) may define other boundaries; the hard limits of section 12 still apply to every chunk. A reader MUST NOT require the default layout (it checks sizes only against the limits and the sum), while a validator in canonical mode MUST check it for every entry (every chunk but the last has exactly `chunkSize` bytes and `chunkCount` is `ceil(uncompressedSize / chunkSize)`).
 
 ## 9. Codecs
 
@@ -338,17 +342,20 @@ The stored bytes are the content bytes. `storedSize` MUST equal `uncompressedSiz
 
 ### 9.2 Codec 1: zstd
 
-The stored bytes are **exactly one zstd frame** (Zstandard, RFC 8878, https://datatracker.ietf.org/doc/html/rfc8878) and nothing else. The frame:
+The stored bytes are **exactly one zstd frame** (Zstandard, RFC 8878, https://datatracker.ietf.org/doc/html/rfc8878) and nothing else. A reader checks, before it decodes, using the zstd library's frame-header parser (`ZSTD_getFrameHeader`) and `ZSTD_findFrameCompressedSize`:
 
-1. starts with the zstd magic number `0xFD2FB528` (little-endian bytes `28 B5 2F FD`), not a skippable frame;
-2. has the `Frame_Content_Size` field present and equal to the chunk's `uncompressedSize`;
-3. uses no dictionary (`Dictionary_ID` absent or 0);
-4. needs a window of at most 8 MiB (RFC 8878 section 3.1.1.1.2 recommends decoders support windows up to 8 MB; because a chunk is at most 8 MiB the window never has to be larger) and decodes to exactly `uncompressedSize` bytes;
-5. fills `storedSize` exactly: no bytes follow the frame.
+1. the frame is a normal frame with the magic `0xFD2FB528` (bytes `28 B5 2F FD`), not a skippable frame;
+2. the `Frame_Content_Size` field is present and equals the chunk's `uncompressedSize`;
+3. no dictionary: `Dictionary_ID` is absent or 0;
+4. the frame's window size is at most 8 MiB (for a single-segment frame the window equals the content size). The reader compares the parsed window size itself and also sets the library's maximum window to 2^23;
+5. the frame's compressed size equals `storedSize` exactly: no byte follows the frame (a second frame, a skippable frame and trailing bytes all fail);
+6. the frame decodes to exactly `uncompressedSize` bytes, into an output buffer of that size.
+
+Any failure is `E_CODEC` (at read; the pack still opens).
 
 Content checksum: **the zstd content checksum SHOULD be absent** (the BLAKE3 chunk hash covers the content). A reader MUST accept a frame with the checksum flag set and verify it according to the zstd library's behaviour.
 
-`storedSize` MUST NOT exceed `U + (U >> 8) + margin`, where `U` is `uncompressedSize` and `margin` is `((131072 - U) >> 11)` if `U < 131072`, otherwise 0. This is zstd's own `ZSTD_COMPRESSBOUND` macro in `lib/zstd.h` (read 2026-11-01), which that header describes as the maximum compressed size in the worst case of a single pass.
+`storedSize` MUST NOT exceed (`E_LIMIT` at open; this bound is deliberately strict, a writer that exceeds it is not canonical) `U + (U >> 8) + margin`, where `U` is `uncompressedSize` and `margin` is `((131072 - U) >> 11)` if `U < 131072`, otherwise 0. This is zstd's own `ZSTD_COMPRESSBOUND` macro in `lib/zstd.h` (read 2026-11-01), which that header describes as the maximum compressed size in the worst case of a single pass.
 
 **Decoder safety.** A reader MUST decode into a buffer of exactly `uncompressedSize` bytes, MUST fail if the frame would produce more or fewer, and MUST decode no chunk before the chunk record has passed the checks of section 14.
 
@@ -391,7 +398,7 @@ Each table has an **id**, a **status**, and the **behaviour on an unknown id**. 
 | 0 | store | stable | 9.1 |
 | 1 | zstd | stable | 9.2 |
 | 2 to 255 | reserved for later standard codecs | reserved | |
-| 256 to 65279 | unallocated | reserved | |
+| 256 to 65279 | unallocated (same behaviour as 2 to 255) | reserved | |
 | 65280 to 65535 | experimental | experimental | |
 
 Unknown codec: the chunk cannot be decoded. A reader MAY open the pack (the other entries stay usable) and MUST fail the read of the entry that uses it with `E_UNSUPPORTED`, never return the stored bytes as content.
@@ -457,7 +464,7 @@ Unknown tag: the key is an opaque 64-bit number (ordering and uniqueness still a
 
 | Bit | Name | Class | Status | Meaning |
 | --- | --- | --- | --- | --- |
-| 0 | `HASH_PRESENT` | critical | stable | `chunkHash` holds the chunk's hash. A canonical pack sets it on every chunk |
+| 0 | `HASH_PRESENT` | critical | stable | `chunkHash` holds the chunk's hash. In version 0.1 it MUST be set on every chunk (`E_RANGE` at open otherwise), so that ranged reads are always verified |
 | 1 to 7 | | critical | reserved | unknown set bit: the entry cannot be read (`E_UNSUPPORTED` on read) |
 | 8 to 15 | | ignorable | reserved | ignored if unknown |
 
@@ -479,20 +486,24 @@ Every limit below is a **proposal**: the realistic sizes of a large Morrowind an
 | --- | --- | --- |
 | Path length | 1024 bytes | equals `VFS::Path::defaultMaxEntryNameLength` in `components/vfs/entryname.hpp`, which names this specification as the place that fixes it; Windows' extended path limit is 32,767 characters, far above any asset path |
 | Path component length | 255 bytes | the usual per-component limit of common file systems (**verify** per platform) |
+| Metadata region | 4,294,967,296 (2^32) bytes | bounds the open-time work: the metadata digest is computed over it |
+| Entry record size / chunk record size | at most 512 / at most 256 bytes | so the entry table is at most 2 GiB and every table product fits in 64 bits |
+| Chunks per pack | 33,554,432 (2^25) | bounds the chunk tables to 8 GiB at 256 bytes (and the checks of 14.2 to one pass) |
+| Stored size of a chunk | 16,777,216 (2^24), any codec | so no buffer is sized from an unknown codec's `storedSize` beyond that |
 | Entries per pack | 4,194,304 (2^22) | at most 470 MB of entry table at 112 bytes each; hundreds of thousands of files are known to occur in game archives (**verify**, unmeasured), and a 100 x 100 cell tile tree has about 13,000 tiles (world-lod doc 12.3) |
 | Chunks per entry | 1,048,576 (2^20) | 4 GiB divided by the smallest nominal chunk (4096) |
 | Chunk uncompressed size | 8,388,608 (2^23) | RFC 8878's recommended decoder window of 8 MB; keeps every zstd window within it and bounds one decode buffer |
 | Nominal chunk size (header) | 4096 to 8,388,608, a power of two | |
 | Entry uncompressed size | 4,294,967,296 (2^32) | a safe cap for one asset; the field is 64-bit so that a later minor version can raise it |
-| Total uncompressed size of a pack | 70,368,744,177,664 (2^46) | |
+| Total uncompressed size of a pack | 1,099,511,627,776 (2^40) | a hostile pack can declare far more decoded bytes than it stores (a zstd run-length chunk is ten bytes for 8 MiB); readers also take a caller budget (section 15.3) |
 | Pack file size | 17,592,186,044,416 (2^44) | |
 | String table size | 4,294,967,296 (2^32) | 2^22 entries of 1024 bytes |
 | Provenance record | 65,536 bytes (tool id at most 255, parameters at most 60,000) | |
-| Extension blocks | at most 1024 blocks, 16 MiB in all | |
+| Extension blocks | at most 1024 blocks; `extensionSize` at most 16 MiB (block headers and padding included) | |
 | Nesting depth | **none**: a pack MUST NOT contain a pack as an entry that a reader opens as a pack | no nested archives (design doc 6) |
-| Header and footer | 4096 bytes at most for `headerSize`; footer exactly 128 | |
+| Header and footer | `headerSize` exactly 512 in 0.1 (at most 4096 from 1.0); footer exactly 128 | |
 
-Because a reader reads entry and chunk records using `entryRecordSize` and `chunkRecordSize` (each at most 4096), the bound on a table is at most 2^22 times 4096 bytes, which fits in 64 bits.
+Because a reader reads entry and chunk records using `entryRecordSize` and `chunkRecordSize` (at most 512 and 256), the entry table is at most 2^22 times 512 bytes and the chunk tables at most 2^25 times 256 bytes, which fit in 64 bits. The worst case of opening a hostile pack that stays inside the limits is: hash up to 4 GiB of metadata (streaming, no need to hold it), validate up to 4 GiB of path bytes, and one pass over at most 2^25 chunk records.
 
 ## 13. Hashing and integrity
 
@@ -519,7 +530,7 @@ The chunk hash is over the **uncompressed** bytes so that it does not change wit
 
 ### 13.3 Which checks a reader makes, and when
 
-At **open**: header checksum, footer agreement, regions and structure (section 14.2), and the metadata digest (a reader MAY skip the metadata digest only when the caller explicitly asks for a faster open, for example for a cache pack the same program just wrote; every other check stays). At **read** of a chunk: the chunk hash, when present. At read of a whole entry, or when asked to verify: the content hash over all the decoded bytes. Hashes are checked **before the content is trusted**: a chunk whose hash fails MUST NOT be returned to the caller as content.
+At **open**: header checksum, footer agreement, regions and structure (section 14.2), and the metadata digest (a reader MAY skip the metadata digest only when the caller explicitly asks for a faster open, for example for a cache pack the same program just wrote; every other check stays). At **read** of a chunk: the chunk hash (always present in 0.1). At read of a whole entry, or when asked to verify: the content hash over all the decoded bytes. Hashes are checked **before the content is trusted**: a chunk whose hash fails MUST NOT be returned to the caller as content.
 
 ### 13.4 What the hashes do not do
 
@@ -533,7 +544,7 @@ The *manifest digest* identifies the **logical content** of a pack, independent 
 2. `packFlags` (`u64`), `generation` (`u64`), the 32 bytes of `sourceDigest`, `chunkSize` (`u32`), `entryCount` (`u64`);
 3. for each entry, in entry order: `entryFlags` (`u32`), `entryType` (`u16`), 2 zero bytes, `key` (`u64`), `pathLength` (`u32`), the path bytes, `uncompressedSize` (`u64`), the 32 bytes of `contentHash`, `hintMemorySize`, `hintGroup`, `layoutParamA`, `layoutParamB` (each `u32`), `chunkCount` (`u32`), then for each chunk its `uncompressedSize` (`u32`) and its 32 `chunkHash` bytes, then the provenance record's `recordSize` (`u32`; 0 if the entry has none) and, if it has one, the `recordSize` bytes of the record (padding included).
 
-All integers little-endian. The digest does **not** contain codec ids, stored sizes, offsets, `compressorVersion`, `compressorLevel` or extension blocks, which are what differ between two correct writers. It is used to name derived packs and to compare two packs built from the same input.
+A keyed entry contributes `pathLength` 0 and no path bytes; an entry with no content contributes `chunkCount` 0 and no chunk list. The digest includes `packFlags` and `entryFlags` and the hint fields as stored, ignorable bits and values included (it describes the pack as written). All integers little-endian. A validator MUST recompute it and compare (`E_CHECKSUM`); a reader MAY. The digest does **not** contain codec ids, stored sizes, offsets, `compressorVersion`, `compressorLevel` or extension blocks, which are what differ between two correct writers. It is used to name derived packs and to compare two packs built from the same input.
 
 ## 14. Reader requirements
 
@@ -560,26 +571,28 @@ A reader that rejects a pack or an entry SHOULD report one of these classes (the
 
 ### 14.2 Checks at open (a reader MUST reject the pack if any fails)
 
-1. The file is at least 640 bytes (512 header + 128 footer). The last 128 bytes begin with the footer magic. The first 7 bytes are `EDENPAK` (`E_MAGIC`); the eighth is `01` (`E_VERSION`).
-2. The version is one the reader supports (section 16.1). `headerSize` is valid (section 5).
-3. The header checksum is correct. The footer agrees with the header on version, `fileSize`, `metadataOffset`, `metadataSize`, `metadataDigest` and `headerChecksum`.
-4. `fileSize` equals the real file size and is at most 2^44. There are no bytes after the footer.
-5. `packFlags` has no unknown critical bit. `chunkSize` is a power of two in range. `entryRecordSize` and `chunkRecordSize` are valid. `entryCount` is at most 2^22; table sizes are within limits.
-6. `dataOffset` is a multiple of 8 and at least `headerSize`; the data region lies inside the file, ends at or before `metadataOffset`, and does not reach the footer; the metadata region lies after the data region, ends at or before `fileSize - 128`, and its offset and size are multiples of 8.
-7. The metadata digest matches (unless the caller opted out, 13.3).
-8. Each non-empty sub-region lies inside the metadata region, starts at a multiple of 8, and no two overlap.
-9. For every entry record, in order:
-   - `entryFlags` has no unknown critical bit; at least one of `HAS_PATH` and `HAS_KEY` is set; `key` is non-zero if `HAS_KEY`; if `HAS_PATH` is clear then `pathOffset`, `pathLength` are zero;
-   - if `HAS_PATH`: the path lies inside the string table, satisfies section 7.3.1 and is strictly greater than the previous path; no path entry follows a key-only entry;
-   - for key-only entries the keys are strictly ascending;
-   - `uncompressedSize` is at most 2^32, the sum over all entries is at most 2^46; `chunkCount` is at most 2^20, and is 0 exactly when `uncompressedSize` is 0;
-   - if `HAS_PROVENANCE`: the record lies inside the provenance region, is 8-aligned, its `recordSize` and lengths are consistent and within limits; else `provenanceOffset` is ignored;
-   - if there are chunks: the chunk table lies inside the chunk tables region and is 8-aligned.
-10. For every chunk record: `uncompressedSize` is 1 to 2^23; `storedSize` is at least 1 and, for codec 0, equals `uncompressedSize`, for codec 1 is at most the bound of section 9.2; the stored bytes `[offset, offset + storedSize)` lie inside the data region; the first chunk of each entry starts at a multiple of 4096; the chunk `uncompressedSize` values add up to the entry's (checked with overflow checking); for a one-chunk entry with `HASH_PRESENT`, `chunkHash` equals `contentHash`.
-11. No two chunks of the pack overlap (sort all chunk ranges by offset, or any equivalent test).
-12. `pathEntryCount` equals the number of entries with `HAS_PATH`, and `keyEntryCount` the number with `HAS_KEY`. Every path-index record names an existing entry with `HAS_PATH`, carries the correct path hash (recomputed by the reader), and the records are strictly ascending by (hash, `entryIndex`). Every key-index record names an entry with `HAS_KEY` and the same key, strictly ascending.
+**Order and class.** The checks are made in the order below. The reported class is that of the first check that fails (items in order, bullets in order, entries in index order, chunks in order). In every check a limit comparison comes before arithmetic on the compared value. All arithmetic is 64-bit unsigned and overflow-checked (a sum that would overflow fails with `E_RANGE`, unless the value was already refused by its limit). A reader MAY run its checks in another order only if it reports the same class.
 
-A reader MAY perform checks 9 to 12 lazily only if it still guarantees that an entry or index record is checked before it is used, and it MUST NOT return data from a pack whose open-time checks (1 to 8) failed.
+1. **Identification.** A file of fewer than 7 bytes, or whose first 7 bytes are not `EDENPAK`: `E_MAGIC`. The eighth byte is not `01`: `E_VERSION`. The file is shorter than 640 bytes, or its last 128 bytes do not begin with the footer magic: `E_TRUNCATED`.
+2. **Version and sizes.** `versionMajor.versionMinor` is exactly 0.1, and `headerSize` is 512 (`E_VERSION`); `footerSize` is 128 (`E_RANGE`).
+3. **Checksums.** The header checksum is correct, and the footer agrees with the header on version, `fileSize`, `metadataOffset`, `metadataSize`, `metadataDigest` and `headerChecksum` (`E_CHECKSUM`).
+4. **File size.** The real size is at most 2^44 (`E_LIMIT`) and equals `fileSize` (`E_TRUNCATED`).
+5. **Counts and strides.** `packFlags` has no unknown critical bit (`E_UNSUPPORTED`). `chunkSize` is a power of two from 4096 to 2^23, `entryRecordSize` is a multiple of 8 from 112 to 512, `chunkRecordSize` is a multiple of 8 from 56 to 256 (`E_RANGE`). `entryCount` is at most 2^22 (`E_LIMIT`). `pathEntryCount` and `keyEntryCount` are each at most `entryCount`, and `entryCount` is at most their sum (`E_RANGE`).
+6. **Regions.** `metadataSize` is at most 2^32 (`E_LIMIT`). `dataOffset` is 4096; `dataSize` is at most `fileSize - 4096`; `metadataOffset` is the smallest multiple of 4096 at least `dataOffset + dataSize`; `metadataOffset + metadataSize + 128` equals `fileSize`. The sub-regions tile the metadata region as section 5 states, with sizes `stringTableSize` (a multiple of 8), `entryCount * entryRecordSize`, `pathEntryCount * 16`, `keyEntryCount * 16`, `chunkTablesSize` (a multiple of 8), `provenanceSize` (a multiple of 8) and `extensionSize` (a multiple of 8, at most 16 MiB, that is `E_LIMIT` first), and `metadataSize` is their sum (all `E_RANGE`). The bytes in `[headerSize, dataOffset)` and in `[dataOffset + dataSize, metadataOffset)` are zero (`E_RANGE`).
+7. **Metadata digest.** BLAKE3-256 of the metadata region equals `metadataDigest` (`E_CHECKSUM`), computed in streaming fashion. A reader MAY skip it only when the caller explicitly asks for a faster open (13.3); the conformance corpus is run with it on.
+8. **Extension blocks.** Walk the extension region: at least 16 bytes remain for a block header, else `E_RANGE`; `payloadSize` is at most the remaining bytes minus 16 (checked before it is rounded up to a multiple of 8) and the padded block fits, else `E_RANGE`; at most 1024 blocks (`E_LIMIT`); a payload size of 0 is legal; `blockFlags` bits other than bit 0 are ignored; a block with `MUST_UNDERSTAND` whose id the reader does not know: `E_UNSUPPORTED`; the known block 1 has a payload of at most 1024 bytes (`E_LIMIT`). The walk ends exactly at `extensionSize`.
+9. **Entries.** For every entry record, in order, with `i` its index:
+   - **Flags.** No unknown critical `entryFlags` bit (`E_UNSUPPORTED`). At least one of `HAS_PATH` and `HAS_KEY` is set. `key` is non-zero exactly when `HAS_KEY` is set. If `HAS_PATH` is clear, `pathOffset` and `pathLength` are zero. If `HAS_PROVENANCE` is clear, `provenanceOffset` is zero. If `entryType` is 0x0010 to 0x0013, `HAS_KEY` is set and the key's high 8 bits equal the low byte of `entryType` (all `E_RANGE`).
+   - **Sizes.** `uncompressedSize` is at most 2^32 and the running sum over all entries is at most 2^40 (`E_LIMIT`); `chunkCount` is at most 2^20 and the running total of chunk counts is at most 2^25 (`E_LIMIT`); `chunkCount` is 0 exactly when `uncompressedSize` is 0 (`E_RANGE`); if it is 0, `chunkTableOffset` is 0 and `contentHash` is the BLAKE3-256 of zero bytes (`E_RANGE`).
+   - **Path** (if `HAS_PATH`). `pathLength` is 1 to 1024 (`E_LIMIT`); the path lies inside the string table (`E_RANGE`); it satisfies 7.3.1 (`E_NAME`); `cmp(previous path, this path) < 0` (`E_DUPLICATE` if equal, `E_ORDER` if greater), and no path entry follows a key-only entry (`E_ORDER`); `pathOffset` equals the end of the previous path (0 for the first) (`E_RANGE`). After the last entry, the sum of the path lengths rounded up to 8 equals `stringTableSize`, with zero padding (`E_RANGE`).
+   - **Key** (if `HAS_KEY` and not `HAS_PATH`). The key is strictly greater than the previous key-only entry's (`E_ORDER`, or `E_DUPLICATE` if equal).
+   - **Provenance** (if `HAS_PROVENANCE`). The record is at the position section 7.8 fixes, its 48 fixed bytes lie in the region, `recordSize` is a multiple of 8 and at most 65,536, `toolIdLength` is 1 to 255, `parametersLength` is at most 60,000 (`E_LIMIT`), `recordSize` equals the rounded sum (`E_RANGE`), `toolId` is valid UTF-8 without NUL (`E_NAME`). After the last entry the record sizes add up to `provenanceSize` (`E_RANGE`).
+   - **Chunk table position.** `chunkTableOffset` equals `chunkTablesOffset + chunkRecordSize * (chunks of earlier entries)` (`E_RANGE`). After the last entry, `chunkTablesSize` equals `chunkRecordSize` times the total (`E_RANGE`).
+10. **Chunks.** For every chunk record of every entry, in (entry, chunk) order: `uncompressedSize` is 1 to 2^23 and `storedSize` is 1 to 2^24 (`E_LIMIT`); for codec 0 `storedSize` equals `uncompressedSize` (`E_RANGE`); for codec 1 `storedSize` is at most the bound of 9.2 (`E_LIMIT`); `HASH_PRESENT` is set (`E_RANGE`); `offset` is at least `dataOffset`, at most `dataOffset + dataSize`, and `storedSize` is at most `dataOffset + dataSize - offset` (`E_RANGE`); the first chunk of an entry starts at a multiple of 4096 (`E_RANGE`); `offset` is at least the end of the previous chunk of the pack (`E_OVERLAP`); the running sum of the entry's chunk `uncompressedSize` stays at most the entry's `uncompressedSize` and ends equal to it (`E_RANGE`); for a one-chunk entry `chunkHash` equals `contentHash` (`E_RANGE`). After the last chunk, its end equals `dataOffset + dataSize` (and `dataSize` is 0 if there is no chunk) (`E_RANGE`).
+11. **Path index.** There are `pathEntryCount` records. Each `entryIndex` is below `entryCount` and names an entry with `HAS_PATH` (`E_INDEX`); the `pathHash` is correct, recomputed by the reader (`E_INDEX`); records are strictly ascending by (`pathHash`, `entryIndex`) (`E_ORDER`); because the counts are equal and the pairs distinct, each path entry appears once.
+12. **Key index.** There are `keyEntryCount` records. Each `entryIndex` is below `entryCount` and names an entry with `HAS_KEY` and the same key (`E_INDEX`); keys strictly ascending (`E_ORDER`, or `E_DUPLICATE` if equal).
+
+A reader MAY perform checks 9 to 12 lazily only if it still guarantees that an entry or index record is checked before it is used, and it MUST NOT return data from a pack whose checks 1 to 8 failed. Open-time work and memory are proportional to the metadata size (at most 2^32 bytes); a reader SHOULD let the caller set lower caps.
 
 ### 14.3 Checks at read
 
@@ -587,7 +600,8 @@ A reader MAY perform checks 9 to 12 lazily only if it still guarantees that an e
 2. For codec 1: the stored bytes are a single frame that satisfies section 9.2, decoded into a buffer of exactly `uncompressedSize` bytes.
 3. If `HASH_PRESENT`, the BLAKE3-256 of the decoded bytes equals `chunkHash`; else `E_HASH`.
 4. When the whole entry is read or verified: the BLAKE3-256 of all content equals `contentHash`.
-5. A read of a range `[offset, offset + size)` of the content MUST satisfy `offset <= uncompressedSize` and `size <= uncompressedSize - offset`; otherwise it fails. The reader decodes only the chunks that overlap the range.
+5. (Draft 2) A reader that returns a chunk's bytes has verified `chunkHash`; there is no unverified path in version 0.1, because every chunk has a hash. The entry's `contentHash` is metadata the pack states about itself: a consumer that uses it to decide identity (for example the engine's conflict report) trusts the pack's author until the whole entry has been read and verified, or the pack validated.
+6. A read of a range `[offset, offset + size)` of the content MUST satisfy `offset <= uncompressedSize` and `size <= uncompressedSize - offset`; otherwise it fails. The reader decodes only the chunks that overlap the range.
 
 ### 14.4 Mapping to a virtual file system (informative)
 
@@ -613,8 +627,8 @@ A pack is hostile until proven otherwise (design doc 3 and 16). In addition to t
 
 1. **Bounds.** Every offset, size and count is bounds-checked against its region before it is used, with overflow-safe arithmetic (section 3.8). Table sizes are bounded by the limits before they are multiplied.
 2. **Allocation.** A reader's allocation is bounded by the limits: no buffer larger than one chunk's `uncompressedSize` (at most 8 MiB) is allocated from a chunk record, and no table larger than the limits allows. It never allocates according to an unchecked field.
-3. **Decompression bombs.** A zstd frame can expand by a very large factor. The defences are: the declared `uncompressedSize` is limited (8 MiB per chunk, 4 GiB per entry, 2^46 per pack); the decoder is given an output buffer of exactly the declared size and a frame that would write more fails; the frame's own content-size field must agree with the chunk record; the window is bounded; and a reader that serves untrusted packs SHOULD also keep a time and memory budget per request. Because the chunk hash is over decoded bytes, **the decoder runs before the hash can be checked**; this is why the decoder limits above are required, and why a reader SHOULD keep the zstd library up to date.
-4. **Path traversal and name tricks.** The stored-name rules (7.3.1) forbid `..`, leading `/`, `\` and control characters. A tool that writes entries to a disk folder MUST additionally apply the stricter extraction rules of `VFS::Path::checkExtractionSafe` (`components/vfs/entryname.cpp`, read 2026-11-01): reject a component that contains any of `: < > " | ? * \`; reject a component that ends with `.` or a space; reject a component whose part before the first `.` (ignoring trailing spaces) is a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `conin$`, `conout$`, `clock$`, `com1` to `com9`, `lpt1` to `lpt9`, and `com`/`lpt` followed by a superscript 1, 2 or 3), whatever the case; and write only inside the chosen target folder. Names that differ only by Unicode normalization or by non-ASCII case are different names to the container; an extractor on a case-insensitive file system SHOULD detect two entries that map to one file and refuse.
+3. **Decompression bombs.** A zstd frame can expand by a very large factor. The defences are: the declared `uncompressedSize` is limited (8 MiB per chunk, 4 GiB per entry, 2^46 per pack); the decoder is given an output buffer of exactly the declared size and a frame that would write more fails; the frame's own content-size field must agree with the chunk record; the window is bounded; and a reader that serves untrusted packs SHOULD also keep a time and memory budget per request. A reader or validator MUST accept a caller-supplied budget of decoded bytes and fail with `E_LIMIT` when it is exceeded; the tools default to 2^36 bytes unless told otherwise. Because the chunk hash is over decoded bytes, **the decoder runs before the hash can be checked**; this is why the decoder limits above are required, and why a reader SHOULD keep the zstd library up to date.
+4. **Path traversal and name tricks.** The stored-name rules (7.3.1) forbid `..`, leading `/`, `\` and control characters. A tool that writes entries to a disk folder MUST additionally apply the stricter extraction rules of `VFS::Path::checkExtractionSafe` (`components/vfs/entryname.cpp`, read 2026-11-01): reject a component that contains any of `: < > " | ? * \`; reject a component that ends with `.` or a space; reject a component whose part before the first `.` (ignoring trailing spaces) is a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `conin$`, `conout$`, `clock$`, `com1` to `com9`, `lpt1` to `lpt9`, and `com`/`lpt` followed by a superscript 1, 2 or 3), whatever the case; and write only inside the chosen target folder; refuse a path that is also a directory prefix of another path of the pack (`a` and `a/b`); and never follow a symbolic link or junction found in the output folder. Names that differ only by Unicode normalization or by non-ASCII case are different names to the container; an extractor on a case-insensitive file system SHOULD detect two entries that map to one file and refuse.
 5. **Duplicates and shadowing.** Duplicate paths and keys are rejected, so a lookup has one answer.
 6. **No code, no secrets.** The format has no executable content, no scripting and no encryption or DRM. A consumer must not execute an entry because of its type or name.
 7. **Resource exhaustion.** A reader SHOULD verify the metadata digest at open and SHOULD be fuzzed (task 0052).
@@ -659,7 +673,7 @@ The **extension blocks** (sub-region at `extensionOffset`) are a sequence of blo
 | 8 | 8 | u64 | `payloadSize` | bytes of payload |
 | 16 | `payloadSize` | bytes | payload | then zero padding to a multiple of 8 |
 
-A reader walks the blocks until `extensionSize` is used up; a block that does not fit is `E_RANGE`. A canonical pack (section 17) has **no** extension blocks, because a writer-info block would make two writers' packs differ.
+A reader walks the blocks until `extensionSize` is used up, with the checks of section 14.2 item 8; a block that does not fit is `E_RANGE`. A canonical pack (section 17) has **no** extension blocks, because a writer-info block would make two writers' packs differ.
 
 ## 17. Canonical form and determinism
 
@@ -683,19 +697,19 @@ It does **not** depend on: the order in which entries were supplied, the number 
 3. **Chunk.** Cut each entry's content by the default layout (8.2) or its typed layout.
 4. **Hash.** Compute each chunk hash and each entry's content hash.
 5. **Choose codecs and compress.** For each chunk of an entry whose policy is `auto`, compress it with zstd (17.4) and use codec 1 if `storedSize <= U - (U >> 4)` (9.2), else store it with codec 0. A `store` entry uses codec 0 for every chunk. Chunks are independent, so they may be compressed on any number of threads; the result does not depend on that.
-6. **Lay out the data region.** `dataOffset` = 4096. For each entry in entry order that has chunks: start at the next multiple of 4096, write the chunks' stored bytes back to back; fill every gap with zero bytes. `dataSize` = end of the last stored byte minus `dataOffset` (0 if there is none).
-7. **Lay out the metadata region.** `metadataOffset` = the next multiple of 4096 at or after the end of the data region (zero fill between). Write, in the order of 7.1: the string table (paths in entry order, padded to a multiple of 8); the entry table; the path index; the key index; the chunk tables (in entry order); the provenance records (in entry order, each padded to a multiple of 8); no extension blocks. `entryRecordSize` = 112 and `chunkRecordSize` = 56. Every chunk record has `HASH_PRESENT` set. `provenanceOffset` and `extensionOffset` of an empty region = the end of the previous region.
+6. **Lay out the data region.** `dataOffset` = 4096. For each entry in entry order that has chunks: start at the smallest multiple of 4096 that is at least the end of the previous block, write the chunks' stored bytes back to back; fill every gap with zero bytes. `dataSize` = end of the last stored byte minus `dataOffset` (0 if there is none).
+7. **Lay out the metadata region.** `metadataOffset` = the smallest multiple of 4096 at or after `dataOffset + dataSize` (zero fill between). Write, in the order of 7.1: the string table (paths in entry order, padded to a multiple of 8); the entry table; the path index; the key index; the chunk tables (in entry order); the provenance records (in entry order, each padded to a multiple of 8); no extension blocks. `entryRecordSize` = 112 and `chunkRecordSize` = 56. Every chunk record has `HASH_PRESENT` set. The offset of every empty sub-region = the end of the previous sub-region (the first = `metadataOffset`).
 8. **Compute the digests.** `manifestDigest` (13.5), `metadataDigest`.
-9. **Header and footer.** `fileSize` = `metadataOffset + metadataSize + 128`. Write the header with `compressorVersion` and `compressorLevel` as in 17.4, reserved bytes zero, then `headerChecksum`; write the footer.
+9. **Header and footer.** `fileSize` = `metadataOffset + metadataSize + 128`. Write the header with `compressorVersion` and `compressorLevel` as in 17.4 (both 0 when no chunk uses codec 1), reserved bytes zero, then `headerChecksum`; write the footer.
 10. **No other bytes**: no trailing data, no timestamps, no host paths, no writer name.
 
 ### 17.3 What "the same pack" means: decision
 
 The compressed bytes of a zstd chunk are **not** a function of the content alone. Neither the zstd format document nor RFC 8878 requires a compressor to produce a unique encoding; the library's own header says that standard builds take part in determinism guarantees only "with other builds of the same version" (the comment of `ZSTD_isDeterministicBuild()` in `lib/zstd.h`, read 2026-11-01), and that the row-based match finder is chosen at run time from SIMD support by default (the comment of `ZSTD_c_useRowMatchFinder`, same file), so even the same version may choose differently on two CPUs unless the parameter is set. The decision (**proposal**, toddhow may change it, Annex E D6):
 
-1. The canonical form is **byte-exact for everything except the stored bytes of codec-1 chunks and what depends on their sizes** (offsets after them, `storedSize`, the codec choice at the margin, `dataSize`, `metadataOffset`, `fileSize`, and the three digests that cover those fields).
+1. The canonical form is **byte-exact for everything except the stored bytes of codec-1 chunks and what depends on their sizes** (offsets after them, `storedSize`, the codec choice at the margin, `dataSize`, `metadataOffset`, `fileSize`, and `metadataDigest`, `headerChecksum` and the footer's copies, which cover those fields; the manifest digest does not).
 2. Those bytes are reproducible **only when the writer uses the same (codec id, level, parameters, zstd library version)**. The header records the version and the level (`compressorVersion`, `compressorLevel`) so that a tool can tell whether it can expect identical bytes.
-3. **Validity and identity do not depend on the compressed bytes.** What identifies a pack logically is its `manifestDigest`, which excludes everything that differs between correct writers. A *canonical-form validator* checks the layout rules of 17.2 and the logical content; it does **not** require the compressed bytes to equal a particular compressor's output.
+3. **Validity and identity do not depend on the compressed bytes.** What identifies a pack logically is its `manifestDigest`, which excludes everything that differs between correct writers. A *canonical-form validator* checks the layout rules of 17.2 and the logical content (and the file/directory name rule of 7.3.2, the zero-ness of padding, reserved bytes and gaps, `headerSize` 512, strides 112 and 56, no extension blocks, zero hints/`layoutParam`s whose flag is clear or whose type is generic, zero `generation` and `sourceDigest` without `DERIVED`, the manifest digest, that a codec-1 chunk satisfies the 1/16 rule of 9.2 (a codec-0 chunk of an `auto` entry cannot be judged), and that identical content in two entries is stored twice, not shared); it does **not** require the compressed bytes to equal a particular compressor's output.
 4. A pack whose chunks are **all codec 0** is byte-for-byte reproducible by every conforming writer; the conformance suite (Annex D) uses such packs for byte-exact golden files, and uses decoded-content and `manifestDigest` comparison for packs with codec-1 chunks.
 5. The reference writer pins the zstd library to one tagged version and sets its parameters explicitly (17.4), so builds of OpenEden's own packs are reproducible; that is a property of the reference writer, not a requirement on other writers.
 
@@ -902,7 +916,7 @@ Footer (`4240`): footerMagic `EDENEND` + `01`; version 0.1; footerSize `80` (128
 
 Each invalid pack below is the valid pack of Annex B with **one** change. Where the change is in the metadata region or the header, the writer of the test also **recomputes** what the change would otherwise break by accident (the metadata digest, the header checksum, the footer copies, and the path index when a name changes), unless the case is about exactly that, so that the pack is rejected **for the stated reason**. A reader that rejects for another reason first still conforms (the class is a diagnostic; the rejection is required), but the corpus (Annex D) records the intended class. Offsets are those of Annex B. "At open" means the reader MUST reject when opening; "at read" means the pack opens and the read of the entry MUST fail.
 
-All 20 cases were generated and checked with the scratch program of Annex B, which rejected every one with the class shown and accepted the valid pack.
+All 20 cases were generated and checked in draft 1 with the scratch program of Annex B. That program did not implement every rule of section 14.2 (see the first paragraph of Annex B), so this says nothing about the other rules; task 0052 regenerates the cases with an independent writer.
 
 | # | Change | Required result | Class | When |
 | --- | --- | --- | --- | --- |
@@ -911,23 +925,23 @@ All 20 cases were generated and checked with the scratch program of Annex B, whi
 | I03 | byte `0190` (reserved header byte) changed from `00` to `01`, checksum not recomputed | reject | `E_CHECKSUM` | open |
 | I04 | `fileSize` increased by 8 in both the header (at `0018`) and the footer (at `4250`); header checksum and footer copy recomputed, so the only failing check is that `fileSize` equals the real size | reject | `E_TRUNCATED` | open |
 | I05 | 8 zero bytes appended after the footer | reject | `E_TRUNCATED` | open |
-| I06 | chunk 0's `offset` (at `4198`) := `FFFFFFFFFFFFF000` | reject (offset out of range, would overflow if added) | `E_RANGE` | open |
+| I06 | chunk 0's `offset` (at `4198`) := `FFFFFFFFFFFFF000` | reject (offset far outside the data region) | `E_RANGE` | open |
 | I07 | chunk 2's `offset` (at `4208`) := `2000` (inside entry 1's block) | reject (overlapping chunks) | `E_OVERLAP` | open |
 | I08 | entry 0's name := `data/../b.bin` (same length; path index rebuilt) | reject (path traversal) | `E_NAME` | open |
-| I09 | entry 1's name := the same string-table bytes as entry 0 (`pathOffset` 0, `pathLength` 13; path index rebuilt) | reject (duplicate path) | `E_DUPLICATE` | open |
-| I10 | entry 0's `uncompressedSize` (at `4038`) := `FFFFFFFFFFFFFFFF` | reject (size beyond the limit; no overflow in any sum) | `E_LIMIT` | open |
+| I09 | entry 1's name := the same string-table bytes as entry 0 (`pathOffset` 0, `pathLength` 13; path index rebuilt) | reject (duplicate path; the order check comes before the string-table position check) | `E_DUPLICATE` | open |
+| I10 | entry 0's `uncompressedSize` (at `4038`) := `FFFFFFFFFFFFFFFF` | reject (size beyond the limit, which is checked before any sum) | `E_LIMIT` | open |
 | I11 | chunk 0's `uncompressedSize` (at `41A4`) := `01000000` (16 MiB) | reject (chunk beyond 8 MiB) | `E_LIMIT` | open |
 | I12 | byte `1005` (the zstd frame's content size) changed from `40` to `FF`; chunk table unchanged | the pack opens; reading entry 0 fails (frame says 255 bytes, record says 64) | `E_CODEC` | read |
 | I13 | byte `2000` (first byte of `readme.txt`) flipped | the pack opens; reading entry 1 fails | `E_HASH` | read |
 | I14 | header `packFlags` := `0000000000000020` (unknown critical bit 5); checksum recomputed | reject | `E_UNSUPPORTED` | open |
 | I15 | chunk 1's `codec` (at `41E0`) := 7 | the pack opens; reading entry 1 fails; entries 0 and 2 still read | `E_UNSUPPORTED` | read |
 | I16 | entry 1's name := `aaadme.txt` (sorts before entry 0; path index rebuilt) | reject (entries not in order) | `E_ORDER` | open |
-| I17 | string-table padding byte `4017` changed from `00` to `01`, metadata digest not recomputed | reject | `E_CHECKSUM` | open |
+| I17 | string-table padding byte `4017` changed from `00` to `01`, metadata digest not recomputed | reject (corpus run with the digest check on, 14.2 item 7) | `E_CHECKSUM` | open |
 | I18 | first path-index hash (at `4168`) := 0 | reject (hash does not match the path) | `E_INDEX` | open |
 | I19 | entry 0's `chunkTableOffset` := end of the chunk tables region plus 8 | reject (outside the region) | `E_RANGE` | open |
 | I20 | entry 2's `entryFlags` := `00010022` (adds unknown critical bit 5); digests recomputed | reject | `E_UNSUPPORTED` | open |
 
-Further cases the corpus MUST add (Annex D) but this annex does not give byte by byte: zero entries; a key of 0; keys out of order or equal; a path longer than 1024 bytes; a component longer than 255 bytes; invalid UTF-8 in a path; a `\` or upper-case letter in a path; a leading or trailing `/`; overlapping metadata sub-regions; a block not 4096-aligned; chunk sizes that do not add up to the entry size; a one-chunk entry whose chunk hash differs from the entry hash; a zstd frame with a dictionary; a frame with trailing bytes; a zstd frame that declares a window above 8 MiB; header and footer that disagree; a `headerSize` beyond 4096; an extension block with `MUST_UNDERSTAND` and an unknown id; a provenance record whose `recordSize` is wrong; an entry count that makes a table overflow 64 bits; and a hostile file made of random bytes behind a valid magic.
+Further cases the corpus MUST add (Annex D) but this annex does not give byte by byte (`E_VERSION` for version 0.2 or a higher generation byte; header and footer that disagree; `pathEntryCount` above `entryCount`; two entries whose chunk tables overlap; a non-zero `key` without `HAS_KEY`; a path that is also a directory prefix (validator only); extension-block walk errors; `headerSize` other than 512; a nonzero byte in the padding after the header): zero entries; a key of 0; keys out of order or equal; a path longer than 1024 bytes; a component longer than 255 bytes; invalid UTF-8 in a path; a `\` or upper-case letter in a path; a leading or trailing `/`; overlapping metadata sub-regions; a block not 4096-aligned; chunk sizes that do not add up to the entry size; a one-chunk entry whose chunk hash differs from the entry hash; a zstd frame with a dictionary; a frame with trailing bytes; a zstd frame that declares a window above 8 MiB; header and footer that disagree; an extension block with `MUST_UNDERSTAND` and an unknown id; a provenance record whose `recordSize` is wrong; an entry count that makes a table overflow 64 bits; and a hostile file made of random bytes behind a valid magic.
 
 ## Annex D. Conformance corpus requirements
 
@@ -971,4 +985,11 @@ Open points for toddhow:
 - **O6.** That CC BY 4.0 suits a standards text is still **verify**.
 - **O7.** The independent read-through (stage h: a reviewer who has not seen the engine writes reader pseudocode from this document alone) and the fresh-reviewer reads have **not** been done.
 - **O8.** The key tag/bit layout of tile keys, the `layoutParam` meaning for tiles, and the mip-tail size are left to later stage specs. The typed layouts are subsections 10.2 and 10.3 (marked draft and later) and not separate annex files as the task text suggested.
-- **O9.** `metadataSize` has no cap of its own. A hostile pack can declare up to 2^22 entries of `entryRecordSize` 4096 (16 GiB of metadata) inside the 2^44 file limit, and the open-time metadata digest reads all of it. Either state a cap (for example on `metadataSize`, or lower `entryRecordSize`/`chunkRecordSize` maxima) or leave it to the fuzzing harness of task 0052 to decide.
+- **O9 (resolved in draft 2).** `metadataSize` is capped at 2^32 and the record strides at 512 and 256 (section 12). Earlier text: `metadataSize` has no cap of its own. A hostile pack can declare up to 2^22 entries of `entryRecordSize` 4096 (16 GiB of metadata) inside the 2^44 file limit, and the open-time metadata digest reads all of it. Either state a cap (for example on `metadataSize`, or lower `entryRecordSize`/`chunkRecordSize` maxima) or leave it to the fuzzing harness of task 0052 to decide.
+
+## Changelog
+
+| Date | Draft | Change |
+| --- | --- | --- |
+| 2026-11-01 | 1 | First draft (task 0051), checked by its author only |
+| 2026-11-01 | 2 | Independent review (task 0052, step 0; a reviewer who read only this text and the task). Annex B decoded byte by byte with no mismatch. Changes: `headerSize` fixed at 512, `dataOffset` fixed at 4096, `metadataOffset` derived, metadata sub-regions exactly tiled (no gaps, empty offsets defined), zero-ness of the padding after the header and before the metadata; caps added: `metadataSize` 2^32, strides 512 and 256, chunks per pack 2^25, `storedSize` 2^24 for every codec, pack total 2^40; counts of path and key entries bounded before multiplication; string table, chunk tables and provenance records laid out back to back so they cannot alias; chunk stored ranges strictly ascending in (entry, chunk) order (one pass, no sort); `HASH_PRESENT` mandatory; checks of 14.2 renumbered, ordered and given exact classes (precedence rule); zero/consistency rules for unused fields; entry type 0x10 to 0x13 requires a key with the matching tag; zstd frame checks spelled out; extension-block walk made an open-time check; decoded-byte budget; path compare pseudocode and the file/directory name rule; manifest digest assigned to the validator; canonical writer uses the default layout for all types, version and level 0 when no codec 1; Annex C wording (I06, I09, I10, I17) and further cases |
