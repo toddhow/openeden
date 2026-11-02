@@ -100,7 +100,9 @@ namespace
             if (tile.mPhase == FadePhase::Reclaiming)
                 everReclaimed = true;
             if (tileCoversStatics(tile))
+            {
                 EXPECT_EQ(tile.mFade, 1.0f) << "frame " << frame;
+            }
             EXPECT_EQ(tileCoversStatics(tile), tile.mPhase == FadePhase::Solid) << "frame " << frame;
         }
         EXPECT_TRUE(everReclaimed);
@@ -195,7 +197,9 @@ namespace
             stepOverlap(overlap);
             // A does not fade out before B is solid: the live objects are not ready for the shared cells.
             if (!overlap.mBSolid)
+            {
                 EXPECT_EQ(overlap.mTiles[0].mFade.mPhase, FadePhase::WaitingForLive);
+            }
         }
         ASSERT_TRUE(overlap.mBSolid);
     }

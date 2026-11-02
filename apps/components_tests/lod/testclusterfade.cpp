@@ -64,11 +64,17 @@ namespace
             EXPECT_GE(frame.mFade, 0.f);
             EXPECT_LE(frame.mFade, 1.f);
             if (frame.mCovers)
+            {
                 EXPECT_EQ(frame.mFade, 1.f) << "live objects left out the statics while the cluster was not solid";
+            }
             if (frame.mPhase == FadePhase::WaitingForLive)
+            {
                 EXPECT_EQ(frame.mFade, 1.f) << "the cluster faded while waiting for the live objects";
+            }
             if (frame.mPhase == FadePhase::Hidden)
+            {
                 EXPECT_EQ(frame.mFade, 0.f);
+            }
         }
     }
 
