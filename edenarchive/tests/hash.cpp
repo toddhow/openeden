@@ -29,8 +29,8 @@ namespace EdenTestSuite
         TEST(EdenArchiveHash, oneShotShouldMatchTheIndependentImplementationAtTheTreeBoundaries)
         {
             // BLAKE3 works in 64-byte blocks and 1024-byte chunks, so test the sizes on both sides of each boundary.
-            for (const std::size_t size : { 0, 1, 2, 63, 64, 65, 127, 128, 129, 1023, 1024, 1025, 2047, 2048, 2049, 3072,
-                     4095, 4096, 4097, 8191, 8192, 8193, 100000 })
+            for (const std::size_t size : { 0, 1, 2, 63, 64, 65, 127, 128, 129, 1023, 1024, 1025, 2047, 2048, 2049,
+                     3072, 4095, 4096, 4097, 8191, 8192, 8193, 100000 })
             {
                 const Bytes data = EdenTest::patternBytes(size, 1000 + size);
                 EXPECT_EQ(toDigest(EdenArchive::blake3(data.data(), data.size())), EdenTest::blake3Of(data)) << size;

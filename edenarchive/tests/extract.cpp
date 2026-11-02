@@ -20,23 +20,24 @@ namespace EdenTestSuite
 
         TEST(EdenArchiveExtract, namesThatAreFineOnWindowsAndLinuxShouldBeAccepted)
         {
-            for (const char* path : { "a.txt", "dir/file.txt", "a/b/c.d", ".hidden", ".git/config", "a.b.c", "x-y_z", "a$b",
-                     "a b/c d.txt", "console.txt", "con1", "conx/y", "com0", "com10", "lpt0", "lpt10", "comx", "aux1.txt",
-                     "nul-x", "prn_", "clock", "conin", "\xC3\xA4.txt", "\xE6\x97\xA5/\xE6\x9C\xAC", "a.b/c.d", "a...b",
-                     "co", "COMMON/x", "data/com/x", "luna/x" })
+            for (const char* path : { "a.txt", "dir/file.txt", "a/b/c.d", ".hidden", ".git/config", "a.b.c", "x-y_z",
+                     "a$b", "a b/c d.txt", "console.txt", "con1", "conx/y", "com0", "com10", "lpt0", "lpt10", "comx",
+                     "aux1.txt", "nul-x", "prn_", "clock", "conin", "\xC3\xA4.txt", "\xE6\x97\xA5/\xE6\x9C\xAC",
+                     "a.b/c.d", "a...b", "co", "COMMON/x", "data/com/x", "luna/x" })
                 EXPECT_FALSE(EdenArchive::checkExtractionSafe(path).has_value()) << path;
         }
 
         TEST(EdenArchiveExtract, forbiddenCharactersShouldBeRefusedInAnyComponent)
         {
-            for (const char* path : { "a:b", "a<b", "a>b", "a\"b", "a|b", "a?b", "a*b", "a\\b", "dir/a:b/c", "dir/x?", "*.txt",
-                     "c:/windows/x", "c:x", "d:\\x", "dir/sub:stream", "file.txt:hidden" })
+            for (const char* path : { "a:b", "a<b", "a>b", "a\"b", "a|b", "a?b", "a*b", "a\\b", "dir/a:b/c", "dir/x?",
+                     "*.txt", "c:/windows/x", "c:x", "d:\\x", "dir/sub:stream", "file.txt:hidden" })
                 EXPECT_TRUE(EdenArchive::checkExtractionSafe(path).has_value()) << path;
         }
 
         TEST(EdenArchiveExtract, componentsEndingInADotOrASpaceShouldBeRefused)
         {
-            for (const char* path : { "a.", "a./b", "dir/x.", "dir/x./y", "a ", "a /b", "x/y ", "x/y  ", "...", "dir/..." })
+            for (const char* path :
+                { "a.", "a./b", "dir/x.", "dir/x./y", "a ", "a /b", "x/y ", "x/y  ", "...", "dir/..." })
                 EXPECT_TRUE(EdenArchive::checkExtractionSafe(path).has_value()) << path;
         }
 
@@ -65,16 +66,20 @@ namespace EdenTestSuite
                     EXPECT_TRUE(EdenArchive::checkExtractionSafe(variant).has_value()) << variant;
             }
             // Names that only begin like a device name are fine.
-            for (const char* path : { "con1x", "console", "aux_", "nulx.txt", "com", "lpt", "com12", "xcom1", "a.com1" })
+            for (const char* path :
+                { "con1x", "console", "aux_", "nulx.txt", "com", "lpt", "com12", "xcom1", "a.com1" })
                 EXPECT_FALSE(EdenArchive::checkExtractionSafe(path).has_value()) << path;
         }
 
         TEST(EdenArchiveExtract, traversalAndAbsoluteNamesShouldBeRefusedEvenThoughStoredNamesCannotHaveThem)
         {
             // Section 7.3.1 keeps these out of a pack, but a tool must never rely on that alone.
-            for (const std::string& path : { std::string(".."), std::string("../x"), std::string("a/../b"), std::string("a/.."),
-                     std::string("/etc/passwd"), std::string("/"), std::string(""), std::string("a//b"),
-                     std::string("a\x01" "b"), std::string("a\0b", 3) })
+            for (const std::string& path :
+                { std::string(".."), std::string("../x"), std::string("a/../b"), std::string("a/.."),
+                    std::string("/etc/passwd"), std::string("/"), std::string(""), std::string("a//b"),
+                    std::string("a\x01"
+                                "b"),
+                    std::string("a\0b", 3) })
                 EXPECT_TRUE(EdenArchive::checkExtractionSafe(path).has_value()) << path;
         }
 
@@ -155,7 +160,8 @@ namespace EdenTestSuite
             EXPECT_EQ(std::filesystem::file_size(out / "empty.txt"), 0u);
             EXPECT_EQ(readFileBytes(out / "big.bin"), EdenTest::patternBytes(20000, 2));
             EXPECT_EQ(listTree(out),
-                (std::vector<std::string>{ "a.txt", "big.bin", "dir", "dir/b.bin", "dir/sub", "dir/sub/c.txt", "empty.txt" }))
+                (std::vector<std::string>{
+                    "a.txt", "big.bin", "dir", "dir/b.bin", "dir/sub", "dir/sub/c.txt", "empty.txt" }))
                 << "only the path entries, no temporary files";
             // Nothing outside the output folder.
             std::vector<std::string> top;
@@ -170,7 +176,8 @@ namespace EdenTestSuite
         {
             TempDir dir;
             const auto out = dir.path() / "out";
-            Opened pack = openPack({ file("a.txt", EdenTest::bytesOf("from the pack")), file("b.txt", EdenTest::bytesOf("second")) });
+            Opened pack = openPack(
+                { file("a.txt", EdenTest::bytesOf("from the pack")), file("b.txt", EdenTest::bytesOf("second")) });
             ASSERT_NE(pack.mArchive, nullptr);
             ASSERT_TRUE(EdenArchive::unpack(*pack.mArchive, out, UnpackOptions{}).ok());
 
@@ -190,14 +197,15 @@ namespace EdenTestSuite
         TEST(EdenArchiveExtract, unpackShouldCheckEveryNameBeforeWritingTheFirstFile)
         {
             // Names that the container allows but a disk folder must not receive.
-            for (const char* bad : { "con.txt", "c:/evil.txt", "a?b", "trailing.", "aux", "dir/lpt1.txt", "x:y", "q*", "sp ace ",
-                     "w/nul" })
+            for (const char* bad : { "con.txt", "c:/evil.txt", "a?b", "trailing.", "aux", "dir/lpt1.txt", "x:y", "q*",
+                     "sp ace ", "w/nul" })
             {
                 SCOPED_TRACE(bad);
                 TempDir dir;
                 const auto out = dir.path() / "out";
                 // "aaa.txt" sorts first and is fine: it must not be written either.
-                Opened pack = openPack({ file("aaa.txt", EdenTest::bytesOf("fine")), file(bad, EdenTest::bytesOf("bad")) });
+                Opened pack
+                    = openPack({ file("aaa.txt", EdenTest::bytesOf("fine")), file(bad, EdenTest::bytesOf("bad")) });
                 ASSERT_NE(pack.mArchive, nullptr) << "the container accepts this name";
                 const Error error = EdenArchive::unpack(*pack.mArchive, out, UnpackOptions{});
                 EXPECT_EQ(className(error), "E_NAME");
@@ -210,7 +218,8 @@ namespace EdenTestSuite
         {
             TempDir dir;
             const auto out = dir.path() / "out";
-            Opened pack = openPack({ file("no/x.txt", EdenTest::bytesOf("x")), file("yes/y.txt", EdenTest::bytesOf("y")) });
+            Opened pack
+                = openPack({ file("no/x.txt", EdenTest::bytesOf("x")), file("yes/y.txt", EdenTest::bytesOf("y")) });
             ASSERT_NE(pack.mArchive, nullptr);
             UnpackOptions options;
             std::size_t calls = 0;
@@ -251,7 +260,8 @@ namespace EdenTestSuite
             TempDir dir;
             const auto out = dir.path() / "out";
             // U+00E9 and U+00C9: different bytes to the container, one file name on Windows and macOS.
-            Opened pack = openPack({ file("\xC3\x89.txt", EdenTest::bytesOf("upper")), file("\xC3\xA9.txt", EdenTest::bytesOf("lower")) });
+            Opened pack = openPack(
+                { file("\xC3\x89.txt", EdenTest::bytesOf("upper")), file("\xC3\xA9.txt", EdenTest::bytesOf("lower")) });
             ASSERT_NE(pack.mArchive, nullptr);
             const Error error = EdenArchive::unpack(*pack.mArchive, out, UnpackOptions{});
             EXPECT_EQ(className(error), "E_NAME");
@@ -306,7 +316,8 @@ namespace EdenTestSuite
             if (ec)
                 GTEST_SKIP() << "cannot create a symbolic link here: " << ec.message();
 
-            Opened pack = openPack({ file("sub/f.txt", EdenTest::bytesOf("escaped")), file("zzz.txt", EdenTest::bytesOf("z")) });
+            Opened pack = openPack(
+                { file("sub/f.txt", EdenTest::bytesOf("escaped")), file("zzz.txt", EdenTest::bytesOf("z")) });
             ASSERT_NE(pack.mArchive, nullptr);
             UnpackOptions overwrite;
             overwrite.mOverwrite = true;
@@ -328,7 +339,8 @@ namespace EdenTestSuite
             ASSERT_NE(archive, nullptr) << openError.describe();
             const Error error = EdenArchive::unpack(*archive, out, UnpackOptions{});
             EXPECT_EQ(className(error), "E_HASH");
-            EXPECT_FALSE(std::filesystem::exists(out / "a.bin")) << "a half-written or unverified file was left in place";
+            EXPECT_FALSE(std::filesystem::exists(out / "a.bin"))
+                << "a half-written or unverified file was left in place";
             EXPECT_FALSE(anyRegularFile(out)) << "no temporary file may remain";
         }
 

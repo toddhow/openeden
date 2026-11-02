@@ -32,12 +32,12 @@ namespace EdenTestSuite
                     built.begin() + static_cast<std::ptrdiff_t>(offset + 32), digest.begin());
                 return EdenTest::hexOf(digest);
             };
-            EXPECT_EQ(
-                hexAt(EdenTest::Fmt::hManifestDigest), "6250f496c3639c22e6a6a9a9e4b2396cab02cf56513f7022495d5ed0bc73038c");
-            EXPECT_EQ(
-                hexAt(EdenTest::Fmt::hMetadataDigest), "a5fd5acb7a035f3879235b0b8fddd205e21bc14409a7c96a98833c0e5b6b9729");
-            EXPECT_EQ(
-                hexAt(EdenTest::Fmt::hHeaderChecksum), "e470c02b697d9a5c115428e327a65a4cc87d6e4a8e40e96642a76d0b1108a7aa");
+            EXPECT_EQ(hexAt(EdenTest::Fmt::hManifestDigest),
+                "6250f496c3639c22e6a6a9a9e4b2396cab02cf56513f7022495d5ed0bc73038c");
+            EXPECT_EQ(hexAt(EdenTest::Fmt::hMetadataDigest),
+                "a5fd5acb7a035f3879235b0b8fddd205e21bc14409a7c96a98833c0e5b6b9729");
+            EXPECT_EQ(hexAt(EdenTest::Fmt::hHeaderChecksum),
+                "e470c02b697d9a5c115428e327a65a4cc87d6e4a8e40e96642a76d0b1108a7aa");
         }
 
         TEST(EdenArchiveTestSide, theHandBuiltFrameShouldBeTheOneOfAnnexBAndLibzstdShouldDecodeIt)
@@ -48,7 +48,8 @@ namespace EdenTestSuite
             ASSERT_TRUE(EdenTest::zstdDecompress(frame, 64, decoded));
             EXPECT_EQ(decoded, Bytes(64, 0x41));
             // Larger run-length frames decode too: two-byte and four-byte content sizes, several blocks.
-            for (const std::uint64_t count : { 255ull, 256ull, 1000ull, 65791ull, 65792ull, 131072ull, 131073ull, 300000ull })
+            for (const std::uint64_t count :
+                { 255ull, 256ull, 1000ull, 65791ull, 65792ull, 131072ull, 131073ull, 300000ull })
             {
                 Bytes big;
                 ASSERT_TRUE(EdenTest::zstdDecompress(EdenTest::makeRleFrame(0x5A, count), count, big)) << count;
@@ -85,9 +86,9 @@ namespace EdenTestSuite
 
         TEST(EdenArchiveTestSide, recomputingAfterAPatchShouldGiveWhatTheBuilderWouldWrite)
         {
-            // Change a hint value in the builder's image and the same value in the bytes, then recompute: the two routes
-            // agree everywhere but the manifest digest (which the byte route does not recompute) and the checksums that
-            // cover it.
+            // Change a hint value in the builder's image and the same value in the bytes, then recompute: the two
+            // routes agree everywhere but the manifest digest (which the byte route does not recompute) and the
+            // checksums that cover it.
             EdenTest::PackSpec spec = EdenTest::annexBSpec();
             spec.mMutate = [](EdenTest::PackImage& image) { image.mEntries[0].mHintGroup = 5; };
             Bytes viaImage = EdenTest::buildPack(spec);
@@ -112,7 +113,8 @@ namespace EdenTestSuite
                 e.mPath = path;
                 spec.mEntries.push_back(e);
             }
-            for (const std::uint64_t key : { std::uint64_t{ 0x8000000000000000ull }, std::uint64_t{ 5 }, std::uint64_t{ 9 } })
+            for (const std::uint64_t key :
+                { std::uint64_t{ 0x8000000000000000ull }, std::uint64_t{ 5 }, std::uint64_t{ 9 } })
             {
                 EdenTest::EntrySpec e;
                 e.mKey = key;
@@ -153,8 +155,8 @@ namespace EdenTestSuite
                 if (c.mOutcome != EdenTest::Outcome::Valid && c.mClasses.size() == 1)
                     seen.insert(c.mClasses[0]);
             }
-            for (const char* name : { "E_MAGIC", "E_VERSION", "E_TRUNCATED", "E_CHECKSUM", "E_RANGE", "E_OVERLAP", "E_ORDER",
-                     "E_DUPLICATE", "E_NAME", "E_LIMIT", "E_INDEX", "E_UNSUPPORTED", "E_CODEC", "E_HASH" })
+            for (const char* name : { "E_MAGIC", "E_VERSION", "E_TRUNCATED", "E_CHECKSUM", "E_RANGE", "E_OVERLAP",
+                     "E_ORDER", "E_DUPLICATE", "E_NAME", "E_LIMIT", "E_INDEX", "E_UNSUPPORTED", "E_CODEC", "E_HASH" })
                 EXPECT_TRUE(seen.count(name) > 0) << name << " is not exercised by any case";
         }
 

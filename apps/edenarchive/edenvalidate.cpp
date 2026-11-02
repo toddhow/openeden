@@ -49,7 +49,8 @@ static int run(int argc, char** argv)
         return usage();
 
     EdenArchive::Error error;
-    const std::shared_ptr<const EdenArchive::Source> source = EdenArchive::openFileSource(pathFromUtf8(positional[0]), error);
+    const std::shared_ptr<const EdenArchive::Source> source
+        = EdenArchive::openFileSource(pathFromUtf8(positional[0]), error);
     if (!source)
     {
         std::fprintf(stderr, "%s\n", error.describe(positional[0]).c_str());
@@ -63,8 +64,8 @@ static int run(int argc, char** argv)
     }
     for (const EdenArchive::Error& finding : report.mFindings)
         std::printf("%s\n", finding.describe(positional[0]).c_str());
-    const bool ioProblem = !report.mOpened && report.mFindings.size() == 1
-        && report.mFindings[0].mClass == EdenArchive::ErrorClass::Io;
+    const bool ioProblem
+        = !report.mOpened && report.mFindings.size() == 1 && report.mFindings[0].mClass == EdenArchive::ErrorClass::Io;
     return ioProblem ? exitUsage : exitInvalid;
 }
 

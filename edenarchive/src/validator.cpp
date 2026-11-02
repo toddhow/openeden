@@ -79,13 +79,15 @@ namespace EdenArchive
         void Checker::manifest()
         {
             const PackInfo& info = mImpl.mInfo;
-            ManifestBuilder builder(info.mPackFlags, info.mGeneration, info.mSourceDigest, info.mChunkSize, info.mEntryCount);
+            ManifestBuilder builder(
+                info.mPackFlags, info.mGeneration, info.mSourceDigest, info.mChunkSize, info.mEntryCount);
             for (std::size_t i = 0; i < mArchive.entryCount(); ++i)
             {
                 const EntryInfo entry = mArchive.entry(i);
-                builder.beginEntry(entry.mFlags, entry.mType, entry.mKey, entry.mHasPath ? entry.mPath : std::string_view(),
-                    entry.mSize, entry.mContentHash, entry.mHintMemorySize, entry.mHintGroup, entry.mLayoutParamA,
-                    entry.mLayoutParamB, entry.mChunkCount);
+                builder.beginEntry(entry.mFlags, entry.mType, entry.mKey,
+                    entry.mHasPath ? entry.mPath : std::string_view(), entry.mSize, entry.mContentHash,
+                    entry.mHintMemorySize, entry.mHintGroup, entry.mLayoutParamA, entry.mLayoutParamB,
+                    entry.mChunkCount);
                 for (std::uint32_t k = 0; k < entry.mChunkCount; ++k)
                 {
                     const ChunkInfo chunk = mArchive.chunk(i, k);
@@ -111,8 +113,8 @@ namespace EdenArchive
             std::size_t pathEntries = 0;
             while (pathEntries < mArchive.entryCount() && mArchive.entry(pathEntries).mHasPath)
                 ++pathEntries;
-            const std::optional<std::size_t> clash = findFileDirectoryClash(
-                pathEntries, [this](std::size_t i) { return mArchive.entry(i).mPath; });
+            const std::optional<std::size_t> clash
+                = findFileDirectoryClash(pathEntries, [this](std::size_t i) { return mArchive.entry(i).mPath; });
             if (clash)
                 add(ErrorClass::Name, mImpl.entryRecordOffset(*clash) + F::E::pathOffset,
                     "entry[" + std::to_string(*clash) + "].path", "the path is also a directory of another path");
@@ -133,8 +135,8 @@ namespace EdenArchive
                     std::uint64_t at = previousEnd;
                     while (at < chunk.mOffset && !failed)
                     {
-                        const std::size_t n = static_cast<std::size_t>(
-                            std::min<std::uint64_t>(sizeof(buffer), chunk.mOffset - at));
+                        const std::size_t n
+                            = static_cast<std::size_t>(std::min<std::uint64_t>(sizeof(buffer), chunk.mOffset - at));
                         if (!mImpl.mSource->read(at, buffer, n))
                         {
                             failed = true;
@@ -186,11 +188,14 @@ namespace EdenArchive
             if ((info.mPackFlags >> 32) != 0)
                 add(ErrorClass::Range, F::H::packFlags, "packFlags", "an ignorable pack flag is set");
             if (info.mEntryRecordSize != F::entryRecordSize)
-                add(ErrorClass::Range, F::H::entryRecordSize, "entryRecordSize", "a canonical pack has entryRecordSize 112");
+                add(ErrorClass::Range, F::H::entryRecordSize, "entryRecordSize",
+                    "a canonical pack has entryRecordSize 112");
             if (info.mChunkRecordSize != F::chunkRecordSize)
-                add(ErrorClass::Range, F::H::chunkRecordSize, "chunkRecordSize", "a canonical pack has chunkRecordSize 56");
+                add(ErrorClass::Range, F::H::chunkRecordSize, "chunkRecordSize",
+                    "a canonical pack has chunkRecordSize 56");
             if (info.mExtensionSize != 0)
-                add(ErrorClass::Range, F::H::extensionSize, "extensionSize", "a canonical pack has no extension blocks");
+                add(ErrorClass::Range, F::H::extensionSize, "extensionSize",
+                    "a canonical pack has no extension blocks");
             if ((info.mPackFlags & packFlagDerived) == 0)
             {
                 if (info.mGeneration != 0)
@@ -278,7 +283,8 @@ namespace EdenArchive
                 mReport.mBytesDecoded += before - budget.mRemaining;
                 if (error)
                 {
-                    add(error.mClass, error.mOffset, "entry[" + std::to_string(i) + "]." + error.mField, error.mMessage);
+                    add(error.mClass, error.mOffset, "entry[" + std::to_string(i) + "]." + error.mField,
+                        error.mMessage);
                     if (error.mClass == ErrorClass::Limit)
                         break;
                 }

@@ -212,7 +212,8 @@ namespace EdenArchive
         {
             const std::uint32_t chunkSize = options.mChunkSize;
             if (chunkSize < 4096 || chunkSize > F::maxChunkSize || (chunkSize & (chunkSize - 1)) != 0)
-                return makeError(ErrorClass::Range, "chunkSize", "the chunk size is not a power of two from 4096 to 8 MiB");
+                return makeError(
+                    ErrorClass::Range, "chunkSize", "the chunk size is not a power of two from 4096 to 8 MiB");
             if (entries.size() > F::maxEntries)
                 return makeError(ErrorClass::Limit, "entryCount", "more than 2^22 entries");
 
@@ -237,15 +238,16 @@ namespace EdenArchive
                         return makeError(c, label + ".path", reason);
                 }
                 if ((in.mHintFlags & ~0x000F0000u) != 0)
-                    return makeError(ErrorClass::Range, label + ".hintFlags", "only entry flag bits 16 to 19 are hints");
+                    return makeError(
+                        ErrorClass::Range, label + ".hintFlags", "only entry flag bits 16 to 19 are hints");
                 if ((in.mHintMemorySize != 0 && (in.mHintFlags & entryFlagHintMemSize) == 0)
                     || (in.mHintGroup != 0 && (in.mHintFlags & entryFlagHintGroup) == 0))
                     return makeError(ErrorClass::Range, label + ".hint", "a hint value needs its hint flag");
                 if (in.mType == 0 && (in.mLayoutParamA != 0 || in.mLayoutParamB != 0))
                     return makeError(ErrorClass::Range, label + ".layoutParam", "layout parameters need a typed entry");
                 if (in.mType >= 0x10 && in.mType <= 0x13 && (!in.mKey || (*in.mKey >> 56) != (in.mType & 0xFFu)))
-                    return makeError(
-                        ErrorClass::Range, label + ".type", "a tile type needs a key whose tag is the low byte of the type");
+                    return makeError(ErrorClass::Range, label + ".type",
+                        "a tile type needs a key whose tag is the low byte of the type");
                 if (in.mProvenance)
                 {
                     const ProvenanceInput& prov = *in.mProvenance;
@@ -262,7 +264,8 @@ namespace EdenArchive
                     p.mSize = std::filesystem::file_size(in.mFile, ec);
                     if (ec)
                     {
-                        Error error = makeError(ErrorClass::Io, label + ".file", "cannot get the size of the input file");
+                        Error error
+                            = makeError(ErrorClass::Io, label + ".file", "cannot get the size of the input file");
                         error.mMessage += " '" + in.mFile.string() + "'";
                         return error;
                     }
@@ -309,8 +312,8 @@ namespace EdenArchive
                 if (k > 0 && !in.mPath && !entries[order[k - 1]].mPath && *entries[order[k - 1]].mKey == *in.mKey)
                     return makeError(ErrorClass::Duplicate, "key", "a key is given twice");
             }
-            if (const std::optional<std::size_t> clash = findFileDirectoryClash(pathEntries,
-                    [&](std::size_t k) { return std::string_view(*entries[order[k]].mPath); }))
+            if (const std::optional<std::size_t> clash = findFileDirectoryClash(
+                    pathEntries, [&](std::size_t k) { return std::string_view(*entries[order[k]].mPath); }))
                 return makeError(ErrorClass::Name, "path",
                     "the path '" + *entries[order[*clash]].mPath + "' is also a directory of another path");
             {
@@ -337,8 +340,8 @@ namespace EdenArchive
 
             unsigned threads = options.mThreads == 0 ? std::thread::hardware_concurrency() : options.mThreads;
             threads = std::max(1u, threads);
-            const std::uint64_t windowBytes = std::max<std::uint64_t>(
-                chunkSize, options.mWorkWindow / chunkSize * chunkSize);
+            const std::uint64_t windowBytes
+                = std::max<std::uint64_t>(chunkSize, options.mWorkWindow / chunkSize * chunkSize);
 
             std::vector<std::uint8_t> window;
             std::vector<Work> works;
@@ -392,7 +395,8 @@ namespace EdenArchive
                     for (std::size_t q = 0; q < pieces; ++q)
                     {
                         works[q].mData = base + q * chunkSize;
-                        works[q].mSize = static_cast<std::uint32_t>(std::min<std::uint64_t>(chunkSize, take - q * chunkSize));
+                        works[q].mSize
+                            = static_cast<std::uint32_t>(std::min<std::uint64_t>(chunkSize, take - q * chunkSize));
                     }
                     if (threads == 1 || pieces == 1)
                     {
@@ -573,9 +577,9 @@ namespace EdenArchive
                 const InputEntry& in = entries[order[k]];
                 const Prepared& p = prepared[order[k]];
                 const EntryOut& out = outs[k];
-                manifest.beginEntry(p.mFlags, in.mType, p.mKey, in.mPath ? std::string_view(*in.mPath) : std::string_view(),
-                    p.mSize, out.mContent, in.mHintMemorySize, in.mHintGroup, in.mLayoutParamA, in.mLayoutParamB,
-                    out.mChunkCount);
+                manifest.beginEntry(p.mFlags, in.mType, p.mKey,
+                    in.mPath ? std::string_view(*in.mPath) : std::string_view(), p.mSize, out.mContent,
+                    in.mHintMemorySize, in.mHintGroup, in.mLayoutParamA, in.mLayoutParamB, out.mChunkCount);
                 for (std::uint32_t c = 0; c < out.mChunkCount; ++c)
                 {
                     const ChunkOut& chunk = chunks[out.mFirstChunk + c];
@@ -584,7 +588,8 @@ namespace EdenArchive
                 std::span<const std::uint8_t> record;
                 if (in.mProvenance)
                 {
-                    const std::uint64_t at = F::rd64(entryTable.data() + k * F::entryRecordSize + F::E::provenanceOffset)
+                    const std::uint64_t at
+                        = F::rd64(entryTable.data() + k * F::entryRecordSize + F::E::provenanceOffset)
                         - provenanceOffset;
                     const std::uint32_t size = F::rd32(provenance.data() + at);
                     record = std::span<const std::uint8_t>(provenance.data() + at, size);
@@ -607,7 +612,8 @@ namespace EdenArchive
             ok = ok && sink.write(strings.data(), strings.size()) && sink.write(entryTable.data(), entryTable.size())
                 && sink.write(pathIndexBytes.data(), pathIndexBytes.size())
                 && sink.write(keyIndexBytes.data(), keyIndexBytes.size())
-                && sink.write(chunkTables.data(), chunkTables.size()) && sink.write(provenance.data(), provenance.size());
+                && sink.write(chunkTables.data(), chunkTables.size())
+                && sink.write(provenance.data(), provenance.size());
 
             const std::uint64_t fileSize = metadataOffset + metadataSize + F::footerSize;
             if (metadataSize > F::maxMetadataSize || fileSize > F::maxFileSize)
@@ -717,7 +723,8 @@ namespace EdenArchive
             {
                 std::filesystem::rename(temporary, output, ec);
                 if (ec)
-                    result = makeError(ErrorClass::Io, "output", "cannot replace '" + output.string() + "': " + ec.message());
+                    result = makeError(
+                        ErrorClass::Io, "output", "cannot replace '" + output.string() + "': " + ec.message());
             }
             if (result)
                 std::filesystem::remove(temporary, ec);

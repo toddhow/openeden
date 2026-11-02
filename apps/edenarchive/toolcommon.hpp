@@ -96,7 +96,8 @@ namespace EdenTools
     inline std::unique_ptr<EdenArchive::Archive> openPack(const std::filesystem::path& path, int& exitCode)
     {
         EdenArchive::Error error;
-        std::unique_ptr<EdenArchive::Archive> pack = EdenArchive::Archive::open(path, EdenArchive::OpenOptions{}, error);
+        std::unique_ptr<EdenArchive::Archive> pack
+            = EdenArchive::Archive::open(path, EdenArchive::OpenOptions{}, error);
         if (!pack)
         {
             std::fprintf(stderr, "%s\n", error.describe(pathToUtf8(path)).c_str());

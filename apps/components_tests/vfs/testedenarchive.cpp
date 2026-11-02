@@ -43,8 +43,8 @@ namespace VFS
             writeFile(path, toString(bytes));
         }
 
-        EdenTest::EntrySpec fileEntry(std::string path, EdenTest::Bytes content,
-            EdenTest::CodecChoice codec = EdenTest::CodecChoice::Store)
+        EdenTest::EntrySpec fileEntry(
+            std::string path, EdenTest::Bytes content, EdenTest::CodecChoice codec = EdenTest::CodecChoice::Store)
         {
             EdenTest::EntrySpec entry;
             entry.mPath = std::move(path);
@@ -137,8 +137,8 @@ namespace VFS
             writeFile(mTemp.path() / "wrongcase.dat", "edenpak\x01 and more bytes follow here, not a pack");
             writeFile(mTemp.path() / "almost.dat", "EDENPAJ\x01 and more bytes follow here, not a pack");
 
-            for (const auto& path : { bsa, mTemp.path() / "empty.dat", mTemp.path() / "short.dat", mTemp.path() / "text.dat",
-                     mTemp.path() / "wrongcase.dat", mTemp.path() / "almost.dat" })
+            for (const auto& path : { bsa, mTemp.path() / "empty.dat", mTemp.path() / "short.dat",
+                     mTemp.path() / "text.dat", mTemp.path() / "wrongcase.dat", mTemp.path() / "almost.dat" })
             {
                 SCOPED_TRACE(path.filename().string());
                 std::unique_ptr<Archive> archive;
@@ -255,7 +255,8 @@ namespace VFS
             const FileMap files = listing(*archive);
             for (const auto& [name, file] : files)
                 EXPECT_TRUE(archive->contains(name)) << name.value();
-            for (const char* missing : { "x", "x.tx", "x.txtx", "dir", "dir/big", "y.txt", "dir/other.bin", "empty.tx" })
+            for (const char* missing :
+                { "x", "x.tx", "x.txtx", "dir", "dir/big", "y.txt", "dir/other.bin", "empty.tx" })
                 EXPECT_FALSE(archive->contains(Path::NormalizedView(missing))) << missing;
         }
 
@@ -391,7 +392,8 @@ namespace VFS
             File* file = files.at(Path::Normalized("dir/big.bin"));
             const std::string content = toString(mSample.mBig);
             const Files::IStreamPtr stream = file->open();
-            for (const std::size_t at : { std::size_t{ 5000 }, std::size_t{ 4095 }, std::size_t{ 0 }, std::size_t{ 11990 } })
+            for (const std::size_t at :
+                { std::size_t{ 5000 }, std::size_t{ 4095 }, std::size_t{ 0 }, std::size_t{ 11990 } })
             {
                 stream->clear();
                 stream->seekg(static_cast<std::streamoff>(at));
@@ -438,8 +440,10 @@ namespace VFS
             EXPECT_THROW(file->readRange(11999, 2, destination.data()), std::runtime_error);
             EXPECT_THROW(file->readRange(0, 12001, destination.data()), std::runtime_error);
             EXPECT_THROW(file->readRange(12000, 1, destination.data()), std::runtime_error);
-            EXPECT_THROW(file->readRange(std::numeric_limits<std::uint64_t>::max(), 16, destination.data()), std::runtime_error);
-            EXPECT_THROW(file->readRange(1, std::numeric_limits<std::size_t>::max(), destination.data()), std::runtime_error);
+            EXPECT_THROW(
+                file->readRange(std::numeric_limits<std::uint64_t>::max(), 16, destination.data()), std::runtime_error);
+            EXPECT_THROW(
+                file->readRange(1, std::numeric_limits<std::size_t>::max(), destination.data()), std::runtime_error);
             for (const unsigned char byte : destination)
                 EXPECT_EQ(byte, 0xCD) << "a rejected range must not write";
 
@@ -461,7 +465,8 @@ namespace VFS
             mVfs.readRange(Path::NormalizedView("dir/big.bin"), 4090, 100, buffer.data());
             EXPECT_EQ(std::vector<unsigned char>(buffer.begin(), buffer.end()),
                 std::vector<unsigned char>(mSample.mBig.begin() + 4090, mSample.mBig.begin() + 4190));
-            EXPECT_THROW(mVfs.readRange(Path::NormalizedView("dir/big.bin"), 11950, 100, buffer.data()), std::runtime_error);
+            EXPECT_THROW(
+                mVfs.readRange(Path::NormalizedView("dir/big.bin"), 11950, 100, buffer.data()), std::runtime_error);
         }
 
         // ---- content hash and the conflict report ----
@@ -550,8 +555,8 @@ namespace VFS
             registerAll(mVfs, { data }, { "mod.pack" });
 
             const std::vector<Override> overrides = mVfs.getOverrides();
-            const auto found = std::find_if(overrides.begin(), overrides.end(),
-                [](const Override& item) { return item.mPath.value() == "x.txt"; });
+            const auto found = std::find_if(
+                overrides.begin(), overrides.end(), [](const Override& item) { return item.mPath.value() == "x.txt"; });
             ASSERT_NE(found, overrides.end());
             EXPECT_FALSE(found->mIdentical);
             ASSERT_EQ(found->mLosers.size(), 1u);
@@ -624,8 +629,8 @@ namespace VFS
                 std::string mName;
                 const EdenTest::Bytes* mContent;
             };
-            const std::vector<Target> targets = { { "dir/big.bin", &mSample.mBig }, { "dir/text.txt", &mSample.mText },
-                { "x.txt", &mSample.mXTxt } };
+            const std::vector<Target> targets
+                = { { "dir/big.bin", &mSample.mBig }, { "dir/text.txt", &mSample.mText }, { "x.txt", &mSample.mXTxt } };
 
             std::atomic<unsigned> failures{ 0 };
             std::vector<std::thread> threads;
@@ -651,7 +656,8 @@ namespace VFS
                         }
                         if (got != toString(content).substr(offset, size))
                             ++failures;
-                        if (i % 40 == 0 && readAll(mVfs.find(Path::NormalizedView(target.mName.c_str()))) != toString(content))
+                        if (i % 40 == 0
+                            && readAll(mVfs.find(Path::NormalizedView(target.mName.c_str()))) != toString(content))
                             ++failures;
                     }
                 });

@@ -156,8 +156,8 @@ namespace EdenTestSuite
             }
             {
                 Item derived = pathItem("derived/tile.bin", EdenTest::textBytes(500));
-                derived.mProvenance = EdenTest::ProvenanceSpec{ "tilebaker/0.3.1", EdenTest::blake3Of(EdenTest::bytesOf("src")),
-                    { 1, 2, 3, 4, 5 } };
+                derived.mProvenance = EdenTest::ProvenanceSpec{ "tilebaker/0.3.1",
+                    EdenTest::blake3Of(EdenTest::bytesOf("src")), { 1, 2, 3, 4, 5 } };
                 items.push_back(derived);
             }
             return items;
@@ -262,7 +262,8 @@ namespace EdenTestSuite
                 std::rotate(rotated.begin(), rotated.begin() + 5, rotated.end());
                 EXPECT_EQ(mustWrite(rotated, options), want) << "rotated, store " << store;
                 for (std::uint64_t seed = 1; seed <= 5; ++seed)
-                    EXPECT_EQ(mustWrite(shuffled(items, seed), options), want) << "shuffle " << seed << " store " << store;
+                    EXPECT_EQ(mustWrite(shuffled(items, seed), options), want)
+                        << "shuffle " << seed << " store " << store;
             }
         }
 
@@ -279,8 +280,8 @@ namespace EdenTestSuite
                 EXPECT_EQ(mustWrite(items, options), want) << threads << " threads";
             }
             options.mThreads = 4;
-            for (const std::uint64_t window : { std::uint64_t{ 1 }, std::uint64_t{ 4096 }, std::uint64_t{ 100000 },
-                     std::uint64_t{ 1 } << 30 })
+            for (const std::uint64_t window :
+                { std::uint64_t{ 1 }, std::uint64_t{ 4096 }, std::uint64_t{ 100000 }, std::uint64_t{ 1 } << 30 })
             {
                 options.mWorkWindow = window;
                 EXPECT_EQ(mustWrite(items, options), want) << "work window " << window;
@@ -347,7 +348,8 @@ namespace EdenTestSuite
                         }
                     }
                     EXPECT_TRUE(anyZstd) << "the standard items contain data that zstd shrinks";
-                    EXPECT_EQ(mine->info().mCompressorVersion, static_cast<std::uint32_t>(EdenTest::zstdVersionNumber()));
+                    EXPECT_EQ(
+                        mine->info().mCompressorVersion, static_cast<std::uint32_t>(EdenTest::zstdVersionNumber()));
                     EXPECT_EQ(mine->info().mCompressorLevel, level);
                 }
             }
@@ -448,11 +450,13 @@ namespace EdenTestSuite
 
         TEST(EdenArchiveWriter, theLargestAcceptedPathAndProvenanceShouldWork)
         {
-            const std::string longest = std::string(255, 'a') + "/" + std::string(255, 'b') + "/" + std::string(255, 'c') + "/"
-                + std::string(254, 'd') + "/e"; // exactly 1024 bytes, components of at most 255
+            const std::string longest = std::string(255, 'a') + "/" + std::string(255, 'b') + "/"
+                + std::string(255, 'c') + "/" + std::string(254, 'd')
+                + "/e"; // exactly 1024 bytes, components of at most 255
             ASSERT_EQ(longest.size(), 1024u);
             Item item = pathItem(longest, EdenTest::bytesOf("x"));
-            item.mProvenance = EdenTest::ProvenanceSpec{ std::string(255, 't'), EdenTest::Digest{}, Bytes(60000, 0x5A) };
+            item.mProvenance
+                = EdenTest::ProvenanceSpec{ std::string(255, 't'), EdenTest::Digest{}, Bytes(60000, 0x5A) };
             WriteOptions options;
             options.mStoreOnly = true;
             const Bytes got = mustWrite({ item }, options);
@@ -485,17 +489,27 @@ namespace EdenTestSuite
             name("dotdot", "a/../b", { "E_NAME" });
             name("dotcomponent", "a/./b", { "E_NAME" });
             name("dot", ".", { "E_NAME" });
-            name("control", "a\x01" "b", { "E_NAME" });
+            name("control",
+                "a\x01"
+                "b",
+                { "E_NAME" });
             name("nul", std::string("a\0b", 3), { "E_NAME" });
-            name("badutf8", "a\xFF" "b", { "E_NAME" });
+            name("badutf8",
+                "a\xFF"
+                "b",
+                { "E_NAME" });
             name("overlong", "a\xC0\x80", { "E_NAME" });
             name("empty", "", { "E_LIMIT" });
-            name("path1025", std::string(255, 'a') + "/" + std::string(255, 'b') + "/" + std::string(255, 'c') + "/"
-                    + std::string(255, 'd') + "/e", { "E_LIMIT" });
+            name("path1025",
+                std::string(255, 'a') + "/" + std::string(255, 'b') + "/" + std::string(255, 'c') + "/"
+                    + std::string(255, 'd') + "/e",
+                { "E_LIMIT" });
             name("component256", std::string(256, 'a'), { "E_LIMIT", "E_NAME" });
 
-            list.push_back({ "duplicatepath", { pathItem("a", {}), pathItem("a", EdenTest::bytesOf("x")) }, { "E_DUPLICATE" } });
-            list.push_back({ "duplicatekey", { keyItem(5, {}), keyItem(5, EdenTest::bytesOf("x")) }, { "E_DUPLICATE" } });
+            list.push_back(
+                { "duplicatepath", { pathItem("a", {}), pathItem("a", EdenTest::bytesOf("x")) }, { "E_DUPLICATE" } });
+            list.push_back(
+                { "duplicatekey", { keyItem(5, {}), keyItem(5, EdenTest::bytesOf("x")) }, { "E_DUPLICATE" } });
             {
                 Item both = pathItem("a", {});
                 both.mKey = 7;
@@ -514,11 +528,13 @@ namespace EdenTestSuite
                 wrong.mType = 0x10;
                 list.push_back({ "tilewrongtag", { wrong }, { "E_RANGE" } });
             }
-            const auto provenance = [&](const char* label, std::string tool, Bytes parameters, std::vector<std::string> classes) {
-                Item item = pathItem("p", EdenTest::bytesOf("x"));
-                item.mProvenance = EdenTest::ProvenanceSpec{ std::move(tool), EdenTest::Digest{}, std::move(parameters) };
-                list.push_back({ label, { item }, std::move(classes) });
-            };
+            const auto provenance
+                = [&](const char* label, std::string tool, Bytes parameters, std::vector<std::string> classes) {
+                      Item item = pathItem("p", EdenTest::bytesOf("x"));
+                      item.mProvenance
+                          = EdenTest::ProvenanceSpec{ std::move(tool), EdenTest::Digest{}, std::move(parameters) };
+                      list.push_back({ label, { item }, std::move(classes) });
+                  };
             provenance("emptytool", "", {}, { "E_LIMIT", "E_RANGE" });
             provenance("tool256", std::string(256, 't'), {}, { "E_LIMIT" });
             provenance("toolnul", std::string("a\0b", 3), {}, { "E_NAME" });
@@ -551,7 +567,8 @@ namespace EdenTestSuite
 
         TEST(EdenArchiveWriter, aBadChunkSizeShouldBeRejected)
         {
-            for (const std::uint32_t chunkSize : { 0u, 1u, 1000u, 4095u, 5000u, 2048u, 12288u, (8u << 20) + 4096u, 1u << 24, 1u << 31 })
+            for (const std::uint32_t chunkSize :
+                { 0u, 1u, 1000u, 4095u, 5000u, 2048u, 12288u, (8u << 20) + 4096u, 1u << 24, 1u << 31 })
             {
                 SCOPED_TRACE(chunkSize);
                 WriteOptions options;

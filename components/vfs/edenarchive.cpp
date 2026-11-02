@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <memory>
 #include <fstream>
 #include <istream>
+#include <memory>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -96,8 +96,7 @@ namespace VFS
 
         [[noreturn]] void fail(const EdenPackArchive& pack, const std::string& what, const EdenArchive::Error& error)
         {
-            throw std::runtime_error(what + " in " + Files::pathToUnicodeString(pack.path()) + ": "
-                + error.describe());
+            throw std::runtime_error(what + " in " + Files::pathToUnicodeString(pack.path()) + ": " + error.describe());
         }
 
         class EdenArchiveFile final : public File
@@ -148,8 +147,8 @@ namespace VFS
             void readRange(std::uint64_t offset, std::size_t size, void* destination) override
             {
                 if (const EdenArchive::Error error = mOwner->pack().readRange(mIndex, offset, size, destination))
-                    fail(*mOwner,
-                        "Failed to read a range of '" + std::string(mOwner->pack().entry(mIndex).mPath) + "'", error);
+                    fail(*mOwner, "Failed to read a range of '" + std::string(mOwner->pack().entry(mIndex).mPath) + "'",
+                        error);
             }
 
             // The hash the pack stores for the entry. It is the pack author's statement until the entry has been
@@ -170,8 +169,8 @@ namespace VFS
             EdenArchive::Error error;
             mPack = EdenArchive::Archive::open(path, EdenArchive::OpenOptions{}, error);
             if (!mPack)
-                throw std::runtime_error("Failed to open the Eden Archive '" + Files::pathToUnicodeString(path)
-                    + "': " + error.describe());
+                throw std::runtime_error(
+                    "Failed to open the Eden Archive '" + Files::pathToUnicodeString(path) + "': " + error.describe());
             // Created after the pack: the files point back at this object, which does not move (it is held by pointer).
             mFiles.reserve(mPack->entryCount());
             for (std::size_t i = 0; i < mPack->entryCount(); ++i)

@@ -81,7 +81,8 @@ namespace EdenTestSuite
                         const ValidationReport report = run(c.mBytes, canonical);
                         EXPECT_FALSE(report.mOpened);
                         EXPECT_FALSE(report.valid());
-                        ASSERT_EQ(report.mFindings.size(), 1u) << "the open error is the only finding\n" << describeAll(report);
+                        ASSERT_EQ(report.mFindings.size(), 1u) << "the open error is the only finding\n"
+                                                               << describeAll(report);
                         EXPECT_TRUE(classIs(report.mFindings[0], c.mClasses))
                             << "got " << className(report.mFindings[0]) << ", want " << joined(c.mClasses);
                         if (c.mOffset.has_value())
@@ -93,7 +94,8 @@ namespace EdenTestSuite
                 {
                     const ValidationReport report = run(c.mBytes, false, true);
                     EXPECT_TRUE(report.mOpened);
-                    EXPECT_TRUE(hasClass(report, c.mClasses)) << "wanted " << joined(c.mClasses) << "\n" << describeAll(report);
+                    EXPECT_TRUE(hasClass(report, c.mClasses)) << "wanted " << joined(c.mClasses) << "\n"
+                                                              << describeAll(report);
                     // Without content checking only the structure is looked at, and that is fine.
                     const ValidationReport structure = run(c.mBytes, false, false);
                     EXPECT_TRUE(structure.valid()) << describeAll(structure);
@@ -102,8 +104,8 @@ namespace EdenTestSuite
             }
         }
 
-        INSTANTIATE_TEST_SUITE_P(
-            Corpus, CorpusValidatorTest, testing::Range<std::size_t>(0, EdenTest::corpusCases().size()),
+        INSTANTIATE_TEST_SUITE_P(Corpus, CorpusValidatorTest,
+            testing::Range<std::size_t>(0, EdenTest::corpusCases().size()),
             [](const testing::TestParamInfo<std::size_t>& info) { return EdenTest::corpusCases()[info.param].mId; });
 
         // ---- more detailed behaviour ----
@@ -214,7 +216,8 @@ namespace EdenTestSuite
                         EdenTest::EntrySpec entry;
                         entry.mPath = "poor.bin";
                         entry.mContent = EdenTest::patternBytes(4096, 5);
-                        entry.mCodec = EdenTest::CodecChoice::Zstd; // random data: the frame is larger than the 1/16 rule allows
+                        entry.mCodec
+                            = EdenTest::CodecChoice::Zstd; // random data: the frame is larger than the 1/16 rule allows
                         spec.mEntries = { entry };
                     } },
                 { "generation without the derived flag",
@@ -290,13 +293,14 @@ namespace EdenTestSuite
                 {
                     SCOPED_TRACE("chunk size " + std::to_string(chunkSize) + (store ? " store" : " optimise"));
                     std::vector<EdenArchive::InputEntry> entries;
-                    const auto add = [&](std::optional<std::string> path, std::optional<std::uint64_t> key, Bytes data) {
-                        EdenArchive::InputEntry entry;
-                        entry.mPath = std::move(path);
-                        entry.mKey = key;
-                        entry.mData = std::move(data);
-                        entries.push_back(std::move(entry));
-                    };
+                    const auto add
+                        = [&](std::optional<std::string> path, std::optional<std::uint64_t> key, Bytes data) {
+                              EdenArchive::InputEntry entry;
+                              entry.mPath = std::move(path);
+                              entry.mKey = key;
+                              entry.mData = std::move(data);
+                              entries.push_back(std::move(entry));
+                          };
                     add("a/text.txt", std::nullopt, EdenTest::textBytes(20000));
                     add("a/random.bin", std::nullopt, EdenTest::patternBytes(9000, 3));
                     add("a/empty", std::nullopt, {});

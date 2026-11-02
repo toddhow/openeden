@@ -180,15 +180,18 @@ namespace EdenArchive
                 if (std::filesystem::exists(status))
                 {
                     if (isLinkLike(current))
-                        return makeError(ErrorClass::Io, "path", "'" + current.string() + "' is a link; refusing to follow it");
+                        return makeError(
+                            ErrorClass::Io, "path", "'" + current.string() + "' is a link; refusing to follow it");
                     if (!std::filesystem::is_directory(status))
-                        return makeError(ErrorClass::Io, "path", "'" + current.string() + "' exists and is not a folder");
+                        return makeError(
+                            ErrorClass::Io, "path", "'" + current.string() + "' exists and is not a folder");
                 }
                 else
                 {
                     std::filesystem::create_directory(current, ec);
                     if (ec)
-                        return makeError(ErrorClass::Io, "path", "cannot create '" + current.string() + "': " + ec.message());
+                        return makeError(
+                            ErrorClass::Io, "path", "cannot create '" + current.string() + "': " + ec.message());
                 }
                 start = slash + 1;
             }
@@ -268,20 +271,21 @@ namespace EdenArchive
             std::size_t pathEntries = 0;
             while (pathEntries < archive.entryCount() && archive.entry(pathEntries).mHasPath)
                 ++pathEntries;
-            if (const std::optional<std::size_t> clash = findFileDirectoryClash(
-                    pathEntries, [&archive](std::size_t i) { return archive.entry(i).mPath; }))
+            if (const std::optional<std::size_t> clash
+                = findFileDirectoryClash(pathEntries, [&archive](std::size_t i) { return archive.entry(i).mPath; }))
                 return makeError(ErrorClass::Name, "entry[" + std::to_string(*clash) + "].path",
                     "'" + std::string(archive.entry(*clash).mPath) + "' is both a file and a folder");
 
             std::error_code ec;
             std::filesystem::create_directories(outputFolder, ec);
             if (ec)
-                return makeError(ErrorClass::Io, "output", "cannot create '" + outputFolder.string() + "': " + ec.message());
+                return makeError(
+                    ErrorClass::Io, "output", "cannot create '" + outputFolder.string() + "': " + ec.message());
             if (isLinkLike(outputFolder))
                 return makeError(ErrorClass::Io, "output", "the output folder is a link");
 
-            const std::uint64_t block = std::max<std::uint64_t>(
-                archive.info().mChunkSize, (std::uint64_t{ 1 } << 20) / archive.info().mChunkSize * archive.info().mChunkSize);
+            const std::uint64_t block = std::max<std::uint64_t>(archive.info().mChunkSize,
+                (std::uint64_t{ 1 } << 20) / archive.info().mChunkSize * archive.info().mChunkSize);
             std::vector<std::uint8_t> buffer;
             for (std::size_t i = 0; i < archive.entryCount(); ++i)
             {
@@ -300,7 +304,8 @@ namespace EdenArchive
                 if (std::filesystem::exists(status))
                 {
                     if (isLinkLike(target))
-                        return makeError(ErrorClass::Io, "path", "'" + target.string() + "' is a link; refusing to follow it");
+                        return makeError(
+                            ErrorClass::Io, "path", "'" + target.string() + "' is a link; refusing to follow it");
                     if (!options.mOverwrite)
                         return makeError(ErrorClass::Io, "path", "'" + target.string() + "' exists; not overwriting");
                     if (std::filesystem::is_directory(status))
@@ -308,8 +313,10 @@ namespace EdenArchive
                 }
                 std::filesystem::path temporary = target;
                 temporary += ".edenunpack.tmp";
-                if (std::filesystem::exists(std::filesystem::symlink_status(temporary, statusError)) && isLinkLike(temporary))
-                    return makeError(ErrorClass::Io, "path", "'" + temporary.string() + "' is a link; refusing to follow it");
+                if (std::filesystem::exists(std::filesystem::symlink_status(temporary, statusError))
+                    && isLinkLike(temporary))
+                    return makeError(
+                        ErrorClass::Io, "path", "'" + temporary.string() + "' is a link; refusing to follow it");
                 bool good = true;
                 Hasher hasher;
                 {
@@ -319,7 +326,8 @@ namespace EdenArchive
                     std::uint64_t done = 0;
                     while (done < entry.mSize && good)
                     {
-                        const std::size_t n = static_cast<std::size_t>(std::min<std::uint64_t>(block, entry.mSize - done));
+                        const std::size_t n
+                            = static_cast<std::size_t>(std::min<std::uint64_t>(block, entry.mSize - done));
                         buffer.resize(n);
                         if (const Error error = archive.readRange(i, done, n, buffer.data()))
                         {

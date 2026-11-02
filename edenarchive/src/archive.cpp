@@ -159,7 +159,8 @@ namespace EdenArchive
             if (head[7] != F::magic[7])
                 return makeError(ErrorClass::Version, 7, "magic", "unsupported container generation");
             if (mSize < F::headerSize + F::footerSize)
-                return makeError(ErrorClass::Truncated, 0, "fileSize", "the file is shorter than a header and a footer");
+                return makeError(
+                    ErrorClass::Truncated, 0, "fileSize", "the file is shorter than a header and a footer");
             mFooterOffset = mSize - F::footerSize;
             if (!mSource->read(mFooterOffset, mFooter, sizeof(mFooter)))
                 return ioFailure(mFooterOffset, "footer");
@@ -195,7 +196,8 @@ namespace EdenArchive
         {
             const Hash checksum = blake3(mHeader, F::H::checksum);
             if (std::memcmp(checksum.data(), mHeader + F::H::checksum, 32) != 0)
-                return makeError(ErrorClass::Checksum, F::H::checksum, "headerChecksum", "the header checksum is wrong");
+                return makeError(
+                    ErrorClass::Checksum, F::H::checksum, "headerChecksum", "the header checksum is wrong");
 
             struct Pair
             {
@@ -238,12 +240,13 @@ namespace EdenArchive
         {
             mInfo.mPackFlags = F::rd64(mHeader + F::H::packFlags);
             if ((mInfo.mPackFlags & 0xFFFFFFFEull) != 0)
-                return makeError(ErrorClass::Unsupported, F::H::packFlags, "packFlags", "an unknown critical pack flag");
+                return makeError(
+                    ErrorClass::Unsupported, F::H::packFlags, "packFlags", "an unknown critical pack flag");
             mInfo.mChunkSize = F::rd32(mHeader + F::H::chunkSize);
             if (mInfo.mChunkSize < 4096 || mInfo.mChunkSize > F::maxChunkSize
                 || (mInfo.mChunkSize & (mInfo.mChunkSize - 1)) != 0)
-                return makeError(
-                    ErrorClass::Range, F::H::chunkSize, "chunkSize", "chunkSize is not a power of two from 4096 to 8 MiB");
+                return makeError(ErrorClass::Range, F::H::chunkSize, "chunkSize",
+                    "chunkSize is not a power of two from 4096 to 8 MiB");
             mInfo.mEntryRecordSize = F::rd32(mHeader + F::H::entryRecordSize);
             if (mInfo.mEntryRecordSize % 8 != 0 || mInfo.mEntryRecordSize < F::entryRecordSize
                 || mInfo.mEntryRecordSize > F::maxEntryStride)
@@ -313,14 +316,11 @@ namespace EdenArchive
             mInfo.mChunkTablesSize = u64(F::H::chunkTablesSize);
             mInfo.mProvenanceSize = u64(F::H::provenanceSize);
             if (mInfo.mStringTableSize % 8 != 0)
-                return makeError(
-                    ErrorClass::Range, F::H::stringTableSize, "stringTableSize", "not a multiple of 8");
+                return makeError(ErrorClass::Range, F::H::stringTableSize, "stringTableSize", "not a multiple of 8");
             if (mInfo.mChunkTablesSize % 8 != 0)
-                return makeError(
-                    ErrorClass::Range, F::H::chunkTablesSize, "chunkTablesSize", "not a multiple of 8");
+                return makeError(ErrorClass::Range, F::H::chunkTablesSize, "chunkTablesSize", "not a multiple of 8");
             if (mInfo.mProvenanceSize % 8 != 0)
-                return makeError(
-                    ErrorClass::Range, F::H::provenanceSize, "provenanceSize", "not a multiple of 8");
+                return makeError(ErrorClass::Range, F::H::provenanceSize, "provenanceSize", "not a multiple of 8");
             if (mInfo.mExtensionSize % 8 != 0)
                 return makeError(ErrorClass::Range, F::H::extensionSize, "extensionSize", "not a multiple of 8");
             struct Sub
@@ -461,8 +461,8 @@ namespace EdenArchive
                 const std::uint32_t flags = F::rd32(record + F::E::flags);
 
                 if ((flags & 0xFFF8u) != 0)
-                    return makeError(ErrorClass::Unsupported, base + F::E::flags, indexed("entry", i, "entryFlags").c_str(),
-                        "an unknown critical entry flag");
+                    return makeError(ErrorClass::Unsupported, base + F::E::flags,
+                        indexed("entry", i, "entryFlags").c_str(), "an unknown critical entry flag");
                 const bool hasPath = (flags & entryFlagHasPath) != 0;
                 const bool hasKey = (flags & entryFlagHasKey) != 0;
                 const bool hasProvenance = (flags & entryFlagHasProvenance) != 0;
@@ -487,20 +487,20 @@ namespace EdenArchive
 
                 const std::uint64_t size = F::rd64(record + F::E::size);
                 if (size > F::maxEntrySize)
-                    return makeError(ErrorClass::Limit, base + F::E::size, indexed("entry", i, "uncompressedSize").c_str(),
-                        "an entry larger than 4 GiB");
+                    return makeError(ErrorClass::Limit, base + F::E::size,
+                        indexed("entry", i, "uncompressedSize").c_str(), "an entry larger than 4 GiB");
                 contentSum += size;
                 if (contentSum > F::maxPackContent)
-                    return makeError(ErrorClass::Limit, base + F::E::size, indexed("entry", i, "uncompressedSize").c_str(),
-                        "more than 2^40 content bytes in the pack");
+                    return makeError(ErrorClass::Limit, base + F::E::size,
+                        indexed("entry", i, "uncompressedSize").c_str(), "more than 2^40 content bytes in the pack");
                 const std::uint32_t chunkCount = F::rd32(record + F::E::chunkCount);
                 if (chunkCount > F::maxChunksPerEntry)
-                    return makeError(ErrorClass::Limit, base + F::E::chunkCount, indexed("entry", i, "chunkCount").c_str(),
-                        "more than 2^20 chunks in an entry");
+                    return makeError(ErrorClass::Limit, base + F::E::chunkCount,
+                        indexed("entry", i, "chunkCount").c_str(), "more than 2^20 chunks in an entry");
                 mTotalChunks += chunkCount;
                 if (mTotalChunks > F::maxChunksPerPack)
-                    return makeError(ErrorClass::Limit, base + F::E::chunkCount, indexed("entry", i, "chunkCount").c_str(),
-                        "more than 2^25 chunks in the pack");
+                    return makeError(ErrorClass::Limit, base + F::E::chunkCount,
+                        indexed("entry", i, "chunkCount").c_str(), "more than 2^25 chunks in the pack");
                 if ((chunkCount == 0) != (size == 0))
                     return makeError(ErrorClass::Range, base + (size == 0 ? F::E::size : F::E::chunkCount),
                         indexed("entry", i, size == 0 ? "uncompressedSize" : "chunkCount").c_str(),
@@ -529,7 +529,8 @@ namespace EdenArchive
                     const std::string_view path(reinterpret_cast<const char*>(strings) + offset, length);
                     std::string reason;
                     if (const ErrorClass nameClass = checkStoredPath(path, reason); nameClass != ErrorClass::None)
-                        return makeError(nameClass, base + F::E::pathOffset, indexed("entry", i, "path").c_str(), reason);
+                        return makeError(
+                            nameClass, base + F::E::pathOffset, indexed("entry", i, "path").c_str(), reason);
                     if (havePath)
                     {
                         const int order = comparePaths(previousPath, path);
@@ -541,11 +542,12 @@ namespace EdenArchive
                                 indexed("entry", i, "path").c_str(), "paths are not in ascending order");
                     }
                     if (sawKeyOnly)
-                        return makeError(ErrorClass::Order, base + F::E::flags, indexed("entry", i, "entryFlags").c_str(),
-                            "a path entry after a key-only entry");
+                        return makeError(ErrorClass::Order, base + F::E::flags,
+                            indexed("entry", i, "entryFlags").c_str(), "a path entry after a key-only entry");
                     if (offset != pathEnd)
                         return makeError(ErrorClass::Range, base + F::E::pathOffset,
-                            indexed("entry", i, "pathOffset").c_str(), "paths must follow each other in the string table");
+                            indexed("entry", i, "pathOffset").c_str(),
+                            "paths must follow each other in the string table");
                     pathEnd = offset + length;
                     previousPath = path;
                     havePath = true;
@@ -710,8 +712,8 @@ namespace EdenArchive
                 }
             }
             if (previousEnd != mDataEnd)
-                return makeError(ErrorClass::Range, F::H::dataSize, "dataSize",
-                    "dataSize does not end where the last chunk ends");
+                return makeError(
+                    ErrorClass::Range, F::H::dataSize, "dataSize", "dataSize does not end where the last chunk ends");
             return Error{};
         }
 
@@ -791,7 +793,8 @@ namespace EdenArchive
         Error loadChunk(const Archive::Impl& impl, const ChunkInfo& chunk, DecodeBudget* budget, DecodedChunk& out)
         {
             if ((chunk.mFlags & 0x00FE) != 0)
-                return makeError(ErrorClass::Unsupported, chunk.mOffset, "chunkFlags", "an unknown critical chunk flag");
+                return makeError(
+                    ErrorClass::Unsupported, chunk.mOffset, "chunkFlags", "an unknown critical chunk flag");
             if (chunk.mCodec != codecStore && chunk.mCodec != codecZstd)
                 return makeError(ErrorClass::Unsupported, chunk.mOffset, "codec", "an unknown codec");
             // Defence in depth: the record was checked at open, but the source may have changed since.
@@ -834,8 +837,8 @@ namespace EdenArchive
                     return makeError(ErrorClass::Codec, chunk.mOffset, "zstd.window", "the window is above 8 MiB");
                 const std::size_t frameSize = ZSTD_findFrameCompressedSize(stored, chunk.mStoredSize);
                 if (ZSTD_isError(frameSize) || frameSize != chunk.mStoredSize)
-                    return makeError(ErrorClass::Codec, chunk.mOffset, "zstd.frame",
-                        "the stored bytes are not exactly one frame");
+                    return makeError(
+                        ErrorClass::Codec, chunk.mOffset, "zstd.frame", "the stored bytes are not exactly one frame");
                 if (buffers.mContext == nullptr)
                 {
                     buffers.mContext = ZSTD_createDCtx();
@@ -845,11 +848,11 @@ namespace EdenArchive
                 }
                 if (buffers.mDecoded.size() < chunk.mSize)
                     buffers.mDecoded.resize(chunk.mSize);
-                const std::size_t produced
-                    = ZSTD_decompressDCtx(buffers.mContext, buffers.mDecoded.data(), chunk.mSize, stored, chunk.mStoredSize);
+                const std::size_t produced = ZSTD_decompressDCtx(
+                    buffers.mContext, buffers.mDecoded.data(), chunk.mSize, stored, chunk.mStoredSize);
                 if (ZSTD_isError(produced) || produced != chunk.mSize)
-                    return makeError(
-                        ErrorClass::Codec, chunk.mOffset, "zstd.frame", "the frame does not decode to the declared size");
+                    return makeError(ErrorClass::Codec, chunk.mOffset, "zstd.frame",
+                        "the frame does not decode to the declared size");
                 decoded = buffers.mDecoded.data();
             }
 
@@ -1087,7 +1090,8 @@ namespace EdenArchive
         }
     }
 
-    Error Archive::readEntry(std::size_t entryIndex, std::vector<std::uint8_t>& out, DecodeBudget* budget) const noexcept
+    Error Archive::readEntry(
+        std::size_t entryIndex, std::vector<std::uint8_t>& out, DecodeBudget* budget) const noexcept
     {
         try
         {

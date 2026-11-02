@@ -51,14 +51,15 @@ namespace EdenTestSuite
         return out.empty() ? "(any)" : out;
     }
 
-    inline std::unique_ptr<EdenArchive::Archive> openBytes(const Bytes& bytes, EdenArchive::Error& error,
-        const EdenArchive::OpenOptions& options = {})
+    inline std::unique_ptr<EdenArchive::Archive> openBytes(
+        const Bytes& bytes, EdenArchive::Error& error, const EdenArchive::OpenOptions& options = {})
     {
         return EdenArchive::Archive::open(EdenArchive::makeMemorySource(bytes), options, error);
     }
 
     /// Opens and fails the test if the pack does not open.
-    inline std::unique_ptr<EdenArchive::Archive> openOrFail(const Bytes& bytes, const EdenArchive::OpenOptions& options = {})
+    inline std::unique_ptr<EdenArchive::Archive> openOrFail(
+        const Bytes& bytes, const EdenArchive::OpenOptions& options = {})
     {
         EdenArchive::Error error;
         std::unique_ptr<EdenArchive::Archive> archive = openBytes(bytes, error, options);
@@ -147,8 +148,8 @@ namespace EdenTestSuite
 
     /// Checks everything the corpus says about the entries of an opened pack: addresses, types, sizes, content hash,
     /// lookups by path and key, provenance. With `readAll` false the content is not read.
-    inline void checkEntries(const EdenArchive::Archive& archive, const std::vector<EdenTest::ExpectedEntry>& expected,
-        bool readAll = true)
+    inline void checkEntries(
+        const EdenArchive::Archive& archive, const std::vector<EdenTest::ExpectedEntry>& expected, bool readAll = true)
     {
         ASSERT_EQ(archive.entryCount(), expected.size());
         for (std::size_t i = 0; i < expected.size(); ++i)

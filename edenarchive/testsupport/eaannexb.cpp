@@ -122,7 +122,8 @@ namespace EdenTest
             const std::size_t bar = line.find('|');
             for (std::size_t i = 10; i + 1 < bar; ++i)
             {
-                if (std::isxdigit(static_cast<unsigned char>(line[i])) && std::isxdigit(static_cast<unsigned char>(line[i + 1])))
+                if (std::isxdigit(static_cast<unsigned char>(line[i]))
+                    && std::isxdigit(static_cast<unsigned char>(line[i + 1])))
                 {
                     row.push_back(static_cast<std::uint8_t>(std::stoul(line.substr(i, 2), nullptr, 16)));
                     ++i;

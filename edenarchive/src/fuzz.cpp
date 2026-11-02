@@ -47,7 +47,8 @@ namespace EdenArchive
                     (void)archive->readRange(i, 0, 1, &one, &budget);
                     (void)archive->readRange(i, entry.mSize - 1, 1, &one, &budget);
                     const std::uint64_t middle = entry.mSize / 2;
-                    const std::size_t span = static_cast<std::size_t>(std::min<std::uint64_t>(entry.mSize - middle, 4096));
+                    const std::size_t span
+                        = static_cast<std::size_t>(std::min<std::uint64_t>(entry.mSize - middle, 4096));
                     content.resize(span);
                     (void)archive->readRange(i, middle, span, content.data(), &budget);
                 }

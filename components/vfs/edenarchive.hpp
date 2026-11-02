@@ -18,7 +18,8 @@ namespace VFS
     /// whose eighth byte differs, is claimed so that it is reported as unsupported rather than ignored). Throws
     /// std::runtime_error naming the file and the located error when the file is a pack that cannot be opened.
     /// Names inside a pack are already normalized, so the encoder is not used.
-    std::unique_ptr<Archive> makeEdenArchive(const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder);
+    std::unique_ptr<Archive> makeEdenArchive(
+        const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder);
 
     /// Adds makeEdenArchive to the process-wide factory list (addArchiveFactory). Not needed by the game: makeArchive
     /// already tries makeEdenArchive after the added factories and before the Bethesda reader.

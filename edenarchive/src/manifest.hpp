@@ -21,8 +21,7 @@ namespace EdenArchive
         /// Starts an entry. `path` is empty for an entry with no path.
         void beginEntry(std::uint32_t entryFlags, std::uint16_t entryType, std::uint64_t key, std::string_view path,
             std::uint64_t uncompressedSize, const Hash& contentHash, std::uint32_t hintMemorySize,
-            std::uint32_t hintGroup, std::uint32_t layoutParamA, std::uint32_t layoutParamB,
-            std::uint32_t chunkCount);
+            std::uint32_t hintGroup, std::uint32_t layoutParamA, std::uint32_t layoutParamB, std::uint32_t chunkCount);
         void addChunk(std::uint32_t uncompressedSize, const Hash& chunkHash);
         /// Ends the entry. `provenanceRecord` is the whole record including its padding, or empty for none.
         void endEntry(std::span<const std::uint8_t> provenanceRecord);

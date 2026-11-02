@@ -59,8 +59,8 @@ namespace EdenTest
         if (what.mPathIndex)
             rebuildPathIndexInBytes(pack);
 
-        const std::size_t footerPos = pack.size() >= Fmt::footerSize + Fmt::headerSize ? pack.size() - Fmt::footerSize
-                                                                                        : pack.size();
+        const std::size_t footerPos
+            = pack.size() >= Fmt::footerSize + Fmt::headerSize ? pack.size() - Fmt::footerSize : pack.size();
         if (what.mMetadataDigest)
         {
             // The range the header names, clamped to the file before the footer, as a reader would read it.

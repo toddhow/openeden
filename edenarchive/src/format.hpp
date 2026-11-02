@@ -43,23 +43,22 @@ namespace EdenArchive::Format
     // Header field offsets, section 5.
     namespace H
     {
-        inline constexpr std::size_t versionMajor = 8, versionMinor = 10, headerSize = 12, packFlags = 16,
-                                     fileSize = 24, chunkSize = 32, entryRecordSize = 36, chunkRecordSize = 40,
-                                     compressorVersion = 44, compressorLevel = 48, reserved52 = 52, entryCount = 56,
-                                     pathEntryCount = 64, keyEntryCount = 72, dataOffset = 80, dataSize = 88,
-                                     metadataOffset = 96, metadataSize = 104, stringTableOffset = 112,
-                                     stringTableSize = 120, entryTableOffset = 128, pathIndexOffset = 136,
-                                     keyIndexOffset = 144, chunkTablesOffset = 152, chunkTablesSize = 160,
-                                     provenanceOffset = 168, provenanceSize = 176, extensionOffset = 184,
-                                     extensionSize = 192, generation = 200, sourceDigest = 208, manifestDigest = 240,
-                                     metadataDigest = 272, reservedBegin = 304, checksum = 480;
+        inline constexpr std::size_t versionMajor
+            = 8,
+            versionMinor = 10, headerSize = 12, packFlags = 16, fileSize = 24, chunkSize = 32, entryRecordSize = 36,
+            chunkRecordSize = 40, compressorVersion = 44, compressorLevel = 48, reserved52 = 52, entryCount = 56,
+            pathEntryCount = 64, keyEntryCount = 72, dataOffset = 80, dataSize = 88, metadataOffset = 96,
+            metadataSize = 104, stringTableOffset = 112, stringTableSize = 120, entryTableOffset = 128,
+            pathIndexOffset = 136, keyIndexOffset = 144, chunkTablesOffset = 152, chunkTablesSize = 160,
+            provenanceOffset = 168, provenanceSize = 176, extensionOffset = 184, extensionSize = 192, generation = 200,
+            sourceDigest = 208, manifestDigest = 240, metadataDigest = 272, reservedBegin = 304, checksum = 480;
     }
     // Footer field offsets, section 6.
     namespace F
     {
         inline constexpr std::size_t versionMajor = 8, versionMinor = 10, footerSize = 12, fileSize = 16,
-                                     metadataOffset = 24, metadataSize = 32, metadataDigest = 40,
-                                     headerChecksum = 72, reservedBegin = 104;
+                                     metadataOffset = 24, metadataSize = 32, metadataDigest = 40, headerChecksum = 72,
+                                     reservedBegin = 104;
     }
     // Entry record field offsets, section 7.4.
     namespace E

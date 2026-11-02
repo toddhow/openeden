@@ -79,7 +79,8 @@ namespace EdenTest
     /// All cases, built once. The order is fixed.
     const std::vector<CorpusCase>& corpusCases();
 
-    /// The line of expected.txt for a case: "<id> <valid|invalid> <class or -> <open|read> <offset or -> <description>".
+    /// The line of expected.txt for a case: "<id> <valid|invalid> <class or -> <open|read> <offset or ->
+    /// <description>".
     std::string expectedLine(const CorpusCase& corpusCase);
 
     /// The whole expected.txt (one line per case, in case order, each ending in a newline character).

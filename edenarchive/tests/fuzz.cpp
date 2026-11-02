@@ -82,10 +82,10 @@ namespace EdenTestSuite
         /// The numbers worth writing into a size, offset or count field.
         std::uint64_t interestingValue(Rng& rng, std::uint64_t fileSize)
         {
-            const std::uint64_t fixed[] = { 0, 1, 2, 3, 7, 8, 0xFF, 0x100, 0xFFFF, 0x10000, 0x7FFFFFFFull, 0x80000000ull,
-                0xFFFFFFFFull, 1ull << 32, (1ull << 32) + 1, 1ull << 40, 1ull << 44, (1ull << 44) + 1, 1ull << 63,
-                ~std::uint64_t{ 0 }, ~std::uint64_t{ 0 } - 7, 4096, 8192, 1ull << 22, (1ull << 22) + 1, 1ull << 20,
-                (1ull << 20) + 1, 1ull << 23, (1ull << 23) + 1, 1ull << 24, 1ull << 25, 60000, 60001 };
+            const std::uint64_t fixed[] = { 0, 1, 2, 3, 7, 8, 0xFF, 0x100, 0xFFFF, 0x10000, 0x7FFFFFFFull,
+                0x80000000ull, 0xFFFFFFFFull, 1ull << 32, (1ull << 32) + 1, 1ull << 40, 1ull << 44, (1ull << 44) + 1,
+                1ull << 63, ~std::uint64_t{ 0 }, ~std::uint64_t{ 0 } - 7, 4096, 8192, 1ull << 22, (1ull << 22) + 1,
+                1ull << 20, (1ull << 20) + 1, 1ull << 23, (1ull << 23) + 1, 1ull << 24, 1ull << 25, 60000, 60001 };
             const std::uint64_t relative[] = { fileSize, fileSize - 1, fileSize + 1, fileSize - 8, fileSize + 8,
                 fileSize - 128, fileSize - 127, fileSize - 129, fileSize / 2 };
             if (rng.chance(70))
@@ -101,9 +101,9 @@ namespace EdenTestSuite
 
         // Fields of the header (section 5) that hold numbers.
         constexpr Field headerFields[] = { { 8, 2 }, { 10, 2 }, { 12, 4 }, { 16, 8 }, { 24, 8 }, { 32, 4 }, { 36, 4 },
-            { 40, 4 }, { 44, 4 }, { 48, 4 }, { 56, 8 }, { 64, 8 }, { 72, 8 }, { 80, 8 }, { 88, 8 }, { 96, 8 }, { 104, 8 },
-            { 112, 8 }, { 120, 8 }, { 128, 8 }, { 136, 8 }, { 144, 8 }, { 152, 8 }, { 160, 8 }, { 168, 8 }, { 176, 8 },
-            { 184, 8 }, { 192, 8 }, { 200, 8 } };
+            { 40, 4 }, { 44, 4 }, { 48, 4 }, { 56, 8 }, { 64, 8 }, { 72, 8 }, { 80, 8 }, { 88, 8 }, { 96, 8 },
+            { 104, 8 }, { 112, 8 }, { 120, 8 }, { 128, 8 }, { 136, 8 }, { 144, 8 }, { 152, 8 }, { 160, 8 }, { 168, 8 },
+            { 176, 8 }, { 184, 8 }, { 192, 8 }, { 200, 8 } };
         // Fields of an entry record (7.4) and of a chunk record (7.7).
         constexpr Field entryFields[] = { { 0, 8 }, { 8, 8 }, { 16, 4 }, { 20, 2 }, { 24, 4 }, { 28, 4 }, { 32, 8 },
             { 40, 8 }, { 80, 8 }, { 88, 4 }, { 92, 4 }, { 96, 4 }, { 100, 4 } };
@@ -313,8 +313,8 @@ namespace EdenTestSuite
         TEST(EdenArchiveFuzz, everyBitOfTheHeaderAndFooterShouldMatterOrBeReserved)
         {
             const Bytes pack = EdenTest::annexBPack();
-            // The header checksum covers every header bit and the footer repeats the checksum, so any flip in the header
-            // is caught. In the footer only the 24 reserved bytes (offset 104 on) may change without notice.
+            // The header checksum covers every header bit and the footer repeats the checksum, so any flip in the
+            // header is caught. In the footer only the 24 reserved bytes (offset 104 on) may change without notice.
             for (std::size_t bit = 0; bit < 512 * 8; ++bit)
             {
                 Bytes changed = pack;

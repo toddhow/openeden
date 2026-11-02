@@ -164,7 +164,8 @@ namespace EdenTest
 
             // ---- Annex B variants ----
 
-            Bytes annexVariant(const std::vector<Edit>& edits, const Recompute& recomputeWhat = {}, bool recomputeAtAll = true)
+            Bytes annexVariant(
+                const std::vector<Edit>& edits, const Recompute& recomputeWhat = {}, bool recomputeAtAll = true)
             {
                 Bytes pack = mAnnexB;
                 for (const Edit& edit : edits)
@@ -196,8 +197,8 @@ namespace EdenTest
                 std::size_t failing, std::vector<std::string> classes, const Recompute& recomputeWhat = {},
                 bool recomputeAtAll = true)
             {
-                addInvalidRead(std::move(id), std::move(description), annexVariant(edits, recomputeWhat, recomputeAtAll),
-                    annexEntries(), failing, std::move(classes));
+                addInvalidRead(std::move(id), std::move(description),
+                    annexVariant(edits, recomputeWhat, recomputeAtAll), annexEntries(), failing, std::move(classes));
             }
 
             Bytes mAnnexB;
@@ -315,15 +316,18 @@ namespace EdenTest
             }
 
             {
-                PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("ignorable")), pathEntry("b.txt", bytesOf("bits")) });
+                PackSpec spec
+                    = specOf({ pathEntry("a.txt", bytesOf("ignorable")), pathEntry("b.txt", bytesOf("bits")) });
                 spec.mPackFlags = (1ull << 33) | (1ull << 63);
                 spec.mEntries[0].mExtraFlags = (1u << 20) | (1u << 31);
                 spec.mEntries[1].mExtraFlags = 1u << 25;
-                corpus.addValid("v14ignorablebits", "ignorable-unknown-pack-and-entry-flag-bits", spec, CanonicalResult::Fail);
+                corpus.addValid(
+                    "v14ignorablebits", "ignorable-unknown-pack-and-entry-flag-bits", spec, CanonicalResult::Fail);
             }
 
             {
-                PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("reserved")), pathEntry("p.txt", bytesOf("prov")) });
+                PackSpec spec
+                    = specOf({ pathEntry("a.txt", bytesOf("reserved")), pathEntry("p.txt", bytesOf("prov")) });
                 spec.mEntries[1].mProvenance = ProvenanceSpec{ "t/1", blake3Of(bytesOf("x")), { 1 } };
                 spec.mMutate = [](PackImage& image) {
                     putLe(image.mHeader, Fmt::hReserved52, 0xDEADBEEF, 4);
@@ -337,7 +341,8 @@ namespace EdenTest
                     image.mFooter[Fmt::fReserved] = 0x7F;
                     image.mFooter[Fmt::footerSize - 1] = 0x7F;
                 };
-                corpus.addValid("v15reservednonzero", "non-zero-reserved-fields-everywhere", spec, CanonicalResult::Fail);
+                corpus.addValid(
+                    "v15reservednonzero", "non-zero-reserved-fields-everywhere", spec, CanonicalResult::Fail);
             }
 
             {
@@ -345,7 +350,8 @@ namespace EdenTest
                 spec.mEntries[0].mHintMemorySize = 123;
                 spec.mEntries[0].mHintGroup = 4;
                 spec.mEntries[0].mLayoutParamA = 8;
-                corpus.addValid("v16hintsnoflag", "hint-values-while-their-flags-are-clear", spec, CanonicalResult::Fail);
+                corpus.addValid(
+                    "v16hintsnoflag", "hint-values-while-their-flags-are-clear", spec, CanonicalResult::Fail);
             }
 
             {
@@ -371,13 +377,15 @@ namespace EdenTest
             {
                 PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("extension")) });
                 spec.mExtensions.push_back({ 0x80000001u, 0, bytesOf("hello") });
-                corpus.addValid("v19extskip", "unknown-extension-block-without-must-understand", spec, CanonicalResult::Fail);
+                corpus.addValid(
+                    "v19extskip", "unknown-extension-block-without-must-understand", spec, CanonicalResult::Fail);
             }
 
             {
                 PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("extension")) });
                 spec.mExtensions.push_back({ 1u, 1u, bytesOf("tool/1.0") });
-                corpus.addValid("v20extknownmu", "known-writer-info-block-with-must-understand", spec, CanonicalResult::Fail);
+                corpus.addValid(
+                    "v20extknownmu", "known-writer-info-block-with-must-understand", spec, CanonicalResult::Fail);
             }
 
             {
@@ -393,7 +401,8 @@ namespace EdenTest
                 entries.push_back(pathEntry("z/text.txt", textBytes(10000), CodecChoice::Zstd));
                 entries.push_back(pathEntry("z/rand.bin", patternBytes(5000, 22), CodecChoice::Store));
                 entries.push_back(pathEntry("z/zero.bin", Bytes(4096, 0), CodecChoice::Zstd));
-                CorpusCase& c = corpus.addValid("v22zstdmulti", "real-zstd-frames-in-several-chunks", specOf(entries, 4096));
+                CorpusCase& c
+                    = corpus.addValid("v22zstdmulti", "real-zstd-frames-in-several-chunks", specOf(entries, 4096));
                 c.mUsesRealZstd = true;
             }
 
@@ -405,7 +414,8 @@ namespace EdenTest
             }
 
             {
-                PackSpec spec = specOf({ pathEntry("s/a.bin", bytesOf("stride a")), pathEntry("s/b.bin", patternBytes(5000, 24)) }, 4096);
+                PackSpec spec = specOf(
+                    { pathEntry("s/a.bin", bytesOf("stride a")), pathEntry("s/b.bin", patternBytes(5000, 24)) }, 4096);
                 spec.mEntryRecordSize = 128;
                 spec.mChunkRecordSize = 64;
                 spec.mRecordPadByte = 0xAA;
@@ -422,8 +432,8 @@ namespace EdenTest
                 a.mChunks = { first, second };
                 EntrySpec b = pathEntry("g/b.bin", patternBytes(100, 27));
                 b.mBlockGap = 4096;
-                corpus.addValid("v25gaps", "zero-gaps-between-chunks-and-blocks", specOf({ a, b }, 4096),
-                    CanonicalResult::Fail);
+                corpus.addValid(
+                    "v25gaps", "zero-gaps-between-chunks-and-blocks", specOf({ a, b }, 4096), CanonicalResult::Fail);
             }
 
             {
@@ -433,8 +443,8 @@ namespace EdenTest
                 ChunkSpec second;
                 second.mRaw = patternBytes(5000, 29);
                 a.mChunks = { first, second };
-                corpus.addValid("v26nondefaultlayout", "chunks-not-cut-at-chunksize", specOf({ a }, 4096),
-                    CanonicalResult::Fail);
+                corpus.addValid(
+                    "v26nondefaultlayout", "chunks-not-cut-at-chunksize", specOf({ a }, 4096), CanonicalResult::Fail);
             }
 
             {
@@ -531,37 +541,43 @@ namespace EdenTest
             }
             corpus.variantOpen("i03checksum", "reserved-header-byte-changed-checksum-stale", { { 0x190, 1, 1 } },
                 { "E_CHECKSUM" }, std::nullopt, none);
-            corpus.variantOpen("i04filesize", "filesize-in-header-and-footer-plus-8", { { 0x18, 0x42C8, 8 }, { 0x4250, 0x42C8, 8 } },
-                { "E_TRUNCATED" }, std::nullopt, headerAndFooter);
+            corpus.variantOpen("i04filesize", "filesize-in-header-and-footer-plus-8",
+                { { 0x18, 0x42C8, 8 }, { 0x4250, 0x42C8, 8 } }, { "E_TRUNCATED" }, std::nullopt, headerAndFooter);
             {
                 Bytes longer = corpus.mAnnexB;
                 longer.resize(longer.size() + 8, 0);
-                corpus.addInvalid("i05append8", "eight-zero-bytes-after-the-footer", std::move(longer), { "E_TRUNCATED" });
+                corpus.addInvalid(
+                    "i05append8", "eight-zero-bytes-after-the-footer", std::move(longer), { "E_TRUNCATED" });
             }
-            corpus.variantOpen("i06chunkoffset", "chunk0-offset-far-outside", { { chunk0At, 0xFFFFFFFFFFFFF000ull, 8 } },
-                { "E_RANGE" }, chunk0At);
+            corpus.variantOpen("i06chunkoffset", "chunk0-offset-far-outside",
+                { { chunk0At, 0xFFFFFFFFFFFFF000ull, 8 } }, { "E_RANGE" }, chunk0At);
             corpus.variantOpen("i07overlap", "chunk2-offset-inside-entry1-block", { { chunk2At, 0x2000, 8 } },
                 { "E_OVERLAP" }, chunk2At);
             corpus.variantOpen("i08traversal", "entry0-name-with-dotdot", textEdits(0x4000, "data/../b.bin"),
                 { "E_NAME" }, std::nullopt, withIndex);
             corpus.variantOpen("i09duplicate", "entry1-name-equals-entry0",
                 { { entry1At + 8, 0, 8 }, { entry1At + 16, 13, 4 } }, { "E_DUPLICATE" }, std::nullopt, withIndex);
-            corpus.variantOpen("i10size", "entry0-size-max", { { entry0At + 32, maxU64, 8 } }, { "E_LIMIT" }, entry0At + 32);
-            corpus.variantOpen("i11chunksize", "chunk0-size-16-mib", { { chunk0At + 12, 0x01000000, 4 } }, { "E_LIMIT" },
-                chunk0At + 12);
-            corpus.variantRead("i12framesize", "zstd-frame-content-size-changed", { { 0x1005, 0xFF, 1 } }, 0, { "E_CODEC" }, none);
-            corpus.variantRead("i13flip", "first-content-byte-flipped", { { 0x2000, 'H' ^ 0xFF, 1 } }, 1, { "E_HASH" }, none);
-            corpus.variantOpen("i14critflag", "unknown-critical-pack-flag-bit-5", { { 0x10, 0x20, 8 } }, { "E_UNSUPPORTED" }, 0x10);
+            corpus.variantOpen(
+                "i10size", "entry0-size-max", { { entry0At + 32, maxU64, 8 } }, { "E_LIMIT" }, entry0At + 32);
+            corpus.variantOpen("i11chunksize", "chunk0-size-16-mib", { { chunk0At + 12, 0x01000000, 4 } },
+                { "E_LIMIT" }, chunk0At + 12);
+            corpus.variantRead(
+                "i12framesize", "zstd-frame-content-size-changed", { { 0x1005, 0xFF, 1 } }, 0, { "E_CODEC" }, none);
+            corpus.variantRead(
+                "i13flip", "first-content-byte-flipped", { { 0x2000, 'H' ^ 0xFF, 1 } }, 1, { "E_HASH" }, none);
+            corpus.variantOpen(
+                "i14critflag", "unknown-critical-pack-flag-bit-5", { { 0x10, 0x20, 8 } }, { "E_UNSUPPORTED" }, 0x10);
             corpus.variantRead("i15codec7", "chunk1-codec-7", { { chunk1At + 16, 7, 2 } }, 1, { "E_UNSUPPORTED" });
             corpus.variantOpen("i16order", "entry1-name-sorts-before-entry0", textEdits(0x400D, "aaa"), { "E_ORDER" },
                 std::nullopt, withIndex);
             corpus.variantOpen("i17digest", "string-table-padding-changed-digest-stale", { { 0x4017, 1, 1 } },
                 { "E_CHECKSUM" }, std::nullopt, none);
-            corpus.variantOpen("i18pathhash", "first-path-index-hash-zero", { { 0x4168, 0, 8 } }, { "E_INDEX" }, 0x4168);
+            corpus.variantOpen(
+                "i18pathhash", "first-path-index-hash-zero", { { 0x4168, 0, 8 } }, { "E_INDEX" }, 0x4168);
             corpus.variantOpen("i19chunktable", "entry0-chunktable-offset-outside", { { entry0At + 40, 0x4248, 8 } },
                 { "E_RANGE" }, entry0At + 40);
-            corpus.variantOpen("i20entryflags", "entry2-unknown-critical-flag-bit-5", { { entry2At + 24, 0x00010022, 4 } },
-                { "E_UNSUPPORTED" }, entry2At + 24);
+            corpus.variantOpen("i20entryflags", "entry2-unknown-critical-flag-bit-5",
+                { { entry2At + 24, 0x00010022, 4 } }, { "E_UNSUPPORTED" }, entry2At + 24);
         }
 
         // ------------------------------------------------------------------------------------------------------
@@ -573,88 +589,103 @@ namespace EdenTest
             const Recompute none{ false, false, false, false };
             const Recompute withIndex{ true, true, true, true };
 
-            corpus.variantOpen("f01version02", "version-0-2", { { 0x0A, 2, 2 }, { footerAt + 10, 2, 2 } }, { "E_VERSION" }, 0x0A);
+            corpus.variantOpen(
+                "f01version02", "version-0-2", { { 0x0A, 2, 2 }, { footerAt + 10, 2, 2 } }, { "E_VERSION" }, 0x0A);
             corpus.variantOpen("f02version10", "version-1-0",
                 { { 0x08, 1, 2 }, { 0x0A, 0, 2 }, { footerAt + 8, 1, 2 }, { footerAt + 10, 0, 2 } }, { "E_VERSION" });
             corpus.variantOpen("f03generation", "generation-byte-2", { { 7, 2, 1 } }, { "E_VERSION" }, 7, none);
-            corpus.variantOpen("f04footermetaoffset", "footer-metadata-offset-differs", { { footerAt + 24, 0x5000, 8 } },
-                { "E_CHECKSUM" }, std::nullopt, none);
+            corpus.variantOpen("f04footermetaoffset", "footer-metadata-offset-differs",
+                { { footerAt + 24, 0x5000, 8 } }, { "E_CHECKSUM" }, std::nullopt, none);
             corpus.variantOpen("f05footermetasize", "footer-metadata-size-differs", { { footerAt + 32, 0x248, 8 } },
                 { "E_CHECKSUM" }, std::nullopt, none);
             corpus.variantOpen("f06footerdigest", "footer-metadata-digest-byte-differs", { { footerAt + 40, 0x11, 1 } },
                 { "E_CHECKSUM" }, std::nullopt, none);
-            corpus.variantOpen("f07footerchecksum", "footer-header-checksum-byte-differs", { { footerAt + 72, 0x22, 1 } },
-                { "E_CHECKSUM" }, std::nullopt, none);
+            corpus.variantOpen("f07footerchecksum", "footer-header-checksum-byte-differs",
+                { { footerAt + 72, 0x22, 1 } }, { "E_CHECKSUM" }, std::nullopt, none);
             corpus.variantOpen("f08footerfilesize", "footer-filesize-differs", { { footerAt + 16, 0x42C8, 8 } },
                 { "E_CHECKSUM" }, std::nullopt, none);
-            corpus.variantOpen("f09footerversion", "footer-version-differs", { { footerAt + 10, 2, 2 } }, { "E_CHECKSUM" },
-                std::nullopt, none);
-            corpus.variantOpen("f10footersize", "footer-size-64", { { footerAt + 12, 64, 4 } }, { "E_RANGE" }, footerAt + 12, none);
-            corpus.variantOpen("f11pathcount", "path-entry-count-above-entry-count", { { 0x40, 4, 8 } }, { "E_RANGE" }, 0x40);
+            corpus.variantOpen("f09footerversion", "footer-version-differs", { { footerAt + 10, 2, 2 } },
+                { "E_CHECKSUM" }, std::nullopt, none);
+            corpus.variantOpen(
+                "f10footersize", "footer-size-64", { { footerAt + 12, 64, 4 } }, { "E_RANGE" }, footerAt + 12, none);
+            corpus.variantOpen(
+                "f11pathcount", "path-entry-count-above-entry-count", { { 0x40, 4, 8 } }, { "E_RANGE" }, 0x40);
             corpus.variantOpen("f12keycountmax", "key-entry-count-max", { { 0x48, maxU64, 8 } }, { "E_RANGE" }, 0x48);
             corpus.variantOpen("f13entrycountmax", "entry-count-max", { { 0x38, maxU64, 8 } }, { "E_LIMIT" }, 0x38);
-            corpus.variantOpen("f14entrycount2p22p1", "entry-count-2-pow-22-plus-1-in-a-tiny-file", { { 0x38, 4194305, 8 } },
-                { "E_LIMIT" }, 0x38);
+            corpus.variantOpen("f14entrycount2p22p1", "entry-count-2-pow-22-plus-1-in-a-tiny-file",
+                { { 0x38, 4194305, 8 } }, { "E_LIMIT" }, 0x38);
             corpus.variantOpen("f15entrycountabovesum", "entry-count-above-path-plus-key-count", { { 0x38, 4, 8 } },
                 { "E_RANGE" }, 0x38);
-            corpus.variantOpen("f16chunksize5000", "chunksize-not-a-power-of-two", { { 0x20, 5000, 4 } }, { "E_RANGE" }, 0x20);
+            corpus.variantOpen(
+                "f16chunksize5000", "chunksize-not-a-power-of-two", { { 0x20, 5000, 4 } }, { "E_RANGE" }, 0x20);
             corpus.variantOpen("f17chunksize2048", "chunksize-below-4096", { { 0x20, 2048, 4 } }, { "E_RANGE" }, 0x20);
-            corpus.variantOpen("f18chunksize2p24", "chunksize-above-8-mib", { { 0x20, 1u << 24, 4 } }, { "E_RANGE" }, 0x20);
-            corpus.variantOpen("f19entrystride100", "entry-record-size-not-a-multiple-of-8", { { 0x24, 100, 4 } }, { "E_RANGE" }, 0x24);
-            corpus.variantOpen("f20entrystride520", "entry-record-size-above-512", { { 0x24, 520, 4 } }, { "E_RANGE" }, 0x24);
-            corpus.variantOpen("f21entrystride104", "entry-record-size-below-112", { { 0x24, 104, 4 } }, { "E_RANGE" }, 0x24);
-            corpus.variantOpen("f22chunkstride48", "chunk-record-size-below-56", { { 0x28, 48, 4 } }, { "E_RANGE" }, 0x28);
-            corpus.variantOpen("f23chunkstride264", "chunk-record-size-above-256", { { 0x28, 264, 4 } }, { "E_RANGE" }, 0x28);
-            corpus.variantOpen("f24headersize1024", "header-size-1024", { { 0x0C, 1024, 4 } }, { "E_VERSION" }, 0x0C, none);
+            corpus.variantOpen(
+                "f18chunksize2p24", "chunksize-above-8-mib", { { 0x20, 1u << 24, 4 } }, { "E_RANGE" }, 0x20);
+            corpus.variantOpen("f19entrystride100", "entry-record-size-not-a-multiple-of-8", { { 0x24, 100, 4 } },
+                { "E_RANGE" }, 0x24);
+            corpus.variantOpen(
+                "f20entrystride520", "entry-record-size-above-512", { { 0x24, 520, 4 } }, { "E_RANGE" }, 0x24);
+            corpus.variantOpen(
+                "f21entrystride104", "entry-record-size-below-112", { { 0x24, 104, 4 } }, { "E_RANGE" }, 0x24);
+            corpus.variantOpen(
+                "f22chunkstride48", "chunk-record-size-below-56", { { 0x28, 48, 4 } }, { "E_RANGE" }, 0x28);
+            corpus.variantOpen(
+                "f23chunkstride264", "chunk-record-size-above-256", { { 0x28, 264, 4 } }, { "E_RANGE" }, 0x28);
+            corpus.variantOpen(
+                "f24headersize1024", "header-size-1024", { { 0x0C, 1024, 4 } }, { "E_VERSION" }, 0x0C, none);
             corpus.variantOpen("f25dataoffset", "data-offset-8192", { { 0x50, 0x2000, 8 } }, { "E_RANGE" }, 0x50);
             corpus.variantOpen("f26datasizemax", "data-size-max", { { 0x58, maxU64, 8 } }, { "E_RANGE" }, 0x58);
-            corpus.variantOpen("f27metadataoffset", "metadata-offset-not-the-smallest-multiple", { { 0x60, 0x5000, 8 } },
-                { "E_RANGE" }, 0x60);
+            corpus.variantOpen("f27metadataoffset", "metadata-offset-not-the-smallest-multiple",
+                { { 0x60, 0x5000, 8 } }, { "E_RANGE" }, 0x60);
             corpus.variantOpen("f28metadatasize", "metadata-size-above-2-pow-32", { { 0x68, 0x100000008ull, 8 } },
                 { "E_LIMIT" }, 0x68);
-            corpus.variantOpen("f29datasizegap", "data-size-longer-than-the-last-chunk", { { 0x58, 0x2008, 8 } },
-                { "E_RANGE" }, 0x58);
-            corpus.variantOpen("f30extensionsizebig", "extension-size-above-16-mib", { { 0xC0, 0x1000008, 8 } },
-                { "E_LIMIT" }, 0xC0);
-            corpus.variantOpen("f31stringsize", "string-table-size-does-not-tile", { { 0x78, 0x20, 8 } }, { "E_RANGE" });
-            corpus.variantOpen("f32chunktablessizemax", "chunk-tables-size-near-max", { { 0xA0, 0xFFFFFFFFFFFFFFF8ull, 8 } },
-                { "E_RANGE" });
+            corpus.variantOpen(
+                "f29datasizegap", "data-size-longer-than-the-last-chunk", { { 0x58, 0x2008, 8 } }, { "E_RANGE" }, 0x58);
+            corpus.variantOpen(
+                "f30extensionsizebig", "extension-size-above-16-mib", { { 0xC0, 0x1000008, 8 } }, { "E_LIMIT" }, 0xC0);
+            corpus.variantOpen(
+                "f31stringsize", "string-table-size-does-not-tile", { { 0x78, 0x20, 8 } }, { "E_RANGE" });
+            corpus.variantOpen("f32chunktablessizemax", "chunk-tables-size-near-max",
+                { { 0xA0, 0xFFFFFFFFFFFFFFF8ull, 8 } }, { "E_RANGE" });
             corpus.variantOpen("f33tilingoverflow", "chunk-tables-and-provenance-sizes-overflow-the-sum",
                 { { 0xA0, 1ull << 63, 8 }, { 0xB0, 1ull << 63, 8 } }, { "E_RANGE" });
             corpus.variantOpen("f34pathindexoverlap", "path-index-starts-where-the-entry-table-starts",
                 { { 0x88, entry0At, 8 } }, { "E_RANGE", "E_OVERLAP" });
             corpus.variantOpen("f35stringoffset", "string-table-not-at-metadata-offset", { { 0x70, 0x4008, 8 } },
                 { "E_RANGE", "E_OVERLAP" });
-            corpus.variantOpen("f36padafterheader", "non-zero-padding-after-the-header", { { 0x800, 1, 1 } }, { "E_RANGE" },
-                0x800, none, false);
-            corpus.variantOpen("f37padafterdata", "non-zero-padding-before-the-metadata", { { 0x3100, 1, 1 } }, { "E_RANGE" },
-                0x3100, none, false);
-            corpus.variantOpen("f38noaddress", "entry0-has-neither-path-nor-key", { { entry0At + 24, 0, 4 } }, { "E_RANGE" },
-                entry0At + 24);
-            corpus.variantOpen("f39keynoflag", "non-zero-key-without-has-key", { { entry0At, 5, 8 } }, { "E_RANGE" }, entry0At);
+            corpus.variantOpen("f36padafterheader", "non-zero-padding-after-the-header", { { 0x800, 1, 1 } },
+                { "E_RANGE" }, 0x800, none, false);
+            corpus.variantOpen("f37padafterdata", "non-zero-padding-before-the-metadata", { { 0x3100, 1, 1 } },
+                { "E_RANGE" }, 0x3100, none, false);
+            corpus.variantOpen("f38noaddress", "entry0-has-neither-path-nor-key", { { entry0At + 24, 0, 4 } },
+                { "E_RANGE" }, entry0At + 24);
+            corpus.variantOpen(
+                "f39keynoflag", "non-zero-key-without-has-key", { { entry0At, 5, 8 } }, { "E_RANGE" }, entry0At);
             corpus.variantOpen("f40keyzero", "has-key-with-key-zero", { { entry2At, 0, 8 } }, { "E_RANGE" }, entry2At);
-            corpus.variantOpen("f41typenokey", "tile-type-without-key", { { entry0At + 20, 0x10, 2 } }, { "E_RANGE" }, entry0At + 20);
-            corpus.variantOpen("f42tagmismatch", "tile-type-with-another-tag",
-                { { entry2At + 20, 0x11, 2 } }, { "E_RANGE" }, entry2At + 20);
-            corpus.variantOpen("f43pathlengthnopath", "path-length-without-has-path", { { entry2At + 16, 4, 4 } }, { "E_RANGE" },
-                entry2At + 16);
+            corpus.variantOpen(
+                "f41typenokey", "tile-type-without-key", { { entry0At + 20, 0x10, 2 } }, { "E_RANGE" }, entry0At + 20);
+            corpus.variantOpen("f42tagmismatch", "tile-type-with-another-tag", { { entry2At + 20, 0x11, 2 } },
+                { "E_RANGE" }, entry2At + 20);
+            corpus.variantOpen("f43pathlengthnopath", "path-length-without-has-path", { { entry2At + 16, 4, 4 } },
+                { "E_RANGE" }, entry2At + 16);
             corpus.variantOpen("f44provoffsetnoflag", "provenance-offset-without-the-flag", { { entry0At + 80, 8, 8 } },
                 { "E_RANGE" }, entry0At + 80);
             corpus.variantOpen("f45chunkcounthuge", "chunk-count-above-2-pow-20", { { entry0At + 28, 0x100001, 4 } },
                 { "E_LIMIT" }, entry0At + 28);
             corpus.variantOpen("f46sizeabove4g", "entry-size-above-4-gib", { { entry0At + 32, 0x100000001ull, 8 } },
                 { "E_LIMIT" }, entry0At + 32);
-            corpus.variantOpen("f47chunkcountzero", "chunk-count-zero-with-size", { { entry0At + 28, 0, 4 } }, { "E_RANGE" },
-                entry0At + 28);
-            corpus.variantOpen("f48sizezero", "size-zero-with-one-chunk", { { entry0At + 32, 0, 8 } }, { "E_RANGE" },
-                entry0At + 32);
-            corpus.variantOpen("f49pathlength0", "has-path-with-length-zero", { { entry1At + 16, 0, 4 } }, { "E_LIMIT" },
-                entry1At + 16);
+            corpus.variantOpen("f47chunkcountzero", "chunk-count-zero-with-size", { { entry0At + 28, 0, 4 } },
+                { "E_RANGE" }, entry0At + 28);
+            corpus.variantOpen(
+                "f48sizezero", "size-zero-with-one-chunk", { { entry0At + 32, 0, 8 } }, { "E_RANGE" }, entry0At + 32);
+            corpus.variantOpen("f49pathlength0", "has-path-with-length-zero", { { entry1At + 16, 0, 4 } },
+                { "E_LIMIT" }, entry1At + 16);
             corpus.variantOpen("f50pathoutside", "path-longer-than-the-string-table", { { entry1At + 16, 100, 4 } },
                 { "E_RANGE" }, entry1At + 16);
             corpus.variantOpen("f51pathgap", "second-path-does-not-follow-the-first",
                 { { entry1At + 8, 14, 8 }, { entry1At + 16, 9, 4 } }, { "E_RANGE" }, entry1At + 8, withIndex);
-            corpus.variantOpen("f52stringpad", "string-table-padding-not-zero", { { 0x4017, 1, 1 } }, { "E_RANGE" }, 0x4017);
+            corpus.variantOpen(
+                "f52stringpad", "string-table-padding-not-zero", { { 0x4017, 1, 1 } }, { "E_RANGE" }, 0x4017);
             corpus.addInvalid("f53stringextra", "string-table-longer-than-the-paths",
                 corpus.annexImage([](PackImage& image) {
                     image.mStringTable.resize(32, 0);
@@ -662,7 +693,8 @@ namespace EdenTest
                     fixDerivedOffsets(image);
                 }),
                 { "E_RANGE" });
-            corpus.variantOpen("f54pathindexentry", "path-index-entry-index-out-of-range", { { 0x4170, 9, 8 } }, { "E_INDEX" }, 0x4170);
+            corpus.variantOpen("f54pathindexentry", "path-index-entry-index-out-of-range", { { 0x4170, 9, 8 } },
+                { "E_INDEX" }, 0x4170);
             corpus.variantOpen("f55pathindexnopath", "path-index-names-an-entry-without-path", { { 0x4170, 2, 8 } },
                 { "E_INDEX" }, 0x4170);
             {
@@ -680,42 +712,53 @@ namespace EdenTest
                     copy.push_back({ 0x4178 + i, b[0x4168 + i], 1 });
                 corpus.variantOpen("f57pathindexdup", "path-index-record-repeated", copy, { "E_ORDER" });
             }
-            corpus.variantOpen("f58keyindexentry", "key-index-entry-index-out-of-range", { { 0x4190, 9, 8 } }, { "E_INDEX" }, 0x4190);
-            corpus.variantOpen("f59keyindexnokey", "key-index-names-an-entry-without-key", { { 0x4190, 0, 8 } }, { "E_INDEX" }, 0x4190);
-            corpus.variantOpen("f60keyindexkey", "key-index-key-differs-from-the-entry", { { 0x4188, 0x1000000000000002ull, 8 } },
-                { "E_INDEX" }, 0x4188);
-            corpus.variantOpen("f61chunkhashdiffers", "one-chunk-entry-with-another-chunk-hash", { { chunk1At + 24, 0x11, 1 } },
-                { "E_RANGE" });
-            corpus.variantOpen("f62chunkunaligned", "first-chunk-not-4096-aligned", { { chunk1At, 0x2008, 8 } }, { "E_RANGE" }, chunk1At);
-            corpus.variantOpen("f63chunkpastdata", "chunk-starting-inside-the-last-block-end", { { chunk2At, 0x3002, 8 } },
-                { "E_RANGE" }, chunk2At);
-            corpus.variantOpen("f64storedbig", "stored-size-above-2-pow-24", { { chunk1At + 8, 0x01000001, 4 } }, { "E_LIMIT" },
-                chunk1At + 8);
-            corpus.variantOpen("f65zstdbound", "zstd-stored-size-above-the-compress-bound", { { chunk0At + 8, 128, 4 } },
-                { "E_LIMIT" }, chunk0At + 8);
-            corpus.variantOpen("f66storedneqsize", "stored-codec-with-stored-size-not-equal-to-size", { { chunk1At + 8, 14, 4 } },
-                { "E_RANGE" }, chunk1At + 8);
-            corpus.variantOpen("f67chunksizezero", "chunk-size-zero", { { chunk1At + 12, 0, 4 } }, { "E_LIMIT" }, chunk1At + 12);
-            corpus.variantOpen("f68storedzero", "chunk-stored-size-zero", { { chunk1At + 8, 0, 4 } }, { "E_LIMIT" }, chunk1At + 8);
-            corpus.variantOpen("f69hashpresent", "hash-present-clear", { { chunk1At + 18, 0, 2 } }, { "E_RANGE" }, chunk1At + 18);
-            corpus.variantRead("f70chunkflagcritical", "unknown-critical-chunk-flag-bit-1", { { chunk1At + 18, 3, 2 } }, 1,
-                { "E_UNSUPPORTED" });
-            corpus.variantRead("f71codec256", "unallocated-codec-256", { { chunk1At + 16, 256, 2 } }, 1, { "E_UNSUPPORTED" });
-            corpus.variantRead("f72codecff00", "experimental-codec-ff00", { { chunk1At + 16, 0xFF00, 2 } }, 1, { "E_UNSUPPORTED" });
+            corpus.variantOpen(
+                "f58keyindexentry", "key-index-entry-index-out-of-range", { { 0x4190, 9, 8 } }, { "E_INDEX" }, 0x4190);
+            corpus.variantOpen("f59keyindexnokey", "key-index-names-an-entry-without-key", { { 0x4190, 0, 8 } },
+                { "E_INDEX" }, 0x4190);
+            corpus.variantOpen("f60keyindexkey", "key-index-key-differs-from-the-entry",
+                { { 0x4188, 0x1000000000000002ull, 8 } }, { "E_INDEX" }, 0x4188);
+            corpus.variantOpen("f61chunkhashdiffers", "one-chunk-entry-with-another-chunk-hash",
+                { { chunk1At + 24, 0x11, 1 } }, { "E_RANGE" });
+            corpus.variantOpen("f62chunkunaligned", "first-chunk-not-4096-aligned", { { chunk1At, 0x2008, 8 } },
+                { "E_RANGE" }, chunk1At);
+            corpus.variantOpen("f63chunkpastdata", "chunk-starting-inside-the-last-block-end",
+                { { chunk2At, 0x3002, 8 } }, { "E_RANGE" }, chunk2At);
+            corpus.variantOpen("f64storedbig", "stored-size-above-2-pow-24", { { chunk1At + 8, 0x01000001, 4 } },
+                { "E_LIMIT" }, chunk1At + 8);
+            corpus.variantOpen("f65zstdbound", "zstd-stored-size-above-the-compress-bound",
+                { { chunk0At + 8, 128, 4 } }, { "E_LIMIT" }, chunk0At + 8);
+            corpus.variantOpen("f66storedneqsize", "stored-codec-with-stored-size-not-equal-to-size",
+                { { chunk1At + 8, 14, 4 } }, { "E_RANGE" }, chunk1At + 8);
+            corpus.variantOpen(
+                "f67chunksizezero", "chunk-size-zero", { { chunk1At + 12, 0, 4 } }, { "E_LIMIT" }, chunk1At + 12);
+            corpus.variantOpen(
+                "f68storedzero", "chunk-stored-size-zero", { { chunk1At + 8, 0, 4 } }, { "E_LIMIT" }, chunk1At + 8);
+            corpus.variantOpen(
+                "f69hashpresent", "hash-present-clear", { { chunk1At + 18, 0, 2 } }, { "E_RANGE" }, chunk1At + 18);
+            corpus.variantRead("f70chunkflagcritical", "unknown-critical-chunk-flag-bit-1", { { chunk1At + 18, 3, 2 } },
+                1, { "E_UNSUPPORTED" });
+            corpus.variantRead(
+                "f71codec256", "unallocated-codec-256", { { chunk1At + 16, 256, 2 } }, 1, { "E_UNSUPPORTED" });
+            corpus.variantRead(
+                "f72codecff00", "experimental-codec-ff00", { { chunk1At + 16, 0xFF00, 2 } }, 1, { "E_UNSUPPORTED" });
             corpus.variantOpen("f73entrycrit3", "entry-unknown-critical-flag-bit-3", { { entry0At + 24, 0x9, 4 } },
                 { "E_UNSUPPORTED" }, entry0At + 24);
-            corpus.variantOpen("f74packflag31", "pack-flag-bit-31", { { 0x10, 0x80000000ull, 8 } }, { "E_UNSUPPORTED" }, 0x10);
+            corpus.variantOpen(
+                "f74packflag31", "pack-flag-bit-31", { { 0x10, 0x80000000ull, 8 } }, { "E_UNSUPPORTED" }, 0x10);
             corpus.variantOpen("f75packflag1", "pack-flag-bit-1", { { 0x10, 2, 8 } }, { "E_UNSUPPORTED" }, 0x10);
             corpus.variantOpen("f76chunk0before", "entry-chunk-tables-shared-by-two-entries",
                 { { entry1At + 40, chunk0At, 8 } }, { "E_RANGE" }, entry1At + 40);
             corpus.variantOpen("f77footermagic", "wrong-footer-magic", { { footerAt + 7, 2, 1 } }, { "E_TRUNCATED" },
                 std::nullopt, none);
-            corpus.variantOpen("f78magicgenerationzero", "generation-byte-0", { { 7, 0, 1 } }, { "E_VERSION" }, 7, none);
+            corpus.variantOpen(
+                "f78magicgenerationzero", "generation-byte-0", { { 7, 0, 1 } }, { "E_VERSION" }, 7, none);
 
             // Empty pack with counts that do not fit "no entries".
             {
                 const Bytes empty = buildPack(PackSpec{});
-                const auto variant = [&](std::string id, std::string description, std::size_t offset, std::uint64_t value) {
+                const auto variant = [&](std::string id, std::string description, std::size_t offset,
+                                         std::uint64_t value) {
                     Bytes pack = empty;
                     patch(pack, offset, value, 8);
                     recompute(pack);
@@ -734,16 +777,26 @@ namespace EdenTest
 
         void addNameCases(Corpus& corpus)
         {
-            const auto badName = [&](std::string id, std::string description, std::string path, std::vector<std::string> classes) {
-                corpus.addInvalid(std::move(id), std::move(description), buildPack(specOf({ pathEntry(std::move(path)) })),
-                    std::move(classes));
-            };
-            badName("n01utf8invalid", "path-with-invalid-utf8", "a\xFF\xFE" "b", { "E_NAME" });
-            badName("n02utf8overlong", "path-with-overlong-utf8", "a\xC0\x80" "b", { "E_NAME" });
+            const auto badName
+                = [&](std::string id, std::string description, std::string path, std::vector<std::string> classes) {
+                      corpus.addInvalid(std::move(id), std::move(description),
+                          buildPack(specOf({ pathEntry(std::move(path)) })), std::move(classes));
+                  };
+            badName("n01utf8invalid", "path-with-invalid-utf8",
+                "a\xFF\xFE"
+                "b",
+                { "E_NAME" });
+            badName("n02utf8overlong", "path-with-overlong-utf8",
+                "a\xC0\x80"
+                "b",
+                { "E_NAME" });
             badName("n03utf8surrogate", "path-with-utf8-surrogate", "a\xED\xA0\x80", { "E_NAME" });
             badName("n04utf8toohigh", "path-above-u10ffff", "a\xF4\x90\x80\x80", { "E_NAME" });
             badName("n05utf8truncated", "path-ending-in-a-cut-utf8-sequence", "a\xC3", { "E_NAME" });
-            badName("n06control", "path-with-control-character", "a\x01" "b", { "E_NAME" });
+            badName("n06control", "path-with-control-character",
+                "a\x01"
+                "b",
+                { "E_NAME" });
             badName("n07nul", "path-with-nul", std::string("a\0b", 3), { "E_NAME" });
             badName("n08backslash", "path-with-backslash", "a\\b", { "E_NAME" });
             badName("n09uppercase", "path-with-upper-case", "Abc.txt", { "E_NAME" });
@@ -759,7 +812,8 @@ namespace EdenTest
             badName("n19component256", "path-component-of-256-bytes", repeatChar('a', 256), { "E_LIMIT", "E_NAME" });
             // 255 + 255 + 255 + 255 + 1 bytes of components and 4 separators: 1025 bytes.
             badName("n20path1025", "path-of-1025-bytes",
-                repeatChar('a', 255) + "/" + repeatChar('b', 255) + "/" + repeatChar('c', 255) + "/" + repeatChar('d', 255) + "/e",
+                repeatChar('a', 255) + "/" + repeatChar('b', 255) + "/" + repeatChar('c', 255) + "/"
+                    + repeatChar('d', 255) + "/e",
                 { "E_LIMIT" });
             badName("n21deletechar", "path-ending-in-control-character-1f", "a\x1F", { "E_NAME" });
 
@@ -772,19 +826,23 @@ namespace EdenTest
             };
             unsorted("o01order", "paths-b-then-a", { pathEntry("b"), pathEntry("a") }, { "E_ORDER" });
             unsorted("o02duplicate", "path-a-twice", { pathEntry("a"), pathEntry("a") }, { "E_DUPLICATE" });
-            unsorted("o03slashfirst", "slash-sorted-as-if-special", { pathEntry("a/b"), pathEntry("a-x") }, { "E_ORDER" });
-            unsorted("o04prefix", "longer-name-before-its-prefix", { pathEntry("abc"), pathEntry("ab") }, { "E_ORDER" });
+            unsorted(
+                "o03slashfirst", "slash-sorted-as-if-special", { pathEntry("a/b"), pathEntry("a-x") }, { "E_ORDER" });
+            unsorted(
+                "o04prefix", "longer-name-before-its-prefix", { pathEntry("abc"), pathEntry("ab") }, { "E_ORDER" });
             unsorted("o05signed", "non-ascii-before-ascii", { pathEntry("\xC3\xA4"), pathEntry("z") }, { "E_ORDER" });
             unsorted("o06keysorder", "keys-5-then-3", { keyEntry(5), keyEntry(3) }, { "E_ORDER" });
             unsorted("o07keysequal", "key-5-twice", { keyEntry(5), keyEntry(5) }, { "E_DUPLICATE" });
-            unsorted("o08keysigned", "key-above-2-pow-63-before-a-small-key", { keyEntry(0x8000000000000000ull), keyEntry(5) },
-                { "E_ORDER" });
+            unsorted("o08keysigned", "key-above-2-pow-63-before-a-small-key",
+                { keyEntry(0x8000000000000000ull), keyEntry(5) }, { "E_ORDER" });
             {
                 EntrySpec both = pathEntry("a");
                 both.mKey = 7;
-                unsorted("o09keyacrossgroups", "path-with-key-7-and-key-only-entry-7", { both, keyEntry(7) }, { "E_DUPLICATE" });
+                unsorted("o09keyacrossgroups", "path-with-key-7-and-key-only-entry-7", { both, keyEntry(7) },
+                    { "E_DUPLICATE" });
             }
-            unsorted("o10pathafterkey", "path-entry-after-a-key-only-entry", { keyEntry(5), pathEntry("a") }, { "E_ORDER" });
+            unsorted(
+                "o10pathafterkey", "path-entry-after-a-key-only-entry", { keyEntry(5), pathEntry("a") }, { "E_ORDER" });
             {
                 EntrySpec zero;
                 zero.mKey = 0;
@@ -806,25 +864,28 @@ namespace EdenTest
 
         void addExtensionAndProvenanceCases(Corpus& corpus)
         {
-            const auto extension = [&](std::string id, std::string description, Bytes raw, std::vector<std::string> classes) {
-                PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("ext")) });
-                spec.mMutate = [raw](PackImage& image) {
-                    image.mExtension = raw;
-                    relayoutRegions(image);
-                    fixDerivedOffsets(image);
-                };
-                corpus.addInvalid(std::move(id), std::move(description), buildPack(spec), std::move(classes));
-            };
-            const auto block = [](std::uint32_t id, std::uint32_t flags, std::uint64_t payloadSize, std::size_t actualPayload) {
-                Bytes out;
-                appendLe(out, id, 4);
-                appendLe(out, flags, 4);
-                appendLe(out, payloadSize, 8);
-                out.resize(out.size() + actualPayload, 0);
-                return out;
-            };
+            const auto extension
+                = [&](std::string id, std::string description, Bytes raw, std::vector<std::string> classes) {
+                      PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("ext")) });
+                      spec.mMutate = [raw](PackImage& image) {
+                          image.mExtension = raw;
+                          relayoutRegions(image);
+                          fixDerivedOffsets(image);
+                      };
+                      corpus.addInvalid(std::move(id), std::move(description), buildPack(spec), std::move(classes));
+                  };
+            const auto block
+                = [](std::uint32_t id, std::uint32_t flags, std::uint64_t payloadSize, std::size_t actualPayload) {
+                      Bytes out;
+                      appendLe(out, id, 4);
+                      appendLe(out, flags, 4);
+                      appendLe(out, payloadSize, 8);
+                      out.resize(out.size() + actualPayload, 0);
+                      return out;
+                  };
             extension("e01short", "extension-region-of-8-bytes", Bytes(8, 0), { "E_RANGE" });
-            extension("e02payloadtoobig", "payload-size-larger-than-the-region", block(0x80000001u, 0, 100, 8), { "E_RANGE" });
+            extension("e02payloadtoobig", "payload-size-larger-than-the-region", block(0x80000001u, 0, 100, 8),
+                { "E_RANGE" });
             extension("e03payloadmax", "payload-size-max", block(0x80000001u, 0, maxU64, 8), { "E_RANGE" });
             {
                 Bytes many;
@@ -845,7 +906,8 @@ namespace EdenTest
                 // Valid: a writer-info block with exactly 1024 bytes.
                 PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("ext")) });
                 spec.mExtensions.push_back({ 1, 0, Bytes(1024, 'w') });
-                corpus.addValid("v35writerinfo1024", "writer-info-block-of-exactly-1024-bytes", spec, CanonicalResult::Fail);
+                corpus.addValid(
+                    "v35writerinfo1024", "writer-info-block-of-exactly-1024-bytes", spec, CanonicalResult::Fail);
             }
             {
                 PackSpec spec = specOf({ pathEntry("a.txt", bytesOf("ext")) });
@@ -861,24 +923,27 @@ namespace EdenTest
             }
 
             // Provenance records (7.8 and 14.2 item 9). Base: entry "a" has a record of 56 bytes, "b" has none.
-            const auto provenance = [&](std::string id, std::string description,
-                                        const std::function<void(PackImage&)>& change, std::vector<std::string> classes) {
-                EntrySpec a = pathEntry("a", bytesOf("one"));
-                a.mProvenance = ProvenanceSpec{ "t/1", blake3Of(bytesOf("p")), { 1, 2, 3, 4 } };
-                PackSpec spec = specOf({ a, pathEntry("b", bytesOf("two")) });
-                spec.mMutate = change;
-                corpus.addInvalid(std::move(id), std::move(description), buildPack(spec), std::move(classes));
-            };
-            provenance("p01recordsize", "record-size-64-instead-of-56", [](PackImage& i) { putLe(i.mProvenance, 0, 64, 4); },
-                { "E_RANGE" });
+            const auto provenance
+                = [&](std::string id, std::string description, const std::function<void(PackImage&)>& change,
+                      std::vector<std::string> classes) {
+                      EntrySpec a = pathEntry("a", bytesOf("one"));
+                      a.mProvenance = ProvenanceSpec{ "t/1", blake3Of(bytesOf("p")), { 1, 2, 3, 4 } };
+                      PackSpec spec = specOf({ a, pathEntry("b", bytesOf("two")) });
+                      spec.mMutate = change;
+                      corpus.addInvalid(std::move(id), std::move(description), buildPack(spec), std::move(classes));
+                  };
+            provenance("p01recordsize", "record-size-64-instead-of-56",
+                [](PackImage& i) { putLe(i.mProvenance, 0, 64, 4); }, { "E_RANGE" });
             provenance("p02toolid0", "tool-id-length-0", [](PackImage& i) { putLe(i.mProvenance, 4, 0, 2); },
                 { "E_LIMIT", "E_RANGE" });
-            provenance("p03toolid256", "tool-id-length-256", [](PackImage& i) { putLe(i.mProvenance, 4, 256, 2); }, { "E_LIMIT" });
-            provenance("p04params60001", "parameters-length-60001", [](PackImage& i) { putLe(i.mProvenance, 40, 60001, 4); },
+            provenance("p03toolid256", "tool-id-length-256", [](PackImage& i) { putLe(i.mProvenance, 4, 256, 2); },
                 { "E_LIMIT" });
+            provenance("p04params60001", "parameters-length-60001",
+                [](PackImage& i) { putLe(i.mProvenance, 40, 60001, 4); }, { "E_LIMIT" });
             provenance("p05toolidutf8", "tool-id-invalid-utf8", [](PackImage& i) { putLe(i.mProvenance, 48, 0xFF, 1); },
                 { "E_NAME" });
-            provenance("p06toolidnul", "tool-id-with-nul", [](PackImage& i) { putLe(i.mProvenance, 48, 0, 1); }, { "E_NAME" });
+            provenance(
+                "p06toolidnul", "tool-id-with-nul", [](PackImage& i) { putLe(i.mProvenance, 48, 0, 1); }, { "E_NAME" });
             provenance("p07emptyregion", "has-provenance-with-provenance-size-0",
                 [](PackImage& i) {
                     i.mProvenance.clear();
@@ -893,14 +958,14 @@ namespace EdenTest
                     fixDerivedOffsets(i);
                 },
                 { "E_RANGE" });
-            provenance("p09recordsize65544", "record-size-above-65536", [](PackImage& i) { putLe(i.mProvenance, 0, 65544, 4); },
-                { "E_LIMIT" });
-            provenance("p10recordsize52", "record-size-not-a-multiple-of-8", [](PackImage& i) { putLe(i.mProvenance, 0, 52, 4); },
-                { "E_LIMIT", "E_RANGE" });
-            provenance("p11offsetmoved", "entry-provenance-offset-moved-by-8", [](PackImage& i) { i.mEntries[0].mProvenanceOffset += 8; },
-                { "E_RANGE" });
-            provenance("p12params1", "parameters-length-larger-than-the-record", [](PackImage& i) { putLe(i.mProvenance, 40, 12, 4); },
-                { "E_RANGE" });
+            provenance("p09recordsize65544", "record-size-above-65536",
+                [](PackImage& i) { putLe(i.mProvenance, 0, 65544, 4); }, { "E_LIMIT" });
+            provenance("p10recordsize52", "record-size-not-a-multiple-of-8",
+                [](PackImage& i) { putLe(i.mProvenance, 0, 52, 4); }, { "E_LIMIT", "E_RANGE" });
+            provenance("p11offsetmoved", "entry-provenance-offset-moved-by-8",
+                [](PackImage& i) { i.mEntries[0].mProvenanceOffset += 8; }, { "E_RANGE" });
+            provenance("p12params1", "parameters-length-larger-than-the-record",
+                [](PackImage& i) { putLe(i.mProvenance, 40, 12, 4); }, { "E_RANGE" });
         }
 
         // ------------------------------------------------------------------------------------------------------
@@ -930,10 +995,10 @@ namespace EdenTest
             invalid("c02chunkbeforedata", "chunk-offset-below-the-data-offset", twoChunkPack(),
                 [](PackImage& i) { i.mChunks[0].mOffset = 0x800; }, { "E_RANGE" });
             {
-                PackSpec spec = specOf({ pathEntry("a", patternBytes(100, 40)), pathEntry("b", patternBytes(100, 41)) });
-                invalid("c03chunksswapped", "chunks-of-two-entries-in-descending-order", spec, [](PackImage& i) {
-                    std::swap(i.mChunks[0].mOffset, i.mChunks[1].mOffset);
-                }, { "E_OVERLAP" });
+                PackSpec spec
+                    = specOf({ pathEntry("a", patternBytes(100, 40)), pathEntry("b", patternBytes(100, 41)) });
+                invalid("c03chunksswapped", "chunks-of-two-entries-in-descending-order", spec,
+                    [](PackImage& i) { std::swap(i.mChunks[0].mOffset, i.mChunks[1].mOffset); }, { "E_OVERLAP" });
             }
             {
                 EntrySpec a = pathEntry("a");
@@ -947,8 +1012,9 @@ namespace EdenTest
                 invalid("c05sumtoosmall", "chunk-sizes-add-up-to-less-than-the-entry", specOf({ a }, 4096),
                     [](PackImage& i) { i.mEntries[0].mSize = 120; }, { "E_RANGE" });
             }
-            invalid("c06emptywithchunk", "entry-size-zero-with-one-chunk", specOf({ pathEntry("a", patternBytes(10, 44)) }),
-                [](PackImage& i) { i.mEntries[0].mSize = 0; }, { "E_RANGE" });
+            invalid("c06emptywithchunk", "entry-size-zero-with-one-chunk",
+                specOf({ pathEntry("a", patternBytes(10, 44)) }), [](PackImage& i) { i.mEntries[0].mSize = 0; },
+                { "E_RANGE" });
             invalid("c07emptywithtable", "empty-entry-with-a-chunk-table-offset", specOf({ pathEntry("a") }),
                 [](PackImage& i) { i.mEntries[0].mChunkTableOffset = 8; }, { "E_RANGE" });
             invalid("c08emptywronghash", "empty-entry-with-another-content-hash", specOf({ pathEntry("a") }),
@@ -963,7 +1029,8 @@ namespace EdenTest
                 bad.mChunks = { chunk };
                 PackSpec spec = specOf({ bad, pathEntry("good.txt", bytesOf("good")) }, 4096);
                 spec.mMutate = change;
-                corpus.addInvalidRead(std::move(id), std::move(description), buildPack(spec), expectedOf(spec), 0, std::move(classes));
+                corpus.addInvalidRead(
+                    std::move(id), std::move(description), buildPack(spec), expectedOf(spec), 0, std::move(classes));
             };
             const auto rle = [](const FrameOptions& options, std::uint64_t count = 64) {
                 ChunkSpec chunk;
@@ -992,7 +1059,8 @@ namespace EdenTest
             {
                 FrameOptions options;
                 options.mDeclaredSize = 63;
-                badChunk("r04contentsize", "zstd-frame-content-size-differs-from-the-record", rle(options), none, { "E_CODEC" });
+                badChunk("r04contentsize", "zstd-frame-content-size-differs-from-the-record", rle(options), none,
+                    { "E_CODEC" });
             }
             {
                 FrameOptions options;
@@ -1021,12 +1089,14 @@ namespace EdenTest
             {
                 FrameOptions options;
                 options.mDeclaredSize = 64;
-                badChunk("r09declares64decodes4096", "frame-declares-64-bytes-but-holds-4096", rle(options, 4096), none, { "E_CODEC" });
+                badChunk("r09declares64decodes4096", "frame-declares-64-bytes-but-holds-4096", rle(options, 4096), none,
+                    { "E_CODEC" });
             }
             {
                 FrameOptions options;
                 options.mDeclaredSize = 8u << 20;
-                badChunk("r10declares8m", "frame-declares-8-mib-but-the-record-says-64", rle(options), none, { "E_CODEC" });
+                badChunk(
+                    "r10declares8m", "frame-declares-8-mib-but-the-record-says-64", rle(options), none, { "E_CODEC" });
             }
             {
                 ChunkSpec chunk = rle({});
@@ -1042,10 +1112,11 @@ namespace EdenTest
                 ChunkSpec chunk;
                 chunk.mRaw = Bytes(64, 0x41);
                 chunk.mCodecId = std::uint16_t{ 0xFF00 };
-                badChunk("r13codecff00", "experimental-codec-with-the-content-as-stored-bytes", chunk, none, { "E_UNSUPPORTED" });
+                badChunk("r13codecff00", "experimental-codec-with-the-content-as-stored-bytes", chunk, none,
+                    { "E_UNSUPPORTED" });
             }
-            badChunk("r14chunkflag", "unknown-critical-chunk-flag", rle({}), [](PackImage& i) { i.mChunks[0].mFlags = 3; },
-                { "E_UNSUPPORTED" });
+            badChunk("r14chunkflag", "unknown-critical-chunk-flag", rle({}),
+                [](PackImage& i) { i.mChunks[0].mFlags = 3; }, { "E_UNSUPPORTED" });
             {
                 ChunkSpec chunk;
                 chunk.mRaw = Bytes(64, 0x41);
@@ -1071,11 +1142,12 @@ namespace EdenTest
             }
             {
                 // A damaged byte in the middle chunk of a three-chunk entry; the other entry stays readable.
-                PackSpec spec = specOf({ pathEntry("a.bin", patternBytes(3 * 4096, 46)), pathEntry("b.bin", bytesOf("fine")) }, 4096);
+                PackSpec spec = specOf(
+                    { pathEntry("a.bin", patternBytes(3 * 4096, 46)), pathEntry("b.bin", bytesOf("fine")) }, 4096);
                 Bytes pack = buildPack(spec);
                 pack[0x1000 + 4096 + 100] ^= 0x01; // chunk 1 of entry 0 starts at 0x1000 + 4096
-                corpus.addInvalidRead("r18damagedmiddle", "one-damaged-byte-in-the-middle-chunk",
-                    std::move(pack), expectedOf(spec), 0, { "E_HASH" });
+                corpus.addInvalidRead("r18damagedmiddle", "one-damaged-byte-in-the-middle-chunk", std::move(pack),
+                    expectedOf(spec), 0, { "E_HASH" });
             }
 
             // Count products and sums.
@@ -1088,21 +1160,23 @@ namespace EdenTest
                     entries.push_back(pathEntry(name));
                 }
                 PackSpec spec = specOf(entries);
-                invalid("c10totalsize", "257-entries-of-2-pow-32-bytes-add-up-to-more-than-2-pow-40", spec, [](PackImage& i) {
-                    for (EntryRec& e : i.mEntries)
-                    {
-                        e.mSize = 1ull << 32;
-                        e.mChunkCount = 1;
-                        e.mContentHash = blake3Of(Bytes{ 1 });
-                        ChunkRec chunk;
-                        chunk.mOffset = 0;
-                        chunk.mStoredSize = 1;
-                        chunk.mSize = 1;
-                        i.mChunks.push_back(chunk);
-                    }
-                    relayoutRegions(i);
-                    fixDerivedOffsets(i);
-                }, { "E_LIMIT" });
+                invalid("c10totalsize", "257-entries-of-2-pow-32-bytes-add-up-to-more-than-2-pow-40", spec,
+                    [](PackImage& i) {
+                        for (EntryRec& e : i.mEntries)
+                        {
+                            e.mSize = 1ull << 32;
+                            e.mChunkCount = 1;
+                            e.mContentHash = blake3Of(Bytes{ 1 });
+                            ChunkRec chunk;
+                            chunk.mOffset = 0;
+                            chunk.mStoredSize = 1;
+                            chunk.mSize = 1;
+                            i.mChunks.push_back(chunk);
+                        }
+                        relayoutRegions(i);
+                        fixDerivedOffsets(i);
+                    },
+                    { "E_LIMIT" });
             }
         }
 
@@ -1129,23 +1203,26 @@ namespace EdenTest
                     classes = { "E_MAGIC", "E_VERSION", "E_TRUNCATED" };
                 else
                     classes = { "E_TRUNCATED" };
-                corpus.addInvalid(id, "annex-b-cut-to-" + std::to_string(length) + "-bytes", std::move(cut), std::move(classes));
+                corpus.addInvalid(
+                    id, "annex-b-cut-to-" + std::to_string(length) + "-bytes", std::move(cut), std::move(classes));
             }
             for (const std::uint64_t length : { 641ull, 700ull, 0x1000ull, 0x2000ull, 0x3000ull, 0x3004ull, 0x4000ull,
                      0x4018ull, 0x4168ull, 0x4188ull, 0x4198ull, 0x4240ull, 0x4241ull, 0x42B0ull, 0x42BFull })
             {
                 Bytes cut(corpus.mAnnexB.begin(), corpus.mAnnexB.begin() + static_cast<std::ptrdiff_t>(length));
-                corpus.addInvalid("tb" + hex(length), "annex-b-cut-at-a-structure-boundary", std::move(cut), { "E_TRUNCATED" });
+                corpus.addInvalid(
+                    "tb" + hex(length), "annex-b-cut-at-a-structure-boundary", std::move(cut), { "E_TRUNCATED" });
             }
 
             // Random bytes behind a valid magic.
-            for (const std::size_t size : { std::size_t{ 100 }, std::size_t{ 639 }, std::size_t{ 700 }, std::size_t{ 5000 } })
+            for (const std::size_t size :
+                { std::size_t{ 100 }, std::size_t{ 639 }, std::size_t{ 700 }, std::size_t{ 5000 } })
             {
                 Bytes random = patternBytes(size, 900 + size);
                 const Bytes magic(corpus.mAnnexB.begin(), corpus.mAnnexB.begin() + 8);
                 std::copy(magic.begin(), magic.end(), random.begin());
-                corpus.addInvalid("h" + std::to_string(size) + "random", "random-bytes-behind-a-valid-magic", std::move(random),
-                    { "E_TRUNCATED" });
+                corpus.addInvalid("h" + std::to_string(size) + "random", "random-bytes-behind-a-valid-magic",
+                    std::move(random), { "E_TRUNCATED" });
             }
             {
                 // Valid magic, version, header size and footer magic around random bytes: only the checksum is wrong.
@@ -1160,8 +1237,8 @@ namespace EdenTest
                 putLe(random, footer + Fmt::fVersionMajor, 0, 2);
                 putLe(random, footer + Fmt::fVersionMinor, 1, 2);
                 putLe(random, footer + Fmt::fFooterSize, 128, 4);
-                corpus.addInvalid("h4352randombody", "random-body-between-a-valid-magic-and-footer-magic", std::move(random),
-                    { "E_CHECKSUM" });
+                corpus.addInvalid("h4352randombody", "random-body-between-a-valid-magic-and-footer-magic",
+                    std::move(random), { "E_CHECKSUM" });
             }
             {
                 // The same with a correct checksum and footer copies: it must be rejected, the class depends on the
@@ -1223,7 +1300,8 @@ namespace EdenTest
         if (c.mOutcome == Outcome::Valid)
         {
             line += ";canonical=";
-            line += c.mCanonical == CanonicalResult::Pass ? "pass" : (c.mCanonical == CanonicalResult::Fail ? "fail" : "any");
+            line += c.mCanonical == CanonicalResult::Pass ? "pass"
+                                                          : (c.mCanonical == CanonicalResult::Fail ? "fail" : "any");
             for (const std::string& name : c.mCanonicalClasses)
                 line += ";canonical-class=" + name;
             if (c.mReaderMayReject)

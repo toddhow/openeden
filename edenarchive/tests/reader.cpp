@@ -46,7 +46,8 @@ namespace EdenTestSuite
             const Error error = archive.readRange(entry, offset, size, buffer.data() + guard, budget);
             for (std::size_t i = 0; i < guard; ++i)
             {
-                EXPECT_EQ(buffer[i], guardByte) << "write before the destination, offset " << offset << " size " << size;
+                EXPECT_EQ(buffer[i], guardByte)
+                    << "write before the destination, offset " << offset << " size " << size;
                 EXPECT_EQ(buffer[guard + size + i], guardByte)
                     << "write after the destination, offset " << offset << " size " << size;
             }
@@ -99,7 +100,8 @@ namespace EdenTestSuite
                     if (archive == nullptr && c.mReaderMayReject)
                     {
                         // Section 7.3.2: a reader MAY accept a file that is also a directory; this one did not.
-                        EXPECT_TRUE(error.mClass == ErrorClass::Name || c.mCanonicalClasses.empty()) << error.describe();
+                        EXPECT_TRUE(error.mClass == ErrorClass::Name || c.mCanonicalClasses.empty())
+                            << error.describe();
                         return;
                     }
                     ASSERT_NE(archive, nullptr) << error.describe();
@@ -141,8 +143,8 @@ namespace EdenTestSuite
             }
         }
 
-        INSTANTIATE_TEST_SUITE_P(
-            Corpus, CorpusReaderTest, testing::Range<std::size_t>(0, EdenTest::corpusCases().size()),
+        INSTANTIATE_TEST_SUITE_P(Corpus, CorpusReaderTest,
+            testing::Range<std::size_t>(0, EdenTest::corpusCases().size()),
             [](const testing::TestParamInfo<std::size_t>& info) { return EdenTest::corpusCases()[info.param].mId; });
 
         // ---- lookups ----
@@ -165,11 +167,13 @@ namespace EdenTestSuite
                         EXPECT_EQ(archive->findPath(*want.mPath), std::optional<std::size_t>(i));
                         // Names next to a name are found only if they are entries themselves.
                         const auto exists = [&](const std::string& path) {
-                            return std::any_of(c.mEntries.begin(), c.mEntries.end(),
-                                [&](const EdenTest::ExpectedEntry& e) { return e.mPath == std::optional<std::string>(path); });
+                            return std::any_of(
+                                c.mEntries.begin(), c.mEntries.end(), [&](const EdenTest::ExpectedEntry& e) {
+                                    return e.mPath == std::optional<std::string>(path);
+                                });
                         };
-                        for (const std::string& other : { *want.mPath + "x", *want.mPath + "/",
-                                 want.mPath->substr(0, want.mPath->size() - 1) })
+                        for (const std::string& other :
+                            { *want.mPath + "x", *want.mPath + "/", want.mPath->substr(0, want.mPath->size() - 1) })
                             EXPECT_EQ(archive->findPath(other).has_value(), exists(other)) << other;
                         std::string upper = *want.mPath;
                         for (char& ch : upper)
@@ -191,8 +195,10 @@ namespace EdenTestSuite
                         continue;
                     for (const std::uint64_t other : { *want.mKey + 1, *want.mKey - 1 })
                     {
-                        const bool used = std::any_of(c.mEntries.begin(), c.mEntries.end(),
-                            [&](const EdenTest::ExpectedEntry& e) { return e.mKey == std::optional<std::uint64_t>(other); });
+                        const bool used
+                            = std::any_of(c.mEntries.begin(), c.mEntries.end(), [&](const EdenTest::ExpectedEntry& e) {
+                                  return e.mKey == std::optional<std::uint64_t>(other);
+                              });
                         if (!used)
                             EXPECT_FALSE(archive->findKey(other).has_value()) << other;
                     }
@@ -325,14 +331,16 @@ namespace EdenTestSuite
                 {
                     const std::uint64_t total = c.mEntries[entry].mContent.size();
                     // Around every multiple of the chunk size 4096, at the start, in the middle and at the end.
-                    std::vector<std::uint64_t> offsets = { 0, 1, 7, total / 2, total > 0 ? total - 1 : 0, total, total + 1 };
+                    std::vector<std::uint64_t> offsets
+                        = { 0, 1, 7, total / 2, total > 0 ? total - 1 : 0, total, total + 1 };
                     for (std::uint64_t boundary = 4096; boundary <= total + 4096; boundary += 4096)
                     {
                         offsets.push_back(boundary - 1);
                         offsets.push_back(boundary);
                         offsets.push_back(boundary + 1);
                     }
-                    std::vector<std::uint64_t> sizes = { 0, 1, 2, 4095, 4096, 4097, 8191, 8192, 8193, total, total + 1 };
+                    std::vector<std::uint64_t> sizes
+                        = { 0, 1, 2, 4095, 4096, 4097, 8191, 8192, 8193, total, total + 1 };
                     checkRangeRules(*archive, entry, c.mEntries[entry].mContent, offsets, sizes);
                 }
             }
@@ -428,7 +436,8 @@ namespace EdenTestSuite
 
         TEST(EdenArchiveReader, anUnknownCodecShouldIsolateItsEntryAndNeverReturnStoredBytesAsContent)
         {
-            // Annex C I15 (codec 7 on entry 1) and the experimental codec 0xFF00 of r13, whose stored bytes are the content.
+            // Annex C I15 (codec 7 on entry 1) and the experimental codec 0xFF00 of r13, whose stored bytes are the
+            // content.
             for (const char* id : { "i15codec7", "r13codecff00", "f71codec256", "f72codecff00" })
             {
                 SCOPED_TRACE(id);
@@ -512,8 +521,8 @@ namespace EdenTestSuite
                 checkEntries(*archive, caseById("v01annexb").mEntries);
             }
             // Everything else is still checked: bad chunk offsets, bad header checksum, bad names, bad indexes.
-            for (const char* id : { "i06chunkoffset", "i07overlap", "i08traversal", "i16order", "i18pathhash", "i03checksum",
-                     "i14critflag", "f01version02", "f11pathcount", "f52stringpad" })
+            for (const char* id : { "i06chunkoffset", "i07overlap", "i08traversal", "i16order", "i18pathhash",
+                     "i03checksum", "i14critflag", "f01version02", "f11pathcount", "f52stringpad" })
             {
                 SCOPED_TRACE(id);
                 const CorpusCase& c = caseById(id);
@@ -656,7 +665,9 @@ namespace EdenTestSuite
                         const std::size_t size = gen.below(content.size() - offset + 1);
                         Bytes got(size);
                         const Error error = a.readRange(entry, offset, size, got.data());
-                        const bool same = size == 0 || std::equal(got.begin(), got.end(), content.begin() + static_cast<std::ptrdiff_t>(offset));
+                        const bool same = size == 0
+                            || std::equal(
+                                got.begin(), got.end(), content.begin() + static_cast<std::ptrdiff_t>(offset));
                         if (!error.ok() || !same)
                             ++failures;
                         if (i % 50 == 0)

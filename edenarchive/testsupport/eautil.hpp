@@ -116,7 +116,8 @@ namespace EdenTest
     /// `size` bytes of repeating readable text (compresses well).
     inline Bytes textBytes(std::size_t size)
     {
-        static constexpr std::string_view line = "The quick brown fox jumps over the lazy dog. Eden Archive test text.\n";
+        static constexpr std::string_view line
+            = "The quick brown fox jumps over the lazy dog. Eden Archive test text.\n";
         Bytes out(size);
         for (std::size_t i = 0; i < size; ++i)
             out[i] = static_cast<std::uint8_t>(line[i % line.size()]);

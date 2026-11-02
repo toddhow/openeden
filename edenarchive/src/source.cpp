@@ -120,8 +120,8 @@ namespace EdenArchive
                 std::size_t total = 0;
                 while (total < size)
                 {
-                    const ssize_t got = ::pread(mFd, static_cast<char*>(destination) + total, size - total,
-                        static_cast<off_t>(offset + total));
+                    const ssize_t got = ::pread(
+                        mFd, static_cast<char*>(destination) + total, size - total, static_cast<off_t>(offset + total));
                     if (got < 0 && errno == EINTR)
                         continue;
                     if (got <= 0)
@@ -144,37 +144,38 @@ namespace EdenArchive
         {
             error = Error{};
 #ifdef _WIN32
-        // Sharing includes delete, so a tool can replace the file by rename while a program has it open.
-        HANDLE handle = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (handle == INVALID_HANDLE_VALUE)
-        {
-            error = ioError("cannot open", path);
-            return nullptr;
-        }
-        LARGE_INTEGER size;
-        if (!GetFileSizeEx(handle, &size) || size.QuadPart < 0)
-        {
-            CloseHandle(handle);
-            error = ioError("cannot get the size of", path);
-            return nullptr;
-        }
-        return std::make_shared<FileSource>(handle, static_cast<std::uint64_t>(size.QuadPart));
+            // Sharing includes delete, so a tool can replace the file by rename while a program has it open.
+            HANDLE handle
+                = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                    nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (handle == INVALID_HANDLE_VALUE)
+            {
+                error = ioError("cannot open", path);
+                return nullptr;
+            }
+            LARGE_INTEGER size;
+            if (!GetFileSizeEx(handle, &size) || size.QuadPart < 0)
+            {
+                CloseHandle(handle);
+                error = ioError("cannot get the size of", path);
+                return nullptr;
+            }
+            return std::make_shared<FileSource>(handle, static_cast<std::uint64_t>(size.QuadPart));
 #else
-        const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
-        if (fd < 0)
-        {
-            error = ioError("cannot open", path);
-            return nullptr;
-        }
-        struct stat info;
-        if (::fstat(fd, &info) != 0 || info.st_size < 0 || !S_ISREG(info.st_mode))
-        {
-            ::close(fd);
-            error = ioError("cannot get the size of", path);
-            return nullptr;
-        }
-        return std::make_shared<FileSource>(fd, static_cast<std::uint64_t>(info.st_size));
+            const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+            if (fd < 0)
+            {
+                error = ioError("cannot open", path);
+                return nullptr;
+            }
+            struct stat info;
+            if (::fstat(fd, &info) != 0 || info.st_size < 0 || !S_ISREG(info.st_mode))
+            {
+                ::close(fd);
+                error = ioError("cannot get the size of", path);
+                return nullptr;
+            }
+            return std::make_shared<FileSource>(fd, static_cast<std::uint64_t>(info.st_size));
 #endif
         }
     }

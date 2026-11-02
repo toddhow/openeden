@@ -36,9 +36,7 @@ static int run(int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         const std::string arg = argv[i];
-        auto number = [&](std::uint64_t& value) {
-            return i + 1 < argc && parseUnsigned(argv[++i], value);
-        };
+        auto number = [&](std::uint64_t& value) { return i + 1 < argc && parseUnsigned(argv[++i], value); };
         std::uint64_t value = 0;
         if (arg == "--store")
             options.mStoreOnly = true;
@@ -145,8 +143,8 @@ static int run(int argc, char** argv)
         const auto inserted = seen.emplace(name, pathToUtf8(item.path()));
         if (!inserted.second)
         {
-            std::fprintf(stderr, "edenpack: '%s' and '%s' would both be stored as '%s'\n", inserted.first->second.c_str(),
-                pathToUtf8(item.path()).c_str(), name.c_str());
+            std::fprintf(stderr, "edenpack: '%s' and '%s' would both be stored as '%s'\n",
+                inserted.first->second.c_str(), pathToUtf8(item.path()).c_str(), name.c_str());
             return exitInvalid;
         }
         EdenArchive::InputEntry entry;
