@@ -322,13 +322,21 @@ namespace Lod
         std::sort(tiles.begin(), tiles.end(), [](const BakedTile& lhs, const BakedTile& rhs) {
             return packTileKey(lhs.mId).value_or(0) < packTileKey(rhs.mId).value_or(0);
         });
+        manifest = makeTerrainManifest(base, plan, albedo != nullptr, worldspaceName);
+        return {};
+    }
+
+    TileManifest makeTerrainManifest(
+        const TileBakeSettings& base, const TerrainBakePlan& plan, bool withAlbedo, const std::string& worldspaceName)
+    {
+        TileManifest manifest;
         manifest.mLayoutVersion = tileKeyLayoutVersion;
         manifest.mBakerVersion = bakerVersion;
         manifest.mWorldspaces.push_back(WorldspaceInfo{ base.mWorldspace, worldspaceName, base.mCellSize });
         manifest.mLevels = plan.mLevels;
         manifest.mGridSize = base.mGridSize;
-        manifest.mAlbedoSize = albedo != nullptr ? plan.mAlbedoSize : 0;
-        return {};
+        manifest.mAlbedoSize = withAlbedo ? plan.mAlbedoSize : 0;
+        return manifest;
     }
 
     std::vector<TileId> tilesCoveringCells(

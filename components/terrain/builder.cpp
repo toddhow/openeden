@@ -380,7 +380,37 @@ namespace Terrain
 
         auto data = mStorage->getVertexData(lod, bounds);
 
-        vsg::ref_ptr<vsg::Data> blendmap = mStorage->getBlendmap(bounds);
+        // Task 0055: a baked picture replaces the layers and the blend map (not with the terrain maps on, whose
+        // per-layer data it cannot give).
+        vsg::ref_ptr<vsg::Data> diffuseOverride;
+        if (!mMapSettings.enabled())
+            diffuseOverride = mStorage->getDiffuseOverride(bounds);
+        vsg::ref_ptr<vsg::Data> blendmap;
+        vsg::ref_ptr<vsg::Descriptor> layerDescriptor = mLayerDescriptor;
+        if (diffuseOverride)
+        {
+            // One blend texel whose four layer indices are 0: the shader then reads layer 0 at the chunk's own texture
+            // coordinates, which run once over the chunk.
+            blendmap
+                = vsg::ubvec4Array2D::create(1, 1, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+            auto bakedSampler = vsg::Sampler::create();
+            bakedSampler->minFilter = VK_FILTER_LINEAR;
+            bakedSampler->magFilter = VK_FILTER_LINEAR;
+            bakedSampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            bakedSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            bakedSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            if (mSamplerOptions)
+            {
+                bakedSampler->anisotropyEnable = mSamplerOptions->anisotropyEnable;
+                bakedSampler->maxAnisotropy = mSamplerOptions->maxAnisotropy;
+            }
+            if (auto& sharedObjects = mImageOptions->sharedObjects)
+                sharedObjects->share(bakedSampler);
+            layerDescriptor = vsg::DescriptorImage::create(bakedSampler,
+                vsgUtil::convertToArrayTexture({ diffuseOverride }), Pipeline::Descriptors::LAYER_BINDING);
+        }
+        else
+            blendmap = mStorage->getBlendmap(bounds);
 
         auto layout = mPipeline->pipeline->layout;
 
@@ -402,7 +432,7 @@ namespace Terrain
             .vertexScale = mStorage->cellWorldSize * bounds.size });
         auto batchDescriptor = vsg::DescriptorBuffer::create(batchData, Pipeline::Descriptors::BATCH_DATA_BINDING);
 
-        vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, mLayerDescriptor, heightsDescriptor,
+        vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, layerDescriptor, heightsDescriptor,
             normalsDescriptor, colorDescriptor };
         if (mNormalLayerDescriptor)
         {

@@ -95,6 +95,10 @@ namespace Lod
         std::uint32_t mAlbedoSize = 256;
     };
 
+    /// The manifest of a bake with this plan (what bakeTerrainLevels returns, and what a pack made from it holds).
+    TileManifest makeTerrainManifest(
+        const TileBakeSettings& base, const TerrainBakePlan& plan, bool withAlbedo, const std::string& worldspaceName);
+
     /// Bakes every level of the plan for the tiles covering `landCells` and builds the manifest (levels = the plan's,
     /// gridSize = base.mGridSize, albedoSize = plan.mAlbedoSize when `albedo` is not null, else 0). `tiles` comes
     /// back in key order. base.mLevel and base.mAlbedoSize are ignored (the plan's win); base.mDigestOnly is honoured.

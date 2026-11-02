@@ -43,6 +43,12 @@ namespace Terrain
 
         virtual std::vector<LayerInfo> getLayers() = 0;
 
+        /// OpenEden (task 0055): a ready-made ground picture (RGBA8, one level, row 0 the south row) that covers the
+        /// whole chunk once. When it is not null, Builder draws the chunk with it instead of the layers and the blend
+        /// map (the shader then reads one layer through a 1 x 1 blend map), unless the terrain maps are on. Called on
+        /// the thread that builds the chunk.
+        virtual vsg::ref_ptr<vsg::Data> getDiffuseOverride(const Bounds&) { return {}; }
+
         virtual float getHeightAt(const vsg::vec3& worldPos, ESM::RefId worldspace) = 0;
 
         /// The transformation factor for mapping cell units to world units.

@@ -1071,6 +1071,8 @@ namespace MWRender
 
     void RenderManager::setStore(const MWWorld::ESMStore& store)
     {
+        // Task 0055: an earlier LodTerrain reads the storage on a worker thread; it goes before the store changes.
+        mLodTerrain.reset();
         mTerrainStorage->setStore(&store);
         mTerrain->setStorage(mTerrainStorage.get());
         // Task 0055: baked terrain tiles, only when asked for. Nothing below runs with the setting off.
@@ -1080,10 +1082,20 @@ namespace MWRender
             for (const ESM::Land& land : store.get<ESM::Land>())
                 landCells.emplace_back(land.mX, land.mY);
             mLodTerrainAttached = false;
-            mLodTerrain = std::make_unique<LodTerrain>(mLodTerrainPack, Settings::worldLod().mTerrainTileThreshold,
-                *mTerrainStorage, std::move(landCells), mCompileContext->clone(Mask_Terrain),
-                mResourceSystem->textureOptions, mResourceSystem->shaderOptions,
-                mResourceSystem->builder->createSampler(), *mTerrainMapsForLod);
+            LodTerrain::Setup setup;
+            setup.mPack = mLodTerrainPack;
+            setup.mThreshold = Settings::worldLod().mTerrainTileThreshold;
+            setup.mLive = mTerrainStorage.get();
+            setup.mLandCells = std::move(landCells);
+            // The live layer list, taken here once (the staleness check on a worker thread must not ask for it).
+            setup.mLayers = mTerrainStorage->getLayers();
+            setup.mCompile = mCompileContext->clone(Mask_Terrain);
+            setup.mImageOptions = mResourceSystem->textureOptions;
+            setup.mShaderOptions = mResourceSystem->shaderOptions;
+            setup.mSampler = mResourceSystem->builder->createSampler();
+            setup.mMapSettings = *mTerrainMapsForLod;
+            setup.mVfs = mResourceSystem->getVFS();
+            mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
         }
     }
 

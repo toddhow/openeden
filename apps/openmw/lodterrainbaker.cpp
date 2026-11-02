@@ -9,6 +9,8 @@
 #include <components/files/conversion.hpp>
 #include <components/lod/tilebake.hpp>
 #include <components/lod/tilepack.hpp>
+#include <components/lod/tileselection.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/terrain/bounds.hpp>
 
 #include "mwbase/environment.hpp"
@@ -30,16 +32,21 @@ namespace OMW
     {
         State(std::filesystem::path out, Resource::ResourceSystem& resources)
             : mOut(std::move(out))
+            , mResources(resources)
             , mStorage(&resources)
             , mSource(mStorage)
         {
         }
 
         std::filesystem::path mOut;
+        Resource::ResourceSystem& mResources;
         MWRender::TerrainStorage mStorage;
         MWRender::StorageLandSource mSource;
+        std::unique_ptr<MWRender::StorageAlbedoSource> mAlbedo;
         Lod::TileBakeSettings mSettings;
-        std::vector<Lod::TileId> mIds;
+        Lod::TerrainBakePlan mPlan;
+        // What is left to bake: the tile and the settings of its level.
+        std::vector<std::pair<Lod::TileId, Lod::TileBakeSettings>> mWork;
         std::vector<Lod::BakedTile> mTiles;
         Lod::TileManifest mManifest;
         bool mStarted = false;
@@ -69,28 +76,37 @@ namespace OMW
             state.mStart = std::chrono::steady_clock::now();
             state.mStorage.setStore(store);
             // The cell size comes from the storage (8192 for Morrowind), never from a literal here.
-            state.mSettings.mCellSize = static_cast<std::uint32_t>(state.mStorage.cellWorldSize);
+            state.mSettings = MWRender::terrainBakeSettings(static_cast<std::uint32_t>(state.mStorage.cellWorldSize));
+            state.mPlan = MWRender::terrainBakePlan();
             std::vector<std::pair<std::int32_t, std::int32_t>> cells;
             for (const ESM::Land& land : store->get<ESM::Land>())
                 cells.emplace_back(land.mX, land.mY);
-            state.mIds = Lod::tilesCoveringCells(cells, state.mSettings);
-            state.mManifest.mWorldspaces.push_back(
-                Lod::WorldspaceInfo{ state.mSettings.mWorldspace, worldspaceName, state.mSettings.mCellSize });
-            state.mManifest.mLevels.push_back(state.mSettings.mLevel);
-            state.mManifest.mGridSize = state.mSettings.mGridSize;
-            state.mManifest.mBakerVersion = Lod::bakerVersion;
-            state.mTiles.reserve(state.mIds.size());
-            Log(Debug::Info) << "LOD terrain bake: " << cells.size() << " land cells, " << state.mIds.size()
-                             << " tiles of level " << state.mSettings.mLevel << " (layout version "
-                             << Lod::tileKeyLayoutVersion << "). No albedo is baked in this stage.";
+            for (const std::uint32_t level : state.mPlan.mLevels)
+            {
+                Lod::TileBakeSettings settings = state.mSettings;
+                settings.mLevel = level;
+                settings.mAlbedoSize = level >= state.mPlan.mAlbedoFromLevel ? state.mPlan.mAlbedoSize : 0;
+                const std::vector<Lod::TileId> ids = Lod::tilesCoveringCells(cells, settings);
+                for (const Lod::TileId& id : ids)
+                    state.mWork.emplace_back(id, settings);
+                Log(Debug::Info) << "LOD terrain bake: level " << level << ": " << ids.size() << " tiles"
+                                 << (settings.mAlbedoSize != 0 ? " with a ground picture" : "");
+            }
+            state.mAlbedo = std::make_unique<MWRender::StorageAlbedoSource>(
+                state.mStorage, state.mStorage.getLayers(), state.mResources.textureOptions, state.mResources.getVFS());
+            state.mManifest = Lod::makeTerrainManifest(state.mSettings, state.mPlan, true, worldspaceName);
+            state.mTiles.reserve(state.mWork.size());
+            Log(Debug::Info) << "LOD terrain bake: " << cells.size() << " land cells, " << state.mWork.size()
+                             << " tiles in all (layout version " << Lod::tileKeyLayoutVersion << ").";
         }
 
         const auto sliceEnd = std::chrono::steady_clock::now() + sliceTime;
-        while (state.mTiles.size() < state.mIds.size() && std::chrono::steady_clock::now() < sliceEnd)
+        while (state.mTiles.size() < state.mWork.size() && std::chrono::steady_clock::now() < sliceEnd)
         {
             Lod::BakedTile tile;
+            const auto& [id, settings] = state.mWork[state.mTiles.size()];
             if (const Lod::LodError error
-                = Lod::bakeTerrainTile(state.mSource, state.mIds[state.mTiles.size()], state.mSettings, tile))
+                = Lod::bakeTerrainTile(state.mSource, state.mAlbedo.get(), id, settings, tile))
             {
                 Log(Debug::Error) << "LOD terrain bake failed, no pack written: " << error.describe();
                 state.mFinished = true;
@@ -98,8 +114,11 @@ namespace OMW
             }
             state.mTiles.push_back(std::move(tile));
         }
-        if (state.mTiles.size() < state.mIds.size())
+        if (state.mTiles.size() < state.mWork.size())
             return false;
+        std::sort(state.mTiles.begin(), state.mTiles.end(), [](const Lod::BakedTile& lhs, const Lod::BakedTile& rhs) {
+            return Lod::packTileKey(lhs.mId).value_or(0) < Lod::packTileKey(rhs.mId).value_or(0);
+        });
 
         state.mFinished = true;
         {
@@ -135,6 +154,9 @@ namespace OMW
                                      << "), nothing written.";
                     return true;
                 }
+                Log(Debug::Info)
+                    << "LOD terrain bake: the pack on disk is stale (land, land textures or settings changed, or "
+                       "an older layout): it is replaced.";
                 generation = old->generation() + 1;
             }
         }

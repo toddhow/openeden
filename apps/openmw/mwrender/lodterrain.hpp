@@ -27,6 +27,7 @@
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Group.h>
 
+#include <components/lod/albedobake.hpp>
 #include <components/lod/tilebake.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/terrain/coverage.hpp>
@@ -38,6 +39,10 @@ namespace vsg
 {
     class Options;
     class Sampler;
+}
+namespace VFS
+{
+    class Manager;
 }
 
 namespace MWRender
@@ -58,6 +63,40 @@ namespace MWRender
         Terrain::Storage& mStorage;
     };
 
+    /// The ground colour inputs of the game: blend maps and vertex colours from the live terrain storage, the layer
+    /// pictures read the way Terrain::Builder reads them, and a digest of each layer's file. One user at a time (the
+    /// caches are not locked): the baker on the main thread, or the staleness check on its worker thread, each with
+    /// its own object. `layers` is the layer list of the live storage, taken once on the main thread.
+    class StorageAlbedoSource final : public Lod::AlbedoSource
+    {
+    public:
+        StorageAlbedoSource(Terrain::Storage& storage, std::vector<Terrain::LayerInfo> layers,
+            vsg::ref_ptr<const vsg::Options> imageOptions, const VFS::Manager* vfs);
+        ~StorageAlbedoSource() override;
+
+        std::size_t layerCount() const override;
+        /// Reads and decodes every layer on the first call (the pictures are the ones the live terrain draws with).
+        const Lod::Rgba8Image* layerImage(std::size_t index) const override;
+        EdenArchive::Hash layerDigest(std::size_t index) const override;
+        void blendMap(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
+            std::vector<std::uint8_t>& indices) const override;
+        void vertexColours(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
+            std::vector<std::uint8_t>& rgb) const override;
+
+    private:
+        struct Caches;
+        Terrain::Storage& mStorage;
+        std::vector<Terrain::LayerInfo> mLayers;
+        vsg::ref_ptr<const vsg::Options> mImageOptions;
+        const VFS::Manager* mVfs;
+        std::unique_ptr<Caches> mCaches;
+    };
+
+    /// The levels and sizes the baker and the runtime agree on (Lod::TerrainBakePlan's defaults).
+    Lod::TerrainBakePlan terrainBakePlan();
+    /// The settings the baker and the runtime agree on, for a storage with this cell size.
+    Lod::TileBakeSettings terrainBakeSettings(std::uint32_t cellSize);
+
     class LodTerrain
     {
     public:
@@ -71,12 +110,23 @@ namespace MWRender
             double mViewDistance = 7168;
         };
 
-        /// `live` is the game's terrain storage (it must outlive this object and be ready to read). `landCells` are
-        /// the cells with land, for the staleness check.
-        LodTerrain(std::filesystem::path pack, float threshold, Terrain::Storage& live,
-            std::vector<std::pair<std::int32_t, std::int32_t>> landCells, vsg::ref_ptr<vsgUtil::CompileContext> compile,
-            vsg::ref_ptr<const vsg::Options> imageOptions, vsg::ref_ptr<const vsg::Options> shaderOptions,
-            vsg::ref_ptr<vsg::Sampler> sampler, Terrain::TerrainMapSettings mapSettings);
+        struct Setup
+        {
+            std::filesystem::path mPack;
+            float mThreshold = 8;
+            /// The game's terrain storage: must outlive the LodTerrain and be ready to read.
+            Terrain::Storage* mLive = nullptr;
+            /// The cells with land and the live layer list (taken once, on the main thread), for the staleness check.
+            std::vector<std::pair<std::int32_t, std::int32_t>> mLandCells;
+            std::vector<Terrain::LayerInfo> mLayers;
+            vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
+            vsg::ref_ptr<const vsg::Options> mImageOptions;
+            vsg::ref_ptr<const vsg::Options> mShaderOptions;
+            vsg::ref_ptr<vsg::Sampler> mSampler;
+            Terrain::TerrainMapSettings mMapSettings;
+            const VFS::Manager* mVfs = nullptr;
+        };
+        explicit LodTerrain(Setup setup);
         ~LodTerrain();
 
         /// The group to put in the scene beside the live terrain.
