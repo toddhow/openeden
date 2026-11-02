@@ -160,12 +160,13 @@ void main()
         vec2 pomDy = dFdy(frag_in.texCoord[diffuseUV].st);
         float pomFade = pomDistanceFade(length(frag_in.viewPos));
   #ifdef MATERIAL
-        float pomDisplacement = unpackHalf2x16(floatBitsToUint(material.align_dummy2)).y;
+        float pomMeshDepth = unpackHalf2x16(floatBitsToUint(material.align_dummy2)).y;
   #else
-        float pomDisplacement = 0.0;
+        float pomMeshDepth = 0.0;
   #endif
-        float pomDepth = pomUvDepth(pomDisplacement > 0.0 ? pomDisplacement : POM_DEFAULT_DISPLACEMENT,
-                             pomWorldPerUv(frag_in.viewPos, pomDx, pomDy)) * pomFade;
+        // With a material the high half is normally the mesh's own depth in texture coordinates, one number for the
+        // whole mesh (nif.cpp); the derivatives are the fall-back.
+        float pomDepth = pomDepthFromField(pomMeshDepth, pomWorldPerUv(frag_in.viewPos, pomDx, pomDy)) * pomFade;
         if (pomFade > 0.0 && dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) != 0)
         {
             PomResult pom = pomMarch(frag_in.texCoord[diffuseUV].st, transpose(normalToView) * normalize(-frag_in.viewPos),

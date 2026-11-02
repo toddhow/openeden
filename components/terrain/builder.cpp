@@ -50,7 +50,16 @@ namespace Terrain
             for (const auto& path : paths)
             {
                 auto data = vsgUtil::readOptionalImage(path, options);
-                if (data && accept && !accept(data->properties.format))
+                // Task 0045: the blur and the mean height of a height file read coarser mip levels.
+                if (data && accept == Render::Parallax::usableHeightFormat
+                    && !Render::Parallax::heightMipsUsable(data->properties.format,
+                        data->width() * data->properties.blockWidth, data->height() * data->properties.blockHeight,
+                        vsgUtil::detail::mipLevels(*data).size()))
+                {
+                    std::cerr << "Terrain " << what << " " << path << " has no mip levels and is not used" << std::endl;
+                    data = nullptr;
+                }
+                else if (data && accept && !accept(data->properties.format))
                 {
                     std::cerr << "Terrain " << what << " " << path << " is not a usable image and is not used"
                               << std::endl;

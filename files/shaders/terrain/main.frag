@@ -152,7 +152,7 @@ void main()
         }
         float up = (mat3(scene.invView) * normalize(frag_in.viewNormal)).z;
         float pomFade = pomDistanceFade(length(frag_in.viewPos)) * pomSlopeFade(up);
-        float worldPerUv = pomWorldPerUv(frag_in.viewPos, pomDx, pomDy);
+        float worldPerUv = pomWorldPerUvPlanar(mat3(scene.invView) * frag_in.viewPos, pomDx, pomDy);
         if (first >= 0 && pomFade > 0.0)
         {
             float weightSecond = second >= 0 ? blendCoeffs[second] : 0.0;

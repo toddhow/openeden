@@ -19,9 +19,10 @@ vec2 getParallaxOffset(vec3 eyeDir, float height)
 // which read the height file (1 = the top of the surface) at a mip level, and its size in texels. That is the only place that names
 // a texture, so a Slang port is this function as an interface method plus a mechanical translation of the rest.
 //
-// The ray goes down into the surface; at depth d (0 at the surface, 1 the deepest the map can have) its texture
-// coordinate is uv - eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z) * d * uvDepth, and it is below the surface once
-// d >= 1 - pomHeight(there).
+// The ray goes down into the surface. It passes through the pixel's own coordinate at depth `pivot` (the map's mean
+// depth), so at depth d (0 at the top of the map, 1 the deepest it can have) its texture coordinate is
+// uv + rayStep * (pivot - d), with rayStep the view's limited slant times uvDepth. It is below the surface once
+// d >= 1 - pomHeight(there), and the colours are read at that same coordinate.
 #if defined(PARALLAX_POM_LOW)
 const int POM_MIN_STEPS = 8;
 const int POM_MAX_STEPS = 12;
@@ -35,6 +36,7 @@ const int POM_MIN_STEPS = 10;
 const int POM_MAX_STEPS = 20;
 const int POM_REFINE_TAPS = 4;
 #endif
+// Render::Parallax::minViewZ: the ray fades to nothing below this, at the silhouette.
 const float POM_MIN_VIEW_Z = 0.1;
 // Render::Parallax::maxSlant, slopeFadeFull and slopeFadeNone.
 const float POM_MAX_SLANT = 2.0;
@@ -55,10 +57,23 @@ float pomSlopeFade(float up)
 }
 
 // Game units per unit of texture coordinates at this pixel, from the derivatives of the view space position and of the
-// coordinates (call it outside any branch). The depth of the surface is a length, so it is divided by this.
+// coordinates (call it outside any branch). The depth of the surface is a length, so it is divided by this. It changes
+// from triangle to triangle with the mapping's density, so it is only the fall-back for a material with no number for
+// its whole mesh (Render::Parallax::meshWorldPerUv).
 float pomWorldPerUv(vec3 viewPos, vec2 uvDx, vec2 uvDy)
 {
     float worldArea = length(cross(dFdx(viewPos), dFdy(viewPos)));
+    float uvArea = abs(uvDx.x * uvDy.y - uvDx.y * uvDy.x);
+    return sqrt(worldArea / max(uvArea, 1e-12));
+}
+
+// On terrain the texture coordinates are a projection from above: the area from the world's x and y alone, which does
+// not change with the slope, so neighbouring triangles agree. worldPos: the position in world orientation.
+float pomWorldPerUvPlanar(vec3 worldPos, vec2 uvDx, vec2 uvDy)
+{
+    vec2 wx = dFdx(worldPos).xy;
+    vec2 wy = dFdy(worldPos).xy;
+    float worldArea = abs(wx.x * wy.y - wx.y * wy.x);
     float uvArea = abs(uvDx.x * uvDy.y - uvDx.y * uvDy.x);
     return sqrt(worldArea / max(uvArea, 1e-12));
 }
@@ -67,6 +82,16 @@ float pomWorldPerUv(vec3 viewPos, vec2 uvDx, vec2 uvDy)
 float pomUvDepth(float scale, float worldPerUv)
 {
     return clamp(scale * POM_WORLD_DEPTH_PER_DISPLACEMENT / max(worldPerUv, 1e-6), 0.0, POM_MAX_UV_DEPTH);
+}
+
+// The material's depth field: Render::Parallax::meshDepthField and depthFromField. A field of 1 or more is 1 + a depth
+// scale for a mesh with no number of its own, a smaller one above 0 is the mesh's depth in texture coordinates, and 0
+// means no material value. worldPerUv: the derivatives' (the fall-back).
+float pomDepthFromField(float field, float worldPerUv)
+{
+    if (field >= 1.0)
+        return pomUvDepth(field - 1.0, worldPerUv);
+    return field > 0.0 ? field : pomUvDepth(POM_DEFAULT_DISPLACEMENT, worldPerUv);
 }
 
 float pomDistanceFade(float distance)
@@ -89,10 +114,11 @@ float pomBlurLod(vec2 dx, vec2 dy)
     return max(0.5 * log2(max(footprint, 1e-8)) + POM_BLUR_BIAS, POM_MIN_LOD);
 }
 
-// How far the ray is above the surface at depth d: positive above, zero or less once it is under it.
-float pomAbove(vec2 uv, vec2 rayStep, float d, float lod)
+// How far the ray is above the surface at depth d: positive above, zero or less once it is under it. origin: the
+// ray's coordinate at depth 0.
+float pomAbove(vec2 origin, vec2 rayStep, float d, float lod)
 {
-    return (1.0 - pomHeight(uv - rayStep * d, lod)) - d;
+    return (1.0 - pomHeight(origin - rayStep * d, lod)) - d;
 }
 
 // What a march finds. offset: the texture coordinate offset to add to uv. slope: the tangent space x and y of the
@@ -125,63 +151,68 @@ PomResult pomMarch(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, ve
     result.offset = vec2(0.0);
     result.slope = vec2(0.0);
     result.cavity = 0.0;
+    // A degenerate tangent frame gives no direction: no offset.
+    float eyeLength = length(eyeDir);
+    if (!(eyeLength > 0.0))
+        return result;
+    eyeDir /= eyeLength;
+    // Render::Parallax::viewFade: nothing for a view from behind, and zero at the silhouette.
+    float viewFade = clamp(eyeDir.z / POM_MIN_VIEW_Z, 0.0, 1.0);
+    if (!(viewFade > 0.0))
+        return result;
     float lod = pomBlurLod(dx, dy);
-    float viewCos = clamp(abs(eyeDir.z), 0.0, 1.0);
-    int steps = int(ceil(mix(float(POM_MIN_STEPS), float(POM_MAX_STEPS), 1.0 - viewCos)));
-    vec2 slant = eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z);
+    vec2 slant = eyeDir.xy / max(eyeDir.z, 1e-4);
     float slantLength = length(slant);
     if (slantLength > POM_MAX_SLANT)
         slant *= POM_MAX_SLANT / slantLength;
-    vec2 rayStep = slant * uvDepth;
+    vec2 rayStep = slant * uvDepth * viewFade;
+    // Render::Parallax::travelSteps: by the view's angle, and at least one step per blurred texel crossed.
+    float viewSteps = ceil(mix(float(POM_MIN_STEPS), float(POM_MAX_STEPS), 1.0 - eyeDir.z));
+    float travel = length(rayStep * pomTextureSize()) / exp2(lod);
+    int steps = int(min(max(viewSteps, ceil(travel)), float(POM_MAX_STEPS)));
+    // Render::Parallax::marchOffset: the ray passes through uv at depth pivot.
+    vec2 origin = uv + rayStep * pivot;
     float loDepth = 0.0;
-    float loAbove = pomAbove(uv, rayStep, 0.0, lod);
+    float loAbove = pomAbove(origin, rayStep, 0.0, lod);
     float hitDepth = 0.0;
     if (loAbove > 0.0)
     {
+        // At depth 1 the ray is at or under any height, so the last step always ends the search.
         float hiDepth = 1.0;
         float hiAbove = 0.0;
-        bool hit = false;
-        for (int i = 1; i <= POM_MAX_STEPS; ++i)
+        for (int i = 1; i <= steps; ++i)
         {
-            if (i > steps)
-                break;
             float depth = float(i) / float(steps);
-            float a = pomAbove(uv, rayStep, depth, lod);
+            float a = pomAbove(origin, rayStep, depth, lod);
             if (a <= 0.0)
             {
                 hiDepth = depth;
                 hiAbove = a;
-                hit = true;
                 break;
             }
             loDepth = depth;
             loAbove = a;
         }
-        if (!hit)
-            hitDepth = 1.0;
-        else
+        for (int k = 0; k < POM_REFINE_TAPS; ++k)
         {
-            for (int k = 0; k < POM_REFINE_TAPS; ++k)
+            float mid = 0.5 * (loDepth + hiDepth);
+            float m = pomAbove(origin, rayStep, mid, lod);
+            if (m <= 0.0)
             {
-                float mid = 0.5 * (loDepth + hiDepth);
-                float m = pomAbove(uv, rayStep, mid, lod);
-                if (m <= 0.0)
-                {
-                    hiDepth = mid;
-                    hiAbove = m;
-                }
-                else
-                {
-                    loDepth = mid;
-                    loAbove = m;
-                }
+                hiDepth = mid;
+                hiAbove = m;
             }
-            float span = loAbove - hiAbove;
-            float t = span > 0.0 ? clamp(loAbove / span, 0.0, 1.0) : 1.0;
-            hitDepth = loDepth + t * (hiDepth - loDepth);
+            else
+            {
+                loDepth = mid;
+                loAbove = m;
+            }
         }
+        float span = loAbove - hiAbove;
+        float t = span > 0.0 ? clamp(loAbove / span, 0.0, 1.0) : 1.0;
+        hitDepth = loDepth + t * (hiDepth - loDepth);
     }
-    vec2 hitUv = uv - rayStep * hitDepth;
+    vec2 hitUv = origin - rayStep * hitDepth;
     // The slope of the height field at the hit by central differences, one blurred texel apart. In world terms
     // (height scaled by the depth, distance by the tile) the gradient per uv unit is multiplied by uvDepth.
     vec2 e = exp2(lod) / pomTextureSize();
@@ -192,9 +223,10 @@ PomResult pomMarch(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, ve
     if (steep > POM_MAX_NORMAL_SLOPE)
         slope *= POM_MAX_NORMAL_SLOPE / steep;
     float keep = mix(1.0, POM_STEEP_KEEP, smoothstep(POM_STEEP_FROM, POM_STEEP_TO, steep));
-    result.offset = -rayStep * (hitDepth - pivot) * keep;
+    result.offset = (hitUv - uv) * keep;
     result.slope = slope;
-    result.cavity = clamp((hitDepth - pivot) * 2.0, 0.0, 1.0);
+    // Render::Parallax::cavityFromDepth.
+    result.cavity = pivot < 1.0 ? clamp((hitDepth - pivot) / (1.0 - pivot), 0.0, 1.0) : 0.0;
     return result;
 }
 

@@ -52,6 +52,7 @@
 #include <components/pipeline/sets.hpp>
 #include <components/render/materialoverrides.hpp>
 #include <components/vfs/pathutil.hpp>
+#include <components/vsgutil/arraytexture.hpp>
 #include <components/vsgutil/cullnode.hpp>
 #include <components/vsgutil/distancelod.hpp>
 
@@ -259,6 +260,10 @@ namespace vsgAdapters
         using MaterialValue = vsg::Value<Pipeline::Data::Material>;
         struct NodeOptions : public Pipeline::Options
         {
+            // Task 0045: for the height file's depth. The product of the scales of the nodes down to here, and whether
+            // a NiUVController above animates the texture coordinates.
+            float nodeScale = 1.f;
+            bool animatedTextureTransform = false;
             vsg::ref_ptr<vsg::StateSwitch> stateSwitch;
             vsg::Descriptors descriptors;
             std::vector<vsg::Descriptors> textureSets;
@@ -482,6 +487,34 @@ namespace vsgAdapters
             return array;
         }
 
+        // Task 0045: the material of the geometry being built reads this (createMaterialData); 0 outside handleGeometry.
+        float mMeshWorldPerUv = 0.f;
+
+        // Game units per unit of the diffuse texture's coordinates, over the whole mesh.
+        float meshWorldPerUvOf(
+            const Nif::NiGeometry& niGeometry, const Nif::NiGeometryData& data, const NodeOptions& nodeOptions)
+        {
+            auto uvSetIt = nodeOptions.nonStandardUvSets.find(Pipeline::Descriptors::DIFFUSE_UNIT);
+            const size_t uvSet = uvSetIt != nodeOptions.nonStandardUvSets.end() ? uvSetIt->second : 0;
+            // An animated texture transform changes the density as it plays: only the derivatives can follow it.
+            if (uvSet >= data.mUVList.size() || nodeOptions.animatedTextureTransform)
+                return 0.f;
+            // In the units of the object: the mesh's vertices are scaled by the nodes above it.
+            if ((niGeometry.mRecordType == Nif::RC_NiTriShape || niGeometry.mRecordType == Nif::RC_BSLODTriShape)
+                && data.mRecordType == Nif::RC_NiTriShapeData)
+            {
+                const std::vector<std::vector<uint16_t>> lists{ static_cast<const Nif::NiTriShapeData&>(
+                    data).mTriangles };
+                return nodeOptions.nodeScale
+                    * Render::Parallax::meshWorldPerUv(data.mVertices, data.mUVList[uvSet], lists, false);
+            }
+            if (niGeometry.mRecordType == Nif::RC_NiTriStrips && data.mRecordType == Nif::RC_NiTriStripsData)
+                return nodeOptions.nodeScale
+                    * Render::Parallax::meshWorldPerUv(
+                        data.mVertices, data.mUVList[uvSet], static_cast<const Nif::NiTriStripsData&>(data).mStrips, true);
+            return 0.f;
+        }
+
         vsg::ref_ptr<vsg::Node> handleGeometry(const Nif::NiGeometry& niGeometry)
         {
             if (niGeometry.mData.empty())
@@ -579,7 +612,10 @@ namespace vsgAdapters
             geom->indexCount = indices->size();
             geom->assignIndices(indices);
 
+            if (nodeOptions.shader.hasMode(Pipeline::Mode::HEIGHT_MAP))
+                mMeshWorldPerUv = meshWorldPerUvOf(niGeometry, data, nodeOptions);
             auto sg = createStateGroup(geom);
+            mMeshWorldPerUv = 0.f;
             if (nodeOptions.depthSorted)
             {
                 // Alpha sorting uses the calculated bounding sphere centre.
@@ -879,10 +915,16 @@ namespace vsgAdapters
             if (!maps.heightMap.empty() && hasNormalMap)
             {
                 const auto height = vsgUtil::readOptionalImage(maps.heightMap, mImageOptions);
-                const bool usable = height && Render::Parallax::usableHeightFormat(height->properties.format);
+                const bool usableFormat = height && Render::Parallax::usableHeightFormat(height->properties.format);
+                const bool usable = usableFormat
+                    && Render::Parallax::heightMipsUsable(height->properties.format,
+                        height->width() * height->properties.blockWidth,
+                        height->height() * height->properties.blockHeight, vsgUtil::detail::mipLevels(*height).size());
                 if (!usable)
-                    warnHeightMapOnce(
-                        maps.heightMap, height ? "is not a one-channel or plain colour image" : "cannot be read");
+                    warnHeightMapOnce(maps.heightMap,
+                        !height             ? "cannot be read"
+                            : !usableFormat ? "is not a one-channel or plain colour image"
+                                            : "has no mip levels");
                 if (usable && addMap(maps.heightMap, Pipeline::Descriptors::HEIGHT_UNIT, height))
                 {
                     nodeOptions.shader.addMode(Pipeline::Mode::HEIGHT_MAP);
@@ -1172,9 +1214,12 @@ namespace vsgAdapters
                 const double displacement = values.displacementScale.value_or(
                     static_cast<double>(Render::Parallax::defaultDisplacementScale));
                 const float userScale = mAutoMaps ? mAutoMaps->parallaxScale : 1.f;
+                const float scale = std::max(static_cast<float>(displacement) * userScale, 0.001f);
+                // One depth for the whole mesh, in texture coordinates: the shader's derivatives would change from one
+                // triangle to the next. A mesh with no usable number leaves the shader to use them.
                 data->value().align_dummy2 = Render::Parallax::packScales(
                     values.roughnessScale ? static_cast<float>(*values.roughnessScale) : 0.f,
-                    std::max(static_cast<float>(displacement) * userScale, 0.001f));
+                    Render::Parallax::meshDepthField(scale, mMeshWorldPerUv));
             }
             if (mOverride && mOverride->materialData)
                 mOverride->materialData(data->value());
@@ -1319,6 +1364,7 @@ namespace vsgAdapters
 
         void handleUVController(const Nif::NiUVController& uvctrl)
         {
+            getNodeOptions().animatedTextureTransform = true;
             if (uvctrl.mData.empty())
                 return;
             auto ctrl = Anim::TexMat::create();
@@ -1483,6 +1529,7 @@ namespace vsgAdapters
             handleAnimFlags(nifNode);
 
             auto& nodeOptions = getNodeOptions();
+            nodeOptions.nodeScale *= nifNode.mTransform.mScale;
             if (mNif->getUseSkinning() && !mSkinFilter.empty() && !nodeOptions.filterMatched)
             {
                 nodeOptions.filterMatched = filterMatches(nifNode.mName);

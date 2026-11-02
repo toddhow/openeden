@@ -7,6 +7,7 @@
 #include <cstring>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 #include <vsg/vk/vulkan.h>
 
@@ -17,14 +18,15 @@ namespace Render::Parallax
 
     /*
      * The pure parts of parallax occlusion mapping (task 0045). The shaders repeat them
-     * (files/shaders/lib/material/parallax.glsl, `parallaxMarch`): change both together.
+     * (files/shaders/lib/material/parallax.glsl, `pomMarch`): change both together.
      *
      * The idea: a surface with a height map (1 = the top, 0 = the deepest point) is drawn flat, but each pixel looks
      * for where the view ray, going down into the surface, meets the height field, and reads its colours there. The
-     * ray is described by its depth d from 0 (at the surface) to 1 (the deepest point the map can have); the texture
-     * coordinate at depth d is uv - eyeDir.xy / max(eyeDir.z, minViewZ) * d * uvDepth, and the ray is below the surface
-     * once d >= 1 - height(uv(d)). The march takes steps at depth i/N, finds the first one below the surface and
-     * refines the hit between that step and the one before.
+     * ray is described by its depth d from 0 (the top of the map) to 1 (the deepest point it can have). It passes
+     * through the pixel's own coordinate at depth `pivot` (the map's mean depth), so its coordinate at depth d is
+     * uv + rayStep * (pivot - d), where rayStep is the slant of the view times the depth in texture coordinates. It is
+     * below the surface once d >= 1 - height(uv(d)). The march takes steps at depth i/N, finds the first one below the
+     * surface and refines the hit between that step and the one before; the colours are read at the hit.
      */
 
     // Where a material's height comes from (toddhow's rule, task 0045): the parallax is drawn only with a real height
@@ -281,7 +283,8 @@ namespace Render::Parallax
     }
 
     // The material's Material::align_dummy2 float (files/shaders/lib/material/data.glsl) carries two scales as two
-    // half floats: the roughness scale of task 0044 in the low half and the displacement scale in the high half. Zero
+    // half floats: the roughness scale of task 0044 in the low half and, with a height file, meshDepthField in the high
+    // half (nif.cpp). Zero
     // in both is the float 0.0, "neither set", as before. A displacement scale of 0 reads back as "not set", so a
     // material cannot switch its depth off completely: give it a tiny one (0.001). The displacement part is the
     // material's scale times `parallax scale`, so it may reach maxDisplacementScale * maxParallaxScale. The largest
@@ -378,6 +381,123 @@ namespace Render::Parallax
             previousAbove = a;
         }
         return { 1.f };
+    }
+
+    // The march as the shader does it: the ray passes through (u, v) at depth `pivot`, and the colours are read where
+    // it meets the height field, so the read lies on the surface. heightAt(u, v) is 1 at the top and 0 at the bottom.
+    struct RayHit
+    {
+        float offsetU = 0.f;
+        float offsetV = 0.f;
+        float depth = 0.f;
+    };
+
+    template <class HeightAtUv>
+    RayHit marchOffset(float u, float v, float rayStepU, float rayStepV, float pivot, int steps, int refineTaps,
+        HeightAtUv&& heightAt)
+    {
+        const float originU = u + rayStepU * pivot;
+        const float originV = v + rayStepV * pivot;
+        const MarchResult hit = march(
+            [&](float d) { return heightAt(originU - rayStepU * d, originV - rayStepV * d); }, steps, refineTaps);
+        return { rayStepU * (pivot - hit.depth), rayStepV * (pivot - hit.depth), hit.depth };
+    }
+
+    // What the material's high half holds for the shader (default/main.frag, pomDepthFromField). With a number for the
+    // whole mesh, the depth in texture coordinates, which never reaches 1 (maxUvDepth). Without one (no usable mapping,
+    // or an animated texture transform), 1 + the depth scale, so the shader can work the depth out from its derivatives
+    // and the material's scale and `parallax scale` still count.
+    inline float meshDepthField(float scale, float meshWorldPerUvValue)
+    {
+        if (std::isnan(scale) || !(scale > 0.f))
+            return 0.f;
+        if (meshWorldPerUvValue > 0.f)
+            return std::max(uvDepthFromWorld(scale, meshWorldPerUvValue), 1e-4f);
+        return 1.f + scale;
+    }
+
+    inline float depthFromField(float field, float derivativeWorldPerUv)
+    {
+        if (field >= 1.f)
+            return uvDepthFromWorld(field - 1.f, derivativeWorldPerUv);
+        return field > 0.f ? field : uvDepthFromWorld(defaultDisplacementScale, derivativeWorldPerUv);
+    }
+
+    // Multiplies the ray: no offset for a view from behind (a two-sided mesh's far side), and it reaches zero smoothly
+    // at the silhouette.
+    inline float viewFade(float eyeZ)
+    {
+        if (std::isnan(eyeZ))
+            return 0.f;
+        return std::clamp(eyeZ / minViewZ, 0.f, 1.f);
+    }
+
+    // 0 at the mean surface to 1 at the deepest point the map can have, whatever the map's mean.
+    inline float cavityFromDepth(float hitDepth, float pivot)
+    {
+        if (std::isnan(hitDepth) || std::isnan(pivot) || pivot >= 1.f)
+            return 0.f;
+        return std::clamp((hitDepth - pivot) / (1.f - pivot), 0.f, 1.f);
+    }
+
+    // stepCount, and at least one step per blurred texel the ray crosses, so that a deep material cannot jump over a
+    // thin joint; never more than the quality allows.
+    inline int travelSteps(Quality quality, float viewCosine, float travelInTexels)
+    {
+        const float travel = std::isnan(travelInTexels) ? 0.f : std::clamp(travelInTexels, 0.f, 4096.f);
+        return std::min(std::max(stepCount(quality, viewCosine), static_cast<int>(std::ceil(travel))),
+            limits(quality).maxSteps);
+    }
+
+    // The blur and the mean height read coarser mip levels. Uncompressed images get their chain on upload; a block
+    // compressed one must bring its own, down to a block or so.
+    inline bool heightMipsUsable(VkFormat format, uint32_t width, uint32_t height, size_t levels)
+    {
+        if (format < VK_FORMAT_BC1_RGB_UNORM_BLOCK || format > VK_FORMAT_BC7_SRGB_BLOCK)
+            return true;
+        const size_t count = std::max<size_t>(levels, 1);
+        return count > 31 || (std::max(width, height) >> (count - 1)) <= 4u;
+    }
+
+    // Game units per unit of texture coordinates over a whole mesh. Taken per pixel from derivatives this changes from
+    // one triangle to the next wherever the mapping's density does, and the offset breaks along the edge; one number
+    // for the mesh cannot. 0 when nothing usable is found (the shader then uses the derivatives).
+    template <class Position, class Uv, class Index>
+    float meshWorldPerUv(const std::vector<Position>& positions, const std::vector<Uv>& uvs,
+        const std::vector<std::vector<Index>>& indexLists, bool strip)
+    {
+        double world = 0.0;
+        double texture = 0.0;
+        const auto addTriangle = [&](size_t a, size_t b, size_t c) {
+            if (a >= positions.size() || b >= positions.size() || c >= positions.size() || a >= uvs.size()
+                || b >= uvs.size() || c >= uvs.size())
+                return;
+            const double ux = positions[b].x - positions[a].x, uy = positions[b].y - positions[a].y,
+                         uz = positions[b].z - positions[a].z;
+            const double vx = positions[c].x - positions[a].x, vy = positions[c].y - positions[a].y,
+                         vz = positions[c].z - positions[a].z;
+            const double cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+            const double uvArea = std::abs((uvs[b].x - uvs[a].x) * static_cast<double>(uvs[c].y - uvs[a].y)
+                - (uvs[b].y - uvs[a].y) * static_cast<double>(uvs[c].x - uvs[a].x));
+            const double worldArea = std::sqrt(cx * cx + cy * cy + cz * cz);
+            // A triangle with no area in either space says nothing about the mapping.
+            if (!(uvArea > 0.0) || !(worldArea > 0.0) || !std::isfinite(worldArea))
+                return;
+            world += worldArea;
+            texture += uvArea;
+        };
+        for (const auto& list : indexLists)
+        {
+            if (strip)
+                for (size_t i = 2; i < list.size(); ++i)
+                    addTriangle(list[i - 2], list[i - 1], list[i]);
+            else
+                for (size_t i = 2; i < list.size(); i += 3)
+                    addTriangle(list[i - 2], list[i - 1], list[i]);
+        }
+        if (!(texture > 0.0))
+            return 0.f;
+        return static_cast<float>(std::sqrt(world / texture));
     }
 }
 

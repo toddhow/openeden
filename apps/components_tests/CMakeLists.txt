@@ -166,6 +166,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testprecipitationmath.cpp
     render/testparallaxdata.cpp
     render/testparallaxmath.cpp
+    render/testparallaxray.cpp
     render/testssspass.cpp
     render/testprobes.cpp
     render/testreflectionprobes.cpp
