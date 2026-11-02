@@ -71,9 +71,13 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 #ifdef PARALLAX_POM
 // OpenEden (task 0045): the height file, read with the caller's derivatives (lib/material/parallax.glsl).
-float pomHeight(vec2 uv, vec2 dx, vec2 dy)
+float pomHeight(vec2 uv, float lod)
 {
-    return textureGrad(heightMap, uv, dx, dy).r;
+    return textureLod(heightMap, uv, lod).r;
+}
+vec2 pomTextureSize()
+{
+    return vec2(textureSize(heightMap, 0));
 }
 #endif
 #if defined(PARALLAX) || defined(PARALLAX_POM)
@@ -140,6 +144,12 @@ void main()
 #endif
     // OpenEden: parallax moves the diffuse and normal map coordinates (objects.frag).
     vec2 offset = vec2(0.0);
+#if defined(HEIGHT_MAP) && defined(PARALLAX_POM)
+    // Task 0045: the slope of the height field where the ray ended (added to the normal map's) and a little occlusion
+    // in recesses.
+    vec2 pomNormalXY = vec2(0.0);
+    float pomShade = 1.0;
+#endif
 #if defined(NORMAL_MAP) && defined(TEXCOORD)
     mat3 normalToView = mat3(frag_in.viewTangent, frag_in.viewBinormal, frag_in.viewNormal);
  #if defined(HEIGHT_MAP) && defined(PARALLAX_POM)
@@ -157,8 +167,13 @@ void main()
         float pomDepth = pomUvDepth(pomDisplacement > 0.0 ? pomDisplacement : POM_DEFAULT_DISPLACEMENT,
                              pomWorldPerUv(frag_in.viewPos, pomDx, pomDy)) * pomFade;
         if (pomFade > 0.0 && dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) != 0)
-            offset = pomOffset(frag_in.texCoord[diffuseUV].st, transpose(normalToView) * normalize(-frag_in.viewPos),
+        {
+            PomResult pom = pomMarch(frag_in.texCoord[diffuseUV].st, transpose(normalToView) * normalize(-frag_in.viewPos),
                 pomDepth, 1.0 - textureLod(heightMap, vec2(0.5), 16.0).r, pomDx, pomDy);
+            offset = pom.offset;
+            pomNormalXY = pom.slope * pomFade;
+            pomShade = 1.0 - POM_CAVITY_SHADE * pom.cavity * pomFade;
+        }
   #ifdef PARALLAX_DISCARD
         vec2 pomUv = frag_in.texCoord[diffuseUV].st + offset;
         if (pomUv.x < 0.0 || pomUv.y < 0.0 || pomUv.x > 1.0 || pomUv.y > 1.0)
@@ -177,6 +192,9 @@ void main()
  #endif
 #else
     outColor = vec4(1);
+#endif
+#if defined(HEIGHT_MAP) && defined(PARALLAX_POM)
+    outColor.xyz *= pomShade;
 #endif
 #ifdef DARK_MAP
     outColor *= texture(darkMap, frag_in.texCoord[darkUV]);
@@ -244,6 +262,9 @@ void main()
 #ifdef NORMAL
  #if defined(NORMAL_MAP) && defined(TEXCOORD)
     vec3 tangentNormal = texture(normalMap, frag_in.texCoord[diffuseUV] + offset).xyz * 2.0 - 1.0;
+  #if defined(HEIGHT_MAP) && defined(PARALLAX_POM)
+    tangentNormal.xy += pomNormalXY;
+  #endif
   #ifdef RECONSTRUCT_NORMAL_Z
     tangentNormal.z = sqrt(1.0 - dot(tangentNormal.xy, tangentNormal.xy));
   #endif

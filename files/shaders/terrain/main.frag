@@ -52,9 +52,13 @@ layout(std430, set=TEXTURE_SET, binding=LAYER_HEIGHTS_BINDING) readonly buffer L
     vec4 layerHeights[];
 };
 float pomLayer = 0.0;
-float pomHeight(vec2 uv, vec2 dx, vec2 dy)
+float pomHeight(vec2 uv, float lod)
 {
-    return textureGrad(heightLayers, vec3(uv, pomLayer), dx, dy).r;
+    return textureLod(heightLayers, vec3(uv, pomLayer), lod).r;
+}
+vec2 pomTextureSize()
+{
+    return vec2(textureSize(heightLayers, 0).xy);
 }
 #endif
 #include "lib/material/parallax.glsl"

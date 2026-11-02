@@ -97,7 +97,7 @@ namespace Render::Parallax
         int refineTaps; // bisection taps after the march (the linear interpolation costs none)
     };
 
-    // 8 to 32 steps in all (the spec's bounds); the shader repeats these three rows.
+    // 8 to 48 steps in all (the high tier takes more at grazing angles); the shader repeats these three rows.
     inline QualityLimits limits(Quality quality)
     {
         switch (quality)
@@ -105,7 +105,7 @@ namespace Render::Parallax
             case Quality::Low:
                 return { 8, 12, 0 };
             case Quality::High:
-                return { 16, 32, 4 };
+                return { 16, 48, 4 };
             case Quality::Medium:
             default:
                 return { 10, 20, 4 };
@@ -161,6 +161,44 @@ namespace Render::Parallax
         return std::min(std::max(xyLength, 0.f) / std::max(eyeZ, minViewZ), maxSlant);
     }
 
+    // The height file is read blurred, at the pixel's own mip level plus a bias and never sharper than a floor, so a
+    // mortar joint is a slope and not a cliff (a cliff sent the ray and the texture across the joint and stretched them
+    // into strips). footprintSquared: the larger squared length, in texels, of the pixel's step in x or y.
+    constexpr float blurBias = 1.f;
+    constexpr float blurMinLod = 1.5f;
+
+    inline float blurLod(float footprintSquared)
+    {
+        const float f = std::isnan(footprintSquared) ? 1e-8f : std::max(footprintSquared, 1e-8f);
+        return std::max(0.5f * std::log2(f) + blurBias, blurMinLod);
+    }
+
+    // Where the height field is steep (the slope in world terms: depth per distance across) the offset is pulled back
+    // toward the unshifted coordinates, as a colour read on the wall of a cliff is a stretched strip. Returns the share
+    // of the offset that is kept, 1 on gentle ground down to steepKeep on a cliff.
+    constexpr float steepFrom = 1.f;
+    constexpr float steepTo = 4.f;
+    constexpr float steepKeep = 0.25f;
+
+    inline float steepSoftening(float steepness)
+    {
+        if (std::isnan(steepness))
+            return steepKeep;
+        const float t = std::clamp((steepness - steepFrom) / (steepTo - steepFrom), 0.f, 1.f);
+        return 1.f + (steepKeep - 1.f) * (t * t * (3.f - 2.f * t));
+    }
+
+    // The slope added to the shading normal comes from the height field's gradient and is limited in length.
+    constexpr float maxNormalSlope = 1.5f;
+
+    // A little occlusion in recesses: the share of colour taken away at a cavity of 1 (the deepest).
+    constexpr float cavityShadeMax = 0.3f;
+
+    inline float cavityShade(float cavity)
+    {
+        return 1.f - cavityShadeMax * std::clamp(std::isnan(cavity) ? 0.f : cavity, 0.f, 1.f);
+    }
+
     // The terrain's texture coordinates come from above, so on a steep face they are already stretched and a march in
     // that frame blows up (streaks of "waterfall" relief on cliffs). The march fades out with the slope: `up` is the
     // geometric normal's upward component (1 flat ground): full at 30 degrees or less, none at 45 degrees or more.
@@ -177,11 +215,11 @@ namespace Render::Parallax
 
     // Depth is a length in the world, so it does not depend on how a mesh's or the terrain's texture is mapped: a
     // displacement scale of 1 is this many game units (about 70 to the metre; Faultier's stone wall has 0.5, which
-    // makes 8 units, 11 centimetres). The shader works out how many game units one unit of texture coordinates covers
+    // makes 16 units across the whole height range, about 23 centimetres, of which a block face against a joint is about a fifth). The shader works out how many game units one unit of texture coordinates covers
     // at the pixel (from the derivatives of the position and of the coordinates) and divides. A fixed fraction of a
     // tile, as the first version used, was a 50 unit deep step on a terrain tile and made a small rock mesh a smeared
     // mess.
-    constexpr float worldDepthPerDisplacement = 16.f;
+    constexpr float worldDepthPerDisplacement = 32.f;
     // The depth in texture coordinates never exceeds this fraction of a tile, whatever the mapping.
     constexpr float maxUvDepth = 0.1f;
     // Used when a material file sets no scale.

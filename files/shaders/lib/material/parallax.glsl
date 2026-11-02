@@ -14,8 +14,9 @@ vec2 getParallaxOffset(vec3 eyeDir, float height)
 // components/render/parallaxmath.hpp (Render::Parallax::march, limits, stepCount, distanceFade): change both together.
 //
 // The including shader defines, before including this file,
-//     float pomHeight(vec2 uv, vec2 dx, vec2 dy)
-// which reads the height file (1 = the top of the surface) with explicit derivatives. That is the only place that names
+//     float pomHeight(vec2 uv, float lod)
+//     vec2 pomTextureSize()
+// which read the height file (1 = the top of the surface) at a mip level, and its size in texels. That is the only place that names
 // a texture, so a Slang port is this function as an interface method plus a mechanical translation of the rest.
 //
 // The ray goes down into the surface; at depth d (0 at the surface, 1 the deepest the map can have) its texture
@@ -27,7 +28,7 @@ const int POM_MAX_STEPS = 12;
 const int POM_REFINE_TAPS = 0;
 #elif defined(PARALLAX_POM_HIGH)
 const int POM_MIN_STEPS = 16;
-const int POM_MAX_STEPS = 32;
+const int POM_MAX_STEPS = 48;
 const int POM_REFINE_TAPS = 4;
 #else
 const int POM_MIN_STEPS = 10;
@@ -40,7 +41,7 @@ const float POM_MAX_SLANT = 2.0;
 const float POM_SLOPE_FULL = 0.8660254;
 const float POM_SLOPE_NONE = 0.7071068;
 // Render::Parallax::worldDepthPerDisplacement, maxUvDepth and defaultDisplacementScale.
-const float POM_WORLD_DEPTH_PER_DISPLACEMENT = 16.0;
+const float POM_WORLD_DEPTH_PER_DISPLACEMENT = 32.0;
 const float POM_MAX_UV_DEPTH = 0.1;
 const float POM_DEFAULT_DISPLACEMENT = 0.5;
 // The march fades out between these distances (game units), and is skipped beyond the second.
@@ -74,18 +75,57 @@ float pomDistanceFade(float distance)
     return 1.0 - t * t * (3.0 - 2.0 * t);
 }
 
-// How far the ray is above the surface at depth d: positive above, zero or less once it is under it.
-float pomAbove(vec2 uv, vec2 rayStep, float d, vec2 dx, vec2 dy)
+// The mip level the height file is read at: the pixel's own footprint plus a bias, and never sharper than a floor, so
+// that a mortar joint is a slope and not a cliff (a cliff makes the ray, and the texture with it, jump across the joint
+// and stretch into strips). Render::Parallax::blurLod. The includer defines pomTextureSize().
+const float POM_BLUR_BIAS = 1.0;
+const float POM_MIN_LOD = 1.5;
+
+float pomBlurLod(vec2 dx, vec2 dy)
 {
-    return (1.0 - pomHeight(uv - rayStep * d, dx, dy)) - d;
+    vec2 sx = dx * pomTextureSize();
+    vec2 sy = dy * pomTextureSize();
+    float footprint = max(dot(sx, sx), dot(sy, sy));
+    return max(0.5 * log2(max(footprint, 1e-8)) + POM_BLUR_BIAS, POM_MIN_LOD);
 }
 
-// The texture coordinate offset to add to uv. eyeDir: the unit vector from the surface to the eye in tangent space;
-// uvDepth: the depth of the surface in texture coordinates (already faded); pivot: the ray depth that stays in place
-// (1 - the map's mean height, Render::Parallax::pivotDepth), so that fading the depth does not slide the whole
-// texture; dx and dy: the derivatives of uv.
-vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, vec2 dy)
+// How far the ray is above the surface at depth d: positive above, zero or less once it is under it.
+float pomAbove(vec2 uv, vec2 rayStep, float d, float lod)
 {
+    return (1.0 - pomHeight(uv - rayStep * d, lod)) - d;
+}
+
+// What a march finds. offset: the texture coordinate offset to add to uv. slope: the tangent space x and y of the
+// normal of the height field where the ray ended (zero where flat), for shading. cavity: 0 at the mean surface to 1 at
+// the deepest, for a little occlusion in recesses.
+struct PomResult
+{
+    vec2 offset;
+    vec2 slope;
+    float cavity;
+};
+
+// Where the local slope of the height field (world units of depth per world unit across) is steep, the offset is
+// pulled back toward the unshifted coordinates: a texture read on the wall of a cliff is a stretched strip.
+// Render::Parallax::steepSoftening.
+const float POM_STEEP_FROM = 1.0;
+const float POM_STEEP_TO = 4.0;
+const float POM_STEEP_KEEP = 0.25;
+const float POM_MAX_NORMAL_SLOPE = 1.5;
+// How much a recess at the deepest point is darkened (Render::Parallax::cavityShade).
+const float POM_CAVITY_SHADE = 0.3;
+
+// eyeDir: the unit vector from the surface to the eye in tangent space; uvDepth: the depth of the surface in texture
+// coordinates (already faded); pivot: the ray depth that stays in place (1 - the map's mean height,
+// Render::Parallax::pivotDepth), so that fading the depth does not slide the whole texture; dx and dy: the derivatives
+// of uv.
+PomResult pomMarch(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, vec2 dy)
+{
+    PomResult result;
+    result.offset = vec2(0.0);
+    result.slope = vec2(0.0);
+    result.cavity = 0.0;
+    float lod = pomBlurLod(dx, dy);
     float viewCos = clamp(abs(eyeDir.z), 0.0, 1.0);
     int steps = int(ceil(mix(float(POM_MIN_STEPS), float(POM_MAX_STEPS), 1.0 - viewCos)));
     vec2 slant = eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z);
@@ -94,48 +134,74 @@ vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, vec2 d
         slant *= POM_MAX_SLANT / slantLength;
     vec2 rayStep = slant * uvDepth;
     float loDepth = 0.0;
-    float loAbove = pomAbove(uv, rayStep, 0.0, dx, dy);
-    if (loAbove <= 0.0)
-        return rayStep * pivot;
-    float hiDepth = 1.0;
-    float hiAbove = 0.0;
-    bool hit = false;
-    for (int i = 1; i <= POM_MAX_STEPS; ++i)
+    float loAbove = pomAbove(uv, rayStep, 0.0, lod);
+    float hitDepth = 0.0;
+    if (loAbove > 0.0)
     {
-        if (i > steps)
-            break;
-        float depth = float(i) / float(steps);
-        float a = pomAbove(uv, rayStep, depth, dx, dy);
-        if (a <= 0.0)
+        float hiDepth = 1.0;
+        float hiAbove = 0.0;
+        bool hit = false;
+        for (int i = 1; i <= POM_MAX_STEPS; ++i)
         {
-            hiDepth = depth;
-            hiAbove = a;
-            hit = true;
-            break;
+            if (i > steps)
+                break;
+            float depth = float(i) / float(steps);
+            float a = pomAbove(uv, rayStep, depth, lod);
+            if (a <= 0.0)
+            {
+                hiDepth = depth;
+                hiAbove = a;
+                hit = true;
+                break;
+            }
+            loDepth = depth;
+            loAbove = a;
         }
-        loDepth = depth;
-        loAbove = a;
-    }
-    if (!hit)
-        return -rayStep * (1.0 - pivot);
-    for (int k = 0; k < POM_REFINE_TAPS; ++k)
-    {
-        float mid = 0.5 * (loDepth + hiDepth);
-        float m = pomAbove(uv, rayStep, mid, dx, dy);
-        if (m <= 0.0)
-        {
-            hiDepth = mid;
-            hiAbove = m;
-        }
+        if (!hit)
+            hitDepth = 1.0;
         else
         {
-            loDepth = mid;
-            loAbove = m;
+            for (int k = 0; k < POM_REFINE_TAPS; ++k)
+            {
+                float mid = 0.5 * (loDepth + hiDepth);
+                float m = pomAbove(uv, rayStep, mid, lod);
+                if (m <= 0.0)
+                {
+                    hiDepth = mid;
+                    hiAbove = m;
+                }
+                else
+                {
+                    loDepth = mid;
+                    loAbove = m;
+                }
+            }
+            float span = loAbove - hiAbove;
+            float t = span > 0.0 ? clamp(loAbove / span, 0.0, 1.0) : 1.0;
+            hitDepth = loDepth + t * (hiDepth - loDepth);
         }
     }
-    float span = loAbove - hiAbove;
-    float t = span > 0.0 ? clamp(loAbove / span, 0.0, 1.0) : 1.0;
-    return -rayStep * (loDepth + t * (hiDepth - loDepth) - pivot);
+    vec2 hitUv = uv - rayStep * hitDepth;
+    // The slope of the height field at the hit by central differences, one blurred texel apart. In world terms
+    // (height scaled by the depth, distance by the tile) the gradient per uv unit is multiplied by uvDepth.
+    vec2 e = exp2(lod) / pomTextureSize();
+    float gx = (pomHeight(hitUv + vec2(e.x, 0.0), lod) - pomHeight(hitUv - vec2(e.x, 0.0), lod)) / (2.0 * e.x);
+    float gy = (pomHeight(hitUv + vec2(0.0, e.y), lod) - pomHeight(hitUv - vec2(0.0, e.y), lod)) / (2.0 * e.y);
+    vec2 slope = -vec2(gx, gy) * uvDepth;
+    float steep = length(slope);
+    if (steep > POM_MAX_NORMAL_SLOPE)
+        slope *= POM_MAX_NORMAL_SLOPE / steep;
+    float keep = mix(1.0, POM_STEEP_KEEP, smoothstep(POM_STEEP_FROM, POM_STEEP_TO, steep));
+    result.offset = -rayStep * (hitDepth - pivot) * keep;
+    result.slope = slope;
+    result.cavity = clamp((hitDepth - pivot) * 2.0, 0.0, 1.0);
+    return result;
+}
+
+// The offset only (the terrain's use).
+vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, vec2 dy)
+{
+    return pomMarch(uv, eyeDir, uvDepth, pivot, dx, dy).offset;
 }
 #endif
 

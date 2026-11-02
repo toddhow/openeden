@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -37,7 +38,7 @@ namespace
         {
             const QualityLimits lim = limits(q);
             EXPECT_GE(lim.minSteps, 8);
-            EXPECT_LE(lim.maxSteps, 32);
+            EXPECT_LE(lim.maxSteps, 48);
             EXPECT_LE(lim.minSteps, lim.maxSteps);
             int previous = 0;
             for (float c = 1.f; c >= 0.f; c -= 0.05f)
@@ -89,10 +90,10 @@ namespace
 
     TEST(RenderParallaxTest, the_depth_is_a_length_in_the_world_whatever_the_texture_mapping)
     {
-        // A tile 100 units wide and one 400 units wide: the same 8 units of depth, a quarter of the coordinates.
-        const float fine = uvDepthFromWorld(0.5f, 100.f);
-        const float coarse = uvDepthFromWorld(0.5f, 400.f);
-        EXPECT_FLOAT_EQ(fine, 0.5f * worldDepthPerDisplacement / 100.f);
+        // A tile 200 units wide and one 800 units wide: the same 16 units of depth, a quarter of the coordinates.
+        const float fine = uvDepthFromWorld(0.5f, 200.f);
+        const float coarse = uvDepthFromWorld(0.5f, 800.f);
+        EXPECT_FLOAT_EQ(fine, 0.5f * worldDepthPerDisplacement / 200.f);
         EXPECT_FLOAT_EQ(coarse * 4.f, fine);
         // Never more than a tenth of a tile, however small the tile is in the world.
         EXPECT_FLOAT_EQ(uvDepthFromWorld(4.f, 1.f), maxUvDepth);
@@ -229,6 +230,13 @@ namespace
         };
         one("POM_MIN_VIEW_Z", minViewZ);
         one("POM_MAX_SLANT", maxSlant);
+        one("POM_BLUR_BIAS", blurBias);
+        one("POM_MIN_LOD", blurMinLod);
+        one("POM_STEEP_FROM", steepFrom);
+        one("POM_STEEP_TO", steepTo);
+        one("POM_STEEP_KEEP", steepKeep);
+        one("POM_MAX_NORMAL_SLOPE", maxNormalSlope);
+        one("POM_CAVITY_SHADE", cavityShadeMax);
         one("POM_SLOPE_FULL", slopeFadeFull);
         one("POM_SLOPE_NONE", slopeFadeNone);
         one("POM_FADE_START", fadeStart);
@@ -344,5 +352,96 @@ namespace
             EXPECT_LE(previous - f, 0.1f);
             previous = f;
         }
+    }
+
+    TEST(RenderParallaxTest, the_height_file_is_read_blurred_and_never_sharper_than_the_floor)
+    {
+        // Magnified (a texel covers many pixels): the floor. Minified: the pixel's own level plus the bias.
+        EXPECT_FLOAT_EQ(blurLod(1e-6f), blurMinLod);
+        EXPECT_FLOAT_EQ(blurLod(0.f), blurMinLod);
+        EXPECT_FLOAT_EQ(blurLod(nan), blurMinLod);
+        EXPECT_NEAR(blurLod(256.f), 0.5f * 8.f + blurBias, 1e-5f); // 16 texels a pixel: level 4, plus the bias
+        float previous = 0.f;
+        for (float f = 0.001f; f < 1e5f; f *= 2.f)
+        {
+            EXPECT_GE(blurLod(f), previous);
+            previous = blurLod(f);
+        }
+    }
+
+    TEST(RenderParallaxTest, a_blurred_joint_is_a_slope_and_not_a_cliff)
+    {
+        // A mortar joint: height 1 on the block, 0.2 in the joint, in 64 texels. A box blur spreads each step over its
+        // width; the steepest slope falls in proportion.
+        const auto steepest = [](int blurWidth) {
+            std::vector<float> row(64);
+            for (int i = 0; i < 64; ++i)
+                row[i] = (i >= 28 && i < 36) ? 0.2f : 1.f;
+            std::vector<float> out(64);
+            for (int i = 0; i < 64; ++i)
+            {
+                float sum = 0.f;
+                for (int k = -blurWidth / 2; k <= blurWidth / 2; ++k)
+                    sum += row[std::clamp(i + k, 0, 63)];
+                out[i] = sum / static_cast<float>(blurWidth + 1);
+            }
+            float worst = 0.f;
+            for (int i = 1; i < 64; ++i)
+                worst = std::max(worst, std::abs(out[i] - out[i - 1]));
+            return worst;
+        };
+        EXPECT_NEAR(steepest(0), 0.8f, 1e-5f);
+        EXPECT_LT(steepest(2), 0.5f * steepest(0));
+        EXPECT_LT(steepest(4), steepest(2));
+    }
+
+    TEST(RenderParallaxTest, steep_slopes_pull_the_offset_back_toward_the_unshifted_coordinates)
+    {
+        EXPECT_FLOAT_EQ(steepSoftening(0.f), 1.f);
+        EXPECT_FLOAT_EQ(steepSoftening(steepFrom), 1.f);
+        EXPECT_FLOAT_EQ(steepSoftening(steepTo), steepKeep);
+        EXPECT_FLOAT_EQ(steepSoftening(100.f), steepKeep);
+        EXPECT_FLOAT_EQ(steepSoftening(nan), steepKeep);
+        float previous = 1.f;
+        for (float s = 0.f; s < 6.f; s += 0.05f)
+        {
+            EXPECT_LE(steepSoftening(s), previous + 1e-6f);
+            EXPECT_GE(steepSoftening(s), steepKeep);
+            previous = steepSoftening(s);
+        }
+    }
+
+    TEST(RenderParallaxTest, the_cavity_shade_is_one_on_the_mean_surface_and_bounded_in_a_recess)
+    {
+        EXPECT_FLOAT_EQ(cavityShade(0.f), 1.f);
+        EXPECT_FLOAT_EQ(cavityShade(1.f), 1.f - cavityShadeMax);
+        EXPECT_FLOAT_EQ(cavityShade(7.f), 1.f - cavityShadeMax);
+        EXPECT_FLOAT_EQ(cavityShade(-1.f), 1.f);
+        EXPECT_FLOAT_EQ(cavityShade(nan), 1.f);
+    }
+
+    // The refinement converges: every bisection tap halves the interval around the hit, so the error after k taps is at
+    // most one step over 2^k, even on a field with a sharp edge, and the taps taken are counted.
+    TEST(RenderParallaxTest, each_bisection_tap_halves_the_error_and_the_taps_are_counted)
+    {
+        const float edge = 0.4321f; // the depth at which the ray goes under a cliff
+        int taps = 0;
+        const auto cliff = [&](float d) {
+            ++taps;
+            return d < edge ? 0.f : 1.f; // below the surface only from the edge on
+        };
+        const int steps = 10;
+        float previousError = 1.f;
+        for (int k = 0; k <= 6; ++k)
+        {
+            taps = 0;
+            const MarchResult hit = march(cliff, steps, k, false);
+            EXPECT_EQ(taps, 1 + 5 + k); // the start, five steps (0.1 to 0.5, the first under the edge), k bisections
+            const float error = std::abs(hit.depth - edge);
+            EXPECT_LE(error, 0.1f / std::pow(2.f, static_cast<float>(k)) + 1e-5f);
+            EXPECT_LE(error, previousError + 1e-6f);
+            previousError = error;
+        }
+        EXPECT_LT(previousError, 0.002f);
     }
 }
