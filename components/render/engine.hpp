@@ -9,6 +9,7 @@
 #include <vsg/vk/vulkan.h>
 
 #include "devicereport.hpp"
+#include "framecounters.hpp"
 
 namespace vsg
 {
@@ -124,6 +125,15 @@ namespace Render
         // The device-local memory in MiB (task 0049), from the game's own physical device; 0 if it cannot be asked.
         uint64_t deviceLocalMiB();
 
+        // Task 0054 (S0): the device-local memory this process uses in MiB, from VK_EXT_memory_budget, or -1 when the
+        // device does not have it.
+        int64_t deviceLocalUsageMiB();
+
+        // Task 0054 (S0): named numbers that loop() adds to the OPENEDEN_FRAME_STATS_FILE as columns. Whoever wants a
+        // column registers it before loop() starts, and only when [Rendering] frame counters is on; with none
+        // registered the file is exactly as before.
+        FrameCounters& frameCounters() { return mFrameCounters; }
+
     private:
         vsg::ref_ptr<vsg::WindowTraits> mTraits;
         vsg::ref_ptr<vsg::Viewer> mViewer;
@@ -134,6 +144,7 @@ namespace Render
         std::unique_ptr<vsgUtil::DebugMessenger> mDebugMessenger;
         // Declared last, so it is destroyed first; it holds a reference to the device.
         std::unique_ptr<GpuTimer> mGpuTimer;
+        FrameCounters mFrameCounters;
         bool mGpuTimingTried = false;
     };
 }

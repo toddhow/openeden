@@ -1,0 +1,121 @@
+# Task: World LOD and streaming, stage S1 (the tile model)
+Design doc section: `docs/design/world-lod-and-streaming.md`, sections 3.2 to 3.4 (tile tree, selection by screen-space error, crack-free joins), 9 (derived data is untrusted input) and the staging row S1; `docs/spec/eden-archive-format-v0.1.md` (the container: sections 7.4 to 7.8 entries, keys and provenance, 10.3 and 11 the reserved terrain tile type and key tag, 18 derived packs); measurements in `docs/research/0025-lod-baseline.md` (task 0054).
+Goal: prove the tile model end to end on one baked terrain level of Morrowind: a tile key and payload layout (defined here as a proposal), a baker that writes the tiles into a derived Eden Archive, a loader that reads them with the container's keyed lookup and range reads, selection of tiles by pixel error with a threshold chosen from the S0 numbers, and a tile viewer in Eden Studio's mesh viewer so toddhow can see every tile, its level, its error and what the selection does.
+Inherited code touched (to be re-read at the commit that starts each stage; nothing is changed by writing this spec): `components/terrain/` (`lod.hpp` `isSufficientDetail`, `getVertexLod`; `paging.cpp` `getLodFlags`; `builder.cpp` `Builder::createBatch`; `bounds.hpp`), `components/esm3/landrecorddata.hpp` (`sLandSize` 65, `sLandTextureSize` 16), `components/misc/constants.hpp` (`CellSizeInUnits` 8192, `UnitsPerMeter`), `apps/openmw/mwrender/` (where the terrain is created; `RenderManager`), `edenarchive/include/edenarchive/archive.hpp` (`Archive::open`, `findKey`, `readRange`, `entry`, `provenance`, `PackInfo::mGeneration`, `mSourceDigest`, `packFlagDerived`; the writer in `writer.hpp`), `apps/opencs/` (the mesh viewer of task 0043, `SceneHost`).
+Inputs / outputs: a new `[WorldLod]` settings section (`enabled` false; the system is off and no code of it runs when false); a derived pack `terrain.edenpak` in the user data folder; a baker mode `openmw --bake-lod-terrain` (S8 will turn it into a background process); tile viewer panel in Eden Studio.
+
+Status: DRAFT written 2026-11-02, not approved, nothing built. Full loop when started (renderer, loader, untrusted input, a new derived-data format).
+
+## What S0 told us (numbers from `docs/research/0025-lod-baseline.md`, RTX 4070, i7-13700K, `build-jolt` Release at `c8723f39c1`)
+
+- The long view is CPU-bound, not GPU-bound. At 30000 units with distant terrain and object paging on, a frame takes a median of 3.87 ms (p95 4.86) while the main scene pass takes 0.35 ms on the GPU. The scene graph holds up to 33,823 draw commands and 2.4 million triangles (an upper bound, with no culling); with a 7168 view it is 6,978 draws and 0.41 million triangles. So tiles must win on **draw commands and CPU work**, not triangle count: one draw for a terrain tile and one for an object cluster instead of hundreds.
+- A 30000-unit view is a circle of radius 3.66 cells, about 42 cells of area. With one-cell tiles that is at most 8 x 8 = 64 tiles; with two-cell tiles about 16. The design doc's "a few hundred tiles at most" was too high for Morrowind; a CPU selection pass over all tiles is trivially cheap.
+- Distant objects are what a long view loses first. Without object paging, at the Balmora test pose, every rock, tree and tower beyond about the loaded cells is missing from the horizon (the difference image of `heavy_pop0_on` against `_off` is white along the whole silhouette band) while the terrain itself reaches the horizon either way. So terrain tiles (this spec) fix cost and quality of the ground, and object clusters (S4) are what the eye misses.
+- Memory is small: 723 to 793 MiB resident and 219 to 252 MiB of device memory in these scenes. Budgets are not the first problem on this machine; the weaker-GPU emulation (note 0025) says what a small device would hit.
+- Cell crossings hitch: in a fast flight, frames of 19 to 110 ms occur exactly when the count of loaded cells rises. That is S6's problem (streaming), but tiles must not add to it: reading a tile must be a range read off the main thread.
+
+## Design, in plain language
+
+The world is cut into square **tiles** at several sizes ("levels"): level 0 is one cell, level 1 is 2 x 2 cells, level 2 is 4 x 4 cells, and so on. Each tile stores a simplified version of the ground in its square: a grid of heights, a normal per grid point, and a colour picture of the ground (a baked "composite"). Each tile also knows its **error**: how far, in world units, the simplified ground can be from the full-detail ground. For a given camera, a tile is drawn when its error, seen from where the camera is, is smaller than a few screen pixels; otherwise a finer choice is made. Far tiles are big and coarse; near tiles are fine or are the live terrain the engine already draws.
+
+S1 builds only one baked level (level 1, 2 x 2 cells, 16384 units a side) and lets the live terrain stay the fine choice. That is enough to prove the key layout, the file layout, the selection, the loader and the viewer, with no change to what the game does when the setting is off.
+
+### The tile key (proposal; the container leaves the layout open, spec section 10.3)
+
+A key is 64 bits: the top 8 bits are the tag (`0x10` for a terrain tile, as the container reserves), the low 56 are ours:
+
+| Bits | Width | Meaning |
+| --- | --- | --- |
+| 63 to 56 | 8 | tag: `0x10` terrain tile (S4 will use `0x11` for object clusters with the same remaining 56 bits) |
+| 55 to 48 | 8 | worldspace index into the pack's manifest (0 is Morrowind's one exterior world) |
+| 47 to 44 | 4 | level, 0 to 15 |
+| 43 to 0 | 44 | Morton code of the tile's (x, y): 22 bits each, bit 2k is bit k of x, bit 2k+1 is bit k of y |
+
+The tile coordinate at level L is `(cellX + 2^21) >> L` and the same for y, so negative cells (Morrowind has them) become non-negative and a level-L tile covers cells `x * 2^L ... x * 2^L + 2^L - 1` before the bias is removed. Neighbouring tiles of one level have nearby keys (Morton order), and the container stores keyed entries in key order, so a range of the file holds a region of the world. The key is never 0 because the tag is not. A parent's key at level L+1 is found by dropping the lowest two Morton bits and setting the level field. Tests: round trip, ordering within a level equals Morton order, parent and children relation, the 22-bit limits, and pinned example values.
+
+### The tile payload (proposal)
+
+One entry, type `0x0010`, little endian, every section 8-aligned. Fixed header (88 bytes):
+
+| Offset | Size | Field |
+| --- | --- | --- |
+| 0 | 4 | magic `ETT1` |
+| 4 | 2 | version (1) |
+| 6 | 2 | flags: bit 0 has normals, bit 1 has albedo, bit 2 has material channels (task 0044's `_rmaos`, unused in S1) |
+| 8 | 4 | grid size N: vertices per side (33 in S1) |
+| 12 | 4 | level |
+| 16 | 4 | tile side in world units (f32) |
+| 20 | 8 | tile origin x, y in world units (f32, f32): the south-west corner |
+| 28 | 4 | minimum height (f32) |
+| 32 | 4 | maximum height (f32) |
+| 36 | 4 | geometric error (f32, world units) |
+| 40 | 2 + 2 | albedo width, height in texels |
+| 44 | 4 | albedo format (0 = RGBA8, 1 = BC1; S1 writes 0) |
+| 48 | 4 | albedo mip count |
+| 52 | 4 | offset of heights |
+| 56 | 4 | offset of normals |
+| 60 | 4 | offset of albedo |
+| 64 | 24 | reserved, zero |
+
+Heights: `N * N` unsigned 16-bit numbers, row after row from the south edge, west to east in a row; the height is `min + v / 65535 * (max - min)`. Normals: two signed bytes a vertex (octahedral encoding, derived from the full-detail ground, not from the simplified grid, so lighting matches). Albedo: the mip chain, largest first, each level tightly packed. Entry fields: `hintMemorySize` is the decoded size, `layoutParamA` is N, `layoutParamB` is the albedo width. The container hashes every chunk and the whole entry, so a damaged tile is detected by the container; the reader still checks the header: magic, version, that N is between 3 and 129, that every offset and size lies inside the entry and the sections do not overlap, that min <= max and the error is finite and not negative, that the albedo size is a power of two up to 2048, and that the section sizes add up exactly. Any failure means "no tile": the live terrain is used and one line is logged.
+
+A pack-level **manifest** entry with the path `lod/manifest.json` (canonical JSON, byte for byte round trip, located errors) holds the worldspace table (index, name, cell size 8192), the levels baked, N, the albedo size and the baker version. Provenance of each tile entry: tool id `openeden.lod.terrain`, source digest of the land records it came from and the texture list, parameters bytes of the baker settings. The pack header has the `DERIVED` flag, a `generation` that increases each bake, and a `sourceDigest` of the whole content set (the load order's land data); if it does not match the running game's, the pack is ignored and the live path is used (design 4.5; S2 makes the cache keys and swap-over safe, S1 simply rebakes everything).
+
+### Selection by pixel error
+
+For a tile at distance d from the camera (to the nearest point of the tile's bounding box, from its origin, side, minimum and maximum height), the error on screen is
+
+    pixels = geometricError * viewportHeight / (2 * max(d, 1) * tan(fovY / 2))
+
+(the formula of the design doc, section 3.3). A tile is drawn when `pixels <= threshold`; it is replaced by the live terrain for that square when `pixels > threshold`; once replaced it returns only when `pixels < 0.7 * threshold` (hysteresis, so a camera at a boundary does not flicker). `Terrain::isSufficientDetail` is untouched; the new selection is a pure function in `components/terrain` (`tileselection.hpp`) with tests that need no GPU.
+
+**Threshold, from the S0 numbers.** The design doc's starting values are 2 pixels (High), 4 (Medium), 8 (Low). S0 shows the cost to avoid is draw commands, not triangles, so the threshold is allowed to be generous for tiles: start at **4 pixels** for Medium and let the tile viewer's forced-level pictures (same camera, tile on and off) decide. Calibration method: render the same camera pose with the tile forced on and the live terrain forced on (the viewer's toggle), difference the images (note 0025's method with `imgdiff`), and pick the error at which the 95th percentile of the difference is below one grey level of noise. The numbers go into the stage log. **Not decided here:** the final thresholds; the S0 pops measurement (stepped poses) could not separate level swaps from camera motion at this step size (note 0025, section 7), which is why this spec asks for the forced-level comparison.
+
+### Decisions (my recommendation first)
+
+| # | Decision | Recommended | Alternative |
+| --- | --- | --- | --- |
+| D1 | First baked level | Level 1 (2 x 2 cells, N = 33: a vertex every 512 units, about 7 m), albedo 256 x 256 | Level 2 (fewer tiles, coarser); level 0 (almost the live path) |
+| D2 | Key layout | The 56-bit layout above | Hash keys (lose spatial order and range reads) |
+| D3 | Heights | 16-bit normalised per tile | 32-bit float (twice the size, no gain at these errors) |
+| D4 | Normals | Octahedral bytes from the full-detail ground | Recompute from the coarse grid (lighting would pop at swaps) |
+| D5 | Albedo | RGBA8 in S1, compressed (BC) after the container's texture annex and an encoder licence are decided | BC1 at once (needs an encoder) |
+| D6 | Where the pack lives | `<user data>/openeden/lod/terrain.edenpak`, rebuilt whole on mismatch | Next to the game data (read-only installs) |
+| D7 | Joins between tile and live terrain | Skirts (vertical flaps down the tile's edges, a fixed few units) for S1; geomorphing is S3 | Stitching as `getLodFlags` does (needs both sides at known levels) |
+| D8 | Settings | `[WorldLod] enabled` (false), `terrain tile threshold` (pixels, 4), `terrain tile level` (1) | |
+| D9 | Where the selection runs | CPU, main thread, once a frame, over a flat array of at most a few hundred tiles | Compute shader (S9) |
+| D10 | Reading tiles | `findKey` then `readRange` on a worker thread, a decode budget per read (`DecodeBudget`), results handed to the main thread for upload | Reading on the main thread (hitches) |
+
+## Stages
+
+- **S1a Keys and payload:** `components/lod/tilekey.hpp` and `terraintile.hpp` (pure: key packing, payload write and parse with the checks above), unit tests including truncated, overlapping and over-large inputs, and a fuzz harness in the style of `edenarchive/fuzz`. No behaviour change.
+- **S1b Baker:** `--bake-lod-terrain` reads Morrowind's `ESM::Land` records (65 x 65 heights, normals, the 16 x 16 texture grid) through the same path the live terrain uses, builds the level-1 tiles (heights by sampling the full grid, error by the largest difference to it, normals from the full grid, albedo by compositing the land texture layers as `Terrain::Builder` composites them), and writes the derived pack with `edenarchive`'s writer. Deterministic: two bakes of the same data give byte-identical packs (a test on generated land data).
+- **S1c Tile viewer:** a panel in Eden Studio's mesh viewer (task 0043) that opens a pack, lists tiles by key, level, error and size, shows one tile's mesh, albedo and normals in the viewport, shows the whole world as a grid with the selection result for a chosen camera, and has the forced-level toggle used for calibration.
+- **S1d In game:** with `[WorldLod] enabled` and a valid pack, the selection draws tiles where `pixels <= threshold` and hides the live chunks they cover; with it off, nothing here runs. Needs reading `Terrain::Paging` and `View` first, because the live chunks, the composite maps and `DistantObjects` all key off the same quadtree; the interplay is the main risk of this stage and may change the shape of S1d (an open question below).
+- **S1e Measurement:** repeat S0's scenes with tiles on; draws, frame time, memory, hitches; the forced-level calibration; write the numbers to the research note.
+
+## Constraints
+- Determinism: bakes are byte-identical for the same input; selection uses no clock; tile order is key order.
+- Untrusted input: tile files are derived data that a user can edit or damage; every size and offset is checked; decoded sizes are capped by the decode budget; a bad tile never crashes (design 9, root `CLAUDE.md`).
+- Allocation: no allocation in the per-frame selection (a preallocated array of tile states); reads and decodes on worker threads.
+- Threading: `Archive` is immutable and thread-safe for reads; GPU upload and scene-graph changes only on the main thread.
+- Off means unchanged: `[WorldLod] enabled = false` runs no code of this system, starts no process, opens no file; compared by the benchmark rig's frames and the 32 Lua tests.
+- Units: world units (Morrowind), Z up; cell size from the world source (8192 for Morrowind), never assumed.
+- No game assets in the repository: bakes are made from the user's data and stay in the user data folder; tests use generated land data.
+- New files under `components/` use lowercase letters and digits only.
+
+Acceptance criteria:
+- [ ] Key and payload tests (round trip, order, parent/child, pinned values, every malformed-input case in the list above refused with a located error); fuzz harness run clean for a fixed time.
+- [ ] A bake of generated land data is byte-identical across two runs and across a different cell order; the pack passes `edenvalidate`; `findKey` finds every tile and `readRange` of the albedo tail reads only the chunks it needs (test counts chunk reads).
+- [ ] The selection function: pixel error formula tests against hand-computed values, hysteresis (a camera moving back and forth across the boundary changes the choice once, not every frame), all tiles outside the view skipped.
+- [ ] The tile viewer shows a tile's height mesh, normals and albedo, and the selection for a camera; forced-level images exist for at least three distances.
+- [ ] In game, with a bake of the real Morrowind data: the Balmora long-view pose with tiles on shows no crack at tile-to-live joins in viewed frames (a viewed frame sequence is described in the stage log), and S0's scenes are re-run with the numbers recorded; the threshold chosen is justified by the forced-level differences.
+- [ ] With `[WorldLod] enabled = false` the 32 Lua tests pass and the stats file and a frame of the Balmora pose are unchanged.
+- [ ] A fresh reviewer read the code; unit tests, clang-format 14 and the check scripts pass.
+
+## Open questions
+1. How the live terrain quadtree (`Terrain::Paging`, `View`, composite maps) hides the chunks a tile replaces, and whether `DistantObjects` should hide its chunks under a tile, which needs a read of `paging.cpp` before S1d is shaped (spec D7 and the "interplay" risk).
+2. Whether the albedo should be baked at all in S1 or whether tiles should reuse the live composite maps until S3 (the design doc, S3: "composite map bake replaces runtime composite").
+3. The container's tile annex (section 10.3) says "freezing too early" is a risk: this spec's layouts stay a proposal until S1e, then become the annex for version 0.2.
+
+Out of scope: object clusters (S4), geomorphing (S3), the cache's content-hash keys and swap-over (S2), streaming budgets and prefetch (S6), the background baker and its UI (S8), compute culling (S9), Fallout: New Vegas land (S12), texture compression, and any change to how the live terrain looks when the setting is off.

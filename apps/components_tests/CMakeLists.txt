@@ -192,6 +192,7 @@ file(GLOB UNITTEST_SRC_FILES
     view/testcollectlights.cpp
     view/testshadowview.cpp
     render/testdevicereport.cpp
+    render/testlodmeasure.cpp
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp

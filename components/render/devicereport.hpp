@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_RENDER_DEVICEREPORT_H
 #define OPENEDEN_RENDER_DEVICEREPORT_H
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -49,6 +50,25 @@ namespace Render
     private:
         std::vector<Entry> mEntries;
     };
+
+    // Task 0054 (S0): what the LOD and streaming work needs to know about queues and memory. Plain data and functions,
+    // so they are tested without a GPU.
+    struct QueueFamilySummary
+    {
+        uint32_t flags = 0; // VkQueueFlags
+        uint32_t queueCount = 0;
+    };
+
+    // "graphics,compute,transfer,sparse_binding" for the set bits (the other bits are left out), or "none".
+    std::string queueFlagNames(uint32_t flags);
+
+    // queue.familyCount, queue.family<i> ("graphics,compute x16"), queue.graphics, and whether a compute-only family
+    // (compute without graphics: async compute) and a transfer-only family (async transfer) exist, and whether any
+    // family can bind sparse memory.
+    void addQueueFamilyEntries(DeviceReport& report, const std::vector<QueueFamilySummary>& families);
+
+    // "budget 11264 MiB, usage 512 MiB" (VK_EXT_memory_budget numbers, rounded down to whole MiB).
+    std::string formatHeapBudget(uint64_t budgetBytes, uint64_t usageBytes);
 
     /*
      * Asks the device. The probe makes its own short-lived VkInstance at the highest Vulkan version the loader offers

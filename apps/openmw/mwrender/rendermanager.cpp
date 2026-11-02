@@ -125,6 +125,7 @@
 #include "worldmap.hpp"
 #include <components/render/debuggeometry.hpp>
 #include <components/render/gputiming.hpp>
+#include <components/render/processmemory.hpp>
 #include <components/render/simplewater.hpp>
 #include <components/view/env.hpp>
 
@@ -267,6 +268,33 @@ namespace MWRender
         // Registered now and not when first used: the frame stats file's header lists the passes when the loop starts.
         if (mGpuTimer)
             mReflectPass = mGpuTimer->addPass("reflection and depth copy");
+
+        // OpenEden (task 0054, S0): extra columns for the frame stats file. Registered only when asked, so with the
+        // setting off there is nothing to run and the file is as before. Read on the main thread, in this order.
+        if (Settings::rendering().mFrameCounters)
+        {
+            Render::FrameCounters& counters = mEngine.frameCounters();
+            counters.add("rss mib", [] { return static_cast<double>(Render::processWorkingSetBytes() >> 20); });
+            counters.add("gpu used mib", [this] { return static_cast<double>(mEngine.deviceLocalUsageMiB()); });
+            counters.add("cells", [this] { return static_cast<double>(mLoadedExteriorCells.load()); });
+            counters.add("cells loaded total", [this] { return static_cast<double>(mExteriorCellLoadsTotal.load()); });
+            // The census walks the whole scene graph, so it runs every 30 frames and the totals are carried between
+            // runs. scene_draws refreshes it and scene_triangles (read after it) only reports.
+            counters.add("scene draws", [this] {
+                if (mCensusCountdown == 0)
+                {
+                    mCensus.reset();
+                    if (mSceneRoot)
+                        mSceneRoot->accept(mCensus);
+                    mCensusDraws = mCensus.draws();
+                    mCensusTriangles = mCensus.triangles();
+                    mCensusCountdown = 30;
+                }
+                --mCensusCountdown;
+                return static_cast<double>(mCensusDraws);
+            });
+            counters.add("scene triangles", [this] { return static_cast<double>(mCensusTriangles); });
+        }
 
         mRenderModes.resize(Render_Count);
         // As OpenMW's RenderingManager (task 0012).
@@ -1378,6 +1406,8 @@ namespace MWRender
 
     void RenderManager::exteriorCellLoaded(int x, int y)
     {
+        ++mLoadedExteriorCells; // task 0054 counters
+        ++mExteriorCellLoadsTotal;
         if (!mGiSkyEnabled)
             return;
         std::lock_guard<std::mutex> lock(mSkyVisMutex);
@@ -1387,6 +1417,7 @@ namespace MWRender
 
     void RenderManager::exteriorCellUnloaded(int x, int y)
     {
+        --mLoadedExteriorCells;
         if (!mGiSkyEnabled)
             return;
         std::lock_guard<std::mutex> lock(mSkyVisMutex);

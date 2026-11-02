@@ -17,6 +17,8 @@ namespace Settings
         SettingValue<bool> mGpuTiming{ mIndex, "Rendering", "gpu timing" };
         SettingValue<bool> mSlangShaders{ mIndex, "Rendering", "slang shaders" };
         SettingValue<bool> mDeviceReport{ mIndex, "Rendering", "device report" };
+        // Task 0054 (S0): extra columns in the frame stats file (memory, loaded cells, scene census).
+        SettingValue<bool> mFrameCounters{ mIndex, "Rendering", "frame counters" };
 
         // Task 0025 (F2): the linear HDR path. Read at start.
         SettingValue<bool> mHdr{ mIndex, "Rendering", "hdr" };

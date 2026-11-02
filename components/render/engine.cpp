@@ -217,6 +217,8 @@ namespace Render
                     *frameStats << " gpu_" << name;
                 }
             }
+            // Task 0054: the counters' columns, none when [Rendering] frame counters is off.
+            *frameStats << mFrameCounters.headerText();
             *frameStats << '\n';
         }
         using Clock = std::chrono::steady_clock;
@@ -306,8 +308,11 @@ namespace Render
                     for (std::size_t pass = 0; pass < mGpuTimer->passNames().size(); ++pass)
                         *frameStats << ' ' << mGpuTimer->lastMilliseconds(pass);
                 }
+                if (!mFrameCounters.empty())
+                    *frameStats << mFrameCounters.lineText();
                 *frameStats << '\n';
-                frameStart = frameEnd;
+                // The counters (the scene census) can take a while; do not charge it to the next frame.
+                frameStart = mFrameCounters.empty() ? frameEnd : Clock::now();
                 frameWait = {};
                 ++frameNumber;
             }
@@ -348,6 +353,29 @@ namespace Render
         VkPhysicalDeviceMemoryProperties memory{};
         getMemoryProperties(*physicalDevice, &memory);
         return vsgUtil::TextureCap::deviceLocalMiB(memory);
+    }
+
+    int64_t Engine::deviceLocalUsageMiB()
+    {
+        auto physicalDevice = getOrCreatePhysicalDevice();
+        if (!physicalDevice || !physicalDevice->supportsDeviceExtension("VK_EXT_memory_budget"))
+            return -1;
+        auto instance = physicalDevice->getInstance().ref_ptr();
+        PFN_vkGetPhysicalDeviceMemoryProperties2 getMemoryProperties2 = nullptr;
+        if (!instance || !instance->getProcAddr(getMemoryProperties2, "vkGetPhysicalDeviceMemoryProperties2")
+            || !getMemoryProperties2)
+            return -1;
+        VkPhysicalDeviceMemoryBudgetPropertiesEXT budget{};
+        budget.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+        VkPhysicalDeviceMemoryProperties2 memory{};
+        memory.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+        memory.pNext = &budget;
+        getMemoryProperties2(*physicalDevice, &memory);
+        uint64_t usage = 0;
+        for (uint32_t i = 0; i < memory.memoryProperties.memoryHeapCount; ++i)
+            if (memory.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+                usage += budget.heapUsage[i];
+        return static_cast<int64_t>(usage / (1024 * 1024));
     }
 
     GpuTimer* Engine::enableGpuTiming()

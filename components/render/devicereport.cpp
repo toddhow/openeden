@@ -211,6 +211,9 @@ namespace Render
             return s;
         }
 
+        const NamedBit queueFlagTable[] = { { VK_QUEUE_GRAPHICS_BIT, "graphics" }, { VK_QUEUE_COMPUTE_BIT, "compute" },
+            { VK_QUEUE_TRANSFER_BIT, "transfer" }, { VK_QUEUE_SPARSE_BINDING_BIT, "sparse_binding" } };
+
         template <class Fn>
         Fn instanceProc(VkInstance instance, const char* name)
         {
@@ -226,6 +229,44 @@ namespace Render
                     + std::to_string(VK_API_VERSION_MINOR(coreSince)) + ")";
             return hasExtension(list, name) ? "present (extension)" : "absent";
         }
+    }
+
+    std::string queueFlagNames(uint32_t flags)
+    {
+        return flagNames(flags, queueFlagTable);
+    }
+
+    void addQueueFamilyEntries(DeviceReport& report, const std::vector<QueueFamilySummary>& families)
+    {
+        bool anyGraphics = false;
+        bool dedicatedCompute = false;
+        bool dedicatedTransfer = false;
+        bool sparseBinding = false;
+        report.add("queue.familyCount", std::to_string(families.size()));
+        for (std::size_t i = 0; i < families.size(); ++i)
+        {
+            const uint32_t flags = families[i].flags;
+            report.add("queue.family" + std::to_string(i),
+                queueFlagNames(flags) + " x" + std::to_string(families[i].queueCount));
+            const bool hasGraphics = (flags & VK_QUEUE_GRAPHICS_BIT) != 0;
+            const bool hasCompute = (flags & VK_QUEUE_COMPUTE_BIT) != 0;
+            anyGraphics = anyGraphics || hasGraphics;
+            // Async compute: a family that computes but does not draw. Async transfer: one that only copies.
+            dedicatedCompute = dedicatedCompute || (hasCompute && !hasGraphics);
+            dedicatedTransfer
+                = dedicatedTransfer || ((flags & VK_QUEUE_TRANSFER_BIT) != 0 && !hasGraphics && !hasCompute);
+            sparseBinding = sparseBinding || (flags & VK_QUEUE_SPARSE_BINDING_BIT) != 0;
+        }
+        report.add("queue.graphics", anyGraphics);
+        report.add("queue.dedicatedCompute", dedicatedCompute);
+        report.add("queue.dedicatedTransfer", dedicatedTransfer);
+        report.add("queue.sparseBinding", sparseBinding);
+    }
+
+    std::string formatHeapBudget(uint64_t budgetBytes, uint64_t usageBytes)
+    {
+        return "budget " + std::to_string(budgetBytes / (1024 * 1024)) + " MiB, usage "
+            + std::to_string(usageBytes / (1024 * 1024)) + " MiB";
     }
 
     DeviceReport collectDeviceReport(
@@ -344,6 +385,15 @@ namespace Render
             r.add("timestamps.validBits", std::to_string(bits));
             r.add("timestamps.periodNs", std::to_string(props.limits.timestampPeriod));
             r.add("timestamps.computeAndGraphics", props.limits.timestampComputeAndGraphics == VK_TRUE);
+
+            // Task 0054 (S0): queue families, and limits the LOD tiers depend on.
+            std::vector<QueueFamilySummary> summaries;
+            for (const auto& f : families)
+                summaries.push_back(QueueFamilySummary{ f.queueFlags, f.queueCount });
+            addQueueFamilyEntries(r, summaries);
+            r.add("limit.maxMemoryAllocationCount", std::to_string(props.limits.maxMemoryAllocationCount));
+            r.add("limit.maxImageDimension2D", std::to_string(props.limits.maxImageDimension2D));
+            r.add("limit.maxStorageBufferRange", std::to_string(props.limits.maxStorageBufferRange));
         }
 
         std::vector<VkExtensionProperties> deviceExtensions;
@@ -373,6 +423,9 @@ namespace Render
         r.add("ext.hdr_metadata", extensionStatus(deviceExtensions, "VK_EXT_hdr_metadata", api, 0));
         r.add("ext.driver_properties",
             extensionStatus(deviceExtensions, "VK_KHR_driver_properties", api, VK_API_VERSION_1_2));
+        r.add("ext.memory_budget", extensionStatus(deviceExtensions, "VK_EXT_memory_budget", api, 0));
+        r.add("ext.memory_priority", extensionStatus(deviceExtensions, "VK_EXT_memory_priority", api, 0));
+        r.add("ext.mesh_shader", extensionStatus(deviceExtensions, "VK_EXT_mesh_shader", api, 0));
 
         // Features and properties that need the "2" queries (Vulkan 1.1).
         const std::string needs11 = "unknown (needs Vulkan 1.1)";
@@ -385,6 +438,14 @@ namespace Render
         VkPhysicalDeviceFeatures coreFeatures{};
         vkGetPhysicalDeviceFeatures(device, &coreFeatures);
         r.add("feature.shaderInt16", coreFeatures.shaderInt16 == VK_TRUE);
+        // Task 0054 (S0): what sparse textures and GPU-driven drawing would need.
+        r.add("feature.sparseBinding", coreFeatures.sparseBinding == VK_TRUE);
+        r.add("feature.sparseResidencyImage2D", coreFeatures.sparseResidencyImage2D == VK_TRUE);
+        r.add("feature.sparseResidencyBuffer", coreFeatures.sparseResidencyBuffer == VK_TRUE);
+        r.add("feature.sparseResidencyAliased", coreFeatures.sparseResidencyAliased == VK_TRUE);
+        r.add("feature.multiDrawIndirect", coreFeatures.multiDrawIndirect == VK_TRUE);
+        r.add("feature.drawIndirectFirstInstance", coreFeatures.drawIndirectFirstInstance == VK_TRUE);
+        r.add("feature.pipelineStatisticsQuery", coreFeatures.pipelineStatisticsQuery == VK_TRUE);
 
         if (canAsk)
         {
@@ -399,6 +460,9 @@ namespace Render
             VkPhysicalDeviceAccelerationStructureFeaturesKHR accel
                 = makeStruct<VkPhysicalDeviceAccelerationStructureFeaturesKHR>(
                     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR);
+            VkPhysicalDeviceMeshShaderFeaturesEXT mesh = makeStruct<VkPhysicalDeviceMeshShaderFeaturesEXT>(
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT);
+            const bool haveMesh = hasExtension(deviceExtensions, "VK_EXT_mesh_shader");
             const bool haveV12 = api >= VK_API_VERSION_1_2;
             const bool haveRay = hasExtension(deviceExtensions, "VK_KHR_ray_query");
             const bool haveAccel = hasExtension(deviceExtensions, "VK_KHR_acceleration_structure");
@@ -418,7 +482,33 @@ namespace Render
                 chain(rayQuery);
             if (haveAccel)
                 chain(accel);
+            if (haveMesh)
+                chain(mesh);
             getFeatures2(device, &features2);
+
+            r.add("feature.meshShader", haveMesh ? mesh.meshShader == VK_TRUE : false);
+            r.add("feature.taskShader", haveMesh ? mesh.taskShader == VK_TRUE : false);
+
+            // The budget extension tells how much device memory this process may use right now (task 0054).
+            auto getMemoryProperties2
+                = instanceProc<PFN_vkGetPhysicalDeviceMemoryProperties2>(probe, "vkGetPhysicalDeviceMemoryProperties2");
+            if (hasExtension(deviceExtensions, "VK_EXT_memory_budget") && getMemoryProperties2)
+            {
+                VkPhysicalDeviceMemoryBudgetPropertiesEXT budget
+                    = makeStruct<VkPhysicalDeviceMemoryBudgetPropertiesEXT>(
+                        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT);
+                VkPhysicalDeviceMemoryProperties2 memory2 = makeStruct<VkPhysicalDeviceMemoryProperties2>(
+                    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2);
+                memory2.pNext = &budget;
+                getMemoryProperties2(device, &memory2);
+                for (uint32_t i = 0; i < memory2.memoryProperties.memoryHeapCount; ++i)
+                    r.add("memory.budget.heap" + std::to_string(i),
+                        formatHeapBudget(budget.heapBudget[i], budget.heapUsage[i]));
+            }
+            else if (hasExtension(deviceExtensions, "VK_EXT_memory_budget"))
+                r.add("memory.budget", "unknown (vkGetPhysicalDeviceMemoryProperties2 not found)");
+            else
+                r.add("memory.budget", "absent");
 
             r.add("feature.multiview", multiview.multiview == VK_TRUE);
             r.add("feature.storageBuffer16BitAccess", storage16.storageBuffer16BitAccess == VK_TRUE);
@@ -481,11 +571,12 @@ namespace Render
         }
         else
         {
-            for (const char* key : { "feature.multiview", "feature.storageBuffer16BitAccess",
-                     "feature.uniformAndStorageBuffer16BitAccess", "feature.storagePushConstant16", "feature.rayQuery",
-                     "feature.accelerationStructure", "feature.shaderFloat16", "feature.shaderInt8",
-                     "feature.descriptorIndexing", "feature.runtimeDescriptorArray",
-                     "feature.descriptorBindingPartiallyBound", "feature.descriptorBindingVariableDescriptorCount",
+            for (const char* key : { "feature.meshShader", "feature.taskShader", "memory.budget", "feature.multiview",
+                     "feature.storageBuffer16BitAccess", "feature.uniformAndStorageBuffer16BitAccess",
+                     "feature.storagePushConstant16", "feature.rayQuery", "feature.accelerationStructure",
+                     "feature.shaderFloat16", "feature.shaderInt8", "feature.descriptorIndexing",
+                     "feature.runtimeDescriptorArray", "feature.descriptorBindingPartiallyBound",
+                     "feature.descriptorBindingVariableDescriptorCount",
                      "feature.shaderSampledImageArrayNonUniformIndexing", "feature.hostQueryReset",
                      "feature.timelineSemaphore", "feature.bufferDeviceAddress", "feature.drawIndirectCount",
                      "subgroup.size", "subgroup.stages", "subgroup.operations", "subgroup.quadInAllStages",

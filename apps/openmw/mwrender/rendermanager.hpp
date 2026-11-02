@@ -28,6 +28,7 @@
 #include <components/render/covermath.hpp>
 #include <components/render/probes.hpp>
 #include <components/render/reflectionprobes.hpp>
+#include <components/render/scenecensus.hpp>
 #include <components/render/skyvisibility.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/settings/settings.hpp>
@@ -361,6 +362,15 @@ namespace MWRender
         bool mTextureDownscaleReport = false; // task 0049
         // Null unless [Rendering] gpu timing is on and the device supports it (task 0023). Owned by the Engine.
         Render::GpuTimer* mGpuTimer = nullptr;
+
+        // Task 0054 (S0): what [Rendering] frame counters reports. The cell counts are atomics because cells load on a
+        // worker thread; the census is read on the main thread only (its totals are refreshed every 30 frames).
+        std::atomic<int> mLoadedExteriorCells{ 0 };
+        std::atomic<unsigned> mExteriorCellLoadsTotal{ 0 };
+        Render::SceneCensus mCensus;
+        std::uint64_t mCensusDraws = 0;
+        std::uint64_t mCensusTriangles = 0;
+        unsigned mCensusCountdown = 0;
         static constexpr std::size_t noPass = static_cast<std::size_t>(-1);
         std::size_t mReflectPass = noPass;
         vsg::ref_ptr<vsg::StateGroup> mSceneRoot;
