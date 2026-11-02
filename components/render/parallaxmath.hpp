@@ -215,10 +215,10 @@ namespace Render::Parallax
 
     // Depth is a length in the world, so it does not depend on how a mesh's or the terrain's texture is mapped: a
     // displacement scale of 1 is this many game units (about 70 to the metre; Faultier's stone wall has 0.5, which
-    // makes 16 units across the whole height range, about 23 centimetres, of which a block face against a joint is about a fifth). The shader works out how many game units one unit of texture coordinates covers
-    // at the pixel (from the derivatives of the position and of the coordinates) and divides. A fixed fraction of a
-    // tile, as the first version used, was a 50 unit deep step on a terrain tile and made a small rock mesh a smeared
-    // mess.
+    // makes 16 units across the whole height range, about 23 centimetres, of which a block face against a joint is
+    // about a fifth). The shader works out how many game units one unit of texture coordinates covers at the pixel
+    // (from the derivatives of the position and of the coordinates) and divides. A fixed fraction of a tile, as the
+    // first version used, was a 50 unit deep step on a terrain tile and made a small rock mesh a smeared mess.
     constexpr float worldDepthPerDisplacement = 32.f;
     // The depth in texture coordinates never exceeds this fraction of a tile, whatever the mapping.
     constexpr float maxUvDepth = 0.1f;
