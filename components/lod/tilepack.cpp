@@ -1,7 +1,6 @@
 #include "tilepack.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <utility>
 
 #include <edenarchive/error.hpp>
@@ -91,6 +90,8 @@ namespace Lod
 
         private:
             static constexpr int maxDepth = 8;
+            // The manifest of a world is a few dozen values; this bounds the memory a hostile one can take.
+            static constexpr std::size_t maxNodes = 4096;
 
             void skipSpace()
             {
@@ -103,6 +104,8 @@ namespace Lod
             {
                 if (depth > maxDepth)
                     return fail("manifest", mPos, "nested too deeply");
+                if (++mNodes > maxNodes)
+                    return fail("manifest", mPos, "the manifest has too many values");
                 if (mPos >= mText.size())
                     return fail("manifest", mPos, "the text ends inside a value");
                 value.mOffset = mPos;
@@ -303,6 +306,7 @@ namespace Lod
 
             std::string_view mText;
             std::size_t mPos = 0;
+            std::size_t mNodes = 0;
         };
 
         const JsonValue* findMember(const JsonValue& object, std::string_view key)
@@ -348,6 +352,30 @@ namespace Lod
                     return i;
             }
             return common;
+        }
+    }
+
+    namespace
+    {
+        // Range checks of the values a consumer would trust (the round trip alone does not make them sensible).
+        LodError validateManifest(const TileManifest& manifest)
+        {
+            if (manifest.mGridSize != 0 && (manifest.mGridSize < minGridSize || manifest.mGridSize > maxGridSize))
+                return fail("manifest", 0, "gridSize must be 0 or between 3 and 129");
+            if (manifest.mAlbedoSize != 0
+                && (manifest.mAlbedoSize > maxAlbedoSide || (manifest.mAlbedoSize & (manifest.mAlbedoSize - 1)) != 0))
+                return fail("manifest", 0, "albedoSize must be 0 or a power of two up to 2048");
+            for (const std::uint32_t level : manifest.mLevels)
+            {
+                if (level > maxLevel)
+                    return fail("manifest", 0, "a level is above 15");
+            }
+            for (const WorldspaceInfo& space : manifest.mWorldspaces)
+            {
+                if (space.mIndex > 255 || space.mCellSize == 0)
+                    return fail("manifest", 0, "a worldspace index must be below 256 and its cell size above 0");
+            }
+            return {};
         }
     }
 
@@ -437,6 +465,8 @@ namespace Lod
                 return fail("manifest", item.mOffset, "a worldspace has exactly cellSize, index and name");
             parsed.mWorldspaces.push_back(std::move(space));
         }
+        if (LodError error = validateManifest(parsed))
+            return error;
         const std::string canonical = writeManifestJson(parsed);
         if (canonical != text)
             return fail("manifest", firstDifference(canonical, text), "the text is not in canonical form");
@@ -678,7 +708,12 @@ namespace Lod
         const EdenArchive::Error archiveError = mImpl->mArchive->readRange(index, 0, terrainTileHeaderSize, header);
         if (archiveError)
             return fromArchive(archiveError, "tile");
-        return parseTerrainTileHeader(std::span<const std::uint8_t>(header, terrainTileHeaderSize), size, tile, layout);
+        if (LodError error
+            = parseTerrainTileHeader(std::span<const std::uint8_t>(header, terrainTileHeaderSize), size, tile, layout))
+            return error;
+        if (tile.mLevel != id.mLevel)
+            return fail("level", 12, "the tile's level differs from the level in its key");
+        return {};
     }
 
     LodError TilePack::readTile(const TileId& id, TerrainTile& tile, EdenArchive::DecodeBudget* budget) const
@@ -691,7 +726,11 @@ namespace Lod
         const EdenArchive::Error archiveError = mImpl->mArchive->readEntry(index, bytes, budget);
         if (archiveError)
             return fromArchive(archiveError, "tile");
-        return parseTerrainTile(bytes, tile);
+        if (LodError error = parseTerrainTile(bytes, tile))
+            return error;
+        if (tile.mLevel != id.mLevel)
+            return fail("level", 12, "the tile's level differs from the level in its key");
+        return {};
     }
 
     LodError TilePack::readAlbedo(

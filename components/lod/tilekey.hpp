@@ -39,6 +39,7 @@ namespace Lod
     std::optional<TileId> tileContainingCell(
         std::uint8_t worldspace, std::uint32_t level, std::int32_t cellX, std::int32_t cellY) noexcept;
 
+    /// The functions below that take a TileId expect a valid one (what tileContainingCell or unpackTileKey returns).
     /// The signed cell coordinates of the tile's south-west cell.
     void tileOriginCell(const TileId& id, std::int32_t& cellX, std::int32_t& cellY) noexcept;
     /// The number of cells along one side of the tile: 2^level.

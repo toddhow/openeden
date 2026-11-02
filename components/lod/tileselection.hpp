@@ -30,7 +30,7 @@ namespace Lod
         float mGeometricError = 0;
     };
 
-    /// The camera, in world units, with a unit forward vector.
+    /// The camera, in world units. Preconditions (not checked): finite numbers, a unit forward vector, 0 < fovY < pi.
     struct SelectionCamera
     {
         double mX = 0, mY = 0, mZ = 0;
