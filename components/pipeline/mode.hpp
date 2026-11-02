@@ -96,8 +96,8 @@ namespace Pipeline
         Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
         Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION,
-        Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS, Mode::HEIGHT_MAP, Mode::PARALLAX_DISCARD,
-        Mode::PRECIPITATION_LIT, Mode::LOD_FADE };
+        Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS, Mode::HEIGHT_MAP, Mode::PARALLAX_DISCARD, Mode::PRECIPITATION_LIT,
+        Mode::LOD_FADE };
 
     using Modes = std::vector<bool>;
 

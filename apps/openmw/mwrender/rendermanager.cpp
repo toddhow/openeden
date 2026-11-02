@@ -1101,7 +1101,8 @@ namespace MWRender
             setup.mVfs = mResourceSystem->getVFS();
             mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
         }
-        // Task 0059: baked object clusters (DRAFT layout), only when asked for. Nothing below runs with the setting off.
+        // Task 0059: baked object clusters (DRAFT layout), only when asked for. Nothing below runs with the setting
+        // off.
         if (Settings::worldLod().mEnabled && Settings::worldLod().mObjectClusters && !mLodClusterPack.empty())
         {
             LodClusters::Setup setup;

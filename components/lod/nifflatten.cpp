@@ -79,8 +79,8 @@ namespace Lod
             int mDestinationBlend = 7;
         };
 
-        // Textures whose alpha is a real translucency, not a cutout: drawn as solid sheets they would be wrong (a heuristic
-        // on the file name; there is no texture reader here).
+        // Textures whose alpha is a real translucency, not a cutout: drawn as solid sheets they would be wrong (a
+        // heuristic on the file name; there is no texture reader here).
         bool looksTranslucent(const std::string& texture)
         {
             std::string lower = texture;
@@ -239,10 +239,10 @@ namespace Lod
                 Inherited state = inherited;
                 if (!geometry.mAlphaProperty.empty())
                     applyProperty(*geometry.mAlphaProperty.getPtr(), state);
-                // Only the ordinary blend (source alpha, one minus source alpha) is a cutout; an additive or other blend
-                // (glows, light shafts) would draw as solid sheets.
-                if (state.mBlend && !state.mTest && mBlendAsCutout && state.mSourceBlend == 6 && state.mDestinationBlend == 7
-                    && !looksTranslucent(state.mTexture))
+                // Only the ordinary blend (source alpha, one minus source alpha) is a cutout; an additive or other
+                // blend (glows, light shafts) would draw as solid sheets.
+                if (state.mBlend && !state.mTest && mBlendAsCutout && state.mSourceBlend == 6
+                    && state.mDestinationBlend == 7 && !looksTranslucent(state.mTexture))
                 {
                     state.mTest = true;
                     state.mThreshold = 128;

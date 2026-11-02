@@ -29,8 +29,9 @@ namespace Lod
     /// then has no pieces.
     ///
     /// With `blendAsCutout`, geometry that is alpha blended with the ordinary blend (source alpha, one minus source
-    /// alpha) but not alpha tested (Morrowind's foliage and many trees) becomes alpha tested at 0.5 instead of being left out: a merged mesh cannot be sorted for blending,
-    /// and leaving the blended models out made most trees vanish from the far field.
+    /// alpha) but not alpha tested (Morrowind's foliage and many trees) becomes alpha tested at 0.5 instead of being
+    /// left out: a merged mesh cannot be sorted for blending, and leaving the blended models out made most trees vanish
+    /// from the far field.
     FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout = false);
 }
 

@@ -409,11 +409,11 @@ namespace Lod
         if (mImpl->mArchive->entry(*index).mSize < objectClusterHeaderSize)
             return fail("header", 0, "the cluster entry is shorter than its header");
         std::uint8_t header[objectClusterHeaderSize];
-        const EdenArchive::Error archiveError
-            = mImpl->mArchive->readRange(*index, 0, objectClusterHeaderSize, header);
+        const EdenArchive::Error archiveError = mImpl->mArchive->readRange(*index, 0, objectClusterHeaderSize, header);
         if (archiveError)
             return fromArchive(archiveError, "cluster");
-        if (LodError error = readObjectClusterHeader(std::span<const std::uint8_t>(header, objectClusterHeaderSize), info))
+        if (LodError error
+            = readObjectClusterHeader(std::span<const std::uint8_t>(header, objectClusterHeaderSize), info))
             return error;
         if (info.mLevel != id.mLevel)
             return fail("level", 8, "the cluster's level differs from the level in its key");

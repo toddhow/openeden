@@ -149,8 +149,8 @@ namespace MWRender
         }
 
         // Runs on a worker: reads and decodes one cluster and the pictures of its groups.
-        Loaded loadCluster(
-            const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id, vsg::ref_ptr<const vsg::Options> images)
+        Loaded loadCluster(const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id,
+            vsg::ref_ptr<const vsg::Options> images)
         {
             Loaded loaded;
             const auto start = Clock::now();
@@ -393,10 +393,10 @@ namespace MWRender
             auto transform = vsg::MatrixTransform::create(
                 vsg::translate(static_cast<double>(cluster.mOriginX), static_cast<double>(cluster.mOriginY), 0.0));
             transform->addChild(group);
-            const vsg::dvec3 centre(cluster.mOriginX + side * 0.5, cluster.mOriginY + side * 0.5,
-                (cluster.mMinZ + cluster.mMaxZ) * 0.5);
-            const double radius = std::sqrt(side * side * 0.5 + 0.25 * (cluster.mMaxZ - cluster.mMinZ)
-                                      * (cluster.mMaxZ - cluster.mMinZ))
+            const vsg::dvec3 centre(
+                cluster.mOriginX + side * 0.5, cluster.mOriginY + side * 0.5, (cluster.mMinZ + cluster.mMaxZ) * 0.5);
+            const double radius = std::sqrt(side * side * 0.5
+                                      + 0.25 * (cluster.mMaxZ - cluster.mMinZ) * (cluster.mMaxZ - cluster.mMinZ))
                 + cluster.mOverhang;
             return vsg::CullNode::create(vsg::dsphere(centre, radius), transform);
         }
@@ -478,15 +478,18 @@ namespace MWRender
                 const std::shared_ptr<Lod::ClusterPack> pack = state.mPack;
                 const Lod::TileId id = tile.mId;
                 const vsg::ref_ptr<const vsg::Options> images = setup.mImageOptions;
-                tile.mLoad = std::async(std::launch::async, [pack, id, images] { return loadCluster(pack, id, images); });
+                tile.mLoad
+                    = std::async(std::launch::async, [pack, id, images] { return loadCluster(pack, id, images); });
             }
-            if (tile.mPhase == Tile::Phase::Loading && tile.mLoad.wait_for(std::chrono::seconds(0)) == std::future_status::ready
+            if (tile.mPhase == Tile::Phase::Loading
+                && tile.mLoad.wait_for(std::chrono::seconds(0)) == std::future_status::ready
                 && builds < maxBuildsPerFrame)
             {
                 tile.mData = std::make_shared<Loaded>(tile.mLoad.get());
                 ++state.mStats.mLoads;
                 state.mStats.mLoadMillisecondsTotal += tile.mData->mMilliseconds;
-                state.mStats.mLoadMillisecondsWorst = std::max(state.mStats.mLoadMillisecondsWorst, tile.mData->mMilliseconds);
+                state.mStats.mLoadMillisecondsWorst
+                    = std::max(state.mStats.mLoadMillisecondsWorst, tile.mData->mMilliseconds);
                 --inFlight;
                 if (!tile.mData->mOk || !tile.mWanted)
                 {
@@ -601,7 +604,8 @@ namespace MWRender
             state.mLastLoggedShown = shown;
             Log(Debug::Info) << "LOD clusters: " << shown << " shown, " << built << " built, " << draws << " draws, "
                              << triangles << " triangles; " << state.mStats.mLoads << " loads, "
-                             << (state.mStats.mLoads > 0 ? state.mStats.mLoadMillisecondsTotal / state.mStats.mLoads : 0.0)
+                             << (state.mStats.mLoads > 0 ? state.mStats.mLoadMillisecondsTotal / state.mStats.mLoads
+                                                         : 0.0)
                              << " ms mean, " << state.mStats.mLoadMillisecondsWorst << " ms worst";
         }
     }

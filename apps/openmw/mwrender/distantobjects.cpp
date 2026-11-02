@@ -355,7 +355,8 @@ namespace MWRender
         for (const auto& cell :
             mTracker.setWanted(distantObjectCells(mCameraPosition, mCellSize, mViewDistance, builtGrid)))
         {
-            auto build = vsg::ref_ptr{ new ChunkBuild(mContext, mStore, cell, leftOut, mMinSize, mGeneration, mClustered.contains(cell)) };
+            auto build = vsg::ref_ptr{ new ChunkBuild(
+                mContext, mStore, cell, leftOut, mMinSize, mGeneration, mClustered.contains(cell)) };
             mBuilds.push_back(build);
             mThreads->add(build);
         }
