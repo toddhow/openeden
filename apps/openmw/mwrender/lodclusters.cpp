@@ -24,6 +24,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/lod/clusterfade.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/pipeline/bindings.hpp>
@@ -80,7 +81,8 @@ namespace MWRender
             std::shared_ptr<Loaded> mData;
             vsg::ref_ptr<vsg::Node> mNode;
             std::vector<std::unique_ptr<Pipeline::Material>> mMaterials;
-            float mFade = 0;
+            float mFade = 0; // mirrors mFadeState.mFade
+            Lod::TileFade mFadeState;
             bool mWanted = false;
             std::uint64_t mMaskVersion = 0;
             std::set<int> mMasked; // the cell slots the draws leave out
@@ -440,7 +442,7 @@ namespace MWRender
         }
     }
 
-    void LodClusters::update(const Camera& camera, double seconds)
+    void LodClusters::update(const Camera& camera, double seconds, const CellPredicate& liveReady)
     {
         State& state = *mState;
         const Setup& setup = state.mSetup;
@@ -502,7 +504,6 @@ namespace MWRender
             if (tile.mPhase == Tile::Phase::Loading)
                 ++inFlight;
 
-        const float step = setup.mFadeSeconds > 0.f ? static_cast<float>(seconds / setup.mFadeSeconds) : 1.f;
         std::size_t builds = 0;
         for (std::size_t i = 0; i < state.mTiles.size(); ++i)
         {
@@ -597,19 +598,20 @@ namespace MWRender
                         tile.mFreeCells.insert(cellOf(tile.mData->mCluster.mCells[slot]));
             }
 
-            // Dither in while wanted, out otherwise; a fade in progress runs to the end (the selection's own hysteresis
-            // keeps the wanted flag from flickering).
-            const float target = tile.mWanted ? 1.f : 0.f;
+            // The hand-over order is Lod::stepTileFade's: dither in over the live objects, solid while they leave out
+            // the statics, and after the tile is no longer wanted solid still until they draw the statics again.
+            bool liveBack = true;
+            if (liveReady)
+                for (const auto& cell : tile.mFreeCells)
+                    liveBack = liveBack && liveReady(cell);
             const float before = tile.mFade;
-            if (tile.mFade < target)
-                tile.mFade = std::min(target, tile.mFade + step);
-            else if (tile.mFade > target)
-                tile.mFade = std::max(target, tile.mFade - step);
+            Lod::stepTileFade(tile.mFadeState, tile.mWanted, liveBack, static_cast<float>(seconds), setup.mFadeSeconds);
+            tile.mFade = tile.mFadeState.mFade;
             if (tile.mFade != before)
                 for (auto& material : tile.mMaterials)
                     material->update(material->value().specular.a, tile.mFade);
 
-            if (!tile.mWanted && tile.mFade <= 0.f)
+            if (!tile.mWanted && tile.mFadeState.mPhase == Lod::FadePhase::Hidden)
             {
                 if (tile.mNode)
                 {
@@ -621,6 +623,8 @@ namespace MWRender
                 tile.mMaterials.clear();
                 tile.mData.reset();
                 tile.mFreeCells.clear();
+                tile.mFadeState = {};
+                tile.mFade = 0;
                 tile.mPhase = Tile::Phase::Idle;
             }
         }
@@ -632,7 +636,7 @@ namespace MWRender
         for (std::size_t i = 0; i < state.mTiles.size(); ++i)
         {
             const Tile& tile = state.mTiles[i];
-            if (tile.mPhase == Tile::Phase::Built && tile.mWanted && tile.mFade >= 1.f)
+            if (tile.mPhase == Tile::Phase::Built && Lod::tileCoversStatics(tile.mFadeState))
                 signature = signature * 31u + i + 1;
         }
         const bool recompute = signature != state.mClusteredSignatureSeen;
@@ -648,7 +652,7 @@ namespace MWRender
             ++shown;
             draws += tile.mDraws;
             triangles += tile.mTriangles;
-            if (recompute && tile.mFade >= 1.f)
+            if (recompute && Lod::tileCoversStatics(tile.mFadeState))
                 clustered.insert(tile.mFreeCells.begin(), tile.mFreeCells.end());
         }
         if (recompute && clustered != state.mClustered)

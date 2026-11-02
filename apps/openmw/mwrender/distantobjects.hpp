@@ -75,6 +75,9 @@ namespace MWRender
         /// activators and doors stay and nothing is drawn twice. A change rebuilds the chunks of the cells that
         /// changed.
         void setClusteredCells(const std::set<std::pair<int, int>>& cells);
+        /// True when the live objects draw this cell's statics (or have nothing to draw there): the cell is not one a
+        /// cluster covers and no rebuild of its chunk is waiting. A cluster stays solid until this is true.
+        bool staticsReady(const std::pair<int, int>& cell) const;
         /// Forgets every chunk and reference state, for a new or loaded game.
         void clear();
         void waitForBuilds();
@@ -99,6 +102,10 @@ namespace MWRender
         std::set<ESM::RefNum> mDisabled;
         std::set<ESM::RefNum> mBlacklist;
         std::set<std::pair<int, int>> mClustered;
+        // Cells whose chunk was dropped by forget() and not built again yet, and, for shown chunks, whether they were
+        // built without statics.
+        std::set<std::pair<int, int>> mRebuilding;
+        std::map<std::pair<int, int>, bool> mShownWithoutStatics;
         // Builds started before a cell's entry, or before mOldestValidBuild, are out of date and thrown away.
         std::map<std::pair<int, int>, unsigned int> mCellGenerations;
         unsigned int mGeneration = 0;

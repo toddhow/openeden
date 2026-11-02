@@ -39,12 +39,12 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 9;
+        constexpr std::uint32_t bakerVersion = 11;
         // Per level (1, 2, 3): the largest simplification error in world units. Starting values of task 0059, D4: about
         // 1.6 pixels at 7,500, 20,000 and 60,000 units at an 8 pixel threshold; to be calibrated by looking at frames.
         constexpr std::uint32_t levelErrors[3] = { 128, 320, 960 };
         // An object smaller than this many errors is left out of the level (task 0059, "classification").
-        constexpr float dropFactor = 0.5f;
+        constexpr float dropFactor = 0.75f;
 
         enum class Phase
         {
@@ -174,7 +174,7 @@ namespace OMW
                 const auto* node = dynamic_cast<const Nif::NiAVObject*>(root);
                 if (node == nullptr)
                     continue;
-                Lod::FlattenedModel part = Lod::flattenNifModel(*node, false);
+                Lod::FlattenedModel part = Lod::flattenNifModel(*node, true);
                 for (Lod::SourcePiece& piece : part.mPieces)
                     entry.mFlat.mPieces.push_back(std::move(piece));
                 Lod::ObjectTraits& traits = entry.mFlat.mTraits;

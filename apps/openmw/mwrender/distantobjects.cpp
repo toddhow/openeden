@@ -304,6 +304,8 @@ namespace MWRender
         {
             mTracker.forget(cell);
             mCellGenerations[cell] = mGeneration;
+            mRebuilding.insert(cell);
+            mShownWithoutStatics.erase(cell);
         }
         mWantedChanged = true;
     }
@@ -314,6 +316,14 @@ namespace MWRender
         if (changed)
             forget(cells);
         return changed;
+    }
+
+    bool DistantObjects::staticsReady(const std::pair<int, int>& cell) const
+    {
+        if (mClustered.contains(cell) || mRebuilding.contains(cell))
+            return false;
+        const auto shown = mShownWithoutStatics.find(cell);
+        return shown == mShownWithoutStatics.end() || !shown->second;
     }
 
     void DistantObjects::setClusteredCells(const std::set<std::pair<int, int>>& cells)
@@ -340,6 +350,8 @@ namespace MWRender
         mBlacklist.clear();
         mCellGenerations.clear();
         mClustered.clear();
+        mRebuilding.clear();
+        mShownWithoutStatics.clear();
         mOldestValidBuild = ++mGeneration;
         mTracker.clear();
         setShownChunks({});
@@ -352,8 +364,12 @@ namespace MWRender
         const ActiveCellGrid builtGrid{ mActiveGrid.centre, mActiveGrid.halfGrid - 1 };
         std::set<ESM::RefNum> leftOut = mDisabled;
         leftOut.insert(mBlacklist.begin(), mBlacklist.end());
-        for (const auto& cell :
-            mTracker.setWanted(distantObjectCells(mCameraPosition, mCellSize, mViewDistance, builtGrid)))
+        const auto wanted = distantObjectCells(mCameraPosition, mCellSize, mViewDistance, builtGrid);
+        // A forgotten cell that is no longer in range will never be built: it has nothing to wait for.
+        std::erase_if(mRebuilding, [&wanted](const std::pair<int, int>& cell) {
+            return !std::binary_search(wanted.begin(), wanted.end(), cell);
+        });
+        for (const auto& cell : mTracker.setWanted(wanted))
         {
             auto build = vsg::ref_ptr{ new ChunkBuild(
                 mContext, mStore, cell, leftOut, mMinSize, mGeneration, mClustered.contains(cell)) };
@@ -400,6 +416,8 @@ namespace MWRender
             if (chunk && !mContext.compileContext->compile(chunk))
                 chunk = {};
             mTracker.finish(build->cell, chunk);
+            mRebuilding.erase(build->cell);
+            mShownWithoutStatics[build->cell] = build->skipStatics;
             return true;
         }) > 0;
     }

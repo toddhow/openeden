@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <set>
 #include <utility>
@@ -75,8 +76,10 @@ namespace MWRender
         /// The group to put in the scene beside the live objects.
         vsg::ref_ptr<vsg::Group> node() const;
 
-        /// Main thread, once a frame; `seconds` is the frame time.
-        void update(const Camera& camera, double seconds);
+        /// Main thread, once a frame; `seconds` is the frame time. `liveReady(cell)` says whether the live objects draw
+        /// the cell's statics (DistantObjects::staticsReady): a cluster stays solid until it is true for its cells.
+        using CellPredicate = std::function<bool(const std::pair<int, int>&)>;
+        void update(const Camera& camera, double seconds, const CellPredicate& liveReady);
 
         /// The cells inside the active grid are masked (the live objects keep them).
         void setActiveGrid(const ActiveCellGrid& grid);

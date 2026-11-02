@@ -204,6 +204,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testobjectcluster.cpp
     lod/testclusterbuild.cpp
     lod/testclusterreview.cpp
+    lod/testclusterfade.cpp
     lod/testnifflatten.cpp
     lod/testclusterpack.cpp
     lod/testtiletree.cpp
