@@ -1,5 +1,5 @@
-// Tests for the terrain's ambient occlusion maths, Render::Ao::terrainAmbientPart and useTerrainAo (task 0048, stage a).
-// Written from the task spec before the implementation.
+// Tests for the terrain's ambient occlusion maths, Render::Ao::terrainAmbientPart and useTerrainAo (task 0048, stage
+// a). Written from the task spec before the implementation.
 
 #include <components/render/aomath.hpp>
 
@@ -20,15 +20,15 @@ namespace Render::Ao
         float litChannel(float texture, float ambientLight, float ambientColour, float ambientScale, float diffuseLight,
             float diffuseColour, float diffuseScale)
         {
-            return texture * (ambientLight * ambientColour * ambientScale + diffuseLight * diffuseColour * diffuseScale);
+            return texture
+                * (ambientLight * ambientColour * ambientScale + diffuseLight * diffuseColour * diffuseScale);
         }
 
         vsg::vec3 lit(const vsg::vec3& texture, const vsg::vec3& ambientLight, const vsg::vec3& ambientColour,
             float ambientScale, const vsg::vec3& diffuseLight, const vsg::vec3& diffuseColour, float diffuseScale)
         {
-            return vsg::vec3(
-                litChannel(texture.x, ambientLight.x, ambientColour.x, ambientScale, diffuseLight.x, diffuseColour.x,
-                    diffuseScale),
+            return vsg::vec3(litChannel(texture.x, ambientLight.x, ambientColour.x, ambientScale, diffuseLight.x,
+                                 diffuseColour.x, diffuseScale),
                 litChannel(texture.y, ambientLight.y, ambientColour.y, ambientScale, diffuseLight.y, diffuseColour.y,
                     diffuseScale),
                 litChannel(texture.z, ambientLight.z, ambientColour.z, ambientScale, diffuseLight.z, diffuseColour.z,
@@ -96,7 +96,8 @@ namespace Render::Ao
 
     TEST(RenderAoTerrainTest, pbr_path_part_carries_the_diffuse_scale_and_the_occlusion)
     {
-        // The material model path: materialTermsScaled(ambient, diffuse, colour, diffuseScale * occlusion, diffuseScale).
+        // The material model path: materialTermsScaled(ambient, diffuse, colour, diffuseScale * occlusion,
+        // diffuseScale).
         Lcg rng;
         for (int i = 0; i < 100; ++i)
         {
@@ -116,7 +117,8 @@ namespace Render::Ao
 
     TEST(RenderAoTerrainTest, a_fully_fogged_pixel_has_no_ambient_part)
     {
-        const vsg::vec3 part = terrainAmbientPart({ 0.5f, 0.5f, 0.5f }, { 0.4f, 0.4f, 0.4f }, { 1.f, 1.f, 1.f }, 1.f, 0.f);
+        const vsg::vec3 part
+            = terrainAmbientPart({ 0.5f, 0.5f, 0.5f }, { 0.4f, 0.4f, 0.4f }, { 1.f, 1.f, 1.f }, 1.f, 0.f);
         expectNear(part, black, 0.f);
     }
 

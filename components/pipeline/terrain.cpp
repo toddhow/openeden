@@ -64,8 +64,8 @@ namespace Pipeline
             // The fourth extra output is the material (Render::GBuffer::extraColorFormats, task 0027).
             if (gbufferOutputs >= 4)
                 compileSettings->defines.insert("GBUFFER_MATERIAL");
-            // The fifth is the ambient part of the colour (task 0029); the terrain writes zero unless `ao terrain` is on
-            // (task 0048).
+            // The fifth is the ambient part of the colour (task 0029); the terrain writes zero unless `ao terrain` is
+            // on (task 0048).
             if (gbufferOutputs >= 5)
             {
                 compileSettings->defines.insert("GBUFFER_AMBIENT");
