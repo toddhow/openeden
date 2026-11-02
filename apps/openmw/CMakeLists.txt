@@ -3,6 +3,7 @@ set(OPENMW_SOURCES
     probebaker.cpp
     skyvisbaker.cpp
     lodterrainbaker.cpp
+    lodobjectbaker.cpp
     options.cpp
     extensionhost.cpp
     extensionworld.cpp
@@ -20,6 +21,7 @@ set(OPENMW_HEADERS
     probebaker.hpp
     skyvisbaker.hpp
     lodterrainbaker.hpp
+    lodobjectbaker.hpp
     extensionhost.hpp
     extensionworld.hpp
     game.hpp

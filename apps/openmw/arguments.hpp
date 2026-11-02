@@ -53,6 +53,7 @@ namespace OMW
         std::string bakeGiExterior;
         // Task 0055: bake the terrain tiles of the loaded game data (draft layout), into bakeGiOut too.
         bool bakeLodTerrain = false;
+        bool bakeLodObjects = false;
     };
 }
 

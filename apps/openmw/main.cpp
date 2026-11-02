@@ -116,7 +116,8 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.bakeGiOut = variables["bake-gi-out"].as<std::string>();
     args.bakeGiExterior = variables["bake-gi-exterior"].as<std::string>();
     args.bakeLodTerrain = variables["bake-lod-terrain"].as<bool>();
-    if (!args.bakeGiExterior.empty() || args.bakeLodTerrain)
+    args.bakeLodObjects = variables["bake-lod-objects"].as<bool>();
+    if (!args.bakeGiExterior.empty() || args.bakeLodTerrain || args.bakeLodObjects)
         args.skipMenu = true;
     if (!args.bakeGiCell.empty())
     {

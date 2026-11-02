@@ -202,6 +202,17 @@ namespace MWRender
         }
     }
 
+    std::map<ESM::RefNum, ESM::CellRef> collectDistantReferences(
+        const std::pair<int, int>& cellIndex, const MWWorld::ESMStore& store)
+    {
+        return collectReferences(cellIndex, store);
+    }
+
+    std::string_view distantObjectModel(int type, const ESM::RefId& id, const MWWorld::ESMStore& store)
+    {
+        return getModel(type, id, store);
+    }
+
     // One cell's chunk being built on an operation thread; the main thread reads chunk only once done is set.
     struct DistantObjects::ChunkBuild : public vsgUtil::Operation
     {

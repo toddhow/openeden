@@ -3,11 +3,13 @@
 
 #include <map>
 #include <set>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include <vsg/nodes/Group.h>
 
+#include <components/esm3/cellref.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/mwanimation/context.hpp>
 
@@ -26,6 +28,14 @@ namespace MWWorld
 
 namespace MWRender
 {
+    /// The references of one cell as the content files leave them, the ones distant objects draw (statics,
+    /// activators, doors): the list the cell's chunk is built from, shared with the LOD cluster baker (task 0059)
+    /// so that the two cannot disagree about what exists. Reads the store and the content files.
+    std::map<ESM::RefNum, ESM::CellRef> collectDistantReferences(
+        const std::pair<int, int>& cellIndex, const MWWorld::ESMStore& store);
+    /// The model name of a distant object's record (STAT, ACTI or DOOR), empty for other types.
+    std::string_view distantObjectModel(int type, const ESM::RefId& id, const MWWorld::ESMStore& store);
+
     /**
      * @brief Draws the statics, activators and doors of cells beyond the active grid (`[Terrain] object paging`, with
      * `distant terrain`; task 0012, V4n): OpenMW's MWRender::ObjectPaging at 442eec6e2f, for Morrowind's exterior.

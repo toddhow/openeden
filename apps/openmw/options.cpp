@@ -98,6 +98,10 @@ namespace OpenMW
             "bake the terrain tiles of the world LOD into openeden/lod/terrain.edenpak (draft layout; needs the game "
             "data; quits when done)");
 
+        addOption("bake-lod-objects", bpo::bool_switch()->default_value(false),
+            "bake the object clusters of the world LOD into openeden/lod/objects.edenpak (DRAFT layout; needs the game "
+            "data; quits when done)");
+
         addOption("bake-gi-out", bpo::value<std::string>()->default_value(""),
             "folder the baked probes are written to (default: the user data folder)");
 

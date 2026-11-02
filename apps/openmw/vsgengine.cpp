@@ -25,6 +25,7 @@
 #include <components/vsgadapters/sdl/window.hpp>
 #include <components/vsgutil/readimage.hpp>
 
+#include "lodobjectbaker.hpp"
 #include "lodterrainbaker.hpp"
 #include "mwgui/windowmanagerimp.hpp"
 #include "mwinput/actions.hpp"
@@ -500,8 +501,16 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             lodTerrainBaker = std::make_unique<LodTerrainBaker>(out, *mResourceSystem);
         }
-        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &runningFrame, &autoScreenshotFired,
-                            &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
+        // Task 0059: the world LOD object cluster baker (--bake-lod-objects), only when asked for.
+        std::unique_ptr<LodObjectBaker> lodObjectBaker;
+        if (args.bakeLodObjects)
+        {
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            lodObjectBaker = std::make_unique<LodObjectBaker>(out, *mResourceSystem);
+        }
+        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &runningFrame,
+                            &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
             if (quit)
@@ -525,6 +534,11 @@ namespace OMW
                     autoQuitFired = true;
                 }
                 if (lodTerrainBaker && lodTerrainBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
                 {
                     mStateManager->requestQuit();
                     autoQuitFired = true;

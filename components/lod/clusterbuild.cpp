@@ -144,12 +144,28 @@ namespace Lod
 
             std::vector<std::uint32_t> simplified(indices.size());
             float achieved = 0;
+            // The border is locked: without it a flat open sheet (a bridge deck, a wall) collapses to nothing at no
+            // error at all, and whole objects vanished from the bake (task 0059, stage c; real Morrowind data).
             const std::size_t kept
                 = meshopt_simplify(simplified.data(), indices.data(), indices.size(), positions.data(), vertexCount,
-                    3 * sizeof(float), 0, input.mLevel.mError, meshopt_SimplifyErrorAbsolute, &achieved);
+                    3 * sizeof(float), 0, input.mLevel.mError, meshopt_SimplifyErrorAbsolute | meshopt_SimplifyLockBorder, &achieved);
             simplified.resize(kept);
             if (simplified.empty())
             {
+                // Triangles with no area (a model can hold such pieces) show nothing, so losing them costs nothing.
+                double area = 0;
+                for (std::size_t i = 0; i + 2 < indices.size(); i += 3)
+                {
+                    const float* a = &positions[3 * static_cast<std::size_t>(indices[i])];
+                    const float* b = &positions[3 * static_cast<std::size_t>(indices[i + 1])];
+                    const float* c = &positions[3 * static_cast<std::size_t>(indices[i + 2])];
+                    const double ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+                    const double vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+                    const double cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+                    area += 0.5 * std::sqrt(cx * cx + cy * cy + cz * cz);
+                }
+                if (area < 1e-6)
+                    return false;
                 // The whole piece collapsed: what is lost is about its own size, which the error must cover.
                 float low[3] = { positions[0], positions[1], positions[2] };
                 float high[3] = { positions[0], positions[1], positions[2] };
