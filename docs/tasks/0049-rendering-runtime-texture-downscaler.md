@@ -130,3 +130,10 @@ Generated test images only; generated DDS bytes as in task 0045 for the reader p
 - [ ] The cost note: load time with and without the cap on the same save, and texture memory before and after, with the GPU named.
 - [ ] Linux gate (`-Werror`), whole-tree clang-format, `check_no_osg.sh`, `components-tests`, `openmw-tests`, `eden-studio-tests` and the 32 Lua tests pass; a fresh reviewer read each stage with extra attention to sRGB handling and to thread safety of the report.
 Out of scope: mip streaming and the dynamic budget, a disk cache of derived textures, re-encoding compressed textures, KTX2 or Basis, GPU-side resizing, frame-time adaptive quality, geometry or LOD budgets, a per-actor cap, UI scaling, the editor's own texture settings.
+
+## Stage log (2026-11-02)
+
+- **Stages a, b, d done** (commits f4e38e850a, 63fc6ad15f and the follow-up): the two vsgutil headers with tests, the settings, the opt-in at the NIF and COLLADA readers and the terrain builder, the `auto` table. No shader was added (decision 0009 not involved). Decisions D1 to D10 as recommended; single-level compressed textures stay full size (toddhow, decision 0010).
+- **Measured** (RTX 4070, Faultier data3, Balmora, system memory.used minus baseline): none +629 MiB; 1024 +369; 512 +254; 256 +222; simulated 4 GiB card (objects 1024, terrain 512) +366; 6 and 8 GiB (2048, 1024) about +630. Texture data in the report: 413 MiB to 103 MiB at 1024, to 9 MiB at 256. Frames at 256, 512 and 64 look softer with no colour or normal error.
+- **Follow-up:** terrain arrays fall back to uncapped when one layer cannot be capped; report counted once per kept image; alpha cutoff passed from `NiAlphaProperty` to the shrink; `texture memory budget` accepts a number of MiB to simulate a card.
+- **Not done:** map-follows-diffuse by capped size (maps use the same cap); frame identity against the commit before (no old build kept); a real mixed-size terrain array frame; decode and re-encode of single-level compressed layers; dynamic budget and streaming (stage f).

@@ -28,6 +28,15 @@ namespace vsgUtil
     vsg::ref_ptr<vsg::Data> readOptionalImage(
         const std::string& path, vsg::ref_ptr<const vsg::Options> options, const ImageUse& use = {});
 
+    /*
+     * Task 0049: reads the images of one array (the terrain's layers), each with `use`. If the cap leaves any of them
+     * larger than the cap (a block compressed image with a single level cannot be made smaller), they are all read
+     * again without a cap, so that capping never turns an array of layers of one size into one of mixed sizes (which
+     * the array draws grey). Unreadable images are null, or throw when `required`.
+     */
+    std::vector<vsg::ref_ptr<vsg::Data>> readArrayImages(const std::vector<std::string>& paths,
+        vsg::ref_ptr<const vsg::Options> options, const ImageUse& use, bool required);
+
     /// openeden-vsg: replaces an 8-bit sRGB format with its UNORM equivalent (same bytes, no conversion on sampling).
     void removeSrgb(vsg::Data& data);
 }

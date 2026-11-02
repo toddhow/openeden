@@ -143,6 +143,36 @@ namespace vsgUtil::TextureCap
         return bytes / (1024 * 1024);
     }
 
+    BudgetSetting parseBudget(const std::string& text)
+    {
+        BudgetSetting result;
+        if (text.empty() || text == "off")
+            return result;
+        if (text == "auto")
+        {
+            result.autoBudget = true;
+            return result;
+        }
+        uint64_t value = 0;
+        for (char c : text)
+        {
+            if (c < '0' || c > '9' || value > (1ull << 40))
+            {
+                result.valid = false;
+                return result;
+            }
+            value = value * 10 + static_cast<uint64_t>(c - '0');
+        }
+        if (value == 0)
+        {
+            result.valid = false;
+            return result;
+        }
+        result.autoBudget = true;
+        result.simulatedMiB = value;
+        return result;
+    }
+
     void setCaps(const Caps& caps)
     {
         std::scoped_lock lock(capsMutex);

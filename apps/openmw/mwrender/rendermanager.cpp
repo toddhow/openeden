@@ -293,13 +293,13 @@ namespace MWRender
             caps.terrain = Settings::rendering().mTextureMaxSizeTerrain;
             caps.object = Settings::rendering().mTextureMaxSizeObjects;
             const std::string budget = Settings::rendering().mTextureMemoryBudget.get();
-            if (budget == "auto")
-            {
-                caps.autoBudget = true;
-                caps.deviceLocalMiB = mEngine.deviceLocalMiB();
-            }
-            else if (budget != "off" && !budget.empty())
+            const auto budgetSetting = vsgUtil::TextureCap::parseBudget(budget);
+            if (!budgetSetting.valid)
                 Log(Debug::Warning) << "[Rendering] texture memory budget: unknown '" << budget << "', using off";
+            caps.autoBudget = budgetSetting.autoBudget;
+            if (caps.autoBudget)
+                caps.deviceLocalMiB
+                    = budgetSetting.simulatedMiB ? budgetSetting.simulatedMiB : mEngine.deviceLocalMiB();
             vsgUtil::TextureCap::setCaps(caps);
             using vsgUtil::TextureCap::Category;
             const int objectCap = vsgUtil::TextureCap::effectiveCap(Category::Object, caps);

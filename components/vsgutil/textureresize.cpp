@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include <vsg/core/Allocator.h>
@@ -267,17 +268,23 @@ namespace vsgUtil::TextureResize
         return buildData(channels, false, w, h, result.data(), result.size(), properties, nullptr);
     }
 
-    vsg::ref_ptr<vsg::Data> applyCap(vsg::ref_ptr<vsg::Data> source, int cap, Kind kind, float alphaCutoff)
+    vsg::ref_ptr<vsg::Data> applyCapUncounted(
+        vsg::ref_ptr<vsg::Data> source, int cap, Kind kind, float alphaCutoff, CapOutcome& outcome)
     {
+        outcome = CapOutcome{};
         if (!source || cap <= 0)
             return source;
         const size_t before = source->dataSize();
+        auto leftBig = [&]() {
+            outcome = { CapOutcome::Result::LeftBig, before, before };
+            return source;
+        };
         if (!isPlain2D(*source))
         {
             if (std::max(
                     source->width() * source->properties.blockWidth, source->height() * source->properties.blockHeight)
                 > static_cast<uint32_t>(cap))
-                report().addLeftBig(before);
+                return leftBig();
             return source;
         }
         const auto chain = detail::mipLevels(*source);
@@ -291,7 +298,7 @@ namespace vsgUtil::TextureResize
         {
             // Nothing to do, or nothing allowed: a block compressed image already at its smallest block count.
             if (std::max(top.width, top.height) > static_cast<uint32_t>(cap))
-                report().addLeftBig(before);
+                return leftBig();
             return source;
         }
 
@@ -300,10 +307,7 @@ namespace vsgUtil::TextureResize
         {
             result = dropMipLevels(*source, plan.drop);
             if (!result)
-            {
-                report().addLeftBig(before);
-                return source;
-            }
+                return leftBig();
         }
         bool shrunk = false;
         if (plan.shrink > 0 && blockSize == 1)
@@ -315,11 +319,37 @@ namespace vsgUtil::TextureResize
             }
         }
         if (shrunk)
-            report().addShrunk(before, result->dataSize());
+            outcome = { CapOutcome::Result::Shrunk, before, result->dataSize() };
         else if (plan.drop > 0)
-            report().addDropped(before, result->dataSize());
+            outcome = { CapOutcome::Result::Dropped, before, result->dataSize() };
         else
-            report().addLeftBig(before);
+            return leftBig();
+        return result;
+    }
+
+    void record(const CapOutcome& outcome)
+    {
+        switch (outcome.result)
+        {
+            case CapOutcome::Result::Dropped:
+                report().addDropped(outcome.before, outcome.after);
+                break;
+            case CapOutcome::Result::Shrunk:
+                report().addShrunk(outcome.before, outcome.after);
+                break;
+            case CapOutcome::Result::LeftBig:
+                report().addLeftBig(outcome.before);
+                break;
+            case CapOutcome::Result::None:
+                break;
+        }
+    }
+
+    vsg::ref_ptr<vsg::Data> applyCap(vsg::ref_ptr<vsg::Data> source, int cap, Kind kind, float alphaCutoff)
+    {
+        CapOutcome outcome;
+        auto result = applyCapUncounted(std::move(source), cap, kind, alphaCutoff, outcome);
+        record(outcome);
         return result;
     }
 

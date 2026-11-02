@@ -1,6 +1,7 @@
 #include "readimage.hpp"
 
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <stdexcept>
@@ -105,6 +106,9 @@ namespace vsgUtil
             // Only an image the options share can come back as the same object, so only that one is worth keeping.
             if (!shared)
                 return TextureResize::applyCap(data, cap, use.kind, use.alphaCutoff);
+            // The report is written only by the thread whose result is kept, or two loaders racing on one image
+            // would count it twice.
+            TextureResize::CapOutcome outcome;
 
             const CapKey key{ data.get(), cap, static_cast<int>(use.kind), static_cast<int>(use.alphaCutoff * 1000.f) };
             {
@@ -112,7 +116,7 @@ namespace vsgUtil
                 if (auto capped = findCapped(key, data))
                     return capped;
             }
-            auto capped = TextureResize::applyCap(data, cap, use.kind, use.alphaCutoff);
+            auto capped = TextureResize::applyCapUncounted(data, cap, use.kind, use.alphaCutoff, outcome);
             std::scoped_lock lock(capCacheMutex);
             if (auto other = findCapped(key, data))
                 return other; // another loader thread was first
@@ -121,7 +125,19 @@ namespace vsgUtil
                 for (auto it = capCache.begin(); it != capCache.end();)
                     it = it->second.original.valid() ? std::next(it) : capCache.erase(it);
             capCache[key] = CapEntry{ vsg::observer_ptr<vsg::Data>(data), vsg::observer_ptr<vsg::Data>(capped) };
+            TextureResize::record(outcome);
             return capped;
+        }
+
+        // The cap a read with this use gets, or 0.
+        int capFor(const ImageUse& use)
+        {
+            if (use.category == TextureCap::Category::None)
+                return 0;
+            int cap = TextureCap::effectiveCap(use.category, TextureCap::getCaps());
+            if (cap > 0 && use.floor > 0)
+                cap = std::max(cap, use.floor);
+            return cap;
         }
     }
 
@@ -140,14 +156,46 @@ namespace vsgUtil
         if (data)
             removeSrgb(*data);
         // Task 0049: only a read that names a category can be capped; any other is returned as it was read.
-        if (data && use.category != TextureCap::Category::None)
+        if (data)
         {
-            int cap = TextureCap::effectiveCap(use.category, TextureCap::getCaps());
-            if (cap > 0 && use.floor > 0)
-                cap = std::max(cap, use.floor);
+            const int cap = capFor(use);
             if (cap > 0)
                 data = capImage(data, cap, use, options && options->sharedObjects);
         }
         return data;
+    }
+
+    std::vector<vsg::ref_ptr<vsg::Data>> readArrayImages(const std::vector<std::string>& paths,
+        vsg::ref_ptr<const vsg::Options> options, const ImageUse& use, bool required)
+    {
+        auto readAll = [&](const ImageUse& readUse) {
+            std::vector<vsg::ref_ptr<vsg::Data>> images;
+            images.reserve(paths.size());
+            for (const auto& path : paths)
+                images.push_back(
+                    required ? readImage(path, options, readUse) : readOptionalImage(path, options, readUse));
+            return images;
+        };
+        auto images = readAll(use);
+        const int cap = capFor(use);
+        if (cap <= 0)
+            return images;
+        for (const auto& image : images)
+        {
+            if (!image)
+                continue;
+            const auto [width, height, depth, faces] = image->pixelExtents();
+            if (std::max(width, height) > static_cast<uint32_t>(cap))
+            {
+                // One layer could not be brought down (a block compressed image with one level). Layers of different
+                // sizes would leave it grey in the array, so the array keeps its full sizes: the cap never makes an
+                // array worse than no cap.
+                std::cerr << "Texture cap: an image of an array cannot be made smaller, so the whole array is left at "
+                             "full size"
+                          << std::endl;
+                return readAll(ImageUse{});
+            }
+        }
+        return images;
     }
 }

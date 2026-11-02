@@ -43,6 +43,29 @@ namespace vsgUtil::TextureResize
      */
     vsg::ref_ptr<vsg::Data> applyCap(vsg::ref_ptr<vsg::Data> source, int cap, Kind kind, float alphaCutoff);
 
+    // What applyCapUncounted did, so a caller that may throw its result away (a loader thread that lost a race to
+    // cache it) can leave the report alone.
+    struct CapOutcome
+    {
+        enum class Result
+        {
+            None, // nothing needed or nothing counted
+            Dropped,
+            Shrunk,
+            LeftBig,
+        };
+        Result result = Result::None;
+        uint64_t before = 0;
+        uint64_t after = 0;
+    };
+
+    // Adds an outcome to report().
+    void record(const CapOutcome& outcome);
+
+    // As applyCap, but writes what it did to `outcome` and leaves report() alone.
+    vsg::ref_ptr<vsg::Data> applyCapUncounted(
+        vsg::ref_ptr<vsg::Data> source, int cap, Kind kind, float alphaCutoff, CapOutcome& outcome);
+
     struct Report
     {
         uint32_t dropped = 0; // textures made smaller by dropping levels only

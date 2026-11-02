@@ -58,9 +58,11 @@ namespace Terrain
             using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
             std::vector<vsg::ref_ptr<vsg::Data>> images;
             std::map<ImageKey, size_t> counts;
-            for (const auto& path : paths)
+            const auto readImages = vsgUtil::readArrayImages(paths, options, use, false);
+            for (size_t n = 0; n < paths.size(); ++n)
             {
-                auto data = vsgUtil::readOptionalImage(path, options, use);
+                const auto& path = paths[n];
+                auto data = readImages[n];
                 // Task 0045: the blur and the mean height of a height file read coarser mip levels.
                 if (data && accept == Render::Parallax::usableHeightFormat
                     && !Render::Parallax::heightMipsUsable(data->properties.format,
@@ -162,11 +164,13 @@ namespace Terrain
         }
 
         vsg::DataList imageData;
-        for (const auto& layer : layers)
+        const std::vector<std::string> layerPaths(layers.begin(), layers.end());
+        const auto layerImages = vsgUtil::readArrayImages(
+            layerPaths, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour), true);
+        for (size_t n = 0; n < layerPaths.size(); ++n)
         {
-            auto data = vsgUtil::readImage(layer, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour));
-            vsgUtil::setName(*data, layer);
-            imageData.push_back(data);
+            vsgUtil::setName(*layerImages[n], layerPaths[n]);
+            imageData.push_back(layerImages[n]);
         }
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
         mLayerDescriptor
@@ -194,10 +198,12 @@ namespace Terrain
         std::vector<vsg::ref_ptr<vsg::Data>> normalImages;
         using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
         std::map<ImageKey, size_t> keyCounts;
-        for (const auto& path : maps.normalMaps)
+        const auto normalReads = vsgUtil::readArrayImages(
+            maps.normalMaps, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Normal), true);
+        for (size_t n = 0; n < maps.normalMaps.size(); ++n)
         {
-            auto data = vsgUtil::readImage(path, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Normal));
-            vsgUtil::setName(*data, path);
+            const auto& data = normalReads[n];
+            vsgUtil::setName(*data, maps.normalMaps[n]);
             normalImages.push_back(data);
             ++keyCounts[{ data->width(), data->height(), data->properties.format }];
         }
@@ -258,13 +264,17 @@ namespace Terrain
         }
         const uint32_t flagMask = mMapSettings.pbr ? 0xffffffffu : (1u << layerMaterialShift) - 1u;
         flags->set(0, packLayerFlags(-1, false, false, -1, Render::Pbr::MapLayout::Orm) & flagMask);
+        std::vector<std::string> diffusePaths;
+        diffusePaths.reserve(maps.layers.size());
+        for (const TerrainLayer& layer : maps.layers)
+            diffusePaths.push_back(layer.diffuseMap);
+        const auto diffuseImages = vsgUtil::readArrayImages(
+            diffusePaths, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour), true);
         for (size_t i = 0; i < maps.layers.size(); ++i)
         {
             const TerrainLayer& layer = maps.layers[i];
-            auto data = vsgUtil::readImage(
-                layer.diffuseMap, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour));
-            vsgUtil::setName(*data, layer.diffuseMap);
-            imageData.push_back(data);
+            vsgUtil::setName(*diffuseImages[i], layer.diffuseMap);
+            imageData.push_back(diffuseImages[i]);
             const int normalIndex = layer.normalMapIndex >= 0 ? arrayIndex[layer.normalMapIndex] : -1;
             const int materialIndex = (layer.materialMapIndex >= 0 && !materialArrayIndex.empty())
                 ? materialArrayIndex[layer.materialMapIndex]

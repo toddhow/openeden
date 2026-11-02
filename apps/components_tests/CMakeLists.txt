@@ -211,6 +211,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testtexturecap.cpp
     vsgutil/testtextureresize.cpp
     vsgutil/testtexturecapread.cpp
+    vsgutil/testtexturecaparray.cpp
 
     fx/lexer.cpp
     fx/technique.cpp

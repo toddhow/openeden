@@ -2,6 +2,7 @@
 #define OPENEDEN_VSGUTIL_TEXTURECAP_H
 
 #include <cstdint>
+#include <string>
 
 #include <vsg/vk/vulkan.h>
 
@@ -78,6 +79,17 @@ namespace vsgUtil::TextureCap
 
     // The sum of the device-local heaps, in MiB (as the device report's memory.deviceLocalMiB).
     uint64_t deviceLocalMiB(const VkPhysicalDeviceMemoryProperties& memory);
+
+    // `texture memory budget`: "off" (or empty), "auto" (the device's own memory) or a number of MiB, which behaves as
+    // auto on a card with that much device-local memory (to see what a smaller card would get). Anything else is
+    // not valid and counts as off.
+    struct BudgetSetting
+    {
+        bool autoBudget = false;
+        uint64_t simulatedMiB = 0; // 0: ask the device
+        bool valid = true;
+    };
+    BudgetSetting parseBudget(const std::string& text);
 
     // The process-wide settings, written once at start (RenderManager) before the loader threads read them.
     void setCaps(const Caps& caps);

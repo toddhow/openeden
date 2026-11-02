@@ -803,7 +803,7 @@ namespace vsgAdapters
             setup(flipctrl, *ctrl, *stateSwitch);
         }
 
-        vsg::ref_ptr<vsg::Data> handleSourceTexture(const Nif::NiSourceTexture& st)
+        vsg::ref_ptr<vsg::Data> handleSourceTexture(const Nif::NiSourceTexture& st, float alphaCutoff = -1.f)
         {
             if (!st.mExternal && !st.mData.empty())
             {
@@ -815,7 +815,11 @@ namespace vsgAdapters
                 return image;
             }
             else
-                return vsgUtil::readImage(st.mFile, mImageOptions, objectImageUse(vsgUtil::TextureCap::Kind::Colour));
+            {
+                auto use = objectImageUse(vsgUtil::TextureCap::Kind::Colour);
+                use.alphaCutoff = alphaCutoff;
+                return vsgUtil::readImage(st.mFile, mImageOptions, use);
+            }
         }
 
         // Task 0049: models opt in to the texture downscaler; their extra maps follow the same cap as the base
@@ -831,7 +835,11 @@ namespace vsgAdapters
 
         vsg::ref_ptr<vsg::DescriptorImage> handleTexture(const Nif::NiSourceTexture& st, int clamp, uint32_t binding)
         {
-            auto textureData = handleSourceTexture(st);
+            // Task 0049: a cutout (alpha tested) base texture that has to be shrunk keeps the share of texels that pass
+            // the test (foliage, fences), so it does not thin out.
+            const auto& nodeOptions = getNodeOptions();
+            const float cutoff = (binding == 0 && nodeOptions.alphaTestMode != 0) ? nodeOptions.alphaTestCutoff : -1.f;
+            auto textureData = handleSourceTexture(st, cutoff);
             if (!textureData)
                 return {};
             return createTextureDescriptor(textureData, clamp, binding);
@@ -1487,6 +1495,12 @@ namespace vsgAdapters
 
         void handleProperties(const Nif::NiPropertyList& props)
         {
+            // Task 0049: the alpha test is read first, since the texture property may come before it in the list and
+            // its image is read when it is handled.
+            handleList(props, [this](auto& n) {
+                if (n.mRecordType == Nif::RC_NiAlphaProperty)
+                    handleAlphaProperty(static_cast<const Nif::NiAlphaProperty&>(n));
+            });
             handleList(props, [this](auto& n) { handleProperty(n); });
         }
 
