@@ -7,9 +7,9 @@
 // blend in windows around the sunrise and sunset hours, and show their pure "sunset" colours at the middle of the
 // sunset window of the Sky colour table (about 18:30 with the default INI values). The sun that is drawn, though,
 // sinks until 20:00 (the night start), so a physical sky driven by the drawn sun's height shows sunset colours an
-// hour or more too late. The elevation computed here is the height a sun would have if it crossed the horizon at the middle of the two windows,
-// so a model driven by it is at its sunset at the tables' sunset. It is used for colours only: the drawn sun, the
-// light direction and the shadows keep following the weather manager's own orbit.
+// hour or more too late. The elevation computed here is the height a sun would have if it crossed the horizon at the
+// middle of the two windows, so a model driven by it is at its sunset at the tables' sunset. It is used for colours
+// only: the drawn sun, the light direction and the shadows keep following the weather manager's own orbit.
 
 #include <algorithm>
 #include <cmath>
@@ -68,8 +68,8 @@ namespace Render::Sun
     // of the sun. I(r) = 1 - u (1 - sqrt(1 - r^2)) is the usual one-parameter ("linear") law for it; the value of u
     // (0.6) is chosen by eye, not taken from a measurement.
     constexpr float limbCoefficient = 0.6f;
-    // The share of the quad's half width the disc covers at `procedural sun size` 1 (chosen by eye so that the disc is a
-    // little smaller than the texture's, and the glow has room), and the most it may grow to.
+    // The share of the quad's half width the disc covers at `procedural sun size` 1 (chosen by eye so that the disc is
+    // a little smaller than the texture's, and the glow has room), and the most it may grow to.
     constexpr float discRadiusAtSizeOne = 0.18f;
     constexpr float maxDiscRadius = 0.45f;
     constexpr float minDiscRadius = 0.01f;

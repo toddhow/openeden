@@ -289,8 +289,8 @@ namespace
         ASSERT_TRUE(info.valid) << path;
         EXPECT_EQ(info.version, 0x00010000u);
         EXPECT_EQ(info.entry, "main");
-        // The sun's layout: scene (set 0, binding 0), material (set 2, binding 1); the picture (set 2, binding 0) is not
-        // read by this shader but is allowed to be bound.
+        // The sun's layout: scene (set 0, binding 0), material (set 2, binding 1); the picture (set 2, binding 0) is
+        // not read by this shader but is allowed to be bound.
         const std::set<std::pair<uint32_t, uint32_t>> allowed{ { 0, 0 }, { 2, 0 }, { 2, 1 } };
         for (const auto& b : info.bindings)
             EXPECT_TRUE(allowed.count(b)) << "set " << b.first << " binding " << b.second;

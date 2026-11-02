@@ -58,8 +58,8 @@ namespace Settings
         SettingValue<std::string> mAtmosphereLook{ mIndex, "Rendering", "atmosphere look" };
         // Decision 0010 answer 4: the atmosphere's sun height follows the hour of the colour tables, not the drawn sun.
         SettingValue<bool> mSunFollowsColourTables{ mIndex, "Rendering", "sun follows colour tables" };
-        // Task 0047: the sun as a computed disc (read at start; needs hdr and the Slang shader built): its size, its HDR
-        // intensity and the strength of its glow.
+        // Task 0047: the sun as a computed disc (read at start; needs hdr and the Slang shader built): its size, its
+        // HDR intensity and the strength of its glow.
         SettingValue<bool> mProceduralSun{ mIndex, "Rendering", "procedural sun" };
         SettingValue<float> mProceduralSunSize{ mIndex, "Rendering", "procedural sun size",
             makeClampSanitizerFloat(0.25f, 2.5f) };

@@ -610,8 +610,8 @@ namespace MWRender
             else if (rendering.mProceduralSun)
                 Log(Debug::Warning) << "[Rendering] procedural sun needs hdr; the textured sun is drawn";
         }
-        mSun.setup(vsg::ref_ptr{ new Sun(resourceSystem.textureOptions, *resourceSystem.builder, occlusionQueryPrecise,
-                       proceduralSun) },
+        mSun.setup(vsg::ref_ptr{ new Sun(
+                       resourceSystem.textureOptions, *resourceSystem.builder, occlusionQueryPrecise, proceduralSun) },
             mSwitch, true);
 
         mMasser.setup(
