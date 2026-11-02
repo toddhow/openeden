@@ -64,7 +64,7 @@ The Eden Archive Format (EAF in prose, `.edenpak` on disk; section 2) is a conta
 | Item | Value | Status |
 | --- | --- | --- |
 | Format name | Eden Archive Format | decided (toddhow, 2026-11-01) |
-| Short name | EdenPak | proposal |
+| Public name | **Eden Archive** (decided by toddhow, 2026-11-01: "Eden Archive will be the public text"); the file extension `.edenpak` and the magic bytes below are unchanged and are not user-facing text; "EdenPak" is not used as a name | decided |
 | File extension | `.edenpak` (lower case; the dot is not part of it) | decided (toddhow, 2026-11-01), collision check in Annex A |
 | Rejected extension | `.eaf`: it is ELAN Annotation Format's extension (https://mpi.nl/corpus/html/elan/ch01s02s05.html), so it is not used | decided |
 | Magic (file start) | the 8 bytes `45 44 45 4E 50 41 4B 01` (ASCII `EDENPAK`, then the byte `01`) | proposal; collision check in Annex A |

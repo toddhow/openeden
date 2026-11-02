@@ -9,7 +9,7 @@ Open point for toddhow first: the short name **EdenPak** is also an unrelated US
 | Item | Value |
 | --- | --- |
 | Format name | **Eden Archive Format** |
-| Short name | **EdenPak** (proposal; see the open point above) |
+| Public name | **Eden Archive** (toddhow, 2026-11-01: "Eden Archive will be the public text"). This settles the open point about the unrelated EDENPAK trademark: the name "EdenPak" is not used in documentation, launcher text or messages. The extension `.edenpak` and the magic `EDENPAK` + `01` are unchanged |
 | File extension | **`.edenpak`** (decided by toddhow). `.eaf` is rejected: it is the extension of ELAN Annotation Format files |
 | Magic (first 8 bytes) | `45 44 45 4E 50 41 4B 01`: ASCII `EDENPAK`, then the container-generation byte `01` (a proposal of task 0051). A probe matches the seven ASCII bytes only, so a later generation is reported as unsupported |
 | Footer magic | `45 44 45 4E 45 4E 44 01`: ASCII `EDENEND`, then `01` |
