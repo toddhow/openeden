@@ -60,7 +60,8 @@ namespace VFS::Path
                 return true;
             if (lower.size() == 4 && (lower.starts_with("com") || lower.starts_with("lpt")))
                 return lower[3] >= '1' && lower[3] <= '9';
-            // COM and LPT followed by a superscript 1, 2 or 3 (UTF-8: C2 B9, C2 B2, C2 B3) are reserved since Windows 10.
+            // COM and LPT followed by a superscript 1, 2 or 3 (UTF-8: C2 B9, C2 B2, C2 B3) are reserved since
+            // Windows 10.
             if (lower.size() == 5 && (lower.starts_with("com") || lower.starts_with("lpt")))
             {
                 const auto b3 = static_cast<unsigned char>(lower[3]);

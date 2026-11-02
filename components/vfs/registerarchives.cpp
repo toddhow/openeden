@@ -30,8 +30,9 @@ namespace VFS
             if (overridden == 0 && identical == 0)
                 return;
 
-            Log(Debug::Info) << "Data sources: " << counts.size() << ", paths provided by more than one source: "
-                             << (overridden + identical) << " (identical content: " << identical << ")";
+            Log(Debug::Info) << "Data sources: " << counts.size()
+                             << ", paths provided by more than one source: " << (overridden + identical)
+                             << " (identical content: " << identical << ")";
             for (const SourceOverrideCount& count : counts)
             {
                 if (count.mOverridden != 0)

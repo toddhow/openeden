@@ -30,8 +30,7 @@ namespace VFS
     namespace
     {
         void readOpened(Platform::File::Handle handle, std::uint64_t regionStart, std::uint64_t regionSize,
-            std::uint64_t offset, std::size_t size, void* destination,
-            const std::string& label)
+            std::uint64_t offset, std::size_t size, void* destination, const std::string& label)
         {
             if (!isRangeInside(offset, size, regionSize))
                 fail(label,
@@ -51,7 +50,8 @@ namespace VFS
             if (position > std::numeric_limits<std::size_t>::max())
                 fail(label, "the position does not fit into this platform's file offsets");
 
-            const std::size_t got = Platform::File::readAt(handle, static_cast<std::size_t>(position), destination, size);
+            const std::size_t got
+                = Platform::File::readAt(handle, static_cast<std::size_t>(position), destination, size);
             if (got != size)
                 fail(label, "expected " + std::to_string(size) + " bytes, got " + std::to_string(got));
         }

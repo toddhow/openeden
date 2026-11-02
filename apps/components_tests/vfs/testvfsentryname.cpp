@@ -160,12 +160,18 @@ namespace VFS::Path
             // control characters
             { std::string("a\0b", 3), false, "embedded NUL" },
             { std::string("\0", 1), false, "only NUL" },
-            { "a\x01" "b", false, "control character 0x01" },
+            { "a\x01"
+              "b",
+                false, "control character 0x01" },
             { "a\tb", false, "tab" },
             { "a\nb", false, "line feed" },
             { "a\rb", false, "carriage return" },
-            { "a\x1b" "b", false, "escape" },
-            { "a\x1f" "b", false, "control character 0x1f" },
+            { "a\x1b"
+              "b",
+                false, "escape" },
+            { "a\x1f"
+              "b",
+                false, "control character 0x1f" },
             { "x/\x07", false, "bell at the end of a component" },
         };
 
@@ -355,7 +361,9 @@ namespace VFS::Path
             { "a\xC3", false, "truncated sequence" },
             { "\xFF", false, "invalid byte" },
             { std::string("a\0b", 3), false, "embedded NUL" },
-            { "a\x01" "b", false, "control character" },
+            { "a\x01"
+              "b",
+                false, "control character" },
             { "a\tb", false, "tab" },
             { "a\nb", false, "line feed" },
         };

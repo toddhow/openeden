@@ -382,8 +382,8 @@ namespace VFS
             EXPECT_TRUE(std::is_sorted(all.begin(), all.end()));
             EXPECT_EQ(std::set<std::string>(all.begin(), all.end()).size(), all.size());
             EXPECT_THAT(all,
-                IsSupersetOf({ "base.bsa", "meshes/a.nif", "meshes/b.nif", "meshes/sub/c.nif", "textures/t.dds",
-                    "x.txt" }));
+                IsSupersetOf(
+                    { "base.bsa", "meshes/a.nif", "meshes/b.nif", "meshes/sub/c.nif", "textures/t.dds", "x.txt" }));
         }
 
         TEST_F(VFSCharacterisationTest, recursiveDirectoryRangeShouldAcceptNormalizedViews)

@@ -22,8 +22,8 @@ namespace VFS
     class RecursiveDirectoryRange;
 
     /// One source (an archive) that provides a path. A Provider (and so an Override) points into the manager's
-    /// archives: it is valid until the next reset(), addArchive() or buildIndex(). mArchive is its index in registration order: 0 was
-    /// registered first and has the lowest priority.
+    /// archives: it is valid until the next reset(), addArchive() or buildIndex(). mArchive is its index in
+    /// registration order: 0 was registered first and has the lowest priority.
     struct Provider
     {
         std::size_t mArchive;

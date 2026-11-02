@@ -29,7 +29,8 @@ namespace VFS
 
     /// Asks the added factories in the order they were added, then the built-in Bethesda reader (BSA and BA2).
     /// Throws std::runtime_error naming the file if nobody recognises it.
-    std::unique_ptr<Archive> makeArchive(const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder);
+    std::unique_ptr<Archive> makeArchive(
+        const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder);
 }
 
 #endif

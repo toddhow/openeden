@@ -30,10 +30,12 @@ namespace VFS
         // escape never swallows the letter after it.
         const std::string eAcuteComposed = "caf\xC3\xA9";
         const std::string eAcuteDecomposed = "cafe\xCC\x81";
-        const std::string upperUmlaut = "\xC3\x9C"
-                                        "ber"; // "Uber" with U-umlaut
-        const std::string lowerUmlaut = "\xC3\xBC"
-                                        "ber";
+        const std::string upperUmlaut
+            = "\xC3\x9C"
+              "ber"; // "Uber" with U-umlaut
+        const std::string lowerUmlaut
+            = "\xC3\xBC"
+              "ber";
 
         // ---- normalizeFilename ----
 
@@ -278,8 +280,8 @@ namespace VFS
 
         TEST_F(VFSNormalizationLookupTest, caseAndSlashVariantsShouldFindTheSameFile)
         {
-            for (const char* name : { "meshes/a.nif", "MESHES/A.NIF", "Meshes\\A.nif", "meshes//a.nif",
-                     "/meshes/a.nif", "\\meshes\\a.nif", "//Meshes///A.NIF" })
+            for (const char* name : { "meshes/a.nif", "MESHES/A.NIF", "Meshes\\A.nif", "meshes//a.nif", "/meshes/a.nif",
+                     "\\meshes\\a.nif", "//Meshes///A.NIF" })
             {
                 EXPECT_TRUE(has(name)) << name;
                 EXPECT_EQ(contentOf(*mVfs, name), "a") << name;

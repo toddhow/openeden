@@ -110,8 +110,8 @@ namespace Platform::File
         size_t total = 0;
         while (total < size)
         {
-            const ssize_t amount
-                = ::pread(nativeHandle, static_cast<char*>(data) + total, size - total, static_cast<off_t>(position + total));
+            const ssize_t amount = ::pread(
+                nativeHandle, static_cast<char*>(data) + total, size - total, static_cast<off_t>(position + total));
             if (amount == -1)
             {
                 if (errno == EINTR)

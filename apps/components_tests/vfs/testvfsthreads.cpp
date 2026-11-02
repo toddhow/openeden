@@ -88,8 +88,8 @@ namespace VFS
                     else
                         mExpected[nameOf(i)] = { makeContent(i, "B"), "DIR: " + dirB.string() };
                 }
-                mExpected["base.bsa"] = { readAll(*Files::openConstrainedFileStream(dirA / "base.bsa")),
-                    "DIR: " + dirA.string() };
+                mExpected["base.bsa"]
+                    = { readAll(*Files::openConstrainedFileStream(dirA / "base.bsa")), "DIR: " + dirA.string() };
             }
 
             void fail(const std::string& message)

@@ -58,8 +58,8 @@ namespace VFS
             file.readRange(offset, size, buffer.data() + guardSize);
             for (std::size_t i = 0; i < guardSize; ++i)
             {
-                EXPECT_EQ(buffer[i], guardByte) << "guard before the destination was written, offset " << offset
-                                                << " size " << size;
+                EXPECT_EQ(buffer[i], guardByte)
+                    << "guard before the destination was written, offset " << offset << " size " << size;
                 EXPECT_EQ(buffer[guardSize + size + i], guardByte)
                     << "guard after the destination was written, offset " << offset << " size " << size;
             }
@@ -218,8 +218,8 @@ namespace VFS
         TEST_P(VFSRangeTest, zeroLengthReadsShouldBeValidUpToAndIncludingTheSize)
         {
             Subject subject = make(1000);
-            for (const std::uint64_t offset : { std::uint64_t(0), std::uint64_t(1), std::uint64_t(500),
-                     std::uint64_t(999), std::uint64_t(1000) })
+            for (const std::uint64_t offset :
+                { std::uint64_t(0), std::uint64_t(1), std::uint64_t(500), std::uint64_t(999), std::uint64_t(1000) })
                 EXPECT_EQ(readChecked(*subject.mFile, offset, 0), "") << offset;
         }
 
@@ -282,8 +282,8 @@ namespace VFS
             };
             // The sum of offset and size wraps around in 64 bits in every one of these.
             for (const Range range : { Range{ maxOffset, 1 }, Range{ maxOffset, 2 }, Range{ maxOffset - 3, 8 },
-                     Range{ maxOffset - 1, maxSize }, Range{ 1, maxSize }, Range{ 999, maxSize },
-                     Range{ 0, maxSize }, Range{ 0, maxSize - 1 }, Range{ 500, maxSize - 100 },
+                     Range{ maxOffset - 1, maxSize }, Range{ 1, maxSize }, Range{ 999, maxSize }, Range{ 0, maxSize },
+                     Range{ 0, maxSize - 1 }, Range{ 500, maxSize - 100 },
                      Range{ maxOffset / 2 + 1, static_cast<std::size_t>(maxOffset / 2 + 1) },
                      Range{ maxOffset, maxSize } })
                 EXPECT_THROW(subject.mFile->readRange(range.mOffset, range.mSize, buffer.data()), std::runtime_error)
@@ -427,8 +427,7 @@ namespace VFS
             EXPECT_EQ(failures.load(), 0u);
         }
 
-        INSTANTIATE_TEST_SUITE_P(
-            Kinds, VFSRangeTest, Values(Kind::Loose, Kind::Bsa, Kind::OpenOnly), kindName);
+        INSTANTIATE_TEST_SUITE_P(Kinds, VFSRangeTest, Values(Kind::Loose, Kind::Bsa, Kind::OpenOnly), kindName);
 
         // ---- BSA specifics ----
 

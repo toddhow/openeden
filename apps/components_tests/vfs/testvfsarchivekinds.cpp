@@ -191,8 +191,8 @@ namespace VFS
         TEST_F(VFSArchiveKindsTest, factoriesShouldBeAskedInTheOrderTheyWereAddedAndNullptrShouldFallThrough)
         {
             std::vector<std::string> log;
-            addArchiveFactory([&log](const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder*)
-                    -> std::unique_ptr<Archive> {
+            addArchiveFactory([&log](const std::filesystem::path& path,
+                                  const ToUTF8::StatelessUtf8Encoder*) -> std::unique_ptr<Archive> {
                 log.push_back("first:" + path.filename().string());
                 return nullptr;
             });
@@ -272,8 +272,8 @@ namespace VFS
         TEST_F(VFSArchiveKindsTest, factoryThatThrowsShouldStopTheSearchAndPropagate)
         {
             std::vector<std::string> log;
-            addArchiveFactory([&log](const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder*)
-                    -> std::unique_ptr<Archive> {
+            addArchiveFactory([&log](const std::filesystem::path& path,
+                                  const ToUTF8::StatelessUtf8Encoder*) -> std::unique_ptr<Archive> {
                 log.push_back("broken:" + path.filename().string());
                 throw std::runtime_error("broken pack " + path.filename().string());
             });
