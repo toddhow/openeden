@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <span>
 
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/objectcluster.hpp>
@@ -94,5 +95,52 @@ namespace
         EXPECT_FALSE(isValidClusterTexturePath(std::string_view("a\nb.dds")));
         EXPECT_FALSE(isValidClusterTexturePath(std::string_view("a\0b.dds", 7)));
         EXPECT_TRUE(isValidClusterTexturePath("textures/a.dds"));
+    }
+
+    // Stage d: the header read that the runtime's selection uses.
+    ObjectCluster simpleCluster()
+    {
+        ClusterBuildInput input = tileWith(triangle("a.dds"));
+        ObjectCluster cluster;
+        EXPECT_TRUE(buildObjectCluster(input, cluster).ok());
+        return cluster;
+    }
+
+    TEST(LodClusterReview, header_of_a_written_cluster_gives_the_selection_numbers)
+    {
+        const ObjectCluster cluster = simpleCluster();
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(writeObjectCluster(cluster, bytes).ok());
+        ClusterHeaderInfo info;
+        const LodError error = readObjectClusterHeader(std::span<const std::uint8_t>(bytes.data(), objectClusterHeaderSize), info);
+        ASSERT_TRUE(error.ok()) << error.describe();
+        EXPECT_EQ(info.mLevel, cluster.mLevel);
+        EXPECT_EQ(info.mSide, cluster.mSide);
+        EXPECT_EQ(info.mOriginX, cluster.mOriginX);
+        EXPECT_EQ(info.mOriginY, cluster.mOriginY);
+        EXPECT_EQ(info.mMinZ, cluster.mMinZ);
+        EXPECT_EQ(info.mMaxZ, cluster.mMaxZ);
+        EXPECT_EQ(info.mGeometricError, cluster.mGeometricError);
+        EXPECT_EQ(info.mOverhang, cluster.mOverhang);
+    }
+
+    TEST(LodClusterReview, header_read_refuses_short_input_and_bad_numbers)
+    {
+        const ObjectCluster cluster = simpleCluster();
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(writeObjectCluster(cluster, bytes).ok());
+        ClusterHeaderInfo info;
+        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bytes.data(), 50), info).ok());
+        std::vector<std::uint8_t> bad = bytes;
+        bad[0] = 'X';
+        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
+        bad = bytes;
+        bad[8] = 9; // level
+        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
+        bad = bytes;
+        bad[15] = 0x7F; // side becomes huge but finite; then NaN below
+        bad[12] = bad[13] = bad[14] = 0xFF;
+        bad[15] = 0xFF;
+        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
     }
 }

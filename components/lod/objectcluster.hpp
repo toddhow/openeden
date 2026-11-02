@@ -143,6 +143,21 @@ namespace Lod
     /// fit any grid or a number is not finite.
     LodError snapClusterToGrid(ObjectCluster& cluster);
 
+    /// What the selection needs of a cluster, from the first objectClusterHeaderSize bytes alone.
+    struct ClusterHeaderInfo
+    {
+        std::uint32_t mLevel = 0;
+        float mSide = 0;
+        float mOriginX = 0, mOriginY = 0;
+        float mMinZ = 0, mMaxZ = 0;
+        float mGeometricError = 0;
+        float mOverhang = 0;
+    };
+
+    /// Parses and checks the header's own numbers (magic, version, level, finite and ordered floats). Does not look at
+    /// the tables.
+    LodError readObjectClusterHeader(std::span<const std::uint8_t> bytes, ClusterHeaderInfo& info);
+
     /// Checks everything the reader checks, on the logical content (so a writer cannot produce what the reader
     /// refuses): level, finite numbers, caps, group spans and ranges tiling, indices below the vertex count, cell
     /// slots, vertices inside the bounds, references sorted per cell and covering the table, sorted cells and groups,

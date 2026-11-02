@@ -150,9 +150,14 @@ namespace Lod
             // double-sided quad pair (swamp scum, thin walls) is a closed shell of no volume, and with only an error
             // limit it collapses to nothing at no error, losing the object.
             const std::size_t floorIndices = std::max<std::size_t>(12, indices.size() / 16);
+            // A cutout piece (leaves, fences) is a set of open cards whose texture is the shape: collapsing their
+            // borders stretches the texture into streaks across the sky, so the border stays where it is.
+            unsigned int options = meshopt_SimplifyErrorAbsolute;
+            if ((piece.mFlags & clusterFlagAlphaTest) != 0)
+                options |= meshopt_SimplifyLockBorder;
             const std::size_t kept
                 = meshopt_simplify(simplified.data(), indices.data(), indices.size(), positions.data(), vertexCount,
-                    3 * sizeof(float), floorIndices, input.mLevel.mError, meshopt_SimplifyErrorAbsolute, &achieved);
+                    3 * sizeof(float), floorIndices, input.mLevel.mError, options, &achieved);
             simplified.resize(kept);
             if (simplified.empty())
             {

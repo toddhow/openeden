@@ -398,6 +398,28 @@ namespace Lod
         return key && mImpl->mArchive->findKey(*key).has_value();
     }
 
+    LodError ClusterPack::readHeader(const TileId& id, ClusterHeaderInfo& info) const
+    {
+        const std::optional<std::uint64_t> key = packClusterKey(id);
+        if (!key)
+            return fail("tileId", 0, "the tile id does not pack into a key");
+        const std::optional<std::size_t> index = mImpl->mArchive->findKey(*key);
+        if (!index)
+            return fail("tileId", 0, "the pack has no such cluster");
+        if (mImpl->mArchive->entry(*index).mSize < objectClusterHeaderSize)
+            return fail("header", 0, "the cluster entry is shorter than its header");
+        std::uint8_t header[objectClusterHeaderSize];
+        const EdenArchive::Error archiveError
+            = mImpl->mArchive->readRange(*index, 0, objectClusterHeaderSize, header);
+        if (archiveError)
+            return fromArchive(archiveError, "cluster");
+        if (LodError error = readObjectClusterHeader(std::span<const std::uint8_t>(header, objectClusterHeaderSize), info))
+            return error;
+        if (info.mLevel != id.mLevel)
+            return fail("level", 8, "the cluster's level differs from the level in its key");
+        return {};
+    }
+
     LodError ClusterPack::readCluster(const TileId& id, ObjectCluster& cluster, EdenArchive::DecodeBudget* budget) const
     {
         const std::optional<std::uint64_t> key = packClusterKey(id);

@@ -619,6 +619,37 @@ namespace Lod
         return {};
     }
 
+    LodError readObjectClusterHeader(std::span<const std::uint8_t> b, ClusterHeaderInfo& info)
+    {
+        info = ClusterHeaderInfo{};
+        if (b.size() < objectClusterHeaderSize)
+            return fail("header", 0, "fewer than 104 bytes");
+        if (std::memcmp(b.data() + offMagic, magic, 4) != 0)
+            return fail("magic", offMagic, "not an object cluster");
+        const std::uint32_t version
+            = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
+        if (version != objectClusterPayloadVersion)
+            return fail("version", offVersion, "only the draft version 0 is understood");
+        ClusterHeaderInfo parsed;
+        parsed.mLevel = getU32(b, offLevel);
+        parsed.mSide = getF32(b, offSide);
+        parsed.mOriginX = getF32(b, offOriginX);
+        parsed.mOriginY = getF32(b, offOriginY);
+        parsed.mMinZ = getF32(b, offMinZ);
+        parsed.mMaxZ = getF32(b, offMaxZ);
+        parsed.mGeometricError = getF32(b, offError);
+        parsed.mOverhang = getF32(b, offOverhang);
+        if (parsed.mLevel < minClusterLevel || parsed.mLevel > maxClusterLevel)
+            return fail("level", offLevel, "the level must be 1 to 3");
+        if (!finite(parsed.mSide) || !(parsed.mSide > 0) || !finite(parsed.mOriginX) || !finite(parsed.mOriginY)
+            || !finite(parsed.mMinZ) || !finite(parsed.mMaxZ) || parsed.mMaxZ < parsed.mMinZ
+            || !finite(parsed.mGeometricError) || parsed.mGeometricError < 0 || !finite(parsed.mOverhang)
+            || parsed.mOverhang < 0)
+            return fail("header", offSide, "a header number is not finite or out of order");
+        info = parsed;
+        return {};
+    }
+
     LodError readObjectCluster(std::span<const std::uint8_t> b, ObjectCluster& cluster, const TileId* expected)
     {
         cluster = ObjectCluster{};

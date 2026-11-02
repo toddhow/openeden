@@ -74,6 +74,8 @@ namespace Lod
         const EdenArchive::Hash& sourceDigest() const noexcept;
         const std::vector<TileId>& tileIds() const noexcept; // key order
         bool contains(const TileId& id) const noexcept;
+        /// Reads just the header (one range read of 104 bytes).
+        LodError readHeader(const TileId& id, ClusterHeaderInfo& info) const;
         LodError readCluster(
             const TileId& id, ObjectCluster& cluster, EdenArchive::DecodeBudget* budget = nullptr) const;
         const EdenArchive::Archive& archive() const noexcept;

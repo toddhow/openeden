@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -73,7 +74,22 @@ namespace Lod
             bool mBlend = false;
             bool mTest = false;
             std::uint8_t mThreshold = 0;
+            // The blend factors (NiAlphaProperty codes: 6 source alpha, 7 one minus source alpha).
+            int mSourceBlend = 6;
+            int mDestinationBlend = 7;
         };
+
+        // Textures whose alpha is a real translucency, not a cutout: drawn as solid sheets they would be wrong (a heuristic
+        // on the file name; there is no texture reader here).
+        bool looksTranslucent(const std::string& texture)
+        {
+            std::string lower = texture;
+            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+            for (const char* word : { "water", "ice", "glass", "rope", "scum", "mist", "fog", "glow", "ray", "cloud" })
+                if (lower.find(word) != std::string::npos)
+                    return true;
+            return false;
+        }
 
         std::uint8_t toByte(float value)
         {
@@ -83,6 +99,11 @@ namespace Lod
         class Flattener
         {
         public:
+            explicit Flattener(bool blendAsCutout)
+                : mBlendAsCutout(blendAsCutout)
+            {
+            }
+
             FlattenedModel run(const Nif::NiAVObject& root)
             {
                 visit(root, identity(), Inherited{}, 0);
@@ -113,6 +134,8 @@ namespace Lod
                     inherited.mBlend = alpha.useAlphaBlending();
                     inherited.mTest = alpha.useAlphaTesting();
                     inherited.mThreshold = alpha.mThreshold;
+                    inherited.mSourceBlend = alpha.sourceBlendMode();
+                    inherited.mDestinationBlend = alpha.destinationBlendMode();
                 }
             }
 
@@ -216,6 +239,14 @@ namespace Lod
                 Inherited state = inherited;
                 if (!geometry.mAlphaProperty.empty())
                     applyProperty(*geometry.mAlphaProperty.getPtr(), state);
+                // Only the ordinary blend (source alpha, one minus source alpha) is a cutout; an additive or other blend
+                // (glows, light shafts) would draw as solid sheets.
+                if (state.mBlend && !state.mTest && mBlendAsCutout && state.mSourceBlend == 6 && state.mDestinationBlend == 7
+                    && !looksTranslucent(state.mTexture))
+                {
+                    state.mTest = true;
+                    state.mThreshold = 128;
+                }
                 if (state.mBlend && !state.mTest)
                 {
                     mModel.mTraits.mAlphaBlended = true;
@@ -310,11 +341,12 @@ namespace Lod
             }
 
             FlattenedModel mModel;
+            bool mBlendAsCutout;
         };
     }
 
-    FlattenedModel flattenNifModel(const Nif::NiAVObject& root)
+    FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout)
     {
-        return Flattener().run(root);
+        return Flattener(blendAsCutout).run(root);
     }
 }
