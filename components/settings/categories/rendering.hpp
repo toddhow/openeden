@@ -56,6 +56,8 @@ namespace Settings
         SettingValue<float> mSssWidth{ mIndex, "Rendering", "sss width", makeClampSanitizerFloat(0.1f, 10) };
         SettingValue<bool> mAtmosphere{ mIndex, "Rendering", "atmosphere" };
         SettingValue<std::string> mAtmosphereLook{ mIndex, "Rendering", "atmosphere look" };
+        // Decision 0010 answer 4: the atmosphere's sun height follows the hour of the colour tables, not the drawn sun.
+        SettingValue<bool> mSunFollowsColourTables{ mIndex, "Rendering", "sun follows colour tables" };
 
         // Task 0028: ambient light from baked light probes. Read at start; needs hdr and pbr.
         SettingValue<bool> mGi{ mIndex, "Rendering", "gi" };

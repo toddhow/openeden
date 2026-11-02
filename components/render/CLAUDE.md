@@ -75,7 +75,7 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 
 ## Subsurface scattering of skin (task 0033, R7)
 
-- **`[Rendering] sss`** (off by default; needs `hdr`, `gbuffer` and `pbr`, read at start by `MWRender::RenderManager`), `sss strength` (0 to 1, default 0.5), `sss width` (game units, default 0.7). Off, no `SSS` define, no bindings, no push constant: the tonemap's shader is the one without it.
+- **`[Rendering] sss`** (off by default; needs `hdr`, `gbuffer` and `pbr`, read at start by `MWRender::RenderManager`), `sss strength` (0 to 1, default 0.8; was 0.5), `sss width` (game units, default 1.0; was 0.7). Off, no `SSS` define, no bindings, no push constant: the tonemap's shader is the one without it.
 - **It lives in the tonemap's fragment shader** (`tonemap.cpp`, `sssApply`), not in a pass of its own: for a pixel whose material output alpha (the skin mark) is set, each channel is multiplied by a gain, the wide Gaussian average of neighbouring skin on the same surface over a very narrow one. Bindings 10 to 12 (material, linear depth, normal), push constants after the occlusion's and before the debug view's (`Tonemap::setSource` computes the offsets). `Tonemap::Parameters::sssFocalPixels` is set every frame from the projection (`RenderManager::onFrame`), because the blur has a size in the world.
 - **The twin** is `sssmath.hpp` (the constants are written into the shader from it); change both together. Debug view: `gbuffer debug view = sss` (eight times the change).
 - **Pitfalls found by the frame check:** a difference (wide minus narrow) instead of a ratio made dark noses and mouths take red from the fur around them; a per-pixel turn of the 16 tap spiral made faces dotted. The skin mark covers the whole head model, eyes included, and there is no albedo to tell lit skin from dark texture, so the effect stays mild by default.
@@ -90,6 +90,8 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 - **Clouds:** `sky/clouds/main.frag` multiplies by `material.diffuse.xyz` (`Pipeline::Material::setTint`), white unless the atmosphere sets it.
 - **Fixing the weather and hour for frames:** start in an interior, run `ChangeWeather "Bitter Coast Region" <id>`, `coc "Seyda Neen"` (entering a new region forces that weather at once, `WeatherManager::playerTeleported`), `set gamehour to <h>`, `set timescale to 1`.
 - **Not built:** moon light, a sun glow in the fog (no room in the scene uniform block), volumetric clouds, surface wetness, snow and ash cover, precipitation changes.
+- **The hour the model uses (decision 0010 answer 4):** with `[Rendering] sun follows colour tables` (default on, only matters with `atmosphere`), `WeatherManager::update` gives `applyAtmosphere` `Render::Sun::tableElevation(hour, windows)` (`sunmath.hpp`), not the drawn sun's height, so the sunset colours come at the middle of the colour tables' sunset window (19:00 by default). Colours only: the drawn sun, the light direction and the shadows keep the orbit.
+- **Eyes are not skin (decision 0010 answer 5):** `OverrideTable::resolveValues` does not give a skin-marked model's texture the mark when `Render::Pbr::isEyeTexture` says its name has the word eye or eyes in it.
 
 ## Exterior ambient light from a sky-visibility field (task 0036)
 

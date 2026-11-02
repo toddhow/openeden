@@ -156,6 +156,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testmaterialmath.cpp
     render/testmaterialoverrides.cpp
     render/testeyeskin.cpp
+    render/testtableelevation.cpp
     render/testrmaos.cpp
     render/testprobegpu.cpp
     render/testprobebake.cpp

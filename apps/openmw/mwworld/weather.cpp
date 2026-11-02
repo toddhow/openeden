@@ -4,6 +4,7 @@
 #include <components/render/atmospheremath.hpp>
 #include <components/render/covermath.hpp>
 #include <components/render/lightningmath.hpp>
+#include <components/render/sunmath.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/settings/values.hpp>
 
@@ -1026,6 +1027,14 @@ namespace MWWorld
                 static_cast<float>(sin(theta)));
             mRendering.setSunDirection(final * -1);
             sunHeight = Render::Atmosphere::sunElevation(final, isNight);
+            // Decision 0010 answer 4: the colours follow the colour tables' hour. Only the model's input changes; the
+            // drawn sun and the light direction (set above) keep the orbit.
+            if (Settings::rendering().mSunFollowsColourTables)
+            {
+                const Render::Sun::TimeOfDayWindows windows{ mTimeSettings.mNightEnd, mTimeSettings.mDayStart,
+                    mTimeSettings.mDayEnd, mTimeSettings.mNightStart };
+                sunHeight = Render::Sun::tableElevation(time.getHour(), windows);
+            }
         }
 
         float underwaterFog = mUnderwaterFog.getValue(time.getHour(), mTimeSettings, "Fog");
