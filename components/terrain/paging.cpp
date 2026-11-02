@@ -81,27 +81,37 @@ namespace Terrain
             int minY = std::floor((viewCell.y - cellViewDistanceLoad) / batchSize);
             int maxY = std::ceil((viewCell.y + cellViewDistanceLoad) / batchSize);
 
-            std::function<void(const Bounds& bounds)> traverse = [this, &view, viewCell, cellViewDistanceLoad, coverage,
-                                                                     &traverse](const Bounds& bounds) {
-                float cellDist = distance(bounds, viewCell);
-                if (cellDist > cellViewDistanceLoad)
-                    return;
-                // Task 0055: something else draws this square. A chunk only partly inside is split.
-                if (coverage && coverage->contains(bounds))
-                    return;
-                if (isSufficientDetail(bounds.size, cellDist, lodFactor) && !(coverage && coverage->intersects(bounds)))
-                {
-                    view.add(bounds, cellDist);
-                }
-                else
-                {
-                    float childSize = bounds.radius();
-                    traverse({ childSize, bounds.min });
-                    traverse({ childSize, bounds.min + vsg::vec2(childSize, childSize) });
-                    traverse({ childSize, bounds.min + vsg::vec2(0.f, childSize) });
-                    traverse({ childSize, bounds.min + vsg::vec2(childSize, 0.f) });
-                }
-            };
+            std::function<void(const Bounds& bounds)> traverse
+                = [this, &view, viewCell, cellViewDistanceLoad, coverage, &traverse](const Bounds& bounds) {
+                      float cellDist = distance(bounds, viewCell);
+                      if (cellDist > cellViewDistanceLoad)
+                          return;
+                      // Task 0055: something else draws this square. A chunk only partly inside is split.
+                      if (coverage && coverage->contains(bounds))
+                          return;
+                      // A chunk next to a covered square must be at least as detailed as the square's draw (the
+                      // draw does not stitch itself to coarser neighbours), so it is split until it is.
+                      bool tooCoarseForCoverage = false;
+                      if (coverage && bounds.size > Bounds::minSize)
+                      {
+                          const int touched = coverage->touchedVertexLod(bounds);
+                          tooCoarseForCoverage
+                              = touched >= 0 && static_cast<int>(getVertexLod(bounds.size, vertexLodMod)) > touched;
+                      }
+                      if (isSufficientDetail(bounds.size, cellDist, lodFactor)
+                          && !(coverage && coverage->intersects(bounds)) && !tooCoarseForCoverage)
+                      {
+                          view.add(bounds, cellDist);
+                      }
+                      else
+                      {
+                          float childSize = bounds.radius();
+                          traverse({ childSize, bounds.min });
+                          traverse({ childSize, bounds.min + vsg::vec2(childSize, childSize) });
+                          traverse({ childSize, bounds.min + vsg::vec2(0.f, childSize) });
+                          traverse({ childSize, bounds.min + vsg::vec2(childSize, 0.f) });
+                      }
+                  };
 
             struct Batch
             {

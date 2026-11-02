@@ -67,4 +67,33 @@ namespace
         EXPECT_EQ(second->vertexLod, 3u);
         EXPECT_EQ(coverage.find(vsg::vec2(2.f, 2.f)), nullptr);
     }
+
+    TEST(TerrainCoverage, touched_vertex_lod_is_minus_one_when_nothing_is_touched)
+    {
+        const Coverage coverage = makeCoverage();
+        EXPECT_EQ(coverage.touchedVertexLod(Bounds{ 1.f, vsg::vec2(20.f, 20.f) }), -1);
+        EXPECT_EQ(Coverage{}.touchedVertexLod(Bounds{ 1.f, vsg::vec2(0.f, 0.f) }), -1);
+    }
+
+    TEST(TerrainCoverage, touched_vertex_lod_counts_an_edge_and_a_corner_as_touching)
+    {
+        const Coverage coverage = makeCoverage();
+        // Shares the edge x = 0 with the first square (lod 2).
+        EXPECT_EQ(coverage.touchedVertexLod(Bounds{ 2.f, vsg::vec2(0.f, 0.f) }), 2);
+        // Shares only the corner (0, 2) with it.
+        EXPECT_EQ(coverage.touchedVertexLod(Bounds{ 1.f, vsg::vec2(0.f, 2.f) }), 2);
+        // Inside it.
+        EXPECT_EQ(coverage.touchedVertexLod(Bounds{ 1.f, vsg::vec2(-1.f, 0.f) }), 2);
+        // One cell away from it.
+        EXPECT_EQ(coverage.touchedVertexLod(Bounds{ 1.f, vsg::vec2(1.f, 2.f) }), -1);
+    }
+
+    TEST(TerrainCoverage, touched_vertex_lod_is_the_smallest_of_the_squares_touched)
+    {
+        Coverage coverage;
+        coverage.squares.push_back(CoveredSquare{ Bounds{ 2.f, vsg::vec2(0.f, 0.f) }, 4 });
+        coverage.squares.push_back(CoveredSquare{ Bounds{ 2.f, vsg::vec2(2.f, 0.f) }, 2 });
+        // A chunk over both squares touches both.
+        EXPECT_EQ(coverage.touchedVertexLod(Bounds{ 4.f, vsg::vec2(0.f, 0.f) }), 2);
+    }
 }

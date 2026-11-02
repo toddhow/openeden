@@ -53,6 +53,27 @@ namespace Terrain
             return false;
         }
 
+        // The smallest vertex LOD among the covered squares that `other` touches (shares area or an edge or a corner
+        // with), or -1 when it touches none. A live chunk next to a covered square must not have fewer vertices than
+        // the square's draw: the draw cannot stitch itself to a coarser neighbour, so the chunk is split instead.
+        int touchedVertexLod(const Bounds& other) const
+        {
+            int result = -1;
+            for (const CoveredSquare& square : squares)
+            {
+                const vsg::vec2 squareMax = square.bounds.max();
+                const vsg::vec2 otherMax = other.max();
+                if (other.min.x <= squareMax.x && otherMax.x >= square.bounds.min.x && other.min.y <= squareMax.y
+                    && otherMax.y >= square.bounds.min.y)
+                {
+                    const int lod = static_cast<int>(square.vertexLod);
+                    if (result < 0 || lod < result)
+                        result = lod;
+                }
+            }
+            return result;
+        }
+
         // The covered square that holds the point, or nullptr.
         const CoveredSquare* find(const vsg::vec2& point) const
         {
