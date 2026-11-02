@@ -192,15 +192,14 @@ namespace
         {
             point = point * (1.0 / length(point));
         }
-        std::vector<std::array<std::uint32_t, 3>> faces = { { 0, 11, 5 }, { 0, 5, 1 }, { 0, 1, 7 }, { 0, 7, 10 },
-            { 0, 10, 11 }, { 1, 5, 9 }, { 5, 11, 4 }, { 11, 10, 2 }, { 10, 7, 6 }, { 7, 1, 8 }, { 3, 9, 4 },
-            { 3, 4, 2 }, { 3, 2, 6 }, { 3, 6, 8 }, { 3, 8, 9 }, { 4, 9, 5 }, { 2, 4, 11 }, { 6, 2, 10 }, { 8, 6, 7 },
-            { 9, 8, 1 } };
+        std::vector<std::array<std::uint32_t, 3>> faces
+            = { { 0, 11, 5 }, { 0, 5, 1 }, { 0, 1, 7 }, { 0, 7, 10 }, { 0, 10, 11 }, { 1, 5, 9 }, { 5, 11, 4 },
+                  { 11, 10, 2 }, { 10, 7, 6 }, { 7, 1, 8 }, { 3, 9, 4 }, { 3, 4, 2 }, { 3, 2, 6 }, { 3, 6, 8 },
+                  { 3, 8, 9 }, { 4, 9, 5 }, { 2, 4, 11 }, { 6, 2, 10 }, { 8, 6, 7 }, { 9, 8, 1 } };
         for (int step = 0; step < subdivisions; ++step)
         {
             std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint32_t> midpoints;
-            const auto midpoint = [&points, &midpoints](std::uint32_t a, std::uint32_t b)
-            {
+            const auto midpoint = [&points, &midpoints](std::uint32_t a, std::uint32_t b) {
                 const auto key = std::make_pair(std::min(a, b), std::max(a, b));
                 const auto found = midpoints.find(key);
                 if (found != midpoints.end())
@@ -228,9 +227,8 @@ namespace
         piece.mTexture = texture;
         for (const Vec3& point : points)
         {
-            piece.mVertices.push_back(makeVertex(
-                point * static_cast<double>(radius), point, static_cast<float>(0.5 + 0.5 * point.x),
-                static_cast<float>(0.5 + 0.5 * point.y)));
+            piece.mVertices.push_back(makeVertex(point * static_cast<double>(radius), point,
+                static_cast<float>(0.5 + 0.5 * point.x), static_cast<float>(0.5 + 0.5 * point.y)));
         }
         for (const auto& face : faces)
         {
@@ -339,9 +337,9 @@ namespace
     bool sameStats(const ClusterBuildStats& a, const ClusterBuildStats& b)
     {
         return a.mObjectsSeen == b.mObjectsSeen && a.mObjectsIncluded == b.mObjectsIncluded
-            && a.mExcluded == b.mExcluded
-            && a.mTrianglesBefore == b.mTrianglesBefore && a.mTrianglesAfter == b.mTrianglesAfter
-            && a.mMaxSimplifyError == b.mMaxSimplifyError && a.mMaxDroppedRadius == b.mMaxDroppedRadius;
+            && a.mExcluded == b.mExcluded && a.mTrianglesBefore == b.mTrianglesBefore
+            && a.mTrianglesAfter == b.mTrianglesAfter && a.mMaxSimplifyError == b.mMaxSimplifyError
+            && a.mMaxDroppedRadius == b.mMaxDroppedRadius;
     }
 
     std::uint32_t excludedCount(const ClusterBuildStats& stats, ExcludeReason reason)
@@ -553,8 +551,7 @@ namespace
             { "radius zero", makeTraits(staticKind, 0, 12, flagNone), 1, ExcludeReason::TooSmall },
             { "radius equal to the drop size is included", makeTraits(staticKind, 64, 12, flagNone), 1,
                 ExcludeReason::None },
-            { "radius just above the drop size", makeTraits(staticKind, 64.01f, 12, flagNone), 1,
-                ExcludeReason::None },
+            { "radius just above the drop size", makeTraits(staticKind, 64.01f, 12, flagNone), 1, ExcludeReason::None },
             { "drop factor 2: below", makeTraits(staticKind, 127.5f, 12, flagNone), 2, ExcludeReason::TooSmall },
             { "drop factor 2: equal", makeTraits(staticKind, 128, 12, flagNone), 2, ExcludeReason::None },
             { "drop factor 0 keeps tiny objects", makeTraits(staticKind, 0, 12, flagNone), 0, ExcludeReason::None },
@@ -630,8 +627,7 @@ namespace
             { "cell south of the tile", [](ClusterBuildInput& in) { in.mObjects[0].mCellY = -1; } },
             { "cell north of the tile", [](ClusterBuildInput& in) { in.mObjects[0].mCellY = 2; } },
             { "index outside the vertices",
-                [](ClusterBuildInput& in)
-                {
+                [](ClusterBuildInput& in) {
                     SourcePiece& piece = in.mObjects[0].mPieces[0];
                     piece.mIndices[5] = static_cast<std::uint32_t>(piece.mVertices.size());
                 } },
@@ -642,8 +638,9 @@ namespace
             { "transform inf",
                 [](ClusterBuildInput& in) { in.mObjects[0].mTransform[3] = std::numeric_limits<double>::infinity(); } },
             { "transform NaN",
-                [](ClusterBuildInput& in)
-                { in.mObjects[0].mTransform[5] = std::numeric_limits<double>::quiet_NaN(); } },
+                [](ClusterBuildInput& in) {
+                    in.mObjects[0].mTransform[5] = std::numeric_limits<double>::quiet_NaN();
+                } },
         };
         for (const Case& item : cases)
         {
@@ -661,8 +658,7 @@ namespace
     TEST(LodClusterBuild, MoreThanSixtyFourDistinctCellsIsAnError)
     {
         // A level 3 tile of 16 x 16 cells of 4096 units: room for 256 distinct cells, but a cluster takes 64.
-        const auto makeCapInput = [](std::uint32_t objects)
-        {
+        const auto makeCapInput = [](std::uint32_t objects) {
             ClusterBuildInput input;
             input.mLevel = ClusterLevelParams{ 3, 0.01f, 1.0f };
             input.mOriginX = 0;
@@ -850,8 +846,8 @@ namespace
             for (int shape = 0; shape < 2; ++shape)
             {
                 ClusterBuildInput input = makeInput(tinyError);
-                SourcePiece piece = shape == 0 ? makeCubePiece(200, "textures/a.dds")
-                                               : makeIcospherePiece(400, 2, "textures/a.dds");
+                SourcePiece piece
+                    = shape == 0 ? makeCubePiece(200, "textures/a.dds") : makeIcospherePiece(400, 2, "textures/a.dds");
                 SourceObject object = makeObject(1, 0, 0, piece, 700);
                 object.mTransform = transform;
                 input.mObjects.push_back(object);
@@ -934,8 +930,8 @@ namespace
         {
             seen.emplace_back(range.mGroup, range.mCellSlot, range.mIndexCount);
         }
-        const std::vector<std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>> expected = { { 0, 0, 72 },
-            { 0, 2, 36 }, { 1, 0, 36 }, { 1, 1, 36 }, { 1, 3, 36 } };
+        const std::vector<std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>> expected
+            = { { 0, 0, 72 }, { 0, 2, 36 }, { 1, 0, 36 }, { 1, 1, 36 }, { 1, 3, 36 } };
         EXPECT_EQ(seen, expected);
     }
 
@@ -1154,8 +1150,8 @@ namespace
                 ClusterBuildInput input = makeInput(64);
                 input.mLevel.mDropFactor = 0; // nothing is dropped by size, so the simplifier decides alone
                 SourcePiece piece = shape == 0 ? makeCubePiece(half, "textures/a.dds")
-                    : shape == 1                ? makeIcospherePiece(half, 2, "textures/a.dds")
-                                                : makePlanePiece(half * 2, 4, "textures/a.dds");
+                    : shape == 1               ? makeIcospherePiece(half, 2, "textures/a.dds")
+                                               : makePlanePiece(half * 2, 4, "textures/a.dds");
                 input.mObjects.push_back(makeObject(1, 0, 0, piece, half * 1.75f));
                 const Built built = build(input);
                 ASSERT_TRUE(built.mError.ok()) << built.mError.describe() << " half " << half << " shape " << shape;
@@ -1329,18 +1325,16 @@ namespace
             std::vector<std::thread> threads;
             for (std::size_t i = 0; i < results.size(); ++i)
             {
-                threads.emplace_back(
-                    [&input, &results, &errors, i]()
+                threads.emplace_back([&input, &results, &errors, i]() {
+                    ObjectCluster local;
+                    errors[i] = buildObjectCluster(input, local);
+                    if (errors[i].ok())
                     {
-                        ObjectCluster local;
-                        errors[i] = buildObjectCluster(input, local);
-                        if (errors[i].ok())
-                        {
-                            const LodError written = writeObjectCluster(local, results[i]);
-                            if (!written.ok())
-                                errors[i] = written;
-                        }
-                    });
+                        const LodError written = writeObjectCluster(local, results[i]);
+                        if (!written.ok())
+                            errors[i] = written;
+                    }
+                });
             }
             for (std::thread& thread : threads)
             {

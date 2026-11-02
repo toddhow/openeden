@@ -847,11 +847,7 @@ namespace
             { "unknown flag", [](ObjectCluster& c) { c.mGroups[0].mFlags = 4; } },
             { "cutoff without alpha test", [](ObjectCluster& c) { c.mGroups[0].mAlphaCutoff = 0.25f; } },
             { "cutoff NaN", [](ObjectCluster& c) { c.mGroups[1].mAlphaCutoff = nanValue; } },
-            { "groups unsorted",
-                [](ObjectCluster& c)
-                {
-                    std::swap(c.mGroups[0].mTexture, c.mGroups[1].mTexture);
-                } },
+            { "groups unsorted", [](ObjectCluster& c) { std::swap(c.mGroups[0].mTexture, c.mGroups[1].mTexture); } },
             { "group spans do not tile", [](ObjectCluster& c) { c.mGroups[1].mFirstIndex = 5; } },
             { "ranges do not tile", [](ObjectCluster& c) { c.mRanges[0].mIndexCount = 6; } },
             { "range with no triangles", [](ObjectCluster& c) { c.mRanges[0].mIndexCount = 0; } },
@@ -863,15 +859,13 @@ namespace
             { "cell ref span", [](ObjectCluster& c) { c.mCells[1].mFirstRef = 3; } },
             { "cell ref count", [](ObjectCluster& c) { c.mCells[0].mRefCount = 1; } },
             { "cell without references",
-                [](ObjectCluster& c)
-                {
+                [](ObjectCluster& c) {
                     c.mCells.push_back(ClusterCell{ 5, 5, 3, 0 });
                 } },
             { "refs unsorted", [](ObjectCluster& c) { std::swap(c.mRefs[0], c.mRefs[1]); } },
             { "refs duplicated", [](ObjectCluster& c) { c.mRefs[1] = c.mRefs[0]; } },
             { "too many cells",
-                [](ObjectCluster& c)
-                {
+                [](ObjectCluster& c) {
                     for (std::int32_t i = 1; i <= 64; ++i)
                     {
                         c.mCells.push_back(ClusterCell{ i, 7, 3, 0 });

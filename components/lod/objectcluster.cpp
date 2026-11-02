@@ -169,7 +169,8 @@ namespace Lod
             if (c.mRefs.empty() || c.mRefs.size() > maxClusterRefs)
                 return fail("refCount", offRefCount, "references must be 1 to " + std::to_string(maxClusterRefs));
             if (c.mVertices.empty() || c.mVertices.size() > maxClusterVertices)
-                return fail("vertexCount", offVertexCount, "vertices must be 1 to " + std::to_string(maxClusterVertices));
+                return fail(
+                    "vertexCount", offVertexCount, "vertices must be 1 to " + std::to_string(maxClusterVertices));
             if (c.mIndices.empty() || c.mIndices.size() > maxClusterIndices || c.mIndices.size() % 3 != 0)
                 return fail("indexCount", offIndexCount, "indices must be a multiple of 3, 3 to the cap");
 
@@ -450,7 +451,8 @@ namespace Lod
             return fail("header", 0, "fewer than 104 bytes");
         if (std::memcmp(b.data() + offMagic, magic, 4) != 0)
             return fail("magic", offMagic, "not an object cluster");
-        const std::uint32_t version = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
+        const std::uint32_t version
+            = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
         if (version != objectClusterPayloadVersion)
             return fail("version", offVersion, "only the draft version 0 is understood");
         if (b[offFlags] != 0 || b[offFlags + 1] != 0)
@@ -536,8 +538,7 @@ namespace Lod
                 return fail("groups.pathOffset", at, "paths must follow each other in group order");
             if (pathLength == 0 || pathLength > maxClusterTexturePath || pathOffset + pathLength > stringBytes)
                 return fail("groups.pathLength", at + 4, "the path is empty, too long or leaves the string table");
-            g.mTexture.assign(
-                reinterpret_cast<const char*>(b.data() + layout.mStrings + pathStart), pathLength);
+            g.mTexture.assign(reinterpret_cast<const char*>(b.data() + layout.mStrings + pathStart), pathLength);
             pathOffset += pathLength;
             g.mFlags = getU32(b, at + 8);
             g.mAlphaCutoff = getF32(b, at + 12);

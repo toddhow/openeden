@@ -131,9 +131,9 @@ namespace Lod
 
             std::vector<std::uint32_t> simplified(indices.size());
             float achieved = 0;
-            const std::size_t kept = meshopt_simplify(simplified.data(), indices.data(), indices.size(),
-                positions.data(), vertexCount, 3 * sizeof(float), 0, input.mLevel.mError,
-                meshopt_SimplifyErrorAbsolute, &achieved);
+            const std::size_t kept
+                = meshopt_simplify(simplified.data(), indices.data(), indices.size(), positions.data(), vertexCount,
+                    3 * sizeof(float), 0, input.mLevel.mError, meshopt_SimplifyErrorAbsolute, &achieved);
             simplified.resize(kept);
             if (simplified.empty())
                 return false;
@@ -317,7 +317,8 @@ namespace Lod
             {
                 if (c.mCells.size() >= maxClusterCells)
                     return fail("cells", "more than 64 cells hold objects");
-                c.mCells.push_back(ClusterCell{ object.mCellX, object.mCellY, static_cast<std::uint32_t>(c.mRefs.size()), 0 });
+                c.mCells.push_back(
+                    ClusterCell{ object.mCellX, object.mCellY, static_cast<std::uint32_t>(c.mRefs.size()), 0 });
             }
             c.mCells.back().mRefCount++;
             c.mRefs.push_back(object.mRef);
