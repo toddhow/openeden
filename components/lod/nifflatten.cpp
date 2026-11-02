@@ -77,19 +77,9 @@ namespace Lod
             // The blend factors (NiAlphaProperty codes: 6 source alpha, 7 one minus source alpha).
             int mSourceBlend = 6;
             int mDestinationBlend = 7;
+            // The material's alpha, 1 when no material property was seen.
+            float mMaterialAlpha = 1.f;
         };
-
-        // Textures whose alpha is a real translucency, not a cutout: drawn as solid sheets they would be wrong (a
-        // heuristic on the file name; there is no texture reader here).
-        bool looksTranslucent(const std::string& texture)
-        {
-            std::string lower = texture;
-            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
-            for (const char* word : { "water", "ice", "glass", "rope", "scum", "mist", "fog", "glow", "ray", "cloud" })
-                if (lower.find(word) != std::string::npos)
-                    return true;
-            return false;
-        }
 
         std::uint8_t toByte(float value)
         {
@@ -126,6 +116,10 @@ namespace Lod
                         if (base.mEnabled && !base.mSourceTexture.empty() && base.mSourceTexture->mExternal)
                             inherited.mTexture = base.mSourceTexture->mFile;
                     }
+                }
+                else if (property.mRecordType == Nif::RC_NiMaterialProperty)
+                {
+                    inherited.mMaterialAlpha = static_cast<const Nif::NiMaterialProperty&>(property).mAlpha;
                 }
                 else if (property.mRecordType == Nif::RC_NiAlphaProperty)
                 {
@@ -242,10 +236,11 @@ namespace Lod
                 // Only the ordinary blend (source alpha, one minus source alpha) is a cutout; an additive or other
                 // blend (glows, light shafts) would draw as solid sheets.
                 if (state.mBlend && !state.mTest && mBlendAsCutout && state.mSourceBlend == 6
-                    && state.mDestinationBlend == 7 && !looksTranslucent(state.mTexture))
+                    && state.mDestinationBlend == 7 && !state.mTexture.empty() && state.mMaterialAlpha >= 0.99f
+                    && !textureLooksTranslucent(state.mTexture))
                 {
                     state.mTest = true;
-                    state.mThreshold = 128;
+                    state.mThreshold = blendCutoutThreshold;
                 }
                 if (state.mBlend && !state.mTest)
                 {
@@ -343,6 +338,48 @@ namespace Lod
             FlattenedModel mModel;
             bool mBlendAsCutout;
         };
+    }
+
+    bool textureLooksTranslucent(std::string_view texture)
+    {
+        // The base name: after the last slash, before the last dot.
+        const std::size_t slash = texture.find_last_of("/\\");
+        std::string_view name = slash == std::string_view::npos ? texture : texture.substr(slash + 1);
+        const std::size_t dot = name.find_last_of('.');
+        if (dot != std::string_view::npos)
+            name = name.substr(0, dot);
+
+        static constexpr std::string_view exact[] = { "ray", "rays", "mist", "fog", "rope", "ropes", "web", "webs",
+            "window", "windows", "bottle", "bottles", "ghost", "bubble", "bubbles", "smoke", "steam", "glass", "glow",
+            "cloud", "clouds", "water", "ice" };
+        static constexpr std::string_view prefixes[] = { "water", "ice", "glass", "glow", "smoke", "steam", "cloud",
+            "ghost", "bubble" };
+
+        std::string word;
+        const auto matches = [](const std::string& token) {
+            if (token.empty())
+                return false;
+            for (const std::string_view keyword : exact)
+                if (token == keyword)
+                    return true;
+            for (const std::string_view prefix : prefixes)
+                if (token.size() >= prefix.size() && token.compare(0, prefix.size(), prefix) == 0)
+                    return true;
+            return false;
+        };
+        for (const char c : name)
+        {
+            const auto byte = static_cast<unsigned char>(c);
+            if (byte < 0x80 && std::isalpha(byte))
+                word += static_cast<char>(std::tolower(byte));
+            else
+            {
+                if (matches(word))
+                    return true;
+                word.clear();
+            }
+        }
+        return matches(word);
     }
 
     FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout)

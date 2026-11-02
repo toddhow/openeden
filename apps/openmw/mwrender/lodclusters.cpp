@@ -25,6 +25,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/lod/clusterfade.hpp>
+#include <components/lod/clusterplan.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/pipeline/bindings.hpp>
@@ -45,6 +46,8 @@ namespace MWRender
         // Tiles read and decoded at once (each on its own thread), and tiles turned into draws in one frame.
         constexpr std::size_t maxLoadsInFlight = 2;
         constexpr std::size_t maxBuildsPerFrame = 1;
+        // Frames before a tile that failed to read or compile is tried again (about ten seconds).
+        constexpr int retryFrames = 600;
 
         // Everything a worker brings back for one cluster.
         struct Loaded
@@ -81,15 +84,16 @@ namespace MWRender
             std::shared_ptr<Loaded> mData;
             vsg::ref_ptr<vsg::Node> mNode;
             std::vector<std::unique_ptr<Pipeline::Material>> mMaterials;
-            float mFade = 0; // mirrors mFadeState.mFade
-            Lod::TileFade mFadeState;
+            float mFade = 0; // the fade the materials hold (mirrors the cover tile's)
+            int mCooldown = 0; // frames before a tile that failed to compile is tried again
+            bool mLoggedFailure = false;
             bool mWanted = false;
             std::uint64_t mMaskVersion = 0;
             std::set<int> mMasked; // the cell slots the draws leave out
             std::size_t mDraws = 0;
             std::size_t mTriangles = 0;
-            // The cells of the cluster that are not masked.
-            std::set<std::pair<int, int>> mFreeCells;
+            // The slots (into the cluster's cell table) of the cells that are not masked and that the draws cover.
+            std::vector<int> mFreeSlots;
         };
     }
 
@@ -115,10 +119,10 @@ namespace MWRender
         std::set<std::pair<std::uint32_t, std::uint32_t>> mOverrides; // (index, content file)
         std::uint64_t mMaskVersion = 1;
         vsg::ref_ptr<vsg::Sampler> mSampler;
-        std::uint64_t mClusteredSignature = 0; // rises when a mask rebuild changed a tile's free cells
-        std::uint64_t mClusteredSignatureSeen = ~std::uint64_t{ 0 };
+        bool mClusteredDirty = false;
 
-        std::set<std::pair<int, int>> mClustered;
+        std::vector<Lod::CoverTile> mCover; // parallel to mTiles
+        LodClusters::ClusteredCells mClustered;
         std::uint64_t mClusteredVersion = 0;
         Stats mStats;
         std::size_t mLastLoggedBuilt = static_cast<std::size_t>(-1);
@@ -269,7 +273,7 @@ namespace MWRender
         }
     }
 
-    const std::set<std::pair<int, int>>& LodClusters::clusteredCells() const
+    const LodClusters::ClusteredCells& LodClusters::clusteredCells() const
     {
         return mState->mClustered;
     }
@@ -442,6 +446,51 @@ namespace MWRender
         }
     }
 
+    namespace
+    {
+        // Builds the draws of a tile for the cells that are not masked, compiles them and adds them to the scene. False
+        // when the compile failed: the tile then covers no cell, so the live objects keep every static. A tile whose
+        // every cell is masked has no draws and succeeds.
+        bool attachNode(Tile& tile, const LodClusters::Setup& setup, const std::set<int>& masked,
+            vsg::ref_ptr<vsg::Sampler>& sampler, vsg::Group& root)
+        {
+            tile.mNode = buildNode(tile, setup, masked, sampler);
+            tile.mFreeSlots.clear();
+            if (tile.mNode)
+            {
+                if (!setup.mCompile->compile(tile.mNode))
+                {
+                    tile.mNode = {};
+                    tile.mMaterials.clear();
+                    return false;
+                }
+                root.addChild(tile.mNode);
+                for (std::size_t slot = 0; slot < tile.mData->mCluster.mCells.size(); ++slot)
+                    if (!masked.contains(static_cast<int>(slot)))
+                        tile.mFreeSlots.push_back(static_cast<int>(slot));
+            }
+            return true;
+        }
+
+        // A tile that could not be drawn: forget it (its cells stay live), log once, and try again later.
+        void dropFailedTile(Tile& tile, Lod::CoverTile& cover)
+        {
+            if (!tile.mLoggedFailure)
+            {
+                tile.mLoggedFailure = true;
+                Log(Debug::Warning) << "LOD clusters: a cluster could not be compiled; the live objects keep its cells.";
+            }
+            tile.mNode = {};
+            tile.mMaterials.clear();
+            tile.mData.reset();
+            tile.mFreeSlots.clear();
+            tile.mFade = 0;
+            tile.mCooldown = retryFrames;
+            tile.mPhase = Tile::Phase::Idle;
+            cover = {};
+        }
+    }
+
     void LodClusters::update(const Camera& camera, double seconds, const CellPredicate& liveReady)
     {
         State& state = *mState;
@@ -477,6 +526,7 @@ namespace MWRender
                 tileState.mBounds.mGeometricError = header.mGeometricError;
                 state.mStates.push_back(tileState);
             }
+            state.mCover.assign(state.mTiles.size(), Lod::CoverTile{});
             state.mUsable = true;
             state.mStats.mUsable = true;
             state.mStats.mTiles = state.mTiles.size();
@@ -508,9 +558,12 @@ namespace MWRender
         for (std::size_t i = 0; i < state.mTiles.size(); ++i)
         {
             Tile& tile = state.mTiles[i];
+            Lod::CoverTile& cover = state.mCover[i];
             tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile;
+            if (tile.mCooldown > 0)
+                --tile.mCooldown;
 
-            if (tile.mPhase == Tile::Phase::Idle && tile.mWanted && inFlight < maxLoadsInFlight)
+            if (tile.mPhase == Tile::Phase::Idle && tile.mWanted && tile.mCooldown == 0 && inFlight < maxLoadsInFlight)
             {
                 tile.mPhase = Tile::Phase::Loading;
                 ++inFlight;
@@ -532,8 +585,10 @@ namespace MWRender
                 --inFlight;
                 if (!tile.mData->mOk || !tile.mWanted)
                 {
-                    // Failed, or no longer wanted by the time it arrived: forget it (a failed one is retried when
-                    // wanted again, which logs again; the pack is derived data and may be damaged).
+                    // Failed, or no longer wanted by the time it arrived: forget it (a failed read logs and waits a
+                    // while: the pack is derived data and may be damaged).
+                    if (!tile.mData->mOk)
+                        tile.mCooldown = retryFrames;
                     tile.mData.reset();
                     tile.mPhase = Tile::Phase::Idle;
                 }
@@ -541,77 +596,80 @@ namespace MWRender
                 {
                     const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
                     tile.mFade = 0;
-                    tile.mNode = buildNode(tile, setup, masked, state.mSampler);
                     tile.mMaskVersion = state.mMaskVersion;
                     tile.mMasked = masked;
                     ++builds;
-                    if (tile.mNode && setup.mCompile->compile(tile.mNode))
-                        state.mRoot->addChild(tile.mNode);
+                    if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
+                        tile.mPhase = Tile::Phase::Built;
                     else
-                    {
-                        // Not compiled: no draws for this tile (the live objects keep it).
-                        tile.mNode = {};
-                        tile.mMaterials.clear();
-                    }
-                    tile.mFreeCells.clear();
-                    for (std::size_t slot = 0; slot < tile.mData->mCluster.mCells.size(); ++slot)
-                        if (!masked.contains(static_cast<int>(slot)))
-                            tile.mFreeCells.insert(cellOf(tile.mData->mCluster.mCells[slot]));
-                    tile.mPhase = Tile::Phase::Built;
+                        dropFailedTile(tile, cover);
                 }
             }
             if (tile.mPhase != Tile::Phase::Built)
                 continue;
 
-            // The mask changed: rebuild the draws for the new set of cells.
-            std::set<int> masked;
-            bool rebuild = false;
+            // The mask changed: rebuild the draws for the new set of cells (only when this tile's own mask changed).
             if (tile.mMaskVersion != state.mMaskVersion && builds < maxBuildsPerFrame + 1)
             {
-                masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
+                const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
                 tile.mMaskVersion = state.mMaskVersion;
-                rebuild = masked != tile.mMasked;
-            }
-            if (rebuild)
-            {
-                vsg::ref_ptr<vsg::Node> old = tile.mNode;
-                tile.mNode = buildNode(tile, setup, masked, state.mSampler);
-                tile.mMasked = masked;
-                ++builds;
-                ++state.mClusteredSignature;
-                if (old)
+                if (masked != tile.mMasked)
                 {
-                    auto& children = state.mRoot->children;
-                    children.erase(std::remove(children.begin(), children.end(), old), children.end());
-                    setup.mCompile->detach(old);
+                    vsg::ref_ptr<vsg::Node> old = tile.mNode;
+                    tile.mMasked = masked;
+                    ++builds;
+                    state.mClusteredDirty = true;
+                    if (old)
+                    {
+                        auto& children = state.mRoot->children;
+                        children.erase(std::remove(children.begin(), children.end(), old), children.end());
+                        setup.mCompile->detach(old);
+                    }
+                    if (!attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
+                    {
+                        dropFailedTile(tile, cover);
+                        continue;
+                    }
                 }
-                if (tile.mNode && setup.mCompile->compile(tile.mNode))
-                    state.mRoot->addChild(tile.mNode);
-                else
-                {
-                    tile.mNode = {};
-                    tile.mMaterials.clear();
-                }
-                tile.mFreeCells.clear();
-                for (std::size_t slot = 0; slot < tile.mData->mCluster.mCells.size(); ++slot)
-                    if (!masked.contains(static_cast<int>(slot)))
-                        tile.mFreeCells.insert(cellOf(tile.mData->mCluster.mCells[slot]));
             }
 
-            // The hand-over order is Lod::stepTileFade's: dither in over the live objects, solid while they leave out
-            // the statics, and after the tile is no longer wanted solid still until they draw the statics again.
-            bool liveBack = true;
-            if (liveReady)
-                for (const auto& cell : tile.mFreeCells)
-                    liveBack = liveBack && liveReady(cell);
-            const float before = tile.mFade;
-            Lod::stepTileFade(tile.mFadeState, tile.mWanted, liveBack, static_cast<float>(seconds), setup.mFadeSeconds);
-            tile.mFade = tile.mFadeState.mFade;
-            if (tile.mFade != before)
+            // What the hand-over sees of this tile: wanted, and the cells whose statics its draws cover (none when it
+            // has no draws).
+            cover.mWanted = tile.mWanted;
+            cover.mCells.clear();
+            if (tile.mNode)
+                for (const int slot : tile.mFreeSlots)
+                    cover.mCells.push_back(cellOf(tile.mData->mCluster.mCells[static_cast<std::size_t>(slot)]));
+        }
+
+        // The hand-over order is Lod::stepCoverage's: a cluster dithers in over the live objects, is solid while they
+        // leave out its statics, and when it is no longer wanted stays solid until they draw the statics again (or
+        // another solid cluster covers the cell).
+        const Lod::LiveReadyFn ready = liveReady ? Lod::LiveReadyFn(liveReady) : Lod::LiveReadyFn([](const Lod::Cell&) { return true; });
+        if (Lod::stepCoverage(state.mCover, static_cast<float>(seconds), setup.mFadeSeconds, ready))
+            state.mClusteredDirty = true;
+
+        std::size_t built = 0, shown = 0, draws = 0, triangles = 0;
+        for (std::size_t i = 0; i < state.mTiles.size(); ++i)
+        {
+            Tile& tile = state.mTiles[i];
+            const Lod::CoverTile& cover = state.mCover[i];
+            if (tile.mPhase != Tile::Phase::Built)
+                continue;
+            ++built;
+            if (tile.mFade != cover.mFade.mFade)
+            {
+                tile.mFade = cover.mFade.mFade;
                 for (auto& material : tile.mMaterials)
                     material->update(material->value().specular.a, tile.mFade);
-
-            if (!tile.mWanted && tile.mFadeState.mPhase == Lod::FadePhase::Hidden)
+            }
+            if (tile.mWanted)
+            {
+                ++shown;
+                draws += tile.mDraws;
+                triangles += tile.mTriangles;
+            }
+            if (!tile.mWanted && cover.mFade.mPhase == Lod::FadePhase::Hidden)
             {
                 if (tile.mNode)
                 {
@@ -622,43 +680,48 @@ namespace MWRender
                 tile.mNode = {};
                 tile.mMaterials.clear();
                 tile.mData.reset();
-                tile.mFreeCells.clear();
-                tile.mFadeState = {};
+                tile.mFreeSlots.clear();
+                state.mCover[i] = {};
                 tile.mFade = 0;
                 tile.mPhase = Tile::Phase::Idle;
             }
         }
 
-        // The cells whose statics the clusters draw: wanted, fully in, not masked. Worked out again only when the
-        // tiles that count, or a mask, changed (a signature of them), not every frame.
-        std::uint64_t signature = state.mClusteredSignature * 1000003u;
-        std::size_t built = 0, shown = 0, draws = 0, triangles = 0;
-        for (std::size_t i = 0; i < state.mTiles.size(); ++i)
+        // The cells the clusters cover, with the references each draws: worked out again only when a tile became or
+        // stopped being Solid or a mask changed a Solid tile's cells, not every frame.
+        if (state.mClusteredDirty)
         {
-            const Tile& tile = state.mTiles[i];
-            if (tile.mPhase == Tile::Phase::Built && Lod::tileCoversStatics(tile.mFadeState))
-                signature = signature * 31u + i + 1;
-        }
-        const bool recompute = signature != state.mClusteredSignatureSeen;
-        state.mClusteredSignatureSeen = signature;
-        std::set<std::pair<int, int>> clustered;
-        for (const Tile& tile : state.mTiles)
-        {
-            if (tile.mPhase != Tile::Phase::Built)
-                continue;
-            ++built;
-            if (!tile.mWanted)
-                continue;
-            ++shown;
-            draws += tile.mDraws;
-            triangles += tile.mTriangles;
-            if (recompute && Lod::tileCoversStatics(tile.mFadeState))
-                clustered.insert(tile.mFreeCells.begin(), tile.mFreeCells.end());
-        }
-        if (recompute && clustered != state.mClustered)
-        {
-            state.mClustered = std::move(clustered);
-            ++state.mClusteredVersion;
+            state.mClusteredDirty = false;
+            LodClusters::ClusteredCells clustered;
+            for (std::size_t i = 0; i < state.mTiles.size(); ++i)
+            {
+                const Tile& tile = state.mTiles[i];
+                if (tile.mPhase != Tile::Phase::Built || state.mCover[i].mFade.mPhase != Lod::FadePhase::Solid
+                    || !tile.mNode)
+                    continue;
+                const Lod::ObjectCluster& cluster = tile.mData->mCluster;
+                for (const int slot : tile.mFreeSlots)
+                {
+                    const Lod::ClusterCell& cell = cluster.mCells[static_cast<std::size_t>(slot)];
+                    auto& refs = clustered[cellOf(cell)];
+                    std::vector<Lod::ClusterRef> merged;
+                    if (refs)
+                        merged = *refs;
+                    merged.insert(merged.end(), cluster.mRefs.begin() + cell.mFirstRef,
+                        cluster.mRefs.begin() + cell.mFirstRef + cell.mRefCount);
+                    std::sort(merged.begin(), merged.end());
+                    merged.erase(std::unique(merged.begin(), merged.end()), merged.end());
+                    refs = std::make_shared<const std::vector<Lod::ClusterRef>>(std::move(merged));
+                }
+            }
+            const bool same = clustered.size() == state.mClustered.size()
+                && std::equal(clustered.begin(), clustered.end(), state.mClustered.begin(),
+                    [](const auto& a, const auto& b) { return a.first == b.first && *a.second == *b.second; });
+            if (!same)
+            {
+                state.mClustered = std::move(clustered);
+                ++state.mClusteredVersion;
+            }
         }
         state.mStats.mBuilt = built;
         state.mStats.mShown = shown;

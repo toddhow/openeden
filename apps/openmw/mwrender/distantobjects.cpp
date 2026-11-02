@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <map>
 
 #include <vsg/commands/Dispatch.h>
@@ -20,6 +21,7 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/lod/clusterplan.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/cullnode.hpp>
@@ -146,7 +148,8 @@ namespace MWRender
         // Builds one cell's chunk, not yet compiled; null when it has nothing to draw. Runs on an operation thread: it
         // reads the store, the content files and the models, and touches nothing the main thread writes.
         vsg::ref_ptr<vsg::Node> buildChunk(const MWAnim::Context& context, const MWWorld::ESMStore& store,
-            const std::pair<int, int>& cell, const std::set<ESM::RefNum>& disabled, float minSize, bool skipStatics)
+            const std::pair<int, int>& cell, const std::set<ESM::RefNum>& disabled, float minSize,
+            const std::vector<Lod::ClusterRef>* clusterRefs)
         {
             auto objects = vsg::Group::create();
             vsg::dbox bounds;
@@ -155,8 +158,10 @@ namespace MWRender
                 if (disabled.contains(refNum) || Misc::ResourceHelpers::isHiddenMarker(ref.mRefID))
                     continue;
                 const int type = store.findStatic(ref.mRefID);
-                // A baked object cluster draws this cell's statics (task 0059).
-                if (skipStatics && type == ESM::REC_STAT)
+                // A baked object cluster draws this static (task 0059): the cluster lists it for this cell.
+                if (clusterRefs != nullptr && type == ESM::REC_STAT
+                    && Lod::clusterDrawsReference(*clusterRefs,
+                        Lod::ClusterRef{ refNum.mIndex, static_cast<std::uint32_t>(refNum.mContentFile) }))
                     continue;
                 const std::string_view model = getModel(type, ref.mRefID, store);
                 if (model.empty())
@@ -227,19 +232,20 @@ namespace MWRender
         std::set<ESM::RefNum> disabled;
         float minSize;
         unsigned int generation;
-        bool skipStatics;
+        std::shared_ptr<const std::vector<Lod::ClusterRef>> clusterRefs;
         vsg::ref_ptr<vsg::Node> chunk;
 
         ChunkBuild(const MWAnim::Context& in_context, const MWWorld::ESMStore& in_store,
             const std::pair<int, int>& in_cell, std::set<ESM::RefNum> in_disabled, float in_minSize,
-            unsigned int in_generation, bool in_skipStatics)
+            unsigned int in_generation,
+            std::shared_ptr<const std::vector<Lod::ClusterRef>> in_clusterRefs)
             : context(in_context)
             , store(in_store)
             , cell(in_cell)
             , disabled(std::move(in_disabled))
             , minSize(in_minSize)
             , generation(in_generation)
-            , skipStatics(in_skipStatics)
+            , clusterRefs(std::move(in_clusterRefs))
         {
         }
 
@@ -247,7 +253,7 @@ namespace MWRender
         {
             try
             {
-                chunk = buildChunk(context, store, cell, disabled, minSize, skipStatics);
+                chunk = buildChunk(context, store, cell, disabled, minSize, clusterRefs.get());
             }
             catch (const std::exception& e)
             {
@@ -305,7 +311,7 @@ namespace MWRender
             mTracker.forget(cell);
             mCellGenerations[cell] = mGeneration;
             mRebuilding.insert(cell);
-            mShownWithoutStatics.erase(cell);
+            mShownSkipsStatics.erase(cell);
         }
         mWantedChanged = true;
     }
@@ -320,17 +326,33 @@ namespace MWRender
 
     bool DistantObjects::staticsReady(const std::pair<int, int>& cell) const
     {
-        if (mClustered.contains(cell) || mRebuilding.contains(cell))
-            return false;
-        const auto shown = mShownWithoutStatics.find(cell);
-        return shown == mShownWithoutStatics.end() || !shown->second;
+        std::optional<bool> shown;
+        if (const auto it = mShownSkipsStatics.find(cell); it != mShownSkipsStatics.end())
+            shown = it->second;
+        return Lod::liveStaticsReady(mClustered.contains(cell), mRebuilding.contains(cell), shown,
+            std::binary_search(mWantedCells.begin(), mWantedCells.end(), cell));
     }
 
-    void DistantObjects::setClusteredCells(const std::set<std::pair<int, int>>& cells)
+    std::shared_ptr<const std::vector<Lod::ClusterRef>> DistantObjects::clusterRefsOf(
+        const std::pair<int, int>& cell) const
     {
+        const auto it = mClustered.find(cell);
+        return it == mClustered.end() ? nullptr : it->second;
+    }
+
+    void DistantObjects::setClusteredCells(const ClusteredCells& cells)
+    {
+        // A cell changed when it entered or left the set or its list of references differs.
         Cells changed;
-        std::set_symmetric_difference(
-            mClustered.begin(), mClustered.end(), cells.begin(), cells.end(), std::back_inserter(changed));
+        for (const auto& [cell, refs] : cells)
+        {
+            const auto old = mClustered.find(cell);
+            if (old == mClustered.end() || !(*old->second == *refs))
+                changed.push_back(cell);
+        }
+        for (const auto& [cell, refs] : mClustered)
+            if (!cells.contains(cell))
+                changed.push_back(cell);
         mClustered = cells;
         if (!changed.empty())
             forget(changed);
@@ -351,7 +373,8 @@ namespace MWRender
         mCellGenerations.clear();
         mClustered.clear();
         mRebuilding.clear();
-        mShownWithoutStatics.clear();
+        mShownSkipsStatics.clear();
+        mWantedCells.clear();
         mOldestValidBuild = ++mGeneration;
         mTracker.clear();
         setShownChunks({});
@@ -365,6 +388,7 @@ namespace MWRender
         std::set<ESM::RefNum> leftOut = mDisabled;
         leftOut.insert(mBlacklist.begin(), mBlacklist.end());
         const auto wanted = distantObjectCells(mCameraPosition, mCellSize, mViewDistance, builtGrid);
+        mWantedCells = wanted;
         // A forgotten cell that is no longer in range will never be built: it has nothing to wait for.
         std::erase_if(mRebuilding, [&wanted](const std::pair<int, int>& cell) {
             return !std::binary_search(wanted.begin(), wanted.end(), cell);
@@ -372,7 +396,7 @@ namespace MWRender
         for (const auto& cell : mTracker.setWanted(wanted))
         {
             auto build = vsg::ref_ptr{ new ChunkBuild(
-                mContext, mStore, cell, leftOut, mMinSize, mGeneration, mClustered.contains(cell)) };
+                mContext, mStore, cell, leftOut, mMinSize, mGeneration, clusterRefsOf(cell)) };
             mBuilds.push_back(build);
             mThreads->add(build);
         }
@@ -417,7 +441,7 @@ namespace MWRender
                 chunk = {};
             mTracker.finish(build->cell, chunk);
             mRebuilding.erase(build->cell);
-            mShownWithoutStatics[build->cell] = build->skipStatics;
+            mShownSkipsStatics[build->cell] = build->clusterRefs != nullptr;
             return true;
         }) > 0;
     }

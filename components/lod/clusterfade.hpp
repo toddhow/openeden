@@ -19,6 +19,7 @@ namespace Lod
         Solid, // fully in: the live objects leave out the statics of the cells it covers
         WaitingForLive, // no longer wanted but still solid, until the live objects draw the statics again
         FadingOut, // dithering out over the live objects, which draw the statics
+        Reclaiming, // the live objects lost the statics again while it was fading out: rising back to solid
     };
 
     struct TileFade
@@ -35,7 +36,10 @@ namespace Lod
     ///    current fade (the live objects never left).
     ///  - Solid: if no longer wanted it is WaitingForLive (the fade stays 1).
     ///  - WaitingForLive: wanted again means Solid; liveReady means FadingOut; else it waits.
-    ///  - FadingOut: the fade falls; wanted again means FadingIn from the current fade; at 0 it is Hidden.
+    ///  - FadingOut: wanted again means FadingIn from the current fade; liveReady false (the live objects lost the
+    ///    statics again: their chunk was rebuilt) means Reclaiming; else the fade falls and at 0 it is Hidden.
+    ///  - Reclaiming: wanted again means FadingIn; liveReady means FadingOut; else the fade rises and at 1 it is
+    ///    WaitingForLive (not Solid: the tile is still not wanted).
     void stepTileFade(TileFade& tile, bool wanted, bool liveReady, float seconds, float fadeSeconds);
 
     /// True while the live objects must leave out the statics of the tile's cells: only in Solid. (In WaitingForLive

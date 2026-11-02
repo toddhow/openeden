@@ -21,15 +21,18 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <utility>
+#include <vector>
 
 #include <vsg/io/Options.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Group.h>
 
 #include <components/esm3/refnum.hpp>
+#include <components/lod/objectcluster.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
 #include "distantobjectcells.hpp"
@@ -88,9 +91,11 @@ namespace MWRender
         void overrideReference(ESM::RefNum ref);
         void clearOverrides();
 
-        /// The cells whose statics a cluster draws, fully faded in and not masked. Changes only on the main thread
-        /// inside update(); `version` rises whenever the set changes.
-        const std::set<std::pair<int, int>>& clusteredCells() const;
+        /// The cells whose statics a Solid cluster draws (not masked), each with the sorted references the cluster
+        /// lists for it: the live objects leave out exactly those statics. Changes only on the main thread inside
+        /// update(); the version rises whenever it changes.
+        using ClusteredCells = std::map<std::pair<int, int>, std::shared_ptr<const std::vector<Lod::ClusterRef>>>;
+        const ClusteredCells& clusteredCells() const;
         std::uint64_t clusteredCellsVersion() const;
 
         struct Stats

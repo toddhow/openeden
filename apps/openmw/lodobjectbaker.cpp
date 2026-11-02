@@ -39,7 +39,7 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 11;
+        constexpr std::uint32_t bakerVersion = 12;
         // Per level (1, 2, 3): the largest simplification error in world units. Starting values of task 0059, D4: about
         // 1.6 pixels at 7,500, 20,000 and 60,000 units at an 8 pixel threshold; to be calibrated by looking at frames.
         constexpr std::uint32_t levelErrors[3] = { 128, 320, 960 };
@@ -200,8 +200,11 @@ namespace OMW
         std::vector<std::uint8_t> parameterBytes(std::uint32_t level, std::uint32_t error, std::uint32_t cellSize)
         {
             std::vector<std::uint8_t> bytes;
-            for (const std::uint32_t word :
-                { bakerVersion, level, error, static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize })
+            // The foliage rule (blend as cutout, the cutoff, the translucent names) changes what a model flattens to, so
+            // its version and constants are part of the digest: an older pack goes stale.
+            for (const std::uint32_t word : { bakerVersion, level, error,
+                     static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize, Lod::foliageRuleVersion,
+                     static_cast<std::uint32_t>(Lod::blendCutoutThreshold) })
                 for (int shift = 0; shift < 32; shift += 8)
                     bytes.push_back(static_cast<std::uint8_t>((word >> shift) & 0xFF));
             return bytes;
