@@ -963,7 +963,7 @@ Decisions that this draft takes where the task text left a choice (D) and deviat
 
 Open points for toddhow:
 
-- **O1.** The short name "EdenPak" is also the name of an unrelated US tableware trademark (EDENPAK LLC, search snippet only) and of a dormant GitHub account (Annex A.3). The format's full name and the extension are not affected. Keep "EdenPak" as the short name?
+- **O1.** The short name "EdenPak" is also the name of an unrelated US tableware trademark (EDENPAK LLC, search snippet only) and of a dormant GitHub account (Annex A.3). The format's full name and the extension are not affected. Keep "EdenPak" as the short name? **Resolved 2026-11-01:** toddhow decided that "Eden Archive" is the public name, so "EdenPak" is not used as a name.
 - **O2.** The `application/vnd.openeden.edenpak` MIME type is a proposal; registration with IANA is not requested.
 - **O3.** Limits (section 12) and the chunk size default need measurement on real Morrowind and New Vegas data (task 0051 stage f/g, which were not run, as this task used no game files).
 - **O4.** Not checked in the collision search: PRONOM and GitHub code search (blocked), every other registry.
