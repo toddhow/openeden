@@ -147,12 +147,13 @@ namespace Render::Parallax
         return 1.f / std::max(eyeZ, minViewZ);
     }
 
-    // The ray's slant (|eye.xy| / eye.z, the tangent of the view angle from the normal) never counts for more than this:
-    // a view almost along the surface, or a texture already stretched by a steep face, cannot smear the picture over
-    // many times the depth.
+    // The ray's slant (|eye.xy| / eye.z, the tangent of the view angle from the normal) never counts for more than
+    // this: a view almost along the surface, or a texture already stretched by a steep face, cannot smear the picture
+    // over many times the depth.
     constexpr float maxSlant = 2.f;
 
-    // The slant of the ray after the limits: |xy| / max(z, minViewZ), at most maxSlant. A bad number counts as the limit.
+    // The slant of the ray after the limits: |xy| / max(z, minViewZ), at most maxSlant. A bad number counts as the
+    // limit.
     inline float limitedSlant(float xyLength, float eyeZ)
     {
         if (std::isnan(xyLength) || std::isnan(eyeZ))
@@ -175,10 +176,11 @@ namespace Render::Parallax
     }
 
     // Depth is a length in the world, so it does not depend on how a mesh's or the terrain's texture is mapped: a
-    // displacement scale of 1 is this many game units (about 70 to the metre; Faultier's stone wall has 0.5, which makes
-    // 8 units, 11 centimetres). The shader works out how many game units one unit of texture coordinates covers at the
-    // pixel (from the derivatives of the position and of the coordinates) and divides. A fixed fraction of a tile, as the
-    // first version used, was a 50 unit deep step on a terrain tile and made a small rock mesh a smeared mess.
+    // displacement scale of 1 is this many game units (about 70 to the metre; Faultier's stone wall has 0.5, which
+    // makes 8 units, 11 centimetres). The shader works out how many game units one unit of texture coordinates covers
+    // at the pixel (from the derivatives of the position and of the coordinates) and divides. A fixed fraction of a
+    // tile, as the first version used, was a 50 unit deep step on a terrain tile and made a small rock mesh a smeared
+    // mess.
     constexpr float worldDepthPerDisplacement = 16.f;
     // The depth in texture coordinates never exceeds this fraction of a tile, whatever the mapping.
     constexpr float maxUvDepth = 0.1f;
