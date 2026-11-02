@@ -1,7 +1,10 @@
 #include "nifflatten.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 #include <components/misc/strings/algorithm.hpp>
 #include <components/nif/data.hpp>
@@ -145,6 +148,24 @@ namespace Lod
                 {
                     if (node.mRecordType == Nif::RC_NiBSParticleNode)
                         mModel.mTraits.mHasParticles = true;
+                    // A billboard turns to face the camera, so its rest pose is not what is drawn: leave it live.
+                    if (node.mRecordType == Nif::RC_NiBillboardNode)
+                        mModel.mTraits.mAnimated = true;
+                    if (node.mRecordType == Nif::RC_NiSwitchNode)
+                    {
+                        // A switch draws one child: the one it starts with.
+                        const std::size_t index = static_cast<const Nif::NiSwitchNode&>(node).mInitialIndex;
+                        if (index < group->mChildren.size() && !group->mChildren[index].empty())
+                            visit(*group->mChildren[index].getPtr(), world, inherited, depth + 1);
+                        return;
+                    }
+                    if (node.mRecordType == Nif::RC_NiLODNode)
+                    {
+                        // A level of detail node draws one child by distance; the first is the most detailed.
+                        if (!group->mChildren.empty() && !group->mChildren.front().empty())
+                            visit(*group->mChildren.front().getPtr(), world, inherited, depth + 1);
+                        return;
+                    }
                     for (const auto& child : group->mChildren)
                         if (!child.empty())
                             visit(*child.getPtr(), world, inherited, depth + 1);
@@ -190,7 +211,7 @@ namespace Lod
                     if (index >= data.mVertices.size())
                         return;
 
-                // Geometry may carry its own alpha property (a later format); the node's wins.
+                // Geometry may carry its own alpha property (a later format); it overrides the one the nodes passed down.
                 Inherited state = inherited;
                 if (!geometry.mAlphaProperty.empty())
                     applyProperty(*geometry.mAlphaProperty.getPtr(), state);

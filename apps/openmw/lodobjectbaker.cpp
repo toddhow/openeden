@@ -1,12 +1,17 @@
 #include "lodobjectbaker.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <iterator>
 #include <map>
+#include <memory>
+#include <optional>
 #include <set>
+#include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
@@ -34,7 +39,7 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 1;
+        constexpr std::uint32_t bakerVersion = 2;
         // Per level (1, 2, 3): the largest simplification error in world units. Starting values of task 0059, D4: about
         // 1.6 pixels at 7,500, 20,000 and 60,000 units at an 8 pixel threshold; to be calibrated by looking at frames.
         constexpr std::uint32_t levelErrors[3] = { 64, 192, 576 };
@@ -137,6 +142,7 @@ namespace OMW
         std::vector<Lod::BakedCluster> mClusters;
         LevelTotals mTotals[3];
         std::size_t mDuplicates = 0;
+        std::size_t mBadReferences = 0;
         Lod::ClusterManifest mManifest;
     };
 
@@ -271,6 +277,17 @@ namespace OMW
                         object.mRot[k] = ref.mPos.rot[k];
                     }
                     object.mScale = ref.mScale;
+                    // The content files are untrusted: a reference with a position, rotation or scale that is not a
+                    // sane number is left out instead of reaching the casts and the transform.
+                    bool sane = std::isfinite(ref.mScale) && ref.mScale > 0 && ref.mScale < 1000.f;
+                    for (int k = 0; k < 3; ++k)
+                        sane = sane && std::isfinite(object.mPos[k]) && std::abs(object.mPos[k]) < 1.0e8f
+                            && std::isfinite(object.mRot[k]);
+                    if (!sane)
+                    {
+                        ++state.mBadReferences;
+                        continue;
+                    }
                     object.mCellX = static_cast<std::int32_t>(std::floor(ref.mPos.pos[0] / ESM::Land::REAL_SIZE));
                     object.mCellY = static_cast<std::int32_t>(std::floor(ref.mPos.pos[1] / ESM::Land::REAL_SIZE));
                     state.mObjects.push_back(std::move(object));
@@ -351,7 +368,7 @@ namespace OMW
 
             // The objects of the tile in a fixed order, each reference once.
             std::vector<std::size_t> ordered = indices;
-            std::sort(ordered.begin(), ordered.end(), [&state](std::size_t a, std::size_t b) {
+            std::stable_sort(ordered.begin(), ordered.end(), [&state](std::size_t a, std::size_t b) {
                 const PlacedObject& x = state.mObjects[a];
                 const PlacedObject& y = state.mObjects[b];
                 return std::tie(x.mCellY, x.mCellX, x.mRef.mIndex, x.mRef.mContentFile)
@@ -370,7 +387,8 @@ namespace OMW
                 const PlacedObject& object = state.mObjects[index];
                 if (!seen.emplace(object.mRef.mIndex, object.mRef.mContentFile).second)
                 {
-                    ++state.mDuplicates;
+                    if (id.mLevel == 1)
+                        ++state.mDuplicates;
                     continue;
                 }
                 const ModelEntry& model = state.mModels[object.mModel];
@@ -452,6 +470,9 @@ namespace OMW
                              << (totals.mGroups.empty() ? 0 : totals.mGroups.back()) << ", largest error "
                              << totals.mMaxError;
         }
+        if (state.mBadReferences > 0)
+            Log(Debug::Warning) << "LOD object bake: " << state.mBadReferences
+                                << " references with a position, rotation or scale that is not a sane number were left out.";
         if (state.mDuplicates > 0)
             Log(Debug::Info) << "LOD object bake: " << state.mDuplicates << " repeated references were used once.";
 
@@ -505,6 +526,14 @@ namespace OMW
                 if (!written->readCluster(id, cluster))
                     ++good;
             }
+        }
+        if (!written || good != state.mClusters.size())
+        {
+            Log(Debug::Error) << "LOD object bake: the pack was written but only " << good << " of "
+                              << state.mClusters.size() << " clusters read back"
+                              << (written ? "" : " (the pack did not open: " + openError.describe() + ")")
+                              << "; do not use it.";
+            return true;
         }
         std::error_code sizeError;
         const std::uintmax_t bytes = std::filesystem::file_size(path, sizeError);
