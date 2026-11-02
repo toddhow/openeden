@@ -512,10 +512,8 @@ namespace
                 const int base = stepCount(q, cosine);
                 for (float travel : { 0.f, 0.5f, 1.f, 7.2f, 16.f, 31.01f, 32.f, 63.5f, 100.f, 200.5f, 1000.f })
                 {
-                    const int expected
-                        = std::min(maxSteps, std::max(base, static_cast<int>(std::ceil(travel))));
-                    EXPECT_EQ(travelSteps(q, cosine, travel), expected)
-                        << "cosine " << cosine << " travel " << travel;
+                    const int expected = std::min(maxSteps, std::max(base, static_cast<int>(std::ceil(travel))));
+                    EXPECT_EQ(travelSteps(q, cosine, travel), expected) << "cosine " << cosine << " travel " << travel;
                 }
             }
         }

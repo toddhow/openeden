@@ -393,8 +393,8 @@ namespace Render::Parallax
     };
 
     template <class HeightAtUv>
-    RayHit marchOffset(float u, float v, float rayStepU, float rayStepV, float pivot, int steps, int refineTaps,
-        HeightAtUv&& heightAt)
+    RayHit marchOffset(
+        float u, float v, float rayStepU, float rayStepV, float pivot, int steps, int refineTaps, HeightAtUv&& heightAt)
     {
         const float originU = u + rayStepU * pivot;
         const float originV = v + rayStepV * pivot;
@@ -445,8 +445,8 @@ namespace Render::Parallax
     inline int travelSteps(Quality quality, float viewCosine, float travelInTexels)
     {
         const float travel = std::isnan(travelInTexels) ? 0.f : std::clamp(travelInTexels, 0.f, 4096.f);
-        return std::min(std::max(stepCount(quality, viewCosine), static_cast<int>(std::ceil(travel))),
-            limits(quality).maxSteps);
+        return std::min(
+            std::max(stepCount(quality, viewCosine), static_cast<int>(std::ceil(travel))), limits(quality).maxSteps);
     }
 
     // The blur and the mean height read coarser mip levels. Uncompressed images get their chain on upload; a block

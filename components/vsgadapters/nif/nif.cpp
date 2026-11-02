@@ -487,7 +487,8 @@ namespace vsgAdapters
             return array;
         }
 
-        // Task 0045: the material of the geometry being built reads this (createMaterialData); 0 outside handleGeometry.
+        // Task 0045: the material of the geometry being built reads this (createMaterialData); 0 outside
+        // handleGeometry.
         float mMeshWorldPerUv = 0.f;
 
         // Game units per unit of the diffuse texture's coordinates, over the whole mesh.
@@ -503,15 +504,16 @@ namespace vsgAdapters
             if ((niGeometry.mRecordType == Nif::RC_NiTriShape || niGeometry.mRecordType == Nif::RC_BSLODTriShape)
                 && data.mRecordType == Nif::RC_NiTriShapeData)
             {
-                const std::vector<std::vector<uint16_t>> lists{ static_cast<const Nif::NiTriShapeData&>(
-                    data).mTriangles };
+                const std::vector<std::vector<uint16_t>> lists{
+                    static_cast<const Nif::NiTriShapeData&>(data).mTriangles
+                };
                 return nodeOptions.nodeScale
                     * Render::Parallax::meshWorldPerUv(data.mVertices, data.mUVList[uvSet], lists, false);
             }
             if (niGeometry.mRecordType == Nif::RC_NiTriStrips && data.mRecordType == Nif::RC_NiTriStripsData)
                 return nodeOptions.nodeScale
-                    * Render::Parallax::meshWorldPerUv(
-                        data.mVertices, data.mUVList[uvSet], static_cast<const Nif::NiTriStripsData&>(data).mStrips, true);
+                    * Render::Parallax::meshWorldPerUv(data.mVertices, data.mUVList[uvSet],
+                        static_cast<const Nif::NiTriStripsData&>(data).mStrips, true);
             return 0.f;
         }
 
