@@ -12,7 +12,7 @@
  * OpenEden (task 0041): the pure maths of the volumetric fog. No VSG or game types.
  *
  * The fog is a grid of small boxes that follow the camera's view ("froxels", frustum voxels). The compute shaders
- * `files/shaders/comp/volume/*.slang` repeat the slice depth function, the phase function, the integration step and the
+ * `volume.slang` in `files/shaders/comp/volume` repeat the slice depth function, the phase function, the integration step and the
  * jitter: change them together (a test reads the shader's constants back).
  */
 namespace Render::Volume
