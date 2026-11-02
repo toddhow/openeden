@@ -313,8 +313,8 @@ namespace MWRender
         }
 
         // Builds the draws of one cluster for the cells that are not masked. Main thread.
-        vsg::ref_ptr<vsg::Node> buildNode(
-            Tile& tile, const LodClusters::Setup& setup, const std::set<int>& masked, vsg::ref_ptr<vsg::Sampler>& sampler)
+        vsg::ref_ptr<vsg::Node> buildNode(Tile& tile, const LodClusters::Setup& setup, const std::set<int>& masked,
+            vsg::ref_ptr<vsg::Sampler>& sampler)
         {
             const Lod::ObjectCluster& cluster = tile.mData->mCluster;
             tile.mMaterials.clear();

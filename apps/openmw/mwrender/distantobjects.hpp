@@ -72,7 +72,8 @@ namespace MWRender
         /// chunks of cells if that changes anything. OpenMW's ObjectPaging::blacklistObject.
         bool blacklist(ESM::RefNum ref, const Cells& cells);
         /// The cells whose statics a baked object cluster draws (task 0059): their chunks are built without statics, so
-        /// activators and doors stay and nothing is drawn twice. A change rebuilds the chunks of the cells that changed.
+        /// activators and doors stay and nothing is drawn twice. A change rebuilds the chunks of the cells that
+        /// changed.
         void setClusteredCells(const std::set<std::pair<int, int>>& cells);
         /// Forgets every chunk and reference state, for a new or loaded game.
         void clear();

@@ -112,7 +112,8 @@ namespace
         std::vector<std::uint8_t> bytes;
         ASSERT_TRUE(writeObjectCluster(cluster, bytes).ok());
         ClusterHeaderInfo info;
-        const LodError error = readObjectClusterHeader(std::span<const std::uint8_t>(bytes.data(), objectClusterHeaderSize), info);
+        const LodError error
+            = readObjectClusterHeader(std::span<const std::uint8_t>(bytes.data(), objectClusterHeaderSize), info);
         ASSERT_TRUE(error.ok()) << error.describe();
         EXPECT_EQ(info.mLevel, cluster.mLevel);
         EXPECT_EQ(info.mSide, cluster.mSide);
@@ -133,14 +134,17 @@ namespace
         EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bytes.data(), 50), info).ok());
         std::vector<std::uint8_t> bad = bytes;
         bad[0] = 'X';
-        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
+        EXPECT_FALSE(
+            readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
         bad = bytes;
         bad[8] = 9; // level
-        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
+        EXPECT_FALSE(
+            readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
         bad = bytes;
         bad[15] = 0x7F; // side becomes huge but finite; then NaN below
         bad[12] = bad[13] = bad[14] = 0xFF;
         bad[15] = 0xFF;
-        EXPECT_FALSE(readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
+        EXPECT_FALSE(
+            readObjectClusterHeader(std::span<const std::uint8_t>(bad.data(), objectClusterHeaderSize), info).ok());
     }
 }
