@@ -273,8 +273,8 @@ namespace Lod
                 mModel.mTraits.mTriangleCount = triangles;
                 if (!any)
                     return;
-                const float centre[3] = { 0.5f * (low[0] + high[0]), 0.5f * (low[1] + high[1]),
-                    0.5f * (low[2] + high[2]) };
+                const float centre[3]
+                    = { 0.5f * (low[0] + high[0]), 0.5f * (low[1] + high[1]), 0.5f * (low[2] + high[2]) };
                 float radiusSquared = 0;
                 for (const SourcePiece& piece : mModel.mPieces)
                     for (const SourceVertex& v : piece.mVertices)

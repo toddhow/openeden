@@ -102,9 +102,9 @@ namespace
         // Four vertices, two counter-clockwise triangles (0,1,2) and (0,2,3), with normals, UVs and colours.
         ShapeRef quad(Nif::NiNode& parent)
         {
-            ShapeRef result = triShape(parent,
-                { vsg::vec3(0, 0, 0), vsg::vec3(2, 0, 0), vsg::vec3(2, 3, 1), vsg::vec3(0, 3, 1) },
-                { 0, 1, 2, 0, 2, 3 });
+            ShapeRef result
+                = triShape(parent, { vsg::vec3(0, 0, 0), vsg::vec3(2, 0, 0), vsg::vec3(2, 3, 1), vsg::vec3(0, 3, 1) },
+                    { 0, 1, 2, 0, 2, 3 });
             result.mData->mNormals = { vsg::vec3(0, 0, 1), vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(0, 0, 1) };
             result.mData->mUVList = { { vsg::vec2(0, 0), vsg::vec2(1, 0), vsg::vec2(1, 1), vsg::vec2(0, 1) } };
             result.mData->mColors
@@ -317,8 +317,8 @@ namespace
         expectNear3(piece.mVertices[2].mNormal, -1, 0, 0);
         for (const SourceVertex& vertex : piece.mVertices)
         {
-            const float length = std::sqrt(vertex.mNormal[0] * vertex.mNormal[0]
-                + vertex.mNormal[1] * vertex.mNormal[1] + vertex.mNormal[2] * vertex.mNormal[2]);
+            const float length = std::sqrt(vertex.mNormal[0] * vertex.mNormal[0] + vertex.mNormal[1] * vertex.mNormal[1]
+                + vertex.mNormal[2] * vertex.mNormal[2]);
             EXPECT_NEAR(length, 1.f, 1e-3f);
         }
         // A pure rotation and uniform scale keep the winding.
@@ -458,8 +458,8 @@ namespace
     {
         Model model;
         Nif::NiNode& root = model.node();
-        model.stripShape(root,
-            { vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(1, 1, 0) }, { { 0, 1, 2, 2, 3 } });
+        model.stripShape(root, { vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(1, 1, 0) },
+            { { 0, 1, 2, 2, 3 } });
 
         const FlattenedModel result = flattenNifModel(root);
         ASSERT_EQ(result.mPieces.size(), 1u);
@@ -535,8 +535,8 @@ namespace
     {
         Model model;
         Nif::NiNode& root = model.node();
-        model.triShape(root, { vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(1, 1, 0) },
-            { 0, 1, 9 });
+        model.triShape(
+            root, { vsg::vec3(0, 0, 0), vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(1, 1, 0) }, { 0, 1, 9 });
         const FlattenedModel bad = flattenNifModel(root);
         EXPECT_TRUE(bad.mPieces.empty());
         EXPECT_EQ(bad.mTraits.mTriangleCount, 0u);

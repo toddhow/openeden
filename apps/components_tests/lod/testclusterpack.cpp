@@ -297,13 +297,12 @@ namespace
             text.insert(text.size() - 1, " ");
             expectManifestRefused(text, "space before the closing brace");
         }
-        expectManifestRefused(
-            replaceOnce(canonicalManifest, "\"bakerVersion\":1,\"cellSize\":8192",
-                "\"cellSize\":8192,\"bakerVersion\":1"),
+        expectManifestRefused(replaceOnce(canonicalManifest, "\"bakerVersion\":1,\"cellSize\":8192",
+                                  "\"cellSize\":8192,\"bakerVersion\":1"),
             "reordered keys");
         expectManifestRefused(replaceOnce(canonicalManifest, "8192", "08192"), "leading zero");
-        expectManifestRefused(replaceOnce(canonicalManifest, "\"layoutVersion\":0", "\"layoutVersion\":00"),
-            "leading zero on zero");
+        expectManifestRefused(
+            replaceOnce(canonicalManifest, "\"layoutVersion\":0", "\"layoutVersion\":00"), "leading zero on zero");
         expectManifestRefused(replaceOnce(canonicalManifest, "[64,", "[-64,"), "negative number");
         expectManifestRefused(replaceOnce(canonicalManifest, "8192", "8192.0"), "fraction");
         expectManifestRefused(replaceOnce(canonicalManifest, "8192", "4294967296"), "number above 2^32 - 1");
@@ -343,14 +342,13 @@ namespace
     {
         expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[0,2,3]"), "level 0");
         expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[1,2,4]"), "level 4");
-        expectManifestRefused(
-            replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[1,2,15]"), "level 15");
+        expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[1,2,15]"), "level 15");
     }
 
     TEST(LodClusterPack, manifest_refuses_empty_levels)
     {
-        const std::string text = replaceOnce(
-            replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[]"), "[64,192,576]", "[]");
+        const std::string text
+            = replaceOnce(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[]"), "[64,192,576]", "[]");
         expectManifestRefused(text, "no levels");
     }
 
@@ -498,8 +496,8 @@ namespace
 
         for (const BakedCluster& baked : fixture.mClusters)
         {
-            SCOPED_TRACE(testing::Message() << "tile level " << static_cast<int>(baked.mId.mLevel) << " "
-                                            << baked.mId.mX << "," << baked.mId.mY);
+            SCOPED_TRACE(testing::Message()
+                << "tile level " << static_cast<int>(baked.mId.mLevel) << " " << baked.mId.mX << "," << baked.mId.mY);
             ObjectCluster cluster;
             const LodError readError = pack->readCluster(baked.mId, cluster);
             ASSERT_TRUE(readError.ok()) << readError.describe();

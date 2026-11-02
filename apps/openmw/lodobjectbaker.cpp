@@ -185,8 +185,8 @@ namespace OMW
             {
                 traits.mTriangleCount += static_cast<std::uint32_t>(piece.mIndices.size() / 3);
                 if (!piece.mTexture.empty())
-                    piece.mTexture = Misc::ResourceHelpers::correctTexturePath(VFS::Path::Normalized(piece.mTexture), vfs)
-                                         .value();
+                    piece.mTexture
+                        = Misc::ResourceHelpers::correctTexturePath(VFS::Path::Normalized(piece.mTexture), vfs).value();
             }
             entry.mOk = true;
         }
@@ -194,8 +194,8 @@ namespace OMW
         std::vector<std::uint8_t> parameterBytes(std::uint32_t level, std::uint32_t error, std::uint32_t cellSize)
         {
             std::vector<std::uint8_t> bytes;
-            for (const std::uint32_t word : { bakerVersion, level, error,
-                     static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize })
+            for (const std::uint32_t word :
+                { bakerVersion, level, error, static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize })
                 for (int shift = 0; shift < 32; shift += 8)
                     bytes.push_back(static_cast<std::uint8_t>((word >> shift) & 0xFF));
             return bytes;
@@ -380,9 +380,9 @@ namespace OMW
                 source.mCellY = object.mCellY;
                 source.mTraits = model.mFlat.mTraits;
                 source.mTraits.mRadius *= object.mScale;
-                source.mTransform = rowMajor(MWRender::distantObjectMatrix(
-                    vsg::vec3(object.mPos[0], object.mPos[1], object.mPos[2]),
-                    vsg::vec3(object.mRot[0], object.mRot[1], object.mRot[2]), object.mScale));
+                source.mTransform
+                    = rowMajor(MWRender::distantObjectMatrix(vsg::vec3(object.mPos[0], object.mPos[1], object.mPos[2]),
+                        vsg::vec3(object.mRot[0], object.mRot[1], object.mRot[2]), object.mScale));
                 source.mPieces = model.mFlat.mPieces;
                 input.mObjects.push_back(std::move(source));
 
@@ -438,7 +438,8 @@ namespace OMW
             Log(Debug::Info) << "LOD object bake: level " << slot + 1 << " (error " << levelErrors[slot]
                              << "): " << totals.mTiles << " clusters, objects included " << totals.mObjectsIncluded
                              << " of " << totals.mObjectsSeen << " (too small "
-                             << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::TooSmall)] << ", animated "
+                             << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::TooSmall)]
+                             << ", animated "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::Animated)]
                              << ", particles "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::Particles)]

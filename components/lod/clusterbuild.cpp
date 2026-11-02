@@ -146,9 +146,9 @@ namespace Lod
             float achieved = 0;
             // The border is locked: without it a flat open sheet (a bridge deck, a wall) collapses to nothing at no
             // error at all, and whole objects vanished from the bake (task 0059, stage c; real Morrowind data).
-            const std::size_t kept
-                = meshopt_simplify(simplified.data(), indices.data(), indices.size(), positions.data(), vertexCount,
-                    3 * sizeof(float), 0, input.mLevel.mError, meshopt_SimplifyErrorAbsolute | meshopt_SimplifyLockBorder, &achieved);
+            const std::size_t kept = meshopt_simplify(simplified.data(), indices.data(), indices.size(),
+                positions.data(), vertexCount, 3 * sizeof(float), 0, input.mLevel.mError,
+                meshopt_SimplifyErrorAbsolute | meshopt_SimplifyLockBorder, &achieved);
             simplified.resize(kept);
             if (simplified.empty())
             {

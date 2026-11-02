@@ -181,7 +181,8 @@ namespace Lod
         ordered.reserve(clusters.size());
         for (const BakedCluster& cluster : clusters)
             ordered.emplace_back(packClusterKey(cluster.mId).value_or(0), &cluster);
-        std::sort(ordered.begin(), ordered.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+        std::sort(
+            ordered.begin(), ordered.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
         EdenArchive::Hasher hasher;
         const std::string json = writeClusterManifestJson(manifest);
         hasher.update(json.data(), json.size());
@@ -218,9 +219,8 @@ namespace Lod
                 entry.mLayoutParamA = static_cast<std::uint32_t>(cluster.mData.mGroups.size());
                 entry.mLayoutParamB = static_cast<std::uint32_t>(cluster.mData.mCells.size());
                 entry.mCompression = EdenArchive::Compression::Auto;
-                entry.mProvenance = EdenArchive::ProvenanceInput{
-                    std::string(clusterToolId), cluster.mSourceDigest, cluster.mParameters
-                };
+                entry.mProvenance = EdenArchive::ProvenanceInput{ std::string(clusterToolId), cluster.mSourceDigest,
+                    cluster.mParameters };
                 entries.push_back(std::move(entry));
             }
             std::sort(keys.begin(), keys.end());
