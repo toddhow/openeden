@@ -84,6 +84,7 @@ add_component_dir (settings
     categories/video
     categories/water
     categories/windows
+    categories/worldlod
     gyroscopeaxis
     hrtfmode
     navmeshrendermode

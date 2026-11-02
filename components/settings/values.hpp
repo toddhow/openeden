@@ -25,6 +25,7 @@
 #include "categories/video.hpp"
 #include "categories/water.hpp"
 #include "categories/windows.hpp"
+#include "categories/worldlod.hpp"
 #include "settingvalue.hpp"
 
 #include <cassert>
@@ -40,6 +41,7 @@ namespace Settings
         CameraCategory mCamera{ mIndex };
         CellsCategory mCells{ mIndex };
         TerrainCategory mTerrain{ mIndex };
+        WorldLodCategory mWorldLod{ mIndex };
         FogCategory mFog{ mIndex };
         MapCategory mMap{ mIndex };
         GUICategory mGUI{ mIndex };
@@ -105,6 +107,11 @@ namespace Settings
     inline TerrainCategory& terrain()
     {
         return values().mTerrain;
+    }
+
+    inline WorldLodCategory& worldLod()
+    {
+        return values().mWorldLod;
     }
 
     inline FogCategory& fog()

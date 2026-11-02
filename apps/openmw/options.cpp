@@ -94,6 +94,10 @@ namespace OpenMW
             "bake the sky visibility of exterior cells, \"<x>,<y>\" or \"<x0>,<y0>:<x1>,<y1>\" (needs the game data; "
             "writes openeden/probes/exterior/ and quits)");
 
+        addOption("bake-lod-terrain", bpo::bool_switch()->default_value(false),
+            "bake the terrain tiles of the world LOD into openeden/lod/terrain.edenpak (draft layout; needs the game "
+            "data; quits when done)");
+
         addOption("bake-gi-out", bpo::value<std::string>()->default_value(""),
             "folder the baked probes are written to (default: the user data folder)");
 

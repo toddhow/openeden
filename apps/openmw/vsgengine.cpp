@@ -33,6 +33,7 @@
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/statemanagerimp.hpp"
+#include "lodterrainbaker.hpp"
 #include "probebaker.hpp"
 #include "skyvisbaker.hpp"
 
@@ -489,7 +490,15 @@ namespace OMW
         }
         bool autoScreenshotFired = false;
         bool autoQuitFired = false;
-        auto callback = [this, &args, &probeBaker, &skyVisBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired](
+        // Task 0055: the world LOD terrain baker (--bake-lod-terrain), only when asked for.
+        std::unique_ptr<LodTerrainBaker> lodTerrainBaker;
+        if (args.bakeLodTerrain)
+        {
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            lodTerrainBaker = std::make_unique<LodTerrainBaker>(out, *mResourceSystem);
+        }
+        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired](
                             double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
@@ -509,6 +518,11 @@ namespace OMW
                     autoQuitFired = true;
                 }
                 if (skyVisBaker && skyVisBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (lodTerrainBaker && lodTerrainBaker->update() && !autoQuitFired)
                 {
                     mStateManager->requestQuit();
                     autoQuitFired = true;
