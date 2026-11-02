@@ -8,6 +8,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <vector>
+
+#include "tilekey.hpp"
 
 namespace Lod
 {
@@ -52,6 +55,7 @@ namespace Lod
         Unset, // never chosen yet
         Tile, // draw the baked tile
         Live, // draw the live terrain for this square
+        Covered, // (selectTileTree only) an ancestor tile is drawn, so this one is not
     };
 
     /// One tile's state. The caller keeps one per tile, in key order, and passes the same array every frame.
@@ -69,6 +73,7 @@ namespace Lod
         std::size_t mLive = 0; // visible, drawn as live terrain
         std::size_t mSkipped = 0; // not visible
         std::size_t mChanged = 0; // visible tiles whose choice changed this call
+        std::size_t mCovered = 0; // (selectTileTree only) tiles under a drawn ancestor
     };
 
     /// Updates every state. A visible tile with no choice yet takes Tile when pixels <= threshold, else Live. A tile
@@ -76,6 +81,26 @@ namespace Lod
     /// hysteresisShare * threshold. A tile that is not visible keeps its choice (so hysteresis survives looking away)
     /// and counts as skipped. Deterministic: the result depends only on the arguments.
     SelectionResult selectTiles(std::span<TileState> states, const SelectionCamera& camera, float threshold) noexcept;
+
+    /// The tiles ordered for selectTileTree: level descending (the biggest first), then key ascending. A parent is
+    /// always before its children.
+    std::vector<TileId> orderTilesForTree(std::vector<TileId> ids);
+
+    /// For each tile of `ordered` (from orderTilesForTree) the index of its nearest ancestor that is in the list (the
+    /// parent at the next level, or the grandparent if that tile was not baked, and so on), or -1. The result is
+    /// always smaller than the tile's own index.
+    std::vector<std::int32_t> nearestAncestors(std::span<const TileId> ordered);
+
+    /// selectTiles for tiles of several levels. `parents` is parallel to `states` and holds nearestAncestors; every
+    /// parent index is below the child's. Per tile, in order:
+    ///  - if its parent is Tile or Covered, the tile is Covered (not drawn, not visible, mPixels 0, counted in
+    ///    mCovered) whatever the camera says; its earlier choice is forgotten (a Covered tile that is reached again
+    ///    starts as Unset);
+    ///  - otherwise (no parent, or the parent is Live, Unset or skipped) it is chosen exactly as selectTiles chooses,
+    ///    with the same visibility rules, hysteresis and counts.
+    /// A tile that is Covered is not in mTiles, mLive or mSkipped.
+    SelectionResult selectTileTree(std::span<TileState> states, std::span<const std::int32_t> parents,
+        const SelectionCamera& camera, float threshold) noexcept;
 }
 
 #endif

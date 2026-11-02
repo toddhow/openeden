@@ -242,6 +242,95 @@ namespace Lod
         return {};
     }
 
+    LodError bakeTerrainTile(const LandSource& source, const AlbedoSource* albedo, const TileId& tileId,
+        const TileBakeSettings& settings, BakedTile& tile)
+    {
+        const TileId id = tileId;
+        if (LodError error = bakeTerrainTile(source, id, settings, tile))
+            return error;
+        if (albedo == nullptr || settings.mAlbedoSize == 0)
+            return {};
+
+        std::int32_t cellX = 0;
+        std::int32_t cellY = 0;
+        tileOriginCell(id, cellX, cellY);
+        const std::uint32_t cells = 1u << settings.mLevel;
+        EdenArchive::Hash inputs;
+        if (LodError error = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs))
+        {
+            tile = {};
+            return error;
+        }
+        // The tile's digest now also answers for the ground colour.
+        EdenArchive::Hasher hasher;
+        hasher.update(tile.mSourceDigest.data(), tile.mSourceDigest.size());
+        hasher.update(inputs.data(), inputs.size());
+        tile.mSourceDigest = hasher.finalize();
+        appendU32(tile.mParameters, settings.mAlbedoSize);
+        appendU32(tile.mParameters, albedoAlgorithmVersion);
+
+        if (settings.mDigestOnly)
+            return {};
+        std::vector<std::uint8_t> rgba;
+        if (LodError error = bakeAlbedoImage(*albedo, cellX, cellY, cells, settings.mAlbedoSize, rgba))
+        {
+            tile = {};
+            return error;
+        }
+        tile.mData.mHasAlbedo = true;
+        tile.mData.mAlbedoWidth = settings.mAlbedoSize;
+        tile.mData.mAlbedoHeight = settings.mAlbedoSize;
+        tile.mData.mAlbedoFormat = AlbedoFormat::Rgba8;
+        tile.mData.mAlbedoMipCount = 1;
+        tile.mData.mAlbedo = std::move(rgba);
+        return {};
+    }
+
+    LodError bakeTerrainLevels(const LandSource& source, const AlbedoSource* albedo,
+        const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, const TileBakeSettings& base,
+        const TerrainBakePlan& plan, const std::string& worldspaceName, TileManifest& manifest,
+        std::vector<BakedTile>& tiles)
+    {
+        manifest = {};
+        tiles.clear();
+        if (base.mCellSize == 0)
+            return fail("settings", "the cell size must be above 0");
+        for (const std::uint32_t level : plan.mLevels)
+        {
+            TileBakeSettings settings = base;
+            settings.mLevel = level;
+            std::uint32_t lod = 0;
+            if (!vertexStepLod(settings, lod))
+                return fail("plan", "a level of the plan does not fit the grid size");
+        }
+        for (const std::uint32_t level : plan.mLevels)
+        {
+            TileBakeSettings settings = base;
+            settings.mLevel = level;
+            settings.mAlbedoSize = (albedo != nullptr && level >= plan.mAlbedoFromLevel) ? plan.mAlbedoSize : 0;
+            for (const TileId& id : tilesCoveringCells(landCells, settings))
+            {
+                BakedTile tile;
+                if (LodError error = bakeTerrainTile(source, albedo, id, settings, tile))
+                {
+                    tiles.clear();
+                    return error;
+                }
+                tiles.push_back(std::move(tile));
+            }
+        }
+        std::sort(tiles.begin(), tiles.end(), [](const BakedTile& lhs, const BakedTile& rhs) {
+            return packTileKey(lhs.mId).value_or(0) < packTileKey(rhs.mId).value_or(0);
+        });
+        manifest.mLayoutVersion = tileKeyLayoutVersion;
+        manifest.mBakerVersion = bakerVersion;
+        manifest.mWorldspaces.push_back(WorldspaceInfo{ base.mWorldspace, worldspaceName, base.mCellSize });
+        manifest.mLevels = plan.mLevels;
+        manifest.mGridSize = base.mGridSize;
+        manifest.mAlbedoSize = albedo != nullptr ? plan.mAlbedoSize : 0;
+        return {};
+    }
+
     std::vector<TileId> tilesCoveringCells(
         const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, const TileBakeSettings& settings)
     {

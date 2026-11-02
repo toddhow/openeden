@@ -24,6 +24,7 @@
 
 #include <edenarchive/hash.hpp>
 
+#include "albedobake.hpp"
 #include "loderror.hpp"
 #include "tilepack.hpp"
 
@@ -57,6 +58,12 @@ namespace Lod
         std::uint32_t mGridSize = 33; // N; (64 << level) / (N - 1) must be a power of two
         std::uint32_t mCellSize = 8192; // world units, from the world source (never assumed)
         std::uint8_t mWorldspace = 0;
+        /// Texels a side of the baked albedo picture (a power of two, 0 for none). Only used when an AlbedoSource is
+        /// given to bakeTerrainTile; then the tile has an RGBA8 albedo of this size with one mip level.
+        std::uint32_t mAlbedoSize = 0;
+        /// With an albedo size, compute the tile's digest (which includes the albedo inputs) but do not blend: the
+        /// tile has no albedo bytes. Used to check a pack against the game's data cheaply.
+        bool mDigestOnly = false;
     };
 
     /// Octahedral encoding of a unit vector into two signed bytes, and back (the decoded vector is unit length).
@@ -71,6 +78,31 @@ namespace Lod
     /// (so it changes exactly when its inputs change), and mParameters holds the settings as little-endian words.
     LodError bakeTerrainTile(
         const LandSource& source, const TileId& id, const TileBakeSettings& settings, BakedTile& tile);
+
+    /// bakeTerrainTile with the ground colour: when `albedo` is not null and settings.mAlbedoSize is not 0 the tile
+    /// also gets the baked albedo (RGBA8, one mip level, flagHasAlbedo) and its source digest includes the
+    /// albedoInputsDigest of its square, so a changed texture, blend or vertex colour makes the digest differ. With a
+    /// null `albedo` or a size of 0 this is exactly the four argument bakeTerrainTile (a size set with no source is not
+    /// an error: no albedo is baked). A size that is not a power of two from 4 to 2048 is an error.
+    LodError bakeTerrainTile(const LandSource& source, const AlbedoSource* albedo, const TileId& id,
+        const TileBakeSettings& settings, BakedTile& tile);
+
+    /// Which levels to bake and from which level up the tiles carry an albedo.
+    struct TerrainBakePlan
+    {
+        std::vector<std::uint32_t> mLevels = { 1, 2, 3 };
+        std::uint32_t mAlbedoFromLevel = 2; // levels below it use the live blend maps and have no albedo
+        std::uint32_t mAlbedoSize = 256;
+    };
+
+    /// Bakes every level of the plan for the tiles covering `landCells` and builds the manifest (levels = the plan's,
+    /// gridSize = base.mGridSize, albedoSize = plan.mAlbedoSize when `albedo` is not null, else 0). `tiles` comes
+    /// back in key order. base.mLevel and base.mAlbedoSize are ignored (the plan's win); base.mDigestOnly is honoured.
+    /// Fails if any tile fails or a level is not valid for base.mGridSize.
+    LodError bakeTerrainLevels(const LandSource& source, const AlbedoSource* albedo,
+        const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, const TileBakeSettings& base,
+        const TerrainBakePlan& plan, const std::string& worldspaceName, TileManifest& manifest,
+        std::vector<BakedTile>& tiles);
 
     /// The tiles at settings.mLevel that contain at least one of the given land cells, in key order, each once.
     /// `landCells` may be in any order and contain duplicates.

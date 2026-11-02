@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <optional>
 
 namespace Lod
 {
@@ -51,11 +53,11 @@ namespace Lod
         return bounds.mGeometricError * camera.mViewportHeight / (2.0 * distance * std::tan(camera.mFovY * 0.5));
     }
 
-    SelectionResult selectTiles(std::span<TileState> states, const SelectionCamera& camera, float threshold) noexcept
+    namespace
     {
-        SelectionResult result;
-        const double returnBelow = static_cast<double>(hysteresisShare) * threshold;
-        for (TileState& state : states)
+        // The choice of one tile that is not covered: visibility, then threshold with hysteresis.
+        void evaluateTile(TileState& state, const SelectionCamera& camera, float threshold, double returnBelow,
+            SelectionResult& result) noexcept
         {
             const double distance = distanceToTile(camera, state.mBounds);
             if (distance > camera.mViewDistance || !inViewCone(camera, state.mBounds))
@@ -63,7 +65,7 @@ namespace Lod
                 state.mVisible = false;
                 state.mPixels = 0;
                 ++result.mSkipped;
-                continue;
+                return;
             }
             state.mVisible = true;
             const double pixels = pixelError(camera, state.mBounds);
@@ -72,6 +74,7 @@ namespace Lod
             switch (before)
             {
                 case TileChoice::Unset:
+                case TileChoice::Covered:
                     state.mChoice = pixels <= threshold ? TileChoice::Tile : TileChoice::Live;
                     break;
                 case TileChoice::Tile:
@@ -83,12 +86,82 @@ namespace Lod
                         state.mChoice = TileChoice::Tile;
                     break;
             }
-            if (before != TileChoice::Unset && before != state.mChoice)
+            if (before != TileChoice::Unset && before != TileChoice::Covered && before != state.mChoice)
                 ++result.mChanged;
             if (state.mChoice == TileChoice::Tile)
                 ++result.mTiles;
             else
                 ++result.mLive;
+        }
+    }
+
+    SelectionResult selectTiles(std::span<TileState> states, const SelectionCamera& camera, float threshold) noexcept
+    {
+        SelectionResult result;
+        const double returnBelow = static_cast<double>(hysteresisShare) * threshold;
+        for (TileState& state : states)
+            evaluateTile(state, camera, threshold, returnBelow, result);
+        return result;
+    }
+
+    std::vector<TileId> orderTilesForTree(std::vector<TileId> ids)
+    {
+        std::sort(ids.begin(), ids.end(), [](const TileId& lhs, const TileId& rhs) {
+            if (lhs.mLevel != rhs.mLevel)
+                return lhs.mLevel > rhs.mLevel;
+            return packTileKey(lhs).value_or(0) < packTileKey(rhs).value_or(0);
+        });
+        return ids;
+    }
+
+    std::vector<std::int32_t> nearestAncestors(std::span<const TileId> ordered)
+    {
+        std::map<std::uint64_t, std::int32_t> indexOf;
+        for (std::size_t i = 0; i < ordered.size(); ++i)
+            indexOf.emplace(packTileKey(ordered[i]).value_or(0), static_cast<std::int32_t>(i));
+        std::vector<std::int32_t> result(ordered.size(), -1);
+        for (std::size_t i = 0; i < ordered.size(); ++i)
+        {
+            TileId current = ordered[i];
+            while (true)
+            {
+                const std::optional<TileId> parent = parentTile(current);
+                if (!parent)
+                    break;
+                const auto found = indexOf.find(packTileKey(*parent).value_or(0));
+                if (found != indexOf.end() && found->second < static_cast<std::int32_t>(i))
+                {
+                    result[i] = found->second;
+                    break;
+                }
+                current = *parent;
+            }
+        }
+        return result;
+    }
+
+    SelectionResult selectTileTree(std::span<TileState> states, std::span<const std::int32_t> parents,
+        const SelectionCamera& camera, float threshold) noexcept
+    {
+        SelectionResult result;
+        const double returnBelow = static_cast<double>(hysteresisShare) * threshold;
+        for (std::size_t i = 0; i < states.size(); ++i)
+        {
+            TileState& state = states[i];
+            const std::int32_t parent = i < parents.size() ? parents[i] : -1;
+            if (parent >= 0 && static_cast<std::size_t>(parent) < i)
+            {
+                const TileChoice parentChoice = states[static_cast<std::size_t>(parent)].mChoice;
+                if (parentChoice == TileChoice::Tile || parentChoice == TileChoice::Covered)
+                {
+                    state.mChoice = TileChoice::Covered;
+                    state.mVisible = false;
+                    state.mPixels = 0;
+                    ++result.mCovered;
+                    continue;
+                }
+            }
+            evaluateTile(state, camera, threshold, returnBelow, result);
         }
         return result;
     }
