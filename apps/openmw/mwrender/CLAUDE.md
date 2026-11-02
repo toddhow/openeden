@@ -116,3 +116,8 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Console:** `cmStyle` prints the style, `cmStyle on|off|<name>` changes it for the target (the player when none). The choice lives in the `CharacterController`, is handed to the driver at the start of `runPoseDriver` (never while it runs), and is lost when the actor's controller is rebuilt (a cell load).
 - **Cadence:** `CharacterController::update` multiplies the movement animation's speed by the style's cadence factor, which also slows root-motion movement.
 - **Pitfall:** `StyleModifier` finds bones by canonical names and pitches about X; on Morrowind's skeleton it would silently do nothing without the layer's mapping.
+
+## The procedural sun (task 0047)
+
+- `Sky`'s constructor decides (`useProceduralSun(setting, hdr)` and `Graphics::hasSlangShader("sky/sunproc")`), puts `sky/sunproc` on `Graphics::slangOnlyPaths` and gives `Sun` a `ProceduralSunParams`. `Sun` then draws its quad with the `sky/sunproc` pipeline and the same descriptor sets; the query and the flash keep `sky/sun`. Details in `components/render/CLAUDE.md`.
+- **Frame checks of the sun** need the camera aimed at it: a Lua player script with the static camera at the yaw and pitch of the sun for the game hour (the sun's direction is `(cos t, -0.268, sin t)` with `t = pi (hour - 6) / 14`, `WeatherManager::update`; yaw `atan2(x, y)`, pitch `-asin(z)`). The flash and glare overlay hide the disc's structure at the default settings.

@@ -1,5 +1,8 @@
 #include "graphics.hpp"
 
+#include <algorithm>
+#include <stdexcept>
+
 #include <vsg/state/ColorBlendState.h>
 #include <vsg/state/DepthStencilState.h>
 #include <vsg/state/InputAssemblyState.h>
@@ -193,6 +196,16 @@ namespace Pipeline
         auto path = key.path;
         if (path.empty())
             path = "default";
+        if (std::find(slangOnlyPaths.begin(), slangOnlyPaths.end(), path) != slangOnlyPaths.end())
+        {
+            const std::string spirvPath = path + suffix + ".spv";
+            auto module = vsg::read_cast<vsg::ShaderModule>(spirvPath, mShaderOptions);
+            if (!module || module->code.empty())
+                throw std::runtime_error("!read Slang shader \"" + spirvPath + "\"");
+            const VkShaderStageFlagBits stage
+                = suffix == "/main.vert" ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT;
+            return vsg::ShaderStage::create(stage, "main", module);
+        }
         auto shaderStage = vsgUtil::readShader(path + suffix, mShaderOptions);
         // if (!compileSettings->defines.empty())
         {
@@ -212,6 +225,17 @@ namespace Pipeline
             }
         }
         return shaderStage;
+    }
+
+    bool Graphics::hasSlangShader(const std::string& path) const
+    {
+        for (const char* suffix : { "/main.vert.spv", "/main.frag.spv" })
+        {
+            auto module = vsg::read_cast<vsg::ShaderModule>(path + suffix, mShaderOptions);
+            if (!module || module->code.empty())
+                return false;
+        }
+        return true;
     }
 
     vsg::ref_ptr<vsg::ShaderStage> Graphics::create(const FragmentStageOptions& key) const

@@ -27,6 +27,7 @@
 #include <components/render/cloudmath.hpp>
 #include <components/render/cloudvolumegpu.hpp>
 #include <components/render/cloudvolumemath.hpp>
+#include <components/render/sunmath.hpp>
 #include <components/resource/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
@@ -231,6 +232,16 @@ namespace MWRender
         void update(float alpha) { material.setAlpha(mFaderMax * alpha); }
     };
 
+    // Task 0047: what the Sun needs to draw itself as a computed disc ([Rendering] procedural sun and its three
+    // numbers). `enabled` is only true when the setting is on, hdr is on and the Slang shader was built.
+    struct ProceduralSunParams
+    {
+        bool enabled = false;
+        float size = 1.f;
+        float intensity = Render::Sun::defaultIntensity;
+        float glow = 1.f;
+    };
+
     class Sun : public CelestialBody
     {
         Pipeline::Material sunFlashMaterial;
@@ -248,8 +259,15 @@ namespace MWRender
         float visibleRatio = 0.f;
         bool enabled = true;
         Sun(vsg::ref_ptr<const vsg::Options> textureOptions, const Pipeline::Builder& builder,
-            bool occlusionQueryPrecise)
+            bool occlusionQueryPrecise, const ProceduralSunParams& procedural)
         {
+            if (procedural.enabled)
+            {
+                // The disc's numbers ride in the sun's own material (see proceduralsun.slang): the intensity, the glow
+                // scale and the disc radius. The colour and alpha are set every frame, as for the textured sun.
+                material.value().pbr = vsg::vec4(Render::Sun::clampIntensity(procedural.intensity),
+                    std::max(0.f, procedural.glow), Render::Sun::discRadius(procedural.size), 0.f);
+            }
             VkQueryControlFlags queryControlFlags{};
             if (occlusionQueryPrecise)
                 queryControlFlags |= VK_QUERY_CONTROL_PRECISE_BIT;
@@ -271,8 +289,13 @@ namespace MWRender
             auto sunBds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
                 Pipeline::TEXTURE_SET, vsg::Descriptors{ sunTex, material.descriptor() });
             {
+                // The visible disc is the textured sun's pipeline or, with the setting, the computed one on the same
+                // quad and with the same descriptor sets. The occlusion query and the flash below keep the textured
+                // pipeline, so that what they count and draw is unchanged.
+                auto drawPipeline
+                    = procedural.enabled ? builder.graphics->getOrCreate(pipelineOptions("sky/sunproc")) : pipeline;
                 auto sg = vsg::StateGroup::create();
-                sg->stateCommands = { pipeline, sunBds };
+                sg->stateCommands = { drawPipeline, sunBds };
                 sg->children = { sDrawQuad };
                 addChild(sg);
             }
@@ -567,8 +590,28 @@ namespace MWRender
             mAtmosphereNight.setup(t, mSwitch, false);
             override_->material = {};
         }
-        mSun.setup(
-            vsg::ref_ptr{ new Sun(resourceSystem.textureOptions, *resourceSystem.builder, occlusionQueryPrecise) },
+        ProceduralSunParams proceduralSun;
+        {
+            const auto& rendering = Settings::rendering();
+            if (Render::Sun::useProceduralSun(rendering.mProceduralSun, rendering.mHdr))
+            {
+                // The shader has no GLSL pair, so it exists only if slangc was there at build time.
+                if (resourceSystem.builder->graphics->hasSlangShader("sky/sunproc"))
+                {
+                    resourceSystem.builder->graphics->slangOnlyPaths.push_back("sky/sunproc");
+                    proceduralSun = { true, rendering.mProceduralSunSize, rendering.mProceduralSunIntensity,
+                        rendering.mProceduralSunGlow };
+                    Log(Debug::Info) << "Procedural sun: a computed disc in place of tx_sun_05.dds";
+                }
+                else
+                    Log(Debug::Warning) << "[Rendering] procedural sun: shaders/sky/sunproc/main.*.spv were not built "
+                                           "(this build has no slangc); the textured sun is drawn";
+            }
+            else if (rendering.mProceduralSun)
+                Log(Debug::Warning) << "[Rendering] procedural sun needs hdr; the textured sun is drawn";
+        }
+        mSun.setup(vsg::ref_ptr{ new Sun(resourceSystem.textureOptions, *resourceSystem.builder, occlusionQueryPrecise,
+                       proceduralSun) },
             mSwitch, true);
 
         mMasser.setup(

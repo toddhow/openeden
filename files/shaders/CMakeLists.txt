@@ -185,6 +185,14 @@ openeden_add_slang_shader(
     OUTPUT_DIR sky/sun
     STAGES vertMain:vertex:vert fragMain:fragment:frag)
 
+# The procedural sun (task 0047), new in Slang. Its path is sky/sunproc, not sky/sun, so that the textured sun (GLSL, and
+# the Slang port above) and the procedural one can both be loaded; it has no GLSL pair (see Pipeline::Graphics::
+# slangOnlyPaths). Loaded when [Rendering] procedural sun is on; a missing file leaves the textured sun with a log line.
+openeden_add_slang_shader(
+    SOURCE sky/sun/proceduralsun.slang
+    OUTPUT_DIR sky/sunproc
+    STAGES vertMain:vertex:vert fragMain:fragment:frag)
+
 # The volumetric fog's compute passes (task 0041). They have no GLSL: the game loads these files whenever
 # [Rendering] volumetrics is on, whatever [Rendering] slang shaders says, and leaves volumetrics off with a log line
 # if they are missing.

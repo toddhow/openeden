@@ -1,6 +1,9 @@
 #ifndef VSGOPENMW_PIPELINE_GRAPHICS_H
 #define VSGOPENMW_PIPELINE_GRAPHICS_H
 
+#include <string>
+#include <vector>
+
 #include <vsg/state/GraphicsPipeline.h>
 
 #include <components/vsgutil/cache.hpp>
@@ -50,6 +53,12 @@ namespace Pipeline
         // GLSL. The GLSL is still read first, for its stage and entry point, and stays the fallback when there is no
         // .spv.
         bool preferSlang = false;
+        // OpenEden (task 0047): shader paths that exist only as Slang (no GLSL pair beside them). For these the
+        // precompiled <path>/main.vert.spv and main.frag.spv are always the shader, whatever `preferSlang` says, and a
+        // missing file is an error (ask `hasSlangShader` first). Set before the first pipeline using the path is made.
+        std::vector<std::string> slangOnlyPaths;
+        // True when <path>/main.vert.spv and main.frag.spv can be read (there was a slangc at build time).
+        bool hasSlangShader(const std::string& path) const;
         // openeden (task 0026, F3): how many colour outputs the main pass has beyond the scene's own; 0 (the default)
         // leaves every pipeline as it was. Set by MWRender::RenderManager before the first pipeline is created.
         unsigned int gbufferOutputs = 0;
