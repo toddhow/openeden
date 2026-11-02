@@ -177,7 +177,9 @@ namespace VFS
 
             // c.txt has one provider and is not reported.
             for (const Override& item : overrides)
+            {
                 EXPECT_NE(item.mPath.value(), "c.txt");
+            }
         }
 
         TEST_F(VFSOverridesTest, winnerOfTheReportShouldBeTheFileTheManagerOpens)
@@ -190,7 +192,9 @@ namespace VFS
                 ASSERT_NE(stream, nullptr);
                 EXPECT_EQ(readAll(*stream), readAll(*item.mWinner.mFile->open())) << item.mPath;
                 for (const Provider& loser : item.mLosers)
+                {
                     EXPECT_NE(readAll(*loser.mFile->open()), readAll(*item.mWinner.mFile->open())) << item.mPath;
+                }
             }
         }
 
@@ -201,7 +205,9 @@ namespace VFS
             EXPECT_EQ(mVfs.getConflicts().size(), 3u);
             EXPECT_EQ(flatten(mVfs.getConflicts()), flatten(mVfs.getOverrides()));
             for (const Override& item : mVfs.getOverrides())
+            {
                 EXPECT_FALSE(item.mIdentical) << item.mPath;
+            }
         }
 
         TEST_F(VFSOverridesTest, namesThatDifferOnlyInCaseOrSlashesShouldBeOnePath)
@@ -387,7 +393,9 @@ namespace VFS
             const std::vector<Override> overrides = mVfs.getOverrides();
             ASSERT_EQ(overrides.size(), 300u);
             for (std::size_t i = 1; i < overrides.size(); ++i)
+            {
                 EXPECT_LT(overrides[i - 1].mPath.value(), overrides[i].mPath.value());
+            }
         }
 
         std::vector<Flat> buildScenario(bool reversed, std::vector<Flat>* conflictsOut = nullptr)

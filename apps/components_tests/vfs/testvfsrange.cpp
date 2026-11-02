@@ -202,9 +202,11 @@ namespace VFS
             };
             for (const Range range : { Range{ 0, 1 }, Range{ 0, 999 }, Range{ 1, 999 }, Range{ 500, 250 },
                      Range{ 999, 1 }, Range{ 123, 1 }, Range{ 256, 256 }, Range{ 4, 4 } })
+            {
                 EXPECT_EQ(readChecked(*subject.mFile, range.mOffset, range.mSize),
                     subject.mContent.substr(static_cast<std::size_t>(range.mOffset), range.mSize))
                     << range.mOffset << "+" << range.mSize;
+            }
         }
 
         TEST_P(VFSRangeTest, rangeEndingExactlyAtTheEndShouldBeRead)
@@ -220,7 +222,9 @@ namespace VFS
             Subject subject = make(1000);
             for (const std::uint64_t offset :
                 { std::uint64_t(0), std::uint64_t(1), std::uint64_t(500), std::uint64_t(999), std::uint64_t(1000) })
+            {
                 EXPECT_EQ(readChecked(*subject.mFile, offset, 0), "") << offset;
+            }
         }
 
         TEST_P(VFSRangeTest, zeroLengthReadPastTheEndShouldThrow)
@@ -286,8 +290,10 @@ namespace VFS
                      Range{ 0, maxSize - 1 }, Range{ 500, maxSize - 100 },
                      Range{ maxOffset / 2 + 1, static_cast<std::size_t>(maxOffset / 2 + 1) },
                      Range{ maxOffset, maxSize } })
+            {
                 EXPECT_THROW(subject.mFile->readRange(range.mOffset, range.mSize, buffer.data()), std::runtime_error)
                     << range.mOffset << "+" << range.mSize;
+            }
         }
 
         TEST_P(VFSRangeTest, resultShouldEqualTheOpenStreamBytesForManyWindows)
@@ -447,7 +453,9 @@ namespace VFS
                 EXPECT_EQ(file.size(), entry.mContent.size()) << entry.mName;
                 EXPECT_EQ(readChecked(file, 0, entry.mContent.size()), entry.mContent) << entry.mName;
                 if (entry.mContent.size() > 10)
+                {
                     EXPECT_EQ(readChecked(file, 5, 5), entry.mContent.substr(5, 5)) << entry.mName;
+                }
                 // Reading one byte past the entry would read its neighbour in the archive: it must throw instead.
                 std::vector<char> big(2048);
                 EXPECT_THROW(file.readRange(0, entry.mContent.size() + 1, big.data()), std::runtime_error)

@@ -50,7 +50,9 @@ namespace VFS::Path
         void expectVerdict(const std::optional<std::string>& result, bool acceptable, const NameCase& param)
         {
             if (acceptable)
+            {
                 EXPECT_FALSE(result.has_value()) << param << ": " << result.value_or("");
+            }
             else
             {
                 ASSERT_TRUE(result.has_value()) << param << " was accepted";
