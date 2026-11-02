@@ -71,6 +71,11 @@ namespace Render::Pbr
     /// Lowercase, backslashes to forward slashes: the form paths are compared in.
     std::string normalizePath(std::string_view path);
 
+    /// True when a texture path has the word "eye" or "eyes" in it (words split at '_', '.', '-', ' ' and the folder
+    /// separators). A model marked as skin does not mark such a texture, so that eyes are not blurred like skin
+    /// (decision 0010 answer 5). "eyepiece" and "eyebrow" are other words.
+    bool isEyeTexture(std::string_view texturePath);
+
     /*
      * The loaded overrides. Precedence per value: the base, then models marked as skin, then `model` entries in the
      * order they were added, then `texture` entries in the order they were added. `add` and `markSubsurfaceModel`

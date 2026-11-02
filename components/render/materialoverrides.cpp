@@ -228,6 +228,23 @@ namespace Render::Pbr
         return result;
     }
 
+    bool isEyeTexture(std::string_view texturePath)
+    {
+        const std::string path = normalizePath(texturePath);
+        size_t begin = 0;
+        while (begin <= path.size())
+        {
+            size_t end = path.find_first_of("_.- /", begin);
+            if (end == std::string::npos)
+                end = path.size();
+            const std::string_view word(path.data() + begin, end - begin);
+            if (word == "eye" || word == "eyes")
+                return true;
+            begin = end + 1;
+        }
+        return false;
+    }
+
     namespace
     {
         // The table's key: normalised, without the folder a loader may or may not have added ("meshes/" for models,
@@ -295,7 +312,8 @@ namespace Render::Pbr
         OverrideValues result;
         std::shared_lock lock(mMutex);
         const std::string model = tableKey(modelPath);
-        if (mSkinModels.count(model))
+        // Eyes are not skin (decision 0010): a texture named for eyes keeps the mark off unless a layer below sets it.
+        if (mSkinModels.count(model) && !isEyeTexture(texturePath))
             result.subsurface = true;
         if (const auto it = mModels.find(model); it != mModels.end())
             for (const OverrideValues& values : it->second)
