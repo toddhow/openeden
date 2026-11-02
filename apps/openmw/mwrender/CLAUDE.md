@@ -134,6 +134,12 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Rule:** `CompileContext::detach` may be called from any thread now; anything else a worker thread does to a node that the render threads can reach is still unsynchronised. `Paging::updateView` edits `view.rootNode->children` on the worker, which is safe only while that preload view is not in the scene.
 - **Finding a "hang":** check for an `openmw-crash.dmp` and a Fatal Error window first. `scratchpad`-style runner: start the game under the Win32 debug API (`crashrun`) with `_NO_DEBUG_HEAP=1`, which writes a dump at the first access violation and shows no dialog.
 
+## World LOD object clusters (task 0059, stage c only: the bake)
+
+- **What exists:** `openmw --bake-lod-objects [--bake-gi-out DIR]` (`apps/openmw/lodobjectbaker.*`) writes `<user data>/openeden/lod/objects.edenpak`, a derived Eden Archive of object clusters (DRAFT layout version 0, not approved; `components/lod/objectcluster.*`, `clusterpack.*`, `clusterbuild.*`, `nifflatten.*`). **Nothing in the renderer reads it yet.** The runtime (cluster selection, the cell mask, the dither cross-fade) is stage d of `docs/tasks/0059-lod-s4-object-clusters.md`.
+- **One list of references:** `collectDistantReferences` and `distantObjectModel` (end of `distantobjects.cpp`) are the live chunks' own functions, shared so that the bake and `DistantObjects` cannot disagree about what exists. Keep them that way.
+- **Pitfall:** meshoptimizer without `meshopt_SimplifyLockBorder` collapses flat open sheets (bridge decks, walls) to nothing at zero error; the baker locks borders.
+
 ## World LOD terrain tiles (task 0055, stages S1c and S1d; layout version 1, approved 2026-11-02)
 
 - **Where:** `components/lod/` (pure: keys, selection, payload, pack, bake; all layout knowledge is there), `apps/openmw/lodterrainbaker.*` (`--bake-lod-terrain`), `apps/openmw/mwrender/lodterrain.*` (the runtime), `components/terrain/coverage.hpp` and the `coverage` parameter of `Paging::updateView`.
