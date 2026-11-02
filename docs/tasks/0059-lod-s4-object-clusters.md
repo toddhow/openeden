@@ -1,0 +1,148 @@
+# Task: World LOD and streaming, stage S4 (object clusters), with the minimal part of S2 and the dither of S5 it needs
+Design doc section: `docs/design/world-lod-and-streaming.md`, sections 3.2 and 3.5 (payload per tile, objects: classification, merging, textures), 4.5 (cache keys), 7 (hiding transitions: dithered cross-fade, hand-off), 9 (derived data is untrusted input) and the staging rows S2, S4 and S5; decisions D1, D5, D7, D9 (section 14) and record 0010 (own LOD from full detail, container first, baker ahead of time or in the background); `docs/spec/eden-archive-format-v0.1.md` sections 7.4 to 7.8 (keyed entries, provenance), 10.3 (the reserved cluster type `0x0011` and key tag `0x11`), 18 (derived packs); measurements in `docs/research/0025-lod-baseline.md` (task 0054); the tile model of `docs/tasks/0055-lod-s1-tile-model.md`.
+Goal: draw the far world's objects (towers, rocks, trees, buildings) from baked, merged and simplified **object clusters**, one per tile and level, stored in a derived Eden Archive and chosen by the same screen-space-error selection as the terrain tiles; hand over to the live objects of the active grid with a dithered cross-fade; fall back to the live chunk of any cell whose objects a script or a mod changed. With the setting off, nothing changes.
+Inherited code touched (re-read at the commit that starts each stage; writing this spec changes nothing): `apps/openmw/mwrender/distantobjects.{hpp,cpp}` (`collectReferences`, `buildChunk`, `DistantObjects::update`, `setDisabled`, `blacklist`, `forget`), `apps/openmw/mwrender/distantobjectcells.{hpp,cpp}` (`isDistantObjectType`, `distantObjectMaxDistance`, `distantObjectMatrix`, `ActiveCellGrid`), `apps/openmw/mwrender/rendermanager.cpp` (`updateDistantObjects`, `pagingEnableObject`, `pagingBlacklistObject`, `referenceCells`, `setActiveGrid`), `components/vsgadapters/nif/nif.cpp` (`handleGeometry`: what a NIF mesh looks like as VSG data), `components/vsgutil/cullnode.hpp` (`getBounds`), `files/shaders/default/main.frag` (dither, stage d only), `components/lod/` (`tilekey`, `tileselection`, `tilepack`: reused, not changed).
+Inputs / outputs: a derived pack `<user data>/openeden/lod/objects.edenpak` (entry type `0x0011`, key tag `0x11`, **layout version 0, draft**), a baker mode `openmw --bake-lod-objects`, settings `[WorldLod] object clusters` (false) and companions, a new third-party library (meshoptimizer v1.3, MIT).
+
+Status: DRAFT written 2026-11-02, not approved. The cluster entry layout below is a **draft (version 0)** that toddhow must approve before it freezes (the same procedure as the S1 tile layout). Full loop (renderer, loader, untrusted input, a new derived-data format, a new dependency).
+
+## What S0 told us (from `docs/research/0025-lod-baseline.md`; RTX 4070, i7-13700K)
+
+- **Without object paging the horizon loses every tower, rock and tree** (section 7 of the note: the difference image is white along the whole silhouette band; the tall tower complex on the ridge is simply gone). So distant objects are the visible win of the whole LOD track.
+- **With object paging they are unmerged and cut at one distance, and cost a lot of draws.** The scene-graph census at 30000 view is 33,823 draw commands and 2.42 million triangles with distant terrain and object paging on, against 7,033 and 0.74 million with both off (section 2): 26,790 more draws and 1.68 million more triangles. The note did not run object paging alone, so how much of that is terrain chunks and how much objects is **not measured**; the 7168 to 15000 step (6,978 to 12,469 draws) suggests that most of it is objects, since terrain chunks are few. Each placed object is its own `MatrixTransform` + `DistanceLOD` + model under a per-cell `CullGroup` (`buildChunk`), so a cell with 300 statics is at least 300 draws. The census is an upper bound (no culling), not issued commands.
+- **The frame is CPU-bound** (3.87 ms wall against 0.35 ms GPU main pass at the worst scene), and about 1.6 ms of CPU a frame is the price of the long view. Draw commands and scene-graph nodes are the cost, not triangles. A cluster is one draw per material group per tile.
+- **Estimate of the saving (to be measured in stage d, not a promise).** At 30000 view, about 42 cells lie inside the view circle; clusters are chosen at tile level 1, 2 or 3 (2 x 2, 4 x 4, 8 x 8 cells), so the far part needs on the order of 10 to 20 tiles. If a tile holds on the order of 20 to 60 distinct textures among its far-visible statics (an assumption: Morrowind regions reuse a small set of textures; to be counted by the baker), that is **200 to 1,200 draws instead of up to about 26,800**, a factor of 20 or more on the draw count, with a triangle count set by the per-level error (below) rather than by the placement density. The baker reports the real number of groups per tile.
+- Memory is small (716 to 793 MiB resident, 219 to 252 MiB device); the budget for clusters is not the first problem. The pack size is: it is reported by the baker (stage c).
+
+## Design, in plain language
+
+The world is already cut into square tiles of 1, 2, 4 and 8 cells (levels 0 to 3, task 0055). The terrain bakes levels 1 to 3. S4 gives **every tile of levels 1 to 3 a second payload, the object cluster**: all the far-visible statics whose reference lies in that tile, copied into one mesh per material group, simplified until the shape differs from the real thing by no more than the level's **error** (a length in world units, 64 for level 1, 192 for level 2, 576 for level 3 as starting values), and with objects too small to be seen at that error left out. The tile's cluster is chosen exactly like its terrain: if its error on screen is at most the threshold the cluster is drawn, otherwise the next finer choice is used (a finer tile, or at last the live objects). A cluster is built from the **full-detail models**, never from a coarser cluster (record 0010).
+
+**What goes in a cluster, and what does not (classification).** Only statics (`ESM::REC_STAT`) enter. Activators and doors stay on the live path forever (`DistantObjects` keeps drawing them), because they are interactive, can be scripted, and are few. Also left out: models with animation or controllers, skinned models, particle systems, alpha-blended (sorted) materials, and any object whose radius is below the level's drop size (`radius < dropFactor x error`, `dropFactor` 1.0 as the starting value; the object would be sub-pixel at the distances the level is used). Trees are statics with alpha-tested leaves: they are in, grouped under their texture with an alpha-test flag. Lights are not objects of the cluster (the live path does not draw them from afar either). Grass and clutter that groundcover handles are not statics of the cell lists and are not touched (S7).
+
+**Merging.** For each tile, each included object is transformed into tile space (tile-local x and y, absolute z, 32-bit floats), **simplified on its own first** with meshoptimizer (design decision D5: this keeps each object's silhouette; a global pass would merge a tower into its neighbour's wall), welded to compact vertices, and appended to the **material group** of its texture. A group is identified by the diffuse texture path (normalised, as the VFS names it), alpha-test on or off, two-sided on or off. Objects are processed in a fixed order (cell, then reference number), so the same input gives the same bytes.
+
+**Textures: no atlas in version 0.** Each group keeps its **original texture** (the cluster stores the path, the runtime loads it through the normal texture cache, still block-compressed). An atlas would have to be RGBA8 because the project has no block-compression encoder (task 0055 stage log), and would be many times larger; Morrowind's statics reuse few textures. The cost is one draw per group instead of one per tile; the saving over today is still large (estimate above). An atlas stays an option for a later layout version if the group counts turn out high.
+
+**Lighting.** Clusters store **no baked light**: vertex position, normal, texture coordinates and the model's own vertex colours (Morrowind statics carry their artists' baked darkening in vertex colours, which are part of the albedo). Runtime shading uses the same lighting as near objects, so time of day and weather apply (design 7.3). Baked ambient occlusion would need a GPU or a ray caster in the baker; it is a later option (the layout reserves nothing for it; a new layout version adds it).
+
+**Which cell an object belongs to.** The cell its **reference** is stored in is not always the cell it stands in (the live path's `referenceCells` handles both). The cluster assigns an object to the tile and cell where it **stands** (`floor(position / cell size)`), the same rule the S1 tiles use for land, and lists in each cell the references it holds.
+
+**Overrides: the one rule.** Each cluster stores, per source cell, the **sorted list of the references it contains** and the **index ranges of that cell's triangles**. Then:
+
+> If any reference in cell C is disabled, moved, rotated, scaled or deleted at run time (what `DistantObjects::setDisabled` and `blacklist` already hear), or if C is inside the active grid, the cluster **masks cell C**: the ranges of C are not drawn, and the live chunk of C draws its statics again. A reference that is not in the cluster's list for C (too small, excluded) needs nothing.
+
+Everything else about C stays clustered. This makes one mechanism cover the three cases: a script that disables a tower, a mod that moves a rock, and the player walking into a cell. For the third, the mask is gradual (cross-fade below).
+
+**Live chunk and cluster never both draw a static.** `DistantObjects` keeps one chunk per cell. When a cluster that covers cell C is shown and C is not masked, C's chunk draws only the non-static far types (activators, doors); its statics are the cluster's. When C is masked or no cluster covers it, the chunk draws everything, as now. (This changes `buildChunk` by a type filter and makes a chunk rebuild when a cell's cluster state flips; that is the main interplay risk, listed below.)
+
+**The hand-off to the active grid and the dither.** The active grid keeps loading real objects (`Scene::loadCell`). As a cell becomes active, its real objects fade in while its cluster cell fades out; the reverse when it unloads. Both versions draw for a short time (starting value 0.4 s), each discarding pixels through a screen-space pattern chosen so the two patterns are complementary (design 7.2); no sorting and no alpha blend. A fade in progress is never restarted by hysteresis: it runs to the end, then the state may flip. The factor is per cell for the cluster (every vertex carries its **cell slot**, a byte, and the shader looks the fade up in a small per-cluster array of 64 floats, so the ranges need not be separate draws), and one number per chunk for the live objects. Tile-to-tile and cluster-to-live changes at larger distances use the same fade with a per-tile factor.
+
+**Hysteresis and selection.** Clusters use `Lod::selectTileTree` unchanged, with their own `TileState` array whose `mBounds` carry the **cluster's** geometric error and z range. The same 0.7 hysteresis applies. The setting `object cluster threshold` defaults to the terrain's 8 pixels, to be calibrated by looking at frames (as S1f did).
+
+**Cache key and staleness (the minimal S2).** A cluster entry's provenance has tool id `openeden.lod.objects`, parameters (baker version, level, error, drop factor, cell size, worldspace) and a **source digest**: BLAKE3 of, in order, the tile id, the parameters, and for every object in the tile (cell, reference number, record id, model path, position, rotation, scale) plus **the BLAKE3 of the model file and of each texture file it uses** (read through the VFS). The pack's own source digest is the BLAKE3 of the manifest and every tile digest in key order, exactly as the terrain pack does. At start the runtime recomputes the tile digests without building meshes (as `TileBakeSettings::mDigestOnly` does) and ignores a pack that does not match, with one warning. Reuse by key across load orders, generation manifests and the `current` pointer remain S2 proper and are not built here: a bake that finds the same digest writes nothing, otherwise it rewrites the whole pack and the generation goes up by one.
+
+### Draft cluster entry layout (version 0; needs toddhow's approval)
+
+**Key.** Identical to the terrain tile key in its low 56 bits (worldspace, level, Morton x and y: `components/lod/tilekey.hpp`), with the tag `0x11`. `Lod::packClusterKey` and `unpackClusterKey` are the only code that knows this.
+
+**Entry.** Type `0x0011`. `hintMemorySize` is the payload size, `layoutParamA` the group count, `layoutParamB` the cell count. Little endian, every table 8-aligned, padding zero, canonical (a payload that parses rewrites to the same bytes).
+
+Header, 104 bytes:
+
+| Offset | Size | Field |
+| --- | --- | --- |
+| 0 | 4 | magic `ETCL` |
+| 4 | 2 | version (**0**, draft; the final layout will use a new number so a draft can never be mistaken for it) |
+| 6 | 2 | flags (0 in version 0; the reader refuses any bit) |
+| 8 | 4 | level (1 to 3) |
+| 12 | 4 | tile side in world units (f32) |
+| 16 | 8 | tile origin x, y (f32, f32): south-west corner; vertices are stored relative to it in x and y |
+| 24 | 4 + 4 | minimum z, maximum z of all vertices (f32, absolute) |
+| 32 | 4 | geometric error (f32, world units; the larger of the biggest simplification error actually reached and the biggest radius of a dropped object) |
+| 36 | 4 | group count |
+| 40 | 4 | range count |
+| 44 | 4 | cell count (at most 64 in version 0) |
+| 48 | 4 | reference count |
+| 52 | 4 | vertex count |
+| 56 | 4 | index count (multiple of 3) |
+| 60 | 4 | string bytes |
+| 64 | 4 each | offsets of: groups, ranges, cells, references, vertices, indices, strings (7 offsets, 64 to 88) |
+| 92 | 4 | source triangle count (before simplification; a statistic, not checked against anything) |
+| 96 | 4 | overhang: the largest distance any vertex lies outside the tile square in x or y (f32) |
+| 100 | 4 | reserved, zero |
+
+Tables:
+
+- **Group** (32 bytes each): texture path offset and length in the string table (u32, u32), material flags (u32: bit 0 alpha test, bit 1 two-sided; other bits refused), alpha cutoff (f32, 0 unless alpha test), first index and index count of the group in the index buffer (u32, u32), 8 reserved bytes (zero). Groups are sorted by (path, flags); their index spans tile the index buffer exactly in that order.
+- **Range** (16 bytes each): group, cell slot, first index, index count (u32 each). Sorted by (group, cell slot); the ranges of a group tile its span exactly; every count is a multiple of 3 and above 0.
+- **Cell** (16 bytes each): cell x, cell y (i32, i32; absolute cell coordinates), first reference, reference count (u32, u32). Sorted by (y, x). A cell appears only if it holds at least one reference.
+- **Reference** (8 bytes each): `ESM::RefNum` as two u32, the index and then the content-file number stored as u32 (`FormId::mIndex`, `mContentFile`). Sorted by (index, content file) within a cell; the cell spans tile the table exactly.
+- **Vertex** (28 bytes each): position x, y, z (f32 x 3; x and y relative to the tile origin), normal x, y, z (snorm8 x 3) and the **cell slot** (u8) in the fourth byte, vertex colour (unorm8 x 4), texture coordinates u, v (f32 x 2). The reader checks that all numbers are finite, that positions lie in `[-overhang, side + overhang]` in x and y and `[minZ, maxZ]` in z, and that every slot is below the cell count.
+- **Index** (u32 each): triangle lists; every index below the vertex count.
+- **Strings**: UTF-8 texture paths in the VFS's normalised form, concatenated, no terminators.
+
+The reader refuses anything else: magic, version, flags, counts above the caps (groups 4096, ranges 65536, cells 64, references 2^20, vertices 2^22, indices 2^24), offsets that are not the canonical ones, spans that overlap or leave the entry, ranges that do not tile their groups, indices out of range, a path that is not valid UTF-8 or not normalised, any non-finite number. A failure returns a located `LodError` and means "no cluster": the live path draws and one line is logged.
+
+**Manifest.** `lod/manifest.json` in `objects.edenpak`, canonical JSON like the terrain pack's (alphabetical keys, no spaces, one line, strict parse): layout version (0), baker version, worldspaces, levels, and the per-level error and drop factor.
+
+## Decisions (recommendation first; toddhow decides)
+
+| # | Decision | Recommended | Alternative |
+| --- | --- | --- | --- |
+| D1 | What enters a cluster | Statics only; activators and doors stay on the live path; animated, skinned, particle and alpha-blended models excluded; objects below `dropFactor x error` dropped | Include doors and activators (scripted ones would then need the mask rule too) |
+| D2 | Textures | Group by original texture, no atlas in version 0 (the project has no block-compression encoder, so an atlas is RGBA8 and large) | A per-tile atlas (fewer draws, much larger, needs the encoder) or texture arrays |
+| D3 | Simplification | Each object simplified on its own to the level's absolute error, then merged (design D5, accepted) | Merge first, then one global pass (fewer triangles, loses small objects' shapes) |
+| D4 | Level errors | 64, 192 and 576 world units for levels 1, 2 and 3 (about 1.6 pixels at 7,500, 20,000 and 60,000 units at 8 px threshold, 1280 x 720, 60 degree field), calibrated in stage d by looking at frames | Other factors, per setting |
+| D5 | Baked lighting | None (unlit albedo, normals, vertex colours; runtime lighting) | Vertex ambient occlusion, a later layout version |
+| D6 | Overrides | Cell mask driven by stored reference lists; the live chunk takes the cell back (above) | Rebuild a whole cluster without the object (needs the baker at run time, too slow) |
+| D7 | Fade | Dither, per-vertex cell slot and a 64-float fade array per cluster, 0.4 s; the fade factor of the live chunk is one number (new `Pipeline::Mode`, an edit of the existing GLSL `default/main.frag`, which stays GLSL under decision 0009) | A separate draw per cell range with a uniform each (more draws), or alpha blending (sorting problems) |
+| D8 | Settings | `[WorldLod] object clusters` (false), `object cluster threshold` (pixels, 8), `object cluster fade time` (seconds, 0.4); all off or inert unless `enabled` and `object clusters` | One shared threshold with the terrain |
+| D9 | The cluster's key | Tag `0x11`, low 56 bits identical to the terrain key | A separate key space |
+| D10 | Library | meshoptimizer v1.3 (MIT), only the simplifier, index generator, vertex cache and quantisation sources, built as a static library with the project's quiet flags (as zstd and BLAKE3), pinned by tag and SHA-512 | Write a simplifier ourselves (no) |
+| D11 | Where it is drawn when the cluster is not ready | The live chunk draws everything, as today (D7 of task 0055, fallback) | Hide until ready |
+
+## Stages (each committed working and tested)
+
+- **a Pure pipeline.** Dependency record, `extern/CMakeLists.txt`, the meshoptimizer target; `components/lod/objectcluster*` (classification, merge and simplify on generated meshes). GPU-free tests: classification table; transform; a simplified object stays within the error (checked against the input by a brute-force distance bound); merge groups by material; ranges tile groups; **same input gives the same bytes** whatever the input order of objects and whatever thread builds it; thread count does not change bytes; empty and degenerate inputs.
+- **b Layout.** `components/lod/` payload writer and reader (draft version 0) behind one module, `packClusterKey`, tests for every refusal in the list above and a mutation test like the terrain tile's. Marked DRAFT in the code; the version field is 0.
+- **c Bake command.** `openmw --bake-lod-objects` (like `--bake-lod-terrain`): collects the references with the same function the live chunk uses (`collectReferences` moves to a shared header so the two cannot disagree), reads the models, flattens a model's scene graph into per-material triangle lists (**the biggest unknown**, below), builds all tiles of levels 1 to 3, writes `<user data>/openeden/lod/objects.edenpak`. Deterministic, resumable by digest (nothing written when the digest matches), user cache folder, never committed. Reports counts (objects seen, included, per exclusion reason), groups per tile, triangles before and after, pack size, time.
+- **d Runtime.** `[WorldLod] object clusters`; cluster tiles built and drawn from the pack by the selection; cell mask; live chunk type filter; dithered cross-fade (stage S5's part); frames at the far horizon with clusters, with object paging alone and with neither; a walking sequence looked at for seams and pops; draws, triangles, memory, frame time against S0's scenes.
+
+## Constraints
+
+- **Determinism.** No clock, no unseeded randomness, no unordered containers where order affects output; objects sorted by (cell y, cell x, reference); groups sorted by (path, flags); meshoptimizer's output is a function of its input on one build (cross-machine byte equality is not promised, as in the terrain bake).
+- **Untrusted input.** Cluster files are derived data a user can edit or damage: every size and offset is checked before use; decoded sizes capped; a bad cluster never crashes (design 9).
+- **Allocation.** No allocation in the per-frame selection (a preallocated state array); builds and reads on worker threads.
+- **Threading.** The bake runs the pure pipeline on worker threads; scene graph edits, compile and detach on the main thread only; `DistantObjects` mutations stay on the main thread (the DeletionQueue is mutex guarded since task 0054, other worker-side scene edits are not).
+- **Off means unchanged.** With `[WorldLod] enabled = false` or `object clusters = false`, no code of this runs, no file is opened and `DistantObjects` builds exactly the chunks it builds now (the type filter is inert without a cluster). Compared by frames of the S0 scenes and the 32 Lua tests.
+- **Units.** World units (Morrowind), Z up; the cell size is read from the world source, not assumed.
+- **No game assets in the repository.** Bakes live in the user data folder; tests use generated meshes.
+- **Shaders.** A new shader file would be Slang (decision 0009, `openeden_add_slang_shader()`); the dither is an edit of the existing GLSL `default/main.frag` (and the logged split: GLSL edit, no new shader file). Cluster draws use the existing pipeline with one new mode; nothing is ported.
+- **Licence.** meshoptimizer is MIT; its README asks that the product's documentation or credits name it. Recorded in `docs/dependencies.md` **before** the dependency was added, and the credit line is for toddhow's `AUTHORS`/credits.
+- New files under `components/` and `apps/openmw` use lowercase letters and digits only.
+
+## Risks and open questions
+
+1. **Flattening a model.** `buildChunk` gets a `vsg::Node` tree from `context.readNode`; there is no flat-geometry accessor like S1's `Terrain::Storage::getVertexData`. A model is a tree of transforms and state groups whose draws are `vsg::VertexIndexDraw` with a vertex, normal, colour and texture-coordinate array in the order `handleGeometry` builds them (`components/vsgadapters/nif/nif.cpp`), and a texture descriptor in the state group. Walking it into per-material triangle lists (and reading which state is alpha-tested, two-sided or blended) is not yet done; if it is not tractable the pure stages still stand and stage c waits for a better accessor (for example a function that reads a NIF straight into triangle lists).
+2. **Live chunk interplay.** The type filter and the cell mask make a chunk's content depend on the cluster state of its cell; a state flip rebuilds (or re-filters) the chunk. `DistantObjects` already rebuilds a chunk per cell on `forget`, so the mechanism exists, but the flip rate (a camera crossing a level boundary) must not cause rebuild storms; hysteresis is the guard.
+3. **Dither mechanism.** Where the per-draw fade lives (the material block is pinned at 96 bytes and its spare float is already shared; a push constant or a small per-draw descriptor are the candidates) is for stage d, after reading `components/render/CLAUDE.md` and `Pipeline::Graphics`.
+4. **Terrain/cluster consistency.** Terrain tiles and clusters are selected independently; a mountain tile drawn coarsely with a tower on it drawn finely is allowed (clusters are lifted by their own z range), but a coarse terrain tile can cut through a fine object's base. The skirt/error budget of the terrain tile covers it for the level errors above; to be looked at in frames.
+5. **Morrowind only.** The cluster pipeline takes plain triangle lists and a reference list; the NIF reading is Morrowind's. New Vegas (S12) provides the same inputs from its own models.
+
+## Acceptance criteria
+
+- [ ] meshoptimizer v1.3 recorded in `docs/dependencies.md` (version, source, SHA-512, MIT, what is built) before it is added to `extern/CMakeLists.txt`; the build uses only the pinned copy.
+- [ ] Classification, merge and simplify tests pass on generated meshes (listed in stage a), including byte-for-byte determinism across input order and thread counts.
+- [ ] Payload tests: round trip, canonical bytes, every malformed-input case in the list above refused with a located error, mutation test clean.
+- [ ] The bake command produces `objects.edenpak` from real Morrowind data, deterministically (two bakes give the same SHA-256), `edenvalidate` accepts it, and the report gives counts, group numbers, sizes and time.
+- [ ] With `object clusters` on, frames at the far horizon of the S0 poses show towers, rocks and trees at 30000 view, no seam at tile-to-tile or cluster-to-live joins and no pop in a walking sequence (frames looked at and described in the stage log); census draws, triangles, memory and frame time recorded against S0's rows.
+- [ ] A reference disabled by script or moved falls back to the live chunk for its cell (a test of the rule on generated data, and a check in the game).
+- [ ] With `[WorldLod] enabled = false` (and with `object clusters = false`) the 32 Lua tests pass and a frame of the Balmora pose is unchanged.
+- [ ] A fresh reviewer read each stage's code; unit tests, clang-format 14 and the check scripts pass.
+
+Out of scope: impostors for trees and landmarks (S10), per-model LOD chains of the active grid (S5 proper), atlases, texture compression, baked ambient occlusion, the background baker and its launcher page (S8), generation manifests and cross-load-order reuse (S2 proper), streaming budgets (S6), GPU culling (S9), Fallout: New Vegas (S12), grass and groundcover (S7), shadows cast by clusters, picking and physics against clusters (clusters are visual only), and any change to how the live objects look when the setting is off.
+
+## Stage log (implementer's notes)
+
+(empty: nothing is built yet)
