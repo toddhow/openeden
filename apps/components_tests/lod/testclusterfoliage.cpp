@@ -36,10 +36,10 @@ namespace
 
     TEST(LodClusterFoliage, translucent_texture_names_are_recognised)
     {
-        const char* const names[] = { "Tx_V_water_01.tga", "textures\\tx_bm_icelayer_01.dds", "textures/tx_ghost_01.tga",
-            "tx_bubbles.dds", "tx_waterfall_02.dds", "tx_glass_01.tga", "tx_mist.dds", "tx_rays_01", "tx_web_01",
-            "tx_window_03", "tx_bottle", "tx_smoke_01", "tx_steam", "tx_cloud_02", "tx_glow_blue", "tx_rope_01",
-            "tx_fog" };
+        const char* const names[]
+            = { "Tx_V_water_01.tga", "textures\\tx_bm_icelayer_01.dds", "textures/tx_ghost_01.tga", "tx_bubbles.dds",
+                  "tx_waterfall_02.dds", "tx_glass_01.tga", "tx_mist.dds", "tx_rays_01", "tx_web_01", "tx_window_03",
+                  "tx_bottle", "tx_smoke_01", "tx_steam", "tx_cloud_02", "tx_glow_blue", "tx_rope_01", "tx_fog" };
         for (const char* name : names)
             EXPECT_TRUE(textureLooksTranslucent(name)) << name;
     }

@@ -330,8 +330,8 @@ namespace MWRender
         std::optional<bool> shown;
         if (const auto it = mShownSkipsStatics.find(cell); it != mShownSkipsStatics.end())
             shown = it->second;
-        return Lod::liveStaticsReady(mClustered.contains(cell), mRebuilding.contains(cell) || mTracker.isPending(cell), shown,
-            std::binary_search(mWantedCells.begin(), mWantedCells.end(), cell));
+        return Lod::liveStaticsReady(mClustered.contains(cell), mRebuilding.contains(cell) || mTracker.isPending(cell),
+            shown, std::binary_search(mWantedCells.begin(), mWantedCells.end(), cell));
     }
 
     std::shared_ptr<const std::vector<Lod::ClusterRef>> DistantObjects::clusterRefsOf(
