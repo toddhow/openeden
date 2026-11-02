@@ -31,7 +31,7 @@ add_openmw_dir (mwrender
     animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map worldmap preview shadow
-    fogmanager water screenshotinterface bonepose footikmath actorikcontroller joltdebugdraw navmesh creativemotiondriver weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells distantobjects waterripples groundcoverinstances groundcover
+    fogmanager water screenshotinterface bonepose footikmath actorikcontroller joltdebugdraw navmesh creativemotiondriver creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells distantobjects waterripples groundcoverinstances groundcover
     )
 
 add_openmw_dir (mwinput
@@ -197,6 +197,7 @@ if (TARGET opas::anim_runtime)
         opas::anim_runtime
         opas::anim_clip
         opas::anim_gltf
+        opas::anim_style
         opas::rig
         opas::motor
         opas::math

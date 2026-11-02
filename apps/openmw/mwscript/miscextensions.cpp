@@ -45,6 +45,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <components/misc/strings/lower.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -402,6 +403,30 @@ namespace MWScript
                 std::string message;
                 MWBase::Environment::get().getWorld()->spawnDebugRagdoll(ptr, message);
                 runtime.getContext().report(message);
+            }
+        };
+
+        // Debug console command of task 0053: describes the target's CreativeMotion style; "on", "off" or a style name
+        // changes it. The player when no actor is selected.
+        template <class R>
+        class OpCmStyle : public Interpreter::Opcode1
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+            {
+                MWWorld::Ptr ptr = R()(runtime, false);
+                if (ptr.isEmpty())
+                    ptr = MWBase::Environment::get().getWorld()->getPlayerPtr();
+
+                std::string argument;
+                if (arg0 > 0)
+                {
+                    argument = runtime.getStringLiteral(runtime[0].mInteger);
+                    runtime.pop();
+                }
+                ::Misc::StringUtils::lowerCaseInPlace(argument);
+                runtime.getContext().report(
+                    MWBase::Environment::get().getMechanicsManager()->cmStyleCommand(ptr, argument));
             }
         };
 
@@ -1783,6 +1808,8 @@ namespace MWScript
             interpreter.installSegment5<OpCmRagdoll<ImplicitRef>>(Compiler::Misc::opcodeCmRagdoll);
             interpreter.installSegment5<OpCmRagdoll<ExplicitRef>>(Compiler::Misc::opcodeCmRagdollExplicit);
             interpreter.installSegment5<OpCmRagdollOff>(Compiler::Misc::opcodeCmRagdollOff);
+            interpreter.installSegment3<OpCmStyle<ImplicitRef>>(Compiler::Misc::opcodeCmStyle);
+            interpreter.installSegment3<OpCmStyle<ExplicitRef>>(Compiler::Misc::opcodeCmStyleExplicit);
             interpreter.installSegment5<OpToggleWireframe>(Compiler::Misc::opcodeToggleWireframe);
             interpreter.installSegment5<OpFadeIn>(Compiler::Misc::opcodeFadeIn);
             interpreter.installSegment5<OpFadeOut>(Compiler::Misc::opcodeFadeOut);

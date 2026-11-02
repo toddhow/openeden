@@ -1,0 +1,22 @@
+{
+  "format": "opas.style",
+  "version": 1,
+  "name": "cm_heavy_test",
+  "posture": {
+    "headPitchRad": 0.2,
+    "shoulderElevationRad": -0.1,
+    "slouchRad": 0.35
+  },
+  "gait": {
+    "cadenceScale": 0.6,
+    "strideScale": 0.8
+  },
+  "idle": {
+    "breathingAmplitudeM": 0.02,
+    "breathingRateHz": 0.2
+  },
+  "layers": [
+    {"name": "hunch", "weight": 0.5},
+    {"name": "limp", "weight": 0.3}
+  ]
+}

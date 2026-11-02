@@ -9,6 +9,7 @@
 
 #include <components/animation/transform.hpp>
 #include <components/esm/records.hpp>
+#include <components/misc/constants.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -20,10 +21,13 @@
 #include <components/mwanimation/position.hpp>
 #include <components/vsgutil/computetransform.hpp>
 
+#include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
 
 #include "../mwrender/actorikcontroller.hpp"
 #include "../mwrender/creativemotiondriver.hpp"
+#include "../mwrender/creativemotionstyle.hpp"
 #include "../mwrender/effect.hpp"
 #include "../mwrender/itemlight.hpp"
 #include "../mwrender/player.hpp"
@@ -56,6 +60,23 @@
 
 namespace
 {
+    // The styles of task 0053, read once each from the VFS ("styles/<name>.style.json"). Reads happen on the main
+    // thread (createPoseControllers and the console); the profiles are then only read, by animation threads.
+    MWRender::StyleLibrary& styleLibrary()
+    {
+        static MWRender::StyleLibrary library([](const std::string& path) -> std::optional<std::string> {
+            const VFS::Manager* vfs = MWBase::Environment::get().getResourceSystem()->getVFS();
+            const VFS::Path::Normalized normalized(path);
+            if (!vfs->exists(normalized))
+                return std::nullopt;
+            const Files::IStreamPtr stream = vfs->get(normalized);
+            std::ostringstream text;
+            text << stream->rdbuf();
+            return text.str();
+        });
+        return library;
+    }
+
     struct UpdateEquipment : public MWWorld::InventoryStoreListener
     {
         UpdateEquipment(MWAnim::Wielding* w)
@@ -2635,7 +2656,8 @@ namespace MWMechanics
                     // Layer 3.B: Dynamic Playback Scaling
                     currentSpeed = InertialMotion::animationGroundSpeed(smoothedSpeed, speed, vsg::length2(vec) > 0.0f);
                 }
-                const float speedMult = currentSpeed / mMovementAnimSpeed;
+                // The style layer's cadence (1 without it), set by runPoseDriver (task 0053).
+                const float speedMult = currentSpeed / mMovementAnimSpeed * mStyleCadence;
                 mAnimation->adjustSpeedMult(mCurrentMovement, std::min(maxSpeedMult, speedMult));
                 // Make sure the actual speed is the "expected" speed even though the animation is slower
                 if (isMovementAnimationControlled())
@@ -2734,6 +2756,19 @@ namespace MWMechanics
             smoothedSpeed, mTraceLocomotionPhase, animationSpeed);
         line += locomotionText;
         line += std::string(" driver=") + (mPoseDriver ? (mPoseDriverApplies ? "applies" : "compare") : "off");
+        if (mPoseDriver)
+        {
+            const auto style = mPoseDriver->getStyleStatus();
+            if (style.mProfile != nullptr)
+            {
+                char styleText[sTraceTextCapacity];
+                std::snprintf(styleText, sizeof(styleText),
+                    " style=%s(%s) w=(move %.2f idle %.2f posture %.2f) cadence=%.2f",
+                    style.mProfile != nullptr ? style.mProfile->name.c_str() : "none", style.mEnabled ? "on" : "off",
+                    style.mWeights.mMoving, style.mWeights.mIdle, style.mWeights.mPosture, style.mCadence);
+                line += styleText;
+            }
+        }
         line += MWRender::describeBoneRotations(mAnimation->bones, traceBones);
         Log(Debug::Info) << line;
     }
@@ -2744,6 +2779,8 @@ namespace MWMechanics
 
         mPoseDriver.reset();
         mPoseDriverApplies = false;
+        mStyleCadence = 1.f;
+        mStyleSpeedMps = 0.f;
         if (Settings::game().mCreativeMotionAnimation || Settings::game().mCreativeMotionAnimationCompare)
         {
             auto driver = std::make_unique<MWRender::CreativeMotionPoseDriver>(mAnimation->bones);
@@ -2752,8 +2789,80 @@ namespace MWMechanics
                 mPoseDriver = std::move(driver);
                 mPoseDriverApplies = Settings::game().mCreativeMotionAnimation;
                 mAnimation->updateBones = !mPoseDriverApplies;
+                mPoseDriver->setTransitionRules(Settings::game().mCreativeMotionTransitionRules);
+                configureStyle();
             }
         }
+    }
+
+    const opas::style::StyleProfile* CharacterController::resolveStyleProfile()
+    {
+        if (!Settings::game().mCreativeMotionStyleLayer)
+            return nullptr;
+        std::string name = mStyleChoice;
+        if (name.empty())
+        {
+            std::string raceId;
+            if (mPtr.getClass().isNpc())
+                raceId = mPtr.get<ESM::NPC>()->mBase->mRace.serializeText();
+            name = MWRender::selectStyleName(
+                MWRender::loadStyleRulesFromSettings(), mPtr.getCellRef().getRefId().serializeText(), raceId);
+        }
+        return styleLibrary().find(name);
+    }
+
+    void CharacterController::configureStyle()
+    {
+        mStyleCadence = 1.f;
+        if (!mPoseDriver)
+            return;
+        mPoseDriver->setStyleEnabled(false);
+        mPoseDriver->setStyle(nullptr, 0);
+        // The style only does anything when the pose driver poses the bones (not in compare-only mode).
+        const opas::style::StyleProfile* profile = mPoseDriverApplies ? resolveStyleProfile() : nullptr;
+        // The style's noise is seeded from the reference number: the same actor always moves the same way.
+        const ESM::RefNum refNum = mPtr.getCellRef().getRefNum();
+        const std::uint64_t seed = static_cast<std::uint64_t>(refNum.mIndex)
+            | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(refNum.mContentFile)) << 32);
+        mPoseDriver->setStyle(profile, seed);
+        mPoseDriver->setStyleEnabled(profile != nullptr && !mStyleSwitchedOff);
+    }
+
+    MWRender::ActorState CharacterController::currentStyleState() const
+    {
+        MWRender::ActorState state;
+        state.mSpeedMps = mStyleSpeedMps;
+        state.mRunning = isRunning();
+        state.mSneaking = isSneaking();
+        state.mTurning = isTurning();
+        state.mWeaponDrawn = mPtr.getClass().getCreatureStats(mPtr).getDrawState() != DrawState::Nothing;
+        state.mHit = mHitState != CharState_None;
+        return state;
+    }
+
+    std::string CharacterController::styleCommand(std::string_view argument)
+    {
+        if (!mPoseDriver || !mPoseDriverApplies)
+            return "CreativeMotion animation is not running for this actor";
+        if (argument == "on" || argument == "off")
+            mStyleSwitchedOff = argument == "off";
+        else if (!argument.empty())
+        {
+            if (!Settings::game().mCreativeMotionStyleLayer)
+                return "The style layer is off: set [Game] creativemotion style layer = true";
+            if (styleLibrary().find(argument) == nullptr)
+                return "No style named " + std::string(argument) + " (see the log)";
+            mStyleChoice = std::string(argument);
+            mStyleSwitchedOff = false;
+        }
+        // The driver takes the change at its next run; what is described here is what it will then do.
+        mStyleDirty = true;
+        const opas::style::StyleProfile* profile = resolveStyleProfile();
+        if (profile == nullptr)
+            return Settings::game().mCreativeMotionStyleLayer
+                ? "No style for this actor"
+                : "The style layer is off ([Game] creativemotion style layer)";
+        return MWRender::describeStyle(*profile, !mStyleSwitchedOff, MWRender::styleWeights(currentStyleState()));
     }
 
     void CharacterController::runPoseDriver(float duration)
@@ -2761,6 +2870,9 @@ namespace MWMechanics
         // Differences the comparison mode reports (as the OSG build): 5 mm and about 1.1 degrees.
         constexpr float compareTranslationThreshold = 0.005f;
         constexpr float compareRotationThreshold = 0.02f;
+
+        if (mStyleDirty.exchange(false))
+            configureStyle();
 
         std::array<MWRender::CreativeMotionActiveSource, MWRender::sNumBlendMasks> active;
         for (std::size_t group = 0; group < active.size(); ++group)
@@ -2772,11 +2884,28 @@ namespace MWMechanics
                 Log(Debug::Warning) << "CreativeMotion cannot play the animation of " << mPtr.getCellRef().getRefId()
                                     << "; using the engine's animation for this actor";
                 mPoseDriver.reset();
+                mStyleCadence = 1.f;
                 mAnimation->updateBones = true;
                 return;
             }
             active[group] = { state.source, state.groupname, state.time };
         }
+
+        // What the actor is doing, for the style layer. The speed is smoothed: root motion varies within a step.
+        MWRender::ActorState state;
+        if (duration > 0.f)
+        {
+            // The animation's own movement shrinks with the style's cadence, so divide that out (or the cadence
+            // would feed back into the speed it is weighted by).
+            const float measured = std::sqrt(moved.x * moved.x + moved.y * moved.y) / duration
+                / Constants::UnitsPerMeter / std::max(mStyleCadence.load(), 0.1f);
+            constexpr float speedSmoothingRate = 6.f;
+            const float smoothed = mStyleSpeedMps;
+            mStyleSpeedMps = smoothed + (measured - smoothed) * std::min(1.f, duration * speedSmoothingRate);
+        }
+        state = currentStyleState();
+        mPoseDriver->setActorState(state);
+        mStyleCadence = mPoseDriver->getStyleStatus().mCadence;
 
         mPoseDriver->update(duration, active, Settings::game().mCreativeMotionAnimationTransition);
         if (mPoseDriverApplies)

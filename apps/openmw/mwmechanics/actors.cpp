@@ -2091,6 +2091,14 @@ namespace MWMechanics
         }
     }
 
+    std::string Actors::cmStyleCommand(const MWWorld::Ptr& ptr, std::string_view argument) const
+    {
+        const auto iter = mIndex.find(ptr.mRef);
+        if (iter == mIndex.end())
+            return "cmStyle: the actor is not active";
+        return iter->second->getCharacterController().styleCommand(argument);
+    }
+
     bool Actors::playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops, float speed,
         std::string_view startKey, std::string_view stopKey, bool forceLoop)
     {

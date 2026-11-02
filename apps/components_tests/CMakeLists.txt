@@ -140,6 +140,9 @@ file(GLOB UNITTEST_SRC_FILES
     inertialmotion/testmovementrequest.cpp
 
     mwrender/test_creativemotion_runtime.cpp
+    mwrender/test_creativemotion_style.cpp
+    mwrender/test_creativemotion_style_driver.cpp
+    ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotionstyle.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
 
     vsg/testshadercompile.cpp
@@ -242,6 +245,7 @@ target_include_directories(components-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/runtime/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/clip/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/rig/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/style/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/math/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/format/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/motor/include
@@ -256,6 +260,7 @@ target_link_libraries(components-tests
     opas_anim_runtime
     opas_anim_clip
     opas_rig
+    opas_anim_style
     opas_math
     opas_motor
 )

@@ -144,6 +144,7 @@ namespace MWMechanics
         /// @return Success or error
         bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number,
             bool scripted = false) override;
+        std::string cmStyleCommand(const MWWorld::Ptr& ptr, std::string_view argument) override;
         bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops, float speed,
             std::string_view startKey, std::string_view stopKey, bool forceLoop) override;
         void enableLuaAnimations(const MWWorld::Ptr& ptr, bool enable) override;

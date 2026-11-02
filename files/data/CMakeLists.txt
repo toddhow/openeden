@@ -56,6 +56,10 @@ set(BUILTIN_DATA_FILES
     # Default animation blending config
     animations/animation-config.yaml
 
+    # CreativeMotion example styles (task 0053)
+    styles/cm_default.style.json
+    styles/cm_heavy_test.style.json
+
     # Month names and date formatting
     l10n/Calendar/de.yaml
     l10n/Calendar/en.yaml

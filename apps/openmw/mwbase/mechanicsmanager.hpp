@@ -168,6 +168,9 @@ namespace MWBase
         virtual void forceStateUpdate(const MWWorld::Ptr& ptr) = 0;
         ///< Forces an object to refresh its animation state.
 
+        /// The cmStyle console command (task 0053): describes or changes the CreativeMotion style of an actor.
+        virtual std::string cmStyleCommand(const MWWorld::Ptr& ptr, std::string_view argument) = 0;
+
         virtual bool playAnimationGroup(
             const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number = 1, bool scripted = false)
             = 0;

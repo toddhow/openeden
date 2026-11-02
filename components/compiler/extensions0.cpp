@@ -241,6 +241,7 @@ namespace Compiler
             extensions.registerInstruction("tcb", "", opcodeToggleCollisionBoxes);
             extensions.registerInstruction("cmragdoll", "", opcodeCmRagdoll, opcodeCmRagdollExplicit);
             extensions.registerInstruction("cmragdolloff", "", opcodeCmRagdollOff);
+            extensions.registerInstruction("cmstyle", "/S", opcodeCmStyle, opcodeCmStyleExplicit);
             extensions.registerInstruction("tcg", "", opcodeToggleCollisionDebug);
             extensions.registerInstruction("twf", "", opcodeToggleWireframe);
             extensions.registerInstruction("togglewireframe", "", opcodeToggleWireframe);

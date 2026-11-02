@@ -281,6 +281,7 @@ namespace MWRender
             mInertializers[g] = std::make_unique<opas::anim::Inertializer>(numBones);
         }
         mIncoming = mRestPose;
+        mStyleLayer = std::make_unique<CreativeMotionStyleLayer>(mSkeleton);
         mBoneTranslations.resize(numBones);
         mBoneRotations.resize(numBones);
         mAnimated.assign(numBones, 0);
@@ -397,6 +398,17 @@ namespace MWRender
         if (!mValid)
             return;
 
+        // The style layer: the effective profile for this frame, and whether the style itself changed (a new style,
+        // or the layer switched on or off), which blends like a change of animation.
+        const opas::style::StyleProfile* style = (mStyleEnabled && mStyleLayer != nullptr) ? mStyleProfile : nullptr;
+        if (style != nullptr)
+        {
+            mStyleTimeS += static_cast<double>(duration);
+            makeEffectiveProfile(*style, styleWeights(mActorState), mStyleSeed, mEffectiveStyle);
+        }
+        const bool styleChanged = style != mLastStyleApplied;
+        mLastStyleApplied = style;
+
         for (std::size_t g = 0; g < sNumBlendMasks; ++g)
         {
             const CreativeMotionActiveSource& current = active[g];
@@ -409,15 +421,23 @@ namespace MWRender
             else
                 std::copy(mRestPose.begin(), mRestPose.end(), mIncoming.begin());
 
-            const bool changed = current.mSource != mLastSources[g] || current.mGroupName != mLastGroupNames[g];
+            if (style != nullptr)
+                mStyleLayer->apply(mIncoming, mEffectiveStyle, mStyleTimeS);
+
+            const bool groupChanged = current.mSource != mLastSources[g] || current.mGroupName != mLastGroupNames[g];
+            const bool changed = groupChanged || styleChanged;
             const bool playedBefore = mLastSources[g] != nullptr;
-            if (changed && playedBefore && transitionDuration > 0.f)
+            float thisTransition = transitionDuration;
+            if (groupChanged && mTransitionRules)
+                thisTransition = transitionSeconds(
+                    classifyGroup(mLastGroupNames[g]), classifyGroup(current.mGroupName), transitionDuration);
+            if (changed && playedBefore && thisTransition > 0.f)
             {
                 // From what this group showed in the last two frames (with any running transition) to the new
                 // animation: right after the switch the output is last frame's pose, keeping its velocity.
                 mInertializers[g]->start(mGroupPrevPoses[g], mGroupPoses[g], mIncoming, static_cast<double>(duration),
-                    static_cast<double>(transitionDuration));
-                mTransitionDurations[g] = transitionDuration;
+                    static_cast<double>(thisTransition));
+                mTransitionDurations[g] = thisTransition;
             }
             else if (changed)
                 mInertializers[g]->start({}, {}, {}, 0.0, 0.0); // a pose of the wrong size ends any transition
@@ -428,7 +448,7 @@ namespace MWRender
             if (mInertializers[g]->active())
                 mInertializers[g]->advanceAndApply(changed ? 0.0 : static_cast<double>(duration), mGroupPoses[g]);
 
-            if (changed)
+            if (groupChanged)
             {
                 mPreviousGroupNames[g].assign(mLastGroupNames[g]);
                 mLastSources[g] = current.mSource;
@@ -449,6 +469,26 @@ namespace MWRender
             mBoneRotations[i] = vsg::quat(static_cast<float>(t.rotation.x), static_cast<float>(t.rotation.y),
                 static_cast<float>(t.rotation.z), static_cast<float>(t.rotation.w));
         }
+    }
+
+    void CreativeMotionPoseDriver::setStyle(const opas::style::StyleProfile* profile, std::uint64_t actorSeed)
+    {
+        mStyleProfile = profile;
+        mStyleSeed = actorSeed;
+        // Size the working copy now, so that update() allocates nothing while the style stays the same.
+        if (profile != nullptr)
+            mEffectiveStyle = *profile;
+    }
+
+    CreativeMotionPoseDriver::StyleStatus CreativeMotionPoseDriver::getStyleStatus() const
+    {
+        StyleStatus status;
+        status.mProfile = mStyleProfile;
+        status.mEnabled = mStyleEnabled;
+        status.mWeights = styleWeights(mActorState);
+        if (mStyleProfile != nullptr && mStyleEnabled)
+            status.mCadence = cadenceFactor(*mStyleProfile, status.mWeights);
+        return status;
     }
 
     CreativeMotionPoseDriver::TransitionStatus CreativeMotionPoseDriver::getTransitionStatus(size_t group) const

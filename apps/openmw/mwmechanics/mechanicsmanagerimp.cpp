@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <components/debug/debuglog.hpp>
 #include <components/misc/rng.hpp>
 
 #include <components/esm/records.hpp>
@@ -772,6 +773,16 @@ namespace MWMechanics
         else
             return mObjects.playAnimationGroup(ptr, groupName, mode, number, scripted);
     }
+    std::string MechanicsManager::cmStyleCommand(const MWWorld::Ptr& ptr, std::string_view argument)
+    {
+        if (ptr.isEmpty() || !ptr.getClass().isActor())
+            return "cmStyle needs an actor: select one in the console, or use it with none selected for the player";
+        const std::string message = mActors.cmStyleCommand(ptr, argument);
+        // Also in the log, so that a scripted run (--script-run) can be checked without the console window.
+        Log(Debug::Info) << "cmStyle " << argument << ": " << message;
+        return message;
+    }
+
     bool MechanicsManager::playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops,
         float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop)
     {

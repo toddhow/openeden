@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "blendmask.hpp"
+#include "creativemotionstyle.hpp"
 
 namespace Anim
 {
@@ -114,6 +115,24 @@ namespace MWRender
 
         const opas::rig::Skeleton& getSkeleton() const { return mSkeleton; }
 
+        /// The style layer (task 0053). A driver that is never given an enabled style produces exactly the pose it did
+        /// without the layer. The profile must outlive the driver (StyleLibrary never frees its profiles).
+        void setStyle(const opas::style::StyleProfile* profile, std::uint64_t actorSeed);
+        void setStyleEnabled(bool enabled) { mStyleEnabled = enabled; }
+        /// What the actor is doing; read by the next update().
+        void setActorState(const ActorState& state) { mActorState = state; }
+        /// Transition durations by the kinds of motion changed between (classifyGroup, transitionSeconds).
+        void setTransitionRules(bool enabled) { mTransitionRules = enabled; }
+
+        struct StyleStatus
+        {
+            const opas::style::StyleProfile* mProfile = nullptr;
+            bool mEnabled = false;
+            StyleWeights mWeights;
+            float mCadence = 1.f; // factor for the movement animation's speed; 1 without an enabled style
+        };
+        StyleStatus getStyleStatus() const;
+
         /// Developer comparison mode: the largest difference between the driver's pose and the bones' current local
         /// transforms over animated bones (translation in metres, rotation in radians), and that bone's name. False
         /// when the driver is invalid.
@@ -168,6 +187,17 @@ namespace MWRender
         // For the developer trace: the group name before the last change, and the duration of the last transition.
         std::array<std::string, sNumBlendMasks> mPreviousGroupNames;
         std::array<float, sNumBlendMasks> mTransitionDurations{};
+
+        // The style layer (task 0053). The profile is owned by the StyleLibrary.
+        std::unique_ptr<CreativeMotionStyleLayer> mStyleLayer;
+        const opas::style::StyleProfile* mStyleProfile = nullptr;
+        const opas::style::StyleProfile* mLastStyleApplied = nullptr; // what the last update() applied
+        std::uint64_t mStyleSeed = 0;
+        bool mStyleEnabled = false;
+        bool mTransitionRules = false;
+        ActorState mActorState;
+        double mStyleTimeS = 0.0; // accumulated frame time, never a clock
+        opas::style::StyleProfile mEffectiveStyle; // preallocated by setStyle
     };
 }
 

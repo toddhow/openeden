@@ -3,6 +3,7 @@
 
 #include <components/misc/vsgmath.hpp>
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <vsg/maths/vec2.h>
@@ -25,6 +26,11 @@ namespace MWSound
 {
     class Sound;
 }
+namespace opas::style
+{
+    struct StyleProfile;
+}
+
 namespace MWAnim
 {
     class Play;
@@ -38,6 +44,7 @@ namespace MWRender
     class Player;
     class ActorIkController;
     class CreativeMotionPoseDriver;
+    struct ActorState;
 }
 namespace MWMechanics
 {
@@ -193,6 +200,16 @@ namespace MWMechanics
         // Actors only; null when both settings are off.
         std::unique_ptr<MWRender::CreativeMotionPoseDriver> mPoseDriver;
         bool mPoseDriverApplies = false;
+        // The style layer's per-actor choices (task 0053), set from the console on the main thread: a style name that
+        // replaces the rules, and the layer switched off for this actor. The console only records its choice here and
+        // sets mStyleDirty; runPoseDriver (on the thread that runs the driver) then hands it to the driver, so the
+        // driver is never changed while it runs. mStyleSpeedMps is the smoothed ground speed that the animation
+        // thread writes and the console reads; mStyleCadence is written there and read by update.
+        std::string mStyleChoice;
+        bool mStyleSwitchedOff = false;
+        std::atomic<bool> mStyleDirty{ false };
+        std::atomic<float> mStyleSpeedMps{ 0.f };
+        std::atomic<float> mStyleCadence{ 1.f };
 
         std::map<ESM::RefId, MWSound::Sound*> mPlayingSounds;
         struct AnimationQueueEntry
@@ -357,6 +374,11 @@ namespace MWMechanics
         void traceAnimation(float duration);
         /// Creates the IK controller and, when a CreativeMotion setting is on, the pose driver for mAnimation's bones.
         void createPoseControllers();
+        /// Picks the actor's style (console choice, else the rules of task 0053) and gives it to the pose driver.
+        void configureStyle();
+        /// The style the rules or the console choice give this actor, or null (main thread: may read the VFS).
+        const opas::style::StyleProfile* resolveStyleProfile();
+        MWRender::ActorState currentStyleState() const;
         void postAnimation(float duration);
         // }
 
@@ -365,6 +387,9 @@ namespace MWMechanics
 
         void persistAnimationState() const;
         bool playGroup(std::string_view groupname, int mode, uint32_t count, bool scripted = false);
+        /// The cmStyle console command (task 0053): "" describes the actor's style, "on" and "off" switch the layer
+        /// for this actor, anything else is the name of a style to use. Main thread.
+        std::string styleCommand(std::string_view argument);
         bool playGroupLua(std::string_view groupname, float playSpeed, std::string_view startKey,
             std::string_view stopKey, uint32_t loops, bool forceLoop);
         void enableLuaAnimations(bool enable);
