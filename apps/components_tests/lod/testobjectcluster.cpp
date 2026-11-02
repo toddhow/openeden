@@ -47,10 +47,11 @@ namespace
     constexpr std::size_t tabRanges = 168; // 3 x 16
     constexpr std::size_t tabCells = 216; // 2 x 16
     constexpr std::size_t tabRefs = 248; // 3 x 8
-    constexpr std::size_t tabVertices = 272; // 6 x 28
-    constexpr std::size_t tabIndices = 440; // 9 x 4 = 36, padded to 40
-    constexpr std::size_t tabStrings = 480; // 31 bytes, padded to 32
-    constexpr std::size_t totalSize = 512;
+    constexpr std::size_t tabVertices = 272; // 6 x 18 = 108, padded to 112
+    constexpr std::size_t tabIndices = 384; // 9 x 4 = 36, padded to 40
+    constexpr std::size_t tabStrings = 424; // 31 bytes, padded to 32
+    constexpr std::size_t totalSize = 456;
+    constexpr std::size_t vertexStride = 18;
 
     constexpr std::size_t noOffset = std::numeric_limits<std::size_t>::max();
     constexpr float nanValue = std::numeric_limits<float>::quiet_NaN();
@@ -225,7 +226,8 @@ namespace
         putU32(b, offTableOffsets + 24, static_cast<std::uint32_t>(tabStrings));
         putU32(b, offSourceTriangles, 5);
         putF32(b, offOverhang, 0.0f);
-        putU32(b, offReserved, 0);
+        // The position grid: the tile side 16384 does not fit 65533 steps of 0.25, so the step is 2^-1.
+        putU32(b, offReserved, 0xFFFFFFFFu);
 
         // Groups: path offset, path length, flags, alpha cutoff, first index, index count, 8 reserved bytes.
         putU32(b, tabGroups + 0, 0);
@@ -269,24 +271,36 @@ namespace
             putU32(b, tabRefs + 8 * i + 4, refs[i][1]);
         }
 
-        // Vertices: position f32 x 3, normal snorm8 x 3, cell slot, colour x 4, uv f32 x 2.
+        // Vertices (18 bytes): position as three u16 on the grid (step 0.5; x and y from 0, z from minZ = 100), normal
+        // snorm8 x 3, cell slot, colour x 4, uv as two half floats.
+        const auto half = [](float value) -> std::uint16_t {
+            if (value == 0.f)
+                return 0x0000;
+            if (value == 1.f)
+                return 0x3C00;
+            if (value == 0.25f)
+                return 0x3400;
+            if (value == 0.5f)
+                return 0x3800;
+            return 0x3A00; // 0.75
+        };
         for (std::size_t i = 0; i < 6; ++i)
         {
             const VertexSpec& spec = vertexSpecs[i];
-            const std::size_t at = tabVertices + 28 * i;
-            putF32(b, at + 0, spec.mPos[0]);
-            putF32(b, at + 4, spec.mPos[1]);
-            putF32(b, at + 8, spec.mPos[2]);
-            b[at + 12] = static_cast<std::uint8_t>(spec.mNormal[0]);
-            b[at + 13] = static_cast<std::uint8_t>(spec.mNormal[1]);
-            b[at + 14] = static_cast<std::uint8_t>(spec.mNormal[2]);
-            b[at + 15] = spec.mSlot;
-            b[at + 16] = spec.mColor[0];
-            b[at + 17] = spec.mColor[1];
-            b[at + 18] = spec.mColor[2];
-            b[at + 19] = spec.mColor[3];
-            putF32(b, at + 20, spec.mUv[0]);
-            putF32(b, at + 24, spec.mUv[1]);
+            const std::size_t at = tabVertices + vertexStride * i;
+            putU16(b, at + 0, static_cast<std::uint16_t>(spec.mPos[0] / 0.5f));
+            putU16(b, at + 2, static_cast<std::uint16_t>(spec.mPos[1] / 0.5f));
+            putU16(b, at + 4, static_cast<std::uint16_t>((spec.mPos[2] - 100.f) / 0.5f));
+            b[at + 6] = static_cast<std::uint8_t>(spec.mNormal[0]);
+            b[at + 7] = static_cast<std::uint8_t>(spec.mNormal[1]);
+            b[at + 8] = static_cast<std::uint8_t>(spec.mNormal[2]);
+            b[at + 9] = spec.mSlot;
+            b[at + 10] = spec.mColor[0];
+            b[at + 11] = spec.mColor[1];
+            b[at + 12] = spec.mColor[2];
+            b[at + 13] = spec.mColor[3];
+            putU16(b, at + 14, half(spec.mUv[0]));
+            putU16(b, at + 16, half(spec.mUv[1]));
         }
 
         for (std::size_t i = 0; i < 9; ++i)
@@ -472,7 +486,7 @@ namespace
         EXPECT_EQ(bytes.size() % 8, 0u);
         EXPECT_EQ(bytes.size(), totalSize);
         // The header's reserved word, the group reserved bytes, and the pads after the indices and the strings.
-        EXPECT_EQ(getU32(bytes, offReserved), 0u);
+        EXPECT_EQ(getU32(bytes, offReserved), 0xFFFFFFFFu);
         for (std::size_t i = tabGroups + 24; i < tabGroups + 32; ++i)
         {
             EXPECT_EQ(bytes[i], 0) << i;
@@ -698,7 +712,7 @@ namespace
         const std::size_t group1 = tabGroups + 32;
         const std::size_t cell1 = tabCells + 16;
         const std::size_t vertex0 = tabVertices;
-        const std::size_t vertex3 = tabVertices + 3 * 28;
+        const std::size_t vertex3 = tabVertices + 3 * vertexStride;
         const std::vector<Patch> patches = {
             // Ranges.
             { "range 0 count too big", tabRanges + 12, u32Bytes(6) },
@@ -745,19 +759,14 @@ namespace
             { "references unsorted within a cell", tabRefs + 0, u32Bytes(9) },
             { "references duplicated within a cell", tabRefs + 8, u32Bytes(1) },
             // Vertices.
-            { "vertex 0 slot equals cell count", vertex0 + 15, { 2 } },
-            { "vertex 0 slot 255", vertex0 + 15, { 255 } },
-            { "vertex 0 x below zero", vertex0 + 0, f32Bytes(-1.0f) },
-            { "vertex 0 x above side", vertex0 + 0, f32Bytes(16385.0f) },
-            { "vertex 0 y below zero", vertex0 + 4, f32Bytes(-0.5f) },
-            { "vertex 0 y above side", vertex0 + 4, f32Bytes(16384.5f) },
-            { "vertex 0 z below min", vertex0 + 8, f32Bytes(99.0f) },
-            { "vertex 3 z above max", vertex3 + 8, f32Bytes(501.0f) },
-            { "vertex 0 x NaN", vertex0 + 0, f32Bytes(nanValue) },
-            { "vertex 0 y inf", vertex0 + 4, f32Bytes(infValue) },
-            { "vertex 0 z NaN", vertex0 + 8, f32Bytes(nanValue) },
-            { "vertex 3 u NaN", vertex3 + 20, f32Bytes(nanValue) },
-            { "vertex 3 v inf", vertex3 + 24, f32Bytes(-infValue) },
+            { "vertex 0 slot equals cell count", vertex0 + 9, { 2 } },
+            { "vertex 0 slot 255", vertex0 + 9, { 255 } },
+            // Positions are grid numbers now: a number cannot be below the grid, only beyond the tile or the z range.
+            { "vertex 0 x above side", vertex0 + 0, { 0x82, 0x80 } }, // 32898 * 0.5 = 16449
+            { "vertex 0 y above side", vertex0 + 2, { 0x01, 0x80 } }, // 32769 * 0.5 = 16384.5
+            { "vertex 3 z above max", vertex3 + 4, { 0x22, 0x03 } }, // 802 * 0.5 + 100 = 501
+            { "vertex 3 u NaN", vertex3 + 14, { 0x00, 0x7E } },
+            { "vertex 3 v inf", vertex3 + 16, { 0x00, 0xFC } },
             // Indices.
             { "index equal to vertex count", tabIndices + 0, u32Bytes(6) },
             { "index huge", tabIndices + 8, u32Bytes(0xFFFFFFFFu) },

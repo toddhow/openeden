@@ -39,12 +39,12 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 2;
+        constexpr std::uint32_t bakerVersion = 3;
         // Per level (1, 2, 3): the largest simplification error in world units. Starting values of task 0059, D4: about
         // 1.6 pixels at 7,500, 20,000 and 60,000 units at an 8 pixel threshold; to be calibrated by looking at frames.
-        constexpr std::uint32_t levelErrors[3] = { 64, 192, 576 };
+        constexpr std::uint32_t levelErrors[3] = { 128, 320, 960 };
         // An object smaller than this many errors is left out of the level (task 0059, "classification").
-        constexpr float dropFactor = 1.0f;
+        constexpr float dropFactor = 0.5f;
 
         enum class Phase
         {
@@ -228,8 +228,11 @@ namespace OMW
             state.mManifest.mBakerVersion = bakerVersion;
             state.mManifest.mCellSize = cellSize;
             state.mManifest.mWorldspace = worldspaceName;
-            state.mManifest.mLevels = { 1, 2, 3 };
-            state.mManifest.mErrors.assign(std::begin(levelErrors), std::end(levelErrors));
+            // Levels 1 and 2 serve views up to about 75,000 units (level 3 starts there at an 8 pixel threshold, see
+            // levelErrors); the game's longest practical view is shorter, so level 3 is not baked by default.
+            state.mManifest.mLevels = { 1, 2 };
+            state.mManifest.mErrors.assign(
+                std::begin(levelErrors), std::begin(levelErrors) + state.mManifest.mLevels.size());
             Log(Debug::Info) << "LOD object bake: " << state.mCells.size() << " exterior cells (cluster layout version "
                              << Lod::clusterLayoutVersion << ", DRAFT).";
         }
@@ -452,6 +455,8 @@ namespace OMW
         for (std::size_t slot = 0; slot < 3; ++slot)
         {
             LevelTotals& totals = state.mTotals[slot];
+            if (totals.mObjectsSeen == 0)
+                continue;
             std::sort(totals.mGroups.begin(), totals.mGroups.end());
             Log(Debug::Info) << "LOD object bake: level " << slot + 1 << " (error " << levelErrors[slot]
                              << "): " << totals.mTiles << " clusters, objects included " << totals.mObjectsIncluded
@@ -508,7 +513,9 @@ namespace OMW
         Lod::TilePackOptions options;
         options.mGeneration = generation;
         options.mSourceDigest = digest;
-        options.mThreads = 2;
+        options.mThreads = 4;
+        // Higher than the default 3: the pack is baked once and read many times (decoding speed hardly depends on it).
+        options.mZstdLevel = 15;
         if (const Lod::LodError error = Lod::writeClusterPack(state.mManifest, state.mClusters, options, path))
         {
             Log(Debug::Error) << "LOD object bake failed, the old pack (if any) is unchanged: " << error.describe();

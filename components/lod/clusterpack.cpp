@@ -246,6 +246,7 @@ namespace Lod
             write.mSourceDigest = options.mSourceDigest;
             write.mThreads = options.mThreads;
             write.mStoreOnly = options.mStoreOnly;
+            write.mZstdLevel = options.mZstdLevel;
             return write;
         }
     }

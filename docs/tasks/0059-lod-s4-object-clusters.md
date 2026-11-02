@@ -70,7 +70,7 @@ Header, 104 bytes:
 | 64 | 4 each | offsets of: groups, ranges, cells, references, vertices, indices, strings (7 offsets, 64 to 88) |
 | 92 | 4 | source triangle count (before simplification; a statistic, not checked against anything) |
 | 96 | 4 | overhang: the largest distance any vertex lies outside the tile square in x or y (f32) |
-| 100 | 4 | reserved, zero |
+| 100 | 4 | position grid step as a power of two: the grid is 2^k units (int32 k, from -12 to 12; the smallest k that fits the tile square plus the overhang and the z range in 16 bits with two steps to spare, so it is derived, and the reader refuses any other value) |
 
 Tables:
 
@@ -78,7 +78,7 @@ Tables:
 - **Range** (16 bytes each): group, cell slot, first index, index count (u32 each). Sorted by (group, cell slot); the ranges of a group tile its span exactly; every count is a multiple of 3 and above 0.
 - **Cell** (16 bytes each): cell x, cell y (i32, i32; absolute cell coordinates), first reference, reference count (u32, u32). Sorted by (y, x). A cell appears only if it holds at least one reference.
 - **Reference** (8 bytes each): `ESM::RefNum` as two u32, the index and then the content-file number stored as u32 (`FormId::mIndex`, `mContentFile`). Sorted by (index, content file) within a cell; the cell spans tile the table exactly.
-- **Vertex** (28 bytes each): position x, y, z (f32 x 3; x and y relative to the tile origin), normal x, y, z (snorm8 x 3) and the **cell slot** (u8) in the fourth byte, vertex colour (unorm8 x 4), texture coordinates u, v (f32 x 2). The reader checks that all numbers are finite, that positions lie in `[-overhang, side + overhang]` in x and y and `[minZ, maxZ]` in z, and that every slot is below the cell count.
+- **Vertex** (18 bytes each): position x, y, z as three u16 on the grid (x = baseX + n * 2^k with baseX = floor(-overhang / 2^k) * 2^k, the same for y, and z from floor(minZ / 2^k) * 2^k; x and y are relative to the tile origin), normal x, y, z (snorm8 x 3), the **cell slot** (u8), vertex colour (unorm8 x 4), texture coordinates u, v as two IEEE half floats. The logical cluster holds the decoded values, so a cluster must be snapped to the grid and to half floats before it is written (`snapClusterToGrid`; the writer refuses one that is not). The reader checks that positions lie in `[-overhang, side + overhang]` in x and y and `[minZ, maxZ]` in z, that texture coordinates are finite and at most 65504 in size, and that every slot is below the cell count. (The draft's first form had f32 everywhere, 28 bytes; the first real bake made 397 MiB.)
 - **Index** (u32 each): triangle lists; every index below the vertex count.
 - **Strings**: UTF-8 texture paths in the VFS's normalised form, concatenated, no terminators.
 
@@ -93,7 +93,7 @@ The reader refuses anything else: magic, version, flags, counts above the caps (
 | D1 | What enters a cluster | Statics only; activators and doors stay on the live path; animated, skinned, particle and alpha-blended models excluded; objects below `dropFactor x error` dropped | Include doors and activators (scripted ones would then need the mask rule too) |
 | D2 | Textures | Group by original texture, no atlas in version 0 (the project has no block-compression encoder, so an atlas is RGBA8 and large) | A per-tile atlas (fewer draws, much larger, needs the encoder) or texture arrays |
 | D3 | Simplification | Each object simplified on its own to the level's absolute error, then merged (design D5, accepted) | Merge first, then one global pass (fewer triangles, loses small objects' shapes) |
-| D4 | Level errors | 64, 192 and 576 world units for levels 1, 2 and 3 (about 1.6 pixels at 7,500, 20,000 and 60,000 units at 8 px threshold, 1280 x 720, 60 degree field), calibrated in stage d by looking at frames | Other factors, per setting |
+| D4 | Level errors | 128, 320 and 960 world units for levels 1, 2 and 3, derived from the tile selection's own formula (`pixels = error x viewportHeight / (2 x distance x tan(fov / 2))`, 720 p, 60 degrees): at the 8 pixel threshold a level is chosen beyond distance = error x 77.9, that is 9,976, 24,941 and 74,824 units (double at 4 pixels); level 1 therefore starts just beyond the 3 x 3 cell active grid (at least 8,192 units from the camera), level 2 where level 1's ring ends, level 3 only for views over about 60,000 units. Level 3 is not baked by default. The drop size is half the level's error (radius below 0.5 x error is left out), which is the live path's `object paging min size` rule (6 pixel radius) at 4 pixels | Other factors, per setting |
 | D5 | Baked lighting | None (unlit albedo, normals, vertex colours; runtime lighting) | Vertex ambient occlusion, a later layout version |
 | D6 | Overrides | Cell mask driven by stored reference lists; the live chunk takes the cell back (above) | Rebuild a whole cluster without the object (needs the baker at run time, too slow) |
 | D7 | Fade | Dither, per-vertex cell slot and a 64-float fade array per cluster, 0.4 s; the fade factor of the live chunk is one number (new `Pipeline::Mode`, an edit of the existing GLSL `default/main.frag`, which stays GLSL under decision 0009) | A separate draw per cell range with a uniform each (more draws), or alpha blending (sorting problems) |
@@ -164,3 +164,23 @@ Out of scope: impostors for trees and landmarks (S10), per-model LOD chains of t
 - **Deviations from the spec text.** Textures are not hashed into the tile digest: a cluster stores only texture names, so the bytes do not depend on their content (the model file's hash, the placement and the settings are hashed). Empty worldspace names are accepted in the manifest. The cell where an object stands is `floor(position / 8192)`.
 - **Reviewer findings fixed:** switch/LOD nodes, billboards, non-finite references, unstable tie order, read-back failure logged as an error, includes, `bakerVersion` 2. **Known approximations:** only the base texture (no UV transform or clamp mode), vertex colours used without checking `NiVertexColorProperty`, normals by the upper 3 x 3 (uniform scale only), the whole model's pieces are copied for every placed object and level during the bake (time and memory spikes, not measured), `mDuplicates` counted at level 1 only.
 - **Not done:** stage d. Nothing in the game reads `objects.edenpak` yet; `[WorldLod] object clusters` does not exist, so the game is unchanged with or without a pack.
+
+### Size and triangle budgets (2026-11-02, after the first bake: 397 MiB, level 1 at 9.2 M triangles)
+
+Budgets set before changing anything, from the S0 numbers:
+- **Drawn triangles.** The live path's census at 30000 view holds about 1.7 M triangles of objects (2.42 M all in, 0.74 M without distant objects; an upper bound without culling). Clusters must draw well under that. What is drawn is a ring (level 1 from about 10,000 to 25,000 units, level 2 beyond): about 25 cells of level 1 and 8 of level 2, so the budget is "the drawn clusters stay under 0.5 M triangles", which needs no more than about 15 k triangles per level 1 cell and 20 k per level 2 cell.
+- **Pack.** At most 150 MiB for Morrowind (levels 1 and 2).
+
+Changes and results (Windows, same data as stage c; "triangles" are the pack totals over the whole world, not the drawn set):
+
+| Step | Pack | L1 triangles | L2 triangles | Notes |
+| --- | --- | --- | --- | --- |
+| first bake: errors 64/192/576, drop 1.0, three levels, 28-byte vertices, zstd 3 | 397 MiB | 9.16 M | 7.58 M | level 3: 3.70 M |
+| errors 128/320/960, drop 0.5, 18-byte vertices (u16 grid positions, half-float UVs), prune on | 141 MiB | 5.56 M | 3.08 M | 21,000 objects vanished at level 1 (Prune and zero-thickness double-sided quad pairs collapse to nothing at no error) |
+| no Prune, a floor of max(4 triangles, 1/16 of the piece) per piece, no border lock | 220 MiB | 4.92 M | 4.29 M | three levels; nothing vanishes (178 empty at level 1); the largest error is the level's |
+| welded identical vertices, level 3 not baked, zstd level 15 | 130 MiB | 4.92 M | 4.29 M | 458 clusters, 25 s to bake (zstd 15 costs about 7 s of it); two bakes give the same SHA-256 |
+
+- **Per cell:** level 1 has 3.2 k triangles a cell on average and level 2 2.8 k, so the ring drawn at 30000 view holds about 100 k triangles: inside the budget by a factor of five. (Measured by arithmetic from the pack totals; the drawn count is measured in stage d.)
+- **What did not work:** locking borders (LockBorder) cut the vanishing but kept 2.5 times the triangles; Prune removed whole objects; welding barely helped (9.36 M to 9.24 M vertices at level 1: the models' vertices really are separate per face).
+- **Known loss:** the simplifier's reported error exceeded the level's for a few pieces (800 against 128 in one run); the cluster's error is capped at the level's and such pieces are counted (`ClusterBuildStats::mErrorOutliers`).
+- **Layout tests changed because the draft layout changed** (allowed: the layout is an unapproved draft): `LodObjectCluster.WriterMatchesHandBuiltBytes`, `ReaderParsesHandBuiltBytes`, `PaddingIsZeroAndSizeIsMultipleOfEight` (new table offsets, 18-byte vertices, the position-step word at offset 100, half-float texture coordinates), `RefusesBrokenTables` (vertex patches now write grid numbers and half floats; the "below zero", "NaN" and "inf" position patches are gone because a grid number cannot be them), `RefusesNonZeroReservedWord` unchanged but now refused as "not the grid step". Nothing else was touched.

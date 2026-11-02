@@ -113,6 +113,10 @@ namespace Lod
         std::uint32_t mTrianglesAfter = 0;
         float mMaxSimplifyError = 0; // world units
         float mMaxDroppedRadius = 0; // of the objects excluded as TooSmall
+        /// Pieces whose simplification error the simplifier reported above 1.01 times the level's error (the
+        /// error counted in mMaxSimplifyError and the cluster is capped at the level's error: one stubborn piece
+        /// must not make a whole tile look coarse).
+        std::uint32_t mErrorOutliers = 0;
     };
 
     /// Builds the cluster. An empty result (no groups) is not an error: `cluster` is then default-constructed and the

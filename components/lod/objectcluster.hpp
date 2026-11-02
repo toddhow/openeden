@@ -36,7 +36,7 @@ namespace Lod
     inline constexpr std::size_t clusterRangeSize = 16;
     inline constexpr std::size_t clusterCellSize = 16;
     inline constexpr std::size_t clusterRefSize = 8;
-    inline constexpr std::size_t clusterVertexSize = 28;
+    inline constexpr std::size_t clusterVertexSize = 18;
 
     inline constexpr std::uint32_t maxClusterGroups = 4096;
     inline constexpr std::uint32_t maxClusterRanges = 65536;
@@ -52,8 +52,9 @@ namespace Lod
     inline constexpr std::uint32_t clusterFlagAlphaTest = 1u << 0;
     inline constexpr std::uint32_t clusterFlagTwoSided = 1u << 1;
 
-    /// 28 bytes in the payload: position (x and y relative to the tile origin), normal as snorm8 plus the cell slot in
-    /// the fourth byte, vertex colour, texture coordinates.
+    /// 18 bytes in the payload: position as three 16-bit numbers on a grid (below), normal as three snorm8, the cell
+    /// slot, vertex colour, and the texture coordinates as two half floats. The logical values here are what the
+    /// payload decodes to, so a cluster must already lie on the grid and be representable (snapClusterToGrid).
     struct ClusterVertex
     {
         float mPosition[3] = { 0, 0, 0 };
@@ -135,6 +136,12 @@ namespace Lod
     /// Whether a texture path may be stored: 1 to maxClusterTexturePath bytes, valid UTF-8, no control characters, no
     /// backslash, no upper-case ASCII letter, no leading slash (the VFS's normalised form).
     bool isValidClusterTexturePath(std::string_view path) noexcept;
+
+    /// Moves every vertex to the nearest point the payload can hold, then fixes the cluster's z range and overhang to
+    /// match. Positions go to a grid of 2^k units (k the smallest that fits the tile and the z range in 16 bits),
+    /// texture coordinates to half floats. Call it on a built cluster before writing it. Fails when the tile does not
+    /// fit any grid or a number is not finite.
+    LodError snapClusterToGrid(ObjectCluster& cluster);
 
     /// Checks everything the reader checks, on the logical content (so a writer cannot produce what the reader
     /// refuses): level, finite numbers, caps, group spans and ranges tiling, indices below the vertex count, cell

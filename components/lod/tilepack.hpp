@@ -67,6 +67,7 @@ namespace Lod
         EdenArchive::Hash mSourceDigest{}; // of the whole content set
         unsigned mThreads = 1;
         bool mStoreOnly = false; // no compression: byte-identical on any machine
+        int mZstdLevel = 3; // when compressing (task 0059: the cluster pack uses a higher level)
     };
 
     /// Builds the pack in memory. The order of `tiles` does not matter; the output depends only on the set (the

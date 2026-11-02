@@ -76,7 +76,7 @@ namespace Lod
         // Transforms, simplifies and compacts one piece. Returns false when nothing is left. `error` is absolute, in
         // world units, and every vertex is already in tile space, so the simplifier's error is in world units too.
         bool buildPiece(const SourceObject& object, const SourcePiece& piece, const ClusterBuildInput& input,
-            const NormalMatrix& normalMatrix, BuiltPiece& built, float& maxError)
+            const NormalMatrix& normalMatrix, BuiltPiece& built, float& maxError, std::uint32_t& outliers)
         {
             if (piece.mIndices.empty() || piece.mVertices.empty())
                 return false;
@@ -146,9 +146,13 @@ namespace Lod
             float achieved = 0;
             // The border is locked: without it a flat open sheet (a bridge deck, a wall) collapses to nothing at no
             // error at all, and whole objects vanished from the bake (task 0059, stage c; real Morrowind data).
+            // A piece is never reduced below a sixteenth of its triangles or four triangles: a zero-thickness double-sided
+            // quad pair (swamp scum, thin walls) is a closed shell of no volume, and with only an error limit it
+            // collapses to nothing at no error, losing the object.
+            const std::size_t floorIndices = std::max<std::size_t>(12, indices.size() / 16);
             const std::size_t kept = meshopt_simplify(simplified.data(), indices.data(), indices.size(),
-                positions.data(), vertexCount, 3 * sizeof(float), 0, input.mLevel.mError,
-                meshopt_SimplifyErrorAbsolute | meshopt_SimplifyLockBorder, &achieved);
+                positions.data(), vertexCount, 3 * sizeof(float), floorIndices, input.mLevel.mError,
+                meshopt_SimplifyErrorAbsolute, &achieved);
             simplified.resize(kept);
             if (simplified.empty())
             {
@@ -176,10 +180,15 @@ namespace Lod
                         high[k] = std::max(high[k], positions[3 * i + k]);
                     }
                 const float dx = high[0] - low[0], dy = high[1] - low[1], dz = high[2] - low[2];
-                maxError = std::max(maxError, 0.5f * std::sqrt(dx * dx + dy * dy + dz * dz));
+                const float lost = 0.5f * std::sqrt(dx * dx + dy * dy + dz * dz);
+                if (lost > 1.01f * input.mLevel.mError)
+                    ++outliers;
+                maxError = std::max(maxError, std::min(lost, input.mLevel.mError));
                 return false;
             }
-            maxError = std::max(maxError, achieved);
+            if (achieved > 1.01f * input.mLevel.mError)
+                ++outliers;
+            maxError = std::max(maxError, std::min(achieved, input.mLevel.mError));
 
             // Keep only the vertices the triangles use, in order of first use.
             std::vector<std::uint32_t> remap(vertexCount, 0xFFFFFFFFu);
@@ -198,6 +207,23 @@ namespace Lod
             built.mFlags = piece.mFlags;
             built.mAlphaCutoff = (piece.mFlags & clusterFlagAlphaTest) != 0 ? std::max(0.f, piece.mAlphaCutoff) : 0.f;
             return true;
+        }
+
+        // Merges vertices that are identical in every field (the same position on the grid, normal, cell, colour and
+        // texture coordinates). A model repeats a vertex for every face that needs a different normal or seam, and the
+        // simplifier leaves such copies alone; after snapping many are the same again.
+        void weldVertices(ObjectCluster& c)
+        {
+            static_assert(sizeof(ClusterVertex) == 28, "ClusterVertex must have no padding for the byte comparison");
+            std::vector<std::uint32_t> remap(c.mVertices.size());
+            const std::size_t unique = meshopt_generateVertexRemap(remap.data(), c.mIndices.data(), c.mIndices.size(),
+                c.mVertices.data(), c.mVertices.size(), sizeof(ClusterVertex));
+            std::vector<ClusterVertex> vertices(unique);
+            meshopt_remapVertexBuffer(
+                vertices.data(), c.mVertices.data(), c.mVertices.size(), sizeof(ClusterVertex), remap.data());
+            for (std::uint32_t& index : c.mIndices)
+                index = remap[index];
+            c.mVertices = std::move(vertices);
         }
 
         LodError validateInput(const ClusterBuildInput& input)
@@ -325,7 +351,7 @@ namespace Lod
             for (const SourcePiece& piece : object.mPieces)
             {
                 BuiltPiece builtPiece;
-                if (buildPiece(object, piece, input, normalMatrix, builtPiece, maxSimplifyError))
+                if (buildPiece(object, piece, input, normalMatrix, builtPiece, maxSimplifyError, s.mErrorOutliers))
                 {
                     sourceTriangles += static_cast<std::uint32_t>(piece.mIndices.size() / 3);
                     result.mPieces.push_back(std::move(builtPiece));
@@ -431,25 +457,11 @@ namespace Lod
         c.mOriginY = static_cast<float>(input.mOriginY);
         c.mSourceTriangles = s.mTrianglesBefore;
         c.mGeometricError = std::max(maxSimplifyError, maxDropped);
-        c.mMinZ = c.mVertices.front().mPosition[2];
-        c.mMaxZ = c.mMinZ;
-        float overhang = 0;
-        for (const ClusterVertex& v : c.mVertices)
-        {
-            c.mMinZ = std::min(c.mMinZ, v.mPosition[2]);
-            c.mMaxZ = std::max(c.mMaxZ, v.mPosition[2]);
-            for (int axis = 0; axis < 2; ++axis)
-            {
-                overhang = std::max(overhang, -v.mPosition[axis]);
-                overhang = std::max(overhang, v.mPosition[axis] - c.mSide);
-            }
-        }
-        // The validator tests side + overhang in float; make sure rounding cannot leave a vertex outside.
-        for (const ClusterVertex& v : c.mVertices)
-            for (int axis = 0; axis < 2; ++axis)
-                while (c.mSide + overhang < v.mPosition[axis] || -overhang > v.mPosition[axis])
-                    overhang = std::nextafter(overhang, std::numeric_limits<float>::infinity());
-        c.mOverhang = overhang;
+        // The payload holds positions on a 16-bit grid and half-float texture coordinates: snap to what it can hold.
+        // This also sets the z range and the overhang from the vertices.
+        if (LodError error = snapClusterToGrid(c))
+            return error;
+        weldVertices(c);
 
         if (LodError error = validateObjectCluster(c))
             return error;

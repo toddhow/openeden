@@ -33,7 +33,7 @@ namespace Lod
         constexpr std::size_t offTableOffsets = 64; // seven u32
         constexpr std::size_t offSourceTriangles = 92;
         constexpr std::size_t offOverhang = 96;
-        constexpr std::size_t offReserved = 100;
+        constexpr std::size_t offStepLog2 = 100; // int32: the position grid is 2^k units
 
         constexpr char magic[4] = { 'E', 'T', 'C', 'L' };
         constexpr std::uint32_t knownFlags = clusterFlagAlphaTest | clusterFlagTwoSided;
@@ -114,6 +114,103 @@ namespace Lod
         bool finite(float value) noexcept
         {
             return std::isfinite(value);
+        }
+
+        // ---- half floats (texture coordinates): round to nearest even, exactly as the GPU reads them ----
+
+        std::uint16_t floatToHalf(float value) noexcept
+        {
+            const std::uint32_t x = std::bit_cast<std::uint32_t>(value);
+            const std::uint32_t sign = (x >> 16) & 0x8000u;
+            const int exponentField = static_cast<int>((x >> 23) & 0xFF);
+            const std::uint32_t mantissa = x & 0x7FFFFFu;
+            if (exponentField == 0xFF)
+                return static_cast<std::uint16_t>(sign | 0x7C00u | (mantissa != 0 ? 0x200u : 0u));
+            const int exponent = exponentField - 127 + 15;
+            if (exponent >= 31)
+                return static_cast<std::uint16_t>(sign | 0x7C00u);
+            if (exponent <= 0)
+            {
+                if (exponent < -10)
+                    return static_cast<std::uint16_t>(sign);
+                const std::uint32_t full = mantissa | 0x800000u;
+                const int shift = 14 - exponent;
+                std::uint32_t half = full >> shift;
+                const std::uint32_t rest = full & ((1u << shift) - 1u);
+                const std::uint32_t middle = 1u << (shift - 1);
+                if (rest > middle || (rest == middle && (half & 1u) != 0))
+                    ++half;
+                return static_cast<std::uint16_t>(sign | half);
+            }
+            std::uint32_t half = (static_cast<std::uint32_t>(exponent) << 10) | (mantissa >> 13);
+            const std::uint32_t rest = mantissa & 0x1FFFu;
+            if (rest > 0x1000u || (rest == 0x1000u && (half & 1u) != 0))
+                ++half;
+            return static_cast<std::uint16_t>(sign | half);
+        }
+
+        float halfToFloat(std::uint16_t bits) noexcept
+        {
+            const float sign = (bits & 0x8000u) != 0 ? -1.f : 1.f;
+            const int exponent = (bits >> 10) & 0x1F;
+            const int mantissa = bits & 0x3FF;
+            if (exponent == 0)
+                return sign * std::ldexp(static_cast<float>(mantissa), -24);
+            if (exponent == 31)
+                return mantissa == 0 ? sign * std::numeric_limits<float>::infinity()
+                                     : std::numeric_limits<float>::quiet_NaN();
+            return sign * std::ldexp(static_cast<float>(mantissa | 0x400), exponent - 25);
+        }
+
+        bool isHalfExact(float value) noexcept
+        {
+            return std::isfinite(value) && std::fabs(value) <= 65504.f && halfToFloat(floatToHalf(value)) == value;
+        }
+
+        // ---- the position grid ----
+
+        constexpr int minStepLog2 = -12;
+        constexpr int maxStepLog2 = 12;
+        constexpr int noStep = 99;
+
+        // The smallest k (grid of 2^k units) for which the tile square plus the overhang, and the z range, fit in 16
+        // bits with two steps to spare for rounding the base down. noStep when none does.
+        int pickStepLog2(float side, float overhang, float minZ, float maxZ) noexcept
+        {
+            const double xRange = static_cast<double>(side) + 2.0 * static_cast<double>(overhang);
+            const double zRange = static_cast<double>(maxZ) - static_cast<double>(minZ);
+            for (int k = minStepLog2; k <= maxStepLog2; ++k)
+            {
+                const double step = std::ldexp(1.0, k);
+                if (xRange / step + 2.0 <= 65535.0 && zRange / step + 2.0 <= 65535.0)
+                    return k;
+            }
+            return noStep;
+        }
+
+        struct Grid
+        {
+            double mStep = 1;
+            double mBaseX = 0, mBaseY = 0, mBaseZ = 0;
+        };
+
+        Grid makeGrid(int k, float overhang, float minZ) noexcept
+        {
+            Grid grid;
+            grid.mStep = std::ldexp(1.0, k);
+            grid.mBaseX = std::floor(-static_cast<double>(overhang) / grid.mStep) * grid.mStep;
+            grid.mBaseY = grid.mBaseX;
+            grid.mBaseZ = std::floor(static_cast<double>(minZ) / grid.mStep) * grid.mStep;
+            return grid;
+        }
+
+        // The grid number of a value, or -1 when the value is not on the grid or is outside 16 bits.
+        std::int64_t gridNumber(float value, double base, double step) noexcept
+        {
+            const double number = (static_cast<double>(value) - base) / step;
+            if (!(number >= 0.0 && number <= 65535.0) || number != std::nearbyint(number))
+                return -1;
+            return static_cast<std::int64_t>(number);
         }
 
         struct Layout
@@ -267,6 +364,10 @@ namespace Lod
             // Vertices and indices.
             const float low = -c.mOverhang;
             const float highX = c.mSide + c.mOverhang;
+            const int stepLog2 = pickStepLog2(c.mSide, c.mOverhang, c.mMinZ, c.mMaxZ);
+            if (stepLog2 == noStep)
+                return fail("positionStep", offStepLog2, "the tile does not fit a 16-bit position grid");
+            const Grid grid = makeGrid(stepLog2, c.mOverhang, c.mMinZ);
             for (std::size_t i = 0; i < c.mVertices.size(); ++i)
             {
                 const ClusterVertex& v = c.mVertices[i];
@@ -280,6 +381,12 @@ namespace Lod
                     return fail(at() + ".position", 0, "z outside minZ to maxZ");
                 if (v.mCellSlot >= c.mCells.size())
                     return fail(at() + ".cellSlot", 0, "cell slot out of range");
+                if (gridNumber(v.mPosition[0], grid.mBaseX, grid.mStep) < 0
+                    || gridNumber(v.mPosition[1], grid.mBaseY, grid.mStep) < 0
+                    || gridNumber(v.mPosition[2], grid.mBaseZ, grid.mStep) < 0)
+                    return fail(at() + ".position", 0, "not on the position grid (snapClusterToGrid)");
+                if (!isHalfExact(v.mUv[0]) || !isHalfExact(v.mUv[1]))
+                    return fail(at() + ".uv", 0, "not a half float value (snapClusterToGrid)");
             }
             for (std::size_t i = 0; i < c.mIndices.size(); ++i)
                 if (c.mIndices[i] >= c.mVertices.size())
@@ -353,6 +460,59 @@ namespace Lod
         return unpackTileKey((key & lowMask) | (std::uint64_t{ tagTerrainTile } << 56));
     }
 
+    LodError snapClusterToGrid(ObjectCluster& c)
+    {
+        const auto refit = [&c] {
+            c.mMinZ = c.mVertices.front().mPosition[2];
+            c.mMaxZ = c.mMinZ;
+            float overhang = 0;
+            for (const ClusterVertex& v : c.mVertices)
+            {
+                c.mMinZ = std::min(c.mMinZ, v.mPosition[2]);
+                c.mMaxZ = std::max(c.mMaxZ, v.mPosition[2]);
+                for (int axis = 0; axis < 2; ++axis)
+                {
+                    overhang = std::max(overhang, -v.mPosition[axis]);
+                    overhang = std::max(overhang, v.mPosition[axis] - c.mSide);
+                }
+            }
+            c.mOverhang = overhang;
+        };
+        if (c.mVertices.empty())
+            return {};
+        for (const ClusterVertex& v : c.mVertices)
+            for (const float value : { v.mPosition[0], v.mPosition[1], v.mPosition[2], v.mUv[0], v.mUv[1] })
+                if (!std::isfinite(value))
+                    return fail("vertices", 0, "a number is not finite");
+        if (!std::isfinite(c.mSide) || !(c.mSide > 0))
+            return fail("side", offSide, "the side must be finite and above 0");
+        refit();
+        // Snapping can move the overhang and the z range, and with them the step; go round until they agree.
+        for (int pass = 0; pass < 8; ++pass)
+        {
+            const int k = pickStepLog2(c.mSide, c.mOverhang, c.mMinZ, c.mMaxZ);
+            if (k == noStep)
+                return fail("positionStep", offStepLog2, "the tile does not fit a 16-bit position grid");
+            const double step = std::ldexp(1.0, k);
+            for (ClusterVertex& v : c.mVertices)
+                for (float& p : v.mPosition)
+                    p = static_cast<float>(std::nearbyint(static_cast<double>(p) / step) * step);
+            refit();
+            if (pickStepLog2(c.mSide, c.mOverhang, c.mMinZ, c.mMaxZ) == k)
+            {
+                for (ClusterVertex& v : c.mVertices)
+                    for (float& t : v.mUv)
+                    {
+                        if (std::fabs(t) > 65504.f)
+                            t = t < 0 ? -65504.f : 65504.f;
+                        t = halfToFloat(floatToHalf(t));
+                    }
+                return {};
+            }
+        }
+        return fail("positionStep", offStepLog2, "the position grid did not settle");
+    }
+
     LodError validateObjectCluster(const ObjectCluster& cluster)
     {
         return validateContent(cluster);
@@ -395,6 +555,9 @@ namespace Lod
             w.u32(offTableOffsets + 4 * i, static_cast<std::uint32_t>(offsets[i]));
         w.u32(offSourceTriangles, c.mSourceTriangles);
         w.f32(offOverhang, c.mOverhang);
+        const int writeStep = pickStepLog2(c.mSide, c.mOverhang, c.mMinZ, c.mMaxZ);
+        w.u32(offStepLog2, static_cast<std::uint32_t>(writeStep));
+        const Grid writeGrid = makeGrid(writeStep, c.mOverhang, c.mMinZ);
 
         std::uint32_t pathOffset = 0;
         for (std::size_t i = 0; i < c.mGroups.size(); ++i)
@@ -438,16 +601,16 @@ namespace Lod
         {
             const ClusterVertex& v = c.mVertices[i];
             const std::size_t at = layout.mVertices + i * clusterVertexSize;
-            w.f32(at + 0, v.mPosition[0]);
-            w.f32(at + 4, v.mPosition[1]);
-            w.f32(at + 8, v.mPosition[2]);
+            w.u16(at + 0, static_cast<std::uint16_t>(gridNumber(v.mPosition[0], writeGrid.mBaseX, writeGrid.mStep)));
+            w.u16(at + 2, static_cast<std::uint16_t>(gridNumber(v.mPosition[1], writeGrid.mBaseY, writeGrid.mStep)));
+            w.u16(at + 4, static_cast<std::uint16_t>(gridNumber(v.mPosition[2], writeGrid.mBaseZ, writeGrid.mStep)));
             for (std::size_t k = 0; k < 3; ++k)
-                bytes[at + 12 + k] = static_cast<std::uint8_t>(v.mNormal[k]);
-            bytes[at + 15] = v.mCellSlot;
+                bytes[at + 6 + k] = static_cast<std::uint8_t>(v.mNormal[k]);
+            bytes[at + 9] = v.mCellSlot;
             for (std::size_t k = 0; k < 4; ++k)
-                bytes[at + 16 + k] = v.mColor[k];
-            w.f32(at + 20, v.mUv[0]);
-            w.f32(at + 24, v.mUv[1]);
+                bytes[at + 10 + k] = v.mColor[k];
+            w.u16(at + 14, floatToHalf(v.mUv[0]));
+            w.u16(at + 16, floatToHalf(v.mUv[1]));
         }
         for (std::size_t i = 0; i < c.mIndices.size(); ++i)
             w.u32(layout.mIndices + 4 * i, c.mIndices[i]);
@@ -498,8 +661,11 @@ namespace Lod
                  Float{ "overhang", offOverhang, c.mOverhang } })
             if (!finite(f.mValue))
                 return fail(f.mName, f.mOffset, "not finite");
-        if (getU32(b, offReserved) != 0)
-            return fail("reserved", offReserved, "must be zero");
+        const auto headerStep = static_cast<std::int32_t>(getU32(b, offStepLog2));
+        if (headerStep != pickStepLog2(c.mSide, c.mOverhang, c.mMinZ, c.mMaxZ) || headerStep < minStepLog2
+            || headerStep > maxStepLog2)
+            return fail("positionStep", offStepLog2, "not the grid step the header's own numbers call for");
+        const Grid readGrid = makeGrid(headerStep, c.mOverhang, c.mMinZ);
 
         struct Count
         {
@@ -587,16 +753,20 @@ namespace Lod
         {
             const std::size_t at = layout.mVertices + i * clusterVertexSize;
             ClusterVertex& v = c.mVertices[i];
-            v.mPosition[0] = getF32(b, at);
-            v.mPosition[1] = getF32(b, at + 4);
-            v.mPosition[2] = getF32(b, at + 8);
+            const auto number = [&b, at](std::size_t offset) {
+                return static_cast<double>(static_cast<unsigned>(b[at + offset])
+                    | (static_cast<unsigned>(b[at + offset + 1]) << 8));
+            };
+            v.mPosition[0] = static_cast<float>(readGrid.mBaseX + number(0) * readGrid.mStep);
+            v.mPosition[1] = static_cast<float>(readGrid.mBaseY + number(2) * readGrid.mStep);
+            v.mPosition[2] = static_cast<float>(readGrid.mBaseZ + number(4) * readGrid.mStep);
             for (std::size_t k = 0; k < 3; ++k)
-                v.mNormal[k] = static_cast<std::int8_t>(b[at + 12 + k]);
-            v.mCellSlot = b[at + 15];
+                v.mNormal[k] = static_cast<std::int8_t>(b[at + 6 + k]);
+            v.mCellSlot = b[at + 9];
             for (std::size_t k = 0; k < 4; ++k)
-                v.mColor[k] = b[at + 16 + k];
-            v.mUv[0] = getF32(b, at + 20);
-            v.mUv[1] = getF32(b, at + 24);
+                v.mColor[k] = b[at + 10 + k];
+            v.mUv[0] = halfToFloat(static_cast<std::uint16_t>(number(14)));
+            v.mUv[1] = halfToFloat(static_cast<std::uint16_t>(number(16)));
         }
         c.mIndices.resize(counts[5].mValue);
         for (std::size_t i = 0; i < c.mIndices.size(); ++i)
