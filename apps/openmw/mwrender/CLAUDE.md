@@ -121,3 +121,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 
 - `Sky`'s constructor decides (`useProceduralSun(setting, hdr)` and `Graphics::hasSlangShader("sky/sunproc")`), puts `sky/sunproc` on `Graphics::slangOnlyPaths` and gives `Sun` a `ProceduralSunParams`. `Sun` then draws its quad with the `sky/sunproc` pipeline and the same descriptor sets; the query and the flash keep `sky/sun`. Details in `components/render/CLAUDE.md`.
 - **Frame checks of the sun** need the camera aimed at it: a Lua player script with the static camera at the yaw and pitch of the sun for the game hour (the sun's direction is `(cos t, -0.268, sin t)` with `t = pi (hour - 6) / 14`, `WeatherManager::update`; yaw `atan2(x, y)`, pitch `-asin(z)`). The flash and glare overlay hide the disc's structure at the default settings.
+
+## Texture size cap (task 0049)
+
+- Read images through `vsgUtil::readOptionalImage` or `readImage` with an `ImageUse` to opt in to `[Rendering] texture max size` and friends; reads without one are never capped. With a cap the terrain array's "most common size" rule now sees capped sizes, so a set of mixed 512 to 2048 layers joins one array at the cap. Details and limits are in `components/render/CLAUDE.md`.

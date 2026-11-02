@@ -49,6 +49,14 @@ namespace vsgAdapters
 {
     namespace
     {
+        // Task 0049: models opt in to the texture downscaler.
+        vsgUtil::ImageUse objectImageUse()
+        {
+            vsgUtil::ImageUse use;
+            use.category = vsgUtil::TextureCap::Category::Object;
+            return use;
+        }
+
         // The skinning shaders read at most four bone influences per vertex (vec4 bone indices and weights).
         constexpr unsigned int sMaxBoneInfluences = 4;
 
@@ -360,8 +368,7 @@ namespace vsgAdapters
                     warn(std::string("Embedded textures are not supported: ") + texturePath.C_Str());
                     return;
                 }
-                auto image = vsgUtil::readImage(texturePath.C_Str(), mImageOptions,
-                    vsgUtil::ImageUse{ vsgUtil::TextureCap::Category::Object, vsgUtil::TextureCap::Kind::Colour });
+                auto image = vsgUtil::readImage(texturePath.C_Str(), mImageOptions, objectImageUse());
                 if (!image)
                     return;
                 auto sampler = mBuilder.createSampler();
