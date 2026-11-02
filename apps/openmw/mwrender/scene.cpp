@@ -10,6 +10,7 @@
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/mwanimation/create.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -121,7 +122,9 @@ namespace MWRender
 
         MWAnim::Context& ctx = allowLight ? context : noParticlesContext;
 
+        Misc::LoadTrace::Scope traceCreate("model.create");
         auto anim = MWAnim::createObject(mesh, ptr.getClass().useAnim(), light, ctx);
+        traceCreate.end();
 
         // Graphic herbalism changes one plant's switch, so that plant needs its own copy.
         const bool harvestable = Settings::game().mGraphicHerbalism && ptr.getType() == ESM::Container::sRecordId
@@ -137,7 +140,10 @@ namespace MWRender
             anim->getOrCreateStateGroup()->stateCommands = sg->stateCommands;
         }
 
-        if (!context.compileContext->compile(anim->node()))
+        Misc::LoadTrace::Scope traceCompile("model.compile");
+        const bool compiled = context.compileContext->compile(anim->node());
+        traceCompile.end();
+        if (!compiled)
             return;
 
         auto& cell = getOrCreateCell(ptr, false);
@@ -190,6 +196,7 @@ namespace MWRender
     void Scene::insertCreature(const MWWorld::Ptr& ptr, const std::string& mesh, bool weaponsShields)
     {
         bool biped = ptr.get<ESM::Creature>()->mBase->mFlags & ESM::Creature::Bipedal;
+        Misc::LoadTrace::Scope traceCreate("creature.create");
         std::unique_ptr<MWAnim::Object> anim;
         if (weaponsShields)
         {
@@ -198,6 +205,8 @@ namespace MWRender
         }
         else
             anim = MWAnim::createCreature(mesh, biped, context);
+        traceCreate.end();
+        Misc::LoadTrace::Scope traceCompile("creature.compile");
         loadTransform(ptr, *anim->transform());
 
         if (!context.compileContext->compile(anim->node()))
@@ -210,7 +219,10 @@ namespace MWRender
 
     void Scene::insertNPC(const MWWorld::Ptr& ptr)
     {
+        Misc::LoadTrace::Scope traceCreate("npc.create");
         std::unique_ptr<MWAnim::Object> anim = std::make_unique<Npc>(context, ptr);
+        traceCreate.end();
+        Misc::LoadTrace::Scope traceCompile("npc.compile");
         loadTransform(ptr, *anim->transform());
         if (!context.compileContext->compile(anim->node()))
             return;

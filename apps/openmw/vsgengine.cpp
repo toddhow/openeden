@@ -1,5 +1,6 @@
 #include "vsgengine.hpp"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
@@ -9,6 +10,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/render/attachmentformat.hpp>
 #include <components/render/devicereport.hpp>
 #include <components/render/engine.hpp>
@@ -91,6 +93,7 @@ namespace OMW
 
     bool /*requiresRender*/ Engine::frame(float dt, std::shared_ptr<MWState::GameState>& gameState)
     {
+        Misc::LoadTrace::Scope traceInput("frame.input");
         try
         {
             mInputManager->update(dt, gameState->disableControls, gameState->disableEvents);
@@ -115,6 +118,7 @@ namespace OMW
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             return false;
         }
+        traceInput.end();
         mExtensionHost->deliverWorldEvents();
         mExtensionHost->runPhase(openeden::sdk::Phase::Input, dt);
         if (gameState->updateSound)
@@ -124,17 +128,20 @@ namespace OMW
         // menu, a dialogue or the game): synchronizedUpdate applies the previous frame's queued changes before the
         // world updates, and update runs the scripts after the frame's game logic. In vsgopenmw both ran inside
         // Game::run, so menu scripts stopped while a menu state was on top.
+        Misc::LoadTrace::Scope traceLuaSync("frame.lua.sync");
         const float luaDt = std::min(dt, 0.2f);
         if (mLuaActive && gameState->updateLua)
         {
             mExtensionHost->sendPendingLuaEvents();
             mLuaManager->synchronizedUpdate(luaDt);
         }
+        traceLuaSync.end();
         // Delayed Lua actions such as teleports may push a state (ChangeCell); 0.51 changed the cell inside
         // synchronizedUpdate, so scripts must not run again until that state has finished.
         if (mStateManager->getGameState() != gameState)
             return false;
 
+        Misc::LoadTrace::Scope traceRun("frame.game.run");
         try
         {
             if (!gameState->run(dt))
@@ -142,6 +149,8 @@ namespace OMW
                 mStateManager->popGameState(gameState);
                 return false;
             }
+            traceRun.end();
+            Misc::LoadTrace::Scope traceLuaUpdate("frame.lua.update");
             if (mLuaActive && gameState->updateLua)
                 mLuaManager->update(luaDt);
         }
@@ -160,11 +169,14 @@ namespace OMW
                 mWindowManager->messageBox("#{OMWEngine:ExtensionsFailed}\n" + report);
             }
         }
+        Misc::LoadTrace::Scope traceGui("frame.gui");
         mExtensionHost->runPhase(openeden::sdk::Phase::PreRender, dt);
         mWindowManager->onFrame(dt);
+        traceGui.end();
         mExtensionHost->runPhase(openeden::sdk::Phase::Ui, dt);
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
         mRenderManager->syncExtents();
+        Misc::LoadTrace::Scope traceRender("frame.render.onframe");
         if (gameState->requiresScene)
             mRenderManager->onFrame(dt);
         return gameState->requiresRender;
@@ -172,6 +184,7 @@ namespace OMW
 
     Engine::~Engine()
     {
+        Misc::LoadTrace::stop();
         if (mExtensionHost)
             mExtensionHost->stop();
 
@@ -309,6 +322,13 @@ namespace OMW
 
     void Engine::prepareEngine(const Arguments& args)
     {
+        if (Settings::cells().mLoadTrace)
+        {
+            const char* tracePath = std::getenv("OPENEDEN_LOAD_TRACE_FILE");
+            Misc::LoadTrace::start(tracePath != nullptr
+                    ? std::string(tracePath)
+                    : Files::pathToUnicodeString(mCfgMgr.getUserDataPath() / "load-trace.jsonl"));
+        }
         createRenderEngine();
 
         Misc::Rng::init(args.randomSeed);

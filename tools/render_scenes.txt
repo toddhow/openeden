@@ -31,3 +31,4 @@ heavy_lod_ground15000_on|start|Balmora|300|600|Standing in Balmora, 15000 units,
 heavy_lod_ground7168_off|start|Balmora|300|600|Standing in Balmora, default view distance, nothing distant|viewdist=7168
 heavy_lod_flight_on|start|Balmora|19800|20000|A fast flight low over the land crossing about six cell borders, distant terrain and object paging on (hitches at cell loads)|viewdist=15000,distant,walk,script=fly_fast.txt
 heavy_lod_flight_off|start|Balmora|19800|20000|The same flight with nothing distant|viewdist=15000,walk,script=fly_fast.txt
+heavy_lod_walk_off|start|Balmora|59800|60000|A slow walk across cells (Athletics 120, 1500 up, collision off), nothing distant (hitches at cell loads)|viewdist=7168,walk,script=walk_slow.txt

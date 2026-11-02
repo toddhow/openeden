@@ -6,6 +6,7 @@
 #include <components/compiler/extensions0.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/lua_ui/util.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/vsgutil/updatethreads.hpp>
 
 #include "mwclass/classes.hpp"
@@ -169,6 +170,7 @@ namespace OMW
                 {
                     if (mWorld->getScriptsEnabled())
                     {
+                        Misc::LoadTrace::Scope trace("run.scripts");
                         executeLocalScripts(dt);
                         mScriptManager->getGlobalScripts().run(dt);
                     }
@@ -176,6 +178,7 @@ namespace OMW
                     mWorld->getWorldScene().markCellAsUnchanged();
                 }
                 showCursor = mEngine.mWindowManager->isGuiMode();
+                Misc::LoadTrace::Scope traceTime("run.time");
                 if (!paused)
                 {
                     double hours = (dt * timeManager.getGameTimeScale()) / 3600.0;
@@ -187,12 +190,22 @@ namespace OMW
                 if (!paused)
                     mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::PreSimulation, dt);
 
-                mMechanicsManager->update(dt, paused);
+                traceTime.end();
+                {
+                    Misc::LoadTrace::Scope trace("run.mechanics");
+                    mMechanicsManager->update(dt, paused);
+                }
 
                 mEngine.mStateManager->/*advanceTimePlayed*/ update(dt);
 
-                mWorld->updatePhysics(dt, paused);
-                mWorld->update(dt, paused);
+                {
+                    Misc::LoadTrace::Scope trace("run.physics");
+                    mWorld->updatePhysics(dt, paused);
+                }
+                {
+                    Misc::LoadTrace::Scope trace("run.world.update");
+                    mWorld->update(dt, paused);
+                }
 
                 if (!paused)
                 {
@@ -203,6 +216,7 @@ namespace OMW
                     timeManager.setRenderingSimulationTime(timeManager.getRenderingSimulationTime() + dt);
                 }
 
+                Misc::LoadTrace::Scope traceTail("run.window.focus.sound");
                 mEngine.mWindowManager->update(dt);
                 mWorld->updateFocusObject();
 

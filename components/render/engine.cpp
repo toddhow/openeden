@@ -18,6 +18,7 @@
 #include <vsg/vk/Surface.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/debugmessenger.hpp>
 #include <components/vsgutil/deletionqueue.hpp>
@@ -233,8 +234,15 @@ namespace Render
             return result;
         };
 
-        while (timeWait([this] { return mViewer->advanceToNextFrame(); }))
+        std::int64_t traceFrameStart = Misc::LoadTrace::enabled() ? Misc::LoadTrace::nowMicroseconds() : 0;
+        std::uint64_t traceFrame = 0;
+        while (true)
         {
+            {
+                Misc::LoadTrace::Scope traceAcquire("loop.acquire");
+                if (!timeWait([this] { return mViewer->advanceToNextFrame(); }))
+                    break;
+            }
             auto now = std::chrono::steady_clock::now();
             auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - last).count();
             last = now;
@@ -247,10 +255,13 @@ namespace Render
                 fpsTimer = 0;
             }
 
+            Misc::LoadTrace::Scope traceEvents("loop.events");
             mViewer->handleEvents();
+            traceEvents.end();
 
             bool requiresRender = true;
             bool quit = false;
+            Misc::LoadTrace::Scope traceCallback("loop.callback");
             do
             {
                 frameCallback(dt, requiresRender, quit);
@@ -261,12 +272,18 @@ namespace Render
                     last = std::chrono::steady_clock::now();
             } while (!requiresRender && !quit);
 
+            traceCallback.end();
             if (quit)
                 break;
 
+            Misc::LoadTrace::Scope traceUpdate("loop.viewer.update");
             mViewer->update();
+            traceUpdate.end();
+            Misc::LoadTrace::Scope traceRecord("loop.record.submit");
             mViewer->recordAndSubmit();
+            traceRecord.end();
 
+            Misc::LoadTrace::Scope tracePresent("loop.present");
             if (mHeadless)
             {
                 uint64_t waitTimeout = 19999999999;
@@ -285,10 +302,20 @@ namespace Render
                     return true;
                 });
 
-            if (mDeletionQueue)
-                mDeletionQueue->advanceFrame();
+            tracePresent.end();
+            {
+                Misc::LoadTrace::Scope traceDeletion("loop.deletion");
+                if (mDeletionQueue)
+                    mDeletionQueue->advanceFrame();
+            }
 
             limitFramerate.limit();
+            if (Misc::LoadTrace::enabled())
+            {
+                const std::int64_t traceNow = Misc::LoadTrace::nowMicroseconds();
+                Misc::LoadTrace::frameEnd(traceFrame++, traceFrameStart, traceNow);
+                traceFrameStart = traceNow;
+            }
 
             // Main thread, after this frame was submitted: read the GPU times of an earlier, finished frame.
             if (mGpuTimer)

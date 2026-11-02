@@ -4,6 +4,7 @@
 #include <components/animation/controllermap.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -149,6 +150,43 @@ namespace MWRender
         return -1;
     }
 
+    Npc::AnimationSources Npc::animationSources(const MWAnim::Context& context, bool firstPerson, bool female,
+        bool beast, bool werewolf, const std::string& customModel, const ESM::RefId& race)
+    {
+        AnimationSources result;
+        result.defaultSkeleton = context.pickSkeleton(firstPerson, female, beast, werewolf);
+
+        result.skeleton = result.defaultSkeleton;
+        if (!firstPerson && !werewolf && !customModel.empty())
+            result.skeleton = customModel;
+        const std::string& smodel = result.skeleton;
+        const std::string& defaultSkeleton = result.defaultSkeleton;
+
+        if (!firstPerson)
+        {
+            const auto& base = context.files.baseanim;
+            // openeden-vsg: the animation source is [Models] xbaseanim, as in OpenMW's NpcAnimation (task 0012).
+            if (smodel != base && !werewolf)
+                result.sources.emplace_back(Settings::models().mXbaseanim.get().value());
+
+            if (smodel != defaultSkeleton && base != defaultSkeleton)
+                result.sources.emplace_back(defaultSkeleton);
+
+            result.sources.emplace_back(smodel);
+
+            if (!werewolf && race.contains("argonian"))
+                result.sources.emplace_back(Settings::models().mXargonianswimkna.get().value());
+        }
+        else
+        {
+            const auto& base = context.firstPersonFiles.baseanim;
+            if (smodel != base && !werewolf)
+                result.sources.emplace_back(Settings::models().mXbaseanim1st.get().value());
+            result.sources.emplace_back(smodel);
+        }
+        return result;
+    }
+
     void Npc::updateNpcBase()
     {
         for (size_t i = 0; i < ESM::PRT_Count; i++)
@@ -173,37 +211,15 @@ namespace MWRender
         bool is1stPerson = mViewMode == ViewMode::FirstPerson;
         bool isBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
 
-        std::string defaultSkeleton = mContext.pickSkeleton(is1stPerson, isFemale, isBeast, isWerewolf);
+        const AnimationSources animSources = animationSources(
+            mContext, is1stPerson, isFemale, isBeast, isWerewolf, mNpc->mModel, mNpc->mRace);
+        const std::string& defaultSkeleton = animSources.defaultSkeleton;
+        const std::string& smodel = animSources.skeleton;
+        const std::vector<std::string>& sources = animSources.sources;
 
-        std::string smodel = defaultSkeleton;
-        if (!is1stPerson && !isWerewolf && !mNpc->mModel.empty())
-            smodel = mNpc->mModel;
-
-        std::vector<std::string> sources;
-        if (!is1stPerson)
-        {
-            const auto& base = mContext.files.baseanim;
-            // openeden-vsg: the animation source is [Models] xbaseanim, as in OpenMW's NpcAnimation (task 0012).
-            if (smodel != base && !isWerewolf)
-                sources.emplace_back(Settings::models().mXbaseanim.get().value());
-
-            if (smodel != defaultSkeleton && base != defaultSkeleton)
-                sources.emplace_back(defaultSkeleton);
-
-            sources.emplace_back(smodel);
-
-            if (!isWerewolf && mNpc->mRace.contains("argonian"))
-                sources.emplace_back(Settings::models().mXargonianswimkna.get().value());
-        }
-        else
-        {
-            const auto& base = mContext.firstPersonFiles.baseanim;
-            if (smodel != base && !isWerewolf)
-                sources.emplace_back(Settings::models().mXbaseanim1st.get().value());
-            sources.emplace_back(smodel);
-        }
-
+        Misc::LoadTrace::Scope traceSkel("npc.readactor");
         vsg::ref_ptr<const vsg::Node> node = mContext.readActor(smodel);
+        traceSkel.end();
 
         animation = std::make_unique<MWAnim::Play>(
             MWAnim::Bones(static_cast<const vsg::Node&>(*node), MWAnim::groups), MWAnim::sNumBlendMasks);
@@ -213,7 +229,10 @@ namespace MWRender
             if (smodel != defaultSkeleton)
                 addCustomBones(smodel);
         }
+        Misc::LoadTrace::Scope traceAnims("npc.readanimations");
         animation->addAnimSources(mContext.readAnimations(sources), smodel);
+        traceAnims.end();
+        Misc::LoadTrace::Scope traceParts("npc.updateparts");
         assignBones();
         // Another skeleton may have the shield's sheath bone or not: as OpenMW's viewChange in NpcAnimation::rebuild.
         updateCarriedLeftVisible();
@@ -263,7 +282,9 @@ namespace MWRender
         };
         static const size_t slotlistsize = sizeof(slotlist) / sizeof(slotlist[0]);
 
+        Misc::LoadTrace::Scope traceInv("npc.inventory");
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
+        traceInv.end();
         for (size_t i = 0; i < slotlistsize && mViewMode != ViewMode::HeadOnly; i++)
         {
             auto store = inv.getSlot(slotlist[i].slot);
@@ -349,7 +370,10 @@ namespace MWRender
     void Npc::insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
         std::optional<vsg::vec4> glowColor, const ESM::Light* light)
     {
+        Misc::LoadTrace::Scope traceRead("npc.part.read");
         auto node = vsgUtil::readNode(model, mPartContext->partBoneOptions[type]);
+        traceRead.end();
+        Misc::LoadTrace::Scope traceAttach("npc.part.attach");
         bool mirror = bonename.find("Left") != std::string::npos;
         auto result = MWAnim::decorate(node, light, mirror);
         if (glowColor)

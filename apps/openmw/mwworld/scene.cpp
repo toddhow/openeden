@@ -4,6 +4,7 @@
 #include <chrono>
 #include <limits>
 
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/vsgmath.hpp>
 
 #include <vsg/maths/box.h>
@@ -120,11 +121,17 @@ namespace
 
         ESM::RefNum refnum = ptr.getCellRef().getRefNum();
         if (!refnum.hasContentFile() || !std::binary_search(pagedRefs.begin(), pagedRefs.end(), refnum))
+        {
+            Misc::LoadTrace::Scope trace("obj.render", static_cast<std::int64_t>(ptr.getType()));
             ptr.getClass().insertObjectRendering(ptr, model, rendering.getObjects());
+        }
         setNodeRotation(ptr, rendering, rotation);
 
         if (ptr.getClass().useAnim())
+        {
+            Misc::LoadTrace::Scope trace("obj.mechanics");
             MWBase::Environment::get().getMechanicsManager()->add(ptr);
+        }
 
         if (ptr.getClass().isActor())
             rendering.addWaterRippleEmitter(ptr);
@@ -133,8 +140,12 @@ namespace
         world.applyLoopingParticles(ptr);
 
         if (!model.empty())
+        {
+            Misc::LoadTrace::Scope trace("obj.physics");
             ptr.getClass().insertObject(ptr, model, rotation, physics);
+        }
 
+        Misc::LoadTrace::Scope traceLua("obj.lua");
         MWBase::Environment::get().getLuaManager()->objectAddedToScene(ptr);
         MWBase::Environment::get().getExtensionManager()->objectAddedToScene(ptr);
     }
@@ -389,7 +400,9 @@ namespace MWWorld
 
         MWBase::Environment::get().getMechanicsManager()->drop(cell);
 
+        Misc::LoadTrace::Scope traceRemove("unload.rendering.removecell");
         mRendering.removeCell(cell);
+        traceRemove.end();
         MWBase::Environment::get().getWindowManager()->removeCell(cell);
 
         mWorld.getLocalScripts().clearCell(cell);
@@ -408,8 +421,11 @@ namespace MWWorld
         assert(mActiveCells.find(&cell) == mActiveCells.end());
         mActiveCells.insert(&cell);
 
+        Misc::LoadTrace::Scope traceCell("cell.load",
+            static_cast<std::int64_t>(cell.getCell()->getGridX()) * 100000 + cell.getCell()->getGridY());
         Log(Debug::Info) << "Loading cell " << cell.getCell()->getDescription();
         MWBase::Environment::get().getExtensionManager()->cellLoaded(cell.getCell()->getDescription());
+        Misc::LoadTrace::Scope traceLand("load.exterior.total");
 
         const int cellX = cell.getCell()->getGridX();
         const int cellY = cell.getCell()->getGridY();
@@ -421,7 +437,10 @@ namespace MWWorld
         {
             // openeden-vsg: vsgopenmw's land manager reads ESM3 land only, so ESM4 worldspaces get no terrain
             // heightfield until ESM4 terrain is ported (task 0012, Track V stage V4).
+            Misc::LoadTrace::Scope traceLandRead("load.land.read");
             auto land = mRendering.getLandManager()->getLand(cellIndex);
+            traceLandRead.end();
+            Misc::LoadTrace::Scope traceHeight("load.physics.heightfield");
             const auto* data = land ? land->getData(ESM::Land::DATA_VHGT) : nullptr;
             const int verts = ESM::Land::LAND_SIZE;
             const int worldsize = ESM::Land::REAL_SIZE;
@@ -436,6 +455,7 @@ namespace MWWorld
                 mPhysics->addHeightField(defaultHeight.data(), cellX, cellY, worldsize, verts,
                     ESM::Land::DEFAULT_HEIGHT, ESM::Land::DEFAULT_HEIGHT, land.get());
             }
+            traceHeight.end();
             if (mPhysics->getHeightField(cellX, cellY))
             {
                 const vsg::ivec2 cellPosition(cellX, cellY);
@@ -454,10 +474,13 @@ namespace MWWorld
                         return heights;
                     }
                 }();
+                Misc::LoadTrace::Scope traceNavHeight("load.navigator.heightfield");
                 mNavigator.addHeightfield(cellPosition, worldsize, shape, navigatorUpdateGuard);
             }
         }
 
+        traceLand.end();
+        Misc::LoadTrace::Scope tracePathgrid("load.pathgrid");
         ESM::visit(ESM::VisitOverload{
                        [&](const ESM::Cell& c) {
                            if (const auto pathgrid = mWorld.getStore().get<ESM::Pathgrid>().search(c))
@@ -467,6 +490,8 @@ namespace MWWorld
                    },
             *cell.getCell());
 
+        tracePathgrid.end();
+        Misc::LoadTrace::Scope traceScripts("load.scripts.respawn");
         // register local scripts
         // do this before insertCell, to make sure we don't add scripts from levelled creature spawning twice
         mWorld.getLocalScripts().addCell(&cell);
@@ -474,11 +499,18 @@ namespace MWWorld
         if (respawn)
             cell.respawn();
 
-        insertCell(cell, navigatorUpdateGuard);
-
+        traceScripts.end();
+        {
+            Misc::LoadTrace::Scope trace("load.insertcell");
+            insertCell(cell, navigatorUpdateGuard);
+        }
+        Misc::LoadTrace::Scope traceAdd("load.rendering.addcell");
         mRendering.addCell(&cell);
-
+        traceAdd.end();
+        Misc::LoadTrace::Scope traceWindow("load.window.addcell");
         MWBase::Environment::get().getWindowManager()->addCell(&cell);
+        traceWindow.end();
+        Misc::LoadTrace::Scope traceWater("load.water.ambient.sky");
         bool waterEnabled = cellVariant.hasWater() || cell.isExterior();
         float waterLevel = cell.getWaterLevel();
         mRendering.setWaterEnabled(waterEnabled);
@@ -592,11 +624,13 @@ namespace MWWorld
 
     void Scene::changeCellGrid(const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent)
     {
+        Misc::LoadTrace::Scope traceGrid("grid.total");
         const int halfGridSize = getHalfGridSize(playerCellIndex.mWorldspace);
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
         const int playerCellX = playerCellIndex.mX;
         const int playerCellY = playerCellIndex.mY;
 
+        Misc::LoadTrace::Scope traceUnload("grid.unload");
         for (auto iter = mActiveCells.begin(); iter != mActiveCells.end();)
         {
             auto* cell = *iter++;
@@ -611,20 +645,29 @@ namespace MWWorld
                 unloadCell(cell, navigatorUpdateGuard.get());
         }
 
+        traceUnload.end();
         const DetourNavigator::CellGridBounds cellGridBounds{
             .mCenter = vsg::ivec2(playerCellX, playerCellY),
             .mHalfSize = halfGridSize,
         };
 
+        Misc::LoadTrace::Scope traceBounds("grid.navigator.updatebounds");
         mNavigator.updateBounds(playerCellIndex.mWorldspace, cellGridBounds, pos, navigatorUpdateGuard.get());
+        traceBounds.end();
 
         mHalfGridSize = halfGridSize;
         mCurrentGridCenter = vsg::ivec2(playerCellX, playerCellY);
         mRendering.setActiveGrid(playerCellX, playerCellY, halfGridSize);
         mRendering.setRenderModeActive(MWRender::Render_Terrain, true);
-        mRendering.changeCellGrid(pos);
+        {
+            Misc::LoadTrace::Scope trace("grid.rendering.changecellgrid");
+            mRendering.changeCellGrid(pos);
+        }
 
-        addPostponedPhysicsObjects();
+        {
+            Misc::LoadTrace::Scope trace("grid.postponed.physics");
+            addPostponedPhysicsObjects();
+        }
 
         std::vector<std::pair<int, int>> cellsPositionsToLoad;
         iterateOverCellsAround(playerCellX, playerCellY, mHalfGridSize, [&](int x, int y) {
@@ -639,15 +682,20 @@ namespace MWWorld
             ESM::ExteriorCellLocation indexToLoad = { x, y, playerCellIndex.mWorldspace };
             if (!isCellInCollection(indexToLoad, mActiveCells))
             {
+                Misc::LoadTrace::Scope traceGet("grid.getexterior");
                 CellStore& cell = mWorld.getWorldModel().getExterior(indexToLoad);
+                traceGet.end();
                 loadCell(cell, changeEvent, navigatorUpdateGuard.get());
             }
         }
 
+        Misc::LoadTrace::Scope traceNavUpdate("grid.navigator.update.release");
         mNavigator.update(pos, navigatorUpdateGuard.get());
 
         navigatorUpdateGuard.reset();
+        traceNavUpdate.end();
 
+        Misc::LoadTrace::Scope traceWindow("grid.window.changecell");
         CellStore& current = mWorld.getWorldModel().getExterior(playerCellIndex);
         MWBase::Environment::get().getWindowManager()->changeCell(&current);
 
@@ -936,9 +984,16 @@ namespace MWWorld
     {
         const bool isInterior = !cell.isExterior();
         InsertVisitor insertVisitor(cell);
-        cell.forEach(insertVisitor);
-        insertVisitor.insert(
-            [&](const MWWorld::Ptr& ptr) { addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering); });
+        {
+            Misc::LoadTrace::Scope trace("insert.collect");
+            cell.forEach(insertVisitor);
+        }
+        {
+            Misc::LoadTrace::Scope trace("insert.objects", static_cast<std::int64_t>(insertVisitor.mToInsert.size()));
+            insertVisitor.insert(
+                [&](const MWWorld::Ptr& ptr) { addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering); });
+        }
+        Misc::LoadTrace::Scope trace("insert.navigator");
         insertVisitor.insert([&](const MWWorld::Ptr& ptr) {
             addObject(ptr, mWorld, *mPhysics, mLowestPoint, isInterior, mNavigator, navigatorUpdateGuard);
         });

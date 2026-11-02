@@ -49,6 +49,17 @@ namespace MWRender
 
         MWWorld::Ptr getPtr() { return mPtr; }
 
+        // The skeleton and the animation files updateNpcBase reads for an NPC (task 0060). A free-standing function so
+        // that the cell preloader asks for exactly the same names: the animation cache is keyed by the name as written.
+        struct AnimationSources
+        {
+            std::string defaultSkeleton;
+            std::string skeleton;
+            std::vector<std::string> sources;
+        };
+        static AnimationSources animationSources(const MWAnim::Context& context, bool firstPerson, bool female,
+            bool beast, bool werewolf, const std::string& customModel, const ESM::RefId& race);
+
         void setFacialState(bool enable, bool talking, float loudness);
 
         void update(float dt) override;

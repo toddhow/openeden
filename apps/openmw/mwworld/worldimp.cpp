@@ -33,6 +33,7 @@
 #include <components/vsgutil/computetransform.hpp>
 
 #include <components/misc/convert.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -1587,19 +1588,31 @@ namespace MWWorld
         if (mPlayerInJail && !mGoToJail && !MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_Jail))
             mPlayerInJail = false;
 
-        updateWeather(duration, paused);
-
-        updateNavigator();
-
-        mPlayer->update(*mRendering);
-
+        {
+            Misc::LoadTrace::Scope trace("world.weather");
+            updateWeather(duration, paused);
+        }
+        {
+            Misc::LoadTrace::Scope trace("world.navigator.update");
+            updateNavigator();
+        }
+        {
+            Misc::LoadTrace::Scope trace("world.player.update");
+            mPlayer->update(*mRendering);
+        }
         mPhysics->debugDraw();
-
-        mWorldScene->update(duration);
-
-        mRendering->update(duration, paused);
-
-        updateSoundListener();
+        {
+            Misc::LoadTrace::Scope trace("world.scene.update");
+            mWorldScene->update(duration);
+        }
+        {
+            Misc::LoadTrace::Scope trace("world.rendering.update");
+            mRendering->update(duration, paused);
+        }
+        {
+            Misc::LoadTrace::Scope trace("world.sound.listener");
+            updateSoundListener();
+        }
 
         mSpellPreloadTimer -= duration;
         if (mSpellPreloadTimer <= 0.f)
@@ -1612,6 +1625,7 @@ namespace MWWorld
         {
             // vsgopenmw-fixme(find-my-place)
             Loading::Listener dummy;
+            Misc::LoadTrace::Scope trace("world.navigator.wait");
             mNavigator->wait(DetourNavigator::WaitConditionType::requiredTilesPresent, &dummy);
             mWorldScene->resetCellLoaded();
         }

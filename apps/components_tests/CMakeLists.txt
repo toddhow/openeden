@@ -26,6 +26,7 @@ file(GLOB UNITTEST_SRC_FILES
     misc/testconvert.cpp
     misc/teststats.cpp
     misc/testendianness.cpp
+    misc/testloadtrace.cpp
     misc/testmathutil.cpp
     misc/testresourcehelpers.cpp
     misc/teststringops.cpp

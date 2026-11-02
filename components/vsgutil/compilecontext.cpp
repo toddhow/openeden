@@ -6,6 +6,8 @@
 #include <vsg/app/View.h>
 #include <vsg/vk/Device.h>
 
+#include <components/misc/loadtrace.hpp>
+
 namespace vsgUtil
 {
     CompileContext::CompileContext() {}
@@ -21,9 +23,12 @@ namespace vsgUtil
 
     bool CompileContext::compile(vsg::ref_ptr<vsg::Object> obj) const
     {
+        Misc::LoadTrace::Scope traceCompile("compile.vsg");
         auto res = compileManager->compile(obj, contextSelectionFunction);
+        traceCompile.end();
         if (res.result == VK_SUCCESS)
         {
+            Misc::LoadTrace::Scope traceDone("compile.oncompiled");
             onCompiled(res);
             return true;
         }

@@ -32,6 +32,9 @@ namespace Settings
         SettingValue<float> mCacheExpiryDelay{ mIndex, "Cells", "cache expiry delay", makeMaxSanitizerFloat(0) };
         SettingValue<float> mTargetFramerate{ mIndex, "Cells", "target framerate", makeMaxStrictSanitizerFloat(0) };
         SettingValue<int> mPointersCacheSize{ mIndex, "Cells", "pointers cache size", makeClampSanitizerInt(40, 1000) };
+
+        // openeden (task 0060): time the parts of a frame and of a cell load and write them at exit.
+        SettingValue<bool> mLoadTrace{ mIndex, "Cells", "load trace" };
     };
 }
 

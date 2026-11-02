@@ -26,6 +26,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/fx/technique.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/mwanimation/color.hpp>
@@ -1751,8 +1752,14 @@ namespace MWRender
             camera.mViewDistance = mViewDistance;
             coverage = mLodTerrain->update(camera);
         }
-        if (auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage))
+        Misc::LoadTrace::Scope traceUpdateView("terrain.updateview");
+        auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage);
+        traceUpdateView.end();
+        if (compile)
+        {
+            Misc::LoadTrace::Scope traceCompile("terrain.compile");
             compile->compile();
+        }
     }
 
     void RenderManager::setGroundcoverStore(const MWWorld::GroundcoverStore* store)
@@ -2370,9 +2377,11 @@ namespace MWRender
         mRainParameters.enabled = mRainParameters.enabled && mRenderModes[Render_Sky];
         mRain->update(dt, cameraPosition, mRainParameters, aboveWater);
         mWaterRipples->update(dt, paused);
+        Misc::LoadTrace::Scope traceDistant("render.groundcover.distant.lod");
         updateGroundcover(cameraPosition);
         updateDistantObjects(cameraPosition);
         updateLodClusters(cameraPosition, dt);
+        traceDistant.end();
         if (mRenderModes[Render_Sky])
             mSky->update(dt);
 
@@ -2380,7 +2389,9 @@ namespace MWRender
         setFirstPersonMode(mCamera->getMode() == Camera::Mode::FirstPerson);
 
         mScene->setNightDayMode(MWBase::Environment::get().getWorld()->getNightDayMode());
+        Misc::LoadTrace::Scope traceSceneUpdate("render.scene.update");
         mScene->update(dt);
+        traceSceneUpdate.end();
         updateNavMesh();
         /*
         updateRecastMesh();

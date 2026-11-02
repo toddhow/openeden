@@ -122,4 +122,10 @@ Out of scope: texture mip streaming beyond the interfaces (stage h is its own su
 
 ## Stage log (implementer's notes)
 
-None yet. Nothing in this spec is built.
+**Stage a (2026-11-02, partial).** `[Cells] load trace` and `Misc::LoadTrace` (`components/misc/loadtrace.*`, scopes listed in note 0026 section 1) built; the attribution is in `docs/research/0026-cell-load-hitch-attribution.md`. Findings: the hitch is the construction of 400 to 550 objects on one frame (insert.objects 75% of a 47 ms mean hitch); H2 (cold NPC animation and part reads) is the largest single piece (30%), H1 compile 23% with NPC and creature compiles, H3, H5, H6, H7 refuted (under 1 ms), H4 5%; a new H8 (`World::update` waits for navigator tiles) costs 145 ms once, in the first 9-cell load only. The scheduler, IO pool, budgets and the LOD clients (stages b to f) are not started.
+
+**Stage g, first move (2026-11-02).** `Npc::animationSources` is shared by `Npc::updateNpcBase` and `PreloadCell`, so the preload thread reads the animation and skeleton names NPCs ask for: the 19 to 42 ms cold reads on the main thread are gone (`npc.readanimations` 6.8 ms to 0.1 ms per hitch; worst 3-cell crossing 101 to 60 ms; mean 47 to 37 ms). **The hitch criterion of the acceptance list is not met** (9 to 13 crossings over 25 ms against at most 3; worst 56 to 60 ms against under 50; p99.9 6.2 to 6.5 ms is under 8 already): what remains is the cost of building the objects in one frame. Next candidates and the one that needs toddhow's decision (spreading construction over frames) are in note 0026 section 5.
+
+The frame check of NPCs was not done (no NPC in the two poses tried). The new analysis scripts are Perl in the session scratchpad.
+
+The acceptance boxes above stay unticked.

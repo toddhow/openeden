@@ -11,6 +11,9 @@
 #include <components/animation/controllermap.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadnpc.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/resource/physicsshapemanager.hpp>
@@ -18,10 +21,13 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/compileop.hpp>
 
+#include "../mwbase/environment.hpp"
 #include "../mwrender/landmanager.hpp"
+#include "../mwrender/npc.hpp"
 
 #include "cellstore.hpp"
 #include "class.hpp"
+#include "esmstore.hpp"
 
 namespace MWWorld
 {
@@ -45,6 +51,11 @@ namespace MWWorld
         std::set<vsg::ref_ptr<const vsg::Object>> mPreloadedObjects;
         vsg::ref_ptr<vsg::Objects> mPreloadedNodes;
 
+        // Task 0060: the animation files and skeletons that NPCs of this cell (and the common kinds) will ask for when
+        // they are built, as Npc::animationSources names them. Filled on the main thread, read on the worker.
+        std::set<std::string> mAnimationSources;
+        std::set<std::string> mActorSkeletons;
+
     public:
         vsg::ref_ptr<vsg::OperationThreads> compileThreads;
 
@@ -61,6 +72,7 @@ namespace MWWorld
         {
             mPreloadedNodes = vsg::Objects::create();
             cell.forEach(*this);
+            addCommonAnimationSources();
             mProgressRange = mMeshes.size();
             if (mIsExterior)
                 ++mProgressRange;
@@ -68,8 +80,38 @@ namespace MWWorld
         bool operator()(const MWWorld::Ptr& ptr)
         {
             ptr.getClass().getModelsToPreload(ptr, mMeshes);
+            if (ptr.getType() == ESM::NPC::sRecordId)
+                addNpcAnimationSources(*ptr.get<ESM::NPC>()->mBase);
             mUseAnim.resize(mMeshes.size(), ptr.getClass().useAnim());
             return true;
+        }
+
+        // Main thread. Remembers the animation names for one kind of NPC (the werewolf form is not known before it
+        // happens and is left out).
+        void addKindAnimationSources(bool female, bool beast, const std::string& customModel, const ESM::RefId& race)
+        {
+            const auto sources = MWRender::Npc::animationSources(
+                mAnimContext, false, female, beast, false, customModel, race);
+            mAnimationSources.insert(sources.sources.begin(), sources.sources.end());
+            mActorSkeletons.insert(sources.skeleton);
+        }
+
+        void addNpcAnimationSources(const ESM::NPC& npc)
+        {
+            const ESM::Race* race = MWBase::Environment::get().getESMStore()->get<ESM::Race>().search(npc.mRace);
+            if (race == nullptr)
+                return;
+            addKindAnimationSources(
+                !npc.isMale(), (race->mData.mFlags & ESM::Race::Beast) != 0, npc.mModel, npc.mRace);
+        }
+
+        // The four plain kinds (male, female, beast, and the argonian's swimming file), so that the first NPC of a
+        // kind in a cell that was not preloaded does not read them on the main thread (note 0026).
+        void addCommonAnimationSources()
+        {
+            for (const bool female : { false, true })
+                for (const bool beast : { false, true })
+                    addKindAnimationSources(female, beast, std::string(), ESM::RefId::stringRefId("argonian"));
         }
 
         std::atomic_bool abort = false;
@@ -77,10 +119,12 @@ namespace MWWorld
         /// Preload work to be called from the worker thread.
         void operate() override
         {
+            Misc::LoadTrace::Scope traceOperate("preload.operate", static_cast<std::int64_t>(mMeshes.size()));
             if (mIsExterior)
             {
                 try
                 {
+                    Misc::LoadTrace::Scope traceLand("preload.land");
                     mPreloadedObjects.insert(mLandManager->getLand({ mX, mY, {} }));
                 }
                 catch (std::exception&)
@@ -91,6 +135,7 @@ namespace MWWorld
             for (size_t i = 0; !abort && i < mMeshes.size(); ++i)
             {
                 const std::string_view model = mMeshes[i];
+                Misc::LoadTrace::Scope traceModel("preload.model");
                 bool useAnim = mUseAnim[i];
                 try
                 {
@@ -131,6 +176,37 @@ namespace MWWorld
                 else
                     mAnimContext.compileContext->compile(mPreloadedNodes);
             }
+
+            // Task 0060: the animation files NPCs read when they are built. Cached by the name as written, so these are
+            // the names Npc::animationSources gives. A failure of one file does not stop the others.
+            Misc::LoadTrace::Scope traceAnims(
+                "preload.animations", static_cast<std::int64_t>(mAnimationSources.size()));
+            for (const std::string& source : mAnimationSources)
+            {
+                if (abort)
+                    break;
+                try
+                {
+                    if (auto anim = mAnimContext.readAnimation(source))
+                        mPreloadedObjects.insert(anim);
+                }
+                catch (const std::exception&)
+                {
+                }
+            }
+            for (const std::string& skeleton : mActorSkeletons)
+            {
+                if (abort)
+                    break;
+                try
+                {
+                    mPreloadedObjects.insert(mAnimContext.readActor(skeleton));
+                }
+                catch (const std::exception&)
+                {
+                }
+            }
+            traceAnims.end();
 
             try
             {

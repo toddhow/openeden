@@ -1,0 +1,4 @@
+tcl
+player->setpos z 1500
+player->setangle x 3
+player->setathletics 120
