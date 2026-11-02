@@ -79,3 +79,37 @@ Each stage commits working, with a fresh reviewer.
 - [ ] The launcher, `openmw.cfg` and the editor are untouched; the notes of stage g exist; the New Vegas BSA version is recorded or still marked **verify**.
 - [ ] Unit tests, the 32 Lua tests, the Linux gate, clang-format 14 and the CI check scripts pass; a fresh reviewer read each stage.
 Out of scope: the Eden pack reader and writer (0052), the specification (0051), asynchronous IO, IO threads and request priorities (streaming core S6), memory mapping, the launcher's mod organizer and any launcher page, new `openmw.cfg` keys, Unicode normalization of existing names, reading BA2 differently, changing which source wins for existing setups, record-level (ESP/ESM) conflicts, derived-data cache logic.
+
+## Interface fixed for implementation (added 2026-11-01 when the stages started; the tests are written against this)
+
+All in namespace `VFS`, headers under `components/vfs/`. Names are final unless a reviewer finds a defect.
+
+**`file.hpp`** (new members have default implementations, so existing subclasses compile unchanged; they are not `const` because the default goes through `open()`):
+
+- `using ContentHash = std::array<std::uint8_t, 32>;` the BLAKE3-256 digest of the content (archive doc 7 and 14.5).
+- `virtual std::uint64_t File::size();` content size in bytes (for a compressed archive entry: the uncompressed size). Default: open a stream, seek to the end.
+- `virtual void File::readRange(std::uint64_t offset, std::size_t size, void* destination);` copies exactly `size` bytes starting at `offset` of the content into `destination`. Valid when `offset <= size()` and `size <= size() - offset` (written so that nothing overflows). A zero-length read is valid at any offset up to and including `size()`. Anything else, and any short read (the file shrank, or an archive entry points past the end of its archive), throws `std::runtime_error` whose text names the file; a failed call may leave `destination` partly written, and never reads or writes outside `[destination, destination + size)`. Synchronous, safe to call from many threads at once on the same object. Default: open a stream, seek, read.
+- `virtual std::optional<ContentHash> File::getContentHash() const;` default `std::nullopt` (loose files and legacy archive entries have no stored hash).
+
+**`manager.hpp`**:
+
+- `struct Provider { std::size_t mArchive; File* mFile; };` (`mArchive` is the index in registration order, 0 = registered first = lowest priority.)
+- `struct Override { Path::Normalized mPath; Provider mWinner; std::vector<Provider> mLosers; bool mIdentical; };` `mLosers` is ordered from the highest priority loser to the lowest. `mIdentical` is true when every provider (winner included) has a content hash and all hashes are equal.
+- `std::vector<Override> Manager::getOverrides() const;` one element per path that more than one registered archive provides, ordered by path (the index order), losers in priority order. The same input order always gives the same list.
+- `std::vector<Override> Manager::getConflicts() const;` `getOverrides()` without the `mIdentical` ones.
+- `struct SourceOverrideCount { std::size_t mArchive; std::string mDescription; std::size_t mOverridden; std::size_t mOverriding; std::size_t mIdenticalDuplicates; };` and `std::vector<SourceOverrideCount> Manager::getOverrideCounts() const;` one element per registered archive in registration order. `mOverridden`: paths on which this archive is a loser of a conflict (not identical); `mOverriding`: paths of a conflict on which it is the winner; `mIdenticalDuplicates`: paths of identical-content sets that it provides.
+- `std::size_t Manager::getArchiveCount() const;` and `std::string Manager::getArchiveDescription(std::size_t index) const;` (`Archive::getDescription()`; throws `std::out_of_range` for a bad index).
+- `std::uint64_t Manager::getSize(Path::NormalizedView name) const;` and `void Manager::readRange(Path::NormalizedView name, std::uint64_t offset, std::size_t size, void* destination) const;` like `getLastModified`: they act on the winning file and throw `std::runtime_error` if the name is not found.
+- The thread-safety contract (section "Design" item 5) is written as a class comment.
+
+**`archivefactory.hpp`** (stage f):
+
+- `using ArchiveFactory = std::function<std::unique_ptr<Archive>(const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder)>;` a factory returns `nullptr` when the file is not of its kind (decided by magic bytes, never by extension alone) and throws only for a file that is of its kind but broken.
+- `void addArchiveFactory(ArchiveFactory factory);` appends to a process-wide list (not thread-safe; call during start-up, before `registerArchives`). `void clearArchiveFactories();` for tests.
+- `std::unique_ptr<Archive> makeArchive(const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder);` asks the added factories in the order they were added, then falls back to `makeBsaArchive`; throws `std::runtime_error` naming the file if nobody recognises it. `registerArchives` uses `makeArchive` for the `fallback-archive=` list.
+
+**`entryname.hpp`** (stage f; the rules task 0052's pack reader and unpacker use):
+
+- `inline constexpr std::size_t defaultMaxEntryNameLength = 1024;` a proposal; task 0051 fixes the real limit.
+- `std::optional<std::string> Path::checkPackEntryName(std::string_view name, std::size_t maxLength = defaultMaxEntryNameLength);` `std::nullopt` when the name is acceptable inside a pack, else a short reason. Acceptable: non-empty; at most `maxLength` bytes; already normalized (`Path::isNormalized`); valid UTF-8 (no overlong forms, no surrogates, nothing above U+10FFFF); no NUL byte or other control character below 0x20; no leading or trailing `/`; no empty, `.` or `..` component.
+- `std::optional<std::string> Path::checkExtractionSafe(std::string_view name);` for tools that write the entry to disk: `std::nullopt` when the name, taken as relative path, stays inside the target folder on Windows and Linux, else a reason. It rejects, besides everything `checkPackEntryName` rejects (but without the length limit and without requiring a normalized name), a component that has a drive prefix or contains any of `:` `<` `>` `"` `|` `?` `*` `\`, a component that ends in `.` or a space, and a component whose part before the first `.` is a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1` to `com9`, `lpt1` to `lpt9`, compared without regard to case).

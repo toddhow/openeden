@@ -103,6 +103,8 @@ file(GLOB UNITTEST_SRC_FILES
     terrain/testlayerrmaos.cpp
 
     vfs/testpathutil.cpp
+    vfs/testvfscharacterisation.cpp
+    vfs/testvfsnormalization.cpp
 
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
