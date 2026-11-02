@@ -2706,8 +2706,8 @@ namespace MWMechanics
         constexpr std::size_t sTraceTextCapacity = 160;
         static const std::vector<std::string_view> traceBones
             = { "bip01 pelvis", "bip01 l thigh", "bip01 r thigh", "bip01 spine1", "bip01 l upperarm", "bip01 head" };
-        std::string line = "CMTRACE ref=" + mPtr.getCellRef().getRefId().toDebugString()
-            + " dt=" + std::to_string(duration);
+        std::string line
+            = "CMTRACE ref=" + mPtr.getCellRef().getRefId().toDebugString() + " dt=" + std::to_string(duration);
         for (std::size_t group = 0; group < MWRender::sNumBlendMasks; ++group)
         {
             const MWAnim::Play::ActiveState state = mAnimation->getActiveState(group);
@@ -2813,9 +2813,9 @@ namespace MWMechanics
                 // With inertial locomotion the request is the intended velocity, which the locomotion state then
                 // smooths; the animation's root motion would make the smoothed speed (and with it the animation
                 // speed) stall at its floor when a walk starts (docs/research/0022).
-                const bool intended = InertialMotion::chooseMovementRequestSource(inertialActive,
-                                          mHitState != CharState_None, mMovementState != CharState_None,
-                                          isTransitionMovementState(mMovementState))
+                const bool intended
+                    = InertialMotion::chooseMovementRequestSource(inertialActive, mHitState != CharState_None,
+                          mMovementState != CharState_None, isTransitionMovementState(mMovementState))
                     == InertialMotion::MovementRequestSource::Intended;
                 // When intended, movement already holds the intended velocity (set in update).
                 if (!intended && duration != 0.f && movementFromAnimation != vsg::vec3())
