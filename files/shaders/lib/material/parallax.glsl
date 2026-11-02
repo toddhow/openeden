@@ -35,12 +35,38 @@ const int POM_MAX_STEPS = 20;
 const int POM_REFINE_TAPS = 4;
 #endif
 const float POM_MIN_VIEW_Z = 0.1;
-// Render::Parallax::uvDepthPerDisplacement and defaultDisplacementScale.
-const float POM_UV_DEPTH_PER_DISPLACEMENT = 0.2;
+// Render::Parallax::maxSlant, slopeFadeFull and slopeFadeNone.
+const float POM_MAX_SLANT = 2.0;
+const float POM_SLOPE_FULL = 0.8660254;
+const float POM_SLOPE_NONE = 0.7071068;
+// Render::Parallax::worldDepthPerDisplacement, maxUvDepth and defaultDisplacementScale.
+const float POM_WORLD_DEPTH_PER_DISPLACEMENT = 16.0;
+const float POM_MAX_UV_DEPTH = 0.1;
 const float POM_DEFAULT_DISPLACEMENT = 0.5;
 // The march fades out between these distances (game units), and is skipped beyond the second.
 const float POM_FADE_START = 700.0;
 const float POM_FADE_END = 1800.0;
+
+float pomSlopeFade(float up)
+{
+    float t = clamp((up - POM_SLOPE_NONE) / (POM_SLOPE_FULL - POM_SLOPE_NONE), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+// Game units per unit of texture coordinates at this pixel, from the derivatives of the view space position and of the
+// coordinates (call it outside any branch). The depth of the surface is a length, so it is divided by this.
+float pomWorldPerUv(vec3 viewPos, vec2 uvDx, vec2 uvDy)
+{
+    float worldArea = length(cross(dFdx(viewPos), dFdy(viewPos)));
+    float uvArea = abs(uvDx.x * uvDy.y - uvDx.y * uvDy.x);
+    return sqrt(worldArea / max(uvArea, 1e-12));
+}
+
+// Render::Parallax::uvDepthFromWorld.
+float pomUvDepth(float scale, float worldPerUv)
+{
+    return clamp(scale * POM_WORLD_DEPTH_PER_DISPLACEMENT / max(worldPerUv, 1e-6), 0.0, POM_MAX_UV_DEPTH);
+}
 
 float pomDistanceFade(float distance)
 {
@@ -62,7 +88,11 @@ vec2 pomOffset(vec2 uv, vec3 eyeDir, float uvDepth, float pivot, vec2 dx, vec2 d
 {
     float viewCos = clamp(abs(eyeDir.z), 0.0, 1.0);
     int steps = int(ceil(mix(float(POM_MIN_STEPS), float(POM_MAX_STEPS), 1.0 - viewCos)));
-    vec2 rayStep = eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z) * uvDepth;
+    vec2 slant = eyeDir.xy / max(eyeDir.z, POM_MIN_VIEW_Z);
+    float slantLength = length(slant);
+    if (slantLength > POM_MAX_SLANT)
+        slant *= POM_MAX_SLANT / slantLength;
+    vec2 rayStep = slant * uvDepth;
     float loDepth = 0.0;
     float loAbove = pomAbove(uv, rayStep, 0.0, dx, dy);
     if (loAbove <= 0.0)

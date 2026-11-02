@@ -276,8 +276,7 @@ namespace Terrain
                 }
                 heights->set(i,
                     vsg::vec4(static_cast<float>(heightIndex),
-                        Render::Parallax::uvDepth(
-                            displacement, mMapSettings.parallaxScale, Render::Parallax::terrainUvDepthPerDisplacement),
+                        Render::Parallax::depthScale(displacement, mMapSettings.parallaxScale),
                         0.f, 0.f));
             }
         }

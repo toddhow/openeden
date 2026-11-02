@@ -154,8 +154,8 @@ void main()
   #else
         float pomDisplacement = 0.0;
   #endif
-        float pomDepth = (pomDisplacement > 0.0 ? pomDisplacement : POM_DEFAULT_DISPLACEMENT)
-            * POM_UV_DEPTH_PER_DISPLACEMENT * pomFade;
+        float pomDepth = pomUvDepth(pomDisplacement > 0.0 ? pomDisplacement : POM_DEFAULT_DISPLACEMENT,
+                             pomWorldPerUv(frag_in.viewPos, pomDx, pomDy)) * pomFade;
         if (pomFade > 0.0 && dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) != 0)
             offset = pomOffset(frag_in.texCoord[diffuseUV].st, transpose(normalToView) * normalize(-frag_in.viewPos),
                 pomDepth, 1.0 - textureLod(heightMap, vec2(0.5), 16.0).r, pomDx, pomDy);

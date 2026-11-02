@@ -121,26 +121,51 @@ void main()
     vec3 blendedNormal = vec3(0);
     float specularStrength = 0.0;
 #ifdef PARALLAX_POM
-    // Task 0045: the march, once, on the dominant layer; every layer then reads at the shifted coordinates. The
-    // derivatives are taken before any branch.
+    // Task 0045: the march on the strongest layers that have a height file; every such layer then reads at the shifted
+    // coordinates. The derivatives are taken before any branch.
     vec2 pomDx = dFdx(diffuseTexCoord);
     vec2 pomDy = dFdy(diffuseTexCoord);
     vec2 pomShift = vec2(0.0);
     bool pomActive = false;
     {
-        // Only a layer with a `_p` file has relief: the march follows the strongest of those, and a layer without one
-        // is never shifted by its neighbours' height maps.
-        int dominant = -1;
+        // Only a layer with a `_p` file has relief, and a layer without one is never shifted by its neighbours' height
+        // maps. The march follows the two strongest of those, mixed by their blend weights, so that the shift does not
+        // jump where the strongest layer changes; it fades out on steep faces (the texture is projected from above and
+        // already stretched there) and with distance.
+        int first = -1;
+        int second = -1;
         for (int i=0; i<4; ++i)
-            if (layerHeights[textures[i]].x >= 0.0 && (dominant < 0 || blendCoeffs[i] > blendCoeffs[dominant]))
-                dominant = i;
-        vec4 heightInfo = dominant >= 0 ? layerHeights[textures[dominant]] : vec4(-1.0, 0.0, 0.0, 0.0);
-        float pomFade = pomDistanceFade(length(frag_in.viewPos));
-        if (heightInfo.x >= 0.0 && pomFade > 0.0)
         {
+            if (layerHeights[textures[i]].x < 0.0)
+                continue;
+            if (first < 0 || blendCoeffs[i] > blendCoeffs[first])
+            {
+                second = first;
+                first = i;
+            }
+            else if (second < 0 || blendCoeffs[i] > blendCoeffs[second])
+                second = i;
+        }
+        float up = (mat3(scene.invView) * normalize(frag_in.viewNormal)).z;
+        float pomFade = pomDistanceFade(length(frag_in.viewPos)) * pomSlopeFade(up);
+        float worldPerUv = pomWorldPerUv(frag_in.viewPos, pomDx, pomDy);
+        if (first >= 0 && pomFade > 0.0)
+        {
+            float weightSecond = second >= 0 ? blendCoeffs[second] : 0.0;
+            float weightFirst = blendCoeffs[first];
+            float mixSecond = weightSecond / max(weightFirst + weightSecond, 1e-4);
+            vec4 heightInfo = layerHeights[textures[first]];
             pomLayer = heightInfo.x;
-            pomShift = pomOffset(diffuseTexCoord, eyeDir, heightInfo.y * pomFade,
+            pomShift = pomOffset(diffuseTexCoord, eyeDir, pomUvDepth(heightInfo.y, worldPerUv) * pomFade,
                 1.0 - textureLod(heightLayers, vec3(0.5, 0.5, pomLayer), 16.0).r, pomDx, pomDy);
+            if (mixSecond > 0.02)
+            {
+                heightInfo = layerHeights[textures[second]];
+                pomLayer = heightInfo.x;
+                vec2 shiftSecond = pomOffset(diffuseTexCoord, eyeDir, pomUvDepth(heightInfo.y, worldPerUv) * pomFade,
+                    1.0 - textureLod(heightLayers, vec3(0.5, 0.5, pomLayer), 16.0).r, pomDx, pomDy);
+                pomShift = mix(pomShift, shiftSecond, mixSecond);
+            }
             pomActive = true;
         }
     }

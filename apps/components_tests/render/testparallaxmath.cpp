@@ -74,17 +74,34 @@ namespace
         EXPECT_FLOAT_EQ(distanceFade(-5.f), 1.f);
     }
 
-    TEST(RenderParallaxTest, the_uv_depth_is_the_material_scale_times_the_setting_with_clamps)
+    TEST(RenderParallaxTest, the_depth_scale_is_the_material_scale_times_the_setting_with_clamps)
     {
-        EXPECT_FLOAT_EQ(uvDepth(0.5f, 1.f), 0.5f * uvDepthPerDisplacement);
-        EXPECT_FLOAT_EQ(uvDepth(0.5f, 2.f), 1.0f * uvDepthPerDisplacement);
-        EXPECT_FLOAT_EQ(uvDepth(0.5f, 0.f), 0.f);
+        EXPECT_FLOAT_EQ(depthScale(0.5f, 1.f), 0.5f);
+        EXPECT_FLOAT_EQ(depthScale(0.5f, 2.f), 1.0f);
+        EXPECT_FLOAT_EQ(depthScale(0.5f, 0.f), 0.f);
         // Out of range values clamp; nan means "not set" for the material and "one" for the setting.
-        EXPECT_FLOAT_EQ(uvDepth(100.f, 1.f), maxDisplacementScale * uvDepthPerDisplacement);
-        EXPECT_FLOAT_EQ(uvDepth(1.f, 100.f), maxParallaxScale * uvDepthPerDisplacement);
-        EXPECT_FLOAT_EQ(uvDepth(-1.f, 1.f), 0.f);
-        EXPECT_FLOAT_EQ(uvDepth(nan, 1.f), defaultDisplacementScale * uvDepthPerDisplacement);
-        EXPECT_FLOAT_EQ(uvDepth(0.5f, nan), 0.5f * uvDepthPerDisplacement);
+        EXPECT_FLOAT_EQ(depthScale(100.f, 1.f), maxDisplacementScale);
+        EXPECT_FLOAT_EQ(depthScale(1.f, 100.f), maxParallaxScale);
+        EXPECT_FLOAT_EQ(depthScale(-1.f, 1.f), 0.f);
+        EXPECT_FLOAT_EQ(depthScale(nan, 1.f), defaultDisplacementScale);
+        EXPECT_FLOAT_EQ(depthScale(0.5f, nan), 0.5f);
+    }
+
+    TEST(RenderParallaxTest, the_depth_is_a_length_in_the_world_whatever_the_texture_mapping)
+    {
+        // A tile 100 units wide and one 400 units wide: the same 8 units of depth, a quarter of the coordinates.
+        const float fine = uvDepthFromWorld(0.5f, 100.f);
+        const float coarse = uvDepthFromWorld(0.5f, 400.f);
+        EXPECT_FLOAT_EQ(fine, 0.5f * worldDepthPerDisplacement / 100.f);
+        EXPECT_FLOAT_EQ(coarse * 4.f, fine);
+        // Never more than a tenth of a tile, however small the tile is in the world.
+        EXPECT_FLOAT_EQ(uvDepthFromWorld(4.f, 1.f), maxUvDepth);
+        EXPECT_FLOAT_EQ(uvDepthFromWorld(0.f, 100.f), 0.f);
+        // Not usable numbers give no depth, never a huge one.
+        EXPECT_FLOAT_EQ(uvDepthFromWorld(0.5f, 0.f), 0.f);
+        EXPECT_FLOAT_EQ(uvDepthFromWorld(0.5f, -3.f), 0.f);
+        EXPECT_FLOAT_EQ(uvDepthFromWorld(0.5f, nan), 0.f);
+        EXPECT_FLOAT_EQ(uvDepthFromWorld(nan, 100.f), 0.f);
     }
 
     TEST(RenderParallaxTest, half_floats_round_trip_the_values_the_scales_use)
@@ -211,9 +228,13 @@ namespace
             EXPECT_FLOAT_EQ(found.at(name).front(), value) << name;
         };
         one("POM_MIN_VIEW_Z", minViewZ);
+        one("POM_MAX_SLANT", maxSlant);
+        one("POM_SLOPE_FULL", slopeFadeFull);
+        one("POM_SLOPE_NONE", slopeFadeNone);
         one("POM_FADE_START", fadeStart);
         one("POM_FADE_END", fadeEnd);
-        one("POM_UV_DEPTH_PER_DISPLACEMENT", uvDepthPerDisplacement);
+        one("POM_WORLD_DEPTH_PER_DISPLACEMENT", worldDepthPerDisplacement);
+        one("POM_MAX_UV_DEPTH", maxUvDepth);
         one("POM_DEFAULT_DISPLACEMENT", defaultDisplacementScale);
         // low, high, medium
         const Quality order[] = { Quality::Low, Quality::High, Quality::Medium };
@@ -258,14 +279,6 @@ namespace
             EXPECT_FALSE(usableHeightFormat(f)) << f;
     }
 
-    TEST(RenderParallaxTest, the_terrain_has_a_shallower_depth_per_displacement_than_objects)
-    {
-        EXPECT_LT(terrainUvDepthPerDisplacement, uvDepthPerDisplacement);
-        EXPECT_FLOAT_EQ(uvDepth(0.5f, 1.f, terrainUvDepthPerDisplacement), 0.5f * terrainUvDepthPerDisplacement);
-        // The default argument is the objects' value.
-        EXPECT_FLOAT_EQ(uvDepth(0.5f, 1.f), uvDepth(0.5f, 1.f, uvDepthPerDisplacement));
-    }
-
     TEST(RenderParallaxTest, the_pivot_is_the_mean_depth_and_never_leaves_the_unit_range)
     {
         EXPECT_FLOAT_EQ(pivotDepth(1.f), 0.f);
@@ -297,5 +310,39 @@ namespace
         const MarchResult low = march([](float) { return 0.5f; }, 12, 4); // hit at depth 0.5
         EXPECT_LT(offsetFraction(high.depth, pivot), 0.f);
         EXPECT_GT(offsetFraction(low.depth, pivot), 0.f);
+    }
+
+    TEST(RenderParallaxTest, the_slant_of_the_ray_is_limited)
+    {
+        // A gentle view is unchanged, a grazing one is capped (the texture cannot smear over many times the depth).
+        EXPECT_FLOAT_EQ(limitedSlant(0.5f, 1.f), 0.5f);
+        EXPECT_FLOAT_EQ(limitedSlant(0.99f, 0.5f), 0.99f / 0.5f);
+        EXPECT_FLOAT_EQ(limitedSlant(0.99f, 0.01f), maxSlant);
+        EXPECT_FLOAT_EQ(limitedSlant(1.f, -1.f), maxSlant);
+        EXPECT_FLOAT_EQ(limitedSlant(nan, 1.f), maxSlant);
+        EXPECT_FLOAT_EQ(limitedSlant(0.5f, nan), maxSlant);
+        EXPECT_GE(limitedSlant(0.f, 0.f), 0.f);
+        EXPECT_LE(limitedSlant(100.f, 0.3f), maxSlant);
+    }
+
+    TEST(RenderParallaxTest, the_terrain_march_fades_out_on_steep_faces)
+    {
+        EXPECT_FLOAT_EQ(slopeFade(1.f), 1.f); // flat ground
+        EXPECT_FLOAT_EQ(slopeFade(std::cos(0.5235988f)), 1.f); // 30 degrees
+        EXPECT_NEAR(slopeFade(std::cos(0.7853982f)), 0.f, 1e-5f); // 45 degrees
+        EXPECT_FLOAT_EQ(slopeFade(0.3f), 0.f); // a cliff
+        EXPECT_FLOAT_EQ(slopeFade(-1.f), 0.f); // an overhang or a ceiling
+        EXPECT_FLOAT_EQ(slopeFade(nan), 0.f);
+        // Smooth and falling with the slope, never leaving 0 to 1.
+        float previous = 1.f;
+        for (float up = 1.f; up >= 0.f; up -= 0.01f)
+        {
+            const float f = slopeFade(up);
+            EXPECT_GE(f, 0.f);
+            EXPECT_LE(f, 1.f);
+            EXPECT_LE(f, previous + 1e-6f);
+            EXPECT_LE(previous - f, 0.1f);
+            previous = f;
+        }
     }
 }

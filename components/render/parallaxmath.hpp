@@ -147,28 +147,63 @@ namespace Render::Parallax
         return 1.f / std::max(eyeZ, minViewZ);
     }
 
-    // The depth of a surface in texture coordinates is the set's displacement scale (Community Shaders' height unit)
-    // times this. 0.5, the value of the Faultier stone wall, then gives 0.1 of a texture tile (the old single offset
-    // had a range of 0.04). Chosen by eye on the Faultier wall: 0.1 per unit was barely visible.
-    constexpr float uvDepthPerDisplacement = 0.2f;
+    // The ray's slant (|eye.xy| / eye.z, the tangent of the view angle from the normal) never counts for more than this:
+    // a view almost along the surface, or a texture already stretched by a steep face, cannot smear the picture over
+    // many times the depth.
+    constexpr float maxSlant = 2.f;
+
+    // The slant of the ray after the limits: |xy| / max(z, minViewZ), at most maxSlant. A bad number counts as the limit.
+    inline float limitedSlant(float xyLength, float eyeZ)
+    {
+        if (std::isnan(xyLength) || std::isnan(eyeZ))
+            return maxSlant;
+        return std::min(std::max(xyLength, 0.f) / std::max(eyeZ, minViewZ), maxSlant);
+    }
+
+    // The terrain's texture coordinates come from above, so on a steep face they are already stretched and a march in
+    // that frame blows up (streaks of "waterfall" relief on cliffs). The march fades out with the slope: `up` is the
+    // geometric normal's upward component (1 flat ground): full at 30 degrees or less, none at 45 degrees or more.
+    constexpr float slopeFadeFull = 0.8660254f; // cos 30 degrees
+    constexpr float slopeFadeNone = 0.7071068f; // cos 45 degrees
+
+    inline float slopeFade(float up)
+    {
+        if (std::isnan(up))
+            return 0.f;
+        const float t = std::clamp((up - slopeFadeNone) / (slopeFadeFull - slopeFadeNone), 0.f, 1.f);
+        return t * t * (3.f - 2.f * t);
+    }
+
+    // Depth is a length in the world, so it does not depend on how a mesh's or the terrain's texture is mapped: a
+    // displacement scale of 1 is this many game units (about 70 to the metre; Faultier's stone wall has 0.5, which makes
+    // 8 units, 11 centimetres). The shader works out how many game units one unit of texture coordinates covers at the
+    // pixel (from the derivatives of the position and of the coordinates) and divides. A fixed fraction of a tile, as the
+    // first version used, was a 50 unit deep step on a terrain tile and made a small rock mesh a smeared mess.
+    constexpr float worldDepthPerDisplacement = 16.f;
+    // The depth in texture coordinates never exceeds this fraction of a tile, whatever the mapping.
+    constexpr float maxUvDepth = 0.1f;
     // Used when a material file sets no scale.
     constexpr float defaultDisplacementScale = 0.5f;
     constexpr float maxDisplacementScale = 8.f;
     constexpr float maxParallaxScale = 4.f;
 
-    // The terrain's texture tile is about 512 game units across (a cell is 8192 units, 16 tiles), so the same fraction
-    // of a tile is a far deeper step than on a wall: a quarter of the per-unit depth keeps the relief about 10 units
-    // deep for a displacementScale of 0.5, where 0.2 made the stones of a cobble ground spikes smeared along the view.
-    constexpr float terrainUvDepthPerDisplacement = 0.05f;
-
     // displacementScale: the material's (not a number: not set, the default is used); userScale: `parallax scale`
-    // (not a number: 1). The result is in texture coordinates.
-    inline float uvDepth(float displacementScale, float userScale, float perDisplacement = uvDepthPerDisplacement)
+    // (not a number: 1). The result is the depth scale the shader multiplies by worldDepthPerDisplacement.
+    inline float depthScale(float displacementScale, float userScale)
     {
         const float material = std::isnan(displacementScale) ? defaultDisplacementScale
                                                              : std::clamp(displacementScale, 0.f, maxDisplacementScale);
         const float user = std::isnan(userScale) ? 1.f : std::clamp(userScale, 0.f, maxParallaxScale);
-        return material * user * perDisplacement;
+        return material * user;
+    }
+
+    // The depth in texture coordinates for a depth scale, at a pixel where one unit of texture coordinates covers
+    // worldPerUv game units. A number that is not usable gives no depth.
+    inline float uvDepthFromWorld(float scale, float worldPerUv)
+    {
+        if (std::isnan(scale) || std::isnan(worldPerUv) || !(worldPerUv > 0.f))
+            return 0.f;
+        return std::clamp(scale * worldDepthPerDisplacement / worldPerUv, 0.f, maxUvDepth);
     }
 
     // IEEE half floats for non-negative values: not a number and negative values become 0, large ones the largest
