@@ -18,6 +18,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "loderror.hpp"
@@ -130,6 +131,10 @@ namespace Lod
     std::optional<std::uint64_t> packClusterKey(const TileId& id) noexcept;
     /// Empty when the tag is not tagObjectCluster or the fields are invalid.
     std::optional<TileId> unpackClusterKey(std::uint64_t key) noexcept;
+
+    /// Whether a texture path may be stored: 1 to maxClusterTexturePath bytes, valid UTF-8, no control characters, no
+    /// backslash, no upper-case ASCII letter, no leading slash (the VFS's normalised form).
+    bool isValidClusterTexturePath(std::string_view path) noexcept;
 
     /// Checks everything the reader checks, on the logical content (so a writer cannot produce what the reader
     /// refuses): level, finite numbers, caps, group spans and ranges tiling, indices below the vertex count, cell

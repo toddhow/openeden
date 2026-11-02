@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <tuple>
 
@@ -80,6 +81,15 @@ namespace Lod
             if (piece.mIndices.empty() || piece.mVertices.empty())
                 return false;
             const std::array<double, 12>& t = object.mTransform;
+            // A path or state the payload cannot hold is made normal (case, slashes, cutoff) or the piece is left out.
+            built.mTexture = piece.mTexture;
+            std::replace(built.mTexture.begin(), built.mTexture.end(), '\\', '/');
+            std::transform(built.mTexture.begin(), built.mTexture.end(), built.mTexture.begin(),
+                [](char c) { return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c; });
+            while (!built.mTexture.empty() && built.mTexture.front() == '/')
+                built.mTexture.erase(built.mTexture.begin());
+            if (!isValidClusterTexturePath(built.mTexture) || (piece.mFlags & ~(clusterFlagAlphaTest | clusterFlagTwoSided)) != 0)
+                return false;
             const std::size_t vertexCount = piece.mVertices.size();
 
             std::vector<ClusterVertex> vertices(vertexCount);
@@ -98,6 +108,8 @@ namespace Lod
                 positions[3 * i] = v.mPosition[0];
                 positions[3 * i + 1] = v.mPosition[1];
                 positions[3 * i + 2] = v.mPosition[2];
+                if (!std::isfinite(v.mPosition[0]) || !std::isfinite(v.mPosition[1]) || !std::isfinite(v.mPosition[2]))
+                    return false; // a transform so large that the tile-space position overflows a float
 
                 const double nx = normalMatrix.m[0] * s.mNormal[0] + normalMatrix.m[1] * s.mNormal[1]
                     + normalMatrix.m[2] * s.mNormal[2];
@@ -106,7 +118,7 @@ namespace Lod
                 const double nz = normalMatrix.m[6] * s.mNormal[0] + normalMatrix.m[7] * s.mNormal[1]
                     + normalMatrix.m[8] * s.mNormal[2];
                 const double length = std::sqrt(nx * nx + ny * ny + nz * nz);
-                if (length > 1e-12)
+                if (std::isfinite(length) && length > 1e-12)
                 {
                     v.mNormal[0] = snorm8(nx / length);
                     v.mNormal[1] = snorm8(ny / length);
@@ -136,7 +148,20 @@ namespace Lod
                     3 * sizeof(float), 0, input.mLevel.mError, meshopt_SimplifyErrorAbsolute, &achieved);
             simplified.resize(kept);
             if (simplified.empty())
+            {
+                // The whole piece collapsed: what is lost is about its own size, which the error must cover.
+                float low[3] = { positions[0], positions[1], positions[2] };
+                float high[3] = { positions[0], positions[1], positions[2] };
+                for (std::size_t i = 1; i < vertexCount; ++i)
+                    for (std::size_t k = 0; k < 3; ++k)
+                    {
+                        low[k] = std::min(low[k], positions[3 * i + k]);
+                        high[k] = std::max(high[k], positions[3 * i + k]);
+                    }
+                const float dx = high[0] - low[0], dy = high[1] - low[1], dz = high[2] - low[2];
+                maxError = std::max(maxError, 0.5f * std::sqrt(dx * dx + dy * dy + dz * dz));
                 return false;
+            }
             maxError = std::max(maxError, achieved);
 
             // Keep only the vertices the triangles use, in order of first use.
@@ -153,9 +178,8 @@ namespace Lod
                 }
                 built.mIndices.push_back(remap[index]);
             }
-            built.mTexture = piece.mTexture;
             built.mFlags = piece.mFlags;
-            built.mAlphaCutoff = piece.mAlphaCutoff;
+            built.mAlphaCutoff = (piece.mFlags & clusterFlagAlphaTest) != 0 ? std::max(0.f, piece.mAlphaCutoff) : 0.f;
             return true;
         }
 
@@ -179,7 +203,7 @@ namespace Lod
         LodError validateObject(const SourceObject& object, std::size_t index, const ClusterBuildInput& input)
         {
             const std::string at = "objects[" + std::to_string(index) + "]";
-            const double cells = std::max(1.0, std::round(input.mSide / input.mCellSize));
+            const double cells = std::clamp(std::round(input.mSide / input.mCellSize), 1.0, 1.0e9);
             const std::int64_t span = static_cast<std::int64_t>(cells);
             if (object.mCellX < input.mOriginCellX || object.mCellY < input.mOriginCellY
                 || static_cast<std::int64_t>(object.mCellX) >= input.mOriginCellX + span
@@ -403,6 +427,11 @@ namespace Lod
                 overhang = std::max(overhang, v.mPosition[axis] - c.mSide);
             }
         }
+        // The validator tests side + overhang in float; make sure rounding cannot leave a vertex outside.
+        for (const ClusterVertex& v : c.mVertices)
+            for (int axis = 0; axis < 2; ++axis)
+                while (c.mSide + overhang < v.mPosition[axis] || -overhang > v.mPosition[axis])
+                    overhang = std::nextafter(overhang, std::numeric_limits<float>::infinity());
         c.mOverhang = overhang;
 
         if (LodError error = validateObjectCluster(c))

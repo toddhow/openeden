@@ -203,6 +203,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testalbedobake.cpp
     lod/testobjectcluster.cpp
     lod/testclusterbuild.cpp
+    lod/testclusterreview.cpp
     lod/testtiletree.cpp
     lod/testtilebakelevels.cpp
     vsg/testscenedata.cpp

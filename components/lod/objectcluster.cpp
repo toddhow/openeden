@@ -106,7 +106,7 @@ namespace Lod
             if (path.empty() || path.front() == '/')
                 return false;
             for (const char c : path)
-                if (c == '\\' || (c >= 'A' && c <= 'Z'))
+                if (c == '\\' || (c >= 'A' && c <= 'Z') || static_cast<unsigned char>(c) < 0x20 || c == 0x7F)
                     return false;
             return true;
         }
@@ -270,20 +270,25 @@ namespace Lod
             for (std::size_t i = 0; i < c.mVertices.size(); ++i)
             {
                 const ClusterVertex& v = c.mVertices[i];
-                const std::string at = "vertices[" + std::to_string(i) + "]";
+                const auto at = [i] { return "vertices[" + std::to_string(i) + "]"; };
                 for (const float value : { v.mPosition[0], v.mPosition[1], v.mPosition[2], v.mUv[0], v.mUv[1] })
                     if (!finite(value))
-                        return fail(at, 0, "a number is not finite");
+                        return fail(at(), 0, "a number is not finite");
                 if (v.mPosition[0] < low || v.mPosition[0] > highX || v.mPosition[1] < low || v.mPosition[1] > highX)
-                    return fail(at + ".position", 0, "outside the tile square plus the overhang");
+                    return fail(at() + ".position", 0, "outside the tile square plus the overhang");
                 if (v.mPosition[2] < c.mMinZ || v.mPosition[2] > c.mMaxZ)
-                    return fail(at + ".position", 0, "z outside minZ to maxZ");
+                    return fail(at() + ".position", 0, "z outside minZ to maxZ");
                 if (v.mCellSlot >= c.mCells.size())
-                    return fail(at + ".cellSlot", 0, "cell slot out of range");
+                    return fail(at() + ".cellSlot", 0, "cell slot out of range");
             }
             for (std::size_t i = 0; i < c.mIndices.size(); ++i)
                 if (c.mIndices[i] >= c.mVertices.size())
                     return fail("indices[" + std::to_string(i) + "]", 0, "index beyond the vertex count");
+            // The ranges (used to mask a cell) and the vertices (used to fade it) must agree on the cell.
+            for (std::size_t i = 0; i < c.mRanges.size(); ++i)
+                for (std::uint64_t k = c.mRanges[i].mFirstIndex; k < std::uint64_t{ c.mRanges[i].mFirstIndex } + c.mRanges[i].mIndexCount; ++k)
+                    if (c.mVertices[c.mIndices[k]].mCellSlot != c.mRanges[i].mCellSlot)
+                        return fail("ranges[" + std::to_string(i) + "]", 0, "a vertex has another cell slot than its range");
             return {};
         }
 
@@ -322,6 +327,11 @@ namespace Lod
         {
             return std::bit_cast<float>(getU32(b, at));
         }
+    }
+
+    bool isValidClusterTexturePath(std::string_view path) noexcept
+    {
+        return !path.empty() && path.size() <= maxClusterTexturePath && isValidUtf8(path) && isNormalisedPath(path);
     }
 
     std::optional<std::uint64_t> packClusterKey(const TileId& id) noexcept
