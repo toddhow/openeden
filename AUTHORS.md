@@ -350,3 +350,6 @@ for creating the icon used for the Data Files tab of the OpenMW Launcher.
 
 Thanks to DejaVu team,
 for their DejaVuLGCSansMono fontface, see DejaVuFontLicense.txt for their license terms.
+
+Thanks to Arseny Kapoulkine,
+for meshoptimizer (https://github.com/zeux/meshoptimizer, MIT License), which OpenEden uses to simplify objects for its distant object clusters.
