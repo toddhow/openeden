@@ -471,8 +471,9 @@ namespace OMW
                              << totals.mMaxError;
         }
         if (state.mBadReferences > 0)
-            Log(Debug::Warning) << "LOD object bake: " << state.mBadReferences
-                                << " references with a position, rotation or scale that is not a sane number were left out.";
+            Log(Debug::Warning)
+                << "LOD object bake: " << state.mBadReferences
+                << " references with a position, rotation or scale that is not a sane number were left out.";
         if (state.mDuplicates > 0)
             Log(Debug::Info) << "LOD object bake: " << state.mDuplicates << " repeated references were used once.";
 

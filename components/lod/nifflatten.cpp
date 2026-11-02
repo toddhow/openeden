@@ -211,7 +211,8 @@ namespace Lod
                     if (index >= data.mVertices.size())
                         return;
 
-                // Geometry may carry its own alpha property (a later format); it overrides the one the nodes passed down.
+                // Geometry may carry its own alpha property (a later format); it overrides the one the nodes passed
+                // down.
                 Inherited state = inherited;
                 if (!geometry.mAlphaProperty.empty())
                     applyProperty(*geometry.mAlphaProperty.getPtr(), state);
