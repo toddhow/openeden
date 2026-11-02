@@ -197,6 +197,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testtileselection.cpp
     lod/testterraintile.cpp
     lod/testtilepack.cpp
+    lod/testtilebake.cpp
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp
