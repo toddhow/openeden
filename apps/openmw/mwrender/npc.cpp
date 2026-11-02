@@ -211,8 +211,8 @@ namespace MWRender
         bool is1stPerson = mViewMode == ViewMode::FirstPerson;
         bool isBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
 
-        const AnimationSources animSources = animationSources(
-            mContext, is1stPerson, isFemale, isBeast, isWerewolf, mNpc->mModel, mNpc->mRace);
+        const AnimationSources animSources
+            = animationSources(mContext, is1stPerson, isFemale, isBeast, isWerewolf, mNpc->mModel, mNpc->mRace);
         const std::string& defaultSkeleton = animSources.defaultSkeleton;
         const std::string& smodel = animSources.skeleton;
         const std::vector<std::string>& sources = animSources.sources;

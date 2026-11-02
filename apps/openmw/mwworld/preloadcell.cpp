@@ -90,8 +90,8 @@ namespace MWWorld
         // happens and is left out).
         void addKindAnimationSources(bool female, bool beast, const std::string& customModel, const ESM::RefId& race)
         {
-            const auto sources = MWRender::Npc::animationSources(
-                mAnimContext, false, female, beast, false, customModel, race);
+            const auto sources
+                = MWRender::Npc::animationSources(mAnimContext, false, female, beast, false, customModel, race);
             mAnimationSources.insert(sources.sources.begin(), sources.sources.end());
             mActorSkeletons.insert(sources.skeleton);
         }
@@ -101,8 +101,7 @@ namespace MWWorld
             const ESM::Race* race = MWBase::Environment::get().getESMStore()->get<ESM::Race>().search(npc.mRace);
             if (race == nullptr)
                 return;
-            addKindAnimationSources(
-                !npc.isMale(), (race->mData.mFlags & ESM::Race::Beast) != 0, npc.mModel, npc.mRace);
+            addKindAnimationSources(!npc.isMale(), (race->mData.mFlags & ESM::Race::Beast) != 0, npc.mModel, npc.mRace);
         }
 
         // The four plain kinds (male, female, beast, and the argonian's swimming file), so that the first NPC of a

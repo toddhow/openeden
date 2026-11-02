@@ -421,8 +421,8 @@ namespace MWWorld
         assert(mActiveCells.find(&cell) == mActiveCells.end());
         mActiveCells.insert(&cell);
 
-        Misc::LoadTrace::Scope traceCell("cell.load",
-            static_cast<std::int64_t>(cell.getCell()->getGridX()) * 100000 + cell.getCell()->getGridY());
+        Misc::LoadTrace::Scope traceCell(
+            "cell.load", static_cast<std::int64_t>(cell.getCell()->getGridX()) * 100000 + cell.getCell()->getGridY());
         Log(Debug::Info) << "Loading cell " << cell.getCell()->getDescription();
         MWBase::Environment::get().getExtensionManager()->cellLoaded(cell.getCell()->getDescription());
         Misc::LoadTrace::Scope traceLand("load.exterior.total");
