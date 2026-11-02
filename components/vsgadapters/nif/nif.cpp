@@ -815,7 +815,18 @@ namespace vsgAdapters
                 return image;
             }
             else
-                return vsgUtil::readImage(st.mFile, mImageOptions);
+                return vsgUtil::readImage(st.mFile, mImageOptions, objectImageUse(vsgUtil::TextureCap::Kind::Colour));
+        }
+
+        // Task 0049: models opt in to the texture downscaler; their extra maps follow the same cap as the base
+        // texture. `floor` keeps a height map from going below 256 texels.
+        static vsgUtil::ImageUse objectImageUse(vsgUtil::TextureCap::Kind kind, int floor = 0)
+        {
+            vsgUtil::ImageUse use;
+            use.category = vsgUtil::TextureCap::Category::Object;
+            use.kind = kind;
+            use.floor = floor;
+            return use;
         }
 
         vsg::ref_ptr<vsg::DescriptorImage> handleTexture(const Nif::NiSourceTexture& st, int clamp, uint32_t binding)
@@ -870,10 +881,11 @@ namespace vsgAdapters
 
             auto& nodeOptions = getNodeOptions();
             const auto& base = texprop.mTextures[Nif::NiTexturingProperty::BaseTexture];
-            auto addMap = [&](const std::string& path, uint32_t binding,
-                              vsg::ref_ptr<vsg::Data> data = {}) -> vsg::ref_ptr<vsg::Data> {
+            auto addMap
+                = [&](const std::string& path, uint32_t binding, vsg::ref_ptr<vsg::Data> data = {},
+                      vsgUtil::TextureCap::Kind mapKind = vsgUtil::TextureCap::Kind::Data) -> vsg::ref_ptr<vsg::Data> {
                 if (!data)
-                    data = vsgUtil::readOptionalImage(path, mImageOptions);
+                    data = vsgUtil::readOptionalImage(path, mImageOptions, objectImageUse(mapKind));
                 if (!data)
                 {
                     warn("!readImage(" + path + ")");
@@ -886,7 +898,8 @@ namespace vsgAdapters
             bool hasNormalMap = false;
             if (!maps.normalMap.empty())
             {
-                if (auto data = addMap(maps.normalMap, Pipeline::Descriptors::NORMAL_UNIT))
+                if (auto data
+                    = addMap(maps.normalMap, Pipeline::Descriptors::NORMAL_UNIT, {}, vsgUtil::TextureCap::Kind::Normal))
                 {
                     hasNormalMap = true;
                     nodeOptions.shader.addMode(Pipeline::Mode::NORMAL_MAP);
@@ -916,7 +929,8 @@ namespace vsgAdapters
             // has no parallax from it (Render::Parallax::decideHeightSource).
             if (!maps.heightMap.empty() && hasNormalMap)
             {
-                const auto height = vsgUtil::readOptionalImage(maps.heightMap, mImageOptions);
+                const auto height = vsgUtil::readOptionalImage(maps.heightMap, mImageOptions,
+                    objectImageUse(vsgUtil::TextureCap::Kind::Data, vsgUtil::TextureCap::heightMapFloor));
                 const bool usableFormat = height && Render::Parallax::usableHeightFormat(height->properties.format);
                 const bool usable = usableFormat
                     && Render::Parallax::heightMipsUsable(height->properties.format,

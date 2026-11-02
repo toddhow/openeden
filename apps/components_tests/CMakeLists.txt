@@ -208,6 +208,9 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testhitnormalmesh.cpp
     vsgutil/testdeletionqueue.cpp
     vsgutil/testremovesrgb.cpp
+    vsgutil/testtexturecap.cpp
+    vsgutil/testtextureresize.cpp
+    vsgutil/testtexturecapread.cpp
 
     fx/lexer.cpp
     fx/technique.cpp

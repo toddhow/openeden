@@ -121,6 +121,9 @@ namespace Render
         // start.
         DeviceReport deviceReport();
 
+        // The device-local memory in MiB (task 0049), from the game's own physical device; 0 if it cannot be asked.
+        uint64_t deviceLocalMiB();
+
     private:
         vsg::ref_ptr<vsg::WindowTraits> mTraits;
         vsg::ref_ptr<vsg::Viewer> mViewer;

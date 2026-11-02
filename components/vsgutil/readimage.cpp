@@ -1,9 +1,16 @@
 #include "readimage.hpp"
 
+#include <algorithm>
+#include <map>
+#include <mutex>
 #include <stdexcept>
+#include <tuple>
 
 #include <vsg/core/Data.h>
+#include <vsg/core/observer_ptr.h>
 #include <vsg/io/read.h>
+
+#include "textureresize.hpp"
 
 namespace vsgUtil
 {
@@ -55,18 +62,92 @@ namespace vsgUtil
         }
     }
 
-    vsg::ref_ptr<vsg::Data> readImage(const std::string& path, vsg::ref_ptr<const vsg::Options> options)
+    namespace
     {
-        if (auto data = readOptionalImage(path, options))
+        // Task 0049: the capped copy of an image that is in the shared object cache. vsg::read caches the full image
+        // under its file name; a capped read keeps its smaller copy here, keyed by the full image and the cap, so that
+        // every user of one file gets one capped image (and one GPU image) and two categories with different caps do
+        // not collide. Both sides are weak: an entry lives while something uses the capped image, and the cache never
+        // keeps a texture alive that the engine has let go of.
+        struct CapKey
+        {
+            const vsg::Data* original;
+            int cap;
+            int kind;
+            int cutoffMilli;
+
+            bool operator<(const CapKey& rhs) const
+            {
+                return std::tie(original, cap, kind, cutoffMilli)
+                    < std::tie(rhs.original, rhs.cap, rhs.kind, rhs.cutoffMilli);
+            }
+        };
+
+        struct CapEntry
+        {
+            vsg::observer_ptr<vsg::Data> original;
+            vsg::observer_ptr<vsg::Data> capped;
+        };
+
+        std::mutex capCacheMutex;
+        std::map<CapKey, CapEntry> capCache;
+
+        vsg::ref_ptr<vsg::Data> findCapped(const CapKey& key, const vsg::ref_ptr<vsg::Data>& original)
+        {
+            const auto found = capCache.find(key);
+            if (found == capCache.end() || found->second.original.ref_ptr() != original)
+                return {};
+            return found->second.capped.ref_ptr();
+        }
+
+        vsg::ref_ptr<vsg::Data> capImage(vsg::ref_ptr<vsg::Data> data, int cap, const ImageUse& use, bool shared)
+        {
+            // Only an image the options share can come back as the same object, so only that one is worth keeping.
+            if (!shared)
+                return TextureResize::applyCap(data, cap, use.kind, use.alphaCutoff);
+
+            const CapKey key{ data.get(), cap, static_cast<int>(use.kind), static_cast<int>(use.alphaCutoff * 1000.f) };
+            {
+                std::scoped_lock lock(capCacheMutex);
+                if (auto capped = findCapped(key, data))
+                    return capped;
+            }
+            auto capped = TextureResize::applyCap(data, cap, use.kind, use.alphaCutoff);
+            std::scoped_lock lock(capCacheMutex);
+            if (auto other = findCapped(key, data))
+                return other; // another loader thread was first
+            // Entries whose images are gone are removed now and then, so the map does not grow without limit.
+            if (capCache.size() % 256 == 255)
+                for (auto it = capCache.begin(); it != capCache.end();)
+                    it = it->second.original.valid() ? std::next(it) : capCache.erase(it);
+            capCache[key] = CapEntry{ vsg::observer_ptr<vsg::Data>(data), vsg::observer_ptr<vsg::Data>(capped) };
+            return capped;
+        }
+    }
+
+    vsg::ref_ptr<vsg::Data> readImage(
+        const std::string& path, vsg::ref_ptr<const vsg::Options> options, const ImageUse& use)
+    {
+        if (auto data = readOptionalImage(path, options, use))
             return data;
         throw std::runtime_error("!readImage(\"" + path + "\")");
     }
 
-    vsg::ref_ptr<vsg::Data> readOptionalImage(const std::string& path, vsg::ref_ptr<const vsg::Options> options)
+    vsg::ref_ptr<vsg::Data> readOptionalImage(
+        const std::string& path, vsg::ref_ptr<const vsg::Options> options, const ImageUse& use)
     {
         auto data = vsg::read_cast<vsg::Data>(path, options);
         if (data)
             removeSrgb(*data);
+        // Task 0049: only a read that names a category can be capped; any other is returned as it was read.
+        if (data && use.category != TextureCap::Category::None)
+        {
+            int cap = TextureCap::effectiveCap(use.category, TextureCap::getCaps());
+            if (cap > 0 && use.floor > 0)
+                cap = std::max(cap, use.floor);
+            if (cap > 0)
+                data = capImage(data, cap, use, options && options->sharedObjects);
+        }
         return data;
     }
 }

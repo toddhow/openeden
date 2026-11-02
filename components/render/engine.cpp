@@ -21,6 +21,7 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/debugmessenger.hpp>
 #include <components/vsgutil/deletionqueue.hpp>
+#include <components/vsgutil/texturecap.hpp>
 
 #include "attachmentformat.hpp"
 #include "devicereport.hpp"
@@ -331,6 +332,22 @@ namespace Render
             instanceApi = mWindow->getOrCreateInstance()->apiVersion;
         }
         return collectDeviceReport(physicalDevice, surface, instanceApi);
+    }
+
+    uint64_t Engine::deviceLocalMiB()
+    {
+        auto physicalDevice = getOrCreatePhysicalDevice();
+        if (!physicalDevice)
+            return 0;
+        auto instance = physicalDevice->getInstance().ref_ptr();
+        if (!instance)
+            return 0;
+        PFN_vkGetPhysicalDeviceMemoryProperties getMemoryProperties = nullptr;
+        if (!instance->getProcAddr(getMemoryProperties, "vkGetPhysicalDeviceMemoryProperties") || !getMemoryProperties)
+            return 0;
+        VkPhysicalDeviceMemoryProperties memory{};
+        getMemoryProperties(*physicalDevice, &memory);
+        return vsgUtil::TextureCap::deviceLocalMiB(memory);
     }
 
     GpuTimer* Engine::enableGpuTiming()

@@ -358,6 +358,7 @@ namespace MWRender
         std::vector<Mode> mRenderModes;
 
         Render::Engine& mEngine;
+        bool mTextureDownscaleReport = false; // task 0049
         // Null unless [Rendering] gpu timing is on and the device supports it (task 0023). Owned by the Engine.
         Render::GpuTimer* mGpuTimer = nullptr;
         static constexpr std::size_t noPass = static_cast<std::size_t>(-1);

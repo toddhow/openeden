@@ -41,6 +41,15 @@ namespace Settings
         SettingValue<float> mParallaxScale{ mIndex, "Rendering", "parallax scale", makeClampSanitizerFloat(0, 4) };
         SettingValue<bool> mParallaxDiscardEdges{ mIndex, "Rendering", "parallax discard edges" };
 
+        // Task 0049: the runtime texture downscaler. Sizes are texels on the longest side, 0 = no cap; read at start.
+        SettingValue<int> mTextureMaxSize{ mIndex, "Rendering", "texture max size", makeClampSanitizerInt(0, 8192) };
+        SettingValue<int> mTextureMaxSizeTerrain{ mIndex, "Rendering", "texture max size terrain",
+            makeClampSanitizerInt(0, 8192) };
+        SettingValue<int> mTextureMaxSizeObjects{ mIndex, "Rendering", "texture max size objects",
+            makeClampSanitizerInt(0, 8192) };
+        SettingValue<std::string> mTextureMemoryBudget{ mIndex, "Rendering", "texture memory budget" };
+        SettingValue<bool> mTextureDownscaleReport{ mIndex, "Rendering", "texture downscale report" };
+
         // Task 0029 (R2): ambient occlusion from the stored depth and normals. Read at start; needs hdr, gbuffer and
         // pbr.
         SettingValue<bool> mAo{ mIndex, "Rendering", "ao" };

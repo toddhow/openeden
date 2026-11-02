@@ -85,6 +85,8 @@
 #include <components/vsgutil/setbin.hpp>
 #include <components/vsgutil/sharedview.hpp>
 #include <components/vsgutil/suspendrenderpass.hpp>
+#include <components/vsgutil/texturecap.hpp>
+#include <components/vsgutil/textureresize.hpp>
 #include <components/vsgutil/updatethreads.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -284,6 +286,32 @@ namespace MWRender
         if (Settings::rendering().mGBuffer && !hdr)
             Log(Debug::Warning) << "[Rendering] gbuffer needs hdr (the HDR path owns the render pass that holds its "
                                    "outputs); the G-buffer is off";
+        // Task 0049: the runtime texture downscaler's limits, before any model or terrain texture is read.
+        {
+            vsgUtil::TextureCap::Caps caps;
+            caps.global = Settings::rendering().mTextureMaxSize;
+            caps.terrain = Settings::rendering().mTextureMaxSizeTerrain;
+            caps.object = Settings::rendering().mTextureMaxSizeObjects;
+            const std::string budget = Settings::rendering().mTextureMemoryBudget.get();
+            if (budget == "auto")
+            {
+                caps.autoBudget = true;
+                caps.deviceLocalMiB = mEngine.deviceLocalMiB();
+            }
+            else if (budget != "off" && !budget.empty())
+                Log(Debug::Warning) << "[Rendering] texture memory budget: unknown '" << budget << "', using off";
+            vsgUtil::TextureCap::setCaps(caps);
+            using vsgUtil::TextureCap::Category;
+            const int objectCap = vsgUtil::TextureCap::effectiveCap(Category::Object, caps);
+            const int terrainCap = vsgUtil::TextureCap::effectiveCap(Category::Terrain, caps);
+            if (objectCap > 0 || terrainCap > 0)
+                Log(Debug::Info) << "Texture cap: objects " << objectCap << ", terrain " << terrainCap
+                                 << " texels (0 = none)"
+                                 << (caps.autoBudget
+                                            ? ", from " + std::to_string(caps.deviceLocalMiB) + " MiB device memory"
+                                            : std::string());
+            mTextureDownscaleReport = Settings::rendering().mTextureDownscaleReport;
+        }
         // Task 0045: parallax occlusion mapping from the `_p` height files. Independent of hdr and pbr; before any
         // model loads (the loaders look for the files).
         if (Settings::rendering().mParallax)
@@ -1001,6 +1029,8 @@ namespace MWRender
 
     RenderManager::~RenderManager()
     {
+        if (mTextureDownscaleReport)
+            Log(Debug::Info) << vsgUtil::TextureResize::describe(vsgUtil::TextureResize::report().snapshot());
         if (mCompileOp)
             mCompileOp->wait();
     }

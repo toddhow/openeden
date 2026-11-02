@@ -360,7 +360,8 @@ namespace vsgAdapters
                     warn(std::string("Embedded textures are not supported: ") + texturePath.C_Str());
                     return;
                 }
-                auto image = vsgUtil::readImage(texturePath.C_Str(), mImageOptions);
+                auto image = vsgUtil::readImage(texturePath.C_Str(), mImageOptions,
+                    vsgUtil::ImageUse{ vsgUtil::TextureCap::Category::Object, vsgUtil::TextureCap::Kind::Colour });
                 if (!image)
                     return;
                 auto sampler = mBuilder.createSampler();
