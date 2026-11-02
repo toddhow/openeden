@@ -65,5 +65,5 @@ This records what toddhow decided when asked to settle the questions that had pi
 | Spec | Question | Answer |
 | --- | --- | --- |
 | 0055 | The draft tile key and payload layouts (key: tag 0x10, 8-bit worldspace index, 4-bit level, 44-bit Morton code of the biased coordinates; the 88-byte payload header with heights, normals and albedo each 8-aligned and padding zero; the canonical manifest JSON; `hintMemorySize` is the payload size) | **Approved** ("I approve the draft layout", toddhow). The layout version in the payload header moves from the draft value 0 to 1 |
-| 0055 | Bake albedo into tiles, or reuse the live blend maps | Not yet answered; the code keeps reusing the live blend maps |
+| 0055 | Bake albedo into tiles, or reuse the live blend maps | **Bake albedo for the far levels (level 2 and up), keep reusing the live blend maps for the nearest tile level** ("Go with your recommendations", toddhow, 2026-11-02). Far tiles then need one texture each; a mod that changes ground textures triggers a re-bake |
 | 0055 | Level 1 tiles, or level 2 / a coarser threshold | Not yet answered; the code keeps level 1 and threshold 4 |
