@@ -10,6 +10,7 @@
 #include <array>
 #include <atomic>
 #include <deque>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -90,6 +91,7 @@ namespace Terrain
 {
     class Paging;
     class View;
+    struct TerrainMapSettings;
 }
 namespace DetourNavigator
 {
@@ -103,6 +105,7 @@ namespace MWAnim
 }
 namespace MWRender
 {
+    class LodTerrain;
     class PrecipitationOccluder;
     class DistantObjects;
     class PostProcess;
@@ -140,6 +143,8 @@ namespace MWRender
         ~RenderManager();
 
         void setStore(const MWWorld::ESMStore& store);
+        /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.
+        void setLodTerrainPack(std::filesystem::path path) { mLodTerrainPack = std::move(path); }
 
         RenderingInterface& getObjects();
 
@@ -499,6 +504,12 @@ namespace MWRender
         std::unique_ptr<Terrain::Paging> mTerrain;
         std::unique_ptr<TerrainStorage> mTerrainStorage;
         std::unique_ptr<Terrain::View> mTerrainView;
+        // Task 0055: baked terrain tiles for the far field, only with `[WorldLod] enabled` (declared after the
+        // terrain storage it reads, so it goes first).
+        std::filesystem::path mLodTerrainPack;
+        std::unique_ptr<Terrain::TerrainMapSettings> mTerrainMapsForLod;
+        std::unique_ptr<LodTerrain> mLodTerrain;
+        bool mLodTerrainAttached = false;
         std::unique_ptr<Sky> mSky;
         std::unique_ptr<Render::DebugGeometry> mDebugGeometry;
         std::unique_ptr<Render::DebugGeometry> mNavMeshGeometry;

@@ -52,13 +52,18 @@ namespace Terrain
     }
 
     vsg::ref_ptr<vsgUtil::CompileOp> Paging::updateView(
-        View& v, const vsg::dvec3& viewPoint, float viewDistance, bool preload) const
+        View& v, const vsg::dvec3& viewPoint, float viewDistance, bool preload, const Coverage* coverage) const
     {
         ViewData& view = static_cast<ViewData&>(v);
 
-        if (vsg::length2(view.viewPoint - viewPoint) > View::sqrReuseDistance || view.viewDistance != viewDistance)
+        const uint64_t coverageVersion = coverage ? coverage->version + 1 : 0;
+        const unsigned int previousCount = view.numEntries;
+        const bool coverageChanged = view.coverageVersion != coverageVersion;
+        if (vsg::length2(view.viewPoint - viewPoint) > View::sqrReuseDistance || view.viewDistance != viewDistance
+            || view.coverageVersion != coverageVersion)
         {
             view.reset();
+            view.coverageVersion = coverageVersion;
             view.viewPoint = viewPoint;
             view.viewDistance = viewDistance;
 
@@ -76,24 +81,27 @@ namespace Terrain
             int minY = std::floor((viewCell.y - cellViewDistanceLoad) / batchSize);
             int maxY = std::ceil((viewCell.y + cellViewDistanceLoad) / batchSize);
 
-            std::function<void(const Bounds& bounds)> traverse
-                = [this, &view, viewCell, cellViewDistanceLoad, &traverse](const Bounds& bounds) {
-                      float cellDist = distance(bounds, viewCell);
-                      if (cellDist > cellViewDistanceLoad)
-                          return;
-                      if (isSufficientDetail(bounds.size, cellDist, lodFactor))
-                      {
-                          view.add(bounds, cellDist);
-                      }
-                      else
-                      {
-                          float childSize = bounds.radius();
-                          traverse({ childSize, bounds.min });
-                          traverse({ childSize, bounds.min + vsg::vec2(childSize, childSize) });
-                          traverse({ childSize, bounds.min + vsg::vec2(0.f, childSize) });
-                          traverse({ childSize, bounds.min + vsg::vec2(childSize, 0.f) });
-                      }
-                  };
+            std::function<void(const Bounds& bounds)> traverse = [this, &view, viewCell, cellViewDistanceLoad, coverage,
+                                                                     &traverse](const Bounds& bounds) {
+                float cellDist = distance(bounds, viewCell);
+                if (cellDist > cellViewDistanceLoad)
+                    return;
+                // Task 0055: something else draws this square. A chunk only partly inside is split.
+                if (coverage && coverage->contains(bounds))
+                    return;
+                if (isSufficientDetail(bounds.size, cellDist, lodFactor) && !(coverage && coverage->intersects(bounds)))
+                {
+                    view.add(bounds, cellDist);
+                }
+                else
+                {
+                    float childSize = bounds.radius();
+                    traverse({ childSize, bounds.min });
+                    traverse({ childSize, bounds.min + vsg::vec2(childSize, childSize) });
+                    traverse({ childSize, bounds.min + vsg::vec2(0.f, childSize) });
+                    traverse({ childSize, bounds.min + vsg::vec2(childSize, 0.f) });
+                }
+            };
 
             struct Batch
             {
@@ -121,6 +129,12 @@ namespace Terrain
                 }
             }
 
+            // Task 0055: ViewData::add notices a chunk that differs from the old one at the same index, but not a list
+            // that got shorter or longer (a tile now covers the last chunks, or lets them go). With a coverage, a
+            // new coverage or a new count rebuilds the view.
+            if (coverage && (coverageChanged || view.numEntries != previousCount))
+                view.changed = true;
+
             if (view.changed)
             {
                 // drawFrontToBack()
@@ -128,7 +142,7 @@ namespace Terrain
                     batches.begin(), batches.end(),
                     [](const Batch& lhs, const Batch& rhs) -> auto{ return lhs.distance < rhs.distance; });
 
-                auto getLodFlags = [this, &view](const Bounds& bounds, uint32_t ourVertexLod) -> uint32_t {
+                auto getLodFlags = [this, &view, coverage](const Bounds& bounds, uint32_t ourVertexLod) -> uint32_t {
                     uint32_t lodFlags = 0;
                     vsg::vec2 directions[4] = {
                         { 0.f, 1.f }, // North
@@ -140,11 +154,21 @@ namespace Terrain
                     {
                         auto neighbourCenter = bounds.center() + directions[i] * bounds.size;
                         auto neighbour = view.getContainingChunk(neighbourCenter);
+                        // Task 0055: a neighbour that is covered by another draw is a neighbour at that draw's LOD.
+                        const CoveredSquare* covered = nullptr;
+                        if (!neighbour.valid() && coverage)
+                        {
+                            covered = coverage->find(neighbourCenter);
+                            if (covered)
+                                neighbour = covered->bounds;
+                        }
                         // We only need to worry about neighbours less detailed than we are - neighbours with more
                         // detail will do the stitching themselves
-                        if (!neighbour.valid() || neighbour.size <= bounds.size)
+                        // (A covered neighbour of our own size still counts when its draw has fewer vertices.)
+                        if (!neighbour.valid()
+                            || (covered ? covered->vertexLod <= ourVertexLod : neighbour.size <= bounds.size))
                             continue;
-                        uint32_t lod = getVertexLod(neighbour.size, vertexLodMod);
+                        uint32_t lod = covered ? covered->vertexLod : getVertexLod(neighbour.size, vertexLodMod);
                         if (lod > ourVertexLod)
                             lodFlags |= (lod - ourVertexLod) << (4 * i);
                     }

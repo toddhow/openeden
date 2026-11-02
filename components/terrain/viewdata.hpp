@@ -70,6 +70,8 @@ namespace Terrain
         }
 
         vsg::dvec3 viewPoint;
+        // OpenEden (task 0055): the Coverage version this view was built for (0: none).
+        uint64_t coverageVersion = 0;
         float viewDistance = 0;
 
         /// Indicates at least one chunk of mEntries has changed.

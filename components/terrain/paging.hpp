@@ -9,6 +9,7 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/compileop.hpp>
 
+#include "coverage.hpp"
 #include "layermaps.hpp"
 #include "view.hpp"
 
@@ -45,8 +46,12 @@ namespace Terrain
         // Fill in view with LOD for specified view point and distance.
         // Return a CompileOp that can be run straight away, or added to an OperationThread if care is taken to avoid
         // data races.
-        vsg::ref_ptr<vsgUtil::CompileOp> updateView(
-            View& view, const vsg::dvec3& viewPoint, float viewDistance, bool preload = false) const;
+        // OpenEden (task 0055): `coverage`, when given, lists squares of cells that something else draws. Chunks
+        // inside them are left out, chunks that only partly overlap them are split, and chunks next to them stitch
+        // their edges to the covering draw's vertex LOD. Only the main thread's call passes it, and it must not change
+        // during the call. A view built for another coverage version is rebuilt even if the view point did not move.
+        vsg::ref_ptr<vsgUtil::CompileOp> updateView(View& view, const vsg::dvec3& viewPoint, float viewDistance,
+            bool preload = false, const Coverage* coverage = nullptr) const;
         void clearView(View& view) const;
 
         void pruneCache() const;

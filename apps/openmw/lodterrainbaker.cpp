@@ -12,6 +12,7 @@
 #include <components/terrain/bounds.hpp>
 
 #include "mwbase/environment.hpp"
+#include "mwrender/lodterrain.hpp"
 #include "mwrender/terrainstorage.hpp"
 #include "mwworld/esmstore.hpp"
 
@@ -23,38 +24,6 @@ namespace OMW
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         // The name Morrowind's one exterior world gets in the manifest (worldspace index 0).
         constexpr const char* worldspaceName = "Morrowind";
-
-        // The land of the game as the live terrain reads it (heights, and normals fixed up across cell borders).
-        class StorageLandSource final : public Lod::LandSource
-        {
-        public:
-            explicit StorageLandSource(Terrain::Storage& storage)
-                : mStorage(storage)
-            {
-            }
-
-            void sample(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells, std::uint32_t lod,
-                std::vector<float>& heights, std::vector<float>& normals) const override
-            {
-                Terrain::Bounds bounds;
-                bounds.size = static_cast<float>(sizeInCells);
-                bounds.min = vsg::vec2(static_cast<float>(cellX), static_cast<float>(cellY));
-                const Terrain::Storage::VertexData data = mStorage.getVertexData(static_cast<int>(lod), bounds);
-                const std::size_t count = static_cast<std::size_t>(data.heights->width()) * data.heights->height();
-                heights.assign(data.heights->data(), data.heights->data() + count);
-                normals.resize(count * 3);
-                for (std::size_t i = 0; i < count; ++i)
-                {
-                    const vsg::vec4& normal = data.normals->data()[i];
-                    normals[3 * i] = normal.x;
-                    normals[3 * i + 1] = normal.y;
-                    normals[3 * i + 2] = normal.z;
-                }
-            }
-
-        private:
-            Terrain::Storage& mStorage;
-        };
     }
 
     struct LodTerrainBaker::State
@@ -68,7 +37,7 @@ namespace OMW
 
         std::filesystem::path mOut;
         MWRender::TerrainStorage mStorage;
-        StorageLandSource mSource;
+        MWRender::StorageLandSource mSource;
         Lod::TileBakeSettings mSettings;
         std::vector<Lod::TileId> mIds;
         std::vector<Lod::BakedTile> mTiles;

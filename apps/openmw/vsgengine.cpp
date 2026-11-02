@@ -444,6 +444,8 @@ namespace OMW
         mRenderManager = std::make_unique<MWRender::RenderManager>(
             *mRenderEngine, vsg::ref_ptr{ mWindowManager->node() }, mResourceSystem.get() /*, *mNavigator*/);
 
+        mRenderManager->setLodTerrainPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "terrain.edenpak");
+
         mSoundManager = std::make_unique<MWSound::SoundManager>(mVFS.get(), args.useSound);
         mEnvironment.setSoundManager(*mSoundManager);
 

@@ -24,6 +24,7 @@
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadland.hpp>
 #include <components/fx/technique.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/vsgmath.hpp>
@@ -63,6 +64,7 @@
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
+
 #include <components/terrain/paging.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
@@ -94,6 +96,7 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/esmstore.hpp"
 #include "extentsync.hpp"
 
 #include "animcontext.hpp"
@@ -105,6 +108,7 @@
 #include "fogmanager.hpp"
 #include "groundcover.hpp"
 #include "intersect.hpp"
+#include "lodterrain.hpp"
 #include "map.hpp"
 #include "mask.hpp"
 #include "navmesh.hpp"
@@ -713,6 +717,8 @@ namespace MWRender
                 return table->resolveValues("", texturePath);
             };
         }
+        if (Settings::worldLod().mEnabled)
+            mTerrainMapsForLod = std::make_unique<Terrain::TerrainMapSettings>(terrainMaps);
         mTerrain
             = std::make_unique<Terrain::Paging>(mCompileContext->clone(Mask_Terrain), mResourceSystem->textureOptions,
                 mResourceSystem->shaderOptions, mResourceSystem->builder->createSampler(), std::move(terrainMaps));
@@ -1067,6 +1073,18 @@ namespace MWRender
     {
         mTerrainStorage->setStore(&store);
         mTerrain->setStorage(mTerrainStorage.get());
+        // Task 0055: baked terrain tiles, only when asked for. Nothing below runs with the setting off.
+        if (Settings::worldLod().mEnabled && mTerrainMapsForLod && !mLodTerrainPack.empty())
+        {
+            std::vector<std::pair<std::int32_t, std::int32_t>> landCells;
+            for (const ESM::Land& land : store.get<ESM::Land>())
+                landCells.emplace_back(land.mX, land.mY);
+            mLodTerrainAttached = false;
+            mLodTerrain = std::make_unique<LodTerrain>(mLodTerrainPack, Settings::worldLod().mTerrainTileThreshold,
+                *mTerrainStorage, std::move(landCells), mCompileContext->clone(Mask_Terrain),
+                mResourceSystem->textureOptions, mResourceSystem->shaderOptions,
+                mResourceSystem->builder->createSampler(), *mTerrainMapsForLod);
+        }
     }
 
     RenderingInterface& RenderManager::getObjects()
@@ -1117,6 +1135,8 @@ namespace MWRender
             return;
         if (mRenderModes[Render_Terrain])
             mSceneRoot->addChild(mTerrainView->node());
+        if (mLodTerrain && mRenderModes[Render_Terrain])
+            mSceneRoot->addChild(mLodTerrain->node());
         mSceneRoot->addChild(mPlayerGroup);
         mSceneRoot->addChild(mScene->getObjects());
         if (mGroundcover)
@@ -1681,7 +1701,24 @@ namespace MWRender
 
     void RenderManager::updateTerrain(const vsg::dvec3& pos)
     {
-        if (auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance))
+        const Terrain::Coverage* coverage = nullptr;
+        if (mLodTerrain)
+        {
+            if (!mLodTerrainAttached)
+            {
+                mLodTerrainAttached = true;
+                updateSceneChildren();
+            }
+            LodTerrain::Camera camera;
+            camera.mEye = mViewMatrix->eye;
+            camera.mForward = vsg::normalize(mViewMatrix->center - mViewMatrix->eye);
+            camera.mFovYDegrees = mProjectionMatrix->fieldOfViewY;
+            camera.mAspect = mProjectionMatrix->aspectRatio;
+            camera.mViewportHeight = mAppliedExtent.height;
+            camera.mViewDistance = mViewDistance;
+            coverage = mLodTerrain->update(camera);
+        }
+        if (auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage))
             compile->compile();
     }
 
