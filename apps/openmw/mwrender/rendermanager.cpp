@@ -619,6 +619,8 @@ namespace MWRender
         Terrain::TerrainMapSettings terrainMaps;
         terrainMaps.gbufferOutputs = mGBufferOutputs;
         terrainMaps.giSky = mGiSkyEnabled;
+        // Task 0048: with ao on and `ao terrain`, the terrain writes its ambient part (needs the ambient output).
+        terrainMaps.aoTerrain = mAoEnabled && Settings::rendering().mAoTerrain;
         terrainMaps.wetness.enabled = mWetnessEnabled;
         terrainMaps.wetness.puddles = mWetnessEnabled && Settings::rendering().mWetnessPuddles;
         terrainMaps.wetness.debug = mWetnessEnabled && Settings::rendering().mWetnessDebug;

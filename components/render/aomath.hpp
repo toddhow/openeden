@@ -31,6 +31,29 @@ namespace Render::Ao
         return settingOn && gbuffer && materialOutput;
     }
 
+    // Task 0048: the terrain also writes its ambient part when `ao terrain` is on besides everything `useAo` needs.
+    inline bool useTerrainAo(bool settingOn, bool terrainSetting, bool gbuffer, bool materialOutput)
+    {
+        return useAo(settingOn, gbuffer, materialOutput) && terrainSetting;
+    }
+
+    // Task 0048: the CPU twin of the terrain shader's ambient part (files/shaders/terrain/main.frag, `AO_TERRAIN`): the
+    // texture colour at the lighting multiply times the ambient light the terrain used times the ambient colour term
+    // times the scale it used (diffuse scale times the `_rmaos` occlusion with the material model, 1 without), times
+    // the fog's share of the colour. It is the ambient summand of materialTermsScaled, so removing (1 - ao) of it in
+    // the tonemap takes out exactly that share of the ambient light. A scale below 0 or not a number counts as 0, a
+    // fog share is limited to 0 to 1 (not a number counts as 0).
+    inline vsg::vec3 terrainAmbientPart(const vsg::vec3& textureColour, const vsg::vec3& ambientLight,
+        const vsg::vec3& ambientColour, float scale, float fogShare)
+    {
+        const float s = scale > 0.f ? scale : 0.f;
+        const float f = fogShare > 0.f ? std::min(fogShare, 1.f) : 0.f;
+        const float k = s * f;
+        return vsg::vec3(textureColour.x * ambientLight.x * ambientColour.x * k,
+            textureColour.y * ambientLight.y * ambientColour.y * k,
+            textureColour.z * ambientLight.z * ambientColour.z * k);
+    }
+
     // The occlusion image is half the scene's size in each direction, rounded up, and at least one texel.
     inline VkExtent2D halfExtent(const VkExtent2D& extent)
     {

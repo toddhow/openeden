@@ -164,6 +164,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testprobebake.cpp
     render/testao.cpp
     render/testaopass.cpp
+    render/testaoterrain.cpp
     render/testvolumemath.cpp
     render/testvolumegpu.cpp
     render/testvolumecamera.cpp

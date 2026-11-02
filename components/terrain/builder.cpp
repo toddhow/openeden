@@ -109,7 +109,7 @@ namespace Terrain
     {
         mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs,
             mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr, mMapSettings.cover,
-            mMapSettings.parallaxQuality);
+            mMapSettings.parallaxQuality, mMapSettings.aoTerrain);
     }
 
     Builder::~Builder() {}

@@ -65,6 +65,8 @@ namespace Terrain
         unsigned int gbufferOutputs = 0;
         // Task 0036: the terrain shader takes the exterior sky-visibility field.
         bool giSky = false;
+        // Task 0048: the terrain writes its ambient part for the ambient occlusion pass (`ao terrain`).
+        bool aoTerrain = false;
         // Task 0037: the terrain shader takes rain wetness.
         Pipeline::WetnessOptions wetness;
         // Task 0039: the terrain shader takes snow and ash cover.

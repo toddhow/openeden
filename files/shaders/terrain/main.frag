@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH)
+#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, AO_TERRAIN, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -93,7 +93,7 @@ layout(location=3) out vec2 outMotion;
 layout(location=4) out vec4 outMaterial;
 #endif
 #ifdef GBUFFER_AMBIENT
-// OpenEden (task 0029): the ambient part of the colour; the terrain has none (it takes no ambient occlusion).
+// OpenEden (task 0029): the ambient part of the colour; the terrain writes zero unless AO_TERRAIN (task 0048).
 layout(location=5) out vec4 outAmbient;
 #endif
 #endif
@@ -284,16 +284,27 @@ void main()
     // Task 0039: the land's colour map tints the ground green and brown; snow and ash keep its shading and lose that hue.
     vertexColor.xyz = mix(vertexColor.xyz, vec3(dot(vertexColor.xyz, vec3(1.0 / 3.0))), coverS.mask);
 #endif
+#ifdef AO_TERRAIN
+    // Task 0048: the ambient part of this pixel's colour, for the ambient occlusion pass (default/main.frag's
+    // ambientPart): the texture colour just before the lighting multiply (wetness and cover included) times the ambient
+    // light, colour term and scale the lighting below uses. It is set in each lighting branch.
+    vec3 terrainAmbientPart = vec3(0.0);
+#endif
 #ifdef TERRAIN_PBR
     {
         // Task 0044: metals have no diffuse, and the maps' occlusion darkens the ambient light (the AO pass cannot do
-        // it: the terrain writes no ambient part). With the sky-visibility field it scales that field's result.
+        // it: the terrain writes no ambient part unless AO_TERRAIN, task 0048, and the pass then removes a
+        // share of what is left). With the sky-visibility field it scales that field's result.
         vec3 terrainAmbient = scene.ambient.xyz;
  #ifdef GI_SKY
         terrainAmbient = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
             mat3(scene.invView) * normalize(frag_in.viewNormal), terrainAmbient);
  #endif
         float terrainDiffuseScale = 1.0 - terrainS.metalness;
+ #ifdef AO_TERRAIN
+        terrainAmbientPart
+            = outColor.xyz * (terrainAmbient * getAmbient(vertexColor) * (terrainDiffuseScale * terrainS.occlusion));
+ #endif
         outColor *= materialTermsScaled(
             terrainAmbient, diffuse, vertexColor, terrainDiffuseScale * terrainS.occlusion, terrainDiffuseScale);
         outColor.xyz += specularLight;
@@ -301,9 +312,16 @@ void main()
 #else
  #ifdef GI_SKY
     // Task 0036: the exterior sky-visibility field, with the terrain's geometry normal.
-    outColor *= materialTermsAmbient(skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
-        mat3(scene.invView) * normalize(frag_in.viewNormal), scene.ambient.xyz), diffuse, vertexColor);
+    vec3 terrainSkyAmbient = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
+        mat3(scene.invView) * normalize(frag_in.viewNormal), scene.ambient.xyz);
+  #ifdef AO_TERRAIN
+    terrainAmbientPart = outColor.xyz * (terrainSkyAmbient * getAmbient(vertexColor));
+  #endif
+    outColor *= materialTermsAmbient(terrainSkyAmbient, diffuse, vertexColor);
  #else
+  #ifdef AO_TERRAIN
+    terrainAmbientPart = outColor.xyz * (scene.ambient.xyz * getAmbient(vertexColor));
+  #endif
     outColor *= materialTerms(diffuse, vertexColor);
  #endif
  #ifdef TERRAIN_MAPS
@@ -337,6 +355,10 @@ void main()
     outColor.xyz = vec3(coverS.amount, coverS.upwardness, coverS.mask);
 #endif
     outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
+#ifdef AO_TERRAIN
+    // The fog's share of the colour, as default/main.frag does it for objects.
+    terrainAmbientPart *= applyFog(vec3(1.0), frag_in.viewPos) - applyFog(vec3(0.0), frag_in.viewPos);
+#endif
 
 #ifdef DEBUG_SHADOW
     outColor = debugShadow(outColor);
@@ -362,7 +384,11 @@ void main()
 #endif
 #endif
 #ifdef GBUFFER_AMBIENT
+ #ifdef AO_TERRAIN
+    outAmbient = vec4(terrainAmbientPart, 1.0);
+ #else
     outAmbient = vec4(0.0);
+ #endif
 #endif
 #endif
 

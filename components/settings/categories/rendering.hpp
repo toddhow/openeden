@@ -48,6 +48,7 @@ namespace Settings
         SettingValue<float> mAoStrength{ mIndex, "Rendering", "ao strength", makeClampSanitizerFloat(0, 4) };
         SettingValue<int> mAoSlices{ mIndex, "Rendering", "ao slices", makeClampSanitizerInt(1, 8) };
         SettingValue<int> mAoSteps{ mIndex, "Rendering", "ao steps", makeClampSanitizerInt(1, 16) };
+        SettingValue<bool> mAoTerrain{ mIndex, "Rendering", "ao terrain" };
 
         // Task 0033 (R7): screen-space subsurface scattering on skin. Read at start; needs hdr, gbuffer and pbr. The
         // width is in game units.

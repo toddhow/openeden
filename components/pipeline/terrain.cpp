@@ -22,7 +22,7 @@ namespace Pipeline
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
         unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover,
-        unsigned int parallaxQuality)
+        unsigned int parallaxQuality, bool aoTerrain)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
@@ -64,9 +64,14 @@ namespace Pipeline
             // The fourth extra output is the material (Render::GBuffer::extraColorFormats, task 0027).
             if (gbufferOutputs >= 4)
                 compileSettings->defines.insert("GBUFFER_MATERIAL");
-            // The fifth is the ambient part of the colour (task 0029); the terrain writes zero.
+            // The fifth is the ambient part of the colour (task 0029); the terrain writes zero unless `ao terrain` is on
+            // (task 0048).
             if (gbufferOutputs >= 5)
+            {
                 compileSettings->defines.insert("GBUFFER_AMBIENT");
+                if (aoTerrain)
+                    compileSettings->defines.insert("AO_TERRAIN");
+            }
             for (auto& stage : shaders)
             {
                 stage = vsg::ShaderStage::create(*stage);
