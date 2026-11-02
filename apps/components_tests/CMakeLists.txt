@@ -193,6 +193,10 @@ file(GLOB UNITTEST_SRC_FILES
     view/testshadowview.cpp
     render/testdevicereport.cpp
     render/testlodmeasure.cpp
+    lod/testtilekey.cpp
+    lod/testtileselection.cpp
+    lod/testterraintile.cpp
+    lod/testtilepack.cpp
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp

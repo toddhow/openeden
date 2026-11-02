@@ -119,3 +119,28 @@ Acceptance criteria:
 3. The container's tile annex (section 10.3) says "freezing too early" is a risk: this spec's layouts stay a proposal until S1e, then become the annex for version 0.2.
 
 Out of scope: object clusters (S4), geomorphing (S3), the cache's content-hash keys and swap-over (S2), streaming budgets and prefetch (S6), the background baker and its UI (S8), compute culling (S9), Fallout: New Vegas land (S12), texture compression, and any change to how the live terrain looks when the setting is off.
+
+## Stage log (implementer's notes)
+
+### Draft status of the layouts (read this first)
+
+toddhow has NOT approved the tile key and payload layouts above. They are built as **layout version 0 (draft)**, with no promise of stability:
+
+- `Lod::tileKeyLayoutVersion = 0` (`components/lod/tilekey.hpp`) is written into the pack manifest (`layoutVersion`); `TilePack::open` refuses a pack with another value.
+- The payload header's version field holds `Lod::terrainTilePayloadVersion = 0`, not the 1 of the table above; the reader accepts only 0. A final layout will use a new number, so a draft tile can never be mistaken for a final one.
+- Everything that knows a bit position or an offset lives in `components/lod/` (`tilekey`, `terraintile`, `tilepack`). The rest of the engine uses the functions, never the numbers. Changing a layout later means editing that folder and its tests.
+- Nothing is on by default: `[WorldLod] enabled = false` (see stage c and d below).
+
+### S1a and S1b (done 2026-11-02)
+
+- **Where the code is.** `components/lod/`: `tilekey` (key packing, Morton code, parent and children), `tileselection` (pixel error, hysteresis; the spec says `components/terrain/tileselection.hpp`, but the draft is kept behind one folder and the inherited `components/terrain` is untouched), `terraintile` (payload writer and reader), `tilepack` (derived pack: manifest, writer, `TilePack` reader).
+- **Choices the spec left open (all can change with the final layout).**
+  - A tile coordinate in the key is the biased cell coordinate shifted right by the level, so it must be below 2^(22 - level); `packTileKey` refuses larger ones.
+  - The payload is canonical: heights at 88; normals at the next multiple of 8; albedo at the next multiple of 8; total size is the end of the last present section rounded up to 8; padding is zero. A section that is absent has offset 0 and size 0. The reader refuses anything else, so a payload that parses always rewrites to the same bytes.
+  - With no albedo flag, the albedo width, height, format and mip count must be 0. The material flag (bit 2) is refused by the reader.
+  - Albedo mip level m of a W x H picture is max(1, W >> m) by max(1, H >> m), non-square power-of-two pictures are allowed; the mip count is 1 to log2(max(W, H)) + 1.
+  - The manifest is canonical JSON with keys in alphabetical order at every level, no spaces, no newline: `{"albedoSize":256,"bakerVersion":1,"gridSize":33,"layoutVersion":0,"levels":[1],"worldspaces":[{"cellSize":8192,"index":0,"name":"Morrowind"}]}`. The parser accepts only that exact text (it parses, writes again and compares), and reports the offset of the first difference.
+  - A tile entry sets `hintMemorySize` to the payload size (the spec says "decoded size"; the decoded GPU size is not known to the pack code), `layoutParamA` to N and `layoutParamB` to the albedo width. The manifest entry is generic (type 0) with provenance tool id `openeden.lod.terrain`.
+  - The selection also skips tiles beyond the view distance and outside a conservative view cone (a bounding sphere against the cone that reaches the screen corners). A skipped tile keeps its choice so hysteresis survives looking away.
+- **Tests** (written by a separate test-writing agent from the spec text and the declaration-only headers, before the implementation): 107 tests in `apps/components_tests/lod/` (key 16, selection 24, payload 36 including a deterministic mutation test of 20,000 mutated payloads, pack 31). They need no GPU, window, network or game data. The libFuzzer harness of the spec is not added; the mutation test is the form CI can run (GCC has no libFuzzer).
+- **Not done in this stage:** a test that `edenvalidate` accepts a built pack (done in stage c on a real file).

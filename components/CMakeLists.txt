@@ -101,6 +101,12 @@ add_component_dir (bgsm
     stream file
     )
 
+# World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.
+# DRAFT layouts, kept behind this one folder. Depends on edenarchive.
+add_component_dir (lod
+    loderror tilekey tileselection terraintile tilepack
+    )
+
 #<vsgopenmw-code-style>
 # Views terrain.
 # Depends on pipeline.
