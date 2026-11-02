@@ -23,7 +23,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        explicit MeshViewWidget(CSMWorld::Data& data, QWidget* parent = nullptr);
+        explicit MeshViewWidget(CSMWorld::Data& worldData, QWidget* parent = nullptr);
         ~MeshViewWidget() override;
 
         /// \param path a VFS path with or without "meshes/". Loads at once if the view exists, else when it does.

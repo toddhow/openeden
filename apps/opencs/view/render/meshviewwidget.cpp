@@ -22,8 +22,8 @@ namespace CSVRender
         const std::array<double, 3> sViewDirection{ 0.5, 1.0, -0.4 };
     }
 
-    MeshViewWidget::MeshViewWidget(CSMWorld::Data& data, QWidget* parent)
-        : SceneWidget(data, parent)
+    MeshViewWidget::MeshViewWidget(CSMWorld::Data& worldData, QWidget* parent)
+        : SceneWidget(worldData, parent)
     {
         selectNavigationMode("orbit");
         setExterior(false);

@@ -67,15 +67,6 @@ namespace CSVRender
         const std::array<float, 4> sSkeletonColour{ 0.95f, 0.35f, 0.95f, 1.f };
         const std::array<float, 4> sNoColourGrey{ 0.72f, 0.72f, 0.72f, 1.f };
 
-        std::array<double, 16> columnMajor(const vsg::dmat4& m)
-        {
-            std::array<double, 16> result;
-            for (int c = 0; c < 4; ++c)
-                for (int r = 0; r < 4; ++r)
-                    result[c * 4 + r] = m[c][r];
-            return result;
-        }
-
         std::array<float, 3> transformPoint(const vsg::dmat4& m, const std::array<float, 3>& p)
         {
             return { static_cast<float>(m[0][0] * p[0] + m[1][0] * p[1] + m[2][0] * p[2] + m[3][0]),
