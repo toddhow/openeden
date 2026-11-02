@@ -11,6 +11,7 @@
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/skyvisgpu.hpp>
+#include <components/render/volumegpu.hpp>
 #include <components/vsgutil/share.hpp>
 
 #include "gridsize.hpp"
@@ -149,6 +150,37 @@ namespace View
         data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
         return vsg::DescriptorBuffer::create(
             data, Pipeline::Descriptors::VIEW_SKYVIS_SKY_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyVolume()
+    {
+        auto sampler = vsg::Sampler::create();
+        sampler->minFilter = sampler->magFilter = VK_FILTER_LINEAR;
+        sampler->addressModeU = sampler->addressModeV = sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        auto image = vsg::vec4Array3D::create(
+            1, 1, 1, vsg::vec4(0.f, 0.f, 0.f, 1.f), vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
+        image->properties.imageViewType = VK_IMAGE_VIEW_TYPE_3D;
+        return vsg::DescriptorImage::create(
+            sampler, image, Pipeline::Descriptors::VIEW_VOLUME_BINDING, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyVolumeParams()
+    {
+        auto data = vsg::vec4Array::create(Render::Volume::paramsVec4s);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_VOLUME_PARAMS_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> volumeParamsBuffer(vsg::ref_ptr<vsg::vec4Array>& data)
+    {
+        data = vsg::vec4Array::create(Render::Volume::paramsVec4s);
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_VOLUME_PARAMS_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     }
 
     vsg::ref_ptr<vsg::DescriptorSet> createViewDescriptorSet(const vsg::Descriptors& descriptors)

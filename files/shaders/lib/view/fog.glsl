@@ -1,5 +1,6 @@
 #include "fog.settings"
 #include "lib/view/linear.glsl"
+#include "lib/view/volume.glsl"
 
 // OpenEden (task 0040): the glow of haze round the sun. The C++ twin is components/render/atmospheremath.hpp
 // (henyeyGreenstein, sunGlowPhase, hazeAmount, sunGlowTint, sunGlow, and the air model's airMass, rayleighDepth,
@@ -93,6 +94,9 @@ vec3 applyFog(/*Scene scene, */vec3 src, float distance)
 // Distance from the eye (radial fog) or along the view direction (OpenMW's default).
 vec3 applyFog(vec3 src, vec3 viewPos)
 {
+    // OpenEden (task 0041): with the volumetric fog on, the volume is the fog (and holds the sun's glow).
+    if (volumeActive())
+        return applyVolumeFog(src, viewPos);
     float distance = cRadialFog ? length(viewPos) : abs(viewPos.z);
     if (cSunGlow)
     {

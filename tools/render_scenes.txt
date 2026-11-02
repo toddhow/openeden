@@ -17,3 +17,5 @@ heavy_balmora_longview|start|Balmora|300|600|Long view over Balmora from 3000 un
 heavy_aldruhn_longview|start|Ald-ruhn|300|600|Long view from 3000 units above where the game starts in the Ald-ruhn cell|viewdist=30000,distant,script=high_view.txt
 heavy_ebonheart_crowd|start|Ebonheart, Grand Council Chambers|300|600|Interior with many NPCs and lights|
 heavy_balmora_walk|start|Balmora|1500|3000|The player flies forward over Balmora with collision off (tcl), streaming cells and terrain (Lua player script)|viewdist=15000,distant,walk,script=balmora_walk.txt
+heavy_volume_fog|start|Seyda Neen|300|600|Foggy dusk over Seyda Neen for the volumetric fog (task 0041; run with BENCH_RENDERING for the tier)|script=volume_fog.txt
+heavy_volume_interior|start|Caldera, Guild of Mages|300|600|Interior with a torch placed in front of the player for the volumetric fog (task 0041)|script=volume_lamp.txt

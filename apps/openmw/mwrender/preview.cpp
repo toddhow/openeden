@@ -92,6 +92,8 @@ namespace MWRender
         descriptors.emplace_back(View::dummyReflections());
         descriptors.emplace_back(View::dummySkyVis());
         descriptors.emplace_back(View::dummySkyVisSky());
+        descriptors.emplace_back(View::dummyVolume());
+        descriptors.emplace_back(View::dummyVolumeParams());
         descriptors.emplace_back(mSceneData->descriptor());
 
         mSceneGraph = View::createDefaultState(View::createViewDescriptorSet(descriptors));

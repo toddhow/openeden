@@ -15,5 +15,8 @@ const int VIEW_REFLECTION_BINDING=11;
 // OpenEden (task 0036): the exterior sky-visibility field: the cells' data (lib/view/skyvis.glsl), and its small header.
 const int VIEW_SKYVIS_BINDING=12;
 const int VIEW_SKYVIS_SKY_BINDING=13;
+// OpenEden (task 0041): the volumetric fog: the integrated froxel volume (3D, lib/view/volume.glsl) and its parameters.
+const int VIEW_VOLUME_BINDING=14;
+const int VIEW_VOLUME_PARAMS_BINDING=15;
 
 const int VIEW_ENV_COUNT=32;

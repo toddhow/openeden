@@ -72,6 +72,7 @@
 #include <components/view/descriptors.hpp>
 #include <components/view/lightgrid.hpp>
 #include <components/view/scene.hpp>
+#include <components/view/volumefog.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
 #include <components/vsgutil/bounds.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -139,6 +140,8 @@ namespace MWRender
             descriptors.emplace_back(View::dummyReflections());
             descriptors.emplace_back(View::dummySkyVis());
             descriptors.emplace_back(View::dummySkyVisSky());
+            descriptors.emplace_back(View::dummyVolume());
+            descriptors.emplace_back(View::dummyVolumeParams());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -495,6 +498,27 @@ namespace MWRender
             descriptors.emplace_back(View::skyVisSkyBuffer(mSkyVisHeader));
         else
             descriptors.emplace_back(View::dummySkyVisSky());
+        // Task 0041: the volumetric fog's volume and parameter block, or stand-ins that say "off".
+        if (Settings::rendering().mVolumetrics && !mHdrTarget)
+            Log(Debug::Warning) << "[Rendering] volumetrics needs hdr (the fog is lit in linear space); the "
+                                   "volumetric fog is off";
+        if (Render::Volume::useVolumetrics(Settings::rendering().mVolumetrics, mHdrTarget != nullptr))
+        {
+            const auto quality = Render::Volume::parseQuality(Settings::rendering().mVolumetricsQuality.get());
+            if (!quality)
+                Log(Debug::Warning) << "[Rendering] volumetrics quality: unknown '"
+                                    << Settings::rendering().mVolumetricsQuality.get() << "', using medium";
+            const auto tier = quality.value_or(Render::Volume::Quality::Medium);
+            mVolumeFog = std::make_unique<View::VolumeFog>(
+                tier, Render::Volume::temporalEnabled(tier, Settings::rendering().mVolumetricsTemporal));
+            descriptors.emplace_back(mVolumeFog->volumeDescriptor());
+            descriptors.emplace_back(mVolumeFog->paramsDescriptor());
+        }
+        else
+        {
+            descriptors.emplace_back(View::dummyVolume());
+            descriptors.emplace_back(View::dummyVolumeParams());
+        }
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -630,6 +654,23 @@ namespace MWRender
         auto computeBinContents = vsgUtil::createBinSetter(Bin_Compute, computeGroup);
         auto viewRoot = vsg::Group::create();
         viewRoot->children = { computeBinContents, mSceneRoot };
+        // Task 0041: the volumetric fog's passes have a bin and a command graph of their own, because they must run
+        // after the shadow maps and the light grid (see the submit orders below) and before the scene.
+        vsg::ref_ptr<vsgUtil::ComputeBin> volumeBin;
+        if (mVolumeFog)
+        {
+            if (mVolumeFog->createCommands(mResourceSystem->shaderOptions, viewDescriptorSet))
+            {
+                viewRoot->children.insert(viewRoot->children.begin() + 1,
+                    vsgUtil::createBinSetter(Bin_Volume, mVolumeFog->node()));
+                volumeBin = vsgUtil::ComputeBin::create();
+                volumeBin->binNumber = Bin_Volume;
+                Log(Debug::Info) << "Volumetrics: a froxel volume of " << mVolumeFog->grid().x << " x "
+                                 << mVolumeFog->grid().y << " x " << mVolumeFog->grid().z;
+            }
+            else
+                mVolumeFog.reset();
+        }
         mView = vsgUtil::createSharedView(mSceneCamera, viewRoot);
         mView->viewDependentState = collectLights;
         mView->mask = ~Mask_GUI;
@@ -703,6 +744,21 @@ namespace MWRender
             computeBin->timingEnd = mGpuTimer->endNode(pass);
         }
         mView->bins.push_back(computeBin);
+        if (volumeBin)
+        {
+            // Submit order: the shadow maps (-3), then the light grid (-2), then the volume (-1), then the scene (0).
+            // Graphs with the same order are submitted in whatever order their threads finish recording.
+            computeBin->commandGraph->submitOrder = -2;
+            volumeBin->commandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
+            volumeBin->commandGraph->submitOrder = -1;
+            if (mGpuTimer)
+            {
+                const std::size_t pass = mGpuTimer->addPass("volumetrics");
+                volumeBin->timingBegin = mGpuTimer->beginNode(pass);
+                volumeBin->timingEnd = mGpuTimer->endNode(pass);
+            }
+            mView->bins.push_back(volumeBin);
+        }
 
         // openeden-vsg: in VSG 1.1.x a compile context uploads vertex, index and image data only through a
         // vsg::TransferTask, taken from device->transferTask when the view is added. That task is created by
@@ -792,7 +848,7 @@ namespace MWRender
         {
             auto rg = mShadow->shadow->renderGraph(i);
             auto castShadowGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
-            castShadowGraph->submitOrder = -1;
+            castShadowGraph->submitOrder = mVolumeFog ? -3 : -1; // task 0041: before the light grid and the volume
             auto view = mShadow->shadow->cascadeView(i);
             // Note, createCastShadowScene(..) will omit root nodes that are not required so the record traversal won't
             // have to traverse them. The View's mask is set to allow the vsg::CompileManager::compile(..)'s
@@ -1883,9 +1939,39 @@ namespace MWRender
         mPreviousEye = eye;
     }
 
+    void RenderManager::updateVolume()
+    {
+        if (!mVolumeFog)
+            return;
+        const auto& rendering = Settings::rendering();
+        const bool underwater
+            = mRenderModes[Render_Water].active && mWater->isUnderwater(vsg::vec3(mCamera->getPosition()));
+        Render::Volume::ParamsInput input;
+        input.grid = mVolumeFog->grid();
+        // Underwater fog is left to the water's own fog in version 1 (task 0041, D8).
+        input.enabled = !underwater;
+        input.fogEnd = mFog->getFogEnd(underwater);
+        input.densityScale = rendering.mVolumetricsDensity;
+        input.heightScale = Render::Volume::defaultHeightScale;
+        input.anisotropy = rendering.mVolumetricsAnisotropy;
+        // The sun's light and its shadow cascades. With `enable shadows` off there are no cascades (spec D3): the fog is
+        // lit by the sun everywhere, as an even glow round it, and never forces the cascades on.
+        input.sunGain = Render::Volume::defaultSunGain;
+        input.lampGain = Render::Volume::defaultLampGain;
+        input.debug = rendering.mVolumetricsDebug;
+        if (mShadow->shadow)
+        {
+            input.cascades = static_cast<std::uint32_t>(mShadow->shadow->numCascades);
+            input.shadowMaxDistance = Settings::shadows().mMaximumShadowMapDistance;
+            input.shadowFadeStart = Settings::shadows().mShadowFadeStart;
+        }
+        mVolumeFog->setParams(input, mViewMatrix->transform(), mProjectionMatrix->transform());
+    }
+
     void RenderManager::onFrame(float dt)
     {
         updateSceneData();
+        updateVolume();
         updateSkyVisibility();
         updateSkyEnvironment();
         updateSkyDebug();

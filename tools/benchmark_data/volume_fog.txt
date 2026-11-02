@@ -1,0 +1,4 @@
+ChangeWeather "Bitter Coast Region" 2
+set gamehour to 17.5
+set timescale to 0
+player->position -11400 -71500 -60 270

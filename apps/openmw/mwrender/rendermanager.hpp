@@ -77,6 +77,7 @@ namespace vsgUtil
 namespace View
 {
     class LightGrid;
+    class VolumeFog;
     struct Scene;
 }
 namespace ESM
@@ -340,6 +341,7 @@ namespace MWRender
         void updateSceneChildren();
         void updateNavMesh();
         void updateSceneData();
+        void updateVolume();
         void updateProjectionMatrix();
         void setupScreenshotInterface();
         void setFirstPersonMode(bool enabled);
@@ -364,6 +366,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::View> mView;
         std::unique_ptr<Shadow> mShadow;
         std::unique_ptr<View::LightGrid> mLightGrid;
+        // Task 0041: the volumetric fog; null unless `[Rendering] volumetrics` is on (and its shaders were found).
+        std::unique_ptr<View::VolumeFog> mVolumeFog;
         std::unique_ptr<View::Scene> mSceneData;
         vsg::ref_ptr<vsg::Node> mGui;
         vsg::ref_ptr<vsg::Camera> mSceneCamera;

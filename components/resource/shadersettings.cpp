@@ -106,6 +106,10 @@ namespace Resource
         add("cSunGlowDebug", sunGlow && Settings::Manager::getBool("sun glow debug", "Rendering"), source);
         // Read only when it is on: a host without the game's settings file has no such key.
         add("cSunGlowStrength", sunGlow ? Settings::Manager::getFloat("sun glow strength", "Rendering") : 0.f, source);
+        // OpenEden (task 0041): the volumetric fog (lib/view/volume.glsl); only the main view has a real volume.
+        const bool volumetrics = hdr && Settings::Manager::getBool("volumetrics", "Rendering");
+        add("cVolumetrics", volumetrics, source);
+        add("cVolumetricsDebug", volumetrics && Settings::Manager::getBool("volumetrics debug", "Rendering"), source);
         objects["fog.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");

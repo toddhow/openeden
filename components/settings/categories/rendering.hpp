@@ -123,6 +123,15 @@ namespace Settings
         SettingValue<bool> mSunGlow{ mIndex, "Rendering", "sun glow" };
         SettingValue<float> mSunGlowStrength{ mIndex, "Rendering", "sun glow strength", makeClampSanitizerFloat(0, 2) };
         SettingValue<bool> mSunGlowDebug{ mIndex, "Rendering", "sun glow debug" };
+        // OpenEden (task 0041): the volumetric fog.
+        SettingValue<bool> mVolumetrics{ mIndex, "Rendering", "volumetrics" };
+        SettingValue<std::string> mVolumetricsQuality{ mIndex, "Rendering", "volumetrics quality" };
+        SettingValue<float> mVolumetricsDensity{ mIndex, "Rendering", "volumetrics density",
+            makeClampSanitizerFloat(0, 8) };
+        SettingValue<float> mVolumetricsAnisotropy{ mIndex, "Rendering", "volumetrics anisotropy",
+            makeClampSanitizerFloat(-0.95f, 0.95f) };
+        SettingValue<bool> mVolumetricsTemporal{ mIndex, "Rendering", "volumetrics temporal" };
+        SettingValue<bool> mVolumetricsDebug{ mIndex, "Rendering", "volumetrics debug" };
         SettingValue<int> mGiBakeSkyRays{ mIndex, "Rendering", "gi bake sky rays", makeClampSanitizerInt(1, 65536) };
         SettingValue<float> mGiBakeSkySpacing{ mIndex, "Rendering", "gi bake sky spacing",
             makeClampSanitizerFloat(128, 2048) };

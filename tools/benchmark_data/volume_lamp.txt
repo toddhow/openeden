@@ -1,0 +1,4 @@
+coc "Caldera, Guild of Mages"
+player->SetAngle Z 270
+player->PlaceAtPC "light_com_torch_01" 1 300 0
+set timescale to 0

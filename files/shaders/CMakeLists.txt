@@ -56,6 +56,7 @@ set(SHADER_FILES
     lib/view/reflect.glsl
     lib/view/cascades.glsl
     lib/view/fog.glsl
+    lib/view/volume.glsl
     lib/view/dither.glsl
     lib/math/random.glsl
     lib/math/distance.glsl
@@ -182,3 +183,11 @@ openeden_add_slang_shader(
     SOURCE sky/sun/sun.slang
     OUTPUT_DIR sky/sun
     STAGES vertMain:vertex:vert fragMain:fragment:frag)
+
+# The volumetric fog's compute passes (task 0041). They have no GLSL: the game loads these files whenever
+# [Rendering] volumetrics is on, whatever [Rendering] slang shaders says, and leaves volumetrics off with a log line
+# if they are missing.
+openeden_add_slang_shader(
+    SOURCE comp/volume/volume.slang
+    OUTPUT_DIR comp/volume
+    STAGES fillMain:compute:fill integrateMain:compute:integrate temporalMain:compute:temporal)

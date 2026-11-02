@@ -27,10 +27,11 @@ namespace Pipeline
                 lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             { Descriptors::VIEW_LIGHT_GRID_SIZE_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
                 lightStages | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            { Descriptors::VIEW_SHADOW_MAP_BINDING, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
-                nullptr },
-            { Descriptors::VIEW_SHADOW_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
-                nullptr },
+            // OpenEden (task 0041): the volumetric fog's fill pass looks the sun's shadow up from a compute shader.
+            { Descriptors::VIEW_SHADOW_MAP_BINDING, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { Descriptors::VIEW_SHADOW_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             { Descriptors::VIEW_REFLECT_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::VIEW_REFLECT_DEPTH_MAP_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
@@ -45,7 +46,13 @@ namespace Pipeline
             { Descriptors::VIEW_SKYVIS_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
                 nullptr },
             { Descriptors::VIEW_SKYVIS_SKY_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
-                nullptr } });
+                nullptr },
+            // OpenEden (task 0041): the volumetric fog's volume (read by the forward shaders) and its parameters (also
+            // read by the compute passes that fill it).
+            { Descriptors::VIEW_VOLUME_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::VIEW_VOLUME_PARAMS_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr } });
         return sceneLayout;
     }
 
