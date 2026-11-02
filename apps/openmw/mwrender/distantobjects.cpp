@@ -1,6 +1,7 @@
 #include "distantobjects.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
 
 #include <vsg/commands/Dispatch.h>
@@ -145,7 +146,7 @@ namespace MWRender
         // Builds one cell's chunk, not yet compiled; null when it has nothing to draw. Runs on an operation thread: it
         // reads the store, the content files and the models, and touches nothing the main thread writes.
         vsg::ref_ptr<vsg::Node> buildChunk(const MWAnim::Context& context, const MWWorld::ESMStore& store,
-            const std::pair<int, int>& cell, const std::set<ESM::RefNum>& disabled, float minSize)
+            const std::pair<int, int>& cell, const std::set<ESM::RefNum>& disabled, float minSize, bool skipStatics)
         {
             auto objects = vsg::Group::create();
             vsg::dbox bounds;
@@ -153,7 +154,11 @@ namespace MWRender
             {
                 if (disabled.contains(refNum) || Misc::ResourceHelpers::isHiddenMarker(ref.mRefID))
                     continue;
-                const std::string_view model = getModel(store.findStatic(ref.mRefID), ref.mRefID, store);
+                const int type = store.findStatic(ref.mRefID);
+                // A baked object cluster draws this cell's statics (task 0059).
+                if (skipStatics && type == ESM::REC_STAT)
+                    continue;
+                const std::string_view model = getModel(type, ref.mRefID, store);
                 if (model.empty())
                     continue;
 
@@ -222,17 +227,19 @@ namespace MWRender
         std::set<ESM::RefNum> disabled;
         float minSize;
         unsigned int generation;
+        bool skipStatics;
         vsg::ref_ptr<vsg::Node> chunk;
 
         ChunkBuild(const MWAnim::Context& in_context, const MWWorld::ESMStore& in_store,
             const std::pair<int, int>& in_cell, std::set<ESM::RefNum> in_disabled, float in_minSize,
-            unsigned int in_generation)
+            unsigned int in_generation, bool in_skipStatics)
             : context(in_context)
             , store(in_store)
             , cell(in_cell)
             , disabled(std::move(in_disabled))
             , minSize(in_minSize)
             , generation(in_generation)
+            , skipStatics(in_skipStatics)
         {
         }
 
@@ -240,7 +247,7 @@ namespace MWRender
         {
             try
             {
-                chunk = buildChunk(context, store, cell, disabled, minSize);
+                chunk = buildChunk(context, store, cell, disabled, minSize, skipStatics);
             }
             catch (const std::exception& e)
             {
@@ -309,6 +316,16 @@ namespace MWRender
         return changed;
     }
 
+    void DistantObjects::setClusteredCells(const std::set<std::pair<int, int>>& cells)
+    {
+        Cells changed;
+        std::set_symmetric_difference(
+            mClustered.begin(), mClustered.end(), cells.begin(), cells.end(), std::back_inserter(changed));
+        mClustered = cells;
+        if (!changed.empty())
+            forget(changed);
+    }
+
     bool DistantObjects::blacklist(ESM::RefNum ref, const Cells& cells)
     {
         const bool changed = mBlacklist.insert(ref).second;
@@ -322,6 +339,7 @@ namespace MWRender
         mDisabled.clear();
         mBlacklist.clear();
         mCellGenerations.clear();
+        mClustered.clear();
         mOldestValidBuild = ++mGeneration;
         mTracker.clear();
         setShownChunks({});
@@ -337,7 +355,7 @@ namespace MWRender
         for (const auto& cell :
             mTracker.setWanted(distantObjectCells(mCameraPosition, mCellSize, mViewDistance, builtGrid)))
         {
-            auto build = vsg::ref_ptr{ new ChunkBuild(mContext, mStore, cell, leftOut, mMinSize, mGeneration) };
+            auto build = vsg::ref_ptr{ new ChunkBuild(mContext, mStore, cell, leftOut, mMinSize, mGeneration, mClustered.contains(cell)) };
             mBuilds.push_back(build);
             mThreads->add(build);
         }

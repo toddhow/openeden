@@ -31,7 +31,7 @@ set(OPENMW_HEADERS
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
 add_openmw_dir (mwrender
-    mask bin rendermode renderinginterface renderpass intersect rendermanager terrainstorage landmanager lodterrain
+    mask bin rendermode renderinginterface renderpass intersect rendermanager terrainstorage landmanager lodterrain lodclusters
     animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map worldmap preview shadow

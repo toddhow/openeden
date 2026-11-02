@@ -106,6 +106,7 @@ namespace MWAnim
 namespace MWRender
 {
     class LodTerrain;
+    class LodClusters;
     class PrecipitationOccluder;
     class DistantObjects;
     class PostProcess;
@@ -145,6 +146,7 @@ namespace MWRender
         void setStore(const MWWorld::ESMStore& store);
         /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.
         void setLodTerrainPack(std::filesystem::path path) { mLodTerrainPack = std::move(path); }
+        void setLodClusterPack(std::filesystem::path path) { mLodClusterPack = std::move(path); }
 
         RenderingInterface& getObjects();
 
@@ -533,8 +535,14 @@ namespace MWRender
         bool mPostProcessNight = false;
         unsigned int mPostProcessFrame = 0;
         std::unique_ptr<DistantObjects> mDistantObjects;
+        // Task 0059: baked object clusters, only with `[WorldLod] object clusters`.
+        std::filesystem::path mLodClusterPack;
+        std::unique_ptr<LodClusters> mLodClusters;
+        bool mLodClustersAttached = false;
+        std::uint64_t mLodClustersPushed = 0;
         ActiveCellGrid mActiveGrid;
         void updateDistantObjects(const vsg::vec3& cameraPosition);
+        void updateLodClusters(const vsg::vec3& cameraPosition, float dt);
         std::unique_ptr<Rain> mRain;
         Rain::Parameters mRainParameters;
         std::unique_ptr<WaterRipples> mWaterRipples;

@@ -83,7 +83,10 @@ namespace Pipeline
         PARALLAX_POM,
         PARALLAX_POM_LOW,
         PARALLAX_POM_HIGH,
-        PARALLAX_DISCARD
+        PARALLAX_DISCARD,
+        // OpenEden (task 0059): the fragment is dropped by an ordered dither that thins out as the material's specular
+        // alpha falls from 1 to 0 (default/main.frag), so a far object cluster can fade in over the live objects.
+        LOD_FADE
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
@@ -94,7 +97,7 @@ namespace Pipeline
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
         Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION,
         Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS, Mode::HEIGHT_MAP, Mode::PARALLAX_DISCARD,
-        Mode::PRECIPITATION_LIT };
+        Mode::PRECIPITATION_LIT, Mode::LOD_FADE };
 
     using Modes = std::vector<bool>;
 

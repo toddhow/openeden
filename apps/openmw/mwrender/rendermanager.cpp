@@ -108,6 +108,7 @@
 #include "fogmanager.hpp"
 #include "groundcover.hpp"
 #include "intersect.hpp"
+#include "lodclusters.hpp"
 #include "lodterrain.hpp"
 #include "map.hpp"
 #include "mask.hpp"
@@ -1073,6 +1074,9 @@ namespace MWRender
     {
         // Task 0055: an earlier LodTerrain reads the storage on a worker thread; it goes before the store changes.
         mLodTerrain.reset();
+        mLodClusters.reset();
+        mLodClustersAttached = false;
+        mLodClustersPushed = 0;
         mTerrainStorage->setStore(&store);
         mTerrain->setStorage(mTerrainStorage.get());
         // Task 0055: baked terrain tiles, only when asked for. Nothing below runs with the setting off.
@@ -1096,6 +1100,20 @@ namespace MWRender
             setup.mMapSettings = *mTerrainMapsForLod;
             setup.mVfs = mResourceSystem->getVFS();
             mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
+        }
+        // Task 0059: baked object clusters (DRAFT layout), only when asked for. Nothing below runs with the setting off.
+        if (Settings::worldLod().mEnabled && Settings::worldLod().mObjectClusters && !mLodClusterPack.empty())
+        {
+            LodClusters::Setup setup;
+            setup.mPack = mLodClusterPack;
+            setup.mThreshold = Settings::worldLod().mObjectClusterThreshold;
+            setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
+            setup.mCellSize = ESM::Land::REAL_SIZE;
+            setup.mBuilder = mResourceSystem->builder.get();
+            setup.mImageOptions = mResourceSystem->textureOptions;
+            setup.mCompile = mScene->context.compileContext;
+            mLodClusters = std::make_unique<LodClusters>(std::move(setup));
+            mLodClustersAttached = false;
         }
     }
 
@@ -1155,6 +1173,8 @@ namespace MWRender
             mSceneRoot->addChild(mGroundcover->node());
         if (mDistantObjects)
             mSceneRoot->addChild(mDistantObjects->node());
+        if (mLodClusters)
+            mSceneRoot->addChild(mLodClusters->node());
         mSceneRoot->addChild(mScene->getActors());
         // The opaque scene's colour and depth are copied here, before the water and the depth-sorted bins: the water
         // reflects and refracts with them, and soft particles fade against the depth (task 0012, V4k).
@@ -1783,6 +1803,38 @@ namespace MWRender
         mActiveGrid = { { x, y }, halfGrid };
         if (mDistantObjects)
             mDistantObjects->setActiveGrid(mActiveGrid);
+        if (mLodClusters)
+            mLodClusters->setActiveGrid(mActiveGrid);
+    }
+
+    void RenderManager::updateLodClusters(const vsg::vec3& cameraPosition, float dt)
+    {
+        if (!mLodClusters)
+            return;
+        if (!mLodClustersAttached)
+        {
+            mLodClustersAttached = true;
+            updateSceneChildren();
+        }
+        // Morrowind's exterior only, as the distant objects.
+        const MWWorld::Ptr player = MWMechanics::getPlayer();
+        LodClusters::Camera camera;
+        camera.mEnabled = !player.isEmpty() && player.isInCell() && player.getCell()->isExterior()
+            && player.getCell()->getCell()->getWorldSpace() == ESM::Cell::sDefaultWorldspaceId;
+        camera.mEye = mViewMatrix->eye;
+        camera.mForward = vsg::normalize(mViewMatrix->center - mViewMatrix->eye);
+        camera.mFovYDegrees = mProjectionMatrix->fieldOfViewY;
+        camera.mAspect = mProjectionMatrix->aspectRatio;
+        camera.mViewportHeight = mAppliedExtent.height;
+        camera.mViewDistance = mViewDistance;
+        mLodClusters->update(camera, dt);
+        // The live distant objects stop drawing the statics of the cells a cluster draws (and take them back).
+        if (mDistantObjects && mLodClusters->clusteredCellsVersion() != mLodClustersPushed)
+        {
+            mLodClustersPushed = mLodClusters->clusteredCellsVersion();
+            mDistantObjects->setClusteredCells(mLodClusters->clusteredCells());
+        }
+        (void)cameraPosition;
     }
 
     void RenderManager::updateDistantObjects(const vsg::vec3& cameraPosition)
@@ -1822,6 +1874,9 @@ namespace MWRender
 
     bool RenderManager::pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled)
     {
+        // Task 0059: a static a script disabled is drawn by the live objects again for its cell.
+        if (mLodClusters && !enabled && type == ESM::REC_STAT && ptr.isInCell() && ptr.getCell()->isExterior())
+            mLodClusters->overrideReference(ptr.getCellRef().getRefNum());
         if (!mDistantObjects || !ptr.isInCell() || !ptr.getCell()->isExterior() || !isDistantObjectType(type))
             return false;
         return mDistantObjects->setDisabled(ptr.getCellRef().getRefNum(), !enabled, referenceCells(ptr));
@@ -1829,6 +1884,8 @@ namespace MWRender
 
     void RenderManager::pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr)
     {
+        if (mLodClusters && type == ESM::REC_STAT && ptr.isInCell() && ptr.getCell()->isExterior())
+            mLodClusters->overrideReference(ptr.getCellRef().getRefNum());
         if (!mDistantObjects || !ptr.isInCell() || !ptr.getCell()->isExterior() || !isDistantObjectType(type))
             return;
         const ESM::RefNum refnum = ptr.getCellRef().getRefNum();
@@ -2309,6 +2366,7 @@ namespace MWRender
         mWaterRipples->update(dt, paused);
         updateGroundcover(cameraPosition);
         updateDistantObjects(cameraPosition);
+        updateLodClusters(cameraPosition, dt);
         if (mRenderModes[Render_Sky])
             mSky->update(dt);
 
@@ -2507,6 +2565,8 @@ namespace MWRender
         notifyWorldSpaceChanged();
         if (mDistantObjects)
             mDistantObjects->clear();
+        if (mLodClusters)
+            mLodClusters->clearOverrides();
     }
 
     MWAnim::Object* RenderManager::getObject(const MWWorld::Ptr& ptr)

@@ -119,6 +119,8 @@ namespace Pipeline
                 return "PARALLAX_POM_HIGH";
             case Mode::PARALLAX_DISCARD:
                 return "PARALLAX_DISCARD";
+            case Mode::LOD_FADE:
+                return "LOD_FADE";
         }
         return "";
     }

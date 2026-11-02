@@ -71,6 +71,9 @@ namespace MWRender
         /// Leaves out for good a reference the scene now draws (moved, scaled, rotated or deleted), rebuilding the
         /// chunks of cells if that changes anything. OpenMW's ObjectPaging::blacklistObject.
         bool blacklist(ESM::RefNum ref, const Cells& cells);
+        /// The cells whose statics a baked object cluster draws (task 0059): their chunks are built without statics, so
+        /// activators and doors stay and nothing is drawn twice. A change rebuilds the chunks of the cells that changed.
+        void setClusteredCells(const std::set<std::pair<int, int>>& cells);
         /// Forgets every chunk and reference state, for a new or loaded game.
         void clear();
         void waitForBuilds();
@@ -94,6 +97,7 @@ namespace MWRender
         std::vector<vsg::ref_ptr<ChunkBuild>> mBuilds;
         std::set<ESM::RefNum> mDisabled;
         std::set<ESM::RefNum> mBlacklist;
+        std::set<std::pair<int, int>> mClustered;
         // Builds started before a cell's entry, or before mOldestValidBuild, are out of date and thrown away.
         std::map<std::pair<int, int>, unsigned int> mCellGenerations;
         unsigned int mGeneration = 0;
