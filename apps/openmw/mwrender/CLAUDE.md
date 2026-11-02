@@ -18,6 +18,13 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 2. `CharacterController::postAnimation` runs on the main thread. It runs `MWAnim::Actor::manualAnimation` (head and spine turns), then `ActorIkController::update` and `applyPostAnimation` (IK, lean and hitboxes).
 3. `Scene::update` updates objects, then skins. Anything written to bones before this step is drawn this frame.
 
+## Debugging CreativeMotion's animation (task 0053 research, note 0022)
+
+- `[Game] creativemotion animation debug = true` logs one `CMTRACE` line per actor per frame (`CharacterController::traceAnimation`): the group each of the four bone groups plays, the previous group and the transition's progress (`trans=elapsed/duration`), position, `loco=(smoothed speed, phase)`, the movement animation's speed multiplier and the rotation of six bones. It also works with the pose driver off, so vanilla and CreativeMotion can be compared. It is a developer tool: it writes about 1500 lines a second per actor.
+- **A/B in third person only.** In first person the body's bones are not updated in vanilla mode, so a bone trace of the player shows nothing.
+- The driver feeds CreativeMotion group names only; the style layer, the animation graph and pose blending are not wired (note 0022 has the table).
+- **With inertial locomotion on, a walking actor's requested movement is the intended velocity, not the animation's root motion** (`InertialMotion::chooseMovementRequestSource`, `CharacterController::postAnimation`). The root motion made the smoothed speed, and with it the animation speed, stall at 15% of walking speed for about 1.7 seconds after each start: the "stutter".
+
 ## Rules
 
 - **Off means unchanged:** with every OpenEden setting at its default, the controllers never touch a bone. `ActorIkController` binds no bones, `CharacterController` creates no pose driver, and `Play::updateBones` stays true. Keep it that way: create state lazily, only when a setting is on.

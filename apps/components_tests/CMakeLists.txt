@@ -137,6 +137,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_debug_draw.cpp
     extension/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp
+    inertialmotion/testmovementrequest.cpp
 
     mwrender/test_creativemotion_runtime.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp

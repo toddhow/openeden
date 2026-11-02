@@ -175,6 +175,7 @@ namespace MWMechanics
         vsg::vec3 moved;
         // Inertial locomotion (OpenEden), carried from preAnimation to postAnimation.
         bool inertialActive = false;
+        int mTraceLocomotionPhase = 0; // InertialMotion::LocomotionPhase, set in update for the developer trace
         float smoothedSpeed = 0.f;
         //}
         MWWorld::Ptr mPtr;
@@ -352,6 +353,8 @@ namespace MWMechanics
         void preAnimation(float duration);
         void runAnimation(float duration); //.supportsUpdateThreads=true
         void runPoseDriver(float duration); //.supportsUpdateThreads=true
+        /// Developer trace of "creativemotion animation debug", one log line per actor per frame.
+        void traceAnimation(float duration);
         /// Creates the IK controller and, when a CreativeMotion setting is on, the pose driver for mAnimation's bones.
         void createPoseControllers();
         void postAnimation(float duration);

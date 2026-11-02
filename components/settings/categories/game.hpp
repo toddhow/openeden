@@ -81,6 +81,7 @@ namespace Settings
         SettingValue<float> mLeanScale{ mIndex, "Game", "lean scale", makeClampSanitizerFloat(0.0f, 3.0f) };
         SettingValue<bool> mCreativeMotionAnimation{ mIndex, "Game", "creativemotion animation" };
         SettingValue<bool> mCreativeMotionAnimationCompare{ mIndex, "Game", "creativemotion animation compare" };
+        SettingValue<bool> mCreativeMotionAnimationDebug{ mIndex, "Game", "creativemotion animation debug" };
         SettingValue<float> mCreativeMotionAnimationTransition{ mIndex, "Game", "creativemotion animation transition",
             makeMaxSanitizerFloat(0.0f) };
     };

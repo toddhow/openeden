@@ -43,6 +43,43 @@ namespace InertialMotion
         float mLeanScale = 1.0f;
     };
 
+    /// Fraction of the intended speed below which a moving actor's movement animation is never slowed: the walk
+    /// would otherwise start in slow motion (the animation speed follows the smoothed ground speed, which is 0 at
+    /// the start). Value from the first inertial locomotion version (task 0006 follow-up); the animation reaches the
+    /// full speed as the smoothed speed rises.
+    inline constexpr float sMinimumAnimationSpeedFraction = 0.15f;
+
+    /// Where an actor's requested movement comes from while it walks or runs: the root motion of the playing
+    /// animation (vanilla) or the intended velocity (the input direction times the actor's current speed).
+    enum class MovementRequestSource
+    {
+        Animation,
+        Intended
+    };
+
+    /// Intended only while inertial locomotion drives the actor, no hit reaction plays, a movement group plays
+    /// and no authored start, stop, skid or turn clip does (those carry their own root motion). Everything else, in
+    /// particular every actor with inertial locomotion off, keeps the animation's root motion.
+    ///
+    /// Why not always the animation: with inertial locomotion on, the animation speed follows the smoothed ground
+    /// speed, and the smoothed speed follows the request. If the request is the animation's root motion, the loop
+    /// stalls at sMinimumAnimationSpeedFraction of the walking speed (see docs/research/0022).
+    constexpr MovementRequestSource chooseMovementRequestSource(
+        bool inertialActive, bool hitReaction, bool movementGroupPlaying, bool authoredTransitionPlaying)
+    {
+        return inertialActive && !hitReaction && movementGroupPlaying && !authoredTransitionPlaying
+            ? MovementRequestSource::Intended
+            : MovementRequestSource::Animation;
+    }
+
+    /// The ground speed (units per second) the movement animation is scaled to: with movement input the smoothed
+    /// speed, but not below sMinimumAnimationSpeedFraction of the intended speed; without input the smoothed speed.
+    constexpr float animationGroundSpeed(float smoothedSpeed, float intendedSpeed, bool hasMovementInput)
+    {
+        const float floorSpeed = sMinimumAnimationSpeedFraction * intendedSpeed;
+        return hasMovementInput && floorSpeed > smoothedSpeed ? floorSpeed : smoothedSpeed;
+    }
+
     /// Converts a preset enum to its standard parameter set
     LocomotionParameters getPresetParameters(Preset preset);
 

@@ -1,6 +1,7 @@
 #include "character.hpp"
 
 #include <array>
+#include <cstdio>
 #include <unordered_set>
 
 #include <iostream>
@@ -2067,6 +2068,7 @@ namespace MWMechanics
         speed = 0.f;
         inertialActive = false;
         smoothedSpeed = 0.f;
+        mTraceLocomotionPhase = 0;
 
         updateMagicEffects();
         MWAnim::updateEffects(*mObject->node(), duration);
@@ -2118,6 +2120,7 @@ namespace MWMechanics
             smoothedSpeed = inertialActive ? physActor->getLocomotionState().getSmoothedSpeed() : 0.0f;
             const InertialMotion::LocomotionPhase locPhase
                 = inertialActive ? physActor->getLocomotionState().getPhase() : InertialMotion::LocomotionPhase::Idle;
+            mTraceLocomotionPhase = static_cast<int>(locPhase);
 
             // Force Jump Logic
 
@@ -2630,10 +2633,7 @@ namespace MWMechanics
                 if (inertialActive)
                 {
                     // Layer 3.B: Dynamic Playback Scaling
-                    float groundSpeed = smoothedSpeed;
-                    if (vsg::length2(vec) > 0.0f)
-                        groundSpeed = std::max(groundSpeed, 0.15f * speed);
-                    currentSpeed = groundSpeed;
+                    currentSpeed = InertialMotion::animationGroundSpeed(smoothedSpeed, speed, vsg::length2(vec) > 0.0f);
                 }
                 const float speedMult = currentSpeed / mMovementAnimSpeed;
                 mAnimation->adjustSpeedMult(mCurrentMovement, std::min(maxSpeedMult, speedMult));
@@ -2695,6 +2695,47 @@ namespace MWMechanics
         moved = mAnimation->runAnimation(animationDuration);
         if (mPoseDriver)
             runPoseDriver(animationDuration);
+        if (Settings::game().mCreativeMotionAnimationDebug && (mPoseDriver || mPtr.getClass().isActor()))
+            traceAnimation(animationDuration);
+    }
+
+    void CharacterController::traceAnimation(float duration)
+    {
+        // Developer trace of "creativemotion animation debug": one line per actor per frame. May run on an update
+        // thread; the logger is thread safe and this reads only this actor's animation and members that update set.
+        constexpr std::size_t sTraceTextCapacity = 160;
+        static const std::vector<std::string_view> traceBones
+            = { "bip01 pelvis", "bip01 l thigh", "bip01 r thigh", "bip01 spine1", "bip01 l upperarm", "bip01 head" };
+        std::string line = "CMTRACE ref=" + mPtr.getCellRef().getRefId().toDebugString()
+            + " dt=" + std::to_string(duration);
+        for (std::size_t group = 0; group < MWRender::sNumBlendMasks; ++group)
+        {
+            const MWAnim::Play::ActiveState state = mAnimation->getActiveState(group);
+            line += " g" + std::to_string(group) + "=" + std::string(state.groupname);
+            if (mPoseDriver)
+            {
+                const auto status = mPoseDriver->getTransitionStatus(group);
+                line += "(prev=" + std::string(status.mPreviousGroup) + ",trans="
+                    + (status.mActive ? std::to_string(status.mElapsed) + "/" + std::to_string(status.mDuration)
+                                      : std::string("none"))
+                    + ")";
+            }
+        }
+        const auto& position = mPtr.getRefData().getPosition();
+        char positionText[sTraceTextCapacity];
+        std::snprintf(positionText, sizeof(positionText), " pos=(%.3f %.3f %.3f) moved=(%.3f %.3f %.3f)",
+            position.pos[0], position.pos[1], position.pos[2], moved.x, moved.y, moved.z);
+        line += positionText;
+        // The locomotion values were read on the main thread in update; this may run on an animation thread.
+        float animationSpeed = 0.f;
+        mAnimation->getInfo(mCurrentMovement, nullptr, &animationSpeed);
+        char locomotionText[sTraceTextCapacity];
+        std::snprintf(locomotionText, sizeof(locomotionText), " loco=(speed %.1f phase %d) animspeed=%.3f",
+            smoothedSpeed, mTraceLocomotionPhase, animationSpeed);
+        line += locomotionText;
+        line += std::string(" driver=") + (mPoseDriver ? (mPoseDriverApplies ? "applies" : "compare") : "off");
+        line += MWRender::describeBoneRotations(mAnimation->bones, traceBones);
+        Log(Debug::Info) << line;
     }
 
     void CharacterController::createPoseControllers()
@@ -2769,7 +2810,15 @@ namespace MWMechanics
         {
             if (isMovementAnimationControlled())
             {
-                if (duration != 0.f && movementFromAnimation != vsg::vec3())
+                // With inertial locomotion the request is the intended velocity, which the locomotion state then
+                // smooths; the animation's root motion would make the smoothed speed (and with it the animation
+                // speed) stall at its floor when a walk starts (docs/research/0022).
+                const bool intended = InertialMotion::chooseMovementRequestSource(inertialActive,
+                                          mHitState != CharState_None, mMovementState != CharState_None,
+                                          isTransitionMovementState(mMovementState))
+                    == InertialMotion::MovementRequestSource::Intended;
+                // When intended, movement already holds the intended velocity (set in update).
+                if (!intended && duration != 0.f && movementFromAnimation != vsg::vec3())
                 {
                     movementFromAnimation = Misc::VsgMath::divide(movementFromAnimation, duration);
 
@@ -2800,7 +2849,7 @@ namespace MWMechanics
                         movement = movementFromAnimation;
                     }
                 }
-                else
+                else if (!intended)
                 {
                     movement = vsg::vec3();
                 }

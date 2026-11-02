@@ -37,6 +37,11 @@ namespace MWRender
         float mTime = 0.f;
     };
 
+    /// Developer trace (setting "creativemotion animation debug"): the local rotation of each named bone as a
+    /// quaternion "name=(x y z w)", read from the bones' transforms as they are now. A bone that is not there is
+    /// skipped. Used with and without the pose driver, so that both can be compared.
+    std::string describeBoneRotations(Anim::Bones& bones, const std::vector<std::string_view>& normalizedNames);
+
     /**
      * @brief Samples, layers and blends an actor's animations with CreativeMotion's runtime and writes the pose to the
      * actor's bones (task 0007, rebuilt on vsgopenmw's animation system in task 0011).
@@ -90,6 +95,19 @@ namespace MWRender
 
         /// True when the last update()'s active source of the bone's group has a track for the bone.
         bool isBoneAnimated(size_t boneIndex) const { return mAnimated[boneIndex] != 0; }
+
+        /// What one bone group is doing, for the developer trace (setting "creativemotion animation debug"): the group
+        /// it plays now, the group it played before the last change, and how far the transition from one to the other
+        /// has got (mElapsed of mDuration seconds; mActive is false when none is running).
+        struct TransitionStatus
+        {
+            std::string_view mGroup;
+            std::string_view mPreviousGroup;
+            bool mActive = false;
+            float mElapsed = 0.f;
+            float mDuration = 0.f;
+        };
+        TransitionStatus getTransitionStatus(size_t group) const;
 
         /// Skeleton index of the bone with that normalized (Anim::Bones) name, or -1.
         int getBoneIndex(std::string_view normalizedName) const;
@@ -147,6 +165,9 @@ namespace MWRender
         // Last active source and group name per group, to detect changes.
         std::array<const Anim::ControllerMap*, sNumBlendMasks> mLastSources{};
         std::array<std::string, sNumBlendMasks> mLastGroupNames;
+        // For the developer trace: the group name before the last change, and the duration of the last transition.
+        std::array<std::string, sNumBlendMasks> mPreviousGroupNames;
+        std::array<float, sNumBlendMasks> mTransitionDurations{};
     };
 }
 

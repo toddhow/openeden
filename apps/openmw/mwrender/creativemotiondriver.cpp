@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <optional>
 #include <set>
@@ -177,9 +178,32 @@ namespace MWRender
         }
     }
 
+    std::string describeBoneRotations(Anim::Bones& bones, const std::vector<std::string_view>& normalizedNames)
+    {
+        std::string text;
+        char buffer[96];
+        for (const std::string_view name : normalizedNames)
+        {
+            Anim::Bone* bone = bones.search(std::string(name));
+            if (bone == nullptr || bone->path.empty())
+                continue;
+            vsg::vec3 translation;
+            vsg::quat rotation;
+            vsg::vec3 scale;
+            vsg::decompose(bone->node()->t_transform(vsg::mat4()), translation, rotation, scale);
+            const int length = std::snprintf(buffer, sizeof(buffer), " %.*s=(%.4f %.4f %.4f %.4f)",
+                static_cast<int>(name.size()), name.data(), rotation.x, rotation.y, rotation.z, rotation.w);
+            if (length > 0)
+                text.append(buffer, std::min<std::size_t>(static_cast<std::size_t>(length), sizeof(buffer) - 1));
+        }
+        return text;
+    }
+
     CreativeMotionPoseDriver::CreativeMotionPoseDriver(Anim::Bones& bones)
     {
         for (auto& name : mLastGroupNames)
+            name.reserve(sGroupNameCapacity);
+        for (auto& name : mPreviousGroupNames)
             name.reserve(sGroupNameCapacity);
         mValid = buildSkeleton(bones);
     }
@@ -393,6 +417,7 @@ namespace MWRender
                 // animation: right after the switch the output is last frame's pose, keeping its velocity.
                 mInertializers[g]->start(mGroupPrevPoses[g], mGroupPoses[g], mIncoming, static_cast<double>(duration),
                     static_cast<double>(transitionDuration));
+                mTransitionDurations[g] = transitionDuration;
             }
             else if (changed)
                 mInertializers[g]->start({}, {}, {}, 0.0, 0.0); // a pose of the wrong size ends any transition
@@ -405,6 +430,7 @@ namespace MWRender
 
             if (changed)
             {
+                mPreviousGroupNames[g].assign(mLastGroupNames[g]);
                 mLastSources[g] = current.mSource;
                 mLastGroupNames[g].assign(current.mGroupName);
             }
@@ -423,6 +449,19 @@ namespace MWRender
             mBoneRotations[i] = vsg::quat(static_cast<float>(t.rotation.x), static_cast<float>(t.rotation.y),
                 static_cast<float>(t.rotation.z), static_cast<float>(t.rotation.w));
         }
+    }
+
+    CreativeMotionPoseDriver::TransitionStatus CreativeMotionPoseDriver::getTransitionStatus(size_t group) const
+    {
+        TransitionStatus status;
+        if (group >= sNumBlendMasks)
+            return status;
+        status.mGroup = mLastGroupNames[group];
+        status.mPreviousGroup = mPreviousGroupNames[group];
+        status.mActive = mInertializers[group] != nullptr && mInertializers[group]->active();
+        status.mElapsed = status.mActive ? static_cast<float>(mInertializers[group]->elapsedS()) : 0.f;
+        status.mDuration = mTransitionDurations[group];
+        return status;
     }
 
     void CreativeMotionPoseDriver::apply() const
