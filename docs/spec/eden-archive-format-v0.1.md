@@ -82,7 +82,7 @@ A tool that recognises packs SHOULD recognise them by magic and MAY use the exte
 1. **Byte order.** Every multi-byte integer is **little-endian**. No structure uses big-endian values.
 2. **Integer types.** `u8`, `u16`, `u32`, `u64` are unsigned; `i32` is a two's-complement signed 32-bit value. All offsets and sizes in structures are `u64` unless a table says otherwise (packs will pass 4 GiB).
 3. **Offsets** are absolute: counted in bytes from the first byte of the file, which is offset 0.
-4. **Alignment.** Every structure of the metadata region starts at a multiple of **8**. Each entry's data block starts at a multiple of **4096** (section 8). A reader MUST check these alignments as stated in section 14.
+4. **Alignment.** Every structure of the metadata region starts at a multiple of **8**. Each entry's data block starts at an absolute file offset that is a multiple of **4096** (section 8). A reader MUST check these alignments as stated in section 14.
 5. **Fixed or length-prefixed.** Every structure is either fixed-size with named fields at fixed offsets (tables in sections 5 to 7) or carries its own length.
 6. **Padding and reserved fields.** Padding bytes and reserved fields are written as zero. A reader MUST ignore the value of a reserved field or padding byte, except where this document says "MUST be zero". (The header checksum and the metadata digest cover them, so changes are still detected.) A validator in canonical mode (section 17) MUST report non-zero padding and reserved bytes.
 7. **Text.** All names are UTF-8 (RFC 3629) and MUST be valid: no overlong forms, no surrogates, nothing above U+10FFFF. Text fields are not NUL-terminated; their length is stored next to them.
@@ -318,7 +318,7 @@ The hints are fields of the entry record (`hintMemorySize`, `hintGroup`) and fla
 
 ### 8.1 Data blocks
 
-An entry with at least one chunk has one **data block**: its chunks' stored bytes. The first chunk of the block MUST start at a multiple of **4096** inside the data region (this lets a reader use sector-aligned reads). In canonical form the chunks of one entry follow each other with **no gap** (chunk *k+1* starts where chunk *k* ends) and the next entry's block starts at the next multiple of 4096 after the end of the previous entry's last chunk; the gap is zero bytes. Blocks follow the entry order (section 7.4). An empty entry (content of 0 bytes) has no chunks and no block.
+An entry with at least one chunk has one **data block**: its chunks' stored bytes. The first chunk of the block MUST start at an **absolute file offset that is a multiple of 4096** (not an offset relative to `dataOffset`), inside the data region (this lets a reader use sector-aligned reads). In canonical form the chunks of one entry follow each other with **no gap** (chunk *k+1* starts where chunk *k* ends) and the next entry's block starts at the next multiple of 4096 after the end of the previous entry's last chunk; the gap is zero bytes. Blocks follow the entry order (section 7.4). An empty entry (content of 0 bytes) has no chunks and no block.
 
 A reader MUST NOT assume that the chunks of an entry are adjacent or in the file in table order; it uses each chunk's `offset`. It MUST check that no two chunks of the whole pack overlap (section 14). Gaps between chunks are allowed for a non-canonical pack.
 
@@ -773,7 +773,7 @@ Checked https://www.iana.org/assignments/media-types/application.csv on 2026-11-
 
 ## Annex B. A worked valid pack
 
-A pack of 3 entries and 17,088 (0x42C0) bytes, built by a scratch program written for this task (not part of the repository) with the python packages `blake3` 1.0.11 and `zstandard` 0.25.0 (libzstd 1.5.7); **all hashes below were computed by the library**, not by hand. The hexadecimal text of this annex was then parsed back into bytes and given to a second program (a reader written for this task) that implements most of the checks of section 14 (not implemented in it: the zstd window limit, bytes after a frame, the chunk-flag bits, the contents of provenance records and the extension-block walk, which the Annex B pack does not use); it accepted the pack, decoded all three entries and compared their hashes.
+A pack of 3 entries and 17,088 (0x42C0) bytes, built by a scratch program written for this task (not part of the repository) with the python packages `blake3` 1.0.11 and `zstandard` 0.25.0 (libzstd 1.5.7); **all hashes below were computed by the library**, not by hand. The hexadecimal text of this annex was then parsed back into bytes and given to a second program (a reader written for this task) that implements most of the checks of section 14 (not implemented in it: the zstd window limit, bytes after a frame, the `ZSTD_COMPRESSBOUND` ceiling on `storedSize` of codec-1 chunks, the chunk-flag bits, the contents of provenance records and the extension-block walk, which the Annex B pack does not use; it also tests `storedSize == uncompressedSize` of codec-0 chunks at read, not at open as 14.2 item 10 requires); it accepted the pack, decoded all three entries and compared their hashes.
 
 The three entries (in entry order):
 
@@ -909,7 +909,7 @@ All 20 cases were generated and checked with the scratch program of Annex B, whi
 | I01 | byte `0000` changed from `45` to `58` | reject | `E_MAGIC` | open |
 | I02 | file cut by 16 bytes (footer incomplete) | reject | `E_TRUNCATED` | open |
 | I03 | byte `0190` (reserved header byte) changed from `00` to `01`, checksum not recomputed | reject | `E_CHECKSUM` | open |
-| I04 | header `fileSize` (at `0018`) increased by 8; checksum and footer copies recomputed except `fileSize` in the footer | reject | `E_TRUNCATED` | open |
+| I04 | `fileSize` increased by 8 in both the header (at `0018`) and the footer (at `4250`); header checksum and footer copy recomputed, so the only failing check is that `fileSize` equals the real size | reject | `E_TRUNCATED` | open |
 | I05 | 8 zero bytes appended after the footer | reject | `E_TRUNCATED` | open |
 | I06 | chunk 0's `offset` (at `4198`) := `FFFFFFFFFFFFF000` | reject (offset out of range, would overflow if added) | `E_RANGE` | open |
 | I07 | chunk 2's `offset` (at `4208`) := `2000` (inside entry 1's block) | reject (overlapping chunks) | `E_OVERLAP` | open |
@@ -970,4 +970,5 @@ Open points for toddhow:
 - **O5.** The KTX2 facts of 10.2 were read through a text extraction of the specification and must be re-read from the specification before the annex is frozen. The tile annex is not defined.
 - **O6.** That CC BY 4.0 suits a standards text is still **verify**.
 - **O7.** The independent read-through (stage h: a reviewer who has not seen the engine writes reader pseudocode from this document alone) and the fresh-reviewer reads have **not** been done.
-- **O8.** The key tag/bit layout of tile keys, the `layoutParam` meaning for tiles, and the mip-tail size are left to later stage specs.
+- **O8.** The key tag/bit layout of tile keys, the `layoutParam` meaning for tiles, and the mip-tail size are left to later stage specs. The typed layouts are subsections 10.2 and 10.3 (marked draft and later) and not separate annex files as the task text suggested.
+- **O9.** `metadataSize` has no cap of its own. A hostile pack can declare up to 2^22 entries of `entryRecordSize` 4096 (16 GiB of metadata) inside the 2^44 file limit, and the open-time metadata digest reads all of it. Either state a cap (for example on `metadataSize`, or lower `entryRecordSize`/`chunkRecordSize` maxima) or leave it to the fuzzing harness of task 0052 to decide.
