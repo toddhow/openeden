@@ -11,8 +11,8 @@
 #include <vsg/nodes/Group.h>
 
 #include <components/esm3/cellref.hpp>
-#include <components/lod/objectcluster.hpp>
 #include <components/esm3/refnum.hpp>
+#include <components/lod/objectcluster.hpp>
 #include <components/mwanimation/context.hpp>
 
 #include "distantobjectcells.hpp"

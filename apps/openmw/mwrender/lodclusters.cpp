@@ -25,8 +25,8 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/lod/clusterfade.hpp>
-#include <components/lod/clusterplan.hpp>
 #include <components/lod/clusterpack.hpp>
+#include <components/lod/clusterplan.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/pipeline/bindings.hpp>
 #include <components/pipeline/builder.hpp>
@@ -478,7 +478,8 @@ namespace MWRender
             if (!tile.mLoggedFailure)
             {
                 tile.mLoggedFailure = true;
-                Log(Debug::Warning) << "LOD clusters: a cluster could not be compiled; the live objects keep its cells.";
+                Log(Debug::Warning)
+                    << "LOD clusters: a cluster could not be compiled; the live objects keep its cells.";
             }
             tile.mNode = {};
             tile.mMaterials.clear();
@@ -645,7 +646,8 @@ namespace MWRender
         // The hand-over order is Lod::stepCoverage's: a cluster dithers in over the live objects, is solid while they
         // leave out its statics, and when it is no longer wanted stays solid until they draw the statics again (or
         // another solid cluster covers the cell).
-        const Lod::LiveReadyFn ready = liveReady ? Lod::LiveReadyFn(liveReady) : Lod::LiveReadyFn([](const Lod::Cell&) { return true; });
+        const Lod::LiveReadyFn ready
+            = liveReady ? Lod::LiveReadyFn(liveReady) : Lod::LiveReadyFn([](const Lod::Cell&) { return true; });
         if (Lod::stepCoverage(state.mCover, static_cast<float>(seconds), setup.mFadeSeconds, ready))
             state.mClusteredDirty = true;
 

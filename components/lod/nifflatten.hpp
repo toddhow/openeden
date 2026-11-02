@@ -28,10 +28,10 @@ namespace Lod
     /// Whether a texture file name is a translucent surface (water, ice, glass, mist, smoke, rope, web, a window, a
     /// bottle, a ghost, bubbles, glows and shafts of light) that would draw wrong as a solid cutout. The base name
     /// (without folders and extension) is split into words at everything that is not a letter and lower-cased; a word
-    /// matches when it equals a keyword (ray, rays, mist, fog, rope, ropes, web, webs, window, windows, bottle, bottles,
-    /// ghost, bubble, bubbles, smoke, steam, glass, glow, cloud, clouds, water, ice) or begins with one of water, ice,
-    /// glass, glow, smoke, steam, cloud, ghost, bubble (so icelayer and waterfall match; gray, tray, array, office and
-    /// notice do not).
+    /// matches when it equals a keyword (ray, rays, mist, fog, rope, ropes, web, webs, window, windows, bottle,
+    /// bottles, ghost, bubble, bubbles, smoke, steam, glass, glow, cloud, clouds, water, ice) or begins with one of
+    /// water, ice, glass, glow, smoke, steam, cloud, ghost, bubble (so icelayer and waterfall match; gray, tray, array,
+    /// office and notice do not).
     bool textureLooksTranslucent(std::string_view texture);
 
     struct FlattenedModel
@@ -50,8 +50,8 @@ namespace Lod
     /// With `blendAsCutout`, geometry that is alpha blended with the ordinary blend (source alpha, one minus source
     /// alpha) but not alpha tested (Morrowind's foliage and many trees) becomes alpha tested at blendCutoutThreshold
     /// instead of being left out, unless its texture looks translucent, its material alpha is below 0.99 or it has no
-    /// texture (then it is left out, and the model is marked alpha blended, as without the option). A merged mesh cannot
-    /// be sorted for blending, and leaving the blended models out made most trees vanish from the far field.
+    /// texture (then it is left out, and the model is marked alpha blended, as without the option). A merged mesh
+    /// cannot be sorted for blending, and leaving the blended models out made most trees vanish from the far field.
     FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout = false);
 }
 

@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <iterator>
-#include <optional>
 #include <map>
+#include <optional>
 
 #include <vsg/commands/Dispatch.h>
 #include <vsg/core/Visitor.h>
@@ -20,8 +20,8 @@
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/readerscache.hpp>
-#include <components/misc/resourcehelpers.hpp>
 #include <components/lod/clusterplan.hpp>
+#include <components/misc/resourcehelpers.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/cullnode.hpp>
@@ -237,8 +237,7 @@ namespace MWRender
 
         ChunkBuild(const MWAnim::Context& in_context, const MWWorld::ESMStore& in_store,
             const std::pair<int, int>& in_cell, std::set<ESM::RefNum> in_disabled, float in_minSize,
-            unsigned int in_generation,
-            std::shared_ptr<const std::vector<Lod::ClusterRef>> in_clusterRefs)
+            unsigned int in_generation, std::shared_ptr<const std::vector<Lod::ClusterRef>> in_clusterRefs)
             : context(in_context)
             , store(in_store)
             , cell(in_cell)

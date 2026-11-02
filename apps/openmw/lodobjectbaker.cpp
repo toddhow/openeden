@@ -200,11 +200,11 @@ namespace OMW
         std::vector<std::uint8_t> parameterBytes(std::uint32_t level, std::uint32_t error, std::uint32_t cellSize)
         {
             std::vector<std::uint8_t> bytes;
-            // The foliage rule (blend as cutout, the cutoff, the translucent names) changes what a model flattens to, so
-            // its version and constants are part of the digest: an older pack goes stale.
-            for (const std::uint32_t word : { bakerVersion, level, error,
-                     static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize, Lod::foliageRuleVersion,
-                     static_cast<std::uint32_t>(Lod::blendCutoutThreshold) })
+            // The foliage rule (blend as cutout, the cutoff, the translucent names) changes what a model flattens to,
+            // so its version and constants are part of the digest: an older pack goes stale.
+            for (const std::uint32_t word :
+                { bakerVersion, level, error, static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize,
+                    Lod::foliageRuleVersion, static_cast<std::uint32_t>(Lod::blendCutoutThreshold) })
                 for (int shift = 0; shift < 32; shift += 8)
                     bytes.push_back(static_cast<std::uint8_t>((word >> shift) & 0xFF));
             return bytes;

@@ -349,11 +349,11 @@ namespace Lod
         if (dot != std::string_view::npos)
             name = name.substr(0, dot);
 
-        static constexpr std::string_view exact[] = { "ray", "rays", "mist", "fog", "rope", "ropes", "web", "webs",
-            "window", "windows", "bottle", "bottles", "ghost", "bubble", "bubbles", "smoke", "steam", "glass", "glow",
-            "cloud", "clouds", "water", "ice" };
-        static constexpr std::string_view prefixes[] = { "water", "ice", "glass", "glow", "smoke", "steam", "cloud",
-            "ghost", "bubble" };
+        static constexpr std::string_view exact[]
+            = { "ray", "rays", "mist", "fog", "rope", "ropes", "web", "webs", "window", "windows", "bottle", "bottles",
+                  "ghost", "bubble", "bubbles", "smoke", "steam", "glass", "glow", "cloud", "clouds", "water", "ice" };
+        static constexpr std::string_view prefixes[]
+            = { "water", "ice", "glass", "glow", "smoke", "steam", "cloud", "ghost", "bubble" };
 
         std::string word;
         const auto matches = [](const std::string& token) {
