@@ -214,7 +214,7 @@ add_component_dir (cmphysics
     )
 
 add_component_dir (vfs
-    manager archive bsaarchive filesystemarchive pathutil registerarchives
+    manager archive bsaarchive filesystemarchive pathutil registerarchives rangeread archivefactory file entryname
     )
 
 #<vsgopenmw-code-style="pending">

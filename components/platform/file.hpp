@@ -30,6 +30,11 @@ namespace Platform::File
 
     size_t read(Handle handle, void* data, size_t size);
 
+    /// Reads up to `size` bytes starting at the absolute byte `position` and returns how many were read (fewer than
+    /// `size` only at the end of the file). Does not depend on, and may change, the handle's current position, so
+    /// several threads may call it on one handle at once where the platform allows (Windows and POSIX do).
+    size_t readAt(Handle handle, size_t position, void* data, size_t size);
+
     class ScopedHandle
     {
         Handle mHandle{ Handle::Invalid };

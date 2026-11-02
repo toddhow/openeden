@@ -8,6 +8,8 @@
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/conversion.hpp>
 
+#include "rangeread.hpp"
+
 namespace VFS
 {
 
@@ -90,6 +92,16 @@ namespace VFS
     std::string FileSystemArchiveFile::getStem() const
     {
         return Files::pathToUnicodeString(mPath.stem());
+    }
+
+    std::uint64_t FileSystemArchiveFile::size()
+    {
+        return getFileSize(mPath);
+    }
+
+    void FileSystemArchiveFile::readRange(std::uint64_t offset, std::size_t size, void* destination)
+    {
+        readFileRange(mPath, offset, size, destination, "'" + Files::pathToUnicodeString(mPath) + "'");
     }
 
 }

@@ -93,4 +93,12 @@ namespace Platform::File
         return static_cast<size_t>(amount);
     }
 
+    size_t readAt(Handle handle, size_t position, void* data, size_t size)
+    {
+        // The standard library has no positional read: this moves the handle's position, so a handle must not be
+        // shared between threads on this platform.
+        seek(handle, position);
+        return read(handle, data, size);
+    }
+
 }

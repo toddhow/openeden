@@ -21,6 +21,11 @@ namespace VFS
 
         std::string getStem() const override;
 
+        std::uint64_t size() override;
+
+        /// A positional read on a handle opened for the call: thread-safe, and the file may be replaced between calls.
+        void readRange(std::uint64_t offset, std::size_t size, void* destination) override;
+
     private:
         std::filesystem::path mPath;
     };

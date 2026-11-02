@@ -12,11 +12,30 @@ namespace openeden::extension
 {
     namespace
     {
+        // This service keeps its own mount table of physical folders and does not use VFS::Manager, so it has its
+        // own, smaller path rule: only the separator is unified, the case is kept because the mounts are read from
+        // the real file system. Whether a path stays inside its mount is checked in hasParentComponent (task 0050).
         std::string normalizeVirtualPath(std::string_view path)
         {
             std::string normalized(path);
             std::replace(normalized.begin(), normalized.end(), '\\', '/');
             return normalized;
+        }
+
+        // True when a '/' separated path has a '..' component, which would leave the mount's folder.
+        bool hasParentComponent(std::string_view path)
+        {
+            std::size_t start = 0;
+            while (start <= path.size())
+            {
+                std::size_t end = path.find('/', start);
+                if (end == std::string_view::npos)
+                    end = path.size();
+                if (path.substr(start, end - start) == "..")
+                    return true;
+                start = end + 1;
+            }
+            return false;
         }
     } // namespace
 
@@ -99,6 +118,14 @@ namespace openeden::extension
             {
                 continue;
             }
+
+            // A path that climbs out of the mount's folder never resolves, whatever file is there.
+            // On Windows 'dir / "/x"' replaces the folder with the drive's root, so a leading '/' is refused as well.
+            // A symbolic link inside the mount's folder can still lead out of it; that is the folder owner's choice.
+            const std::filesystem::path relative(relativePath);
+            if (hasParentComponent(relativePath) || relativePath.starts_with('/') || relative.is_absolute()
+                || relative.has_root_name() || relative.has_root_directory())
+                continue;
 
             const auto candidate = mount.physicalDir / relativePath;
             std::error_code ec;

@@ -4,6 +4,7 @@
 #include "archive.hpp"
 #include "file.hpp"
 #include "pathutil.hpp"
+#include "rangeread.hpp"
 
 #include <components/bsa/ba2dx10file.hpp>
 #include <components/bsa/ba2gnrlfile.hpp>
@@ -15,6 +16,7 @@
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 
 namespace VFS
 {
@@ -36,6 +38,25 @@ namespace VFS
         std::filesystem::file_time_type getLastModified() const override
         {
             return std::filesystem::last_write_time(mFile->getFile()->getPath());
+        }
+
+        // Only the uncompressed Morrowind format stores an entry as plain bytes that can be read at an offset. The
+        // other formats (compressed BSA, BA2) keep the default: open the entry, which decompresses it, and slice.
+        std::uint64_t size() override
+        {
+            if constexpr (std::is_same_v<FileType, Bsa::BSAFile>)
+                return mInfo->mFileSize;
+            else
+                return File::size();
+        }
+
+        void readRange(std::uint64_t offset, std::size_t size, void* destination) override
+        {
+            if constexpr (std::is_same_v<FileType, Bsa::BSAFile>)
+                readFileRange(mFile->getFile()->getPath(), mInfo->mOffset, mInfo->mFileSize, offset, size, destination,
+                    "'" + std::string(mInfo->name()) + "' in " + mFile->getFile()->getFilename());
+            else
+                File::readRange(offset, size, destination);
         }
 
         std::string getStem() const override

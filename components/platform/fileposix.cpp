@@ -103,4 +103,27 @@ namespace Platform::File
         return amount;
     }
 
+    size_t readAt(Handle handle, size_t position, void* data, size_t size)
+    {
+        auto nativeHandle = getNativeHandle(handle);
+
+        size_t total = 0;
+        while (total < size)
+        {
+            const ssize_t amount
+                = ::pread(nativeHandle, static_cast<char*>(data) + total, size - total, static_cast<off_t>(position + total));
+            if (amount == -1)
+            {
+                if (errno == EINTR)
+                    continue;
+                throw std::system_error(
+                    errno, std::generic_category(), "An attempt to read " + std::to_string(size) + " bytes failed");
+            }
+            if (amount == 0)
+                break;
+            total += static_cast<size_t>(amount);
+        }
+        return total;
+    }
+
 }

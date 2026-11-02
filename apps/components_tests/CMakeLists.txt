@@ -105,6 +105,12 @@ file(GLOB UNITTEST_SRC_FILES
     vfs/testpathutil.cpp
     vfs/testvfscharacterisation.cpp
     vfs/testvfsnormalization.cpp
+    vfs/testvfsoverrides.cpp
+    vfs/testvfsrange.cpp
+    vfs/testvfsthreads.cpp
+    vfs/testvfsarchivekinds.cpp
+    vfs/testvfsentryname.cpp
+    vfs/testvfsservicetraversal.cpp
 
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp

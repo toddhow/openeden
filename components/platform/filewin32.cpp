@@ -1,5 +1,6 @@
 #include "file.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <components/misc/windows.hpp>
 #include <stdexcept>
@@ -98,5 +99,36 @@ namespace Platform::File
                 std::string("A read operation on a file failed: ") + std::to_string(GetLastError()));
 
         return bytesRead;
+    }
+
+    size_t readAt(Handle handle, size_t position, void* data, size_t size)
+    {
+        auto nativeHandle = getNativeHandle(handle);
+
+        size_t total = 0;
+        while (total < size)
+        {
+            // ReadFile takes a 32-bit count; read at most 1 GiB per call.
+            constexpr size_t maxChunk = size_t(1) << 30;
+            const DWORD chunk = static_cast<DWORD>((std::min)(size - total, maxChunk));
+            const unsigned long long at = static_cast<unsigned long long>(position) + total;
+
+            OVERLAPPED overlapped{};
+            overlapped.Offset = static_cast<DWORD>(at & 0xFFFFFFFFull);
+            overlapped.OffsetHigh = static_cast<DWORD>(at >> 32);
+
+            DWORD bytesRead{};
+            if (!ReadFile(nativeHandle, static_cast<char*>(data) + total, chunk, &bytesRead, &overlapped))
+            {
+                const DWORD error = GetLastError();
+                if (error == ERROR_HANDLE_EOF)
+                    break;
+                throw std::runtime_error(std::string("A read operation on a file failed: ") + std::to_string(error));
+            }
+            if (bytesRead == 0)
+                break;
+            total += bytesRead;
+        }
+        return total;
     }
 }
