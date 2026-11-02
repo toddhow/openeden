@@ -32,6 +32,7 @@ set(SHADER_FILES
     lib/view/reflection.glsl
     lib/view/skyvis.glsl
     lib/view/cloudshadow.glsl
+    lib/view/volumecloudshadow.glsl
     lib/material/wetness.glsl
     lib/material/cover.glsl
     lib/light/precipitation.glsl
@@ -191,3 +192,11 @@ openeden_add_slang_shader(
     SOURCE comp/volume/volume.slang
     OUTPUT_DIR comp/volume
     STAGES fillMain:compute:fill integrateMain:compute:integrate temporalMain:compute:temporal)
+
+# The volumetric clouds' compute passes (task 0042), loaded whenever [Rendering] volumetric clouds is on; a missing file
+# leaves the clouds off with a log line.
+openeden_add_slang_shader(
+    SOURCE comp/cloud/cloud.slang
+    OUTPUT_DIR comp/cloud
+    STAGES noiseShapeMain:compute:noiseshape noiseDetailMain:compute:noisedetail noiseCurlMain:compute:noisecurl
+        marchMain:compute:march resolveMain:compute:resolve copyMain:compute:copy shadowMain:compute:shadow)

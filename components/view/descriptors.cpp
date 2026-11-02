@@ -173,6 +173,17 @@ namespace View
             data, Pipeline::Descriptors::VIEW_VOLUME_PARAMS_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     }
 
+    vsg::ref_ptr<vsg::Descriptor> dummyCloudShadow()
+    {
+        auto sampler = vsg::Sampler::create();
+        sampler->minFilter = sampler->magFilter = VK_FILTER_NEAREST;
+        sampler->addressModeU = sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        auto image = vsg::vec4Array2D::create(
+            1, 1, vsg::vec4(0.f, 0.f, 0.f, 0.f), vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
+        return vsg::DescriptorImage::create(sampler, image, Pipeline::Descriptors::VIEW_CLOUD_SHADOW_BINDING, 0,
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    }
+
     vsg::ref_ptr<vsg::Descriptor> volumeParamsBuffer(vsg::ref_ptr<vsg::vec4Array>& data)
     {
         data = vsg::vec4Array::create(Render::Volume::paramsVec4s);

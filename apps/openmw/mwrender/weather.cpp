@@ -25,6 +25,8 @@
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/render/cloudmath.hpp>
+#include <components/render/cloudvolumegpu.hpp>
+#include <components/render/cloudvolumemath.hpp>
 #include <components/resource/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
@@ -526,6 +528,8 @@ namespace MWRender
             && Render::Cloud::parseLook(Settings::rendering().mCloudsLook.get()) == Render::Cloud::Look::Lit;
         mCloudShadowsOn = Render::Cloud::useShadows(
             Settings::rendering().mCloudShadows, Settings::rendering().mHdr, Settings::rendering().mAtmosphere);
+        mVolumeCloudsOn = Render::CloudVolume::useVolumetricClouds(
+            Settings::rendering().mVolumetricClouds, Settings::rendering().mHdr, Settings::rendering().mAtmosphere);
         auto nodeOptions = vsg::Options::create(*resourceSystem.nodeOptions);
         // openeden-vsg: an unreadable sky model (the example suite's .osgt clouds and stars: an OpenSceneGraph format
         // the VSG build has no reader for) must stay empty. The world's fallback would draw the error marker, which can
@@ -670,6 +674,16 @@ namespace MWRender
             }
         }
 
+        // OpenEden (task 0042): the volume's share eases to its weather's value, and its wind blows with the weather's
+        // cloud speed, in simulation time.
+        if (mVolumeImage)
+        {
+            mVolumeShare = Render::CloudVolume::easeShare(mVolumeShare, mVolumeShareTarget, duration);
+            const float step = Render::CloudVolume::windStep(mCloudSpeed, duration);
+            mVolumeWind[0] += static_cast<double>(Render::CloudVolume::windDirection[0]) * step;
+            mVolumeWind[1] += static_cast<double>(Render::CloudVolume::windDirection[1]) * step;
+        }
+
         // UV Scroll the clouds
         mCloudAnimationTimer += duration * mCloudSpeed * 0.003;
         vsg::mat4 texmat = vsg::translate(vsg::vec3(0, -mCloudAnimationTimer, 0));
@@ -811,6 +825,9 @@ namespace MWRender
             mCloudGrid[1] = weather.mNextCloudTexture.empty() ? nullptr : gridOf(weather.mNextCloudTexture);
         }
 
+        if (mVolumeCloudsOn)
+            applyVolumeClouds(weather);
+
         mSkyColor = weather.mSkyColor;
         mSkyColor.a = weather.mGlareView;
 
@@ -897,6 +914,72 @@ namespace MWRender
         mSun->glareTimeOfDayFade = val;
     }
 
+    void Sky::setVolumeClouds(vsg::ref_ptr<vsg::Descriptor> image)
+    {
+        mVolumeImage = std::move(image);
+    }
+
+    Sky::VolumeCloudInput Sky::getVolumeClouds() const
+    {
+        VolumeCloudInput input;
+        input.valid = mVolumeImage != nullptr;
+        input.coverage = mVolumeCoverage;
+        input.windX = Render::CloudVolume::wrapWind(mVolumeWind[0]);
+        input.windY = Render::CloudVolume::wrapWind(mVolumeWind[1]);
+        input.share = mVolumeShare;
+        return input;
+    }
+
+    // Task 0042: the weather's coverage from its cloud pictures, and the cloud dome showing the volume's picture where
+    // the weather lets the volume draw. The vanilla picture stays on the second dome, fading out as the share rises.
+    void Sky::applyVolumeClouds(const WeatherResult& weather)
+    {
+        const auto meanThickness = [this](const std::string& file) {
+            const auto found = mCloudMeanThickness.find(file);
+            return found != mCloudMeanThickness.end() ? found->second : 0.f;
+        };
+        const float current = Render::CloudVolume::coverageFromThickness(meanThickness(weather.mCloudTexture));
+        const float next = weather.mNextCloudTexture.empty()
+            ? current
+            : Render::CloudVolume::coverageFromThickness(meanThickness(weather.mNextCloudTexture));
+        mVolumeCoverage = Render::CloudVolume::blendCoverage(current, next, mCloudBlendFactor);
+        mVolumeShareTarget = Render::CloudVolume::volumeShareTarget(weather.mIsStorm, weather.mFogDepth);
+        if (std::abs(mVolumeCoverage - mVolumeCoverageLogged) > 0.01f)
+        {
+            Log(Debug::Info) << "Volumetric clouds: coverage " << mVolumeCoverage << " (" << weather.mCloudTexture
+                             << " thickness " << meanThickness(weather.mCloudTexture) << "), share target "
+                             << mVolumeShareTarget;
+            mVolumeCoverageLogged = mVolumeCoverage;
+        }
+        // The first weather (a new game or a load) starts at its share instead of fading in.
+        if (!mVolumeShareSet)
+            mVolumeShare = mVolumeShareTarget;
+        mVolumeShareSet = true;
+        if (!mVolumeImage)
+            return;
+
+        mClouds->material.setVolumeClouds(mVolumeShare > 0.f);
+        if (mVolumeShare <= 0.f)
+            return;
+        mClouds->setTexture(mVolumeImage, *mCompile);
+        mClouds->material.setAlpha(mVolumeShare);
+        mClouds.setEnabled(mClouds->textureValid());
+        // The vanilla picture (the next weather's once it is more than half in) on the second dome, for the part of the
+        // sky the volume does not take.
+        const std::string& picture = (mCloudBlendFactor > 0.5f && !weather.mNextCloudTexture.empty())
+            ? weather.mNextCloudTexture
+            : weather.mCloudTexture;
+        if (mVolumeShare < 1.f)
+        {
+            mNextClouds->setTexture(getOrCreateCloudTexture(picture), *mCompile);
+            mNextClouds->material.setAlpha(1.f - mVolumeShare);
+            mNextClouds->material.setTint(weather.mCloudTint);
+            mNextClouds.setEnabled(mNextClouds->textureValid());
+        }
+        else
+            mNextClouds.setEnabled(false);
+    }
+
     Sky::CloudShadowInput Sky::getCloudShadow() const
     {
         CloudShadowInput input;
@@ -922,8 +1005,15 @@ namespace MWRender
             auto sampler = vsg::Sampler::create();
             share(sampler, mTextureOptions);
             auto descriptor = vsg::DescriptorImage::create(sampler, data);
-            if (mCloudShadowsOn)
-                mCloudGrids.emplace(file, buildCloudGrid(file, *data));
+            if (mCloudShadowsOn || mVolumeCloudsOn)
+            {
+                const auto grid = mCloudGrids.emplace(file, buildCloudGrid(file, *data)).first;
+                // The mean thickness gives the volumetric clouds' coverage (see applyVolumeClouds).
+                float sum = 0.f;
+                for (float v : grid->second)
+                    sum += v;
+                mCloudMeanThickness[file] = grid->second.empty() ? 0.f : sum / static_cast<float>(grid->second.size());
+            }
             found = mCloudTextures.emplace(file, descriptor).first;
         }
         return found->second;

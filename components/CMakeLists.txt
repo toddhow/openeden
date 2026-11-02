@@ -142,7 +142,7 @@ add_component_dir (render
 # Renders pipelines.
 # Depends on pipeline, render.
 add_component_dir (view
-    scene descriptors collectlights defaultstate lightgrid shadow env volumefog
+    scene descriptors collectlights defaultstate lightgrid shadow env volumefog cloudvolume
     )
 # Provides dynamic scene graph objects.
 add_component_dir (animation

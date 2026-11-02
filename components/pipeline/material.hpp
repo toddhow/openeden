@@ -35,6 +35,10 @@ namespace Pipeline
         }
         // OpenEden (task 0038): the cloud shader's share of the lit look (the specular alpha, which it does not use).
         void setCloudShare(float share) { update(value().specular.a, share); }
+        // OpenEden (task 0042): makes the cloud shader draw the volumetric clouds' picture instead of the cloud
+        // texture's. The flag is the ambient alpha (which the cloud shader does not use), 1 by default, so a material
+        // that never calls this stays vanilla; the shader tests for more than 1.5.
+        void setVolumeClouds(bool on) { update(value().ambient.a, on ? 2.f : 1.f); }
         static Data::Material createDefault()
         {
             return { vsg::vec4(1, 1, 1, 1), vsg::vec4(1, 1, 1, 1), vsg::vec4(0, 0, 0, 1), vsg::vec4(0, 0, 0, 0), 0.f,

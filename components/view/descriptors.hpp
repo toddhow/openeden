@@ -38,6 +38,10 @@ namespace View
     vsg::ref_ptr<vsg::Descriptor> dummyVolumeParams();
     vsg::ref_ptr<vsg::Descriptor> volumeParamsBuffer(vsg::ref_ptr<vsg::vec4Array>& data);
 
+    // OpenEden (task 0042): the volumetric clouds' ground shadow map (binding 16). The stand-in is one texel; the
+    // shader reads its size and finds no map (so no shadow) in it.
+    vsg::ref_ptr<vsg::Descriptor> dummyCloudShadow();
+
     // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();
 

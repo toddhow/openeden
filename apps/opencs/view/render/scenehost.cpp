@@ -234,6 +234,7 @@ namespace CSVRender
         descriptors.emplace_back(View::dummySkyVisSky());
         descriptors.emplace_back(View::dummyVolume());
         descriptors.emplace_back(View::dummyVolumeParams());
+        descriptors.emplace_back(View::dummyCloudShadow());
         descriptors.emplace_back(mSceneData->descriptor());
         auto viewDescriptorSet = View::createViewDescriptorSet(descriptors);
         mSceneRoot = View::createDefaultState(viewDescriptorSet);

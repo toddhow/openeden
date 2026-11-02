@@ -132,6 +132,15 @@ namespace Settings
             makeClampSanitizerFloat(-0.95f, 0.95f) };
         SettingValue<bool> mVolumetricsTemporal{ mIndex, "Rendering", "volumetrics temporal" };
         SettingValue<bool> mVolumetricsDebug{ mIndex, "Rendering", "volumetrics debug" };
+        // OpenEden (task 0042): ray-marched volumetric clouds (read at start; need hdr and atmosphere).
+        SettingValue<bool> mVolumetricClouds{ mIndex, "Rendering", "volumetric clouds" };
+        SettingValue<std::string> mVolumetricCloudsQuality{ mIndex, "Rendering", "volumetric clouds quality" };
+        SettingValue<float> mVolumetricCloudsCoverageScale{ mIndex, "Rendering", "volumetric clouds coverage scale",
+            makeClampSanitizerFloat(0, 2) };
+        SettingValue<float> mVolumetricCloudsDensity{ mIndex, "Rendering", "volumetric clouds density",
+            makeClampSanitizerFloat(0, 4) };
+        SettingValue<bool> mVolumetricCloudsShadows{ mIndex, "Rendering", "volumetric clouds shadows" };
+        SettingValue<std::string> mVolumetricCloudsDebug{ mIndex, "Rendering", "volumetric clouds debug" };
         SettingValue<int> mGiBakeSkyRays{ mIndex, "Rendering", "gi bake sky rays", makeClampSanitizerInt(1, 65536) };
         SettingValue<float> mGiBakeSkySpacing{ mIndex, "Rendering", "gi bake sky spacing",
             makeClampSanitizerFloat(128, 2048) };

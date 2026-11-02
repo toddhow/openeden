@@ -67,6 +67,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
 #include <components/view/barriers.hpp>
+#include <components/view/cloudvolume.hpp>
 #include <components/view/collectlights.hpp>
 #include <components/view/defaultstate.hpp>
 #include <components/view/descriptors.hpp>
@@ -142,6 +143,7 @@ namespace MWRender
             descriptors.emplace_back(View::dummySkyVisSky());
             descriptors.emplace_back(View::dummyVolume());
             descriptors.emplace_back(View::dummyVolumeParams());
+            descriptors.emplace_back(View::dummyCloudShadow());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -519,6 +521,28 @@ namespace MWRender
             descriptors.emplace_back(View::dummyVolume());
             descriptors.emplace_back(View::dummyVolumeParams());
         }
+        // Task 0042: the volumetric clouds are made here, before the view set, because their ground shadow map is one
+        // of its bindings; their commands are built (and the sky given the picture) when the scene graph is.
+        {
+            const auto& rendering = Settings::rendering();
+            if (rendering.mVolumetricClouds && !(mHdrTarget && rendering.mAtmosphere))
+                Log(Debug::Warning) << "[Rendering] volumetric clouds needs hdr and atmosphere (they are lit in linear "
+                                       "space by the weather's sun); the volumetric clouds are off";
+            if (Render::CloudVolume::useVolumetricClouds(
+                    rendering.mVolumetricClouds, mHdrTarget != nullptr, rendering.mAtmosphere)
+                && View::CloudVolume::shadersAvailable(mResourceSystem->shaderOptions))
+            {
+                const auto quality = Render::CloudVolume::parseQuality(rendering.mVolumetricCloudsQuality.get());
+                if (!quality)
+                    Log(Debug::Warning) << "[Rendering] volumetric clouds quality: unknown '"
+                                        << rendering.mVolumetricCloudsQuality.get() << "', using medium";
+                const auto extent = mHdrTarget->extent();
+                mCloudVolume
+                    = std::make_unique<View::CloudVolume>(quality.value_or(Render::CloudVolume::Quality::Medium),
+                        std::array<std::uint32_t, 2>{ extent.width, extent.height });
+            }
+        }
+        descriptors.emplace_back(mCloudVolume ? mCloudVolume->shadowDescriptor() : View::dummyCloudShadow());
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -671,6 +695,28 @@ namespace MWRender
             else
                 mVolumeFog.reset();
         }
+        // Task 0042: the volumetric clouds' passes, in a graph of their own that runs first (they read only the scene
+        // block, which the CPU writes).
+        vsg::ref_ptr<vsgUtil::ComputeBin> cloudBin;
+        {
+            const auto extent = mHdrTarget ? mHdrTarget->extent() : VkExtent2D{};
+            if (mCloudVolume)
+            {
+                if (mCloudVolume->createCommands(mResourceSystem->shaderOptions, viewDescriptorSet))
+                {
+                    viewRoot->children.insert(
+                        viewRoot->children.begin() + 1, vsgUtil::createBinSetter(Bin_Cloud, mCloudVolume->node()));
+                    cloudBin = vsgUtil::ComputeBin::create();
+                    cloudBin->binNumber = Bin_Cloud;
+                    mSky->setVolumeClouds(mCloudVolume->resultDescriptor());
+                    Log(Debug::Info) << "Volumetric clouds: marching " << mCloudVolume->marchSize()[0] << " x "
+                                     << mCloudVolume->marchSize()[1] << " for a picture of " << extent.width << " x "
+                                     << extent.height;
+                }
+                else
+                    mCloudVolume.reset();
+            }
+        }
         mView = vsgUtil::createSharedView(mSceneCamera, viewRoot);
         mView->viewDependentState = collectLights;
         mView->mask = ~Mask_GUI;
@@ -758,6 +804,20 @@ namespace MWRender
                 volumeBin->timingEnd = mGpuTimer->endNode(pass);
             }
             mView->bins.push_back(volumeBin);
+        }
+
+        if (cloudBin)
+        {
+            // Submit order -4: before the shadow maps (-3), the light grid (-2), the fog volume (-1) and the scene (0).
+            cloudBin->commandGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
+            cloudBin->commandGraph->submitOrder = -4;
+            if (mGpuTimer)
+            {
+                const std::size_t pass = mGpuTimer->addPass("volumetric clouds");
+                cloudBin->timingBegin = mGpuTimer->beginNode(pass);
+                cloudBin->timingEnd = mGpuTimer->endNode(pass);
+            }
+            mView->bins.push_back(cloudBin);
         }
 
         // openeden-vsg: in VSG 1.1.x a compile context uploads vertex, index and image data only through a
@@ -1968,10 +2028,50 @@ namespace MWRender
         mVolumeFog->setParams(input, mViewMatrix->transform(), mProjectionMatrix->transform());
     }
 
+    void RenderManager::updateCloudVolume()
+    {
+        if (!mCloudVolume)
+            return;
+        const auto& rendering = Settings::rendering();
+        const Sky::VolumeCloudInput clouds
+            = mRenderModes[Render_Sky].active ? mSky->getVolumeClouds() : Sky::VolumeCloudInput{};
+        const bool underwater
+            = mRenderModes[Render_Water].active && mWater->isUnderwater(vsg::vec3(mCamera->getPosition()));
+        // Nothing is drawn (and nothing marched) where the sky shows no volume: interiors, weathers that keep the
+        // vanilla sky, under water.
+        const bool active = clouds.valid && clouds.share > 0.f && !underwater;
+        mCloudVolume->setEnabled(active);
+        if (!active)
+        {
+            // The ground shadow map is told that nothing casts a shadow.
+            mCloudVolume->setParams({}, mViewMatrix->transform(), mProjectionMatrix->transform());
+            return;
+        }
+        const auto tier = Render::CloudVolume::tierSettings(mCloudVolume->quality());
+        Render::CloudVolume::ParamsInput input;
+        input.coverage = clouds.coverage * rendering.mVolumetricCloudsCoverageScale;
+        input.densityScale = rendering.mVolumetricCloudsDensity;
+        input.windMeters = { clouds.windX, clouds.windY };
+        if (rendering.mVolumetricCloudsShadows)
+        {
+            // The sun's light is dim at night (the manager's mirrored light), and then there are no shadows.
+            const vsg::vec4& sunLight = mSceneData->value().lightDiffuse;
+            input.shadowShare = clouds.share;
+            input.shadowStrength = mCloudShadowStrength
+                * Render::Cloud::strength(Render::Cloud::luminance(sunLight.x, sunLight.y, sunLight.z), 1.f);
+        }
+        input.steps = tier.steps;
+        input.lightSteps = tier.lightSteps;
+        input.hazeLengthMeters = Render::CloudVolume::hazeLengthMeters(mFog->getFogEnd(false));
+        input.debug = Render::CloudVolume::parseDebugView(rendering.mVolumetricCloudsDebug.get());
+        mCloudVolume->setParams(input, mViewMatrix->transform(), mProjectionMatrix->transform());
+    }
+
     void RenderManager::onFrame(float dt)
     {
         updateSceneData();
         updateVolume();
+        updateCloudVolume();
         updateSkyVisibility();
         updateSkyEnvironment();
         updateSkyDebug();

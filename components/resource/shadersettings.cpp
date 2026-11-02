@@ -7,6 +7,7 @@
 
 #include <components/fallback/fallback.hpp>
 #include <components/render/cloudmath.hpp>
+#include <components/render/cloudvolumemath.hpp>
 #include <components/settings/settings.hpp>
 
 namespace
@@ -77,6 +78,11 @@ namespace Resource
             if (Settings::Manager::getBool("cloud shadow debug", "Rendering"))
                 source << "#define CLOUD_SHADOW_DEBUG 1\n";
         }
+        // OpenEden (task 0042): the ray marched clouds' shadow on the ground (lib/view/volumecloudshadow.glsl).
+        if (Render::CloudVolume::useVolumetricClouds(Settings::Manager::getBool("volumetric clouds", "Rendering"), hdr,
+                Settings::Manager::getBool("atmosphere", "Rendering"))
+            && Settings::Manager::getBool("volumetric clouds shadows", "Rendering"))
+            source << "#define VOLUME_CLOUD_SHADOW 1\n";
         if (Settings::Manager::getBool("enable debug hud", "Shadows"))
             source << "#define DEBUG_SHADOW 1\n";
         objects["shadow.settings"] = vsg::ShaderModule::create(source.str());
@@ -87,6 +93,12 @@ namespace Resource
             Render::Cloud::useClouds(Settings::Manager::getBool("clouds", "Rendering"), hdr)
                 && Render::Cloud::parseLook(Settings::Manager::getString("clouds look", "Rendering"))
                     == Render::Cloud::Look::Lit,
+            source);
+        // OpenEden (task 0042): the volumetric clouds' result is drawn by the cloud dome (sky/clouds/main.frag) where
+        // the dome's material says so.
+        add("cVolumetricClouds",
+            Render::CloudVolume::useVolumetricClouds(Settings::Manager::getBool("volumetric clouds", "Rendering"), hdr,
+                Settings::Manager::getBool("atmosphere", "Rendering")),
             source);
         objects["cloud.settings"] = vsg::ShaderModule::create(source.str());
 

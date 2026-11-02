@@ -5,6 +5,9 @@
 #ifdef CLOUD_SHADOW
 #include "cloudshadow.glsl"
 #endif
+#ifdef VOLUME_CLOUD_SHADOW
+#include "volumecloudshadow.glsl"
+#endif
 
 layout(set=VIEW_SET, binding=VIEW_SHADOW_MAP_BINDING) uniform texture2DArray shadowMap;
 layout(set=VIEW_SET, binding=VIEW_SHADOW_SAMPLER_BINDING) uniform sampler shadowSampler;
@@ -119,13 +122,31 @@ float shadowMaps(vec3 viewPos, vec3 viewNormal/*, Scene scene*/)
 
 // The sun's shadow on the ground. OpenEden (task 0038): the clouds' shadow multiplies the shadow maps' (it darkens the
 // direct sun only, which is all this value is used for). Without CLOUD_SHADOW it is the shadow maps' alone, as before.
+// OpenEden (task 0042): with VOLUME_CLOUD_SHADOW the shadow of the ray marched clouds takes the place of the vanilla
+// layers' where the volume draws the sky (its share, 0 to 1, eased by the weather), so the two never add up.
+#if defined(CLOUD_SHADOW) || defined(VOLUME_CLOUD_SHADOW)
+float cloudsShadow(vec3 viewPos)
+{
+#ifdef VOLUME_CLOUD_SHADOW
+    vec2 volume = volumeCloudShadow(viewPos);
+ #ifdef CLOUD_SHADOW
+    return mix(cloudShadow(viewPos), volume.x, volume.y);
+ #else
+    return mix(1.0, volume.x, volume.y);
+ #endif
+#else
+    return cloudShadow(viewPos);
+#endif
+}
+#endif
+
 float shadow(vec3 viewPos, vec3 viewNormal/*, Scene scene*/)
 {
-#ifdef CLOUD_SHADOW
+#if defined(CLOUD_SHADOW) || defined(VOLUME_CLOUD_SHADOW)
  #ifdef CLOUD_SHADOW_DEBUG
-    return cloudShadow(viewPos);
+    return cloudsShadow(viewPos);
  #else
-    return shadowMaps(viewPos, viewNormal) * cloudShadow(viewPos);
+    return shadowMaps(viewPos, viewNormal) * cloudsShadow(viewPos);
  #endif
 #else
     return shadowMaps(viewPos, viewNormal);

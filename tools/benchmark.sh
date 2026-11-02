@@ -22,6 +22,7 @@
 #   viewdist=<units>   [Camera] viewing distance
 #   distant            distant terrain and object paging on
 #   walk               add tools/benchmark_data, whose Lua player script runs the player forward and turns now and then
+#   look               add tools/benchmark_data, whose Lua player script holds the camera still and looking at the sky
 #   script=<file>      a console script in tools/benchmark_data to run at the start (--script-run), to place the camera
 # render_compare.sh reads the same file and skips the heavy_ scenes.
 
@@ -94,6 +95,11 @@ while IFS='|' read -r name type target shot quit desc options || [[ -n "${name:-
 
     if [[ ",$options," == *",walk,"* ]]; then
         { echo "data=\"$(native "$HERE/benchmark_data")\""; echo "content=bench.omwscripts"; } >> "$work/config/openmw.cfg"
+    fi
+
+    # Task 0042: a static camera that looks at the sky (volumetric clouds).
+    if [[ ",$options," == *",look,"* ]]; then
+        { echo "data=\"$(native "$HERE/benchmark_data")\""; echo "content=look.omwscripts"; } >> "$work/config/openmw.cfg"
     fi
 
     script_args=()

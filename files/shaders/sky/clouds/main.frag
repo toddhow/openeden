@@ -15,6 +15,17 @@ layout(location=0) out vec4 outColor;
 
 void main()
 {
+    if (cVolumetricClouds && material.ambient.a > 1.5)
+    {
+        // Task 0042: the ray-marched clouds. The compute passes wrote the light scattered towards the eye (premultiplied)
+        // and the transmittance for each pixel; the blend wants a colour and an opacity.
+        vec4 volume = texture(diffuseMap, gl_FragCoord.xy / scene.resolution);
+        float opacity = 1.0 - clamp(volume.a, 0.0, 1.0);
+        outColor = vec4(volume.rgb / max(opacity, 1e-4), opacity);
+        // The vertex alpha fades the dome's lowest rows into the horizon; the material alpha is the volume's share.
+        outColor.a *= frag_in.color.a * material.diffuse.a;
+        return;
+    }
     vec4 cloudPicture = texture(diffuseMap, frag_in.texCoord);
     outColor = cloudPicture;
     outColor.a *= frag_in.color.a * material.diffuse.a;

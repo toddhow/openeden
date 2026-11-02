@@ -52,7 +52,10 @@ namespace Pipeline
             { Descriptors::VIEW_VOLUME_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::VIEW_VOLUME_PARAMS_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-                VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr } });
+                VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            // OpenEden (task 0042): the volumetric clouds' ground shadow map.
+            { Descriptors::VIEW_CLOUD_SHADOW_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
         return sceneLayout;
     }
 

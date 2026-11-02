@@ -106,6 +106,21 @@ namespace MWRender
         };
         CloudShadowInput getCloudShadow() const;
 
+        /// OpenEden (task 0042): the ray-marched clouds. RenderManager gives the sky the resolved picture once the
+        /// cloud passes exist; until then (and with the setting off) the sky is the vanilla one.
+        void setVolumeClouds(vsg::ref_ptr<vsg::Descriptor> image);
+        /// What the cloud passes need each frame: the weather's coverage, the wind offsets in metres (wrapped by the
+        /// noise tile), and the share of the sky the volume draws (0: the vanilla layers only).
+        struct VolumeCloudInput
+        {
+            bool valid = false;
+            float coverage = 0.f;
+            float windX = 0.f;
+            float windY = 0.f;
+            float share = 0.f;
+        };
+        VolumeCloudInput getVolumeClouds() const;
+
         void setSunDirection(const vsg::vec3& direction);
 
         void setMasserState(const MoonState& state);
@@ -124,6 +139,7 @@ namespace MWRender
         void switchUnderwaterRain();
         void updateRainParameters();
         void updateParticleOrientation();
+        void applyVolumeClouds(const WeatherResult& weather);
 
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         std::map<std::string, vsg::ref_ptr<vsg::Descriptor>> mCloudTextures;
@@ -159,9 +175,21 @@ namespace MWRender
         // picture, from its pixels), the two layers' current pictures and rotations (dome space to world).
         bool mCloudShadowsOn = false;
         std::map<std::string, std::vector<float>> mCloudGrids;
+        std::map<std::string, float> mCloudMeanThickness; // task 0042: per picture, for the volumetric coverage
         const std::vector<float>* mCloudGrid[2] = { nullptr, nullptr };
         Render::Cloud::Rotation mCloudRotation[2]
             = { Render::Cloud::identityRotation, Render::Cloud::identityRotation };
+        // Volumetric clouds (task 0042): the setting (the pictures' grids are built for the coverage), the resolved
+        // picture once it exists, the share of the sky the volume draws now and heading for, the coverage the weather
+        // gives (two layers, blended by the weather manager's factor) and the wind (double: it grows all session).
+        bool mVolumeCloudsOn = false;
+        vsg::ref_ptr<vsg::Descriptor> mVolumeImage;
+        float mVolumeShare = 0.f;
+        float mVolumeShareTarget = 0.f;
+        bool mVolumeShareSet = false;
+        float mVolumeCoverage = 0.f;
+        float mVolumeCoverageLogged = -1.f; // only to log a change
+        double mVolumeWind[2] = { 0.0, 0.0 };
         float mCloudShare = 0.f;
         float mCloudShareTarget = 0.f;
         bool mCloudShareSet = false;

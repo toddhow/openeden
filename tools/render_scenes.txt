@@ -19,3 +19,4 @@ heavy_ebonheart_crowd|start|Ebonheart, Grand Council Chambers|300|600|Interior w
 heavy_balmora_walk|start|Balmora|1500|3000|The player flies forward over Balmora with collision off (tcl), streaming cells and terrain (Lua player script)|viewdist=15000,distant,walk,script=balmora_walk.txt
 heavy_volume_fog|start|Seyda Neen|300|600|Foggy dusk over Seyda Neen for the volumetric fog (task 0041; run with BENCH_RENDERING for the tier)|script=volume_fog.txt
 heavy_volume_interior|start|Caldera, Guild of Mages|300|600|Interior with a torch placed in front of the player for the volumetric fog (task 0041)|script=volume_lamp.txt
+heavy_volume_clouds|start|Seyda Neen, Arrille's Tradehouse|300|600|Cloudy afternoon sky over Seyda Neen for the volumetric clouds (task 0042; run with BENCH_RENDERING for the tier)|look,script=volume_clouds.txt

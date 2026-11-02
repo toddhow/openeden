@@ -1,0 +1,4 @@
+ChangeWeather "Bitter Coast Region" 1
+coc "Seyda Neen"
+set gamehour to 14
+set timescale to 0

@@ -78,6 +78,7 @@ namespace View
 {
     class LightGrid;
     class VolumeFog;
+    class CloudVolume;
     struct Scene;
 }
 namespace ESM
@@ -342,6 +343,7 @@ namespace MWRender
         void updateNavMesh();
         void updateSceneData();
         void updateVolume();
+        void updateCloudVolume();
         void updateProjectionMatrix();
         void setupScreenshotInterface();
         void setFirstPersonMode(bool enabled);
@@ -368,6 +370,8 @@ namespace MWRender
         std::unique_ptr<View::LightGrid> mLightGrid;
         // Task 0041: the volumetric fog; null unless `[Rendering] volumetrics` is on (and its shaders were found).
         std::unique_ptr<View::VolumeFog> mVolumeFog;
+        // Task 0042: the ray-marched clouds; null unless `[Rendering] volumetric clouds` is on (and its shaders found).
+        std::unique_ptr<View::CloudVolume> mCloudVolume;
         std::unique_ptr<View::Scene> mSceneData;
         vsg::ref_ptr<vsg::Node> mGui;
         vsg::ref_ptr<vsg::Camera> mSceneCamera;
