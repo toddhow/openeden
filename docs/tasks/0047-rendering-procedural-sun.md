@@ -126,4 +126,4 @@ What was opened this time, with the licence checked first. All of it was read th
 - **Cost note:** the GPU time of the sun draw with `gpu timing` was not measured. By construction it is one quad with a few dozen operations.
 - The editor has no sky and is untouched.
 
-**Decisions for toddhow.** (1) Default intensity 30 and glow gain 0.12 are starting values; tune in game. (2) The flash and the glare overlay cause the "white blob": replacing them with a computed flare (D7's alternative) is a separate design. (3) The disc's size is a fixed share of the sun quad (0.18 of its half width, about 2.3 degrees), much larger than a real sun, as the textured sun is; `procedural sun size` changes it.
+**Decisions for toddhow.** (1) Default intensity 30 and glow gain 0.12 are starting values; tune in game. (2) The flash and the glare overlay cause the "white blob": replacing them with a computed flare (D7's alternative) is a separate design. (3) The disc's size is a fixed share of the sun quad (0.18 of its half width: a radius of about 2.3 degrees), much larger than a real sun, as the textured sun is; `procedural sun size` changes it.

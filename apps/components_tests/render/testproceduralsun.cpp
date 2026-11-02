@@ -141,6 +141,23 @@ namespace
         EXPECT_GT(outside, 0.f);
     }
 
+    TEST(RenderProceduralSunPixel, EdgeIsARampNotAStep)
+    {
+        // Found by a reviewer: the limb term must not drop to zero at the radius while the coverage ramp still runs
+        // beyond it. Across the whole soft edge, brightness falls smoothly, in small steps.
+        const float radius = 0.18f, softness = 0.04f * radius;
+        float previous = pixelBrightness(radius * 0.8f, radius, softness, GlowParams{});
+        for (float r = radius * 0.8f; r <= radius * 1.3f; r += radius * 0.002f)
+        {
+            const float now = pixelBrightness(r, radius, softness, GlowParams{});
+            EXPECT_LE(now, previous + 1e-4f) << r;
+            EXPECT_LT(previous - now, 0.06f) << r; // the limb is steep at the very rim; the old cliff was 0.2
+            previous = now;
+        }
+        // Just outside the ramp only the glow is left.
+        EXPECT_LT(pixelBrightness(radius * 1.2f, radius, softness, GlowParams{}), 0.1f);
+    }
+
     TEST(RenderProceduralSunPixel, AlphaNeverAboveOneAndColourCarriesTheIntensity)
     {
         EXPECT_EQ(pixelAlpha(5.f), 1.f);

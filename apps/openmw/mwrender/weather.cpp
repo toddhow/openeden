@@ -12,6 +12,8 @@
 #include <vsg/state/StateSwitch.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <algorithm>
+
 #include <components/animation/clone.hpp>
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
@@ -598,7 +600,9 @@ namespace MWRender
                 // The shader has no GLSL pair, so it exists only if slangc was there at build time.
                 if (resourceSystem.builder->graphics->hasSlangShader("sky/sunproc"))
                 {
-                    resourceSystem.builder->graphics->slangOnlyPaths.push_back("sky/sunproc");
+                    auto& slangOnly = resourceSystem.builder->graphics->slangOnlyPaths;
+                    if (std::find(slangOnly.begin(), slangOnly.end(), "sky/sunproc") == slangOnly.end())
+                        slangOnly.push_back("sky/sunproc");
                     proceduralSun = { true, rendering.mProceduralSunSize, rendering.mProceduralSunIntensity,
                         rendering.mProceduralSunGlow };
                     Log(Debug::Info) << "Procedural sun: a computed disc in place of tx_sun_05.dds";

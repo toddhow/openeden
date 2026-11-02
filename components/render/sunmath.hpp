@@ -147,7 +147,8 @@ namespace Render::Sun
     inline float pixelBrightness(float r, float radius, float softness, const GlowParams& p)
     {
         const float x = radius > 0.f ? r / radius : 2.f;
-        return edgeCoverage(r, radius, softness) * limbDarkening(x, limbCoefficient) + glowFalloff(r, radius, p);
+        return edgeCoverage(r, radius, softness) * limbDarkening(std::min(x, 1.f), limbCoefficient)
+            + glowFalloff(r, radius, p);
     }
 
     // The sun is drawn with alpha blending, so a pixel's alpha is its brightness (at most 1) and its colour is scaled

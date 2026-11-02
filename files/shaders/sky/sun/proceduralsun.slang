@@ -120,9 +120,10 @@ float4 fragMain(FragmentInput input) : SV_Target
     // The disc: limb darkening (a darker rim) and a soft edge one pixel wider than its own softness.
     float softness = kEdgeSoftness * radius + fwidth(r);
     float coverage = 1.0 - smoothStep01(radius - softness, radius + softness, r);
-    float limb = 1.0 - kLimbCoefficient * (1.0 - sqrt(max(0.0, 1.0 - x * x)));
-    if (x > 1.0)
-        limb = 0.0;
+    // The rim's value is kept out to the end of the soft edge (the coverage ramp reaches past the radius), so that the
+    // edge is a ramp and not a step.
+    float xc = min(x, 1.0);
+    float limb = 1.0 - kLimbCoefficient * (1.0 - sqrt(max(0.0, 1.0 - xc * xc)));
 
     // The glow: a tight bright falloff and a wide faint one, faded to nothing before the quad's edge.
     float shape = kTightAmount / (1.0 + (x / kTightWidth) * (x / kTightWidth)) + kWideAmount * exp(-x / kWideWidth);
