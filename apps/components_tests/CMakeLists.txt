@@ -179,6 +179,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testskyenv.cpp
     render/testskyvisdebug.cpp
     view/testcollectlights.cpp
+    view/testshadowview.cpp
     render/testdevicereport.cpp
     vsg/testscenedata.cpp
 

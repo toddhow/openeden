@@ -80,12 +80,22 @@ namespace View
 
 namespace View
 {
+    vsg::ref_ptr<vsg::View> createShadowView(const vsg::View& shared_baseView)
+    {
+        auto view = vsg::View::create(shared_baseView); // shareViewID()
+        view->viewDependentState = nullptr;
+        return view;
+    }
+}
+
+namespace View
+{
     struct Cascade
     {
         Cascade(vsg::ref_ptr<vsg::RenderGraph> in_rendergraph, const vsg::View& shared_baseView)
             : rendergraph(in_rendergraph)
         {
-            view = vsg::View::create(shared_baseView); // shareViewID()
+            view = createShadowView(shared_baseView);
             view->camera = vsg::Camera::create(ortho, lookAt,
                 vsg::ViewportState::create(
                     0, 0, in_rendergraph->renderArea.extent.width, in_rendergraph->renderArea.extent.height));

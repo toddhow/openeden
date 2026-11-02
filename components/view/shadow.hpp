@@ -25,6 +25,13 @@ namespace View // namespace vulkanexamples
 }
 namespace View
 {
+    /// A view that shares `shared_baseView`'s view ID, with no view dependent state (a copied vsg::View gets a
+    /// default one, which collects the lights of the objects drawn into the shadow map and uses them on data
+    /// never set up for this view).
+    vsg::ref_ptr<vsg::View> createShadowView(const vsg::View& shared_baseView);
+}
+namespace View
+{
     struct Cascade;
 
     /*
