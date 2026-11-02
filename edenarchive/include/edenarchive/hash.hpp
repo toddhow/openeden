@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include "error.hpp" // first, so that ErrorClass::Hash is declared before the type Hash (GCC -Wshadow)
+
 namespace EdenArchive
 {
     /// BLAKE3-256 digest (specification section 13.1).

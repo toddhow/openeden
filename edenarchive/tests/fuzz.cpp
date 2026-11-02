@@ -252,7 +252,9 @@ namespace EdenTestSuite
             // A mutation that leaves a pack valid is common (a hint bit, a padding byte of a record); if none ever
             // opens, the digest repair is not reaching the structural checks.
             if (iterations >= 1000)
-                EXPECT_GT(opened, 0u) << "no mutated input opened in " << iterations << " iterations";
+            {
+                    EXPECT_GT(opened, 0u) << "no mutated input opened in " << iterations << " iterations";
+            }
             RecordProperty("opened", static_cast<int>(opened));
         }
 

@@ -143,7 +143,9 @@ namespace EdenTestSuite
                 EXPECT_FALSE(c.mDescription.empty()) << c.mId;
                 EXPECT_LE(c.mBytes.size(), 600u * 1024) << c.mId << " is not a small file";
                 if (c.mOutcome == EdenTest::Outcome::Valid)
-                    EXPECT_FALSE(c.mEntries.empty() && c.mId != "v02empty") << c.mId;
+                {
+                        EXPECT_FALSE(c.mEntries.empty() && c.mId != "v02empty") << c.mId;
+                }
             }
         }
 

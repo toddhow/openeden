@@ -397,7 +397,9 @@ namespace EdenTestSuite
                     EXPECT_EQ(toDigest(chunk.mHash), EdenTest::blake3Of(content.data() + at, chunk.mSize));
                     // The default layout of 8.2: every chunk but the last is exactly chunkSize bytes.
                     if (c + 1 < entry.mChunkCount)
+                    {
                         EXPECT_EQ(chunk.mSize, 4096u);
+                    }
                     EXPECT_EQ(chunk.mOffset % 4096 == 0 || c > 0, true);
                     at += chunk.mSize;
                 }

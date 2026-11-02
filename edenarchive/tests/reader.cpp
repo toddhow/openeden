@@ -114,7 +114,9 @@ namespace EdenTestSuite
                     EXPECT_TRUE(classIs(error, c.mClasses))
                         << "got " << className(error) << ", want " << joined(c.mClasses) << ": " << error.describe();
                     if (c.mOffset.has_value())
-                        EXPECT_EQ(error.mOffset, *c.mOffset) << error.describe();
+                    {
+                            EXPECT_EQ(error.mOffset, *c.mOffset) << error.describe();
+                    }
                     break;
 
                 case Outcome::InvalidAtRead:
@@ -145,7 +147,7 @@ namespace EdenTestSuite
 
         INSTANTIATE_TEST_SUITE_P(Corpus, CorpusReaderTest,
             testing::Range<std::size_t>(0, EdenTest::corpusCases().size()),
-            [](const testing::TestParamInfo<std::size_t>& info) { return EdenTest::corpusCases()[info.param].mId; });
+            [](const testing::TestParamInfo<std::size_t>& item) { return EdenTest::corpusCases()[item.param].mId; });
 
         // ---- lookups ----
 
@@ -179,10 +181,14 @@ namespace EdenTestSuite
                         for (char& ch : upper)
                             ch = (ch >= 'a' && ch <= 'z') ? static_cast<char>(ch - 'a' + 'A') : ch;
                         if (upper != *want.mPath)
-                            EXPECT_FALSE(archive->findPath(upper).has_value()) << "lookup is on normalized names only";
+                        {
+                                EXPECT_FALSE(archive->findPath(upper).has_value()) << "lookup is on normalized names only";
+                        }
                     }
                     if (want.mKey.has_value())
-                        EXPECT_EQ(archive->findKey(*want.mKey), std::optional<std::size_t>(i));
+                    {
+                            EXPECT_EQ(archive->findKey(*want.mKey), std::optional<std::size_t>(i));
+                    }
                 }
                 EXPECT_FALSE(archive->findPath("").has_value());
                 EXPECT_FALSE(archive->findPath("no/such/entry.bin").has_value());
@@ -200,7 +206,9 @@ namespace EdenTestSuite
                                   return e.mKey == std::optional<std::uint64_t>(other);
                               });
                         if (!used)
-                            EXPECT_FALSE(archive->findKey(other).has_value()) << other;
+                        {
+                                EXPECT_FALSE(archive->findKey(other).has_value()) << other;
+                        }
                     }
                 }
             }
@@ -215,9 +223,13 @@ namespace EdenTestSuite
             {
                 const EdenTest::ExpectedEntry& want = c.mEntries[i];
                 if (want.mPath.has_value())
+                {
                     EXPECT_EQ(archive->findPath(*want.mPath), std::optional<std::size_t>(i)) << *want.mPath;
+                }
                 if (want.mKey.has_value())
+                {
                     EXPECT_EQ(archive->findKey(*want.mKey), std::optional<std::size_t>(i)) << *want.mKey;
+                }
             }
             EXPECT_FALSE(archive->findPath("many/e9999").has_value());
             EXPECT_FALSE(archive->findKey(978).has_value());

@@ -70,7 +70,9 @@ namespace EdenTestSuite
                     {
                         EXPECT_FALSE(canonical.mFindings.empty()) << "the canonical validator must report this pack";
                         if (!c.mCanonicalClasses.empty())
-                            EXPECT_TRUE(hasClass(canonical, c.mCanonicalClasses)) << describeAll(canonical);
+                        {
+                                EXPECT_TRUE(hasClass(canonical, c.mCanonicalClasses)) << describeAll(canonical);
+                        }
                     }
                     break;
                 }
@@ -86,7 +88,9 @@ namespace EdenTestSuite
                         EXPECT_TRUE(classIs(report.mFindings[0], c.mClasses))
                             << "got " << className(report.mFindings[0]) << ", want " << joined(c.mClasses);
                         if (c.mOffset.has_value())
-                            EXPECT_EQ(report.mFindings[0].mOffset, *c.mOffset);
+                        {
+                                EXPECT_EQ(report.mFindings[0].mOffset, *c.mOffset);
+                        }
                     }
                     break;
 
@@ -106,7 +110,7 @@ namespace EdenTestSuite
 
         INSTANTIATE_TEST_SUITE_P(Corpus, CorpusValidatorTest,
             testing::Range<std::size_t>(0, EdenTest::corpusCases().size()),
-            [](const testing::TestParamInfo<std::size_t>& info) { return EdenTest::corpusCases()[info.param].mId; });
+            [](const testing::TestParamInfo<std::size_t>& item) { return EdenTest::corpusCases()[item.param].mId; });
 
         // ---- more detailed behaviour ----
 
