@@ -12,10 +12,12 @@ namespace InertialMotion
     struct LeanSmootherParameters
     {
         /// Seconds. The lean closes about 60 percent of the gap in this time and settles in about ten times it.
-        /// Must be above zero.
+        /// Must be above zero. 0.15 s was chosen by eye against the walk start (0.45 s of acceleration at the
+        /// 'high' preset): the lean follows the start without a visible pop and is gone soon after it ends.
         float mSmoothTime = 0.15f;
         /// Largest change of the value per second (radians per second for a lean). A hard cap, so even a huge step
-        /// in the target cannot make the value jump.
+        /// in the target cannot make the value jump. 1.5 rad/s (about 86 degrees/s) is far above what the spring
+        /// itself reaches for the 8 degree maximum lean (about 40 degrees/s), so it only guards against huge targets.
         float mMaxRate = 1.5f;
     };
 
@@ -47,7 +49,8 @@ namespace InertialMotion
             const float maxRate = std::max(0.f, params.mMaxRate);
             const float omega = 2.f / smoothTime;
             const float x = omega * dt;
-            // Polynomial approximation of exp(-x), accurate for the whole range and never above 1.
+            // 1 / (1 + x + 0.48 x^2 + 0.235 x^3) is the rational approximation of exp(-x) from Game Programming Gems 4
+            // (the same source as the formula), good to a fraction of a percent for the step sizes used here.
             const float decay = 1.f / (1.f + x + 0.48f * x * x + 0.235f * x * x * x);
 
             // Limit how far the spring may think the target is, which limits its top speed.
@@ -73,6 +76,13 @@ namespace InertialMotion
             {
                 value = mValue + std::copysign(maxStep, step);
                 velocity = std::copysign(maxRate, step);
+            }
+
+            // A frame time so large that the float maths overflowed: start again from rest rather than keep a NaN.
+            if (!std::isfinite(value) || !std::isfinite(velocity))
+            {
+                reset();
+                return mValue;
             }
 
             mValue = value;
