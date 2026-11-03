@@ -60,10 +60,11 @@ namespace CMPhysics
         /// Multiplies the host system's gravity for every body the adapter creates. The game's Jolt gravity points +Z
         /// (actors fall by their own code), so it passes -1; the editor keeps 1. Must be finite.
         float gravityFactor = 1.0f;
-        /// Scale the host system's PhysicsSettings tolerances to the host's length unit (scaledPhysicsSettings) while the
-        /// adapter lives, and put the old settings back in the destructor. Jolt's defaults are tuned for metres: at the
-        /// game's 70 units per metre a ragdoll would never sleep and would sink into the floor. Off by default; nothing
-        /// happens when unitsPerMeter is 1. Only one adapter per system should set it (a second would scale twice).
+        /// Scale the host system's PhysicsSettings tolerances to the host's length unit (scaledPhysicsSettings) while
+        /// the adapter lives, and put the old settings back in the destructor. Jolt's defaults are tuned for metres: at
+        /// the game's 70 units per metre a ragdoll would never sleep and would sink into the floor. Off by default;
+        /// nothing happens when unitsPerMeter is 1. Only one adapter per system should set it (a second would scale
+        /// twice).
         bool scaleSystemTolerances = false;
         /// Filters for castRay, not owned, must outlive the adapter. Null: everything.
         const JPH::BroadPhaseLayerFilter* rayBroadPhaseFilter = nullptr;

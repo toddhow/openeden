@@ -208,8 +208,8 @@ namespace CSMPhysics
             world.stepOnce();
             world.stepOnce();
 
-            const std::vector<std::string> expected{ "observer-before", "pre", "post", "observer-after", "observer-before",
-                "pre", "post", "observer-after" };
+            const std::vector<std::string> expected{ "observer-before", "pre", "post", "observer-after",
+                "observer-before", "pre", "post", "observer-after" };
             EXPECT_EQ(recorder.mLog, expected);
             for (const float dt : recorder.mListenerDt)
                 EXPECT_EQ(dt, StudioWorld::sStepSeconds);

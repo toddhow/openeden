@@ -310,9 +310,9 @@ namespace CMPhysics
     {
         const float s = unitsPerMeter;
         JPH::PhysicsSettings scaled = base;
-        // mPenetrationSlop is left alone on purpose: it is how deep bodies may rest in each other, so scaling it (2 cm in
-        // metres, 1.4 units here) would let a ragdoll sink 2 cm into the floor; at its metre-world value of 0.02 units
-        // it rests within about a millimetre (task 0035, stage c log).
+        // mPenetrationSlop is left alone on purpose: it is how deep bodies may rest in each other, so scaling it (2 cm
+        // in metres, 1.4 units here) would let a ragdoll sink 2 cm into the floor; at its metre-world value of 0.02
+        // units it rests within about a millimetre (task 0035, stage c log).
         scaled.mSpeculativeContactDistance *= s;
         scaled.mManifoldTolerance *= s;
         scaled.mMaxPenetrationDistance *= s;

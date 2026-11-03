@@ -1,8 +1,8 @@
 #include "studioworld.hpp"
 
 #include <cmath>
-#include <string>
 #include <stdexcept>
+#include <string>
 
 // clang-format off
 #include <Jolt/Jolt.h>

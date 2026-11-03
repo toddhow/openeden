@@ -92,8 +92,8 @@ namespace
         GameLikeWorld world;
         const JPH::PhysicsSettings defaults;
         // GameLikeWorld leaves Jolt's defaults in place.
-        ASSERT_FLOAT_EQ(world.system().GetPhysicsSettings().mPointVelocitySleepThreshold,
-            defaults.mPointVelocitySleepThreshold);
+        ASSERT_FLOAT_EQ(
+            world.system().GetPhysicsSettings().mPointVelocitySleepThreshold, defaults.mPointVelocitySleepThreshold);
 
         {
             auto host = makeHost(world);

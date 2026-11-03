@@ -65,9 +65,9 @@ namespace CSMPhysics
 
         JPH::PhysicsSystem& system() { return mSystem; }
 
-        /// CreativeMotion's view of this world (task 0035, stage c): the same adapter the game uses, in meters, over the
-        /// editor's own system, so a ragdoll built through it lives in the one world. Created with the world; its bodies
-        /// are not counted by bodyCount() and are all removed by clear(). Step listeners run inside stepOnce().
+        /// CreativeMotion's view of this world (task 0035, stage c): the same adapter the game uses, in meters, over
+        /// the editor's own system, so a ragdoll built through it lives in the one world. Created with the world; its
+        /// bodies are not counted by bodyCount() and are all removed by clear(). Step listeners run inside stepOnce().
         opas::physics::PhysicsWorld& cmWorld();
 
         /// \throws std::invalid_argument if a half extent is below Jolt's convex radius (0.05).

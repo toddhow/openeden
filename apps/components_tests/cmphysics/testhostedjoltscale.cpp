@@ -127,7 +127,8 @@ namespace
         const JPH::PhysicsSettings base = distinctiveBase();
         const JPH::PhysicsSettings scaled = CMPhysics::scaledPhysicsSettings(base, kScale);
 
-        EXPECT_FLOAT_EQ(scaled.mBodyPairCacheMaxDeltaPositionSq, base.mBodyPairCacheMaxDeltaPositionSq * kScale * kScale);
+        EXPECT_FLOAT_EQ(
+            scaled.mBodyPairCacheMaxDeltaPositionSq, base.mBodyPairCacheMaxDeltaPositionSq * kScale * kScale);
         EXPECT_FLOAT_EQ(
             scaled.mContactPointPreserveLambdaMaxDistSq, base.mContactPointPreserveLambdaMaxDistSq * kScale * kScale);
     }
