@@ -78,3 +78,12 @@ Inputs / outputs: new `[WorldLod]` settings, all off or inert by default: `map v
 6. **Reversed depth:** if the main pass turns out not to be reversed, accept the larger change (it touches every pipeline's depth compare) or the split-range far field?
 
 Out of scope: real-time terrain tessellation, ray-marched terrain, impostors (S10), grass at distance (S7), any change to the live cell grid or loading, Lua, saves, shadows past the existing cascades, night sky changes, sea rendering beyond using the shared fog, other games' worldspaces.
+
+## Answers of toddhow, 2026-11-03
+
+1. The reach is not a fixed distance. It follows the loaded game's world: the extent of the loaded worldspace (land cells and their bounds from the content files) decides how far the view can go, so a large future world (Project Tamriel, once it is released) fits without a settings change. The spec's fixed altitude target (open question 1) is dropped; the verification poses are taken relative to the loaded world's extent instead.
+2. `view distance = auto` is accepted as the way to say this. Auto means: the farthest point of the loaded worldspace's land from the camera, capped by what the hardware budget allows (stage a measures the cost). A number still overrides it.
+3. The haze follows Red Dead Redemption 2's aerial perspective: distance and altitude dependent, tinted toward the sky and sun colour, thick near the ground and thin at altitude (details tuned by eye in stage d; the starting values in the spec are guesses).
+4. The goal is human vision at far distances: beyond the distance where an eye can tell detail apart, grass, single trees and small objects are not drawn as objects; they blend into the ground colour (baked into the far terrain's albedo and haze), so far land is basic terrain plus a small set of large landmarks. This answers open question 4 (far objects beyond landmarks are not needed) and shapes open question 7: the baker's coarse levels keep only objects whose projected size would still be visible, and everything else is represented by the terrain picture.
+
+Still open: approval of cluster layout v0 as version 1 before baking more levels (5), whether the depth buffer is reversed (6, checked in stage a), and the exact budget cap for auto (the hardware tiers).
