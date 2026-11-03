@@ -64,8 +64,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     files/conversiontests.cpp
     files/hash.cpp
-
     files/testdatapack.cpp
+
     toutf8/toutf8.cpp
 
     esm4/includes.cpp
@@ -116,8 +116,8 @@ file(GLOB UNITTEST_SRC_FILES
     vfs/testvfsarchivekinds.cpp
     vfs/testvfsentryname.cpp
     vfs/testvfsservicetraversal.cpp
-
     vfs/testvfspackplacement.cpp
+
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
 
@@ -143,8 +143,8 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_debug_draw.cpp
     extension/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp
-    inertialmotion/testmovementrequest.cpp
     inertialmotion/testleansmoother.cpp
+    inertialmotion/testmovementrequest.cpp
 
     mwrender/test_creativemotion_runtime.cpp
     mwrender/test_creativemotion_style.cpp
@@ -289,9 +289,9 @@ target_include_directories(components-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/gltf/include
     ${CMAKE_SOURCE_DIR}/apps/openmw
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/runtime/include
+    ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/style/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/clip/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/rig/include
-    ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/style/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/math/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/format/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/core/motor/include
@@ -305,12 +305,17 @@ target_link_libraries(components-tests
     edenarchive-testsupport
     opas_anim_gltf
     opas_anim_runtime
+    opas_anim_style
     opas_anim_clip
     opas_rig
-    opas_anim_style
     opas_math
     opas_motor
+    eden_body
 )
+
+# Task 0063: where the hand-written body.json fixtures live.
+target_compile_definitions(components-tests PRIVATE
+    OPENEDEN_BODY_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/apps/components_tests/body/data")
 
 target_link_libraries(components-tests ${VSG_LIBRARIES})
 target_include_directories(components-tests PRIVATE ${VSG_INCLUDE_DIRS})
@@ -321,13 +326,8 @@ target_compile_definitions(components-tests PRIVATE
     OPENEDEN_SHADER_SOURCE_DIR="${PROJECT_SOURCE_DIR}/files/shaders"
     OPENEDEN_SHADER_BUILD_DIR="${OPENMW_RESOURCES_ROOT}/resources/shaders"
     OPENEDEN_SLANG_ENABLED=$<BOOL:${OPENEDEN_SLANG_SHADERS_BUILT}>)
-    eden_body
 if (OPENEDEN_SLANG_SHADERS_BUILT)
     add_dependencies(components-tests openeden_slang_shaders)
-# Task 0063: where the hand-written body.json fixtures live.
-target_compile_definitions(components-tests PRIVATE
-    OPENEDEN_BODY_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/apps/components_tests/body/data")
-
 endif()
 
 if (WIN32)
