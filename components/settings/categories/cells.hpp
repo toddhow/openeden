@@ -35,6 +35,11 @@ namespace Settings
 
         // openeden (task 0060): time the parts of a frame and of a cell load and write them at exit.
         SettingValue<bool> mLoadTrace{ mIndex, "Cells", "load trace" };
+
+        // openeden (task 0060): build the objects of cells loaded at a border crossing a few milliseconds a frame.
+        SettingValue<bool> mIncrementalCellBuild{ mIndex, "Cells", "incremental cell build" };
+        SettingValue<float> mIncrementalBuildBudgetMs{ mIndex, "Cells", "incremental build budget ms",
+            makeClampSanitizerFloat(0.f, 50.f) };
     };
 }
 

@@ -60,6 +60,17 @@ namespace MWRender
         static AnimationSources animationSources(const MWAnim::Context& context, bool firstPerson, bool female,
             bool beast, bool werewolf, const std::string& customModel, const ESM::RefId& race);
 
+        // The head, hair and race body part models updateNpcBase reads for a plain NPC in normal view (task 0060),
+        // with the part type, since each type has its own read options and so its own cache. The cell preloader reads
+        // the same ones. Equipment is not included: it needs the inventory. Main thread: it marks skin models, as the
+        // build does before it reads them.
+        struct PartModel
+        {
+            ESM::PartReferenceType mType;
+            std::string mModel;
+        };
+        static std::vector<PartModel> defaultPartModels(const ESM::NPC& npc);
+
         void setFacialState(bool enable, bool talking, float loudness);
 
         void update(float dt) override;

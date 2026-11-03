@@ -302,6 +302,13 @@ namespace MWRender
         mWantedChanged = true;
     }
 
+    void DistantObjects::setCellUnbuilt(const std::pair<int, int>& cell, bool unbuilt)
+    {
+        const bool changed = unbuilt ? mUnbuilt.insert(cell).second : mUnbuilt.erase(cell) > 0;
+        if (changed)
+            mWantedChanged = true;
+    }
+
     void DistantObjects::forget(const Cells& cells)
     {
         ++mGeneration;
@@ -327,6 +334,8 @@ namespace MWRender
     {
         if (!mHasUpdated)
             return true; // hidden or not started: the live objects draw nothing, there is nothing to wait for
+        if (mUnbuilt.contains(cell))
+            return false; // task 0060: the live objects of this cell are still being built
         std::optional<bool> shown;
         if (const auto it = mShownSkipsStatics.find(cell); it != mShownSkipsStatics.end())
             shown = it->second;
@@ -422,7 +431,7 @@ namespace MWRender
 
         vsg::Group::Children chunks;
         for (const auto& [cell, chunk] : mTracker.shown())
-            if (chunk && !mActiveGrid.contains(cell))
+            if (chunk && (!mActiveGrid.contains(cell) || mUnbuilt.contains(cell)))
                 chunks.push_back(chunk);
         setShownChunks(std::move(chunks));
     }

@@ -98,6 +98,27 @@ Cells Settings
    but will also result in some additional memory usage.
 
 .. omw-setting::
+   :title: incremental cell build
+   :type: boolean
+   :range: True/False
+   :default: False
+
+   OpenEden. When the player crosses a border of the exterior grid, the new cells are loaded as before,
+   but their objects are built a few milliseconds per frame (statics first, then actors, nearest first)
+   instead of all in one frame. This removes the 25 to 100 ms frame at a border crossing.
+   Until an object is built it is treated like a disabled object: it has no model, no collision and runs no local script.
+   Cells loaded by teleporting, loading a game or entering an interior are always built whole.
+
+.. omw-setting::
+   :title: incremental build budget ms
+   :type: floating point
+   :range: 0 to 50
+   :default: 3
+
+   OpenEden. The time one frame may spend building objects when "incremental cell build" is on.
+   One object is always built per frame whatever this is, and a share of the queue, so it always empties.
+
+.. omw-setting::
    :title: preload cell cache min
    :type: int
    :range: > 0

@@ -27,6 +27,8 @@ namespace MWState
         ESM::Position position;
         ESM::RefId cell;
         bool changeEvent{};
+        // Task 0060: a border crossing builds the objects of the new cells over several frames (if the setting is on).
+        bool incrementalLoad{};
         std::function<void(const MWWorld::CellStore&)> onCellChanged;
 
         bool useFading(const MWWorld::CellStore& cellStore) const
@@ -56,7 +58,7 @@ namespace MWState
 
             auto& cellStore = MWBase::Environment::get().getWorldModel()->getCell(cell);
             if (cellStore.isExterior())
-                mScene.changeToExteriorCell(cell, position, changeEvent);
+                mScene.changeToExteriorCell(cell, position, changeEvent, incrementalLoad);
             else
                 mScene.changeToInteriorCell(cellStore.getCell()->getNameId(), position, changeEvent);
 

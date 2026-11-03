@@ -20,6 +20,7 @@
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/compileop.hpp>
+#include <components/vsgutil/readnode.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwrender/landmanager.hpp"
@@ -55,6 +56,9 @@ namespace MWWorld
         // they are built, as Npc::animationSources names them. Filled on the main thread, read on the worker.
         std::set<std::string> mAnimationSources;
         std::set<std::string> mActorSkeletons;
+        // Task 0060: the head, hair and body part models of the NPCs of this cell, with the part type (each type has
+        // its own read options and cache). A set, so the order is the same on every run.
+        std::set<std::pair<int, std::string>> mPartModels;
 
     public:
         vsg::ref_ptr<vsg::OperationThreads> compileThreads;
@@ -102,6 +106,8 @@ namespace MWWorld
             if (race == nullptr)
                 return;
             addKindAnimationSources(!npc.isMale(), (race->mData.mFlags & ESM::Race::Beast) != 0, npc.mModel, npc.mRace);
+            for (const auto& part : MWRender::Npc::defaultPartModels(npc))
+                mPartModels.emplace(static_cast<int>(part.mType), part.mModel);
         }
 
         // The four plain kinds (male, female, beast, and the argonian's swimming file), so that the first NPC of a
@@ -206,6 +212,23 @@ namespace MWWorld
                 }
             }
             traceAnims.end();
+
+            // Task 0060: the race parts, read through the options the build uses, so that it finds them cached.
+            Misc::LoadTrace::Scope traceParts("preload.parts", static_cast<std::int64_t>(mPartModels.size()));
+            for (const auto& [type, model] : mPartModels)
+            {
+                if (abort)
+                    break;
+                try
+                {
+                    if (auto node = vsgUtil::readNode(model, mAnimContext.partBoneOptions[type]))
+                        mPreloadedObjects.insert(node);
+                }
+                catch (const std::exception&)
+                {
+                }
+            }
+            traceParts.end();
 
             try
             {

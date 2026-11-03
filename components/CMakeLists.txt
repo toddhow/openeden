@@ -396,7 +396,7 @@ add_component_dir (esm4
 #add_base_dir(stl
 # vsgopenmw-fixme(find-my-place) = constants resourcehelpers color
 add_component_dir (misc
-    barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameratelimiter
+    barrier budgetmeasurement buildqueue color compression constants convert coordinateconverter display endianness float16 frameratelimiter
     guarded loadtrace math mathutil messageformatparser notnullptr objectpool progressreporter resourcehelpers
     rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream vsgmath weakcache windows
     )

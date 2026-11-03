@@ -350,6 +350,12 @@ namespace MWWorld
         if (mActiveCells.find(cell) == mActiveCells.end())
             return;
         Log(Debug::Info) << "Unloading cell " << cell->getCell()->getDescription();
+        // Task 0060: objects of this cell that were still waiting to be built are dropped with it. Nothing else is
+        // needed for them: unloading already copes with objects that were never added (disabled ones).
+        mBuildQueue.cancelGroup(cell);
+        if (mBuildingCells.erase(cell) > 0 && cell->isExterior())
+            mRendering.setCellObjectsPending(cell->getCell()->getGridX(), cell->getCell()->getGridY(), false);
+        mBuildStartUs.erase(cell);
         if (cell->isExterior())
             mRendering.exteriorCellUnloaded(cell->getCell()->getGridX(), cell->getCell()->getGridY());
         MWBase::Environment::get().getExtensionManager()->cellUnloaded(cell->getCell()->getDescription());
@@ -414,7 +420,8 @@ namespace MWWorld
             mRendering.notifyWorldSpaceChanged();
     }
 
-    void Scene::loadCell(CellStore& cell, bool respawn, const DetourNavigator::UpdateGuard* navigatorUpdateGuard)
+    void Scene::loadCell(CellStore& cell, bool respawn, const DetourNavigator::UpdateGuard* navigatorUpdateGuard,
+        const IncrementalLoad* incremental)
     {
         using DetourNavigator::HeightfieldShape;
 
@@ -502,7 +509,7 @@ namespace MWWorld
         traceScripts.end();
         {
             Misc::LoadTrace::Scope trace("load.insertcell");
-            insertCell(cell, navigatorUpdateGuard);
+            insertCell(cell, navigatorUpdateGuard, incremental);
         }
         Misc::LoadTrace::Scope traceAdd("load.rendering.addcell");
         mRendering.addCell(&cell);
@@ -552,6 +559,10 @@ namespace MWWorld
         }
         navigatorUpdateGuard.reset();
         assert(mActiveCells.empty());
+        mBuildQueue.clear();
+        mBuildFrames = 0;
+        mBuildingCells.clear();
+        mBuildStartUs.clear();
         mCurrentCell = nullptr;
         mLowestPoint = std::numeric_limits<float>::max();
 
@@ -622,7 +633,8 @@ namespace MWWorld
         }
     }
 
-    void Scene::changeCellGrid(const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent)
+    void Scene::changeCellGrid(
+        const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent, bool incremental)
     {
         Misc::LoadTrace::Scope traceGrid("grid.total");
         const int halfGridSize = getHalfGridSize(playerCellIndex.mWorldspace);
@@ -685,7 +697,12 @@ namespace MWWorld
                 Misc::LoadTrace::Scope traceGet("grid.getexterior");
                 CellStore& cell = mWorld.getWorldModel().getExterior(indexToLoad);
                 traceGet.end();
-                loadCell(cell, changeEvent, navigatorUpdateGuard.get());
+                // Task 0060: only a border crossing, in a game that already has a player cell, builds objects
+                // later; the cell the player stands in is always built whole.
+                const bool buildLater = incremental && mIncrementalCellBuild && mCurrentCell != nullptr
+                    && (x != playerCellX || y != playerCellY);
+                const IncrementalLoad incrementalLoad{ pos, std::abs(x - playerCellX) + std::abs(y - playerCellY) };
+                loadCell(cell, changeEvent, navigatorUpdateGuard.get(), buildLater ? &incrementalLoad : nullptr);
             }
         }
 
@@ -697,6 +714,19 @@ namespace MWWorld
 
         Misc::LoadTrace::Scope traceWindow("grid.window.changecell");
         CellStore& current = mWorld.getWorldModel().getExterior(playerCellIndex);
+        // The player's cell may still have objects waiting from an earlier crossing (a very fast flight): the player
+        // must never stand in a cell that is not built. A load that is not a border crossing (a teleport) builds
+        // every waiting cell now, as it always has.
+        if (incremental)
+        {
+            finishCell(current);
+        }
+        else
+        {
+            const std::vector<CellStore*> waiting(mBuildingCells.begin(), mBuildingCells.end());
+            for (CellStore* cell : waiting)
+                finishCell(*cell);
+        }
         MWBase::Environment::get().getWindowManager()->changeCell(&current);
 
         if (changeEvent)
@@ -710,7 +740,8 @@ namespace MWWorld
         for (const auto& cell : mActiveCells)
         {
             cell->forEach([&](const MWWorld::Ptr& ptr) {
-                if (ptr.mRef->mData.mPhysicsPostponed)
+                // Task 0060: an object waiting to be built gets its physics when it is built.
+                if (ptr.mRef->mData.mPhysicsPostponed && !mBuildQueue.contains(ptr.mRef))
                 {
                     ptr.mRef->mData.mPhysicsPostponed = false;
                     if (ptr.mRef->mData.isEnabled() && ptr.mRef->mRef.getCount() > 0)
@@ -832,6 +863,7 @@ namespace MWWorld
 
     void Scene::changePlayerCell(CellStore& cell)
     {
+        finishCell(cell);
         mHalfGridSize = cell.getCell()->isEsm4() ? Constants::ESM4CellGridRadius : Constants::CellGridRadius;
         mCurrentCell = &cell;
         MWBase::Environment::get().getExtensionManager()->cellChanged(cell.getCell()->getDescription());
@@ -883,6 +915,8 @@ namespace MWWorld
         , mPreloadFastTravel(Settings::cells().mPreloadFastTravel)
         , mPredictionTime(Settings::cells().mPredictionTime)
         , mLowestPoint(std::numeric_limits<float>::max())
+        , mIncrementalCellBuild(Settings::cells().mIncrementalCellBuild)
+        , mIncrementalBudgetMs(Settings::cells().mIncrementalBuildBudgetMs)
     {
         mPreloader = std::make_unique<CellPreloader>(rendering.getAnimContext(), mPhysics->getShapeManager(),
             rendering.getLandManager(), rendering.getOperationThreads());
@@ -957,12 +991,14 @@ namespace MWWorld
         MWBase::Environment::get().getWindowManager()->changeCell(mCurrentCell);
     }
 
-    void Scene::changeToExteriorCell(const ESM::RefId& extCellId, const ESM::Position& position, bool changeEvent)
+    void Scene::changeToExteriorCell(
+        const ESM::RefId& extCellId, const ESM::Position& position, bool changeEvent, bool incremental)
     {
         CellStore& current = mWorld.getWorldModel().getCell(extCellId);
         const vsg::ivec2 cellIndex(current.getCell()->getGridX(), current.getCell()->getGridY());
         changeCellGrid(position.asVec3(),
-            ESM::ExteriorCellLocation(cellIndex.x, cellIndex.y, current.getCell()->getWorldSpace()), changeEvent);
+            ESM::ExteriorCellLocation(cellIndex.x, cellIndex.y, current.getCell()->getWorldSpace()), changeEvent,
+            incremental);
 
         if (&current != mCurrentCell)
             changePlayerCell(current);
@@ -980,13 +1016,40 @@ namespace MWWorld
         mCellChanged = false;
     }
 
-    void Scene::insertCell(CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard)
+    void Scene::insertCell(CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard,
+        const IncrementalLoad* incremental)
     {
         const bool isInterior = !cell.isExterior();
         InsertVisitor insertVisitor(cell);
         {
             Misc::LoadTrace::Scope trace("insert.collect");
             cell.forEach(insertVisitor);
+        }
+        if (incremental != nullptr)
+        {
+            // Task 0060: the cell is loaded (records, scripts, land) but its objects are built later, a few
+            // milliseconds a frame. Each object is queued twice: to be added (plain objects first, actors after
+            // them) and, after every object of the cell is added, for the navigator.
+            Misc::LoadTrace::Scope trace("insert.queue", static_cast<std::int64_t>(insertVisitor.mToInsert.size()));
+            for (const MWWorld::Ptr& ptr : insertVisitor.mToInsert)
+            {
+                if (ptr.mRef->isDeleted() || !ptr.getRefData().isEnabled())
+                    continue;
+                const vsg::vec3 offset = ptr.getRefData().getPosition().asVec3() - incremental->mPlayerPos;
+                const float distance = vsg::dot(offset, offset);
+                const Misc::BuildPhase phase
+                    = ptr.getClass().isActor() ? Misc::BuildPhase::Actor : Misc::BuildPhase::Object;
+                mBuildQueue.add({ &cell, ptr.mRef, incremental->mRank, phase, distance, ptr });
+                mBuildQueue.add({ &cell, ptr.mRef, incremental->mRank, Misc::BuildPhase::Navigator, distance, ptr });
+            }
+            if (mBuildQueue.pendingInGroup(&cell) > 0)
+            {
+                mBuildingCells.insert(&cell);
+                mRendering.setCellObjectsPending(cell.getCell()->getGridX(), cell.getCell()->getGridY(), true);
+                if (Misc::LoadTrace::enabled())
+                    mBuildStartUs[&cell] = Misc::LoadTrace::nowMicroseconds();
+            }
+            return;
         }
         {
             Misc::LoadTrace::Scope trace("insert.objects", static_cast<std::int64_t>(insertVisitor.mToInsert.size()));
@@ -999,9 +1062,114 @@ namespace MWWorld
         });
     }
 
+    void Scene::buildQueuedObject(const Misc::BuildQueue<Ptr>::Item& item, const DetourNavigator::UpdateGuard* guard)
+    {
+        const Ptr& ptr = item.mPayload;
+        // The same checks as InsertVisitor::insert: the object may have been disabled or deleted while it waited
+        // (those paths also cancel it, this is the second line of defence).
+        if (ptr.mRef->isDeleted() || !ptr.getRefData().isEnabled())
+            return;
+        try
+        {
+            if (item.mPhase == Misc::BuildPhase::Navigator)
+            {
+                addObject(ptr, mWorld, *mPhysics, mLowestPoint, false, mNavigator, guard);
+            }
+            else
+            {
+                // A script moved it while it waited and asked for its physics to be added later: it is added now,
+                // at the position it has now.
+                ptr.mRef->mData.mPhysicsPostponed = false;
+                addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering);
+            }
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "failed to render '" << ptr.getCellRef().getRefId() << "': " << e.what();
+        }
+    }
+
+    void Scene::reportBuiltCells()
+    {
+        for (auto iter = mBuildingCells.begin(); iter != mBuildingCells.end();)
+        {
+            CellStore* cell = *iter;
+            if (mBuildQueue.pendingInGroup(cell) > 0)
+            {
+                ++iter;
+                continue;
+            }
+            iter = mBuildingCells.erase(iter);
+            const int gridX = cell->getCell()->getGridX();
+            const int gridY = cell->getCell()->getGridY();
+            mRendering.setCellObjectsPending(gridX, gridY, false);
+            if (const auto started = mBuildStartUs.find(cell); started != mBuildStartUs.end())
+            {
+                Misc::LoadTrace::record("cell.built", started->second, Misc::LoadTrace::nowMicroseconds(),
+                    static_cast<std::int64_t>(gridX) * 100000 + gridY);
+                mBuildStartUs.erase(started);
+            }
+        }
+    }
+
+    void Scene::buildPendingObjects()
+    {
+        if (mBuildQueue.empty())
+            return;
+        Misc::LoadTrace::Scope trace("incremental.build");
+        const vsg::vec3 playerPos = mWorld.getPlayerPtr().getRefData().getPosition().asVec3();
+        auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
+        // Wall-clock time only decides how many objects fit in this frame. The order they are built in does not
+        // depend on it (Misc::BuildQueue).
+        const auto nowMs = [] {
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch())
+                .count();
+        };
+        // One object is always built. If the queue has not emptied after sFramesBeforeCatchUp calls (a very low frame
+        // rate), a share of it is built whatever the budget, so that the objects cannot stay unbuilt for long.
+        ++mBuildFrames;
+        const std::size_t minItems = mBuildFrames > sFramesBeforeCatchUp ? (mBuildQueue.size() + 9) / 10 : 1;
+        const std::size_t built = mBuildQueue.run(mIncrementalBudgetMs, minItems, nowMs,
+            [&](const Misc::BuildQueue<Ptr>::Item& item) { buildQueuedObject(item, navigatorUpdateGuard.get()); });
+        mNavigator.update(playerPos, navigatorUpdateGuard.get());
+        navigatorUpdateGuard.reset();
+        trace.setValue(static_cast<std::int64_t>(built));
+        if (mBuildQueue.empty())
+            mBuildFrames = 0;
+        reportBuiltCells();
+    }
+
+    void Scene::finishCell(CellStore& cell)
+    {
+        if (mBuildQueue.pendingInGroup(&cell) == 0)
+            return;
+        Misc::LoadTrace::Scope trace("incremental.finish");
+        const vsg::vec3 playerPos = mWorld.getPlayerPtr().getRefData().getPosition().asVec3();
+        auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
+        const std::size_t built = mBuildQueue.runGroup(
+            &cell, [&](const Misc::BuildQueue<Ptr>::Item& item) { buildQueuedObject(item, navigatorUpdateGuard.get()); });
+        mNavigator.update(playerPos, navigatorUpdateGuard.get());
+        navigatorUpdateGuard.reset();
+        trace.setValue(static_cast<std::int64_t>(built));
+        reportBuiltCells();
+    }
+
+    bool Scene::isPendingBuild(const MWWorld::ConstPtr& ptr) const
+    {
+        return !mBuildQueue.empty() && mBuildQueue.contains(ptr.mRef);
+    }
+
+    void Scene::updatePendingPtr(const Ptr& old, const Ptr& cur)
+    {
+        if (!mBuildQueue.empty())
+            mBuildQueue.replaceKeyAndGroup(old.mRef, cur.mRef, cur.getCell(), cur);
+    }
+
     void Scene::addObjectToScene(const Ptr& ptr)
     {
         const bool isInterior = mCurrentCell && !mCurrentCell->isExterior();
+        // Task 0060: an object that still waits in the build queue is added now, once.
+        mBuildQueue.cancelKey(ptr.mRef);
         try
         {
             addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering);
@@ -1016,6 +1184,9 @@ namespace MWWorld
 
     void Scene::removeObjectFromScene(const Ptr& ptr, bool keepActive)
     {
+        // Task 0060: an object that was never built is just forgotten; the removal below copes with that, as it does
+        // for objects that were disabled.
+        mBuildQueue.cancelKey(ptr.mRef);
         MWBase::Environment::get().getMechanicsManager()->remove(ptr, keepActive);
         // You'd expect the sounds attached to the object to be stopped here
         // because the object is nowhere to be heard, but in Morrowind, they're not.

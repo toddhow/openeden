@@ -221,6 +221,9 @@ namespace MWRender
         void addCell(const MWWorld::CellStore* store);
         void removeCell(const MWWorld::CellStore* store);
         void changeCellGrid(const vsg::vec3& pos);
+        /// Task 0060: an exterior cell's objects are queued to be built over several frames (pending) or all built.
+        /// The distant objects and clusters keep covering the cell until then.
+        void setCellObjectsPending(int x, int y, bool pending);
         /// The exterior cells the scene loads, which distant objects leave out.
         void setActiveGrid(int x, int y, int halfGrid);
         /// For post-processing's sun position (OpenMW's RenderingManager::setNight).
@@ -541,6 +544,7 @@ namespace MWRender
         bool mLodClustersAttached = false;
         std::uint64_t mLodClustersPushed = 0;
         ActiveCellGrid mActiveGrid;
+        std::set<std::pair<int, int>> mUnbuiltCells; // task 0060: active cells whose objects are still being built
         void updateDistantObjects(const vsg::vec3& cameraPosition);
         void updateLodClusters(const vsg::vec3& cameraPosition, float dt);
         std::unique_ptr<Rain> mRain;

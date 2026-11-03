@@ -45,6 +45,9 @@ namespace OMW
             std::pair<ESM::RefId, MWWorld::Ptr> script;
             while (localScripts.getNext(script))
             {
+                // Task 0060: an object that is loaded but not built yet (incremental cell build) runs no script until it is.
+                if (mWorld->getWorldScene().isPendingBuild(script.second))
+                    continue;
                 MWScript::InterpreterContext interpreterContext(&script.second.getRefData().getLocals(), script.second);
                 interpreterContext.dt = dt;
                 mScriptManager->run(script.first, interpreterContext);
@@ -165,6 +168,10 @@ namespace OMW
                 timeManager.updateIsPaused();
                 const bool paused = timeManager.isPaused();
                 dt = std::min(dt, 0.2f) * timeManager.getSimulationTimeScale();
+
+                // Task 0060: objects of cells loaded at a border crossing are built a few milliseconds a frame, here,
+                // where scripts may also add objects. Nothing is queued unless [Cells] incremental cell build is on.
+                mWorld->getWorldScene().buildPendingObjects();
 
                 if (!mEngine.mWindowManager->containsMode(MWGui::GM_MainMenu) || !paused)
                 {

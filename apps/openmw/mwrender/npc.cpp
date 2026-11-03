@@ -187,6 +187,36 @@ namespace MWRender
         return result;
     }
 
+    std::vector<Npc::PartModel> Npc::defaultPartModels(const ESM::NPC& npc)
+    {
+        std::vector<PartModel> result;
+        const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
+        const auto& bodyPartStore = store.get<ESM::BodyPart>();
+        const bool female = !npc.isMale();
+
+        // The same calls, in the same order, as updateNpcBase makes for a human or beast that is not a werewolf or vampire.
+        const std::string head = getHeadModel(false, false, female, npc.mRace, npc.mHead, bodyPartStore);
+        if (!head.empty())
+        {
+            markSkinModel(head);
+            result.push_back({ ESM::PRT_Head, head });
+        }
+        const std::string hair = getHairModel(false, npc.mHair, bodyPartStore);
+        if (!hair.empty())
+            result.push_back({ ESM::PRT_Hair, hair });
+
+        const std::vector<const ESM::BodyPart*>& parts = getBodyParts(npc.mRace, female, false, false, bodyPartStore);
+        for (int part = ESM::PRT_Neck; part < ESM::PRT_Count; ++part)
+        {
+            if (const ESM::BodyPart* bodypart = parts[part])
+            {
+                markSkinModel(bodypart->mModel);
+                result.push_back({ static_cast<ESM::PartReferenceType>(part), bodypart->mModel });
+            }
+        }
+        return result;
+    }
+
     void Npc::updateNpcBase()
     {
         for (size_t i = 0; i < ESM::PRT_Count; i++)

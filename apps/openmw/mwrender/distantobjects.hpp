@@ -63,6 +63,9 @@ namespace MWRender
         vsg::ref_ptr<vsg::Group> node() const { return mRoot; }
 
         void setActiveGrid(const ActiveCellGrid& grid);
+        /// Task 0060: a cell of the active grid whose live objects are still being built (or are built now). Its
+        /// distant chunk stays drawn, and staticsReady() stays false, until the live statics are attached.
+        void setCellUnbuilt(const std::pair<int, int>& cell, bool unbuilt);
         void update(const vsg::vec3& cameraPosition, float viewDistance);
         /// Hides every chunk (in interiors) and keeps the built ones for the next update().
         void hide();
@@ -119,6 +122,7 @@ namespace MWRender
         unsigned int mGeneration = 0;
         unsigned int mOldestValidBuild = 0;
         ActiveCellGrid mActiveGrid;
+        std::set<std::pair<int, int>> mUnbuilt;
         vsg::vec3 mCameraPosition;
         float mViewDistance = 0.f;
         bool mHasUpdated = false;

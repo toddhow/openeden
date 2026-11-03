@@ -1,6 +1,7 @@
 #ifndef GAME_MWWORLD_SCENE_H
 #define GAME_MWWORLD_SCENE_H
 
+#include <components/misc/buildqueue.hpp>
 #include <components/misc/vsgmath.hpp>
 
 #include <vsg/maths/vec2.h>
@@ -9,6 +10,8 @@
 #include "positioncellgrid.hpp"
 #include "ptr.hpp"
 
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <set>
 #include <vector>
@@ -95,12 +98,36 @@ namespace MWWorld
 
         std::vector<ESM::RefNum> mPagedRefs;
 
-        void insertCell(CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
+        /// Task 0060: where the player is and how near the cell is, for a cell whose objects are built over several
+        /// frames instead of inside the load.
+        struct IncrementalLoad
+        {
+            vsg::vec3 mPlayerPos;
+            int mRank; // 0 for the cell nearest the player
+        };
+
+        void insertCell(CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard,
+            const IncrementalLoad* incremental = nullptr);
+
+        // Task 0060: objects of loaded cells that are not built yet, and the cells that still have some.
+        Misc::BuildQueue<Ptr> mBuildQueue;
+        CellStoreCollection mBuildingCells;
+        std::map<const CellStore*, std::int64_t> mBuildStartUs; // only filled while the load trace is on
+        bool mIncrementalCellBuild;
+        float mIncrementalBudgetMs;
+        int mBuildFrames = 0; // calls of buildPendingObjects since the queue was last empty
+        static constexpr int sFramesBeforeCatchUp = 120; // two seconds at 60 frames a second
+
+        void buildQueuedObject(const Misc::BuildQueue<Ptr>::Item& item, const DetourNavigator::UpdateGuard* guard);
+        void reportBuiltCells();
+        void finishCell(CellStore& cell);
 
         vsg::ivec2 mCurrentGridCenter;
 
         // Load and unload cells as necessary to create a cell grid with "X" and "Y" in the center
-        void changeCellGrid(const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent = true);
+        // incremental: build the new cells' objects over several frames (task 0060, [Cells] incremental cell build)
+        void changeCellGrid(const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent = true,
+            bool incremental = false);
 
         void preloadCells(float dt);
         void preloadTeleportDoorDestinations(const vsg::vec3& playerPos, const vsg::vec3& predictedPos);
@@ -112,7 +139,8 @@ namespace MWWorld
         vsg::ivec2 getNewGridCenter(const vsg::vec3& pos, const vsg::ivec2* currentGridCenter = nullptr) const;
 
         void unloadCell(CellStore* cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
-        void loadCell(CellStore& cell, bool respawn, const DetourNavigator::UpdateGuard* navigatorUpdateGuard);
+        void loadCell(CellStore& cell, bool respawn, const DetourNavigator::UpdateGuard* navigatorUpdateGuard,
+            const IncrementalLoad* incremental = nullptr);
 
     public:
         Scene(MWWorld::World& world, MWRender::RenderManager& rendering, MWPhysics::PhysicsSystem* physics,
@@ -147,9 +175,12 @@ namespace MWWorld
         ///< Move to interior cell.
         /// @param changeEvent Set cellChanged flag?
 
-        void changeToExteriorCell(const ESM::RefId& extCellId, const ESM::Position& position, bool changeEvent = true);
+        void changeToExteriorCell(const ESM::RefId& extCellId, const ESM::Position& position, bool changeEvent = true,
+            bool incremental = false);
         ///< Move to exterior cell.
         /// @param changeEvent Set cellChanged flag?
+        /// @param incremental Build the objects of newly loaded cells over several frames (only a border crossing
+        /// asks for this; it applies only when [Cells] incremental cell build is on)
 
         void clear();
         ///< Change into a void
@@ -157,6 +188,18 @@ namespace MWWorld
         void markCellAsUnchanged();
 
         void update(float duration);
+
+        /// Builds queued objects of newly loaded cells until the frame's budget is used. Once a frame, on the main
+        /// thread, at the start of the game's update (where scripts may also add objects). Does nothing when nothing
+        /// is queued.
+        void buildPendingObjects();
+
+        /// True while the object is loaded in an active cell but not built yet: it has no model, no physics body and
+        /// runs no local script, like a disabled object.
+        bool isPendingBuild(const MWWorld::ConstPtr& ptr) const;
+
+        /// An object moved from one active cell record to another while it was waiting to be built.
+        void updatePendingPtr(const Ptr& old, const Ptr& cur);
 
         void addObjectToScene(const Ptr& ptr);
         ///< Add an object that already exists in the world model to the scene.

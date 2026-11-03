@@ -1806,6 +1806,16 @@ namespace MWRender
             mGroundcover->hide();
     }
 
+    void RenderManager::setCellObjectsPending(int x, int y, bool pending)
+    {
+        if (pending)
+            mUnbuiltCells.insert({ x, y });
+        else
+            mUnbuiltCells.erase({ x, y });
+        if (mDistantObjects)
+            mDistantObjects->setCellUnbuilt({ x, y }, pending);
+    }
+
     void RenderManager::setActiveGrid(int x, int y, int halfGrid)
     {
         mActiveGrid = { { x, y }, halfGrid };
@@ -1863,6 +1873,8 @@ namespace MWRender
                 MWBase::Environment::get().getWorld()->getStore(), static_cast<float>(ESM::Land::REAL_SIZE),
                 Settings::terrain().mObjectPagingMinSize);
             mDistantObjects->setActiveGrid(mActiveGrid);
+            for (const auto& cell : mUnbuiltCells)
+                mDistantObjects->setCellUnbuilt(cell, true);
             updateSceneChildren();
         }
         // Morrowind's exterior only: another worldspace's coordinates would select its chunks.

@@ -1063,6 +1063,7 @@ namespace MWWorld
                 {
                     newPtr = currCell->moveTo(ptr, newCell);
 
+                    mWorldScene->updatePendingPtr(ptr, newPtr); // task 0060
                     mRendering->updatePtr(ptr, newPtr);
                     MWBase::Environment::get().getSoundManager()->updatePtr(ptr, newPtr);
                     mPhysics->updatePtr(ptr, newPtr);
@@ -1102,6 +1103,7 @@ namespace MWWorld
                 auto changeCellGrid = std::make_shared<MWState::ChangeCell>(*mWorldScene);
                 changeCellGrid->cell = newCell->getCell()->getId();
                 changeCellGrid->position = pos;
+                changeCellGrid->incrementalLoad = true; // task 0060: only a border crossing
                 auto& stateMgr = *MWBase::Environment::get().getStateManager();
                 stateMgr.pushGameState(changeCellGrid);
                 changeCellGrid->pushPreloadState(stateMgr);
