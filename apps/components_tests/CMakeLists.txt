@@ -263,6 +263,7 @@ list(APPEND UNITTEST_SRC_FILES
     cmphysics/testhostedjoltworld.cpp
     cmphysics/testhostedjoltallocation.cpp
     cmphysics/testhostedjoltragdoll.cpp
+    cmphysics/testhostedjoltscale.cpp
 )
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})

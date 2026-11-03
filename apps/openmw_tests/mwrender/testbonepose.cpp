@@ -12,6 +12,7 @@
 
 #include "apps/openmw/extensionhost.hpp"
 #include "apps/openmw/mwrender/bonepose.hpp"
+#include "apps/openmw_tests/support/allocationcounter.hpp"
 
 #include <components/animation/bones.hpp>
 #include <components/animation/transform.hpp>
@@ -30,15 +31,18 @@
 #include <new>
 #include <string>
 
-// A narrowly scoped allocation counter for the no-allocation test. The replacement global operator new counts only
-// while sCountAllocations is set on the calling thread, so every other test in openmw-tests is unaffected apart from
-// one thread-local branch per allocation. Only the plain (non-aligned) forms are replaced; their deletes are replaced
-// to match. The same technique backs CreativeMotion's opas_alloc_tests
+// The allocation counter itself (AllocationCounter, sCountAllocations, sAllocationCount) lives in
+// apps/openmw_tests/support/allocationcounter.hpp so that other test files can use it; this file owns the one
+// replacement of the global operator new that feeds it (a program may replace it only once). The replacement counts
+// only while sCountAllocations is set on the calling thread, so every other test in openmw-tests is unaffected apart
+// from one thread-local branch per allocation. Only the plain (non-aligned) forms are replaced; their deletes are
+// replaced to match. The same technique backs CreativeMotion's opas_alloc_tests
 // (components/creativemotion/core/motor/CLAUDE.md).
 namespace
 {
-    thread_local bool sCountAllocations = false;
-    thread_local std::size_t sAllocationCount = 0;
+    using TestSupport::AllocationCounter;
+    using TestSupport::sAllocationCount;
+    using TestSupport::sCountAllocations;
 
     void* countedAlloc(std::size_t size)
     {
@@ -50,17 +54,6 @@ namespace
             return p;
         throw std::bad_alloc();
     }
-
-    struct AllocationCounter
-    {
-        AllocationCounter()
-        {
-            sAllocationCount = 0;
-            sCountAllocations = true;
-        }
-        ~AllocationCounter() { sCountAllocations = false; }
-        std::size_t count() const { return sAllocationCount; }
-    };
 }
 
 void* operator new(std::size_t size)

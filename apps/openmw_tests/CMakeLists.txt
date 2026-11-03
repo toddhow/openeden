@@ -37,6 +37,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testgravityfactor.cpp
     mwphysics/testragdollhost.cpp
     mwphysics/testragdollscale.cpp
+    mwphysics/testragdollsleep.cpp
 
     extension/testextensionfailures.cpp
     extension/testextensionhost.cpp

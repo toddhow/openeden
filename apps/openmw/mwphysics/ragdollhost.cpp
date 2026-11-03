@@ -69,6 +69,8 @@ namespace MWPhysics
         config.movingLayer = Layers::RAGDOLL;
         // The game's Jolt gravity points up (+Z; actors fall by their own code), so ragdolls pull the other way.
         config.gravityFactor = -1.0f;
+        // Jolt's tolerances are in metres; at the game's scale a ragdoll would never sleep (task 0035, stage b log).
+        config.scaleSystemTolerances = true;
         config.maxBodies = cMaxRagdollBodies;
         config.maxJoints = cMaxRagdollJoints;
         config.rayBroadPhaseFilter = host->mRayBroadPhaseFilter.get();

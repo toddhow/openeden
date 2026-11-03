@@ -20,6 +20,9 @@
 
 #include "joltruntime.hpp"
 
+#include <components/cmphysics/hostedjoltworld.hpp>
+#include <opas/physics/PhysicsWorld.hpp>
+
 namespace CSMPhysics
 {
     /// Eden Studio's one Jolt world (task 0030; plan section 6.1, decision 0007). Lengths are Morrowind units, as the
@@ -62,6 +65,11 @@ namespace CSMPhysics
 
         JPH::PhysicsSystem& system() { return mSystem; }
 
+        /// CreativeMotion's view of this world (task 0035, stage c): the same adapter the game uses, in meters, over the
+        /// editor's own system, so a ragdoll built through it lives in the one world. Created with the world; its bodies
+        /// are not counted by bodyCount() and are all removed by clear(). Step listeners run inside stepOnce().
+        opas::physics::PhysicsWorld& cmWorld();
+
         /// \throws std::invalid_argument if a half extent is below Jolt's convex radius (0.05).
         JPH::BodyID addStaticBox(const JPH::RVec3& centre, const JPH::Vec3& halfExtents);
         /// \throws std::invalid_argument if radius <= 0.
@@ -101,6 +109,8 @@ namespace CSMPhysics
         JPH::TempAllocatorImpl mTempAllocator;
         JPH::JobSystemSingleThreaded mJobSystem;
         JPH::PhysicsSystem mSystem;
+        // After the system: it keeps a reference to it and removes its bodies from it when destroyed.
+        std::unique_ptr<CMPhysics::HostedJoltWorld> mCmWorld;
         std::set<JPH::BodyID> mBodies;
         Transport mTransport = Transport::Paused;
         std::uint64_t mStepIndex = 0;

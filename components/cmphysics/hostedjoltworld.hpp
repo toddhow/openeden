@@ -60,12 +60,25 @@ namespace CMPhysics
         /// Multiplies the host system's gravity for every body the adapter creates. The game's Jolt gravity points +Z
         /// (actors fall by their own code), so it passes -1; the editor keeps 1. Must be finite.
         float gravityFactor = 1.0f;
+        /// Scale the host system's PhysicsSettings tolerances to the host's length unit (scaledPhysicsSettings) while the
+        /// adapter lives, and put the old settings back in the destructor. Jolt's defaults are tuned for metres: at the
+        /// game's 70 units per metre a ragdoll would never sleep and would sink into the floor. Off by default; nothing
+        /// happens when unitsPerMeter is 1. Only one adapter per system should set it (a second would scale twice).
+        bool scaleSystemTolerances = false;
         /// Filters for castRay, not owned, must outlive the adapter. Null: everything.
         const JPH::BroadPhaseLayerFilter* rayBroadPhaseFilter = nullptr;
         const JPH::ObjectLayerFilter* rayObjectLayerFilter = nullptr;
         /// Null: step() does nothing (the host calls beginStep() and endStep() around its own Update).
         SystemStepper* stepper = nullptr;
     };
+
+    /// Jolt's PhysicsSettings are in metres (PhysicsSettings.h, Jolt 5.5.0). Returns base with the length-like
+    /// tolerances multiplied by unitsPerMeter (mSpeculativeContactDistance, mManifoldTolerance,
+    /// mMaxPenetrationDistance), the speed-like ones too (mMinVelocityForRestitution, mPointVelocitySleepThreshold) and
+    /// the squared distances by its square (mBodyPairCacheMaxDeltaPositionSq, mContactPointPreserveLambdaMaxDistSq).
+    /// mPenetrationSlop is deliberately not scaled (it is how deep bodies rest in each other; see the .cpp).
+    /// Everything else (times, fractions, angles, counts, flags) is unchanged.
+    JPH::PhysicsSettings scaledPhysicsSettings(const JPH::PhysicsSettings& base, float unitsPerMeter);
 
     class HostedJoltWorld final : public opas::physics::PhysicsWorld
     {
@@ -85,6 +98,9 @@ namespace CMPhysics
 
         opas::physics::CreateResult<opas::physics::BodyId> createBody(const opas::physics::BodyDesc& desc) override;
         bool destroyBody(opas::physics::BodyId body) override;
+        /// Removes every joint, body and collision group this adapter made (the host's own bodies stay); all earlier
+        /// handles become stale for good. Step listeners stay. Does nothing and returns false during a step.
+        bool destroyAll();
         opas::physics::CreateResult<opas::physics::JointId> createJoint(const opas::physics::JointDesc& desc) override;
         bool destroyJoint(opas::physics::JointId joint) override;
         opas::physics::CreateResult<opas::physics::CollisionGroupId> createCollisionGroup(
@@ -178,6 +194,7 @@ namespace CMPhysics
         std::uint32_t mNextListenerSerial = 0;
         std::size_t mStepListenerCount = 0;
         bool mInStep = false;
+        std::optional<JPH::PhysicsSettings> mSettingsBefore; // set only if the tolerances were scaled
     };
 }
 

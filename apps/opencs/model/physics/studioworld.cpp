@@ -1,6 +1,7 @@
 #include "studioworld.hpp"
 
 #include <cmath>
+#include <string>
 #include <stdexcept>
 
 // clang-format off
@@ -77,9 +78,26 @@ namespace CSMPhysics
             *mObjectPairs);
         // The game's gravity: Morrowind's constant, in units (physicssystem.cpp).
         mSystem.SetGravity(JPH::Vec3(0, 0, -Constants::GravityConst * sUnitsPerMeter));
+
+        CMPhysics::HostedWorldConfig cmConfig;
+        cmConfig.unitsPerMeter = sUnitsPerMeter;
+        cmConfig.stepSeconds = sStepSeconds;
+        cmConfig.movingLayer = sLayerDynamicWorld;
+        cmConfig.staticLayer = sLayerWorld;
+        cmConfig.maxBodies = cMaxBodies;
+        cmConfig.scaleSystemTolerances = true; // Jolt's tolerances are in meters, this world is not
+        std::string error;
+        mCmWorld = CMPhysics::HostedJoltWorld::create(mSystem, cmConfig, &error);
+        if (mCmWorld == nullptr)
+            throw std::runtime_error("StudioWorld: the CreativeMotion adapter was refused: " + error);
     }
 
     StudioWorld::~StudioWorld() = default;
+
+    opas::physics::PhysicsWorld& StudioWorld::cmWorld()
+    {
+        return *mCmWorld;
+    }
 
     JPH::BodyID StudioWorld::addStaticBox(const JPH::RVec3& centre, const JPH::Vec3& halfExtents)
     {
@@ -139,6 +157,8 @@ namespace CSMPhysics
             bodies.RemoveBody(id);
             bodies.DestroyBody(id);
         }
+        // Returns false only inside an adapter step (a CreativeMotion step listener); clear() must not be called there.
+        mCmWorld->destroyAll();
         mBodies.clear();
         mStepIndex = 0;
         ++mRevision;
@@ -162,10 +182,12 @@ namespace CSMPhysics
             }
         }
 
+        mCmWorld->beginStep();
         const JPH::EPhysicsUpdateError error = mSystem.Update(sStepSeconds, 1, &mTempAllocator, &mJobSystem);
         if (error != JPH::EPhysicsUpdateError::None)
             Log(Debug::Error) << "Physics step reported an error (capacity of the editor's world exceeded), code "
                               << static_cast<unsigned>(error);
+        mCmWorld->endStep();
         ++mStepIndex;
         ++mRevision;
 

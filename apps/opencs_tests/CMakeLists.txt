@@ -26,6 +26,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/physics/testdebuglinedrawer.cpp
     model/physics/testjoltruntime.cpp
     model/physics/teststudioworld.cpp
+    model/physics/teststudioworldcm.cpp
     model/prefs/testconfigmigration.cpp
     model/prefs/testlayoutstore.cpp
     model/world/testinfocollection.cpp

@@ -306,6 +306,23 @@ namespace CMPhysics
         }
     }
 
+    JPH::PhysicsSettings scaledPhysicsSettings(const JPH::PhysicsSettings& base, float unitsPerMeter)
+    {
+        const float s = unitsPerMeter;
+        JPH::PhysicsSettings scaled = base;
+        // mPenetrationSlop is left alone on purpose: it is how deep bodies may rest in each other, so scaling it (2 cm in
+        // metres, 1.4 units here) would let a ragdoll sink 2 cm into the floor; at its metre-world value of 0.02 units
+        // it rests within about a millimetre (task 0035, stage c log).
+        scaled.mSpeculativeContactDistance *= s;
+        scaled.mManifoldTolerance *= s;
+        scaled.mMaxPenetrationDistance *= s;
+        scaled.mMinVelocityForRestitution *= s;
+        scaled.mPointVelocitySleepThreshold *= s;
+        scaled.mBodyPairCacheMaxDeltaPositionSq *= s * s;
+        scaled.mContactPointPreserveLambdaMaxDistSq *= s * s;
+        return scaled;
+    }
+
     std::unique_ptr<HostedJoltWorld> HostedJoltWorld::create(
         JPH::PhysicsSystem& system, const HostedWorldConfig& config, std::string* error)
     {
@@ -335,6 +352,11 @@ namespace CMPhysics
         mFreeGroupSlots.reserve(mConfig.maxBodies);
         mKinematicTargets.reserve(mConfig.maxBodies);
         mListeners.reserve(kMaxListeners);
+        if (mConfig.scaleSystemTolerances && mConfig.unitsPerMeter != 1.0f)
+        {
+            mSettingsBefore = system.GetPhysicsSettings();
+            system.SetPhysicsSettings(scaledPhysicsSettings(*mSettingsBefore, mConfig.unitsPerMeter));
+        }
     }
 
     HostedJoltWorld::~HostedJoltWorld()
@@ -353,6 +375,8 @@ namespace CMPhysics
                 bodies().DestroyBody(slot.joltId);
             }
         }
+        if (mSettingsBefore)
+            mSystem.SetPhysicsSettings(*mSettingsBefore);
     }
 
     const HostedJoltWorld::BodySlot* HostedJoltWorld::findBody(BodyId body) const
@@ -478,6 +502,24 @@ namespace CMPhysics
         slot.alive = false;
         ++slot.generation;
         mFreeBodySlots.push_back(body.index);
+        return true;
+    }
+
+    bool HostedJoltWorld::destroyAll()
+    {
+        if (mInStep)
+            return false;
+        // Bodies first: destroyBody also destroys the joints that use the body.
+        for (std::uint32_t i = 0; i < mBodySlots.size(); ++i)
+        {
+            if (mBodySlots[i].alive)
+                destroyBody(BodyId{ i, mBodySlots[i].generation });
+        }
+        for (std::uint32_t i = 0; i < mGroupSlots.size(); ++i)
+        {
+            if (mGroupSlots[i].alive)
+                destroyCollisionGroup(CollisionGroupId{ i, mGroupSlots[i].generation });
+        }
         return true;
     }
 
