@@ -90,3 +90,5 @@ Still open: approval of cluster layout v0 as version 1 before baking more levels
 
 5. Approved by toddhow (2026-11-03): cluster layout version 0 becomes the frozen layout. Freezing it needs a small task like tile layout S1 (header version 0 to 1, version 0 packs refused, a re-bake byte-identical, the pinned layout tests updated in one reviewed change) before the coarser levels are baked.
 6. Asked what "reversed depth" means; explained in chat. Stage a checks the code and decides.
+
+6 (decision). toddhow chose the reversed depth setup (near = 1, far = 0, float depth), 2026-11-03. Stage a first checks what the main camera, the shadow cascades, the G-buffer, SSAO/GI/fog/cloud passes and the editor viewport use today; if any is not reversed it is converted in one reviewed change (every pipeline's depth compare and clear value, every shader that reads depth, projection matrices, the linear-depth reconstruction), with the full loop and an off-means-unchanged image comparison (rendered frames identical within noise before the far plane grows).
