@@ -1,5 +1,7 @@
 #include "rendermanager.hpp"
 
+#include "lodbakemode.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -139,6 +141,16 @@ namespace MWRender
 {
     namespace
     {
+        // The viewing distance: [Camera] viewing distance, or with the world LOD and distant terrain on the larger of
+        // that and [WorldLod] view distance, so that far land reaches the horizon (task 0055).
+        float effectiveViewDistance()
+        {
+            float distance = Settings::camera().mViewingDistance;
+            if (Settings::worldLod().mEnabled && Settings::terrain().mDistantTerrain && !sLodBakeRun)
+                distance = std::max(distance, Settings::worldLod().mViewDistance.get());
+            return distance;
+        }
+
         vsg::ref_ptr<vsg::Group> createCastShadowState()
         {
             vsg::Descriptors descriptors = View::createLightingDescriptors(vsg::vec4Array::create(2), false);
@@ -257,7 +269,7 @@ namespace MWRender
 
         , mMinimumAmbientLuminance(Settings::shaders().mMinimumInteriorBrightness)
         , mNearClip(Settings::camera().mNearClip)
-        , mViewDistance(Settings::camera().mViewingDistance)
+        , mViewDistance(effectiveViewDistance())
         , mFieldOfView(Settings::camera().mFieldOfView)
     {
         vsg::ref_ptr<vsg::Context> context = vsg::Context::create(mEngine.getOrCreateDevice());
@@ -2692,9 +2704,10 @@ namespace MWRender
                 mFieldOfView = Settings::camera().mFieldOfView;
                 updateProjectionMatrix();
             }
-            else if (it->first == "Camera" && it->second == "viewing distance")
+            else if ((it->first == "Camera" && it->second == "viewing distance")
+                || (it->first == "WorldLod" && it->second == "view distance"))
             {
-                mViewDistance = Settings::camera().mViewingDistance;
+                mViewDistance = effectiveViewDistance();
                 // mFog->configure
                 updateProjectionMatrix();
             }

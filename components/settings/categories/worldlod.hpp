@@ -24,6 +24,9 @@ namespace Settings
             makeMaxStrictSanitizerFloat(0) };
         SettingValue<float> mObjectClusterFadeTime{ mIndex, "WorldLod", "object cluster fade time",
             makeMaxSanitizerFloat(0) };
+        // The viewing distance used while the world LOD is on (distant terrain on too): the larger of this and
+        // [Camera] viewing distance, so far land is drawn out to the horizon without editing [Camera].
+        SettingValue<float> mViewDistance{ mIndex, "WorldLod", "view distance", makeMaxStrictSanitizerFloat(0) };
         SettingValue<int> mTerrainTileLevel{ mIndex, "WorldLod", "terrain tile level", makeClampSanitizerInt(1, 1) };
     };
 }

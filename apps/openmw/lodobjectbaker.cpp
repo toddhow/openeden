@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <future>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -51,6 +52,7 @@ namespace OMW
             Collect,
             Models,
             Build,
+            Write,
             Done,
         };
 
@@ -144,6 +146,15 @@ namespace OMW
         std::size_t mDuplicates = 0;
         std::size_t mBadReferences = 0;
         Lod::ClusterManifest mManifest;
+
+        // Write: the pack is written and read back on a worker; the destructor waits for it.
+        std::future<void> mWrite;
+
+        ~State()
+        {
+            if (mWrite.valid())
+                mWrite.wait();
+        }
     };
 
     LodObjectBaker::LodObjectBaker(std::filesystem::path outFolder, Resource::ResourceSystem& resources)
@@ -216,6 +227,14 @@ namespace OMW
         State& state = *mState;
         if (state.mPhase == Phase::Done)
             return true;
+        if (state.mPhase == Phase::Write)
+        {
+            if (state.mWrite.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                return false;
+            state.mWrite.get();
+            state.mPhase = Phase::Done;
+            return true;
+        }
         const MWWorld::ESMStore* store = MWBase::Environment::get().getESMStore();
         const VFS::Manager* vfs = state.mResources.getVFS();
         const auto cellSize = static_cast<std::uint32_t>(ESM::Land::REAL_SIZE);
@@ -491,69 +510,76 @@ namespace OMW
             [](const Lod::BakedCluster& lhs, const Lod::BakedCluster& rhs) {
                 return Lod::packClusterKey(lhs.mId).value_or(0) < Lod::packClusterKey(rhs.mId).value_or(0);
             });
-        const EdenArchive::Hash digest = Lod::clusterContentDigest(state.mManifest, state.mClusters);
-        const std::filesystem::path path = state.mOut / "openeden" / "lod" / "objects.edenpak";
-        std::error_code ec;
-        std::filesystem::create_directories(path.parent_path(), ec);
+        // The write (zstd level 15 over the whole pack) takes a minute: it runs on a worker so that frames, and the
+        // window's message loop, go on (Windows' freeze monitor kills a process that stops answering for 5 s).
+        state.mPhase = Phase::Write;
+        state.mWrite = std::async(std::launch::async, [&state]() {
+            const EdenArchive::Hash digest = Lod::clusterContentDigest(state.mManifest, state.mClusters);
+            const std::filesystem::path path = state.mOut / "openeden" / "lod" / "objects.edenpak";
+            std::error_code ec;
+            std::filesystem::create_directories(path.parent_path(), ec);
 
-        std::uint64_t generation = 1;
-        {
-            Lod::LodError openError;
-            const std::unique_ptr<Lod::ClusterPack> old = Lod::ClusterPack::open(path, openError);
-            if (old)
+            std::uint64_t generation = 1;
             {
-                if (old->sourceDigest() == digest && old->manifest() == state.mManifest
-                    && old->tileIds().size() == state.mClusters.size())
+                Lod::LodError openError;
+                const std::unique_ptr<Lod::ClusterPack> old = Lod::ClusterPack::open(path, openError);
+                if (old)
                 {
-                    Log(Debug::Info) << "LOD object bake: " << Files::pathToUnicodeString(path)
-                                     << " is already up to date (generation " << old->generation()
-                                     << "), nothing written.";
-                    return true;
+                    if (old->sourceDigest() == digest && old->manifest() == state.mManifest
+                        && old->tileIds().size() == state.mClusters.size())
+                    {
+                        Log(Debug::Info) << "LOD object bake: " << Files::pathToUnicodeString(path)
+                                         << " is already up to date (generation " << old->generation()
+                                         << "), nothing written.";
+                        return;
+                    }
+                    Log(Debug::Info) << "LOD object bake: the pack on disk is stale (references, models or settings "
+                                        "changed, or an older layout): it is replaced.";
+                    generation = old->generation() + 1;
                 }
-                Log(Debug::Info) << "LOD object bake: the pack on disk is stale (references, models or settings "
-                                    "changed, or an older layout): it is replaced.";
-                generation = old->generation() + 1;
             }
-        }
-        Lod::TilePackOptions options;
-        options.mGeneration = generation;
-        options.mSourceDigest = digest;
-        options.mThreads = 4;
-        // Higher than the default 3: the pack is baked once and read many times (decoding speed hardly depends on it).
-        options.mZstdLevel = 15;
-        if (const Lod::LodError error = Lod::writeClusterPack(state.mManifest, state.mClusters, options, path))
-        {
-            Log(Debug::Error) << "LOD object bake failed, the old pack (if any) is unchanged: " << error.describe();
-            return true;
-        }
-
-        // Read every cluster back through the reader the game will use.
-        Lod::LodError openError;
-        const std::unique_ptr<Lod::ClusterPack> written = Lod::ClusterPack::open(path, openError);
-        std::size_t good = 0;
-        if (written)
-        {
-            for (const Lod::TileId& id : written->tileIds())
+            Lod::TilePackOptions options;
+            options.mGeneration = generation;
+            options.mSourceDigest = digest;
+            options.mThreads = 4;
+            // Higher than the default 3: the pack is baked once and read many times (decoding speed hardly depends
+            // on it).
+            options.mZstdLevel = 15;
+            if (const Lod::LodError error = Lod::writeClusterPack(state.mManifest, state.mClusters, options, path))
             {
-                Lod::ObjectCluster cluster;
-                if (!written->readCluster(id, cluster))
-                    ++good;
+                Log(Debug::Error) << "LOD object bake failed, the old pack (if any) is unchanged: " << error.describe();
+                return;
             }
-        }
-        if (!written || good != state.mClusters.size())
-        {
-            Log(Debug::Error) << "LOD object bake: the pack was written but only " << good << " of "
-                              << state.mClusters.size() << " clusters read back"
-                              << (written ? "" : " (the pack did not open: " + openError.describe() + ")")
-                              << "; do not use it.";
-            return true;
-        }
-        std::error_code sizeError;
-        const std::uintmax_t bytes = std::filesystem::file_size(path, sizeError);
-        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - state.mStart).count();
-        Log(Debug::Info) << "LOD object bake: wrote " << Files::pathToUnicodeString(path) << " (generation "
-                         << generation << "), " << state.mClusters.size() << " clusters, " << good
-                         << " read back fine, " << bytes << " bytes, " << seconds << " s.";
-        return true;
+
+            // Read every cluster back through the reader the game will use.
+            Lod::LodError openError;
+            const std::unique_ptr<Lod::ClusterPack> written = Lod::ClusterPack::open(path, openError);
+            std::size_t good = 0;
+            if (written)
+            {
+                for (const Lod::TileId& id : written->tileIds())
+                {
+                    Lod::ObjectCluster cluster;
+                    if (!written->readCluster(id, cluster))
+                        ++good;
+                }
+            }
+            if (!written || good != state.mClusters.size())
+            {
+                Log(Debug::Error) << "LOD object bake: the pack was written but only " << good << " of "
+                                  << state.mClusters.size() << " clusters read back"
+                                  << (written ? "" : " (the pack did not open: " + openError.describe() + ")")
+                                  << "; do not use it.";
+                return;
+            }
+            std::error_code sizeError;
+            const std::uintmax_t bytes = std::filesystem::file_size(path, sizeError);
+            const double seconds
+                = std::chrono::duration<double>(std::chrono::steady_clock::now() - state.mStart).count();
+            Log(Debug::Info) << "LOD object bake: wrote " << Files::pathToUnicodeString(path) << " (generation "
+                             << generation << "), " << state.mClusters.size() << " clusters, " << good
+                             << " read back fine, " << bytes << " bytes, " << seconds << " s.";
+        });
+        return false;
     }
 }

@@ -8,6 +8,7 @@
 #include <components/settings/settings.hpp>
 #include <components/version/version.hpp>
 
+#include "mwrender/lodbakemode.hpp"
 #include "options.hpp"
 #include "vsgengine.hpp"
 
@@ -119,6 +120,7 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.bakeLodObjects = variables["bake-lod-objects"].as<bool>();
     if (!args.bakeGiExterior.empty() || args.bakeLodTerrain || args.bakeLodObjects)
         args.skipMenu = true;
+    MWRender::sLodBakeRun = args.bakeLodTerrain || args.bakeLodObjects;
     if (!args.bakeGiCell.empty())
     {
         // The baker needs the cell loaded: start in it, without the menu.
