@@ -87,3 +87,6 @@ Out of scope: real-time terrain tessellation, ray-marched terrain, impostors (S1
 4. The goal is human vision at far distances: beyond the distance where an eye can tell detail apart, grass, single trees and small objects are not drawn as objects; they blend into the ground colour (baked into the far terrain's albedo and haze), so far land is basic terrain plus a small set of large landmarks. This answers open question 4 (far objects beyond landmarks are not needed) and shapes open question 7: the baker's coarse levels keep only objects whose projected size would still be visible, and everything else is represented by the terrain picture.
 
 Still open: approval of cluster layout v0 as version 1 before baking more levels (5), whether the depth buffer is reversed (6, checked in stage a), and the exact budget cap for auto (the hardware tiers).
+
+5. Approved by toddhow (2026-11-03): cluster layout version 0 becomes the frozen layout. Freezing it needs a small task like tile layout S1 (header version 0 to 1, version 0 packs refused, a re-bake byte-identical, the pinned layout tests updated in one reviewed change) before the coarser levels are baked.
+6. Asked what "reversed depth" means; explained in chat. Stage a checks the code and decides.
