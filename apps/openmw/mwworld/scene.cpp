@@ -1016,8 +1016,8 @@ namespace MWWorld
         mCellChanged = false;
     }
 
-    void Scene::insertCell(CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard,
-        const IncrementalLoad* incremental)
+    void Scene::insertCell(
+        CellStore& cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard, const IncrementalLoad* incremental)
     {
         const bool isInterior = !cell.isExterior();
         InsertVisitor insertVisitor(cell);
@@ -1146,8 +1146,8 @@ namespace MWWorld
         Misc::LoadTrace::Scope trace("incremental.finish");
         const vsg::vec3 playerPos = mWorld.getPlayerPtr().getRefData().getPosition().asVec3();
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
-        const std::size_t built = mBuildQueue.runGroup(
-            &cell, [&](const Misc::BuildQueue<Ptr>::Item& item) { buildQueuedObject(item, navigatorUpdateGuard.get()); });
+        const std::size_t built = mBuildQueue.runGroup(&cell,
+            [&](const Misc::BuildQueue<Ptr>::Item& item) { buildQueuedObject(item, navigatorUpdateGuard.get()); });
         mNavigator.update(playerPos, navigatorUpdateGuard.get());
         navigatorUpdateGuard.reset();
         trace.setValue(static_cast<std::int64_t>(built));

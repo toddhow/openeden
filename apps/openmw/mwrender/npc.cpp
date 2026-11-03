@@ -194,7 +194,8 @@ namespace MWRender
         const auto& bodyPartStore = store.get<ESM::BodyPart>();
         const bool female = !npc.isMale();
 
-        // The same calls, in the same order, as updateNpcBase makes for a human or beast that is not a werewolf or vampire.
+        // The same calls, in the same order, as updateNpcBase makes for a human or beast that is not a werewolf or
+        // vampire.
         const std::string head = getHeadModel(false, false, female, npc.mRace, npc.mHead, bodyPartStore);
         if (!head.empty())
         {

@@ -45,7 +45,8 @@ namespace OMW
             std::pair<ESM::RefId, MWWorld::Ptr> script;
             while (localScripts.getNext(script))
             {
-                // Task 0060: an object that is loaded but not built yet (incremental cell build) runs no script until it is.
+                // Task 0060: an object that is loaded but not built yet (incremental cell build) runs no script until
+                // it is.
                 if (mWorld->getWorldScene().isPendingBuild(script.second))
                     continue;
                 MWScript::InterpreterContext interpreterContext(&script.second.getRefData().getLocals(), script.second);

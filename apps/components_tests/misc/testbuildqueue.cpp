@@ -39,7 +39,8 @@ namespace
     {
         std::vector<int> result;
         queue.run(
-            sHugeBudget, 0, []() { return 0.0; }, [&result](const Queue::Item& entry) { result.push_back(entry.mPayload); });
+            sHugeBudget, 0, []() { return 0.0; },
+            [&result](const Queue::Item& entry) { result.push_back(entry.mPayload); });
         return result;
     }
 
@@ -131,14 +132,17 @@ namespace
         const auto record = [&built](const Queue::Item& entry) { built.push_back(entry.mPayload); };
 
         // Zero budget: exactly one item (payload 1) is built.
-        EXPECT_EQ(queue.run(0.0, 0, []() { return 0.0; }, record), 1u);
+        EXPECT_EQ(queue.run(
+                      0.0, 0, []() { return 0.0; }, record),
+            1u);
 
         // Two new items: one nearer than everything left, one between payload 2 and 3.
         queue.add(makeItem(&group, &keys[3], 0, sObject, 0.f, 4));
         queue.add(makeItem(&group, &keys[4], 0, sObject, 2.5f, 5));
         EXPECT_EQ(queue.size(), 4u);
 
-        queue.run(sHugeBudget, 0, []() { return 0.0; }, record);
+        queue.run(
+            sHugeBudget, 0, []() { return 0.0; }, record);
         const std::vector<int> expected = { 1, 4, 2, 5, 3 };
         EXPECT_EQ(built, expected);
     }
@@ -420,7 +424,8 @@ namespace
         std::vector<std::size_t> pendingSeen;
         queue.run(
             sHugeBudget, 0, []() { return 0.0; },
-            [&queue, &pendingSeen, &group](const Queue::Item&) { pendingSeen.push_back(queue.pendingInGroup(&group)); });
+            [&queue, &pendingSeen, &group](
+                const Queue::Item&) { pendingSeen.push_back(queue.pendingInGroup(&group)); });
 
         // After each build the number still pending drops by one; the last build sees zero.
         const std::vector<std::size_t> expected = { 2u, 1u, 0u };
@@ -563,15 +568,15 @@ namespace
 
         bool added = false;
         std::vector<int> built;
-        const std::size_t count = queue.runGroup(
-            &groupA, [&queue, &built, &added, &groupA, &keys](const Queue::Item& entry) {
-                built.push_back(entry.mPayload);
-                if (entry.mPayload == 1 && !added)
-                {
-                    added = true;
-                    queue.add(makeItem(&groupA, &keys[3], 0, sObject, 5.f, 3));
-                }
-            });
+        const std::size_t count
+            = queue.runGroup(&groupA, [&queue, &built, &added, &groupA, &keys](const Queue::Item& entry) {
+                  built.push_back(entry.mPayload);
+                  if (entry.mPayload == 1 && !added)
+                  {
+                      added = true;
+                      queue.add(makeItem(&groupA, &keys[3], 0, sObject, 5.f, 3));
+                  }
+              });
 
         const std::vector<int> expected = { 1, 2, 3 };
         EXPECT_EQ(count, 3u);
@@ -633,10 +638,11 @@ namespace
         EXPECT_EQ(queue.size(), static_cast<std::size_t>(itemCount));
 
         // The expected order is worked out independently: a stable sort keeps insertion order for ties.
-        std::stable_sort(expectedItems.begin(), expectedItems.end(), [](const Queue::Item& lhs, const Queue::Item& rhs) {
-            return std::make_tuple(lhs.mGroupRank, static_cast<int>(lhs.mPhase), lhs.mDistance)
-                < std::make_tuple(rhs.mGroupRank, static_cast<int>(rhs.mPhase), rhs.mDistance);
-        });
+        std::stable_sort(
+            expectedItems.begin(), expectedItems.end(), [](const Queue::Item& lhs, const Queue::Item& rhs) {
+                return std::make_tuple(lhs.mGroupRank, static_cast<int>(lhs.mPhase), lhs.mDistance)
+                    < std::make_tuple(rhs.mGroupRank, static_cast<int>(rhs.mPhase), rhs.mDistance);
+            });
 
         const std::vector<int> built = buildAll(queue);
         ASSERT_EQ(built.size(), expectedItems.size());
@@ -747,7 +753,9 @@ namespace
         queue.add(makeItem(&group, &keyC, 2, sObject, 0.f, 5));
 
         // Build exactly one item: keyA's Object item. Its Actor item is still queued.
-        EXPECT_EQ(queue.run(0.0, 0, []() { return 0.0; }, [](const Queue::Item&) {}), 1u);
+        EXPECT_EQ(queue.run(
+                      0.0, 0, []() { return 0.0; }, [](const Queue::Item&) {}),
+            1u);
         EXPECT_TRUE(queue.contains(&keyA));
 
         // Move keyB (two phases) to keyD: keyB is gone, keyD answers for both.
@@ -759,7 +767,9 @@ namespace
         EXPECT_FALSE(queue.contains(&keyC));
 
         // Build keyA's Actor item: keyA is gone, keyD is still queued.
-        EXPECT_EQ(queue.run(0.0, 0, []() { return 0.0; }, [](const Queue::Item&) {}), 1u);
+        EXPECT_EQ(queue.run(
+                      0.0, 0, []() { return 0.0; }, [](const Queue::Item&) {}),
+            1u);
         EXPECT_FALSE(queue.contains(&keyA));
         EXPECT_TRUE(queue.contains(&keyD));
 
@@ -827,15 +837,15 @@ namespace
         // Building payload 1 adds an item of group B with a lower rank than everything queued.
         bool added = false;
         std::vector<int> built;
-        const std::size_t count = queue.runGroup(
-            &groupA, [&queue, &built, &added, &groupB, &keys](const Queue::Item& entry) {
-                built.push_back(entry.mPayload);
-                if (entry.mPayload == 1 && !added)
-                {
-                    added = true;
-                    queue.add(makeItem(&groupB, &keys[4], 0, sObject, 0.f, 100));
-                }
-            });
+        const std::size_t count
+            = queue.runGroup(&groupA, [&queue, &built, &added, &groupB, &keys](const Queue::Item& entry) {
+                  built.push_back(entry.mPayload);
+                  if (entry.mPayload == 1 && !added)
+                  {
+                      added = true;
+                      queue.add(makeItem(&groupB, &keys[4], 0, sObject, 0.f, 100));
+                  }
+              });
 
         const std::vector<int> expectedGroup = { 1, 2 };
         EXPECT_EQ(count, 2u);
