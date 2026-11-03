@@ -160,6 +160,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtonemap.cpp
     render/testvelocity.cpp
     render/testgbuffermath.cpp
+    render/testdepthmath.cpp
     render/testmaterialmath.cpp
     render/testmaterialoverrides.cpp
     render/testeyeskin.cpp

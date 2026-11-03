@@ -103,3 +103,13 @@ Checks per pose: an image diff of the near field against the same pose with the 
 - Is the main camera's depth really reversed (section 4)? If not, the plan changes (a far plane split or a raised near clip).
 - Can the cluster baker's levels 4 and 5 be built at a size that is useful (what is left of the objects at error 3,000 and 9,000: the classifier's "too small" exclusion grows from 15.5k to 46.8k objects between levels 1 and 2 already)? A level 4 and 5 that holds only towers, big rocks and the Vivec cantons might be all the player expects; an **impostor** or a heightfield-only far field is the alternative.
 - How much haze is "basic"? A taste decision (section 5 parameters).
+
+## Stage a results (2026-11-03)
+
+Written from the code and measured runs; the full tables and the frames are in `docs/tasks/0066-world-lod-whole-map-view.md`, "Stage log".
+
+- **Depth is already reversed** end to end (VSG's `perspective`, depth compare GREATER, clear 0, shadow and occluder samplers, dummy depth images); the fact marked **verify** in section 4 is settled, nothing was converted. The shaders that matter store linear depth in a colour output.
+- **Precision at 600,000 with near 1:** float depth resolves 0.0006 to 0.01 units from 40,000 to 590,000; the conventional mapping would resolve 96 to 46,000 units. The float inverse projection reconstructs a view distance within 0.07 units out to 590,000.
+- **The far plane, the fog end and the tile range are one number today** (`mViewDistance`): raising it to 600,000 removes all haze and makes open water speckle (the water's reflection distance is `scene.zFar`: unverified cause).
+- **Cost:** with levels 1 to 3 and 1 and 2 baked, a 600,000 view costs 6.9 GiB resident and 3.0 GiB on the device (1.1 GiB and 0.3 GiB at 40,000): the extra levels and streaming eviction are required first.
+- **New code:** `components/render/depthmath.hpp` (`Render::DepthMath`, the maths above) and its tests.

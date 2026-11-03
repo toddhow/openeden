@@ -92,3 +92,63 @@ Still open: approval of cluster layout v0 as version 1 before baking more levels
 6. Asked what "reversed depth" means; explained in chat. Stage a checks the code and decides.
 
 6 (decision). toddhow chose the reversed depth setup (near = 1, far = 0, float depth), 2026-11-03. Stage a first checks what the main camera, the shadow cascades, the G-buffer, SSAO/GI/fog/cloud passes and the editor viewport use today; if any is not reversed it is converted in one reviewed change (every pipeline's depth compare and clear value, every shader that reads depth, projection matrices, the linear-depth reconstruction), with the full loop and an off-means-unchanged image comparison (rendered frames identical within noise before the far plane grows).
+
+## Stage log
+
+### Stage a, 2026-11-03: facts and the budget (no behaviour change; the commit that adds `components/render/depthmath.hpp`)
+
+**Depth is already reversed everywhere; nothing was converted.** Read from the code (VSG sources are those fetched into `build-jolt/extern/fetched/vsg`, v1.1.16):
+
+| Site | What it does | Reversed? |
+| --- | --- | --- |
+| Main camera projection, `RenderManager::updateProjectionMatrix` (`rendermanager.cpp`, `mProjectionMatrix` is a `vsg::Perspective`) | `vsg::perspective` in `vsg/maths/transform.h`: "Reverse depth perspective matrix, convention 1 to 0": depth `n (f - d) / ((f - n) d)`, 1 at near, 0 at far | yes |
+| Pipelines' depth compare | `Pipeline::Graphics` and `Pipeline::terrain` build a `vsg::DepthStencilState` and set only `depthTestEnable`/`depthWriteEnable` (`components/pipeline/graphics.cpp:452`, `terrain.cpp:142`); VSG's `depthCompareOp` default is `VK_COMPARE_OP_GREATER` (`vsg/state/DepthStencilState.h:30`). No code in `components` or `apps` sets another compare op | yes (GREATER) |
+| Main and HDR render graphs' depth clear | `setClearValues(color)` keeps VSG's default depth clear `{0.0f, 0}` (`vsg/app/RenderGraph.h:66`; `rendermanager.cpp:813, 1984`; the HDR graph copies it, `hdrtarget.cpp`) | yes (0 = far) |
+| Shadow cascades | `components/view/shadow.cpp:144-169`: sampler `compareOp = GREATER`, border colour opaque black ("reversed"), graph clear `Render::farDepth` (0); `components/render/cascade.hpp:52-54` frustum corners use `nearDepth = 1`, `farDepth = 0` (`components/render/depth.hpp`); GLSL `lib/view/shadow.glsl:62` `zBlocker > zReceiver` | yes |
+| Precipitation occluder | `precipitationoccluder.cpp:37, 49`: clear `farDepth`, black border (reversed); `occlusionbox.hpp:24` says "reversed depth" | yes |
+| Dummy depth images | `components/view/descriptors.cpp:56, 73`: filled with `farDepth` | yes |
+| Sun disc | `sky/sun/main.vert:15` `gl_Position.z = 0.001` (farDepth + epsilon), same in the Slang ports | yes |
+| Water volume | `water/main.vert:24-31` uses `nearDepth`/`farDepth` for the frustum corners | yes |
+| G-buffer, AO, velocity, SSS, tonemap | store and read the LINEAR depth (`-viewPos.z`, `main.frag:554`, `terrain/main.frag:373`), a colour output, not the depth buffer: no convention at all | n/a |
+| Reconstruction from the depth buffer | `lib/view/screencoord.glsl` (`screenCoordToViewPos`, used by the water's reflection/refraction and soft particles in `default/main.frag:542`) and `lib/view/depthbuffer.glsl` (`depthBufferValueToViewZ`, the screen-space ray tracer) with the float inverse projection: the numbers below | yes, accurate (table below) |
+| Fullscreen passes (post-process, AO, bloom, tonemap, velocity, MyGUI) | `depthTestEnable = false` | n/a |
+| `fx` post-processing, `components/fx/vulkanpass.cpp:19` | `OMW_REVERSE_Z 1` | yes |
+| Editor viewport | `apps/opencs/view/render/scenehost.cpp:253, 445` use `vsg::Perspective`; `picking.hpp:60-64` checks `projection(2, 2) > 0` for reversed | yes |
+| Volume fog and clouds (Slang) | build rays from `invProjection` and the froxel slices from distance, not from depth-buffer values | n/a |
+
+So toddhow's choice (reversed, float D32) is what the renderer has had since the vsgopenmw import; stage a made no change to any render file and the frames before and after are the same program (0.000 percent difference by construction). Not checked by reading: the depth of the MyGUI and the map/preview views (they do not test depth).
+
+**Precision** (`Render::DepthMath`, `components/render/depthmath.hpp`, 11 tests in `apps/components_tests/render/testdepthmath.cpp`; near 1, far 600,000; the smallest change of distance that changes the stored float depth; the last column is the error of the shaders' reconstruction with the float inverse projection):
+
+| Distance | Reversed (now) | Conventional 0..1 (for comparison) | Float inverse reconstruction error |
+| --- | --- | --- | --- |
+| 100 | 0.00001 | 0.001 | 0.0000 |
+| 7,168 | 0.00075 | 3.06 | 0.0005 |
+| 40,000 | 0.0029 | 95.8 | 0.0000 |
+| 100,000 | 0.0091 | 598 | 0.0000 |
+| 300,000 | 0.0102 | 5,455 | 0.031 |
+| 590,000 | 0.0006 | 46,221 | 0.0625 |
+
+All in world units. A far plane of 600,000 is fine for depth: no second depth range, no infinite projection needed. The near clip (default 1) could rise to 10 with the same result.
+
+**Cost of the whole-map view with the baked levels** (Balmora start cell, camera at (-20480, -12288, 25000) looking down at 35 degrees, 1280 x 720, RTX 4070, `hdr` and `pbr` on, terrain tiles levels 1 to 3 and clusters levels 1 and 2, median of the last 150 frames, `[Rendering] frame counters`; the machine was shared with other agents, so wall times are rough; the draws and triangles are the census upper bound):
+
+| `[WorldLod] view distance` | wall ms median / p99 | draws | triangles | resident MiB | device MiB |
+| --- | --- | --- | --- | --- | --- |
+| 40,000 | 3.46 / 5.09 | 38,175 | 3.0 M | 1,107 | 316 |
+| 100,000 | 3.66 / 5.08 | 111,360 | 8.9 M | 1,535 | 492 |
+| 600,000 | 4.17 / 13.07 | 29,818 | 6.3 M | 6,897 | 3,047 |
+
+Frames: `I:\Projects\OpenEden-work\depth\hi_a.png` (40,000), `hi_c.png` (100,000), `hi_b.png` (600,000), ground poses `gr_a.png`, `gr_b.png`. Findings from viewing them:
+- **The sky is not clipped by the far plane** (ground pose, 600,000 against 40,000: same sky, same horizon; the dome fits inside the plane).
+- **No depth artefacts** (no z-fighting, no flicker) at 600,000, as the table says.
+- **The land fog follows the far plane** (`FogManager::configure(viewDistance)`), so at 600,000 the haze is gone: crisp dark terrain to the coast, no atmosphere (stage c's job). At 40,000 and 100,000 the fog hides everything past a few thousand units from this height.
+- **Open water far away is speckled with blue and white noise at 600,000** (top corners of `hi_b.png`). Not depth precision (the table). **Unverified hypothesis:** `water/main.frag:97` passes `scene.zFar` as the screen-space reflection's maximum distance, which is now 600,000 (`reflect.glsl`'s stride and jitter follow it). A stage c item: cap the reflection distance, and fade the water to the haze colour with distance.
+- **At 100,000 white wavy strips follow some far ridges** (upper right of `hi_c.png`), probably water planes or tile edges; not investigated.
+
+**Go / no-go.**
+- Depth and far plane: **go**; nothing to build.
+- The whole-map view with today's baked levels: **no-go**: 6.9 GiB resident and 3.0 GiB of device memory (against about 1.1 GiB and 0.3 GiB at 40,000), p99 13 ms (against 5 ms), because everything out to 600,000 is chosen at levels 1 to 3 and nothing is evicted. This is the budget stage d (levels 4 to 6) and the streaming core (task 0060) have to bring down: the target remains the spec's far field of at most 1.5 ms CPU and 150 MiB resident over the 30,000 view.
+- `view distance = auto` must not become the default before those two; the cap setting (`max view distance`) is needed from the start.
+
+**Not verified:** a true before/after pixel comparison (not needed, no render code changed); `fast ascent` pop at level boundaries (needs levels 4 to 6); the sky dome radius value (confirmed only by frames); the shadow cascades and the editor viewport at 600,000 (read, not run); the weak-GPU run; the clouds and volumetric fog at 600,000 (not run; both build rays from the projection and have their own reach limits: `volumegpu.hpp` `farDistance(fogEnd)`).
