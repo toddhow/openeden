@@ -67,3 +67,29 @@ This records what toddhow decided when asked to settle the questions that had pi
 | 0055 | The draft tile key and payload layouts (key: tag 0x10, 8-bit worldspace index, 4-bit level, 44-bit Morton code of the biased coordinates; the 88-byte payload header with heights, normals and albedo each 8-aligned and padding zero; the canonical manifest JSON; `hintMemorySize` is the payload size) | **Approved** ("I approve the draft layout", toddhow). The layout version in the payload header moves from the draft value 0 to 1 |
 | 0055 | Bake albedo into tiles, or reuse the live blend maps | **Bake albedo for the far levels (level 2 and up), keep reusing the live blend maps for the nearest tile level** ("Go with your recommendations", toddhow, 2026-11-02). Far tiles then need one texture each; a mod that changes ground textures triggers a re-bake |
 | 0055 | Level 1 tiles, or level 2 / a coarser threshold | Not yet answered; the code keeps level 1 and threshold 4 |
+
+## Answers of 2026-11-02 (second list)
+
+toddhow answered the list of open questions. "The rest go with your recommendations" means the recommendation given in the list or in the spec's own decisions table.
+
+| Topic | Answer |
+| --- | --- |
+| AdvancedBodies, first goal | **NPC variety** (seeded body parameters for resident NPCs; no save data for residents) |
+| AdvancedBodies, adult tiers and community formats | **Both are in scope.** Adult tiers: engine-enforced age class on the actor and the package, off by default, a separate removable build target, the age gate always built (design doc `docs/design/advancedbodies-in-openeden.md`; architecture only, neutral fixtures). Community formats (BodySlide and similar): licences are checked before importers are designed (BodySlide is GPL-3.0, **verify**) |
+| AdvancedBodies design doc, 21 decisions | **Recommendations accepted** |
+| Groundcover mod for grass tests | https://www.nexusmods.com/morrowind/mods/46377 (Nexus returned 403 to the tool, so the name, version and licence are **not yet checked**; the grass work stays generic over the engine's groundcover record path) |
+| `[Cells] incremental cell build` default | **Off** |
+| Launcher mod organizer (0057), D5 pack priority | **An engine task first**: give a pack a place in the data-folder order (task 0064). Then D3, D4, D7, D10 and the status-file contract as drafted in 0057 and 0058 |
+| Object cluster layout (task 0059, draft version 0) | **Approved**, with D2 (no atlas in v0) and the level errors 128, 320 and 960; the layout freezes at version 1 |
+| Tile level and threshold (0055) | Recommendation accepted: level 1 tiles and threshold 8 stay |
+| Baker (0061) D2, D3, D5 | The spec's recommendations are accepted (bake ahead of time or in the background; mods may ship bakes of their own content only; Morrowind's own bakes are never redistributed) |
+| Streaming (0060) D5 and model LOD chains (0062) D3 | The spec's recommendations are accepted |
+| Ragdoll adapter | Editing `apps/openmw_tests/mwrender/testbonepose.cpp` to host the allocation counter is **approved**; stage c (the editor's world) starts |
+| Style layer cadence | **Kept**: cadence also slows root-motion walking |
+| Edit-NIF (0046) | **Go** |
+| CreativeMotion's standalone repository | No longer the source of truth (decision 0010 item 20) |
+| Pushing | **Standing permission** to push `vulkan` after each green Linux check |
+| `master` on GitHub | Stays the upstream copy; `vulkan` is the main line |
+| Old scratch folders on I: (`OpenEden-cisim`, `-d2clean`, `-v5base`, `-osgref` and their builds) | **Delete** (`-osgref` last, because the movement-start agent compares against it) |
+| Docker volume (50 GB) | Kept until after the next push |
+| Still open | `openeden.animation` contract, macOS, executable and data names, extension questions 1 to 6, DirectStorage (plain I/O for now), the container's `metadataSize` cap |
