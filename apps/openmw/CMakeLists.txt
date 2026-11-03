@@ -32,7 +32,7 @@ source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPEN
 
 add_openmw_dir (mwrender
     mask bin rendermode renderinginterface renderpass intersect rendermanager terrainstorage landmanager lodterrain lodclusters
-    animcontext bodyparts wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
+    animcontext bodyparts bodylegacy wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map worldmap preview shadow
     fogmanager water screenshotinterface bonepose footikmath actorikcontroller joltdebugdraw navmesh creativemotiondriver creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells distantobjects waterripples groundcoverinstances groundcover
@@ -207,6 +207,9 @@ if (TARGET opas::anim_runtime)
         opas::math
     )
 endif()
+
+# AdvancedBodies B1 (task 0063): the body contract, used by the bodycheck console command through bodylegacy.cpp.
+target_link_libraries(openmw-lib eden_body)
 
 if (TARGET opas::ik)
     target_link_libraries(openmw-lib

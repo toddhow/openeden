@@ -37,7 +37,9 @@
 #include <components/esm3/loadlock.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadmisc.hpp>
+#include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadprob.hpp>
+#include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/loadstat.hpp>
@@ -56,6 +58,7 @@
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwrender/bodylegacy.hpp"
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
@@ -427,6 +430,51 @@ namespace MWScript
                 ::Misc::StringUtils::lowerCaseInPlace(argument);
                 runtime.getContext().report(
                     MWBase::Environment::get().getMechanicsManager()->cmStyleCommand(ptr, argument));
+            }
+        };
+
+        // Debug console command of task 0063 (AdvancedBodies B1): describes the default body Morrowind's records give
+        // the target's race and sex (the player when no actor is selected) and checks it with the body validator. It
+        // changes nothing. Mesh summaries are not built in B1, so every part warns about that.
+        template <class R>
+        class OpBodyCheck : public Interpreter::Opcode0
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime) override
+            {
+                MWWorld::Ptr ptr = R()(runtime, false);
+                if (ptr.isEmpty())
+                    ptr = MWBase::Environment::get().getWorld()->getPlayerPtr();
+                if (ptr.getType() != ESM::NPC::sRecordId)
+                {
+                    runtime.getContext().report("bodycheck: the target is not an NPC");
+                    return;
+                }
+                const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
+                const ESM::NPC* npc = ptr.get<ESM::NPC>()->mBase;
+                if (npc == nullptr)
+                {
+                    runtime.getContext().report("bodycheck: the target has no NPC record");
+                    return;
+                }
+                const ESM::Race* race = store.get<ESM::Race>().search(npc->mRace);
+                if (race == nullptr)
+                {
+                    runtime.getContext().report("bodycheck: unknown race");
+                    return;
+                }
+                // Runs on the main thread (console command); getBodyParts' static cache is not thread safe and no
+                // other thread calls it in B1.
+                MWRender::LegacyOptions options;
+                options.mBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
+                const MWRender::LegacyBody body
+                    = MWRender::buildLegacyBody(npc->mRace, !npc->isMale(), store.get<ESM::BodyPart>(), options);
+                const Body::Report report = Body::validateBodyPackage(body.mPackage);
+                for (const std::string& line : MWRender::describeLegacyCheck(body, report))
+                {
+                    runtime.getContext().report(line);
+                    Log(Debug::Info) << line;
+                }
             }
         };
 
@@ -1810,6 +1858,8 @@ namespace MWScript
             interpreter.installSegment5<OpCmRagdollOff>(Compiler::Misc::opcodeCmRagdollOff);
             interpreter.installSegment3<OpCmStyle<ImplicitRef>>(Compiler::Misc::opcodeCmStyle);
             interpreter.installSegment3<OpCmStyle<ExplicitRef>>(Compiler::Misc::opcodeCmStyleExplicit);
+            interpreter.installSegment5<OpBodyCheck<ImplicitRef>>(Compiler::Misc::opcodeBodyCheck);
+            interpreter.installSegment5<OpBodyCheck<ExplicitRef>>(Compiler::Misc::opcodeBodyCheckExplicit);
             interpreter.installSegment5<OpToggleWireframe>(Compiler::Misc::opcodeToggleWireframe);
             interpreter.installSegment5<OpFadeIn>(Compiler::Misc::opcodeFadeIn);
             interpreter.installSegment5<OpFadeOut>(Compiler::Misc::opcodeFadeOut);

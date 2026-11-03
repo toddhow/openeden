@@ -269,6 +269,17 @@ list(APPEND UNITTEST_SRC_FILES
     cmphysics/testhostedjoltscale.cpp
 )
 
+# Task 0063 (AdvancedBodies B1): the body contract (JSON, validator, packed form, tool) and its conformance suite.
+# The legacy adapter's tests (body/testbodylegacy.cpp) need the game's store and are built in openmw-tests.
+list(APPEND UNITTEST_SRC_FILES
+    body/bodyfixtures.cpp
+    body/testbodyjson.cpp
+    body/testbodyvalidate.cpp
+    body/testbodypack.cpp
+    body/testbodytool.cpp
+    body/testbodyconformance.cpp
+)
+
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
@@ -310,8 +321,13 @@ target_compile_definitions(components-tests PRIVATE
     OPENEDEN_SHADER_SOURCE_DIR="${PROJECT_SOURCE_DIR}/files/shaders"
     OPENEDEN_SHADER_BUILD_DIR="${OPENMW_RESOURCES_ROOT}/resources/shaders"
     OPENEDEN_SLANG_ENABLED=$<BOOL:${OPENEDEN_SLANG_SHADERS_BUILT}>)
+    eden_body
 if (OPENEDEN_SLANG_SHADERS_BUILT)
     add_dependencies(components-tests openeden_slang_shaders)
+# Task 0063: where the hand-written body.json fixtures live.
+target_compile_definitions(components-tests PRIVATE
+    OPENEDEN_BODY_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/apps/components_tests/body/data")
+
 endif()
 
 if (WIN32)

@@ -662,6 +662,10 @@ if (BUILD_EDENARCHIVE_TOOLS)
     add_subdirectory(apps/edenarchive)
 endif()
 
+# AdvancedBodies (task 0063): the body contract library and its command-line validator.
+add_subdirectory(components/body)
+add_subdirectory(apps/edenbodyvalidate)
+
 add_subdirectory(extensions)
 if (BUILD_COMPONENTS_TESTS)
     add_subdirectory(apps/components_tests)

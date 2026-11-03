@@ -44,6 +44,13 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testextensionworld.cpp
 )
 
+# Task 0063 (AdvancedBodies B1): the legacy adapter's tests need the game's store, bodyparts.cpp and bodylegacy.cpp
+# (all in openmw-lib once bodylegacy.cpp is added to apps/openmw/CMakeLists.txt). The shared fixtures are compiled here too.
+list(APPEND UNITTEST_SRC_FILES
+    ${CMAKE_SOURCE_DIR}/apps/components_tests/body/bodyfixtures.cpp
+    ${CMAKE_SOURCE_DIR}/apps/components_tests/body/testbodylegacy.cpp
+)
+
 if (MSVC)
     # these TUs take a lot of memory for codegen
     # in CI, they often go over the 8GB memory limit if another cl.exe is running at the same time
@@ -64,7 +71,11 @@ target_link_libraries(openmw-tests
     GTest::GTest
     GMock::GMock
     openmw-lib
+    eden_body
 )
+
+target_compile_definitions(openmw-tests
+    PRIVATE OPENEDEN_BODY_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/apps/components_tests/body/data")
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
 if (UNIX AND NOT APPLE)

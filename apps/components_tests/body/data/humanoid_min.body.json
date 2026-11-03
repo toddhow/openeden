@@ -1,0 +1,92 @@
+{
+  "format": "openeden.body",
+  "version": 1,
+  "identity": {
+    "id": "humanoid_min",
+    "name": "Minimal humanoid",
+    "version": "1.0.0",
+    "author": "OpenEden tests",
+    "license": "CC0-1.0",
+    "contractVersion": {"major": 1, "minor": 0},
+    "ageClass": "unspecified"
+  },
+  "binding": {
+    "skeleton": {
+      "format": "opas.skeletonprofile",
+      "version": 1,
+      "name": "min",
+      "bones": [
+        {"source": "Pelvis", "target": "Bip Pelvis"},
+        {"source": "Spine", "target": "Bip Spine"}
+      ],
+      "legChain": []
+    },
+    "rootBone": "Bip Root",
+    "unmappedBones": ["Bip Root"],
+    "restSkeleton": [
+      {"name": "Bip Root", "parent": -1, "translation": [0, 0, 0], "rotation": [0, 0, 0, 1]},
+      {"name": "Bip Pelvis", "parent": 0, "translation": [0, 0, 1], "rotation": [0, 0, 0, 1]},
+      {"name": "Bip Spine", "parent": 1, "translation": [0, 0, 0.25], "rotation": [0, 0, 0, 1]}
+    ]
+  },
+  "meshes": [
+    {
+      "id": "body",
+      "path": "mesh/body.glb",
+      "meshFormat": "gltf",
+      "lod": 0,
+      "role": "skin",
+      "partType": "torso",
+      "attachBone": "Bip Spine",
+      "summary": {
+        "vertexCount": 3,
+        "triangleCount": 1,
+        "boundsMin": [-0.25, -0.125, 0.5],
+        "boundsMax": [0.25, 0.125, 1.5],
+        "boneNames": ["Bip Pelvis", "Bip Spine"],
+        "influenceOffsets": [0, 1, 2, 4],
+        "influences": [
+          [0, 1],
+          [1, 1],
+          [0, 0.5],
+          [1, 0.5]
+        ],
+        "triangleIndices": [0, 1, 2],
+        "uvSetCount": 1
+      }
+    }
+  ],
+  "morphSet": {
+    "origin": "authored",
+    "morphs": [
+      {
+        "id": "height",
+        "range": [-1, 1],
+        "default": 0,
+        "targets": [
+          {
+            "mesh": "body",
+            "vertices": [0, 1, 2],
+            "deltas": [
+              [0, 0, 0.5],
+              [0, 0, 0.5],
+              [0, 0, 0.5]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "regionMap": {
+    "origin": "authored",
+    "mesh": "body",
+    "regions": [
+      {
+        "id": "torso",
+        "ranges": [
+          [0, 1]
+        ]
+      }
+    ]
+  }
+}
