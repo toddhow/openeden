@@ -64,6 +64,7 @@ file(GLOB UNITTEST_SRC_FILES
     files/conversiontests.cpp
     files/hash.cpp
 
+    files/testdatapack.cpp
     toutf8/toutf8.cpp
 
     esm4/includes.cpp
@@ -115,6 +116,7 @@ file(GLOB UNITTEST_SRC_FILES
     vfs/testvfsentryname.cpp
     vfs/testvfsservicetraversal.cpp
 
+    vfs/testvfspackplacement.cpp
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
 

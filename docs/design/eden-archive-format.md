@@ -186,6 +186,7 @@ Several designs generate data from source assets: converted animations, derived 
 ## 12. Virtual file system, priority, and conflicts
 
 - One virtual file system resolves a path to a file across loose folders, packs, and legacy archives.
+- **Where a pack stands (task 0064).** A pack named in `fallback-archive=` sits below every loose folder, like a BSA. A pack named on a `data=` line (the file ends in `.edenpak`) stands at the position of its line among the data folders and wins and loses exactly as a loose folder there would. Plugins (`.esm`, `.esp`, `.omwgame`, `.omwaddon`, `.omwscripts`, `.project`) are read from data folders on disk, never from a pack; a repacked mod keeps them in a small folder listed at the same position.
 - Pack priority and loose-file overrides follow the same rules as the record layer, with the user layer winning.
 - If two mods supply different content for the same path, write a conflict report. If they supply identical content (same hash), there is no conflict, which improves on archives where duplicates silently shadow each other.
 - Key the engine on content hash where possible so identical assets are shared in the cache and in memory.

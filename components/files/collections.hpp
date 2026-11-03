@@ -7,6 +7,10 @@
 
 namespace Files
 {
+    /// True when `path` is a regular file whose name ends in ".edenpak" (any case): an Eden Archive that a `data=` line
+    /// may name in place of a folder (task 0064). Says nothing about the file's content; the VFS checks the magic.
+    bool isDataPackFile(const std::filesystem::path& path);
+
     class Collections
     {
     public:

@@ -5,6 +5,16 @@
 
 namespace Files
 {
+    bool isDataPackFile(const std::filesystem::path& path)
+    {
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(path, error))
+        {
+            return false;
+        }
+        return Misc::StringUtils::ciEndsWith(pathToUnicodeString(path.filename()), ".edenpak");
+    }
+
     Collections::Collections()
         : mDirectories()
         , mCollections()
@@ -34,6 +44,11 @@ namespace Files
     {
         for (auto iter = mDirectories.rbegin(); iter != mDirectories.rend(); iter++)
         {
+            // A data pack (task 0064) is a file in the list, not a folder to search.
+            if (std::filesystem::is_regular_file(*iter))
+            {
+                continue;
+            }
             for (const auto& iter2 : std::filesystem::directory_iterator(*iter))
             {
                 const auto& path = iter2.path();
@@ -51,6 +66,11 @@ namespace Files
     {
         for (auto iter = mDirectories.rbegin(); iter != mDirectories.rend(); iter++)
         {
+            // A data pack (task 0064) is a file in the list, not a folder to search.
+            if (std::filesystem::is_regular_file(*iter))
+            {
+                continue;
+            }
             for (const auto& iter2 : std::filesystem::directory_iterator(*iter))
             {
                 const auto& path = iter2.path();

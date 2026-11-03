@@ -131,3 +131,5 @@ All in namespace `VFS`, headers under `components/vfs/`. Names are final unless 
 **New Vegas BSA version: still **verify**.** No real archive was opened (no game files are used by this task).
 
 **Spec corrections.** `Override`, `Provider` and `SourceOverrideCount` are namespace-level structs of `VFS`, not nested in `Manager` (as written in the interface section).
+
+**Amended by task 0064 (2026-11-02).** D6 stands for `fallback-archive=` (a pack there sits below every loose folder, like a BSA), but a pack can now also stand in the data-folder order: a `data=` line may name a file ending in `.edenpak`, and `registerArchives` registers the pack at the position of that line. No new key (the order between configuration keys is lost when the configuration is stored, so a separate key could not give a position). Plugins are not read from packs. See `docs/tasks/0064-vfs-pack-placement.md`.

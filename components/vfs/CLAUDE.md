@@ -6,7 +6,7 @@ archives (BSA, BA2) and, later, Eden packs are all `VFS::Archive` objects regist
 ## Rules
 
 - **Priority.** `registerArchives` adds the `fallback-archive=` list first (last entry wins), then the data folders
-  (last wins). So every loose folder beats every archive. A pack rides on `fallback-archive=` like a BSA.
+  (last wins). So every loose folder beats every archive. A pack named in `fallback-archive=` is like a BSA; one named on a `data=` line stands at that line (below).
 - **Names.** `Path::Normalized` is the only key type: `\` becomes `/`, ASCII `A-Z` becomes lower case, doubled and
   leading separators go. Nothing else: no Unicode normalization, `.` and `..` are not resolved (a lookup with them
   misses), trailing dots and spaces and Windows device names are kept. Do not hand-write another version of this
@@ -21,6 +21,7 @@ archives (BSA, BA2) and, later, Eden packs are all `VFS::Archive` objects regist
   uncompressed (Morrowind) BSA use `Platform::File::readAt` on a handle opened for the call. Compressed BSA and BA2
   entries use the default (open the entry, which decompresses it, then slice). A file over 4 GiB is not supported on
   Windows (`Platform::File::size`).
+- **Packs in `data=` (task 0064).** A `data=` line may name a file ending in `.edenpak`; `registerArchives` registers it at the position of its line (`makeEdenArchive`), so it wins and loses like a folder there. `filterOutNonExistingPaths` keeps such a line; `Collections` and `MultiDirCollection` skip regular files. A file with that name that is not a pack stops start-up with a located error. Plugins in a pack are not readable (the readers take disk paths): `findContentFilesInArchive` lists them and `registerArchives` warns. Only the `fallback-archive=` route still puts a pack below all folders.
 - **New archive kinds** are added with `addArchiveFactory` during start-up, before `registerArchives`. A factory
   recognises its file by magic bytes and returns `nullptr` otherwise.
 

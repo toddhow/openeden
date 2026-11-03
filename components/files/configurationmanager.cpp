@@ -5,6 +5,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/validate.hpp>
+#include <components/files/collections.hpp>
 #include <components/files/configfileparser.hpp>
 #include <components/misc/strings/conversion.hpp>
 
@@ -358,7 +359,8 @@ namespace Files
     {
         dataDirs.erase(std::remove_if(dataDirs.begin(), dataDirs.end(),
                            [this](const std::filesystem::path& p) {
-                               bool exists = std::filesystem::is_directory(p);
+                               // A data pack (task 0064) may stand in the list where a folder would.
+                               bool exists = std::filesystem::is_directory(p) || isDataPackFile(p);
                                if (!exists && !mSilent)
                                    Log(Debug::Warning) << "No such dir: " << p;
                                return !exists;

@@ -12,6 +12,12 @@ namespace Files
     {
         for (const auto& directory : directories)
         {
+            if (std::filesystem::is_regular_file(directory))
+            {
+                // A data pack (task 0064) holds no plugins that can be read from disk.
+                continue;
+            }
+
             if (!std::filesystem::is_directory(directory))
             {
                 Log(Debug::Info) << "Skipping invalid directory: " << directory;
