@@ -463,8 +463,8 @@ namespace MWScript
                     runtime.getContext().report("bodycheck: unknown race");
                     return;
                 }
-                // Runs on the main thread (console command); getBodyParts' static cache is not thread safe and no
-                // other thread calls it in B1.
+                // Runs on the main thread (console command); getBodyParts' static cache is guarded by a mutex, since
+                // the preloader also calls it.
                 MWRender::LegacyOptions options;
                 options.mBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
                 const MWRender::LegacyBody body

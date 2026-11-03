@@ -1,6 +1,7 @@
 #include "bodyparts.hpp"
 
 #include <iostream>
+#include <mutex>
 
 using Store = MWWorld::Store<ESM::BodyPart>;
 
@@ -64,10 +65,14 @@ namespace MWRender
     // Remember body parts so we only have to search through the store once for each race/gender/viewmode combination
     typedef std::map<std::pair<ESM::RefId, int>, std::vector<const ESM::BodyPart*>> RaceMapping;
     static RaceMapping sRaceMapping;
+    // The preload thread and the main thread both fill the cache (the preloader through Npc::defaultPartModels).
+    static std::mutex sRaceMappingMutex;
 
     const std::vector<const ESM::BodyPart*>& getBodyParts(
         const ESM::RefId& race, bool female, bool firstPerson, bool werewolf, const Store& store)
     {
+        const std::lock_guard<std::mutex> lock(sRaceMappingMutex);
+
         static const int Flag_FirstPerson = 1 << 1;
         static const int Flag_Female = 1 << 0;
 

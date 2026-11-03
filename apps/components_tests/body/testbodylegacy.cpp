@@ -164,8 +164,9 @@ namespace
     /// The adapter's selected parts must equal what the engine's own functions select.
     void expectMatchesEngine(const MWRender::LegacyBody& body, const std::string& race, bool female, const Store& store)
     {
+        const ESM::RefId raceId = refId(race);
         const std::vector<const ESM::BodyPart*>& parts
-            = MWRender::getBodyParts(refId(race), female, false, false, store);
+            = MWRender::getBodyParts(raceId, female, false, false, store);
         ASSERT_EQ(parts.size(), static_cast<std::size_t>(ESM::PRT_Count));
         for (const Slot& slot : sSlots)
         {
