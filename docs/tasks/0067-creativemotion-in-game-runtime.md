@@ -139,3 +139,15 @@ Animation retargeting between skeletons; motion matching; ragdoll and the push s
 6. **Twist helper bones (stage 3b):** are we willing to add helper bones to Morrowind's skeleton at load (a rig definition), or drop twist?
 7. **Which build of yours showed the slide?** A build date or git hash would close finding 1.3 (run it in the scenario).
 8. **NPC scope and budget:** all actors, or only those within N metres and the player's group; what frame-time budget for 50 actors?
+
+## Answers of toddhow, 2026-11-03
+
+1. Vanilla stays the default. A first-run prompt asking how the game should be configured (presets such as `natural`) is planned: it needs its own task spec (first-run configuration), not part of this one.
+2. Lower body first (legs, hips, locomotion); upper body keeps the current clip playback for combat, spells and gestures until stage 3. Explained to toddhow in chat, accepted as "for now".
+3. Yes: we author our own clips, all of them (start, stop, turn, strafe, idle variants and more). Needs a clip authoring and licensing note (our own work, GPL-3.0-or-later, no game assets) before any clip is added.
+4. Asked what the animation speed floor means; answered in chat (the walk cycle's minimum playback speed while the actor accelerates from standstill). Open until toddhow replies.
+5. Acceptance numbers confirmed (group-change joint step at most 1.5 degrees, stop settling in 0.3 to 0.8 s, jerk 30 percent lower).
+6. toddhow's own video comparison is a second check; automated trace tests remain the first gate so that comparisons are repeatable.
+7. Yes: twist helper bones may be added to Morrowind's skeleton (as part of our own skeleton data, stage 3 and later; compatibility with vanilla meshes to be checked).
+8. NPC scope: NPCs should be interactable the way Red Dead Redemption 2 does it (approach, eye contact and look-at, greeting and reaction gestures, contextual prompts). This widens stage 4 into its own spec (NPC interaction), to be written after stage 2.
+9. toddhow does not know which build showed the slide; settled by testing the current build.
