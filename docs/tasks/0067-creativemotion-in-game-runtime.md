@@ -151,3 +151,20 @@ Animation retargeting between skeletons; motion matching; ragdoll and the push s
 7. Yes: twist helper bones may be added to Morrowind's skeleton (as part of our own skeleton data, stage 3 and later; compatibility with vanilla meshes to be checked).
 8. NPC scope: NPCs should be interactable the way Red Dead Redemption 2 does it (approach, eye contact and look-at, greeting and reaction gestures, contextual prompts). This widens stage 4 into its own spec (NPC interaction), to be written after stage 2.
 9. toddhow does not know which build showed the slide; settled by testing the current build.
+
+## Stage log
+
+### Stage 0 (2026-11-03): scenario and metrics, built and run on the current build
+
+Built: `components/animtrace/` (the maths and the log parser, 39 unit tests: `AnimTrace*` in `components-tests`), the program `creativemotioncheck` (`apps/creativemotioncheck/`), and `tools/creativemotion_check/` (`check.sh`, the Lua scenario `mod/scripts/cmcheck.lua`). Measures M1 to M5 as in the Stage 0 section, with these definitions written down in `components/animtrace/tracemetrics.hpp`: a step is the angle of the rotation from the previous frame's local rotation to this one (atan2 form, so tiny angles keep their precision); M3 jerk is the angle between a frame's rotation step and the previous frame's; M4 uses the length of `moved` in x and y over dt; M5 settles inside the event's own phase. The scenario counts frames, not seconds (phase lengths in frames, 60 frames per second): idle, walk, run, stop, turn, stop2, draw, attack, hit (a small `Actor._onHit`, below the knockdown threshold), sheathe.
+
+Changes from the spec's text: the measure program is C++ (`creativemotioncheck`), not awk, so that the maths has unit tests; the scenario cell is `Seyda Neen`, not the Ebonheart Grand Council Chambers (the chamber is too small: the player runs into a wall after 145 units and the run and stop numbers were meaningless); the scenario script is Lua run through `--skip-menu --start` and a content file, with no console script.
+
+Baseline (full table and reading in `docs/research/0031-creativemotion-baseline.md`; raw reports in `docs/research/0031-creativemotion-baseline-data/`): at a change of animation group, vanilla jumps by up to 49 degrees on one frame (run 48.97, stop 45.54, hit 56.22, jerk up to 56); inertial locomotion alone leaves those jumps (35.9 to 55.8); CreativeMotion's blend removes the one-frame jump at every event (0.00) and keeps the jerk at 5.7 degrees per frame squared or less, spreading the change over the next frames (`step8` up to 7.9; a stop settles in 0.23 s where vanilla cuts).
+
+Acceptance of stage 0:
+- [x] The scenario runs, the report is deterministic for a given log (same bytes twice, unit-tested), the runner needs no Python.
+- [~] "Twice, identically / within 0.5 degrees": event frames are identical between runs; values differ by at most 0.72 degrees (step8 of vanilla sheathe and CM stop2, jerk of inertial stop) and by 0.5 or less in the other values, and by up to 1.1 degrees at the hit, where the engine picks one of several hit animations at random. The game has no fixed timestep, so byte-identical runs are not possible without an engine change. Proposed: a tolerance of 1 degree between runs of one build, the hit compared only when the same hit animation played. For toddhow's decision.
+- [~] "Reproduces note 0022's baseline": note 0022 has no per-event table; its one number for CM (left thigh 0 to 1.4 degrees at a group change) agrees with 0.00 here. A line-by-line comparison is not possible.
+
+Not run: the Linux gate (the container was in use; `components/animtrace/` and the tests are plain C++20 with no platform code, written to `-Werror -Wshadow` rules but not compiled with GCC); clang-format was checked with clang-format 23 (14 is only in the container), and the three files it changed were fixed.

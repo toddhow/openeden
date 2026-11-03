@@ -280,6 +280,13 @@ list(APPEND UNITTEST_SRC_FILES
     body/testbodyconformance.cpp
 )
 
+# Task 0067 stage 0: the maths and the parser of the CreativeMotion transition measurement.
+list(APPEND UNITTEST_SRC_FILES
+    animtrace/testtracemetrics.cpp
+    animtrace/testtraceparse.cpp
+    animtrace/testtracetool.cpp
+)
+
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
@@ -311,6 +318,7 @@ target_link_libraries(components-tests
     opas_math
     opas_motor
     eden_body
+    eden_animtrace
 )
 
 # Task 0063: where the hand-written body.json fixtures live.

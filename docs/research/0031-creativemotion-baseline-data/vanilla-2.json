@@ -1,0 +1,24 @@
+{
+  "label": "vanilla-2",
+  "frames": 1401,
+  "unreadableLines": 0,
+  "seconds": 23.518,
+  "longestFrameSeconds": 0.2000,
+  "bones": ["bip01 pelvis", "bip01 l thigh", "bip01 r thigh", "bip01 spine1", "bip01 l upperarm", "bip01 head"],
+  "events": [
+    {"name": "idle", "frame": 170, "time": 0.000, "stepAtEvent": 0.000, "stepAfter": 3.823, "jerk": 3.823, "speedStep": 0.121, "settled": true, "settleFrames": 2, "settleSeconds": 0.034, "worstBoneAtEvent": "bip01 r thigh"},
+    {"name": "walk", "frame": 290, "time": 2.001, "stepAtEvent": 2.374, "stepAfter": 2.081, "jerk": 2.884, "speedStep": 109.174, "settled": false, "settleFrames": 0, "settleSeconds": 0.000, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "run", "frame": 410, "time": 4.000, "stepAtEvent": 49.176, "stepAfter": 4.368, "jerk": 50.510, "speedStep": 103.531, "settled": false, "settleFrames": 0, "settleSeconds": 0.000, "worstBoneAtEvent": "bip01 l thigh"},
+    {"name": "stop", "frame": 530, "time": 6.000, "stepAtEvent": 45.601, "stepAfter": 0.072, "jerk": 45.620, "speedStep": 232.999, "settled": true, "settleFrames": 1, "settleSeconds": 0.017, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "turn", "frame": 650, "time": 8.000, "stepAtEvent": 4.016, "stepAfter": 3.052, "jerk": 3.966, "speedStep": 11.155, "settled": true, "settleFrames": 14, "settleSeconds": 0.234, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "stop2", "frame": 770, "time": 10.001, "stepAtEvent": 0.000, "stepAfter": 48.594, "jerk": 48.598, "speedStep": 5.776, "settled": true, "settleFrames": 4, "settleSeconds": 0.066, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "draw", "frame": 830, "time": 11.001, "stepAtEvent": 5.222, "stepAfter": 5.635, "jerk": 5.222, "speedStep": 90.837, "settled": true, "settleFrames": 12, "settleSeconds": 0.200, "worstBoneAtEvent": "bip01 r thigh"},
+    {"name": "drawn_idle", "frame": 890, "time": 12.001, "stepAtEvent": 0.116, "stepAfter": 0.130, "jerk": 0.035, "speedStep": 0.000, "settled": true, "settleFrames": 1, "settleSeconds": 0.017, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "attack", "frame": 950, "time": 13.000, "stepAtEvent": 9.324, "stepAfter": 2.727, "jerk": 9.214, "speedStep": 11.884, "settled": true, "settleFrames": 20, "settleSeconds": 0.333, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "drawn_idle2", "frame": 1040, "time": 14.500, "stepAtEvent": 1.795, "stepAfter": 4.528, "jerk": 3.954, "speedStep": 33.289, "settled": true, "settleFrames": 33, "settleSeconds": 0.550, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "hit", "frame": 1100, "time": 15.500, "stepAtEvent": 56.266, "stepAfter": 5.739, "jerk": 56.272, "speedStep": 8.937, "settled": true, "settleFrames": 69, "settleSeconds": 1.151, "worstBoneAtEvent": "bip01 r thigh"},
+    {"name": "drawn_idle3", "frame": 1190, "time": 17.001, "stepAtEvent": 0.114, "stepAfter": 0.124, "jerk": 0.025, "speedStep": 0.000, "settled": true, "settleFrames": 1, "settleSeconds": 0.017, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "sheathe", "frame": 1250, "time": 18.000, "stepAtEvent": 10.758, "stepAfter": 5.396, "jerk": 10.644, "speedStep": 78.553, "settled": true, "settleFrames": 16, "settleSeconds": 0.266, "worstBoneAtEvent": "bip01 l upperarm"},
+    {"name": "end", "frame": 1310, "time": 19.000, "stepAtEvent": 0.069, "stepAfter": 0.078, "jerk": 0.016, "speedStep": 0.013, "settled": true, "settleFrames": 1, "settleSeconds": 0.017, "worstBoneAtEvent": "bip01 l upperarm"}
+  ]
+}

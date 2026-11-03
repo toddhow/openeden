@@ -666,6 +666,10 @@ endif()
 add_subdirectory(components/body)
 add_subdirectory(apps/edenbodyvalidate)
 
+# CreativeMotion in the game, stage 0 (task 0067): the transition measurement and its command-line tool.
+add_subdirectory(components/animtrace)
+add_subdirectory(apps/creativemotioncheck)
+
 add_subdirectory(extensions)
 if (BUILD_COMPONENTS_TESTS)
     add_subdirectory(apps/components_tests)
