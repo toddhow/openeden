@@ -5,6 +5,7 @@
 
 #include "../mwworld/ptr.hpp"
 
+#include <components/inertialmotion/leansmoother.hpp>
 #include <components/misc/vsgmath.hpp>
 
 #include "bonepose.hpp"
@@ -113,6 +114,9 @@ namespace MWRender
         LegState mLegs[2];
         ArmNodes mArms[2];
         BoneState mSpine1;
+        // The procedural lean angles, eased toward their targets so the spine never steps (owned by this controller)
+        InertialMotion::LeanSmoother mLeanPitch;
+        InertialMotion::LeanSmoother mLeanBank;
         BonePose::Bone mNeck;
         BonePose::Bone mHead;
 

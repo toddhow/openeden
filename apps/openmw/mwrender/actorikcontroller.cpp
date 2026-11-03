@@ -8,6 +8,7 @@
 #include "../mwphysics/raycasting.hpp"
 #include "../mwworld/class.hpp"
 
+#include <components/debug/debuglog.hpp>
 #include <components/misc/vsgmath.hpp>
 
 #include <components/mwanimation/object.hpp>
@@ -317,8 +318,22 @@ namespace MWRender
             const float speed = loc.getSmoothedSpeed();
 
             const float maxLeanRad = Misc::VsgMath::inDegrees(8.0f) * leanScale;
-            const float pitch = std::clamp(linearAccel / 600.0f, -1.0f, 1.0f) * maxLeanRad;
-            const float bank = std::clamp((angVel * speed) / 600.0f, -1.0f, 1.0f) * maxLeanRad;
+            const float targetPitch = std::clamp(linearAccel / 600.0f, -1.0f, 1.0f) * maxLeanRad;
+            const float targetBank = std::clamp((angVel * speed) / 600.0f, -1.0f, 1.0f) * maxLeanRad;
+
+            // The targets step: inertial locomotion accelerates at a constant rate, so the acceleration jumps from
+            // zero to its full value on the first frame of a walk. Ease the angles toward them instead.
+            const float pitch = mLeanPitch.update(targetPitch, dt, InertialMotion::LeanSmootherParameters{});
+            const float bank = mLeanBank.update(targetBank, dt, InertialMotion::LeanSmootherParameters{});
+
+            if (Settings::game().mCreativeMotionAnimationDebug)
+            {
+                Log(Debug::Info) << "CMLEAN ref=" << mPtr.getCellRef().getRefId().toDebugString() << " dt=" << dt
+                                 << " targetpitchdeg=" << Misc::VsgMath::radiansToDegrees(targetPitch)
+                                 << " accel=" << linearAccel << " angvel=" << angVel << " speed=" << speed
+                                 << " pitchdeg=" << Misc::VsgMath::radiansToDegrees(pitch)
+                                 << " bankdeg=" << Misc::VsgMath::radiansToDegrees(bank);
+            }
 
             if (std::abs(pitch) > 1e-4f || std::abs(bank) > 1e-4f)
             {
@@ -329,6 +344,11 @@ namespace MWRender
                 FootIk::applyLean(*mPose, mSpine1.mBone, root.mAttitude, leanRot);
                 FootIk::markRotationWritten(*mPose, mSpine1.mBone, mSpine1.mBase);
             }
+        }
+        else
+        {
+            mLeanPitch.reset();
+            mLeanBank.reset();
         }
 
         if (!mFootPlantingActive)

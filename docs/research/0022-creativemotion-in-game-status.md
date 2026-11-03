@@ -103,3 +103,26 @@ So vanilla cuts: one frame with a 17 to 39 degree jump. With CM on there is no s
 - The idle-to-turnleft flicker seen once with all features on (and `actor collision shape type = 4`) while the player stood still.
 - The style layer and the animation graph are not wired: see `docs/tasks/0053-creativemotion-transitions-and-style.md` for the staged plan.
 - Only the group-level state is fed to CM; a graph or a style needs movement, stance and weapon state as inputs.
+
+## Follow-up (2026-11-02): the start-of-walk video, and the lean step
+
+toddhow recorded the stutter (`OpenMW 2026-11-02 19-08-00.mp4`, 2560x1440, 306 frames, about 30 fps, third person, Balmora in rain, the character seen from behind). Frames were read with a small scratch decoder (not in the repository). What the video shows, in plain words:
+
+- Frames 0 to about 95: the character stands. Frames 96 to about 119: the ground scrolls (he moves), but legs, arms and back keep the standing pose for about 24 frames (0.8 s): he slides.
+- From about frame 120 the legs start to step, and over the next 10 to 15 frames the shoulders roll to one side and one arm swings out, then it settles into a normal walk.
+
+What was measured (his settings, `creativemotion animation = false`, the same scripted walk start, third person, current build; log lines `CMTRACE` and the new `CMLEAN`):
+
+| thing | result |
+| --- | --- |
+| ground speed | rises in a straight line from 0 to 128 u/s over 29 frames (0.47 s), as `inertial locomotion = high` intends |
+| walk animation speed | 0.125 for 6 frames, then follows the speed up to 0.83; the legs move visibly from about frame 10 |
+| old procedural lean | **0 to 3.8 degrees in one frame** on the first frame of the walk, held for 0.45 s, then **3.8 to 0 in one frame** when the speed stops rising |
+| bank (sideways lean) | always 0: `LocomotionState::updateYaw` is never called by the game, so there is no angular velocity |
+| every other bone | at most 1 to 3 degrees per frame (the walk clip's own motion) |
+
+Cause of the visible lurch: the lean follows the acceleration, and inertial locomotion accelerates at a constant rate, so the acceleration steps from zero to full on one frame and back on another. The spine popped by 3.8 degrees (his lean scale is 1.0; a bigger scale pops more) twice per start. The other half of the video, the long idle-pose slide, is not reproduced on the current code (the idle-to-walk loop fix of section 1 is in HEAD since 2026-11-01 21:16, before the video). The executable he ran cannot be identified: `build-jolt/openmw.exe` has been rebuilt many times since 19:08, so it is possible his build was older than that fix, but this was not shown.
+
+Fix: `InertialMotion::LeanSmoother` (`components/inertialmotion/leansmoother.hpp`), a critically damped spring with a speed cap, eases the lean pitch and bank toward their targets (`ActorIkController::applyPostAnimation`). Result with the same scenario: the largest per-frame change of the lean is 0.31 degrees (was 3.8), no overshoot. With `procedural lean` off nothing is written; with it on but `inertial locomotion` off the target is 0, the lean stays 0 and no bone is written, as before (traced: no `CMLEAN` line in a vanilla run, speed 0 and no lean in a lean-only run).
+
+Open: the slide and the arm swing in the video may still come from the walk clip's own first frames at low animation speed (the clip plays at 0.125 to 0.3 speed for the first 0.2 s); a build identified as his is needed to separate that from the old stall.

@@ -141,6 +141,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_physics_service.cpp
     inertialmotion/test_locomotion_state.cpp
     inertialmotion/testmovementrequest.cpp
+    inertialmotion/testleansmoother.cpp
 
     mwrender/test_creativemotion_runtime.cpp
     mwrender/test_creativemotion_style.cpp
