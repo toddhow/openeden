@@ -114,7 +114,10 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.autoScreenshotFrame = variables["auto-screenshot"].as<unsigned int>();
     args.autoQuitFrame = variables["auto-quit"].as<unsigned int>();
     args.bakeGiCell = variables["bake-gi"].as<std::string>();
-    args.bakeGiOut = variables["bake-gi-out"].as<std::string>();
+    // --bake-out is the general name; --bake-gi-out is the older one of the same folder and keeps working.
+    args.bakeGiOut = variables["bake-out"].as<std::string>();
+    if (args.bakeGiOut.empty())
+        args.bakeGiOut = variables["bake-gi-out"].as<std::string>();
     args.bakeGiExterior = variables["bake-gi-exterior"].as<std::string>();
     args.bakeLodTerrain = variables["bake-lod-terrain"].as<bool>();
     args.bakeLodObjects = variables["bake-lod-objects"].as<bool>();
@@ -156,7 +159,7 @@ int runApplication(int argc, char* argv[])
         engine.go(*args);
     }
 
-    return 0;
+    return engine.exitCode();
 }
 
 #ifdef ANDROID

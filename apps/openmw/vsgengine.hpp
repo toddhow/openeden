@@ -128,6 +128,12 @@ namespace OMW
 
         /// Initialise and enter main loop.
         void go(const Arguments& args);
+
+        /// Zero, or non-zero when a check mode found problems (openmw --check-bodies).
+        int exitCode() const { return mExitCode; }
+
+    private:
+        int mExitCode = 0;
     };
 }
 

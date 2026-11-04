@@ -50,7 +50,11 @@ namespace OMW
         // Call once per running frame. True when the mode has finished (or failed) and the game should quit.
         bool update();
 
+        // The number of problems found so far: failed checks, a failed publish, an error that stopped the run.
+        int problems() const;
+
     private:
+        bool step();
         struct State;
         std::unique_ptr<State> mState;
     };

@@ -625,6 +625,8 @@ namespace OMW
                   }
               };
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
+        if (bodyBaker && bodyBaker->problems() > 0)
+            mExitCode = 3;
 
         std::cout << "Quitting peacefully." << std::endl;
 

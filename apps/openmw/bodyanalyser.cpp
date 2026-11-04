@@ -23,44 +23,17 @@
 #include <components/settings/settings.hpp>
 #include <components/vfs/manager.hpp>
 
+#include "bodycommon.hpp"
 #include "mwbase/environment.hpp"
 #include "mwrender/bodyparts.hpp"
 #include "mwworld/esmstore.hpp"
 
 namespace OMW
 {
+    using namespace BodyCommon;
+
     namespace
     {
-        struct SlotDef
-        {
-            ESM::PartReferenceType mType;
-            const char* mName;
-        };
-
-        // The slots of a body from the neck down (research note 0032 section 1); the head is a part of its own.
-        constexpr SlotDef slotDefs[] = {
-            { ESM::PRT_Neck, "neck" },
-            { ESM::PRT_Cuirass, "cuirass" },
-            { ESM::PRT_Groin, "groin" },
-            { ESM::PRT_RUpperarm, "rupperarm" },
-            { ESM::PRT_LUpperarm, "lupperarm" },
-            { ESM::PRT_RForearm, "rforearm" },
-            { ESM::PRT_LForearm, "lforearm" },
-            { ESM::PRT_RWrist, "rwrist" },
-            { ESM::PRT_LWrist, "lwrist" },
-            { ESM::PRT_RHand, "rhand" },
-            { ESM::PRT_LHand, "lhand" },
-            { ESM::PRT_RLeg, "rleg" },
-            { ESM::PRT_LLeg, "lleg" },
-            { ESM::PRT_RKnee, "rknee" },
-            { ESM::PRT_LKnee, "lknee" },
-            { ESM::PRT_RAnkle, "rankle" },
-            { ESM::PRT_LAnkle, "lankle" },
-            { ESM::PRT_RFoot, "rfoot" },
-            { ESM::PRT_LFoot, "lfoot" },
-            { ESM::PRT_Tail, "tail" },
-        };
-
         // A boundary vertex counts as on a seam when the other part has a boundary vertex within this many Morrowind
         // units (about 70 to the metre, Constants::UnitsPerMeter: a human is about 130 units tall). The first run used
         // 2 and found the overlaps larger than that; 6 is wider than every overlap seen in it and narrower than the
@@ -103,69 +76,6 @@ namespace OMW
             { "ankle-foot", "lankle", "lfoot" },
             { "groin-tail", "groin", "tail" },
         };
-
-        struct Unit
-        {
-            const ESM::Race* mRace = nullptr;
-            bool mFemale = false;
-        };
-
-        // One parsed NIF file kept for the unit being analysed (a stock hand file is read once for both sides).
-        struct ParsedFile
-        {
-            std::unique_ptr<Nif::NIFFile> mFile;
-            std::uint64_t mBytes = 0;
-            std::string mError;
-        };
-
-        ParsedFile parseFile(const VFS::Manager& vfs, const std::string& path)
-        {
-            ParsedFile parsed;
-            try
-            {
-                {
-                    Files::IStreamPtr stream = vfs.get(VFS::Path::Normalized(path));
-                    const std::string bytes(
-                        (std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
-                    parsed.mBytes = bytes.size();
-                }
-                parsed.mFile = std::make_unique<Nif::NIFFile>(VFS::Path::Normalized(path));
-                Nif::Reader reader(*parsed.mFile);
-                reader.parse(vfs.get(VFS::Path::Normalized(path)));
-            }
-            catch (const std::exception& e)
-            {
-                parsed.mFile.reset();
-                parsed.mError = e.what();
-            }
-            return parsed;
-        }
-
-        // Reads the shapes the skin filter selects from every root of a parsed file; returns the shapes and appends
-        // reader errors to `errors`. `fileShapes` gets the number of shapes the file holds without a filter.
-        std::vector<BodyNif::Shape> shapesOf(const ParsedFile& parsed, const std::string& filter,
-            const BodyNif::Placement& placement, std::vector<std::string>& errors, std::size_t* fileShapes)
-        {
-            std::vector<BodyNif::Shape> shapes;
-            if (fileShapes != nullptr)
-                *fileShapes = 0;
-            if (!parsed.mFile)
-                return shapes;
-            for (const Nif::Record* root : parsed.mFile->mRoots)
-            {
-                const auto* node = dynamic_cast<const Nif::NiAVObject*>(root);
-                if (node == nullptr)
-                    continue;
-                BodyNif::ReadResult result = BodyNif::readShapes(*node, filter, {}, placement);
-                for (BodyNif::Shape& shape : result.mShapes)
-                    shapes.push_back(std::move(shape));
-                for (std::string& error : result.mErrors)
-                    errors.push_back(std::move(error));
-                if (fileShapes != nullptr)
-                    *fileShapes += BodyNif::readShapes(*node, "").mShapes.size();
-            }
-            return shapes;
-        }
 
         std::string materialKey(const BodyNif::Shape& shape)
         {

@@ -117,7 +117,11 @@ namespace OpenMW
             "(read-only; needs the game data; quits when done)");
 
         addOption("bake-gi-out", bpo::value<std::string>()->default_value(""),
-            "folder the baked probes are written to (default: the user data folder)");
+            "folder the baked probes are written to (default: the user data folder); see --bake-out");
+
+        addOption("bake-out", bpo::value<std::string>()->default_value(""),
+            "folder every bake and body analysis writes to (default: the user data folder); the older name of the "
+            "same option is --bake-gi-out");
 
         addOption("encoding", bpo::value<std::string>()->default_value("win1252"),
             "Character encoding used in OpenMW game messages:\n"

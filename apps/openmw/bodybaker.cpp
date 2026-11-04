@@ -31,6 +31,7 @@
 
 #include <edenarchive/hash.hpp>
 
+#include "bodycommon.hpp"
 #include "mwbase/environment.hpp"
 #include "mwbase/world.hpp"
 #include "mwrender/bodyparts.hpp"
@@ -38,39 +39,10 @@
 
 namespace OMW
 {
+    using namespace BodyCommon;
+
     namespace
     {
-        struct SlotDef
-        {
-            ESM::PartReferenceType mType;
-            const char* mName;
-        };
-
-        // The slots of a body from the neck down (research note 0032 section 1; the same list as the analysis); the
-        // head is a part of its own (decision H14). The slot number of a region is the engine's part type.
-        constexpr SlotDef slotDefs[] = {
-            { ESM::PRT_Neck, "neck" },
-            { ESM::PRT_Cuirass, "cuirass" },
-            { ESM::PRT_Groin, "groin" },
-            { ESM::PRT_RUpperarm, "rupperarm" },
-            { ESM::PRT_LUpperarm, "lupperarm" },
-            { ESM::PRT_RForearm, "rforearm" },
-            { ESM::PRT_LForearm, "lforearm" },
-            { ESM::PRT_RWrist, "rwrist" },
-            { ESM::PRT_LWrist, "lwrist" },
-            { ESM::PRT_RHand, "rhand" },
-            { ESM::PRT_LHand, "lhand" },
-            { ESM::PRT_RLeg, "rleg" },
-            { ESM::PRT_LLeg, "lleg" },
-            { ESM::PRT_RKnee, "rknee" },
-            { ESM::PRT_LKnee, "lknee" },
-            { ESM::PRT_RAnkle, "rankle" },
-            { ESM::PRT_LAnkle, "lankle" },
-            { ESM::PRT_RFoot, "rfoot" },
-            { ESM::PRT_LFoot, "lfoot" },
-            { ESM::PRT_Tail, "tail" },
-        };
-
         // Stage a measured these two seams as exact (all 40 rings within 0.0011 units, the next nearest pair anywhere
         // 0.054 away): a tolerance of 0.01 welds them and nothing else. The other joints are overlapping closed shells
         // and stay as they are (toddhow, 2026-11-03).
@@ -88,68 +60,9 @@ namespace OMW
             };
         }
 
-        struct Unit
-        {
-            const ESM::Race* mRace = nullptr;
-            bool mFemale = false;
-        };
-
         std::string sexName(bool female)
         {
             return female ? "female" : "male";
-        }
-
-        // One file read from the VFS: its digest (of the bytes: a loose file has none), size and parsed records.
-        struct ParsedFile
-        {
-            std::unique_ptr<Nif::NIFFile> mFile;
-            std::string mDigest;
-            std::string mError;
-        };
-
-        ParsedFile parseFile(const VFS::Manager& vfs, const std::string& path)
-        {
-            ParsedFile parsed;
-            try
-            {
-                {
-                    Files::IStreamPtr stream = vfs.get(VFS::Path::Normalized(path));
-                    const std::string bytes(
-                        (std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
-                    EdenArchive::Hasher hasher;
-                    hasher.update(bytes.data(), bytes.size());
-                    parsed.mDigest = EdenArchive::toHex(hasher.finalize());
-                }
-                parsed.mFile = std::make_unique<Nif::NIFFile>(VFS::Path::Normalized(path));
-                Nif::Reader reader(*parsed.mFile);
-                reader.parse(vfs.get(VFS::Path::Normalized(path)));
-            }
-            catch (const std::exception& e)
-            {
-                parsed.mFile.reset();
-                parsed.mError = e.what();
-            }
-            return parsed;
-        }
-
-        std::vector<BodyNif::Shape> shapesOf(const ParsedFile& parsed, const std::string& filter,
-            const BodyNif::Placement& placement, std::vector<std::string>& errors)
-        {
-            std::vector<BodyNif::Shape> shapes;
-            if (!parsed.mFile)
-                return shapes;
-            for (const Nif::Record* root : parsed.mFile->mRoots)
-            {
-                const auto* node = dynamic_cast<const Nif::NiAVObject*>(root);
-                if (node == nullptr)
-                    continue;
-                BodyNif::ReadResult result = BodyNif::readShapes(*node, filter, {}, placement);
-                for (BodyNif::Shape& shape : result.mShapes)
-                    shapes.push_back(std::move(shape));
-                for (std::string& error : result.mErrors)
-                    errors.push_back(std::move(error));
-            }
-            return shapes;
         }
 
         // The files of one run: parsed once each (a stock hand file serves both sides) with their digests.
@@ -188,6 +101,7 @@ namespace OMW
             std::vector<Body::PartMesh> mParts;
             std::vector<Body::SeamDeclaration> mSeams;
             Body::MergeOptions mOptions;
+            Body::MergeLimits mLimits;
             std::string mError; // non-empty: the body cannot be merged, one line
         };
 
@@ -243,11 +157,14 @@ namespace OMW
             body.mKey.mRace = unit.mRace->mId.getRefIdString();
             body.mKey.mSex = sexName(unit.mFemale);
             body.mKey.mView = viewName;
-            body.mKey.mWeldTolerance = weldTolerance;
             body.mKey.mLayoutVersion = Body::bodyMeshLayoutVersion;
             body.mSeams = exactSeams();
             for (const SlotDef& def : slotDefs)
                 body.mOptions.mBoneOrder.push_back(Misc::StringUtils::lowerCase(MWAnim::sPartBones.at(def.mType)));
+            // The key carries exactly what the merger is given: the same objects, not copies of their values.
+            body.mKey.mSeams = body.mSeams;
+            body.mKey.mMerge = body.mOptions;
+            body.mKey.mLimits = body.mLimits;
 
             const bool beast = (unit.mRace->mData.mFlags & ESM::Race::Beast) != 0;
             const auto& bodyParts = store.get<ESM::BodyPart>();
@@ -436,10 +353,15 @@ namespace OMW
                 (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]));
         }
 
-        void writeFile(const std::filesystem::path& path, const std::string& text)
+        // The status, check and pointer files are written whole under a temporary name and renamed: a reader sees the
+        // old file or the new one. A failure is logged and returned (never silently "complete").
+        bool writeAtomic(const std::filesystem::path& path, const std::string& text)
         {
-            std::ofstream out(path, std::ios::binary | std::ios::trunc);
-            out.write(text.data(), static_cast<std::streamsize>(text.size()));
+            std::string error;
+            if (Body::writeFileAtomic(path, text, error))
+                return true;
+            Log(Debug::Error) << "Body tools: " << error;
+            return false;
         }
 
         std::string readFile(const std::filesystem::path& path)
@@ -529,6 +451,12 @@ namespace OMW
             }
             const std::string key = Body::computeBodyKey(stock.mKey);
             const std::string name = packEntryNameOf(stock);
+            if (newFiles.mFiles.find(name) != newFiles.mFiles.end())
+            {
+                // Two bodies whose (race, sex, view) give one entry name: refuse loudly, never overwrite.
+                failUnit(manifest, stock, "its pack entry name '" + name + "' is already taken by another body");
+                return;
+            }
             std::vector<std::uint8_t> payload;
             if (old && oldManifest && Body::isEntryCurrent(*oldManifest, name, key))
             {
@@ -541,7 +469,8 @@ namespace OMW
             }
             if (payload.empty())
             {
-                const Body::MergeResult result = Body::mergeParts(stock.mParts, stock.mSeams, stock.mOptions);
+                const Body::MergeResult result
+                    = Body::mergeParts(stock.mParts, stock.mSeams, stock.mOptions, stock.mLimits);
                 if (!result.ok())
                 {
                     failUnit(manifest, stock, result.mErrors.front());
@@ -601,7 +530,7 @@ namespace OMW
                 report += label + ": the payload does not read: " + read.mError + "\n";
                 return 1;
             }
-            const Body::MergeResult again = Body::mergeParts(stock.mParts, stock.mSeams, stock.mOptions);
+            const Body::MergeResult again = Body::mergeParts(stock.mParts, stock.mSeams, stock.mOptions, stock.mLimits);
             std::vector<std::uint8_t> rewritten;
             std::string error;
             if (!again.ok() || !Body::writeBodyMesh(again.mBody, rewritten, error))
@@ -618,18 +547,95 @@ namespace OMW
             double maxMove = 0;
             std::size_t moved = 0;
             std::size_t vertices = 0;
-            // A stock vertex is WELD-AFFECTED when its merged vertex is shared with another input vertex or belongs to
-            // a weld group: there the merger gives the mean of the members' weights, which differs from the stock
-            // weights by design (a rigid forearm and a rigid wrist hold the seam with weight 1 on different bones).
+
+            // WELD-AFFECTED by the merger: the stock vertex's merged vertex is shared with another input vertex or
+            // belongs to a weld group.
             std::vector<std::uint32_t> sharing(again.mBody.mPositions.size(), 0);
             for (const std::vector<std::uint32_t>& map : again.mBody.mVertexMap)
+            {
                 for (const std::uint32_t target : map)
                     ++sharing[target];
+            }
             std::vector<char> grouped(again.mBody.mPositions.size(), 0);
             for (const std::vector<std::uint32_t>& group : again.mBody.mWeldGroups)
+            {
                 for (const std::uint32_t member : group)
                     grouped[member] = 1;
-            std::size_t weldAffected = 0;
+            }
+
+            // WELD-AFFECTED by the declared seams, found WITHOUT the merger (review fix A1): brute force over the stock
+            // parts for every vertex that lies within a seam's tolerance of a vertex of the other slot, joined into
+            // connected groups. The merger's own view above must equal this one, and the weights a weld gives a vertex
+            // must equal the mean this check computes from the stock weights.
+            std::vector<std::size_t> offset(stock.mParts.size() + 1, 0);
+            for (std::size_t p = 0; p < stock.mParts.size(); ++p)
+                offset[p + 1] = offset[p] + stock.mParts[p].mPositions.size();
+            std::vector<std::vector<std::uint32_t>> neighbours(offset.back());
+            const auto partOf = [&offset](std::size_t global) {
+                return static_cast<std::size_t>(std::upper_bound(offset.begin(), offset.end(), global) - offset.begin())
+                    - 1;
+            };
+            for (const Body::SeamDeclaration& seam : stock.mSeams)
+            {
+                for (std::size_t pa = 0; pa < stock.mParts.size(); ++pa)
+                {
+                    for (std::size_t pb = 0; pb < stock.mParts.size(); ++pb)
+                    {
+                        if (pa == pb || stock.mParts[pa].mSlot != seam.mSlotA || stock.mParts[pb].mSlot != seam.mSlotB)
+                            continue;
+                        for (std::size_t va = 0; va < stock.mParts[pa].mPositions.size(); ++va)
+                        {
+                            for (std::size_t vb = 0; vb < stock.mParts[pb].mPositions.size(); ++vb)
+                            {
+                                const Body::Vec3& a = stock.mParts[pa].mPositions[va];
+                                const Body::Vec3& b = stock.mParts[pb].mPositions[vb];
+                                const double ex = static_cast<double>(a[0]) - b[0];
+                                const double ey = static_cast<double>(a[1]) - b[1];
+                                const double ez = static_cast<double>(a[2]) - b[2];
+                                if (ex * ex + ey * ey + ez * ez <= seam.mTolerance * seam.mTolerance)
+                                {
+                                    neighbours[offset[pa] + va].push_back(static_cast<std::uint32_t>(offset[pb] + vb));
+                                    neighbours[offset[pb] + vb].push_back(static_cast<std::uint32_t>(offset[pa] + va));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // The stock weights of a vertex as bone name and weight, summed by bone.
+            const auto stockWeights = [&stock](std::size_t part, std::size_t vertex) {
+                std::map<std::string, double> weights;
+                const Body::PartMesh& mesh = stock.mParts[part];
+                if (mesh.mSkin.empty())
+                {
+                    weights[mesh.mRigidBone] += 1.0;
+                }
+                else
+                {
+                    const Body::PartVertexSkin& skin = mesh.mSkin[vertex];
+                    for (std::size_t k = 0; k < skin.mCount; ++k)
+                        weights[mesh.mBones[skin.mInfluences[k].mBone]] += skin.mInfluences[k].mWeight;
+                }
+                return weights;
+            };
+            const auto mergedWeights = [&again](std::uint32_t target) {
+                std::map<std::string, double> weights;
+                for (std::size_t k = 0; k < Body::maxMergedInfluences; ++k)
+                {
+                    if (again.mBody.mBoneWeights[target][k] > 0.f)
+                        weights[again.mBody.mBones[again.mBody.mBoneIndices[target][k]]]
+                            += again.mBody.mBoneWeights[target][k];
+                }
+                return weights;
+            };
+
+            std::size_t weldAffected = 0; // the merger's view
+            std::size_t independentAffected = 0; // the seams' view
+            std::size_t setMismatches = 0;
+            std::size_t weightMismatches = 0;
+            std::size_t weightsNotChecked = 0;
+            double worstWeightDifference = 0;
+            std::size_t boundViolations = 0;
             std::array<double, 5> maxSkinUnmoved{}; // vertices the weld did not touch: must equal the stock skin
             std::array<double, 5> maxSkinMoved{}; // weld-affected vertices: differ by the weight disagreement
             struct Worst
@@ -655,8 +661,61 @@ namespace OMW
                     if (move > 1e-4)
                         ++moved;
                     const bool isWelded = sharing[target] > 1 || grouped[target] != 0;
+                    const bool isCandidate = !neighbours[offset[p] + v].empty();
                     if (isWelded)
                         ++weldAffected;
+                    if (isCandidate)
+                        ++independentAffected;
+                    if (isWelded != isCandidate)
+                        ++setMismatches;
+
+                    // The weights the seams alone give this vertex: the mean over its connected group.
+                    std::map<std::string, double> expected;
+                    if (isCandidate)
+                    {
+                        std::set<std::uint32_t> group{ static_cast<std::uint32_t>(offset[p] + v) };
+                        std::vector<std::uint32_t> queue(group.begin(), group.end());
+                        for (std::size_t head = 0; head < queue.size(); ++head)
+                        {
+                            for (const std::uint32_t next : neighbours[queue[head]])
+                            {
+                                if (group.insert(next).second)
+                                    queue.push_back(next);
+                            }
+                        }
+                        for (const std::uint32_t member : group)
+                        {
+                            const std::size_t memberPart = partOf(member);
+                            for (const auto& [bone, weight] : stockWeights(memberPart, member - offset[memberPart]))
+                                expected[bone] += weight / static_cast<double>(group.size());
+                        }
+                        if (expected.size() > Body::maxMergedInfluences)
+                        {
+                            ++weightsNotChecked; // the merger cuts to four: this check does not model the cut
+                        }
+                        else
+                        {
+                            const std::map<std::string, double> actual = mergedWeights(target);
+                            double difference = 0;
+                            for (const auto& [bone, weight] : expected)
+                            {
+                                const auto inActual = actual.find(bone);
+                                const double merged = inActual != actual.end() ? inActual->second : 0.0;
+                                difference = std::max(difference, std::abs(weight - merged));
+                            }
+                            for (const auto& [bone, weight] : actual)
+                            {
+                                if (expected.find(bone) == expected.end())
+                                    difference = std::max(difference, weight);
+                            }
+                            worstWeightDifference = std::max(worstWeightDifference, difference);
+                            if (difference > 1e-4)
+                                ++weightMismatches;
+                        }
+                    }
+
+                    const std::map<std::string, double> before = stockWeights(p, v);
+                    const std::map<std::string, double> after = mergedWeights(target);
                     for (int pose = 0; pose < 5; ++pose)
                     {
                         const double diff = distance(skinStock(part, v, pose), skinMerged(again.mBody, target, pose));
@@ -664,6 +723,30 @@ namespace OMW
                         slot = std::max(slot, diff);
                         if (!isWelded && diff > worst.mDiff)
                             worst = { diff, p, v, pose };
+                        if (isWelded)
+                        {
+                            // The skinned difference of a weld-affected vertex is bounded by what its weights and its
+                            // position changed (a rigid motion keeps lengths): sum over bones of the weight change
+                            // times how far the bone's motion carries the vertex, plus how far the vertex moved.
+                            std::set<std::string> bones;
+                            for (const auto& entry : before)
+                                bones.insert(entry.first);
+                            for (const auto& entry : after)
+                                bones.insert(entry.first);
+                            double bound = move + 1e-4;
+                            for (const std::string& bone : bones)
+                            {
+                                const double was = before.count(bone) != 0 ? before.at(bone) : 0.0;
+                                const double is = after.count(bone) != 0 ? after.at(bone) : 0.0;
+                                const std::array<double, 3> carried
+                                    = moveVertex(boneMove(bone, pose), part.mPositions[v]);
+                                bound += std::abs(was - is)
+                                    * std::sqrt(
+                                        carried[0] * carried[0] + carried[1] * carried[1] + carried[2] * carried[2]);
+                            }
+                            if (diff > bound)
+                                ++boundViolations;
+                        }
                     }
                 }
             }
@@ -674,35 +757,91 @@ namespace OMW
                 worstText = "; worst: part '" + part.mName + "' vertex " + std::to_string(worst.mVertex) + " pose "
                     + std::to_string(worst.mPose) + ", stock bones";
                 if (part.mSkin.empty())
+                {
                     worstText += " " + part.mRigidBone + " 1";
+                }
                 else
+                {
                     for (std::size_t k = 0; k < part.mSkin[worst.mVertex].mCount; ++k)
+                    {
                         worstText += " " + part.mBones[part.mSkin[worst.mVertex].mInfluences[k].mBone] + " "
                             + std::to_string(part.mSkin[worst.mVertex].mInfluences[k].mWeight);
+                    }
+                }
                 worstText += ", merged bones";
                 const std::uint32_t target = again.mBody.mVertexMap[worst.mPart][worst.mVertex];
                 for (std::size_t k = 0; k < Body::maxMergedInfluences; ++k)
+                {
                     if (again.mBody.mBoneWeights[target][k] > 0.f)
+                    {
                         worstText += " " + again.mBody.mBones[again.mBody.mBoneIndices[target][k]] + " "
                             + std::to_string(again.mBody.mBoneWeights[target][k]);
+                    }
+                }
             }
             const double worstUnmoved = *std::max_element(maxSkinUnmoved.begin(), maxSkinUnmoved.end());
             const double worstMoved = *std::max_element(maxSkinMoved.begin(), maxSkinMoved.end());
+            std::string trouble;
             if (maxMove > weldTolerance + 1e-6 || worstUnmoved > 1e-4)
+                trouble += " a vertex moved or the other vertices' skinning changed;";
+            if (setMismatches > 0)
+                trouble += " the merger welded " + std::to_string(weldAffected) + " vertices but the seams alone give "
+                    + std::to_string(independentAffected) + ";";
+            if (weightMismatches > 0)
+                trouble += " " + std::to_string(weightMismatches) + " welded vertices have weights other than the mean"
+                    " of their group;";
+            if (boundViolations > 0)
+                trouble += " " + std::to_string(boundViolations)
+                    + " welded vertices differ from the stock skin by more than their weights and position explain;";
+            if (!trouble.empty())
                 ++problems;
             report += label + ": " + (problems == 0 ? "ok" : "PROBLEM") + ", payload bytes "
                 + (sameBytes ? "identical to a new merge" : "DIFFER from a new merge") + ", " + std::to_string(vertices)
                 + " stock vertices into " + std::to_string(again.mBody.mPositions.size()) + ", "
-                + std::to_string(weldAffected) + " weld-affected (" + std::to_string(moved) + " moved, largest move "
-                + std::to_string(maxMove) + "), skinning at 5 poses: largest difference at " + "the other vertices "
-                + std::to_string(worstUnmoved) + " (must be 0), at weld-affected vertices " + std::to_string(worstMoved)
-                + " (weight disagreement " + std::to_string(again.mBody.mReport.mMaxWeightDisagreement) + ")"
-                + worstText + "\n";
+                + std::to_string(weldAffected) + " weld-affected by the merger and "
+                + std::to_string(independentAffected) + " by the seams alone (" + std::to_string(moved)
+                + " moved, largest move " + std::to_string(maxMove)
+                + "), skinning at 5 poses: largest difference at the other vertices " + std::to_string(worstUnmoved)
+                + " (must be 0), at weld-affected vertices " + std::to_string(worstMoved) + " (weight disagreement "
+                + std::to_string(again.mBody.mReport.mMaxWeightDisagreement) + "; largest departure from the mean of "
+                + "the group " + std::to_string(worstWeightDifference) + ", " + std::to_string(weightsNotChecked)
+                + " not checked)" + worstText + (trouble.empty() ? "" : " --" + trouble) + "\n";
             return problems;
         }
     }
 
+    int BodyBaker::problems() const
+    {
+        return static_cast<int>(mState->mProblems);
+    }
+
     bool BodyBaker::update()
+    {
+        State& state = *mState;
+        if (state.mDone)
+            return true;
+        // No exception reaches the game loop (a hostile record or model name, bad_alloc, a failed lookup): the run
+        // ends, says so, and counts as a problem.
+        try
+        {
+            return step();
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "Body tools: stopped by an error at unit " << state.mNext << " of "
+                              << state.mUnits.size() << ": " << e.what();
+        }
+        catch (...)
+        {
+            Log(Debug::Error) << "Body tools: stopped by an unknown error at unit " << state.mNext << " of "
+                              << state.mUnits.size();
+        }
+        ++state.mProblems;
+        state.mDone = true;
+        return true;
+    }
+
+    bool BodyBaker::step()
     {
         State& state = *mState;
         if (state.mDone)
@@ -790,23 +929,46 @@ namespace OMW
             manifest.mLayoutVersion = Body::bodyMeshLayoutVersion;
             std::sort(manifest.mEntries.begin(), manifest.mEntries.end(),
                 [](const Body::CacheEntry& a, const Body::CacheEntry& b) { return a.mName < b.mName; });
-            state.mNewFiles.mFiles["manifest.txt"] = bytesOf(Body::writeManifest(manifest));
-            std::string packName;
-            std::string error;
-            const std::string previous = readFile(state.mFolder / "current");
-            if (!Body::publishCache(state.mFolder, state.mNewFiles, packName, error))
+            std::error_code code;
+            std::filesystem::create_directories(state.mFolder, code);
+            if (manifest.mEntries.empty())
             {
-                Log(Debug::Error) << "Body bake: cannot publish the cache: " << error;
-                writeFile(state.mFolder / "status.json", Body::writeStatusJson(manifest, "failed"));
+                // Every body failed (the data or the files are missing, say): a cache of nothing must not replace a
+                // good one. The pointer stays; the status file says why.
+                Log(Debug::Error) << "Body bake: no body could be merged (" << manifest.mFailures.size()
+                                  << " failures); the published cache, if any, is left as it is.";
+                if (!writeAtomic(state.mFolder / "status.json", Body::writeStatusJson(manifest, "failed")))
+                    ++state.mProblems;
+                ++state.mProblems;
             }
             else
             {
-                writeFile(state.mFolder / "status.json", Body::writeStatusJson(manifest, "complete"));
-                const bool upToDate = previous == packName + "\n";
-                Log(Debug::Info) << "Body bake: " << (upToDate ? "up to date (the same pack as before)" : "published")
-                                 << " " << packName << ": " << manifest.mEntries.size() << " bodies (" << state.mMerged
-                                 << " merged, " << state.mReused << " kept), " << manifest.mFailures.size()
-                                 << " failures, " << state.mPayloadBytes << " payload bytes.";
+                state.mNewFiles.mFiles["manifest.txt"] = bytesOf(Body::writeManifest(manifest));
+                std::string packName;
+                std::string error;
+                std::string previous = readFile(state.mFolder / "current");
+                if (!Body::publishCache(state.mFolder, state.mNewFiles, packName, error))
+                {
+                    Log(Debug::Error) << "Body bake: cannot publish the cache: " << error;
+                    writeAtomic(state.mFolder / "status.json", Body::writeStatusJson(manifest, "failed"));
+                    ++state.mProblems;
+                }
+                else
+                {
+                    if (!previous.empty() && previous.back() == '\n')
+                        previous.pop_back();
+                    const bool same = previous == packName;
+                    // Housekeeping: the new pack and the one before it stay (a game that has the old one open keeps
+                    // reading it); older ones go.
+                    const std::size_t pruned = Body::pruneOldPacks(state.mFolder, { packName, previous });
+                    if (!writeAtomic(state.mFolder / "status.json", Body::writeStatusJson(manifest, "complete")))
+                        ++state.mProblems;
+                    Log(Debug::Info) << "Body bake: " << (same ? "up to date (the same pack as before)" : "published")
+                                     << " " << packName << ": " << manifest.mEntries.size() << " bodies ("
+                                     << state.mMerged << " merged, " << state.mReused << " kept), "
+                                     << manifest.mFailures.size() << " failures, " << state.mPayloadBytes
+                                     << " payload bytes, " << pruned << " old pack(s) deleted.";
+                }
             }
         }
         else if (state.mCheckLoaded)
@@ -815,7 +977,8 @@ namespace OMW
                 + std::to_string(state.mProblems) + " problem(s).\n";
             std::error_code code;
             std::filesystem::create_directories(state.mFolder, code);
-            writeFile(state.mFolder / "check.txt", state.mReport);
+            if (!writeAtomic(state.mFolder / "check.txt", state.mReport))
+                ++state.mProblems;
             Log(Debug::Info) << "Body check:\n" << state.mReport;
         }
         state.mDone = true;
