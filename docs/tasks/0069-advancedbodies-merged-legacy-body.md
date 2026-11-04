@@ -74,7 +74,7 @@ Equip and unequip every slot type with the merged body on: the hidden regions eq
 ### Stage f. Eden Studio body package panel
 
 A studio module (`editor_modules/advancedbodies_editor`, no Qt in the module, no engine types, like `creativemotion_editor`) that opens a body package (folder, `.edenpak`, or an entry of the merged cache), runs the validator and lists findings, colours regions and weld seams in the mesh viewer (task 0043; whether it can draw a skinned mesh in the rest pose is **verify**, the fallback is the bind-pose static mesh), and shows the stage a numbers for the body. Lighter loop only if toddhow marks this stage's spec lighter.
-- [ ] Opens a merged cache entry and a synthetic modder package; findings and region colours match the validator and regionMap; `eden-studio-tests` cover the module's model.
+- [x] Opens a merged cache entry and a synthetic modder package; findings and region colours match the validator and regionMap; `eden-studio-tests` cover the module's model. (Stage f log: 97 tests by a separate writer, the real editor on a copy of the stage e cache and a synthetic package, frames viewed; regions are coloured edges, not filled, and the bind pose is drawn, not a skinned rest pose: the stated deviations.)
 
 ## Numbering
 
@@ -112,7 +112,7 @@ Sliders and morph application (B3, design 6); garments and layered clothing (B6)
 - [ ] Stage c: byte-identical re-bake; staleness tests; atomic publish, truncation and bit-flip tests; layout approved by toddhow.
 - [ ] Stage d: off means unchanged (byte-identical frames and recorded part lists); numeric equivalence; frames viewed; cost recorded; fallbacks tested.
 - [ ] Stage e: the pure mapping test for all slot combinations; equipment screenshots viewed; no leak after 200 cycles.
-- [ ] Stage f: the studio panel opens a merged entry and a modder package.
+- [x] Stage f: the studio panel opens a merged entry and a modder package (toddhow's approval of the merge still open).
 - [ ] With every new setting at its default, Morrowind behaves as before, and the pull request says how that was compared.
 - [ ] No Bethesda file, no game asset, no cache file and no third-party body in the repository; `CI/check_file_names.sh`, `CI/check_clang_format.sh` (clang-format 14), `CI/check_no_osg.sh`, `CI/check_extension_sdk.sh` pass; the per-area `CLAUDE.md` for `components/bodynif` exists and `components/body/CLAUDE.md` is updated.
 - [ ] A fresh reviewing agent read each stage's diff against this spec and found no unresolved issue; toddhow approved the merge.
