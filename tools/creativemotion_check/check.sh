@@ -11,11 +11,13 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #   <base openmw.cfg>  a COPY of a working config (data, content, fallback and archive lines; never the user's own
 #                      file: the check appends two lines to its copy). The user's settings.cfg is never read.
 #   <work dir>         empty; each run gets <work dir>/<variant>-<n>/{config,user}, report.json and report.txt
-#   variants           vanilla, inertial, cm (default: all three)
+#   variants           vanilla, inertial, cm, natural (default: the first three)
 #     vanilla   every feature off: Morrowind as it was
 #     inertial  [Game] inertial locomotion = high
 #     cm        inertial locomotion = high and creativemotion animation = true
-# Environment: REPEAT=<n> runs each variant n times (default 1) and compares the reports of one variant;
+#     natural   inertial locomotion = high and creativemotion preset = natural (task 0067, stage 1)
+# Environment: EXTRA_SETTINGS=<text> is appended to each run's settings.cfg (including section headers);
+#              REPEAT=<n> runs each variant n times (default 1) and compares the reports of one variant;
 #              CELL=<cell name> (default "Seyda Neen": open ground; the Ebonheart chambers are too small, the player runs into a wall after 145 units); FRAMES=<n> auto-quit frame
 #              (default 1400, the scenario is about 1100 frames long).
 # On Windows pass Windows paths (I:/...), see CLAUDE.md "Check scripts take Windows paths". Run the game's own folder
@@ -54,6 +56,7 @@ variant_settings() {
         vanilla) printf '' ;;
         inertial) printf 'inertial locomotion = high\n' ;;
         cm) printf 'inertial locomotion = high\ncreativemotion animation = true\n' ;;
+        natural) printf 'inertial locomotion = high\ncreativemotion preset = natural\n' ;;
         *) return 1 ;;
     esac
 }
@@ -68,6 +71,9 @@ run_one() {
     printf '\ndata="%s"\ncontent=cmcheck.omwscripts\n' "$MOD" >> "$dir/config/openmw.cfg"
     # A small window with the frame rate fixed at 60 and no vsync, so frame times stay close between runs.
     printf '[Video]\nresolution x = 960\nresolution y = 540\nfullscreen = false\nwindow mode = 2\nvsync = false\nframerate limit = 60\n[Game]\ncreativemotion animation debug = true\n%s' "$settings" > "$dir/config/settings.cfg"
+    # EXTRA_SETTINGS: more settings.cfg text with its own section headers, for example
+    # EXTRA_SETTINGS=$'[CreativeMotion Transitions]\nstopping = 2.5'; appended to every run.
+    [ -z "${EXTRA_SETTINGS:-}" ] || printf '\n%s\n' "$EXTRA_SETTINGS" >> "$dir/config/settings.cfg"
     local cfgwin userwin
     cfgwin=$(cd "$dir/config" && { pwd -W 2>/dev/null || pwd; })
     userwin=$(cd "$dir/user" && { pwd -W 2>/dev/null || pwd; })
