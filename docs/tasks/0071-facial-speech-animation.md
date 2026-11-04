@@ -173,3 +173,18 @@ toddhow pasted the start of section 3, "Redistribution". Read as: the Model and 
 - Redistributing the ONNX weights, or a converted form of them, looks permitted with those two conditions, so "the user downloads the weights" (answer 2) is a choice, not a licence necessity; mirroring or bundling remains possible later.
 - The condition is per distributor: if OpenEden hosts or ships the weights it must include the Agreement copy and the Notice file; nothing is hosted or shipped now.
 - Stage a must read the COMPLETE current license text (all of section 3 and the sections after it) before any redistribution is planned, and a lawyer should read it (question 9 still open).
+
+## Decision of toddhow, 2026-11-03 (third round): generation lives in Eden Studio
+
+"Back to the Eden Studio plan: we generate facial animations in it. People download the model themselves; we tell them how and provide a folder they put the model in; Eden Studio loads it from there."
+
+Recorded effect (this REPLACES the earlier 'build in the background while the player plays' decision of the same day for now; it can return later as a separate stage):
+
+1. **Where generation runs:** in Eden Studio (a studio module, the Facial Expression & Speech Timeline of the face-layer write-up), run by mod authors ahead of time. The game plays saved curves only and has no model, no ONNX runtime and no background builder.
+2. **The model is the user's download.** Nothing from NVIDIA is bundled, hosted or mirrored by us (answer 2 of the second round stands). Eden Studio has a documented models folder (proposed: `<eden-studio user data>/models/audio2face/<variant>/`, with a README that Studio writes there on first run explaining which NVIDIA pages to visit, which licence the user accepts, which files to place and their expected names and sizes). Studio detects what is present, shows the variants it finds (v2.3 portable tier, v3.0 high-quality tier, optional emotion model), and refuses to run when files are missing, damaged or of an unexpected hash (hashes recorded in our docs, not the files).
+3. **The runtime stays ours:** ONNX Runtime inside Eden Studio (execution providers per the stage a gate: DirectML, CPU, OpenVINO...), the blendshape solve ported from the MIT SDK; the stage a hands-on gate on toddhow's machine still decides 'any GPU'.
+4. **Output:** face curves in our canonical format (`opas.facecurves` or `openeden.facecurves`, owner per the face-layer write-up) saved with the pack or the mod; imports from other generators stay supported.
+5. **Shipping and Bethesda audio:** unchanged and still open to a lawyer (questions 8 and 9). With generation moved to Studio, a player of the game who wants curves for Bethesda's lines would need to run Studio's batch tool on their own installed audio (a 'bake faces' command in Studio, never shipped). Packs ship curves only for audio we have rights to.
+6. **Consequences for the stages:** the background-queue, status-file and first-run-prompt design in this spec moves to a later optional stage g (a game-side builder), kept in the document; stage a stays the portability gate, now run inside Eden Studio; the Eden Studio module (timeline, waveform, generator run as a background task inside Studio, preview) becomes the main work; the Editor Module API gaps (curve canvas, waveform track, secondary viewport, background tasks, modal dialogs) are on the critical path.
+
+Open: question 3 of the second round (emotion model: toddhow answered 'no' to 'skip it', read as 'keep it'; to confirm), questions 7 to 10.
