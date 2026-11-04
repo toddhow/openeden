@@ -313,10 +313,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   (`MWAnim::Wielding::clearPartControllers` empties the static and weapon lists only; `Npc::clearControllers` adds the
   face). It holds what nothing would add again: an NPC's inventory lights (`addItemLight`, when the CharacterController
   is made and on each later `itemAdded`) and a creature's own model's controllers and lights. A part's auto-play
-  controllers run in the part's own clock (`PartControllers::addAutoPlay`, `update`), which a kept part keeps and a part inserted again
-  gets fresh (group 0 at 0, random groups at a random phase, as before: a new torch's flicker starts with a step of 0,
-  task 0074c). The
-  holstered weapon and shield have clocks of their own (`mScabbardClock`, `mHolsteredShieldClock`), emptied with their
+  controllers run in the part's own clock (`PartControllers::addAutoPlay`, `update`), which a kept part keeps and a
+  part inserted again gets fresh (group 0 at 0, random groups at a random phase, as before: a new torch's flicker
+  starts with a step of 0, task 0074c). The holstered weapon and shield have clocks of their own (`mScabbardClock`, `mHolsteredShieldClock`), emptied with their
   paths (`removeHolstered`). Do not put a part's controllers into `autoPlay`: nothing removes them from it. The
   spell cast glow (`addSpellCastGlow`) is never on an actor: it is called for non-actor casters, Lock and Open targets
   that `canLock` (doors, containers) and doors (`spellcasting.cpp`, `spelleffects.cpp`, `mwclass/door.cpp`).
