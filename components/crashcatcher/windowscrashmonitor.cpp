@@ -14,6 +14,7 @@
 #include <components/misc/quietwindow.hpp>
 #include <components/misc/strings/conversion.hpp>
 
+#include "freezeresponse.hpp"
 #include "windowscrashcatcher.hpp"
 #include "windowscrashdumppathhelpers.hpp"
 #include "windowscrashshm.hpp"
@@ -178,19 +179,29 @@ namespace Crash
             bool frozen = false;
             while (isAppAlive() && running && !mFreezeAbort)
             {
-                if (isAppFrozen())
+                // OpenEden: the answer to a freeze is in freezeresponse.hpp. Without OPENEDEN_QUIET_WINDOW it is the
+                // inherited one (the box, taken down again when the application answers); with it, no box can be
+                // shown and the freeze is answered as the box's Abort button answers it.
+                const bool frozenNow = isAppFrozen();
+                switch (freezeResponse(frozenNow, frozen, mQuiet))
                 {
-                    if (!frozen)
-                    {
+                    case FreezeResponse::ShowBox:
                         showFreezeMessageBox();
-                        frozen = true;
-                    }
+                        break;
+                    case FreezeResponse::HideBox:
+                        hideFreezeMessageBox();
+                        break;
+                    case FreezeResponse::Abort:
+                        Log(Debug::Warning) << "CrashMonitor: the application has frozen and "
+                                            << Misc::quietWindowVariable << " is set, so no box is shown: writing '"
+                                            << Misc::StringUtils::u8StringToString(getFreezeDumpPath(*mShm).u8string())
+                                            << "' and ending the application, as the box's Abort button does";
+                        mFreezeAbort = true;
+                        break;
+                    case FreezeResponse::None:
+                        break;
                 }
-                else if (frozen)
-                {
-                    hideFreezeMessageBox();
-                    frozen = false;
-                }
+                frozen = frozenNow;
 
                 if (!mFreezeAbort && waitApp(frozen))
                 {
@@ -333,11 +344,6 @@ namespace Crash
 
     void CrashMonitor::showFreezeMessageBox()
     {
-        // OpenEden: no box with OPENEDEN_QUIET_WINDOW. Only its Abort button sets mFreezeAbort, so a quiet run that
-        // freezes is never terminated here and writes no freeze dump: the script that started it must time it out.
-        if (mQuiet)
-            return;
-
         std::thread messageBoxThread([&]() {
             SDL_MessageBoxButtonData button = { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Abort" };
             SDL_MessageBoxData messageBoxData = { SDL_MESSAGEBOX_ERROR, nullptr, "OpenMW has frozen",

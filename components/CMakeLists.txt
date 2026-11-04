@@ -494,6 +494,7 @@ copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lu
 #vsgopenmw-delete-me
 if(WIN32)
     add_component_dir (crashcatcher
+        freezeresponse
         windowscrashcatcher
         windowscrashdumppathhelpers
         windowscrashmonitor

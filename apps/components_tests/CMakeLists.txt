@@ -33,6 +33,8 @@ file(GLOB UNITTEST_SRC_FILES
     misc/testresourcehelpers.cpp
     misc/teststringops.cpp
 
+    crashcatcher/testfreezeresponse.cpp
+
     nifloader/testjoltnifloader.cpp
 
     detournavigator/navigator.cpp

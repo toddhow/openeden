@@ -37,7 +37,8 @@ namespace Crash
         DWORD mFreezeMessageBoxThreadId = 0;
         std::atomic_bool mFreezeAbort;
 
-        // OpenEden: OPENEDEN_QUIET_WINDOW, inherited from the application, so this process shows no message box.
+        // OpenEden: OPENEDEN_QUIET_WINDOW, inherited from the application, so this process shows no message box and
+        // answers a freeze as the box's Abort button does (freezeresponse.hpp).
         bool mQuiet = false;
 
         static std::unordered_map<HWINEVENTHOOK, CrashMonitor*> smEventHookOwners;
