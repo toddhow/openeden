@@ -53,6 +53,12 @@ namespace Anim
         static inline bool keepPreviousMatrices = false;
 
         void apply(vsg::mat4Array& array, float);
+
+        /// Task 0069 stage e review, finding 5: for a skin that did not run for a while (the merged body leaves out the
+        /// skin of a draw equipment hides entirely), the next apply writes this frame's matrices to both halves, as the
+        /// first one does: one frame without motion instead of the motion from the pose of when it stopped.
+        void forgetPreviousMatrices() { mWrittenOnce = false; }
+
         /*
          * Links to parent cull node and StateGroup.
          */

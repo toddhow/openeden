@@ -242,6 +242,7 @@ file(GLOB UNITTEST_SRC_FILES
     pipeline/testterraindefines.cpp
 
     mwanimation/testclonematerials.cpp
+    mwanimation/testskinprevious.cpp
     vsgutil/testimagepixels.cpp
     vsgutil/testarraystate.cpp
     vsgutil/testhitnormal.cpp

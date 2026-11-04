@@ -4,6 +4,7 @@
 
 #include <components/animation/context.hpp>
 #include <components/animation/controllermap.hpp>
+#include <components/animation/skin.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
@@ -538,8 +539,15 @@ namespace MWRender
         }
         Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
         // Recorded and added through relinkMergedBody, which leaves out the skins of draws nothing of is drawn.
-        decorated.link(ctx, [this](const Anim::Controller* ctrl, vsg::Object* o) {
-            mMergedControllers.push_back({ ctrl, o });
+        decorated.link(ctx, [this, &decorated](const Anim::Controller* ctrl, vsg::Object* o) {
+            // The skin itself (a clone of the copy's), so that one whose draw is drawn again can restart its motion.
+            Anim::Skin* skin = nullptr;
+            for (const auto& [clone, target] : decorated.clonedControllers)
+            {
+                if (clone == ctrl)
+                    skin = dynamic_cast<Anim::Skin*>(clone);
+            }
+            mMergedControllers.push_back({ ctrl, o, skin });
         });
         relinkMergedBody();
         mMergedBody = path;
@@ -571,6 +579,18 @@ namespace MWRender
         for (const auto& removed : change.mRemoved)
             mPartContext->compileContext->detach(removed);
         change.mRemoved.clear();
+        // Review finding 5: a draw that is drawn again had its skin left out (finding 3); its previous matrices are
+        // those of when it was hidden, so its first frame would show that whole motion. It restarts without motion.
+        for (std::size_t i = 0; i < change.mDrawn.size() && i < mMergedRegions.mDrawn.size(); ++i)
+        {
+            if (mMergedRegions.mDrawn[i] || !change.mDrawn[i])
+                continue;
+            for (const MergedLink& link : mMergedControllers)
+            {
+                if (link.mSkin != nullptr && link.mTarget == change.mBoneMatrices[i])
+                    link.mSkin->forgetPreviousMatrices();
+            }
+        }
         mMergedRegions = std::move(change);
         mMergedHidden = hidden;
         return true;

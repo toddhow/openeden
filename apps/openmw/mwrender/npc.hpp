@@ -29,6 +29,10 @@ namespace ESM
     struct Light;
     struct NPC;
 }
+namespace Anim
+{
+    class Skin;
+}
 namespace MWAnim
 {
     class Face;
@@ -196,6 +200,7 @@ namespace MWRender
         {
             const Anim::Controller* mController;
             vsg::Object* mTarget;
+            Anim::Skin* mSkin; // the same controller when it is a skin, else null
         };
         std::vector<MergedLink> mMergedControllers;
         bool mDefaultSkeleton = false; // the actor uses its race's default skeleton, the one the bake placed parts on
