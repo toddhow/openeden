@@ -16,7 +16,7 @@ Acceptance criteria:
 - [x] Stage a: `SlangPermutations.every_permutation_has_the_interface_of_its_glsl_stage` passes for every built permutation and fails when a binding is moved
 - [x] Stage a: with the switch on, the GUI is drawn by the Slang twin (shown by a deliberately wrong twin) and its frames are within run noise of the GLSL's, exact in a still region
 - [x] Stage b: the sky families (atmosphere, clouds, moon, night, sun, sunglare) ported with the define sets they are created with; the old single-file sun mechanism retired in favour of the permutation files
-- [ ] Stage c: the compute passes (fogofwar, light assign, particle simulate with its specialization constants, worldoverlay) ported; `vsgUtil::readShader` callers use the twin when the switch is on
+- [x] Stage c: the compute passes (fogofwar, light assign, particle simulate with its specialization constants, worldoverlay) ported; `vsgUtil::readShader` callers use the twin when the switch is on
 - [ ] Stage d: water ported
 - [ ] Stage e: terrain ported, its define sets enumerated completely from the settings that produce them (a test lists the settings combinations and checks that each has a file)
 - [ ] Stage f: the object shader (`default/main.vert`, `main.frag`) ported with the recorded define sets plus the sets of a long play-through and of the Faultier PBR test data; the texture-coordinate arrays redesigned (note 0005, section 7); frame time on the benchmark scenes no worse than the GLSL's
@@ -108,3 +108,21 @@ Red runs: `ShaderDefines` 9 of 11 failed against stubs (2 vacuous: the switch-of
 **Proposal for toddhow:** `SlangSunTest` (task 0023) checks the sun's single files, which the game no longer loads; `SlangPermutations` checks the sun's permutations the same way. Remove the single files and that test (it is the only reader)?
 
 **Not done in stage b:** the Linux gate (GCC `-Werror`), a fresh reviewer, a frame with the moons visible.
+
+### Stage c, 2026-11-04: the compute passes
+
+- **Built** (commit `ec7349d345`): `comp/fogofwar/update.slang`, `comp/worldoverlay/update.slang`, `comp/light/assign.slang`, `comp/particle/simulate.slang`, each one file for the set `-` (the passes are read with `vsgUtil::readShader` and compiled with no defines; the traces list all four with an empty set). The loaders call `vsgUtil::withSlangTwin` (written in stage b with its tests first: 1 of 3 failed against a stub, 2 vacuous), which traces the stage and, with the switch on, returns a copy of the shared GLSL stage with the twin and the settings constants. New shared includes: `lib/math/{distance,projection}`, `lib/util/quickstep`, `lib/view/screencoord`, `lib/light/{pointlights,grid,maxlights,equations,lightsettings}`. The work group sizes stay in the GLSL files that `components/pipeline/fogofwar.cpp` and `components/view/lightgrid.cpp` include for the dispatch; the twins repeat them with a note.
+- **Interface:** `SlangPermutations` passes for all four with no exception, local sizes included. A GLSL storage block that is not an array (`{ uint indexCount; }`, `{ FrameArgs frameArgs; }`) is `GLSLShaderStorageBuffer` in Slang, which compiles to the same `BufferBlock` as glslang; a `RWStructuredBuffer` there was a runtime array, and the test caught it. The particle pass imports Slang's `glsl` module for `inverse`, `mod` and the bit casts, so they compile to GLSL's instructions.
+- **Twins drawn** (deliberately wrong twins copied over the built files for one run, then restored and compared byte for byte): a particle twin that never runs removed the snow and the ash cloud (ash: 49% of pixels over 4 against 0.008% between two switch-off runs); a light grid twin that assigns no light changed the Mages Guild by more than the noise (31.6% of pixels over 4, max 18, against 0% and max 4). Rain is not drawn by the particle pass (it did not change). The fog of war and world overlay twins go through the same function with the same options and are in the trace, but no frame shows their output: a fog twin that clears everything changed the HUD minimap by at most 2 (the explored area around the player has no fog at start), and the world map was not opened.
+- **Frames** (1280x720, defaults, two switch-off runs and one on; whole frame, max difference and share over 4):
+
+| Scene | off/off | off a/on | off b/on |
+| --- | --- | --- | --- |
+| Rain, Seyda Neen | 123, 4.99% | 118, 4.38% | 123, 4.02% |
+| Snow | 127, 10.25% | 127, 10.31% | 72, 4.73% |
+| Ash storm | 50, 0.008% | 49, 0.088% | 52, 0.085% |
+| Caldera Mages Guild (interior lights) | 4, 0% | 7, 0.012% | 7, 0.998% |
+| Ebonheart Council Chambers | 195, 13.0% | 197, 2.54% | 89, 0.13% |
+
+  Within run noise: particles are seeded by the frame time, so they land elsewhere in every run (the ash difference image shows isolated flakes); the Mages Guild difference is a smooth change of the whole room's light level, as flickering lights give between runs, with no cluster-shaped block that a wrong light grid would leave. Another agent's games ran during the captures, so timing noise is larger than on an idle machine.
+- **Not done in stage c:** the Linux gate, a fresh reviewer, a frame of the fog of war and of the world map with the twins.
