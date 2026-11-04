@@ -259,8 +259,9 @@ TEST(BodyMergeWeld, overlapping_shells_with_a_declared_seam_but_too_far_apart_ar
 
 TEST(BodyMergeWeld, a_chain_of_close_vertices_is_one_set)
 {
-    // q is within 0.01 of p0 and of p1, which are 0.012 apart: one set through q.
-    const PartMesh x = makeTriangle("X", 1, { 0.f, 0.f, 0.f }, { 0.012f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, "b");
+    // q is within 0.01 of p0 and of p1, which are 0.009 apart (inside the tolerance too): one set through q. With the
+    // two 0.012 apart the far one stays out: see BodyMergeReview.a_weld_set_never_reaches_further_than_the_tolerance.
+    const PartMesh x = makeTriangle("X", 1, { 0.f, 0.f, 0.f }, { 0.009f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, "b");
     const PartMesh y = makeTriangle("Y", 2, { 0.006f, 0.f, 0.f }, { 3.f, 0.f, 0.f }, { 3.f, 1.f, 0.f }, "b");
     const MergeResult result = mergeParts({ x, y }, oneSeam(1, 2));
     ASSERT_TRUE(result.ok()) << result.mErrors.front();
@@ -974,4 +975,150 @@ TEST(BodyMergeProperty, no_vertex_is_lost_no_triangle_changes_and_every_weight_s
         for (std::uint16_t i : indices)
             EXPECT_LT(i, body.mBones.size());
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------
+// Review fixes of stage b (task 0069): order independence for skin and negative zero, placement and coordinate
+// range, transitive welds, the work budget of the lookup.
+// ----------------------------------------------------------------------------------------------------------------
+
+TEST(BodyMergeReview, two_parts_that_differ_only_in_skin_come_out_the_same_whatever_the_order)
+{
+    PartMesh a = makeTriangle("shape", 3, { 0.f, 0.f, 0.f }, { 1.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, "x");
+    PartMesh b = a;
+    const std::vector<std::string> bones = { "boneA", "boneB" };
+    for (std::size_t v = 0; v < 3; ++v)
+    {
+        setSkin(a, bones, v, { { 0, 0.75f }, { 1, 0.25f } });
+        setSkin(b, bones, v, { { 0, 0.25f }, { 1, 0.75f } });
+    }
+    const MergeResult forward = mergeParts({ a, b }, {});
+    const MergeResult backward = mergeParts({ b, a }, {});
+    ASSERT_TRUE(forward.ok());
+    ASSERT_TRUE(backward.ok());
+    EXPECT_TRUE(withoutCallerNumbering(forward.mBody) == withoutCallerNumbering(backward.mBody));
+}
+
+TEST(BodyMergeReview, negative_zero_and_positive_zero_do_not_make_the_result_depend_on_the_order)
+{
+    PartMesh a = makeTriangle("shape", 3, { 0.f, 0.f, 0.f }, { 1.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, "x");
+    a.mUvs = { { 0.f, 0.f }, { 1.f, 0.f }, { 0.f, 1.f } };
+    a.mNormals = { { 0.f, 0.f, 1.f }, { 0.f, 0.f, 1.f }, { 0.f, 0.f, 1.f } };
+    PartMesh b = a;
+    b.mUvs[0] = { -0.f, -0.f };
+    b.mNormals[0] = { -0.f, -0.f, 1.f };
+    const MergeResult forward = mergeParts({ a, b }, {});
+    const MergeResult backward = mergeParts({ b, a }, {});
+    ASSERT_TRUE(forward.ok());
+    ASSERT_TRUE(backward.ok());
+    EXPECT_TRUE(withoutCallerNumbering(forward.mBody) == withoutCallerNumbering(backward.mBody));
+    // And the bytes carry no negative zero at all.
+    for (const MergeResult* result : { &forward, &backward })
+    {
+        for (const Vec2& uv : result->mBody.mUvs)
+        {
+            EXPECT_FALSE(std::signbit(uv[0]) && uv[0] == 0.f);
+            EXPECT_FALSE(std::signbit(uv[1]) && uv[1] == 0.f);
+        }
+        for (const Vec3& n : result->mBody.mNormals)
+        {
+            for (const float c : n)
+                EXPECT_FALSE(std::signbit(c) && c == 0.f);
+        }
+    }
+}
+
+TEST(BodyMergeReview, a_huge_or_absurd_placement_is_refused_before_any_cast)
+{
+    const auto refused = [](const Mat34& placement, const char* expect) {
+        PartMesh part = makeTriangle("shape", 3, { 1.f, 2.f, 3.f }, { 2.f, 2.f, 3.f }, { 1.f, 3.f, 3.f }, "x");
+        part.mPlacement = placement;
+        const MergeResult result = mergeParts({ part }, {});
+        EXPECT_FALSE(result.ok()) << expect;
+        if (!result.ok())
+            EXPECT_TRUE(hasMessage(result, "placement")) << expect << ": " << result.mErrors.front();
+        EXPECT_TRUE(result.mBody.mPositions.empty());
+    };
+    Mat34 translation = identityPlacement;
+    translation[3] = 1.0e30;
+    refused(translation, "translation 1e30");
+    Mat34 scale = identityPlacement;
+    scale[0] = 1.0e30;
+    refused(scale, "scale 1e30");
+    Mat34 beyondLimit = identityPlacement;
+    beyondLimit[7] = 2.0 * maxCoordinate; // finite, but the placed vertices would be beyond maxCoordinate
+    refused(beyondLimit, "translation twice the coordinate limit");
+    Mat34 grows = identityPlacement;
+    grows[0] = grows[5] = grows[10] = maxPlacementEntry; // a vertex at (1,2,3) lands at 3e6: fine; at 1e7 it would not
+    PartMesh edge = makeTriangle("far", 3, { 9.0e6f, 0.f, 0.f }, { 9.0e6f, 1.f, 0.f }, { 9.0e6f, 0.f, 1.f }, "x");
+    edge.mPlacement = grows;
+    const MergeResult tooFar = mergeParts({ edge }, {});
+    EXPECT_FALSE(tooFar.ok());
+    EXPECT_TRUE(hasMessage(tooFar, "placed"));
+}
+
+TEST(BodyMergeReview, a_tiny_tolerance_at_large_coordinates_welds_exact_coincidence_and_never_overflows_the_grid)
+{
+    PartMesh a = makeTriangle("a", 1, { 9.0e6f, 0.f, 0.f }, { 9.0e6f, 1.f, 0.f }, { 9.0e6f, 0.f, 1.f }, "x");
+    PartMesh b = makeTriangle("b", 2, { 9.0e6f, 0.f, 0.f }, { 9.0e6f, -1.f, 0.f }, { 9.0e6f, 0.f, -1.f }, "y");
+    for (const double tolerance : { 0.0, 1.0e-9, 1.0e-6 })
+    {
+        const MergeResult result = mergeParts({ a, b }, oneSeam(1, 2, tolerance));
+        ASSERT_TRUE(result.ok()) << result.mErrors.front();
+        EXPECT_EQ(result.mBody.mReport.mWeldSets, 1u) << "tolerance " << tolerance;
+    }
+}
+
+TEST(BodyMergeReview, a_weld_set_never_reaches_further_than_the_tolerance_from_its_first_member)
+{
+    // a1 at 0, b at 0.006 and a2 at 0.012: b is within 0.01 of both, a1 and a2 are not within 0.01 of each other.
+    // The old union-find chained all three into one set and moved a2 by 0.012, more than the tolerance.
+    PartMesh a = makeTriangle("a", 1, { 0.f, 0.f, 0.f }, { 0.012f, 0.f, 0.f }, { 0.f, 5.f, 0.f }, "x");
+    PartMesh b = makeTriangle("b", 2, { 0.006f, 0.f, 0.f }, { 0.006f, 9.f, 0.f }, { 3.f, 9.f, 0.f }, "y");
+    const WeldMap map = computeWeldMap({ a, b }, oneSeam(1, 2, 0.01));
+    ASSERT_TRUE(map.mErrors.empty());
+    ASSERT_EQ(map.mSets.size(), 1u);
+    EXPECT_EQ(map.mSets[0].size(), 2u); // a's first vertex and b's first vertex
+    for (const WeldMember& member : map.mSets[0])
+        EXPECT_FALSE(member.mPart == 0 && member.mVertex == 1) << "the far end of the chain was welded";
+
+    const MergeResult merged = mergeParts({ a, b }, oneSeam(1, 2, 0.01));
+    ASSERT_TRUE(merged.ok());
+    // No vertex of a stays more than the tolerance from where it was.
+    for (std::size_t v = 0; v < a.mPositions.size(); ++v)
+    {
+        const Vec3& out = merged.mBody.mPositions[merged.mBody.mVertexMap[0][v]];
+        const double dx = out[0] - a.mPositions[v][0];
+        const double dy = out[1] - a.mPositions[v][1];
+        const double dz = out[2] - a.mPositions[v][2];
+        EXPECT_LE(std::sqrt(dx * dx + dy * dy + dz * dz), 0.01 + 1e-6) << "vertex " << v;
+    }
+}
+
+TEST(BodyMergeReview, many_coincident_vertices_at_tolerance_zero_hit_the_work_budget_not_a_quadratic_scan)
+{
+    const auto cloud = [](const std::string& name, int slot, std::size_t count) {
+        PartMesh part;
+        part.mName = name;
+        part.mSlot = slot;
+        part.mMaterial = "mat";
+        part.mRigidBone = "x";
+        for (std::size_t i = 0; i < count; ++i)
+            part.mPositions.push_back({ 1.f, 1.f, 1.f });
+        for (std::size_t i = 0; i + 2 < count; i += 3)
+            part.mTriangles.insert(part.mTriangles.end(),
+                { static_cast<std::uint32_t>(i), static_cast<std::uint32_t>(i + 1),
+                    static_cast<std::uint32_t>(i + 2) });
+        return part;
+    };
+    MergeLimits limits;
+    limits.mMaxCandidateChecks = 100000;
+    limits.mMaxPairsPerSeam = 1000000000; // the pair cap alone would not stop it: the work budget must
+    const MergeResult result = mergeParts({ cloud("a", 1, 3000), cloud("b", 2, 3000) }, oneSeam(1, 2, 0.0), {}, limits);
+    EXPECT_FALSE(result.ok());
+    EXPECT_TRUE(hasMessage(result, "seam 0")) << (result.ok() ? "no error" : result.mErrors.front());
+    EXPECT_TRUE(hasMessage(result, "comparisons"));
+    // A small cloud inside the budget still welds.
+    const MergeResult small = mergeParts({ cloud("a", 1, 30), cloud("b", 2, 30) }, oneSeam(1, 2, 0.0), {}, limits);
+    EXPECT_TRUE(small.ok());
 }

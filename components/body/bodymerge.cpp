@@ -1,6 +1,7 @@
 #include "bodymerge.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <limits>
 #include <map>
@@ -175,10 +176,22 @@ namespace Body
             }
 
             bool placementFinite = true;
-            for (const double v : part.mPlacement)
+            bool placementInRange = true;
+            for (std::size_t i = 0; i < part.mPlacement.size(); ++i)
+            {
+                const double v = part.mPlacement[i];
                 placementFinite = placementFinite && std::isfinite(v);
+                // Entries 3, 7 and 11 are the translation (bounded like a coordinate); the rest rotate and scale.
+                const double limit = (i % 4 == 3) ? maxCoordinate : maxPlacementEntry;
+                placementInRange = placementInRange && std::abs(v) <= limit;
+            }
             if (!placementFinite)
                 sink.add(where + ": placement is not finite");
+            else if (!placementInRange)
+            {
+                sink.add(where + ": placement is beyond the limits (rotation and scale entries "
+                    + std::to_string(maxPlacementEntry) + ", translation " + std::to_string(maxCoordinate) + ")");
+            }
             else if (effectiveTransform(part).mSingular)
                 sink.add(where + ": placement is singular");
 
@@ -393,8 +406,70 @@ namespace Body
             return compareValue(a.size(), b.size());
         }
 
+        int compareSkin(const PartMesh& a, const PartMesh& b)
+        {
+            for (std::size_t v = 0; v < a.mSkin.size() && v < b.mSkin.size(); ++v)
+            {
+                const PartVertexSkin& x = a.mSkin[v];
+                const PartVertexSkin& y = b.mSkin[v];
+                if (const int c = compareValue(x.mCount, y.mCount))
+                    return c;
+                for (std::size_t i = 0; i < x.mCount && i < maxInputInfluences; ++i)
+                {
+                    if (const int c = compareValue(x.mInfluences[i].mBone, y.mInfluences[i].mBone))
+                        return c;
+                    if (const int c = compareValue(x.mInfluences[i].mWeight, y.mInfluences[i].mWeight))
+                        return c;
+                }
+            }
+            return compareValue(a.mSkin.size(), b.mSkin.size());
+        }
+
+        /// The last tie-break: the bit patterns of every float. Numeric comparison cannot tell -0.0 from +0.0 and
+        /// never orders NaN, so two parts that differ only there would otherwise keep the caller's order.
+        template <typename Array>
+        int compareBitsOf(const Array& a, const Array& b)
+        {
+            for (std::size_t i = 0; i < a.size() && i < b.size(); ++i)
+            {
+                for (std::size_t k = 0; k < a[i].size(); ++k)
+                {
+                    if (const int c
+                        = compareValue(std::bit_cast<std::uint32_t>(a[i][k]), std::bit_cast<std::uint32_t>(b[i][k])))
+                        return c;
+                }
+            }
+            return 0;
+        }
+
+        int compareBits(const PartMesh& a, const PartMesh& b)
+        {
+            if (const int c = compareBitsOf(a.mPositions, b.mPositions))
+                return c;
+            if (const int c = compareBitsOf(a.mNormals, b.mNormals))
+                return c;
+            if (const int c = compareBitsOf(a.mUvs, b.mUvs))
+                return c;
+            for (std::size_t v = 0; v < a.mSkin.size() && v < b.mSkin.size(); ++v)
+            {
+                for (std::size_t i = 0; i < a.mSkin[v].mCount && i < maxInputInfluences; ++i)
+                {
+                    if (const int c = compareValue(std::bit_cast<std::uint32_t>(a.mSkin[v].mInfluences[i].mWeight),
+                            std::bit_cast<std::uint32_t>(b.mSkin[v].mInfluences[i].mWeight)))
+                        return c;
+                }
+            }
+            for (std::size_t i = 0; i < a.mPlacement.size(); ++i)
+            {
+                if (const int c = compareValue(
+                        std::bit_cast<std::uint64_t>(a.mPlacement[i]), std::bit_cast<std::uint64_t>(b.mPlacement[i])))
+                    return c;
+            }
+            return 0;
+        }
+
         /// A total order on parts (slot, material, name, sizes, then content), so the result is independent of the
-        /// order the caller passes them in. Parts equal in every field are interchangeable.
+        /// order the caller passes them in. Parts equal in every field, bit for bit, are interchangeable.
         int compareParts(const PartMesh& a, const PartMesh& b)
         {
             if (const int c = compareValue(a.mSlot, b.mSlot))
@@ -419,9 +494,13 @@ namespace Body
                 return c;
             if (const int c = compareArrays(a.mBones, b.mBones))
                 return c;
+            if (const int c = compareSkin(a, b))
+                return c;
             if (const int c = compareValue(a.mMirror, b.mMirror))
                 return c;
-            return compareArrays(a.mPlacement, b.mPlacement);
+            if (const int c = compareArrays(a.mPlacement, b.mPlacement))
+                return c;
+            return compareBits(a, b);
         }
 
         // ------------------------------------------------------------------------------------------------------
@@ -433,9 +512,12 @@ namespace Body
         public:
             explicit UnionFind(std::size_t size)
                 : mParent(size)
+                , mTolerance(size, 0.0)
             {
                 std::iota(mParent.begin(), mParent.end(), 0u);
             }
+            /// The largest tolerance of any seam that joined a vertex into the set whose root this is.
+            double tolerance(std::uint32_t root) const { return mTolerance[root]; }
             std::uint32_t find(std::uint32_t x)
             {
                 while (mParent[x] != x)
@@ -446,18 +528,30 @@ namespace Body
                 return x;
             }
             /// The smaller id becomes the root, so the root of a set is its lowest member.
-            void join(std::uint32_t a, std::uint32_t b)
+            void join(std::uint32_t a, std::uint32_t b, double tolerance)
             {
                 a = find(a);
                 b = find(b);
+                const double merged = std::max({ mTolerance[a], mTolerance[b], tolerance });
                 if (a < b)
+                {
                     mParent[b] = a;
+                    mTolerance[a] = merged;
+                }
                 else if (b < a)
+                {
                     mParent[a] = b;
+                    mTolerance[b] = merged;
+                }
+                else
+                {
+                    mTolerance[a] = merged;
+                }
             }
 
         private:
             std::vector<std::uint32_t> mParent;
+            std::vector<double> mTolerance;
         };
 
         struct GridEntry
@@ -479,9 +573,16 @@ namespace Body
             return a.mId < b.mId;
         }
 
+        /// The grid cell of a coordinate. The coordinate is at most maxCoordinate and the cell at least minGridCell, so
+        /// the quotient is at most 1e13; the clamp keeps even a caller that skipped the checks away from an
+        /// out-of-range conversion (undefined behaviour), and NaN lands in cell 0.
         std::int64_t cellOf(double value, double cell)
         {
-            return static_cast<std::int64_t>(std::floor(value / cell));
+            constexpr double limit = 4.0e18; // inside int64 with room for the +-1 of the neighbour scan
+            const double quotient = std::floor(value / cell);
+            if (std::isnan(quotient))
+                return 0;
+            return static_cast<std::int64_t>(std::clamp(quotient, -limit, limit));
         }
 
         /// Everything the weld and the merge share: the canonical order, the placed vertices (concatenated in
@@ -527,8 +628,19 @@ namespace Body
                     Vec3 placed;
                     for (std::size_t r = 0; r < 3; ++r)
                     {
-                        placed[r] = static_cast<float>(
-                            e.mE[r * 3 + 0] * p[0] + e.mE[r * 3 + 1] * p[1] + e.mE[r * 3 + 2] * p[2] + e.mT[r]);
+                        const double value
+                            = e.mE[r * 3 + 0] * p[0] + e.mE[r * 3 + 1] * p[1] + e.mE[r * 3 + 2] * p[2] + e.mT[r];
+                        // Checked BEFORE the cast to float (a double beyond FLT_MAX is undefined behaviour to cast)
+                        // and before the grid turns it into a cell index.
+                        if (!(std::abs(value) <= maxCoordinate))
+                        {
+                            sink.add(label(part) + ": vertex " + std::to_string(v)
+                                + ": the placed position is not finite or exceeds the limit "
+                                + std::to_string(maxCoordinate));
+                            return false;
+                        }
+                        // + 0.f turns a negative zero into a positive one: the bytes never depend on its sign.
+                        placed[r] = static_cast<float>(value) + 0.f;
                     }
                     out.mPositions.push_back(placed);
                     out.mRankOf.push_back(static_cast<std::uint32_t>(rank));
@@ -540,11 +652,11 @@ namespace Body
                             t[r] = e.mN[r * 3 + 0] * n[0] + e.mN[r * 3 + 1] * n[1] + e.mN[r * 3 + 2] * n[2];
                         const double length = std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
                         const double scale = length > 0 ? 1.0 / length : 0.0;
-                        out.mNormals.push_back({ static_cast<float>(t[0] * scale), static_cast<float>(t[1] * scale),
-                            static_cast<float>(t[2] * scale) });
+                        out.mNormals.push_back({ static_cast<float>(t[0] * scale) + 0.f,
+                            static_cast<float>(t[1] * scale) + 0.f, static_cast<float>(t[2] * scale) + 0.f });
                     }
                     if (hasUvs)
-                        out.mUvs.push_back(part.mUvs[v]);
+                        out.mUvs.push_back({ part.mUvs[v][0] + 0.f, part.mUvs[v][1] + 0.f });
                 }
             }
             out.mOffset.push_back(static_cast<std::uint32_t>(out.mPositions.size()));
@@ -581,6 +693,7 @@ namespace Body
                 std::sort(grid.begin(), grid.end(), entryLess);
 
                 std::size_t pairs = 0;
+                std::size_t checks = 0;
                 for (const std::uint32_t rankA : ranksA)
                 {
                     for (std::uint32_t idA = out.mOffset[rankA]; idA < out.mOffset[rankA + 1]; ++idA)
@@ -601,8 +714,9 @@ namespace Body
                                          ++it)
                                     {
                                         const std::uint32_t idB = it->mId;
+                                        ++checks;
                                         if (out.mRankOf[idB] == rankA)
-                                            continue; // two vertices of one part are never welded to each other
+                                            continue; // two vertices of one part are never paired with each other
                                         if (sameSlot && idB <= idA)
                                             continue; // count each pair once
                                         const Vec3& q = out.mPositions[idB];
@@ -611,7 +725,7 @@ namespace Body
                                         const double ez = static_cast<double>(q[2]) - static_cast<double>(p[2]);
                                         if (ex * ex + ey * ey + ez * ez <= limit2)
                                         {
-                                            sets.join(idA, idB);
+                                            sets.join(idA, idB, seam.mTolerance);
                                             ++pairs;
                                         }
                                     }
@@ -624,6 +738,15 @@ namespace Body
                                 + std::to_string(limits.mMaxPairsPerSeam) + ")");
                             return false;
                         }
+                        // The grid cell is never finer than minGridCell, so many vertices closer than that all
+                        // land in one cell and the scan of that cell is quadratic: count the work, not only the pairs.
+                        if (checks > limits.mMaxCandidateChecks)
+                        {
+                            sink.add("seam " + std::to_string(k) + ": too many vertex comparisons (limit "
+                                + std::to_string(limits.mMaxCandidateChecks)
+                                + "): many vertices closer together than the finest grid cell");
+                            return false;
+                        }
                     }
                 }
                 out.mPairsPerSeam[k] = pairs;
@@ -634,7 +757,23 @@ namespace Body
             std::vector<std::int32_t> setIndexOfRoot(total, -1);
             for (std::uint32_t id = 0; id < total; ++id)
             {
-                const std::uint32_t root = sets.find(id);
+                std::uint32_t root = sets.find(id);
+                if (root != id)
+                {
+                    // Pairs chain: a first vertex of one part, a vertex of another part within the tolerance of both
+                    // of two vertices of the first part that are further than the tolerance from each other. The
+                    // union-find joins all three, but a member may not be further from the set's first member (the
+                    // position every member takes) than the tolerance of the seams that formed the set: it stays
+                    // out, unwelded.
+                    const Vec3& p = out.mPositions[root];
+                    const Vec3& q = out.mPositions[id];
+                    const double ex = static_cast<double>(q[0]) - static_cast<double>(p[0]);
+                    const double ey = static_cast<double>(q[1]) - static_cast<double>(p[1]);
+                    const double ez = static_cast<double>(q[2]) - static_cast<double>(p[2]);
+                    const double tolerance = sets.tolerance(root);
+                    if (!(ex * ex + ey * ey + ez * ez <= tolerance * tolerance))
+                        root = id;
+                }
                 out.mRoot[id] = root;
                 if (root == id)
                     continue;

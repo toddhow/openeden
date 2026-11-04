@@ -20,10 +20,13 @@
 //      applied. Normals follow (cofactor matrix, sign of the determinant), and the winding flips when the mirror and
 //      the placement's determinant do not cancel.
 //   3. Vertices of two parts that a declared seam allows, closer than the seam's tolerance, form weld sets
-//      (union-find; the smallest vertex id is the root). A set's vertices all take the position of the set's lowest
-//      member. Inside a set, vertices whose UVs are equal and whose normals differ by less than a named angle merge
-//      into one output vertex; the others stay separate (a UV or normal crease). A set that leaves two or more output
-//      vertices is a WELD GROUP, listed in the output, so that a later morph moves its members identically.
+//      (union-find; the smallest vertex id is the root). Two vertices of ONE part are never paired directly, but a
+//      vertex of another part can join them; a member that is then further from the root than the tolerance stays
+//      out of the set (unwelded), so no vertex ever moves further than the tolerance. A set's vertices all take the
+//      position of the set's lowest member. Inside a set, vertices whose UVs are equal and whose normals differ by
+//      less than a named angle merge into one output vertex; the others stay separate
+//      (a UV or normal crease). A set that leaves two or more output vertices is a WELD GROUP, listed in the output,
+//      so that a later morph moves its members identically.
 //   4. Influences: a rigid part gives weight 1.0 to its attach bone. A vertex in a weld set gets the equal-weight
 //      mean of the weights of all members, bone by bone. Then: duplicate bones add, zero weights drop, the four
 //      largest are kept (ties by canonical bone index), and the four are renormalised to sum 1. Bones are written as
@@ -78,6 +81,10 @@ namespace Body
     /// other and the weld quadratic. A Morrowind body is about 128 units tall; a tolerance of 100 is far beyond any
     /// seam.
     inline constexpr double maxSeamTolerance = 100.0;
+    /// A placement entry (rotation, scale or translation) beyond this magnitude is refused. A Morrowind placement has
+    /// entries of at most a few hundred; 1e6 keeps every product and sum of the placement far below double overflow and
+    /// the placed vertices are checked against maxCoordinate separately.
+    inline constexpr double maxPlacementEntry = 1.0e6;
 
     struct PartInfluence
     {
@@ -139,6 +146,9 @@ namespace Body
         std::size_t mMaxBonesPerPart = 1024;
         std::size_t mMaxSeams = 256;
         std::size_t mMaxPairsPerSeam = 2000000; // vertex pairs one seam may join before it is refused
+        /// Vertex pairs one seam may COMPARE (not only join) before it is refused: with a tolerance of 0 and many
+        /// coincident vertices the lookup would otherwise be quadratic. 50 million is a few seconds of work.
+        std::size_t mMaxCandidateChecks = 50000000;
         std::size_t mMaxNameBytes = 128;
         std::size_t mMaxErrors = 16;
     };
