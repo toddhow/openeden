@@ -165,3 +165,11 @@ To OpenEden documents: `docs/design/eden-studio-plan.md` section 5.1 item 5 (gen
 6. Yes: background building defaults to off, one idle-priority CPU thread, GPU only in menus and loading.
 
 Questions 7 to 10 (determinism only on the same machine, the shipping rule until a lawyer answers, a lawyer reading the full licence first, measuring a clean Morrowind install) are not answered yet; the stated defaults hold meanwhile.
+
+## Licence note from toddhow, 2026-11-03 (pasted section 3.1 of the NVIDIA Open Model License)
+
+toddhow pasted the start of section 3, "Redistribution". Read as: the Model and Derivative Models may be reproduced and distributed in any medium, with or without modification, if the distributor (3.1) gives every recipient a copy of the Agreement and includes a "Notice" text file with NVIDIA's attribution line. The pasted text ends mid-list ("... and"), so the further conditions (3.2 and any later ones) have NOT been read here, nor sections on termination, guardrails, patents, trademarks or other terms. Consequences, none decided:
+
+- Redistributing the ONNX weights, or a converted form of them, looks permitted with those two conditions, so "the user downloads the weights" (answer 2) is a choice, not a licence necessity; mirroring or bundling remains possible later.
+- The condition is per distributor: if OpenEden hosts or ships the weights it must include the Agreement copy and the Notice file; nothing is hosted or shipped now.
+- Stage a must read the COMPLETE current license text (all of section 3 and the sections after it) before any redistribution is planned, and a lawyer should read it (question 9 still open).
