@@ -250,7 +250,8 @@ namespace OMW
             state.mStart = std::chrono::steady_clock::now();
             // The bake runs inside a new game, where the player starts in a fight and dies after about ten seconds; a
             // death stops the game's update and with it the bake. A bake is no play: switch god mode on.
-            if (MWBase::World* world = MWBase::Environment::get().getWorld(); world != nullptr && !world->getGodModeState())
+            if (MWBase::World* world = MWBase::Environment::get().getWorld();
+                world != nullptr && !world->getGodModeState())
                 world->toggleGodMode();
             const auto& cells = store->get<ESM::Cell>();
             for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
@@ -483,12 +484,14 @@ namespace OMW
             if (state.mNextTile % 50 == 1)
                 Log(Debug::Info) << "LOD object bake: tile " << state.mNextTile << " of " << state.mWork.size() << " ("
                                  << std::chrono::duration_cast<std::chrono::seconds>(
-                                        std::chrono::steady_clock::now() - state.mStart).count()
+                                        std::chrono::steady_clock::now() - state.mStart)
+                                        .count()
                                  << " s)";
             const auto tileStart = std::chrono::steady_clock::now();
             const Lod::LodError buildError = Lod::buildObjectCluster(input, cluster, &stats);
-            const auto tileMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now() - tileStart).count();
+            const auto tileMs
+                = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tileStart)
+                      .count();
             // A tile that takes seconds is worth knowing about (the levels 3 and 4 of task 0066 stage d).
             if (tileMs >= slowTileMilliseconds)
                 Log(Debug::Info) << "LOD object bake: level " << id.mLevel << " tile (" << id.mX << ", " << id.mY
