@@ -72,6 +72,11 @@ namespace Lod
         {
             return std::nullopt;
         }
+        if (value > maxViewDistanceNumber)
+        {
+            value = maxViewDistanceNumber;
+            setting.mClamped = true;
+        }
         setting.mValue = value;
         return setting;
     }
@@ -126,15 +131,36 @@ namespace Lod
             return limits;
         }
 
+        // The cap of `max view distance` is a hardware limit on `auto` and wins over the old number; a number the user
+        // named is never capped, and a cap of 0 or less means no cap. The camera's own distance is the floor of the
+        // cap.
+        const bool capped = input.mSetting.mAuto && input.mMaxViewDistance > 0.f;
+        const float capLimit = capped ? std::max(input.mCameraViewingDistance, input.mMaxViewDistance) : legacy;
+
         float reach = number;
         if (input.mSetting.mAuto && input.mLandDiagonal > 0.0)
         {
-            reach = static_cast<float>(std::min(input.mLandDiagonal, static_cast<double>(input.mMaxViewDistance)));
+            reach = static_cast<float>(input.mLandDiagonal);
         }
-        limits.mPagingRange = legacy;
-        limits.mTileRange = std::max(legacy, reach);
+        if (capped)
+        {
+            reach = std::min(reach, capLimit);
+        }
+        limits.mPagingRange = std::min(legacy, capLimit);
+        limits.mTileRange = std::max(limits.mPagingRange, reach);
         limits.mFarPlane = limits.mTileRange;
         limits.mFogRange = limits.mTileRange;
+        return limits;
+    }
+
+    ViewLimits uniformViewLimits(float distance) noexcept
+    {
+        ViewLimits limits;
+        if (!std::isfinite(distance) || !(distance > 0.f))
+        {
+            return limits;
+        }
+        limits.mTileRange = limits.mPagingRange = limits.mFarPlane = limits.mFogRange = distance;
         return limits;
     }
 }

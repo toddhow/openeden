@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <numbers>
 #include <utility>
 #include <vector>
@@ -91,6 +92,29 @@ namespace
         {
             EXPECT_FALSE(parseViewDistanceSetting(text).has_value()) << "'" << text << "'";
         }
+    }
+
+    TEST(LodViewLimits, a_number_beyond_the_largest_is_clamped_and_says_so)
+    {
+        // Review fix (task 0066 stage b follow-up): 1e30 used to reach the projection unchanged.
+        const auto huge = parseViewDistanceSetting("1e30");
+        ASSERT_TRUE(huge.has_value());
+        EXPECT_FALSE(huge->mAuto);
+        EXPECT_FLOAT_EQ(huge->mValue, maxViewDistanceNumber);
+        EXPECT_TRUE(huge->mClamped);
+
+        const auto justOver = parseViewDistanceSetting("10000001");
+        ASSERT_TRUE(justOver.has_value());
+        EXPECT_FLOAT_EQ(justOver->mValue, maxViewDistanceNumber);
+        EXPECT_TRUE(justOver->mClamped);
+
+        const auto exactly = parseViewDistanceSetting("10000000");
+        ASSERT_TRUE(exactly.has_value());
+        EXPECT_FLOAT_EQ(exactly->mValue, maxViewDistanceNumber);
+        EXPECT_FALSE(exactly->mClamped);
+
+        EXPECT_FALSE(parseViewDistanceSetting("40000")->mClamped);
+        EXPECT_FALSE(parseViewDistanceSetting("auto")->mClamped);
     }
 
     // ---- the land extent ---------------------------------------------------------------------------------
@@ -183,11 +207,90 @@ namespace
         EXPECT_FLOAT_EQ(limits.mFarPlane, 300000.f);
     }
 
-    TEST(LodViewLimits, the_cap_never_lowers_the_reach_below_the_old_one)
+    // Deliberately changed in the stage b review fixes: this test used to be `the_cap_never_lowers_the_reach_below_the_
+    // old_one` and pinned the old 40000 as a floor under `max view distance`. toddhow's design intent is that the cap
+    // is a hardware limit, so it wins: it lowers the tile range and the paging range, down to the camera's own
+    // distance.
+    TEST(LodViewLimits, the_cap_wins_over_the_old_number)
     {
+        const ViewLimits limits = computeViewLimits(input(7168.f, true, true, automatic(), 20000.f, 590000.0));
+        EXPECT_FLOAT_EQ(limits.mTileRange, 20000.f);
+        EXPECT_FLOAT_EQ(limits.mPagingRange, 20000.f);
+        EXPECT_FLOAT_EQ(limits.mFarPlane, 20000.f);
+        EXPECT_FLOAT_EQ(limits.mFogRange, 20000.f);
+    }
+
+    TEST(LodViewLimits, the_cap_never_cuts_the_ordinary_view)
+    {
+        // A cap below [Camera] viewing distance leaves the camera's own distance.
         const ViewLimits limits = computeViewLimits(input(7168.f, true, true, automatic(), 1000.f, 590000.0));
-        EXPECT_FLOAT_EQ(limits.mTileRange, legacyViewDistance);
-        EXPECT_GE(limits.mTileRange, limits.mPagingRange);
+        expectAll(limits, 7168.f);
+    }
+
+    TEST(LodViewLimits, a_cap_above_the_diagonal_changes_nothing)
+    {
+        const ViewLimits limits = computeViewLimits(input(7168.f, true, true, automatic(), 900000.f, 590000.0));
+        EXPECT_FLOAT_EQ(limits.mTileRange, 590000.f);
+        EXPECT_FLOAT_EQ(limits.mPagingRange, legacyViewDistance);
+    }
+
+    TEST(LodViewLimits, no_cap_keeps_the_old_number_as_the_floor_of_a_small_world)
+    {
+        // One cell of land: the diagonal is 11585 units, below the old 40000. Cap 0 means no cap.
+        const double oneCell = 8192.0 * std::numbers::sqrt2;
+        const ViewLimits unlimited = computeViewLimits(input(7168.f, true, true, automatic(), 0.f, oneCell));
+        EXPECT_FLOAT_EQ(unlimited.mTileRange, legacyViewDistance);
+        EXPECT_FLOAT_EQ(unlimited.mPagingRange, legacyViewDistance);
+        // A negative cap is also no cap.
+        const ViewLimits negative = computeViewLimits(input(7168.f, true, true, automatic(), -5.f, 590000.0));
+        EXPECT_FLOAT_EQ(negative.mTileRange, 590000.f);
+    }
+
+    TEST(LodViewLimits, the_cap_does_nothing_with_map_view_off_or_for_a_number)
+    {
+        // Map view off: the rule of commit ed53100fd3, the cap is not part of it.
+        expectAll(computeViewLimits(input(7168.f, true, false, automatic(), 20000.f, 590000.0)), legacyViewDistance);
+        // A number is the user's own word and is not capped (settings-default.cfg says so).
+        const ViewLimits number900k = computeViewLimits(input(7168.f, true, true, number(900000.f), 20000.f, 590000.0));
+        EXPECT_FLOAT_EQ(number900k.mTileRange, 900000.f);
+        EXPECT_FLOAT_EQ(number900k.mPagingRange, 900000.f);
+    }
+
+    TEST(LodViewLimits, uniform_limits_set_all_four_to_one_distance)
+    {
+        // What a Lua camera.setViewDistance(d) does: every limit at d.
+        const ViewLimits limits = uniformViewLimits(12345.f);
+        expectAll(limits, 12345.f);
+        EXPECT_TRUE(limits == uniformViewLimits(12345.f));
+    }
+
+    TEST(LodViewLimits, limits_that_differ_in_any_one_field_are_not_equal)
+    {
+        // The guard of setViewDistance compares all four, not only the paging range: a script passing the paging
+        // range while the far plane or the tile range differ must still take effect.
+        const ViewLimits base = uniformViewLimits(40000.f);
+        ViewLimits other = base;
+        other.mFarPlane = 590000.f;
+        EXPECT_FALSE(base == other);
+        other = base;
+        other.mTileRange = 590000.f;
+        EXPECT_FALSE(base == other);
+        other = base;
+        other.mFogRange = 1.f;
+        EXPECT_FALSE(base == other);
+        other = base;
+        other.mPagingRange = 1.f;
+        EXPECT_FALSE(base == other);
+        EXPECT_TRUE(base == uniformViewLimits(40000.f));
+    }
+
+    TEST(LodViewLimits, uniform_limits_of_a_bad_distance_are_all_zero)
+    {
+        const ViewLimits zero;
+        EXPECT_TRUE(uniformViewLimits(0.f) == zero);
+        EXPECT_TRUE(uniformViewLimits(-3.f) == zero);
+        EXPECT_TRUE(uniformViewLimits(std::numeric_limits<float>::quiet_NaN()) == zero);
+        EXPECT_TRUE(uniformViewLimits(std::numeric_limits<float>::infinity()) == zero);
     }
 
     TEST(LodViewLimits, auto_with_an_unknown_world_falls_back_to_the_old_default)
@@ -216,7 +319,8 @@ namespace
                     EXPECT_GE(limits.mTileRange, limits.mPagingRange);
                     EXPECT_GE(limits.mTileRange, camera);
                     EXPECT_GE(limits.mFarPlane, limits.mTileRange);
-                    EXPECT_GE(limits.mFogRange, 0.f);
+                    // The fog follows the tile range until stage c's haze model replaces its end.
+                    EXPECT_FLOAT_EQ(limits.mFogRange, limits.mTileRange);
                 }
             }
         }
@@ -298,7 +402,10 @@ namespace
             EXPECT_GE(level, previous) << "at " << distance;
             previous = level;
         }
-        EXPECT_GE(previous, 4); // the far corner is drawn with a level coarser than 3
+        // The stage b log says the selection reaches level 5 at the far end; with the invented errors of levelTile
+        // (600 at level 3, growing 2.9 times a level) this pins what it really reaches, so the log cannot drift.
+        EXPECT_EQ(previous, 5);
+        EXPECT_EQ(coarsestAccepted(600000, 8.f), 5);
     }
 
     TEST(LodViewLimits, a_tile_is_skipped_beyond_the_tile_range_and_chosen_inside_it)
@@ -340,17 +447,15 @@ namespace
         ASSERT_EQ(states[0].mChoice, TileChoice::Live);
 
         // Between 0.7 and 1.0 of the threshold: still Live.
-        double distance = 60000;
-        while (distance < 600000)
+        bool found = false;
+        for (double distance = 60000; distance < 600000 && !found; distance += 500)
         {
             states[0].mBounds = levelTile(4, distance);
             const double pixels = pixelError(camera, states[0].mBounds);
-            if (pixels < threshold && pixels > hysteresisShare * threshold)
-            {
-                break;
-            }
-            distance += 500;
+            found = pixels < threshold && pixels > hysteresisShare * threshold;
         }
+        ASSERT_TRUE(found)
+            << "no distance between 60000 and 600000 puts the error between 0.7 and 1.0 of the threshold";
         selectTiles(states, camera, threshold);
         EXPECT_EQ(states[0].mChoice, TileChoice::Live);
 

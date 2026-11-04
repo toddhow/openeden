@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -142,21 +143,37 @@ namespace MWRender
 {
     namespace
     {
-        // [WorldLod] view distance: a number or `auto`. Text that is neither counts as the old default number, with
-        // one warning.
+        // [WorldLod] view distance: a number or `auto`. Text that is neither counts as the old default number; a
+        // number above Lod::maxViewDistanceNumber is cut to it. Both log a warning, once for each text: it repeats when
+        // the setting changes to another such text, and again after a good value was set in between. Main thread only
+        // (the constructor, `setStore` and the settings handler).
         Lod::ViewDistanceSetting readViewDistanceSetting()
         {
+            static std::optional<std::string> lastWarnedText;
             const std::string& text = Settings::worldLod().mViewDistance.get();
-            if (const auto parsed = Lod::parseViewDistanceSetting(text))
+            const auto parsed = Lod::parseViewDistanceSetting(text);
+            if (parsed && !parsed->mClamped)
             {
+                lastWarnedText.reset();
                 return *parsed;
             }
-            static bool warned = false;
-            if (!warned)
+            if (!lastWarnedText || *lastWarnedText != text)
             {
-                warned = true;
-                Log(Debug::Warning) << "[WorldLod] view distance \"" << text
-                                    << "\" is neither a number nor auto; using " << Lod::legacyViewDistance;
+                lastWarnedText = text;
+                if (parsed)
+                {
+                    Log(Debug::Warning) << "[WorldLod] view distance \"" << text << "\" is above the largest, using "
+                                        << Lod::maxViewDistanceNumber;
+                }
+                else
+                {
+                    Log(Debug::Warning) << "[WorldLod] view distance \"" << text
+                                        << "\" is neither a number nor auto; using " << Lod::legacyViewDistance;
+                }
+            }
+            if (parsed)
+            {
+                return *parsed;
             }
             Lod::ViewDistanceSetting fallback;
             fallback.mValue = Lod::legacyViewDistance;
@@ -1120,9 +1137,10 @@ namespace MWRender
 
     void RenderManager::setStore(const MWWorld::ESMStore& store)
     {
-        // Task 0066: the reach of the loaded world's land, for `[WorldLod] view distance = auto` with `map view`.
+        // Task 0066: the reach of the loaded world's land, for `[WorldLod] view distance = auto` with `map view`. It is
+        // worked out whatever the settings say (a few thousand cells, once per store), so that turning `enabled` or
+        // `map view` on later finds it (review of stages a and b: it used to stay 0 and `auto` fell back to 40000).
         mLandDiagonal = 0;
-        if (Settings::worldLod().mEnabled && Settings::worldLod().mMapView)
         {
             std::vector<std::pair<std::int32_t, std::int32_t>> cells;
             for (const ESM::Land& land : store.get<ESM::Land>())
@@ -2761,8 +2779,9 @@ namespace MWRender
                 updateProjectionMatrix();
             }
             else if ((it->first == "Camera" && it->second == "viewing distance")
+                || (it->first == "Terrain" && it->second == "distant terrain")
                 || (it->first == "WorldLod"
-                    && (it->second == "view distance" || it->second == "map view"
+                    && (it->second == "enabled" || it->second == "view distance" || it->second == "map view"
                         || it->second == "max view distance")))
             {
                 mViewLimitsOverridden = false;
@@ -2812,11 +2831,24 @@ namespace MWRender
 
     void RenderManager::setViewDistance(float d, bool dummy)
     {
-        if (mViewDistance != d)
+        // A script's distance sets every limit, as the one number did before task 0066, until a setting changes. With
+        // `map view` on that cancels the map view (the limits are one number again), and the haze is off while it is
+        // set. The guard compares all four limits: comparing only the paging range made a call that matched it do
+        // nothing while the far plane or the tile range differed (review of stages a and b). A distance that is not
+        // finite or not positive is ignored.
+        const Lod::ViewLimits wanted = Lod::uniformViewLimits(d);
+        if (wanted == Lod::ViewLimits{})
         {
-            // A script's distance sets every limit, as the one number did before task 0066, until a setting changes.
+            return;
+        }
+        const Lod::ViewLimits current{ mTileRange, mViewDistance, mFarPlane, mFogRange };
+        if (wanted != current)
+        {
             mViewLimitsOverridden = true;
-            mViewDistance = mTileRange = mFarPlane = mFogRange = d;
+            mViewDistance = wanted.mPagingRange;
+            mTileRange = wanted.mTileRange;
+            mFarPlane = wanted.mFarPlane;
+            mFogRange = wanted.mFogRange;
             updateProjectionMatrix();
         }
     }

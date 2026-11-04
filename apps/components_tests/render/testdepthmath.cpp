@@ -10,7 +10,6 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <cstdio>
 #include <vsg/maths/mat4.h>
 #include <vsg/maths/transform.h>
 #include <vsg/maths/vec4.h>
@@ -100,13 +99,14 @@ namespace
     {
         const vsg::mat4 projection(vsg::perspective(vsg::radians(60.0), 16.0 / 9.0, nearClip, farClip));
         const vsg::mat4 inverse = vsg::inverse(projection);
-        for (const double distance : { 10.0, 1000.0, 7168.0, 40000.0, 100000.0, 300000.0 })
+        // Measured (the stage a table): the error is 0.0625 units at 590,000 and under 0.04 everywhere else. A tenth of
+        // a unit is tight enough to catch a wrong sign, a lost factor or a one-per-mille drift in the formula (100
+        // units at 100,000), where the earlier tolerance of 300 units at 300,000 could not.
+        constexpr double tolerance = 0.1;
+        for (const double distance : { 10.0, 1000.0, 7168.0, 40000.0, 100000.0, 300000.0, 590000.0 })
         {
             const float stored = static_cast<float>(ndcDepth(nearClip, farClip, distance));
             const float viewZ = viewZFromDepth(inverse, stored);
-            // The stored float depth itself carries the resolution the earlier tests bound; allow ten times it, plus a
-            // relative 1e-3 for the float inverse.
-            const double tolerance = 10.0 * depthResolution(nearClip, farClip, distance) + distance * 1e-3;
             EXPECT_NEAR(-static_cast<double>(viewZ), distance, tolerance) << "at distance " << distance;
         }
     }
@@ -118,7 +118,6 @@ namespace
         // A sky pixel keeps the cleared depth 0. Its view distance must not be nearer than the far plane's
         // neighbourhood (the shaders treat it as "very far"), and must not be NaN.
         const float viewZ = viewZFromDepth(inverse, 0.0f);
-        EXPECT_TRUE(std::isfinite(viewZ) || std::isinf(viewZ));
         EXPECT_FALSE(std::isnan(viewZ));
         EXPECT_GE(std::fabs(static_cast<double>(viewZ)), farClip * 0.99);
     }
@@ -134,20 +133,38 @@ namespace
 
 namespace
 {
-    // Prints the numbers task 0066's stage log quotes (near 1, far 600,000): the smallest distance step the float
-    // depth buffer tells apart, reversed and conventional, and the float inverse projection's reconstruction error.
-    TEST(RenderDepthMathTest, prints_the_precision_table)
+    // The numbers task 0066's stage a log quotes (near 1, far 600,000): the smallest distance step the float depth
+    // buffer tells apart, reversed and conventional, and the float inverse projection's reconstruction error. They
+    // were printed by the first version of this test; now they are asserted (the review of stages a and b found that
+    // printing pinned nothing). IEEE float steps are deterministic, so a few percent of tolerance is only for the
+    // rounding of the printed digits.
+    TEST(RenderDepthMathTest, the_precision_table_of_the_stage_log_holds)
     {
+        struct Row
+        {
+            double mDistance;
+            double mReversedStep;
+            double mConventionalStep;
+        };
+        constexpr Row rows[] = {
+            { 7168.0, 0.00075, 3.063 },
+            { 40000.0, 0.00291, 95.810 },
+            { 100000.0, 0.00909, 598.262 },
+            { 300000.0, 0.01023, 5454.610 },
+            { 590000.0, 0.00062, 46221.270 },
+        };
         const vsg::mat4 projection(vsg::perspective(vsg::radians(60.0), 16.0 / 9.0, nearClip, farClip));
         const vsg::mat4 inverse = vsg::inverse(projection);
-        for (const double distance : { 100.0, 7168.0, 40000.0, 100000.0, 300000.0, 590000.0 })
+        for (const Row& row : rows)
         {
-            const float stored = static_cast<float>(ndcDepth(nearClip, farClip, distance));
-            std::printf("distance %8.0f  reversed step %10.5f  conventional step %10.3f  float inverse error %9.4f\n",
-                distance, depthResolution(nearClip, farClip, distance),
-                forwardDepthResolution(nearClip, farClip, distance),
-                std::fabs(-static_cast<double>(viewZFromDepth(inverse, stored)) - distance));
+            EXPECT_NEAR(depthResolution(nearClip, farClip, row.mDistance), row.mReversedStep, row.mReversedStep * 0.05)
+                << "reversed step at " << row.mDistance;
+            EXPECT_NEAR(forwardDepthResolution(nearClip, farClip, row.mDistance), row.mConventionalStep,
+                row.mConventionalStep * 0.01)
+                << "conventional step at " << row.mDistance;
+            const float stored = static_cast<float>(ndcDepth(nearClip, farClip, row.mDistance));
+            EXPECT_LT(std::fabs(-static_cast<double>(viewZFromDepth(inverse, stored)) - row.mDistance), 0.1)
+                << "float inverse error at " << row.mDistance;
         }
-        SUCCEED();
     }
 }
