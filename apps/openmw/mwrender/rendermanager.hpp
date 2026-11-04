@@ -172,6 +172,10 @@ namespace MWRender
         void setNavigator(const DetourNavigator::Navigator* navigator) { mNavigator = navigator; }
         /// World's groundcover; null when the World goes. Groundcover is drawn only with `[Groundcover] enabled`.
         void setGroundcoverStore(const MWWorld::GroundcoverStore* store);
+        /// Called by the World's destructor, while the store it owns still exists: ends the world LOD terrain, whose
+        /// staleness check runs on a worker thread that reads that store (task 0060 review fixes: a bake mode quits
+        /// within a second of the start and the check was still running when the store went).
+        void releaseWorldLod();
         void setNavMeshMode(Settings::NavMeshRenderMode value);
         Preview* getPreview() { return mPreview.get(); }
         LandManager* getLandManager() const;

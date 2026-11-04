@@ -512,6 +512,8 @@ namespace MWWorld
         // The renderer outlives the world; it must stop reading the navigator the world owns.
         mRendering->setNavigator(nullptr);
         mRendering->setGroundcoverStore(nullptr);
+        // The world LOD terrain's pack check runs on a worker that reads the store this World owns.
+        mRendering->releaseWorldLod();
 
         if (Settings::navigator().mWaitForAllJobsOnExit && mNavigator != nullptr)
         {

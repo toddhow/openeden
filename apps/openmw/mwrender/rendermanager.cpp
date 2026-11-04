@@ -2124,6 +2124,12 @@ namespace MWRender
         }
     }
 
+    void RenderManager::releaseWorldLod()
+    {
+        // ~LodTerrain waits for its worker, which reads the World's ESM store through the live terrain storage.
+        mLodTerrain.reset();
+    }
+
     void RenderManager::setGroundcoverStore(const MWWorld::GroundcoverStore* store)
     {
         // Called by the World: with its store from the loading thread, where update() then acts on it on the main
