@@ -84,6 +84,11 @@ namespace Body
     /// outside the vertices (the payload reader refuses such bodies; this is the second line).
     std::vector<MergedDraw> planMergedDraws(const MergedBody& body);
 
+    /// One draw per material key (decision H19, review finding 4): the submeshes of a material, in submesh order, become
+    /// one draw whose look is taken from the slot of its first submesh. Materials in first-use order; a vertex shared by
+    /// two submeshes of the material is listed once. Empty on the same bad input as planMergedDraws.
+    std::vector<MergedDraw> planMergedDrawsByMaterial(const MergedBody& body);
+
     /// A 3 x 4 matrix as components/bodynif's Matrix34: row-major [rotation and scale | translation], v' = M3 v + t.
     using Affine34 = std::array<double, 12>;
 

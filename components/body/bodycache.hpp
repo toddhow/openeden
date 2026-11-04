@@ -36,6 +36,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -137,6 +138,14 @@ namespace Body
     /// Strict reader: any unknown line, duplicate name, over-long line, too many entries or control character is an
     /// error ("line 7: ...").
     std::optional<CacheManifest> readManifest(std::string_view text, std::string& error);
+
+    /// The quick keys of a cache (review finding 6, answer 8): per body entry a key over the same input as the body key
+    /// with every file digest replaced by the file's size, so the game checks a cached body from records and sizes
+    /// without hashing the part files. Text: "openeden.bodyquick", a tab and "1", then one "<entry name>", tab,
+    /// "<64 hex>" line per body sorted by name, LF line ends and a final newline.
+    /// The reader is strict and refuses anything else.
+    std::string writeQuickKeys(const std::map<std::string, std::string>& keys);
+    std::optional<std::map<std::string, std::string>> readQuickKeys(std::string_view text, std::string& error);
 
     /// True when the manifest has an entry of this name whose key equals `key`.
     bool isEntryCurrent(const CacheManifest& manifest, std::string_view name, std::string_view key);

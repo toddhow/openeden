@@ -517,6 +517,74 @@ namespace Body
         return manifest;
     }
 
+    namespace
+    {
+        constexpr std::string_view quickHeader = "openeden.bodyquick\t1\n";
+
+        bool isLowerHexKey(std::string_view key)
+        {
+            const auto hex = [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); };
+            return key.size() == 64 && std::all_of(key.begin(), key.end(), hex);
+        }
+    }
+
+    std::string writeQuickKeys(const std::map<std::string, std::string>& keys)
+    {
+        // std::map iterates in name order, which is the canonical order.
+        std::string text(quickHeader);
+        for (const auto& [name, key] : keys)
+        {
+            text += name;
+            text += '\t';
+            text += key;
+            text += '\n';
+        }
+        return text;
+    }
+
+    std::optional<std::map<std::string, std::string>> readQuickKeys(std::string_view text, std::string& error)
+    {
+        const auto fail = [&error](std::size_t line, const std::string& message) {
+            error = "quick keys, line " + std::to_string(line) + ": " + message;
+            return std::optional<std::map<std::string, std::string>>{};
+        };
+        if (text.size() > CacheLimits::sMaxManifestBytes)
+            return fail(1, "over " + std::to_string(CacheLimits::sMaxManifestBytes) + " bytes");
+        if (text.substr(0, quickHeader.size()) != quickHeader)
+            return fail(1, "the first line is not \"openeden.bodyquick<tab>1\"");
+        std::map<std::string, std::string> keys;
+        std::string_view rest = text.substr(quickHeader.size());
+        std::size_t lineNumber = 1;
+        std::string previous;
+        while (!rest.empty())
+        {
+            ++lineNumber;
+            if (keys.size() >= CacheLimits::sMaxEntries)
+                return fail(lineNumber, "more than " + std::to_string(CacheLimits::sMaxEntries) + " entries");
+            const std::size_t end = rest.find('\n');
+            if (end == std::string_view::npos)
+                return fail(lineNumber, "the text does not end with a newline");
+            const std::string_view line = rest.substr(0, end);
+            rest.remove_prefix(end + 1);
+            if (line.size() > CacheLimits::sMaxLineBytes)
+                return fail(lineNumber, "the line is over " + std::to_string(CacheLimits::sMaxLineBytes) + " bytes");
+            const std::size_t tab = line.find('\t');
+            if (tab == std::string_view::npos)
+                return fail(lineNumber, "no tab between the name and the key");
+            const std::string_view name = line.substr(0, tab);
+            const std::string_view key = line.substr(tab + 1);
+            if (!validEntryName(name))
+                return fail(lineNumber, "not a body entry name");
+            if (!isLowerHexKey(key))
+                return fail(lineNumber, "the key is not 64 lower-case hex digits");
+            if (!previous.empty() && std::string_view(previous) >= name)
+                return fail(lineNumber, "the names are not strictly increasing");
+            previous = std::string(name);
+            keys.emplace(std::string(name), std::string(key));
+        }
+        return keys;
+    }
+
     bool isEntryCurrent(const CacheManifest& manifest, std::string_view name, std::string_view key)
     {
         return std::any_of(manifest.mEntries.begin(), manifest.mEntries.end(),

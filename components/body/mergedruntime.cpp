@@ -128,6 +128,59 @@ namespace Body
         return draws;
     }
 
+    std::vector<MergedDraw> planMergedDrawsByMaterial(const MergedBody& body)
+    {
+        const std::size_t triangleCount = body.mTriangles.size() / 3;
+        const std::size_t vertexCount = body.mPositions.size();
+        constexpr std::uint32_t unused = std::numeric_limits<std::uint32_t>::max();
+        // The materials in the order of their first submesh; each material's submeshes in submesh order.
+        std::vector<std::uint32_t> order;
+        std::vector<std::vector<const Submesh*>> byMaterial(body.mMaterials.size());
+        for (const Submesh& submesh : body.mSubmeshes)
+        {
+            const std::uint64_t end = static_cast<std::uint64_t>(submesh.mFirstTriangle)
+                + static_cast<std::uint64_t>(submesh.mTriangleCount);
+            if (end > triangleCount || submesh.mMaterial >= body.mMaterials.size())
+                return {};
+            if (byMaterial[submesh.mMaterial].empty())
+                order.push_back(submesh.mMaterial);
+            byMaterial[submesh.mMaterial].push_back(&submesh);
+        }
+        std::vector<std::uint32_t> local(vertexCount, unused);
+        std::vector<MergedDraw> draws;
+        draws.reserve(order.size());
+        for (const std::uint32_t material : order)
+        {
+            MergedDraw draw;
+            draw.mMaterial = material;
+            draw.mSlot = byMaterial[material].front()->mSlot;
+            for (const Submesh* submesh : byMaterial[material])
+            {
+                const std::uint64_t end = static_cast<std::uint64_t>(submesh->mFirstTriangle)
+                    + static_cast<std::uint64_t>(submesh->mTriangleCount);
+                for (std::uint64_t t = submesh->mFirstTriangle; t < end; ++t)
+                {
+                    for (std::size_t k = 0; k < 3; ++k)
+                    {
+                        const std::uint32_t vertex = body.mTriangles[static_cast<std::size_t>(t) * 3 + k];
+                        if (vertex >= vertexCount)
+                            return {};
+                        if (local[vertex] == unused)
+                        {
+                            local[vertex] = static_cast<std::uint32_t>(draw.mVertices.size());
+                            draw.mVertices.push_back(vertex);
+                        }
+                        draw.mIndices.push_back(local[vertex]);
+                    }
+                }
+            }
+            for (const std::uint32_t vertex : draw.mVertices)
+                local[vertex] = unused;
+            draws.push_back(std::move(draw));
+        }
+        return draws;
+    }
+
     bool invertAffine(const Affine34& in, Affine34& out)
     {
         for (const double value : in)
