@@ -471,6 +471,16 @@ namespace MWRender
             mAoEnabled = ao;
             if (ao)
                 Log(Debug::Info) << "AO: ambient occlusion at half resolution";
+            // OpenEden (task 0076): temporal accumulation of the occlusion. It generates the occlusion itself, in a
+            // compute pass, in place of the fragment pass; the settings are read at start.
+            if (Settings::rendering().mAoTemporal)
+            {
+                if (!Render::Ao::Temporal::useAoTemporal(true, ao, gbuffer))
+                    Log(Debug::Warning) << "[Rendering] ao temporal needs ao (hdr, gbuffer and pbr); the accumulation "
+                                           "is off";
+                else if (Render::AoTemporalPass::shadersAvailable(resourceSystem->shaderOptions))
+                    mAoTemporalEnabled = true;
+            }
             // OpenEden (task 0075): temporal anti-aliasing. It needs the G-buffer (linear depth and velocity) and a
             // single-sampled scene (the averaged extra outputs of a multisampled target are wrong at silhouettes); the
             // user's antialiasing setting is never changed. The jitter is made with the camera, below.
@@ -908,9 +918,28 @@ namespace MWRender
                     *context, mCompileContext->clone(~vsg::Mask(0)), shaderOptions);
             // Task 0029: the occlusion pass, after the scene (it reads the scene's depth and normals). Its settings
             // (ao radius, ao slices, ao steps) reach the shader through ao.settings (Resource::ShaderSettings).
-            if (mAoEnabled)
+            if (mAoEnabled && !mAoTemporalEnabled)
                 mAmbientOcclusion = std::make_unique<Render::AmbientOcclusion>(
                     *context, mCompileContext->clone(~vsg::Mask(0)), shaderOptions);
+            // Task 0076: the accumulating occlusion pass takes its place; it follows the velocity pass (it reads it).
+            if (mAoTemporalEnabled)
+            {
+                Render::Ao::Temporal::Settings aoTemporal;
+                aoTemporal.history = Settings::rendering().mAoTemporalHistory;
+                aoTemporal.clampGamma = Settings::rendering().mAoTemporalClamp;
+                aoTemporal.radius = Settings::rendering().mAoRadius;
+                aoTemporal.slices = Settings::rendering().mAoSlices;
+                aoTemporal.steps = Settings::rendering().mAoSteps;
+                const std::string aoDebug = Settings::rendering().mAoTemporalDebug.get();
+                const auto parsedAoDebug = Render::Ao::Temporal::parseDebugView(aoDebug);
+                if (!parsedAoDebug)
+                    Log(Debug::Warning) << "[Rendering] ao temporal debug: unknown '" << aoDebug << "', using none";
+                aoTemporal.debug = parsedAoDebug.value_or(Render::Ao::Temporal::DebugView::None);
+                mAoTemporal = std::make_unique<Render::AoTemporalPass>(
+                    mCompileContext->clone(~vsg::Mask(0)), shaderOptions, aoTemporal);
+                Log(Debug::Info) << "AO: temporal accumulation, history " << aoTemporal.history << ", clamp "
+                                 << aoTemporal.clampGamma << (mTaaJitter ? ", with the TAA state" : "");
+            }
             // Task 0075: the temporal anti-aliasing resolve, between the occlusion pass and the bloom.
             if (mTaaJitter)
             {
@@ -1029,7 +1058,8 @@ namespace MWRender
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph };
         // The first index after the scene (and its velocity and occlusion passes).
-        const int afterScene = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0) + (mTaa ? 1 : 0);
+        const int afterScene
+            = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0) + (mAoTemporal ? 1 : 0) + (mTaa ? 1 : 0);
         if (mTonemapGraph)
         {
             // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
@@ -1051,6 +1081,9 @@ namespace MWRender
                         mAmbientOcclusion->view(), resourceRequirements);
                 });
             }
+            if (mAoTemporal)
+                mCommandGraph->children.insert(
+                    mCommandGraph->children.begin() + 2 + (mVelocity ? 1 : 0), mAoTemporal->node());
             if (mTaa)
                 mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 1, mTaa->node());
             if (mBloom)
@@ -1082,6 +1115,8 @@ namespace MWRender
             timeChild(mGpuTimer, mCommandGraph->children, mVelocity->graph().get(), "velocity");
         if (mAmbientOcclusion)
             timeChild(mGpuTimer, mCommandGraph->children, mAmbientOcclusion->graph().get(), "ao");
+        if (mAoTemporal)
+            timeChild(mGpuTimer, mCommandGraph->children, mAoTemporal->node().get(), "ao temporal");
         if (mTaa)
             timeChild(mGpuTimer, mCommandGraph->children, mTaa->node().get(), "taa");
         if (mBloom)
@@ -1165,6 +1200,11 @@ namespace MWRender
                     mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The ambient occlusion pass could not be built");
+            if (mAoTemporal
+                && !mAoTemporal->setSource(mHdrTarget->linearDepthView(), mHdrTarget->normalView(), mVelocity->result(),
+                    mHdrTarget->extent(),
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                throw std::runtime_error("The ambient occlusion accumulation pass could not be built");
             if (mTaa
                 && !mTaa->setSource(mHdrTarget->colorView(), mHdrTarget->linearDepthView(), mVelocity->result(),
                     mHdrTarget->extent(),
@@ -2401,13 +2441,14 @@ namespace MWRender
     Render::Tonemap::AoSources RenderManager::aoSources() const
     {
         Render::Tonemap::AoSources sources;
-        if (!mAmbientOcclusion || !mHdrTarget)
+        if ((!mAmbientOcclusion && !mAoTemporal) || !mHdrTarget)
             return sources;
         sources.ambient = mHdrTarget->ambientView();
-        sources.ao = mAmbientOcclusion->result();
+        // The accumulated occlusion (task 0076) replaces the fragment pass's image; the tonemap's filter is the same.
+        sources.ao = mAoTemporal ? mAoTemporal->result() : mAmbientOcclusion->result();
         sources.normal = mHdrTarget->normalView();
         sources.linearDepth = mHdrTarget->linearDepthView();
-        sources.aoExtent = mAmbientOcclusion->resultExtent();
+        sources.aoExtent = mAoTemporal ? mAoTemporal->resultExtent() : mAmbientOcclusion->resultExtent();
         return sources;
     }
 
@@ -2459,6 +2500,25 @@ namespace MWRender
             input.projectionY = static_cast<float>(projection(1, 1));
             input.reset = Render::Taa::historyReset(taaReset);
             mTaa->beginFrame(input);
+        }
+        if (mAoTemporal)
+        {
+            // Task 0076: the same camera data. With TAA on the frame index and the jitter are its state's, so the two
+            // accumulate in step; with it off the pass counts its own frames and there is no jitter.
+            Render::Ao::Temporal::FrameInput input;
+            input.toPreviousClip = toPrevious;
+            input.rotation = Render::Ao::Temporal::relativeRotation(view, mPreviousView);
+            input.projectionX = static_cast<float>(projection(0, 0));
+            input.projectionY = static_cast<float>(projection(1, 1));
+            input.reset = Render::Taa::historyReset(taaReset);
+            if (mTaa)
+            {
+                const Render::Taa::TemporalState& state = mTaa->state();
+                input.frame = state.frame;
+                input.jitterDelta = Render::Ao::Temporal::jitterDeltaUv(state.jitterPixels, state.previousJitterPixels,
+                    mHdrTarget->extent().width, mHdrTarget->extent().height);
+            }
+            mAoTemporal->beginFrame(input);
         }
         mPreviousView = view;
         mPreviousProjection = projection;
@@ -3207,6 +3267,10 @@ namespace MWRender
                 && !mAmbientOcclusion->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->normalView(),
                     extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The ambient occlusion pass could not be rebuilt after a resize";
+            if (mAoTemporal
+                && !mAoTemporal->setSource(mHdrTarget->linearDepthView(), mHdrTarget->normalView(), mVelocity->result(),
+                    extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                Log(Debug::Error) << "The ambient occlusion accumulation pass could not be rebuilt after a resize";
             if (mTaa
                 && !mTaa->setSource(mHdrTarget->colorView(), mHdrTarget->linearDepthView(), mVelocity->result(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))

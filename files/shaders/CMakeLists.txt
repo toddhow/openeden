@@ -503,3 +503,10 @@ openeden_add_slang_shader(
     SOURCE post/taa.slang
     OUTPUT_DIR post
     STAGES resolveMain:compute:taaresolve outputMain:compute:taaoutput)
+
+# Temporal accumulation of ambient occlusion (task 0076), new in Slang. Three compute passes loaded whenever
+# [Rendering] ao temporal is on, whatever [Rendering] slang shaders says; a missing file turns it off with a log line.
+openeden_add_slang_shader(
+    SOURCE post/aotemporal.slang
+    OUTPUT_DIR post
+    STAGES genMain:compute:aogen resolveMain:compute:aoresolve copyMain:compute:aocopy)

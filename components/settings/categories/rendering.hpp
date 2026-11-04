@@ -60,6 +60,12 @@ namespace Settings
         SettingValue<int> mAoSlices{ mIndex, "Rendering", "ao slices", makeClampSanitizerInt(1, 8) };
         SettingValue<int> mAoSteps{ mIndex, "Rendering", "ao steps", makeClampSanitizerInt(1, 16) };
         SettingValue<bool> mAoTerrain{ mIndex, "Rendering", "ao terrain" };
+        // Task 0076: temporal accumulation of the occlusion. Read at start; needs ao.
+        SettingValue<bool> mAoTemporal{ mIndex, "Rendering", "ao temporal" };
+        SettingValue<float> mAoTemporalHistory{ mIndex, "Rendering", "ao temporal history",
+            makeClampSanitizerFloat(0.5f, 0.98f) };
+        SettingValue<float> mAoTemporalClamp{ mIndex, "Rendering", "ao temporal clamp", makeClampSanitizerFloat(0, 4) };
+        SettingValue<std::string> mAoTemporalDebug{ mIndex, "Rendering", "ao temporal debug" };
 
         // Task 0033 (R7): screen-space subsurface scattering on skin. Read at start; needs hdr, gbuffer and pbr. The
         // width is in game units.

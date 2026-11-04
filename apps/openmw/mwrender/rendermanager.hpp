@@ -28,6 +28,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/render/aotemporal.hpp>
 #include <components/render/cloudgpu.hpp>
 #include <components/render/covermath.hpp>
 #include <components/render/probes.hpp>
@@ -427,6 +428,10 @@ namespace MWRender
         // Task 0029: ambient occlusion ([Rendering] ao); null without it. Read at start.
         bool mAoEnabled = false;
         std::unique_ptr<Render::AmbientOcclusion> mAmbientOcclusion;
+        // Task 0076: [Rendering] ao temporal took effect (it needs ao): the accumulating compute pass replaces the
+        // fragment pass above, which is then not made.
+        bool mAoTemporalEnabled = false;
+        std::unique_ptr<Render::AoTemporalPass> mAoTemporal;
         Render::Tonemap::AoSources aoSources() const;
         // Task 0033: subsurface scattering of skin ([Rendering] sss); off without its images. Read at start.
         bool mSssEnabled = false;

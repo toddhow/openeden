@@ -178,6 +178,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtaamath.cpp
     render/testtaapass.cpp
     render/testaotemporalmath.cpp
+    render/testaotemporalpass.cpp
     render/testgbuffermath.cpp
     render/testdepthmath.cpp
     render/testmaterialmath.cpp
