@@ -82,12 +82,94 @@ Out of scope: the merged body's own controllers (already re-attached), first per
 - **Checks:** clang-format 14 clean on the four files; GCC with CI's flags plus `-Wshadow -Wunused -Wdangling-else
   -Wrange-loop-construct` (`-fsyntax-only`, in the Linux image) clean on `npc.cpp` and the test; MSVC no new warning.
 - **Not verified:** NPCs other than the player in motion (the row's NPCs are dressed by a script, so they went through
-  the same path, but no frame was compared); first person and the head-only view; item lights from the inventory and
-  the spell cast glow, which `clearControllers` also drops and nothing links again (out of scope, not checked);
-  creatures (`WieldingCreature::removeParts` empties its lists the same way and then adds its weapon, shield and ammo
-  again; whether anything it keeps loses controllers is not checked, out of scope); the full Linux gate and the
-  Lua integration tests. No fresh reviewer has read the diff yet (this work ran as a forked worker without subagents).
+  the same path, but no frame was compared); first person and the head-only view; item lights from the inventory,
+  which `clearControllers` also dropped and nothing linked again (they froze: fixed in the review follow-up below);
+  creatures (`WieldingCreature::removeParts` emptied its lists the same way, its own model's auto-play controllers
+  and lights included: fixed below); the full Linux gate and the Lua integration tests. (This entry named the spell
+  cast glow as dropped too; it never reaches an NPC, see below.) No fresh reviewer has read the diff yet (this work
+  ran as a forked worker without subagents).
   The face phase lives only in the work copy `I:\Projects\OpenEden-work\stockskin\tool\mod\scripts\mbequip_player.lua`,
   not in the committed `tools/mergedbody_check`. The base config was `lodtest/config/openmw.cfg` with an empty
   `settings.cfg` (stage e's own runs used the same), so foot planting, inertial locomotion and the other options were
   at their defaults.
+
+**2026-11-04, review follow-up (task 0074b)** (`7d55a76c0a` helper and tests, `b7868ee629` trace, `9c03fbd094` merged
+body log ids, `8415dd30f5` the NPC fix, `879ec486c4` the creature fix). A fresh review of the commits above found no
+blocker and six gaps of the same family; the extracted review text (`I:\Projects\OpenEden-work\review0074.md`) was
+empty, so the findings were taken from the brief. Method: tests first, run red; no separate test writer or reviewer
+(this ran as a subagent without subagents).
+
+- **Finding 1, a kept part's auto-play clock restarted:** `clearControllers` destroyed every `AutoPlay::Group`; the
+  relink re-added the same controller objects through `AutoPlay::add` into a new group (timer 0, or a fresh
+  `std::rand()` phase of up to 3,600 s), with their `DeltaTime::last` stale (`deltatime.hpp` clamps only a negative
+  delta). Now each part's auto-play controllers run in the part's own clock (`PartControllers::addAutoPlay`, `update`,
+  emptied by `beginPart` and `forget`); `Npc::update` runs the clocks after `Wielding::update`, where `autoPlay` ran.
+  A kept part keeps its clock; a part inserted again gets a fresh one, as every inserted part did before. Why this and
+  not the smaller-looking alternatives: removing only a removed part's entries from the shared `autoPlay` would leave
+  group 0 running from the actor's construction, and a new part's group-0 controllers would join it (a drawn torch's
+  `LightController`, added by `MWAnim::decorate` with the default phase group, would see that whole time as its first
+  `DeltaTime`, and its colour would swing for dozens of frames); a timer snapshot cannot follow the non-zero groups,
+  whose numbers the old relink recomputed from `maxPhaseGroup()`; starting `DeltaTime` at 0 would end the random phase
+  of every `Anim::Roll` in a random group (`nif.cpp`, `handleAnimFlags`).
+- **Finding 2, inventory lights froze:** `Npc::clearControllers` no longer empties `autoPlay`; it calls
+  `MWAnim::Wielding::clearPartControllers` (the static and weapon lists) and empties the face. `autoPlay` then holds
+  only the inventory lights. The holstered weapon and shield, which also linked into it and are rebuilt every update,
+  have clocks of their own (`mScabbardClock`, `mHolsteredShieldClock`, emptied by `removeHolstered`); the quiver links
+  nothing.
+- **Finding 3, creatures:** `WieldingCreature::removeParts` calls `clearPartControllers` and forgets its three parts'
+  clocks (`PartControllers<3>`), never `autoPlay = {}`; the creature's own model's auto-play controllers
+  (`MWAnim::createCreature`, `addNode`, `ObjectAnimation::addController`) and its inventory lights keep running.
+- **Finding 4, the spell cast glow:** `addSpellCastGlow` is called for non-actor casters (`spellcasting.cpp`,
+  `!mCaster.getClass().isActor()`), for Lock and Open targets that `canLock` (only `Door` and `Container` override it,
+  `mwclass/door.hpp`, `container.hpp`) and for doors (`mwclass/door.cpp`), so an Npc never holds its `Timeout`. The
+  claim is gone from this log, the render guide and the changelog row.
+- **Finding 5, raw pointers:** `PartControllers` holds a `vsg::ref_ptr` to every recorded controller and target until
+  `beginPart` or `forget` for the part (`mHeld`), so a part whose node went another way runs its controllers on a
+  detached node instead of freed memory. Chosen over an assert because the game's RelWithDebInfo build has `/DNDEBUG`
+  (`CMAKE_CXX_FLAGS_RELWITHDEBINFO` in `build-jolt/CMakeCache.txt`). The entries stay raw pointers: the existing tests
+  compare them with raw pointers, and `vsg::ref_ptr<vsg::Object> == vsg::Object*` is ambiguous for MSVC (C2666).
+- **Finding 6, a throw skipped the relink:** `Npc::updateParts` runs its node work (`updatePartNodes`) through
+  `PartControllers::runUpdate`, which runs the relink (`relinkKeptControllers`: the parts, then the merged body's copy)
+  on every way out and passes a throw on. The merged body's relink moved from `attachMergedBody` to that step, once per
+  update. **Reachability:** not through data, as far as checked. `vsgUtil::readNode` throws only when the read gives
+  no node, and the node options end with `Resource::Fallback` (`createNodeOptions` in `resourcesystem.cpp`:
+  `marker_error.nif`, else an empty node), while `nif::read` catches `std::exception`; in game a weapon whose model was
+  missing and one whose model was a PNG both drew the fallback ("Using fallback object") and nothing threw. The guard
+  is defensive.
+- **Found on the way:** with `[Bodies] merged body` on, an NPC made from a Lua record (a generated id) was not drawn:
+  two log lines in `npc.cpp` used `RefId::getRefIdString`, which throws for a generated id, during the Npc's
+  construction ("failed to render 'Generated:0x13'"). `9c03fbd094` uses `toString`.
+- **Tests first:** 11 cases (`testpartclocks.cpp` 9, `testactorautoplay.cpp` 2), run against stubs (the new helper
+  functions doing nothing, `clearPartControllers` emptying `autoPlay` as `clearControllers` did, `removeParts` as it
+  was): 10 failed, the early-return relink case passed vacuously (log
+  `I:\Projects\OpenEden-work\0074b\red-run-stubs.log`). Then all pass; `openmw-tests` 923 of 923 on Windows.
+  GCC with CI's flags plus `-Wshadow -Wunused -Wdangling-else -Wrange-loop-construct` (`-fsyntax-only`, Linux image)
+  clean on the changed units at every one of the five commits; clang-format 14 on the changed lines; MSVC no new
+  warning.
+- **In game** (work folder `I:\Projects\OpenEden-work\0074b`, not committed): a work copy of `tools/mergedbody_check`
+  with `SCENE=clocks` (`tool/mod/scripts/mbclocks_*.lua`) and `oe_clockparts.esp` (written by `tool/make_clock_esp.py`:
+  two hair body parts whose models are the vanilla `l\light_com_torch_01.nif` and `r\bm_forcefield.nif`; no `.esp`
+  goes in the repository). Two Lua-made Bretons with those hairs and an inventory light (`blade light`, the first
+  non-carriable flickering light by id) change their shirt eight times, a dremora (its model has particles) its weapon
+  eight times; `OPENEDEN_AUTOPLAY_TRACE="oe clock"`; summaries by `tool/clock_summary.py`. Exes:
+  `build-jolt/openmw-0074b-before.exe` (`b7868ee629` plus the test-only declarations) and `openmw-0074b-after.exe`.
+  - Before: the torch hair's groups were in the object's `autoPlay` and jumped at every change (largest step 3,528.6 s
+    off the frame's dt; for example 3,560.73 to 32.09); the light left the groups at the first change in play (none of
+    the 4,209 later frames had it). The dremora's own group (phase 1, two controllers) and its light were gone after
+    its first change.
+  - After: the light is in all 4,395 frames after the first change, in 4,394 different colours; the hair clocks (part
+    1) and the dremora's own group run on, no timer stepping off the dt by more than 0.0001 s. Merged variant: the same,
+    and 26 actors draw the merged body (24 before: the two Lua-made NPCs were not drawn).
+  - Frames viewed: the clocks scene before and after (004, 006: the scene as scripted; daylight hides the light's
+    effect, so the trace is the proof), `SCENE=equipment` after, stock 009, 010, 045 and merged 000, 009, 045: no chest
+    through the pants or loincloth, 32 actors draw the merged body.
+- **Not verified:** the Linux gate and the Lua integration tests; first person; the holstered clocks in game (`[Game]
+  weapon sheathing` and `shield sheathing` are off by default, not run); a kept part with auto-play in real data
+  (vanilla body parts, hair and heads have none: a byte scan of `meshes\b` found controllers only in heads, the face's
+  morpher; armour and clothing in `meshes\a` and `meshes\c` have no auto-play node); the throw in game; the cost of
+  running 29 mostly empty clocks per NPC per frame (not measured; nothing allocates).
+- **For toddhow:** both fixes change the default game (a frozen light or a stopped creature effect is not a vanilla
+  mechanic). Open, not changed: an inventory light added later (`UpdateItemLights::itemAdded`) joins `autoPlay`'s group
+  0, whose timer now runs from the actor's construction instead of from its last equipment change, so its new
+  `LightController`'s first delta is that time and its colour swings for some frames; the same kind of swing happened
+  before, with a shorter time. Not seen in a run.

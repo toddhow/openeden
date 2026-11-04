@@ -293,17 +293,40 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 
 ## NPC parts and their controllers (task 0074, `partcontrollers.hpp`)
 
-- **Pitfall: `Npc::updateParts` empties every controller list** (`clearControllers`: the skins in
-  `mStaticControllers`, `mFace`, `mWeaponControllers`, `autoPlay`) on every equipment change, and only what it links
-  again runs. Equipment is removed and inserted again; the parts it keeps (stock body parts, head and hair at priority
-  1) get their controllers back from `mPartControllers` in `relinkSurvivingParts`, at the end of `updateParts` and
-  before its head-only return. Without that a kept skin holds the matrices of the moment of the change while the
-  skeleton moves (the stock chest broke through pants and loincloths) and the head stops blinking and talking. Inherited from vsgopenmw (`2830e7e2b4`); OpenMW 0.51 keeps controllers with each part.
+- **Pitfall: `Npc::updateParts` empties the controller lists** (`clearControllers`: the skins in
+  `mStaticControllers`, `mFace`, `mWeaponControllers`; `autoPlay` too until task 0074b) on every equipment change, and
+  only what it links again runs. Equipment is removed and inserted again; the parts it keeps (stock body parts, head
+  and hair at priority 1) get their controllers back from `mPartControllers` in `relinkSurvivingParts`, at the end of
+  every `updateParts` (`relinkKeptControllers`, through `PartControllers::runUpdate`). Without that a kept skin holds
+  the matrices of the moment of the change while the skeleton moves (the stock chest broke through pants and
+  loincloths) and the head stops blinking and talking. Inherited from vsgopenmw (`2830e7e2b4`); OpenMW 0.51 keeps
+  controllers with each part.
 - **Rules:** a part's controllers are recorded only in `insertBoundedPart` and forgotten only in
-  `removeIndividualPart`, so a new way to link or remove a part must go through them. Anything linked outside the parts
-  must be attached again on every `updateParts` (the merged body, the holstered weapon and shield are). Item lights
-  from the inventory (`addItemLight`) and the spell cast glow (`addSpellCastGlow`) add to `autoPlay` outside the parts
-  and are not linked again; what an equipment change does to them is not checked.
+  `removeIndividualPart` (`detachPart`), so a new way to link or remove a part must go through them. Anything linked
+  outside the parts into the lists `clearControllers` empties must be attached again on every `updateParts` (the merged
+  body is, in `relinkKeptControllers`; the holstered weapon and shield are rebuilt).
+- **Auto-play clocks (task 0074b):** an equipment change never empties the object's `autoPlay`
+  (`MWAnim::Wielding::clearPartControllers` empties the static and weapon lists only; `Npc::clearControllers` adds the
+  face). It holds what nothing would add again: an NPC's inventory lights (`addItemLight`, once, when the
+  CharacterController is made) and a creature's own model's controllers and lights. A part's auto-play controllers run
+  in the part's own clock (`PartControllers::addAutoPlay`, `update`), which a kept part keeps and a part inserted again
+  gets fresh (group 0 at 0, random groups at a random phase, as before: a new torch's flicker starts at one frame). The
+  holstered weapon and shield have clocks of their own (`mScabbardClock`, `mHolsteredShieldClock`), emptied with their
+  paths (`removeHolstered`). Do not put a part's controllers into `autoPlay`: nothing removes them from it. The
+  spell cast glow (`addSpellCastGlow`) is never on an actor: it is called for non-actor casters, Lock and Open targets
+  that `canLock` (doors, containers) and doors (`spellcasting.cpp`, `spelleffects.cpp`, `mwclass/door.cpp`).
+- **Ownership:** `PartControllers` holds a `vsg::ref_ptr` to every controller and target it recorded until `beginPart`
+  or `forget` for the part: a part whose node went another way runs its controllers on a detached node, not on freed
+  memory. `updateParts` runs its node work through `PartControllers::runUpdate`, so the kept parts and the merged body
+  are linked again on every way out, a throw included (a missing, broken or non-model file does not throw:
+  `Resource::Fallback` in `createNodeOptions` gives `marker_error.nif` or an empty node).
+- **Tracing it:** `OPENEDEN_AUTOPLAY_TRACE=<text>` (`autoplaytrace.*`) logs, every frame, an `AUTOPLAYTRACE` line for
+  each NPC or weapon-carrying creature whose record id or name contains the text: the static, weapon and face list
+  sizes, each auto-play group's phase group, timer, controller count and light colours, the object's own groups first
+  (`own=`), then each part's clock (`parts={part:...}`), and an `event=` line at each equipment change. Vanilla body
+  parts, hair and heads carry no auto-play controller (a byte scan of `meshes/b` in the three BSAs found controllers
+  only in heads, the face's morpher; armour and clothing in `meshes/a` and `meshes/c` have no auto-play node either),
+  so a kept part's clock needs a modded or test part (task 0074b's stage log).
 - **Checking it:** the equipment scene of `tools/mergedbody_check` (`SCENE=equipment`, stock): frames 009, 010, 045 and
   046 show the chest through the pants and loincloth when the controllers are lost.
 - **The slot bookkeeping is `PartSlots`** (`partslots.*`, task 0069 stage e review): which inventory group holds each
