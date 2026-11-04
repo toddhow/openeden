@@ -478,8 +478,8 @@ dropping the noise filter of `boneComparisonKey` failed both key tests.
 **The run:** `edenskelstat --manifest manifest.tsv --profile components/creativemotion/data/profiles/humanoid-to-eden.skeletonprofile.json
 --out <folder> --detail`, twice: `report.txt` (58,803 bytes, SHA-256
 `7ad118b7b52164cd6971d953d0a1b93415485436525d917ea71b5fb1d7234b22`) and `detail.txt` byte-identical; exit 0; the
-report names no bone (checked against the 1,085 names of the detail: the only matches are the canonical role names
-Pelvis, Chest and Neck, which ZeX also uses as bone names) and no path.
+report names no bone (checked against the 1,085 names of the detail: the only matches are three canonical role names
+that also occur as bone names in one skeleton) and no path.
 
 **Findings** (note 0036 has the numbers): the reader parses every file with `setLoadUnsupportedFiles(true)`; the
 RENDERER has no `BSTriShape` path at all; Skyrim SE skinned shapes store a vertex count of 0 and their packed data uses

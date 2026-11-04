@@ -61,7 +61,7 @@ deterministic: two runs over the same files gave byte-identical `report.txt` (58
 - **Skeletons:** no geometry, no unnamed node, no node reached twice. Nodes with a scale other than 1: 7 (Skyrim
   male), 2 (female); rotations that are not orthonormal: 4 (female). On the way to a role bone: 0 (male), **2
   (female)**, so the female rest comparison is partly affected (the reader carries no scale into a RestBone).
-- **Skin weights, Skyrim SE:** every skinned `BSTriShape` (60 shapes in 24 files) stores **0 as its vertex count**;
+- **Skin weights, Skyrim SE:** every skinned `BSTriShape` (60 shapes in 30 files) stores **0 as its vertex count**;
   its vertices are in the `NiSkinPartition`. The reader takes the count from the partition then
   (`ShapeWeights::mVertexCountFromFile` false for all 60). The weights come from `NiSkinData`'s lists; the
   partitions' own weights agree within 5e-6 of a share; the packed vertex data agrees **when its bone indices are read
@@ -192,8 +192,9 @@ optional.
   not a collapse to a point: a vertex weighted to the missing bone is **frozen at its inverse-bind position in the
   frame the skin is attached to**, pulled towards the skeleton's origin by the bone's bind height (a bone bound 1.5
   up moves its vertex 1.5 down), and **follows no bone**, Bip01's own motion included; it moves only with the actor's
-  placement. Without a mapping, the share of weight that would freeze is the "extra share" of section 3: about 20%
-  (Skyrim male), 48% (Skyrim female), 86% (Fallout 4).
+  placement. With no mapping at all every skin bone of these bodies is foreign to a `Bip01` skeleton, so all of the
+  weight would freeze; with the roles mapped by a pack table and no rule for the extra bones, the share that would
+  freeze is the "extra share" of section 3: about 20% (Skyrim male), 48% (Skyrim female), 86% (Fallout 4).
 - **Bone groups of unknown names** (`apps/components_tests/skelstat/testbonegroups.cpp`): `Anim::CopyBones`
   (`components/animation/bones.cpp`) starts a group only at a bone whose lower-cased name is in `MWAnim::groups`
   (`components/mwanimation/groups.hpp`: `bip01 spine1` torso, `bip01 l clavicle` left arm, `bip01 r clavicle` right
