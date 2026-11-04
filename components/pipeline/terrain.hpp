@@ -4,6 +4,9 @@
 #include <vsg/io/Options.h>
 #include <vsg/state/GraphicsPipeline.h>
 
+#include <set>
+#include <string>
+
 namespace Pipeline
 {
     /// Task 0037: the terrain shader takes rain wetness (needs the material model's pbr look in the rest of the scene).
@@ -31,6 +34,13 @@ namespace Pipeline
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps = false,
         unsigned int gbufferOutputs = 0, bool giSky = false, const WetnessOptions& wetness = {}, bool pbr = false,
         const CoverOptions& cover = {}, unsigned int parallaxQuality = 0, bool aoTerrain = false);
+
+    /// Task 0072: the defines terrain() compiles both stages with for the same arguments; none when the list is empty.
+    /// The set a stage is drawn with is this, cut to the names its `#pragma import_defines` lists, plus the `#define`
+    /// lines of the settings files it includes (vsgUtil::stageDefines).
+    std::set<std::string> terrainDefines(bool maps, unsigned int gbufferOutputs, bool giSky,
+        const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
+        bool aoTerrain);
 }
 
 #endif

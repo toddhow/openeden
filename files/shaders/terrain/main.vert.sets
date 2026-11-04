@@ -1,0 +1,7 @@
+# The define sets of terrain/main.vert with a Slang twin (task 0072, terrain family): what the GLSL compiles with. The
+# stage imports TERRAIN_MAPS (Pipeline::terrainDefines, with any terrain map on) and includes terrain.settings, whose
+# DEBUG_CHUNKS comes from `[Terrain] debug chunks`. Every combination is listed (PipelineTerrainDefines checks it).
+-
+DEBUG_CHUNKS
+DEBUG_CHUNKS TERRAIN_MAPS
+TERRAIN_MAPS

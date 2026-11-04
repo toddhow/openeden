@@ -256,6 +256,53 @@ namespace
         }
     }
 
+    // Task 0072: the Slang twin (lib/material/parallax.slang) repeats the same constants, in the same order.
+    TEST(RenderParallaxTest, the_slang_twin_holds_the_same_constants)
+    {
+        const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
+            / "files" / "shaders" / "lib" / "material" / "parallax.slang";
+        std::ifstream in(source);
+        if (!in)
+            GTEST_SKIP() << "the shader source is not beside the test sources";
+        std::stringstream text;
+        text << in.rdbuf();
+        const std::string all = text.str();
+        const std::regex line(R"(const\s+(?:float|int)\s+(\w+)\s*=\s*([-+0-9.eE]+)\s*;)");
+        std::map<std::string, std::vector<float>> found;
+        for (auto it = std::sregex_iterator(all.begin(), all.end(), line); it != std::sregex_iterator(); ++it)
+            found[(*it)[1]].push_back(std::stof((*it)[2]));
+        const auto one = [&found](const char* name, float value) {
+            ASSERT_TRUE(found.count(name)) << name;
+            EXPECT_FLOAT_EQ(found.at(name).front(), value) << name;
+        };
+        one("POM_MIN_VIEW_Z", minViewZ);
+        one("POM_MAX_SLANT", maxSlant);
+        one("POM_BLUR_BIAS", blurBias);
+        one("POM_MIN_LOD", blurMinLod);
+        one("POM_STEEP_FROM", steepFrom);
+        one("POM_STEEP_TO", steepTo);
+        one("POM_STEEP_KEEP", steepKeep);
+        one("POM_MAX_NORMAL_SLOPE", maxNormalSlope);
+        one("POM_CAVITY_SHADE", cavityShadeMax);
+        one("POM_SLOPE_FULL", slopeFadeFull);
+        one("POM_SLOPE_NONE", slopeFadeNone);
+        one("POM_FADE_START", fadeStart);
+        one("POM_FADE_END", fadeEnd);
+        one("POM_WORLD_DEPTH_PER_DISPLACEMENT", worldDepthPerDisplacement);
+        one("POM_MAX_UV_DEPTH", maxUvDepth);
+        one("POM_DEFAULT_DISPLACEMENT", defaultDisplacementScale);
+        // low, high, medium
+        const Quality order[] = { Quality::Low, Quality::High, Quality::Medium };
+        for (int i = 0; i < 3; ++i)
+        {
+            const QualityLimits lim = limits(order[i]);
+            ASSERT_EQ(found["POM_MIN_STEPS"].size(), 3u);
+            EXPECT_EQ(static_cast<int>(found["POM_MIN_STEPS"][i]), lim.minSteps);
+            EXPECT_EQ(static_cast<int>(found["POM_MAX_STEPS"][i]), lim.maxSteps);
+            EXPECT_EQ(static_cast<int>(found["POM_REFINE_TAPS"][i]), lim.refineTaps);
+        }
+    }
+
     // toddhow's rule (task 0045): no height source, no parallax.
     TEST(RenderParallaxTest, a_material_without_a_height_source_has_no_parallax)
     {

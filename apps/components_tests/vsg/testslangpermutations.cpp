@@ -180,7 +180,7 @@ namespace
             "sky/atmosphere/main.frag", "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert",
             "sky/moon/main.frag", "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert",
             "sky/sun/main.frag", "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert",
-            "water/main.frag", "water/main.vert" };
+            "terrain/main.frag", "terrain/main.vert", "water/main.frag", "water/main.vert" };
         return stages;
     }
 

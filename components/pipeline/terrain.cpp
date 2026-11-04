@@ -21,58 +21,69 @@ namespace Pipeline
 #include <files/shaders/terrain/bindings.glsl>
     }
 
+    std::set<std::string> terrainDefines(bool maps, unsigned int gbufferOutputs, bool giSky,
+        const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
+        bool aoTerrain)
+    {
+        std::set<std::string> defines;
+        if (maps)
+            defines.insert("TERRAIN_MAPS");
+        if (maps && pbr)
+            defines.insert("TERRAIN_PBR");
+        if (maps && parallaxQuality > 0)
+        {
+            defines.insert("PARALLAX_POM");
+            if (parallaxQuality == 1)
+                defines.insert("PARALLAX_POM_LOW");
+            else if (parallaxQuality == 3)
+                defines.insert("PARALLAX_POM_HIGH");
+        }
+        if (gbufferOutputs > 0)
+            defines.insert("GBUFFER");
+        // Task 0036: the terrain takes the exterior sky-visibility field.
+        if (giSky)
+            defines.insert("GI_SKY");
+        if (wetness.enabled)
+        {
+            defines.insert("WETNESS");
+            if (wetness.puddles)
+                defines.insert("WETNESS_PUDDLES");
+            if (wetness.debug)
+                defines.insert("WETNESS_DEBUG");
+        }
+        if (cover.enabled)
+        {
+            defines.insert("COVER");
+            if (cover.debug)
+                defines.insert("COVER_DEBUG");
+        }
+        // The fourth extra output is the material (Render::GBuffer::extraColorFormats, task 0027).
+        if (gbufferOutputs >= 4)
+            defines.insert("GBUFFER_MATERIAL");
+        // The fifth is the ambient part of the colour (task 0029); the terrain writes zero unless `ao terrain` is
+        // on (task 0048).
+        if (gbufferOutputs >= 5)
+        {
+            defines.insert("GBUFFER_AMBIENT");
+            if (aoTerrain)
+                defines.insert("AO_TERRAIN");
+        }
+        return defines;
+    }
+
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
         unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover,
         unsigned int parallaxQuality, bool aoTerrain)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
-        if (maps || gbufferOutputs > 0 || giSky || wetness.enabled || cover.enabled || (maps && parallaxQuality > 0))
+        std::set<std::string> defines
+            = terrainDefines(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain);
+        if (!defines.empty())
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
             auto compileSettings = vsg::ShaderCompileSettings::create();
-            if (maps)
-                compileSettings->defines.insert("TERRAIN_MAPS");
-            if (maps && pbr)
-                compileSettings->defines.insert("TERRAIN_PBR");
-            if (maps && parallaxQuality > 0)
-            {
-                compileSettings->defines.insert("PARALLAX_POM");
-                if (parallaxQuality == 1)
-                    compileSettings->defines.insert("PARALLAX_POM_LOW");
-                else if (parallaxQuality == 3)
-                    compileSettings->defines.insert("PARALLAX_POM_HIGH");
-            }
-            if (gbufferOutputs > 0)
-                compileSettings->defines.insert("GBUFFER");
-            // Task 0036: the terrain takes the exterior sky-visibility field.
-            if (giSky)
-                compileSettings->defines.insert("GI_SKY");
-            if (wetness.enabled)
-            {
-                compileSettings->defines.insert("WETNESS");
-                if (wetness.puddles)
-                    compileSettings->defines.insert("WETNESS_PUDDLES");
-                if (wetness.debug)
-                    compileSettings->defines.insert("WETNESS_DEBUG");
-            }
-            if (cover.enabled)
-            {
-                compileSettings->defines.insert("COVER");
-                if (cover.debug)
-                    compileSettings->defines.insert("COVER_DEBUG");
-            }
-            // The fourth extra output is the material (Render::GBuffer::extraColorFormats, task 0027).
-            if (gbufferOutputs >= 4)
-                compileSettings->defines.insert("GBUFFER_MATERIAL");
-            // The fifth is the ambient part of the colour (task 0029); the terrain writes zero unless `ao terrain` is
-            // on (task 0048).
-            if (gbufferOutputs >= 5)
-            {
-                compileSettings->defines.insert("GBUFFER_AMBIENT");
-                if (aoTerrain)
-                    compileSettings->defines.insert("AO_TERRAIN");
-            }
+            compileSettings->defines = std::move(defines);
             for (auto& stage : shaders)
             {
                 stage = vsg::ShaderStage::create(*stage);
@@ -88,6 +99,24 @@ namespace Pipeline
             const auto& hints = shaders[i]->module->hints;
             vsgUtil::recordShaderUse(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
                 hints ? hints->defines : noDefines, shaders[i].get(), shaderOptions);
+        }
+        // Task 0072, stage e: with `slang shaders` on, the Slang permutation compiled for exactly the set this stage
+        // is drawn with (its imported defines and its settings files' defines); a set with no file keeps the GLSL. A
+        // twin takes the `*.settings` values as specialization constants.
+        if (vsgUtil::prefersSlang(shaderOptions.get()))
+        {
+            for (std::size_t i = 0; i < shaders.size(); ++i)
+            {
+                const auto& hints = shaders[i]->module->hints;
+                auto module = vsgUtil::slangTwin(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
+                    hints ? hints->defines : noDefines, shaders[i]->module->source, true, shaderOptions);
+                if (!module)
+                    continue;
+                auto twin = vsg::ShaderStage::create(*shaders[i]);
+                twin->module = module;
+                vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
+                shaders[i] = twin;
+            }
         }
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{ { Pipeline::Descriptors::BLENDMAP_BINDING,

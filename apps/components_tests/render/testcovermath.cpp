@@ -404,4 +404,38 @@ namespace
         expect("coverSnowRoughness", roughness(Kind::Snow));
         expect("coverAshRoughness", roughness(Kind::Ash));
     }
+
+    // Task 0072: the Slang twin (lib/material/cover.slang) repeats the same constants.
+    TEST(RenderCover, slangTwinHoldsTheSameConstants)
+    {
+        const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
+            / "files" / "shaders" / "lib" / "material" / "cover.slang";
+        std::ifstream in(source);
+        if (!in)
+            GTEST_SKIP() << "the shader source is not beside the test sources";
+        std::stringstream text;
+        text << in.rdbuf();
+        const std::string all = text.str();
+        std::map<std::string, float> c;
+        const std::regex line(R"(const\s+(?:float|int)\s+(\w+)\s*=\s*([-+0-9.eE]+)\s*;)");
+        for (auto it = std::sregex_iterator(all.begin(), all.end(), line); it != std::sregex_iterator(); ++it)
+            c[(*it)[1]] = std::stof((*it)[2]);
+        const auto expect = [&c](const char* name, float value) {
+            ASSERT_TRUE(c.count(name)) << name;
+            EXPECT_FLOAT_EQ(c.at(name), value) << name;
+        };
+        expect("coverUpFrom", upFrom);
+        expect("coverUpTo", upTo);
+        expect("coverEdge", edge);
+        expect("coverNoiseCell", noiseCell);
+        expect("coverSteps", coverSteps);
+        expect("coverSnowR", colour(Kind::Snow).r);
+        expect("coverSnowG", colour(Kind::Snow).g);
+        expect("coverSnowB", colour(Kind::Snow).b);
+        expect("coverAshR", colour(Kind::Ash).r);
+        expect("coverAshG", colour(Kind::Ash).g);
+        expect("coverAshB", colour(Kind::Ash).b);
+        expect("coverSnowRoughness", roughness(Kind::Snow));
+        expect("coverAshRoughness", roughness(Kind::Ash));
+    }
 }

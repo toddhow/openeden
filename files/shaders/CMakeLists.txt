@@ -350,6 +350,13 @@ openeden_add_slang_permutations(
     SOURCE water/water.vert.slang STAGE_FILE water/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
 openeden_add_slang_permutations(SOURCE water/water.frag.slang STAGE_FILE water/main.frag ENTRY fragMain
     STAGE fragment DEFINE_SETS_FILE water/main.frag.sets)
+# The terrain (task 0072, terrain family). Its sets come from Pipeline::terrainDefines and the settings files'
+# "#define" lines; the vertex stage's are all listed, the fragment stage's are a part of the 26,040 the settings can
+# make (terrain/main.frag.sets says which), and any other set draws with the GLSL.
+openeden_add_slang_permutations(SOURCE terrain/terrain.vert.slang STAGE_FILE terrain/main.vert ENTRY vertMain
+    STAGE vertex DEFINE_SETS_FILE terrain/main.vert.sets)
+openeden_add_slang_permutations(SOURCE terrain/terrain.frag.slang STAGE_FILE terrain/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS_FILE terrain/main.frag.sets)
 
 # Task 0072 (review of stages b and c): after every family is declared, remove the manifest and files of any stage that
 # is no longer declared (a family removed or renamed would otherwise stay in the resources, be installed, be chosen
