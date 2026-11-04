@@ -16,6 +16,8 @@
 
 #include "../mwworld/ptr.hpp"
 
+#include "partcontrollers.hpp"
+
 namespace vsg
 {
     class Switch;
@@ -157,6 +159,10 @@ namespace MWRender
 
         static NpcType getNpcType(const MWWorld::Ptr& ptr);
         void clearControllers();
+        // Task 0074: the controllers each part linked, so updateParts links again the parts it kept (clearControllers
+        // empties every list). relinkSurvivingParts runs at the end of updateParts.
+        PartControllers<ESM::PRT_Count> mPartControllers;
+        void relinkSurvivingParts();
 
         // Task 0069 stage d ([Bodies] merged body, off by default): attaches the cached merged body when it may be
         // drawn and removes the stock parts of its slots; false, with the stock parts kept, otherwise. updateParts

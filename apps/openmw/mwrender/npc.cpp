@@ -316,6 +316,7 @@ namespace MWRender
         }
 
         clearControllers();
+        mPartControllers.beginUpdate();
         soundsToPlay.clear();
 
         static const struct
@@ -391,7 +392,10 @@ namespace MWRender
                 addOrReplaceIndividualPart(ESM::PRT_Hair, -1, 1, mHairModel);
         }
         if (mViewMode == ViewMode::HeadOnly)
+        {
+            relinkSurvivingParts();
             return;
+        }
 
         addWeapon();
         addCarriedLeft();
@@ -421,6 +425,8 @@ namespace MWRender
                 }
             }
         }
+        // Task 0074: the parts that stayed (body parts, head, hair) get back the controllers clearControllers dropped.
+        relinkSurvivingParts();
     }
 
     void Npc::insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
@@ -448,20 +454,32 @@ namespace MWRender
 
         Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
         Anim::Update* dst = &mStaticControllers;
+        PartControllerList dstList = PartControllerList::Static;
         if (type == ESM::PRT_Head)
         {
             mFace->loadTags(*node);
             dst = &*mFace;
+            dstList = PartControllerList::Face;
         }
         else if (type == ESM::PRT_Weapon)
+        {
             dst = &mWeaponControllers;
+            dstList = PartControllerList::Weapon;
+        }
 
+        mPartControllers.beginPart(type);
         auto offset = autoPlay.maxPhaseGroup();
-        result.link(ctx, [this, dst, type, offset](const Anim::Controller* ctrl, vsg::Object* o) {
+        result.link(ctx, [this, dst, dstList, type, offset](const Anim::Controller* ctrl, vsg::Object* o) {
             if (ctrl->hints.autoPlay && type != ESM::PRT_Head)
+            {
                 autoPlay.add(ctrl, o, offset);
+                mPartControllers.record(type, ctrl, o, PartControllerList::AutoPlay);
+            }
             else
+            {
                 dst->add(ctrl, o);
+                mPartControllers.record(type, ctrl, o, dstList);
+            }
         });
         mParts[type] = path;
     }
@@ -568,7 +586,35 @@ namespace MWRender
         mPartPriorities[type] = 0;
         mPartslots[type] = -1;
 
+        mPartControllers.forget(type);
         removePath(mParts[type]);
+    }
+
+    void Npc::relinkSurvivingParts()
+    {
+        mPartControllers.relinkSurvivors(
+            [this](std::size_t /*part*/, const std::vector<PartControllers<ESM::PRT_Count>::Entry>& entries) {
+                // A part's autoplay controllers share one phase group offset, as in insertBoundedPart.
+                const int offset = autoPlay.maxPhaseGroup();
+                for (const auto& entry : entries)
+                {
+                    switch (entry.mList)
+                    {
+                        case PartControllerList::Static:
+                            mStaticControllers.add(entry.mController, entry.mTarget);
+                            break;
+                        case PartControllerList::Face:
+                            mFace->add(entry.mController, entry.mTarget);
+                            break;
+                        case PartControllerList::Weapon:
+                            mWeaponControllers.add(entry.mController, entry.mTarget);
+                            break;
+                        case PartControllerList::AutoPlay:
+                            autoPlay.add(entry.mController, entry.mTarget, offset);
+                            break;
+                    }
+                }
+            });
     }
 
     void Npc::removePath(std::vector<vsg::Node*>& path)
