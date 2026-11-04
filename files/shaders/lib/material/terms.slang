@@ -1,5 +1,13 @@
 // The Slang twin of lib/material/terms.glsl (task 0072): the material's ambient, diffuse and emissive terms times the
 // light. Include after lib/view/scene.slang; the includer declares `colorMode` (and `material` with MATERIAL) first.
+// PARTICLE (task 0072, stage h, toddhow's decision 2026-11-04, "keep the original per particle color but do it in
+// slang"): this twin DIFFERS from the GLSL on purpose. A particle's colour and alpha over its life (the simulation
+// pass writes them to each particle, the vertex stage passes them on) are the vertex colour, and colour mode 0, which
+// every particle pipeline has today (no NiVertexColorProperty is read for them), takes ambient, diffuse and alpha
+// from it, as OpenMW 0.51 did: nifloader.cpp's handleParticleSystem passed hasVertexColors = true to
+// applyDrawableProperties, which makes AMBIENT_AND_DIFFUSE the default, and files/shaders/compatibility/objects.frag
+// multiplied the fragment's alpha by the vertex alpha (442eec6e2f). A particle whose NiVertexColorProperty says
+// "ignore" also reads 0 here and so differs from 0.51; the GLSL ignores the colour of every particle.
 // Change both together. Stage f: colorMode is a specialization constant in the object shader, so it is switched on,
 // never compared (a comparison with a literal is an OpSpecConstantOp, files/shaders/CLAUDE.md); the terrain's plain
 // constant folds the same way.
@@ -13,6 +21,9 @@ float4 getDiffuse(float4 vertexColor)
 {
     switch (colorMode)
     {
+#ifdef PARTICLE
+        case 0: // see the header: a particle's colour is its vertex colour unless the NIF says otherwise
+#endif
         case 2:
             return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
         default:
@@ -28,6 +39,9 @@ float3 getAmbient(float4 vertexColor)
 {
     switch (colorMode)
     {
+#ifdef PARTICLE
+        case 0:
+#endif
         case 2:
             return toLinearIfView(vertexColor.xyz);
         default:

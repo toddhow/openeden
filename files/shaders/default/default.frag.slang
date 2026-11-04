@@ -261,7 +261,9 @@ FragmentOutput fragMain(FragmentInput input)
     // Task 0025: the maps are combined on encoded values and converted once.
     outColor.xyz = toLinearIfView(outColor.xyz);
 
-#ifdef COLOR
+#if defined(COLOR) || defined(PARTICLE)
+    // PARTICLE: the particle's own colour and alpha, which the GLSL never reads (lib/material/terms.slang, task 0072,
+    // stage h; files/shaders/CLAUDE.md).
     float4 vertexColor = input.io.color;
 #else
     float4 vertexColor = float4(1);
