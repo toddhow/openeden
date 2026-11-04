@@ -10,6 +10,8 @@ add_library(eden_body STATIC
     bodypack.cpp
     bodytool.cpp
     bodymerge.cpp
+    bodymesh.cpp
+    bodycache.cpp
 )
 # Includes are written <components/body/...> like the rest of the engine.
 target_include_directories(eden_body PUBLIC ${CMAKE_SOURCE_DIR})

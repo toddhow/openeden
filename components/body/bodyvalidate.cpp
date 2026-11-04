@@ -152,6 +152,7 @@ namespace Body
                 checkMeshes();
                 checkOriginsAndProvenance();
                 checkRegionMap();
+                checkWeldGroups();
                 checkMorphs();
                 checkProxy();
                 checkPhysics();
@@ -763,6 +764,9 @@ namespace Body
                 info.push_back(
                     { "regionMap", p.mRegionMap.has_value(), p.mRegionMap ? p.mRegionMap->mOrigin : Origin::Authored,
                         p.mRegionMap && !p.mRegionMap->mRegions.empty() });
+                info.push_back({ "weldGroups", p.mWeldGroups.has_value(),
+                    p.mWeldGroups ? p.mWeldGroups->mOrigin : Origin::Authored,
+                    p.mWeldGroups && !p.mWeldGroups->mGroups.empty() });
                 info.push_back(
                     { "landmarks", p.mLandmarks.has_value(), p.mLandmarks ? p.mLandmarks->mOrigin : Origin::Authored,
                         p.mLandmarks && !p.mLandmarks->mEntries.empty() });
@@ -813,6 +817,85 @@ namespace Body
                         warning("PROV-002", at("/provenance", i),
                             "the provenance record names '" + record.mPart
                                 + "', which is not a derived part of this package");
+                    }
+                }
+            }
+
+            // ---- weld groups (task 0069)
+            void checkWeldGroups()
+            {
+                if (!mPackage.mWeldGroups)
+                {
+                    return;
+                }
+                const WeldGroups& welds = *mPackage.mWeldGroups;
+                if (!std::isfinite(welds.mToleranceM) || welds.mToleranceM < 0 || welds.mToleranceM > 1)
+                {
+                    error("WELD-006", "/weldGroups/tolerance", "the weld tolerance must be a number from 0 to 1 metre");
+                }
+                const std::optional<std::size_t> mesh = findMesh(welds.mMesh);
+                if (!mesh)
+                {
+                    error("WELD-001", "/weldGroups/mesh",
+                        "the weld groups name mesh '" + welds.mMesh + "', which the package does not have");
+                }
+                const MeshSummary* summary = mesh ? mSummaries[*mesh] : nullptr;
+                std::size_t members = 0;
+                for (const std::vector<std::uint32_t>& group : welds.mGroups)
+                {
+                    members += group.size();
+                }
+                if (welds.mGroups.size() > Limits::sMaxWeldGroups || members > Limits::sMaxWeldMembers)
+                {
+                    error("WELD-007", "/weldGroups/groups",
+                        "the weld groups hold " + std::to_string(welds.mGroups.size()) + " groups and "
+                            + std::to_string(members) + " members, at most " + std::to_string(Limits::sMaxWeldGroups)
+                            + " and " + std::to_string(Limits::sMaxWeldMembers) + " are checked");
+                    return;
+                }
+                std::set<std::uint32_t> seen;
+                for (std::size_t i = 0; i < welds.mGroups.size(); ++i)
+                {
+                    const std::vector<std::uint32_t>& group = welds.mGroups[i];
+                    const std::string groupPath = at("/weldGroups/groups", i);
+                    if (group.size() < 2)
+                    {
+                        error("WELD-002", groupPath,
+                            "a weld group needs at least two vertices, this one has " + std::to_string(group.size()));
+                        continue;
+                    }
+                    bool ordered = true;
+                    bool outOfRange = false;
+                    bool shared = false;
+                    for (std::size_t j = 0; j < group.size(); ++j)
+                    {
+                        if (j > 0 && group[j] <= group[j - 1])
+                        {
+                            ordered = false;
+                            continue; // an unordered member is not looked at again
+                        }
+                        if (summary != nullptr && group[j] >= summary->mVertexCount)
+                        {
+                            outOfRange = true;
+                        }
+                        if (!seen.insert(group[j]).second)
+                        {
+                            shared = true;
+                        }
+                    }
+                    if (!ordered)
+                    {
+                        error("WELD-003", groupPath, "the vertices of a weld group must be strictly increasing");
+                    }
+                    if (outOfRange)
+                    {
+                        error("WELD-005", groupPath,
+                            "a weld group names a vertex at or beyond the mesh's vertex count "
+                                + std::to_string(summary->mVertexCount));
+                    }
+                    if (shared)
+                    {
+                        error("WELD-004", groupPath, "a vertex of this weld group is also in an earlier group");
                     }
                 }
             }

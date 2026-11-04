@@ -46,10 +46,11 @@ namespace Body
             { "derived", Origin::Derived },
             { "missing", Origin::Missing },
         } };
-        constexpr std::array<EnumName<MeshFormat>, 3> sFormats = { {
+        constexpr std::array<EnumName<MeshFormat>, 4> sFormats = { {
             { "nif", MeshFormat::Nif },
             { "gltf", MeshFormat::Gltf },
             { "summary", MeshFormat::Summary },
+            { "bodymesh", MeshFormat::BodyMesh },
         } };
         constexpr std::array<EnumName<MeshRole>, 5> sRoles = { {
             { "skin", MeshRole::Skin },
@@ -168,7 +169,8 @@ namespace Body
             {
                 if (!readHeader(root, sFormatName,
                         { "format", "version", "identity", "targets", "binding", "meshes", "morphSet", "proxy",
-                            "physicsProfile", "measurements", "regionMap", "landmarks", "softTissue", "provenance" },
+                            "physicsProfile", "measurements", "regionMap", "weldGroups", "landmarks", "softTissue",
+                            "provenance" },
                         sNewestVersion))
                 {
                     return false;
@@ -249,6 +251,7 @@ namespace Body
             }
 
             std::size_t mTotalRanges = 0;
+            std::size_t mTotalWeldMembers = 0;
 
             bool readUint(const Json& value, const std::string& pointer, std::uint32_t& out)
             {
@@ -748,6 +751,8 @@ namespace Body
                             const Json& v, const std::string& p, Measurements& o) { return readMeasurements(v, p, o); })
                     && readPart(root, "regionMap", out.mRegionMap,
                         [this](const Json& v, const std::string& p, RegionMap& o) { return readRegionMap(v, p, o); })
+                    && readPart(root, "weldGroups", out.mWeldGroups,
+                        [this](const Json& v, const std::string& p, WeldGroups& o) { return readWeldGroups(v, p, o); })
                     && readPart(root, "landmarks", out.mLandmarks,
                         [this](const Json& v, const std::string& p, Landmarks& o) { return readLandmarks(v, p, o); })
                     && readPart(root, "softTissue", out.mSoftTissue,
@@ -945,6 +950,58 @@ namespace Body
                             return onlyKeys(v, p, { "name", "value" }) && textField(v, p, "name", o.mName)
                                 && numberField(v, p, "value", o.mValue);
                         });
+            }
+
+            bool readWeldGroups(const Json& object, const std::string& pointer, WeldGroups& out)
+            {
+                if (!onlyKeys(object, pointer, { "origin", "mesh", "tolerance", "groups" })
+                    || !readOrigin(object, pointer, out.mOrigin) || !textField(object, pointer, "mesh", out.mMesh)
+                    || !numberField(object, pointer, "tolerance", out.mToleranceM))
+                {
+                    return false;
+                }
+                const Json* groups = nullptr;
+                if (!readList(object, pointer, "groups", Limits::sMaxWeldGroups, false, groups))
+                {
+                    return false;
+                }
+                if (groups == nullptr)
+                {
+                    return true;
+                }
+                const std::string base = at(pointer, "groups");
+                if (!countElements(*groups, base))
+                {
+                    return false;
+                }
+                out.mGroups.resize(groups->size());
+                for (std::size_t i = 0; i < groups->size(); ++i)
+                {
+                    const Json& group = (*groups)[i];
+                    const std::string groupPointer = at(base, i);
+                    if (!group.is_array())
+                    {
+                        return fail(group, groupPointer, "must be an array of vertex indices");
+                    }
+                    mTotalWeldMembers += group.size();
+                    if (mTotalWeldMembers > Limits::sMaxWeldMembers)
+                    {
+                        return fail(group, groupPointer, "the file holds too many weld group members");
+                    }
+                    if (!countElements(group, groupPointer))
+                    {
+                        return false;
+                    }
+                    out.mGroups[i].resize(group.size());
+                    for (std::size_t j = 0; j < group.size(); ++j)
+                    {
+                        if (!readUint(group[j], at(groupPointer, j), out.mGroups[i][j]))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
             }
 
             bool readRegionMap(const Json& object, const std::string& pointer, RegionMap& out)
@@ -1496,6 +1553,21 @@ namespace Body
             return node;
         }
 
+        Node weldGroupsNode(const WeldGroups& welds)
+        {
+            Node node = object();
+            add(node, "origin", originNode(welds.mOrigin));
+            add(node, "mesh", str(welds.mMesh));
+            add(node, "tolerance", num(welds.mToleranceM));
+            Node groups = array();
+            for (const std::vector<std::uint32_t>& group : welds.mGroups)
+            {
+                groups.mItems.push_back(flatInts(group.data(), group.size()));
+            }
+            add(node, "groups", std::move(groups));
+            return node;
+        }
+
         Node regionMapNode(const RegionMap& map)
         {
             Node node = object();
@@ -1701,6 +1773,10 @@ namespace Body
         if (package.mRegionMap)
         {
             add(root, "regionMap", regionMapNode(*package.mRegionMap));
+        }
+        if (package.mWeldGroups)
+        {
+            add(root, "weldGroups", weldGroupsNode(*package.mWeldGroups));
         }
         if (package.mLandmarks)
         {

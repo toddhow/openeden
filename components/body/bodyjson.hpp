@@ -79,6 +79,8 @@ namespace Body
             = 2u * 1024 * 1024; // all "[" of one file (influence pairs, deltas)
         inline constexpr std::size_t sMaxObjectsInFile = 65536; // all "{" of one file
         inline constexpr std::size_t sMaxRegionRanges = 262144; // all region ranges of one file
+        inline constexpr std::size_t sMaxWeldGroups = 65536; // weld groups of one file (task 0069)
+        inline constexpr std::size_t sMaxWeldMembers = 1u << 20; // vertex indices in all weld groups of one file
     }
 
     struct BodyLoadResult

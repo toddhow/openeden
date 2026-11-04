@@ -33,6 +33,8 @@ namespace Body
                 return "gltf";
             case MeshFormat::Summary:
                 return "summary";
+            case MeshFormat::BodyMesh:
+                return "bodymesh";
         }
         return "nif";
     }

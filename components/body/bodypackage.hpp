@@ -36,6 +36,8 @@ namespace Body
         Nif,
         Gltf,
         Summary,
+        /// The merged legacy body's payload (task 0069, layout version 0: a DRAFT until toddhow approves it).
+        BodyMesh,
     };
 
     enum class MeshRole
@@ -234,6 +236,17 @@ namespace Body
         friend bool operator==(const RegionMap&, const RegionMap&) = default;
     };
 
+    /// Vertices of one mesh that sit at one place and must move together (task 0069): the sets a weld joined, listed so
+    /// that a later morph moves every member identically. Each group has at least two vertices of the named mesh.
+    struct WeldGroups
+    {
+        Origin mOrigin = Origin::Authored;
+        std::string mMesh; // a mesh id
+        double mToleranceM = 0; // the distance the members were within when welded, metres; 0 means exact
+        std::vector<std::vector<std::uint32_t>> mGroups; // strictly increasing vertex indices; no vertex in two groups
+        friend bool operator==(const WeldGroups&, const WeldGroups&) = default;
+    };
+
     struct Landmark
     {
         std::string mName;
@@ -291,6 +304,7 @@ namespace Body
         std::optional<PhysicsProfile> mPhysicsProfile;
         std::optional<Measurements> mMeasurements;
         std::optional<RegionMap> mRegionMap;
+        std::optional<WeldGroups> mWeldGroups;
         std::optional<Landmarks> mLandmarks;
         std::optional<SoftTissue> mSoftTissue;
         std::vector<ProvenanceRecord> mProvenance;

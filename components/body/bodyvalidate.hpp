@@ -56,6 +56,13 @@
 //   MORPH-004  E /morphSet/morphs/N/id       duplicate morph id (in addition to STRUCT-004? no: ONLY this code)
 //   MORPH-005  E <target>/mesh               target names no mesh of the package
 //   MORPH-006  E <target>/vertices           vertices not strictly increasing, or deltas.size() != vertices.size()
+//   WELD-001   E /weldGroups/mesh            the weld groups name no mesh of the package (task 0069)
+//   WELD-002   E /weldGroups/groups/N        a group with fewer than two vertices
+//   WELD-003   E /weldGroups/groups/N        vertices not strictly increasing
+//   WELD-004   E /weldGroups/groups/N        a vertex that is also in an earlier group
+//   WELD-005   E /weldGroups/groups/N        a vertex index >= the mesh's vertexCount (needs a summary)
+//   WELD-006   E /weldGroups/tolerance       not a finite number from 0 to 1 metre
+//   WELD-007   E /weldGroups/groups          more groups or members than Limits::sMaxWeldGroups / sMaxWeldMembers
 //   PROXY-001  E /proxy/capsules/N/radius    radius not finite or <= 0
 //   PROXY-002  E /proxy/capsules/N/bone      bone is not a known bone (profile target, unmapped, or rest skeleton)
 //   PHYS-001   E /physicsProfile/shapes/N/size   a size used by the kind is not finite or <= 0
