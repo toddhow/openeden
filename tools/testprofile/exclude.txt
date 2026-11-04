@@ -1,0 +1,102 @@
+# Settings that tools/testprofile/coverage.sh does not require in profile.cfg or a variant. One line each:
+#   Section|key (a glob: * matches anything)|reason
+# A new feature-like setting goes into profile.cfg (or a variant) with a comment and a README line, NOT here. Only
+# debug views, tuning values, bake parameters and settings that a preset or a default already switches on belong here,
+# and the reason says which.
+
+# --- debug views and diagnostics: they replace the picture or write files; switch one on by hand (README) ---
+Rendering|gbuffer debug view|debug view: replaces the picture with a stored image
+Rendering|*debug*|debug view: replaces the picture (wetness, cover, cloud shadows, sun glow, volumetrics, volumetric clouds, taa, ao temporal)
+Rendering|lightning debug age|test aid: holds one flash at a chosen age
+Rendering|gi debug|debug: draws the light probes as octahedra
+Game|creativemotion animation compare|developer comparison of two animation paths, logs bone differences
+Game|creativemotion animation debug|developer trace: about 1500 log lines a second per actor
+Shadows|enable debug hud|debug: shows the shadow maps
+Shadows|enable debug overlay|inherited debug overlay; not read by the VSG renderer
+
+# --- bake parameters: they only change what `openmw --bake-gi` and friends write; prepare.sh uses the defaults ---
+Rendering|gi bake *|bake parameter of the light probe and sky visibility bakers
+Cells|incremental build budget ms|tuning of incremental cell build (default 3 ms)
+
+# --- tuning values of features the profile already switches on (their defaults are the reviewed ones) ---
+Rendering|ao radius|tuning of ao
+Rendering|ao slices|tuning of ao
+Rendering|ao steps|tuning of ao
+Rendering|ao strength|tuning of ao
+Rendering|ao temporal clamp|tuning of ao temporal
+Rendering|ao temporal history|tuning of ao temporal
+Rendering|atmosphere look|tuning: vanilla or physical sky colours; the default is the reviewed one
+Rendering|cloud shadow strength|tuning of cloud shadows
+Rendering|clouds look|tuning of clouds (lit or flat)
+Rendering|cover build time|tuning of cover
+Rendering|cover melt time|tuning of cover
+Rendering|cover strength|tuning of cover
+Rendering|gi exterior strength|tuning of gi exterior
+Rendering|gi reflection strength|tuning of gi
+Rendering|gi strength|tuning of gi
+Rendering|hdr bloom strength|tuning of hdr bloom
+Rendering|hdr exposure|tuning of the hdr path
+Rendering|lightning strength|tuning of lightning (capped for photosensitivity whatever it says)
+Rendering|parallax discard edges|tuning of parallax (only clamped textures)
+Rendering|parallax quality|tuning of parallax
+Rendering|parallax scale|tuning of parallax
+Rendering|procedural sun glow|tuning of procedural sun
+Rendering|procedural sun intensity|tuning of procedural sun
+Rendering|procedural sun size|tuning of procedural sun
+Rendering|sss strength|tuning of sss
+Rendering|sss width|tuning of sss
+Rendering|sun glow strength|tuning of sun glow
+Rendering|taa clip gamma|tuning of taa
+Rendering|taa clipping|tuning of taa
+Rendering|taa history|tuning of taa
+Rendering|taa jitter scale|tuning of taa
+Rendering|taa sharpness|tuning of taa
+Rendering|texture max size|tuning of the texture downscaler; variants/lowmemory.cfg covers the feature through the memory budget
+Rendering|texture max size objects|tuning of the texture downscaler
+Rendering|texture max size terrain|tuning of the texture downscaler
+Rendering|volumetric clouds coverage scale|tuning of volumetric clouds
+Rendering|volumetric clouds density|tuning of volumetric clouds
+Rendering|volumetric clouds quality|tuning of volumetric clouds (medium is the default)
+Rendering|volumetrics anisotropy|tuning of volumetrics
+Rendering|volumetrics density|tuning of volumetrics
+Rendering|volumetrics quality|tuning of volumetrics (medium is the default)
+Rendering|wetness dry time|tuning of wetness
+Rendering|wetness strength|tuning of wetness
+Shadows|blocker samples|tuning of the shadow filter (PCSS, variants/pcss.cfg)
+Shadows|pcf samples|tuning of the shadow filter
+Shadows|filter shadow maps|tuning: hardware filtering of the shadow compare (default on)
+Shadows|maximum shadow map distance|tuning of the sun's shadow maps
+Shadows|number of shadow maps|tuning of the sun's shadow maps
+Shadows|shadow fade start|tuning of the sun's shadow maps
+Shadows|shadow map resolution|tuning of the sun's shadow maps
+Shadows|split point uniform logarithmic ratio|tuning of the sun's shadow maps
+Shadows|use front face culling|tuning of the sun's shadow maps
+Shadows|enable indoor shadows|default on; the profile keeps it
+Shadows|compute scene bounds|not read by the VSG renderer (OSG's LiSPSM tuning)
+Shadows|minimum lispsm near far ratio|not read by the VSG renderer
+Shadows|normal offset distance|not read by the VSG renderer
+Shadows|polygon offset factor|not read by the VSG renderer
+Shadows|polygon offset units|not read by the VSG renderer
+Shadows|split point bias|not read by the VSG renderer
+WorldLod|far levels|tuning of the whole-map tier (0 means the tier's)
+WorldLod|far texture max size|tuning of the whole-map tier
+WorldLod|haze height|tuning of haze
+WorldLod|haze visibility|tuning of haze
+WorldLod|haze weather gain|tuning of haze
+WorldLod|max view distance|cap of view distance = auto; the tier sets its own
+WorldLod|object cluster fade time|tuning of object clusters
+WorldLod|object cluster threshold|tuning of object clusters
+WorldLod|terrain tile level|only 1 is accepted for now
+WorldLod|terrain tile threshold|tuning of the terrain tiles (calibrated default)
+Game|lean scale|tuning of procedural lean
+Game|creativemotion animation transition|tuning of the pose driver's blend time
+
+# --- switched on by something the profile already sets ---
+Rendering|sun follows colour tables|default on, a setting of atmosphere
+Rendering|wetness puddles|default on, a part of wetness
+Rendering|volumetrics temporal|default on, a part of volumetrics
+Rendering|volumetric clouds shadows|default on, a part of volumetric clouds
+Game|creativemotion style layer|switched on by creativemotion preset = natural
+Game|creativemotion transition rules|switched on by creativemotion preset = natural
+Game|creativemotion default style|names the style that creativemotion preset = natural uses (cm_default)
+Game|enable authored transitions|default on (uses authored clips when present)

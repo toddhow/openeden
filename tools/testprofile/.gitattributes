@@ -1,0 +1,5 @@
+*.sh text eol=lf
+*.awk text eol=lf
+*.cfg text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
