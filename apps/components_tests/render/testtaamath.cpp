@@ -514,9 +514,9 @@ namespace
 
     TEST(RenderTaaColour, ycocg_round_trip)
     {
-        const std::vector<vsg::vec3> colours = { vsg::vec3(0.8f, 0.4f, 0.2f), vsg::vec3(0.f, 0.f, 0.f),
-            vsg::vec3(1.f, 1.f, 1.f), vsg::vec3(0.1f, 0.9f, 0.3f), vsg::vec3(5.f, 0.2f, 40.f),
-            vsg::vec3(-0.2f, 0.3f, 0.1f) };
+        const std::vector<vsg::vec3> colours
+            = { vsg::vec3(0.8f, 0.4f, 0.2f), vsg::vec3(0.f, 0.f, 0.f), vsg::vec3(1.f, 1.f, 1.f),
+                  vsg::vec3(0.1f, 0.9f, 0.3f), vsg::vec3(5.f, 0.2f, 40.f), vsg::vec3(-0.2f, 0.3f, 0.1f) };
         for (const auto& c : colours)
         {
             expectVec3Near(ycocgToRgb(rgbToYCoCg(c)), c, tol);
@@ -813,7 +813,8 @@ namespace
         EXPECT_NEAR(depthReject(3.f, 2.f - 0.1f), 637.f / 729.f, 1e-4f);
     }
 
-    TEST(RenderTaaWeight, depthReject_of_a_surface_over_a_sky_history_handled_as_a_difference_when_expected_is_not_positive)
+    TEST(RenderTaaWeight,
+        depthReject_of_a_surface_over_a_sky_history_handled_as_a_difference_when_expected_is_not_positive)
     {
         // Expected 0 (sky now) against a stored surface depth 0.5: encodeDepth(0) = -1, so the difference is
         // |-1 - 0.5| = 1.5, far above the high edge: a full reject.
@@ -974,9 +975,9 @@ namespace
 
     TEST(RenderTaaFilter, catmullRom5_weights_sum_to_one)
     {
-        const std::vector<vsg::vec2> fractions = { vsg::vec2(0.f, 0.f), vsg::vec2(0.25f, 0.25f),
-            vsg::vec2(0.5f, 0.5f), vsg::vec2(0.9f, 0.1f), vsg::vec2(0.1f, 0.7f), vsg::vec2(0.999f, 0.5f),
-            vsg::vec2(0.f, 0.5f), vsg::vec2(0.5f, 0.f) };
+        const std::vector<vsg::vec2> fractions
+            = { vsg::vec2(0.f, 0.f), vsg::vec2(0.25f, 0.25f), vsg::vec2(0.5f, 0.5f), vsg::vec2(0.9f, 0.1f),
+                  vsg::vec2(0.1f, 0.7f), vsg::vec2(0.999f, 0.5f), vsg::vec2(0.f, 0.5f), vsg::vec2(0.5f, 0.f) };
         for (const auto& fraction : fractions)
         {
             const CatmullRom5 taps = catmullRom5(fraction);
@@ -1012,7 +1013,8 @@ namespace
         // Bilinear reads of a constant image return the constant at every tap, so the filtered value is the
         // constant times the sum of the weights.
         const float constant = 0.37f;
-        const std::vector<vsg::vec2> fractions = { vsg::vec2(0.f, 0.f), vsg::vec2(0.3f, 0.6f), vsg::vec2(0.75f, 0.25f) };
+        const std::vector<vsg::vec2> fractions
+            = { vsg::vec2(0.f, 0.f), vsg::vec2(0.3f, 0.6f), vsg::vec2(0.75f, 0.25f) };
         for (const auto& fraction : fractions)
         {
             const CatmullRom5 taps = catmullRom5(fraction);

@@ -222,10 +222,10 @@ namespace Render::Taa
     // was taken, 0 for a colour inside.
     inline vsg::vec3 clipToBox(const vsg::vec3& colour, const Box& box, float* clippedShare = nullptr)
     {
-        const vsg::vec3 centre(0.5f * (box.min.x + box.max.x), 0.5f * (box.min.y + box.max.y),
-            0.5f * (box.min.z + box.max.z));
-        const vsg::vec3 half(0.5f * (box.max.x - box.min.x), 0.5f * (box.max.y - box.min.y),
-            0.5f * (box.max.z - box.min.z));
+        const vsg::vec3 centre(
+            0.5f * (box.min.x + box.max.x), 0.5f * (box.min.y + box.max.y), 0.5f * (box.min.z + box.max.z));
+        const vsg::vec3 half(
+            0.5f * (box.max.x - box.min.x), 0.5f * (box.max.y - box.min.y), 0.5f * (box.max.z - box.min.z));
         const vsg::vec3 d(colour.x - centre.x, colour.y - centre.y, colour.z - centre.z);
         constexpr float tiny = 1e-8f;
         auto ratio = [](float offset, float extent) {
@@ -277,8 +277,8 @@ namespace Render::Taa
     {
         if (storedEncodedDepth < 0.f && expectedPreviousLinearDepth > 0.f)
             return 1.f;
-        return smoothstep(depthRejectLow, depthRejectHigh,
-            std::abs(encodeDepth(expectedPreviousLinearDepth) - storedEncodedDepth));
+        return smoothstep(
+            depthRejectLow, depthRejectHigh, std::abs(encodeDepth(expectedPreviousLinearDepth) - storedEncodedDepth));
     }
 
     inline float finalHistoryWeight(float baseWeight, float speedPixels, float depthRejectAmount, bool historyUsable)
@@ -294,8 +294,8 @@ namespace Render::Taa
     {
         const vsg::vec3 c = compress(current);
         const vsg::vec3 h = compress(history);
-        return expand(vsg::vec3(c.x + (h.x - c.x) * historyWeight, c.y + (h.y - c.y) * historyWeight,
-            c.z + (h.z - c.z) * historyWeight));
+        return expand(vsg::vec3(
+            c.x + (h.x - c.x) * historyWeight, c.y + (h.y - c.y) * historyWeight, c.z + (h.z - c.z) * historyWeight));
     }
 
     // An unsharp mask on the plus-shaped neighbourhood in the compressed domain, each channel limited to the range of
@@ -316,8 +316,8 @@ namespace Render::Taa
             const float hi = std::max({ c0, n0, s0, e0, w0 });
             return std::clamp(c0 + sharpness * (c0 - mean), lo, hi);
         };
-        return expand(vsg::vec3(one(c.x, n.x, s.x, e.x, w.x), one(c.y, n.y, s.y, e.y, w.y),
-            one(c.z, n.z, s.z, e.z, w.z)));
+        return expand(
+            vsg::vec3(one(c.x, n.x, s.x, e.x, w.x), one(c.y, n.y, s.y, e.y, w.y), one(c.z, n.z, s.z, e.z, w.z)));
     }
 
     struct CatmullRom5
@@ -394,8 +394,7 @@ namespace Render::Taa
     // The sky has no depth and, being at infinity, no translation: the previous UV of its direction, found with the
     // rotation part of the same matrix (the direction has w = 0). False when the direction is behind the previous
     // camera.
-    inline bool skyPreviousUv(
-        const vsg::vec2& uv, const vsg::vec2& projectionXY, const vsg::mat4& m, vsg::vec2& out)
+    inline bool skyPreviousUv(const vsg::vec2& uv, const vsg::vec2& projectionXY, const vsg::mat4& m, vsg::vec2& out)
     {
         const float dx = (uv.x * 2.f - 1.f) / projectionXY.x;
         const float dy = (uv.y * 2.f - 1.f) / projectionXY.y;
