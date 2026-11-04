@@ -220,9 +220,20 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
   group (0 or more) holds the slot with a priority of 1 or more; a slot outside the arrays counts as covered. It must
   stay equal to what that bookkeeping makes the stock parts draw. The tests here compare it with a restatement of the
   rule (single-slot states, 20,000 random states); the real check is `apps/openmw_tests/mwrender/testpartslots.cpp`
-  (review finding 1), which runs `PartSlots` itself over whole update sequences, stock and merged side by side, so a
-  change of the stock bookkeeping that the merged body does not follow fails there. `mergedSlotsCovered` (stage d's all-or-nothing test)
-  is no longer called by the engine.
+  (review finding 1), which runs `PartSlots` itself over update sequences, stock and merged side by side. What it
+  proves (second review, finding 8): merged equals stock GIVEN `PartSlots`, the oracle being what the stock actor
+  draws, not the rule restated; it covers every one of the catalogue's 124,416 single outfits (19 synthetic items,
+  per inventory slot nothing or one of its items, on a new actor and on one drawn stock first) and 3,000 random
+  sequences of five; a change inside `PartSlots` that the merged body does not follow fails there. It does not prove
+  that `PartSlots` equals the code before it, nor that `Npc::updateParts` calls it in the order the test's `update()`
+  restates (moving `attachMergedBody`, or a new step between the equipment pass and it, would not fail): that rests on
+  the tests pinning the constants, the hand-derived expectations (a stock actor drawing skin, a robe, part-less parts,
+  kept body parts, the helmet taking the hair), reading, and the second review's trace of the game (identical part
+  bookkeeping, `apps/openmw/mwrender/CLAUDE.md`). `mergedSlotsCovered` (stage d's all-or-nothing test) is no longer
+  called by the engine.
+- **Which skins restart after a region change (second review, finding 1):** `drawsDrawnAgain` (hidden before, drawn
+  now; a draw the earlier list does not have is new, not drawn again) and `linksOfDraws` (the links whose target is
+  such a draw's bone matrices, by identity, never by position). Opaque pointers, so no engine type here.
 - **A draw's slot runs are contiguous** because submeshes are ordered by (slot, material) and a draw lists its
   material's submeshes in order; `planMergedDrawsByMaterial` records them in `MergedDraw::mRuns` (runs of one slot that
   follow each other are joined), and `visibleIndexRanges` turns runs and hidden slots into the index ranges to draw.

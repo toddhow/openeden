@@ -608,7 +608,9 @@ resolution (1 MiB, about 5 KB per cycle). An earlier run of the same scene had o
 and then stayed flat to the end; it did not repeat. There is no allocation counter in the game; the census is the
 node count. With every actor in view dressed in some way, the merged scene still has 158 fewer draws in the census than
 stock (the split draws do not outnumber the stock parts they replace), and the frame median before the cycles is 3.80
-ms against 3.72 ms for stock (one run each).
+ms against 3.72 ms for stock (one run each). (Second review, finding 3: these runs had no load trace. With it on, its
+own list of scopes, kept in memory until exit, adds 5 to 11 MiB over the cycles, stock and merged alike; without it,
+on the final build, stock 747 to 746 MiB and merged 756 to 758 MiB, one step at the first changes.)
 
 **An equipment change costs more with the merged body.** Toggling the full set every second frame raised the frame
 median from 3.80 to 5.43 ms (p90 8.02 ms) with the merged body and from 3.72 to 4.57 ms (p90 5.26 ms) with stock: about
@@ -684,7 +686,10 @@ scopes, as before). The armour frame (26 NPCs putting on a full iron set at once
 equipment scene's 200 cycles of the full set (one change every second frame): 2.06 ms of `npc.updateequipment` per
 change after, 3.23 ms before, 1.86 and 1.81 ms for stock; frame median 5.72 ms after, 6.37 before (stock 4.97 and
 5.29). Resident memory over the 200 cycles rises 7 MiB for merged before and after and 4 to 6 MiB for stock, device
-memory stays at 176 MiB and the census at 6,634 draws (merged) and 6,792 (stock).
+memory stays at 176 MiB and the census at 6,634 draws (merged) and 6,792 (stock). (Second review, findings 3 and 5: the
+memory rise is the load trace's own list, not the merged body; the torch numbers are one run, whose excess of 3.62 ms
+was 2.34 ms of compile and 1.28 ms outside every merged scope, not seen again in two later runs; the 0.04 ms is `keep`,
+decorate and link are 0 in a torch frame.)
 
 **Finding 3, fully hidden draws.** `RegionChange` names each draw's bone matrices (the copy's, from its
 `BONE_BINDING` descriptor) and whether any of it is drawn; `relinkMergedBody` leaves out the skin of a draw nothing
@@ -693,7 +698,8 @@ or 53 bone matrices per frame for its merged body; an NPC of the torch scene in 
 (53 before). In the 4 s quiet window with every NPC armoured, the scene update (`render.scene.update`, where the skins
 run) took 1.21 ms with merged bodies against 0.59 ms for stock before, 0.75 against 0.69 ms after; frame medians 5.04
 against 4.42 ms before, 5.29 against 4.84 ms after (the after runs were slower across the board: the machine is
-shared).
+shared). (Second review, finding 7: "computes 1 to 7" is the summed size of the drawn skins' bone matrix arrays when
+the controllers are linked again, not a count taken per frame, and twice the bones with the G-buffer.)
 
 **Finding 4.** A refused copy is reported once per race and sex (`MergedBodies::reportRegionsRefused`), no longer on
 every `updateParts`. Still not reachable in the game on demand; the refusal paths are unit-tested.
@@ -705,7 +711,8 @@ left out (finding 3), so its previous matrices are from when it was hidden; `Ani
 as a new skin's first apply does, and `Npc::applyMergedRegions` calls it for such a draw (2 tests on a one-bone
 skeleton, `apps/components_tests/mwanimation/testskinprevious.cpp`, the new one red against a stub first). A new copy
 (the first build, a rebuild in `updateNpcBase`, which also replaces the skeleton) still starts with one frame without
-motion, as every new part does. Not checked: a frame of the G-buffer's motion output.
+motion, as every new part does. Not checked: a frame of the G-buffer's motion output. (Second review, finding 1:
+checked with `SCENE=motion`, against an executable without the restart.)
 
 **Finding 6, docs.** `apps/openmw/mwrender/CLAUDE.md` says why the parts may share the template's buffer infos while
 LOD cluster pitfall 3 forbids sharing between draws (the parts are ranges of one draw's own index list over its own
@@ -721,8 +728,9 @@ cuirass and greaves, a Khajiit woman in shirt and skirt), the row at night with 
 armour, and the paper doll (`doll-stock-merged.png`; the preview draws the merged body, one "player draws the merged
 body" line per preview): garment for garment the same, no skin through armour or robes, no gap at the beasts'
 greaves; the doll crop differs by at most 3 levels. Equipment scene: the front view of all twelve combinations,
-before over after, for stock (`compare\eq-stock-front.png`: the default game unchanged by the move to `PartSlots`) and
-for merged (`compare\eq-merged-front.png`, the body whole again after the full set), the wrist, knee and ankle close-ups
+before over after, for stock (`compare\eq-stock-front.png`: the default game looks the same by eye after the move to
+`PartSlots`; the second review proved the bookkeeping identical by trace, finding 2) and for merged
+(`compare\eq-merged-front.png`, the body whole again after the full set), the wrist, knee and ankle close-ups
 of pants, gloves and shoes, gauntlets and boots and naked-again, stock over merged
 (`compare\eq-after-closeups-stock-over-merged.png`), and the twelve front views of the final build, stock over merged
 (`compare-final\eq-front-stock-over-merged.png`): the same, no gap. Pixel shares between runs are large in these
@@ -731,12 +739,126 @@ flicker), so the comparison is by eye. A third torch run with the final build (`
 `npc.updateequipment` per change frame for merged against 5.65 ms for stock, decorate and link 0, keep 0.03 ms.
 With `[Rendering] hdr` and `gbuffer` on (the doubled bone matrix arrays and the restart path), the equipment scene
 runs to the end, 32 actors draw the merged body, and six combinations viewed against the run without the G-buffer
-(`compare-final\eq-merged-plain-over-gbuffer.png`) show the same body; the motion output itself was not looked at.
+(`compare-final\eq-merged-plain-over-gbuffer.png`) show the same body; the motion output itself was not looked at
+(the second review did, finding 1).
 
 **Tests and gates.** `openmw-tests` 901 pass (23 new), `components-tests` 5,416 pass (2 new; the fuzz test left out).
 clang-format 14 (throwaway container) applied to the changed C++ files. Not run: the Linux gate, the 32 Lua tests, a
 fresh reviewer of these fixes. Open: the 2.3 ms of VSG compile per 26-actor torch frame that the merged body still
 costs over stock; the 15 restating tests of `testmergedregions.cpp` (removing them needs toddhow's word).
+
+### Second review of stage e, 2026-11-04 (commits `2fad796191`, `97413f8d79`, `9ed9d245a4`; findings 1 to 11 of `I:\Projects\OpenEden-work\bodies\stage-e-review\REVIEW2.md`)
+
+The review found no code defect: test gaps, and claims in these notes stronger than the evidence. Work folder
+`I:\Projects\OpenEden-work\bodies\stage-e-review2`. Every run below used a copy of the build (`exe-new`, made with the
+build lock held by `variant_build.py`), so other sessions' rebuilds of `build-jolt` did not change what was measured;
+the two variant executables were linked there from `build-jolt`'s objects plus the variant's own translation units,
+without touching the source tree.
+
+**Finding 1, the restart was unverified.** The decision is now pure and tested: `Body::drawsDrawnAgain` (hidden before,
+drawn now; a draw the earlier list does not have is new, not drawn again) and `Body::linksOfDraws` (the copy's links
+whose target is such a draw's bone matrices, matched by identity, never by position), 8 tests (`MergedBodyRestart` in
+`apps/components_tests/body/testmergedregions.cpp`), 6 red against stubs that return nothing (the other 2 expect
+nothing; `red-components.log`). `Npc::applyMergedRegions` uses them and records two value scopes per region change,
+`npc.mergedbody.drawnagain` (draws drawn again) and `npc.mergedbody.restarted` (skins restarted), and logs a warning
+once when they differ (every draw has its own bone matrices and one skin). The new scene `tools/mergedbody_check
+SCENE=motion` (hdr, gbuffer, `gbuffer debug view = velocity`, a fixed frame time of 1/60 s and 3 frames a second, so
+that each screenshot is written before the next is asked for: asked for in consecutive frames at full speed they all
+took one file name): the player puts on the full iron set with the arms down, raises the fists (hand-to-hand) and with
+the fists up takes everything off; screenshots of the frame before, the change frame and the four after. Run with
+`exe-new` and with `exe-norestart` (today's code with the `forgetPreviousMatrices` call left out: a negative control,
+never committed). Viewed (`compare\motion-final-over-norestart.png`, `motion-crop-final-over-norestart.png`): without
+the restart the change frame shows the whole arms-down to fists-up swing in saturated colour on the arms, chest, legs
+and feet; with it the body is the grey of no motion in that frame; the four frames after show only the head's faint idle
+motion in both. In both runs 39 region changes were traced, the 5 with draws drawn again (one frame, the player's and
+the paper doll's copies) counted 1, 3, 2, 2 and 3 draws (all in the change frame; the player has two copies, in the
+scene and in the inventory preview) and restarted exactly as many skins; no warning. Not isolated: the motion of the
+draws that stay drawn across a change (they are not told apart from the restarted ones in the frame).
+
+**Finding 2, "off means unchanged" for the move to `PartSlots`.** `OPENEDEN_PARTSLOTS_TRACE=1` logs, for every NPC, each
+part node attached (with its model) and detached (with whether a node was there), and after each `updateParts` the group
+and priority of all 27 slots. `exe-old` is today's `npc.cpp` and `npc.hpp` with the bookkeeping of `6151cceb4b^` put
+back verbatim (`mPartslots`, `mPartPriorities`, `removeIndividualPart`, `reserveIndividualPart`, `removePartGroup`,
+`addOrReplaceIndividualPart`, `addPartGroup`, the loops of `updateParts`; script `variant-old\make_variant.py`, its diff
+against today's code `variant-old\npc.cpp.diff` and `npc.hpp.diff`) and the same trace lines at the same places; the 8
+translation units that include `npc.hpp` were compiled from a mirror of `apps/openmw`. That isolates the move and cost 8
+translation units instead of a whole build of the commit before. With `[Bodies] merged body` off, the equipment scene
+(31 actors, 181,704 lines) and the torch scene (30 actors, 19,170 lines) give identical lines for every actor: `exe-new`
+against `exe-old`, against a second `exe-new` run, and `exe-old` against a second `exe-old` run (`compare_slots.py`,
+`slots-compare.txt`). Actors are matched by record id and order of appearance: objects a script creates get other
+reference numbers in two runs of the same executable. Not covered: first person and head-only views (none in the
+scenes), werewolves, a run with `pbr` (where the skin mark acts). Frames of the final build, stock over merged, viewed
+(`compare\eq-front-stock-over-merged.png`, `eq-closeups-crop.png`, `torch-stock-over-merged.png`): the twelve
+combinations, the wrist, knee and ankle close-ups of pants, gloves and shoes, gauntlets and boots and naked again, the
+torch row by day, at night, armoured and the paper doll: garment for garment the same, no gap, no skin through a
+garment.
+
+**Finding 3, the memory claims.** Both were right about their own runs. Stage e's runs had no load trace: resident
+memory 775 to 774 MiB merged, 749 to 745 stock (recomputed from `stats.txt` by the scene's own clock, `memory.py`). The
+review's runs had `[Cells] load trace` on, which keeps every scope in memory until exit (40 bytes each,
+`Misc::LoadTrace::record`): 206,000 (stock) and 227,000 (merged) scopes from the start of "before" to the end of
+"after" in this review's first pair of runs (7.9 and 8.7 MiB), and resident memory rose steadily through the cycles, 5
+to 7 MiB for stock and 7 to 11 MiB for merged in five pairs of runs (merged records more scopes; the rise is not
+exactly the list's size, which also grows in steps when the vector moves). Without the trace, on the final build: stock 747 to 746 MiB, merged 756 to 758 MiB,
+one step of 2 MiB within the first 100 frames of the cycles and flat for the 700 after (an allocator high-water mark,
+not growth per cycle); device memory and the census draws back to their values in every run.
+
+**Finding 4, the worst case.** Added to the changelog row and the render guide's cost bullet: 26 NPCs putting on a full
+iron set in one frame, merged 148 ms against stock 68 ms in the review's run. The second review's runs show it is noise
+of a factor of two either way (cold part reads and VSG's compile): 107 against 47 ms (the review's final run), 48
+against 77 and 79 against 45 ms (this review's two runs); the merged body's own scopes in that frame are 1.2 to 1.4 ms
+(`decide` 0.42 to 0.50, `regions` 0.70 to 0.79, `keep` 0.03, `relink` 0.09 to 0.12).
+
+**Finding 5, the torch frames.** `npc.updateequipment` per torch frame (mean of the 9 frames with 26 changes; armour
+frame apart), merged against stock: 9.96 against 6.34 ms and 7.23 against 5.65 ms in the review's runs, 5.67 against
+6.18 and 6.17 against 6.10 ms in this review's (`torchframes.py`). In the review's first run the excess of 3.62 ms was
+2.34 ms of compile (5.26 against 2.92) and 1.28 ms outside every merged scope. The new scopes split `updateParts`:
+`npc.partnodes` 2.83 ms merged against 2.77 to 2.97 stock, `npc.relink` 0.02 against 0.01, the merged body's own
+(`decide`, `regions`, `keep`, `mergedbody.relink`) 0.10 to 0.11 ms; so the 1.28 ms of that run is not in the merged
+body's work and did not come back in two runs. "decorate and link were 2.29 ms; now 0.04 ms" mixed scopes: decorate and
+link are now 0 in a torch frame, 0.04 ms was `keep`.
+
+**Finding 6, the template's own draw.** `applyHiddenRegions` now gives a draw that nothing hides the template's own draw
+again, also after it was hidden (it made a new draw of the whole range); a part of the whole range made earlier is no
+longer "as wanted". New test `the_template_draw_comes_back_when_nothing_is_hidden_again` (which draw object is there
+after each call, and the two draws handed back), red against the code before (`red-openmw.log`); the 10 tests before are
+unchanged and pass.
+
+**Finding 7, the bone matrix counts.** "1 to 7 bone matrices per frame instead of 53" is the summed size of the drawn
+skins' bone matrix arrays when the controllers are linked again (`relinkMergedBody`), not a count taken per frame, and
+twice the bones with the G-buffer; the texts say so now. "The first frame after a change has the right motion" holds for
+the restarted draws by the motion frames; for the draws that stay drawn it is reasoning (marked not isolated).
+
+**Finding 8, the test suite's scope.** `components/body/CLAUDE.md` says what `testpartslots.cpp` proves (merged equals
+stock given `PartSlots`, the oracle being what the stock actor draws) and what it does not (that `PartSlots` equals the
+code before it, or that `updateParts` calls it in the order the test restates). New tests: anything worn in the helmet
+slot takes the hair, and nothing else does; all 124,416 single outfits of the catalogue (per inventory slot nothing or
+one of its 19 items), each on a new actor and on one drawn stock first, hide as stock (about 1 s). Both passed against
+the code, so their red run was a deliberate mutation of `partslots.cpp` (the helmet's `remove(ESM::PRT_Hair)` left out,
+and `releaseBodyParts` taking priority 2 for 1), run once and restored (`red-mutation.log`). This ticks stage e's "all
+combinations" for single outfits of the catalogue; sequences stay sampled (3,000 random ones), and the catalogue is
+synthetic, not every item of the game data.
+
+**Finding 9, lifetimes.** The comments of `Session::~Session` and `mergedbody.hpp` and the render guide say who holds
+what: the Session holds the cache and the templates; an actor holds its template and copy until its `Npc` goes with
+RenderManager's `Scene`, after the Session and still before the render engine and its device (`vsgengine.hpp` declares
+`mRenderEngine` before `mRenderManager` and `mMergedBodies`). Written into the guide: new parts need the actor's
+`compile()`; every caller of `updateParts` compiles (`updateEquipment`, `rebuild`, `Scene`'s NPC insert,
+`Preview::compile`).
+
+**Finding 10, the skin mark.** `PartSlots::Nodes::beforeWornPart` is called by `wear` just before a worn part with a
+body part asks for its slot, taken or not, after the slot's group went and the helmet took the hair; `Npc` marks a skin
+part's model there, as `Npc::addPartGroup` did before `PartSlots` (`wornParts` no longer marks). Test
+`a_worn_part_is_announced_just_before_it_asks_for_its_slot`, red against the stub. A no-op without `pbr` either way.
+
+**Finding 11, allocations.** The equipment pass keeps one list of worn parts in the `Npc` (`mWornParts`, cleared per
+item) and builds one `PartSlots::Attach` per update capturing two pointers (16 bytes, inside libstdc++'s small buffer),
+so an equipment change no longer allocates a vector per worn item and a `std::function` per slot. Its trace is part of
+finding 2's identical lines.
+
+**Tests and gates.** `openmw-tests` 927 pass, `components-tests` 5,468 pass on Windows (the fuzz tests left out).
+clang-format 14 (container) on the changed lines. Not run: the Linux gate, the 32 Lua tests, a fresh reviewer of these
+fixes, the motion scene on another GPU.
 
 ### Stage f, design (2026-11-04, written before any code; full loop)
 
