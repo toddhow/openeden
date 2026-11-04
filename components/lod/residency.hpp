@@ -273,6 +273,35 @@ namespace Lod
     /// groundStableFrames in a row, and has been missing for fewer than groundWaitFrames in a row.
     bool clusterWaitsForGround(bool evictFar, bool liveObjectsPage, bool squareWhollyInRange, std::int32_t groundFrames,
         std::int32_t missingFrames) noexcept;
+
+    /// The ground rule's memory for one cluster: consecutive frames its ground has been drawn / missing.
+    struct ClusterGroundState
+    {
+        std::int32_t mGroundFrames = 0;
+        std::int32_t mMissingFrames = 0;
+    };
+
+    /// What the client knows about one cluster in one frame.
+    struct ClusterGroundInput
+    {
+        bool mRuleApplies = false; // the tier evicts, there is a budget and the live objects page
+        bool mWholly = false; // the square lies wholly inside the paging range
+        bool mGroundDrawn = false; // groundDrawnOver (a cached answer is fine)
+        bool mCounts = true; // the cluster is wanted or built: only these count (the old client's gating)
+    };
+
+    /// What the rule says about the cluster this frame.
+    struct ClusterGroundStep
+    {
+        bool mFallback = false; // clusterGroundFallback: the cluster may be evicted
+        bool mWaits = false; // clusterWaitsForGround: the planner is told not to load it yet
+    };
+
+    /// One cluster's step of the ground rule (counters, fallback, wait), the one function both LodClusters::update and
+    /// the tests' FarSim call. Counts while the rule applies and the cluster counts, also while the square is wholly
+    /// inside the paging range (the ground is drawn there by the live terrain whatever `mGroundDrawn` says); says
+    /// nothing about a square that is wholly inside (the live objects' business). Otherwise the counters are reset.
+    ClusterGroundStep stepClusterGround(ClusterGroundState& state, const ClusterGroundInput& input) noexcept;
 }
 
 #endif

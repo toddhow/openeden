@@ -128,8 +128,7 @@ namespace MWRender
             // Far cluster eviction (task 0060, option b): consecutive frames the ground beneath the cluster has been
             // drawn / has been missing, the ground rule's fallback (Lod::clusterGroundFallback) and the planner being
             // told to wait for the ground (Lod::clusterWaitsForGround). Counted only while the rule applies.
-            std::int32_t mGroundFrames = 0;
-            std::int32_t mMissingFrames = 0;
+            Lod::ClusterGroundState mGround;
             bool mGroundFallback = false;
             bool mWaitsForGround = false;
             // The last ground test (Lod::groundDrawnOver) and what it was made for: the version of the drawn tiles and
@@ -675,13 +674,12 @@ namespace MWRender
             // reaches past the live range is also replaceable once the ground beneath it has been drawn for a while.
             // The ground rule counts only for clusters the selection wants or that are built; for the others the
             // counters stay at 0 (a cluster wanted later starts counting then, and waits for its ground).
-            tile.mGroundFallback = false;
-            tile.mWaitsForGround = false;
             const bool groundRuleApplies = withBudget && setup.mEvictFar && camera.mLiveObjectsPage;
             const bool wholly = Lod::squareWithinRange(
                 camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
             const bool chosen = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile;
-            if (groundRuleApplies && !wholly && (chosen || tile.mPhase != Tile::Phase::Idle))
+            const bool counts = chosen || tile.mPhase != Tile::Phase::Idle;
+            if (groundRuleApplies && !wholly && counts)
             {
                 if (!tile.mGroundTested || tile.mGroundVersion != camera.mGroundVersion
                     || std::abs(tile.mGroundEyeX - camera.mEye.x) >= groundRetestDistance
@@ -694,19 +692,13 @@ namespace MWRender
                     tile.mGroundDrawn = Lod::groundDrawnOver(camera.mEye.x, camera.mEye.y, camera.mPagingRange,
                         camera.mGround, bounds.mOriginX, bounds.mOriginY, bounds.mSide, setup.mCellSize);
                 }
-                tile.mGroundFrames = Lod::stepGroundFrames(tile.mGroundFrames, tile.mGroundDrawn);
-                tile.mMissingFrames = Lod::stepGroundFrames(tile.mMissingFrames, !tile.mGroundDrawn);
-                tile.mGroundFallback = Lod::clusterGroundFallback(true, true, wholly, tile.mGroundFrames);
-                // A cluster the live objects can take over (a straddler inside their hysteresis) needs no ground.
-                tile.mWaitsForGround = !tile.mReplaceable
-                    && Lod::clusterWaitsForGround(true, true, wholly, tile.mGroundFrames, tile.mMissingFrames);
             }
             else
-            {
-                tile.mGroundFrames = 0;
-                tile.mMissingFrames = 0;
                 tile.mGroundTested = false;
-            }
+            const Lod::ClusterGroundStep ground = Lod::stepClusterGround(
+                tile.mGround, Lod::ClusterGroundInput{ groundRuleApplies, wholly, tile.mGroundDrawn, counts });
+            tile.mGroundFallback = ground.mFallback;
+            tile.mWaitsForGround = ground.mWaits;
             // An eviction in progress is cancelled the moment the cluster has no fallback at all (the live objects
             // lost it, or the ground beneath was lost): its cells would have nothing behind them.
             const bool fallback = tile.mReplaceable || tile.mGroundFallback;
@@ -939,7 +931,7 @@ namespace MWRender
             state.mStats.mNoFallbackBytes = state.mPlan.mNoFallbackBytes;
             std::size_t noGround = 0;
             for (const Tile& tile : state.mTiles)
-                noGround += tile.mGroundTested && tile.mMissingFrames >= Lod::groundWaitFrames ? 1 : 0;
+                noGround += tile.mGroundTested && tile.mGround.mMissingFrames >= Lod::groundWaitFrames ? 1 : 0;
             state.mStats.mNoGround = noGround;
             if (state.mPlan.mBlocked > 0 && !state.mLoggedBudget)
             {
@@ -979,7 +971,7 @@ namespace MWRender
                     // back once it has faded out; it is not wanted again until it is gone, then waits a cooldown.
                     tile.mWanted = false;
                     tile.mEvicted = true;
-                    if (!tile.mReplaceable && tile.mGroundFallback)
+                    if (tile.mGroundFallback)
                     {
                         // Only the ground rule made it replaceable: a far cluster given up for the budget.
                         ++state.mFarEvictions;

@@ -1692,6 +1692,70 @@ namespace
         EXPECT_GT(groundWaitFrames, groundStableFrames);
     }
 
+    // ---- stepClusterGround (the one per-cluster step the client and FarSim call) -----------------------------------
+
+    TEST(LodClusterGround, a_square_past_the_range_with_drawn_ground_waits_then_may_be_evicted)
+    {
+        ClusterGroundState state;
+        const ClusterGroundInput input{ true, false, true, true };
+        for (std::int32_t frame = 1; frame < groundStableFrames; ++frame)
+        {
+            const ClusterGroundStep step = stepClusterGround(state, input);
+            EXPECT_FALSE(step.mFallback) << "frame " << frame;
+            EXPECT_TRUE(step.mWaits) << "frame " << frame;
+        }
+        const ClusterGroundStep stable = stepClusterGround(state, input);
+        EXPECT_TRUE(stable.mFallback);
+        EXPECT_FALSE(stable.mWaits);
+        EXPECT_EQ(state.mGroundFrames, groundStableFrames);
+        EXPECT_EQ(state.mMissingFrames, 0);
+    }
+
+    TEST(LodClusterGround, lost_ground_resets_the_count_at_once_and_a_long_loss_stops_the_wait)
+    {
+        ClusterGroundState state;
+        for (int frame = 0; frame < 100; ++frame)
+            stepClusterGround(state, ClusterGroundInput{ true, false, true, true });
+        ClusterGroundStep step = stepClusterGround(state, ClusterGroundInput{ true, false, false, true });
+        EXPECT_FALSE(step.mFallback);
+        EXPECT_TRUE(step.mWaits);
+        EXPECT_EQ(state.mGroundFrames, 0);
+        EXPECT_EQ(state.mMissingFrames, 1);
+        for (std::int32_t frame = 1; frame < groundWaitFrames; ++frame)
+            step = stepClusterGround(state, ClusterGroundInput{ true, false, false, true });
+        EXPECT_FALSE(step.mWaits); // waited long enough: an item with no fallback
+        EXPECT_FALSE(step.mFallback);
+    }
+
+    TEST(LodClusterGround, a_rule_that_does_not_apply_says_nothing_and_resets)
+    {
+        ClusterGroundState state{ 50, 7 };
+        ClusterGroundStep step = stepClusterGround(state, ClusterGroundInput{ false, false, true, true });
+        EXPECT_FALSE(step.mFallback);
+        EXPECT_FALSE(step.mWaits);
+        EXPECT_EQ(state.mGroundFrames, 0);
+        EXPECT_EQ(state.mMissingFrames, 0);
+    }
+
+    TEST(LodClusterGround, the_count_goes_on_while_the_square_is_wholly_inside_the_range)
+    {
+        // Wholly inside, the live terrain draws the ground whatever the cached test says (a square that was not
+        // drawn when last tested may be inside now): the frames count, but nothing is said about eviction.
+        ClusterGroundState state;
+        for (int frame = 0; frame < 100; ++frame)
+        {
+            const ClusterGroundStep step = stepClusterGround(state, ClusterGroundInput{ true, true, false, true });
+            EXPECT_FALSE(step.mFallback);
+            EXPECT_FALSE(step.mWaits);
+        }
+        EXPECT_EQ(state.mGroundFrames, 100);
+        EXPECT_EQ(state.mMissingFrames, 0);
+        // The frame it leaves the range its ground has been stable for a long time: it can be evicted at once.
+        const ClusterGroundStep out = stepClusterGround(state, ClusterGroundInput{ true, false, true, true });
+        EXPECT_TRUE(out.mFallback);
+        EXPECT_FALSE(out.mWaits);
+    }
+
     TEST(LodGroundFallback, the_stable_count_is_a_positive_number_of_frames)
     {
         EXPECT_GT(groundStableFrames, 0);
@@ -1804,9 +1868,9 @@ namespace
             bool mKnown = false;
             double mFarX = 0; // the square [mFarX - 1000, mFarX] x [0, 1000]
             bool mLiveReplaceable = false;
-            std::int32_t mGroundFrames = 0;
-            std::int32_t mMissingFrames = 0;
+            ClusterGroundState mGround;
             bool mFallback = false;
+            bool mWaits = false;
             Phase mPhase = Absent;
             int mTimer = 0;
             int mLiveWait = 0;
@@ -1823,6 +1887,8 @@ namespace
         double mEyeX = 0;
         double mRange = 40000;
         std::function<bool(int, std::size_t)> mGround = [](int, std::size_t) { return true; };
+        // Does the selection choose the entry this frame? (The client counts only chosen or non-Idle clusters.)
+        std::function<bool(int, std::size_t)> mChosen = [](int, std::size_t) { return true; };
         int mFrame = 0;
         // Counted every frame:
         std::uint32_t mFreedWithoutFallback = 0; // a free whose item had no fallback when the plan was made
@@ -1843,12 +1909,12 @@ namespace
                 const double originX = entry.mFarX - 1000;
                 entry.mLiveReplaceable
                     = clusterReplaceable(entry.mLiveReplaceable, true, mEyeX, 0, originX, 0, 1000, mRange);
-                const bool ground = mGround(mFrame, i);
-                entry.mGroundFrames = stepGroundFrames(entry.mGroundFrames, ground);
-                entry.mMissingFrames = stepGroundFrames(entry.mMissingFrames, !ground);
                 const bool wholly = squareWithinRange(mEyeX, 0, originX, 0, 1000, mRange);
-                entry.mFallback
-                    = entry.mLiveReplaceable || clusterGroundFallback(mEvictFar, true, wholly, entry.mGroundFrames);
+                const bool counts = mChosen(mFrame, i) || entry.mPhase != Absent;
+                const ClusterGroundStep ground = stepClusterGround(
+                    entry.mGround, ClusterGroundInput{ mEvictFar, wholly, mGround(mFrame, i), counts });
+                entry.mWaits = ground.mWaits;
+                entry.mFallback = entry.mLiveReplaceable || ground.mFallback;
                 if (cancelEviction(entry.mEvicted, entry.mPhase == Leaving, entry.mFallback))
                 {
                     entry.mPhase = Held;
@@ -1875,12 +1941,9 @@ namespace
                 item.mHeld = entry.mPhase == Held || entry.mPhase == Leaving;
                 item.mLeaving = entry.mPhase == Leaving;
                 item.mLoading = entry.mPhase == Loading;
-                item.mWanted = !entry.mEvicted;
+                item.mWanted = !entry.mEvicted && (mChosen(mFrame, i) || entry.mPhase != Absent);
                 // A cluster that is not loaded waits for its ground (the client's rule).
-                if (entry.mPhase == Absent
-                    && clusterWaitsForGround(mEvictFar, true,
-                        squareWithinRange(mEyeX, 0, entry.mFarX - 1000, 0, 1000, mRange), entry.mGroundFrames,
-                        entry.mMissingFrames))
+                if (entry.mPhase == Absent && entry.mWaits)
                     item.mWanted = false;
                 item.mReplaceable = entry.mFallback;
                 item.mPriority = static_cast<float>(std::abs(entry.mFarX - 500 - mEyeX));
@@ -1917,10 +1980,13 @@ namespace
             {
                 if (entry.mPhase != Leaving)
                     continue;
+                // The live objects take the cells back only where they reach (the client's staticsReady is true for a
+                // cell outside their range): a cluster that lost them has nothing to wait for.
+                if (!entry.mLiveReplaceable)
+                    entry.mLiveWait = 0;
                 if (entry.mLiveWait > 0)
                 {
-                    if (entry.mLiveReplaceable)
-                        --entry.mLiveWait;
+                    --entry.mLiveWait;
                     continue;
                 }
                 if (--entry.mTimer <= 0)
@@ -2129,6 +2195,71 @@ namespace
         EXPECT_EQ(sim.mEntries[1].mPhase, FarSim::Absent);
         EXPECT_FALSE(plan.mOverBudget);
         EXPECT_EQ(plan.mNoFallbackBytes, 6 * farMib);
+    }
+
+    // The eye leaves the live objects' range while a far cluster is fading out (finding 2 of the review of the far
+    // eviction): its square stops being wholly inside the paging range, so the live objects stop being its fallback,
+    // and the ground rule must take over in the same frame. The ground is trivially drawn while the square is inside
+    // the range (the live terrain draws it), so the count of stable frames must not restart there.
+    TEST(LodFarEvictionSim, leaving_the_live_range_during_a_fade_out_does_not_cancel_the_eviction)
+    {
+        // Two clusters: pressure never frees the last committed one, so a nearer cluster that stays is needed.
+        FarSim sim = makeFarSim(2, true);
+        sim.mEntries[0].mFarX = 37000; // far corner 37014 from the eye at 0: inside the range less its margin
+        sim.mEntries[1].mFarX = 30000;
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 200; ++frame)
+            sim.step(farParams(100 * farMib), plan);
+        ASSERT_EQ(sim.mEntries[0].mPhase, FarSim::Held);
+        ASSERT_EQ(sim.mEntries[1].mPhase, FarSim::Held);
+        // The budget shrinks: the live objects can take the farther cluster's cells, so it is freed.
+        sim.step(farParams(3 * farMib), plan);
+        ASSERT_EQ(sim.mEntries[0].mPhase, FarSim::Leaving);
+        sim.mEyeX = -4000; // the far corner is now 41000 away: past the range; the ground is drawn
+        for (int frame = 0; frame < 300; ++frame)
+            sim.step(farParams(3 * farMib), plan);
+        EXPECT_EQ(sim.mEntries[0].mCancels, 0u);
+        EXPECT_EQ(sim.mEntries[0].mFrees, 1u);
+        EXPECT_EQ(sim.mEntries[0].mPhase, FarSim::Absent);
+        EXPECT_EQ(sim.mHoles, 0u);
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+    }
+
+    TEST(LodFarEvictionSim, a_camera_swaying_across_the_edge_of_the_live_range_causes_no_cancelled_fade_outs)
+    {
+        FarSim sim = makeFarSim(2, true);
+        sim.mEntries[0].mFarX = 37000;
+        sim.mEntries[1].mFarX = 30000;
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 200; ++frame)
+            sim.step(farParams(100 * farMib), plan);
+        ASSERT_EQ(sim.mEntries[0].mPhase, FarSim::Held);
+        // From now on the budget is smaller than the cluster; the eye sways 4000 units (the far corner crosses the
+        // range, 40000, and the margin of its hysteresis) with a period of 16 frames, faster than a fade out.
+        std::uint32_t outward = 0;
+        bool wasOutside = false;
+        for (int frame = 0; frame < 3000; ++frame)
+        {
+            const bool outside = (frame / 8) % 2 == 1;
+            sim.mEyeX = outside ? -4000 : 0;
+            if (outside && !wasOutside)
+                ++outward;
+            wasOutside = outside;
+            sim.step(farParams(3 * farMib), plan);
+        }
+        EXPECT_GT(outward, 30u);
+        EXPECT_EQ(sim.mHoles, 0u);
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+        // The fade out that is running when the camera first goes out is not cancelled (the old gating, which restarted
+        // the count of stable frames inside the range, cancelled it: 1 cancel in this run).
+        EXPECT_EQ(sim.mEntries[0].mCancels, 0u);
+        // And the cluster is not loaded and freed over and over: it has the ground the whole time.
+        EXPECT_LE(sim.mEntries[0].mLoads, 3u);
+        EXPECT_LE(sim.mEntries[0].mFrees, 3u);
     }
 
     TEST(LodFarEvictionSim, two_runs_of_the_same_sequence_make_the_same_plans)

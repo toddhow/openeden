@@ -492,4 +492,22 @@ namespace Lod
         return evictFar && liveObjectsPage && !squareWhollyInRange && groundFrames < groundStableFrames
             && missingFrames < groundWaitFrames;
     }
+
+    ClusterGroundStep stepClusterGround(ClusterGroundState& state, const ClusterGroundInput& input) noexcept
+    {
+        ClusterGroundStep step;
+        if (!input.mRuleApplies || !input.mCounts)
+        {
+            state = ClusterGroundState{};
+            return step;
+        }
+        // Wholly inside the paging range the live terrain draws the ground (groundDrawnOver is trivially true there),
+        // so the count goes on and the frame the square leaves the range it is already stable.
+        const bool drawn = input.mWholly || input.mGroundDrawn;
+        state.mGroundFrames = stepGroundFrames(state.mGroundFrames, drawn);
+        state.mMissingFrames = stepGroundFrames(state.mMissingFrames, !drawn);
+        step.mFallback = clusterGroundFallback(true, true, input.mWholly, state.mGroundFrames);
+        step.mWaits = clusterWaitsForGround(true, true, input.mWholly, state.mGroundFrames, state.mMissingFrames);
+        return step;
+    }
 }
