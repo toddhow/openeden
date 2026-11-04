@@ -107,6 +107,9 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Clouds and cloud shadows* (0038): in cloudy weather (`ChangeWeather ... 1`) the undersides are darker and the edges glow,
   and moving shadows cross the ground. *Volumetric clouds* (0042): in fair weather the sky layer is a real volume; ash, blight,
   blizzard, fog and snow keep their own sky. Wrong: flicker or blocks when the camera turns. Heavy on the GPU.
+  *Cirrus* (0079): in clear weather, thin white streaks high above the other clouds (look up with the camera at the
+  sky); at sunset they stay lit and turn pink after the ground is dark; they thin out as clouds come in and are gone in
+  overcast and rain. Wrong: dashes or flicker near the horizon, a second sun round the real one.
 - *Volumetric fog and light shafts* (0041): in the Bitter Coast fog or at a low sun between trees, shafts of light through
   the fog. Wrong: banding or a bright haze everywhere.
 - *Wetness* (0037): rain makes the ground darker and glossier and flat ground collects puddles that mirror the sky; it

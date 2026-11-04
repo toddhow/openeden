@@ -35,12 +35,14 @@ static const float kHorizonFadeEndZ = 0.02;
 static const float kSunGain = 0.5;
 static const float kEarthRadiusMeters = 6371000.0;
 static const float kBaseCoverage = 0.55;
+static const float kFibreLengthFactor = 2.0;
+static const float kFibreWidthFactor = 1.3333334;
 static const float kWarpAlongCells = 1.5;
 static const float kWarpAcrossCells = 0.75;
 static const float kStreakAmount = 0.35;
-static const float kEdgeAtZeroCoverage = 0.72;
+static const float kEdgeAtZeroCoverage = 0.66;
 static const float kEdgeCoverageSlope = 0.34;
-static const float kEdgeSoftness = 0.2;
+static const float kEdgeSoftness = 0.35;
 static const float kDomeBelowHorizonRadians = 0.05235988;
 static const float kPi = 3.14159265358979;
 static const int kNoisePeriodCells = 128;
@@ -164,31 +166,48 @@ uint wrapCell(int v, int period)
     return uint(m < 0 ? m + period : m);
 }
 
-uint hashCell(int x, int y, int z, int period, uint seed)
+// The corner's gradient dotted with the offset d, without a table: the twelve gradients of cloudvolumemath.hpp's perlin
+// are (+-1, +-1, 0), (+-1, 0, +-1) and (0, +-1, +-1) in that order, so the hash's value k = h % 12 picks the pair of
+// axes by k / 4 and the two signs by the bits of k % 4 (the first sign belongs to the first axis of the pair). The sums
+// are the C++'s (a zero term adds nothing), so the result is the same bit for bit.
+float cornerDot(uint h, float3 d)
 {
-    uint h = hashUint(wrapCell(x, period) + hashUint(seed));
-    h = hashUint(h ^ (wrapCell(y, period) * 0x9E3779B9u));
-    h = hashUint(h ^ (wrapCell(z, period) * 0x85EBCA6Bu));
-    return h;
+    uint k = h % 12u;
+    uint group = k >> 2u;
+    uint bits = k & 3u;
+    float a = (bits & 1u) != 0u ? -1.0 : 1.0;
+    float b = (bits & 2u) != 0u ? -1.0 : 1.0;
+    float u = group == 2u ? d.y : d.x;
+    float v = group == 0u ? d.y : d.z;
+    return a * u + b * v;
 }
 
-static const float3 gradients[12] = { float3(1, 1, 0), float3(-1, 1, 0), float3(1, -1, 0), float3(-1, -1, 0),
-    float3(1, 0, 1), float3(-1, 0, 1), float3(1, 0, -1), float3(-1, 0, -1), float3(0, 1, 1), float3(0, -1, 1),
-    float3(0, 1, -1), float3(0, -1, -1) };
-
+// cloudvolumemath.hpp's perlin, with the lattice hash shared between corners: hashCell chains three hashes, x then y
+// then z, so the eight corners need 2 + 4 + 8 hashes, not 8 * 3, with the same values. Cost matters here: this runs
+// for every sky pixel, several times.
 float perlin(float3 p, int period, uint seed)
 {
     int3 p0 = int3(floor(p));
     float3 f = p - float3(p0);
     float3 w = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+    uint hs = hashUint(seed);
+    uint wx[2] = { wrapCell(p0.x, period), wrapCell(p0.x + 1, period) };
+    uint wy[2] = { wrapCell(p0.y, period), wrapCell(p0.y + 1, period) };
+    uint wz[2] = { wrapCell(p0.z, period), wrapCell(p0.z + 1, period) };
     float corner[2][2][2];
-    for (int k = 0; k < 2; ++k)
+    for (int i = 0; i < 2; ++i)
+    {
+        uint hx = hashUint(wx[i] + hs);
         for (int j = 0; j < 2; ++j)
-            for (int i = 0; i < 2; ++i)
+        {
+            uint hy = hashUint(hx ^ (wy[j] * 0x9E3779B9u));
+            for (int k = 0; k < 2; ++k)
             {
-                float3 g = gradients[hashCell(p0.x + i, p0.y + j, p0.z + k, period, seed) % 12u];
-                corner[k][j][i] = dot(g, f - float3(i, j, k));
+                uint h = hashUint(hy ^ (wz[k] * 0x85EBCA6Bu));
+                corner[k][j][i] = cornerDot(h, f - float3(i, j, k));
             }
+        }
+    }
     float x00 = lerp(corner[0][0][0], corner[0][0][1], w.x);
     float x10 = lerp(corner[0][1][0], corner[0][1][1], w.x);
     float x01 = lerp(corner[1][0][0], corner[1][0][1], w.x);
@@ -291,14 +310,15 @@ float density(float2 windFramePoint, float morph, int octaves, int warps, float 
     int octaveCount = clamp(octaves, 1, 5);
     int warpCount = clamp(warps, 0, 2);
     uint seed = kNoiseSeed;
-    int period = kNoisePeriodCells;
+    int period = int(float(kNoisePeriodCells) / kFibreLengthFactor);
 
-    float qx = windFramePoint.x / kCellMeters;
-    float qy = windFramePoint.y / kCellMeters;
+    float cellLength = kCellMeters * kFibreLengthFactor;
+    float qx = windFramePoint.x / cellLength;
+    float qy = windFramePoint.y * kFibreWidthFactor / cellLength;
     float qz = morph;
 
-    float warpWeight = octaveWeight(footprintMeters, 2.0 * kCellMeters / kFibreStretch);
-    for (int w = 0; w < warpCount; ++w)
+    float warpWeight = octaveWeight(footprintMeters, 2.0 * cellLength / (kFibreStretch * kFibreWidthFactor));
+    for (int w = 0; w < warpCount && warpWeight > 0.0; ++w)
     {
         uint warpSeed = seed + 100u + 2u * uint(w);
         float n1 = perlin(float3(qx * 0.5, qy * 0.5, qz * 0.5), period / 2, warpSeed);
@@ -314,9 +334,13 @@ float density(float2 windFramePoint, float morph, int octaves, int warps, float 
     int periodScale = 1;
     for (int i = 0; i < octaveCount; ++i)
     {
-        float wavelength = kCellMeters / (kFibreStretch * scale);
-        float n = perlin(float3(qx * scale, qy * scale, qz * scale), period * periodScale, seed + uint(i));
-        sum += weight * lerp(0.5, n, octaveWeight(footprintMeters, wavelength));
+        float wavelength = cellLength / (kFibreStretch * kFibreWidthFactor * scale);
+        float octave = octaveWeight(footprintMeters, wavelength);
+        float n = 0.5;
+        // An octave the pixel is too big for is its mean: no need to evaluate it (the same value as the C++'s).
+        if (octave > 0.0)
+            n = lerp(0.5, perlin(float3(qx * scale, qy * scale, qz * scale), period * periodScale, seed + uint(i)), octave);
+        sum += weight * n;
         total += weight;
         weight *= 0.5;
         scale *= 2.0;
@@ -351,6 +375,7 @@ struct FragmentInput
 {
     [[vk::location(0)]] float3 domeDir : V_DOMEDIR;
     [[vk::location(1)]] float3 sunLocal : V_SUNLOCAL;
+    float4 fragCoord : SV_Position;
 };
 
 [shader("fragment")]
@@ -368,6 +393,17 @@ float4 fragMain(FragmentInput input) : SV_Target0
     int octaves = quality + 3;
     int warps = quality;
     int debugView = int(material.emissive.w + 0.5);
+
+    // Debug view 5, the pattern: the density on a fixed 40 km square of the wind frame (the screen's centre is the
+    // frame's origin), with no drift, no morph and no footprint, so that it can be compared with Render::Cirrus::density
+    // pixel by pixel whatever the camera does.
+    if (debugView == 5)
+    {
+        float2 uv = input.fragCoord.xy / scene.resolution;
+        float2 point = (uv - 0.5) * 40000.0;
+        float v = density(point, 0.0, octaves, warps, material.pbr.z, 0.0);
+        return float4(v, v, v, 1.0);
+    }
 
     // Where the view direction meets the layer, in the wind's frame (Render::Cirrus::layerPoint and windFrame), then the
     // pattern drifts along the wind: the point is read upwind by the drift, which was wrapped by the pattern's period
@@ -410,7 +446,7 @@ float4 fragMain(FragmentInput input) : SV_Target0
     if (debugView == 3)
         return float4(lit, saturate(phase / kPhaseCap), saturate(0.5 + 0.5 * sunElevation / 0.0523), 1.0);
     if (debugView == 4)
-        return float4(saturate(size / 1000.0), octaveWeight(size, kCellMeters / kFibreStretch), alpha, 1.0);
+        return float4(saturate(size / 1000.0), octaveWeight(size, kCellMeters * kFibreLengthFactor / (kFibreStretch * kFibreWidthFactor)), alpha, 1.0);
 
     return float4(colour, alpha);
 }

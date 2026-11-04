@@ -711,8 +711,8 @@ namespace
             { vsg::vec2(31000.f, -700.f), 0.5f, 5, 2, 0.8f, 0.f },
             { vsg::vec2(-120000.f, 2500.f), 99.f, 4, 1, 0.7f, 0.f },
         };
-        const float expected[]
-            = { 0.395685822f, 0.381947637f, 0.260170102f, 0.f, 1.f, 0.176029608f, 0.230342209f, 0.f };
+        const float expected[] = { 0.376851857f, 0.0442306362f, 0.00450098468f, 0.899660826f, 0.564532280f,
+            0.524527490f, 0.276510566f, 0.604974031f };
         std::size_t i = 0;
         for (const Sample& sample : samples)
         {
@@ -721,6 +721,17 @@ namespace
             EXPECT_NEAR(d, expected[i], 1e-5f) << i;
             ++i;
         }
+    }
+
+    // The pattern debug view (task 0079): the GPU's density on a fixed 40 km square agreed with the C++ at 91 of the 93
+    // pixels of a frame that were not covered by scenery (0.006 at most; the rest is the shader's float arithmetic).
+    // The view is the sixth name, after the five of the spec.
+    TEST(RenderCirrusSettings, ThePatternDebugViewIsTheSixth)
+    {
+        const auto view = Cirrus::parseDebugView("pattern");
+        ASSERT_TRUE(view.has_value());
+        EXPECT_EQ(static_cast<int>(*view), 5);
+        EXPECT_EQ(static_cast<int>(Cirrus::DebugView::Pattern), 5);
     }
 
     TEST(RenderCirrusDensity, StaysInRangeAndFinite)

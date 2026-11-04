@@ -26,6 +26,11 @@ Rendering|ao strength|tuning of ao
 Rendering|ao temporal clamp|tuning of ao temporal
 Rendering|ao temporal history|tuning of ao temporal
 Rendering|atmosphere look|tuning: vanilla or physical sky colours; the default is the reviewed one
+Rendering|cirrus altitude|tuning of cirrus
+Rendering|cirrus coverage|tuning of cirrus
+Rendering|cirrus opacity|tuning of cirrus
+Rendering|cirrus quality|tuning of cirrus (medium is the default)
+Rendering|cirrus wind scale|tuning of cirrus
 Rendering|cloud shadow strength|tuning of cloud shadows
 Rendering|clouds look|tuning of clouds (lit or flat)
 Rendering|cover build time|tuning of cover

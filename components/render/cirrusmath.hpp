@@ -77,9 +77,15 @@ namespace Render::Cirrus
     constexpr float warpAlongCells = 1.5f; // domain warp displacement along the wind, in cells
     constexpr float warpAcrossCells = 0.75f; // and across it (in the stretched, narrow coordinate)
     constexpr float streakAmount = 0.35f; // the share of the fall-streak modulation
-    constexpr float edgeAtZeroCoverage = 0.72f; // the noise level where density starts, at pattern coverage 0 ...
+    constexpr float edgeAtZeroCoverage = 0.66f; // the noise level where density starts, at pattern coverage 0 ...
     constexpr float edgeCoverageSlope = 0.34f; // ... lowered by this much at coverage 1
-    constexpr float edgeSoftness = 0.2f; // and the width of the ramp up to full density
+    constexpr float edgeSoftness = 0.35f; // and the width of the ramp up to full density
+    // The look of the fibres, by eye (frames of task 0079): the noise's cell is fibreLengthFactor times cellMeters
+    // along the wind (its period then holds noisePeriodCells / fibreLengthFactor cells, so the pattern still repeats
+    // after noisePeriodCells * cellMeters), and the across-wind coordinate is fibreWidthFactor times what fibreStretch
+    // gives, so the fibres are 4 km long and 500 m wide (a 2 km cell with a stretch of 6 gave short dashes).
+    constexpr float fibreLengthFactor = 2.f;
+    constexpr float fibreWidthFactor = 4.f / 3.f;
 
     // --- Where the layer is -------------------------------------------------------------------------------------
 
@@ -260,15 +266,16 @@ namespace Render::Cirrus
         const int warpCount = std::clamp(warps, 0, 2);
         const float footprintSize = Detail::finiteOr(footprintMeters, 0.f);
         const std::uint32_t seed = CloudVolume::noiseSeed + Detail::seedOffset;
-        const int period = noisePeriodCells;
+        const int period = static_cast<int>(static_cast<float>(noisePeriodCells) / fibreLengthFactor);
 
-        float qx = Detail::finiteOr(windFramePoint.x, 0.f) / cellMeters;
-        float qy = Detail::finiteOr(windFramePoint.y, 0.f) / cellMeters;
+        const float cellLength = cellMeters * fibreLengthFactor;
+        float qx = Detail::finiteOr(windFramePoint.x, 0.f) / cellLength;
+        float qy = Detail::finiteOr(windFramePoint.y, 0.f) * fibreWidthFactor / cellLength;
         const float qz = Detail::finiteOr(morph, 0.f);
 
         // The warp: low frequency noise (half the base frequency) moves the lookup point, more across the wind, so the
         // fibres bend and shear. Its wavelength across the wind is two cells over fibreStretch.
-        const float warpWeight = octaveWeight(footprintSize, 2.f * cellMeters / fibreStretch);
+        const float warpWeight = octaveWeight(footprintSize, 2.f * cellLength / (fibreStretch * fibreWidthFactor));
         for (int w = 0; w < warpCount; ++w)
         {
             const std::uint32_t warpSeed = seed + 100u + 2u * static_cast<std::uint32_t>(w);
@@ -287,7 +294,7 @@ namespace Render::Cirrus
         int periodScale = 1;
         for (int i = 0; i < octaveCount; ++i)
         {
-            const float wavelength = cellMeters / (fibreStretch * scale);
+            const float wavelength = cellLength / (fibreStretch * fibreWidthFactor * scale);
             const float n = CloudVolume::perlin(
                 qx * scale, qy * scale, qz * scale, period * periodScale, seed + static_cast<std::uint32_t>(i));
             sum += weight * Detail::lerp(0.5f, n, octaveWeight(footprintSize, wavelength));
@@ -431,7 +438,8 @@ namespace Render::Cirrus
         Density,
         Share,
         Light,
-        Footprint
+        Footprint,
+        Pattern // the density on a fixed 40 km square of the wind frame, whatever the camera (compares with the C++)
     };
 
     inline std::optional<DebugView> parseDebugView(std::string_view name)
@@ -455,6 +463,10 @@ namespace Render::Cirrus
         if (name == "footprint")
         {
             return DebugView::Footprint;
+        }
+        if (name == "pattern")
+        {
+            return DebugView::Pattern;
         }
         return std::nullopt;
     }

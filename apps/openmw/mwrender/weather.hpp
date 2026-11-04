@@ -199,10 +199,12 @@ namespace MWRender
         // wind (double: it grows all session; wrapped by the pattern's period) and of the simulation seconds (the
         // morph), the sun's true height, and what the settings gave.
         bool mCirrusOn = false;
+        bool mCirrusDebugOn = false; // a debug view is on: the vanilla cloud layers are not drawn
         float mCirrusShare = 0.f;
         float mCirrusShareTarget = 0.f;
         bool mCirrusShareSet = false;
         float mCirrusCoverageLogged = -1.f; // only to log a change
+        bool mCirrusShareLogged = false; // the share was above 0 (to log when it reaches 0)
         double mCirrusDrift = 0.0;
         double mCirrusSeconds = 0.0;
         float mSunElevation = 0.f;

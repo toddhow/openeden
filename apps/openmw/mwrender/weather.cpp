@@ -218,6 +218,9 @@ namespace MWRender
             auto sg = vsg::StateGroup::create();
             sg->stateCommands = { pipeline, bds };
             sg->children = { vsg::Draw::create(Render::Cirrus::domeVertexCount, 1, 0, 0) };
+            // The vanilla cloud layers are blended shapes of a model, which the renderer draws in the depth sorted bin
+            // after everything drawn in order, so the cirrus is always under them (a debug view hides them instead,
+            // see Sky::setWeather).
             addChild(sg);
 
             // The values that never change: the layer's wind direction and the pattern's cover.
@@ -729,6 +732,7 @@ namespace MWRender
                                             << "\" is not none, density, share, light or footprint; none is used";
                     mCirrus.setup(vsg::ref_ptr{ new Cirrus(*resourceSystem.builder, settings) }, mSwitch, false);
                     mCirrusOn = true;
+                    mCirrusDebugOn = settings.debugView != Render::Cirrus::DebugView::None;
                     Log(Debug::Info) << "Cirrus: a procedural high cloud layer at " << settings.altitudeMeters << " m";
                 }
             }
@@ -741,6 +745,7 @@ namespace MWRender
             mNextClouds.setup(vsg::ref_ptr{ new Clouds(node) }, mSwitch, false);
             // shareDescriptorSet();
         }
+
         // mUnderwaterSwitch = new UnderwaterSwitchCallback(skyroot);
     }
 
@@ -951,7 +956,7 @@ namespace MWRender
         mCurrentParticleEffect = weather.mParticleEffect;
 
         mClouds->setTexture(getOrCreateCloudTexture(weather.mCloudTexture), *mCompile);
-        mClouds.setEnabled(mClouds->textureValid());
+        mClouds.setEnabled(mClouds->textureValid() && !mCirrusDebugOn);
         mCloudBlendFactor = std::clamp(weather.mCloudBlendFactor, 0.f, 1.f);
         mClouds->material.setAlpha(1.f - mCloudBlendFactor);
         mClouds->material.setTint(weather.mCloudTint);
@@ -961,7 +966,7 @@ namespace MWRender
             mNextClouds->material.setAlpha(mCloudBlendFactor);
             mNextClouds->material.setTint(weather.mCloudTint);
         }
-        mNextClouds.setEnabled(mCloudBlendFactor > 0.f && mNextClouds->textureValid());
+        mNextClouds.setEnabled(mCloudBlendFactor > 0.f && mNextClouds->textureValid() && !mCirrusDebugOn);
         mCloudSpeed = weather.mCloudSpeed;
         if (mCloudsLit || mCloudShadowsOn)
         {
@@ -1188,6 +1193,13 @@ namespace MWRender
         frame.sunElevation = mSunElevation;
         frame.tint = mCirrusTint;
         mCirrus->setFrame(frame);
+        if (mCirrusShare <= 0.f && mCirrusShareLogged)
+        {
+            Log(Debug::Info) << "Cirrus: the share reached 0 (the layer is not drawn)";
+            mCirrusShareLogged = false;
+        }
+        else if (mCirrusShare > 0.f)
+            mCirrusShareLogged = true;
         // Nothing to draw at a share of 0: the node leaves the traversal (the alpha falls to 0 with the share, so
         // there is no pop).
         mCirrus.setEnabled(mCirrusShare > 0.f);
