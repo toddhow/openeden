@@ -55,7 +55,6 @@ namespace Settings
             makeClampSanitizerInt(1, 16) };
         SettingValue<float> mPointLightShadowBias{ mIndex, "Shadows", "point light shadow bias",
             makeClampSanitizerFloat(0.25, 6) };
-        SettingValue<bool> mPointLightShadowDebug{ mIndex, "Shadows", "point light shadow debug" };
     };
 }
 

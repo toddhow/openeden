@@ -149,7 +149,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Pitfall found by a reviewer:** `ViewData::add` marks a view changed only when a chunk differs from the old one at the same index. A list that gets shorter or longer was never noticed, which is harmless without a coverage and leaves a hole (or a double draw) with one; `updateView` now also rebuilds when the coverage version or the entry count changed (coverage only).
 - **A tile is drawn like a live chunk of the same size:** `Builder::createBatch(bounds, lod)` and `createDraw` with `BakedStorage` supplying heights and normals from the tile (33 vertices, lod 2, 3 or 4 for levels 1, 2 and 3). Level 1 takes colours, blend maps and layers from the live storage. Levels 2 and 3 carry a baked RGBA8 ground picture (256 x 256, no mips) and are drawn through the same terrain shader with `Storage::getDiffuseOverride`: `Builder::create` then binds a 1 x 1 blend map of zeros (so the shader reads layer 0 at texture coordinates that run once over the tile) and a one-layer array holding the picture; the vertex colours are white because the picture already holds them. With the terrain maps on (`TerrainMapSettings::enabled`) this is skipped and every tile uses the live layers.
 - **Several levels:** `Lod::selectTileTree` chooses over tile and ancestors (`Covered` for what lies under a drawn tile); a covered tile's node stays until its drawn ancestor is built. A tile's edges stitch to a coarser drawn tile with the same lodFlags as `Paging::updateView` (`LodTerrain::updateStitching`); live chunks next to a tile are split until their vertex LOD is not coarser than the tile's (`Coverage::touchedVertexLod`).
-- **Stale packs:** the worker bakes every tile's digest again without blending (`TileBakeSettings::mDigestOnly`; the digest includes `albedoInputsDigest`: blend map, vertex colours and a hash of every used layer's file) and compares with the pack: a changed land texture, blend or colour makes the pack stale, logged as a warning, and the baker says so when it replaces one.
+- **Stale packs:** the worker bakes every tile's digest again without blending (`TileBakeSettings::mDigestOnly`; the digest includes `albedoInputsDigest`: blend map, vertex colours and a hash of every used layer's file) and compares with the pack: a changed land texture, blend or colour makes the pack stale, logged as a warning, and the baker says so when it replaces one. The digest leaves out the normals at cell corners (portable between platforms since `bakerVersion` 2; see the planner section) and the warning names the first difference.
 - **Not done:** mip maps of the baked picture (`convertToArrayTexture` keeps one level of an uncompressed image), block compression of the picture (no encoder), a handoff that keeps a parent tile until its drawn children are built when the tiles end at the paging range (without `map view` a parent that turns Live is removed at once and its children appear a frame or two later, as before task 0060; with it, see the planner section below).
 - **Checking it:** bake with `openmw --bake-lod-terrain --bake-gi-out <folder>` against a COPY of the config, put the pack in `<user data>/openeden/lod/terrain.edenpak` of the run, set `[WorldLod] enabled = true` and a threshold (64 shows tiles at 30000 view; 4 shows none in the Balmora pose) and compare frames with `enabled = false`. A pack that does not match the loaded land is refused with a warning in the log.
 
@@ -174,21 +174,36 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   the paging range (live terrain) or has its centre inside a drawn terrain tile (`Lod::groundDrawnOver`, tiles from
   `LodTerrain::drawnGround()`, passed in `LodClusters::Camera::mGround`). Losing the ground counts at once, and the same
   combined flag goes into `cancelEviction`, so an eviction in progress is cancelled the moment the ground goes. A
-  cluster that is not loaded WAITS for its ground (`Lod::clusterWaitsForGround`: not wanted by the planner for up to
-  `Lod::groundWaitFrames` (120) of missing ground) instead of being admitted as an item with no fallback: without the
-  wait the Sim showed every cluster loaded in the 30 frames before its ground counted, or in the one frame the ground
-  flickered, and evicted again (60 loads and frees per cluster in 6,000 frames). After the wait (the sea, a tile that
-  failed to build) it is an item with no fallback, loaded and kept, as before. **The planner itself was not changed**
+  cluster that is not loaded WAITS for its ground, but only while the budget presses (`Lod::budgetIsPressing`: the
+  previous plan blocked something, or its committed bytes plus this cluster exceed the budget; so never at a tier's
+  default budget that Morrowind does not reach): `Lod::clusterWaitsForGround` makes the planner not want it for up to
+  `Lod::groundWaitFrames` (120) of missing ground, instead of admitting it as an item with no fallback. Without that
+  wait under pressure the Sim showed every cluster loaded in the 30 frames before its ground counted, or in the one
+  frame the ground flickered, and evicted again (60 loads and frees per cluster in 6,000 frames). After the wait (the
+  sea, a tile that failed to build) it is an item with no fallback, loaded and kept, as before. The counters, the
+  fallback and the wait are one pure step, `Lod::stepClusterGround`, which `LodClusters::update` and the tests'
+  `FarSim` both call. It counts every frame for every cluster, wanted or not, and also while the square is wholly
+  inside the range (the ground is trivially drawn there), so the count is stable when a cluster is chosen or leaves
+  the range. The cached ground test (`Lod::GroundTestKey`: drawn tiles, eye, paging range) is given
+  `Lod::groundTestRange` (range - 2048 * sqrt 2), so its live-range half is conservative. Before the review fixes of
+  2026-11-04 the counters ran only for chosen or built clusters and the wait was unconditional: it delayed every newly
+  chosen cluster by 30 frames or more at the default budget (the `LOD cluster latency` lines that `[Cells] load trace`
+  writes: 117 to 147 ms mean on the climb before, 1 to 2 ms after). **The planner itself was not changed**
   (it only gained `ResidencyPlan::mNoFallbackBytes`, the bytes an overrun is made of): the rule is "what counts as a
   fallback". Needs object paging (`mLiveObjectsPage`) and `LodTerrain` (without a terrain pack no ground is known and
   nothing is evicted this way). `Stats::mFarEvictions`, `mWaitingForGround`, `mNoGround` and `mNoFallbackBytes` are in
   the "LOD clusters:" log line and the over-budget message.
   Clusters whose square is not wholly covered by drawn tiles (out of view: `LodTerrain` builds only what is in view; or the
-  sea) have "no ground" and are kept whatever the budget says: 4 to 6 in the climb. **The staleness digest is not
-  portable:** the terrain pack baked on Windows fails the check on Linux (no tile is used, the far land is missing)
-  although a Linux bake has byte-identical tiles and manifest (`edenlist` hashes equal; only container metadata
-  differs); bake on the platform that runs (task 0060 stage log, "The weak-GPU run"). The Linux bake needs a small window (the bake draws a
-  frame between its 10 ms slices; a frame on llvmpipe costs seconds).
+  sea) have "no ground" and are kept whatever the budget says: 4 to 6 in the climb. **The terrain pack's staleness
+  digest is portable since `bakerVersion` 2** (task 0060 review fixes, finding 6): the tile digest leaves out the
+  full-detail normals at cell corners, which `Terrain::Storage::averageNormal` computes as a float sum whose last bit
+  differs between compilers (the stored corner normal is ignored by the engine; the corner's neighbours are hashed). A
+  Windows bake and a Linux bake are byte-identical and each platform accepts the other's. A stale pack's warning names
+  the first difference (the manifest field, or the tile with its digests and its land texture layers:
+  `describeTileDifference`), and `edenlist --provenance` lists every entry's digest: if the digests ever differ between
+  platforms again, compare that line on both. The Linux bake needs a small window (the bake draws a frame between its
+  10 ms slices; a frame on llvmpipe costs seconds); it stalls if the new game's player dies in the first seconds (seen
+  once on Windows while the machine was busy), so bake on an idle machine.
 - **Two cooldowns, counted in frames:** the eviction cooldown (`mCooldown`: set when the planner frees a wanted item;
   replaceable items only) and the failure back-off (`mFailureCooldown`: every item; `failureCooldownFrames` doubles the
   base for each further failure, up to 16 times the base). Frames, not seconds: the clusters' 600-frame base capped at 9,600 frames is 160 s at
@@ -204,11 +219,14 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   not wanted again until gone; if the square stops being replaceable meanwhile the free is cancelled.
 - **Tests:** `apps/components_tests/lod/testresidency.cpp`. Its `ClientSim`, `FarSim` (the cluster client with the
   ground rule) and terrain Sim mirror the clients' order and rules; they are not the clients, which have no unit test
-  (they need a compile context and a store). Change a client's order and its Sim together.
+  (they need a compile context and a store). Change a client's order and its Sim together. `FarSim` takes the mean of
+  the level's clusters read so far as the size of an unread one, as the client's `State::estimateBytes` does (with the
+  first estimate's 1 MiB for ever the pressure test was blind and the synthetic climb looked calmer than it is).
 
 ## Cell-load trace and NPC animation preload (task 0060, note 0026)
 
 - **`[Cells] load trace = true`** (off) times the parts of every frame and of every cell load with `Misc::LoadTrace::Scope` (`components/misc/loadtrace.hpp`) and writes `load-trace.jsonl` (user data folder, or `OPENEDEN_LOAD_TRACE_FILE`) at exit. Scope names must be string literals. Add a scope with one line; leave the existing ones in place.
+- **`LodClusters` writes two scopes per cluster with the trace on** (`lod.cluster.toload`, `lod.cluster.todraw`: from the selection first wanting it while it was not loaded to the start of its load, and to its first draw; the level is the value) and one `LOD cluster latency` log line, because the trace file is written only at a clean exit and a scripted climb is ended by `timeout`. That is the measure of what the planner's waits, cooldowns and load cap cost a cluster; use it before and after a change to them.
 - **Animation names are cache keys.** The animation options cache by the name exactly as written, so the cell preloader must ask for the names `Npc::updateNpcBase` asks for: both go through `Npc::animationSources`. Change one place only and the preload silently stops helping (the first NPC of each kind then reads 20 to 40 ms on the main thread). Body parts are not preloaded yet: each part type has its own options object and cache (`partBoneOptions`).
 
 ## CreativeMotion intent and the `natural` preset (task 0067, stage 1)

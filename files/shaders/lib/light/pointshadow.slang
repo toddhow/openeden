@@ -14,7 +14,7 @@
 static const int POINT_SHADOW_HEADER_VEC4S = 2;
 static const int POINT_SHADOW_MAX_SLOTS = 8;
 
-[[vk::binding(VIEW_POINT_SHADOW_MAP_BINDING, VIEW_SET)]] Texture2DArray<float> pointShadowMap;
+[[vk::binding(VIEW_POINT_SHADOW_MAP_BINDING, VIEW_SET)]] DepthTexture2DArray pointShadowMap; // depth: the GLSL only ever compares with it, which glslang marks as depth 1
 [[vk::binding(VIEW_POINT_SHADOW_SAMPLER_BINDING, VIEW_SET)]] SamplerComparisonState pointShadowSampler;
 [[vk::binding(VIEW_POINT_SHADOW_DATA_BINDING, VIEW_SET)]] StructuredBuffer<float4> pointShadowData;
 
