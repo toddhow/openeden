@@ -1,8 +1,9 @@
 # Task: Skeleton mapping for body replacers' extended skeletons
 
 Status: stages b, c and d are built on synthetic data (2026-11-04, `4a6791ac26`, `203f4fd03e`) and corrected after a
-fresh review (stage log, "Review fixes"); stage a (the measurement on real skeletons), stage e (the engine path) and
-the later stages are not started. Originally a draft for toddhow's review (2026-11-03). Evidence: research note 0033
+fresh review (stage log, "Review fixes"); stage a, the read-only measurement of toddhow's installed skeletons, is done
+(2026-11-04, research note 0036, stage log "Stage a") and **waits for toddhow's reading of its table before stage e**;
+stage e (the engine path) and the later stages are not started. Originally a draft for toddhow's review (2026-11-03). Evidence: research note 0033
 (`docs/research/0033-extended-skeletons-of-body-replacers.md`); read it first, it separates what was verified in this
 repository from what is general knowledge of other games' mods (marked **verify**).
 
@@ -177,16 +178,19 @@ skin and virtual bones, and optionally a derived inverse-bind correction (cached
 
 - **Stage a: measure (read-only).** A command line tool (name proposed `edenskelstat`, built on the engine's NIF reader;
   or a mode of `edenbodyvalidate`) run on the user's own installed skeleton and body files. Output: aggregates only.
-  - [ ] Per skeleton NIF: bone count, depth, bones not in the Morrowind base set after name normalisation, name-token
+  - [x] Per skeleton NIF: bone count, depth, bones not in the Morrowind base set after name normalisation, name-token
         histogram (no free text beyond the tokens), per extra bone the weight mass (share of total weight, sum over
-        vertices) and the rest offset to its parent, in the same units as the design doc.
-  - [ ] Rest-pose differences of the roles that exist in both (position and rotation difference, per role), to decide
-        whether tier-1 proportions suffice.
-  - [ ] What the renderer does with a skin bone missing from the skeleton (a synthetic NIF: collapsed, static, crash?).
-  - [ ] How bone groups are assigned to bones with unknown names (read in the Anim registration; a synthetic case).
-  - [ ] The report is deterministic (two runs identical); nothing per-vertex or per-file-content is committed; a research
+        vertices) and the rest offset to its parent, in the same units as the design doc. (`edenskelstat`, note 0036;
+        the per-bone values are in the work folder's detail file, the note gives their distributions.)
+  - [x] Rest-pose differences of the roles that exist in both (position and rotation difference, per role), to decide
+        whether tier-1 proportions suffice. (They do not: note 0036, section 4.)
+  - [x] What the renderer does with a skin bone missing from the skeleton (a synthetic NIF: collapsed, static, crash?).
+        (Static at its inverse-bind position, no crash: note 0036, section 7.)
+  - [x] How bone groups are assigned to bones with unknown names (read in the Anim registration; a synthetic case).
+  - [x] The report is deterministic (two runs identical); nothing per-vertex or per-file-content is committed; a research
         note with the aggregate table and a go/no-go for each heuristic (what share of extra bones each classifies).
-  - Review gate: toddhow reads the table before stage b starts.
+  - Review gate: toddhow reads the table before stage b starts. (Stages b to d were built first; the gate now stands
+    before stage e.)
 - **Stage b: the format.** `components/body` (or `components/skeleton`) types for roles, aliases, extra rules, the reader
   and canonical writer, the validator with located errors and the D8 caps, the digest function.
   - [ ] Round trip byte-identical for 30 generated valid files; every validator rule has a passing and a failing fixture;
@@ -426,3 +430,76 @@ this commit because a game of another agent held it.
 the changed files in a throwaway container). `openmw-tests` not run. Stage e and later are not started. The build of
 `components-tests` here used a copy of `build.ninja` without the order-only dependency on the Slang shaders target,
 because another agent's shader work in progress broke that target.
+
+### Stage a, 2026-11-04 (the measurement of toddhow's installed skeletons; read-only, aggregates only)
+
+**Review gate: toddhow reads the aggregate table (research note 0036, section 3) and its decisions (section 9) before
+stage e starts. Stage e is not started.**
+
+Measured: the XP32 Maximum Skeleton Special Extended skeletons (human and beast, both sexes) with the BodySlide output
+of CBBE 3BA and HIMBO, the shipped CBBE 3BA, HIMBO core, HIMBO physics add-on and The New Gentleman meshes; ZeX, its
+face-bones skeleton and the Fallout 4 character skeleton that wins the load order, with Fusion Girl and BodyTalk 3;
+Morrowind's `base_anim.nif` and `base_animKnA.nif` as the base. All files were loose in toddhow's Mod Organizer 2
+instances and the GOG install, read in place; nothing was written, moved or extracted there, no game or MO2 was
+started. The manifest, the measurement's role tables, the raw reports and the detail file (it names the bones) are in
+`I:\Projects\OpenEden-work\skelstat\`; the repository holds the aggregates of note 0036 only.
+
+Built:
+- `components/bodynif/skeletonread.*` (part of `components`): `readSkeleton` (every NiNode a bone, parents first, the
+  ancestors' scales folded into the translation, the quaternion of the rotation, counts of scaled, non-orthonormal,
+  unnamed and revisited nodes, located caps) and `readSkinWeights` (the three routes, NiSkinData lists, NiSkinPartition
+  lists, packed BSTriShape data read with skin-bone and with partition-local indices; the chosen route and the
+  agreement of the others; vertex sums, out-of-range and non-finite counts; the vertex count from the partition when the
+  file says 0), `halfToFloat`. No new NIF parser: the records are the ones `components/nif` already registers.
+- `components/body/skeletonstats.*` (`eden_body`): the aggregates (`computeSkeletonStats`, `compareSkeletonRests`), the
+  aggregate and the detail report, the manifest parser. `skeletonsuggest.hpp` exposes `isNoiseBoneToken` (one list).
+- `apps/edenskelstat`: the tool (`--manifest`, `--profile`, `--out`, `--detail`; the detail refused inside a git work
+  tree, checked).
+
+**Tests** (synthetic records and skeletons only), 69 in four files: `bodynif/testskeletonread.cpp` 26,
+`body/testskeletonstats.cpp` 33, `skelstat/testmissingskinbone.cpp` 5, `skelstat/testbonegroups.cpp` 5. Written before
+the code, in four rounds; red runs:
+- round 1 (against stubs): 54 tests, 42 failed, 12 passed: the 10 characterisation tests of existing engine code
+  (`MissingSkinBone`, `BoneGroups`: they pin what `Anim::Skin` and `Anim::CopyBones` do and cannot be red) and 2 whose
+  answer is the stub's ("" for a name of noise tokens; two equal empty reports).
+- round 2 (after the first real run showed the Skyrim weights unread, XP32 refused by BODY-MAP-022 and the roles
+  unresolved): 12 tests, 9 failed, 3 passed by default values (a vertex count taken from the file, a skeleton that is
+  not relaxed, no role table).
+- round 3: the weight by distance to the nearest role ancestor, 1 test, failed; round 4: the bones between role bones,
+  1 test, failed; round 5: packed data read with skin-bone indices even with partitions (the real files' convention),
+  1 test, failed.
+All 69 pass; the whole `components-tests` passed (5,584) on Windows before rounds 4 and 5.
+
+**Mutation checks** (one build, three bugs at once, files restored and rebuilt under the build lock): counting a vertex
+two partitions share twice failed `the_partitions_give_the_masses_when_the_skin_data_has_no_weights`; reading the
+packed data's local indices as global failed `packed_vertex_data_is_compared_with_local_and_with_global_indices`;
+dropping the noise filter of `boneComparisonKey` failed both key tests.
+
+**The run:** `edenskelstat --manifest manifest.tsv --profile components/creativemotion/data/profiles/humanoid-to-eden.skeletonprofile.json
+--out <folder> --detail`, twice: `report.txt` (58,803 bytes, SHA-256
+`7ad118b7b52164cd6971d953d0a1b93415485436525d917ea71b5fb1d7234b22`) and `detail.txt` byte-identical; exit 0; the
+report names no bone (checked against the 1,085 names of the detail: the only matches are the canonical role names
+Pelvis, Chest and Neck, which ZeX also uses as bone names) and no path.
+
+**Findings** (note 0036 has the numbers): the reader parses every file with `setLoadUnsupportedFiles(true)`; the
+RENDERER has no `BSTriShape` path at all; Skyrim SE skinned shapes store a vertex count of 0 and their packed data uses
+skin-bone indices; BODY-MAP-022 refuses all four XP32 skeletons over one name pair; tokens resolve 1 (XP32) and 3
+(ZeX) of 17 core roles, a pack table 17 of 17; both games wrap every bone in a zero-offset node (21 and 28 between role
+bones) that no action fits; every role rest needs the inverse-bind correction (rotations up to 163 degrees); with the
+weights and a pack table 98.7 to 100 percent of the extra bones get a medium or high suggestion, from the skeleton
+alone 54.5 to 76.8 percent; missing skin bones freeze at their inverse-bind position (no crash); unknown bone names take
+their nearest grouped ancestor's group, a non-Morrowind skeleton is all lower body.
+
+**Deviations.**
+- No separate test-writing agent (the implementing agent wrote the tests before the code, as in stages b to d).
+- Rounds 2 to 5 were written after seeing the first real runs: the tests answer what the data showed, each still red
+  before its code.
+- The suggestions of XP32 were measured on a relaxed copy (one bone renamed with `~2`), marked "relaxed" everywhere; the
+  strict verdict (BODY-MAP-022) is reported beside it. The validator is unchanged (toddhow's decision, note 0036 9.1).
+- The role tables are measurement aids written by me in the work folder, by hierarchy position; they are not a pack's
+  shipped data and are not in the repository.
+- The heuristics' correctness is my reading of the detail file; there is no ground-truth map.
+
+**Not verified.** MSVC only: no GCC `-Werror -Wshadow` build, no Linux gate, no clang-tidy (clang-format 14 was run on
+the changed files in the `openeden-cf14` container: clean). No fresh reviewer. `openmw-tests` not run (nothing there
+changed). The `.hkx` animations were not read; the beast skeletons' pairing with these bodies was not checked.

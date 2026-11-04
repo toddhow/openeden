@@ -110,6 +110,10 @@ namespace Body
 
     /// The tokens of a bone name as the vocabulary sees them (exposed for tests).
     std::vector<std::string> boneNameTokens(std::string_view name);
+
+    /// True for a token the role match ignores (bip01, bip02, npc, cme, ...: the noise list above). Exposed for the
+    /// measurement of task 0070 stage a (skeletonstats.hpp), so both use one list.
+    bool isNoiseBoneToken(std::string_view token);
 }
 
 #endif

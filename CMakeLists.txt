@@ -665,6 +665,8 @@ endif()
 # AdvancedBodies (task 0063): the body contract library and its command-line validator.
 add_subdirectory(components/body)
 add_subdirectory(apps/edenbodyvalidate)
+# Task 0070 stage a: the read-only measurement of extended skeletons (components and eden_body).
+add_subdirectory(apps/edenskelstat)
 
 # CreativeMotion in the game, stage 0 (task 0067): the transition measurement and its command-line tool.
 add_subdirectory(components/animtrace)

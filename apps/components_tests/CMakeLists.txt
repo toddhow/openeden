@@ -321,6 +321,15 @@ list(APPEND UNITTEST_SRC_FILES
     animtrace/testtracetool.cpp
 )
 
+# Task 0070 stage a: the measurement of extended skeletons (skeleton and skin weight reading, the aggregates) and the
+# two synthetic checks of the engine (a skin bone the skeleton lacks, the bone groups of unknown bones).
+list(APPEND UNITTEST_SRC_FILES
+    bodynif/testskeletonread.cpp
+    body/testskeletonstats.cpp
+    skelstat/testmissingskinbone.cpp
+    skelstat/testbonegroups.cpp
+)
+
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})

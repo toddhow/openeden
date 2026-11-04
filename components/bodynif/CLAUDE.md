@@ -26,3 +26,18 @@ Rules and pitfalls:
   unmoved: never assume a part was placed, check `Shape::mPlaced`.
 - **Determinism:** no clock, no unordered iteration; percentiles are nearest rank.
 - Findings of stage a: research note 0033 (rigid parts dominate; exact seams only at forearm-wrist and knee-ankle).
+
+## `skeletonread.*` (task 0070, stage a: the measurement of extended skeletons)
+
+`readSkeleton` (every NiNode a bone, parents first, ancestors' scales folded into the translation, the node's own scale
+reported, not applied) and `readSkinWeights` (the skin weight per bone of every skinned shape, by three routes).
+
+- **Later games' files parse only with `Nif::Reader::setLoadUnsupportedFiles(true)`** (`Reader::parse` refuses other
+  versions than 4.0.0.0 and 4.0.0.2). The renderer (`components/vsgadapters/nif`) has no `BSTriShape` path: these
+  readers measure files the game cannot draw.
+- **Skyrim SE skinned `BSTriShape`s store a vertex count of 0**; the vertices are in the `NiSkinPartition`, so the count
+  is taken from there (`mVertexCountFromFile` false). Their packed vertex data uses skin bone indices, not partition-local
+  ones (measured on toddhow's files, note 0036; the route order prefers global for that reason).
+- **Weights in every route** are compared with the chosen one (`m*Agreement`): use them as the proof of which indexing a
+  file uses, never an assumption.
+- **No game or mod data in tests**: `apps/components_tests/bodynif/testskeletonread.cpp` builds every record in memory.

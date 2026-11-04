@@ -197,6 +197,20 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
 - **Known limit (BODY-MAP-026, a warning):** a bone named exactly like a canonical role it is not cannot be named as a
   parent or fold target: role names resolve first.
 
+### The measurement (task 0070, stage a: `skeletonstats.*`, `apps/edenskelstat`, research note 0036)
+
+- **Two reports, two rules.** `writeSkeletonStatsReport` prints labels, canonical role names, heuristic ids, token stems
+  and numbers only (it may be quoted in the repository; a test checks that no bone name appears).
+  `writeSkeletonStatsDetail` names every bone and belongs in the work folder only; the tool refuses `--detail` inside
+  a git work tree. Reader facts passed in (`mFacts`) are printed as given: put no file names there.
+- **The strict verdict stands; measurement runs relaxed.** A skeleton that fails only BODY-MAP-022 is measured on a copy
+  whose later colliding names get `~<n>` (`SuggestionStats::mRelaxed`): XP32 fails 022 over one name pair, and the
+  validator is not changed without toddhow's decision.
+- **The analysis map** is the pack-style role table's when the input has one (`SkeletonStatInput::mRoles`), else the
+  tokens'. Tokens alone resolve 1 (XP32) and 3 (ZeX) of 17 core roles on real skeletons: a pack table is required.
+- **Sums are order-independent:** shares are summed in engine-key order, never in source order (a test reorders the
+  bones and the masses and compares the report text).
+
 ## The engine's side of the merged body (task 0069, stage d: `mergedruntime.*`)
 
 - **One decision, one order.** `decideMergedBody` takes plain facts and returns the FIRST that fails, in the order of

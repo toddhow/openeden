@@ -392,6 +392,11 @@ namespace Body
         }
     }
 
+    bool isNoiseBoneToken(std::string_view token)
+    {
+        return noiseTokens().count(token) != 0;
+    }
+
     std::vector<std::string> boneNameTokens(std::string_view name)
     {
         // Bracket contents are removed.

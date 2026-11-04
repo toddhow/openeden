@@ -111,7 +111,7 @@ add_component_dir (lod
 
 # Skinned body part NIF reading and the seam measurements of the merged legacy body (task 0069, stage a). Depends on nif.
 add_component_dir (bodynif
-    skinnedshape seamanalysis analysisreport
+    skinnedshape seamanalysis analysisreport skeletonread
     )
 
 #<vsgopenmw-code-style>
