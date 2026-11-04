@@ -519,9 +519,8 @@ hands (`stock-hands-before-after.png`), and with the shirt taken off first, the 
 (`stock-chest-before-down-after.png`) follow the bones after the change exactly as before it. Nothing was changed. Why
 the skins survive was not found; a debugger on `Npc::clearControllers` would settle it.
 
-**Not done or not verified.** `openmw-tests` and `eden-studio` were not rebuilt at the end: `openmw-lib` does not
-compile in another agent's uncommitted `lodclusters.cpp` (`mCooldown`); the `openmw.exe` used for every run above was
-built from this work before that. clang-format 14 was run on the changed files in a container and its changes taken;
+**Not done or not verified.** `openmw-tests` (859 passed) and `eden-studio` built at the end, once another agent's
+`lodclusters.cpp` compiled again; the editor was not started. clang-format 14 was run on the changed files in a container and its changes taken;
 the Linux gate, the 32 Lua tests, a frozen-pose pixel comparison, the "off" comparison against the commit before, and
 the message box in the game were not run.
 
