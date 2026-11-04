@@ -221,7 +221,11 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   other way round, except those the adaptation changes on purpose (`adaptedDefine`: vertex inputs, `SKIN`, and
   `GBUFFER_MOTION`, which `Pipeline::Graphics` adds to every skinned draw when the G-buffer is on). A mismatch refuses
   the body with the define in the Verbose log. When a new feature adds a define, run the check tool with it on and see
-  that "draws the merged body" still counts 20.
+  that "draws the merged body" still counts 20. With `[Rendering] slang shaders` on a pipeline's stages are Slang
+  twins, whose modules have no compile hints: `MergedBodies::pipelineDefines` reads the GLSL defines through
+  `vsgUtil::glslDefinesOf` (kept beside the twin by `Pipeline::Graphics::createShaderStage`), and `compareDefines`
+  refuses a stage that only one side has defines for (task 0072, review of stage f, finding 1: it used to skip such a
+  stage, so with the switch on the check compared nothing).
 - **Each draw's skin carries only the bones its vertices use.** All of the body's bones in every draw's skin made 20
   merged NPCs cost a 7.2 ms frame against 3.8 ms for stock; with the subset the two are equal.
 - **Attach at any bone:** the vertices are in the skeleton's space and each bone's inverse rest matrix is its
