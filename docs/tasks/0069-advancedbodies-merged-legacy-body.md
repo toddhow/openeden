@@ -543,3 +543,29 @@ dressed never merges, which in a real game is the player and almost every NPC) o
 (3) The first body of each skeleton costs about 10 ms on the main thread for the skeleton parse; reading it on the
 preload thread, or taking the engine's own skeleton, would remove it. (4) The merged body writes bone motion to the
 G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the merged draws be kept out of it?
+
+### Stage e, 2026-11-04: equipment and regions (commits `87b191d445`, and the engine commit below; in progress)
+
+**What was built.**
+- `components/body/mergedruntime.*` (pure): `hiddenMergedSlots(mergedSlots, partslots, priorities)`, the stock parts'
+  own rule read from the same arrays `Npc::updateParts` fills (`mPartslots`, `mPartPriorities`): a merged slot is
+  hidden when an inventory group (0 or more) holds it with a priority of 1 or more, which is exactly when the stock
+  loop does not add the slot's body part (a body part kept from the last update has group -1 and is not hidden); a slot
+  number outside the arrays counts as covered. Each `MergedDraw` now records its slot runs (`SlotRun`: a draw's indices
+  are its submeshes' triangles in submesh order, and submeshes are ordered by slot, so one slot is one contiguous run
+  per draw), and `visibleIndexRanges(runs, hidden)` gives the index ranges that remain, touching runs merged.
+  15 tests (`testmergedregions.cpp`), written first: 13 of them failed against stubs. The
+  slot rule is checked against a reference written from `npc.cpp` for every single-slot state (empty, the body part,
+  inventory groups 0 to 18 with priorities 1 to 25) and 20,000 seeded random states of all 27 slots, and the robe's and
+  the skirt's reservations by name.
+- `MWRender::MergedBodies::applyHiddenRegions` (`mergedbody.*`): the template keeps every draw whole; an actor's copy
+  (made by `MWAnim::decorate`, whose state groups are its own because the bone matrices are cloned) gets, for each draw
+  that has a hidden run, one `vsg::VertexIndexDraw` per remaining range (none when the whole draw is hidden) sharing the
+  template's vertex and index buffer infos, so nothing is uploaded again. Everything is checked before anything
+  changes; a copy that shares a state group with the template, or a structure that is not the template's, is refused.
+  `TemplateResult::mDrawRuns` carries each draw's runs, in the order of the root's children.
+- `Npc::attachMergedBody`: replaces stage d's "anything worn over a merged slot keeps the stock parts" with the hidden
+  regions, applied on every `updateParts` (the copy is made again there anyway). Nothing runs per frame. The one-swap
+  rule of stage d (finding 8) stays only as the fallback when the regions cannot be applied: then the stock parts are
+  drawn, a warning is logged and an actor that has drawn the merged body retires.
+- `tools/mergedbody_check`: `SCENE=equipment` (`mod/scripts/mbequip_*.lua`, `mbequip.omwscripts`), `TIMEOUT`.

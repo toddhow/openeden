@@ -505,15 +505,19 @@ namespace MWRender
             MergedBodies::report(*race, female, result.mReason);
             return false;
         }
-        // In stage d an actor that wears anything replacing a merged slot keeps the stock parts entirely (stage e hides
-        // regions instead). A slot is owned by equipment or a reservation when its group is an inventory slot.
-        int owned[ESM::PRT_Count];
-        for (int i = 0; i < ESM::PRT_Count; ++i)
-            owned[i] = mPartslots[i] >= 0 ? std::max(1, mPartPriorities[i]) : 0;
-        if (Body::mergedSlotsCovered(result.mSlots, owned))
+        // Stage e: the regions that equipment or a reservation covers are left out of this actor's draws, by the stock
+        // parts' own rule (a slot's body part is not drawn while an inventory group holds the slot).
+        const std::vector<int> hidden = Body::hiddenMergedSlots(result.mSlots, mPartslots, mPartPriorities);
+
+        Misc::LoadTrace::Scope traceAttach("npc.mergedbody.attach");
+        vsg::ref_ptr<vsg::Node> node = result.mNode;
+        auto decorated = MWAnim::decorate(node, nullptr, false);
+        if (!MergedBodies::applyHiddenRegions(*node, *result.mNode, result.mDrawRuns, hidden))
         {
-            // Only an actor that has drawn the merged body retires: one first built dressed (the player at the start
-            // of a game, most NPCs) may still take it once undressed.
+            // The fallback of stage d: the stock parts entirely. Only an actor that has drawn the merged body retires
+            // (one swap each way); one first built dressed may still take it once undressed.
+            Log(Debug::Warning) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
+                                << " keeps the stock parts: the covered regions could not be left out";
             mMergedRetired = mMergedDrawn;
             return false;
         }
@@ -524,10 +528,6 @@ namespace MWRender
             if (mPartslots[slot] < 0 && mPartPriorities[slot] >= 1)
                 removeIndividualPart(static_cast<ESM::PartReferenceType>(slot));
         }
-
-        Misc::LoadTrace::Scope traceAttach("npc.mergedbody.attach");
-        vsg::ref_ptr<vsg::Node> node = result.mNode;
-        auto decorated = MWAnim::decorate(node, nullptr, false);
         // Any bone serves as the attachment: the skin's matrices are relative to it, and the vertices are in the
         // skeleton's space with the inverse of each bone's rest matrix (mergedbody.cpp).
         auto path = MWAnim::attachBonesAndNode(

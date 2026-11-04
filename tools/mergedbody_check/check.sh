@@ -16,10 +16,19 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Pass Windows paths (cygpath -m) for everything the game reads.
 # EXTRA_SETTINGS adds settings.cfg text (for example "[Rendering]\nhdr = true\n..." for the sss, wetness and cover
 # frames); START_COMMANDS adds console lines to the start script (for example 'ChangeWeather "West Gash Region" 4').
+# SCENE=equipment (stage e) runs mod/scripts/mbequip_*.lua instead: the player standing still in one combination of
+# clothing and armour after another (front, wrist, knee and ankle frames each), a row of dressed NPCs, then 200 cycles
+# of the full set on and off; add "[Rendering]\nframe counters = true" to EXTRA_SETTINGS to compare the counters before
+# ("MBPHASE baseline") and after ("MBPHASE after"). It runs about 75 s: TIMEOUT (seconds, default 120) is the net.
 set -e
 BUILD=$1; BASE=$2; USERDATA=$3; WORK=$4; VARIANT=$5; CELL=${6:-Balmora}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 native() { cygpath -m "$1"; }
+case "${SCENE:-row}" in
+    row) SCRIPTS=mbcheck.omwscripts ;;
+    equipment) SCRIPTS=mbequip.omwscripts ;;
+    *) echo "SCENE must be row or equipment"; exit 2 ;;
+esac
 case "$VARIANT" in
     stock) MERGED=false ;;
     merged) MERGED=true ;;
@@ -41,7 +50,7 @@ dir="$WORK/$VARIANT"
 rm -rf "$dir"; mkdir -p "$dir/config" "$dir/frames"
 cp "$BASE/openmw.cfg" "$dir/config/openmw.cfg"
 [ -f "$BASE/settings.cfg" ] && cp "$BASE/settings.cfg" "$dir/config/settings.cfg"
-printf '\ndata="%s"\ncontent=mbcheck.omwscripts\n' "$(native "$HERE/mod")" >> "$dir/config/openmw.cfg"
+printf '\ndata="%s"\ncontent=%s\n' "$(native "$HERE/mod")" "$SCRIPTS" >> "$dir/config/openmw.cfg"
 printf '\n[Bodies]\nmerged body = %s\n' "$MERGED" >> "$dir/config/settings.cfg"
 if [ -n "$EXTRA_SETTINGS" ]; then printf '\n%b\n' "$EXTRA_SETTINGS" >> "$dir/config/settings.cfg"; fi
 cp "$HERE/start.txt" "$dir/start.txt"
@@ -49,14 +58,14 @@ if [ -n "$START_COMMANDS" ]; then printf '%b\n' "$START_COMMANDS" >> "$dir/start
 rm -f "$USERDATA"/screenshots/* "$USERDATA"/*.dmp "$dir/config"/*.dmp
 cd "$BUILD"
 set +e
-# The timeout is only a safety net: the scene quits by itself after about 30 s.
-OPENEDEN_FRAME_STATS_FILE="$(native "$dir/stats.txt")" timeout 120 ./openmw.exe --replace=config \
+# The timeout is only a safety net: the scene quits by itself after about 30 s (75 s for SCENE=equipment).
+OPENEDEN_FRAME_STATS_FILE="$(native "$dir/stats.txt")" timeout "${TIMEOUT:-120}" ./openmw.exe --replace=config \
     --config "$(native "$dir/config")" --user-data "$(native "$USERDATA")" --skip-menu --start "$CELL" --no-grab \
     --script-run "$(native "$dir/start.txt")" > "$dir/log.txt" 2>&1
 code=$?
 set -e
 cp "$USERDATA"/screenshots/* "$dir/frames"/ 2>/dev/null || true
-grep -E "MBPHASE|MBSHOT|MBCHECK|Merged bodies" "$dir/log.txt" > "$dir/phases.txt" || true
+grep -E "MBPHASE|MBSHOT|MBCHECK|MBEQUIP|Merged bodies" "$dir/log.txt" > "$dir/phases.txt" || true
 dumps=$(ls "$USERDATA"/*.dmp "$dir/config"/*.dmp 2>/dev/null | wc -l)
 merged=$(grep -c "draws the merged body" "$dir/log.txt" || true)
 echo "$VARIANT: exit code $code, $dumps crash dumps, $(ls "$dir/frames" | wc -l) screenshots, \

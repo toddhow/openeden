@@ -433,9 +433,12 @@ namespace MWRender::MergedBodies
             return true;
         }
 
+        // `drawRuns` gets the slot runs of each draw, in the order of the root's children (stage e).
         vsg::ref_ptr<vsg::Node> buildNode(const Body::MergedBody& body, const BodyNif::RestPose& rest,
-            const ESM::Race& race, bool female, const MWAnim::Context& context, std::string& error)
+            const ESM::Race& race, bool female, const MWAnim::Context& context,
+            std::vector<std::vector<Body::SlotRun>>& drawRuns, std::string& error)
         {
+            drawRuns.clear();
             // One draw per material key (decision H19, review finding 4): fewer skins per actor than one per slot.
             const std::vector<Body::MergedDraw> draws = Body::planMergedDrawsByMaterial(body);
             if (draws.empty())
@@ -619,6 +622,7 @@ namespace MWRender::MergedBodies
                 stateGroup->stateCommands = { bindPipeline, bindDescriptors };
                 stateGroup->children = { geometry };
                 root->addChild(vsg::CullNode::create(vsg::dsphere(centre, radius), stateGroup));
+                drawRuns.push_back(draw.mRuns);
             }
 
             Anim::Contents contents;
@@ -688,7 +692,7 @@ namespace MWRender::MergedBodies
                 {
                     try
                     {
-                        result.mNode = buildNode(*body, stock.mRest, race, female, context, detail);
+                        result.mNode = buildNode(*body, stock.mRest, race, female, context, result.mDrawRuns, detail);
                     }
                     catch (const std::exception& e)
                     {
@@ -702,7 +706,10 @@ namespace MWRender::MergedBodies
             if (result.mReason == Body::MergedBodyReason::Merged)
                 result.mSlots = Body::mergedSlotsOf(*body);
             else
+            {
                 result.mNode = {};
+                result.mDrawRuns.clear();
+            }
             Log(Debug::Info) << "Merged bodies: " << race.mId.getRefIdString() << " " << sexName(female) << ": "
                              << Body::describe(result.mReason) << " (template " << millisecondsSince(start)
                              << " ms, key check " << checkMs << " ms)";
@@ -758,6 +765,67 @@ namespace MWRender::MergedBodies
             found = sActive->mTemplates.emplace(key, std::move(entry)).first;
         }
         return found->second.mResult;
+    }
+
+    bool applyHiddenRegions(vsg::Node& actorNode, const vsg::Node& templateNode,
+        const std::vector<std::vector<Body::SlotRun>>& drawRuns, const std::vector<int>& hiddenSlots)
+    {
+        if (hiddenSlots.empty())
+            return true;
+        auto* actorRoot = dynamic_cast<vsg::Group*>(&actorNode);
+        const auto* templateRoot = dynamic_cast<const vsg::Group*>(&templateNode);
+        if (actorRoot == nullptr || templateRoot == nullptr || actorRoot == templateRoot
+            || actorRoot->children.size() != drawRuns.size() || templateRoot->children.size() != drawRuns.size())
+            return false;
+        // Everything is checked before anything changes, so a refusal leaves the copy as it was.
+        std::vector<vsg::StateGroup*> groups;
+        std::vector<const vsg::VertexIndexDraw*> geometries;
+        groups.reserve(drawRuns.size());
+        geometries.reserve(drawRuns.size());
+        for (std::size_t i = 0; i < drawRuns.size(); ++i)
+        {
+            auto* cull = dynamic_cast<vsg::CullNode*>(actorRoot->children[i].get());
+            const auto* templateCull = dynamic_cast<const vsg::CullNode*>(templateRoot->children[i].get());
+            if (cull == nullptr || templateCull == nullptr)
+                return false;
+            auto* group = dynamic_cast<vsg::StateGroup*>(cull->child.get());
+            const auto* templateGroup = dynamic_cast<const vsg::StateGroup*>(templateCull->child.get());
+            // A state group the copy shares with the template would hide the region for every actor.
+            if (group == nullptr || templateGroup == nullptr || group == templateGroup || group->children.size() != 1
+                || templateGroup->children.size() != 1)
+                return false;
+            const auto* geometry = dynamic_cast<const vsg::VertexIndexDraw*>(templateGroup->children[0].get());
+            if (geometry == nullptr || !geometry->indices || !geometry->indices->data || drawRuns[i].empty())
+                return false;
+            const Body::SlotRun& last = drawRuns[i].back();
+            if (static_cast<std::uint64_t>(last.mFirstIndex) + last.mIndexCount != geometry->indexCount)
+                return false;
+            groups.push_back(group);
+            geometries.push_back(geometry);
+        }
+        for (std::size_t i = 0; i < drawRuns.size(); ++i)
+        {
+            const std::vector<Body::IndexRange> ranges = Body::visibleIndexRanges(drawRuns[i], hiddenSlots);
+            const vsg::VertexIndexDraw& geometry = *geometries[i];
+            if (ranges.size() == 1 && ranges[0].mFirstIndex == 0 && ranges[0].mIndexCount == geometry.indexCount)
+                continue; // nothing of this draw is hidden: it keeps the template's draw
+            decltype(groups[i]->children) children;
+            children.reserve(ranges.size());
+            for (const Body::IndexRange& range : ranges)
+            {
+                // The copy shares the template's buffer infos, so the vertices and indices are on the GPU once.
+                auto part = vsg::VertexIndexDraw::create(geometry);
+                // VSG's copy does not carry the index type; assignIndices sets it from the data, then the template's
+                // buffer info replaces the one it made.
+                part->assignIndices(geometry.indices->data);
+                part->indices = geometry.indices;
+                part->firstIndex = range.mFirstIndex;
+                part->indexCount = range.mIndexCount;
+                children.push_back(part);
+            }
+            groups[i]->children = std::move(children);
+        }
+        return true;
     }
 
     void report(const ESM::Race& race, bool female, Body::MergedBodyReason reason)

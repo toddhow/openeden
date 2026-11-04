@@ -83,11 +83,22 @@ namespace MWRender::MergedBodies
         vsg::ref_ptr<vsg::Node> mNode; // null when the stock parts must be drawn
         std::vector<int> mSlots; // the part slots the merged body draws (ascending)
         Body::MergedBodyReason mReason = Body::MergedBodyReason::BuildFailed;
+        /// Task 0069 stage e: the slot runs of each draw, in the order of the node's children (one CullNode each).
+        std::vector<std::vector<Body::SlotRun>> mDrawRuns;
     };
 
     /// The shared template of the merged body of (race, sex) read with `context`'s options, built on first use. Main
     /// thread.
     TemplateResult getTemplate(const ESM::Race& race, bool female, const MWAnim::Context& context);
+
+    /// Task 0069 stage e: leaves the regions of `hiddenSlots` (ascending) out of an actor's copy of a template: each
+    /// draw whose runs include a hidden slot gets its own draws of the index ranges that remain (sharing the template's
+    /// vertex and index buffers), or none. `actorNode` must be the actor's copy made by MWAnim::decorate, whose state
+    /// groups are its own (the bone matrices made them so); a copy that still shares a state group with `templateNode`,
+    /// or a structure that is not the template's, is left untouched and false is returned: the caller then keeps the
+    /// stock parts. Main thread, in updateParts; nothing per frame.
+    bool applyHiddenRegions(vsg::Node& actorNode, const vsg::Node& templateNode,
+        const std::vector<std::vector<Body::SlotRun>>& drawRuns, const std::vector<int>& hiddenSlots);
 
     /// One log line per (race, sex, reason) and, for a cache problem, one message box per session.
     void report(const ESM::Race& race, bool female, Body::MergedBodyReason reason);

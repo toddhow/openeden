@@ -7,8 +7,10 @@
 //
 // - decideMergedBody: whether an actor draws the merged body or the stock parts. Fail closed: any missing or doubtful
 //   fact means the stock parts, with the reason that decided it (one log line per reason and body, by the caller).
-// - mergedSlotsCovered: whether equipment or a reservation owns a slot the merged body would draw. In stage d an actor
-//   that wears anything replacing a merged slot keeps the stock parts entirely (no mixing: stage e hides regions).
+// - mergedSlotsCovered: whether equipment or a reservation owns a slot the merged body would draw (stage d, when such
+//   an actor kept the stock parts entirely; the engine no longer asks it).
+// - hiddenMergedSlots and visibleIndexRanges (stage e): the regions equipment covers, and the index ranges of a draw
+//   that remain without them, so a dressed actor keeps the merged body with the covered regions left out.
 // - planMergedDraws: one draw per submesh with its own compact vertex list (arrays shared between draws drew later
 //   draws wrong in the LOD clusters, mwrender/lodclusters.cpp).
 // - invertAffine: the inverse bind matrix of a bone from its rest matrix.
