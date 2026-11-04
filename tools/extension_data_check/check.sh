@@ -1,4 +1,6 @@
 #!/bin/bash
+# Test games open off-screen, out of the taskbar and without taking focus (apps/openmw/vsgengine.cpp); run with OPENEDEN_QUIET_WINDOW=0 to see the window.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Checks an extension's data services in the real game (task 0016): data files through the game's VFS, settings in
 # settings.cfg, marked events reaching Lua, and saved games that know nothing of the extension (decision 0005). No unit test runs the save and Lua code.
 #

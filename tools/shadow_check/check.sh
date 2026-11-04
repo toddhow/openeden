@@ -1,4 +1,6 @@
 #!/bin/bash
+# Test games open off-screen, out of the taskbar and without taking focus (apps/openmw/vsgengine.cpp); run with OPENEDEN_QUIET_WINDOW=0 to see the window.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Checks that every shadow caster can be switched on without crashing the game (task 0052): `object shadows = true`
 # once crashed it in vsg::TransferTask, because a shadow cascade's view kept a default vsg::ViewDependentState (see
 # apps/openmw/mwrender/CLAUDE.md). A unit test covers the view itself (apps/components_tests/view/testshadowview.cpp);

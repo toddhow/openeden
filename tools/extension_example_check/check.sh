@@ -1,4 +1,6 @@
 #!/bin/bash
+# Test games open off-screen, out of the taskbar and without taking focus (apps/openmw/vsgengine.cpp); run with OPENEDEN_QUIET_WINDOW=0 to see the window.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Checks the example extension end to end in the real game (task 0018): every line extensions/example/README.md documents,
 # a save and reload, and the failure message for a broken extension. No unit test runs these together.
 #

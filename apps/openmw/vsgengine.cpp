@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <string_view>
 
 #include <vsg/threading/OperationThreads.h>
 #include <vsg/vk/DeviceFeatures.h>
@@ -227,6 +228,20 @@ namespace OMW
             flags |= SDL_WINDOW_BORDERLESS;
 
         SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
+
+        // OpenEden: test and check runs set OPENEDEN_QUIET_WINDOW, so the window opens far off the desktop, out of the
+        // taskbar and without taking focus. It is not minimised: a minimised window has a 0x0 swapchain and draws nothing.
+        // Unset, empty or "0" means off.
+        const char* quietWindowEnv = getenv("OPENEDEN_QUIET_WINDOW");
+        const std::string_view quietWindow = quietWindowEnv != nullptr ? quietWindowEnv : "";
+        if (!fullscreen && !quietWindow.empty() && quietWindow != "0")
+        {
+            constexpr int quietWindowPosition = -30000; // far enough to be off every monitor layout
+            pos_x = quietWindowPosition;
+            pos_y = quietWindowPosition;
+            flags |= SDL_WINDOW_SKIP_TASKBAR;
+            SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
+        }
 
         mWindow = SDL_CreateWindow("OpenMW", pos_x, pos_y, width, height, flags);
         if (!mWindow)

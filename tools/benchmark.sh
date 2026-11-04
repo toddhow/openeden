@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Test games open off-screen, out of the taskbar and without taking focus (apps/openmw/vsgengine.cpp); run with OPENEDEN_QUIET_WINDOW=0 to see the window.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # tools/benchmark.sh (task 0023, F0b)
 # ----------------------------------
 # Runs the heavy scenes of tools/render_scenes.txt (the ones whose name starts with "heavy_") with GPU timing on, and

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Test games open off-screen, out of the taskbar and without taking focus (apps/openmw/vsgengine.cpp); run with OPENEDEN_QUIET_WINDOW=0 to see the window.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Measures how the player's animation changes around scripted events (task 0067, stage 0): idle to walk, walk to run,
 # stop, turn, weapon draw, attack, a hit and the weapon put away. One scripted scenario (mod/scripts/cmcheck.lua) is run
 # once per variant; the game's `CMTRACE` lines (`[Game] creativemotion animation debug`) and the scenario's `CMPHASE`
