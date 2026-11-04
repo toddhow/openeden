@@ -221,6 +221,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testtilebakelevels.cpp
     lod/testviewlimits.cpp
     lod/testfartier.cpp
+    lod/testresidency.cpp
     bodynif/testskinnedshape.cpp
     bodynif/testseamanalysis.cpp
     bodynif/testanalysisreport.cpp
