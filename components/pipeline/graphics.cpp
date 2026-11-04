@@ -138,7 +138,7 @@ namespace Pipeline
         : mShaderOptions(readShaderOptions)
         // Task 0072, review of the stage f and g rounds, finding 7: `[Rendering] slang shaders` from the options it
         // reads with (Resource::createShaderOptions), so no stage can be made before the switch is known.
-        , preferSlang(vsgUtil::prefersSlang(readShaderOptions.get()))
+        , mPreferSlang(vsgUtil::prefersSlang(readShaderOptions.get()))
     {
         /*
          * A fixed layout may allow the implementation to cheaply switch pipelines without reprogramming the bindings.
@@ -226,7 +226,7 @@ namespace Pipeline
         // Review of stage f: what the choice needs from the stage (its set from the expanded source and the settings
         // defines, whether its family counts texture coordinate sets, the twin when it does not, and the GLSL defines
         // the merged body compares) is worked out here, once per cached stage, and every copy carries it.
-        if (preferSlang)
+        if (mPreferSlang)
             vsgUtil::attachSlangStageChoice(*shaderStage, path + suffix, mShaderOptions);
         return shaderStage;
     }
@@ -341,7 +341,7 @@ namespace Pipeline
         // draws with the GLSL, and so does the other stage of its pipeline.
         // Review of stage f: the choice is the stage's, worked out once (vsgUtil::attachSlangStageChoice); a pipeline
         // only adds its count (vsgUtil::slangTwinFor). With the switch off and no trace nothing here runs (finding 9).
-        if (const bool trace = vsgUtil::shaderTraceActive(); preferSlang || trace)
+        if (const bool trace = vsgUtil::shaderTraceActive(); mPreferSlang || trace)
         {
             const std::string shaderPath = key.shader.path.empty() ? "default" : key.shader.path;
             std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
@@ -359,7 +359,7 @@ namespace Pipeline
                 const vsgUtil::SlangStageChoice* choice = vsgUtil::slangStageChoiceOf(*shader);
                 // A stage made before the switch was set has no choice: work it out on this pipeline's copy.
                 vsg::ref_ptr<vsgUtil::SlangStageChoice> ownChoice;
-                if (choice == nullptr && preferSlang)
+                if (choice == nullptr && mPreferSlang)
                 {
                     ownChoice = vsgUtil::attachSlangStageChoice(*shader, stageFile, mShaderOptions);
                     choice = ownChoice.get();
@@ -381,11 +381,11 @@ namespace Pipeline
                                  stageFile, defines, shader->module->source, mShaderOptions, numUvSets))
                         traced[i] = std::move(*counted);
                 }
-                if (preferSlang && choice != nullptr)
+                if (mPreferSlang && choice != nullptr)
                     twins[i] = vsgUtil::slangTwinFor(*choice, numUvSets, mShaderOptions);
             }
             const bool anyTwin = std::any_of(twins.begin(), twins.end(), [](const auto& twin) { return bool(twin); });
-            const bool slang = preferSlang && anyTwin && vsgUtil::takeSlangTwinsTogether(shaders, twins);
+            const bool slang = mPreferSlang && anyTwin && vsgUtil::takeSlangTwinsTogether(shaders, twins);
             if (slang)
                 Log(Debug::Verbose) << "Using the Slang permutations of " << shaderPath << " for " << numUvSets
                                     << " texture coordinate sets";

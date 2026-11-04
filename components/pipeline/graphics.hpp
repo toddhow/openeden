@@ -29,6 +29,8 @@ namespace Pipeline
     class Graphics
     {
         vsg::ref_ptr<const vsg::Options> mShaderOptions;
+        // Task 0072: `[Rendering] slang shaders`, from mShaderOptions when the Graphics is made.
+        const bool mPreferSlang;
         vsgUtil::RefCache<Options, vsg::BindGraphicsPipeline> mPipelineCache;
         class VertexStageOptions : public ShaderOptions
         {
@@ -48,15 +50,14 @@ namespace Pipeline
         // set before the first pipeline is created.
         bool alphaToCoverage = false;
         bool adjustCoverage = false;
-        // openeden (task 0023, F1b): `[Rendering] slang shaders`. When set, a shader that has a precompiled SPIR-V file
-        // (<path>/main.vert.spv or main.frag.spv, built from Slang) next to its GLSL uses that file in place of the
-        // GLSL. The GLSL is still read first, for its stage and entry point, and stays the fallback when there is no
-        // .spv. Task 0072, review of the stage f and g rounds, finding 7: taken from the shader options
-        // (vsgUtil::prefersSlang) when the Graphics is made, so every stage it makes knows it.
-        bool preferSlang = false;
+        // Task 0072: `[Rendering] slang shaders`: when true, a stage whose define set has a Slang twin may draw with it
+        // (Graphics::create takes both stages' twins or neither). Review of the stage f and g rounds, finding 7: taken
+        // from the shader options (vsgUtil::prefersSlang) when the Graphics is made, so every stage it makes knows it;
+        // review of the member-name and fix rounds, item 4: read-only, so that it cannot drift from them.
+        bool prefersSlang() const { return mPreferSlang; }
         // OpenEden (task 0047): shader paths that exist only as Slang (no GLSL pair beside them). For these the
-        // precompiled <path>/main.vert.spv and main.frag.spv are always the shader, whatever `preferSlang` says, and a
-        // missing file is an error (ask `hasSlangShader` first). Set before the first pipeline using the path is made.
+        // precompiled <path>/main.vert.spv and main.frag.spv are always the shader, whatever `prefersSlang()` says, and
+        // a missing file is an error (ask `hasSlangShader` first); set before the first pipeline using it is made.
         std::vector<std::string> slangOnlyPaths;
         // True when <path>/main.vert.spv and main.frag.spv can be read (there was a slangc at build time).
         bool hasSlangShader(const std::string& path) const;

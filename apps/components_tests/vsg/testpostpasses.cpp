@@ -287,21 +287,28 @@ namespace
     TEST(PostPassesSwitchOff, the_files_the_game_loads_compile_as_the_strings_did)
     {
         const std::filesystem::path built(OPENEDEN_SHADER_BUILD_DIR);
-        std::size_t files = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::path(sSources) / "post"))
+        const std::filesystem::path sources = std::filesystem::path(sSources) / "post";
+        // The files of post/ the passes read, as files/shaders/CMakeLists.txt copies them (SHADER_FILES). Review of the
+        // member-name and fix rounds, item 3: a list, not a count of the folder, which also holds build inputs that are
+        // not copied (the .slang sources, the .sets lists, and any <stage>.interface-exceptions).
+        const std::set<std::string> loaded = { "ao.frag", "bloomdown.frag", "bloomup.frag", "fullscreen.vert",
+            "omwfx.vert", "present.frag", "present.vert", "tonemap.frag", "tonemapconstants.glsl", "velocity.frag" };
+        for (const std::string& name : loaded)
+        {
+            const std::filesystem::path copy = built / "post" / name;
+            EXPECT_TRUE(std::filesystem::is_regular_file(copy)) << copy.generic_string() << " is missing";
+            EXPECT_TRUE(fileBytes(copy) == fileBytes(sources / name)) << copy.generic_string() << " is not its source";
+        }
+        // A GLSL stage or include added to post/ is added to the list (and to SHADER_FILES).
+        for (const auto& entry : std::filesystem::directory_iterator(sources))
         {
             const std::string extension = entry.path().extension().string();
-            // The Slang sources and the lists of define sets are build inputs; the game reads the others.
-            if (!entry.is_regular_file() || extension == ".slang" || extension == ".sets")
-                continue;
-            const std::filesystem::path copy = built / "post" / entry.path().filename();
-            EXPECT_TRUE(std::filesystem::is_regular_file(copy)) << copy.generic_string() << " is missing";
-            EXPECT_TRUE(fileBytes(copy) == fileBytes(entry.path())) << copy.generic_string() << " is not its source";
-            ++files;
+            if (extension == ".vert" || extension == ".frag" || extension == ".comp" || extension == ".glsl")
+            {
+                EXPECT_EQ(loaded.count(entry.path().filename().string()), 1u)
+                    << entry.path().filename().string() << " is not in this test's list";
+            }
         }
-        // fullscreen.vert, tonemap.frag, tonemapconstants.glsl, bloomdown.frag, bloomup.frag, velocity.frag, ao.frag,
-        // omwfx.vert, present.vert and present.frag.
-        EXPECT_EQ(files, 10u);
 
         const std::string path = built.generic_string();
         const auto options = gameOptionsOff(path);

@@ -7,6 +7,7 @@
 #include <vsg/all.h>
 
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -635,5 +636,45 @@ namespace
         const auto i = readFragment(more);
         EXPECT_TRUE(has(i, "member set=0 binding=2 16:d")) << linesOf(i);
         EXPECT_TRUE(has(i, "member push_constant 16:f")) << linesOf(i);
+    }
+
+    // Task 0072, review of the member-name round, item 2 (written before the implementation): the game reads only a
+    // module's specialization constant names (the ids a twin declares), so it has a reader that does not work out the
+    // interface lines, member lines included.
+    const char* const sConstantsFragment
+        = "#version 450\n"
+          "layout(constant_id = 3) const bool useColor = false;\n"
+          "layout(constant_id = 7) const int unused = 0;\n"
+          "layout(set = 0, binding = 0) uniform Block { vec4 a; vec4 b; } block;\n"
+          "layout(location = 0) out vec4 outColor;\n"
+          "void main() { outColor = useColor ? block.a : block.b; }\n";
+
+    TEST(SpirvInterface, the_spec_constant_names_alone_are_those_of_the_whole_reader)
+    {
+        const auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sConstantsFragment);
+        ASSERT_FALSE(words.empty());
+        const auto names = vsgUtil::readSpirvSpecConstantNames(words);
+        EXPECT_EQ(names, vsgUtil::readSpirvInterface(words).mSpecConstantNames);
+        EXPECT_EQ(names, (std::map<uint32_t, std::string>{ { 3u, "useColor" }, { 7u, "unused" } }));
+    }
+
+    TEST(SpirvInterface, the_spec_constant_names_are_read_without_the_interface)
+    {
+        auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sConstantsFragment);
+        ASSERT_GT(words.size(), 5u);
+        // A uniform variable whose pointer type the module never declares: the interface cannot be described (the
+        // whole reader throws), the names of the constants can.
+        const uint32_t bound = words[3];
+        words.push_back((4u << 16) | 59u); // OpVariable: result type, result id, storage class Uniform (2)
+        words.push_back(bound);
+        words.push_back(bound + 1);
+        words.push_back(2u);
+        words[3] = bound + 2;
+        EXPECT_THROW(vsgUtil::readSpirvInterface(words), std::runtime_error);
+        std::map<uint32_t, std::string> names;
+        EXPECT_NO_THROW(names = vsgUtil::readSpirvSpecConstantNames(words));
+        EXPECT_EQ(names, (std::map<uint32_t, std::string>{ { 3u, "useColor" }, { 7u, "unused" } }));
+        // Words that are not SPIR-V are refused, as by the whole reader.
+        EXPECT_THROW(vsgUtil::readSpirvSpecConstantNames({}), std::runtime_error);
     }
 }

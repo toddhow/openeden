@@ -58,6 +58,12 @@ namespace vsgUtil
     SpirvInterface readSpirvInterface(
         const std::vector<uint32_t>& words, const std::map<uint32_t, uint32_t>& pinnedSpecConstants = {});
 
+    /// Task 0072 (review of the member-name round, item 2): a module's specialization constants by SpecId with their
+    /// OpName, as readSpirvInterface gives them in mSpecConstantNames, without working out the interface lines. The
+    /// game needs only these (findSlangPermutation and addSettingsConstants, shaderpermutation.cpp). Throws
+    /// std::runtime_error for words that are not SPIR-V or an instruction that runs past the end.
+    std::map<uint32_t, std::string> readSpirvSpecConstantNames(const std::vector<uint32_t>& words);
+
     struct SpirvInterfaceDiff
     {
         std::vector<std::string> mOnlyInFirst;

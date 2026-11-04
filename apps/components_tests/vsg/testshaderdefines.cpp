@@ -957,7 +957,6 @@ namespace
                 folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
             }
             Pipeline::Graphics graphics(folder.options(true));
-            graphics.preferSlang = true;
             expectGlsl(graphics.create(objectKey(false, 0u)));
         }
     }
@@ -969,7 +968,6 @@ namespace
         folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
         folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
         Pipeline::Graphics graphics(folder.options(true));
-        graphics.preferSlang = true;
         expectTwins(graphics.create(objectKey(false, 0u)), sVertexTwinWords, sFragmentTwinWords);
     }
 
@@ -980,7 +978,6 @@ namespace
         folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
         folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
         Pipeline::Graphics graphics(folder.options(false));
-        graphics.preferSlang = false;
         expectGlsl(graphics.create(objectKey(false, 0u)));
     }
 
@@ -996,7 +993,6 @@ namespace
             folder.list("default/main.vert", "00000003", "TEXCOORD UVSETS_2 VERTEX", sVertexTwinWords);
             folder.list("default/main.frag", "00000004", "MATERIAL TEXCOORD UVSETS_2", sFragmentTwinWords);
             Pipeline::Graphics graphics(folder.options(true));
-            graphics.preferSlang = true;
             const auto bind = graphics.create(objectKey(true, count));
             if (count == 2u)
             {
@@ -1018,7 +1014,6 @@ namespace
         folder.list("default/main.vert", "00000003", "TEXCOORD UVSETS_2 VERTEX", sVertexTwinWords);
         folder.list("default/main.frag", "00000004", "MATERIAL TEXCOORD UVSETS_2", sFragmentTwinWords);
         Pipeline::Graphics graphics(folder.options(true));
-        graphics.preferSlang = true;
         const auto one = graphics.create(objectKey(true, 1u));
         const auto two = graphics.create(objectKey(true, 2u));
         const auto oneAgain = graphics.create(objectKey(true, 1u));
@@ -1036,7 +1031,6 @@ namespace
         folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
         folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
         Pipeline::Graphics on(folder.options(true));
-        on.preferSlang = true;
         Pipeline::Graphics off(folder.options(false));
         const auto twinned = on.create(objectKey(false, 0u));
         const auto glsl = off.create(objectKey(false, 0u));
@@ -1076,7 +1070,6 @@ namespace
         folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
         folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
         Pipeline::Graphics graphics(folder.options(true));
-        graphics.preferSlang = true;
         // Two pipelines of one key and one of another colour mode (a specialization constant, not a stage define):
         // all three are made from the same two cached stages.
         Pipeline::Options otherColour = objectKey(false, 0u);
@@ -1113,7 +1106,7 @@ namespace
         folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
         folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
         Pipeline::Graphics on(folder.options(true));
-        EXPECT_TRUE(on.preferSlang);
+        EXPECT_TRUE(on.prefersSlang());
         const auto bind = on.create(objectKey(false, 0u));
         expectTwins(bind, sVertexTwinWords, sFragmentTwinWords);
         for (const VkShaderStageFlagBits flag : { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT })
@@ -1123,8 +1116,22 @@ namespace
             EXPECT_NE(vsgUtil::slangStageChoiceOf(*stage), nullptr) << static_cast<int>(flag);
         }
         Pipeline::Graphics off(folder.options(false));
-        EXPECT_FALSE(off.preferSlang);
+        EXPECT_FALSE(off.prefersSlang());
         expectGlsl(off.create(objectKey(false, 0u)));
+    }
+
+    // Task 0072, review of the member-name and fix rounds, item 4 (written before the change): the switch of a Graphics
+    // is its shader options' (finding 7 of the review of the stage f and g rounds); a field anyone can assign could
+    // drift from them.
+    template <class T>
+    concept SwitchAssignable = requires(T& graphics)
+    {
+        graphics.preferSlang = true;
+    };
+
+    TEST(ShaderTwinChoice, the_switch_of_a_graphics_cannot_be_assigned)
+    {
+        EXPECT_FALSE(SwitchAssignable<Pipeline::Graphics>);
     }
 
     // Task 0072, review of stage f, finding 8 (written before the implementation): Pipeline::terrain, whose stages

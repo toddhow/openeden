@@ -170,7 +170,7 @@ namespace vsgUtil
                 try
                 {
                     auto declared = DeclaredSpecConstants::create();
-                    for (const auto& [id, name] : readSpirvInterface(module->code).mSpecConstantNames)
+                    for (const auto& [id, name] : readSpirvSpecConstantNames(module->code))
                         declared->ids.insert(id);
                     module->setObject(declaredSpecConstantsKey, declared);
                 }
@@ -402,7 +402,7 @@ namespace vsgUtil
         {
             try
             {
-                for (const auto& [id, name] : readSpirvInterface(stage.module->code).mSpecConstantNames)
+                for (const auto& [id, name] : readSpirvSpecConstantNames(stage.module->code))
                     parsed.insert(id);
             }
             catch (const std::runtime_error&)

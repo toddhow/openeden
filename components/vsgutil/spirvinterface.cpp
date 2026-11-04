@@ -681,6 +681,12 @@ namespace vsgUtil
         return out;
     }
 
+    std::map<uint32_t, std::string> readSpirvSpecConstantNames(const std::vector<uint32_t>& words)
+    {
+        // The module's instructions only: no interface lines, no member lines.
+        return Module(words).specConstantNames();
+    }
+
     namespace
     {
         // The block of a "member <block> <offset>:<path>" line ("set=<s> binding=<b>" or "push_constant"), or empty
