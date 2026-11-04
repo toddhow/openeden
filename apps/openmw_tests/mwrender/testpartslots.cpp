@@ -219,8 +219,10 @@ namespace
                         << "update " << i << " slot " << slot;
                 }
                 else
+                {
                     EXPECT_EQ(mergedNodes.mDrawn[index], stockNodes.mDrawn[index])
                         << "update " << i << " slot " << slot;
+                }
             }
         }
     }
