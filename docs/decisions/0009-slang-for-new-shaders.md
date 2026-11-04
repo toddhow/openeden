@@ -28,3 +28,6 @@ Numbered 0009 because 0004 is a draft on the branch `research/slang-shaders` (re
 ## What toddhow decides
 1. Approve this decision (the research note's question 3 in `docs/research/0008-modern-rendering-proposal.md`, section 9).
 2. Whether `slang shaders` stays a setting for the whole of Track V or the sun's GLSL is deleted once V4 is finished.
+
+## Note, 2026-11-04 (task 0072)
+toddhow asked to start porting the existing shaders. Task 0072 keeps this decision's rule that the game does not run Slang: stage a compiles a Slang twin once per define set at build time (`openeden_add_slang_permutations()`), and the game picks the file whose define set matches exactly, else the GLSL. Whether the game should embed the Slang library for the object shader's open-ended define sets (research note 0035, option B) is left to toddhow at task 0072's stage h; until then this decision stands unchanged.
