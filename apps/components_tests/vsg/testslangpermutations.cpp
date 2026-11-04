@@ -16,8 +16,10 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace
@@ -35,51 +37,61 @@ namespace
         return words;
     }
 
-    [[maybe_unused]] vsg::ref_ptr<vsg::Options> glslOptions()
+    // The settings file a settings define is written into as "#define <name> 1" (Resource::ShaderSettings,
+    // components/resource/shadersettings.cpp): DEBUG_CHUNKS into terrain.settings, the others into shadow.settings.
+    [[maybe_unused]] std::string settingsFileOf(std::string_view name)
+    {
+        return name == "DEBUG_CHUNKS" ? "terrain.settings" : "shadow.settings";
+    }
+
+    // Task 0072, stage b: the `*.settings` includes are virtual files the engine's shader options serve
+    // (createShaderOptions in components/resource/resourcesystem.cpp), so the GLSL compiles as in the game. The test's
+    // default settings write no "#define" line; each name of settingsDefines is added to its settings file, so that it
+    // lands where the stage includes that file, as the game's settings file puts it (review of the water port).
+    [[maybe_unused]] vsg::ref_ptr<vsg::Options> glslOptions(const std::set<std::string>& settingsDefines = {})
     {
         auto options = vsg::Options::create();
         options->paths = { OPENEDEN_SHADER_SOURCE_DIR };
-        // Task 0072, stage b: the `*.settings` includes are virtual files the engine's shader options serve
-        // (createShaderOptions in components/resource/resourcesystem.cpp), so the GLSL compiles as in the game.
-        options->readerWriters = { vsg::ref_ptr{ new Resource::ShaderSettings }, vsg::glsl::create() };
+        vsg::ref_ptr<Resource::ShaderSettings> settings{ new Resource::ShaderSettings };
+        for (const std::string& name : settingsDefines)
+        {
+            auto& object = settings->objects[settingsFileOf(name)];
+            const auto* module = dynamic_cast<const vsg::ShaderModule*>(object.get());
+            std::string text = module ? module->source : std::string();
+            if (!text.empty() && text.back() != '\n')
+                text += '\n';
+            object = vsg::ShaderModule::create(text + "#define " + name + " 1\n");
+        }
+        options->readerWriters = { settings, vsg::glsl::create() };
         return options;
     }
 
     // The GLSL source of a stage with its includes inserted, as the game reads it.
-    [[maybe_unused]] std::string glslSource(const std::string& file)
+    [[maybe_unused]] std::string glslSource(const std::string& file, const std::set<std::string>& settingsDefines = {})
     {
-        auto stage = vsg::read_cast<vsg::ShaderStage>(file, glslOptions());
+        auto stage = vsg::read_cast<vsg::ShaderStage>(file, glslOptions(settingsDefines));
         return stage && stage->module ? stage->module->source : std::string();
     }
 
     [[maybe_unused]] std::vector<uint32_t> compileGlsl(const std::string& file, const std::string& canonicalDefines)
     {
-        auto options = glslOptions();
-        auto stage = vsg::read_cast<vsg::ShaderStage>(file, options);
-        if (!stage)
-            return {};
         std::vector<std::string> defines;
+        std::set<std::string> settingsDefines;
         std::istringstream names(canonicalDefines);
-        std::string settingsDefines;
         const auto settingsNames = Resource::settingsDefineNames();
         for (std::string name; names >> name;)
         {
             // Task 0072 (water family): a name of Resource::settingsDefineNames() is a "#define <name> 1" line of a
-            // settings file (shadow.settings), which these default settings never write; put the line in the source,
-            // as the game's settings file would, so the GLSL is compiled as the game compiles it for this set.
+            // settings file, not a compiler define.
             if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
-                settingsDefines += "#define " + name + " 1\n";
+                settingsDefines.insert(name);
             else
                 defines.push_back(name);
         }
-        if (!settingsDefines.empty())
-        {
-            stage->module = vsg::ShaderModule::create(*stage->module);
-            std::string& source = stage->module->source;
-            const std::size_t version = source.find("#version");
-            const std::size_t at = version == std::string::npos ? 0 : source.find('\n', version) + 1;
-            source.insert(at, settingsDefines);
-        }
+        auto options = glslOptions(settingsDefines);
+        auto stage = vsg::read_cast<vsg::ShaderStage>(file, options);
+        if (!stage)
+            return {};
         vsg::ShaderStages stages{ stage };
         if (!vsg::ShaderCompiler::create()->compile(stages, defines, options))
             return {};
@@ -211,9 +223,14 @@ namespace
             }
             // Review of stages b and c: a listed name the stage neither imports nor gets from a settings file gives a
             // permutation that can never be chosen.
+            // A settings define counts only for a stage that includes its settings file (review of the water port).
             std::set<std::string> possible = vsgUtil::importedDefines(glslSource(stageFile));
+            std::set<std::string> allSettingsDefines;
             for (const std::string_view name : Resource::settingsDefineNames())
-                possible.emplace(name);
+                allSettingsDefines.emplace(name);
+            for (const std::string& name :
+                vsgUtil::includedSettingsDefines(glslSource(stageFile, allSettingsDefines), allSettingsDefines))
+                possible.insert(name);
             for (const auto& [defines, file] : manifest.mFiles)
             {
                 SCOPED_TRACE(stageFile + " [" + defines + "] " + file);
