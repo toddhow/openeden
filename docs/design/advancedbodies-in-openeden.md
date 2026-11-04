@@ -1,6 +1,6 @@
 # AdvancedBodies in OpenEden: design
 
-Status: draft for toddhow's review, 2026-11-02. Nothing is built. Companion to `docs/design/Body-System-Design-Guide.md` (toddhow's guide: goals, principles, milestones B1 to B10; it stays the source for *what*), `docs/research/0027-advancedbodies-in-openeden.md` (facts from the code, the **verify** list) and CreativeMotion's `docs/design/advancedbodies-handoff.md` (decisions D1 to D7, written before OpenEden's architecture settled).
+Status: draft for toddhow's review, 2026-11-02; B1 (task 0063) is built. **Direction change 2026-11-03: section 7A** (hand-modelling a full body is sidelined; the engine merges the legacy parts into one cached body instead). Text it supersedes is marked "Superseded by 7A" below and kept. Companion to `docs/design/Body-System-Design-Guide.md` (toddhow's guide: goals, principles, milestones B1 to B10; it stays the source for *what*), `docs/research/0027-advancedbodies-in-openeden.md` (facts from the code, the **verify** list) and CreativeMotion's `docs/design/advancedbodies-handoff.md` (decisions D1 to D7, written before OpenEden's architecture settled).
 
 Authority: this document is *how AdvancedBodies fits OpenEden*. Where it disagrees with the guide, the guide's goals win and the disagreement is a row in the decisions table (section 17), not a silent change. Where it disagrees with the root `CLAUDE.md`, stop and ask toddhow.
 
@@ -103,7 +103,7 @@ The consumers' questions, in order of when they are built (B4):
 1. **Proportions (skeletal).** A small set of numbers (height, shoulder width, hip width, limb length scales, torso depth) become **per-bone scale and offset** applied to the skeleton *before animation*, so *everything* on the skeleton follows: body parts, armour, hair, weapons in hand. This is a continuous function of the skeleton, so it **cannot open seams**. It needs the engine to accept non-uniform bone scale in the animation system: `Anim::Transform` scale support and CreativeMotion's "no scale in clips" assumption (handoff 3.8) are both **verify**; the fallback is applying the proportions in a post-animation pass over `BonePose`, like IK (`mwrender/CLAUDE.md`).
 2. **Surface morphs (mesh).** Named morph targets (muscle, fat, breast/chest shape, face) that move vertices of the skin meshes. Applied only to skin parts the body owns; garments conform separately (section 9).
 
-Tier 1 is the first target and works on Morrowind's assembled parts. Tier 2 comes with the weld scheme (section 7) or with whole-mesh bodies.
+Tier 1 is the first target and works on Morrowind's assembled parts. Tier 2 comes with the weld scheme (section 7) or with whole-mesh bodies. **Update 2026-11-03 (7A):** tier 2 comes with the **merged legacy body** (the engine builds the whole-mesh body from the stock parts), and with modders' own full-body packages; the per-part weld scheme of 7.2 is the fallback if a merge is refused.
 
 ### 6.2 CPU reference first (B3)
 
@@ -141,6 +141,8 @@ Actors are never baked into world-LOD clusters or tiles (`world-lod-and-streamin
 
 ### 7.2 Proposal: a virtual body, a weld map, and two strictness levels
 
+> **Partly superseded by 7A (2026-11-03).** The *virtual* body (a package that only *describes* the parts) is replaced at run time by a **real merged mesh** that the engine builds from the parts and caches. Items 1 and 2 below describe what stage a of task 0069 measures and the merger computes (the weld map becomes `weldGroups` of the merged package); item 3 (the displacement field) is unchanged and still the rule; items 4 to 7 hold as written (strictness, head and hair, beasts, werewolf). The per-part weld without a merge remains the fallback if stage a says a joint cannot be merged.
+
 1. **Virtual assembled body.** The legacy adapter reads the *chosen parts* for (race, sex, view) with the same selection logic as `getBodyParts`/`getHeadModel`/`getHairModel` (`bodyparts.cpp`; the adapter *calls* them, it does not copy them) and presents them to `eden_body` as one `BodyPackage` whose `meshes[]` are the parts, each tagged with its `PartReferenceType`, its attach bone (`MWAnim::sPartBones`) and its `region` and role (skin, hair, head).
 2. **Weld map (derived data).** At derive time (B2), the adapter finds boundary vertices of different parts that coincide at the bind pose (within a named tolerance, a constant in `bodylegacy.cpp` tuned against the reference body, not guessed here) and groups them. The derived data is a list of weld groups. Whether stock parts have exactly coincident boundary vertices or only overlap is **verify**; the derivation reports a *seam quality* number per seam so the answer is data, and if parts only overlap, groups are formed by nearest-neighbour on the overlap ring with a maximum distance.
 3. **Morph evaluation respects the weld.** A surface morph is evaluated on the *virtual body* as a displacement **field of rest position** (a smooth function sampled where each vertex lies), not per-part deltas. Coincident vertices have the same rest position, so they get the same displacement and the seam stays closed. Authored morph targets that are per-part (modder content) are validated: delta at a weld group must agree across parts within a tolerance, or the validator reports the seam (guide's validator: "extreme slider values do not invert triangles" plus a new "no seam opening" check).
@@ -154,6 +156,53 @@ Actors are never baked into world-LOD clusters or tiles (`world-lod-and-streamin
 ### 7.3 What the reference body is
 
 For B1 the reference is "the default human male and female body parts" of Morrowind: the set `getBodyParts` returns for a given human race and sex. Tests use *synthetic* `ESM::BodyPart` records and synthetic part meshes (no Bethesda files in the repository, root guardrail); a written, repeatable in-game check uses the user's own data.
+
+## 7A. The merged legacy body (direction of 2026-11-03, task 0069)
+
+### 7A.1 In plain language
+
+toddhow is not a modeller and will not hand-model a full body. So nothing has to be modelled or shipped: **the engine builds the one-piece body itself from the parts the player already owns.** It finds the parts a race and sex use, reads them, joins the vertices where parts touch, keeps the skin weights, and sorts the triangles by body region. The result is saved in the player's own data folder as derived data (the same rule as the LOD bakes: it is made from the game's meshes, so it is never committed and never shipped). A modder who has made a real full-body mesh supplies it as an ordinary body package and skips the merge. The merged body is also what makes surface sliders (tier 2, section 6.1) possible: one mesh has no gaps between parts.
+
+Facts, with file and function, are in `docs/research/0032-merged-body-from-legacy-parts.md`; the staged plan is `docs/tasks/0069-advancedbodies-merged-legacy-body.md`. Every statement here that needs the user's own data is marked **verify** there and is settled by stage a (a read-only measurement), not by guessing.
+
+### 7A.2 What changes and what does not
+
+| Topic | Before (7.1, 7.2) | Now |
+| --- | --- | --- |
+| The body at run time | ~20 stock parts, a virtual package describes them | One merged skinned mesh per (race, sex, third-person view), neck down; head and hair stay parts |
+| Seams | A weld map, per-part meshes untouched | The merge welds coincident vertices; UV and normal splits stay as `weldGroups`; the displacement field (7.2 item 3) still keeps duplicates together |
+| Where it comes from | The legacy adapter reads the parts at each use | The adapter reads them **once** at bake time; the cache holds the result |
+| Equipment | A part with higher priority replaces a part | A region of the merged body is hidden (a contiguous triangle range, switched off); armour parts stay separate skinned parts as today |
+| Strictness | Strict: legacy equipment never merged or morphed | Unchanged |
+| Beasts, werewolf, creatures, first person | Beasts one more package, others left alone | Humans first; beasts if stage a shows the same structure; werewolf, creatures and first person stay stock |
+| Modder's own full body | A package with `meshes[]` | The same package, same loader, same validator, same renderer path, **no merge step** |
+| Shipping | Nothing legacy is shipped; B1 had no mesh | Nothing is shipped; the merged mesh is a local derivative |
+
+### 7A.3 The pipeline
+
+1. **Select** the stock parts for (race, sex, third person) with the engine's own functions (`getBodyParts`; the adapter calls them, as in B1).
+2. **Read** each part with a skinned NIF reader over `components/nif` (`components/bodynif`, no engine types): vertices, normals, UVs, triangles, per-bone weights, bone names, bind matrices, material facts, shape names for the skin filter.
+3. **Merge** (a pure library in `components/body`): one bind space; weld within a data-derived tolerance; renormalise weights; canonical bone list; one submesh per material key; triangles sorted by region; fixed order everywhere (research note 0032 section 2).
+4. **Validate** with B1's validator, extended with the new `bodymesh` mesh format and the `weldGroups` rules. A merge that fails validation is never cached.
+5. **Cache** in `<user data>/openeden/bodies/` as a derived Eden Archive pack, keyed by the part byte hashes, the records, the skeleton and the merger version; written whole, published by atomic rename, stale entries ignored (section 4.3 and the LOD design 4.5 to 4.7).
+6. **Draw** behind `[Bodies] merged body` (off by default): one node with the same skin controller bound by bone name, region draws under switches, the subsurface mark from region roles (6.5); any failure draws the stock parts.
+
+### 7A.4 What it costs and what it must not break
+
+Costs are **measured, not promised** (stage d records them): per-person part reads and attaches (the load-trace scopes `npc.part.read` and `npc.part.attach`), draw counts, memory. Off means unchanged, compared byte for byte, not "within noise". The merged and stock bodies are compared numerically with the software skin at five poses and by viewed difference images; the merged body may differ from stock only at weld groups whose stock weights disagree, and only by the measured amount.
+
+### 7A.5 Open questions for toddhow (each with a recommendation)
+
+1. **Head** (H14): merge the body neck down and keep head and hair as parts? *Recommend yes.* Merging the head multiplies bodies by the number of head records per race and sex (stage a counts them).
+2. **When to build** (H15): ahead of time with a bake command plus a background worker, and an actor whose entry is missing at creation draws stock for its whole life (no live swap)? *Recommend yes.* Alternatives: block the loading screen, or swap a live actor (a visible pop).
+3. **Cache payload** (H16): a small canonical `bodymesh` layout in the derived pack? *Recommend yes* (the engine can build a node from arrays today; glTF mesh rendering is unverified). The layout is a draft that freezes only after your approval, like the tile and cluster layouts. Alternative: write glTF `.glb`.
+4. **Seam weights** (H17): the equal-weight mean of a weld group's members? *Recommend yes.* Alternative: one owning part per seam. Stage a measures how much the stock weights disagree; if it is zero this choice does not matter.
+5. **Scope** (H18): humans first, beasts only if the structure matches, no werewolf, creature or first person? *Recommend yes.*
+6. **Textures** (H19): one submesh per material, no atlas? *Recommend yes* (no block-compression encoder in the project; the draw count is measured, not assumed).
+7. **Where the NIF reader lives** (H20): a new `components/bodynif`? *Recommend yes* (the bake mode and the tests need it without the engine).
+8. **Runtime check of the cache:** the game trusts the bake's `current` pointer and compares a key made from the ESM selection and file sizes, without re-hashing model bytes at start (H15 note). *Recommend yes;* re-hashing on every start costs reading every part file. A changed mod is caught by the key's record and size parts; a same-size same-path byte change is caught only by running the bake again.
+9. **A bake after a load-order change** (decided as in the LOD design 4.6): the status line says "bodies out of date, run --bake-bodies"; the game draws stock meanwhile. *Recommend yes.*
+10. **Stage order:** stage a (measure) alone first, then your go/no-go on its table before stage b starts. *Recommend yes.*
 
 ## 8. Selection, replacement, priority, conflict log, validator, fallback (guide section 6)
 
@@ -247,6 +296,8 @@ Following the guide's section 12 and root gates:
 
 Task numbers are reserved from 0063. Every stage is **full loop** (root `CLAUDE.md`): the data model, derivation, morph application, solvers, a loader of untrusted files and saves all carry the risks the full loop exists for. The lighter loop may apply to editor UI only, when toddhow marks the spec lighter.
 
+> **Numbering note (2026-11-03): the table below is stale from B2 on.** Tasks 0064 (VFS pack placement), 0065 (CreativeMotion push sandbox), 0066 (whole-map view), 0067 (CreativeMotion runtime), 0068 (far water) and **0069 (the merged legacy body, section 7A)** were taken by other work, so the numbers 0064 to 0075 in this table are only the *order*. Later stages take the next free number when they are written, and this table is re-numbered then. The merged legacy body (task 0069) comes before B3: B3 (sliders, tier 2 surface morphs) depends on it instead of on the virtual assembled body.
+
 | Task | Guide | Stage | Depends on |
 | --- | --- | --- | --- |
 | **0063** | B1 | Body contract: package format, validator, legacy adapter for the reference body, conformance suite (draft written) | none (0050 to 0052 if packed-form tests are included in B1b) |
@@ -295,10 +346,18 @@ Options with a recommendation first. Guide decisions G1 to G6 are the guide's se
 | H10 | Skin mark by role instead of path (new) | Yes, in B3/B10a; legacy keeps the path mark meanwhile | Keep path marks and accept the load-order risk |
 | H11 | Vulkan morph compute | Describe now, measure later (B10a); CPU bake is the default | Build the compute pass in B3 |
 | H12 | Bone scale vs post-animation pass for proportions (**verify** first) | Skeleton bone scale if `Anim::Transform` supports it; otherwise a `BonePose` pass | Always the pass |
+| H13 | Direction of 2026-11-03: no hand-modelled body (new) | Merge the legacy parts programmatically from the player's own data, cache the result as derived data, never commit or ship it; modders supply their own full body as a package, no merge step (7A, task 0069) | Hand-model one body (toddhow is not a modeller); ship a converted body (a derivative of the game's meshes) |
+| H14 | Head in the merged body (new) | Neck down; head and hair stay parts (the head is chosen per NPC record) | Merge per head record (bodies multiply by the head count; stage a counts) |
+| H15 | When the cache is built (new) | Ahead of time with `openmw --bake-bodies` plus a background worker; an actor whose entry is missing at creation draws stock parts for its whole life; the runtime trusts the bake's `current` pointer and compares a key from the ESM selection and file sizes | Build in the loading screen (blocks); swap a live actor when the entry arrives (a visible pop); re-hash every part file at every start (slow) |
+| H16 | Cache payload (new) | A small canonical `bodymesh` layout in the derived pack, a draft until toddhow approves it (like the tile and cluster layouts) | glTF `.glb` through a new writer (rendering glTF meshes is unverified) |
+| H17 | Skin weights at a seam (new) | Equal-weight mean of a weld group's members, renormalised, top 4, ties by canonical bone order | One owning part per seam |
+| H18 | Scope of the merge (new) | Humans first; beasts only if stage a shows the same structure; no werewolf, creature or first person | Merge every race now; include first person |
+| H19 | Textures in the merged body (new) | One submesh per material key, no atlas | A texture atlas (needs a block-compression encoder) |
+| H20 | Where the skinned NIF reader lives (new) | `components/bodynif` over `components/nif` only | Inside `bodylegacy.*` (unusable by tools and tests without the engine) |
 
 ## 19. Risks
 
-1. **Seams** (section 7): the weld map depends on how stock parts meet, which is unknown until looked at with the user's own data. B2 reports it before B3 relies on it.
+1. **Seams** (section 7): the weld map depends on how stock parts meet, which is unknown until looked at with the user's own data. B2 reports it before B3 relies on it. **Update 2026-11-03:** the merge (7A) makes this the gate of task 0069: stage a measures every seam and ends in a go/no-go table before the merger is written.
 2. **Bone scale** may not be supported in animation (**verify**); the fallback exists but is less elegant.
 3. **Cache blow-up**: one baked body per unique slider set; the lattice and the LRU bound it; measure in B3.
 4. **Format sprawl**: `openeden.body`, `.garment.json`, `.character.json`, population rules, skeleton profile v2. Keep one canonical writer and one validator per format; the existing JSON support in `core/format` is the base.
@@ -310,3 +369,4 @@ Options with a recommendation first. Guide decisions G1 to G6 are the guide's se
 | Date | Change |
 | --- | --- |
 | 2026-11-02 | First draft, with research note 0027 and task 0063 (draft) |
+| 2026-11-03 | Direction change (toddhow): no hand-modelled body; merge the legacy parts programmatically and cache the result (section 7A, decisions H13 to H20, research note 0032, task 0069 draft). Superseded text marked in 6.1 and 7.2; numbering note added to section 17 |
