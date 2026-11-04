@@ -149,8 +149,38 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **A tile is drawn like a live chunk of the same size:** `Builder::createBatch(bounds, lod)` and `createDraw` with `BakedStorage` supplying heights and normals from the tile (33 vertices, lod 2, 3 or 4 for levels 1, 2 and 3). Level 1 takes colours, blend maps and layers from the live storage. Levels 2 and 3 carry a baked RGBA8 ground picture (256 x 256, no mips) and are drawn through the same terrain shader with `Storage::getDiffuseOverride`: `Builder::create` then binds a 1 x 1 blend map of zeros (so the shader reads layer 0 at texture coordinates that run once over the tile) and a one-layer array holding the picture; the vertex colours are white because the picture already holds them. With the terrain maps on (`TerrainMapSettings::enabled`) this is skipped and every tile uses the live layers.
 - **Several levels:** `Lod::selectTileTree` chooses over tile and ancestors (`Covered` for what lies under a drawn tile); a covered tile's node stays until its drawn ancestor is built. A tile's edges stitch to a coarser drawn tile with the same lodFlags as `Paging::updateView` (`LodTerrain::updateStitching`); live chunks next to a tile are split until their vertex LOD is not coarser than the tile's (`Coverage::touchedVertexLod`).
 - **Stale packs:** the worker bakes every tile's digest again without blending (`TileBakeSettings::mDigestOnly`; the digest includes `albedoInputsDigest`: blend map, vertex colours and a hash of every used layer's file) and compares with the pack: a changed land texture, blend or colour makes the pack stale, logged as a warning, and the baker says so when it replaces one.
-- **Not done:** mip maps of the baked picture (`convertToArrayTexture` keeps one level of an uncompressed image), block compression of the picture (no encoder), a handoff that keeps a parent tile until its drawn children are built (a parent that turns Live is removed at once and its children appear a frame or two later).
+- **Not done:** mip maps of the baked picture (`convertToArrayTexture` keeps one level of an uncompressed image), block compression of the picture (no encoder), a handoff that keeps a parent tile until its drawn children are built when the tiles end at the paging range (without `map view` a parent that turns Live is removed at once and its children appear a frame or two later, as before task 0060; with it, see the planner section below).
 - **Checking it:** bake with `openmw --bake-lod-terrain --bake-gi-out <folder>` against a COPY of the config, put the pack in `<user data>/openeden/lod/terrain.edenpak` of the run, set `[WorldLod] enabled = true` and a threshold (64 shows tiles at 30000 view; 4 shows none in the Balmora pose) and compare frames with `enabled = false`. A pack that does not match the loaded land is refused with a warning in the log.
+
+## The residency planner of the LOD clients (task 0060, `components/lod/residency.*`)
+
+- **What:** `Lod::planResidency` is pure (no GPU, no clock): given one `ResidencyItem` per tile or cluster it says what
+  to load (nearest first under a budget, index order without one) and what to free. `LodTerrain` calls it every frame;
+  `LodClusters` only with a budget (`far memory budget` or the tier's), and without one runs the per-tile loop of the
+  code before the planner, in its order. The clients' own rules are pure functions beside it (`clusterReplaceable`,
+  `cancelEviction`, `classifyRefinedChild`, `refinedParentMayGo`, `refinementReleases`), so tests can reach them.
+- **The governing rule:** an item with **no fallback** is never blocked, freed or evicted, and no eviction cooldown
+  holds it back. No fallback means nothing else would draw its square: a terrain tile whose square is not inside the
+  live paging range (`squareReplaceable`, with hysteresis inside the range), a cluster with no live objects (object
+  paging off: `Camera::mLiveObjectsPage`) or whose square reaches past their range. The budget governs the replaceable
+  items only; an overrun the others cause is logged once per change (`mOverBudget`), never fixed with holes. So in map
+  view a budget cannot bound memory: that is an open decision for toddhow (task 0060 stage log, third review).
+- **Two cooldowns, counted in frames:** the eviction cooldown (`mCooldown`: set when the planner frees a wanted item;
+  replaceable items only) and the failure back-off (`mFailureCooldown`: every item; `failureCooldownFrames` doubles the
+  base for each further failure, up to 16 times the base). Frames, not seconds: the clusters' 600-frame base capped at 9,600 frames is 160 s at
+  60 fps but 32 s at 300 fps. Terrain tiles have no back-off: one that fails to build is never chosen again (`mFailed`).
+  A loading item with no fallback whose loads failed before commits no bytes, so it cannot make pressure free others.
+- **Refined terrain tiles:** without `map view` a drawn tile that the selection refines (Live) goes at once, as before.
+  With it (`camera.mViewDistance > camera.mPagingRange`) it stays until `refinedTileMayGo`: the live terrain draws its
+  whole square, or no chosen child is coming (in view, not built yet) or failed past the live range. A child out of view
+  or inside the live range lets it go (waiting for one out of view drew the parent over its drawn siblings for as long as
+  it stayed unseen); a failed child keeps it for good (overlap rather than a hole), and then its bytes are not credited
+  to its children (`RefinementTile::mStays`).
+- **Clusters freed while wanted** are marked `mEvicted`, fade out through the hand-over (`Lod::stepCoverage`) and are
+  not wanted again until gone; if the square stops being replaceable meanwhile the free is cancelled.
+- **Tests:** `apps/components_tests/lod/testresidency.cpp`. Its `ClientSim` and terrain Sim mirror the clients' order
+  and rules; they are not the clients, which have no unit test (they need a compile context and a store). Change a
+  client's order and its Sim together.
 
 ## Cell-load trace and NPC animation preload (task 0060, note 0026)
 
