@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "download.hpp"
+#include "framecapture.hpp"
 
 #include <vsg/core/Data.h>
 
@@ -28,6 +29,10 @@ namespace Render
         VkImageLayout srcImageLayout;
 
         Screenshot(vsg::Device* in_device, vsg::ref_ptr<vsg::Image> in_srcImage, VkImageLayout in_srcImageLayout);
+        // The image presented last (imageIndex(1)), at the swapchain's extent. Only for a copy after a wait for the
+        // device to be idle (the editor's capture): that image has been handed to the presentation engine, and Vulkan
+        // forbids using it before it is acquired again, so this reads it against the specification. The caller makes
+        // sure imageIndex(1) names an image (Engine::screenshotOperation).
         Screenshot(vsg::ref_ptr<vsg::Window> window);
         ~Screenshot() override;
 
@@ -36,11 +41,14 @@ namespace Render
         // again). The file is written later, in operate() on a worker thread, so the disk alone cannot tell two
         // requests apart: six requests on six consecutive frames used to get one name. Thread-safe.
         void generateFilename(const std::filesystem::path& path, const std::string& ext);
-        // Copies the source image now, on the calling thread (the GPU copy into a host-visible image of its own, and
-        // the wait for it); operate() then reads that copy and writes the file. The caller makes sure the source holds
-        // the wanted frame and that nothing draws into it during the copy (Engine::captureScreenshot). Without this
-        // call operate() copies the source when it runs, as before.
-        void copyNow();
+        // A host-visible copy of the source that createDownloadCommands made and that has finished (FrameCapture);
+        // operate() reads it and writes the file. The token counts it against the copies waiting to be written, until
+        // operate() has read it or this is destroyed.
+        void useCopy(vsg::ref_ptr<vsg::Image> copy, ScreenshotCopyBudget::Token token);
+        // Copies the source image now, on the calling thread, and waits for the copy (a headless engine's image, which
+        // is never presented); throws std::runtime_error when the copy fails, which would otherwise give a file of
+        // whatever the memory held. Without this or useCopy, operate() copies the source when it runs, as before.
+        void copyNow(ScreenshotCopyBudget::Token token);
         void operate() override;
 
     private:
@@ -48,7 +56,15 @@ namespace Render
 
         std::filesystem::path mReservedFilename;
         vsg::ref_ptr<vsg::Image> mCopy;
+        std::optional<ScreenshotCopyBudget::Token> mCopyToken;
     };
+
+    // The end of a game screenshot, called once its copy has finished (Engine::requestScreenshot's done): gives it
+    // the write options and the first free name in dir, then hands it to queue (the writer thread). A name is taken
+    // only here, so a request that was dropped, or whose frame was lost, takes no number.
+    void nameAndQueueScreenshot(vsg::ref_ptr<Screenshot> screenshot, const std::filesystem::path& dir,
+        const std::string& ext, vsg::ref_ptr<const vsg::Options> writeOptions,
+        const std::function<void(vsg::ref_ptr<Screenshot>)>& queue);
 }
 
 #endif

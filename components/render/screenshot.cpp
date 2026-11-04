@@ -5,6 +5,8 @@
 #include <iostream>
 #include <mutex>
 #include <set>
+#include <stdexcept>
+#include <string>
 
 #include <vsg/app/Window.h>
 #include <vsg/commands/Commands.h>
@@ -32,25 +34,42 @@ namespace Render
     Screenshot::Screenshot(vsg::ref_ptr<vsg::Window> window)
         : device(window->getOrCreateDevice())
     {
-        srcImageFormat = window->getOrCreateSwapchain()->getImageFormat();
-        srcRect = { { 0, 0 }, window->extent2D() };
+        const vsg::ref_ptr<vsg::Swapchain> swapchain = window->getOrCreateSwapchain();
+        srcImageFormat = swapchain->getImageFormat();
+        // OpenEden: the swapchain's extent, which the image has. window->extent2D() follows the window's resize events
+        // at once, while the images keep their size until the next acquisition rebuilds the swapchain, so a capture in
+        // between asked for a region outside the image.
+        srcRect = { { 0, 0 }, swapchain->getExtent() };
         // get the colour buffer image of the previous rendered frame as the current frame hasn't been rendered yet. The
         // 1 in window->imageIndex(1) means image from 1 frame ago.
         srcImage = window->imageView(window->imageIndex(1))->image;
         srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     }
 
-    void Screenshot::copyNow()
+    void Screenshot::useCopy(vsg::ref_ptr<vsg::Image> copy, ScreenshotCopyBudget::Token token)
+    {
+        mCopy = std::move(copy);
+        mCopyToken = std::move(token);
+    }
+
+    void Screenshot::copyNow(ScreenshotCopyBudget::Token token)
     {
         auto [commands, copy] = createDownloadCommands(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
-        submit(device, commands);
-        mCopy = copy;
+        if (const VkResult result = submit(device, commands); result != VK_SUCCESS)
+            throw std::runtime_error("the copy returned VkResult " + std::to_string(static_cast<int>(result)));
+        useCopy(copy, std::move(token));
     }
 
     void Screenshot::operate()
     {
         if (mCopy)
+        {
             downloadData = readDownloadedImage(device, mCopy);
+            // The host-visible copy is no longer needed: free it, and its place among the copies waiting, before the
+            // slow write.
+            mCopy = nullptr;
+            mCopyToken.reset();
+        }
         else
             downloadData = download(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
         if (!writeFilename.empty() && downloadData)
@@ -87,5 +106,14 @@ namespace Render
         } while (sReserved.count(writeFilename.lexically_normal()) != 0 || std::filesystem::exists(writeFilename));
         mReservedFilename = writeFilename.lexically_normal();
         sReserved.insert(mReservedFilename);
+    }
+
+    void nameAndQueueScreenshot(vsg::ref_ptr<Screenshot> screenshot, const std::filesystem::path& dir,
+        const std::string& ext, vsg::ref_ptr<const vsg::Options> writeOptions,
+        const std::function<void(vsg::ref_ptr<Screenshot>)>& queue)
+    {
+        screenshot->writeOptions = std::move(writeOptions);
+        screenshot->generateFilename(dir, ext);
+        queue(std::move(screenshot));
     }
 }

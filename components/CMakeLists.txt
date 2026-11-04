@@ -148,7 +148,7 @@ add_component_dir (pipeline
     )
 # Implements algorithms.
 add_component_dir (render
-    engine download screenshot headless limitframerate rendertexture cascade computeimage
+    engine download screenshot framecapture headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
     gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity materialoverrides probes probebake skyvisbake ambientocclusion
     )

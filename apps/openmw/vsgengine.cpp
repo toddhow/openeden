@@ -54,14 +54,14 @@ namespace
     void screenshot(Render::Engine& engine, vsg::ref_ptr<vsg::OperationThreads> threads,
         const std::filesystem::path& path, vsg::ref_ptr<const vsg::Options> writeOptions)
     {
-        // OpenEden: the image is copied now, on the main thread; the worker only writes the file (Engine::
-        // captureScreenshot: a copy made later on the worker could hold a later frame).
-        auto operation = engine.captureScreenshot();
-        if (!operation)
-            return;
-        operation->writeOptions = writeOptions;
-        operation->generateFilename(path, Settings::general().mScreenshotFormat);
-        threads->add(operation);
+        // OpenEden: the frame being recorded is copied in its own submission, before it is presented, and handed over
+        // once it has finished on the GPU, a few frames later (Render::FrameCapture); only then is it named and given
+        // to the writer thread.
+        const std::string ext = Settings::general().mScreenshotFormat;
+        engine.requestScreenshot([threads, path, writeOptions, ext](vsg::ref_ptr<Render::Screenshot> shot) {
+            Render::nameAndQueueScreenshot(std::move(shot), path, ext, writeOptions,
+                [&threads](vsg::ref_ptr<Render::Screenshot> named) { threads->add(named); });
+        });
     }
 
 }
@@ -113,10 +113,6 @@ namespace OMW
 
         if (mStateManager->getGameState() != gameState)
             return false;
-
-        if (mInputManager->getScreenshotRequest())
-            screenshot(*mRenderEngine, mRenderManager->getOperationThreads(), mCfgMgr.getScreenshotPath(),
-                mResourceSystem->imageOptions);
 
         if (gameState->showCursor)
             mInputManager->enableMouse(*gameState->showCursor);
@@ -633,6 +629,14 @@ namespace OMW
                           autoQuitFired = true;
                       }
                   }
+                  // OpenEden: a screenshot asked for during this callback (F12 in the input update, Lua's
+                  // takeScreenshot when synchronizedUpdate applies it, --auto-screenshot above) is copied from the
+                  // frame recorded next, the one this callback prepared. Until 2026-11-04 it was read at the start of
+                  // frame() and copied from the image presented last, which Vulkan forbids using until it is acquired
+                  // again.
+                  if (mInputManager->getScreenshotRequest())
+                      screenshot(*mRenderEngine, mRenderManager->getOperationThreads(), mCfgMgr.getScreenshotPath(),
+                          mResourceSystem->imageOptions);
               };
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
         if (bodyBaker && bodyBaker->problems() > 0)

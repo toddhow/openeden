@@ -2,6 +2,7 @@
 
 #include <components/render/screenshot.hpp>
 
+#include <vsg/io/Options.h>
 #include <vsg/state/Image.h>
 
 #include <atomic>
@@ -170,6 +171,7 @@ namespace
         EXPECT_EQ(other->writeFilename, folder.path() / "screenshot001.png");
     }
 
+    // 8 threads of 16 requests each, 128 requests in all, started together.
     TEST(RenderScreenshotNames, concurrent_requests_get_distinct_names)
     {
         const ShotFolder folder;
@@ -204,5 +206,57 @@ namespace
         // And they are the first ones: nothing was skipped.
         EXPECT_EQ(names.count(folder.path() / "screenshot000.png"), 1u);
         EXPECT_EQ(names.count(folder.path() / "screenshot127.png"), 1u);
+    }
+
+    // Render::nameAndQueueScreenshot, the game's last step (second round of review): a screenshot is named only when
+    // its copy has finished and it is handed over, so a request that never got a copy takes no number.
+
+    std::vector<vsg::ref_ptr<Render::Screenshot>> handOver(
+        const std::filesystem::path& dir, const std::vector<vsg::ref_ptr<Render::Screenshot>>& finished)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queued;
+        auto options = vsg::Options::create();
+        for (const auto& shot : finished)
+        {
+            Render::nameAndQueueScreenshot(
+                shot, dir, "png", options, [&queued](vsg::ref_ptr<Render::Screenshot> s) { queued.push_back(s); });
+        }
+        return queued;
+    }
+
+    TEST(RenderScreenshotHandOver, a_finished_screenshot_is_named_and_queued)
+    {
+        const ShotFolder folder;
+        auto shot = makeShot();
+        const auto queued = handOver(folder.path(), { shot });
+        ASSERT_EQ(queued.size(), 1u);
+        EXPECT_EQ(queued[0], shot);
+        EXPECT_EQ(shot->writeFilename, folder.path() / "screenshot000.png");
+        EXPECT_NE(shot->writeOptions, nullptr);
+    }
+
+    TEST(RenderScreenshotHandOver, a_screenshot_is_named_when_handed_over_not_when_made)
+    {
+        const ShotFolder folder;
+        auto dropped = makeShot(); // made for a request, never finished: never handed over
+        auto first = makeShot();
+        auto second = makeShot();
+        EXPECT_TRUE(dropped->writeFilename.empty());
+        const auto queued = handOver(folder.path(), { first, second });
+        ASSERT_EQ(queued.size(), 2u);
+        EXPECT_EQ(first->writeFilename, folder.path() / "screenshot000.png");
+        EXPECT_EQ(second->writeFilename, folder.path() / "screenshot001.png");
+        EXPECT_TRUE(dropped->writeFilename.empty());
+    }
+
+    TEST(RenderScreenshotHandOver, names_follow_the_order_of_handing_over)
+    {
+        const ShotFolder folder;
+        auto earlier = makeShot();
+        auto later = makeShot();
+        handOver(folder.path(), { later });
+        handOver(folder.path(), { earlier });
+        EXPECT_EQ(later->writeFilename, folder.path() / "screenshot000.png");
+        EXPECT_EQ(earlier->writeFilename, folder.path() / "screenshot001.png");
     }
 }

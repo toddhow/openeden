@@ -1086,6 +1086,9 @@ namespace MWRender
 
         mRecord = mCommandGraph->recordTraversal;
 
+        // OpenEden: screenshots (F12, Lua, --auto-screenshot) copy the window's image at the end of the GUI graph, the
+        // last to write it in a frame (submit order 1, alone at it), before it is presented (Render::FrameCapture).
+        mEngine.setScreenshotGraph(guiCommandGraph);
         mEngine.setup(threads, getenv("VSGOPENMW_NO_VIEWER_THREADING") == 0);
         if (mPostProcess)
         {

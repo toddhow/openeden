@@ -1,6 +1,7 @@
 #include "download.hpp"
 
 #include <iostream>
+#include <limits>
 
 #include <vsg/commands/BlitImage.h>
 #include <vsg/commands/Commands.h>
@@ -9,14 +10,33 @@
 #include <vsg/vk/CommandPool.h>
 #include <vsg/vk/SubmitCommands.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/vsgutil/image.hpp>
 
 namespace Render // namespace vsgExamples
 {
     std::pair<vsg::ref_ptr<vsg::Commands>, vsg::ref_ptr<vsg::Image>> createDownloadCommands(vsg::Device* device,
         vsg::ref_ptr<vsg::Image> srcImage, VkRect2D srcRect, VkFormat srcImageFormat, VkImageLayout srcImageLayout,
-        std::optional<VkExtent2D> optional_dstExtent)
+        std::optional<VkExtent2D> optional_dstExtent, DownloadSync sync)
     {
+        // OpenEden: the barriers' masks. Transfer keeps the inherited ones. BeforePresent follows the frame's last
+        // render pass in the same submission: that pass's end has only the implicit external dependency (dstStageMask
+        // BOTTOM_OF_PIPE, Render::standardDependencies names none), so the first scope must include every stage to
+        // chain with it, and the attachment and transfer writes are made visible to the copy. Afterwards the image goes
+        // back to the present layout before the frame's semaphore signals, and the copy's writes are made visible to
+        // the host, which reads them after the frame's fence (FrameCapture).
+        const bool beforePresent = sync == DownloadSync::BeforePresent;
+        const VkPipelineStageFlags firstSrcStage
+            = beforePresent ? VK_PIPELINE_STAGE_ALL_COMMANDS_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT;
+        const VkAccessFlags srcImageWrites = beforePresent
+            ? VkAccessFlags{ VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT }
+            : VkAccessFlags{ VK_ACCESS_MEMORY_READ_BIT };
+        const VkPipelineStageFlags lastDstStage = beforePresent
+            ? VkPipelineStageFlags{ VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
+            : VkPipelineStageFlags{ VK_PIPELINE_STAGE_TRANSFER_BIT };
+        const VkAccessFlags copyReader = beforePresent ? VK_ACCESS_HOST_READ_BIT : VK_ACCESS_MEMORY_READ_BIT;
+        const VkAccessFlags srcImageAfter = beforePresent ? VkAccessFlags{ 0 } : VK_ACCESS_MEMORY_READ_BIT;
+
         auto targetImageFormat = srcImageFormat;
         auto dstExtent = srcRect.extent;
         if (optional_dstExtent)
@@ -66,13 +86,12 @@ namespace Render // namespace vsgExamples
                 VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
         // 3.b) transition image from current to transfer source initialLayout
-        auto transitionsrcImageToTransferSourceLayoutBarrier
-            = vsg::ImageMemoryBarrier::create(VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT, srcImageLayout,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, srcImage,
-                VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+        auto transitionsrcImageToTransferSourceLayoutBarrier = vsg::ImageMemoryBarrier::create(srcImageWrites,
+            VK_ACCESS_TRANSFER_READ_BIT, srcImageLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED, srcImage, VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
         auto cmd_transitionForTransferBarrier
-            = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+            = vsg::PipelineBarrier::create(firstSrcStage, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
                 transitiondstImageToDestinationLayoutBarrier, transitionsrcImageToTransferSourceLayoutBarrier);
 
         commands->addChild(cmd_transitionForTransferBarrier);
@@ -127,18 +146,17 @@ namespace Render // namespace vsgExamples
 
         // 3.d) transition destinate image from transfer destination layout to general layout to enable mapping to image
         // DeviceMemory
-        auto transitiondstImageToMemoryReadBarrier
-            = vsg::ImageMemoryBarrier::create(VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_QUEUE_FAMILY_IGNORED,
-                VK_QUEUE_FAMILY_IGNORED, dstImage, VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+        auto transitiondstImageToMemoryReadBarrier = vsg::ImageMemoryBarrier::create(VK_ACCESS_TRANSFER_WRITE_BIT,
+            copyReader, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED, dstImage, VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
         // 3.e) transition source image back
-        auto transitionsrcImageBackBarrier = vsg::ImageMemoryBarrier::create(VK_ACCESS_TRANSFER_READ_BIT,
-            VK_ACCESS_MEMORY_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcImageLayout, VK_QUEUE_FAMILY_IGNORED,
-            VK_QUEUE_FAMILY_IGNORED, srcImage, VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+        auto transitionsrcImageBackBarrier = vsg::ImageMemoryBarrier::create(VK_ACCESS_TRANSFER_READ_BIT, srcImageAfter,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcImageLayout, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+            srcImage, VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
         auto cmd_transitionFromTransferBarrier = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, 0, transitiondstImageToMemoryReadBarrier, transitionsrcImageBackBarrier);
+            lastDstStage, 0, transitiondstImageToMemoryReadBarrier, transitionsrcImageBackBarrier);
 
         commands->addChild(cmd_transitionFromTransferBarrier);
         return { commands, dstImage };
@@ -176,7 +194,11 @@ namespace Render // namespace vsgExamples
         VkFormat srcImageFormat, VkImageLayout srcImageLayout)
     {
         auto [commands, dstImage] = createDownloadCommands(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
-        submit(device, commands);
+        if (const VkResult result = submit(device, commands); result != VK_SUCCESS)
+        {
+            Log(Debug::Warning) << "Image download failed: the copy returned VkResult " << result;
+            return {};
+        }
         return readDownloadedImage(device, dstImage);
     }
 
@@ -208,7 +230,7 @@ namespace Render // namespace vsgExamples
         return array;
     }
 
-    void submit(vsg::Device* device, vsg::ref_ptr<vsg::Commands> commands)
+    VkResult submit(vsg::Device* device, vsg::ref_ptr<vsg::Commands> commands)
     {
         auto physicalDevice = device->getPhysicalDevice();
         auto fence = vsg::Fence::create(device);
@@ -216,7 +238,9 @@ namespace Render // namespace vsgExamples
         auto commandPool = vsg::CommandPool::create(device, queueFamilyIndex);
         auto queue = device->getQueue(queueFamilyIndex);
 
-        vsg::submitCommandsToQueue(commandPool, fence, 100000000000, queue,
+        // OpenEden: no timeout (it was 100 s). On VK_TIMEOUT submitCommandsToQueue freed a command buffer the GPU may
+        // still run, and the pool went with this function; a lost device ends the wait with an error instead.
+        return vsg::submitCommandsToQueue(commandPool, fence, std::numeric_limits<uint64_t>::max(), queue,
             [&](vsg::CommandBuffer& commandBuffer) { commands->record(commandBuffer); });
     }
 }

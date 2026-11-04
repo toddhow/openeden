@@ -212,6 +212,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testdevicereport.cpp
     render/testlodmeasure.cpp
     render/testscreenshotnames.cpp
+    render/testframecapture.cpp
     lod/testtilekey.cpp
     lod/testtileselection.cpp
     lod/testterraintile.cpp

@@ -127,9 +127,9 @@ namespace Render
 
     Engine::~Engine()
     {
-        // The timer's query pool may still be used by frames in flight (loop() waits at its end, a game that aborts or
-        // a hosted engine does not).
-        if (mGpuTimer)
+        // The timer's query pool, and the images of screenshot copies in flight, may still be used by frames in flight
+        // (loop() waits at its end, a game that aborts or a hosted engine does not).
+        if (mGpuTimer || mFrameCapture)
             mViewer->deviceWaitIdle();
         // loop() does this on leaving; a hosted engine never runs it, and the deletion queue is about to go.
         if (mHosted)
@@ -295,9 +295,20 @@ namespace Render
             Misc::LoadTrace::Scope traceUpdate("loop.viewer.update");
             mViewer->update();
             traceUpdate.end();
+            // A screenshot asked for in this frame's callback is copied in this frame's submission, before present.
+            if (mFrameCapture)
+            {
+                Misc::LoadTrace::Scope traceArm("loop.screenshot.arm");
+                mFrameCapture->beforeRecord(*mWindow, getPresentLayout());
+            }
             Misc::LoadTrace::Scope traceRecord("loop.record.submit");
             mViewer->recordAndSubmit();
             traceRecord.end();
+            if (mFrameCapture)
+            {
+                Misc::LoadTrace::Scope traceCollect("loop.screenshot.collect");
+                mFrameCapture->afterRecord(*mViewer);
+            }
 
             Misc::LoadTrace::Scope tracePresent("loop.present");
             if (mHeadless)
@@ -363,6 +374,9 @@ namespace Render
 
         // Wait for GPU before attempting to delete any vulkan objects.
         mViewer->deviceWaitIdle();
+        // Every screenshot copy in flight is finished now.
+        if (mFrameCapture)
+            mFrameCapture->finish();
 
         if (mGpuTimer)
             Log(Debug::Info) << "GPU timing, median and 95th percentile of the last " << gpuTimingWindow << " frames:\n"
@@ -557,59 +571,66 @@ namespace Render
         if (mHosted && (mWindow->extent2D().width == 0 || mWindow->extent2D().height == 0))
             return {};
         if (mWindow)
+        {
+            // OpenEden: Screenshot(window) reads imageIndex(1), the image acquired one frame before the current one
+            // (vsg::Window::acquireNextImage shifts _indices). Before a second image was acquired, and after the
+            // swapchain is rebuilt, it is numFrames() (the initial value Window::buildSwapchain gives _indices), which
+            // imageView() would index past the end; and an extent of zero has nothing to copy.
+            const VkExtent2D extent = swapchainExtent();
+            if (mWindow->imageIndex(1) >= mWindow->numFrames() || extent.width == 0 || extent.height == 0)
+                return {};
             return vsg::ref_ptr{ new Screenshot(mWindow) };
+        }
         else
             return vsg::ref_ptr{ new Screenshot(
                 getOrCreateDevice(), mHeadless->colorImageView->image, mHeadless->presentLayout) };
     }
 
-    vsg::ref_ptr<Screenshot> Engine::captureScreenshot()
+    void Engine::setScreenshotGraph(vsg::ref_ptr<vsg::CommandGraph> graph)
     {
-        // imageIndex(1) is the image acquired one frame before the current one (vsg::Window::acquireNextImage shifts
-        // _indices), i.e. the frame presented last. Before a second image was acquired, and after the swapchain is
-        // rebuilt, it is numFrames() (the initial value Window::buildSwapchain gives _indices), which imageView() would
-        // index past the end.
-        if (mWindow && mWindow->imageIndex(1) >= mWindow->numFrames())
+        if (!mWindow || mHosted)
+            return;
+        mFrameCapture = std::make_unique<FrameCapture>(mScreenshotBudget);
+        mFrameCapture->attach(std::move(graph));
+    }
+
+    void Engine::requestScreenshot(ScreenshotDone done)
+    {
+        if (mFrameCapture)
         {
-            Log(Debug::Warning) << "Screenshot skipped: no frame has been presented yet";
-            return {};
+            mFrameCapture->request(std::move(done));
+            return;
         }
+        if (!mHeadless)
+        {
+            Log(Debug::Warning)
+                << "Screenshot skipped: this window has no screenshot graph (Engine::setScreenshotGraph)";
+            return;
+        }
+        // Headless: loop() waits for each frame's fences after submitting it, so the image holds the last frame and
+        // nothing draws into it before the next recordAndSubmit; it is never presented.
         auto operation = screenshotOperation();
-        if (!operation)
-            return {};
-        // The frame callback runs after advanceToNextFrame, so fence(1) of each task is that frame's (vsg::
-        // RecordAndSubmitTask::fence). A fence with no dependencies was never submitted (or nothing was recorded) and
-        // would never signal. No task thread resets these fences meanwhile: Viewer::recordAndSubmit returns only after
-        // every task has submitted, and the next frame's start() comes after this callback.
-        constexpr uint64_t timeoutNs = 19999999999; // as loop() waits for a headless frame
-        for (auto& task : mViewer->recordAndSubmitTasks)
+        std::optional<ScreenshotCopyBudget::Token> token = mScreenshotBudget.tryAcquire();
+        if (!token)
         {
-            const vsg::ref_ptr<vsg::Fence> fence = task->fence(1);
-            if (!fence || !fence->hasDependencies())
-                continue;
-            if (const VkResult result = fence->wait(timeoutNs); result != VK_SUCCESS)
-            {
-                Log(Debug::Warning) << "Screenshot skipped: waiting for the last frame returned VkResult " << result;
-                return {};
-            }
+            Log(Debug::Warning) << "Screenshot skipped: " << mScreenshotBudget.inUse()
+                                << " screenshots are still waiting to be written (at most " << mScreenshotBudget.cap()
+                                << ")";
+            return;
         }
-        // The copy used to fail inside the operation, which logs and goes on (vsgUtil::Operation::run); here it would
-        // end the frame loop.
         try
         {
-            operation->copyNow();
+            operation->copyNow(std::move(*token));
+            done(operation);
         }
         catch (const std::exception& e)
         {
             Log(Debug::Warning) << "Screenshot skipped: " << e.what();
-            return {};
         }
         catch (const vsg::Exception& e)
         {
             Log(Debug::Warning) << "Screenshot skipped: " << e.message << " VkResult " << e.result;
-            return {};
         }
-        return operation;
     }
 
     size_t Engine::numFrames() const
