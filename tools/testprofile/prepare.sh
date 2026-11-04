@@ -174,7 +174,7 @@ done
 } > "$profile/profile_info.txt"
 
 # --- the bakers ---
-failures=0; bakeCfg=""
+failures=0
 runBake() { # label, log name, pack file to look for (or empty), arguments of openmw...
     local label=$1 logName=$2 pack=$3; shift 3
     local log="$profile/bake_$logName.log" attempt why
@@ -183,7 +183,7 @@ runBake() { # label, log name, pack file to look for (or empty), arguments of op
     # monitor ends with exit code 0xDEAD; the compiled shaders stay in <user>/openeden/shadercache, so one retry works.
     for attempt in 1 2; do
         why=""
-        if ! (cd "$build" && OPENEDEN_QUIET_WINDOW=1 timeout 1200 ./openmw.exe --replace=config --config "${bakeCfg:-$cfgN}" --user-data "$userN" "$@" > "$log" 2>&1); then
+        if ! (cd "$build" && OPENEDEN_QUIET_WINDOW=1 timeout 1200 ./openmw.exe --replace=config --config "$cfgN" --user-data "$userN" "$@" > "$log" 2>&1); then
             why="the game exited with an error"
             grep -q 'has frozen' "$log" && why="the game froze (cold shader cache)"
         elif [ -n "$pack" ] && [ ! -e "$userN/$pack" ]; then
@@ -198,13 +198,6 @@ runBake() { # label, log name, pack file to look for (or empty), arguments of op
 if [ $bake = 1 ]; then
     runBake "the terrain tiles (about 20 s)" terrain openeden/lod/terrain.edenpak --bake-lod-terrain
     runBake "the object clusters (about 40 s)" objects openeden/lod/objects.edenpak --bake-lod-objects
-    # With [WorldLod] enabled and the LOD packs present, the bake modes of the bodies and the light probes crash at exit
-    # after a finished bake that had nothing to write ("up to date", "already baked": found while making this profile; an
-    # engine bug, not fixed here). Those bakers do not use the LOD system, so they run with a copy of the config that has
-    # it off. The LOD bakers themselves run with the profile's own config.
-    bakeCfg="$profile/.bake_config"; rm -rf "$bakeCfg"; mkdir -p "$bakeCfg"
-    cp "$cfgN/openmw.cfg" "$bakeCfg/"
-    awk '/^[ 	]*\[/ { sec = $0 } sec ~ /^\[WorldLod\]/ && $0 ~ /^enabled[ 	]*=/ { print "enabled = false"; next } { print }' "$cfgN/settings.cfg" > "$bakeCfg/settings.cfg"
     runBake "the merged bodies (about 10 s)" bodies openeden/bodies/current --bake-bodies
     # Interiors worth looking at (README): the light probes of each (a second or so each). The game reads probe files
     # from the VFS (RenderManager::loadProbes), and the profile's user folder is not a data folder, so they are written
@@ -214,7 +207,6 @@ if [ $bake = 1 ]; then
         runBake "the light probes of $cell" "gi_${cell//[^A-Za-z0-9]/_}" "" --bake-gi "$cell" --bake-out "$profile/data"
     done
     runBake "the exterior sky visibility around Seyda Neen" gi_exterior "" --bake-gi-exterior "-3,-10:-1,-8" --bake-out "$profile/data"
-    bakeCfg=""
 else
     echo "--no-bake: nothing baked. The LOD tiles and clusters, the merged bodies and the light probes are missing until you bake."
 fi
