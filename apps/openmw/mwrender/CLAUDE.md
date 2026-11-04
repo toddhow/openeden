@@ -314,11 +314,19 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   face). It holds what nothing would add again: an NPC's inventory lights (`addItemLight`, once, when the
   CharacterController is made) and a creature's own model's controllers and lights. A part's auto-play controllers run
   in the part's own clock (`PartControllers::addAutoPlay`, `update`), which a kept part keeps and a part inserted again
-  gets fresh (group 0 at 0, random groups at a random phase, as before: a new torch's flicker starts at one frame). The
+  gets fresh (group 0 at 0, random groups at a random phase, as before: a new torch's flicker starts with a step of 0,
+  task 0074c). The
   holstered weapon and shield have clocks of their own (`mScabbardClock`, `mHolsteredShieldClock`), emptied with their
   paths (`removeHolstered`). Do not put a part's controllers into `autoPlay`: nothing removes them from it. The
   spell cast glow (`addSpellCastGlow`) is never on an actor: it is called for non-actor casters, Lock and Open targets
   that `canLock` (doors, containers) and doors (`spellcasting.cpp`, `spelleffects.cpp`, `mwclass/door.cpp`).
+- **A controller that joins a group already running (task 0074c):** `Anim::DeltaTime` starts at 0, so a controller
+  that steps by it takes its group's whole timer as its first step. `Anim::Roll` relies on that (its random starting
+  angle in a random group); `LightController` (`components/mwanimation/light.cpp`) must not: an inventory light added
+  later (`UpdateItemLights::itemAdded`) joins the actor's group 0, which runs from its first inventory light, and
+  strobed at up to 0.375 times that age times its colour, negative on some frames. Its first step is now 0, as in
+  OpenMW 0.51. A new stateful controller that can join a running group must choose one of the two; never change
+  `DeltaTime` itself.
 - **Ownership:** `PartControllers` holds a `vsg::ref_ptr` to every controller and target it recorded until `beginPart`
   or `forget` for the part: a part whose node went another way runs its controllers on a detached node, not on freed
   memory. `updateParts` runs its node work through `PartControllers::runUpdate`, so the kept parts and the merged body

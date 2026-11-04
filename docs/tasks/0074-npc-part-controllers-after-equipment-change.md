@@ -169,7 +169,93 @@ empty, so the findings were taken from the brief. Method: tests first, run red; 
   morpher; armour and clothing in `meshes\a` and `meshes\c` have no auto-play node); the throw in game; the cost of
   running 29 mostly empty clocks per NPC per frame (not measured; nothing allocates).
 - **For toddhow:** both fixes change the default game (a frozen light or a stopped creature effect is not a vanilla
-  mechanic). Open, not changed: an inventory light added later (`UpdateItemLights::itemAdded`) joins `autoPlay`'s group
-  0, whose timer now runs from the actor's construction instead of from its last equipment change, so its new
-  `LightController`'s first delta is that time and its colour swings for some frames; the same kind of swing happened
-  before, with a shorter time. Not seen in a run.
+  mechanic). Open after 0074b, fixed in 0074c below (the review of 0074b, finding 3, corrected this bullet's size and
+  trigger): an inventory light added later (`UpdateItemLights::itemAdded`) to an actor that already had one joined
+  `autoPlay`'s group 0, whose timer T runs from the actor's first inventory light (a removed light leaves the group
+  running), and its new `LightController` took T as its first step: a strobe of up to 0.375 T times the light's colour
+  (0.1875 T for the slow kinds), negative on alternate frames, about 25 frames long for T = 600 s. An actor with no
+  inventory light makes a fresh group 0 at 0. Before 0074b the same happened with T counted from the last equipment
+  change.
+
+**2026-11-04, 0074c, light first delta** (`ad9d62e22b`). Finding 3 of the fresh review of 0074b
+(`I:\Projects\OpenEden-work\0074b\REVIEW-0074b.md`); its other findings are not part of this entry. Method: tests
+first, run red; no separate test writer or reviewer (this ran as a subagent without subagents).
+
+- **Cause:** `LightController::apply` (`components/mwanimation/light.cpp`) takes its step from `Anim::DeltaTime`
+  (`components/animation/deltatime.hpp`), whose `last` starts at 0, and `Anim::AutoUpdate::update`
+  (`components/animation/update.hpp`) runs it with its group's timer, so its first step was the timer of the group it
+  joined. The rule (OpenMW's): ticks = step * 15 * 0.25 + ticks * 0.75, and the brightness (starting at 0.675) moves by
+  ticks * speed (0.1 for Flicker and Pulse, 0.05 for the slow kinds) towards a phase in [0.25, 1]. A first step T moves
+  it by 0.375 T (0.1875 T) at once, then the moves shrink by 0.75 a frame and change sign while the brightness is far
+  outside [0.25, 1]. OpenMW 0.51's `SceneUtil::LightController::operator()` sets `mStartTime` at its first run, so its
+  first step is 0 (`git show 442eec6e2f:components/sceneutil/lightcontroller.cpp`).
+- **Fix:** a first-run flag in `LightController` sets `mDt.last = time` before the first `get`. `Anim::DeltaTime` is
+  unchanged: `Anim::Roll::apply` (`roll.cpp`, `speed * mDt.get(time)`) in a random phase group takes the group's random
+  timer (`AutoPlay::getOrCreateGroup`, up to 3,600 s) as its first step, which is its random starting angle.
+- **Which lights change, and how much.** `LightController` sets only `hints.autoPlay`; its phase group is the default 0,
+  and every caller puts it in a group 0: `MWAnim::create` and `createObject` (`create.hpp`) and `addItemLight`
+  (`itemlight.cpp`) add it to `autoPlay.getOrCreateGroup()` directly, `MWAnim::decorate` (`decorate.cpp`, light passed
+  only by `Npc::insertBoundedPart`) to the part's own clock through `PartControllers::addAutoPlay` (`AutoPlay::add`,
+  phase group 0). No light is ever in a random group, so **placed lights did not strobe at cell load.**
+  - Placed world lights (`create.hpp`), carried torches (the part's clock, fresh at every insert since 0074b) and an
+    actor's first inventory light (`addItemLightsAndListener`, `character.cpp`, when the CharacterController is made;
+    for an NPC that makes group 0, which holds only inventory lights) join a group made with them at timer 0. Their old
+    first step was the first frame's dt, at most 0.2 s times the simulation time scale (`Game::run` clamps dt,
+    `game.hpp`; `World::update` passes it to `RenderManager::update` and `Scene::update`): a first-frame brightness
+    change of at most 0.075 (0.0375 for the slow kinds), 0.006 at 60 fps, fading over the next frames. Now 0: such a
+    light flickers as before, one frame later (the old first ticks add up to the ticks of one frame).
+  - An inventory light added later (`UpdateItemLights::itemAdded`: a script's `AddItem`, Lua `moveInto`, any
+    non-carriable light given to an actor that already has one, or after `removeItemLight`, which leaves group 0
+    running): its first step was group 0's age. That is the strobe, now gone. For T = 600 s at 60 fps (a simulation of
+    the old rule, `I:\Projects\OpenEden-work\0074c\sim\strobe.py`): first brightness 0.675 -/+ 225, about 25 frames
+    outside the normal range, up to 10 of them negative; for T = 1 s up to 3 frames slightly outside it (brightness at
+    most 1.05); at 0.2 s none.
+- **Tests first** (`apps/components_tests/mwanimation/testlightcontroller.cpp`, 4 cases over Flicker, FlickerSlow,
+  Pulse, PulseSlow and a Negative Flicker light; the controller made by `MWAnim::addLight` from a hand-built
+  `ESM::Light` and run through `Anim::AutoPlay`, or `Anim::Update` at given times): the first run in a group 600 s old
+  leaves the brightness at 0.675; 300 frames at 60 fps stay in [0.25 - 15 dt speed, 1 + 15 dt speed] with the base
+  colour's sign; the same seed gives the same colours in a fresh group and one 512 s old (1/64 s frames, exact in
+  float); and every run follows a reference of OpenMW's rule from time 0. Red run against the old controller
+  (`I:\Projects\OpenEden-work\0074c\red-run.log`): the first three failed (first brightness -224.33 = 0.675 - 0.375 *
+  600.0167, -111.83 for the slow kinds, -191.33 at 512 s); the fourth passed, as intended: from time 0 the old first
+  step was 0 too, so it shows that the reference is the rule the controller had. After the fix all 4 pass;
+  `components-tests` 5,472 and `openmw-tests` 927 pass on Windows.
+- **In game** (work folder `I:\Projects\OpenEden-work\0074c`, not committed): a work copy of the 0074b scene tool with
+  `SCENE=lightlater` (`tool/mod/scripts/mblight_*.lua`, no ESP): two Lua-made Bretons and a dremora carry inventory
+  light A (`blade light`, Flicker, colour (1, 0.549, 0.157)) from the start; 45 s later each is given light B
+  (`green light`, Flicker, colour (0.012, 0.722, 0.525), radius 1000); 23:00, `[Video] framerate limit = 30`,
+  `OPENEDEN_AUTOPLAY_TRACE="oe light"`, summaries by `tool/light_summary.py`. Exes `build-jolt/openmw-0074c-before.exe`
+  and `-after.exe`; between their builds only `light.cpp` was compiled (`build-green.log`, `build-after.log`).
+  - Before: B joined group 0 at t = 45.07 s and its brightness was 17.57 (0.675 + 0.375 * 45.07), then 4.89, -4.64,
+    2.52, -2.86, 1.18, -1.86, 0.43, 2.17, ...: 10 frames outside the 30 fps range [0.2, 1.05], 4 of them negative light,
+    back in range from the 13th frame; the same in all three actors. Light A on its first frame: 0.6626 and 0.6874,
+    0.675 -/+ 0.375 * 0.0332 (its first step was the first frame's dt).
+  - After: B at 0.675 on its first frame, all 179 traced frames in range (largest 0.86 to 0.96); A at 0.675 on its first
+    frame. The dremora's own model's controllers were in a random group (`g1`, 1,622.9 s on its first frame), its group 0
+    was made by light A.
+  - Frames viewed (`runs/<exe>/stock/frames`, before 001 to 004, after 002 and 003): before, the shot 2 s before the
+    gift is the plain night scene and the first shot after it (3 frames after the event) shows the whole view red and
+    the sky white; the next two show the green light, the second more strongly; after, the first two shots show the
+    green light as the later before shots do.
+  - Placed lights at cell load: no frames compared. The change is at most one frame's step (0.075 of the colour at the
+    0.2 s clamp), which a frame of a randomly flickering light cannot show either way; the code above is the evidence.
+- **Threads and cost:** `apply` runs where its group runs: `vsgUtil::UpdateThreads` workers for objects and NPCs
+  (`Scene::Cell::Update::run`), the main thread for the player. The flag is the controller's own; no allocation, no
+  extra random draw. `TMutable::cloneIfRequired` copies the flag, but `addLight` makes a new controller per call and the
+  clones (`clonePlaceholdersIfRequired`, `cloneIfRequired`) happen before it, so no controller that has run is cloned
+  (from reading).
+- **Checks:** clang-format 14 on the changed lines; GCC 13.3 with CI's flags (`-Werror`) plus `-Wshadow -Wunused
+  -Wdangling-else -Wrange-loop-construct`, `-fsyntax-only`, clean on `light.cpp` and the test (the shared Linux build's
+  compile commands, its volume mounted read-only); MSVC no new warning (the C4244 in `light.cpp` is the old
+  `intensity = mRadius` line).
+- **Found on the way, not changed:** `removeItemLight` (`itemlight.cpp`) never erases the item from its map (OpenMW
+  0.51's `ActorAnimation::removeHiddenItemLight` does), so the removed light's node stays referenced and the same item
+  is never added again; `WieldingCreature::addPart` passes no light to `MWAnim::decorate`, so a creature carrying a torch
+  has no torch light (OpenMW 0.51's `CreatureWeaponAnimation::updatePart` calls `addExtraLight` for a light,
+  `creatureanimation.cpp`).
+- **Not verified:** the Linux gate and the Lua integration tests; a script's `AddItem` in game (the scene uses Lua
+  `moveInto`, which reaches the same listener, `InventoryStore`'s `itemAdded` call); the player; frames of placed lights;
+  a fresh reviewer.
+- **For toddhow:** this changes the default game: an inventory light added to an actor that already has one no longer
+  strobes, and every flickering or pulsing light's first frame keeps its starting brightness (invisible: one frame of
+  flicker).
