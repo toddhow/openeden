@@ -171,8 +171,8 @@ namespace Lod
                     || fits(committed.mBytes, 0, item.mReleasesBytes, item.mBytes, lowWaterBytes);
                 if (!admit)
                 {
-                    collectVictims(items, plan.mGone, true, urgencyKey(item.mPriority), item.mReplaceable, margin,
-                        plan.mVictims);
+                    collectVictims(
+                        items, plan.mGone, true, urgencyKey(item.mPriority), item.mReplaceable, margin, plan.mVictims);
                     std::uint64_t freed = 0;
                     std::size_t taken = 0;
                     for (; taken < plan.mVictims.size(); ++taken)

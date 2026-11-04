@@ -40,7 +40,9 @@ namespace Lod
         float mMaxViewDistance = 80000; // the cap of `view distance = auto`, in world units
         std::uint32_t mFarTextureMaxSize = 256; // longest side of the pictures of far object clusters, in pixels
         std::uint64_t mResidentBudgetBytes = 0; // what the far field may hold in system memory
-        std::uint64_t mTerrainBudgetBytes = 0; // what the drawn terrain tiles may hold (task 0060; 0: no budget)
+        // What the drawn terrain tiles may hold (task 0060; 0: no budget). `far memory budget = N` overrides both
+        // budgets: the clusters get N MiB and the tiles a quarter of it, so the far field may hold 1.25 N MiB in all.
+        std::uint64_t mTerrainBudgetBytes = 0;
     };
 
     /// Software devices and unknown or small machines get the smallest tier; the others by device memory and system

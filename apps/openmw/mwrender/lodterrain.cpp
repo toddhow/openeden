@@ -632,19 +632,16 @@ namespace MWRender
                 Lod::vertexStepLod(settings, mLods[i]);
             }
             mCoverage.squares.reserve(count);
-            Log(Debug::Info) << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front()
-                             << " to "
-                             << (mSetup.mMaxLevel > 0 ? std::min(mSetup.mMaxLevel, mPlan.mLevels.back())
-                                                      : mPlan.mLevels.back())
-                             << " loaded (layout version " << Lod::tileKeyLayoutVersion << "), threshold "
-                             << mSetup.mThreshold << " px, "
-                             << (useAlbedo ? "baked ground pictures from level 2 up"
-                                           : "live layers (terrain maps are on)")
-                             << "; " << Lod::describeBytes(mStats.mTileDataBytes) << " of tile data held, "
-                             << (mSetup.mResidentBudgetBytes > 0
-                                        ? "a budget of " + Lod::describeBytes(mSetup.mResidentBudgetBytes)
-                                        : std::string("no budget"))
-                             << " for the drawn tiles.";
+            Log(Debug::Info)
+                << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front() << " to "
+                << (mSetup.mMaxLevel > 0 ? std::min(mSetup.mMaxLevel, mPlan.mLevels.back()) : mPlan.mLevels.back())
+                << " loaded (layout version " << Lod::tileKeyLayoutVersion << "), threshold " << mSetup.mThreshold
+                << " px, "
+                << (useAlbedo ? "baked ground pictures from level 2 up" : "live layers (terrain maps are on)") << "; "
+                << Lod::describeBytes(mStats.mTileDataBytes) << " of tile data held, "
+                << (mSetup.mResidentBudgetBytes > 0 ? "a budget of " + Lod::describeBytes(mSetup.mResidentBudgetBytes)
+                                                    : std::string("no budget"))
+                << " for the drawn tiles.";
         }
 
         Terrain::Bounds boundsOf(std::size_t index) const
@@ -794,7 +791,8 @@ namespace MWRender
         std::vector<bool> mFailed;
         // The residency planner (task 0060): its input and output are reused every frame.
         std::vector<int> mCooldown; // frames before a tile the planner freed may be drawn again
-        std::vector<std::uint64_t> mDrawBytes; // what each tile's draw held when last built (batchResidentBytes); 0: never
+        // What each tile's draw held when last built (batchResidentBytes); 0: never built.
+        std::vector<std::uint64_t> mDrawBytes;
         std::vector<bool> mHasPicture; // the draw carries its own ground picture
         std::vector<std::uint64_t> mReleases; // per frame: bytes of drawn tiles that go once this one is drawn
         std::array<std::uint64_t, levelSlots> mLevelBytes{}; // sum of the bytes of the tiles built, per level
@@ -979,7 +977,8 @@ namespace MWRender
         state.mStats.mSkipped = result.mSkipped;
         if (changed)
         {
-            Log(Debug::Verbose) << "World LOD tiles: " << state.mStats.mDrawn << " drawn, " << result.mLive
+            Log(Debug::Verbose) << "World LOD tiles: " << state.mStats.mDrawn << " drawn ("
+                                << Lod::describeBytes(state.mStats.mHeldBytes) << "), " << result.mLive
                                 << " visible tiles use the live terrain, " << result.mCovered << " covered, "
                                 << result.mSkipped << " outside the view, " << result.mChanged
                                 << " changed their choice.";

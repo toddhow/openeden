@@ -340,7 +340,7 @@ namespace
             EXPECT_GE(budget, below);
             below = budget;
         }
-        EXPECT_EQ(farTierSettings(FarTier::Minimal).mTerrainBudgetBytes, 64ull * 1024 * 1024);
-        EXPECT_EQ(farTierSettings(FarTier::High).mTerrainBudgetBytes, 256ull * 1024 * 1024);
+        EXPECT_EQ(farTierSettings(FarTier::Minimal).mTerrainBudgetBytes, 16ull * 1024 * 1024);
+        EXPECT_EQ(farTierSettings(FarTier::High).mTerrainBudgetBytes, 64ull * 1024 * 1024);
     }
 }

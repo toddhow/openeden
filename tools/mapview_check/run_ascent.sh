@@ -1,6 +1,7 @@
 #!/bin/bash
 # Task 0066 stage e: one continuous climb from the ground to 25,000 units and back, in a quiet window.
-# usage: run_ascent.sh <work folder> <config folder (a COPY with its settings.cfg)> <user data folder> [seconds]
+# usage: [OPENMW_EXE=<exe path or a file name in build-jolt>] run_ascent.sh <work folder> <config folder (a COPY with its
+#        settings.cfg)> <user data folder> [seconds]
 # Writes <work>/stats.txt (a line per frame: tools/mapview_check/analyze.sh reads it), <work>/log.txt and the
 # screenshots (the user data folder's screenshots). Windows paths for the folders (see CLAUDE.md pitfalls).
 set -e
@@ -14,8 +15,11 @@ run_cfg="$work/cfg"; rm -rf "$run_cfg"; mkdir -p "$run_cfg"; cp "$config"/* "$ru
 { echo "data=\"$(native "$HERE/data")\""; echo "content=ascent.omwscripts"; } >> "$run_cfg/openmw.cfg"
 printf 'tgm\ntcl\n' > "$work/start.txt"
 rm -f "$user"/screenshots/*
-cd "$(dirname "$(command -v openmw.exe || echo /i/Projects/OpenEden/build-jolt/openmw.exe)")"
-OPENEDEN_FRAME_STATS_FILE="$(native "$work/stats.txt")" timeout "$limit" "./${OPENMW_EXE:-openmw.exe}" --replace=config \
+default_exe="$(command -v openmw.exe || echo /i/Projects/OpenEden/build-jolt/openmw.exe)"
+exe="${OPENMW_EXE:-$default_exe}"
+case "$exe" in */*) ;; *) exe="$(dirname "$default_exe")/$exe" ;; esac # a bare name: beside the default exe
+cd "$(dirname "$exe")"
+OPENEDEN_FRAME_STATS_FILE="$(native "$work/stats.txt")" timeout "$limit" "./$(basename "$exe")" --replace=config \
     --config "$(native "$run_cfg")" --user-data "$(native "$user")" --skip-menu --start Balmora --no-grab \
     --script-run "$(native "$work/start.txt")" > "$work/log.txt" 2>&1 || true
 mkdir -p "$work/frames"; cp "$user"/screenshots/* "$work/frames"/ 2>/dev/null || true

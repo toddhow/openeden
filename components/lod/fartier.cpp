@@ -72,7 +72,12 @@ namespace Lod
                 settings.mMaxViewDistance = 80000;
                 settings.mFarTextureMaxSize = 128;
                 settings.mResidentBudgetBytes = 256 * mebibyte;
-                settings.mTerrainBudgetBytes = 64 * mebibyte; // starting values (stage e: +93 MiB)
+                // Tile budgets (task 0060 review): what the drawn tiles hold, read from their draws: about 52 KiB
+                // a tile with the live layers, plus a 256 KiB ground picture from level 2 up without the terrain
+                // maps. At most 89 tiles were drawn on the climb to 27,000 units: 4.5 MiB with the live layers, up
+                // to about 27 MiB with pictures (estimated). High and medium keep that set whole, minimal and low
+                // only without pictures.
+                settings.mTerrainBudgetBytes = 16 * mebibyte;
                 break;
             case FarTier::Low:
                 settings.mFarLevels = 4;
@@ -80,7 +85,7 @@ namespace Lod
                 settings.mMaxViewDistance = 150000;
                 settings.mFarTextureMaxSize = 128;
                 settings.mResidentBudgetBytes = 320 * mebibyte;
-                settings.mTerrainBudgetBytes = 96 * mebibyte;
+                settings.mTerrainBudgetBytes = 24 * mebibyte;
                 break;
             case FarTier::Medium:
                 settings.mFarLevels = 5;
@@ -88,7 +93,7 @@ namespace Lod
                 settings.mMaxViewDistance = 300000;
                 settings.mFarTextureMaxSize = 256;
                 settings.mResidentBudgetBytes = 512 * mebibyte;
-                settings.mTerrainBudgetBytes = 128 * mebibyte;
+                settings.mTerrainBudgetBytes = 32 * mebibyte;
                 break;
             case FarTier::High:
                 settings.mFarLevels = maxFarLevels;
@@ -96,7 +101,7 @@ namespace Lod
                 settings.mMaxViewDistance = defaultMaxViewDistance;
                 settings.mFarTextureMaxSize = 256;
                 settings.mResidentBudgetBytes = 1024 * mebibyte;
-                settings.mTerrainBudgetBytes = 256 * mebibyte;
+                settings.mTerrainBudgetBytes = 64 * mebibyte;
                 break;
         }
         return settings;
