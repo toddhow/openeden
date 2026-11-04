@@ -647,7 +647,7 @@ each commit.
      either). Before 0074f the first failure left the actor human for good and nothing more happened. Say if a rebuild
      that fails should instead be given up after one try, or caught like a part.
   2. **`Actor::assignBones` is not virtual** (above): a player who becomes a werewolf or vampire in first person crashes.
-     Recommended: make it virtual, in its own task.
+     Recommended: make it virtual, in its own task. **Done in task 0074g (`9b654c3917`), below.**
   3. `Npc::setVampire` now records the new type, so one rebuild fewer; no visible change.
 
 **2026-11-04, the neck bone after a rebuild (task 0074g)** (`9b654c3917`). The crash 0074f found and did not fix: a player
@@ -703,8 +703,15 @@ not run.
 
   | Scene | Before | After |
   | --- | --- | --- |
-  | Werewolf: `Player->BecomeWerewolf` in `oe_wolfstart.esp` six seconds in (`SCENE=wolf`) | 3 crashes in 4 runs (the run that survived was the first, without the load trace) | 0 in 4 (exit 0, no dump) |
+  | Werewolf: `Player->BecomeWerewolf` in `oe_wolfstart.esp` six seconds in (`SCENE=wolf`) | 3 crashes in 4 runs (the run that did not crash was the first, without the load trace: it is not known that its rebuild ran) | 0 in 4 (exit 0, no dump) |
   | Vampire: `types.Actor.spells(self):add('vampire sun damage')` (the ability with the Vampirism effect; there is no `BecomeVampire` command; `SCENE=vampire`, `mbvamp_player.lua`; Vampirism magnitude 1 in the log) | 3 crashes in 3 | 0 in 3 |
+
+  **Control on the same "before" executable** (the two executables differ in other sessions' files too, so this is what
+  ties the crash to the first-person state): in third person, where `Player::mNeck` is null, 0 crashes in 3 werewolf runs
+  (`wolf-3p-before*`) and 0 in 3 vampire runs (`vamp-3p-before*`, the ability given 1.5 s after the switch to third person);
+  in first person, with the same script, 3 of 3 vampire runs crashed (`vamp-fp-before-b*`). A first try that gave the
+  ability in the same frame as the switch crashed 3 of 3 in third person too: the rebuild ran before the view changed,
+  while `mNeck` was still set.
 
   The three werewolf dumps were read with the stack walker (`dumpstack\ds7.exe` against the PDB of that build, copied to
   `pdb-before`): the stack scan of each lists `MWRender::Player::manualAnimation` (`player.cpp:50`) and
@@ -713,8 +720,8 @@ not run.
   `~` lines), so the site is not pinned to `mNeck` for the vampire; that the fix removes the crash in all three runs is the
   evidence. That a rebuild happened in the "after" runs is inferred from the load trace: 27 `npc.readactor` scopes in a werewolf
   run, the last two at the time of the transformation (one with a 5.6 ms file read), 26 in a vampire run; there is no log line
-  for a rebuild. The "before" runs write no trace (they crash). A use after free does not have to crash: the surviving run
-  shows it. Frames of the "after" runs show the normal first-person view (the vampire's effect icons appear).
+  for a rebuild. The "before" runs write no trace (they crash). A use after free does not have to crash (the one werewolf run that
+  did not crash may be that, or its rebuild may not have run: not known). Frames of the "after" runs show the normal first-person view (the vampire's effect icons appear).
 - **Not proven / not done:** the Linux gate (GCC `-Werror`), the Lua integration tests, a fresh reviewer, a third-person
   play after the change, `UndoWerewolf`, the editor's actors in the window (it builds and its tests pass), a second
   look for other stale pointers beyond the reading above, a build of the "before" tree with an address sanitizer.
