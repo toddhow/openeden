@@ -114,8 +114,8 @@ namespace
 
     TEST(BodyQuickKeys, written_and_read_back_unchanged)
     {
-        const std::map<std::string, std::string> keys = { { "bodies/dark-elf-female-0123.bodymesh", keyA },
-            { "bodies/breton-male-4567.bodymesh", keyB } };
+        const std::map<std::string, std::string> keys
+            = { { "bodies/dark-elf-female-0123.bodymesh", keyA }, { "bodies/breton-male-4567.bodymesh", keyB } };
         std::string error;
         const std::optional<std::map<std::string, std::string>> read = readQuickKeys(writeQuickKeys(keys), error);
         ASSERT_TRUE(read.has_value()) << error;
@@ -127,8 +127,7 @@ namespace
         const std::map<std::string, std::string> keys
             = { { "bodies/b.bodymesh", keyA }, { "bodies/a.bodymesh", keyB } };
         const std::string text = writeQuickKeys(keys);
-        EXPECT_EQ(text,
-            "openeden.bodyquick\t1\nbodies/a.bodymesh\t" + keyB + "\nbodies/b.bodymesh\t" + keyA + "\n");
+        EXPECT_EQ(text, "openeden.bodyquick\t1\nbodies/a.bodymesh\t" + keyB + "\nbodies/b.bodymesh\t" + keyA + "\n");
     }
 
     TEST(BodyQuickKeys, refuses_what_is_not_the_canonical_text)
