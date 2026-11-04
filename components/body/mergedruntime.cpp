@@ -121,6 +121,7 @@ namespace Body
                     draw.mIndices.push_back(local[vertex]);
                 }
             }
+            draw.mRuns.push_back({ draw.mSlot, 0, static_cast<std::uint32_t>(draw.mIndices.size()) });
             for (const std::uint32_t vertex : draw.mVertices)
                 local[vertex] = unused;
             draws.push_back(std::move(draw));
@@ -156,6 +157,7 @@ namespace Body
             draw.mSlot = byMaterial[material].front()->mSlot;
             for (const Submesh* submesh : byMaterial[material])
             {
+                const std::uint32_t runStart = static_cast<std::uint32_t>(draw.mIndices.size());
                 const std::uint64_t end = static_cast<std::uint64_t>(submesh->mFirstTriangle)
                     + static_cast<std::uint64_t>(submesh->mTriangleCount);
                 for (std::uint64_t t = submesh->mFirstTriangle; t < end; ++t)
@@ -173,12 +175,56 @@ namespace Body
                         draw.mIndices.push_back(local[vertex]);
                     }
                 }
+                const std::uint32_t runCount = static_cast<std::uint32_t>(draw.mIndices.size()) - runStart;
+                if (!draw.mRuns.empty() && draw.mRuns.back().mSlot == submesh->mSlot)
+                    draw.mRuns.back().mIndexCount += runCount;
+                else
+                    draw.mRuns.push_back({ submesh->mSlot, runStart, runCount });
             }
             for (const std::uint32_t vertex : draw.mVertices)
                 local[vertex] = unused;
             draws.push_back(std::move(draw));
         }
         return draws;
+    }
+
+    std::vector<int> hiddenMergedSlots(
+        std::span<const int> mergedSlots, std::span<const int> partslots, std::span<const int> priorities)
+    {
+        std::vector<int> hidden;
+        for (const int slot : mergedSlots)
+        {
+            if (slot < 0 || static_cast<std::size_t>(slot) >= partslots.size()
+                || static_cast<std::size_t>(slot) >= priorities.size())
+            {
+                hidden.push_back(slot);
+                continue;
+            }
+            const std::size_t index = static_cast<std::size_t>(slot);
+            // Npc::updateParts adds the race's body part when the priority is below 1; a priority of 1 or more is the
+            // body part itself (group -1) or equipment or a reservation (an inventory group).
+            if (priorities[index] >= 1 && partslots[index] >= 0)
+                hidden.push_back(slot);
+        }
+        std::sort(hidden.begin(), hidden.end());
+        hidden.erase(std::unique(hidden.begin(), hidden.end()), hidden.end());
+        return hidden;
+    }
+
+    std::vector<IndexRange> visibleIndexRanges(std::span<const SlotRun> runs, std::span<const int> hiddenSlots)
+    {
+        std::vector<IndexRange> ranges;
+        for (const SlotRun& run : runs)
+        {
+            if (run.mIndexCount == 0 || std::binary_search(hiddenSlots.begin(), hiddenSlots.end(), run.mSlot))
+                continue;
+            if (!ranges.empty()
+                && static_cast<std::uint64_t>(ranges.back().mFirstIndex) + ranges.back().mIndexCount == run.mFirstIndex)
+                ranges.back().mIndexCount += run.mIndexCount;
+            else
+                ranges.push_back({ run.mFirstIndex, run.mIndexCount });
+        }
+        return ranges;
     }
 
     bool invertAffine(const Affine34& in, Affine34& out)

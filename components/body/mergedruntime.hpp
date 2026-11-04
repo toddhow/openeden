@@ -71,14 +71,46 @@ namespace Body
     /// The distinct slots of the body's regions, ascending.
     std::vector<int> mergedSlotsOf(const MergedBody& body);
 
+    /// The indices of one slot inside a draw (stage e): a draw's indices are its submeshes' triangles in submesh order,
+    /// so the triangles of one slot are contiguous and a region can be left out of the draw by its index range.
+    struct SlotRun
+    {
+        int mSlot = 0;
+        std::uint32_t mFirstIndex = 0;
+        std::uint32_t mIndexCount = 0;
+        friend bool operator==(const SlotRun&, const SlotRun&) = default;
+    };
+
     struct MergedDraw
     {
         std::uint32_t mMaterial = 0; // index into MergedBody::mMaterials
         int mSlot = 0;
         std::vector<std::uint32_t> mVertices; // the body's vertex for each draw vertex, in first-use order
         std::vector<std::uint32_t> mIndices; // three per triangle, into mVertices
+        std::vector<SlotRun> mRuns; // the slots of mIndices in order, together covering all of it
         friend bool operator==(const MergedDraw&, const MergedDraw&) = default;
     };
+
+    /// Task 0069 stage e: the merged slots whose regions equipment or a reservation covers, ascending. The stock
+    /// parts' rule (`Npc::updateParts`): a slot's body part is drawn when its priority is below 1 or the slot holds the
+    /// body part itself (group -1); equipment and reservations take a slot with an inventory group (>= 0) and a
+    /// priority of 1 or more, and then the body part of that slot is not drawn. `partslots` and `priorities` are
+    /// indexed by part slot (ESM::PartReferenceType), as `Npc::mPartslots` and `mPartPriorities`. A merged slot outside
+    /// them counts as covered (its region is hidden: a bad slot number never shows skin under a garment).
+    std::vector<int> hiddenMergedSlots(
+        std::span<const int> mergedSlots, std::span<const int> partslots, std::span<const int> priorities);
+
+    struct IndexRange
+    {
+        std::uint32_t mFirstIndex = 0;
+        std::uint32_t mIndexCount = 0;
+        friend bool operator==(const IndexRange&, const IndexRange&) = default;
+    };
+
+    /// The index ranges of a draw that remain when the regions of `hiddenSlots` (ascending) are left out: the runs of
+    /// the other slots, in order, with runs that touch merged into one range and empty runs dropped. Empty when nothing
+    /// remains.
+    std::vector<IndexRange> visibleIndexRanges(std::span<const SlotRun> runs, std::span<const int> hiddenSlots);
 
     /// One draw per submesh, in submesh order. Empty when a submesh points outside the triangles or a triangle
     /// outside the vertices (the payload reader refuses such bodies; this is the second line).
