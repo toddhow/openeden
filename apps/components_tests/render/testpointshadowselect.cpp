@@ -1000,3 +1000,53 @@ namespace
         EXPECT_EQ(count.changes, p.maxSlots);
     }
 }
+
+namespace
+{
+    // Task 0077, review: a light whose far plane would be under two near planes casts no shadow, and the version of
+    // the function that works in the caller's vectors answers as the plain one does.
+    TEST(RenderPointShadowSelect, a_light_with_a_tiny_radius_is_not_eligible)
+    {
+        using namespace Render::PointShadow;
+        std::vector<Candidate> candidates(2);
+        candidates[0].id = 1;
+        candidates[0].position = vsg::dvec3(0.0, 0.0, 0.0);
+        candidates[0].radius = 1.f;
+        candidates[1].id = 2;
+        candidates[1].position = vsg::dvec3(1.0, 0.0, 0.0);
+        candidates[1].radius = 100.f;
+        const Selection selection = select(candidates, vsg::dvec3(0.0, 0.0, 0.0), {}, SelectionParams{});
+        EXPECT_EQ(selection.slotOfCandidate[0], -1);
+        EXPECT_GE(selection.slotOfCandidate[1], 0);
+    }
+
+    TEST(RenderPointShadowSelect, selectInto_reuses_its_vectors_and_equals_select)
+    {
+        using namespace Render::PointShadow;
+        std::vector<Candidate> candidates(6);
+        for (std::size_t i = 0; i < candidates.size(); ++i)
+        {
+            candidates[i].id = 10 + i;
+            candidates[i].position = vsg::dvec3(static_cast<double>(i) * 50.0, 0.0, 0.0);
+            candidates[i].radius = 100.f + static_cast<float>(i);
+        }
+        const SelectionParams params;
+        Selection reused;
+        SelectionScratch scratch;
+        std::vector<Slot> previous;
+        for (int frame = 0; frame < 3; ++frame)
+        {
+            const Selection plain = select(candidates, vsg::dvec3(0.0, 0.0, 0.0), previous, params);
+            selectInto(candidates, vsg::dvec3(0.0, 0.0, 0.0), previous, params, reused, scratch);
+            ASSERT_EQ(plain.slots.size(), reused.slots.size());
+            EXPECT_EQ(plain.slotOfCandidate, reused.slotOfCandidate);
+            for (std::size_t i = 0; i < plain.slots.size(); ++i)
+            {
+                EXPECT_EQ(plain.slots[i].used, reused.slots[i].used);
+                EXPECT_EQ(plain.slots[i].id, reused.slots[i].id);
+                EXPECT_EQ(plain.slots[i].heldFrames, reused.slots[i].heldFrames);
+            }
+            previous = reused.slots;
+        }
+    }
+}

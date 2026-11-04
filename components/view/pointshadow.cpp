@@ -69,7 +69,11 @@ namespace View
         mData = vsg::vec4Array::create(Render::PointShadow::bufferVec4s(maxLights));
         for (auto& v : *mData)
             v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
-        mData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        // No light has a slot yet.
+        for (std::size_t i = 0; i < maxLights; ++i)
+            mData->at(Render::PointShadow::lightEntryOffset() + i) = vsg::vec4(-1.f, 0.f, 0.f, 0.f);
+        // View::CollectLights::pack writes the lights' entries while the view is recorded, like the lights themselves.
+        mData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
         mDataDescriptor = vsg::DescriptorBuffer::create(
             mData, Pipeline::Descriptors::VIEW_POINT_SHADOW_DATA_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 

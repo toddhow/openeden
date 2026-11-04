@@ -10,6 +10,8 @@
 
 #include <vsg/maths/vec3.h>
 
+#include "pointshadowmath.hpp"
+
 namespace Render::PointShadow
 {
     /*
@@ -76,27 +78,42 @@ namespace Render::PointShadow
         {
             return static_cast<std::int64_t>(std::floor(value * 16.0));
         }
-    }
-
-    inline Selection select(const std::vector<Candidate>& candidates, const vsg::dvec3& camera,
-        const std::vector<Slot>& previous, const SelectionParams& params)
-    {
-        const std::size_t slotCount = static_cast<std::size_t>(std::max(params.maxSlots, 0));
-        Selection result;
-        result.slots.assign(slotCount, Slot{});
-        result.slotOfCandidate.assign(candidates.size(), -1);
 
         struct Entry
         {
             std::size_t index;
             double score;
         };
-        std::vector<Entry> eligible;
+    }
+
+    /// The vectors `selectInto` works in, kept by the caller so that a call allocates nothing once they have grown.
+    struct SelectionScratch
+    {
+        std::vector<Detail::Entry> eligible;
+        std::vector<int> candidateOfSlot;
+        std::vector<char> isHolder;
+        std::vector<char> taken;
+    };
+
+    /// A light whose far plane (farMargin * its reach) is below this many near planes casts no shadow: the face's
+    /// projection needs a far plane well beyond the near one.
+    constexpr double minFarInNearPlanes = 2.0;
+
+    inline void selectInto(const std::vector<Candidate>& candidates, const vsg::dvec3& camera,
+        const std::vector<Slot>& previous, const SelectionParams& params, Selection& result, SelectionScratch& scratch)
+    {
+        using Detail::Entry;
+        const std::size_t slotCount = static_cast<std::size_t>(std::max(params.maxSlots, 0));
+        result.slots.assign(slotCount, Slot{});
+        result.slotOfCandidate.assign(candidates.size(), -1);
+
+        std::vector<Entry>& eligible = scratch.eligible;
+        eligible.clear();
         for (std::size_t i = 0; i < candidates.size(); ++i)
         {
             const Candidate& c = candidates[i];
-            if (!c.casts || !(c.radius > 0.f) || !std::isfinite(c.position.x) || !std::isfinite(c.position.y)
-                || !std::isfinite(c.position.z))
+            if (!c.casts || !(c.radius > 0.f) || farMargin * reach(c.radius) < minFarInNearPlanes * nearPlane
+                || !std::isfinite(c.position.x) || !std::isfinite(c.position.y) || !std::isfinite(c.position.z))
                 continue;
             const double distance = Detail::distanceBetween(camera, c.position);
             if (distance > reach(c.radius) + params.maxDistance)
@@ -116,9 +133,12 @@ namespace Render::PointShadow
             return ka < kb;
         });
 
-        std::vector<int> candidateOfSlot(slotCount, -1);
-        std::vector<bool> isHolder(slotCount, false);
-        std::vector<bool> taken(eligible.size(), false);
+        std::vector<int>& candidateOfSlot = scratch.candidateOfSlot;
+        candidateOfSlot.assign(slotCount, -1);
+        std::vector<char>& isHolder = scratch.isHolder;
+        isHolder.assign(slotCount, 0);
+        std::vector<char>& taken = scratch.taken;
+        taken.assign(eligible.size(), 0);
 
         // Holders keep their slot.
         for (std::size_t e = 0; e < eligible.size(); ++e)
@@ -140,8 +160,8 @@ namespace Render::PointShadow
                     ? 1.f
                     : std::min(1.f, old.fade + 1.f / static_cast<float>(params.fadeFrames));
                 candidateOfSlot[s] = static_cast<int>(eligible[e].index);
-                isHolder[s] = true;
-                taken[e] = true;
+                isHolder[s] = 1;
+                taken[e] = 1;
                 break;
             }
         }
@@ -187,7 +207,7 @@ namespace Render::PointShadow
             slot.position = c.position;
             slot.radius = c.radius;
             candidateOfSlot[t] = static_cast<int>(eligible[e].index);
-            isHolder[t] = false;
+            isHolder[t] = 0;
         }
 
         for (std::size_t s = 0; s < slotCount; ++s)
@@ -195,6 +215,14 @@ namespace Render::PointShadow
             if (candidateOfSlot[s] >= 0)
                 result.slotOfCandidate[static_cast<std::size_t>(candidateOfSlot[s])] = static_cast<int>(s);
         }
+    }
+
+    inline Selection select(const std::vector<Candidate>& candidates, const vsg::dvec3& camera,
+        const std::vector<Slot>& previous, const SelectionParams& params)
+    {
+        Selection result;
+        SelectionScratch scratch;
+        selectInto(candidates, camera, previous, params, result, scratch);
         return result;
     }
 }

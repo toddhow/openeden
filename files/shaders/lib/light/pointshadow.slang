@@ -89,6 +89,8 @@ float pointShadowTap(float3 q, uint slot, float far, float tanHalf, float resolu
 // The lit fraction of light `lightIndex` (its index in the light buffer) at the view-space position `viewPos`.
 float pointLightShadow(uint lightIndex, float3 viewPos)
 {
+    if (pointShadowData[0].x < 0.5) // no light has a slot (also the stand-in buffer)
+        return 1.0;
     float4 entry = pointShadowData[POINT_SHADOW_HEADER_VEC4S + lightIndex];
     if (entry.x < 0.0)
         return 1.0;

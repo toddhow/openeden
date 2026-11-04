@@ -76,6 +76,8 @@ float pointShadowTap(vec3 q, uint slot, float far, float tanHalf, float resoluti
 
 float pointLightShadow(uint lightIndex, vec3 viewPos)
 {
+    if (pointShadowData[0].x < 0.5) // no light has a slot (also the stand-in buffer)
+        return 1.0;
     vec4 entry = pointShadowData[POINT_SHADOW_HEADER_VEC4S + lightIndex];
     if (entry.x < 0.0)
         return 1.0;

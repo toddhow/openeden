@@ -594,7 +594,10 @@ namespace MWRender
             // model, which needs the G-buffer's material output.
             if (Settings::shadows().mPointLightShadows)
             {
-                if (materialOutput)
+                if (Settings::shaders().mClassicFalloff)
+                    Log(Debug::Warning) << "[Shadows] point light shadows do not work with [Shaders] classic falloff "
+                                           "(a light then reaches much farther than its shadow map); they are off";
+                else if (materialOutput)
                 {
                     mPointShadows = std::make_unique<PointShadows>(*context, sMaxLights);
                     resourceSystem->builder->graphics->pointShadowEnabled = true;
@@ -654,6 +657,8 @@ namespace MWRender
         mSceneData = std::make_unique<View::Scene>();
         auto collectLights = vsg::ref_ptr{ new View::CollectLights(sMaxLights) };
         collectLights->setLinear(mHdrTarget != nullptr);
+        if (mPointShadows)
+            collectLights->setShadowTarget(mPointShadows->maps().data(), Render::PointShadow::lightEntryOffset());
         vsg::Descriptors descriptors = View::createLightingDescriptors(collectLights->data(), true);
         descriptors.emplace_back(View::readEnv(resourceSystem->textureOptions));
         if (auto shadowMap = mShadow->shadowMap())
@@ -2422,7 +2427,10 @@ namespace MWRender
         if (mPointShadows)
         {
             if (auto collect = dynamic_cast<View::CollectLights*>(mView->viewDependentState.get()))
-                mPointShadows->update(mViewMatrix->transform(), collect->pointLights);
+            {
+                mPointShadows->update(mViewMatrix->transform(), collect->snapshots());
+                collect->setShadowEntries(mPointShadows->entries());
+            }
         }
         mSceneData->dirty();
         mLightGrid->update();

@@ -12,6 +12,14 @@ namespace View
         mData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
     }
 
+    void CollectLights::setShadowTarget(vsg::ref_ptr<vsg::vec4Array> data, std::size_t entryOffset)
+    {
+        mShadowData = std::move(data);
+        mShadowEntryOffset = entryOffset;
+        mSnapshots.reserve(mData->size() / 2);
+        mShadowEntries.reserve(8);
+    }
+
     void CollectLights::pack() const
     {
         auto light_itr = mData->begin();
@@ -31,6 +39,35 @@ namespace View
             (*light_itr++).set(eye_position.x, eye_position.y, eye_position.z, 0);
         }
         mData->at(1).w = static_cast<float>(lightCount);
+        if (mShadowData)
+        {
+            mSnapshots.clear();
+            for (std::size_t i = 0; i < lightCount; ++i)
+            {
+                const auto& l = pointLights[i];
+                const auto& light = l.second;
+                LightSnapshot snapshot;
+                snapshot.id = reinterpret_cast<std::uintptr_t>(light);
+                snapshot.eyePosition = l.first * light->position;
+                snapshot.color = light->color;
+                snapshot.intensity = light->intensity;
+                mSnapshots.push_back(snapshot);
+                float slot = -1.f;
+                float fade = 0.f;
+                for (const ShadowEntry& entry : mShadowEntries)
+                {
+                    if (entry.id == snapshot.id)
+                    {
+                        slot = static_cast<float>(entry.slot);
+                        fade = entry.fade;
+                        break;
+                    }
+                }
+                if (mShadowEntryOffset + i < mShadowData->size())
+                    mShadowData->at(mShadowEntryOffset + i) = vsg::vec4(slot, fade, 0.f, 0.f);
+            }
+            mShadowData->dirty();
+        }
         // if (maxLights < pointLights.size())
         //     std::cerr << "maxLights < pointLights.size()" << std::endl;
         mData->dirty();
