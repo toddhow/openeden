@@ -5,12 +5,15 @@
 #include <edenarchive/hash.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <exception>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <set>
 #include <system_error>
+#include <thread>
 #include <tuple>
 
 namespace Body
@@ -38,14 +41,6 @@ namespace Body
             char buffer[40];
             std::snprintf(buffer, sizeof(buffer), "%.17g", value);
             return buffer;
-        }
-
-        bool hasControl(std::string_view text)
-        {
-            return std::any_of(text.begin(), text.end(), [](char c) {
-                const unsigned char u = static_cast<unsigned char>(c);
-                return u < 0x20 || u == 0x7F;
-            });
         }
 
         bool isHex64(std::string_view text)
@@ -103,21 +98,73 @@ namespace Body
             }
         }
 
+        // JSON text of `text`: quotes, backslashes and control bytes escaped; a byte that is not part of well-formed
+        // UTF-8 (a race id comes from a mod) becomes U+FFFD, so the file is always valid UTF-8. utf8Length is declared
+        // below.
+        std::size_t utf8Length(std::string_view text);
+
         std::string jsonString(std::string_view text)
         {
             std::string out = "\"";
-            for (char c : text)
+            for (std::size_t i = 0; i < text.size();)
             {
+                const char c = text[i];
                 const unsigned char u = static_cast<unsigned char>(c);
                 if (c == '"' || c == '\\')
                 {
                     out += '\\';
                     out += c;
+                    ++i;
                 }
                 else if (u < 0x20 || u == 0x7F)
                 {
                     char escape[8];
                     std::snprintf(escape, sizeof(escape), "\\u%04x", u);
+                    out += escape;
+                    ++i;
+                }
+                else if (u < 0x80)
+                {
+                    out += c;
+                    ++i;
+                }
+                else if (const std::size_t length = utf8Length(text.substr(i)); length > 0)
+                {
+                    out.append(text.substr(i, length));
+                    i += length;
+                }
+                else
+                {
+                    out += "\\ufffd";
+                    ++i;
+                }
+            }
+            return out + "\"";
+        }
+
+        // A race, sex or view as read back from the manifest (already unescaped): any bytes, one to 128 of them.
+        bool validWord(std::string_view text)
+        {
+            return !text.empty() && text.size() <= 128;
+        }
+
+        bool needsEscape(unsigned char u)
+        {
+            return u < 0x20 || u == 0x7F || u == '%';
+        }
+
+        // A manifest field as one tab-free, newline-free word: control bytes and '%' as %XX (two lower-case hex
+        // digits).
+        std::string escapeField(std::string_view text)
+        {
+            std::string out;
+            for (const char c : text)
+            {
+                const unsigned char u = static_cast<unsigned char>(c);
+                if (needsEscape(u))
+                {
+                    char escape[4];
+                    std::snprintf(escape, sizeof(escape), "%%%02x", u);
                     out += escape;
                 }
                 else
@@ -125,12 +172,79 @@ namespace Body
                     out += c;
                 }
             }
-            return out + "\"";
+            return out;
         }
 
-        bool validWord(std::string_view text)
+        int hexValue(char c)
         {
-            return !text.empty() && text.size() <= 128 && !hasControl(text);
+            if (c >= '0' && c <= '9')
+                return c - '0';
+            if (c >= 'a' && c <= 'f')
+                return c - 'a' + 10;
+            return -1;
+        }
+
+        // The inverse of escapeField, strictly canonical: only bytes that need an escape may be escaped, with
+        // lower-case digits, so every manifest has exactly one text.
+        bool unescapeField(std::string_view text, std::string& out)
+        {
+            out.clear();
+            for (std::size_t i = 0; i < text.size(); ++i)
+            {
+                if (text[i] != '%')
+                {
+                    if (needsEscape(static_cast<unsigned char>(text[i])))
+                        return false;
+                    out += text[i];
+                    continue;
+                }
+                if (i + 2 >= text.size())
+                    return false;
+                const int high = hexValue(text[i + 1]);
+                const int low = hexValue(text[i + 2]);
+                if (high < 0 || low < 0)
+                    return false;
+                const unsigned char value = static_cast<unsigned char>(high * 16 + low);
+                if (!needsEscape(value))
+                    return false;
+                out += static_cast<char>(value);
+                i += 2;
+            }
+            return true;
+        }
+
+        // The length of the well-formed UTF-8 sequence at the start of `text` (1 to 4), or 0 when it is not well
+        // formed: no overlong forms, no surrogates, nothing above U+10FFFF.
+        std::size_t utf8Length(std::string_view text)
+        {
+            const auto at = [&text](std::size_t i) { return static_cast<unsigned char>(text[i]); };
+            const auto cont = [](unsigned char b) { return (b & 0xC0) == 0x80; };
+            const unsigned char b0 = at(0);
+            if (b0 < 0x80)
+                return 1;
+            if (b0 >= 0xC2 && b0 <= 0xDF)
+                return text.size() >= 2 && cont(at(1)) ? 2 : 0;
+            if (b0 >= 0xE0 && b0 <= 0xEF)
+            {
+                if (text.size() < 3 || !cont(at(1)) || !cont(at(2)))
+                    return 0;
+                if (b0 == 0xE0 && at(1) < 0xA0)
+                    return 0;
+                if (b0 == 0xED && at(1) > 0x9F)
+                    return 0;
+                return 3;
+            }
+            if (b0 >= 0xF0 && b0 <= 0xF4)
+            {
+                if (text.size() < 4 || !cont(at(1)) || !cont(at(2)) || !cont(at(3)))
+                    return 0;
+                if (b0 == 0xF0 && at(1) < 0x90)
+                    return 0;
+                if (b0 == 0xF4 && at(1) > 0x8F)
+                    return 0;
+                return 4;
+            }
+            return 0;
         }
 
         bool validEntryName(std::string_view name)
@@ -156,14 +270,21 @@ namespace Body
         }
     }
 
+    // The key is computed through STRUCTURED BINDINGS of every struct it covers. A structured binding must name every
+    // member, so a field added to one of these structs (BodyKeyInput, BodyPartKey, MergeOptions, MergeLimits,
+    // SeamDeclaration) stops this file from compiling until the key learns about it: a stored entry can never go stale
+    // silently because someone added a merger parameter.
     std::string computeBodyKey(const BodyKeyInput& input)
     {
-        std::vector<BodyPartKey> parts = input.mParts;
+        const auto& [race, sex, view, partList, skeletonPath, skeletonDigest, seamList, merge, limits, readerVersion,
+            mergerVersion, layoutVersion]
+            = input;
+        std::vector<BodyPartKey> parts = partList;
         std::sort(parts.begin(), parts.end(), [](const BodyPartKey& a, const BodyPartKey& b) {
             return std::tie(a.mSlot, a.mRecordId, a.mModelPath, a.mModelDigest, a.mPartType, a.mFlags, a.mRace)
                 < std::tie(b.mSlot, b.mRecordId, b.mModelPath, b.mModelDigest, b.mPartType, b.mFlags, b.mRace);
         });
-        std::string text = "openeden.bodykey 1\n";
+        std::string text = "openeden.bodykey 2\n";
         const auto line = [&text](std::string_view key, std::string_view value) {
             text += key;
             text += '=';
@@ -173,34 +294,70 @@ namespace Body
             text += value;
             text += '\n';
         };
-        line("merger", std::to_string(input.mMergerVersion));
-        line("layout", std::to_string(input.mLayoutVersion));
-        line("weld", doubleText(input.mWeldTolerance));
-        line("uv", doubleText(input.mUvTolerance));
-        line("normal", doubleText(input.mNormalAngle));
-        line("race", input.mRace);
-        line("sex", input.mSex);
-        line("view", input.mView);
-        line("skeleton", input.mSkeletonPath);
-        line("skeletonDigest", input.mSkeletonDigest);
-        line("parts", std::to_string(parts.size()));
+        const auto number = [](auto value) { return std::to_string(value); };
+        line("merger", number(mergerVersion));
+        line("layout", number(layoutVersion));
+        line("reader", number(readerVersion));
+        line("race", race);
+        line("sex", sex);
+        line("view", view);
+        line("skeleton", skeletonPath);
+        line("skeletonDigest", skeletonDigest);
+
+        // What the merger is given.
+        const auto& [boneOrder, uvTolerance, normalAngle] = merge;
+        line("uv", doubleText(uvTolerance));
+        line("normal", doubleText(normalAngle));
+        line("boneOrder", number(boneOrder.size()));
+        for (const std::string& bone : boneOrder)
+            line("bone", bone);
+        line("seams", number(seamList.size()));
+        for (const SeamDeclaration& seam : seamList)
+        {
+            const auto& [slotA, slotB, tolerance] = seam;
+            line("seamA", number(slotA));
+            line("seamB", number(slotB));
+            line("seamTolerance", doubleText(tolerance));
+        }
+        const auto& [maxParts, maxVerticesPerPart, maxTrianglesPerPart, maxTotalVertices, maxTotalTriangles,
+            maxBonesPerPart, maxSeams, maxPairsPerSeam, maxCandidateChecks, maxNameBytes, maxErrors]
+            = limits;
+        line("limits",
+            number(maxParts) + "," + number(maxVerticesPerPart) + "," + number(maxTrianglesPerPart) + ","
+                + number(maxTotalVertices) + "," + number(maxTotalTriangles) + "," + number(maxBonesPerPart) + ","
+                + number(maxSeams) + "," + number(maxPairsPerSeam) + "," + number(maxCandidateChecks) + ","
+                + number(maxNameBytes) + "," + number(maxErrors));
+        // The merger's compile-time constants, from the names it uses.
+        line("constants",
+            doubleText(maxCoordinate) + "," + doubleText(minGridCell) + "," + doubleText(maxSeamTolerance) + ","
+                + doubleText(maxPlacementEntry) + "," + number(maxInputInfluences) + "," + number(maxMergedInfluences)
+                + "," + doubleText(uvMergeTolerance) + "," + doubleText(normalMergeAngle));
+
+        line("parts", number(parts.size()));
         for (const BodyPartKey& part : parts)
         {
-            line("slot", std::to_string(part.mSlot));
-            line("record", part.mRecordId);
-            line("type", std::to_string(part.mPartType));
-            line("flags", std::to_string(part.mFlags));
-            line("partRace", part.mRace);
-            line("model", part.mModelPath);
-            line("modelDigest", part.mModelDigest);
+            const auto& [slot, recordId, partType, flags, partRace, modelPath, modelDigest] = part;
+            line("slot", number(slot));
+            line("record", recordId);
+            line("type", number(partType));
+            line("flags", number(flags));
+            line("partRace", partRace);
+            line("model", modelPath);
+            line("modelDigest", modelDigest);
         }
         return hashText(text);
     }
 
     std::string bodyEntryName(std::string_view race, std::string_view sex, std::string_view view)
     {
+        // The digest covers the exact tuple (with separators that cannot be part of a word), 128 bits of it.
+        std::string tuple(race);
+        tuple += '\0';
+        tuple += sex;
+        tuple += '\0';
+        tuple += view;
         return "bodies/" + sanitizeWord(race, 40) + "-" + sanitizeWord(sex, 16) + "-" + sanitizeWord(view, 16) + "-"
-            + hashText(race).substr(0, 8) + ".bodymesh";
+            + hashText(tuple).substr(0, 32) + ".bodymesh";
     }
 
     std::string writeManifest(const CacheManifest& manifest)
@@ -218,13 +375,13 @@ namespace Body
         text += "layout\t" + std::to_string(manifest.mLayoutVersion) + "\n";
         for (const CacheEntry& entry : entries)
         {
-            text += "entry\t" + entry.mName + "\t" + entry.mRace + "\t" + entry.mSex + "\t" + entry.mView + "\t"
-                + entry.mKey + "\n";
+            text += "entry\t" + entry.mName + "\t" + escapeField(entry.mRace) + "\t" + escapeField(entry.mSex) + "\t"
+                + escapeField(entry.mView) + "\t" + entry.mKey + "\n";
         }
         for (const CacheFailure& failure : failures)
         {
-            text += "failed\t" + failure.mRace + "\t" + failure.mSex + "\t" + failure.mView + "\t"
-                + oneLine(failure.mReason) + "\n";
+            text += "failed\t" + escapeField(failure.mRace) + "\t" + escapeField(failure.mSex) + "\t"
+                + escapeField(failure.mView) + "\t" + oneLine(failure.mReason) + "\n";
         }
         return text;
     }
@@ -306,8 +463,10 @@ namespace Body
             }
             else if (fields[0] == "entry" && stage == 3)
             {
-                if (fields.size() != 6 || !validEntryName(fields[1]) || !validWord(fields[2]) || !validWord(fields[3])
-                    || !validWord(fields[4]) || !isHex64(fields[5]))
+                std::string race, sex, view;
+                if (fields.size() != 6 || !validEntryName(fields[1]) || !unescapeField(fields[2], race)
+                    || !unescapeField(fields[3], sex) || !unescapeField(fields[4], view) || !validWord(race)
+                    || !validWord(sex) || !validWord(view) || !isHex64(fields[5]))
                 {
                     return fail(lineNumber, "a malformed entry line");
                 }
@@ -319,11 +478,13 @@ namespace Body
                 {
                     return fail(lineNumber, "entry names are not strictly increasing (a duplicate or out of order)");
                 }
-                manifest.mEntries.push_back({ fields[1], fields[2], fields[3], fields[4], fields[5] });
+                manifest.mEntries.push_back({ fields[1], race, sex, view, fields[5] });
             }
             else if (fields[0] == "failed")
             {
-                if (fields.size() != 5 || !validWord(fields[1]) || !validWord(fields[2]) || !validWord(fields[3])
+                std::string race, sex, view;
+                if (fields.size() != 5 || !unescapeField(fields[1], race) || !unescapeField(fields[2], sex)
+                    || !unescapeField(fields[3], view) || !validWord(race) || !validWord(sex) || !validWord(view)
                     || fields[4].empty() || fields[4].size() > 512)
                 {
                     return fail(lineNumber, "a malformed failed line");
@@ -332,7 +493,7 @@ namespace Body
                 {
                     return fail(lineNumber, "more than " + std::to_string(CacheLimits::sMaxEntries) + " failures");
                 }
-                const CacheFailure next{ fields[1], fields[2], fields[3], fields[4] };
+                const CacheFailure next{ race, sex, view, fields[4] };
                 if (!manifest.mFailures.empty())
                 {
                     const CacheFailure& last = manifest.mFailures.back();
@@ -362,6 +523,60 @@ namespace Body
             [&](const CacheEntry& entry) { return entry.mName == name && entry.mKey == key; });
     }
 
+    namespace
+    {
+        // A temporary name no other writer in this process, nor (for practical purposes) another process, picks: the
+        // target's name, a process-wide counter and a hash of the thread. It affects no output byte.
+        std::filesystem::path temporaryPathFor(const std::filesystem::path& target)
+        {
+            static std::atomic<std::uint64_t> counter{ 0 };
+            const std::uint64_t number = counter.fetch_add(1) + 1;
+            const std::size_t thread = std::hash<std::thread::id>{}(std::this_thread::get_id());
+            char suffix[48];
+            std::snprintf(suffix, sizeof(suffix), ".%llx-%zx.tmp", static_cast<unsigned long long>(number), thread);
+            std::filesystem::path result = target;
+            result += suffix;
+            return result;
+        }
+    }
+
+    bool writeFileAtomic(const std::filesystem::path& path, std::string_view text, std::string& error)
+    {
+        const std::filesystem::path pending = temporaryPathFor(path);
+        std::error_code code;
+        try
+        {
+            {
+                std::ofstream out(pending, std::ios::binary | std::ios::trunc);
+                out.write(text.data(), static_cast<std::streamsize>(text.size()));
+                out.flush();
+                const bool wrote = static_cast<bool>(out);
+                out.close();
+                if (!wrote || out.fail())
+                {
+                    std::filesystem::remove(pending, code);
+                    error = "cannot write '" + pending.generic_string() + "'";
+                    return false;
+                }
+            }
+            std::filesystem::rename(pending, path, code);
+            if (code)
+            {
+                const std::string message = code.message();
+                std::filesystem::remove(pending, code);
+                error = "cannot replace '" + path.generic_string() + "': " + message;
+                return false;
+            }
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            std::filesystem::remove(pending, code);
+            error = oneLine(std::string("cannot write '") + path.generic_string() + "': " + e.what());
+            return false;
+        }
+    }
+
     bool publishCache(
         const std::filesystem::path& folder, const PackageFiles& files, std::string& packName, std::string& error)
     {
@@ -380,36 +595,69 @@ namespace Body
                 return false;
             }
             packName = "merged-" + digest.substr(0, packNameHexDigits) + ".edenpak";
-            if (!writePackageFile(files, folder / packName, error))
+            const std::filesystem::path pack = folder / packName;
+            // A pack of this name is the same content (the name is the digest): leave it alone when it reads back
+            // whole, so a running game that has it open is never written under. A damaged one is replaced below.
+            bool present = false;
+            if (std::filesystem::exists(pack, code))
             {
-                return false;
+                std::string ignored;
+                const std::optional<PackageFiles> existing = readPackageFile(pack, ignored);
+                present = existing.has_value() && packageDigest(*existing, ignored) == digest;
             }
-            // The pack is complete: now name it. The pointer is written whole under another name and renamed over
-            // `current`, so a reader sees the old pointer or the new one and never a half-written one.
-            const std::filesystem::path pending = folder / "current.tmp";
+            if (!present)
             {
-                std::ofstream out(pending, std::ios::binary | std::ios::trunc);
-                out << packName << "\n";
-                out.flush();
-                if (!out)
+                // Written whole under a temporary name and renamed into place: the pack never exists half written.
+                const std::filesystem::path pending = temporaryPathFor(pack);
+                if (!writePackageFile(files, pending, error))
                 {
-                    error = "cannot write '" + pending.generic_string() + "'";
+                    std::filesystem::remove(pending, code);
+                    return false;
+                }
+                std::filesystem::rename(pending, pack, code);
+                if (code)
+                {
+                    const std::string message = code.message();
+                    std::filesystem::remove(pending, code);
+                    error = "cannot move the pack into place '" + pack.generic_string() + "': " + message;
                     return false;
                 }
             }
-            std::filesystem::rename(pending, folder / "current", code);
-            if (code)
-            {
-                error = "cannot publish '" + (folder / "current").generic_string() + "': " + code.message();
-                return false;
-            }
-            return true;
+            // The pack is complete: now name it. The pointer is written whole under another name and renamed over
+            // `current`, so a reader sees the old pointer or the new one and never a half-written one.
+            return writeFileAtomic(folder / "current", packName + "\n", error);
         }
         catch (const std::exception& e)
         {
             error = oneLine(std::string("cannot publish the cache: ") + e.what());
             return false;
         }
+    }
+
+    std::size_t pruneOldPacks(const std::filesystem::path& folder, const std::vector<std::string>& keep)
+    {
+        std::size_t deleted = 0;
+        try
+        {
+            std::error_code code;
+            std::vector<std::filesystem::path> doomed;
+            for (std::filesystem::directory_iterator it(folder, code), end; !code && it != end; it.increment(code))
+            {
+                const std::string name = it->path().filename().generic_string();
+                if (validPackName(name) && std::find(keep.begin(), keep.end(), name) == keep.end())
+                    doomed.push_back(it->path());
+            }
+            for (const std::filesystem::path& path : doomed)
+            {
+                if (std::filesystem::remove(path, code) && !code)
+                    ++deleted;
+            }
+        }
+        catch (const std::exception&)
+        {
+            // Pruning is housekeeping: whatever could not be deleted stays.
+        }
+        return deleted;
     }
 
     std::optional<PackageFiles> loadCurrentCache(const std::filesystem::path& folder, std::string& error)

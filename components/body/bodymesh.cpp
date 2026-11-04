@@ -116,6 +116,7 @@ namespace Body
                 }
             }
 
+            std::vector<char> boneUsed(body.mBones.size(), 0);
             for (std::size_t i = 0; i < vertices; ++i)
             {
                 if (!finite(body.mPositions[i]))
@@ -130,25 +131,63 @@ namespace Body
                 {
                     return "uvs: vertex " + num(i) + ": a coordinate is not a finite number";
                 }
+                // Canonical: the four influences largest first, a tie by the lower bone index, the unused slots at the
+                // end naming bone 0, no bone twice, the weights adding up to 1 within float round-off.
                 double sum = 0;
+                float previousWeight = 0.f;
+                std::uint16_t previousIndex = 0;
                 for (std::size_t k = 0; k < maxMergedInfluences; ++k)
                 {
                     const float weight = body.mBoneWeights[i][k];
+                    const std::uint16_t index = body.mBoneIndices[i][k];
                     if (!std::isfinite(weight) || weight < 0.f)
                     {
                         return "skin: vertex " + num(i) + ": weight " + num(k) + " is negative or not finite";
                     }
-                    if (body.mBoneIndices[i][k] >= body.mBones.size())
+                    if (index >= body.mBones.size())
                     {
-                        return "skin: vertex " + num(i) + ": bone index " + num(body.mBoneIndices[i][k])
-                            + " is not in the bone list of " + num(body.mBones.size());
+                        return "skin: vertex " + num(i) + ": bone index " + num(index) + " is not in the bone list of "
+                            + num(body.mBones.size());
                     }
+                    if (weight == 0.f)
+                    {
+                        if (index != 0)
+                        {
+                            return "skin: vertex " + num(i) + ": slot " + num(k)
+                                + " has no weight but names a bone other than bone 0";
+                        }
+                    }
+                    else
+                    {
+                        if (k > 0 && (weight > previousWeight || (weight == previousWeight && index <= previousIndex)))
+                        {
+                            return "skin: vertex " + num(i) + ": influence " + num(k)
+                                + " is not after the one before it (largest weight first, a tie by the lower bone "
+                                  "index)";
+                        }
+                        for (std::size_t j = 0; j < k; ++j)
+                        {
+                            if (body.mBoneIndices[i][j] == index)
+                            {
+                                return "skin: vertex " + num(i) + ": bone " + num(index)
+                                    + " is listed twice for one vertex";
+                            }
+                        }
+                        boneUsed[index] = 1;
+                    }
+                    previousWeight = weight;
+                    previousIndex = index;
                     sum += weight;
                 }
-                if (std::fabs(sum - 1.0) > L::sWeightSumTolerance)
+                if (std::fabs(sum - 1.0) > L::sCanonicalWeightSumTolerance)
                 {
                     return "skin: vertex " + num(i) + ": the weights add up to " + std::to_string(sum) + ", not 1";
                 }
+            }
+            for (std::size_t i = 0; i < boneUsed.size(); ++i)
+            {
+                if (!boneUsed[i])
+                    return "bones: bone " + num(i) + " is not used by any vertex";
             }
             for (std::size_t i = 0; i < triangleIndices; ++i)
             {

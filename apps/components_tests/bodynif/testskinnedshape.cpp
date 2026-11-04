@@ -4,6 +4,7 @@
 // errors (zero bones, weights for a missing vertex, huge counts).
 #include <gtest/gtest.h>
 
+#include <components/body/bodycache.hpp>
 #include <components/bodynif/skinnedshape.hpp>
 
 #include <components/animation/skin.hpp>
@@ -1004,5 +1005,75 @@ namespace
                 largest = std::max(largest, std::abs(result.mShapes[0].mPositions[v][axis] - engine[v][axis]));
         }
         EXPECT_GT(largest, 0.5f);
+    }
+
+    // ---- the reader's fingerprint (task 0069, review fix B1): the cache key carries Body::bodyReaderVersion, which
+    // must change when what the reader makes of a file changes (the NIF reader, the skin filter, the placement, the
+    // mirror rule). This test records a hash of the reading of the synthetic fixture above; when it fails, the reader
+    // changed: bump Body::bodyReaderVersion (components/body/bodycache.hpp) AND update the pin below, in one change.
+
+    std::uint64_t mixBytes(std::uint64_t hash, const void* data, std::size_t size)
+    {
+        const auto* bytes = static_cast<const unsigned char*>(data);
+        for (std::size_t i = 0; i < size; ++i)
+            hash = (hash ^ bytes[i]) * 1099511628211ull;
+        return hash;
+    }
+
+    template <typename T>
+    std::uint64_t mixValue(std::uint64_t hash, const T& value)
+    {
+        return mixBytes(hash, &value, sizeof(T));
+    }
+
+    std::uint64_t fingerprintOf(const Shape& shape)
+    {
+        std::uint64_t hash = 1469598103934665603ull;
+        for (const Vec3& p : shape.mPositions)
+            for (const float c : p)
+                hash = mixValue(hash, c);
+        for (const std::uint32_t index : shape.mTriangles)
+            hash = mixValue(hash, index);
+        for (const std::string& bone : shape.mBones)
+            hash = mixBytes(hash, bone.data(), bone.size());
+        for (const VertexSkin& skin : shape.mSkin)
+        {
+            hash = mixValue(hash, skin.mCount);
+            for (std::size_t k = 0; k < skin.mCount; ++k)
+            {
+                hash = mixValue(hash, skin.mInfluences[k].mBone);
+                hash = mixValue(hash, skin.mInfluences[k].mWeight);
+            }
+        }
+        hash = mixValue(hash, shape.mMirrored);
+        hash = mixValue(hash, shape.mPlaced);
+        hash = mixValue(hash, shape.mSkinned);
+        return hash;
+    }
+
+    struct ReaderPin
+    {
+        std::uint32_t mVersion;
+        std::uint64_t mFingerprint;
+    };
+
+    constexpr ReaderPin readerPin = { 1, 2143543024064129625ull };
+
+    TEST(BodyNifReaderVersion, theReadingOfTheSyntheticFixtureIsPinnedToTheReaderVersion)
+    {
+        const BindFixture fixture;
+        Model model;
+        RestPose rest;
+        const ReadResult result = readBindFixture(model, fixture, nullptr, rest);
+        ASSERT_TRUE(result.mErrors.empty());
+        ASSERT_EQ(result.mShapes.size(), 1u);
+        const std::uint64_t fingerprint = fingerprintOf(result.mShapes[0]);
+        EXPECT_EQ(Body::bodyReaderVersion, readerPin.mVersion)
+            << "the reader version changed: update readerPin together with the fingerprint";
+        EXPECT_EQ(fingerprint, readerPin.mFingerprint)
+            << "the reading of the fixture changed (the NIF reader, the skin filter, the placement or the mirror "
+               "rule): "
+               "bump Body::bodyReaderVersion and set readerPin to { new version, "
+            << fingerprint << " }";
     }
 }

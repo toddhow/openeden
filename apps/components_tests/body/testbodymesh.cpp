@@ -14,6 +14,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -380,9 +382,9 @@ namespace
         EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mParts.pop_back(); }));
         EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSkeletonDigest = std::string(64, 'e'); }));
         EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSkeletonPath = "meshes/base_anim.nif"; }));
-        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mWeldTolerance = 0.02; }));
-        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mUvTolerance = 2e-5; }));
-        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mNormalAngle = 0.1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSeams = { { 3, 4, 0.02 } }; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mMerge.mUvTolerance = 2e-5; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mMerge.mNormalAngle = 0.1; }));
         EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mMergerVersion += 1; }));
         EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLayoutVersion += 1; }));
         EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mRace = "Nord"; }));
@@ -592,5 +594,223 @@ namespace
                 EXPECT_EQ(loaded->mFiles, makeFiles(1).mFiles) << "byte " << i;
             }
         }
+    }
+
+    // ---- review fixes of stage c (task 0069): a complete key, collision-free names, escaped manifests, atomic
+    // publishing, canonical payloads
+
+    Body::BodyKeyInput fullKeyInput()
+    {
+        Body::BodyKeyInput input = makeKeyInput();
+        input.mSeams = { { 3, 4, 0.01 }, { 5, 6, 0.01 } };
+        input.mMerge.mBoneOrder = { "bip01 spine", "bip01 head" };
+        return input;
+    }
+
+    TEST(BodyCacheKeyComplete, everyMergerInputChangesTheKey)
+    {
+        const std::string base = Body::computeBodyKey(fullKeyInput());
+        const auto changes = [&base](void (*mutate)(Body::BodyKeyInput&)) {
+            Body::BodyKeyInput input = fullKeyInput();
+            mutate(input);
+            return Body::computeBodyKey(input) != base;
+        };
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSeams[0].mTolerance = 0.02; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSeams[0].mSlotA = 9; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSeams[1].mSlotB = 9; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mSeams.pop_back(); }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mMerge.mBoneOrder.push_back("bip01 tail"); }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { std::swap(i.mMerge.mBoneOrder[0], i.mMerge.mBoneOrder[1]); }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mMerge.mUvTolerance = 2e-5; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mMerge.mNormalAngle = 0.1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mReaderVersion += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxParts += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxVerticesPerPart += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxTrianglesPerPart += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxTotalVertices += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxTotalTriangles += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxBonesPerPart += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxSeams += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxPairsPerSeam += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxCandidateChecks += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxNameBytes += 1; }));
+        EXPECT_TRUE(changes([](Body::BodyKeyInput& i) { i.mLimits.mMaxErrors += 1; }));
+    }
+
+    TEST(BodyCacheEntryName, theDigestIsLongEnoughThatACollisionIsNotAFeasibleAttack)
+    {
+        const std::string name = Body::bodyEntryName("Dark Elf", "female", "third");
+        const std::size_t dash = name.rfind('-');
+        ASSERT_NE(dash, std::string::npos);
+        const std::string digest = name.substr(dash + 1, name.size() - dash - 1 - 9);
+        EXPECT_GE(digest.size(), 32u) << name;
+        // The exact (race, sex, view) tuple decides it, including bytes after the sanitised prefix is cut.
+        const std::string common(60, 'a');
+        EXPECT_NE(
+            Body::bodyEntryName(common + "1", "male", "third"), Body::bodyEntryName(common + "2", "male", "third"));
+        EXPECT_TRUE(Body::isSafePackagePath(name));
+    }
+
+    TEST(BodyCacheManifest, aRaceWithATabOrNewlineRoundTripsAndPercentIsEscaped)
+    {
+        Body::CacheManifest manifest;
+        manifest.mEntries = { { "bodies/x-0.bodymesh", "Odd\tRace\nname%", "female", "third", std::string(64, 'a') } };
+        manifest.mFailures = { { "Odd\tRace\nname%", "male", "third", "one line" } };
+        const std::string text = Body::writeManifest(manifest);
+        // Exactly the lines of the grammar: no raw newline inside a field.
+        EXPECT_EQ(std::count(text.begin(), text.end(), '\n'), 5);
+        std::string error;
+        const std::optional<Body::CacheManifest> read = Body::readManifest(text, error);
+        ASSERT_TRUE(read.has_value()) << error;
+        EXPECT_EQ(*read, manifest);
+        EXPECT_EQ(Body::writeManifest(*read), text) << "canonical";
+        // A non-canonical escape (an escaped letter) is refused, so each manifest has one text.
+        std::string bad = text;
+        const std::size_t at = bad.find("female");
+        ASSERT_NE(at, std::string::npos);
+        bad.replace(at, 1, "%66");
+        EXPECT_FALSE(Body::readManifest(bad, error).has_value());
+    }
+
+    TEST(BodyCacheManifest, theStatusFileIsValidUtf8EvenForAHostileRaceName)
+    {
+        Body::CacheManifest manifest;
+        manifest.mFailures = { { "bad\xff\xfe race", "male", "third", "reason \xc3(" } };
+        const std::string json = Body::writeStatusJson(manifest, "complete");
+        for (const char c : json)
+            EXPECT_NE(static_cast<unsigned char>(c), 0xffu);
+        EXPECT_NE(json.find("\\ufffd"), std::string::npos);
+        // Valid UTF-8 passes through untouched.
+        manifest.mFailures = { { "Ch\xc3\xa2teau", "male", "third", "ok" } };
+        EXPECT_NE(Body::writeStatusJson(manifest, "complete").find("Ch\xc3\xa2teau"), std::string::npos);
+    }
+
+    TEST(BodyCachePublish, republishingIdenticalFilesDoesNotRewriteTheLivePack)
+    {
+        TempFolder folder;
+        std::string name, error;
+        ASSERT_TRUE(Body::publishCache(folder.path(), makeFiles(1), name, error)) << error;
+        const std::filesystem::path pack = folder.path() / name;
+        const auto past = std::filesystem::file_time_type::clock::now() - std::chrono::hours(48);
+        std::filesystem::last_write_time(pack, past);
+        const auto before = std::filesystem::last_write_time(pack);
+        std::string again;
+        ASSERT_TRUE(Body::publishCache(folder.path(), makeFiles(1), again, error)) << error;
+        EXPECT_EQ(again, name);
+        EXPECT_EQ(std::filesystem::last_write_time(pack), before) << "the live pack was rewritten in place";
+    }
+
+    TEST(BodyCachePublish, aDamagedLivePackIsReplacedNotTrustedAndLeavesNoTemporaryFile)
+    {
+        TempFolder folder;
+        std::string name, error;
+        ASSERT_TRUE(Body::publishCache(folder.path(), makeFiles(1), name, error)) << error;
+        writeTextFile(folder.path() / name, "damaged");
+        std::string again;
+        ASSERT_TRUE(Body::publishCache(folder.path(), makeFiles(1), again, error)) << error;
+        EXPECT_EQ(again, name);
+        const std::optional<Body::PackageFiles> loaded = Body::loadCurrentCache(folder.path(), error);
+        ASSERT_TRUE(loaded.has_value()) << error;
+        EXPECT_EQ(loaded->mFiles, makeFiles(1).mFiles);
+        for (const auto& entry : std::filesystem::directory_iterator(folder.path()))
+            EXPECT_NE(entry.path().extension(), ".tmp") << entry.path();
+    }
+
+    TEST(BodyFileAtomic, itWritesWholeReplacesAndLeavesNothingBehind)
+    {
+        TempFolder folder;
+        std::string error;
+        ASSERT_TRUE(Body::writeFileAtomic(folder.path() / "status.json", "first\n", error)) << error;
+        ASSERT_TRUE(Body::writeFileAtomic(folder.path() / "status.json", "second\n", error)) << error;
+        EXPECT_EQ(readTextFile(folder.path() / "status.json"), "second\n");
+        std::size_t files = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(folder.path()))
+        {
+            ++files;
+            EXPECT_NE(entry.path().extension(), ".tmp");
+        }
+        EXPECT_EQ(files, 1u);
+        EXPECT_FALSE(Body::writeFileAtomic(folder.path() / "missing" / "status.json", "x", error));
+        EXPECT_FALSE(error.empty());
+    }
+
+    TEST(BodyCachePrune, itDeletesOldPacksButKeepsTheNamedOnes)
+    {
+        TempFolder folder;
+        std::string error;
+        std::vector<std::string> names;
+        for (const std::uint8_t fill : std::array<std::uint8_t, 4>{ 1, 2, 3, 4 })
+        {
+            std::string name;
+            ASSERT_TRUE(Body::publishCache(folder.path(), makeFiles(fill), name, error)) << error;
+            names.push_back(name);
+        }
+        writeTextFile(folder.path() / "notes.txt", "keep me");
+        EXPECT_EQ(Body::pruneOldPacks(folder.path(), { names[2], names[3] }), 2u);
+        EXPECT_FALSE(std::filesystem::exists(folder.path() / names[0]));
+        EXPECT_FALSE(std::filesystem::exists(folder.path() / names[1]));
+        EXPECT_TRUE(std::filesystem::exists(folder.path() / names[2]));
+        EXPECT_TRUE(std::filesystem::exists(folder.path() / names[3]));
+        EXPECT_TRUE(std::filesystem::exists(folder.path() / "notes.txt"));
+        EXPECT_TRUE(std::filesystem::exists(folder.path() / "current"));
+        EXPECT_TRUE(Body::loadCurrentCache(folder.path(), error).has_value()) << error;
+    }
+
+    // ---- the payload reader accepts canonical bodies only
+
+    bool refusedAtWrite(const Body::MergedBody& body)
+    {
+        std::vector<std::uint8_t> out;
+        std::string error;
+        return !Body::writeBodyMesh(body, out, error) && !error.empty();
+    }
+
+    TEST(BodyMeshPayloadCanonical, weightsLargestFirstTiesByIndexZeroSlotsAtTheEnd)
+    {
+        const Body::MergedBody good = makeBody();
+        Body::MergedBody ok = good;
+        ok.mBoneIndices[0] = { 0, 1, 0, 0 };
+        ok.mBoneWeights[0] = { 0.75f, 0.25f, 0.f, 0.f };
+        std::vector<std::uint8_t> bytes;
+        std::string error;
+        ASSERT_TRUE(Body::writeBodyMesh(ok, bytes, error)) << error;
+        EXPECT_TRUE(Body::readBodyMesh(bytes).mBody.has_value());
+        Body::MergedBody tie = good;
+        tie.mBoneIndices[0] = { 0, 1, 0, 0 };
+        tie.mBoneWeights[0] = { 0.5f, 0.5f, 0.f, 0.f };
+        EXPECT_TRUE(Body::writeBodyMesh(tie, bytes, error)) << error;
+
+        Body::MergedBody unsorted = good;
+        unsorted.mBoneIndices[0] = { 0, 1, 0, 0 };
+        unsorted.mBoneWeights[0] = { 0.25f, 0.75f, 0.f, 0.f };
+        EXPECT_TRUE(refusedAtWrite(unsorted)) << "smaller weight first";
+        Body::MergedBody tieDescending = good;
+        tieDescending.mBoneIndices[0] = { 1, 0, 0, 0 };
+        tieDescending.mBoneWeights[0] = { 0.5f, 0.5f, 0.f, 0.f };
+        EXPECT_TRUE(refusedAtWrite(tieDescending)) << "a tie must list the lower bone index first";
+        Body::MergedBody zeroSlot = good;
+        zeroSlot.mBoneIndices[0] = { 0, 1, 0, 0 };
+        zeroSlot.mBoneWeights[0] = { 1.f, 0.f, 0.f, 0.f };
+        EXPECT_TRUE(refusedAtWrite(zeroSlot)) << "a zero-weight slot must name bone 0";
+        Body::MergedBody duplicate = good;
+        duplicate.mBoneIndices[0] = { 0, 0, 0, 0 };
+        duplicate.mBoneWeights[0] = { 0.5f, 0.5f, 0.f, 0.f };
+        EXPECT_TRUE(refusedAtWrite(duplicate)) << "a bone listed twice for one vertex";
+    }
+
+    TEST(BodyMeshPayloadCanonical, onlyUsedBonesAreListedAndTheSumIsTight)
+    {
+        const Body::MergedBody good = makeBody();
+        Body::MergedBody unused = good;
+        unused.mBones.push_back("bip01 unused");
+        EXPECT_TRUE(refusedAtWrite(unused)) << "a bone no vertex uses";
+        Body::MergedBody off = good;
+        off.mBoneWeights[0] = { 0.9999f, 0.f, 0.f, 0.f }; // 1e-4 off: accepted by the old 1e-3 tolerance
+        EXPECT_TRUE(refusedAtWrite(off));
+        Body::MergedBody close = good;
+        close.mBoneWeights[0] = { 1.f - 1e-7f, 0.f, 0.f, 0.f };
+        std::vector<std::uint8_t> bytes;
+        std::string error;
+        EXPECT_TRUE(Body::writeBodyMesh(close, bytes, error)) << error;
     }
 }

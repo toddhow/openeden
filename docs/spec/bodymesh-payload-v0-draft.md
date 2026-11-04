@@ -28,7 +28,7 @@ files and is never committed or shipped.
 | normals | vertices x 3 f32, only with flag bit 0 |
 | UVs | vertices x 2 f32, only with flag bit 1 |
 | bone indices | vertices x 4 u16 (indices into the bone list; unused entries 0 with weight 0) |
-| bone weights | vertices x 4 f32 (each finite and >= 0; the four add up to 1 within 1e-3) |
+| bone weights | vertices x 4 f32 (each finite and >= 0; the four add up to 1 within 1e-5; canonical, see below) |
 | triangles | triangles x 3 u32 (vertex indices) |
 | regions | per region: i32 slot, u32 first triangle, u32 triangle count (slots strictly increasing; the regions tile the triangle list in order) |
 | submeshes | per submesh: u32 material, i32 slot, u32 first triangle, u32 triangle count (strictly increasing by (slot, material); tiling the triangle list in order; each inside the region of its slot) |
@@ -54,3 +54,11 @@ digest), and textures (a material is a key string; the engine finds the texture 
 1. Is the one-entry-per-body layout right, or should regions and submeshes be a separate small entry?
 2. float32 weights and u16 indices (56 bytes per vertex) against float16/u8 (about 44): size 2.4 MB for 20 bodies today.
 3. Should the report numbers (weld sets, groups, maximum weight disagreement) be stored in the payload for the studio panel?
+
+## Canonical skin (review fix of 2026-11-03, still layout version 0, a draft)
+
+The reader accepts only what the writer writes: for every vertex the four influences are in order of falling weight,
+a tie is listed lower bone index first, unused slots come last with weight 0 and bone index 0, no bone is listed twice
+for one vertex, and the weights add up to 1 within 1e-5 (float round-off of four renormalised weights is a few 1e-7).
+Every bone in the bone list must be used by some vertex (a positive weight). A payload that breaks any of these is
+refused with the vertex and the rule, so a bit flip that leaves it readable still writes back to the same bytes.

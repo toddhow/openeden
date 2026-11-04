@@ -31,9 +31,11 @@
 // again gives the same bytes, and the reader refuses anything the writer would not have written.
 //
 // Hostile input: every count is checked against BodyMeshLimits and against the bytes that remain BEFORE anything is
-// allocated; floats must be finite; indices must be in range; weights must be >= 0 and sum to 1 within 1e-3 (a
-// vertex with no influence is refused); regions and submeshes must lie inside the triangle list. A bad payload gives
-// one located message ("positions: vertex 12: coordinate is not a finite number") and no body; nothing throws.
+// allocated; floats must be finite; indices must be in range; regions and submeshes must lie inside the triangle
+// list. The skin must be CANONICAL, as the merger writes it: the four influences of a vertex largest weight first (a
+// tie by the lower bone index), unused slots last with weight 0 and bone 0, no bone twice for one vertex, weights
+// summing to 1 within sCanonicalWeightSumTolerance (1e-5), and every listed bone used by some vertex. A bad payload
+// gives one located message ("positions: vertex 12: coordinate is not a finite number") and no body; nothing throws.
 //
 // Threading: pure functions. Ownership: the result is a value.
 
@@ -61,8 +63,13 @@ namespace Body
         inline constexpr std::uint32_t sMaxWeldGroups = 65536;
         inline constexpr std::uint32_t sMaxWeldMembers = 1u << 20;
         inline constexpr std::size_t sMaxNameBytes = 128;
-        /// The tolerance of the weight sum; the same as the body validator's (Thresholds::sWeightSumTolerance).
+        /// The tolerance of the weight sum of a body package, the same as the body validator's
+        /// (Thresholds::sWeightSumTolerance). Not used for the payload: see sCanonicalWeightSumTolerance.
         inline constexpr double sWeightSumTolerance = 1e-3;
+        /// The tolerance of the weight sum of a payload. The merger renormalises four weights in double and stores
+        /// them as float, so their sum is off by float round-off only (a few 1e-7); 1e-5 is 30 times that and far
+        /// below the 1e-4 a hand-made payload can be off by. A starting value.
+        inline constexpr double sCanonicalWeightSumTolerance = 1e-5;
     }
 
     /// Writes the canonical payload of `body`. Returns false and sets `error` when the body does not satisfy the rules

@@ -11,17 +11,27 @@
 // Publishing is atomic in the sense that matters: the pack is complete before `current` names it, and a bake killed at
 // any point leaves the previous `current` and the previous pack untouched. A temporary file left behind is ignored.
 //
-// THE KEY of a body is the digest of everything its bytes depend on: the merger version, the payload layout version,
-// the weld, UV and normal parameters, the body's identity (race, sex, view), for every part its slot, record id, part
-// type, flags, race, model path and the digest of the model FILE BYTES (a loose file has no archive digest), and the
-// skeleton path and the digest of its bytes. A key therefore changes when one of those changes and only then, and it is
-// per body: changing the model of a part of one body changes the keys of the bodies that use that part and no other.
-// A stored entry whose key is not the one computed now is stale and ignored (the engine draws stock parts).
+// THE KEY of a body is the digest of everything its bytes depend on: the merger version, the reader version (the NIF
+// reader, skin filter, placement and mirror rules and the adapter that turns shapes into parts: see bodyReaderVersion
+// and its pinned test), the payload layout version, EVERYTHING the merger is given (the seams, the options and the
+// limits: the key is computed through structured bindings of those structs, so a field added to one stops this
+// library from compiling until the key learns about it; the merger's compile-time constants are included by name), the
+// body's identity (race, sex, view), for every part its slot, record id, part type, flags, race, model path and the
+// digest of the model FILE BYTES (a loose file has no archive digest), and the skeleton path and the digest of its
+// bytes. A key therefore changes when one of those changes and only then, and it is per body: changing the model of a
+// part of one body changes the keys of the bodies that use that part and no other. A stored entry whose key is not the
+// one computed now is stale and ignored (the engine draws stock parts).
+//
+// Writing: a pack is written under a temporary name and renamed into place, unless a pack of that name (its name is
+// the digest of its content) already reads back whole, in which case it is left alone, so a game that has it open is
+// never written under. Every small file (the pointer, the status file) goes through writeFileAtomic. After a
+// successful publish the baker keeps the new pack and the one the pointer named before (pruneOldPacks).
 //
 // Hostile input: the pack is read by the Eden Archive reader with its caps; the manifest reader is strict and caps
 // its size and entries; payloads go through readBodyMesh. Determinism: no clock, no randomness, no threads; the same
 // inputs give the same bytes on one machine. Threading: pure functions (publish and load touch the file system).
 
+#include "bodymerge.hpp"
 #include "bodypack.hpp"
 
 #include <cstdint>
@@ -37,6 +47,11 @@ namespace Body
     inline constexpr std::uint32_t bodyMergerVersion = 1;
 
     inline constexpr std::uint32_t cacheManifestVersion = 0;
+
+    /// Bumped when the part reading changes its output for the same file: the NIF reader (components/bodynif), the
+    /// skin filter, the placement and mirror rules, and the adapter that turns shapes into merger parts. A test pins
+    /// the digest of a synthetic reading, so that a change cannot go unnoticed (testbodymesh.cpp, BodyCacheKey).
+    inline constexpr std::uint32_t bodyReaderVersion = 1;
 
     namespace CacheLimits
     {
@@ -67,9 +82,12 @@ namespace Body
         std::vector<BodyPartKey> mParts; // any order: the key sorts a copy by slot
         std::string mSkeletonPath;
         std::string mSkeletonDigest; // lowercase hex of the file's bytes
-        double mWeldTolerance = 0.01;
-        double mUvTolerance = 1e-5;
-        double mNormalAngle = 0.0872664626;
+        /// Everything the merger is given: the seams, the options and the limits (a body that hits a limit fails
+        /// instead of merging, so the limits are part of what a stored entry means).
+        std::vector<SeamDeclaration> mSeams;
+        MergeOptions mMerge;
+        MergeLimits mLimits;
+        std::uint32_t mReaderVersion = bodyReaderVersion;
         std::uint32_t mMergerVersion = bodyMergerVersion;
         std::uint32_t mLayoutVersion = 0; // bodyMeshLayoutVersion
     };
@@ -77,9 +95,10 @@ namespace Body
     /// The body's key: 64 lowercase hex characters (BLAKE3 over a canonical text of the input).
     std::string computeBodyKey(const BodyKeyInput& input);
 
-    /// The pack entry name of a body: `bodies/<race>-<sex>-<view>-<8 hex>.bodymesh`, lower case, a-z 0-9 and '-', a
-    /// safe package path. The last part is a digest of the exact race id, so two ids that differ only in punctuation or
-    /// case do not collide.
+    /// The pack entry name of a body: `bodies/<race>-<sex>-<view>-<32 hex>.bodymesh`, lower case, a-z 0-9 and '-', a
+    /// safe package path. The last part is a 128-bit digest of the exact (race, sex, view) text, so two bodies whose
+    /// names differ only in punctuation, case or bytes beyond the shortened prefix do not collide; the baker also
+    /// refuses a collision loudly.
     std::string bodyEntryName(std::string_view race, std::string_view sex, std::string_view view);
 
     struct CacheEntry
@@ -129,6 +148,13 @@ namespace Body
 
     /// Reads the pack `current` names. Refuses a missing or unsafe pointer, a missing pack, a damaged pack.
     std::optional<PackageFiles> loadCurrentCache(const std::filesystem::path& folder, std::string& error);
+
+    /// Writes `text` to `path` whole: to a uniquely named temporary file in the same folder, checked, then renamed over
+    /// `path`. A reader sees the old file or the new one; a failure leaves the old one.
+    bool writeFileAtomic(const std::filesystem::path& path, std::string_view text, std::string& error);
+
+    /// Deletes every merged-<digest>.edenpak in `folder` whose name is not in `keep`. Returns how many were deleted.
+    std::size_t pruneOldPacks(const std::filesystem::path& folder, const std::vector<std::string>& keep);
 
     /// The status file as canonical JSON text (state, counts, per-body failures).
     std::string writeStatusJson(const CacheManifest& manifest, std::string_view state);
