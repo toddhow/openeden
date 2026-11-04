@@ -1,6 +1,8 @@
 # Task: Skeleton mapping for body replacers' extended skeletons
 
-Status: DRAFT for toddhow's review (2026-11-03). Nothing is built. Evidence: research note 0033
+Status: stages b, c and d are built on synthetic data (2026-11-04, `4a6791ac26`, `203f4fd03e`) and corrected after a
+fresh review (stage log, "Review fixes"); stage a (the measurement on real skeletons), stage e (the engine path) and
+the later stages are not started. Originally a draft for toddhow's review (2026-11-03). Evidence: research note 0033
 (`docs/research/0033-extended-skeletons-of-body-replacers.md`); read it first, it separates what was verified in this
 repository from what is general knowledge of other games' mods (marked **verify**).
 
@@ -47,24 +49,39 @@ in `<user data>/openeden/skeletonmaps/<digest>.skeletonmap.json` (the package's 
   "format": "openeden.skeletonmap",
   "version": 1,
   "name": "example-extended-skeleton",
-  "source": { "boneCount": 118, "digest": "<64 hex: BLAKE3 of sorted (name, parentName, rest) records>" },
+  "source": {"boneCount": 118, "digest": "<64 hex: BLAKE3 of sorted (name, parentName, rest) records>"},
   "profile": "humanoid-to-eden",
   "roles": [
-    { "role": "Pelvis", "bone": "Bip01 Pelvis", "aliases": ["Pelvis_01"] }
+    {"role": "Pelvis", "bone": "Bip01 Pelvis", "aliases": ["Pelvis_01"]},
+    ...the other core roles...
   ],
   "extra": [
-    { "bone": "Breast_L_01", "action": "secondary", "parent": "Chest", "kind": "breast",
-      "useClipTrack": false, "suggested": { "heuristic": "name.soft-tissue", "confidence": "high" }, "accepted": true },
-    { "bone": "Forearm_Twist_L", "action": "fold", "to": "LeftForearm", "rule": "nearest-mapped-ancestor",
-      "suggested": { "heuristic": "hierarchy.twist", "confidence": "medium" }, "accepted": true },
-    { "bone": "WeaponBack", "action": "attach", "parent": "Chest", "attachPoint": "weapon.back", "accepted": true },
-    { "bone": "IK_Helper_01", "action": "drop", "reason": "no weights, no children", "accepted": true }
+    {
+      "bone": "Breast_L_01",
+      "action": "secondary",
+      "parent": "Chest",
+      "kind": "breast",
+      "suggested": {"heuristic": "name.soft-tissue", "confidence": "high"},
+      "accepted": true
+    },
+    {
+      "bone": "Forearm_Twist_L",
+      "action": "fold",
+      "suggested": {"heuristic": "name.twist", "confidence": "high"},
+      "accepted": true
+    },
+    {"bone": "WeaponBack", "action": "attach", "parent": "Chest", "attachPoint": "weapon.back", "accepted": true},
+    {"bone": "IK_Helper_01", "action": "drop", "reason": "no weights, no children", "accepted": true}
   ],
-  "proportions": { "mode": "tier1", "note": "derived, never authored" }
+  "proportions": {"mode": "tier1", "note": "derived, never authored"}
 }
 ```
 
-Rules: every source bone is either a role bone or listed once in `extra`; `accepted: false` entries are refused by the
+The example is in the canonical form `writeSkeletonMap` produces (review fix: the earlier draft listed `useClipTrack:
+false`, which the writer omits as the default, and gave a `to` with the rule `nearest-mapped-ancestor`, which
+BODY-MAP-009 refuses: that rule takes its target from the source hierarchy). `missingRoles` appears after `roles`
+only when the suggestion engine found no bone for a role. Rules: every source bone is either a role bone or listed
+once in `extra`; `accepted: false` entries are refused by the
 engine (D5); `to` and `parent` name a role or a mapped bone; the file never contains vertex data or mesh data (bone
 names are short functional identifiers, see question 8).
 
@@ -327,3 +344,85 @@ changed after the first run.
 `openmw-tests` was not run (nothing there changed); the real-data bake of task 0069 was not repeated after the move of the
 weight rules (the code is the same and the merger tests pass, but byte identity of the cache on real data is not re-proved).
 Stage e (the engine path) and everything after it are not started.
+
+### Review fixes, 2026-11-04 (the fresh review of stages b to d; synthetic data only)
+
+A fresh reviewing agent read `4a6791ac26` and `203f4fd03e` and found two findings that change what stage e can be
+built on, six format or API gaps and a set of doc and test corrections. All are addressed here.
+
+**Red first.** 20 new tests in `apps/components_tests/body/testskeletonmapreview.cpp` were written against stubs of the
+new API (`engineBoneKey`, `skeletonMapDigest`, `SkeletonMapping::mapDigest`, `BuildOptions::mActorBones`,
+`MappingResult::mNotes`, `RestComparison`, `RestPlan::mValid`, `toPlacement`, `fromPlacement`, `toColumnMajor`,
+`SkeletonMap::mMissingRoles`) and run before the fixes: 18 failed, 2 passed (`a_utf8_bone_name_round_trips`, which the
+old code already did, and `an_actor_role_bone_is_found_whatever_its_case`, vacuous against a stub that reports no
+error). After the fixes all pass. One more test, `the_ambiguity_note_does_not_follow_the_input_order`, was written after
+its fix (not red first). Windows: `components-tests` 5294 passed with these, all 397 skeleton and body tests pass; the
+one failure in the run, `SlangPermutations.every_permutation_has_the_interface_of_its_glsl_stage`, belongs to the Slang
+port in progress (its shader permutations did not build in this tree), not to this work.
+
+**What changed.**
+1. **Names follow the engine.** `engineBoneKey` = `Misc::StringUtils::lowerCase` (pinned by a test). The validator's
+   005/006, `remapTable`, `compareRest` and `buildMapping` look bones up by it (a skin listing `BIP01 L HAND` now finds
+   `Bip01 L Hand`). The file keeps the names as written and the skeleton digest still hashes the exact bytes (decided:
+   two exports differing only in case are different files; their bones are still found). BODY-MAP-017 now compares
+   aliases after `normalisedBoneName` against the bones and each other (`breast_l_01` against `Breast_L_01`).
+2. **Core roles.** New BODY-MAP-024: a map without any core role is refused. The suggestion engine writes the core
+   roles it found no bone for into a new optional top-level key `missingRoles` (after `roles`, omitted when empty; every
+   entry is also a 024 error until a person lists the bone), and while one is missing a weighted bone with no name vote
+   is `ask` (heuristic `weight.deform.core-role-missing`), never a fold.
+3. **The actor's whole bone set.** `BuildOptions::mActorBones`: an extra source bone the actor also has (not a role
+   bone) maps directly onto the actor's bone with a note in `MappingResult::mNotes`, whatever the map's action; an extra
+   bone named like the actor's bone of another role is a refusal (checked always, also without `mActorBones`).
+4. **The map's digest.** `skeletonMapDigest` (BLAKE3 of the canonical text, own domain) and
+   `SkeletonMapping::mapDigest()`; `sourceDigest()` is unchanged.
+5. **Helpers of unknown weight** are `ask` (`name.helper.weight-unknown`), never a drop.
+6. **Rest values.** New BODY-MAP-025 in `validateSourceSkeleton`: a translation component not finite or beyond
+   `sMaxRestTranslation` (1e4 m), or a rotation not finite or not unit within 1e-3, is refused; `skeletonDigest` hashes a
+   marker instead of casting such a value; a distribute fold with a non-finite distance is an error, so no NaN reaches the
+   weight sort.
+7. **Fail closed.** `compareRest` returns `RestComparison` (differences and errors: an invalid skeleton, a role bone
+   either side lacks, a singular parent, a non-finite value, nothing compared); `planRest` has `mValid` and `mErrors`, and
+   a NaN angle needs the correction.
+8. **UTF-8.** Names must be well-formed UTF-8: BODY-MAP-020 (source skeleton), 016 (map text) and the reader.
+9. **An optional role the actor lacks** (Spine2 against the 17-role actor) folds into the nearest canonical ancestor
+   role the actor has, with a note; its rest frame for virtual children is that ancestor's. A missing core role is still
+   a refusal.
+10. **Role names and bone names.** Recorded as a known limit of v1 with a warning, BODY-MAP-026 (a bone named exactly
+    like a canonical role it is not cannot be named as a parent or fold target).
+11. **Conversions.** `toPlacement`, `fromPlacement` (the merger's column-vector `Mat34`) and `toColumnMajor` (the memory
+    order of `vsg::dmat4`), tested against `vsg::translate * vsg::rotate`; both conventions are stated in
+    `components/body/CLAUDE.md`.
+12. **Duplicate JSON keys** are refused by the reader's pre-scan, escapes decoded (`acc\u0065pted` equals `accepted`).
+    `remapVertex` keeps the dropped weights in a short list instead of a `std::map`; its doc now says it can raise
+    `std::bad_alloc` only.
+
+**Docs corrected:** the suggestion header no longer claims finger and tail roles by tokens; "heaviest dropped bone"
+now says "the fallback target that received the most dropped weight"; the `normalisedWeights` precondition (finite, not
+negative) is in `bodyinfluences.hpp`; the digest's float-boundary wording; this spec's status line and the D1 example
+(now canonical: no default `useClipTrack`, no `to` with `nearest-mapped-ancestor`).
+
+**Existing tests changed** (each to follow an API change or a reviewer finding, not to fit the code):
+`testskeletonmapping.cpp`: the three `compareRest` calls read `.mDifferences`; `planRest({})` became
+`planRest(std::vector<RoleRestDifference>{}).mValid` expected false (it used to expect "no correction needed", the
+fail-open case the review named); the unused `pi` was removed. `testskeletonsuggest.cpp`: the ask test expects
+BODY-MAP-008 exactly (it accepted 007 instead); the reordering test also compares `mNotes`.
+
+**Byte identity of the 0069 body cache after the move of the weight rules** (stage d moved them into
+`bodyinfluences.*`): `openmw --bake-bodies` (with `OPENEDEN_QUIET_WINDOW=1`, a copy of toddhow's config, a fresh user
+folder `I:\Projects\OpenEden-work\bodies\bake3`) published `merged-836e3e50d4d53180.edenpak`, the same pack name as the
+0069 review-fix bake, and the sorted SHA-256 list of the 20 payloads equals the one recorded then
+(`bake2/after2.payloads.sha`); `--check-bodies` reports 20 races and sexes, 0 problems, exit code 0. The `openmw.exe`
+used was built at 00:58 from the working tree, after the move (`4a6791ac26`, 00:27); it could not be relinked with
+this commit because a game of another agent held it.
+
+**Deviations, recorded as the review asked.**
+- Stage a's review gate ("toddhow reads the table before stage b starts") was skipped: stages b to d were built from
+  synthetic data before any measurement of real skeletons existed. The heuristic vocabulary and the caps are therefore
+  untested against real extended skeletons.
+- No separate test-writing agent was used for stages b to d or for these fixes (a fork cannot start one); the tests
+  were written by the implementing agent before the code.
+
+**Not verified.** MSVC only: no GCC `-Werror -Wshadow` build, no clang-tidy, no Linux gate (clang-format 14 was run on
+the changed files in a throwaway container). `openmw-tests` not run. Stage e and later are not started. The build of
+`components-tests` here used a copy of `build.ninja` without the order-only dependency on the Slang shaders target,
+because another agent's shader work in progress broke that target.

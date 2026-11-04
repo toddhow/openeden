@@ -146,8 +146,8 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
   reader's pre-scan also caps objects, arrays and commas before any value is built. The validator caps its findings at 64 per
   rule.
 - **The remap** is `remapVertex`: direct, split (the closer target gets the larger share by source rest distance), dropped
-  (discarded and renormalised; a vertex left with nothing takes weight 1 on the heaviest dropped bone's nearest mapped
-  ancestor); influences that are NaN, infinite, negative or zero are ignored; then `normalisedWeights` and `cutToFourWeights`
+  (discarded and renormalised; a vertex left with nothing takes weight 1 on the fallback target that received the most
+  dropped weight, summed per target); influences that are NaN, infinite, negative or zero are ignored; then `normalisedWeights` and `cutToFourWeights`
   (`bodyinfluences.*`, shared with `bodymerge.cpp`: change them and BOTH change, which is the point).
 - **Matrices are row-vector** (`p * M`, world = local * parentWorld, skin = inverseBind * boneWorld). The inverse-bind
   correction `inverseBind * sourceWorldRest * inverse(canonicalWorldRest)` keeps rest vertex positions when the actor's rest
@@ -156,4 +156,39 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
 - **Pitfall: `quoted(...)` is ambiguous.** A local helper named `quoted` taking a `std::string_view` or `std::string` collides
   with `std::quoted` through argument-dependent lookup on MSVC (error C2677); the helpers here are called `shown`.
 - **Test fixtures** (`apps/components_tests/body/skeletonfixtures.hpp`) build every skeleton synthetically; no game or mod data
-  is read, and no real bone names of a mod are used (the vocabulary tests use invented names of the kinds in research note 0033).
+  is read. The vocabulary tests in `testskeletonsuggest.cpp` DO use a few functional bone names in the style of real
+  extended skeletons (`NPC L Breast`, `NPC L Breast [LBrst]`, `NPC L Butt`, `NPC GenitalsScrotum [Gens]`,
+  `NPC WeaponSword`): single names as identifiers (toddhow's answer 8 allows sharing bone names), never a table copied
+  from a mod; whether that sits well with the "no tables from XPMSE" guardrail is a question for toddhow (review of
+  2026-11-04).
+
+### Review fixes (2026-11-04)
+
+- **Names are compared as the engine compares them.** `engineBoneKey` is `Misc::StringUtils::lowerCase` (A to Z only;
+  a test pins the two); every lookup by name (source bones in the validator's 005/006, skin bones in `remapTable`, actor
+  bones in `compareRest` and `buildMapping`) goes through it. Files keep names as written; the skeleton digest hashes the
+  exact bytes. `normalisedBoneName` (also merges separators) only refuses names a person could not tell apart: bones (004),
+  aliases against bones and against each other (017), source bones (022).
+- **Every core role is required** (BODY-MAP-024). The suggestion engine writes the core roles it found no bone for into
+  `missingRoles` (after `roles`, omitted when empty), and while one is missing a weighted bone with no name vote is `ask`,
+  never a fold that would freeze the joint.
+- **The actor's whole skeleton** (`BuildOptions::mActorBones`): an extra bone that the actor also has (not a role bone)
+  maps onto the actor's bone, whatever the map says, with a note; an extra bone named like the actor's bone of another
+  role is a refusal. An optional role the actor lacks folds into the nearest canonical ancestor role it has (a note), and
+  its rest frame is that ancestor's.
+- **Two digests.** `sourceDigest()` ties a map to a skeleton; `skeletonMapDigest()` / `SkeletonMapping::mapDigest()`
+  hashes the canonical text of the applied map, the part of a body cache key that changes with any decision.
+- **Untrusted values.** Source rest values are refused before any cast when not finite, beyond `sMaxRestTranslation`
+  (1e4 m) or not a unit quaternion within 1e-3 (BODY-MAP-025); the digest hashes a marker instead of casting such a
+  value; a split fraction is never NaN; names must be well-formed UTF-8 (020, 016; the writer passes bytes through and
+  the JSON reader refuses ill-formed UTF-8, so `read(write(m)) == m` needs it); the reader's pre-scan refuses a key that
+  appears twice in one object (escapes decoded), because nlohmann keeps the last one.
+- **Fail closed.** `compareRest` returns `RestComparison` with errors for an invalid skeleton, a role whose bone either
+  side lacks, a singular parent, a non-finite value or nothing compared; `planRest` is `mValid = false` then, and a NaN
+  angle counts as needing the correction.
+- **Matrix conventions.** `skeletonmapping.hpp` is row-vector (`p * M`, `Mat4` row-major); the merger's `Mat34` is
+  column-vector (`v' = M3 * v + t`, row-major); `vsg::dmat4` is column-vector, stored column-major. `toPlacement`,
+  `fromPlacement` and `toColumnMajor` convert, and a test pins `toColumnMajor` against `vsg::translate * vsg::rotate`.
+  Never convert element by element or through VSG's 16-number constructor.
+- **Known limit (BODY-MAP-026, a warning):** a bone named exactly like a canonical role it is not cannot be named as a
+  parent or fold target: role names resolve first.
