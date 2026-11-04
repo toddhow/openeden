@@ -3,7 +3,7 @@
 Design doc section: none (a rendering bug found during the Slang port, task 0072; the local map is inherited behaviour)
 Goal: in exterior cells the HUD minimap and the map window's local map show the terrain, the water and the objects, as
 they do in OpenMW.
-Inherited code touched (at `9df44d50d4`): `apps/openmw/mwrender/map.cpp`, `Map::requestExteriorMap`;
+Inherited code touched (at `4f64df13f5`): `apps/openmw/mwrender/map.cpp`, `Map::requestExteriorMap`;
 `components/terrain/paging.cpp`, `Paging::updateViewForCell`. Both came with the vsgopenmw import (`paging.cpp`'s
 batch lines: vsgopenmw `762695a52f`, 2023-12-12).
 Inputs / outputs: the order of `ViewData::sceneChildren` in the map's render-to-texture view; the batch a cell's
@@ -60,7 +60,7 @@ shows the dark minimap.
 
 ## Stage log
 
-- Reproduced with the GLSL shaders on the build of `9df44d50d4` (copy of the lodtest config, a new user folder under
+- Fixed in `20b4949567`. Reproduced with the GLSL shaders on a build of 2026-11-04 before the fix (copy of the lodtest config, a new user folder under
   `I:\Projects\OpenEden-work\minimap`, frames 240 to 900, `[Map] global` true and false): Seyda Neen's HUD minimap dark
   but for the roofs; the interior map and the world map fine.
 - Tests: `TerrainBatchIndex` 4 tests; against a stub that truncated, 2 failed (`negative_cells_round_down`,
