@@ -261,3 +261,20 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   `moveInto` never auto-equips (`objectbindings.cpp`), so the NPCs are dressed by a script of their own.
 - **The scene census samples every 30 frames,** so equipment toggled every second frame shows as a slow alternation in
   `ctr_scene_draws`, not one change per toggle.
+
+## NPC parts and their controllers (task 0074, `partcontrollers.hpp`)
+
+- **Pitfall: `Npc::updateParts` empties every controller list** (`clearControllers`: the skins in
+  `mStaticControllers`, `mFace`, `mWeaponControllers`, `autoPlay`) on every equipment change, and only what it links
+  again runs. Equipment is removed and inserted again; the parts it keeps (stock body parts, head and hair at priority
+  1) get their controllers back from `mPartControllers` in `relinkSurvivingParts`, at the end of `updateParts` and
+  before its head-only return. Without that a kept skin holds the matrices of the moment of the change while the
+  skeleton moves (the stock chest broke through pants and loincloths, the hands left the forearms) and the head stops
+  blinking and talking. Inherited from vsgopenmw (`2830e7e2b4`); OpenMW 0.51 keeps controllers with each part.
+- **Rules:** a part's controllers are recorded only in `insertBoundedPart` and forgotten only in
+  `removeIndividualPart`, so a new way to link or remove a part must go through them. Anything linked outside the parts
+  must be attached again on every `updateParts` (the merged body, the holstered weapon and shield are). Item lights
+  from the inventory (`addItemLight`) and the spell cast glow (`addSpellCastGlow`) add to `autoPlay` outside the parts
+  and are not linked again; what an equipment change does to them is not checked.
+- **Checking it:** the equipment scene of `tools/mergedbody_check` (`SCENE=equipment`, stock): frames 009, 010, 045 and
+  046 show the chest through the pants and loincloth when the controllers are lost.
