@@ -24,6 +24,12 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # torch, in front of the player; the hour goes from noon to night and back four times, and each change makes all twenty
 # take out or put away their torch in one frame (frames "row day", "row night", "inventory doll"). With
 # "[Cells]\nload trace = true" in EXTRA_SETTINGS the trace (<user data>/load-trace.jsonl) is copied to <work dir>/<variant>/.
+# SCENE=motion (stage e, second review) runs mod/scripts/mbmotion_player.lua: the player puts on the full iron set,
+# raises the fists and takes the set off, with screenshots of the frame before, the change frame and the four after
+# it; run it with OPENEDEN_FIXED_FRAME_TIME=0.0166667 and "[Rendering]\nhdr = true\ngbuffer = true\ngbuffer debug view
+# = velocity\n[Video]\nframerate limit = 3" in EXTRA_SETTINGS to see the motion output (screenshots asked for in
+# frames close together took the same file name; at 3 frames a second each is written before the next).
+# OPENMW_EXE (default ./openmw.exe, run in <build dir>) starts another executable, for example a copy of the build.
 set -e
 BUILD=$1; BASE=$2; USERDATA=$3; WORK=$4; VARIANT=$5; CELL=${6:-Balmora}
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -32,7 +38,8 @@ case "${SCENE:-row}" in
     row) SCRIPTS=mbcheck.omwscripts ;;
     equipment) SCRIPTS=mbequip.omwscripts ;;
     torches) SCRIPTS=mbtorch.omwscripts ;;
-    *) echo "SCENE must be row, equipment or torches"; exit 2 ;;
+    motion) SCRIPTS=mbmotion.omwscripts ;;
+    *) echo "SCENE must be row, equipment, torches or motion"; exit 2 ;;
 esac
 case "$VARIANT" in
     stock) MERGED=false ;;
@@ -64,7 +71,7 @@ rm -f "$USERDATA"/screenshots/* "$USERDATA"/*.dmp "$dir/config"/*.dmp "$USERDATA
 cd "$BUILD"
 set +e
 # The timeout is only a safety net: the scene quits by itself after about 30 s (75 s for SCENE=equipment).
-OPENEDEN_FRAME_STATS_FILE="$(native "$dir/stats.txt")" timeout "${TIMEOUT:-120}" ./openmw.exe --replace=config \
+OPENEDEN_FRAME_STATS_FILE="$(native "$dir/stats.txt")" timeout "${TIMEOUT:-120}" "${OPENMW_EXE:-./openmw.exe}" --replace=config \
     --config "$(native "$dir/config")" --user-data "$(native "$USERDATA")" --skip-menu --start "$CELL" --no-grab \
     --script-run "$(native "$dir/start.txt")" > "$dir/log.txt" 2>&1
 code=$?

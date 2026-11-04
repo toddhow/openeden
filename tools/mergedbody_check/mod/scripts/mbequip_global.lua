@@ -88,7 +88,8 @@ return {
                 print('MBEQUIP item ' .. kind .. ' ' .. tostring(ids[kind]))
                 give(player, ids[kind])
             end
-            for index, entry in ipairs(ROW) do
+            -- The motion scene (mbmotion_player.lua) asks for the items only: data.row == false places no NPC.
+            for index, entry in ipairs(data.row == false and {} or ROW) do
                 local id = npcRecord(entry.race, entry.male)
                 if id then
                     local object = world.createObject(id, 1)
