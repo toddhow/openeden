@@ -305,6 +305,36 @@ namespace Lod
     /// counters are reset.
     ClusterGroundStep stepClusterGround(ClusterGroundState& state, const ClusterGroundInput& input) noexcept;
 
+    /// How far the eye may move on each axis before a cluster's kept ground test is made again (a quarter of a cell,
+    /// 8192 / 4). A starting value: it only bounds the work, the test itself is cheap.
+    inline constexpr double groundRetestDistance = 2048;
+
+    /// The paging range to give groundDrawnOver for a test that is kept while the eye moves up to groundRetestDistance
+    /// on each axis: the live terrain's part of the answer ("the cell is wholly within the range") is measured from the
+    /// eye of the test, and the eye may be up to groundRetestDistance * sqrt(2) away from it when the answer is used,
+    /// so only a cell that far inside the range counts as live ground. Never above the range; the answer for a range
+    /// that is not positive and finite stays "no live ground" (groundDrawnOver).
+    double groundTestRange(double pagingRange) noexcept;
+
+    /// What a kept ground test was made for.
+    struct GroundTestKey
+    {
+        bool mValid = false;
+        std::uint64_t mVersion = 0; // the version of the drawn terrain tiles
+        double mEyeX = 0;
+        double mEyeY = 0;
+        double mPagingRange = 0;
+    };
+
+    /// The key for a test made now.
+    GroundTestKey groundTestKeyFor(std::uint64_t version, double eyeX, double eyeY, double pagingRange) noexcept;
+
+    /// Must the test be made again? Yes when none was made, the drawn tiles changed, the paging range changed (Lua's
+    /// setViewDistance, a change of the view limits: the review of the far eviction, finding 4) or the eye moved
+    /// groundRetestDistance or more on either axis (also for a position that is not a number).
+    bool groundTestStale(
+        const GroundTestKey& key, std::uint64_t version, double eyeX, double eyeY, double pagingRange) noexcept;
+
     /// Is the memory budget pressing, so that admitting a cluster whose ground is not yet drawn would be churn? Yes
     /// when the previous plan blocked something, or what it left committed plus this cluster would exceed the budget.
     /// With no budget (0) nothing presses.

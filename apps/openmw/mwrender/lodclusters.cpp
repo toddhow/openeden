@@ -63,10 +63,6 @@ namespace MWRender
         // tiles replaces it. A starting value (stage e measured clusters of 0.2 to 4 MiB).
         constexpr std::uint64_t firstClusterEstimate = 1024ull * 1024;
         constexpr std::size_t levelSlots = 8;
-        // The ground test of a cluster (Lod::groundDrawnOver) is redone when the drawn tiles changed or the eye moved
-        // at least this far (a quarter of a cell): the live range, which counts as ground, moves with the eye. A
-        // starting value; it only bounds the work, the test itself is cheap.
-        constexpr double groundRetestDistance = 2048;
 
         // Clusters of this level and above (levels 3 and 4: thousands of statics, hundreds of textures) get the far
         // picture cap.
@@ -131,13 +127,12 @@ namespace MWRender
             Lod::ClusterGroundState mGround;
             bool mGroundFallback = false;
             bool mWaitsForGround = false;
-            // The last ground test (Lod::groundDrawnOver) and what it was made for: the version of the drawn tiles and
-            // the eye (the live range moves with it); redone when either changed enough.
+            // The last ground test (Lod::groundDrawnOver) and what it was made for (Lod::GroundTestKey: the version of
+            // the drawn tiles, the paging range and the eye, which the live range moves with); redone when the key
+            // went stale (Lod::groundTestStale).
             bool mGroundDrawn = false;
             bool mGroundTested = false;
-            std::uint64_t mGroundVersion = 0;
-            double mGroundEyeX = 0;
-            double mGroundEyeY = 0;
+            Lod::GroundTestKey mGroundKey;
             bool mLoggedFailure = false;
             bool mWanted = false;
             // The load trace's clock (microseconds) when the selection first wanted the cluster while it was not
@@ -680,16 +675,18 @@ namespace MWRender
                 camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
             if (groundRuleApplies && !wholly)
             {
-                if (!tile.mGroundTested || tile.mGroundVersion != camera.mGroundVersion
-                    || std::abs(tile.mGroundEyeX - camera.mEye.x) >= groundRetestDistance
-                    || std::abs(tile.mGroundEyeY - camera.mEye.y) >= groundRetestDistance)
+                if (!tile.mGroundTested
+                    || Lod::groundTestStale(
+                        tile.mGroundKey, camera.mGroundVersion, camera.mEye.x, camera.mEye.y, camera.mPagingRange))
                 {
                     tile.mGroundTested = true;
-                    tile.mGroundVersion = camera.mGroundVersion;
-                    tile.mGroundEyeX = camera.mEye.x;
-                    tile.mGroundEyeY = camera.mEye.y;
-                    tile.mGroundDrawn = Lod::groundDrawnOver(camera.mEye.x, camera.mEye.y, camera.mPagingRange,
-                        camera.mGround, bounds.mOriginX, bounds.mOriginY, bounds.mSide, setup.mCellSize);
+                    tile.mGroundKey = Lod::groundTestKeyFor(
+                        camera.mGroundVersion, camera.mEye.x, camera.mEye.y, camera.mPagingRange);
+                    // The answer is kept while the eye moves, so the live terrain's part of it counts only cells that
+                    // stay inside the range after any such move (Lod::groundTestRange).
+                    tile.mGroundDrawn
+                        = Lod::groundDrawnOver(camera.mEye.x, camera.mEye.y, Lod::groundTestRange(camera.mPagingRange),
+                            camera.mGround, bounds.mOriginX, bounds.mOriginY, bounds.mSide, setup.mCellSize);
                 }
             }
             else

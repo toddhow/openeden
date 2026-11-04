@@ -1782,6 +1782,67 @@ namespace
         EXPECT_TRUE(budgetIsPressing(std::numeric_limits<std::uint64_t>::max(), 0, 6 * farMib, 256 * farMib));
     }
 
+    // ---- the kept ground test (finding 4 of the review of the far eviction) -----------------------------------------
+
+    TEST(LodGroundTest, a_test_that_was_never_made_is_stale)
+    {
+        EXPECT_TRUE(groundTestStale(GroundTestKey{}, 1, 0, 0, 40000));
+    }
+
+    TEST(LodGroundTest, the_same_tiles_range_and_a_near_eye_keep_the_test)
+    {
+        const GroundTestKey key = groundTestKeyFor(7, 1000, -2000, 40000);
+        EXPECT_FALSE(groundTestStale(key, 7, 1000, -2000, 40000));
+        EXPECT_FALSE(
+            groundTestStale(key, 7, 1000 + 2047, -2000 - 2047, 40000)); // just under a quarter cell on both axes
+    }
+
+    TEST(LodGroundTest, a_change_of_the_tiles_the_range_or_a_quarter_cell_of_eye_movement_makes_it_stale)
+    {
+        const GroundTestKey key = groundTestKeyFor(7, 1000, -2000, 40000);
+        EXPECT_TRUE(groundTestStale(key, 8, 1000, -2000, 40000)); // the drawn tiles changed
+        EXPECT_TRUE(groundTestStale(key, 7, 1000, -2000, 40001)); // setViewDistance: the paging range changed
+        EXPECT_TRUE(groundTestStale(key, 7, 1000, -2000, 30000));
+        EXPECT_TRUE(groundTestStale(key, 7, 1000 + groundRetestDistance, -2000, 40000));
+        EXPECT_TRUE(groundTestStale(key, 7, 1000, -2000 - groundRetestDistance, 40000));
+        EXPECT_TRUE(groundTestStale(key, 7, std::numeric_limits<double>::quiet_NaN(), -2000, 40000));
+    }
+
+    TEST(LodGroundTest, a_cell_that_was_live_ground_when_tested_is_still_inside_the_range_after_the_eye_moves)
+    {
+        // The test is kept while the eye moves up to groundRetestDistance on each axis. A cell whose far corner is
+        // 39,500 from the eye is wholly inside a range of 40,000, but 2,047 units away on both axes (2,895 along the
+        // diagonal) it is not: the test must not have counted it as live ground.
+        const double range = 40000;
+        const double cornerDistance = 39500; // from the eye at the origin: corner (cell + 8192, 0 + 8192)
+        const double originX
+            = -cell + std::sqrt(cornerDistance * cornerDistance - cell * cell); // far corner x = originX + cell
+        EXPECT_TRUE(squareWithinRange(0, 0, originX, 0, cell, range));
+        // Exact range: the cell counts as ground; with the range of the kept test it does not.
+        EXPECT_TRUE(groundDrawnOver(0, 0, range, {}, originX, 0, cell, cell));
+        EXPECT_FALSE(groundDrawnOver(0, 0, groundTestRange(range), {}, originX, 0, cell, cell));
+        // The eye moves away by the most the test allows: the cell is outside the range.
+        EXPECT_FALSE(
+            squareWithinRange(-(groundRetestDistance - 1), -(groundRetestDistance - 1), originX, 0, cell, range));
+        // A cell that is inside the range less groundRetestDistance * sqrt(2) is live ground after any such move.
+        const double safeCorner = range - groundRetestDistance * std::sqrt(2.0) - 1;
+        const double safeX = -cell + std::sqrt(safeCorner * safeCorner - cell * cell);
+        EXPECT_TRUE(groundDrawnOver(0, 0, groundTestRange(range), {}, safeX, 0, cell, cell));
+        for (const double dx : { -(groundRetestDistance - 1), 0.0, groundRetestDistance - 1 })
+        {
+            for (const double dy : { -(groundRetestDistance - 1), 0.0, groundRetestDistance - 1 })
+                EXPECT_TRUE(squareWithinRange(dx, dy, safeX, 0, cell, range)) << dx << " " << dy;
+        }
+    }
+
+    TEST(LodGroundTest, the_test_range_is_never_above_the_range_and_a_tiny_range_gives_no_live_ground)
+    {
+        EXPECT_LT(groundTestRange(40000), 40000);
+        EXPECT_NEAR(groundTestRange(40000), 40000 - 2048 * std::sqrt(2.0), 1e-9);
+        EXPECT_FALSE(groundDrawnOver(0, 0, groundTestRange(2000), {}, 0, 0, cell, cell));
+        EXPECT_EQ(groundTestRange(std::numeric_limits<double>::infinity()), std::numeric_limits<double>::infinity());
+    }
+
     TEST(LodGroundFallback, the_stable_count_is_a_positive_number_of_frames)
     {
         EXPECT_GT(groundStableFrames, 0);

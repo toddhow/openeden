@@ -523,4 +523,24 @@ namespace Lod
             return false;
         return blocked > 0 || addSaturating(heldAfterBytes, itemBytes) > budgetBytes;
     }
+
+    double groundTestRange(double pagingRange) noexcept
+    {
+        // The most the eye can have moved when the kept answer is used: groundRetestDistance on each axis.
+        return pagingRange - groundRetestDistance * std::sqrt(2.0);
+    }
+
+    GroundTestKey groundTestKeyFor(std::uint64_t version, double eyeX, double eyeY, double pagingRange) noexcept
+    {
+        return GroundTestKey{ true, version, eyeX, eyeY, pagingRange };
+    }
+
+    bool groundTestStale(
+        const GroundTestKey& key, std::uint64_t version, double eyeX, double eyeY, double pagingRange) noexcept
+    {
+        // `!(a < b)` so that a position that is not a number is stale.
+        return !key.mValid || key.mVersion != version || key.mPagingRange != pagingRange
+            || !(std::abs(eyeX - key.mEyeX) < groundRetestDistance)
+            || !(std::abs(eyeY - key.mEyeY) < groundRetestDistance);
+    }
 }
