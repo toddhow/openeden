@@ -602,7 +602,8 @@ namespace vsgUtil
             // Task 0072 (member names, after the review of stage g, finding 9): layout() gives a block's members by
             // offset and type only, so two members of one type in another order look the same. One line per leaf,
             // "member <block> <offset>:<path>", the path made of the member names from the block down, joined by '.'.
-            // An array adds "[]" and is named once, by its first element. A struct with ONE member adds no name: that
+            // An array adds "[]" and is named once, by its first element. A struct whose ONE member is itself a
+            // struct or an array adds no name (a lone scalar, vector or matrix keeps its name, open question 8): that
             // is how GLSL's `uniform SceneData { Scene scene; }`, Slang's `ConstantBuffer<Scene>` (Scene's members on
             // the block), a `StructuredBuffer` (a block whose only member is `__member0`) and Slang's std140 wrapper
             // of an array of matrices (`_Array_std140_matrix<...>` whose only member is `data`) read alike; nothing
@@ -623,7 +624,11 @@ namespace vsgUtil
                 const Type& t = type(id);
                 if (t.op == OpTypeStruct)
                 {
-                    const bool onlyMember = t.operands.size() == 1;
+                    // Only a lone member that is itself a struct or an array adds no name (toddhow, 2026-11-04): a lone
+                    // scalar, vector or matrix keeps its name.
+                    const uint32_t loneOp = t.operands.size() == 1 ? type(t.operands[0]).op : 0;
+                    const bool onlyMember
+                        = loneOp == OpTypeStruct || loneOp == OpTypeArray || loneOp == OpTypeRuntimeArray;
                     for (uint32_t m = 0; m < t.operands.size(); ++m)
                     {
                         std::string memberPath = path;

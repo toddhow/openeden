@@ -597,13 +597,25 @@ namespace
         const auto m = readFragment(wrappedArray);
         EXPECT_TRUE(has(m, "member set=0 binding=5 16:m[]")) << linesOf(m);
 
-        // So the name of a block's only member is never compared (nothing can be swapped with it).
-        const auto single = [](const std::string& name) {
-            return fragmentWith("layout(std430, set = 3, binding = 1) buffer Count { uint " + name + "; } count;\n",
-                "outColor = vec4(float(count." + name + "));\n");
+        // A block's only member drops its name when it is a struct or an array (the wrappers above), but a lone
+        // scalar, vector or matrix keeps it (toddhow, 2026-11-04, task 0072 open question 8).
+        const auto single = [](const std::string& type, const std::string& name, const std::string& use) {
+            return fragmentWith(
+                "layout(std430, set = 3, binding = 1) buffer Count { " + type + " " + name + "; } count;\n",
+                "outColor = " + use + ";\n");
         };
-        EXPECT_TRUE(fragmentDiff(single("indexCount"), single("total")).same());
-        EXPECT_TRUE(has(readFragment(single("indexCount")), "member set=3 binding=1 0:"));
+        const auto scalar
+            = [&](const std::string& name) { return single("uint", name, "vec4(float(count." + name + "))"); };
+        const auto vector = [&](const std::string& name) { return single("vec4", name, "count." + name); };
+        const auto matrix = [&](const std::string& name) { return single("mat4", name, "count." + name + "[1]"); };
+        EXPECT_FALSE(fragmentDiff(scalar("indexCount"), scalar("total")).same());
+        EXPECT_TRUE(has(readFragment(scalar("indexCount")), "member set=3 binding=1 0:indexCount"));
+        EXPECT_FALSE(fragmentDiff(vector("texel"), vector("texelSize")).same());
+        EXPECT_TRUE(has(readFragment(vector("texel")), "member set=3 binding=1 0:texel"));
+        EXPECT_FALSE(fragmentDiff(matrix("texmat"), matrix("other")).same());
+        EXPECT_TRUE(has(readFragment(matrix("texmat")), "member set=3 binding=1 0:texmat"));
+        // The same name on both sides is still the same.
+        EXPECT_TRUE(fragmentDiff(vector("texel"), vector("texel")).same());
     }
 
     TEST(SpirvInterface, block_and_instance_names_are_not_compared)
