@@ -370,8 +370,10 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   the player and the inventory preview. Everything else in `PartControllers` runs on the main thread in the part update,
   never while that actor's update runs (the main thread waits for the workers). **`Npc::update` compiles nothing and
   edits no graph** (task 0074e, finding 3): `[Game] weapon sheathing`'s quiver change (`mQuiverDirty`, set by `show()`)
-  is done by `Npc::updatePendingQuiver` on the main thread, in `Scene::update` after `mUpdateThreads->run` (which ends
-  in `waitIdle`) and in `Player::update`. `CompileContext::compile` calls `vsg::updateViewer`, which writes the
+  is done by `Npc::updatePendingQuiver` on the main thread: `Scene::update` calls `MWAnim::Object::updateOnMainThread`
+  (`Npc` overrides it) for every actor after `mUpdateThreads->run` (which ends in `waitIdle`), `Player::update` calls
+  it on itself and `Preview::animate` calls `updatePendingQuiver` for the inventory doll (task 0074f, findings 3 and 4;
+  `MainThreadUpdateTest` reaches the first two). `CompileContext::compile` calls `vsg::updateViewer`, which writes the
   command graph, the bins and the database pager without a lock, so it is main thread only.
 - **A throw in a part update (task 0074d, corrected and changed in 0074e):** `vsgUtil::readNode` throws when the file cannot be opened:
   `vsgAdapters::vfs::read` opens it through `VFS::Manager::get` outside `nif::read`'s catch, so an Eden Archive entry
@@ -391,7 +393,16 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   touches the actor** (finding 1): `Npc::makeBasePlan` names the files, `applyBasePlan` reads the skeleton, the
   custom bones and the animations into locals, and only then removes the parts and swaps the `MWAnim::Play`; the
   `CharacterController`, `Actor::mHead/mSpine/mRoot`, the player's neck and the pose and IK bones point into that Play,
-  so a read that throws after the swap left them on freed memory. Keep every read before `removeAllParts`.
+  so a read that throws after the swap left them on freed memory. Keep every read before `removeAllParts`. **The
+  type, view mode and part context change after the reads too** (task 0074f, finding 2): the plan carries them
+  (`BasePlan::mNpcType`, `mViewMode`, `mPartContext`) and `applyBasePlan` commits them; `updateParts` and
+  `Player::setViewMode` no longer set them first. "Exactly as it was" holds for what a read that throws leaves: the
+  animation, its bones, and those four. A rebuild that failed is tried again at the next `updateParts` (or the same
+  `setViewMode`), so a permanently unreadable file repeats its error on every equipment change of that actor.
+  **`Actor::assignBones` is not virtual:** `applyBasePlan` reaches `Actor::assignBones`, never `Player::assignBones`
+  (the first-person neck), so a rebuild through `RenderManager::rebuildPtr` (becoming a werewolf or vampire) leaves
+  `Player::mNeck` dangling in first person and `Player::manualAnimation` crashes; `Player::setViewMode` calls
+  `assignBones()` itself. Known, not fixed (0074f's stage log).
 - **Tracing it:** `OPENEDEN_AUTOPLAY_TRACE=<text>` (`autoplaytrace.*`) logs, every frame, an `AUTOPLAYTRACE` line for
   each NPC or weapon-carrying creature whose record id or name contains the text: the static, weapon and face list
   sizes, each auto-play group's phase group, timer, controller count and light colours, the object's own groups first
@@ -417,8 +428,11 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   `runPendingQuiver` (`testquiverupdate.cpp`), `runCompiledUpdate` of both classes and the real `updateEquipment` of a
   test actor, whose part update throws on the empty `Ptr` (`testcompiledupdates.cpp`); the shared fakes are in
   `partstestsupport.hpp`. `Npc::rebuild`'s own call into `runRebuild` has no test (it needs a record). The in-game
-  throw scene is the 0074d clocks scene with a bad Eden Archive (not in the repository); a rebuild-time throw cannot be
-  provoked in game (every file a rebuild reads was read before and is cached).
+  throw scene is the 0074d clocks scene with a bad Eden Archive (not in the repository). A rebuild-time throw can be
+  provoked in game by a file only the rebuild reads: the werewolf's custom-bone files (with `[Game] weapon sheathing`,
+  `animations/wolf/skin/<name>.nif` as a failing Eden Archive entry) and a werewolf player (`Player->BecomeWerewolf` from
+  a start script, third person; `SetWerewolf` is no command). The first-person files are read when the game starts and
+  the werewolf's skeleton is served from a cache, so neither throws (task 0074f, finding 6).
 - **The slot bookkeeping is `PartSlots`** (`partslots.*`, task 0069 stage e review): which inventory group holds each
   part slot and at what priority, the equipment pass (`wear`: slot list, priorities, robe and skirt reservations,
   part-less parts), the race's body parts (`addBodyParts`) and the merged body taking its slots (`releaseBodyParts`),

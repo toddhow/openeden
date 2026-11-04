@@ -399,15 +399,16 @@ repeated per commit.
   reads the skeleton, every custom-bone file and the animations into locals, and only then runs `removeAllParts`, sets
   the models and swaps the Play; `runRebuild` (the rebuild's seam: apply, parts, compile, refresh) compiles and gives the
   `CharacterController` the new Play (`refresh` is `MechanicsManager::forceStateUpdate`) on every way out of the part
-  update. A read that throws leaves the actor exactly as it was. Tests: `NpcRebuildTest` (7), a reader that throws at
+  update. A read that throws leaves the actor exactly as it was (corrected in 0074f, finding 2: its animation, bones and
+  everything pointing into them; the type, view mode and part context were set before and changed). Tests: `NpcRebuildTest` (7), a reader that throws at
   the skeleton, the first and the second custom-bone file, the first and the last animation file: the Play is the same
   object with the same bones, `getHead()`, `mHeadModel`, a part inserted before and its controller are unchanged, and
-  neither `parts` nor `refresh` ran. **Not proven in game:** no run could make a rebuild's animation read throw. Every
-  file a rebuild reads was read by the same actor's build before (the options cache), and a corrupt file fails that
-  first read, so a rebuild-time throw needs a file that changes between two reads. What the runs did show
-  (`runs\f1-*`): the player's rebuild by the first/third person toggle works as before (no error, same frames, build
-  before and after); `Player->SetWerewolf 1` from the start script changed nothing visible, so the werewolf rebuild was
-  not exercised. The use after free is argued from the code and the unit tests, not seen. `Npc::rebuild` itself (the
+  neither `parts` nor `refresh` ran. **Not proven in game (corrected in 0074f, finding 6: the reason first given here was wrong, and the werewolf
+  rebuild was provoked there):** the text said every file a rebuild reads was read by the same actor's build before; but a
+  werewolf's custom-bone files are first read at its rebuild. What the 0074e runs showed (`runs\f1-*`): the player's
+  rebuild by the first/third person toggle works as before (no error, same frames, build before and after);
+  `Player->SetWerewolf 1` from the start script changed nothing visible because `SetWerewolf` is not an mwscript command
+  (it is `BecomeWerewolf`), so the werewolf rebuild was not exercised. `Npc::rebuild` itself (the
   one call into `runRebuild`) has no test: it needs a record.
 - **Finding 7, a per-part catch, as OpenMW 0.51 (changes the default game):** `Npc::insertBoundedPart` catches a
   `const std::exception&` from `vsgUtil::readNode`, logs "Error adding NPC part: ...", returns false (nothing had changed
@@ -501,3 +502,140 @@ repeated per commit.
      torch is drawn rotated -90 degrees (finding 4); a pending quiver change is done at the end of the actor's update.
   2. The remaining throw sites (ammunition, holstered items, the quiver, a rebuild's reads) still end a
      mechanics-driven session; 0.51 has no catch there either. Say if a catch there is wanted.
+
+**2026-11-04, fresh review of 0074e (task 0074f)** (`d2b616254b` finding 1, `9fb873b017` finding 2, `6324222ba1`
+finding 3, `1501829504` finding 4, `cdd5cb98a1` finding 5, `28d5607dde` comments). The review is
+`I:\Projects\OpenEden-work\0074e\REVIEW-0074e.md`. Method: full loop. A separate test-writing agent wrote the tests from
+`I:\Projects\OpenEden-work\0074f\test-spec.md` (written from the review) without reading `npc.cpp`, `player.cpp`,
+`scene.cpp` or `wieldingcreature.cpp`, against a tree of seams that kept the old behaviour; red run
+`I:\Projects\OpenEden-work\0074f\red` (`summary.txt`): 36 tests, 12 failed for the reason they name, 24 passed (the guards,
+the finding 5 tests that pin behaviour 0074e already has, and a few cases the old code already met: the direct
+`runRebuild` throw cases, the Npc-in-Scene and Player quiver cases). The seams were then put in one finding per commit with
+the fix; each commit's tests passed (`openmw-tests` 1024 of 1024 at the end). The red run is of the whole stub tree, not of
+each commit.
+
+- **Finding 1, the stale `Wielding::mAttachAmmo`:** `components/mwanimation/wielding.hpp` holds a raw
+  `vsg::Transform*` into the weapon part's subgraph, set by `Npc::insertBoundedPart` and `WieldingCreature::linkPart`.
+  `Npc::detachPart` now clears it for the weapon slot (every way a weapon leaves goes through it: `PartSlots::remove`,
+  `take`, `removeAllParts`), `insertBoundedPart` clears it before the read (a weapon that cannot be read leaves none),
+  `WieldingCreature::removeParts` and `addItemPart` clear it. 11 tests (`AttachAmmoTest`, `CreatureAttachAmmoTest`).
+  **In game (`runs\ammo-before`, `runs\ammo-after`: an NPC and a dremora with a short bow and arrows, then the bad weapon
+  and eight more equipment changes, `tool\mod\scripts\mbammo_*.lua`):** both exit 0, no dump, 9 "Error adding NPC part" and
+  9 "Can not add creature part" lines each. The old code's write through the stale pointer is not visible: it is a write
+  to a node of a removed subgraph, which crashed nothing on this machine in 8 changes (finding it would need page heap,
+  a system setting, which is not changed here). So finding 1 is proven by the unit tests (red against the old code, and
+  caught by the two mutations below), not by the scene.
+- **Finding 2, the type, view mode and part context after the reads:** `Npc::updateParts` set `mNpcType` before
+  `rebuild()`, and `Player::setViewMode` set `mViewMode` and `mPartContext` before it; when the reads then threw, the
+  werewolf or vampire kept its human base for good and the player was in the new view with the old `Play` (a repeated
+  `setViewMode(m)` returned at once). `BasePlan` now carries them (`mNpcType`, `mViewMode`, `mPartContext`) and
+  `applyBasePlan` commits them after the reads, before `removeAllParts`; `Player::setViewMode` calls
+  `Npc::rebuild(view, context)`. A plan that sets none of them (the old tests') changes nothing. **Wording corrected:** the
+  0074e text "a read that throws leaves the actor exactly as it was" (this log, the header comment, the guide) was true for
+  the animation, its bones and everything that points into them; the type, view mode and part context were set before and
+  so changed. Side effect: `Npc::setVampire`'s `rebuild()` now commits the type too, so the next `updateParts` no longer
+  rebuilds a second time. Seams for the tests (never used by the game): virtual `Npc::makeBasePlan(view, context)`,
+  `getNpcType()` and `refreshController()`, `Player`'s `TestSetup` constructor. 10 tests (`PlanCommitTest`,
+  `PlanCommitPlayerTest`).
+  **In game (finding 6's repro, below):** with the retry, a file that stays unreadable makes EVERY equipment change of that
+  actor throw again (`runs\wolfb-0074f-after2`: five "Failed to read" errors in 12 s, one per change); before, one throw
+  and the player stayed human silently (`runs\wolfb-0074f-before`: one error). That is what the review asked for, and it is
+  a decision for toddhow (below).
+- **Finding 3, the inventory doll's quiver:** `Preview::animate` now calls `updatePendingQuiver` after `update(0)`
+  (`Preview::rebuild`'s `show(Weapon, true)` asks for a change with sheathing on; the doll is no `Scene` object). The guide
+  and `partcontrollers.hpp` name all three callers. Not tested (a `Preview` needs the render context); off by default.
+- **Finding 4, the main-thread loops are reached by tests:** `MWAnim::Object::updateOnMainThread()` (virtual, empty);
+  `Npc` overrides it with `updatePendingQuiver`; `Scene::update` calls it for every actor object after
+  `UpdateThreads::run` (replacing the per-actor `dynamic_cast`) and `Player::update` calls it on itself.
+  `Scene::addObject` (the end of `insertNPC` and `insertCreature`, now shared) lets a test fill a `Scene`. 5 tests
+  (`MainThreadUpdateTest`: counting objects see their `update` on a worker and `updateOnMainThread` on the test thread
+  after the last `update`; a real `Npc` with sheathing compiles on the test thread; the player's `update` does the
+  change). Mutations (below): removing the `Scene::update` loop fails 2 of them, the player's call 1, the override 3.
+- **Finding 5, tests for the failure state:** `PartFailuresTest` (8) and `CreaturePartFailuresTest` (2): `attachPart`'s
+  sound skip (a failed read returns before the inventory lookup, which a test actor's empty `Ptr` turns into a throw, so
+  `attachPart` with a good read throws and with a bad one does not), the slot staying taken (`mSlots.priority`, `take`
+  refused, `addBodyParts` asks for nothing for it), `Body::hiddenMergedSlots` still hiding the region, a `std::logic_error`
+  caught like any `std::exception`, and a value that is not a `std::exception` and a `vsg::Exception` passing through
+  `insertBoundedPart` and `attachPart` with the slot taken and nothing attached. They pin what 0074e did, so they pass
+  before and after; the mutation runs show they catch the changes they are for.
+- **Finding 6, the false argument and the repro:** the 0074e text "every file a rebuild reads was read by the same actor's
+  build before, so a rebuild-time throw cannot be provoked" is wrong for the files that differ between builds:
+  `Npc::animationSources` picks other skeleton and animation files for a werewolf and for first person, and
+  `Npc::appendCustomBoneFiles` (with `[Game] weapon sheathing`) lists every `.nif` in `animations/<skeleton name>/`, so
+  the werewolf's custom-bone files are first read at the werewolf rebuild. What I found when I tried each:
+  - **First person:** its skeleton, animations and custom-bone files are read when the new game starts (a bad
+    `meshes/xbase_anim.1st.nif` or `animations/xbase_anim.1st/*.nif` gives "Failed to start new game"), so a toggle reads
+    only cached files and cannot throw.
+  - **The werewolf's skeleton and animations** (`meshes/wolf/skin.nif`): a bad Eden Archive entry does not make the rebuild
+    throw (`npc.readactor` takes 0.003 ms in the traced werewolf rebuild, so the read is served from a cache; why it is
+    cached when the first-person file is not was not found); only the werewolf's body part reads of the same file throw, and
+    those are caught per part since 0074e.
+  - **The werewolf's custom-bone file** works: a bad entry `animations/wolf/skin/oe_bad_bones.nif` in an Eden Archive,
+    `[Game] weapon sheathing = true`, and the player turned into a werewolf by `Player->BecomeWerewolf` in a start script
+    (`SetWerewolf` is no mwscript command, so 0074e's "SetWerewolf changed nothing visible" was a script compile error:
+    `tool\make_wolf_esp.py`), with the camera in third person (first person crashes, below). The player then changes
+    equipment four times (`tool\mod\scripts\mbwolf_player.lua`, `SCENE=wolf`, packs in `pack\`, runs in `runs\wolfb-*`):
+
+    | Executable | Result |
+    | --- | --- |
+    | `openmw-0074e-before.exe` (before 0074e's finding 1) | "Execution of script oe_wolfstart failed: Failed to read ...", then a crash dump (exit 124: the harness gave up): the rebuild threw after the old `Play` was freed. The dump was not decoded |
+    | `openmw-0074e-after.exe` (0074e) | the same error once, exit 0, no dump: 0074e's finding 1 is proven in game |
+    | `openmw-0074f-before.exe` (this task's stub tree: 0074e plus inert seams) | the same, once; the later equipment changes log nothing: the actor never retries |
+    | `openmw-0074f-after2.exe` (the five commits) | the first error, then one "Error in DelayedAction SetEquipmentAction: Failed to read ..." per equipment change, exit 0, no dump: finding 2 retries |
+- **Finding 7, the mutation evidence:** the five mutations of the 0074e log are rebuilt as real unified diffs of the
+  committed sources (`I:\Projects\OpenEden-work\0074f\mut\patches`, made by `make_patches.py`), plus mutations for finding 7
+  (the per-part catch, Npc and creature) and finding 9 of 0074d's review (the `addEnv` guard), for finding 5's sound skip,
+  and for every behaviour fix of this task (17 patches in all). `mut\run_all.sh` applies each under the build lock
+  (`mutrun.bat`: `git apply`, build `openmw-tests`, run ALL of `openmw-tests`, `git apply -R`), keeps the command line and
+  the full logs (`mut\logs\<name>.{apply,build,tests}.log`, `mut\summary.txt`), retries a build that fails (another
+  session's compile error, or a game of another session holding a DLL: LNK1168) and checks that the tree is clean
+  afterwards. The old run's `timeout: invalid time interval '/t'` was GNU `timeout` found before Windows' `timeout.exe`
+  when the batch file was started from Git Bash; the batch files now call `%SystemRoot%\System32\timeout.exe`. All 17
+  mutations were caught, each by at least the test that was named (a mutation run lists every failing test):
+
+  | Mutation | Failing tests (besides the named one, where more) |
+  | --- | --- |
+  | 0074e: `Npc::updateEquipment` compiles only on success | `CompiledUpdatesTest.the_real_npc_update_equipment_compiles_when_its_part_update_throws` |
+  | 0074e: the same for `WieldingCreature::updateEquipment` | `...the_real_creature_update_equipment_compiles_when_its_part_update_throws` |
+  | 0074e: `addItemPart` passes no light | `...a_carried_flickering_light_item_gives_the_creature_one_flickering_light` |
+  | 0074e: `detachPart`'s Weapon case removed | `...a_weapon_inserted_and_removed_in_one_update_leaves_the_weapon_list` |
+  | 0074e: `runRebuild` without `refresh` on a throw | `NpcRebuildTest.when_the_part_update_throws_...` and `PlanCommitTest.a_throw_in_the_part_update_...` |
+  | finding 7: `insertBoundedPart` rethrows | `PartFailuresTest`, `PartReadErrorsTest`, `AttachAmmoTest` cases |
+  | finding 7: `addItemPart` rethrows | `CreaturePartReadErrorsTest`, `CreaturePartFailuresTest`, `CreatureAttachAmmoTest` |
+  | finding 9: `addEnv` without a colour | `CreatureGlowTest.a_weapon_with_no_glow_colour_on_a_transparent_creature_gets_no_object_data` |
+  | 0074f finding 5: `attachPart` does not return after a failed read | 4 `PartFailuresTest` |
+  | 0074f finding 1: Npc clears nothing / creature clears nothing | 5 `AttachAmmoTest` / 2 `CreatureAttachAmmoTest` |
+  | 0074f finding 2: `updateParts` sets the type first / `setViewMode` sets the view first / `applyBasePlan` commits before the reads | 1 / 1 / 5 |
+  | 0074f finding 4: no loop in `Scene::update` / no call in `Player::update` / empty `Npc::updateOnMainThread` | 2 / 1 / 3 |
+
+  Not caught, and why: `Preview::animate`'s call (finding 3) has no test; `Npc::rebuild`'s own call into `runRebuild`
+  (needs a record).
+- **Finding 8, wording:** the 0074e "For toddhow" item 1 listed finding 3 with the changes of the default game; it only
+  matters with `[Game] weapon sheathing` (off by default). The quiver change is not a frame later than before: it runs in
+  the same `Scene::update`, right after the workers, and `Player::update` runs before it in `RenderManager::update`; the
+  only difference is that it now runs after `Wielding::update` and `mFace->update` instead of inside `Npc::update` (done at
+  the end of the actor's update). No "one frame later" is in this log, the guide or the changelog at `a24b553975`.
+- **Found on the way, NOT fixed (outside the review):** `Actor::assignBones` (`components/mwanimation/actor.hpp`) is not
+  virtual, so `Npc::applyBasePlan`'s call never reaches `Player::assignBones` (which sets the first-person neck bone
+  `mNeck`). 0074e's review wrote "assignBones virtual so Player::assignBones still runs": it does not. `Player::setViewMode`
+  calls `assignBones()` itself, but a rebuild through `RenderManager::rebuildPtr` (the werewolf and vampire changes:
+  `MechanicsManager::setWerewolf`, `World::reattachPlayerCamera`) leaves `mNeck` pointing into the freed `Play` when the
+  player is in first person, and `Player::manualAnimation` crashes in `MWAnim::Play::isRotationControlled`
+  (`player.cpp:50`, `play.cpp:95`, read from the crash dump of `Player->BecomeWerewolf` in first person with good data;
+  `0074d`-before and `0074e`-before crash the same way, so it is not from 0074e or 0074f). Fix proposed: make
+  `Actor::assignBones` virtual. Not done: it is inherited code outside the task.
+- **Final checks:** `SCENE=equipment`, stock and merged, `openmw-0074f-after3.exe` (HEAD `28d5607dde` plus other
+  sessions' uncommitted renderer files; `runs\equip`): both exit 0 with no dump, 49 frames each, 32 actors draw the merged
+  body; frames 009 (stock and merged), 045 (stock) and 046 (merged) viewed: no chest through the pants or loincloth, the
+  same visible body. clang-format 14 clean on the changed lines (`fmtdiff.sh`).
+- **Not verified:** the Linux gate (GCC `-Werror` build and tests) and the Lua integration tests; a fresh reviewer has not
+  read 0074f; the Preview fix; first person; finding 1 in game (above).
+- **For toddhow (decisions):**
+  1. **Finding 2's retry makes a permanently bad rebuild file repeat its error on every equipment change.** For the
+     player or a script that is one logged error per change; for an actor changed by the mechanics (torch auto-equip,
+     AI combat, spell effects) a throw in the rebuild's reads still ends the game session, as in 0.51 (it has no catch
+     either). Before 0074f the first failure left the actor human for good and nothing more happened. Say if a rebuild
+     that fails should instead be given up after one try, or caught like a part.
+  2. **`Actor::assignBones` is not virtual** (above): a player who becomes a werewolf or vampire in first person crashes.
+     Recommended: make it virtual, in its own task.
+  3. `Npc::setVampire` now records the new type, so one rebuild fewer; no visible change.
