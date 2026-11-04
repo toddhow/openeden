@@ -3,6 +3,9 @@
 #include <components/body/bodyjson.hpp>
 #include <components/body/bodymesh.hpp>
 
+#include <edenarchive/archive.hpp>
+#include <edenarchive/error.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -273,13 +276,51 @@ namespace advancedbodies_editor
             }
         }
 
+        // ---- what a pack is, from its index
+
+        enum class PackKind
+        {
+            Unreadable, // the full reader says why
+            Package,
+            Cache,
+            Neither,
+        };
+
+        PackKind peekPack(const std::filesystem::path& pack)
+        {
+            EdenArchive::Error error;
+            const std::unique_ptr<EdenArchive::Archive> archive
+                = EdenArchive::Archive::open(pack, EdenArchive::OpenOptions{}, error);
+            if (archive == nullptr)
+            {
+                return PackKind::Unreadable;
+            }
+            bool package = false;
+            bool cache = false;
+            for (std::size_t i = 0; i < archive->entryCount(); ++i)
+            {
+                const EdenArchive::EntryInfo entry = archive->entry(i);
+                package = package || (entry.mHasPath && entry.mPath == kBodyFileName);
+                cache = cache || (entry.mHasPath && entry.mPath == kManifestFileName);
+            }
+            return package ? PackKind::Package : cache ? PackKind::Cache : PackKind::Neither;
+        }
+
         // ---- the stage a report
 
-        /// The deepest nesting of arrays and objects, outside strings. Stops counting once it is past `limit`.
-        std::size_t nestingDepth(std::string_view text, std::size_t limit)
+        /// What a scan of the text outside strings finds before anything is parsed: the deepest nesting of arrays and
+        /// objects, and the number of values (commas, arrays and objects), which bounds the memory nlohmann would use.
+        struct JsonShape
         {
+            std::size_t mDepth = 0;
+            std::size_t mValues = 0;
+        };
+
+        /// Stops as soon as either count is past its limit.
+        JsonShape scanJson(std::string_view text, std::size_t depthLimit, std::size_t valueLimit)
+        {
+            JsonShape shape;
             std::size_t depth = 0;
-            std::size_t deepest = 0;
             bool inString = false;
             bool escaped = false;
             for (const char c : text)
@@ -306,18 +347,23 @@ namespace advancedbodies_editor
                 }
                 else if (c == '[' || c == '{')
                 {
-                    deepest = std::max(deepest, ++depth);
-                    if (deepest > limit)
-                    {
-                        return deepest;
-                    }
+                    shape.mDepth = std::max(shape.mDepth, ++depth);
+                    ++shape.mValues;
                 }
                 else if ((c == ']' || c == '}') && depth > 0)
                 {
                     --depth;
                 }
+                else if (c == ',')
+                {
+                    ++shape.mValues;
+                }
+                if (shape.mDepth > depthLimit || shape.mValues > valueLimit)
+                {
+                    return shape;
+                }
             }
-            return deepest;
+            return shape;
         }
 
         using Json = nlohmann::json;
@@ -358,6 +404,11 @@ namespace advancedbodies_editor
                 if (!value->is_string())
                 {
                     fail(name, "is not a string");
+                    return {};
+                }
+                if (value->get_ref<const std::string&>().size() > kMaxAnalysisTextBytes)
+                {
+                    fail(name, "is longer than " + std::to_string(kMaxAnalysisTextBytes) + " bytes");
                     return {};
                 }
                 return value->get<std::string>();
@@ -665,6 +716,9 @@ namespace advancedbodies_editor
             view->mFiles = std::move(files);
             view->mBodies.resize(1);
             view->mBodies[0] = packageBody(*loaded.mValue, view->mFiles);
+            // A package's one body is worked out now; its files (textures too, in later packages) are not needed
+            // again (fresh review of stage f, finding 1).
+            view->mFiles.mFiles.clear();
             return { std::move(view), {} };
         }
 
@@ -708,7 +762,22 @@ namespace advancedbodies_editor
             std::unique_ptr<BodyData>& slot = view.mBodies[index];
             if (!slot)
             {
-                slot = mergedBody(view.mManifest.mEntries[index], view.mFiles, view.mManifest, view.mCacheFolder);
+                // Called from Studio's callbacks (the panel, the summary, the gizmos): nothing may leave them, and a
+                // failure here (memory for a huge payload) is this body's message, not the module's end (fresh review
+                // of stage f, finding 3).
+                const Body::CacheEntry& entry = view.mManifest.mEntries[index];
+                try
+                {
+                    slot = mergedBody(entry, view.mFiles, view.mManifest, view.mCacheFolder);
+                }
+                catch (const std::exception& e)
+                {
+                    slot = std::make_unique<BodyData>();
+                    slot->mTitle = titleOf(entry);
+                    slot->mPayloadError = std::string("the body could not be worked out: ") + e.what();
+                    slot->mMeshNote = "nothing is drawn: " + slot->mPayloadError;
+                    slot->mAnalysisNote = "no stage a numbers: " + slot->mPayloadError;
+                }
             }
             return *slot;
         }
@@ -728,10 +797,16 @@ namespace advancedbodies_editor
                 return { std::nullopt,
                     "the stage a report is over " + std::to_string(kMaxAnalysisBytes >> 20) + " MiB" };
             }
-            if (nestingDepth(text, kMaxAnalysisNesting) > kMaxAnalysisNesting)
+            const JsonShape shape = scanJson(text, kMaxAnalysisNesting, kMaxAnalysisValues);
+            if (shape.mDepth > kMaxAnalysisNesting)
             {
                 return { std::nullopt,
                     "the stage a report nests deeper than " + std::to_string(kMaxAnalysisNesting) + " levels" };
+            }
+            if (shape.mValues > kMaxAnalysisValues)
+            {
+                return { std::nullopt,
+                    "the stage a report holds more than " + std::to_string(kMaxAnalysisValues) + " values" };
             }
             const Json document = Json::parse(text.begin(), text.end(), nullptr, false);
             if (document.is_discarded())
@@ -967,7 +1042,8 @@ namespace advancedbodies_editor
         {
             return openPackageFile(path);
         }
-        if (endsWithIgnoringAsciiCase(name, kBodyFileName))
+        // Exactly body.json (somebody.json is not a package's): the folder that holds it is the package.
+        if (equalsIgnoringAsciiCase(name, kBodyFileName))
         {
             std::error_code code;
             if (!std::filesystem::is_regular_file(path, code))
@@ -1009,6 +1085,14 @@ namespace advancedbodies_editor
     {
         try
         {
+            // From the index alone, before anything is decoded: a pack that is no body source (an LOD, texture or
+            // data pack in an asset root) is refused without reading it (fresh review of stage f, finding 1).
+            if (peekPack(pack) == PackKind::Neither)
+            {
+                return { nullptr,
+                    about(pack,
+                        "the pack holds neither body.json (a body package) nor manifest.txt (a merged body cache)") };
+            }
             std::string error;
             std::optional<Body::PackageFiles> files = Body::readPackageFile(pack, error);
             if (!files)

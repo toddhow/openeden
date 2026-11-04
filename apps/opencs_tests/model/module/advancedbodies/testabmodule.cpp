@@ -19,6 +19,10 @@
 //    enabledWhen, so a disabled run is false and runs nothing); an enabled run moves the selection by exactly one
 //    and calls requestRedraw() at least once (counted as "more than before"); a disabled run calls neither.
 //    Neither command ever calls pushCommand or markDirty. Their labels are not pinned.
+//  - Review fixes (2026-11-04): a finding row's PropertyDesc::tooltip is exactly its value text. The rows added by the
+//    review: "source.position" (text "<i> of <n>"; whether i counts from 0 or 1 is not pinned, only " of <n>" and
+//    that another body gives another text) and "source.failures" exist for a merged cache and not for a package;
+//    "source.package" for a package and not for a merged cache; "report.note" for a merged cache entry.
 //  - The region gizmo draws only lines (no points or labels), the weld gizmo only points (no lines or labels), in
 //    metres at the body's own origin, exactly the view's mRegionLines and mWeldPoints.
 //  - The inspector section ids are "advancedbodies.section.<format id>"; a section of this module shows
@@ -539,6 +543,75 @@ namespace ABTest
             expectFindingRows(document->properties(), view->current().mReport);
         }
 
+        TEST_F(AbModuleTest, aFindingRowsTooltipIsTheSameTextAsItsValue)
+        {
+            PackageFixture fixture = makePackageFixture();
+            fixture.mPackage.mRegionMap->mRegions[0].mRanges = { Body::TriangleRange{ 0, 1 } }; // a gap: GEOM-005
+            fixture.refresh();
+            const std::unique_ptr<AssetDocument> package = openAsset(writeFolder(mDir / "package", fixture.mFiles));
+            std::string pack;
+            const std::unique_ptr<AssetDocument> cache = openAsset(writeStandardCache(pack) / "current");
+            for (AssetDocument* document : { package.get(), cache.get() })
+            {
+                ASSERT_NE(document, nullptr);
+                const ab::BodyView* view = ab::viewOf(*document);
+                ASSERT_NE(view, nullptr);
+                const std::size_t findings = std::min(view->current().mReport.mFindings.size(), ab::kMaxFindingRows);
+                ASSERT_GT(findings, 0u);
+                PropertySource& source = document->properties();
+                const std::vector<PropertyDesc> descs = source.describe();
+                for (std::size_t i = 0; i < findings; ++i)
+                {
+                    const std::string id = "finding." + std::to_string(i);
+                    const PropertyDesc* desc = findDesc(descs, id);
+                    if (desc == nullptr)
+                    {
+                        ADD_FAILURE() << "no row " << id;
+                        continue;
+                    }
+                    const PropertyValue value = source.get(id);
+                    const std::string* text = std::get_if<std::string>(&value);
+                    if (text == nullptr)
+                    {
+                        ADD_FAILURE() << id << " is not text";
+                        continue;
+                    }
+                    EXPECT_EQ(desc->tooltip, *text) << id;
+                }
+            }
+        }
+
+        TEST_F(AbModuleTest, theSourceRowsAddedByTheReviewBelongToTheirKindOfSource)
+        {
+            const std::unique_ptr<AssetDocument> package = openAsset(writeStandardPackage());
+            ASSERT_NE(package, nullptr);
+            const std::vector<PropertyDesc> packageRows = package->properties().describe();
+            EXPECT_NE(findDesc(packageRows, "source.package"), nullptr);
+            EXPECT_EQ(findDesc(packageRows, "source.position"), nullptr) << "a package has one body";
+            EXPECT_EQ(findDesc(packageRows, "source.failures"), nullptr);
+
+            std::string pack;
+            const std::unique_ptr<AssetDocument> cache = openAsset(writeStandardCache(pack) / "current");
+            ASSERT_NE(cache, nullptr);
+            const std::vector<PropertyDesc> cacheRows = cache->properties().describe();
+            EXPECT_NE(findDesc(cacheRows, "source.position"), nullptr);
+            EXPECT_NE(findDesc(cacheRows, "source.failures"), nullptr);
+            EXPECT_NE(findDesc(cacheRows, "report.note"), nullptr) << "the expected binding findings of a cache entry";
+            EXPECT_EQ(findDesc(cacheRows, "source.package"), nullptr);
+
+            // "<i> of <n>": the count of bodies, and another position for another body.
+            const PropertyValue firstValue = cache->properties().get("source.position");
+            const std::string* first = std::get_if<std::string>(&firstValue);
+            ASSERT_NE(first, nullptr);
+            EXPECT_TRUE(contains(*first, " of 3")) << *first;
+            ASSERT_TRUE(ab::selectBody(*cache, 2));
+            const PropertyValue lastValue = cache->properties().get("source.position");
+            const std::string* last = std::get_if<std::string>(&lastValue);
+            ASSERT_NE(last, nullptr);
+            EXPECT_TRUE(contains(*last, " of 3")) << *last;
+            EXPECT_NE(*first, *last);
+        }
+
         TEST_F(AbModuleTest, aMergedCacheHasAReadOnlyEntryRowWithTheShownBodysTitle)
         {
             std::string pack;
@@ -718,6 +791,17 @@ namespace ABTest
         }
 
         // ---- the module as Studio loads it ------------------------------------------------------------------------
+
+        // Added by the implementer after the fresh review of stage f (finding 4), not by the test writer: Studio's core
+        // list names this module after CreativeMotion's. It pins existing behaviour, so it was not run red first.
+        TEST(AbModuleCoreList, theModuleIsOnTheCoreListAfterCreativeMotions)
+        {
+            const std::vector<CSMModule::CoreModule> core = CSMModule::coreModules();
+            ASSERT_GE(core.size(), 2u);
+            EXPECT_EQ(core[0].mId, "creativemotion_editor");
+            EXPECT_EQ(core[1].mId, "advancedbodies_editor");
+            EXPECT_NE(core[1].mLibrary.find("advancedbodies_editor"), std::string::npos) << core[1].mLibrary;
+        }
 
         TEST_F(AbModuleTest, theDescriptorHasTheModulesIdAndTheCurrentApiVersion)
         {

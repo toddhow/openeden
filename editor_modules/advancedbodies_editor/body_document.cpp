@@ -322,8 +322,9 @@ namespace advancedbodies_editor
             {
                 const Body::Finding& finding = findings[i];
                 const std::string severity = finding.mSeverity == Body::Severity::Error ? "error" : "warning";
-                add(textRow("finding." + std::to_string(i), severity + " " + finding.mCode, group),
-                    finding.mPath + ": " + finding.mMessage);
+                const std::string text = finding.mPath + ": " + finding.mMessage;
+                // A read-only row is a disabled line edit that cannot scroll: the tooltip holds the whole text.
+                add(textRow("finding." + std::to_string(i), severity + " " + finding.mCode, group, text), text);
             }
             if (findings.size() > shown)
             {

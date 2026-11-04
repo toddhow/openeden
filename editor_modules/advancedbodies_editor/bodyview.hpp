@@ -50,6 +50,12 @@ namespace advancedbodies_editor
     inline constexpr std::size_t kMaxAnalysisNesting = 32;
     inline constexpr std::size_t kMaxAnalysisUnits = 1024;
     inline constexpr std::size_t kMaxAnalysisSeams = 256;
+    /// Values (commas, arrays, objects) counted before nlohmann builds anything: the real 20-body report holds about
+    /// 58,000; a million is 17 times that and keeps a hostile 64 MiB file of `0,0,0...` from becoming a gigabyte tree
+    /// (fresh review of stage f, finding 2).
+    inline constexpr std::size_t kMaxAnalysisValues = 1000000;
+    /// The longest text field read (a race, a slot or a seam label is a few dozen bytes; components/body caps 4096).
+    inline constexpr std::size_t kMaxAnalysisTextBytes = 4096;
 
     inline constexpr std::size_t kRegionPaletteSize = 12;
     /// The colour of region `regionIndex`: the fixed palette of the design, by regionIndex % kRegionPaletteSize.

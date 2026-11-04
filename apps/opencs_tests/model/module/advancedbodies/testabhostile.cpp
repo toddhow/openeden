@@ -19,6 +19,17 @@
 //  - Exactly Body::Limits::sMaxRegionRanges ranges are accepted (the reader refuses only more), and each triangle of
 //    such a map goes to the first region; a map with more cannot be read from a file at all, so the model's own
 //    "more than the cap colours nothing" rule is not reachable through the public open functions.
+// Added for the review fixes of the design (2026-11-04):
+//  - A name that only ends in "body.json" (somebody.json, x.body.json) is refused with a message naming it; BODY.JSON
+//    and Body.json open their folder. The other-case file is written beside body.json with the same bytes (on a
+//    case-insensitive file system it is body.json itself, elsewhere a second copy that the package does not use).
+//  - A pack is classified from its index alone: the refusal of a pack with neither body.json nor manifest.txt
+//    contains the word "neither" and names "manifest.txt" even when an entry's stored bytes are damaged; a body
+//    package whose payload is damaged is refused by the full reader with a message without "neither". Store-only packs
+//    hold an entry's bytes verbatim, so a damaged byte is placed by finding the entry's bytes in the file.
+//  - The stage a value cap counts an unread field's array too; 900,000 values (well under the cap) are accepted. A text
+//    field of exactly kMaxAnalysisTextBytes bytes is accepted; one byte more is refused naming the field (race,
+//    skeleton, label, slotA, slotB). The field is in the one unit of the report, the one asked for.
 #include "editor_modules/advancedbodies_editor/bodyview.hpp"
 
 #include "abtestsupport.hpp"
@@ -105,6 +116,54 @@ namespace ABTest
         std::string goodReport()
         {
             return reportJson({ unitText("Ash Folk", false, 1483, { SeamText{} }) });
+        }
+
+        /// A good report whose one unit carries an unread field holding an array of `count` zeros.
+        std::string reportWithZeros(std::size_t count)
+        {
+            std::string field = "\"extra\": [";
+            field.reserve(field.size() + 2 * count + 1);
+            for (std::size_t i = 0; i < count; ++i)
+            {
+                if (i > 0)
+                {
+                    field += ',';
+                }
+                field += '0';
+            }
+            field += ']';
+            UnitText unit = unitText("Ash Folk", false, 1483, { SeamText{} });
+            unit.mExtraField = field;
+            return reportJson({ unit });
+        }
+
+        /// `size` deterministic bytes that do not repeat in any short period (a linear congruential sequence).
+        std::vector<std::uint8_t> syntheticBytes(std::size_t size, std::uint32_t seed)
+        {
+            std::vector<std::uint8_t> bytes(size);
+            std::uint32_t state = seed;
+            for (std::uint8_t& value : bytes)
+            {
+                state = state * 1664525u + 1013904223u;
+                value = static_cast<std::uint8_t>(state >> 24);
+            }
+            return bytes;
+        }
+
+        /// Flips one byte in the middle of the stored copy of `content` inside the file. False when the content is
+        /// not in the file verbatim.
+        bool damageStoredEntry(const std::filesystem::path& file, const std::vector<std::uint8_t>& content)
+        {
+            std::vector<std::uint8_t> bytes = readBytes(file);
+            const auto found = std::search(bytes.begin(), bytes.end(), content.begin(), content.end());
+            if (content.empty() || found == bytes.end())
+            {
+                return false;
+            }
+            const std::size_t at = static_cast<std::size_t>(found - bytes.begin()) + content.size() / 2;
+            bytes[at] = static_cast<std::uint8_t>(bytes[at] ^ 0x5Au);
+            writeBytes(file, bytes);
+            return true;
         }
 
         class AbHostileTest : public AbTempTest
@@ -274,6 +333,91 @@ namespace ABTest
             EXPECT_TRUE(refused(ab::openBodySource(mDir / "package"), ""));
             const OpenResult byName = ab::openPackageFolder(mDir / "package");
             EXPECT_NE(byName.mView, nullptr) << byName.mError;
+        }
+
+        TEST_F(AbHostileTest, aNameThatOnlyEndsInBodyJsonIsRefusedNamingIt)
+        {
+            const PackageFixture fixture = makePackageFixture();
+            const std::filesystem::path folder = mDir / "package";
+            const std::filesystem::path bodyJson = writeFolder(folder, fixture.mFiles);
+            const OpenResult good = ab::openBodySource(bodyJson);
+            ASSERT_NE(good.mView, nullptr) << good.mError;
+
+            for (const char* name : { "somebody.json", "x.body.json" })
+            {
+                writeBytes(folder / name, fixture.mFiles.mFiles.at("body.json"));
+                EXPECT_TRUE(refused(ab::openBodySource(folder / name), name));
+            }
+        }
+
+        TEST_F(AbHostileTest, bodyJsonInAnotherCaseOpensItsFolder)
+        {
+            const PackageFixture fixture = makePackageFixture();
+            const std::vector<std::string> names{ "BODY.JSON", "Body.json" };
+            for (std::size_t i = 0; i < names.size(); ++i)
+            {
+                const std::filesystem::path folder = mDir / ("case" + std::to_string(i));
+                writeFolder(folder, fixture.mFiles);
+                // Case-insensitive file systems: this is body.json itself; others: a second copy beside it.
+                writeBytes(folder / names[i], fixture.mFiles.mFiles.at("body.json"));
+                const OpenResult result = ab::openBodySource(folder / names[i]);
+                ASSERT_NE(result.mView, nullptr) << names[i] << ": " << result.mError;
+                EXPECT_EQ(result.mView->kind(), ab::SourceKind::PackageFolder) << names[i];
+                EXPECT_EQ(result.mView->current().mTitle, kPackageId) << names[i];
+                EXPECT_TRUE(samePath(result.mView->path(), folder) || samePath(result.mView->path(), folder / names[i]))
+                    << result.mView->path();
+            }
+        }
+
+        TEST_F(AbHostileTest, aPackWithNeitherBodyNorManifestIsRefusedFromItsIndexBeforeAnyEntryIsRead)
+        {
+            Body::PackageFiles files;
+            const std::vector<std::uint8_t> texture = syntheticBytes(4096, 7);
+            files.mFiles["textures/t.dds"] = texture;
+            const std::filesystem::path pack = writePack(mDir / "texture.edenpak", files);
+
+            const OpenResult intact = ab::openPackageFile(pack);
+            EXPECT_TRUE(refused(intact, "texture.edenpak"));
+            EXPECT_TRUE(contains(intact.mError, "neither")) << intact.mError;
+
+            // Damage the entry's stored bytes (not the header or the index): a full read now fails...
+            ASSERT_TRUE(damageStoredEntry(pack, texture)) << "the entry's bytes are not in the pack verbatim";
+            std::string readError;
+            EXPECT_FALSE(Body::readPackageFile(pack, readError).has_value()) << "the damage is not seen by a full read";
+
+            // ...but the pack is refused from its index alone, before any entry is decoded.
+            const OpenResult byName = ab::openPackageFile(pack);
+            EXPECT_TRUE(refused(byName, "texture.edenpak"));
+            EXPECT_TRUE(contains(byName.mError, "neither")) << byName.mError;
+            EXPECT_TRUE(contains(byName.mError, "manifest.txt")) << byName.mError;
+            const OpenResult bySource = ab::openBodySource(pack);
+            EXPECT_TRUE(refused(bySource, "texture.edenpak"));
+            EXPECT_TRUE(contains(bySource.mError, "neither")) << bySource.mError;
+            EXPECT_TRUE(contains(bySource.mError, "manifest.txt")) << bySource.mError;
+        }
+
+        TEST_F(AbHostileTest, aBodyPackageWithADamagedPayloadIsRefusedByTheFullReader)
+        {
+            const PackageFixture fixture = makePackageFixture();
+            const std::filesystem::path pack = writePack(mDir / "damaged.edenpak", fixture.mFiles);
+            {
+                // The control, closed again before the file is changed.
+                const OpenResult intact = ab::openPackageFile(pack);
+                ASSERT_NE(intact.mView, nullptr) << intact.mError;
+            }
+
+            ASSERT_TRUE(damageStoredEntry(pack, fixture.mFiles.mFiles.at(kPayloadPath)))
+                << "the payload's bytes are not in the pack verbatim";
+            std::string readError;
+            EXPECT_FALSE(Body::readPackageFile(pack, readError).has_value()) << "the damage is not seen by a full read";
+
+            // The index holds body.json, so the pack is read whole and the reader's own refusal is the message.
+            const OpenResult byName = ab::openPackageFile(pack);
+            EXPECT_TRUE(refused(byName, "damaged.edenpak"));
+            EXPECT_FALSE(contains(byName.mError, "neither")) << byName.mError;
+            const OpenResult bySource = ab::openBodySource(pack);
+            EXPECT_TRUE(refused(bySource, "damaged.edenpak"));
+            EXPECT_FALSE(contains(bySource.mError, "neither")) << bySource.mError;
         }
 
         // ---- merged caches -------------------------------------------------------------------------------------
@@ -455,6 +599,70 @@ namespace ABTest
             const std::string unitsObject
                 = replaceFirst(unitsOpened, "  ],\n  \"aggregate\"", "  ]},\n  \"aggregate\"");
             EXPECT_TRUE(analysisRefused(ab::readAnalysisUnit(unitsObject, "Ash Folk", false), "units"));
+        }
+
+        TEST(AbHostileAnalysis, moreValuesThanTheCapAreRefusedAndWellUnderItAreAccepted)
+        {
+            EXPECT_EQ(ab::kMaxAnalysisValues, 1000000u);
+            const ab::AnalysisResult over
+                = ab::readAnalysisUnit(reportWithZeros(ab::kMaxAnalysisValues + 1), "Ash Folk", false);
+            EXPECT_TRUE(analysisRefused(over, "values"));
+
+            const ab::AnalysisResult under = ab::readAnalysisUnit(reportWithZeros(900000), "Ash Folk", false);
+            ASSERT_TRUE(under.mUnit.has_value()) << under.mError;
+            EXPECT_EQ(under.mUnit->mVertices, 1483u);
+        }
+
+        TEST(AbHostileAnalysis, aRaceOverTheTextCapIsRefusedAndOneAtTheCapIsRead)
+        {
+            EXPECT_EQ(ab::kMaxAnalysisTextBytes, 4096u);
+            const std::string atCap(ab::kMaxAnalysisTextBytes, 'r');
+            const ab::AnalysisResult accepted
+                = ab::readAnalysisUnit(reportJson({ unitText(atCap, false, 1483) }), atCap, false);
+            ASSERT_TRUE(accepted.mUnit.has_value()) << accepted.mError;
+            EXPECT_EQ(accepted.mUnit->mRace, atCap);
+
+            const std::string over(ab::kMaxAnalysisTextBytes + 1, 'r');
+            const ab::AnalysisResult tooLong
+                = ab::readAnalysisUnit(reportJson({ unitText(over, false, 1483) }), over, false);
+            EXPECT_TRUE(analysisRefused(tooLong, "race"));
+        }
+
+        TEST(AbHostileAnalysis, aSkeletonOrSeamTextOverTheTextCapIsRefusedNamingItAndOneAtTheCapIsRead)
+        {
+            struct TextField
+            {
+                const char* mName;
+                void (*mSet)(UnitText&, const std::string&);
+                std::string (*mGet)(const ab::AnalysisUnit&);
+            };
+            // Every unit below has exactly one seam, so the getters may read mSeams[0] once that is checked.
+            const TextField fields[] = {
+                { "skeleton", [](UnitText& u, const std::string& v) { u.mSkeleton = v; },
+                    [](const ab::AnalysisUnit& u) { return u.mSkeleton; } },
+                { "label", [](UnitText& u, const std::string& v) { u.mSeams[0].mLabel = v; },
+                    [](const ab::AnalysisUnit& u) { return u.mSeams[0].mLabel; } },
+                { "slotA", [](UnitText& u, const std::string& v) { u.mSeams[0].mSlotA = v; },
+                    [](const ab::AnalysisUnit& u) { return u.mSeams[0].mSlotA; } },
+                { "slotB", [](UnitText& u, const std::string& v) { u.mSeams[0].mSlotB = v; },
+                    [](const ab::AnalysisUnit& u) { return u.mSeams[0].mSlotB; } },
+            };
+            const std::string atCap(ab::kMaxAnalysisTextBytes, 't');
+            const std::string over(ab::kMaxAnalysisTextBytes + 1, 't');
+            for (const TextField& field : fields)
+            {
+                UnitText fits = unitText("Ash Folk", false, 1483, { SeamText{} });
+                field.mSet(fits, atCap);
+                const ab::AnalysisResult accepted = ab::readAnalysisUnit(reportJson({ fits }), "Ash Folk", false);
+                ASSERT_TRUE(accepted.mUnit.has_value()) << field.mName << ": " << accepted.mError;
+                ASSERT_EQ(accepted.mUnit->mSeams.size(), 1u) << field.mName;
+                EXPECT_EQ(field.mGet(*accepted.mUnit), atCap) << field.mName;
+
+                UnitText tooLong = unitText("Ash Folk", false, 1483, { SeamText{} });
+                field.mSet(tooLong, over);
+                const ab::AnalysisResult refusal = ab::readAnalysisUnit(reportJson({ tooLong }), "Ash Folk", false);
+                EXPECT_TRUE(analysisRefused(refusal, field.mName)) << field.mName;
+            }
         }
     }
 }

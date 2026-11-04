@@ -9,6 +9,7 @@
 #include <openeden/editor_module/registrar.hpp>
 #include <openeden/editor_module/types.hpp>
 
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <string>

@@ -913,8 +913,11 @@ It only reads: nothing is written, `save` refuses, `isDirty` is false.
 `eden-studio-tests`):
 - `openBodySource(path)` dispatches: a file named `current` opens the merged cache of its folder through `current`
   (`Body::loadCurrentCache`); a `*.edenpak` opens the pack (`Body::readPackageFile`) as a packed package when it holds
-  `body.json`, as a merged cache when it holds `manifest.txt`, else refuses; a file whose name ends in `body.json`
-  opens its folder as a package (`Body::readPackageFolder`). Anything else refuses. `openPackageFolder`,
+  `body.json`, as a merged cache when it holds `manifest.txt`, else refuses; a file named `body.json` (exactly,
+  ignoring ASCII case: `somebody.json` refuses) opens its folder as a package (`Body::readPackageFolder`). Anything else
+  refuses. *(Review fixes:)* a pack is first classified from its index alone (`EdenArchive::Archive` entry names, no
+  entry decoded), so a pack holding neither `body.json` nor `manifest.txt` is refused before any of it is read; a
+  package's files are dropped once its body is worked out. `openPackageFolder`,
   `openPackageFile`, `openMergedCache` are the three ways by name. A failure gives one located message and no view.
 - **A package** (folder or pack): `body.json` is read with `Body::readBodyPackage`; a load error is the open's error
   (its `toString()`: file, line, pointer). The report is `Body::validateBodyPackage(package, options)` with exactly the
@@ -950,9 +953,11 @@ It only reads: nothing is written, `save` refuses, `isDirty` is false.
   race, female)` reads `openeden.bodyanalysis` v1 and returns the unit whose race equals ignoring ASCII case and whose
   `female` matches: its totals and per seam the label, slots, touches, pair count, distance min/median/max, the six
   ladder counts, overlap/gap/meeting pairs and the largest weight disagreement (game units, as the report has them).
-  Hostile text: over `kMaxAnalysisBytes` (64 MiB), nesting over 32 (counted before parsing), not JSON, another format
-  or version, more than 1024 units or 256 seams, a field of the wrong type: refused with a message naming the field;
-  no exception. A missing report is a note, not an error. A package has no stage a numbers.
+  Hostile text: over `kMaxAnalysisBytes` (64 MiB), nesting over 32 or more than `kMaxAnalysisValues` (1,000,000) values
+  (commas, arrays and objects, counted before parsing), not JSON, another format or version, more than 1024 units or 256
+  seams, a field of the wrong type, a text field read (race, skeleton, label, slots) longer than `kMaxAnalysisTextBytes`
+  (4096 bytes): refused with a message naming the field (or "values"); no exception. A missing report is a note, not an
+  error. A package has no stage a numbers.
 - **Palette** (`regionColour`), RGB with alpha 1: (0.90, 0.30, 0.30), (0.30, 0.75, 0.35), (0.30, 0.50, 0.95),
   (0.95, 0.80, 0.25), (0.75, 0.40, 0.90), (0.25, 0.85, 0.85), (0.95, 0.55, 0.20), (0.60, 0.85, 0.30), (0.90, 0.45,
   0.70), (0.55, 0.60, 0.95), (0.80, 0.65, 0.45), (0.45, 0.70, 0.60). `kUnassignedColour` (0.45, 0.45, 0.45),
@@ -965,8 +970,10 @@ that does not name a merged body pack). Workspace `advancedbodies` ("AdvancedBod
 `advancedbodies.section.<format>` (a fixed short summary), no gizmo provider (Studio draws the active asset's
 gizmos). The panel's rows, all read only: `source.kind`, `source.path`, `source.entry` (merged cache only: the shown
 body's `<race> <sex> <view>`), `report.verdict`, `report.errors`, `report.warnings`, `payload.status`,
-`finding.<i>` (label `<severity> <code>`, value `<path>: <message>`, at most 200 rows then `finding.more`), `mesh.*`,
-`region.<i>` (label the region id, value `<n> triangles, colour #rrggbb`), `weld.*`, `analysis.*`; `makeSetCommand`
+`finding.<i>` (label `<severity> <code>`, value `<path>: <message>`, the same text as its tooltip, at most 200 rows then
+`finding.more`), `mesh.*`, `region.<i>` (label the region id, value `<n> triangles, colour #rrggbb`), `weld.*`,
+`analysis.*`; also (not listed at first) `source.position` (`<i> of <n>`) and `source.failures` for a merged cache,
+`source.package` for a package, `report.note` (the expected binding findings of a cache entry); `makeSetCommand`
 refuses every row. Because Studio builds a form's rows once, every body of a merged cache has its own property
 source, kept for the document's life, and the panel shows the selected one's (a new address makes the panel rebuild).
 Gizmos `advancedbodies.body.regions` (the region lines) and `advancedbodies.body.welds` (the weld points), in metres,
@@ -1068,24 +1075,62 @@ reader allows colours nothing" branch is not reachable through the open function
 (the API has lines only: API 1.1, toddhow's decision), labels; opening the cache from the user data folder without
 `OPENEDEN_CS_ASSETDIR` (API 1.0 has no user data folder); a person's click on the menu items and the Asset Browser
 entries (the check calls `openAsset` and `runCommand`); the 32 Lua tests (no game file changed); on Linux only the
-editor targets were built (see below). The time of a body switch (about 1.15 s with three document windows) is Studio rebuilding forms,
-CreativeMotion's hidden panel included (it shows any active asset); not profiled. The 12-colour palette repeats for the
-20 slots of a stock body (`slot-2` and `slot-16` share red).
+editor targets were built (see below). The time of a body switch (about 1.15 s with three document windows) was not
+profiled: the first time a body is shown it is also worked out (payload, validator, edge sort, the stage a report read
+and parsed), and Studio rebuilds the forms of every window, CreativeMotion's hidden panel included (it shows any active
+asset); which part dominates is a guess. The 12-colour palette repeats for the 20 slots of a stock body (`slot-2` and
+`slot-16` share red).
 
 **The Linux link (found by the coordinator's gate at `4ec2afd409`).** `libadvancedbodies_editor.so` failed to link:
 `edenarchive`'s `archive.cpp` (a function-local thread_local, the chunk scratch) was not position-independent
 (`R_X86_64_TPOFF32 ... recompile with -fPIC`). The claim above that the Eden Archive libraries were already PIC was
-wrong: only its zstd and BLAKE3 targets were. `creativemotion_editor` never met it because it links only CreativeMotion's
-libraries, which `components/creativemotion/CMakeLists.txt` builds with `CMAKE_POSITION_INDEPENDENT_CODE ON`. Fix:
-`POSITION_INDEPENDENT_CODE` on `edenarchive` (the alternative, reading packs through the host, needs an API the host
-does not have). Checked in the Linux container (`cs_inside.sh`, HEAD with the change overlaid): `eden-studio` and
-`eden-studio-tests` build with `-Werror`, the tests pass (676), the editor starts under xvfb and loads both modules.
-Windows after the reconfigure: only the version stamps recompiled (no `edenarchive` or `eden_body` object), `openmw`,
-`eden-studio`, `eden-studio-tests` (676), `components-tests` (5,482) and `openmw-tests` (927) build and pass, and
-`tools/edenstudio_check/check.sh` passes.
+wrong: only its zstd and BLAKE3 targets were. `creativemotion_editor` never met it because it links only
+CreativeMotion's libraries, which `components/creativemotion/CMakeLists.txt` builds with
+`CMAKE_POSITION_INDEPENDENT_CODE ON`. Fix: `POSITION_INDEPENDENT_CODE` on `edenarchive` (the alternative, reading packs
+through the host, needs an API the host does not have). Checked in the Linux container (`cs_inside.sh`, HEAD with the
+change overlaid): `eden-studio` and `eden-studio-tests` build with `-Werror`, the tests pass (676), the editor starts
+under xvfb and loads both modules. Windows after the reconfigure: only the version stamps recompiled (no `edenarchive`
+or `eden_body` object), `openmw`, `eden-studio`, `eden-studio-tests` (676), `components-tests` (5,482) and
+`openmw-tests` (927) build and pass, and `tools/edenstudio_check/check.sh` passes.
+
+**Fresh review of stage f** (a separate agent, read only, after `86e31bf674`; no blocker). What each finding became:
+1. *A pack was read whole before it was known to be a body source* (every `.edenpak` in an asset root is listed, and
+   a texture pack would be decoded, up to 512 MiB, on the main thread): fixed, the pack is classified from its index
+   (`peekPack`) and refused without decoding; a package's files are dropped once its body is worked out.
+2. *The stage a reader capped only bytes and nesting:* fixed, values (1,000,000) and text fields (4,096 bytes). The
+   report is still parsed once per body shown (about 58,000 values); not cached.
+3. *An exception in the lazy work of a body could leave a Studio callback* (and withdraw the module, or
+   CreativeMotion's, whose panel shows any asset): fixed, caught in `BodyViewAccess::body`; the body shows the message.
+4. *The core list and the Studio fixes had no test:* a core-list test added by the implementer (not red first: it pins
+   existing behaviour); the generation guard, the panel rebuild and the model-less Mesh view are covered only by
+   `tools/bodypanel_check` (it needs a window, a GPU and a baked cache).
+5. *Long finding rows could not be read* (a read-only row is a disabled line edit): the full text is the tooltip.
+6. *clang-format 14 not recorded:* it was run before `86e31bf674` (a throwaway Ubuntu 24.04 container with
+   `clang-format-14`, every changed file; the only changes it made were in new lines) and again on the review fixes.
+7. *The cause of the switch time was stated though not measured:* worded as a guess above.
+8. *`body.json` and `current` are broad suffixes:* `openBodySource` now takes exactly `body.json`; `current` stays the
+   registry's suffix (a file named `recurrent` is listed and refused), and the Asset Browser still lists
+   `somebody.json` (the registry matches endings).
+9. *Nothing ties the stage a report to the bake* (it is read from beside the cache): a question below.
+10. *The Next and Previous Body shortcuts are enabled only when the module's menu is shown* (`View::setupExtensionsMenu`
+    sets the enabled state on `aboutToShow`): existing Studio behaviour, not changed; nobody pressed them.
+11. *The editor's windows appeared on the desktop* (it ignores `OPENEDEN_QUIET_WINDOW`): a question below.
+12. Nits: `<cstddef>` in `documents.hpp`; the rows not listed at first are now in the design; the file names
+    (`bodyview` beside `body_document`) are left as they are (the tests include the header); the union-find halves paths
+    only, so it is near-linear, not linear.
+
+Tests of the fixes: the same test writer added 9 from the amended design text (exactly `body.json`, a pack refused
+from its index although its only entry's data is damaged while a damaged body package fails in the full reader instead,
+the value and text caps at and over the cap, finding tooltips, the added rows), plus the implementer's core-list test.
+Red against the committed code (the new header constants only): **6 of 97 failed**; after the fixes `eden-studio-tests`
+686 pass. clang-format 14 leaves every changed file as it is. `tools/bodypanel_check/check.sh` passes with the fixes
+(`bodypanel2`).
 
 **Questions for toddhow.** (1) API 1.1 for a filled overlay (`OverlaySink::triangle`) and a user data folder query:
 both change the two tests that pin the API at 1.0. (2) Should module edits have an undo stack of their own instead of
 the content document's (today any module edit marks the ESM modified)? (3) Should CreativeMotion's panel show only its
 own documents? (4) The merged entry always lists the two binding findings: keep, or let the cache record the skeleton
-profile?
+profile? (5) The stage a numbers come from `<user data>/analysis/bodies.json` beside the cache, with nothing tying
+them to the bake: should the bake record the report's digest, or the panel say "from a report of <date>"? (6) Eden
+Studio does not honour `OPENEDEN_QUIET_WINDOW`; each check run showed its windows for about a minute (without focus):
+make the editor honour it, or accept it for editor checks?

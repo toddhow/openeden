@@ -13,11 +13,13 @@ task's "Stage f, design" section.
   advancedbodies/`); `body_document.cpp` the asset document, its rows, summary and two gizmos;
   `advancedbodies_editor_module.cpp` what is registered; `advancedbodies_editor_export.cpp` the entry point, only in the
   shared library (the tests link the other sources and already have another module's entry point).
-- **Sources:** `body.json` (its folder is the package), `*.edenpak` (a packed package when it holds `body.json`, a
-  merged cache when it holds `manifest.txt`), `current` (the merged cache of its folder, through
-  `Body::loadCurrentCache`). `current` is a generic file name suffix: the open refuses a pointer that names no merged
-  body pack. A merged cache is found by the Asset Browser only when its folder is an asset root (`OPENEDEN_CS_ASSETDIR`
-  or a data folder): API 1.0 gives a module no user data folder.
+- **Sources:** exactly `body.json` (its folder is the package), `*.edenpak` (a packed package when it holds
+  `body.json`, a merged cache when it holds `manifest.txt`, told apart from the archive's index before anything is
+  decoded, so an LOD or texture pack in an asset root is refused without reading it), `current` (the merged cache of
+  its folder, through `Body::loadCurrentCache`). `body.json` and `current` are registered as file name endings (the
+  registry's rule), so the Asset Browser also lists `somebody.json` or `recurrent`; the open refuses them. A package's
+  files are dropped once its body is worked out. A merged cache is found by the Asset Browser only when its folder is
+  an asset root (`OPENEDEN_CS_ASSETDIR` or a data folder): API 1.0 gives a module no user data folder.
 - **The validator** runs with exactly `edenbodyvalidate`'s file reader plus `PayloadMeshSource`, which summarises the
   package's own `bodymesh` payloads (the tool has none and warns BODY-MESH-001 instead). A merged entry is validated as
   the package `mergedEntryPackage` derives from what the cache knows; it has no skeleton binding, so BODY-BIND-001 and
@@ -35,8 +37,12 @@ task's "Stage f, design" section.
   the content document's undo stack, whose clean flag is the document's modified state, so viewing another body marked
   the ESM document modified and the editor's close waited on a save question.
 - **Hostile input:** packs and folders through `components/body`'s capped readers; region maps coloured with a
-  "next free triangle" union-find (O(triangles + ranges)); the stage a report capped at 64 MiB and nesting 32 before
-  nlohmann parses it, every field typed. No exception leaves a callback.
+  "next free triangle" union-find (near-linear in triangles and ranges); the stage a report capped at 64 MiB, nesting
+  32 and 1,000,000 values (counted before nlohmann parses it), every field typed, text fields at most 4,096 bytes. The
+  lazy work of a merged entry (`BodyViewAccess::body`, reached from Studio's callbacks) catches what it throws and shows
+  it as that body's message.
+- **The stage a report is read from beside the cache** (`<user data>/analysis/bodies.json`); nothing ties it to the
+  bake, and it is parsed again for each body shown.
 - **Check in the real editor:** `OPENEDEN_CS_BODYCHECK=<prefix>;<source>[|<race> <sex> <view>];...` with
   `OPENEDEN_CS_UI_CHECK` (see `apps/opencs/CLAUDE.md`). Bakes are derived from the user's game data: keep them and any
   report under `I:\Projects\OpenEden-work`, never in the repository.
