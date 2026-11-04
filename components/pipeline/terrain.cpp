@@ -80,12 +80,14 @@ namespace Pipeline
                 stage->module->hints = compileSettings;
             }
         }
-        // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses.
+        // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses. Both branches are references,
+        // so no set is copied when the trace is off (stage b review).
+        static const std::set<std::string> noDefines;
         for (std::size_t i = 0; i < shaders.size(); ++i)
         {
             const auto& hints = shaders[i]->module->hints;
             vsgUtil::recordShaderUse(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
-                hints ? hints->defines : std::set<std::string>{}, shaders[i].get(), shaderOptions);
+                hints ? hints->defines : noDefines, shaders[i].get(), shaderOptions);
         }
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{ { Pipeline::Descriptors::BLENDMAP_BINDING,

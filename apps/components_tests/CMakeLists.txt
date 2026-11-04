@@ -155,6 +155,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     vsg/testshadercompile.cpp
     vsg/testslangshaders.cpp
+    vsg/testshaderdefines.cpp
     vsg/testshaderpermutation.cpp
     vsg/testslangpermutations.cpp
     vsg/testspirvinterface.cpp

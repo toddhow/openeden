@@ -129,6 +129,8 @@ namespace
     {
         auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment);
         ASSERT_GT(words.size(), 40u);
+        // Task 0072, stage b (review): a cut through an instruction must be refused, not read past the end.
+        std::size_t refused = 0;
         for (std::size_t cut = 5; cut < words.size(); cut += 7)
         {
             std::vector<uint32_t> part(words.begin(), words.begin() + static_cast<std::ptrdiff_t>(cut));
@@ -138,8 +140,130 @@ namespace
             }
             catch (const std::runtime_error&)
             {
+                ++refused;
             }
         }
-        SUCCEED();
+        EXPECT_GT(refused, 0u);
+    }
+
+    // Task 0072, stage b: what the review of stage a found the reader did not compare. Written before the code.
+
+    TEST(SpirvInterface, a_final_one_word_instruction_is_read_without_going_past_the_end)
+    {
+        // A valid header and OpNop (word count 1) as the last word: no operands to point at.
+        EXPECT_NO_THROW(vsgUtil::readSpirvInterface({ 0x07230203, 0x00010000, 0, 10, 0, (1u << 16) | 0u }));
+    }
+
+    std::vector<std::string> differences(VkShaderStageFlagBits stage, const std::string& a, const std::string& b)
+    {
+        const auto wordsA = compile(stage, a);
+        const auto wordsB = compile(stage, b);
+        if (wordsA.empty() || wordsB.empty())
+            return { "did not compile" };
+        const auto diff
+            = vsgUtil::compareSpirvInterfaces(vsgUtil::readSpirvInterface(wordsA), vsgUtil::readSpirvInterface(wordsB));
+        std::vector<std::string> lines = diff.mOnlyInFirst;
+        lines.insert(lines.end(), diff.mOnlyInSecond.begin(), diff.mOnlyInSecond.end());
+        return lines;
+    }
+
+    std::string fragmentWith(const std::string& declarations, const std::string& body)
+    {
+        return "#version 450\n" + declarations + "layout(location = 0) out vec4 outColor;\nvoid main() {\n" + body
+            + "}\n";
+    }
+
+    TEST(SpirvInterface, a_buffer_block_is_storage_and_not_a_uniform_block)
+    {
+        // glslang writes a std430 buffer at SPIR-V 1.0 as a Uniform variable whose struct is decorated BufferBlock.
+        const auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT,
+            fragmentWith("layout(std430, set = 0, binding = 1) readonly buffer B { vec4 data[]; } b;\n",
+                "outColor = b.data[0];\n"));
+        ASSERT_FALSE(words.empty());
+        const auto i = vsgUtil::readSpirvInterface(words);
+        bool storage = false;
+        for (const std::string& line : i.mLines)
+        {
+            EXPECT_EQ(line.find("descriptor set=0 binding=1 uniform"), std::string::npos) << line;
+            if (line.rfind("descriptor set=0 binding=1 storage", 0) == 0)
+                storage = true;
+        }
+        EXPECT_TRUE(storage);
+    }
+
+    TEST(SpirvInterface, a_storage_image_a_shadow_sampler_and_a_sampled_image_differ)
+    {
+        const std::string sampled = fragmentWith(
+            "layout(set = 0, binding = 2) uniform sampler2D map;\n", "outColor = texture(map, vec2(0.5));\n");
+        const std::string shadow = fragmentWith("layout(set = 0, binding = 2) uniform sampler2DShadow map;\n",
+            "outColor = vec4(texture(map, vec3(0.5)));\n");
+        const std::string storage = fragmentWith("layout(set = 0, binding = 2, rgba8) uniform readonly image2D map;\n",
+            "outColor = imageLoad(map, ivec2(0));\n");
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_FRAGMENT_BIT, sampled, shadow).empty());
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_FRAGMENT_BIT, sampled, storage).empty());
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_FRAGMENT_BIT, shadow, storage).empty());
+    }
+
+    TEST(SpirvInterface, a_compute_local_size_is_compared)
+    {
+        const auto source = [](const std::string& x) {
+            return "#version 450\nlayout(local_size_x = " + x
+                + ", local_size_y = 1, local_size_z = 1) in;\n"
+                  "layout(std430, set = 0, binding = 0) buffer B { float v[]; } b;\n"
+                  "void main() { b.v[gl_GlobalInvocationID.x] = 1.0; }\n";
+        };
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_COMPUTE_BIT, source("8"), source("16")).empty());
+        EXPECT_TRUE(differences(VK_SHADER_STAGE_COMPUTE_BIT, source("8"), source("8")).empty());
+    }
+
+    TEST(SpirvInterface, interpolation_qualifiers_are_compared)
+    {
+        const std::string smooth = fragmentWith("layout(location = 1) in vec4 colour;\n", "outColor = colour;\n");
+        const std::string flat = fragmentWith("layout(location = 1) flat in vec4 colour;\n", "outColor = colour;\n");
+        const std::string noPerspective
+            = fragmentWith("layout(location = 1) noperspective in vec4 colour;\n", "outColor = colour;\n");
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_FRAGMENT_BIT, smooth, flat).empty());
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_FRAGMENT_BIT, smooth, noPerspective).empty());
+    }
+
+    TEST(SpirvInterface, a_specialization_constant_default_is_compared)
+    {
+        const auto source = [](const std::string& value) {
+            return fragmentWith(
+                "layout(constant_id = 3) const float strength = " + value + ";\n", "outColor = vec4(strength);\n");
+        };
+        EXPECT_FALSE(differences(VK_SHADER_STAGE_FRAGMENT_BIT, source("1.0"), source("2.0")).empty());
+    }
+
+    TEST(SpirvInterface, matrix_majority_and_shape_are_compared)
+    {
+        const auto source = [](const std::string& layout, const std::string& type) {
+            return fragmentWith(
+                "layout(std140, " + layout + ", set = 0, binding = 0) uniform Block { " + type + " m; } block;\n",
+                "outColor = vec4(block.m[0][0]);\n");
+        };
+        // The same bytes read as a different matrix are a difference.
+        EXPECT_FALSE(
+            differences(VK_SHADER_STAGE_FRAGMENT_BIT, source("column_major", "mat4"), source("row_major", "mat4"))
+                .empty());
+        EXPECT_FALSE(differences(
+            VK_SHADER_STAGE_FRAGMENT_BIT, source("column_major", "mat3x4"), source("column_major", "mat4x3"))
+                         .empty());
+        // A column-major mat3x4 (3 columns of vec4) is described by its mathematical shape.
+        const auto i
+            = vsgUtil::readSpirvInterface(compile(VK_SHADER_STAGE_FRAGMENT_BIT, source("column_major", "mat3x4")));
+        EXPECT_TRUE(has(i, "descriptor set=0 binding=0 uniform 0:mat3xvec4f32 stride16;")) << [&] {
+            std::string all;
+            for (const auto& line : i.mLines)
+                all += line + "\n";
+            return all;
+        }();
+    }
+
+    TEST(SpirvInterface, execution_modes_and_capabilities_are_listed)
+    {
+        const auto i = vsgUtil::readSpirvInterface(compile(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment));
+        EXPECT_TRUE(has(i, "execution_mode 7")); // OriginUpperLeft
+        EXPECT_TRUE(has(i, "capability 1")); // Shader
     }
 }

@@ -6,6 +6,8 @@
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <vsg/io/FileSystem.h>
@@ -38,8 +40,10 @@ namespace vsgUtil
             return true;
         }
 
-        // "<stem>.<vert|frag|comp>.spv" or "<stem>.<vert|frag|comp>.p<4 digits>.spv", the stem being lower-case
-        // letters and digits (the shader files' own names: main, gui).
+        // "<stem>.<vert|frag|comp>.spv", "<stem>.<vert|frag|comp>.p<4 digits>.spv" (stage a: by position) or
+        // "<stem>.<vert|frag|comp>.p<8 lower-case hex digits>.spv" (stage b: by a hash of the define set, so a file
+        // left over from an older list can never be taken for another set), the stem being lower-case letters and
+        // digits (the shader files' own names: main, gui).
         bool isPermutationFileName(std::string_view name)
         {
             std::size_t stemEnd = 0;
@@ -60,6 +64,13 @@ namespace vsgUtil
                 {
                     for (char c : rest.substr(2, 4))
                         if (c < '0' || c > '9')
+                            return false;
+                    return true;
+                }
+                if (rest.size() == 14 && rest.substr(0, 2) == ".p" && rest.substr(10) == ".spv")
+                {
+                    for (char c : rest.substr(2, 8))
+                        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
                             return false;
                     return true;
                 }
@@ -94,9 +105,22 @@ namespace vsgUtil
         struct ManifestCache
         {
             std::mutex mMutex;
-            // path of the stage file -> manifest, or nullopt when there is none or it could not be read.
-            std::map<std::string, std::optional<PermutationManifest>> mManifests;
+            // (the options' search paths, path of the stage file) -> manifest, or nullopt when there is none or it
+            // could not be read. Keyed by the paths and not by the options object, whose address can be reused.
+            std::map<std::pair<std::string, std::string>, std::optional<PermutationManifest>> mManifests;
+            // (search paths, stage file, canonical define set) -> the module read for it, or null when the set is not
+            // listed or its file cannot be read: each is looked up, and logged, once.
+            std::map<std::tuple<std::string, std::string, std::string>, vsg::ref_ptr<vsg::ShaderModule>> mModules;
         };
+
+        std::string searchPathsKey(const vsg::Options* options)
+        {
+            std::string key;
+            if (options != nullptr)
+                for (const vsg::Path& path : options->paths)
+                    key += path.string() + '\n';
+            return key;
+        }
 
         ManifestCache& manifestCache()
         {
@@ -191,7 +215,7 @@ namespace vsgUtil
             const std::string_view file = line.substr(0, tab);
             const std::string_view defines = line.substr(tab + 1);
             if (!isPermutationFileName(file))
-                fail("\"" + std::string(file) + "\" is not <stem>.<vert|frag|comp>[.p<4 digits>].spv");
+                fail("\"" + std::string(file) + "\" is not <stem>.<vert|frag|comp>[.p<4 digits or 8 hex digits>].spv");
             if (!isCanonicalList(defines))
                 fail("the define list is not canonical (sorted identifiers, one space between)");
             if (!fileNames.insert(std::string(file)).second)
@@ -220,6 +244,75 @@ namespace vsgUtil
         return it->second;
     }
 
+    std::set<std::string> importedDefines(std::string_view source)
+    {
+        // As vsg::ShaderCompiler::combineSourceAndDefines: leading spaces and tabs, trailing spaces, tabs and line
+        // ends are ignored; the line must then start with the pragma.
+        const auto trim = [](std::string_view text) {
+            const std::size_t begin = text.find_first_not_of(" \t");
+            if (begin == std::string_view::npos)
+                return std::string_view();
+            const std::size_t end = text.find_last_not_of(" \t\r\n");
+            return text.substr(begin, end - begin + 1);
+        };
+        constexpr std::string_view pragma = "#pragma import_defines";
+        std::set<std::string> names;
+        std::size_t start = 0;
+        while (start < source.size())
+        {
+            std::size_t end = source.find('\n', start);
+            if (end == std::string_view::npos)
+                end = source.size();
+            const std::string_view line = trim(source.substr(start, end - start));
+            start = end + 1;
+            if (line.substr(0, pragma.size()) != pragma)
+                continue;
+            const std::size_t open = line.find('(');
+            if (open == std::string_view::npos)
+                continue;
+            const std::size_t close = line.find(')', open);
+            if (close == std::string_view::npos)
+                continue;
+            std::string_view list = line.substr(open + 1, close - open - 1);
+            while (true)
+            {
+                const std::size_t comma = list.find(',');
+                const std::string_view name = trim(list.substr(0, comma));
+                if (!name.empty())
+                    names.emplace(name);
+                if (comma == std::string_view::npos)
+                    break;
+                list.remove_prefix(comma + 1);
+            }
+        }
+        return names;
+    }
+
+    std::set<std::string> effectiveDefines(const std::set<std::string>& requested, std::string_view source)
+    {
+        if (requested.empty())
+            return {};
+        const std::set<std::string> imported = importedDefines(source);
+        std::set<std::string> result;
+        for (const std::string& name : requested)
+        {
+            if (imported.count(name) != 0)
+                result.insert(name);
+        }
+        return result;
+    }
+
+    void addSettingsConstants(vsg::ShaderStage& stage, const vsg::Options* options)
+    {
+        if (options == nullptr || !stage.module || stage.module->code.empty() || !stage.module->source.empty())
+            return;
+        const auto* settings = options->getObject<SettingsConstants>(settingsConstantsKey);
+        if (settings == nullptr)
+            return;
+        for (const auto& [id, value] : settings->constants)
+            stage.specializationConstants.emplace(id, value);
+    }
+
     bool prefersSlang(const vsg::Options* options)
     {
         bool value = false;
@@ -229,19 +322,35 @@ namespace vsgUtil
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(
         const std::string& path, const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options)
     {
-        std::optional<std::string> file;
+        std::string key;
+        try
         {
-            ManifestCache& cache = manifestCache();
-            std::lock_guard lock(cache.mMutex);
-            auto it = cache.mManifests.find(path);
-            if (it == cache.mManifests.end())
-                it = cache.mManifests.emplace(path, loadManifest(path, options)).first;
-            if (!it->second)
-                return {};
-            file = selectPermutation(*it->second, defines);
+            key = canonicalDefines(defines);
         }
-        if (!file)
+        catch (const std::invalid_argument&)
+        {
             return {};
+        }
+        const std::string paths = searchPathsKey(options.get());
+        ManifestCache& cache = manifestCache();
+        // Held while a file is read too: a module is read once per (paths, stage, set), and pipelines are made rarely.
+        std::lock_guard lock(cache.mMutex);
+        const auto moduleKey = std::make_tuple(paths, path, key);
+        if (const auto known = cache.mModules.find(moduleKey); known != cache.mModules.end())
+            return known->second;
+        vsg::ref_ptr<vsg::ShaderModule>& result = cache.mModules[moduleKey];
+        auto it = cache.mManifests.find({ paths, path });
+        if (it == cache.mManifests.end())
+            it = cache.mManifests.emplace(std::make_pair(paths, path), loadManifest(path, options)).first;
+        if (!it->second)
+            return {};
+        const std::optional<std::string> file = selectPermutation(*it->second, defines);
+        if (!file)
+        {
+            // Task 0072, stage b (review): a family is ported but this set was never listed; the GLSL draws it.
+            vsg::info("Slang permutations of \"", path, "\" have no file for [", key, "]; the GLSL is used");
+            return {};
+        }
         const std::size_t slash = path.rfind('/');
         const std::string dir = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
         auto module = vsg::read_cast<vsg::ShaderModule>(dir + *file, options);
@@ -250,7 +359,31 @@ namespace vsgUtil
             vsg::warn("Slang permutation \"", dir, *file, "\" is listed but cannot be read; the GLSL is used");
             return {};
         }
+        result = module;
         return module;
+    }
+
+    vsg::ref_ptr<vsg::ShaderModule> slangTwin(const std::string& path, const std::set<std::string>& requested,
+        std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options)
+    {
+        if (!preferSlang)
+            return {};
+        return findSlangPermutation(path, effectiveDefines(requested, glslSource), options);
+    }
+
+    vsg::ref_ptr<vsg::ShaderStage> withSlangTwin(const vsg::ref_ptr<vsg::ShaderStage>& stage, const std::string& path,
+        const vsg::ref_ptr<const vsg::Options>& options)
+    {
+        if (!stage || !stage->module)
+            return stage;
+        recordShaderUse(path, {}, stage.get(), options);
+        auto module = slangTwin(path, {}, stage->module->source, prefersSlang(options.get()), options);
+        if (!module)
+            return stage;
+        auto copy = vsg::ShaderStage::create(*stage);
+        copy->module = module;
+        addSettingsConstants(*copy, options.get());
+        return copy;
     }
 
     std::string traceLine(std::string_view path, const std::set<std::string>& defines)
@@ -267,7 +400,9 @@ namespace vsgUtil
         std::string line;
         try
         {
-            line = traceLine(path, defines);
+            // Stage b: the set the GLSL compiler really applies, which is what a twin is listed and chosen by.
+            line = traceLine(
+                path, stage != nullptr && stage->module ? effectiveDefines(defines, stage->module->source) : defines);
         }
         catch (const std::invalid_argument&)
         {

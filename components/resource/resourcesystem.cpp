@@ -54,6 +54,8 @@ namespace
         options->propagateDynamicObjects = {};
         // Task 0072: `[Rendering] slang shaders`, for every reader of these options (pipelines, the terrain, the GUI).
         options->setValue(vsgUtil::preferSlangKey, Settings::rendering().mSlangShaders.get());
+        // Task 0072, stage b: the `*.settings` values the Slang twins take as specialization constants.
+        options->setObject(vsgUtil::settingsConstantsKey, shaderSettings->constants);
         return options;
     }
 

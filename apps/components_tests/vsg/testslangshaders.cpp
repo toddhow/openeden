@@ -83,7 +83,7 @@ namespace
                 const uint32_t count = words[i] >> 16;
                 if (count == 0 || i + count > words.size())
                     throw std::runtime_error("bad SPIR-V instruction");
-                read(opcode, &words[i + 1], count - 1);
+                read(opcode, words.data() + i + 1, count - 1);
                 i += count;
             }
         }
@@ -301,7 +301,7 @@ namespace
         std::map<std::tuple<uint32_t, uint32_t, uint32_t>, uint32_t> mMemberDecorations;
     };
 
-    std::vector<uint32_t> readSpirv(const std::filesystem::path& path)
+    [[maybe_unused]] std::vector<uint32_t> readSpirv(const std::filesystem::path& path)
     {
         std::ifstream in(path, std::ios::binary | std::ios::ate);
         if (!in)
@@ -313,7 +313,7 @@ namespace
         return words;
     }
 
-    std::vector<uint32_t> compileGlsl(const std::string& file)
+    [[maybe_unused]] std::vector<uint32_t> compileGlsl(const std::string& file)
     {
         auto options = vsg::Options::create();
         options->paths = { OPENEDEN_SHADER_SOURCE_DIR };

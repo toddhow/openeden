@@ -220,21 +220,14 @@ namespace Pipeline
         }
         if (preferSlang)
         {
-            // Task 0072: a Slang port compiled for exactly these defines; any other set keeps the GLSL.
-            if (auto module = vsgUtil::findSlangPermutation(path + suffix, compileSettings->defines, mShaderOptions))
+            // Task 0072: a Slang port compiled for exactly the defines the GLSL compiler would apply (the requested
+            // ones the stage imports); any other set keeps the GLSL. The sun's single precompiled file of task 0023 is
+            // retired: the sun is a permutation family like the rest of the sky (stage b).
+            if (auto module = vsgUtil::slangTwin(
+                    path + suffix, compileSettings->defines, shaderStage->module->source, preferSlang, mShaderOptions))
             {
                 shaderStage->module = module;
                 Log(Debug::Verbose) << "Using the Slang permutation of " << path << suffix;
-                return shaderStage;
-            }
-            // Task 0023: a single precompiled file beside the GLSL, for the sun, which always has the same defines.
-            const std::string spirvPath = path + suffix + ".spv";
-            // The reader finds the file along the shader options' paths; read_cast gives null if there is none.
-            if (auto precompiled = vsg::read_cast<vsg::ShaderModule>(spirvPath, mShaderOptions);
-                precompiled && !precompiled->code.empty())
-            {
-                shaderStage->module = precompiled;
-                Log(Debug::Verbose) << "Using the Slang shader " << spirvPath;
             }
         }
         return shaderStage;
@@ -358,6 +351,10 @@ namespace Pipeline
                 fragmentSpecConstants.emplace(
                     Descriptors::START_UVSET_CONSTANTS + binding, vsg::intValue::create(uvSet));
         shaders[1]->specializationConstants = fragmentSpecConstants;
+        // Task 0072, stage b: a Slang twin takes the `*.settings` values as specialization constants (a GLSL stage has
+        // them written into its source and is left as it is).
+        for (auto& shader : shaders)
+            vsgUtil::addSettingsConstants(*shader, mShaderOptions.get());
 
         uint32_t vertexBindingIndex = 0;
         vsg::VertexInputState::Bindings vertexBindingsDescriptions;

@@ -156,6 +156,9 @@ function(openeden_add_slang_shader)
     set(source "${CMAKE_CURRENT_SOURCE_DIR}/${S_SOURCE}")
     set(out_dir "${OPENMW_RESOURCES_ROOT}/${DDIRRELATIVE}/${S_OUTPUT_DIR}")
     file(MAKE_DIRECTORY "${out_dir}")
+    # Task 0072: sources may include the shared files under lib/ (by the path from this folder, hence -I).
+    get_filename_component(source_dir "${source}" DIRECTORY)
+    file(GLOB_RECURSE slang_deps "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.slang" "${source_dir}/*.slang")
     set(outputs "")
     foreach (stage ${S_STAGES})
         string(REPLACE ":" ";" parts "${stage}")
@@ -166,10 +169,11 @@ function(openeden_add_slang_shader)
         add_custom_command(
             OUTPUT "${output}"
             COMMAND "${OPENEDEN_SLANGC}" "${source}" -target spirv -profile spirv_1_0 -matrix-layout-column-major
-                    -warnings-disable 50011 -entry ${entry} -stage ${stage_name} -o "${output}.tmp"
+                    -warnings-disable 50011 -I "${CMAKE_CURRENT_SOURCE_DIR}"
+                    -entry ${entry} -stage ${stage_name} -o "${output}.tmp"
             COMMAND $<TARGET_FILE:spirv-val> --target-env vulkan1.0 "${output}.tmp"
             COMMAND ${CMAKE_COMMAND} -E rename "${output}.tmp" "${output}"
-            DEPENDS "${source}" spirv-val
+            DEPENDS "${source}" ${slang_deps} spirv-val
             COMMENT "Slang: ${S_SOURCE} ${entry} -> ${S_OUTPUT_DIR}/main.${suffix}.spv"
             VERBATIM)
         list(APPEND outputs "${output}")
@@ -184,15 +188,33 @@ endfunction()
 # openeden_add_slang_permutations(SOURCE <file.slang> STAGE_FILE <the GLSL stage, e.g. gui/gui.vert>
 #                                 ENTRY <entry point> STAGE <vertex|fragment|compute>
 #                                 [DEFINE_SETS <set> ...] [DEFINE_SETS_FILE <file>])
-# compiles SOURCE once per define set into <dir of STAGE_FILE>/<name of STAGE_FILE>.p<NNNN>.spv and writes
+# compiles SOURCE once per define set into <dir of STAGE_FILE>/<name of STAGE_FILE>.p<8 hex digits>.spv and writes
 # <STAGE_FILE>.permutations, which lists each file with its define set. A set is the canonical list of names
 # (sorted, one space between), and "-" is the set with no defines; DEFINE_SETS_FILE holds one set per line (lines
-# starting with # are comments). With `[Rendering] slang shaders` on, a stage created with exactly a listed set uses
-# its file; any other set keeps the GLSL. The flags and the spirv-val check are those of openeden_add_slang_shader.
+# starting with # are comments). A set is what the GLSL compiler really applies: the Mode defines the stage imports
+# with #pragma import_defines (vsgUtil::effectiveDefines). With `[Rendering] slang shaders` on, a stage created with
+# exactly a listed set uses its file; any other set keeps the GLSL. The flags and the spirv-val check are those of
+# openeden_add_slang_shader.
+#
+# Stage b (review of stage a): a file is named by the first 8 hex digits of the SHA-1 of its define list, so a file
+# left from an older list is never taken for another set; files of this stage that the current list does not make
+# are removed when CMake runs, and so are the manifest and the files when the build has no slangc, so a build
+# without Slang never ships twins from an older one. slangc itself is a dependency of every file. The C++ reader
+# applies the same rules (stem of lower-case letters and digits, names of at most 64 bytes, at most 4096 sets).
 function(openeden_add_slang_permutations)
     cmake_parse_arguments(P "" "SOURCE;STAGE_FILE;ENTRY;STAGE;DEFINE_SETS_FILE" "DEFINE_SETS" ${ARGN})
+    get_filename_component(stage_dir "${P_STAGE_FILE}" DIRECTORY)
+    get_filename_component(stage_name "${P_STAGE_FILE}" NAME)
+    set(out_dir "${OPENMW_RESOURCES_ROOT}/${DDIRRELATIVE}/${stage_dir}")
+    file(GLOB previous_files "${out_dir}/${stage_name}.p*.spv" "${out_dir}/${stage_name}.p*.spv.tmp")
     if (NOT OPENEDEN_SLANG_SHADERS_BUILT)
+        if (previous_files OR EXISTS "${out_dir}/${stage_name}.permutations")
+            file(REMOVE ${previous_files} "${out_dir}/${stage_name}.permutations")
+        endif()
         return()
+    endif()
+    if (NOT stage_name MATCHES "^[a-z0-9]+\\.(vert|frag|comp)$")
+        message(FATAL_ERROR "openeden_add_slang_permutations: \"${stage_name}\" is not <stem>.<vert|frag|comp>")
     endif()
     set(sets ${P_DEFINE_SETS})
     if (P_DEFINE_SETS_FILE)
@@ -206,20 +228,17 @@ function(openeden_add_slang_permutations)
         endforeach()
     endif()
     list(LENGTH sets count)
-    if (count EQUAL 0)
-        message(FATAL_ERROR "openeden_add_slang_permutations: no define sets for ${P_STAGE_FILE}")
+    if (count EQUAL 0 OR count GREATER 4096)
+        message(FATAL_ERROR "openeden_add_slang_permutations: ${count} define sets for ${P_STAGE_FILE} (1 to 4096)")
     endif()
     set(source "${CMAKE_CURRENT_SOURCE_DIR}/${P_SOURCE}")
-    get_filename_component(stage_dir "${P_STAGE_FILE}" DIRECTORY)
-    get_filename_component(stage_name "${P_STAGE_FILE}" NAME)
-    set(out_dir "${OPENMW_RESOURCES_ROOT}/${DDIRRELATIVE}/${stage_dir}")
     file(MAKE_DIRECTORY "${out_dir}")
-    # Every .slang file beside the source may be included by it.
+    # Every .slang file beside the source, and the shared ones under lib/, may be included by it.
     get_filename_component(source_dir "${source}" DIRECTORY)
     file(GLOB_RECURSE slang_deps "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.slang" "${source_dir}/*.slang")
     set(outputs "")
     set(manifest "")
-    set(index 0)
+    set(names_seen "")
     foreach (set_text ${sets})
         if (NOT set_text MATCHES "^(-|[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*)$")
             message(FATAL_ERROR "openeden_add_slang_permutations: \"${set_text}\" is not a define set (${P_STAGE_FILE})")
@@ -235,27 +254,40 @@ function(openeden_add_slang_permutations)
                 message(FATAL_ERROR "openeden_add_slang_permutations: \"${set_text}\" is not sorted (${P_STAGE_FILE})")
             endif()
             foreach (name ${names})
+                string(LENGTH "${name}" name_length)
+                if (name_length GREATER 64)
+                    message(FATAL_ERROR "openeden_add_slang_permutations: \"${name}\" is longer than 64 bytes")
+                endif()
                 list(APPEND defines "-D${name}")
             endforeach()
             set(key "${set_text}")
         endif()
-        string(LENGTH "000${index}" len)
-        math(EXPR start "${len} - 4")
-        string(SUBSTRING "000${index}" ${start} 4 padded)
-        set(file_name "${stage_name}.p${padded}.spv")
+        string(SHA1 key_hash "${key}")
+        string(SUBSTRING "${key_hash}" 0 8 short_hash)
+        set(file_name "${stage_name}.p${short_hash}.spv")
+        if (file_name IN_LIST names_seen)
+            message(FATAL_ERROR "openeden_add_slang_permutations: two sets of ${P_STAGE_FILE} hash to ${file_name}")
+        endif()
+        list(APPEND names_seen "${file_name}")
         set(output "${out_dir}/${file_name}")
         add_custom_command(
             OUTPUT "${output}"
             COMMAND "${OPENEDEN_SLANGC}" "${source}" -target spirv -profile spirv_1_0 -matrix-layout-column-major
-                    -warnings-disable 50011 ${defines} -entry ${P_ENTRY} -stage ${P_STAGE} -o "${output}.tmp"
+                    -warnings-disable 50011 ${defines} -I "${CMAKE_CURRENT_SOURCE_DIR}"
+                    -entry ${P_ENTRY} -stage ${P_STAGE} -o "${output}.tmp"
             COMMAND $<TARGET_FILE:spirv-val> --target-env vulkan1.0 "${output}.tmp"
             COMMAND ${CMAKE_COMMAND} -E rename "${output}.tmp" "${output}"
-            DEPENDS "${source}" ${slang_deps} spirv-val
+            DEPENDS "${source}" ${slang_deps} "${OPENEDEN_SLANGC}" spirv-val
             COMMENT "Slang: ${P_SOURCE} ${P_ENTRY} [${set_text}] -> ${stage_dir}/${file_name}"
             VERBATIM)
         list(APPEND outputs "${output}")
         string(APPEND manifest "${file_name}\t${key}\n")
-        math(EXPR index "${index} + 1")
+    endforeach()
+    # Files of an older list, and half-written ones, must not lie beside the current ones.
+    foreach (previous ${previous_files})
+        if (NOT previous IN_LIST outputs)
+            file(REMOVE "${previous}")
+        endif()
     endforeach()
     file(GENERATE OUTPUT "${out_dir}/${stage_name}.permutations" CONTENT "${manifest}")
     string(MAKE_C_IDENTIFIER "${P_STAGE_FILE}" target_suffix)
@@ -268,7 +300,9 @@ endfunction()
 openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
 openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
 
-# The sun, ported by hand as the proof of the pipeline (task 0023, F1b). Used when [Rendering] slang shaders is on.
+# The sun's single files of task 0023 (F1b), built from the same source. The game no longer loads them (task 0072,
+# stage b: a single file was built for one define set only); they stay only for the task 0023 test SlangSunTest, which
+# reads them. Its removal is toddhow's decision (task 0072, stage b log).
 openeden_add_slang_shader(
     SOURCE sky/sun/sun.slang
     OUTPUT_DIR sky/sun
