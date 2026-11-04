@@ -331,8 +331,9 @@ then the implementation; then every one of the reviewer's mutations built and ru
   `link` starts the countdown at 0 and shows the children. A first step of a running group's whole timer therefore
   changes nothing visible: inactive, the countdown is already 0 and the particles stay hidden as with any step; active,
   the countdown is reset and the dispatch is on, as with any positive step. It has no strobe like the light's.
-- **Tests:** 19 (`testnpcparts.cpp` 14, `testequipmentupdate.cpp` 5) and 2 (`testitemlights.cpp`), written by the
-  separate agent. Red against the stubs (`I:\Projects\OpenEden-work\0074d\red-run.log`): 9 failed for the reason they
+- **Tests:** 20 (`testnpcparts.cpp` 13, `testequipmentupdate.cpp` 5, `testitemlights.cpp` 2), written by the
+  separate agent (the message of `11a63c3326` says 12 of `testnpcparts.cpp`'s are in it: it is 11, the other 2 came
+  with `cafbc65b71`). Red against the stubs (`I:\Projects\OpenEden-work\0074d\red-run.log`): 9 failed for the reason they
   name (the displaced part's static and face controllers still listed and running; the lists not emptied by
   `removeAllParts`; no compile after a throw, for a `std::exception` and for another type; no light on a creature's
   carried light, flickering or steady; the item light gone after removing one of two and not back after the add), 11
