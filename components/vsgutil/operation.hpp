@@ -2,9 +2,11 @@
 #define VSGOPENMW_VSGUTIL_OPERATION_H
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -49,6 +51,13 @@ namespace vsgUtil
         {
             std::unique_lock<std::mutex> lock(mMutex);
             mCv.wait(lock, [this] { return done.load(); });
+        }
+        // OpenEden: waits at most timeout; whether the operation has run.
+        template <class Rep, class Period>
+        bool waitFor(const std::chrono::duration<Rep, Period>& timeout)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mCv.wait_for(lock, timeout, [this] { return done.load(); });
         }
         void ensure()
         {

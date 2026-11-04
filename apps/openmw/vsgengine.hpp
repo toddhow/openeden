@@ -63,6 +63,7 @@ namespace MWLua
 namespace Render
 {
     class Engine;
+    class ScreenshotWriter;
 }
 struct SDL_Window;
 
@@ -97,6 +98,10 @@ namespace OMW
         // Task 0069 stage d: the merged bodies' cache and templates (GPU objects). Declared after the render engine, so
         // destroyed before it and its device.
         std::unique_ptr<MWRender::MergedBodies::Session> mMergedBodies;
+        // OpenEden: the screenshots given to RenderManager's operation thread, which go() waits for after the frame
+        // loop: the thread stops without running what is still queued when RenderManager goes. Made in go(), emptied
+        // there after the wait; declared after the render manager, so destroyed before its thread.
+        std::unique_ptr<Render::ScreenshotWriter> mScreenshotWriter;
         // openeden-vsg: created by the Game state, owned here so that, as in OpenMW 0.51, it is destroyed after the
         // window manager (GUI windows hold Lua-built widgets) and after the Game state's World.
         std::unique_ptr<MWLua::LuaManager> mLuaManager;

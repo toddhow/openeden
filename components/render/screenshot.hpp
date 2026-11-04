@@ -1,7 +1,9 @@
 #ifndef VSGOPENMW_RENDER_SCREENSHOT_H
 #define VSGOPENMW_RENDER_SCREENSHOT_H
 
+#include <chrono>
 #include <filesystem>
+#include <vector>
 
 #include "download.hpp"
 #include "framecapture.hpp"
@@ -65,6 +67,31 @@ namespace Render
     void nameAndQueueScreenshot(vsg::ref_ptr<Screenshot> screenshot, const std::filesystem::path& dir,
         const std::string& ext, vsg::ref_ptr<const vsg::Options> writeOptions,
         const std::function<void(vsg::ref_ptr<Screenshot>)>& queue);
+
+    // The game's screenshots handed to the writer thread, kept until they have run (OpenEden, 2026-11-04, third
+    // round), so that the engine can wait for them when the game quits: vsg::OperationThreads::stop ends its threads
+    // without running what is still queued, and a screenshot asked for just before quitting was lost with no message.
+    // Main thread only; the operations run on the writer thread.
+    class ScreenshotWriter
+    {
+    public:
+        using Queue = std::function<void(vsg::ref_ptr<Screenshot>)>;
+        explicit ScreenshotWriter(Queue queue);
+
+        // Hands screenshot to the queue and keeps it until it has run; forgets those that have.
+        void write(vsg::ref_ptr<Screenshot> screenshot);
+        // How many handed over have not run yet.
+        std::size_t pending();
+        // Waits, at most limit in all, until every screenshot handed over has run. Returns those that have not; they
+        // are forgotten.
+        std::vector<vsg::ref_ptr<Screenshot>> waitForAll(std::chrono::milliseconds limit);
+
+    private:
+        void forgetWritten();
+
+        Queue mQueue;
+        std::vector<vsg::ref_ptr<Screenshot>> mPending;
+    };
 }
 
 #endif

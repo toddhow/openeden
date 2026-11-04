@@ -1,5 +1,6 @@
 #include "vsgengine.hpp"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -52,18 +53,24 @@
 
 namespace
 {
-    void screenshot(Render::Engine& engine, vsg::ref_ptr<vsg::OperationThreads> threads,
-        const std::filesystem::path& path, vsg::ref_ptr<const vsg::Options> writeOptions)
+    void screenshot(Render::Engine& engine, Render::ScreenshotWriter& writer, const std::filesystem::path& path,
+        vsg::ref_ptr<const vsg::Options> writeOptions)
     {
         // OpenEden: the frame being recorded is copied in its own submission, before it is presented, and handed over
         // once it has finished on the GPU, a few frames later (Render::FrameCapture); only then is it named and given
-        // to the writer thread.
+        // to the writer thread, through the writer that Engine::go waits for at quit. FrameCapture::finish delivers
+        // the last copies when loop() ends, so this callback never runs after go() has left.
         const std::string ext = Settings::general().mScreenshotFormat;
-        engine.requestScreenshot([threads, path, writeOptions, ext](vsg::ref_ptr<Render::Screenshot> shot) {
+        engine.requestScreenshot([&writer, path, writeOptions, ext](vsg::ref_ptr<Render::Screenshot> shot) {
             Render::nameAndQueueScreenshot(std::move(shot), path, ext, writeOptions,
-                [&threads](vsg::ref_ptr<Render::Screenshot> named) { threads->add(named); });
+                [&writer](vsg::ref_ptr<Render::Screenshot> named) { writer.write(std::move(named)); });
         });
     }
+
+    // How long the game waits at quit, in all, for screenshots still queued for the writer thread: it writes one in
+    // about 0.15 s at 1280 x 720 (components/render/CLAUDE.md, "Screenshots"), and it is shared with the cell
+    // preloader.
+    constexpr std::chrono::seconds sScreenshotWriteWait{ 10 };
 
 }
 namespace OMW
@@ -533,6 +540,11 @@ namespace OMW
             skyVisBaker = std::make_unique<SkyVisBaker>(args.bakeGiExterior, out, *mRenderManager);
         }
         bool autoScreenshotFired = false;
+        // OpenEden: the screenshots given to RenderManager's operation thread, waited for after the loop: the thread
+        // stops without running what is still queued (vsg::OperationThreads::stop) when RenderManager goes.
+        auto writerThreads = mRenderManager->getOperationThreads();
+        mScreenshotWriter = std::make_unique<Render::ScreenshotWriter>(
+            [writerThreads](vsg::ref_ptr<Render::Screenshot> screenshot) { writerThreads->add(screenshot); });
         bool autoQuitFired = false;
         // Task 0055: the world LOD terrain baker (--bake-lod-terrain), only when asked for.
         std::unique_ptr<LodTerrainBaker> lodTerrainBaker;
@@ -634,12 +646,17 @@ namespace OMW
                   // frame() and copied from the image presented last, which Vulkan forbids using until it is acquired
                   // again.
                   if (mInputManager->getScreenshotRequest())
-                      screenshot(*mRenderEngine, mRenderManager->getOperationThreads(), mCfgMgr.getScreenshotPath(),
+                      screenshot(*mRenderEngine, *mScreenshotWriter, mCfgMgr.getScreenshotPath(),
                           mResourceSystem->imageOptions);
               };
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
         if (bodyBaker && bodyBaker->problems() > 0)
             mExitCode = 3;
+        // OpenEden: a screenshot asked for just before quitting is still queued; it was dropped without a word.
+        for (const auto& unwritten : mScreenshotWriter->waitForAll(sScreenshotWriteWait))
+            Log(Debug::Warning) << "Screenshot not written before quitting: "
+                                << Files::pathToUnicodeString(unwritten->writeFilename);
+        mScreenshotWriter.reset();
 
         std::cout << "Quitting peacefully." << std::endl;
 

@@ -2,6 +2,7 @@
 
 #include <components/render/screenshot.hpp>
 
+#include <vsg/core/observer_ptr.h>
 #include <vsg/io/Options.h>
 #include <vsg/state/Image.h>
 
@@ -247,6 +248,100 @@ namespace
         EXPECT_EQ(first->writeFilename, folder.path() / "screenshot000.png");
         EXPECT_EQ(second->writeFilename, folder.path() / "screenshot001.png");
         EXPECT_TRUE(dropped->writeFilename.empty());
+    }
+
+    // Render::ScreenshotWriter (third review round): the screenshots handed to the writer thread are kept until they
+    // have run, so that the engine can wait for them at quit instead of losing them in a stopped queue.
+
+    // A screenshot that does no Vulkan work when it runs.
+    struct FakeShot : public Render::Screenshot
+    {
+        FakeShot()
+            : Screenshot(nullptr, vsg::Image::create(), VK_IMAGE_LAYOUT_UNDEFINED)
+        {
+        }
+        void operate() override {}
+    };
+
+    vsg::ref_ptr<Render::Screenshot> makeFake()
+    {
+        return vsg::ref_ptr<Render::Screenshot>(new FakeShot);
+    }
+
+    TEST(RenderScreenshotWriter, a_written_screenshot_goes_to_the_queue_and_is_pending_until_it_has_run)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        auto shot = makeFake();
+        writer.write(shot);
+        ASSERT_EQ(queue.size(), 1u);
+        EXPECT_EQ(queue[0], shot);
+        EXPECT_EQ(writer.pending(), 1u);
+        shot->run();
+        EXPECT_EQ(writer.pending(), 0u);
+    }
+
+    TEST(RenderScreenshotWriter, waiting_returns_nothing_when_the_writer_runs_everything)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        for (int i = 0; i < 4; ++i)
+            writer.write(makeFake());
+        std::thread worker([&queue] {
+            for (auto& shot : queue)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                shot->run();
+            }
+        });
+        const auto unwritten = writer.waitForAll(std::chrono::seconds(10));
+        worker.join();
+        EXPECT_TRUE(unwritten.empty());
+        EXPECT_EQ(writer.pending(), 0u);
+    }
+
+    TEST(RenderScreenshotWriter, waiting_gives_back_what_has_not_run_when_the_time_is_up)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        auto ran = makeFake();
+        auto stuck = makeFake();
+        writer.write(ran);
+        writer.write(stuck);
+        ran->run();
+        const auto unwritten = writer.waitForAll(std::chrono::milliseconds(50));
+        ASSERT_EQ(unwritten.size(), 1u);
+        EXPECT_EQ(unwritten[0], stuck);
+        EXPECT_EQ(writer.pending(), 0u); // forgotten
+    }
+
+    TEST(RenderScreenshotWriter, the_limit_is_for_all_of_them_not_for_each)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        for (int i = 0; i < 5; ++i)
+            writer.write(makeFake());
+        const auto start = std::chrono::steady_clock::now();
+        const auto unwritten = writer.waitForAll(std::chrono::milliseconds(200));
+        const auto waited = std::chrono::steady_clock::now() - start;
+        EXPECT_EQ(unwritten.size(), 5u);
+        EXPECT_GE(waited, std::chrono::milliseconds(200));
+        EXPECT_LT(waited, std::chrono::milliseconds(800)); // five waits of the whole limit would be 1000 ms
+    }
+
+    TEST(RenderScreenshotWriter, screenshots_that_have_run_are_forgotten_when_the_next_is_written)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        auto first = makeFake();
+        writer.write(first);
+        first->run();
+        vsg::observer_ptr<Render::Screenshot> watch(first);
+        first = nullptr;
+        queue.clear();
+        writer.write(makeFake());
+        EXPECT_FALSE(watch.ref_ptr().valid()); // the writer no longer holds the one that ran
+        EXPECT_EQ(writer.pending(), 1u);
     }
 
     TEST(RenderScreenshotHandOver, names_follow_the_order_of_handing_over)

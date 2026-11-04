@@ -22,6 +22,9 @@ local ARMOUR_AT = 30 -- frames after the items were asked for: put on the full s
 local FISTS_AFTER = 60 -- frames in the set before the fists go up
 local OFF_AFTER = 90 -- frames with the fists up before the set comes off
 local SHOTS_AFTER = 4 -- frames after the change frame with a screenshot
+-- Seconds of real time after the last screenshot before the game quits: the writer thread takes about 0.15 s a file,
+-- and the engine waits at quit for what is still queued only up to a limit (OMW::Engine::go).
+local QUIT_AFTER = 3
 
 local FULL = { Shirt = 'shirt', Pants = 'pants', Cuirass = 'cuirass', Greaves = 'greaves', Boots = 'boots',
     LeftGauntlet = 'lgauntlet', RightGauntlet = 'rgauntlet', LeftPauldron = 'lpauldron',
@@ -34,6 +37,7 @@ local ids = nil
 local stage = 'settle'
 local phaseFrame = 0
 local frame = 0
+local lastShotReal = nil
 
 local function toWorld(v)
     return origin + util.transform.rotateZ(yaw) * v
@@ -69,6 +73,7 @@ end
 
 local function shoot(name)
     debug.takeScreenshot()
+    lastShotReal = core.getRealTime()
     print('MBSHOT motion ' .. name .. ' frame ' .. frame)
 end
 
@@ -126,7 +131,7 @@ return {
             elseif stage == 'off' then
                 if n <= SHOTS_AFTER then
                     shoot(tostring(n))
-                elseif n >= SHOTS_AFTER + 3 then
+                elseif core.getRealTime() - lastShotReal >= QUIT_AFTER then
                     enter('quit')
                     core.quit()
                 end

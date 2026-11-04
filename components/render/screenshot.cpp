@@ -1,5 +1,6 @@
 #include "screenshot.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -115,5 +116,45 @@ namespace Render
         screenshot->writeOptions = std::move(writeOptions);
         screenshot->generateFilename(dir, ext);
         queue(std::move(screenshot));
+    }
+
+    ScreenshotWriter::ScreenshotWriter(Queue queue)
+        : mQueue(std::move(queue))
+    {
+    }
+
+    void ScreenshotWriter::write(vsg::ref_ptr<Screenshot> screenshot)
+    {
+        forgetWritten();
+        mPending.push_back(screenshot);
+        mQueue(std::move(screenshot));
+    }
+
+    std::size_t ScreenshotWriter::pending()
+    {
+        forgetWritten();
+        return mPending.size();
+    }
+
+    std::vector<vsg::ref_ptr<Screenshot>> ScreenshotWriter::waitForAll(std::chrono::milliseconds limit)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + limit;
+        std::vector<vsg::ref_ptr<Screenshot>> unwritten;
+        for (auto& screenshot : mPending)
+        {
+            const auto left = std::max(std::chrono::steady_clock::duration::zero(),
+                std::chrono::steady_clock::duration(deadline - std::chrono::steady_clock::now()));
+            if (!screenshot->waitFor(left))
+                unwritten.push_back(screenshot);
+        }
+        mPending.clear();
+        return unwritten;
+    }
+
+    void ScreenshotWriter::forgetWritten()
+    {
+        mPending.erase(std::remove_if(mPending.begin(), mPending.end(),
+                           [](const vsg::ref_ptr<Screenshot>& screenshot) { return screenshot->done.load(); }),
+            mPending.end());
     }
 }
