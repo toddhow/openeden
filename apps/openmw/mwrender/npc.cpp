@@ -260,9 +260,8 @@ namespace MWRender
         };
         mDefaultSkeleton = meshPath(smodel) == meshPath(defaultSkeleton);
         if (!mDefaultSkeleton && MergedBodies::enabled())
-            Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
-                             << " uses the skeleton '" << smodel << "', not its race's default '" << defaultSkeleton
-                             << "'";
+            Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().toString() << " uses the skeleton '"
+                             << smodel << "', not its race's default '" << defaultSkeleton << "'";
         const std::vector<std::string>& sources = animSources.sources;
 
         Misc::LoadTrace::Scope traceSkel("npc.readactor");
@@ -560,7 +559,7 @@ namespace MWRender
         if (!mMergedDrawn)
         {
             mMergedDrawn = true;
-            Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
+            Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().toString()
                              << " draws the merged body";
         }
         return true;
