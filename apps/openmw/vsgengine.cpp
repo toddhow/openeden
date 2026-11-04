@@ -12,6 +12,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/loadtrace.hpp>
+#include <components/misc/quietwindow.hpp>
 #include <components/render/attachmentformat.hpp>
 #include <components/render/devicereport.hpp>
 #include <components/render/engine.hpp>
@@ -235,10 +236,8 @@ namespace OMW
         // OpenEden: test and check runs set OPENEDEN_QUIET_WINDOW, so the window opens far off the desktop, out of
         // the taskbar and without taking focus. It is not minimised: a minimised window has a 0x0 swapchain and
         // draws nothing.
-        // Unset, empty or "0" means off.
-        const char* quietWindowEnv = getenv("OPENEDEN_QUIET_WINDOW");
-        const std::string_view quietWindow = quietWindowEnv != nullptr ? quietWindowEnv : "";
-        if (!fullscreen && !quietWindow.empty() && quietWindow != "0")
+        // Unset, empty or "0" means off (Misc::isQuietWindowRequested, shared with the editor and the crash catcher).
+        if (!fullscreen && Misc::isQuietWindowRequested())
         {
             constexpr int quietWindowPosition = -30000; // far enough to be off every monitor layout
             pos_x = quietWindowPosition;
