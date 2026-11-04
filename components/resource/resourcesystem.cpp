@@ -39,7 +39,10 @@ namespace
             return normalized.value();
         return std::string(meshes) + normalized.value();
     }
+}
 
+namespace Resource
+{
     vsg::ref_ptr<const vsg::Options> createShaderOptions(const std::string& shaderPath)
     {
         auto options = vsg::Options::create();
@@ -58,7 +61,10 @@ namespace
         options->setObject(vsgUtil::settingsConstantsKey, shaderSettings->constants);
         return options;
     }
+}
 
+namespace
+{
     vsg::ref_ptr<const vsg::Options> createImageOptions(const VFS::Manager* vfs, bool decompress)
     {
         auto options = vsg::Options::create();
@@ -213,8 +219,9 @@ namespace Resource
         builder->graphics->alphaToCoverage
             = Settings::shaders().mAntialiasAlphaTest && Settings::video().mAntialiasing > 1;
         builder->graphics->adjustCoverage = Settings::shaders().mAdjustCoverageForAlphaTest;
-        // openeden (task 0023, F1b): the shaders written in Slang, off by default.
-        builder->graphics->preferSlang = Settings::rendering().mSlangShaders;
+        // openeden (task 0023, F1b): the shaders written in Slang, off by default. Task 0072, review of the stage f and
+        // g rounds, finding 7: Pipeline::Graphics takes the switch from `shaderOptions` when it is made, before any
+        // stage, not from an assignment here after the Builder (createShaderOptions sets it from the same setting).
     }
 
     void ResourceSystem::setOccludedParticleMap(vsg::ref_ptr<vsg::Descriptor> map)

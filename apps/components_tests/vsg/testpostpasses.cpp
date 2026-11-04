@@ -15,6 +15,7 @@
 
 #include <components/render/hdrmath.hpp>
 #include <components/render/sssmath.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/resource/shadersettings.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/passstages.hpp>
@@ -250,6 +251,104 @@ namespace
         const auto options = gameOptions(sSources, false);
         // PostProcess reads post/omwfx.vert and compiles its source with compileGlsl (one stage, no defines).
         const auto omwfx = vsgUtil::readShader("post/omwfx.vert", options);
+        ASSERT_TRUE(omwfx->module);
+        expectSameSpirv("post/omwfx.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sVertexShader),
+            compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, omwfx->module->source));
+        expectSameSpirv("post/present.vert",
+            compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sPresentVertexShader),
+            compiledNow("post/present.vert", "post/present.frag", {}, options, 0));
+        expectSameSpirv("post/present.frag",
+            compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_postprocess_sPresentFragmentShader),
+            compiledNow("post/present.vert", "post/present.frag", {}, options, 1));
+    }
+
+    std::string fileBytes(const std::filesystem::path& path)
+    {
+        std::ifstream in(path, std::ios::binary);
+        std::stringstream bytes;
+        bytes << in.rdbuf();
+        return bytes.str();
+    }
+
+    // The options the game reads its shaders with (Resource::createShaderOptions) over `path`, made now (they read
+    // the settings when made), with `[Rendering] slang shaders` off.
+    vsg::ref_ptr<const vsg::Options> gameOptionsOff(const std::string& path)
+    {
+        auto options = vsg::Options::create(*Resource::createShaderOptions(path));
+        options->setValue(vsgUtil::preferSlangKey, false);
+        return options;
+    }
+
+    // Review of the stage f and g rounds, finding 1 (written before the change): the comparisons above compile the
+    // source tree with a copy of the game's options, but the game reads the copies in the build's resources/shaders
+    // (copy_all_resource_files, files/shaders/CMakeLists.txt) with the options Resource::createShaderOptions makes, so
+    // a stale or missing copy passed them. The same 26 comparisons, against those copies with those options, and each
+    // copy the same bytes as its source.
+    TEST(PostPassesSwitchOff, the_files_the_game_loads_compile_as_the_strings_did)
+    {
+        const std::filesystem::path built(OPENEDEN_SHADER_BUILD_DIR);
+        std::size_t files = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::path(sSources) / "post"))
+        {
+            const std::string extension = entry.path().extension().string();
+            // The Slang sources and the lists of define sets are build inputs; the game reads the others.
+            if (!entry.is_regular_file() || extension == ".slang" || extension == ".sets")
+                continue;
+            const std::filesystem::path copy = built / "post" / entry.path().filename();
+            EXPECT_TRUE(std::filesystem::is_regular_file(copy)) << copy.generic_string() << " is missing";
+            EXPECT_TRUE(fileBytes(copy) == fileBytes(entry.path())) << copy.generic_string() << " is not its source";
+            ++files;
+        }
+        // fullscreen.vert, tonemap.frag, tonemapconstants.glsl, bloomdown.frag, bloomup.frag, velocity.frag, ao.frag,
+        // omwfx.vert, present.vert and present.frag.
+        EXPECT_EQ(files, 10u);
+
+        const std::string path = built.generic_string();
+        const auto options = gameOptionsOff(path);
+        expectSameSpirv("post/fullscreen.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_tonemap_sVertexShader),
+            compiledNow("post/fullscreen.vert", "post/bloomdown.frag", {}, options, 0));
+        for (int index = 0; index < 16; ++index)
+        {
+            const bool bloom = (index & 1) != 0;
+            const bool debug = (index & 2) != 0;
+            const bool ao = (index & 4) != 0;
+            const bool sss = (index & 8) != 0;
+            std::set<std::string> defines;
+            if (bloom)
+                defines.insert("BLOOM");
+            if (debug)
+                defines.insert("DEBUG_VIEW");
+            if (ao)
+                defines.insert("AO");
+            if (sss)
+                defines.insert("SSS");
+            expectSameSpirv("post/tonemap.frag " + vsgUtil::canonicalDefines(defines),
+                compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, tonemapSourceBefore(bloom, debug, ao, sss)),
+                compiledNow("post/fullscreen.vert", "post/tonemap.frag", defines, options, 1));
+        }
+        expectSameSpirv("post/bloomdown.frag", compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_bloom_sDownFragment),
+            compiledNow("post/fullscreen.vert", "post/bloomdown.frag", {}, options, 1));
+        expectSameSpirv("post/bloomup.frag", compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_bloom_sUpFragment),
+            compiledNow("post/fullscreen.vert", "post/bloomup.frag", {}, options, 1));
+        expectSameSpirv("post/velocity.frag",
+            compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_velocity_sFragmentShader),
+            compiledNow("post/fullscreen.vert", "post/velocity.frag", {}, options, 1));
+        struct Case
+        {
+            float mRadius;
+            int mSlices;
+            int mSteps;
+        };
+        for (const Case& c : { Case{ 100.f, 2, 6 }, Case{ 50.f, 3, 4 }, Case{ 37.25f, 8, 16 } })
+        {
+            const AoSettingsScope aoScope(c.mRadius, c.mSlices, c.mSteps);
+            expectSameSpirv("post/ao.frag at " + std::to_string(c.mRadius) + ", " + std::to_string(c.mSlices) + ", "
+                    + std::to_string(c.mSteps),
+                compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, aoSourceBefore(c.mRadius, c.mSlices, c.mSteps)),
+                compiledNow("post/fullscreen.vert", "post/ao.frag", {}, gameOptionsOff(path), 1));
+        }
+        const auto omwfx = vsgUtil::readShader("post/omwfx.vert", options);
+        ASSERT_TRUE(omwfx);
         ASSERT_TRUE(omwfx->module);
         expectSameSpirv("post/omwfx.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sVertexShader),
             compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, omwfx->module->source));

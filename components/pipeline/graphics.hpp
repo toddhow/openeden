@@ -51,7 +51,8 @@ namespace Pipeline
         // openeden (task 0023, F1b): `[Rendering] slang shaders`. When set, a shader that has a precompiled SPIR-V file
         // (<path>/main.vert.spv or main.frag.spv, built from Slang) next to its GLSL uses that file in place of the
         // GLSL. The GLSL is still read first, for its stage and entry point, and stays the fallback when there is no
-        // .spv.
+        // .spv. Task 0072, review of the stage f and g rounds, finding 7: taken from the shader options
+        // (vsgUtil::prefersSlang) when the Graphics is made, so every stage it makes knows it.
         bool preferSlang = false;
         // OpenEden (task 0047): shader paths that exist only as Slang (no GLSL pair beside them). For these the
         // precompiled <path>/main.vert.spv and main.frag.spv are always the shader, whatever `preferSlang` says, and a

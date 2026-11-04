@@ -1067,6 +1067,66 @@ namespace
         EXPECT_EQ(fragmentDefines->count("MATERIAL"), 1u);
     }
 
+    // Task 0072, review of the stage f and g rounds, finding 6 (written before the change): the choice is worked out
+    // once per cached stage (Graphics::createShaderStage attaches it) and every pipeline's copy of that stage carries
+    // that one; Graphics::create works one out on its own copy only for a stage made without one.
+    TEST(ShaderTwinChoice, the_pipelines_made_from_one_cached_stage_share_its_choice)
+    {
+        PipelineTwinFolder folder;
+        folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
+        folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
+        Pipeline::Graphics graphics(folder.options(true));
+        graphics.preferSlang = true;
+        // Two pipelines of one key and one of another colour mode (a specialization constant, not a stage define):
+        // all three are made from the same two cached stages.
+        Pipeline::Options otherColour = objectKey(false, 0u);
+        otherColour.colorMode = 1;
+        const std::vector<vsg::ref_ptr<vsg::BindGraphicsPipeline>> binds = { graphics.create(objectKey(false, 0u)),
+            graphics.create(objectKey(false, 0u)), graphics.create(otherColour) };
+        for (const auto& bind : binds)
+            expectTwins(bind, sVertexTwinWords, sFragmentTwinWords);
+        for (const VkShaderStageFlagBits flag : { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT })
+        {
+            SCOPED_TRACE(static_cast<int>(flag));
+            const auto firstStage = stageOf(binds[0], flag);
+            ASSERT_TRUE(firstStage);
+            const vsgUtil::SlangStageChoice* choice = vsgUtil::slangStageChoiceOf(*firstStage);
+            ASSERT_NE(choice, nullptr);
+            for (std::size_t i = 1; i < binds.size(); ++i)
+            {
+                const auto stage = stageOf(binds[i], flag);
+                ASSERT_TRUE(stage);
+                // Another copy of the stage, carrying the same choice.
+                EXPECT_NE(stage.get(), firstStage.get());
+                EXPECT_EQ(vsgUtil::slangStageChoiceOf(*stage), choice) << "pipeline " << i;
+            }
+        }
+    }
+
+    // Task 0072, review of the stage f and g rounds, finding 7 (written before the change): a Graphics takes
+    // `[Rendering] slang shaders` from the shader options it is made with (vsgUtil::prefersSlang), so the stages it
+    // makes before anyone sets `preferSlang` carry their choice too. Resource::ResourceSystem set the flag only after
+    // the Builder was made.
+    TEST(ShaderTwinChoice, a_graphics_takes_the_switch_from_its_shader_options)
+    {
+        PipelineTwinFolder folder;
+        folder.list("default/main.vert", "00000001", "VERTEX", sVertexTwinWords);
+        folder.list("default/main.frag", "00000002", "MATERIAL", sFragmentTwinWords);
+        Pipeline::Graphics on(folder.options(true));
+        EXPECT_TRUE(on.preferSlang);
+        const auto bind = on.create(objectKey(false, 0u));
+        expectTwins(bind, sVertexTwinWords, sFragmentTwinWords);
+        for (const VkShaderStageFlagBits flag : { VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT })
+        {
+            const auto stage = stageOf(bind, flag);
+            ASSERT_TRUE(stage);
+            EXPECT_NE(vsgUtil::slangStageChoiceOf(*stage), nullptr) << static_cast<int>(flag);
+        }
+        Pipeline::Graphics off(folder.options(false));
+        EXPECT_FALSE(off.preferSlang);
+        expectGlsl(off.create(objectKey(false, 0u)));
+    }
+
     // Task 0072, review of stage f, finding 8 (written before the implementation): Pipeline::terrain, whose stages
     // compile with no defines and which takes the switch from the options, takes both twins or neither.
     TEST(ShaderTwinChoice, the_terrain_with_one_listed_stage_keeps_the_glsl_in_both)

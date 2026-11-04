@@ -136,6 +136,9 @@ namespace Pipeline
 
     Graphics::Graphics(vsg::ref_ptr<const vsg::Options> readShaderOptions)
         : mShaderOptions(readShaderOptions)
+        // Task 0072, review of the stage f and g rounds, finding 7: `[Rendering] slang shaders` from the options it
+        // reads with (Resource::createShaderOptions), so no stage can be made before the switch is known.
+        , preferSlang(vsgUtil::prefersSlang(readShaderOptions.get()))
     {
         /*
          * A fixed layout may allow the implementation to cheaply switch pipelines without reprogramming the bindings.
