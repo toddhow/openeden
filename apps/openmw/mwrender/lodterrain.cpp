@@ -340,7 +340,9 @@ namespace MWRender
             }
 
             std::vector<Lod::TileId> ordered = Lod::orderTilesForTree(pack->tileIds());
-            if (limited)
+            // `far levels` caps the levels in use only when a far tier set it: without map view maxLevel is 0 and every
+            // level of the pack is used, as before task 0066 stage e (which dropped every tile there).
+            if (limited && maxLevel > 0)
             {
                 ordered.erase(std::remove_if(ordered.begin(), ordered.end(),
                                   [maxLevel](const Lod::TileId& id) { return id.mLevel > maxLevel; }),
