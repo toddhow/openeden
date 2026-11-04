@@ -377,10 +377,14 @@ openeden_add_slang_permutations(SOURCE default/default.frag.slang STAGE_FILE def
     STAGE fragment DEFINE_SETS_FILE default/main.frag.sets)
 # The post passes whose GLSL was written inside C++ (task 0072, stage g): the tonemap, bloom, velocity and ambient
 # occlusion passes (components/render) and post-processing's present pass, read with vsgUtil::readPassStages. The
-# tonemap's fragment stage has 16 sets (post/tonemap.frag.sets), the others none. post/omwfx.vert has no twin: its
-# partner is always a fragment stage translated from an .omwfx file, which stays GLSL (decision 0009).
+# tonemap's fragment stage has 16 sets (post/tonemap.frag.sets), the others none. post/omwfx.vert (stage h) is the
+# .omwfx passes' vertex stage: its partner is always a fragment stage translated from an .omwfx file, which stays GLSL
+# (decision 0009), and vsgUtil::readOmwfxVertexStage is the one place that takes this twin beside a GLSL stage. Its
+# twin is post/fullscreen.slang's, as the GLSL files are the same text.
 openeden_add_slang_permutations(
     SOURCE post/fullscreen.slang STAGE_FILE post/fullscreen.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE post/fullscreen.slang STAGE_FILE post/omwfx.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
 openeden_add_slang_permutations(SOURCE post/tonemap.slang STAGE_FILE post/tonemap.frag ENTRY fragMain
     STAGE fragment DEFINE_SETS_FILE post/tonemap.frag.sets)
 openeden_add_slang_permutations(

@@ -38,6 +38,26 @@ namespace vsgUtil
     /// does not show, so callers log the error themselves (task 0072, review of stage g, finding 5).
     vsg::ShaderStages readPassStages(const std::vector<PassStage>& stages,
         const vsg::ref_ptr<const vsg::Options>& options, std::string* error = nullptr);
+
+    /*
+     * Task 0072, stage h (toddhow, 2026-11-04): the one exemption from "a pipeline takes the twins of all its stages
+     * or none". The .omwfx post-processing passes (apps/openmw/mwrender/postprocess.cpp) build each pass's pipeline
+     * from this vertex stage and a fragment stage translated from a mod's .omwfx file. Both stages are compiled on
+     * their own to SPIR-V before the pipeline is made, so vsg::GraphicsPipeline::compile finds no stage that is GLSL
+     * source without code (requiresShaderCompiler) and never links them: a Slang twin beside a translated GLSL
+     * fragment stage draws. Nothing else may use this: every other pipeline keeps the together rule
+     * (vsgUtil::takeSlangTwinsTogether), and the function has no path parameter on purpose.
+     */
+    inline constexpr const char* omwfxVertexPath = "post/omwfx.vert";
+
+    /// Reads omwfxVertexPath through `options` and returns a stage of its own, made like readPassStages' stages for
+    /// the single stage `{ omwfxVertexPath, {} }`, but with SPIR-V code in every case: with the options preferring
+    /// Slang and a twin built for the stage, the twin (with the settings constants it declares); otherwise the GLSL
+    /// compiled on its own by vsg::ShaderCompiler, as the pass compiled the string it replaced. Empty when the file
+    /// cannot be read or compiled; the reason, naming the file, is then in `*error` (or given to vsg::warn without
+    /// `error`); after a success `*error` is empty.
+    vsg::ref_ptr<vsg::ShaderStage> readOmwfxVertexStage(
+        const vsg::ref_ptr<const vsg::Options>& options, std::string* error = nullptr);
 }
 
 #endif

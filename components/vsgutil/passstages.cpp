@@ -99,4 +99,55 @@ namespace vsgUtil
         }
         return result;
     }
+
+    vsg::ref_ptr<vsg::ShaderStage> readOmwfxVertexStage(
+        const vsg::ref_ptr<const vsg::Options>& options, std::string* error)
+    {
+        if (error)
+            error->clear();
+        const auto failed = [error](std::string reason) -> vsg::ref_ptr<vsg::ShaderStage> {
+            fail(error, std::move(reason));
+            return {};
+        };
+        vsg::ref_ptr<vsg::ShaderStage> shared;
+        try
+        {
+            shared = readShader(omwfxVertexPath, options);
+        }
+        catch (const std::exception& e)
+        {
+            return failed(std::string("The shader stage \"") + omwfxVertexPath + "\" cannot be read: " + e.what());
+        }
+        if (!shared->module || shared->module->source.empty())
+            return failed(std::string("The shader stage \"") + omwfxVertexPath + "\" has no GLSL source");
+        recordShaderUse(omwfxVertexPath, {}, shared.get(), options);
+
+        // A stage and a module of its own for every caller (see readPassStages): the options share what they read.
+        if (auto twin = slangTwin(omwfxVertexPath, {}, shared->module->source, prefersSlang(options.get()), options))
+        {
+            // The twin is shared too (findSlangPermutation caches it), so the stage gets a copy: SPIR-V and no GLSL
+            // source, so that vsg::GraphicsPipeline::compile finds nothing to link (see the header).
+            auto stage = vsg::ShaderStage::create(
+                shared->stage, shared->entryPointName, vsg::ShaderModule::create(twin->code));
+            stage->specializationConstants = shared->specializationConstants;
+            addSettingsConstants(*stage, options.get());
+            return stage;
+        }
+        auto stage = vsg::ShaderStage::create(
+            shared->stage, shared->entryPointName, vsg::ShaderModule::create(shared->module->source));
+        stage->specializationConstants = shared->specializationConstants;
+        std::string message;
+        bool compiled = false;
+        {
+            const CompilerMessageCapture capture(message);
+            compiled = vsg::ShaderCompiler::create()->compile(stage, std::vector<std::string>{}, options);
+        }
+        if (!compiled)
+        {
+            const std::string glslang = trimmed(message);
+            return failed(std::string("The shader stage \"") + omwfxVertexPath + "\" failed to compile"
+                + (glslang.empty() ? std::string(" (glslang gave no message)") : ": " + glslang));
+        }
+        return stage;
+    }
 }

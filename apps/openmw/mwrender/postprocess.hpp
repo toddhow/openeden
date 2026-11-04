@@ -172,9 +172,10 @@ namespace MWRender
         vsg::ref_ptr<vsg::Sampler> mNearest;
         vsg::ref_ptr<vsg::RenderPass> mRenderPass;
         vsg::ref_ptr<vsg::View> mBaseView;
-        // post/omwfx.vert, the vertex stage of every pass. GLSL only: its partner is always a pass's fragment stage
-        // translated from an .omwfx file (decision 0009), and a pipeline takes the Slang twins of all its stages or
-        // none.
+        // post/omwfx.vert, the vertex stage of every pass, SPIR-V either way (vsgUtil::readOmwfxVertexStage): the Slang
+        // twin with `slang shaders` on, else the GLSL compiled alone. Its partner is always a pass's fragment stage
+        // translated from an .omwfx file (decision 0009), compiled alone too, so VSG never links the two and the twin
+        // may stand beside GLSL: the one exemption from "a pipeline takes the twins of all its stages or none".
         vsg::ref_ptr<vsg::ShaderStage> mVertex;
         vsg::ref_ptr<vsg::Image> mSceneColor;
         vsg::ref_ptr<vsg::Image> mSceneDepth;

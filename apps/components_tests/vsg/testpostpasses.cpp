@@ -520,6 +520,8 @@ namespace
         };
         const std::vector<Pass> passes = {
             { "post/fullscreen.vert", "post/fullscreen.vert", "post/bloomdown.frag", 0 },
+            // Stage h: the .omwfx passes' vertex stage (toddhow, 2026-11-04), no push constants like the one above.
+            { "post/omwfx.vert", "post/omwfx.vert", "post/bloomdown.frag", 0 },
             { "post/tonemap.frag", "post/fullscreen.vert", "post/tonemap.frag", 1 },
             { "post/bloomdown.frag", "post/fullscreen.vert", "post/bloomdown.frag", 1 },
             { "post/bloomup.frag", "post/fullscreen.vert", "post/bloomup.frag", 1 },
@@ -571,8 +573,8 @@ namespace
                 ++compared;
             }
         }
-        // The 23 permutations of stage g.
-        EXPECT_EQ(compared, 23u);
+        // The 23 permutations of stage g and the .omwfx passes' vertex stage of stage h.
+        EXPECT_EQ(compared, 24u);
     }
 #endif
 }

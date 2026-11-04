@@ -179,13 +179,14 @@ namespace
         static const std::set<std::string> stages = { "comp/fogofwar/update.comp", "comp/light/assign.comp",
             "comp/particle/simulate.comp", "comp/worldoverlay/update.comp", "default/main.frag", "default/main.vert",
             "gui/gui.frag", "gui/gui.vert",
-            // Task 0072, stage g: the post passes whose GLSL was written inside C++.
-            "post/ao.frag", "post/bloomdown.frag", "post/bloomup.frag", "post/fullscreen.vert", "post/present.frag",
-            "post/present.vert", "post/tonemap.frag", "post/velocity.frag", "sky/atmosphere/main.frag",
-            "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert", "sky/moon/main.frag",
-            "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert", "sky/sun/main.frag",
-            "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert", "terrain/main.frag",
-            "terrain/main.vert", "water/main.frag", "water/main.vert" };
+            // Task 0072, stage g: the post passes whose GLSL was written inside C++; stage h: the .omwfx passes' vertex
+            // stage.
+            "post/ao.frag", "post/bloomdown.frag", "post/bloomup.frag", "post/fullscreen.vert", "post/omwfx.vert",
+            "post/present.frag", "post/present.vert", "post/tonemap.frag", "post/velocity.frag",
+            "sky/atmosphere/main.frag", "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert",
+            "sky/moon/main.frag", "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert",
+            "sky/sun/main.frag", "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert",
+            "terrain/main.frag", "terrain/main.vert", "water/main.frag", "water/main.vert" };
         return stages;
     }
 

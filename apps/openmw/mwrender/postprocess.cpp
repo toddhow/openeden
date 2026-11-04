@@ -251,18 +251,12 @@ namespace MWRender
     {
         mBaseView->viewDependentState = nullptr;
         mBaseView->mask = Mask_PostProcess;
-        // Task 0072, stage g: the stages were strings here. The passes' vertex stage stays GLSL (see mVertex).
-        constexpr const char* vertexPath = "post/omwfx.vert";
-        try
+        // Task 0072, stage h: the passes' vertex stage is the Slang twin with the switch on (see mVertex).
         {
-            const auto vertex = vsgUtil::readShader(vertexPath, mShaderOptions);
-            vsgUtil::recordShaderUse(vertexPath, {}, vertex.get(), mShaderOptions);
-            if (vertex->module)
-                mVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, vertex->module->source);
-        }
-        catch (const std::exception& e)
-        {
-            Log(Debug::Error) << "Post-processing has no vertex stage: " << e.what();
+            std::string error;
+            mVertex = vsgUtil::readOmwfxVertexStage(mShaderOptions, &error);
+            if (!mVertex)
+                Log(Debug::Error) << "Post-processing has no vertex stage: " << error;
         }
         mMultisampled = mEngine.framebufferSamples() != VK_SAMPLE_COUNT_1_BIT;
         mPresentSwitch = vsg::Switch::create();
