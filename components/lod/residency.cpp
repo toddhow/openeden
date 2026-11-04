@@ -496,7 +496,7 @@ namespace Lod
     ClusterGroundStep stepClusterGround(ClusterGroundState& state, const ClusterGroundInput& input) noexcept
     {
         ClusterGroundStep step;
-        if (!input.mRuleApplies || !input.mCounts)
+        if (!input.mRuleApplies)
         {
             state = ClusterGroundState{};
             return step;
@@ -507,7 +507,20 @@ namespace Lod
         state.mGroundFrames = stepGroundFrames(state.mGroundFrames, drawn);
         state.mMissingFrames = stepGroundFrames(state.mMissingFrames, !drawn);
         step.mFallback = clusterGroundFallback(true, true, input.mWholly, state.mGroundFrames);
-        step.mWaits = clusterWaitsForGround(true, true, input.mWholly, state.mGroundFrames, state.mMissingFrames);
+        // A wait only helps when the budget is pressing: the cluster would otherwise be admitted as an item with no
+        // fallback, loaded whatever the budget says, and given up again a moment later. With room to spare it is simply
+        // loaded (the review of the far eviction, finding 1: the wait delayed every newly chosen cluster by half a
+        // second at the tier default budget, which is never reached).
+        step.mWaits = input.mPressure
+            && clusterWaitsForGround(true, true, input.mWholly, state.mGroundFrames, state.mMissingFrames);
         return step;
+    }
+
+    bool budgetIsPressing(std::uint64_t heldAfterBytes, std::uint32_t blocked, std::uint64_t itemBytes,
+        std::uint64_t budgetBytes) noexcept
+    {
+        if (budgetBytes == 0)
+            return false;
+        return blocked > 0 || addSaturating(heldAfterBytes, itemBytes) > budgetBytes;
     }
 }

@@ -287,7 +287,7 @@ namespace Lod
         bool mRuleApplies = false; // the tier evicts, there is a budget and the live objects page
         bool mWholly = false; // the square lies wholly inside the paging range
         bool mGroundDrawn = false; // groundDrawnOver (a cached answer is fine)
-        bool mCounts = true; // the cluster is wanted or built: only these count (the old client's gating)
+        bool mPressure = false; // the memory budget is pressing (budgetIsPressing): only then does a cluster wait
     };
 
     /// What the rule says about the cluster this frame.
@@ -298,10 +298,18 @@ namespace Lod
     };
 
     /// One cluster's step of the ground rule (counters, fallback, wait), the one function both LodClusters::update and
-    /// the tests' FarSim call. Counts while the rule applies and the cluster counts, also while the square is wholly
-    /// inside the paging range (the ground is drawn there by the live terrain whatever `mGroundDrawn` says); says
-    /// nothing about a square that is wholly inside (the live objects' business). Otherwise the counters are reset.
+    /// the tests' FarSim call. Counts every frame while the rule applies, for every cluster (wanted or not, so that a
+    /// cluster the selection chooses later is already stable), also while the square is wholly inside the paging range
+    /// (the ground is drawn there by the live terrain whatever `mGroundDrawn` says); says nothing about a square that
+    /// is wholly inside (the live objects' business). `mWaits` only while the budget presses. Without the rule the
+    /// counters are reset.
     ClusterGroundStep stepClusterGround(ClusterGroundState& state, const ClusterGroundInput& input) noexcept;
+
+    /// Is the memory budget pressing, so that admitting a cluster whose ground is not yet drawn would be churn? Yes
+    /// when the previous plan blocked something, or what it left committed plus this cluster would exceed the budget.
+    /// With no budget (0) nothing presses.
+    bool budgetIsPressing(std::uint64_t heldAfterBytes, std::uint32_t blocked, std::uint64_t itemBytes,
+        std::uint64_t budgetBytes) noexcept;
 }
 
 #endif

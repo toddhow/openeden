@@ -672,14 +672,13 @@ namespace MWRender
                 camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
             // Far cluster eviction (task 0060, option b), planner path only: on the tiers that evict, a cluster that
             // reaches past the live range is also replaceable once the ground beneath it has been drawn for a while.
-            // The ground rule counts only for clusters the selection wants or that are built; for the others the
-            // counters stay at 0 (a cluster wanted later starts counting then, and waits for its ground).
+            // The ground is counted every frame for every cluster (wanted or not), so one the selection chooses later
+            // is already stable; it waits for its ground only while the budget presses (Lod::budgetIsPressing, from
+            // the previous plan).
             const bool groundRuleApplies = withBudget && setup.mEvictFar && camera.mLiveObjectsPage;
             const bool wholly = Lod::squareWithinRange(
                 camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
-            const bool chosen = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile;
-            const bool counts = chosen || tile.mPhase != Tile::Phase::Idle;
-            if (groundRuleApplies && !wholly && counts)
+            if (groundRuleApplies && !wholly)
             {
                 if (!tile.mGroundTested || tile.mGroundVersion != camera.mGroundVersion
                     || std::abs(tile.mGroundEyeX - camera.mEye.x) >= groundRetestDistance
@@ -695,8 +694,13 @@ namespace MWRender
             }
             else
                 tile.mGroundTested = false;
+            const std::uint64_t estimate = tile.mBytes > 0
+                ? tile.mBytes
+                : (tile.mKnownBytes > 0 ? tile.mKnownBytes : state.estimateBytes(tile.mId.mLevel));
+            const bool pressure = Lod::budgetIsPressing(
+                state.mPlan.mHeldAfter, state.mPlan.mBlocked, estimate, setup.mResidentBudgetBytes);
             const Lod::ClusterGroundStep ground = Lod::stepClusterGround(
-                tile.mGround, Lod::ClusterGroundInput{ groundRuleApplies, wholly, tile.mGroundDrawn, counts });
+                tile.mGround, Lod::ClusterGroundInput{ groundRuleApplies, wholly, tile.mGroundDrawn, pressure });
             tile.mGroundFallback = ground.mFallback;
             tile.mWaitsForGround = ground.mWaits;
             // An eviction in progress is cancelled the moment the cluster has no fallback at all (the live objects

@@ -1756,6 +1756,32 @@ namespace
         EXPECT_FALSE(out.mWaits);
     }
 
+    TEST(LodClusterGround, nothing_waits_for_its_ground_while_the_budget_is_not_pressing)
+    {
+        ClusterGroundState state;
+        for (int frame = 0; frame < 10; ++frame)
+        {
+            const ClusterGroundStep step = stepClusterGround(state, ClusterGroundInput{ true, false, false, false });
+            EXPECT_FALSE(step.mWaits) << "frame " << frame;
+            EXPECT_FALSE(step.mFallback);
+        }
+        // The counters ran all the same: a cluster that is chosen when the budget starts to press is not new to it.
+        EXPECT_EQ(state.mMissingFrames, 10);
+        const ClusterGroundStep pressed = stepClusterGround(state, ClusterGroundInput{ true, false, false, true });
+        EXPECT_TRUE(pressed.mWaits);
+    }
+
+    TEST(LodClusterGround, the_budget_presses_when_the_last_plan_blocked_something_or_the_next_cluster_would_not_fit)
+    {
+        EXPECT_FALSE(budgetIsPressing(100 * farMib, 0, 6 * farMib, 256 * farMib));
+        EXPECT_TRUE(budgetIsPressing(100 * farMib, 1, 6 * farMib, 256 * farMib)); // something was blocked
+        EXPECT_TRUE(budgetIsPressing(251 * farMib, 0, 6 * farMib, 256 * farMib)); // the next one would not fit
+        EXPECT_FALSE(budgetIsPressing(250 * farMib, 0, 6 * farMib, 256 * farMib)); // exactly fits
+        EXPECT_TRUE(budgetIsPressing(300 * farMib, 0, 0, 256 * farMib)); // already over
+        EXPECT_FALSE(budgetIsPressing(0, 0, 6 * farMib, 0)); // no budget: the planner is not used, nothing presses
+        EXPECT_TRUE(budgetIsPressing(std::numeric_limits<std::uint64_t>::max(), 0, 6 * farMib, 256 * farMib));
+    }
+
     TEST(LodGroundFallback, the_stable_count_is_a_positive_number_of_frames)
     {
         EXPECT_GT(groundStableFrames, 0);
@@ -1897,6 +1923,19 @@ namespace
         std::uint32_t mOverBudgetFrames = 0;
         std::vector<std::vector<std::uint32_t>> mLoadLog; // per frame: the loads the plan started
         std::vector<std::vector<std::uint32_t>> mFreeLog; // per frame: the frees the plan chose
+        // What the previous plan said (the client reads them from its ResidencyPlan before planning again).
+        std::uint64_t mPrevHeldAfter = 0;
+        std::uint32_t mPrevBlocked = 0;
+        // What the entries read so far held (all one level): the client's State::estimateBytes is the mean of the
+        // level's clusters read so far, and the entry's own first estimate before any was read.
+        std::uint64_t mReadBytes = 0;
+        std::uint32_t mReadCount = 0;
+        std::uint64_t estimateOf(const Entry& entry) const
+        {
+            if (entry.mKnown)
+                return entry.mTrueBytes;
+            return mReadCount > 0 ? mReadBytes / mReadCount : entry.mEstimate;
+        }
 
         void step(const ResidencyParams& params, ResidencyPlan& plan)
         {
@@ -1904,15 +1943,17 @@ namespace
             for (std::size_t i = 0; i < mEntries.size(); ++i)
             {
                 Entry& entry = mEntries[i];
+                const bool held = entry.mPhase == Held || entry.mPhase == Leaving;
+                const std::uint64_t bytes = held ? entry.mTrueBytes : estimateOf(entry);
                 if (entry.mCooldown > 0)
                     --entry.mCooldown;
                 const double originX = entry.mFarX - 1000;
                 entry.mLiveReplaceable
                     = clusterReplaceable(entry.mLiveReplaceable, true, mEyeX, 0, originX, 0, 1000, mRange);
                 const bool wholly = squareWithinRange(mEyeX, 0, originX, 0, 1000, mRange);
-                const bool counts = mChosen(mFrame, i) || entry.mPhase != Absent;
+                const bool pressure = budgetIsPressing(mPrevHeldAfter, mPrevBlocked, bytes, params.mBudgetBytes);
                 const ClusterGroundStep ground = stepClusterGround(
-                    entry.mGround, ClusterGroundInput{ mEvictFar, wholly, mGround(mFrame, i), counts });
+                    entry.mGround, ClusterGroundInput{ mEvictFar, wholly, mGround(mFrame, i), pressure });
                 entry.mWaits = ground.mWaits;
                 entry.mFallback = entry.mLiveReplaceable || ground.mFallback;
                 if (cancelEviction(entry.mEvicted, entry.mPhase == Leaving, entry.mFallback))
@@ -1929,6 +1970,11 @@ namespace
                 if (entry.mPhase != Loading || !entry.mLoadDone)
                     continue;
                 entry.mLoadDone = false;
+                if (!entry.mKnown)
+                {
+                    mReadBytes += entry.mTrueBytes;
+                    ++mReadCount;
+                }
                 entry.mKnown = true;
                 entry.mPhase = entry.mEvicted ? Absent : Held;
                 break; // one build a frame
@@ -1948,9 +1994,11 @@ namespace
                 item.mReplaceable = entry.mFallback;
                 item.mPriority = static_cast<float>(std::abs(entry.mFarX - 500 - mEyeX));
                 item.mCooldown = entry.mCooldown;
-                item.mBytes = item.mHeld || entry.mKnown ? entry.mTrueBytes : entry.mEstimate;
+                item.mBytes = item.mHeld ? entry.mTrueBytes : estimateOf(entry);
             }
             planResidency(mItems, params, plan);
+            mPrevHeldAfter = plan.mHeldAfter;
+            mPrevBlocked = plan.mBlocked;
             mLoadLog.push_back(plan.mLoad);
             mFreeLog.push_back(plan.mFree);
             if (plan.mOverBudget)
@@ -2091,10 +2139,16 @@ namespace
             sim.mEyeX = 10.0 * frame; // 60000 units in 6000 frames: entries come inside the live range one by one
             sim.step(params, plan);
         }
+        // The bounds below were 3 loads an entry and 70 in all (EDITED in the review fixes of the far eviction,
+        // awaiting toddhow's approval). They were calibrated on a Sim whose unread clusters kept the 1 MiB first
+        // estimate for ever; the client takes the mean of the level's clusters read so far (State::estimateBytes),
+        // which FarSim now does too, and with true sizes the planner swaps nearer clusters back in for the band
+        // clusters that ignore the budget: 97 loads in all, at most 6 an entry, a bounded wave and not a cycle (the
+        // old bounds also fail with the old wait rule once the Sim has true sizes). In game the same climb at 24 MiB
+        // loads 22 clusters.
         for (std::size_t i = 0; i < sim.mEntries.size(); ++i)
-            EXPECT_LE(sim.mEntries[i].mLoads, 3u) << "entry " << i;
-        // The window of about ten clusters slides over 40 entries: about one load per entry, not a cycle.
-        EXPECT_LE(sim.totalLoads(), 70u);
+            EXPECT_LE(sim.mEntries[i].mLoads, 7u) << "entry " << i;
+        EXPECT_LE(sim.totalLoads(), 110u);
         EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
         EXPECT_EQ(sim.mHoles, 0u);
         EXPECT_LE(sim.mWorstHeldBytes, 60 * farMib + 12 * farMib);
@@ -2260,6 +2314,69 @@ namespace
         // And the cluster is not loaded and freed over and over: it has the ground the whole time.
         EXPECT_LE(sim.mEntries[0].mLoads, 3u);
         EXPECT_LE(sim.mEntries[0].mFrees, 3u);
+    }
+
+    // Finding 1 of the review of the far eviction: the wait for the ground delayed a newly chosen cluster by 30 frames
+    // or more with the budget nowhere near reached, because the counters started only when the cluster was chosen.
+    TEST(LodFarEvictionSim, a_cluster_chosen_later_whose_ground_was_drawn_all_along_is_admitted_at_once)
+    {
+        // Entry 0 is held and farther from the eye than entry 1 by more than the swap margin allows; entry 1 is
+        // not chosen until frame 300, but its ground has been drawn since frame 0. The budget fits one cluster, so
+        // the budget presses.
+        FarSim sim = makeFarSim(2, true);
+        sim.mEntries[0].mFarX = 120000;
+        sim.mEntries[1].mFarX = 45000;
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        sim.mChosen = [](int frame, std::size_t index) { return index == 0 || frame >= 300; };
+        const ResidencyParams params = farParams(7 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 305; ++frame)
+            sim.step(params, plan);
+        std::size_t firstLoadOfNear = 0;
+        for (std::size_t f = 300; f < sim.mLoadLog.size(); ++f)
+        {
+            for (const std::uint32_t index : sim.mLoadLog[f])
+            {
+                if (index == 1 && firstLoadOfNear == 0)
+                    firstLoadOfNear = f;
+            }
+        }
+        EXPECT_NE(firstLoadOfNear, 0u) << "entry 1 was not loaded within 5 frames of being chosen";
+        EXPECT_EQ(sim.mHoles, 0u);
+    }
+
+    TEST(LodFarEvictionSim, with_the_budget_nowhere_near_reached_nothing_waits_for_its_ground)
+    {
+        // Twenty clusters, 6 MiB each, a budget of 1 GiB; the ground is not drawn for the first 400 frames (a terrain
+        // tile still loading). Without pressure there is no reason to wait: every cluster is loaded in the first
+        // frames, as it was before the ground rule existed.
+        FarSim sim = makeFarSim(20, true);
+        sim.mGround = [](int frame, std::size_t) { return frame >= 400; };
+        const ResidencyParams params = farParams(1024 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 30; ++frame)
+            sim.step(params, plan);
+        EXPECT_EQ(sim.totalLoads(), 20u);
+        for (const FarSim::Entry& entry : sim.mEntries)
+            EXPECT_NE(entry.mPhase, FarSim::Absent);
+    }
+
+    TEST(LodFarEvictionSim, under_pressure_a_cluster_without_drawn_ground_still_waits_for_it)
+    {
+        // The same twenty clusters against a budget of 30 MiB: the clusters are not admitted before their ground is
+        // drawn (they would be no-fallback items, loaded whatever the budget says and given up again afterwards).
+        FarSim sim = makeFarSim(20, true);
+        sim.mGround = [](int frame, std::size_t) { return frame >= 100; };
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        const ResidencyParams params = farParams(30 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 3000; ++frame)
+            sim.step(params, plan);
+        EXPECT_LE(sim.totalLoads(), 8u); // 5 fit; a few loads in the first frames before the pressure shows
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+        EXPECT_EQ(sim.mHoles, 0u);
     }
 
     TEST(LodFarEvictionSim, two_runs_of_the_same_sequence_make_the_same_plans)
