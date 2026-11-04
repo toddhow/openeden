@@ -51,6 +51,10 @@ namespace MWSound
 namespace MWRender
 {
     class RenderManager;
+    namespace MergedBodies
+    {
+        class Session;
+    }
 }
 namespace MWLua
 {
@@ -90,6 +94,9 @@ namespace OMW
         std::unique_ptr<MWInput::InputManager> mInputManager;
         std::unique_ptr<MWSound::SoundManager> mSoundManager;
         std::unique_ptr<MWRender::RenderManager> mRenderManager;
+        // Task 0069 stage d: the merged bodies' cache and templates (GPU objects). Declared after the render engine, so
+        // destroyed before it and its device.
+        std::unique_ptr<MWRender::MergedBodies::Session> mMergedBodies;
         // openeden-vsg: created by the Game state, owned here so that, as in OpenMW 0.51, it is destroyed after the
         // window manager (GUI windows hold Lua-built widgets) and after the Game state's World.
         std::unique_ptr<MWLua::LuaManager> mLuaManager;

@@ -1,7 +1,10 @@
 #include "mergedbody.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <exception>
 #include <limits>
 #include <map>
@@ -20,8 +23,10 @@
 #include <vsg/nodes/VertexIndexDraw.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/DescriptorBuffer.h>
+#include <vsg/state/DescriptorImage.h>
 #include <vsg/state/DescriptorSet.h>
 #include <vsg/state/GraphicsPipeline.h>
+#include <vsg/state/ShaderStage.h>
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/animation/contents.hpp>
@@ -32,6 +37,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/mwanimation/context.hpp>
@@ -42,7 +48,9 @@
 #include <components/pipeline/options.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/materialoverrides.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/readnode.hpp>
@@ -60,11 +68,13 @@ namespace MWRender::MergedBodies
 {
     namespace
     {
-        // The look of one stock state group: its pipeline options and its descriptors without bone matrices.
+        // The look of one stock state group: its pipeline options, its descriptors without bone matrices, and the
+        // defines the stock pipeline's stages were compiled with (empty when a stage carries no compile hints).
         struct Look
         {
             Pipeline::Options mOptions;
             vsg::Descriptors mDescriptors;
+            std::map<int, std::set<std::string>> mStockDefines; // VkShaderStageFlagBits -> defines
         };
 
         struct CacheState
@@ -72,62 +82,99 @@ namespace MWRender::MergedBodies
             bool mLoaded = false;
             std::optional<Body::PackageFiles> mFiles;
             std::optional<Body::CacheManifest> mManifest;
+            std::optional<std::map<std::string, std::string>> mQuickKeys;
             std::string mError;
         };
 
+        struct TemplateEntry
+        {
+            TemplateResult mResult;
+            // Keeps the read options alive, so that their address in the template's key cannot be reused.
+            vsg::ref_ptr<const vsg::Options> mOptions;
+        };
+
         std::mutex sMutex;
-        std::filesystem::path sUserDataFolder;
-        CacheState sCache;
-        std::map<std::string, TemplateResult> sTemplates;
-        std::set<std::string> sReported;
-        bool sMessageShown = false;
+        State* sActive = nullptr;
+        std::atomic<bool> sDisabledForRun{ false };
 
         std::string sexName(bool female)
         {
             return female ? "female" : "male";
         }
 
-        std::string templateKey(const ESM::Race& race, bool female)
+        std::string raceSexKey(const ESM::Race& race, bool female)
         {
             return Misc::StringUtils::lowerCase(race.mId.getRefIdString()) + "|" + sexName(female);
         }
 
-        // Main thread, under sMutex: reads `current`, the pack it names and the manifest, once per session.
-        void loadCache()
+        // The look depends on the read options (the inventory preview composes a premultiplied-alpha override into its
+        // own): templates are kept per options object (review finding 9).
+        std::string templateKey(const ESM::Race& race, bool female, const vsg::Options* options)
         {
-            if (sCache.mLoaded)
+            char address[2 * sizeof(void*) + 3];
+            std::snprintf(address, sizeof(address), "%p", static_cast<const void*>(options));
+            return raceSexKey(race, female) + "|" + address;
+        }
+    }
+
+    struct State
+    {
+        std::filesystem::path mUserDataFolder;
+        CacheState mCache;
+        std::map<std::string, TemplateEntry> mTemplates;
+        std::map<std::string, BodyNif::RestPose> mRestPoses; // per skeleton path, read once per session
+        std::set<std::string> mReported;
+        bool mMessageShown = false;
+    };
+
+    namespace
+    {
+        // Main thread, under sMutex: reads `current`, the pack it names, the manifest and the quick keys, once per
+        // session.
+        void loadCache(State& state)
+        {
+            CacheState& cache = state.mCache;
+            if (cache.mLoaded)
                 return;
-            sCache.mLoaded = true;
-            if (sUserDataFolder.empty())
+            cache.mLoaded = true;
+            if (state.mUserDataFolder.empty())
             {
-                sCache.mError = "the user data folder is not known";
+                cache.mError = "the user data folder is not known";
                 return;
             }
-            const std::filesystem::path folder = sUserDataFolder / "openeden" / "bodies";
+            const std::filesystem::path folder = state.mUserDataFolder / "openeden" / "bodies";
             std::string error;
             std::optional<Body::PackageFiles> files = Body::loadCurrentCache(folder, error);
             if (!files)
             {
-                sCache.mError = error;
+                cache.mError = error;
                 return;
             }
             const auto manifest = files->mFiles.find("manifest.txt");
             if (manifest == files->mFiles.end())
             {
-                sCache.mError = "the pack has no manifest.txt";
+                cache.mError = "the pack has no manifest.txt";
                 return;
             }
             std::optional<Body::CacheManifest> parsed
                 = Body::readManifest(std::string(manifest->second.begin(), manifest->second.end()), error);
             if (!parsed)
             {
-                sCache.mError = "the manifest does not read: " + error;
+                cache.mError = "the manifest does not read: " + error;
                 return;
             }
-            sCache.mFiles = std::move(files);
-            sCache.mManifest = std::move(parsed);
+            // A pack from before the quick keys has none: its bodies read as stale, and the message says to bake again.
+            const auto quick = files->mFiles.find("quick.txt");
+            if (quick != files->mFiles.end())
+            {
+                cache.mQuickKeys = Body::readQuickKeys(std::string(quick->second.begin(), quick->second.end()), error);
+                if (!cache.mQuickKeys)
+                    Log(Debug::Warning) << "Merged bodies: quick.txt does not read: " << error;
+            }
+            cache.mFiles = std::move(files);
+            cache.mManifest = std::move(parsed);
             Log(Debug::Info) << "Merged bodies: the cache in " << folder.string() << " has "
-                             << sCache.mManifest->mEntries.size() << " bodies";
+                             << cache.mManifest->mEntries.size() << " bodies";
         }
 
         class CollectStateGroups : public vsg::Visitor
@@ -163,18 +210,99 @@ namespace MWRender::MergedBodies
             return false;
         }
 
+        // The defines each stage of a pipeline was compiled with, from the stages' compile hints. A stage without hints
+        // (a precompiled Slang twin) gives no entry.
+        std::map<int, std::set<std::string>> definesOf(const vsg::GraphicsPipeline& pipeline)
+        {
+            std::map<int, std::set<std::string>> out;
+            for (const auto& stage : pipeline.stages)
+            {
+                if (stage && stage->module && stage->module->hints)
+                    out[static_cast<int>(stage->stage)] = stage->module->hints->defines;
+            }
+            return out;
+        }
+
+        std::map<int, std::set<std::string>> definesOf(const vsg::StateGroup& group)
+        {
+            for (const auto& command : group.stateCommands)
+            {
+                if (const auto* bind = dynamic_cast<const vsg::BindGraphicsPipeline*>(command.get());
+                    bind != nullptr && bind->pipeline)
+                    return definesOf(*bind->pipeline);
+            }
+            return {};
+        }
+
+        // The defines the merged look changes on purpose (adaptOptions): every other stock define must be in the
+        // merged pipeline, and MATERIAL must be in both or neither. GBUFFER_MOTION comes with SKIN when the G-buffer is
+        // on (Pipeline::Graphics: a skinned draw writes its bones' motion), so a rigid stock part never has it.
+        bool adaptedDefine(const std::string& define)
+        {
+            static const std::set<std::string> adapted = { "COLOR", "MORPH", "NORMAL_MAP", "PARALLAX",
+                "RECONSTRUCT_NORMAL_Z", "NORMAL", "TEXCOORD", "SKIN", "VERTEX", "GBUFFER_MOTION" };
+            return adapted.count(define) != 0;
+        }
+
+        // Empty when the merged defines carry everything the stock defines carry (review finding 1); else a reason.
+        std::string compareDefines(
+            const std::map<int, std::set<std::string>>& stock, const std::map<int, std::set<std::string>>& merged)
+        {
+            for (const auto& [stage, defines] : stock)
+            {
+                const auto other = merged.find(stage);
+                if (other == merged.end())
+                    continue; // a precompiled stage on one side: nothing to compare
+                for (const std::string& define : defines)
+                {
+                    if (!adaptedDefine(define) && other->second.count(define) == 0)
+                        return "the merged pipeline lacks the stock define " + define;
+                }
+                for (const std::string& define : other->second)
+                {
+                    if (!adaptedDefine(define) && defines.count(define) == 0)
+                        return "the merged pipeline has the define " + define + " the stock one does not";
+                }
+            }
+            return {};
+        }
+
+        // Shares the look's images with the stock parts': an equal image (same data, sampler, layout) the stock read
+        // made is used instead of a second copy on the GPU (review finding 7).
+        void shareImages(vsg::Descriptors& descriptors, const vsg::ref_ptr<vsg::SharedObjects>& stockShared)
+        {
+            if (!stockShared)
+                return;
+            for (auto& descriptor : descriptors)
+            {
+                auto* image = dynamic_cast<vsg::DescriptorImage*>(descriptor.get());
+                if (image == nullptr)
+                    continue;
+                for (auto& info : image->imageInfoList)
+                {
+                    if (info)
+                        stockShared->share(info);
+                }
+            }
+        }
+
         // The stock look of the material `materialKey` in the part of `slot`: the part is read through the engine's
         // reader with the stock part's own options (and a fresh object cache, so the reader runs), while an override
         // records the pipeline options of each state group in the order the reader creates them.
         std::optional<Look> findLook(int slot, const ESM::BodyPart& record, const std::string& materialKey,
-            const MWAnim::Context& context, const VFS::Manager& vfs, std::string& error)
+            const MWAnim::Context& context, Resource::ResourceSystem& resources, std::string& error)
         {
             const auto type = static_cast<ESM::PartReferenceType>(slot);
-            if (slot < 0 || static_cast<std::size_t>(slot) >= context.partBoneOptions.size())
+            if (slot < 0 || static_cast<std::size_t>(slot) >= context.partBoneOptions.size()
+                || !context.partBoneOptions[slot])
             {
                 error = "slot " + std::to_string(slot) + " has no read options";
                 return {};
             }
+            // The stock loop marks a skin part before it reads it (npc.cpp, markSkinModel); the merged read must not
+            // depend on whether the preload thread did so first (review finding 1).
+            if (resources.materialTable)
+                resources.materialTable->markSubsurfaceModel(record.mModel);
             auto options = vsg::Options::create(*context.partBoneOptions[slot]);
             options->sharedObjects = vsg::SharedObjects::create();
             std::vector<Pipeline::Options> captured;
@@ -201,7 +329,7 @@ namespace MWRender::MergedBodies
                 // Several shapes: the one whose material key matches, in the order the bake's reader lists them.
                 const std::string model
                     = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(record.mModel)).value();
-                const OMW::BodyCommon::ParsedFile parsed = OMW::BodyCommon::parseFile(vfs, model);
+                const OMW::BodyCommon::ParsedFile parsed = OMW::BodyCommon::parseFile(*resources.getVFS(), model);
                 std::vector<std::string> errors;
                 const std::vector<BodyNif::Shape> shapes
                     = OMW::BodyCommon::shapesOf(parsed, MWAnim::sPartBones.at(type), BodyNif::Placement{}, errors);
@@ -227,6 +355,16 @@ namespace MWRender::MergedBodies
                 error = "the part '" + record.mModel + "' switches its textures";
                 return {};
             }
+            // The reader adds MATERIAL after the override ran (nif.cpp createStateGroup): add it as it did, when the
+            // group carries the material descriptor (review finding 1).
+            const bool material = std::any_of(
+                look.mDescriptors.begin(), look.mDescriptors.end(), [](const vsg::ref_ptr<vsg::Descriptor>& d) {
+                    return d && d->dstBinding == Pipeline::Descriptors::MATERIAL_BINDING;
+                });
+            if (material)
+                look.mOptions.shader.addMode(Pipeline::Mode::MATERIAL);
+            look.mStockDefines = definesOf(*collect.mGroups[index]);
+            shareImages(look.mDescriptors, context.partBoneOptions[slot]->sharedObjects);
             return look;
         }
 
@@ -298,7 +436,8 @@ namespace MWRender::MergedBodies
         vsg::ref_ptr<vsg::Node> buildNode(const Body::MergedBody& body, const BodyNif::RestPose& rest,
             const ESM::Race& race, bool female, const MWAnim::Context& context, std::string& error)
         {
-            const std::vector<Body::MergedDraw> draws = Body::planMergedDraws(body);
+            // One draw per material key (decision H19, review finding 4): fewer skins per actor than one per slot.
+            const std::vector<Body::MergedDraw> draws = Body::planMergedDrawsByMaterial(body);
             if (draws.empty())
             {
                 error = "the body has no draws";
@@ -345,27 +484,27 @@ namespace MWRender::MergedBodies
 
             const bool normals = !body.mNormals.empty();
             const bool uvs = !body.mUvs.empty();
-            std::map<std::pair<int, std::uint32_t>, Look> looks;
             auto root = vsg::Group::create();
             for (const Body::MergedDraw& draw : draws)
             {
-                const auto lookKey = std::make_pair(draw.mSlot, draw.mMaterial);
-                auto lookIt = looks.find(lookKey);
-                if (lookIt == looks.end())
+                if (draw.mSlot < 0 || static_cast<std::size_t>(draw.mSlot) >= parts.size()
+                    || parts[static_cast<std::size_t>(draw.mSlot)] == nullptr)
                 {
-                    if (draw.mSlot < 0 || static_cast<std::size_t>(draw.mSlot) >= parts.size()
-                        || parts[static_cast<std::size_t>(draw.mSlot)] == nullptr)
-                    {
-                        error = "slot " + std::to_string(draw.mSlot) + " has no stock part";
-                        return {};
-                    }
-                    std::optional<Look> look = findLook(draw.mSlot, *parts[static_cast<std::size_t>(draw.mSlot)],
-                        body.mMaterials[draw.mMaterial], context, *resources->getVFS(), error);
-                    if (!look)
-                        return {};
-                    lookIt = looks.emplace(lookKey, std::move(*look)).first;
+                    error = "slot " + std::to_string(draw.mSlot) + " has no stock part";
+                    return {};
                 }
-                Pipeline::Options options = lookIt->second.mOptions;
+                std::optional<Look> look = findLook(draw.mSlot, *parts[static_cast<std::size_t>(draw.mSlot)],
+                    body.mMaterials[draw.mMaterial], context, *resources, error);
+                if (!look)
+                    return {};
+                Pipeline::Options options = look->mOptions;
+                // A blended look needs depth sorting (nif.cpp wraps such geometry in vsg::DepthSorted); no stock
+                // body part is blended, so the merged body refuses one instead (review finding 10).
+                if (options.blend)
+                {
+                    error = "the look of slot " + std::to_string(draw.mSlot) + " is alpha blended";
+                    return {};
+                }
                 if (!adaptOptions(options, normals, uvs))
                 {
                     error = "the look of slot " + std::to_string(draw.mSlot) + " is not a plain mesh";
@@ -431,11 +570,19 @@ namespace MWRender::MergedBodies
                 auto boneMatrices = vsg::mat4Array::create(
                     static_cast<std::uint32_t>(drawBones.size() * (Anim::Skin::keepPreviousMatrices ? 2 : 1)));
                 skin->attachTo(*boneMatrices);
-                vsg::Descriptors descriptors = lookIt->second.mDescriptors;
+                vsg::Descriptors descriptors = look->mDescriptors;
                 descriptors.push_back(vsg::DescriptorBuffer::create(
                     boneMatrices, Pipeline::Descriptors::BONE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
 
                 auto bindPipeline = resources->builder->graphics->getOrCreate(options);
+                // The merged draw must compile with the stock part's defines but for the ones it changes on purpose.
+                if (const std::string mismatch
+                    = compareDefines(look->mStockDefines, definesOf(*bindPipeline->pipeline));
+                    !mismatch.empty())
+                {
+                    error = "slot " + std::to_string(draw.mSlot) + ": " + mismatch;
+                    return {};
+                }
                 vsg::ref_ptr<vsg::PipelineLayout> layout = bindPipeline->pipeline->layout;
                 auto descriptorSet = vsg::DescriptorSet::create(layout->setLayouts[Pipeline::TEXTURE_SET], descriptors);
                 auto bindDescriptors = vsg::BindDescriptorSet::create(
@@ -481,8 +628,16 @@ namespace MWRender::MergedBodies
             return root;
         }
 
-        TemplateResult buildTemplate(const ESM::Race& race, bool female, const MWAnim::Context& context)
+        double millisecondsSince(std::chrono::steady_clock::time_point start)
         {
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        }
+
+        TemplateResult buildTemplate(State& state, const ESM::Race& race, bool female, const MWAnim::Context& context)
+        {
+            Misc::LoadTrace::Scope trace("mergedbody.template");
+            const auto start = std::chrono::steady_clock::now();
+            double checkMs = 0;
             TemplateResult result;
             Body::MergedBodyFacts facts;
             facts.mSettingOn = true;
@@ -492,25 +647,34 @@ namespace MWRender::MergedBodies
             facts.mSlotsCovered = false; // decided per actor
             std::string detail;
             std::optional<Body::MergedBody> body;
-            loadCache();
-            facts.mCacheLoaded = sCache.mFiles.has_value() && sCache.mManifest.has_value();
+            loadCache(state);
+            const CacheState& cache = state.mCache;
+            facts.mCacheLoaded = cache.mFiles.has_value() && cache.mManifest.has_value();
             if (!facts.mCacheLoaded)
-                detail = sCache.mError;
+                detail = cache.mError;
             MWBase::World* world = MWBase::Environment::get().getWorld();
             Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
             if (facts.mCacheLoaded && world != nullptr && resources != nullptr && resources->getVFS() != nullptr)
             {
-                const OMW::StockBodyFacts stock
-                    = OMW::computeStockBodyFacts(race, female, world->getStore(), *resources->getVFS());
-                const auto file = sCache.mFiles->mFiles.find(stock.mEntryName);
-                const bool listed = std::any_of(sCache.mManifest->mEntries.begin(), sCache.mManifest->mEntries.end(),
+                const auto checkStart = std::chrono::steady_clock::now();
+                Misc::LoadTrace::Scope traceCheck("mergedbody.check");
+                const OMW::StockBodyFacts stock = OMW::computeStockBodyQuickFacts(
+                    race, female, world->getStore(), *resources->getVFS(), state.mRestPoses);
+                traceCheck.end();
+                checkMs = millisecondsSince(checkStart);
+                const auto file = cache.mFiles->mFiles.find(stock.mEntryName);
+                const bool listed = std::any_of(cache.mManifest->mEntries.begin(), cache.mManifest->mEntries.end(),
                     [&](const Body::CacheEntry& entry) { return entry.mName == stock.mEntryName; });
-                facts.mEntryPresent = listed && file != sCache.mFiles->mFiles.end();
+                facts.mEntryPresent = listed && file != cache.mFiles->mFiles.end();
                 facts.mKeyComputed = stock.mError.empty();
                 if (!facts.mKeyComputed)
                     detail = stock.mError;
-                facts.mKeyCurrent
-                    = facts.mKeyComputed && Body::isEntryCurrent(*sCache.mManifest, stock.mEntryName, stock.mKey);
+                if (facts.mKeyComputed && !cache.mQuickKeys)
+                    detail = "the cache has no quick keys (baked before they existed)";
+                const auto quick = cache.mQuickKeys ? cache.mQuickKeys->find(stock.mEntryName)
+                                                    : std::map<std::string, std::string>::const_iterator{};
+                facts.mKeyCurrent = facts.mKeyComputed && cache.mQuickKeys && quick != cache.mQuickKeys->end()
+                    && quick->second == stock.mKey;
                 if (facts.mEntryPresent && facts.mKeyCurrent)
                 {
                     Body::BodyMeshReadResult read = Body::readBodyMesh(file->second.data(), file->second.size());
@@ -539,6 +703,9 @@ namespace MWRender::MergedBodies
                 result.mSlots = Body::mergedSlotsOf(*body);
             else
                 result.mNode = {};
+            Log(Debug::Info) << "Merged bodies: " << race.mId.getRefIdString() << " " << sexName(female) << ": "
+                             << Body::describe(result.mReason) << " (template " << millisecondsSince(start)
+                             << " ms, key check " << checkMs << " ms)";
             if (!detail.empty())
             {
                 Log(Debug::Verbose) << "Merged bodies: " << race.mId.getRefIdString() << " " << sexName(female) << ": "
@@ -548,20 +715,49 @@ namespace MWRender::MergedBodies
         }
     }
 
-    void setUserDataFolder(const std::filesystem::path& folder)
+    Session::Session(const std::filesystem::path& userDataFolder)
+        : mState(std::make_unique<State>())
     {
+        mState->mUserDataFolder = userDataFolder;
         std::lock_guard lock(sMutex);
-        sUserDataFolder = folder;
+        sActive = mState.get();
+    }
+
+    Session::~Session()
+    {
+        // The templates (pipelines, descriptor sets, images) go here, while the device still exists.
+        std::lock_guard lock(sMutex);
+        if (sActive == mState.get())
+            sActive = nullptr;
+        mState->mTemplates.clear();
+    }
+
+    void disableForThisRun()
+    {
+        sDisabledForRun = true;
+    }
+
+    bool enabled()
+    {
+        if (sDisabledForRun || !Settings::bodies().mMergedBody)
+            return false;
+        std::lock_guard lock(sMutex);
+        return sActive != nullptr;
     }
 
     TemplateResult getTemplate(const ESM::Race& race, bool female, const MWAnim::Context& context)
     {
         std::lock_guard lock(sMutex);
-        const std::string key = templateKey(race, female);
-        auto found = sTemplates.find(key);
-        if (found == sTemplates.end())
-            found = sTemplates.emplace(key, buildTemplate(race, female, context)).first;
-        return found->second;
+        if (sActive == nullptr)
+            return {};
+        const std::string key = templateKey(race, female, context.nodeOptions.get());
+        auto found = sActive->mTemplates.find(key);
+        if (found == sActive->mTemplates.end())
+        {
+            TemplateEntry entry{ buildTemplate(*sActive, race, female, context), context.nodeOptions };
+            found = sActive->mTemplates.emplace(key, std::move(entry)).first;
+        }
+        return found->second.mResult;
     }
 
     void report(const ESM::Race& race, bool female, Body::MergedBodyReason reason)
@@ -570,20 +766,33 @@ namespace MWRender::MergedBodies
             || reason == Body::MergedBodyReason::EquipmentCovers)
             return;
         std::lock_guard lock(sMutex);
-        const std::string key = templateKey(race, female) + "|" + std::string(Body::describe(reason));
-        if (!sReported.insert(key).second)
+        if (sActive == nullptr)
+            return;
+        const std::string key = raceSexKey(race, female) + "|" + std::string(Body::describe(reason));
+        if (!sActive->mReported.insert(key).second)
             return;
         Log(Debug::Warning) << "Merged bodies: " << race.mId.getRefIdString() << " " << sexName(female)
                             << " draws the stock parts: " << Body::describe(reason);
-        const bool cacheProblem = reason == Body::MergedBodyReason::NoCache
-            || reason == Body::MergedBodyReason::StaleKey || reason == Body::MergedBodyReason::PayloadRefused;
-        if (cacheProblem && !sMessageShown)
+        // Answer 9: whatever made the cache unusable for this data, say to bake again.
+        const bool cacheProblem = reason == Body::MergedBodyReason::NoCache || reason == Body::MergedBodyReason::NoEntry
+            || reason == Body::MergedBodyReason::KeyNotComputed || reason == Body::MergedBodyReason::StaleKey
+            || reason == Body::MergedBodyReason::PayloadRefused;
+        if (cacheProblem && !sActive->mMessageShown)
         {
             if (MWBase::WindowManager* windows = MWBase::Environment::get().getWindowManager())
             {
-                sMessageShown = true;
-                windows->messageBox("Merged bodies: " + std::string(Body::describe(reason)));
+                sActive->mMessageShown = true;
+                windows->messageBox("#{OMWEngine:MergedBodiesRebake}");
             }
         }
+    }
+
+    void reportMissingRace(const std::string& raceId)
+    {
+        std::lock_guard lock(sMutex);
+        if (sActive == nullptr || !sActive->mReported.insert("race|" + raceId).second)
+            return;
+        Log(Debug::Warning) << "Merged bodies: the race '" << raceId
+                            << "' is not in the data; the stock parts are drawn";
     }
 }

@@ -5,27 +5,35 @@
 //
 // The cache is the one `openmw --bake-bodies` publishes in <user data>/openeden/bodies/
 // (components/body/bodycache.hpp). It is read once per session, on the first actor that asks. A race and sex is checked
-// once, when the first actor of it is built: its key is computed again from the data now, exactly as the bake computes
-// it (OMW::computeStockBodyFacts: the part files and the skeleton are read and hashed, a few milliseconds), and must
-// equal the manifest's; the payload must read; and the nodes must build. Any failure keeps the stock parts for that
+// once, when the first actor of it is built: its quick key (OMW::computeStockBodyQuickFacts: the part records, the
+// part files' sizes and the skeleton file's size; no part file is read or hashed, answer 8) must equal the one the
+// bake wrote to quick.txt; the payload must read; and the nodes must build. Any failure keeps the stock parts for that
 // race and sex for the whole session (decision H15: no live swap; a load-order change makes the key stale and the
 // message says to re-run the bake).
 //
-// The look of each submesh is the stock part's own: the part of the submesh's slot is read through the engine's reader
-// with the same options the stock part gets, while a pipeline override records the pipeline options of every state
-// group it creates; the state group whose material key (base texture and alpha mode, OMW::BodyCommon::materialKey)
-// matches the submesh's gives the pipeline options and the descriptors (material, textures, PBR values, skin mark). To
-// those the merged body adds skinning: the SKIN mode, its bone matrices and an Anim::Skin per draw, bound to the
-// actor's bones by name (the engine's case-insensitive lookup) with the inverse of each bone's rest matrix, the same
-// rest pose the bake placed the parts with. Vertex colours, morphs and normal maps (which need tangents) are not
-// carried: Morrowind's stock body parts have none of them (replacer textures with normal maps: verify, stage e).
+// The look of each draw is the stock part's own: the part of the draw's first slot is read through the engine's
+// reader with the same options the stock part gets, while a pipeline override records the pipeline options of every
+// state group it creates; the state group whose material key (base texture and alpha mode, OMW::BodyCommon::
+// materialKey) matches gives the pipeline options and the descriptors (material, textures, PBR values, skin mark).
+// The reader adds the MATERIAL mode after the override runs (nif.cpp createStateGroup), so the look adds it when the
+// group has a material descriptor; the merged pipeline's defines are then compared with the stock pipeline's and a
+// mismatch keeps the stock parts. The textures are shared with the stock parts' (the stock options' SharedObjects).
+// To those the merged body adds skinning: the SKIN mode, its bone matrices and an Anim::Skin per draw (one draw per
+// material key, decision H19), bound to the actor's bones by name (the engine's case-insensitive lookup) with the
+// inverse of each bone's rest matrix, the same rest pose the bake placed the parts with. Vertex colours, morphs and
+// normal maps (which need tangents) are not carried: Morrowind's stock body parts have none of them. An alpha-blended
+// look is refused (it would need depth sorting; none of the stock parts is blended).
 //
-// The template node is built once per race and sex and shared; each actor takes its own copy of the controllers and
-// bone matrices through MWAnim::decorate, as a stock part's node is.
+// The template node is built once per (race, sex, read options) and shared; each actor takes its own copy of the
+// controllers and bone matrices through MWAnim::decorate, as a stock part's node is.
 //
-// Threads: main thread only (the reader, the pipeline cache and the template map); a mutex guards the map anyway.
+// Lifetime: everything lives in a Session the Engine owns (vsgengine.hpp), destroyed before the render engine and its
+// device (review finding 3: no Vulkan objects in namespace-scope statics). Without a session nothing is built.
+//
+// Threads: main thread only (the reader, the pipeline cache and the template map); a mutex guards the state anyway.
 
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -48,8 +56,27 @@ namespace MWAnim
 
 namespace MWRender::MergedBodies
 {
-    /// The user data folder the cache lives under (<folder>/openeden/bodies). Set once by the engine at start.
-    void setUserDataFolder(const std::filesystem::path& folder);
+    struct State;
+
+    /// All the merged bodies keep for a session: the cache, the templates (GPU objects) and what was reported. One at a
+    /// time; the Engine owns it from start until before the render engine goes.
+    class Session
+    {
+    public:
+        explicit Session(const std::filesystem::path& userDataFolder);
+        ~Session();
+        Session(const Session&) = delete;
+        Session& operator=(const Session&) = delete;
+
+    private:
+        std::unique_ptr<State> mState;
+    };
+
+    /// The bake, check and analysis runs draw stock bodies whatever the user's setting says (review finding 13).
+    void disableForThisRun();
+
+    /// The setting is on, a session exists and the run is not a bake, check or analysis.
+    bool enabled();
 
     struct TemplateResult
     {
@@ -58,11 +85,15 @@ namespace MWRender::MergedBodies
         Body::MergedBodyReason mReason = Body::MergedBodyReason::BuildFailed;
     };
 
-    /// The shared template of the merged body of (race, sex), built on first use. Main thread.
+    /// The shared template of the merged body of (race, sex) read with `context`'s options, built on first use. Main
+    /// thread.
     TemplateResult getTemplate(const ESM::Race& race, bool female, const MWAnim::Context& context);
 
     /// One log line per (race, sex, reason) and, for a cache problem, one message box per session.
     void report(const ESM::Race& race, bool female, Body::MergedBodyReason reason);
+
+    /// One log line per race id the store does not know.
+    void reportMissingRace(const std::string& raceId);
 }
 
 #endif

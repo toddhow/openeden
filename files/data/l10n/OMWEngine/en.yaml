@@ -2,6 +2,10 @@
 
 ExtensionsFailed: "These extensions could not run and were turned off:"
 
+# Merged bodies (task 0069)
+
+MergedBodiesRebake: "The merged body cache does not match the game data: the stock body parts are drawn. Run openmw --bake-bodies again."
+
 # Console
 
 ConsoleWindow: "Console"

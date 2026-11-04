@@ -487,7 +487,7 @@ namespace OMW
         mRenderManager->setLodTerrainPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "terrain.edenpak");
         mRenderManager->setLodClusterPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "objects.edenpak");
         // Task 0069 stage d: the merged body cache ([Bodies] merged body) lives under <user data>/openeden/bodies.
-        MWRender::MergedBodies::setUserDataFolder(mCfgMgr.getUserDataPath());
+        mMergedBodies = std::make_unique<MWRender::MergedBodies::Session>(mCfgMgr.getUserDataPath());
 
         mSoundManager = std::make_unique<MWSound::SoundManager>(mVFS.get(), args.useSound);
         mEnvironment.setSoundManager(*mSoundManager);
@@ -551,6 +551,9 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             lodObjectBaker = std::make_unique<LodObjectBaker>(out, *mResourceSystem);
         }
+        // The body tools' runs draw stock bodies whatever the user's [Bodies] merged body says (task 0069 review).
+        if (args.analyseBodies || args.bakeBodies || args.checkBodies)
+            MWRender::MergedBodies::disableForThisRun();
         // Task 0069: the stock body analysis (--analyse-bodies), only when asked for.
         std::unique_ptr<BodyAnalyser> bodyAnalyser;
         if (args.analyseBodies)

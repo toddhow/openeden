@@ -26,6 +26,7 @@
 // records and models of the user's own game files: never commit them.
 
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -63,6 +64,13 @@ namespace OMW
 
     StockBodyFacts computeStockBodyFacts(
         const ESM::Race& race, bool female, const MWWorld::ESMStore& store, const VFS::Manager& vfs);
+
+    /// The game's check of a cached body (review finding 6, answer 8): the same entry name, and a quick key over the
+    /// part records, the part files' sizes and the skeleton file's size, to compare with the bake's quick.txt. No part
+    /// file is read or hashed; the skeleton is read for its rest pose once per path (`restPoses`, kept by the caller
+    /// for the session). Main thread.
+    StockBodyFacts computeStockBodyQuickFacts(const ESM::Race& race, bool female, const MWWorld::ESMStore& store,
+        const VFS::Manager& vfs, std::map<std::string, BodyNif::RestPose>& restPoses);
 
     class BodyBaker
     {

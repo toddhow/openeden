@@ -104,7 +104,21 @@ namespace OMW
             Body::MergeLimits mLimits;
             BodyNif::RestPose mRest; // the skeleton at rest, as the parts were placed (stage d: the inverse binds)
             std::string mError; // non-empty: the body cannot be merged, one line
+            /// The same key with every file digest replaced by the file's size (review finding 6, answer 8): what the
+            /// game checks a cached body by, without hashing the part files. Empty when mError is set.
+            std::string mQuickKey;
         };
+
+        // The key input with each digest replaced by "bytes:<size>": the quick key's input. `partBytes` follows
+        // key.mParts.
+        std::string quickKeyOf(
+            Body::BodyKeyInput key, const std::vector<std::uint64_t>& partBytes, std::uint64_t skeletonBytes)
+        {
+            for (std::size_t i = 0; i < key.mParts.size() && i < partBytes.size(); ++i)
+                key.mParts[i].mModelDigest = "bytes:" + std::to_string(partBytes[i]);
+            key.mSkeletonDigest = "bytes:" + std::to_string(skeletonBytes);
+            return Body::computeBodyKey(key);
+        }
 
         Body::PartMesh toPartMesh(const BodyNif::Shape& shape, const SlotDef& slot, const std::string& rigidBone)
         {
@@ -143,10 +157,9 @@ namespace OMW
             return part;
         }
 
-        StockBody buildStockBody(
-            const Unit& unit, const MWWorld::ESMStore& store, const VFS::Manager& vfs, FileCache& files)
+        // What every body's key holds before its files: names, versions, and exactly what the merger is given.
+        void fillBaseKey(StockBody& body, const Unit& unit)
         {
-            StockBody body;
             body.mKey.mRace = unit.mRace->mId.getRefIdString();
             body.mKey.mSex = sexName(unit.mFemale);
             body.mKey.mView = viewName;
@@ -158,24 +171,16 @@ namespace OMW
             body.mKey.mSeams = body.mSeams;
             body.mKey.mMerge = body.mOptions;
             body.mKey.mLimits = body.mLimits;
-
-            const bool beast = (unit.mRace->mData.mFlags & ESM::Race::Beast) != 0;
-            const auto& bodyParts = store.get<ESM::BodyPart>();
-            const std::vector<const ESM::BodyPart*>& chosen
-                = MWRender::getBodyParts(unit.mRace->mId, unit.mFemale, false, false, bodyParts);
-
             // The skeleton whose bones the rigid parts hang on (Context::pickSkeleton: beast, female, else the base
             // one).
+            const bool beast = (unit.mRace->mData.mFlags & ESM::Race::Beast) != 0;
             const char* skeletonSetting = beast ? "baseanimkna" : unit.mFemale ? "baseanimfemale" : "baseanim";
             body.mKey.mSkeletonPath
                 = VFS::Path::Normalized(Settings::Manager::getString(skeletonSetting, "Models")).value();
-            const ParsedFile& skeleton = files.get(body.mKey.mSkeletonPath);
-            if (!skeleton.mError.empty() || skeleton.mFile == nullptr)
-            {
-                body.mError = "the skeleton '" + body.mKey.mSkeletonPath + "' cannot be read: " + skeleton.mError;
-                return body;
-            }
-            body.mKey.mSkeletonDigest = skeleton.mDigest;
+        }
+
+        BodyNif::RestPose restPoseOf(const ParsedFile& skeleton)
+        {
             BodyNif::RestPose rest;
             for (const Nif::Record* root : skeleton.mFile->mRoots)
             {
@@ -183,16 +188,53 @@ namespace OMW
                 if (node != nullptr)
                     rest.merge(BodyNif::readRestPose(*node));
             }
+            return rest;
+        }
+
+        // The part model of a record as the bake and the game name it.
+        std::string partModelPath(const ESM::BodyPart& record)
+        {
+            return Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(record.mModel)).value();
+        }
+
+        Body::BodyPartKey partKeyOf(const SlotDef& def, const ESM::BodyPart& record, const std::string& model)
+        {
+            Body::BodyPartKey key;
+            key.mSlot = static_cast<int>(def.mType);
+            key.mRecordId = record.mId.getRefIdString();
+            key.mPartType = static_cast<int>(record.mData.mPart);
+            key.mFlags = static_cast<int>(record.mData.mFlags);
+            key.mRace = record.mRace.getRefIdString();
+            key.mModelPath = model;
+            return key;
+        }
+
+        StockBody buildStockBody(
+            const Unit& unit, const MWWorld::ESMStore& store, const VFS::Manager& vfs, FileCache& files)
+        {
+            StockBody body;
+            fillBaseKey(body, unit);
+            const auto& bodyParts = store.get<ESM::BodyPart>();
+            const std::vector<const ESM::BodyPart*>& chosen
+                = MWRender::getBodyParts(unit.mRace->mId, unit.mFemale, false, false, bodyParts);
+            const ParsedFile& skeleton = files.get(body.mKey.mSkeletonPath);
+            if (!skeleton.mError.empty() || skeleton.mFile == nullptr)
+            {
+                body.mError = "the skeleton '" + body.mKey.mSkeletonPath + "' cannot be read: " + skeleton.mError;
+                return body;
+            }
+            body.mKey.mSkeletonDigest = skeleton.mDigest;
+            const BodyNif::RestPose rest = restPoseOf(skeleton);
             body.mRest = rest;
 
             std::vector<std::string> errors;
+            std::vector<std::uint64_t> partBytes;
             for (const SlotDef& def : slotDefs)
             {
                 const ESM::BodyPart* record = def.mType < chosen.size() ? chosen[def.mType] : nullptr;
                 if (record == nullptr)
                     continue;
-                const std::string model
-                    = Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(record->mModel)).value();
+                const std::string model = partModelPath(*record);
                 const ParsedFile& parsed = files.get(model);
                 if (!parsed.mError.empty() || parsed.mFile == nullptr)
                 {
@@ -216,22 +258,28 @@ namespace OMW
                             std::string(def.mName) + ": the attach bone '" + attachBone + "' is not in the skeleton");
                         continue;
                     }
+                    // Stage b's limit (review finding 5): the engine applies a skinned shape's own skin transform
+                    // (Anim::Skin, skin.cpp: transform * skin matrix); the placement here assumes it is the identity,
+                    // which holds for every stock part. A part where it does not would be drawn moved: refuse it.
+                    if (shape.mSkinned && !shape.mIdentityTransform)
+                    {
+                        errors.push_back(std::string(def.mName) + ": the skinned shape '" + shape.mName
+                            + "' has a transform that is not the identity, which the merged body does not carry");
+                        continue;
+                    }
                     body.mParts.push_back(toPartMesh(shape, def, Misc::StringUtils::lowerCase(attachBone)));
                 }
-                Body::BodyPartKey key;
-                key.mSlot = static_cast<int>(def.mType);
-                key.mRecordId = record->mId.getRefIdString();
-                key.mPartType = static_cast<int>(record->mData.mPart);
-                key.mFlags = static_cast<int>(record->mData.mFlags);
-                key.mRace = record->mRace.getRefIdString();
-                key.mModelPath = model;
+                Body::BodyPartKey key = partKeyOf(def, *record, model);
                 key.mModelDigest = parsed.mDigest;
                 body.mKey.mParts.push_back(std::move(key));
+                partBytes.push_back(parsed.mBytes);
             }
             if (body.mParts.empty())
                 body.mError = errors.empty() ? std::string("the race has no body parts") : errors.front();
             else if (!errors.empty())
                 body.mError = errors.front();
+            else
+                body.mQuickKey = quickKeyOf(body.mKey, partBytes, skeleton.mBytes);
             return body;
         }
 
@@ -387,6 +435,7 @@ namespace OMW
         std::optional<Body::PackageFiles> mOld; // the published cache, if any
         std::optional<Body::CacheManifest> mOldManifest;
         Body::PackageFiles mNewFiles;
+        std::map<std::string, std::string> mQuickKeys; // entry name -> quick key, the game's check (quick.txt)
         Body::CacheManifest mNewManifest;
         std::size_t mMerged = 0;
         std::size_t mReused = 0;
@@ -416,6 +465,60 @@ namespace OMW
             return facts;
         }
         facts.mKey = Body::computeBodyKey(stock.mKey);
+        return facts;
+    }
+
+    StockBodyFacts computeStockBodyQuickFacts(const ESM::Race& race, bool female, const MWWorld::ESMStore& store,
+        const VFS::Manager& vfs, std::map<std::string, BodyNif::RestPose>& restPoses)
+    {
+        StockBodyFacts facts;
+        StockBody body;
+        const Unit unit{ &race, female };
+        fillBaseKey(body, unit);
+        facts.mEntryName = packEntryNameOf(body);
+        const VFS::Path::Normalized skeletonPath(body.mKey.mSkeletonPath);
+        if (!vfs.exists(skeletonPath))
+        {
+            facts.mError = "the skeleton '" + body.mKey.mSkeletonPath + "' is not in the data";
+            return facts;
+        }
+        const std::uint64_t skeletonBytes = vfs.getSize(skeletonPath);
+        auto rest = restPoses.find(body.mKey.mSkeletonPath);
+        if (rest == restPoses.end())
+        {
+            const ParsedFile skeleton = parseFile(vfs, body.mKey.mSkeletonPath);
+            if (!skeleton.mError.empty() || skeleton.mFile == nullptr)
+            {
+                facts.mError = "the skeleton '" + body.mKey.mSkeletonPath + "' cannot be read: " + skeleton.mError;
+                return facts;
+            }
+            rest = restPoses.emplace(body.mKey.mSkeletonPath, restPoseOf(skeleton)).first;
+        }
+        facts.mRest = rest->second;
+        const std::vector<const ESM::BodyPart*>& chosen
+            = MWRender::getBodyParts(race.mId, female, false, false, store.get<ESM::BodyPart>());
+        std::vector<std::uint64_t> partBytes;
+        for (const SlotDef& def : slotDefs)
+        {
+            const ESM::BodyPart* record = def.mType < chosen.size() ? chosen[def.mType] : nullptr;
+            if (record == nullptr)
+                continue;
+            const std::string model = partModelPath(*record);
+            const VFS::Path::Normalized normalized(model);
+            if (!vfs.exists(normalized))
+            {
+                facts.mError = std::string(def.mName) + ": the part '" + model + "' is not in the data";
+                return facts;
+            }
+            body.mKey.mParts.push_back(partKeyOf(def, *record, model));
+            partBytes.push_back(vfs.getSize(normalized));
+        }
+        if (body.mKey.mParts.empty())
+        {
+            facts.mError = "the race has no body parts";
+            return facts;
+        }
+        facts.mKey = quickKeyOf(body.mKey, partBytes, skeletonBytes);
         return facts;
     }
 
@@ -451,8 +554,8 @@ namespace OMW
         // Bake one unit. Returns true when the unit produced an entry.
         void bakeUnit(BodyBaker::Mode, const Unit& unit, const MWWorld::ESMStore& store, const VFS::Manager& vfs,
             FileCache& files, std::optional<Body::PackageFiles>& old, std::optional<Body::CacheManifest>& oldManifest,
-            Body::PackageFiles& newFiles, Body::CacheManifest& manifest, std::size_t& merged, std::size_t& reused,
-            std::uint64_t& payloadBytes)
+            Body::PackageFiles& newFiles, Body::CacheManifest& manifest, std::map<std::string, std::string>& quickKeys,
+            std::size_t& merged, std::size_t& reused, std::uint64_t& payloadBytes)
         {
             StockBody stock = buildStockBody(unit, store, vfs, files);
             files.trim();
@@ -504,6 +607,7 @@ namespace OMW
             payloadBytes += payload.size();
             newFiles.mFiles[name] = std::move(payload);
             manifest.mEntries.push_back({ name, stock.mKey.mRace, stock.mKey.mSex, stock.mKey.mView, key });
+            quickKeys[name] = stock.mQuickKey;
         }
 
         // Check one unit; appends a line to the report and returns the number of problems found.
@@ -923,7 +1027,8 @@ namespace OMW
             if (state.mMode == Mode::Bake)
             {
                 bakeUnit(state.mMode, unit, *store, *vfs, *state.mFiles, state.mOld, state.mOldManifest,
-                    state.mNewFiles, state.mNewManifest, state.mMerged, state.mReused, state.mPayloadBytes);
+                    state.mNewFiles, state.mNewManifest, state.mQuickKeys, state.mMerged, state.mReused,
+                    state.mPayloadBytes);
             }
             else
             {
@@ -956,6 +1061,7 @@ namespace OMW
             else
             {
                 state.mNewFiles.mFiles["manifest.txt"] = bytesOf(Body::writeManifest(manifest));
+                state.mNewFiles.mFiles["quick.txt"] = bytesOf(Body::writeQuickKeys(state.mQuickKeys));
                 std::string packName;
                 std::string error;
                 std::string previous = readFile(state.mFolder / "current");

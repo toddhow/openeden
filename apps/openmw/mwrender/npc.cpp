@@ -4,6 +4,7 @@
 
 #include <components/animation/context.hpp>
 #include <components/animation/controllermap.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/misc/loadtrace.hpp>
@@ -114,6 +115,9 @@ namespace MWRender
                 removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
             removePath(mScabbard);
             removePath(mHolsteredShield);
+            // The merged body goes with the stock parts (review finding 2): an uncompiled clone must not be drawn.
+            removePath(mMergedBody);
+            mMergedSlots.clear();
             for (auto& path : mQuiver)
                 removePath(path);
             mQuiver.clear();
@@ -251,7 +255,17 @@ namespace MWRender
             = animationSources(mContext, is1stPerson, isFemale, isBeast, isWerewolf, mNpc->mModel, mNpc->mRace);
         const std::string& defaultSkeleton = animSources.defaultSkeleton;
         const std::string& smodel = animSources.skeleton;
-        mDefaultSkeleton = smodel == defaultSkeleton;
+        // Compared as normalised mesh paths: a record names the default skeleton as "base_animKnA.nif" while the
+        // settings say "meshes/base_animkna.nif" (review finding 11; correctMeshPath always adds the prefix).
+        const auto meshPath = [](const std::string& model) {
+            const VFS::Path::Normalized path(model);
+            return path.value().starts_with("meshes/") ? path : Misc::ResourceHelpers::correctMeshPath(path);
+        };
+        mDefaultSkeleton = meshPath(smodel) == meshPath(defaultSkeleton);
+        if (!mDefaultSkeleton && MergedBodies::enabled())
+            Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
+                             << " uses the skeleton '" << smodel << "', not its race's default '" << defaultSkeleton
+                             << "'";
         const std::vector<std::string>& sources = animSources.sources;
 
         Misc::LoadTrace::Scope traceSkel("npc.readactor");
@@ -457,11 +471,16 @@ namespace MWRender
         // Re-attached on every call: updateParts' clearControllers dropped the controllers linked last time.
         removePath(mMergedBody);
         mMergedSlots.clear();
-        if (!Settings::bodies().mMergedBody)
+        if (!MergedBodies::enabled() || mMergedRetired)
             return false;
 
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         const ESM::Race* race = store.get<ESM::Race>().search(mNpc->mRace);
+        if (race == nullptr)
+        {
+            MergedBodies::reportMissingRace(mNpc->mRace.getRefIdString());
+            return false;
+        }
         const bool female = !mNpc->isMale();
         Body::MergedBodyFacts actor;
         actor.mSettingOn = true;
@@ -473,8 +492,12 @@ namespace MWRender
             = actor.mBuilt = true;
         actor.mSlotsCovered = false;
         Body::MergedBodyReason reason = Body::decideMergedBody(actor);
-        if (reason != Body::MergedBodyReason::Merged || race == nullptr)
+        if (reason != Body::MergedBodyReason::Merged)
+        {
+            // Logged once per race, sex and reason (review finding 11).
+            MergedBodies::report(*race, female, reason);
             return false;
+        }
 
         MergedBodies::TemplateResult result = MergedBodies::getTemplate(*race, female, *mPartContext);
         if (!result.mNode)
@@ -488,7 +511,10 @@ namespace MWRender
         for (int i = 0; i < ESM::PRT_Count; ++i)
             owned[i] = mPartslots[i] >= 0 ? std::max(1, mPartPriorities[i]) : 0;
         if (Body::mergedSlotsCovered(result.mSlots, owned))
+        {
+            mMergedRetired = true;
             return false;
+        }
 
         // The stock parts of the merged slots go (body parts are added with group -1 and priority 1).
         for (const int slot : result.mSlots)
@@ -513,6 +539,12 @@ namespace MWRender
         decorated.link(ctx, [this](const Anim::Controller* ctrl, vsg::Object* o) { mStaticControllers.add(ctrl, o); });
         mMergedBody = path;
         mMergedSlots = result.mSlots;
+        if (!mMergedLogged)
+        {
+            mMergedLogged = true;
+            Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
+                             << " draws the merged body";
+        }
         return true;
     }
 
