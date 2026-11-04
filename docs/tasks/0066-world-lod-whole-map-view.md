@@ -112,6 +112,8 @@ $env:OPENEDEN_QUIET_WINDOW = "1"
 & "I:\Projects\OpenEden\build-jolt\openmw.exe" --replace=config --config "I:\Projects\OpenEden-work\flight\config" --user-data "I:\Projects\OpenEden-work\flight\user" --bake-lod-objects
 ```
 
+The variable stays set in that PowerShell window: start the game from a new window, or run `Remove-Item Env:OPENEDEN_QUIET_WINDOW` first, or its window opens off screen.
+
 **2. Start the game.** Use the printed command and add `--skip-menu --start Balmora` (a new game in Balmora; if a character window waits, accept it). For about a second after the first cell loads the far land may be missing: the pack is checked on a worker (log `World LOD terrain: the check read the land for levels up to 2`). Judge from then on. Open the console and type `tgm` (god mode) and `tcl` (no collision: you fly where you look, and you do not fall from a height).
 
 **3. On the ground in Balmora, clear noon.** `ChangeWeather "West Gash Region" 0`, `set gamehour to 12`. Expected: the far hills and the sea fade into the sky's colour; no line where the land stops; Balmora's houses and streets look as they do without `map view`.
