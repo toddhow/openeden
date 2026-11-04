@@ -29,14 +29,14 @@ toddhow asked on 2026-11-04 to start porting the shaders to Slang. Decision 0009
 | --- | --- |
 | Default settings (3 scenes) | 33 |
 | Every major `[Rendering]` feature on, shadows, 4× MSAA with alpha to coverage, distant terrain (4 scenes) | 39 |
-| Union | **55**: `default/main.frag` 18, `default/main.vert` 12, every other stage 1 or 2 |
+| Union | **55** requested pairs; **48 programs** once each set is the effective one (the names the stage imports, task 0072 stage b): `default/main.frag` 18, `default/main.vert` 12, terrain 2 + 2, water 1 + 1, each sky stage 1 |
 
 - **Theoretical count:** note 0005 found up to 801 vertex and 2,329 fragment variants for the object shader alone. The real set is small because vanilla content uses few Mode combinations, but mods add more (normal, specular and height maps, parallax), so a list recorded from runs is never complete for the object shader.
 - **Which defines come from where:** content decides `NORMAL`, `COLOR`, `TEXCOORD`, `SKIN`, `MORPH`, `PARTICLE`, the texture maps and `MATERIAL`; settings decide `GBUFFER*`, `PBR*`, `GI*`, `WETNESS*`, `COVER*`, `PARALLAX*`, `ALPHA_TO_COVERAGE`. The terrain's sets come from settings only, so they can be enumerated completely; the sky's, water's and GUI's are fixed or nearly so.
 
 ## 3. Compile cost
 
-- **glslang in the engine:** the first compile of each pair, timed by compiling a copy through `vsg::ShaderCompiler` (`OPENEDEN_SHADER_TRACE_TIMING=1`): about 57 ms for the small sky stages (most of it per-call setup, since an 8-line stage costs the same), 10 to 70 ms for the object shader, **1.85 s** in total over the 55 pairs. VSG has no SPIR-V cache, so this repeats every start.
+- **glslang in the engine:** the first compile of each pair, timed by compiling a copy through `vsg::ShaderCompiler` (`OPENEDEN_SHADER_TRACE_TIMING=1`): about 57 ms for the small sky stages (most of it per-call setup, since an 8-line stage costs the same), 10 to 70 ms for the object shader, **1.85 s** in total over the 55 pairs, an upper bound: each timed compile is a copy compiled beside the engine's own compile threads and includes per-call setup (stage b review). VSG has no SPIR-V cache, so the compiles repeat every start.
 - **slangc as a process:** 160 ms for the GUI fragment stage, 210 ms for the 619-line cloud march, per stage and define set; mostly start-up and loading Slang's core module. In-process compile time through the Slang API is **not measured**.
 
 ## 4. Architecture options
@@ -44,12 +44,12 @@ toddhow asked on 2026-11-04 to start porting the shaders to Slang. Decision 0009
 | Option | What it means | For | Against |
 | --- | --- | --- | --- |
 | A. Build-time permutations | `slangc` compiles each listed define set at build time; the game picks the file whose set matches exactly (built in stage a: `openeden_add_slang_permutations`, `vsgUtil::findSlangPermutation`) | No compiler in the game; errors fail the build; no start-up compile; same SPIR-V everywhere | Every set must be known at build time; the object shader's sets are open-ended (mods) |
-| B. Runtime Slang library | Link `slang.dll`/`libslang.so` and compile on demand with the same defines, with an on-disk SPIR-V cache keyed by source hash, define set, compiler version and flags | Keeps the open-ended define scheme; can retire glslang | Ships 26 MB (`slang-compiler.dll`) plus 0.16 MB (`slang.dll`), and possibly 6 MB (`slang-glslang.dll`; not yet known whether SPIR-V output needs it); in-process speed unmeasured; contradicts decision 0009's "the game never runs Slang" |
+| B. Runtime Slang library | Link `slang.dll`/`libslang.so` and compile on demand with the same defines, with an on-disk SPIR-V cache keyed by source hash, define set, compiler version and flags | Keeps the open-ended define scheme; can retire glslang | Ships 25.9 MB (`slang-compiler.dll`) plus 0.16 MB (`slang.dll`), probably 1.5 MB (`slang-glsl-module.dll`) and 32.2 MB (the `slang-standard-module-2026.19` folder), and possibly 6.2 MB (`slang-glslang.dll`); which of these SPIR-V output needs at run time is not tested; in-process speed unmeasured; contradicts decision 0009's "the game never runs Slang" |
 | C. Specialization constants | Turn defines into `[SpecializationConstant]` booleans | One module per stage | Only for defines that do not change the interface: `TEXCOORD`, `SKIN`, `GBUFFER*` add inputs, outputs and bindings, which must be static in SPIR-V |
 | D. Hybrid (recommended) | A for every family whose sets are finite (GUI, sky, compute, water, terrain: sets enumerated from the settings); for the object shader A with the recorded sets and the GLSL as the fallback while it exists; decide B (with a cache) before the object shader's GLSL can be deleted | Moves most of the code to Slang now without a runtime dependency; keeps every frame correct (an unlisted set draws with the GLSL) | Two compilers coexist until the decision on B |
 
-- **Licence (B and the existing build tool):** `Apache-2.0 WITH LLVM-exception`, read in the `LICENSE` file of the pinned release archive (`build-jolt/extern/fetched/slang/LICENSE`); Apache-2.0 code may be combined with GPL-3.0-or-later. Bundled notices: glslang, SPIRV-Tools, lz4, mimalloc, miniz, cmark, unordered_dense. `docs/dependencies.md` still lists Slang as "proposed, not adopted"; that section is out of date since task 0023 and should say "build tool, adopted".
-- **Sizes in the release:** `slang-compiler.dll` 25.9 MB, `slang-glslang.dll` 6.2 MB, `slang-llvm.dll` 84.4 MB (CPU targets; not needed for SPIR-V, unverified), `slang.dll` 0.16 MB.
+- **Licence (B and the existing build tool):** `Apache-2.0 WITH LLVM-exception`, read in the `LICENSE` file of the pinned release archive (`build-jolt/extern/fetched/slang/LICENSE`); Apache-2.0 code may be combined with GPL-3.0-or-later. Bundled notices: glslang, SPIRV-Tools, lz4, mimalloc, miniz, cmark, unordered_dense. `docs/dependencies.md` said "proposed, not adopted" until task 0072 stage b corrected it.
+- **Sizes in the release:** `slang-compiler.dll` 25.9 MB, `slang-glslang.dll` 6.2 MB, `slang-glsl-module.dll` 1.5 MB, the `slang-standard-module-2026.19` folder 32.2 MB, `slang-llvm.dll` 84.4 MB (CPU targets; not needed for SPIR-V, unverified), `slang.dll` 0.16 MB.
 
 ## 5. Verification method
 
