@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include <vsg/core/observer_ptr.h>
 #include <vsg/io/FileSystem.h>
 #include <vsg/io/Logger.h>
 #include <vsg/io/read.h>
@@ -19,6 +20,15 @@
 
 namespace vsgUtil
 {
+    // Task 0072 (review of stage f, finding 5): the specialization constant ids a twin module declares (by SpecId),
+    // kept on the module by the reader below. In a named namespace: a type in an anonymous one is a type of its own in
+    // each library (root CLAUDE.md, pitfalls).
+    class DeclaredSpecConstants : public vsg::Inherit<vsg::Object, DeclaredSpecConstants>
+    {
+    public:
+        std::set<uint32_t> ids;
+    };
+
     namespace
     {
         // Limits of a ".permutations" text: far above any family's real count, small enough that a damaged file
@@ -104,15 +114,27 @@ namespace vsgUtil
             }
         }
 
+        // Task 0072 (review of stage f, finding 10): what the cache knows of one (search paths, stage file, set). It
+        // holds no module: a module's compile gives it Vulkan objects that hold the device, and a namespace-scope
+        // static must not keep those past the engine's teardown (apps/openmw/mwrender/CLAUDE.md). The shader options'
+        // SharedObjects and the pipelines hold the modules; once none does, the module goes and is read again.
+        struct ModuleEntry
+        {
+            // A file is listed for the set and was read once; false: unlisted or unreadable, not tried again.
+            bool mListed = false;
+            std::string mFile;
+            vsg::observer_ptr<vsg::ShaderModule> mModule;
+        };
+
         struct ManifestCache
         {
             std::mutex mMutex;
             // (the options' search paths, path of the stage file) -> manifest, or nullopt when there is none or it
             // could not be read. Keyed by the paths and not by the options object, whose address can be reused.
             std::map<std::pair<std::string, std::string>, std::optional<PermutationManifest>> mManifests;
-            // (search paths, stage file, canonical define set) -> the module read for it, or null when the set is not
-            // listed or its file cannot be read: each is looked up, and logged, once.
-            std::map<std::tuple<std::string, std::string, std::string>, vsg::ref_ptr<vsg::ShaderModule>> mModules;
+            // (search paths, stage file, canonical define set) -> what was found for it: each is looked up, and
+            // logged, once.
+            std::map<std::tuple<std::string, std::string, std::string>, ModuleEntry> mModules;
         };
 
         std::string searchPathsKey(const vsg::Options* options)
@@ -128,6 +150,36 @@ namespace vsgUtil
         {
             static ManifestCache cache;
             return cache;
+        }
+
+        // Task 0072 (review of stage f, finding 5): the specialization constant ids a twin declares, read from its
+        // SPIR-V once when the twin is read and kept on the module, so that addSettingsConstants does not parse the
+        // whole module again for every stage of every pipeline.
+        constexpr const char* declaredSpecConstantsKey = "openeden.declaredSpecConstants";
+
+        // Reads a listed twin file; null when it cannot be read. Called with the cache's lock held.
+        vsg::ref_ptr<vsg::ShaderModule> readTwin(
+            const std::string& file, const vsg::ref_ptr<const vsg::Options>& options)
+        {
+            auto module = vsg::read_cast<vsg::ShaderModule>(file, options);
+            if (!module || module->code.empty())
+                return {};
+            // The options' SharedObjects may give a module read before, which has the ids already.
+            if (module->getObject<DeclaredSpecConstants>(declaredSpecConstantsKey) == nullptr)
+            {
+                try
+                {
+                    auto declared = DeclaredSpecConstants::create();
+                    for (const auto& [id, name] : readSpirvInterface(module->code).mSpecConstantNames)
+                        declared->ids.insert(id);
+                    module->setObject(declaredSpecConstantsKey, declared);
+                }
+                catch (const std::runtime_error&)
+                {
+                    // Left without: addSettingsConstants tries to read it and gives up, as for any unreadable module.
+                }
+            }
+            return module;
         }
 
         std::optional<PermutationManifest> loadManifest(
@@ -340,19 +392,28 @@ namespace vsgUtil
         if (settings == nullptr || settings->constants.empty())
             return;
         // Task 0072 (review of stages b and c): only the ids the module declares, so that a stage without them is
-        // left exactly as it was (with the switch off, a Slang-only shader gets nothing).
-        std::map<uint32_t, std::string> declared;
-        try
+        // left exactly as it was (with the switch off, a Slang-only shader gets nothing). Review of stage f: a twin
+        // read through findSlangPermutation carries its ids; any other module is read here.
+        std::set<uint32_t> parsed;
+        const std::set<uint32_t>* declared = nullptr;
+        if (const auto* known = stage.module->getObject<DeclaredSpecConstants>(declaredSpecConstantsKey))
+            declared = &known->ids;
+        else
         {
-            declared = readSpirvInterface(stage.module->code).mSpecConstantNames;
-        }
-        catch (const std::runtime_error&)
-        {
-            return;
+            try
+            {
+                for (const auto& [id, name] : readSpirvInterface(stage.module->code).mSpecConstantNames)
+                    parsed.insert(id);
+            }
+            catch (const std::runtime_error&)
+            {
+                return;
+            }
+            declared = &parsed;
         }
         for (const auto& [id, value] : settings->constants)
         {
-            if (declared.count(id) != 0)
+            if (declared->count(id) != 0)
                 stage.specializationConstants.emplace(id, value);
         }
     }
@@ -418,8 +479,24 @@ namespace vsgUtil
         std::lock_guard lock(cache.mMutex);
         const auto moduleKey = std::make_tuple(paths, path, key);
         if (const auto known = cache.mModules.find(moduleKey); known != cache.mModules.end())
-            return known->second;
-        vsg::ref_ptr<vsg::ShaderModule>& result = cache.mModules[moduleKey];
+        {
+            ModuleEntry& entry = known->second;
+            if (!entry.mListed)
+                return {};
+            if (auto module = entry.mModule.ref_ptr())
+                return module;
+            // Review of stage f, finding 10: nothing held it any more; read the file again.
+            auto module = readTwin(entry.mFile, options);
+            if (!module)
+            {
+                vsg::warn("Slang permutation \"", entry.mFile, "\" is listed but cannot be read; the GLSL is used");
+                entry.mListed = false;
+                return {};
+            }
+            entry.mModule = module;
+            return module;
+        }
+        ModuleEntry& entry = cache.mModules[moduleKey];
         auto it = cache.mManifests.find({ paths, path });
         if (it == cache.mManifests.end())
             it = cache.mManifests.emplace(std::make_pair(paths, path), loadManifest(path, options)).first;
@@ -434,13 +511,15 @@ namespace vsgUtil
         }
         const std::size_t slash = path.rfind('/');
         const std::string dir = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
-        auto module = vsg::read_cast<vsg::ShaderModule>(dir + *file, options);
-        if (!module || module->code.empty())
+        auto module = readTwin(dir + *file, options);
+        if (!module)
         {
             vsg::warn("Slang permutation \"", dir, *file, "\" is listed but cannot be read; the GLSL is used");
             return {};
         }
-        result = module;
+        entry.mListed = true;
+        entry.mFile = dir + *file;
+        entry.mModule = module;
         return module;
     }
 
@@ -512,6 +591,76 @@ namespace vsgUtil
         return true;
     }
 
+    vsg::ref_ptr<SlangStageChoice> attachSlangStageChoice(
+        vsg::ShaderStage& stage, const std::string& path, const vsg::ref_ptr<const vsg::Options>& options)
+    {
+        if (!stage.module || stage.module->source.empty())
+            return {};
+        static const std::set<std::string> noDefines;
+        auto choice = SlangStageChoice::create();
+        choice->path = path;
+        choice->glslHints = stage.module->hints;
+        const std::set<std::string>& requested = stage.module->hints ? stage.module->hints->defines : noDefines;
+        // The same set and rule as slangSelectionSet, worked out once.
+        choice->defines = stageDefines(requested, stage.module->source, options.get());
+        choice->byPipeline = declaresUvSetArrays(choice->defines) && familyCountsUvSets(path, options);
+        if (!choice->byPipeline)
+            choice->twin = findSlangPermutation(path, choice->defines, options);
+        stage.setObject(slangStageChoiceKey, choice);
+        return choice;
+    }
+
+    const SlangStageChoice* slangStageChoiceOf(const vsg::ShaderStage& stage)
+    {
+        return stage.getObject<SlangStageChoice>(slangStageChoiceKey);
+    }
+
+    vsg::ref_ptr<vsg::ShaderModule> slangTwinFor(
+        const SlangStageChoice& choice, uint32_t numUvSets, const vsg::ref_ptr<const vsg::Options>& options)
+    {
+        if (!choice.byPipeline)
+            return choice.twin;
+        std::set<std::string> defines = choice.defines;
+        defines.insert(uvSetsDefine(numUvSets));
+        return findSlangPermutation(choice.path, defines, options);
+    }
+
+    const std::set<std::string>* glslDefinesOf(const vsg::ShaderStage& stage)
+    {
+        if (stage.module && stage.module->hints)
+            return &stage.module->hints->defines;
+        if (const SlangStageChoice* choice = slangStageChoiceOf(stage); choice != nullptr && choice->glslHints)
+            return &choice->glslHints->defines;
+        return nullptr;
+    }
+
+    vsg::ShaderStages withSlangTwinsTogether(const vsg::ShaderStages& stages, const std::vector<std::string>& paths,
+        const vsg::ref_ptr<const vsg::Options>& options)
+    {
+        if (stages.size() != paths.size())
+            return stages;
+        for (std::size_t i = 0; i < stages.size(); ++i)
+            recordShaderUse(paths[i], {}, stages[i].get(), options);
+        if (!prefersSlang(options.get()))
+            return stages;
+        std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins;
+        vsg::ShaderStages copies;
+        bool anyTwin = false;
+        for (std::size_t i = 0; i < stages.size(); ++i)
+        {
+            if (!stages[i] || !stages[i]->module)
+                return stages;
+            twins.push_back(slangTwin(paths[i], {}, stages[i]->module->source, true, options));
+            anyTwin = anyTwin || twins.back();
+            copies.push_back(vsg::ShaderStage::create(*stages[i]));
+        }
+        if (!anyTwin || !takeSlangTwinsTogether(copies, twins))
+            return stages;
+        for (const auto& copy : copies)
+            addSettingsConstants(*copy, options.get());
+        return copies;
+    }
+
     vsg::ref_ptr<vsg::ShaderStage> withSlangTwin(const vsg::ref_ptr<vsg::ShaderStage>& stage, const std::string& path,
         const vsg::ref_ptr<const vsg::Options>& options)
     {
@@ -577,6 +726,40 @@ namespace vsgUtil
             timing << std::fixed << "\t" << (ok ? ms : -1.0);
             line += timing.str();
         }
+        std::ofstream out(t.mFile, std::ios::app | std::ios::binary);
+        out << line << '\n';
+    }
+
+    bool shaderTraceActive()
+    {
+        return !trace().mFile.empty();
+    }
+
+    std::string pipelineTraceLine(std::string_view family, const std::set<std::string>& vertexSet,
+        const std::set<std::string>& fragmentSet, bool slang)
+    {
+        return std::string(family) + "/pipeline\t" + canonicalDefines(vertexSet) + "\t" + canonicalDefines(fragmentSet)
+            + (slang ? "\tslang" : "\tglsl");
+    }
+
+    void recordPipelineUse(std::string_view family, const std::set<std::string>& vertexSet,
+        const std::set<std::string>& fragmentSet, bool slang)
+    {
+        Trace& t = trace();
+        if (t.mFile.empty())
+            return;
+        std::string line;
+        try
+        {
+            line = pipelineTraceLine(family, vertexSet, fragmentSet, slang);
+        }
+        catch (const std::invalid_argument&)
+        {
+            return;
+        }
+        std::lock_guard lock(t.mMutex);
+        if (!t.mSeen.insert(line).second)
+            return;
         std::ofstream out(t.mFile, std::ios::app | std::ios::binary);
         out << line << '\n';
     }

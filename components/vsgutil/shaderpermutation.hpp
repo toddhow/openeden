@@ -107,7 +107,8 @@ namespace vsgUtil
     /// `defines`, read through the options' paths from "<path>.permutations"; null when there is none or the
     /// manifest cannot be read (logged once per path). Thread safe; manifests are read once per path and search paths,
     /// and each (path, set) is looked up and logged once: an unlisted set, or a listed file that cannot be read, is not
-    /// tried again.
+    /// tried again. The process-wide cache holds no module (task 0072, review of stage f, finding 10): once nothing
+    /// else holds a module it goes, with the Vulkan objects its compile made, and a later call reads its file again.
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(
         const std::string& path, const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options);
 
@@ -153,6 +154,59 @@ namespace vsgUtil
     /// returns false, so the pipeline draws with its GLSL.
     bool takeSlangTwinsTogether(vsg::ShaderStages& stages, const std::vector<vsg::ref_ptr<vsg::ShaderModule>>& twins);
 
+    /*
+     * Task 0072 (review of stage f): the choice of a Pipeline::Graphics stage's twin, worked out once for each stage
+     * the stage cache makes instead of for every pipeline (finding 5: the parse of the expanded source, the settings
+     * defines and the manifest lookup), and the GLSL defines kept beside a twin (finding 1: the merged body compares
+     * them).
+     */
+    class SlangStageChoice : public vsg::Inherit<vsg::Object, SlangStageChoice>
+    {
+    public:
+        /// The stage file, for example "default/main.frag".
+        std::string path;
+        /// stageDefines(the requested names, the GLSL source, the options): the set the GLSL compiles with.
+        std::set<std::string> defines;
+        /// True when `defines` declares the texture coordinate arrays and the family's manifest counts them: each
+        /// pipeline then adds its count (slangTwinFor).
+        bool byPipeline = false;
+        /// Without byPipeline: the twin built for `defines`, or null.
+        vsg::ref_ptr<vsg::ShaderModule> twin;
+        /// The compile settings of the GLSL module (its hints: the requested names), kept for glslDefinesOf once a
+        /// twin has replaced the module.
+        vsg::ref_ptr<vsg::ShaderCompileSettings> glslHints;
+    };
+
+    inline constexpr const char* slangStageChoiceKey = "openeden.slangStageChoice";
+
+    /// Works out the choice for the GLSL `stage` (its module has source; the module's hints are the requested names,
+    /// none without hints) of the stage file `path`, and attaches it to `stage` under slangStageChoiceKey, so that a
+    /// copy made with vsg::ShaderStage::create(*stage) carries it too. Returns it. A stage whose module is not GLSL
+    /// source gets nothing and null is returned.
+    vsg::ref_ptr<SlangStageChoice> attachSlangStageChoice(
+        vsg::ShaderStage& stage, const std::string& path, const vsg::ref_ptr<const vsg::Options>& options);
+
+    /// The choice attached to `stage` (or to the stage it was copied from), or null.
+    const SlangStageChoice* slangStageChoiceOf(const vsg::ShaderStage& stage);
+
+    /// The twin a pipeline with `numUvSets` texture coordinate sets draws the stage of `choice` with: without
+    /// byPipeline `choice.twin`, else the permutation built for `choice.defines` plus uvSetsDefine(numUvSets), or null.
+    /// The same module slangTwin(path, requested, source, true, options, ...) gives, without parsing the source again.
+    vsg::ref_ptr<vsg::ShaderModule> slangTwinFor(
+        const SlangStageChoice& choice, uint32_t numUvSets, const vsg::ref_ptr<const vsg::Options>& options);
+
+    /// The requested defines the GLSL of `stage` is compiled with: its module's compile settings when the module has
+    /// them, else those its SlangStageChoice kept (a twin has replaced the GLSL module); null when neither.
+    const std::set<std::string>* glslDefinesOf(const vsg::ShaderStage& stage);
+
+    /// For stages that make one pipeline, read with vsgUtil::readShader and compiled with no defines (the GUI, task
+    /// 0072 review of stage f, finding 7): records each stage's use (recordShaderUse, `paths[i]` naming stages[i]) and,
+    /// when the options prefer Slang and every GLSL stage has a twin built for its set, returns copies of the stages
+    /// with the twins and the settings constants they declare; otherwise `stages` themselves (the same objects). The
+    /// stages are never changed: readShader may share them. Sizes that differ give `stages`.
+    vsg::ShaderStages withSlangTwinsTogether(const vsg::ShaderStages& stages, const std::vector<std::string>& paths,
+        const vsg::ref_ptr<const vsg::Options>& options);
+
     /// For a stage read with vsgUtil::readShader and compiled with no defines (the compute passes, task 0072 stage
     /// c): records its use (recordShaderUse) and, when the options prefer Slang and a twin is built for the stage's
     /// effective set, returns a copy of `stage` with the twin's module and the settings constants. Otherwise `stage`
@@ -170,6 +224,22 @@ namespace vsgUtil
     /// copy of the GLSL `stage` with VSG's glslang and appends "\t<milliseconds>". Does nothing otherwise. Thread safe.
     void recordShaderUse(std::string_view path, const std::set<std::string>& defines, const vsg::ShaderStage* stage,
         const vsg::ref_ptr<const vsg::Options>& options, std::optional<uint32_t> numUvSets = std::nullopt);
+
+    /// True when OPENEDEN_SHADER_TRACE names a file (task 0072, review of stage f: the pipelines' trace calls are made
+    /// only then or with the switch on).
+    bool shaderTraceActive();
+
+    /// Formats one pipeline's trace line: "<family>/pipeline\t<vertex set>\t<fragment set>\t<slang|glsl>", the sets
+    /// canonical (with the texture coordinate count where the pipeline chooses), the last field what draws the
+    /// pipeline: its Slang twins or its GLSL.
+    std::string pipelineTraceLine(std::string_view family, const std::set<std::string>& vertexSet,
+        const std::set<std::string>& fragmentSet, bool slang);
+
+    /// When the trace is on, appends pipelineTraceLine(...) the first time that line is seen in this process (task
+    /// 0072, review of stage f: a pipeline takes both twins or neither, so a fragment twin shown drawn proves the
+    /// vertex twin of every pipeline it pairs with). Does nothing otherwise. Thread safe.
+    void recordPipelineUse(std::string_view family, const std::set<std::string>& vertexSet,
+        const std::set<std::string>& fragmentSet, bool slang);
 }
 
 #endif

@@ -34,6 +34,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testactorautoplay.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
+    mwrender/testmergedbodydefines.cpp
 
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp

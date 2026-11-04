@@ -220,6 +220,11 @@ namespace Pipeline
         }
         // Task 0072: the Slang twin is chosen by the pipeline (Graphics::create), which takes the twins of both its
         // stages or neither (vsgUtil::takeSlangTwinsTogether); the stage, shared by many pipelines, keeps its GLSL.
+        // Review of stage f: what the choice needs from the stage (its set from the expanded source and the settings
+        // defines, whether its family counts texture coordinate sets, the twin when it does not, and the GLSL defines
+        // the merged body compares) is worked out here, once per cached stage, and every copy carries it.
+        if (preferSlang)
+            vsgUtil::attachSlangStageChoice(*shaderStage, path + suffix, mShaderOptions);
         return shaderStage;
     }
 
@@ -331,24 +336,59 @@ namespace Pipeline
         // chosen here, on this pipeline's copies. VSG compiles a pipeline's stages together when one is GLSL and
         // glslang cannot link a SPIR-V stage, so both stages take their twins or neither does: a set with no file
         // draws with the GLSL, and so does the other stage of its pipeline.
-        const std::string shaderPath = key.shader.path.empty() ? "default" : key.shader.path;
-        std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
-        for (size_t i = 0; i < shaders.size(); ++i)
+        // Review of stage f: the choice is the stage's, worked out once (vsgUtil::attachSlangStageChoice); a pipeline
+        // only adds its count (vsgUtil::slangTwinFor). With the switch off and no trace nothing here runs (finding 9).
+        if (const bool trace = vsgUtil::shaderTraceActive(); preferSlang || trace)
         {
-            auto& shader = shaders[i];
-            if (!shader->module || shader->module->source.empty() || !shader->module->hints)
-                continue;
-            const std::string stageFile = shaderPath + (i == 0 ? "/main.vert" : "/main.frag");
-            const auto& defines = shader->module->hints->defines;
-            vsgUtil::recordShaderUse(stageFile, defines, shader.get(), mShaderOptions, numUvSets);
-            twins[i] = vsgUtil::slangTwin(stageFile, defines, shader->module->source, preferSlang, mShaderOptions);
-            if (!twins[i])
-                twins[i] = vsgUtil::slangTwin(
-                    stageFile, defines, shader->module->source, preferSlang, mShaderOptions, numUvSets);
+            const std::string shaderPath = key.shader.path.empty() ? "default" : key.shader.path;
+            std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
+            std::vector<std::set<std::string>> traced(shaders.size());
+            bool glslPipeline = true;
+            for (size_t i = 0; i < shaders.size(); ++i)
+            {
+                auto& shader = shaders[i];
+                if (!shader->module || shader->module->source.empty() || !shader->module->hints)
+                {
+                    glslPipeline = false; // a Slang-only shader (slangOnlyPaths): nothing to choose
+                    continue;
+                }
+                const std::string stageFile = shaderPath + (i == 0 ? "/main.vert" : "/main.frag");
+                const vsgUtil::SlangStageChoice* choice = vsgUtil::slangStageChoiceOf(*shader);
+                // A stage made before the switch was set has no choice: work it out on this pipeline's copy.
+                vsg::ref_ptr<vsgUtil::SlangStageChoice> ownChoice;
+                if (choice == nullptr && preferSlang)
+                {
+                    ownChoice = vsgUtil::attachSlangStageChoice(*shader, stageFile, mShaderOptions);
+                    choice = ownChoice.get();
+                }
+                if (trace)
+                {
+                    const auto& defines = shader->module->hints->defines;
+                    vsgUtil::recordShaderUse(stageFile, defines, shader.get(), mShaderOptions, numUvSets);
+                    if (choice != nullptr)
+                    {
+                        traced[i] = choice->defines;
+                        if (choice->byPipeline)
+                            traced[i].insert(vsgUtil::uvSetsDefine(numUvSets));
+                    }
+                    else if (auto set
+                        = vsgUtil::slangSelectionSet(stageFile, defines, shader->module->source, mShaderOptions))
+                        traced[i] = std::move(*set);
+                    else if (auto counted = vsgUtil::slangSelectionSet(
+                                 stageFile, defines, shader->module->source, mShaderOptions, numUvSets))
+                        traced[i] = std::move(*counted);
+                }
+                if (preferSlang && choice != nullptr)
+                    twins[i] = vsgUtil::slangTwinFor(*choice, numUvSets, mShaderOptions);
+            }
+            const bool anyTwin = std::any_of(twins.begin(), twins.end(), [](const auto& twin) { return bool(twin); });
+            const bool slang = preferSlang && anyTwin && vsgUtil::takeSlangTwinsTogether(shaders, twins);
+            if (slang)
+                Log(Debug::Verbose) << "Using the Slang permutations of " << shaderPath << " for " << numUvSets
+                                    << " texture coordinate sets";
+            if (trace && glslPipeline && shaders.size() == 2)
+                vsgUtil::recordPipelineUse(shaderPath, traced[0], traced[1], slang);
         }
-        if (preferSlang && vsgUtil::takeSlangTwinsTogether(shaders, twins))
-            Log(Debug::Verbose) << "Using the Slang permutations of " << shaderPath << " for " << numUvSets
-                                << " texture coordinate sets";
 
         auto vertexSpecConstants = specConstants;
         for (auto [binding, uvSet] : key.nonStandardUvSets)

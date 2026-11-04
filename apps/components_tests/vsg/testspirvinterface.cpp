@@ -322,4 +322,104 @@ namespace
         }
         EXPECT_EQ(i.mSpecConstantNames.count(7), 1u);
     }
+
+    // Task 0072, review of stage f, finding 11: the reader lists a specialization constant only when some instruction
+    // reads it, and the twins read some constants only as an OpSwitch selector or only as an OpAccessChain index. The
+    // helpers below find, in the compiled words, that the instruction meant is really there, so that each test
+    // exercises that use and not another. Written before the implementation.
+
+    // The words of every instruction with `opcode`, its first word (word count and opcode) included.
+    std::vector<std::vector<uint32_t>> instructionsWith(const std::vector<uint32_t>& words, uint32_t opcode)
+    {
+        std::vector<std::vector<uint32_t>> found;
+        std::size_t at = 5;
+        while (at < words.size())
+        {
+            const std::size_t count = words[at] >> 16;
+            if (count == 0 || at + count > words.size())
+                break;
+            if ((words[at] & 0xffffu) == opcode)
+            {
+                found.emplace_back(words.begin() + static_cast<std::ptrdiff_t>(at),
+                    words.begin() + static_cast<std::ptrdiff_t>(at + count));
+            }
+            at += count;
+        }
+        return found;
+    }
+
+    // The result id of the specialization constant with SpecId `specId` (OpDecorate <id> SpecId <n>: opcode 71,
+    // decoration 1), or 0.
+    uint32_t specConstantResultId(const std::vector<uint32_t>& words, uint32_t specId)
+    {
+        for (const std::vector<uint32_t>& decorate : instructionsWith(words, 71))
+        {
+            if (decorate.size() >= 4 && decorate[2] == 1 && decorate[3] == specId)
+                return decorate[1];
+        }
+        return 0;
+    }
+
+    std::string linesOf(const vsgUtil::SpirvInterface& i)
+    {
+        std::string all;
+        for (const std::string& line : i.mLines)
+            all += line + "\n";
+        return all;
+    }
+
+    // Task 0072, review of stage f, finding 11 (written before the implementation): a constant read only as the
+    // selector of a switch (OpSwitch, opcode 251, selector in word 1) is read, so it is listed.
+    TEST(SpirvInterface, a_specialization_constant_read_only_as_a_switch_selector_is_listed)
+    {
+        const char* const fragment
+            = "#version 450\n"
+              "layout(constant_id = 4) const int mode = 0;\n"
+              "layout(location = 0) out vec4 outColor;\n"
+              "void main() {\n"
+              "    switch (mode) {\n"
+              "    case 1: outColor = vec4(1.0); break;\n"
+              "    case 2: outColor = vec4(0.5); break;\n"
+              "    case 3: outColor = vec4(0.25); break;\n"
+              "    default: outColor = vec4(0.0); break;\n"
+              "    }\n"
+              "}\n";
+        const auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragment);
+        ASSERT_FALSE(words.empty());
+        const uint32_t id = specConstantResultId(words, 4);
+        ASSERT_NE(id, 0u);
+        bool selector = false;
+        for (const std::vector<uint32_t>& op : instructionsWith(words, 251))
+            selector = selector || (op.size() > 1 && op[1] == id);
+        ASSERT_TRUE(selector) << "no OpSwitch on the constant";
+        const auto i = vsgUtil::readSpirvInterface(words);
+        EXPECT_EQ(i.mSpecConstantOps, 0u);
+        EXPECT_TRUE(has(i, "spec_constant id=4 i32")) << linesOf(i);
+    }
+
+    // Task 0072, review of stage f, finding 11 (written before the implementation): a constant read only as an index
+    // into a uniform block's array (OpAccessChain, opcode 65, indices from word 4) is read, so it is listed.
+    TEST(SpirvInterface, a_specialization_constant_read_only_as_an_access_chain_index_is_listed)
+    {
+        const char* const fragment
+            = "#version 450\n"
+              "layout(constant_id = 6) const int index = 0;\n"
+              "layout(set = 0, binding = 0) uniform Block { vec4 v[8]; } b;\n"
+              "layout(location = 0) out vec4 outColor;\n"
+              "void main() { outColor = b.v[index]; }\n";
+        const auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragment);
+        ASSERT_FALSE(words.empty());
+        const uint32_t id = specConstantResultId(words, 6);
+        ASSERT_NE(id, 0u);
+        bool indexed = false;
+        for (const std::vector<uint32_t>& op : instructionsWith(words, 65))
+        {
+            for (std::size_t word = 4; word < op.size(); ++word)
+                indexed = indexed || op[word] == id;
+        }
+        ASSERT_TRUE(indexed) << "no OpAccessChain indexed by the constant";
+        const auto i = vsgUtil::readSpirvInterface(words);
+        EXPECT_EQ(i.mSpecConstantOps, 0u);
+        EXPECT_TRUE(has(i, "spec_constant id=6 i32")) << linesOf(i);
+    }
 }

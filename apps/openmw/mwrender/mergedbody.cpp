@@ -54,6 +54,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/readnode.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "../bodybaker.hpp"
 #include "../bodycommon.hpp"
@@ -210,26 +211,13 @@ namespace MWRender::MergedBodies
             return false;
         }
 
-        // The defines each stage of a pipeline was compiled with, from the stages' compile hints. A stage without hints
-        // (a precompiled Slang twin) gives no entry.
-        std::map<int, std::set<std::string>> definesOf(const vsg::GraphicsPipeline& pipeline)
-        {
-            std::map<int, std::set<std::string>> out;
-            for (const auto& stage : pipeline.stages)
-            {
-                if (stage && stage->module && stage->module->hints)
-                    out[static_cast<int>(stage->stage)] = stage->module->hints->defines;
-            }
-            return out;
-        }
-
         std::map<int, std::set<std::string>> definesOf(const vsg::StateGroup& group)
         {
             for (const auto& command : group.stateCommands)
             {
                 if (const auto* bind = dynamic_cast<const vsg::BindGraphicsPipeline*>(command.get());
                     bind != nullptr && bind->pipeline)
-                    return definesOf(*bind->pipeline);
+                    return pipelineDefines(*bind->pipeline);
             }
             return {};
         }
@@ -242,29 +230,6 @@ namespace MWRender::MergedBodies
             static const std::set<std::string> adapted = { "COLOR", "MORPH", "NORMAL_MAP", "PARALLAX",
                 "RECONSTRUCT_NORMAL_Z", "NORMAL", "TEXCOORD", "SKIN", "VERTEX", "GBUFFER_MOTION" };
             return adapted.count(define) != 0;
-        }
-
-        // Empty when the merged defines carry everything the stock defines carry (review finding 1); else a reason.
-        std::string compareDefines(
-            const std::map<int, std::set<std::string>>& stock, const std::map<int, std::set<std::string>>& merged)
-        {
-            for (const auto& [stage, defines] : stock)
-            {
-                const auto other = merged.find(stage);
-                if (other == merged.end())
-                    continue; // a precompiled stage on one side: nothing to compare
-                for (const std::string& define : defines)
-                {
-                    if (!adaptedDefine(define) && other->second.count(define) == 0)
-                        return "the merged pipeline lacks the stock define " + define;
-                }
-                for (const std::string& define : other->second)
-                {
-                    if (!adaptedDefine(define) && defines.count(define) == 0)
-                        return "the merged pipeline has the define " + define + " the stock one does not";
-                }
-            }
-            return {};
         }
 
         // Shares the look's images with the stock parts': an equal image (same data, sampler, layout) the stock read
@@ -580,7 +545,7 @@ namespace MWRender::MergedBodies
                 auto bindPipeline = resources->builder->graphics->getOrCreate(options);
                 // The merged draw must compile with the stock part's defines but for the ones it changes on purpose.
                 if (const std::string mismatch
-                    = compareDefines(look->mStockDefines, definesOf(*bindPipeline->pipeline));
+                    = compareDefines(look->mStockDefines, pipelineDefines(*bindPipeline->pipeline));
                     !mismatch.empty())
                 {
                     error = "slot " + std::to_string(draw.mSlot) + ": " + mismatch;
@@ -720,6 +685,51 @@ namespace MWRender::MergedBodies
             }
             return result;
         }
+    }
+
+    std::map<int, std::set<std::string>> pipelineDefines(const vsg::GraphicsPipeline& pipeline)
+    {
+        // Task 0072 (review of stage f, finding 1): a Slang twin's module has no compile hints; the GLSL ones are kept
+        // beside it (Pipeline::Graphics::createShaderStage attaches them with the switch on), so a twinned pipeline is
+        // compared like a GLSL one.
+        std::map<int, std::set<std::string>> out;
+        for (const auto& stage : pipeline.stages)
+        {
+            if (!stage)
+                continue;
+            if (const std::set<std::string>* defines = vsgUtil::glslDefinesOf(*stage))
+                out[static_cast<int>(stage->stage)] = *defines;
+        }
+        return out;
+    }
+
+    std::string compareDefines(
+        const std::map<int, std::set<std::string>>& stock, const std::map<int, std::set<std::string>>& merged)
+    {
+        // Fails closed (review of task 0072 stage f, finding 1): a stage whose defines one side does not know is not
+        // "nothing to compare" but a pipeline the check cannot vouch for.
+        for (const auto& [stage, defines] : merged)
+        {
+            if (stock.count(stage) == 0)
+                return "the stock pipeline has no defines for shader stage " + std::to_string(stage);
+        }
+        for (const auto& [stage, defines] : stock)
+        {
+            const auto other = merged.find(stage);
+            if (other == merged.end())
+                return "the merged pipeline has no defines for shader stage " + std::to_string(stage);
+            for (const std::string& define : defines)
+            {
+                if (!adaptedDefine(define) && other->second.count(define) == 0)
+                    return "the merged pipeline lacks the stock define " + define;
+            }
+            for (const std::string& define : other->second)
+            {
+                if (!adaptedDefine(define) && defines.count(define) == 0)
+                    return "the merged pipeline has the define " + define + " the stock one does not";
+            }
+        }
+        return {};
     }
 
     Session::Session(const std::filesystem::path& userDataFolder)

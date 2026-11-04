@@ -94,11 +94,19 @@ namespace Pipeline
         // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses. Both branches are references,
         // so no set is copied when the trace is off (stage b review).
         static const std::set<std::string> noDefines;
+        std::vector<std::set<std::string>> tracedSets;
         for (std::size_t i = 0; i < shaders.size(); ++i)
         {
             const auto& hints = shaders[i]->module->hints;
             vsgUtil::recordShaderUse(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
                 hints ? hints->defines : noDefines, shaders[i].get(), shaderOptions);
+        }
+        if (vsgUtil::shaderTraceActive())
+        {
+            for (const auto& stage : shaders)
+                tracedSets.push_back(
+                    vsgUtil::stageDefines(stage->module->hints ? stage->module->hints->defines : noDefines,
+                        stage->module->source, shaderOptions.get()));
         }
         // Task 0072, stage e: with `slang shaders` on, the Slang permutation compiled for exactly the set this stage
         // is drawn with (its imported defines and its settings files' defines); a set with no file keeps the GLSL. A
@@ -106,6 +114,7 @@ namespace Pipeline
         // Stage f: both stages take their twins or neither does, since VSG compiles a pipeline's stages together when
         // one is GLSL and glslang cannot link a SPIR-V stage (vsgUtil::takeSlangTwinsTogether): a fragment set with no
         // file keeps the vertex stage's GLSL too.
+        bool slang = false;
         if (vsgUtil::prefersSlang(shaderOptions.get()))
         {
             std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
@@ -122,8 +131,12 @@ namespace Pipeline
                 for (auto& twin : copies)
                     vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
                 shaders = copies;
+                slang = true;
             }
         }
+        // Review of stage f: the pipeline's pair of sets, and which compiler draws it, in the trace.
+        if (!tracedSets.empty())
+            vsgUtil::recordPipelineUse("terrain", tracedSets[0], tracedSets[1], slang);
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{ { Pipeline::Descriptors::BLENDMAP_BINDING,
                                                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,

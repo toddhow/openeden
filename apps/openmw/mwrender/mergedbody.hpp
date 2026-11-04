@@ -33,7 +33,9 @@
 // Threads: main thread only (the reader, the pipeline cache and the template map); a mutex guards the state anyway.
 
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -43,6 +45,7 @@
 
 namespace vsg
 {
+    class GraphicsPipeline;
     class Node;
     class Object;
 }
@@ -58,6 +61,17 @@ namespace MWAnim
 namespace MWRender::MergedBodies
 {
     struct State;
+
+    /// Task 0072 (review of stage f, finding 1): the requested defines each stage of `pipeline` is compiled with
+    /// (vsgUtil::glslDefinesOf: the GLSL module's, or those kept beside the Slang twin that replaced it), keyed by the
+    /// stage's VkShaderStageFlagBits; a stage without them is left out.
+    std::map<int, std::set<std::string>> pipelineDefines(const vsg::GraphicsPipeline& pipeline);
+
+    /// Empty when, stage by stage, `merged` has every define of `stock` and no other, except the defines the merged
+    /// look changes on purpose (vertex inputs, SKIN, GBUFFER_MOTION); else the reason. A stage that only one side has
+    /// defines for is a reason too: the check fails closed.
+    std::string compareDefines(
+        const std::map<int, std::set<std::string>>& stock, const std::map<int, std::set<std::string>>& merged);
 
     /// All the merged bodies keep for a session: the cache, the templates (GPU objects) and what was reported. One at a
     /// time; the Engine owns it from start until before the render engine goes.
