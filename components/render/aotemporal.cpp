@@ -21,10 +21,11 @@ namespace Render
 {
     namespace
     {
-        // The raw value needs only one channel and 16 bits. The result and the history carry a value, an encoded depth,
-        // a count and a packed normal (24 bits: exact only in 32-bit floats), and an exponential average at weight 0.9
-        // would stall in 8 bits.
-        constexpr VkFormat rawFormat = VK_FORMAT_R16_SFLOAT;
+        // The raw value needs only one channel; R32F, because R16F is not a format every device may use as a storage
+        // image (it needs shaderStorageImageExtendedFormats). The result and the history carry a value, an encoded
+        // depth, a count and a packed normal (24 bits: exact only in 32-bit floats), and an exponential average at
+        // weight 0.9 would stall in 8 bits.
+        constexpr VkFormat rawFormat = VK_FORMAT_R32_SFLOAT;
         constexpr VkFormat stateFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
         // files/shaders/post/aotemporal.slang: one thread group is 8 by 8 pixels.
         constexpr std::uint32_t groupSize = 8;

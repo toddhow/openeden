@@ -70,6 +70,60 @@ namespace
         }
     }
 
+    TEST(RenderAoTemporalPass, theVectorsPushedAreTheMatrixRowAndTheRotationRowsWithTheProjectionInTheirW)
+    {
+        Ao::Temporal::Settings settings;
+        settings.clampGamma = 0.75f;
+        AoTemporalPass pass(nullptr, nullptr, settings);
+        Ao::Temporal::FrameInput input;
+        // vsg indexes (column, row): entry 10 * column + row, so a swapped index shows.
+        for (std::size_t c = 0; c < 4; ++c)
+        {
+            for (std::size_t r = 0; r < 4; ++r)
+            {
+                input.toPreviousClip(c, r) = static_cast<float>(10 * c + r);
+            }
+        }
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                input.rotation.m[i][j] = static_cast<float>(100 * i + j);
+            }
+        }
+        input.projectionX = 1.5f;
+        input.projectionY = 2.5f;
+        input.frame = 5;
+        pass.beginFrame(input);
+        const auto pushed = pass.pushedVectors();
+        // The last row of the matrix: the previous camera's depth of a point (its clip position's w).
+        EXPECT_EQ(pushed[0].x, 3.f);
+        EXPECT_EQ(pushed[0].y, 13.f);
+        EXPECT_EQ(pushed[0].z, 23.f);
+        EXPECT_EQ(pushed[0].w, 33.f);
+        // The rotation's rows (not its columns), with the projection scales and the history weight in w.
+        EXPECT_EQ(pushed[1].x, 0.f);
+        EXPECT_EQ(pushed[1].y, 1.f);
+        EXPECT_EQ(pushed[1].z, 2.f);
+        EXPECT_EQ(pushed[1].w, 1.5f);
+        EXPECT_EQ(pushed[2].x, 100.f);
+        EXPECT_EQ(pushed[2].y, 101.f);
+        EXPECT_EQ(pushed[2].z, 102.f);
+        EXPECT_EQ(pushed[2].w, 2.5f);
+        EXPECT_EQ(pushed[3].x, 200.f);
+        EXPECT_EQ(pushed[3].y, 201.f);
+        EXPECT_EQ(pushed[3].z, 202.f);
+        EXPECT_EQ(pushed[3].w, 0.f); // nothing is built: no history
+        // The noise offset of the frame, then the history's jitter shift (none without a history).
+        const vsg::vec2 noise = Ao::Temporal::noiseOffset(5);
+        EXPECT_FLOAT_EQ(pushed[4].x, noise.x);
+        EXPECT_FLOAT_EQ(pushed[4].y, noise.y);
+        EXPECT_EQ(pushed[4].z, 0.f);
+        EXPECT_EQ(pushed[4].w, 0.f);
+        EXPECT_EQ(pushed[5].x, 0.f); // no debug view
+        EXPECT_FLOAT_EQ(pushed[5].y, 0.75f);
+    }
+
     // --- The shader twin -------------------------------------------------------------------------------------------
 
     std::string readShaderFile()
@@ -112,8 +166,6 @@ namespace
         {
             GTEST_SKIP() << "the shader source is not beside the test sources";
         }
-        expectSlangNumber(slang, "noiseAlpha1", Ao::Temporal::noiseAlpha1);
-        expectSlangNumber(slang, "noiseAlpha2", Ao::Temporal::noiseAlpha2);
         expectSlangNumber(slang, "maxHistoryWeight", Ao::Temporal::maxHistoryWeight);
         expectSlangNumber(slang, "maxCount", Ao::Temporal::maxCount);
         expectSlangNumber(slang, "depthRejectLow", Ao::Temporal::depthRejectLow);
@@ -196,7 +248,7 @@ namespace
         }
         const char* const expected[] = { "[[vk::binding(0, 0)]] Sampler2D linearDepth",
             "[[vk::binding(1, 0)]] Sampler2D viewNormal", "[[vk::binding(2, 0)]] Sampler2D velocityTex",
-            "[[vk::binding(3, 0)]] [format(\"r16f\")] RWTexture2D<float> rawStore",
+            "[[vk::binding(3, 0)]] [format(\"r32f\")] RWTexture2D<float> rawStore",
             "[[vk::binding(4, 0)]] [format(\"rgba32f\")] RWTexture2D<float4> resolveStore",
             "[[vk::binding(5, 0)]] [format(\"rgba32f\")] RWTexture2D<float4> historyStore" };
         for (const char* line : expected)

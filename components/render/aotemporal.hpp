@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_RENDER_AOTEMPORAL_H
 #define OPENEDEN_RENDER_AOTEMPORAL_H
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -68,7 +69,7 @@ namespace Render
      * with a different noise offset every frame, `resolveMain` blends it with the reprojected history, `copyMain` keeps
      * the result as the history. The tonemap reads `result()`'s first channel, as it read the fragment pass's image.
      *
-     * Images (the occlusion's half size): the raw value (R16F), the result and the history (RGBA32F: value, encoded
+     * Images (the occlusion's half size): the raw value (R32F), the result and the history (RGBA32F: value, encoded
      * depth, count, packed normal). The result is GENERAL while written and SHADER_READ_ONLY_OPTIMAL after.
      * Owner: RenderManager, main thread only. A resize calls setSource again; the old build goes to `retire`.
      */
@@ -107,6 +108,12 @@ namespace Render
         void beginFrame(const Ao::Temporal::FrameInput& input);
 
         const Ao::Temporal::PushedState& state() const { return mState; }
+        /// The six vectors the shader gets (files/shaders/post/aotemporal.slang, Push), for tests.
+        std::array<vsg::vec4, 6> pushedVectors() const
+        {
+            return { mDepthRow->value(), mRot0->value(), mRot1->value(), mRot2->value(), mNoise->value(),
+                mMisc->value() };
+        }
         const Ao::Temporal::Settings& settings() const { return mSettings; }
 
     private:

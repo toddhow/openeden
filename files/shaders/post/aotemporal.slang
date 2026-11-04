@@ -18,8 +18,6 @@
 // Compiled with: -profile spirv_1_0 -matrix-layout-column-major.
 
 // ---- aotemporalmath.hpp constants ----
-static const float noiseAlpha1 = 0.7548776662466927;
-static const float noiseAlpha2 = 0.5698402909980532;
 static const float maxHistoryWeight = 0.98;
 static const float maxCount = 255.0;
 static const float depthRejectLow = 0.02;
@@ -36,7 +34,7 @@ static const float normalRejectHigh = 0.95;
 [[vk::binding(0, 0)]] Sampler2D linearDepth; // the stored linear depth (0: nothing opaque), nearest
 [[vk::binding(1, 0)]] Sampler2D viewNormal; // the stored view-space normal, nearest
 [[vk::binding(2, 0)]] Sampler2D velocityTex; // currentUV - previousUV, from the velocity pass, nearest
-[[vk::binding(3, 0)]] [format("r16f")] RWTexture2D<float> rawStore; // this frame's unaccumulated value
+[[vk::binding(3, 0)]] [format("r32f")] RWTexture2D<float> rawStore; // this frame's unaccumulated value
 [[vk::binding(4, 0)]] [format("rgba32f")] RWTexture2D<float4> resolveStore; // value, encoded depth, count, packed normal
 [[vk::binding(5, 0)]] [format("rgba32f")] RWTexture2D<float4> historyStore; // the previous frame's resolveStore
 
@@ -309,8 +307,14 @@ void resolveMain(uint3 id : SV_DispatchThreadID)
             float bx = offset.x == 0 ? 1.0 - f.x : f.x;
             float by = offset.y == 0 ? 1.0 - f.y : f.y;
             float4 stored = historyStore[tap];
+            // A history that was never written (a frame that was not recorded after a build) may hold anything: a tap
+            // that is not a finite number takes no part, and 0 * NaN cannot get into the sums.
+            if (any(isnan(stored)) || any(isinf(stored)))
+                continue;
             float w = bx * by * (1.0 - depthMismatch(expectedDepth, stored.y))
                 * normalMatch(dot(rotated, unpackNormal(stored.w)));
+            if (!(w > 0.0))
+                continue;
             sumW += w;
             sumValue += w * stored.x;
             sumCount += w * stored.z;
