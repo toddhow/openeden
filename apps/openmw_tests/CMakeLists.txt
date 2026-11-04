@@ -31,6 +31,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testmapdepthrange.cpp
     mwrender/testpartcontrollers.cpp
     mwrender/testpartclocks.cpp
+    mwrender/testactorautoplay.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
 

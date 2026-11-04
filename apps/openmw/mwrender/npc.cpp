@@ -112,8 +112,8 @@ namespace MWRender
             clearControllers();
             for (size_t i = 0; i < ESM::PRT_Count; ++i)
                 removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
-            removePath(mScabbard);
-            removePath(mHolsteredShield);
+            removeHolstered(mScabbard, mScabbardClock);
+            removeHolstered(mHolsteredShield, mHolsteredShieldClock);
             // The merged body goes with the stock parts (review finding 2): an uncompiled clone must not be drawn.
             forgetMergedBody();
             for (auto& path : mQuiver)
@@ -228,8 +228,8 @@ namespace MWRender
         for (size_t i = 0; i < ESM::PRT_Count; i++)
             removeIndividualPart((ESM::PartReferenceType)i);
         forgetMergedBody();
-        removePath(mScabbard);
-        removePath(mHolsteredShield);
+        removeHolstered(mScabbard, mScabbardClock);
+        removeHolstered(mHolsteredShield, mHolsteredShieldClock);
         for (auto& path : mQuiver)
             removePath(path);
         mQuiver.clear();
@@ -298,10 +298,12 @@ namespace MWRender
 
     void Npc::clearControllers()
     {
-        autoPlay.clear();
-        mStaticControllers.clear();
+        // Task 0074b: not autoPlay, the object's own auto-play groups. Since the parts' auto-play controllers run in
+        // their own clocks (mPartControllers) it holds only the inventory lights (addItemLight, added once when the
+        // actor's CharacterController is made), which nothing would add again: emptying it froze their flicker for
+        // the rest of the actor's life.
+        clearPartControllers();
         mFace->clear();
-        mWeaponControllers.clear();
     }
 
     void Npc::updateParts()
@@ -317,9 +319,23 @@ namespace MWRender
         if (!mAutoPlayTraced.empty())
             traceAutoPlayEvent(mAutoPlayTraced, "updateParts");
         clearControllers();
-        mPartControllers.beginUpdate();
         soundsToPlay.clear();
+        // Task 0074b, finding 6: what stays (parts, the merged body) is linked again on every way out of the update,
+        // also when it throws.
+        mPartControllers.runUpdate([this] { updatePartNodes(); }, [this] { relinkKeptControllers(); });
+    }
 
+    void Npc::relinkKeptControllers()
+    {
+        // Task 0074: the parts that stayed (body parts, head, hair) get back the controllers clearControllers dropped.
+        relinkSurvivingParts();
+        // Task 0069 stage e review: the merged body's copy, kept or new (attachMergedBody recorded its controllers).
+        if (mMergedNode)
+            relinkMergedBody();
+    }
+
+    void Npc::updatePartNodes()
+    {
         Misc::LoadTrace::Scope traceInv("npc.inventory");
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
         traceInv.end();
@@ -364,10 +380,7 @@ namespace MWRender
                 addOrReplaceIndividualPart(ESM::PRT_Hair, -1, 1, mHairModel);
         }
         if (mViewMode == ViewMode::HeadOnly)
-        {
-            relinkSurvivingParts();
             return;
-        }
 
         addWeapon();
         addCarriedLeft();
@@ -388,8 +401,6 @@ namespace MWRender
             markSkinModel(bodyPart.mModel);
             attachPart(part, -1, bodyPart.mModel, {}, nullptr);
         });
-        // Task 0074: the parts that stayed (body parts, head, hair) get back the controllers clearControllers dropped.
-        relinkSurvivingParts();
     }
 
     void Npc::insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
@@ -431,13 +442,10 @@ namespace MWRender
         }
 
         mPartControllers.beginPart(type);
-        auto offset = autoPlay.maxPhaseGroup();
-        result.link(ctx, [this, dst, dstList, type, offset](const Anim::Controller* ctrl, vsg::Object* o) {
+        result.link(ctx, [this, dst, dstList, type](const Anim::Controller* ctrl, vsg::Object* o) {
+            // Task 0074b, finding 1: in the part's own clock, which an update that keeps the part leaves running.
             if (ctrl->hints.autoPlay && type != ESM::PRT_Head)
-            {
-                autoPlay.add(ctrl, o, offset);
-                mPartControllers.record(type, ctrl, o, PartControllerList::AutoPlay);
-            }
+                mPartControllers.addAutoPlay(type, ctrl, o);
             else
             {
                 dst->add(ctrl, o);
@@ -507,7 +515,7 @@ namespace MWRender
             }
             Misc::LoadTrace::Scope traceKeep("npc.mergedbody.keep");
             mSlots.releaseBodyParts(result.mSlots, *this);
-            relinkMergedBody();
+            // Its controllers are added again at the end of the update (relinkKeptControllers).
             mMergedSlots = result.mSlots;
             return true;
         }
@@ -542,7 +550,8 @@ namespace MWRender
             return false;
         }
         Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
-        // Recorded and added through relinkMergedBody, which leaves out the skins of draws nothing of is drawn.
+        // Recorded, and added at the end of the update through relinkMergedBody (relinkKeptControllers), which leaves
+        // out the skins of draws nothing of is drawn.
         decorated.link(ctx, [this, &decorated](const Anim::Controller* ctrl, vsg::Object* o) {
             // The skin itself (a clone of the copy's), so that one whose draw is drawn again can restart its motion.
             Anim::Skin* skin = nullptr;
@@ -553,7 +562,6 @@ namespace MWRender
             }
             mMergedControllers.push_back({ ctrl, o, skin });
         });
-        relinkMergedBody();
         mMergedBody = path;
         mMergedSlots = result.mSlots;
         if (!mMergedDrawn)
@@ -652,6 +660,11 @@ namespace MWRender
         }
         mFace->update(dt);
         Wielding::update(dt);
+        // Task 0074b: the parts' own auto-play clocks and the holstered weapon's and shield's, after the object's own
+        // groups as when they were all in autoPlay (MWAnim::ObjectAnimation::update).
+        mPartControllers.update(dt);
+        mScabbardClock.update(dt);
+        mHolsteredShieldClock.update(dt);
         if (!mAutoPlayTraced.empty())
             traceAutoPlay(mAutoPlayTraced, mAutoPlayFrame++, dt, autoPlay, mPartControllers.clocks(),
                 { mStaticControllers.controllers.size(), mWeaponControllers.controllers.size(),
@@ -673,8 +686,6 @@ namespace MWRender
     {
         mPartControllers.relinkSurvivors(
             [this](std::size_t /*part*/, const std::vector<PartControllers<ESM::PRT_Count>::Entry>& entries) {
-                // A part's autoplay controllers share one phase group offset, as in insertBoundedPart.
-                const int offset = autoPlay.maxPhaseGroup();
                 for (const auto& entry : entries)
                 {
                     switch (entry.mList)
@@ -689,11 +700,18 @@ namespace MWRender
                             mWeaponControllers.add(entry.mController, entry.mTarget);
                             break;
                         case PartControllerList::AutoPlay:
-                            autoPlay.add(entry.mController, entry.mTarget, offset);
+                            // Task 0074b: the part's own clock was never emptied and keeps running; nothing to add.
                             break;
                     }
                 }
             });
+    }
+
+    void Npc::removeHolstered(std::vector<vsg::Node*>& path, Anim::AutoPlay& clock)
+    {
+        // The clock first: its controllers live in the path's node.
+        clock.clear();
+        removePath(path);
     }
 
     void Npc::removePath(std::vector<vsg::Node*>& path)
@@ -871,21 +889,22 @@ namespace MWRender
     }
 
     std::vector<vsg::Node*> Npc::attachHolstered(vsg::ref_ptr<vsg::Node> node, MWAnim::PlaceholderResult& result,
-        const std::string& bone, std::optional<vsg::vec4> glowColor, bool animate)
+        const std::string& bone, std::optional<vsg::vec4> glowColor, Anim::AutoPlay* clock)
     {
         if (glowColor)
             addEnv(node, glowColor, getTransparency(*this));
         auto path = MWAnim::attachBonesAndNode(node, *nodeToAddChildrenTo(), animation->bones, bone);
         if (path.empty())
             return path;
-        // A holstered bow keeps still: the weapon's own animation is for when it is drawn.
-        if (animate)
+        // A holstered bow keeps still: the weapon's own animation is for when it is drawn (no clock).
+        if (clock != nullptr)
         {
             Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
-            auto offset = autoPlay.maxPhaseGroup();
-            result.link(ctx, [this, offset](const Anim::Controller* ctrl, vsg::Object* o) {
+            // Task 0074b: the auto-play controllers in the holstered item's own clock, emptied with its path
+            // (removeHolstered); the object's autoPlay is no longer emptied on every update.
+            result.link(ctx, [this, clock](const Anim::Controller* ctrl, vsg::Object* o) {
                 if (ctrl->hints.autoPlay)
-                    autoPlay.add(ctrl, o, offset);
+                    clock->add(ctrl, o);
                 else
                     mStaticControllers.add(ctrl, o);
             });
@@ -917,7 +936,7 @@ namespace MWRender
     void Npc::updateHolsteredWeapon()
     {
         // As OpenMW's ActorAnimation::updateHolsteredWeapon.
-        removePath(mScabbard);
+        removeHolstered(mScabbard, mScabbardClock);
         mHolsteredWeaponSwitch = {};
 
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
@@ -932,7 +951,7 @@ namespace MWRender
 
         // Since throwing weapons stack themselves, do not show such a weapon itself.
         const bool canShowWeapon = weaponType->mWeaponClass != ESM::WeaponType::Thrown;
-        const bool animate = weaponType->mWeaponClass != ESM::WeaponType::Ranged;
+        Anim::AutoPlay* clock = weaponType->mWeaponClass != ESM::WeaponType::Ranged ? &mScabbardClock : nullptr;
         const std::string scabbard = sheathModel(mesh);
         auto weaponSwitch = vsg::Switch::create();
         const bool visible = canShowWeapon && !isShown(Wield::Weapon);
@@ -945,7 +964,7 @@ namespace MWRender
             auto node = mContext.readNode(mesh);
             auto result = MWAnim::decorate(node, nullptr);
             weaponSwitch->addChild(visible, node);
-            mScabbard = attachHolstered(weaponSwitch, result, bone, getGlowColor(*weapon), animate);
+            mScabbard = attachHolstered(weaponSwitch, result, bone, getGlowColor(*weapon), clock);
         }
         else
         {
@@ -974,7 +993,7 @@ namespace MWRender
                 }
                 weaponNode->addChild(weaponSwitch);
             }
-            mScabbard = attachHolstered(node, result, bone, {}, animate);
+            mScabbard = attachHolstered(node, result, bone, {}, clock);
         }
         if (canShowWeapon)
             mHolsteredWeaponSwitch = weaponSwitch;
@@ -1029,7 +1048,7 @@ namespace MWRender
         {
             auto node = mContext.readNode(model);
             auto result = MWAnim::decorate(node, nullptr);
-            auto path = attachHolstered(node, result, slots[i], glowColor, false);
+            auto path = attachHolstered(node, result, slots[i], glowColor, nullptr);
             if (!path.empty())
                 mQuiver.push_back(std::move(path));
         }
@@ -1088,7 +1107,7 @@ namespace MWRender
     void Npc::updateHolsteredShield()
     {
         // As OpenMW's ActorAnimation::updateHolsteredShield, with a switch in place of rebuilding on every show.
-        removePath(mHolsteredShield);
+        removeHolstered(mHolsteredShield, mHolsteredShieldClock);
         mHolsteredShieldSwitch = {};
 
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
@@ -1125,7 +1144,7 @@ namespace MWRender
         }
         mHolsteredShieldSwitch = vsg::Switch::create();
         mHolsteredShieldSwitch->addChild(!isShown(Wield::CarriedLeft), node);
-        mHolsteredShield = attachHolstered(mHolsteredShieldSwitch, result, bone, glowColor, true);
+        mHolsteredShield = attachHolstered(mHolsteredShieldSwitch, result, bone, glowColor, &mHolsteredShieldClock);
     }
 
     void Npc::show(Wield w, bool visible)

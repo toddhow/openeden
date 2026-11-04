@@ -43,6 +43,15 @@ namespace MWAnim
         vsg::Transform* mAttachAmmo{};
         std::array<vsg::ref_ptr<vsg::Switch>, 3> mSwitches;
         void addSwitch(vsg::ref_ptr<vsg::Node>& node, Wield w);
+        // OpenEden (task 0074b): what an equipment change empties (MWRender::Npc::clearControllers,
+        // MWRender::WieldingCreature::removeParts): the lists whose controllers all belong to what the change links
+        // again. Never the object's own auto-play groups (autoPlay: the inventory lights of MWRender::addItemLight, a
+        // creature's own model): nothing adds those again, and their clocks must keep running.
+        void clearPartControllers()
+        {
+            mWeaponControllers.clear();
+            mStaticControllers.clear();
+        }
         Anim::Update mWeaponControllers;
         Anim::Update mStaticControllers;
     };

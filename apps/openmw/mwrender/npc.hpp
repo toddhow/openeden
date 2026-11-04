@@ -159,22 +159,34 @@ namespace MWRender
         void updateHolsteredShield();
         void updateQuiver();
         std::string getSheathedShieldMesh(const MWWorld::ConstPtr& shield) const;
+        // Runs the node's auto-play controllers in `clock`, none without one (a holstered bow keeps still).
         std::vector<vsg::Node*> attachHolstered(vsg::ref_ptr<vsg::Node> node, MWAnim::PlaceholderResult& result,
-            const std::string& bone, std::optional<vsg::vec4> glowColor, bool animate);
+            const std::string& bone, std::optional<vsg::vec4> glowColor, Anim::AutoPlay* clock);
         vsg::ref_ptr<vsg::Node> readHolstered(const std::string& model) const;
+        // Empties the clock of a holstered item, then removes its path (task 0074b).
+        void removeHolstered(std::vector<vsg::Node*>& path, Anim::AutoPlay& clock);
         std::vector<vsg::Node*> mScabbard;
         std::vector<vsg::Node*> mHolsteredShield;
+        // Task 0074b: the holstered weapon's and shield's auto-play clocks, valid while their paths hold the nodes.
+        Anim::AutoPlay mScabbardClock;
+        Anim::AutoPlay mHolsteredShieldClock;
         std::vector<std::vector<vsg::Node*>> mQuiver;
         vsg::ref_ptr<vsg::Switch> mHolsteredWeaponSwitch;
         vsg::ref_ptr<vsg::Switch> mHolsteredShieldSwitch;
         bool mQuiverDirty = false;
 
         static NpcType getNpcType(const MWWorld::Ptr& ptr);
+        // Empties the lists updateParts fills again (Wielding::clearPartControllers and the face), not the object's
+        // own auto-play groups.
         void clearControllers();
+        // The node work of updateParts (equipment, head and hair, weapon, sheathing, merged body, body parts).
+        void updatePartNodes();
         // Task 0074: the controllers each part linked, so updateParts links again the parts it kept (clearControllers
-        // empties every list). relinkSurvivingParts runs at the end of updateParts.
+        // empties the lists), and (task 0074b) each part's own auto-play clock. relinkKeptControllers runs at the end
+        // of every updateParts, a throw included (PartControllers::runUpdate).
         PartControllers<ESM::PRT_Count> mPartControllers;
         void relinkSurvivingParts();
+        void relinkKeptControllers();
         // Task 0074b: OPENEDEN_AUTOPLAY_TRACE (autoplaytrace.hpp), decided once in the constructor: the record id of
         // a traced actor, empty for every other.
         std::string mAutoPlayTraced;
@@ -183,7 +195,8 @@ namespace MWRender
         // Task 0069 stage d ([Bodies] merged body, off by default): attaches the cached merged body when it may be
         // drawn and removes the stock parts of its slots; false, with the stock parts kept, otherwise. updateParts
         // calls it after the equipment. Stage e review: the actor's copy is kept while its template is the same, and
-        // only its regions change; its controllers are added again every time (clearControllers drops them).
+        // only its regions change; its controllers are added again every time (clearControllers drops them), by
+        // relinkKeptControllers at the end of the update (task 0074b).
         bool attachMergedBody(bool isWerewolf);
         // Leaves the hidden regions out of the copy (mMergedNode); on a refusal, the stock parts for good.
         bool applyMergedRegions(const ESM::Race& race, bool female, const MergedBodies::TemplateResult& result,
