@@ -20,6 +20,10 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 
 - **A render area larger than the framebuffer renders nothing,** with no error without the validation layer (VUID-VkRenderPassBeginInfo-pNext-02852): the game then stays blank, not only that frame. The swapchain is rebuilt at the next frame's image acquisition, after the window event that asked for the new size, so never set `renderArea` from the event or from `extent2D()`, which already holds the new size. Set it from `Engine::swapchainExtent()` each frame (`RenderManager::syncExtents`). Graphs with a window or framebuffer need `windowResizeHandler = nullptr`, or VSG scales the area again by new/old.
 
+## Repeatable captures (task 0072)
+
+- **`OPENEDEN_FIXED_FRAME_TIME=<seconds>`** (test only, an environment variable): `Engine::loop` advances every frame by that time instead of the wall time. With `--random-seed`, a still Lua camera and `set timescale to 0`, two runs of the same binary differ only where AI or worker-thread timing moves something (a walking NPC); not byte-identical. Unset, empty or not a positive number, the frame time is the wall time.
+
 ## GPU timing, the device report and Slang shaders (task 0023)
 
 - **`gputiming.*`:** `[Rendering] gpu timing` (off by default). `Engine::enableGpuTiming()` makes a `GpuTimer` only when asked, so with the setting off there is no query pool and `loop()` records and reads nothing. Whoever builds a command graph wraps a pass with `GpuTimer::beginNode(pass)` and `endNode(pass)` (`timeChild` in `mwrender/rendermanager.cpp`). Rules:

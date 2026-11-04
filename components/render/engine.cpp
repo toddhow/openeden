@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -197,6 +198,17 @@ namespace Render
         auto limitFramerate = LimitFramerate::create(framerateLimit);
         auto last = std::chrono::steady_clock::now();
 
+        // OpenEden (task 0072, review of stages b and c): OPENEDEN_FIXED_FRAME_TIME=<seconds> makes every frame advance
+        // the game by that time instead of the wall time, so that captures for image comparisons are repeatable
+        // (with --random-seed). Test only; unset or not a positive number, the frame time is the wall time as before.
+        double fixedFrameTime = 0.0;
+        if (const char* fixed = std::getenv("OPENEDEN_FIXED_FRAME_TIME"))
+        {
+            const double value = std::strtod(fixed, nullptr);
+            if (std::isfinite(value) && value > 0.0)
+                fixedFrameTime = value;
+        }
+
         // openeden-vsg: per-frame timings for the performance comparison with the OpenSceneGraph build (task 0010),
         // written only when OPENEDEN_FRAME_STATS_FILE names a file: one line per frame with the frame's wall time and
         // the time spent waiting for the GPU or the swapchain (the frame fence in advanceToNextFrame, present,
@@ -246,6 +258,8 @@ namespace Render
             auto now = std::chrono::steady_clock::now();
             auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - last).count();
             last = now;
+            if (fixedFrameTime > 0.0)
+                dt = fixedFrameTime;
 
             static float fpsTimer = 0;
             fpsTimer += dt;
