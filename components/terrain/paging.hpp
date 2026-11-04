@@ -40,9 +40,10 @@ namespace Terrain
         std::unique_ptr<View> createView() const;
         // Fill in view with just the specified cell without LOD, reusing batch data created for referenceViewDistance.
         // Return a CompileOp that can be run straight away, or added to an OperationThread if care is taken to avoid
-        // data races.
+        // data races. With `heightRange`, the cell's lowest and highest terrain height are written there
+        // (task 0073).
         vsg::ref_ptr<vsgUtil::CompileOp> updateViewForCell(
-            View& v, const vsg::ivec2& cell, float referenceViewDistance) const;
+            View& v, const vsg::ivec2& cell, float referenceViewDistance, vsg::vec2* heightRange = nullptr) const;
         // Fill in view with LOD for specified view point and distance.
         // Return a CompileOp that can be run straight away, or added to an OperationThread if care is taken to avoid
         // data races.

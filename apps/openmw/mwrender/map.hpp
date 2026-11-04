@@ -154,8 +154,10 @@ namespace MWRender
 
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
 
-        ViewData* setupRenderToTexture(
-            int segment_x, int segment_y, float left, float top, const vsg::dvec3& upVector, float zmin, float zmax);
+        // `viewData`, when given, is used instead of a fresh one: the exterior map fills its terrain view first
+        // (task 0073).
+        ViewData* setupRenderToTexture(int segment_x, int segment_y, float left, float top, const vsg::dvec3& upVector,
+            float zmin, float zmax, ViewData* viewData = nullptr);
         Texture* getOrCreateTexture();
         FogTexture* getOrCreateFogTexture();
         ViewData* getOrCreateViewData();

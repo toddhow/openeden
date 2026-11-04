@@ -33,7 +33,7 @@ namespace Terrain
     }
 
     vsg::ref_ptr<vsgUtil::CompileOp> Paging::updateViewForCell(
-        View& v, const vsg::ivec2& cell, float referenceViewDistance) const
+        View& v, const vsg::ivec2& cell, float referenceViewDistance, vsg::vec2* heightRange) const
     {
         ViewData& view = static_cast<ViewData&>(v);
 
@@ -44,6 +44,8 @@ namespace Terrain
         auto batch = mBuilder->createBatch(batchBounds, 0);
         Bounds drawBounds{ 1.f, vsg::vec2(cell) };
         auto draw = mBuilder->createDraw(batch, drawBounds, 0, 0);
+        if (heightRange != nullptr)
+            *heightRange = mBuilder->heightRange(batch.data, batchBounds, drawBounds);
         batch.leafGroup->addChild(draw);
 
         for (auto& child : view.rootNode->children)

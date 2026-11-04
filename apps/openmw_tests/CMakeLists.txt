@@ -28,6 +28,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testgroundcoverchunks.cpp
     mwrender/testswitches.cpp
     mwrender/testextentsync.cpp
+    mwrender/testmapdepthrange.cpp
 
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp

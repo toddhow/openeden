@@ -11,6 +11,9 @@
 #include <vsg/utils/ComputeBounds.h>
 #include <vsg/vk/Context.h>
 
+#include <string>
+
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/fogstate.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/constants.hpp>
@@ -34,6 +37,7 @@
 #include "../mwworld/cellstore.hpp"
 
 #include "bin.hpp"
+#include "mapdepthrange.hpp"
 #include "mask.hpp"
 
 namespace FogConstants
@@ -337,19 +341,23 @@ namespace MWRender
         }
     }
 
-    Map::ViewData* Map::setupRenderToTexture(
-        int segment_x, int segment_y, float x, float y, const vsg::dvec3& upVector, float zmin, float zmax)
+    Map::ViewData* Map::setupRenderToTexture(int segment_x, int segment_y, float x, float y, const vsg::dvec3& upVector,
+        float zmin, float zmax, ViewData* givenViewData)
     {
         auto tex = getOrCreateTexture();
         if (!tex)
+        {
+            if (givenViewData != nullptr)
+                mBlit->availableViewData.push_back(givenViewData);
             return {};
+        }
 
         auto request = Blit::Request();
         request.projectionMatrix = vsg::Orthographic::create(
             -mMapWorldSize / 2, mMapWorldSize / 2, -mMapWorldSize / 2, mMapWorldSize / 2, 5, (zmax - zmin) + 10);
         request.viewMatrix = vsg::LookAt::create(vsg::dvec3(x, y, zmax + 5), vsg::dvec3(x, y, zmin), upVector);
         request.dstImage = tex->imageInfo->imageView->image;
-        auto viewData = getOrCreateViewData();
+        auto viewData = givenViewData != nullptr ? givenViewData : getOrCreateViewData();
         if (!viewData)
             return {};
         viewData->sceneData->value().invView = vsg::mat4(vsg::inverse_4x3(request.viewMatrix->transform()));
@@ -538,22 +546,47 @@ namespace MWRender
 
         mInterior = false;
 
-        auto bounds = vsg::visit<vsg::ComputeBounds>(mSceneGraph).bounds;
-        float zmin = bounds.min.z;
-        float zmax = bounds.max.z;
-
-        auto viewData = setupRenderToTexture(cell->getCell()->getGridX(), cell->getCell()->getGridY(),
-            x * mMapWorldSize + mMapWorldSize / 2.f, y * mMapWorldSize + mMapWorldSize / 2.f, vsg::dvec3(0, 1, 0), zmin,
-            zmax);
+        // The camera sees the objects, the cell's terrain and its water, as OpenMW's local map did (the whole scene
+        // root's bound). The objects alone cut land higher than them and lost the sea floor below them, and a grid
+        // with no objects gave an invalid box (task 0073, review).
+        const vsg::dbox objectBounds = vsg::visit<vsg::ComputeBounds>(mSceneGraph).bounds;
+        ViewData* viewData = getOrCreateViewData();
         if (!viewData)
             return;
+        vsg::vec2 terrainRange;
+        auto compileOp = mTerrain->updateViewForCell(
+            *viewData->terrainView, vsg::ivec2(x, y), mReferenceViewDistance, &terrainRange);
+        std::optional<float> water;
+        if (cell->getCell()->hasWater())
+            water = cell->getWaterLevel();
+        const std::optional<MapDepthRange> range
+            = mapDepthRange(objectBounds, compileOp ? std::optional<vsg::vec2>(terrainRange) : std::nullopt, water);
+        if (!range)
+        {
+            mBlit->availableViewData.push_back(viewData);
+            return;
+        }
+        Log(Debug::Debug) << "Local map (" << x << ", " << y << "): objects "
+                          << (objectBounds.valid()
+                                     ? std::to_string(objectBounds.min.z) + " to " + std::to_string(objectBounds.max.z)
+                                     : std::string("none"))
+                          << ", terrain "
+                          << (compileOp ? std::to_string(terrainRange.x) + " to " + std::to_string(terrainRange.y)
+                                        : std::string("none"))
+                          << ", water " << (water ? std::to_string(*water) : std::string("none")) << "; camera "
+                          << range->mMin << " to " << range->mMax;
+
+        if (!setupRenderToTexture(cell->getCell()->getGridX(), cell->getCell()->getGridY(),
+                x * mMapWorldSize + mMapWorldSize / 2.f, y * mMapWorldSize + mMapWorldSize / 2.f, vsg::dvec3(0, 1, 0),
+                range->mMin, range->mMax, viewData))
+            return;
         viewData->sceneChildren = { mSceneGraph };
-        if (auto compileOp
-            = mTerrain->updateViewForCell(*viewData->terrainView, vsg::ivec2(x, y), mReferenceViewDistance))
+        if (compileOp)
         {
             compileOp->compile();
-            // The map view has no bins: children draw in order. The water in mSceneGraph is blended and writes no
-            // depth, so the opaque terrain goes first; drawn after it, the terrain covered the sea (task 0073).
+            // SimpleWater (in mSceneGraph) is a plain StateGroup, blended and writing no depth, so it and the terrain
+            // draw in traversal order: the opaque terrain goes first, or it covers the sea (task 0073). Blended NIF and
+            // DAE shapes are DepthSorted and draw last from the view's depth-sorted bin, whatever this order.
             viewData->sceneChildren.insert(viewData->sceneChildren.begin(), viewData->terrainView->node());
         }
 

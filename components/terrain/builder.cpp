@@ -533,6 +533,18 @@ namespace Terrain
     vsg::ref_ptr<vsg::Node> Builder::createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds,
         const Builder::BatchData& data, const Bounds& bounds) const
     {
+        const vsg::vec2 range = heightRange(data, batchBounds, bounds);
+        const float minH = range.x;
+        const float maxH = range.y;
+        float worldSize = bounds.size * mStorage->cellWorldSize;
+        vsg::vec2 offset = bounds.min * mStorage->cellWorldSize;
+        vsg::dbox bb
+            = { vsg::dvec3(offset.x, offset.y, minH), vsg::dvec3(offset.x + worldSize, offset.y + worldSize, maxH) };
+        return vsg::CullNode::create(vsgUtil::toSphere(bb), child);
+    }
+
+    vsg::vec2 Builder::heightRange(const BatchData& data, const Bounds& batchBounds, const Bounds& bounds) const
+    {
         vsg::vec2 heightRangeGridPos = (bounds.min - batchBounds.min) / Bounds::minSize;
         uint32_t heightRangeWidth = static_cast<uint32_t>(bounds.size / Bounds::minSize);
         float minH = std::numeric_limits<float>::max();
@@ -550,10 +562,6 @@ namespace Terrain
                 maxH = std::max(range.y, maxH);
             }
         }
-        float worldSize = bounds.size * mStorage->cellWorldSize;
-        vsg::vec2 offset = bounds.min * mStorage->cellWorldSize;
-        vsg::dbox bb
-            = { vsg::dvec3(offset.x, offset.y, minH), vsg::dvec3(offset.x + worldSize, offset.y + worldSize, maxH) };
-        return vsg::CullNode::create(vsgUtil::toSphere(bb), child);
+        return { minH, maxH };
     }
 }

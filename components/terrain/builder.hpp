@@ -58,6 +58,10 @@ namespace Terrain
         vsg::ref_ptr<vsg::Node> createDraw(
             const Batch& batch, const Bounds& bounds, uint8_t lod = 0, uint32_t lodFlags = 0) const;
 
+        // OpenEden (task 0073): the lowest and highest terrain height under `bounds`, a part of the batch
+        // `batchBounds`, from the batch data's height ranges (the values the cull node of a smaller draw is made from).
+        vsg::vec2 heightRange(const BatchData& data, const Bounds& batchBounds, const Bounds& bounds) const;
+
     private:
         // openeden-vsg: the layer arrays with normal and specular maps, and each layer's flags for the shader
         // (files/shaders/terrain/main.frag): the normal map index in the low 16 bits, then parallax and specular.

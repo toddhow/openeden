@@ -40,7 +40,7 @@ add_openmw_dir (mwrender
     mask bin rendermode renderinginterface renderpass intersect rendermanager terrainstorage landmanager lodterrain lodclusters
     animcontext bodyparts bodylegacy mergedbody wieldingcreature npc player scene camera itemlight effect effects projectiles spellcastglow transparency
     env weather weatherdata
-    map worldmap preview shadow
+    map mapdepthrange worldmap preview shadow
     fogmanager water screenshotinterface bonepose footikmath actorikcontroller joltdebugdraw navmesh creativemotiondriver creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells distantobjects waterripples groundcoverinstances groundcover
     )
 
