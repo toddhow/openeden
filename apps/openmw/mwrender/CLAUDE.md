@@ -269,8 +269,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   again runs. Equipment is removed and inserted again; the parts it keeps (stock body parts, head and hair at priority
   1) get their controllers back from `mPartControllers` in `relinkSurvivingParts`, at the end of `updateParts` and
   before its head-only return. Without that a kept skin holds the matrices of the moment of the change while the
-  skeleton moves (the stock chest broke through pants and loincloths, the hands left the forearms) and the head stops
-  blinking and talking. Inherited from vsgopenmw (`2830e7e2b4`); OpenMW 0.51 keeps controllers with each part.
+  skeleton moves (the stock chest broke through pants and loincloths) and the head stops blinking and talking. Inherited from vsgopenmw (`2830e7e2b4`); OpenMW 0.51 keeps controllers with each part.
 - **Rules:** a part's controllers are recorded only in `insertBoundedPart` and forgotten only in
   `removeIndividualPart`, so a new way to link or remove a part must go through them. Anything linked outside the parts
   must be attached again on every `updateParts` (the merged body, the holstered weapon and shield are). Item lights

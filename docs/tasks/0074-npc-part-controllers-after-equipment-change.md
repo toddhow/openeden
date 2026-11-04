@@ -57,6 +57,9 @@ Out of scope: the merged body's own controllers (already re-attached), first per
   parts, the head and the hair (priority 1) are kept with no controller after every equipment change. The merged body
   already worked around it (`attachMergedBody` re-attaches on every call); the holstered weapon and shield are removed
   and attached again by `updateSheathing`, so they were not affected.
+- **Lifetime invariant:** `mParts[type]` is written only in `insertBoundedPart` and emptied only through
+  `removeIndividualPart` (`removePath`), which `addOrReplaceIndividualPart` calls before inserting; `forget(type)` sits
+  in `removeIndividualPart`, so no recorded controller outlives its part's node.
 - **Upstream:** vsgopenmw `2830e7e2b4` `apps/openmw/mwrender/npc.cpp` has the same `clearControllers()` at the start of
   `updateParts`. OpenMW 0.51 (`apps/openmw/mwrender/npcanimation.cpp`, `NpcAnimation::updateParts`) clears nothing
   global: a part's controllers live with the part (`PartHolder`), so a kept part keeps them.
@@ -67,8 +70,9 @@ Out of scope: the merged body's own controllers (already re-attached), first per
   otherwise, the user's Morrowind data; work folder `I:\Projects\OpenEden-work\stockskin`, not committed): a build of
   HEAD's `npc.cpp` (before) against the fix (after), same exe otherwise, both variants.
   - Stock, before: frame 009 (pants, front) and 010 (pants, wrist) show the chest through the pants in jagged pieces;
-    045 (naked again, front) and 046 (wrist) show it through the loincloth, with the hand off the forearm. After: none
-    of it; the chest, hands and loincloth line up in all four. A third run on the committed build shows the same.
+    045 (naked again, front) and 046 (wrist) show it through the loincloth. After: none of it; the chest lines up with
+    the pants or loincloth in all four. A third run on the committed build shows the same. (The commit message of
+    `29fc0d05a1` also says the hands left the forearms; the frames do not show that clearly.)
   - Face: a work copy of the scene adds, after the 200 cycles, one change the head survives (naked to shirt and pants),
     then 68 close-ups of the face 0.2 s apart, with `core.sound.say` of a voice line from the 6th second (40 shots
     with `isSayActive` true in both runs). Before: the eyes never close and the mouth never moves. After: the eyes
@@ -79,5 +83,11 @@ Out of scope: the merged body's own controllers (already re-attached), first per
   -Wrange-loop-construct` (`-fsyntax-only`, in the Linux image) clean on `npc.cpp` and the test; MSVC no new warning.
 - **Not verified:** NPCs other than the player in motion (the row's NPCs are dressed by a script, so they went through
   the same path, but no frame was compared); first person and the head-only view; item lights from the inventory and
-  the spell cast glow, which `clearControllers` also drops and nothing links again (out of scope, not checked); the
-  full Linux gate and the Lua integration tests.
+  the spell cast glow, which `clearControllers` also drops and nothing links again (out of scope, not checked);
+  creatures (`WieldingCreature::removeParts` empties its lists the same way and then adds its weapon, shield and ammo
+  again; whether anything it keeps loses controllers is not checked, out of scope); the full Linux gate and the
+  Lua integration tests. No fresh reviewer has read the diff yet (this work ran as a forked worker without subagents).
+  The face phase lives only in the work copy `I:\Projects\OpenEden-work\stockskin\tool\mod\scripts\mbequip_player.lua`,
+  not in the committed `tools/mergedbody_check`. The base config was `lodtest/config/openmw.cfg` with an empty
+  `settings.cfg` (stage e's own runs used the same), so foot planting, inertial locomotion and the other options were
+  at their defaults.
