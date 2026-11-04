@@ -14,7 +14,7 @@ Settings combinations: `c1` hdr; `c2` + gbuffer; `c3` + pbr; `c4` + gi; `c5` pbr
 | Armoured player (daedric cuirass, helm, pauldrons), `c6` | Draws normally. An NPC wearing armour was not placed (the player is an NPC body with the same models). |
 | Night with `c6` | Fine. |
 | Window resize (1280 x 720 to 1500 x 900, only the game's own titled window touched) with default, `c6` and `c6` + antialiasing 4 | Full 1484 x 861 frames in all three, no blank frame. |
-| Inventory with the character preview, and the local map, with default, `c6` and `c6` + antialiasing 4 | Draw correctly (see the note on the test data folder below). |
+| Inventory with the character preview, and the local map, with default, `c6` and `c6` + antialiasing 4 | Draw correctly (see the note on the test data folder below). **Correction (2026-11-04, task 0073):** the exterior local map did not: it showed the sea floor or black where the sea should be, and with a larger view distance no terrain in cells of negative coordinates. This note's own frame of 2026-11-01 shows the dark minimap. |
 | Slang sun with `hdr` (and with `c6`) | Starts and draws without errors; the sun disc was not in view, so the sun itself was not looked at. |
 | Main menu with `c6`: runs at about 58 frames a second, closes cleanly on a window close message | The engine's screenshot does not capture the menu, so no frame was looked at. |
 | Starting a new game through the character generation | Not driven (needs mouse input). `--skip-menu` starts were used throughout. |

@@ -37,15 +37,20 @@ render bins.
 
 1. **Draw order.** The map scene (`RenderManager::createMapScene`) is a group of the objects and a `Render::SimpleWater`
    plane, which is blended and writes no depth (`components/render/simplewater.hpp`). `requestExteriorMap` then
-   appended the cell's terrain after it. The map view has no bins, so its children draw in order: the sea was drawn,
-   then the opaque terrain drew over it, and sea cells showed the dark seafloor, or the black clear colour where the
-   seafloor lies below the far plane. That is the "background only" seen in the HUD at Seyda Neen.
+   appended the cell's terrain after it. `SimpleWater` is a plain StateGroup, so it and the terrain draw in traversal
+   order: the sea was drawn, then the opaque terrain drew over it, and sea cells showed the dark seafloor, or the black
+   clear colour where the seafloor lies below the far plane. That is the "background only" seen in the HUD at Seyda
+   Neen. (Corrected 2026-11-04 after the review: the first version of this text said the map view has no bins. It has
+   two, `Bin_DepthSorted` and a null compute bin (`map.cpp`, the `Map` constructor); alpha-blended NIF and DAE shapes
+   are `vsg::DepthSorted` (`nif.cpp`, `dae.cpp`) and draw last from that bin whatever the children's order. So blended
+   objects below the sea surface still draw after the water, untinted: that is older than this task and unchanged.)
    Evidence (one binary, a debug switch that changed only the order): with the terrain appended the sea north of
    Arrille's tradehouse is dark; with it first the channel is blue-grey. With the clear colour set to magenta,
    removing the water changed nothing and removing the terrain showed the magenta, so the water was never visible.
 2. **Batch index.** `Paging::updateViewForCell` cuts the cell's terrain from the batch that holds it, with
-   `std::floor(cell.x / batchSize)`: integer division rounds toward zero before the floor is taken. Batches hold one
-   cell up to a reference view distance of about 3 cells (7168 units, the default), so the fault was hidden. At
+   `std::floor(cell.x / batchSize)`: integer division rounds toward zero before the floor is taken. A batch holds one
+   cell while the reference view distance is at most 2 cells (16,384 units; `getBatchSize`, `paging.cpp`, is
+   `min(16, max(1, nextPow2(ceil(d / 2))))` for `d` cells), so at the default 7168 units the fault was hidden. At
    30000 units a batch holds two cells, and Seyda Neen's cell (-2, -9) took its terrain from the batch of cells -8
    to -7 (logged batch bounds y -69,056 to -45,632; the cell is -73,728 to -65,536), so no terrain was drawn there.
    Most of Vvardenfell has negative coordinates. toddhow's `[WorldLod] view distance = 40000` gives batches of four.
@@ -75,3 +80,40 @@ shows the dark minimap.
 - Not verified: the Slang shaders (the bug is the same with both, and the fix touches no shader), Linux, a frame by
   frame comparison of the main view before and after (no code it runs changed), the map's batch size with
   `[WorldLod]` (not logged).
+
+### Review fixes (2026-11-04)
+
+The fresh review (findings 1 to 6) found the stated cause of fault 1 wrong (above, corrected), the batch-size
+threshold misstated (corrected) and a gap older than this task: the map camera's height range came from the objects
+alone (`ComputeBounds` over the map scene; the water adds nothing, its draw has a `NullArrayState`). OpenMW's local map
+took it from the whole scene root, terrain included (`localmap.cpp` at `d35e66dc64^`, `mSceneRoot->getBound()`).
+
+- **Fix:** `MWRender::mapDepthRange` (`apps/openmw/mwrender/mapdepthrange.*`) takes the objects' box, the cell's
+  terrain range and the water level, ignores what is not finite, and gives no range when nothing is known (the map
+  then draws nothing for the cell, as the interior map does for an empty cell). The terrain range comes from the batch
+  data's height ranges, the same values a smaller draw's cull node is made from (`Terrain::Builder::heightRange`,
+  factored out of `createCullNode` with no change to it; `Paging::updateViewForCell` writes it to a new optional out
+  parameter). `requestExteriorMap` now fills the terrain view before it sets up the camera.
+- **Tests:** `MapDepthRange`, 9 tests in `apps/openmw_tests/mwrender/testmapdepthrange.cpp`; against a stub that gave
+  no range, 8 failed (the "nothing known" case passed vacuously). After the fix all pass; the 50 terrain tests too.
+- **What the log shows** (`OPENMW_DEBUG_LEVEL=DEBUG`, a Debug line per map render): the empty grid of the review is
+  real: at (-14, -22), open sea, "objects none, terrain -2048 to -2048, water -1; camera -2048 to -1" (the old code
+  converted an empty box's +-inf to float there). In the cells looked at, the grid's objects already spanned the
+  terrain: Seyda Neen objects -2887 to 5494 against terrain -872 to 1480; Red Mountain (2, 6) objects 1181 to 16727
+  against terrain 5520 to 11528. So a cut mountain top was not seen on screen; the case needs land higher than every
+  object of the 3 x 3 grid.
+- **Frames viewed** (`I:\Projects\OpenEden-work\minimap2\runs\`): `seyda` (map window equal by eye to the earlier
+  run `l`), `redmtn` and `redmtn2` (Red Mountain (2, 6): rock terrain drawn), `sea` (open sea at (-14, -22): water
+  over the sea floor), `interior` (Caldera, Guild of Mages: equal to the earlier run `q`). No frame of the open sea
+  with the old code (its build is gone).
+- **Canopies:** two runs at 30000 (`c30a`, `c30b`) give the same map window (0 pixels differ by more than 4 of
+  104,364, max 1), and 30000 against the default view distance (`seyda`) differs in 1 pixel (max 5). The 6 percent
+  of the first stage log does not reproduce after this change; its cause is unknown (both runs then had other
+  agents' builds and games on the machine).
+- **Recorded, not fixed:** the map's `mReferenceViewDistance` is taken when the `Map` is built (`rendermanager.cpp`,
+  the constructor), before `applyViewLimits` (world LOD's land diagonal) and any Lua `setViewDistance`, so after
+  either the map can use a batch size different from the main view's and miss the batch-data cache it is meant to
+  share (`paging.hpp`).
+- **Not verified:** a cell where land rises above every object of the grid, Linux and GCC, the Slang shaders (no
+  shader changed), the main view (no code it runs changed apart from `Builder::createCullNode`, which now calls the
+  factored function with the same loop).
