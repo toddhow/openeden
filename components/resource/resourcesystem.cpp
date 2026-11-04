@@ -70,13 +70,14 @@ namespace Resource
             // OPENEDEN_SHADER_CACHE names another cache folder (for benchmarks and checks that start from an empty or
             // a kept cache); the setting's own place is the user data folder.
             const char* cacheOverride = std::getenv("OPENEDEN_SHADER_CACHE");
-            vsgUtil::createSlangRuntime(options, std::filesystem::path(shaderPath),
-                std::filesystem::path(shaderPath).parent_path() / "slang",
+            vsgUtil::createSlangRuntime(
+                options, std::filesystem::path(shaderPath), std::filesystem::path(shaderPath).parent_path() / "slang",
                 std::filesystem::path(
                     cacheOverride != nullptr && cacheOverride[0] != '\0' ? cacheOverride : cacheDirectory),
                 [](bool warning, const std::string& message) {
                     Log(warning ? Debug::Warning : Debug::Info) << message;
-                });
+                },
+                true); // preload: the library starts on a worker at once (review of stage h, finding 3)
         }
         return options;
     }

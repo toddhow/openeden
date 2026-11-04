@@ -129,6 +129,9 @@ namespace vsgUtil
             bool mListed = false;
             // Stage h: the manifest does not list the set, and it is compiled at run time (or read from the cache).
             bool mRuntime = false;
+            // Stage h, review round 4 (finding 3): the run-time path refused or failed this set; the GLSL draws it, and
+            // later pipelines skip the file reads and the GLSL hash that reaching the runtime's own memory costs.
+            bool mRuntimeFailed = false;
             std::string mFile;
             vsg::observer_ptr<vsg::ShaderModule> mModule;
         };
@@ -546,6 +549,8 @@ namespace vsgUtil
             check.mCheck = [&path, &defines, &glsl, &options](const std::vector<uint32_t>& words) {
                 return checkTwinAgainstGlsl(path, defines, glsl, words, options);
             };
+            // A cache hit was checked in full when it was made; it is read back for the structure only.
+            check.mCheckHit = checkSlangTwinStructure;
             auto words = runtime->obtain(request, check);
             if (words.empty())
                 return {};
@@ -555,23 +560,72 @@ namespace vsgUtil
 
     void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
         const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
-        std::function<void(bool warning, const std::string&)> log)
+        std::function<void(bool warning, const std::string&)> log, bool preload)
     {
+        std::error_code absoluteError;
+        std::filesystem::path root = std::filesystem::absolute(shaderRoot, absoluteError);
+        if (absoluteError)
+            root = shaderRoot;
         auto runtime = SlangRuntime::create(createDynamicSlangCompiler(libraryDirectory), cacheDirectory);
         runtime->setLog(std::move(log));
-        // The self-test: the library must reproduce the build's omwfx vertex stage byte for byte. Read through the
-        // manifest like any twin; without it (no permutations built) the runtime has nothing to be checked by, and
-        // stays off.
-        SlangRuntimeRequest request;
-        request.mStageFile = "post/omwfx.vert";
-        request.mShaderRoot = shaderRoot;
-        std::filesystem::path root;
-        const auto shipped = findSlangPermutation(request.mStageFile, {}, options);
-        if (shipped && !shipped->code.empty() && readStageInfo(request.mStageFile, options, request.mInfo, root))
-            runtime->setSelfTest(std::move(request), shipped->code);
-        else
+        // The self-tests: the library must reproduce the build's permutations byte for byte. Read through the
+        // manifest like any twin; without them (no permutations built) the runtime has nothing to be checked by, and
+        // stays off. The small test is the omwfx vertex stage; the large one is the object shader's fragment stage
+        // with the most defines (review of stage h, finding 5: a library without its optimiser compiles a small
+        // stage the same bytes and a large one other, smaller code: 79,560 against 89,956 bytes were measured).
+        const auto addTest = [&](const std::string& stage, const std::set<std::string>& defines) {
+            SlangRuntimeRequest request;
+            request.mStageFile = stage;
+            request.mDefines = defines;
+            request.mShaderRoot = root;
+            std::filesystem::path found;
+            const auto shipped = findSlangPermutation(stage, defines, options);
+            if (!shipped || shipped->code.empty() || !readStageInfo(stage, options, request.mInfo, found))
+                return false;
+            runtime->addSelfTest(std::move(request), shipped->code);
+            return true;
+        };
+        if (!addTest("post/omwfx.vert", {}))
             return;
+        {
+            const std::string large = "default/main.frag";
+            const auto manifest = loadManifest(large, options);
+            std::set<std::string> best;
+            if (manifest)
+            {
+                for (const auto& entry : manifest->mFiles)
+                {
+                    std::set<std::string> names;
+                    std::istringstream in(entry.first == "-" ? std::string() : entry.first);
+                    for (std::string name; in >> name;)
+                        names.insert(name);
+                    if (names.size() > best.size())
+                        best = std::move(names);
+                }
+                if (!best.empty())
+                    addTest(large, best);
+            }
+        }
         options->setObject(slangRuntimeKey, runtime);
+        if (preload)
+            runtime->startPreload();
+    }
+
+    std::string checkSlangTwinStructure(const std::vector<uint32_t>& words)
+    {
+        try
+        {
+            const SpirvStructure structure = readSpirvStructure(words);
+            if (structure.mVersion != 0x00010000u)
+                return "the entry is not SPIR-V 1.0";
+            if (structure.mSpecConstantOps != 0)
+                return "the entry has an expression over specialization constants (OpSpecConstantOp)";
+            return {};
+        }
+        catch (const std::exception& e)
+        {
+            return std::string("the entry cannot be read: ") + e.what();
+        }
     }
 
     std::string checkTwinAgainstGlsl(const std::string& path, const std::set<std::string>& set,
@@ -657,6 +711,8 @@ namespace vsgUtil
                 {
                     if (auto module = entry.mModule.ref_ptr())
                         return module;
+                    if (entry.mRuntimeFailed)
+                        return {};
                     compileAtRun = glsl != nullptr;
                 }
                 else
@@ -691,14 +747,17 @@ namespace vsgUtil
                 {
                     // Task 0072, stage b (review): a family is ported but this set was never listed; the GLSL draws it
                     // or, since stage h, the set is compiled at run time.
-                    if (glsl == nullptr || options == nullptr
-                        || options->getObject<SlangRuntime>(slangRuntimeKey) == nullptr)
+                    if (options == nullptr || options->getObject<SlangRuntime>(slangRuntimeKey) == nullptr)
                     {
                         vsg::info(
                             "Slang permutations of \"", path, "\" have no file for [", key, "]; the GLSL is used");
                         return {};
                     }
+                    // Review round 4, finding 12: a caller with no GLSL stage to check against (a trace) does not make
+                    // the set unlisted for the runtime; a later call that has one compiles it.
                     entry.mRuntime = true;
+                    if (glsl == nullptr)
+                        return {};
                     compileAtRun = true;
                 }
                 else
@@ -722,10 +781,14 @@ namespace vsgUtil
         if (!compileAtRun)
             return {};
         auto module = runtimeTwin(path, defines, options, *glsl);
-        if (!module)
-            return {};
         std::lock_guard lock(cache.mMutex);
         ModuleEntry& entry = cache.mModules[moduleKey];
+        if (!module)
+        {
+            // Refused, failed or disabled: for the rest of the session (SlangRuntime remembers it as well).
+            entry.mRuntimeFailed = true;
+            return {};
+        }
         // Another thread may have made the module meanwhile: one module per set, shared by every pipeline.
         if (auto existing = entry.mModule.ref_ptr())
             return existing;

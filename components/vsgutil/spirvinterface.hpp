@@ -64,6 +64,16 @@ namespace vsgUtil
     /// std::runtime_error for words that are not SPIR-V or an instruction that runs past the end.
     std::map<uint32_t, std::string> readSpirvSpecConstantNames(const std::vector<uint32_t>& words);
 
+    /// Review of stage h (round 4), finding 2: the two facts a cache hit is checked for, read without working out any
+    /// interface line: the module's version word and its OpSpecConstantOp count. Throws std::runtime_error as
+    /// readSpirvInterface does for words that are not SPIR-V or an instruction that runs past the end.
+    struct SpirvStructure
+    {
+        uint32_t mVersion = 0;
+        std::size_t mSpecConstantOps = 0;
+    };
+    SpirvStructure readSpirvStructure(const std::vector<uint32_t>& words);
+
     struct SpirvInterfaceDiff
     {
         std::vector<std::string> mOnlyInFirst;

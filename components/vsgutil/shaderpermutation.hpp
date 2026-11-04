@@ -128,12 +128,21 @@ namespace vsgUtil
         const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl = nullptr);
 
     /// Task 0072, stage h: makes the SlangRuntime of `options` (slangRuntimeKey) with the dynamic compiler that
-    /// loads the library from `libraryDirectory` at its first compile, a cache under `cacheDirectory` (empty: none),
-    /// the build's permutation of post/omwfx.vert as the self-test, and `log` for its one-line messages. Needs
-    /// `options` to have its search path (the shader folder) and preferSlang set.
+    /// loads the library from `libraryDirectory`, a cache under `cacheDirectory` (empty: none), the build's
+    /// permutations of post/omwfx.vert and of the object shader's largest listed fragment set as the self-tests, and
+    /// `log` for its one-line messages. Needs `options` to have its search path (the shader folder) and preferSlang
+    /// set. With `preload` (the game; review round 4, finding 3) a worker thread starts the library and runs the
+    /// self-tests and the cache cleaning at once (SlangRuntime::startPreload); without it the first compile does.
+    /// Nothing is made (and `options` is left alone) when the build has no permutations to test the library with.
     void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
         const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
-        std::function<void(bool warning, const std::string&)> log);
+        std::function<void(bool warning, const std::string&)> log, bool preload = false);
+
+    /// Review of stage h (round 4), finding 2: the cheap check a cache hit passes before it is used (the full check
+    /// ran when the entry was made, and its version is in the cache key): the words parse, are SPIR-V 1.0 and have no
+    /// OpSpecConstantOp. Empty when fine, else the reason. A cache file is not trusted just because its own hash is
+    /// right: the hash is not secret.
+    std::string checkSlangTwinStructure(const std::vector<uint32_t>& words);
 
     /// Task 0072, stage h: what a run-time compiled twin must satisfy before it is used. Empty when fine, else the
     /// reason: the twin's SPIR-V is version 1.0, has no OpSpecConstantOp, and declares nothing the GLSL stage does not

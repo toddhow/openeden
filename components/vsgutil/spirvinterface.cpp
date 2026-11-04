@@ -692,6 +692,12 @@ namespace vsgUtil
         return Module(words).specConstantNames();
     }
 
+    SpirvStructure readSpirvStructure(const std::vector<uint32_t>& words)
+    {
+        const Module module(words);
+        return { module.version(), module.specConstantOps() };
+    }
+
     namespace
     {
         // The block of a "member <block> <offset>:<path>" line ("set=<s> binding=<b>" or "push_constant"), or empty

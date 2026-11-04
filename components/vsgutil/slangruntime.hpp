@@ -50,11 +50,24 @@ namespace vsgUtil
         std::filesystem::path mShaderRoot; // the folder holding the .slang files
     };
 
+    /// Review of stage h (round 4), finding 2: the version of the checks a cache entry has passed. It is part of every
+    /// cache key (and so of the refused-set files), so an entry made under an older, weaker check is a miss. Raise it
+    /// whenever a check (checkTwinAgainstGlsl, checkSlangTwinStructure) becomes stricter.
+    inline constexpr int slangCacheCheckVersion = 2;
+
     /// The compiler itself. Implementations need not be thread safe: SlangRuntime serialises the calls.
     class SlangRuntimeCompiler
     {
     public:
         virtual ~SlangRuntimeCompiler() = default;
+        /// Starts the compiler (loads the library and its global session) without compiling anything: false with the
+        /// reason in `error` when it cannot. Called by the start-up preload and by the first compile, under the
+        /// compile lock. The default has nothing to start.
+        virtual bool prepare(std::string& error)
+        {
+            (void)error;
+            return true;
+        }
         /// What identifies this compiler and its flags in a cache key, worked out without starting it (so a run with a
         /// warm cache never loads the library): for the dynamic compiler the size and time of its library files;
         /// empty when it cannot be used (the files are missing).
@@ -63,10 +76,21 @@ namespace vsgUtil
         virtual std::vector<uint32_t> compile(const SlangRuntimeRequest& request, std::string& error) = 0;
     };
 
-    /// The compiler that loads the Slang library from `libraryDirectory` (slang.dll and its two siblings on Windows,
-    /// the .so files on Linux) the first time compile() is called. Without the library headers at build
-    /// time (OPENEDEN_SLANG_RUNTIME not defined) every call fails with a reason.
-    std::unique_ptr<SlangRuntimeCompiler> createDynamicSlangCompiler(const std::filesystem::path& libraryDirectory);
+    struct SlangLoadOptions
+    {
+        /// True (the game): the two libraries Slang loads by bare name later (glslang and the glsl module) are loaded
+        /// by their full path with the main one, and the compiler cannot start if either is missing or does not load
+        /// (review of stage h, finding 5). False only in the test that shows what the self-test catches when glslang
+        /// is missing: the compile then succeeds with other, unoptimised code.
+        bool mRequireCompanions = true;
+    };
+
+    /// The compiler that loads the Slang library from `libraryDirectory` (slang.dll and its three siblings on
+    /// Windows, the .so files on Linux, found by scanning the folder for the versioned name) the first time
+    /// prepare() or compile() is called. The path is made absolute here. Without the library headers at build time
+    /// (OPENEDEN_SLANG_RUNTIME not defined) every call fails with a reason.
+    std::unique_ptr<SlangRuntimeCompiler> createDynamicSlangCompiler(
+        const std::filesystem::path& libraryDirectory, SlangLoadOptions options = {});
 
     /// What the caller checks on a freshly compiled result before it is used and cached: empty when fine, else the
     /// reason it is refused. `mKey` is text that goes into the cache key (the GLSL the result was checked against).
@@ -74,6 +98,10 @@ namespace vsgUtil
     {
         std::string mKey;
         std::function<std::string(const std::vector<uint32_t>& words)> mCheck;
+        /// Review of stage h (round 4), finding 2: a cheap check of a cache hit (the entry's words are parsed, SPIR-V
+        /// 1.0, no OpSpecConstantOp): empty when fine, else the reason; a refused entry is a miss (compiled again and
+        /// replaced, one log line). Unset: a hit is taken as it is. The full check `mCheck` is not repeated.
+        std::function<std::string(const std::vector<uint32_t>& words)> mCheckHit = nullptr;
     };
 
     class SlangRuntime : public vsg::Inherit<vsg::Object, SlangRuntime>
@@ -90,7 +118,37 @@ namespace vsgUtil
 
         /// The self-test the first compile runs: `request` is compiled and its words must equal `expected`, the
         /// permutation the build shipped for it. Without a test set (or when it fails) the runtime is disabled.
+        /// setSelfTest replaces every test; addSelfTest appends one (review of stage h, finding 5: a small stage and a
+        /// large one, since a missing optimiser shows in the large one first).
         void setSelfTest(SlangRuntimeRequest request, std::vector<uint32_t> expected);
+        void addSelfTest(SlangRuntimeRequest request, std::vector<uint32_t> expected);
+
+        /// Review of stage h (round 4), finding 3 (toddhow's decision on the cold-cache stall is open; this is the
+        /// interim choice): starts a worker thread, owned by this runtime and joined by its destructor, that starts the
+        /// compiler (loads the library and the global session), runs the self-tests and cleans the cache, so the first
+        /// compile does not pay for them. Everything is done under the compile lock; a compile that comes meanwhile
+        /// waits for it (and the wait is counted). Calling it twice does nothing.
+        void startPreload();
+        /// Waits until the preload (if one was started) has finished.
+        void waitForPreload() const;
+
+        struct CleanResult
+        {
+            std::size_t mRemoved = 0;
+            std::uintmax_t mBytesKept = 0;
+        };
+        /// Review of stage h (round 4), finding 7: deletes the cache folder's files that this runtime cannot use again:
+        /// entries whose compiler identity is not the current one or whose `.slang` source hash is not that of
+        /// `shaderRoot`, `.tmp` files a crash left (older than ten minutes), and then the oldest entries until the
+        /// folder is within maxCacheFolderBytes. A file another process holds open is skipped. A folder shared by two
+        /// builds with different shaders loses the other's entries on every run.
+        CleanResult cleanCache(
+            const std::filesystem::path& shaderRoot, std::uintmax_t maxBytes = maxCacheFolderBytes) const;
+
+        /// The most a cache entry file can hold for a key of this size (finding 2: checked before the file is read).
+        static std::uintmax_t maxCacheFileBytes(std::size_t keySize);
+        /// The most the cache folder keeps after cleanCache.
+        static constexpr std::uintmax_t maxCacheFolderBytes = 1024ull * 1024ull * 1024ull;
 
         /// SPIR-V for the request, from the cache or compiled now; empty when the runtime is disabled, the compile
         /// fails or `check` refuses the result (logged once per stage file and set). Never throws.
@@ -106,6 +164,17 @@ namespace vsgUtil
             std::size_t mFailed = 0;
             double mCompileMilliseconds = 0;
             double mCacheMilliseconds = 0;
+            // Review of stage h (round 4), finding 3: where the time went. A compile is counted for the thread that
+            // asked: "main" is the thread that made the runtime (the game's main thread), every other thread "other".
+            std::size_t mCompiledOnMain = 0;
+            std::size_t mCompiledOnOther = 0;
+            double mLongestWaitMilliseconds = 0; // on the compile lock
+            bool mLongestWaitWasMain = false;
+            bool mPreloaded = false;
+            double mPreloadMilliseconds = 0; // library, global session, self-tests, cache cleaning
+            std::size_t mRefusedSets = 0; // answered from a refused-set file
+            std::size_t mHitsRejected = 0; // cache entries that failed mCheckHit
+            std::size_t mCleaned = 0; // files deleted by cleanCache
         };
         Stats stats() const;
 
