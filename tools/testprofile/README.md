@@ -19,7 +19,21 @@ new feature too.
 
 ## Prepare it
 
-Close the game, then in Git Bash (or any shell that runs `bash`):
+Close the game. **On Windows, without any bash window,** open a normal Command Prompt or PowerShell (or double-click the
+file) and run the launcher, which finds Git's bash for you and your OpenMW config folder
+(`Documents\My Games\OpenMW`, also under OneDrive):
+
+```
+cd I:\Projects\OpenEden
+tools\testprofile\prepare.bat
+tools\testprofile\prepare.bat msaa aces
+```
+
+In PowerShell write `.\tools\testprofile\prepare.bat`. It only needs Git for Windows to be installed. To name the config
+folder yourself, make it the first argument: `prepare.bat "C:\Users\you\Documents\My Games\OpenMW" msaa`. Everything
+below that says `prepare.sh` can be run through `prepare.bat` the same way.
+
+From Git Bash (or any shell that runs `bash`) the script itself:
 
 ```
 cd /i/Projects/OpenEden
