@@ -16,6 +16,7 @@
 
 #include "../mwworld/ptr.hpp"
 
+#include "equipmentupdate.hpp"
 #include "mergedbody.hpp"
 #include "partcontrollers.hpp"
 #include "partslots.hpp"
@@ -135,7 +136,43 @@ namespace MWRender
 
         std::unique_ptr<MWAnim::Face> mFace;
 
+        // Task 0074e (finding 1 of the review of 0074d): what a rebuild or the constructor reads and sets for the
+        // actor's base (skeleton, custom bones, animations, head and hair), decided without changing the actor.
+        struct BasePlan
+        {
+            std::string mSkeleton; // read with mContext.readActor: the new Play's bones
+            std::vector<std::string> mCustomBones; // each read with readActor, its custom bones added to the bones
+            std::vector<std::string> mAnimations; // read with mContext.readAnimations, added to the new Play
+            std::string mHeadModel;
+            std::string mHairModel;
+            bool mDefaultSkeleton = false;
+        };
+        BasePlan makeBasePlan();
+        // Reads every file of `plan` into locals, and only then removes the parts and gives the actor its new
+        // skeleton and animations: a read that throws leaves the actor exactly as it was, the old animation, its
+        // bones and every pointer to them still valid.
+        void applyBasePlan(const BasePlan& plan);
+        // The constructor's base: applyBasePlan, then the parts. A rebuild goes through runRebuild.
         void updateNpcBase();
+        // A rebuild (task 0074e, finding 1): `plan` is applied (nothing is changed if a read throws; the exception
+        // reaches the caller), then `parts` inserts the parts and the actor is compiled (also when `parts` throws,
+        // runEquipmentUpdate), and `refresh` gives the CharacterController the new animation, also when `parts`
+        // throws, since `animation` is the new one by then (Npc::rebuild passes MechanicsManager::forceStateUpdate).
+        template <class Parts, class Refresh>
+        void runRebuild(const BasePlan& plan, Parts&& parts, Refresh&& refresh)
+        {
+            applyBasePlan(plan);
+            try
+            {
+                runEquipmentUpdate(parts, [this] { compile(); });
+            }
+            catch (...)
+            {
+                refresh();
+                throw;
+            }
+            refresh();
+        }
 
         NpcType getNpcType() const;
 
@@ -168,7 +205,7 @@ namespace MWRender
         void addAmmo();
 
         // Sheathing ([Game] weapon sheathing, shield sheathing; off by default). Needs bones a modded skeleton adds.
-        void addCustomBones(const std::string& model);
+        void appendCustomBoneFiles(const std::string& model, std::vector<std::string>& files) const;
         void removePath(std::vector<vsg::Node*>& path);
         void updateSheathing();
         void updateCarriedLeftVisible();

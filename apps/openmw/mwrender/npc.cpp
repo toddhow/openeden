@@ -165,11 +165,18 @@ namespace MWRender
 
     void Npc::rebuild()
     {
-        // Task 0074d: compiled also when the rebuild throws (runEquipmentUpdate).
-        runEquipmentUpdate([this] { updateNpcBase(); }, [this] { compile(); });
-
-        // vsgopenmw-fixme(dependency-policy)
-        MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
+        // Task 0074e (finding 1 of the review of 0074d): runRebuild reads everything first, so that a read that throws
+        // leaves the actor as it was, and gives the CharacterController the new animation on every way out.
+        runRebuild(
+            makeBasePlan(),
+            [this] {
+                updateCarriedLeftVisible();
+                updateParts();
+            },
+            [this] {
+                // vsgopenmw-fixme(dependency-policy)
+                MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
+            });
     }
 
     int Npc::getSlot(const std::vector<const vsg::Node*>& path) const
@@ -261,10 +268,9 @@ namespace MWRender
         return result;
     }
 
-    void Npc::updateNpcBase()
+    Npc::BasePlan Npc::makeBasePlan()
     {
-        removeAllParts();
-
+        BasePlan plan;
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         const ESM::Race* race = store.get<ESM::Race>().find(mNpc->mRace);
         NpcType curType = getNpcType();
@@ -273,13 +279,13 @@ namespace MWRender
         bool isFemale = !mNpc->isMale();
 
         auto& bodyPartStore = store.get<ESM::BodyPart>();
-        mHeadModel = getHeadModel(isWerewolf, isVampire, isFemale, mNpc->mRace, mNpc->mHead, bodyPartStore);
-        mHairModel = getHairModel(isWerewolf, mNpc->mHair, bodyPartStore);
+        plan.mHeadModel = getHeadModel(isWerewolf, isVampire, isFemale, mNpc->mRace, mNpc->mHead, bodyPartStore);
+        plan.mHairModel = getHairModel(isWerewolf, mNpc->mHair, bodyPartStore);
 
         bool is1stPerson = mViewMode == ViewMode::FirstPerson;
         bool isBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
 
-        const AnimationSources animSources
+        AnimationSources animSources
             = animationSources(mContext, is1stPerson, isFemale, isBeast, isWerewolf, mNpc->mModel, mNpc->mRace);
         const std::string& defaultSkeleton = animSources.defaultSkeleton;
         const std::string& smodel = animSources.skeleton;
@@ -289,29 +295,58 @@ namespace MWRender
             const VFS::Path::Normalized path(model);
             return path.value().starts_with("meshes/") ? path : Misc::ResourceHelpers::correctMeshPath(path);
         };
-        mDefaultSkeleton = meshPath(smodel) == meshPath(defaultSkeleton);
-        if (!mDefaultSkeleton && MergedBodies::enabled())
+        plan.mDefaultSkeleton = meshPath(smodel) == meshPath(defaultSkeleton);
+        if (!plan.mDefaultSkeleton && MergedBodies::enabled())
             Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().toString() << " uses the skeleton '"
                              << smodel << "', not its race's default '" << defaultSkeleton << "'";
-        const std::vector<std::string>& sources = animSources.sources;
-
-        Misc::LoadTrace::Scope traceSkel("npc.readactor");
-        vsg::ref_ptr<const vsg::Node> node = mContext.readActor(smodel);
-        traceSkel.end();
-
-        animation = std::make_unique<MWAnim::Play>(
-            MWAnim::Bones(static_cast<const vsg::Node&>(*node), MWAnim::groups), MWAnim::sNumBlendMasks);
+        plan.mSkeleton = smodel;
+        plan.mAnimations = std::move(animSources.sources);
         if (Settings::game().mWeaponSheathing || Settings::game().mShieldSheathing)
         {
-            addCustomBones(defaultSkeleton);
+            appendCustomBoneFiles(defaultSkeleton, plan.mCustomBones);
             if (smodel != defaultSkeleton)
-                addCustomBones(smodel);
+                appendCustomBoneFiles(smodel, plan.mCustomBones);
         }
+        return plan;
+    }
+
+    void Npc::applyBasePlan(const BasePlan& plan)
+    {
+        // Task 0074e (finding 1 of the review of 0074d): every read first, into locals. A read can throw
+        // (vsgUtil::readNode and vsg::read_cast read through vsgAdapters::vfs, whose VFS::Manager::get can throw on
+        // an Eden Archive entry that fails its check or on an I/O error), and the actor's CharacterController,
+        // Actor::mHead, mSpine and mRoot, the Player's neck and the pose and IK bone pointers all point into
+        // `animation` and into its bones, which only forceStateUpdate and assignBones refresh. Until the swap below
+        // the actor is as it was.
+        Misc::LoadTrace::Scope traceSkel("npc.readactor");
+        vsg::ref_ptr<const vsg::Node> skeleton = mContext.readActor(plan.mSkeleton);
+        traceSkel.end();
+        std::vector<vsg::ref_ptr<const vsg::Node>> customBones;
+        for (const std::string& file : plan.mCustomBones)
+            if (auto bones = mContext.readActor(file))
+                customBones.push_back(std::move(bones));
         Misc::LoadTrace::Scope traceAnims("npc.readanimations");
-        animation->addAnimSources(mContext.readAnimations(sources), smodel);
+        const std::vector<vsg::ref_ptr<Anim::ControllerMap>> animations = mContext.readAnimations(plan.mAnimations);
         traceAnims.end();
-        Misc::LoadTrace::Scope traceParts("npc.updateparts");
+
+        // Nothing below reads a file or throws.
+        removeAllParts();
+        mHeadModel = plan.mHeadModel;
+        mHairModel = plan.mHairModel;
+        mDefaultSkeleton = plan.mDefaultSkeleton;
+        animation = std::make_unique<MWAnim::Play>(
+            MWAnim::Bones(static_cast<const vsg::Node&>(*skeleton), MWAnim::groups), MWAnim::sNumBlendMasks);
+        for (const auto& bones : customBones)
+            animation->bones.addCustomBones(*bones);
+        animation->addAnimSources(animations, plan.mSkeleton);
         assignBones();
+    }
+
+    void Npc::updateNpcBase()
+    {
+        // The constructor's path (a throw here ends the actor's construction); a rebuild goes through runRebuild.
+        applyBasePlan(makeBasePlan());
+        Misc::LoadTrace::Scope traceParts("npc.updateparts");
         // Another skeleton may have the shield's sheath bone or not: as OpenMW's viewChange in NpcAnimation::rebuild.
         updateCarriedLeftVisible();
         updateParts();
@@ -976,7 +1011,7 @@ namespace MWRender
         }
     }
 
-    void Npc::addCustomBones(const std::string& model)
+    void Npc::appendCustomBoneFiles(const std::string& model, std::vector<std::string>& files) const
     {
         // As OpenMW's injectCustomBones: every .nif in the animations folder named after the skeleton.
         std::string folder = Misc::StringUtils::lowerCase(model);
@@ -994,8 +1029,7 @@ namespace MWRender
             MWBase::Environment::get().getResourceSystem()->getVFS()->getRecursiveDirectoryIterator(folder))
         {
             if (Misc::getFileExtension(name) == "nif")
-                if (auto node = mContext.readActor(std::string(name.value())))
-                    animation->bones.addCustomBones(*node);
+                files.emplace_back(name.value());
         }
     }
 
