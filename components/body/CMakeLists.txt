@@ -26,5 +26,6 @@ target_link_libraries(eden_body
     PRIVATE opas_format_json
 )
 # AdvancedBodies' editor module (editor_modules/advancedbodies_editor, task 0069 stage f) is a shared library that links
-# this one, as CreativeMotion's and the Eden Archive libraries already are. Code generation only: MSVC ignores it.
+# this one and edenarchive (both position-independent for it; CreativeMotion's libraries already are). Code generation
+# only: MSVC ignores it.
 set_property(TARGET eden_body PROPERTY POSITION_INDEPENDENT_CODE ON)

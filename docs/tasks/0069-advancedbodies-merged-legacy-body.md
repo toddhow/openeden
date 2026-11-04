@@ -1067,10 +1067,22 @@ reader allows colours nothing" branch is not reachable through the open function
 **Not done or not verified.** A skinned rest pose (the viewer cannot; the bind pose is drawn), filled region triangles
 (the API has lines only: API 1.1, toddhow's decision), labels; opening the cache from the user data folder without
 `OPENEDEN_CS_ASSETDIR` (API 1.0 has no user data folder); a person's click on the menu items and the Asset Browser
-entries (the check calls `openAsset` and `runCommand`); Linux (the PIC change is unbuilt there); the 32 Lua tests (no
-game file changed). The time of a body switch (about 1.15 s with three document windows) is Studio rebuilding forms,
+entries (the check calls `openAsset` and `runCommand`); the 32 Lua tests (no game file changed); on Linux only the
+editor targets were built (see below). The time of a body switch (about 1.15 s with three document windows) is Studio rebuilding forms,
 CreativeMotion's hidden panel included (it shows any active asset); not profiled. The 12-colour palette repeats for the
 20 slots of a stock body (`slot-2` and `slot-16` share red).
+
+**The Linux link (found by the coordinator's gate at `4ec2afd409`).** `libadvancedbodies_editor.so` failed to link:
+`edenarchive`'s `archive.cpp` (a function-local thread_local, the chunk scratch) was not position-independent
+(`R_X86_64_TPOFF32 ... recompile with -fPIC`). The claim above that the Eden Archive libraries were already PIC was
+wrong: only its zstd and BLAKE3 targets were. `creativemotion_editor` never met it because it links only CreativeMotion's
+libraries, which `components/creativemotion/CMakeLists.txt` builds with `CMAKE_POSITION_INDEPENDENT_CODE ON`. Fix:
+`POSITION_INDEPENDENT_CODE` on `edenarchive` (the alternative, reading packs through the host, needs an API the host
+does not have). Checked in the Linux container (`cs_inside.sh`, HEAD with the change overlaid): `eden-studio` and
+`eden-studio-tests` build with `-Werror`, the tests pass (676), the editor starts under xvfb and loads both modules.
+Windows after the reconfigure: only the version stamps recompiled (no `edenarchive` or `eden_body` object), `openmw`,
+`eden-studio`, `eden-studio-tests` (676), `components-tests` (5,482) and `openmw-tests` (927) build and pass, and
+`tools/edenstudio_check/check.sh` passes.
 
 **Questions for toddhow.** (1) API 1.1 for a filled overlay (`OverlaySink::triangle`) and a user data folder query:
 both change the two tests that pin the API at 1.0. (2) Should module edits have an undo stack of their own instead of

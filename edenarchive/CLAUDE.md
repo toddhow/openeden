@@ -44,6 +44,10 @@ file needs a pull request that says why (root `CLAUDE.md`).
 
 ## Pitfalls
 
+- **Keep every target position-independent.** Eden Studio's `advancedbodies_editor` module (a shared library) links
+  this library through `eden_body`. Built without `-fPIC`, the Linux link failed on `archive.cpp`'s thread_local
+  scratch (`R_X86_64_TPOFF32 ... recompile with -fPIC`, task 0069 stage f); `POSITION_INDEPENDENT_CODE` is set on
+  `edenarchive` as on its zstd and BLAKE3. MSVC ignores the property.
 - The test-writer found that the spec's wording on which field an error points at was not fixed; the implementation
   reports the first field the failed check names (for example `pathLength` for "path outside the string table").
 - `Archive::open(path)` holds one file handle for the life of the archive; on Windows it opens with

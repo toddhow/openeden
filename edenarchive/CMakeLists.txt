@@ -72,6 +72,10 @@ target_compile_features(edenarchive PUBLIC cxx_std_20)
 target_link_libraries(edenarchive PUBLIC edenarchive_blake3 edenarchive_zstd)
 find_package(Threads REQUIRED)
 target_link_libraries(edenarchive PRIVATE Threads::Threads)
+# A shared library links it (Eden Studio's advancedbodies_editor module, through the engine's body library), as its
+# zstd and BLAKE3 already are: on Linux the archive.cpp thread_local (the chunk scratch) cannot be linked into a shared
+# object without -fPIC. Code generation only; MSVC ignores the property.
+set_target_properties(edenarchive PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Unit tests (an own executable, so that the permissive tree builds and tests without the engine), the independent
 # test writer they share with the conformance corpus generator, and the generator itself (corpus/README.md).
