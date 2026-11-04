@@ -11,13 +11,20 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #   <base openmw.cfg>  a COPY of a working config (data, content, fallback and archive lines; never the user's own
 #                      file: the check appends two lines to its copy). The user's settings.cfg is never read.
 #   <work dir>         empty; each run gets <work dir>/<variant>-<n>/{config,user}, report.json and report.txt
-#   variants           vanilla, inertial, cm, natural (default: the first three)
+#   variants           vanilla, inertial, cm, cmoff, natural (default: the first three)
 #     vanilla   every feature off: Morrowind as it was
 #     inertial  [Game] inertial locomotion = high
 #     cm        inertial locomotion = high and creativemotion animation = true
-#     natural   inertial locomotion = high and creativemotion preset = natural (task 0067, stage 1)
-# Environment: EXTRA_SETTINGS=<text> is appended to each run's settings.cfg (including section headers);
-#              REPEAT=<n> runs each variant n times (default 1) and compares the reports of one variant;
+#     cmoff     cm with the preset, transition rules and style layer written explicitly as off/false (the
+#               unchanged-when-off check: must measure as cm does, within the spread between runs)
+#     natural   inertial locomotion = high and creativemotion preset = natural (task 0067, stage 1); a natural run
+#               whose trace never shows the intent wanting to move, starting and stopping FAILS (the engine feed is
+#               broken: stage 1 review, finding 1)
+# Environment: EXTRA_SETTINGS=<text> is appended to each run's settings.cfg (including section headers) and recorded
+#              in each report's meta;
+#              REPEAT=<n> runs each variant n times (default 3; a difference between variants counts only where it
+#              is larger than the spread between the runs of one variant) and writes <variant>-summary.txt/.json with
+#              the range of every measure over the runs;
 #              CELL=<cell name> (default "Seyda Neen": open ground; the Ebonheart chambers are too small, the player runs into a wall after 145 units); FRAMES=<n> auto-quit frame
 #              (default 1400, the scenario is about 1100 frames long).
 # On Windows pass Windows paths (I:/...), see CLAUDE.md "Check scripts take Windows paths". Run the game's own folder
@@ -37,10 +44,16 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 MOD=$(cd "$HERE/mod" && { pwd -W 2>/dev/null || pwd; })
 CELL=${CELL:-Seyda Neen}
 FRAMES=${FRAMES:-1400}
-REPEAT=${REPEAT:-1}
+REPEAT=${REPEAT:-3}
 VARIANTS=("$@")
 [ ${#VARIANTS[@]} -gt 0 ] || VARIANTS=(vanilla inertial cm)
 FAILED=0
+
+# Which build made the reports: the commit of the source tree (with the number of changed tracked files, since the
+# build may hold uncommitted work) and the time openmw was linked.
+REPO=$(cd "$HERE/../.." && pwd)
+COMMIT=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown)
+CHANGED=$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null | wc -l | tr -d ' ')
 
 [ -z "$(ls -A "$WORK" 2>/dev/null)" ] || { echo "FAIL: $WORK is not empty"; exit 1; }
 [ -f "$BASECFG" ] || { echo "FAIL: no config at $BASECFG"; exit 1; }
@@ -56,6 +69,7 @@ variant_settings() {
         vanilla) printf '' ;;
         inertial) printf 'inertial locomotion = high\n' ;;
         cm) printf 'inertial locomotion = high\ncreativemotion animation = true\n' ;;
+        cmoff) printf 'inertial locomotion = high\ncreativemotion animation = true\ncreativemotion preset = off\ncreativemotion transition rules = false\ncreativemotion style layer = false\n' ;;
         natural) printf 'inertial locomotion = high\ncreativemotion preset = natural\n' ;;
         *) return 1 ;;
     esac
@@ -91,9 +105,25 @@ run_one() {
         FAILED=1
         return
     fi
-    "$CHECK" --label "$label-$repeat" "$dir/config/openmw.log" > "$dir/report.txt" 2> "$dir/report.err" \
+    local built
+    built=$(date -r "$BUILD/$GAME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo unknown)
+    META=(--meta "commit=$COMMIT (+$CHANGED changed tracked files)" --meta "openmw built=$built"
+        --meta "variant settings=$settings" --meta "extra settings=${EXTRA_SETTINGS:-}")
+    "$CHECK" --label "$label-$repeat" "${META[@]}" "$dir/config/openmw.log" > "$dir/report.txt" 2> "$dir/report.err" \
         || { echo "FAIL: $label-$repeat: $(cat "$dir/report.err")"; FAILED=1; return; }
-    "$CHECK" --json --label "$label-$repeat" "$dir/config/openmw.log" > "$dir/report.json" 2>> "$dir/report.err"
+    "$CHECK" --json --label "$label-$repeat" "${META[@]}" "$dir/config/openmw.log" > "$dir/report.json" \
+        2>> "$dir/report.err"
+    if [ "$label" = natural ]; then
+        # The intent must be seen: frames that want to move, that start and that stop (finding 1 of the review).
+        local intent
+        intent=$(grep -o '"intentFrames": {[^}]*}' "$dir/report.json")
+        for field in wants start stop; do
+            if ! echo "$intent" | grep -q "\"$field\": [1-9]"; then
+                echo "FAIL: $label-$repeat: the trace never shows intent $field ($intent)"
+                FAILED=1
+            fi
+        done
+    fi
     cat "$dir/report.txt"
 }
 
@@ -101,10 +131,19 @@ for label in "${VARIANTS[@]}"; do
     for ((n = 1; n <= REPEAT; ++n)); do
         run_one "$label" "$n"
     done
-    if [ "$REPEAT" -ge 2 ] && [ -f "$WORK/$label-1/report.json" ] && [ -f "$WORK/$label-2/report.json" ]; then
-        # The reports differ only in the label line when two runs measure the same numbers.
-        differing=$(diff <(grep -v '"label"' "$WORK/$label-1/report.json") <(grep -v '"label"' "$WORK/$label-2/report.json") | grep -c '^<')
-        echo "repeat $label: $differing report lines differ between run 1 and run 2"
+    logs=()
+    for ((n = 1; n <= REPEAT; ++n)); do
+        [ -f "$WORK/$label-$n/config/openmw.log" ] && logs+=("$WORK/$label-$n/config/openmw.log")
+    done
+    if [ ${#logs[@]} -gt 0 ]; then
+        settings=$(variant_settings "$label")
+        "$CHECK" --summary --label "$label" --meta "commit=$COMMIT (+$CHANGED changed tracked files)" \
+            --meta "variant settings=$settings" --meta "extra settings=${EXTRA_SETTINGS:-}" "${logs[@]}" \
+            > "$WORK/$label-summary.txt"
+        "$CHECK" --summary --json --label "$label" --meta "commit=$COMMIT (+$CHANGED changed tracked files)" \
+            --meta "variant settings=$settings" --meta "extra settings=${EXTRA_SETTINGS:-}" "${logs[@]}" \
+            > "$WORK/$label-summary.json"
+        echo "summary of $label over ${#logs[@]} runs: $WORK/$label-summary.txt"
     fi
 done
 

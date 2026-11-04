@@ -10,10 +10,13 @@
 
 namespace AnimTrace
 {
-    /// Usage: creativemotioncheck [--json] [--ref <actor>] [--label <text>] [--window <frames>] <openmw.log>
-    /// Reads the CMTRACE and CMPHASE lines of the log and writes the measurements of every scripted event, as a
-    /// table or (--json) as canonical JSON, to `out`. Problems go to `err`. Returns 0 on success, 1 when the log
-    /// holds no trace lines of the actor, 2 when the arguments are wrong or the file cannot be read. Never throws.
+    /// Usage: creativemotioncheck [--json] [--ref <actor>] [--label <text>] [--window <frames>]
+    ///                            [--meta <key>=<value>]... [--summary] <openmw.log>...
+    /// Reads the CMTRACE and CMPHASE lines of the log and writes the measurements of every scripted event and every
+    /// change of a bone group's animation, as a table or (--json) as canonical JSON, to `out`. --meta adds a key and
+    /// value to the report (the build's commit and time, the extra settings). --summary takes several logs (runs of one
+    /// variant) and writes the range of each measure over them. Problems go to `err`. Returns 0 on success, 1 when a
+    /// log holds no trace lines of the actor, 2 when the arguments are wrong or a file cannot be read. Never throws.
     int runTraceTool(const std::vector<std::string>& args, std::ostream& out, std::ostream& err);
 }
 
