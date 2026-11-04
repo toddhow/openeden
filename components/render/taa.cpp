@@ -118,6 +118,16 @@ namespace Render
         mFirstSwitch = {};
         mFramesSinceBuild = 0;
         mExtent = extent;
+        // The node can be recorded before the next beginFrame (a frame with no scene update): the shader must then
+        // know the new size and take nothing from the history.
+        {
+            const vsg::vec4 scale = mScale->value();
+            mScale->set(
+                vsg::vec4(scale.x, scale.y, static_cast<float>(extent.width), static_cast<float>(extent.height)));
+            vsg::vec4 params = mParams->value();
+            params.x = 0.f;
+            mParams->set(params);
+        }
         if (!colour || !linearDepth || !velocity || extent.width == 0 || extent.height == 0)
             return false;
 
@@ -195,6 +205,10 @@ namespace Render
                 VK_QUEUE_FAMILY_IGNORED, outputImage, range));
 
         auto commands = vsg::Commands::create();
+        // The pipeline first: a push constant is recorded against the layout of the pipeline bound last, so before a
+        // bind it would go to the previous pass's layout (review of stage c). Both pipelines share one layout, so the
+        // values survive the second bind.
+        commands->addChild(resolve);
         commands->addChild(bindSet);
         commands->addChild(vsg::PushConstants::create(VK_SHADER_STAGE_COMPUTE_BIT, 0, mMatrix));
         commands->addChild(vsg::PushConstants::create(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(vsg::mat4), mScale));
@@ -202,7 +216,6 @@ namespace Render
             vsg::PushConstants::create(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(vsg::mat4) + sizeof(vsg::vec4), mParams));
         commands->addChild(
             vsg::PushConstants::create(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(vsg::mat4) + 2 * sizeof(vsg::vec4), mLook));
-        commands->addChild(resolve);
         commands->addChild(dispatch);
         commands->addChild(between);
         commands->addChild(output);
@@ -243,7 +256,8 @@ namespace Render
         mState.previousJitterPixels = mState.jitterPixels;
         mState.jitterPixels = Taa::jitterPixels(mState.frame, mSettings.jitterScale);
         mState.jitterNdc = Taa::jitterNdc(mState.jitterPixels, mExtent.width, mExtent.height);
-        mJitter->ndc = mState.jitterNdc;
+        // Without a successful build nothing resolves the picture, so nothing may shift it either.
+        mJitter->ndc = mResult ? mState.jitterNdc : vsg::dvec2(0.0, 0.0);
         mState.historyValid = mResult && !input.reset && mFramesSinceBuild >= warmupFrames;
         mState.toPreviousClip = input.toPreviousClip;
         ++mState.frame;

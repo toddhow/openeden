@@ -131,8 +131,8 @@ int2 clampTexel(int2 t, int2 size)
 float3 loadColour(int2 t)
 {
     float3 c = colourTex.Load(int3(t, 0)).rgb;
-    if (any(isnan(c)) || any(isinf(c)))
-        c = float3(0.0, 0.0, 0.0);
+    // NaN is dropped; an infinite value (a half-float overflow) is a very bright pixel, not a black one.
+    c = float3(isnan(c.x) ? 0.0 : c.x, isnan(c.y) ? 0.0 : c.y, isnan(c.z) ? 0.0 : c.z);
     return compressColour(min(c, float3(60000.0, 60000.0, 60000.0)));
 }
 
