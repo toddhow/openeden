@@ -97,8 +97,8 @@ namespace Body
     /// parts' rule (`Npc::updateParts`): a slot's body part is drawn when its priority is below 1 or the slot holds the
     /// body part itself (group -1); equipment and reservations take a slot with an inventory group (>= 0) and a
     /// priority of 1 or more, and then the body part of that slot is not drawn. `partslots` and `priorities` are
-    /// indexed by part slot (ESM::PartReferenceType), as `Npc::mPartslots` and `mPartPriorities`. A merged slot outside
-    /// them counts as covered (its region is hidden: a bad slot number never shows skin under a garment).
+    /// indexed by part slot (ESM::PartReferenceType), as `MWRender::PartSlots::groups` and `priorities`. A merged slot
+    /// outside them counts as covered (its region is hidden: a bad slot number never shows skin under a garment).
     std::vector<int> hiddenMergedSlots(
         std::span<const int> mergedSlots, std::span<const int> partslots, std::span<const int> priorities);
 

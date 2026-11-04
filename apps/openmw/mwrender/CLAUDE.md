@@ -226,25 +226,46 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   merged NPCs cost a 7.2 ms frame against 3.8 ms for stock; with the subset the two are equal.
 - **Attach at any bone:** the vertices are in the skeleton's space and each bone's inverse rest matrix is its
   `invBindMatrix`, so the attachment bone (the groin) only fixes the frame the skin's matrices are relative to.
-- **Re-attached on every `updateParts`:** `clearControllers` empties `mStaticControllers`, which holds the merged
-  body's skin controllers; `removePath(mMergedBody)` first, then attach again. `compile()` failing removes it too.
+- **The actor's copy is kept** (stage e review, finding 2): while its template is the same, `attachMergedBody` keeps
+  `mMergedNode` and only applies the regions again when the hidden set changed; a torch at dusk or any change that
+  touches no merged slot does no node work. `clearControllers` still empties `mStaticControllers` on every
+  `updateParts`, so the copy's controllers, recorded in `mMergedControllers` when it was linked, are added again by
+  `relinkMergedBody` (valid while `mMergedNode` holds the copy: its bone matrices own the skins). Everything that ends
+  the copy goes through `forgetMergedBody`: a rebuild (`updateNpcBase`), a failed `compile()`, the stock parts. The
+  skins keep their matrices across a change, so the first frame after it has the right motion (finding 5).
+- **Skins of hidden draws are left out** (finding 3): `MergedBodies::RegionChange` names each draw's bone matrices and
+  whether any of it is drawn; `relinkMergedBody` does not add the skin of a draw nothing of is drawn. When such a draw
+  is drawn again, `applyMergedRegions` calls `Anim::Skin::forgetPreviousMatrices` on its skin (found through
+  `MergedLink::mSkin`, the non-const clone from `decorated.clonedControllers`): its previous matrices are those of when
+  it was hidden, so its first frame would carry that whole motion; it now has none, like a new part (finding 5).
 - **One draw per material key** (`Body::planMergedDrawsByMaterial`): the player and 20 merged NPCs are about 270
   fewer draws in the scene census than stock (7,116 against 6,848), at the same frame time.
 - **Equipment (stage e):** a dressed actor keeps the merged body with the covered regions left out.
-  `Body::hiddenMergedSlots` reads `mPartslots` and `mPartPriorities` after the equipment loop, so it is the stock
-  parts' own rule (a slot held by an inventory group with priority 1 or more); `MergedBodies::applyHiddenRegions` then
-  gives the actor's copy, for each draw with a hidden run, one `vsg::VertexIndexDraw` per remaining index range
-  (`Body::visibleIndexRanges`) sharing the template's buffer infos, or none. Only the copy changes: its state groups
-  are its own because `MWAnim::decorate` clones the bone matrices; a copy that shares one with the template is refused.
-  VSG's `VertexIndexDraw` copy constructor does not copy the index type: `assignIndices` sets it, then the template's
-  buffer info replaces the one it made. Done in `updateParts` only, never per frame.
-- **The fallback** (a refused copy): the stock parts entirely, a warning, and stage d's rule: at most one swap each way
-  per actor (`mMergedDrawn`, `mMergedRetired`). Retiring every actor first built dressed kept the player on the stock
-  parts, silently.
-- **An equipment change costs more with the merged body:** the whole body is decorated, linked and compiled again on
-  every `updateParts`, while the stock loop keeps the body parts it already has. Full set on and off every second frame:
-  frame median 5.43 ms against 4.57 ms for stock (3.80 and 3.72 ms before), about 1.6 ms more main-thread time per
-  change. Keeping the copy when the hidden set is unchanged would remove most of it.
+  `Body::hiddenMergedSlots` reads `mSlots` (`PartSlots`, the bookkeeping `updateParts` uses) after the equipment pass,
+  so it is the stock parts' own rule (a slot held by an inventory group with priority 1 or more);
+  `MergedBodies::applyHiddenRegions` then gives the actor's copy, for each draw, one `vsg::VertexIndexDraw` per
+  remaining index range (`Body::visibleIndexRanges`) sharing the template's buffer infos, the template's own draw when
+  nothing of it is hidden, or none. It can be applied again to a copy it changed; a draw already as wanted is left
+  alone, and the draws it takes out are detached by the caller (`CompileContext::detach`). Only the copy changes: its
+  state groups are its own because `MWAnim::decorate` clones the bone matrices; a copy that shares one with the
+  template, or has a draw that is not one of the template's buffers, is refused. VSG's `VertexIndexDraw` copy
+  constructor does not copy the index type: `assignIndices` sets it, then the template's buffer info replaces the one
+  it made (`thirty_two_bit_indices_keep_their_type` fails without it). Done in `updateParts` only, never per frame.
+- **Sharing the template's buffer infos is safe here, unlike LOD cluster pitfall 3** (different cluster draws, each
+  with vertices of its own, given shared `BufferInfo` objects drew streaks): the parts of a merged draw are ranges of
+  that one draw's own index list over its own vertices, so they bind exactly the buffers, offsets and index type the
+  template's draw binds, compiled once with the template; only `firstIndex` and `indexCount` differ. The frames of
+  stage e and of its review (wrist, knee, ankle close-ups, 20 dressed NPCs) show them right.
+- **The fallback** (a refused copy): the stock parts entirely, a warning once per race and sex
+  (`MergedBodies::reportRegionsRefused`, finding 4), and stage d's rule: at most one swap each way per actor
+  (`mMergedDrawn`, `mMergedRetired`). Retiring every actor first built dressed kept the player on the stock parts,
+  silently.
+- **What an equipment change costs** (trace scopes `npc.updateequipment`, `npc.compile`, `npc.mergedbody.*`; stage e
+  review): before the copy was kept, the merged body was decorated, linked and compiled again on every `updateParts`.
+  Now the full set on and off every second frame costs 2.06 ms per change against 1.81 ms for stock (3.23 ms before);
+  26 NPCs taking out their torches in one frame cost 9.96 ms of `npc.updateequipment` against 6.34 ms for stock
+  (12.39 ms before, of which decorate and link were 2.29 ms; now 0.04 ms). What remains is in VSG's compile of the
+  actor (`npc.compile`: 5.26 ms against 2.92 ms for stock in the torch frame), not traced further.
 - **Logs:** every silent fallback is logged once (a race the store lacks, each refusal reason per race and sex, an
   actor on another skeleton at Info); one line per actor that draws the merged body ("Merged bodies: <ref> draws the
   merged body"), which the check tool counts. The default skeleton is compared as a normalised mesh path, prefixed
@@ -259,6 +280,14 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   twelve combinations from four cameras each, then 200 cycles of the full set on and off; add `[Rendering]\nframe
   counters = true` to `EXTRA_SETTINGS` and compare `stats.txt` between "MBPHASE baseline" and "MBPHASE after". Lua's
   `moveInto` never auto-equips (`objectbindings.cpp`), so the NPCs are dressed by a script of their own.
+  `SCENE=torches` (stage e review; start it in `Pelagiad`: at Balmora's start the hill pushes the lines together)
+  places twenty dressed NPCs of every race and sex with torches behind the player and sets the hour from noon to night
+  and back four times (`world.mwscript.getGlobalVariables().gamehour`): `Actors::update` makes every NPC in range take
+  out or put away its torch in the same frame, once a second. Then every NPC puts on a full iron set (a 4 s quiet
+  window), then the paper doll. With `[Cells]\nload trace = true` the trace is copied next to the frames; each change
+  frame has one `npc.updateequipment` per NPC, and `npc.mergedbody.matrices` / `.drawn` give each relink's bone
+  matrices (all draws, drawn draws). Pixel differences between runs mean little in these scenes: the camera follows
+  where the player settled, a weather change is still moving, torches flicker; view the frames side by side.
 - **The scene census samples every 30 frames,** so equipment toggled every second frame shows as a slow alternation in
   `ctr_scene_draws`, not one change per toggle.
 
@@ -277,3 +306,10 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   and are not linked again; what an equipment change does to them is not checked.
 - **Checking it:** the equipment scene of `tools/mergedbody_check` (`SCENE=equipment`, stock): frames 009, 010, 045 and
   046 show the chest through the pants and loincloth when the controllers are lost.
+- **The slot bookkeeping is `PartSlots`** (`partslots.*`, task 0069 stage e review): which inventory group holds each
+  part slot and at what priority, the equipment pass (`wear`: slot list, priorities, robe and skirt reservations,
+  part-less parts), the race's body parts (`addBodyParts`) and the merged body taking its slots (`releaseBodyParts`),
+  moved out of `Npc` unchanged; `Npc` does the node work through `PartSlots::Nodes::detachPart` (forget the part's
+  controllers, remove its path) and the attach callbacks (`attachPart`). Change the rules there, not in `Npc`:
+  `apps/openmw_tests/mwrender/testpartslots.cpp` runs it over whole update sequences and checks that the merged body
+  hides exactly what the stock parts do not draw.

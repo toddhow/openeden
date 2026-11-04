@@ -212,10 +212,12 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
 - **`invertAffine` is row-major `[M3 | t]`** like `BodyNif::Matrix34` (v' = M3 v + t) and refuses a determinant below
   1e-12 or any non-finite value, leaving its output untouched.
 - **Regions (stage e).** `hiddenMergedSlots` is the stock parts' rule read from the same two arrays
-  (`Npc::mPartslots`, `mPartPriorities`): hidden when an inventory group (0 or more) holds the slot with a priority of 1
-  or more; a slot outside the arrays counts as covered. It must stay equal to `Npc::updateParts`'s body-part loop: the
-  tests compare it with a reference written from `npc.cpp` for every single-slot state and 20,000 seeded random
-  states, so a change of the stock rule needs a change of both. `mergedSlotsCovered` (stage d's all-or-nothing test)
+  (`MWRender::PartSlots::groups` and `priorities`, the bookkeeping `Npc::updateParts` uses): hidden when an inventory
+  group (0 or more) holds the slot with a priority of 1 or more; a slot outside the arrays counts as covered. It must
+  stay equal to what that bookkeeping makes the stock parts draw. The tests here compare it with a restatement of the
+  rule (single-slot states, 20,000 random states); the real check is `apps/openmw_tests/mwrender/testpartslots.cpp`
+  (review finding 1), which runs `PartSlots` itself over whole update sequences, stock and merged side by side, so a
+  change of the stock bookkeeping that the merged body does not follow fails there. `mergedSlotsCovered` (stage d's all-or-nothing test)
   is no longer called by the engine.
 - **A draw's slot runs are contiguous** because submeshes are ordered by (slot, material) and a draw lists its
   material's submeshes in order; `planMergedDrawsByMaterial` records them in `MergedDraw::mRuns` (runs of one slot that

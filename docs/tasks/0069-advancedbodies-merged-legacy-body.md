@@ -126,7 +126,7 @@ See the end of the design doc's section 7A (the same list, numbered, each with a
 ### Stage a, 2026-11-03: the stock parts measured (`--analyse-bodies`, `components/bodynif`)
 
 **Result: go, with a changed scope for stage b.** The go/no-go table and every aggregate number are in research note
-0033; the raw report is under `I:ProjectsOpenEden-workodiesnalysis` and is never committed. In one line: forearm to
+0033; the raw report is under `I:\Projects\OpenEden-work\bodies\analysis` and is never committed. In one line: forearm to
 wrist and knee to ankle share their ring exactly (all 40 units, within 0.0011 units); every other joint is overlapping
 closed shells or a gap; 16 of 19 human parts are rigid, only the chest and hands are skinned; no seam has skin on both
 sides.
@@ -568,7 +568,6 @@ G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the
   regions, applied on every `updateParts` (the copy is made again there anyway). Nothing runs per frame. The one-swap
   rule of stage d (finding 8) stays only as the fallback when the regions cannot be applied: then the stock parts are
   drawn, a warning is logged and an actor that has drawn the merged body retires.
-- `tools/mergedbody_check`: `SCENE=equipment` (`mod/scripts/mbequip_*.lua`, `mbequip.omwscripts`), `TIMEOUT`.
 - `tools/mergedbody_check`: `SCENE=equipment` (`mod/scripts/mbequip_*.lua`, `mbequip.omwscripts`) and `TIMEOUT`. The
   scene: the player gets one piece of every kind (Morrowind's common clothes and iron armour by record id, else the
   first record of the type; `iron_boots` does not exist, so the boots are `adamantium boots`); a row of eight NPCs
@@ -635,3 +634,106 @@ first setting read, before any new code).
 it, or drop the merged body for that actor with no swap at all? (2) The stock chest breaking through after an equipment
 change (frames above) is an inherited bug the merged body does not have; a task of its own? (3) An equipment change
 costs about 1.6 ms more with the merged body; worth keeping the copy when the hidden set is unchanged now, or later?
+
+### Review fixes of stage e, 2026-11-04 (commits `7dea95782b`, `6151cceb4b`, `240a80935c`, `f87282e97e`; the fresh review's findings 1 to 6)
+
+**Finding 1, the circular test.** The stage e reference (`referenceHidden` in `testmergedregions.cpp`) restated the
+rule `hiddenMergedSlots` implements. The part slot bookkeeping of `Npc::updateParts` now lives in
+`MWRender::PartSlots` (`apps/openmw/mwrender/partslots.*`), moved out of `Npc` unchanged: `remove`, `reserve`,
+`removeGroup`, `take` (the decision of `addOrReplaceIndividualPart`), the equipment pass `wear` (the inherited slot
+list, `((base + 1) << 1)` plus one for armour, so a robe is 24 and a skirt 8, the robe's eleven and the skirt's three
+reservations, a part without a body part reserving its slot, the helmet taking the hair), `addBodyParts` (the race's
+parts at group -1 and priority 1) and `releaseBodyParts` (the merged body taking slots from kept body parts). `Npc`
+does the node work through `PartSlots::Nodes::detachPart` and the attach callbacks; the old `removePartGroup` and
+`addPartGroup` are gone, `attachPart` is the second half of `addOrReplaceIndividualPart`. 13 tests
+(`apps/openmw_tests/mwrender/testpartslots.cpp`, all 13 red against stubs first) run that code over whole update
+sequences, a stock actor and a merged one side by side, and check after every update that the merged body hides
+exactly the merged slots where the stock actor draws no skin, draws no stock skin there itself and draws the same
+items: named sequences (a robe over a cuirass, skirt and robe in both orders, an armour skirt, part-less sleeves and
+gloves, held items and the helmet, body parts kept from a stock update then released) and 3,000 seeded random
+sequences of 5 outfits from a catalogue of 19 items. Research note 0032 section 5 states the rule in words and has no
+slot table; the reservation lists are the ones in `npc.cpp` (pinned by two tests). The 15 tests of
+`testmergedregions.cpp` are unchanged (deleting tests needs toddhow's approval); they remain as a restatement.
+`applyHiddenRegions` has 10 tests on plain VSG nodes (`testmergedbodyregions.cpp`, suite `MergedBodyCopyRegions`, 6
+red before the change below), among them a body of 70,000 vertices with 32-bit indices whose parts must keep
+`VK_INDEX_TYPE_UINT32`: with `assignIndices` commented out exactly that test fails (run once, then restored).
+
+**Finding 2, the hitch.** `attachMergedBody` keeps the actor's copy (`mMergedNode`) while its template is the same and
+applies the regions again only when the hidden set changed; `applyHiddenRegions` now works on a copy it changed
+before (a draw already as wanted is left alone; the draws it takes out come back in `RegionChange::mRemoved` and are
+detached through `CompileContext::detach`). The copy's controllers are recorded at link time (`mMergedControllers`)
+and added again by `relinkMergedBody` on every `updateParts`; `forgetMergedBody` ends the copy on a rebuild, a failed
+compile and every stock-parts path. Measured with the new scene `tools/mergedbody_check SCENE=torches` (Pelagiad;
+twenty dressed NPCs of every race and sex with torches; the hour set from noon to night and back four times, so 26
+NPCs in range, the twenty and six of the town, take out or put away their torch in one frame; trace scopes
+`npc.updateequipment`, `npc.compile` around `compile()`, `npc.mergedbody.detach`, `decorate`, `regions`, `link`,
+`keep`), means of the 9 change frames (work folder `I:\Projects\OpenEden-work\bodies\stage-e-review`, `runs-before`
+and `runs-after`, tables `equipment-frames.txt`):
+
+| | frame | `npc.updateequipment` | `npc.compile` | decorate | regions | link | keep |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| merged, before | 18.27 ms | 12.39 ms | 6.47 ms | 0.98 ms | 0.08 ms | 1.31 ms | - |
+| merged, after | 17.81 ms | 9.96 ms | 5.26 ms | 0 | 0 | 0 | 0.04 ms |
+| stock, before / after | 11.40 / 11.88 ms | 6.20 / 6.34 ms | 3.10 / 2.92 ms | | | | |
+
+The merged body's own work in a torch frame went from 2.4 ms to 0.04 ms; `npc.updateequipment` over stock from 6.2 to
+3.6 ms. What remains is VSG's compile of the actor (5.26 against 2.92 ms, `compile.vsg`, with the copy unchanged),
+not traced further; the whole frame is still about 6 ms above stock (the other 2.3 ms are outside the equipment
+scopes, as before). The armour frame (26 NPCs putting on a full iron set at once; part reads cold and noisy): merged
+201 ms before, 148 ms after (compile 145 to 53 ms, decorate and link 14.4 ms to 0), stock 52 and 68 ms. The stage e
+equipment scene's 200 cycles of the full set (one change every second frame): 2.06 ms of `npc.updateequipment` per
+change after, 3.23 ms before, 1.86 and 1.81 ms for stock; frame median 5.72 ms after, 6.37 before (stock 4.97 and
+5.29). Resident memory over the 200 cycles rises 7 MiB for merged before and after and 4 to 6 MiB for stock, device
+memory stays at 176 MiB and the census at 6,634 draws (merged) and 6,792 (stock).
+
+**Finding 3, fully hidden draws.** `RegionChange` names each draw's bone matrices (the copy's, from its
+`BONE_BINDING` descriptor) and whether any of it is drawn; `relinkMergedBody` leaves out the skin of a draw nothing
+of is drawn. Counted with two value scopes (`npc.mergedbody.matrices` and `.drawn`): an undressed actor computes 52
+or 53 bone matrices per frame for its merged body; an NPC of the torch scene in a full iron set computes 1 to 7 after
+(53 before). In the 4 s quiet window with every NPC armoured, the scene update (`render.scene.update`, where the skins
+run) took 1.21 ms with merged bodies against 0.59 ms for stock before, 0.75 against 0.69 ms after; frame medians 5.04
+against 4.42 ms before, 5.29 against 4.84 ms after (the after runs were slower across the board: the machine is
+shared).
+
+**Finding 4.** A refused copy is reported once per race and sex (`MergedBodies::reportRegionsRefused`), no longer on
+every `updateParts`. Still not reachable in the game on demand; the refusal paths are unit-tested.
+
+**Finding 5, motion.** With the copy kept, its skins keep their matrices across an equipment change, so the first
+frame after it has the motion of the frame before. A draw that is drawn again after equipment hid it had its skin
+left out (finding 3), so its previous matrices are from when it was hidden; `Anim::Skin::forgetPreviousMatrices`
+(new, one line in `components/animation/skin.hpp`) makes its next apply write this frame's matrices to both halves,
+as a new skin's first apply does, and `Npc::applyMergedRegions` calls it for such a draw (2 tests on a one-bone
+skeleton, `apps/components_tests/mwanimation/testskinprevious.cpp`, the new one red against a stub first). A new copy
+(the first build, a rebuild in `updateNpcBase`, which also replaces the skeleton) still starts with one frame without
+motion, as every new part does. Not checked: a frame of the G-buffer's motion output.
+
+**Finding 6, docs.** `apps/openmw/mwrender/CLAUDE.md` says why the parts may share the template's buffer infos while
+LOD cluster pitfall 3 forbids sharing between draws (the parts are ranges of one draw's own index list over its own
+vertices: same buffers, offsets and index type, compiled once; only `firstIndex` and `indexCount` differ). The
+duplicated `tools/mergedbody_check` bullet of the stage e log and the control characters of the analysis path in
+stage a's log are fixed. Merged actors' stock head and hair had the face controller bug of task 0074 too (no blinking
+or talking after an equipment change); 0074's fix covers them.
+
+**Frames (viewed; work folder `I:\Projects\OpenEden-work\bodies\stage-e-review`, `compare` and `compare-final`).**
+Torch scene with the final build, stock over merged (`compare-final\torch-*-stock-over-merged.png`): the dressed row
+by day (beasts in the front line: an Argonian man in shirt and pants, an Argonian woman in a robe, a Khajiit man in
+cuirass and greaves, a Khajiit woman in shirt and skirt), the row at night with every torch out, the row in full iron
+armour, and the paper doll (`doll-stock-merged.png`; the preview draws the merged body, one "player draws the merged
+body" line per preview): garment for garment the same, no skin through armour or robes, no gap at the beasts'
+greaves; the doll crop differs by at most 3 levels. Equipment scene: the front view of all twelve combinations,
+before over after, for stock (`compare\eq-stock-front.png`: the default game unchanged by the move to `PartSlots`) and
+for merged (`compare\eq-merged-front.png`, the body whole again after the full set), the wrist, knee and ankle close-ups
+of pants, gloves and shoes, gauntlets and boots and naked-again, stock over merged
+(`compare\eq-after-closeups-stock-over-merged.png`), and the twelve front views of the final build, stock over merged
+(`compare-final\eq-front-stock-over-merged.png`): the same, no gap. Pixel shares between runs are large in these
+scenes (5 to 60 percent: the camera follows where the player settled, the weather change is still moving, torches
+flicker), so the comparison is by eye. A third torch run with the final build (`runs-final`): 7.23 ms of
+`npc.updateequipment` per change frame for merged against 5.65 ms for stock, decorate and link 0, keep 0.03 ms.
+With `[Rendering] hdr` and `gbuffer` on (the doubled bone matrix arrays and the restart path), the equipment scene
+runs to the end, 32 actors draw the merged body, and six combinations viewed against the run without the G-buffer
+(`compare-final\eq-merged-plain-over-gbuffer.png`) show the same body; the motion output itself was not looked at.
+
+**Tests and gates.** `openmw-tests` 901 pass (23 new), `components-tests` 5,416 pass (2 new; the fuzz test left out).
+clang-format 14 (throwaway container) applied to the changed C++ files. Not run: the Linux gate, the 32 Lua tests, a
+fresh reviewer of these fixes. Open: the 2.3 ms of VSG compile per 26-actor torch frame that the merged body still
+costs over stock; the 15 restating tests of `testmergedregions.cpp` (removing them needs toddhow's word).
