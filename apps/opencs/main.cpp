@@ -4,7 +4,9 @@
 #include "view/render/rendercontext.hpp"
 
 #include <exception>
+#include <ostream>
 #include <string>
+#include <utility>
 
 #include <QIcon>
 
@@ -13,6 +15,7 @@
 #include <components/platform/platform.hpp>
 
 #include "model/doc/messages.hpp"
+#include "model/prefs/commandline.hpp"
 #include "model/world/disabletag.hpp"
 #include "model/world/universalid.hpp"
 
@@ -52,14 +55,36 @@ int runApplication(int argc, char* argv[])
     if (CS::isLodPackRequest(argc, argv))
         return CS::runLodPackCheck(argc, argv);
 
+    // An unattended capture parses its own options (capture.cpp). Otherwise the editor's command line is checked before
+    // the render context starts the GPU. A mistake is reported on stderr with exit code 2 and no message box: the
+    // command line comes from a terminal or a script, and a box would keep an unattended run waiting.
+    const bool capture = CS::isCaptureRequest(argc, argv);
+    CSMPrefs::CommandLine commandLine;
+    if (!capture)
+    {
+        commandLine = CSMPrefs::parseCommandLine(argc, argv, CSMPrefs::makeEditorOptions());
+        if (!commandLine.mErrors.empty())
+        {
+            for (const std::string& error : commandLine.mErrors)
+                Debug::getRawStderr() << "eden-studio: " << error << std::endl;
+            Debug::getRawStderr() << "Run eden-studio --help for the options." << std::endl;
+            return 2;
+        }
+        if (commandLine.mHelp)
+        {
+            Debug::getRawStdout() << CSMPrefs::makeEditorOptions() << std::endl;
+            return 0;
+        }
+    }
+
     // Before anything that opens a view, so that the device goes after every view and document.
     CSVRender::RenderContext::Lifetime renderContext;
 
     // Before Editor: an unattended capture opens no editor window, dialogue or IPC server.
-    if (CS::isCaptureRequest(argc, argv))
+    if (capture)
         return CS::runCapture(argc, argv);
 
-    CS::Editor editor(argc, argv);
+    CS::Editor editor(std::move(commandLine));
 
     if (!editor.makeIPCServer())
     {

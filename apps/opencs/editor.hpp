@@ -25,6 +25,7 @@
 #include "model/module/modulehost.hpp"
 #include "model/module/moduleregistry.hpp"
 #include "model/physics/studioworld.hpp"
+#include "model/prefs/commandline.hpp"
 #include "model/prefs/state.hpp"
 
 #include "view/doc/filedialog.hpp"
@@ -88,9 +89,9 @@ namespace CS
         Files::PathContainer mDataDirs;
         std::string mEncodingName;
 
-        boost::program_options::variables_map readConfiguration();
-        ///< Calls mCfgMgr.readConfiguration; should be used before initialization of mSettingsState as it depends on
-        ///< the configuration.
+        boost::program_options::variables_map readConfiguration(boost::program_options::variables_map variables);
+        ///< Adds the config files below the command line's \a variables (mCfgMgr.readConfiguration); should be used
+        ///< before initialization of mSettingsState as it depends on the configuration.
         std::pair<Files::PathContainer, std::vector<std::string>> readConfig(bool quiet = false);
         ///< \return data paths
 
@@ -107,7 +108,8 @@ namespace CS
         Editor& operator=(const Editor&);
 
     public:
-        Editor(int argc, char** argv);
+        /// \a commandLine must have no errors (CSMPrefs::parseCommandLine, main.cpp).
+        explicit Editor(CSMPrefs::CommandLine commandLine);
         ~Editor();
 
         bool makeIPCServer();

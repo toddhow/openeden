@@ -74,8 +74,8 @@
 #include "view/render/worldspacewidget.hpp"
 #include "view/world/scenesubview.hpp"
 
-CS::Editor::Editor(int argc, char** argv)
-    : mConfigVariables(readConfiguration())
+CS::Editor::Editor(CSMPrefs::CommandLine commandLine)
+    : mConfigVariables(readConfiguration(std::move(commandLine.mVariables)))
     , mSettingsState(mCfgMgr)
     , mDocumentManager(mCfgMgr)
     , mPid(std::filesystem::temp_directory_path() / "eden-studio.pid")
@@ -96,9 +96,9 @@ CS::Editor::Editor(int argc, char** argv)
 
     mViewManager = new CSVDoc::ViewManager(mDocumentManager);
     mViewManager->setExtensionHost(mExtensionHost.get());
-    if (argc > 1)
+    if (!commandLine.mFileToLoad.empty())
     {
-        mFileToLoad = argv[1];
+        mFileToLoad = commandLine.mFileToLoad;
         mDataDirs = config.first;
     }
 
@@ -200,42 +200,16 @@ CS::Editor::~Editor()
         std::filesystem::remove(mPid);
 }
 
-boost::program_options::variables_map CS::Editor::readConfiguration()
+boost::program_options::variables_map CS::Editor::readConfiguration(boost::program_options::variables_map variables)
 {
-    boost::program_options::variables_map variables;
-    boost::program_options::options_description desc("Syntax: eden-studio <options>\nAllowed options");
-
-    auto addOption = desc.add_options();
-    addOption("data",
-        boost::program_options::value<Files::MaybeQuotedPathContainer>()
-            ->default_value(Files::MaybeQuotedPathContainer(), "data")
-            ->multitoken()
-            ->composing());
-    addOption("data-local",
-        boost::program_options::value<Files::MaybeQuotedPathContainer::value_type>()->default_value(
-            Files::MaybeQuotedPathContainer::value_type(), ""));
-    addOption("encoding", boost::program_options::value<std::string>()->default_value("win1252"));
-    // The same names as the game's (apps/openmw/options.cpp): extension= lines in openmw.cfg are shared.
-    addOption("extension",
-        boost::program_options::value<std::vector<std::string>>()
-            ->default_value(std::vector<std::string>(), "")
-            ->multitoken()
-            ->composing(),
-        "OpenEden extension ID(s) to enable (extension= lines in openmw.cfg)");
-    addOption("fallback-archive",
-        boost::program_options::value<std::vector<std::string>>()
-            ->default_value(std::vector<std::string>(), "fallback-archive")
-            ->multitoken());
-    addOption("fallback",
-        boost::program_options::value<Fallback::FallbackMap>()
-            ->default_value(Fallback::FallbackMap(), "")
-            ->multitoken()
-            ->composing(),
-        "fallback values");
-    Files::ConfigurationManager::addCommonOptions(desc);
+    // The command line's options (CSMPrefs::parseCommandLine) come first, then the config files below them, as in the
+    // game (apps/openmw/main.cpp, parseArgs). OpenMW-CS never parsed its command line here (upstream commit
+    // 4e26a61db3, 2013), so --replace=config, --config and --user-data did nothing and the real user folder was used.
+    const boost::program_options::options_description desc = CSMPrefs::makeEditorOptions();
 
     boost::program_options::notify(variables);
 
+    mCfgMgr.processPaths(variables, std::filesystem::current_path());
     mCfgMgr.readConfiguration(variables, desc, false);
 
     // OpenMW-CS kept its settings in openmw-cs.cfg. The first run of Eden Studio copies that file to eden-studio.cfg

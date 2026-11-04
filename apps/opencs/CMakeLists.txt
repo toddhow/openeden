@@ -53,7 +53,7 @@ opencs_hdrs (model/tools
 
 opencs_units (model/prefs
     state configmigration layoutstore setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
-    shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory
+    shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory commandline
     )
 
 opencs_units (model/prefs
