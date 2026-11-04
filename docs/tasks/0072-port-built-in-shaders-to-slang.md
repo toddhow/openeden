@@ -60,7 +60,8 @@ Out of scope: changing what any shader draws; new rendering features; the `.omwf
 - **Test edits awaiting approval:** approved: stage f's three edits to `SlangPermutations` (`testslangpermutations.cpp`) and the seven lines removed from `testshaderdefines.cpp`.
 - **The 26 object-shader fragment sets not yet shown drawn (stage f, item 7 and the review's item 3):** stay listed.
 - **Question 4 / `post/omwfx.vert`:** the `.omwfx` passes' vertex stage moves to Slang. This answers the stage g log's item 8(a) (exempt precompiled pipelines from the together rule). The `.omwfx` fragment stages stay translated GLSL (decision 0009); the exemption is narrow, for the `.omwfx` pipelines only.
-- **Questions 7 (particle colour) and 8 (the only-member rule):** still being explained to him; not decided.
+- **Question 8, the only-member rule: approved (toddhow, 2026-11-04).** A lone member's name is dropped only when its type is `OpTypeStruct`, `OpTypeArray` or `OpTypeRuntimeArray`; a lone scalar, vector or matrix keeps its name. The two assertions of `SpirvInterface.a_structs_only_member_adds_no_name` (`single("indexCount")` against `single("total")`) change with it, approved.
+- **Question 7, particle colour: decided (toddhow, 2026-11-04): "Keep the original per particle color but do it in slang."** The Slang twin of the object shader carries each particle's colour (and alpha over its life, as the NIF particle data gives them) to the fragment stage; the GLSL stays as it is. A deliberate difference between twin and GLSL, to be documented in `files/shaders/CLAUDE.md` and the stage log, with an interface-check exception for the colour input.
 
 ## Stage log
 
