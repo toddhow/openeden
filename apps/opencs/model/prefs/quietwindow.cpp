@@ -1,7 +1,6 @@
 #include "quietwindow.hpp"
 
 #include <cmath>
-#include <string_view>
 
 namespace
 {
@@ -12,10 +11,7 @@ namespace
 
 bool CSMPrefs::isQuietWindowValue(const char* value)
 {
-    if (value == nullptr)
-        return false;
-    const std::string_view text(value);
-    return !text.empty() && text != "0";
+    return Misc::isQuietWindowValue(value);
 }
 
 QPoint CSMPrefs::quietWindowPosition(double devicePixelRatio)

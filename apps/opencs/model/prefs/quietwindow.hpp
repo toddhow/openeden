@@ -7,14 +7,16 @@
 #include <QRect>
 #include <Qt>
 
+#include <components/misc/quietwindow.hpp>
+
 namespace CSMPrefs
 {
     /// The variable that asks for quiet windows, the same as the game's (apps/openmw/vsgengine.cpp,
     /// Engine::createRenderEngine): test and check runs set it so that no window appears on the desktop.
-    inline constexpr const char* quietWindowVariable = "OPENEDEN_QUIET_WINDOW";
+    inline constexpr const char* quietWindowVariable = Misc::quietWindowVariable;
 
-    /// Whether a value of OPENEDEN_QUIET_WINDOW asks for quiet windows, read as the game reads it: unset (null), empty
-    /// or exactly "0" means off, anything else on.
+    /// Whether a value of OPENEDEN_QUIET_WINDOW asks for quiet windows, read as the game and the crash catcher read it
+    /// (Misc::isQuietWindowValue): unset (null), empty or exactly "0" means off, anything else on.
     bool isQuietWindowValue(const char* value);
 
     /// Where a quiet window goes, in Qt's device-independent pixels: the game's (-30000, -30000) in device pixels, far
