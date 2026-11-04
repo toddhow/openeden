@@ -122,6 +122,16 @@ namespace Resource
         const bool volumetrics = hdr && Settings::Manager::getBool("volumetrics", "Rendering");
         add("cVolumetrics", volumetrics, source);
         add("cVolumetricsDebug", volumetrics && Settings::Manager::getBool("volumetrics debug", "Rendering"), source);
+        // OpenEden (task 0066, stage c): the aerial perspective of the whole-map view (lib/view/fog.glsl). It needs the
+        // world LOD, distant terrain and `map view`; the values are only read then, since other hosts have no such
+        // keys.
+        const bool aerial = Settings::Manager::getBool("enabled", "WorldLod")
+            && Settings::Manager::getBool("distant terrain", "Terrain")
+            && Settings::Manager::getBool("map view", "WorldLod") && Settings::Manager::getBool("haze", "WorldLod");
+        add("cAerialHaze", aerial, source);
+        add("cAerialVisibility", aerial ? Settings::Manager::getFloat("haze visibility", "WorldLod") : 1.f, source);
+        add("cAerialScaleHeight", aerial ? Settings::Manager::getFloat("haze height", "WorldLod") : 1.f, source);
+        add("cAerialWeatherGain", aerial ? Settings::Manager::getFloat("haze weather gain", "WorldLod") : 0.f, source);
         objects["fog.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");

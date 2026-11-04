@@ -584,6 +584,9 @@ namespace MWRender
         float mFogRange = 0;
         double mLandDiagonal = 0; // the loaded world's land reach, for `view distance = auto`
         bool mViewLimitsOverridden = false; // a script set the distance (Lua camera.setViewDistance)
+        // Task 0066 stage c: the shaders were built with the aerial perspective in them (fog.settings, read at start),
+        // so only then may the scene's fog scale carry its mark (View::Scene::setFogRange).
+        bool mAerialShader = false;
         void applyViewLimits(const Lod::ViewLimits& limits, bool updateProjection);
         std::optional<float> mFieldOfViewOverride = 0;
         float mFieldOfView;

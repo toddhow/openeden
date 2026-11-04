@@ -34,6 +34,13 @@ namespace Settings
         SettingValue<bool> mMapView{ mIndex, "WorldLod", "map view" };
         // The most `view distance = auto` may reach, in units (a hardware budget).
         SettingValue<float> mMaxViewDistance{ mIndex, "WorldLod", "max view distance", makeMaxStrictSanitizerFloat(0) };
+        // Task 0066 stage c: the aerial haze of the whole-map view (with `map view` on): the light from far land fades
+        // into the air's colour. `haze` turns it on; the distance, scale height and weather gain shape it
+        // (aerialmath.hpp).
+        SettingValue<bool> mHaze{ mIndex, "WorldLod", "haze" };
+        SettingValue<float> mHazeVisibility{ mIndex, "WorldLod", "haze visibility", makeMaxStrictSanitizerFloat(0) };
+        SettingValue<float> mHazeHeight{ mIndex, "WorldLod", "haze height", makeMaxStrictSanitizerFloat(0) };
+        SettingValue<float> mHazeWeatherGain{ mIndex, "WorldLod", "haze weather gain", makeMaxSanitizerFloat(0) };
         SettingValue<int> mTerrainTileLevel{ mIndex, "WorldLod", "terrain tile level", makeClampSanitizerInt(1, 1) };
     };
 }

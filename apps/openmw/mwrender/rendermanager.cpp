@@ -302,6 +302,9 @@ namespace MWRender
         , mNearClip(Settings::camera().mNearClip)
         , mFieldOfView(Settings::camera().mFieldOfView)
     {
+        // The same condition as fog.settings' cAerialHaze (components/resource/shadersettings.cpp), at the same time.
+        mAerialShader = Settings::worldLod().mEnabled && Settings::terrain().mDistantTerrain
+            && Settings::worldLod().mMapView && Settings::worldLod().mHaze;
         // The projection does not exist yet; updateProjectionMatrix runs when it is made.
         applyViewLimits(currentViewLimits(0.0), false);
         vsg::ref_ptr<vsg::Context> context = vsg::Context::create(mEngine.getOrCreateDevice());
@@ -2032,7 +2035,13 @@ namespace MWRender
         if (mHdrTarget)
             mHdrTarget->clearExtraOutputs(*mRenderGraph);
 
-        mSceneData->setFogRange(mFog->getFogStart(isUnderwater), mFog->getFogEnd(isUnderwater));
+        // OpenEden (task 0066, stage c): with the whole-map view on, the main view's exterior above water takes the
+        // aerial perspective in place of the linear fog end (the scale's sign says so); interiors and under water keep
+        // the fog.
+        const bool aerial = mAerialShader && !mViewLimitsOverridden && Settings::worldLod().mMapView
+            && Settings::worldLod().mHaze && !sLodBakeRun && !isUnderwater && mRenderModes[Render_Sky].active
+            && !Settings::fog().mUseDistantFog;
+        mSceneData->setFogRange(mFog->getFogStart(isUnderwater), mFog->getFogEnd(isUnderwater), aerial);
 
         auto& sceneData = mSceneData->value();
         mDisplayFogColor = vsg::vec4(fogColor[0], fogColor[1], fogColor[2], 1.f);

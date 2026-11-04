@@ -3,6 +3,7 @@
 
 #include <components/pipeline/descriptorvalue.hpp>
 #include <components/pipeline/viewdata.hpp>
+#include <components/render/aerialmath.hpp>
 
 namespace View
 {
@@ -12,10 +13,13 @@ namespace View
     struct Scene : public Pipeline::DynamicDescriptorValue<Pipeline::Data::Scene>
     {
         Scene();
-        void setFogRange(float start, float end)
+        // `aerial` (task 0066, stage c) stores the scale with a negative sign, which tells the shaders to use the
+        // aerial perspective instead of the linear fog (Render::Aerial::sceneFogRange); false is exactly as before.
+        void setFogRange(float start, float end, bool aerial = false)
         {
-            value().fogStart = start;
-            value().fogScale = 1.f / std::max(0.001f, end - start);
+            const auto [fogStart, fogScale] = Render::Aerial::sceneFogRange(start, end, aerial);
+            value().fogStart = fogStart;
+            value().fogScale = fogScale;
             dirty();
         }
         void setDepthRange(float near, float far)
