@@ -79,8 +79,11 @@ float3 getNormal(float3 worldPos)
 {
     float2 uv = worldPos.xy / float2(13653.0, -13653.0);
     float2 dir = float2(1.0, -1.0) * normalize(worldPos.xy + float2(-20000.0, -69000.0));
+    // The GLSL passes a zero normal here, so normalCoords divides 0 by 0. Its frames show that term as 0 on this
+    // machine's driver (task 0072 stage d log); slangc folds 0 / 0 to a NaN constant, which made the whole ripple chain
+    // noise. A normal of (0, 0, 1) gives the 0 the GLSL draws.
     float3 normal0
-        = bumpNormal(normalCoords(uv, 0.05, 0.04, scene.time, -0.015, -0.005, float3(0.0, 0.0, 0.0), windDir));
+        = bumpNormal(normalCoords(uv, 0.05, 0.04, scene.time, -0.015, -0.005, float3(0.0, 0.0, 1.0), windDir));
     normal0 = fadeOctave(normal0, octaveFade(uv, 0.05));
     float3 normal1a = bumpNormal(normalCoords(uv, 0.02, 0.05, 0.1 * scene.time, 0.0, 0.0, normal0, windDir * 1.0));
     normal1a = fadeOctave(normal1a, octaveFade(uv, 0.02));
