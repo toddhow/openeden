@@ -145,6 +145,11 @@ if (OPENEDEN_SLANGC)
         file(COPY "${openeden_slang_library}" DESTINATION "${OPENMW_RESOURCES_ROOT}/resources/slang"
             FOLLOW_SYMLINK_CHAIN)
     endforeach()
+    # The licence texts travel with the libraries (review of stage h, finding 1): Apache-2.0 section 4(a) and the BSD
+    # and MIT notices of what the libraries contain need them beside any redistributed copy. docs/dependencies.md says
+    # which licence applies to which file.
+    file(COPY "${openeden_slang_root}/LICENSE" "${openeden_slang_root}/LICENSES" "${openeden_slang_root}/third-party-notices"
+        DESTINATION "${OPENMW_RESOURCES_ROOT}/resources/slang")
 endif()
 
 # Shaders written in Slang (task 0023, F1; research note 0005, section 7).
