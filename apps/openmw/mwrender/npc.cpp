@@ -46,6 +46,7 @@
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "autoplaytrace.hpp"
 #include "bodyparts.hpp"
 #include "env.hpp"
 #include "mergedbody.hpp"
@@ -74,6 +75,8 @@ namespace MWRender
     {
         mPartContext = &mContext;
         mNpc = mPtr.get<ESM::NPC>()->mBase;
+        if (autoPlayTraced(mNpc->mId.toString(), mNpc->mName))
+            mAutoPlayTraced = mNpc->mId.toString();
 
         mFace = std::make_unique<MWAnim::Face>();
 
@@ -312,6 +315,8 @@ namespace MWRender
             return;
         }
 
+        if (!mAutoPlayTraced.empty())
+            traceAutoPlayEvent(mAutoPlayTraced, "updateParts");
         clearControllers();
         mPartControllers.beginUpdate();
         soundsToPlay.clear();
@@ -648,6 +653,10 @@ namespace MWRender
         }
         mFace->update(dt);
         Wielding::update(dt);
+        if (!mAutoPlayTraced.empty())
+            traceAutoPlay(mAutoPlayTraced, mAutoPlayFrame++, dt, autoPlay, mPartControllers.clocks(),
+                { mStaticControllers.controllers.size(), mWeaponControllers.controllers.size(),
+                    mFace->controllers.size() });
     }
 
     void Npc::removeIndividualPart(ESM::PartReferenceType type)

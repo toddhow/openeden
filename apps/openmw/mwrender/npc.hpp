@@ -175,6 +175,10 @@ namespace MWRender
         // empties every list). relinkSurvivingParts runs at the end of updateParts.
         PartControllers<ESM::PRT_Count> mPartControllers;
         void relinkSurvivingParts();
+        // Task 0074b: OPENEDEN_AUTOPLAY_TRACE (autoplaytrace.hpp), decided once in the constructor: the record id of
+        // a traced actor, empty for every other.
+        std::string mAutoPlayTraced;
+        unsigned mAutoPlayFrame = 0;
 
         // Task 0069 stage d ([Bodies] merged body, off by default): attaches the cached merged body when it may be
         // drawn and removes the stock parts of its slots; false, with the stock parts kept, otherwise. updateParts

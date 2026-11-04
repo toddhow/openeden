@@ -1,6 +1,7 @@
 #include "wieldingcreature.hpp"
 
 #include <components/animation/context.hpp>
+#include <components/esm3/loadcrea.hpp>
 #include <components/mwanimation/attach.hpp>
 #include <components/mwanimation/clone.hpp>
 #include <components/mwanimation/context.hpp>
@@ -13,6 +14,7 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/inventorystore.hpp"
 
+#include "autoplaytrace.hpp"
 #include "env.hpp"
 #include "transparency.hpp"
 
@@ -27,6 +29,12 @@ namespace MWRender
     void WieldingCreature::setup(const MWWorld::Ptr& ptr)
     {
         mPtr = ptr;
+        if (const auto* creature = ptr.get<ESM::Creature>())
+        {
+            const std::string id = creature->mBase->mId.toString();
+            if (autoPlayTraced(id, creature->mBase->mName))
+                mAutoPlayTraced = id;
+        }
         addParts();
     }
 
@@ -61,6 +69,9 @@ namespace MWRender
     void WieldingCreature::update(float dt)
     {
         Wielding::update(dt);
+        if (!mAutoPlayTraced.empty())
+            traceAutoPlay(mAutoPlayTraced, mAutoPlayFrame++, dt, autoPlay, {},
+                { mStaticControllers.controllers.size(), mWeaponControllers.controllers.size(), 0 });
     }
 
     void WieldingCreature::addPart(const MWWorld::Ptr& ptr, int slot, const MWAnim::Context& mwctx)
@@ -152,6 +163,8 @@ namespace MWRender
 
     void WieldingCreature::updateEquipment()
     {
+        if (!mAutoPlayTraced.empty())
+            traceAutoPlayEvent(mAutoPlayTraced, "updateEquipment");
         removeParts();
         addParts();
         if (!mContext.compileContext->compile(node()))
