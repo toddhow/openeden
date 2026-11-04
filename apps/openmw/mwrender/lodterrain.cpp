@@ -602,6 +602,13 @@ namespace MWRender
             for (const LoadedTile& tile : mLoaded.mTiles)
                 ids.push_back(tile.mId);
             mParents = Lod::nearestAncestors(ids);
+            mChildren.assign(count, {});
+            for (std::size_t i = 0; i < count; ++i)
+            {
+                if (mParents[i] >= 0)
+                    mChildren[static_cast<std::size_t>(mParents[i])].push_back(static_cast<std::uint32_t>(i));
+            }
+            mReplaceable.assign(count, false);
             mStates.resize(count);
             mNodes.resize(count);
             mBatches.resize(count);
@@ -612,6 +619,7 @@ namespace MWRender
             mDrawBytes.assign(count, 0);
             mHasPicture.assign(count, false);
             mReleases.assign(count, 0);
+            mMissing.assign(count, 0);
             for (std::size_t i = 0; i < count; ++i)
             {
                 const Lod::TerrainTile& tile = mLoaded.mTiles[i].mData;
@@ -695,9 +703,12 @@ namespace MWRender
             auto& children = mRoot->children;
             children.erase(std::remove(children.begin(), children.end(), node), children.end());
             mSetup.mCompile->detach(node);
-            // The builder's cache still holds the draw's images (Terrain::Builder::dataCache): prune it once the
-            // detached draw has really gone, so that a freed tile frees its memory (task 0060 review, finding 3).
-            mPruneFrames = pruneFramesAfterRemove;
+            // The builder's cache still holds the draw's images (Terrain::Builder::dataCache): under a budget, prune it
+            // once the detached draw has really gone, so that a freed tile frees its memory (task 0060 review, finding
+            // 3). Without a budget nothing is pruned, as before the planner: a tile that comes back finds its data in
+            // the cache (second review, finding 8).
+            if (mSetup.mResidentBudgetBytes > 0)
+                mPruneFrames = pruneFramesAfterRemove;
         }
 
         // Is the tile that covers this one drawn (so that this one may go without a hole)?
@@ -712,6 +723,34 @@ namespace MWRender
                 parent = mParents[p];
             }
             return false;
+        }
+
+        // Is this tile's square drawn without it: by the live terrain (wholly inside the live paging range), or by
+        // its descendants (each child drawn when chosen, or itself drawn without it when refined further)? A child the
+        // pack does not have has no land to draw (task 0060 second review, finding 1: a parent turning Live used to go
+        // at once, which past the live range left a hole until, or while, its children were not drawn).
+        bool squareDrawnWithout(std::size_t index, const Camera& camera, int depth = 0) const
+        {
+            const Lod::TileBounds& bounds = mStates[index].mBounds;
+            if (Lod::squareWithinRange(camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide,
+                    camera.mPagingRange))
+                return true;
+            constexpr int maxDepth = 16;
+            if (depth > maxDepth)
+                return false;
+            for (const std::uint32_t child : mChildren[index])
+            {
+                const Lod::TileChoice choice = mStates[child].mChoice;
+                if (choice == Lod::TileChoice::Tile)
+                {
+                    // A child that failed to build is not drawn either: the parent stays (no hole).
+                    if (!mNodes[child])
+                        return false;
+                }
+                else if (!mNodes[child] && !squareDrawnWithout(child, camera, depth + 1))
+                    return false;
+            }
+            return true;
         }
 
         void rebuildCoverage()
@@ -784,6 +823,7 @@ namespace MWRender
         std::unique_ptr<Terrain::Builder> mBuilder;
         std::vector<Lod::TileState> mStates;
         std::vector<std::int32_t> mParents;
+        std::vector<std::vector<std::uint32_t>> mChildren; // the tiles whose nearest ancestor this one is
         std::vector<vsg::ref_ptr<vsg::Node>> mNodes;
         std::vector<Terrain::Builder::Batch> mBatches;
         std::vector<std::uint32_t> mFlags;
@@ -795,12 +835,16 @@ namespace MWRender
         std::vector<std::uint64_t> mDrawBytes;
         std::vector<bool> mHasPicture; // the draw carries its own ground picture
         std::vector<std::uint64_t> mReleases; // per frame: bytes of drawn tiles that go once this one is drawn
+        std::vector<std::uint32_t> mMissing; // per frame: per refined drawn tile, its chosen descendants not drawn
+        // Lod::squareReplaceable's state per tile: the live terrain draws the square (with hysteresis at the edge).
+        std::vector<bool> mReplaceable;
         std::array<std::uint64_t, levelSlots> mLevelBytes{}; // sum of the bytes of the tiles built, per level
         std::array<std::uint32_t, levelSlots> mLevelCount{};
         int mPruneFrames = 0;
         std::vector<Lod::ResidencyItem> mItems;
         Lod::ResidencyPlan mResidencyPlan;
         bool mLoggedBudget = false;
+        bool mLoggedOverBudget = false; // the last over-budget state logged
         vsg::ref_ptr<vsg::Group> mRoot;
         Terrain::Coverage mCoverage;
         Stats mStats;
@@ -870,19 +914,44 @@ namespace MWRender
         state.mItems.resize(tileCount);
         if (budget > 0)
         {
-            // What drawing a tile lets go: the drawn tiles under it that its selection no longer chooses.
+            // What drawing a tile lets go (the planner subtracts it in admission and pressure, second review finding
+            // 4): a coarsening, the drawn tiles under it that its selection no longer chooses; a refinement, a share
+            // of the drawn ancestor that goes once all of its chosen descendants are drawn.
             std::fill(state.mReleases.begin(), state.mReleases.end(), 0);
+            std::fill(state.mMissing.begin(), state.mMissing.end(), 0);
             for (std::size_t j = 0; j < tileCount; ++j)
             {
-                if (!state.mNodes[j] || state.mStates[j].mChoice == Lod::TileChoice::Tile)
+                const bool chosen = state.mStates[j].mChoice == Lod::TileChoice::Tile;
+                if (state.mNodes[j] == nullptr && !chosen)
                     continue;
                 for (std::int32_t p = state.mParents[j]; p >= 0; p = state.mParents[static_cast<std::size_t>(p)])
                 {
                     const auto parent = static_cast<std::size_t>(p);
-                    if (state.mStates[parent].mChoice == Lod::TileChoice::Tile)
+                    if (state.mNodes[j] && !chosen && state.mStates[parent].mChoice == Lod::TileChoice::Tile)
                     {
                         if (!state.mNodes[parent])
                             state.mReleases[parent] += state.mDrawBytes[j];
+                        break;
+                    }
+                    if (!state.mNodes[j] && chosen && state.mNodes[parent]
+                        && state.mStates[parent].mChoice != Lod::TileChoice::Tile)
+                    {
+                        ++state.mMissing[parent];
+                        break;
+                    }
+                }
+            }
+            for (std::size_t j = 0; j < tileCount; ++j)
+            {
+                if (state.mNodes[j] || state.mStates[j].mChoice != Lod::TileChoice::Tile)
+                    continue;
+                for (std::int32_t p = state.mParents[j]; p >= 0; p = state.mParents[static_cast<std::size_t>(p)])
+                {
+                    const auto parent = static_cast<std::size_t>(p);
+                    if (state.mNodes[parent] && state.mStates[parent].mChoice != Lod::TileChoice::Tile)
+                    {
+                        if (state.mMissing[parent] > 0)
+                            state.mReleases[j] += state.mDrawBytes[parent] / state.mMissing[parent];
                         break;
                     }
                 }
@@ -906,8 +975,11 @@ namespace MWRender
             item.mBytes = held ? state.mDrawBytes[i] : state.estimateBytes(i);
             item.mReleasesBytes = budget > 0 ? state.mReleases[i] : 0;
             item.mPriority = static_cast<float>(Lod::distanceToTile(selection, tile.mBounds));
-            item.mReplaceable = Lod::squareWithinRange(camera.mEye.x, camera.mEye.y, tile.mBounds.mOriginX,
-                tile.mBounds.mOriginY, tile.mBounds.mSide, camera.mPagingRange);
+            // Past the live range nothing else draws the square: such a tile is never blocked or freed (the planner's
+            // governing rule). The flag has hysteresis inside the range, so a camera at the edge does not flip it.
+            state.mReplaceable[i] = Lod::squareReplaceable(state.mReplaceable[i], camera.mEye.x, camera.mEye.y,
+                tile.mBounds.mOriginX, tile.mBounds.mOriginY, tile.mBounds.mSide, camera.mPagingRange);
+            item.mReplaceable = state.mReplaceable[i];
         }
         Lod::ResidencyParams params;
         params.mBudgetBytes = budget;
@@ -922,7 +994,21 @@ namespace MWRender
         {
             state.mLoggedBudget = true;
             Log(Debug::Info) << "World LOD tiles: the memory budget of " << Lod::describeBytes(budget)
-                             << " is reached; the farther tiles use the live terrain.";
+                             << " is reached: tiles inside the live range (" << static_cast<int>(camera.mPagingRange)
+                             << " units) give way to the live terrain; tiles past it are drawn anyway.";
+        }
+        if (budget > 0 && plan.mOverBudget != state.mLoggedOverBudget)
+        {
+            // Once per change (second review, finding 9): an overrun the tiles with no fallback cause is not fixed with
+            // holes, it is reported.
+            state.mLoggedOverBudget = plan.mOverBudget;
+            if (plan.mOverBudget)
+                Log(Debug::Info) << "World LOD tiles: " << Lod::describeBytes(plan.mHeldAfter)
+                                 << " held, over the budget of " << Lod::describeBytes(budget)
+                                 << ": the tiles past the live range have nothing else to draw their ground.";
+            else
+                Log(Debug::Info) << "World LOD tiles: back within the budget of " << Lod::describeBytes(budget) << " ("
+                                 << Lod::describeBytes(plan.mHeldAfter) << " held).";
         }
         for (const std::uint32_t index : plan.mFree)
         {
@@ -944,12 +1030,16 @@ namespace MWRender
             }
         }
         // Then the tiles that are no longer wanted, after the builds, as before the planner: a tile whose drawn
-        // ancestor was built this frame goes in the same frame (no frame draws a parent over its children).
+        // ancestor was built this frame goes in the same frame (no frame draws a parent over its children). A tile
+        // refined to finer ones (Live) goes once its square is drawn without it: at once inside the live range, as
+        // before, and past it only when its chosen descendants are drawn (second review, finding 1).
         for (std::size_t i = 0; i < tileCount; ++i)
         {
             if (!state.mNodes[i] || state.mStates[i].mChoice == Lod::TileChoice::Tile)
                 continue;
             if (state.mStates[i].mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i))
+                continue;
+            if (state.mStates[i].mChoice == Lod::TileChoice::Live && !state.squareDrawnWithout(i, camera))
                 continue;
             state.remove(i);
             changed = true;

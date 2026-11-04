@@ -518,6 +518,11 @@ namespace MWRender
         std::unique_ptr<Terrain::TerrainMapSettings> mTerrainMapsForLod;
         std::unique_ptr<LodTerrain> mLodTerrain;
         bool mLodTerrainAttached = false;
+        // Task 0060, second review: how often the LOD tiles' coverage changed (each change makes the live terrain
+        // rebuild its whole view, synchronously on the main thread) and what that cost at worst.
+        std::uint64_t mLastCoverageVersion = 0;
+        std::uint32_t mCoverageRebuilds = 0;
+        double mCoverageRebuildWorstMs = 0;
         std::unique_ptr<Sky> mSky;
         std::unique_ptr<Render::DebugGeometry> mDebugGeometry;
         std::unique_ptr<Render::DebugGeometry> mNavMeshGeometry;

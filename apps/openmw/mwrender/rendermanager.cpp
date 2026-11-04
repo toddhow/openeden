@@ -3,6 +3,7 @@
 #include "lodbakemode.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -1220,8 +1221,10 @@ namespace MWRender
         return setting > 0 ? static_cast<std::uint64_t>(setting) << 20 : mFarTier.mResidentBudgetBytes;
     }
 
-    // The terrain tiles' share of the far memory budget (task 0060): a quarter of the setting when it is given (the
-    // tiers' own numbers are about a quarter of their cluster budgets), the tier's number otherwise.
+    // The terrain tiles' share of the far memory budget (task 0060): a quarter of the setting when it is given, on
+    // top of it (so `far memory budget = N` holds 1.25 N in all), the tier's own number otherwise (the tiers' tile
+    // budgets are far smaller than their cluster budgets: Lod::farTierSettings). The budget governs only the tiles
+    // inside the live range; those past it are drawn whatever it says (second review).
     std::uint64_t RenderManager::farTerrainBudgetBytes() const
     {
         const int setting = Settings::worldLod().mFarMemoryBudget;
@@ -1896,6 +1899,8 @@ namespace MWRender
             camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
             coverage = mLodTerrain->update(camera);
         }
+        const bool coverageChanged = coverage != nullptr && coverage->version != mLastCoverageVersion;
+        const auto rebuildStart = std::chrono::steady_clock::now();
         Misc::LoadTrace::Scope traceUpdateView("terrain.updateview");
         auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage);
         traceUpdateView.end();
@@ -1903,6 +1908,22 @@ namespace MWRender
         {
             Misc::LoadTrace::Scope traceCompile("terrain.compile");
             compile->compile();
+        }
+        if (coverageChanged)
+        {
+            mLastCoverageVersion = coverage->version;
+            ++mCoverageRebuilds;
+            const double milliseconds
+                = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - rebuildStart).count();
+            // A slow rebuild is worth a line (second review: a 492 ms frame on the climb was not explained).
+            constexpr double slowRebuildMs = 50;
+            if (milliseconds > mCoverageRebuildWorstMs || milliseconds > slowRebuildMs)
+            {
+                mCoverageRebuildWorstMs = std::max(mCoverageRebuildWorstMs, milliseconds);
+                Log(Debug::Info) << "World LOD tiles: the live terrain rebuilt its view for coverage change "
+                                 << mCoverageRebuilds << " in " << milliseconds << " ms (worst so far "
+                                 << mCoverageRebuildWorstMs << " ms).";
+            }
         }
     }
 
@@ -1990,6 +2011,8 @@ namespace MWRender
         camera.mViewportHeight = mAppliedExtent.height;
         camera.mViewDistance = mTileRange;
         camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
+        // Without the live distant objects (object paging off) nothing else draws a cluster's statics (second review).
+        camera.mLiveObjectsPage = mDistantObjects != nullptr;
         // Outside the exterior the live objects are not drawn at all (DistantObjects is hidden and does not rebuild),
         // so waiting for them would keep a cluster on screen in an interior: nothing to wait for there.
         const bool exterior = camera.mEnabled;

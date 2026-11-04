@@ -62,6 +62,9 @@ namespace MWRender
             /// How far the live objects page (the live view distance): a cluster wholly inside it can give its cells
             /// back to them, one reaching past it cannot (task 0060).
             double mPagingRange = 7168;
+            /// The live distant objects exist (distant terrain and object paging are on): without them nothing else
+            /// draws a cluster's statics, so no cluster is ever freed while wanted (task 0060, second review).
+            bool mLiveObjectsPage = true;
             /// False in interiors and other worldspaces: every cluster fades out.
             bool mEnabled = true;
         };

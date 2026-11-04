@@ -107,8 +107,13 @@ namespace MWRender
             float mFade = 0; // the fade the materials hold (mirrors the cover tile's)
             int mCooldown = 0; // frames before a tile that failed to compile is tried again
             int mIdleFrames = 0; // frames since the tile was last wanted
-            // What the tile held when it was last built: the planner's estimate when it is asked for again.
+            // What the tile held when it was last read: the planner's estimate when it is asked for again.
             std::uint64_t mKnownBytes = 0;
+            // Loads or compiles of it that failed in a row: the retry waits longer each time (failureCooldownFrames),
+            // and the planner lets it free nothing for itself.
+            std::uint32_t mFailures = 0;
+            // Lod::squareReplaceable's state: the live objects draw the cells if it goes (with hysteresis at the edge).
+            bool mReplaceable = false;
             // The planner freed it while it was wanted: not wanted again until it has faded out and gone (leaving).
             bool mEvicted = false;
             bool mLoggedFailure = false;
@@ -146,6 +151,7 @@ namespace MWRender
         vsg::ref_ptr<vsg::Sampler> mSampler;
         bool mClusteredDirty = false;
         bool mLoggedBudget = false;
+        bool mLoggedOverBudget = false; // the last over-budget state logged
 
         // What loading a tile of this level is expected to hold: the mean of the tiles of the level read so far.
         std::uint64_t estimateBytes(std::uint32_t level) const
@@ -534,7 +540,8 @@ namespace MWRender
             tile.mData.reset();
             tile.mFreeSlots.clear();
             tile.mFade = 0;
-            tile.mCooldown = retryFrames;
+            ++tile.mFailures;
+            tile.mCooldown = Lod::failureCooldownFrames(retryFrames, tile.mFailures);
             if (tile.mBytes > 0)
                 tile.mKnownBytes = tile.mBytes;
             tile.mBytes = 0;
@@ -615,17 +622,88 @@ namespace MWRender
         // The residency planner decides what is loaded and freed (task 0060): the clusters the selection wants load
         // nearest first and within the memory budget of the tier, a closer cluster may take the room of a farther one,
         // and what the camera has left goes at once. A cluster freed while it is still wanted leaves its cells to the
-        // live objects; the hand-over below fades it out first, so no frame has a hole.
+        // live objects; the hand-over below fades it out first, so no frame has a hole. A cluster is replaceable only
+        // where the live objects draw its cells: they exist (object paging) and its square lies inside their range,
+        // with hysteresis (Lod::squareReplaceable). One that loses that during its hand-over is kept: the free is
+        // cancelled and it is wanted again (task 0060, second review, findings 2 and 3).
         const std::size_t tileCount = state.mTiles.size();
+        for (std::size_t i = 0; i < tileCount; ++i)
+        {
+            Tile& tile = state.mTiles[i];
+            if (tile.mCooldown > 0)
+                --tile.mCooldown;
+            const Lod::TileBounds& bounds = state.mStates[i].mBounds;
+            tile.mReplaceable = camera.mLiveObjectsPage
+                && Lod::squareReplaceable(tile.mReplaceable, camera.mEye.x, camera.mEye.y, bounds.mOriginX,
+                    bounds.mOriginY, bounds.mSide, camera.mPagingRange);
+            if (tile.mEvicted && !tile.mReplaceable && tile.mPhase == Tile::Phase::Built)
+                tile.mEvicted = false;
+            tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !tile.mEvicted;
+            tile.mIdleFrames = tile.mWanted ? 0 : std::min(tile.mIdleFrames + 1, 1 << 20);
+        }
+
+        // Loads that have arrived become draws before the plan, so a load slot they free is used in the same frame
+        // (as before the planner, when the one loop started a later tile's load after an earlier one arrived; second
+        // review, finding 8).
+        std::size_t builds = 0;
+        for (std::size_t i = 0; i < tileCount; ++i)
+        {
+            Tile& tile = state.mTiles[i];
+            Lod::CoverTile& cover = state.mCover[i];
+            if (tile.mPhase != Tile::Phase::Loading
+                || tile.mLoad.wait_for(std::chrono::seconds(0)) != std::future_status::ready
+                || builds >= maxBuildsPerFrame)
+                continue;
+            tile.mData = std::make_shared<Loaded>(tile.mLoad.get());
+            ++state.mStats.mLoads;
+            state.mStats.mLoadMillisecondsTotal += tile.mData->mMilliseconds;
+            state.mStats.mLoadMillisecondsWorst
+                = std::max(state.mStats.mLoadMillisecondsWorst, tile.mData->mMilliseconds);
+            if (tile.mData->mOk)
+            {
+                // The planner's estimates for the next tile of this level, and for this one when it comes back.
+                const std::uint64_t bytes = Lod::clusterResidentBytes(
+                    tile.mData->mCluster.mVertices.size(), tile.mData->mCluster.mIndices.size());
+                const std::size_t slot = std::min<std::size_t>(tile.mId.mLevel, levelSlots - 1);
+                state.mLevelBytes[slot] += bytes;
+                ++state.mLevelCount[slot];
+                tile.mBytes = bytes;
+                tile.mKnownBytes = bytes;
+            }
+            if (!tile.mData->mOk || !tile.mWanted)
+            {
+                // Failed, or no longer wanted by the time it arrived: forget it (a failed read logs and waits longer
+                // each time: the pack is derived data and may be damaged).
+                if (!tile.mData->mOk)
+                {
+                    ++tile.mFailures;
+                    tile.mCooldown = Lod::failureCooldownFrames(retryFrames, tile.mFailures);
+                }
+                tile.mBytes = 0;
+                tile.mData.reset();
+                tile.mPhase = Tile::Phase::Idle;
+                continue;
+            }
+            residentBytes += tile.mBytes;
+            const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
+            tile.mFade = 0;
+            tile.mMaskVersion = state.mMaskVersion;
+            tile.mMasked = masked;
+            ++builds;
+            if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
+            {
+                tile.mPhase = Tile::Phase::Built;
+                tile.mFailures = 0;
+            }
+            else
+                dropFailedTile(tile, cover);
+        }
+
         state.mItems.resize(tileCount);
         for (std::size_t i = 0; i < tileCount; ++i)
         {
             Tile& tile = state.mTiles[i];
             const Lod::CoverTile& cover = state.mCover[i];
-            if (tile.mCooldown > 0)
-                --tile.mCooldown;
-            tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !tile.mEvicted;
-            tile.mIdleFrames = tile.mWanted ? 0 : std::min(tile.mIdleFrames + 1, 1 << 20);
             const bool built = tile.mPhase == Tile::Phase::Built;
             Lod::ResidencyItem& item = state.mItems[i];
             item = Lod::ResidencyItem{};
@@ -638,16 +716,14 @@ namespace MWRender
             item.mPinned = built && !tile.mWanted && !tile.mEvicted && cover.mFade.mPhase != Lod::FadePhase::Hidden;
             item.mIdleFrames = tile.mIdleFrames;
             item.mCooldown = tile.mCooldown;
-            if (built || item.mLoading)
-                item.mBytes = tile.mBytes > 0 ? tile.mBytes : state.estimateBytes(tile.mId.mLevel);
+            item.mFailures = tile.mFailures;
+            // Its true size when it was read before (also while it is loading again), else the level's mean.
+            if (tile.mBytes > 0)
+                item.mBytes = tile.mBytes;
             else
                 item.mBytes = tile.mKnownBytes > 0 ? tile.mKnownBytes : state.estimateBytes(tile.mId.mLevel);
-            const Lod::TileBounds& bounds = state.mStates[i].mBounds;
-            item.mPriority = static_cast<float>(Lod::distanceToTile(selection, bounds));
-            // The live objects page only within the paging range: past it nothing draws the cells if the cluster
-            // goes, so it is never freed to make room (task 0060 review, finding 2).
-            item.mReplaceable = Lod::squareWithinRange(
-                camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
+            item.mPriority = static_cast<float>(Lod::distanceToTile(selection, state.mStates[i].mBounds));
+            item.mReplaceable = tile.mReplaceable;
         }
         Lod::ResidencyParams params;
         params.mBudgetBytes = setup.mResidentBudgetBytes;
@@ -662,7 +738,22 @@ namespace MWRender
         {
             state.mLoggedBudget = true;
             Log(Debug::Info) << "LOD clusters: the memory budget of " << Lod::describeBytes(setup.mResidentBudgetBytes)
-                             << " is reached; the farther clusters wait or give way to closer ones.";
+                             << " is reached: clusters whose cells the live objects draw wait or give way to closer "
+                                "ones; the others are drawn anyway.";
+        }
+        if (setup.mResidentBudgetBytes > 0 && state.mPlan.mOverBudget != state.mLoggedOverBudget)
+        {
+            // Once per change (second review, finding 9): an overrun the clusters with no fallback cause is reported,
+            // not fixed with holes.
+            state.mLoggedOverBudget = state.mPlan.mOverBudget;
+            if (state.mPlan.mOverBudget)
+                Log(Debug::Info) << "LOD clusters: " << Lod::describeBytes(state.mPlan.mHeldAfter)
+                                 << " held, over the budget of " << Lod::describeBytes(setup.mResidentBudgetBytes)
+                                 << ": the clusters whose cells nothing else draws are kept.";
+            else
+                Log(Debug::Info) << "LOD clusters: back within the budget of "
+                                 << Lod::describeBytes(setup.mResidentBudgetBytes) << " ("
+                                 << Lod::describeBytes(state.mPlan.mHeldAfter) << " held).";
         }
         for (const std::uint32_t index : state.mPlan.mFree)
         {
@@ -690,55 +781,10 @@ namespace MWRender
                 [pack, id, images, textureCap] { return loadCluster(pack, id, images, textureCap); });
         }
 
-        std::size_t builds = 0;
         for (std::size_t i = 0; i < state.mTiles.size(); ++i)
         {
             Tile& tile = state.mTiles[i];
             Lod::CoverTile& cover = state.mCover[i];
-
-            if (tile.mPhase == Tile::Phase::Loading
-                && tile.mLoad.wait_for(std::chrono::seconds(0)) == std::future_status::ready
-                && builds < maxBuildsPerFrame)
-            {
-                tile.mData = std::make_shared<Loaded>(tile.mLoad.get());
-                ++state.mStats.mLoads;
-                state.mStats.mLoadMillisecondsTotal += tile.mData->mMilliseconds;
-                state.mStats.mLoadMillisecondsWorst
-                    = std::max(state.mStats.mLoadMillisecondsWorst, tile.mData->mMilliseconds);
-                if (tile.mData->mOk)
-                {
-                    // The planner's estimates for the next tile of this level.
-                    const std::uint64_t bytes = Lod::clusterResidentBytes(
-                        tile.mData->mCluster.mVertices.size(), tile.mData->mCluster.mIndices.size());
-                    const std::size_t slot = std::min<std::size_t>(tile.mId.mLevel, levelSlots - 1);
-                    state.mLevelBytes[slot] += bytes;
-                    ++state.mLevelCount[slot];
-                    tile.mBytes = bytes;
-                }
-                if (!tile.mData->mOk || !tile.mWanted)
-                {
-                    // Failed, or no longer wanted by the time it arrived: forget it (a failed read logs and waits a
-                    // while: the pack is derived data and may be damaged).
-                    if (!tile.mData->mOk)
-                        tile.mCooldown = retryFrames;
-                    tile.mBytes = 0;
-                    tile.mData.reset();
-                    tile.mPhase = Tile::Phase::Idle;
-                }
-                else
-                {
-                    residentBytes += tile.mBytes;
-                    const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
-                    tile.mFade = 0;
-                    tile.mMaskVersion = state.mMaskVersion;
-                    tile.mMasked = masked;
-                    ++builds;
-                    if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
-                        tile.mPhase = Tile::Phase::Built;
-                    else
-                        dropFailedTile(tile, cover);
-                }
-            }
             if (tile.mPhase != Tile::Phase::Built)
                 continue;
 
