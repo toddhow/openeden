@@ -66,9 +66,20 @@ A pure, game-agnostic library: `mergeParts` (parts plus declared seams to one we
 - **Determinism is a total order.** Parts are sorted by (slot, material, name, sizes, content); the grid lookup is a
   sorted vector; weld sets are rooted at their lowest vertex; ties in the four-influence cut go by canonical bone
   index. No unordered container is iterated. A test runs all 24 orders of four parts and compares the results.
-- **Welds never join two vertices of one part,** and never join parts without a declared seam: the overlapping closed
-  shells of Morrowind's joints are not welded (decision of 2026-11-03: only the two exact seams weld in the first
-  version).
+- **Welds never pair two vertices of one part directly,** and never join parts without a declared seam: the overlapping
+  closed shells of Morrowind's joints are not welded (decision of 2026-11-03: only the two exact seams weld in the
+  first version). A vertex of another part can still connect two vertices of one part (a chain); a set is then cut at
+  the tolerance: a member further than the seam tolerance from the set's first member (the position every member takes)
+  stays out, so no vertex ever moves further than the tolerance (review fix A5; the union-find alone allowed 2x).
+- **Order independence is bit for bit.** The canonical part order ends in the skin weights and then in the bit patterns
+  of every float, so parts that differ only in skin, or only in the sign of a zero, still sort the same whatever order
+  the caller passes them in; the output never holds a negative zero (`+ 0.f`). Placements are bounded
+  (`maxPlacementEntry` for rotation and scale, `maxCoordinate` for translation) and every placed position is checked
+  against `maxCoordinate` BEFORE it is cast to float or turned into a grid cell (a double beyond `FLT_MAX` is undefined
+  behaviour to cast).
+- **The lookup has a work budget.** `MergeLimits::mMaxCandidateChecks` counts every candidate the grid compares, not
+  only the pairs inside the tolerance: many vertices closer together than the finest cell (`minGridCell`, 1e-6) all land
+  in one cell and the scan of it is quadratic.
 - **Named starting values:** `uvMergeTolerance` 1e-5, `normalMergeAngle` 5 degrees (stage a measured normals up to 27
   degrees apart at exact seams: those are creases and stay separate), `maxCoordinate` 1e7, `maxSeamTolerance` 100,
   `MergeLimits`. Tune with the data of stage c, not before.
@@ -89,8 +100,27 @@ A pure, game-agnostic library: `mergeParts` (parts plus declared seams to one we
   (`computeBodyKey`) is a BLAKE3 digest of a length-prefixed text of everything a body's bytes depend on; it changes
   when a part's file bytes, record, flags, path, the skeleton file, the merger version, the layout version or a
   parameter changes, per body. Bump `bodyMergerVersion` whenever the merger's output for the same input can change.
-  A pack is `merged-<16 hex of the manifest digest>.edenpak`; `current` names it and is renamed over atomically;
-  `current.tmp` and half-written packs are ignored. The pack reader is the Eden Archive's (hashes verified, caps).
+  A pack is `merged-<16 hex of the manifest digest>.edenpak`; `current` names it and is renamed over atomically; a
+  temporary file (`*.tmp`, unique per writer) and half-written packs are ignored. The pack reader is the Eden Archive's
+  (hashes verified, caps).
+- **The key is complete by construction** (review fixes B1 to B4). It is computed through structured bindings of
+  `BodyKeyInput`, `BodyPartKey`, `MergeOptions`, `MergeLimits` and `SeamDeclaration`: a field added to one of them stops
+  `bodycache.cpp` from compiling until the key learns about it. It carries the seams, the bone order, the UV and normal
+  parameters, every limit, the merger's compile-time constants by name, `bodyMergerVersion` and
+  `bodyReaderVersion`. The reader version is bumped by hand when the NIF reader, the skin filter, the placement or
+  mirror rules or the adapter change; a test (`BodyNifReaderVersion`) pins a fingerprint of a synthetic reading, so a
+  change cannot go unnoticed: when it fails, bump the version AND set the pin in one change.
+- **Entry names** are `bodies/<race>-<sex>-<view>-<32 hex>.bodymesh` (a 128-bit digest of the exact tuple), and the
+  baker refuses a name collision loudly instead of overwriting. Race, sex and view are percent-escaped in the manifest
+  (`%XX` for control bytes and `%`, canonical only), so any id from a mod round-trips.
+- **Writing.** A pack of the derived name that already reads back whole is not rewritten (a running game may have it
+  open); otherwise it is written under a temporary name and renamed. `writeFileAtomic` serves the pointer, the status
+  file and `check.txt`. `pruneOldPacks` deletes all packs but the named ones after a successful publish (the baker
+  keeps the new pack and the previous one). A bake in which every body failed does not touch the pointer.
+  `writeStatusJson` emits valid UTF-8 (a byte outside well-formed UTF-8 becomes `\ufffd`).
+- **The payload reader is canonical, not only deterministic:** weights largest first (a tie by the lower bone index),
+  unused slots last with weight 0 and bone 0, no bone twice for one vertex, weights adding up to 1 within 1e-5
+  (`sCanonicalWeightSumTolerance`; the package validator keeps 1e-3), every listed bone used.
 - **Package format:** `meshFormat "bodymesh"` and the `weldGroups` part (rules `BODY-WELD-001` to `007`). The weld
   groups of a merged body list the output vertices that sit at one place and must move together under a morph.
 - **No game data** in any test: the synthetic quads of `testbodymesh.cpp` only.

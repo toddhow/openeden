@@ -287,3 +287,65 @@ the part FILE bytes, the records' fields the adapter reads; not covered: a chang
 `Placement`, which the merger version must be bumped for); the god-mode and `sLodBakeRun` handling; that a bake killed
 between the pack and the pointer leaves a valid previous state (the code order: pack first, pointer last); that
 `bodybaker.cpp` fails closed (a race with one unreadable slot is a failure, never a partial body).
+
+### Review fixes of stages b and c, 2026-11-04 (the report of the fresh review is in the session; findings A1 to A6, B1 to B4, C, D)
+
+Done with the red-first discipline for each new test (they were run against the old code and failed, then the fix made
+them pass). A2 (the 23-unit seam bend) is NOT changed: the weight policy is stage d's judgement by frames.
+
+- **A1 (the check was circular).** `--check-bodies` now finds the weld-affected stock vertices WITHOUT the merger: a brute
+  force over the stock parts for every vertex within a declared seam's tolerance of a vertex of the other slot, joined
+  into connected groups. It asserts (1) the merger's set of welded vertices equals that set (real data: 68 and 68 in
+  every body), (2) the weights of every welded vertex equal the mean of its group's stock weights, computed here from
+  the stock weights (real data: largest departure 0.000000; vertices whose group has more than four bones are counted
+  as not checked: none), (3) the skinned difference of a welded vertex is bounded by what its weight change and its
+  position change explain (sum over bones of the weight change times how far the bone's motion carries the vertex, plus
+  the move; an exact triangle-inequality bound for rigid bone motions). The unbounded "worst moved 23 units" is still
+  reported but now only as information: the BOUND is what is asserted. `--check-bodies` ends the run with exit code 3
+  when `problems` is not zero (new `Engine::exitCode`) and writes the verdict into check.txt. The earlier change of the
+  rule (after seeing the data, stage c) stays recorded in the stage c log.
+- **A3.** `compareParts` compares the skin (counts, bone indices, weights) and ends in a bit-pattern comparison of every
+  float, so parts that differ only in skin or in the sign of a zero come out the same whatever order they are passed
+  in; the output never holds a negative zero (`+ 0.f` on positions, normals and UVs). Real data: byte-identical to
+  before.
+- **A4.** Placement entries are bounded and every placed position is checked against `maxCoordinate` before the cast to
+  float and before the grid cell; `cellOf` clamps and maps NaN to cell 0. Tests with 1e30 in the translation and in the
+  scale, a translation beyond the limit, a scale that carries a vertex beyond the limit, and tolerances of 0, 1e-9 and
+  1e-6 at coordinates of 9e6.
+- **A5.** A weld set may not reach further than the largest tolerance of the seams that formed it from its first
+  member; the member that does stays out. PINNED TEST CHANGED: `BodyMergeWeld.a_chain_of_close_vertices_is_one_set` had
+  `p1` at 0.012 (a chain that the union-find joined and that moved a vertex further than the tolerance); it is now
+  0.009 (a chain inside the tolerance, still one set) and `BodyMergeReview.a_weld_set_never_reaches_further_than_the_tolerance_from_its_first_member`
+  pins the 0.012 case. The documents (header and module guide) no longer say "never joins two vertices of one part".
+- **A6.** `MergeLimits::mMaxCandidateChecks` (50 million) bounds the work of the lookup, with a located error naming
+  the seam; a test with 3,000 coincident vertices at tolerance 0 hits a budget of 100,000.
+- **B1.** The key is computed through structured bindings of every struct it covers, includes the merger's constants and
+  `bodyReaderVersion`, and is fed from the SAME objects the merger gets (`StockBody::mSeams`, `mOptions`, `mLimits`).
+  `BodyNifReaderVersion` pins a fingerprint of a synthetic reading (recorded at its first run: 2143543024064129625, not
+  red-first because it records existing behaviour). PINNED TEST CHANGED: `BodyCacheKey.everyInputChangesTheKey` had
+  `mWeldTolerance`, `mUvTolerance` and `mNormalAngle`, which became `mSeams`, `mMerge.mUvTolerance` and
+  `mMerge.mNormalAngle`.
+- **B2.** Race, sex and view are percent-escaped in the manifest and the reader is canonical about it; entry names carry
+  a 128-bit digest of the exact tuple; the baker refuses a name collision.
+- **B3.** An existing pack that reads back whole is not rewritten; otherwise packs are written under a unique temporary
+  name and renamed; `writeFileAtomic` for the pointer, status.json and check.txt, with the flush and close checked and
+  failures reported (a failed status write counts as a problem). Not done: fsync (no portable call).
+- **B4.** A bake in which every body failed leaves `current` alone and the status says failed; `pruneOldPacks` keeps the
+  new pack and the previous one; the status JSON is valid UTF-8 whatever a race id holds. Not exercised in a running
+  game: the all-failed case (it needs data without bodies) is a few lines, read, not run.
+- **C.** The payload reader and writer are canonical (see docs/spec/bodymesh-payload-v0-draft.md). PINNED TESTS: none
+  changed; 2 new tests (`BodyMeshPayloadCanonical`). Stage c's bit-flip test still passes: a flip that leaves a payload readable is canonical.
+- **D.** The per-frame work is inside a try/catch that ends the run with a located message and a problem count (no
+  exception reaches the game loop); NIF files are capped at 32 MiB before they are read (`maxNifBytes`, one pass for
+  size and digest); the duplicated NIF helpers, the slot list and the unit moved to `apps/openmw/bodycommon.*`, used by
+  `bodyanalyser.cpp` and `bodybaker.cpp`; `--bake-out` is the general name of the output folder (`--bake-gi-out` still
+  works).
+- **Real data, before and after the fixes (vanilla Morrowind, Tribunal, Bloodmoon; your config copied):** the 20
+  payloads are byte-identical (SHA-256 of each, sorted lists equal), `analysis/bodies.json` and `bodies.txt` are
+  byte-identical, `status` says complete, a second bake says up to date. What changed: the pack and manifest (new keys,
+  new entry names, the digest of the manifest), and `check.txt` (the new fields). `--check-bodies`: 20 races and sexes,
+  0 problems, exit code 0.
+- **Tests (Windows):** see the report; new: 6 `BodyMergeReview`, 9 cache and payload ones, 1 `BodyNifReaderVersion`.
+- **Not verified:** the Linux gate and the Lua tests; the all-failed publish path and the exception path in a running
+  game; cross-compiler float equality of the cache bytes; the unit tests of the adapter against a fake file system (still
+  not written).
