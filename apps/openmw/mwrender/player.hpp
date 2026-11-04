@@ -12,9 +12,7 @@ namespace MWRender
      */
     class Player : public Npc
     {
-        Anim::Bone* mNeck{};
         float mAimingFactor = 1.f;
-        void assignBones();
         MWAnim::Context mFirstPersonContext;
 
     public:
@@ -31,6 +29,10 @@ namespace MWRender
         bool busy = false;
 
     protected:
+        // Task 0074g: protected so that a test reaches them: the first-person neck bone and its lookup.
+        Anim::Bone* mNeck{};
+        void assignBones() override;
+
         // Task 0074f: builds no record or skeleton, so that a test can reach setViewMode (it sets `animation`
         // itself). Never used by the game.
         Player(const MWAnim::Context& mwctx, TestSetup);

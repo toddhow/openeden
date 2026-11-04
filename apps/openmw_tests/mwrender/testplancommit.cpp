@@ -10,7 +10,9 @@
 #include "apps/openmw/mwrender/npc.hpp"
 #include "apps/openmw/mwrender/player.hpp"
 
+#include <components/animation/bones.hpp>
 #include <components/esm3/loadarmo.hpp>
+#include <components/mwanimation/actor.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/mwanimation/partbones.hpp>
 #include <components/mwanimation/play.hpp>
@@ -387,5 +389,174 @@ namespace
         EXPECT_EQ(player.mRefreshes, 0);
         EXPECT_EQ(player.mViewMode, MWRender::Npc::ViewMode::Normal);
         EXPECT_EQ(player.mPartContext, &mContext);
+    }
+
+    // Task 0074g: the player's first-person neck bone (Player::mNeck) points into the actor's Play, so every way that
+    // gives the actor a new Play must give it the new neck too. A Player built without a record or skeleton, whose
+    // plan is hand-made and whose view is first person (or not) as the test sets it.
+    constexpr const char* neckSkeletonFile = "meshes/test/neck_skeleton.nif";
+
+    struct NeckPlayer : public MWRender::Player
+    {
+        explicit NeckPlayer(const MWAnim::Context& mwContext)
+            : MWRender::Player(mwContext, TestSetup{})
+        {
+        }
+
+        using MWRender::Npc::BasePlan;
+        using MWRender::Npc::mViewMode;
+        using MWRender::Npc::runRebuild;
+        using MWRender::Player::assignBones;
+        using MWRender::Player::mNeck;
+
+        int mRefreshes = 0;
+
+        BasePlan makeBasePlan(ViewMode view, const MWAnim::Context* partContext) override
+        {
+            BasePlan plan;
+            plan.mSkeleton = neckSkeletonFile;
+            plan.mViewMode = view;
+            plan.mPartContext = partContext;
+            return plan;
+        }
+
+        void refreshController() override { ++mRefreshes; }
+    };
+
+    struct PlayerNeckTest : public ::testing::Test
+    {
+        vsg::ref_ptr<PartsTestSupport::PartsReader> mReader{ new PartsTestSupport::PartsReader };
+        PartsTestSupport::CountingCompile mCompile;
+        MWAnim::Context mContext;
+        // Declared after the context: it goes first.
+        std::unique_ptr<NeckPlayer> mPlayer;
+        // The player before the rebuild: in first person, with the neck of its first Play.
+        const MWAnim::Play* mOldPlay = nullptr;
+        const Anim::Bone* mOldNeck = nullptr;
+
+        void SetUp() override
+        {
+            PartsTestSupport::setUpContext(mContext, mCompile.context(), mReader);
+            mReader->add(neckSkeletonFile, PartsTestSupport::makeSkeleton({ "Bip01 Head", "Bip01 Neck", "New Bone" }));
+            mPlayer = std::make_unique<NeckPlayer>(mContext);
+            NeckPlayer& player = *mPlayer;
+            const vsg::ref_ptr<vsg::Group> oldSkeleton
+                = PartsTestSupport::makeSkeleton({ "Bip01 Head", "Bip01 Neck", "Old Bone" });
+            player.animation = PartsTestSupport::npcPlay(*oldSkeleton);
+            player.mViewMode = MWRender::Npc::ViewMode::FirstPerson;
+            // Player::assignBones itself, as Player::setViewMode and the constructor call it.
+            player.assignBones();
+            mOldPlay = player.animation.get();
+            mOldNeck = player.mNeck;
+            ASSERT_NE(mOldNeck, nullptr);
+            ASSERT_EQ(mOldNeck, player.animation->bones.search("bip01 neck"));
+        }
+
+        // The player's neck is the neck bone of the player's own, new animation.
+        void expectNeckOfTheNewAnimation(const char* what) const
+        {
+            const NeckPlayer& player = *mPlayer;
+            ASSERT_NE(player.animation.get(), mOldPlay) << what;
+            const Anim::Bone* const newNeck = player.animation->bones.search("bip01 neck");
+            ASSERT_NE(newNeck, nullptr) << what;
+            // The new Play is built before the old one is released, so its bones cannot reuse the old addresses.
+            EXPECT_NE(newNeck, mOldNeck) << what;
+            EXPECT_EQ(player.mNeck, newNeck) << what;
+        }
+    };
+
+    // The base class' assignBones reaches Player's: this is the call Npc::applyBasePlan makes (its `this` is an
+    // MWAnim::Actor). Without the dispatch it finds the head and spine and leaves the neck alone.
+    TEST_F(PlayerNeckTest, assign_bones_through_the_base_class_finds_the_first_person_neck)
+    {
+        NeckPlayer& player = *mPlayer;
+        player.mNeck = nullptr;
+
+        static_cast<MWAnim::Actor&>(player).assignBones();
+
+        EXPECT_EQ(player.mNeck, mOldNeck);
+        EXPECT_NE(player.mNeck, nullptr);
+    }
+
+    // The same through the base class in the third person view: no neck.
+    TEST_F(PlayerNeckTest, assign_bones_through_the_base_class_clears_the_neck_in_third_person)
+    {
+        NeckPlayer& player = *mPlayer;
+        player.mViewMode = MWRender::Npc::ViewMode::Normal;
+
+        static_cast<MWAnim::Actor&>(player).assignBones();
+
+        EXPECT_EQ(player.mNeck, nullptr);
+    }
+
+    // The werewolf and vampire change (RenderManager::rebuildPtr -> Npc::rebuild -> runRebuild -> applyBasePlan) in
+    // the first person view: the new Play's neck, not the freed old one.
+    TEST_F(PlayerNeckTest, a_rebuild_of_a_first_person_player_gives_it_the_neck_of_the_new_animation)
+    {
+        NeckPlayer& player = *mPlayer;
+        const NeckPlayer::BasePlan plan = player.makeBasePlan(MWRender::Npc::ViewMode::FirstPerson, &mContext);
+        int partsCalls = 0;
+
+        EXPECT_NO_THROW(player.runRebuild(
+            plan, [&] { ++partsCalls; }, [&] { ++player.mRefreshes; }));
+
+        EXPECT_EQ(partsCalls, 1);
+        EXPECT_EQ(player.mRefreshes, 1);
+        expectNeckOfTheNewAnimation("runRebuild");
+        EXPECT_EQ(player.getHead(), player.animation->bones.search("bip01 head"));
+    }
+
+    // The same through Npc::rebuild(), which RenderManager::rebuildPtr calls. The test player's part update throws
+    // on its empty Ptr, after the new Play is in; the neck is the new one all the same.
+    TEST_F(PlayerNeckTest, rebuild_of_a_first_person_player_gives_it_the_neck_of_the_new_animation)
+    {
+        NeckPlayer& player = *mPlayer;
+
+        throwsApartFromAReadError([&] { player.rebuild(); });
+
+        EXPECT_EQ(player.mRefreshes, 1);
+        EXPECT_EQ(player.mViewMode, MWRender::Npc::ViewMode::FirstPerson);
+        expectNeckOfTheNewAnimation("rebuild");
+    }
+
+    // Player::setViewMode(Normal) when the part update throws after the new Play is in: setViewMode's own
+    // assignBones() is never reached, and the rebuild must have cleared the neck.
+    TEST_F(PlayerNeckTest, set_view_mode_to_third_person_clears_the_neck_when_the_part_update_throws)
+    {
+        NeckPlayer& player = *mPlayer;
+
+        throwsApartFromAReadError([&] { player.setViewMode(MWRender::Npc::ViewMode::Normal); });
+
+        EXPECT_NE(player.animation.get(), mOldPlay);
+        EXPECT_EQ(player.mViewMode, MWRender::Npc::ViewMode::Normal);
+        EXPECT_EQ(player.mNeck, nullptr);
+    }
+
+    // Player::setViewMode(FirstPerson) when the part update throws: the new Play's neck.
+    TEST_F(PlayerNeckTest, set_view_mode_to_first_person_finds_the_neck_when_the_part_update_throws)
+    {
+        NeckPlayer& player = *mPlayer;
+        player.mViewMode = MWRender::Npc::ViewMode::Normal;
+        player.mNeck = nullptr;
+
+        throwsApartFromAReadError([&] { player.setViewMode(MWRender::Npc::ViewMode::FirstPerson); });
+
+        EXPECT_EQ(player.mViewMode, MWRender::Npc::ViewMode::FirstPerson);
+        expectNeckOfTheNewAnimation("setViewMode");
+    }
+
+    // Guard: a rebuild in third person leaves no neck (the third person body has none to turn).
+    TEST_F(PlayerNeckTest, a_rebuild_of_a_third_person_player_leaves_no_neck)
+    {
+        NeckPlayer& player = *mPlayer;
+        player.mViewMode = MWRender::Npc::ViewMode::Normal;
+        player.mNeck = nullptr;
+        const NeckPlayer::BasePlan plan = player.makeBasePlan(MWRender::Npc::ViewMode::Normal, &mContext);
+
+        EXPECT_NO_THROW(player.runRebuild(
+            plan, [] {}, [] {}));
+
+        EXPECT_NE(player.animation.get(), mOldPlay);
+        EXPECT_EQ(player.mNeck, nullptr);
     }
 }
