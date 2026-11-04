@@ -248,3 +248,18 @@ skeleton or mesh); automatic acceptance of suggestions.
 - `docs/tasks/0069-advancedbodies-merged-legacy-body.md`: stage b's merger takes the weight-remap function of this
   task's stage d (one implementation), and stage c's cache key includes the skeleton mapping's digest and version.
 - `components/body/CLAUDE.md`: a section for the mapping file and its caps when stage b lands.
+
+## Answers of toddhow, 2026-11-03
+
+1. Yes: CreativeMotion's roles are the canonical skeleton; each game's compatibility pack maps them to native names.
+2. We never adopt a mod's skeleton: we always map onto our own. Since each game has essentially one extended skeleton mod, the maps are made per compatibility pack and SHIPPED with the pack, so a player gets the mapping with no work. (Consequences for the spec: a shipped map is our own authored data (bone names and actions, no mod meshes or files), recorded with its source skeleton digest; a user whose skeleton digest does not match a shipped map gets the suggestion flow of question 3.)
+3. Yes: refuse unaccepted extra bones, with an explicit "accept all".
+4. Yes: secondary bones stay static until the cosmetic solver exists.
+5. Yes: add optional finger roles.
+6. Yes for now: fold face bones to `Head`. A design document for facial animation and its Eden Studio module exists on the CreativeMotion side; the face-bone stage must read it before it replaces the fold (not available in this repository: ask toddhow where it is).
+7. Yes: mappings live inside packages and in a user folder keyed by skeleton digest.
+8. Yes: mappings that contain only bone names may be shared.
+9. Yes: the proposed caps, tightened after stage a.
+10. toddhow's installed set, which stage a measures (read-only, aggregates only): Skyrim: CBBE 3BBB (female body), XP32 Maximum Skeleton Special Extended (XPMSSE), Himbo (male body) with The New Gentleman (TNG, genitalia); Fallout 4: Fusion Girl (female body), ZAZ Extended skeleton, BodyTalk 3 (male body), which use the same skeletons as above. Both games are later compatibility packs, which the project guide lists as "not yet"; their maps are prepared as data and tested on synthetic skeletons plus the read-only measurement, with no engine support for those games yet.
+11. Yes: tier-1 proportions first, inverse-bind correction as the fallback.
+12. Yes: the design doc's stage table is stale and gets renumbered (the edit waits until the agent working on 0069 has finished).
