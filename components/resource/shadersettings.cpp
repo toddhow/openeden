@@ -1,6 +1,8 @@
 #include "shadersettings.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <locale>
 #include <sstream>
 
 #include <vsg/core/Value.h>
@@ -41,9 +43,17 @@ namespace
     void add(
         const std::string& identifier, float value, std::stringstream& stream, vsgUtil::SettingsConstants& constants)
     {
-        stream << "const float " << identifier << " = " << value << ";\n";
+        stream << "const float " << identifier << " = " << Resource::shaderFloatLiteral(value) << ";\n";
         if (const auto* entry = findConstant(identifier))
             constants.constants[entry->mId] = vsg::floatValue::create(value);
+    }
+
+    // Task 0072 (review of stages b and c): a settings file's define, written as the GLSL has always had it and
+    // remembered so that the Slang twin of a stage that includes the file is chosen with it (vsgUtil::stageDefines).
+    void addDefine(const std::string& name, std::stringstream& stream, vsgUtil::SettingsConstants& constants)
+    {
+        stream << "#define " << name << " 1\n";
+        constants.defines.insert(name);
     }
 
     void addFallbackBool(const std::string& setting, std::stringstream& stream, vsgUtil::SettingsConstants& constants)
@@ -62,6 +72,24 @@ namespace
 
 namespace Resource
 {
+    std::string shaderFloatLiteral(float value)
+    {
+        // max_digits10 (9) significant digits: the shortest count that gives every float back exactly (the stream's
+        // default of six turned 1.23456789 into 1.23457, a different float from the twin's specialization constant).
+        std::ostringstream text;
+        text.imbue(std::locale::classic());
+        text.precision(std::numeric_limits<float>::max_digits10);
+        text << value;
+        return text.str();
+    }
+
+    std::span<const std::string_view> settingsDefineNames()
+    {
+        static constexpr std::string_view names[]
+            = { "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW", "DEBUG_CHUNKS" };
+        return names;
+    }
+
     std::span<const SettingsConstantInfo> settingsConstantTable()
     {
         // Grouped by settings file, with room to grow in each group. Ids never change once a twin uses them.
@@ -144,17 +172,17 @@ namespace Resource
             hdr, Settings::Manager::getBool("atmosphere", "Rendering"));
         if (cloudShadows)
         {
-            source << "#define CLOUD_SHADOW 1\n";
+            addDefine("CLOUD_SHADOW", source, *constants);
             if (Settings::Manager::getBool("cloud shadow debug", "Rendering"))
-                source << "#define CLOUD_SHADOW_DEBUG 1\n";
+                addDefine("CLOUD_SHADOW_DEBUG", source, *constants);
         }
         // OpenEden (task 0042): the ray marched clouds' shadow on the ground (lib/view/volumecloudshadow.glsl).
         if (Render::CloudVolume::useVolumetricClouds(Settings::Manager::getBool("volumetric clouds", "Rendering"), hdr,
                 Settings::Manager::getBool("atmosphere", "Rendering"))
             && Settings::Manager::getBool("volumetric clouds shadows", "Rendering"))
-            source << "#define VOLUME_CLOUD_SHADOW 1\n";
+            addDefine("VOLUME_CLOUD_SHADOW", source, *constants);
         if (Settings::Manager::getBool("enable debug hud", "Shadows"))
-            source << "#define DEBUG_SHADOW 1\n";
+            addDefine("DEBUG_SHADOW", source, *constants);
         objects["shadow.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");
@@ -211,7 +239,7 @@ namespace Resource
 
         source.str("");
         if (Settings::Manager::getBool("debug chunks", "Terrain"))
-            source << "#define DEBUG_CHUNKS 1\n";
+            addDefine("DEBUG_CHUNKS", source, *constants);
         objects["terrain.settings"] = vsg::ShaderModule::create(source.str());
     }
 }

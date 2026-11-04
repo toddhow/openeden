@@ -34,13 +34,26 @@ namespace
         return words;
     }
 
-    [[maybe_unused]] std::vector<uint32_t> compileGlsl(const std::string& file, const std::string& canonicalDefines)
+    [[maybe_unused]] vsg::ref_ptr<vsg::Options> glslOptions()
     {
         auto options = vsg::Options::create();
         options->paths = { OPENEDEN_SHADER_SOURCE_DIR };
         // Task 0072, stage b: the `*.settings` includes are virtual files the engine's shader options serve
         // (createShaderOptions in components/resource/resourcesystem.cpp), so the GLSL compiles as in the game.
         options->readerWriters = { vsg::ref_ptr{ new Resource::ShaderSettings }, vsg::glsl::create() };
+        return options;
+    }
+
+    // The GLSL source of a stage with its includes inserted, as the game reads it.
+    [[maybe_unused]] std::string glslSource(const std::string& file)
+    {
+        auto stage = vsg::read_cast<vsg::ShaderStage>(file, glslOptions());
+        return stage && stage->module ? stage->module->source : std::string();
+    }
+
+    [[maybe_unused]] std::vector<uint32_t> compileGlsl(const std::string& file, const std::string& canonicalDefines)
+    {
+        auto options = glslOptions();
         auto stage = vsg::read_cast<vsg::ShaderStage>(file, options);
         if (!stage)
             return {};
@@ -56,16 +69,32 @@ namespace
 
     // Task 0072, stage b: the differences a family accepts on purpose, from "<stage>.interface-exceptions" beside the
     // GLSL stage (each line "glsl-only: <interface line>" or "slang-only: <interface line>", # for comments).
+    // Review of stages b and c: a line may start with "[<canonical define set>] " to hold for that permutation only;
+    // a line without it holds for every permutation and is allowed only for a stage that has one.
     struct Exceptions
     {
-        std::map<std::string, bool> mLines; // line -> seen in a difference
-        bool accept(const std::string& line)
+        std::map<std::pair<std::string, std::string>, bool> mLines; // (set or "", line) -> seen in a difference
+        bool accept(const std::string& defines, const std::string& line)
         {
-            const auto it = mLines.find(line);
-            if (it == mLines.end())
-                return false;
-            it->second = true;
-            return true;
+            for (const std::string& key : { defines, std::string() })
+            {
+                const auto it = mLines.find({ key, line });
+                if (it != mLines.end())
+                {
+                    it->second = true;
+                    return true;
+                }
+            }
+            return false;
+        }
+        bool hasUnscoped() const
+        {
+            for (const auto& [key, used] : mLines)
+            {
+                if (key.first.empty())
+                    return true;
+            }
+            return false;
         }
     };
 
@@ -80,7 +109,19 @@ namespace
                 line.pop_back();
             if (line.empty() || line[0] == '#')
                 continue;
-            exceptions.mLines.emplace(line, false);
+            std::string defines;
+            if (line[0] == '[')
+            {
+                const std::size_t close = line.find("] ");
+                if (close == std::string::npos)
+                {
+                    ADD_FAILURE() << stageFile << ".interface-exceptions: no \"] \" after the define set: " << line;
+                    continue;
+                }
+                defines = line.substr(1, close - 1);
+                line = line.substr(close + 2);
+            }
+            exceptions.mLines.emplace(std::make_pair(defines, line), false);
         }
         return exceptions;
     }
@@ -99,6 +140,29 @@ namespace
         return false;
     }
 
+    // Task 0072 (review of stages b and c): the stages with twins, exactly. A family added to
+    // files/shaders/CMakeLists.txt is added here too, so that a family that stops being built cannot pass unseen.
+    [[maybe_unused]] const std::set<std::string>& expectedStages()
+    {
+        static const std::set<std::string> stages = { "comp/fogofwar/update.comp", "comp/light/assign.comp",
+            "comp/particle/simulate.comp", "comp/worldoverlay/update.comp", "gui/gui.frag", "gui/gui.vert",
+            "sky/atmosphere/main.frag", "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert",
+            "sky/moon/main.frag", "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert",
+            "sky/sun/main.frag", "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert" };
+        return stages;
+    }
+
+    // The table's name for a settings constant id, or none.
+    [[maybe_unused]] std::string settingsConstantName(uint32_t id)
+    {
+        for (const auto& entry : Resource::settingsConstantTable())
+        {
+            if (entry.mId == id)
+                return std::string(entry.mName);
+        }
+        return {};
+    }
+
     TEST(SlangPermutations, every_permutation_has_the_interface_of_its_glsl_stage)
     {
 #if !OPENEDEN_SLANG_ENABLED
@@ -106,6 +170,7 @@ namespace
 #else
         const std::filesystem::path built(OPENEDEN_SHADER_BUILD_DIR);
         std::size_t checked = 0;
+        std::set<std::string> found;
         for (const auto& entry : std::filesystem::recursive_directory_iterator(built))
         {
             if (!entry.is_regular_file() || entry.path().extension() != ".permutations")
@@ -117,10 +182,24 @@ namespace
             std::ifstream in(entry.path(), std::ios::binary);
             const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
             const auto manifest = vsgUtil::parsePermutationManifest(text);
+            found.insert(stageFile);
             Exceptions exceptions = readExceptions(stageFile);
+            if (manifest.mFiles.size() > 1)
+            {
+                EXPECT_FALSE(exceptions.hasUnscoped())
+                    << stageFile << ".interface-exceptions: with several permutations every line names its set";
+            }
+            // Review of stages b and c: a listed name the stage neither imports nor gets from a settings file gives a
+            // permutation that can never be chosen.
+            std::set<std::string> possible = vsgUtil::importedDefines(glslSource(stageFile));
+            for (const std::string_view name : Resource::settingsDefineNames())
+                possible.emplace(name);
             for (const auto& [defines, file] : manifest.mFiles)
             {
                 SCOPED_TRACE(stageFile + " [" + defines + "] " + file);
+                std::istringstream names(defines == "-" ? std::string() : defines);
+                for (std::string name; names >> name;)
+                    EXPECT_EQ(possible.count(name), 1u) << name << " is neither imported nor a settings define";
                 const auto slangWords = readWords(entry.path().parent_path() / file);
                 const auto glslWords = compileGlsl(stageFile, defines);
                 // Stage b: every family is checked, not only those before the first failure.
@@ -135,20 +214,49 @@ namespace
                 EXPECT_EQ(slang.mVersion, 0x00010000u);
                 const auto diff = vsgUtil::compareSpirvInterfaces(slang, glsl);
                 for (const std::string& line : diff.mOnlyInSecond)
-                    if (!exceptions.accept("glsl-only: " + line))
+                {
+                    if (!exceptions.accept(defines, "glsl-only: " + line))
                         ADD_FAILURE() << "GLSL declares, Slang does not: " << line;
+                }
                 for (const std::string& line : diff.mOnlyInFirst)
-                    if (!isSettingsConstant(line) && !exceptions.accept("slang-only: " + line))
+                {
+                    if (!isSettingsConstant(line) && !exceptions.accept(defines, "slang-only: " + line))
                         ADD_FAILURE() << "Slang declares, GLSL does not: " << line;
+                }
+                // Review of stages b and c: no expression over specialization constants (an OpSpecConstantOp, the
+                // pattern apps/openmw/mwrender/CLAUDE.md records as miscompiled by the NVIDIA driver); branch on the
+                // constant itself.
+                EXPECT_EQ(slang.mSpecConstantOps, 0u) << "OpSpecConstantOp in the twin";
+                // A settings constant's id carries the table's name, so that two ids of the same type cannot swap.
+                for (const auto& [id, name] : slang.mSpecConstantNames)
+                {
+                    if (id < Resource::settingsConstantBase)
+                        continue;
+                    const std::string expected = settingsConstantName(id);
+                    EXPECT_FALSE(expected.empty()) << "id " << id << " is not in the settings constant table";
+                    EXPECT_EQ(name, expected) << "id " << id;
+                }
                 EXPECT_GT(slang.mLines.size(), 2u);
                 ++checked;
             }
             // A stale entry would let a real difference through later.
-            for (const auto& [line, used] : exceptions.mLines)
-                EXPECT_TRUE(used) << stageFile
-                                  << ".interface-exceptions lists a difference that does not occur: " << line;
+            for (const auto& [key, used] : exceptions.mLines)
+                EXPECT_TRUE(used) << stageFile << ".interface-exceptions lists a difference that does not occur: ["
+                                  << key.first << "] " << key.second;
         }
-        EXPECT_GE(checked, 2u) << "no permutations were built";
+        // Review of stages b and c: exactly the declared stages, and the declared stages are the expected ones.
+        std::set<std::string> declared;
+        std::ifstream list(built / "slang-permutation-stages.txt", std::ios::binary);
+        for (std::string line; std::getline(list, line);)
+        {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            if (!line.empty())
+                declared.insert(line);
+        }
+        EXPECT_EQ(found, declared) << "manifests in the build folder differ from slang-permutation-stages.txt";
+        EXPECT_EQ(declared, expectedStages());
+        EXPECT_GE(checked, expectedStages().size());
 #endif
     }
 }

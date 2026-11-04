@@ -70,14 +70,30 @@ namespace vsgUtil
     {
     public:
         vsg::ShaderStage::SpecializationConstants constants;
+        // Task 0072 (review of stages b and c): the names the settings files write as "#define <name> 1" lines
+        // (shadow.settings, terrain.settings) in this run. A stage that includes such a file compiles with them, so
+        // they are part of the set its Slang twin is chosen by (stageDefines).
+        std::set<std::string> defines;
     };
 
     inline constexpr const char* settingsConstantsKey = "openeden.settingsConstants";
 
-    /// When `stage`'s module is a precompiled Slang twin (it has SPIR-V and no GLSL source), adds every settings
-    /// constant of `options` that the stage does not set already. A GLSL stage, or options without the object, are
-    /// left as they are. Ids the module does not declare are ignored by Vulkan.
+    /// When `stage`'s module is a precompiled Slang twin (it has SPIR-V and no GLSL source), adds the settings
+    /// constants of `options` that the module declares (by SpecId) and the stage does not set already. A GLSL stage,
+    /// a module that declares none of the ids (a Slang-only shader such as the procedural sun), a module that cannot
+    /// be read, or options without the object are left exactly as they are (task 0072, review of stages b and c).
     void addSettingsConstants(vsg::ShaderStage& stage, const vsg::Options* options);
+
+    /// The names a settings file defined with a "#define <name>" line in `source` (the GLSL with its includes
+    /// inserted, as vsg's glsl reader returns it), out of `settingsDefines` (SettingsConstants::defines).
+    std::set<std::string> includedSettingsDefines(
+        std::string_view source, const std::set<std::string>& settingsDefines);
+
+    /// The define set a stage's GLSL really compiles with and its Slang twin is chosen and traced by: the requested
+    /// names the stage imports (effectiveDefines) plus the settings files' defines its source includes
+    /// (includedSettingsDefines with the options' SettingsConstants; none without them).
+    std::set<std::string> stageDefines(
+        const std::set<std::string>& requested, std::string_view source, const vsg::Options* options);
 
     /// The name of the bool value on the shader vsg::Options that holds `[Rendering] slang shaders`.
     inline constexpr const char* preferSlangKey = "openeden.preferSlang";

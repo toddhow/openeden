@@ -14,12 +14,16 @@ float lambert(float3 light, float3 normal)
 float lightRange(float intensity)
 {
     // OpenEden: without classic falloff a light ends at twice its radius (see attenuate), as OpenMW's doLighting.
-    if (!cClassicFalloff)
-        return intensity * 2.0;
-    float r = intensity * LightAttenuation_LinearRadiusMult;
-    float attenuation = LightAttenuation_LinearValue / r;
-    const float epsilon = 0.03;
-    return 1 / (epsilon * attenuation);
+    // Task 0072 (review): a branch on the specialization constant itself, never `!cClassicFalloff` (an
+    // OpSpecConstantOp, the pattern apps/openmw/mwrender/CLAUDE.md records as miscompiled).
+    if (cClassicFalloff)
+    {
+        float r = intensity * LightAttenuation_LinearRadiusMult;
+        float attenuation = LightAttenuation_LinearValue / r;
+        const float epsilon = 0.03;
+        return 1 / (epsilon * attenuation);
+    }
+    return intensity * 2.0;
 }
 
 float attenuate(float intensity, float distance)
@@ -49,9 +53,9 @@ float attenuate(float intensity, float distance)
     }
     float illumination = clamp(1.0 / value, 0.0, 1.0);
     // OpenEden: fades between the radius and the radius doubled, as OpenMW's lcalcIllumination at 442eec6e2f.
-    if (!cClassicFalloff)
-        illumination *= 1.0 - quickstep(distance / intensity - 1.0);
-    return illumination;
+    if (cClassicFalloff)
+        return illumination;
+    return illumination * (1.0 - quickstep(distance / intensity - 1.0));
 }
 
 #endif

@@ -1,7 +1,9 @@
 #ifndef OPENEDEN_VSGUTIL_SPIRVINTERFACE_H
 #define OPENEDEN_VSGUTIL_SPIRVINTERFACE_H
 
+#include <cstddef>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -28,6 +30,12 @@ namespace vsgUtil
         uint32_t mVersion = 0;
         std::string mEntry;
         std::set<std::string> mLines;
+        // Task 0072 (review of stages b and c): each specialization constant's SpecId with its OpName (empty when the
+        // module has none), and how many OpSpecConstantOp instructions the module has: an expression over
+        // specialization constants, the pattern apps/openmw/mwrender/CLAUDE.md records as miscompiled by the NVIDIA
+        // driver. Neither is part of mLines (the GLSL folds its settings into plain constants).
+        std::map<uint32_t, std::string> mSpecConstantNames;
+        std::size_t mSpecConstantOps = 0;
     };
 
     /// Reads the declarations of a SPIR-V module. Throws std::runtime_error for words that are not SPIR-V or an

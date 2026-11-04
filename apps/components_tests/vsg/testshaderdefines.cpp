@@ -16,6 +16,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -96,6 +98,29 @@ namespace
         EXPECT_EQ(written, (Names{ "COLOR", "DIFFUSE_MAP", "EXTRA", "MATERIAL" }));
     }
 
+    // Task 0072 (review of stages b and c): a SPIR-V module that declares a bool specialization constant for each id
+    // in `boolIds` and a float one for each id in `floatIds`, nothing else, as vsgUtil::readSpirvInterface reads it.
+    std::vector<uint32_t> moduleDeclaring(const std::vector<uint32_t>& boolIds, const std::vector<uint32_t>& floatIds)
+    {
+        const auto op = [](uint32_t opcode, uint32_t count) { return (count << 16) | opcode; };
+        std::vector<uint32_t> words = { 0x07230203u, 0x00010000u, 0u, 1000u, 0u };
+        words.insert(words.end(), { op(17, 2), 1u }); // OpCapability Shader
+        words.insert(words.end(), { op(20, 2), 1u }); // %1 = OpTypeBool
+        words.insert(words.end(), { op(22, 3), 2u, 32u }); // %2 = OpTypeFloat 32
+        uint32_t next = 10;
+        for (const uint32_t id : boolIds)
+        {
+            words.insert(words.end(), { op(71, 4), next, 1u, id }); // OpDecorate %next SpecId id
+            words.insert(words.end(), { op(49, 3), 1u, next++ }); // OpSpecConstantFalse
+        }
+        for (const uint32_t id : floatIds)
+        {
+            words.insert(words.end(), { op(71, 4), next, 1u, id });
+            words.insert(words.end(), { op(50, 4), 2u, next++, 0x3f000000u }); // OpSpecConstant 0.5
+        }
+        return words;
+    }
+
     vsg::ref_ptr<vsg::Options> optionsWithConstants()
     {
         auto constants = vsgUtil::SettingsConstants::create();
@@ -109,7 +134,7 @@ namespace
     TEST(ShaderDefines, a_precompiled_twin_gets_the_settings_constants)
     {
         auto stage = vsg::ShaderStage::create(
-            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(std::vector<uint32_t>{ 0x07230203u }));
+            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(moduleDeclaring({ 1000 }, { 1004 })));
         stage->specializationConstants[0] = vsg::intValue::create(1);
         vsgUtil::addSettingsConstants(*stage, optionsWithConstants().get());
         ASSERT_EQ(stage->specializationConstants.size(), 3u);
@@ -121,7 +146,7 @@ namespace
     TEST(ShaderDefines, a_constant_the_stage_sets_already_is_kept)
     {
         auto stage = vsg::ShaderStage::create(
-            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(std::vector<uint32_t>{ 0x07230203u }));
+            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(moduleDeclaring({ 1000 }, { 1004 })));
         auto own = vsg::Value<VkBool32>::create(VK_FALSE);
         stage->specializationConstants[1000] = own;
         vsgUtil::addSettingsConstants(*stage, optionsWithConstants().get());
@@ -137,7 +162,7 @@ namespace
         EXPECT_TRUE(glsl->specializationConstants.empty());
 
         auto twin = vsg::ShaderStage::create(
-            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(std::vector<uint32_t>{ 0x07230203u }));
+            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(moduleDeclaring({ 1000 }, { 1004 })));
         vsgUtil::addSettingsConstants(*twin, vsg::Options::create().get());
         EXPECT_TRUE(twin->specializationConstants.empty());
         vsgUtil::addSettingsConstants(*twin, nullptr);
@@ -201,7 +226,8 @@ namespace
     };
 
     // SPIR-V headers told apart by their bound (word 3).
-    const std::vector<uint32_t> sPermutationWords{ 0x07230203u, 0x00010000u, 0x00280000u, 7u, 0u };
+    // Review of stages b and c: it declares the two settings constants, since a twin now gets only the ids it declares.
+    const std::vector<uint32_t> sPermutationWords = moduleDeclaring({ 1000 }, { 1004 });
     const std::vector<uint32_t> sSingleFileWords{ 0x07230203u, 0x00010000u, 0x00280000u, 9u, 0u };
     const std::string sMoonFrag = "#pragma import_defines(GLOW_MAP, DIFFUSE_MAP, MATERIAL)\nvoid main() {}\n";
 
@@ -327,5 +353,109 @@ namespace
                  "cVolumetrics", "cVolumetricsDebug", "cAerialHaze", "cAerialVisibility", "cAerialScaleHeight",
                  "cAerialWeatherGain", "cCloudsLit", "cVolumetricClouds" })
             EXPECT_EQ(names.count(name), 1u) << name;
+    }
+    // Task 0072 (review of stages b and c): a twin gets only the settings constants it declares, so that a stage that
+    // declares none of them (a Slang-only shader with the switch off) is left exactly as it was.
+    TEST(ShaderDefines, a_twin_gets_only_the_settings_constants_it_declares)
+    {
+        auto stage = vsg::ShaderStage::create(
+            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(moduleDeclaring({ 1000 }, {})));
+        vsgUtil::addSettingsConstants(*stage, optionsWithConstants().get());
+        EXPECT_EQ(stage->specializationConstants.count(1000), 1u);
+        EXPECT_EQ(stage->specializationConstants.count(1004), 0u);
+    }
+
+    TEST(ShaderDefines, a_module_that_declares_no_settings_constant_gets_none)
+    {
+        auto stage = vsg::ShaderStage::create(
+            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(moduleDeclaring({ 0, 7 }, {})));
+        vsgUtil::addSettingsConstants(*stage, optionsWithConstants().get());
+        EXPECT_TRUE(stage->specializationConstants.empty());
+    }
+
+    TEST(ShaderDefines, a_module_that_cannot_be_read_gets_none)
+    {
+        auto stage = vsg::ShaderStage::create(
+            VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(std::vector<uint32_t>{ 0x07230203u }));
+        vsgUtil::addSettingsConstants(*stage, optionsWithConstants().get());
+        EXPECT_TRUE(stage->specializationConstants.empty());
+    }
+
+    // Task 0072 (review of stages b and c): the "#define" lines of the settings files (shadow.settings,
+    // terrain.settings) are part of the set a stage really compiles with.
+    TEST(ShaderDefines, a_settings_define_counts_only_as_its_own_line)
+    {
+        const Names settings{ "CLOUD_SHADOW", "DEBUG_CHUNKS" };
+        EXPECT_EQ(vsgUtil::includedSettingsDefines("#version 450\n#define CLOUD_SHADOW 1\nvoid main() {}\n", settings),
+            (Names{ "CLOUD_SHADOW" }));
+        EXPECT_EQ(vsgUtil::includedSettingsDefines("#define CLOUD_SHADOW 1\r\n", settings), (Names{ "CLOUD_SHADOW" }));
+        EXPECT_EQ(vsgUtil::includedSettingsDefines("#define CLOUD_SHADOW 1", settings), (Names{ "CLOUD_SHADOW" }));
+        EXPECT_TRUE(vsgUtil::includedSettingsDefines("#define CLOUD_SHADOW_DEBUG 1\n", settings).empty());
+        EXPECT_TRUE(vsgUtil::includedSettingsDefines("// #define CLOUD_SHADOW 1\n", settings).empty());
+        EXPECT_TRUE(vsgUtil::includedSettingsDefines("#define CLOUD_SHADOW 10\n", settings).empty());
+        EXPECT_TRUE(vsgUtil::includedSettingsDefines("#define OTHER 1\n", settings).empty());
+        EXPECT_TRUE(vsgUtil::includedSettingsDefines("#define CLOUD_SHADOW 1\n", Names{}).empty());
+    }
+
+    TEST(ShaderDefines, the_stage_set_adds_the_settings_defines_the_source_includes)
+    {
+        auto constants = vsgUtil::SettingsConstants::create();
+        constants->defines = { "CLOUD_SHADOW", "DEBUG_SHADOW" };
+        auto options = vsg::Options::create();
+        options->setObject(vsgUtil::settingsConstantsKey, constants);
+        const std::string source = "#pragma import_defines(NORMAL)\n#define CLOUD_SHADOW 1\nvoid main() {}\n";
+        EXPECT_EQ(vsgUtil::stageDefines(Names{ "NORMAL", "COLOR" }, source, options.get()),
+            (Names{ "CLOUD_SHADOW", "NORMAL" }));
+        // Without the settings object, or with a source that does not include the file, only the imported names.
+        EXPECT_EQ(vsgUtil::stageDefines(Names{ "NORMAL" }, source, nullptr), (Names{ "NORMAL" }));
+        EXPECT_EQ(vsgUtil::stageDefines(Names{ "NORMAL" }, "#pragma import_defines(NORMAL)\n", options.get()),
+            (Names{ "NORMAL" }));
+    }
+
+    // Task 0072 (review of stages b and c): the GLSL gets the same float as the twin's specialization constant.
+    TEST(ShaderDefines, a_float_setting_is_written_so_that_it_reads_back_exactly)
+    {
+        for (const float value : { 1.23456789f, 0.1f, 1.0f / 3.0f, 1.0e-5f, 123456.789f, 0.0f, -2.5f, 3.0e38f })
+        {
+            const std::string literal = Resource::shaderFloatLiteral(value);
+            SCOPED_TRACE(literal);
+            const float back = std::strtof(literal.c_str(), nullptr);
+            EXPECT_EQ(std::memcmp(&back, &value, sizeof(float)), 0);
+        }
+    }
+
+    TEST(ShaderDefines, every_settings_define_name_is_known_and_none_is_imported_by_a_mode)
+    {
+        const auto names = Resource::settingsDefineNames();
+        EXPECT_EQ(names.size(), 5u);
+        Names unique;
+        for (const std::string_view name : names)
+            unique.emplace(name);
+        EXPECT_EQ(unique.size(), names.size());
+    }
+
+    // Task 0072 (review of stages b and c): every constant of the table has a value of its type for the twins.
+    TEST(ShaderDefines, the_settings_object_has_every_table_constant_with_its_type)
+    {
+        Resource::ShaderSettings settings;
+        ASSERT_TRUE(settings.constants);
+        for (const auto& entry : Resource::settingsConstantTable())
+        {
+            SCOPED_TRACE(std::string(entry.mName));
+            const auto it = settings.constants->constants.find(entry.mId);
+            ASSERT_NE(it, settings.constants->constants.end());
+            const vsg::Object* value = it->second.get();
+            const bool rightType = entry.mType == 'b' ? dynamic_cast<const vsg::Value<VkBool32>*>(value) != nullptr
+                : entry.mType == 'i'                  ? dynamic_cast<const vsg::intValue*>(value) != nullptr
+                                                      : dynamic_cast<const vsg::floatValue*>(value) != nullptr;
+            EXPECT_TRUE(rightType) << "type " << entry.mType;
+        }
+        for (const std::string& name : settings.constants->defines)
+        {
+            bool known = false;
+            for (const std::string_view candidate : Resource::settingsDefineNames())
+                known = known || candidate == name;
+            EXPECT_TRUE(known) << name;
+        }
     }
 }

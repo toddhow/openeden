@@ -52,10 +52,8 @@ float3 sunGlowTint(float elevation)
     return float3(1.0) + (hue - float3(1.0)) * sunGlowTintShare;
 }
 
-float3 sunGlowColour(float3 viewDir, float3 fogColour)
+float3 sunGlowColourOn(float3 viewDir, float3 fogColour)
 {
-    if (!cSunGlow || !linearView())
-        return float3(0.0);
     float haze = 1.0 - clamp(scene.skyColor.w, 0.0, 1.0);
     float3 sun = scene.lightDiffuse.xyz;
     float presence = smoothstep(sunGlowPresenceFrom, sunGlowPresenceTo, max(sun.x, max(sun.y, sun.z)));
@@ -66,6 +64,18 @@ float3 sunGlowColour(float3 viewDir, float3 fogColour)
     float elevation = asin(clamp(mul((float3x3)scene.invView, toSun).z, -1.0, 1.0));
     float luma = dot(fogColour, float3(0.2126, 0.7152, 0.0722));
     return sunGlowTint(elevation) * (sunGlowGain * phase * haze * max(cSunGlowStrength, 0.0) * presence * luma);
+}
+
+// Task 0072 (review of stages b and c): branches on the specialization constant itself, never on an expression over it
+// (`!cSunGlow` would be an OpSpecConstantOp, the pattern apps/openmw/mwrender/CLAUDE.md records as miscompiled).
+float3 sunGlowColour(float3 viewDir, float3 fogColour)
+{
+    if (cSunGlow)
+    {
+        if (linearView())
+            return sunGlowColourOn(viewDir, fogColour);
+    }
+    return float3(0.0);
 }
 
 static const float aerialClearFogDepth = 0.7;

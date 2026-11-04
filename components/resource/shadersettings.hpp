@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <span>
+#include <string>
 #include <string_view>
 
 #include <components/vsgutil/virtualfile.hpp>
@@ -30,6 +31,15 @@ namespace Resource
     inline constexpr uint32_t settingsConstantBase = 1000;
 
     std::span<const SettingsConstantInfo> settingsConstantTable();
+
+    /// Task 0072 (review of stages b and c): every name a settings file can write as a "#define <name> 1" line
+    /// (shadow.settings, terrain.settings). A Slang twin's define set may contain them besides the imported names.
+    std::span<const std::string_view> settingsDefineNames();
+
+    /// Task 0072 (review of stages b and c): how a float setting is written into the GLSL settings files: a literal
+    /// that parses back to exactly `value`, so that the GLSL and the Slang twin (which gets the float itself as a
+    /// specialization constant) compute with the same number. Finite values only.
+    std::string shaderFloatLiteral(float value);
 
     class ShaderSettings : public vsgUtil::VirtualFiles
     {

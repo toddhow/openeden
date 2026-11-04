@@ -216,6 +216,9 @@ function(openeden_add_slang_permutations)
     if (NOT stage_name MATCHES "^[a-z0-9]+\\.(vert|frag|comp)$")
         message(FATAL_ERROR "openeden_add_slang_permutations: \"${stage_name}\" is not <stem>.<vert|frag|comp>")
     endif()
+    # Task 0072 (review of stages b and c): the stages with twins, for the clean-up of stages no longer declared and
+    # for the list SlangPermutations checks (openeden_finish_slang_permutations below).
+    set_property(GLOBAL APPEND PROPERTY OPENEDEN_SLANG_PERMUTATION_STAGES "${P_STAGE_FILE}")
     set(sets ${P_DEFINE_SETS})
     if (P_DEFINE_SETS_FILE)
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${P_DEFINE_SETS_FILE}")
@@ -340,6 +343,36 @@ openeden_add_slang_permutations(SOURCE comp/light/assign.slang STAGE_FILE comp/l
     ENTRY assignMain STAGE compute DEFINE_SETS -)
 openeden_add_slang_permutations(SOURCE comp/particle/simulate.slang STAGE_FILE comp/particle/simulate.comp
     ENTRY simulateMain STAGE compute DEFINE_SETS -)
+
+# Task 0072 (review of stages b and c): after every family is declared, remove the manifest and files of any stage that
+# is no longer declared (a family removed or renamed would otherwise stay in the resources, be installed, be chosen
+# with the switch on and be tested), and write slang-permutation-stages.txt, the declared stages one per line, which
+# SlangPermutations compares with what it finds. Without slangc every manifest goes and the list is empty.
+function(openeden_finish_slang_permutations)
+    set(root "${OPENMW_RESOURCES_ROOT}/${DDIRRELATIVE}")
+    get_property(declared GLOBAL PROPERTY OPENEDEN_SLANG_PERMUTATION_STAGES)
+    if (NOT OPENEDEN_SLANG_SHADERS_BUILT)
+        set(declared "")
+    endif()
+    file(GLOB_RECURSE manifests RELATIVE "${root}" "${root}/*.permutations")
+    foreach (manifest ${manifests})
+        string(REGEX REPLACE "[.]permutations$" "" stage_file "${manifest}")
+        if (NOT stage_file IN_LIST declared)
+            get_filename_component(stage_dir "${stage_file}" DIRECTORY)
+            get_filename_component(stage_name "${stage_file}" NAME)
+            file(GLOB stale "${root}/${stage_dir}/${stage_name}.p*.spv" "${root}/${stage_dir}/${stage_name}.p*.spv.tmp")
+            file(REMOVE ${stale} "${root}/${manifest}")
+            message(STATUS "Slang: removed the twins of ${stage_file}, which is no longer declared")
+        endif()
+    endforeach()
+    list(SORT declared)
+    string(REPLACE ";" "\n" lines "${declared}")
+    if (lines)
+        string(APPEND lines "\n")
+    endif()
+    file(GENERATE OUTPUT "${root}/slang-permutation-stages.txt" CONTENT "${lines}")
+endfunction()
+openeden_finish_slang_permutations()
 
 # The sun's single files of task 0023 (F1b), built from the same source. The game no longer loads them (the sun is a
 # permutation family above); they stay only for the task 0023 test SlangSunTest, which reads them. Its removal is

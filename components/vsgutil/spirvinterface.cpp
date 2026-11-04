@@ -17,6 +17,7 @@ namespace vsgUtil
             OpExtension = 10,
             OpEntryPoint = 15,
             OpExecutionMode = 16,
+            OpName = 5,
             OpCapability = 17,
             OpTypeVoid = 19,
             OpTypeBool = 20,
@@ -35,6 +36,7 @@ namespace vsgUtil
             OpSpecConstantTrue = 48,
             OpSpecConstantFalse = 49,
             OpSpecConstant = 50,
+            OpSpecConstantOp = 52,
             OpVariable = 59,
             OpDecorate = 71,
             OpMemberDecorate = 72,
@@ -105,6 +107,21 @@ namespace vsgUtil
             }
 
             uint32_t version() const { return mVersion; }
+            std::size_t specConstantOps() const { return mSpecConstantOps; }
+
+            std::map<uint32_t, std::string> specConstantNames() const
+            {
+                std::map<uint32_t, std::string> result;
+                for (const auto& [id, typeId] : mSpecConstants)
+                {
+                    if (const auto specId = decoration(id, DecSpecId))
+                    {
+                        const auto name = mNames.find(id);
+                        result[*specId] = name == mNames.end() ? std::string() : name->second;
+                    }
+                }
+                return result;
+            }
             const std::string& entry() const { return mEntry; }
 
             std::set<std::string> interfaceLines() const
@@ -239,6 +256,21 @@ namespace vsgUtil
                     case OpCapability:
                         need(1);
                         mCapabilities.insert(w[0]);
+                        break;
+                    case OpName:
+                    {
+                        // target id, name (nul-terminated, packed)
+                        need(1);
+                        std::string name;
+                        const char* bytes = reinterpret_cast<const char*>(w + 1);
+                        const std::size_t maxBytes = static_cast<std::size_t>(n - 1) * sizeof(uint32_t);
+                        for (std::size_t i = 0; i < maxBytes && bytes[i] != '\0'; ++i)
+                            name += bytes[i];
+                        mNames[w[0]] = name;
+                        break;
+                    }
+                    case OpSpecConstantOp:
+                        ++mSpecConstantOps;
                         break;
                     case OpExtension:
                     {
@@ -515,6 +547,8 @@ namespace vsgUtil
             std::map<uint32_t, Type> mTypes;
             std::map<uint32_t, uint32_t> mConstants;
             std::map<uint32_t, uint32_t> mSpecConstants; // id -> type
+            std::map<uint32_t, std::string> mNames; // id -> OpName
+            std::size_t mSpecConstantOps = 0;
             std::map<uint32_t, std::pair<uint32_t, uint32_t>> mVariables; // id -> (pointer type, storage class)
             std::map<std::pair<uint32_t, uint32_t>, uint32_t> mDecorations;
             std::map<std::tuple<uint32_t, uint32_t, uint32_t>, uint32_t> mMemberDecorations;
@@ -528,6 +562,8 @@ namespace vsgUtil
         out.mVersion = module.version();
         out.mEntry = module.entry();
         out.mLines = module.interfaceLines();
+        out.mSpecConstantNames = module.specConstantNames();
+        out.mSpecConstantOps = module.specConstantOps();
         return out;
     }
 

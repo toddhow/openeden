@@ -1,5 +1,7 @@
 #include "shaderpermutation.hpp"
 
+#include "spirvinterface.hpp"
+
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -307,10 +309,61 @@ namespace vsgUtil
         if (options == nullptr || !stage.module || stage.module->code.empty() || !stage.module->source.empty())
             return;
         const auto* settings = options->getObject<SettingsConstants>(settingsConstantsKey);
-        if (settings == nullptr)
+        if (settings == nullptr || settings->constants.empty())
             return;
+        // Task 0072 (review of stages b and c): only the ids the module declares, so that a stage without them is
+        // left exactly as it was (with the switch off, a Slang-only shader gets nothing).
+        std::map<uint32_t, std::string> declared;
+        try
+        {
+            declared = readSpirvInterface(stage.module->code).mSpecConstantNames;
+        }
+        catch (const std::runtime_error&)
+        {
+            return;
+        }
         for (const auto& [id, value] : settings->constants)
-            stage.specializationConstants.emplace(id, value);
+        {
+            if (declared.count(id) != 0)
+                stage.specializationConstants.emplace(id, value);
+        }
+    }
+
+    std::set<std::string> includedSettingsDefines(std::string_view source, const std::set<std::string>& settingsDefines)
+    {
+        std::set<std::string> result;
+        for (const std::string& name : settingsDefines)
+        {
+            // The settings files write exactly "#define <name> 1" on a line of its own.
+            const std::string line = "#define " + name + " 1";
+            for (std::size_t at = source.find(line); at != std::string_view::npos; at = source.find(line, at + 1))
+            {
+                const bool startsLine = at == 0 || source[at - 1] == '\n';
+                const std::size_t end = at + line.size();
+                const bool endsLine = end == source.size() || source[end] == '\n' || source[end] == '\r';
+                if (startsLine && endsLine)
+                {
+                    result.insert(name);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    std::set<std::string> stageDefines(
+        const std::set<std::string>& requested, std::string_view source, const vsg::Options* options)
+    {
+        std::set<std::string> result = effectiveDefines(requested, source);
+        if (options != nullptr)
+        {
+            if (const auto* settings = options->getObject<SettingsConstants>(settingsConstantsKey))
+            {
+                const std::set<std::string> fromSettings = includedSettingsDefines(source, settings->defines);
+                result.insert(fromSettings.begin(), fromSettings.end());
+            }
+        }
+        return result;
     }
 
     bool prefersSlang(const vsg::Options* options)
@@ -368,7 +421,7 @@ namespace vsgUtil
     {
         if (!preferSlang)
             return {};
-        return findSlangPermutation(path, effectiveDefines(requested, glslSource), options);
+        return findSlangPermutation(path, stageDefines(requested, glslSource, options.get()), options);
     }
 
     vsg::ref_ptr<vsg::ShaderStage> withSlangTwin(const vsg::ref_ptr<vsg::ShaderStage>& stage, const std::string& path,
@@ -401,8 +454,9 @@ namespace vsgUtil
         try
         {
             // Stage b: the set the GLSL compiler really applies, which is what a twin is listed and chosen by.
-            line = traceLine(
-                path, stage != nullptr && stage->module ? effectiveDefines(defines, stage->module->source) : defines);
+            line = traceLine(path,
+                stage != nullptr && stage->module ? stageDefines(defines, stage->module->source, options.get())
+                                                  : defines);
         }
         catch (const std::invalid_argument&)
         {
