@@ -288,6 +288,11 @@ namespace Lod
         bool mWholly = false; // the square lies wholly inside the paging range
         bool mGroundDrawn = false; // groundDrawnOver (a cached answer is fine)
         bool mPressure = false; // the memory budget is pressing (budgetIsPressing): only then does a cluster wait
+        /// The cluster is wanted by the selection or built. Only then does the time without ground count towards the
+        /// end of the wait (groundWaitFrames): the wait is for a cluster that is asked for, and a cluster chosen only
+        /// after the ground has been missing for a long time (start-up: the terrain pack is still being checked)
+        /// must still wait for it, not be admitted as an item with no fallback at once.
+        bool mWanted = true;
     };
 
     /// What the rule says about the cluster this frame.
@@ -305,9 +310,12 @@ namespace Lod
     /// counters are reset.
     ClusterGroundStep stepClusterGround(ClusterGroundState& state, const ClusterGroundInput& input) noexcept;
 
-    /// How far the eye may move on each axis before a cluster's kept ground test is made again (a quarter of a cell,
-    /// 8192 / 4). A starting value: it only bounds the work, the test itself is cheap.
-    inline constexpr double groundRetestDistance = 2048;
+    /// How far the eye may move on each axis before a cluster's kept ground test is made again (a sixteenth of a cell,
+    /// 8192 / 16). It was a quarter of a cell, but the live-range half of the test is conservative by this distance
+    /// times sqrt 2 (groundTestRange), and at the stress budget of 24 MiB that margin made clusters "without ground"
+    /// in the first second of a game, which are loaded whatever the budget says: the transient peak of clusters held
+    /// was 58 MiB with no margin, 90 MiB with 724 units and 134 MiB with 2,896 (one run each). The test is cheap.
+    inline constexpr double groundRetestDistance = 512;
 
     /// The paging range to give groundDrawnOver for a test that is kept while the eye moves up to groundRetestDistance
     /// on each axis: the live terrain's part of the answer ("the cell is wholly within the range") is measured from the

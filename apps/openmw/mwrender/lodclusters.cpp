@@ -696,8 +696,10 @@ namespace MWRender
                 : (tile.mKnownBytes > 0 ? tile.mKnownBytes : state.estimateBytes(tile.mId.mLevel));
             const bool pressure = Lod::budgetIsPressing(
                 state.mPlan.mHeldAfter, state.mPlan.mBlocked, estimate, setup.mResidentBudgetBytes);
-            const Lod::ClusterGroundStep ground = Lod::stepClusterGround(
-                tile.mGround, Lod::ClusterGroundInput{ groundRuleApplies, wholly, tile.mGroundDrawn, pressure });
+            const bool wanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile;
+            const Lod::ClusterGroundStep ground = Lod::stepClusterGround(tile.mGround,
+                Lod::ClusterGroundInput{ groundRuleApplies, wholly, tile.mGroundDrawn, pressure,
+                    wanted || tile.mPhase != Tile::Phase::Idle });
             tile.mGroundFallback = ground.mFallback;
             tile.mWaitsForGround = ground.mWaits;
             // An eviction in progress is cancelled the moment the cluster has no fallback at all (the live objects
@@ -900,7 +902,9 @@ namespace MWRender
                 if (tile.mWaitsForGround && tile.mPhase == Tile::Phase::Idle)
                 {
                     item.mWanted = false;
-                    ++waitingForGround;
+                    // Only the clusters the selection wants are reported as waiting (the ground is counted for all).
+                    if (tile.mWanted)
+                        ++waitingForGround;
                 }
                 // Freed by an earlier plan and still fading out: its bytes are already counted as gone.
                 item.mLeaving = built && tile.mEvicted;
@@ -932,7 +936,10 @@ namespace MWRender
             state.mStats.mNoFallbackBytes = state.mPlan.mNoFallbackBytes;
             std::size_t noGround = 0;
             for (const Tile& tile : state.mTiles)
-                noGround += tile.mGroundTested && tile.mGround.mMissingFrames >= Lod::groundWaitFrames ? 1 : 0;
+                noGround += tile.mGroundTested && (tile.mWanted || tile.mPhase != Tile::Phase::Idle)
+                        && tile.mGround.mMissingFrames >= Lod::groundWaitFrames
+                    ? 1
+                    : 0;
             state.mStats.mNoGround = noGround;
             if (state.mPlan.mBlocked > 0 && !state.mLoggedBudget)
             {

@@ -505,7 +505,8 @@ namespace Lod
         // so the count goes on and the frame the square leaves the range it is already stable.
         const bool drawn = input.mWholly || input.mGroundDrawn;
         state.mGroundFrames = stepGroundFrames(state.mGroundFrames, drawn);
-        state.mMissingFrames = stepGroundFrames(state.mMissingFrames, !drawn);
+        // The time without ground ends the wait only while the cluster is wanted or built (see mWanted).
+        state.mMissingFrames = stepGroundFrames(state.mMissingFrames, !drawn && input.mWanted);
         step.mFallback = clusterGroundFallback(true, true, input.mWholly, state.mGroundFrames);
         // A wait only helps when the budget is pressing: the cluster would otherwise be admitted as an item with no
         // fallback, loaded whatever the budget says, and given up again a moment later. With room to spare it is simply

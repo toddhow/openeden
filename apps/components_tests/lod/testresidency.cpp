@@ -1793,8 +1793,8 @@ namespace
     {
         const GroundTestKey key = groundTestKeyFor(7, 1000, -2000, 40000);
         EXPECT_FALSE(groundTestStale(key, 7, 1000, -2000, 40000));
-        EXPECT_FALSE(
-            groundTestStale(key, 7, 1000 + 2047, -2000 - 2047, 40000)); // just under a quarter cell on both axes
+        EXPECT_FALSE(groundTestStale(key, 7, 1000 + (groundRetestDistance - 1), -2000 - (groundRetestDistance - 1),
+            40000)); // just under the distance on both axes
     }
 
     TEST(LodGroundTest, a_change_of_the_tiles_the_range_or_a_quarter_cell_of_eye_movement_makes_it_stale)
@@ -1838,9 +1838,30 @@ namespace
     TEST(LodGroundTest, the_test_range_is_never_above_the_range_and_a_tiny_range_gives_no_live_ground)
     {
         EXPECT_LT(groundTestRange(40000), 40000);
-        EXPECT_NEAR(groundTestRange(40000), 40000 - 2048 * std::sqrt(2.0), 1e-9);
+        EXPECT_NEAR(groundTestRange(40000), 40000 - groundRetestDistance * std::sqrt(2.0), 1e-9);
         EXPECT_FALSE(groundDrawnOver(0, 0, groundTestRange(2000), {}, 0, 0, cell, cell));
         EXPECT_EQ(groundTestRange(std::numeric_limits<double>::infinity()), std::numeric_limits<double>::infinity());
+    }
+
+    TEST(LodClusterGround, the_time_without_ground_ends_the_wait_only_while_the_cluster_is_wanted)
+    {
+        // Start-up: the ground is not drawn yet (the terrain pack is being checked) for far longer than the wait, and
+        // the cluster is not wanted. The frames before it is chosen must not count towards the end of its wait.
+        ClusterGroundState state;
+        for (int frame = 0; frame < 3 * groundWaitFrames; ++frame)
+            stepClusterGround(state, ClusterGroundInput{ true, false, false, true, false });
+        EXPECT_EQ(state.mMissingFrames, 0);
+        ClusterGroundStep step = stepClusterGround(state, ClusterGroundInput{ true, false, false, true, true });
+        EXPECT_TRUE(step.mWaits); // just chosen: it waits
+        for (std::int32_t frame = 1; frame < groundWaitFrames; ++frame)
+            step = stepClusterGround(state, ClusterGroundInput{ true, false, false, true, true });
+        EXPECT_FALSE(step.mWaits); // waited its groundWaitFrames as a wanted cluster: an item with no fallback
+        // The stable count is not affected: ground drawn all along counts for an unwanted cluster too.
+        ClusterGroundState stable;
+        for (int frame = 0; frame < 100; ++frame)
+            stepClusterGround(stable, ClusterGroundInput{ true, false, true, true, false });
+        EXPECT_EQ(stable.mGroundFrames, 100);
+        EXPECT_TRUE(stepClusterGround(stable, ClusterGroundInput{ true, false, true, true, true }).mFallback);
     }
 
     TEST(LodGroundFallback, the_stable_count_is_a_positive_number_of_frames)
@@ -2013,8 +2034,9 @@ namespace
                     = clusterReplaceable(entry.mLiveReplaceable, true, mEyeX, 0, originX, 0, 1000, mRange);
                 const bool wholly = squareWithinRange(mEyeX, 0, originX, 0, 1000, mRange);
                 const bool pressure = budgetIsPressing(mPrevHeldAfter, mPrevBlocked, bytes, params.mBudgetBytes);
+                const bool wanted = mChosen(mFrame, i) || entry.mPhase != Absent;
                 const ClusterGroundStep ground = stepClusterGround(
-                    entry.mGround, ClusterGroundInput{ mEvictFar, wholly, mGround(mFrame, i), pressure });
+                    entry.mGround, ClusterGroundInput{ mEvictFar, wholly, mGround(mFrame, i), pressure, wanted });
                 entry.mWaits = ground.mWaits;
                 entry.mFallback = entry.mLiveReplaceable || ground.mFallback;
                 if (cancelEviction(entry.mEvicted, entry.mPhase == Leaving, entry.mFallback))
@@ -2438,6 +2460,28 @@ namespace
         EXPECT_LE(sim.totalLoads(), 8u); // 5 fit; a few loads in the first frames before the pressure shows
         EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
         EXPECT_EQ(sim.mHoles, 0u);
+    }
+
+    TEST(LodFarEvictionSim, a_cluster_chosen_while_the_ground_is_still_missing_waits_for_it_under_pressure)
+    {
+        // Start-up under a tight budget: the ground is not drawn until frame 350 (the terrain pack is still being
+        // checked) and the cluster is chosen at frame 300. Its wait runs from the frame it is chosen, not from the
+        // frame the pack opened: it must not be admitted as an item with no fallback (and loaded whatever the budget
+        // says) at once.
+        FarSim sim = makeFarSim(2, true);
+        sim.mEntries[0].mFarX = 120000;
+        sim.mEntries[1].mFarX = 45000;
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        sim.mGround = [](int frame, std::size_t) { return frame >= 350; };
+        sim.mChosen = [](int frame, std::size_t index) { return index == 0 || frame >= 300; };
+        const ResidencyParams params = farParams(7 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 340; ++frame)
+            sim.step(params, plan);
+        // Entry 0 (far) is admitted after its own wait; entry 1 was chosen at frame 300 and has waited 40 frames.
+        EXPECT_EQ(sim.mEntries[1].mLoads, 0u);
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
     }
 
     TEST(LodFarEvictionSim, two_runs_of_the_same_sequence_make_the_same_plans)
