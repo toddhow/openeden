@@ -207,6 +207,19 @@ namespace MWRender
         return *cached;
     }
 
+    std::string StorageAlbedoSource::describeLayer(std::size_t index) const
+    {
+        if (index >= mLayers.size())
+            return "layer " + std::to_string(index) + ": no such layer";
+        const std::string& name = mLayers[index];
+        std::string resolved = name;
+        if (mImageOptions && mImageOptions->findFileCallback)
+            resolved = mImageOptions->findFileCallback(name, mImageOptions.get()).string();
+        const bool exists = mVfs != nullptr && mVfs->exists(VFS::Path::Normalized(resolved));
+        return "layer " + std::to_string(index) + " [" + name + "] resolves to [" + resolved + "], exists "
+            + (exists ? "yes" : "no") + ", digest " + EdenArchive::toHex(layerDigest(index));
+    }
+
     void StorageAlbedoSource::blendMap(
         std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells, std::vector<std::uint8_t>& indices) const
     {
@@ -261,6 +274,46 @@ namespace MWRender
             std::vector<LoadedTile> mTiles; // in tree order: biggest level first, then key
         };
 
+        // Names the first field of the manifest that is not the one the data of the game gives now.
+        std::string describeManifestDifference(const Lod::TileManifest& pack, const Lod::TileManifest& now)
+        {
+            if (pack.mLayoutVersion != now.mLayoutVersion)
+                return "manifest layout version " + std::to_string(pack.mLayoutVersion) + " against "
+                    + std::to_string(now.mLayoutVersion);
+            if (pack.mBakerVersion != now.mBakerVersion)
+                return "manifest baker version " + std::to_string(pack.mBakerVersion) + " against "
+                    + std::to_string(now.mBakerVersion);
+            if (pack.mGridSize != now.mGridSize)
+                return "manifest grid size " + std::to_string(pack.mGridSize) + " against "
+                    + std::to_string(now.mGridSize);
+            if (pack.mAlbedoSize != now.mAlbedoSize)
+                return "manifest albedo size " + std::to_string(pack.mAlbedoSize) + " against "
+                    + std::to_string(now.mAlbedoSize);
+            if (pack.mLevels != now.mLevels)
+                return "manifest levels differ";
+            return "manifest worldspaces differ (the land cells or the cell size)";
+        }
+
+        // Names the first tile whose written digest is not the one the data of the game gives now, with the parts the
+        // digest is made of (the full-detail heights, the normals, the albedo inputs) as this machine computes them
+        // and, per used land texture layer, what the file lookup said. Compare the line between two machines.
+        std::string describeTileDifference(const Lod::BakedTile& tile, const std::optional<EdenArchive::Hash>& written,
+            const StorageAlbedoSource& albedo)
+        {
+            std::string text = "tile level " + std::to_string(tile.mId.mLevel) + " (" + std::to_string(tile.mId.mX)
+                + ", " + std::to_string(tile.mId.mY) + "): ";
+            text += written ? "written digest " + EdenArchive::toHex(*written) : std::string("no digest written");
+            text += ", digest now " + EdenArchive::toHex(tile.mSourceDigest) + "; heights "
+                + EdenArchive::toHex(tile.mHeightsDigest) + ", normals " + EdenArchive::toHex(tile.mNormalsDigest);
+            if (!tile.mUsedLayers.empty())
+            {
+                text += ", albedo inputs " + EdenArchive::toHex(tile.mAlbedoInputsDigest);
+                for (const std::uint32_t index : tile.mUsedLayers)
+                    text += "; " + albedo.describeLayer(index);
+            }
+            return text;
+        }
+
         LoadResult loadPackUnchecked(const std::filesystem::path& path, Terrain::Storage& live,
             const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, StorageAlbedoSource& albedo,
             const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel)
@@ -310,6 +363,9 @@ namespace MWRender
                                 << checkPlan.mLevels.back() << "; working set "
                                 << (Render::processWorkingSetBytes() >> 20) << " MiB.";
             bool stale = false;
+            // What differed first, for the message: which part of the manifest, or the first tile whose digest is not
+            // the one it was written with.
+            std::string detail;
             if (limited)
             {
                 // Everything but the list of levels must match, and every tile that is used must carry the digest of
@@ -317,6 +373,8 @@ namespace MWRender
                 Lod::TileManifest expected = manifest;
                 expected.mLevels = pack->manifest().mLevels;
                 stale = pack->manifest() != expected;
+                if (stale)
+                    detail = describeManifestDifference(pack->manifest(), expected);
                 for (const Lod::BakedTile& tile : baked)
                 {
                     if (stale)
@@ -325,17 +383,24 @@ namespace MWRender
                     }
                     const std::optional<EdenArchive::Hash> written = pack->tileSourceDigest(tile.mId);
                     stale = !written || *written != tile.mSourceDigest;
+                    if (stale)
+                        detail = describeTileDifference(tile, written, albedo);
                 }
             }
             else
             {
                 stale = pack->manifest() != manifest || pack->sourceDigest() != Lod::contentDigest(manifest, baked);
+                if (stale)
+                    detail = pack->manifest() != manifest
+                        ? describeManifestDifference(pack->manifest(), manifest)
+                        : "the content digest of the pack is not the one of the tiles";
             }
             if (stale)
             {
                 result.mReason
                     = "the pack was made from other land, land textures or settings (stale); make a new one "
-                      "with openmw --bake-lod-terrain";
+                      "with openmw --bake-lod-terrain. First difference: "
+                    + detail;
                 return result;
             }
 

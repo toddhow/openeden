@@ -59,6 +59,13 @@ namespace Lod
         EdenArchive::Hash mSourceDigest{};
         /// The baker settings that made it (provenance parameter bytes).
         std::vector<std::uint8_t> mParameters;
+        /// What mSourceDigest is made of, for the message that names the input of a stale pack (set by
+        /// bakeTerrainTile, not stored in a pack): the digests of the full-detail heights and normals, of the albedo
+        /// inputs (levels with an albedo only) and the layer indices the albedo inputs used.
+        EdenArchive::Hash mHeightsDigest{};
+        EdenArchive::Hash mNormalsDigest{};
+        EdenArchive::Hash mAlbedoInputsDigest{};
+        std::vector<std::uint32_t> mUsedLayers;
     };
 
     struct TilePackOptions

@@ -685,6 +685,29 @@ namespace
         EXPECT_EQ(digestOk(baseline), digestOk(unusedChanged));
     }
 
+    TEST(LodAlbedoBake, the_used_layers_are_reported_in_index_order_without_changing_the_digest)
+    {
+        // For the message of a stale pack: which layers went into the digest (unused ones are left out).
+        const TestAlbedo source = hashedSource();
+        Hash plain{};
+        ASSERT_TRUE(albedoInputsDigest(source, 0, 0, 1, 32, plain).ok());
+        Hash withList{};
+        std::vector<std::uint32_t> used = { 99 }; // cleared first
+        ASSERT_TRUE(albedoInputsDigest(source, 0, 0, 1, 32, withList, &used).ok());
+        EXPECT_EQ(plain, withList);
+        ASSERT_FALSE(used.empty());
+        EXPECT_TRUE(std::is_sorted(used.begin(), used.end()));
+        EXPECT_EQ(std::adjacent_find(used.begin(), used.end()), used.end());
+        EXPECT_LT(used.back(), source.layerCount());
+        for (const std::uint32_t index : used)
+            EXPECT_NE(index, 99u);
+        // The layers the previous test shows to be used (0 and 1) are in it; 2 and 3 are not.
+        EXPECT_NE(std::find(used.begin(), used.end(), 0u), used.end());
+        EXPECT_NE(std::find(used.begin(), used.end(), 1u), used.end());
+        EXPECT_EQ(std::find(used.begin(), used.end(), 2u), used.end());
+        EXPECT_EQ(std::find(used.begin(), used.end(), 3u), used.end());
+    }
+
     TEST(LodAlbedoBake, the_digest_changes_with_the_sizes)
     {
         const TestAlbedo source = hashedSource();

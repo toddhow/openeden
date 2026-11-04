@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <future>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <vsg/maths/vec3.h>
@@ -79,6 +80,9 @@ namespace MWRender
         /// Reads and decodes every layer on the first call (the pictures are the ones the live terrain draws with).
         const Lod::Rgba8Image* layerImage(std::size_t index) const override;
         EdenArchive::Hash layerDigest(std::size_t index) const override;
+        /// For the message of a stale pack: the layer's name, the path the image options resolve it to, whether the
+        /// virtual file system has that file, and the digest. One line.
+        std::string describeLayer(std::size_t index) const;
         void blendMap(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& indices) const override;
         void vertexColours(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,

@@ -527,6 +527,23 @@ namespace
         }
     }
 
+    TEST(LodTileBake, the_parts_of_the_digest_are_set_and_a_height_change_shows_in_the_heights_part)
+    {
+        // The message of a stale pack names the part that differs (review of the far eviction, finding 6).
+        const BakedTile baseline = bakeOne(GridLand(hills), 0, 0);
+        const BakedTile again = bakeOne(GridLand(hills), 0, 0);
+        EXPECT_NE(baseline.mHeightsDigest, EdenArchive::Hash{});
+        EXPECT_NE(baseline.mNormalsDigest, EdenArchive::Hash{});
+        EXPECT_NE(baseline.mHeightsDigest, baseline.mNormalsDigest);
+        EXPECT_EQ(baseline.mHeightsDigest, again.mHeightsDigest);
+        EXPECT_EQ(baseline.mNormalsDigest, again.mNormalsDigest);
+        GridLand changed(hills);
+        changed.addOffset(6, 6, 0.25f);
+        const BakedTile other = bakeOne(changed, 0, 0);
+        EXPECT_NE(other.mHeightsDigest, baseline.mHeightsDigest);
+        EXPECT_TRUE(baseline.mUsedLayers.empty()); // no albedo: no layers
+    }
+
     TEST(LodTileBake, source_digest_is_stable_and_depends_on_the_id)
     {
         const GridLand source(flat);

@@ -72,8 +72,10 @@ namespace Lod
     /// version, the sizes, the blend map bytes, the vertex colour bytes, and the layerDigest of every layer index the
     /// blend map uses (each once, in index order). It changes when a used texture, a blend or a vertex colour changes,
     /// and not when an unused layer does. Fails on the same input errors as bakeAlbedoImage.
+    /// `usedLayers`, when given, gets the layer indices that went into the digest.
     LodError albedoInputsDigest(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
-        std::uint32_t sizeInCells, std::uint32_t albedoSize, EdenArchive::Hash& digest);
+        std::uint32_t sizeInCells, std::uint32_t albedoSize, EdenArchive::Hash& digest,
+        std::vector<std::uint32_t>* usedLayers = nullptr);
 }
 
 #endif

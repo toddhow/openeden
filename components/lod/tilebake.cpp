@@ -231,8 +231,16 @@ namespace Lod
         hashFloats(hasher, fineHeights);
         hashFloats(hasher, fineNormals);
 
+        // The parts, for the message of a stale pack (the same bytes, hashed on their own).
+        EdenArchive::Hasher heightsHasher;
+        hashFloats(heightsHasher, fineHeights);
+        EdenArchive::Hasher normalsHasher;
+        hashFloats(normalsHasher, fineNormals);
+
         tile.mId = id;
         tile.mData = std::move(data);
+        tile.mHeightsDigest = heightsHasher.finalize();
+        tile.mNormalsDigest = normalsHasher.finalize();
         tile.mSourceDigest = hasher.finalize();
         appendU32(tile.mParameters, bakerVersion);
         appendU32(tile.mParameters, settings.mLevel);
@@ -256,11 +264,13 @@ namespace Lod
         tileOriginCell(id, cellX, cellY);
         const std::uint32_t cells = 1u << settings.mLevel;
         EdenArchive::Hash inputs;
-        if (LodError error = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs))
+        if (LodError error
+            = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs, &tile.mUsedLayers))
         {
             tile = {};
             return error;
         }
+        tile.mAlbedoInputsDigest = inputs;
         // The tile's digest now also answers for the ground colour.
         EdenArchive::Hasher hasher;
         hasher.update(tile.mSourceDigest.data(), tile.mSourceDigest.size());

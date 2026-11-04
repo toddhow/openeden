@@ -261,9 +261,12 @@ namespace Lod
     }
 
     LodError albedoInputsDigest(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
-        std::uint32_t sizeInCells, std::uint32_t albedoSize, EdenArchive::Hash& digest)
+        std::uint32_t sizeInCells, std::uint32_t albedoSize, EdenArchive::Hash& digest,
+        std::vector<std::uint32_t>* usedLayers)
     {
         digest = {};
+        if (usedLayers != nullptr)
+            usedLayers->clear();
         if (LodError error = validate(sizeInCells, albedoSize))
             return error;
         std::vector<std::uint8_t> blend;
@@ -296,6 +299,8 @@ namespace Lod
             if (!used[index])
                 continue;
             putU32(hasher, static_cast<std::uint32_t>(index));
+            if (usedLayers != nullptr)
+                usedLayers->push_back(static_cast<std::uint32_t>(index));
             const EdenArchive::Hash layer = source.layerDigest(index);
             hasher.update(layer.data(), layer.size());
         }
