@@ -510,6 +510,9 @@ namespace MWRender
             Log(Debug::Info) << "PARTSLOTS " << mPartSlotsTraced << " attach " << static_cast<int>(type) << ' '
                              << model;
         Misc::LoadTrace::Scope traceRead("npc.part.read");
+        // Task 0074f (finding 1): a weapon that cannot be read leaves no placeholder behind, whatever was there.
+        if (type == ESM::PRT_Weapon)
+            mAttachAmmo = nullptr;
         vsg::ref_ptr<vsg::Node> node;
         try
         {
@@ -858,6 +861,10 @@ namespace MWRender
         }
         mPartControllers.forget(type);
         removePath(mParts[type]);
+        // Task 0074f (finding 1 of the review of 0074e): the ammunition placeholder is a node of the weapon's subgraph,
+        // which has just left the scene; addAmmo would attach the arrow to it.
+        if (type == ESM::PRT_Weapon)
+            mAttachAmmo = nullptr;
     }
 
     void Npc::beforeWornPart(ESM::PartReferenceType /*type*/, const ESM::BodyPart& bodyPart)

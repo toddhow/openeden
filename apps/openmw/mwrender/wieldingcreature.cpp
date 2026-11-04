@@ -55,6 +55,10 @@ namespace MWRender
         // controllers run in their own clocks, emptied here with their nodes.
         clearPartControllers();
 
+        // Task 0074f (finding 1 of the review of 0074e): the placeholder belongs to the weapon removed below; with no
+        // weapon read again (a model that cannot be read, no weapon any more) addAmmo must find none.
+        mAttachAmmo = nullptr;
+
         for (int i = 0; i < 3; ++i)
         {
             mPartControllers.forget(static_cast<std::size_t>(i));
@@ -123,6 +127,9 @@ namespace MWRender
         // Task 0074d (review of 0074b, item B): a carried light gives light, as an NPC's torch does (insertBoundedPart)
         // and as OpenMW 0.51's CreatureWeaponAnimation::updatePart does (addExtraLight, 442eec6e2f).
         const ESM::Light* light = item.getType() == ESM::Light::sRecordId ? item.get<ESM::Light>()->mBase : nullptr;
+        // Task 0074f (finding 1): as Npc::insertBoundedPart, a weapon that cannot be read leaves no placeholder.
+        if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
+            mAttachAmmo = nullptr;
         vsg::ref_ptr<vsg::Node> node;
         try
         {

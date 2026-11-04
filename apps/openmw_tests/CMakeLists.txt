@@ -40,6 +40,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testquiverupdate.cpp
     mwrender/testcreatureglow.cpp
     mwrender/testcompiledupdates.cpp
+    mwrender/testattachammo.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
     mwrender/testmergedbodydefines.cpp

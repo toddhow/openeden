@@ -401,6 +401,24 @@ namespace PartsTestSupport
 
         MWWorld::ConstPtr ptr() const { return MWWorld::ConstPtr(&mRef); }
     };
+
+    // Task 0074f: a bow model as the decorated weapon models have one: its root says it has placeholders
+    // (Anim::Contents::Placeholders), and an Anim::Transform named "ArrowBone" is the ammunition placeholder that
+    // MWAnim::clonePlaceholdersIfRequired finds (Placeholders::attachAmmo). Every decoration clones that placeholder,
+    // so two actors holding the same model hold different placeholders.
+    inline vsg::ref_ptr<vsg::Node> makeBowModel()
+    {
+        auto root = vsg::Group::create();
+        Anim::Contents contents;
+        contents.add(Anim::Contents::Controllers);
+        contents.add(Anim::Contents::Placeholders);
+        vsg::ref_ptr<Anim::Meta> meta(new Anim::Meta(contents));
+        meta->attachTo(*root);
+        vsg::ref_ptr<Anim::Transform> arrowBone(new Anim::Transform);
+        vsgUtil::setName(*arrowBone, "ArrowBone");
+        root->addChild(arrowBone);
+        return root;
+    }
 }
 
 #endif
