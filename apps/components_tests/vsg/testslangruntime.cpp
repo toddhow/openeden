@@ -525,10 +525,7 @@ namespace
         // A runtime that was never asked says nothing.
         lines.clear();
         {
-            FakeCompiler* compiler = nullptr;
-            auto fake = std::make_unique<FakeCompiler>();
-            compiler = fake.get();
-            auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+            auto runtime = SlangRuntime::create(std::make_unique<FakeCompiler>(), f.cache());
             runtime->setLog([&lines](bool, const std::string& line) { lines.push_back(line); });
         }
         EXPECT_TRUE(lines.empty());
