@@ -1,6 +1,7 @@
 #include "lodclusters.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -28,6 +29,7 @@
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/clusterplan.hpp>
 #include <components/lod/fartier.hpp>
+#include <components/lod/residency.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/pipeline/bindings.hpp>
 #include <components/pipeline/builder.hpp>
@@ -50,6 +52,15 @@ namespace MWRender
         constexpr std::size_t maxBuildsPerFrame = 1;
         // Frames before a tile that failed to read or compile is tried again (about ten seconds).
         constexpr int retryFrames = 600;
+        // Frames before a tile that the residency planner freed for a closer one may be asked for again (about one
+        // second): the closer tile must have had its turn, and two tiles of about the same urgency must not trade
+        // places every frame (the planner's swap margin does the rest, task 0060).
+        constexpr int evictedFrames = 60;
+        // What loading a tile is expected to hold before one of its level has been read, in bytes: the planner needs
+        // a number to admit a load against the budget. After the first read of a level the mean of that level's
+        // tiles replaces it. A starting value (stage e measured clusters of 0.2 to 4 MiB).
+        constexpr std::uint64_t firstClusterEstimate = 1024ull * 1024;
+        constexpr std::size_t levelSlots = 8;
 
         // Clusters of this level and above (levels 3 and 4: thousands of statics, hundreds of textures) get the far
         // picture cap.
@@ -94,6 +105,9 @@ namespace MWRender
             std::vector<std::unique_ptr<Pipeline::Material>> mMaterials;
             float mFade = 0; // the fade the materials hold (mirrors the cover tile's)
             int mCooldown = 0; // frames before a tile that failed to compile is tried again
+            int mIdleFrames = 0; // frames since the tile was last wanted
+            int mSuppressed = 0; // frames the planner keeps the tile unwanted after it freed it for a closer one
+            bool mFreeWhenHidden = false; // the planner freed it: go as soon as the fade has ended
             bool mLoggedFailure = false;
             bool mWanted = false;
             std::uint64_t mMaskVersion = 0;
@@ -128,8 +142,21 @@ namespace MWRender
         std::uint64_t mMaskVersion = 1;
         vsg::ref_ptr<vsg::Sampler> mSampler;
         bool mClusteredDirty = false;
+        bool mLoggedBudget = false;
+
+        // What loading a tile of this level is expected to hold: the mean of the tiles of the level read so far.
+        std::uint64_t estimateBytes(std::uint32_t level) const
+        {
+            const std::size_t slot = std::min<std::size_t>(level, levelSlots - 1);
+            return mLevelCount[slot] > 0 ? mLevelBytes[slot] / mLevelCount[slot] : firstClusterEstimate;
+        }
 
         std::vector<Lod::CoverTile> mCover; // parallel to mTiles
+        // The residency planner (task 0060): its input and output are reused every frame.
+        std::vector<Lod::ResidencyItem> mItems;
+        Lod::ResidencyPlan mPlan;
+        std::array<std::uint64_t, levelSlots> mLevelBytes{}; // sum of the bytes of the tiles read, per level
+        std::array<std::uint32_t, levelSlots> mLevelCount{};
         LodClusters::ClusteredCells mClustered;
         std::uint64_t mClusteredVersion = 0;
         Stats mStats;
@@ -568,11 +595,6 @@ namespace MWRender
         selection.mViewDistance = camera.mViewDistance;
         Lod::selectTileTree(state.mStates, state.mParents, selection, setup.mThreshold);
 
-        std::size_t inFlight = 0;
-        for (const Tile& tile : state.mTiles)
-            if (tile.mPhase == Tile::Phase::Loading)
-                ++inFlight;
-
         // What the built clusters hold, against the budget of the tier (task 0066 stage e).
         std::uint64_t residentBytes = 0;
         for (const Tile& tile : state.mTiles)
@@ -583,28 +605,86 @@ namespace MWRender
             }
         }
 
+        // The residency planner decides what is loaded and freed (task 0060): the clusters the selection wants load
+        // nearest first and within the memory budget of the tier, a closer cluster may take the room of a farther one,
+        // and what the camera has left goes at once. A cluster freed while it is still wanted leaves its cells to the
+        // live objects; the hand-over below fades it out first, so no frame has a hole.
+        const std::size_t tileCount = state.mTiles.size();
+        state.mItems.resize(tileCount);
+        for (std::size_t i = 0; i < tileCount; ++i)
+        {
+            Tile& tile = state.mTiles[i];
+            const Lod::CoverTile& cover = state.mCover[i];
+            if (tile.mCooldown > 0)
+                --tile.mCooldown;
+            const bool suppressed = tile.mSuppressed > 0;
+            if (suppressed)
+                --tile.mSuppressed;
+            tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !suppressed;
+            tile.mIdleFrames = tile.mWanted ? 0 : std::min(tile.mIdleFrames + 1, 1 << 20);
+            if (tile.mWanted)
+                tile.mFreeWhenHidden = false;
+            const bool built = tile.mPhase == Tile::Phase::Built;
+            Lod::ResidencyItem& item = state.mItems[i];
+            item = Lod::ResidencyItem{};
+            item.mHeld = built;
+            item.mLoading = tile.mPhase == Tile::Phase::Loading;
+            item.mWanted = tile.mWanted;
+            item.mPinned = built && !tile.mWanted && cover.mFade.mPhase != Lod::FadePhase::Hidden;
+            item.mIdleFrames = tile.mIdleFrames;
+            item.mCooldown = tile.mCooldown;
+            if (built || item.mLoading)
+                item.mBytes = tile.mBytes > 0 ? tile.mBytes : state.estimateBytes(tile.mId.mLevel);
+            else
+                item.mBytes = state.estimateBytes(tile.mId.mLevel);
+            item.mPriority = static_cast<float>(Lod::distanceToTile(selection, state.mStates[i].mBounds));
+        }
+        Lod::ResidencyParams params;
+        params.mBudgetBytes = setup.mResidentBudgetBytes;
+        params.mKeepFrames = 0; // a cluster that is not wanted keeps nothing: re-reading is the price of coming back
+        params.mMaxLoadsInFlight = static_cast<std::uint32_t>(maxLoadsInFlight);
+        params.mMaxLoadsPerCall = static_cast<std::uint32_t>(maxLoadsInFlight);
+        Lod::planResidency(state.mItems, params, state.mPlan);
+        state.mStats.mBlocked = state.mPlan.mBlocked;
+        if (state.mPlan.mBlocked > 0 && !state.mLoggedBudget)
+        {
+            state.mLoggedBudget = true;
+            Log(Debug::Info) << "LOD clusters: the memory budget of " << (setup.mResidentBudgetBytes >> 20)
+                             << " MiB is reached; the farther clusters wait or give way to closer ones.";
+        }
+        for (const std::uint32_t index : state.mPlan.mFree)
+        {
+            Tile& tile = state.mTiles[index];
+            if (tile.mWanted)
+            {
+                // Freed for a closer cluster (or because the budget shrank): the live objects take its cells back
+                // once the cluster has faded out, and it is not asked for again for a while.
+                tile.mWanted = false;
+                tile.mSuppressed = evictedFrames;
+                tile.mCooldown = 2 * evictedFrames;
+            }
+            tile.mFreeWhenHidden = true;
+        }
+        for (const std::uint32_t index : state.mPlan.mLoad)
+        {
+            Tile& tile = state.mTiles[index];
+            tile.mPhase = Tile::Phase::Loading;
+            const std::shared_ptr<Lod::ClusterPack> pack = state.mPack;
+            const Lod::TileId id = tile.mId;
+            const vsg::ref_ptr<const vsg::Options> images = setup.mImageOptions;
+            // The far levels gather many textures that are seen from far: their pictures are capped (task 0066
+            // stage e).
+            const int textureCap = id.mLevel >= farTextureMinLevel ? setup.mFarTextureMaxSize : 0;
+            tile.mLoad = std::async(std::launch::async,
+                [pack, id, images, textureCap] { return loadCluster(pack, id, images, textureCap); });
+        }
+
         std::size_t builds = 0;
         for (std::size_t i = 0; i < state.mTiles.size(); ++i)
         {
             Tile& tile = state.mTiles[i];
             Lod::CoverTile& cover = state.mCover[i];
-            tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile;
-            if (tile.mCooldown > 0)
-                --tile.mCooldown;
 
-            if (tile.mPhase == Tile::Phase::Idle && tile.mWanted && tile.mCooldown == 0 && inFlight < maxLoadsInFlight)
-            {
-                tile.mPhase = Tile::Phase::Loading;
-                ++inFlight;
-                const std::shared_ptr<Lod::ClusterPack> pack = state.mPack;
-                const Lod::TileId id = tile.mId;
-                const vsg::ref_ptr<const vsg::Options> images = setup.mImageOptions;
-                // The far levels gather many textures that are seen from far: their pictures are capped (task 0066
-                // stage e).
-                const int textureCap = id.mLevel >= farTextureMinLevel ? setup.mFarTextureMaxSize : 0;
-                tile.mLoad = std::async(std::launch::async,
-                    [pack, id, images, textureCap] { return loadCluster(pack, id, images, textureCap); });
-            }
             if (tile.mPhase == Tile::Phase::Loading
                 && tile.mLoad.wait_for(std::chrono::seconds(0)) == std::future_status::ready
                 && builds < maxBuildsPerFrame)
@@ -614,49 +694,38 @@ namespace MWRender
                 state.mStats.mLoadMillisecondsTotal += tile.mData->mMilliseconds;
                 state.mStats.mLoadMillisecondsWorst
                     = std::max(state.mStats.mLoadMillisecondsWorst, tile.mData->mMilliseconds);
-                --inFlight;
+                if (tile.mData->mOk)
+                {
+                    // The planner's estimates for the next tile of this level.
+                    const std::uint64_t bytes = Lod::clusterResidentBytes(
+                        tile.mData->mCluster.mVertices.size(), tile.mData->mCluster.mIndices.size());
+                    const std::size_t slot = std::min<std::size_t>(tile.mId.mLevel, levelSlots - 1);
+                    state.mLevelBytes[slot] += bytes;
+                    ++state.mLevelCount[slot];
+                    tile.mBytes = bytes;
+                }
                 if (!tile.mData->mOk || !tile.mWanted)
                 {
                     // Failed, or no longer wanted by the time it arrived: forget it (a failed read logs and waits a
                     // while: the pack is derived data and may be damaged).
                     if (!tile.mData->mOk)
                         tile.mCooldown = retryFrames;
+                    tile.mBytes = 0;
                     tile.mData.reset();
                     tile.mPhase = Tile::Phase::Idle;
                 }
                 else
                 {
-                    const std::uint64_t bytes = Lod::clusterResidentBytes(
-                        tile.mData->mCluster.mVertices.size(), tile.mData->mCluster.mIndices.size());
-                    if (!Lod::admitCluster(residentBytes, bytes, setup.mResidentBudgetBytes))
-                    {
-                        // Over the memory budget of the tier: the live objects keep the cells, and the cluster is
-                        // tried again later (when others have gone).
-                        if (state.mStats.mBlocked == 0)
-                        {
-                            Log(Debug::Info)
-                                << "LOD clusters: the memory budget of " << (setup.mResidentBudgetBytes >> 20)
-                                << " MiB is reached; further clusters wait.";
-                        }
-                        ++state.mStats.mBlocked;
-                        tile.mData.reset();
-                        tile.mPhase = Tile::Phase::Idle;
-                        tile.mCooldown = retryFrames;
-                    }
+                    residentBytes += tile.mBytes;
+                    const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
+                    tile.mFade = 0;
+                    tile.mMaskVersion = state.mMaskVersion;
+                    tile.mMasked = masked;
+                    ++builds;
+                    if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
+                        tile.mPhase = Tile::Phase::Built;
                     else
-                    {
-                        residentBytes += bytes;
-                        tile.mBytes = bytes;
-                        const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
-                        tile.mFade = 0;
-                        tile.mMaskVersion = state.mMaskVersion;
-                        tile.mMasked = masked;
-                        ++builds;
-                        if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
-                            tile.mPhase = Tile::Phase::Built;
-                        else
-                            dropFailedTile(tile, cover);
-                    }
+                        dropFailedTile(tile, cover);
                 }
             }
             if (tile.mPhase != Tile::Phase::Built)
@@ -724,8 +793,10 @@ namespace MWRender
                 draws += tile.mDraws;
                 triangles += tile.mTriangles;
             }
-            if (!tile.mWanted && cover.mFade.mPhase == Lod::FadePhase::Hidden)
+            if (!tile.mWanted && cover.mFade.mPhase == Lod::FadePhase::Hidden && tile.mFreeWhenHidden)
             {
+                tile.mFreeWhenHidden = false;
+                tile.mBytes = 0;
                 if (tile.mNode)
                 {
                     auto& children = state.mRoot->children;

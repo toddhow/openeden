@@ -116,6 +116,9 @@ namespace MWRender
             float mThreshold = 8;
             /// The highest tile level read and drawn (`[WorldLod] far levels`); 0: every level of the pack.
             std::uint32_t mMaxLevel = 0;
+            /// What the drawn tiles may hold in memory, in bytes (the tier's budget, Lod::tileDrawResidentBytes counts
+            /// them); 0: no budget. A tile the budget leaves out is drawn by the live terrain.
+            std::uint64_t mResidentBudgetBytes = 0;
             /// The game's terrain storage: must outlive the LodTerrain and be ready to read.
             Terrain::Storage* mLive = nullptr;
             /// The cells with land and the live layer list (taken once, on the main thread), for the staleness check.
@@ -147,6 +150,9 @@ namespace MWRender
             std::size_t mDrawn = 0; // chosen and ready: in the coverage
             std::size_t mLive = 0; // visible, live terrain
             std::size_t mSkipped = 0; // outside the view
+            std::size_t mBlocked = 0; // wanted tiles the memory budget did not admit this frame
+            std::uint64_t mHeldBytes = 0; // what the drawn tiles hold (Lod::tileDrawResidentBytes)
+            std::uint64_t mTileDataBytes = 0; // what the pack's tiles hold once read (heights, normals, pictures)
         };
         Stats stats() const;
 

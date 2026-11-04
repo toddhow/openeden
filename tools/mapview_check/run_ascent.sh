@@ -15,7 +15,7 @@ run_cfg="$work/cfg"; rm -rf "$run_cfg"; mkdir -p "$run_cfg"; cp "$config"/* "$ru
 printf 'tgm\ntcl\n' > "$work/start.txt"
 rm -f "$user"/screenshots/*
 cd "$(dirname "$(command -v openmw.exe || echo /i/Projects/OpenEden/build-jolt/openmw.exe)")"
-OPENEDEN_FRAME_STATS_FILE="$(native "$work/stats.txt")" timeout "$limit" ./openmw.exe --replace=config \
+OPENEDEN_FRAME_STATS_FILE="$(native "$work/stats.txt")" timeout "$limit" "./${OPENMW_EXE:-openmw.exe}" --replace=config \
     --config "$(native "$run_cfg")" --user-data "$(native "$user")" --skip-menu --start Balmora --no-grab \
     --script-run "$(native "$work/start.txt")" > "$work/log.txt" 2>&1 || true
 mkdir -p "$work/frames"; cp "$user"/screenshots/* "$work/frames"/ 2>/dev/null || true

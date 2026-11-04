@@ -1177,6 +1177,7 @@ namespace MWRender
                 ? Lod::effectiveTileThreshold(Settings::worldLod().mTerrainTileThreshold, mFarTier)
                 : Settings::worldLod().mTerrainTileThreshold;
             setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
+            setup.mResidentBudgetBytes = mFarTierActive ? farTerrainBudgetBytes() : 0;
             setup.mLive = mTerrainStorage.get();
             setup.mLandCells = std::move(landCells);
             // The live layer list, taken here once (the staleness check on a worker thread must not ask for it).
@@ -1217,6 +1218,14 @@ namespace MWRender
     {
         const int setting = Settings::worldLod().mFarMemoryBudget;
         return setting > 0 ? static_cast<std::uint64_t>(setting) << 20 : mFarTier.mResidentBudgetBytes;
+    }
+
+    // The terrain tiles' share of the far memory budget (task 0060): a quarter of the setting when it is given (the
+    // tiers' own numbers are about a quarter of their cluster budgets), the tier's number otherwise.
+    std::uint64_t RenderManager::farTerrainBudgetBytes() const
+    {
+        const int setting = Settings::worldLod().mFarMemoryBudget;
+        return setting > 0 ? (static_cast<std::uint64_t>(setting) << 20) / 4 : mFarTier.mTerrainBudgetBytes;
     }
 
     void RenderManager::chooseFarTier()

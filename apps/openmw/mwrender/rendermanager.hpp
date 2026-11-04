@@ -598,6 +598,7 @@ namespace MWRender
         const Lod::FarTierSettings* farTierOrNull() const { return mFarTierActive ? &mFarTier : nullptr; }
         void chooseFarTier();
         std::uint64_t farMemoryBudgetBytes() const;
+        std::uint64_t farTerrainBudgetBytes() const;
         void applyViewLimits(const Lod::ViewLimits& limits, bool updateProjection);
         std::optional<float> mFieldOfViewOverride = 0;
         float mFieldOfView;

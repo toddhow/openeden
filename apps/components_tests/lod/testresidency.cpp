@@ -480,4 +480,32 @@ namespace
         for (std::uint32_t index : a.mFree)
             EXPECT_FALSE(contains(a.mLoad, index));
     }
+
+    TEST(LodResidencyTileBytes, a_33_grid_without_a_picture_holds_its_arrays)
+    {
+        // 33 * 33 vertices of 44 bytes, 32 * 32 squares of 6 indices of 4 bytes.
+        EXPECT_EQ(tileDrawResidentBytes(33, 0), 1089u * 44 + 1024u * 6 * 4);
+        EXPECT_EQ(tileDrawResidentBytes(33, 0), 72492u);
+    }
+
+    TEST(LodResidencyTileBytes, the_ground_picture_is_added)
+    {
+        EXPECT_EQ(tileDrawResidentBytes(33, 256u * 256 * 4), 72492u + 262144u);
+        EXPECT_EQ(tileDrawResidentBytes(3, 0), 9u * 44 + 4u * 6 * 4);
+    }
+
+    TEST(LodResidencyTileBytes, a_grid_below_two_holds_only_the_picture)
+    {
+        EXPECT_EQ(tileDrawResidentBytes(0, 100), 100u);
+        EXPECT_EQ(tileDrawResidentBytes(1, 100), 100u);
+    }
+
+    TEST(LodResidencyTileBytes, a_huge_grid_saturates_instead_of_wrapping)
+    {
+        // (2^32 - 1)^2 vertices of 44 bytes is about 8e20, past 2^64.
+        constexpr std::uint64_t most = std::numeric_limits<std::uint64_t>::max();
+        EXPECT_EQ(tileDrawResidentBytes(std::numeric_limits<std::uint32_t>::max(), 0), most);
+        EXPECT_EQ(tileDrawResidentBytes(std::numeric_limits<std::uint32_t>::max(), most), most);
+        EXPECT_EQ(tileDrawResidentBytes(33, most), most);
+    }
 }

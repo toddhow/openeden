@@ -14,7 +14,7 @@ namespace Lod
         std::uint64_t addSaturating(std::uint64_t a, std::uint64_t b) noexcept
         {
             return a > std::numeric_limits<std::uint64_t>::max() - b ? std::numeric_limits<std::uint64_t>::max()
-                                                                      : a + b;
+                                                                     : a + b;
         }
 
         // NaN is the least urgent value.
@@ -199,5 +199,23 @@ namespace Lod
         const Held after = heldNow(items, plan.mGone);
         plan.mHeldAfter = after.mBytes;
         plan.mOverBudget = budget > 0 && after.mBytes > budget;
+    }
+}
+
+namespace Lod
+{
+    std::uint64_t tileDrawResidentBytes(std::uint32_t gridSize, std::uint64_t albedoBytes) noexcept
+    {
+        if (gridSize < 2)
+            return albedoBytes;
+        const std::uint64_t side = gridSize;
+        const std::uint64_t squares = (side - 1) * (side - 1);
+        // side * side * 44 stays below 2^64 up to a grid of 2^29; larger grids saturate at once, so no step can wrap.
+        constexpr std::uint64_t most = std::numeric_limits<std::uint64_t>::max();
+        if (side > (1ull << 29))
+            return most;
+        const std::uint64_t vertices = side * side * tileBytesPerVertex;
+        const std::uint64_t indices = squares * 6 * tileBytesPerIndex;
+        return addSaturating(addSaturating(vertices, indices), albedoBytes);
     }
 }

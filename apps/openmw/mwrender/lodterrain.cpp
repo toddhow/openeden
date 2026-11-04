@@ -12,6 +12,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/lod/residency.hpp>
 #include <components/lod/texturedecode.hpp>
 #include <components/lod/tilepack.hpp>
 #include <components/render/processmemory.hpp>
@@ -495,6 +496,9 @@ namespace MWRender
 
         // Tiles built (and compiled) per frame: each needs a blend map or a picture.
         constexpr std::size_t maxBuildsPerFrame = 4;
+        // Frames before a tile that the residency planner freed for a closer one may be drawn again (about one
+        // second); the planner's swap margin keeps two tiles of about the same urgency from trading places (task 0060).
+        constexpr int evictedFrames = 60;
     }
 
     struct LodTerrain::State
@@ -551,9 +555,18 @@ namespace MWRender
             mFlags.assign(count, 0);
             mLods.assign(count, 0);
             mFailed.assign(count, false);
+            mCooldown.assign(count, 0);
+            mDrawBytes.assign(count, 0);
             for (std::size_t i = 0; i < count; ++i)
             {
                 const Lod::TerrainTile& tile = mLoaded.mTiles[i].mData;
+                // What its draw will hold, for the planner, and what the tile's data holds once read.
+                const std::uint64_t picture = useAlbedo && tile.mHasAlbedo
+                    ? static_cast<std::uint64_t>(tile.mAlbedoWidth) * tile.mAlbedoHeight * 4
+                    : 0;
+                mDrawBytes[i] = Lod::tileDrawResidentBytes(tile.mGridSize, picture);
+                mStats.mTileDataBytes
+                    += tile.mHeights.size() * sizeof(std::uint16_t) + tile.mNormals.size() + tile.mAlbedo.size();
                 Lod::TileBounds& bounds = mStates[i].mBounds;
                 bounds.mOriginX = tile.mOriginX;
                 bounds.mOriginY = tile.mOriginY;
@@ -566,12 +579,16 @@ namespace MWRender
                 Lod::vertexStepLod(settings, mLods[i]);
             }
             mCoverage.squares.reserve(count);
-            Log(Debug::Info)
-                << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front() << " to "
-                << (mSetup.mMaxLevel > 0 ? std::min(mSetup.mMaxLevel, mPlan.mLevels.back()) : mPlan.mLevels.back())
-                << " loaded (layout version " << Lod::tileKeyLayoutVersion << "), threshold " << mSetup.mThreshold
-                << " px, "
-                << (useAlbedo ? "baked ground pictures from level 2 up" : "live layers (terrain maps are on)") << ".";
+            Log(Debug::Info) << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front()
+                             << " to "
+                             << (mSetup.mMaxLevel > 0 ? std::min(mSetup.mMaxLevel, mPlan.mLevels.back())
+                                                      : mPlan.mLevels.back())
+                             << " loaded (layout version " << Lod::tileKeyLayoutVersion << "), threshold "
+                             << mSetup.mThreshold << " px, "
+                             << (useAlbedo ? "baked ground pictures from level 2 up"
+                                           : "live layers (terrain maps are on)")
+                             << "; " << (mStats.mTileDataBytes >> 20) << " MiB of tile data held, a budget of "
+                             << (mSetup.mResidentBudgetBytes >> 20) << " MiB for the drawn tiles.";
         }
 
         Terrain::Bounds boundsOf(std::size_t index) const
@@ -701,6 +718,12 @@ namespace MWRender
         std::vector<std::uint32_t> mFlags;
         std::vector<std::uint32_t> mLods;
         std::vector<bool> mFailed;
+        // The residency planner (task 0060): its input and output are reused every frame.
+        std::vector<int> mCooldown; // frames before a tile the planner freed may be drawn again
+        std::vector<std::uint64_t> mDrawBytes; // what each tile's draw holds (Lod::tileDrawResidentBytes)
+        std::vector<Lod::ResidencyItem> mItems;
+        Lod::ResidencyPlan mResidencyPlan;
+        bool mLoggedBudget = false;
         vsg::ref_ptr<vsg::Group> mRoot;
         Terrain::Coverage mCoverage;
         Stats mStats;
@@ -759,32 +782,62 @@ namespace MWRender
             = Lod::selectTileTree(state.mStates, state.mParents, selection, state.mSetup.mThreshold);
 
         bool changed = false;
-        std::size_t builds = 0;
-        // First the tiles that are now wanted: a tile that has to go waits until what replaces it is drawn.
-        for (std::size_t i = 0; i < state.mStates.size(); ++i)
+        // The residency planner decides which draws are built and which are freed (task 0060). A tile the selection
+        // wants is built nearest first and within the memory budget; a tile that has to go waits until what replaces
+        // it is drawn (it is pinned); a drawn tile the budget cannot keep leaves its square to the live terrain, which
+        // is always there, so no frame has a hole.
+        const std::size_t tileCount = state.mStates.size();
+        state.mItems.resize(tileCount);
+        for (std::size_t i = 0; i < tileCount; ++i)
         {
             const Lod::TileState& tile = state.mStates[i];
-            if (tile.mChoice != Lod::TileChoice::Tile || state.mNodes[i] || state.mFailed[i] || !tile.mVisible
-                || builds >= maxBuildsPerFrame)
-                continue;
-            ++builds;
-            if (state.build(i))
+            if (state.mCooldown[i] > 0)
+                --state.mCooldown[i];
+            const bool held = state.mNodes[i] != nullptr;
+            const bool chosen = tile.mChoice == Lod::TileChoice::Tile && !state.mFailed[i];
+            Lod::ResidencyItem& item = state.mItems[i];
+            item = Lod::ResidencyItem{};
+            item.mHeld = held;
+            // A drawn tile stays wanted while the selection chooses it, seen or not; one that is not drawn is wanted
+            // only when it is in view.
+            item.mWanted = chosen && state.mCooldown[i] == 0 && (held || tile.mVisible);
+            item.mPinned = held && !item.mWanted && tile.mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i);
+            item.mCooldown = state.mCooldown[i];
+            item.mBytes = state.mDrawBytes[i];
+            item.mPriority = static_cast<float>(Lod::distanceToTile(selection, tile.mBounds));
+        }
+        Lod::ResidencyParams params;
+        params.mBudgetBytes = state.mSetup.mResidentBudgetBytes;
+        params.mKeepFrames = 0;
+        params.mMaxLoadsInFlight = static_cast<std::uint32_t>(maxBuildsPerFrame);
+        params.mMaxLoadsPerCall = static_cast<std::uint32_t>(maxBuildsPerFrame);
+        Lod::planResidency(state.mItems, params, state.mResidencyPlan);
+        const Lod::ResidencyPlan& plan = state.mResidencyPlan;
+        state.mStats.mBlocked = plan.mBlocked;
+        if (plan.mBlocked > 0 && !state.mLoggedBudget)
+        {
+            state.mLoggedBudget = true;
+            Log(Debug::Info) << "World LOD tiles: the memory budget of " << (state.mSetup.mResidentBudgetBytes >> 20)
+                             << " MiB is reached; the farther tiles use the live terrain.";
+        }
+        for (const std::uint32_t index : plan.mFree)
+        {
+            if (state.mStates[index].mChoice == Lod::TileChoice::Tile)
+                state.mCooldown[index] = 2 * evictedFrames; // freed while still chosen: not drawn again for a while
+            state.remove(index);
+            changed = true;
+        }
+        for (const std::uint32_t index : plan.mLoad)
+        {
+            if (state.build(index))
                 changed = true;
             else
             {
-                state.mFailed[i] = true;
-                Log(Debug::Warning) << "World LOD tile " << i << " could not be compiled; the live terrain stays.";
+                state.mFailed[index] = true;
+                Log(Debug::Warning) << "World LOD tile " << index << " could not be compiled; the live terrain stays.";
             }
         }
-        for (std::size_t i = 0; i < state.mStates.size(); ++i)
-        {
-            if (!state.mNodes[i] || state.mStates[i].mChoice == Lod::TileChoice::Tile)
-                continue;
-            if (state.mStates[i].mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i))
-                continue;
-            state.remove(i);
-            changed = true;
-        }
+        state.mStats.mHeldBytes = plan.mHeldAfter;
         if (changed)
         {
             state.rebuildCoverage();

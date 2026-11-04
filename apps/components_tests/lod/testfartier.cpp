@@ -327,4 +327,20 @@ namespace
         EXPECT_FALSE(admitCluster(max - 10, 100, max));
         EXPECT_TRUE(admitCluster(max - 100, 100, max));
     }
+
+    TEST(LodFarTier, the_terrain_tile_budget_grows_with_the_tier_and_every_tier_has_one)
+    {
+        // Task 0060: the drawn terrain tiles have a budget of their own, next to the clusters' (starting values).
+        const FarTier tiers[] = { FarTier::Minimal, FarTier::Low, FarTier::Medium, FarTier::High };
+        std::uint64_t below = 0;
+        for (const FarTier tier : tiers)
+        {
+            const std::uint64_t budget = farTierSettings(tier).mTerrainBudgetBytes;
+            EXPECT_GT(budget, 0u);
+            EXPECT_GE(budget, below);
+            below = budget;
+        }
+        EXPECT_EQ(farTierSettings(FarTier::Minimal).mTerrainBudgetBytes, 64ull * 1024 * 1024);
+        EXPECT_EQ(farTierSettings(FarTier::High).mTerrainBudgetBytes, 256ull * 1024 * 1024);
+    }
 }

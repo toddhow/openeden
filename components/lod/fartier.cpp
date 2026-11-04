@@ -72,6 +72,7 @@ namespace Lod
                 settings.mMaxViewDistance = 80000;
                 settings.mFarTextureMaxSize = 128;
                 settings.mResidentBudgetBytes = 256 * mebibyte;
+                settings.mTerrainBudgetBytes = 64 * mebibyte; // starting values (stage e: +93 MiB)
                 break;
             case FarTier::Low:
                 settings.mFarLevels = 4;
@@ -79,6 +80,7 @@ namespace Lod
                 settings.mMaxViewDistance = 150000;
                 settings.mFarTextureMaxSize = 128;
                 settings.mResidentBudgetBytes = 320 * mebibyte;
+                settings.mTerrainBudgetBytes = 96 * mebibyte;
                 break;
             case FarTier::Medium:
                 settings.mFarLevels = 5;
@@ -86,6 +88,7 @@ namespace Lod
                 settings.mMaxViewDistance = 300000;
                 settings.mFarTextureMaxSize = 256;
                 settings.mResidentBudgetBytes = 512 * mebibyte;
+                settings.mTerrainBudgetBytes = 128 * mebibyte;
                 break;
             case FarTier::High:
                 settings.mFarLevels = maxFarLevels;
@@ -93,6 +96,7 @@ namespace Lod
                 settings.mMaxViewDistance = defaultMaxViewDistance;
                 settings.mFarTextureMaxSize = 256;
                 settings.mResidentBudgetBytes = 1024 * mebibyte;
+                settings.mTerrainBudgetBytes = 256 * mebibyte;
                 break;
         }
         return settings;

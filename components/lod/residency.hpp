@@ -92,6 +92,14 @@ namespace Lod
         std::vector<std::uint8_t> mGone;
     };
 
+    /// What the draw of one terrain tile holds in system memory, in bytes: its vertex arrays (position 12, normal 12,
+    /// texture coordinates 8 and colour 12 bytes a vertex), 32-bit indices (6 for each of the (grid - 1)^2 squares) and
+    /// the ground picture when the tile draws with one (`albedoBytes`, 0 otherwise). An estimate for the planner's
+    /// budget (task 0060 compares it with the working set); a grid below 2 holds only the picture.
+    inline constexpr std::uint64_t tileBytesPerVertex = 12 + 12 + 8 + 12;
+    inline constexpr std::uint64_t tileBytesPerIndex = 4;
+    std::uint64_t tileDrawResidentBytes(std::uint32_t gridSize, std::uint64_t albedoBytes) noexcept;
+
     /// Fills `plan` (its vectors are cleared and reused; they allocate only while they grow to the item count).
     void planResidency(std::span<const ResidencyItem> items, const ResidencyParams& params, ResidencyPlan& plan);
 }
