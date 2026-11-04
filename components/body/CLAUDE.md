@@ -76,3 +76,21 @@ A pure, game-agnostic library: `mergeParts` (parts plus declared seams to one we
   counts twice); `MergeReport::mMaxWeightDisagreement` is the largest difference between two members before the mean,
   the bound of how far a weld moves a skinned vertex.
 - **Not verified:** the Lua tests, the Linux gate, real data (stage c).
+
+## The `bodymesh` payload and the cache (task 0069, stage c: `bodymesh.*`, `bodycache.*`)
+
+- **`bodymesh.*`** is one merged body as bytes: magic `EDENBMSH`, layout version, flags, eight counts, then bones,
+  materials, positions, normals, UVs, four bone indices and weights per vertex, triangles, regions, submeshes and weld
+  groups. **Layout version 0 is a draft** until toddhow approves it (like the LOD tile layout S1); a reader refuses every
+  other version. The reader and the writer share one `check()`: what the writer would refuse the reader refuses, so a
+  payload that reads writes back to the same bytes (the bit-flip test asserts this for every flipped bit). Counts are
+  checked against `BodyMeshLimits` and against the bytes that remain before anything is allocated.
+- **`bodycache.*`** is the key, the manifest, the entry names and the publishing of the derived pack. The key
+  (`computeBodyKey`) is a BLAKE3 digest of a length-prefixed text of everything a body's bytes depend on; it changes
+  when a part's file bytes, record, flags, path, the skeleton file, the merger version, the layout version or a
+  parameter changes, per body. Bump `bodyMergerVersion` whenever the merger's output for the same input can change.
+  A pack is `merged-<16 hex of the manifest digest>.edenpak`; `current` names it and is renamed over atomically;
+  `current.tmp` and half-written packs are ignored. The pack reader is the Eden Archive's (hashes verified, caps).
+- **Package format:** `meshFormat "bodymesh"` and the `weldGroups` part (rules `BODY-WELD-001` to `007`). The weld
+  groups of a merged body list the output vertices that sit at one place and must move together under a morph.
+- **No game data** in any test: the synthetic quads of `testbodymesh.cpp` only.

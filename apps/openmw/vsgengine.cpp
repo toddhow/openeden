@@ -29,6 +29,7 @@
 #include <components/vsgutil/readimage.hpp>
 
 #include "bodyanalyser.hpp"
+#include "bodybaker.hpp"
 #include "lodobjectbaker.hpp"
 #include "lodterrainbaker.hpp"
 #include "mwgui/windowmanagerimp.hpp"
@@ -555,9 +556,18 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             bodyAnalyser = std::make_unique<BodyAnalyser>(out, *mResourceSystem);
         }
+        // Task 0069 stage c: the merged body cache (--bake-bodies) and its check (--check-bodies).
+        std::unique_ptr<BodyBaker> bodyBaker;
+        if (args.bakeBodies || args.checkBodies)
+        {
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            bodyBaker = std::make_unique<BodyBaker>(
+                args.bakeBodies ? BodyBaker::Mode::Bake : BodyBaker::Mode::Check, out, *mResourceSystem);
+        }
         auto callback
-            = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &runningFrame,
-                  &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
+            = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &bodyBaker,
+                  &runningFrame, &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
                   auto state = mStateManager->getGameState();
                   quit = !state;
                   if (quit)
@@ -591,6 +601,11 @@ namespace OMW
                           autoQuitFired = true;
                       }
                       if (bodyAnalyser && bodyAnalyser->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                      if (bodyBaker && bodyBaker->update() && !autoQuitFired)
                       {
                           mStateManager->requestQuit();
                           autoQuitFired = true;

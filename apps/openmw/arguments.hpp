@@ -55,6 +55,9 @@ namespace OMW
         bool bakeLodTerrain = false;
         bool bakeLodObjects = false;
         bool analyseBodies = false;
+        // Task 0069 stage c: build the merged body cache (--bake-bodies) and check it against the stock parts.
+        bool bakeBodies = false;
+        bool checkBodies = false;
     };
 }
 

@@ -107,6 +107,15 @@ namespace OpenMW
             "to the folder of --bake-gi-out or the user data folder (read-only; needs the game data; quits when "
             "done)");
 
+        addOption("bake-bodies", bpo::bool_switch()->default_value(false),
+            "build the merged body of every race and sex from the stock parts and publish them as a derived cache "
+            "in openeden/bodies of the folder of --bake-gi-out or the user data folder (DRAFT layout; needs the "
+            "game data; quits when done)");
+
+        addOption("check-bodies", bpo::bool_switch()->default_value(false),
+            "read the merged body cache back and compare it with the stock parts, writing openeden/bodies/check.txt "
+            "(read-only; needs the game data; quits when done)");
+
         addOption("bake-gi-out", bpo::value<std::string>()->default_value(""),
             "folder the baked probes are written to (default: the user data folder)");
 
