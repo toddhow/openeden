@@ -22,6 +22,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/quietwindow.hpp>
 
 #include <SDL_messagebox.h>
 
@@ -427,14 +428,19 @@ static void crash_catcher(int signum, siginfo_t* siginfo, void* /*context*/)
         kill(crash_info.pid, SIGKILL);
     }
 
-    // delay between killing of the crashed process and showing the message box to
-    // work around occasional X server lock-up. this can only be a bug in X11 since
-    // even faulty applications shouldn't be able to freeze the X server.
-    usleep(100000);
+    // OpenEden: no box with OPENEDEN_QUIET_WINDOW (test and check runs). This process was started by execl, which keeps
+    // the crashed process's environment.
+    if (!Misc::isQuietWindowRequested())
+    {
+        // delay between killing of the crashed process and showing the message box to
+        // work around occasional X server lock-up. this can only be a bug in X11 since
+        // even faulty applications shouldn't be able to freeze the X server.
+        usleep(100000);
 
-    const std::string message = "OpenMW has encountered a fatal error.\nCrash log saved to '" + std::string(logfile)
-        + "'.\n Please report this to https://gitlab.com/OpenMW/openmw/issues !";
-    SDL_ShowSimpleMessageBox(0, "Fatal Error", message.c_str(), nullptr);
+        const std::string message = "OpenMW has encountered a fatal error.\nCrash log saved to '" + std::string(logfile)
+            + "'.\n Please report this to https://gitlab.com/OpenMW/openmw/issues !";
+        SDL_ShowSimpleMessageBox(0, "Fatal Error", message.c_str(), nullptr);
+    }
 
     exit(0);
 }

@@ -7,6 +7,7 @@
 
 #include <SDL_messagebox.h>
 
+#include <components/misc/quietwindow.hpp>
 #include <components/misc/strings/conversion.hpp>
 
 #include "windowscrashdumppathhelpers.hpp"
@@ -48,6 +49,10 @@ namespace Crash
         assert(sInstance == nullptr); // don't allow two instances
 
         sInstance = this;
+
+        // The monitor process inherits this environment (startMonitorProcess passes no environment block of its own)
+        // and reads the variable itself (CrashMonitor::CrashMonitor).
+        mQuiet = Misc::isQuietWindowRequested();
 
         HANDLE shmHandle = nullptr;
         for (int i = 0; i < argc; ++i)
@@ -249,6 +254,12 @@ namespace Crash
         shmLock();
         CrashSHM::Status monitorStatus = mShm->mMonitorStatus;
         shmUnlock();
+
+        // OpenEden: test and check runs set OPENEDEN_QUIET_WINDOW, and a box would wait on the real desktop. Return
+        // only here, after the status was read: CrashMonitor::run holds the SHM lock until the dump is written, so the
+        // dump is complete, and vectoredExceptionHandler exits with code 1 as after a box.
+        if (mQuiet)
+            return;
 
         if (monitorStatus == CrashSHM::Status::DumpedSuccessfully)
         {

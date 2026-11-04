@@ -11,6 +11,7 @@
 #include <SDL_messagebox.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/quietwindow.hpp>
 #include <components/misc/strings/conversion.hpp>
 
 #include "windowscrashcatcher.hpp"
@@ -50,6 +51,9 @@ namespace Crash
         mAppMainThreadId = mShm->mStartup.mAppMainThreadId;
         mSignalAppEvent = mShm->mStartup.mSignalApp;
         mSignalMonitorEvent = mShm->mStartup.mSignalMonitor;
+
+        // CrashCatcher::startMonitorProcess passes no environment block, so this process has the application's.
+        mQuiet = Misc::isQuietWindowRequested();
     }
 
     CrashMonitor::~CrashMonitor()
@@ -221,7 +225,8 @@ namespace Crash
                 std::string message = "OpenMW has frozen.\nCrash dump saved to '"
                     + Misc::StringUtils::u8StringToString(getFreezeDumpPath(*mShm).u8string())
                     + "'.\nPlease report this to https://gitlab.com/OpenMW/openmw/issues !";
-                SDL_ShowSimpleMessageBox(0, "Fatal Error", message.c_str(), nullptr);
+                if (!mQuiet)
+                    SDL_ShowSimpleMessageBox(0, "Fatal Error", message.c_str(), nullptr);
             }
         }
         catch (...)
@@ -242,7 +247,8 @@ namespace Crash
             shmLock();
             mShm->mMonitorStatus = CrashSHM::Status::FailedDumping;
             shmUnlock();
-            SDL_ShowSimpleMessageBox(0, "Failed to create crash dump", message.c_str(), nullptr);
+            if (!mQuiet)
+                SDL_ShowSimpleMessageBox(0, "Failed to create crash dump", message.c_str(), nullptr);
         };
 
         DWORD processId = GetProcessId(mAppProcessHandle);
@@ -327,6 +333,11 @@ namespace Crash
 
     void CrashMonitor::showFreezeMessageBox()
     {
+        // OpenEden: no box with OPENEDEN_QUIET_WINDOW. Only its Abort button sets mFreezeAbort, so a quiet run that
+        // freezes is never terminated here and writes no freeze dump: the script that started it must time it out.
+        if (mQuiet)
+            return;
+
         std::thread messageBoxThread([&]() {
             SDL_MessageBoxButtonData button = { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Abort" };
             SDL_MessageBoxData messageBoxData = { SDL_MESSAGEBOX_ERROR, nullptr, "OpenMW has frozen",

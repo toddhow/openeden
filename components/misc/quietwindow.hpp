@@ -13,7 +13,7 @@ namespace Misc
     bool isQuietWindowValue(const char* value);
 
     /// Whether the environment asks for quiet (isQuietWindowValue of OPENEDEN_QUIET_WINDOW). It reads the environment
-    /// on every call, so code that must not call into the C runtime later (a crash handler) reads it once beforehand.
+    /// on every call; the crash catcher reads it once at start-up, not in the handler of a process that has failed.
     bool isQuietWindowRequested();
 }
 

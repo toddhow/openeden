@@ -57,6 +57,11 @@ namespace Crash
         // triggered when the application wants to wake the monitor process
         HANDLE mSignalMonitorEvent = INVALID_HANDLE_VALUE;
 
+        // OpenEden: OPENEDEN_QUIET_WINDOW was set at start-up (Misc::isQuietWindowRequested), so a crash shows no
+        // message box. Read once in the constructor, so that the crash handler does not read the environment of a
+        // process that has just failed.
+        bool mQuiet = false;
+
         void setupIpc();
 
         void shmLock();
