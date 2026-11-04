@@ -7,8 +7,8 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #
 # <base config dir> holds the openmw.cfg (and optionally settings.cfg) of the user's game: a COPY, never the real one.
 # <user data dir> must hold the cache `openmw --bake-bodies` wrote (<user data>/openeden/bodies); it is reused by every
-# variant, and its screenshots folder is emptied, so it must be a COPY too: the script refuses a user data folder
-# outside I:/Projects/OpenEden-work and either folder under "My Games". The game quits by itself at the end of the
+# variant, and its screenshots folder is emptied, so it must be a COPY too: the script refuses a user data or work
+# folder outside I:/Projects/OpenEden-work and a base or user data folder under "My Games". The game quits by itself at the end of the
 # scene (mbcheck_player.lua); a run that does not exit with code 0, or that leaves a crash dump, is reported as failed.
 # The log line "Merged bodies: <ref> draws the merged body" is counted per variant. <variant> is `stock` ([Bodies] merged body = false) or `merged` (= true). The scene (mod/scripts): one NPC of
 # every race and sex in a row without clothes, the player without clothes standing, walking, running, turning and
@@ -25,10 +25,13 @@ case "$VARIANT" in
     merged) MERGED=true ;;
     *) echo "variant must be stock or merged"; exit 2 ;;
 esac
-case "$(native "$USERDATA")" in
-    I:/Projects/OpenEden-work/*) ;;
-    *) echo "refused: the user data folder must be a copy under I:/Projects/OpenEden-work"; exit 2 ;;
-esac
+# Both folders the script deletes in (the user folder's screenshots and dumps, <work>/<variant>) must be scratch.
+for folder in "$USERDATA" "$WORK"; do
+    case "$(native "$folder")" in
+        I:/Projects/OpenEden-work/*) ;;
+        *) echo "refused: $folder must be under I:/Projects/OpenEden-work"; exit 2 ;;
+    esac
+done
 for folder in "$BASE" "$USERDATA"; do
     case "$(native "$folder")" in
         *"My Games"*) echo "refused: $folder looks like the real game folder; pass copies"; exit 2 ;;
