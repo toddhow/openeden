@@ -44,6 +44,7 @@
 namespace vsg
 {
     class Node;
+    class Object;
 }
 namespace ESM
 {
@@ -91,17 +92,34 @@ namespace MWRender::MergedBodies
     /// thread.
     TemplateResult getTemplate(const ESM::Race& race, bool female, const MWAnim::Context& context);
 
+    /// What applyHiddenRegions found and changed in an actor's copy.
+    struct RegionChange
+    {
+        /// Per draw (the root's children, in order): whether any of it is drawn. A draw that is not needs no skin.
+        std::vector<bool> mDrawn;
+        /// Per draw: the copy's bone matrices (the target its Anim::Skin writes), to tell the copy's skins apart.
+        std::vector<const vsg::Object*> mBoneMatrices;
+        /// The draws taken out of the copy: the caller detaches them (CompileContext::detach), as a removed part.
+        std::vector<vsg::ref_ptr<vsg::Node>> mRemoved;
+    };
+
     /// Task 0069 stage e: leaves the regions of `hiddenSlots` (ascending) out of an actor's copy of a template: each
-    /// draw whose runs include a hidden slot gets its own draws of the index ranges that remain (sharing the template's
-    /// vertex and index buffers), or none. `actorNode` must be the actor's copy made by MWAnim::decorate, whose state
-    /// groups are its own (the bone matrices made them so); a copy that still shares a state group with `templateNode`,
-    /// or a structure that is not the template's, is left untouched and false is returned: the caller then keeps the
-    /// stock parts. Main thread, in updateParts; nothing per frame.
+    /// draw draws the index ranges that remain, as draws that share the template's vertex and index buffers (the
+    /// template's own draw when nothing of it is hidden), or nothing. It can be called again on a copy it changed
+    /// before (review finding 2: an equipment change keeps the copy); a draw already as wanted is left as it is.
+    /// `actorNode` must be the actor's copy made by MWAnim::decorate, whose state groups are its own (the bone matrices
+    /// made them so); a copy that still shares a state group with `templateNode`, or a structure that is not the
+    /// template's, is left untouched and false is returned: the caller then keeps the stock parts. Main thread, in
+    /// updateParts; nothing per frame.
     bool applyHiddenRegions(vsg::Node& actorNode, const vsg::Node& templateNode,
-        const std::vector<std::vector<Body::SlotRun>>& drawRuns, const std::vector<int>& hiddenSlots);
+        const std::vector<std::vector<Body::SlotRun>>& drawRuns, const std::vector<int>& hiddenSlots,
+        RegionChange& change);
 
     /// One log line per (race, sex, reason) and, for a cache problem, one message box per session.
     void report(const ESM::Race& race, bool female, Body::MergedBodyReason reason);
+
+    /// Review finding 4: one log line per (race, sex) whose regions could not be left out of an actor's copy.
+    void reportRegionsRefused(const ESM::Race& race, bool female);
 
     /// One log line per race id the store does not know.
     void reportMissingRace(const std::string& raceId);

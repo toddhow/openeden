@@ -16,6 +16,7 @@
 
 #include "../mwworld/ptr.hpp"
 
+#include "mergedbody.hpp"
 #include "partcontrollers.hpp"
 #include "partslots.hpp"
 
@@ -173,11 +174,30 @@ namespace MWRender
 
         // Task 0069 stage d ([Bodies] merged body, off by default): attaches the cached merged body when it may be
         // drawn and removes the stock parts of its slots; false, with the stock parts kept, otherwise. updateParts
-        // calls it after the equipment, and it re-attaches every time (clearControllers drops the controllers it
-        // linked).
+        // calls it after the equipment. Stage e review: the actor's copy is kept while its template is the same, and
+        // only its regions change; its controllers are added again every time (clearControllers drops them).
         bool attachMergedBody(bool isWerewolf);
+        // Leaves the hidden regions out of the copy (mMergedNode); on a refusal, the stock parts for good.
+        bool applyMergedRegions(const ESM::Race& race, bool female, const MergedBodies::TemplateResult& result,
+            const std::vector<int>& hidden);
+        // Adds the copy's controllers to mStaticControllers, without the skins of draws nothing of is drawn.
+        void relinkMergedBody();
+        // Detaches the copy and forgets everything about it (a rebuild, a failed compile, the stock parts).
+        void forgetMergedBody();
         std::vector<vsg::Node*> mMergedBody;
         std::vector<int> mMergedSlots;
+        // The actor's copy and the template it was made from (both null without a merged body).
+        vsg::ref_ptr<vsg::Node> mMergedNode;
+        vsg::ref_ptr<vsg::Node> mMergedTemplate;
+        std::vector<int> mMergedHidden; // the regions left out of the copy (ascending slots)
+        MergedBodies::RegionChange mMergedRegions; // per draw: drawn, and its bone matrices
+        // What the copy's link gave; valid while mMergedNode holds the copy (its bone matrices own the skins).
+        struct MergedLink
+        {
+            const Anim::Controller* mController;
+            vsg::Object* mTarget;
+        };
+        std::vector<MergedLink> mMergedControllers;
         bool mDefaultSkeleton = false; // the actor uses its race's default skeleton, the one the bake placed parts on
         // At most one swap each way per actor (review finding 8): an actor first built dressed draws the stock parts
         // and may take the merged body once undressed; an actor that has drawn the merged body and then puts

@@ -29,6 +29,7 @@
 #include <components/vsgutil/readnode.hpp>
 #include <components/vsgutil/removechild.hpp>
 #include <components/vsgutil/searchbyname.hpp>
+#include <vsg/core/Array.h>
 #include <vsg/io/Options.h>
 #include <vsg/nodes/Switch.h>
 #include <vsg/utils/SharedObjects.h>
@@ -110,8 +111,7 @@ namespace MWRender
             removePath(mScabbard);
             removePath(mHolsteredShield);
             // The merged body goes with the stock parts (review finding 2): an uncompiled clone must not be drawn.
-            removePath(mMergedBody);
-            mMergedSlots.clear();
+            forgetMergedBody();
             for (auto& path : mQuiver)
                 removePath(path);
             mQuiver.clear();
@@ -223,8 +223,7 @@ namespace MWRender
     {
         for (size_t i = 0; i < ESM::PRT_Count; i++)
             removeIndividualPart((ESM::PartReferenceType)i);
-        removePath(mMergedBody);
-        mMergedSlots.clear();
+        forgetMergedBody();
         removePath(mScabbard);
         removePath(mHolsteredShield);
         for (auto& path : mQuiver)
@@ -445,18 +444,18 @@ namespace MWRender
 
     bool Npc::attachMergedBody(bool isWerewolf)
     {
-        // Re-attached on every call: updateParts' clearControllers dropped the controllers linked last time.
-        Misc::LoadTrace::Scope traceDetach("npc.mergedbody.detach");
-        removePath(mMergedBody);
-        traceDetach.end();
         mMergedSlots.clear();
         if (!MergedBodies::enabled() || mMergedRetired)
+        {
+            forgetMergedBody();
             return false;
+        }
 
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         const ESM::Race* race = store.get<ESM::Race>().search(mNpc->mRace);
         if (race == nullptr)
         {
+            forgetMergedBody();
             MergedBodies::reportMissingRace(mNpc->mRace.getRefIdString());
             return false;
         }
@@ -473,6 +472,7 @@ namespace MWRender
         Body::MergedBodyReason reason = Body::decideMergedBody(actor);
         if (reason != Body::MergedBodyReason::Merged)
         {
+            forgetMergedBody();
             // Logged once per race, sex and reason (review finding 11).
             MergedBodies::report(*race, female, reason);
             return false;
@@ -481,6 +481,7 @@ namespace MWRender
         MergedBodies::TemplateResult result = MergedBodies::getTemplate(*race, female, *mPartContext);
         if (!result.mNode)
         {
+            forgetMergedBody();
             MergedBodies::report(*race, female, result.mReason);
             return false;
         }
@@ -488,23 +489,39 @@ namespace MWRender
         // parts' own rule (a slot's body part is not drawn while an inventory group holds the slot).
         const std::vector<int> hidden = Body::hiddenMergedSlots(result.mSlots, mSlots.groups(), mSlots.priorities());
 
+        // Review finding 2: the actor's copy stays while its template does (an equipment change, a torch at dusk);
+        // only its regions change, when the hidden set does. Its skins keep their matrices, so the motion of the first
+        // frame after the change is right too (finding 5).
+        if (mMergedNode && mMergedTemplate == result.mNode)
+        {
+            if (hidden != mMergedHidden)
+            {
+                Misc::LoadTrace::Scope traceRegions("npc.mergedbody.regions");
+                if (!applyMergedRegions(*race, female, result, hidden))
+                    return false;
+            }
+            Misc::LoadTrace::Scope traceKeep("npc.mergedbody.keep");
+            mSlots.releaseBodyParts(result.mSlots, *this);
+            relinkMergedBody();
+            mMergedSlots = result.mSlots;
+            return true;
+        }
+
+        Misc::LoadTrace::Scope traceDetach("npc.mergedbody.detach");
+        forgetMergedBody();
+        traceDetach.end();
         Misc::LoadTrace::Scope traceAttach("npc.mergedbody.attach");
         vsg::ref_ptr<vsg::Node> node = result.mNode;
         Misc::LoadTrace::Scope traceDecorate("npc.mergedbody.decorate");
         auto decorated = MWAnim::decorate(node, nullptr, false);
         traceDecorate.end();
+        mMergedNode = node;
+        mMergedTemplate = result.mNode;
         Misc::LoadTrace::Scope traceRegions("npc.mergedbody.regions");
-        const bool regionsApplied = MergedBodies::applyHiddenRegions(*node, *result.mNode, result.mDrawRuns, hidden);
+        const bool regionsApplied = applyMergedRegions(*race, female, result, hidden);
         traceRegions.end();
         if (!regionsApplied)
-        {
-            // The fallback of stage d: the stock parts entirely. Only an actor that has drawn the merged body retires
-            // (one swap each way); one first built dressed may still take it once undressed.
-            Log(Debug::Warning) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
-                                << " keeps the stock parts: the covered regions could not be left out";
-            mMergedRetired = mMergedDrawn;
             return false;
-        }
 
         // The stock parts of the merged slots go (body parts are added with group -1 and priority 1).
         mSlots.releaseBodyParts(result.mSlots, *this);
@@ -515,11 +532,16 @@ namespace MWRender
             node, *nodeToAddChildrenTo(), animation->bones, MWAnim::sPartBones.at(ESM::PRT_Groin));
         if (path.empty())
         {
+            forgetMergedBody();
             MergedBodies::report(*race, female, Body::MergedBodyReason::BuildFailed);
             return false;
         }
         Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
-        decorated.link(ctx, [this](const Anim::Controller* ctrl, vsg::Object* o) { mStaticControllers.add(ctrl, o); });
+        // Recorded and added through relinkMergedBody, which leaves out the skins of draws nothing of is drawn.
+        decorated.link(ctx, [this](const Anim::Controller* ctrl, vsg::Object* o) {
+            mMergedControllers.push_back({ ctrl, o });
+        });
+        relinkMergedBody();
         mMergedBody = path;
         mMergedSlots = result.mSlots;
         if (!mMergedDrawn)
@@ -529,6 +551,70 @@ namespace MWRender
                              << " draws the merged body";
         }
         return true;
+    }
+
+    bool Npc::applyMergedRegions(
+        const ESM::Race& race, bool female, const MergedBodies::TemplateResult& result, const std::vector<int>& hidden)
+    {
+        MergedBodies::RegionChange change;
+        if (!MergedBodies::applyHiddenRegions(*mMergedNode, *result.mNode, result.mDrawRuns, hidden, change))
+        {
+            // The fallback of stage d: the stock parts entirely. Only an actor that has drawn the merged body retires
+            // (one swap each way); one first built dressed may still take it once undressed. Logged once per race and
+            // sex (review finding 4).
+            MergedBodies::reportRegionsRefused(race, female);
+            mMergedRetired = mMergedDrawn;
+            forgetMergedBody();
+            return false;
+        }
+        // The draws taken out go as a removed part does: a frame still in flight may use them.
+        for (const auto& removed : change.mRemoved)
+            mPartContext->compileContext->detach(removed);
+        change.mRemoved.clear();
+        mMergedRegions = std::move(change);
+        mMergedHidden = hidden;
+        return true;
+    }
+
+    void Npc::relinkMergedBody()
+    {
+        std::size_t allMatrices = 0;
+        std::size_t drawnMatrices = 0;
+        for (const MergedLink& link : mMergedControllers)
+        {
+            // Review finding 3: the skin of a draw that equipment hides entirely would compute its bone matrices every
+            // frame for nothing; it is left out until the draw is drawn again.
+            bool drawn = true;
+            for (std::size_t i = 0; i < mMergedRegions.mBoneMatrices.size(); ++i)
+            {
+                if (mMergedRegions.mBoneMatrices[i] == link.mTarget)
+                    drawn = mMergedRegions.mDrawn[i];
+            }
+            if (Misc::LoadTrace::enabled())
+            {
+                if (const auto* matrices = dynamic_cast<const vsg::mat4Array*>(link.mTarget))
+                {
+                    allMatrices += matrices->size();
+                    drawnMatrices += drawn ? matrices->size() : 0;
+                }
+            }
+            if (drawn)
+                mStaticControllers.add(link.mController, link.mTarget);
+        }
+        // The bone matrices the merged body's skins write each frame: of all its draws, and of the drawn ones.
+        Misc::LoadTrace::Scope traceAll("npc.mergedbody.matrices", static_cast<std::int64_t>(allMatrices));
+        Misc::LoadTrace::Scope traceDrawn("npc.mergedbody.matrices.drawn", static_cast<std::int64_t>(drawnMatrices));
+    }
+
+    void Npc::forgetMergedBody()
+    {
+        removePath(mMergedBody);
+        mMergedSlots.clear();
+        mMergedControllers.clear();
+        mMergedNode = {};
+        mMergedTemplate = {};
+        mMergedHidden.clear();
+        mMergedRegions = {};
     }
 
     void Npc::update(float dt)

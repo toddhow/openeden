@@ -767,11 +767,48 @@ namespace MWRender::MergedBodies
         return found->second.mResult;
     }
 
-    bool applyHiddenRegions(vsg::Node& actorNode, const vsg::Node& templateNode,
-        const std::vector<std::vector<Body::SlotRun>>& drawRuns, const std::vector<int>& hiddenSlots)
+    namespace
     {
-        if (hiddenSlots.empty())
+        // The bone matrices of a merged draw's state group (the data its Anim::Skin writes, at BONE_BINDING), or null.
+        const vsg::Object* boneMatricesOf(const vsg::StateGroup& group)
+        {
+            for (const auto& command : group.stateCommands)
+            {
+                const auto* bind = dynamic_cast<const vsg::BindDescriptorSet*>(command.get());
+                if (bind == nullptr || bind->firstSet != Pipeline::TEXTURE_SET || !bind->descriptorSet)
+                    continue;
+                for (const auto& descriptor : bind->descriptorSet->descriptors)
+                {
+                    const auto* buffer = dynamic_cast<const vsg::DescriptorBuffer*>(descriptor.get());
+                    if (buffer != nullptr && buffer->dstBinding == Pipeline::Descriptors::BONE_BINDING
+                        && !buffer->bufferInfoList.empty() && buffer->bufferInfoList[0])
+                        return buffer->bufferInfoList[0]->data.get();
+                }
+            }
+            return nullptr;
+        }
+
+        // Whether a draw of the copy already draws exactly `ranges` (its children are draws of the template's buffers,
+        // checked by the caller).
+        bool drawsRanges(const vsg::StateGroup& group, const std::vector<Body::IndexRange>& ranges)
+        {
+            if (group.children.size() != ranges.size())
+                return false;
+            for (std::size_t i = 0; i < ranges.size(); ++i)
+            {
+                const auto& part = static_cast<const vsg::VertexIndexDraw&>(*group.children[i]);
+                if (part.firstIndex != ranges[i].mFirstIndex || part.indexCount != ranges[i].mIndexCount)
+                    return false;
+            }
             return true;
+        }
+    }
+
+    bool applyHiddenRegions(vsg::Node& actorNode, const vsg::Node& templateNode,
+        const std::vector<std::vector<Body::SlotRun>>& drawRuns, const std::vector<int>& hiddenSlots,
+        RegionChange& change)
+    {
+        change = {};
         auto* actorRoot = dynamic_cast<vsg::Group*>(&actorNode);
         const auto* templateRoot = dynamic_cast<const vsg::Group*>(&templateNode);
         if (actorRoot == nullptr || templateRoot == nullptr || actorRoot == templateRoot
@@ -791,7 +828,7 @@ namespace MWRender::MergedBodies
             auto* group = dynamic_cast<vsg::StateGroup*>(cull->child.get());
             const auto* templateGroup = dynamic_cast<const vsg::StateGroup*>(templateCull->child.get());
             // A state group the copy shares with the template would hide the region for every actor.
-            if (group == nullptr || templateGroup == nullptr || group == templateGroup || group->children.size() != 1
+            if (group == nullptr || templateGroup == nullptr || group == templateGroup
                 || templateGroup->children.size() != 1)
                 return false;
             const auto* geometry = dynamic_cast<const vsg::VertexIndexDraw*>(templateGroup->children[0].get());
@@ -800,15 +837,24 @@ namespace MWRender::MergedBodies
             const Body::SlotRun& last = drawRuns[i].back();
             if (static_cast<std::uint64_t>(last.mFirstIndex) + last.mIndexCount != geometry->indexCount)
                 return false;
+            // The copy draws the template's draw, or parts of it that an earlier call made (review finding 2).
+            for (const auto& child : group->children)
+            {
+                const auto* part = dynamic_cast<const vsg::VertexIndexDraw*>(child.get());
+                if (part == nullptr || part->indices != geometry->indices)
+                    return false;
+            }
             groups.push_back(group);
             geometries.push_back(geometry);
         }
         for (std::size_t i = 0; i < drawRuns.size(); ++i)
         {
             const std::vector<Body::IndexRange> ranges = Body::visibleIndexRanges(drawRuns[i], hiddenSlots);
+            change.mDrawn.push_back(!ranges.empty());
+            change.mBoneMatrices.push_back(boneMatricesOf(*groups[i]));
+            if (drawsRanges(*groups[i], ranges))
+                continue; // already as wanted: the template's own draw when nothing of it is hidden
             const vsg::VertexIndexDraw& geometry = *geometries[i];
-            if (ranges.size() == 1 && ranges[0].mFirstIndex == 0 && ranges[0].mIndexCount == geometry.indexCount)
-                continue; // nothing of this draw is hidden: it keeps the template's draw
             decltype(groups[i]->children) children;
             children.reserve(ranges.size());
             for (const Body::IndexRange& range : ranges)
@@ -823,6 +869,8 @@ namespace MWRender::MergedBodies
                 part->indexCount = range.mIndexCount;
                 children.push_back(part);
             }
+            for (const auto& child : groups[i]->children)
+                change.mRemoved.push_back(child);
             groups[i]->children = std::move(children);
         }
         return true;
@@ -862,5 +910,15 @@ namespace MWRender::MergedBodies
             return;
         Log(Debug::Warning) << "Merged bodies: the race '" << raceId
                             << "' is not in the data; the stock parts are drawn";
+    }
+
+    void reportRegionsRefused(const ESM::Race& race, bool female)
+    {
+        std::lock_guard lock(sMutex);
+        if (sActive == nullptr || !sActive->mReported.insert(raceSexKey(race, female) + "|regions").second)
+            return;
+        Log(Debug::Warning) << "Merged bodies: " << race.mId.getRefIdString() << " " << sexName(female)
+                            << ": the covered regions could not be left out of an actor's copy; such actors keep the "
+                               "stock parts";
     }
 }
