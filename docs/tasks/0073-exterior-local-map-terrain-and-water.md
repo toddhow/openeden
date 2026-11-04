@@ -65,6 +65,8 @@ shows the dark minimap.
   but for the roofs; the interior map and the world map fine.
 - Tests: `TerrainBatchIndex` 4 tests; against a stub that truncated, 2 failed (`negative_cells_round_down`,
   `every_cell_lies_inside_its_batch`); after the fix the 50 terrain tests pass.
+- The batch fault on screen, at 30000 with the terrain already first: run `k` (before) shows the water plane over the
+  whole explored area with only the buildings above it, no ground; run `l` (after) shows the shore and the dark ground.
 - Frames after the fix (`I:\Projects\OpenEden-work\minimap\runs\`): `l`, `m` (Seyda Neen, HUD and map window, 30000
   and default), `s` and `s2` (map window with `tfow`, default; identical, 0 pixels differ), `u` (30000), `v`
   (`[WorldLod]` 40000), `t` (Pelagiad, frame 900), `n` and `o` (near Balmora, frame 900), `q` (Caldera, Guild of
