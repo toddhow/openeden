@@ -24,6 +24,9 @@ local phases = {
     { name = 'spawn', at = 17 },
     { name = 'row', at = 20, shot = 2.0 },
     { name = 'end', at = 23 },
+    -- The game quits by itself, so the run ends through the normal shutdown (the session and its GPU objects go
+    -- before the device), and check.sh can require exit code 0 and no crash dump (review finding 3).
+    { name = 'quit', at = 24 },
 }
 
 local startReal = nil
@@ -47,6 +50,9 @@ return {
                 index = index + 1
                 shotTaken = false
                 print('MBPHASE ' .. phases[index].name)
+                if phases[index].name == 'quit' then
+                    core.quit()
+                end
                 if phases[index].name == 'spawn' then
                     core.sendGlobalEvent('MBCheckSpawn', { origin = origin })
                 end
