@@ -29,9 +29,19 @@ namespace Render
 
         Screenshot(vsg::Device* in_device, vsg::ref_ptr<vsg::Image> in_srcImage, VkImageLayout in_srcImageLayout);
         Screenshot(vsg::ref_ptr<vsg::Window> window);
+        ~Screenshot() override;
 
+        // Sets writeFilename to the first path / "screenshotNNN.<ext>" that is neither on disk nor handed out to
+        // another live Screenshot of this process, and holds that name until this Screenshot is destroyed (or named
+        // again). The file is written later, in operate() on a worker thread, so the disk alone cannot tell two
+        // requests apart: six requests on six consecutive frames used to get one name. Thread-safe.
         void generateFilename(const std::filesystem::path& path, const std::string& ext);
         void operate() override;
+
+    private:
+        void releaseFilename();
+
+        std::filesystem::path mReservedFilename;
     };
 }
 
