@@ -47,12 +47,15 @@ namespace MWRender
 
     void WieldingCreature::removeParts()
     {
-        mStaticControllers = {};
-        autoPlay = {};
-        mWeaponControllers = {};
+        // Task 0074b, finding 3: not autoPlay, which holds the creature's own model's auto-play controllers
+        // (MWAnim::createCreature, addNode) and its inventory lights (addItemLight); emptying it stopped their
+        // particles, flicker and texture animation at the first equipment change, for good. The parts' auto-play
+        // controllers run in their own clocks, emptied here with their nodes.
+        clearPartControllers();
 
         for (int i = 0; i < 3; ++i)
         {
+            mPartControllers.forget(static_cast<std::size_t>(i));
             auto& path = mParts[i];
             if (!path.empty())
             {
@@ -69,8 +72,9 @@ namespace MWRender
     void WieldingCreature::update(float dt)
     {
         Wielding::update(dt);
+        mPartControllers.update(dt);
         if (!mAutoPlayTraced.empty())
-            traceAutoPlay(mAutoPlayTraced, mAutoPlayFrame++, dt, autoPlay, {},
+            traceAutoPlay(mAutoPlayTraced, mAutoPlayFrame++, dt, autoPlay, mPartControllers.clocks(),
                 { mStaticControllers.controllers.size(), mWeaponControllers.controllers.size(), 0 });
     }
 
@@ -132,10 +136,12 @@ namespace MWRender
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
             dst = &mWeaponControllers;
 
-        auto offset = autoPlay.maxPhaseGroup();
-        result.link(ctx, [this, &dst, offset](const Anim::Controller* ctrl, vsg::Object* o) {
+        // Task 0074b: the part's auto-play controllers in its own clock (the creature's autoPlay is no longer emptied).
+        const auto part = static_cast<std::size_t>(i);
+        mPartControllers.beginPart(part);
+        result.link(ctx, [this, &dst, part](const Anim::Controller* ctrl, vsg::Object* o) {
             if (ctrl->hints.autoPlay)
-                autoPlay.add(ctrl, o, offset);
+                mPartControllers.addAutoPlay(part, ctrl, o);
             else
                 dst->add(ctrl, o);
         });
