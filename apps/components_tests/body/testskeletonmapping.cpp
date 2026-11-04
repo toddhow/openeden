@@ -23,8 +23,6 @@ namespace
     using namespace Body;
     using namespace SkeletonFixtures;
 
-    constexpr double pi = 3.14159265358979323846;
-
     bool contains(const std::vector<std::string>& lines, const std::string& needle)
     {
         return std::any_of(lines.begin(), lines.end(),
@@ -752,7 +750,7 @@ namespace
         SkeletonMap map = extendedMap();
         map.mSource.mDigest = skeletonDigest(source);
         const std::vector<RestBone> actor = baseSkeleton();
-        const std::vector<RoleRestDifference> differences = compareRest(map, source, actor, nativeRoles());
+        const std::vector<RoleRestDifference> differences = compareRest(map, source, actor, nativeRoles()).mDifferences;
         const RoleRestDifference* hand = nullptr;
         const RoleRestDifference* head = nullptr;
         const RoleRestDifference* neck = nullptr;
@@ -787,7 +785,7 @@ namespace
     {
         const SkeletonMap map = extendedMap();
         const std::vector<RoleRestDifference> differences
-            = compareRest(map, extendedSkeleton(), baseSkeleton(), nativeRoles());
+            = compareRest(map, extendedSkeleton(), baseSkeleton(), nativeRoles()).mDifferences;
         ASSERT_FALSE(differences.empty());
         for (const RoleRestDifference& d : differences)
         {
@@ -834,7 +832,8 @@ namespace
         MapExtra spine = extra("Spine_Extra", MapAction::Fold);
         spine.mRule = FoldRule::NearestMappedAncestor;
         map.mExtra.push_back(spine);
-        const std::vector<RoleRestDifference> differences = compareRest(map, source, baseSkeleton(), nativeRoles());
+        const std::vector<RoleRestDifference> differences
+            = compareRest(map, source, baseSkeleton(), nativeRoles()).mDifferences;
         for (const RoleRestDifference& d : differences)
         {
             if (d.mRole == "Neck")
@@ -857,6 +856,7 @@ namespace
         EXPECT_TRUE(plan.mNeedsInverseBindCorrection);
         EXPECT_EQ(plan.mDifferences.size(), differences.size());
         EXPECT_FALSE(planRest(differences, 1.0).mNeedsInverseBindCorrection);
-        EXPECT_FALSE(planRest({}).mNeedsInverseBindCorrection);
+        // Review fix 7: an empty comparison is not a plan (it used to read as "proportions suffice").
+        EXPECT_FALSE(planRest(std::vector<RoleRestDifference>{}).mValid);
     }
 }

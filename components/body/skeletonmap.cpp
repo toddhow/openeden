@@ -40,7 +40,8 @@ namespace Body
         // itself and its "suggested" object. The values are generous, not tight: the semantic caps are the reader's and
         // the validator's.
         constexpr std::size_t sMaxObjectsInFile = 3 + 128 + 2 * SkeletonMapLimits::sMaxBones + 16;
-        constexpr std::size_t sMaxArraysInFile = 8 + 128 + 2; // role alias lists, the roles and extra lists
+        constexpr std::size_t sMaxArraysInFile
+            = 8 + 128 + 3; // role alias lists, the roles, missingRoles and extra lists
         // Commas: an extra entry has at most 12 members (11 commas) plus one separating comma; a role has up to 16
         // aliases.
         constexpr std::size_t sMaxCommasInFile
@@ -98,8 +99,49 @@ namespace Body
             return "";
         }
 
-        // ---- Pre-scan: size, nesting depth and the number of objects, arrays and values are checked on the text
-        // BEFORE any JSON value is built, so a hostile file cannot make the parser recurse or allocate.
+        // Appends the UTF-8 bytes of a code point (a lone surrogate keeps its three-byte form: it only has to compare
+        // equal to itself).
+        void appendUtf8(std::string& out, std::uint32_t cp)
+        {
+            if (cp < 0x80)
+            {
+                out += static_cast<char>(cp);
+            }
+            else if (cp < 0x800)
+            {
+                out += static_cast<char>(0xc0 | (cp >> 6));
+                out += static_cast<char>(0x80 | (cp & 0x3f));
+            }
+            else
+            {
+                out += static_cast<char>(0xe0 | (cp >> 12));
+                out += static_cast<char>(0x80 | ((cp >> 6) & 0x3f));
+                out += static_cast<char>(0x80 | (cp & 0x3f));
+            }
+        }
+
+        int hexValue(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return c - '0';
+            }
+            if (c >= 'a' && c <= 'f')
+            {
+                return c - 'a' + 10;
+            }
+            if (c >= 'A' && c <= 'F')
+            {
+                return c - 'A' + 10;
+            }
+            return -1;
+        }
+
+        // ---- Pre-scan: size, nesting depth, the number of objects, arrays and values, and keys that appear twice in
+        // one object are checked on the text BEFORE any JSON value is built, so a hostile file cannot make the parser
+        // recurse or allocate, and nlohmann cannot silently keep the last of two equal keys (review fix 12). A key's
+        // escapes are decoded (\uXXXX to UTF-8, a surrogate pair as two separate code units) so "accepted"
+        // equals "accepted"; malformed escapes are left to the parser, which refuses them.
         std::optional<LoadError> prescan(std::string_view text, std::string_view fileName)
         {
             if (text.size() > SkeletonMapLimits::sMaxFileBytes)
@@ -107,40 +149,94 @@ namespace Body
                 return LoadError{ std::string(fileName), 1, "",
                     "the file is larger than " + std::to_string(SkeletonMapLimits::sMaxFileBytes) + " bytes" };
             }
-            std::size_t depth = 0;
+            struct Level
+            {
+                bool mObject = false;
+                bool mExpectKey = false; // an object waiting for a key (after '{' or ',')
+                std::set<std::string> mKeys;
+            };
+            std::vector<Level> levels;
+            levels.reserve(SkeletonMapLimits::sMaxNesting + 1);
             std::size_t commas = 0;
             std::size_t arrays = 0;
             std::size_t objects = 0;
             std::size_t line = 1;
-            bool inString = false;
-            bool escaped = false;
-            for (const char c : text)
+            for (std::size_t i = 0; i < text.size(); ++i)
             {
+                const char c = text[i];
                 if (c == '\n')
                 {
                     ++line;
                 }
-                if (inString)
-                {
-                    if (escaped)
-                    {
-                        escaped = false;
-                    }
-                    else if (c == '\\')
-                    {
-                        escaped = true;
-                    }
-                    else if (c == '"')
-                    {
-                        inString = false;
-                    }
-                    continue;
-                }
                 if (c == '"')
                 {
-                    inString = true;
+                    const bool isKey = !levels.empty() && levels.back().mObject && levels.back().mExpectKey;
+                    std::string decoded;
+                    std::size_t j = i + 1;
+                    for (; j < text.size() && text[j] != '"'; ++j)
+                    {
+                        if (text[j] == '\n')
+                        {
+                            ++line;
+                        }
+                        if (text[j] != '\\' || j + 1 >= text.size())
+                        {
+                            decoded += text[j];
+                            continue;
+                        }
+                        const char e = text[++j];
+                        if (e == 'u' && j + 4 < text.size())
+                        {
+                            std::uint32_t cp = 0;
+                            bool ok = true;
+                            for (std::size_t k = 1; k <= 4; ++k)
+                            {
+                                const int h = hexValue(text[j + k]);
+                                ok = ok && h >= 0;
+                                cp = cp * 16 + static_cast<std::uint32_t>(h < 0 ? 0 : h);
+                            }
+                            if (ok)
+                            {
+                                appendUtf8(decoded, cp);
+                                j += 4;
+                                continue;
+                            }
+                        }
+                        switch (e)
+                        {
+                            case 'n':
+                                decoded += '\n';
+                                break;
+                            case 't':
+                                decoded += '\t';
+                                break;
+                            case 'r':
+                                decoded += '\r';
+                                break;
+                            case 'b':
+                                decoded += '\b';
+                                break;
+                            case 'f':
+                                decoded += '\f';
+                                break;
+                            default:
+                                decoded += e; // \" \\ \/ and anything the parser will refuse
+                                break;
+                        }
+                    }
+                    if (isKey)
+                    {
+                        levels.back().mExpectKey = false;
+                        if (!levels.back().mKeys.insert(decoded).second)
+                        {
+                            return LoadError{ std::string(fileName), line, "",
+                                "the key \"" + decoded.substr(0, 60) + "\" appears twice in one object" };
+                        }
+                    }
+                    i = j;
+                    continue;
                 }
-                else if (c == '[' || c == '{')
+                if (c == '[' || c == '{')
                 {
                     if (c == '[')
                     {
@@ -158,18 +254,21 @@ namespace Body
                     {
                         return LoadError{ std::string(fileName), line, "", "the file holds too many objects" };
                     }
-                    ++depth;
-                    if (depth > SkeletonMapLimits::sMaxNesting)
+                    if (levels.size() + 1 > SkeletonMapLimits::sMaxNesting)
                     {
                         return LoadError{ std::string(fileName), line, "",
                             "nesting is deeper than " + std::to_string(SkeletonMapLimits::sMaxNesting) + " levels" };
                     }
+                    Level level;
+                    level.mObject = c == '{';
+                    level.mExpectKey = c == '{';
+                    levels.push_back(std::move(level));
                 }
                 else if (c == ']' || c == '}')
                 {
-                    if (depth > 0)
+                    if (!levels.empty())
                     {
-                        --depth;
+                        levels.pop_back();
                     }
                 }
                 else if (c == ',')
@@ -178,6 +277,10 @@ namespace Body
                     if (commas > sMaxCommasInFile)
                     {
                         return LoadError{ std::string(fileName), line, "", "the file holds too many values" };
+                    }
+                    if (!levels.empty() && levels.back().mObject)
+                    {
+                        levels.back().mExpectKey = true;
                     }
                 }
             }
@@ -227,7 +330,8 @@ namespace Body
             bool readDocument(const Json& root, SkeletonMap& out)
             {
                 if (!readHeader(root, sFormatName,
-                        { "format", "version", "name", "source", "profile", "roles", "extra", "proportions" },
+                        { "format", "version", "name", "source", "profile", "roles", "missingRoles", "extra",
+                            "proportions" },
                         sNewestVersion))
                 {
                     return false;
@@ -256,6 +360,28 @@ namespace Body
                     if (!readRole((*roles)[i], at("/roles", i), out.mRoles[i]))
                     {
                         return false;
+                    }
+                }
+                const auto missing = root.find("missingRoles");
+                if (missing != root.end())
+                {
+                    if (!missing->is_array())
+                    {
+                        return fail(*missing, "/missingRoles", "must be an array");
+                    }
+                    if (missing->size() > canonicalRoles().size())
+                    {
+                        return fail(*missing, "/missingRoles",
+                            "has more than " + std::to_string(canonicalRoles().size()) + " entries");
+                    }
+                    out.mMissingRoles.resize(missing->size());
+                    for (std::size_t i = 0; i < missing->size(); ++i)
+                    {
+                        if (!readText((*missing)[i], at("/missingRoles", i), SkeletonMapLimits::sMaxNameBytes,
+                                out.mMissingRoles[i]))
+                        {
+                            return false;
+                        }
                     }
                 }
                 const Json* extras = listField(root, "extra", SkeletonMapLimits::sMaxBones);
@@ -305,6 +431,10 @@ namespace Body
                 if (hasControlCharacter(text))
                 {
                     return fail(value, pointer, "must not contain control characters");
+                }
+                if (!isWellFormedUtf8(text))
+                {
+                    return fail(value, pointer, "is not well-formed UTF-8");
                 }
                 out = text;
                 return true;
@@ -892,6 +1022,10 @@ namespace Body
             {
                 findings.error("BODY-MAP-016", pointer, "must not contain control characters");
             }
+            else if (!isWellFormedUtf8(text))
+            {
+                findings.error("BODY-MAP-016", pointer, "is not well-formed UTF-8");
+            }
         }
 
         bool forbidden(
@@ -982,6 +1116,85 @@ namespace Body
         return out;
     }
 
+    std::string engineBoneKey(std::string_view name)
+    {
+        // Misc::StringUtils::lowerCase: A to Z lower-cased through a table, every other byte unchanged.
+        std::string out(name);
+        for (char& c : out)
+        {
+            if (c >= 'A' && c <= 'Z')
+            {
+                c = static_cast<char>(c - 'A' + 'a');
+            }
+        }
+        return out;
+    }
+
+    bool isWellFormedUtf8(std::string_view text)
+    {
+        std::size_t i = 0;
+        while (i < text.size())
+        {
+            const auto lead = static_cast<unsigned char>(text[i]);
+            if (lead < 0x80)
+            {
+                ++i;
+                continue;
+            }
+            std::size_t extra = 0;
+            std::uint32_t cp = 0;
+            if (lead >= 0xc2 && lead <= 0xdf)
+            {
+                extra = 1;
+                cp = lead & 0x1fu;
+            }
+            else if (lead >= 0xe0 && lead <= 0xef)
+            {
+                extra = 2;
+                cp = lead & 0x0fu;
+            }
+            else if (lead >= 0xf0 && lead <= 0xf4)
+            {
+                extra = 3;
+                cp = lead & 0x07u;
+            }
+            else
+            {
+                return false; // a continuation byte, an overlong lead (C0, C1) or above U+10FFFF (F5 to FF)
+            }
+            if (text.size() - i <= extra)
+            {
+                return false; // cut off
+            }
+            for (std::size_t k = 1; k <= extra; ++k)
+            {
+                const auto next = static_cast<unsigned char>(text[i + k]);
+                if ((next & 0xc0u) != 0x80u)
+                {
+                    return false;
+                }
+                cp = (cp << 6) | (next & 0x3fu);
+            }
+            if ((extra == 2 && cp < 0x800) || (extra == 3 && (cp < 0x10000 || cp > 0x10ffff))
+                || (cp >= 0xd800 && cp <= 0xdfff))
+            {
+                return false; // overlong, out of range or a surrogate
+            }
+            i += extra + 1;
+        }
+        return true;
+    }
+
+    std::string skeletonMapDigest(const SkeletonMap& map)
+    {
+        const std::string text = writeSkeletonMap(map);
+        EdenArchive::Hasher hasher;
+        const std::string domain = "openeden.skeletonmap.map-digest.v1";
+        hasher.update(domain.data(), domain.size());
+        hasher.update(text.data(), text.size());
+        return EdenArchive::toHex(hasher.finalize());
+    }
+
     // ---- Public: the digest --------------------------------------------------------------------------------------
 
     std::string skeletonDigest(const std::vector<RestBone>& skeleton)
@@ -1003,6 +1216,13 @@ namespace Body
             out += field;
         };
         const auto putFloat = [&putUint32](std::string& out, double value) {
+            if (!std::isfinite(value) || std::abs(value) > static_cast<double>(std::numeric_limits<float>::max()))
+            {
+                // Never cast: a double beyond the float range is undefined behaviour to convert. A marker no finite
+                // float has (a quiet NaN pattern) keeps the digest defined; BODY-MAP-025 refuses such a skeleton.
+                putUint32(out, 0x7fc0beefu);
+                return;
+            }
             float f = static_cast<float>(value);
             if (f == 0.0f)
             {
@@ -1159,6 +1379,10 @@ namespace Body
             roles.mItems.push_back(std::move(entry));
         }
         add(root, "roles", std::move(roles));
+        if (!map.mMissingRoles.empty())
+        {
+            add(root, "missingRoles", flatStrings(map.mMissingRoles));
+        }
 
         Node extras = array();
         for (const MapExtra& e : map.mExtra)
@@ -1255,10 +1479,31 @@ namespace Body
             const RestBone& bone = skeleton[i];
             const std::string pointer = at("/skeleton", i);
             if (bone.mName.empty() || bone.mName.size() > SkeletonMapLimits::sMaxNameBytes
-                || hasControlCharacter(bone.mName))
+                || hasControlCharacter(bone.mName) || !isWellFormedUtf8(bone.mName))
             {
-                findings.error(
-                    "BODY-MAP-020", at(pointer, "name"), "must be 1 to 128 bytes without control characters");
+                findings.error("BODY-MAP-020", at(pointer, "name"),
+                    "must be 1 to 128 bytes of well-formed UTF-8 without control characters");
+            }
+            for (std::size_t k = 0; k < bone.mTranslation.size(); ++k)
+            {
+                const double v = bone.mTranslation[k];
+                if (!std::isfinite(v) || std::abs(v) > SkeletonMapLimits::sMaxRestTranslation)
+                {
+                    findings.error(
+                        "BODY-MAP-025", at(at(pointer, "translation"), k), "must be finite and at most 1e4 in size");
+                }
+            }
+            double lengthSquared = 0;
+            bool rotationFinite = true;
+            for (const double v : bone.mRotation)
+            {
+                rotationFinite = rotationFinite && std::isfinite(v) && std::abs(v) <= 2.0;
+                lengthSquared += rotationFinite ? v * v : 0.0;
+            }
+            if (!rotationFinite
+                || std::abs(std::sqrt(lengthSquared) - 1.0) > SkeletonMapLimits::sRestRotationLengthTolerance)
+            {
+                findings.error("BODY-MAP-025", at(pointer, "rotation"), "must be a finite unit quaternion");
             }
             if (!names.insert(bone.mName).second)
             {
@@ -1344,6 +1589,29 @@ namespace Body
         {
             findings.error("BODY-MAP-019", "/roles", "the map names no Pelvis role");
         }
+        // Every core role must be in the map (review fix 2): a missing one would leave its bone to a fold that freezes
+        // the joint. Pelvis already has its own rule.
+        for (const RoleInfo& info : canonicalRoles())
+        {
+            if (!info.mOptional && info.mName != "Pelvis" && roleNames.count(std::string(info.mName)) == 0)
+            {
+                findings.error("BODY-MAP-024", "/roles",
+                    "the core role " + std::string(info.mName) + " has no bone; find it and list it under roles");
+            }
+        }
+        for (std::size_t i = 0; i < map.mMissingRoles.size() && i < canonicalRoles().size(); ++i)
+        {
+            const std::string pointer = at("/missingRoles", i);
+            checkText(findings, pointer, map.mMissingRoles[i], SkeletonMapLimits::sMaxNameBytes, true);
+            if (findRole(map.mMissingRoles[i]) == nullptr)
+            {
+                findings.error(
+                    "BODY-MAP-001", pointer, "the role " + shown(map.mMissingRoles[i]) + " is not a canonical role");
+            }
+            findings.error("BODY-MAP-024", pointer,
+                "the suggestion found no bone for the role " + shown(map.mMissingRoles[i])
+                    + "; list it under roles and remove it here");
+        }
 
         // Every bone name of the map: role bones, then extras. A name used twice is 003, two that normalise equal 004.
         std::map<std::string, std::string> firstUse; // exact name -> pointer of the first use
@@ -1378,7 +1646,9 @@ namespace Body
             noteName(map.mExtra[i].mBone, at(at("/extra", i), "bone"));
         }
 
-        // Aliases: not a bone of the map, not listed twice (also across roles).
+        // Aliases: not a bone of the map, not listed twice (also across roles), exactly or after normalisation: the
+        // engine looks names up by engineBoneKey, so an alias "breast_l_01" next to an extra bone "Breast_L_01" would
+        // be one bone with two rules (review fix 1).
         std::set<std::string> seenAliases;
         for (std::size_t i = 0; i < map.mRoles.size() && i < SkeletonMapLimits::sMaxBones; ++i)
         {
@@ -1387,16 +1657,41 @@ namespace Body
             {
                 const std::string pointer = at(at(at("/roles", i), "aliases"), a);
                 checkText(findings, pointer, role.mAliases[a], SkeletonMapLimits::sMaxNameBytes, true);
-                if (firstUse.count(role.mAliases[a]) != 0)
+                const std::string normalised = normalisedBoneName(role.mAliases[a]);
+                if (firstUse.count(role.mAliases[a]) != 0 || firstNormalised.count(normalised) != 0)
                 {
-                    findings.error(
-                        "BODY-MAP-017", pointer, "the alias " + shown(role.mAliases[a]) + " is also a bone of the map");
+                    findings.error("BODY-MAP-017", pointer,
+                        "the alias " + shown(role.mAliases[a]) + " is also a bone of the map (or the same after "
+                            + "normalisation)");
                 }
-                if (!seenAliases.insert(role.mAliases[a]).second)
+                if (!seenAliases.insert(normalised).second)
                 {
-                    findings.error(
-                        "BODY-MAP-017", pointer, "the alias " + shown(role.mAliases[a]) + " is listed twice");
+                    findings.error("BODY-MAP-017", pointer,
+                        "the alias " + shown(role.mAliases[a]) + " is listed twice (or the same as another alias after "
+                            + "normalisation)");
                 }
+            }
+        }
+
+        // A bone named exactly like a canonical role it is not: parents and fold targets resolve role names first, so
+        // that bone cannot be named as one (review fix 10, a known limit of v1, warned about).
+        for (std::size_t i = 0; i < map.mRoles.size() && i < SkeletonMapLimits::sMaxBones; ++i)
+        {
+            const MapRole& role = map.mRoles[i];
+            if (findRole(role.mBone) != nullptr && role.mBone != role.mRole)
+            {
+                findings.warning("BODY-MAP-026", at(at("/roles", i), "bone"),
+                    "the bone " + shown(role.mBone) + " is named like the role " + shown(role.mBone)
+                        + "; a parent or fold target of that name means the role");
+            }
+        }
+        for (std::size_t i = 0; i < map.mExtra.size() && i < SkeletonMapLimits::sMaxBones; ++i)
+        {
+            if (findRole(map.mExtra[i].mBone) != nullptr)
+            {
+                findings.warning("BODY-MAP-026", at(at("/extra", i), "bone"),
+                    "the bone " + shown(map.mExtra[i].mBone)
+                        + " is named like a role; a parent or fold target of that name means the role, not this bone");
             }
         }
 
@@ -1638,14 +1933,20 @@ namespace Body
         // Against the source skeleton.
         if (source != nullptr)
         {
-            std::set<std::string> sourceNames;
+            // By engineBoneKey: the engine finds bones whatever their case (review fix 1).
+            std::map<std::string, std::string> sourceNames; // key -> the source's own spelling
             for (const RestBone& bone : *source)
             {
-                sourceNames.insert(bone.mName);
+                sourceNames.emplace(engineBoneKey(bone.mName), bone.mName);
+            }
+            std::set<std::string> usedKeys;
+            for (const auto& [name, pointer] : firstUse)
+            {
+                usedKeys.insert(engineBoneKey(name));
             }
             for (std::size_t i = 0; i < map.mRoles.size() && i < SkeletonMapLimits::sMaxBones; ++i)
             {
-                if (!map.mRoles[i].mBone.empty() && sourceNames.count(map.mRoles[i].mBone) == 0)
+                if (!map.mRoles[i].mBone.empty() && sourceNames.count(engineBoneKey(map.mRoles[i].mBone)) == 0)
                 {
                     findings.error("BODY-MAP-005", at(at("/roles", i), "bone"),
                         "the bone " + shown(map.mRoles[i].mBone) + " is not in the source skeleton");
@@ -1653,15 +1954,15 @@ namespace Body
             }
             for (std::size_t i = 0; i < map.mExtra.size() && i < SkeletonMapLimits::sMaxBones; ++i)
             {
-                if (!map.mExtra[i].mBone.empty() && sourceNames.count(map.mExtra[i].mBone) == 0)
+                if (!map.mExtra[i].mBone.empty() && sourceNames.count(engineBoneKey(map.mExtra[i].mBone)) == 0)
                 {
                     findings.error("BODY-MAP-005", at(at("/extra", i), "bone"),
                         "the bone " + shown(map.mExtra[i].mBone) + " is not in the source skeleton");
                 }
             }
-            for (const std::string& name : sourceNames)
+            for (const auto& [key, name] : sourceNames)
             {
-                if (firstUse.count(name) == 0)
+                if (usedKeys.count(key) == 0)
                 {
                     findings.error("BODY-MAP-006", "/extra",
                         "the source bone " + shown(name) + " is neither a role bone nor listed in extra");

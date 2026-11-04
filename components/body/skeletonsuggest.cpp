@@ -288,6 +288,7 @@ namespace Body
         struct BoneFacts
         {
             bool mHasWeight = false;
+            bool mWeightKnown = false; // false: no weight information at all (SuggestInput::mHasMasses)
             bool mHasChildren = false;
             bool mUnderHand = false; // an ancestor is a hand role bone
         };
@@ -357,7 +358,17 @@ namespace Body
             if (matchesAny(
                     tokens, { "ik", "helper", "dummy", "target", "pole", "marker", "null", "aim", "look", "handle" }))
             {
-                if (facts.mHasWeight)
+                if (!facts.mWeightKnown)
+                {
+                    // Review fix 5: a helper whose weight is unknown may still deform; a drop would discard its
+                    // weight unseen. A person decides.
+                    Vote ask;
+                    ask.mAction = MapAction::Ask;
+                    ask.mHeuristic = "name.helper.weight-unknown";
+                    ask.mConfidence = MapConfidence::Medium;
+                    votes.push_back(ask);
+                }
+                else if (facts.mHasWeight)
                 {
                     votes.push_back(foldVote("name.helper", MapConfidence::Medium));
                 }
@@ -546,7 +557,7 @@ namespace Body
             {
                 continue;
             }
-            std::vector<std::size_t> candidates;
+            std::vector<std::size_t> candidates; // in name order below, so the note does not follow the input order
             for (std::size_t i = 0; i < count; ++i)
             {
                 if (roleBones.count(i) == 0 && keyOfBone[i] == role)
@@ -560,6 +571,8 @@ namespace Body
             }
             else if (candidates.size() > 1)
             {
+                std::sort(candidates.begin(), candidates.end(),
+                    [&](std::size_t a, std::size_t b) { return skeleton[a].mName < skeleton[b].mName; });
                 std::string names;
                 for (const std::size_t c : candidates)
                 {
@@ -594,6 +607,16 @@ namespace Body
                 || entry.first.find("Pinky") != std::string::npos;
         });
         const bool headResolved = boneOfRole.count("Head") != 0;
+        // Review fix 2: the CORE roles with no bone go into the file, so a reviewer sees them (BODY-MAP-024 refuses the
+        // map until a person lists their bones); a missing optional role of the pack's table stays a note only.
+        for (const std::string& role : result.mMissingRoles)
+        {
+            if (findRole(role) != nullptr && !findRole(role)->mOptional)
+            {
+                result.mMap.mMissingRoles.push_back(role);
+            }
+        }
+        const bool coreRoleMissing = !result.mMap.mMissingRoles.empty();
 
         // ---- facts about each bone ----
         std::map<std::string, double> mass;
@@ -684,6 +707,7 @@ namespace Body
             BoneFacts facts;
             const auto massIt = mass.find(bone.mName);
             facts.mHasWeight = massIt != mass.end() && massIt->second >= sWeightMassThreshold;
+            facts.mWeightKnown = input.mHasMasses;
             facts.mHasChildren = hasChildren[index];
             for (int up = bone.mParent; up >= 0; up = skeleton[static_cast<std::size_t>(up)].mParent)
             {
@@ -710,7 +734,17 @@ namespace Body
             std::vector<Vote> votes = nameVotes(boneNameTokens(bone.mName), facts, fingerRolesExist, headResolved);
             if (votes.empty() && input.mHasMasses)
             {
-                if (facts.mHasWeight)
+                if (facts.mHasWeight && coreRoleMissing)
+                {
+                    // Review fix 2: with a core role unresolved, an unknown weighted bone may BE that role; a fold
+                    // would freeze its joint. A person decides (and the map lists the missing role).
+                    Vote ask;
+                    ask.mAction = MapAction::Ask;
+                    ask.mHeuristic = "weight.deform.core-role-missing";
+                    ask.mConfidence = MapConfidence::Medium;
+                    votes.push_back(ask);
+                }
+                else if (facts.mHasWeight)
                 {
                     votes.push_back(foldVote("weight.deform", MapConfidence::Medium));
                 }

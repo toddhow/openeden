@@ -11,9 +11,13 @@
 // name is split into lower-case tokens (camelCase, digits, ' ', '_', '.', '-', ':' and the contents of "[...]" are
 // separators; the noise tokens bip01, bip02, npc, cme, def, deform, jnt, bone, skel, b are dropped), a side token
 // (l, left / r, right) is read, and the remaining tokens are looked up in a small vocabulary (upperarm, forearm, hand,
-// thigh, calf and shin, foot, pelvis, spine with its digit, neck, head, clavicle, toe, the five fingers with their
-// joint digit, tail with its digit). Only a bone that matches ONE role is taken; two bones for one role leave the role
-// unresolved and are reported in mNotes.
+// thigh, calf and shin, foot, pelvis, spine with its digit, neck, head, clavicle, toe). Finger and tail roles are NOT
+// resolved by tokens (the vocabulary has no role entries for them): a pack's role table names them, and without one
+// finger bones get the name.finger fold and tail bones the name.tail secondary vote below. Only a bone that matches ONE
+// role is taken; two bones for one role leave the role unresolved and are reported in mNotes (the candidates in name
+// order). A CORE role with no bone is written to the map's "missingRoles" (BODY-MAP-024 refuses the map until a person
+// lists its bone), and while one is missing a weighted bone with no name vote is "ask", never a fold: it may be the
+// missing role (review fix 2).
 //
 // EXTRA BONES get votes. Each vote has an action, the details of the action, a heuristic id and a confidence:
 //   name.soft-tissue  (high)    breast, boob, bust: secondary breast; belly, stomach, tummy: secondary belly; butt,
@@ -31,9 +35,9 @@
 //   holster,
 //                               backpack, torch, camera, magic, anim, animobject: attach, with an attach point
 //   name.helper (medium)        ik, helper, dummy, target, pole, marker, null, aim, look, handle: drop when the bone
-//   has
-//                               no weight and no children, attach (point "node") when it has children but no weight,
-//                               fold to the nearest mapped ancestor when it carries weight
+//                               is KNOWN to carry no weight and has no children, attach (point "node") when it has
+//                               children but no weight, fold to the nearest mapped ancestor when it carries weight,
+//                               and "ask" when the weights are unknown (mHasMasses false; review fix 5)
 //   weight.deform (medium)      a bone with NO name vote that carries weight (mass at least sWeightMassThreshold): fold
 //   to
 //                               the nearest mapped ancestor, so what it deforms still moves with the body

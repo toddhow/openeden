@@ -288,44 +288,99 @@ namespace Body
         return multiply(multiply(inverseBind, sourceWorldRest), *back);
     }
 
+    // ---- Conversions between the conventions ---------------------------------------------------------------------
+
+    Mat34 toPlacement(const Mat4& matrix)
+    {
+        // Row-vector p' = p * M: p'[c] = sum_r p[r] * M[r][c] + M[3][c]. Column-vector v' = A v + t: A[c][r] = M[r][c].
+        const auto& m = matrix.m;
+        return { m[0], m[4], m[8], m[12], m[1], m[5], m[9], m[13], m[2], m[6], m[10], m[14] };
+    }
+
+    Mat4 fromPlacement(const Mat34& p)
+    {
+        Mat4 result;
+        result.m = { p[0], p[4], p[8], 0, p[1], p[5], p[9], 0, p[2], p[6], p[10], 0, p[3], p[7], p[11], 1 };
+        return result;
+    }
+
+    std::array<double, 16> toColumnMajor(const Mat4& matrix)
+    {
+        // The column-vector matrix is the transpose of the row-vector one; storing that transpose column by column
+        // gives back the row-vector matrix's row-major order.
+        return matrix.m;
+    }
+
     // ---- Rest differences ----------------------------------------------------------------------------------------
 
-    std::vector<RoleRestDifference> compareRest(const SkeletonMap& map, const std::vector<RestBone>& source,
+    RestComparison compareRest(const SkeletonMap& map, const std::vector<RestBone>& source,
         const std::vector<RestBone>& actor, const std::vector<RoleBinding>& actorRoles)
     {
+        RestComparison comparison;
+        // Fail closed (review fix 7): an invalid skeleton is an error, never "nothing differs".
+        for (const auto& [skeleton, label] :
+            { std::pair<const std::vector<RestBone>*, const char*>{ &source, "source" },
+                std::pair<const std::vector<RestBone>*, const char*>{ &actor, "actor" } })
+        {
+            for (const MapFinding& f : validateSourceSkeleton(*skeleton).mFindings)
+            {
+                if (f.mSeverity == MapSeverity::Error)
+                {
+                    comparison.mErrors.push_back(std::string("the ") + label + " skeleton: " + line(f));
+                }
+            }
+        }
+        if (!comparison.mErrors.empty())
+        {
+            return comparison;
+        }
         const std::vector<Mat4> sourceWorld = worldRestMatrices(source);
         const std::vector<Mat4> actorWorld = worldRestMatrices(actor);
         if (sourceWorld.size() != source.size() || actorWorld.size() != actor.size())
         {
-            return {};
+            comparison.mErrors.push_back("a skeleton's parents do not come before their children");
+            return comparison;
         }
         std::map<std::string, std::size_t> sourceIndex;
         for (std::size_t i = 0; i < source.size(); ++i)
         {
-            sourceIndex.emplace(source[i].mName, i);
+            sourceIndex.emplace(engineBoneKey(source[i].mName), i);
         }
         std::map<std::string, std::size_t> actorIndex;
         for (std::size_t i = 0; i < actor.size(); ++i)
         {
-            actorIndex.emplace(actor[i].mName, i);
+            actorIndex.emplace(engineBoneKey(actor[i].mName), i);
         }
         std::map<std::string, std::size_t> sourceOfRole;
         for (const MapRole& role : map.mRoles)
         {
-            if (const auto it = sourceIndex.find(role.mBone); it != sourceIndex.end())
+            if (const auto it = sourceIndex.find(engineBoneKey(role.mBone)); it != sourceIndex.end())
             {
                 sourceOfRole.emplace(role.mRole, it->second);
+            }
+            else
+            {
+                comparison.mErrors.push_back(
+                    "the role " + role.mRole + " names " + shown(role.mBone) + ", which the source skeleton lacks");
             }
         }
         std::map<std::string, std::size_t> actorOfRole;
         for (const RoleBinding& role : actorRoles)
         {
-            if (const auto it = actorIndex.find(role.mBone); it != actorIndex.end())
+            if (const auto it = actorIndex.find(engineBoneKey(role.mBone)); it != actorIndex.end())
             {
                 actorOfRole.emplace(role.mRole, it->second);
             }
+            else
+            {
+                comparison.mErrors.push_back(
+                    "the actor's role " + role.mRole + " names " + shown(role.mBone) + ", which the actor lacks");
+            }
         }
-        std::vector<RoleRestDifference> result;
+        if (!comparison.mErrors.empty())
+        {
+            return comparison;
+        }
         for (const RoleInfo& info : canonicalRoles())
         {
             const std::string role(info.mName);
@@ -333,12 +388,13 @@ namespace Body
             if (parent.empty() || sourceOfRole.count(role) == 0 || actorOfRole.count(role) == 0
                 || sourceOfRole.count(parent) == 0 || actorOfRole.count(parent) == 0)
             {
-                continue;
+                continue; // a role (or its parent) that the map or the actor does not list: optional, not compared
             }
             const std::optional<Mat4> sourceBack = inverse(sourceWorld[sourceOfRole[parent]]);
             const std::optional<Mat4> actorBack = inverse(actorWorld[actorOfRole[parent]]);
             if (!sourceBack || !actorBack)
             {
+                comparison.mErrors.push_back("the rest pose of the role " + parent + " is singular");
                 continue;
             }
             const Mat4 sourceLocal = multiply(sourceWorld[sourceOfRole[role]], *sourceBack);
@@ -352,18 +408,46 @@ namespace Body
             const double al = length(at);
             difference.mLengthRatio = (sl > 1e-12 && al > 1e-12) ? sl / al : 1.0;
             difference.mRotationAngle = rotationAngle(rotationOfMatrix(sourceLocal), rotationOfMatrix(actorLocal));
-            result.push_back(std::move(difference));
+            if (!std::isfinite(difference.mTranslationDelta) || !std::isfinite(difference.mLengthRatio)
+                || !std::isfinite(difference.mRotationAngle))
+            {
+                comparison.mErrors.push_back("the rest difference of the role " + role + " is not a number");
+                continue;
+            }
+            comparison.mDifferences.push_back(std::move(difference));
         }
-        return result;
+        if (comparison.mErrors.empty() && comparison.mDifferences.empty())
+        {
+            comparison.mErrors.push_back("no role could be compared (the map and the actor share no role pair)");
+        }
+        return comparison;
+    }
+
+    RestPlan planRest(const RestComparison& comparison, double rotationTolerance)
+    {
+        RestPlan plan = planRest(comparison.mDifferences, rotationTolerance);
+        if (!comparison.mErrors.empty())
+        {
+            plan.mValid = false;
+            plan.mErrors = comparison.mErrors;
+        }
+        return plan;
     }
 
     RestPlan planRest(const std::vector<RoleRestDifference>& differences, double rotationTolerance)
     {
         RestPlan plan;
         plan.mDifferences = differences;
+        if (differences.empty())
+        {
+            plan.mErrors.push_back("nothing was compared");
+            return plan;
+        }
+        plan.mValid = true;
         for (const RoleRestDifference& d : differences)
         {
-            if (d.mRotationAngle > rotationTolerance)
+            // !(a <= b) also catches a NaN: a value that is not a number never reads as "proportions suffice".
+            if (!(d.mRotationAngle <= rotationTolerance))
             {
                 plan.mNeedsInverseBindCorrection = true;
                 break;
@@ -422,24 +506,38 @@ namespace Body
         }
 
         const std::vector<Mat4> world = worldRestMatrices(source);
+        // Every lookup by name goes through engineBoneKey (review fix 1).
         std::map<std::string, std::size_t> sourceIndex;
         for (std::size_t i = 0; i < source.size(); ++i)
         {
-            sourceIndex.emplace(source[i].mName, i);
+            sourceIndex.emplace(engineBoneKey(source[i].mName), i);
         }
         std::map<std::string, const RoleBinding*> actorByRole;
+        std::map<std::string, std::string> actorRoleOfBoneKey; // key of an actor role bone -> its role
         for (const RoleBinding& role : actorRoles)
         {
             actorByRole.emplace(role.mRole, &role);
+            actorRoleOfBoneKey.emplace(engineBoneKey(role.mBone), role.mRole);
+        }
+        std::map<std::string, std::string> actorBoneByKey; // the actor's other bones (review fix 3)
+        for (const std::string& bone : options.mActorBones)
+        {
+            const std::string key = engineBoneKey(bone);
+            if (actorRoleOfBoneKey.count(key) == 0)
+            {
+                actorBoneByKey.emplace(key, bone);
+            }
         }
 
         SkeletonMapping mapping;
         mapping.mSourceDigest = working.mSource.mDigest;
+        mapping.mMapDigest = skeletonMapDigest(working);
 
-        // Role bones, in canonical role order.
+        // Role bones, in canonical role order. An optional role the actor lacks is folded below (review fix 9).
         std::map<std::string, std::uint32_t> targetOfRole;
-        std::map<std::string, std::uint32_t> targetOfSource; // role bone and secondary bone names
+        std::map<std::string, std::uint32_t> targetOfSource; // engineBoneKey of a role, actor or secondary bone
         std::map<std::string, std::string> sourceOfRole;
+        std::vector<const MapRole*> rolesTheActorLacks;
         for (const RoleInfo& info : canonicalRoles())
         {
             for (const MapRole& role : working.mRoles)
@@ -448,17 +546,24 @@ namespace Body
                 {
                     continue;
                 }
+                sourceOfRole[role.mRole] = role.mBone;
                 const auto actor = actorByRole.find(role.mRole);
                 if (actor == actorByRole.end())
                 {
-                    result.mErrors.push_back("the actor has no bone for the role " + role.mRole);
+                    if (info.mOptional)
+                    {
+                        rolesTheActorLacks.push_back(&role);
+                    }
+                    else
+                    {
+                        result.mErrors.push_back("the actor has no bone for the core role " + role.mRole);
+                    }
                     continue;
                 }
                 const auto index = static_cast<std::uint32_t>(mapping.mTargetBones.size());
                 mapping.mTargetBones.push_back(actor->second->mBone);
                 targetOfRole[role.mRole] = index;
-                targetOfSource[role.mBone] = index;
-                sourceOfRole[role.mRole] = role.mBone;
+                targetOfSource[engineBoneKey(role.mBone)] = index;
             }
         }
         if (!result.mErrors.empty())
@@ -467,22 +572,77 @@ namespace Body
         }
         mapping.mRoleBoneCount = mapping.mTargetBones.size();
 
-        // Virtual bones: secondary and attach entries, by (depth in the map's parent chains, name).
-        std::map<std::string, const MapExtra*> extraByBone;
+        // The nearest canonical ancestor role that has a target, for an optional role the actor lacks.
+        std::map<std::string, std::uint32_t> foldOfLackingRole;
+        std::map<std::string, std::string> foldRoleOfLackingRole; // the ancestor role it folds into
+        for (const MapRole* role : rolesTheActorLacks)
+        {
+            std::string up(findRole(role->mRole)->mParent);
+            std::size_t guard = 0;
+            while (!up.empty() && targetOfRole.count(up) == 0 && guard++ < canonicalRoles().size())
+            {
+                const RoleInfo* info = findRole(up);
+                up = info == nullptr ? std::string() : std::string(info->mParent);
+            }
+            if (up.empty() || targetOfRole.count(up) == 0)
+            {
+                result.mErrors.push_back("the actor has neither the role " + role->mRole + " nor an ancestor role");
+                continue;
+            }
+            foldOfLackingRole[role->mRole] = targetOfRole[up];
+            foldRoleOfLackingRole[role->mRole] = up;
+            result.mNotes.push_back("the actor has no " + role->mRole + " bone: " + shown(role->mBone)
+                + " folds into its canonical parent " + up + " (" + shown(mapping.mTargetBones[targetOfRole[up]])
+                + ")");
+        }
+        if (!result.mErrors.empty())
+        {
+            return result;
+        }
+
+        // Extra bones that ARE bones of the actor (review fix 3): a name of another role's bone is a refusal; any other
+        // actor bone becomes a target of its own (sorted by key, after the role bones) and the extra bone maps onto it.
+        std::map<std::string, const MapExtra*> extraByKey;
         for (const MapExtra& e : working.mExtra)
         {
-            extraByBone.emplace(e.mBone, &e);
+            extraByKey.emplace(engineBoneKey(e.mBone), &e);
         }
-        const auto isRoleName
-            = [&](const std::string& name) { return targetOfRole.count(name) != 0 || targetOfSource.count(name) != 0; };
-        std::map<std::string, std::size_t> depthOf;
+        std::map<std::string, std::uint32_t> actorTargetOfExtra; // key of an extra bone -> target index
+        for (const auto& [key, e] : extraByKey)
+        {
+            if (const auto role = actorRoleOfBoneKey.find(key); role != actorRoleOfBoneKey.end())
+            {
+                result.mErrors.push_back("the source bone " + shown(e->mBone) + " has the name of the actor's bone for "
+                    + "the role " + role->second + "; it can be neither that role nor a bone of its own");
+                continue;
+            }
+            if (const auto actor = actorBoneByKey.find(key); actor != actorBoneByKey.end())
+            {
+                const auto index = static_cast<std::uint32_t>(mapping.mTargetBones.size());
+                mapping.mTargetBones.push_back(actor->second);
+                actorTargetOfExtra[key] = index;
+                targetOfSource[key] = index;
+                result.mNotes.push_back("the actor has its own bone " + shown(actor->second) + ": the source bone "
+                    + shown(e->mBone) + " maps onto it (the map said " + toString(e->mAction) + ")");
+            }
+        }
+        if (!result.mErrors.empty())
+        {
+            return result;
+        }
+
+        // Virtual bones: secondary and attach entries the actor does not have, by (depth in the map's parent chains,
+        // name).
+        const auto isRoleName = [&](const std::string& name) {
+            return targetOfRole.count(name) != 0 || targetOfSource.count(engineBoneKey(name)) != 0;
+        };
         const auto depthFor = [&](const std::string& bone) {
             std::size_t depth = 0;
             std::string current = bone;
             for (std::size_t guard = 0; guard <= SkeletonMapLimits::sMaxDepth + 1; ++guard)
             {
-                const auto it = extraByBone.find(current);
-                if (it == extraByBone.end() || isRoleName(it->second->mParent))
+                const auto it = extraByKey.find(engineBoneKey(current));
+                if (it == extraByKey.end() || isRoleName(it->second->mParent))
                 {
                     return depth + 1;
                 }
@@ -491,10 +651,12 @@ namespace Body
             }
             return depth;
         };
+        std::map<std::string, std::size_t> depthOf;
         std::vector<const MapExtra*> virtuals;
         for (const MapExtra& e : working.mExtra)
         {
-            if (e.mAction == MapAction::Secondary || e.mAction == MapAction::Attach)
+            if ((e.mAction == MapAction::Secondary || e.mAction == MapAction::Attach)
+                && actorTargetOfExtra.count(engineBoneKey(e.mBone)) == 0)
             {
                 virtuals.push_back(&e);
                 depthOf[e.mBone] = depthFor(e.mBone);
@@ -511,16 +673,20 @@ namespace Body
         {
             const auto index = static_cast<std::uint32_t>(mapping.mTargetBones.size());
             mapping.mTargetBones.push_back(e->mBone);
-            targetOfSource[e->mBone] = index;
+            targetOfSource[engineBoneKey(e->mBone)] = index;
         }
 
-        // The target index of a role name, a role bone name or a secondary bone name; nullopt when none.
+        // The target index of a role name, a role bone, an actor bone or a secondary bone; nullopt when none.
         const auto resolveTarget = [&](const std::string& name) -> std::optional<std::uint32_t> {
             if (const auto role = targetOfRole.find(name); role != targetOfRole.end())
             {
                 return role->second;
             }
-            if (const auto bone = targetOfSource.find(name); bone != targetOfSource.end())
+            if (const auto lacking = foldOfLackingRole.find(name); lacking != foldOfLackingRole.end())
+            {
+                return lacking->second;
+            }
+            if (const auto bone = targetOfSource.find(engineBoneKey(name)); bone != targetOfSource.end())
             {
                 return bone->second;
             }
@@ -528,12 +694,15 @@ namespace Body
         };
         // The source bone a name stands for (for rest positions).
         const auto resolveSourceBone = [&](const std::string& name) -> std::optional<std::size_t> {
-            if (const auto role = sourceOfRole.find(name); role != sourceOfRole.end())
+            // A role the actor lacks stands for the role it folds into (its rest frame is that bone's).
+            const auto lacking = foldRoleOfLackingRole.find(name);
+            const std::string& roleName = lacking == foldRoleOfLackingRole.end() ? name : lacking->second;
+            if (const auto role = sourceOfRole.find(roleName); role != sourceOfRole.end())
             {
-                const auto it = sourceIndex.find(role->second);
+                const auto it = sourceIndex.find(engineBoneKey(role->second));
                 return it == sourceIndex.end() ? std::nullopt : std::optional<std::size_t>(it->second);
             }
-            const auto it = sourceIndex.find(name);
+            const auto it = sourceIndex.find(engineBoneKey(name));
             return it == sourceIndex.end() ? std::nullopt : std::optional<std::size_t>(it->second);
         };
 
@@ -543,7 +712,7 @@ namespace Body
             bone.mName = e->mBone;
             const auto parent = resolveTarget(e->mParent);
             const auto parentSource = resolveSourceBone(e->mParent);
-            const auto self = sourceIndex.find(e->mBone);
+            const auto self = sourceIndex.find(engineBoneKey(e->mBone));
             if (!parent || !parentSource || self == sourceIndex.end())
             {
                 result.mErrors.push_back(
@@ -571,18 +740,19 @@ namespace Body
             return result;
         }
 
-        // The nearest ancestor of a source bone that is a role bone or a secondary bone, as a target index.
+        // The nearest ancestor of a source bone that is a role bone, an actor bone or a secondary bone.
         const auto nearestMapped = [&](std::size_t index) -> std::optional<std::uint32_t> {
             for (int up = source[index].mParent; up >= 0; up = source[static_cast<std::size_t>(up)].mParent)
             {
-                const std::string& name = source[static_cast<std::size_t>(up)].mName;
-                const auto role = targetOfSource.find(name);
-                if (role != targetOfSource.end())
+                const std::string key = engineBoneKey(source[static_cast<std::size_t>(up)].mName);
+                const auto target = targetOfSource.find(key);
+                if (target != targetOfSource.end())
                 {
-                    const auto extra = extraByBone.find(name);
-                    if (extra == extraByBone.end() || extra->second->mAction == MapAction::Secondary)
+                    const auto extra = extraByKey.find(key);
+                    if (extra == extraByKey.end() || extra->second->mAction == MapAction::Secondary
+                        || actorTargetOfExtra.count(key) != 0)
                     {
-                        return role->second;
+                        return target->second;
                     }
                 }
             }
@@ -594,7 +764,14 @@ namespace Body
         {
             RemapEntry entry;
             entry.mKind = RemapEntry::Kind::Direct;
-            entry.mTarget = targetOfRole[role.mRole];
+            if (const auto lacking = foldOfLackingRole.find(role.mRole); lacking != foldOfLackingRole.end())
+            {
+                entry.mTarget = lacking->second;
+            }
+            else
+            {
+                entry.mTarget = targetOfRole[role.mRole];
+            }
             mapping.mRules.push_back({ role.mBone, entry });
             for (const std::string& alias : role.mAliases)
             {
@@ -603,18 +780,26 @@ namespace Body
         }
         for (const MapExtra& e : working.mExtra)
         {
-            const auto self = sourceIndex.find(e.mBone);
+            const std::string key = engineBoneKey(e.mBone);
+            const auto self = sourceIndex.find(key);
             if (self == sourceIndex.end())
             {
                 continue;
             }
             RemapEntry entry;
+            if (const auto actor = actorTargetOfExtra.find(key); actor != actorTargetOfExtra.end())
+            {
+                entry.mKind = RemapEntry::Kind::Direct;
+                entry.mTarget = actor->second;
+                mapping.mRules.push_back({ e.mBone, entry });
+                continue;
+            }
             switch (e.mAction)
             {
                 case MapAction::Secondary:
                 case MapAction::Attach:
                     entry.mKind = RemapEntry::Kind::Direct;
-                    entry.mTarget = targetOfSource[e.mBone];
+                    entry.mTarget = targetOfSource[key];
                     break;
                 case MapAction::Drop:
                 {
@@ -664,6 +849,12 @@ namespace Body
                         const std::array<double, 3> here = transformPoint({ 0, 0, 0 }, world[self->second]);
                         const double d1 = distance(here, transformPoint({ 0, 0, 0 }, world[*firstSource]));
                         const double d2 = distance(here, transformPoint({ 0, 0, 0 }, world[*secondSource]));
+                        if (!std::isfinite(d1) || !std::isfinite(d2))
+                        {
+                            // Review fix 6: never let a NaN fraction reach the weights (and their sort).
+                            result.mErrors.push_back("the rest distances of " + shown(e.mBone) + " are not finite");
+                            continue;
+                        }
                         entry.mKind = RemapEntry::Kind::Split;
                         entry.mTarget = *first;
                         entry.mTarget2 = *second;
@@ -682,7 +873,9 @@ namespace Body
         }
         std::sort(mapping.mRules.begin(), mapping.mRules.end(),
             [](const SkeletonMapping::SourceRule& a, const SkeletonMapping::SourceRule& b) {
-                return a.mBone < b.mBone;
+                const std::string ka = engineBoneKey(a.mBone);
+                const std::string kb = engineBoneKey(b.mBone);
+                return ka != kb ? ka < kb : a.mBone < b.mBone;
             });
 
         result.mAcceptedMap = std::move(working);
@@ -712,9 +905,11 @@ namespace Body
         table.mEntries.reserve(skinBones.size());
         for (const std::string& name : skinBones)
         {
-            const auto it = std::lower_bound(mRules.begin(), mRules.end(), name,
-                [](const SourceRule& rule, const std::string& key) { return rule.mBone < key; });
-            if (it == mRules.end() || it->mBone != name)
+            // By engineBoneKey, as Anim::Skin binds a skin bone (review fix 1).
+            const std::string key = engineBoneKey(name);
+            const auto it = std::lower_bound(mRules.begin(), mRules.end(), key,
+                [](const SourceRule& rule, const std::string& k) { return engineBoneKey(rule.mBone) < k; });
+            if (it == mRules.end() || engineBoneKey(it->mBone) != key)
             {
                 result.mErrors.push_back("the skin bone " + shown(name) + " has no rule in the map");
                 continue;
@@ -732,7 +927,8 @@ namespace Body
     {
         WeightList raw;
         raw.reserve(influences.size() * 2);
-        std::map<std::uint32_t, double> droppedByFallback;
+        // The dropped weight per fallback target, a short list (a vertex has a handful of influences).
+        WeightList droppedByFallback;
         for (const auto& [bone, weight] : influences)
         {
             if (bone >= table.mEntries.size() || !std::isfinite(weight) || !(weight > 0.0f))
@@ -751,19 +947,31 @@ namespace Body
                     raw.emplace_back(entry.mTarget2, w * (1.0 - entry.mFraction));
                     break;
                 case RemapEntry::Kind::Dropped:
-                    droppedByFallback[entry.mFallback] += w;
+                {
+                    const auto found = std::find_if(droppedByFallback.begin(), droppedByFallback.end(),
+                        [&](const auto& item) { return item.first == entry.mFallback; });
+                    if (found == droppedByFallback.end())
+                    {
+                        droppedByFallback.emplace_back(entry.mFallback, w);
+                    }
+                    else
+                    {
+                        found->second += w;
+                    }
                     break;
+                }
             }
         }
         WeightList weights = normalisedWeights(std::move(raw));
         if (weights.empty() && !droppedByFallback.empty())
         {
-            // Nothing is left: the heaviest dropped bone's fallback takes the vertex (ties: the lower index).
-            std::uint32_t best = droppedByFallback.begin()->first;
-            double bestWeight = droppedByFallback.begin()->second;
+            // Nothing is left: the fallback target that received the most dropped weight takes the vertex (ties: the
+            // lower target index).
+            std::uint32_t best = droppedByFallback.front().first;
+            double bestWeight = droppedByFallback.front().second;
             for (const auto& [target, w] : droppedByFallback)
             {
-                if (w > bestWeight)
+                if (w > bestWeight || (w == bestWeight && target < best))
                 {
                     best = target;
                     bestWeight = w;

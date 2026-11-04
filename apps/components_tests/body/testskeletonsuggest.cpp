@@ -463,7 +463,7 @@ namespace
         EXPECT_EQ(accepted.mAccepted, 0u);
         EXPECT_EQ(accepted.mRemainingAsks, 1u);
         const MapReport report = validateSkeletonMap(result.mMap, &skeleton);
-        EXPECT_TRUE(report.count("BODY-MAP-008") > 0 || report.count("BODY-MAP-007") > 0);
+        EXPECT_GT(report.count("BODY-MAP-008"), 0u); // an "ask" entry is 008 (review: 007 alone was accepted too)
         EXPECT_FALSE(findExtra(result.mMap, "Butt_Breast")->mAccepted);
     }
 
@@ -504,6 +504,7 @@ namespace
             const SuggestResult result = suggestSkeletonMap(inputFor(shuffled, masses));
             EXPECT_EQ(writeSkeletonMap(result.mMap), expectedText);
             EXPECT_EQ(result.mMissingRoles, expected.mMissingRoles);
+            EXPECT_EQ(result.mNotes, expected.mNotes); // review: the notes must not follow the input order either
         }
     }
 

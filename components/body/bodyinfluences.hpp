@@ -7,7 +7,8 @@
 //
 // The rules, unchanged from the merger's:
 //   normalisedWeights: sorts by bone index, adds the weights of equal bones, drops weights that are not above zero and
-//     divides by the sum (in double) so the result sums to 1. An empty or all-zero input gives an empty result.
+//     divides by the sum (in double) so the result sums to 1. An empty or all-zero input gives an empty result. The
+//     input must hold finite, non-negative weights (see the function).
 //   cutToFourWeights: the four largest weights (a tie goes to the LOWER bone index), renormalised to sum 1 in double,
 //     largest first, rounded to float once. Unused entries are bone 0 with weight 0.
 // Pure functions, no state, no allocation beyond the vectors they return.
@@ -33,6 +34,9 @@ namespace Body
     };
 
     /// Adds duplicates, drops zeros and normalises to sum 1. Sorted by bone index.
+    /// PRECONDITION: every weight is finite and not negative (both callers filter: bodymerge.cpp and remapVertex).
+    /// A negative weight breaks the "sums to 1" promise (0.5 on one bone and -0.25 on another gives 2.0), and a NaN
+    /// would reach the sort, which then has no strict weak order (review fix 6).
     WeightList normalisedWeights(WeightList raw);
 
     /// The four largest (ties by lower bone index), renormalised to sum 1, largest first.
