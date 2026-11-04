@@ -29,6 +29,11 @@ namespace MWRender
         bool accurateAiming = false;
         // Externally set true when important animations are currently playing on the upper body.
         bool busy = false;
+
+    protected:
+        // Task 0074f: builds no record or skeleton, so that a test can reach setViewMode (it sets `animation`
+        // itself). Never used by the game.
+        Player(const MWAnim::Context& mwctx, TestSetup);
     };
 }
 

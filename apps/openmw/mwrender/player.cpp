@@ -29,6 +29,12 @@ namespace MWRender
         replaceOptions(mFirstPersonContext.nodeOptions);
     }
 
+    Player::Player(const MWAnim::Context& mwctx, TestSetup setup)
+        : Npc(mwctx, setup)
+    {
+        mFirstPersonContext = mContext;
+    }
+
     Player::~Player() {}
 
     void Player::update(float dt)
@@ -57,13 +63,11 @@ namespace MWRender
     {
         if (mViewMode == m)
             return;
-        mViewMode = m;
-        if (m == ViewMode::FirstPerson)
-            mPartContext = &mFirstPersonContext;
-        else
-            mPartContext = &mContext;
+        // Task 0074f (finding 2 of the review of 0074e): the view mode and the part context are the player's only once
+        // the rebuild's files are read (applyBasePlan); set here first, a read that threw left the player in the new
+        // view with the old Play, and a repeated setViewMode(m) returned at once.
         // mAmmunition.reset();
-        rebuild();
+        rebuild(m, m == ViewMode::FirstPerson ? &mFirstPersonContext : &mContext);
         assignBones();
     }
 

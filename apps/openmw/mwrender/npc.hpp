@@ -181,11 +181,26 @@ namespace MWRender
             std::string mHeadModel;
             std::string mHairModel;
             bool mDefaultSkeleton = false;
+            // Task 0074f (finding 2 of the review of 0074e): what the plan was made for, committed by applyBasePlan
+            // once every read has succeeded (unset: the actor keeps its own).
+            std::optional<NpcType> mNpcType;
+            std::optional<ViewMode> mViewMode;
+            const MWAnim::Context* mPartContext = nullptr;
         };
-        BasePlan makeBasePlan();
-        // Reads every file of `plan` into locals, and only then removes the parts and gives the actor its new
-        // skeleton and animations: a read that throws leaves the actor exactly as it was, the old animation, its
-        // bones and every pointer to them still valid.
+        // The plan for an actor of type getNpcType() in `view`, whose parts are read with `partContext`. Virtual for
+        // the tests only (they hand in a plan of their own: a real one needs the ESM store).
+        virtual BasePlan makeBasePlan(ViewMode view, const MWAnim::Context* partContext);
+        BasePlan makeBasePlan() { return makeBasePlan(mViewMode, mPartContext); }
+        // Rebuilds for `view` and `partContext` (Player::setViewMode): they become the actor's only if the plan's reads
+        // succeed. rebuild() is the same for the current ones.
+        void rebuild(ViewMode view, const MWAnim::Context* partContext);
+        // Gives the CharacterController the actor's new animation (MechanicsManager::forceStateUpdate). Virtual for the
+        // tests only: the manager needs the running game.
+        virtual void refreshController();
+        // Reads every file of `plan` into locals, and only then removes the parts, commits the plan's type, view and
+        // part context and gives the actor its new skeleton and animations: a read that throws leaves the actor as it
+        // was: the old animation, its bones and every pointer to them still valid, and the same type, view mode and
+        // part context, so that the next updateParts (or the same setViewMode) tries again.
         void applyBasePlan(const BasePlan& plan);
         // The constructor's base: applyBasePlan, then the parts. A rebuild goes through runRebuild.
         void updateNpcBase();
@@ -209,7 +224,8 @@ namespace MWRender
             refresh();
         }
 
-        NpcType getNpcType() const;
+        // Virtual for the tests only (a test actor has no record to ask).
+        virtual NpcType getNpcType() const;
 
         // Reads the part's model and attaches it. False when the model could not be read (a std::exception from the
         // read is logged and caught, as OpenMW 0.51 does per part; task 0074e, finding 7); true otherwise.

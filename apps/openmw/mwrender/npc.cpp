@@ -165,18 +165,26 @@ namespace MWRender
 
     void Npc::rebuild()
     {
+        rebuild(mViewMode, mPartContext);
+    }
+
+    void Npc::rebuild(ViewMode view, const MWAnim::Context* partContext)
+    {
         // Task 0074e (finding 1 of the review of 0074d): runRebuild reads everything first, so that a read that throws
         // leaves the actor as it was, and gives the CharacterController the new animation on every way out.
         runRebuild(
-            makeBasePlan(),
+            makeBasePlan(view, partContext),
             [this] {
                 updateCarriedLeftVisible();
                 updateParts();
             },
-            [this] {
-                // vsgopenmw-fixme(dependency-policy)
-                MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
-            });
+            [this] { refreshController(); });
+    }
+
+    void Npc::refreshController()
+    {
+        // vsgopenmw-fixme(dependency-policy)
+        MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
     }
 
     int Npc::getSlot(const std::vector<const vsg::Node*>& path) const
@@ -268,7 +276,7 @@ namespace MWRender
         return result;
     }
 
-    Npc::BasePlan Npc::makeBasePlan()
+    Npc::BasePlan Npc::makeBasePlan(ViewMode view, const MWAnim::Context* partContext)
     {
         BasePlan plan;
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
@@ -282,7 +290,7 @@ namespace MWRender
         plan.mHeadModel = getHeadModel(isWerewolf, isVampire, isFemale, mNpc->mRace, mNpc->mHead, bodyPartStore);
         plan.mHairModel = getHairModel(isWerewolf, mNpc->mHair, bodyPartStore);
 
-        bool is1stPerson = mViewMode == ViewMode::FirstPerson;
+        bool is1stPerson = view == ViewMode::FirstPerson;
         bool isBeast = (race->mData.mFlags & ESM::Race::Beast) != 0;
 
         AnimationSources animSources
@@ -299,6 +307,9 @@ namespace MWRender
         if (!plan.mDefaultSkeleton && MergedBodies::enabled())
             Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().toString() << " uses the skeleton '"
                              << smodel << "', not its race's default '" << defaultSkeleton << "'";
+        plan.mNpcType = curType;
+        plan.mViewMode = view;
+        plan.mPartContext = partContext;
         plan.mSkeleton = smodel;
         plan.mAnimations = std::move(animSources.sources);
         if (Settings::game().mWeaponSheathing || Settings::game().mShieldSheathing)
@@ -316,8 +327,8 @@ namespace MWRender
         // (vsgUtil::readNode and vsg::read_cast read through vsgAdapters::vfs, whose VFS::Manager::get can throw on
         // an Eden Archive entry that fails its check or on an I/O error), and the actor's CharacterController,
         // Actor::mHead, mSpine and mRoot, the Player's neck and the pose and IK bone pointers all point into
-        // `animation` and into its bones, which only forceStateUpdate and assignBones refresh. Until the swap below
-        // the actor is as it was.
+        // `animation` and into its bones, which only forceStateUpdate and assignBones refresh. Until the commit below
+        // the actor is as it was (its animation and bones, and since 0074f its type, view mode and part context).
         Misc::LoadTrace::Scope traceSkel("npc.readactor");
         vsg::ref_ptr<const vsg::Node> skeleton = mContext.readActor(plan.mSkeleton);
         traceSkel.end();
@@ -329,7 +340,17 @@ namespace MWRender
         const std::vector<vsg::ref_ptr<Anim::ControllerMap>> animations = mContext.readAnimations(plan.mAnimations);
         traceAnims.end();
 
-        // Nothing below reads a file or throws.
+        // Nothing below reads a file or throws. Task 0074f (finding 2 of the review of 0074e): the type, view mode and
+        // part context the plan was made for are the actor's from here on, and not before: set earlier (updateParts
+        // and Player::setViewMode did), a read that threw left the werewolf or vampire with its human base for good
+        // (the next updateParts saw no change) and the player in a view whose Play was never built (a repeated
+        // setViewMode returned at once).
+        if (plan.mNpcType)
+            mNpcType = *plan.mNpcType;
+        if (plan.mViewMode)
+            mViewMode = *plan.mViewMode;
+        if (plan.mPartContext)
+            mPartContext = plan.mPartContext;
         removeAllParts();
         mHeadModel = plan.mHeadModel;
         mHairModel = plan.mHairModel;
@@ -385,7 +406,8 @@ namespace MWRender
         NpcType curType = getNpcType();
         if (curType != mNpcType)
         {
-            mNpcType = curType;
+            // Task 0074f (finding 2): not mNpcType = curType here: the rebuild's plan carries the type, and the actor
+            // takes it once the plan's files are read. A rebuild that throws is tried again at the next updateParts.
             rebuild();
             return;
         }
