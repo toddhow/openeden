@@ -262,7 +262,7 @@ namespace Render
         }
     }
 
-    void FrameCapture::finish()
+    void FrameCapture::finish(std::string_view why)
     {
         auto [done, dropped] = mState->queue.finish();
         mSwitch->children.clear();
@@ -270,7 +270,7 @@ namespace Render
             deliver(item);
         for (Item& item : dropped)
         {
-            Log(Debug::Info) << "Screenshot not taken: the frame loop ended first";
+            Log(Debug::Info) << "Screenshot not taken: " << why;
             fail(item);
         }
     }

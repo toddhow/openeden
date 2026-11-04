@@ -647,27 +647,59 @@ namespace Render
     {
         if (!mHosted || !mScreenshotCapture)
             return {};
-        vsg::ref_ptr<Screenshot> copied;
-        mScreenshotCapture->request([&copied](vsg::ref_ptr<Screenshot> screenshot) { copied = screenshot; });
-        // vsgQt::Viewer::render without its request count, and with the copy armed between the image's acquisition
-        // and the recording. handleEvents too: advanceToNextFrame drops the events of the frame before.
-        if (mViewer->advanceToNextFrame())
+        // The callback holds a share of the slot (round four, finding 1): if the frame throws after the copy was armed,
+        // nothing may write to a local of this function afterwards. The recovery below also ends every capture, so no
+        // armed item outlives the call.
+        ResultSlot<vsg::ref_ptr<Screenshot>> copied;
+        mScreenshotCapture->request(copied.sink());
+        std::string_view endedBecause = "the frame loop ended first";
+        try
         {
-            mViewer->handleEvents();
-            mViewer->update();
+            // vsgQt::Viewer::render without its request count, and with the copy armed between the image's acquisition
+            // and the recording. handleEvents too: advanceToNextFrame drops the events of the frame before.
+            if (mViewer->advanceToNextFrame())
+            {
+                mViewer->handleEvents();
+                mViewer->update();
+                for (auto& capture : mFrameCaptures)
+                    capture->beforeRecord(*mWindow, getPresentLayout());
+                mViewer->recordAndSubmit();
+                mViewer->present();
+            }
+            else
+            {
+                Log(Debug::Warning) << "Screenshot skipped: the viewer had no frame to draw (advanceToNextFrame "
+                                       "returned false)";
+                endedBecause = "the viewer had no frame to draw";
+            }
+        }
+        catch (const vsg::Exception& e)
+        {
+            Log(Debug::Warning) << "Screenshot skipped: the frame failed: " << e.message << " VkResult " << e.result;
+            endedBecause = "the frame failed";
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Warning) << "Screenshot skipped: the frame failed: " << e.what();
+            endedBecause = "the frame failed";
+        }
+        // No frame is in flight after this, so the copy is finished (or never will be). A failure to wait leaves
+        // nothing safe to read: the copies are then dropped, not delivered.
+        try
+        {
+            mViewer->deviceWaitIdle();
             for (auto& capture : mFrameCaptures)
-                capture->beforeRecord(*mWindow, getPresentLayout());
-            mViewer->recordAndSubmit();
-            mViewer->present();
+                capture->afterRecord(*mViewer);
         }
-        // No frame is in flight after this, so the copy is finished (or never will be).
-        mViewer->deviceWaitIdle();
-        for (auto& capture : mFrameCaptures)
+        catch (const vsg::Exception& e)
         {
-            capture->afterRecord(*mViewer);
-            capture->finish();
+            Log(Debug::Warning) << "Screenshot skipped: waiting for the device failed: " << e.message << " VkResult "
+                                << e.result;
+            return {};
         }
-        return copied;
+        for (auto& capture : mFrameCaptures)
+            capture->finish(endedBecause);
+        return copied.take();
     }
 
     size_t Engine::numFrames() const

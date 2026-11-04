@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <thread>
 #include <utility>
@@ -386,6 +388,63 @@ namespace
         EXPECT_EQ(dropped[0], 3);
         EXPECT_EQ(queue.inFlight(), 0u);
         EXPECT_FALSE(queue.waiting());
+    }
+
+    // Round four, finding 1: Engine::drawFrameAndCapture's callback wrote into a local of the function by reference. If
+    // the frame threw after the copy was armed, the function returned with the armed item still in the queue, and the
+    // next frame that finished it called the callback with its owner's stack slot gone. The callback now comes from a
+    // ResultSlot, which it shares; the queue itself is unchanged (an item armed and not recorded stays in it).
+
+    TEST(RenderResultSlot, the_sink_stores_what_it_is_given_and_take_empties_the_slot)
+    {
+        Render::ResultSlot<int> slot;
+        EXPECT_EQ(slot.take(), 0) << "nothing was given";
+        slot.sink()(42);
+        EXPECT_EQ(slot.take(), 42);
+        EXPECT_EQ(slot.take(), 0);
+    }
+
+    TEST(RenderResultSlot, a_sink_outlives_its_slot)
+    {
+        auto slot = std::make_unique<Render::ResultSlot<std::shared_ptr<int>>>();
+        const auto sink = slot->sink();
+        slot.reset();
+        auto value = std::make_shared<int>(5);
+        sink(value); // writes into storage the sink keeps alive, not into the gone slot
+        EXPECT_EQ(value.use_count(), 2) << "the sink holds what it was given";
+    }
+
+    TEST(RenderCaptureQueue, an_armed_item_whose_asker_has_gone_is_finished_by_a_later_frame_without_harm)
+    {
+        using Callback = std::function<void(int)>;
+        Render::CaptureQueue<Callback> queue(sMaxWait);
+        FakeRing ring;
+        std::optional<Render::ResultSlot<int>> slot(std::in_place);
+        queue.request(slot->sink());
+        const auto decision = queue.decide(true, sWindow);
+        ASSERT_TRUE(decision.has_value());
+        ASSERT_EQ(*decision, ArmDecision::Arm);
+        queue.armed(queue.takeWaiting());
+        // The frame throws here: the asker returns, its slot is gone, and no afterRecord ran for the armed item.
+        slot.reset();
+        // A later frame records and finishes it.
+        const int frame = ring.record();
+        ring.finish(frame);
+        auto collected = queue.afterRecord(ring.fenceOf());
+        ASSERT_EQ(collected.done.size(), 1u);
+        collected.done[0](7); // must not touch the asker's storage
+        EXPECT_EQ(queue.inFlight(), 0u);
+    }
+
+    TEST(RenderCaptureQueue, an_item_armed_but_never_recorded_is_dropped_by_finish_not_delivered)
+    {
+        Queue queue(sMaxWait);
+        queue.request(9);
+        armIfWaiting(queue);
+        auto [done, dropped] = queue.finish();
+        EXPECT_TRUE(done.empty());
+        ASSERT_EQ(dropped.size(), 1u);
+        EXPECT_EQ(dropped[0], 9);
     }
 
     // The barrier masks of the sync modes (downloadSyncMasks; third review round). The reason is in download.cpp: a

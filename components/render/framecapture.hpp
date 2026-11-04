@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -228,6 +229,41 @@ namespace Render
         std::deque<Entry> mInFlight;
     };
 
+    /*
+     * A value that a callback hands back to the code that asked for it, where the callback can outlive that code
+     * (OpenEden, 2026-11-04, round four, finding 1). The callback holds a share of the value, so it stays valid after
+     * the asker has returned: Engine::drawFrameAndCapture used to capture a local by reference, and if the frame threw
+     * after the copy was armed, the armed item stayed in the CaptureQueue with a callback that wrote to a dead stack
+     * slot when a later frame finished it. Main thread only.
+     */
+    template <class T>
+    class ResultSlot
+    {
+    public:
+        ResultSlot()
+            : mValue(std::make_shared<T>())
+        {
+        }
+
+        // The callback to give to the queue: stores its argument. Valid for as long as it exists, whatever happens to
+        // this slot.
+        std::function<void(T)> sink() const
+        {
+            return [value = mValue](T result) { *value = std::move(result); };
+        }
+
+        // What the sink received (a default T when it was never called), and empties the slot.
+        T take()
+        {
+            T result = std::move(*mValue);
+            *mValue = T{};
+            return result;
+        }
+
+    private:
+        std::shared_ptr<T> mValue;
+    };
+
     enum class DownloadSync;
 
     /*
@@ -264,8 +300,9 @@ namespace Render
         void beforeRecord(vsg::Window& window, VkImageLayout presentLayout);
         // After recordAndSubmit: empties the switch, and hands every finished copy to its done.
         void afterRecord(vsg::Viewer& viewer);
-        // After the loop's last deviceWaitIdle: every copy in flight is finished; a request still waiting fails.
-        void finish();
+        // After the loop's last deviceWaitIdle: every copy in flight is finished; a request still waiting, or armed but
+        // never recorded, fails, and why (logged with it) says what ended the capture.
+        void finish(std::string_view why = "the frame loop ended first");
 
     private:
         // The queue and its items, in framecapture.cpp: an item holds a Screenshot, which screenshot.hpp defines
