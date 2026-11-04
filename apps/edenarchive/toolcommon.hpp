@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -107,18 +108,40 @@ namespace EdenTools
     }
 
     /// One line per entry in entry order: "<size> <content hash> <path>" or "<size> <hash> key:<16 hex digits>".
-    inline void listPack(const EdenArchive::Archive& pack)
+    /// With `provenance`, each line also ends with " prov <tool id> <64 hex source digest> <parameter bytes in hex, or
+    /// ->", or " prov none" for an entry without a record.
+    inline void listPack(const EdenArchive::Archive& pack, bool provenance = false)
     {
         for (std::size_t i = 0; i < pack.entryCount(); ++i)
         {
             const EdenArchive::EntryInfo entry = pack.entry(i);
             const std::string hash = EdenArchive::toHex(entry.mContentHash);
             if (entry.mHasPath)
-                std::printf("%llu %s %.*s\n", static_cast<unsigned long long>(entry.mSize), hash.c_str(),
+                std::printf("%llu %s %.*s", static_cast<unsigned long long>(entry.mSize), hash.c_str(),
                     static_cast<int>(entry.mPath.size()), entry.mPath.data());
             else
-                std::printf("%llu %s key:%016llx\n", static_cast<unsigned long long>(entry.mSize), hash.c_str(),
+                std::printf("%llu %s key:%016llx", static_cast<unsigned long long>(entry.mSize), hash.c_str(),
                     static_cast<unsigned long long>(entry.mKey));
+            if (provenance)
+            {
+                const std::optional<EdenArchive::ProvenanceInfo> record = pack.provenance(i);
+                if (!record)
+                    std::printf(" prov none");
+                else
+                {
+                    std::string parameters;
+                    for (const std::uint8_t byte : record->mParameters)
+                    {
+                        constexpr char digits[] = "0123456789abcdef";
+                        parameters += digits[byte >> 4];
+                        parameters += digits[byte & 15];
+                    }
+                    std::printf(" prov %.*s %s %s", static_cast<int>(record->mToolId.size()), record->mToolId.data(),
+                        EdenArchive::toHex(record->mSourceDigest).c_str(),
+                        parameters.empty() ? "-" : parameters.c_str());
+                }
+            }
+            std::printf("\n");
         }
     }
 }
