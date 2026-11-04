@@ -166,11 +166,12 @@ namespace MWRender
         std::vector<vsg::Node*> mMergedBody;
         std::vector<int> mMergedSlots;
         bool mDefaultSkeleton = false; // the actor uses its race's default skeleton, the one the bake placed parts on
-        // Decided once per actor (review finding 8): an actor first built with equipment over a merged slot, or one
-        // that put such equipment on later, keeps the stock parts for the rest of its life, so that dressing and
-        // undressing never swaps the whole body back and forth.
+        // At most one swap each way per actor (review finding 8): an actor first built dressed draws the stock parts
+        // and may take the merged body once undressed; an actor that has drawn the merged body and then puts
+        // equipment over a merged slot keeps the stock parts for the rest of its life, so dressing and undressing
+        // never swaps the whole body back and forth.
         bool mMergedRetired = false;
-        bool mMergedLogged = false; // the "draws the merged body" line was written for this actor
+        bool mMergedDrawn = false; // the actor has drawn the merged body (and its log line was written)
     };
 
 }

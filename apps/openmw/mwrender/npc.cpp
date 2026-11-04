@@ -512,7 +512,9 @@ namespace MWRender
             owned[i] = mPartslots[i] >= 0 ? std::max(1, mPartPriorities[i]) : 0;
         if (Body::mergedSlotsCovered(result.mSlots, owned))
         {
-            mMergedRetired = true;
+            // Only an actor that has drawn the merged body retires: one first built dressed (the player at the start
+            // of a game, most NPCs) may still take it once undressed.
+            mMergedRetired = mMergedDrawn;
             return false;
         }
 
@@ -539,9 +541,9 @@ namespace MWRender
         decorated.link(ctx, [this](const Anim::Controller* ctrl, vsg::Object* o) { mStaticControllers.add(ctrl, o); });
         mMergedBody = path;
         mMergedSlots = result.mSlots;
-        if (!mMergedLogged)
+        if (!mMergedDrawn)
         {
-            mMergedLogged = true;
+            mMergedDrawn = true;
             Log(Debug::Info) << "Merged bodies: " << mPtr.getCellRef().getRefId().getRefIdString()
                              << " draws the merged body";
         }
