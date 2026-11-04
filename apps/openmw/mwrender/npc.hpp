@@ -144,8 +144,18 @@ namespace MWRender
         void attachPart(ESM::PartReferenceType type, int group, const std::string& mesh,
             std::optional<vsg::vec4> glowColor, const ESM::Light* light);
         void detachPart(ESM::PartReferenceType type) override;
-        // A worn item's parts as the equipment pass sees them (getBodyPart for this sex and view); marks skin models.
-        std::vector<PartSlots::WornPart> wornParts(const std::vector<ESM::PartReference>& parts) const;
+        // Marks a worn skin part's model just before it asks for its slot (task 0027; stage e second review, finding
+        // 10: where the code before PartSlots marked it).
+        void beforeWornPart(ESM::PartReferenceType type, const ESM::BodyPart& bodyPart) override;
+        // A worn item's parts as the equipment pass sees them (getBodyPart for this sex and view), appended to `out`.
+        void wornParts(const std::vector<ESM::PartReference>& parts, std::vector<PartSlots::WornPart>& out) const;
+        // The equipment pass's list of one item's parts, kept between updates so that an update allocates none
+        // (second review, finding 11).
+        std::vector<PartSlots::WornPart> mWornParts;
+        // Second review, finding 2: OPENEDEN_PARTSLOTS_TRACE (npc.cpp), decided once in the constructor: how this
+        // actor's lines name it (record id, reference number, view), empty when not traced.
+        std::string mPartSlotsTraced;
+        void tracePartSlots() const;
         void addWeapon();
         void addCarriedLeft();
         void addAmmo();

@@ -259,4 +259,79 @@ namespace
         EXPECT_EQ(visibleIndexRanges(draws[0].mRuns, hidden), (std::vector<IndexRange>{ { 0, 3 }, { 9, 3 } }));
         EXPECT_EQ(visibleIndexRanges(draws[1].mRuns, hidden), (std::vector<IndexRange>{ { 0, 6 } }));
     }
+
+    // Task 0069 stage e, second review (finding 1): which skins of an actor's copy restart their previous-frame
+    // matrices after a region change. Written before drawsDrawnAgain and linksOfDraws, run red against stubs.
+
+    using Indices = std::vector<std::size_t>;
+
+    TEST(MergedBodyRestart, a_draw_hidden_before_and_drawn_now_is_drawn_again)
+    {
+        EXPECT_EQ(drawsDrawnAgain({ false, true, false, true }, { true, true, false, false }), (Indices{ 0 }));
+        EXPECT_EQ(drawsDrawnAgain({ false, false, false }, { true, false, true }), (Indices{ 0, 2 }));
+    }
+
+    TEST(MergedBodyRestart, drawn_to_drawn_hidden_to_hidden_and_drawn_to_hidden_are_not)
+    {
+        EXPECT_TRUE(drawsDrawnAgain({ true, false, true }, { true, false, false }).empty());
+        EXPECT_TRUE(drawsDrawnAgain({ true, true }, { true, true }).empty());
+    }
+
+    TEST(MergedBodyRestart, the_first_application_to_a_new_copy_draws_nothing_again)
+    {
+        // A new copy: nothing was applied before (its skins have never run, so they start without motion anyway).
+        EXPECT_TRUE(drawsDrawnAgain({}, { true, true, true }).empty());
+        EXPECT_TRUE(drawsDrawnAgain({}, {}).empty());
+    }
+
+    TEST(MergedBodyRestart, only_indices_both_lists_have_count)
+    {
+        EXPECT_EQ(drawsDrawnAgain({ false, false }, { true, true, true, true }), (Indices{ 0, 1 }));
+        EXPECT_EQ(drawsDrawnAgain({ false, false, false, false }, { false, true }), (Indices{ 1 }));
+    }
+
+    TEST(MergedBodyRestart, links_are_matched_to_draws_by_identity_not_position)
+    {
+        int matrices[3];
+        int other;
+        const std::vector<const void*> draws{ &matrices[0], &matrices[1], &matrices[2] };
+        // The copy's links: a controller that is not a skin (null), then the skins of draws 2, 0 and 1.
+        const std::vector<const void*> links{ nullptr, &matrices[2], &other, &matrices[0], &matrices[1] };
+        EXPECT_EQ(linksOfDraws(Indices{ 0 }, draws, links), (Indices{ 3 }));
+        EXPECT_EQ(linksOfDraws(Indices{ 2 }, draws, links), (Indices{ 1 }));
+        EXPECT_EQ(linksOfDraws(Indices{ 0, 1, 2 }, draws, links), (Indices{ 1, 3, 4 }));
+        EXPECT_TRUE(linksOfDraws(Indices{}, draws, links).empty());
+    }
+
+    TEST(MergedBodyRestart, a_null_target_matches_nothing_and_a_bad_draw_index_is_ignored)
+    {
+        int matrices;
+        // Draw 0 has no bone matrices: the null link must not match it.
+        const std::vector<const void*> draws{ nullptr, &matrices };
+        const std::vector<const void*> links{ nullptr, &matrices };
+        EXPECT_TRUE(linksOfDraws(Indices{ 0 }, draws, links).empty());
+        EXPECT_EQ(linksOfDraws(Indices{ 1, 7 }, draws, links), (Indices{ 1 }));
+    }
+
+    TEST(MergedBodyRestart, every_link_of_a_draw_drawn_again_is_named_once)
+    {
+        int matrices[2];
+        const std::vector<const void*> draws{ &matrices[0], &matrices[1] };
+        // Two links on draw 1's matrices (not made by the engine, but both must restart), and a draw listed twice.
+        const std::vector<const void*> links{ &matrices[1], &matrices[0], &matrices[1] };
+        EXPECT_EQ(linksOfDraws(Indices{ 1, 1 }, draws, links), (Indices{ 0, 2 }));
+    }
+
+    TEST(MergedBodyRestart, a_gauntlet_taken_off_restarts_the_hand_skin_only)
+    {
+        // Three draws as a copy has them (body, hands, feet); gauntlets hid the hands entirely, boots the feet partly.
+        int body;
+        int hands;
+        int feet;
+        const std::vector<const void*> draws{ &body, &hands, &feet };
+        const std::vector<const void*> links{ &feet, &body, &hands };
+        const Indices again = drawsDrawnAgain({ true, false, true }, { true, true, true });
+        EXPECT_EQ(again, (Indices{ 1 }));
+        EXPECT_EQ(linksOfDraws(again, draws, links), (Indices{ 2 }));
+    }
 }

@@ -105,6 +105,7 @@ namespace MWRender
             {
                 if (part.mBodyPart != nullptr)
                 {
+                    nodes.beforeWornPart(part.mPart, *part.mBodyPart);
                     if (take(part.mPart, slot.mInventorySlot, priority, nodes))
                         attach(part.mPart, *part.mBodyPart);
                 }

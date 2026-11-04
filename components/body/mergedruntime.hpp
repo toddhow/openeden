@@ -114,6 +114,19 @@ namespace Body
     /// remains.
     std::vector<IndexRange> visibleIndexRanges(std::span<const SlotRun> runs, std::span<const int> hiddenSlots);
 
+    /// Task 0069 stage e, second review (finding 1): the draws of an actor's copy that are drawn again after a region
+    /// change, ascending: hidden before (`drawnBefore[i]` false) and drawn now (`drawnNow[i]` true). Their skins were
+    /// left out while hidden, so their previous-frame matrices are old. Only indices both lists have count: a draw past
+    /// the end of `drawnBefore` (the first application to a new copy, whose skins have never run) is not drawn again.
+    std::vector<std::size_t> drawsDrawnAgain(const std::vector<bool>& drawnBefore, const std::vector<bool>& drawnNow);
+
+    /// The links whose target is the bone matrices of one of `draws` (indices into `drawTargets`), ascending indices
+    /// into `linkTargets`. Matched by identity, never by position: the copy's links come in the order its controllers
+    /// were linked, the draws in the order of the copy's children. A null target matches nothing on either side, and a
+    /// draw index past `drawTargets` is ignored. The engine restarts the previous-frame matrices of these skins.
+    std::vector<std::size_t> linksOfDraws(std::span<const std::size_t> draws, std::span<const void* const> drawTargets,
+        std::span<const void* const> linkTargets);
+
     /// One draw per submesh, in submesh order. Empty when a submesh points outside the triangles or a triangle
     /// outside the vertices (the payload reader refuses such bodies; this is the second line).
     std::vector<MergedDraw> planMergedDraws(const MergedBody& body);

@@ -439,4 +439,144 @@ namespace
                 return;
         }
     }
+
+    // Task 0069 stage e, second review (finding 8).
+
+    const PartSlots::EquipmentSlot& equipmentSlot(int inventorySlot)
+    {
+        for (const PartSlots::EquipmentSlot& slot : PartSlots::equipmentSlots())
+        {
+            if (slot.mInventorySlot == inventorySlot)
+                return slot;
+        }
+        throw std::runtime_error("no equipment slot " + std::to_string(inventorySlot));
+    }
+
+    TEST(PartSlots, anything_worn_in_the_helmet_slot_takes_the_hair_away)
+    {
+        // npc.cpp before PartSlots (6151cceb4b^, Npc::updateParts): after the helmet slot's group is removed and only
+        // when something is worn there, removeIndividualPart(ESM::PRT_Hair).
+        const PartSlots::Attach ignore = [](ESM::PartReferenceType, const ESM::BodyPart&) {};
+        for (const Worn worn : { Worn::Armor, Worn::Clothing, Worn::Other })
+        {
+            PartSlots slots;
+            FakeNodes nodes;
+            ASSERT_TRUE(slots.take(ESM::PRT_Hair, -1, 1, nodes));
+            nodes.mDetached.clear();
+            slots.wear(equipmentSlot(Inv::Slot_Helmet), Worn::Nothing, {}, nodes, ignore);
+            EXPECT_EQ(slots.priority(ESM::PRT_Hair), 1); // nothing worn: the hair stays
+            EXPECT_TRUE(nodes.mDetached.empty());
+            const std::vector<PartSlots::WornPart> parts
+                = worn == Worn::Other ? std::vector<PartSlots::WornPart>{} : item("helmet").mParts;
+            slots.wear(equipmentSlot(Inv::Slot_Helmet), worn, parts, nodes, ignore);
+            EXPECT_EQ(slots.priority(ESM::PRT_Hair), 0) << static_cast<int>(worn);
+            EXPECT_EQ(slots.group(ESM::PRT_Hair), -1) << static_cast<int>(worn);
+            ASSERT_FALSE(nodes.mDetached.empty());
+            EXPECT_EQ(nodes.mDetached.front(), ESM::PRT_Hair) << static_cast<int>(worn);
+        }
+        // No other slot touches the hair.
+        PartSlots slots;
+        FakeNodes nodes;
+        ASSERT_TRUE(slots.take(ESM::PRT_Hair, -1, 1, nodes));
+        for (const Item& entry : catalogue())
+        {
+            if (entry.mInventorySlot != Inv::Slot_Helmet)
+                slots.wear(equipmentSlot(entry.mInventorySlot), entry.mWorn, entry.mParts, nodes, ignore);
+        }
+        EXPECT_EQ(slots.priority(ESM::PRT_Hair), 1);
+    }
+
+    TEST(PartSlots, every_single_outfit_of_the_catalogue_hides_as_stock)
+    {
+        // Every outfit the catalogue makes (per inventory slot nothing or one of its items: 3 * 2 * 2 * 3 * 2 * 2 * 3 *
+        // 3 * 3 * 2 * 2 * 2 * 2 * 2 = 124,416), on a new actor and on one that drew the stock parts first. Sequences
+        // of outfits are sampled by random_outfit_sequences_hide_as_stock.
+        std::vector<std::pair<int, std::vector<const Item*>>> bySlot;
+        for (const Item& entry : catalogue())
+        {
+            auto found = std::find_if(
+                bySlot.begin(), bySlot.end(), [&](const auto& slot) { return slot.first == entry.mInventorySlot; });
+            if (found == bySlot.end())
+            {
+                bySlot.push_back({ entry.mInventorySlot, {} });
+                found = bySlot.end() - 1;
+            }
+            found->second.push_back(&entry);
+        }
+        std::vector<std::size_t> choice(bySlot.size(), 0); // 0: nothing, n: the slot's item n - 1
+        std::size_t outfits = 0;
+        while (true)
+        {
+            Outfit worn;
+            for (std::size_t i = 0; i < bySlot.size(); ++i)
+            {
+                if (choice[i] > 0)
+                    worn[bySlot[i].first] = bySlot[i].second[choice[i] - 1];
+            }
+            ++outfits;
+            expectSameAsStock({ worn });
+            expectSameAsStock({ worn, worn }, true);
+            if (::testing::Test::HasFailure())
+            {
+                ADD_FAILURE() << "outfit " << outfits;
+                return;
+            }
+            std::size_t digit = 0;
+            while (digit < choice.size() && ++choice[digit] > bySlot[digit].second.size())
+                choice[digit++] = 0;
+            if (digit == choice.size())
+                break;
+        }
+        EXPECT_EQ(outfits, 124416u);
+    }
+
+    // Task 0069 stage e, second review (finding 10): what the nodes see, in order, so the skin mark can be placed where
+    // the code before PartSlots placed it.
+    struct RecordingNodes final : PartSlots::Nodes
+    {
+        std::vector<std::string> mEvents;
+
+        void detachPart(ESM::PartReferenceType part) override { mEvents.push_back("detach " + std::to_string(part)); }
+
+        void beforeWornPart(ESM::PartReferenceType part, const ESM::BodyPart& /*bodyPart*/) override
+        {
+            mEvents.push_back("mark " + std::to_string(part));
+        }
+    };
+
+    std::string event(const char* what, ESM::PartReferenceType part)
+    {
+        return std::string(what) + " " + std::to_string(part);
+    }
+
+    TEST(PartSlots, a_worn_part_is_announced_just_before_it_asks_for_its_slot)
+    {
+        // npc.cpp before PartSlots (6151cceb4b^, Npc::addPartGroup): for each part with a body part, markSkinModel and
+        // then addOrReplaceIndividualPart, whose priority test may refuse it; a part without one only reserves. All
+        // after the slot's group was removed and the helmet took the hair.
+        PartSlots slots;
+        RecordingNodes nodes;
+        const PartSlots::Attach attach = [&](ESM::PartReferenceType part, const ESM::BodyPart&) {
+            nodes.mEvents.push_back(event("attach", part));
+        };
+        ASSERT_TRUE(slots.take(ESM::PRT_Hair, -1, 1, nodes));
+        nodes.mEvents.clear();
+        slots.wear(equipmentSlot(Inv::Slot_Helmet), Worn::Armor, item("helmet").mParts, nodes, attach);
+        EXPECT_EQ(nodes.mEvents,
+            (std::vector<std::string>{ event("detach", ESM::PRT_Hair), event("mark", ESM::PRT_Head),
+                event("detach", ESM::PRT_Head), event("attach", ESM::PRT_Head) }));
+
+        // A robe (24) holds the chest and the groin: the cuirass's parts are announced and refused.
+        slots.wear(equipmentSlot(Inv::Slot_Robe), Worn::Clothing, item("robe").mParts, nodes, attach);
+        nodes.mEvents.clear();
+        slots.wear(equipmentSlot(Inv::Slot_Cuirass), Worn::Armor, item("cuirass").mParts, nodes, attach);
+        EXPECT_EQ(nodes.mEvents,
+            (std::vector<std::string>{ event("mark", ESM::PRT_Cuirass), event("mark", ESM::PRT_Groin) }));
+
+        // A part without a body part only reserves its slot: nothing to announce.
+        nodes.mEvents.clear();
+        slots.wear(equipmentSlot(Inv::Slot_RightGauntlet), Worn::Clothing, item("right glove without part").mParts,
+            nodes, attach);
+        EXPECT_EQ(nodes.mEvents, (std::vector<std::string>{ event("detach", ESM::PRT_RHand) }));
+    }
 }

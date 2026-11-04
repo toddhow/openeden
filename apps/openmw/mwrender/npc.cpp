@@ -1,6 +1,9 @@
 #include "npc.hpp"
 
 #include <algorithm>
+#include <cstdlib>
+#include <sstream>
+#include <string_view>
 
 #include <components/animation/context.hpp>
 #include <components/animation/controllermap.hpp>
@@ -65,6 +68,20 @@ namespace MWRender
             if (auto& table = MWBase::Environment::get().getResourceSystem()->materialTable)
                 table->markSubsurfaceModel(model);
         }
+
+        // Task 0069 stage e, second review (finding 2): OPENEDEN_PARTSLOTS_TRACE set to anything but empty or 0 logs,
+        // for every NPC, a "PARTSLOTS <record id> <reference number> v<view>" line for each part node it attaches
+        // (with the model) and detaches (with whether a node was there), and after each updateParts the group and
+        // priority of all its part slots: a developer trace to compare the part bookkeeping of two builds line by
+        // line. Read once.
+        bool partSlotsTraceOn()
+        {
+            static const bool on = [] {
+                const char* value = std::getenv("OPENEDEN_PARTSLOTS_TRACE");
+                return value != nullptr && *value != '\0' && std::string_view(value) != "0";
+            }();
+            return on;
+        }
     }
 
     Npc::Npc(const MWAnim::Context& mwctx, const MWWorld::Ptr& ptr, ViewMode viewMode)
@@ -77,6 +94,12 @@ namespace MWRender
         mNpc = mPtr.get<ESM::NPC>()->mBase;
         if (autoPlayTraced(mNpc->mId.toString(), mNpc->mName))
             mAutoPlayTraced = mNpc->mId.toString();
+        if (partSlotsTraceOn())
+        {
+            const ESM::RefNum refNum = mPtr.getCellRef().getRefNum();
+            mPartSlotsTraced = mNpc->mId.toString() + " " + std::to_string(refNum.mIndex) + ":"
+                + std::to_string(refNum.mContentFile) + " v" + std::to_string(static_cast<int>(mViewMode));
+        }
 
         mFace = std::make_unique<MWAnim::Face>();
 
@@ -322,16 +345,37 @@ namespace MWRender
         soundsToPlay.clear();
         // Task 0074b, finding 6: what stays (parts, the merged body) is linked again on every way out of the update,
         // also when it throws.
-        mPartControllers.runUpdate([this] { updatePartNodes(); }, [this] { relinkKeptControllers(); });
+        mPartControllers.runUpdate(
+            [this] {
+                // Task 0069 stage e, second review (finding 5): the node work and the relinking timed apart.
+                Misc::LoadTrace::Scope traceNodes("npc.partnodes");
+                updatePartNodes();
+            },
+            [this] { relinkKeptControllers(); });
+        if (!mPartSlotsTraced.empty())
+            tracePartSlots();
+    }
+
+    void Npc::tracePartSlots() const
+    {
+        std::ostringstream line;
+        line << "PARTSLOTS " << mPartSlotsTraced << " slots";
+        for (int part = 0; part < ESM::PRT_Count; ++part)
+            line << ' ' << mSlots.groups()[part] << ':' << mSlots.priorities()[part];
+        Log(Debug::Info) << line.str();
     }
 
     void Npc::relinkKeptControllers()
     {
+        Misc::LoadTrace::Scope traceRelink("npc.relink");
         // Task 0074: the parts that stayed (body parts, head, hair) get back the controllers clearControllers dropped.
         relinkSurvivingParts();
         // Task 0069 stage e review: the merged body's copy, kept or new (attachMergedBody recorded its controllers).
         if (mMergedNode)
+        {
+            Misc::LoadTrace::Scope traceMerged("npc.mergedbody.relink");
             relinkMergedBody();
+        }
     }
 
     void Npc::updatePartNodes()
@@ -340,33 +384,42 @@ namespace MWRender
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
         traceInv.end();
         // The equipment pass (task 0069 stage e review: its slot list, priorities and reservations are PartSlots').
+        // Second review, finding 11: one Attach for the whole pass, holding two pointers (inside the small buffer of
+        // every standard library's std::function), and one list of worn parts kept between updates.
+        struct WornSlot
+        {
+            int mInventorySlot = 0;
+            std::optional<vsg::vec4> mGlowColor;
+        } current;
+        const PartSlots::Attach attach = [this, &current](ESM::PartReferenceType part, const ESM::BodyPart& bodyPart) {
+            attachPart(part, current.mInventorySlot, bodyPart.mModel, current.mGlowColor, nullptr);
+        };
         for (const PartSlots::EquipmentSlot& slot : PartSlots::equipmentSlots())
         {
             if (mViewMode == ViewMode::HeadOnly)
                 break;
             auto store = inv.getSlot(slot.mInventorySlot);
             PartSlots::Worn worn = PartSlots::Worn::Nothing;
-            std::vector<PartSlots::WornPart> parts;
-            std::optional<vsg::vec4> glowColor;
+            mWornParts.clear();
+            current.mInventorySlot = slot.mInventorySlot;
+            current.mGlowColor.reset();
             if (store != inv.end())
             {
-                glowColor = getGlowColor(*store);
+                current.mGlowColor = getGlowColor(*store);
                 if (store->getType() == ESM::Clothing::sRecordId)
                 {
                     worn = PartSlots::Worn::Clothing;
-                    parts = wornParts(store->get<ESM::Clothing>()->mBase->mParts.mParts);
+                    wornParts(store->get<ESM::Clothing>()->mBase->mParts.mParts, mWornParts);
                 }
                 else if (store->getType() == ESM::Armor::sRecordId)
                 {
                     worn = PartSlots::Worn::Armor;
-                    parts = wornParts(store->get<ESM::Armor>()->mBase->mParts.mParts);
+                    wornParts(store->get<ESM::Armor>()->mBase->mParts.mParts, mWornParts);
                 }
                 else
                     worn = PartSlots::Worn::Other;
             }
-            mSlots.wear(slot, worn, parts, *this, [&](ESM::PartReferenceType part, const ESM::BodyPart& bodyPart) {
-                attachPart(part, slot.mInventorySlot, bodyPart.mModel, glowColor, nullptr);
-            });
+            mSlots.wear(slot, worn, mWornParts, *this, attach);
         }
 
         if (mViewMode != ViewMode::FirstPerson)
@@ -406,6 +459,9 @@ namespace MWRender
     void Npc::insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
         std::optional<vsg::vec4> glowColor, const ESM::Light* light)
     {
+        if (!mPartSlotsTraced.empty())
+            Log(Debug::Info) << "PARTSLOTS " << mPartSlotsTraced << " attach " << static_cast<int>(type) << ' '
+                             << model;
         Misc::LoadTrace::Scope traceRead("npc.part.read");
         auto node = vsgUtil::readNode(model, mPartContext->partBoneOptions[type]);
         traceRead.end();
@@ -464,6 +520,8 @@ namespace MWRender
             return false;
         }
 
+        // Second review, finding 5: the decision and the template lookup timed on their own (up to the hidden set).
+        Misc::LoadTrace::Scope traceDecide("npc.mergedbody.decide");
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         const ESM::Race* race = store.get<ESM::Race>().search(mNpc->mRace);
         if (race == nullptr)
@@ -501,6 +559,7 @@ namespace MWRender
         // Stage e: the regions that equipment or a reservation covers are left out of this actor's draws, by the stock
         // parts' own rule (a slot's body part is not drawn while an inventory group holds the slot).
         const std::vector<int> hidden = Body::hiddenMergedSlots(result.mSlots, mSlots.groups(), mSlots.priorities());
+        traceDecide.end();
 
         // Review finding 2: the actor's copy stays while its template does (an equipment change, a torch at dusk);
         // only its regions change, when the hidden set does. Its skins keep their matrices, so the motion of the first
@@ -593,16 +652,36 @@ namespace MWRender
         change.mRemoved.clear();
         // Review finding 5: a draw that is drawn again had its skin left out (finding 3); its previous matrices are
         // those of when it was hidden, so its first frame would show that whole motion. It restarts without motion.
-        for (std::size_t i = 0; i < change.mDrawn.size() && i < mMergedRegions.mDrawn.size(); ++i)
+        // Second review, finding 1: which draws and which skins is Body::drawsDrawnAgain and Body::linksOfDraws
+        // (tested); a new copy has no regions yet (forgetMergedBody), so nothing of it is drawn again.
+        const std::vector<std::size_t> again = Body::drawsDrawnAgain(mMergedRegions.mDrawn, change.mDrawn);
+        std::size_t restarted = 0;
+        if (!again.empty())
         {
-            if (mMergedRegions.mDrawn[i] || !change.mDrawn[i])
-                continue;
+            const std::vector<const void*> drawTargets(change.mBoneMatrices.begin(), change.mBoneMatrices.end());
+            std::vector<const void*> linkTargets;
+            linkTargets.reserve(mMergedControllers.size());
             for (const MergedLink& link : mMergedControllers)
+                linkTargets.push_back(link.mSkin != nullptr ? link.mTarget : nullptr);
+            for (const std::size_t index : Body::linksOfDraws(again, drawTargets, linkTargets))
             {
-                if (link.mSkin != nullptr && link.mTarget == change.mBoneMatrices[i])
-                    link.mSkin->forgetPreviousMatrices();
+                mMergedControllers[index].mSkin->forgetPreviousMatrices();
+                ++restarted;
+            }
+            // Every draw has its own bone matrices and one skin that writes them: a draw drawn again without exactly
+            // one skin restarted means the draws and the links no longer line up.
+            static bool mismatchReported = false;
+            if (restarted != again.size() && !mismatchReported)
+            {
+                mismatchReported = true;
+                Log(Debug::Warning) << "Merged bodies: " << race.mId.getRefIdString() << " "
+                                    << (female ? "female" : "male") << ": " << again.size()
+                                    << " draws are drawn again but " << restarted << " skins restarted";
             }
         }
+        // The trace's check of the two (value scopes): draws drawn again, and skins restarted.
+        Misc::LoadTrace::Scope traceAgain("npc.mergedbody.drawnagain", static_cast<std::int64_t>(again.size()));
+        Misc::LoadTrace::Scope traceRestarted("npc.mergedbody.restarted", static_cast<std::int64_t>(restarted));
         mMergedRegions = std::move(change);
         mMergedHidden = hidden;
         return true;
@@ -678,8 +757,19 @@ namespace MWRender
 
     void Npc::detachPart(ESM::PartReferenceType type)
     {
+        if (!mPartSlotsTraced.empty())
+            Log(Debug::Info) << "PARTSLOTS " << mPartSlotsTraced << " detach " << static_cast<int>(type) << ' '
+                             << (mParts[type].empty() ? 0 : 1);
         mPartControllers.forget(type);
         removePath(mParts[type]);
+    }
+
+    void Npc::beforeWornPart(ESM::PartReferenceType /*type*/, const ESM::BodyPart& bodyPart)
+    {
+        // Second review, finding 10: where Npc::addPartGroup marked it before PartSlots (6151cceb4b^), just before
+        // addOrReplaceIndividualPart, whether the part then took its slot or not.
+        if (bodyPart.mData.mType == ESM::BodyPart::MT_Skin)
+            markSkinModel(bodyPart.mModel);
     }
 
     void Npc::relinkSurvivingParts()
@@ -772,21 +862,14 @@ namespace MWRender
         }
     }
 
-    std::vector<PartSlots::WornPart> Npc::wornParts(const std::vector<ESM::PartReference>& parts) const
+    void Npc::wornParts(const std::vector<ESM::PartReference>& parts, std::vector<PartSlots::WornPart>& out) const
     {
         bool firstPerson = (mViewMode == ViewMode::FirstPerson);
         bool female = !mNpc->isMale();
         auto& bodyPartStore = MWBase::Environment::get().getWorld()->getStore().get<ESM::BodyPart>();
-        std::vector<PartSlots::WornPart> result;
-        result.reserve(parts.size());
         for (const ESM::PartReference& part : parts)
-        {
-            const ESM::BodyPart* bodypart = getBodyPart(firstPerson, female, part, bodyPartStore);
-            if (bodypart && bodypart->mData.mType == ESM::BodyPart::MT_Skin)
-                markSkinModel(bodypart->mModel);
-            result.push_back({ static_cast<ESM::PartReferenceType>(part.mPart), bodypart });
-        }
-        return result;
+            out.push_back({ static_cast<ESM::PartReferenceType>(part.mPart),
+                getBodyPart(firstPerson, female, part, bodyPartStore) });
     }
 
     void Npc::addWeapon()

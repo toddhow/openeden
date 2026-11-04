@@ -227,6 +227,39 @@ namespace Body
         return ranges;
     }
 
+    std::vector<std::size_t> drawsDrawnAgain(const std::vector<bool>& drawnBefore, const std::vector<bool>& drawnNow)
+    {
+        std::vector<std::size_t> again;
+        const std::size_t count = std::min(drawnBefore.size(), drawnNow.size());
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            if (!drawnBefore[i] && drawnNow[i])
+                again.push_back(i);
+        }
+        return again;
+    }
+
+    std::vector<std::size_t> linksOfDraws(std::span<const std::size_t> draws, std::span<const void* const> drawTargets,
+        std::span<const void* const> linkTargets)
+    {
+        std::vector<std::size_t> links;
+        for (std::size_t link = 0; link < linkTargets.size(); ++link)
+        {
+            const void* target = linkTargets[link];
+            if (target == nullptr)
+                continue;
+            for (const std::size_t draw : draws)
+            {
+                if (draw < drawTargets.size() && drawTargets[draw] == target)
+                {
+                    links.push_back(link);
+                    break;
+                }
+            }
+        }
+        return links;
+    }
+
     bool invertAffine(const Affine34& in, Affine34& out)
     {
         for (const double value : in)

@@ -30,6 +30,10 @@ namespace MWRender
         public:
             // The node of `part`, if it has one, goes.
             virtual void detachPart(ESM::PartReferenceType part) = 0;
+            // Second review, finding 10: called by wear just before a worn part that has a body part asks for its
+            // slot, whether it gets it or not, after the slot's group went and the helmet took the hair. Npc marks a
+            // skin part's model there (task 0027), where the code before PartSlots marked it.
+            virtual void beforeWornPart(ESM::PartReferenceType /*part*/, const ESM::BodyPart& /*bodyPart*/) {}
 
         protected:
             ~Nodes() = default;
