@@ -30,6 +30,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testextentsync.cpp
     mwrender/testmapdepthrange.cpp
     mwrender/testpartcontrollers.cpp
+    mwrender/testpartclocks.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
 
