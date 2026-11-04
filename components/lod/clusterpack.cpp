@@ -139,7 +139,7 @@ namespace Lod
                 return fail("levels", 0, "levels and errors must be lists of the same, non-zero length");
             for (const std::uint32_t level : manifest.mLevels)
                 if (level < minClusterLevel || level > maxClusterLevel)
-                    return fail("levels", 0, "a level is outside 1 to 3");
+                    return fail("levels", 0, "a level is outside 1 to " + std::to_string(maxClusterLevel));
             return {};
         }
     }

@@ -241,7 +241,7 @@ namespace Lod
         LodError validateContent(const ObjectCluster& c)
         {
             if (c.mLevel < minClusterLevel || c.mLevel > maxClusterLevel)
-                return fail("level", offLevel, "the level must be 1 to 3");
+                return fail("level", offLevel, "the level must be 1 to " + std::to_string(maxClusterLevel));
             if (!finite(c.mSide) || !(c.mSide > 0))
                 return fail("side", offSide, "the side must be finite and above 0");
             if (!finite(c.mOriginX))
@@ -629,7 +629,8 @@ namespace Lod
         const std::uint32_t version
             = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
         if (version != objectClusterPayloadVersion)
-            return fail("version", offVersion, "only the draft version 0 is understood");
+            return fail(
+                "version", offVersion, "only layout version 1 is understood (a version 0 pack must be baked again)");
         ClusterHeaderInfo parsed;
         parsed.mLevel = getU32(b, offLevel);
         parsed.mSide = getF32(b, offSide);
@@ -640,7 +641,7 @@ namespace Lod
         parsed.mGeometricError = getF32(b, offError);
         parsed.mOverhang = getF32(b, offOverhang);
         if (parsed.mLevel < minClusterLevel || parsed.mLevel > maxClusterLevel)
-            return fail("level", offLevel, "the level must be 1 to 3");
+            return fail("level", offLevel, "the level must be 1 to " + std::to_string(maxClusterLevel));
         if (!finite(parsed.mSide) || !(parsed.mSide > 0) || !finite(parsed.mOriginX) || !finite(parsed.mOriginY)
             || !finite(parsed.mMinZ) || !finite(parsed.mMaxZ) || parsed.mMaxZ < parsed.mMinZ
             || !finite(parsed.mGeometricError) || parsed.mGeometricError < 0 || !finite(parsed.mOverhang)
@@ -660,7 +661,8 @@ namespace Lod
         const std::uint32_t version
             = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
         if (version != objectClusterPayloadVersion)
-            return fail("version", offVersion, "only the draft version 0 is understood");
+            return fail(
+                "version", offVersion, "only layout version 1 is understood (a version 0 pack must be baked again)");
         if (b[offFlags] != 0 || b[offFlags + 1] != 0)
             return fail("flags", offFlags, "flags must be 0 in version 0");
 
@@ -677,7 +679,7 @@ namespace Lod
 
         // The header's own checks come first so that each reports its own byte.
         if (c.mLevel < minClusterLevel || c.mLevel > maxClusterLevel)
-            return fail("level", offLevel, "the level must be 1 to 3");
+            return fail("level", offLevel, "the level must be 1 to " + std::to_string(maxClusterLevel));
         if (expected != nullptr && expected->mLevel != c.mLevel)
             return fail("level", offLevel, "the level differs from the tile the entry was stored under");
         struct Float

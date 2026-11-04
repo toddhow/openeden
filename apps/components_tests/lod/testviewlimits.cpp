@@ -408,6 +408,53 @@ namespace
         EXPECT_EQ(coarsestAccepted(600000, 8.f), 5);
     }
 
+    // The median geometric error of the baked terrain tiles of levels 1 to 6 (world units), measured by the bake of the
+    // Morrowind data on 2026-11-03 (task 0066 stage d, stage log): the real errors, not invented ones.
+    constexpr float measuredErrors[6] = { 190.f, 489.f, 984.f, 1973.f, 4347.f, 5254.f };
+
+    TileBounds measuredTile(int level, double distance)
+    {
+        TileBounds bounds;
+        const float side = 8192.f * static_cast<float>(1 << level);
+        bounds.mSide = side;
+        bounds.mOriginX = static_cast<float>(distance);
+        bounds.mOriginY = -side / 2;
+        bounds.mMinHeight = 0;
+        bounds.mMaxHeight = 3000;
+        bounds.mGeometricError = measuredErrors[level - 1];
+        return bounds;
+    }
+
+    int coarsestMeasuredAccepted(double distance, float threshold)
+    {
+        const SelectionCamera camera = farCamera(700000);
+        int best = 0;
+        for (int level = 1; level <= 6; ++level)
+        {
+            if (pixelError(camera, measuredTile(level, distance)) <= threshold)
+                best = level;
+        }
+        return best;
+    }
+
+    TEST(LodViewLimits, the_measured_levels_one_to_six_are_chosen_coarser_and_coarser_out_to_the_map_edge)
+    {
+        int previous = 0;
+        for (double distance = 5000; distance <= 600000; distance += 5000)
+        {
+            const int level = coarsestMeasuredAccepted(distance, 8.f);
+            EXPECT_GE(level, previous) << "at " << distance;
+            previous = level;
+        }
+        // At 720p, 60 degrees and 8 pixels a tile is accepted from about 78 times its error: level 3 from 77,000
+        // units, level 4 from 154,000, level 5 from 339,000 and level 6 from 410,000 (the land is 591,000 across).
+        EXPECT_EQ(coarsestMeasuredAccepted(60000, 8.f), 2);
+        EXPECT_EQ(coarsestMeasuredAccepted(100000, 8.f), 3);
+        EXPECT_EQ(coarsestMeasuredAccepted(200000, 8.f), 4);
+        EXPECT_EQ(coarsestMeasuredAccepted(350000, 8.f), 5);
+        EXPECT_EQ(coarsestMeasuredAccepted(500000, 8.f), 6);
+    }
+
     TEST(LodViewLimits, a_tile_is_skipped_beyond_the_tile_range_and_chosen_inside_it)
     {
         // The tile range is the only distance cut of the selection: there is no far plane in the camera at all.

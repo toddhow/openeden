@@ -62,8 +62,8 @@ namespace OMW
         };
 
         // A boundary vertex counts as on a seam when the other part has a boundary vertex within this many Morrowind
-        // units (about 70 to the metre, Constants::UnitsPerMeter: a human is about 130 units tall). The first run used 2
-        // and found the overlaps larger than that; 6 is wider than every overlap seen in it and narrower than the
+        // units (about 70 to the metre, Constants::UnitsPerMeter: a human is about 130 units tall). The first run used
+        // 2 and found the overlaps larger than that; 6 is wider than every overlap seen in it and narrower than the
         // distance between two joints.
         constexpr double seamWindow = 6.0;
 
@@ -125,7 +125,8 @@ namespace OMW
             {
                 {
                     Files::IStreamPtr stream = vfs.get(VFS::Path::Normalized(path));
-                    const std::string bytes((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+                    const std::string bytes(
+                        (std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
                     parsed.mBytes = bytes.size();
                 }
                 parsed.mFile = std::make_unique<Nif::NIFFile>(VFS::Path::Normalized(path));
@@ -204,7 +205,8 @@ namespace OMW
             const std::vector<const ESM::BodyPart*>& chosen
                 = MWRender::getBodyParts(unit.mRace->mId, unit.mFemale, false, false, bodyParts);
 
-            // The skeleton whose bones the rigid parts hang on (Context::pickSkeleton: beast, female, else the base one).
+            // The skeleton whose bones the rigid parts hang on (Context::pickSkeleton: beast, female, else the base
+            // one).
             const char* skeletonSetting = report.mBeast ? "baseanimkna" : unit.mFemale ? "baseanimfemale" : "baseanim";
             report.mSkeleton = VFS::Path::Normalized(Settings::Manager::getString(skeletonSetting, "Models")).value();
             std::map<std::string, ParsedFile> files;

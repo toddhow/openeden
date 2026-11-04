@@ -28,8 +28,8 @@ namespace
         return result;
     }
 
-    SeamReport seam(std::size_t candidatesA, std::size_t candidatesB, double minDistance, double medianDistance,
-        double maxDistance)
+    SeamReport seam(
+        std::size_t candidatesA, std::size_t candidatesB, double minDistance, double medianDistance, double maxDistance)
     {
         SeamReport report;
         report.mTouches = candidatesA + candidatesB > 0;

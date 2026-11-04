@@ -555,59 +555,60 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             bodyAnalyser = std::make_unique<BodyAnalyser>(out, *mResourceSystem);
         }
-        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &runningFrame,
-                            &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
-            auto state = mStateManager->getGameState();
-            quit = !state;
-            if (quit)
-                return;
-            requiresRender = frame(dt, state);
+        auto callback
+            = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &runningFrame,
+                  &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
+                  auto state = mStateManager->getGameState();
+                  quit = !state;
+                  if (quit)
+                      return;
+                  requiresRender = frame(dt, state);
 
-            // openeden-vsg: loading and cell changes are game states of their own here (the OSG build loaded inside
-            // one frame), so frames under a loading screen or an operation do not count.
-            if (mStateManager->getState() == MWBase::StateManager::State_Running && state->requiresScene
-                && state->updateLua)
-            {
-                ++runningFrame;
-                if (probeBaker && probeBaker->update() && !autoQuitFired)
-                {
-                    mStateManager->requestQuit();
-                    autoQuitFired = true;
-                }
-                if (skyVisBaker && skyVisBaker->update() && !autoQuitFired)
-                {
-                    mStateManager->requestQuit();
-                    autoQuitFired = true;
-                }
-                if (lodTerrainBaker && lodTerrainBaker->update() && !autoQuitFired)
-                {
-                    mStateManager->requestQuit();
-                    autoQuitFired = true;
-                }
-                if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
-                {
-                    mStateManager->requestQuit();
-                    autoQuitFired = true;
-                }
-                if (bodyAnalyser && bodyAnalyser->update() && !autoQuitFired)
-                {
-                    mStateManager->requestQuit();
-                    autoQuitFired = true;
-                }
-                if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
-                {
-                    Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
-                    mInputManager->executeAction(MWInput::A_Screenshot);
-                    autoScreenshotFired = true;
-                }
-                if (args.autoQuitFrame && !autoQuitFired && runningFrame >= args.autoQuitFrame)
-                {
-                    Log(Debug::Info) << "Auto-quit at running frame " << runningFrame;
-                    mStateManager->requestQuit();
-                    autoQuitFired = true;
-                }
-            }
-        };
+                  // openeden-vsg: loading and cell changes are game states of their own here (the OSG build loaded
+                  // inside one frame), so frames under a loading screen or an operation do not count.
+                  if (mStateManager->getState() == MWBase::StateManager::State_Running && state->requiresScene
+                      && state->updateLua)
+                  {
+                      ++runningFrame;
+                      if (probeBaker && probeBaker->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                      if (skyVisBaker && skyVisBaker->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                      if (lodTerrainBaker && lodTerrainBaker->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                      if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                      if (bodyAnalyser && bodyAnalyser->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                      if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
+                      {
+                          Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
+                          mInputManager->executeAction(MWInput::A_Screenshot);
+                          autoScreenshotFired = true;
+                      }
+                      if (args.autoQuitFrame && !autoQuitFired && runningFrame >= args.autoQuitFrame)
+                      {
+                          Log(Debug::Info) << "Auto-quit at running frame " << runningFrame;
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
+                  }
+              };
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
 
         std::cout << "Quitting peacefully." << std::endl;

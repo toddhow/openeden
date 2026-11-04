@@ -1,5 +1,6 @@
 #include "storage.hpp"
 
+#include <cstdint>
 #include <iostream>
 
 #include <vsg/core/Array2D.h>
@@ -109,8 +110,41 @@ namespace ESMTerrain
         }
     }
 
+    namespace
+    {
+        // The grid of `source` with every `step`-th vertex kept, `count` vertices a side.
+        template <class Array>
+        vsg::ref_ptr<Array> keepEveryNth(const Array& source, std::uint32_t step, std::uint32_t count)
+        {
+            auto result = Array::create(count, count, source.properties);
+            for (std::uint32_t y = 0; y < count; ++y)
+            {
+                for (std::uint32_t x = 0; x < count; ++x)
+                    (*result)(x, y) = source(x * step, y * step);
+            }
+            return result;
+        }
+    }
+
     Storage::VertexData Storage::getVertexData(int lodLevel, const Terrain::Bounds& bounds)
     {
+        // The land has 64 intervals a cell, so lod 6 keeps the cell corners. The loop below keeps at least one vertex
+        // in every cell: for a lod above 6 (the world LOD's tiles of level 6 and up, task 0066 stage d) it would write
+        // beyond the arrays. Take lod 6 and keep every 2^(lod - 6)th vertex, which is the same grid.
+        constexpr int cellCornerLod = 6; // (ESM::Land::LAND_SIZE - 1) == 1 << cellCornerLod
+        if (lodLevel > cellCornerLod && lodLevel < 31)
+        {
+            const std::uint32_t step = std::uint32_t{ 1 } << (lodLevel - cellCornerLod);
+            const std::uint32_t wanted = Storage::numVerts(bounds.size, lodLevel);
+            const VertexData cellCorners = getVertexData(cellCornerLod, bounds);
+            const std::uint32_t available = cellCorners.heights->width();
+            if (wanted >= 1 && available >= 1 && (available - 1) % step == 0 && (available - 1) / step + 1 == wanted)
+            {
+                return { keepEveryNth(*cellCorners.heights, step, wanted),
+                    keepEveryNth(*cellCorners.normals, step, wanted), keepEveryNth(*cellCorners.colors, step, wanted) };
+            }
+        }
+
         // LOD level n means every 2^n-th vertex is kept
         size_t increment = static_cast<size_t>(1) << lodLevel;
 

@@ -201,7 +201,7 @@ namespace
         b[offMagic + 1] = 'T';
         b[offMagic + 2] = 'C';
         b[offMagic + 3] = 'L';
-        putU16(b, offVersion, 0);
+        putU16(b, offVersion, 1);
         putU16(b, offFlags, 0);
         putU32(b, offLevel, 1);
         putF32(b, offSide, 16384.0f);
@@ -537,7 +537,7 @@ namespace
 
     TEST(LodObjectCluster, RefusesOtherVersions)
     {
-        for (const std::uint16_t version : { std::uint16_t{ 1 }, std::uint16_t{ 2 }, std::uint16_t{ 0xFFFF } })
+        for (const std::uint16_t version : { std::uint16_t{ 0 }, std::uint16_t{ 2 }, std::uint16_t{ 0xFFFF } })
         {
             std::vector<std::uint8_t> bytes = makeBaseBytes();
             putU16(bytes, offVersion, version);
@@ -555,9 +555,9 @@ namespace
         }
     }
 
-    TEST(LodObjectCluster, RefusesLevelsOutsideOneToThree)
+    TEST(LodObjectCluster, RefusesLevelsOutsideOneToFour)
     {
-        for (const std::uint32_t level : { 0u, 4u, 15u, 0xFFFFFFFFu })
+        for (const std::uint32_t level : { 0u, 5u, 15u, 0xFFFFFFFFu })
         {
             std::vector<std::uint8_t> bytes = makeBaseBytes();
             putU32(bytes, offLevel, level);
@@ -830,7 +830,7 @@ namespace
         };
         const Case cases[] = {
             { "level 0", [](ObjectCluster& c) { c.mLevel = 0; } },
-            { "level 4", [](ObjectCluster& c) { c.mLevel = 4; } },
+            { "level 5", [](ObjectCluster& c) { c.mLevel = 5; } },
             { "side NaN", [](ObjectCluster& c) { c.mSide = nanValue; } },
             { "origin inf", [](ObjectCluster& c) { c.mOriginX = infValue; } },
             { "origin y NaN", [](ObjectCluster& c) { c.mOriginY = nanValue; } },
@@ -875,7 +875,7 @@ namespace
             { "refs duplicated", [](ObjectCluster& c) { c.mRefs[1] = c.mRefs[0]; } },
             { "too many cells",
                 [](ObjectCluster& c) {
-                    for (std::int32_t i = 1; i <= 64; ++i)
+                    for (std::int32_t i = 1; i <= 256; ++i)
                     {
                         c.mCells.push_back(ClusterCell{ i, 7, 3, 0 });
                     }
@@ -892,6 +892,71 @@ namespace
             EXPECT_FALSE(written.mField.empty()) << item.mName;
             EXPECT_EQ(written.mField, validated.mField) << item.mName;
         }
+    }
+
+    // Layout version 1 (toddhow approved the draft as the frozen layout, 2026-11-03; task 0066 stage d): the same bytes
+    // with the version field 1, level 4 allowed and 256 cell slots (a slot is one byte).
+    ObjectCluster makeClusterWithCells(std::uint32_t level, std::uint32_t cellCount)
+    {
+        ObjectCluster cluster = makeCluster();
+        cluster.mLevel = level;
+        cluster.mCells.clear();
+        cluster.mRefs.clear();
+        for (std::uint32_t i = 0; i < cellCount; ++i)
+        {
+            cluster.mCells.push_back(
+                ClusterCell{ static_cast<std::int32_t>(i % 16), static_cast<std::int32_t>(i / 16), i, 1 });
+            cluster.mRefs.push_back(ClusterRef{ i + 1, 0 });
+        }
+        return cluster;
+    }
+
+    TEST(LodObjectCluster, LayoutVersionIsOne)
+    {
+        EXPECT_EQ(objectClusterPayloadVersion, 1);
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(writeObjectCluster(makeCluster(), bytes).ok());
+        EXPECT_EQ(bytes[offVersion], 1u);
+        EXPECT_EQ(bytes[offVersion + 1], 0u);
+    }
+
+    TEST(LodObjectCluster, LevelFourWithTwoHundredFiftySixCellsRoundTrips)
+    {
+        EXPECT_EQ(maxClusterLevel, 4u);
+        EXPECT_EQ(maxClusterCells, 256u);
+        const ObjectCluster cluster = makeClusterWithCells(4, 256);
+        ASSERT_TRUE(validateObjectCluster(cluster).ok()) << validateObjectCluster(cluster).describe();
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(writeObjectCluster(cluster, bytes).ok());
+        ObjectCluster read;
+        const LodError error = readObjectCluster(bytes, read);
+        ASSERT_TRUE(error.ok()) << error.describe();
+        EXPECT_EQ(read, cluster);
+        std::vector<std::uint8_t> again;
+        ASSERT_TRUE(writeObjectCluster(read, again).ok());
+        EXPECT_EQ(again, bytes);
+        ClusterHeaderInfo info;
+        EXPECT_TRUE(readObjectClusterHeader(bytes, info).ok());
+        EXPECT_EQ(info.mLevel, 4u);
+    }
+
+    TEST(LodObjectCluster, TwoHundredFiftySevenCellsAreRefused)
+    {
+        const ObjectCluster cluster = makeClusterWithCells(4, 257);
+        const LodError error = validateObjectCluster(cluster);
+        EXPECT_FALSE(error.ok());
+        EXPECT_EQ(error.mField, "cellCount");
+    }
+
+    TEST(LodObjectCluster, LevelFiveIsRefusedByTheWriterAndTheReader)
+    {
+        ObjectCluster cluster = makeCluster();
+        cluster.mLevel = 5;
+        std::vector<std::uint8_t> bytes;
+        EXPECT_FALSE(writeObjectCluster(cluster, bytes).ok());
+        std::vector<std::uint8_t> good = makeBaseBytes();
+        putU32(good, offLevel, 5);
+        expectRefused(good, "level 5", offLevel);
     }
 
     TEST(LodObjectCluster, OverhangAllowsVerticesOutsideTheTileSquare)

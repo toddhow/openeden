@@ -414,6 +414,57 @@ namespace
         return tile.mId.mLevel;
     }
 
+    // Task 0066 stage d: the far levels 4 to 6 for the whole-map view.
+    TEST(LodTileBakeLevels, the_default_plan_bakes_levels_one_to_six)
+    {
+        const TerrainBakePlan plan;
+        EXPECT_EQ(plan.mLevels, (std::vector<std::uint32_t>{ 1, 2, 3, 4, 5, 6 }));
+        EXPECT_EQ(plan.mAlbedoFromLevel, 2u);
+    }
+
+    TEST(LodTileBakeLevels, the_far_levels_cover_a_morrowind_sized_world_in_few_tiles)
+    {
+        // The land cells of the Morrowind data run from x -28 to 24 and y -20 to 30 (research note 0029, section 2).
+        std::vector<Cell> cells;
+        for (std::int32_t y = -20; y <= 30; ++y)
+        {
+            for (std::int32_t x = -28; x <= 24; ++x)
+            {
+                cells.emplace_back(x, y);
+            }
+        }
+        const struct
+        {
+            std::uint32_t mLevel;
+            std::size_t mTiles;
+        } expected[] = { { 4, 16 }, { 5, 4 }, { 6, 4 } };
+        for (const auto& item : expected)
+        {
+            TileBakeSettings settings;
+            settings.mLevel = item.mLevel;
+            EXPECT_EQ(tilesCoveringCells(cells, settings).size(), item.mTiles) << "level " << item.mLevel;
+        }
+    }
+
+    TEST(LodTileBakeLevels, levels_four_to_six_bake_with_a_ground_picture_each)
+    {
+        const HillLand land;
+        const HashedAlbedo albedo;
+        TerrainBakePlan plan = thePlan();
+        plan.mLevels = { 3, 4, 5, 6 };
+        const LevelsBake bake = bakeLevels(land, &albedo, landCells(), TileBakeSettings{}, plan);
+        EXPECT_EQ(bake.mManifest.mLevels, (std::vector<std::uint32_t>{ 3, 4, 5, 6 }));
+        std::set<std::uint32_t> seen;
+        for (const BakedTile& tile : bake.mTiles)
+        {
+            seen.insert(levelOf(tile));
+            EXPECT_EQ(tile.mData.mGridSize, 33u) << "level " << levelOf(tile);
+            EXPECT_TRUE(tile.mData.mHasAlbedo) << "level " << levelOf(tile);
+            EXPECT_EQ(tile.mData.mAlbedoWidth, planAlbedoSize) << "level " << levelOf(tile);
+        }
+        EXPECT_EQ(seen, (std::set<std::uint32_t>{ 3, 4, 5, 6 }));
+    }
+
     TEST(LodTileBakeLevels, the_manifest_and_the_tiles_of_every_level)
     {
         const HillLand land;

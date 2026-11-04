@@ -258,8 +258,8 @@ namespace BodyNif
 
     Distribution distribution(std::vector<double> values)
     {
-        values.erase(std::remove_if(values.begin(), values.end(), [](double v) { return !std::isfinite(v); }),
-            values.end());
+        values.erase(
+            std::remove_if(values.begin(), values.end(), [](double v) { return !std::isfinite(v); }), values.end());
         Distribution result;
         result.mCount = values.size();
         if (values.empty())

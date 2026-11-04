@@ -10,6 +10,16 @@
 
 namespace Lod
 {
+    float clusterLevelError(std::uint32_t level) noexcept
+    {
+        // Level by level: 128 and 320 and 960 are task 0059's values; 2900 is 960 times about three, the growth the
+        // pixel-error formula gives from level 2 to level 3 (note 0029).
+        constexpr float errors[maxClusterLevel] = { 128.f, 320.f, 960.f, 2900.f };
+        if (level < minClusterLevel || level > maxClusterLevel)
+            return 0.f;
+        return errors[level - 1];
+    }
+
     namespace
     {
         LodError fail(std::string field, std::string message)
@@ -234,7 +244,7 @@ namespace Lod
         LodError validateInput(const ClusterBuildInput& input)
         {
             if (input.mLevel.mLevel < minClusterLevel || input.mLevel.mLevel > maxClusterLevel)
-                return fail("level", "the level must be 1 to 3");
+                return fail("level", "the level must be 1 to " + std::to_string(maxClusterLevel));
             if (!std::isfinite(input.mSide) || !(input.mSide > 0))
                 return fail("side", "the side must be finite and above 0");
             if (!std::isfinite(input.mLevel.mError) || !(input.mLevel.mError > 0))

@@ -128,6 +128,21 @@ namespace OMW
             for (const Lod::BakedTile& tile : state.mTiles)
                 errors.push_back(tile.mData.mGeometricError);
             std::sort(errors.begin(), errors.end());
+            // The same, level by level: what the tile selection works from (task 0066 stage d).
+            for (const std::uint32_t level : state.mPlan.mLevels)
+            {
+                std::vector<float> ofLevel;
+                for (const Lod::BakedTile& tile : state.mTiles)
+                    if (tile.mId.mLevel == level)
+                        ofLevel.push_back(tile.mData.mGeometricError);
+                std::sort(ofLevel.begin(), ofLevel.end());
+                if (!ofLevel.empty())
+                {
+                    Log(Debug::Info) << "LOD terrain bake: level " << level << ": " << ofLevel.size()
+                                     << " tiles, geometric error min " << ofLevel.front() << ", median "
+                                     << ofLevel[ofLevel.size() / 2] << ", max " << ofLevel.back();
+                }
+            }
             if (!errors.empty())
             {
                 Log(Debug::Info) << "LOD terrain bake: geometric error of the tiles (world units): min "

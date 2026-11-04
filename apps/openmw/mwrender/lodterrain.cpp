@@ -508,9 +508,9 @@ namespace MWRender
                 Lod::vertexStepLod(settings, mLods[i]);
             }
             mCoverage.squares.reserve(count);
-            Log(Debug::Info) << "World LOD terrain tiles: " << count
-                             << " tiles of levels 1 to 3 loaded (layout version " << Lod::tileKeyLayoutVersion
-                             << "), threshold " << mSetup.mThreshold << " px, "
+            Log(Debug::Info) << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front()
+                             << " to " << mPlan.mLevels.back() << " loaded (layout version "
+                             << Lod::tileKeyLayoutVersion << "), threshold " << mSetup.mThreshold << " px, "
                              << (useAlbedo ? "baked ground pictures from level 2 up"
                                            : "live layers (terrain maps are on)")
                              << ".";

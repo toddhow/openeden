@@ -138,8 +138,8 @@ namespace BodyNif
             return out;
         }
 
-        void collectRest(const Nif::NiAVObject& node, const Matrix& parent, std::size_t depth, std::size_t maxDepth,
-            RestPose& rest)
+        void collectRest(
+            const Nif::NiAVObject& node, const Matrix& parent, std::size_t depth, std::size_t maxDepth, RestPose& rest)
         {
             if (depth > maxDepth)
                 return;
@@ -215,15 +215,15 @@ namespace BodyNif
                 }
             }
 
-            void visit(const Nif::NiAVObject& node, const Matrix& parent, bool matched, Inherited inherited,
-                std::size_t depth)
+            void visit(
+                const Nif::NiAVObject& node, const Matrix& parent, bool matched, Inherited inherited, std::size_t depth)
             {
                 if (mDepthReported)
                     return;
                 if (depth > mLimits.mMaxDepth)
                 {
-                    error("node tree deeper than the depth limit of " + std::to_string(mLimits.mMaxDepth)
-                        + " at node '" + node.mName + "'");
+                    error("node tree deeper than the depth limit of " + std::to_string(mLimits.mMaxDepth) + " at node '"
+                        + node.mName + "'");
                     mDepthReported = true;
                     return;
                 }
@@ -286,8 +286,8 @@ namespace BodyNif
                         shape.mTriangles.push_back(index);
                     if (shape.mTriangles.size() % 3 != 0)
                     {
-                        error("shape '" + geometry.mName + "': the triangle list has " +
-                            std::to_string(shape.mTriangles.size()) + " indices, not a multiple of 3");
+                        error("shape '" + geometry.mName + "': the triangle list has "
+                            + std::to_string(shape.mTriangles.size()) + " indices, not a multiple of 3");
                         return false;
                     }
                 }
@@ -329,8 +329,8 @@ namespace BodyNif
             }
 
             // Fills the bone table and the per-vertex influences; false (with an error) when the skin is unusable.
-            bool readSkin(const Nif::NiGeometry& geometry, std::size_t vertexCount, Shape& shape,
-                std::vector<Matrix>& boneBind)
+            bool readSkin(
+                const Nif::NiGeometry& geometry, std::size_t vertexCount, Shape& shape, std::vector<Matrix>& boneBind)
             {
                 const Nif::NiSkinInstance& skin = *geometry.mSkin.getPtr();
                 const std::string where = "shape '" + geometry.mName + "': ";
@@ -412,9 +412,9 @@ namespace BodyNif
             }
 
             // Brings a skinned shape to its bind pose in the skeleton's space (see Placement): each vertex is the
-            // weighted sum, over its kept influences, of (the bone's world matrix at rest times its skin transform times
-            // the skin's own transform) applied to the stored vertex. A bone the skeleton lacks leaves the shape where it
-            // is, with one error.
+            // weighted sum, over its kept influences, of (the bone's world matrix at rest times its skin transform
+            // times the skin's own transform) applied to the stored vertex. A bone the skeleton lacks leaves the shape
+            // where it is, with one error.
             void placeSkinned(const Nif::NiGeometry& geometry, const std::vector<Matrix>& boneBind,
                 const Nif::NiGeometryData& data, Shape& shape)
             {
@@ -425,8 +425,8 @@ namespace BodyNif
                     const auto found = mPlacement.mRest->find(lowerCase(shape.mBones[bone]));
                     if (found == mPlacement.mRest->end())
                     {
-                        error("shape '" + geometry.mName + "': bone '" + shape.mBones[bone]
-                            + "' is not in the skeleton");
+                        error(
+                            "shape '" + geometry.mName + "': bone '" + shape.mBones[bone] + "' is not in the skeleton");
                         return;
                     }
                     full.push_back(multiply(found->second, boneBind[bone]));
@@ -531,8 +531,8 @@ namespace BodyNif
                     const vsg::vec3& v = data.mVertices[i];
                     if (!std::isfinite(v.x) || !std::isfinite(v.y) || !std::isfinite(v.z))
                     {
-                        error("shape '" + geometry.mName + "': vertex " + std::to_string(i)
-                            + " is not a finite number");
+                        error(
+                            "shape '" + geometry.mName + "': vertex " + std::to_string(i) + " is not a finite number");
                         return;
                     }
                     shape.mPositions.push_back(transformPoint(placed, v));
@@ -584,8 +584,8 @@ namespace BodyNif
         return rest;
     }
 
-    ReadResult readShapes(const Nif::NiAVObject& root, std::string_view skinFilter, const ReadLimits& limits,
-        const Placement& placement)
+    ReadResult readShapes(
+        const Nif::NiAVObject& root, std::string_view skinFilter, const ReadLimits& limits, const Placement& placement)
     {
         const bool skinning = hasSkin(root, 0, limits.mMaxDepth);
         return Reader(skinFilter, limits, skinning, placement).run(root);

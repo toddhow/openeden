@@ -4,8 +4,10 @@
 // OpenEden world LOD (task 0059, stage S4b). The payload of one baked object cluster: the far-visible statics of one
 // tile, merged into one mesh per material group and simplified. The bytes are one Eden Archive entry of type 0x0011.
 //
-// DRAFT layout, version 0, NOT approved by toddhow. The header's version field holds objectClusterPayloadVersion (0)
-// and the reader refuses any other value, so the final layout (a new number) can never be mistaken for this draft.
+// Layout version 1: the draft layout (version 0) was approved and frozen by toddhow on 2026-11-03 (task 0066 stage d),
+// with the version field changed from 0 to 1 and levels 1 to 4 and up to 256 cell slots allowed (a slot is one byte).
+// The header's version field holds objectClusterPayloadVersion (1) and the reader refuses any other value, so a
+// version 0 pack is refused, never half-read.
 // Nothing outside components/lod may depend on offsets or bit positions; use these functions. The layout is written in
 // docs/tasks/0059-lod-s4-object-clusters.md ("Draft cluster entry layout").
 //
@@ -30,7 +32,7 @@ namespace Lod
     /// The container's key tag of an object cluster (spec section 10.3, 11.3). The low 56 bits of the key are those of
     /// the terrain tile key of the same tile.
     inline constexpr std::uint8_t tagObjectCluster = 0x11;
-    inline constexpr std::uint16_t objectClusterPayloadVersion = 0; // DRAFT
+    inline constexpr std::uint16_t objectClusterPayloadVersion = 1; // frozen 2026-11-03
     inline constexpr std::size_t objectClusterHeaderSize = 104;
     inline constexpr std::size_t clusterGroupSize = 32;
     inline constexpr std::size_t clusterRangeSize = 16;
@@ -40,12 +42,12 @@ namespace Lod
 
     inline constexpr std::uint32_t maxClusterGroups = 4096;
     inline constexpr std::uint32_t maxClusterRanges = 65536;
-    inline constexpr std::uint32_t maxClusterCells = 64;
+    inline constexpr std::uint32_t maxClusterCells = 256; // a vertex's cell slot is one byte
     inline constexpr std::uint32_t maxClusterRefs = 1u << 20;
     inline constexpr std::uint32_t maxClusterVertices = 1u << 22;
     inline constexpr std::uint32_t maxClusterIndices = 1u << 24;
     inline constexpr std::uint32_t minClusterLevel = 1;
-    inline constexpr std::uint32_t maxClusterLevel = 3;
+    inline constexpr std::uint32_t maxClusterLevel = 4; // a level 4 tile is 16 x 16 cells = 256 slots
     inline constexpr std::uint32_t maxClusterTexturePath = 1024;
 
     /// Material flags of a group (any other bit is refused).

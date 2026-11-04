@@ -340,25 +340,26 @@ namespace BodyNif
             std::string any;
             if (r.mAnyDistance.mCount > 0)
             {
-                any = "    all vertices: pairs " + count(r.mAnyCandidatesA) + "+" + count(r.mAnyCandidatesB) +
-                    ", distance min/median/p95/max " + distributionText(r.mAnyDistance) + ", within " +
-                    ladderText(r.mAnyWithin) + "\n";
+                any = "    all vertices: pairs " + count(r.mAnyCandidatesA) + "+" + count(r.mAnyCandidatesB)
+                    + ", distance min/median/p95/max " + distributionText(r.mAnyDistance) + ", within "
+                    + ladderText(r.mAnyWithin) + "\n";
             }
             if (!r.mTouches)
             {
-                out += " boundary " + count(r.mBoundaryA) + "/" + count(r.mBoundaryB) +
-                    ": no boundary partner within the window\n" + any;
+                out += " boundary " + count(r.mBoundaryA) + "/" + count(r.mBoundaryB)
+                    + ": no boundary partner within the window\n" + any;
                 return;
             }
-            out += " boundary " + count(r.mBoundaryA) + "/" + count(r.mBoundaryB) + ", pairs " +
-                count(r.mCandidatesA) + "+" + count(r.mCandidatesB) + "\n";
+            out += " boundary " + count(r.mBoundaryA) + "/" + count(r.mBoundaryB) + ", pairs " + count(r.mCandidatesA)
+                + "+" + count(r.mCandidatesB) + "\n";
             out += "    distance min/median/p95/max " + distributionText(r.mDistance) + "; within (0, 1e-4, 1e-3, 1e-2, "
                 "0.1, 0.5) " + ladderText(r.mWithin) + "\n";
-            out += "    signed gap min/median/p95/max " + distributionText(r.mSignedGap) + "; overlap/meeting/gap pairs " +
-                count(r.mOverlapPairs) + "/" + count(r.mMeetingPairs) + "/" + count(r.mGapPairs) + "\n";
-            out += "    weight disagreement " + distributionText(r.mWeightDisagreement) + "; bone sets differ " +
-                count(r.mBoneSetDiffers) + "; uv differs " + count(r.mUvDiffers) + "; normal angle " +
-                distributionText(r.mNormalAngle) + "\n" + any;
+            out += "    signed gap min/median/p95/max " + distributionText(r.mSignedGap)
+                + "; overlap/meeting/gap pairs " + count(r.mOverlapPairs) + "/" + count(r.mMeetingPairs) + "/"
+                + count(r.mGapPairs) + "\n";
+            out += "    weight disagreement " + distributionText(r.mWeightDisagreement) + "; bone sets differ "
+                + count(r.mBoneSetDiffers) + "; uv differs " + count(r.mUvDiffers) + "; normal angle "
+                + distributionText(r.mNormalAngle) + "\n" + any;
         }
 
         void aggregateText(std::string& out, const std::string& title, const std::vector<SeamAggregate>& rows)
@@ -371,23 +372,24 @@ namespace BodyNif
             }
             for (const SeamAggregate& row : rows)
             {
-                out += "  " + padded(row.mLabel, 16) + " seams " + count(row.mSeams) + ", touching " +
-                    count(row.mTouching) + ", pairs " + count(row.mPairs) + ", within " + ladderText(row.mWithin) + "\n";
+                out += "  " + padded(row.mLabel, 16) + " seams " + count(row.mSeams) + ", touching "
+                    + count(row.mTouching) + ", pairs " + count(row.mPairs) + ", within " + ladderText(row.mWithin)
+                    + "\n";
                 if (row.mAnyPairs > 0)
                 {
-                    out += "    all vertices: seams with pairs " + count(row.mAnyTouching) + ", pairs " +
-                        count(row.mAnyPairs) + ", within " + ladderText(row.mAnyWithin) + ", distance min/median " +
-                        number(row.mMinAnyDistance) + " / " + number(row.mMedianAnyDistance) + "\n";
+                    out += "    all vertices: seams with pairs " + count(row.mAnyTouching) + ", pairs "
+                        + count(row.mAnyPairs) + ", within " + ladderText(row.mAnyWithin) + ", distance min/median "
+                        + number(row.mMinAnyDistance) + " / " + number(row.mMedianAnyDistance) + "\n";
                 }
                 if (row.mTouching == 0)
                     continue;
-                out += "    distance min/median/max " + number(row.mMinDistance) + " / " + number(row.mMedianDistance) +
-                    " / " + number(row.mMaxDistance) + "; gap min/median/max " + number(row.mMinGap) + " / " +
-                    number(row.mMedianGap) + " / " + number(row.mMaxGap) + "; overlap/meeting/gap " +
-                    count(row.mOverlapPairs) + "/" + count(row.mMeetingPairs) + "/" + count(row.mGapPairs) + "\n";
-                out += "    weight disagreement max " + number(row.mMaxWeightDisagreement) + "; bone sets differ " +
-                    count(row.mBoneSetDiffers) + "; uv differs " + count(row.mUvDiffers) + "; normal angle max " +
-                    number(row.mMaxNormalAngle) + "\n";
+                out += "    distance min/median/max " + number(row.mMinDistance) + " / " + number(row.mMedianDistance)
+                    + " / " + number(row.mMaxDistance) + "; gap min/median/max " + number(row.mMinGap) + " / "
+                    + number(row.mMedianGap) + " / " + number(row.mMaxGap) + "; overlap/meeting/gap "
+                    + count(row.mOverlapPairs) + "/" + count(row.mMeetingPairs) + "/" + count(row.mGapPairs) + "\n";
+                out += "    weight disagreement max " + number(row.mMaxWeightDisagreement) + "; bone sets differ "
+                    + count(row.mBoneSetDiffers) + "; uv differs " + count(row.mUvDiffers) + "; normal angle max "
+                    + number(row.mMaxNormalAngle) + "\n";
             }
         }
     }
@@ -610,19 +612,20 @@ namespace BodyNif
 
     std::string toText(const AnalysisReport& report)
     {
-        std::string out = "OpenEden stock body analysis (task 0069, stage a)\n"
-                          "Units are Morrowind units. Distances are between a boundary vertex of one part and its "
-                          "nearest boundary vertex of the other; the ladder counts pairs at or under 0, 1e-4, 1e-3, "
-                          "1e-2, 0.1 and 0.5.\n";
+        std::string out
+            = "OpenEden stock body analysis (task 0069, stage a)\n"
+              "Units are Morrowind units. Distances are between a boundary vertex of one part and its "
+              "nearest boundary vertex of the other; the ladder counts pairs at or under 0, 1e-4, 1e-3, "
+              "1e-2, 0.1 and 0.5.\n";
         for (const UnitReport& unit : report.mUnits)
         {
-            out += "\n== " + unit.mRace + (unit.mFemale ? " female" : " male") + " (" +
-                (unit.mBeast ? "beast" : "humanoid") + (unit.mPlayable ? ", playable" : "") + ") ==\n";
+            out += "\n== " + unit.mRace + (unit.mFemale ? " female" : " male") + " ("
+                + (unit.mBeast ? "beast" : "humanoid") + (unit.mPlayable ? ", playable" : "") + ") ==\n";
             out += "  skeleton: " + unit.mSkeleton + " (" + count(unit.mSkeletonBones) + " named nodes)\n";
-            out += "  totals: vertices " + count(unit.mVertices) + ", triangles " + count(unit.mTriangles) + ", bones " +
-                count(unit.mBones) + ", materials " + count(unit.mMaterials) + ", files " + count(unit.mFiles) + " (" +
-                std::to_string(unit.mFileBytes) + " bytes), skinned parts " + count(unit.mSkinnedParts) +
-                ", rigid parts " + count(unit.mRigidParts) + "\n";
+            out += "  totals: vertices " + count(unit.mVertices) + ", triangles " + count(unit.mTriangles) + ", bones "
+                + count(unit.mBones) + ", materials " + count(unit.mMaterials) + ", files " + count(unit.mFiles) + " ("
+                + std::to_string(unit.mFileBytes) + " bytes), skinned parts " + count(unit.mSkinnedParts)
+                + ", rigid parts " + count(unit.mRigidParts) + "\n";
             for (const SlotReport& slot : unit.mSlots)
             {
                 out += "  slot " + padded(slot.mSlot, 10);
@@ -640,22 +643,23 @@ namespace BodyNif
                     out += "\n";
                     continue;
                 }
-                out += ": " + count(slot.mStats.mShapes) + " of " + count(slot.mFileShapes) + " shapes, vertices " +
-                    count(slot.mStats.mVertices) + ", triangles " + count(slot.mStats.mTriangles) + ", " +
-                    (slot.mStats.mSkinned ? "skinned" : "rigid") + ", bones " + count(slot.mStats.mBones) +
-                    ", influences 0..4 " + ladderText({ slot.mStats.mInfluenceHistogram[0],
-                                               slot.mStats.mInfluenceHistogram[1], slot.mStats.mInfluenceHistogram[2],
-                                               slot.mStats.mInfluenceHistogram[3], slot.mStats.mInfluenceHistogram[4],
-                                               0 }) +
-                    ", over-cut " + count(slot.mStats.mOverCut) + ", weight sum off " +
-                    count(slot.mStats.mWeightSumOff) + ", duplicates " + count(slot.mStats.mDuplicatePositions) + " (" +
-                    count(slot.mStats.mDuplicateSplits) + " splits), boundary " +
-                    count(slot.mStats.mBoundaryVertices) + ", edges open/shared/over " + count(slot.mStats.mOpenEdges) + "/" +
-                    count(slot.mStats.mSharedEdges) + "/" + count(slot.mStats.mOverUsedEdges) + ", bounds (" +
-                    number(slot.mStats.mBoundsMin[0]) + " " + number(slot.mStats.mBoundsMin[1]) + " " +
-                    number(slot.mStats.mBoundsMin[2]) + ")-(" + number(slot.mStats.mBoundsMax[0]) + " " +
-                    number(slot.mStats.mBoundsMax[1]) + " " + number(slot.mStats.mBoundsMax[2]) + ")" + (slot.mAllIdentity ? "" : ", transforms not identity") +
-                    (slot.mAnyMirrored ? ", mirrored" : "") + (slot.mPlaced ? ", placed by bone" : "") + "\n";
+                out += ": " + count(slot.mStats.mShapes) + " of " + count(slot.mFileShapes) + " shapes, vertices "
+                    + count(slot.mStats.mVertices) + ", triangles " + count(slot.mStats.mTriangles) + ", "
+                    + (slot.mStats.mSkinned ? "skinned" : "rigid") + ", bones " + count(slot.mStats.mBones)
+                    + ", influences 0..4 "
+                    + ladderText({ slot.mStats.mInfluenceHistogram[0], slot.mStats.mInfluenceHistogram[1],
+                        slot.mStats.mInfluenceHistogram[2], slot.mStats.mInfluenceHistogram[3],
+                        slot.mStats.mInfluenceHistogram[4], 0 })
+                    + ", over-cut " + count(slot.mStats.mOverCut) + ", weight sum off "
+                    + count(slot.mStats.mWeightSumOff) + ", duplicates " + count(slot.mStats.mDuplicatePositions) + " ("
+                    + count(slot.mStats.mDuplicateSplits) + " splits), boundary " + count(slot.mStats.mBoundaryVertices)
+                    + ", edges open/shared/over " + count(slot.mStats.mOpenEdges) + "/"
+                    + count(slot.mStats.mSharedEdges) + "/" + count(slot.mStats.mOverUsedEdges) + ", bounds ("
+                    + number(slot.mStats.mBoundsMin[0]) + " " + number(slot.mStats.mBoundsMin[1]) + " "
+                    + number(slot.mStats.mBoundsMin[2]) + ")-(" + number(slot.mStats.mBoundsMax[0]) + " "
+                    + number(slot.mStats.mBoundsMax[1]) + " " + number(slot.mStats.mBoundsMax[2]) + ")"
+                    + (slot.mAllIdentity ? "" : ", transforms not identity") + (slot.mAnyMirrored ? ", mirrored" : "")
+                    + (slot.mPlaced ? ", placed by bone" : "") + "\n";
                 for (const std::string& error : slot.mErrors)
                     out += "    error: " + error + "\n";
             }

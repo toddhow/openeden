@@ -2,7 +2,8 @@
 #define OPENMW_COMPONENTS_LOD_CLUSTERPACK_H
 
 // OpenEden world LOD (task 0059, stage S4c). A derived Eden Archive pack of baked object clusters: one keyed entry per
-// tile (type 0x0011, key tag 0x11) plus the manifest entry `lod/objects.json`. DRAFT layout version 0 (not approved).
+// tile (type 0x0011, key tag 0x11) plus the manifest entry `lod/objects.json`. Layout version 1 (the draft version 0
+// was approved and frozen on 2026-11-03).
 
 #include <cstdint>
 #include <filesystem>
@@ -24,8 +25,8 @@ namespace Lod
     inline constexpr std::string_view clusterManifestPath = "lod/objects.json";
     /// Provenance tool id of every cluster entry.
     inline constexpr std::string_view clusterToolId = "openeden.lod.objects";
-    /// DRAFT: the layout version of the cluster entry and its key. The final layout will have another number.
-    inline constexpr std::uint32_t clusterLayoutVersion = 0;
+    /// The layout version of the cluster entry and its key (frozen at 1 on 2026-11-03, task 0066 stage d).
+    inline constexpr std::uint32_t clusterLayoutVersion = 1;
 
     /// What the pack holds. Canonical JSON, one line, alphabetical keys, no spaces; the parser accepts only that text.
     struct ClusterManifest

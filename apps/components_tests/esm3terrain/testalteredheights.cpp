@@ -586,4 +586,49 @@ namespace
 
         EXPECT_NEAR(height, 100.f, 0.01f);
     }
+
+    // ---- A lod above 6: the far levels of the world LOD (task 0066 stage d) ----
+
+    // The land keeps 64 intervals a cell, so lod 6 keeps the cell corners and lod 7 every second corner. A tile of
+    // level 6 (64 cells, 33 vertices a side) is read at lod 7. The per-cell loop could only keep a vertex in every
+    // cell: for a lod above 6 it wrote beyond the arrays, and the world LOD bake took garbage (errors of 1e28) for
+    // tiles of level 6. The grid of lod 7 is the grid of lod 6 with every second vertex kept.
+    TEST(ESMTerrainFarLod, aLodAboveSixIsTheLodSixGridKeptEverySecondVertex)
+    {
+        LandWorld world;
+        world.addGradedSquare();
+        PlainStorage storage(world);
+        const auto six = storage.getVertexData(6, makeBounds(0, 0, 2));
+        const auto seven = storage.getVertexData(7, makeBounds(0, 0, 2));
+        ASSERT_EQ(six.heights->width(), 3u);
+        ASSERT_EQ(seven.heights->width(), 2u);
+        ASSERT_EQ(seven.heights->height(), 2u);
+        for (std::uint32_t y = 0; y < 2; ++y)
+        {
+            for (std::uint32_t x = 0; x < 2; ++x)
+            {
+                EXPECT_EQ((*seven.heights)(x, y), (*six.heights)(2 * x, 2 * y)) << x << "," << y;
+                EXPECT_TRUE((*seven.normals)(x, y) == (*six.normals)(2 * x, 2 * y)) << x << "," << y;
+                EXPECT_TRUE((*seven.colors)(x, y) == (*six.colors)(2 * x, 2 * y)) << x << "," << y;
+            }
+        }
+    }
+
+    TEST(ESMTerrainFarLod, aLodEightKeepsEveryFourthVertexOfTheLodSixGrid)
+    {
+        LandWorld world;
+        world.addGradedSquare();
+        PlainStorage storage(world);
+        const auto six = storage.getVertexData(6, makeBounds(0, 0, 4));
+        const auto eight = storage.getVertexData(8, makeBounds(0, 0, 4));
+        ASSERT_EQ(six.heights->width(), 5u);
+        ASSERT_EQ(eight.heights->width(), 2u);
+        for (std::uint32_t y = 0; y < 2; ++y)
+        {
+            for (std::uint32_t x = 0; x < 2; ++x)
+            {
+                EXPECT_EQ((*eight.heights)(x, y), (*six.heights)(4 * x, 4 * y)) << x << "," << y;
+            }
+        }
+    }
 }

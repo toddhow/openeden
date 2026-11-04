@@ -48,6 +48,12 @@ namespace Lod
         float mDropFactor = 1; // an object with radius < mDropFactor * mError is left out
     };
 
+    /// The simplification error of each cluster level, in world units (task 0066 stage d). Levels 1 to 3 are the values
+    /// of task 0059, derived from the tile selection's pixel-error formula (720p, 60 degrees, 8 px: a level's error is
+    /// about 1.28 percent of the distance where the level starts); level 4 continues the growth of about three times a
+    /// level from note 0029. 0 for a level outside 1 to maxClusterLevel.
+    float clusterLevelError(std::uint32_t level) noexcept;
+
     enum class ExcludeReason : std::uint8_t
     {
         None = 0, // included

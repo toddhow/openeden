@@ -85,8 +85,8 @@ namespace
         }
 
         // Gives the shape a skin over the named bones (created as plain nodes) with one weight list per bone.
-        Nif::NiSkinInstance& skin(
-            Nif::NiGeometry& geometry, const std::vector<std::string>& boneNames, const std::vector<WeightList>& weights)
+        Nif::NiSkinInstance& skin(Nif::NiGeometry& geometry, const std::vector<std::string>& boneNames,
+            const std::vector<WeightList>& weights)
         {
             Nif::NiSkinInstance& instance = create<Nif::NiSkinInstance>(Nif::RC_NiSkinInstance);
             Nif::NiSkinData& data = create<Nif::NiSkinData>(Nif::RC_NiSkinData);
@@ -331,9 +331,8 @@ namespace
         Nif::NiNode& chest = model.node("Chest");
         model.setTransform(chest, 2.f, vsg::vec3(1, 2, 3));
         model.attach(root, chest);
-        Nif::NiGeometry& geometry
-            = model.shape(chest, "Tri Chest", { vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(0, 0, 1) },
-                oneTriangle);
+        Nif::NiGeometry& geometry = model.shape(
+            chest, "Tri Chest", { vsg::vec3(1, 0, 0), vsg::vec3(0, 1, 0), vsg::vec3(0, 0, 1) }, oneTriangle);
         model.skin(geometry, { "Bip01" }, { { { 0, 1.f }, { 1, 1.f }, { 2, 1.f } } });
 
         const ReadResult result = readShapes(root, "Chest");

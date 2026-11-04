@@ -90,7 +90,7 @@ namespace Lod
     /// Which levels to bake and from which level up the tiles carry an albedo.
     struct TerrainBakePlan
     {
-        std::vector<std::uint32_t> mLevels = { 1, 2, 3 };
+        std::vector<std::uint32_t> mLevels = { 1, 2, 3, 4, 5, 6 }; // 5 and 6 cover Morrowind in 2 x 2 tiles
         std::uint32_t mAlbedoFromLevel = 2; // levels below it use the live blend maps and have no albedo
         std::uint32_t mAlbedoSize = 256;
     };

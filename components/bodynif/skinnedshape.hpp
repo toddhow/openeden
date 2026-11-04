@@ -104,11 +104,11 @@ namespace BodyNif
     /// Where the shapes of a part are in the skeleton's space. A rigid (unskinned) part hangs under a named bone of the
     /// skeleton (npc.cpp, attachBonesAndNode), so its vertices are in that bone's space: with a rest pose and the bone
     /// name they are brought into the skeleton's space (the bone's world matrix times the node chain; a bone whose name
-    /// contains "Left" mirrors the part in x first, as the engine does, because left and right share a file). A skinned part's
-    /// vertices are in the skin's space: with a rest pose each goes to its bind pose, the weighted sum over its kept
-    /// influences of (the bone's world matrix times its skin transform times the skin's own transform) applied to the
-    /// stored vertex (the attach bone is not used). A bone the pose lacks is one error per shape and leaves the shape
-    /// where it is. Without a rest pose nothing is placed.
+    /// contains "Left" mirrors the part in x first, as the engine does, because left and right share a file). A skinned
+    /// part's vertices are in the skin's space: with a rest pose each goes to its bind pose, the weighted sum over its
+    /// kept influences of (the bone's world matrix times its skin transform times the skin's own transform) applied to
+    /// the stored vertex (the attach bone is not used). A bone the pose lacks is one error per shape and leaves the
+    /// shape where it is. Without a rest pose nothing is placed.
     struct Placement
     {
         const RestPose* mRest = nullptr;

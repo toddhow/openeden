@@ -50,13 +50,13 @@ namespace
     }
 
     const std::string canonicalManifest
-        = R"({"bakerVersion":1,"cellSize":8192,"errors":[64,192,576],"layoutVersion":0,"levels":[1,2,3],)"
+        = R"({"bakerVersion":1,"cellSize":8192,"errors":[64,192,576],"layoutVersion":1,"levels":[1,2,3],)"
           R"("worldspace":"Morrowind"})";
 
     ClusterManifest canonicalValue()
     {
         ClusterManifest manifest;
-        manifest.mLayoutVersion = 0;
+        manifest.mLayoutVersion = 1;
         manifest.mBakerVersion = 1;
         manifest.mCellSize = 8192;
         manifest.mWorldspace = "Morrowind";
@@ -238,7 +238,7 @@ namespace
     {
         EXPECT_EQ(writeClusterManifestJson(canonicalValue()), canonicalManifest);
         EXPECT_EQ(canonicalManifest,
-            "{\"bakerVersion\":1,\"cellSize\":8192,\"errors\":[64,192,576],\"layoutVersion\":0,\"levels\":[1,2,3],"
+            "{\"bakerVersion\":1,\"cellSize\":8192,\"errors\":[64,192,576],\"layoutVersion\":1,\"levels\":[1,2,3],"
             "\"worldspace\":\"Morrowind\"}");
     }
 
@@ -302,7 +302,7 @@ namespace
             "reordered keys");
         expectManifestRefused(replaceOnce(canonicalManifest, "8192", "08192"), "leading zero");
         expectManifestRefused(
-            replaceOnce(canonicalManifest, "\"layoutVersion\":0", "\"layoutVersion\":00"), "leading zero on zero");
+            replaceOnce(canonicalManifest, "\"layoutVersion\":1", "\"layoutVersion\":01"), "leading zero");
         expectManifestRefused(replaceOnce(canonicalManifest, "[64,", "[-64,"), "negative number");
         expectManifestRefused(replaceOnce(canonicalManifest, "8192", "8192.0"), "fraction");
         expectManifestRefused(replaceOnce(canonicalManifest, "8192", "4294967296"), "number above 2^32 - 1");
@@ -338,11 +338,25 @@ namespace
         expectManifestRefused(text, "oversized text");
     }
 
-    TEST(LodClusterPack, manifest_refuses_levels_outside_one_to_three)
+    TEST(LodClusterPack, manifest_refuses_levels_outside_one_to_four)
     {
         expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[0,2,3]"), "level 0");
-        expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[1,2,4]"), "level 4");
+        expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[1,2,5]"), "level 5");
         expectManifestRefused(replaceOnce(canonicalManifest, "\"levels\":[1,2,3]", "\"levels\":[1,2,15]"), "level 15");
+    }
+
+    TEST(LodClusterPack, manifest_accepts_four_levels_and_the_layout_version_is_one)
+    {
+        EXPECT_EQ(clusterLayoutVersion, 1u);
+        ClusterManifest manifest = canonicalValue();
+        manifest.mLevels = { 1, 2, 3, 4 };
+        manifest.mErrors = { 128, 320, 960, 2900 };
+        const std::string text = writeClusterManifestJson(manifest);
+        EXPECT_NE(text.find("\"layoutVersion\":1"), std::string::npos) << text;
+        ClusterManifest parsed;
+        const LodError error = parseClusterManifestJson(text, parsed);
+        ASSERT_TRUE(error.ok()) << error.describe();
+        EXPECT_EQ(parsed, manifest);
     }
 
     TEST(LodClusterPack, manifest_refuses_empty_levels)
@@ -597,12 +611,12 @@ namespace
         EXPECT_NE(openBytes(rawPack(true, &canonicalManifest, {}), accepted), nullptr) << accepted.describe();
     }
 
-    TEST(LodClusterPack, open_refuses_a_manifest_with_layout_version_1)
+    TEST(LodClusterPack, open_refuses_a_manifest_with_another_layout_version)
     {
-        for (const char* version : { "1", "2", "4000000000" })
+        for (const char* version : { "0", "2", "4000000000" })
         {
             const std::string text
-                = replaceOnce(canonicalManifest, "\"layoutVersion\":0", std::string("\"layoutVersion\":") + version);
+                = replaceOnce(canonicalManifest, "\"layoutVersion\":1", std::string("\"layoutVersion\":") + version);
             const std::vector<std::uint8_t> bytes = rawPack(true, &text, {});
             LodError error;
             EXPECT_EQ(openBytes(bytes, error), nullptr) << version;

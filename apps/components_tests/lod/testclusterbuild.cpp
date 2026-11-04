@@ -611,7 +611,7 @@ namespace
         };
         const Case cases[] = {
             { "level 0", [](ClusterBuildInput& in) { in.mLevel.mLevel = 0; } },
-            { "level 4", [](ClusterBuildInput& in) { in.mLevel.mLevel = 4; } },
+            { "level 5", [](ClusterBuildInput& in) { in.mLevel.mLevel = 5; } },
             { "side zero", [](ClusterBuildInput& in) { in.mSide = 0; } },
             { "side negative", [](ClusterBuildInput& in) { in.mSide = -16384; } },
             { "side NaN", [](ClusterBuildInput& in) { in.mSide = std::numeric_limits<double>::quiet_NaN(); } },
@@ -655,32 +655,50 @@ namespace
         }
     }
 
-    TEST(LodClusterBuild, MoreThanSixtyFourDistinctCellsIsAnError)
+    TEST(LodClusterBuild, TheLevelErrorsGrowAboutThreeTimesALevel)
     {
-        // A level 3 tile of 16 x 16 cells of 4096 units: room for 256 distinct cells, but a cluster takes 64.
+        EXPECT_EQ(clusterLevelError(0), 0.f);
+        EXPECT_EQ(clusterLevelError(1), 128.f);
+        EXPECT_EQ(clusterLevelError(2), 320.f);
+        EXPECT_EQ(clusterLevelError(3), 960.f);
+        EXPECT_EQ(clusterLevelError(4), 2900.f);
+        EXPECT_EQ(clusterLevelError(5), 0.f); // above maxClusterLevel
+        EXPECT_EQ(clusterLevelError(15), 0.f);
+        for (std::uint32_t level = 2; level <= maxClusterLevel; ++level)
+        {
+            const float ratio = clusterLevelError(level) / clusterLevelError(level - 1);
+            EXPECT_GT(ratio, 2.4f) << level;
+            EXPECT_LT(ratio, 3.1f) << level;
+        }
+    }
+
+    TEST(LodClusterBuild, MoreThanTwoHundredFiftySixDistinctCellsIsAnError)
+    {
+        // A tile of 32 x 32 cells of 4096 units: room for 1024 distinct cells, but a cluster takes 256 (a cell slot is
+        // one byte).
         const auto makeCapInput = [](std::uint32_t objects) {
             ClusterBuildInput input;
-            input.mLevel = ClusterLevelParams{ 3, 0.01f, 1.0f };
+            input.mLevel = ClusterLevelParams{ 4, 0.01f, 1.0f };
             input.mOriginX = 0;
             input.mOriginY = 0;
-            input.mSide = 65536;
+            input.mSide = 131072;
             input.mCellSize = 4096;
             input.mOriginCellX = 0;
             input.mOriginCellY = 0;
             for (std::uint32_t k = 0; k < objects; ++k)
             {
-                input.mObjects.push_back(makeObject(k + 1, static_cast<std::int32_t>(k % 16),
-                    static_cast<std::int32_t>(k / 16), makeCubePiece(50, "textures/a.dds"), 90, 4096.0));
+                input.mObjects.push_back(makeObject(k + 1, static_cast<std::int32_t>(k % 32),
+                    static_cast<std::int32_t>(k / 32), makeCubePiece(50, "textures/a.dds"), 90, 4096.0));
             }
             return input;
         };
 
-        const Built allowed = build(makeCapInput(64));
+        const Built allowed = build(makeCapInput(256));
         ASSERT_TRUE(allowed.mError.ok()) << allowed.mError.describe();
-        EXPECT_EQ(allowed.mCluster.mCells.size(), 64u);
+        EXPECT_EQ(allowed.mCluster.mCells.size(), 256u);
         expectStructure(allowed.mCluster);
 
-        const Built tooMany = build(makeCapInput(65));
+        const Built tooMany = build(makeCapInput(257));
         EXPECT_FALSE(tooMany.mError.mField.empty());
     }
 

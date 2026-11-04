@@ -29,6 +29,7 @@
 #include <components/vfs/manager.hpp>
 
 #include "mwbase/environment.hpp"
+#include "mwbase/world.hpp"
 #include "mwrender/distantobjectcells.hpp"
 #include "mwrender/distantobjects.hpp"
 #include "mwworld/esmstore.hpp"
@@ -40,12 +41,16 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 12;
-        // Per level (1, 2, 3): the largest simplification error in world units. Starting values of task 0059, D4: about
-        // 1.6 pixels at 7,500, 20,000 and 60,000 units at an 8 pixel threshold; to be calibrated by looking at frames.
-        constexpr std::uint32_t levelErrors[3] = { 128, 320, 960 };
+        constexpr std::uint32_t bakerVersion = 13; // 13: levels 3 and 4, layout version 1
+        // The largest simplification error of a level in world units (Lod::clusterLevelError: task 0059's values for
+        // levels 1 to 3, level 4 from the same growth, task 0066 stage d).
+        std::uint32_t levelError(std::uint32_t level)
+        {
+            return static_cast<std::uint32_t>(Lod::clusterLevelError(level));
+        }
         // An object smaller than this many errors is left out of the level (task 0059, "classification").
         constexpr float dropFactor = 0.75f;
+        constexpr long long slowTileMilliseconds = 2000;
 
         enum class Phase
         {
@@ -142,7 +147,7 @@ namespace OMW
         std::vector<std::pair<Lod::TileId, std::vector<std::size_t>>> mWork; // tile and object indices
         std::size_t mNextTile = 0;
         std::vector<Lod::BakedCluster> mClusters;
-        LevelTotals mTotals[3];
+        LevelTotals mTotals[Lod::maxClusterLevel];
         std::size_t mDuplicates = 0;
         std::size_t mBadReferences = 0;
         Lod::ClusterManifest mManifest;
@@ -243,6 +248,10 @@ namespace OMW
         {
             state.mStarted = true;
             state.mStart = std::chrono::steady_clock::now();
+            // The bake runs inside a new game, where the player starts in a fight and dies after about ten seconds; a
+            // death stops the game's update and with it the bake. A bake is no play: switch god mode on.
+            if (MWBase::World* world = MWBase::Environment::get().getWorld(); world != nullptr && !world->getGodModeState())
+                world->toggleGodMode();
             const auto& cells = store->get<ESM::Cell>();
             for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
                 state.mCells.emplace_back(it->getGridX(), it->getGridY());
@@ -250,13 +259,13 @@ namespace OMW
             state.mManifest.mBakerVersion = bakerVersion;
             state.mManifest.mCellSize = cellSize;
             state.mManifest.mWorldspace = worldspaceName;
-            // Levels 1 and 2 serve views up to about 75,000 units (level 3 starts there at an 8 pixel threshold, see
-            // levelErrors); the game's longest practical view is shorter, so level 3 is not baked by default.
-            state.mManifest.mLevels = { 1, 2 };
-            state.mManifest.mErrors.assign(
-                std::begin(levelErrors), std::begin(levelErrors) + state.mManifest.mLevels.size());
+            // Levels 1 to 4. Level 5 would need 1,024 cell slots (a cluster holds 256) and keeps almost no object (the
+            // survey below), so the baker stops at level 4 (task 0066 stage d).
+            state.mManifest.mLevels = { 1, 2, 3, 4 };
+            for (const std::uint32_t level : state.mManifest.mLevels)
+                state.mManifest.mErrors.push_back(levelError(level));
             Log(Debug::Info) << "LOD object bake: " << state.mCells.size() << " exterior cells (cluster layout version "
-                             << Lod::clusterLayoutVersion << ", DRAFT).";
+                             << Lod::clusterLayoutVersion << ").";
         }
 
         const auto sliceEnd = std::chrono::steady_clock::now() + sliceTime;
@@ -369,6 +378,31 @@ namespace OMW
             }
             for (auto& [key, bucket] : buckets)
                 state.mWork.emplace_back(bucket.first, std::move(bucket.second));
+            // A survey of what each level keeps, from the object sizes alone. Levels 5 and 6 are not baked (their
+            // errors continue the growth of three times a level); the numbers are the evidence for stopping at level 4.
+            for (std::uint32_t level = 1; level <= 6; ++level)
+            {
+                const float error = level <= Lod::maxClusterLevel ? Lod::clusterLevelError(level)
+                                                                  : Lod::clusterLevelError(Lod::maxClusterLevel)
+                        * std::pow(3.f, static_cast<float>(level - Lod::maxClusterLevel));
+                std::size_t kept = 0;
+                std::size_t seen = 0;
+                for (const PlacedObject& object : state.mObjects)
+                {
+                    const ModelEntry& model = state.mModels[object.mModel];
+                    if (!model.mOk)
+                        continue;
+                    ++seen;
+                    Lod::ObjectTraits traits = model.mFlat.mTraits;
+                    traits.mRadius *= object.mScale;
+                    if (Lod::classifyObject(traits, Lod::ClusterLevelParams{ level, error, dropFactor })
+                        == Lod::ExcludeReason::None)
+                        ++kept;
+                }
+                Log(Debug::Info) << "LOD object bake: survey, level " << level << " (error " << error
+                                 << (level > Lod::maxClusterLevel ? ", not baked" : "") << "): " << kept << " of "
+                                 << seen << " objects would be kept.";
+            }
             state.mPhase = Phase::Build;
             Log(Debug::Info) << "LOD object bake: " << state.mModels.size() - state.mModelsFailed << " models read ("
                              << state.mModelsFailed << " failed), " << state.mWork.size() << " tiles to build.";
@@ -382,7 +416,7 @@ namespace OMW
             const std::size_t levelSlot = id.mLevel - 1;
             Lod::ClusterBuildInput input;
             input.mLevel.mLevel = id.mLevel;
-            input.mLevel.mError = static_cast<float>(levelErrors[levelSlot]);
+            input.mLevel.mError = static_cast<float>(levelError(id.mLevel));
             input.mLevel.mDropFactor = dropFactor;
             input.mCellSize = cellSize;
             std::int32_t originCellX = 0, originCellY = 0;
@@ -406,7 +440,7 @@ namespace OMW
             hashValue(hasher, id.mLevel);
             hashValue(hasher, id.mX);
             hashValue(hasher, id.mY);
-            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel, levelErrors[levelSlot], cellSize);
+            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize);
             hasher.update(parameters.data(), parameters.size());
             std::set<std::pair<std::uint32_t, std::int32_t>> seen;
             for (const std::size_t index : ordered)
@@ -446,7 +480,21 @@ namespace OMW
             LevelTotals& totals = state.mTotals[levelSlot];
             Lod::ObjectCluster cluster;
             Lod::ClusterBuildStats stats;
-            if (const Lod::LodError error = Lod::buildObjectCluster(input, cluster, &stats))
+            if (state.mNextTile % 50 == 1)
+                Log(Debug::Info) << "LOD object bake: tile " << state.mNextTile << " of " << state.mWork.size() << " ("
+                                 << std::chrono::duration_cast<std::chrono::seconds>(
+                                        std::chrono::steady_clock::now() - state.mStart).count()
+                                 << " s)";
+            const auto tileStart = std::chrono::steady_clock::now();
+            const Lod::LodError buildError = Lod::buildObjectCluster(input, cluster, &stats);
+            const auto tileMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - tileStart).count();
+            // A tile that takes seconds is worth knowing about (the levels 3 and 4 of task 0066 stage d).
+            if (tileMs >= slowTileMilliseconds)
+                Log(Debug::Info) << "LOD object bake: level " << id.mLevel << " tile (" << id.mX << ", " << id.mY
+                                 << ") took " << tileMs << " ms: " << input.mObjects.size() << " objects, "
+                                 << stats.mTrianglesBefore << " triangles to " << stats.mTrianglesAfter;
+            if (const Lod::LodError error = buildError)
             {
                 Log(Debug::Error) << "LOD object bake failed, no pack written: tile level " << id.mLevel << " ("
                                   << id.mX << ", " << id.mY << "): " << error.describe();
@@ -476,15 +524,16 @@ namespace OMW
             return false;
 
         state.mPhase = Phase::Done;
-        for (std::size_t slot = 0; slot < 3; ++slot)
+        for (std::size_t slot = 0; slot < Lod::maxClusterLevel; ++slot)
         {
             LevelTotals& totals = state.mTotals[slot];
             if (totals.mObjectsSeen == 0)
                 continue;
             std::sort(totals.mGroups.begin(), totals.mGroups.end());
-            Log(Debug::Info) << "LOD object bake: level " << slot + 1 << " (error " << levelErrors[slot]
-                             << "): " << totals.mTiles << " clusters, objects included " << totals.mObjectsIncluded
-                             << " of " << totals.mObjectsSeen << " (too small "
+            Log(Debug::Info) << "LOD object bake: level " << slot + 1 << " (error "
+                             << levelError(static_cast<std::uint32_t>(slot + 1)) << "): " << totals.mTiles
+                             << " clusters, objects included " << totals.mObjectsIncluded << " of "
+                             << totals.mObjectsSeen << " (too small "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::TooSmall)]
                              << ", animated "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::Animated)]
