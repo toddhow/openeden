@@ -192,3 +192,14 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
   Never convert element by element or through VSG's 16-number constructor.
 - **Known limit (BODY-MAP-026, a warning):** a bone named exactly like a canonical role it is not cannot be named as a
   parent or fold target: role names resolve first.
+
+## The engine's side of the merged body (task 0069, stage d: `mergedruntime.*`)
+
+- **One decision, one order.** `decideMergedBody` takes plain facts and returns the FIRST that fails, in the order of
+  `MergedBodyFacts` (setting, third person, werewolf, default skeleton, cache, entry, key computed, key current, payload,
+  built, equipment). The engine (`apps/openmw/mwrender/mergedbody.*`, `Npc::attachMergedBody`) only gathers facts; add a
+  new condition here, with a test, never as an extra `if` in the engine.
+- **`planMergedDraws` returns nothing for any out-of-range index** (a submesh past the triangles, a material past the
+  list, a vertex past the positions): the payload reader already refuses these, so an empty plan is a bug signal.
+- **`invertAffine` is row-major `[M3 | t]`** like `BodyNif::Matrix34` (v' = M3 v + t) and refuses a determinant below
+  1e-12 or any non-finite value, leaving its output untouched.

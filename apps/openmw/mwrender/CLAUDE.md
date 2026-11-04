@@ -164,3 +164,25 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Pitfall: the movement request is gone on the animation thread.** `preAnimation` clears `getMovementSettings(ptr).mPosition` before `runAnimation` runs on the update threads, so anything there that reads it sees 0 (stage 1 shipped with "wants to move" always false because of this; review finding 1). `preAnimation` stores what the intent needs (`mIntentWantsToMove`, `mIntentSpeedMps`, `mIntentMeasuredMps`, `mIntentStanceChanged`) in members on the main thread; read those.
 - **Pitfall:** measure a blend where the group really changes, not at the scripted event: with inertial locomotion a stop goes run to walk at the key release and walk to idle about 22 frames later. `creativemotioncheck` reports every group change with the duration chosen there (`trans=…/D`), the offset left by the inertializer (the trace's `tgt=[…]`, the un-offset target of each traced bone, written only with the debug trace on) and the jerk above the target's own.
 - **Checking it:** `tools/creativemotion_check/check.sh <build> <base cfg> <empty work dir> vanilla cm cmoff natural` (three runs per variant by default, a summary of the ranges per variant, the build's commit and link time and the extra settings in every report; a natural run whose trace never shows the intent fails); `EXTRA_SETTINGS` adds settings.cfg text (for example a `[CreativeMotion Transitions]` category).
+
+## The merged body (task 0069, stage d: `mergedbody.*`, `Npc::attachMergedBody`)
+
+- **Off means unchanged:** with `[Bodies] merged body` false, `attachMergedBody` returns after one setting read and
+  `MergedBodies` reads nothing. Keep every new step behind that read.
+- **Fail closed, per race and sex, for the whole session:** the template is built once (key recomputed with
+  `OMW::computeStockBodyFacts`, payload read, node built inside a try/catch); any failure keeps the stock parts and is
+  remembered (decision H15: no live swap). Reasons come from `Body::decideMergedBody` (`components/body/mergedruntime.*`).
+- **The look is the stock part's own:** `findLook` reads the part through `vsgUtil::readNode` with the part's options
+  and a fresh `SharedObjects` (or the cache returns the old node and nothing is captured), captures each pipeline's
+  options with `Pipeline::Override::pipelineOptions` and takes the texture descriptors without `BONE_BINDING`. A part
+  with several shapes is matched by `BodyCommon::materialKey` in the order `shapesOf` lists them.
+- **Each draw's skin carries only the bones its vertices use.** All of the body's bones in every draw's skin made 20
+  merged NPCs cost a 7.2 ms frame against 3.8 ms for stock; with the subset the two are equal.
+- **Attach at any bone:** the vertices are in the skeleton's space and each bone's inverse rest matrix is its
+  `invBindMatrix`, so the attachment bone (the groin) only fixes the frame the skin's matrices are relative to.
+- **Re-attached on every `updateParts`:** `clearControllers` empties `mStaticControllers`, which holds the merged
+  body's skin controllers; `removePath(mMergedBody)` first, then attach again.
+- **Equipment (stage d):** anything worn or reserved over a merged slot keeps the stock parts entirely; regions are
+  stage e.
+- **Checking it:** bake into a copied user folder (`openmw --bake-bodies`), then `tools/mergedbody_check/check.sh <build>
+  <base cfg> <user data> <work> stock|merged`; compare the frames and `stats.txt` of the two variants.

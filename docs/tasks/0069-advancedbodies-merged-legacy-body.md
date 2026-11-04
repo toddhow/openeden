@@ -349,3 +349,99 @@ them pass). A2 (the 23-unit seam bend) is NOT changed: the weight policy is stag
 - **Not verified:** the Linux gate and the Lua tests; the all-failed publish path and the exception path in a running
   game; cross-compiler float equality of the cache bytes; the unit tests of the adapter against a fake file system (still
   not written).
+
+### Stage d, 2026-11-04: the engine path behind `[Bodies] merged body` (commits `98b9809959`, `bdc6c1a229`)
+
+**What was built.**
+- `components/body/mergedruntime.*` (pure, engine-free): `decideMergedBody` (the facts in a fixed order, the first
+  that fails is the reason: setting, third person, werewolf, the race's default skeleton, cache, entry, key computed, key
+  current, payload, build, equipment), `describe`, `mergedSlotsCovered`, `mergedSlotsOf`, `planMergedDraws` (one draw per
+  submesh with its own compact vertex list) and `invertAffine`. 18 tests, written first and run red against stubs (11
+  failed, 7 passed vacuously); the `OtherSkeleton` fact was added later the same way (1 failed, then implemented).
+- `[Bodies] merged body` (false) in `files/settings-default.cfg` and `Settings::bodies()`.
+- `MWRender::MergedBodies` (`apps/openmw/mwrender/mergedbody.*`): reads `current`, the pack and the manifest once per
+  session, when the first actor asks (nothing is read with the setting off). Each race and sex is checked once, when its
+  first actor is built: `OMW::computeStockBodyFacts` (shared with the baker) recomputes the key from the data now and it
+  must equal the manifest's, the payload must read, and the node must build. The node is one `StateGroup` per submesh:
+  the pipeline options and textures captured from the stock part read through the engine's own reader with the part's
+  own options (`Pipeline::Override::pipelineOptions`), adapted to the merged arrays (SKIN, no vertex colours, morphs or
+  normal maps, counter-clockwise front face because the merger already reversed mirrored parts), and an `Anim::Skin`
+  whose bones are only those the submesh's vertices use, linked by name like `handleSkin`. A template per race and sex
+  is decorated per actor (`MWAnim::decorate`) and attached at the groin bone (the skin's matrices are relative to it).
+- `Npc::attachMergedBody`, called by `updateParts` after the equipment: when the setting is on, the actor is in third
+  person, not a werewolf, uses its race's default skeleton, its template exists and nothing it wears or reserves owns a
+  merged slot, the stock parts of the merged slots are removed (and not added again) and the merged body is attached;
+  otherwise nothing changes. It re-attaches on every `updateParts` call, because `clearControllers` drops what it linked.
+  Head, hair, first person and werewolves keep their parts. **Equipment in stage d:** an actor that wears anything over a
+  merged slot keeps the stock parts entirely (stage e hides regions instead).
+- A failed race and sex logs one warning per reason and session (`Merged bodies: <race> <sex> draws the stock parts:
+  <reason>`); a cache problem (no cache, stale key, refused payload) also shows one message box per session, which for a
+  stale key says to re-run `openmw --bake-bodies` (answer 9). The details go to the Verbose log.
+- `tools/mergedbody_check/check.sh` (stock or merged, one scripted scene in Balmora with `OPENEDEN_QUIET_WINDOW=1`): the
+  player without clothes standing, walking, running, turning and attacking in third person, close-ups of the right
+  wrist and knee from a static camera, then one NPC of every race and sex (stripped before it enters the world) in a
+  row, with `OPENEDEN_FRAME_STATS_FILE`.
+
+**Deviations from the spec, to be judged by toddhow.** (1) The runtime check recomputes the full key, so it reads and
+hashes the part files and the skeleton once per race and sex (answer 8 asked to trust the pointer and compare records
+and file sizes without re-hashing): the same function as the bake, at a cost that was not measured. (2) The cache is
+read on the first actor, not at start. (3) No switch per region: stage d either draws the whole merged body or none.
+(4) Beasts are merged: the bake builds them and their frames look right (H18 says beasts only if the structure
+matches; stage a/c built all 20 bodies).
+
+**Frames (Balmora hill, 800x600; work folder `I:\Projects\OpenEden-work\bodies\stage-d\runs`).** Sheets:
+`sheets\stock.png` and `sheets\merged.png`; close-ups with stock on the left and merged on the right:
+`closeups\pair006.png` (right wrist, hand-to-hand stance after the attack) and `closeups\pair007.png` (knee). Viewed:
+the player (dark elf male) and the 20 NPCs of every race and sex, beasts included, draw a whole body in the merged
+run, at rest, walking, running, turning and attacking; no gap and no new crack at the wrist or the knee; the
+overlapping joints (thigh to knee, upper arm) look as in stock. The welded seam bend that stage c measured (up to 23
+units at seeded poses) is not visible as a difference in these poses: they do not turn a wrist or an ankle hard against
+its forearm or leg. **Pixel counts were not computed:** the scene runs on real time and the NPCs wander, so two runs are
+never aligned to the pixel; a frozen-pose capture is needed for that number. After the bone change below the merged
+frames were viewed again (row, run, wrist): unchanged.
+
+**Cost (frame time, `OPENEDEN_FRAME_STATS_FILE`; medians and p99 in ms).** The first version gave every submesh's skin
+all the body's bones, and 20 merged NPCs cost a frame median of 7.23 ms against 3.76 ms for stock (player alone: 3.67
+against 3.52). With each skin limited to the bones its vertices use:
+
+| Run | Player alone (6 to 22 s) | 20 NPCs in view (from 24 s) |
+| --- | --- | --- |
+| stock, run 1 | 3.52 / 5.28 | 3.76 / 5.38 |
+| stock, run 2 | 3.51 / 5.34 | 3.74 / 5.33 |
+| merged, all bones per skin | 3.67 / 5.39 | 7.23 / 9.03 |
+| merged, run 1 | 3.52 / 5.33 | 3.77 / 5.50 |
+| merged, run 2 | 3.52 / 5.38 | 3.74 / 5.35 |
+
+So the merged body costs the same frame time as the stock parts here: no saving and no loss (recorded, not promised).
+**Memory** (process private bytes and working set in MiB, one run each, sampled once a second): before the NPCs stock
+983 / 726, merged 992 / 734; with the 20 NPCs stock 1023 / 765, merged 1039 / 783, so about +16 MiB with 20 races and
+sexes built (the cache, the templates and the reads of the stock parts for their look). Device memory was not measured.
+
+**Fallbacks.** The decision is unit tested for every reason. In the game, the merged run with an empty user folder (no
+cache; `runs-nocache\merged`): one message box ("there is no merged body cache: run openmw --bake-bodies") in the first
+frame and never again, one warning per race and sex, every body drawn with the stock parts, frame times as stock (3.51
+/ 5.34 and 3.74 / 5.31). Not run in the game: a stale key, a bit-flipped or refused entry, an exception in the
+builder, a werewolf, a creature, first person (the code paths are read, not run).
+
+**Not done or not verified.** The byte-identical "off" frames and the recorded part lists against the commit before
+(no executable of that commit exists, and the shared tree holds other agents' uncommitted work, so a build of it would
+differ in other ways; off, the new code is one setting read and an empty `removePath` per `updateParts`, and one bool in
+`updateNpcBase`); the numeric five-pose equivalence in the game's harness (stage c's `--check-bodies` compares the CPU
+skin on the same data: non-weld vertices within 1.6e-5 at five poses; the GPU path is not compared numerically); the
+`[Cells] load trace` counts and 50 NPCs (20 measured, by frame time and process memory instead); the allocation-counter
+test; the role-based skin mark for subsurface scattering (risk 6: the captured look carries whatever the stock part's
+options had; not checked with the `subsurface` debug view); the 32 Lua tests and the Linux gate. The "off" argument above
+is reasoning from the code, not a comparison: the feasible comparison is a `git worktree` of `bdc6c1a229^` under
+`I:\Projects\OpenEden-work` with its own full build, against this build with the setting off, on a frozen scene.
+
+**Threads.** Everything new runs on the main thread: `Npc::attachMergedBody` from `updateParts`, and in it
+`MergedBodies::getTemplate` (cache read, key, payload, `findLook`, the build) under `sMutex`; `report` uses the window
+manager, main thread only. The skins are ordinary `Anim::Skin` controllers, updated where the stock parts' are.
+
+**Tests and the editor.** `components-tests` (5,328 passed, the rest skipped or disabled as before) and `openmw-tests`
+(859) pass on Windows. `eden-studio` was rebuilt; its unattended capture (`--open-cell Balmora --auto-screenshot 30
+--auto-quit 40` with a copied config) loaded the defaults with `[Bodies]`, drew the cell and exited 0. A plain start
+without a file stopped its extension host 6 to 16 ms after loading it and then stayed alive until killed (twice; the
+path looks like `makeIPCServer` returning false, which logs nothing when `listen` fails; no other editor was running
+the second time; not investigated, and not seen to depend on this change). Those plain starts read the real
+`openmw.cfg` despite `--replace=config --config` and rewrote `eden-studio.log` in the real user folder.
