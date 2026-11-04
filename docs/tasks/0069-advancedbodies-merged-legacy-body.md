@@ -163,3 +163,49 @@ joints first, weld only the two exact seams at 0.01 units, cap removal later) an
 All ten open questions of the design doc's section 7A.5 were answered "all yes" (each recommendation accepted): 1 head stays a part (H14); 2 ahead-of-time bake plus background worker, stock for the actor's whole life when its entry is missing (H15); 3 a small canonical `bodymesh` layout, a draft until approved (H16); 4 equal-weight mean at weld groups (H17); 5 humans first, beasts only if the structure matches, no werewolf/creature/first person (H18); 6 one submesh per material, no atlas (H19); 7 a new `components/bodynif` (H20); 8 the runtime check trusts the bake's pointer and compares records and file sizes without re-hashing; 9 after a load-order change the game draws stock parts and says to re-run the bake; 10 stage a runs alone and toddhow reviews its go/no-go table before stage b starts.
 
 toddhow, 2026-11-03 (after reading the stage a go/no-go table, note 0033): a first merged-body version that welds only the two exact seams (forearm-wrist, knee-ankle) is acceptable; the overlapping joints stay as overlapping shells; cap removal later. Stage b starts on that scope.
+
+### Stage b, 2026-11-03: the merger as a pure library (`components/body/bodymerge.*`)
+
+**Built:** `mergeParts` and `computeWeldMap` (game-agnostic; the header comment is the specification), 35 merger tests in
+`apps/components_tests/body/testbodymerge.cpp` and two bind-pose tests appended to
+`apps/components_tests/bodynif/testskinnedshape.cpp`. Thread: pure functions, one body per call, called from tests
+only so far (stage c runs them in the bake mode or on a worker).
+- **Input:** `PartMesh` plain arrays (positions in part space, normals, UVs, triangles, influences by bone name or one
+  rigid bone, material key, slot, mirror flag, a 3 x 4 placement); `SeamDeclaration` (two slots, a tolerance).
+- **Output:** `MergedBody`: arrays, one canonical bone list (the options' known order first, then the other used names
+  by byte value; only bones still used), region ranges per slot, submeshes per (slot, material), weld groups, a
+  vertex map per input part, the canonical part order, a `MergeReport`.
+- **Rules as built:** parts in a canonical order (slot, material, name, sizes, content) so that the result does not
+  depend on the order passed in; mirror flag and placement as one transform (positions by the matrix, normals by the
+  cofactor matrix with the determinant's sign, winding flipped when the determinant is negative); weld sets by
+  union-find over vertex pairs within a seam's tolerance (a sorted-vector grid; two vertices of one part are never
+  welded to each other; a seam of a slot with itself welds two parts of that slot); a set takes the position of its
+  lowest member; inside a set, vertices with equal UVs (1e-5) and normals within 5 degrees merge, the others stay and the
+  set is a weld group; weights: rigid part = 1.0 on its bone, a set gets the equal-weight mean of its members' weights
+  bone by bone, then the four largest (ties by canonical bone index) renormalised; degenerate triangles from a weld
+  are dropped and counted.
+- **Hostile input:** counts capped (`MergeLimits`), indices, finiteness, coordinates (1e7), placement (finite and not
+  singular), seams (tolerance 0 to 100, slots exist, at most 2,000,000 pairs per seam), weights, bone indices and names;
+  a located message per problem (at most 16), never an exception.
+- **Tests first, red first:** the header and a stub that returns "not implemented" were committed to the build, and
+  the 35 merger tests were run: **0 passed, 35 failed**; then the code was written and all 35 passed. A mutation check
+  (a `<` for the inclusive tolerance, the tie-break reversed, the winding flip disabled) failed 6 tests (tolerance edge,
+  tolerance-zero seamless case, tie-break, mirror winding, the seamless mean test and the disagreement bound), then the
+  code was restored. The suite also covers the Skyrim-like seamless case at tolerance 0, the mean of weights at a seam
+  (including a UV split), 24 permutations of the part order, a property test (CPU skinning of the merged body equals
+  skinning of each part at random poses to 1e-4 when seam weights agree; bounded by the disagreement when they do not),
+  and no vertex or triangle lost. `components-tests` 4915 passed on Windows.
+- **The skinned bind-pose formula is now checked against the engine (stage a's open item).** `BodyNifBindPose` builds a
+  skinned part from Nif records and a skeleton at rest, converts each transform with the engine's own
+  `vsgAdapters::convertTrafo` and `Anim::Transform::t_transform`, composes the bone matrices as `Anim::Skin::apply`
+  does, and skins with `Anim::SoftwareSkin`: the reader's bind pose equals the engine's skinned vertices to 1e-4.
+  **Honest limits:** it composes the matrices by the formula read from `Skin::apply` (the real `Skin::apply` needs a
+  linked scene graph and was not run); it holds when the skin's own transform is the identity, which is true for every
+  skinned stock part (all 72 skinned part slots of the stage a report have identity transforms). Where the skin has a
+  transform of its own, the engine multiplies it on the other side (`transform * skinMatrix`), so the reader's order
+  differs; a second test pins that difference. A mod part with such a transform would be placed differently by the
+  reader than the engine draws it: stage c's adapter must either use the engine's order or refuse such a part.
+- **Not done in stage b (still open boxes above):** the `bodymesh` value of `meshFormat`, the optional `weldGroups` part
+  and their validator rules, the conformance fixture of B1's suite, a fresh reviewer, the 32 Lua tests and the Linux
+  gate. The merger takes bone names as given: the adapter lower-cases or maps them (stage c), and the engine's mirror
+  of "Left" bone parts is the caller's `mMirror`. The normal merge rule is the equal-weight mean, not area weighted.

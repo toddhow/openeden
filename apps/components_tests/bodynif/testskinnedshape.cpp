@@ -6,11 +6,18 @@
 
 #include <components/bodynif/skinnedshape.hpp>
 
+#include <components/animation/skin.hpp>
+#include <components/animation/softwareskin.hpp>
+#include <components/animation/transform.hpp>
 #include <components/nif/data.hpp>
 #include <components/nif/node.hpp>
 #include <components/nif/property.hpp>
 #include <components/nif/texture.hpp>
+#include <components/vsgadapters/nif/anim.hpp>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -826,5 +833,176 @@ namespace
 
         ASSERT_EQ(result.mShapes.size(), 1u);
         EXPECT_TRUE(result.mShapes[0].mNormals.empty()); // never one short of the vertices
+    }
+
+    // ---- the bind pose against the engine's own skinning (task 0069, stage b) --------------------------------------
+    //
+    // Stage a placed a skinned part by "the weighted sum, over the kept influences, of (the bone's world matrix x the
+    // bone's skin transform x the skin's own transform) applied to the stored vertex", read from the NIF format and not
+    // proved. This runs the engine's own pieces on the same records: the engine's conversion of each NiTransform
+    // (vsgAdapters::convertTrafo, then Anim::Transform::t_transform, as handleSkin and the node reader do), the bone
+    // matrices composed as Anim::Skin::apply composes them (skin matrix x bone world x inverse bind; the skin matrix is
+    // the identity unless the skin has a transform of its own) and Anim::SoftwareSkin, the class that skins vertices
+    // on the CPU for intersections. The reader's bind pose must equal the engine's skinned vertices.
+    // Where the skin's own transform is not the identity the engine multiplies it on the OTHER side (Skin::apply:
+    // transform * skinMatrix): the second test pins that the two differ, so that the day a mod has one the difference
+    // is known (the analysis of task 0069, stage a: every skinned stock part has the identity there).
+    Nif::NiTransform makeTransform(const float (&rotation)[3][3], vsg::vec3 translation, float scale)
+    {
+        Nif::NiTransform t = Nif::NiTransform::getIdentity();
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+                t.mRotation.mValues[i][j] = rotation[i][j];
+        }
+        t.mTranslation = translation;
+        t.mScale = scale;
+        return t;
+    }
+
+    vsg::mat4 engineMatrix(const Nif::NiTransform& transform)
+    {
+        Anim::Transform converted;
+        vsgAdapters::convertTrafo(converted, transform);
+        return converted.t_transform(vsg::mat4());
+    }
+
+    using BindWeights = std::array<std::pair<int, float>, 2>;
+
+    // The vertices the engine's software skin gives at the bind pose.
+    std::vector<Vec3> engineBindPose(const std::vector<vsg::vec3>& vertices,
+        const std::vector<Nif::NiTransform>& boneWorld, const std::vector<Nif::NiTransform>& boneSkin,
+        const std::vector<BindWeights>& weights, const Nif::NiTransform* skinOwn)
+    {
+        const auto count = static_cast<std::uint32_t>(vertices.size());
+        auto skin = vsg::ref_ptr{ new Anim::Skin };
+        auto indices = vsg::vec4Array::create(count, vsg::vec4(0, 0, 0, 0));
+        auto blend = vsg::vec4Array::create(count, vsg::vec4(0, 0, 0, 0));
+        for (std::uint32_t v = 0; v < count; ++v)
+        {
+            for (std::uint32_t k = 0; k < 2; ++k)
+            {
+                indices->at(v)[k] = static_cast<float>(weights[v][k].first);
+                blend->at(v)[k] = weights[v][k].second;
+            }
+        }
+        skin->boneIndices = indices;
+        skin->boneWeights = blend;
+        // Anim::Skin::apply: matrix = (the skin's own transform, outermost) * (the inverse of the reference frame: the
+        // identity here) * the bone's world * its inverse bind.
+        vsg::mat4 skinMatrix;
+        if (skinOwn != nullptr)
+            skinMatrix = engineMatrix(*skinOwn) * skinMatrix;
+        auto matrices = vsg::mat4Array::create(static_cast<std::uint32_t>(boneWorld.size()));
+        for (std::uint32_t b = 0; b < boneWorld.size(); ++b)
+            matrices->at(b) = skinMatrix * engineMatrix(boneWorld[b]) * engineMatrix(boneSkin[b]);
+        auto software = Anim::SoftwareSkin::create(vsg::ref_ptr<const vsg::mat4Array>(matrices), skin);
+        auto in = vsg::vec3Array::create(count);
+        for (std::uint32_t v = 0; v < count; ++v)
+            in->at(v) = vertices[v];
+        software->apply(*in);
+        std::vector<Vec3> out;
+        for (std::uint32_t v = 0; v < count; ++v)
+        {
+            const vsg::vec3 p = software->vertices->at(v);
+            out.push_back({ p.x, p.y, p.z });
+        }
+        return out;
+    }
+
+    struct BindFixture
+    {
+        std::vector<vsg::vec3> mVertices = { vsg::vec3(1, 2, 3), vsg::vec3(-2, 0.5f, 4), vsg::vec3(0, -1, 2) };
+        std::vector<BindWeights> mWeights = { BindWeights{ std::pair{ 0, 1.f }, std::pair{ 1, 0.f } },
+            BindWeights{ std::pair{ 0, 0.5f }, std::pair{ 1, 0.5f } },
+            BindWeights{ std::pair{ 0, 0.25f }, std::pair{ 1, 0.75f } } };
+        // A quarter turn about z and a quarter turn about x, with shifts: a composition that exposes any mix-up of
+        // row and column order or of the multiplication order.
+        std::vector<Nif::NiTransform> mBoneWorld
+            = { makeTransform({ { 0, -1, 0 }, { 1, 0, 0 }, { 0, 0, 1 } }, vsg::vec3(10, 0, 0), 1.f),
+                  makeTransform({ { 1, 0, 0 }, { 0, 0, -1 }, { 0, 1, 0 } }, vsg::vec3(0, 20, 0), 1.f) };
+        std::vector<Nif::NiTransform> mBoneSkin
+            = { makeTransform({ { 0, 0, 1 }, { 0, 1, 0 }, { -1, 0, 0 } }, vsg::vec3(0, 0, 5), 1.f),
+                  makeTransform({ { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 1 } }, vsg::vec3(1, 2, 3), 1.f) };
+    };
+
+    ReadResult readBindFixture(
+        Model& model, const BindFixture& fixture, const Nif::NiTransform* skinOwn, RestPose& rest)
+    {
+        // The skeleton: a root with the two bones at rest, so that readRestPose gives their world matrices.
+        Nif::NiNode& skeleton = model.node("Root");
+        Nif::NiNode& boneA = model.node("Bone A");
+        Nif::NiNode& boneB = model.node("Bone B");
+        boneA.mTransform = fixture.mBoneWorld[0];
+        boneB.mTransform = fixture.mBoneWorld[1];
+        model.attach(skeleton, boneA);
+        model.attach(skeleton, boneB);
+        rest = readRestPose(skeleton);
+
+        Nif::NiNode& root = model.node("Part");
+        Nif::NiGeometry& geometry = model.shape(root, "Skinned", fixture.mVertices, oneTriangle);
+        WeightList weightsA;
+        WeightList weightsB;
+        for (std::size_t v = 0; v < fixture.mWeights.size(); ++v)
+        {
+            weightsA.push_back({ static_cast<unsigned short>(v), fixture.mWeights[v][0].second });
+            weightsB.push_back({ static_cast<unsigned short>(v), fixture.mWeights[v][1].second });
+        }
+        model.skin(geometry, { "Bone A", "Bone B" }, { weightsA, weightsB });
+        model.skinOf(geometry).mData->mBones[0].mTransform = fixture.mBoneSkin[0];
+        model.skinOf(geometry).mData->mBones[1].mTransform = fixture.mBoneSkin[1];
+        if (skinOwn != nullptr)
+            model.skinOf(geometry).mData->mTransform = *skinOwn;
+        Placement placement;
+        placement.mRest = &rest;
+        return readShapes(root, "", {}, placement);
+    }
+
+    TEST(BodyNifBindPose, TheReadersBindPoseEqualsTheEnginesSoftwareSkinWhenTheSkinsOwnTransformIsTheIdentity)
+    {
+        const BindFixture fixture;
+        Model model;
+        RestPose rest;
+        const ReadResult result = readBindFixture(model, fixture, nullptr, rest);
+        ASSERT_TRUE(result.mErrors.empty());
+        ASSERT_EQ(result.mShapes.size(), 1u);
+        ASSERT_TRUE(result.mShapes[0].mPlaced);
+        const std::vector<Vec3> engine
+            = engineBindPose(fixture.mVertices, fixture.mBoneWorld, fixture.mBoneSkin, fixture.mWeights, nullptr);
+        ASSERT_EQ(engine.size(), 3u);
+        for (std::size_t v = 0; v < 3; ++v)
+        {
+            for (std::size_t axis = 0; axis < 3; ++axis)
+            {
+                EXPECT_NEAR(result.mShapes[0].mPositions[v][axis], engine[v][axis], 1e-4f)
+                    << "vertex " << v << " axis " << axis;
+            }
+        }
+        // The fixture really moves vertices (a test that compares two identities would prove nothing).
+        EXPECT_GT(std::abs(result.mShapes[0].mPositions[1][0] - fixture.mVertices[1].x), 1.f);
+    }
+
+    TEST(BodyNifBindPose, ASkinsOwnTransformIsMultipliedOnTheOtherSideByTheEngine)
+    {
+        const BindFixture fixture;
+        const Nif::NiTransform skinOwn
+            = makeTransform({ { 0, -1, 0 }, { 1, 0, 0 }, { 0, 0, 1 } }, vsg::vec3(3, -2, 1), 1.f);
+        Model model;
+        RestPose rest;
+        const ReadResult result = readBindFixture(model, fixture, &skinOwn, rest);
+        ASSERT_TRUE(result.mErrors.empty());
+        ASSERT_EQ(result.mShapes.size(), 1u);
+        const std::vector<Vec3> engine
+            = engineBindPose(fixture.mVertices, fixture.mBoneWorld, fixture.mBoneSkin, fixture.mWeights, &skinOwn);
+        // Pinned: the two orders differ for a non-identity transform of the skin itself. Every skinned stock part has
+        // the identity there (research note 0033), so the merger's input takes the reader's order; this test records
+        // the difference so that a mod that has one is not a surprise.
+        float largest = 0.f;
+        for (std::size_t v = 0; v < 3; ++v)
+        {
+            for (std::size_t axis = 0; axis < 3; ++axis)
+                largest = std::max(largest, std::abs(result.mShapes[0].mPositions[v][axis] - engine[v][axis]));
+        }
+        EXPECT_GT(largest, 0.5f);
     }
 }

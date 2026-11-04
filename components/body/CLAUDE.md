@@ -54,3 +54,25 @@ VSG, Jolt, Qt or MyGUI here (root `CLAUDE.md`, "Architecture rules"). The Morrow
   nothing.
 - **Mesh summaries are not built in B1.** The in-engine `bodycheck` command passes no `MeshSource`, so every legacy
   mesh warns (BODY-MESH-001) and the skin and geometry rules are not exercised there (task 0063, risk 1).
+
+## The merger (task 0069, stage b: `bodymerge.*`)
+
+A pure, game-agnostic library: `mergeParts` (parts plus declared seams to one welded, skinned mesh) and `computeWeldMap`
+(the weld sets alone, for a game whose parts already meet exactly). The header comment is the specification.
+
+- **Nothing here names a game, an ESM record or a NIF.** The adapters fill `PartMesh`: Morrowind's from
+  `components/bodynif` and `apps/openmw/mwrender/bodylegacy.*`; a seamless game (body, hands, feet that meet in exactly
+  coincident vertices) through the same code with a tolerance of 0.
+- **Determinism is a total order.** Parts are sorted by (slot, material, name, sizes, content); the grid lookup is a
+  sorted vector; weld sets are rooted at their lowest vertex; ties in the four-influence cut go by canonical bone
+  index. No unordered container is iterated. A test runs all 24 orders of four parts and compares the results.
+- **Welds never join two vertices of one part,** and never join parts without a declared seam: the overlapping closed
+  shells of Morrowind's joints are not welded (decision of 2026-11-03: only the two exact seams weld in the first
+  version).
+- **Named starting values:** `uvMergeTolerance` 1e-5, `normalMergeAngle` 5 degrees (stage a measured normals up to 27
+  degrees apart at exact seams: those are creases and stay separate), `maxCoordinate` 1e7, `maxSeamTolerance` 100,
+  `MergeLimits`. Tune with the data of stage c, not before.
+- **Weights.** A set gets the equal-weight mean of its members (member-weighted: a part with two vertices in the set
+  counts twice); `MergeReport::mMaxWeightDisagreement` is the largest difference between two members before the mean,
+  the bound of how far a weld moves a skinned vertex.
+- **Not verified:** the Lua tests, the Linux gate, real data (stage c).

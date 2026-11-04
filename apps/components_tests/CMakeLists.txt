@@ -285,6 +285,7 @@ list(APPEND UNITTEST_SRC_FILES
     body/testbodypack.cpp
     body/testbodytool.cpp
     body/testbodyconformance.cpp
+    body/testbodymerge.cpp
 )
 
 # Task 0067 stage 0: the maths and the parser of the CreativeMotion transition measurement.
