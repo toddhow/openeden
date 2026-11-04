@@ -31,6 +31,12 @@ namespace MWRender
 
     Player::~Player() {}
 
+    void Player::update(float dt)
+    {
+        Npc::update(dt);
+        updatePendingQuiver();
+    }
+
     void Player::manualAnimation(float pitchSpine, float dt)
     {
         Actor::manualAnimation(pitchSpine, dt);

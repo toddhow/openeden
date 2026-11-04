@@ -54,6 +54,10 @@ namespace MWRender
     // thread with dt 0. Everything else (beginUpdate, beginPart, record, addAutoPlay, forget, relinkSurvivors,
     // runUpdate) runs on the main thread in the actor's part update, never while that actor's update runs: the main
     // thread waits for the workers (UpdateThreads::run, waitIdle). The state is per actor, so the workers share none.
+    // Task 0074e (finding 3 of the review of 0074d): that includes the quiver change of weapon sheathing and its
+    // compile (a failed compile removes every part, forget included): Npc::update only leaves a flag, and
+    // Npc::updatePendingQuiver does the work on the main thread, after the workers are idle (Scene::update) or in the
+    // player's update.
     //
     // Task 0074b: each part also owns its auto-play clock (autoPlay(part)): its groups and their timers live and die
     // with the part, as OpenMW 0.51 keeps a part's controllers with the part (PartHolder). An update that keeps the

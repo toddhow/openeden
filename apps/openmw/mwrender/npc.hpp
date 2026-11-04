@@ -2,6 +2,7 @@
 #define VSGOPENMW_MWRENDER_NPC_H
 
 #include <array>
+#include <exception>
 #include <map>
 #include <optional>
 #include <set>
@@ -104,9 +105,35 @@ namespace MWRender
 
         void updatePtr(const MWWorld::Ptr& updated) /*override*/;
 
+        // The quiver change show() asked for (weapon sheathing), and the compile that follows it. MAIN THREAD ONLY:
+        // update() runs on an update worker (task 0074e, finding 3); Scene::update calls this for every actor after
+        // the workers are idle, Player::update for the player.
+        void updatePendingQuiver();
+
         std::set<ESM::RefId> soundsToPlay;
 
     protected:
+        // The body of updatePendingQuiver (a test passes its own `quiver`, updateQuiver needs an inventory): if a
+        // change is pending, clears it, runs `quiver` and compiles, also when `quiver` throws (runEquipmentUpdate:
+        // the nodes it attached before the throw are in the scene). A std::exception is logged, not passed on: this
+        // runs on the main thread in the render update, where an exception would end the game session.
+        template <class Quiver>
+        void runPendingQuiver(Quiver&& quiver)
+        {
+            if (!mQuiverDirty)
+                return;
+            mQuiverDirty = false;
+            try
+            {
+                runEquipmentUpdate(quiver, [this] { compile(); });
+            }
+            catch (const std::exception& error)
+            {
+                logQuiverError(error);
+            }
+        }
+        void logQuiverError(const std::exception& error) const;
+
         // Task 0074d (review of 0074b, finding 4): builds no record, skeleton or part, so that a test can reach the
         // part functions below on an Npc of its own (it sets `animation` itself). Never used by the game.
         struct TestSetup
@@ -229,6 +256,7 @@ namespace MWRender
         std::vector<std::vector<vsg::Node*>> mQuiver;
         vsg::ref_ptr<vsg::Switch> mHolsteredWeaponSwitch;
         vsg::ref_ptr<vsg::Switch> mHolsteredShieldSwitch;
+        // Set by show() (any thread that calls it), done by updatePendingQuiver on the main thread.
         bool mQuiverDirty = false;
 
         static NpcType getNpcType(const MWWorld::Ptr& ptr);

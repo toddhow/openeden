@@ -330,6 +330,12 @@ namespace MWRender
         addOperations(mObjectCells);
         // vsgopenmw-optimization-mwrender-scene-updatethreads
         mUpdateThreads->run(operations.begin(), operations.end());
+        // Task 0074e (finding 3 of the review of 0074d): the workers are idle again (run ends in waitIdle), so this is
+        // the main thread alone: the quiver changes the actors' show() asked for, and their compile.
+        for (auto& [cellstore, cell] : mActorCells)
+            for (auto& [ptr, object] : cell.objects)
+                if (auto* npc = dynamic_cast<Npc*>(object.get()))
+                    npc->updatePendingQuiver();
     }
 
     vsg::ref_ptr<vsgUtil::UpdateThreads> Scene::getUpdateThreads()

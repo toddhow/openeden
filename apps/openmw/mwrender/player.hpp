@@ -20,6 +20,8 @@ namespace MWRender
     public:
         Player(const MWAnim::Context& mwctx, const MWWorld::Ptr& ptr, ViewMode viewMode = ViewMode::Normal);
         ~Player();
+        // The player is updated on the main thread (RenderManager::update), so its pending quiver change is done here.
+        void update(float dt) override;
         void manualAnimation(float pitchSpine, float dt) override;
         void setViewMode(Npc::ViewMode m);
 

@@ -794,13 +794,10 @@ namespace MWRender
 
     void Npc::update(float dt)
     {
-        if (mQuiverDirty)
-        {
-            // Here and not in show(), which an animation thread may call: compiling is for the main thread.
-            mQuiverDirty = false;
-            updateQuiver();
-            compile();
-        }
+        // Task 0074e (finding 3 of the review of 0074d): update() runs on an UpdateThreads worker for every actor but
+        // the player (Scene::update, MWRender::Scene::Cell::Update::run), where nothing may be compiled or the scene
+        // graph edited. A pending quiver change (mQuiverDirty, set by show()) is done on the main thread by
+        // updatePendingQuiver: Scene::update after the workers have finished, Player::update.
         mFace->update(dt);
         Wielding::update(dt);
         // Task 0074b: the parts' own auto-play clocks and the holstered weapon's and shield's, after the object's own
@@ -812,6 +809,18 @@ namespace MWRender
             traceAutoPlay(mAutoPlayTraced, mAutoPlayFrame++, dt, autoPlay, mPartControllers.clocks(),
                 { mStaticControllers.controllers.size(), mWeaponControllers.controllers.size(),
                     mFace->controllers.size() });
+    }
+
+    void Npc::updatePendingQuiver()
+    {
+        runPendingQuiver([this] { updateQuiver(); });
+    }
+
+    void Npc::logQuiverError(const std::exception& error) const
+    {
+        // A test actor has no record (TestSetup).
+        const std::string actor = mPtr.isEmpty() ? std::string("an actor") : mPtr.getCellRef().getRefId().toString();
+        Log(Debug::Error) << "Error updating the quiver of " << actor << ": " << error.what();
     }
 
     void Npc::removeIndividualPart(ESM::PartReferenceType type)
