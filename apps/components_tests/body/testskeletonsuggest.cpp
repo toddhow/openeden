@@ -185,8 +185,8 @@ namespace
     }
 
     INSTANTIATE_TEST_SUITE_P(
-        Vocabulary, SuggestCase, ::testing::ValuesIn(cases()), [](const ::testing::TestParamInfo<Case>& info) {
-            std::string name = info.param.mName;
+        Vocabulary, SuggestCase, ::testing::ValuesIn(cases()), [](const ::testing::TestParamInfo<Case>& paramInfo) {
+            std::string name = paramInfo.param.mName;
             for (char& c : name)
             {
                 if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
@@ -194,7 +194,7 @@ namespace
                     c = '_';
                 }
             }
-            return std::to_string(info.index) + "_" + name;
+            return std::to_string(paramInfo.index) + "_" + name;
         });
 
     // ---- ties and ambiguity ------------------------------------------------------------------------------------

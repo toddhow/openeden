@@ -49,7 +49,7 @@ namespace
 
     TEST(SkeletonMapReview, the_engine_key_is_the_engines_lower_case)
     {
-        for (const std::string name : { std::string("Bip01 L Hand"), std::string("BIP01 SPINE1"),
+        for (const std::string& name : { std::string("Bip01 L Hand"), std::string("BIP01 SPINE1"),
                  std::string("npc L Breast [LBr]"), std::string("caf\xc3\xa9 Bone"), std::string("A_b-C.d:E") })
         {
             EXPECT_EQ(engineBoneKey(name), Misc::StringUtils::lowerCase(name)) << name;
