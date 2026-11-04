@@ -6,6 +6,7 @@
 #include <optional>
 #include <stdexcept>
 #include <tuple>
+#include <utility>
 
 namespace vsgUtil
 {
@@ -211,10 +212,14 @@ namespace vsgUtil
                                 + " binding=" + std::to_string(*binding) + " "
                                 + (block ? std::string(storageBlock ? "storage " : "uniform ") + layout(pointee, 0)
                                          : describe(pointee, 0)));
+                            if (block)
+                                memberLines("set=" + std::to_string(*set) + " binding=" + std::to_string(*binding),
+                                    pointee, lines);
                             break;
                         }
                         case ScPushConstant:
                             lines.insert("push_constant " + layout(pointee, 0));
+                            memberLines("push_constant", pointee, lines);
                             break;
                         case ScInput:
                         case ScOutput:
@@ -314,6 +319,18 @@ namespace vsgUtil
                         for (std::size_t i = 0; i < maxBytes && bytes[i] != '\0'; ++i)
                             name += bytes[i];
                         mNames[w[0]] = name;
+                        break;
+                    }
+                    case OpMemberName:
+                    {
+                        // Task 0072 (member names): struct type id, member index, name (nul-terminated, packed).
+                        need(2);
+                        std::string name;
+                        const char* bytes = reinterpret_cast<const char*>(w + 2);
+                        const std::size_t maxBytes = static_cast<std::size_t>(n - 2) * sizeof(uint32_t);
+                        for (std::size_t i = 0; i < maxBytes && bytes[i] != '\0'; ++i)
+                            name += bytes[i];
+                        mMemberNames[{ w[0], w[1] }] = name;
                         break;
                     }
                     case OpSpecConstantOp:
@@ -582,6 +599,52 @@ namespace vsgUtil
                 return t.op == OpTypeArray && type(operand(t, 0)).op == OpTypeMatrix;
             }
 
+            // Task 0072 (member names, after the review of stage g, finding 9): layout() gives a block's members by
+            // offset and type only, so two members of one type in another order look the same. One line per leaf,
+            // "member <block> <offset>:<path>", the path made of the member names from the block down, joined by '.'.
+            // An array adds "[]" and is named once, by its first element. A struct with ONE member adds no name: that
+            // is how GLSL's `uniform SceneData { Scene scene; }`, Slang's `ConstantBuffer<Scene>` (Scene's members on
+            // the block), a `StructuredBuffer` (a block whose only member is `__member0`) and Slang's std140 wrapper
+            // of an array of matrices (`_Array_std140_matrix<...>` whose only member is `data`) read alike; nothing
+            // can be swapped with an only member. Neither the block's struct name nor the variable's is used (slangc
+            // writes "<type>_std140" and "StructuredBuffer"; a pipeline sees the binding).
+            void memberLines(const std::string& block, uint32_t id, std::set<std::string>& lines) const
+            {
+                std::vector<std::string> leaves;
+                collectNames(id, 0, std::string(), leaves, 0);
+                for (const std::string& leaf : leaves)
+                    lines.insert("member " + block + " " + leaf);
+            }
+            void collectNames(
+                uint32_t id, uint32_t base, const std::string& path, std::vector<std::string>& leaves, int depth) const
+            {
+                if (depth > maxTypeDepth)
+                    throw std::runtime_error("SPIR-V type nesting too deep");
+                const Type& t = type(id);
+                if (t.op == OpTypeStruct)
+                {
+                    const bool onlyMember = t.operands.size() == 1;
+                    for (uint32_t m = 0; m < t.operands.size(); ++m)
+                    {
+                        std::string memberPath = path;
+                        if (!onlyMember)
+                        {
+                            const auto name = mMemberNames.find({ id, m });
+                            const std::string memberName = name == mMemberNames.end() || name->second.empty()
+                                ? "#" + std::to_string(m)
+                                : name->second;
+                            memberPath = path.empty() ? memberName : path + "." + memberName;
+                        }
+                        const auto offset = memberDecoration(id, m, DecOffset);
+                        collectNames(t.operands[m], base + offset.value_or(0), memberPath, leaves, depth + 1);
+                    }
+                }
+                else if (t.op == OpTypeArray || t.op == OpTypeRuntimeArray)
+                    collectNames(operand(t, 0), base, path + "[]", leaves, depth + 1);
+                else
+                    leaves.push_back(std::to_string(base) + ":" + path);
+            }
+
             uint32_t mVersion = 0;
             uint32_t mGenerator = 0;
             std::string mEntry;
@@ -596,6 +659,7 @@ namespace vsgUtil
             std::map<uint32_t, uint32_t> mSpecConstants; // id -> type
             std::set<uint32_t> mUsedSpecConstants;
             std::map<uint32_t, std::string> mNames; // id -> OpName
+            std::map<std::pair<uint32_t, uint32_t>, std::string> mMemberNames; // (struct id, member) -> OpMemberName
             std::size_t mSpecConstantOps = 0;
             std::map<uint32_t, std::pair<uint32_t, uint32_t>> mVariables; // id -> (pointer type, storage class)
             std::map<std::pair<uint32_t, uint32_t>, uint32_t> mDecorations;
@@ -617,13 +681,57 @@ namespace vsgUtil
         return out;
     }
 
+    namespace
+    {
+        // The block of a "member <block> <offset>:<path>" line ("set=<s> binding=<b>" or "push_constant"), or empty
+        // for any other line. The block holds no ':', and the offset is the word before the first one.
+        std::string memberBlock(const std::string& line)
+        {
+            static const std::string prefix = "member ";
+            if (line.compare(0, prefix.size(), prefix) != 0)
+                return {};
+            const std::size_t colon = line.find(':');
+            const std::size_t space = colon == std::string::npos ? std::string::npos : line.rfind(' ', colon);
+            if (space == std::string::npos || space < prefix.size())
+                return {};
+            return line.substr(prefix.size(), space - prefix.size());
+        }
+
+        std::set<std::string> memberBlocks(const SpirvInterface& i)
+        {
+            std::set<std::string> blocks;
+            for (const std::string& line : i.mLines)
+            {
+                std::string block = memberBlock(line);
+                if (!block.empty())
+                    blocks.insert(std::move(block));
+            }
+            return blocks;
+        }
+
+        // The lines of `from` that `to` lacks, without the member lines of a block `to` does not declare: that
+        // block's own line is the difference already (and the one an interface exception names).
+        std::vector<std::string> linesMissingFrom(const SpirvInterface& from, const SpirvInterface& to)
+        {
+            std::vector<std::string> missing;
+            std::set_difference(from.mLines.begin(), from.mLines.end(), to.mLines.begin(), to.mLines.end(),
+                std::back_inserter(missing));
+            const std::set<std::string> blocks = memberBlocks(to);
+            missing.erase(std::remove_if(missing.begin(), missing.end(),
+                              [&blocks](const std::string& line) {
+                                  const std::string block = memberBlock(line);
+                                  return !block.empty() && blocks.count(block) == 0;
+                              }),
+                missing.end());
+            return missing;
+        }
+    }
+
     SpirvInterfaceDiff compareSpirvInterfaces(const SpirvInterface& first, const SpirvInterface& second)
     {
         SpirvInterfaceDiff diff;
-        std::set_difference(first.mLines.begin(), first.mLines.end(), second.mLines.begin(), second.mLines.end(),
-            std::back_inserter(diff.mOnlyInFirst));
-        std::set_difference(second.mLines.begin(), second.mLines.end(), first.mLines.begin(), first.mLines.end(),
-            std::back_inserter(diff.mOnlyInSecond));
+        diff.mOnlyInFirst = linesMissingFrom(first, second);
+        diff.mOnlyInSecond = linesMissingFrom(second, first);
         return diff;
     }
 }

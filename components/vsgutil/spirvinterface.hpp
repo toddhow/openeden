@@ -24,6 +24,14 @@ namespace vsgUtil
      *     push_constant <offset>:<type>;...
      *     in|out location=<l> <type>      in|out builtin=<n>
      *     spec_constant id=<n> <type>
+     *     member set=<s> binding=<b> <offset>:<path>    member push_constant <offset>:<path>
+     *
+     * Task 0072 (member names, after the review of stage g, finding 9): a "member" line for every leaf of a uniform,
+     * storage or push constant block, so that two members of one type in another order differ (the block's own line
+     * gives each leaf by offset and type only). The path is the member names (OpMemberName) from the block down,
+     * joined by '.'; an array adds "[]" and is named by its first element; a struct with one member adds no name, so
+     * the GLSL's `uniform SceneData { Scene scene; }` and Slang's `ConstantBuffer<Scene>`, `StructuredBuffer<T>` (whose
+     * only member is `__member0`) and std140 array wrapper (`data`) read alike. Block and variable names are not read.
      */
     struct SpirvInterface
     {
@@ -57,7 +65,8 @@ namespace vsgUtil
         bool same() const { return mOnlyInFirst.empty() && mOnlyInSecond.empty(); }
     };
 
-    /// The lines one interface declares and the other does not, in byte order.
+    /// The lines one interface declares and the other does not, in byte order. The member lines of a block that only
+    /// one of them declares are left out: the block's own line is that difference.
     SpirvInterfaceDiff compareSpirvInterfaces(const SpirvInterface& first, const SpirvInterface& second);
 }
 

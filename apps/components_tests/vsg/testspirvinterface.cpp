@@ -422,4 +422,218 @@ namespace
         EXPECT_EQ(i.mSpecConstantOps, 0u);
         EXPECT_TRUE(has(i, "spec_constant id=6 i32")) << linesOf(i);
     }
+
+    // Task 0072, member names (after the review of stage g, finding 9): the layout lines give each member of a block
+    // by its offset and type only, so two members of one type in another order looked the same. The members are also
+    // compared by name: one "member <block> <offset>:<path>" line each, the path made of the member names from the
+    // block down (a struct's only member adds no name, arrays add "[]"). Written before the implementation.
+
+    vsgUtil::SpirvInterface readFragment(const std::string& source)
+    {
+        const auto words = compile(VK_SHADER_STAGE_FRAGMENT_BIT, source);
+        EXPECT_FALSE(words.empty()) << "did not compile:\n" << source;
+        if (words.empty())
+            return {};
+        return vsgUtil::readSpirvInterface(words);
+    }
+
+    vsgUtil::SpirvInterfaceDiff fragmentDiff(const std::string& first, const std::string& second)
+    {
+        return vsgUtil::compareSpirvInterfaces(readFragment(first), readFragment(second));
+    }
+
+    using Lines = std::vector<std::string>;
+
+    TEST(SpirvInterface, two_members_of_one_type_in_another_order_are_a_difference)
+    {
+        // The review's red run, in small: the tonemap twin with `ao` and `sss` swapped in its push constants.
+        const auto push = [](const std::string& members) {
+            return fragmentWith("layout(push_constant) uniform Push { vec4 params; " + members + " } push;\n",
+                "outColor = push.params + push.ao + push.sss;\n");
+        };
+        const auto pushDiff = fragmentDiff(push("vec4 ao; vec4 sss;"), push("vec4 sss; vec4 ao;"));
+        EXPECT_EQ(pushDiff.mOnlyInFirst, (Lines{ "member push_constant 16:ao", "member push_constant 32:sss" }));
+        EXPECT_EQ(pushDiff.mOnlyInSecond, (Lines{ "member push_constant 16:sss", "member push_constant 32:ao" }));
+
+        // The same in a uniform block and in a storage block.
+        const auto uniform = [](const std::string& members) {
+            return fragmentWith("layout(std140, set = 0, binding = 3) uniform Block { " + members + " } block;\n",
+                "outColor = block.a + block.b;\n");
+        };
+        const auto uniformDiff = fragmentDiff(uniform("vec4 a; vec4 b;"), uniform("vec4 b; vec4 a;"));
+        EXPECT_EQ(uniformDiff.mOnlyInFirst, (Lines{ "member set=0 binding=3 0:a", "member set=0 binding=3 16:b" }));
+        EXPECT_EQ(uniformDiff.mOnlyInSecond, (Lines{ "member set=0 binding=3 0:b", "member set=0 binding=3 16:a" }));
+
+        const auto storage = [](const std::string& members) {
+            return fragmentWith(
+                "layout(std430, set = 1, binding = 2) readonly buffer Block { " + members + " } block;\n",
+                "outColor = vec4(block.first + block.second);\n");
+        };
+        const auto storageDiff
+            = fragmentDiff(storage("float first; float second;"), storage("float second; float first;"));
+        EXPECT_EQ(
+            storageDiff.mOnlyInFirst, (Lines{ "member set=1 binding=2 0:first", "member set=1 binding=2 4:second" }));
+        EXPECT_EQ(
+            storageDiff.mOnlyInSecond, (Lines{ "member set=1 binding=2 0:second", "member set=1 binding=2 4:first" }));
+    }
+
+    TEST(SpirvInterface, a_member_whose_name_alone_differs_is_a_difference)
+    {
+        const auto push = [](const std::string& last) {
+            return fragmentWith(
+                "layout(push_constant) uniform Push { vec4 params; vec4 ao; vec4 " + last + "; } push;\n",
+                "outColor = push.params + push.ao + push." + last + ";\n");
+        };
+        const auto diff = fragmentDiff(push("sss"), push("subsurface"));
+        EXPECT_EQ(diff.mOnlyInFirst, (Lines{ "member push_constant 32:sss" }));
+        EXPECT_EQ(diff.mOnlyInSecond, (Lines{ "member push_constant 32:subsurface" }));
+    }
+
+    TEST(SpirvInterface, nested_struct_members_are_compared_by_their_full_path)
+    {
+        const auto source = [](const std::string& inner, const std::string& outer) {
+            return fragmentWith("struct Inner { " + inner
+                    + " };\n"
+                      "layout(std140, set = 0, binding = 1) uniform Block { vec4 head; "
+                    + outer + " } block;\n",
+                "outColor = block.head + block.first.x + block.second.y;\n");
+        };
+        const std::string base = source("vec4 x; vec4 y;", "Inner first; Inner second;");
+        const auto i = readFragment(base);
+        for (const char* line :
+            { "member set=0 binding=1 0:head", "member set=0 binding=1 16:first.x", "member set=0 binding=1 32:first.y",
+                "member set=0 binding=1 48:second.x", "member set=0 binding=1 64:second.y" })
+        {
+            EXPECT_TRUE(has(i, line)) << line << "\n" << linesOf(i);
+        }
+
+        // The inner struct's members swapped: every path below it moves.
+        const auto inner = fragmentDiff(base, source("vec4 y; vec4 x;", "Inner first; Inner second;"));
+        EXPECT_EQ(inner.mOnlyInFirst,
+            (Lines{ "member set=0 binding=1 16:first.x", "member set=0 binding=1 32:first.y",
+                "member set=0 binding=1 48:second.x", "member set=0 binding=1 64:second.y" }));
+        EXPECT_EQ(inner.mOnlyInSecond,
+            (Lines{ "member set=0 binding=1 16:first.y", "member set=0 binding=1 32:first.x",
+                "member set=0 binding=1 48:second.y", "member set=0 binding=1 64:second.x" }));
+
+        // The two members of the inner struct's type swapped in the block.
+        const auto outer = fragmentDiff(base, source("vec4 x; vec4 y;", "Inner second; Inner first;"));
+        EXPECT_EQ(outer.mOnlyInFirst,
+            (Lines{ "member set=0 binding=1 16:first.x", "member set=0 binding=1 32:first.y",
+                "member set=0 binding=1 48:second.x", "member set=0 binding=1 64:second.y" }));
+        EXPECT_EQ(outer.mOnlyInSecond,
+            (Lines{ "member set=0 binding=1 16:second.x", "member set=0 binding=1 32:second.y",
+                "member set=0 binding=1 48:first.x", "member set=0 binding=1 64:first.y" }));
+    }
+
+    TEST(SpirvInterface, array_elements_are_named_once_by_their_first_element)
+    {
+        const auto source = [](const std::string& light) {
+            return fragmentWith("struct Light { " + light
+                    + " };\n"
+                      "layout(std140, set = 0, binding = 4) uniform Block { vec4 head; Light lights[4]; mat4 m[2]; "
+                      "vec4 tail; } block;\n",
+                "outColor = block.head + block.lights[1].position + block.m[1][0] + block.tail;\n");
+        };
+        const auto i = readFragment(source("vec4 position; vec4 color;"));
+        for (const char* line : { "member set=0 binding=4 0:head", "member set=0 binding=4 16:lights[].position",
+                 "member set=0 binding=4 32:lights[].color", "member set=0 binding=4 144:m[]",
+                 "member set=0 binding=4 272:tail" })
+        {
+            EXPECT_TRUE(has(i, line)) << line << "\n" << linesOf(i);
+        }
+        const auto diff = fragmentDiff(source("vec4 position; vec4 color;"), source("vec4 color; vec4 position;"));
+        EXPECT_EQ(diff.mOnlyInFirst,
+            (Lines{ "member set=0 binding=4 16:lights[].position", "member set=0 binding=4 32:lights[].color" }));
+        EXPECT_EQ(diff.mOnlyInSecond,
+            (Lines{ "member set=0 binding=4 16:lights[].color", "member set=0 binding=4 32:lights[].position" }));
+    }
+
+    // The shapes slangc gives the GLSL's blocks (task 0072, the dumps of every built twin): `ConstantBuffer<Scene>`
+    // puts Scene's members on the block where the GLSL has `uniform SceneData { Scene scene; }`; a
+    // `StructuredBuffer<T>` is a block named StructuredBuffer whose only member, `__member0`, is the runtime array; a
+    // std140 array of matrices is wrapped in a struct `_Array_std140_matrix<float,4,4>4` whose only member is `data`.
+    // None of these names can be swapped with another member, so a struct's only member adds no name to the path.
+    TEST(SpirvInterface, a_structs_only_member_adds_no_name)
+    {
+        // ConstantBuffer<Scene> against the GLSL's block around one struct.
+        const std::string wrapped = fragmentWith(
+            "struct Scene { vec4 a; vec4 b; };\n"
+            "layout(std140, set = 0, binding = 0) uniform SceneData { Scene scene; };\n",
+            "outColor = scene.a + scene.b;\n");
+        const std::string flat
+            = fragmentWith("layout(std140, set = 0, binding = 0) uniform Scene { vec4 a; vec4 b; } scene;\n",
+                "outColor = scene.a + scene.b;\n");
+        EXPECT_TRUE(fragmentDiff(wrapped, flat).same());
+        const auto i = readFragment(wrapped);
+        EXPECT_TRUE(has(i, "member set=0 binding=0 0:a")) << linesOf(i);
+        EXPECT_TRUE(has(i, "member set=0 binding=0 16:b")) << linesOf(i);
+
+        // A StructuredBuffer<PointLight> against the GLSL's buffer of one runtime array.
+        const auto buffer = [](const std::string& declaration, const std::string& use) {
+            return fragmentWith(
+                "struct PointLight { vec4 colorIntensity; vec4 position; };\n"
+                "layout(std430, set = 0, binding = 2) readonly buffer "
+                    + declaration + ";\n",
+                "outColor = " + use + "[0].colorIntensity + " + use + "[1].position;\n");
+        };
+        const std::string glslBuffer = buffer("Lights { PointLight pointLights[]; }", "pointLights");
+        const std::string slangBuffer = buffer("StructuredBuffer { PointLight member0[]; } lights", "lights.member0");
+        EXPECT_TRUE(fragmentDiff(glslBuffer, slangBuffer).same());
+        const auto b = readFragment(glslBuffer);
+        EXPECT_TRUE(has(b, "member set=0 binding=2 0:[].colorIntensity")) << linesOf(b);
+        EXPECT_TRUE(has(b, "member set=0 binding=2 16:[].position")) << linesOf(b);
+
+        // The std140 wrapper of an array of matrices.
+        const std::string plainArray
+            = fragmentWith("layout(std140, set = 0, binding = 5) uniform Block { vec4 a; mat4 m[2]; } block;\n",
+                "outColor = block.a + block.m[1][0];\n");
+        const std::string wrappedArray = fragmentWith(
+            "struct Wrap { mat4 data[2]; };\n"
+            "layout(std140, set = 0, binding = 5) uniform Block { vec4 a; Wrap m; } block;\n",
+            "outColor = block.a + block.m.data[1][0];\n");
+        EXPECT_TRUE(fragmentDiff(plainArray, wrappedArray).same());
+        const auto m = readFragment(wrappedArray);
+        EXPECT_TRUE(has(m, "member set=0 binding=5 16:m[]")) << linesOf(m);
+
+        // So the name of a block's only member is never compared (nothing can be swapped with it).
+        const auto single = [](const std::string& name) {
+            return fragmentWith("layout(std430, set = 3, binding = 1) buffer Count { uint " + name + "; } count;\n",
+                "outColor = vec4(float(count." + name + "));\n");
+        };
+        EXPECT_TRUE(fragmentDiff(single("indexCount"), single("total")).same());
+        EXPECT_TRUE(has(readFragment(single("indexCount")), "member set=3 binding=1 0:"));
+    }
+
+    TEST(SpirvInterface, block_and_instance_names_are_not_compared)
+    {
+        // slangc names a block's struct "<type>_std140" or "StructuredBuffer"; the bindings are what a pipeline sees.
+        const auto source = [](const std::string& block, const std::string& instance) {
+            return fragmentWith(
+                "layout(std140, set = 0, binding = 6) uniform " + block + " { vec4 a; vec4 b; } " + instance + ";\n",
+                "outColor = " + instance + ".a + " + instance + ".b;\n");
+        };
+        EXPECT_TRUE(fragmentDiff(source("Data", "data"), source("Data_std140", "other")).same());
+        EXPECT_TRUE(has(readFragment(source("Data", "data")), "member set=0 binding=6 16:b"));
+    }
+
+    TEST(SpirvInterface, the_members_of_a_block_only_one_side_declares_are_not_listed_again)
+    {
+        // Its layout line is the difference (and the interface exceptions name that line); its members are not.
+        const std::string base = fragmentWith(
+            "layout(std140, set = 0, binding = 1) uniform A { vec4 a; vec4 b; } blockA;\n", "outColor = blockA.a;\n");
+        const std::string more = fragmentWith(
+            "layout(std140, set = 0, binding = 1) uniform A { vec4 a; vec4 b; } blockA;\n"
+            "layout(std140, set = 0, binding = 2) uniform B { vec4 c; vec4 d; } blockB;\n"
+            "layout(push_constant) uniform Push { vec4 e; vec4 f; } push;\n",
+            "outColor = blockA.a + blockB.c + push.e;\n");
+        const auto diff = fragmentDiff(base, more);
+        EXPECT_TRUE(diff.mOnlyInFirst.empty());
+        EXPECT_EQ(diff.mOnlyInSecond,
+            (Lines{
+                "descriptor set=0 binding=2 uniform 0:vec4f32;16:vec4f32;", "push_constant 0:vec4f32;16:vec4f32;" }));
+        const auto i = readFragment(more);
+        EXPECT_TRUE(has(i, "member set=0 binding=2 16:d")) << linesOf(i);
+        EXPECT_TRUE(has(i, "member push_constant 16:f")) << linesOf(i);
+    }
 }
