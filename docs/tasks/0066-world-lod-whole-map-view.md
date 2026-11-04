@@ -1,7 +1,7 @@
 # Task: World LOD, the whole map from altitude (no visible edge)
 Design doc section: `docs/design/world-lod-and-streaming.md` sections 3 (the OpenEden world-LOD model), 5 (the streaming core), 7 (hiding the transitions), 8 (graphics options and fallbacks); research note `docs/research/0029-whole-map-view.md` (the numbers and the open facts below come from it).
 Goal: from a high enough vantage the whole map is in frame, and from the ground the land ends in haze, never at a line: far land is drawn as basic tiles and clusters out to the map's edge, with a fog model that does not depend on the far plane.
-Status: DRAFT written 2026-11-02 from toddhow's request (the RDR2 goal), not approved, nothing built. Full loop when started (a renderer change, the projection and the fog every material uses, new baked data levels, a settings default). Every fact is cited from the code at the current commit or marked **verify**.
+Status: stages a to e built and committed on 2026-11-03 (`f336b57244` to `62d3525ddd`, with the later fix `7ebbc09e09`); stage f, the close-out, on 2026-11-04: the acceptance table and the checklist of toddhow's own flight are below the acceptance criteria. Waiting for toddhow's flight and his open decisions. Drafted 2026-11-02 from toddhow's request (the RDR2 goal). Full loop (a renderer change, the projection and the fog every material uses, new baked data levels, a settings default). Every fact is cited from the code at the current commit or marked **verify**.
 Builds on: `docs/tasks/0055-lod-s1-tile-model.md` (terrain tiles, layout version 1, frozen), `docs/tasks/0059-lod-s4-object-clusters.md` (clusters, layout version 0, draft), `docs/tasks/0060-lod-s6-streaming-core.md` (budgets and eviction), `docs/tasks/0061-lod-s8-background-baker.md` (the baker that will make the extra levels), and commit `ed53100fd3` (`[WorldLod] view distance`).
 
 Inherited code touched (at the commit that starts each stage; writing this spec changes nothing): `apps/openmw/mwrender/rendermanager.cpp` (`effectiveViewDistance`, `updateProjectionMatrix`, `processChangedSettings`, line numbers 144, 2682, 2700 at `ed53100fd3`), `apps/openmw/mwrender/fogmanager.{hpp,cpp}` (`FogManager::configure`, `getFogStart`, `getFogEnd`), `components/lod/tileselection.*` (`pixelError`, `distanceToTile`, the view-distance cut), `components/lod/tilekey.*` (levels above 3 need no change), `apps/openmw/lodterrainbaker.*` and `lodobjectbaker.*` (the level lists; the object baker's `levelErrors` {128, 320, 960} and `mManifest.mLevels = {1, 2}`), `components/lod/clusterbuild.*` (classification thresholds), `apps/openmw/mwrender/lodterrain.*`, `lodclusters.*`, `components/render/depth.hpp`, `attachmentformat.hpp`, the fog function in the shader library (**verify** its file under `files/shaders/lib/`), `components/render/atmospheremath.hpp` (the horizon colour), the sky and cloud dome radius (**verify**), `components/render/simplewater.*` (far sea edge), `files/settings-default.cfg` `[WorldLod]`.
@@ -45,7 +45,7 @@ Inputs / outputs: new `[WorldLod]` settings, all off or inert by default: `map v
 
 ## Acceptance criteria
 
-- [ ] The depth buffer is reversed for the main pass (read from the pipeline state, not assumed), or the far plane is documented as limited with the alternative chosen by toddhow.
+- [x] The depth buffer is reversed for the main pass (read from the pipeline state, not assumed), or the far plane is documented as limited with the alternative chosen by toddhow.
 - [ ] A frame at 25,000 units up over Vivec shows the whole island, Solstheim and the coast with **no visible edge, hole or fog wall** (toddhow's verdict on the frames).
 - [ ] From the ground (Seyda Neen, Balmora) the horizon ends in haze at every weather; storms and ash still shorten the view.
 - [ ] No crack or pop at a level boundary during a fast ascent from the ground to 25,000 units (a scripted flight), beyond the existing hysteresis behaviour.
@@ -54,6 +54,95 @@ Inputs / outputs: new `[WorldLod]` settings, all off or inert by default: `map v
 - [ ] With `map view = false` the frame is identical to the commit before, and the 32 Lua integration tests pass.
 - [ ] Unit tests: the fog function and its twin, the tile selection at distances to 600,000 (levels chosen are monotonic with distance, hysteresis holds), tile keys of levels 4 to 6, the baker's determinism for the new levels.
 - [ ] The weak-GPU run (software device, `far levels = 3`, `texture max size = 512`) starts and draws a frame at the 25,000 pose.
+
+### Where each criterion stands (stage f, 2026-11-04)
+
+| # | Criterion | Verdict | Evidence, and what would settle it |
+| --- | --- | --- | --- |
+| 1 | Depth reversed for the main pass | **Met** | Stage a (`f336b57244`): read from the pipeline state and VSG's sources (compare GREATER, depth clear 0, `vsg::perspective` from 1 to 0, the shadow and occluder samplers, the editor's projection); nothing needed converting. `Render::DepthMath`, 12 tests; the shaders' reconstruction is off by 0.0625 units at 590,000. |
+| 2 | From 25,000 units over Vivec: the whole island, Solstheim and the coast, no edge, hole or fog wall | **Not verified: needs toddhow's verdict** | Frames: `I:\Projects\OpenEden-work\mapview3\frames\on_viv_25000.png`, `on_bal_25000.png`, `on_viv_60000.png`; the climb sheets `I:\Projects\OpenEden-work\mapview4\ascent_on_sheet.png` and `ascent_tmin_sheet.png`; after task 0060's planner `I:\Projects\OpenEden-work\streaming4\run_high\frames\screenshot011.png`. The agents saw no hole, crack or seam in them. The 25,000 frames look down at 35 degrees and show only part of the island; Solstheim is in the 60,000 frame and in the top frames of the climb. Settled by your flight (below). |
+| 3 | From the ground the horizon ends in haze in every weather; storms and ash shorten the view | **Met with a relaxation** | Stage c (`14527ba896`), frames in `I:\Projects\OpenEden-work\hazefog`: Seyda Neen at noon in rain, thunderstorm, ash storm and blizzard (`G_rain`, `G_storm`, `G_ash`, `G_blizzard`); clear weather from 3,000 and 25,000 units over Balmora. Not seen: Balmora from the ground, cloudy, overcast, foggy, blight and snow, dawn and dusk, a weather change while it happens. Settled by flight steps 3, 6 and 7. |
+| 4 | No crack or pop at a level boundary during a fast ascent | **Met with a relaxation** | Stage e (`62d3525ddd`): `tools/mapview_check/run_ascent.sh` climbs from 2,257 to 27,257 units in 40 s and back; high tier: no frame over 16.7 ms (worst 11.3 ms); the screenshots taken every 5 s show no crack, hole or seam. After the planner (task 0060, third review): two high-tier climbs and one with a 24 MiB budget, frames viewed, no hole. The relaxation: one frame every 5 s cannot show the pop of a single cluster or the dither of a hand-over, and nobody has watched a climb as it happens. Settled by flight step 5. |
+| 5 | Cost recorded; the far field adds at most 1.5 ms CPU and 150 MiB resident over the 30,000 view | **CPU met; memory not met with object clusters** | Tables of stages d and e. Median frame time +0.0 to 0.1 ms (Balmora and Vivec at 25,000). Resident memory: terrain tiles alone +93 and +126 MiB (met); with object clusters +197 MiB (minimal tier) to +452 MiB (high tier, Vivec). Task 0060's planner did not change the high tier, where no budget is reached (climb peaks 1,442 to 1,457 MiB resident against 1,450 in stage e). Stage e's "map view off" baselines ran with the fault fixed later in `7ebbc09e09` (no terrain tile drawn without `map view`), so those differences are somewhat too large; they were not measured again. Open decision 1. |
+| 6 | The near field unchanged with `map view` on | **Not verified** | By construction the live range (live terrain, objects, object paging) keeps the old number with `map view` on (stage b, `Lod::computeViewLimits`); the haze replaces the linear fog in exteriors, so near pixels can differ slightly. No difference image was taken. Settled by a difference image at the benchmark pose with `map view` on and off, or by your look at Balmora's streets (flight step 3). |
+| 7 | With `map view = false` the frame is identical to the commit before; the 32 Lua tests pass | **Met with a relaxation, after a fix** | Frames: the pairs of stages b and c are within the run-to-run noise of one executable (their tables); only `enabled = false` is byte-identical, because the game animates on real time. Lua: the pre-push Linux gate log for `1c1db899a5` (2026-11-04) shows the unit test suites (5,387, 868 and 1,861 tests), the 32 Lua integration tests and `eden-studio-tests` (589) passing; this stage did not run it again. **A regression got through:** stage e (`62d3525ddd`) made `[WorldLod] enabled` without `map view` draw no terrain tile at all ("0 tiles of levels 1 to 6 loaded"), and no "off" comparison caught it (stage e's off runs measured memory, not frames against the commit before). Task 0060's third review found it; `7ebbc09e09` fixes it (4 lines in `lodterrain.cpp`, no test; task 0055's tiles are drawn again). The off frames were not compared again after the fix. Open decision 4. |
+| 8 | Unit tests: the fog function and its twin, selection out to 600,000, tile keys of levels 4 to 6, the baker's determinism | **Met with a relaxation** | `testaerialmath.cpp` (14), `testviewlimits.cpp` (29, and stage d's six-level selection test), `LodTileBakeLevels` (3), `ESMTerrainFarLod` (2), the tier tests of stage e (38). The determinism of the new levels is a manual check, not a unit test: two bakes have the same SHA-256 (stage d, and again in stage f below); not compared across thread counts. |
+| 9 | The weak-GPU run starts and draws a frame at 25,000 | **Not met (not run)** | Needs a Linux build under Docker with llvmpipe (research note 0025); none of this work has run that way. A software device's tier is a unit test (`LodFarTier.a_software_device_is_the_minimal_tier_whatever_its_memory`), and the minimal tier was run on the RTX 4070. Whether a pack baked on Windows passes the staleness check on Linux (float digests across compilers) is unknown; the run may need its own bake. |
+
+## Your flight (toddhow's check)
+
+Everything here uses a COPY of your config. Your own folder, `C:\Users\smith\OneDrive\Documents\My Games\OpenMW`, is only read, never written. Edit the copy's `settings.cfg` only while the game is closed: the game rewrites that file when it quits, so a change made while it runs is lost. The game reads these settings and chooses the hardware tier at start, so change them between runs, not in game.
+
+**1. Make the copy and the bakes (about two minutes, the game closed).** In Git Bash, from the repository folder:
+
+```bash
+bash tools/mapview_check/prepare_flight.sh "C:/Users/smith/OneDrive/Documents/My Games/OpenMW" "I:/Projects/OpenEden-work/flight"
+```
+
+What `tools/mapview_check/prepare_flight.sh` does:
+- It refuses a work folder outside `I:\Projects\OpenEden-work`, inside your config folder, or one that exists, is not empty and was not made by the script (it may be run again on its own folder).
+- It copies `openmw.cfg` and `settings.cfg` into `<work>\config`. In the copy's `openmw.cfg` it drops `config=`, `user-data=` and `resources=` lines and adds what the build's own `openmw.cfg` would give: the build's `resources=`, `data="<build>/resources/vfs-mw"` ahead of your first `data=` line, and `extension=compat_morrowind`.
+- It writes these keys once each into the copy's `settings.cfg`, in the first section of that name (a key written twice stops the next start with a parse error):
+
+```ini
+[Terrain]
+distant terrain = true
+
+[WorldLod]
+enabled = true
+map view = true
+view distance = auto
+object clusters = true
+haze = true
+tier = auto
+```
+
+- It bakes the terrain tiles and the object clusters into `<work>\user\openeden\lod` (`terrain.edenpak` and `objects.edenpak`, about 52 MB and 187 MB for Morrowind, Tribunal and Bloodmoon). Each bake starts the game in a window off screen (`OPENEDEN_QUIET_WINDOW=1`).
+- It prints the start command and writes it to `<work>\start_game.txt`.
+
+A third argument names another build folder (default `I:\Projects\OpenEden\build-jolt`). The executable there is whatever was built last, by any agent; it must be built at or after `7ebbc09e09`. Your saves are not in the work folder (`<work>\user` is a new user data folder); to fly with one of your characters, copy its save folder into `<work>\user\saves`.
+
+Every command uses `--replace=config --config <copy> --user-data <work>\user`. Without `--replace=config` the build's `openmw.cfg` loads too and chains to your real config folder (`config="?userconfig?"`): the content list arrives twice ("Content file specified more than once") and your own folder is used again.
+
+To bake again by hand (after changing mods or the content list; a stale pack is logged as `World LOD terrain tiles are not used: the pack was made from other land, land textures or settings (stale)`), with the game closed, in PowerShell:
+
+```powershell
+$env:OPENEDEN_QUIET_WINDOW = "1"
+& "I:\Projects\OpenEden\build-jolt\openmw.exe" --replace=config --config "I:\Projects\OpenEden-work\flight\config" --user-data "I:\Projects\OpenEden-work\flight\user" --bake-lod-terrain
+& "I:\Projects\OpenEden\build-jolt\openmw.exe" --replace=config --config "I:\Projects\OpenEden-work\flight\config" --user-data "I:\Projects\OpenEden-work\flight\user" --bake-lod-objects
+```
+
+**2. Start the game.** Use the printed command and add `--skip-menu --start Balmora` (a new game in Balmora; if a character window waits, accept it). For about a second after the first cell loads the far land may be missing: the pack is checked on a worker (log `World LOD terrain: the check read the land for levels up to 2`). Judge from then on. Open the console and type `tgm` (god mode) and `tcl` (no collision: you fly where you look, and you do not fall from a height).
+
+**3. On the ground in Balmora, clear noon.** `ChangeWeather "West Gash Region" 0`, `set gamehour to 12`. Expected: the far hills and the sea fade into the sky's colour; no line where the land stops; Balmora's houses and streets look as they do without `map view`.
+
+**4. Over Vivec.** `coe 3 -11`, then `player->setpos z 25000`; look toward the horizon in every direction, then down. Expected: the whole island to the coast, Solstheim to the north-west, the far sea paling into the haze; Vivec's cantons and the large landmarks as simplified shapes; no hole (a square of sky or black in the land), no edge, no wall of fog. Small objects far away are not drawn, on purpose (answer 4: levels 5 and 6 are terrain only).
+
+**5. The climb.** From the ground, look up and fly up with `tcl`, or set heights in steps: `player->setpos z 3000`, `8000`, `15000`, `25000`, `60000`. Expected: no crack between pieces of land, no step where the land or the objects change detail in one jump, no hole while you climb or come down. A scripted climb, the same one the agents ran (150 s, off screen unless `OPENEDEN_QUIET_WINDOW=0` is set in front; it EMPTIES `<work>\user\screenshots` first, so move your F12 shots out before it):
+
+```bash
+bash tools/mapview_check/run_ascent.sh "I:/Projects/OpenEden-work/flight/climb" "I:/Projects/OpenEden-work/flight/config" "I:/Projects/OpenEden-work/flight/user"
+```
+
+It leaves 25 screenshots in `<work>\climb\frames`; `bash tools/mapview_check/analyze_ascent.sh "I:/Projects/OpenEden-work/flight/climb/stats.txt"` gives the frame times of the climb.
+
+**6. Weather.** On the ground and at 3,000 units: `ChangeWeather "West Gash Region" 4` (rain), `5` (thunderstorm), `6` (ash storm), `9` (blizzard), then `0` (clear); the numbers are the order of `WeatherManager`'s `addWeather` calls in `apps/openmw/mwworld/weather.cpp`. The change takes a few seconds. Expected: rain is a mild haze, the storm hides the far hills, the ash storm hides all but what is near, the blizzard hides nearly everything.
+
+**7. Dawn and dusk** (nobody has checked these): `set gamehour to 6` and `set gamehour to 19`, from the ground and from 25,000 units. Look at the colour of the haze against the far land.
+
+**Not wrong:** the far land missing for the first second (step 2); far land without small objects. **Should be gone:** white and blue noise on far water (fixed in task 0068, `710df9f2bf`); white strips on far ridges are the Ghostgate fence (the same task). Report either if you see it.
+
+**If something looks wrong, send:**
+- the F12 screenshot (`<work>\user\screenshots`);
+- where and when: the cell (`coe x y`) or `player->getpos z`, the weather number and the hour;
+- the copy's `settings.cfg` (`<work>\config\settings.cfg`);
+- from `<work>\config\openmw.log`: the lines that begin with `World LOD tier:`, `World LOD terrain tiles:`, `World LOD terrain: the check read the land`, `LOD clusters:` (the first one names the number of clusters, the later ones what is shown and held), any line with `not used`, `over the budget`, `cannot` or `could not`, and any `Warning` or `Error` near the time it happened.
+
+**Your decisions after the flight** (recommendation first):
+1. **The memory of the whole-map view with object clusters** (criterion 5, and task 0060's finding 11: in `map view` a budget cannot bound the clusters past the live range, because nothing else draws their cells). (a) Keep the rule: no holes, the overrun is reported; the measured cost is +200 to +450 MiB with clusters (recommended for now). (b) On the low tiers let far clusters be freed: memory bounded, far objects vanish and pop in and out. (c) A smaller, cheaper far cluster level for the low tiers: a bake change. Neither (b) nor (c) is built.
+2. **The default of `map view`** (today false, with `view distance = 40000`): keep it off until the flight and decision 1 (recommended); then on for everyone with the tier capping the reach, or a graphics option (Low, Medium, High, Whole map).
+3. **The haze's starting values:** `haze visibility = 100000` (where 10 percent of the light gets through along the ground in clear weather; larger is clearer), `haze height = 4000` (the scale height; smaller keeps the haze nearer the ground), `haze weather gain = 10` (how much rain, storms and ash shorten the view). Change them in the copy with the game closed and say which you like.
+4. **`7ebbc09e09`**: with `[WorldLod] enabled` and `map view` off, the terrain tiles of task 0055 are drawn again. Task 0060's third review asked for your word because it changes what `enabled` draws without `map view`; the fix is committed and pushed, without a test. Approve it (a test to follow), or say what `enabled` without `map view` should draw.
 
 ## Low-end hardware
 
@@ -334,3 +423,16 @@ No frame over 16.7 ms in the high run and none over 33 ms in any. Frames viewed 
 **Tests (red first, shown failing):** `LodFarTier`, `LodResolveFarLevels`, `LodFarLevelsWithinBudget` (20, 12 of them red against a stub), `LodFarTierSetting`, `LodEffectiveFarSettings`, `LodResolveFarTextureSize` (9, 8 red), `LodClusterBudget` (7, 6 red), `LodTilePack.a_tile_reports_the_source_digest...` (2, 1 red): 38 new tests in `testfartier.cpp` and `testtilepack.cpp`. Windows: `components-tests` 4,947, `openmw-tests` 859, `eden-studio-tests` 578, all pass; `eden-studio` was rebuilt after the defaults changed and starts (a 20 s run, no fatal error).
 
 **Not verified:** the Linux build and gate (nothing of stage e has been built with GCC `-Werror`: watch for shadowing and unused variables in `fartier.cpp`, `lodterrain.cpp`, `lodclusters.cpp`); the weak-GPU run; a machine of another tier (the table was run by naming tiers on the RTX 4070, not on a weaker card); the working set that stays after the check (cause not found); `[WorldLod] tier` with `map view` toggled at run time (the tier is chosen at start); the lighter check against a pack whose level 3 to 6 tiles are stale (not tested); the pictures of far clusters at the hand-over (a 128 px cap on levels 1 and 2 was not looked at close); (`Render::releaseFreedMemory`, tried after the check and changed no number, was removed).
+
+### Stage f, 2026-11-04: close-out
+
+The acceptance table and "Your flight" are above, after the acceptance criteria; the status line says where the task stands. New: `tools/mapview_check/prepare_flight.sh`. It was tested on copies of `I:\Projects\OpenEden-work\lodtest\config` in `I:\Projects\OpenEden-work\flighttest`, never on toddhow's folder:
+
+1. **First run: a fault found and fixed.** The terrain bake wrote its pack (593 tiles, 51,973,008 bytes, all read back), then the object bake's game stopped at start on a settings parse error: the script had appended a second `[Terrain]` and `[WorldLod]` section, and the terrain bake's game, rewriting `settings.cfg` at exit, put every key of both sections into both, so keys appeared twice. The stuck game (started by the script) was stopped. The script now writes each key once, into the first section of its name, and appends a section only when the file has none.
+2. **Second run** (same source): exit 0, both packs (terrain 51,973,008 bytes, objects 186,681,880 bytes), the source's SHA-256 unchanged, and after both bakes the copy's `settings.cfg` has one `[WorldLod]` section and no section or key twice. The printed command plus `--skip-menu --start Balmora --auto-quit 600` (quiet window) logged `World LOD tier: high`, `593 tiles of levels 1 to 6 loaded`, `497 clusters`, no settings error, and quit normally.
+3. **Windows paths with spaces and backslashes** (`flighttest\My Games\OpenMW` to `flighttest\work two`): exit 0, the same packs, the source unchanged.
+4. **The `openmw.cfg` rules** (a source without the build's three lines and with stray `config=` and `user-data=` lines): the copy drops both stray lines, has the engine's data folder ahead of the first `data=` line and the build's `resources=` and pack; nothing was created at the stray paths; the source unchanged; both packs byte-identical to run 3's (SHA-256), which repeats stage d's determinism check of the new levels.
+
+Refusals checked (exit 2, nothing created): a work folder outside `I:\Projects\OpenEden-work`, that folder itself, a work folder inside the config folder, an existing non-empty folder the script did not make. The script had no fresh review.
+
+**Not done in this task** (each is in the table): toddhow's verdict on the frames, the weak-GPU run, a near-field difference image with `map view` on, an "off" frame comparison after `7ebbc09e09`, frames at dawn and dusk, weather changes as they happen, a frame at 600,000 from 100,000 units up, and a test and fresh review of `7ebbc09e09`.
