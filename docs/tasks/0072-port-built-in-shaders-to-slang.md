@@ -107,7 +107,7 @@ Red runs: `ShaderDefines` 9 of 11 failed against stubs (2 vacuous: the switch-of
 
 **Proposal for toddhow:** `SlangSunTest` (task 0023) checks the sun's single files, which the game no longer loads; `SlangPermutations` checks the sun's permutations the same way. Remove the single files and that test (it is the only reader)?
 
-**Not done in stage b:** the Linux gate (GCC `-Werror`), a fresh reviewer, a frame with the moons visible.
+**Not done in stage b:** the Linux gate (GCC `-Werror`), a fresh reviewer, a frame with the moons visible, and a switch-off frame against a binary of the commit before the stage (none was built): that criterion rests on the code, where the switch-off path changed only by calls that do nothing for a GLSL stage (`addSettingsConstants` returns, `slangTwin` is not called, the trace is inert without its variable).
 
 ### Stage c, 2026-11-04: the compute passes
 
@@ -125,4 +125,4 @@ Red runs: `ShaderDefines` 9 of 11 failed against stubs (2 vacuous: the switch-of
 | Ebonheart Council Chambers | 195, 13.0% | 197, 2.54% | 89, 0.13% |
 
   Within run noise: particles are seeded by the frame time, so they land elsewhere in every run (the ash difference image shows isolated flakes); the Mages Guild difference is a smooth change of the whole room's light level, as flickering lights give between runs, with no cluster-shaped block that a wrong light grid would leave. Another agent's games ran during the captures, so timing noise is larger than on an idle machine.
-- **Not done in stage c:** the Linux gate, a fresh reviewer, a frame of the fog of war and of the world map with the twins.
+- **Not done in stage c:** the Linux gate, a fresh reviewer, a frame of the fog of war and of the world map with the twins, a switch-off frame against the commit before (with the switch off `withSlangTwin` returns the same stage), and `openmw-tests` after this commit (859 passed at `35fd516c42`; the game library did not build afterwards because of another agent's work in progress). `components-tests` 5328 and `eden-studio-tests` 578 pass after it; Eden Studio starts (30 s with a config copy, no error).
