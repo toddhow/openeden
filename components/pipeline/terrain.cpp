@@ -40,8 +40,9 @@ namespace Pipeline
         }
         if (gbufferOutputs > 0)
             defines.insert("GBUFFER");
-        // Task 0077: the point lights' shadows, in the terrain lit with the material model.
-        if (pointShadow && maps && pbr)
+        // Task 0077: the point lights' shadows, in the terrain lit per pixel (with its layers' maps; a terrain lit per
+        // vertex cannot take one light's share out of the sum).
+        if (pointShadow && maps)
             defines.insert("POINT_SHADOW");
         // Task 0036: the terrain takes the exterior sky-visibility field.
         if (giSky)
