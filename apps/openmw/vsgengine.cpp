@@ -36,6 +36,7 @@
 #include "mwinput/actions.hpp"
 #include "mwinput/inputmanagerimp.hpp"
 #include "mwrender/bin.hpp"
+#include "mwrender/mergedbody.hpp"
 #include "mwrender/rendermanager.hpp"
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
@@ -485,6 +486,8 @@ namespace OMW
 
         mRenderManager->setLodTerrainPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "terrain.edenpak");
         mRenderManager->setLodClusterPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "objects.edenpak");
+        // Task 0069 stage d: the merged body cache ([Bodies] merged body) lives under <user data>/openeden/bodies.
+        MWRender::MergedBodies::setUserDataFolder(mCfgMgr.getUserDataPath());
 
         mSoundManager = std::make_unique<MWSound::SoundManager>(mVFS.get(), args.useSound);
         mEnvironment.setSoundManager(*mSoundManager);

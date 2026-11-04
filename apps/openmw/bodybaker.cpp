@@ -102,16 +102,9 @@ namespace OMW
             std::vector<Body::SeamDeclaration> mSeams;
             Body::MergeOptions mOptions;
             Body::MergeLimits mLimits;
+            BodyNif::RestPose mRest; // the skeleton at rest, as the parts were placed (stage d: the inverse binds)
             std::string mError; // non-empty: the body cannot be merged, one line
         };
-
-        std::string materialKey(const BodyNif::Shape& shape)
-        {
-            return Misc::StringUtils::lowerCase(shape.mTexture)
-                + (shape.mAlphaTest         ? "|a"
-                        : shape.mAlphaBlend ? "|b"
-                                            : "|-");
-        }
 
         Body::PartMesh toPartMesh(const BodyNif::Shape& shape, const SlotDef& slot, const std::string& rigidBone)
         {
@@ -190,6 +183,7 @@ namespace OMW
                 if (node != nullptr)
                     rest.merge(BodyNif::readRestPose(*node));
             }
+            body.mRest = rest;
 
             std::vector<std::string> errors;
             for (const SlotDef& def : slotDefs)
@@ -406,6 +400,24 @@ namespace OMW
         std::size_t mProblems = 0;
         std::string mReport;
     };
+
+    StockBodyFacts computeStockBodyFacts(
+        const ESM::Race& race, bool female, const MWWorld::ESMStore& store, const VFS::Manager& vfs)
+    {
+        StockBodyFacts facts;
+        FileCache files(vfs);
+        const Unit unit{ &race, female };
+        StockBody stock = buildStockBody(unit, store, vfs, files);
+        facts.mEntryName = packEntryNameOf(stock);
+        facts.mRest = std::move(stock.mRest);
+        if (!stock.mError.empty())
+        {
+            facts.mError = stock.mError;
+            return facts;
+        }
+        facts.mKey = Body::computeBodyKey(stock.mKey);
+        return facts;
+    }
 
     BodyBaker::BodyBaker(Mode mode, std::filesystem::path outFolder, Resource::ResourceSystem& resources)
         : mState(std::make_unique<State>(mode, std::move(outFolder), resources))

@@ -20,6 +20,7 @@ namespace
         facts.mSettingOn = true;
         facts.mThirdPerson = true;
         facts.mWerewolf = false;
+        facts.mDefaultSkeleton = true;
         facts.mCacheLoaded = true;
         facts.mEntryPresent = true;
         facts.mKeyComputed = true;
@@ -52,6 +53,7 @@ namespace
             { [](MergedBodyFacts& f) { f.mSettingOn = false; }, MergedBodyReason::SettingOff },
             { [](MergedBodyFacts& f) { f.mThirdPerson = false; }, MergedBodyReason::NotThirdPerson },
             { [](MergedBodyFacts& f) { f.mWerewolf = true; }, MergedBodyReason::Werewolf },
+            { [](MergedBodyFacts& f) { f.mDefaultSkeleton = false; }, MergedBodyReason::OtherSkeleton },
             { [](MergedBodyFacts& f) { f.mCacheLoaded = false; }, MergedBodyReason::NoCache },
             { [](MergedBodyFacts& f) { f.mEntryPresent = false; }, MergedBodyReason::NoEntry },
             { [](MergedBodyFacts& f) { f.mKeyComputed = false; }, MergedBodyReason::KeyNotComputed },
@@ -81,10 +83,11 @@ namespace
 
     TEST(MergedBodyDecision, every_reason_has_a_phrase)
     {
-        const MergedBodyReason reasons[] = { MergedBodyReason::Merged, MergedBodyReason::SettingOff,
-            MergedBodyReason::NotThirdPerson, MergedBodyReason::Werewolf, MergedBodyReason::NoCache,
-            MergedBodyReason::NoEntry, MergedBodyReason::KeyNotComputed, MergedBodyReason::StaleKey,
-            MergedBodyReason::PayloadRefused, MergedBodyReason::BuildFailed, MergedBodyReason::EquipmentCovers };
+        const MergedBodyReason reasons[]
+            = { MergedBodyReason::Merged, MergedBodyReason::SettingOff, MergedBodyReason::NotThirdPerson,
+                  MergedBodyReason::Werewolf, MergedBodyReason::OtherSkeleton, MergedBodyReason::NoCache,
+                  MergedBodyReason::NoEntry, MergedBodyReason::KeyNotComputed, MergedBodyReason::StaleKey,
+                  MergedBodyReason::PayloadRefused, MergedBodyReason::BuildFailed, MergedBodyReason::EquipmentCovers };
         for (const MergedBodyReason reason : reasons)
         {
             EXPECT_FALSE(describe(reason).empty());

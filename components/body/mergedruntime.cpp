@@ -14,6 +14,8 @@ namespace Body
             return MergedBodyReason::NotThirdPerson;
         if (facts.mWerewolf)
             return MergedBodyReason::Werewolf;
+        if (!facts.mDefaultSkeleton)
+            return MergedBodyReason::OtherSkeleton;
         if (!facts.mCacheLoaded)
             return MergedBodyReason::NoCache;
         if (!facts.mEntryPresent)
@@ -43,6 +45,8 @@ namespace Body
                 return "first person and head-only views keep their parts";
             case MergedBodyReason::Werewolf:
                 return "werewolves keep their parts";
+            case MergedBodyReason::OtherSkeleton:
+                return "the actor uses another skeleton than its race's default one";
             case MergedBodyReason::NoCache:
                 return "there is no merged body cache: run openmw --bake-bodies";
             case MergedBodyReason::NoEntry:
@@ -94,8 +98,8 @@ namespace Body
         draws.reserve(body.mSubmeshes.size());
         for (const Submesh& submesh : body.mSubmeshes)
         {
-            const std::uint64_t end
-                = static_cast<std::uint64_t>(submesh.mFirstTriangle) + static_cast<std::uint64_t>(submesh.mTriangleCount);
+            const std::uint64_t end = static_cast<std::uint64_t>(submesh.mFirstTriangle)
+                + static_cast<std::uint64_t>(submesh.mTriangleCount);
             if (end > triangleCount || submesh.mMaterial >= body.mMaterials.size())
                 return {};
             MergedDraw draw;

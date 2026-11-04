@@ -1,5 +1,7 @@
 #include "npc.hpp"
 
+#include <algorithm>
+
 #include <components/animation/context.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -43,6 +45,7 @@
 
 #include "bodyparts.hpp"
 #include "env.hpp"
+#include "mergedbody.hpp"
 #include "transparency.hpp"
 
 namespace MWRender
@@ -222,6 +225,8 @@ namespace MWRender
     {
         for (size_t i = 0; i < ESM::PRT_Count; i++)
             removeIndividualPart((ESM::PartReferenceType)i);
+        removePath(mMergedBody);
+        mMergedSlots.clear();
         removePath(mScabbard);
         removePath(mHolsteredShield);
         for (auto& path : mQuiver)
@@ -246,6 +251,7 @@ namespace MWRender
             = animationSources(mContext, is1stPerson, isFemale, isBeast, isWerewolf, mNpc->mModel, mNpc->mRace);
         const std::string& defaultSkeleton = animSources.defaultSkeleton;
         const std::string& smodel = animSources.skeleton;
+        mDefaultSkeleton = smodel == defaultSkeleton;
         const std::vector<std::string>& sources = animSources.sources;
 
         Misc::LoadTrace::Scope traceSkel("npc.readactor");
@@ -381,11 +387,16 @@ namespace MWRender
         bool isWerewolf = (getNpcType() == NpcType::Werewolf);
         ESM::RefId race = isWerewolf ? ESM::RefId::stringRefId("werewolf") : mNpc->mRace;
 
+        // Task 0069 stage d: the merged body, when it may be drawn, takes the slots it covers.
+        const bool merged = attachMergedBody(isWerewolf);
+
         const std::vector<const ESM::BodyPart*>& parts
             = getBodyParts(race, !mNpc->isMale(), mViewMode == ViewMode::FirstPerson, isWerewolf,
                 MWBase::Environment::get().getWorld()->getStore().get<ESM::BodyPart>());
         for (int part = ESM::PRT_Neck; part < ESM::PRT_Count; ++part)
         {
+            if (merged && std::binary_search(mMergedSlots.begin(), mMergedSlots.end(), part))
+                continue;
             if (mPartPriorities[part] < 1)
             {
                 const ESM::BodyPart* bodypart = parts[part];
@@ -439,6 +450,70 @@ namespace MWRender
                 dst->add(ctrl, o);
         });
         mParts[type] = path;
+    }
+
+    bool Npc::attachMergedBody(bool isWerewolf)
+    {
+        // Re-attached on every call: updateParts' clearControllers dropped the controllers linked last time.
+        removePath(mMergedBody);
+        mMergedSlots.clear();
+        if (!Settings::bodies().mMergedBody)
+            return false;
+
+        const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
+        const ESM::Race* race = store.get<ESM::Race>().search(mNpc->mRace);
+        const bool female = !mNpc->isMale();
+        Body::MergedBodyFacts actor;
+        actor.mSettingOn = true;
+        actor.mThirdPerson = mViewMode == ViewMode::Normal;
+        actor.mWerewolf = isWerewolf;
+        actor.mDefaultSkeleton = mDefaultSkeleton;
+        // The cache facts are the template's; here only the actor's own are checked first.
+        actor.mCacheLoaded = actor.mEntryPresent = actor.mKeyComputed = actor.mKeyCurrent = actor.mPayloadRead
+            = actor.mBuilt = true;
+        actor.mSlotsCovered = false;
+        Body::MergedBodyReason reason = Body::decideMergedBody(actor);
+        if (reason != Body::MergedBodyReason::Merged || race == nullptr)
+            return false;
+
+        MergedBodies::TemplateResult result = MergedBodies::getTemplate(*race, female, *mPartContext);
+        if (!result.mNode)
+        {
+            MergedBodies::report(*race, female, result.mReason);
+            return false;
+        }
+        // In stage d an actor that wears anything replacing a merged slot keeps the stock parts entirely (stage e hides
+        // regions instead). A slot is owned by equipment or a reservation when its group is an inventory slot.
+        int owned[ESM::PRT_Count];
+        for (int i = 0; i < ESM::PRT_Count; ++i)
+            owned[i] = mPartslots[i] >= 0 ? std::max(1, mPartPriorities[i]) : 0;
+        if (Body::mergedSlotsCovered(result.mSlots, owned))
+            return false;
+
+        // The stock parts of the merged slots go (body parts are added with group -1 and priority 1).
+        for (const int slot : result.mSlots)
+        {
+            if (mPartslots[slot] < 0 && mPartPriorities[slot] >= 1)
+                removeIndividualPart(static_cast<ESM::PartReferenceType>(slot));
+        }
+
+        Misc::LoadTrace::Scope traceAttach("npc.mergedbody.attach");
+        vsg::ref_ptr<vsg::Node> node = result.mNode;
+        auto decorated = MWAnim::decorate(node, nullptr, false);
+        // Any bone serves as the attachment: the skin's matrices are relative to it, and the vertices are in the
+        // skeleton's space with the inverse of each bone's rest matrix (mergedbody.cpp).
+        auto path = MWAnim::attachBonesAndNode(
+            node, *nodeToAddChildrenTo(), animation->bones, MWAnim::sPartBones.at(ESM::PRT_Groin));
+        if (path.empty())
+        {
+            MergedBodies::report(*race, female, Body::MergedBodyReason::BuildFailed);
+            return false;
+        }
+        Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
+        decorated.link(ctx, [this](const Anim::Controller* ctrl, vsg::Object* o) { mStaticControllers.add(ctrl, o); });
+        mMergedBody = path;
+        mMergedSlots = result.mSlots;
+        return true;
     }
 
     void Npc::update(float dt)

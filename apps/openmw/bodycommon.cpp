@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
+#include <components/misc/strings/lower.hpp>
 #include <components/vfs/manager.hpp>
 
 #include <edenarchive/hash.hpp>
@@ -72,5 +73,13 @@ namespace OMW::BodyCommon
                 *fileShapes += BodyNif::readShapes(*node, "").mShapes.size();
         }
         return shapes;
+    }
+
+    std::string materialKey(const BodyNif::Shape& shape)
+    {
+        return Misc::StringUtils::lowerCase(shape.mTexture)
+            + (shape.mAlphaTest         ? "|a"
+                    : shape.mAlphaBlend ? "|b"
+                                        : "|-");
     }
 }

@@ -1,0 +1,2 @@
+GLOBAL: scripts/mbcheck_global.lua
+PLAYER: scripts/mbcheck_player.lua

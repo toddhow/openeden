@@ -82,6 +82,11 @@ namespace OMW::BodyCommon
 
     /// The shapes the skin filter selects from every root of a parsed file; reader errors are appended to `errors`.
     /// `fileShapes`, when given, gets the number of shapes the file holds without a filter.
+    // The material key of a shape: its base texture in lower case and its alpha mode ("|a" test, "|b" blend, "|-"
+    // none). The merger makes one submesh per (slot, key); the engine path (stage d) finds the stock look of a submesh
+    // by it.
+    std::string materialKey(const BodyNif::Shape& shape);
+
     std::vector<BodyNif::Shape> shapesOf(const ParsedFile& parsed, const std::string& filter,
         const BodyNif::Placement& placement, std::vector<std::string>& errors, std::size_t* fileShapes = nullptr);
 }

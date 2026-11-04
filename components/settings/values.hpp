@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SETTINGS_VALUES_H
 #define OPENMW_COMPONENTS_SETTINGS_VALUES_H
 
+#include "categories/bodies.hpp"
 #include "categories/camera.hpp"
 #include "categories/cells.hpp"
 #include "categories/fog.hpp"
@@ -42,6 +43,7 @@ namespace Settings
         CellsCategory mCells{ mIndex };
         TerrainCategory mTerrain{ mIndex };
         WorldLodCategory mWorldLod{ mIndex };
+        BodiesCategory mBodies{ mIndex };
         FogCategory mFog{ mIndex };
         MapCategory mMap{ mIndex };
         GUICategory mGUI{ mIndex };
@@ -112,6 +114,11 @@ namespace Settings
     inline WorldLodCategory& worldLod()
     {
         return values().mWorldLod;
+    }
+
+    inline BodiesCategory& bodies()
+    {
+        return values().mBodies;
     }
 
     inline FogCategory& fog()

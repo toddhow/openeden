@@ -32,6 +32,7 @@ namespace Body
         SettingOff,
         NotThirdPerson, // first person and head-only views keep their parts
         Werewolf,
+        OtherSkeleton, // the actor's skeleton is not its race's default one, which the bake placed the parts on
         NoCache, // no cache folder, no `current`, a damaged pack or manifest
         NoEntry, // the manifest has no entry for this race and sex (or it failed in the bake)
         KeyNotComputed, // the key of the data now could not be computed (a part or the skeleton cannot be read)
@@ -47,6 +48,7 @@ namespace Body
         bool mSettingOn = false;
         bool mThirdPerson = false;
         bool mWerewolf = false;
+        bool mDefaultSkeleton = false;
         bool mCacheLoaded = false;
         bool mEntryPresent = false;
         bool mKeyComputed = false;

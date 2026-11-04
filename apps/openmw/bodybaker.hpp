@@ -27,14 +27,43 @@
 
 #include <filesystem>
 #include <memory>
+#include <string>
+
+#include <components/bodynif/skinnedshape.hpp>
 
 namespace Resource
 {
     class ResourceSystem;
 }
+namespace ESM
+{
+    struct Race;
+}
+namespace MWWorld
+{
+    class ESMStore;
+}
+namespace VFS
+{
+    class Manager;
+}
 
 namespace OMW
 {
+    // Stage d (task 0069): what the game needs to check and use a cached merged body of a race and sex, computed now
+    // from the data exactly as the bake computes it (the same part selection, files, seams and parameters, and so the
+    // same key). It reads the part files and the skeleton (a few milliseconds a body). Main thread.
+    struct StockBodyFacts
+    {
+        std::string mEntryName; // the pack entry of this race and sex
+        std::string mKey; // the cache key of the data now; empty when mError is set
+        BodyNif::RestPose mRest; // the skeleton at rest, as the bake placed the parts (the inverse binds)
+        std::string mError; // one line; empty when the key was computed
+    };
+
+    StockBodyFacts computeStockBodyFacts(
+        const ESM::Race& race, bool female, const MWWorld::ESMStore& store, const VFS::Manager& vfs);
+
     class BodyBaker
     {
     public:
