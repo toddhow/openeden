@@ -124,3 +124,7 @@ See the end of the design doc's section 7A (the same list, numbered, each with a
 ## Stage log (implementer's notes)
 
 *(Empty. Nothing is built.)*
+
+## Answers of toddhow, 2026-11-03
+
+All ten open questions of the design doc's section 7A.5 were answered "all yes" (each recommendation accepted): 1 head stays a part (H14); 2 ahead-of-time bake plus background worker, stock for the actor's whole life when its entry is missing (H15); 3 a small canonical `bodymesh` layout, a draft until approved (H16); 4 equal-weight mean at weld groups (H17); 5 humans first, beasts only if the structure matches, no werewolf/creature/first person (H18); 6 one submesh per material, no atlas (H19); 7 a new `components/bodynif` (H20); 8 the runtime check trusts the bake's pointer and compares records and file sizes without re-hashing; 9 after a load-order change the game draws stock parts and says to re-run the bake; 10 stage a runs alone and toddhow reviews its go/no-go table before stage b starts.

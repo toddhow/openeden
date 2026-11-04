@@ -204,6 +204,10 @@ Costs are **measured, not promised** (stage d records them): per-person part rea
 9. **A bake after a load-order change** (decided as in the LOD design 4.6): the status line says "bodies out of date, run --bake-bodies"; the game draws stock meanwhile. *Recommend yes.*
 10. **Stage order:** stage a (measure) alone first, then your go/no-go on its table before stage b starts. *Recommend yes.*
 
+### 7A.6 Answers of toddhow, 2026-11-03
+
+toddhow answered "all yes" to the ten questions of 7A.5: every recommendation is accepted. In particular: H13 (merge from the player's own parts, cache, never ship) stands; H14 neck down, head and hair stay parts; H15 ahead of time with a bake command plus a background worker, stock parts for the whole life of an actor whose entry is missing; H16 a small canonical `bodymesh` layout (draft until he approves it); H17 the equal-weight mean of a weld group's members; H18 humans first, beasts only if the structure matches, no werewolf, creature or first person; H19 one submesh per material, no atlas; H20 `components/bodynif`; the runtime cache check compares ESM records and file sizes without re-hashing; a load-order change makes the game draw stock parts and say so; stage a runs alone and he reviews its go/no-go table before stage b starts.
+
 ## 8. Selection, replacement, priority, conflict log, validator, fallback (guide section 6)
 
 - A package declares which race, sex or creature type it replaces and a numeric priority. Resolution picks the highest priority for a target; ties are broken by package id (stable sort, deterministic). Every conflict is written to a log file (one line per losing package with the reason) in the user data folder, and shown in the launcher's content page later.
