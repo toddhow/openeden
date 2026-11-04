@@ -1614,6 +1614,23 @@ namespace
         EXPECT_LT(game.runtime()->stats().mLongestWaitMilliseconds, 50.0);
     }
 
+    TEST(SlangRuntimeLibrary, the_first_compile_without_the_preload_pays_for_the_library_and_the_self_tests)
+    {
+        // The other half of the measurement above (run each of the two in a process of its own, the library must not
+        // be loaded already): with no preload the first compile starts the library and runs both self-tests.
+        GameRuntime game("openeden_slangruntime_nopreload", false);
+        ASSERT_NE(game.runtime(), nullptr);
+        auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
+        ASSERT_NE(glsl, nullptr);
+        const auto start = std::chrono::steady_clock::now();
+        const auto module
+            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        ASSERT_NE(module, nullptr);
+        EXPECT_FALSE(game.runtime()->stats().mPreloaded);
+        std::cout << "[ info ] first compile with no preload: " << ms << " ms\n";
+    }
+
     // The child process of the test below: a library folder without glslang, in a process that has never loaded it.
     bool glslangLoaded()
     {
