@@ -95,8 +95,9 @@ Out of scope: the merged body's own controllers (already re-attached), first per
 
 **2026-11-04, review follow-up (task 0074b)** (`7d55a76c0a` helper and tests, `b7868ee629` trace, `9c03fbd094` merged
 body log ids, `8415dd30f5` the NPC fix, `879ec486c4` the creature fix). A fresh review of the commits above found no
-blocker and six gaps of the same family; the extracted review text (`I:\Projects\OpenEden-work\review0074.md`) was
-empty, so the findings were taken from the brief. Method: tests first, run red; no separate test writer or reviewer
+blocker and six gaps of the same family. (Corrected in 0074d: the review text `I:\Projects\OpenEden-work\review0074.md`
+was not empty; it was read while still being written. It holds nine findings; 1 to 6 are these, 7 to 9 were handled
+only in 0074d, below.) Method: tests first, run red; no separate test writer or reviewer
 (this ran as a subagent without subagents).
 
 - **Finding 1, a kept part's auto-play clock restarted:** `clearControllers` destroyed every `AutoPlay::Group`; the
@@ -131,11 +132,12 @@ empty, so the findings were taken from the brief. Method: tests first, run red; 
 - **Finding 6, a throw skipped the relink:** `Npc::updateParts` runs its node work (`updatePartNodes`) through
   `PartControllers::runUpdate`, which runs the relink (`relinkKeptControllers`: the parts, then the merged body's copy)
   on every way out and passes a throw on. The merged body's relink moved from `attachMergedBody` to that step, once per
-  update. **Reachability:** not through data, as far as checked. `vsgUtil::readNode` throws only when the read gives
-  no node, and the node options end with `Resource::Fallback` (`createNodeOptions` in `resourcesystem.cpp`:
-  `marker_error.nif`, else an empty node), while `nif::read` catches `std::exception`; in game a weapon whose model was
-  missing and one whose model was a PNG both drew the fallback ("Using fallback object") and nothing threw. The guard
-  is defensive.
+  update. **Reachability (wrong as first written, corrected in 0074d):** a missing file, or one no reader accepts,
+  does not throw: the node options end with `Resource::Fallback` (`createNodeOptions` in `resourcesystem.cpp`:
+  `marker_error.nif`, else an empty node) and `nif::read` catches `std::exception`; a weapon whose model was missing and
+  one whose model was a PNG both drew the fallback. But the file is opened outside the readers' catch
+  (`vsgAdapters::vfs::read`, `VFS::Manager::get`), so an Eden Archive entry that fails its check, or an I/O error,
+  does throw, and the game crashed afterwards (0074d). The guard is not merely defensive.
 - **Found on the way:** with `[Bodies] merged body` on, an NPC made from a Lua record (a generated id) was not drawn:
   two log lines in `npc.cpp` used `RefId::getRefIdString`, which throws for a generated id, during the Npc's
   construction ("failed to render 'Generated:0x13'"). `9c03fbd094` uses `toString`.
@@ -158,7 +160,8 @@ empty, so the findings were taken from the brief. Method: tests first, run red; 
     the 4,209 later frames had it). The dremora's own group (phase 1, two controllers) and its light were gone after
     its first change.
   - After: the light is in all 4,395 frames after the first change, in 4,394 different colours; the hair clocks (part
-    1) and the dremora's own group run on, no timer stepping off the dt by more than 0.0001 s. Merged variant: the same,
+    1) and the dremora's own group run on, no timer stepping off the dt by more than 0.000131 s (corrected in 0074d from
+    "0.0001": float rounding at timers near 3,560 s, where one float step is 0.000244 s). Merged variant: the same,
     and 26 actors draw the merged body (24 before: the two Lua-made NPCs were not drawn).
   - Frames viewed: the clocks scene before and after (004, 006: the scene as scripted; daylight hides the light's
     effect, so the trace is the proof), `SCENE=equipment` after, stock 009, 010, 045 and merged 000, 009, 045: no chest
@@ -261,3 +264,111 @@ first, run red; no separate test writer or reviewer (this ran as a subagent with
 - **For toddhow:** this changes the default game: an inventory light added to an actor that already has one no longer
   strobes, and every flickering or pulsing light's first frame keeps its starting brightness (invisible: one frame of
   flicker).
+
+**2026-11-04, second review follow-up (task 0074d)** (`37eee7addb` inventory lights, `11a63c3326` findings 1, 2, 4, 5
+and 7, `cafbc65b71` a creature's carried light). A fresh review of 0074b
+(`I:\Projects\OpenEden-work\0074b\REVIEW-0074b.md`) found no blocker in its two behaviour fixes and seven items; its
+finding 3 (a light's first step) was fixed in 0074c above. Method: full loop. A separate test-writing agent wrote the tests from a specification
+(`I:\Projects\OpenEden-work\0074d\test-spec.md`) without the implementation, against stubs; the red runs are recorded;
+then the implementation; then every one of the reviewer's mutations built and run. No fresh reviewer has read 0074d.
+
+- **Finding 1, a throw is reachable and left uncompiled nodes drawn:** `vsgAdapters::vfs::read` opens the file through
+  `VFS::Manager::get` outside `nif::read`'s catch, so an Eden Archive entry that fails its check
+  (`EdenArchiveFile::open`), one over `maxOpenSize`, or an I/O error of a BSA or loose file, reaches
+  `Npc::insertBoundedPart` and `WieldingCreature::addPart`. The Lua delayed action (`LuaManager::DelayedAction::apply`)
+  or mwscript catches it and the game runs on, but `updateEquipment` had skipped `compile()`. Now
+  `MWRender::runEquipmentUpdate` (`equipmentupdate.hpp`) compiles also when the update throws and passes the exception
+  on; `Npc::updateEquipment`, `Npc::rebuild` and `WieldingCreature::updateEquipment` use it. A unit test reads through
+  `vsgAdapters::vfs` and `Resource::Fallback` over a VFS whose `open()` throws: the error reaches `readNode`'s caller,
+  while a missing file gets the fallback node.
+- **Finding 2, and the first review's finding 7:** a part inserted and then displaced in the same update (a mod record:
+  a left glove that lists a right hand, worn with a right armour gauntlet) left its controllers in the live lists,
+  running on its node in the deletion queue and then on freed memory; `mHeld` did not help (forget clears it).
+  `Npc::detachPart` now takes the part's recorded static, face and weapon controllers out of the live lists
+  (`unlinkController`) before it forgets the part. `updateNpcBase` and a failed `compile()` start with
+  `removeAllParts`, which empties the lists first, so a throw from the skeleton or animation reads that follow leaves
+  nothing pointing into a removed node.
+- **The first review's findings 8 and 9 (never handled before):** 8, the tests covered the helper only: see finding 4.
+  9, the docs: "restores OpenMW's behaviour" is now true for auto-play and inventory lights too (0074b, 0074d); the fix
+  also relinks first-person arm parts (kept parts there too), not verified in game; its "Weapon branch unreachable" no
+  longer holds: a throw before the weapon slot's `removeGroup` keeps the old weapon, which the relink then links again.
+- **Finding 4, tests of the game's use, not the helper's:** `Npc` gets a constructor for tests (`TestSetup`: no
+  record, skeleton or part), `runPartUpdate` (the shape of `updateParts` around a callable; `updateParts` uses it),
+  `removeAllParts` and `attachMergedCopy` (the second half of `attachMergedBody`); `WieldingCreature` gets `linkPart`
+  (`addPart`'s node work apart from the inventory). Each mutation, applied and built under the build lock with the
+  source restored before the lock was let go (`I:\Projects\OpenEden-work\0074d\mut`), makes tests fail:
+
+  | Mutation | Failing tests |
+  | --- | --- |
+  | (a) `Npc::clearControllers` also empties `autoPlay` | `an_inventory_light_keeps_flickering_through_clear_controllers_and_a_part_update` |
+  | (b) no `mPartControllers.update` in `Npc::update` | `a_kept_part_runs_its_auto_play_clock_on_every_update`, `a_removed_part_never_runs_its_auto_play_controllers_again`, `after_removing_every_part_no_part_or_holstered_controller_runs` |
+  | (b) no holstered clock updates in `Npc::update` | `after_removing_every_part...`, `a_holstered_weapon_runs_its_clock_until_it_is_removed`, `a_holstered_shield_runs_its_clock_until_it_is_removed` |
+  | (b) no `mPartControllers.update` in `WieldingCreature::update` | `a_linked_weapon_runs_its_auto_play_clock_on_every_update`, `removed_parts_never_run_again_and_the_creature_s_own_model_keeps_running`, `a_carried_flickering_light_gives_light_and_flickers` |
+  | (c) `insertBoundedPart`'s auto-play into `autoPlay` | `a_removed_part_never_runs_its_auto_play_controllers_again`, `after_removing_every_part...` |
+  | (c) `linkPart`'s auto-play into `autoPlay` | `removed_parts_never_run_again_and_the_creature_s_own_model_keeps_running` |
+  | (d) `relinkMergedBody` in `attachMergedCopy`'s keep path too | `a_kept_merged_copy_is_linked_once_per_part_update` |
+  | (e) `removeHolstered` without `clock.clear()` | `after_removing_every_part...`, both holstered tests |
+
+  The first run of the creature mutation failed to link (`openmw-tests.exe` was open elsewhere) and was run again.
+- **Finding 5, threads:** `partcontrollers.hpp` now says it: the clocks (`update`) run on the actor's update thread,
+  an `UpdateThreads` worker for an NPC or creature (`Scene::update`, one operation per cell, `[Cells] animation
+  threads`), the main thread for the player (`RenderManager`) and the inventory preview (dt 0); everything else on the
+  main thread in the part update, never while that actor's update runs (`UpdateThreads::run` waits). The 0074b log's
+  "main thread only" was wrong for `update`. The ownership note now says the ref_ptrs cover the entries and clocks, not
+  the live lists.
+- **Finding 6, numbers:** 0.0001 s corrected to 0.000131 s above (and in the changelog row).
+- **Finding 7, trace cost:** no id is built for an actor when `OPENEDEN_AUTOPLAY_TRACE` is unset (`autoPlayTraceOn`).
+- **Item A, inventory lights could not come back:** `removeItemLight` removed the light whatever was left of the item
+  and kept the item in its map, so `addItemLight` (which returns early for a known item) never added it again: removing
+  one light of a stack of two took the light away for good. As in OpenMW 0.51 (`ActorAnimation::itemRemoved`,
+  `removeHiddenItemLight`, 442eec6e2f), the light now goes only when the item's count is 0, and the item is forgotten
+  with it; the node leaves through the compile context's `detach`.
+- **Item B, a creature's carried light:** `WieldingCreature::addPart` passed no light to `MWAnim::decorate`; OpenMW
+  0.51's `CreatureWeaponAnimation::updatePart` attaches a light record with its light (`addExtraLight`). `addPart` now
+  passes it (`linkPart`), as `Npc::insertBoundedPart` does for an NPC's torch.
+- **Item C, `Anim::CullParticles` (assessed, not changed):** its `apply` uses the step only to count down while the
+  emitter is inactive (`mCountdown -= dt`) and as "time passed" while it is active (`dispatch` on when `dt > 0`);
+  `link` starts the countdown at 0 and shows the children. A first step of a running group's whole timer therefore
+  changes nothing visible: inactive, the countdown is already 0 and the particles stay hidden as with any step; active,
+  the countdown is reset and the dispatch is on, as with any positive step. It has no strobe like the light's.
+- **Tests:** 19 (`testnpcparts.cpp` 14, `testequipmentupdate.cpp` 5) and 2 (`testitemlights.cpp`), written by the
+  separate agent. Red against the stubs (`I:\Projects\OpenEden-work\0074d\red-run.log`): 9 failed for the reason they
+  name (the displaced part's static and face controllers still listed and running; the lists not emptied by
+  `removeAllParts`; no compile after a throw, for a `std::exception` and for another type; no light on a creature's
+  carried light, flickering or steady; the item light gone after removing one of two and not back after the add), 11
+  passed (the mutation guards and the reachability test). After the implementation all pass; `openmw-tests` 947 of
+  947 on Windows. GCC with CI's flags plus `-Wshadow -Wunused -Wdangling-else -Wrange-loop-construct` (`-fsyntax-only`,
+  Linux image) clean on the changed units at each of the three code commits; clang-format 14 on the changed lines.
+- **In game** (work folder `I:\Projects\OpenEden-work\0074d`, not committed): the 0074b scene tool extended
+  (`SCENE=clocks`): `oe_clockparts.esp` gains a left glove that lists a right hand (`oe_clock_glove_rhand`, body part
+  `c_glove_common1`); `pack/oe_bad.edenpak` holds two vanilla meshes (an iron dagger and an iron shield) with one byte
+  flipped in each, so both fail their chunk check (`edenvalidate`: `E_HASH`), and is listed as a `data=` line; the
+  dremora gets `light_com_torch_01_256` (the first carriable flickering light by id) at 22:00; `SKIP_STEPS` leaves out
+  the glove, the NPC's throw or the creature's throw; a crash kills only the run's own exe. Exes
+  `build-jolt/openmw-0074d-before.exe` (`79c024d6bf`) and `openmw-0074d-after.exe` (the three commits).
+  - Glove and gauntlet in one change (`OPENEDEN_PARTSLOTS_TRACE`: the glove's right hand attached, then detached by
+    the gauntlet in the same update): before, the static list held 10 controllers (the displaced glove's 3 among them)
+    and the game crashed 0.37 s later (a crash dump); after, 7, and the scene ran to its end.
+  - Shirt and the bad weapon in one change (the shirt attached, then the weapon's read throws): before, the game
+    crashed 0.15 s after the throw; after, the delayed action logs the error and the scene runs to its end; frame 003
+    shows the shirt drawn.
+  - The dremora's weapon with the bad shield: no crash before or after (its weapon's model was compiled by an earlier
+    change, so its attached copy drew); the unit tests cover the creature's catch.
+  - Inventory lights (NPC B, a stack of two): before, the light left at "remove one of two" and was not back after "add
+    one"; after, it stays through both, goes at "remove both" and is back after "add one again".
+  - The dremora's torch: before, its part clock held the flame's two particle groups and no light, and frame 001 shows
+    the actors dim and blue; after, the clock also holds the light's controller and frame 001 shows the dremora and the
+    NPCs beside it lit warm.
+  - `SCENE=equipment` with the after exe, stock and merged: frames 009, 045 (stock) and 009, 046 (merged) viewed, no
+    chest through the pants or loincloth, 32 actors draw the merged body, both exit 0.
+- **Not verified:** the Linux gate (full build and tests) and the Lua integration tests; first person; the holstered
+  clocks in game (sheathing off by default); the creature's compile after a throw in game (no crash either way).
+- **For toddhow (decisions):**
+  1. **A throw still leaves the actor half-built while the broken item stays equipped.** After the throw the update
+     stops before `addBodyParts`, and the delayed action stops too, so the broken weapon stays worn; every later change
+     throws at the same place. The after run's frame 005 (10.6 s, after "off again", whose first change threw again)
+     shows NPC A without chest, arms and neck. OpenMW 0.51 catches per part (`NpcAnimation::addOrReplaceIndividualPart`
+     logs "Error adding NPC part" and returns; `CreatureWeaponAnimation::updatePart` logs "Can not add creature part"),
+     so its update completes without the broken part. Recommended: the same catch in `Npc::attachPart` and
+     `WieldingCreature::addPart`. It changes what a script sees (no exception) and is outside this task's brief.
+  2. Items A and B change the default game, as recorded in their commits and the changelog.

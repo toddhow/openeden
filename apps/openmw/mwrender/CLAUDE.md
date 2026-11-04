@@ -338,7 +338,11 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Rules:** a part's controllers are recorded only in `insertBoundedPart` and forgotten only in
   `removeIndividualPart` (`detachPart`), so a new way to link or remove a part must go through them. Anything linked
   outside the parts into the lists `clearControllers` empties must be attached again on every `updateParts` (the merged
-  body is, in `relinkKeptControllers`; the holstered weapon and shield are rebuilt).
+  body is, in `relinkKeptControllers`; the holstered weapon and shield are rebuilt). A part can be inserted and then
+  displaced in the same update (a mod record: a left glove listing a right hand, worn with a right gauntlet), so
+  `detachPart` takes the part's recorded static, face and weapon controllers out of the live lists
+  (`unlinkController`) before it forgets the part; without that they ran on the freed node and the game crashed (task
+  0074d). `updateNpcBase` and a failed `compile()` start with `removeAllParts`, which empties the lists first.
 - **Auto-play clocks (task 0074b):** an equipment change never empties the object's `autoPlay`
   (`MWAnim::Wielding::clearPartControllers` empties the static and weapon lists only; `Npc::clearControllers` adds the
   face). It holds what nothing would add again: an NPC's inventory lights (`addItemLight`, when the CharacterController
@@ -356,12 +360,24 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   later (`UpdateItemLights::itemAdded`) joins the actor's group 0, which runs from its first inventory light, and
   strobed at up to 0.375 times that age times its colour, negative on some frames. Its first step is now 0, as in
   OpenMW 0.51. A new stateful controller that can join a running group must choose one of the two; never change
-  `DeltaTime` itself.
+  `DeltaTime` itself. `Anim::CullParticles` needs neither (assessed in task 0074d): it uses the step only to count
+  down a countdown that starts at 0 and as "time passed", so a large first step changes nothing visible.
 - **Ownership:** `PartControllers` holds a `vsg::ref_ptr` to every controller and target it recorded until `beginPart`
   or `forget` for the part: a part whose node went another way runs its controllers on a detached node, not on freed
-  memory. `updateParts` runs its node work through `PartControllers::runUpdate`, so the kept parts and the merged body
-  are linked again on every way out, a throw included (a missing, broken or non-model file does not throw:
-  `Resource::Fallback` in `createNodeOptions` gives `marker_error.nif` or an empty node).
+  memory. That covers the entries and the clocks only; the live lists (`Anim::Update`) hold raw pointers (see Rules).
+- **Threads (task 0074d):** the clocks (`PartControllers::update`) run on the actor's update thread: a
+  `vsgUtil::UpdateThreads` worker for an NPC or creature (`Scene::update`, one operation per cell), the main thread for
+  the player and the inventory preview. Everything else in `PartControllers` runs on the main thread in the part update,
+  never while that actor's update runs (the main thread waits for the workers).
+- **A throw in a part update (task 0074d):** `vsgUtil::readNode` throws when the file cannot be opened:
+  `vsgAdapters::vfs::read` opens it through `VFS::Manager::get` outside `nif::read`'s catch, so an Eden Archive entry
+  that fails its check or is over `maxOpenSize`, or an I/O error of a BSA or loose file, throws (a missing file, or one
+  no reader accepts, gets `Resource::Fallback`'s node instead). The Lua delayed action or mwscript catches it. The kept
+  parts and the merged body are linked again on every way out (`PartControllers::runUpdate`), and every equipment
+  change and rebuild compiles the actor also on a throw (`MWRender::runEquipmentUpdate`): before, the parts attached
+  before the throw were drawn uncompiled and the game crashed. Open (toddhow's decision): the update still stops at the
+  throw, so while the broken item is worn the actor misses the body parts added after it (OpenMW 0.51 catches per
+  part).
 - **Tracing it:** `OPENEDEN_AUTOPLAY_TRACE=<text>` (`autoplaytrace.*`) logs, every frame, an `AUTOPLAYTRACE` line for
   each NPC or weapon-carrying creature whose record id or name contains the text: the static, weapon and face list
   sizes, each auto-play group's phase group, timer, controller count and light colours, the object's own groups first
@@ -369,8 +385,15 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   parts, hair and heads carry no auto-play controller (a byte scan of `meshes/b` in the three BSAs found controllers
   only in heads, the face's morpher; armour and clothing in `meshes/a` and `meshes/c` have no auto-play node either),
   so a kept part's clock needs a modded or test part (task 0074b's stage log).
+- **Inventory and carried lights (task 0074d):** `removeItemLight` removes an inventory light only when none of the
+  item is left, and forgets the item, so adding it again brings the light back (OpenMW 0.51's
+  `ActorAnimation::itemRemoved`); before, removing one of a stack took the light away for good. A weapon-carrying
+  creature's carried light is decorated with its light (`WieldingCreature::linkPart`), as an NPC's torch is.
 - **Checking it:** the equipment scene of `tools/mergedbody_check` (`SCENE=equipment`, stock): frames 009, 010, 045 and
-  046 show the chest through the pants and loincloth when the controllers are lost.
+  046 show the chest through the pants and loincloth when the controllers are lost. The part code runs in unit tests
+  through `Npc`'s test constructor (`TestSetup`), `runPartUpdate`, `removeAllParts`, `attachMergedCopy` and
+  `WieldingCreature::linkPart` (`apps/openmw_tests/mwrender/testnpcparts.cpp`); a change that empties `autoPlay`, stops
+  running a clock or puts a part's auto-play controllers into `autoPlay` fails it.
 - **The slot bookkeeping is `PartSlots`** (`partslots.*`, task 0069 stage e review): which inventory group holds each
   part slot and at what priority, the equipment pass (`wear`: slot list, priorities, robe and skirt reservations,
   part-less parts), the race's body parts (`addBodyParts`) and the merged body taking its slots (`releaseBodyParts`),
