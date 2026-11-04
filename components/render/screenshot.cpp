@@ -152,16 +152,27 @@ namespace Render
         return mPending.size();
     }
 
-    std::vector<vsg::ref_ptr<Screenshot>> ScreenshotWriter::waitForAll(std::chrono::milliseconds limit)
+    std::vector<vsg::ref_ptr<Screenshot>> ScreenshotWriter::waitForAll(
+        std::chrono::milliseconds limit, const std::function<void()>& idle, std::chrono::milliseconds slice)
     {
         const auto deadline = std::chrono::steady_clock::now() + limit;
         std::vector<vsg::ref_ptr<Screenshot>> unwritten;
         for (auto& screenshot : mPending)
         {
-            const auto left = std::max(std::chrono::steady_clock::duration::zero(),
-                std::chrono::steady_clock::duration(deadline - std::chrono::steady_clock::now()));
-            if (!screenshot->waitFor(left))
-                unwritten.push_back(screenshot);
+            for (;;)
+            {
+                const auto left = std::max(std::chrono::steady_clock::duration::zero(),
+                    std::chrono::steady_clock::duration(deadline - std::chrono::steady_clock::now()));
+                if (screenshot->waitFor(std::min<std::chrono::steady_clock::duration>(left, slice)))
+                    break;
+                if (std::chrono::steady_clock::now() >= deadline)
+                {
+                    unwritten.push_back(screenshot);
+                    break;
+                }
+                if (idle)
+                    idle();
+            }
         }
         mPending.clear();
         return unwritten;

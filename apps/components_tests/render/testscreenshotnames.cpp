@@ -334,6 +334,64 @@ namespace
         EXPECT_LT(waited, std::chrono::milliseconds(800)); // five waits of the whole limit would be 1000 ms
     }
 
+    // Round four, finding 2: the quit wait used to block the main thread for up to 10 s without pumping the window's
+    // messages, and the freeze monitor calls a window hung after 5 s (IsHungAppWindow;
+    // components/crashcatcher/windowscrashmonitor.cpp, isAppFrozen). The wait now comes up for air every slice and
+    // calls idle (the engine pumps SDL's events there).
+
+    TEST(RenderScreenshotWriter, the_wait_calls_idle_at_least_once_per_slice_while_a_screenshot_is_pending)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        writer.write(makeFake());
+        std::vector<std::chrono::steady_clock::time_point> calls;
+        const auto start = std::chrono::steady_clock::now();
+        const auto unwritten = writer.waitForAll(
+            std::chrono::milliseconds(400), [&calls] { calls.push_back(std::chrono::steady_clock::now()); },
+            std::chrono::milliseconds(50));
+        EXPECT_EQ(unwritten.size(), 1u);
+        ASSERT_GE(calls.size(), 5u) << "400 ms in slices of 50 ms";
+        auto previous = start;
+        for (const auto& call : calls)
+        {
+            EXPECT_LT(call - previous, std::chrono::milliseconds(150)) << "the main thread was away too long";
+            previous = call;
+        }
+    }
+
+    TEST(RenderScreenshotWriter, the_wait_does_not_call_idle_when_everything_has_run)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        auto shot = makeFake();
+        writer.write(shot);
+        shot->run();
+        int idles = 0;
+        const auto unwritten = writer.waitForAll(
+            std::chrono::seconds(5), [&idles] { ++idles; }, std::chrono::milliseconds(50));
+        EXPECT_TRUE(unwritten.empty());
+        EXPECT_EQ(idles, 0);
+    }
+
+    TEST(RenderScreenshotWriter, a_screenshot_that_runs_during_the_wait_ends_it_without_waiting_out_the_slice)
+    {
+        std::vector<vsg::ref_ptr<Render::Screenshot>> queue;
+        Render::ScreenshotWriter writer([&queue](vsg::ref_ptr<Render::Screenshot> s) { queue.push_back(s); });
+        auto shot = makeFake();
+        writer.write(shot);
+        std::thread worker([shot] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            shot->run();
+        });
+        const auto start = std::chrono::steady_clock::now();
+        const auto unwritten = writer.waitForAll(
+            std::chrono::seconds(5), [] {}, std::chrono::seconds(2));
+        const auto waited = std::chrono::steady_clock::now() - start;
+        worker.join();
+        EXPECT_TRUE(unwritten.empty());
+        EXPECT_LT(waited, std::chrono::milliseconds(1000));
+    }
+
     TEST(RenderScreenshotWriter, screenshots_that_have_run_are_forgotten_when_the_next_is_written)
     {
         std::vector<vsg::ref_ptr<Render::Screenshot>> queue;

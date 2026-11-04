@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <vector>
 
 #include "download.hpp"
@@ -92,8 +93,14 @@ namespace Render
         // How many handed over have not run yet.
         std::size_t pending();
         // Waits, at most limit in all, until every screenshot handed over has run. Returns those that have not; they
-        // are forgotten.
-        std::vector<vsg::ref_ptr<Screenshot>> waitForAll(std::chrono::milliseconds limit);
+        // are forgotten. The wait comes up for air at least every slice, while a screenshot is still pending, and
+        // calls idle then (round four, finding 2): the game's main thread must go on answering its window's messages,
+        // or the freeze monitor calls the window hung after 5 s (components/crashcatcher/windowscrashmonitor.cpp,
+        // isAppFrozen: IsHungAppWindow) and, under OPENEDEN_QUIET_WINDOW, ends the game. The default slice is well
+        // under that.
+        static constexpr std::chrono::milliseconds sDefaultWaitSlice{ 500 };
+        std::vector<vsg::ref_ptr<Screenshot>> waitForAll(std::chrono::milliseconds limit,
+            const std::function<void()>& idle = {}, std::chrono::milliseconds slice = sDefaultWaitSlice);
 
     private:
         void forgetWritten();

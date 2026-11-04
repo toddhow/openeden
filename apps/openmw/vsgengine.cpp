@@ -6,6 +6,8 @@
 #include <fstream>
 #include <string_view>
 
+#include <SDL_events.h>
+
 #include <vsg/threading/OperationThreads.h>
 #include <vsg/vk/DeviceFeatures.h>
 #include <vsgXchange/images.h>
@@ -400,7 +402,9 @@ namespace OMW
         mResourceSystem = std::make_unique<Resource::ResourceSystem>(mVFS.get(),
             Files::pathToUnicodeString(args.resourceDir / "shaders"),
             Render::createDefaultSampler(physicalDevice, mRenderEngine->getEnabledFeatures().samplerAnisotropy),
-            useTextureCompression, MWRender::Bin_Compute, MWRender::Bin_DepthSorted);
+            useTextureCompression, MWRender::Bin_Compute, MWRender::Bin_DepthSorted,
+            // Task 0072, stage h: where the Slang compiler in the game keeps what it compiled at run time.
+            Files::pathToUnicodeString(mCfgMgr.getUserDataPath() / "openeden" / "shadercache"));
 
         setWindowIcon(args.resourceDir / "openmw.png");
 
@@ -653,7 +657,10 @@ namespace OMW
         if (bodyBaker && bodyBaker->problems() > 0)
             mExitCode = 3;
         // OpenEden: a screenshot asked for just before quitting is still queued; it was dropped without a word.
-        for (const auto& unwritten : mScreenshotWriter->waitForAll(sScreenshotWriteWait))
+        // The main thread is not in the frame loop while it waits: pump the window's messages every half second so that
+        // the freeze monitor, which calls a window hung after 5 s without them, does not end the game (round four,
+        // finding 2).
+        for (const auto& unwritten : mScreenshotWriter->waitForAll(sScreenshotWriteWait, [] { SDL_PumpEvents(); }))
             Log(Debug::Warning) << "Screenshot not written before quitting: "
                                 << Files::pathToUnicodeString(unwritten->writeFilename);
         mScreenshotWriter.reset();
