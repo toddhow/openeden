@@ -3,8 +3,10 @@
 #include <vsg/nodes/Group.h>
 
 #include <components/animation/update.hpp>
+#include <components/mwanimation/context.hpp>
 #include <components/mwanimation/light.hpp>
 #include <components/mwanimation/object.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/removechild.hpp>
 
 #include "../mwworld/containerstore.hpp"
@@ -52,6 +54,12 @@ namespace MWRender
     {
         if (item.getType() != ESM::Light::sRecordId)
             return;
+        // Task 0074d (review of 0074b, item A): as OpenMW 0.51's ActorAnimation::itemRemoved and removeHiddenItemLight
+        // (442eec6e2f), the light goes only when none of the item is left, and the item is forgotten with it. Before,
+        // removing one of a stack took the light away, and the item stayed in the map, so adding it again
+        // (addItemLight returns early for an item it knows) never brought the light back.
+        if (item.getCellRef().getCount() != 0)
+            return;
         if (!obj.node()->getAuxiliary())
             return;
         ItemLights lights;
@@ -60,6 +68,8 @@ namespace MWRender
         if (l == lights.end())
             return;
         vsgUtil::removeChild(obj.nodeToAddChildrenTo(), l->second.node);
+        // Kept until the frames already queued have drawn, as every node that leaves the scene during play.
+        obj.context().compileContext->detach(l->second.node);
 
         auto& ctrls = obj.autoPlay.getOrCreateGroup().controllers;
         auto citr = ctrls.begin();
@@ -71,6 +81,7 @@ namespace MWRender
                 ++citr;
         }
 
+        lights.erase(l);
         obj.node()->setValue(sItemLights, lights);
     }
 

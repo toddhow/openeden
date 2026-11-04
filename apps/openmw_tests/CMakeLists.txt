@@ -32,6 +32,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testpartcontrollers.cpp
     mwrender/testpartclocks.cpp
     mwrender/testactorautoplay.cpp
+    mwrender/testitemlights.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
     mwrender/testmergedbodydefines.cpp

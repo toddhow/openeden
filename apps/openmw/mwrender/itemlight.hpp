@@ -17,6 +17,7 @@ namespace MWRender
     void removeListener(MWWorld::ContainerStore& store);
     void addItemLightIfRequired(MWAnim::Object& obj, const MWWorld::ConstPtr& item);
     void addItemLight(MWAnim::Object& obj, const MWWorld::ConstPtr& item, const ESM::Light& esmLight);
+    // The item's light goes when none of the item is left, and the item is forgotten (task 0074d).
     void removeItemLight(MWAnim::Object& obj, const MWWorld::ConstPtr& item);
 }
 
