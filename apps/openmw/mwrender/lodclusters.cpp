@@ -60,8 +60,11 @@ namespace MWRender
         constexpr int evictedFrames = 60;
         // What loading a tile is expected to hold before one of its level has been read, in bytes: the planner needs
         // a number to admit a load against the budget. After the first read of a level the mean of that level's
-        // tiles replaces it. A starting value (stage e measured clusters of 0.2 to 4 MiB).
-        constexpr std::uint64_t firstClusterEstimate = 1024ull * 1024;
+        // tiles replaces it. A starting value: the largest cluster stage e measured (0.2 to 4 MiB). It was 1 MiB; a
+        // cluster waits for its ground only while the budget presses (Lod::budgetIsPressing compares this estimate
+        // with the budget), and with 1 MiB the first second of a 24 MiB budget admitted a rush of clusters before the
+        // pressure showed (134 MiB held at the peak, settling to 25 to 40 MiB within 1.5 s; 90 MiB with 4 MiB).
+        constexpr std::uint64_t firstClusterEstimate = 4ull * 1024 * 1024;
         constexpr std::size_t levelSlots = 8;
 
         // Clusters of this level and above (levels 3 and 4: thousands of statics, hundreds of textures) get the far
