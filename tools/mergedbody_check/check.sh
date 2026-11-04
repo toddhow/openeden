@@ -20,6 +20,10 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # clothing and armour after another (front, wrist, knee and ankle frames each), a row of dressed NPCs, then 200 cycles
 # of the full set on and off; add "[Rendering]\nframe counters = true" to EXTRA_SETTINGS to compare the counters before
 # ("MBPHASE baseline") and after ("MBPHASE after"). It runs about 75 s: TIMEOUT (seconds, default 120) is the net.
+# SCENE=torches (stage e review) runs mod/scripts/mbtorch_*.lua: twenty dressed NPCs of every race and sex, each with a
+# torch, in front of the player; the hour goes from noon to night and back four times, and each change makes all twenty
+# take out or put away their torch in one frame (frames "row day", "row night", "inventory doll"). With
+# "[Cells]\nload trace = true" in EXTRA_SETTINGS the trace (<user data>/load-trace.jsonl) is copied to <work dir>/<variant>/.
 set -e
 BUILD=$1; BASE=$2; USERDATA=$3; WORK=$4; VARIANT=$5; CELL=${6:-Balmora}
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -27,7 +31,8 @@ native() { cygpath -m "$1"; }
 case "${SCENE:-row}" in
     row) SCRIPTS=mbcheck.omwscripts ;;
     equipment) SCRIPTS=mbequip.omwscripts ;;
-    *) echo "SCENE must be row or equipment"; exit 2 ;;
+    torches) SCRIPTS=mbtorch.omwscripts ;;
+    *) echo "SCENE must be row, equipment or torches"; exit 2 ;;
 esac
 case "$VARIANT" in
     stock) MERGED=false ;;
@@ -55,7 +60,7 @@ printf '\n[Bodies]\nmerged body = %s\n' "$MERGED" >> "$dir/config/settings.cfg"
 if [ -n "$EXTRA_SETTINGS" ]; then printf '\n%b\n' "$EXTRA_SETTINGS" >> "$dir/config/settings.cfg"; fi
 cp "$HERE/start.txt" "$dir/start.txt"
 if [ -n "$START_COMMANDS" ]; then printf '%b\n' "$START_COMMANDS" >> "$dir/start.txt"; fi
-rm -f "$USERDATA"/screenshots/* "$USERDATA"/*.dmp "$dir/config"/*.dmp
+rm -f "$USERDATA"/screenshots/* "$USERDATA"/*.dmp "$dir/config"/*.dmp "$USERDATA"/load-trace.jsonl
 cd "$BUILD"
 set +e
 # The timeout is only a safety net: the scene quits by itself after about 30 s (75 s for SCENE=equipment).
@@ -65,7 +70,8 @@ OPENEDEN_FRAME_STATS_FILE="$(native "$dir/stats.txt")" timeout "${TIMEOUT:-120}"
 code=$?
 set -e
 cp "$USERDATA"/screenshots/* "$dir/frames"/ 2>/dev/null || true
-grep -E "MBPHASE|MBSHOT|MBCHECK|MBEQUIP|Merged bodies" "$dir/log.txt" > "$dir/phases.txt" || true
+cp "$USERDATA"/load-trace.jsonl "$dir"/ 2>/dev/null || true
+grep -E "MBPHASE|MBSHOT|MBCHECK|MBEQUIP|MBTORCH|Merged bodies" "$dir/log.txt" > "$dir/phases.txt" || true
 dumps=$(ls "$USERDATA"/*.dmp "$dir/config"/*.dmp 2>/dev/null | wc -l)
 merged=$(grep -c "draws the merged body" "$dir/log.txt" || true)
 echo "$VARIANT: exit code $code, $dumps crash dumps, $(ls "$dir/frames" | wc -l) screenshots, \

@@ -1,0 +1,3 @@
+GLOBAL: scripts/mbtorch_global.lua
+PLAYER: scripts/mbtorch_player.lua
+CUSTOM: scripts/mbtorch_npc.lua
