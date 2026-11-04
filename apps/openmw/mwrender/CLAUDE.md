@@ -445,3 +445,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   `6151cceb4b^` put back into today's `npc.cpp` gave identical `OPENEDEN_PARTSLOTS_TRACE` lines for every actor of the
   equipment and torch scenes. The skin mark of a worn part is made in `PartSlots::Nodes::beforeWornPart`, just before
   the part asks for its slot, where `Npc::addPartGroup` made it (finding 10).
+
+## Temporal anti-aliasing (task 0075)
+
+- `RenderManager` makes `mTaaJitter` (a `Render::Taa::JitterOffset`) in the HDR block only when `[Rendering] taa` took effect (hdr, gbuffer, a single-sampled scene, the compute shaders found); that object's existence IS the switch. With it, the view's camera is `mRenderCamera` (a `JitteredProjection` over `mProjectionMatrix`, the same `mViewMatrix`, the viewport state shared with `mSceneCamera`) and the first-person projection is wrapped the same way. **Anything that needs the true camera reads `mProjectionMatrix` or `mSceneCamera`, never `mView->camera`.**
+- `updateVelocity` (called every `onFrame`) also decides the history reset and calls `mTaa->beginFrame`, which picks this frame's jitter and writes the push constants; `sceneColourView()` is what bloom and the tonemap read (the resolved picture with TAA, else `mHdrTarget->colorView()`), at start and in `syncExtents` after the pass is rebuilt. The TAA node sits after the velocity and AO graphs and before the bloom in `mCommandGraph->children` (the hand-counted `afterScene` includes it).
+- `RenderManager::temporalState()` (null without TAA) is the hand-off for anything that accumulates over time. Details and measurements: `components/render/CLAUDE.md`.

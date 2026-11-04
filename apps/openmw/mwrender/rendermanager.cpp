@@ -392,6 +392,9 @@ namespace MWRender
         if (Settings::rendering().mGBuffer && !hdr)
             Log(Debug::Warning) << "[Rendering] gbuffer needs hdr (the HDR path owns the render pass that holds its "
                                    "outputs); the G-buffer is off";
+        if (Settings::rendering().mTaa && !hdr)
+            Log(Debug::Warning) << "[Rendering] taa needs hdr and gbuffer (it reads the stored depth and velocity); "
+                                   "temporal anti-aliasing is off";
         // Task 0049: the runtime texture downscaler's limits, before any model or terrain texture is read.
         {
             vsgUtil::TextureCap::Caps caps;
