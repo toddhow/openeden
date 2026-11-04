@@ -399,10 +399,19 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   `Player::setViewMode` no longer set them first. "Exactly as it was" holds for what a read that throws leaves: the
   animation, its bones, and those four. A rebuild that failed is tried again at the next `updateParts` (or the same
   `setViewMode`), so a permanently unreadable file repeats its error on every equipment change of that actor.
-  **`Actor::assignBones` is not virtual:** `applyBasePlan` reaches `Actor::assignBones`, never `Player::assignBones`
-  (the first-person neck), so a rebuild through `RenderManager::rebuildPtr` (becoming a werewolf or vampire) leaves
-  `Player::mNeck` dangling in first person and `Player::manualAnimation` crashes; `Player::setViewMode` calls
-  `assignBones()` itself. Known, not fixed (0074f's stage log).
+  **`Actor::assignBones` is virtual since task 0074g** (`components/mwanimation/actor.hpp`; 0074e's review said it was,
+  and it was not, until then): `Npc::applyBasePlan` calls it as an `MWAnim::Actor`, and it must reach
+  `Player::assignBones`, which sets the first-person neck bone `Player::mNeck`. That pointer is into the actor's
+  `MWAnim::Play`, so every rebuild must refresh it: a rebuild through `RenderManager::rebuildPtr` (becoming a werewolf
+  or vampire) left it on the freed Play in first person, and the next `Player::manualAnimation` crashed (a use after
+  free that does not always crash). The same held when `Player::setViewMode`'s part update threw after the swap (it
+  exits before its own `assignBones()`). **A virtual call made by a constructor reaches only the version of the class
+  being constructed:** `Npc`'s constructor (through `updateNpcBase`) gets `Actor::assignBones`, so `Player`'s constructor
+  calls `assignBones()` again, as it did. `Object::assignBones` (`components/mwanimation/object.hpp`) is a different,
+  non-virtual no-op that `Actor::assignBones` hides; `create<ObjectType>` calls it for plain objects. Any other raw
+  pointer into the Play must be refreshed by `assignBones` or by `CharacterController::forceStateUpdate`
+  (`createPoseControllers` builds the pose driver and the IK controller again for a new Play); `Player::mNeck`,
+  `mHead`, `mSpine` and `mRoot` are the ones kept in the actor. Tests: `PlayerNeckTest` (`testplancommit.cpp`).
 - **Tracing it:** `OPENEDEN_AUTOPLAY_TRACE=<text>` (`autoplaytrace.*`) logs, every frame, an `AUTOPLAYTRACE` line for
   each NPC or weapon-carrying creature whose record id or name contains the text: the static, weapon and face list
   sizes, each auto-play group's phase group, timer, controller count and light colours, the object's own groups first

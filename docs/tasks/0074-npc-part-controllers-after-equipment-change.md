@@ -621,7 +621,7 @@ each commit.
   the end of the actor's update). I found no "one frame later" (or "frame later") about the quiver in the repository at `a24b553975`, in any commit
   message of 0074e or in the code comments (`git grep`; the only hit in this log is 0074c's unrelated light flicker), so
   the phrase was probably in a report and not in a file; the statement above is the correct one.
-- **Found on the way, NOT fixed (outside the review):** `Actor::assignBones` (`components/mwanimation/actor.hpp`) is not
+- **Found on the way, NOT fixed here; FIXED in task 0074g (below):** `Actor::assignBones` (`components/mwanimation/actor.hpp`) is not
   virtual, so `Npc::applyBasePlan`'s call never reaches `Player::assignBones` (which sets the first-person neck bone
   `mNeck`). 0074e's review wrote "assignBones virtual so Player::assignBones still runs": it does not. `Player::setViewMode`
   calls `assignBones()` itself, but a rebuild through `RenderManager::rebuildPtr` (the werewolf and vampire changes:
@@ -649,3 +649,74 @@ each commit.
   2. **`Actor::assignBones` is not virtual** (above): a player who becomes a werewolf or vampire in first person crashes.
      Recommended: make it virtual, in its own task.
   3. `Npc::setVampire` now records the new type, so one rebuild fewer; no visible change.
+
+**2026-11-04, the neck bone after a rebuild (task 0074g)** (`9b654c3917`). The crash 0074f found and did not fix: a player
+who becomes a werewolf or a vampire in first person crashed. Fixed; the Linux gate, the Lua tests and a fresh review are
+not run.
+
+- **Verified in the code, at `20ee7f80c0`:**
+  - `MWAnim::Actor::assignBones` (`components/mwanimation/actor.hpp`) was `void assignBones();`, not virtual. It finds
+    `mHead`, `mSpine[0..1]` and `mRoot` in `animation->bones` (`actor.cpp`). `MWAnim::Object::assignBones`
+    (`object.hpp:64`) is another function, an empty inline, hidden by Actor's; `Npc` and `Wielding` declare none.
+  - Callers: `Npc::applyBasePlan` (`npc.cpp`, last line), through `Npc` and so statically `Actor::assignBones`;
+    `Player::Player` and `Player::setViewMode`, which call `Player::assignBones`; `MWAnim::create<ObjectType>` and
+    `createCreature<Creature>` (`create.hpp`); `CSVRender::Actor::create` (`apps/opencs/view/render/actor.cpp`, an
+    `MWAnim::Actor`); two tests.
+  - `Player::assignBones` (`player.cpp`) sets `mNeck = animation->bones.search("bip01 neck")` in first person (else
+    null) and then calls `Npc::assignBones()` (qualified).
+  - Both rebuild routes reach `applyBasePlan` without `Player::assignBones`: `RenderManager::rebuildPtr` ->
+    `Npc::rebuild()` -> `runRebuild` (reached from `Npc::setVampire` through `World::reattachPlayerCamera`, and from
+    `MechanicsManager::setWerewolf`), and `Player::setViewMode` when the part update throws after the swap (it leaves
+    before its own `assignBones()`).
+  - **Other pointers into the Play:** `mHead`, `mSpine` and `mRoot` are refreshed by the same function, so they were
+    never stale. The pose driver and the IK controller are built again by `CharacterController::forceStateUpdate` ->
+    `createPoseControllers` when the actor's animation is a new one (`Npc::refreshController` calls it after every
+    rebuild, also when the part update throws: `runRebuild`). `Camera` (`worldTransform("Camera")`), `Preview`
+    (`getHead()`), `updateHeadTracking` and the Lua `hasBone` look a bone up on each call. I found no other raw bone pointer
+    kept in an actor by reading (`grep` of `bones.search(`, `searchBone(`, `worldTransform(`, `headTransform(`); an
+    effect attached to a bone of the old skeleton (`effect.cpp`) was not followed further.
+- **Tests first** (`PlayerNeckTest`, `apps/openmw_tests/mwrender/testplancommit.cpp`, written by the implementing agent: no
+  separate test-writing subagent, a deviation from the full loop). The `Player` test constructor of 0074f, its virtual
+  `makeBasePlan` and `refreshController`, and one seam added with the fix: `Player::mNeck` and `assignBones` are
+  protected. Seven tests: `assign_bones_through_the_base_class_finds_the_first_person_neck` and `..._clears_the_neck_in_third_person`
+  (the call `applyBasePlan` makes); `a_rebuild_of_a_first_person_player_gives_it_the_neck_of_the_new_animation` (`runRebuild`);
+  `rebuild_of_a_first_person_player_gives_it_the_neck_of_the_new_animation` (the public `rebuild()` of `rebuildPtr`);
+  `set_view_mode_to_third_person_clears_the_neck_when_the_part_update_throws` and
+  `set_view_mode_to_first_person_finds_the_neck_when_the_part_update_throws` (the second route); and the guard
+  `a_rebuild_of_a_third_person_player_leaves_no_neck`. Each rebuilding test asserts that the old neck exists, that the new
+  Play is another object and that its neck differs from the old one (the new Play is built before the old is released),
+  and compares pointers only. **Red run** (`I:\Projects\OpenEden-work\0074g\red-run.log`, seam in, no fix): 6 failed with
+  plain assertion failures (null where the neck should be, or the old neck where the new one should be), the guard passed,
+  the 10 `PlanCommit*` tests passed. **Green** (`green-run.log`): 17 of 17; whole `openmw-tests` 1031, `eden-studio-tests`
+  702 and `components-tests` 5,815 pass on Windows.
+- **The fix:** `Actor::assignBones` is `virtual`; `Player::assignBones` is `override`. The three other ways it is called are
+  unchanged: `Player::Player` still calls it (a virtual call in `Npc`'s constructor, through `updateNpcBase`, reaches
+  `Actor::assignBones` only), `Player::setViewMode` still calls it after its rebuild (now redundant, left), and `Object`'s
+  no-op is not virtual (`create<ObjectType>` needs nothing from it). The `Npc`, `Wielding` and `WieldingCreature` classes
+  and the editor's `MWAnim::Actor` have no override, so their behaviour is the same. Destruction: nothing in a destructor
+  calls it.
+- **In game** (`OPENEDEN_QUIET_WINDOW=1`, copies of the config and user folder under `I:\Projects\OpenEden-work\0074g`,
+  `tool\check.sh` of 0074f with a unique executable name each for the watchdog, which kills only that name at the first
+  `.dmp`; the player stays in first person: `SKIP_STEPS=third`; `runs\`). Executables: `openmw-0074g-before.exe` is the
+  shared `openmw.exe` of 14:10, built before any edit of this task (the shared tree, with other sessions' uncommitted
+  files, as in 0074f), `openmw-0074g-after.exe` the tree with this fix (and other sessions' files again).
+
+  | Scene | Before | After |
+  | --- | --- | --- |
+  | Werewolf: `Player->BecomeWerewolf` in `oe_wolfstart.esp` six seconds in (`SCENE=wolf`) | 3 crashes in 4 runs (the run that survived was the first, without the load trace) | 0 in 4 (exit 0, no dump) |
+  | Vampire: `types.Actor.spells(self):add('vampire sun damage')` (the ability with the Vampirism effect; there is no `BecomeVampire` command; `SCENE=vampire`, `mbvamp_player.lua`; Vampirism magnitude 1 in the log) | 3 crashes in 3 | 0 in 3 |
+
+  The three werewolf dumps were read with the stack walker (`dumpstack\ds7.exe` against the PDB of that build, copied to
+  `pdb-before`): the stack scan of each lists `MWRender::Player::manualAnimation` (`player.cpp:50`) and
+  `MWAnim::Play::isRotationControlled` (`play.cpp:95`). The vampire dumps list `Play::isRotationControlled` and
+  `MWAnim::Actor::manualAnimation` (`actor.cpp:60`) and no `Player::` frame: **that is a stack scan, not an unwind** (the
+  `~` lines), so the site is not pinned to `mNeck` for the vampire; that the fix removes the crash in all three runs is the
+  evidence. That a rebuild happened in the "after" runs is inferred from the load trace: 27 `npc.readactor` scopes in a werewolf
+  run, the last two at the time of the transformation (one with a 5.6 ms file read), 26 in a vampire run; there is no log line
+  for a rebuild. The "before" runs write no trace (they crash). A use after free does not have to crash: the surviving run
+  shows it. Frames of the "after" runs show the normal first-person view (the vampire's effect icons appear).
+- **Not proven / not done:** the Linux gate (GCC `-Werror`), the Lua integration tests, a fresh reviewer, a third-person
+  play after the change, `UndoWerewolf`, the editor's actors in the window (it builds and its tests pass), a second
+  look for other stale pointers beyond the reading above, a build of the "before" tree with an address sanitizer.
+- **For toddhow:** nothing to decide beyond merging. Two small notes: `Player::mNeck` and `Player::assignBones` became
+  protected (a test seam, like 0074f's); and `Player::setViewMode`'s own `assignBones()` is now redundant (kept).
