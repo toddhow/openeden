@@ -188,10 +188,10 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   frame the ground flickered, and evicted again (60 loads and frees per cluster in 6,000 frames). After the wait (the
   sea, a tile that failed to build) it is an item with no fallback, loaded and kept, as before. The counters, the
   fallback and the wait are one pure step, `Lod::stepClusterGround`, which `LodClusters::update` and the tests'
-  `FarSim` both call. It counts every frame for every cluster, wanted or not, and also while the square is wholly
+  `FarSim` both call. It counts the stable ground frames every frame for every cluster, wanted or not (the frames without ground that end the wait count only while the cluster is wanted or built, `ClusterGroundInput::mWanted`), and also while the square is wholly
   inside the range (the ground is trivially drawn there), so the count is stable when a cluster is chosen or leaves
   the range. The cached ground test (`Lod::GroundTestKey`: drawn tiles, eye, paging range) is given
-  `Lod::groundTestRange` (range - 2048 * sqrt 2), so its live-range half is conservative. Before the review fixes of
+  `Lod::groundTestRange` (range - `groundRetestDistance` * sqrt 2; 512, it was 2,048: the margin makes more clusters "without ground" in the first second of a game, a transient at a tight budget), so its live-range half is conservative. Before the review fixes of
   2026-11-04 the counters ran only for chosen or built clusters and the wait was unconditional: it delayed every newly
   chosen cluster by 30 frames or more at the default budget (the `LOD cluster latency` lines that `[Cells] load trace`
   writes: 117 to 147 ms mean on the climb before, 1 to 2 ms after). **The planner itself was not changed**
@@ -221,6 +221,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   or inside the live range lets it go (waiting for one out of view drew the parent over its drawn siblings for as long as
   it stayed unseen); a failed child keeps it for good (overlap rather than a hole), and then its bytes are not credited
   to its children (`RefinementTile::mStays`).
+- **`World::~World` calls `RenderManager::releaseWorldLod()`** (task 0060): `LodTerrain`'s staleness check runs on a worker that reads the World's ESM store, and the renderer outlives the World, so the terrain LOD must be ended while the store exists. A run that quits within the first seconds with `[WorldLod]` on (the bake modes with nothing to write) crashed at exit before.
 - **Clusters freed while wanted** are marked `mEvicted`, fade out through the hand-over (`Lod::stepCoverage`) and are
   not wanted again until gone; if the square stops being replaceable meanwhile the free is cancelled.
 - **Tests:** `apps/components_tests/lod/testresidency.cpp`. Its `ClientSim`, `FarSim` (the cluster client with the
