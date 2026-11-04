@@ -1,9 +1,10 @@
--- Task 0069 stage e: the player half of the equipment scene of tools/mergedbody_check (SCENE=equipment). The player
--- stands still and wears one combination after another; each is photographed from a static camera in front (the whole
--- body) and close to the right wrist, knee and ankle (where gloves, greaves and boots end). Then the NPC row (each NPC
--- wearing one combination, mbequip_global.lua), then 200 cycles of the full set on and off for the leak check: the
--- frame counters before ("MBPHASE baseline") and after ("MBPHASE after") are compared by the caller. Every phase is
--- marked with a log line "MBPHASE <name>", every screenshot with "MBSHOT <combination> <view>".
+-- Task 0069 stage e: the player half of the equipment scene of tools/mergedbody_check (SCENE=equipment). First one
+-- frame of the NPC row behind the player (each NPC wearing one combination, mbequip_global.lua; taken first, before
+-- they wander off). Then the player stands still and wears one combination after another; each is photographed from a
+-- static camera in front (the whole body) and close to the right wrist, knee and ankle (where gloves, greaves and boots
+-- end). Then 200 cycles of the full set on and off for the leak check: the frame counters before ("MBPHASE baseline")
+-- and after ("MBPHASE after") are compared by the caller. Every phase is marked with a log line "MBPHASE <name>",
+-- every screenshot with "MBSHOT <combination> <view>".
 local self = require('openmw.self')
 local core = require('openmw.core')
 local types = require('openmw.types')
@@ -37,10 +38,10 @@ local COMBOS = {
 -- view name, start and screenshot (seconds after the combination starts), camera and target in the player's frame
 -- (x right, y forward, z up)
 local VIEWS = {
-    { name = 'front', from = 0, shot = 1.1, eye = util.vector3(0, 300, 80), at = util.vector3(0, 0, 65) },
-    { name = 'wrist', from = 1.3, shot = 1.6, eye = util.vector3(60, 50, 75), at = util.vector3(20, 0, 70) },
-    { name = 'knee', from = 1.8, shot = 2.1, eye = util.vector3(55, 55, 42), at = util.vector3(10, 0, 40) },
-    { name = 'ankle', from = 2.3, shot = 2.6, eye = util.vector3(50, 50, 16), at = util.vector3(10, 0, 10) },
+    { name = 'front', from = 0, shot = 1.1, eye = util.vector3(0, 170, 75), at = util.vector3(0, 0, 62) },
+    { name = 'wrist', from = 1.3, shot = 1.6, eye = util.vector3(40, 30, 72), at = util.vector3(17, 2, 68) },
+    { name = 'knee', from = 1.8, shot = 2.1, eye = util.vector3(36, 32, 42), at = util.vector3(9, 2, 38) },
+    { name = 'ankle', from = 2.3, shot = 2.6, eye = util.vector3(32, 30, 14), at = util.vector3(8, 2, 8) },
 }
 local COMBO_LENGTH = 2.8
 
@@ -61,7 +62,11 @@ local function toWorld(v)
 end
 
 local function look(eye, at)
-    camera.setMode(camera.MODE.Static)
+    -- The mode changes in the next frame, and a static position may only be set in the static mode.
+    if camera.getMode() ~= camera.MODE.Static then
+        camera.setMode(camera.MODE.Static)
+        return
+    end
     camera.setStaticPosition(eye)
     local d = at - eye
     camera.setYaw(math.atan2(d.x, d.y))
@@ -114,11 +119,8 @@ return {
                 enter('setup', t)
             elseif stage == 'setup' then
                 if ids and t >= COMBO_START then
-                    comboIndex = 1
-                    comboStart = t
                     shots = {}
-                    types.Actor.setEquipment(self, equipment(COMBOS[1].slots))
-                    enter('combo ' .. COMBOS[1].name, t)
+                    enter('row', t)
                 end
             elseif stage:sub(1, 5) == 'combo' then
                 local combo = COMBOS[comboIndex]
@@ -126,7 +128,7 @@ return {
                 if dt >= COMBO_LENGTH then
                     comboIndex = comboIndex + 1
                     if comboIndex > #COMBOS then
-                        enter('row', t)
+                        enter('baseline', t)
                     else
                         comboStart = t
                         shots = {}
@@ -148,15 +150,19 @@ return {
                     end
                 end
             elseif stage == 'row' then
-                -- Behind the player, over its head, looking at the row.
-                look(toWorld(util.vector3(0, -200, 200)), toWorld(util.vector3(0, 300, 60)))
+                -- Between the player and the row behind it, high, looking down at the row.
+                look(toWorld(util.vector3(-120, -40, 240)), toWorld(util.vector3(-140, -380, 50)))
                 if t - phaseStart >= 2.5 and not shots.row then
                     shots.row = true
                     debug.takeScreenshot()
                     print('MBSHOT row front')
                 end
                 if t - phaseStart >= 3.5 then
-                    enter('baseline', t)
+                    comboIndex = 1
+                    comboStart = t
+                    shots = {}
+                    types.Actor.setEquipment(self, equipment(COMBOS[1].slots))
+                    enter('combo ' .. COMBOS[1].name, t)
                 end
             elseif stage == 'baseline' then
                 if t - phaseStart >= 3 then

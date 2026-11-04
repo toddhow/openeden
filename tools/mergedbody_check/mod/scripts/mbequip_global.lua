@@ -1,8 +1,8 @@
 -- Task 0069 stage e: the global half of the equipment scene of tools/mergedbody_check (SCENE=equipment). It gives the
--- player one piece of every kind of clothing and armour the scene equips, and places a row of NPCs in front of the
--- player, each carrying one combination: the items enter the NPC's inventory before it enters the world, and NPCs put
--- on what they carry by themselves. It is only part of the check, never of the game, and uses the player's own game
--- data.
+-- player one piece of every kind of clothing and armour the scene equips, and places a row of NPCs behind the player,
+-- each wearing one combination: its own items leave the inventory before it enters the world, the scene's items are
+-- moved in, and mbequip_npc.lua puts them on. It is only part of the check, never of the game, and uses the player's
+-- own game data.
 local world = require('openmw.world')
 local types = require('openmw.types')
 local util = require('openmw.util')
@@ -29,20 +29,22 @@ local KINDS = {
 local KIND_ORDER = { 'shirt', 'pants', 'robe', 'skirt', 'lglove', 'rglove', 'shoes', 'cuirass', 'greaves', 'boots',
     'lgauntlet', 'rgauntlet', 'lpauldron', 'rpauldron', 'helmet' }
 
--- The NPC row: no beast races (they wear no boots or helmets).
+-- The NPC row: no beast races (they wear no boots or helmets). slots: slot name (types.Actor.EQUIPMENT_SLOT) = kind.
 local ROW = {
-    { race = 'breton', male = true, kinds = {} },
-    { race = 'dark elf', male = false, kinds = { 'shirt' } },
-    { race = 'nord', male = true, kinds = { 'pants' } },
-    { race = 'redguard', male = false, kinds = { 'cuirass', 'greaves' } },
-    { race = 'imperial', male = true, kinds = { 'robe' } },
-    { race = 'high elf', male = false, kinds = { 'lglove', 'rglove', 'shoes' } },
-    { race = 'orc', male = true, kinds = { 'lgauntlet', 'rgauntlet', 'boots' } },
-    { race = 'wood elf', male = false, kinds = { 'shirt', 'pants', 'cuirass', 'greaves', 'boots', 'lgauntlet',
-        'rgauntlet', 'lpauldron', 'rpauldron', 'helmet' } },
+    { race = 'breton', male = true, slots = {} },
+    { race = 'dark elf', male = false, slots = { Shirt = 'shirt' } },
+    { race = 'nord', male = true, slots = { Pants = 'pants' } },
+    { race = 'redguard', male = false, slots = { Cuirass = 'cuirass', Greaves = 'greaves' } },
+    { race = 'imperial', male = true, slots = { Robe = 'robe' } },
+    { race = 'high elf', male = false, slots = { LeftGauntlet = 'lglove', RightGauntlet = 'rglove', Boots = 'shoes' } },
+    { race = 'orc', male = true, slots = { LeftGauntlet = 'lgauntlet', RightGauntlet = 'rgauntlet', Boots = 'boots' } },
+    { race = 'wood elf', male = false, slots = { Shirt = 'shirt', Pants = 'pants', Cuirass = 'cuirass',
+        Greaves = 'greaves', Boots = 'boots', LeftGauntlet = 'lgauntlet', RightGauntlet = 'rgauntlet',
+        LeftPauldron = 'lpauldron', RightPauldron = 'rpauldron', Helmet = 'helmet' } },
 }
-local SPACING = 70 -- units between two NPCs
-local DISTANCE = 300 -- units in front of the player
+local SPACING = 70 -- units between two NPCs of a line
+local DISTANCE = 320 -- units behind the player (the player's own frames look at it from the front)
+local LINE_GAP = 130 -- units between the two lines of four (one line of eight ran into the hill at Balmora's start)
 
 local function resolve(kind)
     local spec = KINDS[kind]
@@ -94,14 +96,21 @@ return {
                     for _, item in ipairs(inventory:getAll()) do
                         item:remove()
                     end
+                    local line = math.floor((index - 1) / 4)
+                    local x = -(((index - 1) % 4) + 1 + line / 2) * SPACING
+                    local position = data.origin - data.forward * (DISTANCE + line * LINE_GAP) + data.right * x
+                    -- Facing the way the player faces: towards the player's back and the row camera.
+                    object:teleport(player.cell, position, util.transform.rotateZ(data.yaw))
+                    -- An NPC never puts on what Lua moves into its inventory: mbequip_npc.lua equips it.
                     local names = {}
-                    for _, kind in ipairs(entry.kinds) do
+                    local equipment = {}
+                    for slot, kind in pairs(entry.slots) do
                         give(object, ids[kind])
+                        equipment[slot] = ids[kind]
                         names[#names + 1] = kind
                     end
-                    local x = (index - (#ROW + 1) / 2) * SPACING
-                    local position = data.origin + data.forward * DISTANCE + data.right * x
-                    object:teleport(player.cell, position, util.transform.rotateZ(data.yaw + math.pi))
+                    table.sort(names)
+                    object:addScript('scripts/mbequip_npc.lua', { equipment = equipment })
                     print('MBEQUIP npc ' .. index .. ' ' .. entry.race .. ' ' .. (entry.male and 'm' or 'f') .. ' '
                         .. tostring(id) .. ' wears ' .. (#names > 0 and table.concat(names, '+') or 'nothing'))
                 else

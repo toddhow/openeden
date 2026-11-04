@@ -196,7 +196,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Pitfall:** measure a blend where the group really changes, not at the scripted event: with inertial locomotion a stop goes run to walk at the key release and walk to idle about 22 frames later. `creativemotioncheck` reports every group change with the duration chosen there (`trans=…/D`), the offset left by the inertializer (the trace's `tgt=[…]`, the un-offset target of each traced bone, written only with the debug trace on) and the jerk above the target's own.
 - **Checking it:** `tools/creativemotion_check/check.sh <build> <base cfg> <empty work dir> vanilla cm cmoff natural` (three runs per variant by default, a summary of the ranges per variant, the build's commit and link time and the extra settings in every report; a natural run whose trace never shows the intent fails); `EXTRA_SETTINGS` adds settings.cfg text (for example a `[CreativeMotion Transitions]` category).
 
-## The merged body (task 0069, stage d: `mergedbody.*`, `Npc::attachMergedBody`)
+## The merged body (task 0069, stages d and e: `mergedbody.*`, `Npc::attachMergedBody`)
 
 - **Off means unchanged:** with `[Bodies] merged body` false, `attachMergedBody` returns after one setting read and
   `MergedBodies` reads nothing. Keep every new step behind that read.
@@ -230,10 +230,21 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   body's skin controllers; `removePath(mMergedBody)` first, then attach again. `compile()` failing removes it too.
 - **One draw per material key** (`Body::planMergedDrawsByMaterial`): the player and 20 merged NPCs are about 270
   fewer draws in the scene census than stock (7,116 against 6,848), at the same frame time.
-- **Equipment (stage d):** anything worn or reserved over a merged slot keeps the stock parts entirely. At most one
-  swap each way per actor: one first built dressed may take the merged body once undressed; one that has drawn it
-  (`mMergedDrawn`) and dresses again keeps the stock parts for its life (`mMergedRetired`). Retiring every actor first
-  built dressed kept the player on the stock parts, silently. Regions are stage e.
+- **Equipment (stage e):** a dressed actor keeps the merged body with the covered regions left out.
+  `Body::hiddenMergedSlots` reads `mPartslots` and `mPartPriorities` after the equipment loop, so it is the stock
+  parts' own rule (a slot held by an inventory group with priority 1 or more); `MergedBodies::applyHiddenRegions` then
+  gives the actor's copy, for each draw with a hidden run, one `vsg::VertexIndexDraw` per remaining index range
+  (`Body::visibleIndexRanges`) sharing the template's buffer infos, or none. Only the copy changes: its state groups
+  are its own because `MWAnim::decorate` clones the bone matrices; a copy that shares one with the template is refused.
+  VSG's `VertexIndexDraw` copy constructor does not copy the index type: `assignIndices` sets it, then the template's
+  buffer info replaces the one it made. Done in `updateParts` only, never per frame.
+- **The fallback** (a refused copy): the stock parts entirely, a warning, and stage d's rule: at most one swap each way
+  per actor (`mMergedDrawn`, `mMergedRetired`). Retiring every actor first built dressed kept the player on the stock
+  parts, silently.
+- **An equipment change costs more with the merged body:** the whole body is decorated, linked and compiled again on
+  every `updateParts`, while the stock loop keeps the body parts it already has. Full set on and off every second frame:
+  frame median 5.43 ms against 4.57 ms for stock (3.80 and 3.72 ms before), about 1.6 ms more main-thread time per
+  change. Keeping the copy when the hidden set is unchanged would remove most of it.
 - **Logs:** every silent fallback is logged once (a race the store lacks, each refusal reason per race and sex, an
   actor on another skeleton at Info); one line per actor that draws the merged body ("Merged bodies: <ref> draws the
   merged body"), which the check tool counts. The default skeleton is compared as a normalised mesh path, prefixed
@@ -244,3 +255,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   with code 0 and leaves no crash dump. Compare the frames and `stats.txt` of the two variants. `EXTRA_SETTINGS` adds
   settings.cfg text, `START_COMMANDS` console lines: weather by starting in another region, `ChangeWeather` for
   Balmora's region and `coc "Balmora"` (a change of the current region only starts a transition of a minute or more).
+  `SCENE=equipment` (with `TIMEOUT=240`) runs the equipment scene of stage e: a row of eight dressed NPCs, the player in
+  twelve combinations from four cameras each, then 200 cycles of the full set on and off; add `[Rendering]\nframe
+  counters = true` to `EXTRA_SETTINGS` and compare `stats.txt` between "MBPHASE baseline" and "MBPHASE after". Lua's
+  `moveInto` never auto-equips (`objectbindings.cpp`), so the NPCs are dressed by a script of their own.
+- **The scene census samples every 30 frames,** so equipment toggled every second frame shows as a slow alternation in
+  `ctr_scene_draws`, not one change per toggle.

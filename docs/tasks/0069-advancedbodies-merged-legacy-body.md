@@ -544,7 +544,7 @@ dressed never merges, which in a real game is the player and almost every NPC) o
 preload thread, or taking the engine's own skeleton, would remove it. (4) The merged body writes bone motion to the
 G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the merged draws be kept out of it?
 
-### Stage e, 2026-11-04: equipment and regions (commits `87b191d445`, and the engine commit below; in progress)
+### Stage e, 2026-11-04: equipment and regions (commits `87b191d445`, `63802e1b86` and the check commit)
 
 **What was built.**
 - `components/body/mergedruntime.*` (pure): `hiddenMergedSlots(mergedSlots, partslots, priorities)`, the stock parts'
@@ -556,8 +556,8 @@ G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the
   per draw), and `visibleIndexRanges(runs, hidden)` gives the index ranges that remain, touching runs merged.
   15 tests (`testmergedregions.cpp`), written first: 13 of them failed against stubs. The
   slot rule is checked against a reference written from `npc.cpp` for every single-slot state (empty, the body part,
-  inventory groups 0 to 18 with priorities 1 to 25) and 20,000 seeded random states of all 27 slots, and the robe's and
-  the skirt's reservations by name.
+  inventory groups 0 to 18 with priorities 1 to 25), 20,000 seeded random states of all 27 slots, and the robe's
+  reservations by name.
 - `MWRender::MergedBodies::applyHiddenRegions` (`mergedbody.*`): the template keeps every draw whole; an actor's copy
   (made by `MWAnim::decorate`, whose state groups are its own because the bone matrices are cloned) gets, for each draw
   that has a hidden run, one `vsg::VertexIndexDraw` per remaining range (none when the whole draw is hidden) sharing the
@@ -569,3 +569,68 @@ G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the
   rule of stage d (finding 8) stays only as the fallback when the regions cannot be applied: then the stock parts are
   drawn, a warning is logged and an actor that has drawn the merged body retires.
 - `tools/mergedbody_check`: `SCENE=equipment` (`mod/scripts/mbequip_*.lua`, `mbequip.omwscripts`), `TIMEOUT`.
+- `tools/mergedbody_check`: `SCENE=equipment` (`mod/scripts/mbequip_*.lua`, `mbequip.omwscripts`) and `TIMEOUT`. The
+  scene: the player gets one piece of every kind (Morrowind's common clothes and iron armour by record id, else the
+  first record of the type; `iron_boots` does not exist, so the boots are `adamantium boots`); a row of eight NPCs
+  behind the player in two lines, each wearing one combination (an NPC never puts on what Lua's `moveInto` gives it,
+  `objectbindings.cpp` passes no auto-equip, so a small local script equips it and drops the AI packages); then the
+  player wears twelve combinations in turn (naked, shirt, pants, cuirass and greaves, robe, skirt, cloth gloves and
+  shoes, gauntlets and boots, pauldrons, helmet, the full set, naked again), each photographed from a static camera in
+  front and close to the right wrist, knee and ankle; then 200 cycles of the full set on and off (one change every
+  second frame), with the frame counters.
+
+**Frames (Balmora hill, 1280x720, `OPENEDEN_QUIET_WINDOW=1`; work folder `I:\Projects\OpenEden-work\bodies\stage-e`,
+a copy of `lodtest\config\openmw.cfg` with an empty `settings.cfg` in `cfg`, the stage d2 bake copied into `user`).**
+Stock above merged, four views per combination: `pairs\pair-0.png` (naked, shirt) to `pair-5.png` (full, naked
+again); the row `pairs\row4.png` and `row4-crop.png`; full-size crops `pairs\crop-*.png`; stock, merged and the
+pixels that differ by more than 4 levels `diff\diff-*.png`; per-frame shares in `diff\fractions.txt`. Viewed:
+- *Every combination* draws the same visible body as stock: shirt, pants, cuirass and greaves, robe, skirt (the legs
+  below it), cloth gloves and shoes, gauntlets and boots, pauldrons, the helmet (hair hidden, as stock), the full set
+  and naked. No skin pokes through any garment, no gap at a garment's edge (wrist under gloves and gauntlets, the knee
+  at the top of the boots and below the greaves, the ankle above the shoes), no new z-fighting.
+- *The row* (eight races, one combination each, merged in the log): the same as stock, garment for garment.
+- *Pixels:* 43 of the 49 frames differ from stock in under 0.25 percent of their pixels (NPCs moving in the
+  background, the idle animation's phase). The others: the wrist close-ups of pants (3.99 percent), pauldrons and
+  helmet (2.62 each) and naked-again (6.98), and the front views of pants (1.05) and naked-again (1.20). In the
+  pauldrons and helmet frames the difference is the hand, a few units apart (the idle phase of two runs). In the four
+  pants and naked-again frames it is **the stock run that is wrong**: the stock chest part's lower edge breaks through
+  the pants and the loincloth in jagged pieces, and from the front the chest is pulled out of shape
+  (`diff\hip-010.png`, `hip-046.png`, `chest-045.png`), while the merged body is clean. It appears only after
+  equipment changes and looks like the inherited "skin controllers lost after an equipment change" of the stage d
+  review (a hypothesis, not traced: the chest kept from an earlier `updateParts` loses its `Anim::Skin` to
+  `clearControllers` and stays in an old pose). It happens with the setting off, so it is not this stage's; the merged
+  body does not show it because it is linked again on every `updateParts`. Reported, not fixed.
+
+**200 equip and unequip cycles (frame counters, the census sampled every 30 frames).** Before (the 3 s before the first
+change) and after (from 0.5 s after the last): merged 775 and 774 MiB resident, 185 and 185 MiB of device memory,
+6,635 and 6,635 draws in the census; stock 749 and 745 MiB, 185 and 185 MiB, 6,793 and 6,793. During the cycles the
+resident memory never went above the value before. So no node and no memory stays behind, within the counters'
+resolution (1 MiB, about 5 KB per cycle). An earlier run of the same scene had one step of 7 MiB at the first change
+and then stayed flat to the end; it did not repeat. There is no allocation counter in the game; the census is the
+node count. With every actor in view dressed in some way, the merged scene still has 158 fewer draws in the census than
+stock (the split draws do not outnumber the stock parts they replace), and the frame median before the cycles is 3.80
+ms against 3.72 ms for stock (one run each).
+
+**An equipment change costs more with the merged body.** Toggling the full set every second frame raised the frame
+median from 3.80 to 5.43 ms (p90 8.02 ms) with the merged body and from 3.72 to 4.57 ms (p90 5.26 ms) with stock: about
+1.6 ms more main-thread time per change, because the merged body is decorated, linked and compiled again on every
+`updateParts` while the stock loop keeps the body parts it has. Not a per-frame cost; keeping the actor's copy when
+its hidden set did not change would remove most of it (not built).
+
+**Fallback.** Never taken in these runs (no "could not be left out" warning in any log). Not exercised in the game:
+there is no way to make the copy share a state group on demand; the refusal is read, not run. While an actor that never
+drew the merged body falls back, the warning repeats on every `updateParts` (no retirement then).
+
+**Strict level kept:** nothing legacy is merged or morphed beyond stage d: stage e only leaves index ranges out of the
+draws. The B3 surface morph hooks are not built; the region ranges they would need are `MergedDraw::mRuns` and
+`TemplateResult::mDrawRuns`, the weld groups are in the payload.
+
+**Tests and gates.** `components-tests`: the 442 body, merged and skeleton tests pass. clang-format 14 (in a container)
+leaves the changed C++ files as they are. Not run: the Linux gate, the 32 Lua tests, `openmw-tests`, a frozen-pose
+pixel comparison, the "off" comparison against the commit before (off, `attachMergedBody` still returns after its
+first setting read, before any new code).
+
+**Questions for toddhow.** (1) The fallback keeps stage d's one-swap rule; with regions it should never be taken. Keep
+it, or drop the merged body for that actor with no swap at all? (2) The stock chest breaking through after an equipment
+change (frames above) is an inherited bug the merged body does not have; a task of its own? (3) An equipment change
+costs about 1.6 ms more with the merged body; worth keeping the copy when the hidden set is unchanged now, or later?

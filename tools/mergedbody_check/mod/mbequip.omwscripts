@@ -1,2 +1,3 @@
 GLOBAL: scripts/mbequip_global.lua
 PLAYER: scripts/mbequip_player.lua
+CUSTOM: scripts/mbequip_npc.lua
