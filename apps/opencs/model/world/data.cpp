@@ -673,9 +673,9 @@ std::shared_ptr<Resource::ResourceSystem> CSMWorld::Data::getOrCreateResourceSys
     vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin, int depthSortedBin)
 {
     if (!mResourceSystem)
-        mResourceSystem
-            = std::make_shared<Resource::ResourceSystem>(mVFS.get(), Files::pathToUnicodeString(mResDir / "shaders"),
-                std::move(defaultSampler), supportsCompressedImages, computeBin, depthSortedBin);
+        mResourceSystem = std::make_shared<Resource::ResourceSystem>(mVFS.get(),
+            Files::pathToUnicodeString(mResDir / "shaders"), std::move(defaultSampler), supportsCompressedImages,
+            computeBin, depthSortedBin, Files::pathToUnicodeString(mShaderCacheDir));
     return mResourceSystem;
 }
 

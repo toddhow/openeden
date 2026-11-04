@@ -141,6 +141,7 @@ namespace CSMWorld
         std::vector<std::string> mArchives;
         std::unique_ptr<VFS::Manager> mVFS;
         std::filesystem::path mResDir;
+        std::filesystem::path mShaderCacheDir;
         ResourcesManager mResourcesManager;
         std::shared_ptr<Resource::ResourceSystem> mResourceSystem;
 
@@ -170,6 +171,12 @@ namespace CSMWorld
         /// The document's scene resources: pipelines, texture and model readers. They depend on what the device can do,
         /// and a document has no device until its first 3D view opens, so that view creates them through this. Later
         /// calls return the same object and ignore the arguments.
+        /// Where the Slang compiler (with `[Rendering] slang shaders` on) keeps the shaders it compiled at run time:
+        /// the game's folder, so that the editor and the game share what either compiled (review of stage h, finding
+        /// 8: without one the editor compiled every unlisted shader set on every start). Set before the first
+        /// getOrCreateResourceSystem; empty (the default): no cache.
+        void setShaderCacheDirectory(std::filesystem::path directory) { mShaderCacheDir = std::move(directory); }
+
         std::shared_ptr<Resource::ResourceSystem> getOrCreateResourceSystem(vsg::ref_ptr<vsg::Sampler> defaultSampler,
             bool supportsCompressedImages, int computeBin, int depthSortedBin);
 

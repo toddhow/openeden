@@ -315,6 +315,9 @@ CSMDoc::Document::Document(const Files::ConfigurationManager& configuration, std
     if (mContentFiles.empty())
         throw std::runtime_error("Empty content file sequence");
 
+    // The game's cache of shaders compiled at run time (apps/openmw/vsgengine.cpp), shared with the editor.
+    mData.setShaderCacheDirectory(configuration.getUserDataPath() / "openeden" / "shadercache");
+
     if (mNew || !std::filesystem::exists(mProjectPath))
     {
         auto filtersPath = configuration.getUserDataPath() / "defaultfilters";
