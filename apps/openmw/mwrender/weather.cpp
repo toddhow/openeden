@@ -26,6 +26,8 @@
 #include <components/pipeline/material.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/atmospheremath.hpp>
+#include <components/render/cirrusmath.hpp>
 #include <components/render/cloudmath.hpp>
 #include <components/render/cloudvolumegpu.hpp>
 #include <components/render/cloudvolumemath.hpp>
@@ -170,6 +172,72 @@ namespace MWRender
             }
             if (found != mTextureMap.end())
                 mStateSwitch->children = { { vsg::MASK_ALL, found->second } };
+        }
+    };
+
+    // OpenEden (task 0079): the cirrus layer, a dome drawn by the Slang-only pair `sky/cirrus`. The dome has no vertex
+    // buffers: the shader builds a triangle list from the vertex index (Render::Cirrus::domeVertex), so this node is a
+    // transform (the sky shaders take their modelview from one), one pipeline and one draw. The material holds
+    // everything the shader needs; its layout is documented at the top of files/shaders/sky/cirrus/cirrus.slang. Owner:
+    // Sky, through its switch (a vsg::ref_ptr); the material descriptor is a member by value, as the other layers'.
+    class Cirrus : public Anim::Transform
+    {
+    public:
+        struct Settings
+        {
+            float coverageScale = 1.f;
+            float opacityScale = 1.f;
+            float altitudeMeters = Render::Cirrus::defaultAltitudeKm * 1000.f;
+            float windScale = 6.f;
+            Render::Cirrus::Quality quality = Render::Cirrus::Quality::Medium;
+            Render::Cirrus::DebugView debugView = Render::Cirrus::DebugView::None;
+        };
+        // What changes while the game runs.
+        struct Frame
+        {
+            float share = 0.f;
+            float driftMeters = 0.f;
+            float morph = 0.f;
+            float sunElevation = 0.f;
+            vsg::vec3 tint{ 1.f, 1.f, 1.f };
+        };
+
+        Pipeline::Material material;
+        Settings settings;
+
+        Cirrus(const Pipeline::Builder& builder, const Settings& settingsIn)
+            : settings(settingsIn)
+        {
+            auto options = Pipeline::Options{ .shader = { "sky/cirrus", Pipeline::modes({ Pipeline::Mode::MATERIAL }) },
+                .blend = true,
+                .cullMode = VK_CULL_MODE_NONE };
+            depthOff(options);
+            auto pipeline = builder.graphics->getOrCreate(options);
+            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
+                Pipeline::TEXTURE_SET, vsg::Descriptors{ material.descriptor() });
+            auto sg = vsg::StateGroup::create();
+            sg->stateCommands = { pipeline, bds };
+            sg->children = { vsg::Draw::create(Render::Cirrus::domeVertexCount, 1, 0, 0) };
+            addChild(sg);
+
+            // The values that never change: the layer's wind direction and the pattern's cover.
+            const vsg::vec2 wind = Render::Cirrus::veeredWindDirection();
+            material.update(material.value().pbr,
+                vsg::vec4(wind.x, wind.y, Render::Cirrus::patternCoverage(settings.coverageScale), 0.f));
+            setFrame(Frame{});
+        }
+
+        void setFrame(const Frame& frame)
+        {
+            auto& data = material.value();
+            material.update(data.ambient,
+                vsg::vec4(frame.share, settings.coverageScale, settings.opacityScale, settings.altitudeMeters));
+            material.update(data.diffuse, vsg::vec4(frame.tint.x, frame.tint.y, frame.tint.z, 1.f));
+            material.update(data.specular,
+                vsg::vec4(frame.driftMeters, frame.morph, frame.sunElevation, static_cast<float>(settings.quality)));
+            const vsg::vec3 sunTint = Render::Atmosphere::sunGlowTint(frame.sunElevation);
+            material.update(
+                data.emissive, vsg::vec4(sunTint.x, sunTint.y, sunTint.z, static_cast<float>(settings.debugView)));
         }
     };
 
@@ -628,6 +696,44 @@ namespace MWRender
             mSwitch, true);
         mMoonScriptColor = Fallback::Map::getColour("Moons_Script_Color");
 
+        // OpenEden (task 0079): the cirrus layer, after the moons and before the low cloud layers. Nothing is made
+        // unless the setting took effect, so with it off the sky is what it was.
+        {
+            const auto& rendering = Settings::rendering();
+            if (rendering.mCirrus)
+            {
+                if (!Render::Cirrus::useCirrus(rendering.mCirrus, rendering.mHdr, rendering.mAtmosphere))
+                    Log(Debug::Warning) << "[Rendering] cirrus needs hdr and atmosphere; no cirrus is drawn";
+                else if (!resourceSystem.builder->graphics->hasSlangShader("sky/cirrus"))
+                    Log(Debug::Warning) << "[Rendering] cirrus: shaders/sky/cirrus/main.*.spv were not built (this "
+                                           "build has no slangc); no cirrus is drawn";
+                else
+                {
+                    auto& slangOnly = resourceSystem.builder->graphics->slangOnlyPaths;
+                    if (std::find(slangOnly.begin(), slangOnly.end(), "sky/cirrus") == slangOnly.end())
+                        slangOnly.push_back("sky/cirrus");
+                    Cirrus::Settings settings;
+                    settings.coverageScale = rendering.mCirrusCoverage;
+                    settings.opacityScale = rendering.mCirrusOpacity;
+                    settings.altitudeMeters = rendering.mCirrusAltitude * 1000.f;
+                    settings.windScale = rendering.mCirrusWindScale;
+                    if (const auto quality = Render::Cirrus::parseQuality(rendering.mCirrusQuality.get()))
+                        settings.quality = *quality;
+                    else
+                        Log(Debug::Warning) << "[Rendering] cirrus quality \"" << rendering.mCirrusQuality.get()
+                                            << "\" is not low, medium or high; medium is used";
+                    if (const auto view = Render::Cirrus::parseDebugView(rendering.mCirrusDebug.get()))
+                        settings.debugView = *view;
+                    else
+                        Log(Debug::Warning) << "[Rendering] cirrus debug \"" << rendering.mCirrusDebug.get()
+                                            << "\" is not none, density, share, light or footprint; none is used";
+                    mCirrus.setup(vsg::ref_ptr{ new Cirrus(*resourceSystem.builder, settings) }, mSwitch, false);
+                    mCirrusOn = true;
+                    Log(Debug::Info) << "Cirrus: a procedural high cloud layer at " << settings.altitudeMeters << " m";
+                }
+            }
+        }
+
         {
             override_->pipelineOptions = Clouds::pipelineOptions;
             auto node = vsgUtil::readNode(Settings::Manager::getString("skyclouds", "Models"), nodeOptions);
@@ -730,6 +836,9 @@ namespace MWRender
             mVolumeWind[0] += static_cast<double>(Render::CloudVolume::windDirection[0]) * step;
             mVolumeWind[1] += static_cast<double>(Render::CloudVolume::windDirection[1]) * step;
         }
+
+        if (mCirrusOn)
+            updateCirrus(duration);
 
         // UV Scroll the clouds
         mCloudAnimationTimer += duration * mCloudSpeed * 0.003;
@@ -874,6 +983,8 @@ namespace MWRender
 
         if (mVolumeCloudsOn)
             applyVolumeClouds(weather);
+        if (mCirrusOn)
+            applyCirrus(weather);
 
         mSkyColor = weather.mSkyColor;
         mSkyColor.a = weather.mGlareView;
@@ -1027,6 +1138,61 @@ namespace MWRender
             mNextClouds.setEnabled(false);
     }
 
+    // Task 0079: the cirrus's share of the sky from the weather, as the volumetric clouds' coverage is worked out: the
+    // mean thickness of the cloud pictures (built whenever the cirrus is on, see getOrCreateCloudTexture) through
+    // coverageFromThickness, blended by the manager's factor. The layer thins as the low clouds thicken, and is gone in
+    // storms and fog. The share eases to its target in updateCirrus.
+    void Sky::applyCirrus(const WeatherResult& weather)
+    {
+        const auto meanThickness = [this](const std::string& file) {
+            const auto found = mCloudMeanThickness.find(file);
+            return found != mCloudMeanThickness.end() ? found->second : 0.f;
+        };
+        const float current = Render::CloudVolume::coverageFromThickness(meanThickness(weather.mCloudTexture));
+        const float next = weather.mNextCloudTexture.empty()
+            ? current
+            : Render::CloudVolume::coverageFromThickness(meanThickness(weather.mNextCloudTexture));
+        const float lowCoverage = Render::CloudVolume::blendCoverage(current, next, mCloudBlendFactor);
+        mCirrusShareTarget = Render::Cirrus::shareTarget(lowCoverage, weather.mIsStorm, weather.mFogDepth);
+        mSunElevation = weather.mSunElevation;
+        mCirrusTint = weather.mCloudTint;
+        if (std::abs(lowCoverage - mCirrusCoverageLogged) > 0.01f)
+        {
+            Log(Debug::Info) << "Cirrus: low cloud coverage " << lowCoverage << " (" << weather.mCloudTexture
+                             << " thickness " << meanThickness(weather.mCloudTexture) << "), share target "
+                             << mCirrusShareTarget;
+            mCirrusCoverageLogged = lowCoverage;
+        }
+        // The first weather (a new game or a load) starts at its share instead of fading in.
+        if (!mCirrusShareSet)
+            mCirrusShare = mCirrusShareTarget;
+        mCirrusShareSet = true;
+    }
+
+    // The share eases to its target; the wind's drift and the morph sum in simulation time (never a clock) and are
+    // wrapped by the pattern's period, so the floats the shader gets stay small and the noise shows no jump.
+    void Sky::updateCirrus(float duration)
+    {
+        mCirrusShare = Render::Cirrus::easedShare(mCirrusShare, mCirrusShareTarget, duration);
+        mCirrusDrift = Render::Cirrus::wrapDrift(
+            mCirrusDrift + Render::Cirrus::driftDistance(mCloudSpeed, mCirrus->settings.windScale, duration));
+        // One period of the evolution coordinate is 76,800 s; the sum stays exact in a double for a whole session.
+        constexpr double secondsPerPeriod
+            = static_cast<double>(Render::Cirrus::morphSeconds) * Render::Cirrus::noisePeriodCells;
+        mCirrusSeconds = std::fmod(mCirrusSeconds + std::max(duration, 0.f), secondsPerPeriod);
+
+        Cirrus::Frame frame;
+        frame.share = mCirrusShare;
+        frame.driftMeters = static_cast<float>(mCirrusDrift);
+        frame.morph = Render::Cirrus::wrapMorph(mCirrusSeconds);
+        frame.sunElevation = mSunElevation;
+        frame.tint = mCirrusTint;
+        mCirrus->setFrame(frame);
+        // Nothing to draw at a share of 0: the node leaves the traversal (the alpha falls to 0 with the share, so
+        // there is no pop).
+        mCirrus.setEnabled(mCirrusShare > 0.f);
+    }
+
     Sky::CloudShadowInput Sky::getCloudShadow() const
     {
         CloudShadowInput input;
@@ -1052,7 +1218,7 @@ namespace MWRender
             auto sampler = vsg::Sampler::create();
             share(sampler, mTextureOptions);
             auto descriptor = vsg::DescriptorImage::create(sampler, data);
-            if (mCloudShadowsOn || mVolumeCloudsOn)
+            if (Render::Cirrus::needsCloudGrids(mCloudShadowsOn, mVolumeCloudsOn, mCirrusOn))
             {
                 const auto grid = mCloudGrids.emplace(file, buildCloudGrid(file, *data)).first;
                 // The mean thickness gives the volumetric clouds' coverage (see applyVolumeClouds).

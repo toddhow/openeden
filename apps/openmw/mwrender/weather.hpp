@@ -30,6 +30,7 @@ namespace MWRender
     struct Atmosphere;
     class AtmosphereNight;
     class Clouds;
+    class Cirrus;
     class Sun;
     class Moon;
     struct WeatherResult;
@@ -140,6 +141,8 @@ namespace MWRender
         void updateRainParameters();
         void updateParticleOrientation();
         void applyVolumeClouds(const WeatherResult& weather);
+        void applyCirrus(const WeatherResult& weather);
+        void updateCirrus(float duration);
 
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         std::map<std::string, vsg::ref_ptr<vsg::Descriptor>> mCloudTextures;
@@ -153,6 +156,7 @@ namespace MWRender
         vsgUtil::Toggle<Sun> mSun;
         vsgUtil::Toggle<Moon> mMasser;
         vsgUtil::Toggle<Moon> mSecunda;
+        vsgUtil::Toggle<Cirrus> mCirrus; // task 0079: made only with [Rendering] cirrus (and hdr, atmosphere, slangc)
 
         bool mIsStorm = false;
 
@@ -190,6 +194,19 @@ namespace MWRender
         float mVolumeCoverage = 0.f;
         float mVolumeCoverageLogged = -1.f; // only to log a change
         double mVolumeWind[2] = { 0.0, 0.0 };
+        // Cirrus (task 0079): the setting took effect (the cloud pictures' grids are then built for the weather share),
+        // the share of the layer the weather allows now and heading for, the sum of the wind's drift along the layer's
+        // wind (double: it grows all session; wrapped by the pattern's period) and of the simulation seconds (the
+        // morph), the sun's true height, and what the settings gave.
+        bool mCirrusOn = false;
+        float mCirrusShare = 0.f;
+        float mCirrusShareTarget = 0.f;
+        bool mCirrusShareSet = false;
+        float mCirrusCoverageLogged = -1.f; // only to log a change
+        double mCirrusDrift = 0.0;
+        double mCirrusSeconds = 0.0;
+        float mSunElevation = 0.f;
+        vsg::vec3 mCirrusTint{ 1.f, 1.f, 1.f };
         float mCloudShare = 0.f;
         float mCloudShareTarget = 0.f;
         bool mCloudShareSet = false;

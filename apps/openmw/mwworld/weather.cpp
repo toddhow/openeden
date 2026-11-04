@@ -828,6 +828,7 @@ namespace MWWorld
         set(result.mSunColor, out.sun);
         set(result.mFogColor, out.horizon);
         result.mCloudTint = out.cloudTint;
+        result.mSunElevation = sunHeight;
     }
 
     // OpenEden (task 0037): the ground's wetness. It heads for the rain's strength while the weather has a rain effect

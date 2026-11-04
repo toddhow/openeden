@@ -482,6 +482,14 @@ openeden_add_slang_shader(
     OUTPUT_DIR sky/sunproc
     STAGES vertMain:vertex:vert fragMain:fragment:frag)
 
+# The cirrus layer (task 0079), new in Slang: a procedural high cloud sheet on a dome of its own. Path sky/cirrus; no
+# GLSL pair (see Pipeline::Graphics::slangOnlyPaths). Loaded when [Rendering] cirrus is on; a missing file leaves the sky
+# without it and a log line.
+openeden_add_slang_shader(
+    SOURCE sky/cirrus/cirrus.slang
+    OUTPUT_DIR sky/cirrus
+    STAGES vertMain:vertex:vert fragMain:fragment:frag)
+
 # The volumetric fog's compute passes (task 0041). They have no GLSL: the game loads these files whenever
 # [Rendering] volumetrics is on, whatever [Rendering] slang shaders says, and leaves volumetrics off with a log line
 # if they are missing.

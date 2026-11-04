@@ -180,6 +180,15 @@ namespace Settings
             makeClampSanitizerFloat(0, 4) };
         SettingValue<bool> mVolumetricCloudsShadows{ mIndex, "Rendering", "volumetric clouds shadows" };
         SettingValue<std::string> mVolumetricCloudsDebug{ mIndex, "Rendering", "volumetric clouds debug" };
+        // OpenEden (task 0079): the cirrus layer (read at start; needs hdr and atmosphere).
+        SettingValue<bool> mCirrus{ mIndex, "Rendering", "cirrus" };
+        SettingValue<float> mCirrusCoverage{ mIndex, "Rendering", "cirrus coverage", makeClampSanitizerFloat(0, 2) };
+        SettingValue<float> mCirrusOpacity{ mIndex, "Rendering", "cirrus opacity", makeClampSanitizerFloat(0, 1.5) };
+        SettingValue<float> mCirrusAltitude{ mIndex, "Rendering", "cirrus altitude", makeClampSanitizerFloat(6, 12) };
+        SettingValue<float> mCirrusWindScale{ mIndex, "Rendering", "cirrus wind scale",
+            makeClampSanitizerFloat(0, 20) };
+        SettingValue<std::string> mCirrusQuality{ mIndex, "Rendering", "cirrus quality" };
+        SettingValue<std::string> mCirrusDebug{ mIndex, "Rendering", "cirrus debug" };
         SettingValue<int> mGiBakeSkyRays{ mIndex, "Rendering", "gi bake sky rays", makeClampSanitizerInt(1, 65536) };
         SettingValue<float> mGiBakeSkySpacing{ mIndex, "Rendering", "gi bake sky spacing",
             makeClampSanitizerFloat(128, 2048) };

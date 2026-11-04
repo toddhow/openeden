@@ -15,6 +15,10 @@ namespace MWRender
         float mCloudBlendFactor;
         // OpenEden (task 0034): multiplies the cloud texture; white (as before) unless the atmosphere sets it.
         vsg::vec3 mCloudTint{ 1.f, 1.f, 1.f };
+        // OpenEden (task 0079): the sun's true height in radians (negative below the horizon) as the atmosphere model
+        // took it (the colour tables' hour with `sun follows colour tables`), set only by the atmosphere
+        // (WeatherManager::applyAtmosphere); the cirrus layer follows it so the sky and the layer agree.
+        float mSunElevation = 0.f;
 
         vsg::vec4 mFogColor;
 
