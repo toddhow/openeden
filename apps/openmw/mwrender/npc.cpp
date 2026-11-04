@@ -75,12 +75,6 @@ namespace MWRender
 
         mFace = std::make_unique<MWAnim::Face>();
 
-        for (size_t i = 0; i < ESM::PRT_Count; i++)
-        {
-            mPartslots[i] = -1; // each slot is empty
-            mPartPriorities[i] = 0;
-        }
-
         updateNpcBase();
     }
 
@@ -152,7 +146,7 @@ namespace MWRender
                 ++i2;
             }
             if (i1 == comparePath.end())
-                return mPartslots[i];
+                return mSlots.group(static_cast<ESM::PartReferenceType>(i));
         }
         return -1;
     }
@@ -292,8 +286,11 @@ namespace MWRender
 
     void Npc::updateEquipment()
     {
+        // Task 0069 stage e review: an equipment change's cost, split into the part update and the compile.
+        Misc::LoadTrace::Scope traceEquipment("npc.updateequipment");
         updateCarriedLeftVisible();
         updateParts();
+        Misc::LoadTrace::Scope traceCompile("npc.compile");
         compile();
     }
 
@@ -319,76 +316,47 @@ namespace MWRender
         mPartControllers.beginUpdate();
         soundsToPlay.clear();
 
-        static const struct
-        {
-            int slot;
-            int basePriority;
-        } slotlist[] = { // FIXME: Priority is based on the number of reserved slots. There should be a better way.
-            { MWWorld::InventoryStore::Slot_Robe, 11 }, { MWWorld::InventoryStore::Slot_Skirt, 3 },
-            { MWWorld::InventoryStore::Slot_Helmet, 0 }, { MWWorld::InventoryStore::Slot_Cuirass, 0 },
-            { MWWorld::InventoryStore::Slot_Greaves, 0 }, { MWWorld::InventoryStore::Slot_LeftPauldron, 0 },
-            { MWWorld::InventoryStore::Slot_RightPauldron, 0 }, { MWWorld::InventoryStore::Slot_Boots, 0 },
-            { MWWorld::InventoryStore::Slot_LeftGauntlet, 0 }, { MWWorld::InventoryStore::Slot_RightGauntlet, 0 },
-            { MWWorld::InventoryStore::Slot_Shirt, 0 }, { MWWorld::InventoryStore::Slot_Pants, 0 },
-            { MWWorld::InventoryStore::Slot_CarriedLeft, 0 }, { MWWorld::InventoryStore::Slot_CarriedRight, 0 }
-        };
-        static const size_t slotlistsize = sizeof(slotlist) / sizeof(slotlist[0]);
-
         Misc::LoadTrace::Scope traceInv("npc.inventory");
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
         traceInv.end();
-        for (size_t i = 0; i < slotlistsize && mViewMode != ViewMode::HeadOnly; i++)
+        // The equipment pass (task 0069 stage e review: its slot list, priorities and reservations are PartSlots').
+        for (const PartSlots::EquipmentSlot& slot : PartSlots::equipmentSlots())
         {
-            auto store = inv.getSlot(slotlist[i].slot);
-
-            removePartGroup(slotlist[i].slot);
-
-            if (store == inv.end())
-                continue;
-
-            if (slotlist[i].slot == MWWorld::InventoryStore::Slot_Helmet)
-                removeIndividualPart(ESM::PRT_Hair);
-
-            int prio = 1;
-            auto glowColor = getGlowColor(*store);
-            if (store->getType() == ESM::Clothing::sRecordId)
+            if (mViewMode == ViewMode::HeadOnly)
+                break;
+            auto store = inv.getSlot(slot.mInventorySlot);
+            PartSlots::Worn worn = PartSlots::Worn::Nothing;
+            std::vector<PartSlots::WornPart> parts;
+            std::optional<vsg::vec4> glowColor;
+            if (store != inv.end())
             {
-                prio = ((slotlist[i].basePriority + 1) << 1) + 0;
-                const ESM::Clothing* clothes = store->get<ESM::Clothing>()->mBase;
-                addPartGroup(slotlist[i].slot, prio, clothes->mParts.mParts, glowColor);
+                glowColor = getGlowColor(*store);
+                if (store->getType() == ESM::Clothing::sRecordId)
+                {
+                    worn = PartSlots::Worn::Clothing;
+                    parts = wornParts(store->get<ESM::Clothing>()->mBase->mParts.mParts);
+                }
+                else if (store->getType() == ESM::Armor::sRecordId)
+                {
+                    worn = PartSlots::Worn::Armor;
+                    parts = wornParts(store->get<ESM::Armor>()->mBase->mParts.mParts);
+                }
+                else
+                    worn = PartSlots::Worn::Other;
             }
-            else if (store->getType() == ESM::Armor::sRecordId)
-            {
-                prio = ((slotlist[i].basePriority + 1) << 1) + 1;
-                const ESM::Armor* armor = store->get<ESM::Armor>()->mBase;
-                addPartGroup(slotlist[i].slot, prio, armor->mParts.mParts, glowColor);
-            }
-
-            if (slotlist[i].slot == MWWorld::InventoryStore::Slot_Robe)
-            {
-                ESM::PartReferenceType parts[] = { ESM::PRT_Groin, ESM::PRT_Skirt, ESM::PRT_RLeg, ESM::PRT_LLeg,
-                    ESM::PRT_RUpperarm, ESM::PRT_LUpperarm, ESM::PRT_RKnee, ESM::PRT_LKnee, ESM::PRT_RForearm,
-                    ESM::PRT_LForearm, ESM::PRT_Cuirass };
-                size_t parts_size = sizeof(parts) / sizeof(parts[0]);
-                for (size_t p = 0; p < parts_size; ++p)
-                    reserveIndividualPart(parts[p], slotlist[i].slot, prio);
-            }
-            else if (slotlist[i].slot == MWWorld::InventoryStore::Slot_Skirt)
-            {
-                reserveIndividualPart(ESM::PRT_Groin, slotlist[i].slot, prio);
-                reserveIndividualPart(ESM::PRT_RLeg, slotlist[i].slot, prio);
-                reserveIndividualPart(ESM::PRT_LLeg, slotlist[i].slot, prio);
-            }
+            mSlots.wear(slot, worn, parts, *this, [&](ESM::PartReferenceType part, const ESM::BodyPart& bodyPart) {
+                attachPart(part, slot.mInventorySlot, bodyPart.mModel, glowColor, nullptr);
+            });
         }
 
         if (mViewMode != ViewMode::FirstPerson)
         {
-            if (mPartPriorities[ESM::PRT_Head] < 1 && !mHeadModel.empty())
+            if (mSlots.priority(ESM::PRT_Head) < 1 && !mHeadModel.empty())
             {
                 markSkinModel(mHeadModel);
                 addOrReplaceIndividualPart(ESM::PRT_Head, -1, 1, mHeadModel);
             }
-            if (mPartPriorities[ESM::PRT_Hair] < 1 && mPartPriorities[ESM::PRT_Head] <= 1 && !mHairModel.empty())
+            if (mSlots.priority(ESM::PRT_Hair) < 1 && mSlots.priority(ESM::PRT_Head) <= 1 && !mHairModel.empty())
                 addOrReplaceIndividualPart(ESM::PRT_Hair, -1, 1, mHairModel);
         }
         if (mViewMode == ViewMode::HeadOnly)
@@ -411,20 +379,11 @@ namespace MWRender
         const std::vector<const ESM::BodyPart*>& parts
             = getBodyParts(race, !mNpc->isMale(), mViewMode == ViewMode::FirstPerson, isWerewolf,
                 MWBase::Environment::get().getWorld()->getStore().get<ESM::BodyPart>());
-        for (int part = ESM::PRT_Neck; part < ESM::PRT_Count; ++part)
-        {
-            if (merged && std::binary_search(mMergedSlots.begin(), mMergedSlots.end(), part))
-                continue;
-            if (mPartPriorities[part] < 1)
-            {
-                const ESM::BodyPart* bodypart = parts[part];
-                if (bodypart)
-                {
-                    markSkinModel(bodypart->mModel);
-                    addOrReplaceIndividualPart((ESM::PartReferenceType)part, -1, 1, bodypart->mModel);
-                }
-            }
-        }
+        const std::span<const int> skip = merged ? std::span<const int>(mMergedSlots) : std::span<const int>();
+        mSlots.addBodyParts(parts, skip, *this, [this](ESM::PartReferenceType part, const ESM::BodyPart& bodyPart) {
+            markSkinModel(bodyPart.mModel);
+            attachPart(part, -1, bodyPart.mModel, {}, nullptr);
+        });
         // Task 0074: the parts that stayed (body parts, head, hair) get back the controllers clearControllers dropped.
         relinkSurvivingParts();
     }
@@ -487,7 +446,9 @@ namespace MWRender
     bool Npc::attachMergedBody(bool isWerewolf)
     {
         // Re-attached on every call: updateParts' clearControllers dropped the controllers linked last time.
+        Misc::LoadTrace::Scope traceDetach("npc.mergedbody.detach");
         removePath(mMergedBody);
+        traceDetach.end();
         mMergedSlots.clear();
         if (!MergedBodies::enabled() || mMergedRetired)
             return false;
@@ -525,12 +486,17 @@ namespace MWRender
         }
         // Stage e: the regions that equipment or a reservation covers are left out of this actor's draws, by the stock
         // parts' own rule (a slot's body part is not drawn while an inventory group holds the slot).
-        const std::vector<int> hidden = Body::hiddenMergedSlots(result.mSlots, mPartslots, mPartPriorities);
+        const std::vector<int> hidden = Body::hiddenMergedSlots(result.mSlots, mSlots.groups(), mSlots.priorities());
 
         Misc::LoadTrace::Scope traceAttach("npc.mergedbody.attach");
         vsg::ref_ptr<vsg::Node> node = result.mNode;
+        Misc::LoadTrace::Scope traceDecorate("npc.mergedbody.decorate");
         auto decorated = MWAnim::decorate(node, nullptr, false);
-        if (!MergedBodies::applyHiddenRegions(*node, *result.mNode, result.mDrawRuns, hidden))
+        traceDecorate.end();
+        Misc::LoadTrace::Scope traceRegions("npc.mergedbody.regions");
+        const bool regionsApplied = MergedBodies::applyHiddenRegions(*node, *result.mNode, result.mDrawRuns, hidden);
+        traceRegions.end();
+        if (!regionsApplied)
         {
             // The fallback of stage d: the stock parts entirely. Only an actor that has drawn the merged body retires
             // (one swap each way); one first built dressed may still take it once undressed.
@@ -541,13 +507,10 @@ namespace MWRender
         }
 
         // The stock parts of the merged slots go (body parts are added with group -1 and priority 1).
-        for (const int slot : result.mSlots)
-        {
-            if (mPartslots[slot] < 0 && mPartPriorities[slot] >= 1)
-                removeIndividualPart(static_cast<ESM::PartReferenceType>(slot));
-        }
+        mSlots.releaseBodyParts(result.mSlots, *this);
         // Any bone serves as the attachment: the skin's matrices are relative to it, and the vertices are in the
         // skeleton's space with the inverse of each bone's rest matrix (mergedbody.cpp).
+        Misc::LoadTrace::Scope traceLink("npc.mergedbody.link");
         auto path = MWAnim::attachBonesAndNode(
             node, *nodeToAddChildrenTo(), animation->bones, MWAnim::sPartBones.at(ESM::PRT_Groin));
         if (path.empty())
@@ -583,9 +546,11 @@ namespace MWRender
 
     void Npc::removeIndividualPart(ESM::PartReferenceType type)
     {
-        mPartPriorities[type] = 0;
-        mPartslots[type] = -1;
+        mSlots.remove(type, *this);
+    }
 
+    void Npc::detachPart(ESM::PartReferenceType type)
+    {
         mPartControllers.forget(type);
         removePath(mParts[type]);
     }
@@ -629,32 +594,21 @@ namespace MWRender
 
     void Npc::reserveIndividualPart(ESM::PartReferenceType type, int group, int priority)
     {
-        if (priority > mPartPriorities[type])
-        {
-            removeIndividualPart(type);
-            mPartPriorities[type] = priority;
-            mPartslots[type] = group;
-        }
-    }
-
-    void Npc::removePartGroup(int group)
-    {
-        for (int i = 0; i < ESM::PRT_Count; i++)
-        {
-            if (mPartslots[i] == group)
-                removeIndividualPart((ESM::PartReferenceType)i);
-        }
+        mSlots.reserve(type, group, priority, *this);
     }
 
     bool Npc::addOrReplaceIndividualPart(ESM::PartReferenceType type, int group, int priority, const std::string& mesh,
         std::optional<vsg::vec4> glowColor, const ESM::Light* light)
     {
-        if (priority <= mPartPriorities[type])
+        if (!mSlots.take(type, group, priority, *this))
             return false;
+        attachPart(type, group, mesh, glowColor, light);
+        return true;
+    }
 
-        removeIndividualPart(type);
-        mPartslots[type] = group;
-        mPartPriorities[type] = priority;
+    void Npc::attachPart(ESM::PartReferenceType type, int group, const std::string& mesh,
+        std::optional<vsg::vec4> glowColor, const ESM::Light* light)
+    {
         vsg::ref_ptr<vsg::Node> animGroup;
         std::string bonename = MWAnim::sPartBones.at(type);
         if (type == ESM::PRT_Weapon)
@@ -684,27 +638,23 @@ namespace MWRender
             if (!soundId.empty())
                 soundsToPlay.emplace(soundId);
         }
-        return true;
     }
 
-    void Npc::addPartGroup(
-        int group, int priority, const std::vector<ESM::PartReference>& parts, std::optional<vsg::vec4> glowColor)
+    std::vector<PartSlots::WornPart> Npc::wornParts(const std::vector<ESM::PartReference>& parts) const
     {
         bool firstPerson = (mViewMode == ViewMode::FirstPerson);
         bool female = !mNpc->isMale();
         auto& bodyPartStore = MWBase::Environment::get().getWorld()->getStore().get<ESM::BodyPart>();
+        std::vector<PartSlots::WornPart> result;
+        result.reserve(parts.size());
         for (const ESM::PartReference& part : parts)
         {
-            if (auto bodypart = getBodyPart(firstPerson, female, part, bodyPartStore))
-            {
-                if (bodypart->mData.mType == ESM::BodyPart::MT_Skin)
-                    markSkinModel(bodypart->mModel);
-                addOrReplaceIndividualPart(
-                    (ESM::PartReferenceType)part.mPart, group, priority, bodypart->mModel, glowColor);
-            }
-            else
-                reserveIndividualPart((ESM::PartReferenceType)part.mPart, group, priority);
+            const ESM::BodyPart* bodypart = getBodyPart(firstPerson, female, part, bodyPartStore);
+            if (bodypart && bodypart->mData.mType == ESM::BodyPart::MT_Skin)
+                markSkinModel(bodypart->mModel);
+            result.push_back({ static_cast<ESM::PartReferenceType>(part.mPart), bodypart });
         }
+        return result;
     }
 
     void Npc::addWeapon()

@@ -17,6 +17,7 @@
 #include "../mwworld/ptr.hpp"
 
 #include "partcontrollers.hpp"
+#include "partslots.hpp"
 
 namespace vsg
 {
@@ -35,7 +36,8 @@ namespace MWAnim
 namespace MWRender
 {
 
-    class Npc : public MWAnim::Wielding
+    // Task 0069 stage e review: the part slot bookkeeping is PartSlots; Npc does its node work (PartSlots::Nodes).
+    class Npc : public MWAnim::Wielding, private PartSlots::Nodes
     {
         MWWorld::Ptr mPtr;
 
@@ -114,8 +116,10 @@ namespace MWRender
             Vampire
         } mNpcType;
 
-        int mPartslots[ESM::PRT_Count]; // Each part slot is taken by clothing, armor, or is empty
-        int mPartPriorities[ESM::PRT_Count];
+        // Which inventory group holds each part slot, and at what priority (task 0069 stage e review: the bookkeeping
+        // of removeIndividualPart, reserveIndividualPart, the old removePartGroup and addOrReplaceIndividualPart moved
+        // there).
+        PartSlots mSlots;
 
         std::unique_ptr<MWAnim::Face> mFace;
 
@@ -131,9 +135,12 @@ namespace MWRender
 
         bool addOrReplaceIndividualPart(ESM::PartReferenceType type, int group, int priority, const std::string& mesh,
             std::optional<vsg::vec4> glowColor = {}, const ESM::Light* light = {});
-        void removePartGroup(int group);
-        void addPartGroup(int group, int priority, const std::vector<ESM::PartReference>& parts,
-            std::optional<vsg::vec4> glowColor = {});
+        // The node of a part that took its slot (the second half of addOrReplaceIndividualPart): read, attach, sound.
+        void attachPart(ESM::PartReferenceType type, int group, const std::string& mesh,
+            std::optional<vsg::vec4> glowColor, const ESM::Light* light);
+        void detachPart(ESM::PartReferenceType type) override;
+        // A worn item's parts as the equipment pass sees them (getBodyPart for this sex and view); marks skin models.
+        std::vector<PartSlots::WornPart> wornParts(const std::vector<ESM::PartReference>& parts) const;
         void addWeapon();
         void addCarriedLeft();
         void addAmmo();
