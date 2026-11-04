@@ -29,6 +29,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testswitches.cpp
     mwrender/testextentsync.cpp
     mwrender/testmapdepthrange.cpp
+    mwrender/testpartcontrollers.cpp
 
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp
