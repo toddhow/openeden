@@ -38,6 +38,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testnpcrebuild.cpp
     mwrender/testpartreaderrors.cpp
     mwrender/testquiverupdate.cpp
+    mwrender/testthumbnailstate.cpp
     mwrender/testcreatureglow.cpp
     mwrender/testcompiledupdates.cpp
     mwrender/testattachammo.cpp

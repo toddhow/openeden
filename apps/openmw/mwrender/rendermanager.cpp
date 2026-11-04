@@ -15,6 +15,7 @@
 #include <vsg/app/CommandGraph.h>
 #include <vsg/app/CompileManager.h>
 #include <vsg/app/RenderGraph.h>
+#include <vsg/core/Exception.h>
 #include <vsg/core/Objects.h>
 #include <vsg/io/write.h>
 #include <vsg/threading/OperationThreads.h>
@@ -132,6 +133,7 @@
 #include "screenshotinterface.hpp"
 #include "shadow.hpp"
 #include "terrainstorage.hpp"
+#include "thumbnailstate.hpp"
 #include "water.hpp"
 #include "weather.hpp"
 #include "weathereffects.hpp"
@@ -2502,50 +2504,98 @@ namespace MWRender
 
     void RenderManager::setupScreenshotInterface()
     {
-        // OpenEden (screenshots, third review round): the save thumbnail is a copy made inside the frame it shows, by
-        // a Render::FrameCapture at the end of the main command graph (after the scene, tonemap and post-process,
-        // before the GUI graph), read once that frame's fence has signalled. It used to count retrieve() calls to
-        // numFrames() and read the copy without knowing the frame had finished, with no host barrier. A request that
-        // cannot be copied gives no thumbnail instead of holding the save. The state is shared with the capture's
-        // callbacks, which never refer to this RenderManager.
-        struct Thumbnail
-        {
-            bool waiting = false;
-            bool failed = false;
-            vsg::ref_ptr<Render::Screenshot> copy;
-        };
-        auto thumbnail = std::make_shared<Thumbnail>();
-        mScreenshotInterface->request = [this, thumbnail](int w, int h) {
-            *thumbnail = Thumbnail{};
-            thumbnail->waiting = true;
-            const bool accepted = mThumbnailCapture
-                && mThumbnailCapture->request(
-                    [thumbnail](vsg::ref_ptr<Render::Screenshot> copy) {
-                        thumbnail->copy = copy;
-                        thumbnail->waiting = false;
-                    },
-                    [thumbnail] {
-                        thumbnail->failed = true;
-                        thumbnail->waiting = false;
-                    },
-                    VkExtent2D{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) });
-            if (!accepted)
+        // OpenEden (screenshots, third and fourth review rounds): the save thumbnail is a copy made inside the frame it
+        // shows, by a Render::FrameCapture at the end of the main command graph (after the scene, tonemap and
+        // post-process, before the GUI graph), read once that frame's fence has signalled. It used to count retrieve()
+        // calls to numFrames() and read the copy without knowing the frame had finished, with no host barrier. A
+        // request that cannot be copied gives no thumbnail instead of holding the save. The state is shared with the
+        // capture's callbacks, which never refer to this RenderManager, and is a ThumbnailState: every request has a
+        // generation, so the late callback of an abandoned save cannot answer the next one.
+        using Reader = std::function<vsg::ref_ptr<vsg::Data>()>;
+        auto state = std::make_shared<ThumbnailState<Reader>>();
+        mScreenshotInterface->request = [this, state](int w, int h) {
+            const std::uint64_t generation = state->begin();
+            const VkExtent2D size{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) };
+            Log(Debug::Info) << "Save thumbnail requested: " << w << " x " << h;
+            if (mThumbnailCapture)
             {
-                thumbnail->failed = true;
-                thumbnail->waiting = false;
+                // The middle of the window in the thumbnail's aspect ratio, scaled with linear filtering
+                // (FrameCapture::beforeRecord).
+                const bool accepted = mThumbnailCapture->request(
+                    [state, generation](vsg::ref_ptr<Render::Screenshot> copy) {
+                        state->delivered(generation, [copy]() -> vsg::ref_ptr<vsg::Data> {
+                            // A small picture, read on the main thread (no file is written: no name was given).
+                            copy->operate();
+                            return copy->downloadData;
+                        });
+                    },
+                    [state, generation] { state->failed(generation); }, size);
+                // A request is already waiting for its frame: it is the same picture and its callbacks answer.
+                if (!accepted)
+                {
+                    Log(Debug::Info) << "Save thumbnail request merged into the one still waiting for its frame";
+                    state->merged();
+                }
             }
+            else if (!mEngine.hasWindow())
+            {
+                // A headless engine (VSGOPENMW_INDIRECT): its image is never presented and Engine::loop waits for each
+                // frame's fences, so the image holds the last frame and the copy can be made and waited for here.
+                try
+                {
+                    const auto device = mEngine.getOrCreateDevice();
+                    const auto image = mEngine.colorImageView(0)->image;
+                    const VkExtent2D extent = mEngine.swapchainExtent();
+                    auto scaled
+                        = Render::createScaledDownloadCommands(device, image, Render::cropToAspect(extent, size),
+                            image->format, mEngine.getPresentLayout(), size, Render::DownloadSync::Transfer);
+                    if (scaled && Render::submit(device, scaled->commands) == VK_SUCCESS)
+                    {
+                        const Render::HostBuffer target = scaled->target;
+                        state->delivered(generation, [device, target]() -> vsg::ref_ptr<vsg::Data> {
+                            return Render::readDownloadedBuffer(device, target);
+                        });
+                    }
+                    else
+                        state->failed(generation);
+                }
+                catch (const vsg::Exception& e)
+                {
+                    Log(Debug::Warning) << "Save thumbnail skipped: " << e.message << " VkResult " << e.result;
+                    state->failed(generation);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Save thumbnail skipped: " << e.what();
+                    state->failed(generation);
+                }
+            }
+            else
+                state->failed(generation);
         };
-        mScreenshotInterface->retrieve = [thumbnail]() -> std::pair<vsg::ref_ptr<vsg::Data>, bool> {
-            if (thumbnail->waiting)
+        mScreenshotInterface->retrieve = [state]() -> std::pair<vsg::ref_ptr<vsg::Data>, bool> {
+            auto result = state->retrieve();
+            if (!result.ready)
                 return { {}, false };
             vsg::ref_ptr<vsg::Data> data;
-            if (thumbnail->copy)
+            if (result.copy)
             {
-                // A small picture: read here, on the main thread (no file is written: no name was given).
-                thumbnail->copy->operate();
-                data = thumbnail->copy->downloadData;
+                // Called by SaveGame::run outside its try block, in the loop callback: a throw here would end the game
+                // (Engine::frame catches only std::exception, and MappedData::create throws vsg::Exception), so a
+                // thumbnail that cannot be read is no thumbnail.
+                try
+                {
+                    data = (*result.copy)();
+                }
+                catch (const vsg::Exception& e)
+                {
+                    Log(Debug::Warning) << "Save thumbnail skipped: " << e.message << " VkResult " << e.result;
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Save thumbnail skipped: " << e.what();
+                }
             }
-            *thumbnail = Thumbnail{};
             return { data, true };
         };
     }
