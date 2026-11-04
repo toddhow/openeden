@@ -16,6 +16,8 @@
 
 namespace
 {
+#include <files/shaders/lib/view/cascades.glsl>
+
     // The entry of a constant the Slang twins declare (task 0072), or none.
     const Resource::SettingsConstantInfo* findConstant(const std::string& identifier)
     {
@@ -157,7 +159,11 @@ namespace Resource
         source.str("");
         add("cEnableShadows", Settings::Manager::getBool("enable shadows", "Shadows"), source, *constants);
         add("cPCSS", Settings::Manager::getBool("percentage closer soft shadows", "Shadows"), source, *constants);
-        add("cShadowMapCount", Settings::Manager::getInt("number of shadow maps", "Shadows"), source, *constants);
+        // The shadow system draws at most maxCascades maps (View::Shadow); the shaders' cascade arrays hold that many
+        // (lib/view/cascades.glsl), and a larger count would read past them.
+        add("cShadowMapCount",
+            std::clamp(Settings::Manager::getInt("number of shadow maps", "Shadows"), 1, maxCascades), source,
+            *constants);
         add("cBlockerSamples", std::clamp(Settings::Manager::getInt("blocker samples", "Shadows"), 0, 16), source,
             *constants);
         add("cShadowSamples", std::clamp(Settings::Manager::getInt("pcf samples", "Shadows"), 0, 16), source,

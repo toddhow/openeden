@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <components/resource/shadersettings.hpp>
+#include <components/settings/settings.hpp>
 #include <components/vsgutil/shaderpermutation.hpp>
 
 #include <vsg/core/Value.h>
@@ -20,9 +21,11 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -457,5 +460,35 @@ namespace
                 known = known || candidate == name;
             EXPECT_TRUE(known) << name;
         }
+    }
+    // Task 0072 (review of the water port): the shadow system draws at most four maps (View::Shadow,
+    // lib/view/cascades.glsl), and the shaders' cascade arrays hold four; `number of shadow maps` takes 1 to 8, so the
+    // constant both languages read is clamped to the cascades there are.
+    TEST(ShaderDefines, the_shadow_map_count_constant_never_exceeds_the_cascades)
+    {
+        const Settings::CategorySetting key{ "Shadows", "number of shadow maps" };
+        const auto saved = Settings::Manager::mUserSettings.find(key);
+        const std::optional<std::string> previous = saved == Settings::Manager::mUserSettings.end()
+            ? std::nullopt
+            : std::optional<std::string>(saved->second);
+        for (const auto& [setting, expected] : { std::pair{ "8", 4 }, std::pair{ "5", 4 }, std::pair{ "3", 3 } })
+        {
+            SCOPED_TRACE(setting);
+            Settings::Manager::mUserSettings[key] = setting;
+            Resource::ShaderSettings settings;
+            const auto found = settings.constants->constants.find(Resource::settingsConstantBase + 62);
+            ASSERT_NE(found, settings.constants->constants.end());
+            const auto* value = dynamic_cast<const vsg::intValue*>(found->second.get());
+            ASSERT_NE(value, nullptr);
+            EXPECT_EQ(value->value(), expected);
+            const auto* module = dynamic_cast<const vsg::ShaderModule*>(settings.objects.at("shadow.settings").get());
+            ASSERT_NE(module, nullptr);
+            EXPECT_NE(module->source.find("const int cShadowMapCount = " + std::to_string(expected) + ";"),
+                std::string::npos);
+        }
+        if (previous)
+            Settings::Manager::mUserSettings[key] = *previous;
+        else
+            Settings::Manager::mUserSettings.erase(key);
     }
 }
