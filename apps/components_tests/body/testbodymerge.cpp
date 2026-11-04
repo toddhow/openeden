@@ -1036,7 +1036,9 @@ TEST(BodyMergeReview, a_huge_or_absurd_placement_is_refused_before_any_cast)
         const MergeResult result = mergeParts({ part }, {});
         EXPECT_FALSE(result.ok()) << expect;
         if (!result.ok())
+        {
             EXPECT_TRUE(hasMessage(result, "placement")) << expect << ": " << result.mErrors.front();
+        }
         EXPECT_TRUE(result.mBody.mPositions.empty());
     };
     Mat34 translation = identityPlacement;
