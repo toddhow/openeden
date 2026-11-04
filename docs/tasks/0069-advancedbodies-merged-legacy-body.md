@@ -34,9 +34,9 @@ Morrowind builds a person from about twenty small meshes hung on the skeleton. T
 ### Stage a. Measure the stock parts on the user's real data (no behaviour change)
 
 Build `openmw --analyse-bodies`: a read-only game mode (needs the ESM store and the VFS, like the LOD bake modes; no window beyond the usual quiet one, `OPENEDEN_QUIET_WINDOW=1`) over a new `components/bodynif` reader. For every (race, sex) and every beast race it prints, as canonical JSON and as text: the selected part records (ids and slot only), per part vertices, triangles, bones, influence histogram, skinned or rigid, shape names per file, material keys; per **seam** (each adjacent slot pair listed in research note 0032 section 1): boundary vertex counts, the nearest cross-part boundary distance (count under 1e-4 units, minimum, median, 95th percentile, maximum), overlap depth, gap size, `max abs(wA - wB)` of the weights of nearest pairs, count of pairs whose UVs differ, angle between normals (median, maximum); file sizes; the number of head skin records per race and sex.
-- [ ] The report answers each row of research note 0032 section 8 with numbers, for the playable races of both sexes and for the beast races.
-- [ ] The report is deterministic (same bytes twice), written under `I:\Projects\OpenEden-work\bodies\analysis\`; the stage log records **aggregates only** and a **go/no-go table** with its reasons: weld tolerance rule applied to the real histograms and the number it gives; whether seams coincide, overlap or gap; weight disagreement; whether beast races follow the structure; whether rigid parts exist; head record counts; the size and time estimate from the formula in note 0032 section 4 with the measured V and R. **No-go** (any seam family whose parts neither coincide nor overlap in a way a nearest-neighbour ring weld can fix) revises stage b before it starts and is reported to toddhow.
-- [ ] `components/bodynif` has unit tests on synthetic NIF records built in memory (one skinned shape, two shapes with names for the skin filter, a rigid shape, a hostile file: zero bones, weights for a missing vertex, huge counts; refused with located errors).
+- [x] The report answers each row of research note 0032 section 8 with numbers, for the playable races of both sexes and for the beast races.
+- [x] The report is deterministic (same bytes twice), written under `I:\Projects\OpenEden-work\bodies\analysis\`; the stage log records **aggregates only** and a **go/no-go table** with its reasons: weld tolerance rule applied to the real histograms and the number it gives; whether seams coincide, overlap or gap; weight disagreement; whether beast races follow the structure; whether rigid parts exist; head record counts; the size and time estimate from the formula in note 0032 section 4 with the measured V and R. **No-go** (any seam family whose parts neither coincide nor overlap in a way a nearest-neighbour ring weld can fix) revises stage b before it starts and is reported to toddhow.
+- [x] `components/bodynif` has unit tests on synthetic NIF records built in memory (one skinned shape, two shapes with names for the skin filter, a rigid shape, a hostile file: zero bones, weights for a missing vertex, huge counts; refused with located errors).
 - [ ] With the mode not used, nothing changes: unit tests and the 32 Lua tests pass.
 
 ### Stage b. The merger as a pure library (synthetic meshes only)
@@ -123,7 +123,40 @@ See the end of the design doc's section 7A (the same list, numbered, each with a
 
 ## Stage log (implementer's notes)
 
-*(Empty. Nothing is built.)*
+### Stage a, 2026-11-03: the stock parts measured (`--analyse-bodies`, `components/bodynif`)
+
+**Result: go, with a changed scope for stage b.** The go/no-go table and every aggregate number are in research note
+0033; the raw report is under `I:ProjectsOpenEden-workodiesnalysis` and is never committed. In one line: forearm to
+wrist and knee to ankle share their ring exactly (all 40 units, within 0.0011 units); every other joint is overlapping
+closed shells or a gap; 16 of 19 human parts are rigid, only the chest and hands are skinned; no seam has skin on both
+sides.
+
+- **Built:** `components/bodynif` (`skinnedshape.*` reader, `seamanalysis.*` measurements, `analysisreport.*` report),
+  `apps/openmw/bodyanalyser.*` and the `--analyse-bodies` option (read-only; main thread, one race and sex per frame;
+  the report is byte-identical on a second run), module guide `components/bodynif/CLAUDE.md`.
+- **Found while measuring, and built in response:** the first run found nothing meeting: rigid parts are in their attach
+  bone's space and skinned parts in the skin's, so a rest pose from the skeleton file (`readRestPose`) places both; a left
+  rigid part is mirrored in x in the bone's space as the engine does (`decorate`); a skinned part goes to its bind pose
+  (formula in the note, **not yet proved** against the engine's skinning); closed parts have no boundary, so the pairing
+  also runs over all vertices; the window grew from 2 to 6 units after overlaps were found larger than 2.
+- **Tests:** `BodyNifFilter`, `BodyNifReader`, `BodyNifHostile`, `BodyNifRestPose`, `BodyNifPlacement`, `BodyNifBoundary`,
+  `BodyNifDistribution`, `BodyNifPartStats`, `BodyNifMakePart`, `BodyNifSeam`, `BodyNifReportTotals/Aggregate/Json/Text`
+  (71 tests with the `TwoHands` fixture), synthetic records and meshes only. Red run before implementing: yes for the
+  reader, the seam maths, the report, the rest-pose placement, the mirror and the skinned bind pose (and the rigid
+  placement test fails when the placement line is disabled). **Not red first:** the edge census and bounds and the
+  all-vertex pairing tests were written just after their code (the first real-data run showed they were needed). One test
+  fixture error was corrected: the synthetic grids number their UVs from 0, so the seam test needed matching UVs.
+- **Results of the unit tests (Windows):** `components-tests` 4846, `openmw-tests` 859, `eden-studio-tests` 578, all
+  passing. **Not run:** the 32 Lua integration tests and the Linux gate (so the box "with the mode not used, nothing
+  changes: unit tests and the 32 Lua tests pass" stays open); the mode adds one option and one `if (bodyAnalyser)` per
+  frame.
+- **Threads:** every function in `components/bodynif` is pure; `BodyAnalyser::update` runs on the main thread inside the
+  frame callback. No game window of its own: the test game ran with `OPENEDEN_QUIET_WINDOW=1`.
+- **Not verified:** see research note 0033 section 7 (bind-pose formula, signed gap along the centre line, window, only
+  vanilla data, no first person, no clothing).
+
+Open for toddhow after reading note 0033: the recommendation in its section 6 (merge without welding the overlapping
+joints first, weld only the two exact seams at 0.01 units, cap removal later) and whether stage b starts.
 
 ## Answers of toddhow, 2026-11-03
 

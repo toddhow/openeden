@@ -30,6 +30,13 @@ Rules and pitfalls for new OpenEden code here. Rendering has its own guide, `mwr
 - **World (task 0017):** `OMW::ExtensionWorld`, made only with extensions loaded. Engine code tells it what happens through `MWBase::ExtensionManager`, from any thread: cells load on a worker, contacts come from physics threads. It queues under a lock, and `ExtensionHost::deliverWorldEvents` delivers on the main thread just before `Input`, so extension code never runs elsewhere. It maps objects to entity IDs by the address of their reference, and is the units boundary for event positions.
 - **Zero extensions:** after startup's discovery, which still lists what is installed, every call returns at once and no listener is installed.
 
+## Body analysis (task 0069)
+
+`openmw --analyse-bodies [--bake-gi-out DIR]` (`bodyanalyser.*`, over `components/bodynif`) measures the stock body parts of the
+loaded data and writes `<DIR or user data>/analysis/bodies.json` and `bodies.txt`, then quits. It is read-only, runs
+on the main thread one race and sex per frame, and keeps the plain view distance like the bakes (`sLodBakeRun`). The
+report names the user's own records: never commit it. Results: research note 0033.
+
 ## Checking it
 
 `openmw-tests` runs `ExtensionHost` against real test extension libraries (`apps/openmw_tests/extension/`), but no unit test runs the engine loop. To check the phase calls, install the test extension, run the game with `OPENEDEN_TEST_EXTENSION_LOG=<file>` and `--extension=<id> --skip-menu --auto-quit 100`, then run `tools/check_extension_phases.sh <file>`. For data, settings, saves and Lua events, run `tools/extension_data_check/check.sh`; for the world, `tools/extension_world_check/check.sh`; for the sample extension, `tools/extension_example_check/check.sh`. Each needs an empty work folder, and no test extension left in the build folder's `extensions/`.
