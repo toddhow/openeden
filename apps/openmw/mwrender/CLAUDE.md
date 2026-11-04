@@ -165,7 +165,29 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   live paging range (`squareReplaceable`, with hysteresis inside the range), a cluster with no live objects (object
   paging off: `Camera::mLiveObjectsPage`) or whose square reaches past their range. The budget governs the replaceable
   items only; an overrun the others cause is logged once per change (`mOverBudget`), never fixed with holes. So in map
-  view a budget cannot bound memory: that is an open decision for toddhow (task 0060 stage log, third review).
+  view a budget cannot bound memory **unless the tier evicts far clusters** (next bullet; toddhow's decision of
+  2026-11-04, option b). On the medium and high tiers, and with object paging off, the overrun is only reported.
+- **Far cluster eviction (minimal and low tiers, task 0060 stage log, "Far cluster eviction"):**
+  `FarTierSettings::mEvictFarClusters` (`fartier.*`) is true for minimal and low. Then a cluster that reaches past the
+  live paging range is ALSO replaceable (`ResidencyItem::mReplaceable = live || ground`, `LodClusters::update`) when
+  the ground beneath it has been drawn for `Lod::groundStableFrames` (30) in a row: every cell of its square is inside
+  the paging range (live terrain) or has its centre inside a drawn terrain tile (`Lod::groundDrawnOver`, tiles from
+  `LodTerrain::drawnGround()`, passed in `LodClusters::Camera::mGround`). Losing the ground counts at once, and the same
+  combined flag goes into `cancelEviction`, so an eviction in progress is cancelled the moment the ground goes. A
+  cluster that is not loaded WAITS for its ground (`Lod::clusterWaitsForGround`: not wanted by the planner for up to
+  `Lod::groundWaitFrames` (120) of missing ground) instead of being admitted as an item with no fallback: without the
+  wait the Sim showed every cluster loaded in the 30 frames before its ground counted, or in the one frame the ground
+  flickered, and evicted again (60 loads and frees per cluster in 6,000 frames). After the wait (the sea, a tile that
+  failed to build) it is an item with no fallback, loaded and kept, as before. **The planner itself was not changed**
+  (it only gained `ResidencyPlan::mNoFallbackBytes`, the bytes an overrun is made of): the rule is "what counts as a
+  fallback". Needs object paging (`mLiveObjectsPage`) and `LodTerrain` (without a terrain pack no ground is known and
+  nothing is evicted this way). `Stats::mFarEvictions`, `mWaitingForGround`, `mNoGround` and `mNoFallbackBytes` are in
+  the "LOD clusters:" log line and the over-budget message.
+  Clusters whose square is not wholly covered by drawn tiles (out of view: `LodTerrain` builds only what is in view; or the
+  sea) have "no ground" and are kept whatever the budget says: 4 to 6 in the climb. **Packs are per platform:** the terrain
+  pack baked on Windows fails the staleness check on Linux (no tile is used, the far land is missing); bake on the
+  platform that runs (task 0060 stage log, "The weak-GPU run"). The Linux bake needs a small window (the bake draws a
+  frame between its 10 ms slices; a frame on llvmpipe costs seconds).
 - **Two cooldowns, counted in frames:** the eviction cooldown (`mCooldown`: set when the planner frees a wanted item;
   replaceable items only) and the failure back-off (`mFailureCooldown`: every item; `failureCooldownFrames` doubles the
   base for each further failure, up to 16 times the base). Frames, not seconds: the clusters' 600-frame base capped at 9,600 frames is 160 s at
@@ -179,9 +201,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   to its children (`RefinementTile::mStays`).
 - **Clusters freed while wanted** are marked `mEvicted`, fade out through the hand-over (`Lod::stepCoverage`) and are
   not wanted again until gone; if the square stops being replaceable meanwhile the free is cancelled.
-- **Tests:** `apps/components_tests/lod/testresidency.cpp`. Its `ClientSim` and terrain Sim mirror the clients' order
-  and rules; they are not the clients, which have no unit test (they need a compile context and a store). Change a
-  client's order and its Sim together.
+- **Tests:** `apps/components_tests/lod/testresidency.cpp`. Its `ClientSim`, `FarSim` (the cluster client with the
+  ground rule) and terrain Sim mirror the clients' order and rules; they are not the clients, which have no unit test
+  (they need a compile context and a store). Change a client's order and its Sim together.
 
 ## Cell-load trace and NPC animation preload (task 0060, note 0026)
 
