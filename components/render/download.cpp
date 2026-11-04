@@ -177,7 +177,11 @@ namespace Render // namespace vsgExamples
     {
         auto [commands, dstImage] = createDownloadCommands(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
         submit(device, commands);
+        return readDownloadedImage(device, dstImage);
+    }
 
+    vsg::ref_ptr<vsg::Data> readDownloadedImage(vsg::Device* device, vsg::ref_ptr<vsg::Image> dstImage)
+    {
         vsg::ref_ptr<vsg::Data> array;
         switch (dstImage->format)
         {

@@ -7,6 +7,7 @@
 #include <set>
 
 #include <vsg/app/Window.h>
+#include <vsg/commands/Commands.h>
 #include <vsg/io/write.h>
 
 namespace Render
@@ -39,9 +40,19 @@ namespace Render
         srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     }
 
+    void Screenshot::copyNow()
+    {
+        auto [commands, copy] = createDownloadCommands(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
+        submit(device, commands);
+        mCopy = copy;
+    }
+
     void Screenshot::operate()
     {
-        downloadData = download(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
+        if (mCopy)
+            downloadData = readDownloadedImage(device, mCopy);
+        else
+            downloadData = download(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
         if (!writeFilename.empty() && downloadData)
             vsg::write(downloadData, writeFilename.string(), writeOptions);
     }

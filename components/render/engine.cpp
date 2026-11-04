@@ -9,6 +9,7 @@
 #include <memory>
 #include <stdexcept>
 
+#include <vsg/app/RecordAndSubmitTask.h>
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/SecondaryCommandGraph.h>
 #include <vsg/app/Viewer.h>
@@ -16,6 +17,7 @@
 #include <vsg/commands/Commands.h>
 #include <vsg/core/Exception.h>
 #include <vsg/vk/Device.h>
+#include <vsg/vk/Fence.h>
 #include <vsg/vk/Surface.h>
 
 #include <components/debug/debuglog.hpp>
@@ -559,6 +561,55 @@ namespace Render
         else
             return vsg::ref_ptr{ new Screenshot(
                 getOrCreateDevice(), mHeadless->colorImageView->image, mHeadless->presentLayout) };
+    }
+
+    vsg::ref_ptr<Screenshot> Engine::captureScreenshot()
+    {
+        // imageIndex(1) is the image acquired one frame before the current one (vsg::Window::acquireNextImage shifts
+        // _indices), i.e. the frame presented last. Before a second image was acquired, and after the swapchain is
+        // rebuilt, it is numFrames() (the initial value Window::buildSwapchain gives _indices), which imageView() would
+        // index past the end.
+        if (mWindow && mWindow->imageIndex(1) >= mWindow->numFrames())
+        {
+            Log(Debug::Warning) << "Screenshot skipped: no frame has been presented yet";
+            return {};
+        }
+        auto operation = screenshotOperation();
+        if (!operation)
+            return {};
+        // The frame callback runs after advanceToNextFrame, so fence(1) of each task is that frame's (vsg::
+        // RecordAndSubmitTask::fence). A fence with no dependencies was never submitted (or nothing was recorded) and
+        // would never signal. No task thread resets these fences meanwhile: Viewer::recordAndSubmit returns only after
+        // every task has submitted, and the next frame's start() comes after this callback.
+        constexpr uint64_t timeoutNs = 19999999999; // as loop() waits for a headless frame
+        for (auto& task : mViewer->recordAndSubmitTasks)
+        {
+            const vsg::ref_ptr<vsg::Fence> fence = task->fence(1);
+            if (!fence || !fence->hasDependencies())
+                continue;
+            if (const VkResult result = fence->wait(timeoutNs); result != VK_SUCCESS)
+            {
+                Log(Debug::Warning) << "Screenshot skipped: waiting for the last frame returned VkResult " << result;
+                return {};
+            }
+        }
+        // The copy used to fail inside the operation, which logs and goes on (vsgUtil::Operation::run); here it would
+        // end the frame loop.
+        try
+        {
+            operation->copyNow();
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Warning) << "Screenshot skipped: " << e.what();
+            return {};
+        }
+        catch (const vsg::Exception& e)
+        {
+            Log(Debug::Warning) << "Screenshot skipped: " << e.message << " VkResult " << e.result;
+            return {};
+        }
+        return operation;
     }
 
     size_t Engine::numFrames() const

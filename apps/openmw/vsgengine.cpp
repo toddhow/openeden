@@ -54,7 +54,11 @@ namespace
     void screenshot(Render::Engine& engine, vsg::ref_ptr<vsg::OperationThreads> threads,
         const std::filesystem::path& path, vsg::ref_ptr<const vsg::Options> writeOptions)
     {
-        auto operation = engine.screenshotOperation();
+        // OpenEden: the image is copied now, on the main thread; the worker only writes the file (Engine::
+        // captureScreenshot: a copy made later on the worker could hold a later frame).
+        auto operation = engine.captureScreenshot();
+        if (!operation)
+            return;
         operation->writeOptions = writeOptions;
         operation->generateFilename(path, Settings::general().mScreenshotFormat);
         threads->add(operation);

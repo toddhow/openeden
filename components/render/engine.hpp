@@ -90,6 +90,13 @@ namespace Render
 
         // Hosted, null while the window has zero size (a collapsed splitter): capturing it would crash.
         vsg::ref_ptr<Screenshot> screenshotOperation();
+        // The frame presented last, copied now (OpenEden, 2026-11-04): waits for that frame's fences, then copies its
+        // swapchain image on the GPU and waits for the copy, on this thread (Screenshot::copyNow); the operation only
+        // reads the copy and writes the file when it runs. Copied later, on a busy worker, the image had been
+        // acquired and drawn into again: six requests on six frames held one right frame and five later ones. Call it
+        // from the frame callback of loop() (main thread, after advanceToNextFrame and before recordAndSubmit). Null,
+        // with a warning, when there is no presented frame to copy yet.
+        vsg::ref_ptr<Screenshot> captureScreenshot();
         size_t numFrames() const;
         vsg::ref_ptr<vsg::ImageView> colorImageView(size_t relativeFrameIndex);
         vsg::ref_ptr<vsg::ImageView> depthImageView();
