@@ -368,16 +368,30 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 - **Threads (task 0074d):** the clocks (`PartControllers::update`) run on the actor's update thread: a
   `vsgUtil::UpdateThreads` worker for an NPC or creature (`Scene::update`, one operation per cell), the main thread for
   the player and the inventory preview. Everything else in `PartControllers` runs on the main thread in the part update,
-  never while that actor's update runs (the main thread waits for the workers).
-- **A throw in a part update (task 0074d):** `vsgUtil::readNode` throws when the file cannot be opened:
+  never while that actor's update runs (the main thread waits for the workers). **`Npc::update` compiles nothing and
+  edits no graph** (task 0074e, finding 3): `[Game] weapon sheathing`'s quiver change (`mQuiverDirty`, set by `show()`)
+  is done by `Npc::updatePendingQuiver` on the main thread, in `Scene::update` after `mUpdateThreads->run` (which ends
+  in `waitIdle`) and in `Player::update`. `CompileContext::compile` calls `vsg::updateViewer`, which writes the
+  command graph, the bins and the database pager without a lock, so it is main thread only.
+- **A throw in a part update (task 0074d, corrected and changed in 0074e):** `vsgUtil::readNode` throws when the file cannot be opened:
   `vsgAdapters::vfs::read` opens it through `VFS::Manager::get` outside `nif::read`'s catch, so an Eden Archive entry
   that fails its check or is over `maxOpenSize`, or an I/O error of a BSA or loose file, throws (a missing file, or one
-  no reader accepts, gets `Resource::Fallback`'s node instead). The Lua delayed action or mwscript catches it. The kept
-  parts and the merged body are linked again on every way out (`PartControllers::runUpdate`), and every equipment
-  change and rebuild compiles the actor also on a throw (`MWRender::runEquipmentUpdate`): before, the parts attached
-  before the throw were drawn uncompiled and the game crashed. Open (toddhow's decision): the update still stops at the
-  throw, so while the broken item is worn the actor misses the body parts added after it (OpenMW 0.51 catches per
-  part).
+  no reader accepts, gets `Resource::Fallback`'s node instead). **A part's own read is caught, as OpenMW 0.51 does**
+  (task 0074e, finding 7: `Npc::insertBoundedPart` logs "Error adding NPC part" and returns false, so `attachPart` makes
+  no sound; `WieldingCreature::addItemPart` logs "Can not add creature part"): the slot stays taken and the body part
+  under it stays hidden, and the update completes. What still throws (the ammunition's, holstered items' and quiver's
+  reads, a value that is not a `std::exception`) reaches the caller, and who catches it differs: Lua's delayed action
+  logs it; mwscript logs it and puts the target in `mInactive` (its script is off for the session); the inventory,
+  barter and container windows lose the rest of the frame's input (`Engine::frame`); a mechanics-driven change (torch
+  auto-equip at dusk, AI combat's ActionEquip, spell effects, race changes, werewolf and vampire rebuilds) has no catch
+  before `Game::run`'s, which ends the game session. The kept parts and the merged body are linked again on every way
+  out (`PartControllers::runUpdate`), and every equipment change and rebuild compiles the actor also on a throw
+  (`MWRender::runEquipmentUpdate`, through `runCompiledUpdate` and `runRebuild`). After such a throw the merged body's
+  regions are those of the last update that succeeded (`attachMergedBody` never ran). **A rebuild reads before it
+  touches the actor** (finding 1): `Npc::makeBasePlan` names the files, `applyBasePlan` reads the skeleton, the
+  custom bones and the animations into locals, and only then removes the parts and swaps the `MWAnim::Play`; the
+  `CharacterController`, `Actor::mHead/mSpine/mRoot`, the player's neck and the pose and IK bones point into that Play,
+  so a read that throws after the swap left them on freed memory. Keep every read before `removeAllParts`.
 - **Tracing it:** `OPENEDEN_AUTOPLAY_TRACE=<text>` (`autoplaytrace.*`) logs, every frame, an `AUTOPLAYTRACE` line for
   each NPC or weapon-carrying creature whose record id or name contains the text: the static, weapon and face list
   sizes, each auto-play group's phase group, timer, controller count and light colours, the object's own groups first
@@ -386,14 +400,25 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   only in heads, the face's morpher; armour and clothing in `meshes/a` and `meshes/c` have no auto-play node either),
   so a kept part's clock needs a modded or test part (task 0074b's stage log).
 - **Inventory and carried lights (task 0074d):** `removeItemLight` removes an inventory light only when none of the
-  item is left, and forgets the item, so adding it again brings the light back (OpenMW 0.51's
-  `ActorAnimation::itemRemoved`); before, removing one of a stack took the light away for good. A weapon-carrying
-  creature's carried light is decorated with its light (`WieldingCreature::linkPart`), as an NPC's torch is.
+  item is left, and forgets the item (OpenMW 0.51's `ActorAnimation::itemRemoved`); before, removing one of a stack
+  took the light away for good and the map entry and node leaked. (A re-add after the count reached 0 is a new stack
+  and a new `Ptr`, and worked before: `ContainerStoreIteratorBase` skips count-0 entries.) A weapon-carrying
+  creature's carried light is decorated with its light (`WieldingCreature::linkPart`), as an NPC's torch is, and
+  `MWAnim::decorate` turns any node given a light by -90 degrees about X (as 0.51's `ActorAnimation::attach`): **a
+  creature's torch is therefore drawn rotated now, a visible change of the default game** (task 0074d, recorded in
+  0074e). `linkPart` adds the glow's environment data only with a glow colour (`addEnv` dereferences it whenever the
+  alpha is not 1).
 - **Checking it:** the equipment scene of `tools/mergedbody_check` (`SCENE=equipment`, stock): frames 009, 010, 045 and
   046 show the chest through the pants and loincloth when the controllers are lost. The part code runs in unit tests
   through `Npc`'s test constructor (`TestSetup`), `runPartUpdate`, `removeAllParts`, `attachMergedCopy` and
   `WieldingCreature::linkPart` (`apps/openmw_tests/mwrender/testnpcparts.cpp`); a change that empties `autoPlay`, stops
-  running a clock or puts a part's auto-play controllers into `autoPlay` fails it.
+  running a clock or puts a part's auto-play controllers into `autoPlay` fails it. Task 0074e's seams: `Npc::runRebuild`
+  (`testnpcrebuild.cpp`), `insertBoundedPart` and `WieldingCreature::addItemPart` (`testpartreaderrors.cpp`),
+  `runPendingQuiver` (`testquiverupdate.cpp`), `runCompiledUpdate` of both classes and the real `updateEquipment` of a
+  test actor, whose part update throws on the empty `Ptr` (`testcompiledupdates.cpp`); the shared fakes are in
+  `partstestsupport.hpp`. `Npc::rebuild`'s own call into `runRebuild` has no test (it needs a record). The in-game
+  throw scene is the 0074d clocks scene with a bad Eden Archive (not in the repository); a rebuild-time throw cannot be
+  provoked in game (every file a rebuild reads was read before and is cached).
 - **The slot bookkeeping is `PartSlots`** (`partslots.*`, task 0069 stage e review): which inventory group holds each
   part slot and at what priority, the equipment pass (`wear`: slot list, priorities, robe and skirt reservations,
   part-less parts), the race's body parts (`addBodyParts`) and the merged body taking its slots (`releaseBodyParts`),

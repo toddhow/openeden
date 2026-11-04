@@ -276,7 +276,8 @@ then the implementation; then every one of the reviewer's mutations built and ru
   `VFS::Manager::get` outside `nif::read`'s catch, so an Eden Archive entry that fails its check
   (`EdenArchiveFile::open`), one over `maxOpenSize`, or an I/O error of a BSA or loose file, reaches
   `Npc::insertBoundedPart` and `WieldingCreature::addPart`. The Lua delayed action (`LuaManager::DelayedAction::apply`)
-  or mwscript catches it and the game runs on, but `updateEquipment` had skipped `compile()`. Now
+  or mwscript catches it and the game runs on (**corrected in 0074e, finding 2: true for Lua, not for mwscript, the
+  windows or the mechanics callers**), but `updateEquipment` had skipped `compile()`. Now
   `MWRender::runEquipmentUpdate` (`equipmentupdate.hpp`) compiles also when the update throws and passes the exception
   on; `Npc::updateEquipment`, `Npc::rebuild` and `WieldingCreature::updateEquipment` use it. A unit test reads through
   `vsgAdapters::vfs` and `Resource::Fallback` over a VFS whose `open()` throws: the error reaches `readNode`'s caller,
@@ -287,7 +288,8 @@ then the implementation; then every one of the reviewer's mutations built and ru
   `Npc::detachPart` now takes the part's recorded static, face and weapon controllers out of the live lists
   (`unlinkController`) before it forgets the part. `updateNpcBase` and a failed `compile()` start with
   `removeAllParts`, which empties the lists first, so a throw from the skeleton or animation reads that follow leaves
-  nothing pointing into a removed node.
+  nothing pointing into a removed node (**corrected in 0074e, finding 1: true of the part lists only; the freed Play
+  was still in use by the CharacterController and the bone pointers**).
 - **The first review's findings 8 and 9 (never handled before):** 8, the tests covered the helper only: see finding 4.
   9, the docs: "restores OpenMW's behaviour" is now true for auto-play and inventory lights too (0074b, 0074d); the fix
   also relinks first-person arm parts (kept parts there too), not verified in game; its "Weapon branch unreachable" no
@@ -322,7 +324,9 @@ then the implementation; then every one of the reviewer's mutations built and ru
   and kept the item in its map, so `addItemLight` (which returns early for a known item) never added it again: removing
   one light of a stack of two took the light away for good. As in OpenMW 0.51 (`ActorAnimation::itemRemoved`,
   `removeHiddenItemLight`, 442eec6e2f), the light now goes only when the item's count is 0, and the item is forgotten
-  with it; the node leaves through the compile context's `detach`.
+  with it; the node leaves through the compile context's `detach`. (**Corrected in 0074e, finding 8:** a re-add after
+  the count reached 0 is a new stack and a new `Ptr` and already worked; the change is that removing part of a stack
+  keeps the light and the map entry and node no longer leak.)
 - **Item B, a creature's carried light:** `WieldingCreature::addPart` passed no light to `MWAnim::decorate`; OpenMW
   0.51's `CreatureWeaponAnimation::updatePart` attaches a light record with its light (`addExtraLight`). `addPart` now
   passes it (`linkPart`), as `Npc::insertBoundedPart` does for an NPC's torch.
@@ -373,3 +377,127 @@ then the implementation; then every one of the reviewer's mutations built and ru
      so its update completes without the broken part. Recommended: the same catch in `Npc::attachPart` and
      `WieldingCreature::addPart`. It changes what a script sees (no exception) and is outside this task's brief.
   2. Items A and B change the default game, as recorded in their commits and the changelog.
+
+**2026-11-04, fresh review of 0074d (task 0074e)** (`ffff7348e4` finding 1, `552288bb32` finding 7, `b252b644c4`
+finding 3, `e8af356972` finding 9, `e16260dda3` finding 5, then the docs). The review is
+`I:\Projects\OpenEden-work\0074d\REVIEW-0074d.md`: items A and B of 0074d match OpenMW 0.51, and
+`unlinkController`/`removeAllParts` are correct, but the throw-path claims went further than the code. Method: full loop.
+A separate test-writing agent wrote the tests from `I:\Projects\OpenEden-work\0074e\test-spec.md` (written from the
+review) without seeing the implementation, against a tree of stub seams that keep the old behaviour; red run:
+`I:\Projects\OpenEden-work\0074e\red` (`summary.txt`: 18 of the 29 tests failed, for the reason they name; the 11 that
+passed are the guards, the helper check and the cases the old code already met). The stub tree was then replaced by the
+real seams, one finding per commit, each built and its tests run (`openmw-tests` 978 of 978 at the end; the
+implementing agent added two cases to `testcompiledupdates.cpp`, below). The red run is of the whole stub tree, not
+repeated per commit.
+
+- **Finding 1, use after free when a rebuild throws (pre-existing; 0074d's "safe" claim was wrong):** `updateNpcBase`
+  replaced `animation` (destroying the old `MWAnim::Play`), then read the custom-bone files and the animations. A read
+  that throws (`vsgUtil::readNode` and `vsg::read_cast` go through `vsgAdapters::vfs`) left
+  `CharacterController::mAnimation` (refreshed only by `forceStateUpdate`), `Actor::mHead/mSpine/mRoot`, the Player's
+  neck and the pose and IK bone pointers pointing into the freed Play; when a script or Lua catches, the game runs on
+  into them. Now `makeBasePlan` decides the names (head, hair, skeleton, custom-bone files, animations), `applyBasePlan`
+  reads the skeleton, every custom-bone file and the animations into locals, and only then runs `removeAllParts`, sets
+  the models and swaps the Play; `runRebuild` (the rebuild's seam: apply, parts, compile, refresh) compiles and gives the
+  `CharacterController` the new Play (`refresh` is `MechanicsManager::forceStateUpdate`) on every way out of the part
+  update. A read that throws leaves the actor exactly as it was. Tests: `NpcRebuildTest` (7), a reader that throws at
+  the skeleton, the first and the second custom-bone file, the first and the last animation file: the Play is the same
+  object with the same bones, `getHead()`, `mHeadModel`, a part inserted before and its controller are unchanged, and
+  neither `parts` nor `refresh` ran. **Not proven in game:** no run could make a rebuild's animation read throw. Every
+  file a rebuild reads was read by the same actor's build before (the options cache), and a corrupt file fails that
+  first read, so a rebuild-time throw needs a file that changes between two reads. What the runs did show
+  (`runs\f1-*`): the player's rebuild by the first/third person toggle works as before (no error, same frames, build
+  before and after); `Player->SetWerewolf 1` from the start script changed nothing visible, so the werewolf rebuild was
+  not exercised. The use after free is argued from the code and the unit tests, not seen. `Npc::rebuild` itself (the
+  one call into `runRebuild`) has no test: it needs a record.
+- **Finding 7, a per-part catch, as OpenMW 0.51 (changes the default game):** `Npc::insertBoundedPart` catches a
+  `const std::exception&` from `vsgUtil::readNode`, logs "Error adding NPC part: ...", returns false (nothing had changed
+  yet), and `attachPart` then skips the sound entry; `WieldingCreature::addItemPart` (`addPart`'s work for one item, the
+  seam) catches around `mContext.readNode` ("Can not add creature part: ..."). Reference: OpenMW 0.51
+  `NpcAnimation::addOrReplaceIndividualPart` (`442eec6e2f:apps/openmw/mwrender/npcanimation.cpp`: slot and priority set
+  before the `try`, `catch (std::exception& e)` logs and `return false` before the sound) and
+  `CreatureWeaponAnimation::updatePart` (`creatureanimation.cpp`). The slot stays taken and the body part under it stays
+  hidden, as in 0.51; the update completes (the actor gets its chest, arms and the merged body's regions).
+  `runEquipmentUpdate` stays as the outer guard for the throw sites left (the ammunition, the holstered items and the
+  quiver; a value that is not a `std::exception`). Tests: `PartReadErrorsTest` (3) and `CreaturePartReadErrorsTest`
+  (1). **In game** (`runs\f7-before`, `runs\f7-after`: the 0074d clocks scene with its bad Eden Archive,
+  `SKIP_STEPS=glove`, executables `openmw-0074e-before.exe`, the tree before this task, and `openmw-0074e-after.exe`):
+  before, "Error in DelayedAction SetEquipmentAction: Failed to read 'meshes/oe_bad/weapon.nif'" and frame 003 (shirt and
+  the bad weapon) shows NPC A with the shirt but no arms and no lower legs; after, "Error adding NPC part: Failed to read
+  ..." and frame 003 shows the whole body; the creature's bad shield logs "Can not add creature part: ..." and the
+  dremora keeps drawing. Both runs exit 0 with no dump.
+  **Callers, corrected (review finding 2; the 0074d stage log, the guide and the changelog said "the delayed action or
+  mwscript catches it and the game runs on", true for few callers):** Lua (`LuaManager::DelayedAction::apply`) logs;
+  mwscript (`ScriptManager::run`) logs and puts the target in `mInactive`, so its script stays off for the session; the
+  inventory, barter and container windows lose the rest of the frame's input (`Engine::frame`'s
+  `InputManager::update` catch, `vsgengine.cpp`); a mechanics-driven change (torch auto-equip at dusk, `aicombataction`
+  ActionEquip, autoEquip from spell effects and race changes, werewolf and vampire rebuilds) has no catch before
+  `Game::run`'s (`game.hpp`: "Emergency Save", returns false) and `Engine::frame` pops the Game state: **the session
+  ends**. A cell-load constructor is caught per object ("failed to render", `mwworld/scene.cpp`). None of this is a
+  regression. With finding 7 a bad part file reaches none of them; what still does (ammunition, holstered items, the
+  quiver, a rebuild's reads) is as listed. What changes for scripts, default game: mwscript no longer disables the
+  target's script, Lua's `SetEquipmentAction` no longer logs an error (the renderer does), a mechanics-driven change no
+  longer ends the session.
+- **Finding 3, compile on an update worker (pre-existing, from V4's `a7c43f8346`; nothing changes by default: `[Game]
+  weapon sheathing` is off):** `Npc::update` ran `updateQuiver(); compile();` for every actor but the player on a
+  `vsgUtil::UpdateThreads` worker (`Scene::update` dispatches one operation per cell). The traversal is serialised
+  (`CompileManager`), but `CompileContext::compile` then calls `vsg::updateViewer`, which writes the command graph, the
+  view's bins and the database pager without a lock, so a worker and another worker or the cell preloader could race;
+  the quiver edit touched the graph on the worker, and a failed compile ran `removeAllParts` (hence
+  `PartControllers::forget`) there. Now `Npc::update` only leaves `mQuiverDirty` (set by `show()`), and
+  `Npc::updatePendingQuiver` (`runPendingQuiver`: the change, then the compile also when the change throws; a
+  `std::exception` is logged, not passed on, since it runs in the render update where an exception ends the session)
+  runs on the main thread: `MWRender::Scene::update` after `mUpdateThreads->run` (which ends in `waitIdle`) for every
+  actor (a `dynamic_cast` per actor per frame), `Player::update` for the player (already the main thread,
+  `RenderManager::update` calls it). `partcontrollers.hpp` and the guide now say so. Tests: `QuiverUpdateTest` (6).
+  **Not proven in game:** a smoke run with sheathing on (`runs\f3-after-sheath`) exits 0 with no dump and no error
+  beyond the bad part's; no scene drew a weapon or a bow and checked the quiver, and a race is not reproducible by a
+  run, so the argument is the code and the tests.
+- **Finding 9, undefined behaviour in `addEnv` (pre-existing):** `WieldingCreature::linkPart` called `addEnv(node,
+  glowColor, getTransparency(*this))` without a colour; `addEnv` (`mwrender/env.cpp`) dereferences it whenever the alpha
+  is not 1, so an invisible or chameleon weapon-carrying creature changing to an unenchanted item read an empty
+  `optional`. Guarded with `if (glowColor)`, as `Npc` does. `CreatureGlowTest` (2): the transparent creature's weapon
+  gets no object data without a colour, and the colour and the alpha with one. Not seen in game (undefined behaviour).
+- **Finding 5, the tests now reach the call sites:** `Npc::updateEquipment` and `WieldingCreature::updateEquipment` run
+  their node work through `runCompiledUpdate` (the real `compile()`, also when the work throws); `Npc::rebuild` through
+  `runRebuild`. `CompiledUpdatesTest` (11): a throwing callable (a `std::exception` and another value) through both
+  seams; the real `updateEquipment` of a test actor (**these two cases were added by the implementing agent**: a test
+  actor has no record, so its part update fails at once on the empty `Ptr`, `MWWorld::Ptr::getClass` throws, and the
+  actor is still compiled once); a carried flickering light item gives the creature one flickering light; a weapon
+  inserted and removed in one update leaves `mWeaponControllers`. **Mutations**, applied together, built
+  (`openmw-tests`) and run, the source restored (`I:\Projects\OpenEden-work\0074e\mut`): `Npc::updateEquipment`
+  compile-only-on-success fails `the_real_npc_update_equipment_compiles_when_its_part_update_throws`; the same for the
+  creature fails `the_real_creature_update_equipment_compiles_when_its_part_update_throws`; `addItemPart`'s light back to
+  nullptr fails `a_carried_flickering_light_item_gives_the_creature_one_flickering_light`; the Weapon case of
+  `detachPart` deleted fails `a_weapon_inserted_and_removed_in_one_update_leaves_the_weapon_list`; `runRebuild` without
+  the refresh on a throw fails `NpcRebuildTest.when_the_part_update_throws_the_actor_is_compiled_and_refreshed_with_its_new_play`
+  (5 failed, 24 others passed). **Not caught:** `Npc::rebuild` bypassing `runRebuild` (it needs a record).
+- **Finding 6, the merged body after a throw:** before finding 7 a throw in the equipment pass never reached
+  `attachMergedBody`, and the kept copy was linked again (`relinkKeptControllers`) with the previous
+  `mMergedHidden`/`mMergedSlots`: poke-through or a hole until an update succeeded. A `std::exception` from a part read
+  no longer stops the pass, so the regions are recomputed in that case; for the throw sites that remain (ammunition,
+  holstered items, the quiver) the stale coverage still exists until the next update that succeeds.
+- **Finding 4, a visible default-game change missed in 0074d:** `MWAnim::decorate` rotates a node it is given a light
+  for by -90 degrees about X (`components/mwanimation/decorate.cpp`; OpenMW 0.51 `ActorAnimation::attach(..., isLight)`
+  rotates the same, `442eec6e2f:apps/openmw/mwrender/actoranimation.cpp`), and 0074d's `cafbc65b71` passed a creature's
+  carried light, so a creature's torch is now drawn turned toward the camera at the hip instead of horizontal with the
+  flame at its side (frames `0074d\runs\before\stock\frames\screenshot001.png` and
+  `0074d\runs\after-all\stock\frames\screenshot001.png`). It matches NPC torches and 0.51. Recorded now in the changelog.
+- **Finding 8, corrections to 0074d's text:** the changelog's "comes back when the item is added again" is wrong for a
+  re-add after the count reached 0: that is a new stack and a new `Ptr` (`ContainerStoreIteratorBase::operator++` and
+  `begin` skip count-0 entries, `containerstore.cpp`), so it worked before; what changed is that removing part of a stack
+  no longer removes the light, and the map entry and node no longer leak. Test L2 (`testitemlights.cpp`) re-adds the same
+  `Ptr`, which the container never does (it still guards the erase). `0074d\mut\summary.txt` said "b3: build failed";
+  the rerun's `b3.tests.log` shows the 3 failures, now written there.
+- **The final equipment check** (the after executable, `tools/mergedbody_check` `SCENE=equipment`, stock and merged,
+  `runs\equip`): both exit 0 with no dump, 49 frames each, 32 actors draw the merged body; frames 009 (stock and merged),
+  045 (stock) and 046 (merged) viewed: no chest through the pants or loincloth, the same visible body.
+- **Not verified:** the Linux gate (full build and GCC `-Werror` on the changed units) and the Lua integration tests;
+  a fresh reviewer has not read 0074e; first person beyond the toggle above; the werewolf rebuild; whether any vanilla
+  creature carries a light. clang-format 14 was run on the changed lines (clean).
+- **For toddhow (decisions):**
+  1. **Finding 7, finding 3 (only with sheathing on) and the creature torch change the default game:** a bad part file
+     no longer stops an equipment change (mwscript scripts stay on, mechanics changes no longer end the session, the
+     actor keeps its other parts; the broken part's slot stays taken and its body part hidden, as 0.51); a creature's
+     torch is drawn rotated -90 degrees (finding 4); a pending quiver change is done at the end of the actor's update.
+  2. The remaining throw sites (ammunition, holstered items, the quiver, a rebuild's reads) still end a
+     mechanics-driven session; 0.51 has no catch there either. Say if a catch there is wanted.
