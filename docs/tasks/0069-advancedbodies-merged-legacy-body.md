@@ -50,9 +50,9 @@ Build `openmw --analyse-bodies`: a read-only game mode (needs the ESM store and 
 ### Stage c. The payload layout, the cache and `openmw --bake-bodies`
 
 A strict canonical reader and writer for the `bodymesh` payload (one generic entry in the derived pack; layout version 0 is a **draft**; it freezes after toddhow's approval, like the tile layout S1), the key computation, the pack writer, `openmw --bake-bodies` (the game executable in bake mode, as `--bake-lod-objects`; low priority; one thread per body; a unit per (race, sex); the part byte hashes computed from the files), the `current` pointer, a minimal `status.json` (state, counts, per-body failures with a one-line reason; compatible with the shape of task 0061's contract so the unified baker can adopt it).
-- [ ] A bake of the user's Morrowind data writes the pack; a second bake changes no byte (**byte-identical re-bake**) and reports "up to date"; size and time are recorded next to the stage a estimate.
+- [x] A bake of the user's Morrowind data writes the pack; a second bake changes no byte (**byte-identical re-bake**) and reports "up to date"; size and time are recorded next to the stage a estimate.
 - [ ] **Staleness** (unit tests with a fake VFS and fake records): changing one part's bytes, one record's model path, one record's flags, the skeleton file, the merger version or a parameter changes the key of exactly the bodies it touches and no others; an entry with a non-matching key is ignored; a mod that replaces a part appears as a new key.
-- [ ] **Atomic publish:** a bake killed during the write leaves the previous `current` and a complete previous pack; a half-written pack is never read (a test truncates the file at every 4 KiB boundary and bit-flips every region: the reader refuses each, never crashes, never allocates over the cap; the fuzz test follows the Eden Archive's, `docs/tasks/0052-*.md`).
+- [x] **Atomic publish:** a bake killed during the write leaves the previous `current` and a complete previous pack; a half-written pack is never read (a test truncates the file at every 4 KiB boundary and bit-flips every region: the reader refuses each, never crashes, never allocates over the cap; the fuzz test follows the Eden Archive's, `docs/tasks/0052-*.md`).
 - [ ] The layout is written down (`docs/spec/` or the task) and approved by toddhow before it freezes; a frozen layout refuses any other version.
 
 ### Stage d. The engine path, behind `[Bodies] merged body` (off by default)
@@ -209,3 +209,81 @@ only so far (stage c runs them in the bake mode or on a worker).
   and their validator rules, the conformance fixture of B1's suite, a fresh reviewer, the 32 Lua tests and the Linux
   gate. The merger takes bone names as given: the adapter lower-cases or maps them (stage c), and the engine's mirror
   of "Left" bone parts is the caller's `mMirror`. The normal merge rule is the equal-weight mean, not area weighted.
+
+### Stage c, 2026-11-03: the payload, the cache, `--bake-bodies`, `--check-bodies` (commits `9c1042c603`, `fe7b70c474`)
+
+**Built.** In `components/body`: `meshFormat "bodymesh"` and the optional `weldGroups` part of the package format with the
+rules `BODY-WELD-001` to `007` (stage b's leftovers); `bodymesh.*` (the payload, layout version 0, a DRAFT, written down
+in `docs/spec/bodymesh-payload-v0-draft.md`); `bodycache.*` (`computeBodyKey`, `bodyEntryName`, the manifest, `publishCache`,
+`loadCurrentCache`, the status file). In `apps/openmw`: `bodybaker.*` and the options `--bake-bodies` and `--check-bodies`
+(wiring in `main.cpp`, `options.cpp`, `arguments.hpp`, `vsgengine.cpp`: a few lines each, as `--analyse-bodies` has;
+`MWRender::sLodBakeRun` is set so that the long view distance is not used). Threads: the pure functions run anywhere;
+`BodyBaker::update` runs on the main thread, one race and sex per call; god mode is switched on at the start, as the
+object bake learned.
+
+**Tests first, red first.** `apps/components_tests/body/testbodymesh.cpp`, 25 tests written before the code against stubs
+(the header and a `not implemented` body): **20 failed, 5 passed** (the five were refusal tests that a stub passes
+vacuously); after the implementation all 25 pass; `components-tests` 4947, `openmw-tests` 859, `eden-studio-tests` 578
+pass on Windows. Covered: the format round trip and canonical writer, every WELD rule with its code and path, hostile
+weld groups (65,537 groups, a negative index, a fractional index, an unknown key); the payload round trip byte for byte,
+**every truncation refused, a bit flip refused or canonical for every byte** (three bits per byte), hostile counts (all
+eight set to 0xFFFFFFFF), a wrong magic, a wrong version, a trailing byte, thirteen bad bodies (NaN, infinity, indices,
+weights, regions, submeshes, weld groups, names) refused by the writer; the key (every input changes it, the part order
+does not, another body's key does not move), the entry names (safe lower-case paths, no collision between `Dark Elf`,
+`dark_elf` and `Dark-Elf`), the manifest (round trip, strict reader: duplicates, order, over-long lines, control
+characters, version), publishing (published, loaded, re-published identically, a second publish moves `current` and keeps
+the old pack, a killed bake leaves the previous cache readable, a bad or unsafe pointer refused, **the pack truncated at
+every 4 KiB and bit-flipped every 97 bytes refused or harmless**).
+
+**Real data** (Morrowind, Tribunal, Bloodmoon; 20 races and sexes, third person; a copy of toddhow's config; user data
+`I:\Projects\OpenEden-work\bodies\bake`, never committed). Beast races were baked too (the stage a structure allows it):
+Argonian and Khajiit give 1,860 to 1,920 vertices and no failure.
+
+| | |
+| --- | --- |
+| bodies / failures | 20 / 0 |
+| input vertices into output vertices | 1,483 to 1,922 into 1,477 to 1,920 (2 to 6 vertices fewer: only the exact seams weld) |
+| weld sets per body | 30 (the four exact seams); 24 to 28 weld groups (UV and normal creases stay split) |
+| payload per body | 111,508 to 140,862 bytes; 2,367,858 bytes for all 20 |
+| pack `merged-7aeaa1b7184bb7e2.edenpak` | 2,434,032 bytes (store-only, 4 KiB entry alignment) |
+| bake time | the merges of all 20 bodies take 0.24 s of the 3 s the process runs; a second bake that keeps every entry takes 0.17 s |
+| **byte-identical re-bake** | yes: a second bake into the same folder says "up to date (the same pack as before)", 20 kept, 0 merged; a bake into an EMPTY second folder (all 20 merged again) gives the same pack, SHA-256 `a3801420...ced06`, `cmp` equal |
+
+The stage a estimate (note 0032 section 4: 44 to 52 bytes a vertex plus 6 a triangle, about 100 KB a body, 2 MB for 20)
+was close: the measured payload is 56 bytes a vertex and 12 a triangle (u32 indices, float32 weights), 118 KB a body.
+
+**Read-back check** (`--check-bodies`, `check.txt`): for all 20 bodies the key recomputed from the data now equals the
+manifest's, the payload reads, merging the stock parts again gives **the same payload bytes**, every stock vertex has its
+merged vertex within 0.001067 units (the weld tolerance is 0.01; 0 to 34 vertices of a body move at all, the females
+only), and **at five poses (the bind pose and four seeded ones, every bone moved rigidly) the skinned position of every
+vertex the weld did not touch equals the stock skin to 1.6e-5 units** (float rounding). The 68 weld-affected stock
+vertices of each body differ from the stock skin by up to 23 units at the seeded poses: **this is the design, not a
+bug, and stage d must say so in its numbers**: the stock forearm and wrist (and knee and ankle) are rigid parts that hold
+the seam with weight 1.0 on two different bones, so the weight disagreement at the exact seams is 1.0 (the report's
+`mMaxWeightDisagreement`), and the equal-weight mean puts a welded seam vertex halfway between the two bones' motion. The
+difference is bounded by 1.0 times the displacement between the two bones' motions (23 units is what the seeded rotations
+of up to 0.6 rad about the origin give at a vertex 40 units away). In the game a wrist turning against the forearm gives a
+smooth bend at the seam instead of the stock's hard step (and gap or overlap). Whether that looks better or worse is a
+frame question for stage d; the alternative rule (one owner part per seam, decision H17's alternative) is cheap to try.
+The first check run flagged this as a problem because it counted only moved vertices; the report now separates
+weld-affected vertices from the rest and the failing criterion is on the rest (that is a deliberate change of the check's
+rule made after seeing the data, recorded here).
+
+**Not done in stage c.** The conformance fixture of B1's suite for a merged body (the WELD rules are tested in
+`testbodymesh.cpp`, not through the conformance harness); the staleness tests use the key's input struct, not a fake VFS
+and fake records (the adapter that reads the VFS and the records is not unit tested: its behaviour is covered by the real
+data run and the check); a fresh reviewer; the layout approval by toddhow; the 32 Lua tests and the Linux gate; the
+background worker (stage d's neighbour: H15); `bodyanalyser.cpp` and `bodybaker.cpp` duplicate about 80 lines of NIF
+reading helpers (`parseFile`, `shapesOf`, the slot list): a shared header is the cleanup, left out to keep the analysis
+unchanged.
+
+**Starting values to tune with stage d's frames:** the UV tolerance 1e-5 and the normal angle 5 degrees (the merged
+bodies kept 24 to 28 weld groups, i.e. 24 to 28 creases among 30 weld sets: most seam vertices stay split, so the normals
+at the seams are NOT averaged across; the welded vertex count is only 2 to 6 per body), the weld tolerance 0.01.
+
+**What a fresh reviewer must check:** that `check()` is the only rule set and the reader cannot accept what the writer
+would refuse (the bit-flip test asserts it for one small body); the key covers every input of the merge (the skeleton,
+the part FILE bytes, the records' fields the adapter reads; not covered: a change to the engine's skin filter or to
+`Placement`, which the merger version must be bumped for); the god-mode and `sLodBakeRun` handling; that a bake killed
+between the pack and the pointer leaves a valid previous state (the code order: pack first, pointer last); that
+`bodybaker.cpp` fails closed (a race with one unreadable slot is a failure, never a partial body).
