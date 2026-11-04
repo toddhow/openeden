@@ -120,6 +120,33 @@ set(SHADER_FILES
 
 copy_all_resource_files(${CMAKE_CURRENT_SOURCE_DIR} ${OPENMW_RESOURCES_ROOT} ${DDIRRELATIVE} "${SHADER_FILES}")
 
+# Task 0072, stage h: the Slang compiler in the game compiles a define set that has no prebuilt permutation from the
+# .slang sources, so they travel with the shaders (resources/shaders, installed with the rest of resources/), and so do
+# the library files that compile them byte for byte as the build's slangc does (docs/dependencies.md): slang.dll,
+# slang-compiler.dll, slang-glslang.dll and slang-glsl-module.dll on Windows, three .so files on Linux, in
+# resources/slang. Without the optimiser in slang-glslang the compile succeeds and returns other code, which the game's
+# self-test refuses; without the glsl module Slang writes a cache file into this folder.
+if (OPENEDEN_SLANGC)
+    file(GLOB_RECURSE openeden_slang_sources RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.slang")
+    copy_all_resource_files(${CMAKE_CURRENT_SOURCE_DIR} ${OPENMW_RESOURCES_ROOT} ${DDIRRELATIVE}
+        "${openeden_slang_sources}")
+    get_filename_component(openeden_slang_bin "${OPENEDEN_SLANGC}" DIRECTORY)
+    get_filename_component(openeden_slang_root "${openeden_slang_bin}" DIRECTORY)
+    if (WIN32)
+        set(openeden_slang_libraries "${openeden_slang_root}/bin/slang.dll"
+            "${openeden_slang_root}/bin/slang-compiler.dll" "${openeden_slang_root}/bin/slang-glslang.dll"
+            "${openeden_slang_root}/bin/slang-glsl-module.dll")
+    else()
+        file(GLOB openeden_slang_libraries "${openeden_slang_root}/lib/libslang-compiler.so*"
+            "${openeden_slang_root}/lib/libslang-glslang-*.so" "${openeden_slang_root}/lib/libslang-glsl-module-*.so")
+    endif()
+    foreach (openeden_slang_library ${openeden_slang_libraries})
+        file(COPY "${openeden_slang_library}" DESTINATION "${OPENMW_RESOURCES_ROOT}/resources/slang"
+            FOLLOW_SYMLINK_CHAIN)
+    endforeach()
+endif()
+
 # Shaders written in Slang (task 0023, F1; research note 0005, section 7).
 #
 # openeden_add_slang_shader(SOURCE <file.slang> OUTPUT_DIR <dir under resources/shaders>
@@ -303,6 +330,9 @@ function(openeden_add_slang_permutations)
         endif()
     endforeach()
     file(GENERATE OUTPUT "${out_dir}/${stage_name}.permutations" CONTENT "${manifest}")
+    # Task 0072, stage h: what the game needs to compile another set of this stage at run time (the same source, entry
+    # point and stage this build compiles the listed sets with).
+    file(GENERATE OUTPUT "${out_dir}/${stage_name}.slang-stage" CONTENT "${P_SOURCE}\t${P_ENTRY}\t${P_STAGE}\n")
     string(MAKE_C_IDENTIFIER "${P_STAGE_FILE}" target_suffix)
     add_custom_target(slang_perm_${target_suffix} DEPENDS ${outputs})
     add_dependencies(openeden_slang_shaders slang_perm_${target_suffix})

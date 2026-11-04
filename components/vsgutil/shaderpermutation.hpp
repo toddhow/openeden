@@ -2,6 +2,8 @@
 #define OPENEDEN_VSGUTIL_SHADERPERMUTATION_H
 
 #include <cstdint>
+#include <filesystem>
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -109,8 +111,37 @@ namespace vsgUtil
     /// and each (path, set) is looked up and logged once: an unlisted set, or a listed file that cannot be read, is not
     /// tried again. The process-wide cache holds no module (task 0072, review of stage f, finding 10): once nothing
     /// else holds a module it goes, with the Vulkan objects its compile made, and a later call reads its file again.
-    vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(
-        const std::string& path, const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options);
+    ///
+    /// Task 0072, stage h: when the options carry a SlangRuntime (slangRuntimeKey) and `glsl` is given, a set the
+    /// manifest does not list is compiled at run time (or read from the on-disk cache), after its interface was
+    /// checked against the GLSL stage `glsl` describes; any failure gives null, with one log line, and the GLSL is
+    /// used. Without `glsl` there is no check, so no run-time compile.
+    struct SlangGlslStage
+    {
+        /// The GLSL source of the stage with its includes inserted (what the game compiles).
+        std::string_view mSource;
+        /// The names the pipeline requested of the GLSL compile (the module's hints), before the stage's own import
+        /// list keeps those it imports.
+        const std::set<std::string>* mRequested = nullptr;
+    };
+    vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(const std::string& path, const std::set<std::string>& defines,
+        const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl = nullptr);
+
+    /// Task 0072, stage h: makes the SlangRuntime of `options` (slangRuntimeKey) with the dynamic compiler that
+    /// loads the library from `libraryDirectory` at its first compile, a cache under `cacheDirectory` (empty: none),
+    /// the build's permutation of post/omwfx.vert as the self-test, and `log` for its one-line messages. Needs
+    /// `options` to have its search path (the shader folder) and preferSlang set.
+    void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
+        const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
+        std::function<void(bool warning, const std::string&)> log);
+
+    /// Task 0072, stage h: what a run-time compiled twin must satisfy before it is used. Empty when fine, else the
+    /// reason: the twin's SPIR-V is version 1.0, has no OpSpecConstantOp, and declares nothing the GLSL stage does not
+    /// (the GLSL may declare more: bindings and inputs it never reads, which slangc drops). `set` is the canonical
+    /// define set the twin was built for ("UVSETS_<n>" pins the GLSL's specialization constant 0).
+    std::string checkTwinAgainstGlsl(const std::string& path, const std::set<std::string>& set,
+        const SlangGlslStage& glsl, const std::vector<uint32_t>& twinWords,
+        const vsg::ref_ptr<const vsg::Options>& options);
 
     /*
      * Task 0072, stage f: the texture coordinate sets of the object shader. Its GLSL declares the vertex input and the
@@ -175,6 +206,8 @@ namespace vsgUtil
         /// The compile settings of the GLSL module (its hints: the requested names), kept for glslDefinesOf once a
         /// twin has replaced the module.
         vsg::ref_ptr<vsg::ShaderCompileSettings> glslHints;
+        /// The GLSL source of the stage, for the check of a run-time compiled twin (stage h).
+        std::string glslSource;
     };
 
     inline constexpr const char* slangStageChoiceKey = "openeden.slangStageChoice";

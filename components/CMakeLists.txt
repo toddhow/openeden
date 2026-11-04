@@ -193,10 +193,19 @@ add_component_dir (vsgutil
     # I/O.
     cache virtualfile imageio imagepixels readimage texturecap textureresize decompress readnode readshader share shareimage deletionqueue
     # Slang twins of the GLSL shaders (task 0072).
-    shaderpermutation spirvinterface passstages compilermessage
+    shaderpermutation spirvinterface passstages compilermessage slangruntime
     # Temporary workarounds.
     setbin sharedview
     )
+# Task 0072, stage h: the Slang compiler in the game is loaded at run time (LoadLibrary or dlopen), never linked; the
+# header is needed for the API's types only. Without the pinned archive (no slangc) the file compiles to a stub.
+if (OPENEDEN_SLANGC)
+    get_filename_component(openeden_slang_bin "${OPENEDEN_SLANGC}" DIRECTORY)
+    get_filename_component(openeden_slang_root "${openeden_slang_bin}" DIRECTORY)
+    set_source_files_properties(vsgutil/slangruntime.cpp PROPERTIES
+        COMPILE_DEFINITIONS OPENEDEN_SLANG_RUNTIME=1
+        INCLUDE_DIRECTORIES "${openeden_slang_root}/include")
+endif()
 # Supports MyGUI.
 # Depends on vfs, vsgadapters/mygui.
 add_component_dir (myguiplatform #(mygui

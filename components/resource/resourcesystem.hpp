@@ -47,7 +47,8 @@ namespace Resource
     /// resources/shaders): the `*.settings` reader (Resource::ShaderSettings, made now from the settings), glsl and
     /// spirv readers, shared objects, and `[Rendering] slang shaders` as vsgUtil::preferSlangKey. Task 0072, review of
     /// the stage f and g rounds, finding 1: public, so that tests compile the shaders with the game's own options.
-    vsg::ref_ptr<const vsg::Options> createShaderOptions(const std::string& shaderPath);
+    vsg::ref_ptr<const vsg::Options> createShaderOptions(
+        const std::string& shaderPath, const std::string& cacheDirectory = {});
 
     /*
      * Assembles vsg::Options for reading files.
@@ -57,7 +58,7 @@ namespace Resource
     public:
         explicit ResourceSystem(const VFS::Manager* vfs, const std::string& shaderPath,
             vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin,
-            int depthSortedBin);
+            int depthSortedBin, const std::string& shaderCacheDirectory = {});
         ~ResourceSystem();
 
         /// OpenEden: the weather particle occlusion map, for the model the setting names (task 0012, V4l). Set before

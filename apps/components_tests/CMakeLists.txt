@@ -165,6 +165,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testspirvinterface.cpp
     vsg/testpassstages.cpp
     vsg/testomwfxvertex.cpp
+    vsg/testslangruntime.cpp
     vsg/testpostpasses.cpp
 
     render/testtonemapconstants.cpp
@@ -382,6 +383,12 @@ target_compile_definitions(components-tests PRIVATE
     OPENEDEN_SLANG_ENABLED=$<BOOL:${OPENEDEN_SLANG_SHADERS_BUILT}>)
 if (OPENEDEN_SLANG_SHADERS_BUILT)
     add_dependencies(components-tests openeden_slang_shaders)
+endif()
+# Task 0072, stage h: the tests of the Slang library in the game need it, and the .slang sources, in the build's resources.
+if (OPENEDEN_SLANGC AND OPENEDEN_SLANG_SHADERS_BUILT)
+    target_compile_definitions(components-tests PRIVATE
+        OPENEDEN_SLANG_LIBRARY_DIR="${OPENMW_RESOURCES_ROOT}/resources/slang"
+        OPENEDEN_SLANG_RUNTIME_TESTS=1)
 endif()
 
 if (WIN32)

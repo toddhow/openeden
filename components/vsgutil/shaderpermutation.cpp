@@ -1,8 +1,13 @@
 #include "shaderpermutation.hpp"
 
+#include "slangruntime.hpp"
 #include "spirvinterface.hpp"
 
 #include <chrono>
+#include <string_view>
+#include <iterator>
+#include <filesystem>
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <mutex>
@@ -122,6 +127,8 @@ namespace vsgUtil
         {
             // A file is listed for the set and was read once; false: unlisted or unreadable, not tried again.
             bool mListed = false;
+            // Stage h: the manifest does not list the set, and it is compiled at run time (or read from the cache).
+            bool mRuntime = false;
             std::string mFile;
             vsg::observer_ptr<vsg::ShaderModule> mModule;
         };
@@ -461,8 +468,170 @@ namespace vsgUtil
         return options != nullptr && options->getValue(preferSlangKey, value) && value;
     }
 
-    vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(
-        const std::string& path, const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options)
+    namespace
+    {
+        // A twin module made from SPIR-V words (a run-time compile), with the specialization constant ids it declares
+        // kept on it as readTwin does for a file.
+        vsg::ref_ptr<vsg::ShaderModule> makeTwinModule(std::vector<uint32_t> words)
+        {
+            auto module = vsg::ShaderModule::create(std::move(words));
+            try
+            {
+                auto declared = DeclaredSpecConstants::create();
+                for (const auto& [id, name] : readSpirvSpecConstantNames(module->code))
+                    declared->ids.insert(id);
+                module->setObject(declaredSpecConstantsKey, declared);
+            }
+            catch (const std::runtime_error&)
+            {
+                // As readTwin: left without; addSettingsConstants gives up on it.
+            }
+            return module;
+        }
+
+        // "<stage file>.slang-stage" through the options' paths; the shader folder is where it was found.
+        bool readStageInfo(const std::string& path, const vsg::ref_ptr<const vsg::Options>& options,
+            SlangStageInfo& info, std::filesystem::path& root)
+        {
+            const std::string name = path + ".slang-stage";
+            const vsg::Path found = vsg::findFile(name, options.get());
+            if (found.empty())
+                return false;
+            std::ifstream in(found.string(), std::ios::binary);
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            try
+            {
+                info = parseSlangStageInfo(text);
+            }
+            catch (const std::exception&)
+            {
+                return false;
+            }
+            const std::string whole = found.string();
+            if (whole.size() <= name.size())
+                return false;
+            root = std::filesystem::path(whole.substr(0, whole.size() - name.size()));
+            return true;
+        }
+
+        // A twin compiled at run time for a set the manifest does not list, or null: the GLSL draws it.
+        vsg::ref_ptr<vsg::ShaderModule> runtimeTwin(const std::string& path, const std::set<std::string>& defines,
+            const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage& glsl)
+        {
+            auto* runtime = options ? options->getObject<SlangRuntime>(slangRuntimeKey) : nullptr;
+            if (runtime == nullptr || runtime->disabled())
+                return {};
+            SlangRuntimeRequest request;
+            request.mStageFile = path;
+            request.mDefines = defines;
+            if (!readStageInfo(path, options, request.mInfo, request.mShaderRoot))
+                return {};
+            SlangRuntimeCheck check;
+            // The cache entry is valid for exactly this GLSL: its text and the names it was compiled with.
+            std::uint64_t hash = 1469598103934665603ull;
+            const auto mix = [&hash](std::string_view text) {
+                for (const char ch : text)
+                {
+                    hash ^= static_cast<unsigned char>(ch);
+                    hash *= 1099511628211ull;
+                }
+            };
+            mix(glsl.mSource);
+            if (glsl.mRequested != nullptr)
+            {
+                for (const std::string& name : *glsl.mRequested)
+                    mix(" " + name);
+            }
+            check.mKey = std::to_string(hash) + ":" + std::to_string(glsl.mSource.size());
+            check.mCheck = [&path, &defines, &glsl, &options](const std::vector<uint32_t>& words) {
+                return checkTwinAgainstGlsl(path, defines, glsl, words, options);
+            };
+            auto words = runtime->obtain(request, check);
+            if (words.empty())
+                return {};
+            return makeTwinModule(std::move(words));
+        }
+    }
+
+    void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
+        const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
+        std::function<void(bool warning, const std::string&)> log)
+    {
+        auto runtime = SlangRuntime::create(createDynamicSlangCompiler(libraryDirectory), cacheDirectory);
+        runtime->setLog(std::move(log));
+        // The self-test: the library must reproduce the build's omwfx vertex stage byte for byte. Read through the
+        // manifest like any twin; without it (no permutations built) the runtime has nothing to be checked by, and
+        // stays off.
+        SlangRuntimeRequest request;
+        request.mStageFile = "post/omwfx.vert";
+        request.mShaderRoot = shaderRoot;
+        std::filesystem::path root;
+        const auto shipped = findSlangPermutation(request.mStageFile, {}, options);
+        if (shipped && !shipped->code.empty() && readStageInfo(request.mStageFile, options, request.mInfo, root))
+            runtime->setSelfTest(std::move(request), shipped->code);
+        else
+            return;
+        options->setObject(slangRuntimeKey, runtime);
+    }
+
+    std::string checkTwinAgainstGlsl(const std::string& path, const std::set<std::string>& set,
+        const SlangGlslStage& glsl, const std::vector<uint32_t>& twinWords,
+        const vsg::ref_ptr<const vsg::Options>& options)
+    {
+        const auto endsWith = [&path](std::string_view suffix) {
+            return path.size() >= suffix.size()
+                && path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0;
+        };
+        VkShaderStageFlagBits kind = VK_SHADER_STAGE_VERTEX_BIT;
+        if (endsWith(".frag"))
+            kind = VK_SHADER_STAGE_FRAGMENT_BIT;
+        else if (endsWith(".comp"))
+            kind = VK_SHADER_STAGE_COMPUTE_BIT;
+        else if (!endsWith(".vert"))
+            return "the stage file \"" + path + "\" is not .vert, .frag or .comp";
+        try
+        {
+            const SpirvInterface slang = readSpirvInterface(twinWords);
+            if (slang.mVersion != 0x00010000u)
+                return "the twin is not SPIR-V 1.0";
+            if (slang.mSpecConstantOps != 0)
+                return "the twin has an expression over specialization constants (OpSpecConstantOp)";
+            std::map<uint32_t, uint32_t> pinned;
+            for (const std::string& name : set)
+            {
+                if (isUvSetsDefine(name))
+                    pinned[0] = static_cast<uint32_t>(std::stoul(name.substr(uvSetsPrefix.size())));
+            }
+            auto stage = vsg::ShaderStage::create(kind, "main", std::string(glsl.mSource));
+            std::vector<std::string> requested;
+            if (glsl.mRequested != nullptr)
+                requested.assign(glsl.mRequested->begin(), glsl.mRequested->end());
+            if (!vsg::ShaderCompiler::create()->compile(stage, requested, options) || stage->module->code.empty())
+                return "the GLSL stage does not compile, so there is nothing to compare the twin with";
+            const SpirvInterface reference = readSpirvInterface(stage->module->code, pinned);
+            const SpirvInterfaceDiff diff = compareSpirvInterfaces(slang, reference);
+            for (const std::string& line : diff.mOnlyInFirst)
+            {
+                // The twin's settings constants exist in the twin only (ids from 1000; the GLSL has them as plain
+                // constants).
+                const std::size_t id = line.find("id=");
+                bool settings = false;
+                if (id != std::string::npos
+                    && (line.rfind("spec_constant ", 0) == 0 || line.rfind("spec_constant_default ", 0) == 0))
+                    settings = std::strtoul(line.c_str() + id + 3, nullptr, 10) >= 1000;
+                if (!settings)
+                    return "the twin declares what the GLSL does not: " + line;
+            }
+            return {};
+        }
+        catch (const std::exception& e)
+        {
+            return std::string("the twin cannot be read: ") + e.what();
+        }
+    }
+
+    vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(const std::string& path, const std::set<std::string>& defines,
+        const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl)
     {
         std::string key;
         try
@@ -475,50 +644,92 @@ namespace vsgUtil
         }
         const std::string paths = searchPathsKey(options.get());
         ManifestCache& cache = manifestCache();
-        // Held while a file is read too: a module is read once per (paths, stage, set), and pipelines are made rarely.
-        std::lock_guard lock(cache.mMutex);
         const auto moduleKey = std::make_tuple(paths, path, key);
-        if (const auto known = cache.mModules.find(moduleKey); known != cache.mModules.end())
+        bool compileAtRun = false;
         {
-            ModuleEntry& entry = known->second;
-            if (!entry.mListed)
-                return {};
-            if (auto module = entry.mModule.ref_ptr())
-                return module;
-            // Review of stage f, finding 10: nothing held it any more; read the file again.
-            auto module = readTwin(entry.mFile, options);
-            if (!module)
+            // Held while a file is read too: a module is read once per (paths, stage, set), and pipelines are made
+            // rarely. Not held while a set is compiled at run time (100 to 250 ms).
+            std::lock_guard lock(cache.mMutex);
+            if (const auto known = cache.mModules.find(moduleKey); known != cache.mModules.end())
             {
-                vsg::warn("Slang permutation \"", entry.mFile, "\" is listed but cannot be read; the GLSL is used");
-                entry.mListed = false;
-                return {};
+                ModuleEntry& entry = known->second;
+                if (entry.mRuntime)
+                {
+                    if (auto module = entry.mModule.ref_ptr())
+                        return module;
+                    compileAtRun = glsl != nullptr;
+                }
+                else
+                {
+                    if (!entry.mListed)
+                        return {};
+                    if (auto module = entry.mModule.ref_ptr())
+                        return module;
+                    // Review of stage f, finding 10: nothing held it any more; read the file again.
+                    auto module = readTwin(entry.mFile, options);
+                    if (!module)
+                    {
+                        vsg::warn(
+                            "Slang permutation \"", entry.mFile, "\" is listed but cannot be read; the GLSL is used");
+                        entry.mListed = false;
+                        return {};
+                    }
+                    entry.mModule = module;
+                    return module;
+                }
             }
-            entry.mModule = module;
-            return module;
+            else
+            {
+                ModuleEntry& entry = cache.mModules[moduleKey];
+                auto it = cache.mManifests.find({ paths, path });
+                if (it == cache.mManifests.end())
+                    it = cache.mManifests.emplace(std::make_pair(paths, path), loadManifest(path, options)).first;
+                if (!it->second)
+                    return {};
+                const std::optional<std::string> file = selectPermutation(*it->second, defines);
+                if (!file)
+                {
+                    // Task 0072, stage b (review): a family is ported but this set was never listed; the GLSL draws it
+                    // or, since stage h, the set is compiled at run time.
+                    if (glsl == nullptr || options == nullptr
+                        || options->getObject<SlangRuntime>(slangRuntimeKey) == nullptr)
+                    {
+                        vsg::info(
+                            "Slang permutations of \"", path, "\" have no file for [", key, "]; the GLSL is used");
+                        return {};
+                    }
+                    entry.mRuntime = true;
+                    compileAtRun = true;
+                }
+                else
+                {
+                    const std::size_t slash = path.rfind('/');
+                    const std::string dir = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
+                    auto module = readTwin(dir + *file, options);
+                    if (!module)
+                    {
+                        vsg::warn(
+                            "Slang permutation \"", dir, *file, "\" is listed but cannot be read; the GLSL is used");
+                        return {};
+                    }
+                    entry.mListed = true;
+                    entry.mFile = dir + *file;
+                    entry.mModule = module;
+                    return module;
+                }
+            }
         }
-        ModuleEntry& entry = cache.mModules[moduleKey];
-        auto it = cache.mManifests.find({ paths, path });
-        if (it == cache.mManifests.end())
-            it = cache.mManifests.emplace(std::make_pair(paths, path), loadManifest(path, options)).first;
-        if (!it->second)
+        if (!compileAtRun)
             return {};
-        const std::optional<std::string> file = selectPermutation(*it->second, defines);
-        if (!file)
-        {
-            // Task 0072, stage b (review): a family is ported but this set was never listed; the GLSL draws it.
-            vsg::info("Slang permutations of \"", path, "\" have no file for [", key, "]; the GLSL is used");
-            return {};
-        }
-        const std::size_t slash = path.rfind('/');
-        const std::string dir = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
-        auto module = readTwin(dir + *file, options);
+        auto module = runtimeTwin(path, defines, options, *glsl);
         if (!module)
-        {
-            vsg::warn("Slang permutation \"", dir, *file, "\" is listed but cannot be read; the GLSL is used");
             return {};
-        }
-        entry.mListed = true;
-        entry.mFile = dir + *file;
+        std::lock_guard lock(cache.mMutex);
+        ModuleEntry& entry = cache.mModules[moduleKey];
+        // Another thread may have made the module meanwhile: one module per set, shared by every pipeline.
+        if (auto existing = entry.mModule.ref_ptr())
+            return existing;
+        entry.mRuntime = true;
         entry.mModule = module;
         return module;
     }
@@ -570,7 +781,8 @@ namespace vsgUtil
         const auto defines = slangSelectionSet(path, requested, glslSource, options, numUvSets);
         if (!defines)
             return {};
-        return findSlangPermutation(path, *defines, options);
+        const SlangGlslStage glsl{ glslSource, &requested };
+        return findSlangPermutation(path, *defines, options, &glsl);
     }
 
     bool takeSlangTwinsTogether(vsg::ShaderStages& stages, const std::vector<vsg::ref_ptr<vsg::ShaderModule>>& twins)
@@ -600,12 +812,16 @@ namespace vsgUtil
         auto choice = SlangStageChoice::create();
         choice->path = path;
         choice->glslHints = stage.module->hints;
+        choice->glslSource = stage.module->source;
         const std::set<std::string>& requested = stage.module->hints ? stage.module->hints->defines : noDefines;
         // The same set and rule as slangSelectionSet, worked out once.
         choice->defines = stageDefines(requested, stage.module->source, options.get());
         choice->byPipeline = declaresUvSetArrays(choice->defines) && familyCountsUvSets(path, options);
         if (!choice->byPipeline)
-            choice->twin = findSlangPermutation(path, choice->defines, options);
+        {
+            const SlangGlslStage glsl{ choice->glslSource, &requested };
+            choice->twin = findSlangPermutation(path, choice->defines, options, &glsl);
+        }
         stage.setObject(slangStageChoiceKey, choice);
         return choice;
     }
@@ -622,7 +838,9 @@ namespace vsgUtil
             return choice.twin;
         std::set<std::string> defines = choice.defines;
         defines.insert(uvSetsDefine(numUvSets));
-        return findSlangPermutation(choice.path, defines, options);
+        static const std::set<std::string> noDefines;
+        const SlangGlslStage glsl{ choice.glslSource, choice.glslHints ? &choice.glslHints->defines : &noDefines };
+        return findSlangPermutation(choice.path, defines, options, &glsl);
     }
 
     const std::set<std::string>* glslDefinesOf(const vsg::ShaderStage& stage)

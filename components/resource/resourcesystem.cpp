@@ -1,5 +1,7 @@
 #include "resourcesystem.hpp"
 
+#include <cstdlib>
+
 #include <vsgXchange/images.h>
 // #include <vsgXchange/models.h>
 #include <vsg/io/Options.h>
@@ -11,6 +13,7 @@
 #include <vsg/utils/PropagateDynamicObjects.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
@@ -43,7 +46,8 @@ namespace
 
 namespace Resource
 {
-    vsg::ref_ptr<const vsg::Options> createShaderOptions(const std::string& shaderPath)
+    vsg::ref_ptr<const vsg::Options> createShaderOptions(
+        const std::string& shaderPath, const std::string& cacheDirectory)
     {
         auto options = vsg::Options::create();
         auto shaderSettings = vsg::ref_ptr{ new Resource::ShaderSettings };
@@ -59,6 +63,21 @@ namespace Resource
         options->setValue(vsgUtil::preferSlangKey, Settings::rendering().mSlangShaders.get());
         // Task 0072, stage b: the `*.settings` values the Slang twins take as specialization constants.
         options->setObject(vsgUtil::settingsConstantsKey, shaderSettings->constants);
+        // Task 0072, stage h: with the switch on, a define set with no prebuilt permutation is compiled at run time
+        // and cached under the user data folder. Nothing is loaded here: the library starts at the first compile.
+        if (Settings::rendering().mSlangShaders.get())
+        {
+            // OPENEDEN_SHADER_CACHE names another cache folder (for benchmarks and checks that start from an empty or
+            // a kept cache); the setting's own place is the user data folder.
+            const char* cacheOverride = std::getenv("OPENEDEN_SHADER_CACHE");
+            vsgUtil::createSlangRuntime(options, std::filesystem::path(shaderPath),
+                std::filesystem::path(shaderPath).parent_path() / "slang",
+                std::filesystem::path(
+                    cacheOverride != nullptr && cacheOverride[0] != '\0' ? cacheOverride : cacheDirectory),
+                [](bool warning, const std::string& message) {
+                    Log(warning ? Debug::Warning : Debug::Info) << message;
+                });
+        }
         return options;
     }
 }
@@ -205,9 +224,10 @@ namespace
 namespace Resource
 {
     ResourceSystem::ResourceSystem(const VFS::Manager* vfs, const std::string& shaderPath,
-        vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin, int depthSortedBin)
+        vsg::ref_ptr<vsg::Sampler> defaultSampler, bool supportsCompressedImages, int computeBin, int depthSortedBin,
+        const std::string& shaderCacheDirectory)
         : mVFS(vfs)
-        , shaderOptions(createShaderOptions(shaderPath))
+        , shaderOptions(createShaderOptions(shaderPath, shaderCacheDirectory))
         , builder(new Pipeline::Builder(shaderOptions, defaultSampler))
         , imageOptions(createImageOptions(vfs, !supportsCompressedImages))
         , textureOptions(createTextureOptions(vfs, *imageOptions))
