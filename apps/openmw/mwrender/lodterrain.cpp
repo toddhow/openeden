@@ -535,7 +535,8 @@ namespace MWRender
                     const auto* image = descriptor->cast<vsg::DescriptorImage>();
                     if (!image)
                         continue;
-                    const std::uint32_t binding = image->dstBinding;
+                    // The binding numbers are ints in the shader header shared with C++ (no signed/unsigned compare).
+                    const int binding = static_cast<int>(image->dstBinding);
                     const bool own = binding == Pipeline::Descriptors::HEIGHTMAP_BINDING
                         || binding == Pipeline::Descriptors::NORMALMAP_BINDING
                         || binding == Pipeline::Descriptors::COLORMAP_BINDING
@@ -732,8 +733,8 @@ namespace MWRender
         bool squareDrawnWithout(std::size_t index, const Camera& camera, int depth = 0) const
         {
             const Lod::TileBounds& bounds = mStates[index].mBounds;
-            if (Lod::squareWithinRange(camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide,
-                    camera.mPagingRange))
+            if (Lod::squareWithinRange(
+                    camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange))
                 return true;
             constexpr int maxDepth = 16;
             if (depth > maxDepth)

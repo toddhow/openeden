@@ -72,11 +72,12 @@ namespace Lod
                 settings.mMaxViewDistance = 80000;
                 settings.mFarTextureMaxSize = 128;
                 settings.mResidentBudgetBytes = 256 * mebibyte;
-                // Tile budgets (task 0060 review): what the drawn tiles hold, read from their draws: about 52 KiB
+                // Tile budgets (task 0060 reviews): what the drawn tiles hold, read from their draws: about 52 KiB
                 // a tile with the live layers, plus a 256 KiB ground picture from level 2 up without the terrain
-                // maps. At most 89 tiles were drawn on the climb to 27,000 units: 4.5 MiB with the live layers, up
-                // to about 27 MiB with pictures (estimated). High and medium keep that set whole, minimal and low
-                // only without pictures.
+                // maps (the default). Measured on the climb to 25,000 units with map view and view distance auto:
+                // with the live layers at most 89 tiles and 4.5 MiB; with pictures (the default settings) at most
+                // 61 tiles and 9.6 MiB (high tier). Every tier keeps that set whole. The budget governs only the tiles
+                // inside the live range: those past it are drawn whatever it says (second review).
                 settings.mTerrainBudgetBytes = 16 * mebibyte;
                 break;
             case FarTier::Low:
