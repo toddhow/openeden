@@ -17,6 +17,8 @@ namespace vsgUtil
         TextureCap::Kind kind = TextureCap::Kind::Colour; // what the texels mean, for a CPU shrink
         int floor = 0; // a cap is never lower than this (a height map keeps at least 256); 0: none
         float alphaCutoff = -1.f; // an alpha tested image: keep the share of texels at or above this (0 to 1); < 0: off
+        // A further cap for this read only (far object clusters, task 0066 stage e): the smaller one wins; 0: none.
+        int maxSize = 0;
     };
 
     /*

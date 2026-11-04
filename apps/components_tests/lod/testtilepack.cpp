@@ -919,4 +919,32 @@ namespace
         }
         std::filesystem::remove(path, ignored);
     }
+
+    // Task 0066 stage e: the staleness check of a pack read up to a level compares the tiles it needs one by one.
+    TEST(LodTilePack, a_tile_reports_the_source_digest_it_was_written_with)
+    {
+        const Fixture fixture = makeFixture();
+        const std::vector<std::uint8_t> bytes = buildPack(fixture);
+        LodError error;
+        const std::unique_ptr<TilePack> pack = openBytes(bytes, error);
+        ASSERT_NE(pack, nullptr) << error.describe();
+        for (const BakedTile& baked : fixture.mTiles)
+        {
+            const std::optional<EdenArchive::Hash> digest = pack->tileSourceDigest(baked.mId);
+            ASSERT_TRUE(digest.has_value());
+            EXPECT_EQ(*digest, baked.mSourceDigest);
+        }
+    }
+
+    TEST(LodTilePack, a_tile_that_is_not_in_the_pack_has_no_source_digest)
+    {
+        const Fixture fixture = makeFixture();
+        const std::vector<std::uint8_t> bytes = buildPack(fixture);
+        LodError error;
+        const std::unique_ptr<TilePack> pack = openBytes(bytes, error);
+        ASSERT_NE(pack, nullptr) << error.describe();
+        const std::optional<TileId> other = tileContainingCell(0, 1, 40, 40);
+        ASSERT_TRUE(other.has_value());
+        EXPECT_FALSE(pack->tileSourceDigest(*other).has_value());
+    }
 }

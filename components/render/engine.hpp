@@ -124,6 +124,8 @@ namespace Render
 
         // The device-local memory in MiB (task 0049), from the game's own physical device; 0 if it cannot be asked.
         uint64_t deviceLocalMiB();
+        // Task 0066 stage e: whether the physical device is a CPU implementation of Vulkan (llvmpipe, SwiftShader).
+        bool deviceIsSoftware();
 
         // Task 0054 (S0): the device-local memory this process uses in MiB, from VK_EXT_memory_budget, or -1 when the
         // device does not have it.

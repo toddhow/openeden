@@ -382,6 +382,14 @@ namespace Render
         return vsgUtil::TextureCap::deviceLocalMiB(memory);
     }
 
+    bool Engine::deviceIsSoftware()
+    {
+        auto physicalDevice = getOrCreatePhysicalDevice();
+        if (!physicalDevice)
+            return false;
+        return physicalDevice->getProperties().deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU;
+    }
+
     int64_t Engine::deviceLocalUsageMiB()
     {
         auto physicalDevice = getOrCreatePhysicalDevice();

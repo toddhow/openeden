@@ -29,6 +29,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/fx/technique.hpp>
+#include <components/lod/fartier.hpp>
 #include <components/lod/viewlimits.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/pathhelpers.hpp>
@@ -184,7 +185,7 @@ namespace MWRender
         // [Camera] viewing distance; with them on and `map view` off they are the larger of that and [WorldLod] view
         // distance (task 0055); `map view` takes them apart (Lod::computeViewLimits). `landDiagonal` is the loaded
         // world's reach for `view distance = auto`, 0 while unknown.
-        Lod::ViewLimits currentViewLimits(double landDiagonal)
+        Lod::ViewLimits currentViewLimits(double landDiagonal, const Lod::FarTierSettings* tier)
         {
             Lod::ViewLimitsInput input;
             input.mCameraViewingDistance = Settings::camera().mViewingDistance;
@@ -193,7 +194,9 @@ namespace MWRender
             {
                 input.mMapView = Settings::worldLod().mMapView;
                 input.mSetting = readViewDistanceSetting();
-                input.mMaxViewDistance = Settings::worldLod().mMaxViewDistance;
+                input.mMaxViewDistance = tier
+                    ? Lod::effectiveMaxViewDistance(Settings::worldLod().mMaxViewDistance, *tier)
+                    : Settings::worldLod().mMaxViewDistance;
                 input.mLandDiagonal = landDiagonal;
             }
             return Lod::computeViewLimits(input);
@@ -322,8 +325,9 @@ namespace MWRender
         // The same condition as fog.settings' cAerialHaze (components/resource/shadersettings.cpp), at the same time.
         mAerialShader = Settings::worldLod().mEnabled && Settings::terrain().mDistantTerrain
             && Settings::worldLod().mMapView && Settings::worldLod().mHaze;
+        chooseFarTier();
         // The projection does not exist yet; updateProjectionMatrix runs when it is made.
-        applyViewLimits(currentViewLimits(0.0), false);
+        applyViewLimits(currentViewLimits(0.0, farTierOrNull()), false);
         vsg::ref_ptr<vsg::Context> context = vsg::Context::create(mEngine.getOrCreateDevice());
         mEngine.setRenderPass(
             createMainRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout()));
@@ -1151,7 +1155,7 @@ namespace MWRender
         }
         if (!mViewLimitsOverridden)
         {
-            applyViewLimits(currentViewLimits(mLandDiagonal), true);
+            applyViewLimits(currentViewLimits(mLandDiagonal, farTierOrNull()), true);
         }
         // Task 0055: an earlier LodTerrain reads the storage on a worker thread; it goes before the store changes.
         mLodTerrain.reset();
@@ -1169,7 +1173,10 @@ namespace MWRender
             mLodTerrainAttached = false;
             LodTerrain::Setup setup;
             setup.mPack = mLodTerrainPack;
-            setup.mThreshold = Settings::worldLod().mTerrainTileThreshold;
+            setup.mThreshold = mFarTierActive
+                ? Lod::effectiveTileThreshold(Settings::worldLod().mTerrainTileThreshold, mFarTier)
+                : Settings::worldLod().mTerrainTileThreshold;
+            setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
             setup.mLive = mTerrainStorage.get();
             setup.mLandCells = std::move(landCells);
             // The live layer list, taken here once (the staleness check on a worker thread must not ask for it).
@@ -1188,7 +1195,12 @@ namespace MWRender
         {
             LodClusters::Setup setup;
             setup.mPack = mLodClusterPack;
-            setup.mThreshold = Settings::worldLod().mObjectClusterThreshold;
+            setup.mThreshold = mFarTierActive
+                ? Lod::effectiveTileThreshold(Settings::worldLod().mObjectClusterThreshold, mFarTier)
+                : Settings::worldLod().mObjectClusterThreshold;
+            setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
+            setup.mFarTextureMaxSize = mFarTierActive ? mFarTextureSize : 0;
+            setup.mResidentBudgetBytes = mFarTierActive ? farMemoryBudgetBytes() : 0;
             setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
             setup.mCellSize = ESM::Land::REAL_SIZE;
             setup.mBuilder = mResourceSystem->builder.get();
@@ -1197,6 +1209,48 @@ namespace MWRender
             mLodClusters = std::make_unique<LodClusters>(std::move(setup));
             mLodClustersAttached = false;
         }
+    }
+
+    // Task 0066 stage e: the hardware tier of the whole-map view. Only with `map view` on (and the world LOD and
+    // distant terrain): otherwise nothing here is looked at and every number stays the setting's own.
+    std::uint64_t RenderManager::farMemoryBudgetBytes() const
+    {
+        const int setting = Settings::worldLod().mFarMemoryBudget;
+        return setting > 0 ? static_cast<std::uint64_t>(setting) << 20 : mFarTier.mResidentBudgetBytes;
+    }
+
+    void RenderManager::chooseFarTier()
+    {
+        mFarTierActive = Settings::worldLod().mEnabled && Settings::terrain().mDistantTerrain
+            && Settings::worldLod().mMapView && !sLodBakeRun;
+        if (!mFarTierActive)
+        {
+            return;
+        }
+        Lod::HardwareReport report;
+        report.mDeviceMemoryBytes = mEngine.deviceLocalMiB() << 20;
+        report.mSystemMemoryBytes = Render::physicalMemoryBytes();
+        report.mSoftwareDevice = mEngine.deviceIsSoftware();
+        const std::string& text = Settings::worldLod().mTier.get();
+        const Lod::FarTierSetting setting = Lod::parseFarTierSetting(text);
+        if (!setting.mValid)
+        {
+            Log(Debug::Warning) << "[WorldLod] tier \"" << text
+                                << "\" is not auto, minimal, low, medium or high; using auto";
+        }
+        mFarTierName = Lod::resolveFarTier(setting, report);
+        mFarTier = Lod::farTierSettings(mFarTierName);
+        mFarLevels = Lod::resolveFarLevels(Settings::worldLod().mFarLevels, mFarTier.mFarLevels);
+        mFarTextureSize = static_cast<int>(
+            Lod::resolveFarTextureSize(Settings::worldLod().mFarTextureMaxSize, mFarTier.mFarTextureMaxSize));
+        static constexpr const char* tierNames[] = { "minimal", "low", "medium", "high" };
+        Log(Debug::Info) << "World LOD tier: " << tierNames[static_cast<int>(mFarTierName)] << " ("
+                         << (setting.mAuto ? "from the device: " : "named: ") << (report.mDeviceMemoryBytes >> 20)
+                         << " MiB device memory, " << (report.mSystemMemoryBytes >> 20) << " MiB system memory"
+                         << (report.mSoftwareDevice ? ", a software device" : "") << "), far levels " << mFarLevels
+                         << ", tile threshold at least " << mFarTier.mTileThreshold << " px, view distance cap "
+                         << Lod::effectiveMaxViewDistance(Settings::worldLod().mMaxViewDistance, mFarTier)
+                         << ", far cluster pictures " << mFarTextureSize << " px.";
     }
 
     RenderingInterface& RenderManager::getObjects()
@@ -2785,7 +2839,7 @@ namespace MWRender
                         || it->second == "max view distance")))
             {
                 mViewLimitsOverridden = false;
-                applyViewLimits(currentViewLimits(mLandDiagonal), true);
+                applyViewLimits(currentViewLimits(mLandDiagonal, farTierOrNull()), true);
                 // mFog->configure
             }
         }

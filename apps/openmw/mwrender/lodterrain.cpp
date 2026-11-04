@@ -14,6 +14,7 @@
 #include <components/files/conversion.hpp>
 #include <components/lod/texturedecode.hpp>
 #include <components/lod/tilepack.hpp>
+#include <components/render/processmemory.hpp>
 #include <components/terrain/builder.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -234,6 +235,9 @@ namespace MWRender
 
     namespace
     {
+        // How many of the pack's first levels the staleness check samples (see loadPackUnchecked).
+        constexpr std::uint32_t checkedLevels = 2;
+
         struct LoadedTile
         {
             std::uint64_t mKey = 0;
@@ -250,10 +254,12 @@ namespace MWRender
 
         LoadResult loadPackUnchecked(const std::filesystem::path& path, Terrain::Storage& live,
             const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, StorageAlbedoSource& albedo,
-            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan)
+            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel)
         {
             LoadResult result;
             Lod::LodError error;
+            Log(Debug::Verbose) << "World LOD terrain: checking the pack; working set "
+                                << (Render::processWorkingSetBytes() >> 20) << " MiB.";
             const std::unique_ptr<Lod::TilePack> pack = Lod::TilePack::open(path, error);
             if (!pack)
             {
@@ -269,13 +275,54 @@ namespace MWRender
             std::vector<Lod::BakedTile> baked;
             Lod::TileBakeSettings settings = base;
             settings.mDigestOnly = true;
-            error = Lod::bakeTerrainLevels(source, &albedo, landCells, settings, plan, "Morrowind", manifest, baked);
+            // Task 0066 stage e: every level samples the whole land again (levels 5 and 6 build arrays of 4097 x 4097
+            // samples), so checking all six costs ten seconds and over a gigabyte of working set. Levels 1 and 2
+            // already read every land sample and, from level 2 up, every blend map, vertex colour and land texture (the
+            // albedo inputs); a pack the baker made in one run holds the same land at every level. So only the first
+            // levels are checked, tile by tile against the digest each tile was written with, and no more than `far
+            // levels` of them. The tiles above are read without a check of their own.
+            const std::uint32_t checkLimit = maxLevel > 0 ? std::min(maxLevel, checkedLevels) : checkedLevels;
+            const bool limited = !plan.mLevels.empty() && checkLimit < plan.mLevels.back();
+            Lod::TerrainBakePlan checkPlan = plan;
+            if (limited)
+            {
+                checkPlan.mLevels.erase(std::remove_if(checkPlan.mLevels.begin(), checkPlan.mLevels.end(),
+                                            [checkLimit](std::uint32_t level) { return level > checkLimit; }),
+                    checkPlan.mLevels.end());
+            }
+            error
+                = Lod::bakeTerrainLevels(source, &albedo, landCells, settings, checkPlan, "Morrowind", manifest, baked);
             if (error)
             {
                 result.mReason = "cannot check the pack against the land: " + error.describe();
                 return result;
             }
-            if (pack->manifest() != manifest || pack->sourceDigest() != Lod::contentDigest(manifest, baked))
+            Log(Debug::Verbose) << "World LOD terrain: the check read the land for levels up to "
+                                << checkPlan.mLevels.back() << "; working set "
+                                << (Render::processWorkingSetBytes() >> 20) << " MiB.";
+            bool stale = false;
+            if (limited)
+            {
+                // Everything but the list of levels must match, and every tile that is used must carry the digest of
+                // the land it is made from now.
+                Lod::TileManifest expected = manifest;
+                expected.mLevels = pack->manifest().mLevels;
+                stale = pack->manifest() != expected;
+                for (const Lod::BakedTile& tile : baked)
+                {
+                    if (stale)
+                    {
+                        break;
+                    }
+                    const std::optional<EdenArchive::Hash> written = pack->tileSourceDigest(tile.mId);
+                    stale = !written || *written != tile.mSourceDigest;
+                }
+            }
+            else
+            {
+                stale = pack->manifest() != manifest || pack->sourceDigest() != Lod::contentDigest(manifest, baked);
+            }
+            if (stale)
             {
                 result.mReason
                     = "the pack was made from other land, land textures or settings (stale); make a new one "
@@ -283,7 +330,13 @@ namespace MWRender
                 return result;
             }
 
-            const std::vector<Lod::TileId> ordered = Lod::orderTilesForTree(pack->tileIds());
+            std::vector<Lod::TileId> ordered = Lod::orderTilesForTree(pack->tileIds());
+            if (limited)
+            {
+                ordered.erase(std::remove_if(ordered.begin(), ordered.end(),
+                                  [maxLevel](const Lod::TileId& id) { return id.mLevel > maxLevel; }),
+                    ordered.end());
+            }
             result.mTiles.reserve(ordered.size());
             for (const Lod::TileId& id : ordered)
             {
@@ -299,6 +352,8 @@ namespace MWRender
                 }
                 result.mTiles.push_back(std::move(tile));
             }
+            Log(Debug::Verbose) << "World LOD terrain: " << result.mTiles.size() << " tiles read; working set "
+                                << (Render::processWorkingSetBytes() >> 20) << " MiB.";
             result.mUsable = true;
             return result;
         }
@@ -306,11 +361,11 @@ namespace MWRender
         // Runs on the worker thread. An exception must not travel through the future to the main thread.
         LoadResult loadPack(const std::filesystem::path& path, Terrain::Storage& live,
             const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, StorageAlbedoSource& albedo,
-            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan)
+            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel)
         {
             try
             {
-                return loadPackUnchecked(path, live, landCells, albedo, base, plan);
+                return loadPackUnchecked(path, live, landCells, albedo, base, plan, maxLevel);
             }
             catch (const std::exception& e)
             {
@@ -458,7 +513,8 @@ namespace MWRender
             mWorkerAlbedo = std::make_unique<StorageAlbedoSource>(
                 *mSetup.mLive, mSetup.mLayers, mSetup.mImageOptions, mSetup.mVfs);
             mFuture = std::async(std::launch::async, [this]() {
-                return loadPack(mSetup.mPack, *mSetup.mLive, mSetup.mLandCells, *mWorkerAlbedo, mBase, mPlan);
+                return loadPack(
+                    mSetup.mPack, *mSetup.mLive, mSetup.mLandCells, *mWorkerAlbedo, mBase, mPlan, mSetup.mMaxLevel);
             });
         }
 
@@ -466,6 +522,8 @@ namespace MWRender
         void adopt()
         {
             mLoaded = mFuture.get();
+            Log(Debug::Verbose) << "World LOD terrain: adopted; working set "
+                                << (Render::processWorkingSetBytes() >> 20) << " MiB.";
             mWorkerAlbedo.reset();
             mReady = true;
             if (!mLoaded.mUsable)
@@ -508,12 +566,12 @@ namespace MWRender
                 Lod::vertexStepLod(settings, mLods[i]);
             }
             mCoverage.squares.reserve(count);
-            Log(Debug::Info) << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front()
-                             << " to " << mPlan.mLevels.back() << " loaded (layout version "
-                             << Lod::tileKeyLayoutVersion << "), threshold " << mSetup.mThreshold << " px, "
-                             << (useAlbedo ? "baked ground pictures from level 2 up"
-                                           : "live layers (terrain maps are on)")
-                             << ".";
+            Log(Debug::Info)
+                << "World LOD terrain tiles: " << count << " tiles of levels " << mPlan.mLevels.front() << " to "
+                << (mSetup.mMaxLevel > 0 ? std::min(mSetup.mMaxLevel, mPlan.mLevels.back()) : mPlan.mLevels.back())
+                << " loaded (layout version " << Lod::tileKeyLayoutVersion << "), threshold " << mSetup.mThreshold
+                << " px, "
+                << (useAlbedo ? "baked ground pictures from level 2 up" : "live layers (terrain maps are on)") << ".";
         }
 
         Terrain::Bounds boundsOf(std::size_t index) const

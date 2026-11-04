@@ -27,6 +27,7 @@
 #include <components/lod/clusterfade.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/clusterplan.hpp>
+#include <components/lod/fartier.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/pipeline/bindings.hpp>
 #include <components/pipeline/builder.hpp>
@@ -34,6 +35,7 @@
 #include <components/pipeline/material.hpp>
 #include <components/pipeline/options.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/processmemory.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/shareimage.hpp>
 
@@ -48,6 +50,10 @@ namespace MWRender
         constexpr std::size_t maxBuildsPerFrame = 1;
         // Frames before a tile that failed to read or compile is tried again (about ten seconds).
         constexpr int retryFrames = 600;
+
+        // Clusters of this level and above (levels 3 and 4: thousands of statics, hundreds of textures) get the far
+        // picture cap.
+        constexpr std::uint32_t farTextureMinLevel = 1;
 
         // Everything a worker brings back for one cluster.
         struct Loaded
@@ -82,6 +88,8 @@ namespace MWRender
                 = Phase::Idle;
             std::future<Loaded> mLoad;
             std::shared_ptr<Loaded> mData;
+            std::uint64_t mBytes
+                = 0; // what the built cluster holds in memory (Lod::clusterResidentBytes); valid with mData
             vsg::ref_ptr<vsg::Node> mNode;
             std::vector<std::unique_ptr<Pipeline::Material>> mMaterials;
             float mFade = 0; // the fade the materials hold (mirrors the cover tile's)
@@ -132,7 +140,7 @@ namespace MWRender
     namespace
     {
         // Runs on a worker: opens the pack and reads every header.
-        OpenResult openPackUnchecked(const std::filesystem::path& path)
+        OpenResult openPackUnchecked(const std::filesystem::path& path, std::uint32_t maxLevel)
         {
             OpenResult result;
             Lod::LodError error;
@@ -143,7 +151,15 @@ namespace MWRender
                 return result;
             }
             result.mPack = std::move(pack);
-            result.mOrdered = Lod::orderTilesForTree(result.mPack->tileIds());
+            std::vector<Lod::TileId> ids = result.mPack->tileIds();
+            if (maxLevel > 0)
+            {
+                // `far levels` (task 0066 stage e): the clusters above it are not read, drawn or kept.
+                ids.erase(std::remove_if(ids.begin(), ids.end(),
+                              [maxLevel](const Lod::TileId& id) { return id.mLevel > maxLevel; }),
+                    ids.end());
+            }
+            result.mOrdered = Lod::orderTilesForTree(std::move(ids));
             for (const Lod::TileId& id : result.mOrdered)
             {
                 Lod::ClusterHeaderInfo info;
@@ -160,11 +176,11 @@ namespace MWRender
         }
 
         // A worker must not let an exception reach the frame loop through future::get().
-        OpenResult openPack(const std::filesystem::path& path)
+        OpenResult openPack(const std::filesystem::path& path, std::uint32_t maxLevel)
         {
             try
             {
-                return openPackUnchecked(path);
+                return openPackUnchecked(path, maxLevel);
             }
             catch (const std::exception& e)
             {
@@ -176,7 +192,7 @@ namespace MWRender
 
         // Runs on a worker: reads and decodes one cluster and the pictures of its groups.
         Loaded loadClusterUnchecked(const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id,
-            vsg::ref_ptr<const vsg::Options> images)
+            vsg::ref_ptr<const vsg::Options> images, int textureCap)
         {
             Loaded loaded;
             const auto start = Clock::now();
@@ -189,6 +205,7 @@ namespace MWRender
             vsgUtil::ImageUse use;
             use.category = vsgUtil::TextureCap::Category::Object;
             use.kind = vsgUtil::TextureCap::Kind::Colour;
+            use.maxSize = textureCap;
             for (const Lod::ClusterGroup& group : loaded.mCluster.mGroups)
             {
                 vsgUtil::ImageUse groupUse = use;
@@ -202,11 +219,11 @@ namespace MWRender
         }
 
         Loaded loadCluster(const std::shared_ptr<Lod::ClusterPack>& pack, const Lod::TileId& id,
-            vsg::ref_ptr<const vsg::Options> images)
+            vsg::ref_ptr<const vsg::Options> images, int textureCap)
         {
             try
             {
-                return loadClusterUnchecked(pack, id, images);
+                return loadClusterUnchecked(pack, id, images, textureCap);
             }
             catch (const std::exception& e)
             {
@@ -225,7 +242,8 @@ namespace MWRender
         : mState(std::make_unique<State>(std::move(setup)))
     {
         const std::filesystem::path path = mState->mSetup.mPack;
-        mState->mOpen = std::async(std::launch::async, [path] { return openPack(path); });
+        const std::uint32_t maxLevel = mState->mSetup.mMaxLevel;
+        mState->mOpen = std::async(std::launch::async, [path, maxLevel] { return openPack(path, maxLevel); });
     }
 
     LodClusters::~LodClusters()
@@ -555,6 +573,16 @@ namespace MWRender
             if (tile.mPhase == Tile::Phase::Loading)
                 ++inFlight;
 
+        // What the built clusters hold, against the budget of the tier (task 0066 stage e).
+        std::uint64_t residentBytes = 0;
+        for (const Tile& tile : state.mTiles)
+        {
+            if (tile.mData)
+            {
+                residentBytes += tile.mBytes;
+            }
+        }
+
         std::size_t builds = 0;
         for (std::size_t i = 0; i < state.mTiles.size(); ++i)
         {
@@ -571,8 +599,11 @@ namespace MWRender
                 const std::shared_ptr<Lod::ClusterPack> pack = state.mPack;
                 const Lod::TileId id = tile.mId;
                 const vsg::ref_ptr<const vsg::Options> images = setup.mImageOptions;
-                tile.mLoad
-                    = std::async(std::launch::async, [pack, id, images] { return loadCluster(pack, id, images); });
+                // The far levels gather many textures that are seen from far: their pictures are capped (task 0066
+                // stage e).
+                const int textureCap = id.mLevel >= farTextureMinLevel ? setup.mFarTextureMaxSize : 0;
+                tile.mLoad = std::async(std::launch::async,
+                    [pack, id, images, textureCap] { return loadCluster(pack, id, images, textureCap); });
             }
             if (tile.mPhase == Tile::Phase::Loading
                 && tile.mLoad.wait_for(std::chrono::seconds(0)) == std::future_status::ready
@@ -595,15 +626,37 @@ namespace MWRender
                 }
                 else
                 {
-                    const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
-                    tile.mFade = 0;
-                    tile.mMaskVersion = state.mMaskVersion;
-                    tile.mMasked = masked;
-                    ++builds;
-                    if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
-                        tile.mPhase = Tile::Phase::Built;
+                    const std::uint64_t bytes = Lod::clusterResidentBytes(
+                        tile.mData->mCluster.mVertices.size(), tile.mData->mCluster.mIndices.size());
+                    if (!Lod::admitCluster(residentBytes, bytes, setup.mResidentBudgetBytes))
+                    {
+                        // Over the memory budget of the tier: the live objects keep the cells, and the cluster is
+                        // tried again later (when others have gone).
+                        if (state.mStats.mBlocked == 0)
+                        {
+                            Log(Debug::Info)
+                                << "LOD clusters: the memory budget of " << (setup.mResidentBudgetBytes >> 20)
+                                << " MiB is reached; further clusters wait.";
+                        }
+                        ++state.mStats.mBlocked;
+                        tile.mData.reset();
+                        tile.mPhase = Tile::Phase::Idle;
+                        tile.mCooldown = retryFrames;
+                    }
                     else
-                        dropFailedTile(tile, cover);
+                    {
+                        residentBytes += bytes;
+                        tile.mBytes = bytes;
+                        const std::set<int> masked = maskedSlots(tile.mData->mCluster, state.mActive, state.mOverrides);
+                        tile.mFade = 0;
+                        tile.mMaskVersion = state.mMaskVersion;
+                        tile.mMasked = masked;
+                        ++builds;
+                        if (attachNode(tile, setup, masked, state.mSampler, *state.mRoot))
+                            tile.mPhase = Tile::Phase::Built;
+                        else
+                            dropFailedTile(tile, cover);
+                    }
                 }
             }
             if (tile.mPhase != Tile::Phase::Built)
@@ -737,7 +790,9 @@ namespace MWRender
                              << triangles << " triangles; " << state.mStats.mLoads << " loads, "
                              << (state.mStats.mLoads > 0 ? state.mStats.mLoadMillisecondsTotal / state.mStats.mLoads
                                                          : 0.0)
-                             << " ms mean, " << state.mStats.mLoadMillisecondsWorst << " ms worst";
+                             << " ms mean, " << state.mStats.mLoadMillisecondsWorst << " ms worst"
+                             << "; about " << (residentBytes >> 20) << " MiB held, working set "
+                             << (Render::processWorkingSetBytes() >> 20) << " MiB";
         }
     }
 }

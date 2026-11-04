@@ -757,3 +757,22 @@ namespace Lod
         return {};
     }
 }
+
+namespace Lod
+{
+    std::optional<EdenArchive::Hash> TilePack::tileSourceDigest(const TileId& id) const
+    {
+        std::size_t index = 0;
+        std::uint64_t size = 0;
+        if (findTileEntry(*mImpl->mArchive, id, index, size))
+        {
+            return std::nullopt;
+        }
+        const std::optional<EdenArchive::ProvenanceInfo> provenance = mImpl->mArchive->provenance(index);
+        if (!provenance)
+        {
+            return std::nullopt;
+        }
+        return provenance->mSourceDigest;
+    }
+}

@@ -114,6 +114,8 @@ namespace MWRender
         {
             std::filesystem::path mPack;
             float mThreshold = 8;
+            /// The highest tile level read and drawn (`[WorldLod] far levels`); 0: every level of the pack.
+            std::uint32_t mMaxLevel = 0;
             /// The game's terrain storage: must outlive the LodTerrain and be ready to read.
             Terrain::Storage* mLive = nullptr;
             /// The cells with land and the live layer list (taken once, on the main thread), for the staleness check.

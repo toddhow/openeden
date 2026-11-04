@@ -220,6 +220,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testtiletree.cpp
     lod/testtilebakelevels.cpp
     lod/testviewlimits.cpp
+    lod/testfartier.cpp
     bodynif/testskinnedshape.cpp
     bodynif/testseamanalysis.cpp
     bodynif/testanalysisreport.cpp
@@ -286,8 +287,8 @@ list(APPEND UNITTEST_SRC_FILES
     body/testbodytool.cpp
     body/testbodyconformance.cpp
     body/testbodymerge.cpp
-)
     body/testbodymesh.cpp
+)
 
 # Task 0067 stage 0: the maths and the parser of the CreativeMotion transition measurement.
 list(APPEND UNITTEST_SRC_FILES

@@ -1,0 +1,2 @@
+GLOBAL: scripts/ascent_global.lua
+PLAYER: scripts/ascent_player.lua

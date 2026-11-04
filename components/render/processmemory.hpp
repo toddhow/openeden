@@ -10,6 +10,9 @@ namespace Render
     // set on Linux), or 0 where the system cannot say.
     std::uint64_t processWorkingSetBytes();
 
+    // Task 0066 stage e. The machine's physical memory in bytes, or 0 where the system cannot say.
+    std::uint64_t physicalMemoryBytes();
+
     // Linux's /proc/self/statm is "size resident shared ..." in pages. Gives resident * pageSize, or 0 for text that
     // does not start with two numbers. Public so that it can be tested on any system.
     std::uint64_t parseStatmResidentBytes(const std::string& text, std::uint64_t pageSize);

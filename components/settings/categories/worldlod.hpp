@@ -41,6 +41,17 @@ namespace Settings
         SettingValue<float> mHazeVisibility{ mIndex, "WorldLod", "haze visibility", makeMaxStrictSanitizerFloat(0) };
         SettingValue<float> mHazeHeight{ mIndex, "WorldLod", "haze height", makeMaxStrictSanitizerFloat(0) };
         SettingValue<float> mHazeWeatherGain{ mIndex, "WorldLod", "haze weather gain", makeMaxSanitizerFloat(0) };
+        // Task 0066 stage e: the hardware tier of the whole-map view (with `map view` on). `tier` is auto or one of
+        // minimal, low, medium, high (to try a weaker machine); `far levels` is the highest tile level kept resident, 0
+        // meaning the tier's; `far texture max size` caps the pictures of the far object clusters, 0 meaning the
+        // tier's.
+        SettingValue<std::string> mTier{ mIndex, "WorldLod", "tier" };
+        SettingValue<int> mFarLevels{ mIndex, "WorldLod", "far levels", makeClampSanitizerInt(0, 6) };
+        SettingValue<int> mFarTextureMaxSize{ mIndex, "WorldLod", "far texture max size",
+            makeClampSanitizerInt(0, 8192) };
+        // What the built far object clusters may hold in memory, in MiB of what Lod::clusterResidentBytes counts; 0
+        // means the tier's. A number above 65536 counts as that.
+        SettingValue<int> mFarMemoryBudget{ mIndex, "WorldLod", "far memory budget", makeClampSanitizerInt(0, 65536) };
         SettingValue<int> mTerrainTileLevel{ mIndex, "WorldLod", "terrain tile level", makeClampSanitizerInt(1, 1) };
     };
 }

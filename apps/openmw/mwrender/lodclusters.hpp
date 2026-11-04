@@ -68,6 +68,12 @@ namespace MWRender
             std::filesystem::path mPack;
             float mThreshold = 8;
             float mFadeSeconds = 0.4f;
+            /// The longest side of the pictures of the clusters of levels 3 and 4 (the far ones); 0: no further cap.
+            int mFarTextureMaxSize = 0;
+            /// What the built clusters may hold in memory, in bytes (the tier's budget); 0: no budget.
+            std::uint64_t mResidentBudgetBytes = 0;
+            /// The highest cluster level read and drawn (`[WorldLod] far levels`); 0: every level of the pack.
+            std::uint32_t mMaxLevel = 0;
             double mCellSize = 8192;
             const Pipeline::Builder* mBuilder = nullptr;
             vsg::ref_ptr<const vsg::Options> mImageOptions;
@@ -108,6 +114,7 @@ namespace MWRender
             std::size_t mDraws = 0; // state groups of the shown clusters
             std::size_t mTriangles = 0; // of the shown clusters, masks taken out
             std::size_t mLoads = 0; // tiles read and decoded so far
+            std::size_t mBlocked = 0; // clusters left out because the memory budget was reached
             double mLoadMillisecondsTotal = 0;
             double mLoadMillisecondsWorst = 0;
         };

@@ -98,6 +98,9 @@ namespace Lod
         /// The tile entries' ids in key order.
         const std::vector<TileId>& tileIds() const noexcept;
         bool contains(const TileId& id) const noexcept;
+        /// The digest of the land and textures the tile was baked from (its provenance record), or nothing when the
+        /// pack has no such tile or the entry has no provenance. Used to check a pack tile by tile.
+        std::optional<EdenArchive::Hash> tileSourceDigest(const TileId& id) const;
 
         /// Reads just the 88-byte header (one range read) and checks it against the entry's size.
         LodError readHeader(const TileId& id, TerrainTile& tile, TerrainTileLayout& layout) const;

@@ -135,6 +135,8 @@ namespace vsgUtil
             if (use.category == TextureCap::Category::None)
                 return 0;
             int cap = TextureCap::effectiveCap(use.category, TextureCap::getCaps());
+            if (use.maxSize > 0)
+                cap = cap > 0 ? std::min(cap, use.maxSize) : use.maxSize;
             if (cap > 0 && use.floor > 0)
                 cap = std::max(cap, use.floor);
             return cap;

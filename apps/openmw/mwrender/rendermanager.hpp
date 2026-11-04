@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_MWRENDER_RENDERMANAGER_H
 #define VSGOPENMW_MWRENDER_RENDERMANAGER_H
 
+#include <components/lod/fartier.hpp>
 #include <components/lod/viewlimits.hpp>
 
 #include "distantobjectcells.hpp"
@@ -587,6 +588,16 @@ namespace MWRender
         // Task 0066 stage c: the shaders were built with the aerial perspective in them (fog.settings, read at start),
         // so only then may the scene's fog scale carry its mark (View::Scene::setFogRange).
         bool mAerialShader = false;
+        // Task 0066 stage e: the hardware tier of the whole-map view (only with `map view` on; otherwise inactive and
+        // every number below is the setting's own).
+        bool mFarTierActive = false;
+        Lod::FarTier mFarTierName = Lod::FarTier::High;
+        Lod::FarTierSettings mFarTier;
+        std::uint32_t mFarLevels = 0; // the highest tile and cluster level read and drawn; 0 means all
+        int mFarTextureSize = 0; // longest side of far cluster pictures; 0 means no further cap
+        const Lod::FarTierSettings* farTierOrNull() const { return mFarTierActive ? &mFarTier : nullptr; }
+        void chooseFarTier();
+        std::uint64_t farMemoryBudgetBytes() const;
         void applyViewLimits(const Lod::ViewLimits& limits, bool updateProjection);
         std::optional<float> mFieldOfViewOverride = 0;
         float mFieldOfView;
