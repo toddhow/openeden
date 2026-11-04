@@ -45,6 +45,12 @@ namespace MWAnim
         const Context& context() const { return mContext; }
 
         virtual void update(float dt) { autoPlay.update(dt); }
+        /// OpenEden (task 0074f, finding 4 of the review of 0074e): what an object must do on the MAIN thread once per
+        /// frame, after every object's update() has finished (MWRender::Scene::update calls it for each actor once the
+        /// update workers are idle). update() runs on an update worker for most objects, where nothing may be compiled
+        /// or the scene graph edited; what has to wait for the main thread is done here (MWRender::Npc: the pending
+        /// quiver change).
+        virtual void updateOnMainThread() {}
 
         Anim::AutoPlay autoPlay;
 

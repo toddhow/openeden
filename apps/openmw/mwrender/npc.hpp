@@ -109,6 +109,8 @@ namespace MWRender
         // update() runs on an update worker (task 0074e, finding 3); Scene::update calls this for every actor after
         // the workers are idle, Player::update for the player.
         void updatePendingQuiver();
+        // The actor's main-thread step (MWAnim::Object::updateOnMainThread): the pending quiver change.
+        void updateOnMainThread() override;
 
         std::set<ESM::RefId> soundsToPlay;
 

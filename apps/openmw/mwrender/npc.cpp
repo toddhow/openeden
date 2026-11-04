@@ -843,6 +843,11 @@ namespace MWRender
         runPendingQuiver([this] { updateQuiver(); });
     }
 
+    void Npc::updateOnMainThread()
+    {
+        updatePendingQuiver();
+    }
+
     void Npc::logQuiverError(const std::exception& error) const
     {
         // A test actor has no record (TestSetup).

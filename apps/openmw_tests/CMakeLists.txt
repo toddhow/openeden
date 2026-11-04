@@ -42,6 +42,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testcompiledupdates.cpp
     mwrender/testattachammo.cpp
     mwrender/testplancommit.cpp
+    mwrender/testmainthreadupdate.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
     mwrender/testmergedbodydefines.cpp

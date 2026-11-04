@@ -212,7 +212,12 @@ namespace MWRender
         if (!context.compileContext->compile(anim->node()))
             return;
 
-        auto& cell = getOrCreateCell(ptr, true);
+        addObject(ptr, std::move(anim), true);
+    }
+
+    void Scene::addObject(const MWWorld::Ptr& ptr, std::unique_ptr<MWAnim::Object> anim, bool actor)
+    {
+        auto& cell = getOrCreateCell(ptr, actor);
         cell.group->addChild(anim->node());
         cell.objects.emplace(ptr, std::move(anim));
     }
@@ -227,9 +232,7 @@ namespace MWRender
         if (!context.compileContext->compile(anim->node()))
             return;
 
-        auto& cell = getOrCreateCell(ptr, true);
-        cell.group->addChild(anim->node());
-        cell.objects.emplace(ptr, std::move(anim));
+        addObject(ptr, std::move(anim), true);
     }
 
     bool Scene::removeObject(const MWWorld::Ptr& ptr)
@@ -331,11 +334,11 @@ namespace MWRender
         // vsgopenmw-optimization-mwrender-scene-updatethreads
         mUpdateThreads->run(operations.begin(), operations.end());
         // Task 0074e (finding 3 of the review of 0074d): the workers are idle again (run ends in waitIdle), so this is
-        // the main thread alone: the quiver changes the actors' show() asked for, and their compile.
+        // the main thread alone: the quiver changes the actors' show() asked for, and their compile. Task 0074f
+        // (finding 4 of the review of 0074e): through the object's own hook, which a test reaches.
         for (auto& [cellstore, cell] : mActorCells)
             for (auto& [ptr, object] : cell.objects)
-                if (auto* npc = dynamic_cast<Npc*>(object.get()))
-                    npc->updatePendingQuiver();
+                object->updateOnMainThread();
     }
 
     vsg::ref_ptr<vsgUtil::UpdateThreads> Scene::getUpdateThreads()

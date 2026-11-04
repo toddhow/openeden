@@ -62,6 +62,10 @@ namespace MWRender
         void insertNPC(const MWWorld::Ptr& ptr) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
 
+        /// Puts a built and compiled object (an actor when `actor`) into its cell's group and update list: the end of
+        /// insertNPC and insertCreature, public so that a test can fill a Scene with objects of its own (task 0074f).
+        void addObject(const MWWorld::Ptr& ptr, std::unique_ptr<MWAnim::Object> anim, bool actor);
+
         MWAnim::Object* getObject(const MWWorld::Ptr& ptr);
 
         bool removeObject(const MWWorld::Ptr& ptr);

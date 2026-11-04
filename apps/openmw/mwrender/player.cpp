@@ -40,7 +40,8 @@ namespace MWRender
     void Player::update(float dt)
     {
         Npc::update(dt);
-        updatePendingQuiver();
+        // Task 0074f: the player is no object of the Scene, so its main-thread step is called here.
+        updateOnMainThread();
     }
 
     void Player::manualAnimation(float pitchSpine, float dt)
