@@ -202,9 +202,7 @@ add_component_dir (vsgutil
 if (OPENEDEN_SLANGC)
     get_filename_component(openeden_slang_bin "${OPENEDEN_SLANGC}" DIRECTORY)
     get_filename_component(openeden_slang_root "${openeden_slang_bin}" DIRECTORY)
-    set_source_files_properties(vsgutil/slangruntime.cpp PROPERTIES
-        COMPILE_DEFINITIONS OPENEDEN_SLANG_RUNTIME=1
-        INCLUDE_DIRECTORIES "${openeden_slang_root}/include")
+    set_source_files_properties(vsgutil/slangruntime.cpp PROPERTIES COMPILE_DEFINITIONS OPENEDEN_SLANG_RUNTIME=1)
 endif()
 # Supports MyGUI.
 # Depends on vfs, vsgadapters/mygui.
@@ -729,6 +727,12 @@ target_include_directories(components SYSTEM BEFORE PUBLIC ${JOLT_INCLUDE_DIRS})
 target_include_directories(components SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/components/creativemotion/physics/interface/include)
 # openeden-vsg: pugixml, compiled into the assimp library, reads COLLADA animation clips (vsgadapters/dae/daeanim.cpp).
 target_include_directories(components SYSTEM PRIVATE ${OPENEDEN_PUGIXML_INCLUDE_DIR})
+# Slang's header (components/vsgutil/slangruntime.cpp, the one file that includes it) as a system header: third-party code
+# whose interfaces have non-virtual destructors and stray semicolons that CI's -Werror flags would reject (the gate of
+# ea7e3657c7). It is private, so nothing else sees it.
+if (OPENEDEN_SLANGC)
+    target_include_directories(components SYSTEM PRIVATE "${openeden_slang_root}/include")
+endif()
 
 if (ANDROID)
     set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
