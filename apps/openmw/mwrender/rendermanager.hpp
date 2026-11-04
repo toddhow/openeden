@@ -34,6 +34,7 @@
 #include <components/render/reflectionprobes.hpp>
 #include <components/render/scenecensus.hpp>
 #include <components/render/skyvisibility.hpp>
+#include <components/render/taa.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/settings/settings.hpp>
 
@@ -349,6 +350,11 @@ namespace MWRender
 
         vsg::dmat4 getProjectionMatrix() const;
 
+        /// Task 0075: the temporal state of the anti-aliasing (frame index, this frame's jitter, whether the history
+        /// is valid, the matrix to the previous frame), for whatever accumulates over time; null unless
+        /// [Rendering] taa took effect. Valid after onFrame.
+        const Render::Taa::TemporalState* temporalState() const { return mTaa ? &mTaa->state() : nullptr; }
+
     private:
         vsg::ref_ptr<vsg::Node> createMapScene();
         vsg::Group::Children createCastShadowScene(bool exterior);
@@ -400,6 +406,10 @@ namespace MWRender
         std::unique_ptr<View::Scene> mSceneData;
         vsg::ref_ptr<vsg::Node> mGui;
         vsg::ref_ptr<vsg::Camera> mSceneCamera;
+        // Task 0075: with TAA the view draws with this camera, which has the jitter in its projection; mSceneCamera
+        // and mProjectionMatrix stay unjittered for everything that needs the true camera. Null without TAA.
+        vsg::ref_ptr<vsg::Camera> mRenderCamera;
+        vsg::ref_ptr<Render::Taa::JitterOffset> mTaaJitter;
         vsg::ref_ptr<vsg::LookAt> mViewMatrix;
         vsg::ref_ptr<vsg::Perspective> mProjectionMatrix;
         vsg::ref_ptr<vsg::Group> mFirstPersonProjection;
@@ -489,6 +499,11 @@ namespace MWRender
         std::unique_ptr<Render::Bloom> mBloom; // null unless [Rendering] hdr bloom
         // Task 0026, stage b: null unless [Rendering] gbuffer. The previous frame's camera, for its motion.
         std::unique_ptr<Render::Velocity> mVelocity;
+        // Task 0075: temporal anti-aliasing; null unless [Rendering] taa took effect (it needs hdr, gbuffer and a
+        // single-sampled scene). Resolves the scene before the bloom and the tonemap.
+        std::unique_ptr<Render::TaaPass> mTaa;
+        // What the bloom and the tonemap show: the resolved picture with TAA, else the target's colour.
+        vsg::ref_ptr<vsg::ImageView> sceneColourView() const;
         vsg::dmat4 mPreviousView;
         vsg::dmat4 mPreviousProjection;
         vsg::dvec3 mPreviousEye;

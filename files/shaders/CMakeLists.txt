@@ -496,3 +496,10 @@ openeden_add_slang_shader(
     OUTPUT_DIR comp/cloud
     STAGES noiseShapeMain:compute:noiseshape noiseDetailMain:compute:noisedetail noiseCurlMain:compute:noisecurl
         marchMain:compute:march resolveMain:compute:resolve copyMain:compute:copy shadowMain:compute:shadow)
+
+# The temporal anti-aliasing resolve (task 0075), new in Slang. Two compute passes loaded whenever [Rendering] taa is on,
+# whatever [Rendering] slang shaders says; a missing file turns TAA off with a log line.
+openeden_add_slang_shader(
+    SOURCE post/taa.slang
+    OUTPUT_DIR post
+    STAGES resolveMain:compute:taaresolve outputMain:compute:taaoutput)

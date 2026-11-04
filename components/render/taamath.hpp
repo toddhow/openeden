@@ -281,6 +281,19 @@ namespace Render::Taa
             depthRejectLow, depthRejectHigh, std::abs(encodeDepth(expectedPreviousLinearDepth) - storedEncodedDepth));
     }
 
+    // The history's depths over the pixels round the reprojected one, as their smallest and largest encoded values:
+    // the surface is accepted when its depth lies in the range (the closest depth of a 3 by 3 changes with the jitter
+    // at a silhouette, so the single value at the reprojected pixel rejects edge pixels at random). The same as
+    // depthReject for a range of one value.
+    inline float depthRejectRange(float expectedPreviousLinearDepth, float storedMin, float storedMax)
+    {
+        if (storedMax < 0.f && expectedPreviousLinearDepth > 0.f)
+            return 1.f;
+        const float e = encodeDepth(expectedPreviousLinearDepth);
+        const float outside = std::max(std::max(storedMin - e, e - storedMax), 0.f);
+        return smoothstep(depthRejectLow, depthRejectHigh, outside);
+    }
+
     inline float finalHistoryWeight(float baseWeight, float speedPixels, float depthRejectAmount, bool historyUsable)
     {
         if (!historyUsable)

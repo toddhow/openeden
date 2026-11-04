@@ -74,6 +74,7 @@ namespace Settings
         SettingValue<float> mTaaJitterScale{ mIndex, "Rendering", "taa jitter scale", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mTaaHistory{ mIndex, "Rendering", "taa history", makeClampSanitizerFloat(0.5f, 0.98f) };
         SettingValue<std::string> mTaaClipping{ mIndex, "Rendering", "taa clipping" };
+        SettingValue<float> mTaaClipGamma{ mIndex, "Rendering", "taa clip gamma", makeClampSanitizerFloat(0.5f, 4) };
         SettingValue<std::string> mTaaDebug{ mIndex, "Rendering", "taa debug" };
         SettingValue<bool> mAtmosphere{ mIndex, "Rendering", "atmosphere" };
         SettingValue<std::string> mAtmosphereLook{ mIndex, "Rendering", "atmosphere look" };

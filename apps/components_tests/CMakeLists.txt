@@ -176,6 +176,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtonemap.cpp
     render/testvelocity.cpp
     render/testtaamath.cpp
+    render/testtaapass.cpp
     render/testgbuffermath.cpp
     render/testdepthmath.cpp
     render/testmaterialmath.cpp

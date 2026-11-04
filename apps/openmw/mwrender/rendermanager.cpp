@@ -468,6 +468,24 @@ namespace MWRender
             mAoEnabled = ao;
             if (ao)
                 Log(Debug::Info) << "AO: ambient occlusion at half resolution";
+            // OpenEden (task 0075): temporal anti-aliasing. It needs the G-buffer (linear depth and velocity) and a
+            // single-sampled scene (the averaged extra outputs of a multisampled target are wrong at silhouettes); the
+            // user's antialiasing setting is never changed. The jitter is made with the camera, below.
+            if (Settings::rendering().mTaa)
+            {
+                const auto samples = static_cast<std::uint32_t>(mEngine.framebufferSamples());
+                if (!Render::Taa::useTaa(true, true, gbuffer, samples))
+                {
+                    if (!gbuffer)
+                        Log(Debug::Warning) << "[Rendering] taa needs hdr and gbuffer (it reads the stored depth and "
+                                               "velocity); temporal anti-aliasing is off";
+                    else
+                        Log(Debug::Warning) << "[Rendering] taa needs a single-sampled scene ([Video] antialiasing = "
+                                               "0); temporal anti-aliasing is off";
+                }
+                else if (Render::TaaPass::shadersAvailable(resourceSystem->shaderOptions))
+                    mTaaJitter = Render::Taa::JitterOffset::create();
+            }
             if (gbuffer)
             {
                 resourceSystem->builder->graphics->gbufferOutputs = mGBufferOutputs;
@@ -693,6 +711,10 @@ namespace MWRender
         mViewMatrix = vsg::LookAt::create();
         mSceneCamera
             = vsg::Camera::create(mProjectionMatrix, mViewMatrix, vsg::ViewportState::create(mEngine.extent2D()));
+        // Task 0075: the view draws with the jittered projection; everything else keeps the true camera.
+        if (mTaaJitter)
+            mRenderCamera = vsg::Camera::create(Render::Taa::JitteredProjection::create(mProjectionMatrix, mTaaJitter),
+                mViewMatrix, mSceneCamera->viewportState);
 
         auto resourceHints = vsg::ResourceHints::create();
         uint32_t setsPerPool = 64;
@@ -855,7 +877,7 @@ namespace MWRender
                     mCloudVolume.reset();
             }
         }
-        mView = vsgUtil::createSharedView(mSceneCamera, viewRoot);
+        mView = vsgUtil::createSharedView(mRenderCamera ? mRenderCamera : mSceneCamera, viewRoot);
         mView->viewDependentState = collectLights;
         mView->mask = ~Mask_GUI;
         mView->bins.push_back(vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING));
@@ -886,6 +908,29 @@ namespace MWRender
             if (mAoEnabled)
                 mAmbientOcclusion = std::make_unique<Render::AmbientOcclusion>(
                     *context, mCompileContext->clone(~vsg::Mask(0)), shaderOptions);
+            // Task 0075: the temporal anti-aliasing resolve, between the occlusion pass and the bloom.
+            if (mTaaJitter)
+            {
+                Render::Taa::Settings taa;
+                taa.sharpness = Settings::rendering().mTaaSharpness;
+                taa.jitterScale = Settings::rendering().mTaaJitterScale;
+                taa.history = Settings::rendering().mTaaHistory;
+                taa.clipGamma = Settings::rendering().mTaaClipGamma;
+                const std::string clipping = Settings::rendering().mTaaClipping.get();
+                const auto parsedClipping = Render::Taa::parseClipping(clipping);
+                if (!parsedClipping)
+                    Log(Debug::Warning) << "[Rendering] taa clipping: unknown '" << clipping << "', using variance";
+                taa.clipping = parsedClipping.value_or(Render::Taa::Clipping::Variance);
+                const std::string debug = Settings::rendering().mTaaDebug.get();
+                const auto parsedDebug = Render::Taa::parseDebugView(debug);
+                if (!parsedDebug)
+                    Log(Debug::Warning) << "[Rendering] taa debug: unknown '" << debug << "', using none";
+                taa.debug = parsedDebug.value_or(Render::Taa::DebugView::None);
+                mTaa = std::make_unique<Render::TaaPass>(
+                    mCompileContext->clone(~vsg::Mask(0)), shaderOptions, taa, mTaaJitter);
+                Log(Debug::Info) << "TAA: temporal anti-aliasing, " << Render::Taa::jitterPeriod
+                                 << " jitter samples, history " << taa.history << ", clipping " << clipping;
+            }
         }
         else
             mRenderGraph = mEngine.createRenderGraph();
@@ -981,7 +1026,7 @@ namespace MWRender
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph };
         // The first index after the scene (and its velocity and occlusion passes).
-        const int afterScene = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0);
+        const int afterScene = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0) + (mTaa ? 1 : 0);
         if (mTonemapGraph)
         {
             // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
@@ -1003,6 +1048,8 @@ namespace MWRender
                         mAmbientOcclusion->view(), resourceRequirements);
                 });
             }
+            if (mTaa)
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 1, mTaa->node());
             if (mBloom)
             {
                 mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene, mBloom->node());
@@ -1032,6 +1079,8 @@ namespace MWRender
             timeChild(mGpuTimer, mCommandGraph->children, mVelocity->graph().get(), "velocity");
         if (mAmbientOcclusion)
             timeChild(mGpuTimer, mCommandGraph->children, mAmbientOcclusion->graph().get(), "ao");
+        if (mTaa)
+            timeChild(mGpuTimer, mCommandGraph->children, mTaa->node().get(), "taa");
         if (mBloom)
             timeChild(mGpuTimer, mCommandGraph->children, mBloom->node().get(), "bloom");
         if (mTonemapGraph)
@@ -1113,11 +1162,16 @@ namespace MWRender
                     mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The ambient occlusion pass could not be built");
+            if (mTaa
+                && !mTaa->setSource(mHdrTarget->colorView(), mHdrTarget->linearDepthView(), mVelocity->result(),
+                    mHdrTarget->extent(),
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                throw std::runtime_error("The temporal anti-aliasing pass could not be built");
             if (mBloom
-                && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), mHdrTarget->extent(),
+                && !mBloom->setSource(*mHdrContext, sceneColourView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The bloom passes could not be built");
-            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent(),
+            if (!mTonemap->setSource(sceneColourView(), mBloom ? mBloom->result() : nullptr, mHdrTarget->extent(),
                     debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources(), sssSources()))
                 throw std::runtime_error("The tonemap pass could not be built");
         }
@@ -2346,6 +2400,13 @@ namespace MWRender
         return sources;
     }
 
+    vsg::ref_ptr<vsg::ImageView> RenderManager::sceneColourView() const
+    {
+        if (mTaa && mTaa->result())
+            return mTaa->result();
+        return mHdrTarget->colorView();
+    }
+
     void RenderManager::updateVelocity()
     {
         if (!mVelocity)
@@ -2360,6 +2421,14 @@ namespace MWRender
         // may have been replaced (a loaded save, a new game): a quarter of a second is far longer than any frame.
         const auto now = std::chrono::steady_clock::now();
         const bool resumed = now - mPreviousCameraTime > std::chrono::milliseconds(250);
+        // Task 0075: the same camera comparison decides whether the anti-aliasing history may be used. The view
+        // direction of a view matrix is minus the third row of its rotation.
+        Render::Taa::ResetInput taaReset{};
+        taaReset.havePrevious = mHavePreviousCamera;
+        taaReset.gapSeconds = std::chrono::duration<double>(now - mPreviousCameraTime).count();
+        taaReset.cameraDistance = vsg::length(eye - mPreviousEye);
+        taaReset.viewDirectionCos = vsg::dot(vsg::dvec3(view(0, 2), view(1, 2), view(2, 2)),
+            vsg::dvec3(mPreviousView(0, 2), mPreviousView(1, 2), mPreviousView(2, 2)));
         mPreviousCameraTime = now;
         if (!mHavePreviousCamera || resumed || Render::Velocity::cameraJumped(mPreviousEye, eye))
         {
@@ -2368,8 +2437,18 @@ namespace MWRender
             mPreviousEye = eye;
             mHavePreviousCamera = true;
         }
-        mVelocity->setMatrix(Render::Velocity::toPreviousClip(mPreviousProjection, mPreviousView, vsg::inverse(view)),
-            static_cast<float>(projection(0, 0)), static_cast<float>(projection(1, 1)));
+        const vsg::mat4 toPrevious
+            = Render::Velocity::toPreviousClip(mPreviousProjection, mPreviousView, vsg::inverse(view));
+        mVelocity->setMatrix(toPrevious, static_cast<float>(projection(0, 0)), static_cast<float>(projection(1, 1)));
+        if (mTaa)
+        {
+            Render::Taa::FrameInput input;
+            input.toPreviousClip = toPrevious;
+            input.projectionX = static_cast<float>(projection(0, 0));
+            input.projectionY = static_cast<float>(projection(1, 1));
+            input.reset = Render::Taa::historyReset(taaReset);
+            mTaa->beginFrame(input);
+        }
         mPreviousView = view;
         mPreviousProjection = projection;
         mPreviousEye = eye;
@@ -3117,11 +3196,15 @@ namespace MWRender
                 && !mAmbientOcclusion->setSource(*mHdrContext, mHdrTarget->linearDepthView(), mHdrTarget->normalView(),
                     extent, [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The ambient occlusion pass could not be rebuilt after a resize";
+            if (mTaa
+                && !mTaa->setSource(mHdrTarget->colorView(), mHdrTarget->linearDepthView(), mVelocity->result(), extent,
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                Log(Debug::Error) << "The temporal anti-aliasing pass could not be rebuilt after a resize";
             if (mBloom
-                && !mBloom->setSource(*mHdrContext, mHdrTarget->colorView(), extent,
+                && !mBloom->setSource(*mHdrContext, sceneColourView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The bloom passes could not be rebuilt after a resize";
-            if (!mTonemap->setSource(mHdrTarget->colorView(), mBloom ? mBloom->result() : nullptr, extent,
+            if (!mTonemap->setSource(sceneColourView(), mBloom ? mBloom->result() : nullptr, extent,
                     debugSources(*mHdrTarget, mVelocity ? mVelocity->result() : nullptr), aoSources(), sssSources()))
                 Log(Debug::Error) << "The tonemap pass could not be rebuilt after a resize";
         }
@@ -3150,7 +3233,11 @@ namespace MWRender
                 auto fov = vsg::ref_ptr{ new vsgUtil::FieldOfView };
                 fov->perspective = mProjectionMatrix;
                 fov->fieldOfViewY = Settings::camera().mFirstPersonFieldOfView;
-                firstPersonProjection->projection = fov;
+                // Task 0075: the arms and weapon get the same jitter as the world.
+                if (mTaaJitter)
+                    firstPersonProjection->projection = Render::Taa::JitteredProjection::create(fov, mTaaJitter);
+                else
+                    firstPersonProjection->projection = fov;
                 mFirstPersonProjection = firstPersonProjection;
             }
             mPlayerGroup->children = { { Mask_FirstPerson, mFirstPersonProjection } };
