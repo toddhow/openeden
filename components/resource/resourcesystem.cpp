@@ -21,6 +21,7 @@
 #include <components/vsgadapters/nif/kf.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
 #include <components/vsgadapters/vfs.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "decompress.hpp"
 #include "fallback.hpp"
@@ -51,6 +52,8 @@ namespace
         // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
+        // Task 0072: `[Rendering] slang shaders`, for every reader of these options (pipelines, the terrain, the GUI).
+        options->setValue(vsgUtil::preferSlangKey, Settings::rendering().mSlangShaders.get());
         return options;
     }
 

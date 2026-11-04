@@ -179,6 +179,95 @@ function(openeden_add_slang_shader)
     add_dependencies(openeden_slang_shaders slang_${target_suffix})
 endfunction()
 
+# Slang twins of GLSL stages, one SPIR-V file per define set (task 0072; components/vsgutil/shaderpermutation.hpp).
+#
+# openeden_add_slang_permutations(SOURCE <file.slang> STAGE_FILE <the GLSL stage, e.g. gui/gui.vert>
+#                                 ENTRY <entry point> STAGE <vertex|fragment|compute>
+#                                 [DEFINE_SETS <set> ...] [DEFINE_SETS_FILE <file>])
+# compiles SOURCE once per define set into <dir of STAGE_FILE>/<name of STAGE_FILE>.p<NNNN>.spv and writes
+# <STAGE_FILE>.permutations, which lists each file with its define set. A set is the canonical list of names
+# (sorted, one space between), and "-" is the set with no defines; DEFINE_SETS_FILE holds one set per line (lines
+# starting with # are comments). With `[Rendering] slang shaders` on, a stage created with exactly a listed set uses
+# its file; any other set keeps the GLSL. The flags and the spirv-val check are those of openeden_add_slang_shader.
+function(openeden_add_slang_permutations)
+    cmake_parse_arguments(P "" "SOURCE;STAGE_FILE;ENTRY;STAGE;DEFINE_SETS_FILE" "DEFINE_SETS" ${ARGN})
+    if (NOT OPENEDEN_SLANG_SHADERS_BUILT)
+        return()
+    endif()
+    set(sets ${P_DEFINE_SETS})
+    if (P_DEFINE_SETS_FILE)
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${P_DEFINE_SETS_FILE}")
+        file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${P_DEFINE_SETS_FILE}" file_sets)
+        foreach (line ${file_sets})
+            string(STRIP "${line}" line)
+            if (NOT line STREQUAL "" AND NOT line MATCHES "^#")
+                list(APPEND sets "${line}")
+            endif()
+        endforeach()
+    endif()
+    list(LENGTH sets count)
+    if (count EQUAL 0)
+        message(FATAL_ERROR "openeden_add_slang_permutations: no define sets for ${P_STAGE_FILE}")
+    endif()
+    set(source "${CMAKE_CURRENT_SOURCE_DIR}/${P_SOURCE}")
+    get_filename_component(stage_dir "${P_STAGE_FILE}" DIRECTORY)
+    get_filename_component(stage_name "${P_STAGE_FILE}" NAME)
+    set(out_dir "${OPENMW_RESOURCES_ROOT}/${DDIRRELATIVE}/${stage_dir}")
+    file(MAKE_DIRECTORY "${out_dir}")
+    # Every .slang file beside the source may be included by it.
+    get_filename_component(source_dir "${source}" DIRECTORY)
+    file(GLOB_RECURSE slang_deps "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.slang" "${source_dir}/*.slang")
+    set(outputs "")
+    set(manifest "")
+    set(index 0)
+    foreach (set_text ${sets})
+        if (NOT set_text MATCHES "^(-|[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*)$")
+            message(FATAL_ERROR "openeden_add_slang_permutations: \"${set_text}\" is not a define set (${P_STAGE_FILE})")
+        endif()
+        set(defines "")
+        set(key "")
+        if (NOT set_text STREQUAL "-")
+            string(REPLACE " " ";" names "${set_text}")
+            set(sorted ${names})
+            list(SORT sorted)
+            list(REMOVE_DUPLICATES sorted)
+            if (NOT sorted STREQUAL names)
+                message(FATAL_ERROR "openeden_add_slang_permutations: \"${set_text}\" is not sorted (${P_STAGE_FILE})")
+            endif()
+            foreach (name ${names})
+                list(APPEND defines "-D${name}")
+            endforeach()
+            set(key "${set_text}")
+        endif()
+        string(LENGTH "000${index}" len)
+        math(EXPR start "${len} - 4")
+        string(SUBSTRING "000${index}" ${start} 4 padded)
+        set(file_name "${stage_name}.p${padded}.spv")
+        set(output "${out_dir}/${file_name}")
+        add_custom_command(
+            OUTPUT "${output}"
+            COMMAND "${OPENEDEN_SLANGC}" "${source}" -target spirv -profile spirv_1_0 -matrix-layout-column-major
+                    -warnings-disable 50011 ${defines} -entry ${P_ENTRY} -stage ${P_STAGE} -o "${output}.tmp"
+            COMMAND $<TARGET_FILE:spirv-val> --target-env vulkan1.0 "${output}.tmp"
+            COMMAND ${CMAKE_COMMAND} -E rename "${output}.tmp" "${output}"
+            DEPENDS "${source}" ${slang_deps} spirv-val
+            COMMENT "Slang: ${P_SOURCE} ${P_ENTRY} [${set_text}] -> ${stage_dir}/${file_name}"
+            VERBATIM)
+        list(APPEND outputs "${output}")
+        string(APPEND manifest "${file_name}\t${key}\n")
+        math(EXPR index "${index} + 1")
+    endforeach()
+    file(GENERATE OUTPUT "${out_dir}/${stage_name}.permutations" CONTENT "${manifest}")
+    string(MAKE_C_IDENTIFIER "${P_STAGE_FILE}" target_suffix)
+    add_custom_target(slang_perm_${target_suffix} DEPENDS ${outputs})
+    add_dependencies(openeden_slang_shaders slang_perm_${target_suffix})
+endfunction()
+
+# The GUI (task 0072, stage a): the first family ported through openeden_add_slang_permutations. MyGUI's render
+# system loads gui/gui.vert and gui/gui.frag with no defines.
+openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
+
 # The sun, ported by hand as the proof of the pipeline (task 0023, F1b). Used when [Rendering] slang shaders is on.
 openeden_add_slang_shader(
     SOURCE sky/sun/sun.slang

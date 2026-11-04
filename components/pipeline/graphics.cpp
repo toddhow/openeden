@@ -14,6 +14,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/vsgutil/readshader.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "bindings.hpp"
 #include "gbufferblend.hpp"
@@ -209,6 +210,8 @@ namespace Pipeline
             return vsg::ShaderStage::create(stage, "main", module);
         }
         auto shaderStage = vsgUtil::readShader(path + suffix, mShaderOptions);
+        // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses.
+        vsgUtil::recordShaderUse(path + suffix, compileSettings->defines, shaderStage.get(), mShaderOptions);
         // if (!compileSettings->defines.empty())
         {
             shaderStage = vsg::ShaderStage::create(*shaderStage);
@@ -217,6 +220,14 @@ namespace Pipeline
         }
         if (preferSlang)
         {
+            // Task 0072: a Slang port compiled for exactly these defines; any other set keeps the GLSL.
+            if (auto module = vsgUtil::findSlangPermutation(path + suffix, compileSettings->defines, mShaderOptions))
+            {
+                shaderStage->module = module;
+                Log(Debug::Verbose) << "Using the Slang permutation of " << path << suffix;
+                return shaderStage;
+            }
+            // Task 0023: a single precompiled file beside the GLSL, for the sun, which always has the same defines.
             const std::string spirvPath = path + suffix + ".spv";
             // The reader finds the file along the shader options' paths; read_cast gives null if there is none.
             if (auto precompiled = vsg::read_cast<vsg::ShaderModule>(spirvPath, mShaderOptions);

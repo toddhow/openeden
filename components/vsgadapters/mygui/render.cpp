@@ -21,6 +21,7 @@
 
 #include <components/vsgutil/readshader.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "texture.hpp"
 
@@ -276,6 +277,19 @@ namespace vsgAdapters::mygui
     {
         auto shaders = vsg::ShaderStages{ vsgUtil::readShader(vertexProgramFile, mShaderOptions),
             vsgUtil::readShader(fragmentProgramFile, mShaderOptions) };
+        // OpenEden (task 0072): with `[Rendering] slang shaders` on, the Slang twins of the GUI stages (no defines).
+        if (vsgUtil::prefersSlang(mShaderOptions.get()))
+        {
+            const std::string files[] = { vertexProgramFile, fragmentProgramFile };
+            for (std::size_t i = 0; i < shaders.size(); ++i)
+            {
+                if (auto module = vsgUtil::findSlangPermutation(files[i], {}, mShaderOptions))
+                {
+                    shaders[i] = vsg::ShaderStage::create(*shaders[i]);
+                    shaders[i]->module = module;
+                }
+            }
+        }
 
         auto pipeline = vsg::BindGraphicsPipeline::create(
             vsg::GraphicsPipeline::create(mPipelineLayout, shaders, createPipelineStates()));

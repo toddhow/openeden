@@ -9,6 +9,7 @@
 #include <vsg/state/VertexInputState.h>
 
 #include <components/vsgutil/readshader.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "gbufferblend.hpp"
 #include "layout.hpp"
@@ -78,6 +79,13 @@ namespace Pipeline
                 stage->module = vsg::ShaderModule::create(*stage->module);
                 stage->module->hints = compileSettings;
             }
+        }
+        // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses.
+        for (std::size_t i = 0; i < shaders.size(); ++i)
+        {
+            const auto& hints = shaders[i]->module->hints;
+            vsgUtil::recordShaderUse(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
+                hints ? hints->defines : std::set<std::string>{}, shaders[i].get(), shaderOptions);
         }
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{ { Pipeline::Descriptors::BLENDMAP_BINDING,

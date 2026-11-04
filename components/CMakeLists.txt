@@ -191,6 +191,8 @@ add_component_dir (vsgutil
     traverse traversestate nodepath cullnode searchbyname searchbytype cameradistanceintersector arraystate
     # I/O.
     cache virtualfile imageio imagepixels readimage texturecap textureresize decompress readnode readshader share shareimage deletionqueue
+    # Slang twins of the GLSL shaders (task 0072).
+    shaderpermutation spirvinterface
     # Temporary workarounds.
     setbin sharedview
     )
