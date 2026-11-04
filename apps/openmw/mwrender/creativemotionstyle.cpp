@@ -416,8 +416,8 @@ namespace MWRender
         return makeTransitionTimes(entries);
     }
 
-    float transitionSeconds(MotionKind from, MotionKind to, float baseSeconds, const TransitionIntent& intent,
-        const TransitionTimes& times)
+    float transitionSeconds(
+        MotionKind from, MotionKind to, float baseSeconds, const TransitionIntent& intent, const TransitionTimes& times)
     {
         if (baseSeconds <= 0.f)
             return 0.f;

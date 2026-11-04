@@ -280,8 +280,7 @@ TEST(CreativeMotionIntentTest, OtherChangesAreAsTheOldRulesSay)
     {
         for (const MotionKind to : kinds)
         {
-            const bool stop
-                = (from == MotionKind::Walk || from == MotionKind::Run || from == MotionKind::Sneak)
+            const bool stop = (from == MotionKind::Walk || from == MotionKind::Run || from == MotionKind::Sneak)
                 && to == MotionKind::Idle;
             const bool start = from == MotionKind::Idle
                 && (to == MotionKind::Walk || to == MotionKind::Run || to == MotionKind::Sneak);

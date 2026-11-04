@@ -2887,9 +2887,8 @@ namespace MWMechanics
         mStyleDirty = true;
         const opas::style::StyleProfile* profile = resolveStyleProfile();
         if (profile == nullptr)
-            return creativeMotionFeatures().mStyleLayer
-                ? "No style for this actor"
-                : "The style layer is off ([Game] creativemotion style layer)";
+            return creativeMotionFeatures().mStyleLayer ? "No style for this actor"
+                                                        : "The style layer is off ([Game] creativemotion style layer)";
         return MWRender::describeStyle(*profile, !mStyleSwitchedOff, MWRender::styleWeights(currentStyleState()));
     }
 
