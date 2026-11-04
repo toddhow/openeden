@@ -184,9 +184,10 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   nothing is evicted this way). `Stats::mFarEvictions`, `mWaitingForGround`, `mNoGround` and `mNoFallbackBytes` are in
   the "LOD clusters:" log line and the over-budget message.
   Clusters whose square is not wholly covered by drawn tiles (out of view: `LodTerrain` builds only what is in view; or the
-  sea) have "no ground" and are kept whatever the budget says: 4 to 6 in the climb. **Packs are per platform:** the terrain
-  pack baked on Windows fails the staleness check on Linux (no tile is used, the far land is missing); bake on the
-  platform that runs (task 0060 stage log, "The weak-GPU run"). The Linux bake needs a small window (the bake draws a
+  sea) have "no ground" and are kept whatever the budget says: 4 to 6 in the climb. **The staleness digest is not
+  portable:** the terrain pack baked on Windows fails the check on Linux (no tile is used, the far land is missing)
+  although a Linux bake has byte-identical tiles and manifest (`edenlist` hashes equal; only container metadata
+  differs); bake on the platform that runs (task 0060 stage log, "The weak-GPU run"). The Linux bake needs a small window (the bake draws a
   frame between its 10 ms slices; a frame on llvmpipe costs seconds).
 - **Two cooldowns, counted in frames:** the eviction cooldown (`mCooldown`: set when the planner frees a wanted item;
   replaceable items only) and the failure back-off (`mFailureCooldown`: every item; `failureCooldownFrames` doubles the
