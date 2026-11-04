@@ -737,3 +737,221 @@ runs to the end, 32 actors draw the merged body, and six combinations viewed aga
 clang-format 14 (throwaway container) applied to the changed C++ files. Not run: the Linux gate, the 32 Lua tests, a
 fresh reviewer of these fixes. Open: the 2.3 ms of VSG compile per 26-actor torch frame that the merged body still
 costs over stock; the 15 restating tests of `testmergedregions.cpp` (removing them needs toddhow's word).
+
+### Stage f, design (2026-11-04, written before any code; full loop)
+
+**The verify items, settled by reading the code at `504ff9c445`.**
+1. *How editor modules register and draw.* A module is a shared library exporting `openeden_editor_module_descriptor`
+   (`sdk/include/openeden/editor_module/module.hpp`, `OPENEDEN_EDITOR_MODULE`); Studio loads the core list
+   (`CSMModule::coreModules()`, `apps/opencs/model/module/modulehost.cpp`) from `editor-modules/` beside the program. A
+   module registers data only (`registrar.hpp`): workspaces, panels and inspector sections are `PropertySource`s that
+   Studio turns into Qt forms (`CSVModule::ModuleUi::makePropertyForm`, `apps/opencs/view/module/moduleui.cpp`); gizmos
+   submit **lines, points and labels only** (`OverlaySink`, `types.hpp`) in metres, which `ModuleUi::overlayLines`
+   (its `LineSink::convert`) turns into Morrowind units, and only `CSVRender::WorldspaceWidget::updateModuleOverlay`
+   draws them (cell views); labels are not drawn. A form's rows are made once (`PropertyForm::build`); after an edit
+   only the values are read again (`refresh`), and a panel builds a new form only when its source's ADDRESS changes
+   (`StudioShell`'s `ModulePanel::rebuild`); an inspector section only when the active asset changes
+   (`ContextInspector::rebuildModuleSections`, `generation`). Module assets are opened from the Asset Browser's
+   "Module assets" group (`ModuleUi::findAssets` over the data folders and `OPENEDEN_CS_ASSETDIR`, `CS::Editor::
+   startModules`) by the longest registered file name suffix (`ModuleRegistry::findAssetType`). The API version is
+   pinned at 1.0 by two existing tests (`testmodulehost.cpp` line 175, `testheader_types.cpp` lines 21 and 22), so
+   this stage grows nothing in the API.
+2. *What the mesh viewer draws.* `CSVRender::MeshScene::load` (`apps/opencs/view/render/meshscene.cpp`) loads only a
+   VFS model through `MWAnim::createObject` (NIF and DAE, `createNodeOptions`); the view modes other than Textured
+   draw a copy of the geometry taken at load, unskinned (`MeshCollector`, `rebuildSolid`, `rebuildOverlay`;
+   `apps/opencs/CLAUDE.md`, "The mesh viewer"). It cannot load a `bodymesh` payload, it does not draw module gizmos,
+   and nothing gives it colours from outside. `Render::DebugGeometry` can draw lines and triangles
+   (`components/render/debuggeometry.hpp`), but the API delivers lines only. **So the skinned rest-pose question is
+   answered "no": the fallback is taken, the bind-pose static mesh** (the payload's own positions, which are the
+   bind pose), drawn as lines coloured by region.
+3. *What `components/body` exposes.* `readPackageFolder`, `readPackageFile`, `PackageFiles` (`bodypack.hpp`);
+   `readBodyPackage`, `LoadError` with file, line and pointer (`bodyjson.hpp`); `validateBodyPackage` with
+   `ValidateOptions { mMeshSource, mReadFile }` and `Finding { code, severity, path, message }` (`bodyvalidate.hpp`);
+   `RegionMap` (triangle ranges per region id) and `WeldGroups` (`bodypackage.hpp`); `readBodyMesh` (the canonical
+   payload reader, `bodymesh.hpp`); `loadCurrentCache(folder)` (reads `current`, refuses an unsafe or non
+   `merged-<digest>.edenpak` name), `readManifest`, `CacheEntry` (name, race, sex, view, key), `CacheFailure`
+   (`bodycache.hpp`). **A merged cache holds payloads and `manifest.txt` only** (no `body.json`, no region map, no
+   skeleton binding, no weld tolerance, no units): stage c built the payload, not the package the design 7A.3 named.
+   The payload is in the game's units (the skeleton's bind space; stage a's bounds, `analysis/bodies.json`).
+   `edenbodyvalidate` (`runBodyValidateTool`, `bodytool.cpp`) passes `mReadFile` and no mesh source.
+4. *What the stage a report holds.* `openmw --analyse-bodies` writes `<user data or --bake-out>/analysis/bodies.json`
+   (`BodyNif::toJson`, `components/bodynif/analysisreport.cpp`): `"format": "openeden.bodyanalysis"`, `"version": 1`,
+   `units[]` with `race`, `skeleton`, `female`, `beast`, `playable`, `totals` (vertices, triangles, bones, materials,
+   files, fileBytes, skinnedParts, rigidParts), `slots[]` and `seams[]` (label, slotA, slotB, touches, `distance`
+   {count, min, median, p95, max}, `withinLadder` (6 counts for 0, 1e-4, 1e-3, 1e-2, 0.1, 0.5 units), `signedGap`,
+   overlapPairs, gapPairs, meetingPairs, `weightDisagreement`, ...) and `heads[]`. There is no reader; the cache does
+   not point at it.
+
+**What the module is.** `editor_modules/advancedbodies_editor/`, built as `advancedbodies_editor` into
+`editor-modules/` and added to the core list after `creativemotion_editor`. It links the Editor Module API headers,
+`eden_body` and nlohmann/json; no Qt, no Studio type, no engine type (the one engine fact is the unit factor, below).
+It only reads: nothing is written, `save` refuses, `isDirty` is false.
+
+**The model** (`bodyview.hpp`, namespace `advancedbodies_editor`, pure, no clock, no threads; tested in
+`eden-studio-tests`):
+- `openBodySource(path)` dispatches: a file named `current` opens the merged cache of its folder through `current`
+  (`Body::loadCurrentCache`); a `*.edenpak` opens the pack (`Body::readPackageFile`) as a packed package when it holds
+  `body.json`, as a merged cache when it holds `manifest.txt`, else refuses; a file whose name ends in `body.json`
+  opens its folder as a package (`Body::readPackageFolder`). Anything else refuses. `openPackageFolder`,
+  `openPackageFile`, `openMergedCache` are the three ways by name. A failure gives one located message and no view.
+- **A package** (folder or pack): `body.json` is read with `Body::readBodyPackage`; a load error is the open's error
+  (its `toString()`: file, line, pointer). The report is `Body::validateBodyPackage(package, options)` with exactly the
+  tool's `mReadFile` (files of the package by safe path) plus `PayloadMeshSource`: for a mesh of format `bodymesh` whose
+  path is a file of the package, the summary of its payload (counts, bounds of the positions as stored, bone names,
+  the influences with a weight above 0 in the payload's order, the triangle indices, UV sets 1 or 0); any other mesh
+  has no summary (`MESH-001`, as in the tool). Findings are listed in the report's order.
+- **A merged cache entry** has no package, so the model derives one (`mergedEntryPackage`) holding exactly what the
+  cache knows: identity id `merged-body`, name `<race> <sex> <view>`, version `0.0.0`, licence text saying it is derived
+  from the user's own game files; one target (race, sex); **no skeleton binding** (the cache records none: the engine
+  binds by bone name to the race's skeleton), so the validator reports `BODY-BIND-001` and `BODY-BIND-014`, which the
+  panel names as expected for a cache entry; one mesh `body` (path = the entry name, format `bodymesh`, LOD 0, role
+  skin) with an inline summary of the payload **in metres** (positions divided by `kGameUnitsPerMetre` =
+  `Constants::UnitsPerMeter`, `components/misc/constants.hpp`, the factor Studio multiplies by again in
+  `LineSink::convert`); a region map (origin derived) with one region `slot-<n>` per payload region and its one range;
+  weld groups (origin derived) = the payload's groups, tolerance = the largest distance of a member from its group's
+  first member, in metres (the merger puts members at one position, so 0); provenance records for `regionMap` and
+  `weldGroups` (source digest = the entry's key, tool `openeden.bodymerge`, version = the manifest's merger version,
+  parameters `layout <n>`). A payload that does not read leaves no package: the entry shows the reader's message and
+  nothing else.
+- **The drawn mesh**: the first LOD 0 skin mesh of format `bodymesh` whose payload reads (a package's file, or the
+  entry); positions in metres, bind pose, never skinned. Per triangle the region index: the first region (map order,
+  then range order) whose range holds it, else -1; done with a "next free triangle" union-find, so a hostile map
+  costs O(triangles + ranges), and nothing is coloured when the map names another mesh or has more than
+  `Body::Limits::sMaxRegionRanges` ranges. `RegionInfo { id, triangles drawn in it, colour }`; `regionColour(i)` is
+  the fixed palette below by `i % 12`. **Region lines**: every distinct edge (vertex index pair, smaller first, in the
+  order the triangles first use it) once, in the colour of the region of the first triangle that uses it
+  (`kUnassignedColour` for -1), at most `kMaxRegionLines` (the total is counted). **Weld points**: one per weld group
+  of the drawn mesh at its first member's position (members past the mesh's vertices are skipped), at most
+  `kMaxWeldPoints`.
+- **The stage a numbers** (merged entries only): `analysisReportFor(cacheFolder)` = `<cacheFolder>/../../analysis/
+  bodies.json` (the cache is `<user data>/openeden/bodies`, the report `<user data>/analysis`); `readAnalysisUnit(text,
+  race, female)` reads `openeden.bodyanalysis` v1 and returns the unit whose race equals ignoring ASCII case and whose
+  `female` matches: its totals and per seam the label, slots, touches, pair count, distance min/median/max, the six
+  ladder counts, overlap/gap/meeting pairs and the largest weight disagreement (game units, as the report has them).
+  Hostile text: over `kMaxAnalysisBytes` (64 MiB), nesting over 32 (counted before parsing), not JSON, another format
+  or version, more than 1024 units or 256 seams, a field of the wrong type: refused with a message naming the field;
+  no exception. A missing report is a note, not an error. A package has no stage a numbers.
+- **Palette** (`regionColour`), RGB with alpha 1: (0.90, 0.30, 0.30), (0.30, 0.75, 0.35), (0.30, 0.50, 0.95),
+  (0.95, 0.80, 0.25), (0.75, 0.40, 0.90), (0.25, 0.85, 0.85), (0.95, 0.55, 0.20), (0.60, 0.85, 0.30), (0.90, 0.45,
+  0.70), (0.55, 0.60, 0.95), (0.80, 0.65, 0.45), (0.45, 0.70, 0.60). `kUnassignedColour` (0.45, 0.45, 0.45),
+  `kWeldColour` (1.0, 0.2, 0.9).
+
+**The asset types, panel and gizmos** (`documents.hpp`). Asset types: `openeden.body` for `body.json`,
+`openeden.bodypack` for `.edenpak`, `openeden.bodycache` for `current` (a generic suffix: the open refuses a pointer
+that does not name a merged body pack). Workspace `advancedbodies` ("AdvancedBodies"), panel `advancedbodies.panel`
+("Body Package", right) showing the active asset only when it is this module's, inspector sections
+`advancedbodies.section.<format>` (a fixed short summary), no gizmo provider (Studio draws the active asset's
+gizmos). The panel's rows, all read only: `source.kind`, `source.path`, `source.entry` (merged cache only: the shown
+body's `<race> <sex> <view>`), `report.verdict`, `report.errors`, `report.warnings`, `payload.status`,
+`finding.<i>` (label `<severity> <code>`, value `<path>: <message>`, at most 200 rows then `finding.more`), `mesh.*`,
+`region.<i>` (label the region id, value `<n> triangles, colour #rrggbb`), `weld.*`, `analysis.*`; `makeSetCommand`
+refuses every row. Because Studio builds a form's rows once, every body of a merged cache has its own property
+source, kept for the document's life, and the panel shows the selected one's (a new address makes the panel rebuild).
+Gizmos `advancedbodies.body.regions` (the region lines) and `advancedbodies.body.welds` (the weld points), in metres,
+the body's own origin.
+
+**Choosing the body of a merged cache (amended 2026-11-04 after the first editor run).** The first design made
+`source.entry` an editable Choice whose `makeSetCommand` returned an undo step. In the real editor that step went on
+the content document's undo stack (`ModuleUi::pushCommand`), whose clean flag is the document's modified state
+(`CSMDoc::Document`, `QUndoStack::cleanChanged`), so looking at another body marked the user's ESM document
+modified and the close waited on a "save changes?" box. Choosing what to view must not touch the undo stack. Now:
+`selectBody(document, index)` (documents.hpp) selects a body of this module's document (false for another module's
+document or an index out of range, nothing changes then), and two module commands do it from the Extensions menu:
+`advancedbodies.nextBody` ("Bodies/Next Body", shortcut "Ctrl+Alt+PgDown") and `advancedbodies.previousBody`
+("Bodies/Previous Body", "Ctrl+Alt+PgUp"); each moves the active asset's selection by one, wrapping around, and calls
+`EditorContext::requestRedraw()` (Studio then redraws the panel, the inspector and the gizmos); neither ever calls
+`pushCommand`. Both are enabled only when the active asset is this module's document with more than one body.
+
+**The viewer change (Studio, off the game's path, no API change).** A Mesh view opened with no model shows the
+active module asset's gizmos instead: `MeshViewWidget` gets the module overlay that `WorldspaceWidget` has
+(`PhysicsDebugView` filled from `ModuleUi::overlayLines` with the origin at 0), frames it, and keeps it in step with
+`ModuleUi::changed`; a Mesh view WITH a model is unchanged. `Extensions > Show Module Asset in Mesh Viewer` opens one
+(`UniversalId::Type_Mesh` with an empty id). The region colours are therefore coloured edges, not filled triangles:
+filling needs a triangle in `OverlaySink`, an API 1.1 change that edits the two pinned version tests, toddhow's
+decision.
+
+**Deviations from the spec's sentence, and why.** (1) Regions are coloured edges, not filled (above). (2) The
+skinned rest pose is not drawn (the viewer cannot, verify item 2). (3) A merged entry is validated as the package the
+model derives from the cache, which has no skeleton binding, so two binding findings are always present. (4) The
+merged cache opens through the Asset Browser only when its folder is an asset root (`OPENEDEN_CS_ASSETDIR`, or a data
+folder): the module cannot learn the user data folder through API 1.0; an API query or Studio scanning
+`<user data>/openeden` are toddhow's choice. (5) `Constants::UnitsPerMeter` is used outside `bodylegacy.cpp`, because
+the cache does not record its unit.
+
+### Stage f, 2026-11-04: the body package panel (`editor_modules/advancedbodies_editor`)
+
+**Built.** The module (`bodyview.*` the pure model, `body_document.cpp` the asset document, its rows, inspector summary
+and gizmos, `advancedbodies_editor_module.cpp` the registration, the export file), built as `advancedbodies_editor` in
+`editor-modules/` and second on `CSMModule::coreModules()`. Studio, outside the module and off the game's path: a Mesh
+view opened with no model draws the active module asset's gizmos (`MeshViewWidget::showModuleAsset`,
+`MeshSubView`, `Extensions > Show Module Asset in Mesh Viewer`); the unattended check `OPENEDEN_CS_BODYCHECK`
+(`editor.cpp`, `runBodyCheck`) and `tools/bodypanel_check/` (a synthetic package generator and the run with its
+pass/fail lines). `eden_body` gets `POSITION_INDEPENDENT_CODE` so that the shared module links on Linux (push.yml builds
+`BUILD_OPENCS_TESTS=ON`, which adds `apps/opencs`); MSVC ignores it: `build.ninja` was regenerated at 08:41 and
+`eden_body`'s objects still date from 02:43, so the game's Windows objects did not change. No file under `apps/openmw`
+and nothing on the game's render path changed. Threads: main thread only (Studio calls modules there).
+
+**Two Studio faults found by the first editor run, fixed.**
+1. *A replaced asset's form read freed memory.* `ModuleUi::openAsset` destroys the old document before it emits
+   `changed()`; the old `PropertyForm` is still connected in that emission (its panel only `deleteLater`s it) and its
+   `refresh` read the destroyed source. Run 1: after the second open the Mesh view kept the old body (the emission
+   stopped), the old form stayed in the panel beside the new one, and the third open crashed the editor (exit 139). Now
+   a form reads and edits only while `ModuleUi::generation()` is the one it was built in, and `ModulePanel::rebuild`
+   builds a new form on every generation change (a new source can sit at the old one's address). The same pattern was
+   in CreativeMotion's rig-then-profile check (task 0032); it is not known to have crashed there.
+2. *A view choice marked the content document modified.* The first design chose a merged cache's body with an
+   editable Choice row and an undo step; Studio pushes module commands on the content document's undo stack, whose
+   clean flag is that document's modified state, so the close of run 2 waited on a "save changes?" box until the
+   300 s timeout. Amended in the design (above): the row is read only, `selectBody` and the module commands
+   `Bodies > Next Body` and `Previous Body` choose, with `requestRedraw` and no undo step.
+
+**Tests first, by a separate agent.** The test-writing agent read the design text above, the two module headers and the
+public `components/body` headers, never the module's .cpp (stubs at the time), and wrote
+`apps/opencs_tests/model/module/advancedbodies/` (`abtestsupport.hpp` with synthetic stacked-quad and strip bodies,
+packages, packs, caches published with `Body::publishCache`, stage a report texts, and its own reference of every rule;
+`testabview.cpp`, `testabhostile.cpp`, `testabmodule.cpp`). Red run against the stubs: 81 tests, **70 failed, 11
+passed** (palette and id constants, refusals that a refuse-everything stub passes). After the implementation, at its
+first build: 81 pass. Mutation check (region priority reversed, weld point at a group's last member): 4 tests failed,
+code restored. The amendment: the same agent changed `testabmodule.cpp` from the amended text (3 tests removed because
+the design no longer has an editable Choice, 1 renamed, 5 changed, 6 added: 87 tests); red against the old code: **14
+failed**; after the change all pass. `eden-studio-tests` 676 pass (589 before). The model's own "more ranges than the
+reader allows colours nothing" branch is not reachable through the open functions (the reader refuses such a file).
+
+**In the real editor** (work folder `I:\Projects\OpenEden-work\0069f`; `--replace=config` with a copy of the lodtest
+`openmw.cfg`, `--user-data` holding a copy of the stage e review's merged cache `merged-01c881d487d5110f.edenpak`
+(20 bodies) and stage a's `analysis/bodies.json`, the asset root that cache folder; runs `runs/run1` to `run7` and
+`bodypanel1`). Final run, the three sources in order:
+- *The cache through `current`:* Argonian female third, 1 of 20: payload reads; BODY-BIND-001 and BODY-BIND-014 (the
+  expected pair); 1,906 vertices, 2,610 triangles, 4,388 edges drawn; 20 regions `slot-2` to `slot-26`; 28 weld groups
+  (64 members); stage a: 1,908 vertices and 2,610 triangles for the stock parts (2 vertices welded), forearm-wrist 20
+  pairs within 1e-4 units, knee-ankle 14. Two Next Body commands (1.18 and 1.15 s each, three document windows open)
+  showed Breton female third: 1,479 vertices, 2,238 triangles, 19 regions, 26 weld groups; stage a 1,483 vertices and
+  the same triangles, forearm-wrist pairs at 0.00106 units, knee-ankle at 0.00093. The document's undo stack stayed at
+  0 steps and not modified.
+- *The synthetic package, folder and `.edenpak`* (`tools/bodypanel_check/make_synthetic_package.py`: tubes 1.75 m
+  tall, 420 vertices, 672 triangles, a payload in metres, no game data): exactly its two planted errors,
+  BODY-GEOM-005 at `/regionMap/regions` (triangle 192 of `body` in no region: the head) and BODY-WELD-005 at
+  `/weldGroups/groups/12`; six regions of 96 triangles; 13 weld groups. `edenbodyvalidate` on the same folder gives
+  only BODY-MESH-001, as designed (it has no mesh source, so its geometry rules do not run).
+- **Frames viewed** (`runs/run7/shot_*_mesh.png`, the floating Mesh view, 960 x 720): the Argonian and Breton bodies
+  with every slot in its own colour and magenta weld points exactly at the wrists and the knee-ankle seams (the only
+  welded seams); the tube body with pelvis red, torso green, legs blue and yellow, arms purple and cyan, the head grey
+  (unassigned) and the weld points on the pelvis-torso ring. Panel grabs `shot_*_panel.png` show the rows above.
+- Exit code 0 in the final runs; the real user folder (`OneDrive/Documents/My Games/OpenMW`) unchanged by names,
+  sizes and times in every run; `tools/edenstudio_check/check.sh` and `tools/bodypanel_check/check.sh` pass; the
+  editor ignores `OPENEDEN_QUIET_WINDOW` (no reference in `apps/opencs`): its windows appeared for about a minute per
+  run, without focus.
+
+**Not done or not verified.** A skinned rest pose (the viewer cannot; the bind pose is drawn), filled region triangles
+(the API has lines only: API 1.1, toddhow's decision), labels; opening the cache from the user data folder without
+`OPENEDEN_CS_ASSETDIR` (API 1.0 has no user data folder); a person's click on the menu items and the Asset Browser
+entries (the check calls `openAsset` and `runCommand`); Linux (the PIC change is unbuilt there); the 32 Lua tests (no
+game file changed). The time of a body switch (about 1.15 s with three document windows) is Studio rebuilding forms,
+CreativeMotion's hidden panel included (it shows any active asset); not profiled. The 12-colour palette repeats for the
+20 slots of a stock body (`slot-2` and `slot-16` share red).
+
+**Questions for toddhow.** (1) API 1.1 for a filled overlay (`OverlaySink::triangle`) and a user data folder query:
+both change the two tests that pin the API at 1.0. (2) Should module edits have an undo stack of their own instead of
+the content document's (today any module edit marks the ESM modified)? (3) Should CreativeMotion's panel show only its
+own documents? (4) The merged entry always lists the two binding findings: keep, or let the cache record the skeleton
+profile?

@@ -476,6 +476,13 @@ void CSVDoc::View::setupExtensionsMenu()
         }
         if (!moduleIds.empty())
             extensions->addSeparator();
+        // A Mesh view with no model draws the active module asset's gizmos (task 0069 stage f: the body package
+        // panel's regions and weld seams).
+        QAction* moduleMesh = extensions->addAction(tr("Show Module Asset in Mesh Viewer"));
+        moduleMesh->setObjectName("showModuleAssetInMeshViewer");
+        connect(moduleMesh, &QAction::triggered, this,
+            [this] { addSubView(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, std::string())); });
+        extensions->addSeparator();
     }
 
     // The host's state, as menu text: what the host did at start-up, and one line for each extension.

@@ -245,9 +245,12 @@ namespace CSVDoc
             void rebuild()
             {
                 openeden::editor::PropertySource* source = mUi.registry().panelSource(mPanelId);
-                if (source == mSource && (source != nullptr) == (mForm != nullptr))
+                // A new asset always gets a new form: its source may sit at the address of the destroyed asset's
+                // (task 0069 stage f), and the old form stops reading once its asset is replaced (PropertyForm).
+                if (source == mSource && (source != nullptr) == (mForm != nullptr) && mGeneration == mUi.generation())
                     return;
                 mSource = source;
+                mGeneration = mUi.generation();
                 if (mForm != nullptr)
                     mForm->deleteLater();
                 mForm = nullptr;
@@ -263,6 +266,7 @@ namespace CSVDoc
             QVBoxLayout* mLayout;
             QWidget* mForm = nullptr;
             openeden::editor::PropertySource* mSource = nullptr;
+            unsigned long mGeneration = 0;
         };
     }
 }

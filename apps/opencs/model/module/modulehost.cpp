@@ -44,7 +44,8 @@ namespace CSMModule
         constexpr const char* prefix = "lib";
         constexpr const char* suffix = ".so";
 #endif
-        return { { "creativemotion_editor", std::string(prefix) + "creativemotion_editor" + suffix } };
+        return { { "creativemotion_editor", std::string(prefix) + "creativemotion_editor" + suffix },
+            { "advancedbodies_editor", std::string(prefix) + "advancedbodies_editor" + suffix } };
     }
 
     std::vector<ModuleSource> coreModuleSources(const std::filesystem::path& directory)

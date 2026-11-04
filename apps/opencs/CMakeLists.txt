@@ -409,3 +409,40 @@ foreach(config ${CMAKE_CONFIGURATION_TYPES})
         RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules"
         LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules")
 endforeach()
+
+# AdvancedBodies' editor module (task 0069 stage f, editor_modules/advancedbodies_editor): the body package panel, a core
+# system's tools in a library of its own that only Eden Studio loads. As for CreativeMotion's, the sources without the
+# entry point are an object library the tests link as well. It reads with components/body (eden_body) and nothing of
+# the engine.
+set(AB_EDITOR_DIR ${CMAKE_SOURCE_DIR}/editor_modules/advancedbodies_editor)
+add_library(advancedbodies_editor_objects OBJECT
+    ${AB_EDITOR_DIR}/bodyview.cpp ${AB_EDITOR_DIR}/body_document.cpp
+    ${AB_EDITOR_DIR}/advancedbodies_editor_module.cpp)
+target_compile_features(advancedbodies_editor_objects PRIVATE cxx_std_20)
+target_link_libraries(advancedbodies_editor_objects PUBLIC eden_body PRIVATE nlohmann_json::nlohmann_json)
+target_include_directories(advancedbodies_editor_objects PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include)
+set_property(TARGET advancedbodies_editor_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+add_library(advancedbodies_editor SHARED ${AB_EDITOR_DIR}/advancedbodies_editor_export.cpp
+    $<TARGET_OBJECTS:advancedbodies_editor_objects>)
+target_compile_features(advancedbodies_editor PRIVATE cxx_std_20)
+target_include_directories(advancedbodies_editor PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include)
+target_link_libraries(advancedbodies_editor PRIVATE eden_body nlohmann_json::nlohmann_json)
+set_target_properties(advancedbodies_editor PROPERTIES
+    OUTPUT_NAME "advancedbodies_editor"
+    DEBUG_POSTFIX ""
+    RELEASE_POSTFIX ""
+    RELWITHDEBINFO_POSTFIX ""
+    MINSIZEREL_POSTFIX ""
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
+foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config} config_upper)
+    set_target_properties(advancedbodies_editor PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules"
+        LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules")
+endforeach()
+# Eden Studio loads it from editor-modules/ (the core list): build it with the editor.
+if (BUILD_OPENCS)
+    add_dependencies(eden-studio advancedbodies_editor)
+endif()

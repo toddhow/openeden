@@ -160,13 +160,25 @@ namespace CSVWorld
         connect(mScrub, &QSlider::sliderMoved, this, &MeshSubView::scrubbed);
         connect(mScrubTimer, &QTimer::timeout, this, &MeshSubView::updateScrubber);
 
-        mStatus->setText(tr("Loading %1...").arg(QString::fromStdString(mMesh)));
+        if (mMesh.empty())
+        {
+            // No model (task 0069 stage f): the view draws the active editor module asset's gizmos.
+            connect(mView, &CSVRender::MeshViewWidget::moduleOverlayChanged, this, [this](int lines) {
+                mStatus->setText(lines > 0 ? tr("Module asset: %1 lines of its gizmos, drawn in metres at the origin "
+                                                "(open a module asset in the Asset Browser)")
+                                                 .arg(lines)
+                                           : tr("No module asset with gizmos is open (open one in the Asset Browser)"));
+            });
+            mStatus->setText(tr("No model: this view shows the active editor module asset's gizmos."));
+        }
+        else
+            mStatus->setText(tr("Loading %1...").arg(QString::fromStdString(mMesh)));
         mView->openMesh(mMesh);
     }
 
     std::string MeshSubView::getTitle() const
     {
-        return "Mesh: " + mMesh;
+        return mMesh.empty() ? std::string("Mesh: module asset") : "Mesh: " + mMesh;
     }
 
     void MeshSubView::setViewMode(const std::string& name)

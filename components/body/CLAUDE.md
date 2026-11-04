@@ -54,6 +54,10 @@ VSG, Jolt, Qt or MyGUI here (root `CLAUDE.md`, "Architecture rules"). The Morrow
   nothing.
 - **Mesh summaries are not built in B1.** The in-engine `bodycheck` command passes no `MeshSource`, so every legacy
   mesh warns (BODY-MESH-001) and the skin and geometry rules are not exercised there (task 0063, risk 1).
+- **A shared library links this one** (Eden Studio's `advancedbodies_editor`, task 0069 stage f), so `eden_body` is
+  built with `POSITION_INDEPENDENT_CODE` (no effect on MSVC). The panel summarises `bodymesh` payloads for the
+  validator (`PayloadMeshSource` in the module), which `edenbodyvalidate` does not: the two can list different
+  findings for one package (the tool warns BODY-MESH-001 where the panel checks the geometry).
 
 ## The merger (task 0069, stage b: `bodymerge.*`)
 

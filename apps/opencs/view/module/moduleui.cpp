@@ -96,6 +96,7 @@ namespace CSVModule
                 , mUi(ui)
                 , mSource(&source)
                 , mLayout(new QFormLayout(this))
+                , mGeneration(ui.generation())
             {
                 build();
                 connect(&ui, &ModuleUi::changed, this, [this] { refresh(); });
@@ -110,9 +111,16 @@ namespace CSVModule
                 std::function<void(const PropertyValue&)> mShow;
             };
 
+            /// True while the asset this form was built for is still the active one. A source usually belongs to its
+            /// asset (a panel or a section of the active asset), and ModuleUi destroys the old asset BEFORE it emits
+            /// changed(): the form of a replaced asset is still connected during that emission (its panel only
+            /// deletes it later), and reading its source then read freed memory (task 0069 stage f, the second open
+            /// of a module asset). Its panel or section builds a new form for the new asset.
+            bool current() const { return mUi.generation() == mGeneration; }
+
             void edit(const std::string& id, const PropertyValue& value)
             {
-                if (mUpdating)
+                if (mUpdating || !current())
                     return;
                 try
                 {
@@ -255,6 +263,8 @@ namespace CSVModule
 
             void refresh()
             {
+                if (!current())
+                    return;
                 mUpdating = true;
                 try
                 {
@@ -271,6 +281,7 @@ namespace CSVModule
             ModuleUi& mUi;
             PropertySource* mSource;
             QFormLayout* mLayout;
+            unsigned long mGeneration; ///< ModuleUi::generation() when the form was built
             std::vector<Row> mRows;
             bool mUpdating = false;
         };

@@ -5,8 +5,10 @@
 
 #include <components/debug/debuglog.hpp>
 
+#include "../module/moduleui.hpp"
 #include "cameracontroller.hpp"
 #include "lighting.hpp"
+#include "physicshub.hpp"
 #include "picking.hpp"
 #include <apps/opencs/model/mesh/framemath.hpp>
 
@@ -32,12 +34,20 @@ namespace CSVRender
 
     MeshViewWidget::~MeshViewWidget()
     {
-        // The scene detaches its nodes from the host, which the base class destroys after this body.
+        // The scene and the overlay detach their nodes from the host, which the base class destroys after this body.
         mScene.reset();
+        mModuleOverlay.reset();
     }
 
     void MeshViewWidget::openMesh(const std::string& path)
     {
+        if (path.empty())
+        {
+            mModuleAsset = true;
+            if (getHost())
+                showModuleAsset();
+            return;
+        }
         mPendingPath = path;
         if (getHost())
             load();
@@ -48,8 +58,47 @@ namespace CSVRender
         SceneWidget::hostReady();
         getHost()->setProjection(sFieldOfView, false, 0);
         applyViewLighting();
-        if (!mPendingPath.empty())
+        if (mModuleAsset)
+            showModuleAsset();
+        else if (!mPendingPath.empty())
             load();
+    }
+
+    void MeshViewWidget::showModuleAsset()
+    {
+        CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+        if (modules == nullptr || mModuleOverlay)
+            return;
+        // Filled with show(), not by the physics hub.
+        mModuleOverlay = std::make_unique<PhysicsDebugView>(*getHost(), false);
+        connect(modules, &CSVModule::ModuleUi::changed, this, [this] { updateModuleOverlay(); });
+        updateModuleOverlay();
+    }
+
+    void MeshViewWidget::updateModuleOverlay()
+    {
+        CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+        if (modules == nullptr || !mModuleOverlay || getHost() == nullptr)
+            return;
+        // Module coordinates are metres relative to the origin given here: the view's own origin.
+        const float origin[3] = { 0.f, 0.f, 0.f };
+        const std::vector<CSMPhysics::DebugLine> lines = modules->overlayLines(origin);
+        mModuleOverlay->show(lines);
+        mModuleLines = lines.size();
+        mModuleBounds = CSMMesh::Aabb();
+        for (const CSMPhysics::DebugLine& line : lines)
+        {
+            CSMMesh::expand(mModuleBounds, { line.mFrom[0], line.mFrom[1], line.mFrom[2] });
+            CSMMesh::expand(mModuleBounds, { line.mTo[0], line.mTo[1], line.mTo[2] });
+        }
+        // A new asset is framed once; an edit of the same asset keeps the camera.
+        if (mModuleGeneration != modules->generation() && !lines.empty())
+        {
+            mModuleGeneration = modules->generation();
+            frameObject();
+        }
+        flagAsModified();
+        emit moduleOverlayChanged(static_cast<int>(lines.size()));
     }
 
     void MeshViewWidget::load()
@@ -106,10 +155,11 @@ namespace CSVRender
 
     void MeshViewWidget::frameObject()
     {
-        if (!mScene || !getHost())
+        if ((!mScene && !mModuleAsset) || !getHost())
             return;
         const double aspect = height() > 0 ? static_cast<double>(width()) / height() : 1.0;
-        const CSMMesh::FramePose pose = CSMMesh::frameCamera(mScene->bounds(), sFieldOfView, aspect, sViewDirection);
+        const CSMMesh::FramePose pose
+            = CSMMesh::frameCamera(mScene ? mScene->bounds() : mModuleBounds, sFieldOfView, aspect, sViewDirection);
         const vsg::dvec3 centre(pose.centre[0], pose.centre[1], pose.centre[2]);
         setCameraPose(
             vsg::dvec3(pose.eye[0], pose.eye[1], pose.eye[2]), centre, vsg::dvec3(pose.up[0], pose.up[1], pose.up[2]));

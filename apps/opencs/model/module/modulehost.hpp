@@ -54,7 +54,8 @@ namespace CSMModule
     };
 
     /// The fixed list of core systems' editor libraries (decision 0007 left its format open: this is a plain list in
-    /// code). Today: CreativeMotion's, built as creativemotion_editor (task 0032).
+    /// code). Today: CreativeMotion's, built as creativemotion_editor (task 0032), and AdvancedBodies', built as
+    /// advancedbodies_editor (task 0069, stage f).
     std::vector<CoreModule> coreModules();
 
     /// The core list as sources, looking for each library in \a directory.

@@ -3,6 +3,9 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/extension/testeditorextensionhost.cpp
     model/extension/testeditorextensionhostphysics.cpp
     model/extension/testeditormodulesources.cpp
+    model/module/advancedbodies/testabhostile.cpp
+    model/module/advancedbodies/testabmodule.cpp
+    model/module/advancedbodies/testabview.cpp
     model/module/creativemotion/testcmdocuments.cpp
     model/module/creativemotion/testcmgizmos.cpp
     model/module/creativemotion/testcmmodule.cpp
@@ -48,11 +51,16 @@ source_group(apps\\eden-studio-tests FILES ${OPENCS_TESTS_SRC_FILES})
 list(APPEND OPENCS_TESTS_SRC_FILES ${CMAKE_SOURCE_DIR}/sdk/examples/sample_editor_module/sample_editor_module.cpp)
 
 openmw_add_executable(eden-studio-tests ${OPENCS_TESTS_SRC_FILES})
-add_dependencies(eden-studio-tests sample_editor_module creativemotion_editor)
+add_dependencies(eden-studio-tests sample_editor_module creativemotion_editor advancedbodies_editor)
 target_sources(eden-studio-tests PRIVATE $<TARGET_OBJECTS:creativemotion_editor_objects>)
 target_link_libraries(eden-studio-tests PRIVATE opas::rig)
 target_compile_definitions(eden-studio-tests PRIVATE
     "CREATIVEMOTION_EDITOR_PATH=\"$<TARGET_FILE:creativemotion_editor>\"")
+# AdvancedBodies' editor module (task 0069 stage f): its sources without the entry point, and the built library.
+target_sources(eden-studio-tests PRIVATE $<TARGET_OBJECTS:advancedbodies_editor_objects>)
+target_link_libraries(eden-studio-tests PRIVATE eden_body nlohmann_json::nlohmann_json)
+target_compile_definitions(eden-studio-tests PRIVATE
+    "ADVANCEDBODIES_EDITOR_PATH=\"$<TARGET_FILE:advancedbodies_editor>\"")
 target_compile_definitions(eden-studio-tests PRIVATE
     "SAMPLE_EDITOR_MODULE_PATH=\"$<TARGET_FILE:sample_editor_module>\"")
 

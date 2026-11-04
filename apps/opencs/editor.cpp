@@ -3,8 +3,10 @@
 #include <QAbstractItemModel>
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDialog>
+#include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QDropEvent>
 #include <QFileInfo>
@@ -18,6 +20,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QRegularExpression>
+#include <QSpinBox>
 #include <QTabBar>
 #include <QTimer>
 #include <QTreeView>
@@ -27,10 +30,12 @@
 #include <boost/program_options.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <memory>
+#include <variant>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/documentmanager.hpp>
@@ -69,6 +74,7 @@
 #include "view/doc/subview.hpp"
 #include "view/doc/viewmanager.hpp"
 #include "view/module/moduleui.hpp"
+#include "view/render/meshviewwidget.hpp"
 #include "view/render/physicshub.hpp"
 #include "view/render/scenehost.hpp"
 #include "view/render/worldspacewidget.hpp"
@@ -965,6 +971,182 @@ namespace
         });
     }
 
+    /// The body package panel check (task 0069 stage f): OPENEDEN_CS_BODYCHECK=<prefix>;<source>[;<source>...], each
+    /// source a module asset path (a body.json, a .edenpak or a merged cache's current), optionally followed by
+    /// "|<race> <sex> <view>" to choose that body of a merged cache afterwards. For each source: opens it as a module
+    /// asset, shows the AdvancedBodies workspace, logs what the panel's rows show, and writes the model-less Mesh
+    /// view's frame (<prefix>_<i>_mesh.png, the region and weld gizmos) and a grab of the window
+    /// (<prefix>_<i>_window.png); with a chosen body, the same again after choosing it (<prefix>_<i>b_...). Logged as
+    /// "UI check: body ...".
+    void runBodyCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
+    {
+        const QStringList parts = QString::fromStdString(spec).split(';', Qt::SkipEmptyParts);
+        if (parts.size() < 2)
+        {
+            Log(Debug::Error) << "UI check: body: OPENEDEN_CS_BODYCHECK needs <prefix>;<source>";
+            return;
+        }
+        const std::string prefix = parts.front().toStdString();
+        const int sources = static_cast<int>(parts.size()) - 1;
+        const int step = std::max(700, milliseconds / (6 * sources + 4));
+
+        auto visibleWindow = []() -> QMainWindow* {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                if (auto* window = qobject_cast<QMainWindow*>(widget); window && window->isVisible())
+                    return window;
+            return nullptr;
+        };
+        auto meshView = []() -> CSVRender::MeshViewWidget* {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                for (auto* view : widget->findChildren<CSVRender::MeshViewWidget*>())
+                    if (view->showsModuleAsset())
+                        return view;
+            return nullptr;
+        };
+        auto logRows = [](const std::string& label) {
+            int findings = 0;
+            int regions = 0;
+            // Main windows only: a floating dock is a top-level widget too, and also a child of its window.
+            for (QWidget* top : QApplication::topLevelWidgets())
+                for (QWidget* field :
+                    qobject_cast<QMainWindow*>(top) ? top->findChildren<QWidget*>() : QList<QWidget*>())
+                {
+                    const QString name = field->objectName();
+                    if (!name.startsWith("property_") || !field->isVisibleTo(top))
+                        continue;
+                    QString text;
+                    if (auto* line = qobject_cast<QLineEdit*>(field))
+                        text = line->text();
+                    else if (auto* spin = qobject_cast<QSpinBox*>(field))
+                        text = QString::number(spin->value());
+                    else if (auto* combo = qobject_cast<QComboBox*>(field))
+                        text = combo->currentText();
+                    else
+                        continue;
+                    findings += name.startsWith("property_finding.") ? 1 : 0;
+                    regions += name.startsWith("property_region.") ? 1 : 0;
+                    Log(Debug::Info) << "UI check: body " << label << " row " << name.mid(9).toStdString() << " = "
+                                     << text.toStdString();
+                }
+            Log(Debug::Info) << "UI check: body " << label << " panel shows " << findings << " finding rows and "
+                             << regions << " region rows";
+        };
+        auto capture = [=](const std::string& name) {
+            // The panel dock shares its side with the inspector, which keeps its height: float one window's panel
+            // at a size that shows its rows, for its own grab.
+            QDockWidget* panel = nullptr;
+            if (QMainWindow* window = visibleWindow())
+                panel = window->findChild<QDockWidget*>("modulePanel_advancedbodies.panel");
+            if (panel != nullptr && !panel->isFloating())
+            {
+                panel->setFloating(true);
+                panel->resize(720, 900);
+            }
+            if (CSVRender::MeshViewWidget* view = meshView())
+            {
+                // The Mesh view's own window, large enough to see the body.
+                for (QWidget* up = view->parentWidget(); up != nullptr; up = up->parentWidget())
+                    if (auto* dock = qobject_cast<QDockWidget*>(up))
+                    {
+                        if (!dock->isFloating())
+                        {
+                            dock->setFloating(true);
+                            dock->resize(960, 720);
+                        }
+                        break;
+                    }
+                view->frameObject();
+                Log(Debug::Info) << "UI check: body mesh view draws " << view->moduleLineCount() << " lines";
+            }
+            else
+                Log(Debug::Error) << "UI check: body: no model-less Mesh view";
+            QTimer::singleShot(step / 2, qApp, [=] {
+                if (CSVRender::MeshViewWidget* view = meshView())
+                {
+                    const std::filesystem::path file = prefix + "_" + name + "_mesh.png";
+                    Log(Debug::Info) << "UI check: body frame " << file.string() << ": "
+                                     << (view->saveScreenshot(file) ? "written" : "no frame");
+                }
+                if (QMainWindow* window = visibleWindow())
+                    window->grab().save(QString::fromStdString(prefix + "_" + name + "_window.png"));
+                if (panel != nullptr)
+                    panel->grab().save(QString::fromStdString(prefix + "_" + name + "_panel.png"));
+            });
+        };
+
+        for (int i = 0; i < sources; ++i)
+        {
+            const QStringList source = parts[i + 1].split('|');
+            const std::filesystem::path path = source.front().toStdString();
+            const std::string entry = source.size() > 1 ? source[1].toStdString() : std::string();
+            const int base = (2 + 6 * i) * step;
+            const std::string label = std::to_string(i);
+            QTimer::singleShot(base, qApp, [=] {
+                CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+                const auto start = std::chrono::steady_clock::now();
+                ui->openAsset(path);
+                Log(Debug::Info)
+                    << "UI check: body " << label << " opened " << path.string() << ": "
+                    << (ui->activeAsset() ? "yes" : "no") << " format " << ui->activeFormat() << " " << ui->openError()
+                    << " in "
+                    << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()
+                    << " ms";
+                for (QWidget* top : QApplication::topLevelWidgets())
+                    if (auto* tabs = top->findChild<QTabBar*>("workspaceTabs"))
+                        for (int t = 0; t < tabs->count(); ++t)
+                            if (tabs->tabText(t) == "AdvancedBodies")
+                                tabs->setCurrentIndex(t);
+                if (meshView() == nullptr)
+                    if (QMainWindow* window = visibleWindow())
+                        for (QAction* action : window->findChildren<QAction*>("showModuleAssetInMeshViewer"))
+                        {
+                            action->trigger();
+                            break;
+                        }
+            });
+            QTimer::singleShot(base + 2 * step, qApp, [=] {
+                logRows(label);
+                capture(label);
+            });
+            if (entry.empty())
+                continue;
+            QTimer::singleShot(base + 3 * step, qApp, [=] {
+                // Through the module's own command, as Extensions > advancedbodies_editor > Bodies > Next Body does.
+                CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+                const int undoBefore = document->getUndoStack().count();
+                constexpr int maxSteps = 4096;
+                int steps = 0;
+                for (; steps < maxSteps && ui->activeAsset() != nullptr; ++steps)
+                {
+                    const openeden::editor::PropertyValue shown = ui->activeAsset()->properties().get("source.entry");
+                    const std::string* title = std::get_if<std::string>(&shown);
+                    if (title == nullptr || *title == entry)
+                        break;
+                    const auto start = std::chrono::steady_clock::now();
+                    if (!ui->registry().runCommand("advancedbodies.nextBody"))
+                        break;
+                    Log(Debug::Info)
+                        << "UI check: body " << label << " Next Body took "
+                        << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()
+                        << " ms";
+                }
+                const openeden::editor::PropertyValue shown = ui->activeAsset() != nullptr
+                    ? ui->activeAsset()->properties().get("source.entry")
+                    : openeden::editor::PropertyValue(std::string());
+                const std::string* title = std::get_if<std::string>(&shown);
+                Log(Debug::Info) << "UI check: body " << label << " chose " << (title ? *title : std::string("?"))
+                                 << " after " << steps << " Next Body commands (wanted " << entry << "), undo steps "
+                                 << undoBefore << " -> " << document->getUndoStack().count() << ", document modified "
+                                 << ((document->getState() & CSMDoc::State_Modified) != 0);
+                // After the replaced forms are gone (they are deleted when the event loop runs again).
+                QTimer::singleShot(step, qApp, [=] {
+                    logRows(label + "b");
+                    capture(label + "b");
+                });
+            });
+        }
+    }
+
     /// The Context Inspector check, see startUiCheck. Free of the editor class: it only needs the document.
     void runInspectorCheck(CSMDoc::Document* document, const std::string& cell, int milliseconds)
     {
@@ -1099,6 +1281,9 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_RIGCHECK=<prefix>;<rig>;<profile>: the CreativeMotion rig check, see runRigCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_RIGCHECK"))
                 runRigCheck(document, spec, milliseconds);
+            // OPENEDEN_CS_BODYCHECK=<prefix>;<source>[|<body>]...: the body package panel check, see runBodyCheck.
+            if (const char* spec = std::getenv("OPENEDEN_CS_BODYCHECK"))
+                runBodyCheck(document, spec, milliseconds);
             // OPENEDEN_CS_DROP=1: the constructed drop check, see runDropCheck.
             if (std::getenv("OPENEDEN_CS_DROP") != nullptr)
                 runDropCheck(document, milliseconds);
