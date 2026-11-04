@@ -169,20 +169,46 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 
 - **Off means unchanged:** with `[Bodies] merged body` false, `attachMergedBody` returns after one setting read and
   `MergedBodies` reads nothing. Keep every new step behind that read.
-- **Fail closed, per race and sex, for the whole session:** the template is built once (key recomputed with
-  `OMW::computeStockBodyFacts`, payload read, node built inside a try/catch); any failure keeps the stock parts and is
-  remembered (decision H15: no live swap). Reasons come from `Body::decideMergedBody` (`components/body/mergedruntime.*`).
-- **The look is the stock part's own:** `findLook` reads the part through `vsgUtil::readNode` with the part's options
-  and a fresh `SharedObjects` (or the cache returns the old node and nothing is captured), captures each pipeline's
-  options with `Pipeline::Override::pipelineOptions` and takes the texture descriptors without `BONE_BINDING`. A part
-  with several shapes is matched by `BodyCommon::materialKey` in the order `shapesOf` lists them.
+- **Fail closed, per race, sex and read options, for the whole session:** the template is built once (quick key from
+  `OMW::computeStockBodyQuickFacts` against the bake's `quick.txt`: records and file sizes, no part file read or
+  hashed, the skeleton parsed once per path and session; payload read; node built inside a try/catch); any failure
+  keeps the stock parts and is remembered (decision H15: no live swap). Reasons come from `Body::decideMergedBody`
+  (`components/body/mergedruntime.*`). Templates are keyed by the context's read options too: the player and the NPCs
+  of one race and sex get separate templates.
+- **Lifetime:** everything lives in `MergedBodies::Session`, which `OMW::Engine` declares after `mRenderManager`, so it
+  goes before the resource system and the device. No Vulkan object in a namespace-scope static. The bake, check and
+  analysis runs call `disableForThisRun`, whatever `[Bodies] merged body` says.
+- **The look is the stock part's own:** `findLook` marks the part's model as skin first (`markSubsurfaceModel`, as
+  `updateParts` does before reading a part), reads it through `vsgUtil::readNode` with the part's options and a fresh
+  `SharedObjects` (or the cache returns the old node and nothing is captured), captures each pipeline's options with
+  `Pipeline::Override::pipelineOptions`, adds `MATERIAL` when the group has a material descriptor (the reader adds it
+  after the override ran, `nif.cpp` `createStateGroup`), records the stock pipeline's defines and takes the texture
+  descriptors without `BONE_BINDING`; their images are shared into the stock options' `SharedObjects`. A part with
+  several shapes is matched by `BodyCommon::materialKey` in the order `shapesOf` lists them. An alpha-blended look is
+  refused (no depth sorting).
+- **Defines must match:** after `getOrCreate`, every define of the merged pipeline must be in the stock one and the
+  other way round, except those the adaptation changes on purpose (`adaptedDefine`: vertex inputs, `SKIN`, and
+  `GBUFFER_MOTION`, which `Pipeline::Graphics` adds to every skinned draw when the G-buffer is on). A mismatch refuses
+  the body with the define in the Verbose log. When a new feature adds a define, run the check tool with it on and see
+  that "draws the merged body" still counts 20.
 - **Each draw's skin carries only the bones its vertices use.** All of the body's bones in every draw's skin made 20
   merged NPCs cost a 7.2 ms frame against 3.8 ms for stock; with the subset the two are equal.
 - **Attach at any bone:** the vertices are in the skeleton's space and each bone's inverse rest matrix is its
   `invBindMatrix`, so the attachment bone (the groin) only fixes the frame the skin's matrices are relative to.
 - **Re-attached on every `updateParts`:** `clearControllers` empties `mStaticControllers`, which holds the merged
-  body's skin controllers; `removePath(mMergedBody)` first, then attach again.
-- **Equipment (stage d):** anything worn or reserved over a merged slot keeps the stock parts entirely; regions are
+  body's skin controllers; `removePath(mMergedBody)` first, then attach again. `compile()` failing removes it too.
+- **One draw per material key** (`Body::planMergedDrawsByMaterial`): 20 merged NPCs are about 255 fewer draws in the
+  scene census than stock (7,116 against 6,861), at the same frame time.
+- **Equipment (stage d):** anything worn or reserved over a merged slot keeps the stock parts entirely, and from then
+  on for the actor's life (`mMergedRetired`), so dressing and undressing never swaps the whole body; regions are
   stage e.
+- **Logs:** every silent fallback is logged once (a race the store lacks, each refusal reason per race and sex, an
+  actor on another skeleton at Info); one line per actor that draws the merged body ("Merged bodies: <ref> draws the
+  merged body"), which the check tool counts. The default skeleton is compared as a normalised mesh path, prefixed
+  with "meshes/" only when missing: `Misc::ResourceHelpers::correctMeshPath` always prefixes, and comparing its output
+  for both sides refused every beast.
 - **Checking it:** bake into a copied user folder (`openmw --bake-bodies`), then `tools/mergedbody_check/check.sh <build>
-  <base cfg> <user data> <work> stock|merged`; compare the frames and `stats.txt` of the two variants.
+  <base cfg> <user data> <work> stock|merged [cell]`; the scene quits by itself and the run fails unless the game exits
+  with code 0 and leaves no crash dump. Compare the frames and `stats.txt` of the two variants. `EXTRA_SETTINGS` adds
+  settings.cfg text, `START_COMMANDS` console lines: weather by starting in another region, `ChangeWeather` for
+  Balmora's region and `coc "Balmora"` (a change of the current region only starts a transition of a minute or more).

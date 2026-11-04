@@ -199,6 +199,14 @@ their game's map; for a skeleton without one the suggestion engine writes a map 
   `MergedBodyFacts` (setting, third person, werewolf, default skeleton, cache, entry, key computed, key current, payload,
   built, equipment). The engine (`apps/openmw/mwrender/mergedbody.*`, `Npc::attachMergedBody`) only gathers facts; add a
   new condition here, with a test, never as an extra `if` in the engine.
+- **`planMergedDrawsByMaterial` is what the engine draws** (review of stage d): one draw per material, in first-use
+  order, its look from the first slot that uses it, each vertex once per draw; it returns nothing whenever
+  `planMergedDraws` would. `planMergedDraws` (one draw per submesh) stays for the tests and tools.
+- **Quick keys (`writeQuickKeys`, `readQuickKeys`, `quick.txt` in the pack):** the body key with each file digest
+  replaced by `bytes:<size>`, so the game checks a race and sex without reading or hashing the part files (answer 8).
+  The text is canonical (header `openeden.bodyquick\t1`, sorted strictly increasing names, 64 lower-hex keys) and
+  capped like the manifest; anything else is refused. A pack baked before them has no `quick.txt`: its bodies
+  read as stale and the message says to bake again.
 - **`planMergedDraws` returns nothing for any out-of-range index** (a submesh past the triangles, a material past the
   list, a vertex past the positions): the payload reader already refuses these, so an empty plan is a bug signal.
 - **`invertAffine` is row-major `[M3 | t]`** like `BodyNif::Matrix34` (v' = M3 v + t) and refuses a determinant below

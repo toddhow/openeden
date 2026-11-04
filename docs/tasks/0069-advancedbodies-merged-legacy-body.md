@@ -445,3 +445,89 @@ without a file stopped its extension host 6 to 16 ms after loading it and then s
 path looks like `makeIPCServer` returning false, which logs nothing when `listen` fails; no other editor was running
 the second time; not investigated, and not seen to depend on this change). Those plain starts read the real
 `openmw.cfg` despite `--replace=config --config` and rewrote `eden-studio.log` in the real user folder.
+
+### Review fixes of stage d, 2026-11-04 (commits `30dbca4893`, `d096b357ea`, `6572f560c2`, `9df44d50d4`)
+
+A fresh review of stage d raised thirteen findings and an inherited bug. Work folder
+`I:\Projects\OpenEden-work\bodies\stage-d2` (a copied config in `cfg`, a copied user folder with a fresh bake in `user`, runs in `runs*`, frame pairs in
+`frames-d2`, stock on the left and merged on the right). Every game ran with `OPENEDEN_QUIET_WINDOW=1`.
+
+**Tests written first.** `apps/components_tests/body/testmergedbodyreview.cpp`, 12 tests: 7 for
+`planMergedDrawsByMaterial` (one draw per material in first-use order, the look from the first slot, every triangle
+once, a shared vertex once per draw, deterministic, bad input gives nothing, fewer draws than the per-slot plan) and 5
+for the quick keys (round trip, canonical text, refusals, size cap, empty list). Run red against stubs: 8 failed, 4
+passed vacuously. All pass now; `components-tests` 5,379 passed.
+
+**Per finding.**
+1. *The stock look, MATERIAL included.* `findLook` marks the part as skin before reading it (`markSubsurfaceModel`, as
+   `updateParts` does), adds `Mode::MATERIAL` when the captured group has a material descriptor (the reader adds it
+   after the override ran, `nif.cpp` `createStateGroup`), and records the stock pipeline's defines; the merged pipeline
+   must carry the same defines but for the adapted ones, or the body is refused with the define named. The check
+   caught one at once: with `gbuffer` on, the merged draws had `GBUFFER_MOTION` and the rigid stock parts not
+   (`Pipeline::Graphics` adds it to every skinned draw that writes the G-buffer); it is now an adapted define, so the
+   merged body writes its bones' motion where the rigid stock parts wrote none. Frames with `hdr`, `gbuffer`, `pbr`,
+   `sss`, `wetness` and `cover` on, 20 of 20 actors merged in each run: rain (`rain-006`, `rain-008`), snow
+   (`snow-007`, `snow-008`), and the subsurface debug view (`gbuffer debug view = sss`: `sssdebug-006`, `sssdebug-008`).
+   Viewed: the merged skin shows the same subsurface signal as stock, stays dry in the rain (puddles on the ground) and
+   bare in the snow (cover on the ground and the hair, as stock). The define comparison is the test, in the game; it is
+   not a unit test (it needs a pipeline).
+2. *Compile failure.* `Npc::compile()` failing now also removes the merged body and clears its slots. Not run (no way
+   to make a compile fail on demand); read only.
+3. *Ownership and a normal exit.* The cache and templates live in `MergedBodies::Session`, which `OMW::Engine` holds
+   after `mRenderManager` (so it goes before the resource system and the render engine's device). The scene now quits by
+   itself (`core.quit()`) and `check.sh` fails unless the game exits with code 0 and leaves no crash dump: every run of
+   this round (17 runs of `check.sh`, stock and merged) exited 0 with no dump.
+4. *Draws.* One draw per material key (`planMergedDrawsByMaterial`). With `[Rendering] frame counters`, 20 NPCs in
+   view: scene census 7,116 draws stock against 6,861 merged (about 13 fewer per actor), triangles 524k against 523k,
+   frame median 3.72 ms both, p99 5.25 against 5.39 ms (`runs-counters`). No allocation counter was added: the
+   per-frame work is the ordinary `Anim::Skin` update; what the merged body allocates happens in `updateParts`.
+5. *Skin transform.* The baker refuses a skinned shape whose transform is not the identity (one error per part)
+   instead of baking it wrong. A rebake of the 20 bodies gave payloads byte-identical to the stage c bake (hashes in
+   `bodies\bake3\payloads.sha`), so no stock body meets it.
+6. *First-actor hitch.* The bake writes `quick.txt` (the key with file digests replaced by sizes); the game checks a
+   race and sex with `OMW::computeStockBodyQuickFacts` (records, `VFS::Manager::getSize`, no part file read or hashed)
+   and parses each skeleton once per session. Logged per template: key check 0.13 to 0.6 ms, template 2.6 to 4.1 ms;
+   the first body of each skeleton (`base_anim.nif`, `base_animkna.nif`) 8.3 and 10.2 ms of key check, 13.8 ms in all
+   (the skeleton parse). No "before" number: the old code did not time it. The look's reads still use a fresh
+   `SharedObjects` each (they must, to capture), so there is not one `SharedObjects` per session.
+7. *Textures.* The look's images are shared into the stock options' `SharedObjects` (`shareImages`). Device memory
+   with 20 NPCs (`gpu_used_mib`, `VK_EXT_memory_budget`, MiB resolution): 177 stock, 177 merged; working set 765
+   against 758 MiB.
+8. *A stable decision.* An actor that wears anything over a merged slot, when first built or later, keeps the stock
+   parts for the rest of its life (`Npc::mMergedRetired`); it never flips back when undressed. Question for toddhow below.
+9. *Template keys.* Keyed by race, sex and the context's read options; the player and the NPCs of the same race and
+   sex got two templates in the log.
+10. *Blended looks.* A look with alpha blending is refused (fail closed; no stock part is blended).
+11. *Fallback logs.* Logged once each: a race the store lacks, every refusal reason per race and sex, an actor on
+   another skeleton (Info, with both paths). One line per actor that draws the merged body, counted by `check.sh`. The
+   default skeleton is compared as a normalised mesh path: my first version passed both sides through
+   `correctMeshPath`, which always prefixes `meshes/`, and every beast was refused as "another skeleton"; the path is
+   now prefixed only when it lacks it, and all 20 merge.
+12. *Message box.* Localised (`OMWEngine:MergedBodiesRebake` in `files/data/l10n/OMWEngine/en.yaml`) and shown for
+   no cache, no entry, a key that could not be computed, a stale key and a refused payload. Not seen in this round
+   (no run with a broken cache).
+13. *Check tool safety.* `check.sh` refuses a user data or work folder outside `I:/Projects/OpenEden-work` and a base
+   or user folder under "My Games"; the bake, check and analysis runs draw stock bodies whatever the setting says
+   (`MergedBodies::disableForThisRun`).
+
+**The inherited bug (skin controllers lost after an equipment change): not reproduced.** Reading the code, `updateParts`
+clears `mStaticControllers` and adds back only the parts whose priority is below 1, so a skinned stock part that
+stays (the chest or the hands) should lose its `Anim::Skin` and freeze. A scripted check (`stage-d2\skinbug`, stock,
+the player): fists raised; arms down; pants taken off through `types.Actor.setEquipment` (which goes through
+`InventoryStore` to `Npc::updateEquipment`, the same path as the inventory); fists raised again. With the shirt on, the
+hands (`stock-hands-before-after.png`), and with the shirt taken off first, the chest and shoulders
+(`stock-chest-before-down-after.png`) follow the bones after the change exactly as before it. Nothing was changed. Why
+the skins survive was not found; a debugger on `Npc::clearControllers` would settle it.
+
+**Not done or not verified.** `openmw-tests` and `eden-studio` were not rebuilt at the end: `openmw-lib` does not
+compile in another agent's uncommitted `lodclusters.cpp` (`mCooldown`); the `openmw.exe` used for every run above was
+built from this work before that. clang-format 14 was run on the changed files in a container and its changes taken;
+the Linux gate, the 32 Lua tests, a frozen-pose pixel comparison, the "off" comparison against the commit before, and
+the message box in the game were not run.
+
+**Questions for toddhow.** (1) The retire rule of finding 8: once an actor has equipment over a merged slot it keeps
+the stock parts for the session; the alternative is to merge again when it undresses, a whole-body swap at that
+moment. (2) Is an Info line per actor on another skeleton acceptable with the setting on, or should it be Verbose?
+(3) The first body of each skeleton costs about 10 ms on the main thread for the skeleton parse; reading it on the
+preload thread, or taking the engine's own skeleton, would remove it. (4) The merged body writes bone motion to the
+G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the merged draws be kept out of it?
