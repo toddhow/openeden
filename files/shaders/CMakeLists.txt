@@ -330,6 +330,17 @@ openeden_add_slang_permutations(
 openeden_add_slang_permutations(SOURCE sky/sunglare/sunglare.frag.slang STAGE_FILE sky/sunglare/main.frag ENTRY fragMain
     STAGE fragment DEFINE_SETS MATERIAL)
 
+# The compute passes (task 0072, stage c). They are read with vsgUtil::readShader and compiled with no defines, so each
+# has the one set "-" (vsgUtil::withSlangTwin).
+openeden_add_slang_permutations(SOURCE comp/fogofwar/update.slang STAGE_FILE comp/fogofwar/update.comp
+    ENTRY updateMain STAGE compute DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE comp/worldoverlay/update.slang STAGE_FILE comp/worldoverlay/update.comp
+    ENTRY updateMain STAGE compute DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE comp/light/assign.slang STAGE_FILE comp/light/assign.comp
+    ENTRY assignMain STAGE compute DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE comp/particle/simulate.slang STAGE_FILE comp/particle/simulate.comp
+    ENTRY simulateMain STAGE compute DEFINE_SETS -)
+
 # The sun's single files of task 0023 (F1b), built from the same source. The game no longer loads them (the sun is a
 # permutation family above); they stay only for the task 0023 test SlangSunTest, which reads them. Its removal is
 # toddhow's decision (task 0072, stage b log).

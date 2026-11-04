@@ -1,6 +1,7 @@
 #include "fogofwar.hpp"
 
 #include <components/vsgutil/readshader.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "sets.hpp"
 
@@ -24,7 +25,9 @@ namespace Pipeline
         vsg::PushConstantRanges pushConstantRanges{ { computeStage, 0, 2 * sizeof(vsg::vec4) } };
         auto layout = vsg::PipelineLayout::create(descriptorSetLayouts, pushConstantRanges);
 
-        auto shaderStage = vsgUtil::readShader("comp/fogofwar/update.comp", shaderOptions);
+        // Task 0072, stage c: the Slang twin when `[Rendering] slang shaders` is on and it was built.
+        const std::string path = "comp/fogofwar/update.comp";
+        auto shaderStage = vsgUtil::withSlangTwin(vsgUtil::readShader(path, shaderOptions), path, shaderOptions);
         return vsg::BindComputePipeline::create(vsg::ComputePipeline::create(layout, shaderStage));
     }
 }

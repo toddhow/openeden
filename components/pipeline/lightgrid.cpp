@@ -1,6 +1,7 @@
 #include "lightgrid.hpp"
 
 #include <components/vsgutil/readshader.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 #include <components/vsgutil/share.hpp>
 
 #include "computebindings.hpp"
@@ -19,7 +20,9 @@ namespace Pipeline
         descriptorSetLayouts.emplace_back(vsg::DescriptorSetLayout::create(bindings));
 
         auto layout = vsg::PipelineLayout::create(descriptorSetLayouts, vsg::PushConstantRanges());
-        auto shaderStage = vsgUtil::readShader("comp/light/assign.comp", shaderOptions);
+        // Task 0072, stage c: the Slang twin when `[Rendering] slang shaders` is on and it was built.
+        const std::string path = "comp/light/assign.comp";
+        auto shaderStage = vsgUtil::withSlangTwin(vsgUtil::readShader(path, shaderOptions), path, shaderOptions);
         return vsg::BindComputePipeline::create(vsg::ComputePipeline::create(layout, shaderStage));
     }
 
