@@ -44,6 +44,7 @@ namespace MWRender
     class Player;
     class ActorIkController;
     class CreativeMotionPoseDriver;
+    class IntentTracker;
     struct ActorState;
 }
 namespace MWMechanics
@@ -209,6 +210,11 @@ namespace MWMechanics
         bool mStyleSwitchedOff = false;
         std::atomic<bool> mStyleDirty{ false };
         std::atomic<float> mStyleSpeedMps{ 0.f };
+        // Task 0067, stage 1: with "creativemotion preset = natural" the actor's intent (starting, stopping, turn
+        // rate) is worked out each frame and handed to the pose driver with the ActorState. Null otherwise.
+        std::unique_ptr<MWRender::IntentTracker> mIntentTracker;
+        float mIntentPreviousYaw = 0.f;
+        bool mHasIntentPreviousYaw = false;
         std::atomic<float> mStyleCadence{ 1.f };
 
         std::map<ESM::RefId, MWSound::Sound*> mPlayingSounds;

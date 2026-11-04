@@ -84,6 +84,7 @@ namespace Settings
         SettingValue<bool> mCreativeMotionAnimationDebug{ mIndex, "Game", "creativemotion animation debug" };
         SettingValue<float> mCreativeMotionAnimationTransition{ mIndex, "Game", "creativemotion animation transition",
             makeMaxSanitizerFloat(0.0f) };
+        SettingValue<std::string> mCreativeMotionPreset{ mIndex, "Game", "creativemotion preset" };
         SettingValue<bool> mCreativeMotionStyleLayer{ mIndex, "Game", "creativemotion style layer" };
         SettingValue<bool> mCreativeMotionTransitionRules{ mIndex, "Game", "creativemotion transition rules" };
         SettingValue<std::string> mCreativeMotionDefaultStyle{ mIndex, "Game", "creativemotion default style" };

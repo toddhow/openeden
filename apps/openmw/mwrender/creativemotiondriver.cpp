@@ -429,8 +429,18 @@ namespace MWRender
             const bool playedBefore = mLastSources[g] != nullptr;
             float thisTransition = transitionDuration;
             if (groupChanged && mTransitionRules)
-                thisTransition = transitionSeconds(
-                    classifyGroup(mLastGroupNames[g]), classifyGroup(current.mGroupName), transitionDuration);
+            {
+                const MotionKind fromKind = classifyGroup(mLastGroupNames[g]);
+                const MotionKind toKind = classifyGroup(current.mGroupName);
+                if (mIntentTransitions)
+                {
+                    const TransitionIntent intent{ mActorState.mStarting, mActorState.mStopping,
+                        mActorState.mTurnRate };
+                    thisTransition = transitionSeconds(fromKind, toKind, transitionDuration, intent, mTransitionTimes);
+                }
+                else
+                    thisTransition = transitionSeconds(fromKind, toKind, transitionDuration);
+            }
             if (changed && playedBefore && thisTransition > 0.f)
             {
                 // From what this group showed in the last two frames (with any running transition) to the new

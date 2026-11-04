@@ -148,6 +148,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwrender/test_creativemotion_runtime.cpp
     mwrender/test_creativemotion_style.cpp
+    mwrender/test_creativemotion_intent.cpp
     mwrender/test_creativemotion_style_driver.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotionstyle.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp

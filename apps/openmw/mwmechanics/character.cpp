@@ -1,7 +1,9 @@
 #include "character.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstdio>
+#include <numbers>
 #include <unordered_set>
 
 #include <iostream>
@@ -2773,6 +2775,24 @@ namespace MWMechanics
         Log(Debug::Info) << line;
     }
 
+    namespace
+    {
+        // The CreativeMotion pieces that are on once [Game] creativemotion preset is combined with the individual
+        // settings (task 0067, stage 1). An unknown preset name counts as "off" and is reported once.
+        MWRender::CreativeMotionFeatures creativeMotionFeatures()
+        {
+            static std::atomic<bool> reported{ false };
+            bool recognised = false;
+            const std::string& presetName = Settings::game().mCreativeMotionPreset.get();
+            const MWRender::CreativeMotionPreset preset = MWRender::parseCreativeMotionPreset(presetName, &recognised);
+            if (!recognised && !reported.exchange(true))
+                Log(Debug::Warning) << "[Game] creativemotion preset = '" << presetName
+                                    << "' is not known (off, natural): using off";
+            return MWRender::resolveCreativeMotionFeatures(preset, Settings::game().mCreativeMotionAnimation,
+                Settings::game().mCreativeMotionTransitionRules, Settings::game().mCreativeMotionStyleLayer);
+        }
+    }
+
     void CharacterController::createPoseControllers()
     {
         mIkController = std::make_unique<MWRender::ActorIkController>(mPtr, *mObject);
@@ -2781,15 +2801,23 @@ namespace MWMechanics
         mPoseDriverApplies = false;
         mStyleCadence = 1.f;
         mStyleSpeedMps = 0.f;
-        if (Settings::game().mCreativeMotionAnimation || Settings::game().mCreativeMotionAnimationCompare)
+        mIntentTracker.reset();
+        mHasIntentPreviousYaw = false;
+        const MWRender::CreativeMotionFeatures features = creativeMotionFeatures();
+        if (features.mAnimation || Settings::game().mCreativeMotionAnimationCompare)
         {
             auto driver = std::make_unique<MWRender::CreativeMotionPoseDriver>(mAnimation->bones);
             if (driver->isValid())
             {
                 mPoseDriver = std::move(driver);
-                mPoseDriverApplies = Settings::game().mCreativeMotionAnimation;
+                mPoseDriverApplies = features.mAnimation;
                 mAnimation->updateBones = !mPoseDriverApplies;
-                mPoseDriver->setTransitionRules(Settings::game().mCreativeMotionTransitionRules);
+                mPoseDriver->setTransitionRules(features.mTransitionRules);
+                if (features.mIntentTransitions)
+                {
+                    mPoseDriver->setIntentTransitions(true, MWRender::loadTransitionTimesFromSettings());
+                    mIntentTracker = std::make_unique<MWRender::IntentTracker>();
+                }
                 configureStyle();
             }
         }
@@ -2797,7 +2825,7 @@ namespace MWMechanics
 
     const opas::style::StyleProfile* CharacterController::resolveStyleProfile()
     {
-        if (!Settings::game().mCreativeMotionStyleLayer)
+        if (!creativeMotionFeatures().mStyleLayer)
             return nullptr;
         std::string name = mStyleChoice;
         if (name.empty())
@@ -2848,7 +2876,7 @@ namespace MWMechanics
             mStyleSwitchedOff = argument == "off";
         else if (!argument.empty())
         {
-            if (!Settings::game().mCreativeMotionStyleLayer)
+            if (!creativeMotionFeatures().mStyleLayer)
                 return "The style layer is off: set [Game] creativemotion style layer = true";
             if (styleLibrary().find(argument) == nullptr)
                 return "No style named " + std::string(argument) + " (see the log)";
@@ -2859,7 +2887,7 @@ namespace MWMechanics
         mStyleDirty = true;
         const opas::style::StyleProfile* profile = resolveStyleProfile();
         if (profile == nullptr)
-            return Settings::game().mCreativeMotionStyleLayer
+            return creativeMotionFeatures().mStyleLayer
                 ? "No style for this actor"
                 : "The style layer is off ([Game] creativemotion style layer)";
         return MWRender::describeStyle(*profile, !mStyleSwitchedOff, MWRender::styleWeights(currentStyleState()));
@@ -2893,17 +2921,45 @@ namespace MWMechanics
 
         // What the actor is doing, for the style layer. The speed is smoothed: root motion varies within a step.
         MWRender::ActorState state;
+        float measuredSpeedMps = 0.f;
         if (duration > 0.f)
         {
             // The animation's own movement shrinks with the style's cadence, so divide that out (or the cadence
             // would feed back into the speed it is weighted by).
             const float measured = std::sqrt(moved.x * moved.x + moved.y * moved.y) / duration
                 / Constants::UnitsPerMeter / std::max(mStyleCadence.load(), 0.1f);
+            measuredSpeedMps = measured;
             constexpr float speedSmoothingRate = 6.f;
             const float smoothed = mStyleSpeedMps;
             mStyleSpeedMps = smoothed + (measured - smoothed) * std::min(1.f, duration * speedSmoothingRate);
         }
         state = currentStyleState();
+        if (mIntentTracker != nullptr && duration > 0.f)
+        {
+            // The actor's intent (task 0067, stage 1): whether the movement keys (or the AI's request) are held, and
+            // how fast it turns. The speed it is trying to reach is the speed it moves at now: the engine has no
+            // better number on this thread (getMaxSpeed reads the world), so "starting" means still speeding up.
+            const float* move = mPtr.getClass().getMovementSettings(mPtr).mPosition;
+            const float yaw = mPtr.getRefData().getPosition().rot[2];
+            float yawDelta = 0.f;
+            if (mHasIntentPreviousYaw)
+                yawDelta = std::remainder(yaw - mIntentPreviousYaw, 2.f * std::numbers::pi_v<float>);
+            mIntentPreviousYaw = yaw;
+            mHasIntentPreviousYaw = true;
+
+            MWRender::IntentInput input;
+            input.mDt = duration;
+            input.mMeasuredSpeedMps = measuredSpeedMps;
+            input.mWantsToMove = std::abs(move[0]) > 0.5f || std::abs(move[1]) > 0.5f;
+            input.mIntendedSpeedMps = measuredSpeedMps;
+            input.mYawDeltaRad = yawDelta;
+            const MWRender::ActorIntent intent = mIntentTracker->update(input);
+            state.mTargetSpeedMps = intent.mTargetSpeedMps;
+            state.mAccelerationMps2 = intent.mAccelerationMps2;
+            state.mTurnRate = intent.mTurnRate;
+            state.mStarting = intent.mStarting;
+            state.mStopping = intent.mStopping;
+        }
         mPoseDriver->setActorState(state);
         mStyleCadence = mPoseDriver->getStyleStatus().mCadence;
 

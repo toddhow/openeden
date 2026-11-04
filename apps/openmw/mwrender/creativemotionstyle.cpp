@@ -7,7 +7,10 @@
 #include <opas/style/Noise.hpp>
 
 #include <algorithm>
+#include <charconv>
+#include <cmath>
 #include <cstdio>
+#include <limits>
 
 namespace MWRender
 {
@@ -345,5 +348,133 @@ namespace MWRender
             text += buffer;
         }
         return text;
+    }
+
+    namespace
+    {
+        // The speed is smoothed at this rate (per second), as the style layer's speed was in task 0053.
+        constexpr float sIntentSmoothingRate = 6.f;
+        // A let-go actor counts as stopping while its smoothed speed is above this (metres per second).
+        constexpr float sStoppedSpeedMps = 0.2f;
+        // An actor that wants to move counts as starting until it has reached this share of the speed it wants.
+        constexpr float sStartedShare = 0.9f;
+        constexpr std::string_view sTransitionsCategory = "CreativeMotion Transitions";
+
+        bool isMoving(MotionKind kind)
+        {
+            return kind == MotionKind::Walk || kind == MotionKind::Run || kind == MotionKind::Sneak;
+        }
+
+        float finiteOr(float value, float fallback)
+        {
+            return std::isfinite(value) ? value : fallback;
+        }
+
+        // A finite number that is at least minimum; returns false (and leaves out alone) for anything else.
+        bool parseNumber(const std::string& text, float minimum, float& out)
+        {
+            double value = 0.0;
+            const char* const begin = text.data();
+            const char* const end = begin + text.size();
+            const auto [last, error] = std::from_chars(begin, end, value);
+            if (error != std::errc() || last != end || !std::isfinite(value) || value < minimum)
+                return false;
+            out = static_cast<float>(value);
+            return true;
+        }
+    }
+
+    TransitionTimes makeTransitionTimes(const std::vector<std::pair<std::string, std::string>>& entries)
+    {
+        TransitionTimes times;
+        for (const auto& [key, text] : entries)
+        {
+            if (key == "stopping")
+                parseNumber(text, 0.f, times.mStopping);
+            else if (key == "flip")
+                parseNumber(text, 0.f, times.mFlip);
+            else if (key == "starting")
+                parseNumber(text, 0.f, times.mStarting);
+            else if (key == "fast turn")
+                parseNumber(text, 0.f, times.mFastTurn);
+            else if (key == "slow turn")
+                parseNumber(text, 0.f, times.mSlowTurn);
+            else if (key == "fast turn rate")
+                parseNumber(text, std::numeric_limits<float>::min(), times.mFastTurnRate);
+        }
+        return times;
+    }
+
+    TransitionTimes loadTransitionTimesFromSettings()
+    {
+        std::vector<std::pair<std::string, std::string>> entries;
+        // Defaults first, so that a user entry for the same key comes later and wins.
+        for (const auto* settings : { &Settings::Manager::mDefaultSettings, &Settings::Manager::mUserSettings })
+            for (const auto& [key, value] : *settings)
+                if (key.first == sTransitionsCategory)
+                    entries.emplace_back(key.second, value);
+        return makeTransitionTimes(entries);
+    }
+
+    float transitionSeconds(MotionKind from, MotionKind to, float baseSeconds, const TransitionIntent& intent,
+        const TransitionTimes& times)
+    {
+        if (baseSeconds <= 0.f)
+            return 0.f;
+        if (isMoving(from) && to == MotionKind::Idle)
+            return baseSeconds * (intent.mStopping ? times.mStopping : times.mFlip);
+        if (from == MotionKind::Idle && isMoving(to) && intent.mStarting)
+            return baseSeconds * times.mStarting;
+        const bool turnIn = from == MotionKind::Idle && to == MotionKind::Turn;
+        const bool turnOut = from == MotionKind::Turn && to == MotionKind::Idle;
+        const bool turnInPlace = turnIn || turnOut;
+        if (turnInPlace)
+        {
+            const bool fast = std::abs(intent.mTurnRate) >= times.mFastTurnRate;
+            return baseSeconds * (fast ? times.mFastTurn : times.mSlowTurn);
+        }
+        return transitionSeconds(from, to, baseSeconds);
+    }
+
+    ActorIntent IntentTracker::update(const IntentInput& input)
+    {
+        const float measured = std::max(finiteOr(input.mMeasuredSpeedMps, 0.f), 0.f);
+        const float intended = std::max(finiteOr(input.mIntendedSpeedMps, 0.f), 0.f);
+
+        ActorIntent intent;
+        intent.mTargetSpeedMps = input.mWantsToMove ? intended : 0.f;
+        if (std::isfinite(input.mDt) && input.mDt > 0.f)
+        {
+            const float before = mSmoothed;
+            mSmoothed = before + (measured - before) * std::min(1.f, input.mDt * sIntentSmoothingRate);
+            intent.mAccelerationMps2 = (mSmoothed - before) / input.mDt;
+            intent.mTurnRate = finiteOr(input.mYawDeltaRad, 0.f) / input.mDt;
+        }
+        intent.mSmoothedSpeedMps = mSmoothed;
+        intent.mStopping = !input.mWantsToMove && mSmoothed > sStoppedSpeedMps;
+        intent.mStarting = input.mWantsToMove && intent.mTargetSpeedMps > 0.f
+            && mSmoothed < sStartedShare * intent.mTargetSpeedMps && intent.mAccelerationMps2 > 0.f;
+        return intent;
+    }
+
+    CreativeMotionPreset parseCreativeMotionPreset(std::string_view text, bool* recognised)
+    {
+        const std::string name = lower(text);
+        const bool known = name == "off" || name == "natural";
+        if (recognised != nullptr)
+            *recognised = known;
+        return name == "natural" ? CreativeMotionPreset::Natural : CreativeMotionPreset::Off;
+    }
+
+    CreativeMotionFeatures resolveCreativeMotionFeatures(
+        CreativeMotionPreset preset, bool animation, bool transitionRules, bool styleLayer)
+    {
+        const bool natural = preset == CreativeMotionPreset::Natural;
+        CreativeMotionFeatures features;
+        features.mAnimation = animation || natural;
+        features.mTransitionRules = transitionRules || natural;
+        features.mStyleLayer = styleLayer || natural;
+        features.mIntentTransitions = natural;
+        return features;
     }
 }

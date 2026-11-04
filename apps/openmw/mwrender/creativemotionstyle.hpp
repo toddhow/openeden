@@ -48,6 +48,39 @@ namespace MWRender
     /// How long the change from one kind to another takes: a factor of the base duration (see the task spec).
     float transitionSeconds(MotionKind from, MotionKind to, float baseSeconds);
 
+    /// What the actor means to do, for the transition rules (task 0067, stage 1).
+    struct TransitionIntent
+    {
+        bool mStarting = false; // the actor wants to move and has not reached its speed yet
+        bool mStopping = false; // the actor let go of the movement keys and is still moving
+        float mTurnRate = 0.f; // radians per second, signed
+    };
+
+    /// Duration factors of the intent rules, as data: the defaults are used unless the [CreativeMotion Transitions]
+    /// category of the settings names one (see makeTransitionTimes).
+    struct TransitionTimes
+    {
+        float mStopping = 1.5f; // walking, running or sneaking to idle with the stop intent
+        float mFlip = 1.0f; // the same change without the intent (the actor was blocked): the base time
+        float mStarting = 0.8f; // idle to walking, running or sneaking with the start intent
+        float mFastTurn = 0.6f; // to or from a turn in place at or above mFastTurnRate
+        float mSlowTurn = 1.0f; // to or from a turn in place below it
+        float mFastTurnRate = 1.5f; // radians per second
+    };
+
+    /// Keys "stopping", "flip", "starting", "fast turn", "slow turn" and "fast turn rate" (numbers; anything else,
+    /// a negative or non-numeric value is ignored, so the default stays).
+    TransitionTimes makeTransitionTimes(const std::vector<std::pair<std::string, std::string>>& entries);
+
+    /// Reads the [CreativeMotion Transitions] category of the settings.
+    TransitionTimes loadTransitionTimesFromSettings();
+
+    /// transitionSeconds with the actor's intent: a stop with the intent takes times.mStopping, the same change
+    /// without it times.mFlip; a start with the intent takes times.mStarting; a turn in place takes mFastTurn or
+    /// mSlowTurn by the turn rate. Every other change is as transitionSeconds says.
+    float transitionSeconds(MotionKind from, MotionKind to, float baseSeconds, const TransitionIntent& intent,
+        const TransitionTimes& times);
+
     /// What the style layer needs to know about the actor this frame.
     struct ActorState
     {
@@ -57,7 +90,71 @@ namespace MWRender
         bool mTurning = false;
         bool mWeaponDrawn = false;
         bool mHit = false;
+        // Intent (task 0067, stage 1): computed engine side by IntentTracker.
+        float mTargetSpeedMps = 0.f; // the speed the actor is trying to reach, 0 when it wants to stand still
+        float mAccelerationMps2 = 0.f; // change of the smoothed speed, signed
+        float mTurnRate = 0.f; // radians per second, signed
+        bool mStarting = false;
+        bool mStopping = false;
     };
+
+    /// One frame of what the engine knows about the actor's movement.
+    struct IntentInput
+    {
+        float mDt = 0.f; // seconds
+        float mMeasuredSpeedMps = 0.f; // ground speed this frame, from the movement actually made
+        bool mWantsToMove = false; // the movement keys (or the AI's movement request) are pressed
+        float mIntendedSpeedMps = 0.f; // the speed it would reach, used when mWantsToMove
+        float mYawDeltaRad = 0.f; // change of the actor's heading since the last frame, wrapped to -pi..pi
+    };
+
+    /// What IntentTracker works out.
+    struct ActorIntent
+    {
+        float mSmoothedSpeedMps = 0.f;
+        float mTargetSpeedMps = 0.f;
+        float mAccelerationMps2 = 0.f;
+        float mTurnRate = 0.f;
+        bool mStarting = false;
+        bool mStopping = false;
+    };
+
+    /// Smooths the measured speed and says whether the actor is starting or stopping. One per actor; update() makes no
+    /// allocation. Not thread safe: one thread (the one that runs the actor's animation) calls it.
+    class IntentTracker
+    {
+    public:
+        ActorIntent update(const IntentInput& input);
+        void reset() { *this = IntentTracker(); }
+
+    private:
+        float mSmoothed = 0.f;
+    };
+
+    /// The presets of [Game] creativemotion preset.
+    enum class CreativeMotionPreset
+    {
+        Off,
+        Natural
+    };
+
+    /// "off" and "natural" (any case); anything else is Off and recognised is false.
+    CreativeMotionPreset parseCreativeMotionPreset(std::string_view text, bool* recognised = nullptr);
+
+    /// Which CreativeMotion features are on once the preset and the individual settings are combined.
+    struct CreativeMotionFeatures
+    {
+        bool mAnimation = false;
+        bool mTransitionRules = false;
+        bool mStyleLayer = false;
+        bool mIntentTransitions = false; // the rules above also look at the actor's intent
+    };
+
+    /// Combines the preset with the three settings: a setting that is true stays true; the preset Natural switches on
+    /// animation, transition rules, style layer and the intent rules. (A setting cannot be told apart from its default
+    /// when it is false, so to switch one piece off, set the preset to off and the settings you want.)
+    CreativeMotionFeatures resolveCreativeMotionFeatures(
+        CreativeMotionPreset preset, bool animation, bool transitionRules, bool styleLayer);
 
     /// How much of each part of a style applies this frame, from 0 to 1.
     struct StyleWeights

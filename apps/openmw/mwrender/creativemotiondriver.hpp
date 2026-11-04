@@ -123,6 +123,13 @@ namespace MWRender
         void setActorState(const ActorState& state) { mActorState = state; }
         /// Transition durations by the kinds of motion changed between (classifyGroup, transitionSeconds).
         void setTransitionRules(bool enabled) { mTransitionRules = enabled; }
+        /// With the transition rules on: also look at the actor's intent (ActorState::mStarting, mStopping and
+        /// mTurnRate) and take the durations from times (task 0067, stage 1).
+        void setIntentTransitions(bool enabled, const TransitionTimes& times)
+        {
+            mIntentTransitions = enabled;
+            mTransitionTimes = times;
+        }
 
         struct StyleStatus
         {
@@ -195,6 +202,8 @@ namespace MWRender
         std::uint64_t mStyleSeed = 0;
         bool mStyleEnabled = false;
         bool mTransitionRules = false;
+        bool mIntentTransitions = false;
+        TransitionTimes mTransitionTimes;
         ActorState mActorState;
         double mStyleTimeS = 0.0; // accumulated frame time, never a clock
         opas::style::StyleProfile mEffectiveStyle; // preallocated by setStyle
