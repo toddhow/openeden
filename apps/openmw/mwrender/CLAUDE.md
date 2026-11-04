@@ -311,9 +311,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   body is, in `relinkKeptControllers`; the holstered weapon and shield are rebuilt).
 - **Auto-play clocks (task 0074b):** an equipment change never empties the object's `autoPlay`
   (`MWAnim::Wielding::clearPartControllers` empties the static and weapon lists only; `Npc::clearControllers` adds the
-  face). It holds what nothing would add again: an NPC's inventory lights (`addItemLight`, once, when the
-  CharacterController is made) and a creature's own model's controllers and lights. A part's auto-play controllers run
-  in the part's own clock (`PartControllers::addAutoPlay`, `update`), which a kept part keeps and a part inserted again
+  face). It holds what nothing would add again: an NPC's inventory lights (`addItemLight`, when the CharacterController
+  is made and on each later `itemAdded`) and a creature's own model's controllers and lights. A part's auto-play
+  controllers run in the part's own clock (`PartControllers::addAutoPlay`, `update`), which a kept part keeps and a part inserted again
   gets fresh (group 0 at 0, random groups at a random phase, as before: a new torch's flicker starts with a step of 0,
   task 0074c). The
   holstered weapon and shield have clocks of their own (`mScabbardClock`, `mHolsteredShieldClock`), emptied with their

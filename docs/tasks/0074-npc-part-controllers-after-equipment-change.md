@@ -218,7 +218,8 @@ first, run red; no separate test writer or reviewer (this ran as a subagent with
   float); and every run follows a reference of OpenMW's rule from time 0. Red run against the old controller
   (`I:\Projects\OpenEden-work\0074c\red-run.log`): the first three failed (first brightness -224.33 = 0.675 - 0.375 *
   600.0167, -111.83 for the slow kinds, -191.33 at 512 s); the fourth passed, as intended: from time 0 the old first
-  step was 0 too, so it shows that the reference is the rule the controller had. After the fix all 4 pass;
+  step was 0 too, so it shows that the reference is the rule the controller had. After the red run one comment in the
+  test moved to its own line (clang-format 14); no code or assertion changed. After the fix all 4 pass;
   `components-tests` 5,472 and `openmw-tests` 927 pass on Windows.
 - **In game** (work folder `I:\Projects\OpenEden-work\0074c`, not committed): a work copy of the 0074b scene tool with
   `SCENE=lightlater` (`tool/mod/scripts/mblight_*.lua`, no ESP): two Lua-made Bretons and a dremora carry inventory
@@ -235,8 +236,9 @@ first, run red; no separate test writer or reviewer (this ran as a subagent with
     was made by light A.
   - Frames viewed (`runs/<exe>/stock/frames`, before 001 to 004, after 002 and 003): before, the shot 2 s before the
     gift is the plain night scene and the first shot after it (3 frames after the event) shows the whole view red and
-    the sky white; the next two show the green light, the second more strongly; after, the first two shots show the
-    green light as the later before shots do.
+    the sky white (the red tint fits B's negative green and blue; why the sky, which point lights do not light, went
+    white was not investigated); the next two show the green light, the second more strongly; after, the first two
+    shots show the green light as the later before shots do.
   - Placed lights at cell load: no frames compared. The change is at most one frame's step (0.075 of the colour at the
     0.2 s clamp), which a frame of a randomly flickering light cannot show either way; the code above is the evidence.
 - **Threads and cost:** `apply` runs where its group runs: `vsgUtil::UpdateThreads` workers for objects and NPCs
@@ -252,7 +254,7 @@ first, run red; no separate test writer or reviewer (this ran as a subagent with
   0.51's `ActorAnimation::removeHiddenItemLight` does), so the removed light's node stays referenced and the same item
   is never added again; `WieldingCreature::addPart` passes no light to `MWAnim::decorate`, so a creature carrying a torch
   has no torch light (OpenMW 0.51's `CreatureWeaponAnimation::updatePart` calls `addExtraLight` for a light,
-  `creatureanimation.cpp`).
+  `creatureanimation.cpp`); `Anim::CullParticles` (`cullparticles.hpp`) also steps by an `Anim::DeltaTime`, not assessed.
 - **Not verified:** the Linux gate and the Lua integration tests; a script's `AddItem` in game (the scene uses Lua
   `moveInto`, which reaches the same listener, `InventoryStore`'s `itemAdded` call); the player; frames of placed lights;
   a fresh reviewer.
