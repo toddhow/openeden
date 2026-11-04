@@ -446,7 +446,7 @@ path looks like `makeIPCServer` returning false, which logs nothing when `listen
 the second time; not investigated, and not seen to depend on this change). Those plain starts read the real
 `openmw.cfg` despite `--replace=config --config` and rewrote `eden-studio.log` in the real user folder.
 
-### Review fixes of stage d, 2026-11-04 (commits `30dbca4893`, `d096b357ea`, `6572f560c2`, `9df44d50d4`)
+### Review fixes of stage d, 2026-11-04 (commits `30dbca4893`, `d096b357ea`, `6572f560c2`, `9df44d50d4`, `6913d7049e`, `d435853899`)
 
 A fresh review of stage d raised thirteen findings and an inherited bug. Work folder
 `I:\Projects\OpenEden-work\bodies\stage-d2` (a copied config in `cfg`, a copied user folder with a fresh bake in `user`, runs in `runs*`, frame pairs in
@@ -466,21 +466,26 @@ passed vacuously. All pass now; `components-tests` 5,379 passed.
    caught one at once: with `gbuffer` on, the merged draws had `GBUFFER_MOTION` and the rigid stock parts not
    (`Pipeline::Graphics` adds it to every skinned draw that writes the G-buffer); it is now an adapted define, so the
    merged body writes its bones' motion where the rigid stock parts wrote none. Frames with `hdr`, `gbuffer`, `pbr`,
-   `sss`, `wetness` and `cover` on, 20 of 20 actors merged in each run: rain (`rain-006`, `rain-008`), snow
-   (`snow-007`, `snow-008`), and the subsurface debug view (`gbuffer debug view = sss`: `sssdebug-006`, `sssdebug-008`).
-   Viewed: the merged skin shows the same subsurface signal as stock, stays dry in the rain (puddles on the ground) and
-   bare in the snow (cover on the ground and the hair, as stock). The define comparison is the test, in the game; it is
-   not a unit test (it needs a pipeline).
+   `sss`, `wetness` and `cover` on, the player and the 20 NPCs merged in each run (21 lines): rain (`rain-006` the
+   player's wrist, `rain-008` the row), snow (`snow-007` the knee, `snow-008`), and the subsurface debug view
+   (`gbuffer debug view = sss`: `sssdebug-006`, `sssdebug-008`); the three close-ups stacked in
+   `closeups-rain-snow-sss.png`. Viewed: the merged skin shows the same subsurface signal as stock, stays dry in the
+   rain (puddles on the ground) and bare in the snow (cover on the ground and the hair, as stock). **Correction:** the
+   first set of these frames, before the finding 8 change below, had the player drawing the stock parts (it retired
+   when first built dressed), so its close-ups were stock against stock; the frames named here are from the rerun, in
+   which the log shows the player drawing the merged body. The define comparison is the test, in the game; it is not a
+   unit test (it needs a pipeline).
 2. *Compile failure.* `Npc::compile()` failing now also removes the merged body and clears its slots. Not run (no way
    to make a compile fail on demand); read only.
 3. *Ownership and a normal exit.* The cache and templates live in `MergedBodies::Session`, which `OMW::Engine` holds
    after `mRenderManager` (so it goes before the resource system and the render engine's device). The scene now quits by
    itself (`core.quit()`) and `check.sh` fails unless the game exits with code 0 and leaves no crash dump: every run of
-   this round (17 runs of `check.sh`, stock and merged) exited 0 with no dump.
-4. *Draws.* One draw per material key (`planMergedDrawsByMaterial`). With `[Rendering] frame counters`, 20 NPCs in
-   view: scene census 7,116 draws stock against 6,861 merged (about 13 fewer per actor), triangles 524k against 523k,
-   frame median 3.72 ms both, p99 5.25 against 5.39 ms (`runs-counters`). No allocation counter was added: the
-   per-frame work is the ordinary `Anim::Skin` update; what the merged body allocates happens in `updateParts`.
+   this round (21 runs of `check.sh`, stock and merged) exited 0 with no dump.
+4. *Draws.* One draw per material key (`planMergedDrawsByMaterial`). With `[Rendering] frame counters` and the player
+   plus 20 NPCs in view: scene census 7,116 draws stock against 6,848 merged (about 13 fewer per actor; the player
+   alone 6,562 against 6,550), triangles 524k against 523k, frame median 3.72 against 3.64 ms, p99 5.25 against 5.21
+   ms (`runs-counters`, one run each). No allocation counter was added: the per-frame work is the ordinary `Anim::Skin`
+   update; what the merged body allocates happens in `updateParts`.
 5. *Skin transform.* The baker refuses a skinned shape whose transform is not the identity (one error per part)
    instead of baking it wrong. A rebake of the 20 bodies gave payloads byte-identical to the stage c bake (hashes in
    `bodies\bake3\payloads.sha`), so no stock body meets it.
@@ -492,9 +497,13 @@ passed vacuously. All pass now; `components-tests` 5,379 passed.
    `SharedObjects` each (they must, to capture), so there is not one `SharedObjects` per session.
 7. *Textures.* The look's images are shared into the stock options' `SharedObjects` (`shareImages`). Device memory
    with 20 NPCs (`gpu_used_mib`, `VK_EXT_memory_budget`, MiB resolution): 177 stock, 177 merged; working set 765
-   against 758 MiB.
-8. *A stable decision.* An actor that wears anything over a merged slot, when first built or later, keeps the stock
-   parts for the rest of its life (`Npc::mMergedRetired`); it never flips back when undressed. Question for toddhow below.
+   against 759 MiB.
+8. *A stable decision.* At most one swap each way per actor: an actor first built dressed draws the stock parts and
+   may take the merged body once undressed; an actor that has drawn the merged body and then puts equipment over a
+   merged slot keeps the stock parts for the rest of its life (`Npc::mMergedRetired`, set only when `mMergedDrawn`).
+   The first version retired every actor first built dressed, which kept the player (dressed at a game's start) on
+   the stock parts for the whole run, silently; found before the report by checking the log, fixed in `d435853899`.
+   Question for toddhow below.
 9. *Template keys.* Keyed by race, sex and the context's read options; the player and the NPCs of the same race and
    sex got two templates in the log.
 10. *Blended looks.* A look with alpha blending is refused (fail closed; no stock part is blended).
@@ -517,16 +526,20 @@ the player): fists raised; arms down; pants taken off through `types.Actor.setEq
 `InventoryStore` to `Npc::updateEquipment`, the same path as the inventory); fists raised again. With the shirt on, the
 hands (`stock-hands-before-after.png`), and with the shirt taken off first, the chest and shoulders
 (`stock-chest-before-down-after.png`) follow the bones after the change exactly as before it. Nothing was changed. Why
-the skins survive was not found; a debugger on `Npc::clearControllers` would settle it.
+the skins survive was not found. A hypothesis to check, not confirmed: the mwrender guide's frame order says
+`Scene::update` "updates objects, then skins", so stock skins may be driven by the scene's own skin pass and not by
+`mStaticControllers`. If so, the merged body's skins ride a different path from the stock skins (they are in
+`mStaticControllers` and linked again on every `updateParts`); a reviewer should judge whether that matters.
 
 **Not done or not verified.** `openmw-tests` (859 passed) and `eden-studio` built at the end, once another agent's
-`lodclusters.cpp` compiled again; the editor was not started. clang-format 14 was run on the changed files in a container and its changes taken;
-the Linux gate, the 32 Lua tests, a frozen-pose pixel comparison, the "off" comparison against the commit before, and
-the message box in the game were not run.
+`lodclusters.cpp` compiled again; the editor was not started. clang-format 14 was run on the changed files in a
+container and its changes taken (`6913d7049e` for the two files committed before the check). The Linux gate, the 32
+Lua tests, a frozen-pose pixel comparison, the "off" comparison against the commit before, the message box in the
+game and an allocation-counter test were not run.
 
-**Questions for toddhow.** (1) The retire rule of finding 8: once an actor has equipment over a merged slot it keeps
-the stock parts for the session; the alternative is to merge again when it undresses, a whole-body swap at that
-moment. (2) Is an Info line per actor on another skeleton acceptable with the setting on, or should it be Verbose?
+**Questions for toddhow.** (1) The retire rule of finding 8 as built: at most one swap each way (stock until
+undressed, merged, then stock for good once dressed again). The alternatives are no swap at all (an actor first built
+dressed never merges, which in a real game is the player and almost every NPC) or swapping on every change. (2) Is an Info line per actor on another skeleton acceptable with the setting on, or should it be Verbose?
 (3) The first body of each skeleton costs about 10 ms on the main thread for the skeleton parse; reading it on the
 preload thread, or taking the engine's own skeleton, would remove it. (4) The merged body writes bone motion to the
 G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the merged draws be kept out of it?

@@ -228,11 +228,12 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   `invBindMatrix`, so the attachment bone (the groin) only fixes the frame the skin's matrices are relative to.
 - **Re-attached on every `updateParts`:** `clearControllers` empties `mStaticControllers`, which holds the merged
   body's skin controllers; `removePath(mMergedBody)` first, then attach again. `compile()` failing removes it too.
-- **One draw per material key** (`Body::planMergedDrawsByMaterial`): 20 merged NPCs are about 255 fewer draws in the
-  scene census than stock (7,116 against 6,861), at the same frame time.
-- **Equipment (stage d):** anything worn or reserved over a merged slot keeps the stock parts entirely, and from then
-  on for the actor's life (`mMergedRetired`), so dressing and undressing never swaps the whole body; regions are
-  stage e.
+- **One draw per material key** (`Body::planMergedDrawsByMaterial`): the player and 20 merged NPCs are about 270
+  fewer draws in the scene census than stock (7,116 against 6,848), at the same frame time.
+- **Equipment (stage d):** anything worn or reserved over a merged slot keeps the stock parts entirely. At most one
+  swap each way per actor: one first built dressed may take the merged body once undressed; one that has drawn it
+  (`mMergedDrawn`) and dresses again keeps the stock parts for its life (`mMergedRetired`). Retiring every actor first
+  built dressed kept the player on the stock parts, silently. Regions are stage e.
 - **Logs:** every silent fallback is logged once (a race the store lacks, each refusal reason per race and sex, an
   actor on another skeleton at Info); one line per actor that draws the merged body ("Merged bodies: <ref> draws the
   merged body"), which the check tool counts. The default skeleton is compared as a normalised mesh path, prefixed
