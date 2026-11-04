@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <exception>
 #include <variant>
 
 #include <vsg/app/Camera.h>
@@ -42,9 +43,12 @@
 #include <components/vfs/recursivedirectoryiterator.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/image.hpp>
+#include <components/vsgutil/passstages.hpp>
 #include <components/vsgutil/readimage.hpp>
+#include <components/vsgutil/readshader.hpp>
 #include <components/vsgutil/recordwithviewid.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -56,40 +60,6 @@ namespace MWRender
 {
     namespace
     {
-        // A fullscreen triangle, with OpenMW's omw_TexCoord: 0 to 1 across the screen. The images have OpenGL's origin
-        // (see the class comment), so this is not flipped.
-        const char* const sVertexShader = R"GLSL(#version 450
-layout(location=0) out vec2 omw_TexCoord;
-out gl_PerVertex { vec4 gl_Position; };
-void main()
-{
-    vec2 position = vec2(float((gl_VertexIndex << 1) & 2), float(gl_VertexIndex & 2)) * 2.0 - 1.0;
-    gl_Position = vec4(position, 0.0, 1.0);
-    omw_TexCoord = position * 0.5 + 0.5;
-}
-)GLSL";
-
-        // Draws a result, in OpenGL's origin, to the screen.
-        const char* const sPresentVertexShader = R"GLSL(#version 450
-layout(location=0) out vec2 texCoord;
-out gl_PerVertex { vec4 gl_Position; };
-void main()
-{
-    vec2 position = vec2(float((gl_VertexIndex << 1) & 2), float(gl_VertexIndex & 2)) * 2.0 - 1.0;
-    gl_Position = vec4(position, 0.0, 1.0);
-    texCoord = vec2(position.x, -position.y) * 0.5 + 0.5;
-}
-)GLSL";
-        const char* const sPresentFragmentShader = R"GLSL(#version 450
-layout(set=0, binding=0) uniform sampler2D result;
-layout(location=0) in vec2 texCoord;
-layout(location=0) out vec4 color;
-void main()
-{
-    color = vec4(texture(result, texCoord).rgb, 1.0);
-}
-)GLSL";
-
         vsg::ref_ptr<vsg::RenderPass> createColorRenderPass(vsg::Device* device, VkFormat format)
         {
             auto attachment = vsg::defaultColorAttachment(format);
@@ -307,12 +277,14 @@ void main()
 
     PostProcess::PostProcess(Render::Engine& engine, vsg::ref_ptr<vsg::Context> context,
         vsg::ref_ptr<vsgUtil::CompileContext> compile, const VFS::Manager& vfs,
-        vsg::ref_ptr<const vsg::Options> textureOptions, uint32_t width, uint32_t height)
+        vsg::ref_ptr<const vsg::Options> textureOptions, vsg::ref_ptr<const vsg::Options> shaderOptions, uint32_t width,
+        uint32_t height)
         : mEngine(engine)
         , mContext(context)
         , mCompile(compile->clone(Mask_PostProcess))
         , mVfs(vfs)
         , mTextureOptions(textureOptions)
+        , mShaderOptions(std::move(shaderOptions))
         , mWidth(width)
         , mHeight(height)
         , mRoot(vsg::Group::create())
@@ -324,13 +296,27 @@ void main()
         mBaseView->viewDependentState = nullptr;
         mBaseView->mask = Mask_PostProcess;
         installCompilerLogCapture();
-        mVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
+        // Task 0072, stage g: the stages were strings here. The passes' vertex stage stays GLSL (see mVertex).
+        constexpr const char* vertexPath = "post/omwfx.vert";
+        try
+        {
+            const auto vertex = vsgUtil::readShader(vertexPath, mShaderOptions);
+            vsgUtil::recordShaderUse(vertexPath, {}, vertex.get(), mShaderOptions);
+            if (vertex->module)
+                mVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, vertex->module->source);
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "Post-processing has no vertex stage: " << e.what();
+        }
         mMultisampled = mEngine.framebufferSamples() != VK_SAMPLE_COUNT_1_BIT;
         mPresentSwitch = vsg::Switch::create();
         if (mMultisampled)
         {
-            mPresentVertex = compileGlsl(VK_SHADER_STAGE_VERTEX_BIT, sPresentVertexShader);
-            mPresentFragment = compileGlsl(VK_SHADER_STAGE_FRAGMENT_BIT, sPresentFragmentShader);
+            mPresentStages
+                = vsgUtil::readPassStages({ { "post/present.vert", {} }, { "post/present.frag", {} } }, mShaderOptions);
+            if (mPresentStages.empty())
+                Log(Debug::Error) << "Failed to compile the post-processing present shader";
         }
         createCopies();
         for (const auto& path : mVfs.getRecursiveDirectoryIterator(Fx::Technique::sSubdir))
@@ -455,6 +441,8 @@ void main()
     vsg::ref_ptr<vsg::Node> PostProcess::createPass(LoadedPass& pass, Target& target,
         vsg::ref_ptr<vsg::ImageView> lastShader, vsg::ref_ptr<vsg::ImageView> lastPass, LoadedTechnique& technique)
     {
+        if (!mVertex)
+            return {};
         const auto read = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         const auto imageType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         const auto makeImage = [&](vsg::ref_ptr<vsg::Sampler> sampler, vsg::ref_ptr<vsg::ImageView> view,
@@ -617,6 +605,8 @@ void main()
 
     vsg::ref_ptr<vsg::Node> PostProcess::createPresent(vsg::ref_ptr<vsg::ImageView> result)
     {
+        if (mPresentStages.empty())
+            return {};
         auto setLayout = vsg::DescriptorSetLayout::create(vsg::DescriptorSetLayoutBindings{
             { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout }, vsg::PushConstantRanges{});
@@ -633,8 +623,8 @@ void main()
         const vsg::GraphicsPipelineStates states{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
             raster, vsg::MultisampleState::create(), colorBlend, depthStencil,
             vsg::ViewportState::create(0, 0, mWidth, mHeight) };
-        auto pipeline = vsg::BindGraphicsPipeline::create(
-            vsg::GraphicsPipeline::create(layout, vsg::ShaderStages{ mPresentVertex, mPresentFragment }, states));
+        auto pipeline
+            = vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(layout, mPresentStages, states));
 
         auto descriptor = vsg::DescriptorImage::create(
             vsg::ImageInfo::create(mNearest, result, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0,

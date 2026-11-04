@@ -6,6 +6,7 @@
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/View.h>
 #include <vsg/core/Value.h>
+#include <vsg/io/Options.h>
 #include <vsg/state/ImageView.h>
 #include <vsg/state/ShaderStage.h>
 
@@ -82,8 +83,10 @@ namespace Render
             vsg::ref_ptr<vsg::ImageView> material; // task 0027
         };
 
-        /// `compile` compiles for the window's render pass; `graph` is a render graph on that window.
-        Tonemap(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<vsg::RenderGraph> graph);
+        /// `compile` compiles for the window's render pass; `graph` is a render graph on that window. `shaderOptions`
+        /// read the shader files (post/fullscreen.vert, post/tonemap.frag; task 0072, stage g).
+        Tonemap(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<vsg::RenderGraph> graph,
+            vsg::ref_ptr<const vsg::Options> shaderOptions);
         ~Tonemap();
 
         /// The view the tonemap pipeline is compiled for: register it with the compile manager on the window
@@ -126,15 +129,16 @@ namespace Render
     private:
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
+        vsg::ref_ptr<const vsg::Options> mShaderOptions;
         vsg::ref_ptr<vsg::View> mView;
         vsg::ref_ptr<vsg::vec4Value> mPush;
-        vsg::ref_ptr<vsg::ShaderStage> mVertex;
         vsg::ref_ptr<vsg::vec4Value> mPushDebug;
         vsg::ref_ptr<vsg::vec4Value> mPushAo;
         vsg::ref_ptr<vsg::vec4Value> mPushSss;
         VkExtent2D mAoExtent{ 1, 1 };
-        // Indexed by bloom (1), debug view (2), ambient occlusion (4) and subsurface scattering (8).
-        vsg::ref_ptr<vsg::ShaderStage> mFragments[16];
+        // The vertex and fragment stage of each variant, indexed by bloom (1), debug view (2), ambient occlusion (4)
+        // and subsurface scattering (8); a variant takes the Slang twins of both stages or neither.
+        vsg::ShaderStages mStages[16];
         vsg::ref_ptr<vsg::Node> mDraw;
         Parameters mParameters;
     };

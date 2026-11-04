@@ -66,7 +66,8 @@ namespace MWRender
     public:
         PostProcess(Render::Engine& engine, vsg::ref_ptr<vsg::Context> context,
             vsg::ref_ptr<vsgUtil::CompileContext> compile, const VFS::Manager& vfs,
-            vsg::ref_ptr<const vsg::Options> textureOptions, uint32_t width, uint32_t height);
+            vsg::ref_ptr<const vsg::Options> textureOptions, vsg::ref_ptr<const vsg::Options> shaderOptions,
+            uint32_t width, uint32_t height);
         ~PostProcess();
 
         vsg::ref_ptr<vsg::Group> node() const { return mRoot; }
@@ -153,6 +154,8 @@ namespace MWRender
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         const VFS::Manager& mVfs;
         vsg::ref_ptr<const vsg::Options> mTextureOptions;
+        // Reads post-processing's own stages (task 0072, stage g: they were strings in postprocess.cpp).
+        vsg::ref_ptr<const vsg::Options> mShaderOptions;
         uint32_t mWidth;
         uint32_t mHeight;
         vsg::ref_ptr<vsg::Group> mRoot;
@@ -161,14 +164,17 @@ namespace MWRender
         vsg::ref_ptr<vsg::Switch> mPresentSwitch;
         vsg::ref_ptr<vsg::View> mMainView;
         vsg::ref_ptr<vsg::ImageView> mDepthSource;
-        vsg::ref_ptr<vsg::ShaderStage> mPresentVertex;
-        vsg::ref_ptr<vsg::ShaderStage> mPresentFragment;
+        // post/present.vert and present.frag: the Slang twins of both or neither.
+        vsg::ShaderStages mPresentStages;
         bool mMultisampled = false;
         bool mSceneVisible = true;
         vsg::ref_ptr<vsg::Sampler> mLinear;
         vsg::ref_ptr<vsg::Sampler> mNearest;
         vsg::ref_ptr<vsg::RenderPass> mRenderPass;
         vsg::ref_ptr<vsg::View> mBaseView;
+        // post/omwfx.vert, the vertex stage of every pass. GLSL only: its partner is always a pass's fragment stage
+        // translated from an .omwfx file (decision 0009), and a pipeline takes the Slang twins of all its stages or
+        // none.
         vsg::ref_ptr<vsg::ShaderStage> mVertex;
         vsg::ref_ptr<vsg::Image> mSceneColor;
         vsg::ref_ptr<vsg::Image> mSceneDepth;

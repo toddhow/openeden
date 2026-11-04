@@ -15,11 +15,11 @@
 #include <vsg/state/VertexInputState.h>
 #include <vsg/state/ViewDependentState.h>
 #include <vsg/state/ViewportState.h>
-#include <vsg/utils/ShaderCompiler.h>
 #include <vsg/vk/Context.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/vsgutil/image.hpp>
+#include <components/vsgutil/passstages.hpp>
 #include <components/vsgutil/recordwithviewid.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
 
@@ -27,58 +27,6 @@ namespace Render
 {
     namespace
     {
-        const char* const sVertexShader = R"GLSL(#version 450
-layout(location=0) out vec2 texCoord;
-out gl_PerVertex { vec4 gl_Position; };
-void main()
-{
-    vec2 position = vec2(float((gl_VertexIndex << 1) & 2), float(gl_VertexIndex & 2)) * 2.0 - 1.0;
-    gl_Position = vec4(position, 0.0, 1.0);
-    texCoord = position * 0.5 + 0.5;
-}
-)GLSL";
-
-        // The CPU twin is Render::GBuffer::reprojectVelocity (gbuffermath.hpp): change both together. The linear depth
-        // is the distance in front of the camera (view space looks down -Z); projScale holds the projection's x and y
-        // scales, which carry the sign of the target's y axis. A pixel with no opaque surface (depth 0), or one that
-        // was behind the previous camera, has no velocity.
-        const char* const sFragmentShader = R"GLSL(#version 450
-layout(set=0, binding=0) uniform sampler2D linearDepth;
-layout(set=0, binding=1) uniform sampler2D objectMotion; // skinned actors' own motion, from the scene pass
-layout(push_constant) uniform Push
-{
-    mat4 toPrevClip;
-    vec4 projScale; // xy: the projection's [0][0] and [1][1]
-} push;
-layout(location=0) in vec2 texCoord;
-layout(location=0) out vec4 outVelocity;
-void main()
-{
-    float d = texture(linearDepth, texCoord).r;
-    outVelocity = vec4(0.0);
-    if (!(d > 0.0))
-        return;
-    vec2 velocity = texture(objectMotion, texCoord).rg;
-    vec3 viewPos = vec3((texCoord * 2.0 - 1.0) * d / push.projScale.xy, -d);
-    vec4 prevClip = push.toPrevClip * vec4(viewPos, 1.0);
-    if (prevClip.w > 0.0)
-        velocity += texCoord - (prevClip.xy / prevClip.w * 0.5 + 0.5);
-    outVelocity = vec4(velocity, 0.0, 0.0);
-}
-)GLSL";
-
-        vsg::ref_ptr<vsg::ShaderStage> compile(VkShaderStageFlagBits stage, const char* source)
-        {
-            auto shaderStage = vsg::ShaderStage::create(stage, "main", source);
-            auto compiler = vsg::ShaderCompiler::create();
-            if (!compiler->compile(shaderStage))
-            {
-                Log(Debug::Error) << "Failed to compile a velocity shader";
-                return {};
-            }
-            return shaderStage;
-        }
-
         vsg::ref_ptr<vsg::RenderPass> createPass(vsg::Device* device)
         {
             vsg::AttachmentDescription attachment = {};
@@ -108,10 +56,12 @@ void main()
         }
     }
 
-    Velocity::Velocity(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile)
+    Velocity::Velocity(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+        vsg::ref_ptr<const vsg::Options> shaderOptions)
         : mCompile(std::move(compile))
         , mView(vsg::View::create())
         , mPass(createPass(context.device))
+        , mShaderOptions(std::move(shaderOptions))
         , mGraph(vsg::RenderGraph::create())
         , mMatrix(vsg::mat4Value::create(vsg::mat4()))
         , mScale(vsg::vec4Value::create(vsg::vec4(1.f, 1.f, 0.f, 0.f)))
@@ -138,11 +88,15 @@ void main()
     bool Velocity::build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth,
         vsg::ref_ptr<vsg::ImageView> objectMotion, const VkExtent2D& extent)
     {
-        if (!mVertex)
-            mVertex = compile(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
-        if (!mFragment)
-            mFragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sFragmentShader);
-        if (!mVertex || !mFragment || !linearDepth || !objectMotion)
+        // Task 0072, stage g: the stages were strings here.
+        if (mStages.empty())
+        {
+            mStages = vsgUtil::readPassStages(
+                { { "post/fullscreen.vert", {} }, { "post/velocity.frag", {} } }, mShaderOptions);
+            if (mStages.empty())
+                Log(Debug::Error) << "Failed to compile a velocity shader";
+        }
+        if (mStages.empty() || !linearDepth || !objectMotion)
             return false;
 
         auto image
@@ -177,8 +131,7 @@ void main()
         const vsg::GraphicsPipelineStates states{ vsg::VertexInputState::create(), vsg::InputAssemblyState::create(),
             raster, vsg::MultisampleState::create(), blend, depthStencil,
             vsg::ViewportState::create(0, 0, extent.width, extent.height) };
-        auto pipeline = vsg::BindGraphicsPipeline::create(
-            vsg::GraphicsPipeline::create(layout, vsg::ShaderStages{ mVertex, mFragment }, states));
+        auto pipeline = vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(layout, mStages, states));
         vsg::Descriptors descriptors{ vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, linearDepth,
                                                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
                                           0, 0, imageType),

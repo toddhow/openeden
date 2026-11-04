@@ -6,6 +6,7 @@
 
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/View.h>
+#include <vsg/io/Options.h>
 #include <vsg/nodes/Group.h>
 #include <vsg/state/ImageView.h>
 #include <vsg/state/ShaderStage.h>
@@ -41,7 +42,10 @@ namespace Render
         static constexpr uint32_t maxLevels = 6;
         static constexpr uint32_t minSide = 8;
 
-        Bloom(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile);
+        /// `shaderOptions` read the shader files (post/fullscreen.vert, post/bloomdown.frag, post/bloomup.frag; task
+        /// 0072, stage g).
+        Bloom(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+            vsg::ref_ptr<const vsg::Options> shaderOptions);
         ~Bloom();
 
         /// Register with the compile manager (CompileManager::add(framebuffer, view)) after Engine::setup, before
@@ -78,9 +82,10 @@ namespace Render
         vsg::ref_ptr<vsg::View> mView;
         vsg::ref_ptr<vsg::RenderPass> mDownPass;
         vsg::ref_ptr<vsg::RenderPass> mUpPass;
-        vsg::ref_ptr<vsg::ShaderStage> mVertex;
-        vsg::ref_ptr<vsg::ShaderStage> mDownFragment;
-        vsg::ref_ptr<vsg::ShaderStage> mUpFragment;
+        vsg::ref_ptr<const vsg::Options> mShaderOptions;
+        // The stages of the down and the up pipeline; each takes the Slang twins of both its stages or neither.
+        vsg::ShaderStages mDownStages;
+        vsg::ShaderStages mUpStages;
         vsg::ref_ptr<vsg::Group> mNode;
         vsg::ref_ptr<vsg::ImageView> mResult;
         // The chain's images, framebuffers and draws, given to `retire` by the next setSource.

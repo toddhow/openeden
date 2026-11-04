@@ -106,6 +106,16 @@ set(SHADER_FILES
     comp/fogofwar/workgroupsize.glsl
     comp/fogofwar/constants.glsl
     comp/fogofwar/update.comp
+    post/fullscreen.vert
+    post/tonemap.frag
+    post/tonemapconstants.glsl
+    post/bloomdown.frag
+    post/bloomup.frag
+    post/velocity.frag
+    post/ao.frag
+    post/omwfx.vert
+    post/present.vert
+    post/present.frag
 )
 
 copy_all_resource_files(${CMAKE_CURRENT_SOURCE_DIR} ${OPENMW_RESOURCES_ROOT} ${DDIRRELATIVE} "${SHADER_FILES}")

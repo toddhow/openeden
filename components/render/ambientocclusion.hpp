@@ -6,6 +6,7 @@
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/View.h>
 #include <vsg/core/Value.h>
+#include <vsg/io/Options.h>
 #include <vsg/maths/vec4.h>
 #include <vsg/state/ImageView.h>
 #include <vsg/state/ShaderStage.h>
@@ -37,15 +38,11 @@ namespace Render
     public:
         static constexpr VkFormat format = VK_FORMAT_R8_UNORM;
 
-        struct Settings
-        {
-            float radius = 100.f; // game units
-            int slices = 2;
-            int steps = 6;
-        };
-
-        AmbientOcclusion(
-            vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile, const Settings& settings);
+        /// `shaderOptions` read the shader files (post/fullscreen.vert, post/ao.frag) and give the fragment stage
+        /// [Rendering] ao radius, ao slices and ao steps through ao.settings (Resource::ShaderSettings; task 0072,
+        /// stage g: this class took them as Settings and wrote them into its GLSL string).
+        AmbientOcclusion(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+            vsg::ref_ptr<const vsg::Options> shaderOptions);
         ~AmbientOcclusion();
 
         /// Register with the compile manager (CompileManager::add(framebuffer, view)) after Engine::setup, before
@@ -76,12 +73,12 @@ namespace Render
         bool build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> linearDepth, vsg::ref_ptr<vsg::ImageView> normal,
             const VkExtent2D& extent);
 
-        Settings mSettings;
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::View> mView;
         vsg::ref_ptr<vsg::RenderPass> mPass;
-        vsg::ref_ptr<vsg::ShaderStage> mVertex;
-        vsg::ref_ptr<vsg::ShaderStage> mFragment;
+        vsg::ref_ptr<const vsg::Options> mShaderOptions;
+        // The vertex and fragment stage: the Slang twins of both or neither.
+        vsg::ShaderStages mStages;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
         vsg::ref_ptr<vsg::ImageView> mResult;
         VkExtent2D mResultExtent{ 1, 1 };

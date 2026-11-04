@@ -12,6 +12,7 @@
 #include <components/render/cloudmath.hpp>
 #include <components/render/cloudvolumemath.hpp>
 #include <components/settings/settings.hpp>
+#include <components/settings/values.hpp>
 #include <components/vsgutil/shaderpermutation.hpp>
 
 namespace
@@ -133,6 +134,10 @@ namespace Resource
             { "cShadowFadeStart", settingsConstantBase + 66, 'f' },
             // material.settings (lib/material/terms.glsl)
             { "cClampLighting", settingsConstantBase + 80, 'b' },
+            // ao.settings (post/ao.frag; task 0072, stage g): named as ambientocclusion.cpp named its defines
+            { "AO_RADIUS", settingsConstantBase + 100, 'f' },
+            { "AO_SLICES", settingsConstantBase + 101, 'i' },
+            { "AO_STEPS", settingsConstantBase + 102, 'i' },
         };
         return table;
     }
@@ -247,5 +252,14 @@ namespace Resource
         if (Settings::Manager::getBool("debug chunks", "Terrain"))
             addDefine("DEBUG_CHUNKS", source, *constants);
         objects["terrain.settings"] = vsg::ShaderModule::create(source.str());
+
+        source.str("");
+        // OpenEden (task 0072, stage g): the ambient occlusion pass (post/ao.frag). ambientocclusion.cpp wrote these
+        // into its GLSL string from the values RenderManager passed it, which are these (sanitised) settings.
+        const auto& rendering = Settings::rendering();
+        add("AO_RADIUS", rendering.mAoRadius.get(), source, *constants);
+        add("AO_SLICES", rendering.mAoSlices.get(), source, *constants);
+        add("AO_STEPS", rendering.mAoSteps.get(), source, *constants);
+        objects["ao.settings"] = vsg::ShaderModule::create(source.str());
     }
 }

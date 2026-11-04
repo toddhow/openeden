@@ -15,11 +15,11 @@
 #include <vsg/state/VertexInputState.h>
 #include <vsg/state/ViewDependentState.h>
 #include <vsg/state/ViewportState.h>
-#include <vsg/utils/ShaderCompiler.h>
 #include <vsg/vk/Context.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/vsgutil/image.hpp>
+#include <components/vsgutil/passstages.hpp>
 #include <components/vsgutil/recordwithviewid.hpp>
 #include <components/vsgutil/setviewportstate.hpp>
 
@@ -29,82 +29,6 @@ namespace Render
 {
     namespace
     {
-        const char* const sVertexShader = R"GLSL(#version 450
-layout(location=0) out vec2 texCoord;
-out gl_PerVertex { vec4 gl_Position; };
-void main()
-{
-    vec2 position = vec2(float((gl_VertexIndex << 1) & 2), float(gl_VertexIndex & 2)) * 2.0 - 1.0;
-    gl_Position = vec4(position, 0.0, 1.0);
-    texCoord = position * 0.5 + 0.5;
-}
-)GLSL";
-
-        // The 13 taps of Jimenez's downsample, in the source's texels around the pixel: the centre and the corners of
-        // two overlapping 2x2 boxes at each of four offsets, weighted so that the whole is a 4x4 box filter with a soft
-        // edge (for even sizes; an odd size drifts by less than a texel). Each filtered sample is capped at kMaxInput
-        // and a NaN sample counts as black, so that a very bright texel (a sun disc, a light's centre) cannot flash
-        // from frame to frame and one NaN cannot spread through the chain. kMaxInput is 1 / 1000 of the largest value
-        // the float target holds (Render::Hdr::maxTargetValue), enough for any light and far above the display's white.
-        const char* const sDownFragment = R"GLSL(#version 450
-layout(set=0, binding=0) uniform sampler2D source;
-layout(push_constant) uniform Push { vec4 texel; } push; // xy: the source's texel size
-layout(location=0) in vec2 texCoord;
-layout(location=0) out vec4 outColor;
-const float kMaxInput = 64.0; // about 1 / 1000 of the float target's largest value
-vec3 tap(vec2 offset)
-{
-    vec3 v = texture(source, texCoord + offset * push.texel.xy).rgb;
-    if (any(isnan(v)))
-        return vec3(0.0);
-    return min(v, vec3(kMaxInput));
-}
-void main()
-{
-    vec3 a = tap(vec2(-2, 2)), b = tap(vec2(0, 2)), c = tap(vec2(2, 2));
-    vec3 d = tap(vec2(-2, 0)), e = tap(vec2(0, 0)), f = tap(vec2(2, 0));
-    vec3 g = tap(vec2(-2, -2)), h = tap(vec2(0, -2)), i = tap(vec2(2, -2));
-    vec3 j = tap(vec2(-1, 1)), k = tap(vec2(1, 1)), l = tap(vec2(-1, -1)), m = tap(vec2(1, -1));
-    vec3 result = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125;
-    outColor = vec4(result, 1.0);
-}
-)GLSL";
-
-        // The 3x3 tent filter of the same article; the result is added to the image below by the blend state.
-        const char* const sUpFragment = R"GLSL(#version 450
-layout(set=0, binding=0) uniform sampler2D source;
-layout(push_constant) uniform Push { vec4 texel; } push; // xy: the source's texel size
-layout(location=0) in vec2 texCoord;
-layout(location=0) out vec4 outColor;
-void main()
-{
-    vec2 t = push.texel.xy;
-    vec3 a = texture(source, texCoord + vec2(-t.x, t.y)).rgb;
-    vec3 b = texture(source, texCoord + vec2(0, t.y)).rgb;
-    vec3 c = texture(source, texCoord + vec2(t.x, t.y)).rgb;
-    vec3 d = texture(source, texCoord + vec2(-t.x, 0)).rgb;
-    vec3 e = texture(source, texCoord).rgb;
-    vec3 f = texture(source, texCoord + vec2(t.x, 0)).rgb;
-    vec3 g = texture(source, texCoord + vec2(-t.x, -t.y)).rgb;
-    vec3 h = texture(source, texCoord + vec2(0, -t.y)).rgb;
-    vec3 i = texture(source, texCoord + vec2(t.x, -t.y)).rgb;
-    vec3 result = (e * 4.0 + (b + d + f + h) * 2.0 + (a + c + g + i)) / 16.0;
-    outColor = vec4(result, 1.0);
-}
-)GLSL";
-
-        vsg::ref_ptr<vsg::ShaderStage> compile(VkShaderStageFlagBits stage, const char* source)
-        {
-            auto shaderStage = vsg::ShaderStage::create(stage, "main", source);
-            auto compiler = vsg::ShaderCompiler::create();
-            if (!compiler->compile(shaderStage))
-            {
-                Log(Debug::Error) << "Failed to compile a bloom shader";
-                return {};
-            }
-            return shaderStage;
-        }
-
         // One colour attachment of the HDR format. `load`: the up passes add to what the down passes left in the image.
         vsg::ref_ptr<vsg::RenderPass> createPass(vsg::Device* device, bool load)
         {
@@ -168,11 +92,13 @@ void main()
         return extent;
     }
 
-    Bloom::Bloom(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile)
+    Bloom::Bloom(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+        vsg::ref_ptr<const vsg::Options> shaderOptions)
         : mCompile(std::move(compile))
         , mView(vsg::View::create())
         , mDownPass(createPass(context.device, false))
         , mUpPass(createPass(context.device, true))
+        , mShaderOptions(std::move(shaderOptions))
         , mNode(vsg::Group::create())
     {
         mView->viewDependentState = nullptr;
@@ -190,14 +116,18 @@ void main()
 
     bool Bloom::build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> sceneColor, const VkExtent2D& sceneExtent)
     {
-        if (!mVertex)
-            mVertex = compile(VK_SHADER_STAGE_VERTEX_BIT, sVertexShader);
-        if (!mDownFragment)
-            mDownFragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sDownFragment);
-        if (!mUpFragment)
-            mUpFragment = compile(VK_SHADER_STAGE_FRAGMENT_BIT, sUpFragment);
-        if (!mVertex || !mDownFragment || !mUpFragment)
+        // Task 0072, stage g: the stages were strings here.
+        if (mDownStages.empty())
+            mDownStages = vsgUtil::readPassStages(
+                { { "post/fullscreen.vert", {} }, { "post/bloomdown.frag", {} } }, mShaderOptions);
+        if (mUpStages.empty())
+            mUpStages = vsgUtil::readPassStages(
+                { { "post/fullscreen.vert", {} }, { "post/bloomup.frag", {} } }, mShaderOptions);
+        if (mDownStages.empty() || mUpStages.empty())
+        {
+            Log(Debug::Error) << "Failed to compile a bloom shader";
             return false;
+        }
 
         mNode->children.clear();
         mResult = {};
@@ -271,8 +201,8 @@ void main()
             const vsg::GraphicsPipelineStates states{ vsg::VertexInputState::create(),
                 vsg::InputAssemblyState::create(), raster, vsg::MultisampleState::create(), pass.up ? add : replace,
                 depthStencil, vsg::ViewportState::create(0, 0, pass.targetExtent.width, pass.targetExtent.height) };
-            auto pipeline = vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(
-                layout, vsg::ShaderStages{ mVertex, pass.up ? mUpFragment : mDownFragment }, states));
+            auto pipeline = vsg::BindGraphicsPipeline::create(
+                vsg::GraphicsPipeline::create(layout, pass.up ? mUpStages : mDownStages, states));
             vsg::Descriptors descriptors{ vsg::DescriptorImage::create(
                 vsg::ImageInfo::create(sampler, pass.source, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 0, 0,
                 imageType) };

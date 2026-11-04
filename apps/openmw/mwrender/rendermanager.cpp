@@ -869,22 +869,22 @@ namespace MWRender
             mRenderGraph->windowResizeHandler = nullptr;
             mRenderGraph->setClearValues(VkClearColorValue{ { 0.f, 0.f, 0.f, 1.f } });
             mTonemapGraph = mEngine.createRenderGraph();
-            mTonemap = std::make_unique<Render::Tonemap>(mCompileContext->clone(~vsg::Mask(0)), mTonemapGraph);
+            // Task 0072, stage g: the passes read their shader stages through the shader options.
+            const auto& shaderOptions = mResourceSystem->shaderOptions;
+            mTonemap = std::make_unique<Render::Tonemap>(
+                mCompileContext->clone(~vsg::Mask(0)), mTonemapGraph, shaderOptions);
             if (Settings::rendering().mHdrBloom)
-                mBloom = std::make_unique<Render::Bloom>(*context, mCompileContext->clone(~vsg::Mask(0)));
+                mBloom
+                    = std::make_unique<Render::Bloom>(*context, mCompileContext->clone(~vsg::Mask(0)), shaderOptions);
             // Task 0026, stage b: screen motion from the stored depth, with the G-buffer.
             if (mGBufferOutputs > 0)
-                mVelocity = std::make_unique<Render::Velocity>(*context, mCompileContext->clone(~vsg::Mask(0)));
-            // Task 0029: the occlusion pass, after the scene (it reads the scene's depth and normals).
+                mVelocity = std::make_unique<Render::Velocity>(
+                    *context, mCompileContext->clone(~vsg::Mask(0)), shaderOptions);
+            // Task 0029: the occlusion pass, after the scene (it reads the scene's depth and normals). Its settings
+            // (ao radius, ao slices, ao steps) reach the shader through ao.settings (Resource::ShaderSettings).
             if (mAoEnabled)
-            {
-                Render::AmbientOcclusion::Settings aoSettings;
-                aoSettings.radius = Settings::rendering().mAoRadius;
-                aoSettings.slices = Settings::rendering().mAoSlices;
-                aoSettings.steps = Settings::rendering().mAoSteps;
                 mAmbientOcclusion = std::make_unique<Render::AmbientOcclusion>(
-                    *context, mCompileContext->clone(~vsg::Mask(0)), aoSettings);
-            }
+                    *context, mCompileContext->clone(~vsg::Mask(0)), shaderOptions);
         }
         else
             mRenderGraph = mEngine.createRenderGraph();
@@ -976,7 +976,7 @@ namespace MWRender
         // V4p).
         if (Settings::postProcessing().mEnabled)
             mPostProcess = std::make_unique<PostProcess>(mEngine, context, mCompileContext, *mResourceSystem->getVFS(),
-                mResourceSystem->textureOptions, mRenderGraph->renderArea.extent.width,
+                mResourceSystem->textureOptions, mResourceSystem->shaderOptions, mRenderGraph->renderArea.extent.width,
                 mRenderGraph->renderArea.extent.height);
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
         // The first index after the scene (and its velocity and occlusion passes).

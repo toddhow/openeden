@@ -8,6 +8,7 @@
 #include <vsg/app/RenderGraph.h>
 #include <vsg/app/View.h>
 #include <vsg/core/Value.h>
+#include <vsg/io/Options.h>
 #include <vsg/maths/mat4.h>
 #include <vsg/maths/vec3.h>
 #include <vsg/state/ImageView.h>
@@ -64,7 +65,9 @@ namespace Render
             return std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z) > cameraJumpDistance;
         }
 
-        Velocity(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile);
+        /// `shaderOptions` read the shader files (post/fullscreen.vert, post/velocity.frag; task 0072, stage g).
+        Velocity(vsg::Context& context, vsg::ref_ptr<vsgUtil::CompileContext> compile,
+            vsg::ref_ptr<const vsg::Options> shaderOptions);
         ~Velocity();
 
         /// Register with the compile manager (CompileManager::add(framebuffer, view)) after Engine::setup, before
@@ -97,8 +100,9 @@ namespace Render
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::View> mView;
         vsg::ref_ptr<vsg::RenderPass> mPass;
-        vsg::ref_ptr<vsg::ShaderStage> mVertex;
-        vsg::ref_ptr<vsg::ShaderStage> mFragment;
+        vsg::ref_ptr<const vsg::Options> mShaderOptions;
+        // The vertex and fragment stage: the Slang twins of both or neither.
+        vsg::ShaderStages mStages;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
         vsg::ref_ptr<vsg::ImageView> mResult;
         vsg::ref_ptr<vsg::mat4Value> mMatrix;

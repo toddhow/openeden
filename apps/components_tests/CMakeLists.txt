@@ -160,7 +160,9 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testshaderpermutation.cpp
     vsg/testslangpermutations.cpp
     vsg/testspirvinterface.cpp
+    vsg/testpassstages.cpp
 
+    render/testtonemapconstants.cpp
     render/testaerialmath.cpp
     render/testwatermath.cpp
     render/testgputiming.cpp
