@@ -142,7 +142,11 @@ namespace MWRender
         const std::string& bonename, std::optional<vsg::vec4> glowColor)
     {
         auto result = MWAnim::decorate(node, light);
-        addEnv(node, glowColor, getTransparency(*this));
+        // Task 0074e (finding 9 of the review of 0074d): only with a glow colour, as Npc::insertBoundedPart does.
+        // addEnv dereferences the colour whenever the alpha is not 1, so an invisible or chameleon creature
+        // (getTransparency below 1) with an unenchanted item was undefined behaviour.
+        if (glowColor)
+            addEnv(node, glowColor, getTransparency(*this));
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
         {
             mAttachAmmo = result.placeholders.attachAmmo;
