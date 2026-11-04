@@ -1263,6 +1263,8 @@ namespace MWRender
             setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
             setup.mFarTextureMaxSize = mFarTierActive ? mFarTextureSize : 0;
             setup.mResidentBudgetBytes = mFarTierActive ? farMemoryBudgetBytes() : 0;
+            // Task 0060, option b: the minimal and low tiers may give up far clusters for the budget.
+            setup.mEvictFar = mFarTierActive && mFarTier.mEvictFarClusters;
             setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
             setup.mCellSize = ESM::Land::REAL_SIZE;
             setup.mBuilder = mResourceSystem->builder.get();
@@ -2075,6 +2077,12 @@ namespace MWRender
         camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
         // Without the live distant objects (object paging off) nothing else draws a cluster's statics (second review).
         camera.mLiveObjectsPage = mDistantObjects != nullptr;
+        // The drawn terrain tiles: the ground beneath a far cluster (far cluster eviction; empty without LodTerrain).
+        if (mLodTerrain)
+        {
+            camera.mGround = mLodTerrain->drawnGround();
+            camera.mGroundVersion = mLodTerrain->groundVersion();
+        }
         // Outside the exterior the live objects are not drawn at all (DistantObjects is hidden and does not rebuild),
         // so waiting for them would keep a cluster on screen in an interior: nothing to wait for there.
         const bool exterior = camera.mEnabled;

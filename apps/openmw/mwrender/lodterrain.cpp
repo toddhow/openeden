@@ -784,6 +784,15 @@ namespace MWRender
                 mCoverage.squares.push_back(square);
             }
             ++mCoverage.version;
+            // The same tiles as world-unit squares, for the cluster client's ground test.
+            mGround.clear();
+            for (std::size_t i = 0; i < mNodes.size(); ++i)
+            {
+                if (!mNodes[i])
+                    continue;
+                const Lod::TileBounds& bounds = mStates[i].mBounds;
+                mGround.push_back({ bounds.mOriginX, bounds.mOriginY, bounds.mSide });
+            }
         }
 
         // A tile cannot stitch its edges to a coarser neighbour of the live terrain (those are split instead), but it
@@ -866,6 +875,7 @@ namespace MWRender
         bool mLoggedOverBudget = false; // the last over-budget state logged
         vsg::ref_ptr<vsg::Group> mRoot;
         Terrain::Coverage mCoverage;
+        std::vector<Lod::GroundSquare> mGround; // the drawn tiles in world units; rebuilt with mCoverage
         Stats mStats;
     };
 
@@ -885,6 +895,16 @@ namespace MWRender
     vsg::ref_ptr<vsg::Group> LodTerrain::node() const
     {
         return mState->mRoot;
+    }
+
+    const std::vector<Lod::GroundSquare>& LodTerrain::drawnGround() const
+    {
+        return mState->mGround;
+    }
+
+    std::uint64_t LodTerrain::groundVersion() const
+    {
+        return mState->mCoverage.version;
     }
 
     LodTerrain::Stats LodTerrain::stats() const

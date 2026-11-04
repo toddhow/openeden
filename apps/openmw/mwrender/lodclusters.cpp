@@ -62,6 +62,10 @@ namespace MWRender
         // tiles replaces it. A starting value (stage e measured clusters of 0.2 to 4 MiB).
         constexpr std::uint64_t firstClusterEstimate = 1024ull * 1024;
         constexpr std::size_t levelSlots = 8;
+        // The ground test of a cluster (Lod::groundDrawnOver) is redone when the drawn tiles changed or the eye moved
+        // at least this far (a quarter of a cell): the live range, which counts as ground, moves with the eye. A
+        // starting value; it only bounds the work, the test itself is cheap.
+        constexpr double groundRetestDistance = 2048;
 
         // Clusters of this level and above (levels 3 and 4: thousands of statics, hundreds of textures) get the far
         // picture cap.
@@ -120,6 +124,20 @@ namespace MWRender
             bool mReplaceable = false;
             // The planner freed it while it was wanted: not wanted again until it has faded out and gone (leaving).
             bool mEvicted = false;
+            // Far cluster eviction (task 0060, option b): consecutive frames the ground beneath the cluster has been
+            // drawn / has been missing, the ground rule's fallback (Lod::clusterGroundFallback) and the planner being
+            // told to wait for the ground (Lod::clusterWaitsForGround). Counted only while the rule applies.
+            std::int32_t mGroundFrames = 0;
+            std::int32_t mMissingFrames = 0;
+            bool mGroundFallback = false;
+            bool mWaitsForGround = false;
+            // The last ground test (Lod::groundDrawnOver) and what it was made for: the version of the drawn tiles and
+            // the eye (the live range moves with it); redone when either changed enough.
+            bool mGroundDrawn = false;
+            bool mGroundTested = false;
+            std::uint64_t mGroundVersion = 0;
+            double mGroundEyeX = 0;
+            double mGroundEyeY = 0;
             bool mLoggedFailure = false;
             bool mWanted = false;
             std::uint64_t mMaskVersion = 0;
@@ -156,6 +174,8 @@ namespace MWRender
         bool mClusteredDirty = false;
         bool mLoggedBudget = false;
         bool mLoggedOverBudget = false; // the last over-budget state logged
+        bool mLoggedFarEviction = false;
+        std::uint64_t mFarEvictions = 0;
 
         // What loading a tile of this level is expected to hold: the mean of the tiles of the level read so far.
         std::uint64_t estimateBytes(std::uint32_t level) const
@@ -646,7 +666,46 @@ namespace MWRender
             const Lod::TileBounds& bounds = state.mStates[i].mBounds;
             tile.mReplaceable = Lod::clusterReplaceable(tile.mReplaceable, camera.mLiveObjectsPage, camera.mEye.x,
                 camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
-            if (Lod::cancelEviction(tile.mEvicted, tile.mPhase == Tile::Phase::Built, tile.mReplaceable))
+            // Far cluster eviction (task 0060, option b), planner path only: on the tiers that evict, a cluster that
+            // reaches past the live range is also replaceable once the ground beneath it has been drawn for a while.
+            // The ground rule counts only for clusters the selection wants or that are built; for the others the
+            // counters stay at 0 (a cluster wanted later starts counting then, and waits for its ground).
+            tile.mGroundFallback = false;
+            tile.mWaitsForGround = false;
+            const bool groundRuleApplies = withBudget && setup.mEvictFar && camera.mLiveObjectsPage;
+            const bool wholly = Lod::squareWithinRange(
+                camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
+            const bool chosen = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile;
+            if (groundRuleApplies && !wholly && (chosen || tile.mPhase != Tile::Phase::Idle))
+            {
+                if (!tile.mGroundTested || tile.mGroundVersion != camera.mGroundVersion
+                    || std::abs(tile.mGroundEyeX - camera.mEye.x) >= groundRetestDistance
+                    || std::abs(tile.mGroundEyeY - camera.mEye.y) >= groundRetestDistance)
+                {
+                    tile.mGroundTested = true;
+                    tile.mGroundVersion = camera.mGroundVersion;
+                    tile.mGroundEyeX = camera.mEye.x;
+                    tile.mGroundEyeY = camera.mEye.y;
+                    tile.mGroundDrawn = Lod::groundDrawnOver(camera.mEye.x, camera.mEye.y, camera.mPagingRange,
+                        camera.mGround, bounds.mOriginX, bounds.mOriginY, bounds.mSide, setup.mCellSize);
+                }
+                tile.mGroundFrames = Lod::stepGroundFrames(tile.mGroundFrames, tile.mGroundDrawn);
+                tile.mMissingFrames = Lod::stepGroundFrames(tile.mMissingFrames, !tile.mGroundDrawn);
+                tile.mGroundFallback = Lod::clusterGroundFallback(true, true, wholly, tile.mGroundFrames);
+                // A cluster the live objects can take over (a straddler inside their hysteresis) needs no ground.
+                tile.mWaitsForGround = !tile.mReplaceable
+                    && Lod::clusterWaitsForGround(true, true, wholly, tile.mGroundFrames, tile.mMissingFrames);
+            }
+            else
+            {
+                tile.mGroundFrames = 0;
+                tile.mMissingFrames = 0;
+                tile.mGroundTested = false;
+            }
+            // An eviction in progress is cancelled the moment the cluster has no fallback at all (the live objects
+            // lost it, or the ground beneath was lost): its cells would have nothing behind them.
+            const bool fallback = tile.mReplaceable || tile.mGroundFallback;
+            if (Lod::cancelEviction(tile.mEvicted, tile.mPhase == Tile::Phase::Built, fallback))
                 tile.mEvicted = false;
             tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !tile.mEvicted;
             tile.mIdleFrames = tile.mWanted ? 0 : std::min(tile.mIdleFrames + 1, 1 << 20);
@@ -800,6 +859,7 @@ namespace MWRender
             }
 
             state.mItems.resize(tileCount);
+            std::size_t waitingForGround = 0;
             for (std::size_t i = 0; i < tileCount; ++i)
             {
                 Tile& tile = state.mTiles[i];
@@ -810,6 +870,13 @@ namespace MWRender
                 item.mHeld = built;
                 item.mLoading = tile.mPhase == Tile::Phase::Loading;
                 item.mWanted = tile.mWanted;
+                // A cluster that is not loaded waits for its ground (Lod::clusterWaitsForGround) instead of being
+                // admitted as an item with no fallback: a load the budget would have blocked a moment later is churn.
+                if (tile.mWaitsForGround && tile.mPhase == Tile::Phase::Idle)
+                {
+                    item.mWanted = false;
+                    ++waitingForGround;
+                }
                 // Freed by an earlier plan and still fading out: its bytes are already counted as gone.
                 item.mLeaving = built && tile.mEvicted;
                 // Not wanted and still drawn: the hand-over below decides when it goes (as before the planner).
@@ -824,7 +891,7 @@ namespace MWRender
                 else
                     item.mBytes = tile.mKnownBytes > 0 ? tile.mKnownBytes : state.estimateBytes(tile.mId.mLevel);
                 item.mPriority = static_cast<float>(Lod::distanceToTile(selection, state.mStates[i].mBounds));
-                item.mReplaceable = tile.mReplaceable;
+                item.mReplaceable = tile.mReplaceable || tile.mGroundFallback;
             }
             Lod::ResidencyParams params;
             params.mBudgetBytes = setup.mResidentBudgetBytes;
@@ -836,13 +903,21 @@ namespace MWRender
             Lod::planResidency(state.mItems, params, state.mPlan);
             state.mStats.mBlocked = state.mPlan.mBlocked;
             state.mStats.mCooling = state.mPlan.mCooling;
+            state.mStats.mWaitingForGround = waitingForGround;
+            state.mStats.mNoFallbackBytes = state.mPlan.mNoFallbackBytes;
+            std::size_t noGround = 0;
+            for (const Tile& tile : state.mTiles)
+                noGround += tile.mGroundTested && tile.mMissingFrames >= Lod::groundWaitFrames ? 1 : 0;
+            state.mStats.mNoGround = noGround;
             if (state.mPlan.mBlocked > 0 && !state.mLoggedBudget)
             {
                 state.mLoggedBudget = true;
-                Log(Debug::Info)
-                    << "LOD clusters: the memory budget of " << Lod::describeBytes(setup.mResidentBudgetBytes)
-                    << " is reached: clusters whose cells the live objects draw wait or give way to closer "
-                       "ones; the others are drawn anyway.";
+                Log(Debug::Info) << "LOD clusters: the memory budget of "
+                                 << Lod::describeBytes(setup.mResidentBudgetBytes)
+                                 << " is reached: clusters whose cells the live objects draw"
+                                 << (setup.mEvictFar ? ", or whose ground is drawn (this tier evicts far clusters),"
+                                                     : "")
+                                 << " wait or give way to closer ones; the others are drawn anyway.";
             }
             if (state.mPlan.mOverBudget != state.mLoggedOverBudget)
             {
@@ -852,7 +927,12 @@ namespace MWRender
                 if (state.mPlan.mOverBudget)
                     Log(Debug::Info) << "LOD clusters: " << Lod::describeBytes(state.mPlan.mHeldAfter)
                                      << " held, over the budget of " << Lod::describeBytes(setup.mResidentBudgetBytes)
-                                     << ": the clusters whose cells nothing else draws are kept.";
+                                     << ": the clusters whose cells nothing else draws are kept ("
+                                     << Lod::describeBytes(state.mPlan.mNoFallbackBytes) << " of them"
+                                     << (setup.mEvictFar
+                                                ? "; clusters with no drawn ground beneath them cannot be evicted"
+                                                : "; this tier does not evict far clusters")
+                                     << ").";
                 else
                     Log(Debug::Info) << "LOD clusters: back within the budget of "
                                      << Lod::describeBytes(setup.mResidentBudgetBytes) << " ("
@@ -867,6 +947,20 @@ namespace MWRender
                     // back once it has faded out; it is not wanted again until it is gone, then waits a cooldown.
                     tile.mWanted = false;
                     tile.mEvicted = true;
+                    if (!tile.mReplaceable && tile.mGroundFallback)
+                    {
+                        // Only the ground rule made it replaceable: a far cluster given up for the budget.
+                        ++state.mFarEvictions;
+                        state.mStats.mFarEvictions = state.mFarEvictions;
+                        if (!state.mLoggedFarEviction)
+                        {
+                            state.mLoggedFarEviction = true;
+                            Log(Debug::Info) << "LOD clusters: far clusters past the live range are given up for the "
+                                                "memory budget of "
+                                             << Lod::describeBytes(setup.mResidentBudgetBytes)
+                                             << " (their ground is drawn; the objects return when the camera nears).";
+                        }
+                    }
                 }
                 // A cluster freed while not wanted is already hidden (otherwise it is pinned): the loop below lets it
                 // go.
@@ -985,7 +1079,11 @@ namespace MWRender
                                                          : 0.0)
                              << " ms mean, " << state.mStats.mLoadMillisecondsWorst << " ms worst"
                              << "; about " << (residentBytes >> 20) << " MiB held, working set "
-                             << (Render::processWorkingSetBytes() >> 20) << " MiB";
+                             << (Render::processWorkingSetBytes() >> 20) << " MiB"
+                             << (setup.mEvictFar ? "; far clusters given up " + std::to_string(state.mFarEvictions)
+                                            + ", waiting for ground " + std::to_string(state.mStats.mWaitingForGround)
+                                            + ", with no ground " + std::to_string(state.mStats.mNoGround)
+                                                 : std::string());
         }
     }
 }

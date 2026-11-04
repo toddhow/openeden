@@ -28,6 +28,7 @@
 #include <vsg/nodes/Group.h>
 
 #include <components/lod/albedobake.hpp>
+#include <components/lod/residency.hpp>
 #include <components/lod/tilebake.hpp>
 #include <components/lod/tileselection.hpp>
 #include <components/terrain/coverage.hpp>
@@ -143,6 +144,12 @@ namespace MWRender
         /// Main thread, once a frame. Returns what Terrain::Paging::updateView should leave out, or nullptr while the
         /// worker is not done or when the pack is unusable (the live terrain then draws everything).
         const Terrain::Coverage* update(const Camera& camera);
+
+        /// The squares of the tiles that are drawn now, in world units, for the cluster client's ground test (task
+        /// 0060, far cluster eviction: Lod::groundDrawnOver). Rebuilt together with the coverage; the version changes
+        /// with it. Main thread.
+        const std::vector<Lod::GroundSquare>& drawnGround() const;
+        std::uint64_t groundVersion() const;
 
         /// Counts for the log and the viewer.
         struct Stats

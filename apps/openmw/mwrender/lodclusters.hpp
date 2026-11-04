@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,7 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/lod/objectcluster.hpp>
+#include <components/lod/residency.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
 #include "distantobjectcells.hpp"
@@ -67,6 +69,11 @@ namespace MWRender
             bool mLiveObjectsPage = true;
             /// False in interiors and other worldspaces: every cluster fades out.
             bool mEnabled = true;
+            /// The drawn terrain tiles (LodTerrain::drawnGround) and their version: with Setup::mEvictFar a cluster
+            /// past the paging range is replaceable when the ground beneath it is drawn (task 0060, far cluster
+            /// eviction). Empty: no ground is known, so no cluster is evicted that way.
+            std::span<const Lod::GroundSquare> mGround;
+            std::uint64_t mGroundVersion = 0;
         };
 
         struct Setup
@@ -80,6 +87,9 @@ namespace MWRender
             std::uint64_t mResidentBudgetBytes = 0;
             /// The highest cluster level read and drawn (`[WorldLod] far levels`); 0: every level of the pack.
             std::uint32_t mMaxLevel = 0;
+            /// The tier evicts far clusters (FarTierSettings::mEvictFarClusters): under the budget, a cluster past the
+            /// live paging range may be freed when the ground beneath it is drawn. Used only with a budget.
+            bool mEvictFar = false;
             double mCellSize = 8192;
             const Pipeline::Builder* mBuilder = nullptr;
             vsg::ref_ptr<const vsg::Options> mImageOptions;
@@ -122,6 +132,13 @@ namespace MWRender
             std::size_t mLoads = 0; // tiles read and decoded so far
             std::size_t mBlocked = 0; // clusters left out because the memory budget was reached
             std::size_t mCooling = 0; // wanted clusters a cooldown held back this frame (third review, finding 1)
+            // Far cluster eviction (task 0060): clusters freed while wanted that only the ground rule made replaceable,
+            // in all so far; clusters held back this frame until their ground counts; built or wanted clusters past the
+            // range with no ground beneath (the sea, a tile that failed); the bytes the budget cannot touch.
+            std::size_t mFarEvictions = 0;
+            std::size_t mWaitingForGround = 0;
+            std::size_t mNoGround = 0;
+            std::uint64_t mNoFallbackBytes = 0;
             double mLoadMillisecondsTotal = 0;
             double mLoadMillisecondsWorst = 0;
         };
