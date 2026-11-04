@@ -13,7 +13,6 @@ namespace MWRender
 {
     struct ScreenshotInterface
     {
-        int framesUntilReady{};
         std::function<void(int w, int h)> request;
         std::function<std::pair<vsg::ref_ptr<vsg::Data>, bool>()> retrieve;
     };

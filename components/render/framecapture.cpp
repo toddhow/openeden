@@ -110,9 +110,54 @@ namespace Render
         }
     }
 
-    FrameCapture::FrameCapture(ScreenshotCopyBudget& budget)
+    namespace
+    {
+        struct Item
+        {
+            FrameCapture::Done done;
+            FrameCapture::Failed failed;
+            std::optional<VkExtent2D> size;
+            vsg::ref_ptr<Screenshot> screenshot;
+            vsg::ref_ptr<vsg::Commands> commands;
+        };
+
+        void deliver(Item& item)
+        {
+            try
+            {
+                if (item.done)
+                    item.done(item.screenshot);
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "Screenshot not written: " << e.what();
+            }
+        }
+
+        void fail(Item& item)
+        {
+            try
+            {
+                if (item.failed)
+                    item.failed();
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "Screenshot failure handler: " << e.what();
+            }
+        }
+    }
+
+    struct FrameCapture::State
+    {
+        CaptureQueue<Item> queue{ FrameCapture::sMaxWaitFrames };
+    };
+
+    FrameCapture::FrameCapture(ScreenshotCopyBudget& budget, DownloadSync sync)
         : mBudget(budget)
+        , mSync(sync)
         , mSwitch(vsg::Switch::create())
+        , mState(std::make_unique<State>())
     {
     }
 
@@ -124,127 +169,109 @@ namespace Render
         mGraph->children.push_back(mSwitch);
     }
 
-    void FrameCapture::request(Done done)
+    bool FrameCapture::request(Done done, Failed failed, std::optional<VkExtent2D> size)
     {
-        if (mWaiting)
-            return; // the same frame's picture
-        mWaiting = std::move(done);
-        mFramesWaited = 0;
+        return mState->queue.request(Item{ std::move(done), std::move(failed), size, {}, {} });
     }
 
     void FrameCapture::beforeRecord(vsg::Window& window, VkImageLayout presentLayout)
     {
-        if (!mWaiting || !mGraph)
+        if (!mGraph)
             return;
         const vsg::ref_ptr<vsg::Swapchain> swapchain = window.getSwapchain();
         const VkExtent2D extent = swapchain ? swapchain->getExtent() : VkExtent2D{ 0, 0 };
         const std::size_t imageIndex = window.imageIndex(0);
         const bool imageAcquired = swapchain && window.visible() && imageIndex < window.numFrames();
-        switch (decideArm(imageAcquired, extent, mFramesWaited, sMaxWaitFrames))
+        const unsigned framesWaited = mState->queue.framesWaited();
+        const std::optional<ArmDecision> decision = mState->queue.decide(imageAcquired, extent);
+        if (!decision || *decision == ArmDecision::Wait)
+            return;
+        Item item = mState->queue.takeWaiting();
+        if (*decision == ArmDecision::Drop)
         {
-            case ArmDecision::Wait:
-                ++mFramesWaited;
-                return;
-            case ArmDecision::Drop:
-                Log(Debug::Warning) << "Screenshot skipped: the window had no image to copy for " << mFramesWaited
-                                    << " frames (hidden, or of zero size)";
-                mWaiting.reset();
-                return;
-            case ArmDecision::Arm:
-                break;
+            Log(Debug::Warning) << "Screenshot skipped: the window had no image to copy for " << framesWaited
+                                << " frames (hidden, or of zero size)";
+            fail(item);
+            return;
         }
-        Done done = std::move(*mWaiting);
-        mWaiting.reset();
 
         std::optional<ScreenshotCopyBudget::Token> token = mBudget.tryAcquire();
         if (!token)
         {
             Log(Debug::Warning) << "Screenshot skipped: " << mBudget.inUse()
-                                << " screenshots are still waiting to be written (at most " << mBudget.cap() << ")";
+                                << " copies are still on the GPU or waiting to be read (at most " << mBudget.cap()
+                                << ")";
+            fail(item);
             return;
         }
         try
         {
             vsg::Device* device = window.getDevice();
             const vsg::ref_ptr<vsg::Image> image = window.imageView(imageIndex)->image;
-            auto screenshot = vsg::ref_ptr{ new Screenshot(device, image, presentLayout) };
-            screenshot->srcRect = { { 0, 0 }, extent };
-            screenshot->srcImageFormat = swapchain->getImageFormat();
-            auto [commands, copy] = createDownloadCommands(device, image, screenshot->srcRect,
-                screenshot->srcImageFormat, presentLayout, {}, DownloadSync::BeforePresent);
-            screenshot->useCopy(copy, std::move(*token));
+            item.screenshot = vsg::ref_ptr{ new Screenshot(device, image, presentLayout) };
+            item.screenshot->srcRect = { { 0, 0 }, extent };
+            item.screenshot->srcImageFormat = swapchain->getImageFormat();
+            // A picture of the window: the swapchain's alpha is not part of it (makeOpaque).
+            item.screenshot->opaque = true;
+            auto [commands, copy] = createDownloadCommands(device, image, item.screenshot->srcRect,
+                item.screenshot->srcImageFormat, presentLayout, item.size, mSync);
+            item.screenshot->useCopy(copy, std::move(*token));
+            item.commands = commands;
             mSwitch->children = { vsg::Switch::Child{ vsg::MASK_ALL, commands } };
-            mArmed = Copy{ screenshot, commands, std::move(done), 0 };
+            mState->queue.armed(std::move(item));
         }
         catch (const std::exception& e)
         {
             Log(Debug::Warning) << "Screenshot skipped: " << e.what();
+            fail(item);
         }
         catch (const vsg::Exception& e)
         {
             Log(Debug::Warning) << "Screenshot skipped: " << e.message << " VkResult " << e.result;
+            fail(item);
         }
     }
 
     void FrameCapture::afterRecord(vsg::Viewer& viewer)
     {
-        // One frame was recorded and submitted since the last call: every copy in flight is a frame older.
-        for (Copy& copy : mInFlight)
-            ++copy.age;
-        if (mArmed)
-        {
-            // Recorded into this frame's command buffer; the next frame records without it.
-            mSwitch->children.clear();
-            mInFlight.push_back(std::move(*mArmed));
-            mArmed.reset();
-        }
-        if (mInFlight.empty())
-            return;
-
         const vsg::ref_ptr<vsg::RecordAndSubmitTask> task = taskOf(viewer, mGraph.get());
-        while (!mInFlight.empty())
-        {
-            Copy& copy = mInFlight.front();
-            CopyState state = CopyState::Lost;
-            if (task)
+        auto collected = mState->queue.afterRecord([&task](unsigned age) {
+            FrameFence result;
+            if (!task)
             {
-                // fence(age) is the fence of the frame recorded age frames ago (RecordAndSubmitTask::advance shifts
-                // the ring once a frame), null once the ring has moved past it.
-                const vsg::ref_ptr<vsg::Fence> fence = task->fence(copy.age);
-                const bool submitted = fence && fence->hasDependencies();
-                state = copyState(fence != nullptr, submitted, submitted ? fence->status() : VK_NOT_READY);
+                result.inRing = true; // no task records the graph: nothing will finish
+                return result;
             }
-            if (state == CopyState::InFlight)
-                break; // later copies are in later frames
-            if (state == CopyState::Done)
-                deliver(copy);
-            else
-                Log(Debug::Warning) << "Screenshot lost: its frame did not finish on the GPU";
-            mInFlight.pop_front();
-        }
-    }
-
-    void FrameCapture::deliver(Copy& copy)
-    {
-        try
+            // fence(age) is the fence of the frame recorded age frames ago (RecordAndSubmitTask::advance shifts the
+            // ring once a frame), null once the ring has moved past it.
+            const vsg::ref_ptr<vsg::Fence> fence = task->fence(age);
+            result.inRing = fence != nullptr;
+            result.submitted = fence && fence->hasDependencies();
+            result.status = result.submitted ? fence->status() : VK_NOT_READY;
+            return result;
+        });
+        // Recorded into this frame's command buffer; the next frame records without it.
+        if (collected.armedThisFrame)
+            mSwitch->children.clear();
+        for (Item& item : collected.done)
+            deliver(item);
+        for (Item& item : collected.lost)
         {
-            copy.done(copy.screenshot);
-        }
-        catch (const std::exception& e)
-        {
-            Log(Debug::Warning) << "Screenshot not written: " << e.what();
+            Log(Debug::Warning) << "Screenshot lost: its frame did not finish on the GPU";
+            fail(item);
         }
     }
 
     void FrameCapture::finish()
     {
-        for (Copy& copy : mInFlight)
-            deliver(copy);
-        mInFlight.clear();
-        mArmed.reset();
+        auto [done, dropped] = mState->queue.finish();
         mSwitch->children.clear();
-        if (mWaiting)
+        for (Item& item : done)
+            deliver(item);
+        for (Item& item : dropped)
+        {
             Log(Debug::Info) << "Screenshot not taken: the frame loop ended first";
-        mWaiting.reset();
+            fail(item);
+        }
     }
 }

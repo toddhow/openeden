@@ -29,6 +29,9 @@ namespace Render
         VkRect2D srcRect;
         VkFormat srcImageFormat;
         VkImageLayout srcImageLayout;
+        // A picture of a window (FrameCapture, the headless copy): operate() makes it opaque (makeOpaque). The world
+        // map's picture keeps its alpha.
+        bool opaque = false;
 
         Screenshot(vsg::Device* in_device, vsg::ref_ptr<vsg::Image> in_srcImage, VkImageLayout in_srcImageLayout);
         // The image presented last (imageIndex(1)), at the swapchain's extent. Only for a copy after a wait for the
@@ -60,6 +63,12 @@ namespace Render
         vsg::ref_ptr<vsg::Image> mCopy;
         std::optional<ScreenshotCopyBudget::Token> mCopyToken;
     };
+
+    // Sets every pixel's alpha to fully opaque in a 4-channel 8-bit picture (vsg::ubvec4Array2D, RGBA or BGRA UNORM);
+    // anything else is left as it is. Window captures pass through it (Screenshot::opaque): the swapchain's alpha is
+    // whatever the passes left there, and OpenMW 0.51 wrote opaque screenshots (traits->alpha = 0 in its
+    // Engine::createWindow, a GL_RGB read for the save thumbnail).
+    void makeOpaque(vsg::Data& data);
 
     // The end of a game screenshot, called once its copy has finished (Engine::requestScreenshot's done): gives it
     // the write options and the first free name in dir, then hands it to queue (the writer thread). A name is taken

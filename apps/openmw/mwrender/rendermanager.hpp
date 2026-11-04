@@ -57,6 +57,7 @@ namespace Render
     class AmbientOcclusion;
     class DebugGeometry;
     class Engine;
+    class FrameCapture;
     class GpuTimer;
     class HdrTarget;
     class SimpleWater;
@@ -567,7 +568,8 @@ namespace MWRender
         void updateGroundcover(const vsg::vec3& cameraPosition);
         const DetourNavigator::Navigator* mNavigator = nullptr;
         vsg::ref_ptr<vsgUtil::SuspendRenderPass> mSuspend;
-        vsg::ref_ptr<vsg::Switch> mScreenshotSwitch;
+        // The save thumbnail's copy (owned by the render engine; null without a window).
+        Render::FrameCapture* mThumbnailCapture = nullptr;
         std::unique_ptr<ScreenshotInterface> mScreenshotInterface;
         std::unique_ptr<Preview> mPreview;
         std::unique_ptr<WorldMap> mWorldMap;

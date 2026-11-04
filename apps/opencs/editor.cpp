@@ -1061,9 +1061,9 @@ namespace
             else
                 Log(Debug::Error) << "UI check: body: no model-less Mesh view";
             // A frame again once the floated view has its size. The frame frameObject asks for rebuilds the swapchain,
-            // and a capture needs a frame presented after that (Render::Engine::screenshotOperation): on the desktop an
-            // expose event used to ask for it, but a window off the desktop (OPENEDEN_QUIET_WINDOW) is never exposed
-            // (QWindowsWindow::handleWmPaint finds no update rectangle).
+            // and the capture draws one frame of its own (Render::Engine::drawFrameAndCapture) at the swapchain's
+            // size: on the desktop an expose event used to ask for it, but a window off the desktop
+            // (OPENEDEN_QUIET_WINDOW) is never exposed (QWindowsWindow::handleWmPaint finds no update rectangle).
             QTimer::singleShot(step / 4, qApp, [=] {
                 if (CSVRender::MeshViewWidget* view = meshView())
                     view->flagAsModified();

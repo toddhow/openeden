@@ -2,6 +2,7 @@
 
 #include <components/render/screenshot.hpp>
 
+#include <vsg/core/Array2D.h>
 #include <vsg/core/observer_ptr.h>
 #include <vsg/io/Options.h>
 #include <vsg/state/Image.h>
@@ -9,6 +10,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -247,7 +249,10 @@ namespace
         ASSERT_EQ(queued.size(), 2u);
         EXPECT_EQ(first->writeFilename, folder.path() / "screenshot000.png");
         EXPECT_EQ(second->writeFilename, folder.path() / "screenshot001.png");
-        EXPECT_TRUE(dropped->writeFilename.empty());
+        // It took no number: handed over after them, it is the next one.
+        const auto later = handOver(folder.path(), { dropped });
+        ASSERT_EQ(later.size(), 1u);
+        EXPECT_EQ(dropped->writeFilename, folder.path() / "screenshot002.png");
     }
 
     // Render::ScreenshotWriter (third review round): the screenshots handed to the writer thread are kept until they
@@ -342,6 +347,57 @@ namespace
         writer.write(makeFake());
         EXPECT_FALSE(watch.ref_ptr().valid()); // the writer no longer holds the one that ran
         EXPECT_EQ(writer.pending(), 1u);
+    }
+
+    // Render::makeOpaque (third review round): window captures are written opaque, as OpenMW 0.51 wrote them.
+
+    TEST(RenderScreenshotOpaque, every_alpha_of_a_bgra_picture_becomes_255_and_the_colours_stay)
+    {
+        auto picture = vsg::ubvec4Array2D::create(3, 2, vsg::Data::Properties(VK_FORMAT_B8G8R8A8_UNORM));
+        for (std::uint32_t y = 0; y < 2; ++y)
+        {
+            for (std::uint32_t x = 0; x < 3; ++x)
+            {
+                picture->set(x, y,
+                    vsg::ubvec4(static_cast<std::uint8_t>(10 * x), static_cast<std::uint8_t>(20 * y), 7,
+                        static_cast<std::uint8_t>(40 * (x + y))));
+            }
+        }
+        Render::makeOpaque(*picture);
+        for (std::uint32_t y = 0; y < 2; ++y)
+        {
+            for (std::uint32_t x = 0; x < 3; ++x)
+            {
+                const vsg::ubvec4 pixel = picture->at(x, y);
+                EXPECT_EQ(static_cast<int>(pixel.a), 255) << x << "," << y;
+                EXPECT_EQ(static_cast<int>(pixel.r), static_cast<int>(10 * x));
+                EXPECT_EQ(static_cast<int>(pixel.g), static_cast<int>(20 * y));
+                EXPECT_EQ(static_cast<int>(pixel.b), 7);
+            }
+        }
+    }
+
+    TEST(RenderScreenshotOpaque, an_rgba_picture_too)
+    {
+        auto picture = vsg::ubvec4Array2D::create(2, 2, vsg::Data::Properties(VK_FORMAT_R8G8B8A8_UNORM));
+        picture->set(1, 1, vsg::ubvec4(1, 2, 3, 0));
+        Render::makeOpaque(*picture);
+        EXPECT_EQ(static_cast<int>(picture->at(1, 1).a), 255);
+        EXPECT_EQ(static_cast<int>(picture->at(1, 1).r), 1);
+    }
+
+    TEST(RenderScreenshotOpaque, three_channels_and_other_formats_are_left_alone)
+    {
+        auto rgb = vsg::ubvec3Array2D::create(1, 1, vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
+        rgb->set(0, 0, vsg::ubvec3(9, 8, 7));
+        Render::makeOpaque(*rgb);
+        EXPECT_TRUE(rgb->at(0, 0) == vsg::ubvec3(9, 8, 7));
+
+        // Four channels of another kind (an sRGB tag, as the world map's never is): not a window capture's format.
+        auto other = vsg::ubvec4Array2D::create(1, 1, vsg::Data::Properties(VK_FORMAT_R8G8B8A8_SRGB));
+        other->set(0, 0, vsg::ubvec4(1, 2, 3, 4));
+        Render::makeOpaque(*other);
+        EXPECT_EQ(static_cast<int>(other->at(0, 0).a), 4);
     }
 
     TEST(RenderScreenshotHandOver, names_follow_the_order_of_handing_over)

@@ -62,6 +62,7 @@
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
+#include <components/render/screenshot.hpp>
 #include <components/render/skyenvmath.hpp>
 #include <components/render/skyvisdebug.hpp>
 #include <components/render/skyvisgpu.hpp>
@@ -857,8 +858,6 @@ namespace MWRender
         mView->mask = ~Mask_GUI;
         mView->bins.push_back(vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING));
 
-        mScreenshotSwitch = vsg::Switch::create();
-
         if (mHdrTarget)
         {
             // The scene draws into the float target. The render pass is the target's, so the scene's pipelines are
@@ -978,7 +977,7 @@ namespace MWRender
             mPostProcess = std::make_unique<PostProcess>(mEngine, context, mCompileContext, *mResourceSystem->getVFS(),
                 mResourceSystem->textureOptions, mResourceSystem->shaderOptions, mRenderGraph->renderArea.extent.width,
                 mRenderGraph->renderArea.extent.height);
-        mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph, mScreenshotSwitch };
+        mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph };
         // The first index after the scene (and its velocity and occlusion passes).
         const int afterScene = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0);
         if (mTonemapGraph)
@@ -1089,6 +1088,8 @@ namespace MWRender
         // OpenEden: screenshots (F12, Lua, --auto-screenshot) copy the window's image at the end of the GUI graph, the
         // last to write it in a frame (submit order 1, alone at it), before it is presented (Render::FrameCapture).
         mEngine.setScreenshotGraph(guiCommandGraph);
+        // The save thumbnail: at the end of the main graph, after the inserts above, before the GUI graph.
+        mThumbnailCapture = mEngine.addFrameCapture(mCommandGraph, Render::DownloadSync::InFrame);
         mEngine.setup(threads, getenv("VSGOPENMW_NO_VIEWER_THREADING") == 0);
         if (mPostProcess)
         {
@@ -2501,25 +2502,51 @@ namespace MWRender
 
     void RenderManager::setupScreenshotInterface()
     {
-        mScreenshotInterface->request = [&](int w, int h) {
-            auto device = mCompileContext->device;
-            auto pair = Render::createDownloadCommands(device, mEngine.colorImageView(0)->image,
-                { { 0, 0 }, mEngine.swapchainExtent() }, Render::compatibleColorFormat, mEngine.getPresentLayout(),
-                VkExtent2D{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) });
-            auto commands = pair.first;
-            auto dstImage = pair.second;
-            mScreenshotSwitch->children = { { true, commands } };
-            mScreenshotInterface->framesUntilReady = mEngine.numFrames();
-            mScreenshotInterface->retrieve = [this, device, dstImage]() -> std::pair<vsg::ref_ptr<vsg::Data>, bool> {
-                mScreenshotSwitch->children.clear();
-                if (--mScreenshotInterface->framesUntilReady > 0)
-                    return { {}, false };
-                auto out_data = vsg::ubvec4Array2D::create(
-                    dstImage->extent.width, dstImage->extent.height, vsg::Data::Properties(dstImage->format));
-                if (!Render::mapAndCopy(device, dstImage, out_data))
-                    out_data = {};
-                return { out_data, true };
-            };
+        // OpenEden (screenshots, third review round): the save thumbnail is a copy made inside the frame it shows, by
+        // a Render::FrameCapture at the end of the main command graph (after the scene, tonemap and post-process,
+        // before the GUI graph), read once that frame's fence has signalled. It used to count retrieve() calls to
+        // numFrames() and read the copy without knowing the frame had finished, with no host barrier. A request that
+        // cannot be copied gives no thumbnail instead of holding the save. The state is shared with the capture's
+        // callbacks, which never refer to this RenderManager.
+        struct Thumbnail
+        {
+            bool waiting = false;
+            bool failed = false;
+            vsg::ref_ptr<Render::Screenshot> copy;
+        };
+        auto thumbnail = std::make_shared<Thumbnail>();
+        mScreenshotInterface->request = [this, thumbnail](int w, int h) {
+            *thumbnail = Thumbnail{};
+            thumbnail->waiting = true;
+            const bool accepted = mThumbnailCapture
+                && mThumbnailCapture->request(
+                    [thumbnail](vsg::ref_ptr<Render::Screenshot> copy) {
+                        thumbnail->copy = copy;
+                        thumbnail->waiting = false;
+                    },
+                    [thumbnail] {
+                        thumbnail->failed = true;
+                        thumbnail->waiting = false;
+                    },
+                    VkExtent2D{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) });
+            if (!accepted)
+            {
+                thumbnail->failed = true;
+                thumbnail->waiting = false;
+            }
+        };
+        mScreenshotInterface->retrieve = [thumbnail]() -> std::pair<vsg::ref_ptr<vsg::Data>, bool> {
+            if (thumbnail->waiting)
+                return { {}, false };
+            vsg::ref_ptr<vsg::Data> data;
+            if (thumbnail->copy)
+            {
+                // A small picture: read here, on the main thread (no file is written: no name was given).
+                thumbnail->copy->operate();
+                data = thumbnail->copy->downloadData;
+            }
+            *thumbnail = Thumbnail{};
+            return { data, true };
         };
     }
 

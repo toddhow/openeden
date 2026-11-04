@@ -7,6 +7,8 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include <vsg/core/ref_ptr.h>
 #include <vsg/vk/vulkan.h>
@@ -25,19 +27,21 @@ namespace Render
     struct Screenshot;
 
     /*
-     * Screenshots of the game's window, copied inside the frame they show (OpenEden, 2026-11-04, second round).
+     * Copies of a window's image, made inside the frame they show (OpenEden, 2026-11-04, rounds two and three).
      *
-     * The copy of the swapchain image is recorded at the end of the last command graph that writes the image (the
-     * game's GUI graph, Engine::setScreenshotGraph), so it runs in the frame's own submission, before
-     * vkQueuePresentKHR hands the image to the presentation engine. The pixels are read once that frame's fence has
-     * signalled, and the file is written on a worker. Nothing here waits for the GPU.
+     * The copy of the swapchain image is recorded at the end of a command graph of the frame (for screenshots the
+     * last graph that writes the image: the game's GUI graph, an editor view's only graph; for the save thumbnail the
+     * game's main graph, before the GUI), so it runs in the frame's own submission, before vkQueuePresentKHR hands the
+     * image to the presentation engine. The pixels are read once that frame's fence has signalled. Nothing here waits
+     * for the GPU.
      *
      * The pure parts below are tested in apps/components_tests/render/testframecapture.cpp.
      */
 
-    // At most cap() screenshot copies (a host-visible image of the window's size each, held until the file is
-    // written) exist at once. Thread-safe: tokens are taken on the main thread and given back by whoever drops them
-    // (the writer thread), and a token may outlive its budget.
+    // At most cap() copies (a host-visible image of the picture's size each) exist at once: from the frame that
+    // records one until its pixels have been read (Screenshot::operate frees it before it writes the file).
+    // Thread-safe: tokens are taken on the main thread and given back by whoever drops them (the writer thread), and
+    // a token may outlive its budget.
     class ScreenshotCopyBudget
     {
     public:
@@ -95,53 +99,184 @@ namespace Render
     // vkGetFenceStatus.
     CopyState copyState(bool fenceInRing, bool fenceSubmitted, VkResult fenceStatus);
 
+    // What VSG's fence ring says about the frame recorded age frames ago: RecordAndSubmitTask::fence(age) and that
+    // fence's state (FrameCapture::afterRecord fills it; the tests fill it from a fake ring).
+    struct FrameFence
+    {
+        bool inRing = false; // fence(age) is not null: age is below the ring's length
+        bool submitted = false; // Fence::hasDependencies
+        VkResult status = VK_NOT_READY; // vkGetFenceStatus, read only when submitted
+    };
+
     /*
-     * The game's screenshots, owned by Render::Engine. All calls on the main thread, from Engine::loop.
+     * The bookkeeping of one capture, without Vulkan (OpenEden, 2026-11-04, third round; tested in testframecapture.cpp
+     * against a fake fence ring): the request waiting for a frame, the item armed for the frame being recorded, and
+     * the items whose frames are in flight, oldest first. Item is whatever the caller keeps with a request
+     * (FrameCapture: the callbacks, then the screenshot and its copy commands). Main thread only.
+     *
+     * Per recorded frame the caller does: decide(), and on Arm takeWaiting() then armed() (or drops the item when the
+     * copy cannot be made); recordAndSubmit; afterRecord(), once, whatever happened before.
+     */
+    template <class Item>
+    class CaptureQueue
+    {
+    public:
+        struct Collected
+        {
+            std::vector<Item> done; // finished copies, oldest first
+            std::vector<Item> lost; // frames that never finished
+            bool armedThisFrame = false; // the caller empties what it recorded the copy with
+        };
+
+        explicit CaptureQueue(unsigned maxWaitFrames)
+            : mMaxWaitFrames(maxWaitFrames)
+        {
+        }
+
+        // A request for the next recorded frame. One already waiting is the same picture: the new one is merged with
+        // it (false, and item is not kept).
+        bool request(Item item)
+        {
+            if (mWaiting)
+                return false;
+            mWaiting.emplace(std::move(item));
+            mFramesWaited = 0;
+            return true;
+        }
+        bool waiting() const { return mWaiting.has_value(); }
+        unsigned framesWaited() const { return mFramesWaited; }
+
+        // Before recording a frame, for the waiting request (None when there is none): Arm (take it and arm it), Wait
+        // (counted) or Drop (take it and report it).
+        std::optional<ArmDecision> decide(bool imageAcquired, VkExtent2D extent)
+        {
+            if (!mWaiting)
+                return std::nullopt;
+            const ArmDecision decision = decideArm(imageAcquired, extent, mFramesWaited, mMaxWaitFrames);
+            if (decision == ArmDecision::Wait)
+                ++mFramesWaited;
+            return decision;
+        }
+        Item takeWaiting()
+        {
+            Item item = std::move(*mWaiting);
+            mWaiting.reset();
+            return item;
+        }
+        // The copy of item is recorded into the frame about to be submitted.
+        void armed(Item item) { mArmed.emplace(std::move(item)); }
+
+        // After recordAndSubmit, once per recorded frame: every item in flight is a frame older, the armed one joins
+        // them at age 0, and the items whose frames have finished (fenceOf(age), a FrameFence) or never will are
+        // handed back, oldest first; the first still in flight stops the search, since later ones are in later frames.
+        template <class FenceOf>
+        Collected afterRecord(FenceOf&& fenceOf)
+        {
+            Collected collected;
+            for (Entry& entry : mInFlight)
+                ++entry.age;
+            if (mArmed)
+            {
+                mInFlight.push_back(Entry{ std::move(*mArmed), 0 });
+                mArmed.reset();
+                collected.armedThisFrame = true;
+            }
+            while (!mInFlight.empty())
+            {
+                const FrameFence fence = fenceOf(mInFlight.front().age);
+                const CopyState state = copyState(fence.inRing, fence.submitted, fence.status);
+                if (state == CopyState::InFlight)
+                    break;
+                (state == CopyState::Done ? collected.done : collected.lost)
+                    .push_back(std::move(mInFlight.front().item));
+                mInFlight.pop_front();
+            }
+            return collected;
+        }
+
+        // After the device is idle (the end of the frame loop): every item in flight is done, oldest first; the one
+        // armed but never recorded and the one still waiting are given back as dropped.
+        std::pair<std::vector<Item>, std::vector<Item>> finish()
+        {
+            std::vector<Item> done;
+            std::vector<Item> dropped;
+            for (Entry& entry : mInFlight)
+                done.push_back(std::move(entry.item));
+            mInFlight.clear();
+            if (mArmed)
+                dropped.push_back(std::move(*mArmed));
+            mArmed.reset();
+            if (mWaiting)
+                dropped.push_back(std::move(*mWaiting));
+            mWaiting.reset();
+            return { std::move(done), std::move(dropped) };
+        }
+
+        std::size_t inFlight() const { return mInFlight.size(); }
+
+    private:
+        struct Entry
+        {
+            Item item;
+            unsigned age = 0;
+        };
+
+        unsigned mMaxWaitFrames;
+        std::optional<Item> mWaiting;
+        unsigned mFramesWaited = 0;
+        std::optional<Item> mArmed;
+        std::deque<Entry> mInFlight;
+    };
+
+    enum class DownloadSync;
+
+    /*
+     * One kind of copy of a window's image, owned by Render::Engine (Engine::addFrameCapture). The Vulkan side of
+     * CaptureQueue: all calls on the main thread, beforeRecord and afterRecord once per recorded frame (Engine::loop,
+     * or Engine::drawFrameAndCapture for an editor view).
      */
     class FrameCapture
     {
     public:
+        // The copy, finished: its pixels are read by Screenshot::operate (or readDownloadedImage on the copy).
         using Done = std::function<void(vsg::ref_ptr<Screenshot>)>;
+        // No copy: the request was dropped (no image for sMaxWaitFrames frames, the budget's cap reached, a copy that
+        // could not be made, the frame loop ended) or its frame never finished. Each logs its reason first.
+        using Failed = std::function<void()>;
         // A request with no image to copy waits this many recorded frames, then is dropped.
         static constexpr unsigned sMaxWaitFrames = 60;
 
-        explicit FrameCapture(ScreenshotCopyBudget& budget);
+        FrameCapture(ScreenshotCopyBudget& budget, DownloadSync sync);
         ~FrameCapture();
 
-        // Appends the switch that holds the copy to graph's children: graph must be the last to write the window's
-        // image in a frame (the highest submit order of the window's graphs, and alone at it).
+        // Appends the switch that holds the copy to graph's children; everything graph records before it, and every
+        // graph of a lower submit order, is in the picture.
         void attach(vsg::ref_ptr<vsg::CommandGraph> graph);
         bool attached() const { return mGraph != nullptr; }
 
-        // A request for the next frame that is recorded; done is called with the copied screenshot once that frame's
-        // copy is finished, and never for a request that is dropped or lost. A second request before the first was
-        // copied is the same picture and is merged with it.
-        void request(Done done);
+        // A request for the next frame that is recorded. done is called with the copied screenshot once that frame
+        // has finished, failed otherwise (either may be empty). size is the picture's size (the swapchain's when
+        // empty: a blit scales). A second request before the first was copied is the same picture and is merged with
+        // it: its callbacks are dropped (false).
+        bool request(Done done, Failed failed = {}, std::optional<VkExtent2D> size = {});
 
         // Before recordAndSubmit: puts the copy of the window's acquired image into the switch.
         void beforeRecord(vsg::Window& window, VkImageLayout presentLayout);
         // After recordAndSubmit: empties the switch, and hands every finished copy to its done.
         void afterRecord(vsg::Viewer& viewer);
-        // After the loop's last deviceWaitIdle: every copy in flight is finished.
+        // After the loop's last deviceWaitIdle: every copy in flight is finished; a request still waiting fails.
         void finish();
 
     private:
-        struct Copy
-        {
-            vsg::ref_ptr<Screenshot> screenshot;
-            vsg::ref_ptr<vsg::Commands> commands;
-            Done done;
-            unsigned age = 0;
-        };
-        static void deliver(Copy& copy);
+        // The queue and its items, in framecapture.cpp: an item holds a Screenshot, which screenshot.hpp defines
+        // after including this header.
+        struct State;
 
         ScreenshotCopyBudget& mBudget;
+        DownloadSync mSync;
         vsg::ref_ptr<vsg::CommandGraph> mGraph;
         vsg::ref_ptr<vsg::Switch> mSwitch;
-        std::optional<Done> mWaiting;
-        unsigned mFramesWaited = 0;
-        std::optional<Copy> mArmed;
-        std::deque<Copy> mInFlight;
+        std::unique_ptr<State> mState;
     };
 }
 

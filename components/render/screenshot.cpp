@@ -11,6 +11,7 @@
 
 #include <vsg/app/Window.h>
 #include <vsg/commands/Commands.h>
+#include <vsg/core/Array2D.h>
 #include <vsg/io/write.h>
 
 namespace Render
@@ -45,6 +46,7 @@ namespace Render
         // 1 in window->imageIndex(1) means image from 1 frame ago.
         srcImage = window->imageView(window->imageIndex(1))->image;
         srcImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        opaque = true;
     }
 
     void Screenshot::useCopy(vsg::ref_ptr<vsg::Image> copy, ScreenshotCopyBudget::Token token)
@@ -73,6 +75,8 @@ namespace Render
         }
         else
             downloadData = download(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
+        if (opaque && downloadData)
+            makeOpaque(*downloadData);
         if (!writeFilename.empty() && downloadData)
             vsg::write(downloadData, writeFilename.string(), writeOptions);
     }
@@ -116,6 +120,18 @@ namespace Render
         screenshot->writeOptions = std::move(writeOptions);
         screenshot->generateFilename(dir, ext);
         queue(std::move(screenshot));
+    }
+
+    void makeOpaque(vsg::Data& data)
+    {
+        const VkFormat format = data.properties.format;
+        if (format != VK_FORMAT_B8G8R8A8_UNORM && format != VK_FORMAT_R8G8B8A8_UNORM)
+            return;
+        auto* picture = data.cast<vsg::ubvec4Array2D>();
+        if (!picture)
+            return;
+        for (vsg::ubvec4& pixel : *picture)
+            pixel.a = 255;
     }
 
     ScreenshotWriter::ScreenshotWriter(Queue queue)

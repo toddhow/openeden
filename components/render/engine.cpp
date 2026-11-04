@@ -129,7 +129,7 @@ namespace Render
     {
         // The timer's query pool, and the images of screenshot copies in flight, may still be used by frames in flight
         // (loop() waits at its end, a game that aborts or a hosted engine does not).
-        if (mGpuTimer || mFrameCapture)
+        if (mGpuTimer || !mFrameCaptures.empty())
             mViewer->deviceWaitIdle();
         // loop() does this on leaving; a hosted engine never runs it, and the deletion queue is about to go.
         if (mHosted)
@@ -295,19 +295,22 @@ namespace Render
             Misc::LoadTrace::Scope traceUpdate("loop.viewer.update");
             mViewer->update();
             traceUpdate.end();
-            // A screenshot asked for in this frame's callback is copied in this frame's submission, before present.
-            if (mFrameCapture)
+            // A copy asked for in this frame's callback (a screenshot, the save thumbnail) is made in this frame's
+            // submission, before present.
+            if (!mFrameCaptures.empty())
             {
                 Misc::LoadTrace::Scope traceArm("loop.screenshot.arm");
-                mFrameCapture->beforeRecord(*mWindow, getPresentLayout());
+                for (auto& capture : mFrameCaptures)
+                    capture->beforeRecord(*mWindow, getPresentLayout());
             }
             Misc::LoadTrace::Scope traceRecord("loop.record.submit");
             mViewer->recordAndSubmit();
             traceRecord.end();
-            if (mFrameCapture)
+            if (!mFrameCaptures.empty())
             {
                 Misc::LoadTrace::Scope traceCollect("loop.screenshot.collect");
-                mFrameCapture->afterRecord(*mViewer);
+                for (auto& capture : mFrameCaptures)
+                    capture->afterRecord(*mViewer);
             }
 
             Misc::LoadTrace::Scope tracePresent("loop.present");
@@ -374,9 +377,9 @@ namespace Render
 
         // Wait for GPU before attempting to delete any vulkan objects.
         mViewer->deviceWaitIdle();
-        // Every screenshot copy in flight is finished now.
-        if (mFrameCapture)
-            mFrameCapture->finish();
+        // Every copy in flight is finished now.
+        for (auto& capture : mFrameCaptures)
+            capture->finish();
 
         if (mGpuTimer)
             Log(Debug::Info) << "GPU timing, median and 95th percentile of the last " << gpuTimingWindow << " frames:\n"
@@ -586,19 +589,25 @@ namespace Render
                 getOrCreateDevice(), mHeadless->colorImageView->image, mHeadless->presentLayout) };
     }
 
+    FrameCapture* Engine::addFrameCapture(vsg::ref_ptr<vsg::CommandGraph> graph, DownloadSync sync)
+    {
+        if (!mWindow)
+            return nullptr;
+        mFrameCaptures.push_back(std::make_unique<FrameCapture>(mScreenshotBudget, sync));
+        mFrameCaptures.back()->attach(std::move(graph));
+        return mFrameCaptures.back().get();
+    }
+
     void Engine::setScreenshotGraph(vsg::ref_ptr<vsg::CommandGraph> graph)
     {
-        if (!mWindow || mHosted)
-            return;
-        mFrameCapture = std::make_unique<FrameCapture>(mScreenshotBudget);
-        mFrameCapture->attach(std::move(graph));
+        mScreenshotCapture = addFrameCapture(std::move(graph), DownloadSync::BeforePresent);
     }
 
     void Engine::requestScreenshot(ScreenshotDone done)
     {
-        if (mFrameCapture)
+        if (mScreenshotCapture)
         {
-            mFrameCapture->request(std::move(done));
+            mScreenshotCapture->request(std::move(done));
             return;
         }
         if (!mHeadless)
@@ -614,12 +623,13 @@ namespace Render
         if (!token)
         {
             Log(Debug::Warning) << "Screenshot skipped: " << mScreenshotBudget.inUse()
-                                << " screenshots are still waiting to be written (at most " << mScreenshotBudget.cap()
-                                << ")";
+                                << " copies are still on the GPU or waiting to be read (at most "
+                                << mScreenshotBudget.cap() << ")";
             return;
         }
         try
         {
+            operation->opaque = true;
             operation->copyNow(std::move(*token));
             done(operation);
         }
@@ -631,6 +641,33 @@ namespace Render
         {
             Log(Debug::Warning) << "Screenshot skipped: " << e.message << " VkResult " << e.result;
         }
+    }
+
+    vsg::ref_ptr<Screenshot> Engine::drawFrameAndCapture()
+    {
+        if (!mHosted || !mScreenshotCapture)
+            return {};
+        vsg::ref_ptr<Screenshot> copied;
+        mScreenshotCapture->request([&copied](vsg::ref_ptr<Screenshot> screenshot) { copied = screenshot; });
+        // vsgQt::Viewer::render without its request count, and with the copy armed between the image's acquisition
+        // and the recording. handleEvents too: advanceToNextFrame drops the events of the frame before.
+        if (mViewer->advanceToNextFrame())
+        {
+            mViewer->handleEvents();
+            mViewer->update();
+            for (auto& capture : mFrameCaptures)
+                capture->beforeRecord(*mWindow, getPresentLayout());
+            mViewer->recordAndSubmit();
+            mViewer->present();
+        }
+        // No frame is in flight after this, so the copy is finished (or never will be).
+        mViewer->deviceWaitIdle();
+        for (auto& capture : mFrameCaptures)
+        {
+            capture->afterRecord(*mViewer);
+            capture->finish();
+        }
+        return copied;
     }
 
     size_t Engine::numFrames() const

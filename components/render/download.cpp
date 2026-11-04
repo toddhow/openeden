@@ -15,28 +15,55 @@
 
 namespace Render // namespace vsgExamples
 {
+    DownloadSyncMasks downloadSyncMasks(DownloadSync sync)
+    {
+        DownloadSyncMasks masks;
+        switch (sync)
+        {
+            case DownloadSync::Transfer:
+                masks.firstSrcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                masks.srcImageWrites = VK_ACCESS_MEMORY_READ_BIT;
+                masks.lastDstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                masks.copyReader = VK_ACCESS_MEMORY_READ_BIT;
+                masks.srcImageAfter = VK_ACCESS_MEMORY_READ_BIT;
+                break;
+            case DownloadSync::BeforePresent:
+                // A barrier's first scope holds every command submitted earlier at the stages it names, so ALL_COMMANDS
+                // with the attachment and transfer writes covers the GUI pass's draws and its multisample resolve
+                // directly; the pass's final layout transition is ordered before it by submission order. Nothing
+                // follows in the frame: back to the present layout before the semaphore that present waits for.
+                masks.firstSrcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+                masks.srcImageWrites = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+                masks.lastDstStage = VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                masks.copyReader = VK_ACCESS_HOST_READ_BIT;
+                masks.srcImageAfter = 0;
+                break;
+            case DownloadSync::InFrame:
+                // After the scene, tonemap and post-process (colour attachment and transfer writes) and before the GUI
+                // pass, which loads the image at the colour attachment stage: the transition back must be ordered
+                // before those reads and writes, since the GUI pass's own dependency from outside covers only colour
+                // attachment and late fragment test work.
+                masks.firstSrcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+                masks.srcImageWrites = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+                masks.lastDstStage = VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                masks.copyReader = VK_ACCESS_HOST_READ_BIT;
+                masks.srcImageAfter = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                break;
+        }
+        return masks;
+    }
+
     std::pair<vsg::ref_ptr<vsg::Commands>, vsg::ref_ptr<vsg::Image>> createDownloadCommands(vsg::Device* device,
         vsg::ref_ptr<vsg::Image> srcImage, VkRect2D srcRect, VkFormat srcImageFormat, VkImageLayout srcImageLayout,
         std::optional<VkExtent2D> optional_dstExtent, DownloadSync sync)
     {
-        // OpenEden: the barriers' masks. Transfer keeps the inherited ones. BeforePresent follows the frame's last
-        // render pass in the same submission: that pass's end has only the implicit external dependency (dstStageMask
-        // BOTTOM_OF_PIPE, Render::standardDependencies names none), so the first scope must include every stage to
-        // chain with it, and the attachment and transfer writes are made visible to the copy. Afterwards the image goes
-        // back to the present layout before the frame's semaphore signals, and the copy's writes are made visible to
-        // the host, which reads them after the frame's fence (FrameCapture).
-        const bool beforePresent = sync == DownloadSync::BeforePresent;
-        const VkPipelineStageFlags firstSrcStage
-            = beforePresent ? VK_PIPELINE_STAGE_ALL_COMMANDS_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT;
-        const VkAccessFlags srcImageWrites = beforePresent
-            ? VkAccessFlags{ VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT }
-            : VkAccessFlags{ VK_ACCESS_MEMORY_READ_BIT };
-        const VkPipelineStageFlags lastDstStage = beforePresent
-            ? VkPipelineStageFlags{ VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
-            : VkPipelineStageFlags{ VK_PIPELINE_STAGE_TRANSFER_BIT };
-        const VkAccessFlags copyReader = beforePresent ? VK_ACCESS_HOST_READ_BIT : VK_ACCESS_MEMORY_READ_BIT;
-        const VkAccessFlags srcImageAfter
-            = beforePresent ? VkAccessFlags{ 0 } : VkAccessFlags{ VK_ACCESS_MEMORY_READ_BIT };
+        // OpenEden: the barriers' masks (downloadSyncMasks). Transfer keeps the inherited ones.
+        const DownloadSyncMasks masks = downloadSyncMasks(sync);
+        const VkPipelineStageFlags firstSrcStage = masks.firstSrcStage;
+        const VkAccessFlags srcImageWrites = masks.srcImageWrites;
+        const VkPipelineStageFlags lastDstStage = masks.lastDstStage;
+        const VkAccessFlags copyReader = masks.copyReader;
+        const VkAccessFlags srcImageAfter = masks.srcImageAfter;
 
         auto targetImageFormat = srcImageFormat;
         auto dstExtent = srcRect.extent;

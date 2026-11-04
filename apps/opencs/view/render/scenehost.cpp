@@ -271,6 +271,9 @@ namespace CSVRender
         auto commandGraph = mEngine->createCommandGraph(Pipeline::COMPUTE_SET);
         commandGraph->children = { View::postComputeBarrier(), mRenderGraph };
 
+        // Captures copy this window's image at the end of its only graph, inside the frame, before present
+        // (Render::Engine::drawFrameAndCapture).
+        mEngine->setScreenshotGraph(commandGraph);
         // threading = false: the viewer's owner is a Qt timer on the main thread, and it decides for all of its
         // windows.
         mEngine->setup({ commandGraph }, false);
@@ -543,11 +546,12 @@ namespace CSVRender
     {
         if (!hasWindow())
             return false;
-        auto operation = mEngine->screenshotOperation();
+        // OpenEden (screenshots, third review round): one more frame of the viewer is drawn here with the copy recorded
+        // in it before present; the image presented last, which this read before, must not be used until it is
+        // acquired again. The frame skips RenderContext::tick's deletion queue and endFrame: the next tick catches up.
+        auto operation = mEngine->drawFrameAndCapture();
         if (!operation)
             return false;
-        // No frame may be drawing into the image: this is no hot path.
-        mContext.viewer()->deviceWaitIdle();
         operation->writeOptions = mResources->imageOptions;
         operation->writeFilename = file;
         operation->operate();

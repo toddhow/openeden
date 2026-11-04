@@ -89,22 +89,30 @@ namespace Render
         // drawn, and from every Engine of a viewer.
         void endFrame();
 
-        // The image presented last, for a copy after deviceWaitIdle (the editor's capture; see Screenshot(window): this
-        // reads a presented image against the Vulkan specification). Null while the window has zero size (a collapsed
-        // splitter: capturing it would crash) and while imageIndex(1) names no image (before the second frame, and
-        // right after a swapchain rebuild).
+        // Headless: the engine's image. With a window: the image presented last, which Vulkan forbids reading before it
+        // is acquired again (Screenshot(window)); nothing in OpenEden takes that one any more (the game and the editor
+        // copy inside the frame: setScreenshotGraph). Null while the window has zero size (a collapsed splitter) and
+        // while imageIndex(1) names no image (before the second frame, and right after a swapchain rebuild).
         vsg::ref_ptr<Screenshot> screenshotOperation();
-        // The game's screenshots (OpenEden, 2026-11-04): graph is the last command graph to write the window's image
-        // in a frame (RenderManager's GUI graph); the copy is recorded at its end, before present (FrameCapture). Call
-        // before setup(). Not for a hosted engine.
+        // A copy of the window's image recorded at the end of graph in every frame that asks for one (OpenEden,
+        // 2026-11-04; FrameCapture). Call before setup(); the engine keeps it and runs it from loop(), or from
+        // drawFrameAndCapture for a hosted engine. Null without a window.
+        FrameCapture* addFrameCapture(vsg::ref_ptr<vsg::CommandGraph> graph, DownloadSync sync);
+        // The screenshots: graph is the last command graph to write the window's image in a frame (the game's GUI
+        // graph, an editor view's only graph); the copy is recorded at its end, before present.
         void setScreenshotGraph(vsg::ref_ptr<vsg::CommandGraph> graph);
         // Copies the next frame that loop() records (main thread, from the frame callback) and calls done with it once
         // the copy has finished, on the main thread in a later frame; done names the file and queues the write. Never
         // called for a request that is dropped (the window had no image for FrameCapture::sMaxWaitFrames frames, or
-        // ScreenshotCopyBudget's cap of copies waiting to be written was reached), each with a warning. Headless: the
-        // image is copied at once. Requests before the copy is made are one picture.
+        // ScreenshotCopyBudget's cap of copies was reached), each with a warning. Headless: the image is copied at
+        // once. Requests before the copy is made are one picture.
         using ScreenshotDone = std::function<void(vsg::ref_ptr<Screenshot>)>;
         void requestScreenshot(ScreenshotDone done);
+        // Hosted (the editor): draws one frame of the viewer, as vsgQt::Viewer::render does, with the screenshot copy
+        // recorded in it before present, waits for the device and returns the copied screenshot (null when it could
+        // not be made, with the reason in the log). Main thread, outside the viewer's own frame. Needs
+        // setScreenshotGraph.
+        vsg::ref_ptr<Screenshot> drawFrameAndCapture();
         size_t numFrames() const;
         vsg::ref_ptr<vsg::ImageView> colorImageView(size_t relativeFrameIndex);
         vsg::ref_ptr<vsg::ImageView> depthImageView();
@@ -159,13 +167,15 @@ namespace Render
         std::unique_ptr<Headless> mHeadless;
         std::unique_ptr<vsgUtil::DeletionQueue> mDeletionQueue;
         std::unique_ptr<vsgUtil::DebugMessenger> mDebugMessenger;
-        // At most this many screenshot copies wait to be written at once (OpenEden, 2026-11-04): a request every frame
-        // would otherwise hold one window-sized host-visible image per frame until the writer thread catches up.
+        // At most this many copies exist at once (OpenEden, 2026-11-04): from the frame that records one until its
+        // pixels have been read. A screenshot every frame would otherwise hold one window-sized host-visible image per
+        // frame until the writer thread catches up.
         static constexpr std::size_t sMaxScreenshotCopies = 8;
         ScreenshotCopyBudget mScreenshotBudget{ sMaxScreenshotCopies };
-        // After the viewer and the window, so it goes before them (its copies are images on their device), and after
-        // the budget it refers to.
-        std::unique_ptr<FrameCapture> mFrameCapture;
+        // After the viewer and the window, so they go before them (their copies are images on their device), and after
+        // the budget they refer to. The first (if any) is the screenshots' (mScreenshotCapture).
+        std::vector<std::unique_ptr<FrameCapture>> mFrameCaptures;
+        FrameCapture* mScreenshotCapture = nullptr;
         // Declared last, so it is destroyed first; it holds a reference to the device.
         std::unique_ptr<GpuTimer> mGpuTimer;
         FrameCounters mFrameCounters;
