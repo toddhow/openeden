@@ -16,6 +16,7 @@
 
 #include "autoplaytrace.hpp"
 #include "env.hpp"
+#include "equipmentupdate.hpp"
 #include "transparency.hpp"
 
 namespace MWRender
@@ -29,7 +30,7 @@ namespace MWRender
     void WieldingCreature::setup(const MWWorld::Ptr& ptr)
     {
         mPtr = ptr;
-        if (const auto* creature = ptr.get<ESM::Creature>())
+        if (const auto* creature = autoPlayTraceOn() ? ptr.get<ESM::Creature>() : nullptr)
         {
             const std::string id = creature->mBase->mId.toString();
             if (autoPlayTraced(id, creature->mBase->mName))
@@ -113,9 +114,15 @@ namespace MWRender
             // itemModel = getShieldMesh(item, false);
         }
 
-        auto node = mwctx.readNode(model);
+        linkPart(slot, mwctx.readNode(model), nullptr, bonename, getGlowColor(item));
+    }
+
+    void WieldingCreature::linkPart(int slot, vsg::ref_ptr<vsg::Node> node, const ESM::Light* /*light*/,
+        const std::string& bonename, std::optional<vsg::vec4> glowColor)
+    {
+        // The carried light is not decorated yet (it comes with the next commit, task 0074d item B).
         auto result = MWAnim::decorate(node, {});
-        addEnv(node, item, getTransparency(*this));
+        addEnv(node, glowColor, getTransparency(*this));
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
         {
             mAttachAmmo = result.placeholders.attachAmmo;
@@ -131,7 +138,7 @@ namespace MWRender
         if (mParts[i].empty())
             return;
 
-        Anim::Context ctx{ { transform() }, mParts[i], &animation->bones, &mwctx.mask };
+        Anim::Context ctx{ { transform() }, mParts[i], &animation->bones, &mContext.mask };
         Anim::Update* dst = &mStaticControllers;
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
             dst = &mWeaponControllers;
@@ -171,10 +178,16 @@ namespace MWRender
     {
         if (!mAutoPlayTraced.empty())
             traceAutoPlayEvent(mAutoPlayTraced, "updateEquipment");
-        removeParts();
-        addParts();
-        if (!mContext.compileContext->compile(node()))
-            removeParts();
+        // Task 0074d (review of 0074b, finding 1): compiled also when addParts throws (runEquipmentUpdate).
+        runEquipmentUpdate(
+            [this] {
+                removeParts();
+                addParts();
+            },
+            [this] {
+                if (!mContext.compileContext->compile(node()))
+                    removeParts();
+            });
     }
 
 }

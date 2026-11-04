@@ -18,7 +18,9 @@ namespace MWRender
     // frame: for each group its phase group, timer and number of controllers, and the colour of every light one of
     // them drives, first for the actor's own groups (MWAnim::Object::autoPlay: inventory lights, a creature's own
     // model), then for each part's clock that has any. An equipment change writes a line of its own. The variable is
-    // read once; unset or empty, the trace costs one bool test per actor update.
+    // read once. Unset or empty, the trace costs one empty-string test per actor update, and no id is built when an
+    // actor is made (autoPlayTraceOn first; task 0074d, review of 0074b, finding 7).
+    bool autoPlayTraceOn();
     bool autoPlayTraced(std::string_view recordId, std::string_view name);
 
     // How many controllers the actor's other lists hold (Wielding's and the Npc's face).

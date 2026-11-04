@@ -106,6 +106,13 @@ namespace MWRender
         std::set<ESM::RefId> soundsToPlay;
 
     protected:
+        // Task 0074d (review of 0074b, finding 4): builds no record, skeleton or part, so that a test can reach the
+        // part functions below on an Npc of its own (it sets `animation` itself). Never used by the game.
+        struct TestSetup
+        {
+        };
+        Npc(const MWAnim::Context& mwctx, TestSetup);
+
         std::vector<vsg::Node*> mParts[ESM::PRT_Count];
         const MWAnim::Context* mPartContext{};
 
@@ -191,6 +198,19 @@ namespace MWRender
         void clearControllers();
         // The node work of updateParts (equipment, head and hair, weapon, sheathing, merged body, body parts).
         void updatePartNodes();
+        // One part update around `nodes` (updateParts passes updatePartNodes): the lists are emptied, `nodes` inserts
+        // and removes parts, and what stays is linked again on every way out (task 0074b, finding 6).
+        template <class Nodes>
+        void runPartUpdate(Nodes&& nodes)
+        {
+            clearControllers();
+            soundsToPlay.clear();
+            mPartControllers.runUpdate(nodes, [this] { relinkKeptControllers(); });
+        }
+        // Task 0074d (review of 0074b, finding 2): every part, the merged copy, the holstered items and the quiver go,
+        // the lists first, so that none of them points into a removed node even when what follows throws (a rebuild
+        // reads the skeleton and the animations next). updateNpcBase and a failed compile() start with it.
+        void removeAllParts();
         // Task 0074: the controllers each part linked, so updateParts links again the parts it kept (clearControllers
         // empties the lists), and (task 0074b) each part's own auto-play clock. relinkKeptControllers runs at the end
         // of every updateParts, a throw included (PartControllers::runUpdate).
@@ -208,6 +228,10 @@ namespace MWRender
         // only its regions change; its controllers are added again every time (clearControllers drops them), by
         // relinkKeptControllers at the end of the update (task 0074b).
         bool attachMergedBody(bool isWerewolf);
+        // Its second half (task 0074d, finding 4: reachable by a test): keeps the copy of `result`'s template, or makes
+        // a new one, with `hidden` left out, and takes its slots from the stock parts; links nothing.
+        bool attachMergedCopy(const ESM::Race& race, bool female, const MergedBodies::TemplateResult& result,
+            const std::vector<int>& hidden);
         // Leaves the hidden regions out of the copy (mMergedNode); on a refusal, the stock parts for good.
         bool applyMergedRegions(const ESM::Race& race, bool female, const MergedBodies::TemplateResult& result,
             const std::vector<int>& hidden);

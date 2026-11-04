@@ -39,6 +39,11 @@ namespace MWRender
         }
     }
 
+    bool autoPlayTraceOn()
+    {
+        return !tracedText().empty();
+    }
+
     bool autoPlayTraced(std::string_view recordId, std::string_view name)
     {
         const std::string& text = tracedText();

@@ -1,11 +1,21 @@
 #ifndef VSGOPENMW_MWRENDER_WIELDINGCREATURE_H
 #define VSGOPENMW_MWRENDER_WIELDINGCREATURE_H
 
+#include <optional>
+#include <string>
+
+#include <vsg/maths/vec4.h>
+
 #include <components/mwanimation/wielding.hpp>
 
 #include "../mwworld/ptr.hpp"
 
 #include "partcontrollers.hpp"
+
+namespace ESM
+{
+    struct Light;
+}
 
 namespace MWRender
 {
@@ -20,6 +30,10 @@ namespace MWRender
     protected:
         // Protected for the tests (task 0074b): what an equipment change removes.
         void removeParts();
+        // The node work of addPart for one slot (Slot_CarriedRight or Slot_CarriedLeft), apart from the inventory so a
+        // test reaches it (task 0074d, finding 4): `light` is the carried light's record, or null.
+        void linkPart(int slot, vsg::ref_ptr<vsg::Node> node, const ESM::Light* light, const std::string& bonename,
+            std::optional<vsg::vec4> glowColor);
         // The weapon's, the carried left's and the ammunition's controllers (Wield's order).
         PartControllers<3> mPartControllers;
         // Task 0074b: OPENEDEN_AUTOPLAY_TRACE (autoplaytrace.hpp), decided once in setup.

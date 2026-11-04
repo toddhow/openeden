@@ -1,10 +1,12 @@
 #ifndef OPENMW_MWRENDER_PARTCONTROLLERS_H
 #define OPENMW_MWRENDER_PARTCONTROLLERS_H
 
+#include <algorithm>
 #include <array>
 #include <bitset>
 #include <cstddef>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <vsg/core/ref_ptr.h>
@@ -23,6 +25,15 @@ namespace vsg
 
 namespace MWRender
 {
+    // Removes the first (controller, target) link from `list`, if it is there (task 0074d).
+    inline void unlinkController(Anim::Update& list, const Anim::Controller* controller, vsg::Object* target)
+    {
+        auto& links = list.controllers;
+        const auto found = std::find(links.begin(), links.end(), std::make_pair(controller, target));
+        if (found != links.end())
+            links.erase(found);
+    }
+
     // Which of the Npc's lists a part's controller runs in (Npc::insertBoundedPart decides).
     enum class PartControllerList
     {
@@ -35,7 +46,14 @@ namespace MWRender
     // Task 0074: Npc::updateParts empties every controller list, then adds again only the parts it inserts; a body
     // part, the head or the hair that stays (priority 1, nothing displaced it) kept no controller and froze in the pose
     // of that moment. This remembers, per part type, what Npc::insertBoundedPart linked, so updateParts can link the
-    // parts that stayed again. Main thread only, like the Npc. N is ESM::PRT_Count.
+    // parts that stayed again. N is ESM::PRT_Count (an Npc), or 3 (a WieldingCreature).
+    //
+    // Threads (task 0074d, review of 0074b, finding 5): update(dt), the clocks, runs where its owner's update runs: an
+    // NPC's or creature's on one of the vsgUtil::UpdateThreads workers (Scene::update gives each cell one operation;
+    // [Cells] animation threads), the player's on the main thread (RenderManager), the inventory preview's on the main
+    // thread with dt 0. Everything else (beginUpdate, beginPart, record, addAutoPlay, forget, relinkSurvivors,
+    // runUpdate) runs on the main thread in the actor's part update, never while that actor's update runs: the main
+    // thread waits for the workers (UpdateThreads::run, waitIdle). The state is per actor, so the workers share none.
     //
     // Task 0074b: each part also owns its auto-play clock (autoPlay(part)): its groups and their timers live and die
     // with the part, as OpenMW 0.51 keeps a part's controllers with the part (PartHolder). An update that keeps the
@@ -45,8 +63,10 @@ namespace MWRender
     // Ownership: the controllers and their targets belong to the part's node (MWAnim::decorate clones them into it;
     // the owner holds its path). This holds a vsg::ref_ptr to each of them besides, so an entry and the part's clock
     // stay valid until beginPart or forget for that part, even if the part's node went another way: such a stale part
-    // costs controller runs on a detached node, not a use-after-free. The owner calls forget(part) wherever the part's
-    // node goes, and beginPart(part) before linking a new node there.
+    // costs controller runs on a detached node, not a use-after-free. That covers the entries and the clocks only:
+    // the owner's live lists (Anim::Update) hold raw pointers, so before forget(part) the owner takes the part's
+    // entries out of them (Npc::detachPart, unlinkController: task 0074d, the first review's finding 7). The owner
+    // calls forget(part) wherever the part's node goes, and beginPart(part) before linking a new node there.
     template <std::size_t N>
     class PartControllers
     {

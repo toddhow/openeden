@@ -52,6 +52,7 @@
 #include "autoplaytrace.hpp"
 #include "bodyparts.hpp"
 #include "env.hpp"
+#include "equipmentupdate.hpp"
 #include "mergedbody.hpp"
 #include "transparency.hpp"
 
@@ -92,7 +93,7 @@ namespace MWRender
     {
         mPartContext = &mContext;
         mNpc = mPtr.get<ESM::NPC>()->mBase;
-        if (autoPlayTraced(mNpc->mId.toString(), mNpc->mName))
+        if (autoPlayTraceOn() && autoPlayTraced(mNpc->mId.toString(), mNpc->mName))
             mAutoPlayTraced = mNpc->mId.toString();
         if (partSlotsTraceOn())
         {
@@ -104,6 +105,16 @@ namespace MWRender
         mFace = std::make_unique<MWAnim::Face>();
 
         updateNpcBase();
+    }
+
+    Npc::Npc(const MWAnim::Context& mwctx, TestSetup)
+        : Wielding(mwctx)
+        , mViewMode(ViewMode::Normal)
+        , mNpcType(NpcType::Normal)
+    {
+        mPartContext = &mContext;
+        mNpc = nullptr;
+        mFace = std::make_unique<MWAnim::Face>();
     }
 
     Npc::~Npc() {}
@@ -132,26 +143,30 @@ namespace MWRender
     {
         if (!mPartContext->compileContext->compile(node()))
         {
-            clearControllers();
-            for (size_t i = 0; i < ESM::PRT_Count; ++i)
-                removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
-            removeHolstered(mScabbard, mScabbardClock);
-            removeHolstered(mHolsteredShield, mHolsteredShieldClock);
             // The merged body goes with the stock parts (review finding 2): an uncompiled clone must not be drawn.
-            forgetMergedBody();
-            for (auto& path : mQuiver)
-                removePath(path);
-            mQuiver.clear();
+            removeAllParts();
             mHolsteredWeaponSwitch = {};
             mHolsteredShieldSwitch = {};
         }
     }
 
+    void Npc::removeAllParts()
+    {
+        clearControllers();
+        for (size_t i = 0; i < ESM::PRT_Count; ++i)
+            removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
+        forgetMergedBody();
+        removeHolstered(mScabbard, mScabbardClock);
+        removeHolstered(mHolsteredShield, mHolsteredShieldClock);
+        for (auto& path : mQuiver)
+            removePath(path);
+        mQuiver.clear();
+    }
+
     void Npc::rebuild()
     {
-        updateNpcBase();
-
-        compile();
+        // Task 0074d: compiled also when the rebuild throws (runEquipmentUpdate).
+        runEquipmentUpdate([this] { updateNpcBase(); }, [this] { compile(); });
 
         // vsgopenmw-fixme(dependency-policy)
         MWBase::Environment::get().getMechanicsManager()->forceStateUpdate(mPtr);
@@ -248,14 +263,7 @@ namespace MWRender
 
     void Npc::updateNpcBase()
     {
-        for (size_t i = 0; i < ESM::PRT_Count; i++)
-            removeIndividualPart((ESM::PartReferenceType)i);
-        forgetMergedBody();
-        removeHolstered(mScabbard, mScabbardClock);
-        removeHolstered(mHolsteredShield, mHolsteredShieldClock);
-        for (auto& path : mQuiver)
-            removePath(path);
-        mQuiver.clear();
+        removeAllParts();
 
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         const ESM::Race* race = store.get<ESM::Race>().find(mNpc->mRace);
@@ -313,10 +321,16 @@ namespace MWRender
     {
         // Task 0069 stage e review: an equipment change's cost, split into the part update and the compile.
         Misc::LoadTrace::Scope traceEquipment("npc.updateequipment");
-        updateCarriedLeftVisible();
-        updateParts();
-        Misc::LoadTrace::Scope traceCompile("npc.compile");
-        compile();
+        // Task 0074d (review of 0074b, finding 1): compiled also when updateParts throws (runEquipmentUpdate).
+        runEquipmentUpdate(
+            [this] {
+                updateCarriedLeftVisible();
+                updateParts();
+            },
+            [this] {
+                Misc::LoadTrace::Scope traceCompile("npc.compile");
+                compile();
+            });
     }
 
     void Npc::clearControllers()
@@ -341,17 +355,13 @@ namespace MWRender
 
         if (!mAutoPlayTraced.empty())
             traceAutoPlayEvent(mAutoPlayTraced, "updateParts");
-        clearControllers();
-        soundsToPlay.clear();
         // Task 0074b, finding 6: what stays (parts, the merged body) is linked again on every way out of the update,
         // also when it throws.
-        mPartControllers.runUpdate(
-            [this] {
-                // Task 0069 stage e, second review (finding 5): the node work and the relinking timed apart.
-                Misc::LoadTrace::Scope traceNodes("npc.partnodes");
-                updatePartNodes();
-            },
-            [this] { relinkKeptControllers(); });
+        runPartUpdate([this] {
+            // Task 0069 stage e, second review (finding 5): the node work and the relinking timed apart.
+            Misc::LoadTrace::Scope traceNodes("npc.partnodes");
+            updatePartNodes();
+        });
         if (!mPartSlotsTraced.empty())
             tracePartSlots();
     }
@@ -560,7 +570,12 @@ namespace MWRender
         // parts' own rule (a slot's body part is not drawn while an inventory group holds the slot).
         const std::vector<int> hidden = Body::hiddenMergedSlots(result.mSlots, mSlots.groups(), mSlots.priorities());
         traceDecide.end();
+        return attachMergedCopy(*race, female, result, hidden);
+    }
 
+    bool Npc::attachMergedCopy(
+        const ESM::Race& race, bool female, const MergedBodies::TemplateResult& result, const std::vector<int>& hidden)
+    {
         // Review finding 2: the actor's copy stays while its template does (an equipment change, a torch at dusk);
         // only its regions change, when the hidden set does. Its skins keep their matrices, so the motion of the first
         // frame after the change is right too (finding 5).
@@ -569,7 +584,7 @@ namespace MWRender
             if (hidden != mMergedHidden)
             {
                 Misc::LoadTrace::Scope traceRegions("npc.mergedbody.regions");
-                if (!applyMergedRegions(*race, female, result, hidden))
+                if (!applyMergedRegions(race, female, result, hidden))
                     return false;
             }
             Misc::LoadTrace::Scope traceKeep("npc.mergedbody.keep");
@@ -590,7 +605,7 @@ namespace MWRender
         mMergedNode = node;
         mMergedTemplate = result.mNode;
         Misc::LoadTrace::Scope traceRegions("npc.mergedbody.regions");
-        const bool regionsApplied = applyMergedRegions(*race, female, result, hidden);
+        const bool regionsApplied = applyMergedRegions(race, female, result, hidden);
         traceRegions.end();
         if (!regionsApplied)
             return false;
@@ -605,7 +620,7 @@ namespace MWRender
         if (path.empty())
         {
             forgetMergedBody();
-            MergedBodies::report(*race, female, Body::MergedBodyReason::BuildFailed);
+            MergedBodies::report(race, female, Body::MergedBodyReason::BuildFailed);
             return false;
         }
         Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
@@ -760,6 +775,27 @@ namespace MWRender
         if (!mPartSlotsTraced.empty())
             Log(Debug::Info) << "PARTSLOTS " << mPartSlotsTraced << " detach " << static_cast<int>(type) << ' '
                              << (mParts[type].empty() ? 0 : 1);
+        // Task 0074d (first review of 0074, finding 7): a part inserted earlier in the same update had its controllers
+        // added to the live lists already; they go with it, or they would run on its node in the deletion queue and
+        // then on freed memory (a mod record can make a part take a slot another part of the same update held). Its
+        // auto-play controllers go with its clock (forget).
+        for (const auto& entry : mPartControllers.entries(type))
+        {
+            switch (entry.mList)
+            {
+                case PartControllerList::Static:
+                    unlinkController(mStaticControllers, entry.mController, entry.mTarget);
+                    break;
+                case PartControllerList::Face:
+                    unlinkController(*mFace, entry.mController, entry.mTarget);
+                    break;
+                case PartControllerList::Weapon:
+                    unlinkController(mWeaponControllers, entry.mController, entry.mTarget);
+                    break;
+                case PartControllerList::AutoPlay:
+                    break;
+            }
+        }
         mPartControllers.forget(type);
         removePath(mParts[type]);
     }
