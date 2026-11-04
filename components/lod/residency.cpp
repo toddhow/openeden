@@ -23,21 +23,29 @@ namespace Lod
             return std::isnan(priority) ? std::numeric_limits<float>::infinity() : priority;
         }
 
-        // What is held now: held items that have not been freed by this plan, items that are loading, and the items
-        // this plan starts loading. `count` is how many such items there are.
-        struct Held
+        // What is committed now: held items that are not leaving and have not been freed by this plan, items that are
+        // loading, and the items this plan starts loading. `count` is how many such items there are.
+        struct Committed
         {
             std::uint64_t mBytes = 0;
             std::size_t mCount = 0;
         };
 
-        Held heldNow(std::span<const ResidencyItem> items, const std::vector<std::uint8_t>& gone) noexcept
+        bool isCommitted(const ResidencyItem& item, std::uint8_t gone) noexcept
         {
-            Held result;
+            if (gone == goneAdmitted)
+                return true;
+            if (gone != 0)
+                return false;
+            return item.mLoading || (item.mHeld && !item.mLeaving);
+        }
+
+        Committed committedNow(std::span<const ResidencyItem> items, const std::vector<std::uint8_t>& gone) noexcept
+        {
+            Committed result;
             for (std::size_t i = 0; i < items.size(); ++i)
             {
-                const bool counts = gone[i] == goneAdmitted || (gone[i] == 0 && (items[i].mHeld || items[i].mLoading));
-                if (!counts)
+                if (!isCommitted(items[i], gone[i]))
                     continue;
                 result.mBytes = addSaturating(result.mBytes, items[i].mBytes);
                 ++result.mCount;
@@ -45,30 +53,34 @@ namespace Lod
             return result;
         }
 
-        // Would `held` minus `freed` plus `need` fit the budget?
-        bool fits(std::uint64_t held, std::uint64_t freed, std::uint64_t need, std::uint64_t budget) noexcept
+        // Would `committed` minus `freed` minus `released` plus `need` stay at or under `limit`?
+        bool fits(std::uint64_t committed, std::uint64_t freed, std::uint64_t released, std::uint64_t need,
+            std::uint64_t limit) noexcept
         {
-            const std::uint64_t base = held >= freed ? held - freed : 0;
-            return addSaturating(base, need) <= budget;
+            const std::uint64_t gone = addSaturating(freed, released);
+            const std::uint64_t base = committed >= gone ? committed - gone : 0;
+            return addSaturating(base, need) <= limit;
         }
 
         // Fills `victims` with the held items that may be freed, least urgent first: those not wanted before those
-        // wanted, in each class the larger key first, then the smaller index. `candidateKey` is the key of the item a
-        // swap is for (negative infinity: pressure, any wanted replaceable item qualifies).
+        // wanted, in each class the larger key first, then the smaller index. A wanted victim must be replaceable;
+        // for a candidate (`forCandidate`) it must also be clearly less urgent than the candidate, unless the
+        // candidate has no fallback (`candidateHasFallback` false), which outranks any replaceable item.
         void collectVictims(std::span<const ResidencyItem> items, const std::vector<std::uint8_t>& gone,
-            bool forCandidate, float candidateKey, float margin, std::vector<std::uint32_t>& victims)
+            bool forCandidate, float candidateKey, bool candidateHasFallback, float margin,
+            std::vector<std::uint32_t>& victims)
         {
             victims.clear();
             for (std::size_t i = 0; i < items.size(); ++i)
             {
                 const ResidencyItem& item = items[i];
-                if (gone[i] != 0 || !item.mHeld || item.mPinned)
+                if (gone[i] != 0 || !item.mHeld || item.mPinned || item.mLeaving)
                     continue;
                 if (item.mWanted)
                 {
                     if (!item.mReplaceable)
                         continue;
-                    if (forCandidate)
+                    if (forCandidate && candidateHasFallback)
                     {
                         const float key = urgencyKey(item.mPriority);
                         if (!(key >= margin * candidateKey) || !(key > candidateKey))
@@ -103,19 +115,24 @@ namespace Lod
         const float margin = std::max(1.f, std::isnan(params.mSwapMargin) ? 1.f : params.mSwapMargin);
         const float lowWater = std::isnan(params.mLowWater) ? 1.f : std::clamp(params.mLowWater, 0.01f, 1.f);
         const std::uint64_t budget = params.mBudgetBytes;
+        // Admission fills up to the low water mark and pressure starts above the budget: an estimate that turns out
+        // a little low does not start pressure, and what pressure frees is not taken back at once.
+        // Rounded, not cut: 0.9f is a little below 0.9, and 9 MiB of a 10 MiB budget must fit.
+        const auto lowWaterBytes = static_cast<std::uint64_t>(std::llround(static_cast<double>(budget) * lowWater));
 
         // 1. Idle items go.
         for (std::size_t i = 0; i < items.size(); ++i)
         {
             const ResidencyItem& item = items[i];
-            if (item.mHeld && !item.mWanted && !item.mPinned && item.mIdleFrames >= params.mKeepFrames)
+            if (item.mHeld && !item.mWanted && !item.mPinned && !item.mLeaving
+                && item.mIdleFrames >= params.mKeepFrames)
             {
                 plan.mGone[i] = goneFreed;
                 plan.mFree.push_back(static_cast<std::uint32_t>(i));
             }
         }
 
-        // 2. Loads, most urgent first.
+        // 2. Loads.
         plan.mScratch.clear();
         std::uint32_t inFlight = 0;
         for (std::size_t i = 0; i < items.size(); ++i)
@@ -126,42 +143,55 @@ namespace Lod
             else if (!item.mHeld && item.mWanted && item.mCooldown <= 0)
                 plan.mScratch.push_back(static_cast<std::uint32_t>(i));
         }
-        std::sort(plan.mScratch.begin(), plan.mScratch.end(), [&items](std::uint32_t a, std::uint32_t b) {
-            const float ka = urgencyKey(items[a].mPriority);
-            const float kb = urgencyKey(items[b].mPriority);
-            if (ka != kb)
-                return ka < kb;
-            return a < b;
-        });
+        if (params.mNearestFirst)
+        {
+            std::sort(plan.mScratch.begin(), plan.mScratch.end(), [&items](std::uint32_t a, std::uint32_t b) {
+                // No fallback first: such an item leaves a hole when it is not drawn.
+                if (items[a].mReplaceable != items[b].mReplaceable)
+                    return !items[a].mReplaceable;
+                const float ka = urgencyKey(items[a].mPriority);
+                const float kb = urgencyKey(items[b].mPriority);
+                if (ka != kb)
+                    return ka < kb;
+                return a < b;
+            });
+        }
         std::uint32_t started = 0;
         for (const std::uint32_t candidate : plan.mScratch)
         {
-            if (inFlight >= params.mMaxLoadsInFlight || started >= params.mMaxLoadsPerCall)
+            if (inFlight >= params.mMaxLoadsInFlight || started >= params.mMaxLoadsPerCall
+                || plan.mBlocked >= params.mMaxBlockedPerCall)
                 break;
             const ResidencyItem& item = items[candidate];
-            const Held held = heldNow(items, plan.mGone);
-            bool admit = budget == 0 || held.mCount == 0 || fits(held.mBytes, 0, item.mBytes, budget);
+            bool admit = budget == 0;
             if (!admit)
             {
-                collectVictims(items, plan.mGone, true, urgencyKey(item.mPriority), margin, plan.mVictims);
-                std::uint64_t freed = 0;
-                std::size_t taken = 0;
-                for (; taken < plan.mVictims.size(); ++taken)
+                const Committed committed = committedNow(items, plan.mGone);
+                admit = committed.mCount == 0
+                    || fits(committed.mBytes, 0, item.mReleasesBytes, item.mBytes, lowWaterBytes);
+                if (!admit)
                 {
-                    freed = addSaturating(freed, items[plan.mVictims[taken]].mBytes);
-                    if (fits(held.mBytes, freed, item.mBytes, budget))
+                    collectVictims(items, plan.mGone, true, urgencyKey(item.mPriority), item.mReplaceable, margin,
+                        plan.mVictims);
+                    std::uint64_t freed = 0;
+                    std::size_t taken = 0;
+                    for (; taken < plan.mVictims.size(); ++taken)
                     {
-                        ++taken;
-                        admit = true;
-                        break;
+                        freed = addSaturating(freed, items[plan.mVictims[taken]].mBytes);
+                        if (fits(committed.mBytes, freed, item.mReleasesBytes, item.mBytes, lowWaterBytes))
+                        {
+                            ++taken;
+                            admit = true;
+                            break;
+                        }
                     }
-                }
-                if (admit)
-                {
-                    for (std::size_t v = 0; v < taken; ++v)
+                    if (admit)
                     {
-                        plan.mGone[plan.mVictims[v]] = goneFreed;
-                        plan.mFree.push_back(plan.mVictims[v]);
+                        for (std::size_t v = 0; v < taken; ++v)
+                        {
+                            plan.mGone[plan.mVictims[v]] = goneFreed;
+                            plan.mFree.push_back(plan.mVictims[v]);
+                        }
                     }
                 }
             }
@@ -176,46 +206,59 @@ namespace Lod
             ++started;
         }
 
-        // 3. Pressure.
+        // 3. Pressure: above the budget, free down to the low water mark, never the last committed item.
         if (budget > 0)
         {
-            Held held = heldNow(items, plan.mGone);
-            if (held.mBytes > budget)
+            Committed committed = committedNow(items, plan.mGone);
+            if (committed.mBytes > budget)
             {
-                const auto target = static_cast<std::uint64_t>(std::floor(static_cast<double>(budget) * lowWater));
-                collectVictims(items, plan.mGone, false, 0.f, margin, plan.mVictims);
+                collectVictims(items, plan.mGone, false, 0.f, true, margin, plan.mVictims);
                 std::uint64_t freed = 0;
+                std::size_t left = committed.mCount;
                 for (const std::uint32_t victim : plan.mVictims)
                 {
-                    if (fits(held.mBytes, freed, 0, target))
+                    if (fits(committed.mBytes, freed, 0, 0, lowWaterBytes) || left <= 1)
                         break;
                     freed = addSaturating(freed, items[victim].mBytes);
                     plan.mGone[victim] = goneFreed;
                     plan.mFree.push_back(victim);
+                    --left;
                 }
             }
         }
 
-        const Held after = heldNow(items, plan.mGone);
+        const Committed after = committedNow(items, plan.mGone);
         plan.mHeldAfter = after.mBytes;
         plan.mOverBudget = budget > 0 && after.mBytes > budget;
+    }
+
+    bool squareWithinRange(double x, double y, double originX, double originY, double side, double range) noexcept
+    {
+        if (!(range > 0) || !std::isfinite(range))
+            return false;
+        // The farthest point of the square from (x, y) is a corner: on each axis the end farther from the point.
+        const double dx = std::max(std::abs(x - originX), std::abs(x - (originX + side)));
+        const double dy = std::max(std::abs(y - originY), std::abs(y - (originY + side)));
+        const double far = std::sqrt(dx * dx + dy * dy);
+        return std::isfinite(far) && far <= range;
     }
 }
 
 namespace Lod
 {
-    std::uint64_t tileDrawResidentBytes(std::uint32_t gridSize, std::uint64_t albedoBytes) noexcept
+    std::string describeBytes(std::uint64_t bytes)
     {
-        if (gridSize < 2)
-            return albedoBytes;
-        const std::uint64_t side = gridSize;
-        const std::uint64_t squares = (side - 1) * (side - 1);
-        // side * side * 44 stays below 2^64 up to a grid of 2^29; larger grids saturate at once, so no step can wrap.
-        constexpr std::uint64_t most = std::numeric_limits<std::uint64_t>::max();
-        if (side > (1ull << 29))
-            return most;
-        const std::uint64_t vertices = side * side * tileBytesPerVertex;
-        const std::uint64_t indices = squares * 6 * tileBytesPerIndex;
-        return addSaturating(addSaturating(vertices, indices), albedoBytes);
+        constexpr std::uint64_t kib = 1024;
+        constexpr std::uint64_t mib = kib * kib;
+        if (bytes < kib)
+            return std::to_string(bytes) + " bytes";
+        if (bytes < mib)
+            return std::to_string((bytes + kib / 2) / kib) + " KiB";
+        if (bytes < 10 * mib && bytes % mib != 0)
+        {
+            const std::uint64_t tenths = (bytes * 10 + mib / 2) / mib;
+            return std::to_string(tenths / 10) + "." + std::to_string(tenths % 10) + " MiB";
+        }
+        return std::to_string((bytes + mib / 2) / mib) + " MiB";
     }
 }

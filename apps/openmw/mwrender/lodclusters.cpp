@@ -52,9 +52,10 @@ namespace MWRender
         constexpr std::size_t maxBuildsPerFrame = 1;
         // Frames before a tile that failed to read or compile is tried again (about ten seconds).
         constexpr int retryFrames = 600;
-        // Frames before a tile that the residency planner freed for a closer one may be asked for again (about one
-        // second): the closer tile must have had its turn, and two tiles of about the same urgency must not trade
-        // places every frame (the planner's swap margin does the rest, task 0060).
+        // Frames, counted from the end of its hand-over, before a tile that the residency planner freed while it was
+        // still wanted may be asked for again: the tile is not wanted at all while it fades out (it is leaving, not a
+        // candidate), and this cooldown keeps it from coming straight back (the planner's swap margin and its
+        // admission below the low water mark do the rest, task 0060).
         constexpr int evictedFrames = 60;
         // What loading a tile is expected to hold before one of its level has been read, in bytes: the planner needs
         // a number to admit a load against the budget. After the first read of a level the mean of that level's
@@ -106,8 +107,10 @@ namespace MWRender
             float mFade = 0; // the fade the materials hold (mirrors the cover tile's)
             int mCooldown = 0; // frames before a tile that failed to compile is tried again
             int mIdleFrames = 0; // frames since the tile was last wanted
-            int mSuppressed = 0; // frames the planner keeps the tile unwanted after it freed it for a closer one
-            bool mFreeWhenHidden = false; // the planner freed it: go as soon as the fade has ended
+            // What the tile held when it was last built: the planner's estimate when it is asked for again.
+            std::uint64_t mKnownBytes = 0;
+            // The planner freed it while it was wanted: not wanted again until it has faded out and gone (leaving).
+            bool mEvicted = false;
             bool mLoggedFailure = false;
             bool mWanted = false;
             std::uint64_t mMaskVersion = 0;
@@ -532,6 +535,10 @@ namespace MWRender
             tile.mFreeSlots.clear();
             tile.mFade = 0;
             tile.mCooldown = retryFrames;
+            if (tile.mBytes > 0)
+                tile.mKnownBytes = tile.mBytes;
+            tile.mBytes = 0;
+            tile.mEvicted = false; // gone: wanted again after the retry cooldown
             tile.mPhase = Tile::Phase::Idle;
             cover = {};
         }
@@ -617,53 +624,57 @@ namespace MWRender
             const Lod::CoverTile& cover = state.mCover[i];
             if (tile.mCooldown > 0)
                 --tile.mCooldown;
-            const bool suppressed = tile.mSuppressed > 0;
-            if (suppressed)
-                --tile.mSuppressed;
-            tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !suppressed;
+            tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !tile.mEvicted;
             tile.mIdleFrames = tile.mWanted ? 0 : std::min(tile.mIdleFrames + 1, 1 << 20);
-            if (tile.mWanted)
-                tile.mFreeWhenHidden = false;
             const bool built = tile.mPhase == Tile::Phase::Built;
             Lod::ResidencyItem& item = state.mItems[i];
             item = Lod::ResidencyItem{};
             item.mHeld = built;
             item.mLoading = tile.mPhase == Tile::Phase::Loading;
             item.mWanted = tile.mWanted;
-            item.mPinned = built && !tile.mWanted && cover.mFade.mPhase != Lod::FadePhase::Hidden;
+            // Freed by an earlier plan and still fading out: its bytes are already counted as gone.
+            item.mLeaving = built && tile.mEvicted;
+            // Not wanted and still drawn: the hand-over below decides when it goes (as before the planner).
+            item.mPinned = built && !tile.mWanted && !tile.mEvicted && cover.mFade.mPhase != Lod::FadePhase::Hidden;
             item.mIdleFrames = tile.mIdleFrames;
             item.mCooldown = tile.mCooldown;
             if (built || item.mLoading)
                 item.mBytes = tile.mBytes > 0 ? tile.mBytes : state.estimateBytes(tile.mId.mLevel);
             else
-                item.mBytes = state.estimateBytes(tile.mId.mLevel);
-            item.mPriority = static_cast<float>(Lod::distanceToTile(selection, state.mStates[i].mBounds));
+                item.mBytes = tile.mKnownBytes > 0 ? tile.mKnownBytes : state.estimateBytes(tile.mId.mLevel);
+            const Lod::TileBounds& bounds = state.mStates[i].mBounds;
+            item.mPriority = static_cast<float>(Lod::distanceToTile(selection, bounds));
+            // The live objects page only within the paging range: past it nothing draws the cells if the cluster
+            // goes, so it is never freed to make room (task 0060 review, finding 2).
+            item.mReplaceable = Lod::squareWithinRange(
+                camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
         }
         Lod::ResidencyParams params;
         params.mBudgetBytes = setup.mResidentBudgetBytes;
         params.mKeepFrames = 0; // a cluster that is not wanted keeps nothing: re-reading is the price of coming back
         params.mMaxLoadsInFlight = static_cast<std::uint32_t>(maxLoadsInFlight);
         params.mMaxLoadsPerCall = static_cast<std::uint32_t>(maxLoadsInFlight);
+        // Without a budget the loads start in index order, as before the planner.
+        params.mNearestFirst = setup.mResidentBudgetBytes > 0;
         Lod::planResidency(state.mItems, params, state.mPlan);
         state.mStats.mBlocked = state.mPlan.mBlocked;
         if (state.mPlan.mBlocked > 0 && !state.mLoggedBudget)
         {
             state.mLoggedBudget = true;
-            Log(Debug::Info) << "LOD clusters: the memory budget of " << (setup.mResidentBudgetBytes >> 20)
-                             << " MiB is reached; the farther clusters wait or give way to closer ones.";
+            Log(Debug::Info) << "LOD clusters: the memory budget of " << Lod::describeBytes(setup.mResidentBudgetBytes)
+                             << " is reached; the farther clusters wait or give way to closer ones.";
         }
         for (const std::uint32_t index : state.mPlan.mFree)
         {
             Tile& tile = state.mTiles[index];
             if (tile.mWanted)
             {
-                // Freed for a closer cluster (or because the budget shrank): the live objects take its cells back
-                // once the cluster has faded out, and it is not asked for again for a while.
+                // Freed while wanted (for a closer cluster, or the budget shrank): the live objects take its cells
+                // back once it has faded out; it is not wanted again until it is gone, then waits a cooldown.
                 tile.mWanted = false;
-                tile.mSuppressed = evictedFrames;
-                tile.mCooldown = 2 * evictedFrames;
+                tile.mEvicted = true;
             }
-            tile.mFreeWhenHidden = true;
+            // A cluster freed while not wanted is already hidden (otherwise it is pinned): the loop below lets it go.
         }
         for (const std::uint32_t index : state.mPlan.mLoad)
         {
@@ -793,9 +804,16 @@ namespace MWRender
                 draws += tile.mDraws;
                 triangles += tile.mTriangles;
             }
-            if (!tile.mWanted && cover.mFade.mPhase == Lod::FadePhase::Hidden && tile.mFreeWhenHidden)
+            if (!tile.mWanted && cover.mFade.mPhase == Lod::FadePhase::Hidden)
             {
-                tile.mFreeWhenHidden = false;
+                // Gone in the frame it became hidden, as before the planner.
+                if (tile.mEvicted)
+                {
+                    tile.mEvicted = false;
+                    tile.mCooldown = std::max(tile.mCooldown, evictedFrames);
+                }
+                if (tile.mBytes > 0)
+                    tile.mKnownBytes = tile.mBytes;
                 tile.mBytes = 0;
                 if (tile.mNode)
                 {

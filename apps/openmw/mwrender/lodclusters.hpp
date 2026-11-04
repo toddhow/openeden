@@ -59,6 +59,9 @@ namespace MWRender
             double mAspect = 16.0 / 9.0;
             double mViewportHeight = 720;
             double mViewDistance = 7168;
+            /// How far the live objects page (the live view distance): a cluster wholly inside it can give its cells
+            /// back to them, one reaching past it cannot (task 0060).
+            double mPagingRange = 7168;
             /// False in interiors and other worldspaces: every cluster fades out.
             bool mEnabled = true;
         };

@@ -1,6 +1,7 @@
 #include "lodterrain.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -8,6 +9,8 @@
 #include <utility>
 
 #include <vsg/core/Array2D.h>
+#include <vsg/state/BindDescriptorSet.h>
+#include <vsg/state/DescriptorImage.h>
 #include <vsg/state/Sampler.h>
 
 #include <components/debug/debuglog.hpp>
@@ -21,6 +24,11 @@
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compileop.hpp>
 #include <components/vsgutil/readimage.hpp>
+
+namespace Pipeline::Descriptors
+{
+#include <files/shaders/terrain/bindings.glsl>
+}
 
 namespace MWRender
 {
@@ -499,6 +507,51 @@ namespace MWRender
         // Frames before a tile that the residency planner freed for a closer one may be drawn again (about one
         // second); the planner's swap margin keeps two tiles of about the same urgency from trading places (task 0060).
         constexpr int evictedFrames = 60;
+        // Frames during which the builder's cache is pruned after a tile was removed: a removed draw is kept alive by
+        // the compile context's deletion queue for a few frames (vsgUtil::DeletionQueue::sizeForPostFrameAdvance: the
+        // fence ring of 3 plus 1), and the cache entry can go only after it.
+        constexpr int pruneFramesAfterRemove = 8;
+        // What building a tile is expected to hold before one of its level has been built, in bytes; the mean of the
+        // level's built tiles replaces it after the first build. A starting value, not a measurement.
+        constexpr std::uint64_t firstTileEstimate = 256ull * 1024;
+        constexpr std::size_t levelSlots = 8;
+
+        // What one tile's draw holds that is its own, in bytes (task 0060 review, finding 3), read from the draw that
+        // Terrain::Builder::create made: the height, normal and colour images and the blend map (bindings
+        // HEIGHTMAP_BINDING, NORMALMAP_BINDING, COLORMAP_BINDING and BLENDMAP_BINDING of the batch's descriptor set),
+        // the one-layer picture array when the tile draws a baked ground picture (LAYER_BINDING; otherwise that binding
+        // is the shared layer array), and the height range grid. The index buffers are shared by every draw of a size
+        // (Builder::indexCache) and are not counted. System memory: the GPU holds a copy of the images as well.
+        std::uint64_t batchResidentBytes(const Terrain::Builder::BatchData& data, bool hasPicture)
+        {
+            std::uint64_t bytes = data.heightRanges ? data.heightRanges->dataSize() : 0;
+            for (const auto& command : data.stateCommands)
+            {
+                const auto* bind = command->cast<vsg::BindDescriptorSet>();
+                if (!bind || !bind->descriptorSet)
+                    continue;
+                for (const auto& descriptor : bind->descriptorSet->descriptors)
+                {
+                    const auto* image = descriptor->cast<vsg::DescriptorImage>();
+                    if (!image)
+                        continue;
+                    const std::uint32_t binding = image->dstBinding;
+                    const bool own = binding == Pipeline::Descriptors::HEIGHTMAP_BINDING
+                        || binding == Pipeline::Descriptors::NORMALMAP_BINDING
+                        || binding == Pipeline::Descriptors::COLORMAP_BINDING
+                        || binding == Pipeline::Descriptors::BLENDMAP_BINDING
+                        || (hasPicture && binding == Pipeline::Descriptors::LAYER_BINDING);
+                    if (!own)
+                        continue;
+                    for (const auto& info : image->imageInfoList)
+                    {
+                        if (info && info->imageView && info->imageView->image && info->imageView->image->data)
+                            bytes += info->imageView->image->data->dataSize();
+                    }
+                }
+            }
+            return bytes;
+        }
     }
 
     struct LodTerrain::State
@@ -557,14 +610,14 @@ namespace MWRender
             mFailed.assign(count, false);
             mCooldown.assign(count, 0);
             mDrawBytes.assign(count, 0);
+            mHasPicture.assign(count, false);
+            mReleases.assign(count, 0);
             for (std::size_t i = 0; i < count; ++i)
             {
                 const Lod::TerrainTile& tile = mLoaded.mTiles[i].mData;
-                // What its draw will hold, for the planner, and what the tile's data holds once read.
-                const std::uint64_t picture = useAlbedo && tile.mHasAlbedo
-                    ? static_cast<std::uint64_t>(tile.mAlbedoWidth) * tile.mAlbedoHeight * 4
-                    : 0;
-                mDrawBytes[i] = Lod::tileDrawResidentBytes(tile.mGridSize, picture);
+                // Whether its draw carries its own picture (Storage::getDiffuseOverride), and what the tile's data
+                // holds once read. What the draw holds is read from the draw once it is built (batchResidentBytes).
+                mHasPicture[i] = useAlbedo && tile.mHasAlbedo;
                 mStats.mTileDataBytes
                     += tile.mHeights.size() * sizeof(std::uint16_t) + tile.mNormals.size() + tile.mAlbedo.size();
                 Lod::TileBounds& bounds = mStates[i].mBounds;
@@ -587,8 +640,11 @@ namespace MWRender
                              << mSetup.mThreshold << " px, "
                              << (useAlbedo ? "baked ground pictures from level 2 up"
                                            : "live layers (terrain maps are on)")
-                             << "; " << (mStats.mTileDataBytes >> 20) << " MiB of tile data held, a budget of "
-                             << (mSetup.mResidentBudgetBytes >> 20) << " MiB for the drawn tiles.";
+                             << "; " << Lod::describeBytes(mStats.mTileDataBytes) << " of tile data held, "
+                             << (mSetup.mResidentBudgetBytes > 0
+                                        ? "a budget of " + Lod::describeBytes(mSetup.mResidentBudgetBytes)
+                                        : std::string("no budget"))
+                             << " for the drawn tiles.";
         }
 
         Terrain::Bounds boundsOf(std::size_t index) const
@@ -614,9 +670,24 @@ namespace MWRender
                 return false;
             mRoot->addChild(batch.root);
             mNodes[index] = batch.root;
+            // What this draw holds, for the planner; the level's mean becomes the estimate of tiles not built yet.
+            const std::uint64_t bytes = batchResidentBytes(batch.data, mHasPicture[index]);
+            mDrawBytes[index] = bytes;
+            const std::size_t slot = std::min<std::size_t>(mLoaded.mTiles[index].mId.mLevel, levelSlots - 1);
+            mLevelBytes[slot] += bytes;
+            ++mLevelCount[slot];
             mBatches[index] = std::move(batch);
             mFlags[index] = 0;
             return true;
+        }
+
+        // What building the tile is expected to hold: what it held when it was built before, else the level's mean.
+        std::uint64_t estimateBytes(std::size_t index) const
+        {
+            if (mDrawBytes[index] > 0)
+                return mDrawBytes[index];
+            const std::size_t slot = std::min<std::size_t>(mLoaded.mTiles[index].mId.mLevel, levelSlots - 1);
+            return mLevelCount[slot] > 0 ? mLevelBytes[slot] / mLevelCount[slot] : firstTileEstimate;
         }
 
         void remove(std::size_t index)
@@ -627,6 +698,9 @@ namespace MWRender
             auto& children = mRoot->children;
             children.erase(std::remove(children.begin(), children.end(), node), children.end());
             mSetup.mCompile->detach(node);
+            // The builder's cache still holds the draw's images (Terrain::Builder::dataCache): prune it once the
+            // detached draw has really gone, so that a freed tile frees its memory (task 0060 review, finding 3).
+            mPruneFrames = pruneFramesAfterRemove;
         }
 
         // Is the tile that covers this one drawn (so that this one may go without a hole)?
@@ -720,7 +794,12 @@ namespace MWRender
         std::vector<bool> mFailed;
         // The residency planner (task 0060): its input and output are reused every frame.
         std::vector<int> mCooldown; // frames before a tile the planner freed may be drawn again
-        std::vector<std::uint64_t> mDrawBytes; // what each tile's draw holds (Lod::tileDrawResidentBytes)
+        std::vector<std::uint64_t> mDrawBytes; // what each tile's draw held when last built (batchResidentBytes); 0: never
+        std::vector<bool> mHasPicture; // the draw carries its own ground picture
+        std::vector<std::uint64_t> mReleases; // per frame: bytes of drawn tiles that go once this one is drawn
+        std::array<std::uint64_t, levelSlots> mLevelBytes{}; // sum of the bytes of the tiles built, per level
+        std::array<std::uint32_t, levelSlots> mLevelCount{};
+        int mPruneFrames = 0;
         std::vector<Lod::ResidencyItem> mItems;
         Lod::ResidencyPlan mResidencyPlan;
         bool mLoggedBudget = false;
@@ -782,12 +861,35 @@ namespace MWRender
             = Lod::selectTileTree(state.mStates, state.mParents, selection, state.mSetup.mThreshold);
 
         bool changed = false;
-        // The residency planner decides which draws are built and which are freed (task 0060). A tile the selection
-        // wants is built nearest first and within the memory budget; a tile that has to go waits until what replaces
-        // it is drawn (it is pinned); a drawn tile the budget cannot keep leaves its square to the live terrain, which
-        // is always there, so no frame has a hole.
+        // The residency planner decides which draws are built, and which wanted draws are freed for room (task 0060).
+        // A tile the selection wants is built (by index with no budget, as before the planner; nearest first with
+        // one) within the memory budget. A drawn tile the selection no longer wants is the business of the removal
+        // loop below, exactly as before the planner: it waits until what replaces it is drawn, so to the planner it
+        // is pinned. A wanted tile the budget cannot keep is freed only inside the live paging range, where the live
+        // terrain draws its square: past it a freed tile would leave a hole, so it is not replaceable.
         const std::size_t tileCount = state.mStates.size();
+        const std::uint64_t budget = state.mSetup.mResidentBudgetBytes;
         state.mItems.resize(tileCount);
+        if (budget > 0)
+        {
+            // What drawing a tile lets go: the drawn tiles under it that its selection no longer chooses.
+            std::fill(state.mReleases.begin(), state.mReleases.end(), 0);
+            for (std::size_t j = 0; j < tileCount; ++j)
+            {
+                if (!state.mNodes[j] || state.mStates[j].mChoice == Lod::TileChoice::Tile)
+                    continue;
+                for (std::int32_t p = state.mParents[j]; p >= 0; p = state.mParents[static_cast<std::size_t>(p)])
+                {
+                    const auto parent = static_cast<std::size_t>(p);
+                    if (state.mStates[parent].mChoice == Lod::TileChoice::Tile)
+                    {
+                        if (!state.mNodes[parent])
+                            state.mReleases[parent] += state.mDrawBytes[j];
+                        break;
+                    }
+                }
+            }
+        }
         for (std::size_t i = 0; i < tileCount; ++i)
         {
             const Lod::TileState& tile = state.mStates[i];
@@ -801,29 +903,35 @@ namespace MWRender
             // A drawn tile stays wanted while the selection chooses it, seen or not; one that is not drawn is wanted
             // only when it is in view.
             item.mWanted = chosen && state.mCooldown[i] == 0 && (held || tile.mVisible);
-            item.mPinned = held && !item.mWanted && tile.mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i);
+            item.mPinned = held && !item.mWanted;
             item.mCooldown = state.mCooldown[i];
-            item.mBytes = state.mDrawBytes[i];
+            item.mBytes = held ? state.mDrawBytes[i] : state.estimateBytes(i);
+            item.mReleasesBytes = budget > 0 ? state.mReleases[i] : 0;
             item.mPriority = static_cast<float>(Lod::distanceToTile(selection, tile.mBounds));
+            item.mReplaceable = Lod::squareWithinRange(camera.mEye.x, camera.mEye.y, tile.mBounds.mOriginX,
+                tile.mBounds.mOriginY, tile.mBounds.mSide, camera.mPagingRange);
         }
         Lod::ResidencyParams params;
-        params.mBudgetBytes = state.mSetup.mResidentBudgetBytes;
+        params.mBudgetBytes = budget;
         params.mKeepFrames = 0;
         params.mMaxLoadsInFlight = static_cast<std::uint32_t>(maxBuildsPerFrame);
         params.mMaxLoadsPerCall = static_cast<std::uint32_t>(maxBuildsPerFrame);
+        params.mNearestFirst = budget > 0;
         Lod::planResidency(state.mItems, params, state.mResidencyPlan);
         const Lod::ResidencyPlan& plan = state.mResidencyPlan;
         state.mStats.mBlocked = plan.mBlocked;
         if (plan.mBlocked > 0 && !state.mLoggedBudget)
         {
             state.mLoggedBudget = true;
-            Log(Debug::Info) << "World LOD tiles: the memory budget of " << (state.mSetup.mResidentBudgetBytes >> 20)
-                             << " MiB is reached; the farther tiles use the live terrain.";
+            Log(Debug::Info) << "World LOD tiles: the memory budget of " << Lod::describeBytes(budget)
+                             << " is reached; the farther tiles use the live terrain.";
         }
         for (const std::uint32_t index : plan.mFree)
         {
-            if (state.mStates[index].mChoice == Lod::TileChoice::Tile)
-                state.mCooldown[index] = 2 * evictedFrames; // freed while still chosen: not drawn again for a while
+            if (!state.mNodes[index])
+                continue;
+            // Freed while still chosen: the live terrain draws its square, and it is not drawn again for a while.
+            state.mCooldown[index] = 2 * evictedFrames;
             state.remove(index);
             changed = true;
         }
@@ -837,7 +945,29 @@ namespace MWRender
                 Log(Debug::Warning) << "World LOD tile " << index << " could not be compiled; the live terrain stays.";
             }
         }
-        state.mStats.mHeldBytes = plan.mHeldAfter;
+        // Then the tiles that are no longer wanted, after the builds, as before the planner: a tile whose drawn
+        // ancestor was built this frame goes in the same frame (no frame draws a parent over its children).
+        for (std::size_t i = 0; i < tileCount; ++i)
+        {
+            if (!state.mNodes[i] || state.mStates[i].mChoice == Lod::TileChoice::Tile)
+                continue;
+            if (state.mStates[i].mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i))
+                continue;
+            state.remove(i);
+            changed = true;
+        }
+        if (state.mPruneFrames > 0)
+        {
+            --state.mPruneFrames;
+            state.mBuilder->pruneCache();
+        }
+        std::uint64_t heldBytes = 0;
+        for (std::size_t i = 0; i < tileCount; ++i)
+        {
+            if (state.mNodes[i])
+                heldBytes += state.mDrawBytes[i];
+        }
+        state.mStats.mHeldBytes = heldBytes;
         if (changed)
         {
             state.rebuildCoverage();
