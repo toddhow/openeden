@@ -66,6 +66,15 @@ namespace Settings
         SettingValue<bool> mSss{ mIndex, "Rendering", "sss" };
         SettingValue<float> mSssStrength{ mIndex, "Rendering", "sss strength", makeClampSanitizerFloat(0, 1) };
         SettingValue<float> mSssWidth{ mIndex, "Rendering", "sss width", makeClampSanitizerFloat(0.1f, 10) };
+        // Task 0075: temporal anti-aliasing. Read at start; needs hdr, gbuffer and a single-sampled scene. The history
+        // weight is the share of the previous frame in the resolved colour; clipping is "variance" or "minmax"; debug
+        // is "none", "weight", "reject" or "velocity".
+        SettingValue<bool> mTaa{ mIndex, "Rendering", "taa" };
+        SettingValue<float> mTaaSharpness{ mIndex, "Rendering", "taa sharpness", makeClampSanitizerFloat(0, 1) };
+        SettingValue<float> mTaaJitterScale{ mIndex, "Rendering", "taa jitter scale", makeClampSanitizerFloat(0, 1) };
+        SettingValue<float> mTaaHistory{ mIndex, "Rendering", "taa history", makeClampSanitizerFloat(0.5f, 0.98f) };
+        SettingValue<std::string> mTaaClipping{ mIndex, "Rendering", "taa clipping" };
+        SettingValue<std::string> mTaaDebug{ mIndex, "Rendering", "taa debug" };
         SettingValue<bool> mAtmosphere{ mIndex, "Rendering", "atmosphere" };
         SettingValue<std::string> mAtmosphereLook{ mIndex, "Rendering", "atmosphere look" };
         // Decision 0010 answer 4: the atmosphere's sun height follows the hour of the colour tables, not the drawn sun.
