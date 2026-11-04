@@ -3,6 +3,7 @@
 #include <components/misc/mathutil.hpp>
 #include <components/vsgutil/convert.hpp>
 
+#include "batchindex.hpp"
 #include "builder.hpp"
 #include "lod.hpp"
 #include "storage.hpp"
@@ -37,8 +38,8 @@ namespace Terrain
         ViewData& view = static_cast<ViewData&>(v);
 
         int batchSize = getBatchSize(referenceViewDistance / mStorage->cellWorldSize);
-        int x = std::floor(cell.x / batchSize);
-        int y = std::floor(cell.y / batchSize);
+        int x = batchIndex(cell.x, batchSize);
+        int y = batchIndex(cell.y, batchSize);
         Bounds batchBounds{ static_cast<float>(batchSize), vsg::vec2(x * batchSize, y * batchSize) };
         auto batch = mBuilder->createBatch(batchBounds, 0);
         Bounds drawBounds{ 1.f, vsg::vec2(cell) };

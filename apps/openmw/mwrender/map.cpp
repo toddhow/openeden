@@ -552,7 +552,9 @@ namespace MWRender
             = mTerrain->updateViewForCell(*viewData->terrainView, vsg::ivec2(x, y), mReferenceViewDistance))
         {
             compileOp->compile();
-            viewData->sceneChildren.push_back(viewData->terrainView->node());
+            // The map view has no bins: children draw in order. The water in mSceneGraph is blended and writes no
+            // depth, so the opaque terrain goes first; drawn after it, the terrain covered the sea (task 0073).
+            viewData->sceneChildren.insert(viewData->sceneChildren.begin(), viewData->terrainView->node());
         }
 
         segment.needUpdate = false;
