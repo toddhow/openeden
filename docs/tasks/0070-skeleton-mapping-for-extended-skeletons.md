@@ -263,3 +263,67 @@ skeleton or mesh); automatic acceptance of suggestions.
 10. toddhow's installed set, which stage a measures (read-only, aggregates only): Skyrim: CBBE 3BBB (female body), XP32 Maximum Skeleton Special Extended (XPMSSE), Himbo (male body) with The New Gentleman (TNG, genitalia); Fallout 4: Fusion Girl (female body), ZAZ Extended skeleton, BodyTalk 3 (male body), which use the same skeletons as above. Both games are later compatibility packs, which the project guide lists as "not yet"; their maps are prepared as data and tested on synthetic skeletons plus the read-only measurement, with no engine support for those games yet.
 11. Yes: tier-1 proportions first, inverse-bind correction as the fallback.
 12. Yes: the design doc's stage table is stale and gets renumbered (the edit waits until the agent working on 0069 has finished).
+
+## Stage log
+
+### Stages b, c and d, 2026-11-04 (synthetic data only; no game or mod data was read)
+
+Built in `components/body` (target `eden_body`), no engine code:
+
+- **Stage b, the format** (`skeletonmap.*`): `openeden.skeletonmap` v1 types, reader (pre-scan of size, nesting and object,
+  array and value counts before anything is parsed; located errors; never throws), canonical writer (byte for byte round
+  trip), `skeletonDigest` (BLAKE3 of the sorted records, rest values as float bits, order independent), the validator with
+  rules `BODY-MAP-001` to `019` (the map) and `020` to `023` (the source skeleton), the canonical role table (17 core roles
+  plus the optional ones of toddhow's answer 5: clavicles, `Spine2`, toes, 30 finger roles, `Tail1` to `Tail8`). The optional
+  roles live in this table only: CreativeMotion's `opas.skeletonprofile` v1 is untouched (it is another agent's area; its v2
+  is stage e's business).
+- **Stage c, the suggestion engine** (`skeletonsuggest.*`): `suggestSkeletonMap`, `acceptAllSuggestions`, `boneNameTokens`;
+  roles by the pack's table (native name, normalised name, aliases) then by name tokens; extras by name votes (high or medium),
+  falling back to weight, hierarchy or rest votes only when no name vote exists; equal top votes that disagree make an
+  `ask` entry. Output order is (depth, normalised name, name): reordering the source bones does not change a byte.
+- **Stage d, the maths** (`skeletonmapping.*`, `bodyinfluences.*`): `buildMapping` (the consumer API that refuses an invalid,
+  stale or unaccepted map; `BuildOptions::mAcceptAllSuggestions` is the explicit act and never accepts an `ask`),
+  `SkeletonMapping::remapTable` (an error names every skin bone without a rule), `remapVertex` (direct, split by rest
+  distance, dropped with a fallback so no mass is lost; then the shared rules), row-vector `Mat4` helpers,
+  `correctedInverseBind`, `compareRest`, `planRest`. The weight rules (`normalisedWeights`, `cutToFourWeights`) were MOVED
+  from `bodymerge.cpp` into `bodyinfluences.*` and the merger now calls them (spec recommendation: one implementation); the
+  code is the same, a `static_assert` ties the two influence counts.
+
+**Tests.** 186 new tests in `apps/components_tests/body/` (`testskeletonmap.cpp` 54, `testskeletonsuggest.cpp` 89 of which 59
+table cases, `testskeletonmapping.cpp` 39, and the 4 `BodyInfluences` tests inside it), written before the code on synthetic
+skeletons built in the tests. Whole `components-tests` on Windows: 5235 tests, 5231 passed, none failed (4 skipped, not mine).
+The merger's own tests (`BodyMerge*`) pass unchanged after the move.
+
+**Red run.** Against stubs: 186 tests, 173 failed, 13 passed. The 13 that pass against a stub are tests whose correct answer
+is an empty or refused result (a missing file, an unaccepted map, a singular matrix, a clean source skeleton against a stub
+validator, determinism of an empty result), and 3 of the 4 `BodyInfluences` tests, which characterise code that already
+existed (they could not be red). The 4th `BodyInfluences` test failed because my expected value assumed a negative weight is
+dropped before the sum, which the moved function does not do; the test was corrected to the function's real contract (inputs
+are never negative: the remap filters them before calling it).
+
+**Mutation checks** (a deliberate bug, one build, tests run, bug removed): swapped distribute fractions caught by
+`a_distribute_fold_splits_by_rest_distance_and_the_closer_bone_gets_more`; no lower-casing in `normalisedBoneName` caught by
+`normalisation_follows_the_stated_rule`; "top votes always agree" caught by 4 ask-entry tests; dropping the `isfinite` filter
+in `remapVertex` was NOT caught at first (an equivalent mutant for NaN, since `NaN > 0` is false; only +infinity gets through),
+so an infinite weight was added to `non_finite_negative_and_zero_weights_count_as_nothing`, which then caught it.
+
+**Errors in my own tests found by the first green run (not implementation bugs):** the missing-`accepted` test cut 17
+characters of an 18 character text and so produced a syntax error; a world-matrix test forgot the upper arm's 0.10 in the
+expected height (1.35, not 1.25). Both corrected after seeing the failures; stated here because the expected values were
+changed after the first run.
+
+**Deviations from the spec.**
+- No separate test-writer (a fork cannot start one): the tests were written by the implementing agent before the code, and a
+  fresh reviewer is still to come.
+- The "allocation cap" test of stage b is not built: the guarantee is by construction (the pre-scan refuses before the parser
+  runs) and is asserted by the hostile fixtures (size, depth, object count) checking the pre-scan's own messages.
+- The target "at least 90 percent of extra bones with medium or higher confidence on the user's data" is not evaluated: it
+  needs stage a's measurement. The heuristics' vocabulary is written from research note 0033 and general knowledge, not
+  verified against real skeletons.
+- A secondary bone's `parent` in this implementation may be a role name, a role bone's source name or another secondary
+  bone; an attach bone cannot be a parent (BODY-MAP-010).
+
+**Not verified.** The files have been built with MSVC only: no GCC `-Werror -Wshadow` build, no clang-tidy, no Linux gate.
+`openmw-tests` was not run (nothing there changed); the real-data bake of task 0069 was not repeated after the move of the
+weight rules (the code is the same and the merger tests pass, but byte identity of the cache on real data is not re-proved).
+Stage e (the engine path) and everything after it are not started.

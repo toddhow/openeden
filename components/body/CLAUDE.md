@@ -124,3 +124,36 @@ A pure, game-agnostic library: `mergeParts` (parts plus declared seams to one we
 - **Package format:** `meshFormat "bodymesh"` and the `weldGroups` part (rules `BODY-WELD-001` to `007`). The weld
   groups of a merged body list the output vertices that sit at one place and must move together under a morph.
 - **No game data** in any test: the synthetic quads of `testbodymesh.cpp` only.
+
+## The skeleton mapping (task 0070, stages b to d: `skeletonmap.*`, `skeletonsuggest.*`, `skeletonmapping.*`, `bodyinfluences.*`)
+
+Body replacers come with extended skeletons; OpenEden never adopts them. A `*.skeletonmap.json` (`openeden.skeletonmap` v1)
+says for every source bone either "this is role X of OUR canonical skeleton" or what to do with it. Compatibility packs ship
+their game's map; for a skeleton without one the suggestion engine writes a map a person must accept.
+
+- **Refusal is the rule.** `buildMapping` returns nothing for a map that is invalid, built for another skeleton (digest or
+  bone count), or has an extra entry that is not accepted or says `ask`. `BuildOptions::mAcceptAllSuggestions` is the explicit
+  "accept all": it accepts unaccepted entries that have an action and never an `ask`. A refusal means the stock body is drawn
+  (D7); partial maps are never applied.
+- **Suggestions are suggestions.** `suggestSkeletonMap` writes `accepted: false` everywhere and never decides an ambiguity:
+  equal top votes that disagree, and a bone nothing votes on, become `ask`. Weight, hierarchy and rest votes are fallbacks that
+  only vote when no name vote exists. The vocabulary (stems, attach points, face and finger rules) is in the header comment;
+  a stem of four or more characters matches by prefix, a shorter one only exactly.
+- **Roles.** `canonicalRoles()` is the one table (17 core roles in the profile's order, then the optional ones). A pack's role
+  table (`RoleBinding`: role, native bone, aliases) resolves roles first; name tokens resolve the rest (the pack's table
+  decides which roles exist; with no table only the core roles, clavicles, `Spine2` and toes are tried).
+- **Limits** (`SkeletonMapLimits`): 1 MiB, 1024 bones, 128-byte names, depth 64, 16 aliases per role, JSON nesting 6; the
+  reader's pre-scan also caps objects, arrays and commas before any value is built. The validator caps its findings at 64 per
+  rule.
+- **The remap** is `remapVertex`: direct, split (the closer target gets the larger share by source rest distance), dropped
+  (discarded and renormalised; a vertex left with nothing takes weight 1 on the heaviest dropped bone's nearest mapped
+  ancestor); influences that are NaN, infinite, negative or zero are ignored; then `normalisedWeights` and `cutToFourWeights`
+  (`bodyinfluences.*`, shared with `bodymerge.cpp`: change them and BOTH change, which is the point).
+- **Matrices are row-vector** (`p * M`, world = local * parentWorld, skin = inverseBind * boneWorld). The inverse-bind
+  correction `inverseBind * sourceWorldRest * inverse(canonicalWorldRest)` keeps rest vertex positions when the actor's rest
+  pose differs from the one a mesh was skinned for; a test shows the uncorrected error (more than 1e-2) and the corrected one
+  (under 1e-4).
+- **Pitfall: `quoted(...)` is ambiguous.** A local helper named `quoted` taking a `std::string_view` or `std::string` collides
+  with `std::quoted` through argument-dependent lookup on MSVC (error C2677); the helpers here are called `shown`.
+- **Test fixtures** (`apps/components_tests/body/skeletonfixtures.hpp`) build every skeleton synthetically; no game or mod data
+  is read, and no real bone names of a mod are used (the vocabulary tests use invented names of the kinds in research note 0033).
