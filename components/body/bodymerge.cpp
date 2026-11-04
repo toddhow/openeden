@@ -1,5 +1,7 @@
 #include "bodymerge.hpp"
 
+#include "bodyinfluences.hpp"
+
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -821,50 +823,21 @@ namespace Body
             std::array<float, maxMergedInfluences> mWeight{};
         };
 
-        /// Adds duplicates, drops zeros and normalises to sum 1. Sorted by bone index.
+        /// Adds duplicates, drops zeros and normalises to sum 1. Sorted by bone index. (The one implementation is
+        /// shared with the skeleton mapping's weight remap, bodyinfluences.hpp.)
         Influences normalised(Influences raw)
         {
-            std::sort(raw.begin(), raw.end());
-            Influences merged;
-            for (const auto& [bone, weight] : raw)
-            {
-                if (!merged.empty() && merged.back().first == bone)
-                    merged.back().second += weight;
-                else
-                    merged.emplace_back(bone, weight);
-            }
-            double sum = 0;
-            for (const auto& entry : merged)
-                sum += entry.second;
-            Influences result;
-            for (const auto& [bone, weight] : merged)
-            {
-                if (weight > 0 && sum > 0)
-                    result.emplace_back(bone, weight / sum);
-            }
-            return result;
+            return normalisedWeights(std::move(raw));
         }
 
         /// The four largest (ties by lower bone index), renormalised to sum 1, largest first.
         FinalInfluence cutToFour(const Influences& weights)
         {
-            Influences sorted = weights;
-            std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
-                if (a.second != b.second)
-                    return a.second > b.second;
-                return a.first < b.first;
-            });
-            if (sorted.size() > maxMergedInfluences)
-                sorted.resize(maxMergedInfluences);
-            double sum = 0;
-            for (const auto& entry : sorted)
-                sum += entry.second;
+            static_assert(maxMergedInfluences == maxSkinInfluences);
+            const CutWeights cut = cutToFourWeights(weights);
             FinalInfluence result;
-            for (std::size_t i = 0; i < sorted.size(); ++i)
-            {
-                result.mBone[i] = sorted[i].first;
-                result.mWeight[i] = static_cast<float>(sum > 0 ? sorted[i].second / sum : 0.0);
-            }
+            result.mBone = cut.mBone;
+            result.mWeight = cut.mWeight;
             return result;
         }
 
