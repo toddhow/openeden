@@ -156,6 +156,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testslangshaders.cpp
 
     render/testaerialmath.cpp
+    render/testwatermath.cpp
     render/testgputiming.cpp
     render/testhdrmath.cpp
     render/testtonemap.cpp

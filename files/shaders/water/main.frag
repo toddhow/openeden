@@ -40,15 +40,49 @@ vec2 normalCoords(vec2 uv, float scale, float speed, float time, float timer1, f
     return uv * waveScale * scale + dir * time * windSpeed * speed -(previousNormal.xy/previousNormal.zz) * waveChoppyness + vec2(time * timer1, time * timer2);
 }
 
+// OpenEden (task 0068): the far fade of the ripples. The normal map is 128 by 128 and its GPU image has one mip level,
+// so where one pixel covers many texels the normal flips from pixel to pixel and the sea speckles. A mip level would
+// average those texels into a flat normal; this does the same by hand, by scaling the sideways part of each octave's
+// normal by 1 / (texels one pixel covers) once that is more than one. It is on only when the far plane is beyond
+// waterFadeFromFar, which is the world LOD's long view (the default view reaches 7168 units): the default view's far water
+// keeps its look. The C++ twin is
+// components/render/watermath.hpp (octaveFade); change both together (a test reads this text back).
+const float bumpMapSize = 128.0;
+const float waterFadeFromFar = 20000.0; // the far plane from which the fade is on; the default view's is 7168 or less
+
+float waterOctaveFade(float texelsPerPixel)
+{
+    return 1.0 / max(1.0, texelsPerPixel);
+}
+
+// The share of the octave `scale` to keep at this pixel; `uv` is the smooth, un-offset ripple coordinate.
+float octaveFade(vec2 uv, float scale)
+{
+    if (scene.zFar < waterFadeFromFar)
+        return 1.0;
+    float texelsPerUnit = waveScale * scale * bumpMapSize;
+    return waterOctaveFade(texelsPerUnit * max(length(dFdx(uv)), length(dFdy(uv))));
+}
+
+vec3 fadeOctave(vec3 normal, float fade)
+{
+    return vec3(normal.xy * fade, normal.z);
+}
+
 vec3 getNormal(vec3 worldPos)
 {
     vec2 uv = worldPos.xy / vec2(13653.0, -13653.0);
     vec2 dir = vec2(1.0,-1.0) * normalize(worldPos.xy + vec2(-20000.0,-69000.0));
     vec3 normal0 = 2.0 * texture(bumpMap, normalCoords(uv, 0.05, 0.04, scene.time, -0.015, -0.005, vec3(0.0,0.0,0.0), windDir)).rgb - 1.0;
+    normal0 = fadeOctave(normal0, octaveFade(uv, 0.05));
     vec3 normal1a = 2.0 * texture(bumpMap, normalCoords(uv, 0.02,  0.05, 0.1 * scene.time, 0.0, 0.0, normal0, windDir * 1.0)).rgb - 1.0;
+    normal1a = fadeOctave(normal1a, octaveFade(uv, 0.02));
     vec3 normal1 = 2.0 * texture(bumpMap, normalCoords(uv, 0.001,  0.01, 0.0001 * scene.time, 0.0, 0.0, normal1a * 1.0, 0.1 * dir)).rgb - 1.0;
+    normal1 = fadeOctave(normal1, octaveFade(uv, 0.001));
     vec3 normal2 = 2.0 * texture(bumpMap, normalCoords(uv, 0.25, 0.01, scene.time, -0.04, -0.03, normal1,windDir)).rgb - 1.0;
+    normal2 = fadeOctave(normal2, octaveFade(uv, 0.25));
     vec3 normal3 = 2.0 * texture(bumpMap, normalCoords(uv, 0.5,  0.09, scene.time, 0.03, 0.04, normal2,windDir)).rgb - 1.0;
+    normal3 = fadeOctave(normal3, octaveFade(uv, 0.5));
 
     vec3 rainRipple = vec3(0);
     if (scene.rainIntensity > 0.01)
@@ -105,7 +139,13 @@ void main()
 
         float refractDepth = texture(reflectDepthMap, refracted.xy).r;
         vec4 refractedPos = screenCoordToViewPos(refracted.xy, refractDepth, scene.invProjection);
-        vec3 refraction = texture(reflectMap, refracted.xy).xyz;
+        // OpenEden (task 0068): the depth above is read at one texel and the colour is filtered, so at the edge of the
+        // seabed (where a depth jump separates it from the empty sea beyond) the colour mixes in the far side's. The
+        // long view reads the colour at the same texel, as the depth is.
+        vec3 refraction = scene.zFar < waterFadeFromFar
+            ? texture(reflectMap, refracted.xy).xyz
+            : texelFetch(reflectMap, clamp(ivec2(refracted.xy * vec2(textureSize(reflectMap, 0))), ivec2(0),
+                                           textureSize(reflectMap, 0) - ivec2(1)), 0).xyz;
 
         float waterDepth = length(frag_in.viewPos - refractedPos.xyz);
         float surfaceDepth = viewLength;
