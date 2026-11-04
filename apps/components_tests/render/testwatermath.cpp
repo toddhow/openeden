@@ -69,4 +69,38 @@ namespace
         EXPECT_NE(text.find("float waterOctaveFade(float texelsPerPixel)"), std::string::npos);
         EXPECT_TRUE(std::regex_search(text, std::regex(R"(1\.0\s*/\s*max\(\s*1\.0\s*,\s*texelsPerPixel\s*\))")));
     }
+
+    std::string readShaderText(const std::string& name)
+    {
+        std::ifstream file(std::string(OPENEDEN_SHADER_SOURCE_DIR) + "/" + name);
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
+    }
+
+    // The value of `name` in a line such as "const float name = 128.0;" (GLSL) or "static const float name = 128.0;"
+    // (Slang), or an empty string.
+    std::string constantValue(const std::string& text, const std::string& name)
+    {
+        std::smatch match;
+        if (std::regex_search(text, match, std::regex("float " + name + R"(\s*=\s*([0-9.]+))")))
+            return match[1].str();
+        return {};
+    }
+
+    // Task 0072 (water family): the Slang twin repeats the rule and its constants exactly as the GLSL has them.
+    TEST(WaterOctaveFade, TheSlangTwinRepeatsTheSameRuleAndConstants)
+    {
+        const std::string glsl = readShaderText("water/main.frag");
+        const std::string slang = readShaderText("water/water.frag.slang");
+        ASSERT_FALSE(slang.empty()) << "water/water.frag.slang not found";
+        EXPECT_NE(slang.find("float waterOctaveFade(float texelsPerPixel)"), std::string::npos);
+        EXPECT_TRUE(std::regex_search(slang, std::regex(R"(1\.0\s*/\s*max\(\s*1\.0\s*,\s*texelsPerPixel\s*\))")));
+        for (const char* name : { "bumpMapSize", "waterFadeFromFar", "waveScale", "shininess" })
+        {
+            SCOPED_TRACE(name);
+            EXPECT_FALSE(constantValue(glsl, name).empty());
+            EXPECT_EQ(constantValue(slang, name), constantValue(glsl, name));
+        }
+    }
 }

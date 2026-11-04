@@ -11,6 +11,7 @@
 #include <vsg/all.h>
 #include <vsg/io/glsl.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -59,8 +60,26 @@ namespace
             return {};
         std::vector<std::string> defines;
         std::istringstream names(canonicalDefines);
+        std::string settingsDefines;
+        const auto settingsNames = Resource::settingsDefineNames();
         for (std::string name; names >> name;)
-            defines.push_back(name);
+        {
+            // Task 0072 (water family): a name of Resource::settingsDefineNames() is a "#define <name> 1" line of a
+            // settings file (shadow.settings), which these default settings never write; put the line in the source,
+            // as the game's settings file would, so the GLSL is compiled as the game compiles it for this set.
+            if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
+                settingsDefines += "#define " + name + " 1\n";
+            else
+                defines.push_back(name);
+        }
+        if (!settingsDefines.empty())
+        {
+            stage->module = vsg::ShaderModule::create(*stage->module);
+            std::string& source = stage->module->source;
+            const std::size_t version = source.find("#version");
+            const std::size_t at = version == std::string::npos ? 0 : source.find('\n', version) + 1;
+            source.insert(at, settingsDefines);
+        }
         vsg::ShaderStages stages{ stage };
         if (!vsg::ShaderCompiler::create()->compile(stages, defines, options))
             return {};
@@ -148,7 +167,8 @@ namespace
             "comp/particle/simulate.comp", "comp/worldoverlay/update.comp", "gui/gui.frag", "gui/gui.vert",
             "sky/atmosphere/main.frag", "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert",
             "sky/moon/main.frag", "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert",
-            "sky/sun/main.frag", "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert" };
+            "sky/sun/main.frag", "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert",
+            "water/main.frag", "water/main.vert" };
         return stages;
     }
 

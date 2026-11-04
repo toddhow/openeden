@@ -1,0 +1,56 @@
+# The lines the Slang twin of water/main.frag may declare differently from the GLSL (task 0072, water family), read by
+# SlangPermutations in components-tests: "[<define set>] glsl-only: <line>"; every listed line must occur, so a stale
+# entry fails the test. All of them are declarations the GLSL keeps and never reads (glslang keeps unused
+# declarations, Slang drops them); a pipeline layout may hold bindings and a vertex stage may write outputs a shader
+# does not read, so nothing the pipeline builds changes.
+#
+# For every set:
+# - bindings 14 and 15, the volumetric fog's image and parameters (lib/view/volume.glsl through lib/view/fog.glsl): the
+#   water calls applyFog(colour, distance), which never reads the volume;
+# - input location 1, pointLightDiffuse of lib/inout.glsl: the water's fragment stage never reads it.
+# With CLOUD_SHADOW_DEBUG, also bindings 6 and 7, the shadow map and its sampler: shadow() then returns the clouds'
+# shadow alone and never samples the shadow maps.
+[BUMP_MAP] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP] glsl-only: in location=1 vec3f32
+[BUMP_MAP DEBUG_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP DEBUG_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP DEBUG_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG] glsl-only: descriptor set=0 binding=7 sampler
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW] glsl-only: descriptor set=0 binding=7 sampler
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=7 sampler
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+[BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=7 sampler

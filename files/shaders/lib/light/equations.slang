@@ -35,20 +35,35 @@ float attenuate(float intensity, float distance)
     {
         float r = intensity * LightAttenuation_LinearRadiusMult;
         float attenuation = LightAttenuation_LinearValue;
-        if (LightAttenuation_LinearMethod == 1)
-            attenuation /= r;
-        if (LightAttenuation_LinearMethod == 2)
-            attenuation /= r * r;
+        // Task 0072 (water): a switch on the constant, not a comparison with it (an OpSpecConstantOp).
+        switch (LightAttenuation_LinearMethod)
+        {
+            case 1:
+                attenuation /= r;
+                break;
+            case 2:
+                attenuation /= r * r;
+                break;
+            default:
+                break;
+        }
         value += attenuation * distance;
     }
     if (LightAttenuation_UseQuadratic)
     {
         float r = intensity * LightAttenuation_QuadraticRadiusMult;
         float attenuation = LightAttenuation_QuadraticValue;
-        if (LightAttenuation_QuadraticMethod == 1)
-            attenuation /= r;
-        if (LightAttenuation_QuadraticMethod == 2)
-            attenuation /= r * r;
+        switch (LightAttenuation_QuadraticMethod)
+        {
+            case 1:
+                attenuation /= r;
+                break;
+            case 2:
+                attenuation /= r * r;
+                break;
+            default:
+                break;
+        }
         value += attenuation * distance * distance;
     }
     float illumination = clamp(1.0 / value, 0.0, 1.0);

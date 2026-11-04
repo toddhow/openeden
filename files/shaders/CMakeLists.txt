@@ -344,6 +344,13 @@ openeden_add_slang_permutations(SOURCE comp/light/assign.slang STAGE_FILE comp/l
 openeden_add_slang_permutations(SOURCE comp/particle/simulate.slang STAGE_FILE comp/particle/simulate.comp
     ENTRY simulateMain STAGE compute DEFINE_SETS -)
 
+# The water (task 0072, water family). Its vertex stage has no defines; its fragment stage imports BUMP_MAP and
+# includes shadow.settings, whose "#define" lines join the set (water/main.frag.sets lists every combination).
+openeden_add_slang_permutations(
+    SOURCE water/water.vert.slang STAGE_FILE water/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE water/water.frag.slang STAGE_FILE water/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS_FILE water/main.frag.sets)
+
 # Task 0072 (review of stages b and c): after every family is declared, remove the manifest and files of any stage that
 # is no longer declared (a family removed or renamed would otherwise stay in the resources, be installed, be chosen
 # with the switch on and be tested), and write slang-permutation-stages.txt, the declared stages one per line, which

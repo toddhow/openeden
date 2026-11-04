@@ -1,0 +1,17 @@
+# The define sets of water/main.frag with a Slang twin (task 0072, water family): what the GLSL compiles with. The
+# water's pipeline asks for BUMP_MAP only (apps/openmw/mwrender/water.cpp), which the stage imports; the rest are the
+# "#define" lines of shadow.settings (lib/view/shadow.glsl), set by the settings: CLOUD_SHADOW (cloud shadows, with hdr
+# and atmosphere), CLOUD_SHADOW_DEBUG (only with CLOUD_SHADOW), VOLUME_CLOUD_SHADOW (volumetric clouds and their
+# shadows) and DEBUG_SHADOW (the shadows' debug hud). Every combination is listed: 3 x 2 x 2.
+BUMP_MAP
+BUMP_MAP DEBUG_SHADOW
+BUMP_MAP VOLUME_CLOUD_SHADOW
+BUMP_MAP DEBUG_SHADOW VOLUME_CLOUD_SHADOW
+BUMP_MAP CLOUD_SHADOW
+BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW
+BUMP_MAP CLOUD_SHADOW VOLUME_CLOUD_SHADOW
+BUMP_MAP CLOUD_SHADOW DEBUG_SHADOW VOLUME_CLOUD_SHADOW
+BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG
+BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW
+BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW
+BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW
