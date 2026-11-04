@@ -824,7 +824,7 @@ namespace MWRender
         // Task 0074e (finding 3 of the review of 0074d): update() runs on an UpdateThreads worker for every actor but
         // the player (Scene::update, MWRender::Scene::Cell::Update::run), where nothing may be compiled or the scene
         // graph edited. A pending quiver change (mQuiverDirty, set by show()) is done on the main thread by
-        // updatePendingQuiver: Scene::update after the workers have finished, Player::update.
+        // updatePendingQuiver: Scene::update after the workers have finished, Player::update, Preview::animate.
         mFace->update(dt);
         Wielding::update(dt);
         // Task 0074b: the parts' own auto-play clocks and the holstered weapon's and shield's, after the object's own

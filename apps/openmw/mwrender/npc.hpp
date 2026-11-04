@@ -107,7 +107,8 @@ namespace MWRender
 
         // The quiver change show() asked for (weapon sheathing), and the compile that follows it. MAIN THREAD ONLY:
         // update() runs on an update worker (task 0074e, finding 3); Scene::update calls this for every actor after
-        // the workers are idle, Player::update for the player.
+        // the workers are idle (through updateOnMainThread), Player::update for the player and Preview::animate for the
+        // inventory doll (task 0074f).
         void updatePendingQuiver();
         // The actor's main-thread step (MWAnim::Object::updateOnMainThread): the pending quiver change.
         void updateOnMainThread() override;
