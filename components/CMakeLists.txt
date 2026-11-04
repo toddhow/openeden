@@ -108,6 +108,11 @@ add_component_dir (lod
     loderror tilekey tileselection terraintile tilepack tilebake texturedecode albedobake objectcluster clusterbuild nifflatten clusterpack clusterfade clusterplan viewlimits
     )
 
+# Skinned body part NIF reading and the seam measurements of the merged legacy body (task 0069, stage a). Depends on nif.
+add_component_dir (bodynif
+    skinnedshape seamanalysis analysisreport
+    )
+
 #<vsgopenmw-code-style>
 # Views terrain.
 # Depends on pipeline.

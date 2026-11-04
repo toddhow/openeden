@@ -4,6 +4,7 @@ set(OPENMW_SOURCES
     skyvisbaker.cpp
     lodterrainbaker.cpp
     lodobjectbaker.cpp
+    bodyanalyser.cpp
     options.cpp
     extensionhost.cpp
     extensionworld.cpp
@@ -22,6 +23,7 @@ set(OPENMW_HEADERS
     skyvisbaker.hpp
     lodterrainbaker.hpp
     lodobjectbaker.hpp
+    bodyanalyser.hpp
     extensionhost.hpp
     extensionworld.hpp
     game.hpp

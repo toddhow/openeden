@@ -102,6 +102,11 @@ namespace OpenMW
             "bake the object clusters of the world LOD into openeden/lod/objects.edenpak (DRAFT layout; needs the game "
             "data; quits when done)");
 
+        addOption("analyse-bodies", bpo::bool_switch()->default_value(false),
+            "measure the stock body parts and the seams between them and write analysis/bodies.json and bodies.txt "
+            "to the folder of --bake-gi-out or the user data folder (read-only; needs the game data; quits when "
+            "done)");
+
         addOption("bake-gi-out", bpo::value<std::string>()->default_value(""),
             "folder the baked probes are written to (default: the user data folder)");
 

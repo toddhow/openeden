@@ -118,9 +118,10 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     args.bakeGiExterior = variables["bake-gi-exterior"].as<std::string>();
     args.bakeLodTerrain = variables["bake-lod-terrain"].as<bool>();
     args.bakeLodObjects = variables["bake-lod-objects"].as<bool>();
-    if (!args.bakeGiExterior.empty() || args.bakeLodTerrain || args.bakeLodObjects)
+    args.analyseBodies = variables["analyse-bodies"].as<bool>();
+    if (!args.bakeGiExterior.empty() || args.bakeLodTerrain || args.bakeLodObjects || args.analyseBodies)
         args.skipMenu = true;
-    MWRender::sLodBakeRun = args.bakeLodTerrain || args.bakeLodObjects;
+    MWRender::sLodBakeRun = args.bakeLodTerrain || args.bakeLodObjects || args.analyseBodies;
     if (!args.bakeGiCell.empty())
     {
         // The baker needs the cell loaded: start in it, without the menu.

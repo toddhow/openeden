@@ -28,6 +28,7 @@
 #include <components/vsgadapters/sdl/window.hpp>
 #include <components/vsgutil/readimage.hpp>
 
+#include "bodyanalyser.hpp"
 #include "lodobjectbaker.hpp"
 #include "lodterrainbaker.hpp"
 #include "mwgui/windowmanagerimp.hpp"
@@ -546,7 +547,15 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             lodObjectBaker = std::make_unique<LodObjectBaker>(out, *mResourceSystem);
         }
-        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &runningFrame,
+        // Task 0069: the stock body analysis (--analyse-bodies), only when asked for.
+        std::unique_ptr<BodyAnalyser> bodyAnalyser;
+        if (args.analyseBodies)
+        {
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            bodyAnalyser = std::make_unique<BodyAnalyser>(out, *mResourceSystem);
+        }
+        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &runningFrame,
                             &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
             auto state = mStateManager->getGameState();
             quit = !state;
@@ -576,6 +585,11 @@ namespace OMW
                     autoQuitFired = true;
                 }
                 if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (bodyAnalyser && bodyAnalyser->update() && !autoQuitFired)
                 {
                     mStateManager->requestQuit();
                     autoQuitFired = true;

@@ -220,6 +220,9 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testtiletree.cpp
     lod/testtilebakelevels.cpp
     lod/testviewlimits.cpp
+    bodynif/testskinnedshape.cpp
+    bodynif/testseamanalysis.cpp
+    bodynif/testanalysisreport.cpp
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp
