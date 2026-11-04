@@ -229,8 +229,9 @@ namespace OMW
 
         SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
 
-        // OpenEden: test and check runs set OPENEDEN_QUIET_WINDOW, so the window opens far off the desktop, out of the
-        // taskbar and without taking focus. It is not minimised: a minimised window has a 0x0 swapchain and draws nothing.
+        // OpenEden: test and check runs set OPENEDEN_QUIET_WINDOW, so the window opens far off the desktop, out of
+        // the taskbar and without taking focus. It is not minimised: a minimised window has a 0x0 swapchain and
+        // draws nothing.
         // Unset, empty or "0" means off.
         const char* quietWindowEnv = getenv("OPENEDEN_QUIET_WINDOW");
         const std::string_view quietWindow = quietWindowEnv != nullptr ? quietWindowEnv : "";
