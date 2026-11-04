@@ -114,14 +114,16 @@ namespace MWRender
             // itemModel = getShieldMesh(item, false);
         }
 
-        linkPart(slot, mwctx.readNode(model), nullptr, bonename, getGlowColor(item));
+        // Task 0074d (review of 0074b, item B): a carried light gives light, as an NPC's torch does (insertBoundedPart)
+        // and as OpenMW 0.51's CreatureWeaponAnimation::updatePart does (addExtraLight, 442eec6e2f).
+        const ESM::Light* light = item.getType() == ESM::Light::sRecordId ? item.get<ESM::Light>()->mBase : nullptr;
+        linkPart(slot, mwctx.readNode(model), light, bonename, getGlowColor(item));
     }
 
-    void WieldingCreature::linkPart(int slot, vsg::ref_ptr<vsg::Node> node, const ESM::Light* /*light*/,
+    void WieldingCreature::linkPart(int slot, vsg::ref_ptr<vsg::Node> node, const ESM::Light* light,
         const std::string& bonename, std::optional<vsg::vec4> glowColor)
     {
-        // The carried light is not decorated yet (it comes with the next commit, task 0074d item B).
-        auto result = MWAnim::decorate(node, {});
+        auto result = MWAnim::decorate(node, light);
         addEnv(node, glowColor, getTransparency(*this));
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
         {

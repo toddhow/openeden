@@ -105,6 +105,14 @@ namespace
         return root;
     }
 
+    // A model with no controller (a torch's mesh).
+    vsg::ref_ptr<vsg::Node> makePlainModel()
+    {
+        auto root = vsg::Group::create();
+        root->addChild(vsg::ref_ptr<Anim::Transform>(new Anim::Transform));
+        return root;
+    }
+
     // Gives the model registered under the name the requested path ends with (names in lower case), or nothing.
     class ModelReader : public vsg::ReaderWriter
     {
@@ -187,6 +195,20 @@ namespace
         return count;
     }
 
+    // Whether any controller of an auto-play clock runs on `target`.
+    bool runsOn(const Anim::AutoPlay& clock, const vsg::Object* target)
+    {
+        for (const Anim::AutoPlay::Group& group : clock.groups)
+        {
+            for (const auto& entry : group.controllers)
+            {
+                if (entry.second == target)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     // The first light an auto-play clock runs a controller on.
     vsg::Light* findLight(const Anim::AutoPlay& clock)
     {
@@ -233,6 +255,13 @@ namespace
 
         std::vector<vsg::Light*> mLights;
     };
+
+    std::vector<vsg::Light*> lightsUnder(vsg::Node& node)
+    {
+        CollectLights visitor;
+        node.accept(visitor);
+        return visitor.mLights;
+    }
 
     // The colours a light takes over `frames` frames of the actor's update.
     template <class Actor>
@@ -708,5 +737,35 @@ namespace
         ASSERT_EQ(ownRandom->mTimes.size(), 10u);
         EXPECT_TRUE(continuous(ownSteady->mTimes));
         EXPECT_TRUE(continuous(ownRandom->mTimes));
+    }
+
+    // C3, finding B: a creature carrying a light in its left hand gives light, and a flickering one flickers.
+    TEST_F(CreaturePartsTest, a_carried_flickering_light_gives_light_and_flickers)
+    {
+        TestCreature& creature = *mCreature;
+        const ESM::Light torch = lightRecord(ESM::Light::Carry | ESM::Light::Flicker);
+        creature.linkPart(
+            MWWorld::InventoryStore::Slot_CarriedLeft, makePlainModel(), &torch, "Weapon Bone Left", std::nullopt);
+
+        const std::vector<vsg::Light*> lights = lightsUnder(*creature.node());
+        ASSERT_EQ(lights.size(), 1u);
+        EXPECT_GT(lightColours(creature, *lights[0], 30).size(), 10u);
+    }
+
+    TEST_F(CreaturePartsTest, a_carried_steady_light_gives_light_and_nothing_runs_for_it)
+    {
+        TestCreature& creature = *mCreature;
+        const ESM::Light lantern = lightRecord(ESM::Light::Carry);
+        creature.linkPart(
+            MWWorld::InventoryStore::Slot_CarriedLeft, makePlainModel(), &lantern, "Weapon Bone Left", std::nullopt);
+
+        const std::vector<vsg::Light*> lights = lightsUnder(*creature.node());
+        ASSERT_EQ(lights.size(), 1u);
+        EXPECT_FALSE(runsOn(creature.autoPlay, lights[0]));
+        for (const Anim::AutoPlay& clock : creature.mPartControllers.clocks())
+        {
+            EXPECT_FALSE(runsOn(clock, lights[0]));
+        }
+        EXPECT_EQ(lightColours(creature, *lights[0], 30).size(), 1u);
     }
 }
