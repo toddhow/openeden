@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -176,12 +177,24 @@ namespace
     [[maybe_unused]] const std::set<std::string>& expectedStages()
     {
         static const std::set<std::string> stages = { "comp/fogofwar/update.comp", "comp/light/assign.comp",
-            "comp/particle/simulate.comp", "comp/worldoverlay/update.comp", "gui/gui.frag", "gui/gui.vert",
-            "sky/atmosphere/main.frag", "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert",
-            "sky/moon/main.frag", "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert",
-            "sky/sun/main.frag", "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert",
-            "terrain/main.frag", "terrain/main.vert", "water/main.frag", "water/main.vert" };
+            "comp/particle/simulate.comp", "comp/worldoverlay/update.comp", "default/main.frag", "default/main.vert",
+            "gui/gui.frag", "gui/gui.vert", "sky/atmosphere/main.frag", "sky/atmosphere/main.vert",
+            "sky/clouds/main.frag", "sky/clouds/main.vert", "sky/moon/main.frag", "sky/moon/main.vert",
+            "sky/night/main.frag", "sky/night/main.vert", "sky/sun/main.frag", "sky/sun/main.vert",
+            "sky/sunglare/main.frag", "sky/sunglare/main.vert", "terrain/main.frag", "terrain/main.vert",
+            "water/main.frag", "water/main.vert" };
         return stages;
+    }
+
+    // Task 0072, stage f: the texture coordinate count a set names ("UVSETS_<n>", vsgUtil::uvSetsDefine), or none.
+    [[maybe_unused]] std::optional<uint32_t> uvSetsCount(const std::string& name)
+    {
+        for (uint32_t count = 0; count <= 64; ++count)
+        {
+            if (name == vsgUtil::uvSetsDefine(count))
+                return count;
+        }
+        return std::nullopt;
     }
 
     // The table's name for a settings constant id, or none.
@@ -235,8 +248,28 @@ namespace
             {
                 SCOPED_TRACE(stageFile + " [" + defines + "] " + file);
                 std::istringstream names(defines == "-" ? std::string() : defines);
+                // Stage f: a texture coordinate count is not a GLSL define but the pipeline's numUvSets (id 0), which
+                // the twin of that count was built for: it stands only beside the arrays (TEXCOORD or PARTICLE),
+                // once, and the GLSL is read with id 0 pinned to it.
+                std::optional<uint32_t> uvSets;
+                std::set<std::string> setNames;
                 for (std::string name; names >> name;)
+                {
+                    setNames.insert(name);
+                    if (const auto count = uvSetsCount(name))
+                    {
+                        EXPECT_FALSE(uvSets) << "two texture coordinate counts";
+                        uvSets = count;
+                        continue;
+                    }
                     EXPECT_EQ(possible.count(name), 1u) << name << " is neither imported nor a settings define";
+                }
+                std::map<uint32_t, uint32_t> pinned;
+                if (uvSets)
+                {
+                    EXPECT_TRUE(vsgUtil::declaresUvSetArrays(setNames)) << "a count without the texture coordinates";
+                    pinned[0] = *uvSets;
+                }
                 const auto slangWords = readWords(entry.path().parent_path() / file);
                 const auto glslWords = compileGlsl(stageFile, defines);
                 // Stage b: every family is checked, not only those before the first failure.
@@ -246,7 +279,7 @@ namespace
                     continue;
                 }
                 const auto slang = vsgUtil::readSpirvInterface(slangWords);
-                const auto glsl = vsgUtil::readSpirvInterface(glslWords);
+                const auto glsl = vsgUtil::readSpirvInterface(glslWords, pinned);
                 // The SPIR-V version the Vulkan 1.0 instance can take.
                 EXPECT_EQ(slang.mVersion, 0x00010000u);
                 const auto diff = vsgUtil::compareSpirvInterfaces(slang, glsl);

@@ -491,4 +491,86 @@ namespace
         else
             Settings::Manager::mUserSettings.erase(key);
     }
+
+    // Task 0072, stage f: the object shader declares its texture coordinate arrays (TEXCOORD, PARTICLE) with the
+    // length numUvSets, a specialization constant, so its twins are built once per count and chosen by the pipeline,
+    // which knows the count. The selection is path-agnostic, so the sky's folder of the fixture stands in for it.
+    const std::string sObjectVert = "#pragma import_defines (VERTEX, NORMAL, TEXCOORD, PARTICLE)\nvoid main() {}\n";
+    const std::string sCountingManifest
+        = "main.vert.p00000001.spv\tTEXCOORD UVSETS_2 VERTEX\nmain.vert.p00000002.spv\tVERTEX\n";
+
+    TEST(ShaderDefines, the_texture_coordinate_count_is_a_define_name)
+    {
+        EXPECT_EQ(vsgUtil::uvSetsDefine(1), "UVSETS_1");
+        EXPECT_EQ(vsgUtil::uvSetsDefine(12), "UVSETS_12");
+        EXPECT_EQ(
+            vsgUtil::canonicalDefines({ "TEXCOORD", vsgUtil::uvSetsDefine(2), "VERTEX" }), "TEXCOORD UVSETS_2 VERTEX");
+        EXPECT_TRUE(vsgUtil::declaresUvSetArrays({ "TEXCOORD" }));
+        EXPECT_TRUE(vsgUtil::declaresUvSetArrays({ "COLOR", "PARTICLE" }));
+        EXPECT_FALSE(vsgUtil::declaresUvSetArrays({ "NORMAL", "VERTEX" }));
+        EXPECT_TRUE(vsgUtil::countsUvSets(vsgUtil::parsePermutationManifest(sCountingManifest)));
+        EXPECT_FALSE(vsgUtil::countsUvSets(vsgUtil::parsePermutationManifest("main.vert.p00000001.spv\tTEXCOORD\n")));
+    }
+
+    TEST(ShaderDefines, a_family_that_counts_texture_coordinates_is_chosen_by_the_pipeline_with_its_count)
+    {
+        SlangTwinFolder folder;
+        folder.write("sky/moon/main.vert.p00000001.spv", sPermutationWords);
+        folder.write("sky/moon/main.vert.p00000002.spv", sSingleFileWords);
+        folder.writeText("sky/moon/main.vert.permutations", sCountingManifest);
+        const Names withArrays{ "GI", "TEXCOORD", "VERTEX" };
+        // The stage, made once for the pipelines of every count, leaves a set with the arrays to the pipeline ...
+        EXPECT_FALSE(vsgUtil::slangTwin("sky/moon/main.vert", withArrays, sObjectVert, true, folder.options()));
+        // ... which takes the file of its count, and the GLSL for any other count.
+        const auto two = vsgUtil::slangTwin("sky/moon/main.vert", withArrays, sObjectVert, true, folder.options(), 2u);
+        ASSERT_TRUE(two);
+        EXPECT_EQ(two->code, sPermutationWords);
+        EXPECT_FALSE(vsgUtil::slangTwin("sky/moon/main.vert", withArrays, sObjectVert, true, folder.options(), 1u));
+        EXPECT_FALSE(vsgUtil::slangTwin("sky/moon/main.vert", withArrays, sObjectVert, true, folder.options(), 0u));
+        // A set without the arrays is the stage's to choose; the pipeline leaves it as the stage chose.
+        const auto plain = vsgUtil::slangTwin("sky/moon/main.vert", { "VERTEX" }, sObjectVert, true, folder.options());
+        ASSERT_TRUE(plain);
+        EXPECT_EQ(plain->code, sSingleFileWords);
+        EXPECT_FALSE(vsgUtil::slangTwin("sky/moon/main.vert", { "VERTEX" }, sObjectVert, true, folder.options(), 2u));
+        // With the switch off nothing is chosen.
+        EXPECT_FALSE(vsgUtil::slangTwin("sky/moon/main.vert", withArrays, sObjectVert, false, folder.options(), 2u));
+    }
+
+    TEST(ShaderDefines, a_family_without_counts_keeps_choosing_its_texture_coordinate_sets_by_stage)
+    {
+        // The sky's clouds and night: one texture coordinate set, listed without a count (stage b).
+        SlangTwinFolder folder;
+        folder.write("sky/moon/main.vert.p00000001.spv", sPermutationWords);
+        folder.writeText("sky/moon/main.vert.permutations", "main.vert.p00000001.spv\tTEXCOORD VERTEX\n");
+        const auto module
+            = vsgUtil::slangTwin("sky/moon/main.vert", { "TEXCOORD", "VERTEX" }, sObjectVert, true, folder.options());
+        ASSERT_TRUE(module);
+        EXPECT_EQ(module->code, sPermutationWords);
+        EXPECT_FALSE(vsgUtil::slangTwin(
+            "sky/moon/main.vert", { "TEXCOORD", "VERTEX" }, sObjectVert, true, folder.options(), 1u));
+    }
+
+    TEST(ShaderDefines, the_selection_set_is_the_one_the_trace_writes)
+    {
+        SlangTwinFolder counting;
+        counting.writeText("sky/moon/main.vert.permutations", sCountingManifest);
+        const Names requested{ "GI", "TEXCOORD", "VERTEX" };
+        EXPECT_EQ(
+            vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, sObjectVert, counting.options()), std::nullopt);
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, sObjectVert, counting.options(), 3u),
+            (Names{ "TEXCOORD", "UVSETS_3", "VERTEX" }));
+        // A count no file can have is still written, so that a trace shows the set that drew with the GLSL.
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, sObjectVert, counting.options(), 0u),
+            (Names{ "TEXCOORD", "UVSETS_0", "VERTEX" }));
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", { "NORMAL" }, sObjectVert, counting.options()),
+            (Names{ "NORMAL" }));
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", { "NORMAL" }, sObjectVert, counting.options(), 3u),
+            std::nullopt);
+        // A family that does not count, or one with no manifest at all: the stage's set, written once.
+        SlangTwinFolder bare;
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, sObjectVert, bare.options()),
+            (Names{ "TEXCOORD", "VERTEX" }));
+        EXPECT_EQ(
+            vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, sObjectVert, bare.options(), 3u), std::nullopt);
+    }
 }

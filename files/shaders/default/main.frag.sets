@@ -1,0 +1,13 @@
+# The define sets of default/main.frag with a Slang twin (task 0072, stage f): what the GLSL compiles with (the Mode
+# defines the stage imports and the "#define" lines of shadow.settings), and for a set with TEXCOORD or PARTICLE the
+# pipeline's count of texture coordinate sets (UVSETS_<n>, vsgUtil::uvSetsDefine). The content decides most names, so
+# the sets are open-ended; these are the ones the default settings and the common profiles create, confirmed with
+# OPENEDEN_SHADER_TRACE. Any other set draws with the GLSL. Lines are canonical (sorted, "-" for none).
+# Default settings (traced in Balmora, Seyda Neen by day and at night, and the Caldera Guild of Mages):
+COLOR DIFFUSE_MAP MATERIAL NORMAL TEXCOORD UVSETS_1
+COLOR DIFFUSE_MAP NORMAL TEXCOORD UVSETS_1
+COLOR MATERIAL NORMAL
+DIFFUSE_MAP MATERIAL NORMAL TEXCOORD UVSETS_1
+DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1
+MATERIAL NORMAL
+MATERIAL NORMAL TEXCOORD UVSETS_1

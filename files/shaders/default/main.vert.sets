@@ -1,0 +1,16 @@
+# The define sets of default/main.vert with a Slang twin (task 0072, stage f): what the GLSL compiles with (the Mode
+# defines the stage imports), and for a set with TEXCOORD or PARTICLE the pipeline's count of texture coordinate sets
+# (UVSETS_<n>, vsgUtil::uvSetsDefine). The content decides most names, so the sets are open-ended; these are the ones
+# the default settings and the common profiles create, confirmed with OPENEDEN_SHADER_TRACE. Any other set draws with
+# the GLSL. Lines are canonical (sorted, "-" for none).
+# Default settings (traced in Balmora, Seyda Neen by day and at night, and the Caldera Guild of Mages):
+COLOR MORPH NORMAL TEXCOORD UVSETS_1 VERTEX
+COLOR NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
+COLOR NORMAL TEXCOORD UVSETS_1 VERTEX
+COLOR NORMAL VERTEX
+MORPH NORMAL TEXCOORD UVSETS_1 VERTEX
+NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
+NORMAL SKIN VERTEX
+NORMAL TEXCOORD UVSETS_1 VERTEX
+NORMAL VERTEX
+PARTICLE UVSETS_1

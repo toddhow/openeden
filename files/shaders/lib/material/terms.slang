@@ -1,6 +1,8 @@
 // The Slang twin of lib/material/terms.glsl (task 0072): the material's ambient, diffuse and emissive terms times the
 // light. Include after lib/view/scene.slang; the includer declares `colorMode` (and `material` with MATERIAL) first.
-// Change both together.
+// Change both together. Stage f: colorMode is a specialization constant in the object shader, so it is switched on,
+// never compared (a comparison with a literal is an OpSpecConstantOp, files/shaders/CLAUDE.md); the terrain's plain
+// constant folds the same way.
 #ifndef LIB_MATERIAL_TERMS_SLANG
 #define LIB_MATERIAL_TERMS_SLANG
 
@@ -9,8 +11,13 @@
 
 float4 getDiffuse(float4 vertexColor)
 {
-    if (colorMode == 2)
-        return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    switch (colorMode)
+    {
+        case 2:
+            return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+        default:
+            break;
+    }
 #ifdef MATERIAL
     return float4(toLinearIfView(material.diffuse.xyz), material.diffuse.w);
 #else
@@ -19,8 +26,13 @@ float4 getDiffuse(float4 vertexColor)
 }
 float3 getAmbient(float4 vertexColor)
 {
-    if (colorMode == 2)
-        return toLinearIfView(vertexColor.xyz);
+    switch (colorMode)
+    {
+        case 2:
+            return toLinearIfView(vertexColor.xyz);
+        default:
+            break;
+    }
 #ifdef MATERIAL
     return toLinearIfView(material.ambient.xyz);
 #else
@@ -29,8 +41,13 @@ float3 getAmbient(float4 vertexColor)
 }
 float3 getEmission(float4 vertexColor)
 {
-    if (colorMode == 1)
-        return toLinearIfView(vertexColor.xyz);
+    switch (colorMode)
+    {
+        case 1:
+            return toLinearIfView(vertexColor.xyz);
+        default:
+            break;
+    }
 #ifdef MATERIAL
     return toLinearIfView(material.emissive.xyz);
 #else
@@ -40,8 +57,13 @@ float3 getEmission(float4 vertexColor)
 
 float4 materialTermsAmbient(float3 ambientLight, float3 lightDiffuse, float4 vertexColor)
 {
-    if (colorMode == 3)
-        return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    switch (colorMode)
+    {
+        case 3:
+            return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+        default:
+            break;
+    }
     float3 ambient = ambientLight * getAmbient(vertexColor);
     float4 materialDiffuse = getDiffuse(vertexColor);
     float3 diffuse = lightDiffuse * materialDiffuse.xyz;
@@ -60,8 +82,13 @@ float4 materialTermsAmbient(float3 ambientLight, float3 lightDiffuse, float4 ver
 
 float4 materialTerms(float3 lightDiffuse, float4 vertexColor)
 {
-    if (colorMode == 3)
-        return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    switch (colorMode)
+    {
+        case 3:
+            return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+        default:
+            break;
+    }
     float3 ambient = scene.ambient.xyz * getAmbient(vertexColor);
     float4 materialDiffuse = getDiffuse(vertexColor);
     float3 diffuse = lightDiffuse * materialDiffuse.xyz;
@@ -81,8 +108,13 @@ float4 materialTerms(float3 lightDiffuse, float4 vertexColor)
 float4 materialTermsScaled(
     float3 ambientLight, float3 lightDiffuse, float4 vertexColor, float ambientScale, float diffuseScale)
 {
-    if (colorMode == 3)
-        return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    switch (colorMode)
+    {
+        case 3:
+            return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+        default:
+            break;
+    }
     float3 ambient = ambientLight * getAmbient(vertexColor) * ambientScale;
     float4 materialDiffuse = getDiffuse(vertexColor);
     float3 diffuse = lightDiffuse * materialDiffuse.xyz * diffuseScale;

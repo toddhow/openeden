@@ -1,0 +1,18 @@
+# The lines the Slang twin of default/main.frag may declare differently from the GLSL (task 0072, stage f), read by
+# SlangPermutations in components-tests: "[<define set>] glsl-only: <line>"; every listed line must occur, so a stale
+# entry fails the test. All of them are declarations the GLSL keeps and never reads (glslang keeps them, slangc drops
+# them); a pipeline layout may hold bindings and a vertex stage may write outputs a shader does not read, so nothing
+# the pipeline builds changes. Specialization constants that nothing reads (the UV set constants of maps a set does not
+# have, `specular`) need no line: the checker does not list them (vsgUtil::readSpirvInterface).
+#
+# Without a map that reads the texture coordinates: the texCoord input (the last location).
+# PARTICLE without NORMAL: the environment array (binding 1), the shadow map and its sampler (6, 7) and the object
+#   uniform (set 1), which only the lit branches read; the colour input (0), read only with COLOR, which particles
+#   do not have (their colour reaches the fragment stage unread, in the GLSL too); pointLightDiffuse (2).
+[DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+[DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+[DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=7 sampler
+[DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1] glsl-only: descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+[DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1] glsl-only: in location=0 vec4f32
+[DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1] glsl-only: in location=2 vec3f32
+[MATERIAL NORMAL TEXCOORD UVSETS_1] glsl-only: in location=4 array1(vec2f32)

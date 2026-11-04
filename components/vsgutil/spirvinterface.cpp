@@ -40,6 +40,7 @@ namespace vsgUtil
             OpVariable = 59,
             OpDecorate = 71,
             OpMemberDecorate = 72,
+            OpMemberName = 6,
         };
         enum Decoration : uint32_t
         {
@@ -102,12 +103,57 @@ namespace vsgUtil
                     if (count == 0 || count > words.size() - i)
                         throw std::runtime_error("bad SPIR-V instruction at word " + std::to_string(i));
                     read(opcode, words.data() + i + 1, count - 1);
+                    noteSpecConstantUses(opcode, words.data() + i + 1, count - 1);
                     i += count;
                 }
             }
 
             uint32_t version() const { return mVersion; }
             std::size_t specConstantOps() const { return mSpecConstantOps; }
+
+            // Task 0072, stage f: the specialization constants an instruction refers to, other than by its name, its
+            // decorations and its own definition. A word that only happens to equal a constant's id (a literal) counts
+            // too: a constant is then listed that might not have to be, never the other way round. A module defines a
+            // constant before any instruction that uses it.
+            void noteSpecConstantUses(uint32_t opcode, const uint32_t* w, uint32_t n)
+            {
+                switch (opcode)
+                {
+                    case OpName:
+                    case OpMemberName:
+                    case OpDecorate:
+                    case OpMemberDecorate:
+                    case OpSpecConstantTrue:
+                    case OpSpecConstantFalse:
+                    case OpSpecConstant:
+                        return;
+                    default:
+                        break;
+                }
+                for (uint32_t k = 0; k < n; ++k)
+                {
+                    if (mSpecConstants.count(w[k]) != 0)
+                        mUsedSpecConstants.insert(w[k]);
+                }
+            }
+
+            // Task 0072, stage f: a pinned specialization constant becomes a plain constant with the given value.
+            void pin(const std::map<uint32_t, uint32_t>& pinned)
+            {
+                for (auto it = mSpecConstants.begin(); it != mSpecConstants.end();)
+                {
+                    const auto specId = decoration(it->first, DecSpecId);
+                    const auto value = specId ? pinned.find(*specId) : pinned.end();
+                    if (value == pinned.end())
+                    {
+                        ++it;
+                        continue;
+                    }
+                    mConstants[it->first] = value->second;
+                    mSpecConstantDefaults.erase(it->first);
+                    it = mSpecConstants.erase(it);
+                }
+            }
 
             std::map<uint32_t, std::string> specConstantNames() const
             {
@@ -211,8 +257,9 @@ namespace vsgUtil
                     }
                 }
                 for (const auto& [id, typeId] : mSpecConstants)
-                    if (const auto specId = decoration(id, DecSpecId))
+                    if (const auto specId = decoration(id, DecSpecId); specId && mUsedSpecConstants.count(id) != 0)
                     {
+                        // Stage f: one that no instruction reads changes nothing for a pipeline.
                         lines.insert("spec_constant id=" + std::to_string(*specId) + " " + describe(typeId, 0));
                         // The default is what a pipeline gets for a constant it does not set.
                         const auto value = mSpecConstantDefaults.find(id);
@@ -547,6 +594,7 @@ namespace vsgUtil
             std::map<uint32_t, Type> mTypes;
             std::map<uint32_t, uint32_t> mConstants;
             std::map<uint32_t, uint32_t> mSpecConstants; // id -> type
+            std::set<uint32_t> mUsedSpecConstants;
             std::map<uint32_t, std::string> mNames; // id -> OpName
             std::size_t mSpecConstantOps = 0;
             std::map<uint32_t, std::pair<uint32_t, uint32_t>> mVariables; // id -> (pointer type, storage class)
@@ -555,9 +603,11 @@ namespace vsgUtil
         };
     }
 
-    SpirvInterface readSpirvInterface(const std::vector<uint32_t>& words)
+    SpirvInterface readSpirvInterface(
+        const std::vector<uint32_t>& words, const std::map<uint32_t, uint32_t>& pinnedSpecConstants)
     {
-        const Module module(words);
+        Module module(words);
+        module.pin(pinnedSpecConstants);
         SpirvInterface out;
         out.mVersion = module.version();
         out.mEntry = module.entry();

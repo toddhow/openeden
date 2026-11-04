@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_VSGUTIL_SHADERPERMUTATION_H
 #define OPENEDEN_VSGUTIL_SHADERPERMUTATION_H
 
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
@@ -109,11 +110,39 @@ namespace vsgUtil
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(
         const std::string& path, const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options);
 
+    /*
+     * Task 0072, stage f: the texture coordinate sets of the object shader. Its GLSL declares the vertex input and the
+     * varyings of the sets as arrays whose length is the specialization constant numUvSets (id 0), which a twin
+     * compiled at build time cannot have. A family whose manifest lists a uvSetsDefine name is therefore built once per
+     * count: a stage whose set declares the arrays is chosen by each pipeline, which knows its count, with
+     * uvSetsDefine(numUvSets) added to the set. The name is not a GLSL define (no stage imports it), and a family whose
+     * manifest names no count (the sky's, which take one set) is chosen by its stage as before.
+     */
+
+    /// "UVSETS_<count>".
+    std::string uvSetsDefine(uint32_t count);
+
+    /// True when a stage compiled with `defines` declares the texture coordinate arrays: TEXCOORD or PARTICLE.
+    bool declaresUvSetArrays(const std::set<std::string>& defines);
+
+    /// True when a listed set names a texture coordinate count ("UVSETS_" and digits).
+    bool countsUvSets(const PermutationManifest& manifest);
+
+    /// The set a twin of the GLSL stage `path` is chosen and traced by, or none when this call is not the one that
+    /// chooses. Without `numUvSets` (the stage, made once for the pipelines of all counts): stageDefines(requested,
+    /// glslSource, options), or none when that set declares the texture coordinate arrays and the family's manifest
+    /// counts them. With `numUvSets` (the pipeline): that set with uvSetsDefine(*numUvSets) added when it declares the
+    /// arrays and the family counts them, else none (the stage chose). A family with no manifest counts nothing.
+    std::optional<std::set<std::string>> slangSelectionSet(const std::string& path,
+        const std::set<std::string>& requested, std::string_view glslSource,
+        const vsg::ref_ptr<const vsg::Options>& options, std::optional<uint32_t> numUvSets = std::nullopt);
+
     /// The Slang twin to draw the GLSL stage `path` with: none when `preferSlang` is false; else the permutation built
-    /// for effectiveDefines(requested, glslSource), or none, and then the GLSL is drawn. Never the single "<path>.spv"
-    /// file of task 0023, which was built for one define set only (task 0072, stage b).
+    /// for slangSelectionSet(path, requested, glslSource, options, numUvSets), or none, and then the GLSL is drawn.
+    /// Never the single "<path>.spv" file of task 0023, which was built for one define set only (task 0072, stage b).
     vsg::ref_ptr<vsg::ShaderModule> slangTwin(const std::string& path, const std::set<std::string>& requested,
-        std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options);
+        std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options,
+        std::optional<uint32_t> numUvSets = std::nullopt);
 
     /// For a stage read with vsgUtil::readShader and compiled with no defines (the compute passes, task 0072 stage
     /// c): records its use (recordShaderUse) and, when the options prefer Slang and a twin is built for the stage's
@@ -126,11 +155,12 @@ namespace vsgUtil
     std::string traceLine(std::string_view path, const std::set<std::string>& defines);
 
     /// When the environment variable OPENEDEN_SHADER_TRACE names a file, appends one trace line the first time a
-    /// (path, defines) pair is seen in this process; the defines written are effectiveDefines(defines, the stage's
-    /// GLSL source) when the stage has a module. With OPENEDEN_SHADER_TRACE_TIMING=1 it also compiles a copy of
-    /// the GLSL `stage` with VSG's glslang and appends "\t<milliseconds>". Does nothing otherwise. Thread safe.
+    /// (path, defines) pair is seen in this process; the defines written are slangSelectionSet(path, defines, the
+    /// stage's GLSL source, options, numUvSets) when the stage has a module (nothing when that is none: the other call
+    /// writes it), else `defines` (without `numUvSets` only). With OPENEDEN_SHADER_TRACE_TIMING=1 it also compiles a
+    /// copy of the GLSL `stage` with VSG's glslang and appends "\t<milliseconds>". Does nothing otherwise. Thread safe.
     void recordShaderUse(std::string_view path, const std::set<std::string>& defines, const vsg::ShaderStage* stage,
-        const vsg::ref_ptr<const vsg::Options>& options);
+        const vsg::ref_ptr<const vsg::Options>& options, std::optional<uint32_t> numUvSets = std::nullopt);
 }
 
 #endif

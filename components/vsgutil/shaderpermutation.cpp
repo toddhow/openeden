@@ -153,6 +153,34 @@ namespace vsgUtil
             }
         }
 
+        // Task 0072, stage f: the texture coordinate count of an object shader twin, "UVSETS_" and decimal digits.
+        constexpr std::string_view uvSetsPrefix = "UVSETS_";
+
+        bool isUvSetsDefine(std::string_view name)
+        {
+            if (name.size() <= uvSetsPrefix.size() || name.substr(0, uvSetsPrefix.size()) != uvSetsPrefix)
+                return false;
+            for (const char c : name.substr(uvSetsPrefix.size()))
+            {
+                if (c < '0' || c > '9')
+                    return false;
+            }
+            return true;
+        }
+
+        // True when the manifest of `path` (read once, through the cache findSlangPermutation uses) counts texture
+        // coordinate sets; false when there is none.
+        bool familyCountsUvSets(const std::string& path, const vsg::ref_ptr<const vsg::Options>& options)
+        {
+            const std::string paths = searchPathsKey(options.get());
+            ManifestCache& cache = manifestCache();
+            std::lock_guard lock(cache.mMutex);
+            auto it = cache.mManifests.find({ paths, path });
+            if (it == cache.mManifests.end())
+                it = cache.mManifests.emplace(std::make_pair(paths, path), loadManifest(path, options)).first;
+            return it->second && countsUvSets(*it->second);
+        }
+
         struct Trace
         {
             std::mutex mMutex;
@@ -416,12 +444,54 @@ namespace vsgUtil
         return module;
     }
 
+    std::string uvSetsDefine(uint32_t count)
+    {
+        return std::string(uvSetsPrefix) + std::to_string(count);
+    }
+
+    bool declaresUvSetArrays(const std::set<std::string>& defines)
+    {
+        return defines.count("TEXCOORD") != 0 || defines.count("PARTICLE") != 0;
+    }
+
+    bool countsUvSets(const PermutationManifest& manifest)
+    {
+        for (const auto& [defines, file] : manifest.mFiles)
+        {
+            std::istringstream names(defines);
+            for (std::string name; names >> name;)
+            {
+                if (isUvSetsDefine(name))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    std::optional<std::set<std::string>> slangSelectionSet(const std::string& path,
+        const std::set<std::string>& requested, std::string_view glslSource,
+        const vsg::ref_ptr<const vsg::Options>& options, std::optional<uint32_t> numUvSets)
+    {
+        std::set<std::string> defines = stageDefines(requested, glslSource, options.get());
+        const bool byPipeline = declaresUvSetArrays(defines) && familyCountsUvSets(path, options);
+        if (!numUvSets)
+            return byPipeline ? std::nullopt : std::optional(std::move(defines));
+        if (!byPipeline)
+            return std::nullopt;
+        defines.insert(uvSetsDefine(*numUvSets));
+        return defines;
+    }
+
     vsg::ref_ptr<vsg::ShaderModule> slangTwin(const std::string& path, const std::set<std::string>& requested,
-        std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options)
+        std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options,
+        std::optional<uint32_t> numUvSets)
     {
         if (!preferSlang)
             return {};
-        return findSlangPermutation(path, stageDefines(requested, glslSource, options.get()), options);
+        const auto defines = slangSelectionSet(path, requested, glslSource, options, numUvSets);
+        if (!defines)
+            return {};
+        return findSlangPermutation(path, *defines, options);
     }
 
     vsg::ref_ptr<vsg::ShaderStage> withSlangTwin(const vsg::ref_ptr<vsg::ShaderStage>& stage, const std::string& path,
@@ -445,7 +515,7 @@ namespace vsgUtil
     }
 
     void recordShaderUse(std::string_view path, const std::set<std::string>& defines, const vsg::ShaderStage* stage,
-        const vsg::ref_ptr<const vsg::Options>& options)
+        const vsg::ref_ptr<const vsg::Options>& options, std::optional<uint32_t> numUvSets)
     {
         Trace& t = trace();
         if (t.mFile.empty())
@@ -453,10 +523,20 @@ namespace vsgUtil
         std::string line;
         try
         {
-            // Stage b: the set the GLSL compiler really applies, which is what a twin is listed and chosen by.
-            line = traceLine(path,
-                stage != nullptr && stage->module ? stageDefines(defines, stage->module->source, options.get())
-                                                  : defines);
+            // Stage b: the set the GLSL compiler really applies, which is what a twin is listed and chosen by; stage
+            // f: with the texture coordinate count where the pipeline chooses.
+            if (stage != nullptr && stage->module)
+            {
+                const auto selection
+                    = slangSelectionSet(std::string(path), defines, stage->module->source, options, numUvSets);
+                if (!selection)
+                    return;
+                line = traceLine(path, *selection);
+            }
+            else if (numUvSets)
+                return;
+            else
+                line = traceLine(path, defines);
         }
         catch (const std::invalid_argument&)
         {

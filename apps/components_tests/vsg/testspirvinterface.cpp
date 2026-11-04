@@ -266,4 +266,60 @@ namespace
         EXPECT_TRUE(has(i, "execution_mode 7")); // OriginUpperLeft
         EXPECT_TRUE(has(i, "capability 1")); // Shader
     }
+
+    // Task 0072, stage f: the object shader's texture coordinate arrays are sized by the specialization constant
+    // numUvSets; a twin is built for one count, so the GLSL is read with that constant pinned to the count.
+    TEST(SpirvInterface, a_pinned_specialization_constant_sizes_its_arrays_and_leaves_the_interface)
+    {
+        const char* const vertex
+            = "#version 450\n"
+              "layout(constant_id = 0) const int numUvSets = 1;\n"
+              "layout(constant_id = 5) const int other = 0;\n"
+              "layout(location = 2) in vec2 inTexCoord[numUvSets];\n"
+              "layout(location = 0) out Outputs { vec3 viewPos; vec2 texCoord[numUvSets]; } o;\n"
+              "void main() {\n"
+              "    o.viewPos = vec3(float(other));\n"
+              "    for (int i = 0; i < numUvSets; ++i)\n"
+              "        o.texCoord[i] = inTexCoord[i];\n"
+              "    gl_Position = vec4(0.0);\n"
+              "}\n";
+        const auto words = compile(VK_SHADER_STAGE_VERTEX_BIT, vertex);
+        ASSERT_FALSE(words.empty());
+        const auto plain = vsgUtil::readSpirvInterface(words);
+        EXPECT_TRUE(has(plain, "in location=2 array1(vec2f32)"));
+        EXPECT_TRUE(has(plain, "out location=1 array1(vec2f32)"));
+        EXPECT_TRUE(has(plain, "spec_constant id=0 i32"));
+        const auto pinned = vsgUtil::readSpirvInterface(words, { { 0u, 3u } });
+        EXPECT_TRUE(has(pinned, "in location=2 array3(vec2f32)"));
+        EXPECT_TRUE(has(pinned, "out location=1 array3(vec2f32)"));
+        for (const std::string& line : pinned.mLines)
+        {
+            EXPECT_NE(line.rfind("spec_constant id=0 ", 0), 0u) << line;
+            EXPECT_NE(line.rfind("spec_constant_default id=0 ", 0), 0u) << line;
+        }
+        EXPECT_TRUE(has(pinned, "spec_constant id=5 i32"));
+        EXPECT_EQ(pinned.mSpecConstantNames.count(0), 0u);
+        EXPECT_EQ(pinned.mSpecConstantNames.count(5), 1u);
+    }
+
+    // Task 0072, stage f: glslang keeps a specialization constant that no instruction reads (the object shader's UV set
+    // constants of the maps a draw does not have), Slang drops it, and a pipeline's value for it changes nothing: it
+    // is not part of the interface. Its name stays known.
+    TEST(SpirvInterface, a_specialization_constant_nothing_reads_is_not_listed)
+    {
+        const char* const fragment
+            = "#version 450\n"
+              "layout(constant_id = 3) const bool used = false;\n"
+              "layout(constant_id = 7) const int unused = 0;\n"
+              "layout(location = 0) out vec4 outColor;\n"
+              "void main() { outColor = used ? vec4(1.0) : vec4(0.0); }\n";
+        const auto i = vsgUtil::readSpirvInterface(compile(VK_SHADER_STAGE_FRAGMENT_BIT, fragment));
+        EXPECT_TRUE(has(i, "spec_constant id=3 bool"));
+        for (const std::string& line : i.mLines)
+        {
+            EXPECT_NE(line.rfind("spec_constant id=7 ", 0), 0u) << line;
+            EXPECT_NE(line.rfind("spec_constant_default id=7 ", 0), 0u) << line;
+        }
+        EXPECT_EQ(i.mSpecConstantNames.count(7), 1u);
+    }
 }

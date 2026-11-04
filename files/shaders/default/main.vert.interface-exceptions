@@ -1,0 +1,16 @@
+# The lines the Slang twin of default/main.vert may declare differently from the GLSL (task 0072, stage f), read by
+# SlangPermutations in components-tests: "[<define set>] glsl-only: <line>"; every listed line must occur, so a stale
+# entry fails the test. All of them are declarations the GLSL keeps and never reads (glslang keeps them, slangc drops
+# them); a pipeline may supply attributes and bindings a shader does not read, so nothing the pipeline builds changes.
+# Specialization constants that nothing reads (texmatUv without TEXMAT) need no line (vsgUtil::readSpirvInterface).
+#
+# MORPH: the vertex position input (location 0); the positions come from the morph buffer.
+# PARTICLE without NORMAL: the scene uniform and the point light buffers (set 0, bindings 0 and 2 to 5), which only the
+#   vertex lighting of NORMAL reads.
+[COLOR MORPH NORMAL TEXCOORD UVSETS_1 VERTEX] glsl-only: in location=0 vec3f32
+[MORPH NORMAL TEXCOORD UVSETS_1 VERTEX] glsl-only: in location=0 vec3f32
+[PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+[PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+[PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+[PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+[PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;

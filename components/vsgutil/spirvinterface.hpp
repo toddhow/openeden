@@ -40,7 +40,15 @@ namespace vsgUtil
 
     /// Reads the declarations of a SPIR-V module. Throws std::runtime_error for words that are not SPIR-V or an
     /// instruction that runs past the end. At most 64 Mi words.
-    SpirvInterface readSpirvInterface(const std::vector<uint32_t>& words);
+    ///
+    /// Task 0072, stage f: each specialization constant of `pinnedSpecConstants` (SpecId -> value) is read as a plain
+    /// constant with that value, as a pipeline that sets it would see the module: arrays it sizes take that length,
+    /// and it is no longer listed (no spec_constant lines, not in mSpecConstantNames). The object shader's twins are
+    /// built for one count of texture coordinate sets, which its GLSL takes as the specialization constant 0. A
+    /// specialization constant that no instruction reads (glslang keeps one, slangc drops it, and a pipeline's value
+    /// for it changes nothing) has no spec_constant lines either; it stays in mSpecConstantNames.
+    SpirvInterface readSpirvInterface(
+        const std::vector<uint32_t>& words, const std::map<uint32_t, uint32_t>& pinnedSpecConstants = {});
 
     struct SpirvInterfaceDiff
     {

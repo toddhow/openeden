@@ -2,16 +2,18 @@
 // stage is compiled with. The locations follow the GLSL's chain (each present attribute takes the next location after
 // the previous present one); change both together.
 //
-// One difference, on purpose: the GLSL declares the texture coordinates as an array sized by the specialization
-// constant numUvSets (constant_id 0), which Slang cannot place (it needs a known length to assign locations). The twin
-// declares only the first set at TEXCOORD_LOCATION. Stages that read only inTexCoord[0] (the sky's) draw the same:
-// the pipeline may supply more sets than a shader reads. The interface checker accepts exactly this difference where a
-// family's .interface-exceptions file lists it (task 0072, stage b).
+// The GLSL declares the texture coordinates as an array sized by the specialization constant numUvSets (constant_id
+// 0), which Slang cannot place (it needs a known length to assign locations). With the set's UVSETS_<n> name (the
+// object shader, task 0072 stage f; lib/uvsets.slang) the twin declares the array of that length, and the pipeline
+// chooses the twin of its count. Without it the twin declares only the first set at TEXCOORD_LOCATION: stages that
+// read only inTexCoord[0] (the sky's) draw the same, since the pipeline may supply more sets than a shader reads; the
+// interface checker accepts exactly this difference where a family's .interface-exceptions file lists it (stage b).
 #ifndef LIB_ATTRIBUTES_SLANG
 #define LIB_ATTRIBUTES_SLANG
 
 #include "lib/material/bindings.slang"
 #include "lib/sets.slang"
+#include "lib/uvsets.slang"
 
 #ifdef VERTEX
 #define VERTEX_LOCATION 0
@@ -79,7 +81,11 @@ struct VertexAttributes
     [[vk::location(INSTANCE_ROTATION_LOCATION)]] float3 inInstanceRotation : A_INSTANCEROTATION;
 #endif
 #ifdef TEXCOORD
+#ifdef NUM_UV_SETS
+    [[vk::location(TEXCOORD_LOCATION)]] float2 inTexCoord[NUM_UV_SETS] : A_TEXCOORD;
+#else
     [[vk::location(TEXCOORD_LOCATION)]] float2 inTexCoord0 : A_TEXCOORD0;
+#endif
 #endif
 };
 

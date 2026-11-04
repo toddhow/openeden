@@ -335,6 +335,27 @@ namespace Pipeline
         auto numUvSets = key.numUvSets;
         vsg::ShaderStage::SpecializationConstants specConstants = { { 0, vsg::intValue::create(numUvSets) } };
 
+        // Task 0072, stage f: the object shader's twins are built once per count of texture coordinate sets, which
+        // only the pipeline knows, so a stage whose set declares the arrays is traced and chosen here, on this
+        // pipeline's copy (vsgUtil::slangSelectionSet); any other stage was chosen when it was created.
+        const std::string shaderPath = key.shader.path.empty() ? "default" : key.shader.path;
+        for (size_t i = 0; i < shaders.size(); ++i)
+        {
+            auto& shader = shaders[i];
+            if (!shader->module || shader->module->source.empty() || !shader->module->hints)
+                continue;
+            const std::string stageFile = shaderPath + (i == 0 ? "/main.vert" : "/main.frag");
+            const auto& defines = shader->module->hints->defines;
+            vsgUtil::recordShaderUse(stageFile, defines, shader.get(), mShaderOptions, numUvSets);
+            if (auto module = vsgUtil::slangTwin(
+                    stageFile, defines, shader->module->source, preferSlang, mShaderOptions, numUvSets))
+            {
+                shader->module = module;
+                Log(Debug::Verbose) << "Using the Slang permutation of " << stageFile << " for " << numUvSets
+                                    << " texture coordinate sets";
+            }
+        }
+
         auto vertexSpecConstants = specConstants;
         for (auto [binding, uvSet] : key.nonStandardUvSets)
             if (binding == Descriptors::TEXMAT_BINDING)

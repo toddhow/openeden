@@ -357,6 +357,14 @@ openeden_add_slang_permutations(SOURCE terrain/terrain.vert.slang STAGE_FILE ter
     STAGE vertex DEFINE_SETS_FILE terrain/main.vert.sets)
 openeden_add_slang_permutations(SOURCE terrain/terrain.frag.slang STAGE_FILE terrain/main.frag ENTRY fragMain
     STAGE fragment DEFINE_SETS_FILE terrain/main.frag.sets)
+# The object shader (task 0072, stage f). Its sets come from the content (each draw's Mode defines) and the settings;
+# a set with TEXCOORD or PARTICLE names its count of texture coordinate sets (UVSETS_<n>), by which the pipeline
+# chooses (vsgUtil::slangSelectionSet). default/main.vert.sets and main.frag.sets list the sets the default settings
+# and the common profiles create; any other set draws with the GLSL.
+openeden_add_slang_permutations(SOURCE default/default.vert.slang STAGE_FILE default/main.vert ENTRY vertMain
+    STAGE vertex DEFINE_SETS_FILE default/main.vert.sets)
+openeden_add_slang_permutations(SOURCE default/default.frag.slang STAGE_FILE default/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS_FILE default/main.frag.sets)
 
 # Task 0072 (review of stages b and c): after every family is declared, remove the manifest and files of any stage that
 # is no longer declared (a family removed or renamed would otherwise stay in the resources, be installed, be chosen

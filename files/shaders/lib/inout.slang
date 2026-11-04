@@ -3,14 +3,17 @@
 // in the stage's input or output struct; the semantics are V_* so that a define such as COLOR cannot expand inside
 // them. Change both together.
 //
-// The texture coordinates are not here yet: the GLSL declares them as an array sized by the specialization constant
-// numUvSets, which Slang cannot place; the first family that needs them (the object shader, task 0072 stage f) decides
-// how. A stage compiled with TEXCOORD or PARTICLE therefore stops here rather than declare a different interface.
+// The texture coordinates (TEXCOORD or PARTICLE): the GLSL declares them last, as an array whose length is the
+// specialization constant numUvSets; a twin is built for one count, the set's UVSETS_<n> name (lib/uvsets.slang), and
+// the pipeline chooses the twin of its count (task 0072, stage f). Without the name such a stage stops here rather than
+// declare a different interface.
 #ifndef LIB_INOUT_SLANG
 #define LIB_INOUT_SLANG
 
-#if defined(TEXCOORD) || defined(PARTICLE)
-#error lib/inout.slang: the texture coordinate array of lib/inout.glsl has no Slang twin yet (task 0072 stage f)
+#include "lib/uvsets.slang"
+
+#if (defined(TEXCOORD) || defined(PARTICLE)) && !defined(NUM_UV_SETS)
+#error lib/inout.slang: the texture coordinate arrays need the set's UVSETS_<n> name (task 0072, stage f)
 #endif
 
 struct CommonInout
@@ -33,6 +36,10 @@ struct CommonInout
     float3 pointLightDiffuse : V_POINTLIGHTDIFFUSE;
 #ifdef GBUFFER_MOTION
     float2 motion : V_MOTION;
+#endif
+#if defined(TEXCOORD) || defined(PARTICLE)
+    // Last, as in the GLSL: NUM_UV_SETS locations.
+    float2 texCoord[NUM_UV_SETS] : V_TEXCOORD;
 #endif
 };
 
