@@ -1,6 +1,8 @@
 #ifndef VSGOPENMW_MWRENDER_RENDERMANAGER_H
 #define VSGOPENMW_MWRENDER_RENDERMANAGER_H
 
+#include <components/lod/viewlimits.hpp>
+
 #include "distantobjectcells.hpp"
 #include "rain.hpp"
 #include "renderinginterface.hpp"
@@ -574,7 +576,15 @@ namespace MWRender
         float mNightEyeFactor = 0;
 
         float mNearClip;
-        float mViewDistance;
+        // Task 0066: the one view distance is four (Lod::computeViewLimits): the live paging range (mViewDistance, what
+        // getViewDistance returns), the tile range, the far plane and the fog end. All equal unless `map view` is on.
+        float mViewDistance = 0;
+        float mTileRange = 0;
+        float mFarPlane = 0;
+        float mFogRange = 0;
+        double mLandDiagonal = 0; // the loaded world's land reach, for `view distance = auto`
+        bool mViewLimitsOverridden = false; // a script set the distance (Lua camera.setViewDistance)
+        void applyViewLimits(const Lod::ViewLimits& limits, bool updateProjection);
         std::optional<float> mFieldOfViewOverride = 0;
         float mFieldOfView;
 

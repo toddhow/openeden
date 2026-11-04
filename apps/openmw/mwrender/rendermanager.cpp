@@ -66,6 +66,7 @@
 #include <components/render/velocity.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/lod/viewlimits.hpp>
 #include <components/settings/values.hpp>
 
 #include <components/terrain/paging.hpp>
@@ -141,14 +142,44 @@ namespace MWRender
 {
     namespace
     {
-        // The viewing distance: [Camera] viewing distance, or with the world LOD and distant terrain on the larger of
-        // that and [WorldLod] view distance, so that far land reaches the horizon (task 0055).
-        float effectiveViewDistance()
+        // [WorldLod] view distance: a number or `auto`. Text that is neither counts as the old default number, with
+        // one warning.
+        Lod::ViewDistanceSetting readViewDistanceSetting()
         {
-            float distance = Settings::camera().mViewingDistance;
-            if (Settings::worldLod().mEnabled && Settings::terrain().mDistantTerrain && !sLodBakeRun)
-                distance = std::max(distance, Settings::worldLod().mViewDistance.get());
-            return distance;
+            const std::string& text = Settings::worldLod().mViewDistance.get();
+            if (const auto parsed = Lod::parseViewDistanceSetting(text))
+            {
+                return *parsed;
+            }
+            static bool warned = false;
+            if (!warned)
+            {
+                warned = true;
+                Log(Debug::Warning) << "[WorldLod] view distance \"" << text << "\" is neither a number nor auto; using "
+                                    << Lod::legacyViewDistance;
+            }
+            Lod::ViewDistanceSetting fallback;
+            fallback.mValue = Lod::legacyViewDistance;
+            return fallback;
+        }
+
+        // The four distances that were one number (task 0066). Without the world LOD and distant terrain they are
+        // [Camera] viewing distance; with them on and `map view` off they are the larger of that and [WorldLod] view
+        // distance (task 0055); `map view` takes them apart (Lod::computeViewLimits). `landDiagonal` is the loaded
+        // world's reach for `view distance = auto`, 0 while unknown.
+        Lod::ViewLimits currentViewLimits(double landDiagonal)
+        {
+            Lod::ViewLimitsInput input;
+            input.mCameraViewingDistance = Settings::camera().mViewingDistance;
+            input.mLodActive = Settings::worldLod().mEnabled && Settings::terrain().mDistantTerrain && !sLodBakeRun;
+            if (input.mLodActive)
+            {
+                input.mMapView = Settings::worldLod().mMapView;
+                input.mSetting = readViewDistanceSetting();
+                input.mMaxViewDistance = Settings::worldLod().mMaxViewDistance;
+                input.mLandDiagonal = landDiagonal;
+            }
+            return Lod::computeViewLimits(input);
         }
 
         vsg::ref_ptr<vsg::Group> createCastShadowState()
@@ -269,9 +300,10 @@ namespace MWRender
 
         , mMinimumAmbientLuminance(Settings::shaders().mMinimumInteriorBrightness)
         , mNearClip(Settings::camera().mNearClip)
-        , mViewDistance(effectiveViewDistance())
         , mFieldOfView(Settings::camera().mFieldOfView)
     {
+        // The projection does not exist yet; updateProjectionMatrix runs when it is made.
+        applyViewLimits(currentViewLimits(0.0), false);
         vsg::ref_ptr<vsg::Context> context = vsg::Context::create(mEngine.getOrCreateDevice());
         mEngine.setRenderPass(
             createMainRenderPass(context->device, mEngine.framebufferSamples(), mEngine.getPresentLayout()));
@@ -1085,6 +1117,21 @@ namespace MWRender
 
     void RenderManager::setStore(const MWWorld::ESMStore& store)
     {
+        // Task 0066: the reach of the loaded world's land, for `[WorldLod] view distance = auto` with `map view`.
+        mLandDiagonal = 0;
+        if (Settings::worldLod().mEnabled && Settings::worldLod().mMapView)
+        {
+            std::vector<std::pair<std::int32_t, std::int32_t>> cells;
+            for (const ESM::Land& land : store.get<ESM::Land>())
+            {
+                cells.emplace_back(land.mX, land.mY);
+            }
+            mLandDiagonal = Lod::landDiagonal(Lod::landExtent(cells), ESM::Land::REAL_SIZE);
+        }
+        if (!mViewLimitsOverridden)
+        {
+            applyViewLimits(currentViewLimits(mLandDiagonal), true);
+        }
         // Task 0055: an earlier LodTerrain reads the storage on a worker thread; it goes before the store changes.
         mLodTerrain.reset();
         mLodClusters.reset();
@@ -1761,7 +1808,7 @@ namespace MWRender
             camera.mFovYDegrees = mProjectionMatrix->fieldOfViewY;
             camera.mAspect = mProjectionMatrix->aspectRatio;
             camera.mViewportHeight = mAppliedExtent.height;
-            camera.mViewDistance = mViewDistance;
+            camera.mViewDistance = mTileRange;
             coverage = mLodTerrain->update(camera);
         }
         Misc::LoadTrace::Scope traceUpdateView("terrain.updateview");
@@ -1856,7 +1903,7 @@ namespace MWRender
         camera.mFovYDegrees = mProjectionMatrix->fieldOfViewY;
         camera.mAspect = mProjectionMatrix->aspectRatio;
         camera.mViewportHeight = mAppliedExtent.height;
-        camera.mViewDistance = mViewDistance;
+        camera.mViewDistance = mTileRange;
         // Outside the exterior the live objects are not drawn at all (DistantObjects is hidden and does not rebuild),
         // so waiting for them would keep a cluster on screen in an interior: nothing to wait for there.
         const bool exterior = camera.mEnabled;
@@ -2119,7 +2166,7 @@ namespace MWRender
         data.fogNear = mFog->getFogStart(underwater);
         data.fogFar = mFog->getFogEnd(underwater);
         data.near = mNearClip;
-        data.far = mViewDistance;
+        data.far = mFarPlane;
         data.fov = getFieldOfView();
         data.simulationTime = scene.time;
         data.deltaSimulationTime = scene.time - mPostProcessLastTime;
@@ -2143,13 +2190,13 @@ namespace MWRender
 
     void RenderManager::configureFog(const MWWorld::Cell& cell)
     {
-        mFog->configure(mViewDistance, cell);
+        mFog->configure(mFogRange, cell);
     }
 
     void RenderManager::configureFog(
         float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& color)
     {
-        mFog->configure(mViewDistance, fogDepth, underwaterFog, dlFactor, dlOffset, color);
+        mFog->configure(mFogRange, fogDepth, underwaterFog, dlFactor, dlOffset, color);
     }
 
     Render::Tonemap::SssSources RenderManager::sssSources() const
@@ -2687,9 +2734,9 @@ namespace MWRender
         mProjectionMatrix->fieldOfViewY = fov;
         mProjectionMatrix->aspectRatio = static_cast<double>(windowSize.width) / static_cast<double>(windowSize.height);
         mProjectionMatrix->nearDistance = mNearClip;
-        mProjectionMatrix->farDistance = mViewDistance;
+        mProjectionMatrix->farDistance = mFarPlane;
 
-        mSceneData->setDepthRange(mNearClip, mViewDistance);
+        mSceneData->setDepthRange(mNearClip, mFarPlane);
         auto& sceneData = mSceneData->value();
         sceneData.projection = vsg::mat4(mProjectionMatrix->transform());
         sceneData.invProjection = vsg::inverse(sceneData.projection);
@@ -2705,11 +2752,13 @@ namespace MWRender
                 updateProjectionMatrix();
             }
             else if ((it->first == "Camera" && it->second == "viewing distance")
-                || (it->first == "WorldLod" && it->second == "view distance"))
+                || (it->first == "WorldLod"
+                    && (it->second == "view distance" || it->second == "map view"
+                        || it->second == "max view distance")))
             {
-                mViewDistance = effectiveViewDistance();
+                mViewLimitsOverridden = false;
+                applyViewLimits(currentViewLimits(mLandDiagonal), true);
                 // mFog->configure
-                updateProjectionMatrix();
             }
         }
     }
@@ -2756,7 +2805,25 @@ namespace MWRender
     {
         if (mViewDistance != d)
         {
-            mViewDistance = d;
+            // A script's distance sets every limit, as the one number did before task 0066, until a setting changes.
+            mViewLimitsOverridden = true;
+            mViewDistance = mTileRange = mFarPlane = mFogRange = d;
+            updateProjectionMatrix();
+        }
+    }
+
+    void RenderManager::applyViewLimits(const Lod::ViewLimits& limits, bool updateProjection)
+    {
+        mViewDistance = limits.mPagingRange;
+        mTileRange = limits.mTileRange;
+        mFogRange = limits.mFogRange;
+        if (mFarPlane != limits.mFarPlane)
+        {
+            mFarPlane = limits.mFarPlane;
+            updateProjection = true;
+        }
+        if (updateProjection && mProjectionMatrix)
+        {
             updateProjectionMatrix();
         }
     }

@@ -217,6 +217,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testclusterpack.cpp
     lod/testtiletree.cpp
     lod/testtilebakelevels.cpp
+    lod/testviewlimits.cpp
     vsg/testscenedata.cpp
 
     vsgutil/testdistancelod.cpp

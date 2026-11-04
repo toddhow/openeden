@@ -152,3 +152,38 @@ Frames: `I:\Projects\OpenEden-work\depth\hi_a.png` (40,000), `hi_c.png` (100,000
 - `view distance = auto` must not become the default before those two; the cap setting (`max view distance`) is needed from the start.
 
 **Not verified:** a true before/after pixel comparison (not needed, no render code changed); `fast ascent` pop at level boundaries (needs levels 4 to 6); the sky dome radius value (confirmed only by frames); the shadow cascades and the editor viewport at 600,000 (read, not run); the weak-GPU run; the clouds and volumetric fog at 600,000 (not run; both build rays from the projection and have their own reach limits: `volumegpu.hpp` `farDistance(fogEnd)`).
+
+### Stage b, 2026-11-03: the limits taken apart (the commit that adds `components/lod/viewlimits.*`)
+
+**What changed.** The one view distance is now four numbers, computed by one pure function (`Lod::computeViewLimits`, `components/lod/viewlimits.*`) and kept in `RenderManager` (`mViewDistance` = the paging range, `mTileRange`, `mFarPlane`, `mFogRange`, `apps/openmw/mwrender/rendermanager.cpp`, `applyViewLimits`):
+
+| Number | Used for | Before |
+| --- | --- | --- |
+| tile range | `LodTerrain` and `LodClusters` camera (`camera.mViewDistance`: tiles beyond it are skipped) | the one number |
+| paging range (`getViewDistance()`) | `mTerrain->updateView`, `DistantObjects::update`, the map, the preloader (`scene.cpp`) | the one number |
+| far plane | `updateProjectionMatrix`, `setDepthRange`, the post-process `far` | the one number |
+| fog range | `FogManager::configure` (land fog ends there; stage c gives the fog its own model) | the one number |
+
+Rules (tests in `apps/components_tests/lod/testviewlimits.cpp`): with the world LOD inactive (`enabled`, `[Terrain] distant terrain`, not a bake run) all four are `[Camera] viewing distance`; active with `map view` off all four are the larger of that and `[WorldLod] view distance` (`auto` counts as 40000), exactly the rule of commit `ed53100fd3`; with `map view` on the tile range reaches `view distance` (a number, not capped) or, for `auto`, the diagonal of the box of the loaded world's land cells capped by `max view distance`, the far plane and fog follow the tile range, and the paging range stays at the old number. `auto` is camera independent (the diagonal is the farthest any camera can be from land) so the projection does not change every frame; the land cells come from the ESM store in `RenderManager::setStore`.
+
+New settings (in `files/settings-default.cfg` and so in `defaults.cfg`, which the editor loads): `[WorldLod] map view = false`, `max view distance = 600000`; `view distance` is now text (`40000`, any number, or `auto`), parsed by `Lod::parseViewDistanceSetting`; text that is neither logs one warning and counts as 40000. A Lua `camera.setViewDistance` still sets all four numbers until a setting changes (`mViewLimitsOverridden`).
+
+**Tests, written before the code** (`testviewlimits.cpp`, 21 tests; written from this spec while `viewlimits.hpp` did not exist, so they were never run red: the first build compiled them against the new header and all 21 passed): parsing (`auto` in any case, numbers, 15 refused texts), the land extent from cells (empty, one cell, negative and positive, order independent) and its diagonal, the limits in every combination (world LOD off, map view off, `auto` with and without an extent, the cap, a number overriding `auto`, invariants over a grid of inputs, purity), and the tile selection out to 600,000 units (the accepted level is non-decreasing with distance from 20,000 to 600,000 and reaches level 5 at the far end; a tile is skipped beyond the tile range and chosen inside it with no far plane involved; hysteresis at 0.7 holds for a level 4 tile at 60,000 to 560,000; selection is a pure function). Not covered here: tile keys of levels 4 to 6 and the baker's determinism for them (stage d). Windows: `components-tests` 4735, `openmw-tests` 859, `eden-studio-tests` 578, all pass.
+
+**Frames: map view off is the same picture as the commit before.** Method: a second `openmw.exe` was built from the stage-a commit's `rendermanager.{cpp,hpp}` (the old one-number code) with the same settings category, then both were run with the same config copy (`I:\Projects\OpenEden-work\mapview`, a fresh user dir, `--skip-menu --start Balmora --script-run` with `tcl` and, for the high pose, `setpos` to (-20480, -12288, 25000) looking 35 degrees down, frame 300, 1280 x 720, `hdr`, `pbr`, `object clusters`). Differences by ffmpeg (`psnr` average, `blend=difference` maximum of luma):
+
+| Pair | PSNR | max luma difference |
+| --- | --- | --- |
+| old exe against itself, high pose, `view distance = 40000` (run-to-run noise) | 72.2 dB | 48 |
+| old against new, high pose, 40000, map view off | 70.5 dB | 45 |
+| old against new, ground pose, 40000 | 68.7 dB | 1 |
+| old against new, ground pose, 600000 | 66.5 dB | 1 |
+| old against new, `enabled = false` (the world LOD off), second pair | identical (inf) | 0 |
+| new with `view distance = auto`, map view off, against old 40000, high / ground | 78.1 dB / 66.9 dB | 19 / 1 |
+| old against itself and new against itself, high pose, 600000 | 32.7 / 29.1 dB | 156 / 159 (the tiles load asynchronously: the pose is not repeatable at that distance) |
+
+So the frames are identical within the run-to-run noise of the same binary; they are not byte-identical with the world LOD on (the noise is the terrain, clouds and water animating on real time, and at 600,000 the order tiles finish loading); with the world LOD off the pair is byte-identical. `map view = true` with a number gives the same frame as `map view = false` (the number sets all four).
+
+**Map view on** (`view distance = auto`, map view on, the same high pose, `terrain tile threshold` 8, clusters on): the whole land out to the coast and the second island are drawn, from 25,000 units up, with no fog (the fog end is the 590,000 tile range: stage c adds the haze) and no gap at the edge of the live terrain in this frame. The frame is dark because the pose looks down and the fog no longer lightens it; the lighting is unchanged. The cost with today's levels is the stage-a table (6.9 GiB resident at 600,000): `auto` is not the default.
+
+**Stale-exe lesson applied:** `eden-studio` was rebuilt after the defaults changed and starts (`defaults.cfg` carries `map view`, `max view distance`). **Not verified:** the Lua tests (run at the next Linux gate), a frame with `[Cells] incremental cell build` on, `view distance = auto` in the editor viewport (the editor has no world LOD), a Lua `setViewDistance` call at run time, weak GPUs, and the launcher (which does not show these settings).
