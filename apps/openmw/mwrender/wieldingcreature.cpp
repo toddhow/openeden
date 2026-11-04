@@ -198,20 +198,22 @@ namespace MWRender
         // updateQuiver();
     }
 
+    void WieldingCreature::compileOrRemoveParts()
+    {
+        if (!mContext.compileContext->compile(node()))
+            removeParts();
+    }
+
     void WieldingCreature::updateEquipment()
     {
         if (!mAutoPlayTraced.empty())
             traceAutoPlayEvent(mAutoPlayTraced, "updateEquipment");
         // Task 0074d (review of 0074b, finding 1): compiled also when addParts throws (runEquipmentUpdate).
-        runEquipmentUpdate(
-            [this] {
-                removeParts();
-                addParts();
-            },
-            [this] {
-                if (!mContext.compileContext->compile(node()))
-                    removeParts();
-            });
+        // Task 0074e (finding 5 of the review of 0074d): through runCompiledUpdate, which a test reaches.
+        runCompiledUpdate([this] {
+            removeParts();
+            addParts();
+        });
     }
 
 }

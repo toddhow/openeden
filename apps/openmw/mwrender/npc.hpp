@@ -113,6 +113,14 @@ namespace MWRender
         std::set<ESM::RefId> soundsToPlay;
 
     protected:
+        // One equipment change (task 0074e, finding 5): `nodes` attaches and removes nodes, then the actor is compiled
+        // (compileTraced), also when `nodes` throws; the exception is passed on unchanged. Npc::updateEquipment.
+        template <class Nodes>
+        void runCompiledUpdate(Nodes&& nodes)
+        {
+            runEquipmentUpdate(nodes, [this] { compileTraced(); });
+        }
+        void compileTraced();
         // The body of updatePendingQuiver (a test passes its own `quiver`, updateQuiver needs an inventory): if a
         // change is pending, clears it, runs `quiver` and compiles, also when `quiver` throws (runEquipmentUpdate:
         // the nodes it attached before the throw are in the scene). A std::exception is logged, not passed on: this

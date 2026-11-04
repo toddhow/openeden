@@ -357,15 +357,17 @@ namespace MWRender
         // Task 0069 stage e review: an equipment change's cost, split into the part update and the compile.
         Misc::LoadTrace::Scope traceEquipment("npc.updateequipment");
         // Task 0074d (review of 0074b, finding 1): compiled also when updateParts throws (runEquipmentUpdate).
-        runEquipmentUpdate(
-            [this] {
-                updateCarriedLeftVisible();
-                updateParts();
-            },
-            [this] {
-                Misc::LoadTrace::Scope traceCompile("npc.compile");
-                compile();
-            });
+        // Task 0074e (finding 5 of the review of 0074d): through runCompiledUpdate, which a test reaches.
+        runCompiledUpdate([this] {
+            updateCarriedLeftVisible();
+            updateParts();
+        });
+    }
+
+    void Npc::compileTraced()
+    {
+        Misc::LoadTrace::Scope traceCompile("npc.compile");
+        compile();
     }
 
     void Npc::clearControllers()

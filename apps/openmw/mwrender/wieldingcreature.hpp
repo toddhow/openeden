@@ -10,6 +10,7 @@
 
 #include "../mwworld/ptr.hpp"
 
+#include "equipmentupdate.hpp"
 #include "partcontrollers.hpp"
 
 namespace ESM
@@ -38,6 +39,15 @@ namespace MWRender
         // item's model, gives a carried light its light, links the part. A model that cannot be read (a
         // std::exception) is logged and the part skipped, as OpenMW 0.51 does (task 0074e, finding 7).
         void addItemPart(int slot, const MWWorld::ConstPtr& item, const std::string& bonename);
+        // One equipment change (task 0074e, finding 5): `nodes` removes and adds the parts, then the creature is
+        // compiled (a failed compile removes the parts), also when `nodes` throws; the exception is passed on
+        // unchanged. WieldingCreature::updateEquipment.
+        template <class Nodes>
+        void runCompiledUpdate(Nodes&& nodes)
+        {
+            runEquipmentUpdate(nodes, [this] { compileOrRemoveParts(); });
+        }
+        void compileOrRemoveParts();
         // The weapon's, the carried left's and the ammunition's controllers (Wield's order).
         PartControllers<3> mPartControllers;
         // Task 0074b: OPENEDEN_AUTOPLAY_TRACE (autoplaytrace.hpp), decided once in setup.
