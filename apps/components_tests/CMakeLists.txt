@@ -179,6 +179,10 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtaapass.cpp
     render/testaotemporalmath.cpp
     render/testaotemporalpass.cpp
+    render/testpointshadowmath.cpp
+    render/testpointshadowselect.cpp
+    render/testpointshadowgpu.cpp
+    render/testpointshadowshader.cpp
     render/testgbuffermath.cpp
     render/testdepthmath.cpp
     render/testmaterialmath.cpp

@@ -20,5 +20,10 @@ const int VIEW_VOLUME_BINDING=14;
 const int VIEW_VOLUME_PARAMS_BINDING=15;
 // OpenEden (task 0042): the volumetric clouds' ground shadow map and its placement (lib/view/volumecloudshadow.glsl).
 const int VIEW_CLOUD_SHADOW_BINDING=16;
+// OpenEden (task 0077): the point lights' shadow maps (a depth 2D array, six layers a light), their comparison sampler
+// and the data buffer (lib/light/pointshadow.glsl).
+const int VIEW_POINT_SHADOW_MAP_BINDING=17;
+const int VIEW_POINT_SHADOW_SAMPLER_BINDING=18;
+const int VIEW_POINT_SHADOW_DATA_BINDING=19;
 
 const int VIEW_ENV_COUNT=32;

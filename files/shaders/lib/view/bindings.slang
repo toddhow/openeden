@@ -19,6 +19,10 @@
 #define VIEW_VOLUME_BINDING 14
 #define VIEW_VOLUME_PARAMS_BINDING 15
 #define VIEW_CLOUD_SHADOW_BINDING 16
+// OpenEden (task 0077): the point lights' shadow maps (lib/light/pointshadow.slang).
+#define VIEW_POINT_SHADOW_MAP_BINDING 17
+#define VIEW_POINT_SHADOW_SAMPLER_BINDING 18
+#define VIEW_POINT_SHADOW_DATA_BINDING 19
 
 #define VIEW_ENV_COUNT 32
 
