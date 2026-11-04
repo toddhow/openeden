@@ -31,6 +31,7 @@
 #include <components/lod/fartier.hpp>
 #include <components/lod/residency.hpp>
 #include <components/lod/tileselection.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/pipeline/bindings.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
@@ -140,6 +141,10 @@ namespace MWRender
             double mGroundEyeY = 0;
             bool mLoggedFailure = false;
             bool mWanted = false;
+            // The load trace's clock (microseconds) when the selection first wanted the cluster while it was not
+            // loaded, -1 when it does not wait: the time to its load and to its first draw are recorded from it.
+            std::int64_t mWantedAtUs = -1;
+            double mWaitedMs = 0; // of that, until its load started (logged with the time to its first draw)
             std::uint64_t mMaskVersion = 0;
             std::set<int> mMasked; // the cell slots the draws leave out
             std::size_t mDraws = 0;
@@ -709,6 +714,13 @@ namespace MWRender
                 tile.mEvicted = false;
             tile.mWanted = camera.mEnabled && state.mStates[i].mChoice == Lod::TileChoice::Tile && !tile.mEvicted;
             tile.mIdleFrames = tile.mWanted ? 0 : std::min(tile.mIdleFrames + 1, 1 << 20);
+            if (Misc::LoadTrace::enabled() && tile.mPhase == Tile::Phase::Idle)
+            {
+                if (!tile.mWanted)
+                    tile.mWantedAtUs = -1;
+                else if (tile.mWantedAtUs < 0)
+                    tile.mWantedAtUs = Misc::LoadTrace::nowMicroseconds();
+            }
         }
 
         std::size_t builds = 0;
@@ -757,6 +769,18 @@ namespace MWRender
             {
                 tile.mPhase = Tile::Phase::Built;
                 tile.mFailures = 0;
+                // From the selection wanting the cluster to its first draw.
+                if (Misc::LoadTrace::enabled() && tile.mWantedAtUs >= 0)
+                {
+                    const std::int64_t now = Misc::LoadTrace::nowMicroseconds();
+                    Misc::LoadTrace::record("lod.cluster.todraw", tile.mWantedAtUs, now, tile.mId.mLevel);
+                    // The game log is flushed as it goes, the trace file only at a clean exit.
+                    Log(Debug::Info) << "LOD cluster latency: level " << static_cast<unsigned>(tile.mId.mLevel) << ", "
+                                     << tile.mWaitedMs << " ms until its load started, "
+                                     << static_cast<double>(now - tile.mWantedAtUs) / 1000.0
+                                     << " ms until its first draw";
+                }
+                tile.mWantedAtUs = -1;
             }
             else
                 dropFailedTile(tile, cover, withBudget);
@@ -768,6 +792,14 @@ namespace MWRender
         const auto startLoad = [&](std::size_t i) {
             Tile& tile = state.mTiles[i];
             tile.mPhase = Tile::Phase::Loading;
+            // How long the selection wanted the cluster before its load started (the planner's waits, cooldowns and
+            // load cap), with the level as the value; only with the load trace on.
+            if (Misc::LoadTrace::enabled() && tile.mWantedAtUs >= 0)
+            {
+                const std::int64_t now = Misc::LoadTrace::nowMicroseconds();
+                Misc::LoadTrace::record("lod.cluster.toload", tile.mWantedAtUs, now, tile.mId.mLevel);
+                tile.mWaitedMs = static_cast<double>(now - tile.mWantedAtUs) / 1000.0;
+            }
             const std::shared_ptr<Lod::ClusterPack> pack = state.mPack;
             const Lod::TileId id = tile.mId;
             const vsg::ref_ptr<const vsg::Options> images = setup.mImageOptions;
