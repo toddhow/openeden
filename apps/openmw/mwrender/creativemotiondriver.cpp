@@ -295,6 +295,41 @@ namespace MWRender
         return true;
     }
 
+    void CreativeMotionPoseDriver::setRecordTargets(bool enabled)
+    {
+        mRecordTargets = enabled && mValid;
+        if (!mRecordTargets)
+            return;
+        for (std::size_t g = 0; g < sNumBlendMasks; ++g)
+            mGroupTargets[g] = mRestPose;
+    }
+
+    std::string CreativeMotionPoseDriver::describeTargetRotations(
+        const std::vector<std::string_view>& normalizedNames) const
+    {
+        if (!mRecordTargets)
+            return {};
+        std::string text = " tgt=[";
+        bool first = true;
+        char buffer[96];
+        for (const std::string_view name : normalizedNames)
+        {
+            const int bone = getBoneIndex(name);
+            if (bone < 0 || mAnimated[bone] == 0)
+                continue;
+            const uint32_t group = mBoneGroups[bone] < sNumBlendMasks ? mBoneGroups[bone] : 0;
+            const opas::math::Quat& r = mGroupTargets[group][bone].rotation;
+            const int length = std::snprintf(buffer, sizeof(buffer), "%s%.*s=(%.4f %.4f %.4f %.4f)", first ? "" : ";",
+                static_cast<int>(name.size()), name.data(), static_cast<float>(r.x), static_cast<float>(r.y),
+                static_cast<float>(r.z), static_cast<float>(r.w));
+            if (length > 0)
+                text.append(buffer, std::min<std::size_t>(static_cast<std::size_t>(length), sizeof(buffer) - 1));
+            first = false;
+        }
+        text += "]";
+        return text;
+    }
+
     int CreativeMotionPoseDriver::getBoneIndex(std::string_view normalizedName) const
     {
         const auto it = mBoneNameToIndex.find(normalizedName);
@@ -451,6 +486,9 @@ namespace MWRender
             }
             else if (changed)
                 mInertializers[g]->start({}, {}, {}, 0.0, 0.0); // a pose of the wrong size ends any transition
+
+            if (mRecordTargets)
+                std::copy(mIncoming.begin(), mIncoming.end(), mGroupTargets[g].begin());
 
             // Keep last frame's output as the previous pose; this frame's output is the new sample plus the offset.
             std::swap(mGroupPrevPoses[g], mGroupPoses[g]);

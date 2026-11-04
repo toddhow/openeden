@@ -2092,6 +2092,10 @@ namespace MWMechanics
         inertialActive = false;
         smoothedSpeed = 0.f;
         mTraceLocomotionPhase = 0;
+        mIntentWantsToMove = false;
+        mIntentSpeedMps = 0.f;
+        mIntentMeasuredMps = -1.f;
+        mIntentStanceChanged = false;
 
         updateMagicEffects();
         MWAnim::updateEffects(*mObject->node(), duration);
@@ -2149,6 +2153,18 @@ namespace MWMechanics
 
             bool isMoving
                 = (std::abs(movementSettings.mPosition[0]) > .5 || std::abs(movementSettings.mPosition[1]) > .5);
+            if (mIntentTracker != nullptr)
+            {
+                // Task 0067, stage 1: the intent's inputs, read here because the movement settings are cleared
+                // before the animation thread runs.
+                mIntentWantsToMove = isMoving;
+                if (inertialActive)
+                    mIntentMeasuredMps = smoothedSpeed / static_cast<float>(Constants::UnitsPerMeter);
+                mIntentStanceChanged = mIntentStanceKnown && (sneak != mIntentLastSneak || isrunning != mIntentLastRun);
+                mIntentLastSneak = sneak;
+                mIntentLastRun = isrunning;
+                mIntentStanceKnown = true;
+            }
             if (!inwater && !flying)
             {
                 // Force Jump
@@ -2251,6 +2267,8 @@ namespace MWMechanics
                 mActor->upperBodyYawRadians += mActor->headYawRadians / 2;
 
             speed = cls.getCurrentSpeed(mPtr);
+            if (mIntentTracker != nullptr)
+                mIntentSpeedMps = speed / static_cast<float>(Constants::UnitsPerMeter);
             vec.x *= speed;
             vec.y *= speed;
 
@@ -2758,6 +2776,14 @@ namespace MWMechanics
             smoothedSpeed, mTraceLocomotionPhase, animationSpeed);
         line += locomotionText;
         line += std::string(" driver=") + (mPoseDriver ? (mPoseDriverApplies ? "applies" : "compare") : "off");
+        if (mIntentTracker != nullptr && mTraceIntent.mValid)
+        {
+            char intentText[sTraceTextCapacity];
+            std::snprintf(intentText, sizeof(intentText), " intent=(wants %d start %d stop %d stance %d turn %.3f)",
+                mTraceIntent.mWants ? 1 : 0, mTraceIntent.mStarting ? 1 : 0, mTraceIntent.mStopping ? 1 : 0,
+                mTraceIntent.mStance ? 1 : 0, mTraceIntent.mTurnRate);
+            line += intentText;
+        }
         if (mPoseDriver)
         {
             const auto style = mPoseDriver->getStyleStatus();
@@ -2772,24 +2798,41 @@ namespace MWMechanics
             }
         }
         line += MWRender::describeBoneRotations(mAnimation->bones, traceBones);
+        if (mPoseDriver && mPoseDriverApplies)
+            line += mPoseDriver->describeTargetRotations(traceBones);
         Log(Debug::Info) << line;
     }
 
     namespace
     {
         // The CreativeMotion pieces that are on once [Game] creativemotion preset is combined with the individual
-        // settings (task 0067, stage 1). An unknown preset name counts as "off" and is reported once.
+        // settings (task 0067, stage 1): a setting the user names wins over the preset. An unknown preset name counts
+        // as "off" and is reported once.
         MWRender::CreativeMotionFeatures creativeMotionFeatures()
         {
             static std::atomic<bool> reported{ false };
             bool recognised = false;
-            const std::string& presetName = Settings::game().mCreativeMotionPreset.get();
-            const MWRender::CreativeMotionPreset preset = MWRender::parseCreativeMotionPreset(presetName, &recognised);
+            const MWRender::CreativeMotionFeatures features
+                = MWRender::loadCreativeMotionFeaturesFromSettings(&recognised);
             if (!recognised && !reported.exchange(true))
-                Log(Debug::Warning) << "[Game] creativemotion preset = '" << presetName
+                Log(Debug::Warning) << "[Game] creativemotion preset = '"
+                                    << Settings::game().mCreativeMotionPreset.get()
                                     << "' is not known (off, natural): using off";
-            return MWRender::resolveCreativeMotionFeatures(preset, Settings::game().mCreativeMotionAnimation,
-                Settings::game().mCreativeMotionTransitionRules, Settings::game().mCreativeMotionStyleLayer);
+            return features;
+        }
+
+        // The [CreativeMotion Transitions] category, read once for the session (a change needs a restart); each bad
+        // key or value is logged once, with the category, key and value.
+        const MWRender::TransitionTimes& transitionTimes()
+        {
+            static const MWRender::TransitionTimes times = [] {
+                std::vector<std::string> problems;
+                const MWRender::TransitionTimes loaded = MWRender::loadTransitionTimesFromSettings(&problems);
+                for (const std::string& problem : problems)
+                    Log(Debug::Warning) << problem;
+                return loaded;
+            }();
+            return times;
         }
     }
 
@@ -2812,10 +2855,11 @@ namespace MWMechanics
                 mPoseDriver = std::move(driver);
                 mPoseDriverApplies = features.mAnimation;
                 mAnimation->updateBones = !mPoseDriverApplies;
+                mPoseDriver->setRecordTargets(Settings::game().mCreativeMotionAnimationDebug);
                 mPoseDriver->setTransitionRules(features.mTransitionRules);
                 if (features.mIntentTransitions)
                 {
-                    mPoseDriver->setIntentTransitions(true, MWRender::loadTransitionTimesFromSettings());
+                    mPoseDriver->setIntentTransitions(true, transitionTimes());
                     mIntentTracker = std::make_unique<MWRender::IntentTracker>();
                 }
                 configureStyle();
@@ -2935,10 +2979,10 @@ namespace MWMechanics
         state = currentStyleState();
         if (mIntentTracker != nullptr && duration > 0.f)
         {
-            // The actor's intent (task 0067, stage 1): whether the movement keys (or the AI's request) are held, and
-            // how fast it turns. The speed it is trying to reach is the speed it moves at now: the engine has no
-            // better number on this thread (getMaxSpeed reads the world), so "starting" means still speeding up.
-            const float* move = mPtr.getClass().getMovementSettings(mPtr).mPosition;
+            // The actor's intent (task 0067, stage 1): whether the movement keys (or the AI's request) are held, the
+            // speed of its current mode, how fast it turns and whether it switched sneak or run. The request and the
+            // speed were stored by preAnimation on the main thread (the movement settings are cleared before this
+            // runs); the measured speed is inertial locomotion's smoothed speed when it drives the actor.
             const float yaw = mPtr.getRefData().getPosition().rot[2];
             float yawDelta = 0.f;
             if (mHasIntentPreviousYaw)
@@ -2948,16 +2992,20 @@ namespace MWMechanics
 
             MWRender::IntentInput input;
             input.mDt = duration;
-            input.mMeasuredSpeedMps = measuredSpeedMps;
-            input.mWantsToMove = std::abs(move[0]) > 0.5f || std::abs(move[1]) > 0.5f;
-            input.mIntendedSpeedMps = measuredSpeedMps;
+            input.mMeasuredSpeedMps = mIntentMeasuredMps >= 0.f ? mIntentMeasuredMps : measuredSpeedMps;
+            input.mWantsToMove = mIntentWantsToMove;
+            input.mIntendedSpeedMps = mIntentWantsToMove ? mIntentSpeedMps : 0.f;
             input.mYawDeltaRad = yawDelta;
+            input.mStanceChanged = mIntentStanceChanged;
             const MWRender::ActorIntent intent = mIntentTracker->update(input);
             state.mTargetSpeedMps = intent.mTargetSpeedMps;
             state.mAccelerationMps2 = intent.mAccelerationMps2;
             state.mTurnRate = intent.mTurnRate;
             state.mStarting = intent.mStarting;
             state.mStopping = intent.mStopping;
+            state.mStanceChanging = intent.mStanceChanging;
+            mTraceIntent = TraceIntent{ true, input.mWantsToMove, intent.mStarting, intent.mStopping,
+                intent.mStanceChanging, intent.mTurnRate };
         }
         mPoseDriver->setActorState(state);
         mStyleCadence = mPoseDriver->getStyleStatus().mCadence;

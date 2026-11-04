@@ -195,20 +195,32 @@ TEST(CreativeMotionIntentTest, BadInputsStayFinite)
     EXPECT_TRUE(std::isfinite(intent.mTurnRate));
 }
 
-TEST(CreativeMotionIntentTest, SameSequenceGivesSameIntent)
+// Stage 1 review: in the frame the keys are pressed the animation has not moved the actor yet, so the measured speed
+// is still 0; that frame must already count as a start (the group change to the walk happens in it).
+TEST(CreativeMotionIntentTest, TheFirstFrameOfAStartCountsWhileTheSpeedIsStillZero)
 {
-    Walker a;
-    Walker b;
-    for (int i = 0; i < 300; ++i)
-    {
-        const bool wants = (i / 90) % 2 == 0;
-        const float measured = wants ? std::min(sWalkMps, 0.05f * static_cast<float>(i % 90)) : 0.f;
-        const ActorIntent x = a.step(wants, measured, 0.001f * static_cast<float>(i % 7));
-        const ActorIntent y = b.step(wants, measured, 0.001f * static_cast<float>(i % 7));
-        EXPECT_EQ(x.mSmoothedSpeedMps, y.mSmoothedSpeedMps);
-        EXPECT_EQ(x.mStarting, y.mStarting);
-        EXPECT_EQ(x.mStopping, y.mStopping);
-    }
+    Walker run;
+    for (int i = 0; i < 20; ++i)
+        run.step(false, 0.f);
+    const ActorIntent first = run.step(true, 0.f);
+    EXPECT_TRUE(first.mStarting);
+    EXPECT_FLOAT_EQ(first.mTargetSpeedMps, sWalkMps);
+}
+
+TEST(CreativeMotionIntentTest, AStanceChangeCountsForTheHoldTimeThenEnds)
+{
+    IntentTracker tracker;
+    IntentInput input;
+    input.mDt = sFrame;
+    input.mStanceChanged = true;
+    EXPECT_TRUE(tracker.update(input).mStanceChanging);
+    input.mStanceChanged = false;
+    const int holdFrames = static_cast<int>(sStanceChangeHoldS / sFrame);
+    for (int i = 0; i < holdFrames - 2; ++i)
+        EXPECT_TRUE(tracker.update(input).mStanceChanging) << i;
+    for (int i = 0; i < 4; ++i)
+        tracker.update(input);
+    EXPECT_FALSE(tracker.update(input).mStanceChanging);
 }
 
 TEST(CreativeMotionIntentTest, ResetForgetsTheSpeed)
@@ -243,7 +255,9 @@ TEST(CreativeMotionIntentTest, StopWithoutIntentIsTheBaseTime)
 
 TEST(CreativeMotionIntentTest, StartWithIntentTakesTheStartingTime)
 {
-    const TransitionTimes times;
+    TransitionTimes times;
+    times.mStarting
+        = 0.8f; // data: the default is the base time (see TransitionTimesDefaultsEqualTheRulesWithoutIntent)
     TransitionIntent intent;
     intent.mStarting = true;
     EXPECT_FLOAT_EQ(transitionSeconds(MotionKind::Idle, MotionKind::Walk, 0.25f, intent, times), 0.25f * 0.8f);
@@ -254,7 +268,9 @@ TEST(CreativeMotionIntentTest, StartWithIntentTakesTheStartingTime)
 
 TEST(CreativeMotionIntentTest, TurnInPlaceFollowsTheTurnRate)
 {
-    const TransitionTimes times;
+    TransitionTimes times;
+    times.mFastTurn = 0.6f;
+    times.mSlowTurn = 1.0f; // data: by default both are the rules' 0.6
     TransitionIntent fast;
     fast.mTurnRate = 2.5f;
     TransitionIntent slow;
@@ -266,28 +282,71 @@ TEST(CreativeMotionIntentTest, TurnInPlaceFollowsTheTurnRate)
     EXPECT_FLOAT_EQ(transitionSeconds(MotionKind::Idle, MotionKind::Turn, 0.25f, slow, times), 0.25f * 1.0f);
 }
 
+// Every pair the intent rules do not name (moving to idle, idle to moving, idle to and from a turn in place) is as the
+// rules without intent say, whatever the intent and the data; Turn and the pairs with Idle are included.
 TEST(CreativeMotionIntentTest, OtherChangesAreAsTheOldRulesSay)
 {
-    const TransitionTimes times;
-    TransitionIntent intent;
-    intent.mStopping = true;
-    intent.mStarting = true;
-    intent.mTurnRate = 3.f;
+    TransitionTimes times;
+    times.mStopping = 2.f;
+    times.mFlip = 0.3f;
+    times.mStarting = 0.7f;
+    times.mFastTurn = 0.2f;
+    times.mSlowTurn = 1.7f;
     const MotionKind kinds[] = { MotionKind::Idle, MotionKind::Ready, MotionKind::Walk, MotionKind::Run,
-        MotionKind::Sneak, MotionKind::Strafe, MotionKind::Swim, MotionKind::Jump, MotionKind::Attack, MotionKind::Hit,
-        MotionKind::Death, MotionKind::Other };
-    for (const MotionKind from : kinds)
+        MotionKind::Sneak, MotionKind::Strafe, MotionKind::Turn, MotionKind::Swim, MotionKind::Jump, MotionKind::Attack,
+        MotionKind::Hit, MotionKind::Death, MotionKind::Other };
+    const auto moving = [](MotionKind kind) {
+        return kind == MotionKind::Walk || kind == MotionKind::Run || kind == MotionKind::Sneak;
+    };
+    for (int bits = 0; bits < 8; ++bits)
     {
-        for (const MotionKind to : kinds)
+        TransitionIntent intent;
+        intent.mStopping = (bits & 1) != 0;
+        intent.mStarting = (bits & 2) != 0;
+        intent.mTurnRate = (bits & 4) != 0 ? 3.f : 0.f;
+        for (const MotionKind from : kinds)
         {
-            const bool stop = (from == MotionKind::Walk || from == MotionKind::Run || from == MotionKind::Sneak)
-                && to == MotionKind::Idle;
-            const bool start = from == MotionKind::Idle
-                && (to == MotionKind::Walk || to == MotionKind::Run || to == MotionKind::Sneak);
-            if (stop || start || from == MotionKind::Idle || to == MotionKind::Idle)
-                continue;
-            EXPECT_FLOAT_EQ(transitionSeconds(from, to, 0.25f, intent, times), transitionSeconds(from, to, 0.25f))
-                << static_cast<int>(from) << " -> " << static_cast<int>(to);
+            for (const MotionKind to : kinds)
+            {
+                const bool stop = moving(from) && to == MotionKind::Idle;
+                const bool start = from == MotionKind::Idle && moving(to);
+                const bool turnInPlace = (from == MotionKind::Idle && to == MotionKind::Turn)
+                    || (from == MotionKind::Turn && to == MotionKind::Idle);
+                if (stop || start || turnInPlace)
+                    continue;
+                EXPECT_FLOAT_EQ(transitionSeconds(from, to, 0.25f, intent, times), transitionSeconds(from, to, 0.25f))
+                    << static_cast<int>(from) << " -> " << static_cast<int>(to) << " intent " << bits;
+            }
+        }
+    }
+}
+
+// Stage 1 review: with the default data the intent rules give what the rules without intent give, except for a
+// change from moving to idle without the stop intent (the spec's "state flip": the base time instead of the stop's).
+// So the preset is never slower or faster than plain "transition rules = true" where the spec does not ask for it,
+// for example out of a turn in place at a turn rate of 0.
+TEST(CreativeMotionIntentTest, WithTheDefaultDataOnlyAFlipDiffersFromTheRulesWithoutIntent)
+{
+    const TransitionTimes times;
+    const MotionKind kinds[] = { MotionKind::Idle, MotionKind::Ready, MotionKind::Walk, MotionKind::Run,
+        MotionKind::Sneak, MotionKind::Strafe, MotionKind::Turn, MotionKind::Swim, MotionKind::Jump, MotionKind::Attack,
+        MotionKind::Hit, MotionKind::Death, MotionKind::Other };
+    for (int bits = 0; bits < 8; ++bits)
+    {
+        TransitionIntent intent;
+        intent.mStopping = (bits & 1) != 0;
+        intent.mStarting = (bits & 2) != 0;
+        intent.mTurnRate = (bits & 4) != 0 ? 3.f : 0.f;
+        for (const MotionKind from : kinds)
+        {
+            for (const MotionKind to : kinds)
+            {
+                const bool flip = (from == MotionKind::Walk || from == MotionKind::Run || from == MotionKind::Sneak)
+                    && to == MotionKind::Idle && !intent.mStopping;
+                const float expected = flip ? 0.25f : transitionSeconds(from, to, 0.25f);
+                EXPECT_FLOAT_EQ(transitionSeconds(from, to, 0.25f, intent, times), expected)
+                    << static_cast<int>(from) << " -> " << static_cast<int>(to) << " intent " << bits;
+            }
         }
     }
 }
@@ -303,15 +362,45 @@ TEST(CreativeMotionIntentTest, AZeroOrNegativeBaseIsZero)
 
 // --- TransitionTimes as data -----------------------------------------------------------------------------------
 
-TEST(CreativeMotionIntentTest, TransitionTimesDefaultsMatchTheSpec)
+// The spec names two: a stop with the intent takes the rules' stop (1.5) and a flip the base time (1.0). The others
+// default to what the rules without intent give (start: the base; turn in place: 0.6 either way).
+TEST(CreativeMotionIntentTest, TransitionTimesDefaultsEqualTheRulesWithoutIntent)
 {
     const TransitionTimes times = makeTransitionTimes({});
     EXPECT_FLOAT_EQ(times.mStopping, 1.5f);
     EXPECT_FLOAT_EQ(times.mFlip, 1.0f);
-    EXPECT_FLOAT_EQ(times.mStarting, 0.8f);
+    EXPECT_FLOAT_EQ(times.mStarting, 1.0f);
     EXPECT_FLOAT_EQ(times.mFastTurn, 0.6f);
-    EXPECT_FLOAT_EQ(times.mSlowTurn, 1.0f);
+    EXPECT_FLOAT_EQ(times.mSlowTurn, 0.6f);
     EXPECT_FLOAT_EQ(times.mFastTurnRate, 1.5f);
+}
+
+TEST(CreativeMotionIntentTest, TransitionTimesReportEachBadKeyOrValueWithItsPlace)
+{
+    std::vector<std::string> problems;
+    const TransitionTimes times
+        = makeTransitionTimes({ { "stopping", "5" }, { "flip", "1e39" }, { "starting", "2,5" }, { "stoping", "2" },
+                                  { "fast turn rate", "0" }, { "slow turn", "0.9" } },
+            &problems);
+    const TransitionTimes defaults;
+    EXPECT_FLOAT_EQ(times.mStopping, defaults.mStopping); // above the largest factor: refused, not clamped
+    EXPECT_FLOAT_EQ(times.mFlip, defaults.mFlip); // would overflow a float
+    EXPECT_FLOAT_EQ(times.mStarting, defaults.mStarting);
+    EXPECT_FLOAT_EQ(times.mFastTurnRate, defaults.mFastTurnRate);
+    EXPECT_FLOAT_EQ(times.mSlowTurn, 0.9f); // a good value is read
+    ASSERT_EQ(problems.size(), 5u);
+    EXPECT_EQ(problems[0].find("[CreativeMotion Transitions] stopping = '5'"), 0u) << problems[0];
+    EXPECT_EQ(problems[3].find("[CreativeMotion Transitions] stoping = '2'"), 0u) << problems[3];
+    EXPECT_NE(problems[3].find("unknown key"), std::string::npos) << problems[3];
+}
+
+TEST(CreativeMotionIntentTest, TransitionTimesAcceptTheLargestFactor)
+{
+    std::vector<std::string> problems;
+    const TransitionTimes times = makeTransitionTimes({ { "stopping", "4" }, { "flip", "0" } }, &problems);
+    EXPECT_FLOAT_EQ(times.mStopping, sMaxTransitionFactor);
+    EXPECT_FLOAT_EQ(times.mFlip, 0.f);
+    EXPECT_TRUE(problems.empty());
 }
 
 TEST(CreativeMotionIntentTest, TransitionTimesReadTheKnownKeys)
@@ -371,37 +460,49 @@ TEST(CreativeMotionIntentTest, PresetNames)
 
 TEST(CreativeMotionIntentTest, PresetOffChangesNothing)
 {
-    for (int bits = 0; bits < 8; ++bits)
+    for (int bits = 0; bits < 64; ++bits)
     {
-        const bool animation = (bits & 1) != 0;
-        const bool rules = (bits & 2) != 0;
-        const bool style = (bits & 4) != 0;
+        const FeatureSetting animation{ (bits & 1) != 0, (bits & 8) != 0 };
+        const FeatureSetting rules{ (bits & 2) != 0, (bits & 16) != 0 };
+        const FeatureSetting style{ (bits & 4) != 0, (bits & 32) != 0 };
         const CreativeMotionFeatures features
             = resolveCreativeMotionFeatures(CreativeMotionPreset::Off, animation, rules, style);
-        EXPECT_EQ(features.mAnimation, animation);
-        EXPECT_EQ(features.mTransitionRules, rules);
-        EXPECT_EQ(features.mStyleLayer, style);
+        EXPECT_EQ(features.mAnimation, animation.mValue);
+        EXPECT_EQ(features.mTransitionRules, rules.mValue);
+        EXPECT_EQ(features.mStyleLayer, style.mValue);
         EXPECT_FALSE(features.mIntentTransitions);
     }
 }
 
-TEST(CreativeMotionIntentTest, PresetNaturalSwitchesTheFeaturesOnTogether)
+TEST(CreativeMotionIntentTest, PresetNaturalSwitchesOnWhatTheUserDoesNotName)
 {
-    const CreativeMotionFeatures features
-        = resolveCreativeMotionFeatures(CreativeMotionPreset::Natural, false, false, false);
+    const CreativeMotionFeatures features = resolveCreativeMotionFeatures(CreativeMotionPreset::Natural, {}, {}, {});
     EXPECT_TRUE(features.mAnimation);
     EXPECT_TRUE(features.mTransitionRules);
     EXPECT_TRUE(features.mStyleLayer);
     EXPECT_TRUE(features.mIntentTransitions);
 }
 
-TEST(CreativeMotionIntentTest, PresetNaturalKeepsWhatIsAlreadyOn)
+// Stage 1 review: a setting the user names explicitly wins over the preset, false included.
+TEST(CreativeMotionIntentTest, AnExplicitFalseKeepsAPieceOffUnderNatural)
 {
-    const CreativeMotionFeatures features
-        = resolveCreativeMotionFeatures(CreativeMotionPreset::Natural, true, true, true);
-    EXPECT_TRUE(features.mAnimation);
-    EXPECT_TRUE(features.mTransitionRules);
-    EXPECT_TRUE(features.mStyleLayer);
+    const FeatureSetting explicitFalse{ false, true };
+    const CreativeMotionFeatures noStyle
+        = resolveCreativeMotionFeatures(CreativeMotionPreset::Natural, {}, {}, explicitFalse);
+    EXPECT_TRUE(noStyle.mAnimation);
+    EXPECT_TRUE(noStyle.mTransitionRules);
+    EXPECT_FALSE(noStyle.mStyleLayer);
+    EXPECT_TRUE(noStyle.mIntentTransitions);
+
+    // Without transition rules there is nothing for the intent to change.
+    const CreativeMotionFeatures noRules
+        = resolveCreativeMotionFeatures(CreativeMotionPreset::Natural, {}, explicitFalse, {});
+    EXPECT_FALSE(noRules.mTransitionRules);
+    EXPECT_FALSE(noRules.mIntentTransitions);
+
+    const CreativeMotionFeatures noAnimation
+        = resolveCreativeMotionFeatures(CreativeMotionPreset::Natural, explicitFalse, {}, {});
+    EXPECT_FALSE(noAnimation.mAnimation);
 }
 
 TEST(CreativeMotionIntentTest, PresetSettingDefaultsToOff)

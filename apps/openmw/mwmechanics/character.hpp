@@ -215,6 +215,27 @@ namespace MWMechanics
         std::unique_ptr<MWRender::IntentTracker> mIntentTracker;
         float mIntentPreviousYaw = 0.f;
         bool mHasIntentPreviousYaw = false;
+        // What preAnimation (main thread) knows about the actor's movement request, for runPoseDriver (an animation
+        // thread, after preAnimation): preAnimation clears the movement settings before the animation runs, so they
+        // cannot be read there (stage 1 review, finding 1).
+        bool mIntentWantsToMove = false;
+        float mIntentSpeedMps = 0.f; // the speed the actor moves at in its current mode (cls.getCurrentSpeed), m/s
+        float mIntentMeasuredMps = -1.f; // inertial locomotion's smoothed speed in m/s; below 0 when not active
+        bool mIntentStanceChanged = false;
+        bool mIntentStanceKnown = false;
+        bool mIntentLastSneak = false;
+        bool mIntentLastRun = false;
+        // The last intent, for the developer trace.
+        struct TraceIntent
+        {
+            bool mValid = false;
+            bool mWants = false;
+            bool mStarting = false;
+            bool mStopping = false;
+            bool mStance = false;
+            float mTurnRate = 0.f;
+        };
+        TraceIntent mTraceIntent;
         std::atomic<float> mStyleCadence{ 1.f };
 
         std::map<ESM::RefId, MWSound::Sound*> mPlayingSounds;

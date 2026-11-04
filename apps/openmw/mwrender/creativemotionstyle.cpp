@@ -370,42 +370,71 @@ namespace MWRender
             return std::isfinite(value) ? value : fallback;
         }
 
-        // A finite number that is at least minimum; returns false (and leaves out alone) for anything else.
-        bool parseNumber(const std::string& text, float minimum, float& out)
+        // A finite number in [minimum, maximum] (above minimum when exclusive); false (out unchanged) for anything
+        // else. The range is checked on the double, before the cast, so no value can overflow the float.
+        bool parseNumber(const std::string& text, double minimum, bool exclusive, double maximum, float& out)
         {
             double value = 0.0;
             const char* const begin = text.data();
             const char* const end = begin + text.size();
             const auto [last, error] = std::from_chars(begin, end, value);
-            if (error != std::errc() || last != end || !std::isfinite(value) || value < minimum)
+            if (text.empty() || error != std::errc() || last != end || !std::isfinite(value))
+                return false;
+            if (value < minimum || (exclusive && value == minimum) || value > maximum)
                 return false;
             out = static_cast<float>(value);
             return true;
         }
+
+        std::string located(const std::string& key, const std::string& text, std::string_view why)
+        {
+            return "[" + std::string(sTransitionsCategory) + "] " + key + " = '" + text + "': " + std::string(why);
+        }
+
+        struct Factor
+        {
+            std::string_view mKey;
+            float TransitionTimes::*mField;
+        };
+        constexpr Factor sFactors[] = { { "stopping", &TransitionTimes::mStopping },
+            { "flip", &TransitionTimes::mFlip }, { "starting", &TransitionTimes::mStarting },
+            { "fast turn", &TransitionTimes::mFastTurn }, { "slow turn", &TransitionTimes::mSlowTurn } };
     }
 
-    TransitionTimes makeTransitionTimes(const std::vector<std::pair<std::string, std::string>>& entries)
+    TransitionTimes makeTransitionTimes(
+        const std::vector<std::pair<std::string, std::string>>& entries, std::vector<std::string>* problems)
     {
         TransitionTimes times;
         for (const auto& [key, text] : entries)
         {
-            if (key == "stopping")
-                parseNumber(text, 0.f, times.mStopping);
-            else if (key == "flip")
-                parseNumber(text, 0.f, times.mFlip);
-            else if (key == "starting")
-                parseNumber(text, 0.f, times.mStarting);
-            else if (key == "fast turn")
-                parseNumber(text, 0.f, times.mFastTurn);
-            else if (key == "slow turn")
-                parseNumber(text, 0.f, times.mSlowTurn);
+            const Factor* factor = nullptr;
+            for (const Factor& candidate : sFactors)
+            {
+                if (candidate.mKey == key)
+                    factor = &candidate;
+            }
+            if (factor != nullptr)
+            {
+                const bool read = parseNumber(text, 0.0, false, sMaxTransitionFactor, times.*(factor->mField));
+                if (!read && problems != nullptr)
+                    problems->push_back(located(key, text, "not a number from 0 to 4; the default is used"));
+            }
             else if (key == "fast turn rate")
-                parseNumber(text, std::numeric_limits<float>::min(), times.mFastTurnRate);
+            {
+                const bool read = parseNumber(text, 0.0, true, sMaxFastTurnRate, times.mFastTurnRate);
+                if (!read && problems != nullptr)
+                    problems->push_back(located(key, text, "not a number above 0 and at most 50; the default is used"));
+            }
+            else if (problems != nullptr)
+            {
+                problems->push_back(located(key, text,
+                    "unknown key (stopping, flip, starting, fast turn, slow turn, fast turn rate); ignored"));
+            }
         }
         return times;
     }
 
-    TransitionTimes loadTransitionTimesFromSettings()
+    TransitionTimes loadTransitionTimesFromSettings(std::vector<std::string>* problems)
     {
         std::vector<std::pair<std::string, std::string>> entries;
         // Defaults first, so that a user entry for the same key comes later and wins.
@@ -413,7 +442,7 @@ namespace MWRender
             for (const auto& [key, value] : *settings)
                 if (key.first == sTransitionsCategory)
                     entries.emplace_back(key.second, value);
-        return makeTransitionTimes(entries);
+        return makeTransitionTimes(entries, problems);
     }
 
     float transitionSeconds(
@@ -452,8 +481,15 @@ namespace MWRender
         }
         intent.mSmoothedSpeedMps = mSmoothed;
         intent.mStopping = !input.mWantsToMove && mSmoothed > sStoppedSpeedMps;
+        // Not slowing down: in the frame the movement keys are pressed the measured speed may still be 0 (the
+        // animation has not moved the actor yet), so an increase is not required, only that the speed does not fall.
         intent.mStarting = input.mWantsToMove && intent.mTargetSpeedMps > 0.f
-            && mSmoothed < sStartedShare * intent.mTargetSpeedMps && intent.mAccelerationMps2 > 0.f;
+            && mSmoothed < sStartedShare * intent.mTargetSpeedMps && intent.mAccelerationMps2 >= 0.f;
+        if (input.mStanceChanged)
+            mStanceHold = sStanceChangeHoldS;
+        else if (std::isfinite(input.mDt) && input.mDt > 0.f)
+            mStanceHold = std::max(0.f, mStanceHold - input.mDt);
+        intent.mStanceChanging = mStanceHold > 0.f;
         return intent;
     }
 
@@ -466,15 +502,35 @@ namespace MWRender
         return name == "natural" ? CreativeMotionPreset::Natural : CreativeMotionPreset::Off;
     }
 
-    CreativeMotionFeatures resolveCreativeMotionFeatures(
-        CreativeMotionPreset preset, bool animation, bool transitionRules, bool styleLayer)
+    CreativeMotionFeatures resolveCreativeMotionFeatures(CreativeMotionPreset preset, FeatureSetting animation,
+        FeatureSetting transitionRules, FeatureSetting styleLayer)
     {
         const bool natural = preset == CreativeMotionPreset::Natural;
+        const auto choose = [natural](FeatureSetting setting) {
+            return setting.mExplicit ? setting.mValue : (natural || setting.mValue);
+        };
         CreativeMotionFeatures features;
-        features.mAnimation = animation || natural;
-        features.mTransitionRules = transitionRules || natural;
-        features.mStyleLayer = styleLayer || natural;
-        features.mIntentTransitions = natural;
+        features.mAnimation = choose(animation);
+        features.mTransitionRules = choose(transitionRules);
+        features.mStyleLayer = choose(styleLayer);
+        features.mIntentTransitions = natural && features.mTransitionRules;
         return features;
+    }
+
+    CreativeMotionFeatures loadCreativeMotionFeaturesFromSettings(bool* recognised)
+    {
+        const auto feature = [](const char* key, bool value) {
+            FeatureSetting setting;
+            setting.mValue = value;
+            const auto& user = Settings::Manager::mUserSettings;
+            setting.mExplicit = user.find(std::make_pair(std::string("Game"), std::string(key))) != user.end();
+            return setting;
+        };
+        const CreativeMotionPreset preset
+            = parseCreativeMotionPreset(Settings::game().mCreativeMotionPreset.get(), recognised);
+        return resolveCreativeMotionFeatures(preset,
+            feature("creativemotion animation", Settings::game().mCreativeMotionAnimation),
+            feature("creativemotion transition rules", Settings::game().mCreativeMotionTransitionRules),
+            feature("creativemotion style layer", Settings::game().mCreativeMotionStyleLayer));
     }
 }

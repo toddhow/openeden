@@ -57,23 +57,35 @@ namespace MWRender
     };
 
     /// Duration factors of the intent rules, as data: the defaults are used unless the [CreativeMotion Transitions]
-    /// category of the settings names one (see makeTransitionTimes).
+    /// category of the settings names one (see makeTransitionTimes). The defaults equal what transitionSeconds without
+    /// intent gives (task 0067 spec, stage 1, and the stage 1 review): with them the only difference the intent makes
+    /// is mFlip, which the spec asks for. The start factor and the fast/slow turn split are not in the spec: they are
+    /// data for toddhow to try (open questions in the spec).
     struct TransitionTimes
     {
-        float mStopping = 1.5f; // walking, running or sneaking to idle with the stop intent
-        float mFlip = 1.0f; // the same change without the intent (the actor was blocked): the base time
-        float mStarting = 0.8f; // idle to walking, running or sneaking with the start intent
-        float mFastTurn = 0.6f; // to or from a turn in place at or above mFastTurnRate
-        float mSlowTurn = 1.0f; // to or from a turn in place below it
+        float mStopping = 1.5f; // walking, running or sneaking to idle with the stop intent (the rules' sStopping)
+        float mFlip = 1.0f; // the same change without the intent (the actor was blocked): the base time (spec)
+        float mStarting = 1.0f; // idle to walking, running or sneaking with the start intent (the rules: the base)
+        float mFastTurn = 0.6f; // to or from a turn in place at or above mFastTurnRate (the rules' sIdleTurn)
+        float mSlowTurn = 0.6f; // to or from a turn in place below it (the rules' sIdleTurn)
         float mFastTurnRate = 1.5f; // radians per second
     };
 
-    /// Keys "stopping", "flip", "starting", "fast turn", "slow turn" and "fast turn rate" (numbers; anything else,
-    /// a negative or non-numeric value is ignored, so the default stays).
-    TransitionTimes makeTransitionTimes(const std::vector<std::pair<std::string, std::string>>& entries);
+    /// The largest duration factor accepted from the settings: 4 times the default base of 0.25 s is 1 s, above the
+    /// longest blend the spec asks for (a stop that settles within 0.8 s); a larger number is refused, not clamped.
+    constexpr float sMaxTransitionFactor = 4.f;
+    /// The largest "fast turn rate" accepted, radians per second (Morrowind turns the player at most at about 2 pi per
+    /// second with the mouse; 50 is far above it).
+    constexpr float sMaxFastTurnRate = 50.f;
 
-    /// Reads the [CreativeMotion Transitions] category of the settings.
-    TransitionTimes loadTransitionTimesFromSettings();
+    /// Keys "stopping", "flip", "starting", "fast turn", "slow turn" (factors from 0 to sMaxTransitionFactor) and
+    /// "fast turn rate" (above 0, at most sMaxFastTurnRate). An unknown key, or a value that is not such a number
+    /// (text, "2,5", inf, nan, out of range), keeps the default and adds a located line to problems (when given).
+    TransitionTimes makeTransitionTimes(
+        const std::vector<std::pair<std::string, std::string>>& entries, std::vector<std::string>* problems = nullptr);
+
+    /// Reads the [CreativeMotion Transitions] category of the settings (defaults, then the user's settings.cfg).
+    TransitionTimes loadTransitionTimesFromSettings(std::vector<std::string>* problems = nullptr);
 
     /// transitionSeconds with the actor's intent: a stop with the intent takes times.mStopping, the same change
     /// without it times.mFlip; a start with the intent takes times.mStarting; a turn in place takes mFastTurn or
@@ -96,6 +108,7 @@ namespace MWRender
         float mTurnRate = 0.f; // radians per second, signed
         bool mStarting = false;
         bool mStopping = false;
+        bool mStanceChanging = false; // sneak or run was switched lately (not used by a rule yet: stage 2 and later)
     };
 
     /// One frame of what the engine knows about the actor's movement.
@@ -106,6 +119,7 @@ namespace MWRender
         bool mWantsToMove = false; // the movement keys (or the AI's movement request) are pressed
         float mIntendedSpeedMps = 0.f; // the speed it would reach, used when mWantsToMove
         float mYawDeltaRad = 0.f; // change of the actor's heading since the last frame, wrapped to -pi..pi
+        bool mStanceChanged = false; // sneak or run was switched this frame
     };
 
     /// What IntentTracker works out.
@@ -117,7 +131,12 @@ namespace MWRender
         float mTurnRate = 0.f;
         bool mStarting = false;
         bool mStopping = false;
+        bool mStanceChanging = false; // a stance change happened within the last sStanceChangeHoldS seconds
     };
+
+    /// How long a switch of sneak or run counts as a stance change, so that the change of animation group that follows
+    /// it a frame or two later still sees it (seconds).
+    constexpr float sStanceChangeHoldS = 0.3f;
 
     /// Smooths the measured speed and says whether the actor is starting or stopping. One per actor; update() makes no
     /// allocation. Not thread safe: one thread (the one that runs the actor's animation) calls it.
@@ -129,6 +148,7 @@ namespace MWRender
 
     private:
         float mSmoothed = 0.f;
+        float mStanceHold = 0.f;
     };
 
     /// The presets of [Game] creativemotion preset.
@@ -141,6 +161,14 @@ namespace MWRender
     /// "off" and "natural" (any case); anything else is Off and recognised is false.
     CreativeMotionPreset parseCreativeMotionPreset(std::string_view text, bool* recognised = nullptr);
 
+    /// One boolean setting as the user has it: its value, and whether the user's settings.cfg names it
+    /// (Settings::Manager::mUserSettings, which holds the user's lines and the values set at run time).
+    struct FeatureSetting
+    {
+        bool mValue = false;
+        bool mExplicit = false;
+    };
+
     /// Which CreativeMotion features are on once the preset and the individual settings are combined.
     struct CreativeMotionFeatures
     {
@@ -150,11 +178,15 @@ namespace MWRender
         bool mIntentTransitions = false; // the rules above also look at the actor's intent
     };
 
-    /// Combines the preset with the three settings: a setting that is true stays true; the preset Natural switches on
-    /// animation, transition rules, style layer and the intent rules. (A setting cannot be told apart from its default
-    /// when it is false, so to switch one piece off, set the preset to off and the settings you want.)
-    CreativeMotionFeatures resolveCreativeMotionFeatures(
-        CreativeMotionPreset preset, bool animation, bool transitionRules, bool styleLayer);
+    /// Combines the preset with the three settings. A setting the user names explicitly wins, true or false; a setting
+    /// the user does not name takes the preset's choice (Natural: on; Off: the setting's own value). The intent rules
+    /// are on with Natural and the transition rules on.
+    CreativeMotionFeatures resolveCreativeMotionFeatures(CreativeMotionPreset preset, FeatureSetting animation,
+        FeatureSetting transitionRules, FeatureSetting styleLayer);
+
+    /// The preset and the three [Game] settings as the settings have them now, combined; recognised is false (and the
+    /// result is that of Off) when the preset's name is not known.
+    CreativeMotionFeatures loadCreativeMotionFeaturesFromSettings(bool* recognised = nullptr);
 
     /// How much of each part of a style applies this frame, from 0 to 1.
     struct StyleWeights

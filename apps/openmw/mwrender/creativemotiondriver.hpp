@@ -110,6 +110,14 @@ namespace MWRender
         };
         TransitionStatus getTransitionStatus(size_t group) const;
 
+        /// For the developer trace (task 0067, stage 1 review): keep each group's sample before the transition's
+        /// offset is added, so that the offset can be measured. Allocates once when switched on; off by default.
+        void setRecordTargets(bool enabled);
+
+        /// " tgt=[<bone>=(x y z w);...]" with the recorded target rotation of each named bone that the last update()
+        /// animated, in the convention of describeBoneRotations; empty when targets are not recorded.
+        std::string describeTargetRotations(const std::vector<std::string_view>& normalizedNames) const;
+
         /// Skeleton index of the bone with that normalized (Anim::Bones) name, or -1.
         int getBoneIndex(std::string_view normalizedName) const;
 
@@ -172,6 +180,9 @@ namespace MWRender
         std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mGroupPoses;
         std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mGroupPrevPoses;
         std::vector<opas::math::Transform> mIncoming;
+        // The developer trace's targets: each group's sample before the inertializer's offset (setRecordTargets).
+        bool mRecordTargets = false;
+        std::array<std::vector<opas::math::Transform>, sNumBlendMasks> mGroupTargets;
         std::array<std::unique_ptr<opas::anim::Inertializer>, sNumBlendMasks> mInertializers;
 
         // Output, in engine units.
