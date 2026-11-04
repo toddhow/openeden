@@ -3,6 +3,8 @@
 
 #include <optional>
 
+#include <vsg/state/Buffer.h>
+
 #include <vsg/vk/Context.h>
 
 namespace Render
@@ -41,6 +43,44 @@ namespace Render
     std::pair<vsg::ref_ptr<vsg::Commands>, vsg::ref_ptr<vsg::Image>> createDownloadCommands(vsg::Device* device,
         vsg::ref_ptr<vsg::Image> srcImage, VkRect2D srcRect, VkFormat srcImageFormat, VkImageLayout srcImageLayout,
         std::optional<VkExtent2D> dstExtent = {}, DownloadSync sync = DownloadSync::Transfer);
+
+    // The middle of a source of the given size, cut to the aspect ratio of target (round four, finding 3): OpenMW
+    // 0.51's save thumbnail did this before it scaled (apps/openmw/mwrender/screenshotmanager.cpp at 442eec6e2f,
+    // ReadImageFromFramebufferCallback::drawImplementation: the padding on each side is the excess rounded down to a
+    // whole pixel and halved). A source of the target's aspect is whole; a zero size gives the whole source. Pure.
+    VkRect2D cropToAspect(VkExtent2D source, VkExtent2D target);
+
+    // Whether a linear-filtered blit from an optimal-tiling image with the source format's features into an
+    // optimal-tiling image with the destination format's can be recorded (Vulkan: vkCmdBlitImage valid usage: the
+    // source needs BLIT_SRC, and SAMPLED_IMAGE_FILTER_LINEAR for VK_FILTER_LINEAR; the destination BLIT_DST). Pure.
+    bool blitScalingSupported(VkFormatFeatureFlags srcOptimalFeatures, VkFormatFeatureFlags dstOptimalFeatures);
+
+    // A host-visible buffer a scaled copy ends in, tightly packed rows of extent.width pixels of format.
+    struct HostBuffer
+    {
+        vsg::ref_ptr<vsg::Buffer> buffer;
+        VkExtent2D extent{};
+        VkFormat format = VK_FORMAT_UNDEFINED;
+    };
+
+    struct ScaledDownload
+    {
+        vsg::ref_ptr<vsg::Commands> commands;
+        HostBuffer target;
+    };
+
+    // The save thumbnail's copy (round four, finding 3): srcRect of the source image is blitted with VK_FILTER_LINEAR
+    // into an optimal-tiling image of dstExtent, which is copied to a host-visible buffer. Before, the blit went
+    // straight into a linear-tiling host image with VK_FILTER_NEAREST, a decimation, and where the device could not
+    // blit into linear tiling the copy cut the top left corner of the screen instead of scaling it. Null (with a
+    // warning) when the device cannot blit the format that way. The barriers follow the sync mode as
+    // createDownloadCommands'.
+    std::optional<ScaledDownload> createScaledDownloadCommands(vsg::Device* device, vsg::ref_ptr<vsg::Image> srcImage,
+        VkRect2D srcRect, VkFormat srcImageFormat, VkImageLayout srcImageLayout, VkExtent2D dstExtent,
+        DownloadSync sync);
+
+    // The pixels of a finished ScaledDownload.
+    vsg::ref_ptr<vsg::Data> readDownloadedBuffer(vsg::Device* device, const HostBuffer& target);
 
     // Submits the commands on the device's graphics queue and waits for them, with no limit: VSG's
     // submitCommandsToQueue frees its command buffer and this its pool when they return, so they must not return while

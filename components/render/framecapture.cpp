@@ -213,10 +213,31 @@ namespace Render
             item.screenshot->srcImageFormat = swapchain->getImageFormat();
             // A picture of the window: the swapchain's alpha is not part of it (makeOpaque).
             item.screenshot->opaque = true;
-            auto [commands, copy] = createDownloadCommands(device, image, item.screenshot->srcRect,
-                item.screenshot->srcImageFormat, presentLayout, item.size, mSync);
-            item.screenshot->useCopy(copy, std::move(*token));
-            item.commands = commands;
+            // A request for a picture of a size of its own (the save thumbnail) is the middle of the window cut to that
+            // size's aspect ratio, as OpenMW 0.51's was, scaled with linear filtering into an image of its own, then
+            // copied to a host buffer (round four, finding 3). A device that cannot do that gets the older copy, which
+            // scales by a nearest blit where the device allows and cuts a corner where it does not (both say so in the
+            // log).
+            std::optional<ScaledDownload> scaled;
+            if (item.size)
+            {
+                item.screenshot->srcRect = cropToAspect(extent, *item.size);
+                scaled = createScaledDownloadCommands(device, image, item.screenshot->srcRect,
+                    item.screenshot->srcImageFormat, presentLayout, *item.size, mSync);
+            }
+            if (scaled)
+            {
+                item.screenshot->useBufferCopy(scaled->target, std::move(*token));
+                item.commands = scaled->commands;
+            }
+            else
+            {
+                auto [commands, copy] = createDownloadCommands(device, image, item.screenshot->srcRect,
+                    item.screenshot->srcImageFormat, presentLayout, item.size, mSync);
+                item.screenshot->useCopy(copy, std::move(*token));
+                item.commands = commands;
+            }
+            vsg::ref_ptr<vsg::Commands> commands = item.commands;
             mSwitch->children = { vsg::Switch::Child{ vsg::MASK_ALL, commands } };
             mState->queue.armed(std::move(item));
         }

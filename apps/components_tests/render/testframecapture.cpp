@@ -7,7 +7,9 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -445,6 +447,91 @@ namespace
         EXPECT_TRUE(done.empty());
         ASSERT_EQ(dropped.size(), 1u);
         EXPECT_EQ(dropped[0], 9);
+    }
+
+    // Round four, finding 3: the save thumbnail is cut to the thumbnail's aspect ratio, as OpenMW 0.51 did
+    // (git show 442eec6e2f:apps/openmw/mwrender/screenshotmanager.cpp, ReadImageFromFramebufferCallback::
+    // drawImplementation: leftPadding and topPadding from the image aspect, then readPixels of the middle), and scaled
+    // by a linear blit into an image of its own.
+
+    TEST(RenderThumbnailCrop, a_16_by_9_window_loses_rows_top_and_bottom_for_the_savegame_thumbnail)
+    {
+        const VkRect2D crop = Render::cropToAspect({ 1280, 720 }, { 518, 266 });
+        // 0.51: topPadding = int(720 - 1280 / (518.0 / 266)) / 2 = int(62.7) / 2 = 31
+        EXPECT_EQ(crop.offset.x, 0);
+        EXPECT_EQ(crop.offset.y, 31);
+        EXPECT_EQ(crop.extent.width, 1280u);
+        EXPECT_EQ(crop.extent.height, 658u);
+    }
+
+    TEST(RenderThumbnailCrop, a_wide_window_loses_columns_left_and_right)
+    {
+        const VkRect2D crop = Render::cropToAspect({ 2560, 1080 }, { 518, 266 });
+        // leftPadding = int(2560 - 1080 * (518.0 / 266)) / 2 = int(456.9) / 2 = 228
+        EXPECT_EQ(crop.offset.x, 228);
+        EXPECT_EQ(crop.offset.y, 0);
+        EXPECT_EQ(crop.extent.width, 2104u);
+        EXPECT_EQ(crop.extent.height, 1080u);
+    }
+
+    TEST(RenderThumbnailCrop, a_window_of_the_thumbnails_own_aspect_is_not_cut)
+    {
+        const VkRect2D crop = Render::cropToAspect({ 1036, 532 }, { 518, 266 });
+        EXPECT_EQ(crop.offset.x, 0);
+        EXPECT_EQ(crop.offset.y, 0);
+        EXPECT_EQ(crop.extent.width, 1036u);
+        EXPECT_EQ(crop.extent.height, 532u);
+    }
+
+    TEST(RenderThumbnailCrop, a_degenerate_size_gives_the_whole_source)
+    {
+        for (const auto& [source, target] : { std::pair<VkExtent2D, VkExtent2D>{ { 0, 0 }, { 518, 266 } },
+                 std::pair<VkExtent2D, VkExtent2D>{ { 1280, 720 }, { 0, 266 } },
+                 std::pair<VkExtent2D, VkExtent2D>{ { 1280, 720 }, { 518, 0 } } })
+        {
+            const VkRect2D crop = Render::cropToAspect(source, target);
+            EXPECT_EQ(crop.offset.x, 0);
+            EXPECT_EQ(crop.offset.y, 0);
+            EXPECT_EQ(crop.extent.width, source.width);
+            EXPECT_EQ(crop.extent.height, source.height);
+        }
+    }
+
+    TEST(RenderThumbnailCrop, the_crop_always_lies_inside_the_source_is_centred_and_has_the_thumbnails_aspect)
+    {
+        const VkExtent2D target{ 518, 266 };
+        const double aspect = 518.0 / 266.0;
+        for (std::uint32_t width = 64; width <= 4096; width += 37)
+        {
+            for (std::uint32_t height = 64; height <= 2400; height += 41)
+            {
+                const VkRect2D crop = Render::cropToAspect({ width, height }, target);
+                ASSERT_GE(crop.offset.x, 0);
+                ASSERT_GE(crop.offset.y, 0);
+                ASSERT_LE(crop.offset.x + crop.extent.width, width) << width << "x" << height;
+                ASSERT_LE(crop.offset.y + crop.extent.height, height) << width << "x" << height;
+                // Centred to within the one pixel integer halving loses.
+                EXPECT_LE(
+                    std::abs(crop.offset.x * 2 + static_cast<int>(crop.extent.width) - static_cast<int>(width)), 2);
+                EXPECT_LE(
+                    std::abs(crop.offset.y * 2 + static_cast<int>(crop.extent.height) - static_cast<int>(height)), 2);
+                // 0.51 rounds each padding down to a whole pixel, so the aspect is the thumbnail's to about a pixel.
+                const double cropAspect = static_cast<double>(crop.extent.width) / crop.extent.height;
+                EXPECT_NEAR(cropAspect / aspect, 1.0, 4.0 / std::min(crop.extent.width, crop.extent.height) + 0.001)
+                    << width << "x" << height;
+            }
+        }
+    }
+
+    TEST(RenderThumbnailScale, the_linear_blit_needs_filtering_on_the_source_and_blit_on_both)
+    {
+        const VkFormatFeatureFlags src
+            = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+        const VkFormatFeatureFlags dst = VK_FORMAT_FEATURE_BLIT_DST_BIT;
+        EXPECT_TRUE(Render::blitScalingSupported(src, dst));
+        EXPECT_FALSE(Render::blitScalingSupported(src & ~VK_FORMAT_FEATURE_BLIT_SRC_BIT, dst));
+        EXPECT_FALSE(Render::blitScalingSupported(src & ~VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT, dst));
+        EXPECT_FALSE(Render::blitScalingSupported(src, 0));
     }
 
     // The barrier masks of the sync modes (downloadSyncMasks; third review round). The reason is in download.cpp: a

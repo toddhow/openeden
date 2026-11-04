@@ -51,6 +51,8 @@ namespace Render
         // operate() reads it and writes the file. The token counts it against the copies waiting to be written, until
         // operate() has read it or this is destroyed.
         void useCopy(vsg::ref_ptr<vsg::Image> copy, ScreenshotCopyBudget::Token token);
+        // The same for a scaled copy that ended in a host-visible buffer (createScaledDownloadCommands).
+        void useBufferCopy(HostBuffer copy, ScreenshotCopyBudget::Token token);
         // Copies the source image now, on the calling thread, and waits for the copy (a headless engine's image, which
         // is never presented); throws std::runtime_error when the copy fails, which would otherwise give a file of
         // whatever the memory held. Without this or useCopy, operate() copies the source when it runs, as before.
@@ -62,6 +64,7 @@ namespace Render
 
         std::filesystem::path mReservedFilename;
         vsg::ref_ptr<vsg::Image> mCopy;
+        HostBuffer mBufferCopy;
         std::optional<ScreenshotCopyBudget::Token> mCopyToken;
     };
 

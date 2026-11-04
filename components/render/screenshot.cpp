@@ -55,6 +55,12 @@ namespace Render
         mCopyToken = std::move(token);
     }
 
+    void Screenshot::useBufferCopy(HostBuffer copy, ScreenshotCopyBudget::Token token)
+    {
+        mBufferCopy = std::move(copy);
+        mCopyToken = std::move(token);
+    }
+
     void Screenshot::copyNow(ScreenshotCopyBudget::Token token)
     {
         auto [commands, copy] = createDownloadCommands(device, srcImage, srcRect, srcImageFormat, srcImageLayout);
@@ -71,6 +77,12 @@ namespace Render
             // The host-visible copy is no longer needed: free it, and its place among the copies waiting, before the
             // slow write.
             mCopy = nullptr;
+            mCopyToken.reset();
+        }
+        else if (mBufferCopy.buffer)
+        {
+            downloadData = readDownloadedBuffer(device, mBufferCopy);
+            mBufferCopy = HostBuffer{};
             mCopyToken.reset();
         }
         else
