@@ -178,6 +178,10 @@ namespace MWRender
         {
             npc->animation->runAnimation(0);
             npc->update(0);
+            // Task 0074f (finding 3 of the review of 0074e): the doll is not in the Scene, so nothing else runs its
+            // pending quiver change (show(Weapon, true) in rebuild asks for one with [Game] weapon sheathing on).
+            // Main thread: the inventory window's frame.
+            npc->updatePendingQuiver();
         }
     }
 
