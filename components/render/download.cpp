@@ -35,7 +35,8 @@ namespace Render // namespace vsgExamples
             ? VkPipelineStageFlags{ VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT }
             : VkPipelineStageFlags{ VK_PIPELINE_STAGE_TRANSFER_BIT };
         const VkAccessFlags copyReader = beforePresent ? VK_ACCESS_HOST_READ_BIT : VK_ACCESS_MEMORY_READ_BIT;
-        const VkAccessFlags srcImageAfter = beforePresent ? VkAccessFlags{ 0 } : VK_ACCESS_MEMORY_READ_BIT;
+        const VkAccessFlags srcImageAfter
+            = beforePresent ? VkAccessFlags{ 0 } : VkAccessFlags{ VK_ACCESS_MEMORY_READ_BIT };
 
         auto targetImageFormat = srcImageFormat;
         auto dstExtent = srcRect.extent;
