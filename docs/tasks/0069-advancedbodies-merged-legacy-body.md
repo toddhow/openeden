@@ -544,7 +544,7 @@ dressed never merges, which in a real game is the player and almost every NPC) o
 preload thread, or taking the engine's own skeleton, would remove it. (4) The merged body writes bone motion to the
 G-buffer where the rigid stock parts wrote none (finding 1): fine, or should the merged draws be kept out of it?
 
-### Stage e, 2026-11-04: equipment and regions (commits `87b191d445`, `63802e1b86` and the check commit)
+### Stage e, 2026-11-04: equipment and regions (commits `87b191d445`, `63802e1b86`, `ffcaed3e7a`)
 
 **What was built.**
 - `components/body/mergedruntime.*` (pure): `hiddenMergedSlots(mergedSlots, partslots, priorities)`, the stock parts'
@@ -625,8 +625,9 @@ drew the merged body falls back, the warning repeats on every `updateParts` (no 
 draws. The B3 surface morph hooks are not built; the region ranges they would need are `MergedDraw::mRuns` and
 `TemplateResult::mDrawRuns`, the weld groups are in the payload.
 
-**Tests and gates.** `components-tests`: the 442 body, merged and skeleton tests pass. clang-format 14 (in a container)
-leaves the changed C++ files as they are. Not run: the Linux gate, the 32 Lua tests, `openmw-tests`, a frozen-pose
+**Tests and gates.** `components-tests`: the 442 body, merged and skeleton tests pass; `openmw-tests` 868 pass.
+clang-format 14 (in a container) leaves the changed C++ files as they are. Not run: the Linux gate, the 32 Lua tests,
+a fresh reviewer, a frozen-pose
 pixel comparison, the "off" comparison against the commit before (off, `attachMergedBody` still returns after its
 first setting read, before any new code).
 
