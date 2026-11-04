@@ -7,6 +7,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <vsg/core/Inherit.h>
 #include <vsg/io/Options.h>
@@ -143,6 +144,14 @@ namespace vsgUtil
     vsg::ref_ptr<vsg::ShaderModule> slangTwin(const std::string& path, const std::set<std::string>& requested,
         std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options,
         std::optional<uint32_t> numUvSets = std::nullopt);
+
+    /// Task 0072, stage f: VSG compiles a graphics pipeline's stages together whenever one of them is GLSL source
+    /// (vsg::GraphicsPipeline::compile hands every stage to ShaderCompiler::compile), and glslang cannot link a stage
+    /// that has only SPIR-V, so a pipeline with a twin beside a GLSL stage fails to compile and draws nothing. Sets
+    /// each stage's module to `twins` at the same index only when every stage that is GLSL source has one (a stage that
+    /// is SPIR-V already needs none), and returns true; otherwise, or when the sizes differ, changes nothing and
+    /// returns false, so the pipeline draws with its GLSL.
+    bool takeSlangTwinsTogether(vsg::ShaderStages& stages, const std::vector<vsg::ref_ptr<vsg::ShaderModule>>& twins);
 
     /// For a stage read with vsgUtil::readShader and compiled with no defines (the compute passes, task 0072 stage
     /// c): records its use (recordShaderUse) and, when the options prefer Slang and a twin is built for the stage's

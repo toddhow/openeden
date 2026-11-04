@@ -573,4 +573,36 @@ namespace
         EXPECT_EQ(
             vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, sObjectVert, bare.options(), 3u), std::nullopt);
     }
+
+    // Task 0072, stage f: VSG compiles a pipeline's stages together whenever one of them is GLSL source, and glslang
+    // cannot link a stage that has only SPIR-V, so a pipeline with a twin beside a GLSL stage draws nothing. A pipeline
+    // takes its twins together, or keeps the GLSL in every stage.
+    TEST(ShaderDefines, a_pipeline_takes_its_twins_only_when_every_glsl_stage_has_one)
+    {
+        const std::string vertexSource = "void main() {}";
+        const auto glsl = [&](VkShaderStageFlagBits stage) {
+            return vsg::ShaderStage::create(stage, "main", vsg::ShaderModule::create(vertexSource));
+        };
+        const auto twin = vsg::ShaderModule::create(sPermutationWords);
+        vsg::ShaderStages stages{ glsl(VK_SHADER_STAGE_VERTEX_BIT), glsl(VK_SHADER_STAGE_FRAGMENT_BIT) };
+        EXPECT_FALSE(vsgUtil::takeSlangTwinsTogether(stages, { twin, nullptr }));
+        EXPECT_FALSE(vsgUtil::takeSlangTwinsTogether(stages, { nullptr, twin }));
+        for (const auto& stage : stages)
+        {
+            EXPECT_EQ(stage->module->source, vertexSource);
+            EXPECT_TRUE(stage->module->code.empty());
+        }
+        EXPECT_TRUE(vsgUtil::takeSlangTwinsTogether(stages, { twin, twin }));
+        EXPECT_EQ(stages[0]->module, twin);
+        EXPECT_EQ(stages[1]->module, twin);
+        // A stage that is SPIR-V already (a Slang-only shader) needs no twin.
+        vsg::ShaderStages withSpirv{ vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", twin),
+            glsl(VK_SHADER_STAGE_FRAGMENT_BIT) };
+        EXPECT_TRUE(vsgUtil::takeSlangTwinsTogether(withSpirv, { nullptr, twin }));
+        EXPECT_EQ(withSpirv[1]->module, twin);
+        // A list that does not match the stages takes nothing.
+        vsg::ShaderStages two{ glsl(VK_SHADER_STAGE_VERTEX_BIT), glsl(VK_SHADER_STAGE_FRAGMENT_BIT) };
+        EXPECT_FALSE(vsgUtil::takeSlangTwinsTogether(two, { twin }));
+        EXPECT_TRUE(two[0]->module->code.empty());
+    }
 }

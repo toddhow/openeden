@@ -218,18 +218,8 @@ namespace Pipeline
             shaderStage->module = vsg::ShaderModule::create(*shaderStage->module);
             shaderStage->module->hints = compileSettings;
         }
-        if (preferSlang)
-        {
-            // Task 0072: a Slang port compiled for exactly the defines the GLSL compiler would apply (the requested
-            // ones the stage imports); any other set keeps the GLSL. The sun's single precompiled file of task 0023 is
-            // retired: the sun is a permutation family like the rest of the sky (stage b).
-            if (auto module = vsgUtil::slangTwin(
-                    path + suffix, compileSettings->defines, shaderStage->module->source, preferSlang, mShaderOptions))
-            {
-                shaderStage->module = module;
-                Log(Debug::Verbose) << "Using the Slang permutation of " << path << suffix;
-            }
-        }
+        // Task 0072: the Slang twin is chosen by the pipeline (Graphics::create), which takes the twins of both its
+        // stages or neither (vsgUtil::takeSlangTwinsTogether); the stage, shared by many pipelines, keeps its GLSL.
         return shaderStage;
     }
 
@@ -335,10 +325,14 @@ namespace Pipeline
         auto numUvSets = key.numUvSets;
         vsg::ShaderStage::SpecializationConstants specConstants = { { 0, vsg::intValue::create(numUvSets) } };
 
-        // Task 0072, stage f: the object shader's twins are built once per count of texture coordinate sets, which
-        // only the pipeline knows, so a stage whose set declares the arrays is traced and chosen here, on this
-        // pipeline's copy (vsgUtil::slangSelectionSet); any other stage was chosen when it was created.
+        // Task 0072: a Slang twin compiled for exactly the defines the GLSL compiler would apply (the requested ones
+        // the stage imports); stage f: for a set with the object shader's texture coordinate arrays, also for this
+        // pipeline's count of them (vsgUtil::slangSelectionSet), which only the pipeline knows, so the twins are
+        // chosen here, on this pipeline's copies. VSG compiles a pipeline's stages together when one is GLSL and
+        // glslang cannot link a SPIR-V stage, so both stages take their twins or neither does: a set with no file
+        // draws with the GLSL, and so does the other stage of its pipeline.
         const std::string shaderPath = key.shader.path.empty() ? "default" : key.shader.path;
+        std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
         for (size_t i = 0; i < shaders.size(); ++i)
         {
             auto& shader = shaders[i];
@@ -347,14 +341,14 @@ namespace Pipeline
             const std::string stageFile = shaderPath + (i == 0 ? "/main.vert" : "/main.frag");
             const auto& defines = shader->module->hints->defines;
             vsgUtil::recordShaderUse(stageFile, defines, shader.get(), mShaderOptions, numUvSets);
-            if (auto module = vsgUtil::slangTwin(
-                    stageFile, defines, shader->module->source, preferSlang, mShaderOptions, numUvSets))
-            {
-                shader->module = module;
-                Log(Debug::Verbose) << "Using the Slang permutation of " << stageFile << " for " << numUvSets
-                                    << " texture coordinate sets";
-            }
+            twins[i] = vsgUtil::slangTwin(stageFile, defines, shader->module->source, preferSlang, mShaderOptions);
+            if (!twins[i])
+                twins[i] = vsgUtil::slangTwin(
+                    stageFile, defines, shader->module->source, preferSlang, mShaderOptions, numUvSets);
         }
+        if (preferSlang && vsgUtil::takeSlangTwinsTogether(shaders, twins))
+            Log(Debug::Verbose) << "Using the Slang permutations of " << shaderPath << " for " << numUvSets
+                                << " texture coordinate sets";
 
         auto vertexSpecConstants = specConstants;
         for (auto [binding, uvSet] : key.nonStandardUvSets)

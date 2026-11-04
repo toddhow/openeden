@@ -494,6 +494,24 @@ namespace vsgUtil
         return findSlangPermutation(path, *defines, options);
     }
 
+    bool takeSlangTwinsTogether(vsg::ShaderStages& stages, const std::vector<vsg::ref_ptr<vsg::ShaderModule>>& twins)
+    {
+        if (stages.size() != twins.size())
+            return false;
+        for (std::size_t i = 0; i < stages.size(); ++i)
+        {
+            const bool glsl = stages[i] && stages[i]->module && !stages[i]->module->source.empty();
+            if (glsl && !twins[i])
+                return false;
+        }
+        for (std::size_t i = 0; i < stages.size(); ++i)
+        {
+            if (twins[i] && stages[i])
+                stages[i]->module = twins[i];
+        }
+        return true;
+    }
+
     vsg::ref_ptr<vsg::ShaderStage> withSlangTwin(const vsg::ref_ptr<vsg::ShaderStage>& stage, const std::string& path,
         const vsg::ref_ptr<const vsg::Options>& options)
     {

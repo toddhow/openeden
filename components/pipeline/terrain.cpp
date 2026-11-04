@@ -103,19 +103,25 @@ namespace Pipeline
         // Task 0072, stage e: with `slang shaders` on, the Slang permutation compiled for exactly the set this stage
         // is drawn with (its imported defines and its settings files' defines); a set with no file keeps the GLSL. A
         // twin takes the `*.settings` values as specialization constants.
+        // Stage f: both stages take their twins or neither does, since VSG compiles a pipeline's stages together when
+        // one is GLSL and glslang cannot link a SPIR-V stage (vsgUtil::takeSlangTwinsTogether): a fragment set with no
+        // file keeps the vertex stage's GLSL too.
         if (vsgUtil::prefersSlang(shaderOptions.get()))
         {
+            std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
+            vsg::ShaderStages copies;
             for (std::size_t i = 0; i < shaders.size(); ++i)
             {
                 const auto& hints = shaders[i]->module->hints;
-                auto module = vsgUtil::slangTwin(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
+                twins[i] = vsgUtil::slangTwin(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
                     hints ? hints->defines : noDefines, shaders[i]->module->source, true, shaderOptions);
-                if (!module)
-                    continue;
-                auto twin = vsg::ShaderStage::create(*shaders[i]);
-                twin->module = module;
-                vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
-                shaders[i] = twin;
+                copies.push_back(vsg::ShaderStage::create(*shaders[i]));
+            }
+            if (vsgUtil::takeSlangTwinsTogether(copies, twins))
+            {
+                for (auto& twin : copies)
+                    vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
+                shaders = copies;
             }
         }
 
