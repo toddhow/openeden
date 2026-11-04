@@ -154,3 +154,14 @@ To `face-layer.md` (CreativeMotion): (a) status line: add the decisions of 2026-
 To the Living Design Doc's "Facial animation layer" (CreativeMotion): replace the SKSE-era lines (section 2.2 of the write-up) and the open item at its line 507 ("confirm shipping generated curves (never Bethesda audio)") with the shipping rule above.
 
 To OpenEden documents: `docs/design/eden-studio-plan.md` section 5.1 item 5 (generation now happens in the game as well as in the Studio; the panel still edits and previews); `docs/design/advancedbodies-in-openeden.md` (a touchpoint line: the head package declares the face channels it supports; edit after the 0069 agent has finished); `docs/tasks/0070-*.md` (face bones are folded to `Head` until the face channel maps exist; add the dependency); `docs/dependencies.md` (when stage c starts: ONNX Runtime and its execution providers, the NVIDIA model licence text and notice, Rhubarb if added); a CreativeMotion task spec for C8 (face layer: procedural face life, the format, the head channel maps) once toddhow approves the ownership.
+
+## Answers of toddhow, 2026-11-03 (second round, questions 1 to 6 of the 2026-11-03 update)
+
+1. Yes: "any GPU" is the goal until the stage a gate confirms or refutes it.
+2. Yes: the user downloads the weights (NVIDIA's licence accepted by the user); nothing from NVIDIA is bundled or hosted by us.
+3. "No" to "skip Audio2Emotion": read as: do NOT skip it, the emotion model is wanted. TO CONFIRM with toddhow: it is gated with its own licence (use only with Audio2Face, not for emotion recognition), 1.27 GB, and needs its own download and licence acceptance; the first stages work without it and its stage is added after the gate.
+4. Yes: v2.3 is the portable tier and v3.0 the high-quality tier.
+5. Yes: stock Morrowind heads get jaw and the few mouth channels they have.
+6. Yes: background building defaults to off, one idle-priority CPU thread, GPU only in menus and loading.
+
+Questions 7 to 10 (determinism only on the same machine, the shipping rule until a lawyer answers, a lawyer reading the full licence first, measuring a clean Morrowind install) are not answered yet; the stated defaults hold meanwhile.
