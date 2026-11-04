@@ -28,6 +28,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/fx/technique.hpp>
+#include <components/lod/viewlimits.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/vsgmath.hpp>
@@ -66,7 +67,6 @@
 #include <components/render/velocity.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/lod/viewlimits.hpp>
 #include <components/settings/values.hpp>
 
 #include <components/terrain/paging.hpp>
@@ -155,8 +155,8 @@ namespace MWRender
             if (!warned)
             {
                 warned = true;
-                Log(Debug::Warning) << "[WorldLod] view distance \"" << text << "\" is neither a number nor auto; using "
-                                    << Lod::legacyViewDistance;
+                Log(Debug::Warning) << "[WorldLod] view distance \"" << text
+                                    << "\" is neither a number nor auto; using " << Lod::legacyViewDistance;
             }
             Lod::ViewDistanceSetting fallback;
             fallback.mValue = Lod::legacyViewDistance;

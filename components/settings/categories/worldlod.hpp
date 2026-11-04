@@ -33,8 +33,7 @@ namespace Settings
         // paging range are one number as before.
         SettingValue<bool> mMapView{ mIndex, "WorldLod", "map view" };
         // The most `view distance = auto` may reach, in units (a hardware budget).
-        SettingValue<float> mMaxViewDistance{ mIndex, "WorldLod", "max view distance",
-            makeMaxStrictSanitizerFloat(0) };
+        SettingValue<float> mMaxViewDistance{ mIndex, "WorldLod", "max view distance", makeMaxStrictSanitizerFloat(0) };
         SettingValue<int> mTerrainTileLevel{ mIndex, "WorldLod", "terrain tile level", makeClampSanitizerInt(1, 1) };
     };
 }
