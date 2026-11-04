@@ -742,7 +742,10 @@ namespace MWRender::MergedBodies
 
     Session::~Session()
     {
-        // The templates (pipelines, descriptor sets, images) go here, while the device still exists.
+        // The session's own references to the templates (pipelines, descriptor sets, images) go here. An actor still in
+        // the scene holds its template (Npc::mMergedTemplate) and its copy, which shares the template's buffers and
+        // descriptors; those go with RenderManager's Scene, after this session (OMW::Engine declares mMergedBodies
+        // after mRenderManager) and still before the render engine and its device (declared before both).
         std::lock_guard lock(sMutex);
         if (sActive == mState.get())
             sActive = nullptr;
@@ -798,10 +801,20 @@ namespace MWRender::MergedBodies
             return nullptr;
         }
 
-        // Whether a draw of the copy already draws exactly `ranges` (its children are draws of the template's buffers,
-        // checked by the caller).
-        bool drawsRanges(const vsg::StateGroup& group, const std::vector<Body::IndexRange>& ranges)
+        // Whether `ranges` are the whole index list of a draw of `indexCount` indices: nothing of it is hidden.
+        bool isWhole(const std::vector<Body::IndexRange>& ranges, std::uint32_t indexCount)
         {
+            return ranges.size() == 1 && ranges[0].mFirstIndex == 0 && ranges[0].mIndexCount == indexCount;
+        }
+
+        // Whether a draw of the copy already draws exactly `ranges` (its children are draws of the template's buffers,
+        // checked by the caller). A whole draw is drawn by the template's own draw `whole` (second review, finding 6),
+        // so a part made earlier that covers the whole range is not as wanted.
+        bool drawsRanges(const vsg::StateGroup& group, const std::vector<Body::IndexRange>& ranges,
+            const vsg::ref_ptr<vsg::Node>& whole, std::uint32_t wholeCount)
+        {
+            if (isWhole(ranges, wholeCount))
+                return group.children.size() == 1 && group.children[0] == whole;
             if (group.children.size() != ranges.size())
                 return false;
             for (std::size_t i = 0; i < ranges.size(); ++i)
@@ -827,8 +840,10 @@ namespace MWRender::MergedBodies
         // Everything is checked before anything changes, so a refusal leaves the copy as it was.
         std::vector<vsg::StateGroup*> groups;
         std::vector<const vsg::VertexIndexDraw*> geometries;
+        std::vector<vsg::ref_ptr<vsg::Node>> templateDraws; // the template's own draws, which a whole draw shares
         groups.reserve(drawRuns.size());
         geometries.reserve(drawRuns.size());
+        templateDraws.reserve(drawRuns.size());
         for (std::size_t i = 0; i < drawRuns.size(); ++i)
         {
             auto* cull = dynamic_cast<vsg::CullNode*>(actorRoot->children[i].get());
@@ -856,28 +871,38 @@ namespace MWRender::MergedBodies
             }
             groups.push_back(group);
             geometries.push_back(geometry);
+            templateDraws.push_back(templateGroup->children[0]);
         }
         for (std::size_t i = 0; i < drawRuns.size(); ++i)
         {
             const std::vector<Body::IndexRange> ranges = Body::visibleIndexRanges(drawRuns[i], hiddenSlots);
             change.mDrawn.push_back(!ranges.empty());
             change.mBoneMatrices.push_back(boneMatricesOf(*groups[i]));
-            if (drawsRanges(*groups[i], ranges))
-                continue; // already as wanted: the template's own draw when nothing of it is hidden
             const vsg::VertexIndexDraw& geometry = *geometries[i];
+            if (drawsRanges(*groups[i], ranges, templateDraws[i], geometry.indexCount))
+                continue; // already as wanted
             decltype(groups[i]->children) children;
-            children.reserve(ranges.size());
-            for (const Body::IndexRange& range : ranges)
+            if (isWhole(ranges, geometry.indexCount))
             {
-                // The copy shares the template's buffer infos, so the vertices and indices are on the GPU once.
-                auto part = vsg::VertexIndexDraw::create(geometry);
-                // VSG's copy does not carry the index type; assignIndices sets it from the data, then the template's
-                // buffer info replaces the one it made.
-                part->assignIndices(geometry.indices->data);
-                part->indices = geometry.indices;
-                part->firstIndex = range.mFirstIndex;
-                part->indexCount = range.mIndexCount;
-                children.push_back(part);
+                // Nothing of it hidden: the template's own draw, as a copy that was never changed has (second review,
+                // finding 6), not a new draw of the whole range.
+                children.push_back(templateDraws[i]);
+            }
+            else
+            {
+                children.reserve(ranges.size());
+                for (const Body::IndexRange& range : ranges)
+                {
+                    // The copy shares the template's buffer infos, so the vertices and indices are on the GPU once.
+                    auto part = vsg::VertexIndexDraw::create(geometry);
+                    // VSG's copy does not carry the index type; assignIndices sets it from the data, then the
+                    // template's buffer info replaces the one it made.
+                    part->assignIndices(geometry.indices->data);
+                    part->indices = geometry.indices;
+                    part->firstIndex = range.mFirstIndex;
+                    part->indexCount = range.mIndexCount;
+                    children.push_back(part);
+                }
             }
             for (const auto& child : groups[i]->children)
                 change.mRemoved.push_back(child);

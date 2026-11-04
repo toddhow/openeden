@@ -27,8 +27,11 @@
 // The template node is built once per (race, sex, read options) and shared; each actor takes its own copy of the
 // controllers and bone matrices through MWAnim::decorate, as a stock part's node is.
 //
-// Lifetime: everything lives in a Session the Engine owns (vsgengine.hpp), destroyed before the render engine and its
-// device (review finding 3: no Vulkan objects in namespace-scope statics). Without a session nothing is built.
+// Lifetime: the cache, the templates and what was reported live in a Session the Engine owns (vsgengine.hpp: declared
+// after the render engine and the render manager, so destroyed before both). An actor holds its template and its copy
+// (Npc::mMergedTemplate, mMergedNode) until its Npc goes with RenderManager's Scene: after the Session, still before
+// the render engine and its device. No Vulkan objects in namespace-scope statics (review finding 3). Without a session
+// nothing is built.
 //
 // Threads: main thread only (the reader, the pipeline cache and the template map); a mutex guards the state anyway.
 
@@ -119,8 +122,9 @@ namespace MWRender::MergedBodies
 
     /// Task 0069 stage e: leaves the regions of `hiddenSlots` (ascending) out of an actor's copy of a template: each
     /// draw draws the index ranges that remain, as draws that share the template's vertex and index buffers (the
-    /// template's own draw when nothing of it is hidden), or nothing. It can be called again on a copy it changed
-    /// before (review finding 2: an equipment change keeps the copy); a draw already as wanted is left as it is.
+    /// template's own draw when nothing of it is hidden, also when it was hidden before: second review, finding 6), or
+    /// nothing. It can be called again on a copy it changed before (review finding 2: an equipment change keeps the
+    /// copy); a draw already as wanted is left as it is.
     /// `actorNode` must be the actor's copy made by MWAnim::decorate, whose state groups are its own (the bone matrices
     /// made them so); a copy that still shares a state group with `templateNode`, or a structure that is not the
     /// template's, is left untouched and false is returned: the caller then keeps the stock parts. Main thread, in

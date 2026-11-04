@@ -242,6 +242,42 @@ namespace
         EXPECT_EQ(change.mDrawn, (std::vector<bool>{ true, true, true }));
     }
 
+    // Task 0069 stage e, second review (finding 6): a draw of the copy that nothing hides any more draws the template's
+    // own draw again, as a copy that was never changed does, and the draws it replaced go to the caller. Written before
+    // the change, run red against the code before it (which made a new draw of the whole range).
+    TEST(MergedBodyCopyRegions, the_template_draw_comes_back_when_nothing_is_hidden_again)
+    {
+        const Template model = makeTemplate(sRuns);
+        auto copy = copyOf(model);
+        RegionChange change;
+        ASSERT_TRUE(applyHiddenRegions(*copy, *model.mRoot, model.mRuns, { 3 }, change));
+        // Draw 1 is slot 3 alone: hidden entirely, then drawn again whole.
+        ASSERT_TRUE(applyHiddenRegions(*copy, *model.mRoot, model.mRuns, { 4 }, change));
+        ASSERT_EQ(groupOf(*copy, 1).children.size(), 1u);
+        EXPECT_EQ(groupOf(*copy, 1).children[0], model.mDraws[1]);
+
+        ASSERT_TRUE(applyHiddenRegions(*copy, *model.mRoot, model.mRuns, {}, change));
+        for (std::size_t i = 0; i < sRuns.size(); ++i)
+        {
+            ASSERT_EQ(groupOf(*copy, i).children.size(), 1u) << i;
+            EXPECT_EQ(groupOf(*copy, i).children[0], model.mDraws[i]) << i;
+        }
+        EXPECT_EQ(change.mDrawn, (std::vector<bool>{ true, true, true }));
+        // Replaced: draw 0's one part (0 to 90) and draw 2's one part (12 to 18); draw 1 already had the template's.
+        ASSERT_EQ(change.mRemoved.size(), 2u);
+        for (const auto& removed : change.mRemoved)
+        {
+            for (const auto& draw : model.mDraws)
+                EXPECT_NE(removed, draw);
+        }
+        // The template itself never changes.
+        for (std::size_t i = 0; i < sRuns.size(); ++i)
+        {
+            ASSERT_EQ(groupOf(*model.mRoot, i).children.size(), 1u);
+            EXPECT_EQ(groupOf(*model.mRoot, i).children[0], model.mDraws[i]);
+        }
+    }
+
     TEST(MergedBodyCopyRegions, the_same_hidden_set_again_changes_nothing)
     {
         const Template model = makeTemplate(sRuns);
