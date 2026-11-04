@@ -1,74 +1,25 @@
-// The sun, in Slang (task 0023, F1b). This is the proof that the Slang pipeline works: it must draw exactly what
-// sky/sun/main.vert and sky/sun/main.frag draw, and it must use the same descriptor sets, bindings, push constants and
-// interface locations, because the C++ side builds the pipeline layout by hand (research note 0005, section 5).
-//
-// Loaded in place of the GLSL pair only when [Rendering] slang shaders is on. The sun is always drawn with the
-// MATERIAL and DIFFUSE_MAP modes (MWRender weather.cpp, CelestialBody::pipelineOptions), so both are unconditional here.
-//
-// Compiled with: -profile spirv_1_0 -matrix-layout-column-major, so matrices lie in memory as GLSL's mat4 does.
-
-// lib/sets.glsl
-static const int VIEW_SET = 0;
-static const int TEXTURE_SET = 2;
-
-// lib/pushconstants.glsl
-struct PushConstants
-{
-    float4x4 projection;
-    float4x4 modelview;
-};
-[[vk::push_constant]] ConstantBuffer<PushConstants> pc;
-
-// lib/material/data.glsl (std140)
-struct Material
-{
-    float4 ambient;
-    float4 diffuse;
-    float4 emissive;
-    float4 specular;
-    float shininess;
-    float alphaTestCutoff;
-    float subsurface;
-    float align_dummy2;
-    float4 pbr;
-};
-// lib/material/bindings.glsl: MATERIAL_BINDING = 1, DIFFUSE_UNIT = 0, both in TEXTURE_SET
-[[vk::binding(1, 2)]] ConstantBuffer<Material> material;
-[[vk::binding(0, 2)]] Sampler2D diffuseMap;
-
-// lib/view/data.glsl (std140). The whole struct is declared so that the block has the size the C++ side uploads,
-// although only skyColor is read here.
-struct Scene
-{
-    float4x4 invProjection;
-    float4x4 projection;
-    float4x4 invView;
-    float4 cascadeSplits;
-    float4x4 viewToCascadeProj[4];
-    float4 cascadeFrustumWidths;
-    float4 lightDiffuse;
-    float4 lightSpecular;
-    float4 lightViewPos;
-    float4 ambient;
-    float4 fogColor;
-    float4 skyColor; // .a = glareView
-    float2 resolution;
-    float fogStart;
-    float fogScale;
-    float time;
-    float zNear;
-    float zFar;
-    float rainIntensity;
-    float4 groundcoverPlayer;
-    float4 groundcoverParams;
-};
-// lib/view/bindings.glsl: VIEW_SCENE_BINDING = 0, in VIEW_SET
-[[vk::binding(0, 0)]] ConstantBuffer<Scene> scene;
+// The sun, in Slang: the twin of sky/sun/main.vert and main.frag. First ported by hand in task 0023 (F1b) as the proof
+// of the pipeline, with its own copies of the GLSL declarations; since task 0072 (stage b) it uses the shared includes
+// and is built as a permutation family like the rest of the sky. It must declare what the GLSL declares (checked by
+// SlangPermutations, and by the task 0023 test SlangSunTest against the single files still built from this source).
+// The sun is drawn with DIFFUSE_MAP and MATERIAL (MWRender weather.cpp, CelestialBody::pipelineOptions); the single
+// files are compiled without -D, so the two are defined here when missing. Unused declarations are dropped from the
+// vertex stage.
+#ifndef DIFFUSE_MAP
+#define DIFFUSE_MAP
+#endif
+#ifndef MATERIAL
+#define MATERIAL
+#endif
+#include "lib/material/descriptors_frag.slang"
+#include "lib/pushconstants.slang"
+#include "lib/view/linear.slang"
+#include "lib/view/scene.slang"
 
 struct VertexOutput
 {
     // lib/inout_texcoord.glsl, location 0
-    [[vk::location(0)]] float2 texCoord : TEXCOORD0;
+    [[vk::location(0)]] float2 texCoord : V_TEXCOORD0;
     float4 position : SV_Position;
 };
 
@@ -87,17 +38,14 @@ VertexOutput vertMain(uint vertexIndex : SV_VulkanVertexID)
 
 struct FragmentInput
 {
-    [[vk::location(0)]] float2 texCoord : TEXCOORD0;
+    [[vk::location(0)]] float2 texCoord : V_TEXCOORD0;
 };
 
 [shader("fragment")]
-float4 fragMain(FragmentInput input) : SV_Target
+float4 fragMain(FragmentInput input) : SV_Target0
 {
     float4 outColor = diffuseMap.Sample(input.texCoord);
-    outColor.xyz *= material.emissive.xyz;
-    // OpenEden (task 0025): the linear view, marked by scene.fogColor.w, as lib/view/linear.glsl (sign preserving).
-    if (scene.fogColor.w > 1.5)
-        outColor.xyz = sign(outColor.xyz) * pow(abs(outColor.xyz), float3(2.2));
+    outColor.xyz = toLinearIfView(outColor.xyz * material.emissive.xyz);
     outColor.a *= material.diffuse.a * scene.skyColor.a;
     if (outColor.a == 0)
         discard;

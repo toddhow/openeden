@@ -1,0 +1,9 @@
+# The lines the Slang twin of sky/atmosphere/main.frag may declare differently from the GLSL (task 0072, stage b),
+# read by SlangPermutations in components-tests. "glsl-only: <line>" or "slang-only: <line>"; every listed line must
+# occur, so a stale entry fails the test.
+#
+# The volumetric fog's image and parameters (lib/view/volume.glsl, bindings 14 and 15): the GLSL declares them through
+# lib/view/fog.glsl and never reads them in the sky; glslang keeps unused declarations, Slang drops them (also with
+# -preserve-params). A pipeline layout may hold bindings a shader does not use, so the view set is unchanged.
+glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;

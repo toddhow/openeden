@@ -300,9 +300,39 @@ endfunction()
 openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
 openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
 
-# The sun's single files of task 0023 (F1b), built from the same source. The game no longer loads them (task 0072,
-# stage b: a single file was built for one define set only); they stay only for the task 0023 test SlangSunTest, which
-# reads them. Its removal is toddhow's decision (task 0072, stage b log).
+# The sky (task 0072, stage b). A set is what the GLSL compiler really applies: the requested Mode defines that the stage
+# imports with #pragma import_defines (vsgUtil::effectiveDefines), so the settings-driven defines every pipeline gets
+# (COVER, GI, PBR, WETNESS...) do not multiply the sky's sets. The sets are those of OPENEDEN_SHADER_TRACE runs with the
+# default settings and with every major feature on (task 0072, stage a); a sky model with other vertex attributes keeps
+# the GLSL.
+openeden_add_slang_permutations(
+    SOURCE sky/atmosphere/atmosphere.slang STAGE_FILE sky/atmosphere/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE sky/atmosphere/atmosphere.slang STAGE_FILE sky/atmosphere/main.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE sky/clouds/clouds.vert.slang STAGE_FILE sky/clouds/main.vert ENTRY vertMain
+    STAGE vertex DEFINE_SETS "COLOR NORMAL TEXCOORD TEXMAT VERTEX")
+openeden_add_slang_permutations(SOURCE sky/clouds/clouds.frag.slang STAGE_FILE sky/clouds/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS "COLOR DIFFUSE_MAP MATERIAL TEXCOORD")
+openeden_add_slang_permutations(
+    SOURCE sky/moon/moon.vert.slang STAGE_FILE sky/moon/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE sky/moon/moon.frag.slang STAGE_FILE sky/moon/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS "DIFFUSE_MAP GLOW_MAP MATERIAL")
+openeden_add_slang_permutations(SOURCE sky/night/night.vert.slang STAGE_FILE sky/night/main.vert ENTRY vertMain
+    STAGE vertex DEFINE_SETS "COLOR NORMAL TEXCOORD VERTEX")
+openeden_add_slang_permutations(SOURCE sky/night/night.frag.slang STAGE_FILE sky/night/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS "COLOR DIFFUSE_MAP MATERIAL TEXCOORD")
+openeden_add_slang_permutations(
+    SOURCE sky/sun/sun.slang STAGE_FILE sky/sun/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE sky/sun/sun.slang STAGE_FILE sky/sun/main.frag ENTRY fragMain STAGE fragment DEFINE_SETS "DIFFUSE_MAP MATERIAL")
+openeden_add_slang_permutations(
+    SOURCE sky/sunglare/sunglare.vert.slang STAGE_FILE sky/sunglare/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE sky/sunglare/sunglare.frag.slang STAGE_FILE sky/sunglare/main.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS MATERIAL)
+
+# The sun's single files of task 0023 (F1b), built from the same source. The game no longer loads them (the sun is a
+# permutation family above); they stay only for the task 0023 test SlangSunTest, which reads them. Its removal is
+# toddhow's decision (task 0072, stage b log).
 openeden_add_slang_shader(
     SOURCE sky/sun/sun.slang
     OUTPUT_DIR sky/sun

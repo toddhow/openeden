@@ -1,0 +1,16 @@
+# The lines the Slang twin of this vertex stage may declare differently from the GLSL (task 0072, stage b), read by
+# SlangPermutations in components-tests. "glsl-only: <line>" or "slang-only: <line>"; every listed line must occur, so
+# a stale entry fails the test.
+#
+# The texture coordinates: the GLSL declares an array sized by the specialization constant numUvSets (constant_id 0,
+# lib/attributes.glsl), which Slang cannot place; the twin declares the first set only, at the same location. The sky
+# reads only the first set, and a pipeline may supply more attributes than a shader reads.
+glsl-only: in location=3 array1(vec2f32)
+glsl-only: spec_constant id=0 i32
+glsl-only: spec_constant_default id=0 bits 1
+slang-only: in location=3 vec2f32
+# Unused vertex inputs: the GLSL declares attributes it never reads (lib/attributes.glsl declares every one its
+# defines name); Slang drops unused entry parameters. The pipeline's vertex input state is built from the defines, not
+# from the shader, so it is unchanged.
+glsl-only: in location=1 vec3f32
+glsl-only: in location=2 vec4f32
