@@ -182,11 +182,10 @@ namespace
             // Task 0072, stage g: the post passes whose GLSL was written inside C++.
             "post/ao.frag", "post/bloomdown.frag", "post/bloomup.frag", "post/fullscreen.vert", "post/present.frag",
             "post/present.vert", "post/tonemap.frag", "post/velocity.frag", "sky/atmosphere/main.frag",
-            "sky/atmosphere/main.vert",
-            "sky/clouds/main.frag", "sky/clouds/main.vert", "sky/moon/main.frag", "sky/moon/main.vert",
-            "sky/night/main.frag", "sky/night/main.vert", "sky/sun/main.frag", "sky/sun/main.vert",
-            "sky/sunglare/main.frag", "sky/sunglare/main.vert", "terrain/main.frag", "terrain/main.vert",
-            "water/main.frag", "water/main.vert" };
+            "sky/atmosphere/main.vert", "sky/clouds/main.frag", "sky/clouds/main.vert", "sky/moon/main.frag",
+            "sky/moon/main.vert", "sky/night/main.frag", "sky/night/main.vert", "sky/sun/main.frag",
+            "sky/sun/main.vert", "sky/sunglare/main.frag", "sky/sunglare/main.vert", "terrain/main.frag",
+            "terrain/main.vert", "water/main.frag", "water/main.vert" };
         return stages;
     }
 
