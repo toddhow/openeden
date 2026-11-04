@@ -18,6 +18,7 @@ set(SHADER_FILES
     lib/light/maxlights.glsl
     lib/light/pointlights.glsl
     lib/light/pointspecular.glsl
+    lib/light/pointshadow.glsl
     lib/light/pointdiffuse.glsl
     lib/light/pixellighting.glsl
     lib/light/pbrlighting.glsl

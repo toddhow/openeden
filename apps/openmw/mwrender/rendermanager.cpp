@@ -123,6 +123,7 @@
 #include "mask.hpp"
 #include "navmesh.hpp"
 #include "player.hpp"
+#include "pointshadows.hpp"
 #include "postprocess.hpp"
 #include "precipitationoccluder.hpp"
 #include "preview.hpp"
@@ -148,6 +149,10 @@ namespace MWRender
 {
     namespace
     {
+        // The most point lights the view collects (View::CollectLights' capacity, and the size of the point lights'
+        // shadow data buffer, which is indexed by the light's place in the light buffer).
+        constexpr std::size_t sMaxLights = 256;
+
         // [WorldLod] view distance: a number or `auto`. Text that is neither counts as the old default number; a
         // number above Lod::maxViewDistanceNumber is cut to it. Both log a warning, once for each text: it repeats when
         // the setting changes to another such text, and again after a good value was set in between. Main thread only
@@ -220,6 +225,9 @@ namespace MWRender
             descriptors.emplace_back(View::dummyVolume());
             descriptors.emplace_back(View::dummyVolumeParams());
             descriptors.emplace_back(View::dummyCloudShadow());
+            descriptors.emplace_back(View::dummyPointShadowMap());
+            descriptors.emplace_back(View::dummyPointShadowSampler());
+            descriptors.emplace_back(View::dummyPointShadowData());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -582,6 +590,22 @@ namespace MWRender
                 else
                     Log(Debug::Warning) << "[Rendering] cover needs hdr and pbr; it is off";
             }
+            // Task 0077: shadows of the nearest point lights. The lights are summed per pixel only with the material
+            // model, which needs the G-buffer's material output.
+            if (Settings::shadows().mPointLightShadows)
+            {
+                if (materialOutput)
+                {
+                    mPointShadows = std::make_unique<PointShadows>(*context, sMaxLights);
+                    resourceSystem->builder->graphics->pointShadowEnabled = true;
+                    Log(Debug::Info) << "Shadows: point lights, " << mPointShadows->slotCount() << " at a time, "
+                                     << Settings::shadows().mPointLightShadowResolution.get() << " texels a face";
+                }
+                else
+                    Log(Debug::Warning)
+                        << "[Shadows] point light shadows need hdr, gbuffer and pbr (the lights are then summed per "
+                           "pixel); they are off";
+            }
             // Task 0038: the clouds' shadows. The shader term is switched by `shadow.settings`
             // (Resource::ShaderSettings, from the same settings); here the data buffer is made real.
             if (Settings::rendering().mCloudShadows)
@@ -628,7 +652,7 @@ namespace MWRender
         mScreenshotInterface = std::make_unique<ScreenshotInterface>();
 
         mSceneData = std::make_unique<View::Scene>();
-        auto collectLights = vsg::ref_ptr{ new View::CollectLights(256) };
+        auto collectLights = vsg::ref_ptr{ new View::CollectLights(sMaxLights) };
         collectLights->setLinear(mHdrTarget != nullptr);
         vsg::Descriptors descriptors = View::createLightingDescriptors(collectLights->data(), true);
         descriptors.emplace_back(View::readEnv(resourceSystem->textureOptions));
@@ -708,6 +732,19 @@ namespace MWRender
             }
         }
         descriptors.emplace_back(mCloudVolume ? mCloudVolume->shadowDescriptor() : View::dummyCloudShadow());
+        // Task 0077: the point lights' shadow maps, or stand-ins that find no shadow.
+        if (mPointShadows)
+        {
+            descriptors.emplace_back(mPointShadows->maps().shadowMap());
+            descriptors.emplace_back(mPointShadows->maps().shadowSampler());
+            descriptors.emplace_back(mPointShadows->maps().dataDescriptor());
+        }
+        else
+        {
+            descriptors.emplace_back(View::dummyPointShadowMap());
+            descriptors.emplace_back(View::dummyPointShadowSampler());
+            descriptors.emplace_back(View::dummyPointShadowData());
+        }
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -790,6 +827,7 @@ namespace MWRender
         terrainMaps.giSky = mGiSkyEnabled;
         // Task 0048: with ao on and `ao terrain`, the terrain writes its ambient part (needs the ambient output).
         terrainMaps.aoTerrain = mAoEnabled && Settings::rendering().mAoTerrain;
+        terrainMaps.pointShadow = mPointShadows != nullptr;
         terrainMaps.wetness.enabled = mWetnessEnabled;
         terrainMaps.wetness.puddles = mWetnessEnabled && Settings::rendering().mWetnessPuddles;
         terrainMaps.wetness.debug = mWetnessEnabled && Settings::rendering().mWetnessDebug;
@@ -1152,6 +1190,38 @@ namespace MWRender
                     [this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
         }
 
+        // Task 0077: one command graph for each point light slot; update() puts the six faces in it each frame.
+        if (mPointShadows)
+        {
+            auto& maps = mPointShadows->maps();
+            for (int slot = 0; slot < maps.slotCount; ++slot)
+            {
+                auto castGraph = mEngine.createCommandGraph(Pipeline::COMPUTE_SET);
+                castGraph->submitOrder = mVolumeFog ? -3 : -1; // before the light grid and the scene, as the cascades
+                for (int face = 0; face < Render::PointShadow::facesPerLight; ++face)
+                {
+                    auto rg = maps.renderGraph(slot, face);
+                    auto view = maps.faceView(slot, face);
+                    view->mask = mShadow->viewMask();
+                    view->bins = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT),
+                        vsgUtil::NullBin::create(Bin_Compute) };
+                    auto root = createCastShadowState();
+                    root->children = { view };
+                    rg->children = { root };
+                    view->children = createPointShadowScene();
+                    // In the graph from the start so that the viewer compiles the framebuffer; PointShadows::update
+                    // replaces the children by the faces of the slot in use.
+                    castGraph->children.push_back(rg);
+                    if (slot == 0 && face == 0)
+                        addCompileViews.emplace_back(
+                            [this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
+                }
+                mPointShadows->setGraph(slot, castGraph);
+                threads.push_back(castGraph);
+                mRecordShadow.push_back(castGraph->recordTraversal);
+            }
+        }
+
         if (mOccluder)
         {
             auto rg = mOccluder->renderGraph();
@@ -1380,6 +1450,21 @@ namespace MWRender
         auto group = vsg::Group::create();
         group->children = { mScene->getObjects(), mSimpleWater->node() };
         return group;
+    }
+
+    vsg::Group::Children RenderManager::createPointShadowScene()
+    {
+        // The same four settings as the sun's; objects also cast indoors, where most of the point lights are.
+        vsg::Group::Children children;
+        if (Settings::shadows().mTerrainShadows)
+            children.push_back(mTerrainView->node());
+        if (Settings::shadows().mObjectShadows)
+            children.push_back(mScene->getObjects());
+        if (Settings::shadows().mActorShadows)
+            children.push_back(mScene->getActors());
+        if (Settings::shadows().mPlayerShadows)
+            children.push_back(mPlayerGroup);
+        return children;
     }
 
     vsg::Group::Children RenderManager::createCastShadowScene(bool exterior)
@@ -2227,6 +2312,15 @@ namespace MWRender
         auto& shadow = mShadow->shadow;
         for (int i = 0; shadow && i < shadow->numCascades; ++i)
             shadow->cascadeView(i)->children = createCastShadowScene(enabled);
+        if (mPointShadows)
+        {
+            auto& maps = mPointShadows->maps();
+            for (int slot = 0; slot < maps.slotCount; ++slot)
+            {
+                for (int face = 0; face < Render::PointShadow::facesPerLight; ++face)
+                    maps.faceView(slot, face)->children = createPointShadowScene();
+            }
+        }
     }
 
     bool RenderManager::toggleBorders()
@@ -2323,6 +2417,13 @@ namespace MWRender
         const auto& vp = mSceneCamera->getViewport();
         sceneData.resolution = { vp.width, vp.height };
         mShadow->updateCascades(*mSceneCamera, sceneData, lightPosition);
+        // Task 0077: the point lights the last traversal collected get slots; the faces and the data are updated for
+        // the frame about to be recorded.
+        if (mPointShadows)
+        {
+            if (auto collect = dynamic_cast<View::CollectLights*>(mView->viewDependentState.get()))
+                mPointShadows->update(mViewMatrix->transform(), collect->pointLights);
+        }
         mSceneData->dirty();
         mLightGrid->update();
         updatePostProcess();

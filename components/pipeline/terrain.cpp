@@ -23,7 +23,7 @@ namespace Pipeline
 
     std::set<std::string> terrainDefines(bool maps, unsigned int gbufferOutputs, bool giSky,
         const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
-        bool aoTerrain)
+        bool aoTerrain, bool pointShadow)
     {
         std::set<std::string> defines;
         if (maps)
@@ -40,6 +40,9 @@ namespace Pipeline
         }
         if (gbufferOutputs > 0)
             defines.insert("GBUFFER");
+        // Task 0077: the point lights' shadows, in the terrain lit with the material model.
+        if (pointShadow && maps && pbr)
+            defines.insert("POINT_SHADOW");
         // Task 0036: the terrain takes the exterior sky-visibility field.
         if (giSky)
             defines.insert("GI_SKY");
@@ -73,12 +76,12 @@ namespace Pipeline
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
         unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover,
-        unsigned int parallaxQuality, bool aoTerrain)
+        unsigned int parallaxQuality, bool aoTerrain, bool pointShadow)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
         std::set<std::string> defines
-            = terrainDefines(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain);
+            = terrainDefines(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow);
         if (!defines.empty())
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.

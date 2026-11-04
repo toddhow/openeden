@@ -134,6 +134,7 @@ namespace MWRender
     class ActorsPaths;
     class RecastMesh;
     class Shadow;
+    class PointShadows;
     struct ScreenshotInterface;
     class Map;
     class WorldMap;
@@ -359,6 +360,8 @@ namespace MWRender
     private:
         vsg::ref_ptr<vsg::Node> createMapScene();
         vsg::Group::Children createCastShadowScene(bool exterior);
+        /// Task 0077: the casters of the point lights' shadow faces (the same four settings, objects also indoors).
+        vsg::Group::Children createPointShadowScene();
         void ensureCompiled();
         void createIntersectorScene();
         void updateSceneChildren();
@@ -399,6 +402,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::Switch> mPlayerGroup;
         vsg::ref_ptr<vsg::View> mView;
         std::unique_ptr<Shadow> mShadow;
+        // Task 0077: shadows of the nearest point lights (null unless [Shadows] point light shadows took effect).
+        std::unique_ptr<PointShadows> mPointShadows;
         std::unique_ptr<View::LightGrid> mLightGrid;
         // Task 0041: the volumetric fog; null unless `[Rendering] volumetrics` is on (and its shaders were found).
         std::unique_ptr<View::VolumeFog> mVolumeFog;

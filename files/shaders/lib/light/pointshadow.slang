@@ -74,6 +74,8 @@ float pointShadowTap(float3 q, uint slot, float far, float tanHalf, float resolu
 {
     int face = pointShadowFaceOf(q);
     float dist = dot(q, pointShadowFaceForward[face]);
+    if (dist >= far) // beyond the face's far plane (a light whose reach is larger than its range): lit
+        return 1.0;
     float scale = 0.5 / (dist * tanHalf);
     float u = 0.5 + scale * dot(q, pointShadowFaceRight[face]);
     float v = 0.5 + scale * dot(q, pointShadowFaceUp[face]);

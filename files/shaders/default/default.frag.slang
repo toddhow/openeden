@@ -65,6 +65,9 @@ import glsl;
 #include "lib/light/directional.slang"
 #ifdef PER_PIXEL_LIGHTING
 #include "lib/view/screencoord.slang"
+#ifdef POINT_SHADOW
+#include "lib/light/pointshadow.slang"
+#endif
 #include "lib/light/pixellighting.slang"
 #ifdef PBR_LIT
 #include "lib/light/pbrlighting.slang"
@@ -300,6 +303,9 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
     // The shadow bias uses the geometry normal, as OpenMW's shadowing never saw the normal map.
     float sunShadow = shadow(input.io.viewPos, normalize(input.io.viewNormal));
+#ifdef POINT_SHADOW
+    pointShadowNormal = normalize(input.io.viewNormal);
+#endif
 #ifdef WET_LIT
     // Task 0037: rain wetness at this point (see the GLSL).
     WetSurface wetS = wetSurfaceAt(

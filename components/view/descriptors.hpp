@@ -42,6 +42,13 @@ namespace View
     // shader reads its size and finds no map (so no shadow) in it.
     vsg::ref_ptr<vsg::Descriptor> dummyCloudShadow();
 
+    // OpenEden (task 0077): the point lights' shadow maps (binding 17: a depth 2D array), their comparison sampler
+    // (18) and the data buffer (19). The stand-ins hold a map of one texel and a buffer with no slots (the shader reads
+    // a slot count of 0 and finds no shadow); the game's real ones come from View::PointShadow.
+    vsg::ref_ptr<vsg::Descriptor> dummyPointShadowMap();
+    vsg::ref_ptr<vsg::Descriptor> dummyPointShadowSampler();
+    vsg::ref_ptr<vsg::Descriptor> dummyPointShadowData();
+
     // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();
 

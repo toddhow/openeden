@@ -455,6 +455,9 @@ namespace MWRender
         descriptors.emplace_back(View::dummyVolume());
         descriptors.emplace_back(View::dummyVolumeParams());
         descriptors.emplace_back(View::dummyCloudShadow());
+        descriptors.emplace_back(View::dummyPointShadowMap());
+        descriptors.emplace_back(View::dummyPointShadowSampler());
+        descriptors.emplace_back(View::dummyPointShadowData());
         descriptors.emplace_back(sceneData->descriptor());
         auto descriptorSet = View::createViewDescriptorSet(descriptors);
 

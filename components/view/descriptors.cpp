@@ -8,6 +8,7 @@
 #include <components/pipeline/viewbindings.hpp>
 #include <components/render/cloudgpu.hpp>
 #include <components/render/depth.hpp>
+#include <components/render/pointshadowgpu.hpp>
 #include <components/render/probegpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/skyvisgpu.hpp>
@@ -182,6 +183,36 @@ namespace View
             1, 1, vsg::vec4(0.f, 0.f, 0.f, 0.f), vsg::Data::Properties(VK_FORMAT_R32G32B32A32_SFLOAT));
         return vsg::DescriptorImage::create(sampler, image, Pipeline::Descriptors::VIEW_CLOUD_SHADOW_BINDING, 0,
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyPointShadowMap()
+    {
+        auto image = vsg::floatArray3D::create(1, 1, 1, Render::farDepth, vsg::Data::Properties(VK_FORMAT_D32_SFLOAT));
+        image->properties.imageViewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        return vsg::DescriptorImage::create(vsg::ImageInfo::create(vsg::ref_ptr<vsg::Sampler>(), image),
+            Pipeline::Descriptors::VIEW_POINT_SHADOW_MAP_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyPointShadowSampler()
+    {
+        auto sampler = vsg::Sampler::create();
+        sampler->minFilter = sampler->magFilter = VK_FILTER_NEAREST;
+        sampler->compareEnable = VK_TRUE;
+        sampler->compareOp = VK_COMPARE_OP_GREATER;
+        return vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, vsg::ref_ptr<vsg::ImageView>()),
+            Pipeline::Descriptors::VIEW_POINT_SHADOW_SAMPLER_BINDING, 0, VK_DESCRIPTOR_TYPE_SAMPLER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyPointShadowData()
+    {
+        // The header, one light entry that says "no slot", and the slots; the shader never reads past the entry of a
+        // light that does not exist (the count of lights it is given is 0 when nothing is lit).
+        auto data = vsg::vec4Array::create(Render::PointShadow::bufferVec4s(1));
+        for (auto& v : *data)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        (*data)[Render::PointShadow::lightEntryOffset()] = vsg::vec4(-1.f, 0.f, 0.f, 0.f);
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_POINT_SHADOW_DATA_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
     vsg::ref_ptr<vsg::Descriptor> volumeParamsBuffer(vsg::ref_ptr<vsg::vec4Array>& data)

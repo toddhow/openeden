@@ -220,7 +220,9 @@ namespace Render::PointShadow
             const vsg::dvec2 o = pcfTap(i);
             const vsg::dvec3 q = p + t1 * (o.x * radius) + t2 * (o.y * radius);
             const FaceCoord c = project(q, tanHalf);
-            if (compareDepth(far, c.distance, tanHalf, resolution, bias) > stored(c.face, c.u, c.v))
+            // Beyond the face's far plane nothing was drawn (a light whose reach is larger than its range): lit.
+            if (c.distance >= far
+                || compareDepth(far, c.distance, tanHalf, resolution, bias) > stored(c.face, c.u, c.v))
                 ++lit;
         }
         return static_cast<double>(lit) / count;

@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD, PRECIPITATION_LIT, LOD_FADE)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD, PRECIPITATION_LIT, LOD_FADE, POINT_SHADOW)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -60,6 +60,9 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #include "lib/light/directional.glsl"
 #ifdef PER_PIXEL_LIGHTING
 #include "lib/view/screencoord.glsl"
+ #ifdef POINT_SHADOW
+#include "lib/light/pointshadow.glsl"
+ #endif
 #include "lib/light/pixellighting.glsl"
  #ifdef PBR_LIT
 #include "lib/light/pbrlighting.glsl"
@@ -285,6 +288,9 @@ void main()
  #endif
     // The shadow bias uses the geometry normal, as OpenMW's shadowing never saw the normal map.
     float sunShadow = shadow(frag_in.viewPos, normalize(frag_in.viewNormal));
+#ifdef POINT_SHADOW
+    pointShadowNormal = normalize(frag_in.viewNormal);
+#endif
 #ifdef WET_LIT
     // Task 0037: rain wetness at this point (0 under cover, indoors and in dry weather). Skin and glowing surfaces stay
     // dry. A puddle flattens the shading normal and tilts it with the ripples; the rain's darkening and the gloss come

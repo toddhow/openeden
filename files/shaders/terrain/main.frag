@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, AO_TERRAIN, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH)
+#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, AO_TERRAIN, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, POINT_SHADOW)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -42,6 +42,9 @@ const uint NO_NORMAL_MAP = 0xffffu;
 const uint PARALLAX_FLAG = 1u << 16;
 const uint SPECULAR_FLAG = 1u << 17;
 #include "lib/view/screencoord.glsl"
+#ifdef POINT_SHADOW
+#include "lib/light/pointshadow.glsl"
+#endif
 #include "lib/light/pixellighting.glsl"
 #ifdef PARALLAX_POM
 // OpenEden (task 0045): the layers' `_p` height files (an array) and per layer its array index (below zero: none) in x and
@@ -230,6 +233,9 @@ void main()
     vec3 viewNormal = normalize(normalToView * blendedNormal);
     // The shadow bias keeps the geometry normal, as OpenMW's shadows did.
     float sunShadow = shadow(frag_in.viewPos, frag_in.viewNormal);
+#ifdef POINT_SHADOW
+    pointShadowNormal = normalize(frag_in.viewNormal);
+#endif
     // terrain.frag's specular: shininess 128 and the layer's diffuse alpha as a grey specular colour.
     const float shininess = 128.0;
     vec3 pointDiffuse, pointSpecular;

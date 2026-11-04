@@ -67,6 +67,8 @@ namespace Terrain
         bool giSky = false;
         // Task 0048: the terrain writes its ambient part for the ambient occlusion pass (`ao terrain`).
         bool aoTerrain = false;
+        // Task 0077: the terrain (lit with the material model) takes the point lights' shadows.
+        bool pointShadow = false;
         // Task 0037: the terrain shader takes rain wetness.
         Pipeline::WetnessOptions wetness;
         // Task 0039: the terrain shader takes snow and ash cover.

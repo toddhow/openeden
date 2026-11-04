@@ -37,6 +37,10 @@ void pointLightsPerPixel(vec2 screenCoord, vec3 viewNormal, vec3 viewPos, float 
         {
             vec3 lightDir = lightVec / d;
             float illumination = attenuate(lightColor.w, d);
+#ifdef POINT_SHADOW
+            // Task 0077: the shadow of this light, if it has a slot (lib/light/pointshadow.*).
+            illumination *= pointLightShadow(lightIndexList[offset+l], viewPos);
+#endif
             diffuse += lightColor.xyz * lambert(lightDir, viewNormal) * illumination;
             specular += max(lightColor.xyz, vec3(0)) * specularIntensity(viewNormal, viewDir, shininess, lightDir)
                 * illumination;

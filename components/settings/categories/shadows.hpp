@@ -44,6 +44,18 @@ namespace Settings
         SettingValue<bool> mTerrainShadows{ mIndex, "Shadows", "terrain shadows" };
         SettingValue<bool> mObjectShadows{ mIndex, "Shadows", "object shadows" };
         SettingValue<bool> mEnableIndoorShadows{ mIndex, "Shadows", "enable indoor shadows" };
+
+        // OpenEden (task 0077): shadows from the nearest point lights.
+        SettingValue<bool> mPointLightShadows{ mIndex, "Shadows", "point light shadows" };
+        SettingValue<int> mPointLightShadowCount{ mIndex, "Shadows", "point light shadow count",
+            makeClampSanitizerInt(1, 8) };
+        SettingValue<int> mPointLightShadowResolution{ mIndex, "Shadows", "point light shadow resolution",
+            makeClampSanitizerInt(128, 2048) };
+        SettingValue<int> mPointLightShadowFilterTaps{ mIndex, "Shadows", "point light shadow filter taps",
+            makeClampSanitizerInt(1, 16) };
+        SettingValue<float> mPointLightShadowBias{ mIndex, "Shadows", "point light shadow bias",
+            makeClampSanitizerFloat(0.25, 6) };
+        SettingValue<bool> mPointLightShadowDebug{ mIndex, "Shadows", "point light shadow debug" };
     };
 }
 

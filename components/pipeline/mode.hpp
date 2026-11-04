@@ -86,7 +86,10 @@ namespace Pipeline
         PARALLAX_DISCARD,
         // OpenEden (task 0059): the fragment is dropped by an ordered dither that thins out as the material's specular
         // alpha falls from 1 to 0 (default/main.frag), so a far object cluster can fade in over the live objects.
-        LOD_FADE
+        LOD_FADE,
+        // OpenEden (task 0077): the nearest point lights cast shadows (lib/light/pointshadow.glsl); added by
+        // Pipeline::Graphics.
+        POINT_SHADOW
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,

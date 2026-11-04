@@ -80,6 +80,8 @@ namespace Pipeline
         // Task 0039: lit draws get snow and ash cover, and the debug view of it (needs pbrLook above zero).
         bool coverEnabled = false;
         bool coverDebug = false;
+        // Task 0077: lit draws sample the point lights' shadow maps (needs pbrLook above zero).
+        bool pointShadowEnabled = false;
         // Task 0045: parallax occlusion mapping for draws with a height file: 0 off, 1 low, 2 medium, 3 high.
         unsigned int parallaxQuality = 0;
 

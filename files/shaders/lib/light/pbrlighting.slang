@@ -22,6 +22,10 @@ void pbrPointLights(float2 screenCoord, float3 normal, float3 viewPos, float rou
         {
             float3 lightDir = lightVec / d;
             float illumination = attenuate(lightColor.w, d);
+#ifdef POINT_SHADOW
+            // Task 0077: the shadow of this light, if it has a slot (lib/light/pointshadow.*).
+            illumination *= pointLightShadow(lightIndexList[offset + l], viewPos);
+#endif
             diffuse += lightColor.xyz * lambert(lightDir, normal) * illumination;
             specular += max(lightColor.xyz, float3(0)) * illumination
                 * pbrSpecularLobe(normal, viewDir, lightDir, roughness, f0);

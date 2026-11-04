@@ -45,6 +45,9 @@ static const uint NO_NORMAL_MAP = 0xffffu;
 static const uint PARALLAX_FLAG = 1u << 16;
 static const uint SPECULAR_FLAG = 1u << 17;
 #include "lib/view/screencoord.slang"
+#ifdef POINT_SHADOW
+#include "lib/light/pointshadow.slang"
+#endif
 #include "lib/light/pixellighting.slang"
 #ifdef PARALLAX_POM
 // Task 0045: the layers' `_p` height files and per layer its array index (x) and depth (y); pomLayer is the array
@@ -221,6 +224,9 @@ FragmentOutput fragMain(FragmentInput input)
     float3 viewNormal = normalize(mul(normalToView, blendedNormal));
     // The shadow bias keeps the geometry normal, as OpenMW's shadows did.
     float sunShadow = shadow(input.io.viewPos, input.io.viewNormal);
+#ifdef POINT_SHADOW
+    pointShadowNormal = normalize(input.io.viewNormal);
+#endif
     // terrain.frag's specular: shininess 128 and the layer's diffuse alpha as a grey specular colour.
     const float shininess = 128.0;
     float3 pointDiffuse, pointSpecular;

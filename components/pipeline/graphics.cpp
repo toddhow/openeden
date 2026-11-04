@@ -122,6 +122,8 @@ namespace Pipeline
                 return "PARALLAX_DISCARD";
             case Mode::LOD_FADE:
                 return "LOD_FADE";
+            case Mode::POINT_SHADOW:
+                return "POINT_SHADOW";
         }
         return "";
     }
@@ -309,6 +311,10 @@ namespace Pipeline
             if (coverDebug)
                 fragmentStageOptions.addMode(Mode::COVER_DEBUG);
         }
+        // Task 0077: shadows from the nearest point lights, in the same draws (they sum the lights per pixel only with
+        // the material model).
+        if (pointShadowEnabled && pbrLook > 0 && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3)
+            fragmentStageOptions.addMode(Mode::POINT_SHADOW);
         // Task 0045: parallax occlusion mapping, for draws whose texture has a height file (the loader sets HEIGHT_MAP
         // only with the setting on).
         if (parallaxQuality > 0 && key.shader.hasMode(Mode::HEIGHT_MAP))

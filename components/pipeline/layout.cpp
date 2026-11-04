@@ -55,6 +55,13 @@ namespace Pipeline
                 VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             // OpenEden (task 0042): the volumetric clouds' ground shadow map.
             { Descriptors::VIEW_CLOUD_SHADOW_BINDING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            // OpenEden (task 0077): the point lights' shadow maps, their comparison sampler and their data.
+            { Descriptors::VIEW_POINT_SHADOW_MAP_BINDING, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::VIEW_POINT_SHADOW_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            { Descriptors::VIEW_POINT_SHADOW_DATA_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
         return sceneLayout;
     }
