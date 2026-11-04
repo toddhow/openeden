@@ -1,6 +1,7 @@
 #include "wieldingcreature.hpp"
 
 #include <components/animation/context.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/mwanimation/attach.hpp>
 #include <components/mwanimation/clone.hpp>
@@ -41,8 +42,8 @@ namespace MWRender
 
     void WieldingCreature::addParts()
     {
-        addPart(mPtr, MWWorld::InventoryStore::Slot_CarriedRight, mContext);
-        addPart(mPtr, MWWorld::InventoryStore::Slot_CarriedLeft, mContext);
+        addPart(mPtr, MWWorld::InventoryStore::Slot_CarriedRight);
+        addPart(mPtr, MWWorld::InventoryStore::Slot_CarriedLeft);
         addAmmo(mPtr, mContext);
     }
 
@@ -79,7 +80,7 @@ namespace MWRender
                 { mStaticControllers.controllers.size(), mWeaponControllers.controllers.size(), 0 });
     }
 
-    void WieldingCreature::addPart(const MWWorld::Ptr& ptr, int slot, const MWAnim::Context& mwctx)
+    void WieldingCreature::addPart(const MWWorld::Ptr& ptr, int slot)
     {
         const MWWorld::InventoryStore& inv = ptr.getClass().getInventoryStore(ptr);
         MWWorld::ConstContainerStoreIterator it = inv.getSlot(slot);
@@ -90,7 +91,6 @@ namespace MWRender
         MWWorld::ConstPtr item = *it;
 
         std::string bonename;
-        /*const&*/ std::string model = std::string(item.getClass().getModel(item));
         if (slot == MWWorld::InventoryStore::Slot_CarriedRight)
         {
             if (item.getType() == ESM::Weapon::sRecordId)
@@ -114,10 +114,28 @@ namespace MWRender
             // itemModel = getShieldMesh(item, false);
         }
 
+        addItemPart(slot, item, bonename);
+    }
+
+    void WieldingCreature::addItemPart(int slot, const MWWorld::ConstPtr& item, const std::string& bonename)
+    {
+        const std::string model = std::string(item.getClass().getModel(item));
         // Task 0074d (review of 0074b, item B): a carried light gives light, as an NPC's torch does (insertBoundedPart)
         // and as OpenMW 0.51's CreatureWeaponAnimation::updatePart does (addExtraLight, 442eec6e2f).
         const ESM::Light* light = item.getType() == ESM::Light::sRecordId ? item.get<ESM::Light>()->mBase : nullptr;
-        linkPart(slot, mwctx.readNode(model), light, bonename, getGlowColor(item));
+        vsg::ref_ptr<vsg::Node> node;
+        try
+        {
+            node = mContext.readNode(model);
+        }
+        catch (const std::exception& e)
+        {
+            // Task 0074e (finding 7 of the review of 0074d), as OpenMW 0.51 (CreatureWeaponAnimation::updatePart,
+            // 442eec6e2f): the model cannot be read, so the part is skipped and the update goes on.
+            Log(Debug::Error) << "Can not add creature part: " << e.what();
+            return;
+        }
+        linkPart(slot, std::move(node), light, bonename, getGlowColor(item));
     }
 
     void WieldingCreature::linkPart(int slot, vsg::ref_ptr<vsg::Node> node, const ESM::Light* light,

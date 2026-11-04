@@ -501,14 +501,27 @@ namespace MWRender
         });
     }
 
-    void Npc::insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
+    bool Npc::insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
         std::optional<vsg::vec4> glowColor, const ESM::Light* light)
     {
         if (!mPartSlotsTraced.empty())
             Log(Debug::Info) << "PARTSLOTS " << mPartSlotsTraced << " attach " << static_cast<int>(type) << ' '
                              << model;
         Misc::LoadTrace::Scope traceRead("npc.part.read");
-        auto node = vsgUtil::readNode(model, mPartContext->partBoneOptions[type]);
+        vsg::ref_ptr<vsg::Node> node;
+        try
+        {
+            node = vsgUtil::readNode(model, mPartContext->partBoneOptions[type]);
+        }
+        catch (const std::exception& e)
+        {
+            // Task 0074e (finding 7 of the review of 0074d), as OpenMW 0.51 (NpcAnimation::addOrReplaceIndividualPart,
+            // 442eec6e2f): the part's model cannot be read (vsgUtil::readNode reads through vsgAdapters::vfs, whose
+            // VFS::Manager::get can throw), so the part is skipped and the update goes on. Nothing has changed yet:
+            // the slot stays taken (PartSlots::take ran before) and the body part under it stays hidden, as in 0.51.
+            Log(Debug::Error) << "Error adding NPC part: " << e.what();
+            return false;
+        }
         traceRead.end();
         Misc::LoadTrace::Scope traceAttach("npc.part.attach");
         bool mirror = bonename.find("Left") != std::string::npos;
@@ -525,7 +538,7 @@ namespace MWRender
 
         auto path = MWAnim::attachBonesAndNode(node, *nodeToAddChildrenTo(), animation->bones, bonename);
         if (path.empty())
-            return;
+            return true;
 
         Anim::Context ctx{ { transform() }, path, &animation->bones, &mPartContext->mask };
         Anim::Update* dst = &mStaticControllers;
@@ -554,6 +567,7 @@ namespace MWRender
             }
         });
         mParts[type] = path;
+        return true;
     }
 
     bool Npc::attachMergedBody(bool isWerewolf)
@@ -921,7 +935,9 @@ namespace MWRender
             }
         }
 
-        insertBoundedPart(type, mesh, bonename, glowColor, light);
+        // A part whose model cannot be read makes no sound, as in OpenMW 0.51 (it returns before the sound).
+        if (!insertBoundedPart(type, mesh, bonename, glowColor, light))
+            return;
 
         const MWWorld::InventoryStore& inv = mPtr.getClass().getInventoryStore(mPtr);
         auto csi = inv.getSlot(group < 0 ? MWWorld::InventoryStore::Slot_Helmet : group);

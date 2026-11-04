@@ -176,7 +176,9 @@ namespace MWRender
 
         NpcType getNpcType() const;
 
-        void insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
+        // Reads the part's model and attaches it. False when the model could not be read (a std::exception from the
+        // read is logged and caught, as OpenMW 0.51 does per part; task 0074e, finding 7); true otherwise.
+        bool insertBoundedPart(ESM::PartReferenceType type, const std::string& model, const std::string& bonename,
             std::optional<vsg::vec4> glowColor, const ESM::Light* light);
 
         void removeIndividualPart(ESM::PartReferenceType type);

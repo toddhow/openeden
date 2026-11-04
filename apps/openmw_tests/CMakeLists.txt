@@ -36,6 +36,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testequipmentupdate.cpp
     mwrender/testitemlights.cpp
     mwrender/testnpcrebuild.cpp
+    mwrender/testpartreaderrors.cpp
     mwrender/testpartslots.cpp
     mwrender/testmergedbodyregions.cpp
     mwrender/testmergedbodydefines.cpp
