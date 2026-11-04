@@ -1,7 +1,7 @@
 // Task 0072, stage g: the tonemap's constants repeat Render::Hdr and Render::Sss. tonemap.cpp used to write them into
 // its GLSL string; they are now in post/tonemapconstants.glsl and its Slang twin post/tonemapconstants.slang, and are
 // read back here. The ambient occlusion pass's settings come from ao.settings (Resource::ShaderSettings), as
-// ambientocclusion.cpp wrote them in from [Rendering] ao radius, ao slices and ao steps.
+// ambientocclusion.cpp wrote them in from [Rendering] ao radius, ao slices and ao steps. Written before the twins.
 #include <gtest/gtest.h>
 
 #include <components/render/hdrmath.hpp>
@@ -78,6 +78,14 @@ namespace
         const std::string text = readShaderText("post/tonemapconstants.glsl");
         ASSERT_FALSE(text.empty()) << "the shader sources are not beside the tests";
         expectTheCppValues(readConstants(text, std::regex(R"(#define\s+(\w+)\s+([^\r\n]+))")));
+    }
+
+    TEST(RenderTonemapConstants, the_slang_twin_holds_the_cpp_values)
+    {
+        const std::string text = readShaderText("post/tonemapconstants.slang");
+        ASSERT_FALSE(text.empty()) << "post/tonemapconstants.slang is missing";
+        expectTheCppValues(
+            readConstants(text, std::regex(R"(static\s+const\s+(?:float3|float|int)\s+(\w+)\s*=\s*([^;]+);)")));
     }
 
     // The pass took [Rendering] ao radius, ao slices and ao steps as RenderManager reads them (sanitised); the twin

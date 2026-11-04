@@ -375,6 +375,26 @@ openeden_add_slang_permutations(SOURCE default/default.vert.slang STAGE_FILE def
     STAGE vertex DEFINE_SETS_FILE default/main.vert.sets)
 openeden_add_slang_permutations(SOURCE default/default.frag.slang STAGE_FILE default/main.frag ENTRY fragMain
     STAGE fragment DEFINE_SETS_FILE default/main.frag.sets)
+# The post passes whose GLSL was written inside C++ (task 0072, stage g): the tonemap, bloom, velocity and ambient
+# occlusion passes (components/render) and post-processing's present pass, read with vsgUtil::readPassStages. The
+# tonemap's fragment stage has 16 sets (post/tonemap.frag.sets), the others none. post/omwfx.vert has no twin: its
+# partner is always a fragment stage translated from an .omwfx file, which stays GLSL (decision 0009).
+openeden_add_slang_permutations(
+    SOURCE post/fullscreen.slang STAGE_FILE post/fullscreen.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE post/tonemap.slang STAGE_FILE post/tonemap.frag ENTRY fragMain
+    STAGE fragment DEFINE_SETS_FILE post/tonemap.frag.sets)
+openeden_add_slang_permutations(
+    SOURCE post/bloom.slang STAGE_FILE post/bloomdown.frag ENTRY downMain STAGE fragment DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE post/bloom.slang STAGE_FILE post/bloomup.frag ENTRY upMain STAGE fragment DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE post/velocity.slang STAGE_FILE post/velocity.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE post/ao.slang STAGE_FILE post/ao.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE post/present.slang STAGE_FILE post/present.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(
+    SOURCE post/present.slang STAGE_FILE post/present.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
 
 # Task 0072 (review of stages b and c): after every family is declared, remove the manifest and files of any stage that
 # is no longer declared (a family removed or renamed would otherwise stay in the resources, be installed, be chosen

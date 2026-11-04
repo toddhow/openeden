@@ -1,0 +1,19 @@
+# The define sets of post/tonemap.frag (task 0072, stage g): every combination of the four names
+# Render::Tonemap::setSource asks for (bloom with hdr bloom, the debug view with gbuffer debug view, AO with ao,
+# SSS with sss), all reachable, so all 16 are built.
+-
+AO
+BLOOM
+DEBUG_VIEW
+SSS
+AO BLOOM
+AO DEBUG_VIEW
+AO SSS
+BLOOM DEBUG_VIEW
+BLOOM SSS
+DEBUG_VIEW SSS
+AO BLOOM DEBUG_VIEW
+AO BLOOM SSS
+AO DEBUG_VIEW SSS
+BLOOM DEBUG_VIEW SSS
+AO BLOOM DEBUG_VIEW SSS
