@@ -1,4 +1,6 @@
 #!/bin/bash
+# Editor windows open off-screen, out of the taskbar and without taking focus (apps/opencs/view/doc/quietwindows.hpp); run with OPENEDEN_QUIET_WINDOW=0 to see them.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # The body package panel in the real editor (task 0069 stage f, editor_modules/advancedbodies_editor): opens a merged
 # body cache through its `current` pointer and chooses another body with the module's Next Body command, then a
 # SYNTHETIC modder package as a folder and as a .edenpak (written here by make_synthetic_package.py, no game data), and
@@ -11,8 +13,7 @@
 # already find the editor's runtime libraries, Qt's bin included, and python must be on PATH. The cfg, the cache and
 # its stage a report (<user data>/analysis/bodies.json, optional) are COPIED into the work folder, which must be under
 # I:/Projects/OpenEden-work; no folder under "My Games" is accepted. The real user folder (Documents/My Games/OpenMW)
-# is only listed, before and after, and must be unchanged. The editor ignores OPENEDEN_QUIET_WINDOW: its windows appear
-# for about a minute (they take no focus).
+# is only listed, before and after, and must be unchanged.
 #
 # Pass/fail lines:
 #   1. the editor exits with code 0 (a module command that went on the document's undo stack would leave a "save
@@ -22,7 +23,7 @@
 #   4. the synthetic package lists exactly its two planted errors (BODY-GEOM-005, BODY-WELD-005)
 #   5. the real user folder is unchanged
 set -u
-[ $# -ge 5 ] || { sed -n 2,13p "$0"; exit 2; }
+[ $# -ge 5 ] || { sed -n 4,16p "$0"; exit 2; }
 BUILD=$(cd "$1" && { pwd -W 2>/dev/null || pwd; })
 CFG=$2
 CONTENT=$3
@@ -62,7 +63,7 @@ snapshot > "$WORK/real-before.tsv"
 
 W=$(native "$WORK")
 SOURCES="$W/user/openeden/bodies/current|$CHOOSE;$W/synthetic/tubes.body/body.json;$W/synthetic/tubes.edenpak"
-(cd "$BUILD" && OPENEDEN_QUIET_WINDOW=1 OPENEDEN_CS_UI_CHECK="c:#-2 -9;40000" \
+(cd "$BUILD" && OPENEDEN_CS_UI_CHECK="c:#-2 -9;40000" \
     OPENEDEN_CS_BODYCHECK="$W/frames/shot;$SOURCES" OPENEDEN_CS_ASSETDIR="$W/user/openeden/bodies" \
     OPENEDEN_CS_GRAB="$W/frames" timeout 300 ./eden-studio.exe --replace=config --config "$W/config" \
     --user-data "$W/user" -- "$CONTENT" > "$WORK/run.out" 2>&1)

@@ -54,6 +54,7 @@ opencs_hdrs (model/tools
 opencs_units (model/prefs
     state configmigration layoutstore setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
     shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory commandline
+    quietwindow
     )
 
 opencs_units (model/prefs
@@ -139,6 +140,7 @@ opencs_units (view/module
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
     filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell extensionmanager assetbrowser contextinspector outputlogpanel logtap
+    quietwindows
     )
 
 

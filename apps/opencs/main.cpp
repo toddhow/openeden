@@ -1,6 +1,7 @@
 #include "capture.hpp"
 #include "editor.hpp"
 #include "lodcheck.hpp"
+#include "view/doc/quietwindows.hpp"
 #include "view/render/rendercontext.hpp"
 
 #include <exception>
@@ -46,6 +47,11 @@ int runApplication(int argc, char* argv[])
     Platform::Application application(argc, argv);
 
     application.setWindowIcon(QIcon(":eden-studio"));
+
+    // OPENEDEN_QUIET_WINDOW, as in the game: every window opens off the desktop, out of the taskbar and without the
+    // focus (view/doc/quietwindows.hpp). Before the first window, and destroyed after the last.
+    CSVDoc::QuietWindows quietWindows;
+    quietWindows.installIfRequested(application);
 
 #ifdef __linux__
     setlocale(LC_NUMERIC, "C");

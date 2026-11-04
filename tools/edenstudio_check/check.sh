@@ -1,4 +1,6 @@
 #!/bin/bash
+# Editor windows open off-screen, out of the taskbar and without taking focus (apps/opencs/view/doc/quietwindows.hpp); run with OPENEDEN_QUIET_WINDOW=0 to see them.
+export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Smoke check of Eden Studio's start-up with an isolated configuration: it must honour --replace=config, --config and
 # --user-data and leave the real user folder alone. Until 2026-11-04 the editor never parsed its command line (upstream
 # OpenMW-CS removed it in 2013, commit 4e26a61db3), so a check run read the real openmw.cfg and wrote eden-studio.log
