@@ -24,11 +24,16 @@ namespace Lod
         }
 
         // What is committed now: held items that are not leaving and have not been freed by this plan, items that are
-        // loading, and the items this plan starts loading. `count` is how many such items there are.
+        // loading, and the items this plan starts loading. `mCount` is how many such items there are; `mReleases`
+        // what the loading and admitted ones let go once drawn (mReleasesBytes: a parent tile replacing its pinned
+        // children, or children replacing their parent), which admission and pressure both subtract.
         struct Committed
         {
             std::uint64_t mBytes = 0;
+            std::uint64_t mReleases = 0;
             std::size_t mCount = 0;
+
+            std::uint64_t net() const noexcept { return mBytes >= mReleases ? mBytes - mReleases : 0; }
         };
 
         bool isCommitted(const ResidencyItem& item, std::uint8_t gone) noexcept
@@ -48,6 +53,8 @@ namespace Lod
                 if (!isCommitted(items[i], gone[i]))
                     continue;
                 result.mBytes = addSaturating(result.mBytes, items[i].mBytes);
+                if (gone[i] == goneAdmitted || items[i].mLoading)
+                    result.mReleases = addSaturating(result.mReleases, items[i].mReleasesBytes);
                 ++result.mCount;
             }
             return result;
@@ -64,11 +71,10 @@ namespace Lod
 
         // Fills `victims` with the held items that may be freed, least urgent first: those not wanted before those
         // wanted, in each class the larger key first, then the smaller index. A wanted victim must be replaceable;
-        // for a candidate (`forCandidate`) it must also be clearly less urgent than the candidate, unless the
-        // candidate has no fallback (`candidateHasFallback` false), which outranks any replaceable item.
+        // for a candidate (`forCandidate`) it must also be clearly less urgent than the candidate. Only replaceable
+        // candidates look for victims: one with no fallback is admitted without them.
         void collectVictims(std::span<const ResidencyItem> items, const std::vector<std::uint8_t>& gone,
-            bool forCandidate, float candidateKey, bool candidateHasFallback, float margin,
-            std::vector<std::uint32_t>& victims)
+            bool forCandidate, float candidateKey, float margin, std::vector<std::uint32_t>& victims)
         {
             victims.clear();
             for (std::size_t i = 0; i < items.size(); ++i)
@@ -80,7 +86,7 @@ namespace Lod
                 {
                     if (!item.mReplaceable)
                         continue;
-                    if (forCandidate && candidateHasFallback)
+                    if (forCandidate)
                     {
                         const float key = urgencyKey(item.mPriority);
                         if (!(key >= margin * candidateKey) || !(key > candidateKey))
@@ -156,42 +162,47 @@ namespace Lod
                 return a < b;
             });
         }
+        // The committed bytes are kept up to date as the plan admits and frees, so a candidate that fits costs no
+        // pass over the items; only a victim search does, and at most mMaxBlockedPerCall of those run in one call.
+        Committed committed = budget > 0 ? committedNow(items, plan.mGone) : Committed{};
         std::uint32_t started = 0;
+        std::uint32_t searches = 0;
         for (const std::uint32_t candidate : plan.mScratch)
         {
-            if (inFlight >= params.mMaxLoadsInFlight || started >= params.mMaxLoadsPerCall
-                || plan.mBlocked >= params.mMaxBlockedPerCall)
+            if (inFlight >= params.mMaxLoadsInFlight || started >= params.mMaxLoadsPerCall)
                 break;
             const ResidencyItem& item = items[candidate];
-            bool admit = budget == 0;
-            if (!admit)
+            // No budget, or no fallback (nothing else would draw its square): admitted whatever the budget says. The
+            // budget governs the replaceable items only; pressure below frees those if this goes over.
+            bool admit = budget == 0 || !item.mReplaceable || committed.mCount == 0
+                || fits(committed.net(), 0, item.mReleasesBytes, item.mBytes, lowWaterBytes);
+            // A candidate whose loads failed before frees nothing for itself: it waits until it fits.
+            if (!admit && item.mFailures == 0 && searches < params.mMaxBlockedPerCall)
             {
-                const Committed committed = committedNow(items, plan.mGone);
-                admit = committed.mCount == 0
-                    || fits(committed.mBytes, 0, item.mReleasesBytes, item.mBytes, lowWaterBytes);
-                if (!admit)
+                ++searches;
+                collectVictims(items, plan.mGone, true, urgencyKey(item.mPriority), margin, plan.mVictims);
+                std::uint64_t freed = 0;
+                std::size_t taken = 0;
+                for (; taken < plan.mVictims.size(); ++taken)
                 {
-                    collectVictims(
-                        items, plan.mGone, true, urgencyKey(item.mPriority), item.mReplaceable, margin, plan.mVictims);
-                    std::uint64_t freed = 0;
-                    std::size_t taken = 0;
-                    for (; taken < plan.mVictims.size(); ++taken)
+                    freed = addSaturating(freed, items[plan.mVictims[taken]].mBytes);
+                    if (fits(committed.net(), freed, item.mReleasesBytes, item.mBytes, lowWaterBytes))
                     {
-                        freed = addSaturating(freed, items[plan.mVictims[taken]].mBytes);
-                        if (fits(committed.mBytes, freed, item.mReleasesBytes, item.mBytes, lowWaterBytes))
-                        {
-                            ++taken;
-                            admit = true;
-                            break;
-                        }
+                        ++taken;
+                        admit = true;
+                        break;
                     }
-                    if (admit)
+                }
+                if (admit)
+                {
+                    for (std::size_t v = 0; v < taken; ++v)
                     {
-                        for (std::size_t v = 0; v < taken; ++v)
-                        {
-                            plan.mGone[plan.mVictims[v]] = goneFreed;
-                            plan.mFree.push_back(plan.mVictims[v]);
-                        }
+                        const std::uint32_t victim = plan.mVictims[v];
+                        plan.mGone[victim] = goneFreed;
+                        plan.mFree.push_back(victim);
+                        const std::uint64_t bytes = items[victim].mBytes;
+                        committed.mBytes = committed.mBytes >= bytes ? committed.mBytes - bytes : 0;
+                        --committed.mCount;
                     }
                 }
             }
@@ -202,22 +213,26 @@ namespace Lod
             }
             plan.mGone[candidate] = goneAdmitted;
             plan.mLoad.push_back(candidate);
+            committed.mBytes = addSaturating(committed.mBytes, item.mBytes);
+            committed.mReleases = addSaturating(committed.mReleases, item.mReleasesBytes);
+            ++committed.mCount;
             ++inFlight;
             ++started;
         }
 
-        // 3. Pressure: above the budget, free down to the low water mark, never the last committed item.
+        // 3. Pressure: above the budget, free down to the low water mark, never the last committed item. What the
+        // loading and admitted items release counts as gone (a coarsening or a refinement in progress).
         if (budget > 0)
         {
-            Committed committed = committedNow(items, plan.mGone);
-            if (committed.mBytes > budget)
+            committed = committedNow(items, plan.mGone);
+            if (committed.net() > budget)
             {
-                collectVictims(items, plan.mGone, false, 0.f, true, margin, plan.mVictims);
+                collectVictims(items, plan.mGone, false, 0.f, margin, plan.mVictims);
                 std::uint64_t freed = 0;
                 std::size_t left = committed.mCount;
                 for (const std::uint32_t victim : plan.mVictims)
                 {
-                    if (fits(committed.mBytes, freed, 0, 0, lowWaterBytes) || left <= 1)
+                    if (fits(committed.net(), freed, 0, 0, lowWaterBytes) || left <= 1)
                         break;
                     freed = addSaturating(freed, items[victim].mBytes);
                     plan.mGone[victim] = goneFreed;
@@ -228,8 +243,8 @@ namespace Lod
         }
 
         const Committed after = committedNow(items, plan.mGone);
-        plan.mHeldAfter = after.mBytes;
-        plan.mOverBudget = budget > 0 && after.mBytes > budget;
+        plan.mHeldAfter = after.net();
+        plan.mOverBudget = budget > 0 && after.net() > budget;
     }
 
     bool squareWithinRange(double x, double y, double originX, double originY, double side, double range) noexcept
@@ -260,5 +275,35 @@ namespace Lod
             return std::to_string(tenths / 10) + "." + std::to_string(tenths % 10) + " MiB";
         }
         return std::to_string((bytes + mib / 2) / mib) + " MiB";
+    }
+}
+
+namespace Lod
+{
+    double replaceableMargin(double range) noexcept
+    {
+        // 5 percent of the range, at least a quarter of a cell (ESM::Land::REAL_SIZE is 8192 units).
+        constexpr double share = 0.05;
+        constexpr double quarterCell = 2048;
+        return std::isfinite(range) ? std::max(quarterCell, share * range) : quarterCell;
+    }
+
+    bool squareReplaceable(
+        bool previous, double x, double y, double originX, double originY, double side, double range) noexcept
+    {
+        if (previous)
+            return squareWithinRange(x, y, originX, originY, side, range);
+        return squareWithinRange(x, y, originX, originY, side, range - replaceableMargin(range));
+    }
+
+    std::int32_t failureCooldownFrames(std::int32_t baseFrames, std::uint32_t failures) noexcept
+    {
+        if (failures == 0 || baseFrames <= 0)
+            return 0;
+        // Doubling for each further failure, at most 16 times the base (four doublings).
+        constexpr std::uint32_t maxDoublings = 4;
+        const std::uint32_t doublings = std::min(failures - 1, maxDoublings);
+        const std::int64_t frames = static_cast<std::int64_t>(baseFrames) << doublings;
+        return static_cast<std::int32_t>(std::min<std::int64_t>(frames, std::numeric_limits<std::int32_t>::max()));
     }
 }
