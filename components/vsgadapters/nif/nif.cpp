@@ -264,6 +264,9 @@ namespace vsgAdapters
             // a NiUVController above animates the texture coordinates.
             float nodeScale = 1.f;
             bool animatedTextureTransform = false;
+            // Task 0072, stage h: a NiVertexColorProperty applies at or above this node (a particle system without one
+            // takes Pipeline::particleOwnColorMode).
+            bool hasVertexColorProperty = false;
             vsg::ref_ptr<vsg::StateSwitch> stateSwitch;
             vsg::Descriptors descriptors;
             std::vector<vsg::Descriptors> textureSets;
@@ -647,6 +650,8 @@ namespace vsgAdapters
             auto particlesDescriptor = vsg::DescriptorBuffer::create(
                 particleArray, Pipeline::Descriptors::PARTICLE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
             addModeDescriptor(particlesDescriptor, Pipeline::Mode::PARTICLE);
+            getNodeOptions().colorMode
+                = Pipeline::colorModeOfParticles(getNodeOptions().hasVertexColorProperty, getNodeOptions().colorMode);
             // openeden-vsg: particles have no tangents or per-pixel lighting (task 0012, V4h).
             removeAutoMapModes(getNodeOptions().shader);
             if (mSoftParticles)
@@ -1155,6 +1160,7 @@ namespace vsgAdapters
             if (static_cast<int>(vertprop.mLightingMode) == 0)
                 vertmode = 0;
             getNodeOptions().colorMode = vertmode;
+            getNodeOptions().hasVertexColorProperty = true;
         }
 
         void handleSpecularProperty(const Nif::NiSpecularProperty& specprop)

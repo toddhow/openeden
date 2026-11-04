@@ -11,6 +11,20 @@
 
 namespace Pipeline
 {
+    /// Task 0072, stage h (review round 4, finding 10): the colour mode of a particle system that has no
+    /// NiVertexColorProperty. Modes 0 (the NIF says "ignore the vertex colour", or lighting off), 1 (emissive), 2
+    /// (ambient and diffuse) and 3 (unlit debug geometry) are the property's; OpenMW 0.51 gave a particle system
+    /// without the property the vertex colour as ambient and diffuse (nifloader.cpp handleParticleSystem passes
+    /// hasVertexColors = true). The GLSL switches only on 1, 2 and 3, so it treats this value as 0; the Slang twin
+    /// (lib/material/terms.slang) treats it as 2, keeping the particle's own colour and its alpha over its life.
+    inline constexpr uint32_t particleOwnColorMode = 4;
+
+    /// The colour mode a particle system gets: its NiVertexColorProperty's, or particleOwnColorMode without one.
+    inline constexpr uint32_t colorModeOfParticles(bool hasVertexColorProperty, uint32_t propertyColorMode)
+    {
+        return hasVertexColorProperty ? propertyColorMode : particleOwnColorMode;
+    }
+
     /*
      * Affects shader source.
      */

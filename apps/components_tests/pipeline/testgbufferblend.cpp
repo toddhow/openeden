@@ -8,6 +8,10 @@
 
 #include <gtest/gtest.h>
 
+#include <fstream>
+#include <iterator>
+#include <string>
+
 namespace
 {
     constexpr VkColorComponentFlags rgba
@@ -143,5 +147,57 @@ namespace
         const auto result = Pipeline::gbufferBlendAttachments(first, qualifyingKey(), 2);
         ASSERT_EQ(result.size(), 2u);
         EXPECT_EQ(result[1].blendEnable, VK_FALSE);
+    }
+
+    // Task 0072, stage h, review round 4 (finding 10), written before the code: the Slang twin keeps a particle's own
+    // colour for a particle system with no NiVertexColorProperty and ignores it for one whose property says "ignore".
+    // The GLSL is untouched, and treats the new value as "ignore" because it switches only on 1, 2 and 3.
+    TEST(PipelineParticleColorMode, a_particle_system_without_the_property_gets_a_mode_of_its_own)
+    {
+        EXPECT_EQ(Pipeline::particleOwnColorMode, 4u);
+        EXPECT_EQ(Pipeline::colorModeOfParticles(false, 0), Pipeline::particleOwnColorMode);
+        EXPECT_EQ(Pipeline::colorModeOfParticles(false, 2), Pipeline::particleOwnColorMode);
+        // With the property its own mode stands, "ignore" (0) included.
+        for (uint32_t mode : { 0u, 1u, 2u, 3u })
+            EXPECT_EQ(Pipeline::colorModeOfParticles(true, mode), mode);
+    }
+
+    std::string shaderText(const char* file)
+    {
+        std::ifstream in(std::string(OPENEDEN_SHADER_SOURCE_DIR) + "/" + file, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+
+    TEST(PipelineParticleColorMode, the_glsl_does_not_know_the_mode_and_the_twin_does)
+    {
+        const std::string number = std::to_string(Pipeline::particleOwnColorMode);
+        for (const char* glsl : { "lib/material/terms.glsl", "default/main.frag" })
+        {
+            const std::string text = shaderText(glsl);
+            ASSERT_FALSE(text.empty()) << glsl;
+            EXPECT_EQ(text.find("colorMode == " + number), std::string::npos) << glsl;
+            EXPECT_EQ(text.find("colorMode != " + number), std::string::npos) << glsl;
+            EXPECT_EQ(text.find("case " + number + ":"), std::string::npos) << glsl;
+        }
+        const std::string twin = shaderText("lib/material/terms.slang");
+        ASSERT_FALSE(twin.empty());
+        std::size_t cases = 0;
+        for (std::size_t at = twin.find("case " + number + ":"); at != std::string::npos;
+             at = twin.find("case " + number + ":", at + 1))
+            ++cases;
+        EXPECT_EQ(cases, 2u) << "getDiffuse and getAmbient";
+    }
+
+    TEST(PipelineParticleColorMode, the_new_mode_is_not_the_unlit_mode)
+    {
+        // Every place that compares the mode with 3 (the G-buffer, pbr, gi, wetness and cover conditions) must treat a
+        // particle's mode 4 as any other: those conditions exclude particles already.
+        Pipeline::Options key = qualifyingKey();
+        key.shader.addMode(Pipeline::Mode::PARTICLE);
+        key.colorMode = Pipeline::particleOwnColorMode;
+        EXPECT_FALSE(Pipeline::writesGBuffer(key));
+        key = qualifyingKey();
+        key.colorMode = Pipeline::particleOwnColorMode;
+        EXPECT_TRUE(Pipeline::writesGBuffer(key)) << "a mode that is not 3 does not disqualify";
     }
 }
