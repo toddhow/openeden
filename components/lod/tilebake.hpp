@@ -31,8 +31,10 @@
 namespace Lod
 {
     /// Version of the baker's behaviour (goes into the manifest and the provenance parameters). Version 1 (the approved
-    /// layout).
-    inline constexpr std::uint32_t bakerVersion = 1;
+    /// layout). Version 2: the source digest leaves out the normals at cell corners, so that a pack baked on one
+    /// platform passes the staleness check on another (task 0060, review of the far eviction, finding 6); older packs
+    /// are refused as stale.
+    inline constexpr std::uint32_t bakerVersion = 2;
     /// Vertices per side of one cell of land in Morrowind (ESM::Land::LAND_SIZE); a cell has 64 intervals.
     inline constexpr std::uint32_t landVerticesPerCell = 65;
 

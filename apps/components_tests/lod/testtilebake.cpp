@@ -54,6 +54,10 @@ namespace
 
         void addOffset(std::int64_t gx, std::int64_t gy, float offset) { mOffsets[{ gx, gy }] = offset; }
 
+        // The last bit of the normal's x at this vertex differs (one float step up), as the engine's average at a cell
+        // corner does between compilers that fuse multiply-adds and those that do not.
+        void addNormalNoise(std::int64_t gx, std::int64_t gy) { mNormalNoise.insert({ gx, gy }); }
+
         float height(std::int64_t gx, std::int64_t gy) const
         {
             if (!vertexHasLand(gx, gy))
@@ -102,6 +106,8 @@ namespace
                     const std::size_t index = j * n + i;
                     heights[index] = height(gx, gy);
                     normal(gx, gy, normals[3 * index], normals[3 * index + 1], normals[3 * index + 2]);
+                    if (mNormalNoise.count({ gx, gy }) != 0)
+                        normals[3 * index] = std::nextafter(normals[3 * index], 2.f);
                 }
             }
         }
@@ -133,6 +139,7 @@ namespace
         bool mAllLand = true;
         std::set<Cell> mLandCells;
         std::map<std::pair<std::int64_t, std::int64_t>, float> mOffsets;
+        std::set<std::pair<std::int64_t, std::int64_t>> mNormalNoise;
     };
 
     float hills(std::int64_t gx, std::int64_t gy)
@@ -542,6 +549,53 @@ namespace
         const BakedTile other = bakeOne(changed, 0, 0);
         EXPECT_NE(other.mHeightsDigest, baseline.mHeightsDigest);
         EXPECT_TRUE(baseline.mUsedLayers.empty()); // no albedo: no layers
+    }
+
+    // The Windows and the Linux bake of Morrowind's land differ in the last bit of the normal at some cell corners
+    // (Storage::averageNormal normalises a sum of floats, which compilers that fuse multiply-adds round differently),
+    // so a pack baked on one platform was refused as stale on the other (review of the far eviction, finding 6, proved
+    // by the digests of the first differing tile: equal heights, different normals). The corner is not an input: the
+    // engine computes it from the four neighbours and ignores its own stored normal.
+    TEST(LodTileBake, the_digest_ignores_the_last_bit_of_a_normal_at_a_cell_corner)
+    {
+        const BakedTile baseline = bakeOne(GridLand(hills), 0, 0);
+        const std::pair<std::int64_t, std::int64_t> corners[] = { { 0, 0 }, { 64, 0 }, { 128, 0 }, { 0, 64 },
+            { 64, 64 }, { 128, 64 }, { 0, 128 }, { 64, 128 }, { 128, 128 } };
+        for (const auto& corner : corners)
+        {
+            GridLand noisy(hills);
+            noisy.addNormalNoise(corner.first, corner.second);
+            const BakedTile other = bakeOne(noisy, 0, 0);
+            EXPECT_EQ(other.mSourceDigest, baseline.mSourceDigest) << corner.first << ", " << corner.second;
+            EXPECT_EQ(other.mNormalsDigest, baseline.mNormalsDigest) << corner.first << ", " << corner.second;
+        }
+        GridLand all(hills);
+        for (const auto& corner : corners)
+            all.addNormalNoise(corner.first, corner.second);
+        EXPECT_EQ(bakeOne(all, 0, 0).mSourceDigest, baseline.mSourceDigest);
+    }
+
+    TEST(LodTileBake, the_digest_follows_the_last_bit_of_a_normal_that_is_not_at_a_cell_corner)
+    {
+        const BakedTile baseline = bakeOne(GridLand(hills), 0, 0);
+        // On a cell edge, in a cell, next to a corner, and on the tile's own edge, but not at a corner.
+        const std::pair<std::int64_t, std::int64_t> places[]
+            = { { 64, 1 }, { 1, 64 }, { 6, 6 }, { 65, 64 }, { 0, 127 }, { 127, 5 } };
+        for (const auto& place : places)
+        {
+            GridLand noisy(hills);
+            noisy.addNormalNoise(place.first, place.second);
+            const BakedTile other = bakeOne(noisy, 0, 0);
+            EXPECT_NE(other.mSourceDigest, baseline.mSourceDigest) << place.first << ", " << place.second;
+            EXPECT_NE(other.mNormalsDigest, baseline.mNormalsDigest) << place.first << ", " << place.second;
+        }
+    }
+
+    TEST(LodTileBake, the_baker_version_says_the_digest_leaves_out_the_corner_normals)
+    {
+        // Packs of version 1 hashed every normal and are refused by the manifest check; version 2 leaves out the cell
+        // corners.
+        EXPECT_GE(bakerVersion, 2u);
     }
 
     TEST(LodTileBake, source_digest_is_stable_and_depends_on_the_id)

@@ -47,6 +47,33 @@ namespace Lod
             }
         }
 
+        // Hashes the full-detail normals (x, y, z a sample, `n` x `n` samples) without those at cell corners. The
+        // engine sets a corner's normal to the normalised sum of its four neighbours (Terrain::Storage::averageNormal),
+        // a float computation whose last bit depends on whether the compiler fuses multiply-adds: the Windows and the
+        // Linux bake of Morrowind's land differ there in the first differing tile and in about a third of the level 1
+        // tiles, with equal heights and equal other normals (the stored normal of the corner itself is ignored). The
+        // corner is not an input: its neighbours are hashed (with the tile that holds them), and everything else is
+        // exact.
+        void hashNormalsWithoutCorners(EdenArchive::Hasher& hasher, const std::vector<float>& normals, std::uint32_t n)
+        {
+            constexpr std::uint32_t cornerSpacing = landVerticesPerCell - 1;
+            for (std::uint32_t j = 0; j < n; ++j)
+            {
+                for (std::uint32_t i = 0; i < n; ++i)
+                {
+                    if (i % cornerSpacing == 0 && j % cornerSpacing == 0)
+                        continue;
+                    const std::size_t base = 3 * (std::size_t{ j } * n + i);
+                    for (std::size_t k = 0; k < 3; ++k)
+                    {
+                        std::uint32_t bits = 0;
+                        std::memcpy(&bits, &normals[base + k], sizeof(bits));
+                        hashU32(hasher, bits);
+                    }
+                }
+            }
+        }
+
         bool allFinite(const std::vector<float>& values)
         {
             return std::all_of(values.begin(), values.end(), [](float value) { return std::isfinite(value); });
@@ -229,13 +256,13 @@ namespace Lod
         hashU32(hasher, settings.mCellSize);
         hashU32(hasher, bakerVersion);
         hashFloats(hasher, fineHeights);
-        hashFloats(hasher, fineNormals);
+        hashNormalsWithoutCorners(hasher, fineNormals, fineN);
 
         // The parts, for the message of a stale pack (the same bytes, hashed on their own).
         EdenArchive::Hasher heightsHasher;
         hashFloats(heightsHasher, fineHeights);
         EdenArchive::Hasher normalsHasher;
-        hashFloats(normalsHasher, fineNormals);
+        hashNormalsWithoutCorners(normalsHasher, fineNormals, fineN);
 
         tile.mId = id;
         tile.mData = std::move(data);
