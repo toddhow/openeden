@@ -161,8 +161,10 @@ namespace
 
     TEST(PassStages, the_stages_the_reader_shares_are_never_changed)
     {
-        // The reader keeps one stage per file (shared objects); compiling it in place would give every later variant
-        // the first variant's code, since VSG compiles only a module without code.
+        // The reader keeps one stage per file (shared objects); compiling it in place would make every variant share
+        // one module: each compile overwrites its code (vsg::ShaderCompiler::compile always regenerates it), and
+        // vsg::ShaderModule::compile makes a module's Vulkan object once per device, from the code it holds then, so
+        // the variants would draw one another's code (task 0072, review of stage g, finding 6).
         PassFolder folder;
         const auto shared = vsg::read_cast<vsg::ShaderStage>("post/pass.frag", folder.options());
         ASSERT_TRUE(shared);
@@ -234,5 +236,40 @@ namespace
         EXPECT_TRUE(vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/broken.frag", {} } }, folder.options())
                         .empty());
         EXPECT_TRUE(vsgUtil::readPassStages({ { "post/pass.vert", {} } }, nullptr).empty());
+    }
+
+    // Review of stage g, finding 5: VSG reports through vsg::Logger, whose default logger writes to stderr with
+    // fprintf, which openmw.log does not show, so the reason comes back to the caller, who logs it. Written before the
+    // implementation.
+    TEST(PassStages, a_missing_file_is_named_in_the_error)
+    {
+        PassFolder folder;
+        std::string error;
+        EXPECT_TRUE(
+            vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/missing.frag", {} } }, folder.options(), &error)
+                .empty());
+        EXPECT_NE(error.find("\"post/missing.frag\""), std::string::npos) << error;
+        EXPECT_NE(error.find("cannot be read"), std::string::npos) << error;
+    }
+
+    TEST(PassStages, a_compile_error_gives_the_file_and_glslangs_message)
+    {
+        PassFolder folder;
+        std::string error;
+        EXPECT_TRUE(
+            vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/broken.frag", {} } }, folder.options(), &error)
+                .empty());
+        EXPECT_NE(error.find("\"post/broken.frag\""), std::string::npos) << error;
+        EXPECT_NE(error.find("failed to compile"), std::string::npos) << error;
+        // glslang's own words for sBroken, which assigns to a name it never declares.
+        EXPECT_NE(error.find("undeclared identifier"), std::string::npos) << error;
+    }
+
+    TEST(PassStages, a_success_leaves_no_error)
+    {
+        PassFolder folder;
+        std::string error = "an earlier error";
+        EXPECT_EQ(vsgUtil::readPassStages(sRed, folder.options(), &error).size(), 2u);
+        EXPECT_TRUE(error.empty()) << error;
     }
 }

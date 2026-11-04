@@ -193,7 +193,7 @@ add_component_dir (vsgutil
     # I/O.
     cache virtualfile imageio imagepixels readimage texturecap textureresize decompress readnode readshader share shareimage deletionqueue
     # Slang twins of the GLSL shaders (task 0072).
-    shaderpermutation spirvinterface passstages
+    shaderpermutation spirvinterface passstages compilermessage
     # Temporary workarounds.
     setbin sharedview
     )

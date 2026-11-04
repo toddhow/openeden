@@ -117,15 +117,18 @@ namespace Render
     bool Bloom::build(vsg::Context& context, vsg::ref_ptr<vsg::ImageView> sceneColor, const VkExtent2D& sceneExtent)
     {
         // Task 0072, stage g: the stages were strings here.
+        std::string downError;
+        std::string upError;
         if (mDownStages.empty())
             mDownStages = vsgUtil::readPassStages(
-                { { "post/fullscreen.vert", {} }, { "post/bloomdown.frag", {} } }, mShaderOptions);
+                { { "post/fullscreen.vert", {} }, { "post/bloomdown.frag", {} } }, mShaderOptions, &downError);
         if (mUpStages.empty())
             mUpStages = vsgUtil::readPassStages(
-                { { "post/fullscreen.vert", {} }, { "post/bloomup.frag", {} } }, mShaderOptions);
+                { { "post/fullscreen.vert", {} }, { "post/bloomup.frag", {} } }, mShaderOptions, &upError);
         if (mDownStages.empty() || mUpStages.empty())
         {
-            Log(Debug::Error) << "Failed to compile a bloom shader";
+            Log(Debug::Error) << "Failed to compile a bloom shader: " << downError
+                              << (!downError.empty() && !upError.empty() ? "; " : "") << upError;
             return false;
         }
 

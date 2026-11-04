@@ -129,10 +129,11 @@ namespace Render
                 defines.insert("BLOOM");
             if (debug)
                 defines.insert("DEBUG_VIEW");
+            std::string error;
             stages = vsgUtil::readPassStages(
-                { { "post/fullscreen.vert", {} }, { "post/tonemap.frag", defines } }, mShaderOptions);
+                { { "post/fullscreen.vert", {} }, { "post/tonemap.frag", defines } }, mShaderOptions, &error);
             if (stages.empty())
-                Log(Debug::Error) << "Failed to compile the tonemap shader";
+                Log(Debug::Error) << "Failed to compile the tonemap shader: " << error;
         }
         if (stages.empty())
             return false;

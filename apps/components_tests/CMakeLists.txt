@@ -161,6 +161,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testslangpermutations.cpp
     vsg/testspirvinterface.cpp
     vsg/testpassstages.cpp
+    vsg/testpostpasses.cpp
 
     render/testtonemapconstants.cpp
     render/testaerialmath.cpp

@@ -88,6 +88,70 @@ namespace
             readConstants(text, std::regex(R"(static\s+const\s+(?:float3|float|int)\s+(\w+)\s*=\s*([^;]+);)")));
     }
 
+    // Task 0072, review of stage g, finding 4: the two tests above compare floats, so "2.2" passes like "2.20000005".
+    // The text matters too: glslang folds 1.0 / DISPLAY_GAMMA in double precision, and from 2.2 the quotient rounds to
+    // another float than from 2.20000005 (the constant in the SPIR-V is 0x3EE8BA2F against 0x3EE8BA2E: seen when the
+    // file was changed to 2.2 on purpose, which PostPassesSwitchOff caught in all 16 tonemap variants). So each value
+    // must be written exactly as tonemap.cpp printed it into its string: an ostringstream at precision 9.
+    std::string printedAsTonemapCpp(float value)
+    {
+        std::ostringstream out;
+        out.precision(9);
+        out << value;
+        return out.str();
+    }
+
+    // name -> the value as tonemap.cpp wrote it after "#define <name> ", `vector` standing for "vec3" in GLSL and
+    // "float3" in Slang.
+    std::map<std::string, std::string> tonemapCppText(const std::string& vector)
+    {
+        const auto& sigma = Render::Sss::channelSigma;
+        return {
+            { "SSS_CHANNEL_SIGMA",
+                vector + "(" + printedAsTonemapCpp(sigma.x) + ", " + printedAsTonemapCpp(sigma.y) + ", "
+                    + printedAsTonemapCpp(sigma.z) + ")" },
+            { "SSS_NARROW_SIGMA", printedAsTonemapCpp(Render::Sss::narrowSigma) },
+            { "SSS_REACH", printedAsTonemapCpp(Render::Sss::reachInWidths) },
+            { "SSS_TAPS", std::to_string(Render::Sss::tapCount) },
+            { "SSS_EPSILON", printedAsTonemapCpp(Render::Sss::epsilon) },
+            { "SSS_GAIN_MIN", printedAsTonemapCpp(Render::Sss::gainMin) },
+            { "SSS_GAIN_MAX", printedAsTonemapCpp(Render::Sss::gainMax) },
+            { "DISPLAY_GAMMA", printedAsTonemapCpp(Render::Hdr::displayGamma) },
+            { "REINHARD_WHITE", printedAsTonemapCpp(Render::Hdr::reinhardWhitePoint) },
+            { "MAX_TARGET_VALUE", printedAsTonemapCpp(Render::Hdr::maxTargetValue) },
+        };
+    }
+
+    // name -> the value's text in the file (up to the end of the line, without trailing spaces or a carriage return).
+    std::map<std::string, std::string> valueTexts(const std::string& text, const std::regex& line)
+    {
+        std::map<std::string, std::string> values;
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), line); it != std::sregex_iterator(); ++it)
+        {
+            std::string value = (*it)[2];
+            while (!value.empty() && (value.back() == '\r' || value.back() == ' '))
+                value.pop_back();
+            values[(*it)[1]] = value;
+        }
+        return values;
+    }
+
+    TEST(RenderTonemapConstants, the_values_are_spelled_as_tonemap_cpp_printed_them)
+    {
+        // The check below can tell the spellings apart.
+        EXPECT_EQ(printedAsTonemapCpp(2.2f), "2.20000005");
+        EXPECT_NE(printedAsTonemapCpp(2.2f), "2.2");
+
+        const std::string glsl = readShaderText("post/tonemapconstants.glsl");
+        ASSERT_FALSE(glsl.empty()) << "the shader sources are not beside the tests";
+        EXPECT_EQ(valueTexts(glsl, std::regex(R"(#define\s+(\w+)\s+([^\r\n]+))")), tonemapCppText("vec3"));
+
+        const std::string slang = readShaderText("post/tonemapconstants.slang");
+        ASSERT_FALSE(slang.empty()) << "post/tonemapconstants.slang is missing";
+        EXPECT_EQ(valueTexts(slang, std::regex(R"(static\s+const\s+(?:float3|float|int)\s+(\w+)\s*=\s*([^;]+);)")),
+            tonemapCppText("float3"));
+    }
+
     // The pass took [Rendering] ao radius, ao slices and ao steps as RenderManager reads them (sanitised); the twin
     // takes them as specialization constants with the table's ids.
     TEST(RenderTonemapConstants, ao_settings_hold_the_ambient_occlusion_values)

@@ -91,10 +91,11 @@ namespace Render
         // Task 0072, stage g: the stages were strings here.
         if (mStages.empty())
         {
+            std::string error;
             mStages = vsgUtil::readPassStages(
-                { { "post/fullscreen.vert", {} }, { "post/velocity.frag", {} } }, mShaderOptions);
+                { { "post/fullscreen.vert", {} }, { "post/velocity.frag", {} } }, mShaderOptions, &error);
             if (mStages.empty())
-                Log(Debug::Error) << "Failed to compile a velocity shader";
+                Log(Debug::Error) << "Failed to compile a velocity shader: " << error;
         }
         if (mStages.empty() || !linearDepth || !objectMotion)
             return false;

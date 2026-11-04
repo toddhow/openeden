@@ -42,6 +42,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/compilermessage.hpp>
 #include <components/vsgutil/image.hpp>
 #include <components/vsgutil/passstages.hpp>
 #include <components/vsgutil/readimage.hpp>
@@ -175,51 +176,6 @@ namespace MWRender
                 uniform.mData);
         }
 
-        // Set on the thread of a compile that wants glslang's message.
-        thread_local std::string* tCompilerMessage = nullptr;
-
-        // Passes vsg's messages on, keeping glslang's own for the compile on this thread. Installed once and for good:
-        // swapping vsg::Logger::instance() around each compile would race with other threads logging.
-        class CompilerLogCapture : public vsg::Inherit<vsg::Logger, CompilerLogCapture>
-        {
-        public:
-            vsg::ref_ptr<vsg::Logger> previous;
-
-        protected:
-            void debug_implementation(const std::string_view& text) override { previous->debug(text); }
-            void info_implementation(const std::string_view& text) override { previous->info(text); }
-            void warn_implementation(const std::string_view& text) override
-            {
-                constexpr std::string_view prefix = "glslang info log:";
-                if (tCompilerMessage && text.starts_with(prefix))
-                    *tCompilerMessage = text.substr(prefix.size());
-                previous->warn(text);
-            }
-            void error_implementation(const std::string_view& text) override { previous->error(text); }
-            void fatal_implementation(const std::string_view& text) override { previous->fatal(text); }
-        };
-
-        void installCompilerLogCapture()
-        {
-            static const bool installed = [] {
-                auto capture = CompilerLogCapture::create();
-                capture->previous = vsg::Logger::instance();
-                capture->level = capture->previous->level;
-                vsg::Logger::instance() = capture;
-                return true;
-            }();
-            (void)installed;
-        }
-
-        // Sets tCompilerMessage for one scope, whatever way it ends.
-        struct CompilerMessageScope
-        {
-            explicit CompilerMessageScope(std::string* message) { tCompilerMessage = message; }
-            ~CompilerMessageScope() { tCompilerMessage = nullptr; }
-            CompilerMessageScope(const CompilerMessageScope&) = delete;
-            CompilerMessageScope& operator=(const CompilerMessageScope&) = delete;
-        };
-
         // Frames with no further edit before an edited static uniform recompiles: dragging a slider would otherwise run
         // glslang and rebuild every target each frame, and reset shaders that read last frame's targets.
         constexpr int sRebuildDelayFrames = 15;
@@ -235,7 +191,7 @@ namespace MWRender
         std::string message;
         bool compiled = false;
         {
-            CompilerMessageScope scope(&message);
+            const vsgUtil::CompilerMessageCapture capture(message);
             compiled = compiler->compile(shaderStage);
         }
 
@@ -295,7 +251,6 @@ namespace MWRender
     {
         mBaseView->viewDependentState = nullptr;
         mBaseView->mask = Mask_PostProcess;
-        installCompilerLogCapture();
         // Task 0072, stage g: the stages were strings here. The passes' vertex stage stays GLSL (see mVertex).
         constexpr const char* vertexPath = "post/omwfx.vert";
         try
@@ -313,10 +268,11 @@ namespace MWRender
         mPresentSwitch = vsg::Switch::create();
         if (mMultisampled)
         {
-            mPresentStages
-                = vsgUtil::readPassStages({ { "post/present.vert", {} }, { "post/present.frag", {} } }, mShaderOptions);
+            std::string error;
+            mPresentStages = vsgUtil::readPassStages(
+                { { "post/present.vert", {} }, { "post/present.frag", {} } }, mShaderOptions, &error);
             if (mPresentStages.empty())
-                Log(Debug::Error) << "Failed to compile the post-processing present shader";
+                Log(Debug::Error) << "Failed to compile the post-processing present shader: " << error;
         }
         createCopies();
         for (const auto& path : mVfs.getRecursiveDirectoryIterator(Fx::Technique::sSubdir))

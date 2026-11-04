@@ -91,10 +91,11 @@ namespace Render
         // Task 0072, stage g: the stages were strings here.
         if (mStages.empty())
         {
-            mStages
-                = vsgUtil::readPassStages({ { "post/fullscreen.vert", {} }, { "post/ao.frag", {} } }, mShaderOptions);
+            std::string error;
+            mStages = vsgUtil::readPassStages(
+                { { "post/fullscreen.vert", {} }, { "post/ao.frag", {} } }, mShaderOptions, &error);
             if (mStages.empty())
-                Log(Debug::Error) << "Failed to compile an ambient occlusion shader";
+                Log(Debug::Error) << "Failed to compile an ambient occlusion shader: " << error;
         }
         if (mStages.empty() || !linearDepth || !normal)
             return false;
