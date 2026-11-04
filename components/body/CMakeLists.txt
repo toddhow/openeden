@@ -16,6 +16,7 @@ add_library(eden_body STATIC
     skeletonmap.cpp
     skeletonsuggest.cpp
     skeletonmapping.cpp
+    mergedruntime.cpp
 )
 # Includes are written <components/body/...> like the rest of the engine.
 target_include_directories(eden_body PUBLIC ${CMAKE_SOURCE_DIR})
