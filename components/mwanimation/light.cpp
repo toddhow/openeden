@@ -17,6 +17,7 @@ namespace
     class LightController : public Anim::TMutable<LightController, vsg::Light>
     {
         Anim::DeltaTime mDt;
+        bool mStarted = false;
         float mBrightness = 0.675f;
         float mTicksToAdvance = 0.f;
         float mPhase;
@@ -35,6 +36,16 @@ namespace
         }
         void apply(vsg::Light& light, float time)
         {
+            // OpenEden (task 0074c): the first run's step is 0, as in OpenMW 0.51's SceneUtil::LightController, whose
+            // clock starts at its first run (mStartTime, 442eec6e2f). Anim::DeltaTime starts at 0, so the first step
+            // was the whole timer of the auto-play group the light joined: for an inventory light added to an actor
+            // whose group 0 had run for minutes the colour swung by hundreds of times its value, negative on some
+            // frames. DeltaTime itself is unchanged: Anim::Roll's random phase relies on it.
+            if (!mStarted)
+            {
+                mStarted = true;
+                mDt.last = time;
+            }
             // Updating flickering at 15 FPS like vanilla.
             constexpr float updateRate = 15.f;
             mTicksToAdvance = mDt.get(time) * updateRate * 0.25f + mTicksToAdvance * 0.75f;

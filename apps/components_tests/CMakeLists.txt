@@ -246,6 +246,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwanimation/testclonematerials.cpp
     mwanimation/testskinprevious.cpp
+    mwanimation/testlightcontroller.cpp
     vsgutil/testimagepixels.cpp
     vsgutil/testarraystate.cpp
     vsgutil/testhitnormal.cpp
