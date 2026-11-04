@@ -154,6 +154,7 @@ namespace MWRender
             std::size_t mLive = 0; // visible, live terrain
             std::size_t mSkipped = 0; // outside the view
             std::size_t mBlocked = 0; // wanted tiles the memory budget did not admit this frame
+            std::size_t mCooling = 0; // wanted tiles a cooldown held back this frame (third review, finding 1)
             std::uint64_t mHeldBytes = 0; // what the drawn tiles hold (their images and height ranges)
             std::uint64_t mTileDataBytes = 0; // what the pack's tiles hold once read (heights, normals, pictures)
         };

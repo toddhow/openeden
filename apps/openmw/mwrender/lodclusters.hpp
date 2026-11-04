@@ -121,6 +121,7 @@ namespace MWRender
             std::size_t mTriangles = 0; // of the shown clusters, masks taken out
             std::size_t mLoads = 0; // tiles read and decoded so far
             std::size_t mBlocked = 0; // clusters left out because the memory budget was reached
+            std::size_t mCooling = 0; // wanted clusters a cooldown held back this frame (third review, finding 1)
             double mLoadMillisecondsTotal = 0;
             double mLoadMillisecondsWorst = 0;
         };

@@ -726,32 +726,47 @@ namespace MWRender
             return false;
         }
 
-        // Is this tile's square drawn without it: by the live terrain (wholly inside the live paging range), or by
-        // its descendants (each child drawn when chosen, or itself drawn without it when refined further)? A child the
-        // pack does not have has no land to draw (task 0060 second review, finding 1: a parent turning Live used to go
-        // at once, which past the live range left a hole until, or while, its children were not drawn).
-        bool squareDrawnWithout(std::size_t index, const Camera& camera, int depth = 0) const
+        bool liveDrawsSquare(std::size_t index, const Camera& camera) const
         {
             const Lod::TileBounds& bounds = mStates[index].mBounds;
-            if (Lod::squareWithinRange(
-                    camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange))
+            return Lod::squareWithinRange(
+                camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
+        }
+
+        // May a drawn tile refined to finer ones (Live) go (task 0060, second review finding 1, third review finding
+        // 2)? Yes when the live terrain draws its whole square; else by its chosen children (Lod::classifyRefinedChild,
+        // Lod::refinedParentMayGo): it waits for a child that is coming (in view, wanted, not yet built), not for one
+        // out of view (that is not wanted until it is seen, and waiting for it would draw the parent over its drawn
+        // siblings indefinitely), and stays for good over a child that failed past the live range (`staysForGood`:
+        // overlap rather than a hole). A child refined further and not drawn counts as drawn when it may go itself.
+        bool refinedTileMayGo(std::size_t index, const Camera& camera, bool& staysForGood, int depth = 0) const
+        {
+            staysForGood = false;
+            if (liveDrawsSquare(index, camera))
                 return true;
             constexpr int maxDepth = 16;
-            if (depth > maxDepth)
+            constexpr std::size_t maxChildren = 64;
+            if (depth > maxDepth || mChildren[index].size() > maxChildren)
                 return false;
+            std::array<Lod::RefinedChild, maxChildren> children{};
+            std::size_t count = 0;
             for (const std::uint32_t child : mChildren[index])
             {
-                const Lod::TileChoice choice = mStates[child].mChoice;
-                if (choice == Lod::TileChoice::Tile)
+                Lod::RefinedChild kind = Lod::RefinedChild::Drawn;
+                if (mStates[child].mChoice == Lod::TileChoice::Tile)
+                    kind = Lod::classifyRefinedChild(mNodes[child] != nullptr, liveDrawsSquare(child, camera),
+                        mFailed[child], mStates[child].mVisible);
+                else if (!mNodes[child])
                 {
-                    // A child that failed to build is not drawn either: the parent stays (no hole).
-                    if (!mNodes[child])
-                        return false;
+                    bool childStays = false;
+                    if (!refinedTileMayGo(child, camera, childStays, depth + 1))
+                        kind = childStays ? Lod::RefinedChild::Failed : Lod::RefinedChild::Coming;
                 }
-                else if (!mNodes[child] && !squareDrawnWithout(child, camera, depth + 1))
-                    return false;
+                children[count++] = kind;
+                if (kind == Lod::RefinedChild::Failed)
+                    staysForGood = true;
             }
-            return true;
+            return Lod::refinedParentMayGo(std::span<const Lod::RefinedChild>(children.data(), count));
         }
 
         void rebuildCoverage()
@@ -837,6 +852,7 @@ namespace MWRender
         std::vector<bool> mHasPicture; // the draw carries its own ground picture
         std::vector<std::uint64_t> mReleases; // per frame: bytes of drawn tiles that go once this one is drawn
         std::vector<std::uint32_t> mMissing; // per frame: per refined drawn tile, its chosen descendants not drawn
+        std::vector<Lod::RefinementTile> mRefinement; // per frame: Lod::refinementReleases's input
         // Lod::squareReplaceable's state per tile: the live terrain draws the square (with hysteresis at the edge).
         std::vector<bool> mReplaceable;
         std::array<std::uint64_t, levelSlots> mLevelBytes{}; // sum of the bytes of the tiles built, per level
@@ -913,50 +929,28 @@ namespace MWRender
         const std::size_t tileCount = state.mStates.size();
         const std::uint64_t budget = state.mSetup.mResidentBudgetBytes;
         state.mItems.resize(tileCount);
+        // A refined tile may stay over its drawn children only while the tiles reach past the live range (map view);
+        // otherwise it goes at once, as before the planner (third review, finding 4).
+        const bool keepRefinedTiles = camera.mViewDistance > camera.mPagingRange;
         if (budget > 0)
         {
             // What drawing a tile lets go (the planner subtracts it in admission and pressure, second review finding
-            // 4): a coarsening, the drawn tiles under it that its selection no longer chooses; a refinement, a share
-            // of the drawn ancestor that goes once all of its chosen descendants are drawn.
-            std::fill(state.mReleases.begin(), state.mReleases.end(), 0);
-            std::fill(state.mMissing.begin(), state.mMissing.end(), 0);
+            // 4; Lod::refinementReleases): a coarsening, the drawn tiles under it that its selection no longer
+            // chooses; a refinement, a share of the drawn ancestor that goes once its chosen descendants are drawn,
+            // none of one that stays for good over a failed child (third review, finding 2).
+            state.mRefinement.resize(tileCount);
             for (std::size_t j = 0; j < tileCount; ++j)
             {
-                const bool chosen = state.mStates[j].mChoice == Lod::TileChoice::Tile;
-                if (state.mNodes[j] == nullptr && !chosen)
-                    continue;
-                for (std::int32_t p = state.mParents[j]; p >= 0; p = state.mParents[static_cast<std::size_t>(p)])
-                {
-                    const auto parent = static_cast<std::size_t>(p);
-                    if (state.mNodes[j] && !chosen && state.mStates[parent].mChoice == Lod::TileChoice::Tile)
-                    {
-                        if (!state.mNodes[parent])
-                            state.mReleases[parent] += state.mDrawBytes[j];
-                        break;
-                    }
-                    if (!state.mNodes[j] && chosen && state.mNodes[parent]
-                        && state.mStates[parent].mChoice != Lod::TileChoice::Tile)
-                    {
-                        ++state.mMissing[parent];
-                        break;
-                    }
-                }
+                Lod::RefinementTile& entry = state.mRefinement[j];
+                entry.mParent = state.mParents[j];
+                entry.mDrawBytes = state.mDrawBytes[j];
+                entry.mDrawn = state.mNodes[j] != nullptr;
+                entry.mChosen = state.mStates[j].mChoice == Lod::TileChoice::Tile;
+                entry.mStays = false;
+                if (keepRefinedTiles && entry.mDrawn && state.mStates[j].mChoice == Lod::TileChoice::Live)
+                    state.refinedTileMayGo(j, camera, entry.mStays);
             }
-            for (std::size_t j = 0; j < tileCount; ++j)
-            {
-                if (state.mNodes[j] || state.mStates[j].mChoice != Lod::TileChoice::Tile)
-                    continue;
-                for (std::int32_t p = state.mParents[j]; p >= 0; p = state.mParents[static_cast<std::size_t>(p)])
-                {
-                    const auto parent = static_cast<std::size_t>(p);
-                    if (state.mNodes[parent] && state.mStates[parent].mChoice != Lod::TileChoice::Tile)
-                    {
-                        if (state.mMissing[parent] > 0)
-                            state.mReleases[j] += state.mDrawBytes[parent] / state.mMissing[parent];
-                        break;
-                    }
-                }
-            }
+            Lod::refinementReleases(state.mRefinement, state.mMissing, state.mReleases);
         }
         for (std::size_t i = 0; i < tileCount; ++i)
         {
@@ -969,8 +963,9 @@ namespace MWRender
             item = Lod::ResidencyItem{};
             item.mHeld = held;
             // A drawn tile stays wanted while the selection chooses it, seen or not; one that is not drawn is wanted
-            // only when it is in view.
-            item.mWanted = chosen && state.mCooldown[i] == 0 && (held || tile.mVisible);
+            // only when it is in view. The eviction cooldown is the planner's to apply: it holds back a replaceable
+            // tile only, never one past the live range (third review, finding 1).
+            item.mWanted = chosen && (held || tile.mVisible);
             item.mPinned = held && !item.mWanted;
             item.mCooldown = state.mCooldown[i];
             item.mBytes = held ? state.mDrawBytes[i] : state.estimateBytes(i);
@@ -991,6 +986,7 @@ namespace MWRender
         Lod::planResidency(state.mItems, params, state.mResidencyPlan);
         const Lod::ResidencyPlan& plan = state.mResidencyPlan;
         state.mStats.mBlocked = plan.mBlocked;
+        state.mStats.mCooling = plan.mCooling;
         if (plan.mBlocked > 0 && !state.mLoggedBudget)
         {
             state.mLoggedBudget = true;
@@ -1032,15 +1028,17 @@ namespace MWRender
         }
         // Then the tiles that are no longer wanted, after the builds, as before the planner: a tile whose drawn
         // ancestor was built this frame goes in the same frame (no frame draws a parent over its children). A tile
-        // refined to finer ones (Live) goes once its square is drawn without it: at once inside the live range, as
-        // before, and past it only when its chosen descendants are drawn (second review, finding 1).
+        // refined to finer ones (Live) goes at once, as before, unless the tiles reach past the live range (map view):
+        // then it goes once refinedTileMayGo says so (second review finding 1, third review findings 2 and 4).
         for (std::size_t i = 0; i < tileCount; ++i)
         {
             if (!state.mNodes[i] || state.mStates[i].mChoice == Lod::TileChoice::Tile)
                 continue;
             if (state.mStates[i].mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i))
                 continue;
-            if (state.mStates[i].mChoice == Lod::TileChoice::Live && !state.squareDrawnWithout(i, camera))
+            bool staysForGood = false;
+            if (keepRefinedTiles && state.mStates[i].mChoice == Lod::TileChoice::Live
+                && !state.refinedTileMayGo(i, camera, staysForGood))
                 continue;
             state.remove(i);
             changed = true;

@@ -28,7 +28,9 @@
 //  1. Idle items go. A held item that is not wanted, not pinned, not leaving and has been unwanted for at least
 //     mKeepFrames frames is freed whatever the budget says. mKeepFrames is the hysteresis against freeing what the
 //     camera is about to want again.
-//  2. Loads. Items that are wanted, not held, not loading and out of cooldown are candidates: with mNearestFirst, the
+//  2. Loads. Items that are wanted, not held, not loading and out of cooldown are candidates (the eviction cooldown,
+//     mCooldown, holds back replaceable items only; the failure back-off, mFailureCooldown, holds back every item;
+//     each wanted item held back counts in mCooling): with mNearestFirst, the
 //     ones with no fallback (not replaceable) first, then by priority, then index; without it, by index. They are
 //     taken while fewer than mMaxLoadsInFlight loads run (loads already running count). With no budget every one is
 //     admitted, and so is every candidate with no fallback, whatever the budget says. A replaceable candidate is
@@ -42,7 +44,9 @@
 //     load that fails again costs no other item its place. At most mMaxBlockedPerCall victim searches run in one call
 //     (each is a pass over the items); later candidates are still admitted when they fit without victims, and every
 //     candidate left out is counted in mBlocked. A candidate is always admitted when nothing is committed, however
-//     large: an empty far field is worse than one that is over budget.
+//     large: an empty far field is worse than one that is over budget. The estimate of an item with no fallback whose
+//     loads failed before is not committed while it loads (it is admitted anyway, and a load that fails again must not
+//     start pressure on the others; third review, finding 3); its bytes count once it is held.
 //  3. Pressure. If the budget is set and the committed bytes (less what loading and admitted items release) exceed
 //     it, victims (held, not pinned or leaving: unwanted ones, then wanted replaceable ones, any priority) are freed,
 //     least urgent first, until the committed bytes are at most mLowWater times the budget. The last committed item is
@@ -68,8 +72,13 @@ namespace Lod
         float mPriority = 0;
         /// Frames since the item was last wanted; 0 while it is wanted.
         std::int32_t mIdleFrames = 0;
-        /// Frames before an item that is not held may be requested again (after a failure or a free).
+        /// The eviction cooldown: frames before an item the planner freed while it was wanted may be requested again.
+        /// It holds back replaceable items only: an item with no fallback is a candidate whatever this says, or its
+        /// square would stay undrawn (task 0060, third review, finding 1).
         std::int32_t mCooldown = 0;
+        /// The failure back-off: frames before an item whose load failed may be requested again
+        /// (failureCooldownFrames). It holds back every item, those with no fallback included.
+        std::int32_t mFailureCooldown = 0;
         bool mHeld = false;
         bool mLoading = false;
         bool mWanted = false;
@@ -114,6 +123,7 @@ namespace Lod
         // Committed bytes once the plan is applied (frees done, loads counted, releases subtracted).
         std::uint64_t mHeldAfter = 0;
         std::uint32_t mBlocked = 0; // replaceable candidates the budget left out this call
+        std::uint32_t mCooling = 0; // wanted items, not held or loading, that a cooldown held back this call
         bool mOverBudget = false;
 
     private:
@@ -150,6 +160,55 @@ namespace Lod
 
     /// A byte count for the log: "640 KiB", "24 MiB", "1.5 MiB" (one decimal below 10 MiB when not whole), "512 bytes".
     std::string describeBytes(std::uint64_t bytes);
+
+    /// The clusters' fallback (task 0060, second and third reviews): the live objects draw a cluster's cells only when
+    /// they page at all (`liveObjectsPage`: distant terrain and object paging on) and its square lies in their range,
+    /// with the hysteresis of squareReplaceable. With no live objects nothing is replaceable.
+    bool clusterReplaceable(bool previous, bool liveObjectsPage, double x, double y, double originX, double originY,
+        double side, double range) noexcept;
+
+    /// Is the free of a cluster that is fading out cancelled? An evicted cluster that is still drawn and has lost its
+    /// fallback during the hand-over is kept (its cells would have nothing behind them once it is hidden).
+    bool cancelEviction(bool evicted, bool drawn, bool replaceable) noexcept;
+
+    /// What a chosen child of a terrain tile refined to finer ones (TileChoice::Live) does for its part of the square
+    /// (task 0060, third review, finding 2).
+    enum class RefinedChild : std::uint8_t
+    {
+        Drawn, // drawn: it covers its part
+        LiveDraws, // not drawn, but the live terrain draws its square (wholly inside the live range)
+        Coming, // not drawn, in view and wanted: it will be built (the load cap may delay it a few frames)
+        OutOfView, // not drawn and not in view: not wanted until it is seen, so the parent must not wait for it
+        Failed, // not drawn, could not be built and past the live range: nothing else will ever draw its square
+    };
+
+    /// Classifies one child. `liveDrawsSquare`: the child's square lies wholly inside the live paging range.
+    RefinedChild classifyRefinedChild(bool drawn, bool liveDrawsSquare, bool failed, bool visible) noexcept;
+
+    /// May a refined parent go? Yes unless a child is still Coming (the parent covers its square until it is drawn)
+    /// or Failed (the parent stays for good: overlap with the drawn siblings is better than a hole). A child out of
+    /// view does not keep the parent: a parent kept for it would draw over the drawn siblings indefinitely.
+    bool refinedParentMayGo(std::span<const RefinedChild> children) noexcept;
+
+    /// One terrain tile, as refinementReleases needs it.
+    struct RefinementTile
+    {
+        std::int32_t mParent = -1; // nearest ancestor in the tile tree, -1 for a root
+        std::uint64_t mDrawBytes = 0; // what its draw held when last built
+        bool mDrawn = false;
+        bool mChosen = false; // the selection chooses it (TileChoice::Tile)
+        /// Drawn, refined, and staying for good (refinedParentMayGo is false because of a Failed child): its bytes
+        /// are not released by its children being drawn, so they get no share of them.
+        bool mStays = false;
+    };
+
+    /// What drawing each tile lets go (ResidencyItem::mReleasesBytes), the terrain client's rule as a pure function:
+    /// a coarsening (a chosen tile not yet drawn over drawn tiles that are no longer chosen) releases those tiles; a
+    /// refinement (chosen tiles not yet drawn under a drawn ancestor that is no longer chosen) releases a share of the
+    /// ancestor, split evenly over the missing tiles, unless the ancestor stays for good. `missing` and `releases` are
+    /// resized to the tile count and overwritten.
+    void refinementReleases(std::span<const RefinementTile> tiles, std::vector<std::uint32_t>& missing,
+        std::vector<std::uint64_t>& releases);
 }
 
 #endif

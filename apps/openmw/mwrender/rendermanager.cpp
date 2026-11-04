@@ -1900,7 +1900,9 @@ namespace MWRender
             coverage = mLodTerrain->update(camera);
         }
         const bool coverageChanged = coverage != nullptr && coverage->version != mLastCoverageVersion;
-        const auto rebuildStart = std::chrono::steady_clock::now();
+        // The clock is read only for a coverage change, the one case the timing line below reports (third review).
+        const auto rebuildStart
+            = coverageChanged ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
         Misc::LoadTrace::Scope traceUpdateView("terrain.updateview");
         auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage);
         traceUpdateView.end();

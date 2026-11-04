@@ -992,6 +992,11 @@ namespace
     // late with their true size, loads that fail and are retried after failureCooldownFrames, and replaceability from
     // each item's square through squareReplaceable as the camera moves. The client's rule that a leaving item which
     // lost its fallback is kept (the free cancelled) is mirrored here. Terrain is the separate test further down.
+    // The cluster client (MWRender::LodClusters::update) as the planner sees it, in the client's order (third review,
+    // finding 5): cooldowns count down first; then the loads that have arrived become draws, at most one a frame (the
+    // client's build cap); then the plan; then the hand-over: a cluster freed while wanted waits until the live objects
+    // draw its cells (only while it is replaceable) and then fades out. An entry starts not replaceable, as the
+    // client's tile does, and its square (default: near) decides it each frame.
     struct ClientSim
     {
         enum Phase
@@ -1010,22 +1015,26 @@ namespace
             bool mWantedBySelection = true;
             bool mFailing = false; // every load fails
             std::uint32_t mFailures = 0;
-            bool mHasSquare = false;
-            double mFarX = 0; // the square [mFarX - 1000, mFarX] x [0, 1000]
-            bool mReplaceable = true;
+            double mFarX = 1000; // the square [mFarX - 1000, mFarX] x [0, 1000]
+            bool mReplaceable = false;
             Phase mPhase = Absent;
             int mTimer = 0;
-            int mCooldown = 0;
+            int mLiveWait = 0; // frames of the hand-over before the live objects draw the cells
+            int mCooldown = 0; // eviction cooldown
+            int mFailureCooldown = 0;
             bool mEvicted = false;
+            bool mLoadDone = false;
         };
         std::vector<Entry> mEntries;
         std::vector<ResidencyItem> mItems;
         double mEyeX = 0;
         double mRange = 40000;
         int mLoadFrames = 3;
+        int mLiveFrames = 5;
         int mHandOverFrames = 25;
         int mEvictedFrames = 60;
         int mRetryFrames = 600;
+        std::size_t mBuildsPerFrame = 1;
         std::uint32_t mLoads = 0;
         std::vector<std::uint32_t> mFreesOf;
 
@@ -1033,19 +1042,50 @@ namespace
         {
             mFreesOf.resize(mEntries.size(), 0);
             mItems.resize(mEntries.size());
-            for (std::size_t i = 0; i < mEntries.size(); ++i)
+            // Cooldowns, the fallback, a cancelled free, and the loads in flight.
+            for (Entry& entry : mEntries)
             {
-                Entry& entry = mEntries[i];
-                if (entry.mHasSquare)
-                {
-                    entry.mReplaceable
-                        = squareReplaceable(entry.mReplaceable, mEyeX, 0, entry.mFarX - 1000, 0, 1000, mRange);
-                }
-                if (entry.mPhase == Leaving && entry.mEvicted && !entry.mReplaceable)
+                if (entry.mCooldown > 0)
+                    --entry.mCooldown;
+                if (entry.mFailureCooldown > 0)
+                    --entry.mFailureCooldown;
+                entry.mReplaceable
+                    = clusterReplaceable(entry.mReplaceable, true, mEyeX, 0, entry.mFarX - 1000, 0, 1000, mRange);
+                if (cancelEviction(entry.mEvicted, entry.mPhase == Leaving, entry.mReplaceable))
                 {
                     entry.mPhase = Held;
                     entry.mEvicted = false;
                 }
+                if (entry.mPhase == Loading && --entry.mTimer <= 0)
+                    entry.mLoadDone = true;
+            }
+            // Arrivals become draws before the plan, at most mBuildsPerFrame of them.
+            std::size_t builds = 0;
+            for (Entry& entry : mEntries)
+            {
+                if (entry.mPhase != Loading || !entry.mLoadDone || builds >= mBuildsPerFrame)
+                    continue;
+                entry.mLoadDone = false;
+                if (entry.mFailing)
+                {
+                    ++entry.mFailures;
+                    entry.mFailureCooldown = failureCooldownFrames(mRetryFrames, entry.mFailures);
+                    entry.mPhase = Absent;
+                    continue;
+                }
+                entry.mKnown = true;
+                if (!entry.mWantedBySelection || entry.mEvicted)
+                {
+                    entry.mPhase = Absent;
+                    continue;
+                }
+                entry.mFailures = 0;
+                entry.mPhase = Held;
+                ++builds;
+            }
+            for (std::size_t i = 0; i < mEntries.size(); ++i)
+            {
+                Entry& entry = mEntries[i];
                 ResidencyItem& item = mItems[i];
                 item = ResidencyItem{};
                 item.mHeld = entry.mPhase == Held || entry.mPhase == Leaving;
@@ -1055,6 +1095,7 @@ namespace
                 item.mReplaceable = entry.mReplaceable;
                 item.mPriority = entry.mPriority;
                 item.mCooldown = entry.mCooldown;
+                item.mFailureCooldown = entry.mFailureCooldown;
                 item.mFailures = entry.mFailures;
                 item.mIdleFrames = item.mWanted ? 0 : 1000;
                 item.mBytes = item.mHeld || entry.mKnown ? entry.mTrueBytes : entry.mEstimate;
@@ -1066,6 +1107,7 @@ namespace
                 if (entry.mPhase != Held)
                     continue;
                 entry.mPhase = Leaving;
+                entry.mLiveWait = mLiveFrames;
                 entry.mTimer = mHandOverFrames;
                 entry.mEvicted = entry.mWantedBySelection;
                 ++mFreesOf[index];
@@ -1074,26 +1116,21 @@ namespace
             {
                 mEntries[index].mPhase = Loading;
                 mEntries[index].mTimer = mLoadFrames;
+                mEntries[index].mLoadDone = false;
                 ++mLoads;
             }
+            // The hand-over: the live objects take the cells back (only while they reach them), then the fade.
             for (Entry& entry : mEntries)
             {
-                if (entry.mCooldown > 0)
-                    --entry.mCooldown;
-                if (entry.mPhase == Loading && --entry.mTimer <= 0)
+                if (entry.mPhase != Leaving)
+                    continue;
+                if (entry.mLiveWait > 0)
                 {
-                    if (entry.mFailing)
-                    {
-                        ++entry.mFailures;
-                        entry.mCooldown = failureCooldownFrames(mRetryFrames, entry.mFailures);
-                        entry.mPhase = Absent;
-                        continue;
-                    }
-                    entry.mFailures = 0;
-                    entry.mKnown = true;
-                    entry.mPhase = entry.mWantedBySelection && !entry.mEvicted ? Held : Absent;
+                    if (entry.mReplaceable)
+                        --entry.mLiveWait;
+                    continue;
                 }
-                else if (entry.mPhase == Leaving && --entry.mTimer <= 0)
+                if (--entry.mTimer <= 0)
                 {
                     entry.mPhase = Absent;
                     entry.mEvicted = false;
@@ -1144,10 +1181,8 @@ namespace
         params.mBudgetBytes = 10 * mebi;
         ClientSim sim;
         ClientSim::Entry y = clientEntry(6 * mebi, 100);
-        y.mHasSquare = true;
         y.mFarX = 5000;
         ClientSim::Entry x = clientEntry(6 * mebi, 500);
-        x.mHasSquare = true;
         x.mFarX = sim.mRange;
         sim.mEntries = { y, x };
         ResidencyPlan result;
@@ -1168,7 +1203,6 @@ namespace
         params.mBudgetBytes = 10 * mebi;
         ClientSim sim;
         ClientSim::Entry y = clientEntry(6 * mebi, 5000);
-        y.mHasSquare = true;
         y.mFarX = 20000;
         sim.mEntries = { y };
         ResidencyPlan result;
@@ -1250,5 +1284,269 @@ namespace
         EXPECT_EQ(freesOfX, 0u);
         EXPECT_EQ(overBudget, 0u);
         EXPECT_TRUE(drawn[5]);
+    }
+}
+
+// Task 0060, third review: the eviction cooldown never holds back an item with no fallback (finding 1), a failing item
+// with no fallback starts no pressure (finding 3), and the client rules extracted as pure functions (findings 2 and 5).
+namespace
+{
+    using namespace Lod;
+
+    constexpr std::uint64_t mbyte = 1024ull * 1024;
+
+    ResidencyItem absent3(std::uint64_t bytes, float priority, bool replaceable)
+    {
+        ResidencyItem item;
+        item.mBytes = bytes;
+        item.mPriority = priority;
+        item.mWanted = true;
+        item.mReplaceable = replaceable;
+        return item;
+    }
+
+    ResidencyItem held3(std::uint64_t bytes, float priority, bool replaceable)
+    {
+        ResidencyItem item = absent3(bytes, priority, replaceable);
+        item.mHeld = true;
+        return item;
+    }
+
+    TEST(LodResidencyCooldown, an_item_with_no_fallback_ignores_the_eviction_cooldown)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        ResidencyItem item = absent3(4 * mbyte, 5000, false);
+        item.mCooldown = 60;
+        ResidencyPlan result;
+        planResidency(std::vector<ResidencyItem>{ item }, params, result);
+        ASSERT_EQ(result.mLoad.size(), 1u);
+        EXPECT_EQ(result.mCooling, 0u);
+    }
+
+    TEST(LodResidencyCooldown, a_replaceable_item_in_eviction_cooldown_waits_and_is_counted)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        ResidencyItem item = absent3(4 * mbyte, 5000, true);
+        item.mCooldown = 60;
+        ResidencyPlan result;
+        planResidency(std::vector<ResidencyItem>{ item }, params, result);
+        EXPECT_TRUE(result.mLoad.empty());
+        EXPECT_EQ(result.mCooling, 1u);
+        EXPECT_EQ(result.mBlocked, 0u);
+    }
+
+    TEST(LodResidencyCooldown, the_failure_back_off_holds_back_an_item_with_no_fallback_too)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        ResidencyItem item = absent3(4 * mbyte, 5000, false);
+        item.mFailures = 2;
+        item.mFailureCooldown = 1200;
+        ResidencyPlan result;
+        planResidency(std::vector<ResidencyItem>{ item }, params, result);
+        EXPECT_TRUE(result.mLoad.empty());
+        EXPECT_EQ(result.mCooling, 1u);
+    }
+
+    TEST(LodResidencyCooldown, with_no_budget_a_cooling_item_is_held_back_as_before)
+    {
+        ResidencyItem item = absent3(4 * mbyte, 5000, true);
+        item.mFailureCooldown = 10;
+        ResidencyPlan result;
+        planResidency(std::vector<ResidencyItem>{ item }, ResidencyParams{}, result);
+        EXPECT_TRUE(result.mLoad.empty());
+    }
+
+    // Two replaceable held items (6 and 3 MiB) under a 10 MiB budget, and a far item with no fallback whose loads
+    // failed before. Its estimate must not push the others out: the load may fail again.
+    TEST(LodResidencyFailures, a_failing_candidate_with_no_fallback_starts_no_pressure)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        ResidencyItem failing = absent3(4 * mbyte, 50000, false);
+        failing.mFailures = 2;
+        const std::vector<ResidencyItem> items = { held3(6 * mbyte, 100, true), held3(3 * mbyte, 200, true), failing };
+        ResidencyPlan result;
+        planResidency(items, params, result);
+        ASSERT_EQ(result.mLoad.size(), 1u);
+        EXPECT_EQ(result.mLoad[0], 2u);
+        EXPECT_TRUE(result.mFree.empty());
+        EXPECT_FALSE(result.mOverBudget);
+    }
+
+    TEST(LodResidencyFailures, a_loading_failing_item_with_no_fallback_starts_no_pressure)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        ResidencyItem failing = absent3(4 * mbyte, 50000, false);
+        failing.mFailures = 1;
+        failing.mLoading = true;
+        const std::vector<ResidencyItem> items = { held3(6 * mbyte, 100, true), held3(3 * mbyte, 200, true), failing };
+        ResidencyPlan result;
+        planResidency(items, params, result);
+        EXPECT_TRUE(result.mFree.empty());
+        EXPECT_FALSE(result.mOverBudget);
+    }
+
+    TEST(LodResidencyFailures, once_held_its_bytes_count_again)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        const std::vector<ResidencyItem> items
+            = { held3(6 * mbyte, 100, true), held3(3 * mbyte, 200, true), held3(4 * mbyte, 50000, false) };
+        ResidencyPlan result;
+        planResidency(items, params, result);
+        // 13 MiB: pressure frees down to the low water mark (9 MiB), so both replaceable ones go (the farther first);
+        // the one with no fallback stays (4 MiB held after the plan).
+        ASSERT_EQ(result.mFree.size(), 2u);
+        EXPECT_EQ(result.mFree[0], 1u);
+        EXPECT_EQ(result.mFree[1], 0u);
+        EXPECT_EQ(result.mHeldAfter, 4 * mbyte);
+    }
+
+    TEST(LodClusterFallback, nothing_is_replaceable_without_live_objects)
+    {
+        EXPECT_FALSE(clusterReplaceable(true, false, 0, 0, 0, 0, 1000, 40000));
+        EXPECT_TRUE(clusterReplaceable(true, true, 0, 0, 0, 0, 1000, 40000));
+        // Not replaceable before: it must lie inside the range less the margin.
+        EXPECT_FALSE(clusterReplaceable(false, true, 0, 0, 39000, 0, 900, 40000));
+        EXPECT_TRUE(clusterReplaceable(true, true, 0, 0, 39000, 0, 900, 40000));
+    }
+
+    TEST(LodClusterFallback, a_free_is_cancelled_only_for_a_drawn_cluster_that_lost_its_fallback)
+    {
+        EXPECT_TRUE(cancelEviction(true, true, false));
+        EXPECT_FALSE(cancelEviction(true, true, true));
+        EXPECT_FALSE(cancelEviction(true, false, false));
+        EXPECT_FALSE(cancelEviction(false, true, false));
+    }
+
+    TEST(LodRefinement, a_child_is_classified_by_what_draws_its_square)
+    {
+        EXPECT_EQ(classifyRefinedChild(true, false, true, false), RefinedChild::Drawn);
+        EXPECT_EQ(classifyRefinedChild(false, true, true, false), RefinedChild::LiveDraws);
+        EXPECT_EQ(classifyRefinedChild(false, false, true, true), RefinedChild::Failed);
+        EXPECT_EQ(classifyRefinedChild(false, false, false, false), RefinedChild::OutOfView);
+        EXPECT_EQ(classifyRefinedChild(false, false, false, true), RefinedChild::Coming);
+    }
+
+    TEST(LodRefinement, a_parent_waits_for_coming_children_and_stays_for_failed_ones_only)
+    {
+        const RefinedChild ready[] = { RefinedChild::Drawn, RefinedChild::LiveDraws, RefinedChild::OutOfView };
+        EXPECT_TRUE(refinedParentMayGo(ready));
+        const RefinedChild coming[] = { RefinedChild::Drawn, RefinedChild::Coming };
+        EXPECT_FALSE(refinedParentMayGo(coming));
+        const RefinedChild failed[] = { RefinedChild::Drawn, RefinedChild::Failed };
+        EXPECT_FALSE(refinedParentMayGo(failed));
+        EXPECT_TRUE(refinedParentMayGo(std::span<const RefinedChild>{}));
+    }
+
+    std::vector<RefinementTile> familyOfFive()
+    {
+        // 0: the parent (8 MiB); 1 to 4: its children (2 MiB each).
+        std::vector<RefinementTile> tiles(5);
+        tiles[0].mDrawBytes = 8 * mbyte;
+        for (std::size_t i = 1; i < 5; ++i)
+        {
+            tiles[i].mParent = 0;
+            tiles[i].mDrawBytes = 2 * mbyte;
+        }
+        return tiles;
+    }
+
+    TEST(LodRefinement, a_coarsening_releases_the_drawn_children)
+    {
+        std::vector<RefinementTile> tiles = familyOfFive();
+        tiles[0].mChosen = true;
+        for (std::size_t i = 1; i < 5; ++i)
+            tiles[i].mDrawn = true;
+        std::vector<std::uint32_t> missing;
+        std::vector<std::uint64_t> releases;
+        refinementReleases(tiles, missing, releases);
+        ASSERT_EQ(releases.size(), 5u);
+        EXPECT_EQ(releases[0], 8 * mbyte);
+        for (std::size_t i = 1; i < 5; ++i)
+            EXPECT_EQ(releases[i], 0u);
+    }
+
+    TEST(LodRefinement, a_refinement_splits_the_parent_over_the_missing_children)
+    {
+        std::vector<RefinementTile> tiles = familyOfFive();
+        tiles[0].mDrawn = true;
+        for (std::size_t i = 1; i < 5; ++i)
+            tiles[i].mChosen = true;
+        tiles[1].mDrawn = true;
+        tiles[2].mDrawn = true;
+        std::vector<std::uint32_t> missing;
+        std::vector<std::uint64_t> releases;
+        refinementReleases(tiles, missing, releases);
+        ASSERT_EQ(missing.size(), 5u);
+        EXPECT_EQ(missing[0], 2u);
+        EXPECT_EQ(releases[3], 4 * mbyte);
+        EXPECT_EQ(releases[4], 4 * mbyte);
+        EXPECT_EQ(releases[1], 0u);
+    }
+
+    TEST(LodRefinement, a_parent_that_stays_for_good_gives_its_children_no_share)
+    {
+        std::vector<RefinementTile> tiles = familyOfFive();
+        tiles[0].mDrawn = true;
+        tiles[0].mStays = true;
+        for (std::size_t i = 1; i < 5; ++i)
+            tiles[i].mChosen = true;
+        tiles[1].mDrawn = true;
+        std::vector<std::uint32_t> missing;
+        std::vector<std::uint64_t> releases;
+        refinementReleases(tiles, missing, releases);
+        EXPECT_EQ(missing[0], 3u);
+        for (std::size_t i = 0; i < 5; ++i)
+            EXPECT_EQ(releases[i], 0u);
+    }
+
+    TEST(LodRefinement, a_grandchild_finds_the_drawn_ancestor_above_an_undrawn_parent)
+    {
+        // 0 drawn and refined; 1 neither drawn nor chosen (refined further); 2 chosen under 1, not drawn.
+        std::vector<RefinementTile> tiles(3);
+        tiles[0].mDrawn = true;
+        tiles[0].mDrawBytes = 8 * mbyte;
+        tiles[1].mParent = 0;
+        tiles[2].mParent = 1;
+        tiles[2].mChosen = true;
+        std::vector<std::uint32_t> missing;
+        std::vector<std::uint64_t> releases;
+        refinementReleases(tiles, missing, releases);
+        EXPECT_EQ(missing[0], 1u);
+        EXPECT_EQ(releases[2], 8 * mbyte);
+    }
+
+    // The review's scenario for finding 1: Y is freed for a nearer item while replaceable and fades out; the camera
+    // then moves so Y's square leaves the live range. Y has no fallback now and must come back at once, not after the
+    // eviction cooldown.
+    TEST(LodResidencySim, an_item_that_loses_its_fallback_after_its_hand_over_comes_back_at_once)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 10 * mbyte;
+        ClientSim sim;
+        ClientSim::Entry y = clientEntry(6 * mbyte, 5000);
+        y.mFarX = 20000;
+        sim.mEntries = { y };
+        ResidencyPlan result;
+        for (int frame = 0; frame < 10; ++frame)
+            sim.step(params, result);
+        ASSERT_EQ(sim.mEntries[0].mPhase, ClientSim::Held);
+        sim.mEntries.push_back(clientEntry(6 * mbyte, 10));
+        sim.step(params, result);
+        ASSERT_EQ(sim.mEntries[0].mPhase, ClientSim::Leaving);
+        for (int frame = 0; frame < 200 && sim.mEntries[0].mPhase != ClientSim::Absent; ++frame)
+            sim.step(params, result);
+        ASSERT_EQ(sim.mEntries[0].mPhase, ClientSim::Absent);
+        ASSERT_GT(sim.mEntries[0].mCooldown, 0);
+        sim.mEyeX = -30000; // Y's far corner is now 50000 away: past the range
+        int frames = 0;
+        for (; frames < 200 && sim.mEntries[0].mPhase != ClientSim::Held; ++frames)
+            sim.step(params, result);
+        EXPECT_LE(frames, sim.mLoadFrames + 2);
     }
 }

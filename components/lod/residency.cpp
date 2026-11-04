@@ -45,6 +45,14 @@ namespace Lod
             return item.mLoading || (item.mHeld && !item.mLeaving);
         }
 
+        // Does a load in flight (or one this plan starts) count its estimate? Not for an item with no fallback whose
+        // loads failed before: it is admitted whatever the budget says, and a load that fails again must not start
+        // pressure on the others (third review, finding 3). Its bytes count once it is held.
+        bool loadCounts(const ResidencyItem& item) noexcept
+        {
+            return item.mReplaceable || item.mFailures == 0;
+        }
+
         Committed committedNow(std::span<const ResidencyItem> items, const std::vector<std::uint8_t>& gone) noexcept
         {
             Committed result;
@@ -52,12 +60,23 @@ namespace Lod
             {
                 if (!isCommitted(items[i], gone[i]))
                     continue;
-                result.mBytes = addSaturating(result.mBytes, items[i].mBytes);
-                if (gone[i] == goneAdmitted || items[i].mLoading)
-                    result.mReleases = addSaturating(result.mReleases, items[i].mReleasesBytes);
                 ++result.mCount;
+                const bool loading = gone[i] == goneAdmitted || items[i].mLoading;
+                if (loading && !loadCounts(items[i]))
+                    continue;
+                result.mBytes = addSaturating(result.mBytes, items[i].mBytes);
+                if (loading)
+                    result.mReleases = addSaturating(result.mReleases, items[i].mReleasesBytes);
             }
             return result;
+        }
+
+        // Is a wanted item that is not held or loading held back by a cooldown? The eviction cooldown holds back
+        // replaceable items only (one with no fallback would leave its square undrawn; third review, finding 1); the
+        // failure back-off holds back every item.
+        bool coolingDown(const ResidencyItem& item) noexcept
+        {
+            return item.mFailureCooldown > 0 || (item.mCooldown > 0 && item.mReplaceable);
         }
 
         // Would `committed` minus `freed` minus `released` plus `need` stay at or under `limit`?
@@ -115,6 +134,7 @@ namespace Lod
         plan.mLoad.clear();
         plan.mHeldAfter = 0;
         plan.mBlocked = 0;
+        plan.mCooling = 0;
         plan.mOverBudget = false;
         plan.mGone.assign(items.size(), 0);
 
@@ -146,8 +166,13 @@ namespace Lod
             const ResidencyItem& item = items[i];
             if (item.mLoading)
                 ++inFlight;
-            else if (!item.mHeld && item.mWanted && item.mCooldown <= 0)
-                plan.mScratch.push_back(static_cast<std::uint32_t>(i));
+            else if (!item.mHeld && item.mWanted)
+            {
+                if (coolingDown(item))
+                    ++plan.mCooling;
+                else
+                    plan.mScratch.push_back(static_cast<std::uint32_t>(i));
+            }
         }
         if (params.mNearestFirst)
         {
@@ -213,8 +238,11 @@ namespace Lod
             }
             plan.mGone[candidate] = goneAdmitted;
             plan.mLoad.push_back(candidate);
-            committed.mBytes = addSaturating(committed.mBytes, item.mBytes);
-            committed.mReleases = addSaturating(committed.mReleases, item.mReleasesBytes);
+            if (loadCounts(item))
+            {
+                committed.mBytes = addSaturating(committed.mBytes, item.mBytes);
+                committed.mReleases = addSaturating(committed.mReleases, item.mReleasesBytes);
+            }
             ++committed.mCount;
             ++inFlight;
             ++started;
@@ -294,6 +322,90 @@ namespace Lod
         if (previous)
             return squareWithinRange(x, y, originX, originY, side, range);
         return squareWithinRange(x, y, originX, originY, side, range - replaceableMargin(range));
+    }
+
+    bool clusterReplaceable(bool previous, bool liveObjectsPage, double x, double y, double originX, double originY,
+        double side, double range) noexcept
+    {
+        return liveObjectsPage && squareReplaceable(previous, x, y, originX, originY, side, range);
+    }
+
+    bool cancelEviction(bool evicted, bool drawn, bool replaceable) noexcept
+    {
+        return evicted && drawn && !replaceable;
+    }
+
+    RefinedChild classifyRefinedChild(bool drawn, bool liveDrawsSquare, bool failed, bool visible) noexcept
+    {
+        if (drawn)
+            return RefinedChild::Drawn;
+        if (liveDrawsSquare)
+            return RefinedChild::LiveDraws;
+        if (failed)
+            return RefinedChild::Failed;
+        return visible ? RefinedChild::Coming : RefinedChild::OutOfView;
+    }
+
+    bool refinedParentMayGo(std::span<const RefinedChild> children) noexcept
+    {
+        for (const RefinedChild child : children)
+        {
+            if (child == RefinedChild::Coming || child == RefinedChild::Failed)
+                return false;
+        }
+        return true;
+    }
+
+    void refinementReleases(std::span<const RefinementTile> tiles, std::vector<std::uint32_t>& missing,
+        std::vector<std::uint64_t>& releases)
+    {
+        missing.assign(tiles.size(), 0);
+        releases.assign(tiles.size(), 0);
+        // The nearest ancestor of a tile, or none; a bad index ends the walk.
+        const auto parentOf = [&tiles](std::int32_t index) -> std::int32_t {
+            const std::int32_t parent = tiles[static_cast<std::size_t>(index)].mParent;
+            return parent >= 0 && static_cast<std::size_t>(parent) < tiles.size() ? parent : -1;
+        };
+        // A coarsening: a drawn tile that is no longer chosen goes once its nearest chosen ancestor is drawn, so it is
+        // that ancestor's release. A refinement: a chosen tile not yet drawn is missing from its nearest drawn
+        // ancestor that is no longer chosen.
+        for (std::size_t j = 0; j < tiles.size(); ++j)
+        {
+            const RefinementTile& tile = tiles[j];
+            if (!tile.mDrawn && !tile.mChosen)
+                continue;
+            for (std::int32_t p = parentOf(static_cast<std::int32_t>(j)); p >= 0; p = parentOf(p))
+            {
+                const RefinementTile& parent = tiles[static_cast<std::size_t>(p)];
+                if (tile.mDrawn && !tile.mChosen && parent.mChosen)
+                {
+                    if (!parent.mDrawn)
+                        releases[static_cast<std::size_t>(p)] += tile.mDrawBytes;
+                    break;
+                }
+                if (!tile.mDrawn && tile.mChosen && parent.mDrawn && !parent.mChosen)
+                {
+                    ++missing[static_cast<std::size_t>(p)];
+                    break;
+                }
+            }
+        }
+        // Each missing tile gets an even share of the ancestor it replaces, unless that ancestor stays for good.
+        for (std::size_t j = 0; j < tiles.size(); ++j)
+        {
+            if (tiles[j].mDrawn || !tiles[j].mChosen)
+                continue;
+            for (std::int32_t p = parentOf(static_cast<std::int32_t>(j)); p >= 0; p = parentOf(p))
+            {
+                const auto parent = static_cast<std::size_t>(p);
+                if (tiles[parent].mDrawn && !tiles[parent].mChosen)
+                {
+                    if (missing[parent] > 0 && !tiles[parent].mStays)
+                        releases[j] += tiles[parent].mDrawBytes / missing[parent];
+                    break;
+                }
+            }
+        }
     }
 
     std::int32_t failureCooldownFrames(std::int32_t baseFrames, std::uint32_t failures) noexcept
