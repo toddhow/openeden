@@ -543,7 +543,11 @@ each commit.
   a decision for toddhow (below).
 - **Finding 3, the inventory doll's quiver:** `Preview::animate` now calls `updatePendingQuiver` after `update(0)`
   (`Preview::rebuild`'s `show(Weapon, true)` asks for a change with sheathing on; the doll is no `Scene` object). The guide
-  and `partcontrollers.hpp` name all three callers. Not tested (a `Preview` needs the render context); off by default.
+  and `partcontrollers.hpp` name all three callers. Not tested (a `Preview` needs the render context); off by default. **No in-game before and after:** `updateQuiver`
+  returns at once for an actor without the bone `Bip01 Ammo` (`npc.cpp`, `Npc::updateQuiver`), and the base skeletons
+  of Morrowind (`xbase_anim.nif`, `base_anim.nif`, `base_anim_female.nif`, `base_animkna.nif`, byte search) do not
+  contain that name, nor do the three archives hold any `*_sh.nif` sheath model: the doll draws no quiver on this data,
+  so a frame could not differ.
 - **Finding 4, the main-thread loops are reached by tests:** `MWAnim::Object::updateOnMainThread()` (virtual, empty);
   `Npc` overrides it with `updatePendingQuiver`; `Scene::update` calls it for every actor object after
   `UpdateThreads::run` (replacing the per-actor `dynamic_cast`) and `Player::update` calls it on itself.
@@ -567,8 +571,8 @@ each commit.
     `meshes/xbase_anim.1st.nif` or `animations/xbase_anim.1st/*.nif` gives "Failed to start new game"), so a toggle reads
     only cached files and cannot throw.
   - **The werewolf's skeleton and animations** (`meshes/wolf/skin.nif`): a bad Eden Archive entry does not make the rebuild
-    throw (`npc.readactor` takes 0.003 ms in the traced werewolf rebuild, so the read is served from a cache; why it is
-    cached when the first-person file is not was not found); only the werewolf's body part reads of the same file throw, and
+    throw (`npc.readactor` takes 0.003 ms in the traced werewolf rebuild, so the read is probably served from a cache: an
+    inference, not shown; why it would be cached when the first-person file is not was not found); only the werewolf's body part reads of the same file throw, and
     those are caught per part since 0074e.
   - **The werewolf's custom-bone file** works: a bad entry `animations/wolf/skin/oe_bad_bones.nif` in an Eden Archive,
     `[Game] weapon sheathing = true`, and the player turned into a werewolf by `Player->BecomeWerewolf` in a start script
@@ -578,8 +582,8 @@ each commit.
 
     | Executable | Result |
     | --- | --- |
-    | `openmw-0074e-before.exe` (before 0074e's finding 1) | "Execution of script oe_wolfstart failed: Failed to read ...", then a crash dump (exit 124: the harness gave up): the rebuild threw after the old `Play` was freed. The dump was not decoded |
-    | `openmw-0074e-after.exe` (0074e) | the same error once, exit 0, no dump: 0074e's finding 1 is proven in game |
+    | `openmw-0074e-before.exe` (before 0074e's finding 1) | "Execution of script oe_wolfstart failed: Failed to read ...", then a crash dump (exit 124: the harness gave up): consistent with the use after free of 0074e's finding 1 (the throw was caught by mwscript, the game ran on and then wrote a dump); the dump was not decoded (no PDB for this executable) |
+    | `openmw-0074e-after.exe` (0074e) | the same error once, exit 0, no dump: consistent with 0074e's finding 1 working (the game ran on after the throw) |
     | `openmw-0074f-before.exe` (this task's stub tree: 0074e plus inert seams) | the same, once; the later equipment changes log nothing: the actor never retries |
     | `openmw-0074f-after2.exe` (the five commits) | the first error, then one "Error in DelayedAction SetEquipmentAction: Failed to read ..." per equipment change, exit 0, no dump: finding 2 retries |
 - **Finding 7, the mutation evidence:** the five mutations of the 0074e log are rebuilt as real unified diffs of the
@@ -600,8 +604,8 @@ each commit.
   | 0074e: `addItemPart` passes no light | `...a_carried_flickering_light_item_gives_the_creature_one_flickering_light` |
   | 0074e: `detachPart`'s Weapon case removed | `...a_weapon_inserted_and_removed_in_one_update_leaves_the_weapon_list` |
   | 0074e: `runRebuild` without `refresh` on a throw | `NpcRebuildTest.when_the_part_update_throws_...` and `PlanCommitTest.a_throw_in_the_part_update_...` |
-  | finding 7: `insertBoundedPart` rethrows | `PartFailuresTest`, `PartReadErrorsTest`, `AttachAmmoTest` cases |
-  | finding 7: `addItemPart` rethrows | `CreaturePartReadErrorsTest`, `CreaturePartFailuresTest`, `CreatureAttachAmmoTest` |
+  | finding 7: `insertBoundedPart` rethrows | 8: 3 `AttachAmmoTest`, 4 `PartFailuresTest`, `PartReadErrorsTest.a_part_whose_model_read_throws_is_skipped_and_the_parts_around_it_are_kept` |
+  | finding 7: `addItemPart` rethrows | 3: one each of `CreaturePartReadErrorsTest`, `CreaturePartFailuresTest`, `CreatureAttachAmmoTest` |
   | finding 9: `addEnv` without a colour | `CreatureGlowTest.a_weapon_with_no_glow_colour_on_a_transparent_creature_gets_no_object_data` |
   | 0074f finding 5: `attachPart` does not return after a failed read | 4 `PartFailuresTest` |
   | 0074f finding 1: Npc clears nothing / creature clears nothing | 5 `AttachAmmoTest` / 2 `CreatureAttachAmmoTest` |
@@ -614,16 +618,22 @@ each commit.
   matters with `[Game] weapon sheathing` (off by default). The quiver change is not a frame later than before: it runs in
   the same `Scene::update`, right after the workers, and `Player::update` runs before it in `RenderManager::update`; the
   only difference is that it now runs after `Wielding::update` and `mFace->update` instead of inside `Npc::update` (done at
-  the end of the actor's update). No "one frame later" is in this log, the guide or the changelog at `a24b553975`.
+  the end of the actor's update). I found no "one frame later" (or "frame later") about the quiver in the repository at `a24b553975`, in any commit
+  message of 0074e or in the code comments (`git grep`; the only hit in this log is 0074c's unrelated light flicker), so
+  the phrase was probably in a report and not in a file; the statement above is the correct one.
 - **Found on the way, NOT fixed (outside the review):** `Actor::assignBones` (`components/mwanimation/actor.hpp`) is not
   virtual, so `Npc::applyBasePlan`'s call never reaches `Player::assignBones` (which sets the first-person neck bone
   `mNeck`). 0074e's review wrote "assignBones virtual so Player::assignBones still runs": it does not. `Player::setViewMode`
   calls `assignBones()` itself, but a rebuild through `RenderManager::rebuildPtr` (the werewolf and vampire changes:
   `MechanicsManager::setWerewolf`, `World::reattachPlayerCamera`) leaves `mNeck` pointing into the freed `Play` when the
   player is in first person, and `Player::manualAnimation` crashes in `MWAnim::Play::isRotationControlled`
-  (`player.cpp:50`, `play.cpp:95`, read from the crash dump of `Player->BecomeWerewolf` in first person with good data;
-  `0074d`-before and `0074e`-before crash the same way, so it is not from 0074e or 0074f). Fix proposed: make
-  `Actor::assignBones` virtual. Not done: it is inherited code outside the task.
+  (`player.cpp:50`, `play.cpp:95`, read from the decoded crash dump of `Player->BecomeWerewolf` in first person with good data;
+  `0074d`-before and `0074e`-before also crash in this scene; their dumps were not decoded, no PDB, so the same site is
+  likely, not shown). Fix proposed: make
+  `Actor::assignBones` virtual. A second route, from reading the code and not run: when the player toggles from first
+  person back to third and the part update throws after the swap, `setViewMode` exits before its own `assignBones()`,
+  and `mNeck` still points into the freed first-person `Play` (also true in 0074e); the same fix closes it. Not done: it
+  is inherited code outside the task.
 - **Final checks:** `SCENE=equipment`, stock and merged, `openmw-0074f-after3.exe` (HEAD `28d5607dde` plus other
   sessions' uncommitted renderer files; `runs\equip`): both exit 0 with no dump, 49 frames each, 32 actors draw the merged
   body; frames 009 (stock and merged), 045 (stock) and 046 (merged) viewed: no chest through the pants or loincloth, the

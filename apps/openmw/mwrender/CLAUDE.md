@@ -432,7 +432,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   provoked in game by a file only the rebuild reads: the werewolf's custom-bone files (with `[Game] weapon sheathing`,
   `animations/wolf/skin/<name>.nif` as a failing Eden Archive entry) and a werewolf player (`Player->BecomeWerewolf` from
   a start script, third person; `SetWerewolf` is no command). The first-person files are read when the game starts and
-  the werewolf's skeleton is served from a cache, so neither throws (task 0074f, finding 6).
+  the werewolf's skeleton is probably served from a cache (a 0.003 ms trace scope, not shown), so neither throws (task 0074f, finding 6).
 - **The slot bookkeeping is `PartSlots`** (`partslots.*`, task 0069 stage e review): which inventory group holds each
   part slot and at what priority, the equipment pass (`wear`: slot list, priorities, robe and skirt reservations,
   part-less parts), the race's body parts (`addBodyParts`) and the merged body taking its slots (`releaseBodyParts`),
